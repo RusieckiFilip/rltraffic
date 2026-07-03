@@ -1,0 +1,11 @@
+{
+    "network": "grid4x4",
+    "interval": 1.0,
+    "seed": 0,
+    "dir": "scenarios/grid4x4/",
+    "roadnetFile": "grid4x4_roadnet_red.json",
+    "flowFile": "grid4x4_flow.json",
+    "rlTrafficLight": true,
+    "saveReplay": false,
+    "laneChange": false
+}

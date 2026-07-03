@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "zpp-traffic-control"
+version = "0.1.0"
+description = "Gymnasium environments for traffic signal control with CityFlow, SUMO, and MOSS backends"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+dependencies = [
+    "gymnasium>=0.29.0",
+    "numpy>=1.24.0",
+    # cityflow — install from vendored CityFlow/: cd CityFlow && pip install .
+    "torch>=2.8.0",
+    "traci>=1.26.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov",
+]
+viz = [
+    "matplotlib>=3.7",
+]
+
+[tool.pytest.ini_options]
+# Keep collection out of the vendored CityFlow/ tree (its pybind11 test
+# suite fails to collect without its own build environment).
+testpaths = ["tests"]
+
+[tool.setuptools]
+py-modules = ["rewards"]
+
+[tool.setuptools.packages.find]
+include = [
+    "agent*",
+    "algorithms*",
+    "envs*",
+    "experiments*",
+    "metrics*",
+    "states*",
+    "utils*",
+]

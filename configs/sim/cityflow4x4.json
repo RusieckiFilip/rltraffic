@@ -1,0 +1,11 @@
+{
+    "network": "hz4x4",
+    "interval": 1.0,
+    "seed": 0,
+    "dir": "scenarios/hangzhou_4x4_gudang_18041610_1h/",
+    "roadnetFile": "roadnet_4X4.json",
+    "flowFile": "hangzhou_4x4_gudang_18041610_1h.json",
+    "rlTrafficLight": true,
+    "saveReplay": false,
+    "laneChange": false
+}

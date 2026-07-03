@@ -1,0 +1,20 @@
+{
+  "name": "smoke",
+  "seeds": [7],
+  "defaults": {
+    "train_episodes": 2,
+    "eval_episodes": 1,
+    "max_steps": 60,
+    "delta_time": 10,
+    "control_mode": "acyclic",
+    "global_reward_fn": "queue_length",
+    "compare_with": ["random", "max_pressure"]
+  },
+  "environments": [
+    { "id": "cf_1x1", "backend": "cityflow", "config": "../../configs/sim/cityflow1x1.json" }
+  ],
+  "agents": [
+    { "id": "dqn", "type": "dqn", "params": { "lr": 0.001, "epsilon_decay_steps": 120 } },
+    { "id": "ippo", "type": "ippo", "params": { "lr": 0.0003, "rollout_size": 128, "minibatch_size": 64 } }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+    "interval": 1.0,
+    "seed": 0,
+    "dir": "scenarios/template_lsr/1_3_length/",
+    "roadnetFile": "roadnet_1_3.json",
+    "flowFile": "anon_1_3_700_0.3_synthetic.json",
+    "rlTrafficLight": true,
+    "saveReplay": false,
+    "laneChange": false
+}

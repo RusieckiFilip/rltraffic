@@ -1,0 +1,26 @@
+{
+  "name": "cologne_compare",
+  "seeds": [7, 8, 9],
+  "output_dir": "output/experiments",
+  "defaults": {
+    "train_episodes": 10,
+    "eval_episodes": 4,
+    "max_steps": 360,
+    "delta_time": 10,
+    "control_mode": "acyclic",
+    "global_reward_fn": "queue_length",
+    "state_features": ["lane_vehicle_count", "lane_waiting", "phase_onehot"],
+    "device": "cpu",
+    "compare_with": ["random", "max_pressure"]
+  },
+  "environments": [
+    { "id": "cologne3", "backend": "cityflow", "config": "../../configs/sim/cityflow_cologne3.json" },
+    { "id": "grid4x4", "backend": "cityflow", "config": "../../configs/sim/cityflow_grid4x4.json",
+      "overrides": { "max_steps": 240 } }
+  ],
+  "agents": [
+    { "id": "dqn", "type": "dqn", "params": { "lr": 0.001 } },
+    { "id": "ippo", "type": "ippo", "params": { "lr": 0.0003 } },
+    { "id": "mappo", "type": "mappo", "params": { "lr": 0.0003 } }
+  ]
+}

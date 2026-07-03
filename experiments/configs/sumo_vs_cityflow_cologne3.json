@@ -1,0 +1,28 @@
+{
+  "name": "sumo_vs_cityflow_cologne3",
+  "seeds": [7, 8, 9],
+  "output_dir": "output/experiments",
+  "defaults": {
+    "train_episodes": 100,
+    "eval_episodes": 3,
+    "max_steps": 360,
+    "delta_time": 10,
+    "control_mode": "acyclic",
+    "global_reward_fn": "queue_length",
+    "metrics": ["average_travel_time"],
+    "state_features": ["lane_vehicle_count", "lane_waiting", "phase_onehot"],
+    "device": "cpu",
+    "compare_with": ["random"]
+  },
+  "environments": [
+    { "id": "cityflow_cologne3", "backend": "cityflow",
+      "config": "../../configs/sim/cityflow_cologne3.json" },
+    { "id": "sumo_cologne3", "backend": "sumo",
+      "config": "../../scenarios/cologne3/cologne3.sumocfg",
+      "overrides": { "libsumo": true } }
+  ],
+  "agents": [
+    { "id": "dqn",  "type": "dqn",  "params": { "lr": 0.001 } },
+    { "id": "ippo", "type": "ippo", "params": { "lr": 0.0003 } }
+  ]
+}

@@ -1,0 +1,9 @@
+<configuration>
+  <input>
+    <net-file value="BB5B.net.xml"/>
+  </input>
+  <time>
+    <begin value="25200"/>
+    <end value="28800"/>
+  </time>
+</configuration>

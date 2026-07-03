@@ -1,0 +1,10 @@
+{
+    "network": "cologne3",
+    "interval": 1.0,
+    "seed": 0,
+    "dir": "scenarios/cologne3/",
+    "roadnetFile": "cologne3_roadnet_red.json",
+    "flowFile": "cologne3_flow.json",
+    "rlTrafficLight": true,
+    "saveReplay": false
+}

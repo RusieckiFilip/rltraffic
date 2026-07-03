@@ -1,0 +1,1121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on Isnin 08 Feb 2021 04:50:28  +08 by Eclipse SUMO netedit Version v1_6_0+1709-fbf258c
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/netconvertConfiguration.xsd">
+
+    <input>
+        <sumo-net-file value="/home/ubuntu/Desktop/George_tmp2/BB%20Arterial%20Flow%20Study/mqttSumo_arterial/DataFixed/BB5B.net.xml"/>
+    </input>
+
+    <output>
+        <output-file value="/home/ubuntu/Desktop/George_tmp2/BB%20Arterial%20Flow%20Study/mqttSumo_arterial/DataFixed/BB5B.net.xml"/>
+    </output>
+
+    <processing>
+        <geometry.min-radius.fix.railways value="false"/>
+        <geometry.max-grade.fix value="false"/>
+        <offset.disable-normalization value="true"/>
+        <lefthand value="true"/>
+    </processing>
+
+    <junctions>
+        <no-turnarounds value="true"/>
+        <junctions.corner-detail value="5"/>
+        <junctions.limit-turn-speed value="5.5"/>
+        <rectangular-lane-cut value="false"/>
+    </junctions>
+
+    <pedestrian>
+        <walkingareas value="false"/>
+    </pedestrian>
+
+    <report>
+        <aggregate-warnings value="5"/>
+    </report>
+
+</configuration>
+-->
+
+<net version="1.6" junctionCornerDetail="5" lefthand="true" limitTurnSpeed="5.50" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/net_file.xsd">
+
+    <location netOffset="-194251.59,-245131.17" convBoundary="752.48,1239.71,1497.75,2913.12" origBoundary="102.235144,2.187648,102.278774,2.267698" projParameter="+proj=utm +zone=48 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"/>
+
+    <type id="highway.bridleway" priority="1" numLanes="1" speed="2.78" allow="pedestrian" oneway="1" width="2.00"/>
+    <type id="highway.bus_guideway" priority="1" numLanes="1" speed="27.78" allow="bus" oneway="1"/>
+    <type id="highway.cycleway" priority="1" numLanes="1" speed="8.33" allow="bicycle" oneway="0" width="1.00"/>
+    <type id="highway.footway" priority="1" numLanes="1" speed="2.78" allow="pedestrian" oneway="1" width="2.00"/>
+    <type id="highway.ford" priority="1" numLanes="1" speed="2.78" allow="army" oneway="0"/>
+    <type id="highway.living_street" priority="3" numLanes="1" speed="2.78" disallow="tram rail_urban rail rail_electric ship" oneway="0"/>
+    <type id="highway.motorway" priority="13" numLanes="2" speed="44.44" allow="private emergency authority army vip passenger hov taxi bus coach delivery truck trailer motorcycle evehicle custom1 custom2" oneway="1"/>
+    <type id="highway.motorway_link" priority="12" numLanes="1" speed="22.22" allow="private emergency authority army vip passenger hov taxi bus coach delivery truck trailer motorcycle evehicle custom1 custom2" oneway="1"/>
+    <type id="highway.path" priority="1" numLanes="1" speed="2.78" allow="pedestrian bicycle" oneway="1" width="2.00"/>
+    <type id="highway.pedestrian" priority="1" numLanes="1" speed="2.78" allow="pedestrian" oneway="1" width="2.00"/>
+    <type id="highway.primary" priority="9" numLanes="2" speed="27.78" disallow="tram rail_urban rail rail_electric ship" oneway="0"/>
+    <type id="highway.primary_link" priority="8" numLanes="1" speed="22.22" disallow="tram rail_urban rail rail_electric ship" oneway="0"/>
+    <type id="highway.raceway" priority="14" numLanes="2" speed="83.33" allow="vip" oneway="0"/>
+    <type id="highway.residential" priority="4" numLanes="1" speed="13.89" disallow="tram rail_urban rail rail_electric ship" oneway="0"/>
+    <type id="highway.secondary" priority="7" numLanes="2" speed="27.78" disallow="tram rail_urban rail rail_electric ship" oneway="0"/>
+    <type id="highway.secondary_link" priority="6" numLanes="1" speed="22.22" disallow="tram rail_urban rail rail_electric ship" oneway="0"/>
+    <type id="highway.service" priority="2" numLanes="1" speed="5.56" allow="pedestrian delivery bicycle" oneway="0"/>
+    <type id="highway.stairs" priority="1" numLanes="1" speed="1.39" allow="pedestrian" oneway="1" width="2.00"/>
+    <type id="highway.step" priority="1" numLanes="1" speed="1.39" allow="pedestrian" oneway="1" width="2.00"/>
+    <type id="highway.steps" priority="1" numLanes="1" speed="1.39" allow="pedestrian" oneway="1" width="2.00"/>
+    <type id="highway.tertiary" priority="6" numLanes="1" speed="22.22" disallow="tram rail_urban rail rail_electric ship" oneway="0"/>
+    <type id="highway.tertiary_link" priority="5" numLanes="1" speed="22.22" disallow="tram rail_urban rail rail_electric ship" oneway="0"/>
+    <type id="highway.track" priority="1" numLanes="1" speed="5.56" disallow="tram rail_urban rail rail_electric ship" oneway="0"/>
+    <type id="highway.trunk" priority="11" numLanes="2" speed="27.78" disallow="pedestrian bicycle tram rail_urban rail rail_electric ship" oneway="0"/>
+    <type id="highway.trunk_link" priority="10" numLanes="1" speed="22.22" disallow="pedestrian bicycle tram rail_urban rail rail_electric ship" oneway="0"/>
+    <type id="highway.unclassified" priority="5" numLanes="1" speed="13.89" disallow="tram rail_urban rail rail_electric ship" oneway="0"/>
+    <type id="highway.unsurfaced" priority="1" numLanes="1" speed="8.33" disallow="tram rail_urban rail rail_electric ship" oneway="0"/>
+    <type id="railway.light_rail" priority="15" numLanes="1" speed="27.78" allow="rail_urban" oneway="1"/>
+    <type id="railway.preserved" priority="15" numLanes="1" speed="27.78" allow="rail" oneway="1"/>
+    <type id="railway.rail" priority="15" numLanes="1" speed="83.33" allow="rail rail_electric" oneway="1"/>
+    <type id="railway.subway" priority="15" numLanes="1" speed="27.78" allow="rail_urban" oneway="1"/>
+    <type id="railway.tram" priority="15" numLanes="1" speed="13.89" allow="tram" oneway="1"/>
+
+    <edge id=":Bridge_0" function="internal">
+        <lane id=":Bridge_0_0" index="0" speed="19.44" length="8.28" shape="1126.78,2247.14 1126.18,2249.53 1126.50,2251.37 1126.80,2253.19 1126.14,2255.55"/>
+        <lane id=":Bridge_0_1" index="1" speed="19.44" length="8.28" shape="1129.66,2248.54 1126.14,2255.55"/>
+        <lane id=":Bridge_0_2" index="2" speed="19.44" length="8.28" shape="1129.66,2248.54 1129.05,2250.95 1129.36,2252.80 1129.66,2254.64 1128.98,2257.02"/>
+        <lane id=":Bridge_0_3" index="3" speed="19.44" length="8.28" shape="1132.54,2249.94 1128.98,2257.02"/>
+    </edge>
+    <edge id=":Bridge_4" function="internal">
+        <lane id=":Bridge_4_0" index="0" speed="19.44" length="8.35" shape="1134.66,2259.97 1136.26,2257.97 1137.96,2257.07 1139.64,2256.16 1141.18,2254.13"/>
+        <lane id=":Bridge_4_1" index="1" speed="19.44" length="8.35" shape="1134.66,2259.97 1138.30,2252.73"/>
+        <lane id=":Bridge_4_2" index="2" speed="19.44" length="8.35" shape="1131.82,2258.50 1135.42,2251.34"/>
+    </edge>
+    <edge id=":FM_Junc_0" function="internal">
+        <lane id=":FM_Junc_0_0" index="0" speed="6.46" length="9.03" shape="999.01,2533.42 996.96,2532.02 995.87,2530.31 995.73,2528.28 996.55,2525.94"/>
+    </edge>
+    <edge id=":FM_Junc_1" function="internal">
+        <lane id=":FM_Junc_1_0" index="0" speed="6.53" length="9.10" shape="990.03,2538.82 991.43,2536.78 993.16,2535.68 995.22,2535.52 997.61,2536.29"/>
+    </edge>
+    <edge id=":FM_Junc_2" function="internal">
+        <lane id=":FM_Junc_2_0" index="0" speed="19.44" length="14.47" shape="990.03,2538.82 996.55,2525.94"/>
+        <lane id=":FM_Junc_2_1" index="1" speed="19.44" length="14.47" shape="987.16,2537.41 993.71,2524.46"/>
+    </edge>
+    <edge id=":HLW_Junc_0" function="internal">
+        <lane id=":HLW_Junc_0_0" index="0" speed="13.89" length="0.33" shape="846.12,2682.50 845.80,2682.34"/>
+        <lane id=":HLW_Junc_0_1" index="1" speed="13.89" length="0.33" shape="844.64,2685.34 844.36,2685.20"/>
+    </edge>
+    <edge id=":HLW_Junc_2" function="internal">
+        <lane id=":HLW_Junc_2_0" index="0" speed="13.89" length="0.25" shape="841.48,2690.91 841.68,2691.01"/>
+        <lane id=":HLW_Junc_2_1" index="1" speed="13.89" length="0.25" shape="842.92,2688.05 843.16,2688.18"/>
+    </edge>
+    <edge id=":HL_Junc_0" function="internal">
+        <lane id=":HL_Junc_0_0" index="0" speed="7.53" length="11.98" shape="1001.98,2495.23 1000.35,2497.14 998.03,2497.97 995.00,2497.72 991.26,2496.39"/>
+    </edge>
+    <edge id=":HL_Junc_1" function="internal">
+        <lane id=":HL_Junc_1_0" index="0" speed="19.44" length="14.47" shape="1001.98,2495.23 995.41,2508.15"/>
+        <lane id=":HL_Junc_1_1" index="1" speed="19.44" length="14.47" shape="1004.82,2496.70 998.28,2509.57"/>
+    </edge>
+    <edge id=":HL_Junc_3" function="internal">
+        <lane id=":HL_Junc_3_0" index="0" speed="6.43" length="9.03" shape="989.93,2499.31 992.02,2500.65 993.16,2502.33 993.33,2504.36 992.55,2506.72"/>
+    </edge>
+    <edge id=":HL_Junc_4" function="internal">
+        <lane id=":HL_Junc_4_0" index="0" speed="7.26" length="11.79" shape="989.93,2499.31 993.29,2501.24 995.33,2503.36 996.04,2505.66 995.41,2508.15"/>
+    </edge>
+    <edge id=":INFMain_Junc_0" function="internal">
+        <lane id=":INFMain_Junc_0_0" index="0" speed="19.44" length="14.39" shape="1153.93,2188.30 1152.84,2192.33 1151.94,2195.05 1150.79,2197.67 1148.97,2201.43"/>
+        <lane id=":INFMain_Junc_0_1" index="1" speed="19.44" length="14.39" shape="1157.03,2189.12 1155.89,2193.33 1154.95,2196.16 1153.75,2198.90 1151.85,2202.83"/>
+    </edge>
+    <edge id=":INFMain_Junc_2" function="internal">
+        <lane id=":INFMain_Junc_2_0" index="0" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="8.99" length="18.56" shape="1160.12,2189.94 1159.99,2193.92 1161.85,2197.21 1165.70,2199.82 1171.53,2201.75"/>
+    </edge>
+    <edge id=":INFMain_Junc_3" function="internal">
+        <lane id=":INFMain_Junc_3_0" index="0" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="10.18" length="19.92" shape="1172.20,2198.86 1166.14,2197.94 1161.21,2198.53 1157.41,2200.63 1154.73,2204.23"/>
+    </edge>
+    <edge id=":INFMain_Junc_4" function="internal">
+        <lane id=":INFMain_Junc_4_0" index="0" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="7.08" length="9.01" shape="1163.37,2208.42 1164.70,2206.42 1166.38,2205.16 1168.42,2204.64 1170.81,2204.87"/>
+    </edge>
+    <edge id=":INFMain_Junc_5" function="internal">
+        <lane id=":INFMain_Junc_5_0" index="0" speed="19.44" length="16.24" shape="1160.49,2207.02 1162.63,2202.60 1163.97,2199.51 1165.04,2196.32 1166.33,2191.59"/>
+        <lane id=":INFMain_Junc_5_1" index="1" speed="19.44" length="16.24" shape="1157.61,2205.62 1159.67,2201.37 1160.96,2198.40 1161.99,2195.32 1163.24,2190.77"/>
+    </edge>
+    <edge id=":INFN_Junc_0" function="internal">
+        <lane id=":INFN_Junc_0_0" index="0" speed="19.44" length="7.43" shape="1169.61,2120.01 1168.69,2127.12"/>
+        <lane id=":INFN_Junc_0_1" index="1" speed="19.44" length="7.43" shape="1172.80,2120.28 1171.85,2127.65"/>
+        <lane id=":INFN_Junc_0_2" index="2" speed="19.44" length="7.43" shape="1175.99,2120.56 1175.01,2128.18"/>
+    </edge>
+    <edge id=":INFN_Junc_3" function="internal">
+        <lane id=":INFN_Junc_3_0" index="0" speed="19.44" length="8.41" shape="1184.44,2129.76 1184.39,2127.18 1183.54,2125.45 1182.63,2123.71 1182.35,2121.11"/>
+        <lane id=":INFN_Junc_3_1" index="1" speed="19.44" length="8.41" shape="1181.28,2129.23 1181.70,2126.83 1181.95,2125.19 1182.14,2123.53 1182.35,2121.11"/>
+        <lane id=":INFN_Junc_3_2" index="2" speed="19.44" length="8.41" shape="1178.13,2128.70 1178.53,2126.38 1178.78,2124.78 1178.96,2123.18 1179.17,2120.83"/>
+    </edge>
+    <edge id=":INFS_Junc_0" function="internal">
+        <lane id=":INFS_Junc_0_0" index="0" speed="19.44" length="8.16" shape="1156.29,1577.05 1156.54,1579.57 1157.53,1581.19 1158.61,1582.81 1159.16,1585.34"/>
+        <lane id=":INFS_Junc_0_1" index="1" speed="19.44" length="8.16" shape="1159.47,1577.40 1159.24,1579.75 1159.13,1581.36 1159.12,1582.98 1159.16,1585.34"/>
+        <lane id=":INFS_Junc_0_2" index="2" speed="19.44" length="8.16" shape="1162.66,1577.75 1162.44,1579.97 1162.33,1581.50 1162.32,1583.04 1162.36,1585.27"/>
+    </edge>
+    <edge id=":INFS_Junc_3" function="internal">
+        <lane id=":INFS_Junc_3_0" index="0" speed="19.44" length="7.10" shape="1168.72,1585.14 1169.20,1583.12 1170.31,1581.95 1171.51,1580.79 1172.22,1578.79"/>
+        <lane id=":INFS_Junc_3_1" index="1" speed="19.44" length="7.10" shape="1168.72,1585.14 1168.70,1583.14 1168.73,1581.78 1168.83,1580.42 1169.04,1578.44"/>
+        <lane id=":INFS_Junc_3_2" index="2" speed="19.44" length="7.10" shape="1165.52,1585.20 1165.50,1583.09 1165.53,1581.64 1165.64,1580.20 1165.86,1578.09"/>
+    </edge>
+    <edge id=":INFS_OffRamp_0" function="internal">
+        <lane id=":INFS_OffRamp_0_0" index="0" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="10.54" shape="1201.48,2203.31 1198.40,2202.67 1196.33,2201.97 1194.39,2200.98 1191.76,2199.49"/>
+    </edge>
+    <edge id=":INFS_OffRamp_1" function="internal">
+        <lane id=":INFS_OffRamp_1_0" index="0" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="11.16" shape="1200.92,2206.46 1197.61,2205.75 1195.32,2205.03 1193.15,2204.26 1190.20,2203.41"/>
+    </edge>
+    <edge id=":INFS_OnRamp_0" function="internal">
+        <lane id=":INFS_OnRamp_0_0" index="0" speed="19.44" length="11.43" shape="1175.16,2178.95 1175.17,2175.86 1175.39,2173.51 1175.88,2171.07 1176.66,2167.67"/>
+    </edge>
+    <edge id=":INFS_OnRamp_1" function="internal">
+        <lane id=":INFS_OnRamp_1_0" index="0" speed="19.44" length="8.16" shape="1170.81,2174.71 1173.54,2166.96"/>
+        <lane id=":INFS_OnRamp_1_1" index="1" speed="19.44" length="8.16" shape="1167.71,2173.89 1170.42,2166.25"/>
+    </edge>
+    <edge id=":INF_Junc_0" function="internal">
+        <lane id=":INF_Junc_0_0" index="0" speed="6.48" length="9.03" shape="1160.86,1990.01 1163.34,1990.15 1165.17,1991.05 1166.35,1992.71 1166.88,1995.13"/>
+    </edge>
+    <edge id=":INF_Junc_1" function="internal">
+        <lane id=":INF_Junc_1_0" index="0" speed="7.48" length="11.89" shape="1169.19,1980.53 1168.75,1982.99 1167.17,1984.87 1164.45,1986.14 1160.58,1986.83"/>
+    </edge>
+    <edge id=":INF_Junc_2" function="internal">
+        <lane id=":INF_Junc_2_0" index="0" speed="19.44" length="14.35" shape="1169.19,1980.53 1170.07,1994.89"/>
+        <lane id=":INF_Junc_2_1" index="1" speed="19.44" length="14.35" shape="1172.39,1980.38 1173.26,1994.65"/>
+    </edge>
+    <edge id=":PBB_Junc_0" function="internal">
+        <lane id=":PBB_Junc_0_0" index="0" speed="6.57" length="9.13" shape="895.12,2701.70 893.64,2703.70 891.86,2704.76 889.79,2704.87 887.43,2704.04"/>
+    </edge>
+    <edge id=":PBB_Junc_1" function="internal">
+        <lane id=":PBB_Junc_1_0" index="0" speed="19.44" length="20.86" shape="897.98,2703.15 888.23,2721.58"/>
+        <lane id=":PBB_Junc_1_1" index="1" speed="19.44" length="20.86" shape="900.83,2704.60 891.07,2723.05"/>
+    </edge>
+    <edge id=":PBB_Junc_3" function="internal">
+        <lane id=":PBB_Junc_3_0" index="0" speed="9.70" length="21.98" shape="900.83,2704.60 899.17,2709.69 899.94,2714.30 903.16,2718.42 908.82,2722.05"/>
+    </edge>
+    <edge id=":PBB_Junc_4" function="internal">
+        <lane id=":PBB_Junc_4_0" index="0" speed="6.48" length="9.03" shape="911.65,2716.31 909.60,2714.91 908.50,2713.19 908.35,2711.16 909.15,2708.81"/>
+    </edge>
+    <edge id=":PBB_Junc_5" function="internal">
+        <lane id=":PBB_Junc_5_0" index="0" speed="13.89" length="27.18" shape="911.65,2716.31 887.43,2704.04"/>
+        <lane id=":PBB_Junc_5_1" index="1" speed="13.89" length="27.18" shape="910.23,2719.18 885.95,2706.87"/>
+    </edge>
+    <edge id=":PBB_Junc_7" function="internal">
+        <lane id=":PBB_Junc_7_0" index="0" speed="9.94" length="22.10" shape="910.23,2719.18 903.91,2716.89 898.61,2716.78 894.33,2718.83 891.07,2723.05"/>
+    </edge>
+    <edge id=":PBB_Junc_8" function="internal">
+        <lane id=":PBB_Junc_8_0" index="0" speed="6.70" length="9.41" shape="899.48,2727.40 900.98,2725.35 902.81,2724.25 904.95,2724.11 907.41,2724.92"/>
+    </edge>
+    <edge id=":PBB_Junc_9" function="internal">
+        <lane id=":PBB_Junc_9_0" index="0" speed="19.44" length="20.91" shape="896.63,2725.93 906.30,2707.37"/>
+        <lane id=":PBB_Junc_9_1" index="1" speed="19.44" length="20.91" shape="893.79,2724.46 903.44,2705.92"/>
+    </edge>
+    <edge id=":PBB_Junc_11" function="internal">
+        <lane id=":PBB_Junc_11_0" index="0" speed="9.78" length="21.91" shape="893.79,2724.46 895.42,2719.40 894.65,2714.78 891.50,2710.61 885.95,2706.87"/>
+    </edge>
+    <edge id=":PBB_Junc_12" function="internal">
+        <lane id=":PBB_Junc_12_0" index="0" speed="6.51" length="9.03" shape="883.00,2712.55 885.01,2713.99 886.08,2715.73 886.20,2717.77 885.39,2720.10"/>
+    </edge>
+    <edge id=":PBB_Junc_13" function="internal">
+        <lane id=":PBB_Junc_13_0" index="0" speed="13.89" length="27.37" shape="883.00,2712.55 907.41,2724.92"/>
+    </edge>
+    <edge id=":PBB_Junc_14" function="internal">
+        <lane id=":PBB_Junc_14_0" index="0" speed="10.85" length="27.22" shape="883.00,2712.55 890.58,2715.42 897.00,2715.51 902.23,2712.83 906.30,2707.37"/>
+    </edge>
+    <edge id=":PBB_Junc_15" function="internal">
+        <lane id=":PBB_Junc_15_0" index="0" speed="9.81" length="22.03" shape="884.48,2709.71 890.72,2712.11 895.96,2712.28 900.20,2710.21 903.44,2705.92"/>
+    </edge>
+    <edge id=":SHE_Junc_0" function="internal">
+        <lane id=":SHE_Junc_0_0" index="0" speed="13.89" length="0.35" shape="927.84,2724.29 927.49,2724.11"/>
+        <lane id=":SHE_Junc_0_1" index="1" speed="13.89" length="0.35" shape="926.34,2727.12 926.07,2726.98"/>
+    </edge>
+    <edge id=":SHE_Junc_2" function="internal">
+        <lane id=":SHE_Junc_2_0" index="0" speed="13.89" length="0.16" shape="923.24,2732.72 923.34,2732.77"/>
+        <lane id=":SHE_Junc_2_1" index="1" speed="13.89" length="0.16" shape="924.66,2729.85 924.84,2729.94"/>
+    </edge>
+    <edge id=":SHS_Junc_0" function="internal">
+        <lane id=":SHS_Junc_0_0" index="0" speed="19.44" length="8.14" shape="924.00,2644.10 920.38,2651.38"/>
+        <lane id=":SHS_Junc_0_1" index="1" speed="19.44" length="8.14" shape="926.87,2645.51 923.25,2652.80"/>
+        <lane id=":SHS_Junc_0_2" index="2" speed="19.44" length="8.14" shape="929.74,2646.92 926.12,2654.22"/>
+    </edge>
+    <edge id=":SHS_Junc_3" function="internal">
+        <lane id=":SHS_Junc_3_0" index="0" speed="19.44" length="8.55" shape="934.69,2658.46 935.37,2656.00 935.09,2654.11 934.81,2652.21 935.46,2649.74"/>
+        <lane id=":SHS_Junc_3_1" index="1" speed="19.44" length="8.55" shape="931.82,2657.04 935.46,2649.74"/>
+        <lane id=":SHS_Junc_3_2" index="2" speed="19.44" length="8.55" shape="931.82,2657.04 932.50,2654.58 932.22,2652.69 931.94,2650.79 932.59,2648.32"/>
+        <lane id=":SHS_Junc_3_3" index="3" speed="19.44" length="8.55" shape="928.95,2655.62 932.59,2648.32"/>
+    </edge>
+    <edge id=":SIRIME_Junc_0" function="internal">
+        <lane id=":SIRIME_Junc_0_0" index="0" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="7.69" shape="1255.83,1502.59 1253.62,1502.03 1252.32,1500.88 1251.02,1499.66 1248.83,1498.93"/>
+        <lane id=":SIRIME_Junc_0_1" index="1" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="7.69" shape="1255.83,1502.59 1248.49,1502.12"/>
+        <lane id=":SIRIME_Junc_0_2" index="2" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="7.69" shape="1255.75,1505.78 1248.16,1505.30"/>
+    </edge>
+    <edge id=":SIRIME_Junc_3" function="internal">
+        <lane id=":SIRIME_Junc_3_0" index="0" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="7.99" shape="1247.49,1511.66 1255.60,1512.18"/>
+        <lane id=":SIRIME_Junc_3_1" index="1" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="7.99" shape="1247.83,1508.48 1255.67,1508.98"/>
+    </edge>
+    <edge id=":SIRIMS_Junc_0" function="internal">
+        <lane id=":SIRIMS_Junc_0_0" index="0" speed="19.44" length="8.33" shape="1179.44,1328.26 1178.89,1330.60 1177.74,1332.01 1176.56,1333.43 1175.90,1335.77"/>
+        <lane id=":SIRIMS_Junc_0_1" index="1" speed="19.44" length="8.33" shape="1182.64,1328.34 1182.09,1330.72 1180.94,1332.16 1179.76,1333.61 1179.10,1335.98"/>
+        <lane id=":SIRIMS_Junc_0_2" index="2" speed="19.44" length="8.33" shape="1182.64,1328.34 1182.29,1336.19"/>
+    </edge>
+    <edge id=":SIRIMS_Junc_3" function="internal">
+        <lane id=":SIRIMS_Junc_3_0" index="0" speed="19.44" length="8.37" shape="1191.92,1336.83 1191.56,1334.30 1190.53,1332.67 1189.48,1331.05 1189.05,1328.51"/>
+        <lane id=":SIRIMS_Junc_3_1" index="1" speed="19.44" length="8.37" shape="1188.73,1336.62 1189.05,1328.51"/>
+        <lane id=":SIRIMS_Junc_3_2" index="2" speed="19.44" length="8.37" shape="1185.53,1336.41 1185.85,1328.42"/>
+    </edge>
+    <edge id=":SIRIMS_OffRamp_0" function="internal">
+        <lane id=":SIRIMS_OffRamp_0_0" index="0" speed="7.27" length="4.21" shape="1198.72,1493.68 1197.50,1493.52 1196.67,1493.25 1195.97,1492.73 1195.12,1491.84"/>
+    </edge>
+    <edge id=":SIRIMS_OffRamp_1" function="internal">
+        <lane id=":SIRIMS_OffRamp_1_0" index="0" speed="19.44" length="4.34" shape="1198.39,1496.86 1194.07,1496.41"/>
+        <lane id=":SIRIMS_OffRamp_1_1" index="1" speed="19.44" length="4.34" shape="1198.05,1500.05 1193.74,1499.60"/>
+    </edge>
+    <edge id=":SIRIMS_OnRamp_0" function="internal">
+        <lane id=":SIRIMS_OnRamp_0_0" index="0" speed="19.44" length="14.04" shape="1185.42,1471.39 1185.12,1468.09 1185.07,1465.14 1185.21,1461.82 1185.45,1457.37"/>
+    </edge>
+    <edge id=":SIRIMS_OnRamp_1" function="internal">
+        <lane id=":SIRIMS_OnRamp_1_0" index="0" speed="19.44" length="8.20" shape="1180.66,1465.27 1181.03,1462.86 1181.51,1461.24 1181.97,1459.62 1182.26,1457.20"/>
+        <lane id=":SIRIMS_OnRamp_1_1" index="1" speed="19.44" length="8.20" shape="1177.47,1464.99 1177.84,1462.61 1178.32,1461.01 1178.77,1459.42 1179.06,1457.03"/>
+    </edge>
+    <edge id=":SIRIM_Junc_0" function="internal">
+        <lane id=":SIRIM_Junc_0_0" index="0" speed="19.44" length="25.30" shape="1169.15,1483.55 1166.92,1508.70"/>
+        <lane id=":SIRIM_Junc_0_1" index="1" speed="19.44" length="25.30" shape="1172.34,1483.83 1170.10,1509.07"/>
+    </edge>
+    <edge id=":SIRIM_Junc_2" function="internal">
+        <lane id=":SIRIM_Junc_2_0" index="0" speed="10.77" length="25.88" shape="1172.34,1483.83 1172.77,1491.20 1175.22,1496.69 1179.70,1500.30 1186.20,1502.03"/>
+    </edge>
+    <edge id=":SIRIM_Junc_3" function="internal">
+        <lane id=":SIRIM_Junc_3_0" index="0" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="25.74" shape="1186.87,1495.66 1180.26,1494.44 1174.71,1492.51 1169.27,1490.11 1162.99,1487.49"/>
+        <lane id=":SIRIM_Junc_3_1" index="1" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="25.74" shape="1186.54,1498.84 1179.80,1497.59 1173.99,1495.60 1168.29,1493.14 1161.89,1490.49"/>
+    </edge>
+    <edge id=":SIRIM_Junc_5" function="internal">
+        <lane id=":SIRIM_Junc_5_0" index="0" speed="9.86" length="21.93" shape="1186.54,1498.84 1179.86,1498.89 1174.89,1500.61 1171.64,1504.00 1170.10,1509.07"/>
+    </edge>
+    <edge id=":SIRIM_Junc_6" function="internal">
+        <lane id=":SIRIM_Junc_6_0" index="0" speed="6.51" length="9.02" shape="1179.70,1510.18 1180.31,1507.78 1181.55,1506.16 1183.40,1505.30 1185.87,1505.21"/>
+    </edge>
+    <edge id=":SIRIM_Junc_7" function="internal">
+        <lane id=":SIRIM_Junc_7_0" index="0" speed="19.44" length="25.47" shape="1176.52,1509.81 1178.97,1484.41"/>
+        <lane id=":SIRIM_Junc_7_1" index="1" speed="19.44" length="25.47" shape="1173.34,1509.44 1175.79,1484.13"/>
+    </edge>
+    <edge id=":SIRIM_Junc_9" function="internal">
+        <lane id=":SIRIM_Junc_9_0" index="0" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="11.39" length="24.08" shape="1173.34,1509.44 1173.20,1502.99 1171.25,1497.68 1167.47,1493.51 1161.89,1490.49"/>
+    </edge>
+    <edge id=":SIRIM_Junc_10" function="internal">
+        <lane id=":SIRIM_Junc_10_0" index="0" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="27.06" shape="1159.85,1496.05 1164.57,1497.50 1171.08,1499.24 1178.56,1500.87 1186.20,1502.03"/>
+    </edge>
+    <edge id=":SIRIM_Junc_11" function="internal">
+        <lane id=":SIRIM_Junc_11_0" index="0" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="9.51" length="24.12" shape="1159.85,1496.05 1166.27,1497.10 1171.07,1495.47 1174.24,1491.14 1175.79,1484.13"/>
+    </edge>
+    <edge id=":SKE_Junc_0" function="internal">
+        <lane id=":SKE_Junc_0_0" index="0" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="16.66" length="7.54" shape="1281.14,2218.35 1279.01,2217.77 1277.79,2216.60 1276.57,2215.35 1274.46,2214.54"/>
+        <lane id=":SKE_Junc_0_1" index="1" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="16.66" length="7.54" shape="1281.14,2218.35 1279.02,2218.26 1277.56,2218.17 1276.11,2218.01 1274.00,2217.71"/>
+    </edge>
+    <edge id=":SKE_Junc_2" function="internal">
+        <lane id=":SKE_Junc_2_0" index="0" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="16.66" length="7.69" shape="1273.09,2224.04 1275.40,2224.37 1276.99,2224.55 1278.58,2224.65 1280.91,2224.74"/>
+        <lane id=":SKE_Junc_2_1" index="1" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="16.66" length="7.69" shape="1273.55,2220.88 1275.76,2221.19 1277.27,2221.36 1278.80,2221.46 1281.03,2221.54"/>
+    </edge>
+    <edge id=":TCN_OffRamp_0" function="internal">
+        <lane id=":TCN_OffRamp_0_0" index="0" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="19.82" shape="1094.75,1471.00 1098.73,1473.06 1103.31,1475.92 1107.81,1478.94 1111.54,1481.48"/>
+    </edge>
+    <edge id=":TCN_OffRamp_1" function="internal">
+        <lane id=":TCN_OffRamp_1_0" index="0" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="21.09" shape="1094.75,1471.00 1113.68,1480.29"/>
+    </edge>
+    <edge id=":TCN_OnRamp_0" function="internal">
+        <lane id=":TCN_OnRamp_0_0" index="0" speed="19.44" length="8.32" shape="1164.11,1533.02 1163.15,1541.30"/>
+        <lane id=":TCN_OnRamp_0_1" index="1" speed="19.44" length="8.32" shape="1167.29,1533.39 1166.34,1541.63"/>
+    </edge>
+    <edge id=":TCN_OnRamp_2" function="internal">
+        <lane id=":TCN_OnRamp_2_0" index="0" speed="19.44" length="8.47" shape="1159.37,1532.61 1159.95,1535.05 1160.21,1536.76 1160.20,1538.48 1159.97,1540.98"/>
+    </edge>
+    <edge id=":TCW_OffRamp_0" function="internal">
+        <lane id=":TCW_OffRamp_0_0" index="0" speed="7.31" length="4.12" shape="1167.30,1464.74 1167.18,1465.94 1166.95,1466.76 1166.48,1467.47 1165.65,1468.35"/>
+    </edge>
+    <edge id=":TCW_OffRamp_1" function="internal">
+        <lane id=":TCW_OffRamp_1_0" index="0" speed="19.44" length="4.29" shape="1170.49,1464.95 1170.17,1469.22"/>
+        <lane id=":TCW_OffRamp_1_1" index="1" speed="19.44" length="4.29" shape="1173.68,1465.17 1173.36,1469.45"/>
+    </edge>
+    <edge id=":TCW_OnRamp_0" function="internal">
+        <lane id=":TCW_OnRamp_0_0" index="0" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="26.68" shape="1144.20,1476.82 1139.36,1476.16 1132.85,1475.06 1125.51,1473.42 1118.19,1471.16"/>
+    </edge>
+    <edge id=":TCW_OnRamp_1" function="internal">
+        <lane id=":TCW_OnRamp_1_0" index="0" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="26.26" shape="1142.95,1480.62 1118.19,1471.16"/>
+        <lane id=":TCW_OnRamp_1_1" index="1" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="26.26" shape="1141.36,1483.46 1117.07,1474.16"/>
+    </edge>
+    <edge id=":TC_Junc1_0" function="internal">
+        <lane id=":TC_Junc1_0_0" index="0" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="8.45" shape="1080.84,1455.26 1078.56,1454.30 1076.84,1454.04 1075.09,1453.87 1072.68,1453.18"/>
+        <lane id=":TC_Junc1_0_1" index="1" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="8.45" shape="1079.60,1458.23 1077.34,1457.28 1075.64,1457.01 1073.90,1456.84 1071.51,1456.16"/>
+    </edge>
+    <edge id=":TC_Junc1_2" function="internal">
+        <lane id=":TC_Junc1_2_0" index="0" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="8.37" shape="1069.17,1462.11 1071.54,1462.77 1073.26,1462.87 1074.98,1462.97 1077.33,1463.68"/>
+        <lane id=":TC_Junc1_2_1" index="1" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="8.37" shape="1070.34,1459.14 1072.53,1460.26 1073.85,1461.38 1075.16,1462.51 1077.33,1463.68"/>
+    </edge>
+    <edge id=":TM_Junc_0" function="internal">
+        <lane id=":TM_Junc_0_0" index="0" speed="19.44" length="8.33" shape="861.72,2764.21 860.97,2766.61 861.19,2768.50 861.41,2770.38 860.66,2772.78"/>
+        <lane id=":TM_Junc_0_1" index="1" speed="19.44" length="8.33" shape="864.54,2765.72 860.66,2772.78"/>
+        <lane id=":TM_Junc_0_2" index="2" speed="19.44" length="8.33" shape="867.37,2767.23 863.46,2774.32"/>
+    </edge>
+    <edge id=":TM_Junc_3" function="internal">
+        <lane id=":TM_Junc_3_0" index="0" speed="19.44" length="8.43" shape="869.07,2777.41 870.72,2775.44 872.45,2774.57 874.16,2773.71 875.79,2771.73"/>
+        <lane id=":TM_Junc_3_1" index="1" speed="19.44" length="8.43" shape="869.07,2777.41 872.97,2770.22"/>
+        <lane id=":TM_Junc_3_2" index="2" speed="19.44" length="8.43" shape="866.27,2775.86 870.14,2768.71"/>
+    </edge>
+    <edge id=":TX_Junc_0" function="internal">
+        <lane id=":TX_Junc_0_0" index="0" speed="6.37" length="9.04" shape="1176.79,1796.42 1174.30,1796.25 1172.51,1795.32 1171.42,1793.62 1171.03,1791.15"/>
+    </edge>
+    <edge id=":TX_Junc_1" function="internal">
+        <lane id=":TX_Junc_1_0" index="0" speed="6.71" length="9.33" shape="1171.35,1805.59 1171.64,1803.15 1172.68,1801.33 1174.48,1800.15 1177.04,1799.61"/>
+    </edge>
+    <edge id=":TX_Junc_2" function="internal">
+        <lane id=":TX_Junc_2_0" index="0" speed="19.44" length="14.48" shape="1171.35,1805.59 1171.03,1791.15"/>
+        <lane id=":TX_Junc_2_1" index="1" speed="19.44" length="14.48" shape="1168.15,1805.70 1167.83,1791.19"/>
+    </edge>
+
+    <edge id="FMN1" from="INFMain_Junc" to="Bridge" priority="-1">
+        <lane id="FMN1_0" index="0" speed="19.44" length="50.81" shape="1148.97,2201.43 1126.78,2247.14"/>
+        <lane id="FMN1_1" index="1" speed="19.44" length="50.81" shape="1151.85,2202.83 1129.66,2248.54"/>
+        <lane id="FMN1_2" index="2" speed="19.44" length="50.81" shape="1154.73,2204.23 1132.54,2249.94"/>
+    </edge>
+    <edge id="FMN2" from="Bridge" to="HL_Junc" priority="-1">
+        <lane id="FMN2_0" index="0" speed="19.44" length="269.93" shape="1126.14,2255.55 1001.98,2495.23"/>
+        <lane id="FMN2_1" index="1" speed="19.44" length="269.93" shape="1128.98,2257.02 1004.82,2496.70"/>
+    </edge>
+    <edge id="FMS1" from="FM_Junc" to="Bridge" priority="-1">
+        <lane id="FMS1_0" index="0" speed="19.44" length="299.69" shape="996.55,2525.94 1134.66,2259.97"/>
+        <lane id="FMS1_1" index="1" speed="19.44" length="299.69" shape="993.71,2524.46 1131.82,2258.50"/>
+    </edge>
+    <edge id="FMS2" from="Bridge" to="INFMain_Junc" priority="-1">
+        <lane id="FMS2_0" index="0" speed="19.44" length="50.81" shape="1141.18,2254.13 1163.37,2208.42"/>
+        <lane id="FMS2_1" index="1" speed="19.44" length="50.81" shape="1138.30,2252.73 1160.49,2207.02"/>
+        <lane id="FMS2_2" index="2" speed="19.44" length="50.81" shape="1135.42,2251.34 1157.61,2205.62"/>
+    </edge>
+    <edge id="FMin" from="FM_Junc" to="5618656742" priority="-1">
+        <lane id="FMin_0" index="0" speed="19.44" length="45.85" shape="997.61,2536.29 1038.79,2556.46"/>
+    </edge>
+    <edge id="FMout" from="5618656742" to="FM_Junc" priority="-1">
+        <lane id="FMout_0" index="0" speed="19.44" length="45.85" shape="1040.19,2553.58 999.01,2533.42"/>
+    </edge>
+    <edge id="HLE1" from="gneJ200" to="HLW_Junc" priority="-1">
+        <lane id="HLE1_0" index="0" speed="13.89" length="102.13" shape="750.32,2644.85 841.48,2690.91"/>
+        <lane id="HLE1_1" index="1" speed="13.89" length="102.13" shape="751.76,2642.00 842.92,2688.05"/>
+    </edge>
+    <edge id="HLE2" from="HLW_Junc" to="PBB_Junc" priority="-1">
+        <lane id="HLE2_0" index="0" speed="13.89" length="46.59" shape="841.68,2691.01 883.00,2712.55"/>
+        <lane id="HLE2_1" index="1" speed="13.89" length="46.59" shape="843.16,2688.18 884.48,2709.71"/>
+    </edge>
+    <edge id="HLW1" from="PBB_Junc" to="HLW_Junc" priority="-1">
+        <lane id="HLW1_0" index="0" speed="13.89" length="46.59" shape="887.43,2704.04 846.12,2682.50"/>
+        <lane id="HLW1_1" index="1" speed="13.89" length="46.59" shape="885.95,2706.87 844.64,2685.34"/>
+    </edge>
+    <edge id="HLW2" from="HLW_Junc" to="gneJ200" priority="-1">
+        <lane id="HLW2_0" index="0" speed="13.89" length="102.13" shape="845.80,2682.34 754.64,2636.29"/>
+        <lane id="HLW2_1" index="1" speed="13.89" length="102.13" shape="844.36,2685.20 753.20,2639.14"/>
+    </edge>
+    <edge id="HLin" from="HL_Junc" to="5618658661" priority="-1">
+        <lane id="HLin_0" index="0" speed="19.44" length="75.85" shape="991.26,2496.39 922.27,2464.87"/>
+    </edge>
+    <edge id="HLout" from="5618658661" to="HL_Junc" priority="-1">
+        <lane id="HLout_0" index="0" speed="19.44" length="75.85" shape="920.95,2467.79 989.93,2499.31"/>
+    </edge>
+    <edge id="INFN1" from="INF_Junc" to="INFN_Junc" priority="-1" shape="1174.31,1987.24 1179.97,2062.52 1179.15,2102.97 1177.24,2124.53">
+        <lane id="INFN1_0" index="0" speed="19.44" length="125.66" shape="1166.88,1995.13 1171.96,2062.74 1171.16,2102.54 1169.61,2120.01"/>
+        <lane id="INFN1_1" index="1" speed="19.44" length="125.66" shape="1170.07,1994.89 1175.17,2062.65 1174.35,2102.71 1172.80,2120.28"/>
+        <lane id="INFN1_2" index="2" speed="19.44" length="125.66" shape="1173.26,1994.65 1178.37,2062.56 1177.55,2102.88 1175.99,2120.56"/>
+    </edge>
+    <edge id="INFN2" from="INFN_Junc" to="INFMain_Junc" priority="-1" shape="1177.24,2124.53 1173.88,2144.58 1163.60,2182.94 1159.83,2197.39">
+        <lane id="INFN2_0" index="0" speed="19.44" length="63.29" shape="1168.69,2127.12 1166.05,2142.88 1155.87,2180.88 1153.93,2188.30"/>
+        <lane id="INFN2_1" index="1" speed="19.44" length="63.29" shape="1171.85,2127.65 1169.18,2143.56 1158.96,2181.71 1157.03,2189.12"/>
+        <lane id="INFN2_2" index="2" speed="19.44" length="63.29" shape="1175.01,2128.18 1172.31,2144.24 1162.05,2182.53 1160.12,2189.94"/>
+    </edge>
+    <edge id="INFS1" from="INFS_OnRamp" to="INFN_Junc" priority="-1" length="30.66" shape="1172.85,2148.26 1173.73,2144.37 1177.24,2124.53">
+        <lane id="INFS1_0" index="0" speed="19.44" length="30.66" shape="1176.66,2167.67 1181.57,2145.95 1184.44,2129.76"/>
+        <lane id="INFS1_1" index="1" speed="19.44" length="30.66" shape="1173.54,2166.96 1178.44,2145.32 1181.28,2129.23"/>
+        <lane id="INFS1_2" index="2" speed="19.44" length="30.66" shape="1170.42,2166.25 1175.30,2144.69 1178.13,2128.70"/>
+    </edge>
+    <edge id="INFS11" from="INFMain_Junc" to="INFS_OnRamp" priority="-1" length="18.20">
+        <lane id="INFS11_0" index="0" speed="19.44" length="18.20" shape="1166.33,2191.59 1170.81,2174.71"/>
+        <lane id="INFS11_1" index="1" speed="19.44" length="18.20" shape="1163.24,2190.77 1167.71,2173.89"/>
+    </edge>
+    <edge id="INFS2" from="INFN_Junc" to="TX_Junc" priority="-1" shape="1177.24,2124.53 1179.15,2102.46 1178.85,2062.56 1167.93,1846.67 1166.32,1798.84">
+        <lane id="INFS2_0" index="0" speed="19.44" length="315.69" shape="1182.35,2121.11 1183.95,2102.65 1183.65,2062.42 1172.73,1846.47 1171.35,1805.59"/>
+        <lane id="INFS2_1" index="1" speed="19.44" length="315.69" shape="1179.17,2120.83 1180.75,2102.52 1180.45,2062.51 1169.53,1846.60 1168.15,1805.70"/>
+    </edge>
+    <edge id="INFin" from="INF_Junc" to="gneJ250" priority="-1">
+        <lane id="INFin_0" index="0" speed="19.44" length="228.07" shape="1160.58,1986.83 933.37,2006.57"/>
+    </edge>
+    <edge id="INFout" from="gneJ250" to="INF_Junc" priority="-1">
+        <lane id="INFout_0" index="0" speed="19.44" length="228.07" shape="933.65,2009.75 1160.86,1990.01"/>
+    </edge>
+    <edge id="SHE1" from="PBB_Junc" to="SHE_Junc" priority="-1">
+        <lane id="SHE1_0" index="0" speed="13.89" length="17.65" shape="907.41,2724.92 923.24,2732.72"/>
+        <lane id="SHE1_1" index="1" speed="13.89" length="17.65" shape="908.82,2722.05 924.66,2729.85"/>
+    </edge>
+    <edge id="SHE2" from="SHE_Junc" to="gneJ207" priority="-1">
+        <lane id="SHE2_0" index="0" speed="13.89" length="134.73" shape="923.34,2732.77 1042.38,2795.88"/>
+        <lane id="SHE2_1" index="1" speed="13.89" length="134.73" shape="924.84,2729.94 1043.88,2793.05"/>
+    </edge>
+    <edge id="SHN1" from="HL_Junc" to="SHS_Junc" priority="-1">
+        <lane id="SHN1_0" index="0" speed="19.44" length="153.51" shape="992.55,2506.72 924.00,2644.10"/>
+        <lane id="SHN1_1" index="1" speed="19.44" length="153.51" shape="995.41,2508.15 926.87,2645.51"/>
+        <lane id="SHN1_2" index="2" speed="19.44" length="153.51" shape="998.28,2509.57 929.74,2646.92"/>
+    </edge>
+    <edge id="SHN2" from="SHS_Junc" to="PBB_Junc" priority="-1" shape="929.37,2651.25 906.28,2697.89 897.26,2714.57">
+        <lane id="SHN2_0" index="0" speed="19.44" length="56.35" shape="920.38,2651.38 899.17,2694.21 895.12,2701.70"/>
+        <lane id="SHN2_1" index="1" speed="19.44" length="56.35" shape="923.25,2652.80 902.02,2695.68 897.98,2703.15"/>
+        <lane id="SHN2_2" index="2" speed="19.44" length="56.35" shape="926.12,2654.22 904.86,2697.15 900.83,2704.60"/>
+    </edge>
+    <edge id="SHS1" from="PBB_Junc" to="SHS_Junc" priority="-1">
+        <lane id="SHS1_0" index="0" speed="19.44" length="56.43" shape="909.15,2708.81 934.69,2658.46"/>
+        <lane id="SHS1_1" index="1" speed="19.44" length="56.43" shape="906.30,2707.37 931.82,2657.04"/>
+        <lane id="SHS1_2" index="2" speed="19.44" length="56.43" shape="903.44,2705.92 928.95,2655.62"/>
+    </edge>
+    <edge id="SHS2" from="SHS_Junc" to="FM_Junc" priority="-1">
+        <lane id="SHS2_0" index="0" speed="19.44" length="123.61" shape="935.46,2649.74 990.03,2538.82"/>
+        <lane id="SHS2_1" index="1" speed="19.44" length="123.61" shape="932.59,2648.32 987.16,2537.41"/>
+    </edge>
+    <edge id="SHW1" from="gneJ207" to="SHE_Junc" priority="-1" spreadType="roadCenter">
+        <lane id="SHW1_0" index="0" speed="13.89" length="134.73" shape="1046.88,2787.40 927.84,2724.29"/>
+        <lane id="SHW1_1" index="1" speed="13.89" length="134.73" shape="1045.38,2790.23 926.34,2727.12"/>
+    </edge>
+    <edge id="SHW2" from="SHE_Junc" to="PBB_Junc" priority="-1">
+        <lane id="SHW2_0" index="0" speed="13.89" length="17.65" shape="927.49,2724.11 911.65,2716.31"/>
+        <lane id="SHW2_1" index="1" speed="13.89" length="17.65" shape="926.07,2726.98 910.23,2719.18"/>
+    </edge>
+    <edge id="SIRIME1" from="SIRIM_Junc" to="SIRIME_Junc" priority="-1">
+        <lane id="SIRIME1_0" index="0" speed="19.44" length="61.96" shape="1185.87,1505.21 1247.49,1511.66"/>
+        <lane id="SIRIME1_1" index="1" speed="19.44" length="61.96" shape="1186.20,1502.03 1247.83,1508.48"/>
+    </edge>
+    <edge id="SIRIME2" from="SIRIME_Junc" to="3618058875" priority="7" type="highway.secondary" shape="1251.81,1507.29 1296.35,1508.36 1311.38,1507.27 1324.84,1502.49 1337.54,1494.02 1348.83,1480.05 1355.62,1467.66 1360.03,1394.66">
+        <lane id="SIRIME2_0" index="0" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="195.44" shape="1255.60,1512.18 1296.47,1513.16 1312.37,1512.01 1327.01,1506.81 1340.81,1497.61 1352.83,1482.73 1360.35,1469.02 1364.82,1394.95"/>
+        <lane id="SIRIME2_1" index="1" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="195.44" shape="1255.67,1508.98 1296.39,1509.96 1311.71,1508.85 1325.56,1503.93 1338.63,1495.22 1350.16,1480.94 1357.20,1468.11 1361.63,1394.76"/>
+    </edge>
+    <edge id="SIRIMN1" from="gneJ262" to="SIRIMS_Junc" priority="-1">
+        <lane id="SIRIMN1_0" index="0" speed="19.44" length="88.69" shape="1181.50,1239.60 1179.44,1328.26"/>
+        <lane id="SIRIMN1_1" index="1" speed="19.44" length="88.69" shape="1184.70,1239.67 1182.64,1328.34"/>
+    </edge>
+    <edge id="SIRIMN2" from="SIRIMS_Junc" to="TCW_OffRamp" priority="-1">
+        <lane id="SIRIMN2_0" index="0" speed="19.44" length="129.26" shape="1175.90,1335.77 1167.30,1464.74"/>
+        <lane id="SIRIMN2_1" index="1" speed="19.44" length="129.26" shape="1179.10,1335.98 1170.49,1464.95"/>
+        <lane id="SIRIMN2_2" index="2" speed="19.44" length="129.26" shape="1182.29,1336.19 1173.68,1465.17"/>
+    </edge>
+    <edge id="SIRIMN3" from="TCW_OffRamp" to="SIRIM_Junc" priority="-1">
+        <lane id="SIRIMN3_0" index="0" speed="19.44" length="14.39" shape="1170.17,1469.22 1169.15,1483.55"/>
+        <lane id="SIRIMN3_1" index="1" speed="19.44" length="14.39" shape="1173.36,1469.45 1172.34,1483.83"/>
+    </edge>
+    <edge id="SIRIMS1" from="SIRIM_Junc" to="SIRIMS_OnRamp" priority="-1">
+        <lane id="SIRIMS1_0" index="0" speed="19.44" length="19.21" shape="1178.97,1484.41 1180.66,1465.27"/>
+        <lane id="SIRIMS1_1" index="1" speed="19.44" length="19.21" shape="1175.79,1484.13 1177.47,1464.99"/>
+    </edge>
+    <edge id="SIRIMS2" from="SIRIMS_OnRamp" to="SIRIMS_Junc" priority="-1">
+        <lane id="SIRIMS2_0" index="0" speed="19.44" length="120.75" shape="1185.45,1457.37 1191.92,1336.83"/>
+        <lane id="SIRIMS2_1" index="1" speed="19.44" length="120.75" shape="1182.26,1457.20 1188.73,1336.62"/>
+        <lane id="SIRIMS2_2" index="2" speed="19.44" length="120.75" shape="1179.06,1457.03 1185.53,1336.41"/>
+    </edge>
+    <edge id="SIRIMS3" from="SIRIMS_Junc" to="gneJ261" priority="-1">
+        <lane id="SIRIMS3_0" index="0" speed="19.44" length="71.97" shape="1189.05,1328.51 1190.91,1256.56"/>
+        <lane id="SIRIMS3_1" index="1" speed="19.44" length="71.97" shape="1185.85,1328.42 1187.71,1256.48"/>
+    </edge>
+    <edge id="SIRIMW1" from="3618058875" to="SIRIME_Junc" priority="7" type="highway.secondary" shape="1360.03,1394.66 1355.62,1467.66 1348.83,1480.05 1337.54,1494.02 1324.84,1502.49 1311.38,1507.27 1296.35,1508.36 1251.81,1507.29">
+        <lane id="SIRIMW1_0" index="0" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="185.54" shape="1355.24,1394.37 1350.89,1466.30 1344.83,1477.37 1334.27,1490.43 1322.67,1498.17 1310.39,1502.53 1296.23,1503.56 1255.83,1502.59"/>
+        <lane id="SIRIMW1_1" index="1" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="185.54" shape="1358.43,1394.56 1354.04,1467.21 1347.50,1479.16 1336.45,1492.82 1324.12,1501.05 1311.05,1505.69 1296.31,1506.76 1255.75,1505.78"/>
+    </edge>
+    <edge id="SIRIMW2" from="SIRIME_Junc" to="SIRIMS_OffRamp" priority="-1">
+        <lane id="SIRIMW2_0" index="0" speed="19.44" length="50.38" shape="1248.83,1498.93 1198.72,1493.68"/>
+        <lane id="SIRIMW2_1" index="1" speed="19.44" length="50.38" shape="1248.49,1502.12 1198.39,1496.86"/>
+        <lane id="SIRIMW2_2" index="2" speed="19.44" length="50.38" shape="1248.16,1505.30 1198.05,1500.05"/>
+    </edge>
+    <edge id="SIRIMW21" from="SIRIMS_OffRamp" to="SIRIM_Junc" priority="-1">
+        <lane id="SIRIMW21_0" index="0" speed="19.44" length="7.24" shape="1194.07,1496.41 1186.87,1495.66"/>
+        <lane id="SIRIMW21_1" index="1" speed="19.44" length="7.24" shape="1193.74,1499.60 1186.54,1498.84"/>
+    </edge>
+    <edge id="SIRIMWS" from="SIRIMS_OffRamp" to="SIRIMS_OnRamp" priority="-1" shape="1202.10,1502.08 1190.39,1488.93 1184.84,1479.83 1178.87,1430.78">
+        <lane id="SIRIMWS_0" index="0" speed="19.44" length="23.31" shape="1195.12,1491.84 1191.68,1487.97 1186.39,1479.29 1185.42,1471.39"/>
+    </edge>
+    <edge id="SKE1" from="INFMain_Junc" to="SKE_Junc" priority="7" type="highway.secondary" shape="1159.83,2197.39 1222.45,2211.92 1277.37,2219.81">
+        <lane id="SKE1_0" index="0" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="104.02" shape="1170.81,2204.87 1221.56,2216.64 1273.09,2224.04"/>
+        <lane id="SKE1_1" index="1" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="104.02" shape="1171.53,2201.75 1222.15,2213.49 1273.55,2220.88"/>
+    </edge>
+    <edge id="SKE2" from="SKE_Junc" to="gneJ263" priority="-1">
+        <lane id="SKE2_0" index="0" speed="13.89" length="216.81" shape="1280.91,2224.74 1497.58,2232.64"/>
+        <lane id="SKE2_1" index="1" speed="13.89" length="216.81" shape="1281.03,2221.54 1497.69,2229.44"/>
+    </edge>
+    <edge id="SKW1" from="gneJ263" to="SKE_Junc" priority="-1">
+        <lane id="SKW1_0" index="0" speed="13.89" length="216.81" shape="1497.81,2226.24 1281.14,2218.35"/>
+    </edge>
+    <edge id="SKW2" from="SKE_Junc" to="INFS_OffRamp" priority="7" type="highway.secondary" shape="1277.37,2219.81 1222.45,2211.92 1205.31,2208.87">
+        <lane id="SKW2_0" index="0" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="73.90" shape="1274.46,2214.54 1223.21,2207.18 1201.48,2203.31"/>
+        <lane id="SKW2_1" index="1" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="73.90" shape="1274.00,2217.71 1222.70,2210.34 1200.92,2206.46"/>
+    </edge>
+    <edge id="SKW21" from="INFS_OffRamp" to="INFMain_Junc" priority="7" type="highway.secondary">
+        <lane id="SKW21_0" index="0" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="18.56" shape="1190.20,2203.41 1172.20,2198.86"/>
+    </edge>
+    <edge id="SKWS" from="INFS_OffRamp" to="INFS_OnRamp" priority="-1" shape="1205.31,2208.87 1178.61,2194.00 1173.74,2186.99 1172.85,2148.26">
+        <lane id="SKWS_0" index="0" speed="19.44" length="28.99" shape="1191.76,2199.49 1179.71,2192.78 1175.33,2186.47 1175.16,2178.95"/>
+    </edge>
+    <edge id="TCE1" from="gneJ255" to="TC_Junc1" priority="7" type="highway.secondary" shape="942.52,1402.74 1013.87,1435.02 1031.11,1441.89 1062.39,1454.30 1074.53,1459.06">
+        <lane id="TCE1_0" index="0" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="139.85" shape="940.54,1407.11 1011.99,1439.44 1029.34,1446.35 1060.62,1458.76 1069.17,1462.11"/>
+        <lane id="TCE1_1" index="1" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="139.85" shape="941.86,1404.20 1013.24,1436.49 1030.52,1443.38 1061.80,1455.79 1070.34,1459.14"/>
+    </edge>
+    <edge id="TCE2" from="TC_Junc1" to="TCN_OffRamp" priority="7" type="highway.secondary" shape="1073.73,1460.44 1106.92,1474.37 1113.73,1477.22">
+        <lane id="TCE2_0" index="0" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="18.89" shape="1077.33,1463.68 1094.75,1471.00"/>
+    </edge>
+    <edge id="TCE3" from="TCN_OffRamp" to="SIRIM_Junc" priority="7" type="highway.secondary" spreadType="center" shape="1114.38,1475.76 1113.45,1480.22 1124.23,1483.70 1133.40,1487.30 1160.11,1496.14 1168.08,1500.83">
+        <lane id="TCE3_0" index="0" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="48.80" shape="1113.68,1480.29 1124.23,1483.70 1133.40,1487.30 1159.85,1496.05"/>
+    </edge>
+    <edge id="TCEN" from="TCN_OffRamp" to="TCN_OnRamp" priority="5" shape="1112.43,1480.15 1131.62,1493.05 1141.53,1501.89 1149.43,1510.82 1156.17,1521.81 1160.77,1531.62 1163.16,1541.22">
+        <lane id="TCEN_0" index="0" speed="19.44" length="71.50" shape="1111.54,1481.48 1130.64,1494.32 1140.39,1503.02 1148.14,1511.78 1154.76,1522.57 1159.26,1532.16 1159.37,1532.61"/>
+    </edge>
+    <edge id="TCN1" from="SIRIM_Junc" to="TCN_OnRamp" priority="7">
+        <lane id="TCN1_0" index="0" speed="19.44" length="24.48" shape="1166.92,1508.70 1164.11,1533.02"/>
+        <lane id="TCN1_1" index="1" speed="19.44" length="24.48" shape="1170.10,1509.07 1167.29,1533.39"/>
+    </edge>
+    <edge id="TCN11" from="TCN_OnRamp" to="INFS_Junc" priority="-1">
+        <lane id="TCN11_0" index="0" speed="19.44" length="36.28" shape="1159.97,1540.98 1156.29,1577.05"/>
+        <lane id="TCN11_1" index="1" speed="19.44" length="36.28" shape="1163.15,1541.30 1159.47,1577.40"/>
+        <lane id="TCN11_2" index="2" speed="19.44" length="36.28" shape="1166.34,1541.63 1162.66,1577.75"/>
+    </edge>
+    <edge id="TCN2" from="INFS_Junc" to="INF_Junc" priority="-1" shape="1163.88,1581.51 1167.19,1734.88 1166.82,1800.65 1167.79,1847.12 1174.31,1987.24">
+        <lane id="TCN2_0" index="0" speed="19.44" length="395.33" shape="1159.16,1585.34 1162.39,1734.92 1162.02,1800.69 1162.99,1847.28 1169.19,1980.53"/>
+        <lane id="TCN2_1" index="1" speed="19.44" length="395.33" shape="1162.36,1585.27 1165.59,1734.89 1165.22,1800.66 1166.19,1847.17 1172.39,1980.38"/>
+    </edge>
+    <edge id="TCS1" from="TX_Junc" to="INFS_Junc" priority="-1">
+        <lane id="TCS1_0" index="0" speed="19.44" length="206.01" shape="1171.03,1791.15 1168.72,1585.14"/>
+        <lane id="TCS1_1" index="1" speed="19.44" length="206.01" shape="1167.83,1791.19 1165.52,1585.20"/>
+    </edge>
+    <edge id="TCS2" from="INFS_Junc" to="SIRIM_Junc" priority="-1">
+        <lane id="TCS2_0" index="0" speed="19.44" length="69.04" shape="1172.22,1578.79 1179.70,1510.18"/>
+        <lane id="TCS2_1" index="1" speed="19.44" length="69.04" shape="1169.04,1578.44 1176.52,1509.81"/>
+        <lane id="TCS2_2" index="2" speed="19.44" length="69.04" shape="1165.86,1578.09 1173.34,1509.44"/>
+    </edge>
+    <edge id="TCSW" from="TCW_OffRamp" to="TCW_OnRamp" priority="-1" shape="1175.58,1460.77 1159.26,1476.92 1154.42,1478.44 1148.37,1478.95 1134.01,1477.16 1117.03,1474.15">
+        <lane id="TCSW_0" index="0" speed="19.44" length="24.65" shape="1165.65,1468.35 1158.41,1475.51 1154.11,1476.86 1148.40,1477.34 1144.20,1476.82"/>
+    </edge>
+    <edge id="TCW1" from="SIRIM_Junc" to="TCW_OnRamp" priority="7" type="highway.secondary" shape="1169.20,1494.96 1161.16,1491.93 1129.31,1481.02 1117.03,1474.15">
+        <lane id="TCW1_0" index="0" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="21.44" shape="1162.99,1487.49 1162.78,1487.41 1142.95,1480.62"/>
+        <lane id="TCW1_1" index="1" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="21.44" shape="1161.89,1490.49 1161.70,1490.42 1141.36,1483.46"/>
+    </edge>
+    <edge id="TCW2" from="TCW_OnRamp" to="TC_Junc1" priority="7" type="highway.secondary" spreadType="center" shape="1117.63,1472.66 1095.71,1464.53 1084.21,1458.93 1076.26,1454.58">
+        <lane id="TCW2_0" index="0" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="40.72" acceleration="1" shape="1118.19,1471.16 1096.34,1463.06 1084.94,1457.51 1080.84,1455.26"/>
+        <lane id="TCW2_1" index="1" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="40.72" shape="1117.07,1474.16 1095.08,1466.00 1083.48,1460.35 1079.60,1458.23"/>
+    </edge>
+    <edge id="TCW3" from="TC_Junc1" to="gneJ256" priority="7" type="highway.secondary" shape="1074.53,1459.06 1062.39,1454.30 1031.11,1441.89 1013.87,1435.02 932.32,1398.18">
+        <lane id="TCW3_0" index="0" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="150.70" shape="1072.68,1453.18 1064.15,1449.83 1032.88,1437.43 1015.75,1430.60 934.30,1393.81"/>
+        <lane id="TCW3_1" index="1" disallow="tram rail_urban rail rail_electric rail_fast ship" speed="19.44" length="150.70" shape="1071.51,1456.16 1062.98,1452.81 1031.70,1440.40 1014.50,1433.55 932.98,1396.72"/>
+    </edge>
+    <edge id="TMN1" from="PBB_Junc" to="TM_Junc" priority="-1" shape="897.26,2714.57 881.06,2745.86 870.56,2764.74 866.79,2771.59">
+        <lane id="TMN1_0" index="0" speed="19.44" length="50.10" shape="885.39,2720.10 874.01,2742.08 863.56,2760.86 861.72,2764.21"/>
+        <lane id="TMN1_1" index="1" speed="19.44" length="50.10" shape="888.23,2721.58 876.83,2743.59 866.36,2762.41 864.54,2765.72"/>
+        <lane id="TMN1_2" index="2" speed="19.44" length="50.10" shape="891.07,2723.05 879.65,2745.10 869.16,2763.96 867.37,2767.23"/>
+    </edge>
+    <edge id="TMN2" from="TM_Junc" to="gneJ254" priority="-1">
+        <lane id="TMN2_0" index="0" speed="19.44" length="157.48" shape="860.66,2772.78 784.83,2910.81"/>
+        <lane id="TMN2_1" index="1" speed="19.44" length="157.48" shape="863.46,2774.32 787.64,2912.35"/>
+    </edge>
+    <edge id="TMS1" from="gneJ254" to="TM_Junc" priority="-1">
+        <lane id="TMS1_0" index="0" speed="19.44" length="157.48" shape="793.25,2915.43 869.07,2777.41"/>
+        <lane id="TMS1_1" index="1" speed="19.44" length="157.48" shape="790.44,2913.89 866.27,2775.86"/>
+    </edge>
+    <edge id="TMS2" from="TM_Junc" to="PBB_Junc" priority="-1">
+        <lane id="TMS2_0" index="0" speed="19.44" length="50.22" shape="875.79,2771.73 899.48,2727.40"/>
+        <lane id="TMS2_1" index="1" speed="19.44" length="50.22" shape="872.97,2770.22 896.63,2725.93"/>
+        <lane id="TMS2_2" index="2" speed="19.44" length="50.22" shape="870.14,2768.71 893.79,2724.46"/>
+    </edge>
+    <edge id="TXin" from="TX_Junc" to="gneJ246" priority="-1">
+        <lane id="TXin_0" index="0" speed="19.44" length="49.62" shape="1177.04,1799.61 1226.51,1795.74"/>
+    </edge>
+    <edge id="TXout" from="gneJ246" to="TX_Junc" priority="-1">
+        <lane id="TXout_0" index="0" speed="19.44" length="49.62" shape="1226.27,1792.54 1176.79,1796.42"/>
+    </edge>
+
+
+    <tlLogic id="PBB_Junc" type="static" programID="0" offset="0">
+        <phase duration="15" state="rrrrrrrrGGGGrrrr"/>
+        <phase duration="5"  state="rrrrrrrrggggrrrr"/>
+        <phase duration="2"  state="rrrrrrrryyyyrrrr"/>
+        <phase duration="3"  state="rrrrrrrrrrrrrrrr"/>
+        <phase duration="15" state="GGGGrrrrrrrrrrrr"/>
+        <phase duration="5"  state="ggggrrrrrrrrrrrr"/>
+        <phase duration="2"  state="yyyyrrrrrrrrrrrr"/>
+        <phase duration="3"  state="rrrrrrrrrrrrrrrr"/>
+    </tlLogic>
+    <tlLogic id="INFMain_Junc" type="static" programID="0" offset="45">
+        <phase duration="18" state="GGrrGGG"/>
+        <phase duration="5"  state="ggrrggg"/>
+        <phase duration="2"  state="ggrryyy"/>
+        <phase duration="3"  state="ggrrrrr"/>
+        <phase duration="12" state="GGGrrrr"/>
+        <phase duration="5"  state="gggrrrr"/>
+        <phase duration="2"  state="ggyrrrr"/>
+        <phase duration="3"  state="ggrrrrr"/>
+    </tlLogic>
+    <tlLogic id="SIRIM_Junc" type="static" programID="0" offset="105">
+        <phase duration="20" state="rrrrrrGGGGrr"/>
+        <phase duration="5"  state="rrrrrrggggrr"/>
+        <phase duration="2"  state="rrrrrryyyyrr"/>
+        <phase duration="3"  state="rrrrrrrrrrrr"/>
+        <phase duration="10" state="GGGrrrrrrrrr"/>
+        <phase duration="5"  state="gggrrrrrrrrr"/>
+        <phase duration="2"  state="yyyrrrrrrrrr"/>
+        <phase duration="3"  state="rrrrrrrrrrrr"/>
+    </tlLogic>
+
+    <junction id="3618058875" type="dead_end" x="1360.03" y="1394.66" incLanes="SIRIME2_0 SIRIME2_1" intLanes="" shape="1360.03,1394.66 1366.42,1395.05 1360.03,1394.66"/>
+    <junction id="5618656742" type="dead_end" x="1039.49" y="2555.02" incLanes="FMin_0" intLanes="" shape="1039.49,2555.02 1038.08,2557.89 1039.49,2555.02"/>
+    <junction id="5618658661" type="dead_end" x="921.61" y="2466.33" incLanes="HLin_0" intLanes="" shape="921.61,2466.33 922.94,2463.42 921.61,2466.33"/>
+    <junction id="Bridge" type="zipper" x="1132.24" y="2254.22" incLanes="FMN1_0 FMN1_1 FMN1_2 FMS1_0 FMS1_1" intLanes=":Bridge_0_0 :Bridge_0_1 :Bridge_0_2 :Bridge_0_3 :Bridge_4_0 :Bridge_4_1 :Bridge_4_2" shape="1125.34,2246.44 1142.62,2254.83 1140.52,2257.24 1139.39,2257.79 1138.25,2258.33 1137.14,2259.19 1136.08,2260.70 1124.72,2254.82 1125.33,2251.83 1125.07,2250.65 1124.80,2249.47 1124.79,2248.12">
+        <request index="0" response="0000010" foes="0000010" cont="0"/>
+        <request index="1" response="0000001" foes="0000001" cont="0"/>
+        <request index="2" response="0001000" foes="0001000" cont="0"/>
+        <request index="3" response="0000100" foes="0000100" cont="0"/>
+        <request index="4" response="0000000" foes="0000000" cont="0"/>
+        <request index="5" response="0000000" foes="0000000" cont="0"/>
+        <request index="6" response="0000000" foes="0000000" cont="0"/>
+    </junction>
+    <junction id="FM_Junc" type="priority" x="988.90" y="2530.25" incLanes="FMout_0 SHS2_0 SHS2_1" intLanes=":FM_Junc_0_0 :FM_Junc_1_0 :FM_Junc_2_0 :FM_Junc_2_1" shape="992.29,2523.73 997.97,2526.67 997.34,2528.84 997.48,2529.78 997.93,2530.61 998.67,2531.35 999.72,2531.98 996.90,2537.73 994.67,2537.13 993.71,2537.28 992.86,2537.73 992.11,2538.48 991.47,2539.52 985.73,2536.70">
+        <request index="0" response="1100" foes="1100" cont="0"/>
+        <request index="1" response="0000" foes="0000" cont="0"/>
+        <request index="2" response="0000" foes="0001" cont="0"/>
+        <request index="3" response="0000" foes="0001" cont="0"/>
+    </junction>
+    <junction id="HLW_Junc" type="priority" x="843.77" y="2686.69" incLanes="HLW1_0 HLW1_1 HLE1_0 HLE1_1" intLanes=":HLW_Junc_0_0 :HLW_Junc_0_1 :HLW_Junc_2_0 :HLW_Junc_2_1" shape="846.86,2681.08 840.94,2692.43 840.75,2692.34 846.53,2680.91">
+        <request index="0" response="0000" foes="0000" cont="0"/>
+        <request index="1" response="0000" foes="0000" cont="0"/>
+        <request index="2" response="0000" foes="0000" cont="0"/>
+        <request index="3" response="0000" foes="0000" cont="0"/>
+    </junction>
+    <junction id="HL_Junc" type="priority" x="1003.07" y="2503.55" incLanes="FMN2_0 FMN2_1 HLout_0" intLanes=":HL_Junc_0_0 :HL_Junc_1_0 :HL_Junc_1_1 :HL_Junc_3_0 :HL_Junc_4_0" shape="1000.56,2494.49 1006.24,2497.43 999.71,2510.29 991.12,2506.00 991.71,2503.83 991.55,2502.90 991.09,2502.08 990.33,2501.37 989.27,2500.76 991.93,2494.94 994.05,2495.79 995.90,2496.27 997.48,2496.38 998.78,2496.12 999.80,2495.49">
+        <request index="0" response="00000" foes="00000" cont="0"/>
+        <request index="1" response="00000" foes="11000" cont="0"/>
+        <request index="2" response="00000" foes="11000" cont="0"/>
+        <request index="3" response="00110" foes="00110" cont="0"/>
+        <request index="4" response="00110" foes="00110" cont="0"/>
+    </junction>
+    <junction id="INFMain_Junc" type="traffic_light" x="1159.83" y="2197.39" incLanes="INFN2_0 INFN2_1 INFN2_2 SKW21_0 FMS2_0 FMS2_1 FMS2_2" intLanes=":INFMain_Junc_0_0 :INFMain_Junc_0_1 :INFMain_Junc_2_0 :INFMain_Junc_3_0 :INFMain_Junc_4_0 :INFMain_Junc_5_0 :INFMain_Junc_5_1" shape="1152.39,2187.89 1167.88,2192.00 1167.95,2194.30 1168.54,2195.26 1169.51,2196.07 1170.85,2196.76 1172.56,2197.30 1170.45,2206.42 1168.09,2206.32 1167.09,2206.65 1166.21,2207.22 1165.45,2208.04 1164.81,2209.12 1147.54,2200.73 1148.82,2198.10 1149.74,2196.14 1150.44,2194.49 1151.03,2192.80 1151.63,2190.72">
+        <request index="0" response="0000000" foes="0000000" cont="0"/>
+        <request index="1" response="0000000" foes="0000000" cont="0"/>
+        <request index="2" response="1101000" foes="1101000" cont="0"/>
+        <request index="3" response="0000000" foes="1100100" cont="0"/>
+        <request index="4" response="0000000" foes="0000000" cont="0"/>
+        <request index="5" response="0001000" foes="0001100" cont="0"/>
+        <request index="6" response="0001000" foes="0001100" cont="0"/>
+    </junction>
+    <junction id="INFN_Junc" type="zipper" x="1177.24" y="2124.53" incLanes="INFN1_0 INFN1_1 INFN1_2 INFS1_0 INFS1_1 INFS1_2" intLanes=":INFN_Junc_0_0 :INFN_Junc_0_1 :INFN_Junc_0_2 :INFN_Junc_3_0 :INFN_Junc_3_1 :INFN_Junc_3_2" shape="1168.02,2119.87 1183.95,2121.25 1184.49,2124.53 1185.13,2125.65 1185.74,2126.77 1186.11,2128.14 1186.02,2130.02 1167.12,2126.86">
+        <request index="0" response="000000" foes="000000" cont="0"/>
+        <request index="1" response="000000" foes="000000" cont="0"/>
+        <request index="2" response="000000" foes="000000" cont="0"/>
+        <request index="3" response="010000" foes="010000" cont="0"/>
+        <request index="4" response="001000" foes="001000" cont="0"/>
+        <request index="5" response="000000" foes="000000" cont="0"/>
+    </junction>
+    <junction id="INFS_Junc" type="zipper" x="1163.88" y="1581.51" incLanes="TCN11_0 TCN11_1 TCN11_2 TCS1_0 TCS1_1" intLanes=":INFS_Junc_0_0 :INFS_Junc_0_1 :INFS_Junc_0_2 :INFS_Junc_3_0 :INFS_Junc_3_1 :INFS_Junc_3_2" shape="1154.70,1576.88 1173.81,1578.96 1172.73,1581.33 1171.91,1582.02 1171.12,1582.72 1170.54,1583.66 1170.32,1585.10 1157.56,1585.38 1156.68,1582.17 1155.93,1581.12 1155.22,1580.07 1154.75,1578.75">
+        <request index="0" response="000010" foes="000010" cont="0"/>
+        <request index="1" response="000001" foes="000001" cont="0"/>
+        <request index="2" response="000000" foes="000000" cont="0"/>
+        <request index="3" response="000000" foes="000000" cont="0"/>
+        <request index="4" response="000000" foes="000000" cont="0"/>
+        <request index="5" response="000000" foes="000000" cont="0"/>
+    </junction>
+    <junction id="INFS_OffRamp" type="priority" x="1205.31" y="2208.87" incLanes="SKW2_0 SKW2_1" intLanes=":INFS_OffRamp_0_0 :INFS_OffRamp_1_0" shape="1201.76,2201.74 1200.64,2208.04 1198.29,2207.56 1196.58,2207.11 1195.19,2206.65 1193.81,2206.15 1192.12,2205.60 1189.81,2204.96 1190.59,2201.85 1190.98,2200.89 1192.53,2198.09 1194.38,2199.14 1195.77,2199.92 1196.94,2200.49 1198.16,2200.94 1199.68,2201.33">
+        <request index="0" response="00" foes="00" cont="0"/>
+        <request index="1" response="00" foes="00" cont="0"/>
+    </junction>
+    <junction id="INFS_OnRamp" type="priority" x="1172.85" y="2148.26" incLanes="SKWS_0 INFS11_0 INFS11_1" intLanes=":INFS_OnRamp_0_0 :INFS_OnRamp_1_0 :INFS_OnRamp_1_1" shape="1168.86,2165.90 1178.22,2168.02 1177.68,2170.31 1177.28,2172.00 1176.99,2173.42 1176.81,2174.84 1176.74,2176.57 1176.76,2178.91 1173.56,2178.98 1173.47,2176.73 1173.34,2175.12 1173.17,2174.15 1172.94,2173.83 1172.67,2174.15 1172.35,2175.12 1166.17,2173.48">
+        <request index="0" response="000" foes="000" cont="0"/>
+        <request index="1" response="000" foes="000" cont="0"/>
+        <request index="2" response="000" foes="000" cont="0"/>
+    </junction>
+    <junction id="INF_Junc" type="priority" x="1174.31" y="1987.24" incLanes="INFout_0 TCN2_0 TCN2_1" intLanes=":INF_Junc_0_0 :INF_Junc_1_0 :INF_Junc_2_0 :INF_Junc_2_1" shape="1174.86,1994.53 1165.29,1995.25 1164.68,1993.07 1164.06,1992.35 1163.25,1991.86 1162.23,1991.61 1161.00,1991.61 1160.45,1985.23 1162.68,1984.93 1164.50,1984.43 1165.90,1983.76 1166.88,1982.89 1167.45,1981.84 1167.59,1980.60 1173.99,1980.30">
+        <request index="0" response="0000" foes="0000" cont="0"/>
+        <request index="1" response="0000" foes="0000" cont="0"/>
+        <request index="2" response="0000" foes="0000" cont="0"/>
+        <request index="3" response="0000" foes="0000" cont="0"/>
+    </junction>
+    <junction id="PBB_Junc" type="traffic_light" x="897.26" y="2714.57" incLanes="SHN2_0 SHN2_1 SHN2_2 SHW2_0 SHW2_1 TMS2_0 TMS2_1 TMS2_2 HLE2_0 HLE2_1" intLanes=":PBB_Junc_0_0 :PBB_Junc_1_0 :PBB_Junc_1_1 :PBB_Junc_3_0 :PBB_Junc_4_0 :PBB_Junc_5_0 :PBB_Junc_5_1 :PBB_Junc_7_0 :PBB_Junc_8_0 :PBB_Junc_9_0 :PBB_Junc_9_1 :PBB_Junc_11_0 :PBB_Junc_12_0 :PBB_Junc_13_0 :PBB_Junc_14_0 :PBB_Junc_15_0" shape="893.70,2700.98 910.58,2709.54 909.97,2711.71 910.12,2712.65 910.56,2713.49 911.31,2714.23 912.36,2714.87 906.70,2726.35 904.35,2725.71 903.33,2725.85 902.41,2726.30 901.60,2727.06 900.90,2728.13 883.97,2719.37 884.59,2717.19 884.46,2716.24 884.02,2715.39 883.29,2714.63 882.26,2713.97 888.17,2702.62 890.39,2703.27 891.36,2703.15 892.24,2702.73 893.01,2702.00">
+        <request index="0"  response="0000000000000000" foes="0000000001100000" cont="0"/>
+        <request index="1"  response="0000000000000000" foes="1110100011100000" cont="0"/>
+        <request index="2"  response="0000000000000000" foes="1110100011100000" cont="0"/>
+        <request index="3"  response="0000011000000000" foes="1100011011100000" cont="0"/>
+        <request index="4"  response="0000000000000000" foes="0000000000000000" cont="0"/>
+        <request index="5"  response="0000111000001111" foes="1100111000001111" cont="0"/>
+        <request index="6"  response="0000111000001111" foes="1100111000001111" cont="0"/>
+        <request index="7"  response="0010111000001110" foes="0010111000001110" cont="0"/>
+        <request index="8"  response="0000000000000000" foes="0010000000000000" cont="0"/>
+        <request index="9"  response="0000000000000000" foes="1110000011101000" cont="0"/>
+        <request index="10" response="0000000000000000" foes="1110000011101000" cont="0"/>
+        <request index="11" response="0000000000000110" foes="1110000011100110" cont="0"/>
+        <request index="12" response="0000000000000000" foes="0000000000000000" cont="0"/>
+        <request index="13" response="0000111100000110" foes="0000111110000110" cont="0"/>
+        <request index="14" response="0000111001101110" foes="0000111001101110" cont="0"/>
+        <request index="15" response="0000111001101110" foes="0000111001101110" cont="0"/>
+    </junction>
+    <junction id="SHE_Junc" type="priority" x="925.48" y="2728.47" incLanes="SHW1_0 SHW1_1 SHE1_0 SHE1_1" intLanes=":SHE_Junc_0_0 :SHE_Junc_0_1 :SHE_Junc_2_0 :SHE_Junc_2_1" shape="928.59,2722.88 922.60,2734.18 928.19,2722.67">
+        <request index="0" response="0000" foes="0000" cont="0"/>
+        <request index="1" response="0000" foes="0000" cont="0"/>
+        <request index="2" response="0000" foes="0000" cont="0"/>
+        <request index="3" response="0000" foes="0000" cont="0"/>
+    </junction>
+    <junction id="SHS_Junc" type="zipper" x="929.37" y="2651.25" incLanes="SHN1_0 SHN1_1 SHN1_2 SHS1_0 SHS1_1 SHS1_2" intLanes=":SHS_Junc_0_0 :SHS_Junc_0_1 :SHS_Junc_0_2 :SHS_Junc_3_0 :SHS_Junc_3_1 :SHS_Junc_3_2 :SHS_Junc_3_3" shape="922.56,2643.39 936.90,2650.44 936.28,2653.58 936.53,2654.81 936.77,2656.04 936.73,2657.44 936.12,2659.17 918.95,2650.67">
+        <request index="0" response="0000000" foes="0000000" cont="0"/>
+        <request index="1" response="0000000" foes="0000000" cont="0"/>
+        <request index="2" response="0000000" foes="0000000" cont="0"/>
+        <request index="3" response="0010000" foes="0010000" cont="0"/>
+        <request index="4" response="0001000" foes="0001000" cont="0"/>
+        <request index="5" response="1000000" foes="1000000" cont="0"/>
+        <request index="6" response="0100000" foes="0100000" cont="0"/>
+    </junction>
+    <junction id="SIRIME_Junc" type="zipper" x="1251.81" y="1507.29" incLanes="SIRIMW1_0 SIRIMW1_1 SIRIME1_0 SIRIME1_1" intLanes=":SIRIME_Junc_0_0 :SIRIME_Junc_0_1 :SIRIME_Junc_0_2 :SIRIME_Junc_3_0 :SIRIME_Junc_3_1" shape="1255.87,1500.99 1255.56,1513.78 1247.33,1513.26 1248.99,1497.34 1251.63,1498.45 1252.42,1499.28 1253.22,1500.09 1254.27,1500.71">
+        <request index="0" response="00000" foes="00000" cont="0"/>
+        <request index="1" response="00000" foes="00000" cont="0"/>
+        <request index="2" response="00000" foes="00000" cont="0"/>
+        <request index="3" response="00000" foes="00000" cont="0"/>
+        <request index="4" response="00000" foes="00000" cont="0"/>
+    </junction>
+    <junction id="SIRIMS_Junc" type="zipper" x="1184.15" y="1332.35" incLanes="SIRIMN1_0 SIRIMN1_1 SIRIMS2_0 SIRIMS2_1 SIRIMS2_2" intLanes=":SIRIMS_Junc_0_0 :SIRIMS_Junc_0_1 :SIRIMS_Junc_0_2 :SIRIMS_Junc_3_0 :SIRIMS_Junc_3_1 :SIRIMS_Junc_3_2" shape="1177.84,1328.22 1190.65,1328.55 1191.40,1331.71 1192.13,1332.75 1192.85,1333.78 1193.38,1335.09 1193.52,1336.94 1174.31,1335.66 1175.33,1332.82 1176.14,1331.94 1176.95,1331.06 1177.57,1329.91">
+        <request index="0" response="000000" foes="000000" cont="0"/>
+        <request index="1" response="000000" foes="000000" cont="0"/>
+        <request index="2" response="000000" foes="000000" cont="0"/>
+        <request index="3" response="010000" foes="010000" cont="0"/>
+        <request index="4" response="001000" foes="001000" cont="0"/>
+        <request index="5" response="000000" foes="000000" cont="0"/>
+    </junction>
+    <junction id="SIRIMS_OffRamp" type="priority" x="1202.10" y="1502.08" incLanes="SIRIMW2_0 SIRIMW2_1 SIRIMW2_2" intLanes=":SIRIMS_OffRamp_0_0 :SIRIMS_OffRamp_1_0 :SIRIMS_OffRamp_1_1" shape="1198.89,1492.09 1197.89,1501.64 1193.57,1501.19 1194.24,1494.82 1194.89,1494.68 1194.93,1494.42 1194.79,1494.04 1194.45,1493.53 1193.93,1492.90 1196.32,1490.77 1197.09,1491.56 1197.42,1491.78 1197.79,1491.92 1198.26,1492.02">
+        <request index="0" response="000" foes="000" cont="0"/>
+        <request index="1" response="000" foes="000" cont="0"/>
+        <request index="2" response="000" foes="000" cont="0"/>
+    </junction>
+    <junction id="SIRIMS_OnRamp" type="priority" x="1178.87" y="1430.78" incLanes="SIRIMWS_0 SIRIMS1_0 SIRIMS1_1" intLanes=":SIRIMS_OnRamp_0_0 :SIRIMS_OnRamp_1_0 :SIRIMS_OnRamp_1_1" shape="1177.47,1456.94 1187.05,1457.46 1186.86,1460.38 1186.69,1462.55 1186.58,1464.34 1186.57,1466.13 1186.70,1468.28 1187.01,1471.19 1183.84,1471.58 1183.45,1468.59 1183.11,1466.38 1182.82,1464.96 1182.58,1464.33 1182.39,1464.48 1182.25,1465.41 1175.87,1464.85 1176.40,1461.91 1176.72,1460.90 1177.04,1459.89 1177.30,1458.65">
+        <request index="0" response="000" foes="000" cont="0"/>
+        <request index="1" response="000" foes="000" cont="0"/>
+        <request index="2" response="000" foes="000" cont="0"/>
+    </junction>
+    <junction id="SIRIM_Junc" type="traffic_light" x="1172.87" y="1499.02" incLanes="SIRIMN3_0 SIRIMN3_1 SIRIMW21_0 SIRIMW21_1 TCS2_0 TCS2_1 TCS2_2 TCE3_0" intLanes=":SIRIM_Junc_0_0 :SIRIM_Junc_0_1 :SIRIM_Junc_2_0 :SIRIM_Junc_3_0 :SIRIM_Junc_3_1 :SIRIM_Junc_5_0 :SIRIM_Junc_6_0 :SIRIM_Junc_7_0 :SIRIM_Junc_7_1 :SIRIM_Junc_9_0 :SIRIM_Junc_10_0 :SIRIM_Junc_11_0" shape="1167.56,1483.41 1180.57,1484.55 1180.53,1487.25 1180.94,1489.50 1181.80,1491.31 1183.10,1492.67 1184.85,1493.59 1187.04,1494.07 1185.70,1506.80 1183.44,1507.01 1182.61,1507.48 1181.97,1508.20 1181.53,1509.16 1181.29,1510.36 1165.33,1508.52 1165.44,1505.81 1165.10,1503.46 1164.32,1501.46 1163.10,1499.81 1161.42,1498.51 1159.30,1497.56 1163.53,1485.99 1165.65,1486.33 1166.41,1486.05 1166.99,1485.47 1167.37,1484.59">
+        <request index="0"  response="110000111000" foes="111000111000" cont="0"/>
+        <request index="1"  response="110000111000" foes="111000111000" cont="0"/>
+        <request index="2"  response="110110111000" foes="110110111000" cont="0"/>
+        <request index="3"  response="000000000000" foes="101110000111" cont="0"/>
+        <request index="4"  response="000000000000" foes="101110000111" cont="0"/>
+        <request index="5"  response="010000000000" foes="011110000111" cont="0"/>
+        <request index="6"  response="000000000000" foes="000000000000" cont="0"/>
+        <request index="7"  response="110000111000" foes="110000111100" cont="0"/>
+        <request index="8"  response="110000111000" foes="110000111100" cont="0"/>
+        <request index="9"  response="110000111011" foes="110000111011" cont="0"/>
+        <request index="10" response="000000000000" foes="001110100111" cont="0"/>
+        <request index="11" response="000000011000" foes="001110011111" cont="0"/>
+    </junction>
+    <junction id="SKE_Junc" type="priority" x="1277.37" y="2219.81" incLanes="SKW1_0 SKE1_0 SKE1_1" intLanes=":SKE_Junc_0_0 :SKE_Junc_0_1 :SKE_Junc_2_0 :SKE_Junc_2_1" shape="1281.20,2216.75 1280.85,2226.34 1277.88,2226.22 1276.84,2226.14 1275.81,2226.03 1274.56,2225.87 1272.86,2225.63 1274.68,2212.96 1277.20,2214.15 1277.93,2215.00 1278.67,2215.82 1279.67,2216.46">
+        <request index="0" response="0000" foes="0000" cont="0"/>
+        <request index="1" response="0000" foes="0000" cont="0"/>
+        <request index="2" response="0000" foes="0000" cont="0"/>
+        <request index="3" response="0000" foes="0000" cont="0"/>
+    </junction>
+    <junction id="TCN_OffRamp" type="zipper" x="1114.38" y="1475.76" incLanes="TCE2_0" intLanes=":TCN_OffRamp_0_0 :TCN_OffRamp_1_0" shape="1112.43,1480.15 1110.64,1482.81 1107.24,1480.42 1104.77,1478.55 1102.72,1477.01 1100.61,1475.62 1097.91,1474.17 1094.13,1472.47 1095.36,1469.52 1117.33,1479.79 1111.74,1480.56 1111.89,1480.18 1112.00,1480.08 1112.12,1480.04 1112.26,1480.06">
+        <request index="0" response="00" foes="00" cont="0"/>
+        <request index="1" response="00" foes="00" cont="0"/>
+    </junction>
+    <junction id="TCN_OnRamp" type="priority" x="1167.93" y="1541.79" incLanes="TCN1_0 TCN1_1 TCEN_0" intLanes=":TCN_OnRamp_0_0 :TCN_OnRamp_0_1 :TCN_OnRamp_2_0" shape="1162.52,1532.84 1168.88,1533.57 1167.93,1541.83 1158.38,1540.86 1158.62,1537.93 1158.60,1536.89 1158.47,1535.86 1158.21,1534.63 1157.81,1533.00 1160.92,1532.22">
+        <request index="0" response="000" foes="000" cont="0"/>
+        <request index="1" response="000" foes="000" cont="0"/>
+        <request index="2" response="000" foes="000" cont="0"/>
+    </junction>
+    <junction id="TCW_OffRamp" type="zipper" x="1175.58" y="1460.77" incLanes="SIRIMN2_0 SIRIMN2_1 SIRIMN2_2" intLanes=":TCW_OffRamp_0_0 :TCW_OffRamp_1_0 :TCW_OffRamp_1_1" shape="1165.70,1464.63 1175.28,1465.27 1174.96,1469.56 1168.57,1469.11 1168.42,1468.48 1168.18,1468.45 1167.82,1468.60 1167.35,1468.95 1166.77,1469.48 1164.52,1467.21 1165.26,1466.41 1165.45,1466.08 1165.58,1465.71 1165.65,1465.25">
+        <request index="0" response="000" foes="000" cont="0"/>
+        <request index="1" response="000" foes="000" cont="0"/>
+        <request index="2" response="000" foes="000" cont="0"/>
+    </junction>
+    <junction id="TCW_OnRamp" type="priority" x="1117.03" y="1474.15" incLanes="TCSW_0 TCW1_0 TCW1_1" intLanes=":TCW_OnRamp_0_0 :TCW_OnRamp_1_0 :TCW_OnRamp_1_1" shape="1144.48,1475.24 1143.92,1478.40 1143.74,1479.20 1140.57,1484.88 1116.52,1475.66 1118.74,1469.66 1124.03,1471.55 1128.00,1472.78 1131.34,1473.56 1134.74,1474.09">
+        <request index="0" response="110" foes="110" cont="0"/>
+        <request index="1" response="000" foes="001" cont="0"/>
+        <request index="2" response="000" foes="001" cont="0"/>
+    </junction>
+    <junction id="TC_Junc1" type="zipper" x="1074.53" y="1459.06" incLanes="TCW2_0 TCW2_1 TCE1_0 TCE1_1" intLanes=":TC_Junc1_0_0 :TC_Junc1_0_1 :TC_Junc1_2_0 :TC_Junc1_2_1" shape="1081.46,1453.78 1076.71,1465.16 1073.77,1464.38 1072.66,1464.35 1071.56,1464.32 1070.26,1464.13 1068.59,1463.60 1073.26,1451.69 1076.31,1452.46 1077.45,1452.55 1078.56,1452.68 1079.84,1453.03">
+        <request index="0" response="0000" foes="0000" cont="0"/>
+        <request index="1" response="0000" foes="0000" cont="0"/>
+        <request index="2" response="1000" foes="1000" cont="0"/>
+        <request index="3" response="0100" foes="0100" cont="0"/>
+    </junction>
+    <junction id="TM_Junc" type="zipper" x="866.79" y="2771.59" incLanes="TMN1_0 TMN1_1 TMN1_2 TMS1_0 TMS1_1" intLanes=":TM_Junc_0_0 :TM_Junc_0_1 :TM_Junc_0_2 :TM_Junc_3_0 :TM_Junc_3_1 :TM_Junc_3_2" shape="860.31,2763.46 877.20,2772.48 875.00,2774.83 873.85,2775.34 872.70,2775.85 871.56,2776.68 870.47,2778.18 859.26,2772.01 859.99,2768.95 859.57,2766.51 859.65,2765.14">
+        <request index="0" response="000010" foes="000010" cont="0"/>
+        <request index="1" response="000001" foes="000001" cont="0"/>
+        <request index="2" response="000000" foes="000000" cont="0"/>
+        <request index="3" response="000000" foes="000000" cont="0"/>
+        <request index="4" response="000000" foes="000000" cont="0"/>
+        <request index="5" response="000000" foes="000000" cont="0"/>
+    </junction>
+    <junction id="TX_Junc" type="priority" x="1166.32" y="1798.84" incLanes="TXout_0 INFS2_0 INFS2_1" intLanes=":TX_Junc_0_0 :TX_Junc_1_0 :TX_Junc_2_0 :TX_Junc_2_1" shape="1176.67,1794.82 1177.17,1801.20 1174.76,1801.83 1173.94,1802.46 1173.36,1803.28 1173.03,1804.31 1172.95,1805.54 1166.55,1805.75 1166.23,1791.20 1172.63,1791.13 1173.10,1793.32 1173.66,1794.05 1174.45,1794.55 1175.45,1794.80">
+        <request index="0" response="1100" foes="1100" cont="0"/>
+        <request index="1" response="0000" foes="0000" cont="0"/>
+        <request index="2" response="0000" foes="0001" cont="0"/>
+        <request index="3" response="0000" foes="0001" cont="0"/>
+    </junction>
+    <junction id="gneJ200" type="dead_end" x="752.48" y="2640.57" incLanes="HLW2_0 HLW2_1" intLanes="" shape="752.48,2640.57 755.37,2634.86 752.48,2640.57"/>
+    <junction id="gneJ207" type="dead_end" x="1044.63" y="2791.64" incLanes="SHE2_0 SHE2_1" intLanes="" shape="1044.63,2791.64 1041.63,2797.29 1044.63,2791.64"/>
+    <junction id="gneJ246" type="dead_end" x="1226.39" y="1794.14" incLanes="TXin_0" intLanes="" shape="1226.39,1794.14 1226.64,1797.33 1226.39,1794.14"/>
+    <junction id="gneJ250" type="dead_end" x="933.51" y="2008.16" incLanes="INFin_0" intLanes="" shape="933.51,2008.16 933.23,2004.97 933.51,2008.16"/>
+    <junction id="gneJ254" type="dead_end" x="789.04" y="2913.12" incLanes="TMN2_0 TMN2_1" intLanes="" shape="789.04,2913.12 783.43,2910.04 789.04,2913.12"/>
+    <junction id="gneJ255" type="dead_end" x="942.52" y="1402.74" incLanes="" intLanes="" shape="942.52,1402.74 939.88,1408.57"/>
+    <junction id="gneJ256" type="dead_end" x="932.32" y="1398.18" incLanes="TCW3_0 TCW3_1" intLanes="" shape="934.95,1392.35 932.32,1398.18"/>
+    <junction id="gneJ261" type="dead_end" x="1186.11" y="1256.44" incLanes="SIRIMS3_0 SIRIMS3_1" intLanes="" shape="1192.51,1256.61 1186.11,1256.44"/>
+    <junction id="gneJ262" type="dead_end" x="1186.30" y="1239.71" incLanes="" intLanes="" shape="1186.30,1239.71 1179.90,1239.56"/>
+    <junction id="gneJ263" type="dead_end" x="1497.75" y="2227.84" incLanes="SKE2_0 SKE2_1" intLanes="" shape="1497.75,2227.84 1497.52,2234.24 1497.75,2227.84"/>
+
+    <connection from="FMN1" to="FMN2" fromLane="0" toLane="0" via=":Bridge_0_0" dir="s" state="Z"/>
+    <connection from="FMN1" to="FMN2" fromLane="1" toLane="0" via=":Bridge_0_1" dir="s" state="Z"/>
+    <connection from="FMN1" to="FMN2" fromLane="1" toLane="1" via=":Bridge_0_2" dir="s" state="Z"/>
+    <connection from="FMN1" to="FMN2" fromLane="2" toLane="1" via=":Bridge_0_3" dir="s" state="Z"/>
+    <connection from="FMN2" to="HLin" fromLane="0" toLane="0" via=":HL_Junc_0_0" dir="l" state="M"/>
+    <connection from="FMN2" to="SHN1" fromLane="0" toLane="1" via=":HL_Junc_1_0" dir="s" state="M"/>
+    <connection from="FMN2" to="SHN1" fromLane="1" toLane="2" via=":HL_Junc_1_1" dir="s" state="M"/>
+    <connection from="FMS1" to="FMS2" fromLane="0" toLane="0" via=":Bridge_4_0" dir="s" state="M"/>
+    <connection from="FMS1" to="FMS2" fromLane="0" toLane="1" keepClear="0" via=":Bridge_4_1" dir="s" state="M"/>
+    <connection from="FMS1" to="FMS2" fromLane="1" toLane="2" via=":Bridge_4_2" dir="s" state="M"/>
+    <connection from="FMS2" to="SKE1" fromLane="0" toLane="0" via=":INFMain_Junc_4_0" tl="INFMain_Junc" linkIndex="4" dir="l" state="O"/>
+    <connection from="FMS2" to="INFS11" fromLane="1" toLane="0" via=":INFMain_Junc_5_0" tl="INFMain_Junc" linkIndex="5" dir="s" state="o"/>
+    <connection from="FMS2" to="INFS11" fromLane="2" toLane="1" via=":INFMain_Junc_5_1" tl="INFMain_Junc" linkIndex="6" dir="s" state="o"/>
+    <connection from="FMout" to="FMS1" fromLane="0" toLane="0" via=":FM_Junc_0_0" dir="l" state="m"/>
+    <connection from="HLE1" to="HLE2" fromLane="0" toLane="0" via=":HLW_Junc_2_0" dir="s" state="M"/>
+    <connection from="HLE1" to="HLE2" fromLane="1" toLane="1" via=":HLW_Junc_2_1" dir="s" state="M"/>
+    <connection from="HLE2" to="TMN1" fromLane="0" toLane="0" via=":PBB_Junc_12_0" tl="PBB_Junc" linkIndex="12" dir="l" state="O"/>
+    <connection from="HLE2" to="SHE1" fromLane="0" toLane="0" via=":PBB_Junc_13_0" tl="PBB_Junc" linkIndex="13" dir="s" state="o"/>
+    <connection from="HLE2" to="SHS1" fromLane="0" toLane="1" via=":PBB_Junc_14_0" tl="PBB_Junc" linkIndex="14" dir="r" state="o"/>
+    <connection from="HLE2" to="SHS1" fromLane="1" toLane="2" via=":PBB_Junc_15_0" tl="PBB_Junc" linkIndex="15" dir="r" state="o"/>
+    <connection from="HLW1" to="HLW2" fromLane="0" toLane="0" via=":HLW_Junc_0_0" dir="s" state="M"/>
+    <connection from="HLW1" to="HLW2" fromLane="1" toLane="1" via=":HLW_Junc_0_1" dir="s" state="M"/>
+    <connection from="HLout" to="SHN1" fromLane="0" toLane="0" via=":HL_Junc_3_0" dir="l" state="m"/>
+    <connection from="HLout" to="SHN1" fromLane="0" toLane="1" via=":HL_Junc_4_0" dir="l" state="m"/>
+    <connection from="INFN1" to="INFN2" fromLane="0" toLane="0" via=":INFN_Junc_0_0" dir="s" state="M"/>
+    <connection from="INFN1" to="INFN2" fromLane="1" toLane="1" via=":INFN_Junc_0_1" dir="s" state="M"/>
+    <connection from="INFN1" to="INFN2" fromLane="2" toLane="2" via=":INFN_Junc_0_2" dir="s" state="M"/>
+    <connection from="INFN2" to="FMN1" fromLane="0" toLane="0" via=":INFMain_Junc_0_0" tl="INFMain_Junc" linkIndex="0" dir="s" state="O"/>
+    <connection from="INFN2" to="FMN1" fromLane="1" toLane="1" via=":INFMain_Junc_0_1" tl="INFMain_Junc" linkIndex="1" dir="s" state="O"/>
+    <connection from="INFN2" to="SKE1" fromLane="2" toLane="1" via=":INFMain_Junc_2_0" tl="INFMain_Junc" linkIndex="2" dir="r" state="o"/>
+    <connection from="INFS1" to="INFS2" fromLane="0" toLane="0" via=":INFN_Junc_3_0" dir="s" state="Z"/>
+    <connection from="INFS1" to="INFS2" fromLane="1" toLane="0" via=":INFN_Junc_3_1" dir="s" state="Z"/>
+    <connection from="INFS1" to="INFS2" fromLane="2" toLane="1" via=":INFN_Junc_3_2" dir="s" state="M"/>
+    <connection from="INFS11" to="INFS1" fromLane="0" toLane="1" keepClear="0" via=":INFS_OnRamp_1_0" dir="s" state="M"/>
+    <connection from="INFS11" to="INFS1" fromLane="1" toLane="2" keepClear="0" via=":INFS_OnRamp_1_1" dir="s" state="M"/>
+    <connection from="INFS2" to="TXin" fromLane="0" toLane="0" via=":TX_Junc_1_0" dir="l" state="M"/>
+    <connection from="INFS2" to="TCS1" fromLane="0" toLane="0" via=":TX_Junc_2_0" dir="s" state="M"/>
+    <connection from="INFS2" to="TCS1" fromLane="1" toLane="1" via=":TX_Junc_2_1" dir="s" state="M"/>
+    <connection from="INFout" to="INFN1" fromLane="0" toLane="0" via=":INF_Junc_0_0" dir="l" state="M"/>
+    <connection from="SHE1" to="SHE2" fromLane="0" toLane="0" via=":SHE_Junc_2_0" dir="s" state="M"/>
+    <connection from="SHE1" to="SHE2" fromLane="1" toLane="1" via=":SHE_Junc_2_1" dir="s" state="M"/>
+    <connection from="SHN1" to="SHN2" fromLane="0" toLane="0" via=":SHS_Junc_0_0" dir="s" state="M"/>
+    <connection from="SHN1" to="SHN2" fromLane="1" toLane="1" via=":SHS_Junc_0_1" dir="s" state="M"/>
+    <connection from="SHN1" to="SHN2" fromLane="2" toLane="2" via=":SHS_Junc_0_2" dir="s" state="M"/>
+    <connection from="SHN2" to="HLW1" fromLane="0" toLane="0" via=":PBB_Junc_0_0" tl="PBB_Junc" linkIndex="0" dir="l" state="O"/>
+    <connection from="SHN2" to="TMN1" fromLane="1" toLane="1" via=":PBB_Junc_1_0" tl="PBB_Junc" linkIndex="1" dir="s" state="O"/>
+    <connection from="SHN2" to="TMN1" fromLane="2" toLane="2" via=":PBB_Junc_1_1" tl="PBB_Junc" linkIndex="2" dir="s" state="O"/>
+    <connection from="SHN2" to="SHE1" fromLane="2" toLane="1" via=":PBB_Junc_3_0" tl="PBB_Junc" linkIndex="3" dir="r" state="o"/>
+    <connection from="SHS1" to="SHS2" fromLane="0" toLane="0" via=":SHS_Junc_3_0" dir="s" state="Z"/>
+    <connection from="SHS1" to="SHS2" fromLane="1" toLane="0" via=":SHS_Junc_3_1" dir="s" state="Z"/>
+    <connection from="SHS1" to="SHS2" fromLane="1" toLane="1" via=":SHS_Junc_3_2" dir="s" state="Z"/>
+    <connection from="SHS1" to="SHS2" fromLane="2" toLane="1" via=":SHS_Junc_3_3" dir="s" state="Z"/>
+    <connection from="SHS2" to="FMin" fromLane="0" toLane="0" via=":FM_Junc_1_0" dir="l" state="M"/>
+    <connection from="SHS2" to="FMS1" fromLane="0" toLane="0" via=":FM_Junc_2_0" dir="s" state="M"/>
+    <connection from="SHS2" to="FMS1" fromLane="1" toLane="1" via=":FM_Junc_2_1" dir="s" state="M"/>
+    <connection from="SHW1" to="SHW2" fromLane="0" toLane="0" via=":SHE_Junc_0_0" dir="s" state="M"/>
+    <connection from="SHW1" to="SHW2" fromLane="1" toLane="1" via=":SHE_Junc_0_1" dir="s" state="M"/>
+    <connection from="SHW2" to="SHS1" fromLane="0" toLane="0" via=":PBB_Junc_4_0" tl="PBB_Junc" linkIndex="4" dir="l" state="O"/>
+    <connection from="SHW2" to="HLW1" fromLane="0" toLane="0" via=":PBB_Junc_5_0" tl="PBB_Junc" linkIndex="5" dir="s" state="o"/>
+    <connection from="SHW2" to="HLW1" fromLane="1" toLane="1" via=":PBB_Junc_5_1" tl="PBB_Junc" linkIndex="6" dir="s" state="o"/>
+    <connection from="SHW2" to="TMN1" fromLane="1" toLane="2" via=":PBB_Junc_7_0" tl="PBB_Junc" linkIndex="7" dir="r" state="o"/>
+    <connection from="SIRIME1" to="SIRIME2" fromLane="0" toLane="0" keepClear="0" via=":SIRIME_Junc_3_0" dir="s" state="M"/>
+    <connection from="SIRIME1" to="SIRIME2" fromLane="1" toLane="1" keepClear="0" via=":SIRIME_Junc_3_1" dir="s" state="M"/>
+    <connection from="SIRIMN1" to="SIRIMN2" fromLane="0" toLane="0" via=":SIRIMS_Junc_0_0" dir="s" state="M"/>
+    <connection from="SIRIMN1" to="SIRIMN2" fromLane="1" toLane="1" via=":SIRIMS_Junc_0_1" dir="s" state="M"/>
+    <connection from="SIRIMN1" to="SIRIMN2" fromLane="1" toLane="2" via=":SIRIMS_Junc_0_2" dir="s" state="M"/>
+    <connection from="SIRIMN2" to="TCSW" fromLane="0" toLane="0" via=":TCW_OffRamp_0_0" dir="L" state="M"/>
+    <connection from="SIRIMN2" to="SIRIMN3" fromLane="1" toLane="0" via=":TCW_OffRamp_1_0" dir="s" state="M"/>
+    <connection from="SIRIMN2" to="SIRIMN3" fromLane="2" toLane="1" via=":TCW_OffRamp_1_1" dir="s" state="M"/>
+    <connection from="SIRIMN3" to="TCN1" fromLane="0" toLane="0" via=":SIRIM_Junc_0_0" tl="SIRIM_Junc" linkIndex="0" dir="s" state="o"/>
+    <connection from="SIRIMN3" to="TCN1" fromLane="1" toLane="1" via=":SIRIM_Junc_0_1" tl="SIRIM_Junc" linkIndex="1" dir="s" state="o"/>
+    <connection from="SIRIMN3" to="SIRIME1" fromLane="1" toLane="1" via=":SIRIM_Junc_2_0" tl="SIRIM_Junc" linkIndex="2" dir="r" state="o"/>
+    <connection from="SIRIMS1" to="SIRIMS2" fromLane="0" toLane="1" via=":SIRIMS_OnRamp_1_0" dir="s" state="M"/>
+    <connection from="SIRIMS1" to="SIRIMS2" fromLane="1" toLane="2" via=":SIRIMS_OnRamp_1_1" dir="s" state="M"/>
+    <connection from="SIRIMS2" to="SIRIMS3" fromLane="0" toLane="0" via=":SIRIMS_Junc_3_0" dir="s" state="Z"/>
+    <connection from="SIRIMS2" to="SIRIMS3" fromLane="1" toLane="0" via=":SIRIMS_Junc_3_1" dir="s" state="Z"/>
+    <connection from="SIRIMS2" to="SIRIMS3" fromLane="2" toLane="1" via=":SIRIMS_Junc_3_2" dir="s" state="M"/>
+    <connection from="SIRIMW1" to="SIRIMW2" fromLane="0" toLane="0" keepClear="0" via=":SIRIME_Junc_0_0" dir="s" state="M"/>
+    <connection from="SIRIMW1" to="SIRIMW2" fromLane="0" toLane="1" via=":SIRIME_Junc_0_1" dir="s" state="M"/>
+    <connection from="SIRIMW1" to="SIRIMW2" fromLane="1" toLane="2" keepClear="0" via=":SIRIME_Junc_0_2" dir="s" state="M"/>
+    <connection from="SIRIMW2" to="SIRIMWS" fromLane="0" toLane="0" keepClear="0" via=":SIRIMS_OffRamp_0_0" dir="L" state="M"/>
+    <connection from="SIRIMW2" to="SIRIMW21" fromLane="1" toLane="0" keepClear="0" via=":SIRIMS_OffRamp_1_0" dir="s" state="M"/>
+    <connection from="SIRIMW2" to="SIRIMW21" fromLane="2" toLane="1" keepClear="0" via=":SIRIMS_OffRamp_1_1" dir="s" state="M"/>
+    <connection from="SIRIMW21" to="TCW1" fromLane="0" toLane="0" via=":SIRIM_Junc_3_0" tl="SIRIM_Junc" linkIndex="3" dir="s" state="O"/>
+    <connection from="SIRIMW21" to="TCW1" fromLane="1" toLane="1" via=":SIRIM_Junc_3_1" tl="SIRIM_Junc" linkIndex="4" dir="s" state="O"/>
+    <connection from="SIRIMW21" to="TCN1" fromLane="1" toLane="1" via=":SIRIM_Junc_5_0" tl="SIRIM_Junc" linkIndex="5" dir="r" state="o"/>
+    <connection from="SIRIMWS" to="SIRIMS2" fromLane="0" toLane="0" via=":SIRIMS_OnRamp_0_0" dir="s" state="M"/>
+    <connection from="SKE1" to="SKE2" fromLane="0" toLane="0" via=":SKE_Junc_2_0" dir="s" state="M"/>
+    <connection from="SKE1" to="SKE2" fromLane="1" toLane="1" via=":SKE_Junc_2_1" dir="s" state="M"/>
+    <connection from="SKW1" to="SKW2" fromLane="0" toLane="0" via=":SKE_Junc_0_0" dir="s" state="M"/>
+    <connection from="SKW1" to="SKW2" fromLane="0" toLane="1" via=":SKE_Junc_0_1" dir="s" state="M"/>
+    <connection from="SKW2" to="SKWS" fromLane="0" toLane="0" via=":INFS_OffRamp_0_0" dir="L" state="M"/>
+    <connection from="SKW2" to="SKW21" fromLane="1" toLane="0" via=":INFS_OffRamp_1_0" dir="s" state="M"/>
+    <connection from="SKW21" to="FMN1" fromLane="0" toLane="2" via=":INFMain_Junc_3_0" tl="INFMain_Junc" linkIndex="3" dir="r" state="O"/>
+    <connection from="SKWS" to="INFS1" fromLane="0" toLane="0" keepClear="0" via=":INFS_OnRamp_0_0" dir="s" state="M"/>
+    <connection from="TCE1" to="TCE2" fromLane="0" toLane="0" via=":TC_Junc1_2_0" dir="s" state="Z"/>
+    <connection from="TCE1" to="TCE2" fromLane="1" toLane="0" via=":TC_Junc1_2_1" dir="s" state="Z"/>
+    <connection from="TCE2" to="TCEN" fromLane="0" toLane="0" via=":TCN_OffRamp_0_0" dir="s" state="M"/>
+    <connection from="TCE2" to="TCE3" fromLane="0" toLane="0" via=":TCN_OffRamp_1_0" dir="L" state="M"/>
+    <connection from="TCE3" to="SIRIME1" fromLane="0" toLane="1" via=":SIRIM_Junc_10_0" tl="SIRIM_Junc" linkIndex="10" dir="s" state="O"/>
+    <connection from="TCE3" to="SIRIMS1" fromLane="0" toLane="1" via=":SIRIM_Junc_11_0" tl="SIRIM_Junc" linkIndex="11" dir="r" state="o"/>
+    <connection from="TCEN" to="TCN11" fromLane="0" toLane="0" via=":TCN_OnRamp_2_0" dir="s" state="M"/>
+    <connection from="TCN1" to="TCN11" fromLane="0" toLane="1" via=":TCN_OnRamp_0_0" dir="s" state="M"/>
+    <connection from="TCN1" to="TCN11" fromLane="1" toLane="2" via=":TCN_OnRamp_0_1" dir="s" state="M"/>
+    <connection from="TCN11" to="TCN2" fromLane="0" toLane="0" via=":INFS_Junc_0_0" dir="s" state="Z"/>
+    <connection from="TCN11" to="TCN2" fromLane="1" toLane="0" via=":INFS_Junc_0_1" dir="s" state="Z"/>
+    <connection from="TCN11" to="TCN2" fromLane="2" toLane="1" via=":INFS_Junc_0_2" dir="s" state="M"/>
+    <connection from="TCN2" to="INFin" fromLane="0" toLane="0" via=":INF_Junc_1_0" dir="l" state="M"/>
+    <connection from="TCN2" to="INFN1" fromLane="0" toLane="1" via=":INF_Junc_2_0" dir="s" state="M"/>
+    <connection from="TCN2" to="INFN1" fromLane="1" toLane="2" via=":INF_Junc_2_1" dir="s" state="M"/>
+    <connection from="TCS1" to="TCS2" fromLane="0" toLane="0" keepClear="0" via=":INFS_Junc_3_0" dir="s" state="M"/>
+    <connection from="TCS1" to="TCS2" fromLane="0" toLane="1" keepClear="0" via=":INFS_Junc_3_1" dir="s" state="M"/>
+    <connection from="TCS1" to="TCS2" fromLane="1" toLane="2" keepClear="0" via=":INFS_Junc_3_2" dir="s" state="M"/>
+    <connection from="TCS2" to="SIRIME1" fromLane="0" toLane="0" via=":SIRIM_Junc_6_0" tl="SIRIM_Junc" linkIndex="6" dir="l" state="O"/>
+    <connection from="TCS2" to="SIRIMS1" fromLane="1" toLane="0" via=":SIRIM_Junc_7_0" tl="SIRIM_Junc" linkIndex="7" dir="s" state="o"/>
+    <connection from="TCS2" to="SIRIMS1" fromLane="2" toLane="1" via=":SIRIM_Junc_7_1" tl="SIRIM_Junc" linkIndex="8" dir="s" state="o"/>
+    <connection from="TCS2" to="TCW1" fromLane="2" toLane="1" via=":SIRIM_Junc_9_0" tl="SIRIM_Junc" linkIndex="9" dir="r" state="o"/>
+    <connection from="TCSW" to="TCW2" fromLane="0" toLane="0" via=":TCW_OnRamp_0_0" dir="s" state="m"/>
+    <connection from="TCW1" to="TCW2" fromLane="0" toLane="0" via=":TCW_OnRamp_1_0" dir="s" state="M"/>
+    <connection from="TCW1" to="TCW2" fromLane="1" toLane="1" via=":TCW_OnRamp_1_1" dir="s" state="M"/>
+    <connection from="TCW2" to="TCW3" fromLane="0" toLane="0" via=":TC_Junc1_0_0" dir="s" state="M"/>
+    <connection from="TCW2" to="TCW3" fromLane="1" toLane="1" via=":TC_Junc1_0_1" dir="s" state="M"/>
+    <connection from="TMN1" to="TMN2" fromLane="0" toLane="0" keepClear="0" via=":TM_Junc_0_0" dir="s" state="Z"/>
+    <connection from="TMN1" to="TMN2" fromLane="1" toLane="0" via=":TM_Junc_0_1" dir="s" state="Z"/>
+    <connection from="TMN1" to="TMN2" fromLane="2" toLane="1" keepClear="0" via=":TM_Junc_0_2" dir="s" state="M"/>
+    <connection from="TMS1" to="TMS2" fromLane="0" toLane="0" keepClear="0" via=":TM_Junc_3_0" dir="s" state="M"/>
+    <connection from="TMS1" to="TMS2" fromLane="0" toLane="1" keepClear="0" via=":TM_Junc_3_1" dir="s" state="M"/>
+    <connection from="TMS1" to="TMS2" fromLane="1" toLane="2" keepClear="0" via=":TM_Junc_3_2" dir="s" state="M"/>
+    <connection from="TMS2" to="SHE1" fromLane="0" toLane="0" via=":PBB_Junc_8_0" tl="PBB_Junc" linkIndex="8" dir="l" state="O"/>
+    <connection from="TMS2" to="SHS1" fromLane="1" toLane="1" via=":PBB_Junc_9_0" tl="PBB_Junc" linkIndex="9" dir="s" state="O"/>
+    <connection from="TMS2" to="SHS1" fromLane="2" toLane="2" via=":PBB_Junc_9_1" tl="PBB_Junc" linkIndex="10" dir="s" state="O"/>
+    <connection from="TMS2" to="HLW1" fromLane="2" toLane="1" via=":PBB_Junc_11_0" tl="PBB_Junc" linkIndex="11" dir="r" state="o"/>
+    <connection from="TXout" to="TCS1" fromLane="0" toLane="0" via=":TX_Junc_0_0" dir="l" state="m"/>
+
+    <connection from=":Bridge_0" to="FMN2" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":Bridge_0" to="FMN2" fromLane="1" toLane="0" dir="s" state="M"/>
+    <connection from=":Bridge_0" to="FMN2" fromLane="2" toLane="1" dir="s" state="M"/>
+    <connection from=":Bridge_0" to="FMN2" fromLane="3" toLane="1" dir="s" state="M"/>
+    <connection from=":Bridge_4" to="FMS2" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":Bridge_4" to="FMS2" fromLane="1" toLane="1" dir="s" state="M"/>
+    <connection from=":Bridge_4" to="FMS2" fromLane="2" toLane="2" dir="s" state="M"/>
+    <connection from=":FM_Junc_0" to="FMS1" fromLane="0" toLane="0" dir="l" state="M"/>
+    <connection from=":FM_Junc_1" to="FMin" fromLane="0" toLane="0" dir="l" state="M"/>
+    <connection from=":FM_Junc_2" to="FMS1" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":FM_Junc_2" to="FMS1" fromLane="1" toLane="1" dir="s" state="M"/>
+    <connection from=":HLW_Junc_0" to="HLW2" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":HLW_Junc_0" to="HLW2" fromLane="1" toLane="1" dir="s" state="M"/>
+    <connection from=":HLW_Junc_2" to="HLE2" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":HLW_Junc_2" to="HLE2" fromLane="1" toLane="1" dir="s" state="M"/>
+    <connection from=":HL_Junc_0" to="HLin" fromLane="0" toLane="0" dir="l" state="M"/>
+    <connection from=":HL_Junc_1" to="SHN1" fromLane="0" toLane="1" dir="s" state="M"/>
+    <connection from=":HL_Junc_1" to="SHN1" fromLane="1" toLane="2" dir="s" state="M"/>
+    <connection from=":HL_Junc_3" to="SHN1" fromLane="0" toLane="0" dir="l" state="M"/>
+    <connection from=":HL_Junc_4" to="SHN1" fromLane="0" toLane="1" dir="l" state="M"/>
+    <connection from=":INFMain_Junc_0" to="FMN1" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":INFMain_Junc_0" to="FMN1" fromLane="1" toLane="1" dir="s" state="M"/>
+    <connection from=":INFMain_Junc_2" to="SKE1" fromLane="0" toLane="1" dir="r" state="M"/>
+    <connection from=":INFMain_Junc_3" to="FMN1" fromLane="0" toLane="2" dir="r" state="M"/>
+    <connection from=":INFMain_Junc_4" to="SKE1" fromLane="0" toLane="0" dir="l" state="M"/>
+    <connection from=":INFMain_Junc_5" to="INFS11" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":INFMain_Junc_5" to="INFS11" fromLane="1" toLane="1" dir="s" state="M"/>
+    <connection from=":INFN_Junc_0" to="INFN2" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":INFN_Junc_0" to="INFN2" fromLane="1" toLane="1" dir="s" state="M"/>
+    <connection from=":INFN_Junc_0" to="INFN2" fromLane="2" toLane="2" dir="s" state="M"/>
+    <connection from=":INFN_Junc_3" to="INFS2" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":INFN_Junc_3" to="INFS2" fromLane="1" toLane="0" dir="s" state="M"/>
+    <connection from=":INFN_Junc_3" to="INFS2" fromLane="2" toLane="1" dir="s" state="M"/>
+    <connection from=":INFS_Junc_0" to="TCN2" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":INFS_Junc_0" to="TCN2" fromLane="1" toLane="0" dir="s" state="M"/>
+    <connection from=":INFS_Junc_0" to="TCN2" fromLane="2" toLane="1" dir="s" state="M"/>
+    <connection from=":INFS_Junc_3" to="TCS2" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":INFS_Junc_3" to="TCS2" fromLane="1" toLane="1" dir="s" state="M"/>
+    <connection from=":INFS_Junc_3" to="TCS2" fromLane="2" toLane="2" dir="s" state="M"/>
+    <connection from=":INFS_OffRamp_0" to="SKWS" fromLane="0" toLane="0" dir="L" state="M"/>
+    <connection from=":INFS_OffRamp_1" to="SKW21" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":INFS_OnRamp_0" to="INFS1" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":INFS_OnRamp_1" to="INFS1" fromLane="0" toLane="1" dir="s" state="M"/>
+    <connection from=":INFS_OnRamp_1" to="INFS1" fromLane="1" toLane="2" dir="s" state="M"/>
+    <connection from=":INF_Junc_0" to="INFN1" fromLane="0" toLane="0" dir="l" state="M"/>
+    <connection from=":INF_Junc_1" to="INFin" fromLane="0" toLane="0" dir="l" state="M"/>
+    <connection from=":INF_Junc_2" to="INFN1" fromLane="0" toLane="1" dir="s" state="M"/>
+    <connection from=":INF_Junc_2" to="INFN1" fromLane="1" toLane="2" dir="s" state="M"/>
+    <connection from=":PBB_Junc_0" to="HLW1" fromLane="0" toLane="0" dir="l" state="M"/>
+    <connection from=":PBB_Junc_1" to="TMN1" fromLane="0" toLane="1" dir="s" state="M"/>
+    <connection from=":PBB_Junc_1" to="TMN1" fromLane="1" toLane="2" dir="s" state="M"/>
+    <connection from=":PBB_Junc_3" to="SHE1" fromLane="0" toLane="1" dir="r" state="M"/>
+    <connection from=":PBB_Junc_4" to="SHS1" fromLane="0" toLane="0" dir="l" state="M"/>
+    <connection from=":PBB_Junc_5" to="HLW1" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":PBB_Junc_5" to="HLW1" fromLane="1" toLane="1" dir="s" state="M"/>
+    <connection from=":PBB_Junc_7" to="TMN1" fromLane="0" toLane="2" dir="r" state="M"/>
+    <connection from=":PBB_Junc_8" to="SHE1" fromLane="0" toLane="0" dir="l" state="M"/>
+    <connection from=":PBB_Junc_9" to="SHS1" fromLane="0" toLane="1" dir="s" state="M"/>
+    <connection from=":PBB_Junc_9" to="SHS1" fromLane="1" toLane="2" dir="s" state="M"/>
+    <connection from=":PBB_Junc_11" to="HLW1" fromLane="0" toLane="1" dir="r" state="M"/>
+    <connection from=":PBB_Junc_12" to="TMN1" fromLane="0" toLane="0" dir="l" state="M"/>
+    <connection from=":PBB_Junc_13" to="SHE1" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":PBB_Junc_14" to="SHS1" fromLane="0" toLane="1" dir="r" state="M"/>
+    <connection from=":PBB_Junc_15" to="SHS1" fromLane="0" toLane="2" dir="r" state="M"/>
+    <connection from=":SHE_Junc_0" to="SHW2" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":SHE_Junc_0" to="SHW2" fromLane="1" toLane="1" dir="s" state="M"/>
+    <connection from=":SHE_Junc_2" to="SHE2" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":SHE_Junc_2" to="SHE2" fromLane="1" toLane="1" dir="s" state="M"/>
+    <connection from=":SHS_Junc_0" to="SHN2" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":SHS_Junc_0" to="SHN2" fromLane="1" toLane="1" dir="s" state="M"/>
+    <connection from=":SHS_Junc_0" to="SHN2" fromLane="2" toLane="2" dir="s" state="M"/>
+    <connection from=":SHS_Junc_3" to="SHS2" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":SHS_Junc_3" to="SHS2" fromLane="1" toLane="0" dir="s" state="M"/>
+    <connection from=":SHS_Junc_3" to="SHS2" fromLane="2" toLane="1" dir="s" state="M"/>
+    <connection from=":SHS_Junc_3" to="SHS2" fromLane="3" toLane="1" dir="s" state="M"/>
+    <connection from=":SIRIME_Junc_0" to="SIRIMW2" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":SIRIME_Junc_0" to="SIRIMW2" fromLane="1" toLane="1" dir="s" state="M"/>
+    <connection from=":SIRIME_Junc_0" to="SIRIMW2" fromLane="2" toLane="2" dir="s" state="M"/>
+    <connection from=":SIRIME_Junc_3" to="SIRIME2" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":SIRIME_Junc_3" to="SIRIME2" fromLane="1" toLane="1" dir="s" state="M"/>
+    <connection from=":SIRIMS_Junc_0" to="SIRIMN2" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":SIRIMS_Junc_0" to="SIRIMN2" fromLane="1" toLane="1" dir="s" state="M"/>
+    <connection from=":SIRIMS_Junc_0" to="SIRIMN2" fromLane="2" toLane="2" dir="s" state="M"/>
+    <connection from=":SIRIMS_Junc_3" to="SIRIMS3" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":SIRIMS_Junc_3" to="SIRIMS3" fromLane="1" toLane="0" dir="s" state="M"/>
+    <connection from=":SIRIMS_Junc_3" to="SIRIMS3" fromLane="2" toLane="1" dir="s" state="M"/>
+    <connection from=":SIRIMS_OffRamp_0" to="SIRIMWS" fromLane="0" toLane="0" dir="L" state="M"/>
+    <connection from=":SIRIMS_OffRamp_1" to="SIRIMW21" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":SIRIMS_OffRamp_1" to="SIRIMW21" fromLane="1" toLane="1" dir="s" state="M"/>
+    <connection from=":SIRIMS_OnRamp_0" to="SIRIMS2" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":SIRIMS_OnRamp_1" to="SIRIMS2" fromLane="0" toLane="1" dir="s" state="M"/>
+    <connection from=":SIRIMS_OnRamp_1" to="SIRIMS2" fromLane="1" toLane="2" dir="s" state="M"/>
+    <connection from=":SIRIM_Junc_0" to="TCN1" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":SIRIM_Junc_0" to="TCN1" fromLane="1" toLane="1" dir="s" state="M"/>
+    <connection from=":SIRIM_Junc_2" to="SIRIME1" fromLane="0" toLane="1" dir="r" state="M"/>
+    <connection from=":SIRIM_Junc_3" to="TCW1" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":SIRIM_Junc_3" to="TCW1" fromLane="1" toLane="1" dir="s" state="M"/>
+    <connection from=":SIRIM_Junc_5" to="TCN1" fromLane="0" toLane="1" dir="r" state="M"/>
+    <connection from=":SIRIM_Junc_6" to="SIRIME1" fromLane="0" toLane="0" dir="l" state="M"/>
+    <connection from=":SIRIM_Junc_7" to="SIRIMS1" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":SIRIM_Junc_7" to="SIRIMS1" fromLane="1" toLane="1" dir="s" state="M"/>
+    <connection from=":SIRIM_Junc_9" to="TCW1" fromLane="0" toLane="1" dir="r" state="M"/>
+    <connection from=":SIRIM_Junc_10" to="SIRIME1" fromLane="0" toLane="1" dir="s" state="M"/>
+    <connection from=":SIRIM_Junc_11" to="SIRIMS1" fromLane="0" toLane="1" dir="r" state="M"/>
+    <connection from=":SKE_Junc_0" to="SKW2" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":SKE_Junc_0" to="SKW2" fromLane="1" toLane="1" dir="s" state="M"/>
+    <connection from=":SKE_Junc_2" to="SKE2" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":SKE_Junc_2" to="SKE2" fromLane="1" toLane="1" dir="s" state="M"/>
+    <connection from=":TCN_OffRamp_0" to="TCEN" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":TCN_OffRamp_1" to="TCE3" fromLane="0" toLane="0" dir="L" state="M"/>
+    <connection from=":TCN_OnRamp_0" to="TCN11" fromLane="0" toLane="1" dir="s" state="M"/>
+    <connection from=":TCN_OnRamp_0" to="TCN11" fromLane="1" toLane="2" dir="s" state="M"/>
+    <connection from=":TCN_OnRamp_2" to="TCN11" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":TCW_OffRamp_0" to="TCSW" fromLane="0" toLane="0" dir="L" state="M"/>
+    <connection from=":TCW_OffRamp_1" to="SIRIMN3" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":TCW_OffRamp_1" to="SIRIMN3" fromLane="1" toLane="1" dir="s" state="M"/>
+    <connection from=":TCW_OnRamp_0" to="TCW2" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":TCW_OnRamp_1" to="TCW2" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":TCW_OnRamp_1" to="TCW2" fromLane="1" toLane="1" dir="s" state="M"/>
+    <connection from=":TC_Junc1_0" to="TCW3" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":TC_Junc1_0" to="TCW3" fromLane="1" toLane="1" dir="s" state="M"/>
+    <connection from=":TC_Junc1_2" to="TCE2" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":TC_Junc1_2" to="TCE2" fromLane="1" toLane="0" dir="s" state="M"/>
+    <connection from=":TM_Junc_0" to="TMN2" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":TM_Junc_0" to="TMN2" fromLane="1" toLane="0" dir="s" state="M"/>
+    <connection from=":TM_Junc_0" to="TMN2" fromLane="2" toLane="1" dir="s" state="M"/>
+    <connection from=":TM_Junc_3" to="TMS2" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":TM_Junc_3" to="TMS2" fromLane="1" toLane="1" dir="s" state="M"/>
+    <connection from=":TM_Junc_3" to="TMS2" fromLane="2" toLane="2" dir="s" state="M"/>
+    <connection from=":TX_Junc_0" to="TCS1" fromLane="0" toLane="0" dir="l" state="M"/>
+    <connection from=":TX_Junc_1" to="TXin" fromLane="0" toLane="0" dir="l" state="M"/>
+    <connection from=":TX_Junc_2" to="TCS1" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":TX_Junc_2" to="TCS1" fromLane="1" toLane="1" dir="s" state="M"/>
+
+</net>

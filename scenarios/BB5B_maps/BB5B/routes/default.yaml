@@ -1,0 +1,315 @@
+FMout-SKE:
+  config:
+    edges: FMS1 FMS2 SKE1 SKE2
+  weight: 1
+FMout-SirimE:
+  config:
+    edges: FMS1 FMS2 INFS11 INFS1 INFS2 TCS1 TCS2 SIRIME1 SIRIME2
+  weight: 1
+FMout-SirimS:
+  config:
+    edges: FMS1 FMS2 INFS11 INFS1 INFS2 TCS1 TCS2 SIRIMS1 SIRIMS2 SIRIMS3
+  weight: 1
+FMout-SirimW:
+  config:
+    edges: FMS1 FMS2 INFS11 INFS1 INFS2 TCS1 TCS2 TCW1 TCW2 TCW3
+  weight: 1
+FMout-TXin:
+  config:
+    edges: FMS1 FMS2 INFS11 INFS1 INFS2
+  weight: 1
+HLout-PBBE:
+  config:
+    edges: SHN1 SHN2 SHE1 SHE2
+  weight: 1
+HLout-PBBN:
+  config:
+    edges: SHN1 SHN2 TMN1 TMN2
+  weight: 1
+HLout-PBBW:
+  config:
+    edges: SHN1 SHN2 HLW1 HLW2
+  weight: 1
+Infout-HLin:
+  config:
+    edges: INFN1 INFN2 FMN1 FMN2
+  weight: 1
+Infout-PBBE:
+  config:
+    edges: INFN1 INFN2 FMN1 FMN2 SHN1 SHN2 SHE1 SHE2
+  weight: 1
+Infout-PBBN:
+  config:
+    edges: INFN1 INFN2 FMN1 FMN2 SHN1 SHN2 TMN1 TMN2
+  weight: 1
+Infout-PBBW:
+  config:
+    edges: INFN1 INFN2 FMN1 FMN2 SHN1 SHN2 HLW1 HLW2
+  weight: 1
+Infout-SKE:
+  config:
+    edges: INFN1 INFN2 SKE1 SKE2
+  weight: 1
+PBBE-FMin:
+  config:
+    edges: SHW1 SHW2 SHS1 SHS2
+  weight: 1
+PBBE-PBBN:
+  config:
+    edges: SHW1 SHW2 TMN1 TMN2
+  weight: 1
+PBBE-PBBW:
+  config:
+    edges: SHW1 SHW2 HLW1 HLW2
+  weight: 1
+PBBE-SKE:
+  config:
+    edges: SHW1 SHW2 SHS1 SHS2 FMS1 FMS2 SKE1 SKE2
+  weight: 1
+PBBE-SirimE:
+  config:
+    edges:
+      SHW1 SHW2 SHS1 SHS2 FMS1 FMS2 INFS11 INFS1 INFS2 TCS1 TCS2 SIRIME1
+      SIRIME2
+  weight: 1
+PBBE-SirimS:
+  config:
+    edges:
+      SHW1 SHW2 SHS1 SHS2 FMS1 FMS2 INFS11 INFS1 INFS2 TCS1 TCS2 SIRIMS1
+      SIRIMS2 SIRIMS3
+  weight: 1
+PBBE-SirimW:
+  config:
+    edges:
+      SHW1 SHW2 SHS1 SHS2 FMS1 FMS2 INFS11 INFS1 INFS2 TCS1 TCS2 TCW1 TCW2 TCW3
+  weight: 1
+PBBE-TXin:
+  config:
+    edges: HLE1 HLE2 SHS1 SHS2 FMS1 FMS2 INFS11 INFS1 INFS2
+  weight: 1
+PBBN-FMin:
+  config:
+    edges: TMS1 TMS2 SHS1 SHS2
+  weight: 1
+PBBN-PBBE:
+  config:
+    edges: TMS1 TMS2 SHE1 SHE2
+  weight: 1
+PBBN-PBBW:
+  config:
+    edges: TMS1 TMS2 HLW1 HLW2
+  weight: 1
+PBBN-SKE:
+  config:
+    edges: TMS1 TMS2 SHS1 SHS2 FMS1 FMS2 SKE1 SKE2
+  weight: 1
+PBBN-SirimE:
+  config:
+    edges:
+      TMS1 TMS2 SHS1 SHS2 FMS1 FMS2 INFS11 INFS1 INFS2 TCS1 TCS2 SIRIME1
+      SIRIME2
+  weight: 1
+PBBN-SirimS:
+  config:
+    edges:
+      TMS1 TMS2 SHS1 SHS2 FMS1 FMS2 INFS11 INFS1 INFS2 TCS1 TCS2 SIRIMS1
+      SIRIMS2 SIRIMS3
+  weight: 1
+PBBN-SirimW:
+  config:
+    edges:
+      TMS1 TMS2 SHS1 SHS2 FMS1 FMS2 INFS11 INFS1 INFS2 TCS1 TCS2 TCW1 TCW2 TCW3
+  weight: 1
+PBBN-TXin:
+  config:
+    edges: TMS1 TMS2 SHS1 SHS2 FMS1 FMS2 INFS11 INFS1 INFS2
+  weight: 1
+PBBW-FMin:
+  config:
+    edges: HLE1 HLE2 SHS1 SHS2
+  weight: 1
+PBBW-PBBE:
+  config:
+    edges: HLE1 HLE2 SHE1 SHE2
+  weight: 1
+PBBW-PBBN:
+  config:
+    edges: HLE1 HLE2 TMN1 TMN2
+  weight: 1
+PBBW-SKE:
+  config:
+    edges: HLE1 HLE2 SHS1 SHS2 FMS1 FMS2 SKE1 SKE2
+  weight: 1
+PBBW-SirimE:
+  config:
+    edges:
+      HLE1 HLE2 SHS1 SHS2 FMS1 FMS2 INFS11 INFS1 INFS2 TCS1 TCS2 SIRIME1
+      SIRIME2
+  weight: 1
+PBBW-SirimS:
+  config:
+    edges:
+      HLE1 HLE2 SHS1 SHS2 FMS1 FMS2 INFS11 INFS1 INFS2 TCS1 TCS2 SIRIMS1
+      SIRIMS2 SIRIMS3
+  weight: 1
+PBBW-SirimW:
+  config:
+    edges:
+      HLE1 HLE2 SHS1 SHS2 FMS1 FMS2 INFS11 INFS1 INFS2 TCS1 TCS2 TCW1 TCW2 TCW3
+  weight: 1
+PBBW-TXin:
+  config:
+    edges: HLE1 HLE2 SHS1 SHS2 FMS1 FMS2 INFS11 INFS1 INFS2
+  weight: 1
+SKE-HLin:
+  config:
+    edges: SKW1 SKW2 SKW21 FMN1 FMN2
+  weight: 1
+SKE-PBBE:
+  config:
+    edges: SKW1 SKW2 SKW21 FMN1 FMN2 SHN1 SHN2 SHE1 SHE2
+  weight: 1
+SKE-PBBN:
+  config:
+    edges: SKW1 SKW2 SKW21 FMN1 FMN2 SHN1 SHN2 TMN1 TMN2
+  weight: 1
+SKE-PBBW:
+  config:
+    edges: SKW1 SKW2 SKW21 FMN1 FMN2 SHN1 SHN2 HLW1 HLW2
+  weight: 1
+SKE-SirimE:
+  config:
+    edges: SKW1 SKW2 SKWS INFS1 INFS2 TCS1 TCS2 SIRIME1 SIRIME2
+  weight: 1
+SKE-SirimS:
+  config:
+    edges: SKW1 SKW2 SKWS INFS1 INFS2 TCS1 TCS2 SIRIMS1 SIRIMS2 SIRIMS3
+  weight: 1
+SKE-SirimW:
+  config:
+    edges: SKW1 SKW2 SKWS INFS1 INFS2 TCS1 TCS2 TCW1 TCW2 TCW3
+  weight: 1
+SKE-TXin:
+  config:
+    edges: SKW1 SKW2 SKWS INFS1 INFS2
+  weight: 1
+SirimE-HLin:
+  config:
+    edges: SIRIMW1 SIRIMW2 SIRIMW21 TCN1 TCN11 TCN2 INFN1 INFN2 FMN1 FMN2
+  weight: 1
+SirimE-Infin:
+  config:
+    edges: SIRIMW1 SIRIMW2 SIRIMW21 TCN1 TCN11 TCN2
+  weight: 1
+SirimE-PBBE:
+  config:
+    edges:
+      SIRIMW1 SIRIMW2 SIRIMW21 TCN1 TCN11 TCN2 INFN1 INFN2 FMN1 FMN2 SHN1 SHN2
+      SHE1 SHE2
+  weight: 1
+SirimE-PBBN:
+  config:
+    edges:
+      SIRIMW1 SIRIMW2 SIRIMW21 TCN1 TCN11 TCN2 INFN1 INFN2 FMN1 FMN2 SHN1 SHN2
+      TMN1 TMN2
+  weight: 1
+SirimE-PBBW:
+  config:
+    edges:
+      SIRIMW1 SIRIMW2 SIRIMW21 TCN1 TCN11 TCN2 INFN1 INFN2 FMN1 FMN2 SHN1 SHN2
+      HLW1 HLW2
+  weight: 1
+SirimE-SKE:
+  config:
+    edges: SIRIMW1 SIRIMW2 SIRIMW21 TCN1 TCN11 TCN2 INFN1 INFN2 SKE1 SKE2
+  weight: 1
+SirimE-SirimS:
+  config:
+    edges: SIRIMW1 SIRIMW2 SIRIMWS SIRIMS2 SIRIMS3
+  weight: 1
+SirimE-SirimW:
+  config:
+    edges: SIRIMW1 SIRIMW2 SIRIMW21 TCW1 TCW2 TCW3
+  weight: 1
+SirimS-HLin:
+  config:
+    edges: SIRIMN1 SIRIMN2 SIRIMN3 TCN1 TCN11 TCN2 INFN1 INFN2 FMN1 FMN2
+  weight: 1
+SirimS-Infin:
+  config:
+    edges: SIRIMN1 SIRIMN2 SIRIMN3 TCN1 TCN11 TCN2
+  weight: 1
+SirimS-PBBE:
+  config:
+    edges:
+      SIRIMN1 SIRIMN2 SIRIMN3 TCN1 TCN11 TCN2 INFN1 INFN2 FMN1 FMN2 SHN1 SHN2
+      SHE1 SHE2
+  weight: 1
+SirimS-PBBN:
+  config:
+    edges:
+      SIRIMN1 SIRIMN2 SIRIMN3 TCN1 TCN11 TCN2 INFN1 INFN2 FMN1 FMN2 SHN1 SHN2
+      TMN1 TMN2
+  weight: 1
+SirimS-PBBW:
+  config:
+    edges:
+      SIRIMN1 SIRIMN2 SIRIMN3 TCN1 TCN11 TCN2 INFN1 INFN2 FMN1 FMN2 SHN1 SHN2
+      HLW1 HLW2
+  weight: 1
+SirimS-SKE:
+  config:
+    edges: SIRIMN1 SIRIMN2 SIRIMN3 TCN1 TCN11 TCN2 INFN1 INFN2 SKE1 SKE2
+  weight: 1
+SirimS-SirimE:
+  config:
+    edges: SIRIMN1 SIRIMN2 SIRIMN3 SIRIME1 SIRIME2
+  weight: 1
+SirimS-SirimW:
+  config:
+    edges: SIRIMN1 SIRIMN2 TCSW TCW2 TCW3
+  weight: 1
+SirimW-HLin:
+  config:
+    edges: TCE1 TCE2 TCEN TCN11 TCN2 INFN1 INFN2 FMN1 FMN2
+  weight: 1
+SirimW-Infin:
+  config:
+    edges: TCE1 TCE2 TCEN TCN11 TCN2
+  weight: 1
+SirimW-PBBE:
+  config:
+    edges: TCE1 TCE2 TCEN TCN11 TCN2 INFN1 INFN2 FMN1 FMN2 SHN1 SHN2 SHE1 SHE2
+  weight: 1
+SirimW-PBBN:
+  config:
+    edges: TCE1 TCE2 TCEN TCN11 TCN2 INFN1 INFN2 FMN1 FMN2 SHN1 SHN2 TMN1 TMN2
+  weight: 1
+SirimW-PBBW:
+  config:
+    edges: TCE1 TCE2 TCEN TCN11 TCN2 INFN1 INFN2 FMN1 FMN2 SHN1 SHN2 HLW1 HLW2
+  weight: 1
+SirimW-SKE:
+  config:
+    edges: TCE1 TCE2 TCEN TCN11 TCN2 INFN1 INFN2 SKE1 SKE2
+  weight: 1
+SirimW-SirimE:
+  config:
+    edges: TCE1 TCE2 TCE3 SIRIME1 SIRIME2
+  weight: 1
+SirimW-SirimS:
+  config:
+    edges: TCE1 TCE2 TCE3 SIRIMS1 SIRIMS2 SIRIMS3
+  weight: 1
+TXout-SirimE:
+  config:
+    edges: TCS1 TCS2 SIRIME1 SIRIME2
+  weight: 1
+TXout-SirimS:
+  config:
+    edges: TCS1 TCS2 SIRIMS1 SIRIMS2 SIRIMS3
+  weight: 1
+TXout-SirimW:
+  config:
+    edges: TCS1 TCS2 TCW1 TCW2 TCW3
+  weight: 1
