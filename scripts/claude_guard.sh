@@ -24,7 +24,10 @@ cd "$(git rev-parse --show-toplevel 2>/dev/null || echo .)" || exit 0
 
 MODE="${1:-all}"
 
-FROZEN_PATTERNS='^(envs/|agent/base\.py|agent/utils/utils\.py|agent/MAPPOAgent\.py|algorithms/|rewards\.py|states/|metrics/|CityFlow/|experiments/)'
+# `experiments/` is only partly frozen: the harness code (any .py, at any depth) is, but the JSON
+# configs under experiments/configs/ are not — new runs need new configs. This must stay in sync with
+# the deny list in .claude/settings.json; if the two disagree, the hook wins at the worst moment.
+FROZEN_PATTERNS='^(envs/|agent/base\.py|agent/utils/utils\.py|agent/MAPPOAgent\.py|algorithms/|rewards\.py|states/|metrics/|CityFlow/|experiments/.*\.py$)'
 
 CHANGED="$(git status --porcelain 2>/dev/null | awk '{ $1=""; sub(/^ +/,""); print }')"
 [ -z "$CHANGED" ] && exit 0

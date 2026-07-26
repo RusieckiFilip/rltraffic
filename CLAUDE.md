@@ -51,8 +51,13 @@ disk: the plan in `docs/plans/`, the convention in a docstring, the outcome in `
 
 1. **Do not modify existing repo files.** New code goes in new files. The frozen set is:
    `envs/**`, `agent/base.py`, `agent/utils/utils.py`, `agent/MAPPOAgent.py`, `algorithms/**`,
-   `rewards.py`, `states/**`, `metrics/**`, `CityFlow/**`, `experiments/**`.
+   `rewards.py`, `states/**`, `metrics/**`, `CityFlow/**`, `experiments/**/*.py`.
    Need a change there? → stop, write it as an open question in the Return Packet.
+   **`experiments/` is only partly frozen.** The harness code (`experiments/**/*.py`) is frozen; the
+   config files under `experiments/configs/` are not. Creating a NEW config under
+   `experiments/configs/` is allowed. Editing an EXISTING config that has already been used for a
+   recorded run is forbidden — manifests reference configs by path, so an edit silently changes what a
+   previously reported number means.
 2. **The environment API is non-standard on purpose. Do NOT "fix" it.**
    ```python
    info = env.reset(seed=42)                                # returns info ONLY (no obs)
@@ -92,6 +97,10 @@ next to · `pytest` for everything · no `pass` stubs, no `TODO: implement later
 Docstrings of any on-disk format must state the **format version** and the **alignment convention**
 explicitly.
 
+**Language.** Every artifact in this repo is written in English — code, comments, docstrings,
+documentation, commit messages, plans, briefs and Return Packets. The conversation with the user
+may be in Polish; what lands on disk is not.
+
 ## 4. Repo map (verify with `ls`, do not trust this if it disagrees with reality)
 
 ```
@@ -99,7 +108,7 @@ agent/        RL agents (DQN, IPPO, MAPPO) + BaseAgent + Utils      [FROZEN]
 algorithms/   MaxPressure, random baselines                          [FROZEN]
 envs/         CityFlow / SUMO / MOSS behind one API                  [FROZEN]
 states/ metrics/ rewards.py   backend-neutral state/metric/reward fns [FROZEN]
-experiments/  JSON-config env × agent × seed harness                 [FROZEN]
+experiments/  JSON-config env × agent × seed harness      [*.py FROZEN, configs/ writable]
 scenarios/ configs/           scenario + sim configs
 offline/      ← OUR CONTRIBUTION LIVES HERE (logger, collector, dataset, DT agent)
 tests/        pytest
@@ -108,11 +117,17 @@ docs/         plan, contracts, briefs, return packets
 
 ## 5. How to run things
 
+Always call the interpreter through `.venv/bin/`. Shell state does not persist between tool calls, so
+`source .venv/bin/activate` has no effect on the next command — a bare `pytest` only works when
+`claude` happened to be launched from an already-active venv, and that is a silent dependency.
+
 ```bash
-conda activate <env>              # ask the user which env if unsure; do not create a new one
-pytest tests/test_<x>.py -q       # fast tests, no simulator needed
-python -m offline.collect --help  # collection CLI
+.venv/bin/pytest tests/test_<x>.py -q        # fast tests, no simulator needed
+.venv/bin/python -m offline.collect --help   # collection CLI
 ```
+In your own interactive terminal, `source .venv/bin/activate` first (project venv, Python 3.12 — NOT
+conda base). Inside a session, the explicit `.venv/bin/` prefix is the only reliable form.
+
 Long simulation runs (corpus collection, MAPPO training) are **not** run inside a Claude Code session —
 they go to a `tmux` session started by the user. You may read their logs.
 

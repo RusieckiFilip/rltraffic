@@ -1,219 +1,228 @@
-# rltraffic × Claude Code — setup i system pracy
+# rltraffic × Claude Code — setup and working system
 
-Dwie części: **A. wdrożenie** (raz, ~20 min) i **B. system pracy** (codziennie).
-Część B jest ważniejsza. Setup bez dyscypliny pracy to tylko szybszy sposób na produkowanie kodu,
-którego nikt nie przeczytał.
+Two parts: **A. deployment** (once, ~20 min) and **B. working system** (every day).
+Part B matters more. Setup without working discipline is just a faster way to produce code
+nobody has read.
 
 ---
 
-# CZĘŚĆ A — WDROŻENIE
+# PART A — DEPLOYMENT
 
-## A1. Instalacja (w WSL, nie w PowerShellu)
+## A1. Installation (in WSL, not in PowerShell)
 
 ```bash
-node --version                          # brak? -> Node LTS (nvm albo apt)
+node --version                          # missing? -> Node LTS (nvm or apt)
 npm install -g @anthropic-ai/claude-code
-cd ~/rltraffic && claude                # pierwsze uruchomienie: logowanie w przeglądarce
+cd ~/rltraffic && claude                # first run: browser login
 ```
-W sesji: `/doctor` (diagnostyka), `/status` (model, katalog, uprawnienia).
-Dokumentacja: https://docs.claude.com/en/docs/claude-code/overview
+In session: `/doctor` (diagnostics), `/status` (model, directory, permissions).
+Documentation: https://docs.claude.com/en/docs/claude-code/overview
 
-Repo zostaje w Linux FS (`~/rltraffic`), nigdy `/mnt/c/...` — masz to w Decisions Log, a przy
-kilkuset operacjach na plikach w sesji różnica jest bolesna.
+The repo stays in the Linux FS (`~/rltraffic`), never `/mnt/c/...` — that is in the Decisions Log, and
+across a few hundred file operations per session the difference is painful.
 
-## A2. Przeniesienie paczki z Windows do WSL
+## A2. Moving the package from Windows to WSL
 
-Pobrany z czatu plik ląduje w Downloads **po stronie Windows**. WSL widzi go pod `/mnt/c/`.
-Nie musisz go nigdzie kopiować — rozpakuj wprost do repo.
+The file downloaded from the chat lands in Downloads **on the Windows side**. WSL sees it under
+`/mnt/c/`. You do not need to copy it anywhere — unpack it straight into the repo.
 
 ```bash
-# 1. znajdz swoj katalog uzytkownika Windows (moze sie roznic od loginu WSL)
+# 1. find your Windows user directory (may differ from your WSL login)
 ls /mnt/c/Users/
 
-# 2. podstaw wlasciwa nazwe i sprawdz, ze pliki sa na miejscu
+# 2. substitute the right name and check the files are in place
 WINUSER=filip
 ls -la /mnt/c/Users/$WINUSER/Downloads/rltraffic_claude_setup_v2.tar.gz
 ls -la /mnt/c/Users/$WINUSER/Downloads/project_master_plan_rltraffic*
 
-# 3. zobacz, co jest w srodku, ZANIM rozpakujesz do repo
+# 3. look at what is inside BEFORE unpacking into the repo
 tar -tzf /mnt/c/Users/$WINUSER/Downloads/rltraffic_claude_setup_v2.tar.gz
-#    wszystko musi byc pod jednym katalogiem rltraffic_claude_setup/ -
-#    dlatego dziala --strip-components=1 w nastepnym kroku
+#    everything must sit under a single rltraffic_claude_setup/ directory -
+#    that is why --strip-components=1 works in the next step
 
-# 4. rozpakowanie do repo
+# 4. unpack into the repo
 cd ~/rltraffic
-git status                       # drzewo ma byc czyste, jestes na main
+git status                       # tree must be clean, you are on main
 tar -xzf /mnt/c/Users/$WINUSER/Downloads/rltraffic_claude_setup_v2.tar.gz --strip-components=1
 chmod +x scripts/claude_guard.sh
 mkdir -p docs/plans
 
-# 5. master plan do repo - jedno zrodlo prawdy zamiast pliku w Downloads.
-#    Przegladarka mogla dopisac (1)/(2)/(3) do nazwy, wiec skopiuj JAWNIE ten wlasciwy,
-#    nie globem - glob dopasowujacy kilka plikow nadpisze cel po cichu.
-cp "/mnt/c/Users/$WINUSER/Downloads/<dokladna-nazwa-planu>.md" docs/PROJECT_PLAN.md
-head -3 docs/PROJECT_PLAN.md     # sprawdz, ze to naprawde plan, a nie stara wersja
+# 5. master plan into the repo - one source of truth instead of a file in Downloads.
+#    The browser may have appended (1)/(2)/(3) to the name, so copy the right one EXPLICITLY,
+#    not by glob - a glob matching several files will overwrite the target silently.
+cp "/mnt/c/Users/$WINUSER/Downloads/<exact-plan-filename>.md" docs/PROJECT_PLAN.md
+head -3 docs/PROJECT_PLAN.md     # check this really is the plan, not an old version
 
 # 6. gitignore + commit
 cat gitignore_additions.txt >> .gitignore && rm gitignore_additions.txt
 git add -A && git commit -m "chore: Claude Code setup, contracts v1.1, brief P1 v2"
 ```
 
-Rozpakowanie nadpisze `CLAUDE.md`, `.claude/`, `docs/CONTRACTS.md`, `docs/briefs/`, `docs/returns/`
-i `scripts/claude_guard.sh`. Reszta repo pozostaje nietknieta - tar dokleja, nie czysci katalogow.
-Jesli rozpakowywales wczesniejsza wersje paczki, usun najpierw
-`docs/briefs/ADDENDUM_A_PATCH.md` i `docs/briefs/BRIEF_01_DELTA.md` - v2 ich nie zawiera, wiec
-same nie znikna, a sa sprzeczne z Briefem #1 v2.
+Unpacking overwrites `CLAUDE.md`, `.claude/`, `docs/CONTRACTS.md`, `docs/briefs/`, `docs/returns/`
+and `scripts/claude_guard.sh`. The rest of the repo stays untouched - tar adds, it does not clean
+directories. If you unpacked an earlier version of the package, first delete
+`docs/briefs/ADDENDUM_A_PATCH.md` and `docs/briefs/BRIEF_01_DELTA.md` - v2 does not contain them, so
+they will not disappear on their own, and they contradict Brief #1 v2.
 
-Paczka jest już scalona ze zwrotką master chatu — `settings.json` i `claude_guard.sh` w wersji
-dwutrybowej, `docs/CONTRACTS.md` z C6 v1.1, `BRIEF_01_v2` w `docs/briefs/`, a nieaktualne
-`ADDENDUM_A_PATCH.md` i `BRIEF_01_DELTA.md` usunięte. Nie musisz nic składać ręcznie.
+The package is already merged with the master chat's return — `settings.json` and `claude_guard.sh` in
+the dual-mode version, `docs/CONTRACTS.md` with C6 v1.1, `BRIEF_01_v2` in `docs/briefs/`, and the
+outdated `ADDENDUM_A_PATCH.md` and `BRIEF_01_DELTA.md` removed. You do not need to assemble anything
+by hand.
 
-**Jedna zmiana względem tego, co przysłał master chat:** w `settings.json` ścieżki hooków to teraz
-`bash "$CLAUDE_PROJECT_DIR/scripts/claude_guard.sh"` zamiast ścieżki względnej. Hooki nie zawsze
-odpalają się z rootu repo — przy ścieżce względnej hook po cichu nie znajdzie skryptu, a wtedy nie
-masz żadnego zabezpieczenia i nie dowiesz się o tym.
+**One change relative to what the master chat sent:** in `settings.json` the hook paths are now
+`bash "$CLAUDE_PROJECT_DIR/scripts/claude_guard.sh"` instead of a relative path. Hooks do not always
+fire from the repo root — with a relative path the hook silently fails to find the script, and then
+you have no protection at all and will not learn about it.
 
-## A3. Weryfikacja — obowiązkowa, 3 minuty
+## A3. Verification — mandatory, 3 minutes
 
-Nie „sprawdziłem że skrypt działa", tylko „sprawdziłem że hook się odpala".
+Not "I checked that the script works", but "I checked that the hook fires".
 
 ```bash
-# 1. skrypt sam w sobie
+# 1. the script on its own
 echo "# test" >> envs/base_traffic_env.py
-bash scripts/claude_guard.sh --frozen-only ; echo "exit=$?"   # oczekiwane: exit=2 + BLOCKED
+bash scripts/claude_guard.sh --frozen-only ; echo "exit=$?"   # expected: exit=2 + BLOCKED
 git checkout -- envs/base_traffic_env.py
 ```
 
 ```bash
-# 2. hook w sesji — jedyny prawdziwy test
+# 2. the hook in a session — the only real test
 claude
 ```
 ```
-/hooks                    # oba wpisy PostToolUse widoczne?
-/permissions              # deny na envs/**, agent/base.py, ...?
-/agents                   # contract-reviewer, repo-cartographer, citation-verifier?
+/hooks                    # both PostToolUse entries visible?
+/permissions              # deny on envs/**, agent/base.py, ...?
+!ls .claude/agents/       # contract-reviewer, repo-cartographer, citation-verifier — three .md files?
 ```
-Potem, w sesji, poproś: *„dopisz komentarz `# probe` na końcu `envs/base_traffic_env.py`"*.
-Poprawny wynik: uprawnienia blokują edycję **albo** hook zwraca BLOCKED. Jeśli plik zmienił się bez
-protestu — masz dziurę, popraw zanim ruszysz dalej.
+The `/agents` wizard was removed in Claude Code v2.1.220 — subagents are no longer clicked together in
+a menu. They are defined by **`.md` files in `.claude/agents/`** (or `~/.claude/agents/` for all
+projects). Verification is therefore two-step: `!ls .claude/agents/` confirms the files exist, and
+invoking one by name (*"use the repo-cartographer subagent to ..."*) confirms the session actually
+registers it. `ls` alone is insufficient — a file with broken frontmatter sits on disk but never loads.
 
-## A4. Terminal czy VS Code
+Then, in the session, ask: *"append a `# probe` comment at the end of `envs/base_traffic_env.py`"*.
+The correct outcome: permissions block the edit **or** the hook returns BLOCKED. If the file changed
+without protest — you have a hole, fix it before going further.
 
-- **VS Code (WSL Remote) + rozszerzenie Claude Code** — praca codzienna. Rozszerzenie instalujesz po
-  stronie WSL. Repo otwierasz przez `code .` z `~/rltraffic`. Diffy inline są tu istotne: to jest kod,
-  którego wyniki trafią do tabel w artykule.
-- **Osobny terminal + `tmux`** — wszystko powyżej kilku minut: P2.1 (MAPPO ≥500 epizodów),
-  P2.2 (kampania korpusu). Nigdy w sesji Claude Code. Agent czyta logi, nie trzyma procesu.
+## A4. Terminal or VS Code
+
+- **VS Code (WSL Remote) + the Claude Code extension** — daily work. You install the extension on the
+  WSL side. You open the repo with `code .` from `~/rltraffic`. Inline diffs matter here: this is code
+  whose results will end up in the paper's tables.
+- **A separate terminal + `tmux`** — everything above a few minutes: P2.1 (MAPPO ≥500 episodes),
+  P2.2 (corpus campaign). Never inside a Claude Code session. The agent reads logs, it does not hold
+  the process.
 
 ---
 
-# CZĘŚĆ B — SYSTEM PRACY
+# PART B — WORKING SYSTEM
 
-## B1. Warstwy — co gdzie mieszka
+## B1. Layers — what lives where
 
-Twój łańcuch *Goals → Requirements → Spec → Implementation* jest już zaimplementowany, tylko rozbity
-na dwa narzędzia. Claude Code nie musi Cię przepytywać o cele, bo cele są w repo.
+Your *Goals → Requirements → Spec → Implementation* chain is already implemented, only split across
+two tools. Claude Code does not have to interrogate you about goals, because the goals are in the repo.
 
-| Warstwa | Artefakt | Gdzie powstaje |
+| Layer | Artifact | Where it is produced |
 |---|---|---|
 | Goals | claims C1–C3, headline contribution | Master chat (claude.ai) |
-| Requirements | plan §5–§7, kontrakty §4 | Master chat → `docs/PROJECT_PLAN.md`, `docs/CONTRACTS.md` |
-| Spec | brief zadania | Master chat → `docs/briefs/BRIEF_XX.md` |
-| Implementation | kod + testy | **Claude Code** |
-| QA | recenzja kontraktowa | **Claude Code** (`/review`, subagent w świeżym kontekście) |
+| Requirements | plan §5–§7, contracts §4 | Master chat → `docs/PROJECT_PLAN.md`, `docs/CONTRACTS.md` |
+| Spec | task brief | Master chat → `docs/briefs/BRIEF_XX.md` |
+| Implementation | code + tests | **Claude Code** |
+| QA | contract review | **Claude Code** (`/review`, subagent in a fresh context) |
 | Release | merge + Return Packet | Claude Code → `/handoff` → Master chat |
-| Iterate | aktualizacja planu, następny brief | Master chat |
+| Iterate | plan update, next brief | Master chat |
 
-**Jeden brief = jeden sprint = jedna sesja = jeden branch = jeden Return Packet.** To jest jednostka
-pracy. Brief §7 limituje ją do ≤2 plików źródłowych + testy — to nie formalność, tylko granica
-poniżej której recenzja jest w ogóle wykonalna.
+**One brief = one sprint = one session = one branch = one Return Packet.** That is the unit of work.
+Brief §7 caps it at ≤2 source files + tests — that is not a formality but the boundary below which
+review is feasible at all.
 
-## B2. Pętla jednego zadania
+## B2. The single-task loop
 
 ```
-Shift+Tab -> plan mode          (zawsze; widać w stopce)
+Shift+Tab -> plan mode          (always; visible in the footer)
 /task P1
-  Faza 1 EXPLORE   -> BRAMKA 1: czytasz rozbieżności brief↔repo, akceptujesz
-  Faza 2 PLAN      -> BRAMKA 2: czytasz docs/plans/P1.md, akceptujesz
-  Faza 3 CODE      -> BRAMKA 3: czytasz testy ZANIM powstanie implementacja
-  Faza 4 COMMIT    -> Return Packet w docs/returns/P1.md
-/review P1                       -> contract-reviewer, świeży kontekst, read-only
-  (poprawki -> wracasz do fazy 3)
-merge do main                    -> dopiero po PASS
-/handoff P1                      -> paczka dla Master chatu + co dziedziczy następna faza
+  Phase 1 EXPLORE  -> GATE 1: you read the brief↔repo discrepancies, you accept
+  Phase 2 PLAN     -> GATE 2: you read docs/plans/P1.md, you accept
+  Phase 3 CODE     -> GATE 3: you read the tests BEFORE the implementation exists
+  Phase 4 COMMIT   -> Return Packet in docs/returns/P1.md
+/review P1                       -> contract-reviewer, fresh context, read-only
+  (fixes -> back to phase 3)
+merge into main                  -> only after PASS
+/handoff P1                      -> package for the Master chat + what the next phase inherits
 /clear
 ```
 
-### Dlaczego bramka 3 jest najważniejsza
-Testy w Briefie #1 kodują konwencję alignmentu (`obserwacje T+1, decyzje T, r_t z wiersza t+1`).
-Jeśli implementacja powstanie pierwsza, testy zostaną napisane tak, żeby ją potwierdzić — i off-by-one
-wejdzie do formatu danych, gdzie kosztuje regenerację korpusu. Test 3 z briefu (dokładna równość
-`-np.sum(lane_waiting_vehicle_count[t+1])` vs `global_reward[t]`) jest jedynym miejscem, w którym ta
-konwencja jest naprawdę egzekwowana. Przeczytaj go osobiście, zanim powstanie logger.
+### Why gate 3 is the most important one
+The tests in Brief #1 encode the alignment convention (`observations T+1, decisions T, r_t from row
+t+1`). If the implementation comes first, the tests will be written to confirm it — and an off-by-one
+enters the data format, where it costs a corpus regeneration. Test 3 from the brief (exact equality of
+`-np.sum(lane_waiting_vehicle_count[t+1])` vs `global_reward[t]`) is the only place where this
+convention is genuinely enforced. Read it yourself before the logger exists.
 
-### Reguła 95%
-Jest w `CLAUDE.md`: agent ma wypisać założenia z poziomem pewności i **pytać zamiast zgadywać**
-poniżej ~95%. Nie kasuj tego jako gadulstwa — w tym projekcie złe założenie nie wywala się z błędem,
-tylko produkuje prawdopodobną liczbę.
+### The 95% rule
+It is in `CLAUDE.md`: the agent must list its assumptions with a confidence level and **ask instead of
+guessing** below ~95%. Do not delete this as chatter — in this project a bad assumption does not blow
+up with an error, it produces a plausible number.
 
-## B3. Kontekst — jedna zasada i cztery nawyki
+## B3. Context — one principle and four habits
 
-> **Repo jest pamięcią. Okno kontekstu jest brudnopisem.**
-> Cokolwiek musi przetrwać, ląduje na dysku: plan w `docs/plans/`, konwencja w docstringu, wynik
-> w `docs/returns/`. Nic ważnego nie zostaje wyłącznie w rozmowie.
+> **The repo is the memory. The context window is scratch space.**
+> Whatever must survive lands on disk: the plan in `docs/plans/`, the convention in a docstring, the
+> result in `docs/returns/`. Nothing important stays only in the conversation.
 
-1. **`/clear` między zadaniami. Zawsze.** Kontekst z P1 w sesji P2 to nie oszczędność, to źródło
-   cichych założeń, których nikt nie wypowiedział.
-2. **Czytanie deleguj do subagentów.** `/explore` i `repo-cartographer` czytają pliki we własnym
-   kontekście i zwracają wniosek z `path:line`. Główna sesja dostaje odpowiedź, nie źródła. To jest
-   najskuteczniejsza technika oszczędzania kontekstu, jaką masz.
-3. **`/compact` tylko w środku zadania i zawsze z instrukcją**, np.:
-   `/compact zachowaj: konwencję alignmentu, podjęte decyzje, ostatni output pytest; wyrzuć: treść plików, które są już na dysku`.
-   Bezinstrukcyjny compact wyrzuca dokładnie to, co było trudne do ustalenia.
-4. **Jeśli po raz drugi tłumaczysz agentowi to samo — to nie należy do rozmowy, tylko do `CLAUDE.md`.**
+1. **`/clear` between tasks. Always.** Context from P1 in a P2 session is not a saving, it is a source
+   of silent assumptions nobody stated out loud.
+2. **Delegate reading to subagents.** `/explore` and `repo-cartographer` read files in their own
+   context and return a conclusion with `path:line`. The main session gets the answer, not the
+   sources. This is the most effective context-saving technique you have.
+3. **`/compact` only mid-task and always with an instruction**, e.g.:
+   `/compact keep: the alignment convention, the decisions taken, the last pytest output; drop: contents of files that are already on disk`.
+   An instructionless compact throws out exactly what was hard to establish.
+4. **If you are explaining the same thing to the agent a second time — it does not belong in the
+   conversation, it belongs in `CLAUDE.md`.**
 
-## B4. Antywzorce (każdy realnie kosztowałby ten projekt)
+## B4. Antipatterns (each one would genuinely cost this project)
 
-| Nie rób | Dlaczego |
+| Do not | Why |
 |---|---|
-| „testy powinny przechodzić" bez uruchomienia | `CLAUDE.md` §2 tego zakazuje; egzekwuj w Return Packecie |
-| poprawianie testu, żeby przeszedł | domyślna hipoteza: to kod jest zły. Jeśli test jest zły — stop i decyzja Twoja |
-| pominięcie `/review`, „bo mała zmiana" | ten sam kontekst, który pisał kod, jest najgorszym recenzentem tego kodu |
-| dwa zadania w jednej sesji | patrz B3.1 |
-| długa symulacja w sesji agenta | zjada kontekst i blokuje sesję; `tmux` |
-| always-on skille typu ponytail/caveman | YAGNI skasuje state machine, hash epizodu i guard na zmianę pasów — czyli dokładnie to, co broni korpusu |
+| "tests should pass" without running them | `CLAUDE.md` §2 forbids it; enforce it in the Return Packet |
+| fixing a test so that it passes | default hypothesis: the code is wrong. If the test is wrong — stop, and the decision is yours |
+| skipping `/review` "because it is a small change" | the same context that wrote the code is the worst reviewer of that code |
+| two tasks in one session | see B3.1 |
+| a long simulation inside the agent's session | it eats context and blocks the session; `tmux` |
+| always-on skills of the ponytail/caveman kind | YAGNI will delete the state machine, the episode hash and the lane-change guard — that is, exactly what protects the corpus |
 
-## B5. Praca równoległa (przyda się przy P2)
+## B5. Parallel work (useful at P2)
 
-Gdy P2.0 (randomizer) i P2.1 (trening MAPPO) się nałożą, nie prowadź dwóch sesji w jednym katalogu:
+When P2.0 (randomizer) and P2.1 (MAPPO training) overlap, do not run two sessions in one directory:
 
 ```bash
 git worktree add ../rltraffic-p20 -b task/p20-randomizer
-cd ../rltraffic-p20 && cp -r ~/rltraffic/.claude .   # hooki nie wędrują do worktree same
+cd ../rltraffic-p20 && cp -r ~/rltraffic/.claude .   # hooks do not travel to a worktree by themselves
 ```
-Każdy worktree = własna sesja, własny branch, zero kolizji.
+Every worktree = its own session, its own branch, zero collisions.
 
-## B6. Checklista dnia
+## B6. Daily checklist
 
-- [ ] `git status` czysty, jestem na `main`
-- [ ] wiem, który brief robię i że jest **jedyną** wersją prawdy dla tego zadania
-- [ ] plan mode włączony
-- [ ] po zadaniu: `/review` → PASS → merge → `/handoff` → `/clear`
-- [ ] Return Packet wklejony do Master chatu
+- [ ] `git status` clean, I am on `main`
+- [ ] I know which brief I am doing and that it is the **only** source of truth for that task
+- [ ] plan mode on
+- [ ] after the task: `/review` → PASS → merge → `/handoff` → `/clear`
+- [ ] Return Packet pasted into the Master chat
 
 ---
 
-## Dodatek: dwie znane słabości guarda (do decyzji, nie zmieniałem)
+## Appendix: two known weaknesses of the guard (for a decision, I did not change them)
 
-`claude_guard.sh` jest w wersji master chatu i został przez niego przetestowany — zostawiłem
-bez zmian. Dwie rzeczy warto rozważyć, gdy zaczną boleć:
+`claude_guard.sh` is the master chat's version and was tested by it — I left it unchanged. Two things
+are worth considering once they start to hurt:
 
-1. **`--tests-only` odpala `pytest tests`** — całe drzewo testów. Jeśli w `tests/` są testy wymagające
-   SUMO/CityFlow, hook będzie zwracał exit 2 z powodów niezwiązanych ze zmianą i agent zacznie
-   „naprawiać" cudze testy. Fix: zmienna `CLAUDE_GUARD_TESTS` z domyślną wartością równą plikowi
-   testowemu bieżącego zadania.
-2. **Parsowanie `git status --porcelain` przez `awk '{$1=""}'`** gubi zmiany nazw (`R  old -> new`) i
-   pliki ze spacjami. Zamrożony plik przemianowany zamiast edytowanego przejdzie niezauważony.
-   Fix: `cut -c4-` albo `git diff --name-only HEAD`.
+1. **`--tests-only` runs `pytest tests`** — the whole test tree. If `tests/` contains tests requiring
+   SUMO/CityFlow, the hook will return exit 2 for reasons unrelated to the change, and the agent will
+   start "fixing" someone else's tests. Fix: a `CLAUDE_GUARD_TESTS` variable defaulting to the current
+   task's test file.
+2. **Parsing `git status --porcelain` with `awk '{$1=""}'`** loses renames (`R  old -> new`) and files
+   with spaces. A frozen file renamed instead of edited will pass unnoticed. Fix: `cut -c4-` or
+   `git diff --name-only HEAD`.
 
-Oba są mało prawdopodobne dziś i tanie do naprawy później — dlatego są tutaj, a nie w kodzie.
+Both are unlikely today and cheap to fix later — which is why they are here and not in the code.
