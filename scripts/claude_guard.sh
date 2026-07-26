@@ -28,14 +28,25 @@ MODE="${1:-all}"
 # `experiments/` is only partly frozen: the harness code (any .py, at any depth) is, but the JSON
 # configs under experiments/configs/ are not — new runs need new configs. This must stay in sync with
 # the deny list in .claude/settings.json; if the two disagree, the hook wins at the worst moment.
-FROZEN_PATTERNS='^(envs/|agent/base\.py|agent/utils/utils\.py|agent/MAPPOAgent\.py|algorithms/|rewards\.py|states/|metrics/|CityFlow/|experiments/.*\.py$)'
+#
+# `utils/` (top level) is frozen because all four backend env files import it — it is the roadnet
+# vocabulary (`RoadnetInfo`, `IntersectionInfo`) the backends agree on, not a scratch helper package.
+# `scripts/` and `.claude/` are frozen because this guard, the hook wiring and the permission
+# deny-list must not be editable by the session they constrain.
+FROZEN_PATTERNS='^(envs/|agent/base\.py|agent/utils/utils\.py|agent/MAPPOAgent\.py|algorithms/|rewards\.py|states/|metrics/|utils/|scripts/|\.claude/|CityFlow/|experiments/.*\.py$)'
+
+# DELIBERATE TEMPORARY EXCEPTION (2026-07-26) — not an oversight, and not a hole to widen.
+# check_english.sh is new and still being tuned (see the TODO in its header about `ó` tripping on
+# Spanish/Portuguese surnames in the bibliography), so it stays writable while the rest of scripts/
+# is frozen. Delete this variable and its use below once the script settles.
+FROZEN_EXCEPTIONS='^scripts/check_english\.sh$'
 
 CHANGED="$(git status --porcelain 2>/dev/null | awk '{ $1=""; sub(/^ +/,""); print }')"
 [ -z "$CHANGED" ] && exit 0
 
 # ---------------------------------------------------------------- frozen files
 if [ "$MODE" = "--frozen-only" ] || [ "$MODE" = "all" ]; then
-  VIOLATIONS="$(printf '%s\n' "$CHANGED" | grep -E "$FROZEN_PATTERNS" || true)"
+  VIOLATIONS="$(printf '%s\n' "$CHANGED" | grep -E "$FROZEN_PATTERNS" | grep -vE "$FROZEN_EXCEPTIONS" || true)"
   if [ -n "$VIOLATIONS" ]; then
     echo "BLOCKED: frozen files were modified. This project forbids it (see CLAUDE.md rule 1):" >&2
     printf '%s\n' "$VIOLATIONS" >&2

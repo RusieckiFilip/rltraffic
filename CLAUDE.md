@@ -51,8 +51,19 @@ disk: the plan in `docs/plans/`, the convention in a docstring, the outcome in `
 
 1. **Do not modify existing repo files.** New code goes in new files. The frozen set is:
    `envs/**`, `agent/base.py`, `agent/utils/utils.py`, `agent/MAPPOAgent.py`, `algorithms/**`,
-   `rewards.py`, `states/**`, `metrics/**`, `CityFlow/**`, `experiments/**/*.py`.
+   `rewards.py`, `states/**`, `metrics/**`, `utils/**`, `CityFlow/**`, `experiments/**/*.py`,
+   `scripts/**`, `.claude/**`.
    Need a change there? → stop, write it as an open question in the Return Packet.
+   **Two different `utils`, both frozen for different reasons:** top-level `utils/` is the
+   roadnet-parsing layer (`RoadnetInfo`, `IntersectionInfo`) that every backend env imports, so a
+   change there silently alters the topology all three backends agree on; `agent/utils/utils.py` is
+   the agent-side helper class you are required to reuse (rule 5).
+   **`scripts/**` and `.claude/**` are frozen because a session must not be able to unfreeze
+   itself** — the guard, the hook wiring and the permission deny-list are exactly what stops a wrong
+   assumption from reaching a frozen file. One deliberate, dated exception: `scripts/check_english.sh`
+   stays writable while it is still being tuned (2026-07-26; see the TODO in its header about
+   o-acute false positives). That exception is encoded in `claude_guard.sh` as `FROZEN_EXCEPTIONS`, not left
+   as a silent gap.
    **`experiments/` is only partly frozen.** The harness code (`experiments/**/*.py`) is frozen; the
    config files under `experiments/configs/` are not. Creating a NEW config under
    `experiments/configs/` is allowed. Editing an EXISTING config that has already been used for a
@@ -108,12 +119,43 @@ agent/        RL agents (DQN, IPPO, MAPPO) + BaseAgent + Utils      [FROZEN]
 algorithms/   MaxPressure, random baselines                          [FROZEN]
 envs/         CityFlow / SUMO / MOSS behind one API                  [FROZEN]
 states/ metrics/ rewards.py   backend-neutral state/metric/reward fns [FROZEN]
+utils/        roadnet parsing → backend-neutral topology dataclasses  [FROZEN]
 experiments/  JSON-config env × agent × seed harness      [*.py FROZEN, configs/ writable]
-scenarios/ configs/           scenario + sim configs
-offline/      ← OUR CONTRIBUTION LIVES HERE (logger, collector, dataset, DT agent)
-tests/        pytest
-docs/         plan, contracts, briefs, return packets
+scenarios/ configs/sim/        road networks + demand · CityFlow sim configs
+scripts/      claude_guard.sh (hook), check_english.sh   [FROZEN except check_english.sh]
+.claude/      agents, slash commands, permissions + hooks             [FROZEN]
+offline/      ← OUR CONTRIBUTION GOES HERE (logger, collector, dataset, DT agent)
+              DOES NOT EXIST YET — P1 creates it. Do not assume its contents.
+tests/        pytest (whole suite passes with no simulator; backend tests self-skip)
+docs/         plan, contracts, briefs, return packets + upstream platform docs
 ```
+
+Upstream docs written by the original platform authors — read them to understand the platform, never
+to justify a decision (`docs/CONTRACTS.md` outranks them): `architecture.md` (data flow, the `info`
+contract) · `environments.md` (env API, seeding) · `phase-control.md` (action semantics) ·
+`states.md` · `rewards.md` · `metrics.md` · `agents.md` · `experiments.md`.
+`OPERATING_GUIDE.md` is the human's workflow manual, not yours.
+
+### What one decision step actually does (why C6's alignment convention holds)
+
+`BaseTrafficEnv.step(action)`: `pre_step()` metric snapshot → phase control expands each action into
+a `PhasePlan` of `PhaseSegment`s (yellow → all-red → green) whose durations sum **exactly** to
+`delta_time` → the segments render on the backend and the engine advances → `metrics.update()` →
+global/local rewards computed from the fresh metrics → `_get_info()`. The reward and the `info`
+returned by step `t` therefore both describe the state **after** step `t`. This ordering is the
+verified fact contract C6 rests on — re-read it in the source before trusting any alignment claim.
+
+Three name registries make the platform backend-neutral; envs resolve names at construction time and
+fail fast on an unknown one: `rewards.py` (reward fn → the metrics it requires), `metrics/`
+(`@register` global / `@register_local` per intersection, opt-in and memoised per step), `states/`
+(named observation blocks). `utils/common_utils.py` holds the vocabulary all three speak —
+`RoadnetInfo` / `IntersectionInfo`, populated by each backend's own parser.
+
+Two consequences worth knowing: `experiments/config.py` and `experiments/registry.py` import neither
+torch nor any simulator, so `--dry-run` is instant and a missing engine turns a matrix cell into
+`skipped` instead of crashing the run; and `reset(seed=X)` reseeds the env RNG, from which every
+reset draws a **fresh engine seed** — one seed gives a reproducible *sequence* of varied episodes,
+which is what `engine_seed` in a manifest records.
 
 ## 5. How to run things
 
@@ -122,8 +164,16 @@ Always call the interpreter through `.venv/bin/`. Shell state does not persist b
 `claude` happened to be launched from an already-active venv, and that is a silent dependency.
 
 ```bash
-.venv/bin/pytest tests/test_<x>.py -q        # fast tests, no simulator needed
-.venv/bin/python -m offline.collect --help   # collection CLI
+.venv/bin/pytest -q                                    # whole suite; testpaths=tests, so the
+                                                       # vendored CityFlow tree is never collected
+.venv/bin/pytest tests/test_<x>.py -q                  # one file
+.venv/bin/pytest tests/test_<x>.py::test_<name> -q     # one test
+.venv/bin/pytest -q -k "phase and cityflow"            # by keyword
+.venv/bin/python experiments/run.py <config.json> --dry-run   # validate matrix, imports no backend
+.venv/bin/python experiments/run.py experiments/configs/smoke.json [--workers N] [--no-plot]
+.venv/bin/python -m offline.collect --help             # collection CLI (exists only after P1)
+bash scripts/claude_guard.sh --frozen-only ; echo "exit=$?"   # what the PostToolUse hook runs
+bash scripts/check_english.sh <paths>                         # English-only rule (§3)
 ```
 In your own interactive terminal, `source .venv/bin/activate` first (project venv, Python 3.12 — NOT
 conda base). Inside a session, the explicit `.venv/bin/` prefix is the only reliable form.
