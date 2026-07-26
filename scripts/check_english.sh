@@ -31,18 +31,22 @@ ALLOWED_NAMES='Paweł|Woliński|Grudziński'
 
 # Vendored trees are excluded wholesale: not our prose, not ours to rewrite.
 # (`grep -I` handles binaries; this list is for text we still do not own.)
-VENDOR_EXCLUDES=(
+# Plus one self-exclusion, for a different reason than the vendored trees above.
+EXCLUDES=(
   ':!CityFlow/'
   ':!*/node_modules/*'
   ':!*/third_party/*'
   ':!*/vendor/*'
+  # This file documents the Polish character class it detects, so it will always contain the letters
+  # it is checking for — without this line a repo-wide sweep can never return 0.
+  ':!scripts/check_english.sh'
 )
 
 if [ "$#" -gt 0 ]; then
-  # Explicit paths: keep only the ones git tracks and that survive the vendor filter.
-  mapfile -d '' FILES < <(git ls-files -z -- "$@" "${VENDOR_EXCLUDES[@]}")
+  # Explicit paths: keep only the ones git tracks and that survive the exclude filter.
+  mapfile -d '' FILES < <(git ls-files -z -- "$@" "${EXCLUDES[@]}")
 else
-  mapfile -d '' FILES < <(git ls-files -z -- . "${VENDOR_EXCLUDES[@]}")
+  mapfile -d '' FILES < <(git ls-files -z -- . "${EXCLUDES[@]}")
 fi
 
 [ "${#FILES[@]}" -eq 0 ] && exit 0
