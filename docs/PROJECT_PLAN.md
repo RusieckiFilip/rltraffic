@@ -1,6 +1,5 @@
 # PROJECT MASTER PLAN — Offline Multi-Agent Decision Transformer for Traffic Signal Control
 **Version:** 0.4 · **Last updated:** 2026-07-25 · **Maintained in:** Master Coordination Chat
-**Version:** 0.1 · **Last updated:** 2026-07-08 · **Maintained in:** Master Coordination Chat
 **Mentor:** Paweł Gora (Quantum AI Foundation) · **Target:** arXiv → IEEE ITSC / IEEE T-ITS / TRB (Q2/Q1)
 
 ---
