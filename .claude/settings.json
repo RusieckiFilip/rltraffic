@@ -1,0 +1,74 @@
+{
+  "permissions": {
+    "defaultMode": "default",
+    "deny": [
+      "Edit(envs/**)",
+      "Write(envs/**)",
+      "Edit(agent/base.py)",
+      "Edit(agent/utils/utils.py)",
+      "Edit(agent/MAPPOAgent.py)",
+      "Edit(algorithms/**)",
+      "Write(algorithms/**)",
+      "Edit(rewards.py)",
+      "Edit(states/**)",
+      "Write(states/**)",
+      "Edit(metrics/**)",
+      "Write(metrics/**)",
+      "Edit(CityFlow/**)",
+      "Write(CityFlow/**)",
+      "Edit(experiments/**)",
+      "Write(experiments/**)",
+      "Read(./.env)",
+      "Read(./**/.env)",
+      "Bash(git push:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(git checkout main:*)"
+    ],
+    "ask": [
+      "Bash(git commit:*)",
+      "Bash(pip install:*)",
+      "Bash(conda install:*)",
+      "Bash(conda create:*)",
+      "Bash(rm:*)"
+    ],
+    "allow": [
+      "Bash(pytest:*)",
+      "Bash(python -m pytest:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git branch:*)",
+      "Bash(git add:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(wc:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(python -m offline.collect:*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash|Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/claude_guard.sh\" --frozen-only"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/claude_guard.sh\" --tests-only"
+          }
+        ]
+      }
+    ]
+  }
+}
