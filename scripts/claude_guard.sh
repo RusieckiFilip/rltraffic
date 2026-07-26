@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # PostToolUse hook for Claude Code.
 #
-# Two jobs, split into two modes so each can run at the right frequency:
+# Three jobs, split into modes so each can run at the right frequency:
 #   --frozen-only : fail loudly if any FROZEN file was modified.   (cheap; runs after Bash too)
 #   --tests-only  : run the fast test suite if offline/ or tests/ changed. (expensive; file edits only)
-#   (no flag)     : both, in that order. Useful for running it by hand.
+#   --lang-only   : enforce the English-only rule on changed files. (cheap; not wired into settings.json)
+#   (no flag)     : all three, in that order. Useful for running it by hand.
 #
 # Why the split: the frozen-file check must also fire after Bash, because a heredoc
 # (`cat > envs/x.py << EOF`) is not an Edit/Write tool call and would otherwise go unnoticed until the
@@ -39,7 +40,9 @@ if [ "$MODE" = "--frozen-only" ] || [ "$MODE" = "all" ]; then
     echo "BLOCKED: frozen files were modified. This project forbids it (see CLAUDE.md rule 1):" >&2
     printf '%s\n' "$VIOLATIONS" >&2
     echo "" >&2
-    echo "Revert them (git checkout -- <file>) and record the need as an open question in the Return Packet." >&2
+    echo "Do not run \`git checkout\` on this automatically — confirm with the user whether this is" >&2
+    echo "their in-progress work or something this session needs to revert." >&2
+    echo "Record the need for the change as an open question in the Return Packet." >&2
     exit 2
   fi
 fi
@@ -54,6 +57,21 @@ if [ "$MODE" = "--tests-only" ] || [ "$MODE" = "all" ]; then
       if [ $STATUS -ne 0 ]; then
         echo "Tests are failing after this edit:" >&2
         printf '%s\n' "$OUT" >&2
+        exit 2
+      fi
+    fi
+  fi
+fi
+
+# ------------------------------------------------------------------- language
+# Scoped to CHANGED files on purpose. Running it repo-wide would mean one pre-existing violation
+# anywhere blocks every subsequent tool call, including calls that touched nothing — the same
+# false-positive trap the frozen check falls into when the working tree is already dirty.
+if [ "$MODE" = "--lang-only" ] || [ "$MODE" = "all" ]; then
+  if [ -x scripts/check_english.sh ] || [ -f scripts/check_english.sh ]; then
+    mapfile -t CHANGED_ARR < <(printf '%s\n' "$CHANGED")
+    if [ "${#CHANGED_ARR[@]}" -gt 0 ]; then
+      if ! bash scripts/check_english.sh "${CHANGED_ARR[@]}" >&2; then
         exit 2
       fi
     fi
