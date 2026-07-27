@@ -43,21 +43,24 @@ __all__ = ["POLICIES", "build_parser", "main"]
 def _require_lane_arrays(lane_ids: Sequence[str], backend: str) -> None:
     """Abort a collection run whose env reports no lanes.
 
-    SUMO and MOSS return empty ``lane_vehicle_count`` dicts when the metrics pipeline
-    is off (``envs/sumo_env.py:301``, ``envs/moss_env.py:653``).  The logger records
-    ``L = 0`` honestly -- refusing to log is a collection-policy decision, not a
-    format decision -- so the guard belongs here.  A corpus without lane arrays
-    silently violates the C6 reward-agnosticism guarantee and would only be discovered
-    at P3, after the simulation time has already been spent.
+    Defence in depth, and expected never to fire on CityFlow or SUMO: both
+    ``_create_metrics`` implementations return a metrics object unconditionally
+    (``envs/sumo_env.py:286-294``), so the ``else {}`` branch that yields empty lane
+    dicts (``envs/sumo_env.py:301``, ``envs/moss_env.py:653``) is unreachable there.
+    MOSS is not verified. The check costs nothing and the failure it catches is
+    expensive: the logger records ``L = 0`` honestly -- refusing to log is a
+    collection-policy decision, not a format decision -- and a corpus without lane
+    arrays silently violates the C6 reward-agnosticism guarantee, which would only
+    surface at P3 after the simulation time has been spent.
     """
     if len(lane_ids) == 0:
         raise ValueError(
             f"backend {backend!r} reported an empty lane set, so the corpus would "
             "carry no lane_vehicle_count / lane_waiting_vehicle_count arrays and no "
-            "reward could be recomputed offline (contract C6). Enable the metrics "
-            "pipeline with --metrics naming a registered metric (for example "
-            "--metrics average_travel_time; queue_length is a REWARD function, not a "
-            "metric) and collect again."
+            "reward could be recomputed offline (contract C6). This is not expected "
+            "on cityflow or sumo, where the metrics pipeline is always on; treat it "
+            "as a backend bug or an unsupported scenario rather than a flag you are "
+            "missing, and do not collect from this env."
         )
 
 

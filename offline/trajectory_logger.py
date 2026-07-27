@@ -315,27 +315,45 @@ class TrajectoryLogger:
     ) -> None:
         self._env = env
         self._out_dir = Path(out_dir)
-        self._out_dir.mkdir(parents=True, exist_ok=True)
-        self._reject_or_clear_existing(overwrite)
-        self._run_metadata: dict[str, Any] = dict(run_metadata or {})
 
-        # Fail here rather than inside the first _write_manifest, which runs only after
-        # an .npz is already on disk and would leave an orphan plus an unrecoverable
-        # logger. A run's metadata is cheap to check and expensive to discover late.
+        # ---- validate everything BEFORE touching the filesystem ----
+        # Ordering is load-bearing, not stylistic. Deleting a previous run and only
+        # then discovering that this run cannot start would destroy a corpus on behalf
+        # of a run that never produces one -- inverting the very property the metadata
+        # check exists to provide. A failed construction leaves the previous corpus
+        # intact and creates no directories.
+        ix_ids: tuple[str, ...] = tuple(str(ix.id) for ix in env.intersections)
+        if not ix_ids:
+            raise ValueError("env exposes no intersections; nothing to log")
+        if len(set(ix_ids)) != len(ix_ids):
+            raise ValueError(f"env exposes duplicate intersection ids: {ix_ids}")
+
+        metadata: dict[str, Any] = dict(run_metadata or {})
         try:
-            json.dumps(self._run_metadata)
+            json.dumps(metadata)
         except (TypeError, ValueError) as exc:
             raise ValueError(
                 f"run_metadata is not JSON-serialisable ({exc}); the manifest could "
                 "not be written. Convert Path/numpy values to str/int/float first."
             ) from exc
 
-        self._ix_ids: tuple[str, ...] = tuple(str(ix.id) for ix in env.intersections)
-        if not self._ix_ids:
-            raise ValueError("env exposes no intersections; nothing to log")
-        if len(set(self._ix_ids)) != len(self._ix_ids):
-            raise ValueError(f"env exposes duplicate intersection ids: {self._ix_ids}")
+        stale = self._existing_run_files()
+        if stale and not overwrite:
+            raise FileExistsError(
+                f"{self._out_dir} already contains a collection run "
+                f"({len(stale)} file(s), e.g. {stale[0].name}). Writing here would "
+                "drop the earlier episodes from the manifest and orphan their .npz "
+                "files. Choose a fresh --out-dir, or pass --overwrite to discard the "
+                "previous run."
+            )
 
+        # ---- only now mutate the filesystem ----
+        self._out_dir.mkdir(parents=True, exist_ok=True)
+        for path in stale:
+            path.unlink()
+
+        self._ix_ids = ix_ids
+        self._run_metadata = metadata
         self._state = _IDLE
         self._episode_counter = 0
         self._git_hash = _repo_git_hash()
@@ -347,36 +365,27 @@ class TrajectoryLogger:
 
         self._clear_episode()
 
-    def _reject_or_clear_existing(self, overwrite: bool) -> None:
-        """Refuse to write into an ``out_dir`` that already holds a collection run.
+    def _existing_run_files(self) -> list[Path]:
+        """Files in ``out_dir`` that a previous collection run left behind. Read-only.
 
-        The manifest is rewritten in full on every ``finalize_episode`` from an
-        in-memory list that starts empty, and the episode counter restarts at zero.
-        Reusing a populated directory would therefore drop every earlier episode from
-        the manifest while its ``.npz`` files stay on disk orphaned -- a manifest
-        truthfully reporting 20 episodes for a corpus of 40. With deterministic demand
-        the overwritten file is byte-identical to the one it replaces, so the
-        corruption leaves no trace at all.
+        Why a populated directory is refused at all: the manifest is rewritten in full
+        on every ``finalize_episode`` from an in-memory list that starts empty, and the
+        episode counter restarts at zero. Reusing a populated directory would therefore
+        drop every earlier episode from the manifest while its ``.npz`` files stay on
+        disk orphaned -- a manifest truthfully reporting 20 episodes for a corpus of
+        40. With deterministic demand the overwritten file is byte-identical to the one
+        it replaces, so the corruption leaves no trace at all.
 
-        ``overwrite=True`` is the explicit opt-in: it removes the previous run's
-        manifest and episode files, and nothing else in the directory.
+        The glob matches only the exact filename shape this class writes
+        (``ep`` + six digits + ``_seed``), so an unrelated ``epoch_stats.npz`` the user
+        happens to keep here survives ``overwrite=True``. It is deliberately not
+        recursive: subdirectories are never touched.
         """
-        stale = sorted(self._out_dir.glob("ep*.npz"))
+        stale = sorted(self._out_dir.glob("ep[0-9][0-9][0-9][0-9][0-9][0-9]_seed*.npz"))
         manifest = self._out_dir / MANIFEST_NAME
         if manifest.exists():
             stale.append(manifest)
-        if not stale:
-            return
-        if not overwrite:
-            raise FileExistsError(
-                f"{self._out_dir} already contains a collection run "
-                f"({len(stale)} file(s), e.g. {stale[0].name}). Writing here would "
-                "drop the earlier episodes from the manifest and orphan their .npz "
-                "files. Choose a fresh --out-dir, or pass --overwrite to discard the "
-                "previous run."
-            )
-        for path in stale:
-            path.unlink()
+        return stale
 
     # -- introspection -----------------------------------------------------
 

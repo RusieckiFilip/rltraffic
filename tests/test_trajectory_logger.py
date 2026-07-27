@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -87,7 +88,9 @@ class FakeTrafficEnv:
         delta_time: int = 10,
         demand_scale: int = 1,
         with_local_reward: bool = True,
+        reward_base: float | None = None,
     ) -> None:
+        self._reward_base = reward_base
         self.max_steps = max_steps
         self.delta_time = delta_time
         self.intersections = [
@@ -202,9 +205,15 @@ class FakeTrafficEnv:
         # Order mirrors envs/base_traffic_env.py::step(): advance, then measure.
         self._last_action = action
         self._step_count += 1
-        reward = float(
-            -sum(self._waiting(i) for i in range(len(self.lane_names)))
-        )
+        if self._reward_base is None:
+            reward = float(
+                -sum(self._waiting(i) for i in range(len(self.lane_names)))
+            )
+        else:
+            # Deliberately large magnitude with a fractional increment. Integer
+            # rewards sum identically in float32 and float64, which is why the
+            # default fixture cannot detect a lost float64 accumulator.
+            reward = -(self._reward_base + self._step_count * 0.1)
         info = self._build_info()
         self._record_emitted(info)
         self.emitted_global_rewards.append(reward)
@@ -662,6 +671,69 @@ def test_reusing_a_populated_out_dir_is_refused(tmp_path: Path) -> None:
     TrajectoryLogger(FakeTrafficEnv(), tmp_path / "fresh")
 
 
+def test_failed_construction_leaves_the_previous_corpus_intact(tmp_path: Path) -> None:
+    """Validation must complete before anything is deleted.
+
+    Deleting the previous run and only then discovering that this run cannot start
+    would destroy a corpus on behalf of a run that never produces one -- inverting the
+    property the metadata check exists to provide.
+    """
+    _env, _ep, path_first = _collect_one(tmp_path)
+    manifest_before = (tmp_path / "manifest.json").read_bytes()
+    episode_before = path_first.read_bytes()
+
+    # overwrite=True, but the run can never start: the metadata is not serialisable.
+    with pytest.raises(ValueError):
+        TrajectoryLogger(
+            FakeTrafficEnv(),
+            tmp_path,
+            run_metadata={"checkpoint": Path("/x.pt")},
+            overwrite=True,
+        )
+    assert path_first.read_bytes() == episode_before
+    assert (tmp_path / "manifest.json").read_bytes() == manifest_before
+
+    # Same for an env the logger will refuse.
+    broken = FakeTrafficEnv()
+    broken.intersections = []
+    with pytest.raises(ValueError):
+        TrajectoryLogger(broken, tmp_path, overwrite=True)
+    assert path_first.read_bytes() == episode_before
+    assert (tmp_path / "manifest.json").read_bytes() == manifest_before
+
+
+def test_refused_construction_creates_no_directories(tmp_path: Path) -> None:
+    """A run that cannot start must not leave its out_dir tree behind."""
+    target = tmp_path / "deep" / "nested" / "out"
+    with pytest.raises(ValueError):
+        TrajectoryLogger(
+            FakeTrafficEnv(), target, run_metadata={"checkpoint": Path("/x.pt")}
+        )
+    assert not target.exists()
+    assert not (tmp_path / "deep").exists()
+
+
+def test_overwrite_spares_unrelated_npz_files(tmp_path: Path) -> None:
+    """``--overwrite`` clears this logger's own files and nothing else."""
+    env = FakeTrafficEnv()
+    logger = TrajectoryLogger(env, tmp_path)
+    mine = _run_episode(env, logger, engine_seed=1000)
+
+    bystander = tmp_path / "epoch_stats.npz"
+    bystander.write_bytes(b"not ours")
+    nested = tmp_path / "sub"
+    nested.mkdir()
+    nested_episode = nested / "ep000000_seed1.npz"
+    nested_episode.write_bytes(b"also not ours")
+
+    TrajectoryLogger(FakeTrafficEnv(), tmp_path, overwrite=True)
+
+    assert not mine.exists()
+    assert not (tmp_path / "manifest.json").exists()
+    assert bystander.read_bytes() == b"not ours"
+    assert nested_episode.read_bytes() == b"also not ours"
+
+
 def test_unserialisable_run_metadata_fails_before_any_episode(tmp_path: Path) -> None:
     """Bad metadata must fail at construction, not after simulator time is spent."""
     with pytest.raises(ValueError) as excinfo:
@@ -675,17 +747,32 @@ def test_unserialisable_run_metadata_fails_before_any_episode(tmp_path: Path) ->
 
 
 def test_total_global_reward_is_summed_in_float64(tmp_path: Path) -> None:
-    """float32 accumulation costs ~1e-2 over a full episode; this number may be quoted."""
-    env = FakeTrafficEnv()
+    """``total_global_reward`` must not be accumulated in float32.
+
+    The default fixture cannot detect this: its rewards are small integers, which sum
+    identically in both dtypes. This test therefore uses a deliberately large,
+    fractional reward over a full-length episode, where a float32 accumulator is
+    visibly wrong -- and checks against ``math.fsum``, an exactly-rounded summation
+    that shares no code with numpy's accumulator, rather than re-using the
+    implementation's own expression.
+    """
+    env = FakeTrafficEnv(max_steps=360, reward_base=98765.43)
     logger = TrajectoryLogger(env, tmp_path)
     path = _run_episode(env, logger, engine_seed=1000)
     ep = load_episode(path)
+    assert ep.episode_length == 360
+
+    exact = math.fsum(float(x) for x in ep.global_reward)
+    naive32 = float(np.sum(ep.global_reward, dtype=np.float32))
 
     manifest = json.loads((tmp_path / "manifest.json").read_text(encoding="utf-8"))
     reported = manifest["episodes"][0]["total_global_reward"]
-    assert reported == float(np.sum(ep.global_reward, dtype=np.float64))
-    # Also equals the env's own emitted rewards, summed independently in python.
-    assert reported == float(sum(env.emitted_global_rewards))
+
+    # The fixture only means something while float32 genuinely diverges here.
+    assert abs(naive32 - exact) > 1e-3, "fixture no longer discriminates the dtypes"
+
+    assert abs(reported - exact) < 1e-6
+    assert reported != naive32
 
 
 def test_flow_draw_in_filename_and_scalar(tmp_path: Path) -> None:
@@ -796,7 +883,14 @@ def test_collect_rejects_empty_lane_set() -> None:
 
     with pytest.raises(ValueError) as excinfo:
         _require_lane_arrays([], "sumo")
-    assert "--metrics" in str(excinfo.value)
+    message = str(excinfo.value)
+    assert "sumo" in message
+    assert "C6" in message
+    # The message must NOT advise --metrics: CityFlow and SUMO build their metrics
+    # object unconditionally (envs/sumo_env.py:286-294), so an empty lane set there is
+    # a backend bug, not a missing flag. Sending the operator after a flag that cannot
+    # help is worse than saying nothing.
+    assert "--metrics" not in message
 
     # A populated lane set is accepted.
     _require_lane_arrays(list(SORTED_LANES), "cityflow")
