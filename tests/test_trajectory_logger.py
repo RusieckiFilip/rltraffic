@@ -37,11 +37,18 @@ import offline.trajectory_logger as trajectory_logger
 
 # (intersection id, state_dim, n_actions) -- widths differ on purpose: the format
 # must never pad across intersections.
+#
+# The ids are chosen so that env order and lexicographic order DISAGREE: the format
+# stores ix_ids in env.intersections order (C1), so that ix{i}_action is exactly
+# action[i].  Ids that happened to be already sorted would let a later "fix" to the
+# brief's word "sorted" pass the whole suite while breaking that identity on any real
+# roadnet (intersection_10_1 sorts before intersection_2_1).
 IX_SPECS: tuple[tuple[str, int, int], ...] = (
-    ("ix_north", 4, 2),
-    ("ix_south", 6, 3),
+    ("ix_zulu", 4, 2),
+    ("ix_alpha", 6, 3),
 )
 IX_IDS: tuple[str, ...] = tuple(spec[0] for spec in IX_SPECS)
+assert IX_IDS != tuple(sorted(IX_IDS)), "fixture must distinguish env order from sorted"
 
 # Insertion order is NOT sorted, so a logger that forgets to sort is caught.
 RAW_LANES: tuple[str, ...] = ("lane_c", "lane_a", "lane_b")
@@ -94,6 +101,9 @@ class FakeTrafficEnv:
         self.emitted_global_rewards: list[float] = []
         self.emitted_local_rewards: list[dict[str, float]] = []
         self.emitted_lane_waiting: list[dict[str, int]] = []
+        self.emitted_lane_vehicle_count: list[dict[str, int]] = []
+        self.emitted_metrics: list[dict[str, float]] = []
+        self.emitted_intersections: list[dict[str, dict[str, Any]]] = []
 
     # -- scripted dynamics -------------------------------------------------
 
@@ -161,14 +171,30 @@ class FakeTrafficEnv:
 
     # -- C1 API ------------------------------------------------------------
 
+    def _record_emitted(self, info: dict[str, Any]) -> None:
+        """Snapshot every observable the logger is expected to store.
+
+        Tests compare against these snapshots rather than re-deriving them: sharing a
+        formula with the logger would hide a bug present in both.
+        """
+        self.emitted_lane_waiting.append(dict(info["lane_waiting_vehicle_count"]))
+        self.emitted_lane_vehicle_count.append(dict(info["lane_vehicle_count"]))
+        self.emitted_metrics.append(dict(info["metrics"]))
+        self.emitted_intersections.append(
+            {ix_id: dict(entry) for ix_id, entry in info["intersections"].items()}
+        )
+
     def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None):
         self._step_count = 0
         self._last_action = np.zeros(len(IX_SPECS), dtype=np.int64)
         self.emitted_global_rewards = []
         self.emitted_local_rewards = []
         self.emitted_lane_waiting = []
+        self.emitted_lane_vehicle_count = []
+        self.emitted_metrics = []
+        self.emitted_intersections = []
         info = self._build_info()
-        self.emitted_lane_waiting.append(dict(info["lane_waiting_vehicle_count"]))
+        self._record_emitted(info)
         return info
 
     def step(self, action: Any):
@@ -180,7 +206,7 @@ class FakeTrafficEnv:
             -sum(self._waiting(i) for i in range(len(self.lane_names)))
         )
         info = self._build_info()
-        self.emitted_lane_waiting.append(dict(info["lane_waiting_vehicle_count"]))
+        self._record_emitted(info)
         self.emitted_global_rewards.append(reward)
         self.emitted_local_rewards.append(
             {
@@ -285,12 +311,12 @@ def test_dtypes_match_contract(tmp_path: Path) -> None:
 def test_no_padding_across_intersections(tmp_path: Path) -> None:
     _env, ep, _path = _collect_one(tmp_path)
 
-    north = ep.intersections["ix_north"]
-    south = ep.intersections["ix_south"]
-    assert north.state.shape[1] == 4
-    assert south.state.shape[1] == 6
-    assert north.avail_mask.shape[1] == 2
-    assert south.avail_mask.shape[1] == 3
+    narrow = ep.intersections["ix_zulu"]
+    wide = ep.intersections["ix_alpha"]
+    assert narrow.state.shape[1] == 4
+    assert wide.state.shape[1] == 6
+    assert narrow.avail_mask.shape[1] == 2
+    assert wide.avail_mask.shape[1] == 3
 
 
 def test_avail_mask_true_is_legal(tmp_path: Path) -> None:
@@ -339,6 +365,36 @@ def test_roundtrip_load_episode(tmp_path: Path) -> None:
         _r, _term, _trunc, info = replay_env.step(action)
 
 
+def test_ix_ids_follow_env_order_not_sorted(tmp_path: Path) -> None:
+    """The one deliberate deviation from the brief, pinned.
+
+    The brief said ``ix_ids`` was "sorted"; C1 says the action vector is ordered by
+    ``env.intersections``, and C1 outranks the brief.  This test fails if anyone
+    "fixes" the code back to sorting, which would silently break the identity
+    ``ix{i}_action == action[i]`` on any roadnet whose ids are not already sorted.
+    """
+    env, ep, _path = _collect_one(tmp_path)
+
+    assert ep.ix_ids == IX_IDS
+    assert ep.ix_ids == tuple(str(ix.id) for ix in env.intersections)
+    assert ep.ix_ids != tuple(sorted(ep.ix_ids))
+
+    # And the identity that ordering exists to protect: column i of the action vector
+    # is stored under ix_ids[i], not under the i-th sorted id.
+    replay = FakeTrafficEnv()
+    info = replay.reset(seed=1000)
+    for t in range(T):
+        action = _policy(info)
+        for i, ix_id in enumerate(ep.ix_ids):
+            assert ep.intersections[ix_id].action[t] == action[i]
+        _r, _term, _trunc, info = replay.step(action)
+
+    # The two intersections must not have identical action traces, or the assertion
+    # above would hold under a permutation too.
+    traces = [ep.intersections[ix_id].action.tolist() for ix_id in ep.ix_ids]
+    assert traces[0] != traces[1]
+
+
 def test_lane_id_order_preserved(tmp_path: Path) -> None:
     env, ep, _path = _collect_one(tmp_path)
 
@@ -351,6 +407,55 @@ def test_lane_id_order_preserved(tmp_path: Path) -> None:
     for t in range(T + 1):
         expected = [env.emitted_lane_waiting[t][lane] for lane in ep.lane_ids]
         assert ep.lane_waiting_vehicle_count[t].tolist() == expected
+
+
+def test_lane_vehicle_count_content(tmp_path: Path) -> None:
+    """The *other* lane array, checked for content and not just shape.
+
+    C6 rests reward-agnosticism on both lane arrays -- pressure and PressLight need
+    vehicle counts, not waiting counts -- so a bug writing the waiting dict into both
+    would leave every other test green.
+    """
+    env, ep, _path = _collect_one(tmp_path)
+
+    assert len(env.emitted_lane_vehicle_count) == T + 1
+    for t in range(T + 1):
+        expected = [env.emitted_lane_vehicle_count[t][lane] for lane in ep.lane_ids]
+        assert ep.lane_vehicle_count[t].tolist() == expected
+
+    # The two arrays must not be copies of each other.
+    assert not np.array_equal(ep.lane_vehicle_count, ep.lane_waiting_vehicle_count)
+
+
+def test_global_observation_content(tmp_path: Path) -> None:
+    """vehicle_count, sim_time, step and the metrics matrix, by content."""
+    env, ep, _path = _collect_one(tmp_path)
+
+    assert ep.step.tolist() == list(range(T + 1))
+    assert ep.sim_time.tolist() == [float(t * env.delta_time) for t in range(T + 1)]
+    for t in range(T + 1):
+        assert ep.vehicle_count[t] == sum(env.emitted_lane_vehicle_count[t].values())
+
+    # metric_keys is the sorted freeze, which is NOT the fake env's insertion order.
+    assert ep.metric_keys == ("average_travel_time", "queue_length")
+    assert ep.metric_keys != tuple(env.emitted_metrics[0])
+    assert ep.metrics.shape == (T + 1, 2)
+    for t in range(T + 1):
+        expected = [env.emitted_metrics[t][key] for key in ep.metric_keys]
+        assert ep.metrics[t].tolist() == expected
+
+
+def test_per_intersection_phase_content(tmp_path: Path) -> None:
+    """current_phase and time_in_phase, by content, including the int -> float32 cast."""
+    env, ep, _path = _collect_one(tmp_path)
+
+    for t in range(T + 1):
+        for i, ix_id in enumerate(ep.ix_ids):
+            emitted = env.emitted_intersections[t][ix_id]
+            assert ep.intersections[ix_id].current_phase[t] == emitted["current_phase"]
+            assert ep.intersections[ix_id].time_in_phase[t] == float(
+                emitted["time_in_phase"]
+            )
 
 
 # ----------------------------------------------------------------------
@@ -370,9 +475,15 @@ def test_global_reward_recomputed_exactly(tmp_path: Path) -> None:
     # And the same values the env actually emitted.
     assert ep.global_reward.tolist() == env.emitted_global_rewards
 
-    # A shifted alignment must NOT accidentally satisfy the assertion above.
+    # A shifted alignment must NOT accidentally satisfy the assertion above. Assert the
+    # mismatch COUNT, not just inequality: "differs somewhere" would still hold on
+    # near-degenerate data, and this test's whole value is that the data discriminates.
     shifted = [-int(np.sum(ep.lane_waiting_vehicle_count[t])) for t in range(T)]
-    assert ep.global_reward.tolist() != shifted
+    differing = sum(1 for t in range(T) if ep.global_reward[t] != shifted[t])
+    assert differing >= T - 1, (
+        f"only {differing}/{T} rows distinguish the correct offset from a one-step "
+        "shift; the scripted demand has become too flat to pin the convention"
+    )
 
 
 # ----------------------------------------------------------------------
@@ -393,8 +504,8 @@ def test_local_reward_is_outcome_of_step_t(tmp_path: Path) -> None:
 
     # Values differ across intersections too, so a swap would be caught.
     assert (
-        ep.intersections["ix_north"].local_reward.tolist()
-        != ep.intersections["ix_south"].local_reward.tolist()
+        ep.intersections["ix_zulu"].local_reward.tolist()
+        != ep.intersections["ix_alpha"].local_reward.tolist()
     )
 
 
@@ -516,6 +627,65 @@ def test_manifest_contents(tmp_path: Path) -> None:
         )
     assert manifest["episodes"][0]["engine_seed"] == 1000
     assert manifest["episodes"][1]["engine_seed"] == 1001
+
+
+def test_reusing_a_populated_out_dir_is_refused(tmp_path: Path) -> None:
+    """A restart into a used out_dir would truncate the manifest and orphan .npz files.
+
+    With deterministic demand the overwritten episode file is byte-identical to the one
+    it replaces, so the corruption would leave no trace: a manifest reporting N
+    episodes for a corpus of 2N.
+    """
+    _env, ep_first, path_first = _collect_one(tmp_path)
+    assert path_first.exists()
+
+    with pytest.raises(FileExistsError) as excinfo:
+        TrajectoryLogger(FakeTrafficEnv(), tmp_path)
+    assert "--overwrite" in str(excinfo.value)
+
+    # The refusal must not have touched the earlier run.
+    assert path_first.exists()
+    manifest = json.loads((tmp_path / "manifest.json").read_text(encoding="utf-8"))
+    assert len(manifest["episodes"]) == 1
+
+    # The explicit opt-in clears the previous run and starts the counter over.
+    env = FakeTrafficEnv()
+    logger = TrajectoryLogger(env, tmp_path, overwrite=True)
+    assert not path_first.exists()
+    path_second = _run_episode(env, logger, engine_seed=2000)
+    assert path_second.name == "ep000000_seed2000.npz"
+    manifest = json.loads((tmp_path / "manifest.json").read_text(encoding="utf-8"))
+    assert len(manifest["episodes"]) == 1
+    assert manifest["episodes"][0]["engine_seed"] == 2000
+
+    # A fresh directory is always fine.
+    TrajectoryLogger(FakeTrafficEnv(), tmp_path / "fresh")
+
+
+def test_unserialisable_run_metadata_fails_before_any_episode(tmp_path: Path) -> None:
+    """Bad metadata must fail at construction, not after simulator time is spent."""
+    with pytest.raises(ValueError) as excinfo:
+        TrajectoryLogger(
+            FakeTrafficEnv(), tmp_path, run_metadata={"checkpoint": Path("/x.pt")}
+        )
+    assert "JSON" in str(excinfo.value)
+
+    # Nothing was written.
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_total_global_reward_is_summed_in_float64(tmp_path: Path) -> None:
+    """float32 accumulation costs ~1e-2 over a full episode; this number may be quoted."""
+    env = FakeTrafficEnv()
+    logger = TrajectoryLogger(env, tmp_path)
+    path = _run_episode(env, logger, engine_seed=1000)
+    ep = load_episode(path)
+
+    manifest = json.loads((tmp_path / "manifest.json").read_text(encoding="utf-8"))
+    reported = manifest["episodes"][0]["total_global_reward"]
+    assert reported == float(np.sum(ep.global_reward, dtype=np.float64))
+    # Also equals the env's own emitted rewards, summed independently in python.
+    assert reported == float(sum(env.emitted_global_rewards))
 
 
 def test_flow_draw_in_filename_and_scalar(tmp_path: Path) -> None:

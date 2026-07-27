@@ -77,6 +77,23 @@ padded across intersections.  Only numeric and unicode arrays are stored, so
 
 Any change to this layout requires bumping ``FORMAT_VERSION`` and writing a migration
 note; the P2.4 linter hard-fails on an unknown format version.
+
+Two caveats for P3, both unreachable with the backends as they stand today
+------------------------------------------------------------------------
+- ``avail_mask`` is built from ``Utils.extract_valid_actions``, which is mandated by
+  CLAUDE.md rule 5 and whose contract is "empty result means every action is legal"
+  (``agent/utils/utils.py:102``); it also silently drops out-of-range indices
+  (``:99``).  An env reporting ``avail_actions == []`` would therefore be logged as an
+  all-True mask, not an all-False one.  No concrete ``available_actions()`` in
+  ``envs/phase_control.py`` can return empty today, so no stored mask is affected --
+  but P3 must not read an all-True mask as positive evidence of an unconstrained
+  intersection.
+- ``state`` rows are whatever ``Utils.state_from_info`` returns, and its
+  ``np.asarray(..., dtype=np.float32)`` does not copy an input that is already a
+  float32 ndarray.  All three backends build ``"state"`` with ``.tolist()``
+  (``envs/base_traffic_env.py:471``), so a fresh list is converted every step and no
+  aliasing occurs; a future backend returning a live buffer would retroactively
+  rewrite rows already logged.
 """
 
 from __future__ import annotations
@@ -293,11 +310,25 @@ class TrajectoryLogger:
         env: Any,
         out_dir: str | Path,
         run_metadata: Mapping[str, Any] | None = None,
+        *,
+        overwrite: bool = False,
     ) -> None:
         self._env = env
         self._out_dir = Path(out_dir)
         self._out_dir.mkdir(parents=True, exist_ok=True)
+        self._reject_or_clear_existing(overwrite)
         self._run_metadata: dict[str, Any] = dict(run_metadata or {})
+
+        # Fail here rather than inside the first _write_manifest, which runs only after
+        # an .npz is already on disk and would leave an orphan plus an unrecoverable
+        # logger. A run's metadata is cheap to check and expensive to discover late.
+        try:
+            json.dumps(self._run_metadata)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"run_metadata is not JSON-serialisable ({exc}); the manifest could "
+                "not be written. Convert Path/numpy values to str/int/float first."
+            ) from exc
 
         self._ix_ids: tuple[str, ...] = tuple(str(ix.id) for ix in env.intersections)
         if not self._ix_ids:
@@ -315,6 +346,37 @@ class TrajectoryLogger:
         self._run_lane_ids_sha256: str | None = None
 
         self._clear_episode()
+
+    def _reject_or_clear_existing(self, overwrite: bool) -> None:
+        """Refuse to write into an ``out_dir`` that already holds a collection run.
+
+        The manifest is rewritten in full on every ``finalize_episode`` from an
+        in-memory list that starts empty, and the episode counter restarts at zero.
+        Reusing a populated directory would therefore drop every earlier episode from
+        the manifest while its ``.npz`` files stay on disk orphaned -- a manifest
+        truthfully reporting 20 episodes for a corpus of 40. With deterministic demand
+        the overwritten file is byte-identical to the one it replaces, so the
+        corruption leaves no trace at all.
+
+        ``overwrite=True`` is the explicit opt-in: it removes the previous run's
+        manifest and episode files, and nothing else in the directory.
+        """
+        stale = sorted(self._out_dir.glob("ep*.npz"))
+        manifest = self._out_dir / MANIFEST_NAME
+        if manifest.exists():
+            stale.append(manifest)
+        if not stale:
+            return
+        if not overwrite:
+            raise FileExistsError(
+                f"{self._out_dir} already contains a collection run "
+                f"({len(stale)} file(s), e.g. {stale[0].name}). Writing here would "
+                "drop the earlier episodes from the manifest and orphan their .npz "
+                "files. Choose a fresh --out-dir, or pass --overwrite to discard the "
+                "previous run."
+            )
+        for path in stale:
+            path.unlink()
 
     # -- introspection -----------------------------------------------------
 
@@ -579,7 +641,12 @@ class TrajectoryLogger:
             {
                 "filename": filename,
                 "episode_length": int(arrays["episode_length"]),
-                "total_global_reward": float(np.sum(arrays["global_reward"])),
+                # Summed in float64: the stored rewards are float32 by contract, but
+                # accumulating 360 of them in float32 costs ~1e-2 absolute at typical
+                # magnitudes, and this number may end up quoted in the paper.
+                "total_global_reward": float(
+                    np.sum(arrays["global_reward"], dtype=np.float64)
+                ),
                 "engine_seed": self._engine_seed,
                 "flow_draw": -1 if self._flow_draw is None else self._flow_draw,
                 "episode_sha256": episode_sha256,

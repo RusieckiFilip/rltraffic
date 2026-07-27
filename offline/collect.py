@@ -55,8 +55,9 @@ def _require_lane_arrays(lane_ids: Sequence[str], backend: str) -> None:
             f"backend {backend!r} reported an empty lane set, so the corpus would "
             "carry no lane_vehicle_count / lane_waiting_vehicle_count arrays and no "
             "reward could be recomputed offline (contract C6). Enable the metrics "
-            "pipeline with --metrics (for example --metrics queue_length) and "
-            "collect again."
+            "pipeline with --metrics naming a registered metric (for example "
+            "--metrics average_travel_time; queue_length is a REWARD function, not a "
+            "metric) and collect again."
         )
 
 
@@ -187,6 +188,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--episodes", type=int, default=1)
     parser.add_argument("--base-seed", type=int, default=0)
     parser.add_argument("--out-dir", required=True)
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="discard a previous run in --out-dir; without it a populated out-dir is "
+        "refused, because restarting there would drop earlier episodes from the "
+        "manifest and orphan their .npz files",
+    )
 
     parser.add_argument(
         "--max-steps", type=int, default=SETTING_DEFAULTS["max_steps"]
@@ -304,7 +312,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         rng = np.random.default_rng(int(args.base_seed))
         policy = POLICIES[args.policy](env, args, rng)
         logger = TrajectoryLogger(
-            env, args.out_dir, run_metadata=_run_metadata(args, spec)
+            env,
+            args.out_dir,
+            run_metadata=_run_metadata(args, spec),
+            overwrite=bool(args.overwrite),
         )
 
         total_steps = 0
