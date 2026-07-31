@@ -404,6 +404,59 @@ class TrajectoryLogger:
         """Path of the run manifest."""
         return self._out_dir / MANIFEST_NAME
 
+    def rebind_env(self, env: Any) -> None:
+        """Point this logger at a new env object with identical topology.
+
+        A flow-draw sweep must build a **fresh env per draw**: CityFlow reads its flow
+        file exactly once, in the engine constructor
+        (``CityFlow/src/engine/engine.cpp:65``), and ``Engine::reset()`` (``:744-760``)
+        only calls ``flow.reset()`` on the already-parsed in-memory vector -- it never
+        re-reads the file.  One logger must nonetheless serve the whole run, because a
+        fresh logger per draw would rewrite ``manifest.json`` from an empty list and
+        leave the earlier draws' ``.npz`` files orphaned.
+
+        Legal **only between episodes**.  The new env must be topologically identical to
+        the one this logger was constructed with: the same intersection ids in the same
+        order, and the same per-intersection action counts.  ``lane_ids`` are already
+        guarded run-level via ``lane_ids_sha256``, but ``ix_ids`` are not -- a redraw
+        silently rebinding onto a different topology would corrupt the corpus in exactly
+        the way this format exists to prevent.
+
+        ``n_actions`` is compared against the most recent episode's counts.  P1 defers
+        ``Utils.infer_action_counts`` to ``on_reset`` because ``env.action_space`` does
+        not exist until ``_setup_spaces()`` has run, so before the first episode there is
+        nothing to compare against and only the ids are checked.
+        """
+        if self._state != _IDLE:
+            raise LoggerStateError(
+                f"rebind_env called in state {self._state!r}: an episode is still open. "
+                "Rebinding is legal only between episodes -- call finalize_episode() "
+                "first, so the corpus cannot contain an episode split across two envs."
+            )
+
+        ix_ids = tuple(str(ix.id) for ix in env.intersections)
+        if ix_ids != self._ix_ids:
+            raise LoggerStateError(
+                f"rebind_env got an env whose ix_ids disagree with this run's "
+                f"({ix_ids} vs {self._ix_ids}); one out_dir holds one topology"
+            )
+
+        if self._n_actions:
+            counts = [
+                int(c)
+                for c in Utils.infer_action_counts(
+                    getattr(env, "action_space", None), list(env.intersections)
+                )
+            ]
+            if counts != self._n_actions:
+                raise LoggerStateError(
+                    f"rebind_env got an env whose per-intersection n_actions disagree "
+                    f"with this run's ({counts} vs {self._n_actions}); one out_dir "
+                    "holds one topology"
+                )
+
+        self._env = env
+
     # -- episode buffers ---------------------------------------------------
 
     def _clear_episode(self) -> None:
