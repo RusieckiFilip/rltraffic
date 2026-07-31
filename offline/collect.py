@@ -28,8 +28,11 @@ never re-reads it, so ``reset(seed=X)`` cannot alter vehicle arrivals.  Size a c
 run by *draws*, not by episodes -- ``--episodes 20`` without a draw flag records one
 trajectory twenty times.
 
-Without any ``--flow-draw*`` flag the behaviour is exactly as it was in P1: the
-scenario's own flow file, and ``flow_draw`` recorded as absent.  With draws, each one
+Without any ``--flow-draw*`` flag the *simulation* behaviour is unchanged from P1: the
+scenario's own flow file, one env, and ``flow_draw`` recorded as absent.  The manifest is
+not byte-identical to P1's, though -- ``run_metadata`` gains ``flow_draw_ids``,
+``flow_dir``, ``flow_source_path``, ``flow_source_sha256``, ``flow_draw_sha256`` (all
+``null`` on a nominal run) and ``numpy_version``.  With draws, each one
 gets a fresh env (mandatory, per the above), one :class:`TrajectoryLogger` serves the
 whole run via ``rebind_env``, and the materialised demand is kept under
 ``<out-dir>/flows/`` so any episode can be traced to the exact vehicle list behind it.
@@ -218,11 +221,22 @@ def build_parser() -> argparse.ArgumentParser:
         "--epsilon",
         type=float,
         default=0.1,
-        help="per-intersection substitution probability for --policy mappo_eps",
+        help="per-intersection substitution probability for --policy mappo_eps. Note "
+        "the exploration RNG is re-seeded from --base-seed at the start of every draw, "
+        "so episode i of each draw replays the same epsilon coin sequence against "
+        "different demand -- deliberate, so the draw stays the only variable",
     )
     parser.add_argument("--device", default=SETTING_DEFAULTS["device"])
 
-    parser.add_argument("--episodes", type=int, default=1)
+    parser.add_argument(
+        "--episodes",
+        type=int,
+        default=1,
+        help="episodes PER DRAW; a run records len(draws) * episodes in total. Episode "
+        "seeds restart at --base-seed for every draw, so the draw is the only variable "
+        "across draws. On CityFlow the engine seed changes nothing once demand is fixed, "
+        "so without a --flow-draw* flag every episode here is the same trajectory",
+    )
     parser.add_argument("--base-seed", type=int, default=0)
     parser.add_argument("--out-dir", required=True)
     parser.add_argument(
@@ -331,8 +345,18 @@ def _resolve_draw_ids(args: argparse.Namespace) -> list[int | None]:
     if args.flow_draws:
         return [int(draw_id) for draw_id in args.flow_draws]
     if args.flow_draws_range:
-        start, end = args.flow_draws_range
-        return list(range(int(start), int(end)))
+        start, end = (int(value) for value in args.flow_draws_range)
+        if end <= start:
+            # A degenerate range must not look like a successful run. Left to resolve to
+            # [], the sweep would skip the loop entirely and the process would print
+            # "0 episodes over 0 draw(s)", write no manifest at all, and exit 0 -- a
+            # typo'd bound reporting success for a corpus that does not exist.
+            raise SystemExit(
+                f"--flow-draws-range is half-open [START, END), so START must be < END; "
+                f"got [{start}, {end}), which selects no draws. For a single draw use "
+                f"--flow-draw {start}."
+            )
+        return list(range(start, end))
     return [None]
 
 
@@ -471,6 +495,7 @@ def _run_metadata(
     draw_ids: Sequence[int | None] = (None,),
     flow_source: str | Path | None = None,
     flow_source_sha256: str | None = None,
+    flow_draw_sha256: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     randomised = any(draw_id is not None for draw_id in draw_ids)
     return {
@@ -479,6 +504,13 @@ def _run_metadata(
         ],
         "flow_source_path": None if flow_source is None else str(flow_source),
         "flow_source_sha256": flow_source_sha256,
+        # Digest of each *materialised* draw, so an episode can be checked against the
+        # demand it claims to come from even if flows/ is later edited or lost. The
+        # source digest alone is not enough: reproducing a draw from it requires
+        # re-running the RNG, and NEP 19 gives np.random.Generator no cross-version
+        # stream guarantee -- hence numpy_version alongside it.
+        "flow_draw_sha256": flow_draw_sha256,
+        "numpy_version": np.__version__,
         # The materialised demand for every draw lives here, relative to out_dir, so a
         # corpus can be traced to the exact vehicle list that produced it.
         "flow_dir": FLOW_SUBDIR if randomised else None,
@@ -548,12 +580,26 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     from experiments.envs import make_env
 
+    # Digested in memory, before anything is written: run_metadata is frozen when the
+    # logger is constructed, and the logger must be constructed before the first draw is
+    # materialised (P1 NB2 -- a refused run creates nothing).
+    flow_draw_sha256: dict[str, str] | None = None
+    if randomizer is not None:
+        flow_draw_sha256 = {
+            str(draw_id): hashlib.sha256(
+                randomizer.render_cityflow_bytes(randomizer.draw(draw_id)[0])
+            ).hexdigest()
+            for draw_id in draw_ids
+            if draw_id is not None
+        }
+
     metadata = _run_metadata(
         args,
         spec,
         draw_ids=draw_ids,
         flow_source=flow_source,
         flow_source_sha256=None if randomizer is None else randomizer.source_sha256,
+        flow_draw_sha256=flow_draw_sha256,
     )
 
     logger: TrajectoryLogger | None = None
@@ -591,7 +637,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         for draw_id in draw_ids:
             draw_spec = spec
             if draw_id is not None:
-                assert randomizer is not None
+                if randomizer is None:  # pragma: no cover - unreachable by construction
+                    raise RuntimeError(
+                        f"draw {draw_id} requested with no randomiser built; this is a "
+                        "collector bug, not a usage error"
+                    )
                 entries, provenance = randomizer.draw(draw_id)
                 drawn_flow = randomizer.render_cityflow(
                     entries, flows_dir / f"flow_draw{draw_id}.json"
@@ -657,7 +707,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             env = None
 
         mean_return = float(np.mean(returns)) if returns else 0.0
-        assert logger is not None
+        if logger is None:  # pragma: no cover - unreachable by construction
+            raise RuntimeError("collection finished with no logger; nothing was written")
         print(
             f"done: {len(returns)} episodes over {len(draw_ids)} draw(s) {draw_ids}, "
             f"{total_steps} steps, mean return {mean_return:.3f}, "

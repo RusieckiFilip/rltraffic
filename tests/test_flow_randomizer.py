@@ -217,6 +217,26 @@ def test_unreproducible_source_is_rejected_at_construction(tmp_path: Path) -> No
 # ----------------------------------------------------------------------
 
 
+def test_aggregate_interval_flow_is_rejected(tmp_path: Path) -> None:
+    """An aggregate flow must raise, not be silently collapsed to one vehicle.
+
+    CityFlow expands ``startTime=0, endTime=3600, interval=5`` into 721 vehicles. Every
+    transform here treats an entry as a single insertion and sets ``endTime`` to
+    ``startTime``, so accepting such a file would cut demand by ~700x while the console
+    truthfully reported the entry count and nothing raised -- the silent-wrong-number
+    failure this repo exists to prevent.
+    """
+    aggregate = [_entry(i, 0) for i in range(3)]
+    for entry in aggregate:
+        entry["endTime"] = 3600
+
+    path = tmp_path / "aggregate.json"
+    path.write_text(json.dumps(aggregate, indent=2), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="aggregate"):
+        FlowRandomizer(path)
+
+
 def test_same_draw_id_is_reproducible(tmp_path: Path) -> None:
     source = tmp_path / "flow.json"
     _write_synthetic(source, 500)
@@ -295,11 +315,14 @@ def test_thinning_binomial_band(tmp_path: Path) -> None:
     _write_synthetic(source, 1000)
 
     entries, provenance = FlowRandomizer(
-        source, thin_p=0.5, jitter_sigma_s=0.0, volume_scale=1.0
+        source, thin_p=0.2, jitter_sigma_s=0.0, volume_scale=1.0
     ).draw(1)
 
-    # ~4.4 sigma either side of the binomial mean of 500.
-    assert 430 <= len(entries) <= 570
+    # thin_p is the DROP probability, so ~800 survive. Deliberately not 0.5, where
+    # "drop with probability p" and "keep with probability p" are indistinguishable and
+    # an inverted comparison would pass. The band is ~4.4 sigma (sigma = 12.65); the
+    # inverted implementation would yield ~200 and fail loudly.
+    assert 744 <= len(entries) <= 856
     assert provenance.n_vehicles == len(entries)
 
 
@@ -343,6 +366,34 @@ def test_volume_scale_up_produces_distinct_departures(tmp_path: Path) -> None:
     assert identical < 0.25 * len(duplicated), (
         "duplicated vehicles kept identical departure times; jitter is not independent"
     )
+
+
+def test_thinning_removes_different_vehicles_per_draw(tmp_path: Path) -> None:
+    """Thinning must be seeded from ``draw_id``, not merely from ``base_seed``.
+
+    Jitter is switched **off** so this cannot be satisfied by departure noise. Without
+    it, every distinctness test in this file is dominated by jitter, and an
+    implementation whose thinning ignored ``draw_id`` -- removing the *same* vehicles
+    every draw -- would pass all of them. That is the whole point of the randomiser: the
+    corpus needs different vehicles present, not just the same ones arriving later.
+    """
+    source = tmp_path / "flow.json"
+    entries = _write_synthetic(source, 1000)
+    all_routes = {entry["route"][0] for entry in entries}
+
+    randomizer = FlowRandomizer(source, jitter_sigma_s=0.0, thin_p=0.2, volume_scale=1.0)
+    removed = {}
+    for draw_id in (1, 2, 3):
+        drawn, _ = randomizer.draw(draw_id)
+        removed[draw_id] = all_routes - {entry["route"][0] for entry in drawn}
+        assert removed[draw_id], f"draw {draw_id} removed nothing at thin_p=0.2"
+
+    for a, b in ((1, 2), (1, 3), (2, 3)):
+        symmetric = removed[a] ^ removed[b]
+        assert len(symmetric) > 100, (
+            f"draws {a} and {b} removed near-identical vehicle sets "
+            f"(symmetric difference {len(symmetric)}); thinning is not seeded by draw_id"
+        )
 
 
 def test_source_file_never_modified(tmp_path: Path) -> None:
@@ -533,11 +584,17 @@ def _other_topology_env(*, ids: bool = False, phases: bool = False) -> FakeTraff
     return env
 
 
-def test_rebind_env_accepts_matching_topology(tmp_path: Path) -> None:
+def test_rebind_env_keeps_one_manifest_across_draws(tmp_path: Path) -> None:
     """One logger, one manifest, across a fresh env per draw.
 
     A fresh logger per draw would rewrite manifest.json from an empty list and orphan
     the earlier draws' .npz files, so the sweep depends on this working.
+
+    Named for what it proves. It deliberately does **not** assert that the two episodes
+    differ: `FakeTrafficEnv`'s dynamics do not depend on the flow draw, and on real
+    CityFlow two episodes of the same draw are genuinely identical (the engine seed
+    changes nothing observable once demand is fixed). Asserting otherwise here would be
+    asserting something false.
     """
     env_a = FakeTrafficEnv()
     logger = TrajectoryLogger(env_a, tmp_path, run_metadata={"scenario": "fake1x2"})
@@ -545,13 +602,17 @@ def test_rebind_env_accepts_matching_topology(tmp_path: Path) -> None:
 
     env_b = FakeTrafficEnv()
     logger.rebind_env(env_b)
+    # The rebind must actually take effect. With topologies necessarily identical (a
+    # mismatch is rejected), nothing the logger writes can distinguish the two envs, so
+    # the binding is asserted directly -- otherwise a rebind_env that validated and then
+    # forgot to assign would pass this file untouched.
+    assert logger._env is env_b
+
     _run_episode(env_b, logger, engine_seed=1000, flow_draw=1)
 
     manifest = json.loads((tmp_path / "manifest.json").read_text())
     assert len(manifest["episodes"]) == 2
     assert [e["flow_draw"] for e in manifest["episodes"]] == [0, 1]
-    # Same seed, different draw: the corpus must not contain the same episode twice.
-    assert manifest["episodes"][0]["episode_sha256"] != manifest["episodes"][1]["episode_sha256"] or True
 
 
 def test_rebind_env_rejects_changed_ix_ids(tmp_path: Path) -> None:
@@ -571,6 +632,25 @@ def test_rebind_env_rejects_changed_action_counts(tmp_path: Path) -> None:
 
     with pytest.raises(LoggerStateError, match="n_actions|action"):
         logger.rebind_env(_other_topology_env(phases=True))
+
+
+def test_rebind_env_rejects_changed_action_counts_before_first_episode(
+    tmp_path: Path,
+) -> None:
+    """The n_actions guard must hold on the FIRST rebind, not only after an episode.
+
+    This is exactly the call the collector makes: draw 0 rebinds before any ``on_reset``
+    has run. An earlier version derived the expected counts from the previous episode, so
+    the check was skipped precisely where it is used first.
+    """
+    env = FakeTrafficEnv()
+    logger = TrajectoryLogger(env, tmp_path, run_metadata={})
+
+    with pytest.raises(LoggerStateError, match="n_actions|action"):
+        logger.rebind_env(_other_topology_env(phases=True))
+
+    # ...and a matching env is still accepted at that same point.
+    logger.rebind_env(FakeTrafficEnv())
 
 
 def test_rebind_env_rejected_mid_episode(tmp_path: Path) -> None:
@@ -617,13 +697,36 @@ def test_resolve_draw_ids(flags: list[str], expected: list[int | None]) -> None:
     assert collect._resolve_draw_ids(args) == expected
 
 
-def test_flow_draw_flags_are_mutually_exclusive() -> None:
+def test_flow_draw_flags_are_mutually_exclusive(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     with pytest.raises(SystemExit):
         collect.build_parser().parse_args(
             ["--backend", "cityflow", "--env-config", "x.json",
              "--policy", "random", "--out-dir", "out",
              "--flow-draw", "1", "--flow-draws", "2", "3"]
         )
+    # argparse raises SystemExit for *any* CLI error, so without pinning the message
+    # this test would pass on a typo'd flag name and prove nothing -- which is exactly
+    # how it passed vacuously during the red phase, before these flags existed.
+    stderr = capsys.readouterr().err
+    assert "not allowed with argument" in stderr
+    assert "--flow-draw" in stderr
+
+
+@pytest.mark.parametrize("start,end", [("5", "5"), ("3", "1")], ids=["empty", "inverted"])
+def test_degenerate_draw_range_is_refused(start: str, end: str) -> None:
+    """A typo'd bound must not report success for a corpus that does not exist.
+
+    Resolved to ``[]`` the sweep skips its loop, writes no manifest, and exits 0.
+    """
+    args = collect.build_parser().parse_args(
+        ["--backend", "cityflow", "--env-config", "x.json",
+         "--policy", "random", "--out-dir", "out",
+         "--flow-draws-range", start, end]
+    )
+    with pytest.raises(SystemExit, match="START must be < END"):
+        collect._resolve_draw_ids(args)
 
 
 def test_flow_draws_range_is_half_open_in_help() -> None:
@@ -677,7 +780,18 @@ def test_accepted_run_materialises_draw_files(
     assert (flows / "flow_draw1.json").exists()
     manifest = json.loads((out / "manifest.json").read_text())
     assert [e["flow_draw"] for e in manifest["episodes"]] == [0, 1]
-    assert manifest["run_metadata"]["flow_dir"] == "flows"
+
+    meta = manifest["run_metadata"]
+    assert meta["flow_dir"] == "flows"
+    assert meta["numpy_version"] == np.__version__
+
+    # The recorded digest must match the bytes actually on disk, recomputed here by an
+    # independent route. Without it, "P2.4 can re-derive any episode's demand" holds only
+    # while flows/ is intact -- and NEP 19 gives Generator streams no cross-version
+    # guarantee, so re-running the RNG is not a substitute.
+    for draw_id in ("0", "1"):
+        on_disk = (flows / f"flow_draw{draw_id}.json").read_bytes()
+        assert meta["flow_draw_sha256"][draw_id] == hashlib.sha256(on_disk).hexdigest()
 
 
 def test_refused_run_materialises_no_draw_files(

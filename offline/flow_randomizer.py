@@ -78,11 +78,23 @@ the ``.net.xml`` normal (non-internal) edges -- hangzhou 8/8, cologne1 10/10, co
 48/48.  Nothing is invented or guessed.
 
 ``render_sumo`` copies the scenario's own ``<vType>`` block **verbatim** from a template
-``.rou.xml``.  None of the three transforms touches vehicle physics -- they change only
-which vehicles depart and when -- so the scenario's calibrated vehicle model is exactly
-the right one, and no CityFlow-to-SUMO physics mapping has to be invented.  (Synthesising
-a vType from the ``vehicle`` block would silently drop ``usualPosAcc`` / ``usualNegAcc``,
-which have no SUMO counterpart.)
+``.rou.xml``, and mirrors whether that template's ``<vehicle>`` elements carry a ``type``
+attribute.  None of the three transforms touches vehicle physics -- they change only which
+vehicles depart and when -- so no CityFlow-to-SUMO physics mapping has to be invented.
+(Synthesising a vType from the ``vehicle`` block would silently drop ``usualPosAcc`` /
+``usualNegAcc``, which have no SUMO counterpart.)
+
+**Known gap, and a P7 prerequisite.** Mirroring is faithful to each scenario as shipped,
+but hangzhou's ``.rou.xml`` defines ``<vType id="pkw" maxSpeed="11.111" .../>`` and then
+never references it: its ``<vehicle>`` elements carry no ``type``.  A rendered hangzhou
+file therefore reproduces that gap, and SUMO would run those vehicles as
+``DEFAULT_VEHTYPE`` -- maxSpeed 55.55 m/s against CityFlow's 11.11 m/s.  So the copied
+vType is the right *model*, but on hangzhou it is not actually *bound*.  **Binding the
+vType (and validating it against a real SUMO run) is a prerequisite for any C3
+CityFlow->SUMO transfer comparison, and belongs to P7, not here.**  Two narrower
+assumptions in the same method: ``type`` is taken from the template's first ``<vehicle>``
+only, so a mixed-type template collapses to one type; and ``<vType>`` child elements are
+dropped (this repo's templates have none).
 
 The two formats do **not** share a time base: ``depart = startTime + <begin>`` where
 ``<begin>`` comes from the scenario's ``.sumocfg`` (0 for hangzhou and grid4x4, 25200 for
@@ -229,6 +241,24 @@ class FlowRandomizer:
                     f"{self._path} entry {i} is missing required keys; expected at "
                     f"least {sorted(_ENTRY_KEYS)}"
                 )
+            # Enforced, not merely assumed. Every transform here treats an entry as ONE
+            # insertion and collapses endTime onto startTime; an aggregate flow, which
+            # CityFlow expands into a vehicle every `interval` seconds from startTime to
+            # endTime, would silently shrink to a single vehicle. On a 1 h aggregate at
+            # interval 5 that is a ~700x demand cut with nothing raised and a console
+            # line that truthfully reports the entry count.
+            if entry["startTime"] != entry["endTime"]:
+                raise ValueError(
+                    f"{self._path} entry {i} is an aggregate (interval) flow: "
+                    f"startTime={entry['startTime']!r} != endTime={entry['endTime']!r}, "
+                    f"which CityFlow expands into one vehicle every "
+                    f"{entry['interval']!r}s between them. This randomiser operates on "
+                    "lists of individual vehicle insertions (every flow file in this "
+                    "repo is one: 8305/8305 entries have startTime == endTime), and "
+                    "would collapse this entry to a single vehicle -- a large, silent "
+                    "reduction in demand. Expand the flow into individual insertions "
+                    "before randomising."
+                )
         self._entries: list[dict[str, Any]] = entries
 
         self._base_seed = int(base_seed)
@@ -364,16 +394,25 @@ class FlowRandomizer:
 
     # -- rendering ---------------------------------------------------------
 
+    def render_cityflow_bytes(self, entries: Sequence[dict[str, Any]]) -> bytes:
+        """Serialise *entries* exactly as :meth:`render_cityflow` would write them.
+
+        Exposed so a caller can digest a draw without materialising it -- the collector
+        needs every draw's sha256 in ``run_metadata``, which is frozen when the logger is
+        constructed, i.e. before any file may be written.
+        """
+        text = json.dumps(list(entries), indent=self._indent)
+        if self._trailing_newline:
+            text += "\n"
+        return text.encode("utf-8")
+
     def render_cityflow(
         self, entries: Sequence[dict[str, Any]], out_path: str | Path
     ) -> Path:
         """Write *entries* as a CityFlow ``flow.json``, in the source's own formatting."""
         out = Path(out_path)
         out.parent.mkdir(parents=True, exist_ok=True)
-        text = json.dumps(list(entries), indent=self._indent)
-        if self._trailing_newline:
-            text += "\n"
-        out.write_bytes(text.encode("utf-8"))
+        out.write_bytes(self.render_cityflow_bytes(entries))
         return out
 
     def render_sumo(
@@ -391,9 +430,11 @@ class FlowRandomizer:
 
         The template's ``<vType>`` elements are copied verbatim and its ``<vehicle>``
         elements are inspected for a ``type`` attribute, whose presence is mirrored --
-        cologne carries ``type="pkw"`` while hangzhou omits it and therefore uses SUMO's
-        default vehicle type.  Mirroring reproduces each scenario's real behaviour rather
-        than quietly "fixing" hangzhou.
+        cologne carries ``type="pkw"`` while hangzhou omits it.  Mirroring reproduces each
+        scenario's real behaviour rather than quietly "fixing" hangzhou, but it also
+        reproduces hangzhou's unbound-vType gap: those vehicles would run as SUMO's
+        ``DEFAULT_VEHTYPE`` at maxSpeed 55.55 m/s, not the file's 11.111.  See the module
+        docstring -- binding the vType is a P7 prerequisite before any transfer claim.
         """
         out = Path(out_path)
         out.parent.mkdir(parents=True, exist_ok=True)

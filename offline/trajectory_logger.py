@@ -328,6 +328,19 @@ class TrajectoryLogger:
         if len(set(ix_ids)) != len(ix_ids):
             raise ValueError(f"env exposes duplicate intersection ids: {ix_ids}")
 
+        # Captured here, not at the first on_reset, so rebind_env can compare against
+        # the env the logger was *constructed* with even on its first call -- which is
+        # the call a flow-draw sweep makes, before any episode has run. Pure and cheap:
+        # env.action_space exists by now (CityFlowEnv.__init__ runs _setup_spaces before
+        # returning), and infer_action_counts falls back to ix.num_phases when it does
+        # not, so this cannot fail where the old deferred call would have succeeded.
+        ctor_n_actions = [
+            int(count)
+            for count in Utils.infer_action_counts(
+                getattr(env, "action_space", None), list(env.intersections)
+            )
+        ]
+
         metadata: dict[str, Any] = dict(run_metadata or {})
         try:
             json.dumps(metadata)
@@ -353,6 +366,7 @@ class TrajectoryLogger:
             path.unlink()
 
         self._ix_ids = ix_ids
+        self._ctor_n_actions = ctor_n_actions
         self._run_metadata = metadata
         self._state = _IDLE
         self._episode_counter = 0
@@ -422,10 +436,11 @@ class TrajectoryLogger:
         silently rebinding onto a different topology would corrupt the corpus in exactly
         the way this format exists to prevent.
 
-        ``n_actions`` is compared against the most recent episode's counts.  P1 defers
-        ``Utils.infer_action_counts`` to ``on_reset`` because ``env.action_space`` does
-        not exist until ``_setup_spaces()`` has run, so before the first episode there is
-        nothing to compare against and only the ids are checked.
+        Both halves of the check are unconditional.  ``n_actions`` is compared against
+        the counts captured in ``__init__``, **not** against the last episode's: a
+        flow-draw sweep rebinds for its first draw before any ``on_reset`` has run, so
+        deriving the expectation from a previous episode would skip the guard precisely
+        where it is first used.
         """
         if self._state != _IDLE:
             raise LoggerStateError(
@@ -441,19 +456,18 @@ class TrajectoryLogger:
                 f"({ix_ids} vs {self._ix_ids}); one out_dir holds one topology"
             )
 
-        if self._n_actions:
-            counts = [
-                int(c)
-                for c in Utils.infer_action_counts(
-                    getattr(env, "action_space", None), list(env.intersections)
-                )
-            ]
-            if counts != self._n_actions:
-                raise LoggerStateError(
-                    f"rebind_env got an env whose per-intersection n_actions disagree "
-                    f"with this run's ({counts} vs {self._n_actions}); one out_dir "
-                    "holds one topology"
-                )
+        counts = [
+            int(count)
+            for count in Utils.infer_action_counts(
+                getattr(env, "action_space", None), list(env.intersections)
+            )
+        ]
+        if counts != self._ctor_n_actions:
+            raise LoggerStateError(
+                f"rebind_env got an env whose per-intersection n_actions disagree "
+                f"with this run's ({counts} vs {self._ctor_n_actions}); one out_dir "
+                "holds one topology"
+            )
 
         self._env = env
 
