@@ -717,6 +717,28 @@ def test_flow_draw_flags_are_mutually_exclusive(
     assert "--flow-draw" in stderr
 
 
+def test_repeated_draw_ids_are_refused() -> None:
+    """Collecting one draw twice yields byte-identical episodes under a manifest
+    claiming several draws -- the duplicate-corpus defect this task removes."""
+    args = collect.build_parser().parse_args(
+        ["--backend", "cityflow", "--env-config", "x.json",
+         "--policy", "random", "--out-dir", "out", "--flow-draws", "0", "1", "0"]
+    )
+    with pytest.raises(SystemExit, match="repeated draw id"):
+        collect._resolve_draw_ids(args)
+
+
+@pytest.mark.parametrize("flags", [["--flow-draw", "-1"], ["--flow-draws-range", "-2", "3"]],
+                         ids=["single", "range"])
+def test_negative_draw_ids_are_refused(flags: list[str]) -> None:
+    args = collect.build_parser().parse_args(
+        ["--backend", "cityflow", "--env-config", "x.json",
+         "--policy", "random", "--out-dir", "out", *flags]
+    )
+    with pytest.raises(SystemExit, match="must be >= 0"):
+        collect._resolve_draw_ids(args)
+
+
 @pytest.mark.parametrize("start,end", [("5", "5"), ("3", "1")], ids=["empty", "inverted"])
 def test_degenerate_draw_range_is_refused(start: str, end: str) -> None:
     """A typo'd bound must not report success for a corpus that does not exist.

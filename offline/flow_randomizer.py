@@ -16,12 +16,21 @@ arrivals, and varying the *vehicle list* is the only lever available.
 
 SOURCE FORMAT (CityFlow ``flow.json``) -- verified against the repo 2026-07-28
 -----------------------------------------------------------------------------
-A flat JSON list of individual vehicle insertions.  Every entry has exactly the keys
-``vehicle``, ``route``, ``interval``, ``startTime``, ``endTime``; ``vehicle`` is a block
-of nine physical parameters.  Across all four flow files in this repo (hangzhou_bc-tyc
-2021, cologne1 2011, cologne3 2800, grid4x4 1473 entries) ``endTime == startTime`` for
-**0 mismatches out of 8305 entries**, so each entry is a single insertion and
-``interval`` is inert.  ``startTime`` is already sorted ascending in all four.
+A flat JSON list of vehicle insertions.  Every entry has exactly the keys ``vehicle``,
+``route``, ``interval``, ``startTime``, ``endTime``; ``vehicle`` is a block of nine
+physical parameters.
+
+**Single insertions vs aggregate flows -- surveyed across every flow file reachable from
+``configs/sim/*.json`` (13 configs, 46 688 entries, checked 2026-07-31).** When
+``startTime == endTime`` the entry is one vehicle and ``interval`` is inert; when they
+differ, CityFlow expands the entry into one vehicle every ``interval`` seconds between
+them.  **Eleven of the thirteen configs are pure single-insertion; two are aggregate** --
+``scenarios/pb_compare_cityflow/flow.json`` (7338/7338 aggregate) and
+``scenarios/aigen_1x1/flow_1x1.json`` (4/4).  This randomiser handles single insertions
+only and **rejects an aggregate file at construction** rather than collapsing it (see
+``__init__``); an earlier version of this docstring claimed every flow file in the repo
+was single-insertion, which was a survey of four files generalised to all of them and was
+wrong.  ``startTime`` is sorted ascending in every file checked.
 
 Numeric types are **not** uniform across scenarios: ``interval`` is ``int`` in hangzhou
 and ``float`` elsewhere, while ``startTime`` / ``endTime`` are ``int`` everywhere.  The
@@ -253,11 +262,12 @@ class FlowRandomizer:
                     f"startTime={entry['startTime']!r} != endTime={entry['endTime']!r}, "
                     f"which CityFlow expands into one vehicle every "
                     f"{entry['interval']!r}s between them. This randomiser operates on "
-                    "lists of individual vehicle insertions (every flow file in this "
-                    "repo is one: 8305/8305 entries have startTime == endTime), and "
-                    "would collapse this entry to a single vehicle -- a large, silent "
-                    "reduction in demand. Expand the flow into individual insertions "
-                    "before randomising."
+                    "lists of individual vehicle insertions and would collapse this "
+                    "entry to a single vehicle -- a large, silent reduction in demand. "
+                    "Two scenarios in this repo are aggregate and are refused here: "
+                    "pb_compare_cityflow (via configs/sim/cityflow_compare.json) and "
+                    "aigen_1x1 (configs/sim/config_1x1.json). Expand the flow into "
+                    "individual insertions before randomising."
                 )
         self._entries: list[dict[str, Any]] = entries
 

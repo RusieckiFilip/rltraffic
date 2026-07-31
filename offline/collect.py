@@ -30,9 +30,11 @@ trajectory twenty times.
 
 Without any ``--flow-draw*`` flag the *simulation* behaviour is unchanged from P1: the
 scenario's own flow file, one env, and ``flow_draw`` recorded as absent.  The manifest is
-not byte-identical to P1's, though -- ``run_metadata`` gains ``flow_draw_ids``,
-``flow_dir``, ``flow_source_path``, ``flow_source_sha256``, ``flow_draw_sha256`` (all
-``null`` on a nominal run) and ``numpy_version``.  With draws, each one
+not byte-identical to P1's, though: ``run_metadata`` gains **seven** keys --
+``flow_draw_ids`` (``[null]`` on a nominal run, not ``null``), ``flow_dir``,
+``flow_source_path``, ``flow_source_sha256``, ``flow_draw_sha256`` and
+``flow_randomizer_params`` (all ``null`` nominally), plus ``numpy_version``, which is
+always populated.  With draws, each one
 gets a fresh env (mandatory, per the above), one :class:`TrajectoryLogger` serves the
 whole run via ``rebind_env``, and the materialised demand is kept under
 ``<out-dir>/flows/`` so any episode can be traced to the exact vehicle list behind it.
@@ -334,6 +336,19 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _checked_draw_id(draw_id: int) -> int:
+    """Reject a negative draw id at the CLI boundary, as a usage error.
+
+    ``FlowRandomizer.draw`` raises ``ValueError`` for these, but by then it surfaces as a
+    bare traceback from inside the digest pass rather than a message naming the flag.
+    """
+    if draw_id < 0:
+        raise SystemExit(
+            f"draw ids must be >= 0, got {draw_id}; draw 0 is the nominal source flow"
+        )
+    return draw_id
+
+
 def _resolve_draw_ids(args: argparse.Namespace) -> list[int | None]:
     """Resolve the mutually exclusive draw flags to a list of draw ids.
 
@@ -341,11 +356,24 @@ def _resolve_draw_ids(args: argparse.Namespace) -> list[int | None]:
     scenario's own flow file and record ``flow_draw`` as absent".
     """
     if args.flow_draw is not None:
-        return [int(args.flow_draw)]
+        return [_checked_draw_id(int(args.flow_draw))]
     if args.flow_draws:
-        return [int(draw_id) for draw_id in args.flow_draws]
+        ids = [_checked_draw_id(int(draw_id)) for draw_id in args.flow_draws]
+        duplicates = sorted({i for i in ids if ids.count(i) > 1})
+        if duplicates:
+            # Collecting the same draw twice produces byte-identical episodes -- the
+            # exact duplicate-corpus defect this task exists to remove -- while the
+            # manifest reports N distinct draws. Same reasoning as the degenerate-range
+            # guard below: a typo must not report success.
+            raise SystemExit(
+                f"--flow-draws contains repeated draw id(s) {duplicates}; each draw is "
+                "deterministic, so this would record identical episodes under a "
+                "manifest claiming several draws. Use --episodes for repetition."
+            )
+        return ids
     if args.flow_draws_range:
         start, end = (int(value) for value in args.flow_draws_range)
+        _checked_draw_id(start)
         if end <= start:
             # A degenerate range must not look like a successful run. Left to resolve to
             # [], the sweep would skip the loop entirely and the process would print
@@ -623,16 +651,19 @@ def main(argv: Sequence[str] | None = None) -> int:
             overwrite=bool(args.overwrite),
         )
 
+        # Deferred past the logger's check because it deletes files. Run for nominal
+        # runs too: a nominal run into a directory that previously held a sweep would
+        # otherwise leave flows/flow_draw*.json beside a manifest saying flow_dir=null,
+        # i.e. orphaned demand a later reader could mistake for this run's provenance.
+        for removed in _clear_stale_draw_files(flows_dir):
+            print(f"  removed stale {removed.name}", flush=True)
+
         if randomised:
             # Its only job was to let the check above run early; every draw builds its
             # own env, and keeping this one alive would hold a second engine open for
             # the whole run.
             _close_env(env)
             env = None
-            # Deferred to here for the same reason: this deletes files, so it must not
-            # run before the logger has accepted the output directory.
-            for removed in _clear_stale_draw_files(flows_dir):
-                print(f"  removed stale {removed.name}", flush=True)
 
         for draw_id in draw_ids:
             draw_spec = spec

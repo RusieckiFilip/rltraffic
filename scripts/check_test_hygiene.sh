@@ -22,9 +22,9 @@
 # justify in a clause is a waiver you should not be taking.
 #
 # SCOPE. claude_guard.sh runs this over CHANGED files only, deliberately, for the same
-# reason the language check is scoped that way: 30 pre-existing `pytest.raises` without
-# `match=` live in the P0/P1 suite, and failing the hook on all of them would block every
-# edit in the repo until someone did an unrelated 30-file cleanup. Run with no arguments
+# reason the language check is scoped that way: 27 pre-existing `pytest.raises` without
+# `match=` live in the P0/P1 suite (counted 2026-07-31), and failing the hook on all of
+# them would block every edit in the repo until someone did an unrelated cleanup. Run with no arguments
 # to audit the whole suite when you actually want that number.
 
 set -uo pipefail
@@ -72,8 +72,11 @@ scan_line_rules() {
     stripped="${line#"${line%%[![:space:]]*}"}"
     case "$stripped" in \#*) prev="$line"; continue ;; esac
 
-    # TH001 -- a truthy disjunct makes the whole assertion unfailable.
-    if printf '%s' "$line" | grep -qE '^[[:space:]]*assert\b.*\bor[[:space:]]+(True|1)\b'; then
+    # TH001 -- a truthy disjunct makes the whole assertion unfailable. Matched both on a
+    # single-line assert and on a bare continuation line, because the historical offending
+    # line was 106 chars and any reformat wraps it into `\n    or True\n)`.
+    if printf '%s' "$line" | grep -qE '^[[:space:]]*assert\b.*\bor[[:space:]]+(True|1)\b' \
+       || printf '%s' "$line" | grep -qE '^[[:space:]]*or[[:space:]]+(True|1)[[:space:]]*(\)|:|$)'; then
       report TH001 "$file" "$lineno" "$line" \
         "'or True' / 'or 1' makes this assertion impossible to fail" "$prev"
     fi
@@ -90,6 +93,13 @@ scan_line_rules() {
         "'if False:' -- the body never runs; delete it or fix the condition" "$prev"
     fi
 
+    # TH004 (one-line form) -- `except ValueError: pass` on a single line; the multi-line
+    # form is handled by the awk pass below.
+    if printf '%s' "$line" | grep -qE '^[[:space:]]*except\b.*:[[:space:]]*pass[[:space:]]*(#|$)'; then
+      report TH004 "$file" "$lineno" "$line" \
+        "bare 'pass' in an except block swallows the failure" "$prev"
+    fi
+
     # TH005 -- an unexplained skip hides why coverage is missing.
     if printf '%s' "$line" | grep -qE 'pytest\.skip\([[:space:]]*(\)|""[[:space:]]*\)|'"''"'[[:space:]]*\))'; then
       report TH005 "$file" "$lineno" "$line" \
@@ -98,7 +108,11 @@ scan_line_rules() {
 
     # TH006 -- pytest.raises with no match= accepts any error of that class, including
     # one raised for an entirely different reason than the test claims to check.
+    # A `pytest.raises(` left open at end of line continues onto following lines, where
+    # match= may legitimately live; flagging it would be a false positive, and a false
+    # positive in a blocking hook gets the whole hook disabled.
     if printf '%s' "$line" | grep -qE 'pytest\.raises\(' \
+       && printf '%s' "$line" | grep -qE 'pytest\.raises\([^)]*\)' \
        && ! printf '%s' "$line" | grep -qE 'match[[:space:]]*='; then
       report TH006 "$file" "$lineno" "$line" \
         "pytest.raises without match=: any error of that class satisfies it" "$prev"
@@ -114,15 +128,16 @@ scan_except_pass() {
   local file="$1"
   awk -v FNAME="$file" '
     # No \b here: in awk that is a backspace, not a word boundary.
-    /^[[:space:]]*except[[:space:]:(]/ { pending = 1; pline = NR; ptext = $0; next }
+    /^[[:space:]]*except[[:space:]:(]/ { pending = 1; pline = NR; ptext = $0; prev = prevline; prevline = $0; next }
     pending == 1 {
-      if ($0 ~ /^[[:space:]]*pass[[:space:]]*(#|$)/ && $0 !~ /hygiene:[[:space:]]*allow[[:space:]]+TH004/) {
+      if ($0 ~ /^[[:space:]]*pass[[:space:]]*(#|$)/ && $0 !~ /hygiene:[[:space:]]*allow[[:space:]]+TH004[[:space:]]*[-:][[:space:]]*.{10,}/ && prev !~ /hygiene:[[:space:]]*allow[[:space:]]+TH004[[:space:]]*[-:][[:space:]]*.{10,}/) {
         printf "%s:%d: [TH004] bare `pass` in an except block swallows the failure\n", FNAME, NR > "/dev/stderr"
         printf "    %s\n", ptext > "/dev/stderr"
         exit 3
       }
       pending = 0
     }
+    { prevline = $0 }
   ' "$file"
   [ $? -eq 3 ] && FOUND=1
   return 0
