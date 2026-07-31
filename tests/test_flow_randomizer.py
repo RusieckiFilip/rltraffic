@@ -659,7 +659,7 @@ def test_rebind_env_rejected_mid_episode(tmp_path: Path) -> None:
     info = env.reset(seed=1000)
     logger.on_reset(info, engine_seed=1000, flow_draw=0)
 
-    with pytest.raises(LoggerStateError):
+    with pytest.raises(LoggerStateError, match="episode is still open"):
         logger.rebind_env(FakeTrafficEnv())
 
 
@@ -700,6 +700,9 @@ def test_resolve_draw_ids(flags: list[str], expected: list[int | None]) -> None:
 def test_flow_draw_flags_are_mutually_exclusive(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
+    # argparse raises SystemExit(2), whose str() is the exit code, so match= has nothing
+    # to bind to; the message is pinned via capsys below instead.
+    # hygiene: allow TH006 - SystemExit(2) from argparse carries no matchable message
     with pytest.raises(SystemExit):
         collect.build_parser().parse_args(
             ["--backend", "cityflow", "--env-config", "x.json",
@@ -811,7 +814,7 @@ def test_refused_run_materialises_no_draw_files(
     (out / "ep000000_seed1000.npz").write_bytes(b"")
     (out / "manifest.json").write_text("{}")
 
-    with pytest.raises(FileExistsError):
+    with pytest.raises(FileExistsError, match="already contains a collection run"):
         collect.main(_collect_argv(out, "--flow-draws-range", "0", "2"))
 
     flows = out / "flows"
