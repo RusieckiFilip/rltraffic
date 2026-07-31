@@ -10,6 +10,7 @@ table lives in exactly one place.
       --policy maxpressure \\
       --episodes 20 --base-seed 1000 \\
       --max-steps 360 --delta-time 10 \\
+      --flow-draws-range 0 10 \\
       --out-dir datasets/hz1x1_maxpressure
 
 Behaviour policies live in the :data:`POLICIES` registry so the ladder can grow
@@ -17,8 +18,21 @@ without touching the CLI.  P1 ships four entries; ``fixedtime`` and ``dqn`` belo
 P2.5 and are deliberately absent -- there is no fixed-time controller in this repo,
 and writing one means cycle-length and phase-split decisions that need their own task.
 
-Episode ``i`` uses ``engine_seed = base_seed + i``.  ``flow_draw`` is always ``None``
-here: the flow randomiser is P2, and this module only plumbs the field through.
+DEMAND DRAWS (P2.0)
+-------------------
+Episode ``i`` of every draw uses ``engine_seed = base_seed + i``; the seeds restart per
+draw so the draw is the only variable across draws.  **That is deliberate, because on
+CityFlow the engine seed changes nothing observable:** the engine reads its flow file
+once, in its constructor (``CityFlow/src/engine/engine.cpp:65``), and ``Engine::reset()``
+never re-reads it, so ``reset(seed=X)`` cannot alter vehicle arrivals.  Size a collection
+run by *draws*, not by episodes -- ``--episodes 20`` without a draw flag records one
+trajectory twenty times.
+
+Without any ``--flow-draw*`` flag the behaviour is exactly as it was in P1: the
+scenario's own flow file, and ``flow_draw`` recorded as absent.  With draws, each one
+gets a fresh env (mandatory, per the above), one :class:`TrajectoryLogger` serves the
+whole run via ``rebind_env``, and the materialised demand is kept under
+``<out-dir>/flows/`` so any episode can be traced to the exact vehicle list behind it.
 """
 
 from __future__ import annotations
