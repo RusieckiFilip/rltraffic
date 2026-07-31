@@ -363,6 +363,13 @@ def _clear_stale_draw_files(flows_dir: str | Path) -> list[Path]:
     return removed
 
 
+def _close_env(env: Any) -> None:
+    """Close *env* if it exposes ``close()``; tolerant of ``None``."""
+    close = getattr(env, "close", None) if env is not None else None
+    if callable(close):
+        close()
+
+
 def _cityflow_flow_source(config_path: str | Path) -> Path:
     """Absolute path of the flow file a CityFlow sim config points at.
 
@@ -524,8 +531,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"sha256 {randomizer.source_sha256[:12]})",
             flush=True,
         )
-        for removed in _clear_stale_draw_files(flows_dir):
-            print(f"  removed stale {removed.name}", flush=True)
 
     from experiments.envs import make_env
 
@@ -544,6 +549,31 @@ def main(argv: Sequence[str] | None = None) -> int:
     episode_index = 0
 
     try:
+        # Build the nominal env from the SOURCE flow first and construct the logger with
+        # it, so the populated-out_dir check fires here -- before any draw file is
+        # materialised.  That preserves P1's NB2 property exactly (a refused run creates
+        # nothing) and keeps the logger the single authority on what "populated" means,
+        # rather than duplicating that check here.  When randomising it costs one extra
+        # env construction per run, once; otherwise this *is* the run's env.
+        env = make_env(spec)
+        logger = TrajectoryLogger(
+            env,
+            args.out_dir,
+            run_metadata=metadata,
+            overwrite=bool(args.overwrite),
+        )
+
+        if randomised:
+            # Its only job was to let the check above run early; every draw builds its
+            # own env, and keeping this one alive would hold a second engine open for
+            # the whole run.
+            _close_env(env)
+            env = None
+            # Deferred to here for the same reason: this deletes files, so it must not
+            # run before the logger has accepted the output directory.
+            for removed in _clear_stale_draw_files(flows_dir):
+                print(f"  removed stale {removed.name}", flush=True)
+
         for draw_id in draw_ids:
             draw_spec = spec
             if draw_id is not None:
@@ -566,22 +596,16 @@ def main(argv: Sequence[str] | None = None) -> int:
                     flush=True,
                 )
 
-            # A fresh env per draw is mandatory, not a precaution: CityFlow reads its
-            # flow file once in the engine constructor and Engine::reset() never
-            # re-reads it (CityFlow/src/engine/engine.cpp:65,754).
-            env = make_env(draw_spec)
+            if draw_id is not None:
+                # A fresh env per draw is mandatory, not a precaution: CityFlow reads
+                # its flow file once in the engine constructor and Engine::reset()
+                # never re-reads it (CityFlow/src/engine/engine.cpp:65,754).
+                env = make_env(draw_spec)
+                logger.rebind_env(env)
+            # else: env is the nominal env built above, already bound to the logger.
+
             rng = np.random.default_rng(int(args.base_seed))
             policy = POLICIES[args.policy](env, args, rng)
-
-            if logger is None:
-                logger = TrajectoryLogger(
-                    env,
-                    args.out_dir,
-                    run_metadata=metadata,
-                    overwrite=bool(args.overwrite),
-                )
-            else:
-                logger.rebind_env(env)
 
             for index in range(int(args.episodes)):
                 # Seeds restart per draw so the draw is the only variable across draws.
@@ -615,9 +639,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     flush=True,
                 )
 
-            close = getattr(env, "close", None)
-            if callable(close):
-                close()
+            _close_env(env)
             env = None
 
         mean_return = float(np.mean(returns)) if returns else 0.0
@@ -629,9 +651,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             flush=True,
         )
     finally:
-        close = getattr(env, "close", None) if env is not None else None
-        if callable(close):
-            close()
+        _close_env(env)
 
     return 0
 

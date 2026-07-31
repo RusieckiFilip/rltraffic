@@ -645,6 +645,68 @@ def test_collect_refuses_flow_draw_on_non_cityflow() -> None:
     collect._require_cityflow_for_draws("sumo", [None])
 
 
+def _patch_make_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Run ``collect.main`` with no simulator; ``main`` imports make_env at call time."""
+    import experiments.envs
+
+    monkeypatch.setattr(experiments.envs, "make_env", lambda spec: FakeTrafficEnv())
+
+
+def _collect_argv(out: Path, *extra: str) -> list[str]:
+    return [
+        "--backend", "cityflow",
+        "--env-config", str(REPO / "configs/sim/cityflow1x1.json"),
+        "--policy", "random",
+        "--out-dir", str(out),
+        "--episodes", "1",
+        *extra,
+    ]
+
+
+def test_accepted_run_materialises_draw_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Positive control for the test below, which would otherwise pass vacuously."""
+    _patch_make_env(monkeypatch)
+    out = tmp_path / "corpus"
+
+    assert collect.main(_collect_argv(out, "--flow-draws-range", "0", "2")) == 0
+
+    flows = out / "flows"
+    assert (flows / "flow_draw0.json").exists()
+    assert (flows / "flow_draw1.json").exists()
+    manifest = json.loads((out / "manifest.json").read_text())
+    assert [e["flow_draw"] for e in manifest["episodes"]] == [0, 1]
+    assert manifest["run_metadata"]["flow_dir"] == "flows"
+
+
+def test_refused_run_materialises_no_draw_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """P1's NB2 property: a refused run must create nothing.
+
+    The nominal env is built from the source flow and the logger constructed with it
+    *before* any draw is materialised, so the populated-out_dir check is what rejects the
+    run -- and it rejects it before a single demand file has been written.  The check
+    stays the logger's, rather than being duplicated here where it could drift.
+    """
+    _patch_make_env(monkeypatch)
+    out = tmp_path / "corpus"
+    out.mkdir()
+    # Look exactly like a previous run, so the logger refuses without --overwrite.
+    (out / "ep000000_seed1000.npz").write_bytes(b"")
+    (out / "manifest.json").write_text("{}")
+
+    with pytest.raises(FileExistsError):
+        collect.main(_collect_argv(out, "--flow-draws-range", "0", "2"))
+
+    flows = out / "flows"
+    assert not flows.exists() or not list(flows.iterdir()), (
+        "a refused run materialised demand files; the populated-out_dir check must run "
+        "before the first draw is written"
+    )
+
+
 def test_stale_drawn_flow_cleanup_is_narrow(tmp_path: Path) -> None:
     """P1's NB3 lesson, verbatim: never a directory wipe.
 
