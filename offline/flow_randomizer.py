@@ -148,8 +148,13 @@ DEFAULT_THIN_P = 0.10
 DEFAULT_VOLUME_SCALE = 1.0
 DEFAULT_BASE_SEED = 1000
 
-#: Entry keys every CityFlow flow record carries (verified on all four repo scenarios).
+#: Entry keys every CityFlow flow record carries (verified on all 13 sim configs).
 _ENTRY_KEYS = frozenset({"vehicle", "route", "interval", "startTime", "endTime"})
+
+#: On-disk layout of a flow file: ``(kind, indent, trailing_newline)``.  ``indent`` is
+#: meaningful only for ``kind == "indent"``.  See :meth:`FlowRandomizer._sniff_formatting`
+#: for how the three kinds were characterised.
+_FlowStyle = tuple[str, int | None, bool]
 
 
 def _coerce_like(value: float, template: Any) -> int | float:
@@ -276,45 +281,80 @@ class FlowRandomizer:
         self._thin_p = float(thin_p)
         self._volume_scale = float(volume_scale)
 
-        self._indent, self._trailing_newline = self._sniff_formatting(raw)
+        self._style: _FlowStyle = self._sniff_formatting(raw)
 
     # -- formatting --------------------------------------------------------
 
     @staticmethod
-    def _sniff_formatting(raw: bytes) -> tuple[int, bool]:
-        """Recover the source's indent width and trailing-newline flag.
+    def _render_styled(entries: Sequence[dict[str, Any]], style: _FlowStyle) -> bytes:
+        """Serialise *entries* in one of the three layouts this repo actually uses."""
+        kind, indent, trailing = style
+        if kind == "indent":
+            text = json.dumps(list(entries), indent=indent)
+        elif kind == "entry_per_line":
+            body = ",\n".join(json.dumps(entry) for entry in entries)
+            text = f"[\n{body}]"
+        elif kind == "single_line":
+            text = json.dumps(list(entries))
+        else:  # pragma: no cover - guarded by _sniff_formatting
+            raise ValueError(f"unknown flow style {kind!r}")
+        if trailing:
+            text += "\n"
+        return text.encode("utf-8")
 
-        Verified, not guessed: the sniffed settings are used to re-serialise the parsed
-        source and the result is compared against *raw*.  A ``FlowRandomizer`` that
-        cannot reproduce its own source refuses to construct, which makes
-        ``render_cityflow(draw(0)) == source`` a construction-time invariant rather than
-        something only a test happens to check.
+    @classmethod
+    def _sniff_formatting(cls, raw: bytes) -> _FlowStyle:
+        """Recover the source's exact on-disk layout.
+
+        Verified, never guessed: each candidate is used to re-serialise the parsed source
+        and the result compared against *raw*, so a style is only adopted once it has
+        reproduced the file byte-for-byte.  A ``FlowRandomizer`` that cannot reproduce its
+        own source refuses to construct, which makes ``render_cityflow(draw(0)) ==
+        source`` a construction-time invariant rather than something a test happens to
+        check.
+
+        **Three layout families exist in this repo** (characterised byte-for-byte across
+        all 13 ``configs/sim/*.json`` on 2026-08-01, before any candidate was written):
+
+        - ``indent`` -- ``json.dumps(entries, indent=N)``.  ``N=2`` for the four
+          hangzhou 1x1 scenarios, ``N=4`` for cologne1 / cologne3 / grid4x4.
+        - ``entry_per_line`` -- ``"[\\n"`` then one compact ``json.dumps(entry)`` per
+          line joined by ``",\\n"``, with the closing bracket on the **last entry's own
+          line**.  Used by hangzhou_4x4 (with a trailing newline), manhattan_28x7 and
+          template_lsr (without).  It differs from an ``indent`` rendering by a single
+          byte at EOF (``}]`` versus ``}\\n]``), which is why the original indent-only
+          sniff refused these files.
+        - ``single_line`` -- the entire list on one line, ``json.dumps(entries)`` with
+          default ``", "`` / ``": "`` separators.  Used by hangzhou_4x4_hetero.
+
+        The trailing-newline flag varies **between files in the same directory**, so it
+        is part of the style rather than a property of the family.
         """
         text = raw.decode("utf-8")
         parsed = json.loads(raw)
 
-        candidates: list[tuple[int, bool]] = []
-        match = re.match(r"\[\s*?\n([ ]*)\S", text)
+        candidates: list[_FlowStyle] = []
+        # An indent hint from the source's own second line, tried first.
+        match = re.match(r"\[\s*?\n([ ]+)\S", text)
         if match is not None:
-            candidates.append((len(match.group(1)), text.endswith("\n")))
-        # The two indents actually used in this repo, then a short fallback sweep.
-        for indent in (2, 4, 0, 1, 3, 6, 8):
-            for trailing in (False, True):
-                candidates.append((indent, trailing))
+            candidates.append(("indent", len(match.group(1)), text.endswith("\n")))
+        for trailing in (False, True):
+            for indent in (2, 4, 0, 1, 3, 6, 8):
+                candidates.append(("indent", indent, trailing))
+            candidates.append(("entry_per_line", None, trailing))
+            candidates.append(("single_line", None, trailing))
 
-        for indent, trailing in candidates:
-            rendered = json.dumps(parsed, indent=indent)
-            if trailing:
-                rendered += "\n"
-            if rendered.encode("utf-8") == raw:
-                return indent, trailing
+        for style in candidates:
+            if cls._render_styled(parsed, style) == raw:
+                return style
 
         raise ValueError(
-            "cannot reproduce the source flow file byte-for-byte with any supported "
-            "JSON formatting (tried indents 0-8, with and without a trailing newline). "
-            "draw(0) is the nominal control condition for every experiment and must "
-            "render byte-identically, so this file is refused rather than silently "
-            "reformatted. Re-save it with json.dumps(entries, indent=2 or 4)."
+            "cannot reproduce the source flow file byte-for-byte with any known layout "
+            "(indent 0-8, one-entry-per-line, or single-line; each with and without a "
+            "trailing newline). draw(0) is the nominal control condition for every "
+            "experiment and must render byte-identically, so this file is refused rather "
+            "than silently reformatted. Characterise the layout and add it to "
+            "_sniff_formatting rather than re-saving a scenario file."
         )
 
     # -- introspection -----------------------------------------------------
@@ -411,10 +451,7 @@ class FlowRandomizer:
         needs every draw's sha256 in ``run_metadata``, which is frozen when the logger is
         constructed, i.e. before any file may be written.
         """
-        text = json.dumps(list(entries), indent=self._indent)
-        if self._trailing_newline:
-            text += "\n"
-        return text.encode("utf-8")
+        return self._render_styled(entries, self._style)
 
     def render_cityflow(
         self, entries: Sequence[dict[str, Any]], out_path: str | Path

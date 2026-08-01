@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
@@ -67,6 +68,34 @@ ALL_FLOWS: tuple[tuple[str, Path, int], ...] = (
     ("cologne3", COLOGNE3_FLOW, 4),
     ("grid4x4", REPO / "scenarios/grid4x4/grid4x4_flow.json", 4),
 )
+
+# Scenarios whose flow file is an aggregate (interval) flow rather than a list of single
+# insertions. These are correctly refused; every other sim config must be randomisable.
+AGGREGATE_CONFIGS = frozenset({"cityflow_compare.json", "config_1x1.json"})
+
+
+def _sim_config_flows() -> list[tuple[str, Path]]:
+    """Every ``configs/sim/*.json`` and the flow file it points at, resolved from disk.
+
+    Enumerated rather than listed. A hardcoded sample is exactly the mistake this suite
+    is correcting: the module docstring once claimed "8305/8305 entries, every flow file
+    in this repo" on the strength of four files, and was wrong about two scenarios.
+    """
+    found: list[tuple[str, Path]] = []
+    for config in sorted((REPO / "configs/sim").glob("*.json")):
+        spec = json.loads(config.read_bytes())
+        if "flowFile" not in spec:
+            continue
+        base = spec.get("dir", "")
+        root = Path(base) if Path(base).is_absolute() else REPO / base
+        flow = Path(os.path.normpath(root)) / spec["flowFile"]
+        if flow.exists():
+            found.append((config.name, flow))
+    return found
+
+
+SIM_CONFIG_FLOWS = _sim_config_flows()
+RANDOMISABLE = [(n, p) for n, p in SIM_CONFIG_FLOWS if n not in AGGREGATE_CONFIGS]
 
 
 # ----------------------------------------------------------------------
@@ -196,6 +225,51 @@ def test_draw_zero_render_is_byte_identical(
     # And the indent really is the one we claim, so this test cannot pass by accident
     # on a file that happens to round-trip under the wrong setting.
     assert json.dumps(json.loads(source_bytes), indent=indent).encode() == source_bytes
+
+
+@pytest.mark.parametrize(
+    "config_name,flow_path", RANDOMISABLE, ids=[n for n, _ in RANDOMISABLE]
+)
+def test_every_randomisable_scenario_round_trips_byte_exactly(
+    config_name: str, flow_path: Path, tmp_path: Path
+) -> None:
+    """draw(0) must be byte-identical for EVERY randomisable sim config, not a sample.
+
+    Parametrised off the enumerated configs, so a newly added scenario is covered the
+    moment it lands rather than when someone remembers to extend a list. Three distinct
+    on-disk layouts are in play (indent 2/4, one-entry-per-line, single-line), and the
+    trailing-newline flag differs between files in the same directory, so nothing here
+    can be satisfied by a hardcoded format.
+    """
+    randomizer = FlowRandomizer(flow_path)
+    entries, provenance = randomizer.draw(0)
+    out = randomizer.render_cityflow(entries, tmp_path / "rendered.json")
+
+    assert out.read_bytes() == flow_path.read_bytes(), (
+        f"{config_name} -> {flow_path.name} does not round-trip byte-exactly at draw 0"
+    )
+    assert provenance.n_vehicles == randomizer.n_source_vehicles
+
+
+@pytest.mark.parametrize("config_name", sorted(AGGREGATE_CONFIGS))
+def test_aggregate_scenarios_are_refused(config_name: str) -> None:
+    """The two genuinely aggregate scenarios must stay refused, and for the right reason."""
+    flow = dict(SIM_CONFIG_FLOWS)[config_name]
+    with pytest.raises(ValueError, match="aggregate"):
+        FlowRandomizer(flow)
+
+
+def test_randomisable_set_is_not_silently_shrinking() -> None:
+    """Pin the coverage numbers so a regression in the sniff cannot pass unnoticed.
+
+    A format-sniff regression would otherwise only show up as a scenario quietly becoming
+    unavailable, which is precisely how the original indent-only sniff hid the fact that
+    hangzhou_4x4 and manhattan_28x7 could not be randomised at all.
+    """
+    assert len(SIM_CONFIG_FLOWS) == 13, "sim config inventory changed; update the packet table"
+    assert len(RANDOMISABLE) == 11
+    for _name, flow in RANDOMISABLE:
+        FlowRandomizer(flow)  # must construct; raises if the layout is unsupported
 
 
 def test_unreproducible_source_is_rejected_at_construction(tmp_path: Path) -> None:
