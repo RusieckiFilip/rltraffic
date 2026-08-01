@@ -10,6 +10,7 @@ table lives in exactly one place.
       --policy maxpressure \\
       --episodes 20 --base-seed 1000 \\
       --max-steps 360 --delta-time 10 \\
+      --flow-draws-range 0 10 \\
       --out-dir datasets/hz1x1_maxpressure
 
 Behaviour policies live in the :data:`POLICIES` registry so the ladder can grow
@@ -17,14 +18,36 @@ without touching the CLI.  P1 ships four entries; ``fixedtime`` and ``dqn`` belo
 P2.5 and are deliberately absent -- there is no fixed-time controller in this repo,
 and writing one means cycle-length and phase-split decisions that need their own task.
 
-Episode ``i`` uses ``engine_seed = base_seed + i``.  ``flow_draw`` is always ``None``
-here: the flow randomiser is P2, and this module only plumbs the field through.
+DEMAND DRAWS (P2.0)
+-------------------
+Episode ``i`` of every draw uses ``engine_seed = base_seed + i``; the seeds restart per
+draw so the draw is the only variable across draws.  **That is deliberate, because on
+CityFlow the engine seed changes nothing observable:** the engine reads its flow file
+once, in its constructor (``CityFlow/src/engine/engine.cpp:65``), and ``Engine::reset()``
+never re-reads it, so ``reset(seed=X)`` cannot alter vehicle arrivals.  Size a collection
+run by *draws*, not by episodes -- ``--episodes 20`` without a draw flag records one
+trajectory twenty times.
+
+Without any ``--flow-draw*`` flag the *simulation* behaviour is unchanged from P1: the
+scenario's own flow file, one env, and ``flow_draw`` recorded as absent.  The manifest is
+not byte-identical to P1's, though: ``run_metadata`` gains **seven** keys --
+``flow_draw_ids`` (``[null]`` on a nominal run, not ``null``), ``flow_dir``,
+``flow_source_path``, ``flow_source_sha256``, ``flow_draw_sha256`` and
+``flow_randomizer_params`` (all ``null`` nominally), plus ``numpy_version``, which is
+always populated.  With draws, each one
+gets a fresh env (mandatory, per the above), one :class:`TrajectoryLogger` serves the
+whole run via ``rebind_env``, and the materialised demand is kept under
+``<out-dir>/flows/`` so any episode can be traced to the exact vehicle list behind it.
 """
 
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import hashlib
+import json
+import os
+import re
 from pathlib import Path
 from typing import Any, Callable, Sequence
 
@@ -32,10 +55,26 @@ import numpy as np
 
 from agent.utils.utils import Utils
 from experiments.config import BACKENDS, CONTROL_MODES, SETTING_DEFAULTS, EnvSpec
+from offline.flow_randomizer import (
+    DEFAULT_JITTER_SIGMA_S,
+    DEFAULT_THIN_P,
+    DEFAULT_VOLUME_SCALE,
+    FlowRandomizer,
+)
 from offline.trajectory_logger import TrajectoryLogger
 
 PolicyFn = Callable[[dict[str, Any]], np.ndarray]
 PolicyFactory = Callable[..., PolicyFn]
+
+#: Subdirectory of ``--out-dir`` holding the materialised demand for each draw.
+FLOW_SUBDIR = "flows"
+
+#: Exactly the two filename shapes this module writes into ``FLOW_SUBDIR``.
+#:
+#: Deliberately narrow, and never a directory wipe: P1's NB3 found that ``ep*.npz`` also
+#: matched an unrelated ``epoch_stats.npz``.  A user file that happens to live in
+#: ``flows/`` must survive ``--overwrite``.
+_DRAW_FILE_RE = re.compile(r"(?:flow|cityflow)_draw\d+\.json")
 
 __all__ = ["POLICIES", "build_parser", "main"]
 
@@ -184,11 +223,22 @@ def build_parser() -> argparse.ArgumentParser:
         "--epsilon",
         type=float,
         default=0.1,
-        help="per-intersection substitution probability for --policy mappo_eps",
+        help="per-intersection substitution probability for --policy mappo_eps. Note "
+        "the exploration RNG is re-seeded from --base-seed at the start of every draw, "
+        "so episode i of each draw replays the same epsilon coin sequence against "
+        "different demand -- deliberate, so the draw stays the only variable",
     )
     parser.add_argument("--device", default=SETTING_DEFAULTS["device"])
 
-    parser.add_argument("--episodes", type=int, default=1)
+    parser.add_argument(
+        "--episodes",
+        type=int,
+        default=1,
+        help="episodes PER DRAW; a run records len(draws) * episodes in total. Episode "
+        "seeds restart at --base-seed for every draw, so the draw is the only variable "
+        "across draws. On CityFlow the engine seed changes nothing once demand is fixed, "
+        "so without a --flow-draw* flag every episode here is the same trajectory",
+    )
     parser.add_argument("--base-seed", type=int, default=0)
     parser.add_argument("--out-dir", required=True)
     parser.add_argument(
@@ -237,7 +287,196 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--libsumo", action="store_true", default=SETTING_DEFAULTS["libsumo"])
 
+    draws = parser.add_mutually_exclusive_group()
+    draws.add_argument(
+        "--flow-draw",
+        type=int,
+        default=None,
+        help="collect one demand draw; 0 is the nominal source flow (identity). "
+        "Omitting every --flow-draw* flag keeps the original behaviour exactly: the "
+        "scenario's own flow file, unmodified.",
+    )
+    draws.add_argument(
+        "--flow-draws",
+        type=int,
+        nargs="+",
+        default=None,
+        metavar="N",
+        help="sweep these explicit draw ids, e.g. --flow-draws 0 1 2",
+    )
+    draws.add_argument(
+        "--flow-draws-range",
+        type=int,
+        nargs=2,
+        default=None,
+        metavar=("START", "END"),
+        help="sweep draw ids over the half-open interval [START, END), matching "
+        "Python's range(): '--flow-draws-range 0 100' is 100 draws, ids 0..99",
+    )
+
+    parser.add_argument(
+        "--flow-jitter-sigma",
+        type=float,
+        default=DEFAULT_JITTER_SIGMA_S,
+        help="departure jitter standard deviation, seconds",
+    )
+    parser.add_argument(
+        "--flow-thin-p",
+        type=float,
+        default=DEFAULT_THIN_P,
+        help="probability of independently dropping each vehicle",
+    )
+    parser.add_argument(
+        "--flow-volume-scale",
+        type=float,
+        default=DEFAULT_VOLUME_SCALE,
+        help="multiplier on the surviving vehicle count",
+    )
+
     return parser
+
+
+def _checked_draw_id(draw_id: int) -> int:
+    """Reject a negative draw id at the CLI boundary, as a usage error.
+
+    ``FlowRandomizer.draw`` raises ``ValueError`` for these, but by then it surfaces as a
+    bare traceback from inside the digest pass rather than a message naming the flag.
+    """
+    if draw_id < 0:
+        raise SystemExit(
+            f"draw ids must be >= 0, got {draw_id}; draw 0 is the nominal source flow"
+        )
+    return draw_id
+
+
+def _resolve_draw_ids(args: argparse.Namespace) -> list[int | None]:
+    """Resolve the mutually exclusive draw flags to a list of draw ids.
+
+    Returns ``[None]`` when no flag was given, which is the signal for "use the
+    scenario's own flow file and record ``flow_draw`` as absent".
+    """
+    if args.flow_draw is not None:
+        return [_checked_draw_id(int(args.flow_draw))]
+    if args.flow_draws:
+        ids = [_checked_draw_id(int(draw_id)) for draw_id in args.flow_draws]
+        duplicates = sorted({i for i in ids if ids.count(i) > 1})
+        if duplicates:
+            # Collecting the same draw twice produces byte-identical episodes -- the
+            # exact duplicate-corpus defect this task exists to remove -- while the
+            # manifest reports N distinct draws. Same reasoning as the degenerate-range
+            # guard below: a typo must not report success.
+            raise SystemExit(
+                f"--flow-draws contains repeated draw id(s) {duplicates}; each draw is "
+                "deterministic, so this would record identical episodes under a "
+                "manifest claiming several draws. Use --episodes for repetition."
+            )
+        return ids
+    if args.flow_draws_range:
+        start, end = (int(value) for value in args.flow_draws_range)
+        _checked_draw_id(start)
+        if end <= start:
+            # A degenerate range must not look like a successful run. Left to resolve to
+            # [], the sweep would skip the loop entirely and the process would print
+            # "0 episodes over 0 draw(s)", write no manifest at all, and exit 0 -- a
+            # typo'd bound reporting success for a corpus that does not exist.
+            raise SystemExit(
+                f"--flow-draws-range is half-open [START, END), so START must be < END; "
+                f"got [{start}, {end}), which selects no draws. For a single draw use "
+                f"--flow-draw {start}."
+            )
+        return list(range(start, end))
+    return [None]
+
+
+def _require_cityflow_for_draws(
+    backend: str, draw_ids: Sequence[int | None]
+) -> None:
+    """Refuse a draw sweep on a backend this task did not wire.
+
+    ``render_sumo`` is real and tested, but pointing a SUMO run at a drawn demand also
+    needs a generated ``.sumocfg`` (its ``route-files`` and ``begin`` must agree with the
+    rendered ``.rou.xml``) and a flag naming the CityFlow-format source, since a
+    ``.sumocfg`` does not reference one.  That is P7.3's job; failing loudly here beats a
+    flag that silently does nothing.
+    """
+    if backend == "cityflow" or all(draw_id is None for draw_id in draw_ids):
+        return
+    raise SystemExit(
+        f"--flow-draw/--flow-draws/--flow-draws-range is wired for backend 'cityflow' "
+        f"only, got {backend!r}. The randomiser can render SUMO route files "
+        "(FlowRandomizer.render_sumo), but collecting from them additionally needs a "
+        "generated .sumocfg and a --flow-source-json flag, which this task does not "
+        "provide."
+    )
+
+
+def _clear_stale_draw_files(flows_dir: str | Path) -> list[Path]:
+    """Delete only the drawn-flow files this module writes; return what was removed.
+
+    Narrow by construction and non-recursive, per P1's NB3: an unrelated file that
+    happens to live in ``flows/`` must survive.  ``--overwrite`` clears the corpus via
+    ``TrajectoryLogger``, whose glob deliberately does not reach subdirectories, so the
+    drawn flows are cleaned here instead.
+    """
+    directory = Path(flows_dir)
+    if not directory.is_dir():
+        return []
+    removed: list[Path] = []
+    for path in sorted(directory.iterdir()):
+        if path.is_file() and _DRAW_FILE_RE.fullmatch(path.name):
+            path.unlink()
+            removed.append(path)
+    return removed
+
+
+def _close_env(env: Any) -> None:
+    """Close *env* if it exposes ``close()``; tolerant of ``None``."""
+    close = getattr(env, "close", None) if env is not None else None
+    if callable(close):
+        close()
+
+
+def _cityflow_flow_source(config_path: str | Path) -> Path:
+    """Absolute path of the flow file a CityFlow sim config points at.
+
+    Mirrors ``envs/cityflow_env.py:82-88``: a relative ``dir`` is resolved against the
+    current working directory, and ``flowFile`` hangs off it.
+    """
+    path = Path(config_path)
+    cfg = json.loads(path.read_bytes())
+    cfg_dir = cfg.get("dir", "")
+    if not os.path.isabs(cfg_dir):
+        cfg_dir = str(Path.cwd() / cfg_dir)
+    return Path(os.path.normpath(cfg_dir)) / cfg["flowFile"]
+
+
+def _write_draw_config(
+    source_config: str | Path, drawn_flow: str | Path, out_config: str | Path
+) -> Path:
+    """Write a CityFlow sim config identical to *source_config* but using *drawn_flow*.
+
+    ``dir`` is left pointing at the scenario (so ``roadnetFile`` still resolves) and
+    ``flowFile`` becomes a relative path to the drawn file.  It has to be relative:
+    CityFlow resolves the flow by plain string concatenation, ``loadFlow(dir + flowFile)``
+    (``CityFlow/src/engine/engine.cpp:65``), so an absolute ``flowFile`` would produce
+    ``/scenario//abs/path``.  This mirrors the trick ``envs/cityflow_env.py:97-102``
+    already uses for the replay-log paths, and it is verified against a real engine --
+    see the pre-flight in ``docs/plans/P2.0.md``.
+    """
+    source = Path(source_config)
+    cfg = json.loads(source.read_bytes())
+    cfg_dir = cfg.get("dir", "")
+    if not os.path.isabs(cfg_dir):
+        cfg_dir = str(Path.cwd() / cfg_dir)
+    abs_dir = os.path.normpath(cfg_dir)
+
+    cfg["dir"] = abs_dir + "/"
+    cfg["flowFile"] = os.path.relpath(str(Path(drawn_flow).resolve()), abs_dir)
+
+    out = Path(out_config)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(cfg, indent=4), encoding="utf-8")
+    return out
 
 
 def _build_env_spec(args: argparse.Namespace) -> EnvSpec:
@@ -277,8 +516,42 @@ def _build_env_spec(args: argparse.Namespace) -> EnvSpec:
     )
 
 
-def _run_metadata(args: argparse.Namespace, spec: EnvSpec) -> dict[str, Any]:
+def _run_metadata(
+    args: argparse.Namespace,
+    spec: EnvSpec,
+    *,
+    draw_ids: Sequence[int | None] = (None,),
+    flow_source: str | Path | None = None,
+    flow_source_sha256: str | None = None,
+    flow_draw_sha256: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    randomised = any(draw_id is not None for draw_id in draw_ids)
     return {
+        "flow_draw_ids": [
+            None if draw_id is None else int(draw_id) for draw_id in draw_ids
+        ],
+        "flow_source_path": None if flow_source is None else str(flow_source),
+        "flow_source_sha256": flow_source_sha256,
+        # Digest of each *materialised* draw, so an episode can be checked against the
+        # demand it claims to come from even if flows/ is later edited or lost. The
+        # source digest alone is not enough: reproducing a draw from it requires
+        # re-running the RNG, and NEP 19 gives np.random.Generator no cross-version
+        # stream guarantee -- hence numpy_version alongside it.
+        "flow_draw_sha256": flow_draw_sha256,
+        "numpy_version": np.__version__,
+        # The materialised demand for every draw lives here, relative to out_dir, so a
+        # corpus can be traced to the exact vehicle list that produced it.
+        "flow_dir": FLOW_SUBDIR if randomised else None,
+        "flow_randomizer_params": (
+            {
+                "base_seed": int(args.base_seed),
+                "jitter_sigma_s": float(args.flow_jitter_sigma),
+                "thin_p": float(args.flow_thin_p),
+                "volume_scale": float(args.flow_volume_scale),
+            }
+            if randomised
+            else None
+        ),
         "scenario_id": spec.id,
         "backend": spec.backend,
         "env_paths": dict(spec.paths),
@@ -308,60 +581,173 @@ def main(argv: Sequence[str] | None = None) -> int:
     Utils.seed_everything(int(args.base_seed))
     spec = _build_env_spec(args)
 
+    draw_ids = _resolve_draw_ids(args)
+    _require_cityflow_for_draws(spec.backend, draw_ids)
+    randomised = any(draw_id is not None for draw_id in draw_ids)
+
+    randomizer: FlowRandomizer | None = None
+    flow_source: Path | None = None
+    flows_dir = Path(args.out_dir) / FLOW_SUBDIR
+    if randomised:
+        flow_source = _cityflow_flow_source(spec.paths["config"])
+        randomizer = FlowRandomizer(
+            flow_source,
+            base_seed=int(args.base_seed),
+            jitter_sigma_s=float(args.flow_jitter_sigma),
+            thin_p=float(args.flow_thin_p),
+            volume_scale=float(args.flow_volume_scale),
+        )
+        # Resolved eagerly and printed, so the half-open [START, END) convention of
+        # --flow-draws-range cannot survive to runtime as an ambiguity.
+        print(
+            f"flow draws: {len(draw_ids)} -> {draw_ids}\n"
+            f"  source {flow_source} ({randomizer.n_source_vehicles} vehicles, "
+            f"sha256 {randomizer.source_sha256[:12]})",
+            flush=True,
+        )
+
     from experiments.envs import make_env
 
-    env = make_env(spec)
+    # Digested in memory, before anything is written: run_metadata is frozen when the
+    # logger is constructed, and the logger must be constructed before the first draw is
+    # materialised (P1 NB2 -- a refused run creates nothing).
+    flow_draw_sha256: dict[str, str] | None = None
+    if randomizer is not None:
+        flow_draw_sha256 = {
+            str(draw_id): hashlib.sha256(
+                randomizer.render_cityflow_bytes(randomizer.draw(draw_id)[0])
+            ).hexdigest()
+            for draw_id in draw_ids
+            if draw_id is not None
+        }
+
+    metadata = _run_metadata(
+        args,
+        spec,
+        draw_ids=draw_ids,
+        flow_source=flow_source,
+        flow_source_sha256=None if randomizer is None else randomizer.source_sha256,
+        flow_draw_sha256=flow_draw_sha256,
+    )
+
+    logger: TrajectoryLogger | None = None
+    env: Any = None
+    total_steps = 0
+    returns: list[float] = []
+    episode_index = 0
+
     try:
-        rng = np.random.default_rng(int(args.base_seed))
-        policy = POLICIES[args.policy](env, args, rng)
+        # Build the nominal env from the SOURCE flow first and construct the logger with
+        # it, so the populated-out_dir check fires here -- before any draw file is
+        # materialised.  That preserves P1's NB2 property exactly (a refused run creates
+        # nothing) and keeps the logger the single authority on what "populated" means,
+        # rather than duplicating that check here.  When randomising it costs one extra
+        # env construction per run, once; otherwise this *is* the run's env.
+        env = make_env(spec)
         logger = TrajectoryLogger(
             env,
             args.out_dir,
-            run_metadata=_run_metadata(args, spec),
+            run_metadata=metadata,
             overwrite=bool(args.overwrite),
         )
 
-        total_steps = 0
-        returns: list[float] = []
+        # Deferred past the logger's check because it deletes files. Run for nominal
+        # runs too: a nominal run into a directory that previously held a sweep would
+        # otherwise leave flows/flow_draw*.json beside a manifest saying flow_dir=null,
+        # i.e. orphaned demand a later reader could mistake for this run's provenance.
+        for removed in _clear_stale_draw_files(flows_dir):
+            print(f"  removed stale {removed.name}", flush=True)
 
-        for index in range(int(args.episodes)):
-            engine_seed = int(args.base_seed) + index
-            info = env.reset(seed=engine_seed)
-            logger.on_reset(info, engine_seed=engine_seed, flow_draw=None)
-            if index == 0:
-                _require_lane_arrays(logger.lane_ids, spec.backend)
+        if randomised:
+            # Its only job was to let the check above run early; every draw builds its
+            # own env, and keeping this one alive would hold a second engine open for
+            # the whole run.
+            _close_env(env)
+            env = None
 
-            episode_return = 0.0
-            steps = 0
-            for _ in range(env.max_steps):
-                action = policy(info)
-                logger.on_action(info, action)
-                reward, terminated, truncated, info = env.step(action)
-                logger.on_step_result(reward, terminated, truncated, info)
-                episode_return += float(Utils.scalar_reward(reward))
-                steps += 1
-                if terminated or truncated:
-                    break
+        for draw_id in draw_ids:
+            draw_spec = spec
+            if draw_id is not None:
+                if randomizer is None:  # pragma: no cover - unreachable by construction
+                    raise RuntimeError(
+                        f"draw {draw_id} requested with no randomiser built; this is a "
+                        "collector bug, not a usage error"
+                    )
+                entries, provenance = randomizer.draw(draw_id)
+                drawn_flow = randomizer.render_cityflow(
+                    entries, flows_dir / f"flow_draw{draw_id}.json"
+                )
+                draw_config = _write_draw_config(
+                    spec.paths["config"],
+                    drawn_flow,
+                    flows_dir / f"cityflow_draw{draw_id}.json",
+                )
+                draw_spec = dataclasses.replace(
+                    spec, paths={**spec.paths, "config": str(draw_config)}
+                )
+                print(
+                    f"draw {draw_id}: {provenance.n_vehicles} vehicles "
+                    f"(source {randomizer.n_source_vehicles}) -> {drawn_flow.name}",
+                    flush=True,
+                )
 
-            path = logger.finalize_episode()
-            total_steps += steps
-            returns.append(episode_return)
-            print(
-                f"episode {index + 1}/{args.episodes}  seed={engine_seed}  "
-                f"steps={steps}  return={episode_return:.3f}  -> {path.name}",
-                flush=True,
-            )
+            if draw_id is not None:
+                # A fresh env per draw is mandatory, not a precaution: CityFlow reads
+                # its flow file once in the engine constructor and Engine::reset()
+                # never re-reads it (CityFlow/src/engine/engine.cpp:65,754).
+                env = make_env(draw_spec)
+                logger.rebind_env(env)
+            # else: env is the nominal env built above, already bound to the logger.
+
+            rng = np.random.default_rng(int(args.base_seed))
+            policy = POLICIES[args.policy](env, args, rng)
+
+            for index in range(int(args.episodes)):
+                # Seeds restart per draw so the draw is the only variable across draws.
+                engine_seed = int(args.base_seed) + index
+                info = env.reset(seed=engine_seed)
+                logger.on_reset(info, engine_seed=engine_seed, flow_draw=draw_id)
+                if episode_index == 0:
+                    _require_lane_arrays(logger.lane_ids, draw_spec.backend)
+
+                episode_return = 0.0
+                steps = 0
+                for _ in range(env.max_steps):
+                    action = policy(info)
+                    logger.on_action(info, action)
+                    reward, terminated, truncated, info = env.step(action)
+                    logger.on_step_result(reward, terminated, truncated, info)
+                    episode_return += float(Utils.scalar_reward(reward))
+                    steps += 1
+                    if terminated or truncated:
+                        break
+
+                path = logger.finalize_episode()
+                total_steps += steps
+                episode_index += 1
+                returns.append(episode_return)
+                draw_label = "" if draw_id is None else f"  draw={draw_id}"
+                print(
+                    f"episode {index + 1}/{args.episodes}{draw_label}  "
+                    f"seed={engine_seed}  steps={steps}  "
+                    f"return={episode_return:.3f}  -> {path.name}",
+                    flush=True,
+                )
+
+            _close_env(env)
+            env = None
 
         mean_return = float(np.mean(returns)) if returns else 0.0
+        if logger is None:  # pragma: no cover - unreachable by construction
+            raise RuntimeError("collection finished with no logger; nothing was written")
         print(
-            f"done: {len(returns)} episodes, {total_steps} steps, "
-            f"mean return {mean_return:.3f}, manifest {logger.manifest_path}",
+            f"done: {len(returns)} episodes over {len(draw_ids)} draw(s) {draw_ids}, "
+            f"{total_steps} steps, mean return {mean_return:.3f}, "
+            f"manifest {logger.manifest_path}",
             flush=True,
         )
     finally:
-        close = getattr(env, "close", None)
-        if callable(close):
-            close()
+        _close_env(env)
 
     return 0
 
