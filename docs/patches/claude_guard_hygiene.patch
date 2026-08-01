@@ -1,0 +1,45 @@
+--- a/scripts/claude_guard.sh
++++ b/scripts/claude_guard.sh
+@@ -39,7 +39,12 @@
+ # check_english.sh is new and still being tuned (see the TODO in its header about `ó` tripping on
+ # Spanish/Portuguese surnames in the bibliography), so it stays writable while the rest of scripts/
+ # is frozen. Delete this variable and its use below once the script settles.
+-FROZEN_EXCEPTIONS='^scripts/check_english\.sh$'
++#
++# SECOND DELIBERATE EXCEPTION (2026-08-01, P2.0 review round 2) -- authorised by the Master chat:
++# "scripts/check_test_hygiene.sh belongs in FROZEN_EXCEPTIONS explicitly. An undocumented tolerance
++# is the thing the frozen list exists to prevent." It is a new check still gaining rules, so it stays
++# writable while it settles. Delete this clause once the rule set is stable.
++FROZEN_EXCEPTIONS='^scripts/(check_english|check_test_hygiene)\.sh$'
+ 
+ CHANGED="$(git status --porcelain 2>/dev/null | awk '{ $1=""; sub(/^ +/,""); print }')"
+ [ -z "$CHANGED" ] && exit 0
+@@ -60,6 +65,28 @@
+ 
+ # ---------------------------------------------------------------------- tests
+ if [ "$MODE" = "--tests-only" ] || [ "$MODE" = "all" ]; then
++  # Test hygiene first: a sub-second grep, and a test that cannot fail is worth catching before
++  # spending 30 s proving the suite green. Added after the P2.0 review found `assert <real check> or
++  # True` committed to tests/test_flow_randomizer.py -- an assertion neutralised rather than
++  # reported, in the file whose job is to prove the published corpus is not duplicated. CLAUDE.md
++  # rule 0 already forbade it and was followed twice in that task and missed once; a rule that
++  # depends on remembering is weaker than a grep.
++  #
++  # Scoped to CHANGED files for the same reason as the language check below: the P0/P1 suite carries
++  # 27 pre-existing `pytest.raises` without `match=` (counted 2026-08-01), and failing on all of them
++  # would block every tool call until an unrelated cleanup happened.
++  #
++  # KNOWN LIMITATION: $CHANGED strips the git status column, so a RENAMED test file arrives as
++  # "old -> new" and escapes the ^tests/ filter. Rare; parse `--porcelain -z` if that changes.
++  if [ -f scripts/check_test_hygiene.sh ]; then
++    mapfile -t CHANGED_TESTS < <(printf '%s\n' "$CHANGED" | grep -E '^tests/.*\.py$' || true)
++    if [ "${#CHANGED_TESTS[@]}" -gt 0 ] && [ -n "${CHANGED_TESTS[0]}" ]; then
++      if ! bash scripts/check_test_hygiene.sh "${CHANGED_TESTS[@]}"; then
++        exit 2
++      fi
++    fi
++  fi
++
+   if printf '%s\n' "$CHANGED" | grep -qE '^(offline/|tests/)'; then
+     if command -v pytest >/dev/null 2>&1; then
+       # `pipefail` is set, so $? after the assignment reflects pytest, not tail.

@@ -30,23 +30,47 @@ them.  **Eleven of the thirteen configs are pure single-insertion; two are aggre
 only and **rejects an aggregate file at construction** rather than collapsing it (see
 ``__init__``); an earlier version of this docstring claimed every flow file in the repo
 was single-insertion, which was a survey of four files generalised to all of them and was
-wrong.  ``startTime`` is sorted ascending in every file checked.
+wrong.
 
-Numeric types are **not** uniform across scenarios: ``interval`` is ``int`` in hangzhou
-and ``float`` elsewhere, while ``startTime`` / ``endTime`` are ``int`` everywhere.  The
-renderer preserves each source entry's own types, because a corpus is traced back to the
-demand that produced it by file hash.
+**``startTime`` is NOT globally sorted in every file** (measured over the same 13 configs,
+2026-08-01): ``cityflow1x3`` has 7 inversions in 5514 entries and ``cityflow4x4`` 8 in
+2983 -- these files are concatenated per-origin sub-flows, each internally sorted.  This
+has a consequence worth knowing: ``draw(0)`` reproduces the source order exactly, as byte
+identity requires, while ``draw(k>0)`` emits a globally sorted list, so on those two
+scenarios the nominal control and the randomised draws differ in ordering as well as in
+demand.  CityFlow creates vehicles in file order within a timestep, so the difference is
+nominally observable, though at 8 inversions spanning the whole hour it is negligible in
+practice.
+
+Numeric types are **not** uniform, and not along scenario-family lines: ``interval`` is
+``int`` in the four hangzhou 1x1 configs and both aggregate files, ``float`` in the other
+seven -- including hangzhou_4x4, which is a hangzhou scenario.  ``startTime`` / ``endTime``
+are ``int`` in all 13.  The renderer preserves each source entry's own types, because a
+corpus is traced back to the demand that produced it by file hash.
+
+*Every quantified statement in this docstring was measured over all 13 sim configs, not
+over a sample.*  An earlier version generalised four files to "every flow file in this
+repo" and was wrong twice over (aggregate flows, and sortedness).  A measured claim must
+state its sample or measure the population; here the population is small and enumerable,
+so it is measured, and ``tests/test_flow_randomizer.py`` enumerates it from disk.
 
 BYTE-IDENTITY INVARIANT
 -----------------------
 ``render_cityflow(draw(0))`` is **byte-identical** to the source file -- draw 0 is the
 nominal-flow control condition for every experiment, so it must not perturb the demand
-even cosmetically.  Achieving that needs per-file formatting: hangzhou is serialised with
-``indent=2``, cologne1 / cologne3 / grid4x4 with ``indent=4``, and none of them ends in a
-newline.  The indent width and trailing-newline flag are therefore sniffed from the raw
+even cosmetically.  That requires reproducing each file's exact layout, of which this repo
+contains **three distinct families** across the 11 randomisable configs (a fourth exists
+in ``scenarios/aigen_1x1``, which is refused as aggregate before layout is ever
+considered).  The full characterisation, with which scenario uses which, is in
+:meth:`FlowRandomizer._sniff_formatting`; in outline they are ``indent=N``,
+one-compact-entry-per-line, and the whole list on a single line, each with or without a
+trailing newline.
+
+The layout **kind**, indent width and trailing-newline flag are all sniffed from the raw
 bytes at construction, and ``__init__`` *verifies* the sniff by re-serialising the parsed
-source and comparing against the original bytes.  A ``FlowRandomizer`` that cannot
-reproduce its own source raises rather than existing, which turns the guarantee into a
+source and comparing against the original bytes.  A candidate is adopted only once it has
+reproduced the file exactly; there is no fall-through, so a ``FlowRandomizer`` that cannot
+reproduce its own source raises rather than existing.  That turns the guarantee into a
 construction-time invariant instead of something only a test happens to check.
 
 TRANSFORMS
@@ -313,8 +337,11 @@ class FlowRandomizer:
         source`` a construction-time invariant rather than something a test happens to
         check.
 
-        **Three layout families exist in this repo** (characterised byte-for-byte across
-        all 13 ``configs/sim/*.json`` on 2026-08-01, before any candidate was written):
+        **Three layout families cover all 11 randomisable configs** (characterised
+        byte-for-byte across all 13 ``configs/sim/*.json`` on 2026-08-01, before any
+        candidate was written; ``scenarios/aigen_1x1`` is a fourth, hand-formatted layout
+        but is refused as an aggregate flow before the sniff runs, so nothing depends on
+        it):
 
         - ``indent`` -- ``json.dumps(entries, indent=N)``.  ``N=2`` for the four
           hangzhou 1x1 scenarios, ``N=4`` for cologne1 / cologne3 / grid4x4.

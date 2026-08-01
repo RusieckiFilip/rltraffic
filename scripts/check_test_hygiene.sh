@@ -32,9 +32,16 @@ cd "$(git rev-parse --show-toplevel 2>/dev/null || echo .)" || exit 0
 
 if [ "$#" -gt 0 ]; then
   FILES=()
+  REPO="$(pwd)"
   for path in "$@"; do
-    case "$path" in
-      tests/*.py) [ -f "$path" ] && FILES+=("$path") ;;
+    # Normalise an absolute path back to repo-relative first. Silently dropping it and
+    # exiting 0 would report "clean" on a file that was never opened -- a false clean in
+    # a blocking hook is worse than no hook.
+    rel="${path#"$REPO"/}"
+    case "$rel" in
+      tests/*.py) [ -f "$rel" ] && FILES+=("$rel") ;;
+      *.py)
+        echo "check_test_hygiene: ignoring $path (only tests/**.py is checked)" >&2 ;;
     esac
   done
 else
@@ -133,11 +140,14 @@ scan_except_pass() {
       if ($0 ~ /^[[:space:]]*pass[[:space:]]*(#|$)/ && $0 !~ /hygiene:[[:space:]]*allow[[:space:]]+TH004[[:space:]]*[-:][[:space:]]*.{10,}/ && prev !~ /hygiene:[[:space:]]*allow[[:space:]]+TH004[[:space:]]*[-:][[:space:]]*.{10,}/) {
         printf "%s:%d: [TH004] bare `pass` in an except block swallows the failure\n", FNAME, NR > "/dev/stderr"
         printf "    %s\n", ptext > "/dev/stderr"
-        exit 3
+        hits++
       }
       pending = 0
     }
     { prevline = $0 }
+    # Report every occurrence, not just the first: one exit-on-first-hit pass understates
+    # the count and hides later violations until the earlier one is fixed.
+    END { if (hits) exit 3 }
   ' "$file"
   [ $? -eq 3 ] && FOUND=1
   return 0

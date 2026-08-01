@@ -59,9 +59,10 @@ COLOGNE3_SUMOCFG = REPO / "scenarios/cologne3/cologne3.sumocfg"
 COLOGNE1_SUMOCFG = REPO / "scenarios/cologne1/cologne1.sumocfg"
 GRID4X4_SUMOCFG = REPO / "scenarios/grid4x4/grid4x4.sumocfg"
 
-# Every flow file in the repo, with the indent its bytes are actually written with.
-# The pair is the point: a single hardcoded indent cannot reproduce both families, which
-# is why the randomiser sniffs rather than assumes.
+# FOUR of the repo's flow files -- the two indent widths, not the whole population. The
+# enumerated RANDOMISABLE list below is what covers every scenario; this tuple exists only
+# to pin the indent widths independently, since the two differ and a single hardcoded
+# indent would reproduce one family while silently rewriting the other.
 ALL_FLOWS: tuple[tuple[str, Path, int], ...] = (
     ("hangzhou", HANGZHOU_FLOW, 2),
     ("cologne1", REPO / "scenarios/cologne1/cologne1_flow.json", 4),
@@ -257,6 +258,26 @@ def test_aggregate_scenarios_are_refused(config_name: str) -> None:
     flow = dict(SIM_CONFIG_FLOWS)[config_name]
     with pytest.raises(ValueError, match="aggregate"):
         FlowRandomizer(flow)
+
+
+def test_source_sort_order_facts_are_measured_not_assumed() -> None:
+    """Pin which sources are globally sorted, because two are not.
+
+    The docstring once claimed `startTime` is sorted ascending in every file. It is not:
+    two randomisable sources are concatenated per-origin sub-flows. The consequence is
+    real though small -- `draw(0)` reproduces the source's order (byte identity demands
+    it) while `draw(k>0)` emits a globally sorted list, so on those two scenarios the
+    nominal control differs from the randomised draws in ordering as well as demand.
+    Asserted here so the claim in the docstring is measured, not restated.
+    """
+    unsorted_configs = {}
+    for name, flow in RANDOMISABLE:
+        starts = [e["startTime"] for e in json.loads(flow.read_bytes())]
+        inversions = sum(1 for a, b in zip(starts, starts[1:]) if b < a)
+        if inversions:
+            unsorted_configs[name] = inversions
+
+    assert unsorted_configs == {"cityflow1x3.json": 7, "cityflow4x4.json": 8}
 
 
 def test_randomisable_set_is_not_silently_shrinking() -> None:
