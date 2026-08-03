@@ -60,10 +60,17 @@ disk: the plan in `docs/plans/`, the convention in a docstring, the outcome in `
    the agent-side helper class you are required to reuse (rule 5).
    **`scripts/**` and `.claude/**` are frozen because a session must not be able to unfreeze
    itself** — the guard, the hook wiring and the permission deny-list are exactly what stops a wrong
-   assumption from reaching a frozen file. One deliberate, dated exception: `scripts/check_english.sh`
-   stays writable while it is still being tuned (2026-07-26; see the TODO in its header about
-   o-acute false positives). That exception is encoded in `claude_guard.sh` as `FROZEN_EXCEPTIONS`, not left
-   as a silent gap.
+   assumption from reaching a frozen file. **Two** deliberate, dated exceptions, both encoded in
+   `claude_guard.sh` as `FROZEN_EXCEPTIONS` rather than left as a silent tolerance:
+   `scripts/check_english.sh` (2026-07-26, still being tuned — see the TODO in its header about
+   o-acute false positives) and `scripts/check_test_hygiene.sh` (2026-08-01, a new check still
+   gaining rules). Both are temporary; delete the clause once each settles.
+   *(Corrected 2026-08-03: this paragraph said "one exception" while the guard had encoded two since
+   2026-08-01. The guard was right. Where this file and an enforcement mechanism disagree, the
+   mechanism is the artifact and this file is a description of it.)*
+   ⚠️ **The permission deny-list does NOT cover `scripts/` as a whole** — it names only
+   `Edit(scripts/claude_guard.sh)`. Everything else in `scripts/` is protected by `claude_guard.sh`
+   alone, i.e. by a script inside the directory it protects. See the 2026-08-03 Decisions Log rows.
    **`experiments/` is only partly frozen.** The harness code (`experiments/**/*.py`) is frozen; the
    config files under `experiments/configs/` are not. Creating a NEW config under
    `experiments/configs/` is allowed. Editing an EXISTING config that has already been used for a
@@ -122,7 +129,8 @@ states/ metrics/ rewards.py   backend-neutral state/metric/reward fns [FROZEN]
 utils/        roadnet parsing → backend-neutral topology dataclasses  [FROZEN]
 experiments/  JSON-config env × agent × seed harness      [*.py FROZEN, configs/ writable]
 scenarios/ configs/sim/        road networks + demand · CityFlow sim configs
-scripts/      claude_guard.sh (hook), check_english.sh   [FROZEN except check_english.sh]
+scripts/      claude_guard.sh (hook), check_english.sh, check_test_hygiene.sh
+                       [FROZEN except check_english.sh AND check_test_hygiene.sh]
 .claude/      agents, slash commands, permissions + hooks             [FROZEN]
 offline/      ← OUR CONTRIBUTION GOES HERE (logger, collector, dataset, DT agent)
               DOES NOT EXIST YET — P1 creates it. Do not assume its contents.
