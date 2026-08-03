@@ -331,6 +331,8 @@ this explicitly.
 | 2026-08-03 | **D5 — offline-RL leakage rules registered: no online model selection** (every reported model is the checkpoint at a fixed pre-declared step count, never one chosen by evaluation score); **hyperparameters tuned only on hangzhou_1x1 #1 then frozen** across scenarios, tiers, perturbations and backends; **baselines get the same tuning budget**, and an untuned baseline is reported as untuned | A method tuned against online returns is not an offline method, and this is the standard on which offline-RL venues reject papers. No tuning or checkpoint-selection protocol existed anywhere before this (grepped). Registering it costs nothing now and is unbuyable later |
 | 2026-08-03 | **D6 — primary metric pinned to the exact registry name `average_travel_time`, and its look-alike explicitly excluded.** Verified in source this session across all three implementations (`metrics/cityflow.py`, `metrics/sumo.py`, CityFlow `engine.cpp:682`): it averages over every vehicle that **entered** the network, counting en-route vehicles at elapsed time, so it is survivorship-free. `average_time_of_journey`, three functions away in the same file with a near-identical name, averages **completed trips only**. Every ATT cell must co-report throughput and entered-count, and a comparison whose entered-counts differ by >5% is reported invalid rather than as a win | Under congestion the two metrics diverge in the flattering direction: a policy that gridlocks the network lets only the lucky few finish and posts a better completed-trips average. The plan already knew cologne3 ends with 532 of 536 vehicles still in the network — on that scenario the wrong metric would have been computed over a handful of cars. The suspicion that CityFlow's variant was survivorship-biased turned out to be **wrong** (`count += 1` is present), but checking it is what surfaced the look-alike |
 | 2026-08-03 | **D7 — analysis discipline registered:** four confirmatory families only (H1 ladder monotonicity, H2 2×2 interaction, H3 zero-shot vs anchor, H4 context-length trend), Holm–Bonferroni within family, everything else exploratory and labelled; ≥5 training seeds × ≥20 held-out draws fixed in advance with **no optional stopping**; paired Wilcoxon over shared draws; effect sizes mandatory beside every p-value; failed and gridlocked episodes included, never dropped | With three claims and many cells, an uncorrected garden of forking paths would be the easiest thing for a reviewer to attack. H4 is registered as **confirmatory on purpose** so the paper's answer to the DataLight controversy cannot be assembled after the fact. Dropping gridlocked episodes would bias exactly the comparison C1 exists to make |
+| 2026-08-03 | **Review finding N1 corrected before it could be frozen into a docstring.** N1 warns that a maintainer might make the pin "conditional on `workers > 1` … and would silently reintroduce an unbounded hang". Read from source instead of copied: `run_matrix` builds the `ProcessPoolExecutor` only under `if workers and workers > 1:` (`runner.py:447`), so the fork — and therefore the libgomp hazard — exists **only** on the pooled path. Such a condition would keep the pin exactly where the hazard is. What actually reintroduces the hang is removing the call, moving it later, or adding child-side work ahead of it. BRIEF_03 §5.1 specifies the accurate wording and tells the implementer not to "restore" N1's version | A review is evidence, not an oracle — the same rule this project applies to commit messages and docstrings. Had the imprecise sentence been copied into `runner.py`, it would have become the on-disk explanation of a liveness property, i.e. exactly the artifact future readers trust most. The review itself stays unedited: it is the record of what the reviewer said, and rewriting it would destroy the audit trail |
+| 2026-08-03 | **The cross-session-ratio ban was swept incompletely — two files still used 5.80× / 1.37× as LIVE justification.** The 2026-08-03 sweep covered this plan and `docs/patches/README.md` and declared the class fixed. Re-grepped repo-wide: `experiments/runner.py:41-49` (the inline benchmark table) and `tests/test_runner_threading.py:5-9, 184` still present them as the reason the pin exists. Folded into P0.5 and P0.7. `docs/notes/P0.3_spawn_attempt.md` and `docs/plans/P0.3-fix.md` also carry them but are **dated session records** — those get one annotation each, not a rewrite | **Ninth instance, and the first where the corrective sweep itself was the thing that came up short.** "Fix the class, not the sentence" is only as good as the grep's scope: the original sweep looked where the number was *discussed* and not where it was *used*. Rule sharpened: sweep the whole repo, and distinguish a live justification (fix it) from a dated record (annotate it) |
 | 2026-08-03 | **§3.1 cited a file that never existed — `docs/p0_baseline_numbers.md`, 0 commits touching that path in `git log --all`.** Cited since 2026-07-09. Found by mechanically checking **every** repo path the plan references, not by reading the sentence. The inline table survives, but the full P0.2 output lives only in `output/experiments/p0_baselines/`, which is **gitignored** — so §7's sanity anchor, the thing every later phase's numbers are compared against, cannot be reproduced from a fresh clone. Folded into P0.6. The same sweep confirmed the three missing `offline/*` paths are correctly described as future work | Eighth instance of the project's signature error, and a new sub-shape: not "a claim from a commit message" but **a claim from a filename**. A path in backticks reads like evidence and is not. Cheap general defence adopted: when touching the plan, resolve every backticked repo path mechanically — it takes one command and it caught this in a document that had been read closely a dozen times |
 | 2026-08-03 | **P0.3's real mechanism found, and our own 2026-07-27 conclusion partially retracted.** The fork+libgomp deadlock IS real and reproducible on demand (inert-mutant test: `exit=124` at 120 s / 150 s); the pin prevents it. We had written "not a deadlock / not reproducible / most likely environmental" after failing to reproduce it in one 20-minute window — an over-reach from "not observed" to "does not happen", **the same shape as every other error in this log**. Our own benchmark's `workers=6 unpinned ≥1200 s cap` was probably the hang, mis-recorded as slowness | Seventh instance of sample-vs-population reasoning in this project; this time the sample was one time window |
 | 2026-08-03 | **`docs/reviews/` endorsed as a convention.** §7 mandated independent review sub-chats but never gave their output a home, and the P0.3-fix review was one usage-limit event away from being lost permanently (recovered from a session transcript). Reviews are now first-class artifacts: `docs/reviews/<task>.md`, committed | A mandated process step with no durable output is a process step that evaporates |
@@ -411,11 +413,14 @@ argument for the number still being *true*, not for it having been *observed*. T
 touches `offline/` or `tests/` runs the suite and says so.
 
 **Immediate queue, in order:**
-1. **P0.5 / P0.6 / P0.7** — one bundled brief closing review findings N1 / N5 / N7 / N8.
-   **P0.5 needs a NEW frozen-file authorisation from the Master chat**; the P0.3-fix authorisation
-   covered "limiting per-worker torch thread counts" only and is spent.
-2. **P0.8** — guard defect G1 (see §6). Patch into `docs/patches/`, human applies. Cheap, and it
-   closes a hole in the Bash-write half of the frozen-set defence.
+1. **P0.8 / P0.5 / P0.6 / P0.7 — BRIEF ISSUED 2026-08-03: `docs/briefs/BRIEF_03_p0_closeout.md`**,
+   branch `task/p0-closeout`, in that binding order. G1 goes first because it is the only live hole;
+   the rest are documentation and reproducibility gaps. The brief carries **two dated frozen-file
+   authorisations** (A: `claude_guard.sh`, G1 fix only; B: `experiments/runner.py`, comments and
+   docstrings only, proven by an AST-identity check) and **two handoff points** where the session must
+   stop for a human to apply a patch. It also commissions `tests/test_claude_guard.py` — **the guard
+   has had zero tests for its whole life** (checked 2026-08-03), which is why G1 survived several close
+   readings of its regexes.
 3. **P2.5** — fixed-time controller, ladder Tier 1 (Brief #2c, not yet written).
 4. **P2.4** — corpus linter (critical path → independent review sub-chat before merge).
 5. **P2.1** — MAPPO to convergence (≥500 eps grid4x4, verified); long `tmux` run, not a session.
@@ -432,14 +437,16 @@ Decisions Log rows. The applied `settings.json` was verified byte-identical to H
 patch before being committed, so "the human applied it" is not taken on report. Ruling unchanged;
 one defect found (G1 → P0.8).
 
-**⏳ Awaiting a human action (not a decision): push the pre-registration tag.**
-`git push origin v0.1-prereg` (and `git push origin main`). This is the only step that makes the
-registration externally checkable: a local git tag proves content integrity and ordering **within**
-this repository, but its dates are written by the machine that made it, so it is not a third-party
-timestamp. The push event is recorded by a party we do not control. `PREREGISTRATION.md` §0 states
-this limitation explicitly rather than letting the paper imply more, so until the push happens the
-paper may describe the registration only as an internal commitment. Optional stronger anchor: mirror
-to OSF and cite the DOI.
+**✅ Registration externally anchored 2026-08-03.** `main` and `v0.1-prereg` pushed to
+`github.com/RusieckiFilip/rltraffic`. Verified **from a fresh clone of the public remote**, not from
+this working copy: tag object `1e18676e`, commit `35e05ff`, annotation sha256
+`0aec96ea…` equal to the file recomputed from the tag, commit timestamp `2026-08-03T18:36:57+02:00`.
+The same clone confirms the document's own factual claim — **0 files matching `*.npz` / `*.pt` /
+`*.pth` / `*.ckpt` / `manifest.json` in the registered tree**, and `offline/` holding only
+`__init__.py`, `collect.py`, `flow_randomizer.py`, `trajectory_logger.py`. So "registered before any
+corpus or model existed" is checkable by a reviewer rather than asserted by us. Remaining optional
+anchor: mirror to OSF and cite the DOI (a push proves a third party saw it; an OSF DOI additionally
+timestamps it under an institution's control).
 
 **Inherited by every later task:** `experiments/runner.py` is no longer byte-identical to main's frozen
 copy (one authorised +45-line delta, `docs/patches/runner_thread_pinning.patch`) — any brief saying
