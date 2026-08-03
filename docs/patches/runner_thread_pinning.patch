@@ -1,0 +1,61 @@
+--- a/experiments/runner.py
++++ b/experiments/runner.py
+@@ -29,6 +29,46 @@
+ )
+
+ ChooseAction = Callable[[Any, dict[str, Any]], np.ndarray]
++
++
++# Torch threads per cell. ``run_cell`` is the unit of work on BOTH paths -- one
++# process per cell under ``ProcessPoolExecutor``, and the main process when
++# ``workers=1`` -- so pinning here covers both.
++#
++# Measured 2026-07-27, 16 cores, reduced ``p0_baselines`` (6 cells,
++# train_episodes=10, max_steps=360); docs/notes/P0.3_spawn_attempt.md section 5:
++#
++#   workers   unpinned    pinned (OMP=MKL=OPENBLAS=1)
++#         1    339.7 s     247.7 s   (1.37x)
++#         3   1165.3 s      76.3 s   (4.45x)
++#         6   >=1200 s      58.6 s   (5.80x)
++#
++# torch's default pool takes one thread per core, so N workers ask for 16N
++# threads on 16 cores: unpinned workers=3 ran at 0.29x the speed of a single
++# worker and workers=6 never finished. The nets trained here are small MLPs that
++# do not pay for a thread pool at all, which is why workers=1 gains too.
++CELL_TORCH_THREADS: int = 1
++
++
++def limit_torch_threads(n_threads: int = CELL_TORCH_THREADS) -> int:
++    """Pin torch's intra-op pool for the calling process; return the count in effect.
++
++    Returns ``torch.get_num_threads()`` read back after the set, not the value
++    requested, so a caller -- or a test running this inside a worker process --
++    observes what torch actually did.
++
++    torch is imported here rather than at module scope on purpose: ``experiments``
++    has no module-level torch import, which is what keeps ``--dry-run`` instant and
++    turns a missing backend into a ``skipped`` cell instead of a crash. A forked
++    worker inherits the parent's thread count and has to lower it itself.
++
++    Deliberate side effect: on the sequential path this pins the *caller's* own
++    process, which is exactly what the 1.37x row above asks for.
++    """
++    import torch
++
++    torch.set_num_threads(int(n_threads))
++    return int(torch.get_num_threads())
+
+
+ def _log(verbose: bool, message: str) -> None:
+@@ -247,6 +287,11 @@
+         _log(verbose, f"[skip ] {tag}: {reason}")
+         return {**base, "status": "skipped", "reason": reason, "policies": {}, "timings": {}}
+
++    # Pin before ``build_agent`` imports torch -- it enters lazily, inside this
++    # call. After the skip check on purpose: a cell with no backend must not pay
++    # for a torch import it will never use.
++    limit_torch_threads()
++
+     # Seed convention (offsets keep streams disjoint for typical episode counts):
+     # train uses seed+ep; EVERY policy is evaluated on the same env-reset seed
+     # (eval_seed) so the comparison is paired; a baseline's own action RNG gets a
