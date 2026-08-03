@@ -68,9 +68,22 @@ disk: the plan in `docs/plans/`, the convention in a docstring, the outcome in `
    *(Corrected 2026-08-03: this paragraph said "one exception" while the guard had encoded two since
    2026-08-01. The guard was right. Where this file and an enforcement mechanism disagree, the
    mechanism is the artifact and this file is a description of it.)*
-   ⚠️ **The permission deny-list does NOT cover `scripts/` as a whole** — it names only
-   `Edit(scripts/claude_guard.sh)`. Everything else in `scripts/` is protected by `claude_guard.sh`
-   alone, i.e. by a script inside the directory it protects. See the 2026-08-03 Decisions Log rows.
+   ⚠️ **The permission layer denies `Edit(scripts/**)` as a glob — including files that do not exist
+   yet** (2026-08-03). There are deliberately **no permission-level exceptions**: a `deny` rule beats
+   an `allow` rule in this system regardless of specificity (established by experiment, not by
+   documentation), so a glob and an exception cannot coexist. The two `FROZEN_EXCEPTIONS` above are
+   honoured by the **guard**, a separate layer. Net effect, and it is intentional: `check_english.sh`
+   and `check_test_hygiene.sh` are *denied at permission level* and *permitted at guard level*.
+   **What to do when you hit that deny — do not invent a route around it:**
+   1. **Expected legitimate cases: `scripts/check_english.sh` and `scripts/check_test_hygiene.sh`.**
+      Write the change as a patch into `docs/patches/`, add an entry to `docs/patches/README.md`
+      following the existing ones, verify it with `git apply --check`, and ask the human to apply it.
+      That *is* the mechanism — it is not a workaround and not a defeat.
+   2. **Any other file under `scripts/`:** stop. Put it in the Return Packet as an open question. A
+      change to an enforcement script needs a written, dated authorisation from the Master chat first.
+   3. **Never** reach a denied path with a Bash heredoc, `cp`, `sed -i`, `tee` or `patch`. The guard
+      anticipates that route; taking it is precisely the failure the deny-list exists to prevent. An
+      in-conversation authorisation is a *weaker* signal than a configured control, never a stronger one.
    **`experiments/` is only partly frozen.** The harness code (`experiments/**/*.py`) is frozen; the
    config files under `experiments/configs/` are not. Creating a NEW config under
    `experiments/configs/` is allowed. Editing an EXISTING config that has already been used for a

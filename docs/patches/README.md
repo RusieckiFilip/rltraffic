@@ -1,5 +1,52 @@
 # Patches a Claude Code session cannot apply itself
 
+## `settings_scripts_glob_deny.patch` — glob-deny all of `scripts/`, drop the ten inert `Write(...)` rules
+
+**Apply with:**
+```bash
+git apply docs/patches/settings_scripts_glob_deny.patch
+.venv/bin/python -m json.tool .claude/settings.json > /dev/null && echo "valid JSON"
+```
+Verified with `git apply --check` on 2026-08-03 against the `.claude/settings.json` at commit `6787f0e`
+(deny array 27 entries → 17). If `settings.json` has changed since, re-derive rather than force.
+**A restart of any running Claude Code session is required** — permissions are read at session start.
+
+**Why it is a patch and not a commit.** `.claude/settings.json` deny-lists `Edit(.claude/**)`, so a
+session cannot apply it. Same reasoning as the two entries below; the Bash-heredoc route was again not
+taken.
+
+**What it does, in two independent changes.**
+1. **Semantic (D3).** `Edit(scripts/claude_guard.sh)` → `Edit(scripts/**)`. The permission layer now
+   covers every file in `scripts/`, *including files that do not exist yet*. Deliberately **no**
+   permission-level exceptions: `deny` beats `allow` in this system regardless of specificity, so a
+   glob and an exception cannot coexist. The two `FROZEN_EXCEPTIONS` (`check_english.sh`,
+   `check_test_hygiene.sh`) remain honoured by the **guard**, which is a separate layer — after this
+   patch those two files are denied at permission level and permitted at guard level, by design.
+2. **Cosmetic.** Removes the ten `Write(...)` deny rules. They are inert: the CLI's own warning is
+   *"Write(...) is not matched by file permission checks — only Edit(path) rules are."* Removing them
+   is safe **not** because they are inert but because every one of them has an identical-path `Edit(...)`
+   twin, and `Edit(path)` provably governs the Write tool. Ten rules that look protective and are not
+   are a trap for the next reader.
+
+**Evidence — all three facts established by running the permission system, never by reading about it**
+(isolated `/tmp` workspace, `claude -p --settings`, observable = file contents on disk after the
+attempt, never the nested agent's self-report):
+- `deny` beats `allow`: an explicit `allow: Edit(scripts/check_english.sh)` did **not** survive
+  `deny: Edit(scripts/**)`; the file stayed unmodified while a no-rule control in the same run was
+  modified, proving the allow array had loaded.
+- `Edit(path)` governs the Write tool: a **Write**-tool call succeeded under an `Edit(...)` allow and
+  was blocked by an `Edit(...)` deny.
+- Pre-flight of this exact deny list: `scripts/brand_new.sh` (a file with no individual rule) DENIED
+  and unmodified; `scripts/check_english.sh` DENIED and unmodified; control modified.
+- `Read(...)` denies are **not** inert (tested separately) — the inert class is `Write(...)` only.
+
+**The trade, recorded honestly.** D3 buys prospective mechanical cover on every script that does not
+exist yet, and pays for it with bounded friction on two temporary files. Measured cost basis: those two
+scripts have needed editing about twice in the project's life, at ~2 minutes per patch round-trip, and
+the guard's own comments already schedule both exceptions for deletion once they settle. **Revisit
+signal:** if either script goes untouched-but-wanting-a-rule *because* of the patch friction, that is
+evidence the friction is not as bounded as assumed — reopen the choice rather than absorbing it.
+
 ## `runner_thread_pinning.patch` — pin torch to one thread per cell (P0.3-fix)
 
 **Apply with:**
@@ -30,13 +77,18 @@ does fit, so `FROZEN_PATTERNS` and `FROZEN_EXCEPTIONS` are left untouched.
    process per cell) and the sequential path, and a backend-less cell still never imports torch.
 
 **Why `run_cell` and not `ProcessPoolExecutor(initializer=...)` or env vars.** `run_cell` is the unit of
-work on both paths, so one call site buys both the 5.80x parallel win and the 1.37x `workers=1` win; an
-`initializer` reaches only `workers>1`. Env vars also work today (torch enters lazily via `build_agent`,
+work on both paths, so one call site buys both the parallel win and the `workers=1` win; an
+`initializer` reaches only `workers>1`. *(The figures originally quoted here, 5.80x and 1.37x, are
+cross-session and were retired 2026-08-03 — the trustworthy measurement is 199.2 s → 50.2 s, ≈3.97x at
+workers=6. The argument is unaffected: it turns on **which paths a call site reaches**, not on the size
+of the win. More importantly the pin is a **liveness** fix — unpinned parallelism can hang unboundedly,
+not merely run slowly — so the justification never rested on speed in the first place.)* Env vars also work today (torch enters lazily via `build_agent`,
 so nothing has imported it at fork time) but mutate `os.environ` process-globally and would stop working
 silently the day anything imports torch earlier — surfacing as a slow run rather than an error.
 
 **Accepted side effect.** On the sequential path this pins the *calling* process, not a child. That is
-what the 1.37x measurement asks for, and it is documented in the function's docstring; it does mean
+what pinning the sequential path asks for (the "1.37x" once quoted here is a retired cross-session
+ratio — see the note above), and it is documented in the function's docstring; it does mean
 importing `experiments.runner` and running a cell changes the host process's torch thread count.
 
 ## `claude_guard_hygiene.patch` — wire the test-hygiene check into the guard hook

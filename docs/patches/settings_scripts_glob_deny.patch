@@ -1,0 +1,33 @@
+--- a/.claude/settings.json	2026-08-03 17:26:14.210871517 +0200
++++ b/.claude/settings.json	2026-08-03 17:26:14.220067729 +0200
+@@ -3,29 +3,19 @@
+     "defaultMode": "default",
+     "deny": [
+       "Edit(envs/**)",
+-      "Write(envs/**)",
+       "Edit(agent/base.py)",
+       "Edit(agent/utils/utils.py)",
+       "Edit(agent/MAPPOAgent.py)",
+       "Edit(algorithms/**)",
+-      "Write(algorithms/**)",
+       "Edit(rewards.py)",
+       "Edit(states/**)",
+-      "Write(states/**)",
+       "Edit(metrics/**)",
+-      "Write(metrics/**)",
+       "Edit(utils/**)",
+-      "Write(utils/**)",
+-      "Edit(scripts/claude_guard.sh)",
+-      "Write(scripts/claude_guard.sh)",
++      "Edit(scripts/**)",
+       "Edit(.claude/**)",
+-      "Write(.claude/**)",
+       "Edit(CityFlow/**)",
+-      "Write(CityFlow/**)",
+       "Edit(experiments/*.py)",
+-      "Write(experiments/*.py)",
+       "Edit(experiments/**/*.py)",
+-      "Write(experiments/**/*.py)",
+       "Read(./.env)",
+       "Read(./**/.env)",
+       "Bash(git reset --hard:*)"
