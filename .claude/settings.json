@@ -28,12 +28,13 @@
       "Write(experiments/**/*.py)",
       "Read(./.env)",
       "Read(./**/.env)",
-      "Bash(git push:*)",
-      "Bash(git reset --hard:*)",
-      "Bash(git checkout main:*)"
+      "Bash(git reset --hard:*)"
     ],
     "ask": [
       "Bash(git commit:*)",
+      "Bash(git push:*)",         
+      "Bash(git merge:*)",              
+      "Bash(git checkout main:*)",
       "Bash(pip install:*)",
       "Bash(conda install:*)",
       "Bash(conda create:*)",
