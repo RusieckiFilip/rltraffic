@@ -317,8 +317,9 @@ Do not weaken any existing assertion to make this easier. Test count must go up,
       (249 is hearsay from 2026-08-02 — report what you actually observe, and if it is not 249, say so
       rather than reconciling)
 - [ ] `bash scripts/check_english.sh <changed paths>` passes
-- [ ] `git diff --stat` shows zero modifications to frozen files (the two patches are *files*, not
-      modifications — the patched files must show as unmodified in your own diff)
+- [ ] `git diff --stat` shows zero **unauthorised** modifications to frozen files. **The two
+      authorised deltas ARE committed by you** — see §11 ruling 1, which corrects an error in the
+      line that used to sit here
 - [ ] Zero new dependencies (stdlib `subprocess`/`ast`/`signal` are fine)
 - [ ] Return Packet at `docs/returns/P0-closeout.md` from `docs/returns/TEMPLATE.md`
 
@@ -337,3 +338,68 @@ Beyond `docs/returns/TEMPLATE.md`, answer these explicitly:
 6. Which of the three harness traps in §4.3 did you actually hit? Answering "none" is fine and
    informative; answering falsely is not.
 7. Open questions for the Master chat.
+
+---
+
+## 11. Rulings on the plan-mode questions (Master chat, 2026-08-03)
+
+### Ruling 1 — frozen-file landing: **you commit the patched file. My brief was wrong.**
+
+The implementer's assumption 1 found a real defect in this brief. The old §9 line ("the patched files
+must show as unmodified in your own diff") would have produced exactly the failure it was trying to
+prevent: `tests/test_claude_guard.py` exercises the **real** `scripts/claude_guard.sh`, so if the
+applied patch is never committed, the test is green in your working tree and **red on `main`** the
+moment the branch merges. The fix would exist only on one laptop.
+
+**Correct procedure, and it has precedent.** The P0.3-fix authorised delta is committed on `main` at
+`64800fb` (verified 2026-08-03: `git show HEAD:experiments/runner.py` contains `limit_torch_threads`,
+working tree identical to HEAD). So:
+
+- After the human applies each patch, **you `git add` the frozen file and commit it**, in the same
+  commit as the work that depends on it.
+- **The commit message must quote the authorisation verbatim** (§2 A or B). That is what converts a
+  forbidden edit into a recorded, auditable one. An authorised delta that is not committed is worse
+  than an unauthorised one, because it is invisible.
+- `git diff --stat` must show zero **unauthorised** frozen modifications. Two authorised ones,
+  each traceable to its authorisation, are the expected outcome.
+
+⚠️ **Between "human applies the patch" and "you commit it", every Bash call will fail** with
+`BLOCKED: frozen files were modified`. That is the guard working, not a fault. Do not revert, do not
+weaken the guard, do not stash. Commit promptly and it clears. (I hit exactly this today with
+`.claude/settings.json` — the guard fired on every call for an entire session until the applied patch
+was committed.)
+
+### Ruling 2 — run the benchmark in this session: **yes.**
+
+CLAUDE.md §5's tmux rule targets hour-scale work; its own examples are corpus collection and MAPPO
+training. This is ~250 s total. Run it in-session, foreground, and fall back to background + Monitor
+if a single call approaches the timeout, exactly as planned.
+
+One consequence worth stating: because **both** runs are pinned and measured in one session from a
+clean shell, the ratio between them **is** quotable — that is precisely what makes ≈3.97× trustworthy
+and 5.80× not. Report your two wall-clocks and the ratio you actually measure. Do not reconcile with
+199.2 / 50.2.
+
+### Ruling 3 — line budget: **proceed as one branch. Do not split.**
+
+The ≤2-file rule exists so a reviewer can hold a diff in their head. The *logic* here is a two-line
+regex; the bulk is `test_claude_guard.py`, which this brief commissions by name and calls its most
+valuable artifact. Splitting would create two branches for four tiny independent commits.
+
+Condition, already in your plan: **one commit per task, path-scoped.** That keeps partial merge open —
+if P0.7 turns messy I can take P0.8/P0.5/P0.6 and leave it.
+
+### Ruling 4 — N7 via a forked child + `terminate()`, not `signal.alarm`: **approved, and the
+reasoning is correct.**
+
+You are right that `signal.alarm` does not bound it: the alarm raises inside `future.result()`, the
+exception unwinds through `with ProcessPoolExecutor(...)`, and `__exit__` calls `shutdown(wait=True)`,
+which joins the wedged workers and re-hangs. A hard `terminate()` on a child is the only bound that
+holds. This is a better answer than the one my §7 suggested — implement yours.
+
+### Ruling 5 — exact `==` on the anchor double-compute: **approved, keep it exact.**
+
+Both sides are deterministic functions of an immutable committed file (Python's float repr round-trips
+exactly), so this is stable, not fragile. Do **not** pre-emptively soften it to a tolerance. If it ever
+fails, that is a real signal — the committed data would no longer be the run §3.1 describes — and the
+instruction to stop and report applies.
