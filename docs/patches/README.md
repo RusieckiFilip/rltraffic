@@ -1,5 +1,53 @@
 # Patches a Claude Code session cannot apply itself
 
+## `claude_guard_g1.patch` — fix guard defect G1 (new `.py` in a new `experiments/` subdir escapes the check)
+
+**Apply with:**
+```bash
+git apply docs/patches/claude_guard_g1.patch
+bash -n scripts/claude_guard.sh                          # syntax check
+.venv/bin/pytest tests/test_claude_guard.py -q           # 11 rows, all pass once applied
+```
+Verified with `git apply --check` on 2026-08-03 against the `scripts/claude_guard.sh` at blob `b6ad313`
+(branch base `main` `1ed3a08`). If `claude_guard.sh` has changed since, re-derive rather than force.
+
+**Why it is a patch and not a commit.** `.claude/settings.json` deny-lists `Edit(scripts/**)` (D3), so a
+session cannot apply it. The Bash-heredoc route the guard's own header anticipates was **not** taken — an
+in-conversation authorisation is a weaker signal than the configured control, which is the exact failure
+the deny-list defends against.
+
+**Authorised** by the Master chat on 2026-08-03 (BRIEF_03, AUTHORISATION A), for
+`scripts/claude_guard.sh` **only**, "for the single purpose of fixing defect G1". No other change to that
+file, and no change to any other file under `scripts/`.
+
+**What it does, in two lines of regex plus a dated comment.**
+1. `FROZEN_PATTERNS`: the `experiments/` clause becomes a **prefix** (`experiments/`) instead of the
+   extension anchor `experiments/.*\.py$`. `git status --porcelain` collapses a wholly-untracked directory
+   into one entry (`experiments/newpkg/`), which the extension anchor never matched — so a new `.py` in a
+   new `experiments/` subdirectory was PERMITTED (`docs/notes/D3_falsification.md` section 4). A prefix
+   survives the collapse, like every other directory entry.
+2. `FROZEN_EXCEPTIONS`: gains `experiments/configs/[^/]*\.json$`, so new run configs stay writable now
+   that the `experiments/` clause blocks the whole subtree. It is a **narrow** carve-out, not a bare
+   prefix, on purpose (Master-chat review, 2026-08-03):
+   - `[^/]*\.json$` exempts **only JSON**, so a Bash-heredoc write of a `.py` into `experiments/configs/`
+     is still BLOCKED. A bare `experiments/configs/` prefix would have reopened G1's exact hole one
+     directory over (measured: `experiments/configs/evil.py` goes BLOCKED -> PERMITTED under a bare
+     prefix). The heredoc route is the half the guard exists to cover, which is why this matters.
+   - `[^/]*` forbids a slash, so a config in a NEW subdirectory (`experiments/configs/sub/new.json`,
+     which git status collapses to `experiments/configs/sub/`) **fails closed** and is BLOCKED.
+     Nested config trees are not used today; if they are ever wanted, that should cost a deliberate
+     patch, not leak through this carve-out.
+   The `$` anchor binds only to the `scripts/` alternative and to the JSON tail.
+
+Verified safe: `experiments/configs/` today holds 5 files, all top-level `.json`, 0 non-JSON, 0
+subdirectories, and P0.6's `p0_threading_bench.json` is top-level JSON -- so no false positive.
+
+Safe more broadly because runtime artifacts resolve to `output/experiments/` (`experiments/config.py`),
+never under `experiments/` itself, so a prefix cannot misfire on results, plots or summaries. The G1 test
+(`tests/test_claude_guard.py`, 13 rows) fails against the pre-patch guard on `new_pkg_py_G1`,
+`new_pkg_sub_py_G1` and `config_subdir_fail_closed`, and passes on all 13 once this is applied;
+`config_py_not_exempt` passes both before and after, proving the fix costs nothing.
+
 ## `settings_scripts_glob_deny.patch` — glob-deny all of `scripts/`, drop the ten inert `Write(...)` rules
 
 **Apply with:**

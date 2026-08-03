@@ -1,0 +1,53 @@
+diff --git a/scripts/claude_guard.sh b/scripts/claude_guard.sh
+index b6ad313..2bf7a55 100755
+--- a/scripts/claude_guard.sh
++++ b/scripts/claude_guard.sh
+@@ -25,15 +25,23 @@ cd "$(git rev-parse --show-toplevel 2>/dev/null || echo .)" || exit 0
+ 
+ MODE="${1:-all}"
+ 
+-# `experiments/` is only partly frozen: the harness code (any .py, at any depth) is, but the JSON
+-# configs under experiments/configs/ are not — new runs need new configs. This must stay in sync with
+-# the deny list in .claude/settings.json; if the two disagree, the hook wins at the worst moment.
++# `experiments/` is only partly frozen: the harness code is, but the JSON configs under
++# experiments/configs/ are not — new runs need new configs. This must stay in sync with the deny
++# list in .claude/settings.json; if the two disagree, the hook wins at the worst moment.
++#
++# G1 FIX (2026-08-03): the experiments/ clause is a PREFIX, not `experiments/.*\.py$`. `git status
++# --porcelain` collapses a wholly-untracked directory into a single entry (e.g. `experiments/newpkg/`),
++# so an extension-anchored pattern never saw a new .py in a new subdirectory and let it through
++# (docs/notes/D3_falsification.md section 4). A prefix survives the collapse, exactly like every other
++# directory entry here. Do NOT "tidy" it back to an extension anchor. Safe because runtime artifacts
++# resolve to output/experiments/ (experiments/config.py), never under experiments/ itself; the one
++# writable subtree, experiments/configs/, is carved out in FROZEN_EXCEPTIONS below.
+ #
+ # `utils/` (top level) is frozen because all four backend env files import it — it is the roadnet
+ # vocabulary (`RoadnetInfo`, `IntersectionInfo`) the backends agree on, not a scratch helper package.
+ # `scripts/` and `.claude/` are frozen because this guard, the hook wiring and the permission
+ # deny-list must not be editable by the session they constrain.
+-FROZEN_PATTERNS='^(envs/|agent/base\.py|agent/utils/utils\.py|agent/MAPPOAgent\.py|algorithms/|rewards\.py|states/|metrics/|utils/|scripts/|\.claude/|CityFlow/|experiments/.*\.py$)'
++FROZEN_PATTERNS='^(envs/|agent/base\.py|agent/utils/utils\.py|agent/MAPPOAgent\.py|algorithms/|rewards\.py|states/|metrics/|utils/|scripts/|\.claude/|CityFlow/|experiments/)'
+ 
+ # DELIBERATE TEMPORARY EXCEPTION (2026-07-26) — not an oversight, and not a hole to widen.
+ # check_english.sh is new and still being tuned (see the TODO in its header about `ó` tripping on
+@@ -44,7 +52,19 @@ FROZEN_PATTERNS='^(envs/|agent/base\.py|agent/utils/utils\.py|agent/MAPPOAgent\.
+ # "scripts/check_test_hygiene.sh belongs in FROZEN_EXCEPTIONS explicitly. An undocumented tolerance
+ # is the thing the frozen list exists to prevent." It is a new check still gaining rules, so it stays
+ # writable while it settles. Delete this clause once the rule set is stable.
+-FROZEN_EXCEPTIONS='^scripts/(check_english|check_test_hygiene)\.sh$'
++#
++# THIRD EXCEPTION (2026-08-03, G1 fix): top-level JSON under experiments/configs/ is writable — new
++# runs need new configs (CLAUDE.md rule 1). Now that the experiments/ clause is a prefix it would
++# otherwise block configs, so the carve-out is spelled out here, visible, rather than being implicit in
++# an extension anchor. The exception is `experiments/configs/[^/]*\.json$`, NOT a bare prefix, and that
++# is deliberate on two counts:
++#   * `[^/]*\.json$` exempts only JSON, so a heredoc write of a .py into experiments/configs/ is still
++#     BLOCKED — the bare-prefix form would have reopened G1's exact hole one directory over.
++#   * `[^/]*` forbids a slash, so a NEW subdirectory under configs/ (which git status collapses to
++#     `experiments/configs/sub/`) fails closed and is BLOCKED. Nested config trees are not a thing today;
++#     if they are ever wanted, that should cost a deliberate patch, not leak through this carve-out.
++# The `$` anchor binds only to the scripts/ alternative and to the JSON tail; do not loosen either.
++FROZEN_EXCEPTIONS='^(scripts/(check_english|check_test_hygiene)\.sh$|experiments/configs/[^/]*\.json$)'
+ 
+ CHANGED="$(git status --porcelain 2>/dev/null | awk '{ $1=""; sub(/^ +/,""); print }')"
+ [ -z "$CHANGED" ] && exit 0
