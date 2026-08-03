@@ -66,7 +66,12 @@ clean-tree assertion before every probe.
 | `.claude/settings.json` | BLOCKED | **BLOCKED** |
 | `notes/free.txt` (control) | PERMITTED | **PERMITTED** |
 
-**Verdict: D3 holds on-repo, at both layers.** No change to the ruling.
+**Verdict: D3 holds on-repo, at both layers D3 concerns** — the permission deny list and the guard's
+`--frozen-only` check. No change to the ruling.
+
+**Scope of this run, stated so it is not over-read:** the guard's `--tests-only` mode (which carries
+the test-hygiene grep) and `--lang-only` mode were **not** exercised here. Nothing in this note is
+evidence about them.
 
 ## 3. Two harness errors of my own, and why they are recorded
 
@@ -100,9 +105,21 @@ experiments/configs/new.json    [experiments/configs/]          PERMITTED   corr
 ```
 
 **Root cause.** `FROZEN_PATTERNS` protects `experiments/` as `experiments/.*\.py$` — the only frozen
-pattern anchored on a *file extension*. Every other entry is a directory prefix (`^envs/`, `^scripts/`,
-`^\.claude/`, …), so the collapsed form `envs/newpkg/` still matches and still blocks. Only the
-`experiments/` clause is defeated by the collapse.
+pattern anchored on a *file extension*. The other entries fall into two groups, and neither is
+vulnerable:
+- **directory prefixes** (`envs/`, `algorithms/`, `states/`, `metrics/`, `utils/`, `scripts/`,
+  `\.claude/`, `CityFlow/`) — the collapsed form `envs/newpkg/` still matches, so they still block;
+- **exact file paths** (`agent/base.py`, `agent/utils/utils.py`, `agent/MAPPOAgent.py`, `rewards.py`)
+  — a named file cannot be created inside a *new* subdirectory, and their parent directories are
+  tracked, so their status lines are never collapsed.
+
+Only `experiments/.*\.py$` combines "matches many paths" with "needs the full path to match", which
+is exactly the combination the collapse defeats.
+
+*(Corrected in place: this paragraph first read "every other entry is a directory prefix", which is
+false — four entries are exact file paths. The conclusion is unchanged, but the claim as written was
+the same sample-vs-population shape this project keeps catching, made while documenting an instance
+of it.)*
 
 **Reachability, stated honestly.**
 - Via the **Edit/Write tools**: not reachable. `Edit(experiments/**/*.py)` is denied at permission
