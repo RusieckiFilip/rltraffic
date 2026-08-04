@@ -1,5 +1,96 @@
 # Patches a Claude Code session cannot apply itself
 
+## `claude_guard_g1.patch` — fix guard defect G1 (new `.py` in a new `experiments/` subdir escapes the check)
+
+**Apply with:**
+```bash
+git apply docs/patches/claude_guard_g1.patch
+bash -n scripts/claude_guard.sh                          # syntax check
+.venv/bin/pytest tests/test_claude_guard.py -q           # 11 rows, all pass once applied
+```
+Verified with `git apply --check` on 2026-08-03 against the `scripts/claude_guard.sh` at blob `b6ad313`
+(branch base `main` `1ed3a08`). If `claude_guard.sh` has changed since, re-derive rather than force.
+
+**Why it is a patch and not a commit.** `.claude/settings.json` deny-lists `Edit(scripts/**)` (D3), so a
+session cannot apply it. The Bash-heredoc route the guard's own header anticipates was **not** taken — an
+in-conversation authorisation is a weaker signal than the configured control, which is the exact failure
+the deny-list defends against.
+
+**Authorised** by the Master chat on 2026-08-03 (BRIEF_03, AUTHORISATION A), for
+`scripts/claude_guard.sh` **only**, "for the single purpose of fixing defect G1". No other change to that
+file, and no change to any other file under `scripts/`.
+
+**What it does, in two lines of regex plus a dated comment.**
+1. `FROZEN_PATTERNS`: the `experiments/` clause becomes a **prefix** (`experiments/`) instead of the
+   extension anchor `experiments/.*\.py$`. `git status --porcelain` collapses a wholly-untracked directory
+   into one entry (`experiments/newpkg/`), which the extension anchor never matched — so a new `.py` in a
+   new `experiments/` subdirectory was PERMITTED (`docs/notes/D3_falsification.md` section 4). A prefix
+   survives the collapse, like every other directory entry.
+2. `FROZEN_EXCEPTIONS`: gains `experiments/configs/[^/]*\.json$`, so new run configs stay writable now
+   that the `experiments/` clause blocks the whole subtree. It is a **narrow** carve-out, not a bare
+   prefix, on purpose (Master-chat review, 2026-08-03):
+   - `[^/]*\.json$` exempts **only JSON**, so a Bash-heredoc write of a `.py` into `experiments/configs/`
+     is still BLOCKED. A bare `experiments/configs/` prefix would have reopened G1's exact hole one
+     directory over (measured: `experiments/configs/evil.py` goes BLOCKED -> PERMITTED under a bare
+     prefix). The heredoc route is the half the guard exists to cover, which is why this matters.
+   - `[^/]*` forbids a slash, so a config in a NEW subdirectory (`experiments/configs/sub/new.json`,
+     which git status collapses to `experiments/configs/sub/`) **fails closed** and is BLOCKED.
+     Nested config trees are not used today; if they are ever wanted, that should cost a deliberate
+     patch, not leak through this carve-out.
+   The `$` anchor binds only to the `scripts/` alternative and to the JSON tail.
+
+Verified safe: `experiments/configs/` today holds 5 files, all top-level `.json`, 0 non-JSON, 0
+subdirectories, and P0.6's `p0_threading_bench.json` is top-level JSON -- so no false positive.
+
+Safe more broadly because runtime artifacts resolve to `output/experiments/` (`experiments/config.py`),
+never under `experiments/` itself, so a prefix cannot misfire on results, plots or summaries. The G1 test
+(`tests/test_claude_guard.py`, 13 rows) fails against the pre-patch guard on `new_pkg_py_G1`,
+`new_pkg_sub_py_G1` and `config_subdir_fail_closed`, and passes on all 13 once this is applied;
+`config_py_not_exempt` passes both before and after, proving the fix costs nothing.
+
+## `runner_liveness_docs.patch` — document that the thread pin is a liveness fix, not a speedup (P0.5)
+
+**Apply with:**
+```bash
+git apply docs/patches/runner_liveness_docs.patch
+.venv/bin/python -c "import ast; ast.parse(open('experiments/runner.py').read()); print('parses OK')"
+.venv/bin/pytest tests/test_runner_threading.py -q
+```
+Verified with `git apply --check` on 2026-08-03 against `experiments/runner.py` at blob `f74feef`
+(branch base `main` `1ed3a08`). If `runner.py` has changed since, re-derive rather than force.
+
+**Why it is a patch and not a commit.** `.claude/settings.json` deny-lists `Edit(experiments/*.py)` and
+`Edit(experiments/**/*.py)`, so a session cannot apply it. Same reasoning as `runner_thread_pinning.patch`;
+the Bash-heredoc route was again not taken.
+
+**Authorised** by the Master chat on 2026-08-03 (BRIEF_03, AUTHORISATION B), for `experiments/runner.py`
+**only**, "for the single purpose of documenting the liveness role of `limit_torch_threads()`".
+**Comments and docstrings only -- zero executable-statement changes.** This does not authorise moving the
+call site, changing `CELL_TORCH_THREADS`, or any behaviour change. The P0.3-fix authorisation ("limiting
+per-worker torch thread counts") is spent and does not cover this.
+
+**Proof it is comments-only (not asserted -- computed).** Parse `git show HEAD:experiments/runner.py` and
+the patched file, strip every docstring node, compare `ast.dump`: **IDENTICAL** (61586 bytes each). A
+mutation control (`int(n_threads)` -> `int(n_threads)+1`) breaks the equality, so the check genuinely
+detects executable changes. Comments never enter the AST; the only docstring changed is
+`limit_torch_threads`'s.
+
+**What it does.**
+1. Rewrites the `limit_torch_threads` docstring, liveness first: a forked pooled worker entering an OpenMP
+   region with `nthreads>1` waits forever on team threads `fork()` never duplicated, and `run_matrix`'s
+   `as_completed`+`future.result()` has no timeout, so it wedges the suite and the guard silently. Then the
+   ordering constraint (child-side work *before* the call runs unpinned; `backend_ready()` already does --
+   safe for CityFlow, unprobed for libsumo/moss), the scope (pool only under `workers>1`; the sequential
+   path never forks and is pinned as a documented side effect), and speed demoted to a footnote.
+2. Retires the cross-session ratio table above `CELL_TORCH_THREADS` (kept visible, marked retired) and
+   states the trustworthy single-session figure: 199.2 s -> 50.2 s, ~3.97x at workers=6.
+
+**Corrects review finding N1 in passing.** N1 said a maintainer might make the call "conditional on
+`workers > 1` ... and would silently reintroduce an unbounded hang". That is imprecise: the fork happens
+*only* when `workers > 1`, so such a condition keeps the pin where the hazard is. The docstring states the
+accurate version -- removing, moving-later, or adding child-side work ahead of it is what reintroduces the
+hang. `docs/reviews/P0.3-fix.md` is left as the record of what the reviewer said.
+
 ## `settings_scripts_glob_deny.patch` — glob-deny all of `scripts/`, drop the ten inert `Write(...)` rules
 
 **Apply with:**
