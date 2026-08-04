@@ -1,12 +1,16 @@
 """Every cell must run its torch ops single-threaded, in the worker process.
 
 torch's default intra-op pool takes one thread per core, so N worker processes
-ask for 16N threads on a 16-core box. Measured 2026-07-27 on a reduced
-``p0_baselines`` (6 cells): unpinned ``--workers 3`` ran at 0.29x the speed of a
-single worker and ``--workers 6`` never finished, while pinned ``--workers 6``
-reached 5.80x. Even ``--workers 1`` gains 1.37x, because these MLPs are too small
-to pay for a thread pool. Full measurement: ``docs/notes/P0.3_spawn_attempt.md``
-section 5.
+ask for 16N threads on a 16-core box: unpinned ``--workers > 1`` both slows down
+and, worse, can hang unboundedly (a forked worker entering an OpenMP region waits
+forever on team threads ``fork()`` never duplicated). Pinning is therefore a
+LIVENESS fix, not merely a speedup -- see the ``limit_torch_threads`` docstring in
+``experiments/runner.py``. The trustworthy single-session timing is 199.2 s at
+``--workers 1`` -> 50.2 s at ``--workers 6`` (~3.97x); the once-quoted
+0.29x / 1.37x / 5.80x are RETIRED cross-session ratios (they divided a pinned run
+by an unpinned baseline measured on a different day-state, banned by the Decisions
+Log). Full measurement and the retirement annotation:
+``docs/notes/P0.3_spawn_attempt.md`` section 5.
 
 The property under test is therefore about a *child* process, and the only
 honest way to check it is to read ``torch.get_num_threads()`` inside the child
@@ -24,16 +28,23 @@ Two hazards these tests are built around:
   count back after every test here, so the file is safe under ``pytest-randomly``
   and does not leak its forcing into the rest of the suite.
 
-This file emits four ``DeprecationWarning: This process (pid=...) is
-multi-threaded, use of fork() may lead to deadlocks in the child`` -- one per
-forked worker. That is expected and is **not** to be silenced: reading
-``torch.get_num_threads()`` requires importing torch into the parent, and a
-torch-loaded parent is exactly the fork configuration Python 3.12 warns about.
+This file emits a ``DeprecationWarning: This process (pid=...) is multi-threaded,
+use of fork() may lead to deadlocks in the child`` for every ``fork()`` that happens
+in the pytest parent: T1 forks two pool workers, T2 forks one child (its own two
+pool forks happen inside that child since N7 -- see ``_run_matrix_bounded`` -- so the
+parent does not see them), and T3 (``workers=1``) forks nothing, for three in total.
+That is expected and is **not** to be silenced: reading ``torch.get_num_threads()``
+requires importing torch into the parent, and a torch-loaded parent is exactly the
+fork configuration Python 3.12 warns about.
 The production parent does not have it, because ``experiments/runner.py`` imports
 torch only inside ``limit_torch_threads`` (measured 2026-08-02: with warnings
 forced visible, a parent importing only ``experiments.runner`` forks 2 workers and
 emits **0** such warnings; adding ``import torch`` to that same parent emits 2).
-The tests therefore run in a strictly harsher configuration than the CLI does.
+The tests therefore run in a harsher configuration than the CLI does **with respect
+to torch, and only torch**. It is not evidence of fork safety in general: the
+production parent is already ~16 OS threads from numpy/OpenBLAS at import, and
+CPython's fork warning counts *Python* threads, not OS threads, so the warning's
+absence in the CLI says nothing about whether the OpenBLAS pool survives the fork.
 """
 
 from __future__ import annotations
@@ -41,6 +52,8 @@ from __future__ import annotations
 import functools
 import multiprocessing
 import os
+import queue
+import traceback
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from typing import Any, Iterator
@@ -106,6 +119,51 @@ def _read_observations(out_dir: Path) -> dict[int, list[int]]:
     return observations
 
 
+def _run_matrix_bounded(config: Any, workers: int, timeout: float = 60.0) -> dict[str, Any]:
+    """Run ``run_matrix`` in a forked child so a wedged pooled worker FAILS the test
+    instead of hanging the whole suite forever (N7).
+
+    ``run_matrix`` collects cells with ``future.result()`` and no timeout, and cannot be
+    given one without touching frozen ``runner.py``. Isolating the call in a child we can
+    ``terminate()`` bounds the wait: on the committed (pinned) code the child returns in
+    about a second; if the pin ever regresses the child wedges, ``get`` times out, and the
+    test fails with a message instead of the suite -- and the PostToolUse guard -- freezing
+    silently. 60 s against a ~2.5 s file is far too wide to flake.
+
+    The child is forked (T2 already requires the fork start method), so it inherits the
+    parent's ``monkeypatch`` of ``runner.make_env`` / ``runner.backend_ready`` and shares
+    ``tmp_path`` through the filesystem. The report is drained from the queue BEFORE
+    ``join`` so a large payload cannot deadlock the feeder thread.
+    """
+    ctx = multiprocessing.get_context("fork")
+    result_queue = ctx.Queue()
+
+    def _target() -> None:
+        # Catch BaseException on purpose: the child must report any failure back over the
+        # queue rather than die silently and look like a wedge to the parent.
+        try:
+            report = runner.run_matrix(config, workers=workers, verbose=False)
+            result_queue.put(("ok", report))
+        except BaseException:
+            result_queue.put(("error", traceback.format_exc()))
+
+    proc = ctx.Process(target=_target)
+    proc.start()
+    try:
+        kind, payload = result_queue.get(timeout=timeout)
+    except queue.Empty:
+        proc.terminate()
+        proc.join(5)
+        pytest.fail(
+            f"run_matrix(workers={workers}) did not finish within {timeout:.0f}s; a pooled "
+            "worker likely wedged -- the torch thread pin may have regressed"
+        )
+    proc.join(10)
+    if kind == "error":
+        pytest.fail(f"run_matrix raised in the child process:\n{payload}")
+    return payload
+
+
 def test_worker_process_runs_single_threaded() -> None:
     """The property, measured in the child and returned to the parent."""
     torch.set_num_threads(PARENT_THREADS)
@@ -145,8 +203,11 @@ def test_pool_path_pins_every_worker(tmp_path: Path, monkeypatch: pytest.MonkeyP
     )
 
     torch.set_num_threads(PARENT_THREADS)
+    assert torch.get_num_threads() == PARENT_THREADS, "parent forcing did not take"
     config = load_config(_smoke_config(tmp_path, seeds=[7, 8]))
-    report = runner.run_matrix(config, workers=2, verbose=False)
+    # Bounded (N7): run_matrix has no timeout, so a regressed pin would wedge the suite
+    # forever. The forked child inherits the monkeypatches above; see _run_matrix_bounded.
+    report = _run_matrix_bounded(config, workers=2)
 
     for cell in report["cells"]:
         assert cell["status"] == "ok", cell.get("reason")
@@ -171,6 +232,7 @@ def test_sequential_path_is_pinned_and_still_correct(
     )
 
     torch.set_num_threads(PARENT_THREADS)
+    assert torch.get_num_threads() == PARENT_THREADS, "parent forcing did not take"
     config = load_config(_smoke_config(tmp_path))
     report = runner.run_matrix(config, workers=1, verbose=False)
 
@@ -180,8 +242,9 @@ def test_sequential_path_is_pinned_and_still_correct(
     assert report["aggregated"]["fake"]["dqn"]["episode_reward"]["n"] == 1
 
     # The sequential path runs run_cell in this very process, so the pin is
-    # observable here directly. This is the documented side effect, not a leak:
-    # the 1.37x row of the benchmark is exactly this case.
+    # observable here directly. This is the documented side effect, not a leak
+    # (the once-quoted 1.37x for this case is a retired cross-session ratio; the
+    # trustworthy single-session figure is 199.2 s -> 50.2 s, ~3.97x at workers=6).
     assert torch.get_num_threads() == 1
 
 
