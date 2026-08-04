@@ -48,6 +48,49 @@ never under `experiments/` itself, so a prefix cannot misfire on results, plots 
 `new_pkg_sub_py_G1` and `config_subdir_fail_closed`, and passes on all 13 once this is applied;
 `config_py_not_exempt` passes both before and after, proving the fix costs nothing.
 
+## `runner_liveness_docs.patch` — document that the thread pin is a liveness fix, not a speedup (P0.5)
+
+**Apply with:**
+```bash
+git apply docs/patches/runner_liveness_docs.patch
+.venv/bin/python -c "import ast; ast.parse(open('experiments/runner.py').read()); print('parses OK')"
+.venv/bin/pytest tests/test_runner_threading.py -q
+```
+Verified with `git apply --check` on 2026-08-03 against `experiments/runner.py` at blob `f74feef`
+(branch base `main` `1ed3a08`). If `runner.py` has changed since, re-derive rather than force.
+
+**Why it is a patch and not a commit.** `.claude/settings.json` deny-lists `Edit(experiments/*.py)` and
+`Edit(experiments/**/*.py)`, so a session cannot apply it. Same reasoning as `runner_thread_pinning.patch`;
+the Bash-heredoc route was again not taken.
+
+**Authorised** by the Master chat on 2026-08-03 (BRIEF_03, AUTHORISATION B), for `experiments/runner.py`
+**only**, "for the single purpose of documenting the liveness role of `limit_torch_threads()`".
+**Comments and docstrings only -- zero executable-statement changes.** This does not authorise moving the
+call site, changing `CELL_TORCH_THREADS`, or any behaviour change. The P0.3-fix authorisation ("limiting
+per-worker torch thread counts") is spent and does not cover this.
+
+**Proof it is comments-only (not asserted -- computed).** Parse `git show HEAD:experiments/runner.py` and
+the patched file, strip every docstring node, compare `ast.dump`: **IDENTICAL** (61586 bytes each). A
+mutation control (`int(n_threads)` -> `int(n_threads)+1`) breaks the equality, so the check genuinely
+detects executable changes. Comments never enter the AST; the only docstring changed is
+`limit_torch_threads`'s.
+
+**What it does.**
+1. Rewrites the `limit_torch_threads` docstring, liveness first: a forked pooled worker entering an OpenMP
+   region with `nthreads>1` waits forever on team threads `fork()` never duplicated, and `run_matrix`'s
+   `as_completed`+`future.result()` has no timeout, so it wedges the suite and the guard silently. Then the
+   ordering constraint (child-side work *before* the call runs unpinned; `backend_ready()` already does --
+   safe for CityFlow, unprobed for libsumo/moss), the scope (pool only under `workers>1`; the sequential
+   path never forks and is pinned as a documented side effect), and speed demoted to a footnote.
+2. Retires the cross-session ratio table above `CELL_TORCH_THREADS` (kept visible, marked retired) and
+   states the trustworthy single-session figure: 199.2 s -> 50.2 s, ~3.97x at workers=6.
+
+**Corrects review finding N1 in passing.** N1 said a maintainer might make the call "conditional on
+`workers > 1` ... and would silently reintroduce an unbounded hang". That is imprecise: the fork happens
+*only* when `workers > 1`, so such a condition keeps the pin where the hazard is. The docstring states the
+accurate version -- removing, moving-later, or adding child-side work ahead of it is what reintroduces the
+hang. `docs/reviews/P0.3-fix.md` is left as the record of what the reviewer said.
+
 ## `settings_scripts_glob_deny.patch` — glob-deny all of `scripts/`, drop the ten inert `Write(...)` rules
 
 **Apply with:**

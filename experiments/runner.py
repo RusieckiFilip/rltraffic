@@ -33,37 +33,68 @@ ChooseAction = Callable[[Any, dict[str, Any]], np.ndarray]
 
 # Torch threads per cell. ``run_cell`` is the unit of work on BOTH paths -- one
 # process per cell under ``ProcessPoolExecutor``, and the main process when
-# ``workers=1`` -- so pinning here covers both.
+# ``workers=1`` -- so pinning here covers both. The value is 1 primarily for LIVENESS,
+# not speed: see limit_torch_threads() below for why an unpinned pooled worker can wedge
+# the whole suite indefinitely. The small MLPs trained here also do not pay for a thread
+# pool, so pinning is a free speedup on top.
 #
-# Measured 2026-07-27, 16 cores, reduced ``p0_baselines`` (6 cells,
-# train_episodes=10, max_steps=360); docs/notes/P0.3_spawn_attempt.md section 5:
+# Trustworthy timing (single session, clean shell, both runs pinned), recorded in
+# docs/notes/P0.3_spawn_attempt.md section 5:
+#     199.2 s at workers=1  ->  50.2 s at workers=6   (~3.97x)
+# Only same-session numbers are quotable as a ratio.
 #
-#   workers   unpinned    pinned (OMP=MKL=OPENBLAS=1)
-#         1    339.7 s     247.7 s   (1.37x)
-#         3   1165.3 s      76.3 s   (4.45x)
-#         6   >=1200 s      58.6 s   (5.80x)
-#
-# torch's default pool takes one thread per core, so N workers ask for 16N
-# threads on 16 cores: unpinned workers=3 ran at 0.29x the speed of a single
-# worker and workers=6 never finished. The nets trained here are small MLPs that
-# do not pay for a thread pool at all, which is why workers=1 gains too.
+# RETIRED 2026-08-03 -- cross-session arithmetic, kept visible so the correction is
+# auditable but NOT to be cited. The table below divided a pinned run by an *unpinned*
+# baseline measured on a different day-state, which the Decisions Log banned; the ratios
+# (1.37x / 4.45x / 5.80x) are therefore untrustworthy even though the speedup shape holds.
+#     Measured 2026-07-27, 16 cores, reduced ``p0_baselines`` (6 cells,
+#     train_episodes=10, max_steps=360):
+#       workers   unpinned    pinned (OMP=MKL=OPENBLAS=1)
+#             1    339.7 s     247.7 s   (1.37x  retired)
+#             3   1165.3 s      76.3 s   (4.45x  retired)
+#             6   >=1200 s      58.6 s   (5.80x  retired)
+# The mechanism is unchanged: torch's default pool takes one thread per core, so N workers
+# ask for 16N threads on a 16-core box, and unpinned parallelism both slows down and, worse,
+# can hang.
 CELL_TORCH_THREADS: int = 1
 
 
 def limit_torch_threads(n_threads: int = CELL_TORCH_THREADS) -> int:
     """Pin torch's intra-op pool for the calling process; return the count in effect.
 
-    Returns ``torch.get_num_threads()`` read back after the set, not the value
-    requested, so a caller -- or a test running this inside a worker process --
-    observes what torch actually did.
+    LIVENESS, NOT SPEED, is the primary reason this call exists. On the pooled path a
+    ``fork()``ed child that enters an OpenMP parallel region with ``nthreads > 1`` waits
+    forever on team threads the ``fork()`` never duplicated. ``run_matrix`` collects with
+    ``as_completed`` + ``future.result()`` and NO timeout, so that deadlock surfaces as a
+    SILENT WEDGE with no failure message -- it freezes the whole test suite and the
+    PostToolUse guard, not just the run. The P0.3-fix reviewer reproduced it on demand
+    (``exit=124`` at the 120 s and 150 s kill caps against unpinned code; 14 passed and
+    10/10 clean runs against the committed, pinned code).
 
-    torch is imported here rather than at module scope on purpose: ``experiments``
-    has no module-level torch import, which is what keeps ``--dry-run`` instant and
-    turns a missing backend into a ``skipped`` cell instead of a crash. A forked
-    worker inherits the parent's thread count and has to lower it itself.
+    ORDERING CONSTRAINT that follows: anything added to ``run_cell`` *before* this call
+    runs in the child's still-unpinned window. ``backend_ready()`` already runs there and
+    imports the native backend -- confirmed safe for CityFlow, UNPROBED for libsumo and
+    moss (relevant at P7). What reintroduces the hang is REMOVING this call, MOVING it
+    later, or adding child-side work ahead of it -- NOT making it conditional on
+    ``workers > 1``: the pool, and therefore the ``fork()``, exists only under
+    ``workers > 1`` (see ``run_matrix``), so such a condition would keep the pin exactly
+    where the hazard is.
 
-    Deliberate side effect: on the sequential path this pins the *caller's* own
-    process, which is exactly what the 1.37x row above asks for.
+    SCOPE, precisely: the ``ProcessPoolExecutor`` is built only under ``workers > 1``; the
+    sequential (``workers=1``) path never forks, so the liveness argument does not apply to
+    it. There the pin is a performance and determinism choice, and -- deliberate side
+    effect -- it pins the *calling* process, which is what running a cell in-process asks
+    for.
+
+    Speed is a secondary benefit (these small MLPs do not want a 16-thread pool); the
+    trustworthy single-session figure is 199.2 s -> 50.2 s (~3.97x at workers=6), and the
+    once-quoted 1.37x / 5.80x are retired cross-session ratios (see the note above
+    ``CELL_TORCH_THREADS``). Return ``torch.get_num_threads()`` read back after the set, not
+    the value requested, so a caller -- or a test running this inside a worker -- observes
+    what torch actually did. torch is imported here rather than at module scope on purpose:
+    ``experiments`` has no module-level torch import, which keeps ``--dry-run`` instant and
+    turns a missing backend into a ``skipped`` cell instead of a crash. A forked worker
+    inherits the parent's thread count and has to lower it itself.
     """
     import torch
 
