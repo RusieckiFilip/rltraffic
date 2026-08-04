@@ -1,0 +1,7 @@
+env_id,backend,policy,kind,n_seeds,episode_reward_mean,episode_reward_std,average_travel_time_mean,average_travel_time_std,final_vehicle_count_mean,final_vehicle_count_std,average_waiting_queue_mean,average_waiting_queue_std
+cf_grid4x4,cityflow,MaxPressure,baseline,3,-4564.0,0.0,141.6547,0.0,20.0,0.0,12.6722,0.0
+cf_grid4x4,cityflow,Random,baseline,3,-17347.7778,507.0661,207.2605,1.9336,40.6667,1.9052,48.1858,1.407
+cf_grid4x4,cityflow,mappo,agent,3,-192925.0,13030.2739,632.9525,51.6298,1040.0,40.1082,535.7815,36.3647
+cf_hz1x1,cityflow,MaxPressure,baseline,3,-32648.0,0.0,160.5584,0.0,208.0,0.0,90.6889,0.0
+cf_hz1x1,cityflow,Random,baseline,3,-40332.7778,149.6231,307.5346,0.605,157.0,0.7201,112.0355,0.4156
+cf_hz1x1,cityflow,mappo,agent,3,-37218.6667,4132.2621,197.9104,1.7789,167.0,17.1464,103.3852,11.4785
