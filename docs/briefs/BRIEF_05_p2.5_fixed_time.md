@@ -184,3 +184,67 @@ length this produces per scenario. This is a declared choice; put it in the docs
 4. What you chose for the t=0 offset and the no-plan default, and what else you considered.
 5. Anything in §3's reasoning you think is wrong. The last three tasks each corrected the
    coordinator and each correction stood.
+
+---
+
+## 9. Rulings on the plan-mode questions (Master chat, 2026-08-04)
+
+### Ruling 1 — the `delta_time = 5` faithfulness reference in §4.4 is impossible. My error. Direct replay approved, **with a validation gate.**
+
+Confirmed at `envs/phase_control.py:480`: `if len(self._green_phases) > 1 and transition_duration >=
+self._delta_time: raise`. CityFlow's clearance is 5 s, so `5 >= 5` raises. No phase-control mode can
+command a full decision step of clearance, so §4.4's reference run cannot exist as written. Third
+brief defect found by an implementer in three tasks; the finding is correct and the brief is wrong.
+
+**Direct 1 s replay of `signal_plan_template.txt` on a CityFlow engine is approved as the ground
+truth** for choosing k.
+
+**But it must be validated before its number is used**, because the replay harness and the env compute
+`average_travel_time` by *different code paths*, and k would then be chosen by comparing across
+measurement pipelines. Cheapest sufficient validation, and it is required:
+
+> Pick a degenerate plan that both routes can express — e.g. **hold green 1 for the entire episode**.
+> Run it through the env (acyclic, `delta_time=10`, action 0 at every step) and through the replay
+> harness, on the same scenario and demand draw. **The two `average_travel_time` values must agree.**
+> If they do not, the replay number is not comparable to the k=3 / k=4 numbers and must not be used to
+> choose k — report the discrepancy instead and stop.
+
+This is the double-computation rule applied to a measurement path rather than to a quantity.
+
+### Ruling 2 — record `k` in the manifest. Do **not** defer it to P2.2.
+
+The blast radius you were routing around does not exist, and 20 seconds of checking would have shown
+it:
+
+- **`epsilon` is an exact precedent** — `offline/collect.py:563`,
+  `"epsilon": float(args.epsilon) if args.policy == "mappo_eps" else None` — a policy-specific field
+  recorded as `None` when inapplicable. Follow it exactly.
+- **The manifest test is not exhaustive.** `tests/test_trajectory_logger.py:609-624` asserts named
+  keys (`format_version`, `lane_count`, `lane_ids_sha256`, `run_metadata["scenario"]`, `git_hash`) and
+  never asserts a complete key set. Adding a field breaks nothing and touches no frozen file.
+
+Why this is not optional: without `k` in the manifest, **two Tier 1 runs with different `k` are
+indistinguishable from the data**, and the tier's cycle timing exists only in whatever session
+produced it. That is precisely the N5 defect class the project just spent a task repairing. Also
+record which schedule source was used (shipped plan vs equal-split fallback) and, when the shipped
+plan is used, its **sha256** — the corpus should be able to prove which plan it came from.
+
+*Caution worth naming: "I'll flag it rather than risk it" is the right instinct, but the rule here is
+check-then-decide. An assumed blast radius is an assumption like any other.*
+
+### Ruling 3 — acyclic only, hard error elsewhere. Confirmed.
+
+Same invariant as `delta_time` in §3: the ladder is collected under **one** control mode, C1 compares
+datasets against each other, and a tier collected under a different action vocabulary is not
+comparable to the others. The error message must state *why* (ladder comparability), not merely that
+the mode is unsupported — an error that explains itself is what stops the next person from "fixing" it
+by adding a silent fallback.
+
+Minor packet note, not blocking: PROJECT_PLAN §3 claims the platform already offers "fixed-time via
+phase-control modes". Check briefly whether that referred to a `cyclic`-mode schedule, and say so in
+the packet — if it is stale, I will correct §3.
+
+### Not asked, but approved as proposed
+Stateless schedule as a pure function of `info["step"]`; greens derived from `IntersectionInfo` with
+the `a+1` mapping **verified live rather than assumed** (good); cycle-index 0 at step 0 so no spurious
+initial clearance; mask fallback documented. Proceed on all of these.
