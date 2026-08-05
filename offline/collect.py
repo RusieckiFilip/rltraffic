@@ -61,6 +61,7 @@ from offline.flow_randomizer import (
     DEFAULT_VOLUME_SCALE,
     FlowRandomizer,
 )
+from offline.policies.fixed_time import fixed_time_provenance, make_fixedtime
 from offline.trajectory_logger import TrajectoryLogger
 
 PolicyFn = Callable[[dict[str, Any]], np.ndarray]
@@ -187,6 +188,7 @@ POLICIES: dict[str, PolicyFactory] = {
     "random": _make_random,
     "mappo": _make_mappo,
     "mappo_eps": _make_mappo_eps,
+    "fixedtime": make_fixedtime,
 }
 
 
@@ -229,6 +231,15 @@ def build_parser() -> argparse.ArgumentParser:
         "different demand -- deliberate, so the draw stays the only variable",
     )
     parser.add_argument("--device", default=SETTING_DEFAULTS["device"])
+    parser.add_argument(
+        "--fixed-time-k",
+        type=int,
+        default=4,
+        help="decision steps to hold each green under --policy fixedtime. The shipped "
+        "Tier 1 default is 4 (35 s green + 5 s clearance): chosen by the structural "
+        "clearance-overhead criterion, closest to the shipped plan's 14.29%% overhead. "
+        "See docs/plans/p2.5.md",
+    )
 
     parser.add_argument(
         "--episodes",
@@ -561,6 +572,10 @@ def _run_metadata(
             _file_sha256(args.checkpoint) if args.checkpoint else None
         ),
         "epsilon": float(args.epsilon) if args.policy == "mappo_eps" else None,
+        # Fixed-time schedule provenance (None for other policies): k, the schedule
+        # source (shipped plan vs equal-split fallback) and the plan's sha256, so two
+        # Tier 1 runs with different k are distinguishable from the data alone.
+        **fixed_time_provenance(args),
         "episodes": int(args.episodes),
         "base_seed": int(args.base_seed),
         "delta_time": spec.settings["delta_time"],
