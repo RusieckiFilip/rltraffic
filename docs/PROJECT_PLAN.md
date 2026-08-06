@@ -254,6 +254,13 @@ round, then they freeze. From P1 onward the review function moves into the pipel
 independent review of an actual code diff against a frozen spec), which is bounded by construction —
 reviewing code against a fixed contract terminates; reviewing prose against opinions does not.
 
+**Surface every human action in a fixed end-of-turn block (added 2026-08-06).** The Master chat ends
+every turn with `THINGS YOU NEED TO DO:` — numbered, copy-pasteable — immediately before the decision
+line, and writes `nothing` when there is nothing, so its absence is never ambiguous. Anything the user
+must run, apply or restart appears there in full even if it was already named earlier. **A required
+action mentioned only in prose is an action that does not happen** — the agent-definition patch sat
+unapplied for a day because it was introduced mid-message.
+
 **Grep the plan before escalating a decision (added 2026-08-06).** Before marking anything
 `DECISION NEEDED`, search `docs/PROJECT_PLAN.md` for an existing answer — the frozen claims in §1 and
 the task checklist in §6 most often hold one. If escalating anyway, say where you looked: *"I checked

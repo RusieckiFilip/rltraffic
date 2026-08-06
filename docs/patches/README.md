@@ -14,12 +14,17 @@ Verified with `git apply --check` on 2026-08-06 against `.claude/agents/master-c
 **Why it is a patch and not a commit.** `.claude/settings.json` deny-lists `Edit(.claude/**)`, so a
 session cannot edit its own definition — which is the point. The heredoc route was not taken.
 
-**What it does.** Adds one rule after "One question at a time": before marking anything
+**What it does.** Adds TWO rules after "One question at a time" (folded into one patch on 2026-08-06 so it is applied once):
+1. before marking anything
 `DECISION NEEDED`, grep `docs/PROJECT_PLAN.md` for an existing answer, and if escalating anyway, state
 where you looked. Requested by the user on 2026-08-06 after the coordinator escalated the MAPPO
 training-demand question as a single either/or when §1's pre-registered 2×2 had already settled half of
 it — MAPPO-nominal was a required *cell*, never an alternative. The same rule is already live in
 PROJECT_PLAN §7, which every session reads; this patch makes it permanent in the agent definition.
+2. **Surface every human action** in a fixed `THINGS YOU NEED TO DO:` block immediately before the closing
+   decision line, written as `nothing` when empty so its absence is never ambiguous. Added after *this very
+   patch* sat unapplied because it was named mid-message rather than in a dedicated block — the user reads
+   the end of the turn.
 
 ## `claude_guard_g1.patch` — fix guard defect G1 (new `.py` in a new `experiments/` subdir escapes the check)
 
