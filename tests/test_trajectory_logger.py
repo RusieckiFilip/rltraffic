@@ -1,4 +1,4 @@
-"""Tests for ``offline.trajectory_logger`` -- the offline corpus format, version "1.0".
+"""Tests for ``offline.trajectory_logger`` -- the offline corpus format, version "1.1".
 
 No simulator is required: ``FakeTrafficEnv`` honours contracts C1/C2 from
 ``docs/CONTRACTS.md`` with scripted deterministic dynamics, two intersections of
@@ -10,6 +10,10 @@ is scripted so that ``r_t = -sum(waiting counts in the post-step state)``, and t
 test recomputes that by a different route -- a plain ``np.sum`` over the stored
 ``lane_waiting_vehicle_count[t+1]`` -- asserting exact integer equality.  A loose
 tolerance there would let an off-by-one into the corpus format.
+
+Format v1.1 adds one array, ``att_per_step``.  Its fixture is load-bearing in two
+specific ways documented at :data:`ATT_STEPS` and :data:`METRIC_ATT_OFFSET`; read both
+before changing any scripted value there.
 """
 
 from __future__ import annotations
@@ -57,6 +61,34 @@ SORTED_LANES: tuple[str, ...] = tuple(sorted(RAW_LANES))
 
 T = 5
 
+# One cycle of the scripted ``info["average_travel_time"]`` sequence; step ``t`` reads
+# ``ATT_STEPS[t % 4] + (t // 4) * ATT_CYCLE_RISE``.  THREE properties are load-bearing
+# and none of them is decoration (BRIEF_08 §2 as amended 2026-08-07):
+#
+# 1. NON-MONOTONE.  The real metric is not monotone -- measured 407/407 real corpus
+#    episodes with at least one decrease, earliest at row 4 of 361 -- because
+#    ``metrics/cityflow.py::_average_travel_time`` averages over completed *plus*
+#    currently-active vehicles, so a vehicle entering with ~0 elapsed time pulls the
+#    mean down.  The drop at index 3 keeps the fixture honest about that.
+# 2. EVERY VALUE DISTINCT, globally.  ``max(ATT_STEPS) < ATT_CYCLE_RISE`` guarantees no
+#    value repeats across cycles, so ANY row misplacement is detectable.  A constant --
+#    which is what this fixture used to be, hardcoded 12.5 -- makes every permutation of
+#    the array equal to the original and every ordering property vacuously true.
+# 3. EXACTLY REPRESENTABLE IN float32.  All values are multiples of 0.25.
+#    ``test_global_observation_content`` asserts ``ep.metrics[t].tolist() == expected``
+#    with ``==``, so a value like 12.6 would fail on the float32 round-trip rather than
+#    on anything this file is testing.
+ATT_STEPS: tuple[float, ...] = (0.0, 12.25, 18.5, 15.75)
+ATT_CYCLE_RISE: float = 25.0
+
+# Offset making ``info["metrics"]["average_travel_time"]`` DIFFER from the top-level
+# ``info["average_travel_time"]``.  A real env sets the two equal (the top-level key is
+# read straight from the metrics object), so on a faithful fixture "the logger read the
+# metrics dict instead of the top-level key" would be an INVISIBLE mutation.  The
+# fixture diverges from the real env deliberately, to make that mutation detectable;
+# this is not a fixture bug and must not be "corrected".
+METRIC_ATT_OFFSET: float = 1000.0
+
 
 class FakeIntersection:
     """Stands in for ``utils.common_utils.IntersectionInfo``."""
@@ -89,8 +121,10 @@ class FakeTrafficEnv:
         demand_scale: int = 1,
         with_local_reward: bool = True,
         reward_base: float | None = None,
+        with_average_travel_time: bool = True,
     ) -> None:
         self._reward_base = reward_base
+        self._with_average_travel_time = with_average_travel_time
         self.max_steps = max_steps
         self.delta_time = delta_time
         self.intersections = [
@@ -107,8 +141,14 @@ class FakeTrafficEnv:
         self.emitted_lane_vehicle_count: list[dict[str, int]] = []
         self.emitted_metrics: list[dict[str, float]] = []
         self.emitted_intersections: list[dict[str, dict[str, Any]]] = []
+        self.emitted_att_per_step: list[float] = []
 
     # -- scripted dynamics -------------------------------------------------
+
+    def _att_per_step(self) -> float:
+        """Scripted ``info["average_travel_time"]``; see :data:`ATT_STEPS`."""
+        cycles, index = divmod(self._step_count, len(ATT_STEPS))
+        return float(ATT_STEPS[index] + cycles * ATT_CYCLE_RISE)
 
     def _waiting(self, lane_idx: int) -> int:
         raw = self._step_count * 3 + lane_idx * 7 + int(self._last_action.sum())
@@ -157,20 +197,24 @@ class FakeTrafficEnv:
                 entry["reward"] = self._local_reward(i)
             intersections[ix_id] = entry
 
-        return {
+        info: dict[str, Any] = {
             "sim_time": float(self._step_count * self.delta_time),
             "vehicle_count": int(sum(lane_vehicle_count.values())),
             "step": self._step_count,
-            "average_travel_time": 12.5,
             "lane_vehicle_count": lane_vehicle_count,
             "lane_waiting_vehicle_count": lane_waiting,
             # Insertion order is not sorted, so a logger that trusts it is caught.
+            # The ATT entry here is deliberately NOT equal to the top-level one --
+            # see METRIC_ATT_OFFSET.
             "metrics": {
                 "queue_length": float(sum(lane_waiting.values())),
-                "average_travel_time": 12.5,
+                "average_travel_time": self._att_per_step() + METRIC_ATT_OFFSET,
             },
             "intersections": intersections,
         }
+        if self._with_average_travel_time:
+            info["average_travel_time"] = self._att_per_step()
+        return info
 
     # -- C1 API ------------------------------------------------------------
 
@@ -183,6 +227,8 @@ class FakeTrafficEnv:
         self.emitted_lane_waiting.append(dict(info["lane_waiting_vehicle_count"]))
         self.emitted_lane_vehicle_count.append(dict(info["lane_vehicle_count"]))
         self.emitted_metrics.append(dict(info["metrics"]))
+        if "average_travel_time" in info:
+            self.emitted_att_per_step.append(float(info["average_travel_time"]))
         self.emitted_intersections.append(
             {ix_id: dict(entry) for ix_id, entry in info["intersections"].items()}
         )
@@ -196,6 +242,7 @@ class FakeTrafficEnv:
         self.emitted_lane_vehicle_count = []
         self.emitted_metrics = []
         self.emitted_intersections = []
+        self.emitted_att_per_step = []
         info = self._build_info()
         self._record_emitted(info)
         return info
@@ -452,6 +499,108 @@ def test_global_observation_content(tmp_path: Path) -> None:
     for t in range(T + 1):
         expected = [env.emitted_metrics[t][key] for key in ep.metric_keys]
         assert ep.metrics[t].tolist() == expected
+
+
+# ----------------------------------------------------------------------
+# 6b. Format v1.1: att_per_step
+#
+# Named att_per_step, NOT average_travel_time, per the P8.0 naming ruling enforced by
+# tests/test_offline_naming_guard.py: ep.average_travel_time.mean() would silently
+# reproduce att_running_mean -- the legacy quantity amendment A1 exists to retire --
+# under the registered metric's own name.  The bare name survives only on the READ
+# side, info["average_travel_time"], which is the env's key and which the guard allows.
+# ----------------------------------------------------------------------
+
+
+def test_att_per_step_shape_and_dtype(tmp_path: Path) -> None:
+    _env, ep, _path = _collect_one(tmp_path)
+
+    assert ep.att_per_step.shape == (T + 1,)
+    assert ep.att_per_step.dtype == np.float32
+
+
+def test_att_per_step_matches_emitted_sequence(tmp_path: Path) -> None:
+    """Every row, exact ``==``, against what the env actually emitted.
+
+    The expectation comes from the env's own snapshot list, never from a formula the
+    logger also uses.  Because the scripted sequence has no repeated value
+    (:data:`ATT_STEPS`), this pins the ORDER as well as the contents: any row
+    misplacement changes at least one comparison.
+    """
+    env, ep, _path = _collect_one(tmp_path)
+
+    assert len(env.emitted_att_per_step) == T + 1
+    assert ep.att_per_step.tolist() == env.emitted_att_per_step
+
+    # The metrics-dict entry carries a DIFFERENT value (METRIC_ATT_OFFSET), so reading
+    # the wrong one is a detectable mutation rather than an invisible equivalence.
+    metric_att = [row["average_travel_time"] for row in env.emitted_metrics]
+    assert ep.att_per_step.tolist() != metric_att
+
+
+def test_att_per_step_horizon_is_final_info_value(tmp_path: Path) -> None:
+    """Row ``T`` is ``att_horizon``, the A1 primary metric -- the LAST info's value."""
+    env, ep, _path = _collect_one(tmp_path)
+
+    assert float(ep.att_per_step[-1]) == env.emitted_att_per_step[-1]
+
+    # Recomputed by an independent route: the scripted sequence evaluated at step T,
+    # which is where the env's own bookkeeping is not consulted at all.
+    cycles, index = divmod(T, len(ATT_STEPS))
+    assert float(ep.att_per_step[-1]) == ATT_STEPS[index] + cycles * ATT_CYCLE_RISE
+
+
+def test_att_per_step_is_an_observation_not_an_outcome(tmp_path: Path) -> None:
+    """T+1 rows like every observation, never T rows like an outcome.
+
+    Row 0 is the value at ``reset()``, which no outcome array can contain: outcomes
+    begin at the first step.  That is what distinguishes this from an off-by-one that
+    happens to produce an array of the right length.
+    """
+    env, ep, _path = _collect_one(tmp_path)
+
+    assert ep.att_per_step.shape[0] == ep.global_reward.shape[0] + 1
+    assert ep.att_per_step.shape[0] == ep.vehicle_count.shape[0]
+    assert float(ep.att_per_step[0]) == env.emitted_att_per_step[0]
+    assert float(ep.att_per_step[0]) == ATT_STEPS[0]
+
+    # The fixture is non-monotone on purpose (real ATT is): if this ever becomes
+    # sorted, the sequence stopped being able to detect a row misplacement.
+    assert any(
+        ep.att_per_step[t + 1] < ep.att_per_step[t] for t in range(T)
+    ), "fixture regression: ATT must be non-monotone or it cannot detect misordering"
+
+
+def test_missing_average_travel_time_key_is_refused(tmp_path: Path) -> None:
+    """An ``info`` without the C2-mandated key aborts, rather than logging NaNs."""
+    env = FakeTrafficEnv(with_average_travel_time=False)
+    logger = TrajectoryLogger(env, tmp_path)
+    info = env.reset(seed=1)
+
+    with pytest.raises(LoggerStateError, match="average_travel_time"):
+        logger.on_reset(info, engine_seed=1)
+
+
+def test_v10_episode_still_loads(tmp_path: Path) -> None:
+    """A v1.0 file predates the field and must keep loading, with it ``None``.
+
+    4800 v1.0 episodes exist; bumping FORMAT_VERSION must not orphan them.
+    """
+    _env, _ep, path = _collect_one(tmp_path)
+
+    legacy = tmp_path / "legacy_v10.npz"
+    with np.load(path) as data:
+        arrays = {key: data[key] for key in data.files if key != "att_per_step"}
+    arrays["format_version"] = np.asarray("1.0")
+    with open(legacy, "wb") as handle:
+        np.savez_compressed(handle, **arrays)
+
+    ep_v10 = load_episode(legacy)
+    assert ep_v10.format_version == "1.0"
+    assert ep_v10.att_per_step is None
+    # Everything else still arrives intact.
+    assert ep_v10.global_reward.shape == (T,)
+    assert ep_v10.vehicle_count.shape == (T + 1,)
 
 
 def test_per_intersection_phase_content(tmp_path: Path) -> None:
@@ -874,6 +1023,22 @@ ALIGNMENT_BLOCK = (
     "observations: T+1 rows · decisions: T rows · outcomes: T rows"
 )
 
+# The v1.1 ATT block, mandated verbatim by BRIEF_08 §2 (as amended 2026-08-07).  It is
+# asserted into the shipped docstrings for the same reason ALIGNMENT_BLOCK is: this is
+# the most alignment-sensitive addition since local_reward, and a consumer reading the
+# module must not have to infer the convention from the code.
+ATT_BLOCK = (
+    "``att_per_step`` is an OBSERVATION, not an outcome.  It carries the per-step\n"
+    "registry metric ``average_travel_time``, read from the top-level\n"
+    "``info[\"average_travel_time\"]`` key by the same callback that records\n"
+    "``vehicle_count`` and ``sim_time``, and it occupies a T+1 row like them -- never a\n"
+    "T row like ``action``, ``global_reward`` or ``local_reward``.  Row ``t`` is the\n"
+    "network state on arrival at decision step ``t``; row ``T`` is ``att_horizon``, the\n"
+    "registered primary metric (A1).  ``att_per_step.mean()`` is ``att_running_mean``,\n"
+    "the legacy quantity A1 exists to retire -- it is never the reported metric.  It is\n"
+    "NOT ``average_time_of_journey``."
+)
+
 
 def _dedent_lines(text: str) -> str:
     """Strip per-line indentation so a docstring can be matched verbatim."""
@@ -887,8 +1052,17 @@ def test_alignment_block_present_in_docstrings() -> None:
 
     assert block in module_doc
     assert block in episode_doc
-    assert '"1.0"' in module_doc
-    assert '"1.0"' in episode_doc
+    assert '"1.1"' in module_doc
+    assert '"1.1"' in episode_doc
+
+    # v1.1: the ATT convention, in both places the alignment convention already lives.
+    att_block = _dedent_lines(ATT_BLOCK)
+    assert att_block in module_doc
+    assert att_block in episode_doc
+
+    # The digest deliberately does NOT cover att_per_step, and a reader must be told so
+    # rather than inferring it from _episode_digest's body.
+    assert "episode_sha256" in module_doc or "digest" in module_doc
 
     # The three statements the Master chat mandated at GATE 2.
     assert "NOT sorted" in module_doc
