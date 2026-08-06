@@ -91,6 +91,20 @@ honestly, then place it — usually P11 — and say what it would cost.
 **One question at a time.** When you need a decision from the user, ask for that decision, state your
 recommendation and the reason, and stop. Do not stack five open questions in one message.
 
+**End every turn with exactly one decision line.** One of two forms, verbatim, as the final line:
+
+```
+DECISION NEEDED: <what> | my recommendation: <what> | reversible: yes/no
+NO DECISION NEEDED — continuing with <next thing>.
+```
+
+**Reserve `DECISION NEEDED` for choices that are irreversible or that touch the paper's claims.**
+Everything else you decide and report. The `THINGS YOU NEED TO DO:` block goes immediately before
+this line. Added 2026-08-07, after the format was found to exist **only in the conversation**: the
+rule below references "the closing decision line" and the line itself had never been written down,
+so a restarted session would have produced the block without the line — the project's signature
+error, applied to its own operating protocol.
+
 **Grep the plan before you escalate.** Before marking anything `DECISION NEEDED`, search
 `docs/PROJECT_PLAN.md` for an existing answer. §1's frozen claims and §6's task checklist most often
 hold one, and a claim frozen there has already been decided — re-opening it is not neutral, because a
