@@ -1,5 +1,7 @@
 env_id,policy,kind,n_seeds,att_horizon_mean,att_horizon_std,att_running_mean_mean,att_running_mean_std
 cf_grid4x4,MaxPressure,baseline,3,169.0462,0.0000,141.6547,0.0000
 cf_grid4x4,Random,baseline,3,265.7490,3.5711,207.2605,1.9336
+cf_grid4x4,mappo,agent,3,1397.9494,89.6628,600.7043,32.3144
 cf_hz1x1,MaxPressure,baseline,3,247.7509,0.0000,160.5584,0.0000
 cf_hz1x1,Random,baseline,3,413.5291,2.7249,307.5346,0.6050
+cf_hz1x1,mappo,agent,3,305.0966,38.8461,207.9382,8.8438

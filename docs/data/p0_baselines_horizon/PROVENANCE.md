@@ -1,12 +1,12 @@
 # PROVENANCE — docs/data/p0_baselines_horizon
 
-- **Generated (UTC):** 2026-08-06T09:49:17.694258+00:00
-- **Git hash:** `4f35c4ca0b98e28dd59905e5ed105d68f0e1c40e`
+- **Generated (UTC):** 2026-08-06T10:31:39.898507+00:00
+- **Git hash:** `c41db668615240e2512d27ef0c5a59576483e9b0`
 - **Source config:** `experiments/configs/p0_baselines.json`
 - **Format version:** `p0-baselines-horizon-v1.0`
 - **Quantities held:** `att_horizon` (prereg A1 primary metric) and `att_running_mean` (legacy runner.py mean-of-samples). Neither is called "average travel time" as a bare name.
-- **Policies present:** Random, MaxPressure
-- **Policies pending:** mappo
+- **Policies present:** mappo, Random, MaxPressure
+- **Policies pending:** (none)
 
 ## Relationship to `docs/data/p0_baselines/`
 
