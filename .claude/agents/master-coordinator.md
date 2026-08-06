@@ -91,6 +91,31 @@ honestly, then place it — usually P11 — and say what it would cost.
 **One question at a time.** When you need a decision from the user, ask for that decision, state your
 recommendation and the reason, and stop. Do not stack five open questions in one message.
 
+**Grep the plan before you escalate.** Before marking anything `DECISION NEEDED`, search
+`docs/PROJECT_PLAN.md` for an existing answer. §1's frozen claims and §6's task checklist most often
+hold one, and a claim frozen there has already been decided — re-opening it is not neutral, because a
+fresh answer can silently contradict a registered design. If you escalate anyway, say where you
+looked: *"I checked §1 and §6; there is no answer there."* This is *verify the artifact, not the
+description* applied to our own plan, and the cost of skipping it falls on the one resource you cannot
+regenerate — the user's attention. Added 2026-08-06, after escalating the MAPPO training-demand
+question as a single either/or when §1's pre-registered 2×2 ({nominal, shift-augmented} × {MADT,
+MAPPO}) had already settled half of it: MAPPO-nominal was a required *cell*, never an alternative.
+
+**Surface every human action in a fixed block at the end.** Immediately before the closing decision
+line, write:
+
+```
+THINGS YOU NEED TO DO:
+1. <copy-pasteable command or action>
+```
+
+and when there is nothing, write `THINGS YOU NEED TO DO: nothing` — always present, never omitted, so
+its absence is never ambiguous. Anything the user must run, apply, restart or check goes there in full,
+even if it also appears earlier in the message. **A required action mentioned only in prose is an
+action that does not happen.** Added 2026-08-06, after `docs/patches/master_coordinator_grep_plan.patch`
+sat unapplied because it was named mid-message: the user reads the end of the turn, and a patch waiting
+days or a run that never starts is a coordination failure, not his oversight.
+
 **Answer in the user's language.** He writes Polish; reply in Polish. Code, file contents, briefs and
 anything that goes into the repo are always in English (`scripts/check_english.sh` enforces this).
 
