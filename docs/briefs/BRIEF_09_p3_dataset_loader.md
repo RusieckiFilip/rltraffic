@@ -17,6 +17,12 @@ There is no crash to catch it. That is why this brief specifies redundancy rathe
 
 **Write it against format v1.1** (BRIEF_08) so the loader never needs a second format. If v1.1 has not
 landed when you start, code against the v1.1 spec and gate the ATT field on `format_version`.
+⚠️ **The v1.1 ATT field is named `att_per_step`, NOT `average_travel_time`** (BRIEF_08 §9, ruled
+2026-08-07): `tests/test_offline_naming_guard.py` is an AST scan over `offline/**` and rejects the bare
+registry name as an attribute, bound name, keyword arg or dict-literal key. Reading
+`info["average_travel_time"]` is permitted; naming a field after it is not. `att_per_step[-1]` is
+`att_horizon`, the registered primary metric; `att_per_step.mean()` is the legacy `att_running_mean`
+and is never reported.
 
 ---
 
@@ -25,7 +31,7 @@ landed when you start, code against the v1.1 spec and gate the ATT field on `for
 **Contract C6 — the alignment convention, verified end-to-end on real corpus data 2026-08-06:**
 - **T+1 rows (observations):** `ix{i}_state`, `ix{i}_avail_mask`, `ix{i}_current_phase`,
   `ix{i}_time_in_phase`, `vehicle_count`, `sim_time`, `step`, `metrics`, `lane_*`, and in v1.1
-  `average_travel_time`.
+  `att_per_step`.
 - **T rows (decisions and outcomes):** `ix{i}_action`, `ix{i}_local_reward`, `global_reward`.
 - Reward at step `t` describes the state **after** step `t`, i.e. it pairs with observation row `t+1`.
   Verified: `global_reward == -lane_waiting_vehicle_count[1:].sum(axis=1)` exactly; the misaligned

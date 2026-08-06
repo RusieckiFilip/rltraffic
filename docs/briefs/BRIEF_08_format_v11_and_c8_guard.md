@@ -32,16 +32,24 @@ field, and the metric set stays frozen at 1.
 
 `offline/trajectory_logger.py` is **ours, not frozen.**
 
-Add one array, `average_travel_time`, shape **`(T+1,)`**, `float32`, read from
-`info["average_travel_time"]`.
+Add one array, **`att_per_step`** (⚠️ **renamed 2026-08-07 — see §9; it is NOT `average_travel_time`**),
+shape **`(T+1,)`**, `float32`, read from `info["average_travel_time"]`.
+
+The **on-disk `.npz` key, the `Episode` field and every reference in `offline/` are all
+`att_per_step`.** Only the *read* keeps the registry name, because that is the `info` key:
+`info["average_travel_time"]`. This is the one place where the on-disk name deliberately departs from
+the `info` key name — the lane arrays' "key names used unchanged" convention does not extend here, and
+§9 says why.
 
 **Alignment — write this into the docstring the way C6's block is written, because this is the most
 alignment-sensitive addition since `local_reward`:**
-> `average_travel_time` is an **observation**, not an outcome. It is read from the top-level
-> `info["average_travel_time"]` key at the same callback that records `vehicle_count` and `sim_time`,
-> and it occupies a **T+1 row** like them — never a T row like `action`, `global_reward` or
-> `local_reward`. Row `t` is the network state *on arrival at* decision step `t`; row `T` is the
-> horizon value, which is the registered primary metric (A1). It is **not** `average_time_of_journey`.
+> `att_per_step` is an **observation**, not an outcome. It carries the per-step registry metric
+> `average_travel_time`, read from the top-level `info["average_travel_time"]` key at the same
+> callback that records `vehicle_count` and `sim_time`, and it occupies a **T+1 row** like them —
+> never a T row like `action`, `global_reward` or `local_reward`. Row `t` is the network state
+> *on arrival at* decision step `t`; row `T` is `att_horizon`, the registered primary metric (A1).
+> **`att_per_step.mean()` is `att_running_mean`, the legacy quantity A1 exists to retire — it is never
+> the reported metric.** It is **not** `average_time_of_journey`.
 
 - Bump `FORMAT_VERSION` to `"1.1"`.
 - Do **not** change any existing array, name or dtype. v1.1 is v1.0 plus one field.
@@ -53,7 +61,7 @@ alignment-sensitive addition since `local_reward`:**
 2. the horizon row equals a rollout's final `info["average_travel_time"]`, recomputed independently;
 3. **every row equals the env's emitted sequence, exact `==`** — sourced from the env's emitted
    snapshots, not from the logger's own copy;
-4. **observation-not-outcome:** `len(average_travel_time) == len(global_reward) + 1`, and row 0 is the
+4. **observation-not-outcome:** `len(att_per_step) == len(global_reward) + 1`, and row 0 is the
    value at `reset()`;
 5. a v1.0 file still loads, with the field `None`.
 
@@ -132,7 +140,7 @@ means something drifted — stop and report.
 ## 5. Deliverable 4 — linter hard-fail
 
 Whatever exists of P2.4 at that point, or a standalone check: **a corpus containing both v1.0 and
-v1.1 files is rejected**, and a v1.1 corpus missing `average_travel_time` is rejected. The two corpora
+v1.1 files is rejected**, and a v1.1 corpus missing `att_per_step` is rejected. The two corpora
 must never be silently mixed.
 
 ## 6. Scope fence
@@ -143,7 +151,10 @@ must never be silently mixed.
 
 ## 7. Definition of Done
 - [ ] Plan file first; v1.1 logger + tests; `FORMAT_VERSION == "1.1"`
+- [ ] Field named `att_per_step` everywhere (§9); `tests/test_offline_naming_guard.py` green **and not
+      edited** — prove it with `git diff --stat` showing that file absent
 - [ ] Patch for `MAPPOAgent` + README entry + Authorisation C quoted; **human applies**
+- [ ] `output/checkpoints.pre_c8_migration/` exists before the first `--apply` (§9)
 - [ ] Migration script; all 60 checkpoints carry their metric key list
 - [ ] Same-width-swap test shown failing without the assertion, passing with it
 - [ ] `datasets_v11/` collected; validation gate passed; the six tiers bit-identical
@@ -168,3 +179,54 @@ shipped a green test asserting something false about the corpus: precisely the c
 
 Replacement accepted as specified above. **The repo wins over the brief; this is that rule firing on
 the brief's own acceptance text.**
+
+---
+
+## 9. Second correction (Master chat, 2026-08-07) — the field is `att_per_step`, not `average_travel_time`
+
+**This brief instructed you to write code that a merged test rejects.** `tests/test_offline_naming_guard.py`
+(shipped by P8.0) is an AST scan over `offline/**` enforcing the P8.0 naming ruling: the bare name
+`average_travel_time` may appear **only** as the registry string being *read*
+(`info["average_travel_time"]`, `get("average_travel_time")`, a `metric_names` list). It flags the name
+used as an attribute, a bound name, a keyword argument, or a dict-literal key.
+
+**All four of `docs/plans/p2.6.md` §1.1's shapes are flagged.** Falsified by the coordinator on
+2026-08-07 by running the guard's own `_violations()` against exactly the specified code:
+
+```
+VIOLATIONS: 4
+  :5:  bound name average_travel_time          <- Episode field annotation
+  :8:  dict-literal key 'average_travel_time'  <- _build_arrays return
+  :16: keyword arg average_travel_time         <- Episode(...) in load_episode
+  :20: attribute .average_travel_time          <- any consumer, incl. P3
+CONTROL (renamed to att_per_step, still reading info["average_travel_time"]): 0 violations
+```
+
+**Ruling: rename the field. Do not touch the guard.** The guard is not merely in the way — it is
+right, and for a reason specific to this array. `ep.average_travel_time` is a `(T+1,)` series whose
+most likely misuse is `.mean()`, which reproduces `att_running_mean` *exactly* — the legacy quantity
+amendment A1 exists to retire — under the name of the registered primary metric. That is the P8.0
+defect itself, moved down one layer from a helper function into the on-disk data format, where it
+would be frozen into 4800 files and a public release. `att_per_step` joins the registered vocabulary
+(`att_horizon`, `att_running_mean`) and makes the wrong aggregation visibly wrong at the call site.
+
+**Binding consequences:**
+- on-disk `.npz` key, `Episode` field, and every `offline/` reference: `att_per_step`;
+- the read stays `info["average_travel_time"]` — the guard permits it, and the control above proves it;
+- **no exception is added to the guard, and the guard is not edited.** An exception written for one
+  file inherits everything that file may later contain (the 2026-08-04 `experiments/configs/` lesson);
+- `tests/**` is outside the scan, but use `att_per_step` there too — one name, one concept;
+- BRIEF_09 (P3) §1 and §2 are corrected in the same turn.
+
+**Also added here — back up the checkpoints before migrating.** Deliverable 2b rewrites all 60 `.pt`
+files **in place**. Copy `output/checkpoints/` to `output/checkpoints.pre_c8_migration/` before the
+first `--apply`, and say so in the Return Packet. Cost: seconds. Reason: it is the only irreversible
+step in this task, `datasets/`'s manifests record the *pre*-migration `checkpoint_sha256`, and this
+project has twice shipped a tool whose failed construction destroyed the artifact it was rebuilding
+(P1 NB2, P2.0). The rule that came out of those is a barrier before mutation; an in-place rewrite of
+the only copy has no barrier at all.
+
+**One informational confirmation, so nobody re-opens it:** v1.1 + the existing `vehicle_count` array
+makes the corpus **A4-complete**. Amendment A4 requires every ATT cell to co-report `vehicle_count` at
+the episode horizon; `Episode.vehicle_count` is already a stored `(T+1,)` array, so both halves of an
+A4-compliant cell are computable per-episode offline, with no extra field and no re-run.
