@@ -121,3 +121,37 @@ not a special case. `on_action` writes only the action.
   is an error, not something to reindex around.
 - Any change to this layout requires bumping the format version and writing a migration note.
   The P2.4 linter must hard-fail on an unknown format version.
+
+---
+
+## C8 — A MAPPO checkpoint FREEZES the env's global metric set (added 2026-08-06)
+
+`MAPPOAgent._build_global_features` (`agent/MAPPOAgent.py:619-638`) builds the centralised critic's
+global feature vector from **every** key in `info["metrics"]`:
+
+```python
+if self._global_metric_keys is None:
+    self._global_metric_keys = sorted(metrics.keys())
+feats = [step / max_steps, vehicle_count]
+feats.extend(float(metrics.get(key, 0.0)) for key in self._global_metric_keys)
+```
+
+so `global_feature_dim = 2 + len(metrics)`. **The metric set is therefore part of MAPPO's MDP, not
+observability sugar.**
+
+**Binding consequences.**
+1. **Any env running a MAPPO checkpoint must expose exactly the metric set it was trained with.**
+   Adding or removing one raises `ValueError: Global feature size changed for MAPPO: expected N,
+   got M`. This affects **`act()` as well as training** (`:682`), so *evaluation and offline
+   collection break identically*.
+2. **A same-width swap is SILENT and worse.** The guard compares only the width. Replacing metric A
+   with metric B leaves the width unchanged, so the critic reads different semantics with no error.
+   `_global_metric_keys` is **not** stored in the checkpoint (its keys are `steps_done`, `learner`),
+   so a loaded agent re-freezes from whatever env it is handed.
+3. **`info["average_travel_time"]` is top-level and independent of the requested metric set**
+   (verified live 2026-08-06 with a 1-metric env). It is therefore the safe way to carry ATT into the
+   corpus without perturbing MAPPO.
+
+**Rule:** the corpus metric set is frozen for the lifetime of the checkpoints collected against it.
+Changing it invalidates every MAPPO tier. Record the metric set in the manifest and have the linter
+assert homogeneity across a corpus.
