@@ -124,3 +124,43 @@ with the two window means shown.
 MaxPressure 247.75 / Random 413.53; cf_grid4x4 169.05 / 265.75. MAPPO@60 on grid4x4 is expected to be
 **far worse than Random** — the post-pin figure is 1397.95, and that is the paper's
 "online MARL below random at low interaction budget" motivation, not a bug.
+
+---
+
+## 8. Configs, and exactly what tonight's runs do and do not produce
+
+Three configs, one per budget, validated through the real loader and dry-run 2026-08-06:
+`experiments/configs/p2_1_mappo_nominal_{060,200,500}.json` — 5 seeds, 3 scenarios, identical MAPPO
+hyperparameters to `p0_baselines.json` (so the numbers stay comparable to the anchors, and D5's
+"tune once, then freeze" is satisfied by not tuning at all), `compare_with: [random, max_pressure]`
+retained so **every run self-checks against the sanity anchors** without a separate step.
+
+All three scenarios verified to construct and step on a real engine (2026-08-06): cf_hz1x1 1
+intersection / 16 lanes, cf_grid4x4 16 / 240, cf_cologne3 3 / 76. cologne3 was new to this matrix; a
+four-hour run that died on the third scenario would have wasted the night.
+
+**These runs PRODUCE:**
+- checkpoints at 60 / 200 / 500 for 5 seeds × 3 scenarios (the ladder's Role A material),
+- per-episode training-return curves — the input to §4's convergence criterion,
+- nominal-demand evaluation, with the MaxPressure / Random anchors computed in the same run.
+
+**These runs do NOT produce the paper's reported online-MAPPO baseline.** D4 requires the reported
+baseline to be evaluated on the **held-out draws 1000–1099**, and that needs the same draw
+materialisation `mappo_dr` is waiting on. That evaluation is cheap and trains nothing: it re-evaluates
+these saved checkpoints via `run.py --from-checkpoint`, which loads the agent and skips training
+(`runner.py:343-349`). So tonight's compute is not spent twice, and nothing about it is wasted by the
+plumbing arriving later.
+
+**Commands** (one `tmux` session, sequential — do not run two matrices concurrently, they contend for
+the same cores and the timings become uninterpretable):
+
+```bash
+tmux new -s p21
+cd ~/rltraffic
+for B in 060 200 500; do
+  .venv/bin/python -u experiments/run.py \
+    experiments/configs/p2_1_mappo_nominal_${B}.json \
+    --workers 6 --no-plot 2>&1 | tee -a /tmp/p2_1_nominal.log
+done
+```
+`-u` because the last run's progress was invisible for want of it. Detach `Ctrl-b d`.

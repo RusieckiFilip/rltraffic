@@ -1,0 +1,23 @@
+{
+  "name": "p2_1_mappo_nominal_500",
+  "seeds": [101, 202, 303, 404, 505],
+  "checkpoint_dir": "output/checkpoints/p2_1_mappo_nominal_500",
+  "defaults": {
+    "train_episodes": 500,
+    "eval_episodes": 3,
+    "max_steps": 360,
+    "delta_time": 10,
+    "control_mode": "acyclic",
+    "global_reward_fn": "queue_length",
+    "compare_with": ["random", "max_pressure"]
+  },
+  "environments": [
+    { "id": "cf_hz1x1",    "backend": "cityflow", "config": "../../configs/sim/cityflow1x1.json" },
+    { "id": "cf_grid4x4",  "backend": "cityflow", "config": "../../configs/sim/cityflow_grid4x4.json" },
+    { "id": "cf_cologne3", "backend": "cityflow", "config": "../../configs/sim/cityflow_cologne3.json" }
+  ],
+  "agents": [
+    { "id": "mappo", "type": "mappo",
+      "params": { "lr": 0.0003, "rollout_size": 1024, "minibatch_size": 128, "hidden_dim": 128 } }
+  ]
+}
