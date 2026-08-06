@@ -17,8 +17,9 @@ misaligned control differs by 16). **P3 can start immediately.**
 
 Two items are *adjacent* to P3 but do not block it:
 - **P2.4 corpus linter** — validates P3's input rather than gating it. Worth having first, not required.
-- **ATT re-collection** (`datasets_att/`, running) — adds a metrics column; proven inert on trajectories
-  (6/6 identical `episode_sha256`), so P3 code written against `datasets/` works unchanged.
+- ~~**ATT re-collection** (`datasets_att/`)~~ — **that campaign DIED** (contract C8: every MAPPO tier
+  raised). Superseded by **P2.6 / BRIEF_08**, which carries ATT as a first-class logger field at format
+  v1.1 instead of as a metric. P3 codes against the v1.1 spec and gates the field on `format_version`.
 
 ---
 
@@ -42,6 +43,7 @@ Two items are *adjacent* to P3 but do not block it:
 | 14 | **Extended MAPPO training toward the convergence label** | Declined 2026-08-06: the criterion failed at B=1000 and the label buys nothing C1 needs, since tiers are by measured return. | ~4.5 h | October, optional |
 | 15 | **Fixed-time per-phase green splits (Webster-style)** | Declared limitation; only cycle length is tuned. | ~1 day | Only if a reviewer presses |
 | 16 | **Master session restart** so the two new agent rules load | Committed but inert in the running session. | seconds | Any time |
+| 17 | **P2.4 needs a mixed-metric-key fixture for the C8 homogeneity check.** ✅ **Condition already satisfied — nothing to preserve.** The 2-vs-3 split from the aborted campaign is in **immutable git history at `7dc9928b7770~1`** (1249 files), and both files were read out of it on 2026-08-07 *without restoring anything*: `cf_hz1x1__random` carries 2 metric keys, `cf_hz1x1__maxpressure` carries 3. `datasets_att/` is already off disk (280 MB reclaimed) and `datasets*/` now prevents a recurrence. **Preferred fixture is synthetic anyway** — two minimal `.npz` with differing `metric_keys`, constructed in the test — because a regression fixture should not depend on scavenged wreckage. History is the fallback if a real-file fixture is wanted: `git show 7dc9928b7770~1:<path> > fixture.npz`. | none — evidence is permanent | P2.4 |
 
 ---
 
