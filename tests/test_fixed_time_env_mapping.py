@@ -115,9 +115,13 @@ def test_controller_rollout_phases_match_its_schedule(k: int) -> None:
         env.close()
 
 
-def _env_hold_green1_att(max_steps: int, delta_time: int) -> float:
-    """Episode-mean average_travel_time for 'hold green 1', the same aggregation
-    the replay harness and experiments.runner.evaluate_policy use."""
+def _env_hold_green1_att_both(max_steps: int, delta_time: int) -> tuple[float, float]:
+    """``(att_horizon, att_running_mean)`` for 'hold green 1' the whole episode.
+
+    ``att_horizon`` is the per-step ``average_travel_time`` at the horizon (prereg A1's primary
+    metric); ``att_running_mean`` is the mean of the per-step samples (the legacy runner.py
+    quantity). Both come from the same per-step samples the replay harness produces, so the two
+    measurement pipelines are compared under both aggregations."""
     env = _make_env(max_steps=max_steps, delta_time=delta_time)
     try:
         env.reset(seed=SEED)
@@ -126,17 +130,18 @@ def _env_hold_green1_att(max_steps: int, delta_time: int) -> float:
         for _ in range(env.max_steps):
             _, _, _, info = env.step(zero)
             samples.append(float(info["average_travel_time"]))
-        return sum(samples) / len(samples)
+        return samples[-1], sum(samples) / len(samples)
     finally:
         env.close()
 
 
 def test_replay_pipeline_matches_env_on_degenerate_hold() -> None:
-    """Brief §9 gate: env (acyclic, action 0) and the replay harness must agree on
-    ``average_travel_time`` for 'hold green 1 the whole episode'. If they diverge the
-    replay number is not comparable to k=3 / k=4 and must not be used to choose k."""
+    """Brief §9 gate, flipped to ``att_horizon`` (P8.0): env (acyclic, action 0) and the replay
+    harness must agree on BOTH ``att_horizon`` and ``att_running_mean`` for 'hold green 1 the whole
+    episode'. If they diverge the replay ground truth is not comparable to k=3 / k=4 and must not be
+    used to choose k."""
     max_steps, delta_time = 360, 10
-    env_att = _env_hold_green1_att(max_steps, delta_time)
+    env_horizon, env_running_mean = _env_hold_green1_att_both(max_steps, delta_time)
     result = replay_plan(
         CFG,
         [1] * (max_steps * delta_time),
@@ -145,12 +150,16 @@ def test_replay_pipeline_matches_env_on_degenerate_hold() -> None:
         metric_names=["average_travel_time"],
         seed=0,
     )
-    # Exact equality, not approx: both sides are the same metric class over engines
-    # in identical states, so a difference is a real signal, never float noise
-    # (same reasoning as the P0.6 anchor test).
-    assert result.average_travel_time == env_att, (
-        f"measurement pipelines disagree: replay={result.average_travel_time}, "
-        f"env={env_att}; the replay ground truth is not comparable to the k numbers"
+    # Exact equality, not approx: both sides are the same metric class over engines in identical
+    # states, so a difference is a real signal, never float noise (same reasoning as the P0.6
+    # anchor test).
+    assert result.att_horizon == env_horizon, (
+        f"att_horizon pipelines disagree: replay={result.att_horizon}, env={env_horizon}; "
+        "the replay ground truth is not comparable to the k numbers"
+    )
+    assert result.att_running_mean == env_running_mean, (
+        f"att_running_mean pipelines disagree: replay={result.att_running_mean}, "
+        f"env={env_running_mean}"
     )
 
 
