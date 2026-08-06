@@ -77,7 +77,10 @@ the RTG test fails. A test that has never failed on the mutation it exists to ca
 
 Also:
 - Window/padding: mask marks exactly the real steps; padded positions are zero and masked.
-- `avail_mask` never masks the action actually taken — assert on real data, all tiers.
+- `avail_mask` never masks the action actually taken. ⚠️ **UNVERIFIED beyond one episode** —
+  measured on a single `cf_hz1x1__random` episode (2026-08-06), asserted here of all seven tiers.
+  **Check it across tiers and scenarios before relying on it**, and report if it fails anywhere;
+  a tier where it fails is a corpus defect, not a loader bug (§7, 2026-08-07).
 - ID keying: build a fixture whose `ix_ids` are deliberately **not** in sorted order and assert the
   loader pairs by ID. Mutate to positional indexing and show it fails.
 - Truncation: the last window is handled without treating step T as absorbing.
