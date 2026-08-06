@@ -257,6 +257,15 @@ round, then they freeze. From P1 onward the review function moves into the pipel
 independent review of an actual code diff against a frozen spec), which is bounded by construction —
 reviewing code against a fixed contract terminates; reviewing prose against opinions does not.
 
+**One writer per working tree (added 2026-08-07).** While an implementer session is live in the same
+directory, **the coordinator does not commit.** `git checkout -b task/...` switches the branch for
+*every* session sharing the tree, so a coordinator commit silently lands on the implementer's branch.
+**Check `git rev-parse --abbrev-ref HEAD` before any commit.** If both must write, use a worktree.
+⚠️ **And `git push origin main` from a task branch is a no-op that reports success** — it pushes the
+unmoved `main` ref, not your work. *Recorded after three coordinator commits landed on
+`task/p2.6-format-v11` and three "pushed" confirmations were false; the §10 handoff the user had been
+told to restart against was neither on main nor on the remote.*
+
 **End every Master-chat turn with exactly one decision line (added 2026-08-07).** One of two forms,
 verbatim, as the final line of the message:
 
