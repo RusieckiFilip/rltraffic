@@ -56,11 +56,20 @@ file still loads.
 **AUTHORISATION (quote verbatim in the Return Packet).** Granted only if the Master chat has recorded
 it; if `docs/patches/README.md` has no entry for it, **stop and ask**.
 
-> **AUTHORISATION C — 2026-08-06, Master chat.** `agent/MAPPOAgent.py` may be modified for the single
-> purpose of making contract C8 mechanical: (a) persist `self._global_metric_keys` in `save()`;
-> (b) in `load()`, **assert set-equality** against the env's metric keys when the field is present, and
-> emit a **loud warning** when it is absent (pre-migration checkpoints). Nothing else: no behaviour
-> change, no new state, no touching `_build_global_features`. Ships as a patch under `docs/patches/`.
+> **AUTHORISATION C — frozen-file authorisation, 2026-08-06.** The Master Coordinator authorises
+> modification of `agent/MAPPOAgent.py` **only**, on branch `task/p2.6-format-v11`, for the single
+> purpose of:
+> **(a)** persisting `self._global_metric_keys` in `save()`;
+> **(b)** in `load()`, asserting **set**-equality against the env's metric keys when the field is
+> present, and emitting a **loud warning** when absent (pre-migration checkpoints).
+> No other change: no behaviour change, no new state, no touching `_build_global_features`. Ships as a
+> patch under `docs/patches/`. Migration of the existing 60 checkpoints is done by **our** script, not
+> by the patch.
+>
+> **ADDITION — the error message must name the difference.** Not "metric keys do not match", which
+> sends the next person back into the code. Print the checkpoint's set, the env's set, and the
+> **symmetric difference**. This failure will surface months from now to someone without today's
+> context; the message should end the investigation rather than start it.
 
 Absence-warns / presence-asserts is what makes this safe to land mid-phase: the 60 existing
 checkpoints keep working, loudly, and new ones are protected.
@@ -69,10 +78,30 @@ checkpoints keep working, loudly, and new ones are protected.
 needed; a checkpoint is a plain `dict`). Inject the metric key list they were trained with — the
 default single-metric set, **read from the env rather than typed as a literal** — and re-save.
 
-**Load-bearing test:** construct an agent, save, reload against an env whose metric **keys differ but
-whose count is identical**, and assert it raises. That is the silent failure; a test that only covers
-the width case does not test this fix. Prove it by mutation: with the assertion removed, the test must
-pass and the critic must silently accept the swap.
+### ACCEPTANCE CRITERION — not one test among many
+
+**The guard is accepted only if this case passes: metric keys differ, count identical.** That is the
+case the existing width check cannot see, and it is the entire reason for the patch. Construct an
+agent, save, then reload against an env whose metric **keys differ but whose count is the same**, and
+assert it raises with a message naming the symmetric difference.
+
+**It must FAIL with the assertion removed.** A guard that passes its own test when deleted is exactly
+the pattern `scripts/check_test_hygiene.sh` exists to catch. Paste both outputs.
+
+### Migration must be verified too — the migration script is ours and unreviewed
+
+A migration that writes the field but writes it **wrong** would satisfy the presence check while
+recording nonsense, turning the guard into a rubber stamp. Three checks:
+
+1. **Self-consistency against the checkpoint's own witness.** `learner["global_feature_dim"]` is
+   already stored (verified: `3` for the shipped checkpoints). Assert
+   `len(migrated_keys) == global_feature_dim - 2`. This catches a wrong key *count* with no external
+   source of truth.
+2. **Round-trip.** Save → load → the recorded keys survive unchanged.
+3. **Derivation, not transcription.** The migration reads keys from an env constructed from the
+   **recorded training config**, never from a literal and never from whatever env happens to be handy.
+   A same-count-wrong-keys migration is invisible to (1) and is caught only at use time by the
+   load-time assert — so the derivation source is the control that prevents it.
 
 ## 4. Deliverable 3 — re-collect at v1.1
 

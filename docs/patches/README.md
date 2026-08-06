@@ -10,7 +10,10 @@ verify the authorisation is real before touching a frozen file, per CLAUDE.md ru
 > (b) in `load()`, **assert set-equality** against the env's metric keys when the field is present, and
 > emit a **loud warning** when it is absent (pre-migration checkpoints). Nothing else: no behaviour
 > change, no new state, no touching `_build_global_features`. Ships as a patch under `docs/patches/`.
-> Spent when BRIEF_08 merges.
+> **ADDITION:** the error message must print the checkpoint's key set, the env's key set and the
+> **symmetric difference** — a message that names the difference ends the investigation instead of
+> starting it, months from now, for someone without today's context.
+> Spent when BRIEF_08 merges. **Confirmed by the user 2026-08-06.**
 
 **Why it is needed.** The existing guard compares only `global_feature_dim`, and
 `_global_metric_keys` is not stored in the checkpoint, so a same-width metric *swap* is silent: the
