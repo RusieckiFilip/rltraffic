@@ -1,5 +1,26 @@
 # Patches a Claude Code session cannot apply itself
 
+## `master_coordinator_grep_plan.patch` — add the "grep the plan before you escalate" rule
+
+**Apply with:**
+```bash
+git apply docs/patches/master_coordinator_grep_plan.patch
+grep -c "Grep the plan before you escalate" .claude/agents/master-coordinator.md   # -> 1
+```
+Verified with `git apply --check` on 2026-08-06 against `.claude/agents/master-coordinator.md` at blob
+`356c1e0`. Tracks the file's `100755` mode, so applying does not drop the executable bit.
+**A restart of the Master session is required** for an agent-definition change to take effect.
+
+**Why it is a patch and not a commit.** `.claude/settings.json` deny-lists `Edit(.claude/**)`, so a
+session cannot edit its own definition — which is the point. The heredoc route was not taken.
+
+**What it does.** Adds one rule after "One question at a time": before marking anything
+`DECISION NEEDED`, grep `docs/PROJECT_PLAN.md` for an existing answer, and if escalating anyway, state
+where you looked. Requested by the user on 2026-08-06 after the coordinator escalated the MAPPO
+training-demand question as a single either/or when §1's pre-registered 2×2 had already settled half of
+it — MAPPO-nominal was a required *cell*, never an alternative. The same rule is already live in
+PROJECT_PLAN §7, which every session reads; this patch makes it permanent in the agent definition.
+
 ## `claude_guard_g1.patch` — fix guard defect G1 (new `.py` in a new `experiments/` subdir escapes the check)
 
 **Apply with:**

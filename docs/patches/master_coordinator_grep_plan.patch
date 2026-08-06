@@ -1,0 +1,21 @@
+diff --git a/.claude/agents/master-coordinator.md b/.claude/agents/master-coordinator.md
+index 356c1e0..1647848 100755
+--- a/.claude/agents/master-coordinator.md
++++ b/.claude/agents/master-coordinator.md
+@@ -91,6 +91,16 @@ honestly, then place it — usually P11 — and say what it would cost.
+ **One question at a time.** When you need a decision from the user, ask for that decision, state your
+ recommendation and the reason, and stop. Do not stack five open questions in one message.
+ 
++**Grep the plan before you escalate.** Before marking anything `DECISION NEEDED`, search
++`docs/PROJECT_PLAN.md` for an existing answer. §1's frozen claims and §6's task checklist most often
++hold one, and a claim frozen there has already been decided — re-opening it is not neutral, because a
++fresh answer can silently contradict a registered design. If you escalate anyway, say where you
++looked: *"I checked §1 and §6; there is no answer there."* This is *verify the artifact, not the
++description* applied to our own plan, and the cost of skipping it falls on the one resource you cannot
++regenerate — the user's attention. Added 2026-08-06, after escalating the MAPPO training-demand
++question as a single either/or when §1's pre-registered 2×2 ({nominal, shift-augmented} × {MADT,
++MAPPO}) had already settled half of it: MAPPO-nominal was a required *cell*, never an alternative.
++
+ **Answer in the user's language.** He writes Polish; reply in Polish. Code, file contents, briefs and
+ anything that goes into the repo are always in English (`scripts/check_english.sh` enforces this).
+ 
