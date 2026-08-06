@@ -539,7 +539,10 @@ def test_step_result_before_action_raises(tmp_path: Path) -> None:
     logger.on_reset(info, engine_seed=1)
 
     reward, terminated, truncated, next_info = env.step(np.zeros(2, dtype=np.int64))
-    with pytest.raises(LoggerStateError):
+    # match= anchors on the callback-order clause specifically: on_step_result also
+    # raises LoggerStateError for a lane-set change and for mixed local-reward
+    # presence, and an unanchored raises() would accept either of those instead.
+    with pytest.raises(LoggerStateError, match="Every step result must be preceded by on_action"):
         logger.on_step_result(reward, terminated, truncated, next_info)
 
 
@@ -551,7 +554,9 @@ def test_action_twice_in_a_row_raises(tmp_path: Path) -> None:
 
     action = _policy(info)
     logger.on_action(info, action)
-    with pytest.raises(LoggerStateError):
+    # Anchored on the callback-order clause, not on on_action's other rejection
+    # (a stale info at the wrong step), which is a different defect entirely.
+    with pytest.raises(LoggerStateError, match="Legal order is on_reset"):
         logger.on_action(info, action)
 
 
@@ -565,7 +570,12 @@ def test_lane_id_set_change_mid_episode_raises(tmp_path: Path) -> None:
     logger.on_action(info, action)
     env.lane_names[0] = "lane_zzz"  # silent topology change
     reward, terminated, truncated, next_info = env.step(action)
-    with pytest.raises(LoggerStateError):
+    # Names lane_vehicle_count specifically. _check_schema raises the same class for
+    # lane_waiting_vehicle_count and for a metric-key change; renaming a lane trips
+    # the lane_vehicle_count branch first, and the test asserts exactly that.
+    with pytest.raises(
+        LoggerStateError, match="lane_vehicle_count changed its lane set mid-episode"
+    ):
         logger.on_step_result(reward, terminated, truncated, next_info)
 
 
@@ -577,7 +587,9 @@ def test_stale_info_to_on_action_raises(tmp_path: Path) -> None:
 
     stale = dict(info)
     stale["step"] = 99
-    with pytest.raises(LoggerStateError):
+    # The step-mismatch clause, not on_action's callback-order clause: both raise
+    # LoggerStateError, and only this one proves the staleness check ran.
+    with pytest.raises(LoggerStateError, match="on_action received info at step"):
         logger.on_action(stale, _policy(info))
 
 
@@ -588,7 +600,9 @@ def test_finalize_with_dangling_action_raises(tmp_path: Path) -> None:
     logger.on_reset(info, engine_seed=1)
     logger.on_action(info, _policy(info))
 
-    with pytest.raises(LoggerStateError):
+    # The dangling-action clause. finalize_episode's other refusal ("no episode is
+    # open") is the same class but the opposite defect, and would pass unanchored.
+    with pytest.raises(LoggerStateError, match="the last decision has no outcome"):
         logger.finalize_episode()
 
 
@@ -648,7 +662,9 @@ def test_reusing_a_populated_out_dir_is_refused(tmp_path: Path) -> None:
     _env, ep_first, path_first = _collect_one(tmp_path)
     assert path_first.exists()
 
-    with pytest.raises(FileExistsError) as excinfo:
+    with pytest.raises(
+        FileExistsError, match="already contains a collection run"
+    ) as excinfo:
         TrajectoryLogger(FakeTrafficEnv(), tmp_path)
     assert "--overwrite" in str(excinfo.value)
 
@@ -683,7 +699,9 @@ def test_failed_construction_leaves_the_previous_corpus_intact(tmp_path: Path) -
     episode_before = path_first.read_bytes()
 
     # overwrite=True, but the run can never start: the metadata is not serialisable.
-    with pytest.raises(ValueError):
+    # The two halves of this test must fail for two DIFFERENT reasons -- that is the
+    # point of testing both -- so each match= names its own one.
+    with pytest.raises(ValueError, match="run_metadata is not JSON-serialisable"):
         TrajectoryLogger(
             FakeTrafficEnv(),
             tmp_path,
@@ -696,7 +714,7 @@ def test_failed_construction_leaves_the_previous_corpus_intact(tmp_path: Path) -
     # Same for an env the logger will refuse.
     broken = FakeTrafficEnv()
     broken.intersections = []
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="env exposes no intersections"):
         TrajectoryLogger(broken, tmp_path, overwrite=True)
     assert path_first.read_bytes() == episode_before
     assert (tmp_path / "manifest.json").read_bytes() == manifest_before
@@ -705,7 +723,7 @@ def test_failed_construction_leaves_the_previous_corpus_intact(tmp_path: Path) -
 def test_refused_construction_creates_no_directories(tmp_path: Path) -> None:
     """A run that cannot start must not leave its out_dir tree behind."""
     target = tmp_path / "deep" / "nested" / "out"
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="run_metadata is not JSON-serialisable"):
         TrajectoryLogger(
             FakeTrafficEnv(), target, run_metadata={"checkpoint": Path("/x.pt")}
         )
@@ -736,7 +754,9 @@ def test_overwrite_spares_unrelated_npz_files(tmp_path: Path) -> None:
 
 def test_unserialisable_run_metadata_fails_before_any_episode(tmp_path: Path) -> None:
     """Bad metadata must fail at construction, not after simulator time is spent."""
-    with pytest.raises(ValueError) as excinfo:
+    with pytest.raises(
+        ValueError, match="run_metadata is not JSON-serialisable"
+    ) as excinfo:
         TrajectoryLogger(
             FakeTrafficEnv(), tmp_path, run_metadata={"checkpoint": Path("/x.pt")}
         )
@@ -881,7 +901,7 @@ def test_alignment_block_present_in_docstrings() -> None:
 def test_collect_rejects_empty_lane_set() -> None:
     from offline.collect import _require_lane_arrays
 
-    with pytest.raises(ValueError) as excinfo:
+    with pytest.raises(ValueError, match="reported an empty lane set") as excinfo:
         _require_lane_arrays([], "sumo")
     message = str(excinfo.value)
     assert "sumo" in message
