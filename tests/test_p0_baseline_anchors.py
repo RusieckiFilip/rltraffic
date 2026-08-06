@@ -74,6 +74,80 @@ def _assert_anchor(results: dict, env_id: str, policy: str, expected_2dp: float)
     )
 
 
+# ----------------------------------------------------------------------
+# P8.0: the horizon anchors (prereg A1). The re-run records BOTH att_horizon
+# (the registered primary metric) and att_running_mean (the legacy runner.py
+# quantity). Baselines touch no torch and MUST reproduce the committed anchors
+# exactly; MAPPO may cross the N2 float-reduction boundary and is recorded, not
+# asserted. See docs/data/p0_baselines_horizon/PROVENANCE.md.
+# ----------------------------------------------------------------------
+
+HORIZON_RESULTS_PATH = (
+    REPO_ROOT / "docs" / "data" / "p0_baselines_horizon" / "results.json"
+)
+# Labels that never touch torch (per registry BASELINE_LABELS) -> exact reproduction.
+BASELINE_POLICIES = ("MaxPressure", "Random")
+HORIZON_QUANTITIES = ("att_horizon", "att_running_mean")
+ENVS = ("cf_hz1x1", "cf_grid4x4")
+
+
+def _load_horizon() -> dict:
+    assert HORIZON_RESULTS_PATH.exists(), (
+        f"horizon anchor data missing: {HORIZON_RESULTS_PATH}. "
+        "Generate it with offline/rederive_anchors.py (P8.0)."
+    )
+    return json.loads(HORIZON_RESULTS_PATH.read_text(encoding="utf-8"))
+
+
+def _horizon_per_seed_list(results: dict, env_id: str, policy: str, quantity: str) -> list[float]:
+    """Per-seed *quantity* for one (env, policy), in file/cell order (never touches aggregated).
+
+    Cell order is preserved so the recomputed mean sums in the same order the harness used,
+    keeping the double-compute an exact bitwise check rather than an approximate one.
+    """
+    values: list[float] = []
+    for cell in results["cells"]:
+        if cell["env_id"] == env_id and cell["status"] == "ok":
+            payload = cell["policies"].get(policy)
+            if payload is not None:
+                values.append(payload[quantity])
+    return values
+
+
+def _horizon_per_seed_map(results: dict, env_id: str, policy: str, quantity: str) -> dict[int, float]:
+    """Per-seed *quantity* keyed by seed, for cross-file matching by seed."""
+    out: dict[int, float] = {}
+    for cell in results["cells"]:
+        if cell["env_id"] == env_id and cell["status"] == "ok":
+            payload = cell["policies"].get(policy)
+            if payload is not None:
+                out[int(cell["seed"])] = payload[quantity]
+    return out
+
+
+def _assert_horizon_double_compute(results: dict, env_id: str, policy: str, quantity: str) -> None:
+    """Aggregated mean must equal ``np.mean(cells)`` exactly. Raises on mismatch."""
+    per_seed = _horizon_per_seed_list(results, env_id, policy, quantity)
+    assert len(per_seed) == 3, (
+        f"expected 3 seeds for {env_id}/{policy}/{quantity}, found {len(per_seed)}"
+    )
+    recomputed = float(np.mean(per_seed))
+    stored = results["aggregated"][env_id][policy][quantity]["mean"]
+    assert recomputed == stored, (
+        f"double-compute mismatch for {env_id}/{policy}/{quantity}: "
+        f"aggregated {stored!r} != np.mean(cells) {recomputed!r}"
+    )
+
+
+def _legacy_per_seed_map(results: dict, env_id: str, policy: str) -> dict[int, float]:
+    """Per-seed committed ``average_travel_time`` (the running mean) keyed by seed."""
+    out: dict[int, float] = {}
+    for cell in results["cells"]:
+        if cell["env_id"] == env_id and cell["status"] == "ok":
+            out[int(cell["seed"])] = cell["policies"][policy]["metrics"]["average_travel_time"]
+    return out
+
+
 @pytest.mark.parametrize(
     "env_id, policy, expected",
     [(env, pol, val) for (env, pol), val in PLAN_3_1_TRAVEL_TIME.items()],
@@ -82,6 +156,71 @@ def _assert_anchor(results: dict, env_id: str, policy: str, expected_2dp: float)
 def test_p0_anchor_reproduces_plan_3_1(env_id: str, policy: str, expected: float) -> None:
     """Each §3.1 travel-time anchor reproduces from the committed baseline data."""
     _assert_anchor(_load(RESULTS_PATH), env_id, policy, expected)
+
+
+def test_horizon_file_has_both_baselines_for_both_envs() -> None:
+    """Guard against a truncated commit: both baselines, both envs, n==3, both quantities."""
+    results = _load_horizon()
+    assert results.get("quantities") == list(HORIZON_QUANTITIES)
+    for env_id in ENVS:
+        for policy in BASELINE_POLICIES:
+            for quantity in HORIZON_QUANTITIES:
+                entry = results["aggregated"][env_id][policy][quantity]
+                assert entry["n"] == 3, f"{env_id}/{policy}/{quantity}: n={entry['n']}, want 3"
+
+
+@pytest.mark.parametrize("env_id", ENVS)
+@pytest.mark.parametrize("policy", BASELINE_POLICIES)
+@pytest.mark.parametrize("quantity", HORIZON_QUANTITIES)
+def test_horizon_double_compute(env_id: str, policy: str, quantity: str) -> None:
+    """Both quantities: aggregated mean == independently recomputed np.mean(cells), exactly."""
+    _assert_horizon_double_compute(_load_horizon(), env_id, policy, quantity)
+
+
+@pytest.mark.parametrize("env_id", ENVS)
+@pytest.mark.parametrize("policy", BASELINE_POLICIES)
+def test_horizon_running_mean_reproduces_committed_anchor(env_id: str, policy: str) -> None:
+    """The re-run's att_running_mean reproduces the 2026-07-09 anchor EXACTLY for torch-free
+    baselines -- per seed and aggregated. This is the P8.0 merge gate: if it fails, the harness is
+    wrong and the horizon values from the same run are worthless. Do not smooth over a mismatch."""
+    horizon = _load_horizon()
+    legacy = _load(RESULTS_PATH)
+    new_by_seed = _horizon_per_seed_map(horizon, env_id, policy, "att_running_mean")
+    legacy_by_seed = _legacy_per_seed_map(legacy, env_id, policy)
+    assert set(new_by_seed) == set(legacy_by_seed) == {101, 202, 303}
+    for seed in sorted(legacy_by_seed):
+        assert new_by_seed[seed] == legacy_by_seed[seed], (
+            f"running-mean not reproduced for {env_id}/{policy} seed {seed}: "
+            f"re-run {new_by_seed[seed]!r} != committed {legacy_by_seed[seed]!r}"
+        )
+    new_agg = horizon["aggregated"][env_id][policy]["att_running_mean"]["mean"]
+    legacy_agg = legacy["aggregated"][env_id][policy]["average_travel_time"]["mean"]
+    assert new_agg == legacy_agg, (
+        f"aggregated running-mean not reproduced for {env_id}/{policy}: "
+        f"re-run {new_agg!r} != committed {legacy_agg!r}"
+    )
+
+
+@pytest.mark.parametrize("env_id", ENVS)
+def test_mappo_horizon_double_compute_when_present(env_id: str) -> None:
+    """MAPPO horizon: double-compute when the (long, tmux) cells have landed; a reasoned skip
+    that auto-arms otherwise. MAPPO may cross the N2 boundary, so its running mean is NOT asserted
+    against the committed anchor -- only the file's internal double-compute is."""
+    results = _load_horizon()
+    if "mappo" not in results["aggregated"].get(env_id, {}):
+        pytest.skip("MAPPO horizon pending the tmux p0_baselines re-run (P8.0 split); see PROVENANCE")
+    for quantity in HORIZON_QUANTITIES:
+        _assert_horizon_double_compute(results, env_id, "mappo", quantity)
+
+
+def test_horizon_anchor_is_load_bearing(tmp_path: Path) -> None:
+    """Mutation: corrupting a stored horizon mean must make the double-compute fail with match=."""
+    results = _load_horizon()
+    results["aggregated"]["cf_hz1x1"]["MaxPressure"]["att_horizon"]["mean"] += 1.0
+    tampered = tmp_path / "tampered.json"
+    tampered.write_text(json.dumps(results), encoding="utf-8")
+    with pytest.raises(AssertionError, match="double-compute mismatch"):
+        _assert_horizon_double_compute(_load(tampered), "cf_hz1x1", "MaxPressure", "att_horizon")
 
 
 def test_committed_results_has_all_six_cells_ok() -> None:

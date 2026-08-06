@@ -1,0 +1,204 @@
+{
+  "format_version": "p0-baselines-horizon-v1.0",
+  "generated_utc": "2026-08-06T09:49:17.694258+00:00",
+  "git_hash": "4f35c4ca0b98e28dd59905e5ed105d68f0e1c40e",
+  "source_config": "experiments/configs/p0_baselines.json",
+  "quantities": [
+    "att_horizon",
+    "att_running_mean"
+  ],
+  "seeds": [
+    101,
+    202,
+    303
+  ],
+  "policies_present": [
+    "Random",
+    "MaxPressure"
+  ],
+  "pending_policies": [
+    "mappo"
+  ],
+  "cells": [
+    {
+      "env_id": "cf_hz1x1",
+      "seed": 101,
+      "status": "ok",
+      "policies": {
+        "Random": {
+          "kind": "baseline",
+          "att_horizon": 416.25670556502627,
+          "att_running_mean": 306.91320238249983,
+          "episode_reward": -40543.666666666664,
+          "final_vehicle_count": 157.33333333333334
+        },
+        "MaxPressure": {
+          "kind": "baseline",
+          "att_horizon": 247.7508914926133,
+          "att_running_mean": 160.55840613985225,
+          "episode_reward": -32648.0,
+          "final_vehicle_count": 208.0
+        }
+      }
+    },
+    {
+      "env_id": "cf_hz1x1",
+      "seed": 202,
+      "status": "ok",
+      "policies": {
+        "Random": {
+          "kind": "baseline",
+          "att_horizon": 414.52273431540385,
+          "att_running_mean": 308.35460044020647,
+          "episode_reward": -40242.333333333336,
+          "final_vehicle_count": 156.0
+        },
+        "MaxPressure": {
+          "kind": "baseline",
+          "att_horizon": 247.7508914926133,
+          "att_running_mean": 160.55840613985225,
+          "episode_reward": -32648.0,
+          "final_vehicle_count": 208.0
+        }
+      }
+    },
+    {
+      "env_id": "cf_hz1x1",
+      "seed": 303,
+      "status": "ok",
+      "policies": {
+        "Random": {
+          "kind": "baseline",
+          "att_horizon": 409.8078218568058,
+          "att_running_mean": 307.336007629219,
+          "episode_reward": -40212.333333333336,
+          "final_vehicle_count": 157.66666666666666
+        },
+        "MaxPressure": {
+          "kind": "baseline",
+          "att_horizon": 247.7508914926133,
+          "att_running_mean": 160.55840613985225,
+          "episode_reward": -32648.0,
+          "final_vehicle_count": 208.0
+        }
+      }
+    },
+    {
+      "env_id": "cf_grid4x4",
+      "seed": 101,
+      "status": "ok",
+      "policies": {
+        "Random": {
+          "kind": "baseline",
+          "att_horizon": 265.6743607150939,
+          "att_running_mean": 205.6614304503349,
+          "episode_reward": -17365.666666666668,
+          "final_vehicle_count": 43.333333333333336
+        },
+        "MaxPressure": {
+          "kind": "baseline",
+          "att_horizon": 169.04616429056347,
+          "att_running_mean": 141.6547078430559,
+          "episode_reward": -4564.0,
+          "final_vehicle_count": 20.0
+        }
+      }
+    },
+    {
+      "env_id": "cf_grid4x4",
+      "seed": 202,
+      "status": "ok",
+      "policies": {
+        "Random": {
+          "kind": "baseline",
+          "att_horizon": 261.41321565965154,
+          "att_running_mean": 206.13898974583867,
+          "episode_reward": -16718.0,
+          "final_vehicle_count": 39.0
+        },
+        "MaxPressure": {
+          "kind": "baseline",
+          "att_horizon": 169.04616429056347,
+          "att_running_mean": 141.6547078430559,
+          "episode_reward": -4564.0,
+          "final_vehicle_count": 20.0
+        }
+      }
+    },
+    {
+      "env_id": "cf_grid4x4",
+      "seed": 303,
+      "status": "ok",
+      "policies": {
+        "Random": {
+          "kind": "baseline",
+          "att_horizon": 270.15953835709433,
+          "att_running_mean": 209.98102582407185,
+          "episode_reward": -17959.666666666668,
+          "final_vehicle_count": 39.666666666666664
+        },
+        "MaxPressure": {
+          "kind": "baseline",
+          "att_horizon": 169.04616429056347,
+          "att_running_mean": 141.6547078430559,
+          "episode_reward": -4564.0,
+          "final_vehicle_count": 20.0
+        }
+      }
+    }
+  ],
+  "aggregated": {
+    "cf_hz1x1": {
+      "Random": {
+        "att_horizon": {
+          "mean": 413.5290872457453,
+          "std": 2.724888516963418,
+          "n": 3
+        },
+        "att_running_mean": {
+          "mean": 307.5346034839751,
+          "std": 0.6049723549247754,
+          "n": 3
+        }
+      },
+      "MaxPressure": {
+        "att_horizon": {
+          "mean": 247.7508914926133,
+          "std": 0.0,
+          "n": 3
+        },
+        "att_running_mean": {
+          "mean": 160.55840613985225,
+          "std": 0.0,
+          "n": 3
+        }
+      }
+    },
+    "cf_grid4x4": {
+      "Random": {
+        "att_horizon": {
+          "mean": 265.7490382439466,
+          "std": 3.5710617218541043,
+          "n": 3
+        },
+        "att_running_mean": {
+          "mean": 207.26048200674848,
+          "std": 1.9335691896357268,
+          "n": 3
+        }
+      },
+      "MaxPressure": {
+        "att_horizon": {
+          "mean": 169.04616429056347,
+          "std": 0.0,
+          "n": 3
+        },
+        "att_running_mean": {
+          "mean": 141.6547078430559,
+          "std": 0.0,
+          "n": 3
+        }
+      }
+    }
+  }
+}

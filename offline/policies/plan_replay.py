@@ -7,15 +7,17 @@ This helper drives a raw ``cityflow.Engine`` at 1 s resolution to obtain the
 shipped plan's ground-truth behaviour, used only to choose ``k`` -- it collects no
 corpus.
 
-Comparability (brief §9, Ruling 1)
-----------------------------------
-``average_travel_time`` is computed by the **same** :class:`metrics.CityFlowMetrics`
-class the env uses, driven at the same ``delta_time`` cadence
-(``warmup`` once, then ``pre_step`` -> advance ``delta_time`` seconds -> ``update``
-per decision step).  The engine's native ``get_average_travel_time`` is *not* used:
-it is survivorship-biased and would not be comparable to the k=3 / k=4 numbers.
-``tests/test_fixed_time_env_mapping.py`` asserts the two pipelines agree exactly on
-a degenerate plan before any replay number is trusted.
+Comparability (brief §9, Ruling 1; metric per prereg A1)
+-------------------------------------------------------
+The registered per-step metric ``average_travel_time`` is computed by the **same**
+:class:`metrics.CityFlowMetrics` class the env uses, driven at the same ``delta_time`` cadence
+(``warmup`` once, then ``pre_step`` -> advance ``delta_time`` seconds -> ``update`` per decision
+step).  The engine's native ``get_average_travel_time`` is *not* used: it is survivorship-biased
+and would not be comparable to the k=3 / k=4 numbers.  From the same per-step samples this helper
+reports both A1 aggregations -- ``att_horizon`` (the value at the episode horizon, the paper's
+primary metric) and ``att_running_mean`` (the legacy runner.py mean-of-samples).
+``tests/test_fixed_time_env_mapping.py`` asserts the two pipelines agree exactly on a degenerate
+plan, under both aggregations, before any replay number is trusted.
 
 The plan format is single-column (one intersection); the same phase is applied to
 every intersection id, which is correct for the 1x1 scenarios that ship a plan.
@@ -35,16 +37,19 @@ __all__ = ["ReplayResult", "read_plan_phases", "replay_plan"]
 
 @dataclass(frozen=True)
 class ReplayResult:
-    """Outcome of a plan replay.
+    """Outcome of a plan replay (metric per prereg A1).
 
-    ``average_travel_time`` is the episode-mean of the per-decision-step metric
-    (matching ``experiments.runner.evaluate_policy`` and the P0.2 anchors), computed
-    over all vehicles that entered (no survivorship bias). ``entered`` counts all
-    vehicles that departed; ``completed`` counts those that finished;
-    ``vehicle_count`` is the number still in the network at the horizon.
+    ``att_horizon`` is the registered ``average_travel_time`` metric at the episode horizon -- the
+    paper's primary metric (A1), the mean over all vehicles that entered (no survivorship bias).
+    ``att_running_mean`` is the legacy mean of the per-decision-step samples (the quantity
+    ``experiments.runner.evaluate_policy`` reports); it is kept for continuity and is never called
+    "average travel time". ``entered`` counts all vehicles that departed; ``completed`` counts those
+    that finished; ``vehicle_count`` is the number still in the network at the horizon
+    (``entered == completed + vehicle_count``).
     """
 
-    average_travel_time: float
+    att_horizon: float
+    att_running_mean: float
     entered: int
     completed: int
     vehicle_count: int
@@ -116,10 +121,9 @@ def replay_plan(
         )
         metrics.warmup()
 
-        # Sample average_travel_time once per decision step and average over the
-        # episode -- the canonical measure used by experiments.runner.evaluate_policy
-        # and the P0.2 anchors -- not the final value, so this number is directly
-        # comparable to the k-run and anchor numbers.
+        # Sample the registered per-step average_travel_time once per decision step. Prereg A1's
+        # primary metric is the value at the horizon (att_horizon = the last sample); att_running_mean
+        # is the legacy mean of the samples, kept for continuity. Both come from one pass.
         att_samples: list[float] = []
         second = 0
         for _ in range(int(max_steps)):
@@ -133,7 +137,8 @@ def replay_plan(
             metrics.update()
             att_samples.append(float(metrics.get("average_travel_time")))
 
-        att = sum(att_samples) / len(att_samples) if att_samples else 0.0
+        att_horizon = att_samples[-1] if att_samples else 0.0
+        att_running_mean = sum(att_samples) / len(att_samples) if att_samples else 0.0
         # The metric's per-vehicle bookkeeping is the only source of entered /
         # completed counts; there is no public accessor for them.
         episode = metrics._episode  # noqa: SLF001 - measurement helper
@@ -143,4 +148,4 @@ def replay_plan(
     finally:
         os.unlink(tmp.name)
 
-    return ReplayResult(att, entered, completed, vehicle_count)
+    return ReplayResult(att_horizon, att_running_mean, entered, completed, vehicle_count)
