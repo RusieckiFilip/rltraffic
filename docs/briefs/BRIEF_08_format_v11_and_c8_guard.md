@@ -46,10 +46,22 @@ alignment-sensitive addition since `local_reward`:**
 - Bump `FORMAT_VERSION` to `"1.1"`.
 - Do **not** change any existing array, name or dtype. v1.1 is v1.0 plus one field.
 
-**Tests:** shape `(T+1,)` and dtype; the horizon value equals a rollout's final
-`info["average_travel_time"]` recomputed independently; monotone non-decreasing early in an episode
-(ATT is a running mean over a growing population — assert the property, not a magic number); a v1.0
-file still loads.
+**Tests.** ⚠️ **The monotonicity test originally specified here was FALSE and is withdrawn** — see
+§8. Replace it with per-row equality against an independent source:
+
+1. shape `(T+1,)` and `float32`;
+2. the horizon row equals a rollout's final `info["average_travel_time"]`, recomputed independently;
+3. **every row equals the env's emitted sequence, exact `==`** — sourced from the env's emitted
+   snapshots, not from the logger's own copy;
+4. **observation-not-outcome:** `len(average_travel_time) == len(global_reward) + 1`, and row 0 is the
+   value at `reset()`;
+5. a v1.0 file still loads, with the field `None`.
+
+**Fixture requirement, and it is load-bearing:** `FakeTrafficEnv` currently hardcodes
+`average_travel_time: 12.5`. A test written against a constant passes vacuously. Script a
+**non-monotone** ATT sequence in float32-exact increments, and set `metrics["average_travel_time"]` to
+a *different* value, so that "the logger read the metrics dict instead of the top-level key" is a
+**detectable mutation** rather than an invisible equivalence.
 
 ## 3. Deliverable 2 — the C8 guard, mechanically
 
@@ -137,3 +149,22 @@ must never be silently mixed.
 - [ ] `datasets_v11/` collected; validation gate passed; the six tiers bit-identical
 - [ ] Full `pytest -q`; count reported against the current baseline
 - [ ] Return Packet at `docs/returns/P2.6.md`
+
+---
+
+## 8. Correction to this brief (Master chat, 2026-08-07)
+
+**§2's monotonicity test asserted a property that is false, and I asserted it from reasoning rather
+than measurement.** The implementer measured it on **407/407 real corpus episodes** (earliest drop at
+row 4 of 361, worst −6.00) and on 6/6 live cells. Mechanism: `metrics/cityflow.py::_average_travel_time`
+averages over completed **plus currently-active** vehicles, so a vehicle entering with ~0 elapsed time
+pulls the mean **down**. My parenthetical "a running mean over a growing population" described a
+quantity this metric is not.
+
+**The test would also have passed vacuously**, because `FakeTrafficEnv` hardcodes
+`average_travel_time: 12.5` — a constant satisfies monotone non-decreasing. So the brief would have
+shipped a green test asserting something false about the corpus: precisely the class
+`scripts/check_test_hygiene.sh` exists to catch, arriving via the brief rather than the code.
+
+Replacement accepted as specified above. **The repo wins over the brief; this is that rule firing on
+the brief's own acceptance text.**

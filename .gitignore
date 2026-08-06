@@ -219,7 +219,7 @@ __marimo__/
 output/
 # --- Claude Code / offline-RL project additions ---
 .claude/settings.local.json
-datasets/
+datasets*/
 # Materialised flow draws (offline/materialise_draws.py): generated, deterministic and
 # large (~2.7 MB per draw across the headline three, ~270 MB for the full 1000-1099
 # pool). Regenerable byte-for-byte from each draw's provenance.json, so it is rebuilt
