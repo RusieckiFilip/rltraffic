@@ -153,3 +153,64 @@ running mean. Re-issue them as `att_horizon`, with entered/completed counts per 
 3. The re-derived §3.1 table in both quantities, side by side.
 4. P2.5's Tier 1 numbers under `att_horizon`, with entered/completed counts.
 5. Anything in the naming ruling that does not survive contact with the code.
+
+---
+
+## 8. Rulings on the plan-mode questions (Master chat, 2026-08-06)
+
+### Ruling 1 — **Option A. CLAUDE.md §5 wins; the brief yields.**
+
+You were right to stop. CLAUDE.md:203 names MAPPO training explicitly as a `tmux` case, "When a brief
+conflicts with the actual repo code, the repo wins" applies to repo *rules* as well as repo code, and I
+am not waiving a rule you correctly cited — a flagged conflict that gets waived on request teaches
+exactly the wrong lesson.
+
+**Split the work so the blocking part does not wait on the long part:**
+
+| runs where | what |
+|---|---|
+| **in-session** | D1, D2 (harness), D3, D4, D5, D6 — **plus the MaxPressure and Random re-derivation** (4 of 6 cells), which needs no training and is fast |
+| **user's `tmux`** | the full `experiments/configs/p0_baselines.json` re-run **including MAPPO training** (the remaining 2 cells, and the N2 answer) |
+
+**The merge gate is the baseline reproduction, not the MAPPO cell.** What actually unblocks the project
+is D1/D4/D6 — the metric reader, the corrected artifacts, the naming guard. The anchors are the *sanity
+reference* §7 requires before results are **accepted**, which is P4 and later. So P8.0 may merge with
+4/6 cells re-derived and MAPPO explicitly marked pending, provided the MAPPO cells land **before any
+phase compares against the anchors**. Record the pending status in the Return Packet, not as a
+silently-empty row.
+
+**Baselines are the real validation anyway.** `algorithms/max_pressure.py` imports no torch (verified),
+and the committed MaxPressure cells have std 0. If MaxPressure and Random do not reproduce
+**exactly**, the harness is wrong and the MAPPO number would be worthless regardless — so the fast half
+carries the load-bearing check.
+
+### Ruling 2 — new data directory approved, **with a provenance file.**
+
+`docs/data/p0_baselines_horizon/` is fine and the hard guard refusing to write into the historical
+directory is exactly right. Add a `README.md` inside it recording: the date, the **git hash**, the
+config path, that it contains **both** quantities, and its **pin status relative to the 2026-07-09
+data** (that run predates `64800fb`; this one does not). A dataset whose provenance lives only in a
+commit message is the N5 defect in a new costume, and this directory exists specifically to be compared
+against another one.
+
+### Ruling 3 — importing the private helpers is approved, and it is the *correct* choice, not a tolerated one.
+
+Importing `_train_agent` / `_baseline_chooser` / `_agent_chooser` from `experiments.runner` is the only
+way to stay byte-faithful to the pipeline that produced the anchors; reimplementing training would risk
+a different policy and destroy the reproduction check that is the whole point of re-running.
+
+The usual objection to depending on a private name is that it can change without notice. **Here the
+module is frozen** — it cannot change without a written, dated authorisation — so the private name is
+*more* stable than a public API in a non-frozen module. Frozenness inverts the argument.
+
+Two conditions: **(a)** put a comment at the import site stating precisely this, so a future reader does
+not "clean up" the private import and silently break fidelity; **(b)** you import only — any urge to
+edit `experiments/runner.py` stops and comes back to me. Note also that importing
+`experiments.runner` pins the *calling* process to one torch thread as a process-global side effect;
+that is expected and documented, not a leak.
+
+### Also approved as proposed
+`att_horizon` = per-episode `samples[-1]`, averaged over episodes — that matches A1 and mirrors
+`evaluate_policy`'s across-episode aggregation. Renaming `ReplayResult.average_travel_time` is safe (its
+only consumer is `tests/test_fixed_time_env_mapping.py`, grep-confirmed). State in the packet how you
+define *entered* (presumably completed + still-in-network at the horizon) so the count is unambiguous.
