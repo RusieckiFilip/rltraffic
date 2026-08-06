@@ -26,7 +26,7 @@ Two items are *adjacent* to P3 but do not block it:
 
 | # | Item | Why parked | Cost to resume | Needed by |
 |---|---|---|---|---|
-| 1 | **P3 loader brief** | **Not parked — overdue.** I said "continuing with the P3 brief" in two consecutive turns and did not deliver it. | — | **Now. Critical path.** |
+| 1 | ~~**P3 loader brief**~~ **ISSUED 2026-08-06** as `BRIEF_09_p3_dataset_loader.md`. It was overdue by three turns — logged rather than quietly closed, because the parked list existing is what surfaced it. | — | — | done |
 | 2 | **P2.4 corpus linter** | Promised across several turns, never written. The checks exist as ad-hoc scripts run on 2026-08-06 (hash uniqueness, draw disjointness, `base_seed`, reward double-compute, ladder, coverage). | ~1 day; content already specified by those scripts | Before P4 consumes data at scale |
 | 3 | **Horizon re-evaluation of MAPPO checkpoints on held-out draws 1000–1099** | Needs the P8.0 horizon reader wired to `_load_agent`. | ~half a day + minutes of compute | Before the online MAPPO baseline is *reported* |
 | 4 | **P7.0 / all of C3** (`BRIEF_04` written, unrun) | Off the September path; the plan already designates C3 droppable. Parity contract and brief are complete and waiting. | ~1 day for the gate | October |

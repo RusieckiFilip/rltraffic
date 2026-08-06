@@ -1,5 +1,24 @@
 # Patches a Claude Code session cannot apply itself
 
+## `mappo_metric_keys_guard.patch` — make contract C8 mechanical (AUTHORISATION C)
+
+**Status: patch not yet written** — BRIEF_08 commissions it. This entry exists so the implementer can
+verify the authorisation is real before touching a frozen file, per CLAUDE.md rule 1.
+
+> **AUTHORISATION C — 2026-08-06, Master chat.** `agent/MAPPOAgent.py` may be modified for the single
+> purpose of making contract C8 mechanical: (a) persist `self._global_metric_keys` in `save()`;
+> (b) in `load()`, **assert set-equality** against the env's metric keys when the field is present, and
+> emit a **loud warning** when it is absent (pre-migration checkpoints). Nothing else: no behaviour
+> change, no new state, no touching `_build_global_features`. Ships as a patch under `docs/patches/`.
+> Spent when BRIEF_08 merges.
+
+**Why it is needed.** The existing guard compares only `global_feature_dim`, and
+`_global_metric_keys` is not stored in the checkpoint, so a same-width metric *swap* is silent: the
+critic reads different semantics under the same indices with no error. Both consumers converge on
+`agent.load()` — `experiments/runner.py:241` (the `--from-checkpoint` reporting path) and
+`offline/collect.py:155` — so one assertion there covers collection *and* reporting, which an
+assertion in `collect.py` alone would not.
+
 ## `master_coordinator_grep_plan.patch` — add the "grep the plan before you escalate" rule
 
 **Apply with:**

@@ -496,20 +496,15 @@ written there in the same turn it is made, it is not parked — it is forgotten.
 blocks P3.**
 
 **Immediate queue, in order:**
-1. **P2.1** — MAPPO to convergence. Longest pole, and now unblocked on the metric: its convergence
-   criterion is expressed in `att_horizon`. Needs a short run-spec (demand source, seed count,
-   checkpoint cadence, **declared step budget per D5**, convergence criterion), then `tmux`.
-2. ⏳ **P8.0 MAPPO cells** — `.venv/bin/python -m offline.rederive_anchors` in `tmux`; the anchor
-   tests auto-arm and the N2 float-boundary question becomes answerable. **Must land before any
-   P4+ comparison against §3.1.** Cheap, and it pairs naturally with the P2.1 run.
-3. **P2.2-draws** — draw materialisation (`docs/briefs/BRIEF_07_draw_materialisation.md`), branch
-   `task/p2.2-materialise-draws`. Unblocks `mappo_dr`, the held-out evaluation of **both** 2×2 cells,
-   and the P2.2 collection campaign. Then the draw-cycling trainer as its own brief.
-4. **P7.0** — brief written (`docs/briefs/BRIEF_04_p7.0_transfer_gate.md`), parity as a
-   precondition. The ~1-day C3 kill-switch.
-5. **P2.4** — corpus linter. **Critical path → independent review before merge**; mechanical
-   enforcer of the registered draw-id split (D4).
-6. **P0.9** — `check_english.sh` o-acute false positive (patch route).
+1. **P2.6 — format v1.1 + the C8 guard** (`docs/briefs/BRIEF_08_format_v11_and_c8_guard.md`,
+   branch `task/p2.6-format-v11`). Puts ATT at the ladder's top and makes C8 mechanical rather
+   than documentary. Carries **AUTHORISATION C**.
+2. **P3 — dataset loader** (`docs/briefs/BRIEF_09_p3_dataset_loader.md`, branch
+   `task/p3-dataset-loader`). **Critical path, independent review before merge.** Written against
+   v1.1 so the loader never needs a second format; can start in parallel with P2.6 by coding to
+   the v1.1 spec and gating the ATT field on `format_version`.
+3. **P2.4 — corpus linter.** Content already specified by the ad-hoc checks run 2026-08-06.
+4. **P4 — single-intersection DT + the pre-registered gate**, then BC/%BC/IQL (P4.4).
 
 **⚠️ Scheduling flag — P7.0 has never been run.** It is scoped as the ~1-day early kill-switch for C3
 and was to run "right after P1, parallel to P2"; P1 closed 2026-07-27. Whoever writes its brief **must
