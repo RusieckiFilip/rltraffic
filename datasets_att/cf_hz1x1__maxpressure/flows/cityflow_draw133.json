@@ -1,0 +1,11 @@
+{
+    "network": "hz1x1",
+    "interval": 1.0,
+    "seed": 0,
+    "dir": "/home/filip/rltraffic/scenarios/hangzhou_1x1_bc-tyc_18041610_1h/",
+    "roadnetFile": "roadnet.json",
+    "flowFile": "../../datasets_att/cf_hz1x1__maxpressure/flows/flow_draw133.json",
+    "rlTrafficLight": true,
+    "saveReplay": false,
+    "laneChange": false
+}
