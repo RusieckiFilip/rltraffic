@@ -257,6 +257,20 @@ round, then they freeze. From P1 onward the review function moves into the pipel
 independent review of an actual code diff against a frozen spec), which is bounded by construction —
 reviewing code against a fixed contract terminates; reviewing prose against opinions does not.
 
+**End every Master-chat turn with exactly one decision line (added 2026-08-07).** One of two forms,
+verbatim, as the final line of the message:
+
+```
+DECISION NEEDED: <what> | my recommendation: <what> | reversible: yes/no
+NO DECISION NEEDED — continuing with <next thing>.
+```
+
+**Reserve `DECISION NEEDED` for choices that are irreversible or that touch the paper's claims**;
+everything else is decided and reported. The `THINGS YOU NEED TO DO:` block goes immediately before
+this line. *Recorded 2026-08-07 after discovering the format existed **only in the conversation** —
+the rule that references "the closing decision line" had been written down while the line itself
+never was, so a fresh session would have produced the block and not the line.*
+
 **Surface every human action in a fixed end-of-turn block (added 2026-08-06).** The Master chat ends
 every turn with `THINGS YOU NEED TO DO:` — numbered, copy-pasteable — immediately before the decision
 line, and writes `nothing` when there is nothing, so its absence is never ambiguous. Anything the user

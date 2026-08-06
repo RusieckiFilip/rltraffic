@@ -22,6 +22,24 @@ critic reads different semantics under the same indices with no error. Both cons
 `offline/collect.py:155` — so one assertion there covers collection *and* reporting, which an
 assertion in `collect.py` alone would not.
 
+## `master_coordinator_decision_line.patch` — define the closing decision line
+
+**Apply with:**
+```bash
+git apply docs/patches/master_coordinator_decision_line.patch
+grep -c "DECISION NEEDED: <what>" .claude/agents/master-coordinator.md   # -> 1
+```
+Verified with `git apply --check` on 2026-08-07. **Restart the Master session** to take effect.
+
+**Why it is a patch.** `Edit(.claude/**)` is denied — a session cannot edit its own definition.
+
+**What it does.** Defines the two-form closing decision line that every Master turn must end with, and
+scopes `DECISION NEEDED` to irreversible or claim-touching choices. **Found because the format existed
+only in the conversation:** the already-committed rule references "the closing decision line" while the
+line itself had never been recorded, so a restarted session would emit the `THINGS YOU NEED TO DO:`
+block and then no line. The project's signature error — a convention believed to be on disk that was
+not — applied to its own operating protocol, and caught by the user asking "is it in the agent?".
+
 ## `master_coordinator_grep_plan.patch` — add the "grep the plan before you escalate" rule
 
 **Apply with:**
