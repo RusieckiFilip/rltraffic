@@ -496,34 +496,43 @@ this explicitly.
 
 ## 10. Current Status
 
-**Rewritten in full 2026-08-03.** ⚠️ **This section is REPLACED, never appended to.** It had accumulated
-three generations of "Next in queue" that contradicted each other (it simultaneously advertised the
-already-merged P2.0 as the next task and reported two different suite sizes). History belongs in §8;
-§10 holds only what is true today.
+**Rewritten in full 2026-08-07.** ⚠️ **REPLACED, never appended to.** §8 holds history; §10 holds only
+what is true today. **A fresh Master session should read, in order: this section → §7 (protocol) →
+`docs/notes/DEFERRED.md` → `docs/CONTRACTS.md` → `PREREGISTRATION.md` §12 (amendments).** That is the
+whole handoff; nothing load-bearing lives in a chat log.
 
-**Closed:** **P0 is CLOSED except P0.9** (2026-08-04) · P1 · P2.0 / P2.0b / P2.0c. Two mechanical guards
-live (frozen-file, test-hygiene). The **frozen-file** guard and the permission layer were falsified
-on-repo 2026-08-03; its one known hole, G1, was fixed and merged 2026-08-04 (`e01b0d1`) and it now
-carries a 13-row regression test — the first tests the guard has ever had. The **test-hygiene** guard
-has still never been falsified on-repo: it is wired into `--tests-only` and neither the D3 run nor
-P0-closeout exercised it. Do not read either note as covering it.
-**Suite: 270 green, run by the coordinator on main 2026-08-04** (249 baseline + 21 new) — first-hand,
-not hearsay.
+### The governing constraint (added 2026-08-06)
+**A defensible, presentable result by end of September 2026** — eight weeks from 2026-08-06. Not the
+finished paper. **Guaranteed target: C1 ladder + P4** (single-intersection DT, pre-registered gate,
+BC/%BC/IQL). **Stretch: P5.2** on grid4x4. C2 and C3 are October.
+**Filter, applied before starting anything:** *does it produce corpus data, or unblock something that
+does?* If neither, it waits — and the deferral goes in `DEFERRED.md` **in the same turn**, or it is
+forgotten rather than parked.
 
-**⚠️ Parked items live in `docs/notes/DEFERRED.md`** (created 2026-08-06). If a deferral is not
-written there in the same turn it is made, it is not parked — it is forgotten. **Nothing currently
-blocks P3.**
+### What exists (verified 2026-08-07)
+- **THE CORPUS EXISTS.** `datasets/`, **69 datasets / 4800 episodes / 0.24 GB**, 7 tiers × 3 headline
+  scenarios, 200 distinct draws per tier, `base_seed=1000`, **4800/4800 distinct `episode_sha256`**.
+  Rewards verified against raw lane counts by an independent route. **Untracked** (`datasets*/`).
+- **The C1 ladder is measured** (normalised return, random=0 / MaxPressure=100): hz1x1 spans 0→155,
+  grid4x4 **−1416→113**, cologne3 −29→114. `mappo1000` exceeds MaxPressure on all three. ⚠️ The
+  `fixedtime` rungs and the state-coverage table are **stale** — measured before the k retune.
+- **60 MAPPO checkpoints** at budgets 60/200/500/1000 × 5 seeds × 3 scenarios. Note the 1000-budget
+  files live under `.../p2_1_mappo_nominal_500/p2_1_mappo_nominal_1000/` (a `sed` error of mine).
+- **Suite: 343 passed, run by the coordinator on main 2026-08-06** — first-hand, not hearsay.
+- P0 closed except P0.9 · P1 · P2.0/b/c · P2.5 · P8.0 · P2.2-draws.
 
-**Immediate queue, in order:**
-1. **P2.6 — format v1.1 + the C8 guard** (`docs/briefs/BRIEF_08_format_v11_and_c8_guard.md`,
-   branch `task/p2.6-format-v11`). Puts ATT at the ladder's top and makes C8 mechanical rather
-   than documentary. Carries **AUTHORISATION C**.
-2. **P3 — dataset loader** (`docs/briefs/BRIEF_09_p3_dataset_loader.md`, branch
-   `task/p3-dataset-loader`). **Critical path, independent review before merge.** Written against
-   v1.1 so the loader never needs a second format; can start in parallel with P2.6 by coding to
-   the v1.1 spec and gating the ATT field on `format_version`.
-3. **P2.4 — corpus linter.** Content already specified by the ad-hoc checks run 2026-08-06.
-4. **P4 — single-intersection DT + the pre-registered gate**, then BC/%BC/IQL (P4.4).
+### In flight right now
+- **P2.6 implementer is in PLAN MODE**, awaiting nothing further — its three pre-flight questions were
+  ruled and relayed 2026-08-07. **No branch, no files written yet.** It will stop at **one handoff**
+  for the human to apply `docs/patches/mappo_metric_keys_guard.patch` (AUTHORISATION C).
+- **No P3 implementer started.** Optional, runs in a worktree, touches disjoint files.
+- **No jobs running.** Verify with `ps` before asserting otherwise — §7 rule.
+
+### Immediate queue, in order
+1. **P2.6** — format v1.1 + the C8 guard (`BRIEF_08`). Carries AUTHORISATION C.
+2. **P3** — dataset loader (`BRIEF_09`). **Critical path; independent review before merge.**
+3. **P2.4** — corpus linter. Checks already specified by the ad-hoc verification of 2026-08-06.
+4. **P4** — single-intersection DT + the pre-registered gate, then BC/%BC/IQL.
 
 **⚠️ Scheduling flag — P7.0 has never been run.** It is scoped as the ~1-day early kill-switch for C3
 and was to run "right after P1, parallel to P2"; P1 closed 2026-07-27. Whoever writes its brief **must
