@@ -1,4 +1,4 @@
-"""Trajectory logger for offline RL dataset collection -- on-disk format version "1.0".
+"""Trajectory logger for offline RL dataset collection -- on-disk format version "1.1".
 
 Records one compressed ``.npz`` per episode plus one ``manifest.json`` per collection
 run, while an existing policy drives an existing env.  The logger *observes*: it never
@@ -6,7 +6,7 @@ calls ``env.step`` itself, and it reads exclusively from the ``info`` dicts it i
 handed -- zero additional engine or metric calls, because state readout is ~98% of
 simulator call volume on this platform.
 
-Alignment convention (format version "1.0")
+Alignment convention (format version "1.1")
 -------------------------------------------
 row t   = observation before decision t (aligned with a_t)
 row t+1 = the post-step state that r_t was computed from
@@ -28,6 +28,54 @@ written by the last ``on_step_result``.
     on_action(info_t, a_t)                          decision row t
     on_step_result(r_t, term, trunc, info_{t+1})    outcome row t
                                                     observation row t+1
+
+``att_per_step`` (added in v1.1)
+--------------------------------
+``att_per_step`` is an OBSERVATION, not an outcome.  It carries the per-step
+registry metric ``average_travel_time``, read from the top-level
+``info["average_travel_time"]`` key by the same callback that records
+``vehicle_count`` and ``sim_time``, and it occupies a T+1 row like them -- never a
+T row like ``action``, ``global_reward`` or ``local_reward``.  Row ``t`` is the
+network state on arrival at decision step ``t``; row ``T`` is ``att_horizon``, the
+registered primary metric (A1).  ``att_per_step.mean()`` is ``att_running_mean``,
+the legacy quantity A1 exists to retire -- it is never the reported metric.  It is
+NOT ``average_time_of_journey``.
+
+The name deliberately departs from the ``info`` key it is read from -- the only field
+in this format that does.  ``ep.average_travel_time`` would be a ``(T+1,)`` series
+whose most likely misuse, ``.mean()``, reproduces ``att_running_mean`` exactly while
+wearing the registered metric's name; that is the P8.0 defect, and freezing it into a
+public on-disk format is worse than having it in a helper.  Enforced mechanically by
+``tests/test_offline_naming_guard.py``.
+
+Two properties measured on real data, both of which a consumer will otherwise assume
+wrongly:
+
+- **It is NOT monotone.**  ``metrics/cityflow.py::_average_travel_time`` averages over
+  completed *plus currently-active* vehicles, so a vehicle entering with ~0 elapsed
+  time pulls the mean down.  Measured 2026-08-06 on 407 real corpus episodes: 407 of
+  407 contain at least one decrease, the earliest at row 4 of 361.  Any cumulative or
+  returns-to-go style treatment of this array is therefore wrong.
+- **It is independent of the requested metric set.**  ``info["average_travel_time"]``
+  is top-level and is read through the metrics object regardless of whether
+  ``average_travel_time`` was requested (``envs/cityflow_env.py:269-272`` falls back to
+  the raw engine only when the whole pipeline is off).  Measured bit-identical between
+  a 1-metric and a 3-metric env across 3 scenarios x 2 policies, max abs diff 0.0.
+  **Measured on CityFlow only** -- re-measure before any SUMO or MOSS collection.
+
+**It is stored float32, and ``att_horizon`` computed live is float64.**  C5 mandates
+float32 for stored float arrays, so ``att_per_step[-1]`` is the float32 *image* of the
+metric, not the metric.  Verified against ``offline/horizon_metric.py`` on a real
+360-step CityFlow episode: ``np.float32(horizon_rollout(...).att_horizon)`` and the
+stored value have **identical bit patterns**, while the raw float64 comparison differs
+by 5.03e-06 -- under one float32 ulp at that magnitude (1.53e-05).  A consumer checking
+the corpus against a live rollout must cast to float32 first; comparing the float64
+directly with ``==`` will fail for a correct corpus.
+
+``att_per_step`` is deliberately NOT part of ``episode_sha256``.  The digest stays over
+``action`` + ``global_reward``, so it identifies a *trajectory*: it therefore compares
+across the v1.0 and v1.1 corpora, and P2.4's duplicate detector keeps working unchanged.
+ATT is a function of the trajectory, not part of its identity.
 
 Three further facts a consumer of this format must know
 -------------------------------------------------------
@@ -53,7 +101,8 @@ Three further facts a consumer of this format must know
 Layout of one episode file
 --------------------------
 Global observations (``T+1`` rows): ``vehicle_count`` int64, ``sim_time`` float32,
-``step`` int64, ``metrics`` (T+1, M) float32 with ``metric_keys`` (M,).
+``step`` int64, ``att_per_step`` float32, ``metrics`` (T+1, M) float32 with
+``metric_keys`` (M,).
 Per-lane observations (``T+1`` rows): ``lane_vehicle_count`` (T+1, L) int32,
 ``lane_waiting_vehicle_count`` (T+1, L) int32, ``lane_ids`` (L,).  The ``info`` key
 names are used unchanged.  These lane arrays are what make the corpus
@@ -77,6 +126,17 @@ padded across intersections.  Only numeric and unicode arrays are stored, so
 
 Any change to this layout requires bumping ``FORMAT_VERSION`` and writing a migration
 note; the P2.4 linter hard-fails on an unknown format version.
+
+Migration note v1.0 -> v1.1 (2026-08-07)
+----------------------------------------
+v1.1 is v1.0 plus exactly one array, ``att_per_step``.  No existing array, name or
+dtype changed, and the manifest is untouched.  ``load_episode`` reads both versions;
+on a v1.0 file ``Episode.att_per_step`` is ``None``, which is the flag a consumer
+should branch on rather than probing shapes.  A v1.0 file cannot be upgraded in place:
+the per-step values were never recorded, and the metric is not recomputable from the
+stored lane counts (it needs per-vehicle departure times).  Upgrading means
+re-collecting.  A corpus must not mix the two versions -- see
+``offline/corpus_format_check.py``.
 
 Two caveats for P3, both unreachable with the backends as they stand today
 ------------------------------------------------------------------------
@@ -111,7 +171,16 @@ import numpy as np
 
 from agent.utils.utils import Utils
 
-FORMAT_VERSION = "1.0"
+FORMAT_VERSION = "1.1"
+
+#: Versions :func:`load_episode` can read.  The 4800-episode v1.0 corpus predates the
+#: ``att_per_step`` field and must keep loading, so the reader accepts a set while the
+#: writer emits exactly :data:`FORMAT_VERSION`.  An unknown version is still a hard
+#: failure -- guessing an alignment is the one thing this format may never do.
+SUPPORTED_FORMAT_VERSIONS: tuple[str, ...] = ("1.0", "1.1")
+
+#: Arrays absent from a v1.0 file; :class:`Episode` carries ``None`` for each.
+_V11_ONLY_ARRAYS: tuple[str, ...] = ("att_per_step",)
 
 MANIFEST_NAME = "manifest.json"
 
@@ -122,6 +191,7 @@ _AWAIT_STEP = "await_step"
 
 __all__ = [
     "FORMAT_VERSION",
+    "SUPPORTED_FORMAT_VERSIONS",
     "Episode",
     "IntersectionEpisode",
     "LoggerStateError",
@@ -145,7 +215,7 @@ class IntersectionEpisode:
     """Per-intersection arrays for one episode.
 
     Observations carry ``T+1`` rows, decisions and outcomes carry ``T``; see the
-    module docstring for the alignment convention (format version "1.0").
+    module docstring for the alignment convention (format version "1.1").
     """
 
     state: np.ndarray
@@ -160,11 +230,24 @@ class IntersectionEpisode:
 class Episode:
     """One episode reloaded from disk -- the reload contract the P3 dataset builds on.
 
-    Alignment convention (format version "1.0")
+    Alignment convention (format version "1.1")
     -------------------------------------------
     row t   = observation before decision t (aligned with a_t)
     row t+1 = the post-step state that r_t was computed from
     observations: T+1 rows · decisions: T rows · outcomes: T rows
+
+    ``att_per_step`` is an OBSERVATION, not an outcome.  It carries the per-step
+    registry metric ``average_travel_time``, read from the top-level
+    ``info["average_travel_time"]`` key by the same callback that records
+    ``vehicle_count`` and ``sim_time``, and it occupies a T+1 row like them -- never a
+    T row like ``action``, ``global_reward`` or ``local_reward``.  Row ``t`` is the
+    network state on arrival at decision step ``t``; row ``T`` is ``att_horizon``, the
+    registered primary metric (A1).  ``att_per_step.mean()`` is ``att_running_mean``,
+    the legacy quantity A1 exists to retire -- it is never the reported metric.  It is
+    NOT ``average_time_of_journey``.
+
+    ``att_per_step`` is ``None`` when this episode was written at format version "1.0",
+    which predates the field.  Branch on that rather than on the array's shape.
 
     ``intersections`` is keyed by real intersection id; ``ix_ids`` preserves
     ``env.intersections`` order, so ``ix_ids[i]`` owns ``action[i]`` of the vector
@@ -187,6 +270,7 @@ class Episode:
     vehicle_count: np.ndarray
     sim_time: np.ndarray
     step: np.ndarray
+    att_per_step: np.ndarray | None
     global_reward: np.ndarray
     episode_length: int
     terminated: bool
@@ -247,15 +331,18 @@ def _repo_git_hash() -> str:
 def load_episode(path: str | Path) -> Episode:
     """Load one episode ``.npz`` written by :class:`TrajectoryLogger`.
 
-    Hard-fails on an unknown ``format_version`` rather than guessing an alignment.
+    Reads every version in :data:`SUPPORTED_FORMAT_VERSIONS`; fields a version predates
+    arrive as ``None`` (v1.0 has no ``att_per_step``).  Hard-fails on an unknown
+    ``format_version`` rather than guessing an alignment.
     """
     path = Path(path)
     with np.load(path) as data:
         version = str(data["format_version"].item())
-        if version != FORMAT_VERSION:
+        if version not in SUPPORTED_FORMAT_VERSIONS:
             raise ValueError(
                 f"{path}: format version {version!r} is not readable by this build "
-                f"(expected {FORMAT_VERSION!r}); see the migration note for that version"
+                f"(supported: {list(SUPPORTED_FORMAT_VERSIONS)}); see the migration "
+                "note for that version"
             )
 
         ix_ids = tuple(str(v) for v in data["ix_ids"].tolist())
@@ -283,6 +370,13 @@ def load_episode(path: str | Path) -> Episode:
             vehicle_count=data["vehicle_count"],
             sim_time=data["sim_time"],
             step=data["step"],
+            # Keyed off what the file actually contains, not off the version string:
+            # the two agree by construction, and a file whose version claims v1.1 while
+            # missing the array should surface as the linter's problem, not as a
+            # KeyError from inside the loader.
+            att_per_step=(
+                data["att_per_step"] if "att_per_step" in data.files else None
+            ),
             global_reward=data["global_reward"],
             episode_length=int(data["episode_length"]),
             terminated=bool(data["terminated"]),
@@ -487,6 +581,7 @@ class TrajectoryLogger:
         self._obs_vehicle_count: list[int] = []
         self._obs_sim_time: list[float] = []
         self._obs_step: list[int] = []
+        self._obs_att_per_step: list[float] = []
         self._obs_metrics: list[list[float]] = []
         self._obs_lane_vehicle_count: list[list[int]] = []
         self._obs_lane_waiting: list[list[int]] = []
@@ -506,6 +601,17 @@ class TrajectoryLogger:
 
     def _check_schema(self, info: dict[str, Any]) -> None:
         """Reject an ``info`` whose lane set or metric set left the frozen episode schema."""
+        # v1.1. Read strictly rather than defaulting: C2 mandates this key and all three
+        # backends emit it unconditionally (cityflow_env.py:269, sumo_env.py:316,
+        # moss_env.py:681). A .get(..., nan) default would turn a schema violation into a
+        # silent column of NaNs, discovered at P4 rather than at collection time.
+        if "average_travel_time" not in info:
+            raise LoggerStateError(
+                "info is missing the top-level 'average_travel_time' key, which "
+                "contract C2 mandates and which format v1.1 stores as 'att_per_step'. "
+                "All three backends emit it unconditionally, so this is an env or "
+                "adapter defect; refusing rather than logging a NaN column."
+            )
         lane_counts = info["lane_vehicle_count"]
         lane_waiting = info["lane_waiting_vehicle_count"]
         frozen = set(self._lane_ids)
@@ -557,6 +663,12 @@ class TrajectoryLogger:
         self._obs_vehicle_count.append(int(info["vehicle_count"]))
         self._obs_sim_time.append(float(info["sim_time"]))
         self._obs_step.append(int(info["step"]))
+        # v1.1. The TOP-LEVEL key, not info["metrics"]["average_travel_time"]: the
+        # top-level one is present regardless of the requested metric set (verified
+        # bit-identical between a 1-metric and a 3-metric env, 3 scenarios x 2 policies),
+        # which is exactly what lets ATT enter the corpus without perturbing MAPPO's
+        # frozen metric set under contract C8.
+        self._obs_att_per_step.append(float(info["average_travel_time"]))
         self._obs_metrics.append([float(metrics[key]) for key in self._metric_keys])
         self._obs_lane_vehicle_count.append(
             [int(lane_counts[lane]) for lane in self._lane_ids]
@@ -751,6 +863,7 @@ class TrajectoryLogger:
             "vehicle_count": _rows_1d(self._obs_vehicle_count, np.int64),
             "sim_time": _rows_1d(self._obs_sim_time, np.float32),
             "step": _rows_1d(self._obs_step, np.int64),
+            "att_per_step": _rows_1d(self._obs_att_per_step, np.float32),
             "metrics": _rows_2d(
                 self._obs_metrics, np.float32, len(self._metric_keys)
             ),
