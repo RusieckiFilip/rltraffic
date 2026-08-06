@@ -470,6 +470,10 @@ P0-closeout exercised it. Do not read either note as covering it.
 **Suite: 270 green, run by the coordinator on main 2026-08-04** (249 baseline + 21 new) — first-hand,
 not hearsay.
 
+**⚠️ Parked items live in `docs/notes/DEFERRED.md`** (created 2026-08-06). If a deferral is not
+written there in the same turn it is made, it is not parked — it is forgotten. **Nothing currently
+blocks P3.**
+
 **Immediate queue, in order:**
 1. **P2.1** — MAPPO to convergence. Longest pole, and now unblocked on the metric: its convergence
    criterion is expressed in `att_horizon`. Needs a short run-spec (demand source, seed count,
