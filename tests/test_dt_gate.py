@@ -29,6 +29,8 @@ from offline.dt_gate import (
     ARTIFACT_FORMAT_VERSION,
     GATE_RATIO,
     HELD_OUT_DRAWS,
+    EpisodeResult,
+    _paired,
     build_training_dataset,
     env_settings_from_manifest,
     gate_verdict,
@@ -122,14 +124,21 @@ def test_wilcoxon_reproduces_a_hand_computed_example() -> None:
 
 
 def test_wilcoxon_drops_zero_differences_and_averages_tied_ranks() -> None:
-    """Differences 0, 0, 2, -2, 2: two zeros dropped; |d| = 2,2,2 share rank (1+2+3)/3 = 2."""
-    x = [5.0, 7.0, 12.0, 8.0, 12.0]
+    """Differences 0, 0, 2, 2, -2: two zeros dropped; |d| = 2,2,2 share rank (1+2+3)/3 = 2.
+
+    THE SIGN ORDER IS LOAD-BEARING and was changed after a surviving mutant.  The original
+    fixture used ``[+, -, +]``, for which average ranks and plain ordinal ranks give the *same*
+    ``w_plus`` (1+3 = 2+2 = 4), so a tie-blind implementation passed it.  With ``[+, +, -]``
+    the two disagree: average ranks give ``w_plus = 4``, ordinal ranks give ``3``.
+    """
+    x = [5.0, 7.0, 12.0, 12.0, 8.0]
     y = [5.0, 7.0, 10.0, 10.0, 10.0]
     result = wilcoxon_signed_rank(x, y)
     assert result.n_zero == 2
     assert result.n_used == 3
     assert result.w_plus == 4.0
     assert result.w_minus == 2.0
+    assert result.statistic == 2.0
 
 
 def test_wilcoxon_is_symmetric_under_swapping_the_arguments() -> None:
@@ -143,20 +152,72 @@ def test_wilcoxon_is_symmetric_under_swapping_the_arguments() -> None:
     assert forward.p_value == backward.p_value
 
 
-def test_wilcoxon_separates_a_shifted_sample_from_an_unshifted_one() -> None:
-    """Discriminating power: an obvious effect must reach a small p, a null must not."""
+def test_wilcoxon_separates_a_shifted_sample_from_a_genuine_null() -> None:
+    """Discriminating power: an obvious effect must reach a small p, a null must not.
+
+    The null is two INDEPENDENT samples.  It was originally written as ``base`` against
+    ``base + 1e-9``, which is not a null at all -- see the test below, which now pins the
+    property that mistake was hiding.
+    """
     generator = np.random.default_rng(11)
     base = generator.normal(size=100)
+    other = generator.normal(size=100)
     shifted = wilcoxon_signed_rank((base + 3.0).tolist(), base.tolist())
-    null = wilcoxon_signed_rank(base.tolist(), (base + 1e-9).tolist())
+    null = wilcoxon_signed_rank(base.tolist(), other.tolist())
     assert shifted.p_value < 1e-10
-    assert null.p_value > 1e-10
+    assert null.p_value > 0.05
     assert shifted.p_value < null.p_value
+
+
+def test_wilcoxon_detects_a_tiny_but_perfectly_consistent_shift() -> None:
+    """The signed-rank test reads signs and rank order, never magnitudes.
+
+    100 differences of one sign is the most extreme outcome the test has, however small each
+    difference is.  Pinned because assuming otherwise is exactly the error that made the
+    previous test's original null case wrong.
+    """
+    generator = np.random.default_rng(11)
+    base = generator.normal(size=100)
+    result = wilcoxon_signed_rank(base.tolist(), (base + 1e-9).tolist())
+    assert result.n_used == 100
+    assert result.w_plus == 0.0
+    assert result.w_minus == 100 * 101 / 2
+    assert result.p_value < 1e-10
 
 
 def test_wilcoxon_refuses_unequal_lengths() -> None:
     with pytest.raises(ValueError, match="paired"):
         wilcoxon_signed_rank([1.0, 2.0], [1.0])
+
+
+def _result(arm: str, draw: int, att: float, seed: int | None = None) -> EpisodeResult:
+    return EpisodeResult(
+        arm=arm,
+        seed=seed,
+        draw_id=draw,
+        att_horizon=att,
+        horizon_vehicle_count=0.0,
+        episode_reward=0.0,
+    )
+
+
+def test_pairing_uses_only_shared_draws_and_averages_seeds_within_a_draw() -> None:
+    """A5 point 3: the paired unit is the draw, and seeds are averaged inside it."""
+    left = [_result("madt", 1, 100.0, seed=1), _result("madt", 1, 200.0, seed=2)]
+    left.append(_result("madt", 2, 50.0, seed=1))
+    right = [_result("mp", 1, 300.0), _result("mp", 2, 60.0)]
+    a, b, shared = _paired(left, right)
+    assert shared == [1, 2]
+    assert a == [150.0, 50.0]
+    assert b == [300.0, 60.0]
+
+
+def test_a_comparison_without_shared_draws_is_void_not_approximate() -> None:
+    """Amendment A5 makes this binary and checkable, replacing A4's withdrawn 5% band."""
+    left = [_result("madt", 1000, 100.0)]
+    right = [_result("mp", 7, 100.0)]
+    with pytest.raises(ValueError, match="void"):
+        _paired(left, right)
 
 
 # ----------------------------------------------------------------------
@@ -223,18 +284,33 @@ def synthetic_dataset(tmp_path: Path) -> TrajectoryWindowDataset:
 def test_stacked_tensors_reproduce_the_loader_item_by_item(
     synthetic_dataset: TrajectoryWindowDataset,
 ) -> None:
-    """The loader stays the single definition of a window; stacking must not reinterpret it."""
+    """The loader stays the single definition of a window; stacking must not reinterpret it.
+
+    Rows are addressed through the returned ``item_index`` rather than by dataset index: a
+    stacked block covers ONE ``(state_dim, n_actions)`` group, so the two numbering schemes
+    coincide only when the dataset has a single group.  This fixture has two, deliberately.
+    """
     group = sorted(synthetic_dataset.groups)[0]
-    indices = synthetic_dataset.groups[group]
-    stacked = stack_dataset(synthetic_dataset)
+    stacked = stack_dataset(synthetic_dataset, group=group)
+    indices = stacked["item_index"].tolist()
+    assert indices == synthetic_dataset.groups[group]
 
     generator = np.random.default_rng(0)
     sample = generator.choice(len(indices), size=min(6, len(indices)), replace=False)
-    for position in sample:
-        index = indices[int(position)]
+    for row in sample:
+        index = indices[int(row)]
         item = synthetic_dataset[index]
         for key, value in item.items():
-            assert torch.equal(stacked[key][index], value), f"{key} at item {index}"
+            assert torch.equal(stacked[key][int(row)], value), f"{key} at item {index}"
+
+
+def test_stacking_a_multi_group_dataset_without_naming_the_group_raises(
+    synthetic_dataset: TrajectoryWindowDataset,
+) -> None:
+    """C6 forbids padding across intersections, so silently taking the first group is wrong."""
+    assert len(synthetic_dataset.groups) > 1
+    with pytest.raises(ValueError, match="groups"):
+        stack_dataset(synthetic_dataset)
 
 
 def _train_once(
@@ -243,7 +319,7 @@ def _train_once(
     group = sorted(dataset.groups)[0]
     state_dim, n_actions = group
     return train_dt(
-        stack_dataset(dataset),
+        stack_dataset(dataset, group=group),
         state_dim=state_dim,
         n_actions=n_actions,
         seed=seed,
@@ -362,15 +438,36 @@ def test_env_settings_come_from_the_manifest_not_from_a_restatement(tmp_path: Pa
 
 
 def test_env_settings_refuse_a_manifest_without_a_local_reward_function(tmp_path: Path) -> None:
-    """Without a local reward the info carries no per-intersection reward, so RTG cannot advance."""
+    """Without a local reward the info carries no per-intersection reward, so RTG cannot advance.
+
+    The manifest is otherwise COMPLETE: with keys missing, the missing-key check fires first and
+    the test would pass on the wrong error.
+    """
     dataset_dir = write_dataset_dir(tmp_path, "fixture__policy")
     manifest_path = dataset_dir / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    manifest["run_metadata"]["local_reward_fn"] = None
+    manifest["run_metadata"].update(
+        {
+            "max_steps": 8,
+            "delta_time": 10,
+            "control_mode": "acyclic",
+            "state_features": ["lane_vehicle_count"],
+            "global_reward_fn": "queue_length",
+            "global_reward_weight": 0.0,
+            "local_reward_fn": None,
+        }
+    )
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
 
     with pytest.raises(ValueError, match="local_reward_fn"):
         env_settings_from_manifest(manifest_path)
+
+
+def test_env_settings_name_every_missing_key_rather_than_the_first(tmp_path: Path) -> None:
+    """A manifest that cannot rebuild the env must say what it lacks, not fail one key at a time."""
+    dataset_dir = write_dataset_dir(tmp_path, "fixture__policy")
+    with pytest.raises(ValueError, match="run_metadata is missing"):
+        env_settings_from_manifest(dataset_dir / "manifest.json")
 
 
 # ----------------------------------------------------------------------
