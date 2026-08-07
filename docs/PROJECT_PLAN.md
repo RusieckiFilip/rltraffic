@@ -219,6 +219,14 @@ Python ≥3.12, PyTorch, type hints (`from __future__ import annotations`), nump
 > ```
 > It found three violations on 2026-08-07 (P2.2-draws, P2.6, P3) and is the check to run before
 > trusting this section. Automating it as a test is `DEFERRED.md` row 26.
+>
+> ⚠️ **WHAT THIS CHECK CANNOT SEE, so nobody reads a green invariant as a verified plan.** It
+> catches *"merged but unticked"*. It cannot catch **"ticked but the artifact does not do what the
+> item says"** — which is the **P0.3 mis-tick**, ticked from a commit message that actually
+> recorded a *failure*, and it survived **weeks**. That failure mode is unreachable by any
+> structural check, because the box and the Return Packet both exist and both look right; only
+> reading the code catches it. **A green invariant means the bookkeeping agrees, never that the
+> work is what it claims to be.**
 
 ### Phase P0 — Platform verification  ✅ CLOSED 2026-08-03
 - [x] Clone + inspect repo structure, docs, agent/env/reward/state contracts *(Master chat, 2026-07-08)*
@@ -412,6 +420,12 @@ retired two illustrative figures on 2026-08-06 and §3.1 still carried them a da
 every phase is anchored against; (2) **A4** makes `vehicle_count` at the horizon a mandatory companion
 to every ATT cell and **no recorded ATT cell carries one** — folded into queue item 0, since both are
 `[-1]` of arrays the corpus already stores.*
+
+**An unticked box after a merge means the task is NOT DONE (added 2026-08-07).** This is the
+version of the ownership answer that survives its author: not *"the coordinator should remember to
+tick"* but *"a merge that does not tick its box is incomplete work"*. It belongs in the Definition
+of Done, and it is now in `CLAUDE.md` §6 as a checklist item like any other, so an implementer's own
+DoD fails without it rather than depending on a coordinator's habit.
 
 **Tick the checklist in the merge commit (added 2026-08-07).** §6 is the project's completion state, and a checkbox is a claim like any other. **The merge that lands a task ticks its boxes in the same commit** — never as a follow-up, because a follow-up is a step that gets skipped. This has now failed in **both directions**: on 2026-08-06 §10 read as progress that had not happened, and on 2026-08-07 §6 read as absence of work that had. Both make the section unusable as the thing it exists to be. The drift check is in §6's header and is one command.
 

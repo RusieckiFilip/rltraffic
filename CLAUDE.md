@@ -210,6 +210,10 @@ they go to a `tmux` session started by the user. You may read their logs.
 - [ ] Zero new dependencies
 - [ ] Committed on the task branch
 - [ ] Return Packet written to `docs/returns/<TASKID>.md` using `docs/returns/TEMPLATE.md`
+- [ ] **The task's checkbox in `docs/PROJECT_PLAN.md` §6 is ticked in the merge commit.** §6 is the
+      project's completion state, not a plan; a merge that leaves its box unticked is **incomplete
+      work**, and the next reader is entitled to believe the box. (Added 2026-08-07 after P3.1–P3.4
+      sat unticked while `offline/dataset.py` was merged, reviewed and on `main`.)
 
 ## 7. Return Packet (mandatory at the end of every task)
 
