@@ -15,9 +15,10 @@ THE FIXTURE IS BUILT SO THAT WRONG IMPLEMENTATIONS ARE VISIBLE, which is the poi
 * ``avail_mask`` genuinely binds -- on odd rows only the taken action is available -- because
   the real corpus's masks are all-True and would make the mask test vacuous;
 * one reward is deliberately ``0`` (``ix_zulu``, t=2), which makes the RTG off-by-one
-  *invisible at that row*: a miniature of the corpus-wide measurement in ``docs/plans/p3.md``
-  section 4 (blind on 0.83% of hz1x1 rows, 25.31% of cologne3, 37.63% of grid4x4).  It is the
-  reason the RTG assertions compare whole arrays and never a sampled row.
+  *invisible at that row*: a miniature of the population measurement (all 4800 episodes,
+  32000 streams -- blind on 0.84% of hz1x1 rows, 25.65% of cologne3, **34.35%** of grid4x4;
+  ``docs/plans/p3.md`` section 4 quotes the earlier 138-episode sample, whose grid4x4 figure
+  was 37.63%).  It is the reason the RTG assertions compare whole arrays, never a sampled row.
 * all values are exactly representable in float32, so every comparison is ``==`` and never a
   tolerance.
 
@@ -29,9 +30,12 @@ certifies little however green it looks.
 
 from __future__ import annotations
 
+import builtins
 import hashlib
+import io
 import json
 import math
+import os
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -41,8 +45,11 @@ import torch
 from torch.utils.data import DataLoader, Subset
 from torch.utils.data._utils.collate import default_collate
 
+import offline.dataset as dataset_module
 from offline.dataset import (
+    ABSENT_DRAW,
     DRAW_SPLITS,
+    PAD_ACTION,
     RTG_QUANTILES,
     NormalizationStats,
     TrajectoryWindowDataset,
@@ -103,16 +110,28 @@ assert all(sum(row) == _REWARD_TOTALS[t] for t, row in enumerate(LANE_WAITING_RO
 assert sum(LANE_WAITING_ROWS[0]) != sum(LANE_WAITING_ROWS[1])
 
 
-def _state_rows(ix_index: int, state_dim: int, ep_index: int) -> np.ndarray:
-    """``t + 10*d + 100*ix + 1000*ep`` -- integer, so pooled mean/std stay exact.
+# The LAST state feature is constant everywhere -- every row, episode and intersection -- so
+# its fitted std is exactly 0 and the zero-std branch of normalisation is reachable.  Without
+# it that branch is dead code in the suite while being load-bearing on the real corpus, where
+# 191/640 grid4x4 std entries are exactly 0 (review P3-10).
+CONSTANT_FEATURE_VALUE = 7.0
 
-    Every row differs from its neighbour (a shifted window is visible) and every
-    intersection differs from the other (a positional mix-up is visible).
+
+def _state_rows(ix_index: int, state_dim: int, ep_index: int) -> np.ndarray:
+    """``t + 10*d + 100*ix + 1000*ep``, except a constant final column.
+
+    Integer-valued, so pooled mean/std stay exact and the statistics test can assert ``==``.
+    Every row differs from its neighbour (a shifted window is visible) and every intersection
+    differs from the other (a positional mix-up is visible); the constant column reaches the
+    zero-std guard.
     """
     rows = np.empty((T + 1, state_dim), dtype=np.float32)
     for t in range(T + 1):
         for d in range(state_dim):
-            rows[t, d] = float(t + 10 * d + 100 * ix_index + 1000 * ep_index)
+            if d == state_dim - 1:
+                rows[t, d] = CONSTANT_FEATURE_VALUE
+            else:
+                rows[t, d] = float(t + 10 * d + 100 * ix_index + 1000 * ep_index)
     return rows
 
 
@@ -448,8 +467,13 @@ def test_left_padding_marks_exactly_the_real_steps(corpus: Path) -> None:
         assert np.array_equal(item["attention_mask"].numpy(), expected)
 
 
-def test_padded_positions_are_zero(corpus: Path) -> None:
-    """Every padded position is zero / False, so a masked loss reads nothing meaningful."""
+def test_padded_positions_are_zero_except_the_action_tripwire(corpus: Path) -> None:
+    """Padded positions are zero / False -- but ``action`` pads with -1, not 0.
+
+    Ruled 2026-08-07, superseding the brief's "padded positions are zero": a padded 0 is a
+    *legal* action, so a loss that forgets ``attention_mask`` would train on fabricated
+    action-0 targets in silence.
+    """
     ds = TrajectoryWindowDataset([corpus], context_length=K, split="train", normalize=False)
     written = raw_arrays(corpus, "ep000000_seed1000_draw1.npz")
     item = ds[index_of(ds, "ix_zulu", 0, "ep000000_seed1000_draw1.npz")]
@@ -457,11 +481,30 @@ def test_padded_positions_are_zero(corpus: Path) -> None:
     assert int(pad.sum()) == K - 1
     assert not item["state"].numpy()[pad].any()
     assert not item["rtg"].numpy().reshape(-1)[pad].any()
-    assert not item["action"].numpy()[pad].any()
     assert not item["timestep"].numpy()[pad].any()
     assert not item["avail_mask"].numpy()[pad].any()
+    assert np.array_equal(item["action"].numpy()[pad], np.full(K - 1, PAD_ACTION))
     # ...and the single real row is the episode's first row, not a shifted one.
     assert np.array_equal(item["state"].numpy()[-1], written["ix0_state"][0])
+
+
+def test_padded_action_is_the_ignore_index_tripwire(corpus: Path) -> None:
+    """``action == -1`` holds exactly where ``attention_mask`` is False, and nowhere else.
+
+    That equivalence is what lets P4 spell its loss ``ignore_index=PAD_ACTION`` and get a
+    crash rather than a silent wrong target if the mask is ever dropped.
+    """
+    assert PAD_ACTION == -1
+    ds = TrajectoryWindowDataset([corpus], context_length=K, split="train", normalize=False)
+    checked_padded = 0
+    for i in range(len(ds)):
+        item = ds[i]
+        action = item["action"].numpy()
+        real = item["attention_mask"].numpy()
+        assert np.array_equal(action == PAD_ACTION, ~real)
+        assert (action[real] >= 0).all(), "a real action must never collide with the sentinel"
+        checked_padded += int((~real).sum())
+    assert checked_padded > 0, "fixture must contain padded windows for this to mean anything"
 
 
 # ----------------------------------------------------------------------
@@ -595,7 +638,9 @@ def test_out_of_split_draw_present_in_a_directory_raises(tmp_path: Path) -> None
 def test_draw_zero_is_refused_by_train_and_accepted_by_nominal(tmp_path: Path) -> None:
     """Draw 0 is the nominal control: never pooled with randomised draws."""
     nominal_dir = write_dataset_dir(tmp_path, "nominal__policy", draws=(0,))
-    with pytest.raises(ValueError, match="0"):
+    # match= names the condition: a bare "0" would be satisfied by almost any error text,
+    # including one raised for an entirely different reason (review P3-08).
+    with pytest.raises(ValueError, match=r"draws \[0\] are outside the 'train' split"):
         TrajectoryWindowDataset([nominal_dir], context_length=K, split="train")
 
     ds = TrajectoryWindowDataset([nominal_dir], context_length=K, split="nominal")
@@ -616,6 +661,45 @@ def test_unknown_split_raises(corpus: Path) -> None:
 def test_invalid_context_length_raises(corpus: Path) -> None:
     with pytest.raises(ValueError, match="context_length"):
         TrajectoryWindowDataset([corpus], context_length=0, split="train")
+
+
+def test_explicit_draw_ids_narrow_a_directory_that_also_holds_other_draws(tmp_path: Path) -> None:
+    """The narrowing path, pinned: an explicit request filters, and cannot reach outside the split.
+
+    "Raise, never skip" is unconditional only when ``draw_ids`` is None.  With an explicit
+    request the ids are range-checked first and the rest are filtered out, which is a
+    narrowing the caller asked for -- but it is a *different* code path and the docstring used
+    to state the rule flatly (review P3-07).  No leak either way: the held-out episode below
+    cannot be reached even by asking for it (see the held-out refusal test).
+    """
+    out_dir = write_dataset_dir(tmp_path, "wide__policy", draws=(1, 2, 1000))
+
+    ds = TrajectoryWindowDataset([out_dir], context_length=K, split="train", draw_ids=[1])
+    assert {record.flow_draw for record in ds.episode_records} == {1}
+    assert len(ds) == len(IX_SPECS) * T
+
+    # ...while the same directory without an explicit request refuses to load at all.
+    with pytest.raises(ValueError, match=r"draws \[1000\] are outside the 'train' split"):
+        TrajectoryWindowDataset([out_dir], context_length=K, split="train")
+
+
+def test_absent_draw_sentinel_is_refused_under_every_split(tmp_path: Path) -> None:
+    """``flow_draw = -1`` means "collected with no draw": no split can honestly hold it.
+
+    Not reachable from today's corpus (draws 1-200), but it is exactly the route a no-draw
+    baseline collection takes, and the old code refused it with a message about draw 0
+    (review P3-06).
+    """
+    assert ABSENT_DRAW == -1
+    out_dir = write_dataset_dir(tmp_path, "nodraw__policy", draws=(ABSENT_DRAW,))
+    for split in ("train", "nominal", "heldout"):
+        with pytest.raises(ValueError, match="absent-draw sentinel"):
+            TrajectoryWindowDataset([out_dir], context_length=K, split=split)
+    # ...and asking for it explicitly does not get around the refusal either.
+    with pytest.raises(ValueError, match="outside the 'train' split"):
+        TrajectoryWindowDataset(
+            [out_dir], context_length=K, split="train", draw_ids=[ABSENT_DRAW]
+        )
 
 
 def test_manifest_and_npz_draw_disagreement_raises(tmp_path: Path) -> None:
@@ -639,17 +723,30 @@ def test_nan_local_reward_raises(tmp_path: Path) -> None:
 # ----------------------------------------------------------------------
 
 
-def test_mixed_format_versions_are_rejected(tmp_path: Path) -> None:
-    """A v1.0 and a v1.1 corpus must never be silently mixed (BRIEF_08 section 5)."""
+def test_mixed_format_versions_are_rejected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A v1.0 and a v1.1 corpus must never be silently mixed (BRIEF_08 section 5).
+
+    **Both versions are declared supported for this test**, through the same seam the loader
+    reads at run time.  Without that, the pair would be refused for being *unsupported*
+    rather than for being *mixed*, the homogeneity guard could be deleted with the test still
+    green -- and it would go on passing at exactly the moment v1.1 lands and the guard's only
+    real job begins (review P3-03).  The ``match=`` names the mixing, not the word "format".
+    """
+    monkeypatch.setattr(dataset_module, "_supported_format_versions", lambda: ("1.0", "1.1"))
     old = write_dataset_dir(tmp_path, "old__policy", draws=(1,), format_version="1.0")
     new = write_dataset_dir(tmp_path, "new__policy", draws=(2,), format_version="1.1")
-    with pytest.raises(ValueError, match="format version"):
+
+    # The seam is real: each directory alone is now accepted, so only the mixing can raise.
+    assert len(TrajectoryWindowDataset([old], context_length=K, split="train")) > 0
+
+    with pytest.raises(ValueError, match=r"span format versions \['1\.0', '1\.1'\]"):
         TrajectoryWindowDataset([old, new], context_length=K, split="train")
 
 
 def test_unsupported_format_version_is_rejected(tmp_path: Path) -> None:
+    """An unknown version is refused by its own message, distinct from the mixing one."""
     out_dir = write_dataset_dir(tmp_path, "future__policy", draws=(1,), format_version="9.9")
-    with pytest.raises(ValueError, match="9.9"):
+    with pytest.raises(ValueError, match=r"'9\.9' is not readable by this build"):
         TrajectoryWindowDataset([out_dir], context_length=K, split="train")
 
 
@@ -714,6 +811,50 @@ def test_statistics_are_frozen_and_reused_not_refitted(corpus: Path, tmp_path: P
     ) > 0, "the two subsets must differ, or 'frozen' proves nothing"
 
 
+def test_statistics_are_never_fitted_on_a_non_training_split(tmp_path: Path) -> None:
+    """The D3 leakage guard, asserted: a non-train split refuses to fit its own statistics.
+
+    This is the one registered ruling whose enforcement had no coverage at all (review
+    P3-01): two mutants that fit statistics on held-out data -- eagerly at construction, or
+    lazily on first use -- survived the entire suite while the behaviour shipped correct.
+    The failure it guards is test-set leakage in its quietest form, so it is asserted on both
+    routes into the statistics: the ``.stats`` property and a normalised item.
+    """
+    held = write_dataset_dir(tmp_path, "held__policy", draws=(1000, 1001))
+    ds = TrajectoryWindowDataset([held], context_length=K, split="heldout")
+
+    with pytest.raises(ValueError, match=r"pass stats= fitted on split='train'"):
+        _ = ds.stats
+    with pytest.raises(ValueError, match=r"pass stats= fitted on split='train'"):
+        _ = ds[0]
+
+    # normalize=False is the diagnostic escape hatch and must not need statistics.
+    raw = TrajectoryWindowDataset([held], context_length=K, split="heldout", normalize=False)
+    assert raw[0]["state"].shape == (K, IX_SPECS[0][1])
+
+
+def test_heldout_data_is_normalised_with_training_statistics(tmp_path: Path) -> None:
+    """The legitimate path stated positively: evaluation reuses train-fitted statistics.
+
+    The provenance travels with the numbers -- the statistics used on held-out draws record
+    ``split='train'`` and the *training* draw ids, so "what were these fitted on?" is
+    answerable from the object rather than from trust.
+    """
+    train_dir = write_dataset_dir(tmp_path, "train__policy", draws=(1, 2))
+    held = write_dataset_dir(tmp_path, "held__policy", draws=(1000, 1001))
+
+    frozen = TrajectoryWindowDataset([train_dir], context_length=K, split="train").stats
+    evaluation = TrajectoryWindowDataset(
+        [held], context_length=K, split="heldout", stats=frozen
+    )
+
+    assert evaluation.stats is frozen
+    assert evaluation.stats.split == "train"
+    assert evaluation.stats.draw_ids == (1, 2)
+    assert not set(evaluation.stats.draw_ids) & {1000, 1001}
+    assert evaluation[0]["state"].shape == (K, IX_SPECS[0][1])
+
+
 def test_statistics_record_the_split_and_the_exact_draw_ids(corpus: Path) -> None:
     """Statistics fitted on evaluation data are leakage; the provenance must be checkable."""
     ds = TrajectoryWindowDataset([corpus], context_length=K, split="train")
@@ -739,6 +880,29 @@ def test_normalized_states_use_the_statistics_and_padding_stays_zero(corpus: Pat
     assert not padded["state"].numpy()[pad].any(), "padding must stay zero, not -mean/std"
 
 
+def test_constant_feature_gets_a_zero_std_and_is_not_divided_by_it(corpus: Path) -> None:
+    """The zero-std guard, reached: a constant feature normalises to ``x - mean``, not NaN.
+
+    Load-bearing on the real corpus, where 191/640 grid4x4 std entries are exactly 0 -- and
+    untested until now, because the fixture had no constant column (review P3-10).  Removing
+    the guard turns every normalised value of such a feature into ``0/0``.
+    """
+    ds = TrajectoryWindowDataset([corpus], context_length=K, split="train", normalize=True)
+    for ix_id, state_dim, _n_actions in IX_SPECS:
+        std = ds.stats.state_std[SCENARIO_ID][ix_id]
+        mean = ds.stats.state_mean[SCENARIO_ID][ix_id]
+        assert std[state_dim - 1] == 0.0, "fixture premise: the last feature is constant"
+        assert mean[state_dim - 1] == np.float32(CONSTANT_FEATURE_VALUE)
+        assert (std[: state_dim - 1] > 0).all(), "the other features must vary"
+
+        item = ds[index_of(ds, ix_id, T - 1)]
+        column = item["state"].numpy()[:, state_dim - 1]
+        assert np.isfinite(column).all(), "a zero std must not produce NaN or inf"
+        assert np.array_equal(
+            column, np.full(K, np.float32(CONSTANT_FEATURE_VALUE) - mean[state_dim - 1])
+        )
+
+
 def test_rtg_summary_is_recorded_for_every_intersection(corpus: Path) -> None:
     """Quantiles are recorded for P4.3 and nothing is applied to the RTG itself."""
     ds = TrajectoryWindowDataset([corpus], context_length=T, split="train", normalize=False)
@@ -756,6 +920,43 @@ def test_rtg_summary_is_recorded_for_every_intersection(corpus: Path) -> None:
     rewards = written["ix0_local_reward"]
     expected = np.cumsum(rewards[::-1].astype(np.float64))[::-1].astype(np.float32)
     assert mismatch_rows(ds[index_of(ds, "ix_zulu", T - 1)]["rtg"].numpy().reshape(-1), expected) == 0
+
+
+def test_rtg_quantiles_match_an_independent_interpolation(corpus: Path) -> None:
+    """Quantiles recomputed from the ``.npz`` by an explicit linear interpolation.
+
+    D3 recorded these so P4.3 need not compute them from a second code path; that only helps
+    if they are pinned, and until now no test could tell ``method="linear"`` from
+    ``method="lower"`` (review P3-11).
+
+    Six of the seven quantile positions land on a dyadic fraction of an integer-valued RTG
+    (``q*(n-1)`` for n=16 gives 1.5, 3.75, 7.5, 11.25, 13.5, 14.25), so ``a + (b-a)*frac`` is
+    exact and the comparison is ``==``.  ``q=0.99`` gives 14.85, which is not dyadic, so it is
+    asserted by bracketing between its two neighbours rather than with a tolerance.
+    """
+    ds = TrajectoryWindowDataset([corpus], context_length=T, split="train", normalize=False)
+    for i, (ix_id, _state_dim, _n_actions) in enumerate(IX_SPECS):
+        pooled: list[float] = []
+        for filename in ("ep000000_seed1000_draw1.npz", "ep000001_seed1001_draw2.npz"):
+            rewards = raw_arrays(corpus, filename)[f"ix{i}_local_reward"]
+            pooled.extend(
+                float(v) for v in np.cumsum(rewards[::-1].astype(np.float64))[::-1]
+            )
+        values = sorted(pooled)
+        n = len(values)
+        assert n == 2 * T
+
+        recorded = dict(ds.stats.rtg[SCENARIO_ID][ix_id].quantiles)
+        for q in RTG_QUANTILES:
+            position = q * (n - 1)
+            low_index = math.floor(position)
+            high_index = math.ceil(position)
+            frac = position - low_index
+            if frac == 0.0 or (frac * 4) == int(frac * 4):      # dyadic: exactly representable
+                expected = values[low_index] + (values[high_index] - values[low_index]) * frac
+                assert recorded[q] == expected, f"quantile {q} for {ix_id}"
+            else:
+                assert values[low_index] <= recorded[q] <= values[high_index]
 
 
 def test_stats_json_round_trip_is_byte_identical(corpus: Path, tmp_path: Path) -> None:
@@ -791,9 +992,73 @@ def test_save_stats_barrier_leaves_earlier_data_untouched(corpus: Path, tmp_path
     assert path.read_bytes() == before
 
     missing = tmp_path / "no_such_dir"
-    with pytest.raises(FileNotFoundError, match="no_such_dir"):
+    with pytest.raises(FileNotFoundError, match="destination directory does not exist"):
         save_stats(ds.stats, missing / "stats.json")
     assert not missing.exists(), "a failed save must not create directories"
+
+
+def test_save_stats_never_opens_the_destination_for_writing(
+    corpus: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Atomicity, mechanically: the payload lands in a temp file and arrives by rename.
+
+    A fully non-atomic writer -- ``open(destination, "w")`` or ``Path.write_text`` -- was
+    green under the previous barrier test, which only covered type validation and directory
+    non-creation (review P3-02).
+
+    **Both** ``builtins.open`` and ``io.open`` are spied on, and that is not belt-and-braces:
+    a bare ``open(...)`` call resolves through ``builtins``, while ``Path.write_text`` goes to
+    ``io.open`` directly and is invisible to a ``builtins``-only spy -- which is how the first
+    version of this test passed under the very mutant it exists to catch.  This module's own
+    writer reaches ``io.open`` too, but with an ``mkstemp`` **file descriptor**, never the
+    destination path, which is exactly the distinction being asserted.
+    """
+    ds = TrajectoryWindowDataset([corpus], context_length=K, split="train")
+    path = tmp_path / "stats.json"
+    save_stats(ds.stats, path)
+
+    opened_for_writing: list[str] = []
+    real_open = builtins.open
+
+    def spy(file: Any, mode: str = "r", *args: Any, **kwargs: Any) -> Any:
+        if any(flag in mode for flag in ("w", "a", "x", "+")):
+            opened_for_writing.append(str(file))
+        return real_open(file, mode, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "open", spy)
+    monkeypatch.setattr(io, "open", spy)
+    save_stats(ds.stats, path)
+
+    assert opened_for_writing, "the spy caught nothing at all, so it proves nothing"
+
+    assert str(path) not in opened_for_writing, (
+        "the destination was opened for writing directly, so a crash mid-write would "
+        f"truncate it; opened: {opened_for_writing}"
+    )
+
+
+def test_failed_rename_leaves_the_previous_file_and_no_debris(
+    corpus: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """If the rename fails, the previous statistics survive byte-for-byte and no temp remains.
+
+    The filesystem-mutation barrier has shipped broken twice in this project (P1 NB2, P2.0),
+    both times because only the happy path was tested.
+    """
+    ds = TrajectoryWindowDataset([corpus], context_length=K, split="train")
+    path = tmp_path / "stats.json"
+    save_stats(ds.stats, path)
+    before = path.read_bytes()
+
+    def exploding_replace(src: Any, dst: Any) -> None:
+        raise OSError("simulated rename failure")
+
+    monkeypatch.setattr(os, "replace", exploding_replace)
+    with pytest.raises(OSError, match="simulated rename failure"):
+        save_stats(ds.stats, path)
+
+    assert path.read_bytes() == before, "a failed save must leave the previous file intact"
+    assert list(tmp_path.glob(".stats-*")) == [], "the temp file must be cleaned up"
 
 
 # ----------------------------------------------------------------------

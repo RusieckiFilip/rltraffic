@@ -42,21 +42,33 @@ that recomputes a quantity with the same call it is checking verifies little.
 
 Padding
 -------
-Windows shorter than ``K`` are padded **on the left**.  Every padded position is zero --
-``state`` 0.0, ``rtg`` 0.0, ``action`` 0, ``timestep`` 0, ``avail_mask`` all-False,
-``attention_mask`` False.  Note that a padded ``action`` of 0 is indistinguishable from a
-real action 0: a loss that ignores ``attention_mask`` trains on fabricated zero-actions
-without failing.  The mask is not optional.
+Windows shorter than ``K`` are padded **on the left**.  Padded positions are zero -- ``state``
+0.0, ``rtg`` 0.0, ``timestep`` 0, ``avail_mask`` all-False, ``attention_mask`` False -- with
+one deliberate exception: **``action`` pads with** :data:`PAD_ACTION` **= -1, not 0** (ruled
+2026-08-07, superseding the brief).
+
+``attention_mask`` remains the mechanism; ``-1`` is the tripwire behind it.  A padded 0 is a
+*legal* action, so a loss that forgets the mask would train on fabricated action-0 targets in
+silence; ``-1`` crashes both ``nn.Embedding`` and ``cross_entropy`` instead, and makes
+``ignore_index=-1`` the explicit spelling of P4's loss.  ``action == -1`` holds exactly where
+``attention_mask`` is False.  This is the **in-memory item only**: the on-disk format is
+unchanged and no corpus needs regenerating.
 
 Draw-aware splitting (D4, registered in ``PREREGISTRATION.md`` section 5)
 -------------------------------------------------------------------------
 ``nominal`` = draw 0 (source vehicle order, never pooled) · ``train`` = draws 1-999 ·
 ``heldout`` = draws 1000-1099, which must never enter any training corpus for any method.
-Episodes are selected **by draw id read from the manifest**, never by file order, and a draw
-outside the requested split raises rather than being skipped: a leak that raises is a bug, a
-leak that skips is a published number.  The manifest's draw id is cross-checked against the
-episode file's own ``flow_draw`` scalar, because the split is only as trustworthy as the
-weaker of its two recorded sources.
+Episodes are selected **by draw id read from the manifest**, never by file order.  With
+``draw_ids=None`` a draw outside the requested split **raises** rather than being skipped: a
+leak that raises is a bug, a leak that skips is a published number.  With an explicit
+``draw_ids=`` the requested ids are range-checked against the split *first*, and episodes
+outside that explicit request are then filtered out -- a narrowing the caller asked for, not a
+silent skip.  On both paths no episode outside the split can enter the dataset.  A
+``flow_draw`` of ``-1`` -- the sentinel the logger writes when a collection ran with no draw
+at all -- is refused under every split, because such a corpus has no draw identity to split on.
+
+The manifest's draw id is cross-checked against the episode file's own ``flow_draw`` scalar,
+because the split is only as trustworthy as the weaker of its two recorded sources.
 
 Normalisation statistics
 ------------------------
@@ -125,9 +137,11 @@ from offline import trajectory_logger
 from offline.trajectory_logger import load_episode
 
 __all__ = [
+    "ABSENT_DRAW",
     "DRAW_SPLITS",
     "EpisodeRecord",
     "NormalizationStats",
+    "PAD_ACTION",
     "RTG_QUANTILES",
     "RtgSummary",
     "STATS_VERSION",
@@ -137,6 +151,14 @@ __all__ = [
     "load_stats",
     "save_stats",
 ]
+
+# Padded action positions.  NOT 0, which is a legal action: -1 makes a forgotten
+# attention_mask crash in nn.Embedding / cross_entropy instead of silently training on
+# fabricated targets, and is the value P4's loss should pass as ignore_index.
+PAD_ACTION: int = -1
+
+# The logger writes flow_draw = -1 when an episode was collected with no draw at all.
+ABSENT_DRAW: int = -1
 
 # Inclusive draw-id ranges.  Registered in PREREGISTRATION.md section 5 (decision D4,
 # 2026-08-03) and binding on every collection and every loader.
@@ -503,6 +525,27 @@ class TrajectoryWindowDataset(Dataset):
             if not scenario_id:
                 raise ValueError(f"{directory}: manifest has no run_metadata.scenario_id")
 
+            # The absent-draw sentinel is refused before the range check, and under every
+            # split including an explicit draw_ids: an episode collected with no draw has no
+            # draw identity, so there is no split it can honestly belong to.  Not reachable
+            # from today's corpus (draws 1-200) but exactly the route a no-draw baseline
+            # collection takes.
+            absent = sorted(
+                {
+                    str(entry["filename"])
+                    for entry in entries
+                    if int(entry["flow_draw"]) == ABSENT_DRAW
+                }
+            )
+            if absent:
+                raise ValueError(
+                    f"{directory}: {len(absent)} episode(s) record flow_draw "
+                    f"{ABSENT_DRAW} -- the absent-draw sentinel the logger writes when a "
+                    f"collection ran with no flow draw at all (first {absent[:3]}).  Such a "
+                    "corpus carries no draw identity and cannot be assigned to the nominal, "
+                    "training or held-out pool (decision D4); recollect it with a draw id"
+                )
+
             out_of_split = sorted(
                 {int(entry["flow_draw"]) for entry in entries if not low <= int(entry["flow_draw"]) <= high}
             )
@@ -743,7 +786,7 @@ class TrajectoryWindowDataset(Dataset):
         rtg = np.zeros((context, 1), dtype=np.float32)
         rtg[start:, 0] = stream.rtg[low : t + 1]
 
-        action = np.zeros(context, dtype=np.int64)
+        action = np.full(context, PAD_ACTION, dtype=np.int64)
         action[start:] = stream.action[low : t + 1]
 
         avail_mask = np.zeros((context, stream.avail_mask.shape[1]), dtype=np.bool_)
@@ -803,10 +846,13 @@ class TrajectoryWindowDataset(Dataset):
     def _require_stats(self) -> NormalizationStats:
         if self._stats is None:
             raise ValueError(
-                f"no normalisation statistics: they are fitted only for split='train', and "
-                f"this dataset was built with split={self._split!r}.  Pass the frozen "
-                "training statistics through stats=, or set normalize=False -- fitting them "
-                "here would be fitting on evaluation data"
+                f"no normalisation statistics: this dataset was built with "
+                f"split={self._split!r}, and statistics are fitted only for split='train'.  "
+                "THE FIX: pass stats= fitted on split='train' -- load them with "
+                "offline.dataset.load_stats(path) from the file save_stats wrote during "
+                "training, and hand them to this constructor.  Fitting them here would fit "
+                "them on evaluation data, which is test-set leakage (decision D3).  "
+                "normalize=False is a diagnostic escape hatch, not the intended path"
             )
         return self._stats
 

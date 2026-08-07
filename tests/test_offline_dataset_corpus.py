@@ -20,7 +20,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from offline.dataset import DRAW_SPLITS, TrajectoryWindowDataset
+from offline.dataset import DRAW_SPLITS, MANIFEST_NAME, TrajectoryWindowDataset
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -77,38 +77,68 @@ def _one_dir_per_scenario(dataset_dirs: dict[str, list[Path]]) -> dict[str, Path
 
 
 def test_rtg_matches_reversed_cumsum_on_real_episodes(dataset_dirs: dict[str, list[Path]]) -> None:
-    """The loader's RTG equals ``np.cumsum`` over the reversed reward array, whole array.
+    """The loader's RTG equals ``np.cumsum`` over the reversed reward array -- WHOLE array.
 
-    One collection directory per scenario, restricted to draw 1 so the test stays fast; the
-    reward stream is read straight from the ``.npz``.
+    ``context_length`` is set to the episode length so a single item carries all ``T`` rows of
+    a stream; the earlier version used ``context_length=8`` and compared **8 of 360 rows**,
+    where grid4x4's weakest stream discriminated on 2 rows at a maximum gap of 1.0, and
+    16.6% of its streams were entirely blind on that window (review P3-04).  Whole-array
+    comparison removes the dependence on which rows happen to land in the last window.
+
+    The margin is reported per scenario rather than assumed, and asserted per stream.
     """
+    report: list[str] = []
     checked = 0
     for scenario, dataset_dir in _one_dir_per_scenario(dataset_dirs).items():
+        manifest = json.loads((dataset_dir / MANIFEST_NAME).read_text(encoding="utf-8"))
+        length = int(manifest["episodes"][0]["episode_length"])
         ds = TrajectoryWindowDataset(
-            [dataset_dir], context_length=8, split="train", draw_ids=[1], normalize=False
+            [dataset_dir], context_length=length, split="train", draw_ids=[1], normalize=False
         )
-        by_key: dict[tuple[str, str], int] = {}
+
+        last_item: dict[tuple[str, str], int] = {}
         for i in range(len(ds)):
             meta = ds.item_meta(i)
-            key = (meta.episode_file, meta.ix_id)
-            if key not in by_key or meta.t > ds.item_meta(by_key[key]).t:
-                by_key[key] = i
+            if meta.t == length - 1:
+                last_item[(meta.episode_file, meta.ix_id)] = i
 
-        for (episode_file, ix_id), index in by_key.items():
+        rows = differing = 0
+        weakest_rows: int | None = None
+        weakest_gap: float | None = None
+        for (episode_file, ix_id), index in sorted(last_item.items()):
             meta = ds.item_meta(index)
             with np.load(Path(meta.dataset_dir) / episode_file) as data:
                 rewards = data[f"ix{meta.ix_index}_local_reward"]
                 ix_ids = [str(v) for v in data["ix_ids"].tolist()]
             assert ix_ids[meta.ix_index] == ix_id, "ix_index must address the id it claims"
+
             expected = np.cumsum(rewards[::-1].astype(np.float64))[::-1].astype(np.float32)
-            # The item ends at the episode's last decision row, so its window is the tail.
             actual = ds[index]["rtg"].numpy().reshape(-1)
-            assert np.array_equal(actual, expected[-actual.size :]), (
+            assert actual.size == length, "the window must cover the whole stream"
+            assert np.array_equal(actual, expected), (
                 f"{scenario}: RTG mismatch for {ix_id} in {episode_file}"
             )
+
+            # Discriminating power: the off-by-one differs from this exactly at r_t != 0.
+            stream_differing = int(np.count_nonzero(rewards))
+            stream_gap = float(np.abs(rewards).max())
+            assert stream_differing > 0, (
+                f"{scenario}: stream {ix_id} in {episode_file} has an all-zero reward stream, "
+                "so an off-by-one RTG would be undetectable on it"
+            )
+            rows += length
+            differing += stream_differing
+            weakest_rows = stream_differing if weakest_rows is None else min(weakest_rows, stream_differing)
+            weakest_gap = stream_gap if weakest_gap is None else min(weakest_gap, stream_gap)
             checked += 1
+
+        report.append(
+            f"[rtg] {scenario}: {len(last_item)} streams x {length} rows compared exactly; "
+            f"under the off-by-one {100 * differing / rows:.1f}% of rows differ, weakest "
+            f"stream {weakest_rows}/{length} rows at max gap {weakest_gap}"
+        )
     assert checked > 0, "no corpus streams were checked"
-    print(f"\n[rtg] streams checked against the independent cumsum route: {checked}")
+    print("\n" + "\n".join(report))
 
 
 def test_offbyone_rtg_margin_is_measured_on_the_corpus(dataset_dirs: dict[str, list[Path]]) -> None:
