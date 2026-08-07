@@ -45,7 +45,7 @@ vType and declaring the prerequisite satisfied would have left a ~50% travel-tim
 gate.
 
 ⚠️ Those magnitudes are `tripinfo` means over **arrived** vehicles and the arrival counts differ by
-23%, so by `PREREGISTRATION.md` §3.1's own >5% rule they establish **direction, not size**. Part of
+23%, so by `PREREGISTRATION.md` §3.1's own entered-count rule *(⚠️ note: that rule's >5 % clause was WITHDRAWN by amendment **A5**, 2026-08-07, where it applied to `vehicle_count`; it remains sound here because this sentence is about **entered counts**, a population size, which is what the clause was written for)* they establish **direction, not size**. Part of
 your job is to redo this properly (§4).
 
 ---
