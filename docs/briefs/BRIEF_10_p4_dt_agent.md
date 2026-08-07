@@ -139,3 +139,56 @@ close, and it must carry `policy_source` = `"checkpoint"` vs `"retrained"` per q
 4. Anything in §2 that disagreed with the data. **The repo wins; say so loudly.**
 5. **If the gate failed: your diagnosis, and no proposal to change the gate.** A failed gate is a
    registered result and §10 of the pre-registration already says what we publish under it.
+
+---
+
+## 8. Ruling on the P4 pre-flight (Master chat, 2026-08-07)
+
+**You found a defect in this brief and you were right to stop. `110.73` is measured on draws 1–200
+— the TRAINING pool — and §4.2 told you to evaluate against it.**
+
+**Protocol: C, and the held-out verdict IS the gate. Not because I prefer it — because A was never
+available.** `PREREGISTRATION.md` §8 registers the unit of replication: *"For evaluation, the unit is
+the **held-out flow draw** … Comparisons across methods use the **same** held-out draws (paired
+design)"*, ≥20 per cell. That was registered on 2026-08-03 and closes the question; I failed to check
+it when I computed the threshold from the ladder. **Binding:**
+
+1. **The gate is evaluated on the registered held-out pool, all 100 draws `1000–1099`** — the whole
+   pool, not a slice, so no selection is possible. §8's minimum is 20; using the pool as registered
+   removes a choice rather than making one.
+2. **DT, MaxPressure and MAPPO@1000 are all measured live on those same draws**, paired. The gate
+   threshold is `1.05 × ATT_MAPPO@1000_heldout`, computed there.
+3. **Both thresholds are measured and committed BEFORE the first gradient step** — your safeguard,
+   adopted verbatim. The commit that records them must precede the training commit in history.
+4. **`110.73` goes in the Return Packet verbatim, labelled as the draws-1–200 secondary reading, and
+   is NOT the verdict.** Report it beside the gate; it is the comparison against the committed
+   ladder and it is worth having.
+5. Report CIs as §9 requires, and the paired **Wilcoxon** over shared draws as the registered
+   primary test (§8) beside the inequalities. The gate itself remains the two inequalities.
+
+**Tier `mappo1000`: CONFIRMED**, and your reasoning is the right one — a failure on a weaker tier
+would be uninterpretable between pipeline and data. State plainly in the packet that passing here
+demonstrates **pipeline capability, not that sequence modelling beats imitation**; that question is
+P4.4's and must not be implied. One caveat to carry: expert-only data has the narrowest state
+coverage we measured (`mappo1000` was the *lowest* on grid4x4), so a pass here says nothing about
+off-distribution behaviour.
+
+**20,000 steps: CONFIRMED, with the response pre-declared now so it cannot be chosen later.** If the
+training loss has not plateaued at 20k, you may raise **once** to 40k, **decided on the training
+curve alone** — no evaluation number may enter that decision, exactly as amendment A3 handled the
+MAPPO budget. A second raise requires coming back. The reported checkpoint is the declared step.
+
+**CUDA: ACCEPTABLE, conditional.** The double-train byte-identity proof must pass **on the actual
+training device and configuration**; if it fails, either make it deterministic or fall back to
+CPU-in-tmux — do not report a number from a path you could not reproduce. **Record device, torch and
+CUDA versions in the artifact:** P8.0's provenance omitted exactly the state that determines
+reduction order, in the file whose MAPPO rows were attributed to it (finding N8).
+
+**Your three traps: all three resolutions confirmed.** On the third — the *target* keeps `-1` so the
+`ignore_index` tripwire still fires; the *embedding input* gets its own pad index. That distinction
+between input and target was missing from my §2 and you caught it. Paste the tripwire crash.
+
+**One correction that saves you work: the all-True mask claim is already population-verified.** The
+P3 review scanned **32000/32000 streams, 0 excluding the taken action** (`docs/reviews/P3.md`). Cite
+it; do not re-measure it. Your instinct to state the sample was right — the sample here is the
+population, and it is someone else's measurement, so cite it as theirs.
