@@ -221,6 +221,109 @@ def test_gate_exempts_fixedtime_but_requires_it_to_actually_differ(
     assert compare_corpora.main(["--old-root", str(old), "--new-root", str(new)]) == 0
 
 
+def _perturb_actions(run_dir: Path, n_episodes: int) -> None:
+    """Make the first *n_episodes* differ, the way engine noise does."""
+    for path in sorted(run_dir.glob("ep*.npz"))[:n_episodes]:
+        with np.load(path) as data:
+            arrays = {k: data[k] for k in data.files}
+        arrays["ix0_action"] = arrays["ix0_action"] + 1
+        with open(path, "wb") as handle:
+            np.savez_compressed(handle, **arrays)
+
+
+def test_cologne3_inside_the_envelope_passes(tmp_path: Path) -> None:
+    """Ruling 0398039: cologne3 is held to a measured envelope, not bit-identity."""
+    old, new = tmp_path / "v10", tmp_path / "v11"
+    _write_run(old, "cf_cologne3__maxpressure", n=10, version="1.0", drop_att=True)
+    run = _write_run(new, "cf_cologne3__maxpressure", n=10)
+    _perturb_actions(run, 1)  # 10% differ, under the 20% tolerance
+
+    result = compare_corpora.compare_corpora(old, new)[0]
+    assert result.envelope is not None
+    assert result.envelope_ok, result.envelope[2]
+    assert compare_corpora.main(["--old-root", str(old), "--new-root", str(new)]) == 0
+
+
+def test_cologne3_beyond_the_differing_fraction_fails(tmp_path: Path) -> None:
+    """The envelope is a bound, not a waiver -- too many differing episodes still fails."""
+    old, new = tmp_path / "v10", tmp_path / "v11"
+    _write_run(old, "cf_cologne3__maxpressure", n=10, version="1.0", drop_att=True)
+    run = _write_run(new, "cf_cologne3__maxpressure", n=10)
+    _perturb_actions(run, 5)  # 50% differ, over the 20% tolerance
+
+    result = compare_corpora.compare_corpora(old, new)[0]
+    assert not result.envelope_ok
+    assert "50.0% of episodes differ" in " ".join(result.envelope[2])
+    assert compare_corpora.main(["--old-root", str(old), "--new-root", str(new)]) == 1
+
+
+def test_cologne3_mean_reward_drift_fails_the_envelope(tmp_path: Path) -> None:
+    """Condition (ii): the distribution must hold even though episodes move."""
+    old, new = tmp_path / "v10", tmp_path / "v11"
+    _write_run(old, "cf_cologne3__maxpressure", n=4, version="1.0", drop_att=True)
+    _write_run(new, "cf_cologne3__maxpressure", n=4)
+    manifest = new / "cf_cologne3__maxpressure" / "manifest.json"
+    payload = json.loads(manifest.read_text(encoding="utf-8"))
+    for entry in payload["episodes"]:
+        entry["total_global_reward"] *= 1.05  # 5% drift, over the 1% tolerance
+    manifest.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    result = compare_corpora.compare_corpora(old, new)[0]
+    assert not result.envelope_ok
+    assert "tier mean total_global_reward" in " ".join(result.envelope[2])
+
+
+def test_cologne3_draw_ids_must_still_match_exactly(tmp_path: Path) -> None:
+    """Condition (i) is NOT relaxed: engine noise cannot change which draws were run."""
+    old, new = tmp_path / "v10", tmp_path / "v11"
+    _write_run(old, "cf_cologne3__maxpressure", n=3, draws=range(1, 4),
+               version="1.0", drop_att=True)
+    _write_run(new, "cf_cologne3__maxpressure", n=3, draws=range(2, 5))
+
+    result = compare_corpora.compare_corpora(old, new)[0]
+    assert not result.envelope_ok
+    assert "draw ids differ" in " ".join(result.envelope[2])
+
+
+def test_hz1x1_and_grid4x4_keep_strict_bit_identity(tmp_path: Path) -> None:
+    """The envelope must not leak to the scenarios that earned bit-identity 44/44."""
+    for scenario in ("cf_hz1x1", "cf_grid4x4"):
+        old, new = tmp_path / f"{scenario}_v10", tmp_path / f"{scenario}_v11"
+        _write_run(old, f"{scenario}__maxpressure", n=10, version="1.0", drop_att=True)
+        run = _write_run(new, f"{scenario}__maxpressure", n=10)
+        _perturb_actions(run, 1)  # 10% -- inside cologne3's envelope, but not allowed here
+
+        result = compare_corpora.compare_corpora(old, new)[0]
+        assert result.envelope is None, f"{scenario} must not get the envelope"
+        assert compare_corpora.main(["--old-root", str(old), "--new-root", str(new)]) == 1
+
+
+def test_the_exemptions_are_announced_even_on_a_pass(tmp_path: Path, capsys) -> None:
+    """A passing gate must never hide which scenarios were not held to bit-identity."""
+    old, new = tmp_path / "v10", tmp_path / "v11"
+    _write_run(old, "cf_hz1x1__maxpressure", version="1.0", drop_att=True)
+    _write_run(new, "cf_hz1x1__maxpressure")
+
+    assert compare_corpora.main(["--old-root", str(old), "--new-root", str(new)]) == 0
+    out = capsys.readouterr().out
+    assert "EXEMPTIONS IN FORCE" in out
+    assert "cf_cologne3" in out
+    assert "not bit-reproducible" in out
+    assert "7.7%" in out and "0.080%" in out  # the measurements, not just the tolerances
+
+
+def test_cologne3_fixedtime_keeps_the_fixedtime_exemption(tmp_path: Path) -> None:
+    """fixedtime takes priority: k was retuned, so the 1% mean condition would misfire."""
+    old, new = tmp_path / "v10", tmp_path / "v11"
+    _write_run(old, "cf_cologne3__fixedtime", n=4, version="1.0", drop_att=True)
+    run = _write_run(new, "cf_cologne3__fixedtime", n=4)
+    _perturb_actions(run, 4)
+
+    result = compare_corpora.compare_corpora(old, new)[0]
+    assert result.exempt is True
+    assert result.envelope is None
+
+
 def test_gate_rejects_an_unexpected_extra_array(tmp_path: Path) -> None:
     """"v1.1 is v1.0 plus one field" is checked, not promised."""
     old, new = tmp_path / "v10", tmp_path / "v11"
