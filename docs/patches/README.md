@@ -2,8 +2,65 @@
 
 ## `mappo_metric_keys_guard.patch` — make contract C8 mechanical (AUTHORISATION C)
 
-**Status: patch not yet written** — BRIEF_08 commissions it. This entry exists so the implementer can
-verify the authorisation is real before touching a frozen file, per CLAUDE.md rule 1.
+**Apply with:**
+```bash
+git apply docs/patches/mappo_metric_keys_guard.patch
+.venv/bin/python -c "import agent.MAPPOAgent as m; print(hasattr(m,'env_global_metric_keys'))"  # -> True
+.venv/bin/pytest tests/test_mappo_c8_metric_keys_guard.py -q          # 15 pass once applied
+.venv/bin/pytest tests/test_migrate_mappo_checkpoints.py -q           # 15 pass once applied
+```
+Verified with `git apply --check` on 2026-08-07 against `agent/MAPPOAgent.py` at blob `4a6a06b`
+(branch base `main` `4430cce`). If `MAPPOAgent.py` has changed since, re-derive rather than force.
+161 lines, three hunks: one stdlib import, two module-level functions, and `save`/`load`.
+
+**Why it is a patch and not a commit.** `.claude/settings.json` deny-lists `Edit(agent/MAPPOAgent.py)`
+and `scripts/claude_guard.sh` lists it in `FROZEN_PATTERNS` with no exception, so a session cannot
+apply it — which is the point. The Bash-heredoc / `cp` / `sed -i` route was **not** taken; the patch
+body was generated with `difflib` and written only to `docs/patches/`, and `git status agent/` is
+empty. AUTHORISATION C is quoted below and was confirmed by the user on 2026-08-06.
+
+**Tested before shipping, not after.** `agent/` was copied to `/tmp/p26_scratch`, the patch applied
+there, and both test files run against it: **15 + 15 pass**.
+
+⚠️ **A scratch copy is easy to get wrong, and the failure is silent** — you get a green run against the
+*unpatched* file. Measured on 2026-08-07, first from the repo root:
+
+```
+PYTHONPATH=/tmp/p26_scratch .venv/bin/python -c "import agent.MAPPOAgent as m; print(m.__file__)"
+  -> /home/filip/rltraffic/agent/MAPPOAgent.py     # the UNPATCHED file
+```
+
+**The cause is plain `sys.path` ordering, nothing exotic.** Under `python -c`, `sys.path[0]` is the
+process cwd — measured `sys.path[:3] == ['', '/tmp/p26_scratch', ...]` — so running from the repo root
+puts the repo's own `agent/` *ahead* of the scratch directory. From any other cwd the same command
+works:
+
+```
+cd /tmp && PYTHONPATH=/tmp/p26_scratch:/home/filip/rltraffic .venv/bin/python -c ...
+  -> agent   /tmp/p26_scratch/agent/MAPPOAgent.py   # patched, as intended
+  -> offline /home/filip/rltraffic/offline/...      # repo, as intended
+```
+
+*(Corrected 2026-08-07. This entry first blamed the editable install's `sys.meta_path` finder,
+"which outranks every `sys.path` entry". **That is false and was never measured.** The finder sits at
+`sys.meta_path[4]`, **after** `PathFinder`, so `PathFinder` resolves `agent` from `sys.path` first and
+the editable finder is never consulted. Its `MAPPING` covers `agent`, `algorithms`, `envs`,
+`experiments`, `metrics`, `rewards`, `states`, `utils` — and **not** `offline`. Worse, the
+`conftest.py` line written to "remove that finder" filtered on `type(f).__module__ ==
+'__editable___zpp_traffic_control_0_1_0_finder'`, but those objects report `__module__` as `builtins`,
+so **it removed 0 of 5 entries and was a no-op**; what actually worked was the
+`sys.path.insert(0, scratch)` beside it. The conclusion below is unchanged and the 15 + 15 result
+stands — every run asserted `__file__` — but the mechanism is corrected here because a wrong mechanism
+in a README is acted on later by someone who cannot re-derive it.)*
+
+**The rule that matters, and it is unchanged: assert the path, do not reason about it.** Any
+re-verification of this patch must assert `agent.MAPPOAgent.__file__` starts with the scratch prefix
+and abort otherwise. Every run reported here did.
+
+**The guard is proven to bite, by mutation.** With the set comparison neutralised (`if True: return`)
+the acceptance test fails; with it regressed to a **width** comparison — literally the pre-patch
+semantics — it also fails. So the test catches the same-count case specifically, not merely "an error
+happened".
 
 > **AUTHORISATION C — 2026-08-06, Master chat.** `agent/MAPPOAgent.py` may be modified for the single
 > purpose of making contract C8 mechanical: (a) persist `self._global_metric_keys` in `save()`;
@@ -14,6 +71,35 @@ verify the authorisation is real before touching a frozen file, per CLAUDE.md ru
 > **symmetric difference** — a message that names the difference ends the investigation instead of
 > starting it, months from now, for someone without today's context.
 > Spent when BRIEF_08 merges. **Confirmed by the user 2026-08-06.**
+
+**What it does, in exactly the five behaviour rows the authorisation allows.**
+`save()` gains one key, `global_metric_keys`. `load()` gains a check that runs **before** any state
+is adopted, so a rejected checkpoint leaves the agent as it was:
+
+| checkpoint / env | behaviour |
+|---|---|
+| key absent | loud `RuntimeWarning` (pre-migration checkpoint) |
+| key present, `None` | loud `RuntimeWarning` (saved before features were built) |
+| key present, env exposes no metrics | loud `RuntimeWarning` (cannot check) |
+| key present, sets equal | silent |
+| key present, sets differ | `ValueError` printing both sets **and the symmetric difference** |
+
+Presence is tested with `in`, never `payload.get(...) is not None` — those collapse the first two
+rows, and only the first means "predates the migration".
+
+**`_global_metric_keys` is deliberately NOT assigned from the checkpoint.** It looks like a free
+no-op once the sets are equal. It is not: `_build_global_features` reads `metrics.get(key, 0.0)`, so
+keys adopted from a checkpoint against a *later* differing env would substitute a silent `0.0` at an
+unchanged width — invisible to the width guard **and** to this check, which has already returned by
+then. Leaving the field `None` makes the agent freeze from the env's own `info`, which is where the
+check can still fire.
+
+**One derivation, shared.** `env_global_metric_keys(env)` is a module-level function in the patch, and
+`offline/migrate_mappo_checkpoints.py` **imports** it rather than reimplementing it — two copies of a
+key-set derivation are exactly where a guard and the data it guards drift apart with nothing failing.
+It mirrors `metrics/base.py::compute_all`'s filter, so it equals `sorted(info["metrics"])` by
+construction; it is pure and makes no engine call, so it is safe on an env constructed but never
+reset, which is the state `offline/collect.py` loads a checkpoint in.
 
 **Why it is needed.** The existing guard compares only `global_feature_dim`, and
 `_global_metric_keys` is not stored in the checkpoint, so a same-width metric *swap* is silent: the
