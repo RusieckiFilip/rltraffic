@@ -187,7 +187,7 @@ bc-tyc (single intersection, P4 validation gate), grid4x4 (16 signals, coordinat
   into one confidence interval.
 
   The corpus linter (P2.4) enforces the split mechanically by checking draw ids in manifests, and
-  flags duplicate `episode_sha256` within a run as a residual determinism guard.
+  flags duplicate `episode_sha256` within a run as a residual determinism guard. ⚠️ **Qualified 2026-08-07: this guard is meaningful on cf_hz1x1 and cf_grid4x4 only.** cf_cologne3 is not bit-reproducible — 7.7 % of draws diverge under identical code and a deterministic policy (measured, with a grid4x4 control of 0/6) — so on that scenario **non-duplication is not evidence of distinct draws, and duplication is not guaranteed for a repeated one.** The linter must exempt cologne3 by name rather than infer it.
 - **Backends.** The main corpus is CityFlow-only. SUMO corpora are small and exist solely for C3's
   few-shot and retrain points.
 
