@@ -20,12 +20,42 @@ body was generated with `difflib` and written only to `docs/patches/`, and `git 
 empty. AUTHORISATION C is quoted below and was confirmed by the user on 2026-08-06.
 
 **Tested before shipping, not after.** `agent/` was copied to `/tmp/p26_scratch`, the patch applied
-there, and both test files run against it: **15 + 15 pass**. ⚠️ The obvious way to do that is wrong:
-the repo is installed editable via a `sys.meta_path` **finder**, which outranks every `sys.path`
-entry, so `PYTHONPATH=/tmp/p26_scratch` silently kept loading the *unpatched* repo file — measured,
-`agent.MAPPOAgent.__file__` still resolved to `/home/filip/rltraffic/agent`. The scratch `conftest.py`
-removes that one finder and asserts `__file__` starts with `/tmp/p26_scratch/`. Anyone re-verifying
-this patch must make the same check or their result means nothing.
+there, and both test files run against it: **15 + 15 pass**.
+
+⚠️ **A scratch copy is easy to get wrong, and the failure is silent** — you get a green run against the
+*unpatched* file. Measured on 2026-08-07, first from the repo root:
+
+```
+PYTHONPATH=/tmp/p26_scratch .venv/bin/python -c "import agent.MAPPOAgent as m; print(m.__file__)"
+  -> /home/filip/rltraffic/agent/MAPPOAgent.py     # the UNPATCHED file
+```
+
+**The cause is plain `sys.path` ordering, nothing exotic.** Under `python -c`, `sys.path[0]` is the
+process cwd — measured `sys.path[:3] == ['', '/tmp/p26_scratch', ...]` — so running from the repo root
+puts the repo's own `agent/` *ahead* of the scratch directory. From any other cwd the same command
+works:
+
+```
+cd /tmp && PYTHONPATH=/tmp/p26_scratch:/home/filip/rltraffic .venv/bin/python -c ...
+  -> agent   /tmp/p26_scratch/agent/MAPPOAgent.py   # patched, as intended
+  -> offline /home/filip/rltraffic/offline/...      # repo, as intended
+```
+
+*(Corrected 2026-08-07. This entry first blamed the editable install's `sys.meta_path` finder,
+"which outranks every `sys.path` entry". **That is false and was never measured.** The finder sits at
+`sys.meta_path[4]`, **after** `PathFinder`, so `PathFinder` resolves `agent` from `sys.path` first and
+the editable finder is never consulted. Its `MAPPING` covers `agent`, `algorithms`, `envs`,
+`experiments`, `metrics`, `rewards`, `states`, `utils` — and **not** `offline`. Worse, the
+`conftest.py` line written to "remove that finder" filtered on `type(f).__module__ ==
+'__editable___zpp_traffic_control_0_1_0_finder'`, but those objects report `__module__` as `builtins`,
+so **it removed 0 of 5 entries and was a no-op**; what actually worked was the
+`sys.path.insert(0, scratch)` beside it. The conclusion below is unchanged and the 15 + 15 result
+stands — every run asserted `__file__` — but the mechanism is corrected here because a wrong mechanism
+in a README is acted on later by someone who cannot re-derive it.)*
+
+**The rule that matters, and it is unchanged: assert the path, do not reason about it.** Any
+re-verification of this patch must assert `agent.MAPPOAgent.__file__` starts with the scratch prefix
+and abort otherwise. Every run reported here did.
 
 **The guard is proven to bite, by mutation.** With the set comparison neutralised (`if True: return`)
 the acceptance test fails; with it regressed to a **width** comparison — literally the pre-patch
