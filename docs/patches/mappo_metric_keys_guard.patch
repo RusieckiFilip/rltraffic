@@ -1,0 +1,161 @@
+diff --git a/agent/MAPPOAgent.py b/agent/MAPPOAgent.py
+--- a/agent/MAPPOAgent.py
++++ b/agent/MAPPOAgent.py
+@@ -1,5 +1,6 @@
+ from __future__ import annotations
+ 
++import warnings
+ from typing import Any
+ 
+ import numpy as np
+@@ -541,6 +542,119 @@
+         self.rollout_action_masks.clear()
+ 
+ 
++# ----------------------------------------------------------------------
++# Contract C8 -- a MAPPO checkpoint freezes the env's global metric set.
++# Added under AUTHORISATION C (2026-08-06); see docs/patches/README.md.
++# ----------------------------------------------------------------------
++
++
++def env_global_metric_keys(env: Any) -> list[str] | None:
++    """The metric keys *env* will expose in ``info["metrics"]``, or ``None``.
++
++    THE single derivation of that set.  ``offline/migrate_mappo_checkpoints.py``
++    imports this function instead of reimplementing it: two copies of a key-set
++    derivation are exactly where a guard and the data it guards drift apart with
++    nothing failing.
++
++    Mirrors ``metrics/base.py::compute_all``, which builds
++    ``{n: self.get(n) for n in self._requested if self.REGISTERED[n].compute is not
++    None}``.  The filter is copied rather than approximated, so the result equals
++    ``sorted(info["metrics"])`` **by construction** rather than by luck.
++
++    Pure -- reads only ``requested`` and ``REGISTERED``, makes no engine call -- so
++    it is safe on an env that has been constructed but never reset, which is the
++    state ``offline/collect.py`` loads a checkpoint in.  ``None`` means "this env
++    runs no metrics pipeline, so the set cannot be derived"; it is not the same as
++    an empty set, and the caller must treat it as "cannot check", never as "match".
++    """
++    metrics = getattr(env, "metrics", None)
++    if metrics is None:
++        return None
++    requested = getattr(metrics, "requested", None)
++    registered = getattr(metrics, "REGISTERED", None)
++    if requested is None or registered is None:
++        return None
++    return sorted(
++        str(name) for name in requested if registered[name].compute is not None
++    )
++
++
++def _assert_checkpoint_metric_keys(
++    payload: dict[str, Any], env: Any, path: str
++) -> None:
++    """Enforce contract C8 when a checkpoint is loaded.  Exactly five cases.
++
++    ================================  ==========================================
++    checkpoint / env                  behaviour
++    ================================  ==========================================
++    key absent                        loud warning (pre-migration checkpoint)
++    key present, ``None``             loud warning (saved before features built)
++    key present, env has no metrics   loud warning (cannot check)
++    key present, sets equal           silent
++    key present, sets differ          ``ValueError`` naming the difference
++    ================================  ==========================================
++
++    Presence is tested with ``in``, never ``payload.get(...) is not None``: those
++    two collapse the first two rows together, and only the first means "this file
++    predates the migration".
++
++    Why a *set* comparison and not the width.  ``_build_global_features`` orders the
++    global feature block by this key set, so swapping metric A for metric B leaves
++    ``global_feature_dim`` unchanged while the critic reads different semantics under
++    the same indices.  ``ensure_initialized``'s existing width check cannot see that;
++    this is the check that can.
++    """
++    if "global_metric_keys" not in payload:
++        warnings.warn(
++            f"{path}: pre-C8 MAPPO checkpoint -- it does not record the global "
++            "metric key set it was trained with, so this env's set cannot be "
++            "checked and a same-width metric swap would be silent (contract C8). "
++            "Migrate it: python -m offline.migrate_mappo_checkpoints --apply",
++            RuntimeWarning,
++            stacklevel=3,
++        )
++        return
++
++    checkpoint_keys = payload["global_metric_keys"]
++    if checkpoint_keys is None:
++        warnings.warn(
++            f"{path}: this MAPPO checkpoint records global_metric_keys=None, i.e. "
++            "it was saved before the agent ever built a global feature vector. "
++            "There is nothing to check against this env's metric set (contract C8).",
++            RuntimeWarning,
++            stacklevel=3,
++        )
++        return
++
++    env_keys = env_global_metric_keys(env)
++    if env_keys is None:
++        warnings.warn(
++            f"{path}: this env exposes no metrics pipeline, so the checkpoint's "
++            f"global metric set {sorted(checkpoint_keys)} cannot be verified "
++            "against it (contract C8).",
++            RuntimeWarning,
++            stacklevel=3,
++        )
++        return
++
++    checkpoint_set = {str(k) for k in checkpoint_keys}
++    env_set = set(env_keys)
++    if checkpoint_set == env_set:
++        return
++
++    raise ValueError(
++        f"{path}: MAPPO checkpoint global metric set does not match this env "
++        f"(contract C8).\n"
++        f"  checkpoint          : {sorted(checkpoint_set)}\n"
++        f"  env                 : {sorted(env_set)}\n"
++        f"  symmetric difference: {sorted(checkpoint_set ^ env_set)}\n"
++        "The centralised critic indexes its global feature block by this ordered "
++        "key set, so a same-width swap reads different semantics under the same "
++        "indices and the global_feature_dim check cannot detect it. Restore the "
++        "env's metric set to the one above, or retrain."
++    )
++
++
+ class IMAPPOAgent(BaseAgent):
+     """
+     Multi-agent PPO for traffic signal control.
+@@ -773,12 +887,30 @@
+             {
+                 "steps_done": self.steps_done,
+                 "learner": self.learner.export_state(),
++                # Contract C8: the critic's global feature block is ordered by this
++                # key set, so the checkpoint is only interpretable alongside it.
++                # None means the agent never built a global feature vector.
++                "global_metric_keys": (
++                    None
++                    if self._global_metric_keys is None
++                    else list(self._global_metric_keys)
++                ),
+             },
+             path,
+         )
+ 
+     def load(self, path: str) -> None:
+         payload = torch.load(path, map_location=self.device)
++        # Checked BEFORE any state is adopted, so a rejected checkpoint leaves this
++        # agent exactly as it was -- the filesystem-mutation barrier, applied to
++        # in-memory state.
++        _assert_checkpoint_metric_keys(payload, self.env, path)
++        # Deliberately NOT self._global_metric_keys = payload["global_metric_keys"].
++        # _build_global_features reads metrics.get(key, 0.0), so keys adopted from a
++        # checkpoint against a differing env would substitute a silent 0.0 at an
++        # unchanged width -- invisible to the width guard AND to the check above,
++        # which has already returned by then. Leaving the field None makes the agent
++        # freeze from the env's own info, which is where the check can still fire.
+         self.steps_done = int(payload.get("steps_done", 0))
+         learner_state = payload.get("learner")
+         if learner_state is not None:
