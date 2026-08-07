@@ -504,9 +504,20 @@ def _action_sequence(agent: DTAgent) -> list[int]:
     return out
 
 
+def test_saving_before_the_model_exists_raises_instead_of_writing_an_empty_checkpoint() -> None:
+    """The state width is only knowable from an ``info``, so the model is built lazily.
+
+    Added when the three checkpoint tests below failed: their setup built an agent that had
+    never seen an ``info``, so there was no model to save.  The precondition is pinned here
+    rather than left as an incidental raise -- see the Return Packet's disclosure.
+    """
+    with pytest.raises(ValueError, match="has not been built yet"):
+        _agent(_single_env()).save("unreachable.pt")
+
+
 def test_save_load_round_trip_reproduces_the_action_sequence(tmp_path: Path) -> None:
     env = _single_env()
-    agent = _agent(env)
+    agent = _agent(env, state_dim=FIXTURE_STATE_DIM)
     path = tmp_path / "dt.pt"
     agent.save(str(path))
 
@@ -515,7 +526,7 @@ def test_save_load_round_trip_reproduces_the_action_sequence(tmp_path: Path) -> 
 
 
 def test_checkpoint_records_its_format_version(tmp_path: Path) -> None:
-    agent = _agent(_single_env())
+    agent = _agent(_single_env(), state_dim=FIXTURE_STATE_DIM)
     path = tmp_path / "dt.pt"
     agent.save(str(path))
     payload = torch.load(path, map_location="cpu", weights_only=False)
@@ -525,9 +536,11 @@ def test_checkpoint_records_its_format_version(tmp_path: Path) -> None:
 def test_a_checkpoint_for_another_shape_is_refused_and_changes_nothing(tmp_path: Path) -> None:
     """The in-memory form of the mutation barrier: check first, adopt second."""
     path = tmp_path / "dt.pt"
-    _agent(_StubEnv([("ix_only", FIXTURE_N_ACTIONS)])).save(str(path))
+    _agent(
+        _StubEnv([("ix_only", FIXTURE_N_ACTIONS)]), state_dim=FIXTURE_STATE_DIM
+    ).save(str(path))
 
-    victim = _agent(_StubEnv([("ix_only", 5)]))
+    victim = _agent(_StubEnv([("ix_only", 5)]), state_dim=FIXTURE_STATE_DIM)
     before = {
         name: parameter.detach().clone()
         for name, parameter in victim.model.named_parameters()
