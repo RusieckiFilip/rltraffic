@@ -20,26 +20,36 @@ and 5.8% apart cannot survive that substitution unexamined.
 the registered metric's value at the horizon.  **``att_per_step.mean()`` is
 ``att_running_mean`` and is never reported here.**
 
-AMENDMENT A4 -- THE CO-REPORT IS MANDATORY, NOT OPTIONAL
---------------------------------------------------------
-A4 (2026-08-06) relaxed §3.1's mandatory co-reported quantities to ``vehicle_count`` at the
-episode horizon, and restated §3.1's validity condition against it.  §3.1, verbatim:
+AMENDMENT A5 -- UNCONDITIONAL CO-REPORT, AND SHARED DRAW IDS
+------------------------------------------------------------
+A4 (2026-08-06) relaxed §3.1's mandatory co-report to ``vehicle_count`` at the episode
+horizon but carried §3.1's ">5% and the comparison is invalid" condition across unchanged.
+**A5 (2026-08-07, tag ``v0.6-prereg-a5``) withdrew that condition**, because ``entered`` is a
+population size while ``vehicle_count`` at the horizon is a **control outcome** -- precisely
+what a good controller drives toward zero. A 5% band on it voids the effect C1 exists to
+measure: on our own committed anchors, 5 of 6 pairwise baseline comparisons came out INVALID,
+including ``cf_grid4x4`` MaxPressure vs MAPPO differing by 98.1%, which is not a defect in
+the comparison -- **it is the result**.
 
-    "a comparison between two policies on a scenario is reported as invalid, not as a win,
-    if their entered-vehicle counts differ by more than 5%. Under such a difference the two
-    ATTs are averages over different populations."
+So, as registered by A5:
 
-So every ATT cell here carries horizon ``vehicle_count``, and every pairwise comparison
-within a scenario is screened against the 5% rule.  An ATT comparison without the co-report
-is **invalid by our own registration**, so emitting ``att_horizon`` alone would produce a
-number we could not cite.  Both come from the same ``[-1]`` on arrays the corpus already
-stores, so the co-report costs nothing.
+1. ``vehicle_count`` at the horizon is reported **UNCONDITIONALLY** beside every ATT cell.
+   No threshold at which it is omitted, none at which it triggers a verdict, hence no
+   researcher degree of freedom left in the disclosure.
+2. There is **no validity threshold in this module** -- and therefore no denominator to
+   choose, because there is no condition.
+3. **Every cell carries its draw ids**, and a comparison is valid only over **shared** draws.
+   A pair with no shared draws is **void**. That is binary and checkable from the data,
+   rather than thresholded, and it enforces identical demand *by construction* instead of
+   testing for it afterwards.
 
-⚠️ **One ambiguity, flagged rather than hidden.** "differ by more than 5%" does not name a
-denominator.  This module uses the **conservative** reading -- relative to the *smaller* of
-the two, which flags more comparisons invalid -- and prints the permissive reading
-(relative to the larger) beside it, so a reader can see whether the choice changed the
-verdict.  If it ever does change a verdict, that needs a ruling, not a default.
+Draw ids are read from each episode's own stored ``flow_draw`` scalar, not from the manifest,
+so the reported set is what the corpus actually contains.
+
+**When two tiers' draw sets differ but overlap**, the comparison must be recomputed over the
+intersection before it is reported. This tool does **not** silently pool: it reports each
+cell's draw set and the size of every pairwise intersection, so a partial overlap is visible
+rather than absorbed into a mean over different demand.
 """
 
 from __future__ import annotations
@@ -55,18 +65,16 @@ import numpy as np
 
 from offline.trajectory_logger import load_episode
 
-#: A4 / §3.1 validity threshold on the co-reported quantity.
-VALIDITY_THRESHOLD = 0.05
-
 HEADER = (
     "att_horizon by tier -- RANDOMISED DRAWS 1-200 ONLY.\n"
     "This does NOT settle the nominal draw-0 comparison, which is a separate run.\n"
     "att_horizon = att_per_step[-1] (A1). att_per_step.mean() is att_running_mean and\n"
-    "is NOT reported. vehicle_count at the horizon is co-reported per A4 and every\n"
-    "pairwise comparison is screened against the >5% validity condition."
+    "is NOT reported. vehicle_count at the horizon is co-reported UNCONDITIONALLY per A5,\n"
+    "which withdrew A4's >5% validity condition. A comparison is valid only over SHARED\n"
+    "draw ids, so every cell reports its draw set."
 )
 
-__all__ = ["TierCell", "Comparison", "tier_cells", "screen_comparisons", "main"]
+__all__ = ["TierCell", "DrawOverlap", "tier_cells", "draw_overlaps", "main"]
 
 
 @dataclass(frozen=True)
@@ -81,6 +89,16 @@ class TierCell:
     att_horizon_ci95: float
     vehicle_count_mean: float
     vehicle_count_std: float
+    draw_ids: tuple[int, ...]
+
+    def draw_summary(self) -> str:
+        """Compact draw-set description; the full list goes to the JSON output."""
+        if not self.draw_ids:
+            return "draws=none"
+        lo, hi = self.draw_ids[0], self.draw_ids[-1]
+        contiguous = list(self.draw_ids) == list(range(lo, hi + 1))
+        shape = f"{lo}-{hi}" if contiguous else f"{lo}..{hi} sparse"
+        return f"draws={len(self.draw_ids)} [{shape}]"
 
     def line(self) -> str:
         return (
@@ -88,34 +106,29 @@ class TierCell:
             f"att_horizon {self.att_horizon_mean:8.2f} +/- {self.att_horizon_ci95:6.2f}  "
             f"(sd {self.att_horizon_std:7.2f})   "
             f"horizon vehicle_count {self.vehicle_count_mean:8.2f} "
-            f"(sd {self.vehicle_count_std:6.2f})"
+            f"(sd {self.vehicle_count_std:6.2f})   {self.draw_summary()}"
         )
 
 
 @dataclass(frozen=True)
-class Comparison:
-    """A pairwise ATT comparison and its A4 validity verdict."""
+class DrawOverlap:
+    """Whether two tiers of one scenario can be compared at all (A5 point 3)."""
 
     scenario: str
     tier_a: str
     tier_b: str
-    att_a: float
-    att_b: float
-    vc_a: float
-    vc_b: float
-    rel_diff_conservative: float
-    rel_diff_permissive: float
+    n_shared: int
+    n_a: int
+    n_b: int
 
     @property
-    def valid(self) -> bool:
-        return self.rel_diff_conservative <= VALIDITY_THRESHOLD
+    def void(self) -> bool:
+        """No shared draws means the comparison cannot be made. Binary, not thresholded."""
+        return self.n_shared == 0
 
     @property
-    def denominator_choice_matters(self) -> bool:
-        """True when the two readings of "differ by more than 5%" disagree."""
-        return (self.rel_diff_conservative > VALIDITY_THRESHOLD) != (
-            self.rel_diff_permissive > VALIDITY_THRESHOLD
-        )
+    def identical(self) -> bool:
+        return self.n_shared == self.n_a == self.n_b
 
 
 def _split_run_name(name: str) -> tuple[str, str]:
@@ -130,7 +143,7 @@ def tier_cells(root: Path) -> list[TierCell]:
     Seed-split runs of the same tier are pooled, which is what makes a tier's ``n`` the
     full 200 draws rather than one seed's 40.
     """
-    buckets: dict[tuple[str, str], list[tuple[float, float]]] = {}
+    buckets: dict[tuple[str, str], list[tuple[float, float, int]]] = {}
     for run_dir in sorted(p for p in root.iterdir() if p.is_dir()):
         scenario, tier = _split_run_name(run_dir.name)
         if not tier:
@@ -144,13 +157,20 @@ def tier_cells(root: Path) -> list[TierCell]:
                     "v1.1 corpus; run offline.corpus_format_check first."
                 )
             buckets.setdefault((scenario, tier), []).append(
-                (float(episode.att_per_step[-1]), float(episode.vehicle_count[-1]))
+                (
+                    float(episode.att_per_step[-1]),
+                    float(episode.vehicle_count[-1]),
+                    # -1 is the on-disk "no draw" sentinel; a nominal episode has no
+                    # draw id and must not be pooled with randomised ones (A5 point 3).
+                    int(episode.flow_draw),
+                )
             )
 
     cells: list[TierCell] = []
     for (scenario, tier), rows in sorted(buckets.items()):
         att = np.asarray([r[0] for r in rows], dtype=np.float64)
         veh = np.asarray([r[1] for r in rows], dtype=np.float64)
+        draws = tuple(sorted({r[2] for r in rows if r[2] >= 0}))
         n = int(att.size)
         # Sample std (ddof=1); a single-episode tier has no spread to report.
         std = float(att.std(ddof=1)) if n > 1 else 0.0
@@ -164,14 +184,21 @@ def tier_cells(root: Path) -> list[TierCell]:
                 att_horizon_ci95=(1.96 * std / math.sqrt(n)) if n > 1 else 0.0,
                 vehicle_count_mean=float(veh.mean()),
                 vehicle_count_std=float(veh.std(ddof=1)) if n > 1 else 0.0,
+                draw_ids=draws,
             )
         )
     return cells
 
 
-def screen_comparisons(cells: Sequence[TierCell]) -> list[Comparison]:
-    """Every within-scenario pair, screened against A4's >5% condition."""
-    out: list[Comparison] = []
+def draw_overlaps(cells: Sequence[TierCell]) -> list[DrawOverlap]:
+    """Shared-draw status for every within-scenario pair (A5 point 3).
+
+    A5 replaced A4's withdrawn threshold with a construction requirement: a comparison is
+    valid only over shared draws, and void without them. This reports that rather than
+    deciding it, because a partial overlap needs the cells recomputed over the
+    intersection -- which is a reporting decision, not something to absorb into a mean.
+    """
+    out: list[DrawOverlap] = []
     by_scenario: dict[str, list[TierCell]] = {}
     for cell in cells:
         by_scenario.setdefault(cell.scenario, []).append(cell)
@@ -179,16 +206,12 @@ def screen_comparisons(cells: Sequence[TierCell]) -> list[Comparison]:
     for scenario, group in sorted(by_scenario.items()):
         for i, a in enumerate(group):
             for b in group[i + 1:]:
-                lo, hi = sorted((a.vehicle_count_mean, b.vehicle_count_mean))
-                gap = hi - lo
+                shared = set(a.draw_ids) & set(b.draw_ids)
                 out.append(
-                    Comparison(
-                        scenario=scenario,
-                        tier_a=a.tier, tier_b=b.tier,
-                        att_a=a.att_horizon_mean, att_b=b.att_horizon_mean,
-                        vc_a=a.vehicle_count_mean, vc_b=b.vehicle_count_mean,
-                        rel_diff_conservative=(gap / lo) if lo > 0 else math.inf,
-                        rel_diff_permissive=(gap / hi) if hi > 0 else math.inf,
+                    DrawOverlap(
+                        scenario=scenario, tier_a=a.tier, tier_b=b.tier,
+                        n_shared=len(shared),
+                        n_a=len(a.draw_ids), n_b=len(b.draw_ids),
                     )
                 )
     return out
@@ -221,31 +244,33 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"\n{current}", flush=True)
         print(cell.line(), flush=True)
 
-    comparisons = screen_comparisons(cells)
-    invalid = [c for c in comparisons if not c.valid]
-    contested = [c for c in comparisons if c.denominator_choice_matters]
+    overlaps = draw_overlaps(cells)
+    void = [o for o in overlaps if o.void]
+    partial = [o for o in overlaps if not o.void and not o.identical]
 
-    print(f"\nA4 validity screen ({len(comparisons)} within-scenario pairs):", flush=True)
-    if not invalid:
-        print("  all pairs pass the >5% horizon vehicle_count condition.", flush=True)
-    for c in invalid:
+    print(
+        f"\nA5 shared-draw check ({len(overlaps)} within-scenario pairs). "
+        "There is NO validity threshold: A5 withdrew it.",
+        flush=True,
+    )
+    if not void and not partial:
         print(
-            f"  INVALID {c.scenario} {c.tier_a} vs {c.tier_b}: horizon vehicle_count "
-            f"{c.vc_a:.1f} vs {c.vc_b:.1f} differ by "
-            f"{100 * c.rel_diff_conservative:.1f}% (conservative) / "
-            f"{100 * c.rel_diff_permissive:.1f}% (permissive). "
-            f"ATT {c.att_a:.2f} vs {c.att_b:.2f} is NOT a win either way.",
+            "  every pair shares an identical draw set -- all comparisons are made over "
+            "identical demand by construction.",
             flush=True,
         )
-    if contested:
+    for o in void:
         print(
-            f"\n  ⚠️ {len(contested)} pair(s) change verdict between the two readings of "
-            "'differ by more than 5%'. That needs a ruling, not a default:\n    "
-            + "\n    ".join(
-                f"{c.scenario} {c.tier_a} vs {c.tier_b}: "
-                f"{100 * c.rel_diff_conservative:.1f}% vs {100 * c.rel_diff_permissive:.1f}%"
-                for c in contested
-            ),
+            f"  VOID {o.scenario} {o.tier_a} vs {o.tier_b}: no shared draws "
+            f"({o.n_a} vs {o.n_b}, 0 in common). A5 point 3: this comparison cannot be "
+            "made and must not be reported.",
+            flush=True,
+        )
+    for o in partial:
+        print(
+            f"  PARTIAL {o.scenario} {o.tier_a} vs {o.tier_b}: {o.n_shared} shared of "
+            f"{o.n_a}/{o.n_b}. Recompute BOTH cells over the shared draws before "
+            "reporting this pair; the means above are over different demand.",
             flush=True,
         )
 
@@ -253,10 +278,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         payload = {
             "scope": "randomised draws 1-200; does NOT settle the nominal draw-0 comparison",
             "primary_metric": "att_horizon = att_per_step[-1] (prereg A1)",
-            "co_report": "vehicle_count at the episode horizon (prereg A4)",
-            "validity_threshold": VALIDITY_THRESHOLD,
+            "co_report": (
+                "vehicle_count at the episode horizon, reported unconditionally "
+                "(prereg A5; A4's >5% condition is withdrawn)"
+            ),
+            "comparison_rule": (
+                "valid only over shared draw ids; void without them (prereg A5 point 3)"
+            ),
             "cells": [vars(c) for c in cells],
-            "invalid_comparisons": [vars(c) for c in invalid],
+            "void_pairs": [vars(o) for o in void],
+            "partial_overlap_pairs": [vars(o) for o in partial],
         }
         Path(args.json_out).write_text(
             json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"

@@ -255,11 +255,25 @@ def test_att_horizon_is_the_last_row_not_the_mean(tmp_path: Path) -> None:
     assert cell.att_horizon_mean != pytest.approx(100.0)
 
 
-def test_every_cell_carries_the_a4_co_report(tmp_path: Path) -> None:
+def test_every_cell_carries_the_co_report_unconditionally(tmp_path: Path) -> None:
+    """A5 point 1: no threshold at which horizon vehicle_count is omitted."""
     root = tmp_path / "v11"
     _write_run(root, "cf_hz1x1__maxpressure", vehicles=77)
     cell = att_ladder.tier_cells(root)[0]
     assert cell.vehicle_count_mean == pytest.approx(77.0)
+
+
+def test_no_validity_threshold_survives_anywhere(tmp_path: Path) -> None:
+    """A5 withdrew A4's >5% condition; nothing may re-introduce it by accident.
+
+    Asserted against the module's own surface rather than its docstring: a leftover
+    threshold constant or verdict property is what a partial revert would leave behind.
+    """
+    assert not hasattr(att_ladder, "VALIDITY_THRESHOLD")
+    assert not hasattr(att_ladder, "screen_comparisons")
+    assert not hasattr(att_ladder, "Comparison")
+    source = Path(att_ladder.__file__).read_text(encoding="utf-8")
+    assert "0.05" not in source
 
 
 def test_seed_split_runs_of_one_tier_are_pooled(tmp_path: Path) -> None:
@@ -271,41 +285,66 @@ def test_seed_split_runs_of_one_tier_are_pooled(tmp_path: Path) -> None:
     assert cells["mappo1000"].n_episodes == 4
 
 
-def test_a4_validity_condition_invalidates_a_mismatched_pair(tmp_path: Path) -> None:
-    """>5% apart on horizon vehicle_count is reported invalid, not as a win."""
-    root = tmp_path / "v11"
-    _write_run(root, "cf_hz1x1__maxpressure", att=100.0, vehicles=100)
-    _write_run(root, "cf_hz1x1__random", att=300.0, vehicles=200)  # 100% apart
+def test_a_huge_vehicle_count_gap_is_reported_not_invalidated(tmp_path: Path) -> None:
+    """The A5 correction, as a test.
 
-    comparisons = att_ladder.screen_comparisons(att_ladder.tier_cells(root))
-    assert len(comparisons) == 1
-    assert comparisons[0].valid is False
-
-
-def test_a4_validity_condition_passes_a_close_pair(tmp_path: Path) -> None:
-    root = tmp_path / "v11"
-    _write_run(root, "cf_hz1x1__maxpressure", att=100.0, vehicles=100)
-    _write_run(root, "cf_hz1x1__random", att=300.0, vehicles=102)  # 2% apart
-
-    comparisons = att_ladder.screen_comparisons(att_ladder.tier_cells(root))
-    assert comparisons[0].valid is True
-    assert comparisons[0].denominator_choice_matters is False
-
-
-def test_the_two_readings_of_five_percent_are_both_reported(tmp_path: Path) -> None:
-    """The denominator ambiguity is surfaced, not silently resolved.
-
-    100 vs 105.5 is 5.5% of the smaller and 5.2% of the larger -- both over here, so the
-    verdict agrees; the point is that both numbers are computed and comparable.
+    Under A4 this pair was INVALID; A5 withdrew that because horizon vehicle_count is a
+    control outcome, so a large gap *is* the result rather than a defect in the
+    comparison. cf_grid4x4 MaxPressure vs MAPPO differs by 98.1% on real anchors.
     """
     root = tmp_path / "v11"
-    _write_run(root, "cf_hz1x1__maxpressure", att=100.0, vehicles=1000)
-    _write_run(root, "cf_hz1x1__random", att=300.0, vehicles=1040)  # 4% / 3.85%
+    _write_run(root, "cf_hz1x1__maxpressure", att=100.0, vehicles=10)
+    _write_run(root, "cf_hz1x1__random", att=300.0, vehicles=1000)  # 100x apart
 
-    c = att_ladder.screen_comparisons(att_ladder.tier_cells(root))[0]
-    assert c.rel_diff_conservative > c.rel_diff_permissive
-    assert c.rel_diff_conservative == pytest.approx(40 / 1000)
-    assert c.rel_diff_permissive == pytest.approx(40 / 1040)
+    cells = {c.tier: c for c in att_ladder.tier_cells(root)}
+    assert cells["maxpressure"].vehicle_count_mean == pytest.approx(10.0)
+    assert cells["random"].vehicle_count_mean == pytest.approx(1000.0)
+    # Same draws, so the pair is comparable however large the outcome gap is.
+    overlap = att_ladder.draw_overlaps(list(cells.values()))[0]
+    assert overlap.void is False
+    assert overlap.identical is True
+
+
+def test_every_cell_reports_its_draw_ids(tmp_path: Path) -> None:
+    """A5 point 3: the draw ids must be reported alongside the cell."""
+    root = tmp_path / "v11"
+    _write_run(root, "cf_hz1x1__maxpressure", n=3, draws=range(5, 8))
+
+    cell = att_ladder.tier_cells(root)[0]
+    assert cell.draw_ids == (5, 6, 7)
+    assert "draws=3 [5-7]" in cell.line()
+
+
+def test_pooled_seed_splits_report_the_union_of_their_draws(tmp_path: Path) -> None:
+    root = tmp_path / "v11"
+    _write_run(root, "cf_hz1x1__mappo1000__seed101", n=2, draws=range(1, 3))
+    _write_run(root, "cf_hz1x1__mappo1000__seed202", n=2, draws=range(3, 5))
+
+    cell = {c.tier: c for c in att_ladder.tier_cells(root)}["mappo1000"]
+    assert cell.draw_ids == (1, 2, 3, 4)
+
+
+def test_tiers_with_no_shared_draws_are_void(tmp_path: Path) -> None:
+    """A5's replacement voiding rule: binary and checkable, not thresholded."""
+    root = tmp_path / "v11"
+    _write_run(root, "cf_hz1x1__maxpressure", n=2, draws=range(1, 3))
+    _write_run(root, "cf_hz1x1__random", n=2, draws=range(90, 92))
+
+    overlap = att_ladder.draw_overlaps(att_ladder.tier_cells(root))[0]
+    assert overlap.void is True
+    assert overlap.n_shared == 0
+
+
+def test_partial_draw_overlap_is_surfaced_not_pooled(tmp_path: Path) -> None:
+    """A partial overlap must be visible; the tool must not average over it silently."""
+    root = tmp_path / "v11"
+    _write_run(root, "cf_hz1x1__maxpressure", n=3, draws=range(1, 4))
+    _write_run(root, "cf_hz1x1__random", n=3, draws=range(3, 6))
+
+    overlap = att_ladder.draw_overlaps(att_ladder.tier_cells(root))[0]
+    assert overlap.void is False
+    assert overlap.identical is False
+    assert overlap.n_shared == 1
 
 
 def test_emitter_refuses_a_v10_corpus(tmp_path: Path) -> None:
