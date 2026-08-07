@@ -116,6 +116,29 @@ assert sum(LANE_WAITING_ROWS[0]) != sum(LANE_WAITING_ROWS[1])
 # 191/640 grid4x4 std entries are exactly 0 (review P3-10).
 CONSTANT_FEATURE_VALUE = 7.0
 
+# Per-step average travel time for the v1.1 fixture, as a consumer would compute it: in
+# float64.  Deliberately NON-MONOTONE (P2.6 measured 407/407 real episodes falsifying the
+# monotonicity the brief once asserted) and deliberately NOT exactly representable in
+# float32, so the storage round-trip is lossy and the float32-vs-float64 comparison trap is
+# reproducible rather than hypothetical.
+ATT_SOURCE_FLOAT64: tuple[float, ...] = (
+    10.1, 10.3, 10.7, 10.2, 11.4, 11.9, 12.35, 12.1, 12.8,
+)
+assert len(ATT_SOURCE_FLOAT64) == T + 1, "att_per_step is an OBSERVATION: T+1 rows"
+assert any(
+    ATT_SOURCE_FLOAT64[t + 1] < ATT_SOURCE_FLOAT64[t] for t in range(T)
+), "fixture must be non-monotone, or it cannot detect a monotonicity assumption"
+# The trap is asserted on the HORIZON element specifically, so it is the horizon that must
+# lose precision.  "Some value in the sequence does" is not enough: the first draft of this
+# fixture ended in 12.75, which is dyadic and therefore float32-exact, and the trap test
+# failed against a perfectly correct loader.
+assert float(np.float32(ATT_SOURCE_FLOAT64[-1])) != ATT_SOURCE_FLOAT64[-1], (
+    "the horizon value must lose precision in float32, or the comparison trap is invisible"
+)
+assert all(
+    float(np.float32(v)) != v for v in ATT_SOURCE_FLOAT64
+), "every fixture value should be float32-lossy, so no assertion here is accidentally exact"
+
 
 def _state_rows(ix_index: int, state_dim: int, ep_index: int) -> np.ndarray:
     """``t + 10*d + 100*ix + 1000*ep``, except a constant final column.
@@ -185,6 +208,11 @@ def _episode_arrays(*, ep_index: int, draw: int, format_version: str, nan_reward
         "engine_seed": np.asarray(1000 + ep_index, dtype=np.int64),
         "flow_draw": np.asarray(draw, dtype=np.int64),
     }
+
+    # v1.1 = v1.0 plus exactly one array.  Stored float32, as the format requires, from a
+    # float64 source -- which is precisely the lossy step the comparison trap lives in.
+    if format_version == "1.1":
+        arrays["att_per_step"] = np.asarray(ATT_SOURCE_FLOAT64, dtype=np.float32)
 
     global_reward = np.zeros(T, dtype=np.float32)
     for i, (ix_id, state_dim, n_actions) in enumerate(IX_SPECS):
@@ -755,6 +783,75 @@ def test_att_per_step_is_none_for_v10_episodes(corpus: Path) -> None:
     ds = TrajectoryWindowDataset([corpus], context_length=K, split="train")
     assert [record.att_per_step for record in ds.episode_records] == [None, None]
     assert {record.format_version for record in ds.episode_records} == {"1.0"}
+
+
+def test_att_per_step_is_populated_and_aligned_on_a_v11_fixture(tmp_path: Path) -> None:
+    """The POSITIVE v1.1 branch: the ATT array arrives, with T+1 rows and float32 dtype.
+
+    Until P2.6 merged, only the ``None`` branch of the ATT gate could be exercised, and this
+    test could not exist.  It closes that merge gate on the synthetic side; the real-corpus
+    side is in ``tests/test_offline_dataset_corpus.py``.
+
+    ``att_per_step`` is an OBSERVATION, not an outcome: ``T+1`` rows against the ``T`` rows of
+    ``action`` and ``local_reward``.  Getting that backwards is the same class of off-by-one
+    the RTG tests exist to catch, so it is asserted by row count, not by eye.
+    """
+    out_dir = write_dataset_dir(tmp_path, "v11__policy", draws=(1, 2), format_version="1.1")
+    ds = TrajectoryWindowDataset([out_dir], context_length=K, split="train")
+
+    assert {record.format_version for record in ds.episode_records} == {"1.1"}
+    for record in ds.episode_records:
+        att = record.att_per_step
+        assert att is not None, "a v1.1 episode must carry att_per_step, not None"
+        assert att.shape == (T + 1,), "att_per_step is an observation: T+1 rows"
+        assert att.dtype == np.float32
+        # Same file, read by a route that does not go through the loader.
+        written = raw_arrays(out_dir, record.episode_file)
+        assert np.array_equal(att, written["att_per_step"])
+        # T+1 observations against T outcomes, asserted rather than assumed.
+        assert att.shape[0] == written["global_reward"].shape[0] + 1
+        assert att.shape[0] == written["ix0_action"].shape[0] + 1
+
+
+def test_att_horizon_comparison_forms_that_trip_on_float32_storage(tmp_path: Path) -> None:
+    """Which float64-vs-float32 comparisons of the ATT horizon fail, measured not assumed.
+
+    Carried from P2.6: the stored array is float32 while a consumer's horizon is float64, so
+    "compare without casting and a correct corpus fails ``==``".  That is true of most
+    spellings but **not all**, and the exception is the dangerous part to get wrong:
+
+    * ``np.float32 == <python float>`` is **True** -- NumPy 2's NEP 50 treats a Python float
+      as a *weak* scalar and casts it DOWN, so this spelling silently does the right thing;
+    * every spelling where float64 is *strong* promotes UP and the equality fails:
+      ``float(stored) == computed``, ``stored == np.float64(computed)``, and any array
+      comparison against a float64 array -- which is what ``np.array_equal`` builds from a
+      plain Python list.
+
+    So a consumer is safe by accident on a bare scalar comparison and unsafe the moment the
+    value passes through ``float()``, ``np.float64`` or an array.  Measured on numpy 2.5.1;
+    if NEP 50 semantics change, this test says so rather than leaving stale guidance in the
+    module docstring.
+    """
+    out_dir = write_dataset_dir(tmp_path, "v11__policy", draws=(1,), format_version="1.1")
+    ds = TrajectoryWindowDataset([out_dir], context_length=K, split="train")
+    att = ds.episode_records[0].att_per_step
+    assert att is not None
+
+    stored = att[-1]                                  # float32, straight out of the corpus
+    computed = ATT_SOURCE_FLOAT64[-1]                 # what a consumer computes in float64
+    assert isinstance(stored, np.float32) and isinstance(computed, float)
+
+    # Safe by accident: the Python float is weak and gets cast down.
+    assert stored == computed
+
+    # Dangerous: every form in which float64 is strong.
+    assert float(stored) != computed
+    assert stored != np.float64(computed)
+    assert not np.array_equal(att, np.asarray(ATT_SOURCE_FLOAT64))
+
+    # Correct in every form: cast the float64 DOWN, never widen the stored array.
+    assert stored == np.float32(computed)
+    assert np.array_equal(att, np.asarray(ATT_SOURCE_FLOAT64, dtype=np.float32))
 
 
 # ----------------------------------------------------------------------

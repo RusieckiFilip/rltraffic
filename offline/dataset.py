@@ -113,10 +113,22 @@ input.
 
 ⚠️ ``att_per_step`` is stored **float32** while an episode-horizon value recomputed in a
 consumer is typically **float64** (measured 2026-08-07 by P2.6: bit-identical against
-``np.float32(att_horizon)``, but 5.03e-06 apart when compared raw).  A consumer that compares
-without casting will see a *correct* corpus fail ``==``.  Cast the float64 value down with
-``np.float32(...)`` before comparing; never widen the stored array instead, which would hide
-a real mismatch behind a tolerance.
+``np.float32(att_horizon)``, but 5.03e-06 apart when compared raw).  **Cast the float64 value
+down with** ``np.float32(...)``; never widen the stored array instead, which hides a real
+mismatch behind a tolerance.
+
+Which spellings actually trip, measured on numpy 2.5.1 rather than assumed -- the exception is
+the part that misleads::
+
+    stored_f32 == <python float>                True    NEP 50: a Python float is a *weak*
+                                                        scalar, so it is cast DOWN for you
+    float(stored_f32) == computed_f64           False   both float64; nothing rounds it away
+    stored_f32 == np.float64(computed)          False   a strong float64 promotes the pair UP
+    np.array_equal(att_f32, <float64 array>)    False   a plain list builds a float64 array
+    stored_f32 == np.float32(computed)          True    the correct comparison
+
+A consumer is therefore safe *by accident* on a bare scalar comparison, and unsafe the moment
+the value passes through ``float()``, ``np.float64`` or an array.  Do not rely on the accident.
 """
 
 from __future__ import annotations

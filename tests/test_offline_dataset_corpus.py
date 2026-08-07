@@ -47,6 +47,19 @@ def corpus_root() -> Path:
 
 
 @pytest.fixture(scope="module")
+def corpus_v11_root() -> Path:
+    """``RLTRAFFIC_CORPUS_V11``, else ``<repo>/datasets_v11``; skip if neither exists."""
+    env_value = os.environ.get("RLTRAFFIC_CORPUS_V11")
+    candidate = Path(env_value) if env_value else REPO_ROOT / "datasets_v11"
+    if not candidate.is_dir():
+        pytest.skip(
+            f"format v1.1 corpus not found at {candidate}: set RLTRAFFIC_CORPUS_V11 to a "
+            "collected datasets_v11/ directory to run the v1.1 corpus tests"
+        )
+    return candidate
+
+
+@pytest.fixture(scope="module")
 def dataset_dirs(corpus_root: Path) -> dict[str, list[Path]]:
     """Collection directories grouped by ``scenario_id`` read from their manifests."""
     grouped: dict[str, list[Path]] = {}
@@ -279,6 +292,67 @@ def test_all_corpus_draws_lie_in_the_training_pool(dataset_dirs: dict[str, list[
 # ----------------------------------------------------------------------
 # End to end on a real collection directory
 # ----------------------------------------------------------------------
+
+
+def test_att_per_step_is_populated_on_the_real_v11_corpus(corpus_v11_root: Path) -> None:
+    """The POSITIVE v1.1 branch on real data -- the merge gate this task waited on.
+
+    Exercised through the loader, so what is verified is the ATT gate's *populated* path
+    end to end: the array survives ``load_episode``, reaches ``EpisodeRecord``, and carries
+    the T+1 alignment an observation must have.
+    """
+    dataset_dir = sorted(p.parent for p in corpus_v11_root.glob("*/manifest.json"))[0]
+    manifest = json.loads((dataset_dir / MANIFEST_NAME).read_text(encoding="utf-8"))
+    assert manifest["format_version"] == "1.1", f"{dataset_dir} is not a v1.1 corpus"
+
+    ds = TrajectoryWindowDataset(
+        [dataset_dir], context_length=8, split="train", draw_ids=[1], normalize=False
+    )
+    checked = 0
+    for record in ds.episode_records:
+        att = record.att_per_step
+        assert record.format_version == "1.1"
+        assert att is not None, f"{record.episode_file}: v1.1 episode with no att_per_step"
+        assert att.dtype == np.float32
+        assert att.shape == (record.episode_length + 1,), "att_per_step is an observation"
+
+        with np.load(Path(record.dataset_dir) / record.episode_file) as data:
+            assert np.array_equal(att, data["att_per_step"])
+            assert att.shape[0] == data["global_reward"].shape[0] + 1
+        # The horizon element is the registered primary metric (A1).  Compared as float32 --
+        # see the comparison-form test in tests/test_offline_dataset.py for why.
+        horizon = att[-1]
+        assert np.isfinite(horizon) and horizon > 0
+        assert horizon == att[record.episode_length], "the horizon is the last observation row"
+        assert horizon != att[0], "ATT must evolve over an episode, or the field is inert"
+        checked += 1
+    assert checked > 0, "no v1.1 episodes were checked"
+    print(f"\n[att v1.1] {dataset_dir.name}: {checked} episodes, horizon {att[-1]:.5f}")
+
+
+def test_a_v10_and_a_v11_corpus_cannot_be_mixed(
+    dataset_dirs: dict[str, list[Path]], corpus_v11_root: Path
+) -> None:
+    """The homogeneity guard against **both real corpora**, now that both versions load.
+
+    This is the test review finding P3-03 said could not exist yet: until P2.6 merged, a
+    mixed pair was refused for being *unsupported* rather than for being *mixed*, so the
+    guard could be deleted with the suite still green.  Both directories below load happily
+    on their own, so only the mixing can raise.
+    """
+    v10_dir = _one_dir_per_scenario(dataset_dirs)["cityflow1x1"]
+    v11_dir = sorted(p.parent for p in corpus_v11_root.glob("*/manifest.json"))[0]
+
+    for directory, expected in ((v10_dir, "1.0"), (v11_dir, "1.1")):
+        alone = TrajectoryWindowDataset(
+            [directory], context_length=4, split="train", draw_ids=[1], normalize=False
+        )
+        assert {r.format_version for r in alone.episode_records} == {expected}
+
+    with pytest.raises(ValueError, match=r"span format versions \['1\.0', '1\.1'\]"):
+        TrajectoryWindowDataset(
+            [v10_dir, v11_dir], context_length=4, split="train", draw_ids=[1], normalize=False
+        )
 
 
 def test_items_match_the_npz_on_a_real_collection_directory(
