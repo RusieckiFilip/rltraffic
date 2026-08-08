@@ -1,0 +1,4630 @@
+{
+  "cells": {
+    "madt": {
+      "att_horizon_ci95": 0.20209652857816307,
+      "att_horizon_mean": 104.95575898180847,
+      "att_horizon_std": 2.3056202852933754,
+      "draw_ids": [
+        1000,
+        1001,
+        1002,
+        1003,
+        1004,
+        1005,
+        1006,
+        1007,
+        1008,
+        1009,
+        1010,
+        1011,
+        1012,
+        1013,
+        1014,
+        1015,
+        1016,
+        1017,
+        1018,
+        1019,
+        1020,
+        1021,
+        1022,
+        1023,
+        1024,
+        1025,
+        1026,
+        1027,
+        1028,
+        1029,
+        1030,
+        1031,
+        1032,
+        1033,
+        1034,
+        1035,
+        1036,
+        1037,
+        1038,
+        1039,
+        1040,
+        1041,
+        1042,
+        1043,
+        1044,
+        1045,
+        1046,
+        1047,
+        1048,
+        1049,
+        1050,
+        1051,
+        1052,
+        1053,
+        1054,
+        1055,
+        1056,
+        1057,
+        1058,
+        1059,
+        1060,
+        1061,
+        1062,
+        1063,
+        1064,
+        1065,
+        1066,
+        1067,
+        1068,
+        1069,
+        1070,
+        1071,
+        1072,
+        1073,
+        1074,
+        1075,
+        1076,
+        1077,
+        1078,
+        1079,
+        1080,
+        1081,
+        1082,
+        1083,
+        1084,
+        1085,
+        1086,
+        1087,
+        1088,
+        1089,
+        1090,
+        1091,
+        1092,
+        1093,
+        1094,
+        1095,
+        1096,
+        1097,
+        1098,
+        1099
+      ],
+      "horizon_vehicle_count_mean": 44.136,
+      "horizon_vehicle_count_std": 5.001553265750579,
+      "n_episodes": 500,
+      "policy_source": "checkpoint",
+      "seeds": [
+        101,
+        202,
+        303,
+        404,
+        505
+      ]
+    },
+    "mappo1000": {
+      "att_horizon_ci95": 0.2515138141174472,
+      "att_horizon_mean": 105.58203462874322,
+      "att_horizon_std": 2.8693978859533584,
+      "draw_ids": [
+        1000,
+        1001,
+        1002,
+        1003,
+        1004,
+        1005,
+        1006,
+        1007,
+        1008,
+        1009,
+        1010,
+        1011,
+        1012,
+        1013,
+        1014,
+        1015,
+        1016,
+        1017,
+        1018,
+        1019,
+        1020,
+        1021,
+        1022,
+        1023,
+        1024,
+        1025,
+        1026,
+        1027,
+        1028,
+        1029,
+        1030,
+        1031,
+        1032,
+        1033,
+        1034,
+        1035,
+        1036,
+        1037,
+        1038,
+        1039,
+        1040,
+        1041,
+        1042,
+        1043,
+        1044,
+        1045,
+        1046,
+        1047,
+        1048,
+        1049,
+        1050,
+        1051,
+        1052,
+        1053,
+        1054,
+        1055,
+        1056,
+        1057,
+        1058,
+        1059,
+        1060,
+        1061,
+        1062,
+        1063,
+        1064,
+        1065,
+        1066,
+        1067,
+        1068,
+        1069,
+        1070,
+        1071,
+        1072,
+        1073,
+        1074,
+        1075,
+        1076,
+        1077,
+        1078,
+        1079,
+        1080,
+        1081,
+        1082,
+        1083,
+        1084,
+        1085,
+        1086,
+        1087,
+        1088,
+        1089,
+        1090,
+        1091,
+        1092,
+        1093,
+        1094,
+        1095,
+        1096,
+        1097,
+        1098,
+        1099
+      ],
+      "horizon_vehicle_count_mean": 44.35,
+      "horizon_vehicle_count_std": 5.235869427068883,
+      "n_episodes": 500,
+      "policy_source": "checkpoint",
+      "seeds": [
+        101,
+        202,
+        303,
+        404,
+        505
+      ]
+    },
+    "mappo500": {
+      "att_horizon_ci95": 0.3895910964385251,
+      "att_horizon_mean": 108.09161223553403,
+      "att_horizon_std": 4.444653954414379,
+      "draw_ids": [
+        1000,
+        1001,
+        1002,
+        1003,
+        1004,
+        1005,
+        1006,
+        1007,
+        1008,
+        1009,
+        1010,
+        1011,
+        1012,
+        1013,
+        1014,
+        1015,
+        1016,
+        1017,
+        1018,
+        1019,
+        1020,
+        1021,
+        1022,
+        1023,
+        1024,
+        1025,
+        1026,
+        1027,
+        1028,
+        1029,
+        1030,
+        1031,
+        1032,
+        1033,
+        1034,
+        1035,
+        1036,
+        1037,
+        1038,
+        1039,
+        1040,
+        1041,
+        1042,
+        1043,
+        1044,
+        1045,
+        1046,
+        1047,
+        1048,
+        1049,
+        1050,
+        1051,
+        1052,
+        1053,
+        1054,
+        1055,
+        1056,
+        1057,
+        1058,
+        1059,
+        1060,
+        1061,
+        1062,
+        1063,
+        1064,
+        1065,
+        1066,
+        1067,
+        1068,
+        1069,
+        1070,
+        1071,
+        1072,
+        1073,
+        1074,
+        1075,
+        1076,
+        1077,
+        1078,
+        1079,
+        1080,
+        1081,
+        1082,
+        1083,
+        1084,
+        1085,
+        1086,
+        1087,
+        1088,
+        1089,
+        1090,
+        1091,
+        1092,
+        1093,
+        1094,
+        1095,
+        1096,
+        1097,
+        1098,
+        1099
+      ],
+      "horizon_vehicle_count_mean": 45.934,
+      "horizon_vehicle_count_std": 5.388851774440803,
+      "n_episodes": 500,
+      "policy_source": "checkpoint",
+      "seeds": [
+        101,
+        202,
+        303,
+        404,
+        505
+      ]
+    },
+    "maxpressure": {
+      "att_horizon_ci95": 2.796310496863493,
+      "att_horizon_mean": 176.89119451638254,
+      "att_horizon_std": 14.266890290119862,
+      "draw_ids": [
+        1000,
+        1001,
+        1002,
+        1003,
+        1004,
+        1005,
+        1006,
+        1007,
+        1008,
+        1009,
+        1010,
+        1011,
+        1012,
+        1013,
+        1014,
+        1015,
+        1016,
+        1017,
+        1018,
+        1019,
+        1020,
+        1021,
+        1022,
+        1023,
+        1024,
+        1025,
+        1026,
+        1027,
+        1028,
+        1029,
+        1030,
+        1031,
+        1032,
+        1033,
+        1034,
+        1035,
+        1036,
+        1037,
+        1038,
+        1039,
+        1040,
+        1041,
+        1042,
+        1043,
+        1044,
+        1045,
+        1046,
+        1047,
+        1048,
+        1049,
+        1050,
+        1051,
+        1052,
+        1053,
+        1054,
+        1055,
+        1056,
+        1057,
+        1058,
+        1059,
+        1060,
+        1061,
+        1062,
+        1063,
+        1064,
+        1065,
+        1066,
+        1067,
+        1068,
+        1069,
+        1070,
+        1071,
+        1072,
+        1073,
+        1074,
+        1075,
+        1076,
+        1077,
+        1078,
+        1079,
+        1080,
+        1081,
+        1082,
+        1083,
+        1084,
+        1085,
+        1086,
+        1087,
+        1088,
+        1089,
+        1090,
+        1091,
+        1092,
+        1093,
+        1094,
+        1095,
+        1096,
+        1097,
+        1098,
+        1099
+      ],
+      "horizon_vehicle_count_mean": 111.92,
+      "horizon_vehicle_count_std": 14.144763816845563,
+      "n_episodes": 100,
+      "policy_source": "checkpoint",
+      "seeds": []
+    }
+  },
+  "draw_ids": [
+    1000,
+    1001,
+    1002,
+    1003,
+    1004,
+    1005,
+    1006,
+    1007,
+    1008,
+    1009,
+    1010,
+    1011,
+    1012,
+    1013,
+    1014,
+    1015,
+    1016,
+    1017,
+    1018,
+    1019,
+    1020,
+    1021,
+    1022,
+    1023,
+    1024,
+    1025,
+    1026,
+    1027,
+    1028,
+    1029,
+    1030,
+    1031,
+    1032,
+    1033,
+    1034,
+    1035,
+    1036,
+    1037,
+    1038,
+    1039,
+    1040,
+    1041,
+    1042,
+    1043,
+    1044,
+    1045,
+    1046,
+    1047,
+    1048,
+    1049,
+    1050,
+    1051,
+    1052,
+    1053,
+    1054,
+    1055,
+    1056,
+    1057,
+    1058,
+    1059,
+    1060,
+    1061,
+    1062,
+    1063,
+    1064,
+    1065,
+    1066,
+    1067,
+    1068,
+    1069,
+    1070,
+    1071,
+    1072,
+    1073,
+    1074,
+    1075,
+    1076,
+    1077,
+    1078,
+    1079,
+    1080,
+    1081,
+    1082,
+    1083,
+    1084,
+    1085,
+    1086,
+    1087,
+    1088,
+    1089,
+    1090,
+    1091,
+    1092,
+    1093,
+    1094,
+    1095,
+    1096,
+    1097,
+    1098,
+    1099
+  ],
+  "episodes": [
+    {
+      "arm": "madt",
+      "att_horizon": 106.4561500275786,
+      "draw_id": 1000,
+      "episode_reward": -7313.0,
+      "horizon_vehicle_count": 44.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.71978021978022,
+      "draw_id": 1001,
+      "episode_reward": -6989.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.81440443213296,
+      "draw_id": 1002,
+      "episode_reward": -6735.0,
+      "horizon_vehicle_count": 32.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.32162458836443,
+      "draw_id": 1003,
+      "episode_reward": -6591.0,
+      "horizon_vehicle_count": 40.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.997799779978,
+      "draw_id": 1004,
+      "episode_reward": -6718.0,
+      "horizon_vehicle_count": 50.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.9873417721519,
+      "draw_id": 1005,
+      "episode_reward": -6798.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.06532389765923,
+      "draw_id": 1006,
+      "episode_reward": -7121.0,
+      "horizon_vehicle_count": 47.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 100.76214405360135,
+      "draw_id": 1007,
+      "episode_reward": -6313.0,
+      "horizon_vehicle_count": 47.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.07969009407859,
+      "draw_id": 1008,
+      "episode_reward": -6686.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.74750830564784,
+      "draw_id": 1009,
+      "episode_reward": -7163.0,
+      "horizon_vehicle_count": 48.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 111.41509433962264,
+      "draw_id": 1010,
+      "episode_reward": -8064.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.6952695269527,
+      "draw_id": 1011,
+      "episode_reward": -7556.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.88154269972452,
+      "draw_id": 1012,
+      "episode_reward": -7466.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.21424627277747,
+      "draw_id": 1013,
+      "episode_reward": -7329.0,
+      "horizon_vehicle_count": 35.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 109.0899241603467,
+      "draw_id": 1014,
+      "episode_reward": -7876.0,
+      "horizon_vehicle_count": 58.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.64445658110323,
+      "draw_id": 1015,
+      "episode_reward": -7153.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.332422088573,
+      "draw_id": 1016,
+      "episode_reward": -6791.0,
+      "horizon_vehicle_count": 50.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.25316455696202,
+      "draw_id": 1017,
+      "episode_reward": -7185.0,
+      "horizon_vehicle_count": 50.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.44035184167124,
+      "draw_id": 1018,
+      "episode_reward": -7335.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.28524410312671,
+      "draw_id": 1019,
+      "episode_reward": -7146.0,
+      "horizon_vehicle_count": 44.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.40298507462687,
+      "draw_id": 1020,
+      "episode_reward": -6873.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.3801652892562,
+      "draw_id": 1021,
+      "episode_reward": -7116.0,
+      "horizon_vehicle_count": 48.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.90576496674058,
+      "draw_id": 1022,
+      "episode_reward": -6965.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.59179145867998,
+      "draw_id": 1023,
+      "episode_reward": -7229.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 109.24740010946907,
+      "draw_id": 1024,
+      "episode_reward": -7790.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.49069003285871,
+      "draw_id": 1025,
+      "episode_reward": -6990.0,
+      "horizon_vehicle_count": 36.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.87995594713657,
+      "draw_id": 1026,
+      "episode_reward": -7571.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.79515418502203,
+      "draw_id": 1027,
+      "episode_reward": -7299.0,
+      "horizon_vehicle_count": 47.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 109.31318681318682,
+      "draw_id": 1028,
+      "episode_reward": -7809.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 109.80737018425461,
+      "draw_id": 1029,
+      "episode_reward": -7768.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 108.76091703056768,
+      "draw_id": 1030,
+      "episode_reward": -7734.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.03314917127072,
+      "draw_id": 1031,
+      "episode_reward": -6871.0,
+      "horizon_vehicle_count": 38.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.73980154355017,
+      "draw_id": 1032,
+      "episode_reward": -7469.0,
+      "horizon_vehicle_count": 40.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.0274574409665,
+      "draw_id": 1033,
+      "episode_reward": -7091.0,
+      "horizon_vehicle_count": 49.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.66575641725832,
+      "draw_id": 1034,
+      "episode_reward": -7382.0,
+      "horizon_vehicle_count": 51.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.97790055248619,
+      "draw_id": 1035,
+      "episode_reward": -7207.0,
+      "horizon_vehicle_count": 50.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.35678944474986,
+      "draw_id": 1036,
+      "episode_reward": -6999.0,
+      "horizon_vehicle_count": 56.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.9165302782324,
+      "draw_id": 1037,
+      "episode_reward": -7314.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 108.58085808580859,
+      "draw_id": 1038,
+      "episode_reward": -7692.0,
+      "horizon_vehicle_count": 53.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.42465753424658,
+      "draw_id": 1039,
+      "episode_reward": -6981.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.36652078774617,
+      "draw_id": 1040,
+      "episode_reward": -7191.0,
+      "horizon_vehicle_count": 52.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.73355084284937,
+      "draw_id": 1041,
+      "episode_reward": -7031.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 109.05420054200542,
+      "draw_id": 1042,
+      "episode_reward": -7920.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.70489977728285,
+      "draw_id": 1043,
+      "episode_reward": -6840.0,
+      "horizon_vehicle_count": 40.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 110.29152915291529,
+      "draw_id": 1044,
+      "episode_reward": -7843.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.04507971412865,
+      "draw_id": 1045,
+      "episode_reward": -7412.0,
+      "horizon_vehicle_count": 37.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.31383577052868,
+      "draw_id": 1046,
+      "episode_reward": -6798.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.06094182825485,
+      "draw_id": 1047,
+      "episode_reward": -6732.0,
+      "horizon_vehicle_count": 55.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.9182561307902,
+      "draw_id": 1048,
+      "episode_reward": -7095.0,
+      "horizon_vehicle_count": 49.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.75984470327232,
+      "draw_id": 1049,
+      "episode_reward": -7075.0,
+      "horizon_vehicle_count": 49.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.41727425687044,
+      "draw_id": 1050,
+      "episode_reward": -7359.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.3186328555678,
+      "draw_id": 1051,
+      "episode_reward": -6730.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.88766519823788,
+      "draw_id": 1052,
+      "episode_reward": -6926.0,
+      "horizon_vehicle_count": 53.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.19315673289184,
+      "draw_id": 1053,
+      "episode_reward": -7088.0,
+      "horizon_vehicle_count": 50.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.7591680350301,
+      "draw_id": 1054,
+      "episode_reward": -7047.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 112.12701053799223,
+      "draw_id": 1055,
+      "episode_reward": -8237.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.99341383095499,
+      "draw_id": 1056,
+      "episode_reward": -7188.0,
+      "horizon_vehicle_count": 36.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.26478717523494,
+      "draw_id": 1057,
+      "episode_reward": -6897.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.01861993428258,
+      "draw_id": 1058,
+      "episode_reward": -7213.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.8407468423943,
+      "draw_id": 1059,
+      "episode_reward": -7069.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.80581459133296,
+      "draw_id": 1060,
+      "episode_reward": -6748.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.64796479647964,
+      "draw_id": 1061,
+      "episode_reward": -6899.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.37457817772778,
+      "draw_id": 1062,
+      "episode_reward": -6561.0,
+      "horizon_vehicle_count": 36.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.60791968767428,
+      "draw_id": 1063,
+      "episode_reward": -7074.0,
+      "horizon_vehicle_count": 49.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.24351187189399,
+      "draw_id": 1064,
+      "episode_reward": -6932.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.38977460142935,
+      "draw_id": 1065,
+      "episode_reward": -6880.0,
+      "horizon_vehicle_count": 40.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.09251101321586,
+      "draw_id": 1066,
+      "episode_reward": -6530.0,
+      "horizon_vehicle_count": 39.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.71232876712328,
+      "draw_id": 1067,
+      "episode_reward": -6804.0,
+      "horizon_vehicle_count": 47.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 101.80066079295155,
+      "draw_id": 1068,
+      "episode_reward": -6517.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.15016685205784,
+      "draw_id": 1069,
+      "episode_reward": -7025.0,
+      "horizon_vehicle_count": 36.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.03305785123968,
+      "draw_id": 1070,
+      "episode_reward": -7020.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.37445414847161,
+      "draw_id": 1071,
+      "episode_reward": -7556.0,
+      "horizon_vehicle_count": 52.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.69041095890411,
+      "draw_id": 1072,
+      "episode_reward": -7209.0,
+      "horizon_vehicle_count": 51.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.28770172509738,
+      "draw_id": 1073,
+      "episode_reward": -6810.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.82657031684269,
+      "draw_id": 1074,
+      "episode_reward": -6604.0,
+      "horizon_vehicle_count": 54.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.54012174875484,
+      "draw_id": 1075,
+      "episode_reward": -7402.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.95676274944567,
+      "draw_id": 1076,
+      "episode_reward": -7327.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.81181619256017,
+      "draw_id": 1077,
+      "episode_reward": -6707.0,
+      "horizon_vehicle_count": 39.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.70317634173055,
+      "draw_id": 1078,
+      "episode_reward": -7381.0,
+      "horizon_vehicle_count": 39.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.12851627137341,
+      "draw_id": 1079,
+      "episode_reward": -6903.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.23770038695412,
+      "draw_id": 1080,
+      "episode_reward": -7140.0,
+      "horizon_vehicle_count": 44.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 98.09695290858726,
+      "draw_id": 1081,
+      "episode_reward": -5809.0,
+      "horizon_vehicle_count": 44.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.77320733740967,
+      "draw_id": 1082,
+      "episode_reward": -7333.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.96019900497512,
+      "draw_id": 1083,
+      "episode_reward": -6670.0,
+      "horizon_vehicle_count": 39.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.16620954470653,
+      "draw_id": 1084,
+      "episode_reward": -6961.0,
+      "horizon_vehicle_count": 51.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.61325966850829,
+      "draw_id": 1085,
+      "episode_reward": -7455.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.56699889258029,
+      "draw_id": 1086,
+      "episode_reward": -7215.0,
+      "horizon_vehicle_count": 40.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.85035891772502,
+      "draw_id": 1087,
+      "episode_reward": -7231.0,
+      "horizon_vehicle_count": 48.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.45394373965803,
+      "draw_id": 1088,
+      "episode_reward": -6998.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.65996649916248,
+      "draw_id": 1089,
+      "episode_reward": -6765.0,
+      "horizon_vehicle_count": 44.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 108.52334419109664,
+      "draw_id": 1090,
+      "episode_reward": -7725.0,
+      "horizon_vehicle_count": 38.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.19337016574586,
+      "draw_id": 1091,
+      "episode_reward": -7365.0,
+      "horizon_vehicle_count": 38.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.48997772828508,
+      "draw_id": 1092,
+      "episode_reward": -7058.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 100.67447045707915,
+      "draw_id": 1093,
+      "episode_reward": -6238.0,
+      "horizon_vehicle_count": 44.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.47049089906233,
+      "draw_id": 1094,
+      "episode_reward": -6873.0,
+      "horizon_vehicle_count": 32.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 108.91162029459902,
+      "draw_id": 1095,
+      "episode_reward": -7773.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 100.56353591160222,
+      "draw_id": 1096,
+      "episode_reward": -6322.0,
+      "horizon_vehicle_count": 44.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.77222222222223,
+      "draw_id": 1097,
+      "episode_reward": -7047.0,
+      "horizon_vehicle_count": 54.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.43007186290768,
+      "draw_id": 1098,
+      "episode_reward": -6720.0,
+      "horizon_vehicle_count": 39.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.75165562913908,
+      "draw_id": 1099,
+      "episode_reward": -6989.0,
+      "horizon_vehicle_count": 47.0,
+      "seed": 101
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.61941533370104,
+      "draw_id": 1000,
+      "episode_reward": -6926.0,
+      "horizon_vehicle_count": 40.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.23076923076923,
+      "draw_id": 1001,
+      "episode_reward": -6975.0,
+      "horizon_vehicle_count": 48.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.7590027700831,
+      "draw_id": 1002,
+      "episode_reward": -6746.0,
+      "horizon_vehicle_count": 30.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 108.06256860592755,
+      "draw_id": 1003,
+      "episode_reward": -7526.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.2871287128713,
+      "draw_id": 1004,
+      "episode_reward": -7323.0,
+      "horizon_vehicle_count": 52.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.57622454595487,
+      "draw_id": 1005,
+      "episode_reward": -6980.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.42678279804028,
+      "draw_id": 1006,
+      "episode_reward": -6853.0,
+      "horizon_vehicle_count": 44.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 101.05248464544947,
+      "draw_id": 1007,
+      "episode_reward": -6376.0,
+      "horizon_vehicle_count": 49.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.3049252905368,
+      "draw_id": 1008,
+      "episode_reward": -6554.0,
+      "horizon_vehicle_count": 35.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.93244739756368,
+      "draw_id": 1009,
+      "episode_reward": -7382.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 101.83684794672585,
+      "draw_id": 1010,
+      "episode_reward": -6459.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.41474147414742,
+      "draw_id": 1011,
+      "episode_reward": -6580.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.53168044077135,
+      "draw_id": 1012,
+      "episode_reward": -6980.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.57371617890668,
+      "draw_id": 1013,
+      "episode_reward": -7251.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 109.73997833152762,
+      "draw_id": 1014,
+      "episode_reward": -7980.0,
+      "horizon_vehicle_count": 53.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 108.10212998361551,
+      "draw_id": 1015,
+      "episode_reward": -7593.0,
+      "horizon_vehicle_count": 44.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.63422635319847,
+      "draw_id": 1016,
+      "episode_reward": -7169.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.70225646670336,
+      "draw_id": 1017,
+      "episode_reward": -7574.0,
+      "horizon_vehicle_count": 49.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.79109400769654,
+      "draw_id": 1018,
+      "episode_reward": -7042.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.7657707076248,
+      "draw_id": 1019,
+      "episode_reward": -6855.0,
+      "horizon_vehicle_count": 38.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.9828634604754,
+      "draw_id": 1020,
+      "episode_reward": -6824.0,
+      "horizon_vehicle_count": 40.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.86501377410468,
+      "draw_id": 1021,
+      "episode_reward": -7216.0,
+      "horizon_vehicle_count": 49.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.7960088691796,
+      "draw_id": 1022,
+      "episode_reward": -7313.0,
+      "horizon_vehicle_count": 44.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.09373266777592,
+      "draw_id": 1023,
+      "episode_reward": -6454.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.9288451012589,
+      "draw_id": 1024,
+      "episode_reward": -7067.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.90251916757941,
+      "draw_id": 1025,
+      "episode_reward": -7595.0,
+      "horizon_vehicle_count": 39.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.55396475770925,
+      "draw_id": 1026,
+      "episode_reward": -6989.0,
+      "horizon_vehicle_count": 49.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 108.57929515418502,
+      "draw_id": 1027,
+      "episode_reward": -7647.0,
+      "horizon_vehicle_count": 44.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.76923076923077,
+      "draw_id": 1028,
+      "episode_reward": -7024.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.05080960357343,
+      "draw_id": 1029,
+      "episode_reward": -6769.0,
+      "horizon_vehicle_count": 40.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 108.72270742358079,
+      "draw_id": 1030,
+      "episode_reward": -7693.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 101.87292817679558,
+      "draw_id": 1031,
+      "episode_reward": -6498.0,
+      "horizon_vehicle_count": 44.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.92943770672547,
+      "draw_id": 1032,
+      "episode_reward": -7292.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.08731466227347,
+      "draw_id": 1033,
+      "episode_reward": -7241.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 110.80557072637903,
+      "draw_id": 1034,
+      "episode_reward": -8157.0,
+      "horizon_vehicle_count": 48.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.1988950276243,
+      "draw_id": 1035,
+      "episode_reward": -7378.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.5167674546454,
+      "draw_id": 1036,
+      "episode_reward": -7173.0,
+      "horizon_vehicle_count": 52.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.45280960174577,
+      "draw_id": 1037,
+      "episode_reward": -7215.0,
+      "horizon_vehicle_count": 49.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.51375137513752,
+      "draw_id": 1038,
+      "episode_reward": -6632.0,
+      "horizon_vehicle_count": 52.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.96438356164384,
+      "draw_id": 1039,
+      "episode_reward": -7174.0,
+      "horizon_vehicle_count": 39.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.48249452954047,
+      "draw_id": 1040,
+      "episode_reward": -7481.0,
+      "horizon_vehicle_count": 52.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.04187058183796,
+      "draw_id": 1041,
+      "episode_reward": -6565.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.65040650406505,
+      "draw_id": 1042,
+      "episode_reward": -7244.0,
+      "horizon_vehicle_count": 35.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.8162583518931,
+      "draw_id": 1043,
+      "episode_reward": -6907.0,
+      "horizon_vehicle_count": 40.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.13311331133113,
+      "draw_id": 1044,
+      "episode_reward": -7157.0,
+      "horizon_vehicle_count": 38.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.31335898845519,
+      "draw_id": 1045,
+      "episode_reward": -7130.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.3363329583802,
+      "draw_id": 1046,
+      "episode_reward": -6858.0,
+      "horizon_vehicle_count": 47.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.20498614958449,
+      "draw_id": 1047,
+      "episode_reward": -6782.0,
+      "horizon_vehicle_count": 54.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.0,
+      "draw_id": 1048,
+      "episode_reward": -7464.0,
+      "horizon_vehicle_count": 51.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.02440377149196,
+      "draw_id": 1049,
+      "episode_reward": -7357.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 108.80818844643859,
+      "draw_id": 1050,
+      "episode_reward": -7658.0,
+      "horizon_vehicle_count": 48.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.34288864388093,
+      "draw_id": 1051,
+      "episode_reward": -6589.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.73568281938326,
+      "draw_id": 1052,
+      "episode_reward": -7086.0,
+      "horizon_vehicle_count": 51.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.13245033112582,
+      "draw_id": 1053,
+      "episode_reward": -7061.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.22988505747126,
+      "draw_id": 1054,
+      "episode_reward": -7119.0,
+      "horizon_vehicle_count": 51.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.89683860232945,
+      "draw_id": 1055,
+      "episode_reward": -7365.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.54665203073546,
+      "draw_id": 1056,
+      "episode_reward": -7460.0,
+      "horizon_vehicle_count": 38.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.03316749585406,
+      "draw_id": 1057,
+      "episode_reward": -7036.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.99780941949616,
+      "draw_id": 1058,
+      "episode_reward": -6864.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 101.44700713893465,
+      "draw_id": 1059,
+      "episode_reward": -6464.0,
+      "horizon_vehicle_count": 50.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.95282501371366,
+      "draw_id": 1060,
+      "episode_reward": -7504.0,
+      "horizon_vehicle_count": 44.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.25412541254126,
+      "draw_id": 1061,
+      "episode_reward": -7277.0,
+      "horizon_vehicle_count": 48.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.87514060742407,
+      "draw_id": 1062,
+      "episode_reward": -6671.0,
+      "horizon_vehicle_count": 39.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.83268265476855,
+      "draw_id": 1063,
+      "episode_reward": -6994.0,
+      "horizon_vehicle_count": 47.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.69133075648813,
+      "draw_id": 1064,
+      "episode_reward": -6717.0,
+      "horizon_vehicle_count": 33.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.58658603628368,
+      "draw_id": 1065,
+      "episode_reward": -6601.0,
+      "horizon_vehicle_count": 50.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.22466960352423,
+      "draw_id": 1066,
+      "episode_reward": -6516.0,
+      "horizon_vehicle_count": 37.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.72328767123288,
+      "draw_id": 1067,
+      "episode_reward": -7488.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.79074889867842,
+      "draw_id": 1068,
+      "episode_reward": -7046.0,
+      "horizon_vehicle_count": 49.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.1023359288098,
+      "draw_id": 1069,
+      "episode_reward": -6462.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.33884297520662,
+      "draw_id": 1070,
+      "episode_reward": -6829.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.99454148471615,
+      "draw_id": 1071,
+      "episode_reward": -7096.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.74794520547945,
+      "draw_id": 1072,
+      "episode_reward": -7094.0,
+      "horizon_vehicle_count": 47.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.06900389538119,
+      "draw_id": 1073,
+      "episode_reward": -6636.0,
+      "horizon_vehicle_count": 38.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.54863813229572,
+      "draw_id": 1074,
+      "episode_reward": -6532.0,
+      "horizon_vehicle_count": 39.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.57553956834532,
+      "draw_id": 1075,
+      "episode_reward": -7024.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 101.48004434589801,
+      "draw_id": 1076,
+      "episode_reward": -6391.0,
+      "horizon_vehicle_count": 44.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.63894967177242,
+      "draw_id": 1077,
+      "episode_reward": -7062.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.00219058050384,
+      "draw_id": 1078,
+      "episode_reward": -7110.0,
+      "horizon_vehicle_count": 39.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.26144511858797,
+      "draw_id": 1079,
+      "episode_reward": -7479.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 101.58927584300719,
+      "draw_id": 1080,
+      "episode_reward": -6358.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 101.73684210526316,
+      "draw_id": 1081,
+      "episode_reward": -6444.0,
+      "horizon_vehicle_count": 47.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.96720400222345,
+      "draw_id": 1082,
+      "episode_reward": -7103.0,
+      "horizon_vehicle_count": 37.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.43117744610282,
+      "draw_id": 1083,
+      "episode_reward": -7102.0,
+      "horizon_vehicle_count": 44.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.10257816785519,
+      "draw_id": 1084,
+      "episode_reward": -7293.0,
+      "horizon_vehicle_count": 48.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.17127071823204,
+      "draw_id": 1085,
+      "episode_reward": -7034.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 100.89147286821705,
+      "draw_id": 1086,
+      "episode_reward": -6277.0,
+      "horizon_vehicle_count": 37.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.39867476532302,
+      "draw_id": 1087,
+      "episode_reward": -6743.0,
+      "horizon_vehicle_count": 44.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.9707666850524,
+      "draw_id": 1088,
+      "episode_reward": -7204.0,
+      "horizon_vehicle_count": 40.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.96705750977108,
+      "draw_id": 1089,
+      "episode_reward": -6772.0,
+      "horizon_vehicle_count": 38.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 109.2128121606949,
+      "draw_id": 1090,
+      "episode_reward": -7866.0,
+      "horizon_vehicle_count": 36.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.04419889502762,
+      "draw_id": 1091,
+      "episode_reward": -7190.0,
+      "horizon_vehicle_count": 48.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.43207126948775,
+      "draw_id": 1092,
+      "episode_reward": -6838.0,
+      "horizon_vehicle_count": 44.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 101.10925306577481,
+      "draw_id": 1093,
+      "episode_reward": -6309.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.34969663541092,
+      "draw_id": 1094,
+      "episode_reward": -7350.0,
+      "horizon_vehicle_count": 29.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.92580469176214,
+      "draw_id": 1095,
+      "episode_reward": -7428.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.0828729281768,
+      "draw_id": 1096,
+      "episode_reward": -6790.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.03888888888889,
+      "draw_id": 1097,
+      "episode_reward": -7152.0,
+      "horizon_vehicle_count": 47.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.66832504145937,
+      "draw_id": 1098,
+      "episode_reward": -6939.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.40066225165563,
+      "draw_id": 1099,
+      "episode_reward": -6533.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 202
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.88968560397132,
+      "draw_id": 1000,
+      "episode_reward": -7047.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.34065934065934,
+      "draw_id": 1001,
+      "episode_reward": -7089.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.13019390581718,
+      "draw_id": 1002,
+      "episode_reward": -6821.0,
+      "horizon_vehicle_count": 33.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 100.98243688254665,
+      "draw_id": 1003,
+      "episode_reward": -6335.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.09130913091309,
+      "draw_id": 1004,
+      "episode_reward": -6755.0,
+      "horizon_vehicle_count": 52.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.30434782608695,
+      "draw_id": 1005,
+      "episode_reward": -7283.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.76047904191617,
+      "draw_id": 1006,
+      "episode_reward": -7105.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 100.85147962032384,
+      "draw_id": 1007,
+      "episode_reward": -6315.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.16270060874378,
+      "draw_id": 1008,
+      "episode_reward": -6701.0,
+      "horizon_vehicle_count": 40.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.86600221483943,
+      "draw_id": 1009,
+      "episode_reward": -7357.0,
+      "horizon_vehicle_count": 48.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.35516093229745,
+      "draw_id": 1010,
+      "episode_reward": -7030.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 100.98459845984598,
+      "draw_id": 1011,
+      "episode_reward": -6390.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.95867768595042,
+      "draw_id": 1012,
+      "episode_reward": -7240.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 108.38487023743788,
+      "draw_id": 1013,
+      "episode_reward": -7584.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.54604550379199,
+      "draw_id": 1014,
+      "episode_reward": -7622.0,
+      "horizon_vehicle_count": 47.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.20808301474604,
+      "draw_id": 1015,
+      "episode_reward": -6944.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.14106068890104,
+      "draw_id": 1016,
+      "episode_reward": -6709.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.09906439185471,
+      "draw_id": 1017,
+      "episode_reward": -7136.0,
+      "horizon_vehicle_count": 48.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.3996701484332,
+      "draw_id": 1018,
+      "episode_reward": -6658.0,
+      "horizon_vehicle_count": 50.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 108.00603400987383,
+      "draw_id": 1019,
+      "episode_reward": -7641.0,
+      "horizon_vehicle_count": 48.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.99447208402432,
+      "draw_id": 1020,
+      "episode_reward": -7023.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.22589531680441,
+      "draw_id": 1021,
+      "episode_reward": -6700.0,
+      "horizon_vehicle_count": 48.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.41130820399113,
+      "draw_id": 1022,
+      "episode_reward": -7409.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.39545202440377,
+      "draw_id": 1023,
+      "episode_reward": -6838.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.21893814997263,
+      "draw_id": 1024,
+      "episode_reward": -7121.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.19167579408543,
+      "draw_id": 1025,
+      "episode_reward": -7116.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.98127753303964,
+      "draw_id": 1026,
+      "episode_reward": -6948.0,
+      "horizon_vehicle_count": 48.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.05286343612335,
+      "draw_id": 1027,
+      "episode_reward": -6887.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.16483516483517,
+      "draw_id": 1028,
+      "episode_reward": -7031.0,
+      "horizon_vehicle_count": 35.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.74427694025684,
+      "draw_id": 1029,
+      "episode_reward": -6586.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.91921397379913,
+      "draw_id": 1030,
+      "episode_reward": -6886.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.02762430939227,
+      "draw_id": 1031,
+      "episode_reward": -7153.0,
+      "horizon_vehicle_count": 44.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.88864388092613,
+      "draw_id": 1032,
+      "episode_reward": -6608.0,
+      "horizon_vehicle_count": 39.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.37342119714442,
+      "draw_id": 1033,
+      "episode_reward": -7170.0,
+      "horizon_vehicle_count": 49.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 108.32605133806663,
+      "draw_id": 1034,
+      "episode_reward": -7727.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.86740331491713,
+      "draw_id": 1035,
+      "episode_reward": -7357.0,
+      "horizon_vehicle_count": 50.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.3309510720176,
+      "draw_id": 1036,
+      "episode_reward": -7441.0,
+      "horizon_vehicle_count": 54.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.51227495908347,
+      "draw_id": 1037,
+      "episode_reward": -6699.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.04620462046205,
+      "draw_id": 1038,
+      "episode_reward": -7367.0,
+      "horizon_vehicle_count": 49.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.9013698630137,
+      "draw_id": 1039,
+      "episode_reward": -7017.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.89277899343544,
+      "draw_id": 1040,
+      "episode_reward": -7461.0,
+      "horizon_vehicle_count": 53.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 100.21479064709081,
+      "draw_id": 1041,
+      "episode_reward": -6240.0,
+      "horizon_vehicle_count": 44.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 109.22222222222223,
+      "draw_id": 1042,
+      "episode_reward": -7877.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.72939866369711,
+      "draw_id": 1043,
+      "episode_reward": -7050.0,
+      "horizon_vehicle_count": 40.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.74917491749174,
+      "draw_id": 1044,
+      "episode_reward": -7323.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.59923034634414,
+      "draw_id": 1045,
+      "episode_reward": -7173.0,
+      "horizon_vehicle_count": 36.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 99.82564679415073,
+      "draw_id": 1046,
+      "episode_reward": -6065.0,
+      "horizon_vehicle_count": 47.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 101.48753462603878,
+      "draw_id": 1047,
+      "episode_reward": -6449.0,
+      "horizon_vehicle_count": 52.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.9291553133515,
+      "draw_id": 1048,
+      "episode_reward": -7485.0,
+      "horizon_vehicle_count": 55.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 109.14864115363284,
+      "draw_id": 1049,
+      "episode_reward": -7718.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.66012338754908,
+      "draw_id": 1050,
+      "episode_reward": -7280.0,
+      "horizon_vehicle_count": 47.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.67805953693495,
+      "draw_id": 1051,
+      "episode_reward": -7113.0,
+      "horizon_vehicle_count": 40.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.12004405286343,
+      "draw_id": 1052,
+      "episode_reward": -6607.0,
+      "horizon_vehicle_count": 51.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 108.24503311258277,
+      "draw_id": 1053,
+      "episode_reward": -7620.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.73015873015873,
+      "draw_id": 1054,
+      "episode_reward": -6870.0,
+      "horizon_vehicle_count": 52.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.36605657237936,
+      "draw_id": 1055,
+      "episode_reward": -7055.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.10647639956092,
+      "draw_id": 1056,
+      "episode_reward": -6657.0,
+      "horizon_vehicle_count": 38.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.41404090657822,
+      "draw_id": 1057,
+      "episode_reward": -6894.0,
+      "horizon_vehicle_count": 48.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.77217962760132,
+      "draw_id": 1058,
+      "episode_reward": -7224.0,
+      "horizon_vehicle_count": 51.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 113.15485996705107,
+      "draw_id": 1059,
+      "episode_reward": -8506.0,
+      "horizon_vehicle_count": 53.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.25781678551837,
+      "draw_id": 1060,
+      "episode_reward": -7163.0,
+      "horizon_vehicle_count": 47.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.1100110011001,
+      "draw_id": 1061,
+      "episode_reward": -7050.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 101.64229471316085,
+      "draw_id": 1062,
+      "episode_reward": -6404.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.56664807585052,
+      "draw_id": 1063,
+      "episode_reward": -6754.0,
+      "horizon_vehicle_count": 48.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.05411374930978,
+      "draw_id": 1064,
+      "episode_reward": -7403.0,
+      "horizon_vehicle_count": 35.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.78724573941726,
+      "draw_id": 1065,
+      "episode_reward": -7503.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.88215859030836,
+      "draw_id": 1066,
+      "episode_reward": -6866.0,
+      "horizon_vehicle_count": 37.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.15342465753425,
+      "draw_id": 1067,
+      "episode_reward": -7065.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 101.3546255506608,
+      "draw_id": 1068,
+      "episode_reward": -6416.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 101.16796440489432,
+      "draw_id": 1069,
+      "episode_reward": -6337.0,
+      "horizon_vehicle_count": 31.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.10743801652893,
+      "draw_id": 1070,
+      "episode_reward": -7185.0,
+      "horizon_vehicle_count": 40.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.20087336244542,
+      "draw_id": 1071,
+      "episode_reward": -7253.0,
+      "horizon_vehicle_count": 52.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.93698630136986,
+      "draw_id": 1072,
+      "episode_reward": -7253.0,
+      "horizon_vehicle_count": 52.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.49026154702281,
+      "draw_id": 1073,
+      "episode_reward": -6528.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.633129516398,
+      "draw_id": 1074,
+      "episode_reward": -6858.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.95572772551189,
+      "draw_id": 1075,
+      "episode_reward": -7018.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 101.86807095343681,
+      "draw_id": 1076,
+      "episode_reward": -6482.0,
+      "horizon_vehicle_count": 47.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.90919037199124,
+      "draw_id": 1077,
+      "episode_reward": -7433.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 108.08324205914568,
+      "draw_id": 1078,
+      "episode_reward": -7633.0,
+      "horizon_vehicle_count": 40.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.51296194153338,
+      "draw_id": 1079,
+      "episode_reward": -7152.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 109.3559977888336,
+      "draw_id": 1080,
+      "episode_reward": -7728.0,
+      "horizon_vehicle_count": 40.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 101.80332409972299,
+      "draw_id": 1081,
+      "episode_reward": -6531.0,
+      "horizon_vehicle_count": 49.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.38243468593663,
+      "draw_id": 1082,
+      "episode_reward": -6733.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.13764510779436,
+      "draw_id": 1083,
+      "episode_reward": -6865.0,
+      "horizon_vehicle_count": 47.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 109.37739989029073,
+      "draw_id": 1084,
+      "episode_reward": -7830.0,
+      "horizon_vehicle_count": 51.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.5524861878453,
+      "draw_id": 1085,
+      "episode_reward": -6929.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.34440753045405,
+      "draw_id": 1086,
+      "episode_reward": -6671.0,
+      "horizon_vehicle_count": 39.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.52070679182772,
+      "draw_id": 1087,
+      "episode_reward": -6620.0,
+      "horizon_vehicle_count": 47.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.28626585769443,
+      "draw_id": 1088,
+      "episode_reward": -6573.0,
+      "horizon_vehicle_count": 49.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.65940815187047,
+      "draw_id": 1089,
+      "episode_reward": -6914.0,
+      "horizon_vehicle_count": 40.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.10314875135722,
+      "draw_id": 1090,
+      "episode_reward": -7116.0,
+      "horizon_vehicle_count": 39.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.4696132596685,
+      "draw_id": 1091,
+      "episode_reward": -6952.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.76614699331849,
+      "draw_id": 1092,
+      "episode_reward": -6906.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.51950947603122,
+      "draw_id": 1093,
+      "episode_reward": -6544.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.5438499724214,
+      "draw_id": 1094,
+      "episode_reward": -6699.0,
+      "horizon_vehicle_count": 28.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.53136933987997,
+      "draw_id": 1095,
+      "episode_reward": -7556.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.97237569060773,
+      "draw_id": 1096,
+      "episode_reward": -6734.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.03888888888889,
+      "draw_id": 1097,
+      "episode_reward": -7174.0,
+      "horizon_vehicle_count": 52.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.65726920950802,
+      "draw_id": 1098,
+      "episode_reward": -6891.0,
+      "horizon_vehicle_count": 36.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.45805739514348,
+      "draw_id": 1099,
+      "episode_reward": -7115.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 303
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.29950358521788,
+      "draw_id": 1000,
+      "episode_reward": -6921.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.26923076923077,
+      "draw_id": 1001,
+      "episode_reward": -6740.0,
+      "horizon_vehicle_count": 53.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 101.81994459833795,
+      "draw_id": 1002,
+      "episode_reward": -6461.0,
+      "horizon_vehicle_count": 32.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.7113062568606,
+      "draw_id": 1003,
+      "episode_reward": -6675.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.46534653465346,
+      "draw_id": 1004,
+      "episode_reward": -6746.0,
+      "horizon_vehicle_count": 51.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.66978536048431,
+      "draw_id": 1005,
+      "episode_reward": -6974.0,
+      "horizon_vehicle_count": 48.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.36309199782254,
+      "draw_id": 1006,
+      "episode_reward": -7026.0,
+      "horizon_vehicle_count": 44.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.21328866554997,
+      "draw_id": 1007,
+      "episode_reward": -6754.0,
+      "horizon_vehicle_count": 51.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.95572772551189,
+      "draw_id": 1008,
+      "episode_reward": -6956.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 101.89368770764119,
+      "draw_id": 1009,
+      "episode_reward": -6482.0,
+      "horizon_vehicle_count": 48.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.7180910099889,
+      "draw_id": 1010,
+      "episode_reward": -6848.0,
+      "horizon_vehicle_count": 55.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.72277227722772,
+      "draw_id": 1011,
+      "episode_reward": -6647.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.21487603305785,
+      "draw_id": 1012,
+      "episode_reward": -6731.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.93870789618995,
+      "draw_id": 1013,
+      "episode_reward": -7168.0,
+      "horizon_vehicle_count": 39.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.34019501625136,
+      "draw_id": 1014,
+      "episode_reward": -7571.0,
+      "horizon_vehicle_count": 53.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.29492080830147,
+      "draw_id": 1015,
+      "episode_reward": -7057.0,
+      "horizon_vehicle_count": 39.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 101.61016949152543,
+      "draw_id": 1016,
+      "episode_reward": -6485.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.41111722619702,
+      "draw_id": 1017,
+      "episode_reward": -6980.0,
+      "horizon_vehicle_count": 49.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.40131940626718,
+      "draw_id": 1018,
+      "episode_reward": -7102.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.71475589687329,
+      "draw_id": 1019,
+      "episode_reward": -7066.0,
+      "horizon_vehicle_count": 44.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.1763405196241,
+      "draw_id": 1020,
+      "episode_reward": -6895.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.24242424242425,
+      "draw_id": 1021,
+      "episode_reward": -6802.0,
+      "horizon_vehicle_count": 51.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.5,
+      "draw_id": 1022,
+      "episode_reward": -7441.0,
+      "horizon_vehicle_count": 40.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.61564059900167,
+      "draw_id": 1023,
+      "episode_reward": -6997.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.51833607006022,
+      "draw_id": 1024,
+      "episode_reward": -7021.0,
+      "horizon_vehicle_count": 47.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 109.38663745892661,
+      "draw_id": 1025,
+      "episode_reward": -7792.0,
+      "horizon_vehicle_count": 39.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.24229074889868,
+      "draw_id": 1026,
+      "episode_reward": -7090.0,
+      "horizon_vehicle_count": 44.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.07268722466961,
+      "draw_id": 1027,
+      "episode_reward": -6688.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.38461538461539,
+      "draw_id": 1028,
+      "episode_reward": -7271.0,
+      "horizon_vehicle_count": 35.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.94528196538246,
+      "draw_id": 1029,
+      "episode_reward": -6597.0,
+      "horizon_vehicle_count": 40.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.61572052401746,
+      "draw_id": 1030,
+      "episode_reward": -7401.0,
+      "horizon_vehicle_count": 49.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.31491712707182,
+      "draw_id": 1031,
+      "episode_reward": -6647.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.22160970231532,
+      "draw_id": 1032,
+      "episode_reward": -7362.0,
+      "horizon_vehicle_count": 44.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.85118066996156,
+      "draw_id": 1033,
+      "episode_reward": -7204.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.47569634079738,
+      "draw_id": 1034,
+      "episode_reward": -7028.0,
+      "horizon_vehicle_count": 50.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.62983425414365,
+      "draw_id": 1035,
+      "episode_reward": -6997.0,
+      "horizon_vehicle_count": 48.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.56129741616273,
+      "draw_id": 1036,
+      "episode_reward": -7371.0,
+      "horizon_vehicle_count": 57.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.10201854882706,
+      "draw_id": 1037,
+      "episode_reward": -7293.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 100.26952695269527,
+      "draw_id": 1038,
+      "episode_reward": -6235.0,
+      "horizon_vehicle_count": 51.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.20547945205479,
+      "draw_id": 1039,
+      "episode_reward": -6969.0,
+      "horizon_vehicle_count": 50.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.58971553610503,
+      "draw_id": 1040,
+      "episode_reward": -7056.0,
+      "horizon_vehicle_count": 54.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 101.92767808591626,
+      "draw_id": 1041,
+      "episode_reward": -6545.0,
+      "horizon_vehicle_count": 38.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.89430894308943,
+      "draw_id": 1042,
+      "episode_reward": -7695.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.62249443207126,
+      "draw_id": 1043,
+      "episode_reward": -6525.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.44004400440043,
+      "draw_id": 1044,
+      "episode_reward": -7091.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 111.3331500824629,
+      "draw_id": 1045,
+      "episode_reward": -8227.0,
+      "horizon_vehicle_count": 40.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.35770528683915,
+      "draw_id": 1046,
+      "episode_reward": -6599.0,
+      "horizon_vehicle_count": 49.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.10526315789474,
+      "draw_id": 1047,
+      "episode_reward": -6763.0,
+      "horizon_vehicle_count": 55.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.99455040871935,
+      "draw_id": 1048,
+      "episode_reward": -6760.0,
+      "horizon_vehicle_count": 51.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.51026067665003,
+      "draw_id": 1049,
+      "episode_reward": -7067.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.09758833426808,
+      "draw_id": 1050,
+      "episode_reward": -7309.0,
+      "horizon_vehicle_count": 44.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.95038588754134,
+      "draw_id": 1051,
+      "episode_reward": -7043.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.7114537444934,
+      "draw_id": 1052,
+      "episode_reward": -6851.0,
+      "horizon_vehicle_count": 47.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.33443708609272,
+      "draw_id": 1053,
+      "episode_reward": -6580.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.16748768472907,
+      "draw_id": 1054,
+      "episode_reward": -7464.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.76150859678314,
+      "draw_id": 1055,
+      "episode_reward": -6941.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.33369923161361,
+      "draw_id": 1056,
+      "episode_reward": -7282.0,
+      "horizon_vehicle_count": 37.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.09894969596462,
+      "draw_id": 1057,
+      "episode_reward": -6918.0,
+      "horizon_vehicle_count": 44.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.13143483023,
+      "draw_id": 1058,
+      "episode_reward": -7106.0,
+      "horizon_vehicle_count": 49.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.87808896210873,
+      "draw_id": 1059,
+      "episode_reward": -7430.0,
+      "horizon_vehicle_count": 47.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.7674163466813,
+      "draw_id": 1060,
+      "episode_reward": -6727.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.78547854785478,
+      "draw_id": 1061,
+      "episode_reward": -7062.0,
+      "horizon_vehicle_count": 49.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 100.19685039370079,
+      "draw_id": 1062,
+      "episode_reward": -6090.0,
+      "horizon_vehicle_count": 37.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.80646960401562,
+      "draw_id": 1063,
+      "episode_reward": -6848.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.57923799006073,
+      "draw_id": 1064,
+      "episode_reward": -7328.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.80098955470038,
+      "draw_id": 1065,
+      "episode_reward": -6649.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 101.50881057268722,
+      "draw_id": 1066,
+      "episode_reward": -6445.0,
+      "horizon_vehicle_count": 38.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.67123287671232,
+      "draw_id": 1067,
+      "episode_reward": -6664.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.91299559471365,
+      "draw_id": 1068,
+      "episode_reward": -6676.0,
+      "horizon_vehicle_count": 48.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.41379310344827,
+      "draw_id": 1069,
+      "episode_reward": -6558.0,
+      "horizon_vehicle_count": 37.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.40495867768595,
+      "draw_id": 1070,
+      "episode_reward": -6910.0,
+      "horizon_vehicle_count": 36.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.18995633187772,
+      "draw_id": 1071,
+      "episode_reward": -7348.0,
+      "horizon_vehicle_count": 48.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.64109589041095,
+      "draw_id": 1072,
+      "episode_reward": -6875.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.72732331663885,
+      "draw_id": 1073,
+      "episode_reward": -6911.0,
+      "horizon_vehicle_count": 44.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.56031128404669,
+      "draw_id": 1074,
+      "episode_reward": -6714.0,
+      "horizon_vehicle_count": 39.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.87991145545102,
+      "draw_id": 1075,
+      "episode_reward": -7184.0,
+      "horizon_vehicle_count": 44.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 101.79046563192905,
+      "draw_id": 1076,
+      "episode_reward": -6468.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.29212253829321,
+      "draw_id": 1077,
+      "episode_reward": -6648.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.23767798466594,
+      "draw_id": 1078,
+      "episode_reward": -7274.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.05901820187535,
+      "draw_id": 1079,
+      "episode_reward": -7254.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 109.61580983969044,
+      "draw_id": 1080,
+      "episode_reward": -7822.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 99.94182825484765,
+      "draw_id": 1081,
+      "episode_reward": -6109.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.56031128404669,
+      "draw_id": 1082,
+      "episode_reward": -6814.0,
+      "horizon_vehicle_count": 44.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.2139303482587,
+      "draw_id": 1083,
+      "episode_reward": -6528.0,
+      "horizon_vehicle_count": 35.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.61601755348327,
+      "draw_id": 1084,
+      "episode_reward": -7042.0,
+      "horizon_vehicle_count": 47.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.0939226519337,
+      "draw_id": 1085,
+      "episode_reward": -7039.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.34662236987819,
+      "draw_id": 1086,
+      "episode_reward": -6896.0,
+      "horizon_vehicle_count": 37.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.96797349530647,
+      "draw_id": 1087,
+      "episode_reward": -6748.0,
+      "horizon_vehicle_count": 50.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 101.70159955874242,
+      "draw_id": 1088,
+      "episode_reward": -6475.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 99.71245114461195,
+      "draw_id": 1089,
+      "episode_reward": -6076.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.10640608034745,
+      "draw_id": 1090,
+      "episode_reward": -7468.0,
+      "horizon_vehicle_count": 36.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.39779005524862,
+      "draw_id": 1091,
+      "episode_reward": -6968.0,
+      "horizon_vehicle_count": 40.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.94097995545657,
+      "draw_id": 1092,
+      "episode_reward": -7171.0,
+      "horizon_vehicle_count": 53.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.28874024526199,
+      "draw_id": 1093,
+      "episode_reward": -6718.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 111.4258135686707,
+      "draw_id": 1094,
+      "episode_reward": -8050.0,
+      "horizon_vehicle_count": 32.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 108.20240043644299,
+      "draw_id": 1095,
+      "episode_reward": -7627.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.8121546961326,
+      "draw_id": 1096,
+      "episode_reward": -6813.0,
+      "horizon_vehicle_count": 36.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.64444444444445,
+      "draw_id": 1097,
+      "episode_reward": -6775.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.91708126036484,
+      "draw_id": 1098,
+      "episode_reward": -7105.0,
+      "horizon_vehicle_count": 47.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.66004415011038,
+      "draw_id": 1099,
+      "episode_reward": -6650.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 404
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.80143408714838,
+      "draw_id": 1000,
+      "episode_reward": -7077.0,
+      "horizon_vehicle_count": 54.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.18681318681318,
+      "draw_id": 1001,
+      "episode_reward": -6548.0,
+      "horizon_vehicle_count": 44.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 101.25484764542936,
+      "draw_id": 1002,
+      "episode_reward": -6351.0,
+      "horizon_vehicle_count": 33.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 113.64434687156971,
+      "draw_id": 1003,
+      "episode_reward": -8533.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.58195819581958,
+      "draw_id": 1004,
+      "episode_reward": -6988.0,
+      "horizon_vehicle_count": 55.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.97413318657127,
+      "draw_id": 1005,
+      "episode_reward": -7192.0,
+      "horizon_vehicle_count": 47.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.06532389765923,
+      "draw_id": 1006,
+      "episode_reward": -7123.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.41485203796762,
+      "draw_id": 1007,
+      "episode_reward": -6639.0,
+      "horizon_vehicle_count": 48.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 101.93967902600996,
+      "draw_id": 1008,
+      "episode_reward": -6490.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.39977851605758,
+      "draw_id": 1009,
+      "episode_reward": -6768.0,
+      "horizon_vehicle_count": 50.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.16093229744727,
+      "draw_id": 1010,
+      "episode_reward": -7095.0,
+      "horizon_vehicle_count": 48.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.75137513751375,
+      "draw_id": 1011,
+      "episode_reward": -6880.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.97796143250689,
+      "draw_id": 1012,
+      "episode_reward": -6676.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.39260077305356,
+      "draw_id": 1013,
+      "episode_reward": -6959.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 108.01733477789816,
+      "draw_id": 1014,
+      "episode_reward": -7736.0,
+      "horizon_vehicle_count": 48.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.29601310759148,
+      "draw_id": 1015,
+      "episode_reward": -6799.0,
+      "horizon_vehicle_count": 40.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.33843630399126,
+      "draw_id": 1016,
+      "episode_reward": -6901.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.35222894881673,
+      "draw_id": 1017,
+      "episode_reward": -7150.0,
+      "horizon_vehicle_count": 50.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.97196261682242,
+      "draw_id": 1018,
+      "episode_reward": -6813.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 101.33571036752606,
+      "draw_id": 1019,
+      "episode_reward": -6451.0,
+      "horizon_vehicle_count": 44.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.16639027086788,
+      "draw_id": 1020,
+      "episode_reward": -7287.0,
+      "horizon_vehicle_count": 47.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.18457300275482,
+      "draw_id": 1021,
+      "episode_reward": -6953.0,
+      "horizon_vehicle_count": 53.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 108.93569844789357,
+      "draw_id": 1022,
+      "episode_reward": -7664.0,
+      "horizon_vehicle_count": 44.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.37104825291182,
+      "draw_id": 1023,
+      "episode_reward": -6476.0,
+      "horizon_vehicle_count": 40.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.51122058018609,
+      "draw_id": 1024,
+      "episode_reward": -6833.0,
+      "horizon_vehicle_count": 50.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.92771084337349,
+      "draw_id": 1025,
+      "episode_reward": -7417.0,
+      "horizon_vehicle_count": 37.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.28414096916299,
+      "draw_id": 1026,
+      "episode_reward": -6935.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.95704845814979,
+      "draw_id": 1027,
+      "episode_reward": -7515.0,
+      "horizon_vehicle_count": 51.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 112.60989010989012,
+      "draw_id": 1028,
+      "episode_reward": -8311.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.7716359575656,
+      "draw_id": 1029,
+      "episode_reward": -6704.0,
+      "horizon_vehicle_count": 36.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.99890829694323,
+      "draw_id": 1030,
+      "episode_reward": -7292.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.0939226519337,
+      "draw_id": 1031,
+      "episode_reward": -6539.0,
+      "horizon_vehicle_count": 47.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.19625137816979,
+      "draw_id": 1032,
+      "episode_reward": -7246.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.71993410214168,
+      "draw_id": 1033,
+      "episode_reward": -6999.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.00436919716002,
+      "draw_id": 1034,
+      "episode_reward": -7503.0,
+      "horizon_vehicle_count": 48.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.80662983425414,
+      "draw_id": 1035,
+      "episode_reward": -6875.0,
+      "horizon_vehicle_count": 51.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.35733919736118,
+      "draw_id": 1036,
+      "episode_reward": -7120.0,
+      "horizon_vehicle_count": 48.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.40152755046373,
+      "draw_id": 1037,
+      "episode_reward": -6753.0,
+      "horizon_vehicle_count": 44.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.77997799779978,
+      "draw_id": 1038,
+      "episode_reward": -7000.0,
+      "horizon_vehicle_count": 50.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.35616438356165,
+      "draw_id": 1039,
+      "episode_reward": -6731.0,
+      "horizon_vehicle_count": 35.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.92778993435448,
+      "draw_id": 1040,
+      "episode_reward": -6954.0,
+      "horizon_vehicle_count": 47.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.97444263186514,
+      "draw_id": 1041,
+      "episode_reward": -7635.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 110.59891598915989,
+      "draw_id": 1042,
+      "episode_reward": -8084.0,
+      "horizon_vehicle_count": 32.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.95879732739421,
+      "draw_id": 1043,
+      "episode_reward": -6815.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 112.50825082508251,
+      "draw_id": 1044,
+      "episode_reward": -8296.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 108.94722374931281,
+      "draw_id": 1045,
+      "episode_reward": -7696.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.64566929133858,
+      "draw_id": 1046,
+      "episode_reward": -6873.0,
+      "horizon_vehicle_count": 49.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.85872576177286,
+      "draw_id": 1047,
+      "episode_reward": -7168.0,
+      "horizon_vehicle_count": 55.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 110.88010899182561,
+      "draw_id": 1048,
+      "episode_reward": -8091.0,
+      "horizon_vehicle_count": 56.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.73932334997227,
+      "draw_id": 1049,
+      "episode_reward": -6967.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.42624789680315,
+      "draw_id": 1050,
+      "episode_reward": -6999.0,
+      "horizon_vehicle_count": 48.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 101.43880926130099,
+      "draw_id": 1051,
+      "episode_reward": -6401.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.74229074889868,
+      "draw_id": 1052,
+      "episode_reward": -6707.0,
+      "horizon_vehicle_count": 50.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.90176600441501,
+      "draw_id": 1053,
+      "episode_reward": -6870.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.87411056376574,
+      "draw_id": 1054,
+      "episode_reward": -7065.0,
+      "horizon_vehicle_count": 46.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.91680532445923,
+      "draw_id": 1055,
+      "episode_reward": -7020.0,
+      "horizon_vehicle_count": 50.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.0098792535675,
+      "draw_id": 1056,
+      "episode_reward": -7206.0,
+      "horizon_vehicle_count": 37.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.01050304035378,
+      "draw_id": 1057,
+      "episode_reward": -6876.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.04052573932093,
+      "draw_id": 1058,
+      "episode_reward": -7364.0,
+      "horizon_vehicle_count": 52.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.41076331685886,
+      "draw_id": 1059,
+      "episode_reward": -7502.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.09709270433352,
+      "draw_id": 1060,
+      "episode_reward": -7284.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.07700770077008,
+      "draw_id": 1061,
+      "episode_reward": -6983.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.10911136107987,
+      "draw_id": 1062,
+      "episode_reward": -6387.0,
+      "horizon_vehicle_count": 40.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.20078081427775,
+      "draw_id": 1063,
+      "episode_reward": -7017.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.43014908890116,
+      "draw_id": 1064,
+      "episode_reward": -7244.0,
+      "horizon_vehicle_count": 35.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.54865310610225,
+      "draw_id": 1065,
+      "episode_reward": -6788.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 101.24449339207048,
+      "draw_id": 1066,
+      "episode_reward": -6378.0,
+      "horizon_vehicle_count": 39.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.66575342465754,
+      "draw_id": 1067,
+      "episode_reward": -6667.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.55396475770925,
+      "draw_id": 1068,
+      "episode_reward": -6930.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.91101223581758,
+      "draw_id": 1069,
+      "episode_reward": -6976.0,
+      "horizon_vehicle_count": 39.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.56198347107438,
+      "draw_id": 1070,
+      "episode_reward": -7496.0,
+      "horizon_vehicle_count": 40.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.24454148471615,
+      "draw_id": 1071,
+      "episode_reward": -7274.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.35890410958905,
+      "draw_id": 1072,
+      "episode_reward": -7031.0,
+      "horizon_vehicle_count": 47.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.71285475792989,
+      "draw_id": 1073,
+      "episode_reward": -6551.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 102.46525847693162,
+      "draw_id": 1074,
+      "episode_reward": -6503.0,
+      "horizon_vehicle_count": 40.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.66629773104593,
+      "draw_id": 1075,
+      "episode_reward": -6733.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.74168514412416,
+      "draw_id": 1076,
+      "episode_reward": -6798.0,
+      "horizon_vehicle_count": 49.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.57768052516411,
+      "draw_id": 1077,
+      "episode_reward": -6845.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.26725082146768,
+      "draw_id": 1078,
+      "episode_reward": -7454.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 108.08880308880309,
+      "draw_id": 1079,
+      "episode_reward": -7551.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.84687672747374,
+      "draw_id": 1080,
+      "episode_reward": -7556.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 101.87534626038781,
+      "draw_id": 1081,
+      "episode_reward": -6451.0,
+      "horizon_vehicle_count": 49.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.84936075597554,
+      "draw_id": 1082,
+      "episode_reward": -6759.0,
+      "horizon_vehicle_count": 39.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 101.39579878385848,
+      "draw_id": 1083,
+      "episode_reward": -6444.0,
+      "horizon_vehicle_count": 48.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.18869994514536,
+      "draw_id": 1084,
+      "episode_reward": -7471.0,
+      "horizon_vehicle_count": 48.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.48618784530387,
+      "draw_id": 1085,
+      "episode_reward": -6992.0,
+      "horizon_vehicle_count": 37.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 101.60575858250277,
+      "draw_id": 1086,
+      "episode_reward": -6442.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.81281060187742,
+      "draw_id": 1087,
+      "episode_reward": -6810.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.3546607832322,
+      "draw_id": 1088,
+      "episode_reward": -6942.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 107.5460636515913,
+      "draw_id": 1089,
+      "episode_reward": -7342.0,
+      "horizon_vehicle_count": 42.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.27252985884908,
+      "draw_id": 1090,
+      "episode_reward": -7000.0,
+      "horizon_vehicle_count": 36.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.68508287292818,
+      "draw_id": 1091,
+      "episode_reward": -7131.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 104.56013363028953,
+      "draw_id": 1092,
+      "episode_reward": -6877.0,
+      "horizon_vehicle_count": 45.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.23411371237458,
+      "draw_id": 1093,
+      "episode_reward": -6959.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 106.1472697186983,
+      "draw_id": 1094,
+      "episode_reward": -7214.0,
+      "horizon_vehicle_count": 39.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 108.1860338243317,
+      "draw_id": 1095,
+      "episode_reward": -7699.0,
+      "horizon_vehicle_count": 43.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 101.58011049723757,
+      "draw_id": 1096,
+      "episode_reward": -6457.0,
+      "horizon_vehicle_count": 41.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 103.62222222222222,
+      "draw_id": 1097,
+      "episode_reward": -6814.0,
+      "horizon_vehicle_count": 51.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.55279159756772,
+      "draw_id": 1098,
+      "episode_reward": -7135.0,
+      "horizon_vehicle_count": 40.0,
+      "seed": 505
+    },
+    {
+      "arm": "madt",
+      "att_horizon": 105.02759381898454,
+      "draw_id": 1099,
+      "episode_reward": -7071.0,
+      "horizon_vehicle_count": 49.0,
+      "seed": 505
+    }
+  ],
+  "evaluation_pool": "heldout",
+  "format_version": "p4-gate/1.0",
+  "gate": {
+    "att_best_online": 105.58203462874322,
+    "att_madt": 104.95575898180847,
+    "att_maxpressure": 176.89119451638254,
+    "gate_a": true,
+    "gate_b": true,
+    "passed": true,
+    "ratio": 1.05,
+    "threshold_online": 110.86113636018038
+  },
+  "gate_verdict": "PASS",
+  "reported_gradient_steps": 40000,
+  "runtime": {
+    "cuda_available": true,
+    "cuda_device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "git_commit": "b4a2fc6532ef71799b885b7115b72aab798e6526",
+    "numpy_version": "2.5.1",
+    "python_version": "3.12.13",
+    "torch_cuda_version": "12.8",
+    "torch_num_threads": 16,
+    "torch_version": "2.11.0+cu128"
+  },
+  "wilcoxon": {
+    "madt_vs_mappo1000": {
+      "n_shared_draws": 100,
+      "n_used": 100,
+      "n_zero": 0,
+      "p_value": 6.344854575852746e-07,
+      "statistic": 1076.0,
+      "w_minus": 3974.0,
+      "w_plus": 1076.0,
+      "z": -4.9804135359638915
+    },
+    "madt_vs_mappo500": {
+      "n_shared_draws": 100,
+      "n_used": 100,
+      "n_zero": 0,
+      "p_value": 3.9559116088995575e-18,
+      "statistic": 0.0,
+      "w_minus": 5050.0,
+      "w_plus": 0.0,
+      "z": -8.680051067684394
+    },
+    "madt_vs_maxpressure": {
+      "n_shared_draws": 100,
+      "n_used": 100,
+      "n_zero": 0,
+      "p_value": 3.9559116088995575e-18,
+      "statistic": 0.0,
+      "w_minus": 5050.0,
+      "w_plus": 0.0,
+      "z": -8.680051067684394
+    }
+  }
+}
