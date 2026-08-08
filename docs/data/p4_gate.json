@@ -463,10 +463,33 @@
       "horizon_vehicle_count_mean": 111.92,
       "horizon_vehicle_count_std": 14.144763816845563,
       "n_episodes": 100,
-      "policy_source": "checkpoint",
+      "policy_source": "deterministic_heuristic",
       "seeds": []
     }
   },
+  "checkpoints": {
+    "101": {
+      "path": "output/p4_dt/dt_seed101.pt",
+      "sha256": "dc6fc97cf1cb3f5c61d270f611e4d3d935a1fcbbb9ca546ee0ffa281799531b6"
+    },
+    "202": {
+      "path": "output/p4_dt/dt_seed202.pt",
+      "sha256": "990036d4855749fe328d0c3343f7bca503955d50b21b4a248d4dc0ae5e4a353f"
+    },
+    "303": {
+      "path": "output/p4_dt/dt_seed303.pt",
+      "sha256": "6def842e93a8f15b446468fdcf68ba05c9e633ab5878fb09cb5ea60f914ef3db"
+    },
+    "404": {
+      "path": "output/p4_dt/dt_seed404.pt",
+      "sha256": "56c2ef972f3818f1809f5a7c65c03939955b70a162566f2ae08bd285c7dd114b"
+    },
+    "505": {
+      "path": "output/p4_dt/dt_seed505.pt",
+      "sha256": "8a7d3581b33e96afd3dee7b07216a9a63a52293add23b8889e92f542119134b7"
+    }
+  },
+  "declared_gradient_steps": 20000,
   "draw_ids": [
     1000,
     1001,
@@ -569,6 +592,28 @@
     1098,
     1099
   ],
+  "engine_seed": 1000,
+  "env_settings": {
+    "control_mode": "acyclic",
+    "delta_time": 10,
+    "device": "cpu",
+    "eval_episodes": 2,
+    "global_reward_fn": "queue_length",
+    "global_reward_weight": 0.0,
+    "gui": false,
+    "libsumo": false,
+    "local_reward_fn": "queue_length",
+    "max_steps": 360,
+    "metrics": null,
+    "obs_norm": null,
+    "state_features": [
+      "lane_vehicle_count",
+      "lane_waiting",
+      "phase_onehot"
+    ],
+    "thread_num": 1,
+    "train_episodes": 10
+  },
   "episodes": [
     {
       "arm": "madt",
@@ -4588,7 +4633,7 @@
   "runtime": {
     "cuda_available": true,
     "cuda_device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
-    "git_commit": "b4a2fc6532ef71799b885b7115b72aab798e6526",
+    "git_commit": "862706c70d5d53bc10db80c815bb84fc8aca0fca",
     "numpy_version": "2.5.1",
     "python_version": "3.12.13",
     "torch_cuda_version": "12.8",

@@ -33,7 +33,7 @@ from agent.DTAgent import (
 )
 from offline.dataset import PAD_ACTION, TrajectoryWindowDataset, collate_windows
 
-from tests.test_offline_dataset import write_dataset_dir
+from tests.test_offline_dataset import index_of, write_dataset_dir
 
 # The fixture's second intersection: state_dim 4, n_actions 3, T = 8 decision rows.
 FIXTURE_STATE_DIM = 4
@@ -502,6 +502,98 @@ def _action_sequence(agent: DTAgent) -> list[int]:
         )
         out.append(int(agent.act(info, explore=False)[0]))
     return out
+
+
+def test_the_inference_window_equals_the_training_window_for_the_same_history(
+    tmp_path: Path,
+) -> None:
+    """What ``act()`` feeds the model must equal what training fed it for the same history.
+
+    THE MOST LOAD-BEARING TEST IN THIS FILE, and it did not exist until an independent review
+    found that three mutations of the online path survive the whole suite while moving the
+    reported gate number: dropping state normalisation (+32.5 ATT), forgetting ``/ rtg_scale``
+    (+3.8, which is most of the margin to the threshold) and zeroing the timesteps (+0.7).
+    Nothing compared ``DTAgent._window``'s inference-time window against
+    ``TrajectoryWindowDataset.__getitem__``'s training-time window, and no test ever built a
+    ``DTAgent`` with ``stats=`` at all, so the normalisation branch ran zero times.
+
+    The comparison is exact by construction:
+
+    * ``target_rtg`` is set to the episode's own total return, so the agent's forward recursion
+      ``target - sum(r_k for k < t)`` must land on the loader's backward ``sum(r_k for k >= t)``;
+    * ``rtg_scale`` is a power of two, so scaling and unscaling are exact in binary floating
+      point and the assertion is ``==`` rather than a tolerance;
+    * the fixture's rewards are integral, so both accumulation orders agree bit-for-bit.
+
+    ``action`` is deliberately excluded: at inference the history holds the agent's OWN past
+    actions, not the logged ones.  Its final slot is asserted to be ``PAD_ACTION`` instead.
+    """
+    dataset_dir = write_dataset_dir(tmp_path, "fixture__policy")
+    dataset = TrajectoryWindowDataset([dataset_dir], context_length=CONTEXT, split="train")
+    episode_file = sorted(p.name for p in dataset_dir.glob("*.npz"))[0]
+    with np.load(dataset_dir / episode_file) as raw:
+        states = np.asarray(raw["ix1_state"], dtype=np.float32)       # ix_alpha: (T+1, 4)
+        avail = np.asarray(raw["ix1_avail_mask"], dtype=np.bool_)
+        rewards = np.asarray(raw["ix1_local_reward"], dtype=np.float32)
+    episode_return = float(rewards.sum())
+
+    env = _StubEnv([("ix_alpha", FIXTURE_N_ACTIONS)])
+    agent = _agent(
+        env,
+        target_rtg=episode_return,
+        rtg_scale=64.0,                       # a power of two: scaling is exact
+        stats=dataset.stats,
+        scenario_id="fixture_2ix",
+        state_dim=FIXTURE_STATE_DIM,
+    )
+
+    captured: list[dict[str, torch.Tensor]] = []
+    original = agent.model.forward
+
+    def spy(rtg, state, action, timestep, attention_mask=None, avail_mask=None):  # type: ignore[no-untyped-def]
+        captured.append(
+            {
+                "rtg": rtg.detach().clone(),
+                "state": state.detach().clone(),
+                "action": action.detach().clone(),
+                "timestep": timestep.detach().clone(),
+                "attention_mask": attention_mask.detach().clone(),
+                "avail_mask": avail_mask.detach().clone(),
+            }
+        )
+        return original(rtg, state, action, timestep, attention_mask, avail_mask)
+
+    agent.model.forward = spy                                        # type: ignore[method-assign]
+
+    decisions = int(rewards.shape[0])
+    for t in range(decisions):
+        payload = {
+            "state": states[t].tolist(),
+            "avail_actions": [a for a in range(FIXTURE_N_ACTIONS) if bool(avail[t, a])],
+            "reward": 0.0 if t == 0 else float(rewards[t - 1]),
+        }
+        agent.act(_info(t, {"ix_alpha": payload}), explore=False)
+
+    assert len(captured) == decisions
+    for t in range(decisions):
+        expected = dataset[index_of(dataset, "ix_alpha", t, episode_file)]
+        got = captured[t]
+        assert torch.equal(got["state"][0], expected["state"]), f"state at t={t}"
+        assert torch.equal(got["timestep"][0], expected["timestep"]), f"timestep at t={t}"
+        assert torch.equal(
+            got["attention_mask"][0], expected["attention_mask"]
+        ), f"attention_mask at t={t}"
+        assert torch.equal(got["avail_mask"][0], expected["avail_mask"]), f"avail_mask at t={t}"
+        assert torch.equal(
+            got["rtg"][0] * 64.0, expected["rtg"]
+        ), f"rtg at t={t}: {got['rtg'][0].reshape(-1) * 64.0} vs {expected['rtg'].reshape(-1)}"
+        assert int(got["action"][0, -1]) == PAD_ACTION, f"the live action slot must be padding at t={t}"
+
+    # The fixture must actually exercise normalisation and a binding mask, or the comparison
+    # above is satisfied by two identity transforms agreeing.
+    mean = dataset.stats.state_mean["fixture_2ix"]["ix_alpha"]
+    assert float(np.abs(mean).max()) > 0.0
+    assert not bool(captured[-1]["avail_mask"][0].all())
 
 
 def test_saving_before_the_model_exists_raises_instead_of_writing_an_empty_checkpoint() -> None:

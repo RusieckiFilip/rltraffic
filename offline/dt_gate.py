@@ -53,6 +53,7 @@ BRIEF_10 section 8 is implemented here in numpy/stdlib rather than added as a de
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -80,13 +81,16 @@ __all__ = [
     "TrainResult",
     "WilcoxonResult",
     "build_training_dataset",
+    "config_artifact",
     "env_settings_from_manifest",
+    "expected_reported_steps",
     "evaluate_arm",
     "gate_verdict",
     "load_gate_checkpoint",
     "main",
     "mean_ci95",
     "plateau_reached",
+    "policy_source_for",
     "runtime_provenance",
     "stack_dataset",
     "train_dt",
@@ -626,6 +630,41 @@ def train_dt(
     )
 
 
+def expected_reported_steps(training: dict[str, Any], *, declared: int) -> int:
+    """The only step count this evaluation may report, derived from the DECLARATION.
+
+    Previously the evaluator read ``reported_gradient_steps`` straight out of the training
+    artifact and handed it to :func:`load_gate_checkpoint`, which then compared a number to
+    itself: the guard could catch a stale checkpoint file but never "you reported a budget other
+    than the declared one", because both sides came from the same run.  Here the declaration is
+    the input and the artifact is the thing being checked:
+
+    * the artifact's own ``declared_gradient_steps`` must equal *declared*;
+    * the reported count must be ``declared``, or ``raise_to`` and only if the artifact records
+      that the single pre-declared raise was actually taken.
+
+    Anything else raises, so a run that quietly trained longer cannot be evaluated at all.
+    """
+    recorded_declared = int(training["declared_gradient_steps"])
+    if recorded_declared != int(declared):
+        raise ValueError(
+            f"the training artifact was produced under a declared budget of "
+            f"{recorded_declared} steps but this evaluation was asked for {int(declared)}; "
+            "PREREGISTRATION.md section 6 fixes the budget before training, so these cannot differ"
+        )
+    reported = int(training["reported_gradient_steps"])
+    if reported == recorded_declared:
+        return reported
+    raise_to = training.get("raise_to")
+    if bool(training.get("raise_taken")) and raise_to is not None and reported == int(raise_to):
+        return reported
+    raise ValueError(
+        f"the training artifact reports {reported} gradient steps, which is neither the declared "
+        f"{recorded_declared} nor the single pre-declared raise to {raise_to} "
+        f"(raise_taken={training.get('raise_taken')}); no checkpoint from it may be reported"
+    )
+
+
 def load_gate_checkpoint(
     gym_env: Any, path: str | Path, declared_gradient_steps: int, device: str | None = None
 ) -> DTAgent:
@@ -717,6 +756,90 @@ def evaluate_arm(
 # ----------------------------------------------------------------------
 
 
+def config_artifact(
+    checkpoint_path: str | Path, training: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """The frozen configuration, READ BACK OUT OF A TRAINED CHECKPOINT.
+
+    ``PREREGISTRATION.md`` section 6.2 requires the configuration tuned on hangzhou_1x1 to be
+    recorded "as a committed artifact, not as prose", because it binds every later scenario,
+    tier, perturbation and backend.  Deriving it from a checkpoint rather than from this
+    module's constants is deliberate: the constants describe what the code would do next time,
+    the checkpoint describes what actually produced the reported number, and only the second
+    one is evidence.
+
+    **The budget block comes from the TRAINING artifact when one is supplied, and it must be.**
+    A checkpoint's own ``declared_gradient_steps`` records the budget of the call that wrote it,
+    so after the single pre-declared raise every checkpoint says ``40000`` and the fact that
+    ``20000`` was the declaration survives only in ``p4_training.json``.  Reading the budget out
+    of a checkpoint alone would therefore state, in the artifact that fixes the project's
+    configuration, that we declared what we actually raised to.
+    """
+    payload = torch.load(Path(checkpoint_path), map_location="cpu", weights_only=False)
+    provenance = payload["provenance"]
+    return {
+        "format_version": ARTIFACT_FORMAT_VERSION,
+        "role": (
+            "the frozen P4 configuration (PREREGISTRATION.md section 6.2); tuned on "
+            "hangzhou_1x1 #1 only and applied unchanged to every later scenario, tier, "
+            "perturbation and backend"
+        ),
+        "source_checkpoint": str(checkpoint_path),
+        "source_checkpoint_sha256": _sha256_file(checkpoint_path),
+        "architecture": payload["config"],
+        "optimisation": {
+            key: provenance[key]
+            for key in (
+                "batch_size",
+                "learning_rate",
+                "weight_decay",
+                "warmup_steps",
+                "grad_clip",
+                "context_length",
+            )
+        },
+        "budget": {
+            "declared_gradient_steps": (
+                int(training["declared_gradient_steps"])
+                if training is not None
+                else provenance["declared_gradient_steps"]
+            ),
+            "raise_to": (
+                training.get("raise_to") if training is not None else provenance["raise_to"]
+            ),
+            "raise_taken": (
+                bool(training["raise_taken"]) if training is not None else None
+            ),
+            "reported_gradient_steps": provenance["gradient_steps"],
+            "budget_source": "training artifact" if training is not None else "checkpoint only",
+            "plateau_window": PLATEAU_WINDOW,
+            "plateau_tolerance": PLATEAU_TOLERANCE,
+        },
+        "conditioning": {
+            "target_rtg": payload["target_rtg"],
+            "rtg_scale": payload["rtg_scale"],
+            "rule": "target_rtg = max episode return in the training split; rtg_scale = max|rtg|",
+            "action_selection_at_evaluation": "greedy argmax over masked logits",
+        },
+        "seeds": list(TRAINING_SEEDS),
+        "normalisation": {
+            "fitted_on_split": payload["stats"]["split"],
+            "fitted_on_draw_ids": payload["stats"]["draw_ids"],
+        },
+        "tier": provenance.get("tier"),
+        "runtime": provenance.get("runtime", {}),
+    }
+
+
+def _sha256_file(path: str | Path) -> str:
+    """sha256 of a file, so an artifact can name the exact weights behind it."""
+    digest = hashlib.sha256()
+    with open(path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def write_json_atomic(payload: dict[str, Any], path: str | Path) -> None:
     """Write *payload* as JSON atomically, after validation, into an existing directory.
 
@@ -740,10 +863,32 @@ def write_json_atomic(payload: dict[str, Any], path: str | Path) -> None:
         raise
 
 
+#: How each arm's actions were produced.  Queue item 0b requires this to be machine-readable and
+#: TRUE; a heuristic has no checkpoint, so calling it one is a provenance error, not a label.
+POLICY_SOURCES: dict[str, str] = {
+    "maxpressure": "deterministic_heuristic",
+    "fixedtime": "deterministic_heuristic",
+    "random": "stochastic_heuristic",
+}
+
+
+def policy_source_for(arm: str) -> str:
+    """``"checkpoint"`` unless the arm is a heuristic with no weights to load."""
+    return POLICY_SOURCES.get(arm, "checkpoint")
+
+
 def _cell(results: Sequence[EpisodeResult]) -> dict[str, Any]:
-    """One reported cell: the primary metric, A5's unconditional companion and the draw ids."""
+    """One reported cell: the primary metric, A5's unconditional companion and the draw ids.
+
+    ``policy_source`` is derived from the arm name here rather than patched by the caller: it
+    was previously hardcoded to ``"checkpoint"`` and corrected only in the baselines path, so
+    the gate artifact -- the one later tasks reuse -- claimed MaxPressure ran from a checkpoint.
+    """
     att = mean_ci95([r.att_horizon for r in results])
     vehicles = mean_ci95([r.horizon_vehicle_count for r in results])
+    arms = sorted({r.arm for r in results})
+    if len(arms) != 1:
+        raise ValueError(f"a cell must describe one arm, got {arms}")
     return {
         "n_episodes": len(results),
         "att_horizon_mean": att.mean,
@@ -753,7 +898,7 @@ def _cell(results: Sequence[EpisodeResult]) -> dict[str, Any]:
         "horizon_vehicle_count_std": vehicles.std,
         "draw_ids": sorted({r.draw_id for r in results}),
         "seeds": sorted({r.seed for r in results if r.seed is not None}),
-        "policy_source": "checkpoint",
+        "policy_source": policy_source_for(arms[0]),
     }
 
 
@@ -908,7 +1053,6 @@ def _run_baselines(
         )
 
     cells = {name: _cell(results) for name, results in arms.items()}
-    cells["maxpressure"]["policy_source"] = "deterministic_heuristic"
     payload = {
         "format_version": ARTIFACT_FORMAT_VERSION,
         "role": "thresholds measured BEFORE the first gradient step",
@@ -1025,6 +1169,9 @@ def _run_train(args: argparse.Namespace, out_dir: Path) -> int:
         "runtime": runtime_provenance(),
     }
     write_json_atomic(payload, out_dir / "p4_training.json")
+    write_json_atomic(
+        config_artifact(results[0].checkpoint_path, payload), out_dir / "p4_dt_config.json"
+    )
     return 0
 
 
@@ -1037,7 +1184,7 @@ def _run_evaluate(
     """Evaluate the declared checkpoints and emit the gate verdict."""
     thresholds = json.loads(Path(args.thresholds).read_text(encoding="utf-8"))
     training = json.loads((out_dir / "p4_training.json").read_text(encoding="utf-8"))
-    steps = int(training["reported_gradient_steps"])
+    steps = expected_reported_steps(training, declared=int(args.steps))
     if args.draws == "heldout":
         draws = list(HELD_OUT_DRAWS)
     else:
@@ -1080,6 +1227,16 @@ def _run_evaluate(
         "evaluation_pool": args.draws,
         "draw_ids": sorted(draws),
         "reported_gradient_steps": steps,
+        "declared_gradient_steps": int(args.steps),
+        "engine_seed": int(args.engine_seed),
+        "env_settings": {k: v for k, v in settings.items() if k != "compare_with"},
+        "checkpoints": {
+            str(entry["seed"]): {
+                "path": entry["checkpoint"],
+                "sha256": _sha256_file(entry["checkpoint"]),
+            }
+            for entry in training["seeds"]
+        },
         "cells": cells,
         "episodes": [asdict(r) for r in madt],
         "runtime": runtime_provenance(),

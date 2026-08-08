@@ -31,12 +31,15 @@ from offline.dt_gate import (
     HELD_OUT_DRAWS,
     EpisodeResult,
     _paired,
+    _cell,
     build_training_dataset,
     env_settings_from_manifest,
+    expected_reported_steps,
     gate_verdict,
     load_gate_checkpoint,
     mean_ci95,
     plateau_reached,
+    policy_source_for,
     stack_dataset,
     train_dt,
     wilcoxon_signed_rank,
@@ -188,6 +191,43 @@ def test_wilcoxon_detects_a_tiny_but_perfectly_consistent_shift() -> None:
 def test_wilcoxon_refuses_unequal_lengths() -> None:
     with pytest.raises(ValueError, match="paired"):
         wilcoxon_signed_rank([1.0, 2.0], [1.0])
+
+
+def test_wilcoxon_z_and_p_match_a_variance_derived_from_first_principles() -> None:
+    """Pins ``z`` and ``p``, including BOTH corrections, by a second derivation.
+
+    Added after an independent review found that deleting the tie correction OR the continuity
+    correction left every Wilcoxon test passing: all the others assert ``w_plus``/``w_minus`` or
+    an inequality on ``p``, so nothing constrained the variance -- while the p-values go in the
+    paper.
+
+    The second route is a genuinely different derivation, not a copy of the implementation's
+    expression.  Under the null each signed rank contributes ``+/- r_i`` with probability 1/2,
+    so ``Var(W+) = sum(r_i^2) / 4``.  With average ranks that identity *automatically* carries
+    the tie correction (verified here: 50.375, against 51.0 with no ties), which is why it kills
+    a missing ``sum(t^3 - t)/48`` term.
+    """
+    differences = [1.0, 1.0, -2.0, 3.0, 3.0, 3.0, -4.0, 5.0]
+    x = [10.0 + d for d in differences]
+    y = [10.0] * len(differences)
+    result = wilcoxon_signed_rank(x, y)
+
+    ranks = {1.0: 1.5, 2.0: 3.0, 3.0: 5.0, 4.0: 7.0, 5.0: 8.0}   # by hand, average for ties
+    signed = [(d, ranks[abs(d)]) for d in differences]
+    w_plus = math.fsum(r for d, r in signed if d > 0)
+    w_minus = math.fsum(r for d, r in signed if d < 0)
+    n = len(differences)
+    variance = math.fsum(r * r for _d, r in signed) / 4.0
+    assert variance == 50.375
+    statistic = min(w_plus, w_minus)
+    expected_z = (statistic - n * (n + 1) / 4.0 + 0.5) / math.sqrt(variance)
+    expected_p = min(1.0, 2.0 * (0.5 * math.erfc(-expected_z / math.sqrt(2.0))))
+
+    assert result.w_plus == w_plus
+    assert result.w_minus == w_minus
+    assert result.statistic == statistic
+    assert result.z == pytest.approx(expected_z, abs=1e-12)
+    assert result.p_value == pytest.approx(expected_p, abs=1e-15)
 
 
 def _result(arm: str, draw: int, att: float, seed: int | None = None) -> EpisodeResult:
@@ -393,6 +433,56 @@ def test_a_checkpoint_from_another_step_count_cannot_be_evaluated(
 # ----------------------------------------------------------------------
 # Artifacts
 # ----------------------------------------------------------------------
+
+
+def test_a_heuristic_arm_is_never_recorded_as_running_from_a_checkpoint() -> None:
+    """Queue item 0b needs ``policy_source`` to be true, not merely present.
+
+    It was hardcoded to ``"checkpoint"`` in ``_cell`` and corrected only on the baselines path,
+    so the GATE artifact -- the one later tasks are told to reuse -- claimed MaxPressure ran
+    from a checkpoint. An independent review found it in the committed JSON.
+    """
+    assert policy_source_for("maxpressure") == "deterministic_heuristic"
+    assert policy_source_for("fixedtime") == "deterministic_heuristic"
+    assert policy_source_for("madt") == "checkpoint"
+    assert policy_source_for("mappo1000") == "checkpoint"
+
+    cell = _cell([_result("maxpressure", 1000, 176.0), _result("maxpressure", 1001, 177.0)])
+    assert cell["policy_source"] == "deterministic_heuristic"
+    assert _cell([_result("madt", 1000, 104.0)])["policy_source"] == "checkpoint"
+
+
+def test_a_cell_that_straddles_two_arms_is_refused() -> None:
+    with pytest.raises(ValueError, match="one arm"):
+        _cell([_result("madt", 1000, 104.0), _result("maxpressure", 1000, 176.0)])
+
+
+def test_the_reported_budget_is_checked_against_the_DECLARATION_not_against_itself() -> None:
+    """The guard was vacuous: both sides of the comparison came from the same training run.
+
+    ``_run_evaluate`` read ``reported_gradient_steps`` out of the artifact and handed it to
+    ``load_gate_checkpoint``, which then compared 40000 to 40000. Here the declaration is the
+    input and the artifact is what gets checked.
+    """
+    raised = {"declared_gradient_steps": 20000, "raise_to": 40000, "raise_taken": True,
+              "reported_gradient_steps": 40000}
+    plain = {"declared_gradient_steps": 20000, "raise_to": 40000, "raise_taken": False,
+             "reported_gradient_steps": 20000}
+    assert expected_reported_steps(raised, declared=20000) == 40000
+    assert expected_reported_steps(plain, declared=20000) == 20000
+
+    # trained longer than declared, without the raise ever being taken
+    sneaky = {**plain, "reported_gradient_steps": 40000}
+    with pytest.raises(ValueError, match="neither the declared"):
+        expected_reported_steps(sneaky, declared=20000)
+
+    # an artifact produced under a different declaration entirely
+    with pytest.raises(ValueError, match="declared budget"):
+        expected_reported_steps(raised, declared=30000)
+
+    # a third budget, reachable by neither the declaration nor the single raise
+    with pytest.raises(ValueError, match="neither the declared"):
+        expected_reported_steps({**raised, "reported_gradient_steps": 60000}, declared=20000)
 
 
 def test_write_json_atomic_refuses_a_missing_directory_and_creates_nothing(tmp_path: Path) -> None:
