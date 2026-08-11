@@ -237,3 +237,33 @@ not `load_episode` — **with the mutation `row T → row T−1` proved to kill 
 
 **None of the above changes the plan.** Write `docs/plans/p4.4.md` with δ and the forecast in it, and
 go red-first.
+
+---
+
+## 9. Third ruling — two more, both before the first gradient step (2026-08-11)
+
+### 9.1 Report the RECOVERED FRACTION unconditionally, in every branch
+
+δ equals the effect under study, which creates one misleading branch: **BC landing 0.5 ATT worse than
+the DT sits inside ±δ and returns "matches", while having recovered only 20.2 % of the DT's margin
+over its behaviour policy.** A6's registered reading — *"whatever the DT gained, BC gained too"* —
+is not true of that outcome.
+
+**Report `recovered_fraction = (ATT_MAPPO@1000 − ATT_BC) / (ATT_MAPPO@1000 − ATT_DT)` beside the
+verdict, always** — not gated on `δ/2`, because a gate would introduce a second chosen threshold to
+defend, and one number is not clutter. Same for %BC and IQL.
+
+**And a correction to my own A6:** I wrote *"δ is derived, not chosen"*. The **reference quantity** is
+derived; the **multiplier of 1.0 is a choice**. Half the margin, or the margin's CI width, are equally
+derivable. A6 is annotated accordingly. The decision rule is unchanged.
+
+### 9.2 The IQL sweep decision must be made BEFORE the first gradient step
+
+As §8.3 stood, the sweep was authorised but optional and **you** chose. If that choice is made after
+seeing untuned IQL lose, the **decision** is outcome-driven even though the **selection inside** the
+sweep is clean — the same distinction as the budget raise, one level up.
+
+**Write the choice into `docs/plans/p4.4.md` before training anything, with its reason.** Sweep or do
+not sweep; either is defensible. Deciding in advance is the whole of it.
+
+**Nothing further from me.** The remaining work is yours.
