@@ -28,6 +28,7 @@ import pytest
 import torch
 
 from agent.OfflineBaselines import canonical_state_dict_digest
+import offline.offline_baselines as baselines_module
 from offline.dataset import TrajectoryWindowDataset
 from offline.dt_gate import EpisodeResult, mean_ci95, stack_dataset, wilcoxon_signed_rank
 from offline.offline_baselines import (
@@ -43,6 +44,7 @@ from offline.offline_baselines import (
     filter_stacked_to_streams,
     iql_reward_scale,
     iql_targets,
+    load_baseline_checkpoint,
     paired_comparison,
     rank_biserial,
     recovered_fraction,
@@ -572,6 +574,75 @@ def test_training_refuses_a_checkpoint_directory_that_does_not_exist(
     with pytest.raises(FileNotFoundError, match="does not exist"):
         _train_one_bc(fixture_dataset, missing)
     assert not missing.parent.exists()
+
+
+def test_the_checkpoint_directory_is_checked_before_the_first_gradient_step(
+    fixture_dataset: TrajectoryWindowDataset, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """WRITTEN AFTER THE IMPLEMENTATION, and it exists because the test above is weaker than
+    it looks: ``torch.save`` creates no directory either, so a run that trained first and only
+    then refused would satisfy it.  The barrier is about ORDER, so this pins the order -- the
+    loss function is replaced by a sentinel, and reaching it at all is the failure.
+    """
+
+    def sentinel(*args: Any, **kwargs: Any) -> Any:
+        raise AssertionError("training started before the destination was validated")
+
+    monkeypatch.setattr(baselines_module, "action_loss", sentinel)
+    with pytest.raises(FileNotFoundError, match="does not exist"):
+        _train_one_bc(fixture_dataset, tmp_path / "absent" / "bc.pt", steps=50)
+
+
+def test_bc_training_applies_the_availability_mask_the_way_the_dt_does(
+    fixture_dataset: TrajectoryWindowDataset, tmp_path: Path
+) -> None:
+    """WRITTEN AFTER THE IMPLEMENTATION, to kill a mutant that survived: dropping the mask from
+    BC's training loss left all 30 tests green.
+
+    On the real corpus that mutant is *equivalent* -- every stored mask is all-True (P3 review,
+    32000/32000 streams), so masking cannot change a gradient there and no reported number
+    moves.  The fixture's masks do bind, so the intended behaviour is testable somewhere, and
+    what is pinned is that BC's loss treats availability exactly as the DT's does rather than
+    diverging silently for a scenario where it would matter.
+    """
+    stacked = stack_dataset(fixture_dataset, group=ALPHA_GROUP)
+    assert not bool(stacked["avail_mask"].all()), "the fixture's masks must bind"
+
+    masked = _train_one_bc(fixture_dataset, tmp_path / "masked.pt", steps=4)
+    unmasked_stack = dict(stacked)
+    unmasked_stack["avail_mask"] = torch.ones_like(stacked["avail_mask"])
+    unmasked = train_bc(
+        unmasked_stack,
+        state_dim=ALPHA_GROUP[0],
+        n_actions=ALPHA_GROUP[1],
+        seed=101,
+        method="bc",
+        declared_gradient_steps=4,
+        batch_size=4,
+        device=torch.device("cpu"),
+        checkpoint_path=tmp_path / "unmasked.pt",
+        stats=fixture_dataset.stats,
+        scenario_id=FIXTURE_SCENARIO,
+        provenance={},
+    )
+    assert masked.canonical_digest != unmasked.canonical_digest
+
+
+def test_a_checkpoint_saved_at_another_step_count_cannot_be_evaluated(
+    fixture_dataset: TrajectoryWindowDataset, tmp_path: Path
+) -> None:
+    """WRITTEN AFTER THE IMPLEMENTATION.  "No online model selection" made mechanical.
+
+    ``PREREGISTRATION.md`` section 6.1 forbids reporting a checkpoint chosen by anything other
+    than the declared budget, so a checkpoint recorded at a different step count is refused by
+    the only path that loads one -- an earlier checkpoint that happened to score better cannot
+    be evaluated at all.
+    """
+    path = tmp_path / "bc_seed101.pt"
+    _train_one_bc(fixture_dataset, path, steps=6)
+    assert load_baseline_checkpoint(None, path, 6)["provenance"]["gradient_steps"] == 6
+    with pytest.raises(ValueError, match="declared"):
+        load_baseline_checkpoint(None, path, 7)
 
 
 def test_training_iql_records_the_awr_weight_diagnostic(
