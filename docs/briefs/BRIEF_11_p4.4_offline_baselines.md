@@ -105,3 +105,70 @@ saves of identical weights produce the **same** canonical digest and **different
 3. Anything in §2 that disagreed with the repo. **The repo wins; say so loudly.**
 4. **If BC matches the DT: say so first, before any interpretation.** That is a registered outcome
    (`PREREGISTRATION.md` §10), not a failure, and the paper already knows what it publishes under it.
+
+---
+
+## 7. Rulings on the P4.4 pre-flight (Master chat, 2026-08-11)
+
+**All nine approved as proposed, with three additions. None changes your design; each closes a way
+the result could be over-read.**
+
+**Q1 — `load_episode` + the cross-check test. APPROVED, your reading is right.** The brief's "do not
+write a second loader" meant *no second reader of the `.npz` format* — the P3 C-3 ruling — and
+`load_episode` **is** that single reader, which `dataset.py` itself calls. So there is no second
+reader. **I prefer your option to the accessor**, for a reason beyond leaving reviewed code alone:
+the cross-check is a genuine **double computation**, and agreement verified is worth more than
+agreement assumed by construction. Keep split enforcement and normalisation in
+`TrajectoryWindowDataset`, exactly as you propose — the leakage guard must stay in one place.
+Show T3 red under the off-by-one.
+
+**Q2 — BC = the DT's stack minus attention. APPROVED, and it is the right control.** A plainer MLP
+would confound architecture family with sequence modelling. **ADDITION (1), and it is the most
+important thing in this ruling:** DT − BC is a **combined** difference — attention/context **plus**
+RTG conditioning **plus** timestep embedding. **State it that way in the packet and never as
+"sequence modelling adds X".** Decomposing it is P4.3's (RTG) and P5.3's (`no-RTG`, context-length
+K) registered work. Getting this wrong would put an unsupported attribution in the abstract.
+
+**Q3/Q4 — published IQL package, unswept, batch 1280. APPROVED.** §6.3 permits an untuned baseline
+**provided it is reported as untuned**, and the DT is equally untuned (published DT-Gym config,
+scaled). Report the **provenance of the values (D4RL locomotion) and that the domain differs** —
+continuous control vs discrete-phase TSC — so a weak IQL is not read as evidence about IQL. Batch
+1280 is well reasoned; note in the packet that IQL's 1280 transitions are **independent** while the
+DT's 1280 positions are **correlated within 64 episodes**, so this equalisation slightly favours
+IQL — which is the conservative direction for our claim, and worth saying so.
+
+**Q5 — 40,000 steps, no raise. CONFIRMED.** That is the DT's reported budget, which is what §6.3
+matches. The DT has already spent its one pre-declared raise; a different budget for baselines would
+break the comparison.
+
+**Q6 — re-run the full DT arm. APPROVED, emphatically, and it is Gate A.** This is the same pattern
+that earned trust for P8.0 and for the draw-cycling trainer: **prove the new path reproduces the old
+one exactly before using it for anything.** If any of the 500 cells differs, stop and report — a
+difference means P4.4's numbers would be measured on a different instrument than P4's, and no
+comparison between them would mean anything.
+
+**Q7 — paired-difference CI contains 0. APPROVED as the instantiation of §9's registered wording**
+(*"if BC on the expert slice matches MADT within CIs"*). **ADDITION (2): report the CI's WIDTH beside
+the verdict.** "Contains 0" is a failure to reject, not a demonstration of equivalence. Reporting the
+width converts *"no difference found"* into *"no difference larger than ±X found"*, which is the
+statement that is actually true and is what a reviewer will ask for. Cheap, and it makes a null
+result publishable rather than merely honest.
+
+**Q8 — background jobs from this session. APPROVED**, on the P4 precedent at the same scale.
+Conditions from §7: the campaign aborts on first failure **and** ends with an assertion that
+completed runs equal runs requested. If any single job exceeds ~30 minutes, hand that one to the
+user's `tmux` rather than absorbing it.
+
+**Q9 — I commission the review, not you.** §7 makes it my step in the lifecycle, and P2.6 merged
+without one precisely because it depended on my remembering. Self-review with `contract-reviewer`
+if you find it useful; **the mandated pre-merge review is mine and I will run it.**
+
+**ADDITION (3) — register your prediction before training.** Your F11 is a genuine forecast: final
+DT cross-entropy of 0.013–0.024 means it nearly memorises the behaviour policy, so **you expect BC to
+be close.** Write that into `docs/plans/p4.4.md` **before the first gradient step**, with the
+reasoning. This project has repeatedly found that a prediction registered in advance is worth more
+than the measurement that follows it, and a confirmed prior here is itself a finding: it would mean
+the DT's margin comes from something other than better imitation.
+
+**One thing you flagged and scoped correctly:** P4 reported no effect sizes though §8 makes them
+mandatory. Back-filling P4's artifact is outside your fence — **it is now `DEFERRED` row 31 and mine.**
