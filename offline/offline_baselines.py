@@ -139,7 +139,9 @@ __all__ = [
     "iql_reward_scale",
     "iql_targets",
     "main",
+    "merge_training_runs",
     "paired_comparison",
+    "pin_torch_threads",
     "rank_biserial",
     "recovered_fraction",
     "stream_returns",
@@ -1155,6 +1157,31 @@ def assert_campaign_complete(
         )
 
 
+def merge_training_runs(
+    existing: Mapping[str, Any], fresh: Mapping[str, Any]
+) -> list[dict[str, Any]]:
+    """Runs of *fresh*, plus the runs of *existing* for methods *fresh* did not train.
+
+    Training the three methods for 40,000 steps does not fit one job under the campaign's
+    30-minute condition, so it runs in chunks -- and a chunk that simply overwrote the artifact
+    would leave a run set that looks complete and is not.  A merge across two different
+    declarations is refused rather than reconciled: the budget, the training draws and the
+    intersection group must match, because mixing two designs in one artifact is exactly the
+    kind of quiet defect this project keeps finding.
+    """
+    for field_name in ("declared_gradient_steps", "training_draw_ids", "scenario_id", "group"):
+        if field_name in existing and field_name in fresh:
+            if existing[field_name] != fresh[field_name]:
+                raise ValueError(
+                    f"refusing to merge two training artifacts that disagree on "
+                    f"{field_name}: {existing[field_name]!r} against {fresh[field_name]!r}; "
+                    "they describe two different designs"
+                )
+    trained_now = {run["method"] for run in fresh["runs"]}
+    kept = [run for run in existing.get("runs", []) if run["method"] not in trained_now]
+    return [*kept, *fresh["runs"]]
+
+
 def _grouped(episodes: Sequence[EpisodeResult]) -> dict[str, list[EpisodeResult]]:
     out: dict[str, list[EpisodeResult]] = {}
     for episode in episodes:
@@ -1346,6 +1373,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--work-dir", default="output/p4_4")
     parser.add_argument("--checkpoint-dir", default="output/p4_4/checkpoints")
     parser.add_argument("--device", default=None)
+    parser.add_argument(
+        "--torch-threads",
+        type=int,
+        default=1,
+        help="torch threads for this process; 1 is the default because the unpinned path "
+        "DEADLOCKS on this workload (see pin_torch_threads) and reproduces P4 bit-identically",
+    )
 
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -1369,6 +1403,30 @@ def build_parser() -> argparse.ArgumentParser:
     report = sub.add_parser("report", help="merge the per-method runs into the artifact")
     report.add_argument("--methods", default=",".join(METHODS))
     return parser
+
+
+def pin_torch_threads(threads: int) -> int:
+    """Pin this process's torch thread count and return what it was before.
+
+    **This is a liveness fix, not a performance fix**, and it is applied in ``main`` only --
+    never at import, so importing this module changes nothing about a caller's process.
+
+    Measured here on 2026-08-11, and the reason this function exists: a Gate A run under torch's
+    default 16 threads **deadlocked** after roughly 600 rollouts, with all 32 OS threads parked
+    in ``futex_do_wait`` and the process consuming no CPU at all.  That is the liveness class
+    ``experiments/runner.py`` pins against (P0.3-fix, ``docs/returns/P0.3-fix.md``), and
+    ``offline/dt_gate.py`` deliberately does not import that module, so nothing was pinning this
+    path.  At one thread the same workload runs to completion at **1.05 s/episode against ~5 s**,
+    and -- verified before adopting it -- reproduces P4's committed cells **bit-identically** on
+    MADT, MAPPO@1000 and MaxPressure alike, so the pin buys liveness and speed without moving a
+    number.  ``runtime_provenance`` records the resulting count in every artifact.
+    """
+    count = int(threads)
+    if count < 1:
+        raise ValueError(f"torch thread count must be >= 1, got {threads!r}")
+    previous = int(torch.get_num_threads())
+    torch.set_num_threads(count)
+    return previous
 
 
 def _checkpoint_map(specs: Iterable[str]) -> dict[int, str]:
@@ -1422,6 +1480,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     from offline.materialise_draws import draw_config_path
 
     args = build_parser().parse_args(argv)
+    pin_torch_threads(args.torch_threads)
     settings = env_settings_from_manifest(args.manifest)
     out_dir = Path(args.out_dir)
     work_dir = Path(args.work_dir)
@@ -1731,7 +1790,14 @@ def _run_train(args: argparse.Namespace, out_dir: Path) -> int:
         ],
         "runtime": runtime_provenance(),
     }
-    write_json_atomic(payload, out_dir / "p4_4_training.json")
+    destination = out_dir / "p4_4_training.json"
+    if destination.is_file():
+        # A chunked run: keep the runs an earlier chunk trained, and refuse to merge two
+        # different declarations.  See merge_training_runs.
+        payload["runs"] = merge_training_runs(
+            json.loads(destination.read_text(encoding="utf-8")), payload
+        )
+    write_json_atomic(payload, destination)
     return 0
 
 

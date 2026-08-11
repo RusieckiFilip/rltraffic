@@ -45,6 +45,7 @@ from offline.offline_baselines import (
     iql_reward_scale,
     iql_targets,
     load_baseline_checkpoint,
+    merge_training_runs,
     paired_comparison,
     rank_biserial,
     recovered_fraction,
@@ -500,6 +501,58 @@ def test_the_artifact_carries_every_unconditional_co_report_for_every_arm() -> N
         assert entry["wilcoxon"]["p_value"] <= 1.0
 
 
+def _training_payload(methods: Sequence[str], **overrides: Any) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "declared_gradient_steps": DECLARED_GRADIENT_STEPS,
+        "training_draw_ids": [1, 2, 3],
+        "scenario_id": "cityflow1x1",
+        "group": [25, 8],
+        "runs": [
+            {"method": method, "seed": seed, "canonical_digest": f"{method}{seed}"}
+            for method in methods
+            for seed in (101, 202)
+        ],
+    }
+    payload.update(overrides)
+    return payload
+
+
+def test_a_second_training_run_keeps_the_first_ones_methods() -> None:
+    """Chunked training must not silently drop what an earlier chunk trained.
+
+    The 40,000-step budget over three methods does not fit one job under the campaign's
+    30-minute condition, so training runs in chunks -- and a chunk that overwrote the artifact
+    would leave a run set that looks complete and is not.  Runs for a method the new chunk
+    trained replace the old ones; every other method survives.
+    """
+    merged = merge_training_runs(
+        _training_payload(["bc", "bc_top10"]), _training_payload(["iql"])
+    )
+    assert sorted({run["method"] for run in merged}) == ["bc", "bc_top10", "iql"]
+    assert len(merged) == 6
+
+    retrained = merge_training_runs(
+        _training_payload(["bc", "iql"]),
+        _training_payload(["bc"], runs=[{"method": "bc", "seed": 101, "canonical_digest": "new"}]),
+    )
+    assert [r["canonical_digest"] for r in retrained if r["method"] == "bc"] == ["new"]
+    assert len([r for r in retrained if r["method"] == "iql"]) == 2
+
+
+def test_merging_two_training_runs_from_different_designs_is_refused() -> None:
+    """A merge across two declarations would mix two designs into one artifact."""
+    for field_name, value in (
+        ("declared_gradient_steps", 20_000),
+        ("training_draw_ids", [1, 2]),
+        ("group", [16, 4]),
+    ):
+        with pytest.raises(ValueError, match=field_name):
+            merge_training_runs(
+                _training_payload(["bc"]),
+                _training_payload(["iql"], **{field_name: value}),
+            )
+
+
 def test_the_artifact_refuses_to_be_built_without_the_reference_arms() -> None:
     """No MADT cell means no comparison; no MAPPO@1000 cell means no recovered fraction."""
     without_dt = [e for e in _artifact_episodes() if e.arm != "madt"]
@@ -734,3 +787,29 @@ def test_the_real_tier_filters_and_builds_transitions_consistently() -> None:
     table = build_transitions(dataset, reward_scale=1.0)
     assert int(table.state.shape[0]) == 72_000
     assert int(table.t.max()) == 359
+
+
+def test_the_thread_pin_is_applied_by_the_cli_and_refuses_a_nonsense_count() -> None:
+    """WRITTEN AFTER THE IMPLEMENTATION, and after a real hang rather than a hypothesis.
+
+    A Gate A run under torch's default 16 threads deadlocked after roughly 600 rollouts, every
+    OS thread parked in ``futex_do_wait`` with the process consuming no CPU.  ``main`` therefore
+    pins the process to one thread -- the liveness fix ``experiments/runner.py`` applies and
+    that ``offline/dt_gate.py`` deliberately never inherits.  The pin belongs to the entry
+    point: importing this module must not change a caller's thread count, so it is asserted
+    here that the default is 1 at the CLI and that the helper restores what it replaced.
+    """
+    before = torch.get_num_threads()
+    try:
+        assert baselines_module.pin_torch_threads(1) == before
+        assert torch.get_num_threads() == 1
+        assert baselines_module.pin_torch_threads(before) == 1
+    finally:
+        torch.set_num_threads(before)
+    assert torch.get_num_threads() == before
+
+    with pytest.raises(ValueError, match="must be >= 1"):
+        baselines_module.pin_torch_threads(0)
+    assert baselines_module.build_parser().parse_args(
+        ["--manifest", "m", "report"]
+    ).torch_threads == 1
