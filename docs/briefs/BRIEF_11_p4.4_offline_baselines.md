@@ -172,3 +172,68 @@ the DT's margin comes from something other than better imitation.
 
 **One thing you flagged and scoped correctly:** P4 reported no effect sizes though §8 makes them
 mandatory. Back-filling P4's artifact is outside your fence — **it is now `DEFERRED` row 31 and mine.**
+
+---
+
+## 8. Second ruling — four corrections to §7 (Master chat, 2026-08-11)
+
+**Three of my five additions landed; two did not, and one guard I approved has no discriminating
+power at the row it exists for. None of this changes your design.**
+
+### 8.1 δ IS NOW DECLARED — `PREREGISTRATION.md` amendment **A6**, before any baseline exists
+
+Reporting the CI's width was half the fix. Without a declared margin, *"is this small enough to call
+them equivalent"* is judged **after** the number is visible — at abstract-writing time, when the
+pivot condition is read off. That is the degree of freedom D5 and D7 exist to remove.
+
+> **δ = 0.6263 ATT** — the DT's own paired margin over MAPPO@1000 on the 100 held-out draws
+> (105.5820 − 104.9558), from the committed `p4_gate.json`.
+>
+> **BC matches the DT** iff the 95 % CI of the paired per-draw difference (DT − BC) lies **entirely
+> within [−δ, +δ]**. **The DT is genuinely better** iff that CI lies entirely below −δ. Anything
+> straddling is **inconclusive at this power**, reported with its width.
+
+**δ is derived, not chosen.** The question is whether sequence modelling earned the DT's margin over
+its own data, so that margin *is* the scale at which "matches" must be judged: if BC comes within it,
+whatever the DT gained BC gained too. It is strict — 0.597 % of the DT's ATT, 1/115th of its margin
+over MaxPressure. Report all three verdict branches explicitly; **do not collapse them to
+pass/fail.**
+
+### 8.2 Your F11 forecast must be FALSIFIABLE — and δ is the same quantity
+
+*"BC should be close"* is confirmed by every outcome. That is the tautology rule applied to a
+forecast — the same shape as BRIEF_08's monotonicity criterion and BRIEF_09's all-True mask, both
+caught in pre-flight. **Register it as: "BC lands within δ = 0.6263 ATT of the DT on the paired
+held-out mean."** It can fail, which is the point.
+
+### 8.3 Q3/Q4 — I approved IQL's package without engaging its substance. Doing that now
+
+**IQL is the one arm where "untuned" is not neutral.** BC has essentially no hyperparameters beyond
+the shared trunk; IQL has four that materially change behaviour (τ, β, γ, reward scale), and they are
+**D4RL locomotion values from continuous-control MuJoCo, transplanted onto a discrete 8-phase action
+space**, with a normalisation convention applied outside the domain it was defined for.
+
+**(a) BINDING, regardless of what you do next.** A **losing untuned IQL cannot support any claim of
+MADT superiority**, and the packet must say so **in the same sentence that reports the number** —
+not in a caveats section. Write it as: *"MADT outperforms an untuned IQL configured from published
+D4RL-locomotion values; this is not evidence that MADT outperforms IQL."*
+
+**(b) OPTIONAL, and authorised if you want it.** A bounded sweep over **τ and β only**, ≤6 configs,
+**selected on training-split expectile/TD loss — never on evaluation return**, which keeps it inside
+D5. Declare the grid and the selection criterion **before** running it. If you sweep, report the grid
+and criterion; if you do not, (a) binds alone. Either is defensible; leaving it implicit is the only
+option that is not.
+
+### 8.4 Q1 — I approved the route but the guard misses the row at risk
+
+Your cross-check pins `(s_t, a_t)` for `t ∈ [0, T−1]` against the loader — **and the loader by
+construction never yields `s_T`, which is the entire reason the deviation exists.** So it verifies
+everything except the row at risk: **discriminating power near zero at exactly the point that
+matters.** That is my own §7 rule failing on a test I signed off.
+
+**Required, in addition to T3:** an independent assertion that the **last transition's next-state
+equals row `T` of the raw `.npz` observation array**, read by a **different path** — raw `np.load`,
+not `load_episode` — **with the mutation `row T → row T−1` proved to kill it.** Paste the mutation.
+
+**None of the above changes the plan.** Write `docs/plans/p4.4.md` with δ and the forecast in it, and
+go red-first.
