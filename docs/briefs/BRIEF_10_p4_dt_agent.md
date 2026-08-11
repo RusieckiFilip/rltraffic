@@ -112,7 +112,7 @@ proves little, because BC would likely do the same — that is exactly what P4.4
   show it **crashes** — that is the `-1` tripwire earning its place.
 - **Masking is applied:** logits at illegal actions are `-inf` before the softmax. Build a
   **synthetic** mask with genuine `False` entries — the corpus cannot test this (§2).
-- **Determinism:** same seed ⇒ byte-identical parameters after N steps.
+- **Determinism:** same seed ⇒ **tensor-identical** parameters after N steps, compared over the `state_dict` — **not** by file hash, which is structurally incapable of matching across two filenames (2026-08-11).
 - **The gate is computed by an independent route.** Do not compare against a number the training
   loop printed; re-evaluate the saved checkpoint through `offline/horizon_metric.py`.
 
@@ -178,7 +178,7 @@ training loss has not plateaued at 20k, you may raise **once** to 40k, **decided
 curve alone** — no evaluation number may enter that decision, exactly as amendment A3 handled the
 MAPPO budget. A second raise requires coming back. The reported checkpoint is the declared step.
 
-**CUDA: ACCEPTABLE, conditional.** The double-train byte-identity proof must pass **on the actual
+**CUDA: ACCEPTABLE, conditional.** *(⚠️ 2026-08-11: the proof is a TENSOR comparison; see `DEFERRED` 29.)* The double-train byte-identity proof must pass **on the actual
 training device and configuration**; if it fails, either make it deterministic or fall back to
 CPU-in-tmux — do not report a number from a path you could not reproduce. **Record device, torch and
 CUDA versions in the artifact:** P8.0's provenance omitted exactly the state that determines
