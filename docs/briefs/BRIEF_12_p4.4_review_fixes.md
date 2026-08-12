@@ -296,7 +296,60 @@ asserted.** It is a better result than the margin it explains.
 compared against %BC. **I have registered it as P4.5** (`PROJECT_PLAN` §6, `DEFERRED` 38); it needs a
 training run, and §5 forbids one here. Name it in the packet as the open test, and do not run it.
 
-### 7.6 Smaller rulings
+### 7.6 Stage 1's FAILURE was my instrument's fault, not yours — accepted, with the sample named
+
+**All three questions answered: yes, yes, and I am writing the row.** You did the right thing twice —
+you stopped when Stage 1 failed instead of reasoning past it, and then you built the instrument the
+ruling actually needed rather than declaring the ruling unsatisfiable.
+
+**Q1 — the corrected Stage-1 instrument is ACCEPTED.** *Pre-fix module vs post-fix module, same cwd,
+same HEAD, same inputs → byte-identical `5289e3ba…`* isolates exactly what Stage 1 existed to isolate:
+**do this round's source edits move any output?** They do not. My §7.1 named an identity check on a
+container whose contents include a write-time quantity, which is the **same structural class as
+`DEFERRED` 29** — an identity claim resting on a container property rather than on content. You named
+that yourself; it is the right diagnosis and the second time this class has cost this project a step.
+**Verified independently here:** the committed artifacts record `c13aaa9`, and the test your corrected
+F1 docstring names (`…bootstraps_through_the_horizon_at_its_call_site`) exists at
+`tests/test_offline_baselines.py:939` — so the docstring's claim is now true of the artifact, which
+was the point of F1.
+
+**Q2 — Stage 2 as you propose, with two conditions.**
+1. **The expected-difference set is a LITERAL DECLARED LIST, written before the comparison runs**, and
+   the comparison **fails on any path not in it**. An expected difference named in advance is a
+   specification; the same difference explained afterwards is an excuse, and the two are
+   indistinguishable in a packet unless the order is visible. Declare `{.runtime.git_commit}` plus the
+   additions under `training.top_return_filter`, and nothing else.
+2. **State the sample.** *"Only `git_commit` differs"* is true **on this machine, in this session**.
+   `cuda_device_name`, `torch_version`, `numpy_version` and `python_version` sit in the same block and
+   would differ on other hardware. Say which you checked and where.
+
+**Q3 — the row is mine and I am writing it, and the artifacts say something sharper than we both
+said.** A single `git_commit` field **cannot express a chunked campaign's provenance even in
+principle**, and this one already does not: measured here,
+`output/p4_4/gate_a.json` carries **`738884b`** while the three `eval_*.json` carry **`c13aaa9`**. So
+the committed `c13aaa9` is *"when the report was assembled"*, not *"the commit whose code produced
+these measurements"* — there is no such single commit. **The field is not merely awkward to
+regenerate; it is under-specified for the campaign that produced it.**
+
+**Forward fix: DEFERRED to P4.3** (`DEFERRED` 39), which writes new artifacts and can adopt a split
+cleanly — a frozen *measurement* provenance carried from the inputs, and a separate *written-at*
+commit. **Not in this round:** it is a schema change, §5's fence holds, and the disclosure below buys
+most of its value for none of its risk.
+
+**Binding on §12, and it is a reporting requirement rather than a schema change:** state, **measured
+from the eval JSONs rather than remembered**, which commit produced each input — `738884b` for Gate A,
+`c13aaa9` for the three evaluation arms — and state plainly that the regenerated artifact's
+`runtime.git_commit` is **the commit at which the file was written, not the commit whose code produced
+the numbers.** Without that sentence the next reader takes the regenerated value for measurement
+provenance and is wrong.
+
+**One more, from §7's own rule that test count is a signal.** You report **606 passed, 1 skipped** =
+**607 collected** against 599 before, i.e. **+8**, while the plan listed **7** new tests. Almost
+certainly one test split; reconcile it explicitly in §12 rather than leaving the delta unexplained. A
+count that does not add up is exactly what the rule exists to surface, and an innocent explanation
+stated is worth more than an unstated one.
+
+### 7.7 Smaller rulings
 
 - **F4 — assert on the CALL, not on the resulting behaviour.** Raised by the user, and correct.
   `explore=False → explore=True` moves the number *today* (the reviewer measured BC −0.184, IQL +0.157
