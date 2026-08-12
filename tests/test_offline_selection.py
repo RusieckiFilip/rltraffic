@@ -276,6 +276,36 @@ def test_the_declared_arms_are_the_two_best_and_two_worst_by_held_out_att() -> N
     assert SELECTION_ARMS["bc_best2_all"].count is None
 
 
+def test_the_declared_behaviour_att_equals_the_committed_measurement() -> None:
+    """The behaviour axis is COPIED from the merged artifacts, never re-measured here.
+
+    Two committed sources, two exact comparisons.  The per-seed values must equal
+    ``p4_4_training.json``'s composition block field for field; and the mixture derived from
+    them must equal ``p4_4_baselines.json``'s 500-episode ``mappo1000`` cell mean under ``==``,
+    which is the second route: five per-seed means against one 500-episode mean, equal only
+    because the design is balanced.
+
+    Killed by: retyping any of the five constants.
+    """
+    training = json.loads(
+        (REPO_ROOT / "docs/data/p4_4_training.json").read_text(encoding="utf-8")
+    )
+    committed = training["top_return_filter"]["composition"]["per_seed_heldout_att"]
+    assert {int(k): v for k, v in committed.items()} == dict(
+        baselines_module.BEHAVIOUR_HELDOUT_ATT
+    )
+
+    cell = json.loads(
+        (REPO_ROOT / "docs/data/p4_4_baselines.json").read_text(encoding="utf-8")
+    )["cells"]["mappo1000"]["att_horizon_mean"]
+    assert baselines_module._BEHAVIOUR_MIXTURE_ATT == cell
+
+    assert baselines_module.BEHAVIOUR_GAP_TO_BEST_TWO == cell - (
+        committed["101"] + committed["202"]
+    ) / 2.0
+    assert baselines_module.BEHAVIOUR_GAP_TO_BEST_SINGLE == cell - min(committed.values())
+
+
 def test_cli_flags_that_disagree_with_the_declaration_are_refused() -> None:
     """T9.  A shell typo must not be able to redefine an arm.
 

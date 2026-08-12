@@ -1515,7 +1515,13 @@ def test_the_delta_rounding_cross_check_fires_on_a_verdict_that_turns_on_the_rou
     paired difference here is exactly ``0.62629``, which lies between the two.
 
     Killed by: removing the disagreement check -- after which the proximity guard raises a
-    DIFFERENT error, which is why ``match=`` names this one's message.
+    DIFFERENT error, which is why ``match=`` names a phrase unique to THIS one's message.
+
+    ⚠️ The first draft matched on ``"rounding"`` alone and the mutation SURVIVED, because the
+    proximity guard's message also contains that word (*"decided by the margin's rounding"*).
+    The test passed for the wrong reason and only the mutation exposed it.  Recorded here rather
+    than quietly repaired -- and see the packet: the two guards are not independent, because the
+    two deltas differ by 4.4e-5, which is inside DELTA_PROXIMITY_TOLERANCE.
     """
     assert DELTA_ATT_DERIVATION < 0.62629 < DELTA_ATT, "the fixture must straddle the two deltas"
     draws = {1000: 100.0, 1001: 101.0, 1002: 102.0}
@@ -1523,7 +1529,7 @@ def test_the_delta_rounding_cross_check_fires_on_a_verdict_that_turns_on_the_rou
     episodes += _episodes("mappo1000", {d: v + 2.0 for d, v in draws.items()}, seed=101)
     episodes += _episodes("bc", {d: v - 0.62629 for d, v in draws.items()}, seed=101)
 
-    with pytest.raises(ValueError, match="rounding"):
+    with pytest.raises(ValueError, match="depends on delta's rounding"):
         baselines_artifact(
             episodes=episodes,
             training={},
