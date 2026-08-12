@@ -220,3 +220,27 @@ they go to a `tmux` session started by the user. You may read their logs.
 Fill `docs/returns/TEMPLATE.md`. It must contain the real `pytest` tail, the real `git diff --stat`,
 and honest Y/N answers in the self-review checklist. An unchecked box is information; a falsely
 checked box is a corrupted experiment three weeks later.
+
+## 8. AI-assistance record (mandatory in every Return Packet, added 2026-08-12)
+
+**Every Return Packet carries an `AI-assistance record` section.** It is four lines, it is written as
+the task happens, and it is never reconstructed afterwards:
+
+1. **Tool and version** — which assistant, which model, what date.
+2. **Authorship per file** — AI-authored, human-authored, or AI-edited from a human original. By path.
+3. **Human verification performed** — which tests were run, which mutations were executed, which
+   quantities were independently recomputed, and *by whom*.
+4. **Who made the research decisions** — the author, a coordinator ruling (name the brief section), or
+   a pre-registration fixed before the run (name the commit). **This is the distinction publishers
+   actually ask about; "who typed the code" is not it.**
+
+**Why this is a rule and not a convention.** Publisher AI-disclosure policies require this in the
+Methods section for AI-assisted research code, and the reproducibility standard they apply is the
+same one that applies to human-written code — which this repo already exceeds. **Reconstructing the
+record in September from 160+ commits is strictly worse than writing it as we go**, and it would be
+reconstructed by the least reliable route available: memory of who decided what.
+
+**The Master chat appends nothing at merge.** The packet is the record and the merge preserves it.
+Our pre-registration tags (`v0.1-prereg` … `v0.9-prereg-a8`) and the Decisions Log already document
+decision provenance better than most papers can — this section is what makes that legible to an
+editor who will not read them.

@@ -36,5 +36,12 @@ If you did not run them, write `NOT RUN` and say why.
 **Open questions / risks for the Master chat**
 -
 
+**AI-assistance record** (mandatory since 2026-08-12 — see `CLAUDE.md` §8)
+- Tool and version: <e.g. Claude Code, model, date>
+- Files AI-authored / human-authored / AI-edited-from-human-original: <list, by path>
+- Human verification performed: <tests run, mutations executed, independent recomputations, who ran them>
+- **Who made the research decisions**: <author / coordinator ruling (name the brief §) / pre-registered
+  before the run (name the commit)> — this is the distinction publishers ask about, not who typed
+
 **What the next task will assume about this one** (phase-boundary check)
 -
