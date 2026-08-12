@@ -39,6 +39,11 @@ normalisation statistics**, same 100 held-out draws, same `evaluate_arm`:
 | **`bc_any_20`** | **20** | **random, from all five seeds** | **size alone, seeds unmatched** |
 | `bc_best2_all` | 80 | all of seeds 101+202 | data quantity from good seeds (secondary) |
 
+> ⭐ **EXTENDED 2026-08-12 by §10.7 — a FIFTH arm, `bc_worst2_20`: 20 streams drawn at random from
+> seeds 505 and 303, the two WORST checkpoints (106.97726 and 107.79804; measured, and note it is not
+> 303+404). Two matched-size arms give a difference; three give an ORDERING.** The best-two-to-worst-two
+> spread is **3.8190 ATT**, six times δ.
+
 **The decisive comparison is `bc_best2_20` vs `bc_any_20`** — identical training-set size, differing
 only in which checkpoints produced the data. If seed identity is what the filter is exploiting, that
 pair separates; if it does not separate, the checkpoint-selection reading is wrong and F3's
@@ -59,6 +64,18 @@ formality.
 >
 > **Secondary:** `bc_any_20` lands **worse than `bc_best2_20`** by an amount comparable to the
 > behaviour-policy gap between the best two seeds and the five-seed mixture (**2.05 ATT**).
+>
+> ⚠️ **CORRECTED 2026-08-12 (§10.1, the implementer's finding, my error): 2.05 is the gap to the BEST
+> SINGLE seed (202, 103.52859). The gap to the MEAN OF THE BEST TWO is 2.0134** (103.56864 against the
+> mixture's 105.58203). Report both; score this secondary **directionally**, since it is a magnitude
+> expectation and not a threshold.
+>
+> ⭐ **THIRD PREDICTION, added by §10.7 and to be copied verbatim into the plan file:**
+> **`bc_best2_20` < `bc_any_20` < `bc_worst2_20` in ATT (lower is better) — monotone in
+> behaviour-seed quality.** This is the actual mechanism claim: not *"does seed identity matter"* but
+> *"does performance TRACK behaviour-mode quality"*. **If all three land together, seed identity does
+> nothing and F3's reading collapses — which we would then learn decisively rather than from one null
+> contrast.**
 
 **What falsifies the primary, and what it would mean:** if `bc_top10` beats `bc_best2_20` by more
 than δ, then ranking episodes *within* the good seeds does real work, F3's reading is incomplete, and
@@ -168,3 +185,98 @@ mixture, easiest *demand draws* on pure random.
 §12.8 and `docs/reviews/P4.4.md` §4 — the same backward propagation the 2026-08-07 rule requires. **A
 failed prediction here costs three annotations and buys a true sentence**, which is the trade this
 whole apparatus exists to make.
+
+---
+
+## 10. RULINGS on the plan of 2026-08-12 — **all four approved**, one brief error accepted, and one arm added
+
+### 10.1 Your §3 correction is right and the error is mine
+
+**2.05 is the gap to the best SINGLE seed, not to the mean of the best two.** Recomputed here from
+`p4_heldout_thresholds.json`: mixture **105.58203**, best-two mean (202, 101) **103.56864**, gap
+**2.0134**; best single seed 202 is **103.52859**, gap **2.0534**. §3's *"the gap between the best two
+seeds and the five-seed mixture"* attached the right number to the wrong reference — **the same
+reference-class defect I logged against myself on 2026-08-12**, committed four rulings later in a
+brief I wrote to test a reference-class finding. Report both, score the secondary directionally, and
+**do not treat either as load-bearing**: it is a magnitude expectation, not a threshold.
+
+### 10.2 The suite deadlock — recorded, disclosure made binding, and not fixed here
+
+Accepted as reported: 8 minutes at ~0 % CPU with 35 threads in `futex_do_wait`, then **612 passed, 1
+skipped in 69.43 s** pinned. **This is the second sighting of the same liveness class** (P4.4 §6.2 was
+the evaluation path; this is the test suite) and the first inside `pytest`. It is intermittent — I ran
+the same suite unpinned twice today, 76.09 s and 79.58 s, without a hang.
+
+**Binding: every suite run you report states whether it was pinned, and every background job in this
+task sets `OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`.** The pin is a **liveness** fix, not a performance
+one, and your pinned count (612 passed, 1 skipped = 613 collected) matches P4.4's exactly, so it moves
+no outcome. **Not fixed here** — a `conftest.py` pin would change every test run's threading and is a
+decision about test infrastructure, not about this result. `DEFERRED` 41.
+
+### 10.3 Q1 — Gate B **APPROVED as proposed**, with one substitution
+
+Re-using `bc_top10`'s 500 episodes is only sound if this session's instrument is P4.4's, and hashes
+alone cannot show that — **P4.4's own Gate A existed for exactly this reason and found a thread
+hazard on the way.** Take both halves: the identity checks **and** the 25 declared cells
+(5 seeds × draws 1000/1025/1050/1075/1099), exact equality, re-rolled values discarded, **mismatch ⇒
+BLOCKED and you stop.**
+
+⚠️ **Substitution: the primary identity is `canonical_state_dict_digest`, not the file sha256.**
+`DEFERRED` 29 and the 2026-08-11 ruling: a file hash depends on the filename, so it proves transport
+integrity and not weight identity. Report the file sha256 beside it for what it does prove.
+
+### 10.4 Q2 — background jobs from the session, and the pin is not optional
+
+~65 minutes in jobs of ≤ 12 minutes is well inside the `BRIEF_11` §7 Q8 precedent, under which P4.4
+ran a 25-minute Gate A and three evaluation arms. **Approved.** `tmux` is for the multi-hour campaigns
+of §5, and this is not one. Every job carries the §10.2 pin, aborts on first failure, and ends with
+the completed-equals-requested assertion.
+
+### 10.5 Q3 — **keep both, but RANKED, because they answer different questions**
+
+You are right that the plan left them unranked, and right that a disagreement is itself a result.
+
+- **The registered forecast is scored by (A), `|paired mean difference| ≤ δ`** — because that is how
+  §3 words it: *"lands within δ of"* is a claim about a point estimate, and P4.4's
+  `_forecast_outcomes` scored its forecast the same way.
+- **The equivalence claim that may enter the paper requires (B), the whole 95 % CI inside ±δ** — A6's
+  rule, and the only one of the two that can support *"these are the same"* rather than *"we failed to
+  find a difference"*.
+
+**Neither substitutes for the other and both are reported.** If they disagree — mean inside δ, CI
+straddling — the declared name for that outcome is **"consistent with equivalence, not demonstrated at
+this power"**, reported with the CI width, and it may not be written up as a match. **Fixing this
+before the run is the whole point; after it, choosing between them is choosing a verdict.**
+
+### 10.6 Q4 — both **APPROVED**, and the first is more than hygiene
+
+`delta_verdict` with neutral names: yes. Reusing `equivalence_verdict` would write
+**`dt_genuinely_better` into an artifact describing a BC-versus-BC pair** — a false label on disk,
+which is the defect class F1 was raised for. `SELECTION_ARMS` frozen and CLI-checked: yes, and it is
+the campaign-integrity rule (a shell typo must not be able to redefine an arm).
+
+### 10.7 ⭐ MY ADDITION — a fifth arm, `bc_worst2_20`, which turns a contrast into a dose-response
+
+**Two matched-size arms give a difference; three give an ORDERING, and an ordering is much harder to
+explain away.** Add:
+
+| arm | streams | drawn from | why |
+|---|---|---|---|
+| `bc_worst2_20` | 20 | random, from seeds **505 and 303** | the low end of the same axis |
+
+**Measured here, so the arm is defined by data and not by guess:** per-seed held-out ATT is
+`202 103.52859 · 101 103.60869 · 404 105.99759 · 505 106.97726 · 303 107.79804`, so the worst two are
+**505 and 303** (mean **107.38765**) — **not** 303+404. The best-two-to-worst-two spread is
+**3.8190 ATT**, six times δ, so the design has room to show an effect or to rule one out.
+
+**Registered prediction, added to §3 and to be copied verbatim into `docs/plans/p4.5.md`:**
+
+> **`bc_best2_20` < `bc_any_20` < `bc_worst2_20` in ATT (lower is better), monotone in behaviour-seed
+> quality.**
+
+**Why this is worth ~22 minutes.** The two-arm design can only answer *"does seed identity matter?"*
+A three-arm ordering answers *"does performance TRACK behaviour-mode quality?"*, which is the actual
+mechanism claim — and if all three land together, seed identity does nothing, F3's reading collapses,
+and we learn that decisively rather than from a single null contrast. **A monotone ordering across
+three matched-size arms is the strongest form this result can take**, and it costs one more training
+run and one more evaluation pass.
