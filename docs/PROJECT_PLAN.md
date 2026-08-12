@@ -492,6 +492,44 @@ logger's populated-`out_dir` check, so a refused run could write files and delet
 demand). The fix in both cases was ordering, not new logic. Reviews of P2.5, P3 and P2.4 must check
 this explicitly.
 
+**TIGHTENING A PROTOCOL BEFORE MEASUREMENT IS ALWAYS SAFE; LOOSENING ONE AFTER A RESULT NEVER IS (added 2026-08-12, proposed by the user).**
+This asymmetry decides every *should we change the protocol?* question, and it is more portable than
+any of the rulings it has produced. A constraint registered **before** the number exists can only make
+a claim **harder** to make, so it needs no permission and carries no risk — which is why
+`PREREGISTRATION.md` **A8(a)** (P4.3's calibration rule must be a declared probe-return quantile, the
+sweep an ablation around it and never the mechanism that picks it) was simply registered. A criterion
+changed **after** an experiment has run and lost needs an argument that survives being written into
+the paper, and *"we changed the budget rule after our method lost"* does not, however defensible the
+rule is in the abstract — which is why **A8(b)** became a declared-ceiling **secondary** that cannot
+replace the primary. **The test to apply: write the change as a sentence in the methods section, with
+its date relative to the result. If that sentence embarrasses you, it is loosening.** The mirror-image
+check is the same tool: we refused a DT budget raise on 2026-08-08 when the DT had **passed**, so
+granting one on 2026-08-12 because it had **lost** was refused on sight.
+
+**A REGISTERED CRITERION CAN SILENTLY MEASURE SOMETHING OTHER THAN WHAT IT WAS NAMED FOR — CHECK WHAT IT TRACKS BEFORE LETTING IT ARBITRATE (added 2026-08-12).**
+The plateau criterion (2000-step windows, tolerance 0.05) was registered to mean *has this arm
+finished learning*, and an external critique used it to argue the DT had been treated unfairly.
+Measured on our own committed artifacts: **`madt` 0/5, `bc` 0/5, `iql` 0/5, `bc_top10` 4/5.** The only
+arm that reaches it is the one whose training set is **10× smaller** — 7,200 windows against 72,000,
+**355 epochs**, final loss **0.0011–0.0032** against BC's **0.0139–0.0189** on the same architecture,
+optimiser and budget. **On this corpus "plateaued" tracks TRAINING-SET SIZE, not convergence.** It
+therefore cannot arbitrate fairness between arms whose training sets differ, and any argument of the
+form *"arm X plateaued and arm Y did not, so the comparison is unfair"* is measuring the filter rather
+than the learning. **Binding on P4.3 and P5:** the criterion stays a reported **diagnostic** and may
+not justify a budget change for any single arm. **The general form — a criterion is a measurement and
+has to be validated like one** — is why this sits here and not only in the Decisions Log.
+
+**A MONITOR THAT GREPS FOR A PROCESS NAME MATCHES ITSELF (added 2026-08-12).**
+`until [ -f out ] && ! pgrep -f "job.py"; do sleep 20; done` **can never exit**: the monitor's own
+command line contains the literal `job.py`, so `pgrep -f` matches the monitor. One such loop leaked
+from the P4.4 review, ran indefinitely after its job had finished, and had to be killed by PID. It was
+demonstrated live in the same session — the diagnostic command sent to *check* for it also appeared in
+its own output, for exactly the same reason. **Use a sentinel file the job writes on exit, or
+`pgrep -f "[j]ob.py"`, or match a PID captured at launch — never a name the monitor itself spells
+out.** P4.3 and P5 both run long jobs; without this it recurs. **And the wider point: the leaked
+process was invisible from inside the session that created it**, so *"the job finished"* and *"nothing
+is still running"* are two claims, and the second needs its own command.
+
 **Redundancy rules (non-negotiable):**
 - **Double computation of critical quantities:** RTG in the loader verified by an independent `np.cumsum` test path; logged rewards vs rewards recomputed from per-lane counts — equality asserted on real episodes; randomizer dual-backend renders checked for equivalence.
 - **Corpus linter (P2.4) after every collection run:** manifests, shapes, NaNs, reward-recompute equality, return distributions, **episode-hash duplicate detector** (residual guard on the determinism failure mode).
