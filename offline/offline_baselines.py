@@ -72,8 +72,10 @@ all stay in ``TrajectoryWindowDataset``, and a test cross-checks every ``(s_t, a
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
+import os
 import re
 import time
 from dataclasses import dataclass, field
@@ -150,6 +152,21 @@ __all__ = [
     "top_return_streams",
     "train_bc",
     "train_iql",
+    # -- P4.5: which streams an arm sees, and nothing else -------------------------------
+    "ArmSpec",
+    "MATCHED_SUBSET_COUNT",
+    "SELECTION_ARMS",
+    "SELECTION_ARTIFACT_FORMAT_VERSION",
+    "SELECTION_BASELINES_FORMAT_VERSION",
+    "arm_spec_for_flags",
+    "assert_reused_arm_reproduces",
+    "assert_selection_design",
+    "delta_verdict",
+    "random_stream_subset",
+    "select_arm_streams",
+    "selection_artifact",
+    "streams_from_datasets",
+    "thread_regime",
 ]
 
 ARTIFACT_FORMAT_VERSION = "p4.4-baselines/1.0"
@@ -651,6 +668,927 @@ def filter_stacked_to_streams(
             "which usually means the streams and the stack belong to different groups"
         )
     return {name: value[keep] for name, value in stacked.items()}
+
+
+# ----------------------------------------------------------------------
+# P4.5: which behaviour checkpoints an arm's streams came from, and nothing else
+# ----------------------------------------------------------------------
+
+SELECTION_ARTIFACT_FORMAT_VERSION = "p4.5-selection/1.0"
+SELECTION_BASELINES_FORMAT_VERSION = "p4.5-selection-baselines/1.0"
+
+#: The size every matched arm is held to.  ``docs/plans/p4.5.md`` section 3: %BC trains on 20
+#: streams, so an arm that answers "is it the SEEDS?" must train on 20 too, or it answers "is it
+#: the amount of data?" instead.
+MATCHED_SUBSET_COUNT = 20
+
+VERDICT_WITHIN_DELTA = "within_delta"
+VERDICT_LEFT_BETTER = "left_genuinely_better"
+VERDICT_RIGHT_BETTER = "right_genuinely_better"
+VERDICT_PAIR_INCONCLUSIVE = "inconclusive_at_this_power"
+
+
+#: Per-seed held-out ATT of the behaviour policy, COPIED from the committed
+#: ``docs/data/p4_4_training.json`` composition block rather than recomputed here, so this task
+#: cannot produce a second version of a merged number.  A test asserts the equality field by
+#: field, and a second test recomputes the RANKING from the 500 raw episode records.
+BEHAVIOUR_HELDOUT_ATT: Mapping[int, float] = {
+    101: 103.60869401265231,
+    202: 103.52858962932616,
+    303: 107.79803977256651,
+    404: 105.99759066310882,
+    505: 106.9772590660622,
+}
+
+#: The two best and the two worst behaviour checkpoints on the held-out pool, DERIVED from the
+#: measurement above rather than typed.  ``BRIEF_13`` section 10.7 warns that the worst two are
+#: 505 and 303 and not 303+404 -- a mistake that is invisible in a shell command and fatal to the
+#: ordering prediction, which is exactly why this is a computation and not a literal.
+_BEHAVIOUR_RANKING: tuple[int, ...] = tuple(
+    sorted(BEHAVIOUR_HELDOUT_ATT, key=lambda seed: BEHAVIOUR_HELDOUT_ATT[seed])
+)
+BEST_TWO_BEHAVIOUR_SEEDS: tuple[int, ...] = tuple(sorted(_BEHAVIOUR_RANKING[:2]))
+WORST_TWO_BEHAVIOUR_SEEDS: tuple[int, ...] = tuple(sorted(_BEHAVIOUR_RANKING[-2:]))
+
+#: The five-seed mixture, and the two gaps the secondary prediction is measured against.  All
+#: three are COMPUTED from the per-seed measurement rather than typed: the first draft of this
+#: file carried a hand-copied 2.0534450018170614 for the second gap and the true value is
+#: 2.053444999417053, which is the same class of defect as the brief's own 2.05.
+#: ``_BEHAVIOUR_MIXTURE_ATT`` equals the committed 500-episode ``mappo1000`` cell mean exactly
+#: under ``==``, which a test asserts across the two artifacts.
+_BEHAVIOUR_MIXTURE_ATT = sum(BEHAVIOUR_HELDOUT_ATT.values()) / float(len(BEHAVIOUR_HELDOUT_ATT))
+BEHAVIOUR_GAP_TO_BEST_TWO = _BEHAVIOUR_MIXTURE_ATT - sum(
+    BEHAVIOUR_HELDOUT_ATT[seed] for seed in BEST_TWO_BEHAVIOUR_SEEDS
+) / 2.0
+BEHAVIOUR_GAP_TO_BEST_SINGLE = _BEHAVIOUR_MIXTURE_ATT - min(BEHAVIOUR_HELDOUT_ATT.values())
+
+
+@dataclass(frozen=True)
+class ArmSpec:
+    """One arm's declared stream selection: the selector, its pool and its size.
+
+    A declaration, not a configuration.  The CLI must agree with it or refuse to run, because a
+    shell typo that redefined an arm would be invisible in every artifact this task writes.
+
+    ``behaviour_seeds`` empty means "every seed in the corpus"; ``count`` ``None`` means "the
+    whole pool".
+    """
+
+    arm: str
+    selector: str
+    behaviour_seeds: tuple[int, ...]
+    count: int | None
+    role: str
+
+
+#: The four new arms of P4.5, declared before the first gradient step
+#: (``docs/plans/p4.5.md`` section 3).  ``bc_top10`` is not here: it was trained by P4.4 and its
+#: 500 episodes are re-used rather than re-rolled.
+SELECTION_ARMS: Mapping[str, ArmSpec] = {
+    "bc_best2_20": ArmSpec(
+        arm="bc_best2_20",
+        selector="random_subset",
+        behaviour_seeds=BEST_TWO_BEHAVIOUR_SEEDS,
+        count=MATCHED_SUBSET_COUNT,
+        role="seed identity at MATCHED SIZE: the decisive arm against bc_any_20",
+    ),
+    "bc_any_20": ArmSpec(
+        arm="bc_any_20",
+        selector="random_subset",
+        behaviour_seeds=(),
+        count=MATCHED_SUBSET_COUNT,
+        role="size alone, seeds unmatched: a mixture of all five behaviour modes",
+    ),
+    "bc_worst2_20": ArmSpec(
+        arm="bc_worst2_20",
+        selector="random_subset",
+        behaviour_seeds=WORST_TWO_BEHAVIOUR_SEEDS,
+        count=MATCHED_SUBSET_COUNT,
+        role="the low end of the same axis: two arms give a difference, three give an ordering",
+    ),
+    "bc_best2_all": ArmSpec(
+        arm="bc_best2_all",
+        selector="datasets",
+        behaviour_seeds=BEST_TWO_BEHAVIOUR_SEEDS,
+        count=None,
+        role="data quantity from good seeds; SECONDARY, because it is size-matched to nothing",
+    ),
+}
+
+#: The reported order, which fixes the orientation of every pair: for ``i < j`` the difference is
+#: ``mean(arms[i] - arms[j])`` over the shared draws.  Declared, so no pair can be reported in
+#: whichever direction reads better.
+SELECTION_ARM_ORDER: tuple[str, ...] = (
+    "bc_top10",
+    "bc_best2_20",
+    "bc_any_20",
+    "bc_worst2_20",
+    "bc_best2_all",
+)
+
+#: The arm whose episodes are re-used from the merged P4.4 artifact instead of re-rolled.
+REUSED_ARM = "bc_top10"
+
+#: Corpus facts of the P4 tier, declared here so a validator has a reference that does NOT come
+#: from the payload it validates (review finding N1).  Both are asserted against the real corpus
+#: by ``test_the_real_tier_filters_and_builds_transitions_consistently``'s neighbours: 200 streams
+#: over 5 behaviour seeds is 40 each, and 72,000 windows over 200 streams is 360 rows each.
+DECISION_ROWS_PER_STREAM = 360
+STREAMS_PER_BEHAVIOUR_SEED = 40
+
+#: The contrast the whole task turns on, and the one whose CI bounds a null (plan section 2.2).
+DECISIVE_CONTRAST = ("bc_best2_20", "bc_any_20")
+POWER_CONTRAST = ("bc_best2_20", "bc_worst2_20")
+
+
+def _stream_key(stream: StreamReturn) -> tuple[str, str, str]:
+    """The canonical identity of a stream, and the order every selector returns."""
+    return (stream.dataset_dir, stream.episode_file, stream.ix_id)
+
+
+def streams_from_datasets(
+    dataset: TrajectoryWindowDataset, dataset_dirs: Sequence[str | Path]
+) -> tuple[StreamReturn, ...]:
+    """Every stream collected under one of *dataset_dirs*, in canonical order.
+
+    The membership test is on the stream's OWN ``dataset_dir``, so an arm's pool is a property of
+    the data rather than of the call that asked for it.  Paths are compared as ``str(Path(x))``
+    on both sides -- separators normalised, symlinks deliberately NOT resolved, because a
+    resolved match between two different spellings of a directory would be a silent success where
+    a refusal is wanted.
+
+    A requested directory that yields no stream raises, naming both sides: an arm whose pool
+    quietly came out smaller than it was declared to be is the failure this task cannot afford.
+    """
+    wanted = [str(Path(directory)) for directory in dataset_dirs]
+    if not wanted:
+        raise ValueError("no dataset directories were given: an arm needs a pool to draw from")
+    streams = stream_returns(dataset)
+    present = sorted({stream.dataset_dir for stream in streams})
+    empty = [directory for directory in wanted if directory not in set(present)]
+    if empty:
+        raise ValueError(
+            f"these dataset directories yield no streams: {empty} -- the dataset carries "
+            f"{present}; a pool smaller than declared would change what the arm measures"
+        )
+    keep = [stream for stream in streams if stream.dataset_dir in set(wanted)]
+    return tuple(sorted(keep, key=_stream_key))
+
+
+def random_stream_subset(
+    streams: Sequence[StreamReturn], count: int, rng: np.random.Generator
+) -> tuple[StreamReturn, ...]:
+    """A uniform sample of *count* streams without replacement, deterministic given *rng*.
+
+    **The contract, because a recorded rng seed has to be enough to regenerate a subset years
+    later:** the pool is sorted into canonical order ``(dataset_dir, episode_file, ix_id)``
+    FIRST, the draw is ``rng.choice(len(pool), size=count, replace=False)`` over that order, and
+    the result is returned in canonical order again.
+
+    Canonicalising before the draw is what makes the SELECTION independent of the caller's
+    ordering; canonicalising after is what makes downstream row order independent of draw order.
+    Both are needed and they are different properties.
+    """
+    canonical = sorted(streams, key=_stream_key)
+    total = len(canonical)
+    wanted = int(count)
+    if wanted < 1:
+        raise ValueError(f"a subset needs at least one stream, got count={count!r}")
+    if wanted > total:
+        raise ValueError(
+            f"cannot draw {wanted} streams without replacement from a pool of {total}; "
+            "clamping would silently shrink the arm"
+        )
+    positions = rng.choice(total, size=wanted, replace=False)
+    drawn = [canonical[int(position)] for position in positions]
+    return tuple(sorted(drawn, key=_stream_key))
+
+
+def arm_spec_for_flags(
+    arm: str,
+    *,
+    selector: str,
+    behaviour_seeds: Sequence[int],
+    count: int | None,
+) -> ArmSpec:
+    """The declared spec of *arm*, refusing any flag that disagrees with it.
+
+    The CLI carries ``--stream-selector`` and its parameters because the brief asks for them; it
+    carries this check because a typed flag is an instruction and :data:`SELECTION_ARMS` is the
+    declaration, and when the two disagree the declaration wins or the arm is not the arm the
+    plan registered.
+    """
+    spec = SELECTION_ARMS.get(str(arm))
+    if spec is None:
+        raise ValueError(
+            f"unknown arm {arm!r}; the declared arms are {sorted(SELECTION_ARMS)}"
+        )
+    if str(selector) != spec.selector:
+        raise ValueError(
+            f"{arm}: the declared selector is {spec.selector!r} but the flags ask for "
+            f"{selector!r}; the declaration wins"
+        )
+    seeds = tuple(sorted(int(seed) for seed in behaviour_seeds))
+    if seeds != spec.behaviour_seeds:
+        raise ValueError(
+            f"{arm}: the declared behaviour seeds are {list(spec.behaviour_seeds)} but the flags "
+            f"ask for {list(seeds)}; the declaration wins"
+        )
+    asked = None if count is None else int(count)
+    if asked != spec.count:
+        raise ValueError(
+            f"{arm}: the declared count is {spec.count} but the flags ask for {asked}; the "
+            "declaration wins, because a matched-size design is the whole experiment"
+        )
+    return spec
+
+
+def _dirs_for_behaviour_seeds(
+    dataset_dirs: Sequence[str | Path], seeds: Sequence[int]
+) -> tuple[str, ...]:
+    """The directories collected under *seeds*, by the same suffix rule as ``_behaviour_seed``."""
+    by_seed: dict[int, list[str]] = {}
+    for directory in dataset_dirs:
+        path = Path(directory)
+        match = re.search(r"seed(\d+)$", path.name)
+        if match is None:
+            raise ValueError(
+                f"{path.name}: no seed suffix, so this directory cannot be attributed to a "
+                "behaviour policy and an arm cannot be built from it"
+            )
+        by_seed.setdefault(int(match.group(1)), []).append(str(path))
+    missing = [seed for seed in seeds if seed not in by_seed]
+    if missing:
+        raise ValueError(
+            f"the corpus has no directory for behaviour seed(s) {missing}; it carries "
+            f"{sorted(by_seed)}"
+        )
+    return tuple(sorted(name for seed in seeds for name in by_seed[int(seed)]))
+
+
+def select_arm_streams(
+    dataset: TrajectoryWindowDataset,
+    spec: ArmSpec,
+    *,
+    dataset_dirs: Sequence[str | Path],
+    rng: np.random.Generator,
+) -> tuple[StreamReturn, ...]:
+    """The streams *spec* selects from *dataset*, in canonical order.
+
+    *dataset* is always the FULL training split over every directory -- never a dataset rebuilt
+    over a subset -- because rebuilding would refit :class:`NormalizationStats` and make the arms
+    incomparable in a way no downstream test could see.
+    """
+    if spec.behaviour_seeds:
+        pool = streams_from_datasets(
+            dataset, _dirs_for_behaviour_seeds(dataset_dirs, spec.behaviour_seeds)
+        )
+        observed = {_behaviour_seed(stream) for stream in pool}
+        if observed != set(spec.behaviour_seeds):
+            raise ValueError(
+                f"{spec.arm}: the pool drawn for behaviour seeds "
+                f"{list(spec.behaviour_seeds)} actually contains {sorted(observed)}; the "
+                "directory names and the streams disagree and the arm is refused"
+            )
+    else:
+        pool = tuple(sorted(stream_returns(dataset), key=_stream_key))
+
+    if spec.selector == "random_subset":
+        if spec.count is None:
+            raise ValueError(f"{spec.arm}: a random subset needs a declared count")
+        return random_stream_subset(pool, int(spec.count), rng)
+    if spec.selector == "datasets":
+        if spec.count is not None:
+            raise ValueError(
+                f"{spec.arm}: the 'datasets' selector takes every stream of its directories, so "
+                f"a count of {spec.count} would describe a different arm"
+            )
+        return pool
+    if spec.selector == "top_return":
+        return top_return_streams(dataset, TOP_RETURN_FRACTION)
+    raise ValueError(
+        f"{spec.arm}: unknown selector {spec.selector!r}; known selectors are "
+        "('top_return', 'datasets', 'random_subset')"
+    )
+
+
+def thread_regime() -> dict[str, Any]:
+    """The thread regime of this process, READ AT CALL TIME, to sit beside a timing.
+
+    ``BRIEF_13`` section 11.1: ``docs/data/p4_4_training.json`` carries 15 per-run ``seconds``
+    and records ``torch_num_threads = 1``, while ``OMP_NUM_THREADS`` and ``MKL_NUM_THREADS``
+    appear nowhere in it -- and those are a **different knob**, the one that fixed this task's
+    test-suite hang.  A timing without its thread regime is not reproducible, and two timings
+    from different regimes look comparable and are not.
+
+    Read at call time and never cached: a block captured at import would record the regime of the
+    interpreter's startup rather than of the run being timed.  ``runtime_provenance`` is NOT
+    extended to carry this -- it lives in the merged ``offline/dt_gate.py``.
+    """
+    return {
+        "OMP_NUM_THREADS": os.environ.get("OMP_NUM_THREADS"),
+        "MKL_NUM_THREADS": os.environ.get("MKL_NUM_THREADS"),
+        "OPENBLAS_NUM_THREADS": os.environ.get("OPENBLAS_NUM_THREADS"),
+        "torch_get_num_threads": int(torch.get_num_threads()),
+        "torch_get_num_interop_threads": int(torch.get_num_interop_threads()),
+        "read": "at call time, beside the timing it describes",
+    }
+
+
+def delta_verdict(
+    mean_difference: float, ci95_half_width: float, delta: float = DELTA_ATT
+) -> str:
+    """A6's decision with ARM-NEUTRAL names, for a paired difference ``left - right``.
+
+    The same arithmetic as :func:`equivalence_verdict` and deliberately a second implementation
+    of it: that function's names (``dt_genuinely_better``) describe a DT-versus-baseline pair, and
+    writing one of them into an artifact describing a BC-versus-BC pair would be a false label on
+    disk -- the defect class review finding F1 was raised for.  A test asserts the two agree
+    under a documented name map over a grid, so the names differ and the decision cannot.
+
+    Lower ATT is better, so ``left_genuinely_better`` means the CI lies entirely below ``-delta``.
+    """
+    half = float(ci95_half_width)
+    margin = float(delta)
+    if half < 0.0:
+        raise ValueError(f"ci95_half_width must be >= 0, got {ci95_half_width!r}")
+    if margin <= 0.0:
+        raise ValueError(f"delta must be > 0, got {delta!r}")
+    low = float(mean_difference) - half
+    high = float(mean_difference) + half
+    if low >= -margin and high <= margin:
+        return VERDICT_WITHIN_DELTA
+    if high < -margin:
+        return VERDICT_LEFT_BETTER
+    if low > margin:
+        return VERDICT_RIGHT_BETTER
+    return VERDICT_PAIR_INCONCLUSIVE
+
+
+def assert_selection_design(
+    payload: Mapping[str, Any],
+    *,
+    declaration: Mapping[str, ArmSpec] | None = None,
+    training_seeds: Sequence[int] | None = None,
+    held_out_draws: Sequence[int] | None = None,
+    rows_per_stream: int | None = None,
+    streams_per_behaviour_seed: int | None = None,
+) -> None:
+    """Refuse a selection that would invalidate the design, BEFORE anything is written.
+
+    **EVERY REFERENCE COMES FROM THE DECLARATION AND NONE FROM THE PAYLOAD** -- the arms and their
+    sizes from :data:`SELECTION_ARMS`, the training seeds from ``TRAINING_SEEDS``, the evaluation
+    pool from ``HELD_OUT_DRAWS``, the geometry from the two corpus constants.  The payload's own
+    ``held_out_draws`` and ``matched_arms`` fields are **cross-checked against those constants and
+    never used as the reference**, so a payload that disagrees raises instead of being believed.
+
+    ⚠️ **Corrected 2026-08-12, review finding N1, and this docstring is part of the fix.**  The
+    first version read its pool from ``payload["held_out_draws"]``, its sizes from the block being
+    checked and its seed set from the first arm's own record.  The reviewer emptied the pool
+    field, planted a real leak at ``flow_draw = 1042`` and the whole suite stayed green -- the
+    same defect class this task was commissioned to fix in ``_run_report``, in a function whose
+    docstring promised the guarantee it could not give.
+
+    Six invariants, each of which can void the result on its own:
+
+    1. **no held-out draw enters training**, against ``HELD_OUT_DRAWS``;
+    2. **every arm records a subset for every declared training seed**, against ``TRAINING_SEEDS``;
+    3. **every arm's size is the declared one**, against ``SELECTION_ARMS`` (``count``, or
+       ``streams_per_behaviour_seed x len(behaviour_seeds)`` for a whole-pool arm);
+    4. **every stream came from a declared behaviour checkpoint**, and the recorded composition
+       recomputes from the stream list -- the draw must be auditable rather than asserted;
+    5. **rows equal ``rows_per_stream x len(streams)``**, and all matched arms have equal rows --
+       the decisive comparison would otherwise measure data quantity while claiming to measure
+       seed identity;
+    6. **all arms share one normalisation digest** -- refitting per arm would make the arms
+       incomparable silently.
+
+    The keyword arguments exist so a test can supply its own declaration; ``None`` means "the
+    module's", resolved **at call time** rather than bound at import, which is what every
+    production call uses.  A caller may substitute a declaration but **cannot** make the payload
+    its own reference, which is the property that was missing.
+    """
+    declaration = SELECTION_ARMS if declaration is None else declaration
+    training_seeds = TRAINING_SEEDS if training_seeds is None else training_seeds
+    held_out_draws = HELD_OUT_DRAWS if held_out_draws is None else held_out_draws
+    rows_per_stream = (
+        DECISION_ROWS_PER_STREAM if rows_per_stream is None else rows_per_stream
+    )
+    streams_per_behaviour_seed = (
+        STREAMS_PER_BEHAVIOUR_SEED
+        if streams_per_behaviour_seed is None
+        else streams_per_behaviour_seed
+    )
+    arms: Mapping[str, Any] = payload["arms"]
+    if not arms:
+        raise ValueError("this selection declares no arms")
+
+    undeclared = sorted(set(arms) - set(declaration))
+    if undeclared:
+        raise ValueError(
+            f"the payload carries arm(s) {undeclared} that are not declared in the arm table "
+            f"{sorted(declaration)}; an undeclared arm has no reference to be checked against"
+        )
+
+    held_out = {int(draw) for draw in held_out_draws}
+    if "held_out_draws" in payload:
+        recorded = {int(draw) for draw in payload["held_out_draws"]}
+        if recorded != held_out:
+            raise ValueError(
+                f"the payload records a held-out pool of {len(recorded)} draw(s) that is not the "
+                f"registered pool of {len(held_out)}; the pool is a declaration and a payload "
+                "that disagrees with it is refused rather than believed"
+            )
+
+    expected_seeds = sorted(str(int(seed)) for seed in training_seeds)
+    expected_matched = sorted(
+        arm for arm in arms if declaration[arm].count is not None
+    )
+    if "matched_arms" in payload and sorted(payload["matched_arms"]) != expected_matched:
+        raise ValueError(
+            f"the payload calls {sorted(payload['matched_arms'])} the matched arms while the "
+            f"declaration makes them {expected_matched}; the matched set decides which arms the "
+            "size invariant protects and it is not the payload's to choose"
+        )
+
+    rows: dict[tuple[str, str], int] = {}
+    for arm in sorted(arms):
+        block = arms[arm]
+        spec = declaration[arm]
+        expected_count = (
+            int(spec.count)
+            if spec.count is not None
+            else int(streams_per_behaviour_seed) * len(spec.behaviour_seeds or tuple(range(5)))
+        )
+        if int(block["declared_count"]) != expected_count:
+            raise ValueError(
+                f"{arm}: the payload declares {block['declared_count']} streams but the arm "
+                f"table declares {expected_count}; the size is the experiment and it is not the "
+                "payload's to redefine"
+            )
+        if sorted(block["per_training_seed"]) != expected_seeds:
+            raise ValueError(
+                f"{arm}: records subsets for training seeds {sorted(block['per_training_seed'])} "
+                f"while the declared seeds are {expected_seeds}; a missing per training seed "
+                "record makes the draw an assertion rather than an audit"
+            )
+
+        for seed in expected_seeds:
+            entry = block["per_training_seed"][seed]
+            streams = entry["streams"]
+            if len(streams) != expected_count:
+                raise ValueError(
+                    f"{arm} seed {seed}: {len(streams)} streams against a declared count of "
+                    f"{expected_count}"
+                )
+            if "per_behaviour_seed_composition" not in entry:
+                raise ValueError(
+                    f"{arm} seed {seed}: no per-behaviour-seed composition, so which "
+                    "checkpoints this subset came from is not recorded"
+                )
+            composition = {int(k): int(v) for k, v in entry["per_behaviour_seed_composition"].items()}
+            if sum(composition.values()) != expected_count:
+                raise ValueError(
+                    f"{arm} seed {seed}: the composition {composition} does not sum to the "
+                    f"declared count {expected_count}"
+                )
+            recomputed: dict[int, int] = {}
+            for stream in streams:
+                key = int(stream["behaviour_seed"])
+                recomputed[key] = recomputed.get(key, 0) + 1
+            if recomputed != composition:
+                raise ValueError(
+                    f"{arm} seed {seed}: the recorded composition {composition} is not the one "
+                    f"its own stream list implies ({recomputed}); the record is not an audit of "
+                    "the draw it describes"
+                )
+            if spec.behaviour_seeds:
+                foreign = sorted(set(recomputed) - set(spec.behaviour_seeds))
+                if foreign:
+                    raise ValueError(
+                        f"{arm} seed {seed}: streams from behaviour checkpoint(s) {foreign}, "
+                        f"which the arm table does not declare ({list(spec.behaviour_seeds)}); "
+                        "the arm's label would not describe its data"
+                    )
+            leaked = sorted({int(s["flow_draw"]) for s in streams} & held_out)
+            if leaked:
+                raise ValueError(
+                    f"{arm} seed {seed}: training streams drawn from held-out draws {leaked}; "
+                    "the evaluation pool is not held out and no number here may be reported"
+                )
+            recorded_rows = int(entry["training_rows"])
+            if recorded_rows != int(rows_per_stream) * len(streams):
+                raise ValueError(
+                    f"{arm} seed {seed}: {recorded_rows} training rows against "
+                    f"{rows_per_stream} x {len(streams)} = "
+                    f"{int(rows_per_stream) * len(streams)} implied by its own stream list"
+                )
+            rows[(arm, seed)] = recorded_rows
+
+    matched_rows = sorted({rows[(arm, seed)] for arm in expected_matched for seed in expected_seeds})
+    if len(matched_rows) != 1:
+        raise ValueError(
+            f"the matched arms {expected_matched} do not have equal training rows: "
+            f"{matched_rows}; the decisive comparison would measure data quantity while claiming "
+            "to measure seed identity"
+        )
+
+    digests = sorted({str(arms[arm]["normalisation_digest"]) for arm in sorted(arms)})
+    if len(digests) != 1:
+        raise ValueError(
+            f"the arms carry {len(digests)} different normalisation digests {digests}; the "
+            "statistics must be the full training split's for every arm or the arms are not "
+            "comparable"
+        )
+
+
+def assert_reused_arm_reproduces(
+    committed: Sequence[EpisodeResult], rerolled: Sequence[EpisodeResult]
+) -> dict[str, Any]:
+    """Gate B: re-used episodes are only sound if THIS instrument reproduces them exactly.
+
+    ``BRIEF_13`` section 4 requires ``bc_top10``'s 500 episodes to be re-used rather than
+    re-rolled -- correct, because re-rolling a settled number is a second measurement of it.  But
+    re-use across sessions is only sound if the instrument is the same one, which is what P4.4's
+    Gate A established for P4's arms and what this establishes for P4.4's.
+
+    Exact equality on all three reported fields, never a tolerance: a 1e-12 drift is a different
+    instrument, not a rounding.  The re-rolled values are discarded by the caller either way --
+    they are an instrument check and never a datum.
+    """
+    want = {(e.arm, e.seed, e.draw_id): e for e in committed}
+    got = {(e.arm, e.seed, e.draw_id): e for e in rerolled}
+    if not want:
+        raise ValueError("no committed episodes were given, so there is nothing to reproduce")
+    missing = sorted(str(key) for key in set(want) - set(got))
+    if missing:
+        raise ValueError(
+            f"{len(missing)} of {len(want)} committed episodes were not re-rolled, first "
+            f"{missing[:5]}; the gate compares exactly the cells it declared"
+        )
+    extra = sorted(str(key) for key in set(got) - set(want))
+    if extra:
+        raise ValueError(
+            f"{len(extra)} re-rolled episode(s) have no committed counterpart, first "
+            f"{extra[:5]}"
+        )
+
+    fields = ("att_horizon", "horizon_vehicle_count", "episode_reward")
+    mismatches: list[dict[str, Any]] = []
+    for key in sorted(want, key=lambda k: (str(k[0]), str(k[1]), int(k[2]))):
+        for name in fields:
+            reference = getattr(want[key], name)
+            produced = getattr(got[key], name)
+            if reference != produced:
+                mismatches.append(
+                    {
+                        "arm": key[0],
+                        "seed": key[1],
+                        "draw_id": key[2],
+                        "field": name,
+                        "committed": reference,
+                        "rerolled": produced,
+                        "difference": produced - reference,
+                    }
+                )
+    if mismatches:
+        first = mismatches[0]
+        raise ValueError(
+            f"the re-used arm does not reproduce on this instrument: {len(mismatches)} "
+            f"mismatch(es), first arm {first['arm']} seed {first['seed']} draw "
+            f"{first['draw_id']} field {first['field']} committed {first['committed']!r} "
+            f"against {first['rerolled']!r}; no number may be re-used across two instruments"
+        )
+    return {
+        "status": "PASS",
+        "compared": len(want),
+        "mismatches": [],
+        "fields_compared": list(fields),
+        "comparison": "exact equality (==), never a tolerance",
+        "role": (
+            "re-use of a committed arm's episodes is only sound if this session's instrument "
+            "reproduces them; the re-rolled values are discarded and never reported"
+        ),
+    }
+
+
+def _selection_pairs(present: Sequence[str]) -> list[tuple[str, str]]:
+    """Every unordered pair of the arms present, oriented by :data:`SELECTION_ARM_ORDER`."""
+    ordered = [arm for arm in SELECTION_ARM_ORDER if arm in set(present)]
+    return [
+        (ordered[i], ordered[j])
+        for i in range(len(ordered))
+        for j in range(i + 1, len(ordered))
+    ]
+
+
+def selection_artifact(
+    *,
+    episodes: Sequence[EpisodeResult],
+    selection: Mapping[str, Any],
+    gate_b: Mapping[str, Any],
+    env_settings: Mapping[str, Any],
+    engine_seed: int,
+    delta: float = DELTA_ATT,
+) -> dict[str, Any]:
+    """The reported P4.5 artifact: cells, every pair, and the three registered predictions.
+
+    Artifact format version: ``p4.5-selection-baselines/1.0``.
+
+    **Every pair is reported unconditionally** -- mean difference, 95 % CI, CI width,
+    rank-biserial and the neutral delta verdict -- so no reader depends on delta, which is
+    IMPORTED from A6 rather than derived for this comparison.
+
+    **The three predictions are scored by the rules fixed in ``docs/plans/p4.5.md`` section 2.1
+    before the run**: the registered forecast on the point estimate, an equivalence claim on the
+    whole CI, and the ordering on the three cell means.  Both readings of the primary are
+    reported whatever they say; if they disagree, the declared name for that outcome is
+    *"consistent with equivalence, not demonstrated at this power"* and it may not be written up
+    as a match.
+
+    **No DT arm and no DT comparison appear here at all** (``docs/reviews/P4.4.md`` section 8.6
+    binds until P4.3 has run).
+    """
+    assert_selection_design(selection)
+    by_arm = _grouped(episodes)
+    for arm in sorted(selection["arms"]):
+        if arm not in by_arm:
+            raise ValueError(
+                f"the selection records arm {arm!r} but no episode does; a trained arm that was "
+                "never evaluated must not be reported as part of this comparison"
+            )
+    if REUSED_ARM not in by_arm:
+        raise ValueError(
+            f"the {REUSED_ARM!r} arm is missing: it is the measured reference the primary "
+            "prediction is about, and it is re-used from the merged P4.4 artifact"
+        )
+    # Enforced rather than incidental (review finding N7): the previous version simply never
+    # built a comparison for an arm outside SELECTION_ARM_ORDER, so a test asserting "no madt
+    # cell" could not fail on a BC-only fixture and guaranteed nothing.
+    foreign = sorted(set(by_arm) - set(SELECTION_ARM_ORDER))
+    if foreign:
+        raise ValueError(
+            f"episodes for arm(s) {foreign} were passed to the P4.5 artifact, which reports only "
+            f"{list(SELECTION_ARM_ORDER)}; docs/reviews/P4.4.md section 8.6 binds until P4.3 has "
+            "run, so no DT arm and no DT-versus-baseline comparison may appear here"
+        )
+
+    cells = {arm: _cell(results) for arm, results in sorted(by_arm.items())}
+    comparisons: dict[str, Any] = {}
+    for left, right in _selection_pairs(sorted(by_arm)):
+        comparison = paired_comparison(by_arm[left], by_arm[right])
+        verdict = delta_verdict(comparison.mean_difference, comparison.ci95_half_width, delta)
+        alternative = delta_verdict(
+            comparison.mean_difference, comparison.ci95_half_width, DELTA_ATT_DERIVATION
+        )
+        # Review finding N4: the packet's section 0.1 reads as though this guard ran, and it did
+        # not exist.  Added here rather than reworded, because a guard that can only ever REFUSE
+        # to emit a verdict is safe to add after the fact -- it cannot manufacture one.  It is an
+        # assertion only and adds no field, so the reported artifact stays numerically identical;
+        # the observed distances are in the Return Packet.  The smallest is 0.01296, 13x this
+        # tolerance, so it did not fire on the committed result.
+        distance = min(
+            abs(comparison.ci95_low + delta),
+            abs(comparison.ci95_low - delta),
+            abs(comparison.ci95_high + delta),
+            abs(comparison.ci95_high - delta),
+        )
+        if distance <= DELTA_PROXIMITY_TOLERANCE:
+            # The wording deliberately does NOT reuse baselines_artifact's sentence: two raise
+            # messages sharing a phrase make every match= on that phrase ambiguous, which is the
+            # class BRIEF_14 section 7 measures.  "the P4.5 pair" appears at this site only.
+            raise ValueError(
+                f"the P4.5 pair {left}_vs_{right} has a CI endpoint {distance:.3e} from the "
+                f"margin delta={delta}, inside the {DELTA_PROXIMITY_TOLERANCE} proximity "
+                "tolerance; delta's multiplier is a CHOICE, so this verdict would be decided by "
+                "the margin's rounding rather than by the data. Report the CI and the distance "
+                "instead of a verdict"
+            )
+        comparisons[f"{left}_vs_{right}"] = {
+            **comparison.to_json_obj(),
+            "delta": float(delta),
+            "delta_verdict": verdict,
+            "delta_verdict_at_full_precision_delta": alternative,
+            "delta_verdict_turns_on_the_rounding": verdict != alternative,
+        }
+
+    spread = (
+        sum(BEHAVIOUR_HELDOUT_ATT[seed] for seed in WORST_TWO_BEHAVIOUR_SEEDS) / 2.0
+        - sum(BEHAVIOUR_HELDOUT_ATT[seed] for seed in BEST_TWO_BEHAVIOUR_SEEDS) / 2.0
+    )
+    decisive = comparisons[f"{DECISIVE_CONTRAST[0]}_vs_{DECISIVE_CONTRAST[1]}"]
+    power = comparisons[f"{POWER_CONTRAST[0]}_vs_{POWER_CONTRAST[1]}"]
+    null_bound = {
+        "contrast": f"{DECISIVE_CONTRAST[0]}_vs_{DECISIVE_CONTRAST[1]}",
+        "x": max(abs(decisive["ci95_low"]), abs(decisive["ci95_high"])),
+        "x_definition": (
+            "max(|ci95_low|, |ci95_high|) of the decisive contrast: the largest effect the data "
+            "leave standing, not the half-width around a convenient centre"
+        ),
+        "behaviour_spread_att": spread,
+        "behaviour_spread_source": (
+            "mean held-out ATT of the two worst behaviour checkpoints minus that of the two "
+            "best, from the committed P4.4 measurement; not re-measured here"
+        ),
+        "power_contrast": f"{POWER_CONTRAST[0]}_vs_{POWER_CONTRAST[1]}",
+        "power_contrast_mean_difference": power["mean_difference"],
+        "power_contrast_ci95_width": power["ci95_width"],
+        "how_a_null_must_be_phrased": (
+            "no effect larger than +/-X found, against a "
+            f"{spread:.4f} ATT spread in the behaviour policies themselves"
+        ),
+    }
+
+    predictions = _score_selection_predictions(cells, comparisons, delta)
+    per_seed = {
+        arm: {
+            str(seed): float(
+                np.mean([e.att_horizon for e in results if e.seed == seed])
+            )
+            for seed in sorted({e.seed for e in results if e.seed is not None})
+        }
+        for arm, results in sorted(by_arm.items())
+    }
+    spreads = {
+        arm: (max(values.values()) - min(values.values())) if values else float("nan")
+        for arm, values in per_seed.items()
+    }
+    return {
+        "format_version": SELECTION_BASELINES_FORMAT_VERSION,
+        "role": (
+            "P4.5: does %BC's advantage come from WHICH behaviour checkpoints produced its "
+            "training streams? Matched-size arms on the registered held-out pool, paired by draw"
+        ),
+        "evaluation_pool": "registered held-out draws 1000-1099 (PREREGISTRATION.md D4)",
+        "draw_ids": sorted({episode.draw_id for episode in episodes}),
+        "engine_seed": int(engine_seed),
+        "env_settings": {k: v for k, v in env_settings.items() if k != "compare_with"},
+        "equivalence_margin_delta": float(delta),
+        "equivalence_margin_delta_derivation": DELTA_ATT_DERIVATION,
+        "delta_provenance": (
+            "IMPORTED from PREREGISTRATION.md A6, where it is the DT's own margin over its "
+            "behaviour mixture. It is re-used as this project's registered equivalence scale for "
+            "this scenario and is NOT derived for this comparison -- a choice, stated rather "
+            "than defended, which is why every pair also carries its mean difference, CI, width "
+            "and rank-biserial unconditionally"
+        ),
+        "arm_order": list(SELECTION_ARM_ORDER),
+        "pair_orientation": (
+            "for i < j in arm_order, mean_difference is mean(arms[i] - arms[j]) over shared draws"
+        ),
+        "no_dt_comparison": (
+            "docs/reviews/P4.4.md section 8.6 binds until P4.3 has run: the DT is prompted at a "
+            "target its own P4 review showed is not its best, so no DT-versus-baseline sentence "
+            "and no DT arm appears in this task"
+        ),
+        "cells": cells,
+        "per_seed_att_horizon_mean": per_seed,
+        "per_seed_spread": spreads,
+        "per_seed_spread_role": (
+            "plan section 2.3: bc_any_20 is predicted to carry the largest subset-induced "
+            "variance of the three matched arms, because its draw varies in WHICH SEEDS appear "
+            "as well as in which streams. Predicted before the run, not observed after it"
+        ),
+        "comparisons": comparisons,
+        "registered_predictions": predictions,
+        "null_bound": null_bound,
+        "reused_arm": {
+            "arm": REUSED_ARM,
+            "source": "docs/data/p4_4_baselines.json",
+            "n_episodes": len(by_arm[REUSED_ARM]),
+            "statement": (
+                "these episodes are re-used from the merged P4.4 artifact, not re-rolled: the "
+                "same model on the same draws, and re-rolling a settled number would be a "
+                "second measurement of it"
+            ),
+            "instrument_check": "see gate_b, which is what makes the re-use sound",
+        },
+        "gate_b": dict(gate_b),
+        "selection": dict(selection),
+        "episodes": [
+            {
+                "arm": e.arm,
+                "seed": e.seed,
+                "draw_id": e.draw_id,
+                "att_horizon": e.att_horizon,
+                "horizon_vehicle_count": e.horizon_vehicle_count,
+                "episode_reward": e.episode_reward,
+            }
+            for e in episodes
+        ],
+        "runtime": runtime_provenance(),
+        "thread_regime": thread_regime(),
+    }
+
+
+def _score_selection_predictions(
+    cells: Mapping[str, Any], comparisons: Mapping[str, Any], delta: float
+) -> dict[str, Any]:
+    """Score the three predictions registered in ``docs/plans/p4.5.md`` section 2 before the run.
+
+    The scoring rules are section 2.1's and were fixed before any number existed: the forecast on
+    the point estimate, the equivalence claim on the whole CI, the ordering on the cell means.
+    """
+    out: dict[str, Any] = {
+        "registered_in": (
+            "docs/plans/p4.5.md section 2, committed before the first gradient step; scoring "
+            "rules in section 2.1, fixed at the same commit"
+        )
+    }
+
+    primary = comparisons["bc_top10_vs_bc_best2_20"]
+    difference = float(primary["mean_difference"])
+    within_ci = (
+        primary["ci95_low"] >= -float(delta) and primary["ci95_high"] <= float(delta)
+    )
+    point_holds = abs(difference) <= float(delta)
+    out["primary_bc_best2_20_within_delta_of_bc_top10"] = {
+        "statement": (
+            "bc_best2_20 lands within delta of bc_top10: matched-size random sampling from the "
+            "two best checkpoints reproduces %BC"
+        ),
+        "scored_by": "abs(mean_paired_difference) <= delta",
+        "paired_mean_difference_bc_top10_minus_bc_best2_20": difference,
+        "delta": float(delta),
+        "held": bool(point_holds),
+        "equivalence_demonstrated_at_this_power": bool(within_ci),
+        "ci95": [primary["ci95_low"], primary["ci95_high"]],
+        "ci95_width": primary["ci95_width"],
+        "readings_agree": bool(point_holds == within_ci),
+        "name_when_they_disagree": (
+            "consistent with equivalence, not demonstrated at this power -- reported with the CI "
+            "width and NOT written up as a match"
+        ),
+    }
+
+    secondary = comparisons["bc_best2_20_vs_bc_any_20"]
+    any_minus_best2 = -float(secondary["mean_difference"])
+    excludes_zero = not (secondary["ci95_low"] <= 0.0 <= secondary["ci95_high"])
+    out["secondary_bc_any_20_worse_than_bc_best2_20"] = {
+        "statement": (
+            "bc_any_20 lands worse than bc_best2_20 by an amount comparable to the "
+            "behaviour-policy gap between the best two seeds and the five-seed mixture"
+        ),
+        "scored_by": (
+            "directional: the paired mean difference is positive and its 95% CI excludes 0. The "
+            "brief gives no numeric threshold for 'comparable' and none was invented afterwards"
+        ),
+        "mean_difference_any_minus_best2": any_minus_best2,
+        "ci95_excludes_zero": bool(excludes_zero),
+        "held": bool(any_minus_best2 > 0.0 and excludes_zero),
+        "reference_gap_to_best_two_mean": BEHAVIOUR_GAP_TO_BEST_TWO,
+        "reference_gap_to_best_single_seed": BEHAVIOUR_GAP_TO_BEST_SINGLE,
+        "reference_gap_note": (
+            "BRIEF_13 section 3 called 2.05 the gap to the best two; section 10.1 accepted that "
+            "it is the gap to the best SINGLE seed (202). Both are reported and neither is "
+            "load-bearing"
+        ),
+    }
+
+    ordering_arms = ("bc_best2_20", "bc_any_20", "bc_worst2_20")
+    means = [float(cells[arm]["att_horizon_mean"]) for arm in ordering_arms]
+    out["ordering_best2_then_any_then_worst2"] = {
+        "statement": (
+            "bc_best2_20 < bc_any_20 < bc_worst2_20 in ATT (lower is better) -- monotone in "
+            "behaviour-seed quality. The mechanism claim: not 'does seed identity matter' but "
+            "'does performance TRACK behaviour-mode quality'"
+        ),
+        "scored_by": "the three cell means, strictly ordered",
+        "arms": list(ordering_arms),
+        "cell_means": means,
+        "held": bool(means[0] < means[1] < means[2]),
+        "adjacent_contrasts": {
+            "bc_best2_20_vs_bc_any_20": {
+                "mean_difference": comparisons["bc_best2_20_vs_bc_any_20"]["mean_difference"],
+                "ci95": [
+                    comparisons["bc_best2_20_vs_bc_any_20"]["ci95_low"],
+                    comparisons["bc_best2_20_vs_bc_any_20"]["ci95_high"],
+                ],
+                "ci95_excludes_zero": not (
+                    comparisons["bc_best2_20_vs_bc_any_20"]["ci95_low"]
+                    <= 0.0
+                    <= comparisons["bc_best2_20_vs_bc_any_20"]["ci95_high"]
+                ),
+            },
+            "bc_any_20_vs_bc_worst2_20": {
+                "mean_difference": comparisons["bc_any_20_vs_bc_worst2_20"]["mean_difference"],
+                "ci95": [
+                    comparisons["bc_any_20_vs_bc_worst2_20"]["ci95_low"],
+                    comparisons["bc_any_20_vs_bc_worst2_20"]["ci95_high"],
+                ],
+                "ci95_excludes_zero": not (
+                    comparisons["bc_any_20_vs_bc_worst2_20"]["ci95_low"]
+                    <= 0.0
+                    <= comparisons["bc_any_20_vs_bc_worst2_20"]["ci95_high"]
+                ),
+            },
+        },
+        "if_all_three_land_together": (
+            "seed identity does nothing and F3's reading collapses -- learned decisively rather "
+            "than from one null contrast, which is why this arm exists"
+        ),
+    }
+    return out
 
 
 def iql_reward_scale(returns: Sequence[float]) -> float:
@@ -1623,13 +2561,43 @@ def build_parser() -> argparse.ArgumentParser:
     train.add_argument("--steps", type=int, default=DECLARED_GRADIENT_STEPS)
     train.add_argument("--methods", default=",".join(METHODS))
     train.add_argument("--log-every", type=int, default=2000)
+    # P4.5.  The default reproduces P4.4's path exactly; any other value trains ONE declared arm
+    # across the five training seeds and writes the selection artifact instead.
+    train.add_argument(
+        "--stream-selector",
+        default="top_return",
+        choices=("top_return", "datasets", "random_subset"),
+        help="which streams the arm trains on; 'top_return' is P4.4's %%BC filter",
+    )
+    train.add_argument("--selection-arm", default=None, choices=sorted(SELECTION_ARMS))
+    train.add_argument("--selector-seed", action="append", type=int, default=[])
+    train.add_argument("--subset-count", type=int, default=None)
 
     evaluate = sub.add_parser("evaluate", help="evaluate ONE method over the held-out pool")
-    evaluate.add_argument("--method", required=True, choices=list(METHODS))
+    evaluate.add_argument(
+        "--method", required=True, choices=[*METHODS, *sorted(SELECTION_ARMS)]
+    )
     evaluate.add_argument("--steps", type=int, default=DECLARED_GRADIENT_STEPS)
 
     report = sub.add_parser("report", help="merge the per-method runs into the artifact")
     report.add_argument("--methods", default=",".join(METHODS))
+
+    gate_b = sub.add_parser(
+        "gate-selection",
+        help="Gate B: prove this instrument reproduces the arm whose episodes P4.5 re-uses",
+    )
+    gate_b.add_argument("--reused-arm", default=REUSED_ARM, choices=list(METHODS))
+    gate_b.add_argument("--baselines", default=None, help="default: <out-dir>/p4_4_baselines.json")
+    gate_b.add_argument("--training", default=None, help="default: <out-dir>/p4_4_training.json")
+    gate_b.add_argument("--draw", action="append", type=int, default=[])
+    gate_b.add_argument("--steps", type=int, default=DECLARED_GRADIENT_STEPS)
+
+    report_selection = sub.add_parser(
+        "report-selection", help="merge P4.5's arms into docs/data/p4_5_baselines.json"
+    )
+    report_selection.add_argument(
+        "--baselines", default=None, help="default: <out-dir>/p4_4_baselines.json"
+    )
 
     compose = sub.add_parser(
         "compose",
@@ -1730,12 +2698,18 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "gate":
         return _run_gate(args, settings, config_for_draw, work_dir)
+    if args.command == "gate-selection":
+        return _run_gate_selection(args, settings, config_for_draw, out_dir, work_dir)
     if args.command == "train":
+        if args.stream_selector != "top_return" or args.selection_arm is not None:
+            return _run_train_selection(args, out_dir)
         return _run_train(args, out_dir)
     if args.command == "evaluate":
         return _run_evaluate(args, settings, config_for_draw, out_dir, work_dir)
     if args.command == "compose":
         return _run_compose(args, out_dir)
+    if args.command == "report-selection":
+        return _run_report_selection(args, settings, out_dir, work_dir)
     return _run_report(args, settings, out_dir, work_dir)
 
 
@@ -2110,6 +3084,415 @@ def _run_train(args: argparse.Namespace, out_dir: Path) -> int:
     return 0
 
 
+def training_artifact_name(method: str) -> str:
+    """Which training artifact declares *method*, derived from the arm rather than passed.
+
+    A P4.5 arm cannot be evaluated against P4.4's declaration and vice versa: the budget check
+    and the leakage check in ``_run_evaluate`` are only meaningful against the declaration that
+    actually produced the checkpoint.
+    """
+    return (
+        "p4_5_selection.json" if method in SELECTION_ARMS else "p4_4_training.json"
+    )
+
+
+#: The cells Gate B re-rolls, declared in ``docs/plans/p4.5.md`` section 5 before it ran, so the
+#: sample cannot be chosen after seeing a disagreement.
+GATE_B_DRAWS: tuple[int, ...] = (1000, 1025, 1050, 1075, 1099)
+
+
+def _run_gate_selection(
+    args: argparse.Namespace,
+    settings: dict[str, Any],
+    config_for_draw: Callable[[int], Path],
+    out_dir: Path,
+    work_dir: Path,
+) -> int:
+    """Gate B: the instrument that produced the re-used episodes must be this one.
+
+    ``BRIEF_13`` section 4 re-uses ``bc_top10``'s 500 committed episodes rather than re-rolling
+    them, which is right -- re-rolling a settled number is a second measurement of it.  This is
+    what makes that sound: **weight identity by canonical digest** (section 10.3's substitution;
+    a file hash depends on the filename, so it proves transport and not weights) and **path
+    identity** by re-rolling the declared cells and requiring exact equality.
+
+    A refusal is BLOCKED: nothing is written and no P4.5 number may be reported.
+    """
+    started = time.time()
+    training_path = Path(args.training) if args.training else out_dir / "p4_4_training.json"
+    baselines_path = Path(args.baselines) if args.baselines else out_dir / "p4_4_baselines.json"
+    training = json.loads(training_path.read_text(encoding="utf-8"))
+    committed_all = json.loads(baselines_path.read_text(encoding="utf-8"))["episodes"]
+
+    arm = str(args.reused_arm)
+    runs = [r for r in training["runs"] if r["method"] == arm]
+    if not runs:
+        raise ValueError(f"{training_path}: records no runs for the re-used arm {arm!r}")
+
+    # -------- weight identity, before a single rollout ---------------------------------
+    weights: list[dict[str, Any]] = []
+    for run in sorted(runs, key=lambda r: int(r["seed"])):
+        path = Path(run["checkpoint"])
+        payload = torch.load(path, map_location="cpu", weights_only=False)
+        digest = canonical_state_dict_digest(payload["model"])
+        file_hash = _sha256_file(path)
+        if digest != run["canonical_digest"]:
+            raise ValueError(
+                f"{path}: canonical digest {digest} does not match the {run['canonical_digest']} "
+                f"recorded in {training_path}; these are not the weights that produced the "
+                "episodes P4.5 re-uses"
+            )
+        weights.append(
+            {
+                "seed": int(run["seed"]),
+                "checkpoint": str(path),
+                "canonical_digest": digest,
+                "canonical_digest_matches": True,
+                "file_sha256": file_hash,
+                "file_sha256_matches": file_hash == run.get("file_sha256"),
+                "file_sha256_role": (
+                    "transport integrity only: a file hash depends on the filename (DEFERRED 29)"
+                ),
+            }
+        )
+
+    # -------- path identity: re-roll the declared cells ---------------------------------
+    draws = sorted(set(args.draw)) if args.draw else list(GATE_B_DRAWS)
+    leaked = sorted(set(draws) - set(HELD_OUT_DRAWS))
+    if leaked:
+        raise ValueError(f"gate draws {leaked} are not in the registered held-out pool")
+    committed = [
+        EpisodeResult(**e)
+        for e in committed_all
+        if e["arm"] == arm and int(e["draw_id"]) in set(draws)
+    ]
+    rerolled: list[EpisodeResult] = []
+    for run in sorted(runs, key=lambda r: int(r["seed"])):
+        print(f"gate B: {arm} seed {run['seed']} over {len(draws)} declared draws", flush=True)
+        rerolled.extend(
+            evaluate_arm(
+                arm=arm,
+                seed=int(run["seed"]),
+                draw_ids=draws,
+                config_for_draw=config_for_draw,
+                env_settings=settings,
+                scenario_id=args.scenario_id,
+                choose_action_factory=_baseline_factory(
+                    arm, run["checkpoint"], int(args.steps), args.device
+                ),
+                engine_seed=args.engine_seed,
+            )
+        )
+    record = assert_reused_arm_reproduces(committed, rerolled)
+
+    # Validation is complete; only now is anything written.
+    work_dir.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "format_version": SELECTION_ARTIFACT_FORMAT_VERSION,
+        "role": (
+            "Gate B: this session's instrument reproduces the committed episodes P4.5 re-uses "
+            "for the bc_top10 arm; the re-rolled values are discarded and never reported"
+        ),
+        "reused_arm": arm,
+        "declared_draws": draws,
+        "declared_in": "docs/plans/p4.5.md section 5, before it ran",
+        "weights": weights,
+        "sources": {"training": str(training_path), "baselines": str(baselines_path)},
+        "seconds": time.time() - started,
+        "thread_regime": thread_regime(),
+        "runtime": runtime_provenance(),
+        **record,
+    }
+    write_json_atomic(payload, work_dir / "gate_b.json")
+    print(
+        f"GATE B PASS: {record['compared']} episodes reproduce exactly, "
+        f"{len(weights)} checkpoints match by canonical digest",
+        flush=True,
+    )
+    return 0
+
+
+def _run_train_selection(args: argparse.Namespace, out_dir: Path) -> int:
+    """Train ONE declared arm across the five training seeds, and record what it saw.
+
+    The dataset is built over **every** dataset directory and only then filtered, so the
+    normalisation statistics are the full training split's for every arm; rebuilding over a
+    subset would refit them and make the arms incomparable in a way no later test could see.
+
+    The subset is drawn from the TRAINING SEED's own generator, so the five-seed spread averages
+    over five subsets rather than resting on one lucky draw -- which is why this arm's CI covers
+    subset variance as well as training variance.
+    """
+    from agent.utils.utils import Utils
+    from offline.dt_gate import CONTEXT_LENGTH
+
+    if args.selection_arm is None:
+        raise ValueError(
+            "--stream-selector on the selection path needs --selection-arm; the declaration in "
+            f"SELECTION_ARMS is what fixes the design ({sorted(SELECTION_ARMS)})"
+        )
+    if str(args.methods) != ",".join(METHODS):
+        raise ValueError(
+            f"--methods {args.methods!r} has no meaning on the selection path: one invocation "
+            "trains exactly the arm named by --selection-arm"
+        )
+    spec = arm_spec_for_flags(
+        args.selection_arm,
+        selector=args.stream_selector,
+        behaviour_seeds=args.selector_seed,
+        count=args.subset_count,
+    )
+
+    dataset = build_training_dataset(args.dataset_dir, CONTEXT_LENGTH)
+    stacked = stack_dataset(dataset)
+    (state_dim, n_actions) = next(iter(dataset.groups))
+    scenario_id = dataset.episode_records[0].scenario_id
+    stats_json = json.dumps(dataset.stats.to_json_obj(), sort_keys=True)
+    normalisation_digest = hashlib.sha256(stats_json.encode("utf-8")).hexdigest()
+
+    device = torch.device(args.device) if args.device else Utils.resolve_device(None)
+    checkpoints = Path(args.checkpoint_dir)
+    checkpoints.mkdir(parents=True, exist_ok=True)
+    provenance = {
+        "tier": "mappo1000",
+        "dataset_dirs": [str(d) for d in args.dataset_dir],
+        "training_draw_ids": list(dataset.stats.draw_ids),
+        "scenario_id": scenario_id,
+        "selection_arm": spec.arm,
+        "selector": spec.selector,
+        "behaviour_seeds": list(spec.behaviour_seeds),
+    }
+    print(
+        f"arm {spec.arm}: selector {spec.selector}, behaviour seeds "
+        f"{list(spec.behaviour_seeds) or 'ALL'}, count {spec.count}\n"
+        f"training windows {len(dataset)}  streams {len(stream_returns(dataset))}  "
+        f"device {device}  normalisation {normalisation_digest[:12]}",
+        flush=True,
+    )
+
+    records: list[TrainRecord] = []
+    per_training_seed: dict[str, Any] = {}
+    declared_count: int | None = None
+    for seed in TRAINING_SEEDS:
+        rng = np.random.default_rng(int(seed))
+        selected = select_arm_streams(
+            dataset, spec, dataset_dirs=args.dataset_dir, rng=rng
+        )
+        if declared_count is None:
+            declared_count = len(selected)
+        elif len(selected) != declared_count:
+            raise ValueError(
+                f"{spec.arm}: seed {seed} selected {len(selected)} streams against "
+                f"{declared_count} for an earlier seed; the arm's size must not vary by seed"
+            )
+        batch = filter_stacked_to_streams(dataset, stacked, selected)
+        rows = int(batch["state"].shape[0])
+        composition: dict[str, int] = {}
+        for stream in selected:
+            key = str(_behaviour_seed(stream))
+            composition[key] = composition.get(key, 0) + 1
+
+        record = train_bc(
+            batch,
+            state_dim=state_dim,
+            n_actions=n_actions,
+            seed=seed,
+            method=spec.arm,
+            declared_gradient_steps=int(args.steps),
+            batch_size=BC_BATCH_WINDOWS,
+            device=device,
+            checkpoint_path=checkpoints / f"{spec.arm}_seed{seed}.pt",
+            stats=dataset.stats,
+            scenario_id=scenario_id,
+            provenance=provenance,
+            log_every=args.log_every,
+        )
+        records.append(record)
+        per_training_seed[str(int(seed))] = {
+            "rng_seed": int(seed),
+            "rng": "numpy.random.default_rng(training_seed)",
+            "training_rows": rows,
+            "per_behaviour_seed_composition": composition,
+            "streams": [
+                {
+                    "dataset_dir": s.dataset_dir,
+                    "episode_file": s.episode_file,
+                    "ix_id": s.ix_id,
+                    "flow_draw": s.flow_draw,
+                    "total_return": s.total_return,
+                    "behaviour_seed": _behaviour_seed(s),
+                }
+                for s in selected
+            ],
+        }
+        print(
+            f"  {spec.arm} seed {seed}: {record.seconds:.1f}s  rows {rows}  "
+            f"composition {composition}  final loss {record.losses[-1]:.5f}  "
+            f"digest {record.canonical_digest[:12]}",
+            flush=True,
+        )
+
+    arms_block = {
+        spec.arm: {
+            "selector": spec.selector,
+            "selector_parameters": {
+                "behaviour_seeds": list(spec.behaviour_seeds),
+                "count": spec.count,
+            },
+            "role": spec.role,
+            "declared_count": int(declared_count or 0),
+            "pool": (
+                f"streams of behaviour seeds {list(spec.behaviour_seeds)}"
+                if spec.behaviour_seeds
+                else "every stream of the training split"
+            ),
+            "normalisation_digest": normalisation_digest,
+            "per_training_seed": per_training_seed,
+        }
+    }
+    payload: dict[str, Any] = {
+        "format_version": SELECTION_ARTIFACT_FORMAT_VERSION,
+        "role": (
+            "P4.5: which streams each arm trained on, and which behaviour checkpoints produced "
+            "them. The arms differ in that and in nothing else"
+        ),
+        "declared_gradient_steps": int(args.steps),
+        "declared_in": "docs/plans/p4.5.md section 3, before the first gradient step",
+        "raise_available": False,
+        "seeds": list(TRAINING_SEEDS),
+        "training_draw_ids": list(dataset.stats.draw_ids),
+        "held_out_draws": list(HELD_OUT_DRAWS),
+        "scenario_id": scenario_id,
+        "group": [int(state_dim), int(n_actions)],
+        "window_count": len(dataset),
+        "streams_total": len(stream_returns(dataset)),
+        "batch_size": BC_BATCH_WINDOWS,
+        "normalisation": {
+            "digest": normalisation_digest,
+            "source": (
+                "the FULL training split over every dataset directory; every arm filters that "
+                "same stack rather than rebuilding a dataset over its own directories"
+            ),
+        },
+        "arms": arms_block,
+        "runs": [
+            {
+                "method": r.method,
+                "seed": r.seed,
+                "gradient_steps": r.gradient_steps,
+                "plateaued": r.plateaued,
+                "window_means": list(r.window_means),
+                "final_loss": r.losses[-1],
+                "seconds": r.seconds,
+                "thread_regime": thread_regime(),
+                "checkpoint": r.checkpoint_path,
+                "canonical_digest": r.canonical_digest,
+                "file_sha256": r.file_sha256,
+                "diagnostics": r.diagnostics,
+            }
+            for r in records
+        ],
+        "runtime": runtime_provenance(),
+    }
+
+    destination = out_dir / "p4_5_selection.json"
+    if destination.is_file():
+        existing = json.loads(destination.read_text(encoding="utf-8"))
+        payload["runs"] = merge_training_runs(existing, payload)
+        payload["arms"] = {**existing.get("arms", {}), **arms_block}
+
+    payload["matched_arms"] = sorted(
+        arm for arm in payload["arms"] if SELECTION_ARMS[arm].count is not None
+    )
+    # Everything is validated before the first byte is written: a refused arm leaves the
+    # artifact of the arms already trained exactly as it was.
+    assert_selection_design(payload)
+    write_json_atomic(payload, destination)
+    return 0
+
+
+def _run_report_selection(
+    args: argparse.Namespace, settings: dict[str, Any], out_dir: Path, work_dir: Path
+) -> int:
+    """Merge P4.5's four arms and the re-used one into the reported artifact."""
+    gate = json.loads((work_dir / "gate_b.json").read_text(encoding="utf-8"))
+    if gate.get("status") != "PASS":
+        raise ValueError(
+            f"Gate B did not pass ({gate.get('status')!r}); bc_top10's episodes may not be "
+            "re-used until this session's instrument is shown to reproduce them"
+        )
+    selection = json.loads((out_dir / "p4_5_selection.json").read_text(encoding="utf-8"))
+    missing_arms = sorted(set(SELECTION_ARMS) - set(selection["arms"]))
+    if missing_arms:
+        raise ValueError(
+            f"the selection artifact is missing declared arm(s) {missing_arms}; the design is "
+            "four new arms and a partial one answers a different question"
+        )
+
+    episodes: list[EpisodeResult] = []
+    for arm in sorted(SELECTION_ARMS):
+        payload = json.loads((work_dir / f"eval_{arm}.json").read_text(encoding="utf-8"))
+        episodes.extend(EpisodeResult(**e) for e in payload["episodes"])
+
+    baselines_path = Path(args.baselines) if args.baselines else out_dir / "p4_4_baselines.json"
+    merged = json.loads(baselines_path.read_text(encoding="utf-8"))
+    reused = [EpisodeResult(**e) for e in merged["episodes"] if e["arm"] == REUSED_ARM]
+    if not reused:
+        raise ValueError(f"{baselines_path}: carries no {REUSED_ARM!r} episodes to re-use")
+
+    # The expected run set is the DECLARED design and never the episodes being checked.
+    requested = [
+        (arm, seed, draw)
+        for arm in (*sorted(SELECTION_ARMS), REUSED_ARM)
+        for seed in TRAINING_SEEDS
+        for draw in HELD_OUT_DRAWS
+    ]
+    assert_campaign_complete(requested, [*episodes, *reused])
+
+    artifact = selection_artifact(
+        episodes=[*episodes, *reused],
+        selection=selection,
+        gate_b={
+            key: gate[key]
+            for key in ("status", "compared", "mismatches", "declared_draws", "weights")
+            if key in gate
+        },
+        env_settings=settings,
+        engine_seed=int(args.engine_seed),
+    )
+    write_json_atomic(artifact, out_dir / "p4_5_baselines.json")
+
+    print("\narm              att_horizon   +/- CI    veh     n", flush=True)
+    for arm in SELECTION_ARM_ORDER:
+        cell = artifact["cells"][arm]
+        print(
+            f"  {arm:14s} {cell['att_horizon_mean']:10.4f} {cell['att_horizon_ci95']:8.4f} "
+            f"{cell['horizon_vehicle_count_mean']:7.2f} {cell['n_episodes']:5d}",
+            flush=True,
+        )
+    print("", flush=True)
+    for name, entry in artifact["comparisons"].items():
+        print(
+            f"  {name:36s} diff {entry['mean_difference']:+.4f} "
+            f"CI [{entry['ci95_low']:+.4f}, {entry['ci95_high']:+.4f}] "
+            f"width {entry['ci95_width']:.4f}  p {entry['wilcoxon']['p_value']:.3e}  "
+            f"r {entry['rank_biserial']:+.3f}  -> {entry['delta_verdict']}",
+            flush=True,
+        )
+    print("", flush=True)
+    for name, entry in artifact["registered_predictions"].items():
+        if isinstance(entry, dict) and "held" in entry:
+            print(f"  {name}: held={entry['held']}", flush=True)
+    bound = artifact["null_bound"]
+    print(
+        f"  null bound X = {bound['x']:.4f} on {bound['contrast']}, against a "
+        f"{bound['behaviour_spread_att']:.4f} ATT behaviour spread; power contrast width "
+        f"{bound['power_contrast_ci95_width']:.4f}",
+        flush=True,
+    )
+    return 0
+
+
 def _run_evaluate(
     args: argparse.Namespace,
     settings: dict[str, Any],
@@ -2118,7 +3501,9 @@ def _run_evaluate(
     work_dir: Path,
 ) -> int:
     """Evaluate ONE method over the held-out pool, so no single job runs long."""
-    training = json.loads((out_dir / "p4_4_training.json").read_text(encoding="utf-8"))
+    training = json.loads(
+        (out_dir / training_artifact_name(args.method)).read_text(encoding="utf-8")
+    )
     if int(training["declared_gradient_steps"]) != int(args.steps):
         raise ValueError(
             f"the training artifact was produced under a declared budget of "
@@ -2208,18 +3593,22 @@ def _run_report(
         payload = json.loads((work_dir / f"eval_{method}.json").read_text(encoding="utf-8"))
         episodes.extend(EpisodeResult(**e) for e in payload["episodes"])
 
-    # The expected run set is derived from the DECLARED design -- the cited arms, the training
-    # artifact's seeds and the registered held-out pool -- and never from the episodes being
+    # The expected run set is derived from the DECLARED design -- the cited arms, the registered
+    # training seeds and the registered held-out pool -- and never from the episodes being
     # checked.  Deriving it from them would make the completeness check a tautology, which is
     # what it was in the first draft of this function.
+    #
+    # Corrected 2026-08-12 (review finding F5, DEFERRED 32): the baseline arms' seed set was
+    # derived from ``training["runs"]`` -- from DATA -- while ``madt``/``mappo1000`` correctly
+    # used ``TRAINING_SEEDS``.  A method trained on three seeds therefore passed, because both
+    # sides of the comparison shrank together; a test now reproduces that and the loop is uniform.
+    # This changes no reported number: every method in the committed artifact was trained on all
+    # five declared seeds, which a second test asserts from the artifact itself.
     requested: list[tuple[str, int | None, int]] = [
         ("maxpressure", None, draw) for draw in HELD_OUT_DRAWS
     ]
-    for arm in ("madt", "mappo1000"):
+    for arm in ("madt", "mappo1000", *methods):
         requested += [(arm, seed, draw) for seed in TRAINING_SEEDS for draw in HELD_OUT_DRAWS]
-    for method in methods:
-        method_seeds = [int(r["seed"]) for r in training["runs"] if r["method"] == method]
-        requested += [(method, seed, draw) for seed in method_seeds for draw in HELD_OUT_DRAWS]
     assert_campaign_complete(requested, episodes)
     artifact = baselines_artifact(
         episodes=episodes,
