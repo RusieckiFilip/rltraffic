@@ -155,3 +155,29 @@ observability sugar.**
 **Rule:** the corpus metric set is frozen for the lifetime of the checkpoints collected against it.
 Changing it invalidates every MAPPO tier. Record the metric set in the manifest and have the linter
 assert homogeneity across a corpus.
+
+## C9 — `madt` is an internal arm key, not the model's name (added 2026-08-12, `PREREGISTRATION.md` A9)
+
+The string **`madt`** appears as an arm key in `docs/data/p4_gate.json`,
+`docs/data/p4_secondary_training_draws.json` and `docs/data/p4_4_baselines.json`, as a field name
+(`att_madt`), and in `offline/dt_gate.py`, `offline/offline_baselines.py` and their tests.
+
+**It denotes our offline multi-agent Decision Transformer. It is NOT the model's name.**
+
+Two published models are already called MADT, and both predate our use:
+
+- **arXiv:2112.02845** — Meng et al., *Offline Pre-trained Multi-Agent Decision Transformer*,
+  peer-reviewed in *Machine Intelligence Research*. **Our exact method class**, on SMAC.
+- **arXiv:2602.02903** — Su, Sun & Deng, 2 Feb 2026, *Spatiotemporal Decision Transformer for
+  Traffic Coordination*, which introduces "MADT (Multi-Agent Decision Transformer)" **in our exact
+  domain**.
+
+**Rules.**
+1. **Do not rename the key.** It is embedded in three merged, independently reviewed artifacts. A
+   rename means regeneration, and regeneration risks numbers to change a string.
+2. **Do not use "MADT" in prose, in a docstring, in a figure label, or in the paper.** Write *"the
+   offline multi-agent Decision Transformer"*, or *"the DT"* where the context is unambiguous.
+3. **The only named contribution is the mechanism** — *probe-calibrated return prompting*. The
+   architecture is described, not branded, because §1 already concedes it is not the contribution.
+4. **New artifacts may use a neutral key** (`dt`) provided the alias is documented at the point of
+   introduction. Existing keys stay.
