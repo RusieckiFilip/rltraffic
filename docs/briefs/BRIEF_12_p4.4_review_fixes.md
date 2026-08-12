@@ -34,6 +34,14 @@ not re-evaluate.
 `output/p4_4/` and diff **every numeric field** against the committed copy. Paste the result. The
 only permitted artifact difference anywhere is F3's new block in `p4_4_training.json`.
 
+> ⚠️ **SUPERSEDED 2026-08-12 by §7.1 — read that instead, and the last sentence above is now wrong.**
+> The implementer showed that `top_return_filter` is **embedded in `p4_4_baselines.json`**, so F3
+> necessarily propagates into both artifacts and the sentence above cannot be satisfied. **§7.1 rules
+> that both are regenerated**, in two stages, and that the second comparison is a **full recursive
+> JSON comparison over every path and type** — not a numeric-field diff, because verdicts,
+> `policy_source` and digests are strings. **The invariant in the box above is unchanged and remains
+> the point of the round; only the proof procedure changes.**
+
 If any change you make would alter a number, **stop and report** — that is a finding, not a task.
 
 ## 3. The standard for every test in this round
@@ -45,7 +53,8 @@ nothing here.** Red-first cannot apply.
 > paste the failure. A test whose mutation you did not execute does not count as delivered.**
 
 Revert every mutation afterwards and confirm the suite is green and the artifact still regenerates
-byte-identically.
+byte-identically. ⚠️ **Byte-identity applies to the stage-1 check only (§7.1); after the F3 patch the
+standard is the full recursive comparison.**
 
 ---
 
@@ -108,6 +117,9 @@ Pearson r(training return, held-out ATT) = -0.991, on DISJOINT draw sets (1-200 
 1. Record the composition in `docs/data/p4_4_training.json` under `top_return_filter` — the per-seed
    counts, the permutation p-value with its iteration count and RNG seed, and the correlation with
    its sample size. Computed from data already on disk; **no simulator, no training.**
+   ⚠️ **SUPERSEDED by §7.2:** report the **exact** multivariate-hypergeometric p-value
+   **`0.007225300`** as primary, with its null named in the same sentence; the permutation estimate
+   becomes a **cross-check**, not the reported figure. I enumerated the exact value independently.
 2. State it in the Return Packet **in the same breath as the %BC number**, in the style of the IQL
    binding sentence, and say which mechanism the result claims. Because `D16` makes seed perfectly
    confounded with demand block, *"%BC"* on this corpus is operationally **"clone the best 2 of 5
@@ -167,12 +179,12 @@ test line was ever deleted; the only deletions are `NotImplementedError` stubs.)
       — do not overwrite the packet; it is the record of what was reviewed
 - [ ] The §6 checkbox stays **unticked**: it is mine, in the merge commit
 
-## 8. RULINGS on the plan of 2026-08-12 — **GO**, with one conflict resolved and three sharpenings
+## 7. RULINGS on the plan of 2026-08-12 — **GO**, with one conflict resolved and three sharpenings
 
 The plan is approved. Pre-flight facts G1–G5 are accepted; two of them I re-derived myself rather
 than accept, and both hold (below). Start where you proposed, with the F2 fixture.
 
-### 8.1 G5 — the conflict, RULED: regenerate BOTH artifacts, in two stages, in this order
+### 7.1 G5 — the conflict, RULED: regenerate BOTH artifacts, in two stages, in this order
 
 You are right that §2 as written cannot be satisfied: `top_return_filter` is embedded in
 `p4_4_baselines.json`, so F3 necessarily propagates there. **You were right to refuse to decide it
@@ -207,7 +219,7 @@ training used"* — is a real guard rather than a formality, and it is why patch
 is acceptable here. **Validate fully before the first byte is written** (§7's filesystem-mutation
 barrier); a refused `compose` must leave the artifact untouched.
 
-### 8.2 G3 — RULED: report the EXACT p-value as primary; the permutation becomes a cross-check
+### 7.2 G3 — RULED: report the EXACT p-value as primary; the permutation becomes a cross-check
 
 **This supersedes my §4's instruction to report "the permutation p-value with its iteration count and
 RNG seed".** An exact combinatorial p-value is strictly better: it removes an RNG seed from the set of
@@ -220,7 +232,7 @@ without replacement from five blocks of 40, P(max block count ≥ 10)*. Keep you
 Carlo (0.007750, seed 20260812, MC se 0.00060, 0.9 σ) as a **cross-check that the enumeration is
 right** — that is a genuine second route and it is worth pasting.
 
-### 8.3 F2a — prefer a BEHAVIOURAL instrument over the call-spy, and say so if you cannot
+### 7.3 F2a — prefer a BEHAVIOURAL instrument over the call-spy, and say so if you cannot
 
 Your observation is correct and honest: at Polyak 0.005 a short run cannot separate `q` from
 `q_target` numerically. But *"the target network was consulted"* is a weaker assertion than *"using
@@ -233,14 +245,14 @@ spy as a supplement, not as the primary assertion.** If the behavioural form can
 ship the spy and **state in the test's docstring why the stronger instrument was not available** —
 that is an acceptable outcome, an undisclosed weaker one is not.
 
-### 8.4 The F2 fixture is approved, and I verified its arithmetic rather than trusting it
+### 7.4 The F2 fixture is approved, and I verified its arithmetic rather than trusting it
 
 The τ-expectile of `{+10, −10}` is `20τ − 10`: **+4 at τ=0.7 and −4 at τ=0.3**, confirmed here both
 analytically and by numeric argmin over a 2×10⁶-point grid. **An 8-unit margin on a closed-form target
 is an excellent instrument** — deterministic, ~1 s, no corpus, no simulator, and it fails for exactly
 one reason. Use `monkeypatch` so the constant edits cannot leak between tests.
 
-### 8.5 Two smaller rulings
+### 7.5 Two smaller rulings
 
 - **The 7 new tests are characterisation tests written against correct code.** That is expected in a
   fix round and is not a defect — but **§12 must disclose it in its own words**, rather than relying
@@ -248,7 +260,7 @@ one reason. Use `monkeypatch` so the constant edits cannot leak between tests.
 - **F9: correct the count in place and date it** (four → six), as you propose. Do not rewrite the
   surrounding disclosure; it is a dated record.
 
-## 7. What happens next, so you can see the shape
+## 8. What happens next, so you can see the shape
 
 I merge, tick §6, and write the Decisions Log rows. **P4.3 is the next task** — RTG calibration —
 and it inherits a sharpened, falsifiable hypothesis that your result generated: *a correctly
