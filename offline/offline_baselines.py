@@ -74,6 +74,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import re
 import time
 from dataclasses import dataclass, field
@@ -150,6 +151,21 @@ __all__ = [
     "top_return_streams",
     "train_bc",
     "train_iql",
+    # -- P4.5: which streams an arm sees, and nothing else -------------------------------
+    "ArmSpec",
+    "MATCHED_SUBSET_COUNT",
+    "SELECTION_ARMS",
+    "SELECTION_ARTIFACT_FORMAT_VERSION",
+    "SELECTION_BASELINES_FORMAT_VERSION",
+    "arm_spec_for_flags",
+    "assert_reused_arm_reproduces",
+    "assert_selection_design",
+    "delta_verdict",
+    "random_stream_subset",
+    "select_arm_streams",
+    "selection_artifact",
+    "streams_from_datasets",
+    "thread_regime",
 ]
 
 ARTIFACT_FORMAT_VERSION = "p4.4-baselines/1.0"
@@ -651,6 +667,117 @@ def filter_stacked_to_streams(
             "which usually means the streams and the stack belong to different groups"
         )
     return {name: value[keep] for name, value in stacked.items()}
+
+
+# ----------------------------------------------------------------------
+# P4.5: which behaviour checkpoints an arm's streams came from, and nothing else
+# ----------------------------------------------------------------------
+
+SELECTION_ARTIFACT_FORMAT_VERSION = "p4.5-selection/1.0"
+SELECTION_BASELINES_FORMAT_VERSION = "p4.5-selection-baselines/1.0"
+
+#: The size every matched arm is held to.  ``docs/plans/p4.5.md`` section 3: %BC trains on 20
+#: streams, so an arm that answers "is it the SEEDS?" must train on 20 too, or it answers "is it
+#: the amount of data?" instead.
+MATCHED_SUBSET_COUNT = 20
+
+VERDICT_WITHIN_DELTA = "within_delta"
+VERDICT_LEFT_BETTER = "left_genuinely_better"
+VERDICT_RIGHT_BETTER = "right_genuinely_better"
+VERDICT_PAIR_INCONCLUSIVE = "inconclusive_at_this_power"
+
+
+@dataclass(frozen=True)
+class ArmSpec:
+    """One arm's declared stream selection: the selector, its pool and its size.
+
+    A declaration, not a configuration.  The CLI must agree with it or refuse to run, because a
+    shell typo that redefined an arm would be invisible in every artifact this task writes.
+    """
+
+    arm: str
+    selector: str
+    behaviour_seeds: tuple[int, ...]
+    count: int | None
+    role: str
+
+
+#: Filled by the implementation commit.  Empty here so the tests that check the declaration fail
+#: red rather than passing against a placeholder.
+SELECTION_ARMS: Mapping[str, ArmSpec] = {}
+
+
+def streams_from_datasets(
+    dataset: TrajectoryWindowDataset, dataset_dirs: Sequence[str | Path]
+) -> tuple[StreamReturn, ...]:
+    """Every stream collected under one of *dataset_dirs*."""
+    raise NotImplementedError("P4.5: streams_from_datasets")
+
+
+def random_stream_subset(
+    streams: Sequence[StreamReturn], count: int, rng: np.random.Generator
+) -> tuple[StreamReturn, ...]:
+    """A uniform sample of *count* streams without replacement, deterministic given *rng*."""
+    raise NotImplementedError("P4.5: random_stream_subset")
+
+
+def arm_spec_for_flags(
+    arm: str,
+    *,
+    selector: str,
+    behaviour_seeds: Sequence[int],
+    count: int | None,
+) -> ArmSpec:
+    """The declared spec of *arm*, refusing flags that disagree with it."""
+    raise NotImplementedError("P4.5: arm_spec_for_flags")
+
+
+def select_arm_streams(
+    dataset: TrajectoryWindowDataset,
+    spec: ArmSpec,
+    *,
+    dataset_dirs: Sequence[str | Path],
+    rng: np.random.Generator,
+) -> tuple[StreamReturn, ...]:
+    """The streams *spec* selects from *dataset*."""
+    raise NotImplementedError("P4.5: select_arm_streams")
+
+
+def thread_regime() -> dict[str, Any]:
+    """The thread regime of this process, read at call time."""
+    raise NotImplementedError("P4.5: thread_regime")
+
+
+def delta_verdict(
+    mean_difference: float, ci95_half_width: float, delta: float = DELTA_ATT
+) -> str:
+    """A6's verdict with arm-neutral names, for a paired difference ``left - right``."""
+    raise NotImplementedError("P4.5: delta_verdict")
+
+
+def assert_selection_design(payload: Mapping[str, Any]) -> None:
+    """Refuse a selection that would invalidate the design."""
+    raise NotImplementedError("P4.5: assert_selection_design")
+
+
+def assert_reused_arm_reproduces(
+    committed: Sequence[EpisodeResult], rerolled: Sequence[EpisodeResult]
+) -> dict[str, Any]:
+    """Gate B: re-used episodes are only sound if this instrument reproduces them exactly."""
+    raise NotImplementedError("P4.5: assert_reused_arm_reproduces")
+
+
+def selection_artifact(
+    *,
+    episodes: Sequence[EpisodeResult],
+    selection: Mapping[str, Any],
+    gate_b: Mapping[str, Any],
+    env_settings: Mapping[str, Any],
+    engine_seed: int,
+    delta: float = DELTA_ATT,
+) -> dict[str, Any]:
+    """The reported P4.5 artifact: cells, every pair, and the three registered predictions."""
+    raise NotImplementedError("P4.5: selection_artifact")
 
 
 def iql_reward_scale(returns: Sequence[float]) -> float:

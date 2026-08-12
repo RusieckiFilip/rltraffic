@@ -17,6 +17,7 @@ the row at risk.  That test reads the row through plain ``np.load`` instead.
 
 from __future__ import annotations
 
+import argparse
 import json
 import math
 import os
@@ -30,11 +31,18 @@ import torch
 from agent.OfflineBaselines import canonical_state_dict_digest
 import offline.offline_baselines as baselines_module
 from offline.dataset import TrajectoryWindowDataset
-from offline.dt_gate import EpisodeResult, mean_ci95, stack_dataset, wilcoxon_signed_rank
+from offline.dt_gate import (
+    TRAINING_SEEDS,
+    EpisodeResult,
+    mean_ci95,
+    stack_dataset,
+    wilcoxon_signed_rank,
+)
 from offline.offline_baselines import (
     ARTIFACT_FORMAT_VERSION,
     DECLARED_GRADIENT_STEPS,
     DELTA_ATT,
+    DELTA_ATT_DERIVATION,
     IQL_GAMMA,
     METHODS,
     assert_campaign_complete,
@@ -1328,3 +1336,198 @@ def test_the_committed_composition_is_the_one_the_reported_filter_selected() -> 
     assert composition["exact_p_value"] == pytest.approx(0.007225300, abs=5e-9)
     assert composition["pearson_n"] == 5
     assert composition["pearson_r_training_return_vs_heldout_att"] < -0.9
+
+
+# ----------------------------------------------------------------------
+# Review findings F5 and F6 (DEFERRED 32 and 33), folded in by BRIEF_13 section 6
+# ----------------------------------------------------------------------
+
+
+def _report_fixture(
+    tmp_path: Path,
+    *,
+    bc_seeds: Sequence[int] = TRAINING_SEEDS,
+    trained_seeds: Sequence[int] | None = None,
+    drop_one_bc_episode: bool = False,
+) -> tuple[Path, Path]:
+    """A complete, synthetic P4.4 campaign on disk: gate, training artifact and one eval file.
+
+    Every arm is separated by whole ATT units, so no verdict lands anywhere near the equivalence
+    margin and the guards under test are the only ones that can fire.
+    """
+    work_dir = tmp_path / "work"
+    out_dir = tmp_path / "out"
+    work_dir.mkdir(parents=True)
+    out_dir.mkdir(parents=True)
+
+    def records(arm: str, base: float, seeds: Sequence[int | None]) -> list[dict[str, Any]]:
+        return [
+            {
+                "arm": arm,
+                "seed": seed,
+                "draw_id": draw,
+                "att_horizon": base + 0.01 * (draw - 1000),
+                "horizon_vehicle_count": 40.0,
+                "episode_reward": -100.0,
+            }
+            for seed in seeds
+            for draw in baselines_module.HELD_OUT_DRAWS
+        ]
+
+    gate_episodes = (
+        records("madt", 105.0, list(TRAINING_SEEDS))
+        + records("mappo1000", 106.0, list(TRAINING_SEEDS))
+        + records("maxpressure", 176.0, [None])
+    )
+    (work_dir / "gate_a.json").write_text(
+        json.dumps(
+            {
+                "status": "PASS",
+                "compared": len(gate_episodes),
+                "mismatches": [],
+                "arms": list(baselines_module.CITED_ARMS),
+                "episodes": gate_episodes,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    bc_episodes = records("bc", 104.0, list(bc_seeds))
+    if drop_one_bc_episode:
+        bc_episodes = bc_episodes[:-1]
+    (work_dir / "eval_bc.json").write_text(
+        json.dumps({"method": "bc", "episodes": bc_episodes}), encoding="utf-8"
+    )
+
+    (out_dir / "p4_4_training.json").write_text(
+        json.dumps(
+            {
+                "declared_gradient_steps": DECLARED_GRADIENT_STEPS,
+                "declared_in": "a fixture",
+                "raise_available": False,
+                "seeds": list(TRAINING_SEEDS),
+                "training_draw_ids": [1, 2, 3],
+                "iql": {},
+                "top_return_filter": {},
+                "runs": [
+                    {"method": "bc", "seed": seed, "checkpoint": "x.pt"}
+                    for seed in (TRAINING_SEEDS if trained_seeds is None else trained_seeds)
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    return out_dir, work_dir
+
+
+def _report_args(methods: str = "bc") -> Any:
+    return argparse.Namespace(methods=methods, engine_seed=1000)
+
+
+def test_the_report_derives_its_expected_runs_from_the_declaration_not_from_the_episodes(
+    tmp_path: Path,
+) -> None:
+    """F5a: the completeness check must not be a tautology over the data it checks.
+
+    ``_run_report`` once built its "requested runs" list from the very episodes it then checked,
+    which can be restored with the whole suite green (review finding F5).  Dropping one episode
+    from the evaluation file must therefore be fatal.
+
+    Killed by: deriving ``requested`` from ``episodes``.
+    """
+    out_dir, work_dir = _report_fixture(tmp_path)
+    assert baselines_module._run_report(_report_args(), {}, out_dir, work_dir) == 0
+    assert (out_dir / "p4_4_baselines.json").is_file()
+
+    out_dir, work_dir = _report_fixture(tmp_path / "second", drop_one_bc_episode=True)
+    with pytest.raises(ValueError, match="incomplete campaign"):
+        baselines_module._run_report(_report_args(), {}, out_dir, work_dir)
+
+
+def test_a_method_trained_on_fewer_seeds_than_declared_cannot_be_reported(
+    tmp_path: Path,
+) -> None:
+    """F5b: the expected seed set is the DECLARATION's, for every arm.
+
+    It was ``TRAINING_SEEDS`` for ``madt``/``mappo1000`` and ``training["runs"]`` for the
+    baselines, so a three-seed method passed: both sides of the comparison shrank together.
+
+    Killed by: deriving the baseline arms' seed set from ``training["runs"]``.
+    """
+    out_dir, work_dir = _report_fixture(
+        tmp_path, bc_seeds=(101, 202, 303), trained_seeds=(101, 202, 303)
+    )
+    with pytest.raises(ValueError, match="incomplete campaign"):
+        baselines_module._run_report(_report_args(), {}, out_dir, work_dir)
+
+
+def test_the_committed_training_artifact_trained_every_declared_seed(tmp_path: Path) -> None:
+    """The F5b fix is a no-op on the merged result, and that is shown rather than asserted."""
+    training = json.loads(
+        (REPO_ROOT / "docs/data/p4_4_training.json").read_text(encoding="utf-8")
+    )
+    for method in METHODS:
+        seeds = sorted(int(r["seed"]) for r in training["runs"] if r["method"] == method)
+        assert seeds == sorted(TRAINING_SEEDS), method
+
+
+def test_the_unbalanced_design_cross_check_fires_when_the_design_is_unbalanced() -> None:
+    """F6a: a working guard with no regression protection -- it survives being disabled.
+
+    The recovered fraction is computed twice, directly and through the paired route, and the two
+    agree exactly only when seed is crossed with draw.  Dropping one arm episode breaks that.
+
+    Killed by: removing the two-route comparison.
+    """
+    draws = {1000: 100.0, 1001: 101.0, 1002: 102.0}
+    episodes = _episodes("madt", draws, seed=101) + _episodes("madt", draws, seed=202)
+    episodes += _episodes("mappo1000", {d: v + 1.0 for d, v in draws.items()}, seed=101)
+    episodes += _episodes("mappo1000", {d: v + 1.0 for d, v in draws.items()}, seed=202)
+    balanced = _episodes("bc", {d: v + 3.0 for d, v in draws.items()}, seed=101)
+    balanced += _episodes("bc", {d: v + 5.0 for d, v in draws.items()}, seed=202)
+
+    artifact = baselines_artifact(
+        episodes=episodes + balanced,
+        training={},
+        gate_a={},
+        env_settings={},
+        engine_seed=1000,
+    )
+    assert artifact["comparisons"]["madt_vs_bc"]["recovered_fraction"] == pytest.approx(
+        artifact["comparisons"]["madt_vs_bc"]["recovered_fraction_paired_route"], abs=1e-12
+    )
+
+    with pytest.raises(ValueError, match="two routes"):
+        baselines_artifact(
+            episodes=episodes + balanced[:-1],
+            training={},
+            gate_a={},
+            env_settings={},
+            engine_seed=1000,
+        )
+
+
+def test_the_delta_rounding_cross_check_fires_on_a_verdict_that_turns_on_the_rounding() -> None:
+    """F6b: the second guard with no regression protection.
+
+    A6's multiplier of 1.0 is a choice, so a verdict that differs between the declared
+    ``0.6263`` and its full-precision derivation ``0.6262756469347437`` is not a verdict.  Every
+    paired difference here is exactly ``0.62629``, which lies between the two.
+
+    Killed by: removing the disagreement check -- after which the proximity guard raises a
+    DIFFERENT error, which is why ``match=`` names this one's message.
+    """
+    assert DELTA_ATT_DERIVATION < 0.62629 < DELTA_ATT, "the fixture must straddle the two deltas"
+    draws = {1000: 100.0, 1001: 101.0, 1002: 102.0}
+    episodes = _episodes("madt", draws, seed=101)
+    episodes += _episodes("mappo1000", {d: v + 2.0 for d, v in draws.items()}, seed=101)
+    episodes += _episodes("bc", {d: v - 0.62629 for d, v in draws.items()}, seed=101)
+
+    with pytest.raises(ValueError, match="rounding"):
+        baselines_artifact(
+            episodes=episodes,
+            training={},
+            gate_a={},
+            env_settings={},
+            engine_seed=1000,
+        )
