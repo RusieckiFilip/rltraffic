@@ -74,6 +74,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -145,6 +146,7 @@ __all__ = [
     "rank_biserial",
     "recovered_fraction",
     "stream_returns",
+    "top_return_composition",
     "top_return_streams",
     "train_bc",
     "train_iql",
@@ -164,6 +166,12 @@ DECLARED_GRADIENT_STEPS = 40_000
 #: every verdict under both values and refuses to report if they disagree.
 DELTA_ATT = 0.6263
 DELTA_ATT_DERIVATION = 0.6262756469347437
+
+#: How close a CI endpoint may come to +/- delta before the verdict is refused.  The plan's
+#: section 5.3 promised this as an ASSERTION and the first implementation only recorded the
+#: distance (review finding F7); observed distances are 0.157 / 0.916 / 0.593, so nothing
+#: reported is near it, which is exactly when a guard should be installed rather than argued about.
+DELTA_PROXIMITY_TOLERANCE = 1e-3
 
 BC_BATCH_WINDOWS = 64
 IQL_BATCH_TRANSITIONS = 1_280
@@ -242,8 +250,10 @@ class TransitionTable:
         """A sub-table of the given rows, so a batch is still a table.
 
         The training loop takes its targets through :func:`iql_targets` on one of these rather
-        than inlining ``r + gamma * V(s')``, so the test that pins the bootstrap guards the path
-        training actually takes.
+        than inlining ``r + gamma * V(s')``.  That call boundary is what makes the bootstrap
+        observable; the test that pins it spies on the boundary and asserts on the arguments the
+        loop passes, because the discount and the bootstrap value are chosen at the call site and
+        not inside the helper (corrected 2026-08-12, review finding F1).
         """
         return TransitionTable(
             state=self.state[index],
@@ -403,6 +413,208 @@ def top_return_streams(
     return tuple(ordered[:keep])
 
 
+def _behaviour_seed(stream: StreamReturn) -> int:
+    """The behaviour-policy seed a stream was collected under, by two routes that must agree.
+
+    The directory name carries it (``cf_hz1x1__mappo1000__seed101``) and so does the manifest's
+    ``run_metadata.checkpoint`` (``.../cf_hz1x1__mappo__seed101.pt``), which names the actual
+    weights.  Both are read and compared, because the whole of F3's finding is an attribution to
+    a checkpoint and a directory name alone is a label rather than evidence.  When a corpus
+    carries no checkpoint field -- test fixtures do not -- the directory name stands alone and
+    the cross-check is skipped rather than faked.
+    """
+    directory = Path(stream.dataset_dir)
+    match = re.search(r"seed(\d+)$", directory.name)
+    if match is None:
+        raise ValueError(
+            f"{directory.name}: no seed suffix, so this stream cannot be attributed to a "
+            "behaviour policy; F3's composition is an attribution and refuses to guess"
+        )
+    seed = int(match.group(1))
+
+    manifest_path = directory / "manifest.json"
+    if manifest_path.is_file():
+        checkpoint = json.loads(manifest_path.read_text(encoding="utf-8")).get(
+            "run_metadata", {}
+        ).get("checkpoint")
+        if checkpoint:
+            recorded = re.search(r"seed(\d+)\.pt$", str(checkpoint))
+            if recorded is None or int(recorded.group(1)) != seed:
+                raise ValueError(
+                    f"{directory.name}: the directory says seed {seed} but its manifest "
+                    f"records checkpoint {checkpoint!r}; the block identity is not trustworthy "
+                    "and the composition must not be reported from it"
+                )
+    return seed
+
+
+def _exact_max_block_p_value(sizes: Sequence[int], draws: int, observed: int) -> float:
+    """``P(max block count >= observed)`` under the multivariate hypergeometric null.
+
+    The null, stated because a p-value without one is not interpretable: *drawing ``draws`` of
+    ``sum(sizes)`` streams uniformly without replacement, from blocks of the given sizes.*  This
+    enumerates every composition exactly, so no RNG seed enters a reported quantity and the
+    number cannot be re-rolled.  :func:`_permutation_max_block_p_value` is the cross-check on the
+    arithmetic -- **not** on the null, which both share.
+    """
+    blocks = [int(s) for s in sizes]
+    if min(blocks, default=0) < 0 or draws < 0 or draws > sum(blocks):
+        raise ValueError(f"cannot draw {draws} from blocks {blocks}")
+    total = math.comb(sum(blocks), draws)
+    accumulated = 0
+
+    def walk(index: int, remaining: int, ways: int, hit: bool) -> None:
+        nonlocal accumulated
+        if index == len(blocks) - 1:
+            if 0 <= remaining <= blocks[index] and (hit or remaining >= observed):
+                accumulated += ways * math.comb(blocks[index], remaining)
+            return
+        for taken in range(0, min(blocks[index], remaining) + 1):
+            walk(index + 1, remaining - taken, ways * math.comb(blocks[index], taken),
+                 hit or taken >= observed)
+
+    walk(0, draws, 1, False)
+    return accumulated / total
+
+
+def _permutation_max_block_p_value(
+    labels: Sequence[int], draws: int, observed: int, *, iterations: int, rng_seed: int
+) -> dict[str, Any]:
+    """Monte Carlo under the same null -- a cross-check on the enumeration's arithmetic."""
+    generator = np.random.default_rng(int(rng_seed))
+    population = np.asarray(list(labels))
+    hits = 0
+    for _ in range(int(iterations)):
+        picked = generator.choice(population.size, size=int(draws), replace=False)
+        counts = np.bincount(population[picked])
+        if int(counts.max()) >= observed:
+            hits += 1
+    estimate = hits / float(iterations)
+    return {
+        "p_value": estimate,
+        "iterations": int(iterations),
+        "rng_seed": int(rng_seed),
+        "monte_carlo_standard_error": math.sqrt(
+            max(estimate * (1.0 - estimate), 0.0) / float(iterations)
+        ),
+    }
+
+
+def top_return_composition(
+    dataset: TrajectoryWindowDataset,
+    kept: Sequence[StreamReturn],
+    heldout_att_by_seed: Mapping[int, float],
+    *,
+    permutations: int = 20_000,
+    rng_seed: int = 20_260_812,
+) -> dict[str, Any]:
+    """What the top-return filter actually selected, as a RESULT rather than as provenance.
+
+    The P4.4 packet's section 8.5 disclosed that %BC's margin *"may partly be memorisation of an
+    easier subset -- I did not test that"*.  This tests it, and the answer is neither option that
+    sentence offered: the filter is not selecting easier demand, and it is not mainly selecting
+    better episodes within a policy -- **it is selecting better CHECKPOINTS.**
+
+    The evidence is a deduction, and the p-value is its visible consequence rather than its
+    support:
+
+    1. per-seed training return ranks the five behaviour checkpoints, and per-seed **held-out**
+       ATT ranks them almost identically (Pearson ``r``, reported with its ``n``), on **disjoint
+       draw sets**, so the correlation cannot come from shared draw difficulty;
+    2. the filter ranks streams by training return **deterministically**, so given (1) it selects
+       the strongest checkpoints -- a consequence of the selection rule, not a coincidence;
+    3. the observed concentration is what (2) looks like from outside, and D16 (seed identical to
+       demand block) is what makes "seed" and "block" the same thing on this corpus.
+
+    ⚠️ **The p-value tests CONCENTRATION -- that some block holds at least ``observed`` of the
+    kept streams -- and NOT that the concentrated blocks are the best-performing ones.**  The
+    identity claim rests on (1) and (2).
+    """
+    streams = stream_returns(dataset)
+    labels = [_behaviour_seed(stream) for stream in streams]
+    kept_labels = [_behaviour_seed(stream) for stream in kept]
+    block_ids = sorted(set(labels))
+    sizes = [labels.count(block) for block in block_ids]
+    counts = {block: kept_labels.count(block) for block in block_ids}
+    observed = max(counts.values())
+
+    index = {block: position for position, block in enumerate(block_ids)}
+    permutation = _permutation_max_block_p_value(
+        [index[label] for label in labels],
+        len(kept),
+        observed,
+        iterations=permutations,
+        rng_seed=rng_seed,
+    )
+    exact = _exact_max_block_p_value(sizes, len(kept), observed)
+
+    training_return = {
+        block: float(np.mean([s.total_return for s, label in zip(streams, labels) if label == block]))
+        for block in block_ids
+    }
+    shared = [block for block in block_ids if block in heldout_att_by_seed]
+    if len(shared) < 3:
+        raise ValueError(
+            f"only {len(shared)} block(s) have a held-out ATT, which is too few to correlate; "
+            "the composition is a claim about checkpoint quality and needs both measurements"
+        )
+    x = np.asarray([training_return[block] for block in shared], dtype=np.float64)
+    y = np.asarray([float(heldout_att_by_seed[block]) for block in shared], dtype=np.float64)
+    correlation = float(np.corrcoef(x, y)[0, 1])
+
+    return {
+        "role": (
+            "what the top-return filter selected: a result about %BC's mechanism, not provenance"
+        ),
+        "per_seed_kept_counts": {str(block): counts[block] for block in block_ids},
+        "per_seed_stream_counts": {str(block): size for block, size in zip(block_ids, sizes)},
+        "observed_max_block_count": int(observed),
+        "exact_p_value": exact,
+        "exact_p_value_null": (
+            "multivariate hypergeometric: drawing "
+            f"{len(kept)} of {len(streams)} streams uniformly WITHOUT replacement from "
+            f"{len(block_ids)} blocks of {sizes[0] if len(set(sizes)) == 1 else sizes}, "
+            f"P(max block count >= {observed})"
+        ),
+        "exact_p_value_tests": (
+            "CONCENTRATION only -- that some block holds at least the observed count. It does "
+            "NOT test that the concentrated blocks are the best-performing ones; that rests on "
+            "the correlation below and on the filter being a deterministic rank by return"
+        ),
+        "permutation_cross_check": permutation,
+        "permutation_cross_check_role": (
+            "a second route to the same number under the SAME null, so it checks the "
+            "enumeration's arithmetic and leaves the null itself untested"
+        ),
+        "per_seed_training_return_mean": {
+            str(block): training_return[block] for block in block_ids
+        },
+        "per_seed_heldout_att": {
+            str(block): float(heldout_att_by_seed[block]) for block in shared
+        },
+        "pearson_r_training_return_vs_heldout_att": correlation,
+        "pearson_n": len(shared),
+        "pearson_draw_sets": (
+            "DISJOINT: training returns over draws 1-200, held-out ATT over draws 1000-1099, so "
+            "the correlation cannot be produced by shared draw difficulty"
+        ),
+        "licenses": (
+            "on this corpus the top-10% return filter performed CHECKPOINT SELECTION, so %BC's "
+            "advantage over BC is at least partly an effect of training on the strongest "
+            "behaviour policies rather than of filtering episode quality within a policy"
+        ),
+        "does_not_license": (
+            "that return filtering does checkpoint selection in general: n = "
+            f"{len(shared)} seeds, one tier, one scenario, one backend. A correlation this "
+            "strong over this few points is a strong hint and a weak law"
+        ),
+        "decisive_test_not_run_here": (
+            "BC trained on the two strongest behaviour seeds only, against %BC; registered as "
+            "P4.5 because it needs a training run, which BRIEF_12 section 5 forbids in this round"
+        ),
+    }
+
+
 def filter_stacked_to_streams(
     dataset: TrajectoryWindowDataset,
     stacked: dict[str, torch.Tensor],
@@ -555,8 +767,15 @@ def iql_targets(
 
     This is the registered fairness constraint in one line: ``terminated`` is hardcoded ``False``
     and every episode ends by time-limit truncation, so the horizon is not absorbing and the last
-    transition of every stream bootstraps like any other.  The training loop takes its targets
-    through this function, so the test that pins the behaviour guards the path training takes.
+    transition of every stream bootstraps like any other.
+
+    ⚠️ **The guarantee is at the CALL SITE, not here, and the test that provides it says so**
+    (corrected 2026-08-12, review finding F1).  ``gamma`` and ``next_values`` are both supplied by
+    :func:`train_iql`, so a mutation placed there -- ``gamma=0.0``, or a zeroed bootstrap value --
+    leaves this function untouched and once survived the whole suite.  What guards the path
+    training actually takes is
+    ``tests/test_offline_baselines.py::test_the_training_loop_bootstraps_through_the_horizon_at_its_call_site``,
+    which spies on the module-level name the loop resolves and asserts on what the loop passes.
     """
     values = next_values.reshape(-1)
     if values.shape != table.reward.shape:
@@ -1236,6 +1455,20 @@ def baselines_artifact(
                 "multiplier is a choice and a verdict must not turn on it; report this instead "
                 "of picking one"
             )
+        distance = min(
+            abs(comparison.ci95_low + delta),
+            abs(comparison.ci95_low - delta),
+            abs(comparison.ci95_high + delta),
+            abs(comparison.ci95_high - delta),
+        )
+        if distance <= DELTA_PROXIMITY_TOLERANCE:
+            raise ValueError(
+                f"a CI endpoint for {method!r} sits {distance:.3e} from the equivalence margin "
+                f"delta={delta}, which is within {DELTA_PROXIMITY_TOLERANCE}. A6's multiplier of "
+                "1.0 is a CHOICE, so a verdict decided at that distance would be decided by the "
+                "margin's rounding rather than by the data; report the CI and the distance "
+                "instead of a verdict"
+            )
         direct = recovered_fraction(reference, att[method], dt_mean)
         # Second route to the same number: 1 - mean(arm - DT) / (reference - DT).  The two agree
         # exactly only for a balanced design, which is what "seed crossed with draw" gives.
@@ -1253,12 +1486,7 @@ def baselines_artifact(
             "delta": float(delta),
             "recovered_fraction": direct,
             "recovered_fraction_paired_route": paired_route,
-            "distance_from_ci_endpoints_to_delta": min(
-                abs(comparison.ci95_low + delta),
-                abs(comparison.ci95_low - delta),
-                abs(comparison.ci95_high + delta),
-                abs(comparison.ci95_high - delta),
-            ),
+            "distance_from_ci_endpoints_to_delta": distance,
         }
 
     behaviour: dict[str, Any] = {}
@@ -1402,6 +1630,16 @@ def build_parser() -> argparse.ArgumentParser:
 
     report = sub.add_parser("report", help="merge the per-method runs into the artifact")
     report.add_argument("--methods", default=",".join(METHODS))
+
+    compose = sub.add_parser(
+        "compose",
+        help="record WHAT the top-return filter selected in the training artifact; reads the "
+        "corpus and the committed artifacts only -- no training, no rollouts",
+    )
+    compose.add_argument("--dataset-dir", action="append", required=True)
+    compose.add_argument("--baselines", default=None, help="default: <out-dir>/p4_4_baselines.json")
+    compose.add_argument("--permutations", type=int, default=20_000)
+    compose.add_argument("--rng-seed", type=int, default=20_260_812)
     return parser
 
 
@@ -1496,7 +1734,78 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_train(args, out_dir)
     if args.command == "evaluate":
         return _run_evaluate(args, settings, config_for_draw, out_dir, work_dir)
+    if args.command == "compose":
+        return _run_compose(args, out_dir)
     return _run_report(args, settings, out_dir, work_dir)
+
+
+def _run_compose(args: argparse.Namespace, out_dir: Path) -> int:
+    """Patch the training artifact with what the top-return filter selected.
+
+    Everything is validated **before the first byte is written**, and the central validation is
+    a refusal rather than a formality: the streams recomputed here must be exactly the streams
+    the recorded training run kept.  Patching a committed record is only acceptable because that
+    check makes "this composition describes that run" a verified statement.  A refused compose
+    leaves the artifact untouched and creates nothing.
+    """
+    from offline.dt_gate import CONTEXT_LENGTH
+
+    destination = out_dir / "p4_4_training.json"
+    training = json.loads(destination.read_text(encoding="utf-8"))
+    recorded = training.get("top_return_filter")
+    if recorded is None:
+        raise ValueError(f"{destination}: no top_return_filter block to describe")
+
+    dataset = build_training_dataset(args.dataset_dir, CONTEXT_LENGTH)
+    kept = top_return_streams(dataset, float(recorded["fraction"]))
+
+    recomputed = sorted((k.episode_file, int(k.flow_draw), float(k.total_return)) for k in kept)
+    from_artifact = sorted(
+        (str(entry["episode_file"]), int(entry["flow_draw"]), float(entry["return"]))
+        for entry in recorded["kept_streams"]
+    )
+    if recomputed != from_artifact:
+        raise ValueError(
+            f"the streams recomputed from {args.dataset_dir} are not the streams "
+            f"{destination} records as kept ({len(recomputed)} against {len(from_artifact)}, "
+            "first difference at "
+            f"{next((a, b) for a, b in zip(recomputed, from_artifact) if a != b)}); this "
+            "composition would describe a different run and is refused"
+        )
+
+    baselines = Path(args.baselines) if args.baselines else out_dir / "p4_4_baselines.json"
+    episodes = json.loads(baselines.read_text(encoding="utf-8"))["episodes"]
+    by_seed: dict[int, list[float]] = {}
+    for episode in episodes:
+        if episode["arm"] == "mappo1000" and episode["seed"] is not None:
+            by_seed.setdefault(int(episode["seed"]), []).append(float(episode["att_horizon"]))
+    if not by_seed:
+        raise ValueError(f"{baselines}: no mappo1000 episodes, so no per-seed held-out ATT")
+
+    composition = top_return_composition(
+        dataset,
+        kept,
+        {seed: float(np.mean(values)) for seed, values in by_seed.items()},
+        permutations=int(args.permutations),
+        rng_seed=int(args.rng_seed),
+    )
+    composition["heldout_att_source"] = str(baselines)
+    composition["heldout_att_arm"] = "mappo1000"
+
+    # Validation is complete; only now is anything written.
+    training["top_return_filter"] = {**recorded, "composition": composition}
+    write_json_atomic(training, destination)
+    print(
+        f"composition recorded in {destination}\n"
+        f"  per-seed kept counts {composition['per_seed_kept_counts']}\n"
+        f"  exact p {composition['exact_p_value']:.9f}  "
+        f"(permutation {composition['permutation_cross_check']['p_value']:.6f} "
+        f"+/- {composition['permutation_cross_check']['monte_carlo_standard_error']:.6f})\n"
+        f"  pearson r {composition['pearson_r_training_return_vs_heldout_att']:.4f} "
+        f"n={composition['pearson_n']}",
+        flush=True,
+    )
+    return 0
 
 
 def _episode_key(episode: EpisodeResult) -> tuple[str, int | None, int]:

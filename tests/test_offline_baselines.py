@@ -47,6 +47,7 @@ from offline.offline_baselines import (
     load_baseline_checkpoint,
     merge_training_runs,
     paired_comparison,
+    StreamReturn,
     rank_biserial,
     recovered_fraction,
     stream_returns,
@@ -813,3 +814,517 @@ def test_the_thread_pin_is_applied_by_the_cli_and_refuses_a_nonsense_count() -> 
     assert baselines_module.build_parser().parse_args(
         ["--manifest", "m", "report"]
     ).torch_threads == 1
+
+
+# ----------------------------------------------------------------------
+# The IQL learning rule (BRIEF_12 F1, F2) -- characterisation tests written against code
+# already known to be correct, so each ships with its mutation executed rather than red-first
+# ----------------------------------------------------------------------
+
+#: One state, two transitions with opposite rewards and self-loops.  With ``gamma`` patched to 0
+#: the Q fixed point IS the reward, so V must converge to the tau-expectile of ``{+10, -10}``,
+#: which is ``20*tau - 10``: **+4 at tau=0.7 and -4 if the asymmetry is reversed**.  An 8-unit
+#: margin on a closed-form target, with no corpus and no simulator.
+PROBE_STATE = [1.0, 0.0, 0.0]
+PROBE_GOOD_REWARD = 10.0
+PROBE_BAD_REWARD = -10.0
+PROBE_STEPS = 400
+PROBE_LEARNING_RATE = 0.02
+
+
+def _probe_table() -> Any:
+    """The two-transition fixture.  Row 0 takes the good action, row 1 the bad one."""
+    state = torch.tensor([PROBE_STATE, PROBE_STATE], dtype=torch.float32)
+    return baselines_module.TransitionTable(
+        state=state,
+        next_state=state.clone(),
+        action=torch.tensor([0, 1], dtype=torch.int64),
+        reward=torch.tensor([PROBE_GOOD_REWARD, PROBE_BAD_REWARD], dtype=torch.float32),
+        stream_index=torch.tensor([0, 0], dtype=torch.int64),
+        t=torch.tensor([0, 1], dtype=torch.int64),
+        reward_scale=1.0,
+    )
+
+
+def _empty_stats() -> Any:
+    from offline.dataset import NormalizationStats
+
+    return NormalizationStats(
+        stats_version="1.0",
+        split="train",
+        draw_ids=(1,),
+        dataset_dirs=("fixture",),
+        state_mean={},
+        state_std={},
+        row_count={},
+        rtg={},
+    )
+
+
+def _train_probe_iql(
+    path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    gamma: float,
+    polyak: float,
+    steps: int = PROBE_STEPS,
+) -> Any:
+    """Run the REAL ``train_iql`` on the probe fixture with the declared constants patched.
+
+    Only the constants that make the fixed point computable in closed form are moved: the
+    learning rule itself -- expectile, bootstrap, advantage weighting, target network -- is the
+    shipped one.
+    """
+    monkeypatch.setattr(baselines_module, "IQL_GAMMA", gamma)
+    monkeypatch.setattr(baselines_module, "IQL_POLYAK", polyak)
+    monkeypatch.setattr(baselines_module, "LEARNING_RATE", PROBE_LEARNING_RATE)
+    monkeypatch.setattr(baselines_module, "WARMUP_STEPS", 1)
+    return baselines_module.train_iql(
+        _probe_table(),
+        state_dim=len(PROBE_STATE),
+        n_actions=2,
+        seed=7,
+        declared_gradient_steps=steps,
+        batch_size=64,
+        device=torch.device("cpu"),
+        checkpoint_path=path,
+        stats=_empty_stats(),
+        scenario_id="fixture",
+        provenance={},
+    )
+
+
+def _probe_networks(path: Path) -> dict[str, Any]:
+    """The four trained networks, rebuilt from the checkpoint the training loop wrote."""
+    from agent.OfflineBaselines import MLPTrunk, TrunkConfig
+
+    payload = torch.load(path, map_location="cpu", weights_only=False)
+    config = TrunkConfig.from_json_obj(payload["config"])
+    out: dict[str, Any] = {}
+    for prefix, width in (
+        ("policy", config.n_actions),
+        ("q", config.n_actions),
+        ("v", 1),
+        ("q_target", config.n_actions),
+    ):
+        net = MLPTrunk(config, width)
+        net.load_state_dict(
+            {
+                key[len(prefix) + 1 :]: value
+                for key, value in payload["model"].items()
+                if key.startswith(prefix + ".")
+            }
+        )
+        out[prefix] = net.eval()
+    return out
+
+
+def _probe_readings(path: Path) -> dict[str, Any]:
+    nets = _probe_networks(path)
+    state = torch.tensor([PROBE_STATE], dtype=torch.float32)
+    with torch.no_grad():
+        return {
+            "v": float(nets["v"](state).reshape(-1)[0]),
+            "q": nets["q"](state).reshape(-1).tolist(),
+            "q_target": nets["q_target"](state).reshape(-1).tolist(),
+            "policy": nets["policy"](state).reshape(-1).tolist(),
+        }
+
+
+def _expectile(values: Sequence[float], tau: float) -> float:
+    """The tau-expectile of a two-point equal-mass distribution: ``tau*hi + (1-tau)*lo``."""
+    hi, lo = max(values), min(values)
+    return tau * hi + (1.0 - tau) * lo
+
+
+def test_the_training_loop_bootstraps_through_the_horizon_at_its_call_site(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """F1 + F2c: the guarantee must hold where ``train_iql`` CALLS the helper, not only inside it.
+
+    The review found the docstring claim false as written: ``gamma`` and ``next_values`` are both
+    supplied at the call site, so the identical semantic mutation placed there survived all 58
+    tests while the same mutation inside :func:`iql_targets` was killed.  This test spies on the
+    module-level name the loop resolves, so it sees exactly what the loop passes.
+
+    A spy is the right level here and not a proxy: the claim is **contractual** -- that the
+    declared bootstrap is the one the training path takes -- so what is asserted is what the call
+    site passes.  (The semantic question, "does using the wrong quantity change the answer", is
+    what the three tests below measure behaviourally.)
+    """
+    original = baselines_module.iql_targets
+    seen: list[dict[str, Any]] = []
+
+    def spy(table: Any, next_values: torch.Tensor, gamma: float = baselines_module.IQL_GAMMA) -> torch.Tensor:
+        target = original(table, next_values, gamma=gamma)
+        seen.append(
+            {
+                "gamma": gamma,
+                "next_values": next_values.detach().clone(),
+                "reward": table.reward.detach().clone(),
+                "t": table.t.detach().clone(),
+                "target": target.detach().clone(),
+            }
+        )
+        return target
+
+    monkeypatch.setattr(baselines_module, "iql_targets", spy)
+    # The horizon is the point: t == 1 is the last transition of the fixture's only stream.
+    _train_probe_iql(tmp_path / "iql.pt", monkeypatch, gamma=0.99, polyak=1.0, steps=10)
+
+    assert len(seen) == 10, "the loop must take its targets through the helper on every step"
+    horizon_rows = 0
+    for step, call in enumerate(seen):
+        assert call["gamma"] == baselines_module.IQL_GAMMA, (
+            f"step {step}: the loop passed gamma={call['gamma']!r}, so the declared discount is "
+            "not the one training used"
+        )
+        assert float(call["next_values"].abs().max()) > 0.0, (
+            f"step {step}: every bootstrap value is zero, which is a terminal horizon by another "
+            "name"
+        )
+        last = call["t"] == 1
+        horizon_rows += int(last.sum())
+        assert not bool(
+            torch.any(call["target"][last] == call["reward"][last])
+        ), f"step {step}: a last transition's target equals its reward, i.e. it did not bootstrap"
+    assert horizon_rows > 0, "no last transition was ever sampled, so nothing was tested"
+
+
+def test_the_expectile_target_is_read_from_the_frozen_target_network(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """F2a, behaviourally: using the online ``Q`` in the V loss must change the answer.
+
+    A call-spy could only assert that the target network was consulted, which is weaker than
+    "consulting the wrong one changes the result".  Polyak is patched to **0**, so ``q_target``
+    stays at its initialisation while ``q`` learns the fixture's rewards; the two then differ by
+    an order of magnitude and V's fixed point separates them.
+
+    Measured when this test was written: V lands at **+0.484** against the frozen target's own
+    expectile of **+0.472**, while the mutant that reads the online ``q`` lands at **+2.718**.
+    """
+    _train_probe_iql(tmp_path / "iql.pt", monkeypatch, gamma=0.0, polyak=0.0)
+    reading = _probe_readings(tmp_path / "iql.pt")
+
+    frozen = _expectile(reading["q_target"], baselines_module.IQL_TAU)
+    online = _expectile(reading["q"], baselines_module.IQL_TAU)
+    assert abs(online - frozen) > 2.0, (
+        "the fixture must separate the two networks, or this test cannot discriminate: "
+        f"online expectile {online:.3f} against frozen {frozen:.3f}"
+    )
+    assert abs(reading["v"] - frozen) < abs(reading["v"] - online), (
+        f"V={reading['v']:.4f} tracks the ONLINE q (expectile {online:.4f}) rather than the "
+        f"frozen target network (expectile {frozen:.4f})"
+    )
+    assert reading["v"] < 1.5, f"V={reading['v']:.4f} is not at the frozen target's scale"
+
+
+def test_the_expectile_regression_leans_toward_the_upper_tail_as_tau_declares(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """F2b: with ``tau = 0.7`` the value must sit ABOVE the mean of the two returns.
+
+    The fixed point is closed-form: the tau-expectile of ``{+10, -10}`` is ``20*tau - 10``, so
+    **+4 at tau=0.7 and -4 with the asymmetry reversed** -- an 8-unit margin either side of the
+    mean of 0.  Measured when this test was written: **+2.524** against the reversed branch's
+    **-5.701**, so the sign alone separates them.
+    """
+    _train_probe_iql(tmp_path / "iql.pt", monkeypatch, gamma=0.0, polyak=1.0)
+    reading = _probe_readings(tmp_path / "iql.pt")
+
+    analytic = 20.0 * baselines_module.IQL_TAU - 10.0
+    assert analytic == pytest.approx(4.0), "the fixture's closed form must be the declared one"
+    assert reading["q"][0] > 5.0 > -5.0 > reading["q"][1], (
+        f"Q must learn the fixture's rewards before V's expectile means anything: {reading['q']}"
+    )
+    assert reading["v"] > 1.0, (
+        f"V={reading['v']:.4f} does not lean toward the upper tail; tau={baselines_module.IQL_TAU} "
+        f"puts the fixed point at {analytic:+.1f} and the reversed asymmetry at {-analytic:+.1f}"
+    )
+
+
+def test_advantage_weighting_clones_the_better_action_and_not_the_worse_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """F2d: AWR must up-weight the action with the HIGHER advantage.
+
+    The fixture offers one state and two actions worth +10 and -10, so the extracted policy has
+    exactly one defensible answer.  Measured when this test was written: the shipped code puts
+    the argmax on action 0 with a logit gap of 32.7, and the sign-flipped advantage puts it on
+    action 1 with a gap of 37.0 the other way -- a categorical flip, not a margin.
+    """
+    _train_probe_iql(tmp_path / "iql.pt", monkeypatch, gamma=0.0, polyak=1.0)
+    reading = _probe_readings(tmp_path / "iql.pt")
+
+    logits = reading["policy"]
+    assert logits[0] > logits[1], (
+        f"the extracted policy prefers the -10 action: logits {logits}; the advantage weighting "
+        "is up-weighting the worse action"
+    )
+    assert logits[0] - logits[1] > 5.0, (
+        f"the preference is too weak to be a decision: logits {logits}"
+    )
+
+
+# ----------------------------------------------------------------------
+# The declared evaluation path, the delta-proximity guard and the CLI pin
+# (BRIEF_12 F4, F7, F8) -- also characterisation tests, also mutation-proved
+# ----------------------------------------------------------------------
+
+
+def test_the_declared_evaluation_path_passes_greedy_selection_to_the_agent(
+    fixture_dataset: TrajectoryWindowDataset, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """F4: what ``_baseline_factory`` PASSES is the claim, so that is what is asserted.
+
+    The declared evaluation path is greedy (``docs/plans/p4.4.md`` section 3.1), matching the
+    DT's.  The obvious test -- show that ``explore=True`` changes the number -- is the wrong
+    instrument: BC reproduces the logged action on 99.8 % of training positions, so a
+    near-deterministic policy can make sampling and argmax agree and the mutation would survive
+    as equivalent **while proving nothing about the guard**.  The contractual question is whether
+    the declared quantity is the one handed to the agent, so the assertion is on the argument.
+
+    ``load_baseline_checkpoint`` runs for real against a real checkpoint here; only the agent is
+    a recorder, because a real agent would answer with an action rather than with its arguments.
+    """
+    path = tmp_path / "bc_seed101.pt"
+    _train_one_bc(fixture_dataset, path, steps=2)
+
+    seen: list[dict[str, Any]] = []
+
+    class _Recorder:
+        @classmethod
+        def from_checkpoint(cls, env: Any, checkpoint: str, device: Any = None) -> Any:
+            return cls()
+
+        def act(self, info: Any, explore: bool = True, update_memory: bool = True) -> np.ndarray:
+            seen.append({"explore": explore, "update_memory": update_memory})
+            return np.zeros(1, dtype=np.int64)
+
+    monkeypatch.setattr(baselines_module, "BCAgent", _Recorder)
+    choose = baselines_module._baseline_factory("bc", str(path), 2, None)(object())
+    choose(object(), {"step": 0})
+
+    assert len(seen) == 1
+    assert seen[0]["explore"] is False, (
+        f"the declared evaluation path is greedy, but the factory passed explore="
+        f"{seen[0]['explore']!r}"
+    )
+    assert seen[0]["update_memory"] is False
+
+
+def test_a_ci_endpoint_landing_on_the_equivalence_margin_is_refused(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """F7: the plan promised an ASSERTION and the first implementation only recorded the distance.
+
+    A6's margin has a multiplier of 1.0 that is a **choice**, so a verdict decided at a distance
+    smaller than the rounding of delta itself would be decided by the rounding.  Nothing reported
+    is near it -- the observed distances are 0.157, 0.916 and 0.593 -- which is why installing
+    the guard now costs nothing and proves something later.
+    """
+    draws = {1000: 100.0, 1001: 100.0, 1002: 100.0}
+    episodes = _episodes("madt", draws, seed=101)
+    episodes += _episodes("mappo1000", {d: v + 0.6 for d, v in draws.items()}, seed=101)
+    # every paired difference is exactly -delta, so the CI is the single point -delta and both
+    # endpoints sit on the margin
+    episodes += _episodes("bc", {d: v + DELTA_ATT for d, v in draws.items()}, seed=101)
+
+    with pytest.raises(ValueError, match="equivalence margin"):
+        baselines_artifact(
+            episodes=episodes,
+            training={},
+            gate_a={},
+            env_settings={},
+            engine_seed=1000,
+        )
+
+
+def test_the_committed_comparisons_are_far_from_the_margin_so_the_guard_never_fired() -> None:
+    """The other half of F7: the guard must not have been silently load-bearing on the result."""
+    artifact = json.loads(
+        (REPO_ROOT / "docs/data/p4_4_baselines.json").read_text(encoding="utf-8")
+    )
+    for name, entry in artifact["comparisons"].items():
+        distance = entry["distance_from_ci_endpoints_to_delta"]
+        assert distance > baselines_module.DELTA_PROXIMITY_TOLERANCE, f"{name}: {distance}"
+        assert entry["verdict"] == entry["verdict_at_full_precision_delta"], name
+
+
+def test_main_applies_the_thread_pin_before_it_does_any_work(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """F8: the previous test of this name exercised the helper, never ``main`` (a test name is a
+    claim).  Deleting the call from ``main`` survived all 58 tests.
+
+    ``main`` is driven far enough to have pinned and then made to fail on a missing ``--out-dir``,
+    so the assertion is about the pin and not about any subcommand's work.
+    """
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "format_version": "1.1",
+                "run_metadata": {
+                    "scenario_id": "fixture",
+                    "max_steps": 360,
+                    "delta_time": 10,
+                    "control_mode": "acyclic",
+                    "state_features": ["lane_vehicle_count"],
+                    "global_reward_fn": "queue_length",
+                    "local_reward_fn": "queue_length",
+                    "global_reward_weight": 0.0,
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    before = torch.get_num_threads()
+    torch.set_num_threads(max(2, before))
+    unpinned = torch.get_num_threads()
+    assert unpinned != 1, "the test must start from a thread count the pin has to change"
+    try:
+        with pytest.raises(FileNotFoundError, match="--out-dir does not exist"):
+            baselines_module.main(
+                [
+                    "--manifest",
+                    str(manifest),
+                    "--out-dir",
+                    str(tmp_path / "absent"),
+                    "report",
+                ]
+            )
+        assert torch.get_num_threads() == 1, (
+            "main() did not pin this process, so the evaluation path runs unpinned and can "
+            "deadlock as it did on 2026-08-11"
+        )
+    finally:
+        torch.set_num_threads(before)
+
+
+# ----------------------------------------------------------------------
+# What the top-return filter selected (BRIEF_12 F3, rescoped by section 7.5 as a RESULT)
+# ----------------------------------------------------------------------
+
+
+def test_the_exact_concentration_p_value_matches_a_hand_computed_case() -> None:
+    """Two blocks of two, draw two: both from one block has probability ``2/6``.
+
+    Small enough to compute by hand and therefore the only place the enumeration can be checked
+    against something other than itself.  ``C(2,2) + C(2,2) = 2`` favourable draws of ``C(4,2) =
+    6``, so ``P(max block count >= 2) = 1/3`` exactly.
+    """
+    assert baselines_module._exact_max_block_p_value([2, 2], 2, 2) == pytest.approx(2 / 6)
+    # every draw has a maximum of at least one, so P(max >= 1) is exactly 1
+    assert baselines_module._exact_max_block_p_value([2, 2], 2, 1) == 1.0
+    # and no draw of two can put three in a block
+    assert baselines_module._exact_max_block_p_value([2, 2], 2, 3) == 0.0
+
+
+def test_the_permutation_cross_check_agrees_with_the_enumeration() -> None:
+    """A second route to the same number under the SAME null.
+
+    It therefore checks the enumeration's ARITHMETIC and leaves the multivariate-hypergeometric
+    null itself untested -- independence of route is not independence of assumption.  Asserted
+    within four Monte Carlo standard errors, which is a real tolerance rather than a generous one.
+    """
+    sizes = [40] * 5
+    labels = [block for block, size in enumerate(sizes) for _ in range(size)]
+    exact = baselines_module._exact_max_block_p_value(sizes, 20, 10)
+    monte_carlo = baselines_module._permutation_max_block_p_value(
+        labels, 20, 10, iterations=20_000, rng_seed=20_260_812
+    )
+    assert exact == pytest.approx(0.007225300, abs=5e-9)
+    assert abs(monte_carlo["p_value"] - exact) < 4.0 * monte_carlo["monte_carlo_standard_error"]
+
+
+def test_a_blocks_identity_must_agree_between_its_directory_and_its_manifest(
+    tmp_path: Path,
+) -> None:
+    """F3 attributes a result to a CHECKPOINT, so a directory name alone is a label, not evidence."""
+    directory = write_dataset_dir(tmp_path, "fixture__policy__seed101")
+    stream = StreamReturn(
+        dataset_dir=str(directory),
+        episode_file="ep000000_seed1000_draw1.npz",
+        ix_id="ix_alpha",
+        ix_index=1,
+        episode_index=0,
+        flow_draw=1,
+        group=ALPHA_GROUP,
+        total_return=-37.0,
+    )
+    assert baselines_module._behaviour_seed(stream) == 101
+
+    manifest_path = directory / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["run_metadata"]["checkpoint"] = "output/checkpoints/cf_hz1x1__mappo__seed202.pt"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    with pytest.raises(ValueError, match="not trustworthy"):
+        baselines_module._behaviour_seed(stream)
+
+
+def test_the_composition_reports_concentration_and_the_correlation_it_rests_on(
+    tmp_path: Path,
+) -> None:
+    """The whole F3 object, on a fixture whose blocks are known by construction.
+
+    Three blocks of different sizes, and a held-out ATT that is worse exactly where the mean
+    training return is worse -- so the correlation is -1 by construction and the block supplying
+    the kept stream is the better checkpoint.  Three is the floor rather than a convenience: the
+    function refuses two, because a correlation over two points is a line.
+
+    The first draft of this test used two blocks and was refused by that guard.  The guard is
+    right and the setup was wrong; it is recorded in the packet rather than quietly repaired.
+    """
+    first = write_dataset_dir(tmp_path, "fixture__policy__seed101", draws=(1,))
+    second = write_dataset_dir(tmp_path, "fixture__policy__seed202", draws=(1, 2))
+    third = write_dataset_dir(tmp_path, "fixture__policy__seed303", draws=(1, 2, 3))
+    dataset = TrajectoryWindowDataset(
+        [first, second, third], context_length=CONTEXT, split="train"
+    )
+    kept = [
+        s for s in stream_returns(dataset)
+        if s.ix_id == "ix_alpha" and "seed101" in s.dataset_dir
+    ]
+    assert len(kept) == 1
+
+    composition = baselines_module.top_return_composition(
+        dataset, kept, {101: 100.0, 202: 110.0, 303: 120.0}, permutations=2_000
+    )
+    assert composition["per_seed_kept_counts"] == {"101": 1, "202": 0, "303": 0}
+    assert composition["per_seed_stream_counts"] == {"101": 2, "202": 4, "303": 6}
+    assert composition["observed_max_block_count"] == 1
+    assert composition["exact_p_value"] == 1.0          # any single draw concentrates trivially
+    assert composition["pearson_n"] == 3
+    assert composition["pearson_r_training_return_vs_heldout_att"] == pytest.approx(-1.0)
+    assert "CONCENTRATION only" in composition["exact_p_value_tests"]
+    assert "multivariate hypergeometric" in composition["exact_p_value_null"]
+
+
+def test_the_composition_refuses_a_correlation_it_cannot_support(tmp_path: Path) -> None:
+    """Three blocks is the floor: a correlation over two points is a line, not evidence."""
+    first = write_dataset_dir(tmp_path, "fixture__policy__seed101", draws=(1,))
+    dataset = TrajectoryWindowDataset([first], context_length=CONTEXT, split="train")
+    kept = list(stream_returns(dataset))[:1]
+    with pytest.raises(ValueError, match="too few to correlate"):
+        baselines_module.top_return_composition(dataset, kept, {101: 100.0}, permutations=100)
+
+
+def test_the_committed_composition_is_the_one_the_reported_filter_selected() -> None:
+    """The artifact's composition must describe the streams the reported %BC run trained on."""
+    training = json.loads(
+        (REPO_ROOT / "docs/data/p4_4_training.json").read_text(encoding="utf-8")
+    )
+    block = training["top_return_filter"]
+    composition = block.get("composition")
+    if composition is None:
+        pytest.skip(
+            "docs/data/p4_4_training.json carries no composition block yet: run "
+            "'python -m offline.offline_baselines ... compose' to record it"
+        )
+    assert sum(composition["per_seed_kept_counts"].values()) == block["streams_kept"]
+    assert sum(composition["per_seed_stream_counts"].values()) == block["streams_total"]
+    assert composition["exact_p_value"] == pytest.approx(0.007225300, abs=5e-9)
+    assert composition["pearson_n"] == 5
+    assert composition["pearson_r_training_return_vs_heldout_att"] < -0.9

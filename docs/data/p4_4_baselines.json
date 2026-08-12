@@ -22583,7 +22583,7 @@
   "runtime": {
     "cuda_available": true,
     "cuda_device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
-    "git_commit": "c13aaa983b9da2ad86d3288748e0fef08c736f63",
+    "git_commit": "13732f3afc92b677cc348b06e5052ff2e8103d33",
     "numpy_version": "2.5.1",
     "python_version": "3.12.13",
     "torch_cuda_version": "12.8",
@@ -23305,6 +23305,56 @@
       505
     ],
     "top_return_filter": {
+      "composition": {
+        "decisive_test_not_run_here": "BC trained on the two strongest behaviour seeds only, against %BC; registered as P4.5 because it needs a training run, which BRIEF_12 section 5 forbids in this round",
+        "does_not_license": "that return filtering does checkpoint selection in general: n = 5 seeds, one tier, one scenario, one backend. A correlation this strong over this few points is a strong hint and a weak law",
+        "exact_p_value": 0.007225299506388427,
+        "exact_p_value_null": "multivariate hypergeometric: drawing 20 of 200 streams uniformly WITHOUT replacement from 5 blocks of 40, P(max block count >= 10)",
+        "exact_p_value_tests": "CONCENTRATION only -- that some block holds at least the observed count. It does NOT test that the concentrated blocks are the best-performing ones; that rests on the correlation below and on the filter being a deterministic rank by return",
+        "heldout_att_arm": "mappo1000",
+        "heldout_att_source": "docs/data/p4_4_baselines.json",
+        "licenses": "on this corpus the top-10% return filter performed CHECKPOINT SELECTION, so %BC's advantage over BC is at least partly an effect of training on the strongest behaviour policies rather than of filtering episode quality within a policy",
+        "observed_max_block_count": 10,
+        "pearson_draw_sets": "DISJOINT: training returns over draws 1-200, held-out ATT over draws 1000-1099, so the correlation cannot be produced by shared draw difficulty",
+        "pearson_n": 5,
+        "pearson_r_training_return_vs_heldout_att": -0.9909741850281684,
+        "per_seed_heldout_att": {
+          "101": 103.60869401265231,
+          "202": 103.52858962932616,
+          "303": 107.79803977256651,
+          "404": 105.99759066310882,
+          "505": 106.9772590660622
+        },
+        "per_seed_kept_counts": {
+          "101": 9,
+          "202": 10,
+          "303": 0,
+          "404": 0,
+          "505": 1
+        },
+        "per_seed_stream_counts": {
+          "101": 40,
+          "202": 40,
+          "303": 40,
+          "404": 40,
+          "505": 40
+        },
+        "per_seed_training_return_mean": {
+          "101": -6711.025,
+          "202": -6751.775,
+          "303": -7570.25,
+          "404": -7199.2,
+          "505": -7293.175
+        },
+        "permutation_cross_check": {
+          "iterations": 20000,
+          "monte_carlo_standard_error": 0.0006200781200784301,
+          "p_value": 0.00775,
+          "rng_seed": 20260812
+        },
+        "permutation_cross_check_role": "a second route to the same number under the SAME null, so it checks the enumeration's arithmetic and leaves the null itself untested",
+        "role": "what the top-return filter selected: a result about %BC's mechanism, not provenance"
+      },
       "cut_return": -6419.0,
       "fraction": 0.1,
       "kept_streams": [
