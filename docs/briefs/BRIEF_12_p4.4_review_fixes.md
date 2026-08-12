@@ -101,7 +101,7 @@ declared direction on hand-built residuals, and that the target of a last transi
 `r + γ·V(s_T)` when computed by the *training loop*, not by the helper. Cheap, deterministic, and it
 fails for the right reason.
 
-### F3 — the mechanism behind %BC is unreported (MAJOR, reporting)
+### F3 — the mechanism behind %BC is unreported (MAJOR, reporting) — ⚠️ **RESCOPED 2026-08-12, see §7.5: this is a RESULT, not provenance**
 
 The reviewer confirmed and strengthened a finding of mine. The top decile is not a demand selection —
 it is a **behaviour-seed** selection:
@@ -252,7 +252,73 @@ analytically and by numeric argmin over a 2×10⁶-point grid. **An 8-unit margi
 is an excellent instrument** — deterministic, ~1 s, no corpus, no simulator, and it fails for exactly
 one reason. Use `monkeypatch` so the constant edits cannot leak between tests.
 
-### 7.5 Two smaller rulings
+### 7.5 F3 is a RESULT, not provenance — rescoped, and this is the most important ruling in the round
+
+I scoped F3 as *"record the block, mention it beside the number"*. That was wrong, and the correction
+came from the user's review of this brief. **It is a finding about the mechanism of the arm that beats
+our headline method, and it is stronger material than the 1.79 ATT margin itself.** The P4.4 packet's
+§8.5 disclosed *"%BC's margin may partly be memorisation of an easier subset — I did not test that"*.
+**It is now tested, and the answer is neither of the two options that sentence offers:** the filter is
+not selecting easier episodes (demand excluded) and it is not mainly selecting better episodes — **it
+is selecting better CHECKPOINTS.**
+
+**State the evidence in this structure, because the strength is in the deduction and not in the p-value:**
+
+1. Per-seed training return ranks the five MAPPO checkpoints `101 −6711.0, 202 −6751.8, 404 −7199.2,
+   505 −7293.2, 303 −7570.2`; per-seed **held-out** ATT ranks them `202 103.53, 101 103.61,
+   404 106.00, 505 106.98, 303 107.80`. **Pearson r = −0.991, n = 5, on DISJOINT draw sets**
+   (1–200 vs 1000–1099), so it cannot be produced by shared draw difficulty.
+2. The %BC filter ranks streams **by training return, deterministically**. Given (1), it therefore
+   selects the strongest checkpoints — **this is a deduction from the selection rule, not a
+   coincidence needing a significance test.**
+3. The observed composition `{202:10, 101:9, 505:1, 303:0, 404:0}` is the deduction's visible
+   consequence, and D16 (seed ≡ demand block) is what makes "seed" and "block" the same thing here.
+
+**Say precisely what this licenses and what it does not.** It licenses: *on this corpus the top-10 %
+return filter performed checkpoint selection, and %BC's advantage over BC is therefore at least partly
+an effect of training on the two strongest behaviour policies rather than of filtering episode quality
+within a policy.* It does **not** license *"return filtering does checkpoint selection in general"* —
+that is a hypothesis, and **n = 5 seeds, one tier, one scenario, one backend.** A correlation of
+−0.991 over five points is a strong hint and a weak law; say so in the same sentence you report it.
+
+⚠️ **One precision the p-value does not carry.** `p = 0.007225300` tests **concentration** — that some
+block holds ≥ 10 of the top 20 — and **not** that the concentrated blocks are the *best-performing*
+ones. The identity claim rests on (1) and (2), not on that number. **Do not let the p-value carry a
+claim it does not test**; that is the same error class as the reference-class defect corrected on
+2026-08-12.
+
+**Why this sharpens C1 rather than threatening it,** and the packet should say so in one sentence:
+C1 is that measured data quality decides the outcome. **This is C1 operating one level finer than the
+ladder's tiers — composition WITHIN a tier, at checkpoint granularity — measured rather than
+asserted.** It is a better result than the margin it explains.
+
+**Still out of this round's fence:** the decisive experiment is BC trained on seeds 101+202 only,
+compared against %BC. **I have registered it as P4.5** (`PROJECT_PLAN` §6, `DEFERRED` 38); it needs a
+training run, and §5 forbids one here. Name it in the packet as the open test, and do not run it.
+
+### 7.6 Smaller rulings
+
+- **F4 — assert on the CALL, not on the resulting behaviour.** Raised by the user, and correct.
+  `explore=False → explore=True` moves the number *today* (the reviewer measured BC −0.184, IQL +0.157
+  over 20 draws), but that is a property of the **current weights**, not of the code: BC reproduces the
+  logged action on 99.8 % of training positions, so a near-deterministic policy can make sampling and
+  argmax agree, and the mutation would then survive as **equivalent while proving nothing about the
+  guard**. **Primary assertion: what `_baseline_factory` passes.** Add the behavioural check only as a
+  supplement, if a difference is demonstrable.
+  ⚠️ **This looks like the opposite of §7.3's ruling and is not — read both together.** For F2a the
+  question is *semantic* (**does using the wrong network change the answer?**), so behaviour is the
+  right level and a call-spy is a proxy for it. For F4 the question is *contractual* (**is the declared
+  evaluation path the one that runs?**), and `explore=False` **is** the declared quantity, so asserting
+  it is the direct statement rather than a proxy. **The rule underneath both: assert at the level the
+  claim is made at.**
+- **G3 — two routes under one null test the arithmetic, not the model.** Also the user's, also correct.
+  My enumeration and the implementer's Monte Carlo agree to every stated digit, but **both assume the
+  multivariate-hypergeometric null** (20 of 200 drawn uniformly without replacement from five blocks
+  of 40). The agreement therefore confirms the **calculation** and leaves the **model** untested.
+  **Keep §7.2's instruction to name the null in the same sentence, literally** — that is what carries
+  the assumption to the reader. **General form, now in `PROJECT_PLAN` §7's redundancy rules:
+  independence of ROUTE is not independence of ASSUMPTION**, and our double-computation rule did not
+  distinguish them.
 
 - **The 7 new tests are characterisation tests written against correct code.** That is expected in a
   fix round and is not a defect — but **§12 must disclose it in its own words**, rather than relying
