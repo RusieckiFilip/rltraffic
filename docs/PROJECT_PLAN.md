@@ -534,6 +534,28 @@ than the learning. **Binding on P4.3 and P5:** the criterion stays a reported **
 not justify a budget change for any single arm. **The general form — a criterion is a measurement and
 has to be validated like one** — is why this sits here and not only in the Decisions Log.
 
+**THE DISCRIMINATING POWER OF A TEXT MATCH IS A PROPERTY OF THE CORPUS IT RUNS AGAINST, NOT OF THE STRING — MEASURE IT BEFORE RELYING ON IT (added 2026-08-12, at the THIRD sighting, on the user's count).**
+Three instances, all verified on disk, and nobody was keeping the tally:
+
+| # | the match | how it failed |
+|---|---|---|
+| 1 | sweeping `byte-identical`, missing `byte-identity` | **too narrow** — incomplete sweep, the primary claim left standing |
+| 2 | replacing `"429.67 (Random)"`, missing `429.67 Random` | **too narrow** — same, five days later, by the same author |
+| 3 | `pytest.raises(match="rounding")` in P4.5's F6b | **too broad** — the proximity guard's message also contains the word, so **disabling the guard the test existed to protect left it green** |
+
+**They fail in opposite directions and the remedies differ**, which is why one rule has to name both:
+for a **sweep**, match the *stem* and confirm you have covered every hit; for an **assertion**, assert
+on the **exception type**, or on a token **verified to occur in exactly one raise-path of the module
+under test** — and state that you verified it. **Genericness in English is not the test**; `match="zero"`
+is fine if only one raise mentions zero, and `match="composition"` is not if two do.
+
+⚠️ **The class is live and I measured it rather than guessing: 136 `match=` assertions in the suite,
+73 of the fragile shape** (single or two-word token, no alternation), including `match='zero'`,
+`match='three'`, `match='reward'`, `match='count'`, `match='group'`, `match='window'`, `match='split'`.
+**Instance 3 graduated this class from documentation drift to FALSE COVERAGE**, which is the expensive
+form. Scoped fix in `BRIEF_14` for the two files the paper's data flows through; the remainder is
+`DEFERRED` 43 with the full enumeration recorded, so it cannot be lost.
+
 **A VALIDATOR TAKES ITS REFERENCE FROM THE DECLARATION, NEVER FROM ITS ARGUMENT (added 2026-08-12, after the class recurred ONE TASK after we fixed it).**
 P4.4's F5 was `_run_report` deriving its "requested runs" from the very episodes it then checked for
 completeness — a tautology. P4.5 fixed that, and then wrote `assert_selection_design`, whose leakage

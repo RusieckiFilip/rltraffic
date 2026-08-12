@@ -126,3 +126,40 @@ worse policy is the mechanism, not a defect**).
 - [ ] All three guards exit 0; `git diff --stat` shows no frozen path
 - [ ] Return Packet appended to `docs/returns/P4.5.md` as `## 13. Review-fix round` — do not overwrite
 - [ ] §6's checkbox stays unticked; it is mine, in the merge commit
+
+---
+
+## 7. Added 2026-08-12 — the text-match class, scoped to the two files this task owns
+
+**Not a review finding. A class finding**, raised by the user at its **third** sighting, and it
+qualifies under the standing instruction I wrote for `DEFERRED` 42: the third instance is where a
+class gets fixed rather than logged again. All three are verified on disk —
+`byte-identical`/`byte-identity` (sweep too narrow), `"429.67 (Random)"`/`429.67 Random` (same, five
+days later), and **your own F6b `match="rounding"` (too broad, and it left a disabled guard green)**.
+
+**Your instance is the one that matters**, because it is the first in this family to produce **false
+coverage** rather than an incomplete sweep — and you found and disclosed it yourself.
+
+**Measured before scoping, so this is bounded, not open-ended:** the suite holds **136 `match=`
+assertions, 73 of the fragile shape**. **You fix only the ones in the two files P4.5 owns** —
+`tests/test_offline_baselines.py` (≈15) and `tests/test_offline_selection.py` (6):
+
+```
+test_offline_baselines.py : group, constant, shared draws, zero, incomplete, not requested, madt,
+                            declared, held-out, equivalence margin, not trustworthy,
+                            incomplete campaign (x2), two routes
+test_offline_selection.py : behaviour seeds, count, selector, unknown arm, held-out, composition,
+                            normalisation
+```
+
+**For each: `grep` the module under test for that token across every `raise` message, and report the
+count.** Where it is **1**, the assertion stands and you say so. Where it is **>1**, either lengthen
+the token until it is unique, or assert on the **exception type** and drop the message match.
+
+⚠️ **Do not mass-rewrite.** A blind lengthening of all 21 is the same reflex that produced the
+problem — **the fix is the measurement, and only the non-unique ones change.** Report the table
+either way: *"19 of 21 verified unique, 2 changed"* is the deliverable, and a run that changes nothing
+is a perfectly good outcome as long as the measurement is pasted.
+
+**The rest of the suite is `DEFERRED` 43**, with the full 73-site enumeration recorded there. **Do not
+touch tests outside your two files** — several sit next to frozen code and are not this round's risk.
