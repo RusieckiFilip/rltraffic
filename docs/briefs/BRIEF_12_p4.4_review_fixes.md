@@ -167,6 +167,87 @@ test line was ever deleted; the only deletions are `NotImplementedError` stubs.)
       — do not overwrite the packet; it is the record of what was reviewed
 - [ ] The §6 checkbox stays **unticked**: it is mine, in the merge commit
 
+## 8. RULINGS on the plan of 2026-08-12 — **GO**, with one conflict resolved and three sharpenings
+
+The plan is approved. Pre-flight facts G1–G5 are accepted; two of them I re-derived myself rather
+than accept, and both hold (below). Start where you proposed, with the F2 fixture.
+
+### 8.1 G5 — the conflict, RULED: regenerate BOTH artifacts, in two stages, in this order
+
+You are right that §2 as written cannot be satisfied: `top_return_filter` is embedded in
+`p4_4_baselines.json`, so F3 necessarily propagates there. **You were right to refuse to decide it
+silently.** My §2 named the sha256 as the instrument and then treated it as the goal; the goal is that
+**no reported quantity moves**, and byte-identity was only ever the cheapest proof of it.
+
+> **Ruling: regenerate both. Do NOT freeze `p4_4_baselines.json` at `e887f298…`.**
+
+**Because inconsistent artifacts are a worse defect than a changed hash.** If the baselines artifact
+keeps an old `top_return_filter` and the training artifact carries a new one, then P4.3, P5 and the
+paper's own pipeline can read the composition from the file that does not have it and conclude it was
+never recorded — a silent trap of exactly the class this project exists to catch. A hash that changed
+once, with a documented identity proof beside it, is ordinary.
+
+**The two stages, and the order is the whole point:**
+
+1. **BEFORE the F3 patch:** regenerate `p4_4_baselines.json` and prove it is **byte-identical** to
+   `e887f298677f38e7878103c7e2c274e1c759ad2c406e776de480695b81163de6`. This isolates *"my source edits
+   move nothing"* from *"my source edits moved something the F3 block then masked"*. **If this fails,
+   stop and report — that is a finding, not a step.**
+2. **AFTER the F3 patch:** regenerate again and compare **recursively over the full JSON, every path
+   and every type — not a numeric-field diff.** Verdicts, `policy_source`, canonical digests and
+   format strings are all strings, and a numeric comparison would not see them change. The only
+   permitted difference is **added keys** under `training.top_return_filter`; every pre-existing path
+   must compare `==` at equal type.
+
+Record the old and new sha256 in the packet. I will annotate `docs/reviews/P4.4.md` where it quotes
+the old one, dated, rather than rewriting it.
+
+Your `compose` subcommand's refusal — *"refuses if the recomputed kept streams differ from the ones
+training used"* — is a real guard rather than a formality, and it is why patching a committed record
+is acceptable here. **Validate fully before the first byte is written** (§7's filesystem-mutation
+barrier); a refused `compose` must leave the artifact untouched.
+
+### 8.2 G3 — RULED: report the EXACT p-value as primary; the permutation becomes a cross-check
+
+**This supersedes my §4's instruction to report "the permutation p-value with its iteration count and
+RNG seed".** An exact combinatorial p-value is strictly better: it removes an RNG seed from the set of
+reported quantities, and it cannot be re-rolled.
+
+**I enumerated it independently and get `0.007225300`** — your 0.007225 to every digit you stated.
+Report it as exact, with the **null stated in the same sentence**, because a p-value without its null
+is not interpretable: *the multivariate hypergeometric null of drawing 20 of 200 streams uniformly
+without replacement from five blocks of 40, P(max block count ≥ 10)*. Keep your 20,000-draw Monte
+Carlo (0.007750, seed 20260812, MC se 0.00060, 0.9 σ) as a **cross-check that the enumeration is
+right** — that is a genuine second route and it is worth pasting.
+
+### 8.3 F2a — prefer a BEHAVIOURAL instrument over the call-spy, and say so if you cannot
+
+Your observation is correct and honest: at Polyak 0.005 a short run cannot separate `q` from
+`q_target` numerically. But *"the target network was consulted"* is a weaker assertion than *"using
+the wrong network changes the answer"*, and a spy is the kind of test that passes for the wrong reason.
+
+**Preferred: make them behaviourally distinguishable.** Monkeypatch Polyak to **0** so `q_target`
+stays frozen at initialisation, and initialise it to something clearly different from `q`. Then the V
+fixed point under `q_target` differs from the one under `q` by a margin you can assert on. **Keep the
+spy as a supplement, not as the primary assertion.** If the behavioural form cannot be made to work,
+ship the spy and **state in the test's docstring why the stronger instrument was not available** —
+that is an acceptable outcome, an undisclosed weaker one is not.
+
+### 8.4 The F2 fixture is approved, and I verified its arithmetic rather than trusting it
+
+The τ-expectile of `{+10, −10}` is `20τ − 10`: **+4 at τ=0.7 and −4 at τ=0.3**, confirmed here both
+analytically and by numeric argmin over a 2×10⁶-point grid. **An 8-unit margin on a closed-form target
+is an excellent instrument** — deterministic, ~1 s, no corpus, no simulator, and it fails for exactly
+one reason. Use `monkeypatch` so the constant edits cannot leak between tests.
+
+### 8.5 Two smaller rulings
+
+- **The 7 new tests are characterisation tests written against correct code.** That is expected in a
+  fix round and is not a defect — but **§12 must disclose it in its own words**, rather than relying
+  on §6.1's disclosure, which is about the original round.
+- **F9: correct the count in place and date it** (four → six), as you propose. Do not rewrite the
+  surrounding disclosure; it is a dated record.
+
 ## 7. What happens next, so you can see the shape
 
 I merge, tick §6, and write the Decisions Log rows. **P4.3 is the next task** — RTG calibration —
