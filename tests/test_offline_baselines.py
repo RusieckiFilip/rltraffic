@@ -295,7 +295,7 @@ def test_a_multi_group_dataset_refuses_to_build_transitions_without_a_group(
     fixture_dataset: TrajectoryWindowDataset,
 ) -> None:
     """C6 forbids padding across intersections, so the group must be explicit when ambiguous."""
-    with pytest.raises(ValueError, match="group"):
+    with pytest.raises(ValueError, match="pass group= to say which one to use"):
         build_transitions(fixture_dataset)
     assert build_transitions(fixture_dataset, group=ZULU_GROUP).state.shape[1] == 3
 
@@ -703,7 +703,7 @@ def test_a_checkpoint_saved_at_another_step_count_cannot_be_evaluated(
     path = tmp_path / "bc_seed101.pt"
     _train_one_bc(fixture_dataset, path, steps=6)
     assert load_baseline_checkpoint(None, path, 6)["provenance"]["gradient_steps"] == 6
-    with pytest.raises(ValueError, match="declared"):
+    with pytest.raises(ValueError, match="forbids reporting a checkpoint chosen"):
         load_baseline_checkpoint(None, path, 7)
 
 
@@ -753,7 +753,7 @@ def test_training_iql_records_the_awr_weight_diagnostic(
 def test_the_held_out_pool_cannot_enter_a_training_dataset(tmp_path: Path) -> None:
     """The leakage guard stays in one place -- the loader -- and it raises rather than skips."""
     held_out = write_dataset_dir(tmp_path, "fixture__heldout", draws=(1000, 1001))
-    with pytest.raises(ValueError, match="held-out"):
+    with pytest.raises(ValueError, match="must never enter a training corpus"):
         TrajectoryWindowDataset([held_out], context_length=CONTEXT, split="train")
 
 
@@ -1139,7 +1139,7 @@ def test_a_ci_endpoint_landing_on_the_equivalence_margin_is_refused(
     # endpoints sit on the margin
     episodes += _episodes("bc", {d: v + DELTA_ATT for d, v in draws.items()}, seed=101)
 
-    with pytest.raises(ValueError, match="equivalence margin"):
+    with pytest.raises(ValueError, match="A6's multiplier of 1.0 is a CHOICE"):
         baselines_artifact(
             episodes=episodes,
             training={},
@@ -1521,7 +1521,7 @@ def test_the_delta_rounding_cross_check_fires_on_a_verdict_that_turns_on_the_rou
     proximity guard's message also contains that word (*"decided by the margin's rounding"*).
     The test passed for the wrong reason and only the mutation exposed it.  Recorded here rather
     than quietly repaired -- and see the packet: the two guards are not independent, because the
-    two deltas differ by 4.4e-5, which is inside DELTA_PROXIMITY_TOLERANCE.
+    two deltas differ by 2.4353e-05, which is inside DELTA_PROXIMITY_TOLERANCE.
     """
     assert DELTA_ATT_DERIVATION < 0.62629 < DELTA_ATT, "the fixture must straddle the two deltas"
     draws = {1000: 100.0, 1001: 101.0, 1002: 102.0}

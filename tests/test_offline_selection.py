@@ -22,6 +22,7 @@ restates them.
 
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 from typing import Any, Sequence
@@ -30,9 +31,10 @@ import numpy as np
 import pytest
 import torch
 
+import offline.dt_gate as dt_gate_module
 import offline.offline_baselines as baselines_module
 from offline.dataset import TrajectoryWindowDataset
-from offline.dt_gate import EpisodeResult
+from offline.dt_gate import HELD_OUT_DRAWS, TRAINING_SEEDS, EpisodeResult
 from offline.offline_baselines import (
     DELTA_ATT,
     MATCHED_SUBSET_COUNT,
@@ -56,6 +58,7 @@ from offline.offline_baselines import (
 )
 from offline.dt_gate import stack_dataset
 
+import tests.test_offline_dataset as dataset_fixtures
 from tests.test_offline_dataset import write_dataset_dir
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -203,7 +206,7 @@ def test_sampling_more_streams_than_exist_raises_naming_both_numbers(
     assert len(pool) == 12
     with pytest.raises(ValueError, match="13.*12|12.*13"):
         random_stream_subset(pool, 13, np.random.default_rng(0))
-    with pytest.raises(ValueError, match="at least one|>= 1|must be positive"):
+    with pytest.raises(ValueError, match="a subset needs at least one stream"):
         random_stream_subset(pool, 0, np.random.default_rng(0))
 
 
@@ -320,15 +323,15 @@ def test_cli_flags_that_disagree_with_the_declaration_are_refused() -> None:
     )
     assert accepted == spec
 
-    with pytest.raises(ValueError, match="behaviour seeds"):
+    with pytest.raises(ValueError, match="the declared behaviour seeds are"):
         arm_spec_for_flags(
             "bc_best2_20", selector=spec.selector, behaviour_seeds=(303, 505), count=spec.count
         )
-    with pytest.raises(ValueError, match="count"):
+    with pytest.raises(ValueError, match="a matched-size design is the whole experiment"):
         arm_spec_for_flags(
             "bc_best2_20", selector=spec.selector, behaviour_seeds=spec.behaviour_seeds, count=19
         )
-    with pytest.raises(ValueError, match="selector"):
+    with pytest.raises(ValueError, match="the declared selector is"):
         arm_spec_for_flags(
             "bc_best2_20",
             selector="top_return",
@@ -376,23 +379,25 @@ def test_selecting_an_arms_streams_uses_only_its_declared_seeds(
 # ----------------------------------------------------------------------
 
 
-def _arm_block(
-    *,
-    count: int,
-    rows: int,
-    seeds: Sequence[int] = (101, 202),
-    draws: Sequence[int] = (1, 2),
-    digest: str = "stats-digest-shared",
-) -> dict[str, Any]:
-    """One arm's block of a selection artifact, valid unless a test breaks it deliberately."""
+def _arm_block(arm: str, *, digest: str = "stats-digest-shared") -> dict[str, Any]:
+    """One arm's block of a selection artifact, built to match the REAL declaration.
+
+    Rewritten 2026-08-12 (review finding N1).  The first version used three-stream arms, which
+    only worked because the validator took the size from the block it was checking; now that the
+    size comes from :data:`SELECTION_ARMS`, a fixture has to be the shape the declaration says --
+    20 streams and ``360 x 20`` rows -- which is a better fixture in any case.
+    """
+    spec = SELECTION_ARMS[arm]
+    seeds = list(spec.behaviour_seeds) or [101, 202, 303, 404, 505]
+    count = spec.count if spec.count is not None else 40 * len(seeds)
     per_seed: dict[str, Any] = {}
-    for training_seed in (101, 202):
+    for training_seed in TRAINING_SEEDS:
         streams = [
             {
-                "dataset_dir": f"/corpus/cf__seed{seeds[index % len(seeds)]}",
-                "episode_file": f"ep{index:06d}_seed1000_draw{draws[index % len(draws)]}.npz",
+                "dataset_dir": f"/corpus/cf_hz1x1__mappo1000__seed{seeds[index % len(seeds)]}",
+                "episode_file": f"ep{index:06d}_seed1000_draw{1 + index}.npz",
                 "ix_id": "ix0",
-                "flow_draw": draws[index % len(draws)],
+                "flow_draw": 1 + index,
                 "total_return": -6000.0 - index,
                 "behaviour_seed": seeds[index % len(seeds)],
             }
@@ -406,11 +411,11 @@ def _arm_block(
             "rng_seed": training_seed,
             "streams": streams,
             "per_behaviour_seed_composition": composition,
-            "training_rows": rows,
+            "training_rows": 360 * count,
         }
     return {
-        "selector": "random_subset",
-        "selector_parameters": {"behaviour_seeds": list(seeds), "count": count},
+        "selector": spec.selector,
+        "selector_parameters": {"behaviour_seeds": seeds, "count": spec.count},
         "declared_count": count,
         "normalisation_digest": digest,
         "per_training_seed": per_seed,
@@ -418,21 +423,123 @@ def _arm_block(
 
 
 def _design_payload() -> dict[str, Any]:
-    """A minimal selection artifact that satisfies every invariant."""
+    """A selection artifact that satisfies every invariant, shaped like the real one."""
     return {
-        "held_out_draws": [1000, 1001],
-        "arms": {
-            "bc_best2_20": _arm_block(count=3, rows=1080),
-            "bc_any_20": _arm_block(count=3, rows=1080, seeds=(101, 303)),
-            "bc_worst2_20": _arm_block(count=3, rows=1080, seeds=(303, 505)),
-        },
+        "held_out_draws": list(HELD_OUT_DRAWS),
+        "arms": {arm: _arm_block(arm) for arm in ("bc_best2_20", "bc_any_20", "bc_worst2_20")},
         "matched_arms": ["bc_any_20", "bc_best2_20", "bc_worst2_20"],
     }
 
 
 def test_the_design_check_accepts_a_sound_payload() -> None:
-    """The invariants must be satisfiable, or the three refusal tests prove nothing."""
+    """The invariants must be satisfiable, or the refusal tests prove nothing."""
     assert_selection_design(_design_payload())
+
+
+# -- N1: every reference comes from the DECLARATION, none from the payload ---------------
+
+
+def test_the_leakage_check_uses_the_registered_pool_and_not_the_payloads_field() -> None:
+    """N1, the reviewer's exact probe: empty the pool field, plant a real leak.
+
+    ``flow_draw = 1042`` is inside the registered held-out pool.  The first version of this
+    validator read the pool from ``payload["held_out_draws"]``, so emptying that field made the
+    leak invisible and the suite stayed green.
+
+    The second half is the one that proves the reference moved: with the field **absent
+    entirely** the leak must still be caught, because the pool now comes from ``HELD_OUT_DRAWS``.
+
+    Killed by: reading the pool from the payload.
+    """
+    payload = _design_payload()
+    payload["held_out_draws"] = []
+    payload["arms"]["bc_any_20"]["per_training_seed"]["101"]["streams"][0]["flow_draw"] = 1042
+    with pytest.raises(ValueError, match="not the registered pool"):
+        assert_selection_design(payload)
+
+    absent = _design_payload()
+    del absent["held_out_draws"]
+    absent["arms"]["bc_any_20"]["per_training_seed"]["101"]["streams"][0]["flow_draw"] = 1042
+    with pytest.raises(ValueError, match="held-out draws"):
+        assert_selection_design(absent)
+
+
+def test_the_size_check_uses_the_declared_count_and_not_the_payloads() -> None:
+    """N1 second instance: every arm declaring 19 was accepted, because 19 was its own reference.
+
+    Killed by: reading ``declared_count`` from the block being validated.
+    """
+    payload = _design_payload()
+    for arm, block in payload["arms"].items():
+        block["declared_count"] = 19
+        for entry in block["per_training_seed"].values():
+            entry["streams"] = entry["streams"][:19]
+            composition: dict[str, int] = {}
+            for stream in entry["streams"]:
+                key = str(stream["behaviour_seed"])
+                composition[key] = composition.get(key, 0) + 1
+            entry["per_behaviour_seed_composition"] = composition
+            entry["training_rows"] = 360 * 19
+    with pytest.raises(ValueError, match="the arm table declares 20"):
+        assert_selection_design(payload)
+
+
+def test_the_seed_check_uses_the_declared_training_seeds_and_not_the_first_arms() -> None:
+    """N1 third instance: a UNIFORMLY wrong seed set passed, because arm one defined the truth.
+
+    Killed by: taking the reference seed set from the first arm's own record.
+    """
+    payload = _design_payload()
+    for block in payload["arms"].values():
+        block["per_training_seed"] = {"999": block["per_training_seed"]["101"]}
+    with pytest.raises(ValueError, match="the declared seeds are"):
+        assert_selection_design(payload)
+
+
+def test_the_row_count_must_equal_the_stream_count_times_the_episode_length() -> None:
+    """N1's missing invariant: nothing tied ``training_rows`` to the streams it claims to cover.
+
+    Killed by: dropping the ``rows == 360 x len(streams)`` check.
+    """
+    payload = _design_payload()
+    payload["arms"]["bc_best2_20"]["per_training_seed"]["101"]["training_rows"] = 7199
+    with pytest.raises(ValueError, match="360 x 20"):
+        assert_selection_design(payload)
+
+
+def test_an_arm_the_declaration_does_not_know_is_refused() -> None:
+    """An undeclared arm has no reference to be checked against, so it cannot be validated."""
+    payload = _design_payload()
+    payload["arms"]["bc_middle2_20"] = payload["arms"]["bc_best2_20"]
+    with pytest.raises(ValueError, match="not declared in the arm table"):
+        assert_selection_design(payload)
+
+
+def test_a_stream_from_an_undeclared_checkpoint_is_refused() -> None:
+    """An arm labelled "the two best" whose data came from elsewhere would be a false label."""
+    payload = _design_payload()
+    entry = payload["arms"]["bc_best2_20"]["per_training_seed"]["101"]
+    entry["streams"][0]["behaviour_seed"] = 303
+    entry["per_behaviour_seed_composition"] = {"101": 9, "202": 10, "303": 1}
+    with pytest.raises(ValueError, match="the arm table does not declare"):
+        assert_selection_design(payload)
+
+
+def test_the_recorded_composition_must_recompute_from_its_own_stream_list() -> None:
+    """A composition that does not match its streams is a record of a different draw."""
+    payload = _design_payload()
+    entry = payload["arms"]["bc_best2_20"]["per_training_seed"]["202"]
+    entry["per_behaviour_seed_composition"] = {"101": 20}
+    with pytest.raises(ValueError, match="not the one its own stream list implies"):
+        assert_selection_design(payload)
+
+
+def test_the_payloads_matched_arm_set_is_cross_checked_against_the_declaration() -> None:
+    """Which arms the size invariant protects is a declaration, not the payload's to choose."""
+    payload = _design_payload()
+    payload["matched_arms"] = ["bc_best2_20"]
+    with pytest.raises(ValueError, match="not the payload's to choose"):
+        assert_selection_design(payload)
 
 
 def test_the_design_check_refuses_a_leaked_selection() -> None:
@@ -443,7 +550,7 @@ def test_the_design_check_refuses_a_leaked_selection() -> None:
     payload = _design_payload()
     leaked = payload["arms"]["bc_any_20"]["per_training_seed"]["101"]["streams"][0]
     leaked["flow_draw"] = 1000
-    with pytest.raises(ValueError, match="held-out"):
+    with pytest.raises(ValueError, match="training streams drawn from held-out draws"):
         assert_selection_design(payload)
 
 
@@ -453,17 +560,48 @@ def test_the_design_check_refuses_unequal_matched_arm_sizes() -> None:
     Every other test can pass while two matched arms differ in size, and then the decisive
     comparison measures data quantity while claiming to measure seed identity.
 
-    Killed by: letting the sizes differ.
-    """
-    payload = _design_payload()
-    payload["arms"]["bc_any_20"]["per_training_seed"]["202"]["training_rows"] = 1440
-    with pytest.raises(ValueError, match="training rows|matched"):
-        assert_selection_design(payload)
+    ⚠️ **Restructured 2026-08-12, and the reason matters.**  Under P4.5's own declaration this
+    invariant is UNREACHABLE: all three matched arms declare 20, the size check pins each arm's
+    stream count to its declared 20, and the row check pins rows to ``360 x 20`` -- so equal rows
+    follow, and the mutation that disables this check SURVIVED against the old fixture.  It is
+    reachable exactly when a declaration carries matched arms of DIFFERENT sizes, which is the
+    shape P4.6 will have, and that is what this test now builds.
 
-    other = _design_payload()
-    other["arms"]["bc_worst2_20"]["per_training_seed"]["101"]["streams"].pop()
-    with pytest.raises(ValueError, match="declared count|streams"):
-        assert_selection_design(other)
+    Killed by: dropping the equal-rows check across matched arms.
+    """
+    declaration = {
+        "arm_twenty": ArmSpec("arm_twenty", "random_subset", (101, 202), 20, "matched, 20"),
+        "arm_nineteen": ArmSpec("arm_nineteen", "random_subset", (101, 202), 19, "matched, 19"),
+    }
+    payload = {
+        "held_out_draws": list(HELD_OUT_DRAWS),
+        "arms": {
+            "arm_twenty": _arm_block("bc_best2_20"),
+            "arm_nineteen": _arm_block("bc_best2_20"),
+        },
+        "matched_arms": ["arm_nineteen", "arm_twenty"],
+    }
+    # Make the second arm internally consistent at 19 streams: 19 rows-worth, 19 in composition.
+    for entry in payload["arms"]["arm_nineteen"]["per_training_seed"].values():
+        entry["streams"] = entry["streams"][:19]
+        composition: dict[str, int] = {}
+        for stream in entry["streams"]:
+            key = str(stream["behaviour_seed"])
+            composition[key] = composition.get(key, 0) + 1
+        entry["per_behaviour_seed_composition"] = composition
+        entry["training_rows"] = 360 * 19
+    payload["arms"]["arm_nineteen"]["declared_count"] = 19
+
+    with pytest.raises(ValueError, match="do not have equal training rows"):
+        assert_selection_design(payload, declaration=declaration)
+
+
+def test_an_arm_with_fewer_streams_than_declared_is_refused() -> None:
+    """The size check, on the path P4.5's own declaration does reach."""
+    payload = _design_payload()
+    payload["arms"]["bc_worst2_20"]["per_training_seed"]["101"]["streams"].pop()
+    with pytest.raises(ValueError, match="against a declared count of 20"):
+        assert_selection_design(payload)
 
 
 def test_the_design_check_refuses_a_missing_per_seed_subset_record() -> None:
@@ -480,7 +618,7 @@ def test_the_design_check_refuses_a_missing_per_seed_subset_record() -> None:
     del other["arms"]["bc_best2_20"]["per_training_seed"]["101"][
         "per_behaviour_seed_composition"
     ]
-    with pytest.raises(ValueError, match="composition"):
+    with pytest.raises(ValueError, match="no per-behaviour-seed composition"):
         assert_selection_design(other)
 
 
@@ -491,7 +629,7 @@ def test_the_design_check_refuses_arms_with_different_normalisation_statistics()
     """
     payload = _design_payload()
     payload["arms"]["bc_worst2_20"]["normalisation_digest"] = "stats-digest-refitted"
-    with pytest.raises(ValueError, match="normalisation"):
+    with pytest.raises(ValueError, match="different normalisation digests"):
         assert_selection_design(payload)
 
 
@@ -591,7 +729,10 @@ def test_the_artifact_reports_every_pair_and_scores_the_three_predictions() -> N
     ordering on the cell means.  This fixture is built so the ordering holds and the primary is
     inside delta, which is what lets the test assert the scoring rather than the data.
 
-    Killed by: scoring the ordering on anything but the three cell means.
+    Killed by: scoring the ordering on a SINGLE adjacent contrast instead of the three cell means.
+    ⚠️ Narrowed 2026-08-12 (review finding N6): this line claimed the test killed "anything but
+    the three cell means", and a scoring that reads both adjacent contrasts survives on this
+    fixture, where the ordering and the contrasts agree. The claim now names what was executed.
     """
     artifact = selection_artifact(**_artifact_inputs())
 
@@ -660,6 +801,12 @@ def test_the_artifact_states_the_reuse_and_carries_no_dt_comparison() -> None:
 
     No DT-versus-baseline sentence may enter this task at all (docs/reviews/P4.4.md section 8.6),
     so the artifact must carry neither a ``madt`` cell nor a comparison against one.
+
+    ⚠️ Strengthened 2026-08-12 (review finding N7): the first version asserted "no madt cell" on a
+    fixture that contained only BC arms, so **that half could not fail**.  A DT arm is now
+    REFUSED by the artifact builder, and the second half of this test feeds it one.
+
+    Killed by: dropping the refusal and letting a foreign arm through silently.
     """
     artifact = selection_artifact(**_artifact_inputs())
     assert "madt" not in artifact["cells"]
@@ -667,6 +814,14 @@ def test_the_artifact_states_the_reuse_and_carries_no_dt_comparison() -> None:
     assert artifact["reused_arm"]["arm"] == "bc_top10"
     assert "re-used" in artifact["reused_arm"]["statement"]
     assert artifact["gate_b"]["status"] == "PASS"
+
+    with_dt = _artifact_inputs()
+    with_dt["episodes"] = [
+        *with_dt["episodes"],
+        *_episodes("madt", {101: 104.9}, (1000, 1001, 1002, 1003)),
+    ]
+    with pytest.raises(ValueError, match="no DT arm"):
+        selection_artifact(**with_dt)
 
 
 # ----------------------------------------------------------------------
@@ -801,5 +956,259 @@ def test_a_reused_arm_must_reproduce_exactly_or_the_gate_refuses() -> None:
     with pytest.raises(ValueError, match="does not reproduce|1025"):
         assert_reused_arm_reproduces(committed, drifted)
 
-    with pytest.raises(ValueError, match="missing|1025"):
+    with pytest.raises(ValueError, match="were not re-rolled"):
         assert_reused_arm_reproduces(committed, committed[:1])
+
+
+# ----------------------------------------------------------------------
+# The CLI runners (review finding N3): they had zero coverage, and the
+# property that makes the reported CIs mean what the packet says -- one
+# subset per TRAINING SEED -- was unprotected.
+# ----------------------------------------------------------------------
+
+
+def _stub_train_bc(monkeypatch: pytest.MonkeyPatch, seen: list[dict[str, Any]]) -> None:
+    """Replace training with a record of what it was handed.
+
+    The runner under test selects streams, filters rows and writes the artifact; the 40,000
+    gradient steps are not what N3 is about and would make this test a campaign.
+    """
+
+    def fake(stacked: dict[str, torch.Tensor], **kwargs: Any) -> Any:
+        seen.append({"rows": int(stacked["state"].shape[0]), "seed": kwargs["seed"]})
+        path = Path(kwargs["checkpoint_path"])
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"stub")
+        return baselines_module.TrainRecord(
+            method=kwargs["method"],
+            seed=int(kwargs["seed"]),
+            gradient_steps=int(kwargs["declared_gradient_steps"]),
+            declared_gradient_steps=int(kwargs["declared_gradient_steps"]),
+            losses=(1.0, 0.5),
+            window_means=(1.0, 0.5),
+            plateaued=False,
+            checkpoint_path=str(path),
+            canonical_digest="0" * 64,
+            file_sha256="1" * 64,
+            seconds=0.1,
+            diagnostics={},
+        )
+
+    monkeypatch.setattr(baselines_module, "train_bc", fake)
+
+
+def test_the_training_runner_draws_a_subset_from_every_training_seeds_own_rng(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """N3: the property that makes the reported CIs cover SUBSET variance as well as training.
+
+    The reviewer mutated ``np.random.default_rng(int(seed))`` to ``default_rng(101)`` -- one
+    subset shared by all five training seeds -- and the whole suite stayed green.  The packet
+    claims the five-seed spread averages over five subsets; without this test that claim rests on
+    reading the source.
+
+    The expected subsets are recomputed here through the documented rng contract, so the check is
+    on the actual draws and not merely on "they differ".
+
+    Killed by: drawing every training seed's subset from one generator.
+    """
+    # A SINGLE-INTERSECTION fixture corpus, which is the shape production always has: the runner
+    # calls stack_dataset(dataset) with no group, and that refuses a multi-group dataset outright.
+    # Building it this way removes the seam a two-group fixture would need -- and the first draft,
+    # which used one, was caught by this task's own new rows == T x streams invariant, because a
+    # subset could contain a stream absent from the single stacked group.
+    monkeypatch.setattr(dataset_fixtures, "IX_SPECS", (("ix_alpha", 4, 3),))
+    monkeypatch.setattr(dataset_fixtures, "IX_IDS", ("ix_alpha",))
+    first = write_dataset_dir(tmp_path, "fixture__policy__seed101", draws=(1, 2))
+    second = write_dataset_dir(tmp_path, "fixture__policy__seed202", draws=(3, 4))
+    third = write_dataset_dir(tmp_path, "fixture__policy__seed303", draws=(5, 6))
+    dirs = [str(first), str(second), str(third)]
+
+    spec = ArmSpec(
+        arm="fixture_arm",
+        selector="random_subset",
+        behaviour_seeds=(101, 202),
+        count=2,
+        role="a fixture arm sized to the fixture corpus",
+    )
+    monkeypatch.setattr(baselines_module, "SELECTION_ARMS", {"fixture_arm": spec})
+    monkeypatch.setattr(baselines_module, "DECISION_ROWS_PER_STREAM", FIXTURE_T)
+    monkeypatch.setattr(baselines_module, "STREAMS_PER_BEHAVIOUR_SEED", 2)
+    monkeypatch.setattr(dt_gate_module, "CONTEXT_LENGTH", CONTEXT)
+    seen: list[dict[str, Any]] = []
+    _stub_train_bc(monkeypatch, seen)
+
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
+    args = argparse.Namespace(
+        selection_arm="fixture_arm",
+        stream_selector="random_subset",
+        selector_seed=[101, 202],
+        subset_count=2,
+        methods=",".join(baselines_module.METHODS),
+        dataset_dir=dirs,
+        steps=2,
+        device="cpu",
+        checkpoint_dir=str(tmp_path / "ckpt"),
+        log_every=0,
+    )
+    assert baselines_module._run_train_selection(args, out_dir) == 0
+
+    payload = json.loads((out_dir / "p4_5_selection.json").read_text(encoding="utf-8"))
+    block = payload["arms"]["fixture_arm"]
+    assert len(seen) == len(TRAINING_SEEDS)
+    assert {row["rows"] for row in seen} == {FIXTURE_T * 2}
+
+    dataset = TrajectoryWindowDataset(
+        [Path(d) for d in dirs], context_length=CONTEXT, split="train"
+    )
+    distinct: set[tuple[str, ...]] = set()
+    for training_seed in TRAINING_SEEDS:
+        expected = select_arm_streams(
+            dataset, spec, dataset_dirs=dirs, rng=np.random.default_rng(int(training_seed))
+        )
+        recorded = block["per_training_seed"][str(training_seed)]
+        assert [s["episode_file"] for s in recorded["streams"]] == [
+            s.episode_file for s in expected
+        ], training_seed
+        assert recorded["rng_seed"] == int(training_seed)
+        distinct.add(tuple(s["episode_file"] for s in recorded["streams"]))
+    assert len(distinct) > 1, (
+        "every training seed drew the same subset, so this fixture cannot detect a shared "
+        "generator; change the pool size or the count"
+    )
+
+
+def test_the_gate_refuses_weights_that_are_not_the_recorded_ones_before_any_rollout(
+    tmp_path: Path,
+) -> None:
+    """N3: Gate B's weight identity must refuse, and must refuse BEFORE it rolls anything.
+
+    A rollout on the wrong checkpoint would be a measurement of the wrong model; the digest check
+    exists to make that unreachable.  ``config_for_draw`` raises if it is ever called, so the
+    test also proves the ordering.
+
+    Killed by: comparing the digest after the rollouts, or not at all.
+    """
+    checkpoint = tmp_path / "bc_top10_seed101.pt"
+    torch.save({"model": {"policy.w": torch.zeros(2)}, "provenance": {"gradient_steps": 2}}, checkpoint)
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
+    (out_dir / "p4_4_training.json").write_text(
+        json.dumps(
+            {
+                "runs": [
+                    {
+                        "method": "bc_top10",
+                        "seed": 101,
+                        "checkpoint": str(checkpoint),
+                        "canonical_digest": "deadbeef" * 8,
+                        "file_sha256": "0" * 64,
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    (out_dir / "p4_4_baselines.json").write_text(
+        json.dumps({"episodes": []}), encoding="utf-8"
+    )
+
+    def never(draw_id: int) -> Path:
+        raise AssertionError(f"a rollout was started for draw {draw_id} despite a wrong digest")
+
+    args = argparse.Namespace(
+        reused_arm="bc_top10",
+        training=None,
+        baselines=None,
+        draw=[1000],
+        steps=2,
+        scenario_id="fixture",
+        device="cpu",
+        engine_seed=1000,
+    )
+    with pytest.raises(ValueError, match="canonical digest"):
+        baselines_module._run_gate_selection(args, {}, never, out_dir, tmp_path / "work")
+    assert not (tmp_path / "work").exists(), "a refused gate must create nothing"
+
+
+def test_the_selection_report_refuses_a_gate_that_did_not_pass(tmp_path: Path) -> None:
+    """N3: without Gate B, re-using bc_top10's episodes is a comparison across two instruments.
+
+    Killed by: dropping the status check in ``_run_report_selection``.
+    """
+    work_dir = tmp_path / "work"
+    out_dir = tmp_path / "out"
+    work_dir.mkdir()
+    out_dir.mkdir()
+    (work_dir / "gate_b.json").write_text(
+        json.dumps({"status": "FAIL", "compared": 25, "mismatches": [{"draw_id": 1000}]}),
+        encoding="utf-8",
+    )
+    args = argparse.Namespace(baselines=None, engine_seed=1000)
+    with pytest.raises(ValueError, match="Gate B did not pass"):
+        baselines_module._run_report_selection(args, {}, out_dir, work_dir)
+    assert not (out_dir / "p4_5_baselines.json").exists()
+
+
+def test_the_selection_report_refuses_a_partial_arm_set(tmp_path: Path) -> None:
+    """N3: three arms answer a different question than four, and the design is four.
+
+    Killed by: reporting whichever arms happen to be present.
+    """
+    work_dir = tmp_path / "work"
+    out_dir = tmp_path / "out"
+    work_dir.mkdir()
+    out_dir.mkdir()
+    (work_dir / "gate_b.json").write_text(
+        json.dumps({"status": "PASS", "compared": 25, "mismatches": []}), encoding="utf-8"
+    )
+    (out_dir / "p4_5_selection.json").write_text(
+        json.dumps({"arms": {"bc_best2_20": {}, "bc_any_20": {}}}), encoding="utf-8"
+    )
+    args = argparse.Namespace(baselines=None, engine_seed=1000)
+    with pytest.raises(ValueError, match="missing declared arm"):
+        baselines_module._run_report_selection(args, {}, out_dir, work_dir)
+    assert not (out_dir / "p4_5_baselines.json").exists()
+
+
+def test_the_selection_artifact_refuses_a_verdict_decided_by_deltas_rounding() -> None:
+    """N4: the packet's section 0.1 read as though this guard ran, and it did not exist.
+
+    A guard that can only ever REFUSE to emit a verdict is safe to add after a result, because it
+    cannot manufacture one.  The committed comparisons sit 0.01296 or further from the margin --
+    13x the tolerance -- so it never fired on the reported artifact, which a second test asserts
+    from the committed file.
+
+    Killed by: removing the proximity check from ``selection_artifact``.
+    """
+    inputs = _artifact_inputs()
+    # Every paired difference exactly -delta, so both CI endpoints land on the margin.
+    draws = (1000, 1001, 1002, 1003)
+    inputs["episodes"] = [
+        *_episodes("bc_top10", {101: 103.0}, draws),
+        *_episodes("bc_best2_20", {101: 103.0 + DELTA_ATT}, draws),
+        *_episodes("bc_any_20", {101: 106.0}, draws),
+        *_episodes("bc_worst2_20", {101: 108.0}, draws),
+        *_episodes("bc_best2_all", {101: 110.0}, draws),
+    ]
+    with pytest.raises(ValueError, match="the P4.5 pair"):
+        selection_artifact(**inputs)
+
+
+def test_the_committed_comparisons_are_far_from_the_margin_so_the_guard_never_fired() -> None:
+    """The other half of N4: the guard must not be silently load-bearing on a reported verdict."""
+    artifact = _committed("p4_5_baselines.json")
+    distances = []
+    for name, entry in artifact["comparisons"].items():
+        distance = min(
+            abs(entry["ci95_low"] + DELTA_ATT),
+            abs(entry["ci95_low"] - DELTA_ATT),
+            abs(entry["ci95_high"] + DELTA_ATT),
+            abs(entry["ci95_high"] - DELTA_ATT),
+        )
+        assert distance > baselines_module.DELTA_PROXIMITY_TOLERANCE, f"{name}: {distance}"
+        assert entry["delta_verdict"] == entry["delta_verdict_at_full_precision_delta"], name
+        assert entry["delta_verdict_turns_on_the_rounding"] is False, name
+        distances.append(distance)
+    assert min(distances) == pytest.approx(0.012963537457243324, abs=1e-12)

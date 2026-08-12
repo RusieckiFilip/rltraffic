@@ -789,6 +789,13 @@ SELECTION_ARM_ORDER: tuple[str, ...] = (
 #: The arm whose episodes are re-used from the merged P4.4 artifact instead of re-rolled.
 REUSED_ARM = "bc_top10"
 
+#: Corpus facts of the P4 tier, declared here so a validator has a reference that does NOT come
+#: from the payload it validates (review finding N1).  Both are asserted against the real corpus
+#: by ``test_the_real_tier_filters_and_builds_transitions_consistently``'s neighbours: 200 streams
+#: over 5 behaviour seeds is 40 each, and 72,000 windows over 200 streams is 360 rows each.
+DECISION_ROWS_PER_STREAM = 360
+STREAMS_PER_BEHAVIOUR_SEED = 40
+
 #: The contrast the whole task turns on, and the one whose CI bounds a null (plan section 2.2).
 DECISIVE_CONTRAST = ("bc_best2_20", "bc_any_20")
 POWER_CONTRAST = ("bc_best2_20", "bc_worst2_20")
@@ -1018,75 +1025,171 @@ def delta_verdict(
     return VERDICT_PAIR_INCONCLUSIVE
 
 
-def assert_selection_design(payload: Mapping[str, Any]) -> None:
+def assert_selection_design(
+    payload: Mapping[str, Any],
+    *,
+    declaration: Mapping[str, ArmSpec] | None = None,
+    training_seeds: Sequence[int] | None = None,
+    held_out_draws: Sequence[int] | None = None,
+    rows_per_stream: int | None = None,
+    streams_per_behaviour_seed: int | None = None,
+) -> None:
     """Refuse a selection that would invalidate the design, BEFORE anything is written.
 
-    Four invariants, each of which can void the result on its own:
+    **EVERY REFERENCE COMES FROM THE DECLARATION AND NONE FROM THE PAYLOAD** -- the arms and their
+    sizes from :data:`SELECTION_ARMS`, the training seeds from ``TRAINING_SEEDS``, the evaluation
+    pool from ``HELD_OUT_DRAWS``, the geometry from the two corpus constants.  The payload's own
+    ``held_out_draws`` and ``matched_arms`` fields are **cross-checked against those constants and
+    never used as the reference**, so a payload that disagrees raises instead of being believed.
 
-    1. **no held-out draw enters training** -- the evaluation pool would no longer be held out;
-    2. **every matched arm has the same number of training rows**, for every training seed -- the
-       decisive comparison would otherwise measure data quantity while claiming to measure seed
-       identity, and every other check in this file would still pass;
-    3. **every arm records its subset per training seed**, with a per-behaviour-seed composition
-       that sums to the declared count -- the draw must be auditable rather than asserted;
-    4. **all arms share one normalisation digest** -- refitting the statistics per arm would make
-       the arms incomparable silently.
+    ⚠️ **Corrected 2026-08-12, review finding N1, and this docstring is part of the fix.**  The
+    first version read its pool from ``payload["held_out_draws"]``, its sizes from the block being
+    checked and its seed set from the first arm's own record.  The reviewer emptied the pool
+    field, planted a real leak at ``flow_draw = 1042`` and the whole suite stayed green -- the
+    same defect class this task was commissioned to fix in ``_run_report``, in a function whose
+    docstring promised the guarantee it could not give.
+
+    Six invariants, each of which can void the result on its own:
+
+    1. **no held-out draw enters training**, against ``HELD_OUT_DRAWS``;
+    2. **every arm records a subset for every declared training seed**, against ``TRAINING_SEEDS``;
+    3. **every arm's size is the declared one**, against ``SELECTION_ARMS`` (``count``, or
+       ``streams_per_behaviour_seed x len(behaviour_seeds)`` for a whole-pool arm);
+    4. **every stream came from a declared behaviour checkpoint**, and the recorded composition
+       recomputes from the stream list -- the draw must be auditable rather than asserted;
+    5. **rows equal ``rows_per_stream x len(streams)``**, and all matched arms have equal rows --
+       the decisive comparison would otherwise measure data quantity while claiming to measure
+       seed identity;
+    6. **all arms share one normalisation digest** -- refitting per arm would make the arms
+       incomparable silently.
+
+    The keyword arguments exist so a test can supply its own declaration; ``None`` means "the
+    module's", resolved **at call time** rather than bound at import, which is what every
+    production call uses.  A caller may substitute a declaration but **cannot** make the payload
+    its own reference, which is the property that was missing.
     """
+    declaration = SELECTION_ARMS if declaration is None else declaration
+    training_seeds = TRAINING_SEEDS if training_seeds is None else training_seeds
+    held_out_draws = HELD_OUT_DRAWS if held_out_draws is None else held_out_draws
+    rows_per_stream = (
+        DECISION_ROWS_PER_STREAM if rows_per_stream is None else rows_per_stream
+    )
+    streams_per_behaviour_seed = (
+        STREAMS_PER_BEHAVIOUR_SEED
+        if streams_per_behaviour_seed is None
+        else streams_per_behaviour_seed
+    )
     arms: Mapping[str, Any] = payload["arms"]
     if not arms:
         raise ValueError("this selection declares no arms")
-    held_out = {int(draw) for draw in payload["held_out_draws"]}
 
-    seed_sets = {arm: sorted(block["per_training_seed"]) for arm, block in arms.items()}
-    reference_seeds = seed_sets[sorted(seed_sets)[0]]
-    for arm, seeds in sorted(seed_sets.items()):
-        if seeds != reference_seeds:
+    undeclared = sorted(set(arms) - set(declaration))
+    if undeclared:
+        raise ValueError(
+            f"the payload carries arm(s) {undeclared} that are not declared in the arm table "
+            f"{sorted(declaration)}; an undeclared arm has no reference to be checked against"
+        )
+
+    held_out = {int(draw) for draw in held_out_draws}
+    if "held_out_draws" in payload:
+        recorded = {int(draw) for draw in payload["held_out_draws"]}
+        if recorded != held_out:
             raise ValueError(
-                f"{arm}: records subsets for training seeds {seeds} while other arms record "
-                f"{reference_seeds}; a missing per training seed record makes the draw an "
-                "assertion rather than an audit"
+                f"the payload records a held-out pool of {len(recorded)} draw(s) that is not the "
+                f"registered pool of {len(held_out)}; the pool is a declaration and a payload "
+                "that disagrees with it is refused rather than believed"
             )
 
+    expected_seeds = sorted(str(int(seed)) for seed in training_seeds)
+    expected_matched = sorted(
+        arm for arm in arms if declaration[arm].count is not None
+    )
+    if "matched_arms" in payload and sorted(payload["matched_arms"]) != expected_matched:
+        raise ValueError(
+            f"the payload calls {sorted(payload['matched_arms'])} the matched arms while the "
+            f"declaration makes them {expected_matched}; the matched set decides which arms the "
+            "size invariant protects and it is not the payload's to choose"
+        )
+
+    rows: dict[tuple[str, str], int] = {}
     for arm in sorted(arms):
         block = arms[arm]
-        declared = int(block["declared_count"])
-        for seed in sorted(block["per_training_seed"]):
+        spec = declaration[arm]
+        expected_count = (
+            int(spec.count)
+            if spec.count is not None
+            else int(streams_per_behaviour_seed) * len(spec.behaviour_seeds or tuple(range(5)))
+        )
+        if int(block["declared_count"]) != expected_count:
+            raise ValueError(
+                f"{arm}: the payload declares {block['declared_count']} streams but the arm "
+                f"table declares {expected_count}; the size is the experiment and it is not the "
+                "payload's to redefine"
+            )
+        if sorted(block["per_training_seed"]) != expected_seeds:
+            raise ValueError(
+                f"{arm}: records subsets for training seeds {sorted(block['per_training_seed'])} "
+                f"while the declared seeds are {expected_seeds}; a missing per training seed "
+                "record makes the draw an assertion rather than an audit"
+            )
+
+        for seed in expected_seeds:
             entry = block["per_training_seed"][seed]
             streams = entry["streams"]
-            if len(streams) != declared:
+            if len(streams) != expected_count:
                 raise ValueError(
                     f"{arm} seed {seed}: {len(streams)} streams against a declared count of "
-                    f"{declared}"
+                    f"{expected_count}"
                 )
             if "per_behaviour_seed_composition" not in entry:
                 raise ValueError(
                     f"{arm} seed {seed}: no per-behaviour-seed composition, so which "
                     "checkpoints this subset came from is not recorded"
                 )
-            composition = entry["per_behaviour_seed_composition"]
-            if sum(int(value) for value in composition.values()) != declared:
+            composition = {int(k): int(v) for k, v in entry["per_behaviour_seed_composition"].items()}
+            if sum(composition.values()) != expected_count:
                 raise ValueError(
-                    f"{arm} seed {seed}: the composition {dict(composition)} does not sum to "
-                    f"the declared count {declared}"
+                    f"{arm} seed {seed}: the composition {composition} does not sum to the "
+                    f"declared count {expected_count}"
                 )
+            recomputed: dict[int, int] = {}
+            for stream in streams:
+                key = int(stream["behaviour_seed"])
+                recomputed[key] = recomputed.get(key, 0) + 1
+            if recomputed != composition:
+                raise ValueError(
+                    f"{arm} seed {seed}: the recorded composition {composition} is not the one "
+                    f"its own stream list implies ({recomputed}); the record is not an audit of "
+                    "the draw it describes"
+                )
+            if spec.behaviour_seeds:
+                foreign = sorted(set(recomputed) - set(spec.behaviour_seeds))
+                if foreign:
+                    raise ValueError(
+                        f"{arm} seed {seed}: streams from behaviour checkpoint(s) {foreign}, "
+                        f"which the arm table does not declare ({list(spec.behaviour_seeds)}); "
+                        "the arm's label would not describe its data"
+                    )
             leaked = sorted({int(s["flow_draw"]) for s in streams} & held_out)
             if leaked:
                 raise ValueError(
                     f"{arm} seed {seed}: training streams drawn from held-out draws {leaked}; "
                     "the evaluation pool is not held out and no number here may be reported"
                 )
+            recorded_rows = int(entry["training_rows"])
+            if recorded_rows != int(rows_per_stream) * len(streams):
+                raise ValueError(
+                    f"{arm} seed {seed}: {recorded_rows} training rows against "
+                    f"{rows_per_stream} x {len(streams)} = "
+                    f"{int(rows_per_stream) * len(streams)} implied by its own stream list"
+                )
+            rows[(arm, seed)] = recorded_rows
 
-    matched = sorted(payload["matched_arms"])
-    rows = {
-        (arm, seed): int(arms[arm]["per_training_seed"][seed]["training_rows"])
-        for arm in matched
-        for seed in sorted(arms[arm]["per_training_seed"])
-    }
-    distinct = sorted(set(rows.values()))
-    if len(distinct) != 1:
+    matched_rows = sorted({rows[(arm, seed)] for arm in expected_matched for seed in expected_seeds})
+    if len(matched_rows) != 1:
         raise ValueError(
-            f"the matched arms {matched} do not have equal training rows: {distinct} across "
-            f"{sorted(rows)}; the decisive comparison would measure data quantity while claiming "
+            f"the matched arms {expected_matched} do not have equal training rows: "
+            f"{matched_rows}; the decisive comparison would measure data quantity while claiming "
             "to measure seed identity"
         )
 
@@ -1219,6 +1322,16 @@ def selection_artifact(
             f"the {REUSED_ARM!r} arm is missing: it is the measured reference the primary "
             "prediction is about, and it is re-used from the merged P4.4 artifact"
         )
+    # Enforced rather than incidental (review finding N7): the previous version simply never
+    # built a comparison for an arm outside SELECTION_ARM_ORDER, so a test asserting "no madt
+    # cell" could not fail on a BC-only fixture and guaranteed nothing.
+    foreign = sorted(set(by_arm) - set(SELECTION_ARM_ORDER))
+    if foreign:
+        raise ValueError(
+            f"episodes for arm(s) {foreign} were passed to the P4.5 artifact, which reports only "
+            f"{list(SELECTION_ARM_ORDER)}; docs/reviews/P4.4.md section 8.6 binds until P4.3 has "
+            "run, so no DT arm and no DT-versus-baseline comparison may appear here"
+        )
 
     cells = {arm: _cell(results) for arm, results in sorted(by_arm.items())}
     comparisons: dict[str, Any] = {}
@@ -1228,6 +1341,29 @@ def selection_artifact(
         alternative = delta_verdict(
             comparison.mean_difference, comparison.ci95_half_width, DELTA_ATT_DERIVATION
         )
+        # Review finding N4: the packet's section 0.1 reads as though this guard ran, and it did
+        # not exist.  Added here rather than reworded, because a guard that can only ever REFUSE
+        # to emit a verdict is safe to add after the fact -- it cannot manufacture one.  It is an
+        # assertion only and adds no field, so the reported artifact stays numerically identical;
+        # the observed distances are in the Return Packet.  The smallest is 0.01296, 13x this
+        # tolerance, so it did not fire on the committed result.
+        distance = min(
+            abs(comparison.ci95_low + delta),
+            abs(comparison.ci95_low - delta),
+            abs(comparison.ci95_high + delta),
+            abs(comparison.ci95_high - delta),
+        )
+        if distance <= DELTA_PROXIMITY_TOLERANCE:
+            # The wording deliberately does NOT reuse baselines_artifact's sentence: two raise
+            # messages sharing a phrase make every match= on that phrase ambiguous, which is the
+            # class BRIEF_14 section 7 measures.  "the P4.5 pair" appears at this site only.
+            raise ValueError(
+                f"the P4.5 pair {left}_vs_{right} has a CI endpoint {distance:.3e} from the "
+                f"margin delta={delta}, inside the {DELTA_PROXIMITY_TOLERANCE} proximity "
+                "tolerance; delta's multiplier is a CHOICE, so this verdict would be decided by "
+                "the margin's rounding rather than by the data. Report the CI and the distance "
+                "instead of a verdict"
+            )
         comparisons[f"{left}_vs_{right}"] = {
             **comparison.to_json_obj(),
             "delta": float(delta),
