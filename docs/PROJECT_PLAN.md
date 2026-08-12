@@ -534,6 +534,21 @@ than the learning. **Binding on P4.3 and P5:** the criterion stays a reported **
 not justify a budget change for any single arm. **The general form — a criterion is a measurement and
 has to be validated like one** — is why this sits here and not only in the Decisions Log.
 
+**A VALIDATOR TAKES ITS REFERENCE FROM THE DECLARATION, NEVER FROM ITS ARGUMENT (added 2026-08-12, after the class recurred ONE TASK after we fixed it).**
+P4.4's F5 was `_run_report` deriving its "requested runs" from the very episodes it then checked for
+completeness — a tautology. P4.5 fixed that, and then wrote `assert_selection_design`, whose leakage
+check reads the held-out pool **from the payload it is validating**
+(`held_out = {int(d) for d in payload["held_out_draws"]}`). The reviewer emptied that field, planted a
+real leak, and **the suite stayed green.** The same function also takes `declared_count` from the
+block under test and `reference_seeds` from the first arm's own record: **three instances of one class
+in one function**, under a docstring promising *"no held-out draw enters training"*.
+**The rule is not "check `_run_report`".** A check whose expected value comes from its input can only
+ever verify internal consistency, and internal consistency is exactly what a corrupted artifact has.
+**Every guard names the constant it validates against** — `HELD_OUT_DRAWS`, `TRAINING_SEEDS`,
+`SELECTION_ARMS` — **and cross-checks the payload's own copy against it, so a disagreement raises
+instead of being adopted.** Related and already in force: *a fixture that satisfies the assertion by
+construction is a tautology*, and *an inertness check must enumerate its cases before it runs*.
+
 **ANY TIMING THAT ENTERS AN ARTIFACT RECORDS ITS THREAD REGIME BESIDE IT (added 2026-08-12).**
 Not only suite runs. **Measured:** `docs/data/p4_4_training.json` carries **15 per-run `seconds`**
 values and records `torch_num_threads = 1` — while **`OMP_NUM_THREADS` and `MKL_NUM_THREADS` appear
