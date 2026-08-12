@@ -11,6 +11,8 @@
 P4 passed its gate: `ATT_MADT = 104.9558` against MaxPressure 176.8912 and MAPPO@1000 105.5820,
 paired on all 100 held-out draws, winning 100/100 against MaxPressure and MAPPO@500.
 
+⚠️ **ANNOTATED 2026-08-12, after P4.4 was delivered — this section is a dated record and is annotated, not rewritten.** Both figures above are **seed-averages**. MAPPO@1000's five held-out per-seed means are `103.6087 / 103.5286 / 107.7980 / 105.9976 / 106.9773`; **2 of the 5 checkpoints beat the DT**, and `100/100 vs MAPPO@500` is a win over that tier's seed-average, not over its seed 101 (104.6655). The gate passes under either reading (strict threshold `1.05 × 103.5286 = 108.7050`) and **δ below is unchanged**, since its reference is the pooled mixture the DT actually trained on. See `PROJECT_PLAN.md` §8, row 2026-08-12.
+
 **The DT beat the policy whose data it trained on, by 0.6 %.** That is C1's central question — *does
 the model exceed its data* — and **we cannot yet say whether sequence modelling earned it.** A
 behaviour-cloning model on the same corpus might do the same, in which case the DT's architecture
