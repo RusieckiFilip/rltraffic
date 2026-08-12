@@ -674,6 +674,108 @@ def test_the_artifact_states_the_reuse_and_carries_no_dt_comparison() -> None:
 # ----------------------------------------------------------------------
 
 
+# ----------------------------------------------------------------------
+# The committed artifacts.  Written AFTER the campaign, which is why the
+# invariant tests above are the red-first ones: these assert facts about data
+# that did not exist when the invariants were written.
+# ----------------------------------------------------------------------
+
+
+def _committed(name: str) -> dict[str, Any]:
+    return json.loads((REPO_ROOT / "docs/data" / name).read_text(encoding="utf-8"))
+
+
+def test_the_committed_selection_satisfies_every_design_invariant() -> None:
+    """T6, T7, T8 and T11 against the artifact that was actually reported.
+
+    The invariants are exercised on fixtures above, where each one is killed by its own
+    mutation; this runs the same function over the real thing, so a hand-edited artifact cannot
+    pass review.
+    """
+    selection = _committed("p4_5_selection.json")
+    assert_selection_design(selection)
+    assert sorted(selection["arms"]) == sorted(SELECTION_ARMS)
+    assert len(selection["runs"]) == 20
+
+
+def test_the_committed_matched_arms_trained_on_exactly_the_same_number_of_rows() -> None:
+    """T7 on the reported artifact: the decisive comparison is size-matched or it is nothing.
+
+    360 rows per stream x 20 streams = 7,200, for all three matched arms and all five training
+    seeds -- recomputed here from the stream lists rather than read from ``training_rows``.
+    """
+    selection = _committed("p4_5_selection.json")
+    matched = sorted(selection["matched_arms"])
+    assert matched == ["bc_any_20", "bc_best2_20", "bc_worst2_20"]
+
+    rows = set()
+    for arm in matched:
+        block = selection["arms"][arm]
+        assert block["declared_count"] == MATCHED_SUBSET_COUNT
+        for seed, entry in sorted(block["per_training_seed"].items()):
+            assert len(entry["streams"]) == MATCHED_SUBSET_COUNT, (arm, seed)
+            assert entry["training_rows"] == 360 * MATCHED_SUBSET_COUNT, (arm, seed)
+            rows.add(entry["training_rows"])
+    assert rows == {7200}
+
+    unmatched = selection["arms"]["bc_best2_all"]
+    assert unmatched["declared_count"] == 80
+    assert {e["training_rows"] for e in unmatched["per_training_seed"].values()} == {28800}
+
+
+def test_the_committed_subsets_came_only_from_their_declared_checkpoints() -> None:
+    """T8 on the reported artifact: composition is recorded per training seed and is honest.
+
+    Each stream's ``behaviour_seed`` is checked against the arm's declaration, so an arm whose
+    label says "the two best" and whose data came from elsewhere cannot pass.
+    """
+    selection = _committed("p4_5_selection.json")
+    for arm, spec in sorted(SELECTION_ARMS.items()):
+        block = selection["arms"][arm]
+        assert sorted(block["per_training_seed"]) == sorted(str(s) for s in (101, 202, 303, 404, 505))
+        for seed, entry in sorted(block["per_training_seed"].items()):
+            seen = {int(s["behaviour_seed"]) for s in entry["streams"]}
+            if spec.behaviour_seeds:
+                assert seen <= set(spec.behaviour_seeds), (arm, seed, seen)
+            composition = {int(k): int(v) for k, v in entry["per_behaviour_seed_composition"].items()}
+            assert sum(composition.values()) == block["declared_count"]
+            recomputed: dict[int, int] = {}
+            for stream in entry["streams"]:
+                key = int(stream["behaviour_seed"])
+                recomputed[key] = recomputed.get(key, 0) + 1
+            assert recomputed == composition, (arm, seed)
+
+
+def test_the_committed_result_reuses_bc_top10_unchanged() -> None:
+    """The re-used records must be the committed ones, field for field, not merely in mean."""
+    p44 = _committed("p4_4_baselines.json")["episodes"]
+    p45 = _committed("p4_5_baselines.json")["episodes"]
+    key = lambda e: (e["seed"], e["draw_id"])
+    source = sorted([e for e in p44 if e["arm"] == "bc_top10"], key=key)
+    reused = sorted([e for e in p45 if e["arm"] == "bc_top10"], key=key)
+    assert len(source) == 500
+    assert reused == source
+
+    artifact = _committed("p4_5_baselines.json")
+    assert len(artifact["episodes"]) == 2500
+    assert artifact["cells"]["bc_top10"]["att_horizon_mean"] == _committed(
+        "p4_4_baselines.json"
+    )["cells"]["bc_top10"]["att_horizon_mean"]
+    assert artifact["gate_b"]["status"] == "PASS"
+    assert artifact["gate_b"]["compared"] == 25
+
+
+def test_the_committed_result_carries_every_timing_with_its_thread_regime() -> None:
+    """BRIEF_13 section 11.1: a timing without its thread regime is not reproducible."""
+    selection = _committed("p4_5_selection.json")
+    for run in selection["runs"]:
+        assert "seconds" in run
+        regime = run["thread_regime"]
+        assert regime["OMP_NUM_THREADS"] == "1"
+        assert regime["MKL_NUM_THREADS"] == "1"
+        assert regime["torch_get_num_threads"] == 1
+
+
 def test_a_reused_arm_must_reproduce_exactly_or_the_gate_refuses() -> None:
     """T15.  Exact equality, never a tolerance: a 1e-12 drift means a different instrument.
 
