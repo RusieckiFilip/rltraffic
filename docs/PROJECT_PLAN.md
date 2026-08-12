@@ -534,6 +534,18 @@ than the learning. **Binding on P4.3 and P5:** the criterion stays a reported **
 not justify a budget change for any single arm. **The general form — a criterion is a measurement and
 has to be validated like one** — is why this sits here and not only in the Decisions Log.
 
+**ANY TIMING THAT ENTERS AN ARTIFACT RECORDS ITS THREAD REGIME BESIDE IT (added 2026-08-12).**
+Not only suite runs. **Measured:** `docs/data/p4_4_training.json` carries **15 per-run `seconds`**
+values and records `torch_num_threads = 1` — while **`OMP_NUM_THREADS` and `MKL_NUM_THREADS` appear
+nowhere in it, and nothing under `offline/` sets or reads them.** Those env vars are a **different
+knob** from `torch.set_num_threads()`, and they are the ones that stopped the P4.5 suite hanging. So
+the recorded `torch_num_threads = 1` does **not** establish which regime produced `bc seed 101 =
+103.31 s`. **Suite timings are not results; training seconds and evaluation wall time are the kind of
+number that reaches a reproducibility section**, and two figures from different regimes look
+comparable and are not. Record `OMP_NUM_THREADS`, `MKL_NUM_THREADS` and `torch.get_num_threads()`,
+**read at run time, never assumed**. The general fix to `runtime_provenance()` is `DEFERRED` 39
+(P4.3's, because that function lives in a merged module).
+
 **THE TABLE SHAPE CHECK, IN ITS CORRECT FORM (added 2026-08-12, after the first two versions were both wrong).**
 Run it after **any** structured edit, over the whole file, not the row you touched:
 

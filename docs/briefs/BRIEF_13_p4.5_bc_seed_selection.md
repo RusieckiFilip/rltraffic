@@ -111,7 +111,8 @@ per-seed composition of that list, and the training record. Plus, for the two ra
 **per-training-seed subset composition**, so the subset draw is auditable rather than asserted.
 
 **Results:** `docs/data/p4_5_baselines.json`, same shape as `p4_4_baselines.json`, carrying all
-per-episode records — 3 new arms × 5 seeds × 100 draws = **1500** — plus `bc_top10`'s 500 **re-used
+per-episode records — ⚠️ **4 new arms × 5 seeds × 100 draws = 2000 since §10.7 added `bc_worst2_20`;
+the "3 arms / 1500" below was written before that arm existed** — plus `bc_top10`'s 500 **re-used
 from the merged artifact, not re-rolled** (it is the same model on the same draws; re-rolling it would
 be a second measurement of a settled number). State that reuse explicitly.
 
@@ -280,3 +281,59 @@ mechanism claim — and if all three land together, seed identity does nothing, 
 and we learn that decisively rather than from a single null contrast. **A monotone ordering across
 three matched-size arms is the strongest form this result can take**, and it costs one more training
 run and one more evaluation pass.
+
+---
+
+## 11. Three additions from a second review pass (2026-08-12)
+
+### 11.1 The thread pin is a COMPARABILITY matter, not only a liveness one — and I checked
+
+`DEFERRED` 41's rule (*"every reported suite run states whether it was pinned"*) treats the pin as
+liveness. It is also comparability, and **the merged artifact is already under-specified**. Measured
+here in `docs/data/p4_4_training.json`: it carries **15 per-run `seconds` timings**, it records
+`torch_num_threads = 1` — and **`OMP_NUM_THREADS` / `MKL_NUM_THREADS` appear nowhere in it, and
+nothing under `offline/` sets or reads them.** Those env vars are a **different knob** from
+`torch.set_num_threads()`, and they are the ones that fixed your hang. So `torch_num_threads = 1` does
+**not** establish which regime produced `bc seed 101 = 103.31 s`.
+
+**Required of P4.5, and it stays inside the fence:** record a **`thread_regime`** block of your own
+beside every timing you report — `OMP_NUM_THREADS`, `MKL_NUM_THREADS`, `torch.get_num_threads()`, read
+at run time, not assumed. **Do not modify `runtime_provenance()`**; it lives in the merged
+`offline/dt_gate.py` and §7 forbids touching it. The general fix belongs to `DEFERRED` 39, which
+already owns provenance and is P4.3's.
+
+**Rule generalised, now in `PROJECT_PLAN` §7: any TIMING that enters an artifact records its thread
+regime beside it** — not only suite runs. Suite timings are not results; **training seconds and
+evaluation wall time are the kind of number that reaches a paper's reproducibility section**, and two
+figures from different regimes look comparable and are not.
+
+### 11.2 ⭐ The fifth arm changes what a NULL means, and that must be written down BEFORE the run
+
+**This is the most valuable point of the pass and it goes into `docs/plans/p4.5.md` verbatim.**
+
+With four arms, `bc_best2_20 ≈ bc_any_20` was a **single null contrast** — weak, and fairly attributed
+to power. With `bc_worst2_20` present and a **3.8190 ATT** best-to-worst behaviour spread at six times
+δ, the *same* null becomes a **positive finding**: *seed identity in the training data does not
+transfer to the cloned policy's held-out performance, at a spread where it demonstrably could have.*
+
+**Declare it now, because afterwards it is unbuyable.** Without this sentence in the plan, a null gets
+written up as *"we found nothing"* when what was established is *"we ruled it out at a detectable
+spread"* — and nobody can tell the two apart from the artifact.
+
+⚠️ **State it quantitatively, or it is rhetoric.** *"Could have detected it"* is a claim about power,
+so the packet must report the **`bc_best2_20` vs `bc_worst2_20` paired CI and its width**, and phrase
+the null as **"no effect larger than ±X found, against a 3.8190 ATT spread in the behaviour policies
+themselves"**. That is `BRIEF_11` §7's rule — a CI width converts a failure to reject into a bound —
+applied to the contrast that carries the power.
+
+### 11.3 `bc_any_20`'s middle position is an EXPECTATION over subsets, not a construction guarantee
+
+`bc_best2_20` and `bc_worst2_20` isolate modes **by construction**; `bc_any_20` is a **mixture** of all
+five, so it sits near the five-seed mean **only in expectation over subset draws**. The
+training-seed RNG makes that true across five draws, which §2 already discloses — **state it in the
+packet as an expectation, not as a property of the design.**
+
+**One consequence to predict rather than discover:** `bc_any_20` should carry the **largest
+subset-induced variance** of the three random arms, because its draw varies in *which seeds appear* as
+well as in which streams. If its five-seed spread is not the widest, that is worth a sentence — it
+would mean seed composition is not driving variance, which bears directly on §11.2's null.
