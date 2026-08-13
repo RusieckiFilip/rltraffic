@@ -416,9 +416,9 @@ def test_act_never_selects_an_illegal_action_over_many_steps() -> None:
 
 def test_a_heterogeneous_action_space_is_refused_naming_both_shapes() -> None:
     env = _StubEnv([("ix_zulu", 2), ("ix_alpha", 3)])
-    with pytest.raises(ValueError, match="n_actions"):
+    with pytest.raises(ValueError, match="n_actions differs across them"):
         _bc(env)
-    with pytest.raises(ValueError, match="n_actions"):
+    with pytest.raises(ValueError, match="n_actions differs across them"):
         _iql(env)
 
 
@@ -510,7 +510,7 @@ def test_checkpoints_record_their_format_version_and_canonical_digest(tmp_path: 
 
 def test_saving_before_the_model_exists_raises_instead_of_writing_an_empty_checkpoint() -> None:
     """The state width is only knowable from an ``info``, so the networks are built lazily."""
-    with pytest.raises(ValueError, match="has not been built yet"):
+    with pytest.raises(ValueError, match="nothing to save: the model has not been built yet"):
         _bc(_single_env()).save("unreachable.pt")
 
 
@@ -524,7 +524,7 @@ def test_a_checkpoint_from_another_action_space_is_refused_and_leaves_the_agent_
 
     agent = _bc(_single_env(), state_dim=FIXTURE_STATE_DIM)
     before = agent.canonical_digest()
-    with pytest.raises(ValueError, match="n_actions"):
+    with pytest.raises(ValueError, match="checkpoint n_actions"):
         agent.load(str(path))
     assert agent.canonical_digest() == before
 
@@ -542,7 +542,7 @@ def test_a_checkpoint_claiming_normalisation_without_statistics_is_refused(
     payload["stats"] = None
     torch.save(payload, path)
 
-    with pytest.raises(ValueError, match="statistics"):
+    with pytest.raises(ValueError, match="carries no statistics"):
         _bc(env, state_dim=FIXTURE_STATE_DIM).load(str(path))
 
 

@@ -633,7 +633,7 @@ def test_training_refuses_a_checkpoint_directory_that_does_not_exist(
 ) -> None:
     """Filesystem-mutation barrier: a refused run creates no directory and writes nothing."""
     missing = tmp_path / "absent" / "bc.pt"
-    with pytest.raises(FileNotFoundError, match="does not exist"):
+    with pytest.raises(FileNotFoundError, match="checkpoint directory does not exist"):
         _train_one_bc(fixture_dataset, missing)
     assert not missing.parent.exists()
 
@@ -651,7 +651,7 @@ def test_the_checkpoint_directory_is_checked_before_the_first_gradient_step(
         raise AssertionError("training started before the destination was validated")
 
     monkeypatch.setattr(baselines_module, "action_loss", sentinel)
-    with pytest.raises(FileNotFoundError, match="does not exist"):
+    with pytest.raises(FileNotFoundError, match="checkpoint directory does not exist"):
         _train_one_bc(fixture_dataset, tmp_path / "absent" / "bc.pt", steps=50)
 
 
@@ -817,7 +817,7 @@ def test_the_thread_pin_is_applied_by_the_cli_and_refuses_a_nonsense_count() -> 
         torch.set_num_threads(before)
     assert torch.get_num_threads() == before
 
-    with pytest.raises(ValueError, match="must be >= 1"):
+    with pytest.raises(ValueError, match="torch thread count must be >= 1"):
         baselines_module.pin_torch_threads(0)
     assert baselines_module.build_parser().parse_args(
         ["--manifest", "m", "report"]

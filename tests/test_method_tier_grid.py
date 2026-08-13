@@ -17,6 +17,7 @@ and a ruling with no mechanism is a comment).
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import itertools
 import json
@@ -24,6 +25,7 @@ import math
 import os
 from pathlib import Path
 from typing import Any, Sequence
+from unittest import mock
 
 import numpy as np
 import pytest
@@ -33,6 +35,8 @@ from offline.dataset import TrajectoryWindowDataset
 from offline.dt_gate import EpisodeResult, mean_ci95
 from offline.method_tier_grid import (
     BEHAVIOUR_ATT,
+    BEHAVIOUR_METHOD,
+    BEHAVIOUR_REFERENCE_BY_TIER,
     DECLARED_GRADIENT_STEPS,
     METHODS,
     MIXTURE_EXPERT_FRACTION,
@@ -48,15 +52,19 @@ from offline.method_tier_grid import (
     assert_no_verdicts,
     assert_reused_cells_reproduce,
     cell_stats,
+    behaviour_comparisons,
     difficulty_check,
     draw_arrivals,
     env_settings_for_tiers,
+    fixedtime_collection_settings,
     grid_comparisons,
     hypergeometric_upper_tail,
     kendall_tau_b,
+    kept_composition,
     merge_training_records,
     mixture_training_streams,
     recomputed_target_and_scale,
+    stream_records_with_digests,
     score_p1,
     score_p2,
     score_p3,
@@ -397,13 +405,76 @@ def test_the_declaration_refuses_a_target_that_is_not_the_corpus_maximum(tmp_pat
         tmp_path, "tier_check", episodes=[(1, -1.0, 100.0), (2, -2.0, 110.0)]
     )
     dataset = TrajectoryWindowDataset([directory], context_length=CONTEXT, split="train")
+    selected = training_streams(fixture_spec("good", [directory.name]), dataset)
     good = fixture_spec("good", [directory.name], target_rtg=-6.0, rtg_scale=12.0)
-    record = assert_declaration_matches_corpus(good, dataset)
+    record = assert_declaration_matches_corpus(good, selected)
     assert record["target_rtg"] == -6.0 and record["rtg_scale"] == 12.0
 
     wrong = fixture_spec("wrong", [directory.name], target_rtg=-7.0, rtg_scale=12.0)
     with pytest.raises(ValueError, match="declares target_rtg"):
-        assert_declaration_matches_corpus(wrong, dataset)
+        assert_declaration_matches_corpus(wrong, selected)
+
+
+def test_the_target_is_computed_over_the_training_set_and_not_over_the_full_split(
+    tmp_path: Path,
+) -> None:
+    """``BRIEF_17`` section 11, finding A4: the prompt must be in-support by construction.
+
+    The fixture is built so the two rules disagree: the best episode of draw 1 is the one the
+    declared subsample does NOT take, so a target computed over the full split would ask the model
+    for a return no episode it trained on ever achieved.
+    """
+    directory = write_tier_dir(
+        tmp_path,
+        "tier_a4",
+        episodes=[(1, -1.0, 100.0), (1, -3.0, 130.0), (2, -2.0, 110.0), (2, -4.0, 140.0)],
+    )
+    dataset = TrajectoryWindowDataset([directory], context_length=CONTEXT, split="train")
+    spec = fixture_spec("a4", [directory.name], subsample="one_per_draw")
+    selected = training_streams(spec, dataset)
+
+    split_target, split_scale = recomputed_target_and_scale(stream_returns(dataset))
+    set_target, set_scale = recomputed_target_and_scale(selected)
+    assert split_target == -1.0 * FIXTURE_T, "the split's best episode returns -6"
+    assert set_target <= split_target
+    assert set_target == max(s.total_return for s in selected)
+    assert set_scale == max(abs(s.total_return) for s in selected)
+
+    matching = fixture_spec(
+        "a4", [directory.name], subsample="one_per_draw", target_rtg=set_target,
+        rtg_scale=set_scale,
+    )
+    assert assert_declaration_matches_corpus(matching, selected)["target_rtg"] == set_target
+
+    split_rule = fixture_spec(
+        "a4", [directory.name], subsample="one_per_draw", target_rtg=split_target,
+        rtg_scale=split_scale,
+    )
+    if split_target != set_target:
+        with pytest.raises(ValueError, match="declares target_rtg"):
+            assert_declaration_matches_corpus(split_rule, selected)
+
+
+def test_the_declaration_records_the_episode_sha256_of_every_selected_stream(
+    tmp_path: Path,
+) -> None:
+    """``BRIEF_17`` section 11, finding A1: record the selected ``episode_sha256`` list."""
+    directory = write_tier_dir(
+        tmp_path,
+        "tier_sha",
+        episodes=[(1, -1.0, 100.0), (1, -3.0, 130.0), (2, -2.0, 110.0), (2, -4.0, 140.0)],
+    )
+    manifest = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
+    by_file = {e["filename"]: e["episode_sha256"] for e in manifest["episodes"]}
+    dataset = TrajectoryWindowDataset([directory], context_length=CONTEXT, split="train")
+    spec = fixture_spec("sha", [directory.name], subsample="one_per_draw")
+    selected = training_streams(spec, dataset)
+
+    records = stream_records_with_digests(selected)
+    assert len(records) == 2
+    for record in records:
+        assert record["episode_sha256"] == by_file[record["episode_file"]]
+        assert len(record["episode_sha256"]) == 64
 
 
 def test_equal_training_size_is_asserted_from_the_artifact() -> None:
@@ -661,6 +732,32 @@ def test_every_within_tier_and_within_method_pair_is_compared_and_paired_by_draw
         assert comparison.n_shared_draws == 2
 
 
+def test_behaviour_arms_are_compared_per_tier_and_excluded_from_the_method_grid() -> None:
+    """A3's per-tier reference is reported beside the methods, never inside their 70 pairs."""
+    episodes_by_arm = {
+        arm_key("bc", "random"): episodes_for(arm_key("bc", "random"), {1000: 300.0, 1001: 310.0}),
+        arm_key("dt", "random"): episodes_for(arm_key("dt", "random"), {1000: 320.0, 1001: 330.0}),
+        f"{BEHAVIOUR_METHOD}@random": episodes_for(
+            f"{BEHAVIOUR_METHOD}@random", {1000: 400.0, 1001: 420.0}
+        ),
+    }
+    grid = grid_comparisons(episodes_by_arm)
+    assert all(
+        BEHAVIOUR_METHOD not in comparison.left_arm and BEHAVIOUR_METHOD not in comparison.right_arm
+        for comparison in grid
+    ), "the behaviour arm is not one of the four methods and must not enter the method grid"
+
+    against = behaviour_comparisons(episodes_by_arm)
+    pairs = {(c.left_arm, c.right_arm) for c in against}
+    assert pairs == {
+        (arm_key("bc", "random"), f"{BEHAVIOUR_METHOD}@random"),
+        (arm_key("dt", "random"), f"{BEHAVIOUR_METHOD}@random"),
+    }
+    for comparison in against:
+        assert comparison.mean_difference < 0.0, "both methods beat a 410-ATT behaviour policy"
+        assert comparison.n_shared_draws == 2
+
+
 def test_p1_is_scored_by_the_declared_rank_rule_and_reports_the_sequence() -> None:
     """P1 holds only if BC is worst of four on every tier (plan section 4.1)."""
     worst_everywhere = {
@@ -709,11 +806,11 @@ def test_p3_is_scored_by_the_declared_or_rule_per_tier() -> None:
         "tiers": {
             "mappo1000": {
                 "volume": {"difference": -2.5, "ci95_low": -6.0, "ci95_high": 1.0},
-                "difficulty": {"overlap": 4, "p_value": 0.12},
+                "difficulty": {"overlap": 4, "expected_overlap": 2.0, "p_value": 0.12},
             },
             "random": {
                 "volume": {"difference": -30.0, "ci95_low": -40.0, "ci95_high": -20.0},
-                "difficulty": {"overlap": 9, "p_value": 0.0001},
+                "difficulty": {"overlap": 9, "expected_overlap": 2.0, "p_value": 0.0001},
             },
         }
     }
@@ -727,6 +824,28 @@ def test_p3_is_scored_by_the_declared_or_rule_per_tier() -> None:
         "difference": -1.0, "ci95_low": -5.0, "ci95_high": 3.0
     }
     assert score_p3(diagnostics)["outcome"] == "FAILED"
+
+
+def test_the_kept_composition_is_reported_on_both_axes(tmp_path: Path) -> None:
+    """``BRIEF_17`` section 11, finding A5: by source directory AND as a behaviour-seed histogram.
+
+    Without the second axis, "the filter selects the expert fraction" on a mixture is confounded
+    with the checkpoint selection P4.5 already established.
+    """
+    kept = [
+        stream(1, -1.0, directory="/c/cf_hz1x1__mappo1000__seed202"),
+        stream(2, -2.0, directory="/c/cf_hz1x1__mappo1000__seed202"),
+        stream(3, -3.0, directory="/c/cf_hz1x1__mappo1000__seed101"),
+        stream(4, -4.0, directory="/c/cf_hz1x1__random"),
+    ]
+    composition = kept_composition(kept)
+    assert composition["by_dataset_dir"] == {
+        "cf_hz1x1__mappo1000__seed202": 2,
+        "cf_hz1x1__mappo1000__seed101": 1,
+        "cf_hz1x1__random": 1,
+    }
+    assert composition["by_behaviour_seed"] == {"101": 1, "202": 2}
+    assert composition["without_a_behaviour_seed"] == 1
 
 
 def test_kendall_tau_b_matches_an_independent_pairwise_count() -> None:
@@ -749,6 +868,57 @@ def test_kendall_tau_b_matches_an_independent_pairwise_count() -> None:
 # ----------------------------------------------------------------------
 # Campaign integrity and the gate
 # ----------------------------------------------------------------------
+
+
+def test_every_tier_has_a_declared_behaviour_reference_and_a_source_for_it() -> None:
+    """``BRIEF_17`` section 11, finding A3: the per-tier "did it beat its own policy?" reference."""
+    for tier in PHASE1_TIER_ORDER:
+        reference = BEHAVIOUR_REFERENCE_BY_TIER[tier]
+        assert reference["arm"] in ("mappo1000", "mappo500", "maxpressure", "fixedtime", "random")
+        assert reference["source"] in ("committed", "evaluated_here")
+    assert BEHAVIOUR_REFERENCE_BY_TIER["random"]["source"] == "evaluated_here"
+    assert BEHAVIOUR_REFERENCE_BY_TIER["fixedtime"]["source"] == "evaluated_here"
+    assert BEHAVIOUR_REFERENCE_BY_TIER["mappo500"]["source"] == "committed"
+    for tier in MIXTURE_EXPERT_FRACTION:
+        assert tier not in BEHAVIOUR_REFERENCE_BY_TIER, (
+            "a mixture has two behaviour policies and no single reference; that is P4.7's problem"
+        )
+
+
+def test_the_fixedtime_factory_reads_k_from_the_manifest_and_checks_the_plan_hash(
+    tmp_path: Path,
+) -> None:
+    """A reference policy that is not the collecting policy is a different measurement (A3).
+
+    ``PROJECT_PLAN`` section 6 says P2.5 "ships k=4"; the corpus was collected at k=6, and the
+    manifest is the only source that knows it.
+    """
+    directory = write_tier_dir(
+        tmp_path,
+        "tier_ft",
+        episodes=[(1, -1.0, 100.0), (2, -2.0, 110.0)],
+        manifest_extra={
+            "fixed_time_k": 6,
+            "fixed_time_schedule_source": "shipped_plan",
+            "fixed_time_plan_sha256": "a" * 64,
+        },
+    )
+    settings = fixedtime_collection_settings(directory / "manifest.json")
+    assert settings["fixed_time_k"] == 6
+    assert settings["fixed_time_plan_sha256"] == "a" * 64
+
+    bad = write_tier_dir(
+        tmp_path,
+        "tier_ft_bad",
+        episodes=[(1, -1.0, 100.0), (2, -2.0, 110.0)],
+        manifest_extra={
+            "fixed_time_k": None,
+            "fixed_time_schedule_source": "shipped_plan",
+            "fixed_time_plan_sha256": "a" * 64,
+        },
+    )
+    with pytest.raises(ValueError, match="fixed_time_k"):
+        fixedtime_collection_settings(bad / "manifest.json")
 
 
 def test_a_cell_missing_one_seed_or_one_draw_is_refused() -> None:
@@ -819,6 +989,54 @@ def test_the_gate_refuses_a_reroll_that_is_missing_a_committed_cell() -> None:
     ]
     with pytest.raises(ValueError, match="does not reproduce"):
         assert_reused_cells_reproduce(committed, [])
+
+
+def test_the_training_cli_path_runs_end_to_end_on_a_fixture(tmp_path: Path) -> None:
+    """The function the numbers flow through, exercised -- not the helpers one level down.
+
+    ``PROJECT_PLAN`` section 7 makes this a rule after its third sighting (P4.4 F1, P4.5 N1,
+    P4.3 F2).  It caught a real defect here on its first run: ``_run_train`` was still calling
+    ``assert_declaration_matches_corpus`` with the dataset instead of the selected streams, which
+    every unit test missed because none of them called ``_run_train``.
+    """
+    directory = write_tier_dir(
+        tmp_path,
+        "tier_cli",
+        episodes=[(1, -1.0, 100.0), (1, -3.0, 130.0), (2, -2.0, 110.0), (2, -4.0, 140.0)],
+    )
+    dataset = TrajectoryWindowDataset([directory], context_length=CONTEXT, split="train")
+    spec = fixture_spec("cli", [directory.name], subsample="one_per_draw")
+    selected = training_streams(spec, dataset)
+    target, scale = recomputed_target_and_scale(selected)
+    spec = fixture_spec(
+        "cli", [directory.name], subsample="one_per_draw", target_rtg=target, rtg_scale=scale
+    )
+
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
+    checkpoints = tmp_path / "ckpt"
+    args = argparse.Namespace(
+        corpus_root=str(tmp_path),
+        tier="cli",
+        methods="bc,bc_top10,iql,dt",
+        steps=2,
+        log_every=0,
+        device="cpu",
+        checkpoint_dir=str(checkpoints),
+    )
+    with mock.patch.dict(grid.TIERS, {"cli": spec}, clear=False), mock.patch.object(
+        grid, "CONTEXT_LENGTH", CONTEXT
+    ):
+        assert grid._run_train(args, out_dir) == 0
+
+    payload = json.loads((out_dir / "p4_6_training.json").read_text(encoding="utf-8"))
+    runs = {(r["tier"], r["method"], r["seed"]) for r in payload["runs"]}
+    assert len(runs) == 4 * len(grid.TRAINING_SEEDS)
+    for run in payload["runs"]:
+        assert run["gradient_steps"] == 2
+        assert len(run["canonical_digest"]) == 64
+        assert Path(run["checkpoint"]).is_file()
+        assert (run["target_rtg"] == target) if run["method"] == "dt" else (run["target_rtg"] is None)
 
 
 # ----------------------------------------------------------------------
