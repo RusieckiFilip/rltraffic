@@ -1010,13 +1010,23 @@ def test_the_report_carries_the_withdrawn_criterions_correlation_with_the_outcom
     )
     block = payload["in_support_vs_att"]
     assert block["n_points"] == len(DECLARED_GRID)
-    assert block["pearson_r"] == pytest.approx(pearson_r(fractions, atts), abs=1e-12)
     assert block["higher_in_support_is_better"] is False
+
+    # Recomputed from the REALISED per-point means in the artifact, not from the nominal values
+    # the fixture was built with: the fixture carries per-draw jitter, so the two differ, and the
+    # artifact must be checked against what it actually measured.
+    realised = [
+        float(np.mean([e["att_horizon"] for e in point["episodes"]]))
+        for point in payload["points"]
+    ]
+    assert block["pearson_r"] == pytest.approx(pearson_r(fractions, realised), abs=1e-12)
     # The six-point subset the coordinator computed independently must be reported too, so the
     # two instruments can be compared on identical inputs.
     assert block["first_six_points_pearson_r"] == pytest.approx(
-        pearson_r(fractions[:6], atts[:6]), abs=1e-12
+        pearson_r(fractions[:6], realised[:6]), abs=1e-12
     )
+    # The nominal ordering must survive the jitter, or the fixture is not testing what it claims.
+    assert block["pearson_r"] > 0.5, "the fixture's in-support/ATT relation must be positive"
 
 
 def test_the_report_labels_its_statistics_exploratory() -> None:
