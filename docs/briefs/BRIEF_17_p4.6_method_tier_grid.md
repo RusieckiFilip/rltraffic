@@ -274,3 +274,63 @@ Phase 1 is now **16 cells + 2 behaviour cells + the gated re-use + a generalised
 plus `DEFERRED` 42 and 43. **That is a full task.** If phase 2 (the mixture tiers) is not reached,
 **it becomes P4.7 and that is the expected outcome, not a failure** — §3 already requires phase 1 to
 stand alone, and A5 above is written so P4.7 inherits it.
+
+---
+
+## 12. RULING, 2026-08-13 — THE CAMPAIGN RUNS IN `tmux`, LAUNCHED BY THE USER. NOT AS SESSION BACKGROUND JOBS
+
+**Ruled deliberately for this task at the user's request, not inherited from P4.3.** The user asked
+for the ruling to be made rather than carried over, and it goes the way they proposed.
+
+⚠️ **This was never a free choice: `CLAUDE.md` §5 already binds it** — *"Long simulation runs (corpus
+collection, MAPPO training) are **not** run inside a Claude Code session — they go to a `tmux` session
+started by the user. You may read their logs."* Phase 1 is ≈7 h of training. **§1–§11 of this brief
+were silent on a rule that already applied, and that silence is my omission.**
+
+**Why it is right on its own merits, beyond the rule.** Crash-resistance is *not* the reason — the
+per-cell artifact condition is the stronger protection and it worked cleanly across P4.3's ten points.
+The reason is **session cost**: P4.3's implementer spent an hour of context polling, and P4.4's `until`
+loop hung on a self-match until the user killed it. **P4.6 is the largest campaign in the project, so
+that cost scales with it.** In `tmux` the campaign is independent of the session, so the implementer
+can `/clear` and return for the artifacts instead of holding context open to watch a progress bar —
+which is `CLAUDE.md` §0's context-discipline rule (*"the repo is the memory; the context window is
+scratch space"*) applied to a 7-hour job.
+
+### Six binding conditions, because `tmux` is WEAKER than a background job in one specific respect
+
+**Nobody observes a `tmux` pane's exit status.** §7's *"Verify by EFFECT, not by STATUS"* and
+*"Campaign scripts must abort and must self-verify"* (2026-08-06) exist because the ATT campaign
+*"ran on to a clean-looking end"* with half the corpus missing. Detaching the campaign from the
+session removes the one reader who would have noticed. So:
+
+1. **The implementer WRITES the campaign script; the USER launches it. The implementer never launches
+   it and never `sleep`-polls it.** Read its log, read its artifacts.
+2. **`set -euo pipefail`, and a final assertion that completed cells == requested cells, exiting
+   non-zero on mismatch.** This is §7's 2026-08-06 rule, which has been violated once already.
+3. **The thread pin is exported in the `tmux` shell AND re-asserted inside the script**
+   (`OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`). `DEFERRED` 41 has **two sightings**, one of them inside
+   `pytest`; an unpinned 7-hour job that wedges at ~0 % CPU costs the whole campaign, and exporting it
+   once in the shell converts *"remember to pin each job"* into *"the environment is pinned"* —
+   mechanical enforcement over intention, which is this project's standing preference.
+4. **The script is RESUMABLE: skip any cell whose artifact already exists, and log every skip by
+   name.** ⚠️ **This is the condition that makes `/clear`-and-return real rather than aspirational** —
+   without it, "come back for the artifacts" means "come back and work out which cells ran". No prior
+   campaign here has been resumable; P4.4 chunked manually and merged with `merge_training_runs`.
+5. **The per-cell artifact rule STAYS.** `tmux` does not replace it; the user said so and is right.
+6. **Phase 1 and phase 2 are SEPARATE scripts**, so phase 1's completion is not entangled with a phase
+   that may become P4.7.
+
+### Two consequences to record rather than discover
+
+- **Provenance: a `tmux` campaign is maximally chunked, and that problem is already solved.**
+  `DEFERRED` 39 (a single `runtime.git_commit` cannot express a chunked campaign) landed in P4.3 as a
+  **measurement-provenance / written-at-commit split**. **Use it from the start here.** Measured
+  precedent for why: `output/p4_4/gate_a.json` carries `738884b` while its three `eval_*.json` carry
+  `c13aaa9`.
+- **The campaign writes to `/home/filip/rltraffic-p46/output/p4_6/`, which is gitignored.** Per the
+  2026-08-11 rule and `PROJECT_PLAN` §10, **those checkpoints and raw JSONs must be secured into the
+  `main` tree with a `SHA256SUMS_p4_6.txt` before that worktree is retired** — `git worktree remove`
+  deletes them without warning.
+
+**The Return Packet must state which cells came from which `tmux` run**, since the campaign is no
+longer one process with one log.
