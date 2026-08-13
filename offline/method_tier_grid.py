@@ -1666,12 +1666,32 @@ def assert_no_verdicts(payload: Any) -> None:
     walk(payload, "$")
 
 
+def measurement_commits(inputs: Sequence[Mapping[str, Any]]) -> list[str]:
+    """The commits that produced this report's INPUTS, de-duplicated (``DEFERRED`` 39).
+
+    A ``tmux`` campaign is maximally chunked -- one tier's cells are measured hours apart from
+    another's -- so a single ``runtime.git_commit`` describes when the report was assembled and
+    nothing about what produced its numbers.  Measured precedent: ``output/p4_4/gate_a.json``
+    carries ``738884b`` while its three ``eval_*.json`` carry ``c13aaa9``.
+    ``runtime_provenance`` checks each of these for reachability from ``HEAD`` and moves the
+    unreachable ones into their own field rather than dropping them.
+    """
+    seen: set[str] = set()
+    for payload in inputs:
+        commit = str(payload.get("runtime", {}).get("git_commit") or "")
+        if commit:
+            seen.add(commit)
+    return sorted(seen)
+
+
 def grid_artifact(
     declaration: Mapping[str, Any],
     training: Mapping[str, Any],
     diagnostics: Mapping[str, Any],
     gate: Mapping[str, Any],
     episodes_by_arm: Mapping[str, Sequence[EpisodeResult]],
+    *,
+    inputs: Sequence[Mapping[str, Any]] = (),
 ) -> dict[str, Any]:
     """The reported artifact: cells, episodes, comparisons, predictions and provenance."""
     if gate.get("status") != "PASS":
@@ -1790,7 +1810,7 @@ def grid_artifact(
             for arm in sorted(episodes_by_arm)
             for e in episodes_by_arm[arm]
         ],
-        "runtime": runtime_provenance(),
+        "runtime": runtime_provenance(measurement_commits(inputs)),
     }
     assert_equal_training_size(declaration)
     assert_no_verdicts(payload)
@@ -2481,6 +2501,11 @@ def _run_report(args: argparse.Namespace, out_dir: Path, work_dir: Path) -> int:
     training = json.loads((out_dir / "p4_6_training.json").read_text(encoding="utf-8"))
     baselines = json.loads(Path("docs/data/p4_4_baselines.json").read_text(encoding="utf-8"))
 
+    # DEFERRED 39, used from the start here because a tmux campaign is maximally chunked: every
+    # input's own write-time commit is carried into the report rather than one commit standing for
+    # all of them (BRIEF_17 section 12).
+    inputs: list[Mapping[str, Any]] = [gate, declaration, diagnostics, training, baselines]
+
     episodes_by_arm: dict[str, list[EpisodeResult]] = {}
     for tier in tiers:
         for method in METHODS:
@@ -2502,6 +2527,7 @@ def _run_report(args: argparse.Namespace, out_dir: Path, work_dir: Path) -> int:
                         "the artifact only when all four of its methods are complete"
                     )
                 payload = json.loads(path.read_text(encoding="utf-8"))
+                inputs.append(payload)
                 episodes_by_arm[arm] = _episodes_from_records(payload["episodes"], arm)
             assert_cell_complete(
                 method, tier, TRAINING_SEEDS, list(HELD_OUT_DRAWS), episodes_by_arm[arm]
@@ -2532,6 +2558,7 @@ def _run_report(args: argparse.Namespace, out_dir: Path, work_dir: Path) -> int:
                     "the held-out pool, and its training-draw ATT is not a substitute (A5)"
                 )
             payload = json.loads(path.read_text(encoding="utf-8"))
+            inputs.append(payload)
             episodes_by_arm[arm] = _episodes_from_records(payload["episodes"], arm)
         seeds: list[int | None] = sorted(
             {e.seed for e in episodes_by_arm[arm]}, key=lambda s: (s is not None, s)
@@ -2540,7 +2567,9 @@ def _run_report(args: argparse.Namespace, out_dir: Path, work_dir: Path) -> int:
             BEHAVIOUR_METHOD, tier, seeds, list(HELD_OUT_DRAWS), episodes_by_arm[arm]
         )
 
-    payload = grid_artifact(declaration, training, diagnostics, gate, episodes_by_arm)
+    payload = grid_artifact(
+        declaration, training, diagnostics, gate, episodes_by_arm, inputs=inputs
+    )
     payload["reused"] = {
         "tier": REUSED_TIER,
         "source": "docs/data/p4_4_baselines.json",

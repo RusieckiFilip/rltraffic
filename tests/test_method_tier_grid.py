@@ -879,6 +879,24 @@ def test_the_kept_composition_is_reported_on_both_axes(tmp_path: Path) -> None:
     assert composition["without_a_behaviour_seed"] == 1
 
 
+def test_the_report_carries_every_inputs_own_commit_and_not_just_its_own() -> None:
+    """``DEFERRED`` 39, used from the start: a tmux campaign is measured across many commits.
+
+    ``output/p4_4/gate_a.json`` carries ``738884b`` while its three ``eval_*.json`` carry
+    ``c13aaa9`` -- measured precedent that one write-time commit cannot describe a chunked
+    campaign.  The de-duplicated union of the inputs' commits is what the report must carry.
+    """
+    inputs = [
+        {"runtime": {"git_commit": "a" * 40}},
+        {"runtime": {"git_commit": "b" * 40}},
+        {"runtime": {"git_commit": "a" * 40}},
+        {"runtime": {}},
+        {},
+    ]
+    assert grid.measurement_commits(inputs) == ["a" * 40, "b" * 40]
+    assert grid.measurement_commits([]) == []
+
+
 def test_kendall_tau_b_matches_an_independent_pairwise_count() -> None:
     """Reported beside P1's rank rule, so it gets the same treatment as any reported number."""
     xs = [1.0, 2.0, 3.0, 4.0, 5.0]
