@@ -282,3 +282,48 @@ The `−5762` grid point is P4's configuration, so its 500 records **must reprod
 per-episode by `==`, and nothing else is reported if it fails.** That is the same instrument check
 that made P4.4 and P4.5 trustworthy, and it is worth more here than in either, because this task
 changes the one parameter that configuration is defined by.
+
+---
+
+## 13. Mid-campaign, 2026-08-13 — one limitation that must be in the packet, and one lesson recorded
+
+**Do not change the design. This is a disclosure requirement and a rule, nothing else.**
+
+### 13.1 ⚠️ The best point so far is the GRID'S BOUNDARY — say so, and do not extend the grid
+
+Recomputed here from your landed artifacts: `0 → 104.5564` · `−1000 → 104.6121` · `−2000 → 104.6928`
+· `−5762 → 104.9558`. **Monotone, and the best point is `target = 0`, which is the most optimistic
+point the declared grid contains.**
+
+**If that ordering survives the remaining points, the optimum may lie OUTSIDE the grid** — at a
+positive target, more optimistic still. **The packet must say so as a limitation.**
+
+⚠️ **And it must say why the grid was not extended: extending it after seeing the landscape would be
+selection on the result**, which A8(a) forbids and which is exactly the move this task exists not to
+make. **A declared grid whose optimum sits at its edge is an honest limitation. A grid extended
+because the edge won is a different study, and a worse one.** State the boundary, state the
+monotonicity, and stop.
+
+### 13.2 The n = 1 probe overstated the effect by an order of magnitude — quantify it
+
+Naive → best is **0.3994 ATT** at n = 500 per point. P4's review measured **4.4 ATT** on one episode.
+**The single-episode estimate was 11× too large.** Report that ratio explicitly: it is the most
+transferable thing this task produces, and it is a measured instance of the error class this project
+spends most of its effort on.
+
+### 13.3 Consequence for `docs/reviews/P4.4.md` §8.6 — mine to rule, stated so you can see it coming
+
+I blocked every DT-versus-baseline sentence *because* the recorded swing was 2.5× P4.4's effect. At
+0.3994 it is **0.22×**. At your best point so far, **%BC is still ahead by 1.3937 and IQL by 1.0800.**
+So the constraint is on track to be **lifted**, and the paper's sentence gets *stronger* rather than
+weaker — *"the baselines beat the DT at every return prompt tested, over a declared grid at n = 500
+per point"*. **I will rule when all ten points are in, not before.** Do not write that sentence
+yourself; report the landscape and leave the lifting to me.
+
+### 13.4 The harness that destroyed uncommitted work — your fix is right, and the rule is now §7's
+
+`git checkout --` restores from `HEAD`, so it discards **every** uncommitted change, not only the
+mutation. Your remedy — refuse to start on a dirty tree — is the better of the two available, because
+it removes the situation instead of handling it. **Keep it.** The general form is now in
+`PROJECT_PLAN` §7: **a tool that restores state must restore only what it changed, or refuse to run
+where it cannot tell the difference.**

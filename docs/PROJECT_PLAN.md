@@ -534,6 +534,17 @@ than the learning. **Binding on P4.3 and P5:** the criterion stays a reported **
 not justify a budget change for any single arm. **The general form — a criterion is a measurement and
 has to be validated like one** — is why this sits here and not only in the Decisions Log.
 
+**A TOOL THAT RESTORES STATE MUST RESTORE ONLY WHAT IT CHANGED — OR REFUSE TO RUN WHERE IT CANNOT TELL THE DIFFERENCE (added 2026-08-13).**
+P4.3's mutation harness restored the source with `git checkout --`, which reverts to `HEAD` and
+therefore **discards every uncommitted change, not only the mutation.** It destroyed an unrelated
+edit. **The implementer's remedy is the better of the two available and is the one to copy: refuse to
+start on a dirty tree.** Restoring "only what it changed" requires the tool to hold the exact prior
+bytes and put them back; refusing on a dirty tree removes the situation instead of handling it, and a
+removed situation cannot be handled wrongly. **The wider family — a tool whose blast radius exceeds
+its purpose — also covers `git worktree remove` (2026-08-11) and writing to a relative path under an
+inherited cwd (2026-08-12).** In each, the tool did exactly what it was asked and more than was
+intended.
+
 **A TOOL BUILT TO DETECT A DEFECT CLASS IS ITSELF A MEMBER OF THAT CLASS UNTIL TESTED AGAINST A KNOWN POSITIVE — AND A CLEAN RESULT MUST NAME WHAT IT EXAMINED (added 2026-08-12, two instances the same day, one of them mine).**
 **Instance A, the implementer's:** the tool written to enforce the text-match rule below used a
 paren-counting parser that saw **1 raise site of 148** and pronounced **all 21 tokens unique** — *a
