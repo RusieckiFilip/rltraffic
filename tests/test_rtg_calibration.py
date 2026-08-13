@@ -53,6 +53,7 @@ from offline.rtg_calibration import (
     assert_probe_draws_disjoint,
     effect_size_sidecar,
     episode_return_two_routes,
+    evaluate_point,
     gate_a_result,
     grid_targets,
     in_support_counts,
@@ -64,6 +65,7 @@ from offline.rtg_calibration import (
     probe_statistic,
     report_artifact,
     requested_runs,
+    run_probe,
     rule_a_target,
     rule_b_target,
     source_domain_ratio,
@@ -126,6 +128,36 @@ def _write_checkpoint(path: Path, *, target_rtg: float, steps: int = FIXTURE_STE
         state_dim=FIXTURE_STATE_DIM,
     )
     agent.save(str(path), provenance={"gradient_steps": int(steps)})
+
+
+def _write_checkpoint_with_stats(
+    path: Path, *, rtg_min: float, rtg_max: float, steps: int = FIXTURE_STEPS
+) -> None:
+    """A fixture checkpoint carrying frozen statistics, so `training_rtg_range` can read it."""
+    _write_checkpoint(path, target_rtg=-1.0, steps=steps)
+    payload = torch.load(path, map_location="cpu", weights_only=False)
+    payload["stats"] = {
+        "stats_version": "1.0",
+        "split": "train",
+        "draw_ids": [1],
+        "dataset_dirs": ["fixture"],
+        "state_mean": {"fixture": {"ix_only": [0.0] * FIXTURE_STATE_DIM}},
+        "state_std": {"fixture": {"ix_only": [1.0] * FIXTURE_STATE_DIM}},
+        "row_count": {"fixture": {"ix_only": 1}},
+        "rtg": {
+            "fixture": {
+                "ix_only": {
+                    "count": 2,
+                    "min": float(rtg_min),
+                    "max": float(rtg_max),
+                    "mean": -1.0,
+                    "std": 1.0,
+                    "quantiles": [[0.5, -1.0]],
+                }
+            }
+        },
+    }
+    torch.save(payload, path)
 
 
 def _episode_result(arm: str, seed: int, draw: int, att: float, vehicles: float = 7.0,
@@ -310,6 +342,324 @@ def test_a_checkpoint_saved_at_another_step_count_is_refused(tmp_path: Path) -> 
             target_rtg=-1.0,
             device="cpu",
         )
+
+
+# ----------------------------------------------------------------------
+# F2 -- the two functions the campaign's numbers FLOW THROUGH
+#
+# The P4.3 review's most consequential finding: `evaluate_point` and `run_probe` had zero
+# coverage while every helper they call was well tested, so an alignment off-by-one in the
+# trajectory behind every in-support figure, and a mutation making the "two routes agreed on
+# 100/100" headline vacuous, both survived all 48 tests.  Third sighting of the shape (P4.4's F1,
+# P4.5's N1), now a PROJECT_PLAN section 7 rule: test the function the numbers flow through, not
+# only the one that computes them.
+#
+# These run without a simulator: `run_probe` and `evaluate_arm` both import `make_env` INSIDE the
+# function, so a monkeypatched `experiments.envs.make_env` reaches them.
+# ----------------------------------------------------------------------
+
+
+class _FakeIntersection:
+    def __init__(self, ix_id: str, n_actions: int, lanes: Sequence[str]) -> None:
+        self.id = ix_id
+        self.num_phases = n_actions
+        self.incoming_lanes = list(lanes)
+
+
+class _FakeEnv:
+    """A scripted env satisfying exactly what the rollout loops read.
+
+    Per step it emits a known reward, known per-lane waiting counts, a known
+    ``average_travel_time`` and a known ``vehicle_count``, so every quantity the callers derive has
+    a hand-computable expected value.  ``consistent=False`` breaks the reward/lane identity on
+    purpose, which is what gives the two-route test its teeth.
+    """
+
+    LANES = ("lane_a", "lane_b")
+    IX = "ix_only"
+
+    def __init__(
+        self,
+        *,
+        rewards: Sequence[float],
+        atts: Sequence[float],
+        vehicles: Sequence[float],
+        consistent: bool = True,
+        state_dim: int = FIXTURE_STATE_DIM,
+        n_actions: int = FIXTURE_N_ACTIONS,
+    ) -> None:
+        self.max_steps = len(rewards)
+        self.intersections = [_FakeIntersection(self.IX, n_actions, self.LANES)]
+        self._rewards = list(rewards)
+        self._atts = list(atts)
+        self._vehicles = list(vehicles)
+        self._consistent = consistent
+        self._state_dim = state_dim
+        self._n_actions = n_actions
+        self._step = 0
+        self.actions_seen: list[int] = []
+        self.closed = False
+
+    def _info(self, step: int, reward: float, att: float, vehicles: float) -> dict[str, Any]:
+        # The lane counts carry the reward's magnitude when consistent, so
+        # -sum(lane_waiting) == reward exactly; otherwise they carry something else entirely.
+        waiting = -reward if self._consistent else 5.0
+        return {
+            "step": step,
+            "vehicle_count": vehicles,
+            "average_travel_time": att,
+            "lane_waiting_vehicle_count": {
+                "lane_a": waiting,
+                "lane_b": 0.0,
+                "lane_elsewhere": 99.0,          # not an incoming lane of this intersection
+            },
+            "intersections": {
+                self.IX: {
+                    "state": [float(step + i) for i in range(self._state_dim)],
+                    "avail_actions": list(range(self._n_actions)),
+                    "reward": float(reward),
+                }
+            },
+        }
+
+    def reset(self, seed: int | None = None) -> dict[str, Any]:
+        self._step = 0
+        return self._info(0, 0.0, 0.0, 0.0)
+
+    def step(self, action: Any) -> tuple[float, bool, bool, dict[str, Any]]:
+        self.actions_seen.append(int(np.asarray(action).reshape(-1)[0]))
+        index = self._step
+        self._step += 1
+        info = self._info(
+            self._step, self._rewards[index], self._atts[index], self._vehicles[index]
+        )
+        truncated = self._step >= self.max_steps
+        return float(self._rewards[index]), False, truncated, info
+
+    def close(self) -> None:
+        self.closed = True
+
+
+def _patch_env(monkeypatch: pytest.MonkeyPatch, factory: Any) -> list[_FakeEnv]:
+    """Route `make_env` to *factory*; returns the list of envs handed out, in order."""
+    import experiments.envs
+
+    made: list[_FakeEnv] = []
+
+    def fake_make_env(spec: Any) -> _FakeEnv:
+        env = factory()
+        made.append(env)
+        return env
+
+    monkeypatch.setattr(experiments.envs, "make_env", fake_make_env)
+    return made
+
+
+def _draw_configs(tmp_path: Path, draws: Sequence[int]) -> Any:
+    """Real files on disk, because the rollout loops refuse a missing sim config."""
+    for draw in draws:
+        path = tmp_path / f"draw_{draw}.json"
+        path.write_text("{}", encoding="utf-8")
+    return lambda draw: tmp_path / f"draw_{draw}.json"
+
+
+def test_run_probe_measures_each_episodes_return_by_TWO_routes_that_can_disagree(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """F2: the headline "two independent routes agreed on 100/100" must be falsifiable.
+
+    A mutation writing the reward-route total into BOTH fields makes that claim vacuous and
+    survived every earlier test, because the pure helper was tested and the function that fills
+    the record was not.  Here the env's lane counts deliberately DISAGREE with its rewards in the
+    second case, so a single-route implementation reports agreement where there is none.
+    """
+    rewards = [-3.0, -5.0, -2.0, -7.0]
+    atts = [10.0, 11.0, 12.0, 13.5]
+    vehicles = [4.0, 3.0, 2.0, 1.0]
+
+    made = _patch_env(
+        monkeypatch, lambda: _FakeEnv(rewards=rewards, atts=atts, vehicles=vehicles)
+    )
+    import algorithms.max_pressure
+
+    monkeypatch.setattr(
+        algorithms.max_pressure,
+        "MaxPressureAgent",
+        lambda env: type("_A", (), {"act": lambda self, info: np.zeros(1, dtype=np.int64)})(),
+    )
+
+    episodes = run_probe(
+        draw_ids=[201, 202],
+        config_for_draw=_draw_configs(tmp_path, [201, 202]),
+        env_settings={"max_steps": len(rewards)},
+        scenario_id="fixture",
+        engine_seed=1000,
+    )
+
+    assert len(episodes) == 2 and len(made) == 2
+    assert all(env.closed for env in made), "every env must be closed even on the happy path"
+    for episode in episodes:
+        assert episode.local_return == math.fsum(rewards)          # -17.0
+        assert episode.local_return_from_lanes == math.fsum(rewards)
+        assert episode.att_horizon == atts[-1]                     # the HORIZON, not the mean
+        assert episode.horizon_vehicle_count == vehicles[-1]
+        assert episode.decisions == len(rewards)
+    assert [e.draw_id for e in episodes] == [201, 202]
+
+    # Now break the identity in the env: the lane route must diverge from the reward route, or a
+    # one-route implementation would be indistinguishable from a two-route one.
+    _patch_env(
+        monkeypatch,
+        lambda: _FakeEnv(rewards=rewards, atts=atts, vehicles=vehicles, consistent=False),
+    )
+    inconsistent = run_probe(
+        draw_ids=[203],
+        config_for_draw=_draw_configs(tmp_path, [203]),
+        env_settings={"max_steps": len(rewards)},
+        scenario_id="fixture",
+        engine_seed=1000,
+    )[0]
+    assert inconsistent.local_return == math.fsum(rewards)         # -17.0, from the rewards
+    assert inconsistent.local_return_from_lanes == -20.0           # 4 steps x -(5 + 0)
+    assert inconsistent.local_return != inconsistent.local_return_from_lanes, (
+        "the two routes must be computed independently; this fixture makes them disagree and a "
+        "single-route implementation would report agreement"
+    )
+
+
+def test_evaluate_point_records_the_rtg_the_decision_was_ACTUALLY_conditioned_on(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """F2: the conditioning trajectory behind every in-support figure, checked for alignment.
+
+    ``current_rtg()`` must be read AFTER ``act()``: before it, the agent has not yet subtracted the
+    reward carried by the info it is about to act on, so the whole series is off by one step and
+    every in-support count is computed from the wrong trajectory.  That mutation survived all 48
+    earlier tests.  Here the rewards are distinct and integral, so the correct and shifted series
+    differ at every step from the first onwards.
+    """
+    rewards = [-3.0, -5.0, -11.0, -7.0]
+    target = -100.0
+    checkpoint = tmp_path / "dt.pt"
+    _write_checkpoint_with_stats(checkpoint, rtg_min=-500.0, rtg_max=-1.0)
+
+    _patch_env(
+        monkeypatch,
+        lambda: _FakeEnv(
+            rewards=rewards, atts=[10.0, 11.0, 12.0, 13.5], vehicles=[4.0, 3.0, 2.0, 1.0]
+        ),
+    )
+
+    run = evaluate_point(
+        point_key="dt_g0",
+        target_rtg=target,
+        checkpoints={101: str(checkpoint)},
+        draw_ids=[1000, 1001],
+        config_for_draw=_draw_configs(tmp_path, [1000, 1001]),
+        env_settings={"max_steps": len(rewards)},
+        scenario_id="fixture",
+        engine_seed=1000,
+        declared_gradient_steps=FIXTURE_STEPS,
+        device="cpu",
+    )
+
+    # The RTG at decision t is target - sum(rewards the agent has SEEN), and at decision t the
+    # agent has seen rewards[0..t-1] -- the reward carried by info_t is rewards[t-1].
+    expected = [target - math.fsum(rewards[:t]) for t in range(len(rewards))]
+    assert list(run.canary_rtg_series) == expected, (
+        "the recorded trajectory is not the one the decisions were conditioned on; a series read "
+        "BEFORE act() is shifted one step and every in-support count derives from it"
+    )
+    assert run.canary_cell == (101, 1000)
+    assert run.canary_rtg_series[0] == target, "the episode must start exactly at the target"
+
+    # And the diagnostic computed from it must partition the decisions, per episode.
+    assert len(run.support) == 2 and len(run.episodes) == 2
+    for counts in run.support:
+        assert counts.n == len(rewards)
+        assert counts.in_support + counts.below + counts.above == counts.n
+    assert run.target_rtg == target
+    assert run.rtg_scale == FIXTURE_SCALE
+    assert [e.draw_id for e in run.episodes] == [1000, 1001]
+    assert [e.att_horizon for e in run.episodes] == [13.5, 13.5]
+
+
+def test_evaluate_point_refuses_an_episode_that_did_not_run_to_the_horizon(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A short episode would make the in-support fraction a fraction of the wrong denominator."""
+    rewards = [-3.0, -5.0]
+    checkpoint = tmp_path / "dt.pt"
+    _write_checkpoint_with_stats(checkpoint, rtg_min=-500.0, rtg_max=-1.0)
+    _patch_env(
+        monkeypatch,
+        lambda: _FakeEnv(rewards=rewards, atts=[10.0, 11.0], vehicles=[4.0, 3.0]),
+    )
+    with pytest.raises(ValueError, match="decisions recorded but"):
+        evaluate_point(
+            point_key="dt_g0",
+            target_rtg=-100.0,
+            checkpoints={101: str(checkpoint)},
+            draw_ids=[1000],
+            config_for_draw=_draw_configs(tmp_path, [1000]),
+            env_settings={"max_steps": 99},          # claims 99, the env delivers 2
+            scenario_id="fixture",
+            engine_seed=1000,
+            declared_gradient_steps=FIXTURE_STEPS,
+            device="cpu",
+        )
+
+
+@pytest.mark.skipif(
+    not (REPO_ROOT / "scenarios/draws/cityflow1x1/draw_0201/cityflow.json").is_file(),
+    reason="probe draw 201 is not materialised in this worktree",
+)
+def test_the_probe_loop_and_evaluate_arm_agree_on_a_real_draw() -> None:
+    """F11: the probe's cross-check against ``evaluate_arm``, made MECHANICAL.
+
+    The packet claimed agreement on 100/100 draws but emitted no artifact, log or test, so the
+    claim rested on pasted output that could not be re-verified from disk.  This runs both loops
+    on **one real draw** and asserts exact equality, so the claim is re-checkable by anyone with
+    the draw materialised.  It is one draw rather than a hundred because the scope fence forbids
+    new rollouts; the 100/100 figure is reported in the packet with its evidence status stated.
+    """
+    from offline.dt_gate import _maxpressure_factory, env_settings_from_manifest, evaluate_arm
+    from offline.materialise_draws import draw_config_path
+
+    manifest = Path(
+        "/home/filip/rltraffic/datasets_v11/cf_hz1x1__mappo1000__seed101/manifest.json"
+    )
+    if not manifest.is_file():
+        pytest.skip(f"corpus manifest absent: {manifest}")
+    settings = env_settings_from_manifest(manifest)
+
+    def config_for_draw(draw: int) -> Path:
+        return draw_config_path("cityflow1x1", draw, out_root=str(REPO_ROOT / "scenarios/draws"))
+
+    mine = run_probe(
+        draw_ids=[201],
+        config_for_draw=config_for_draw,
+        env_settings=settings,
+        scenario_id="cityflow1x1",
+        engine_seed=1000,
+    )[0]
+    theirs = evaluate_arm(
+        arm="probe_maxpressure",
+        seed=None,
+        draw_ids=[201],
+        config_for_draw=config_for_draw,
+        env_settings=settings,
+        scenario_id="cityflow1x1",
+        choose_action_factory=_maxpressure_factory,
+        engine_seed=1000,
+    )[0]
+
+    assert mine.att_horizon == theirs.att_horizon
+    assert mine.horizon_vehicle_count == theirs.horizon_vehicle_count
+    # The two return routes must also agree on real data -- that is the identity the probe rests
+    # on, and here it is checked against a rollout rather than a fixture.
+    assert mine.local_return == mine.local_return_from_lanes
+    assert mine.decisions == int(settings["max_steps"])
 
 
 # ----------------------------------------------------------------------
@@ -521,6 +871,29 @@ def test_rule_b_moves_the_target_with_the_ratio_when_the_domains_differ() -> Non
     assert got == -9000.0                      # 1.5x worse probe -> 1.5x more negative target
 
 
+def test_rule_b_is_a_pure_function_of_the_probe_statistics_and_the_corpus() -> None:
+    """F5: the leakage guard was asymmetric -- Rule A's signature was pinned and Rule B's was not.
+
+    Rule B is the mechanism ``PREREGISTRATION.md`` A8(a) names and the one P7 will extend, so it is
+    the signature that matters most: adding an evaluation quantity to it passed all 48 tests.
+    Its three inputs are the corpus's best source return and the two probe statistics -- no
+    held-out draw, no ATT, no artifact.
+    """
+    names = set(inspect.signature(rule_b_target).parameters)
+    assert names == {"best_source_return", "probe_source_stat", "probe_target_stat"}, (
+        f"Rule B must be a function of the corpus and the probe alone, got {sorted(names)}"
+    )
+    # Purity: identical inputs, identical output, and no dependence on call order or state.
+    first = rule_b_target(
+        best_source_return=-5762.0, probe_source_stat=-13112.0, probe_target_stat=-18000.0
+    )
+    rule_a_target([-1.0, -2.0], 0.5)
+    second = rule_b_target(
+        best_source_return=-5762.0, probe_source_stat=-13112.0, probe_target_stat=-18000.0
+    )
+    assert first == second
+
+
 def test_rule_b_refuses_a_zero_source_statistic() -> None:
     with pytest.raises(ValueError, match=r"Rule B\'s ratio is undefined"):
         rule_b_target(best_source_return=-1.0, probe_source_stat=0.0, probe_target_stat=-1.0)
@@ -620,7 +993,7 @@ def test_the_training_rtg_range_is_read_from_the_checkpoints_own_statistics(
     _write_checkpoint(path, target_rtg=-100.0)
     payload = torch.load(path, map_location="cpu", weights_only=False)
     payload["stats"] = {
-        "stats_version": "test",
+        "stats_version": "1.0",
         "split": "train",
         "draw_ids": [1, 2],
         "dataset_dirs": ["x"],
@@ -868,24 +1241,31 @@ def test_the_report_refuses_points_that_disagree_about_the_rtg_scale() -> None:
         )
 
 
-def test_pearson_r_matches_an_independent_recomputation_and_the_known_extremes() -> None:
+def test_pearson_r_matches_numpys_implementation_and_the_known_extremes() -> None:
     """The correlation behind the withdrawn criterion's result (BRIEF_15 section 14.1).
 
-    Recomputed from the centred cross-product by hand rather than by calling the same helper,
-    and pinned at both extremes so a sign error or a dropped centring cannot survive.
+    Checked against ``np.corrcoef`` -- a genuinely different implementation, not this module's
+    algorithm retyped.  The earlier version of this test transcribed the same centred
+    ``math.fsum`` cross-product into the test body, which catches a typo but not a shared
+    conceptual error; the P4.3 review called that half-strength and it is now a section 7 rule:
+    an independent route must not be the same route retyped.
     """
     assert pearson_r([1.0, 2.0, 3.0], [2.0, 4.0, 6.0]) == pytest.approx(1.0, abs=1e-12)
     assert pearson_r([1.0, 2.0, 3.0], [-2.0, -4.0, -6.0]) == pytest.approx(-1.0, abs=1e-12)
 
     rng = np.random.default_rng(1403)
-    xs = list(rng.uniform(0.0, 1.0, size=17))
-    ys = list(rng.uniform(100.0, 110.0, size=17))
-    mean_x = math.fsum(xs) / len(xs)
-    mean_y = math.fsum(ys) / len(ys)
-    cov = math.fsum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys))
-    var_x = math.fsum((x - mean_x) ** 2 for x in xs)
-    var_y = math.fsum((y - mean_y) ** 2 for y in ys)
-    assert pearson_r(xs, ys) == pytest.approx(cov / math.sqrt(var_x * var_y), abs=1e-12)
+    for size in (5, 17, 100):
+        xs = list(rng.uniform(0.0, 1.0, size=size))
+        ys = list(rng.uniform(100.0, 110.0, size=size))
+        assert pearson_r(xs, ys) == pytest.approx(
+            float(np.corrcoef(np.asarray(xs), np.asarray(ys))[0, 1]), abs=1e-12
+        )
+    # And on the real landscape's own shape: a strong positive relation must read as one.
+    fractions = [0.0, 0.1775, 0.3348, 0.4651, 0.5787, 0.8180]
+    atts = [104.5564, 104.6121, 104.6928, 104.7700, 104.7633, 104.9558]
+    assert pearson_r(fractions, atts) == pytest.approx(
+        float(np.corrcoef(np.asarray(fractions), np.asarray(atts))[0, 1]), abs=1e-12
+    )
 
 
 def test_pearson_r_refuses_a_constant_series() -> None:
@@ -998,8 +1378,13 @@ def test_adjacent_steps_are_compared_PAIRED_and_each_carries_a_resolution_verdic
     )
 
 
-def test_the_report_carries_the_withdrawn_criterions_correlation_with_the_outcome() -> None:
-    """BRIEF_15 section 14.1: reported as a RESULT, with the number, over the graded points."""
+def test_the_report_carries_the_withdrawn_criterions_correlation_against_numpys_value() -> None:
+    """BRIEF_15 section 14.1: reported as a RESULT, with the number, over the graded points.
+
+    The reference is ``np.corrcoef``, not this module's ``pearson_r``.  The earlier version
+    asserted the artifact against the function under test -- a wiring check wearing a correctness
+    check's name, which the P4.3 review flagged.
+    """
     atts = [104.5564, 104.6121, 104.6928, 104.7700, 104.7633, 104.9558, 104.8640, 104.9000, 105.0]
     fractions = [0.0, 0.1775, 0.3348, 0.4651, 0.5787, 0.8180, 0.95, 1.0, 0.9]
     payload = report_artifact(
@@ -1019,11 +1404,13 @@ def test_the_report_carries_the_withdrawn_criterions_correlation_with_the_outcom
         float(np.mean([e["att_horizon"] for e in point["episodes"]]))
         for point in payload["points"]
     ]
-    assert block["pearson_r"] == pytest.approx(pearson_r(fractions, realised), abs=1e-12)
+    assert block["pearson_r"] == pytest.approx(
+        float(np.corrcoef(np.asarray(fractions), np.asarray(realised))[0, 1]), abs=1e-12
+    )
     # The six-point subset the coordinator computed independently must be reported too, so the
     # two instruments can be compared on identical inputs.
     assert block["first_six_points_pearson_r"] == pytest.approx(
-        pearson_r(fractions[:6], realised[:6]), abs=1e-12
+        float(np.corrcoef(np.asarray(fractions[:6]), np.asarray(realised[:6]))[0, 1]), abs=1e-12
     )
     # The nominal ordering must survive the jitter, or the fixture is not testing what it claims.
     assert block["pearson_r"] > 0.5, "the fixture's in-support/ATT relation must be positive"
@@ -1121,9 +1508,21 @@ def test_runtime_provenance_gains_the_split_without_changing_an_existing_field()
 
     assert plain["written_at_git_commit"] == plain["git_commit"] or plain["git_commit"] == ""
     assert plain["measurement_git_commits"] == []
+    assert plain["unreachable_measurement_commits"] == []
 
-    carried = runtime_provenance(measurement_git_commits=["bbb", "aaa", "bbb"])
-    assert carried["measurement_git_commits"] == ["aaa", "bbb"]
+    # F6: a commit that cannot be checked out must NOT be recorded as measurement provenance.
+    # The first artifact written under this schema named an amended-away commit that resolved
+    # only because git had not gc'd it, which defeats the field's entire purpose.
+    head = plain["git_commit"]
+    unreachable_hash = "0" * 39 + "1"                      # well-formed, and on no ref
+    carried = runtime_provenance(measurement_git_commits=[head, unreachable_hash, head])
+    assert carried["measurement_git_commits"] == [head], (
+        "only commits reachable from HEAD may be recorded as measurement provenance"
+    )
+    assert carried["unreachable_measurement_commits"] == [unreachable_hash], (
+        "an unreachable commit must be MOVED, not silently dropped: hiding it conceals exactly "
+        "the situation this field exists to expose"
+    )
     assert carried["git_commit"] == plain["git_commit"]
     assert carried["written_at_git_commit"] == plain["written_at_git_commit"]
 
