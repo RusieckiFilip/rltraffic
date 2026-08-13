@@ -615,6 +615,29 @@ is fine if only one raise mentions zero, and `match="composition"` is not if two
 form. Scoped fix in `BRIEF_14` for the two files the paper's data flows through; the remainder is
 `DEFERRED` 43 with the full enumeration recorded, so it cannot be lost.
 
+**TEST THE FUNCTION THE NUMBERS FLOW THROUGH, NOT ONLY THE ONE THAT COMPUTES THEM (added 2026-08-13, at the THIRD sighting in three consecutive tasks).**
+Each time, a helper was well tested and the caller that carries its result into the artifact was not,
+so a mutation one level **up** survived a fully green suite:
+
+| task | tested | untested, and where the mutation lived |
+|---|---|---|
+| P4.4 F1 | `iql_targets` | `train_iql`'s **call site**, which supplies `gamma` — `gamma=0.0` survived 58 tests, worth **+2.398 ATT** |
+| P4.5 N1 | the leakage predicate | `assert_selection_design`, which chose **what to validate** from the payload |
+| P4.3 F2 | `episode_return_two_routes` | `run_probe`, which **records** them — writing one route into both fields made *"100/100 agreed"* vacuous, 48 tests green |
+**The pattern is that a test written while thinking about an algorithm attaches to the algorithm, and
+the plumbing that carries its output is written later, in a different frame of mind, and never
+revisited.** So: **for every reported quantity, name the function that WRITES it into the artifact and
+mutate that one.** If the only tests are one level down, the number is unprotected however green the
+suite is.
+
+**AN "INDEPENDENT RECOMPUTATION" MAY NOT BE THE SAME ALGORITHM RETYPED (added 2026-08-13).**
+P4.3's `test_pearson_r_matches_an_independent_recomputation` transcribed the **same** `math.fsum`
+centred-cross-product into the test body: it catches a typo and **not a shared conceptual error**,
+which is the only failure worth a second route. `np.corrcoef` was one line away. **Use a different
+implementation — a library, a closed form, a different decomposition — not the same derivation in a
+second location.** Companion to the 2026-08-12 rule that independence of *route* is not independence
+of *assumption*: this one is weaker still, because it is not even independence of route.
+
 **A VALIDATOR TAKES ITS REFERENCE FROM THE DECLARATION, NEVER FROM ITS ARGUMENT (added 2026-08-12, after the class recurred ONE TASK after we fixed it).**
 P4.4's F5 was `_run_report` deriving its "requested runs" from the very episodes it then checked for
 completeness — a tautology. P4.5 fixed that, and then wrote `assert_selection_design`, whose leakage
