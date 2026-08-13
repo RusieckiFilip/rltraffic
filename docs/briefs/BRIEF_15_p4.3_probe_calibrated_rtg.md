@@ -327,3 +327,50 @@ mutation. Your remedy — refuse to start on a dirty tree — is the better of t
 it removes the situation instead of handling it. **Keep it.** The general form is now in
 `PROJECT_PLAN` §7: **a tool that restores state must restore only what it changed, or refuse to run
 where it cannot tell the difference.**
+
+---
+
+## 14. RULING, 2026-08-13 — describe the landscape PAIRED, not marginally. Your instinct was right and your reference was wrong.
+
+**Computed here from your seven landed points, over the shared 100 draws, the way
+`PREREGISTRATION.md` §8 registers the unit of replication:**
+
+| adjacent pair | paired diff | ci95 half-width | excludes 0? |
+|---|---|---|---|
+| 0 → −1000 | +0.0558 | 0.1169 | **no** |
+| −1000 → −2000 | +0.0807 | 0.1272 | **no** |
+| −2000 → −3000 | +0.0772 | 0.1157 | **no** |
+| −3000 → −4000 | −0.0068 | 0.1392 | **no** |
+| −4000 → −5762 | +0.1925 | 0.1624 | **yes** |
+| −5762 → −7500 | −0.0918 | 0.1626 | **no** |
+
+⚠️ **Only ONE of six adjacent steps is resolvable.** So **the landscape may not be called monotone**,
+and *"monotone at 4 of 5 adjacent steps"* still describes point estimates. **The supported claim is
+about the ENDPOINTS** — `0` versus naive is **0.3994**, and the adjacent steps are individually within
+noise. **Make the endpoint claim; describe the interior as a trend that no single step resolves.**
+
+**Your inversion call was correct and your reference was not.** The −4000 step is **−0.0068, CI
+[−0.1459, +0.1324]** — noise, as you said. But you measured it against the **marginal** half-width
+(0.1846/0.1949) when every one of these arms shares the same 100 draws and the same five seeds.
+**A difference of two cells measured on identical draws is a paired quantity**, and using the marginal
+CI for it is the **D1 defect from the P2.6 review** — already in the Decisions Log, and the reason the
+ladder is descriptive-only. The paired half-width here is **0.1392**, so your conclusion survives; the
+instrument has to change anyway, because next time it will not.
+
+⚠️ **And note `−7500 → 104.864`, BELOW the naive point.** The far end is not monotonically worse, so
+the shape forming is **flat-with-noise across a wide range**, which if it holds is a **stronger**
+result than a peaked landscape: it would say the return prompt barely matters in-domain. Three points
+remain — do not conclude it yet, and do not soften it either.
+
+### 14.1 The withdrawn criterion would have ranked the landscape almost exactly BACKWARDS
+
+**Pearson `r(in-support, ATT) = +0.9802` over the six graded points** (ATT lower is better), computed
+here. The in-support fraction runs `0.0000 → 0.8180` while ATT runs `104.5564 → 104.9558`: **the
+criterion I put in §5 as *"may select"* is anti-correlated with performance at r ≈ 0.98.**
+
+**Report this as a result, not as an erratum.** *A plausible, leakage-free criterion for return-prompt
+selection turned out to be almost perfectly anti-correlated with the outcome it was meant to proxy* is
+a methodological finding other people can use, and it is the strongest available evidence that
+conditioning a return-conditioned model **outside** its training support is not a defect to be
+engineered away but the mechanism operating as designed. **It also means §12.1's withdrawal was not
+caution — it was necessary**, and the packet should say so with the number.
