@@ -374,3 +374,49 @@ a methodological finding other people can use, and it is the strongest available
 conditioning a return-conditioned model **outside** its training support is not a defect to be
 engineered away but the mechanism operating as designed. **It also means §12.1's withdrawal was not
 caution — it was necessary**, and the packet should say so with the number.
+
+---
+
+## 15. RULING, 2026-08-13 — the failed proof is the CORRECT outcome. Do not re-run to make it pass.
+
+**You refused to retro-declare, and that was right. But you then reached for the wrong remaining
+option.** Facing a failed check there are three moves, not two:
+
+1. **amend the expected set after seeing the result** — forbidden, and you correctly refused;
+2. **change the run until the check passes** — what attempt two does;
+3. **accept the failure, report it as a failure, and argue its consequence** — **this one.**
+
+**Ruled: (3). The first attempt's FAILED verdict is what the packet reports, and it is not
+retro-declared, not re-run around, and not softened.** *"The declared set was incomplete because it
+did not anticipate that P4 predates the thread-pin rule"* is a **diagnosis of a failure**, which is
+honest; *"therefore it passes"* would be a **retro-declaration**, which is not. **Reporting a failed
+check with its cause is a different act from making it pass, and only the second is forbidden.**
+
+⚠️ **Attempt two changes the experiment to fit the check, and it costs three things.** It **violates
+`DEFERRED` 41's standing rule** that every job carries the pin; it **runs the exact configuration
+recorded as deadlock-prone** (P4.5 hung after ~600 rollouts; this is 500); and it buys **only a
+matching provenance field** — no number, no claim. **Changing a run so a comparison passes is the
+tail wagging the dog, and it is a mild form of the thing A8(a) exists to prevent.**
+
+**Robust disposition, so the outcome does not depend on whether you catch it in time:** if attempt two
+has already completed, report it as a **supplementary isolation run**, never as a replacement verdict.
+If it is still running, kill it. **Either way §10c's FAILED verdict stands as the result.**
+
+### 15.1 ⭐ Attempt one is worth far more than the proof it failed — say so prominently
+
+**It re-ran all 500 MADT rollouts at ONE thread and reproduced records P4 produced at SIXTEEN,
+leaf-identical across every episode.** That is a **500-episode thread-invariance proof**, against
+P4.5's 6-cell check — and it lands on `DEFERRED` 41, the open question of whether the pin can move a
+result. **It cannot, at n = 500.** Report that as a finding in its own right; it is the strongest
+evidence in the task that the pin buys liveness alone, and it arrived as a by-product of a check that
+failed. **A failed check that establishes something its passing form would not have is the best kind,
+and it deserves better than a line in a deviations section.**
+
+### 15.2 My own coordination error, recorded here rather than in a commit message
+
+**I commissioned P4.3's independent review while this compute step was still running**, so the
+reviewer is reading a branch that is still moving. **That is mine, not yours.** The exposed attacks
+are the two touching files that are still changing — `DEFERRED` 39's regeneration proof, and the
+packet. Everything else it examines is on committed, stable code. **I will re-verify those two
+against the final commit when the review lands, and I am writing it down now so it cannot be
+forgotten between the two events.**
