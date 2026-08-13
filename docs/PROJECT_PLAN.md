@@ -575,7 +575,19 @@ implementer caught it by refusing to commit a file it had not touched.**
 **One form, three remedies.** The tool reported clean because it was not looking at the thing.
 (1) **Show it reports DIRTY on a known positive before trusting a clean.** (2) **A clean result names
 its corpus** — absolute path, site count, sample size; a pass that does not say what it examined is
-not a result. (3) ⚠️ **USE AN ABSOLUTE PATH IN EVERY COMMAND — not just in verifications.** Strengthened
+not a result. (3b) ⚠️ **A MANIFEST OF RELATIVE PATHS IS ONLY MEANINGFUL FROM ITS OWN DIRECTORY — and "absolute paths everywhere" does NOT cover it (added 2026-08-13, FOURTH instance).**
+`sha256sum -c /abs/path/SHA256SUMS.txt` run from anywhere else reports **every entry missing**, which
+looks exactly like total data loss. It happened to me again while verifying that P4.3's evidence
+survived its worktree removal — **0 of 10 and 0 of 44 OK**, moments after retiring the tree, with the
+files perfectly intact. **Rule (3) did not prevent it, because the offending paths are inside the
+FILE, not in the command.** The fix is a subshell that names the directory explicitly:
+`( cd /home/filip/rltraffic/output && sha256sum -c SHA256SUMS_x.txt )`, or store absolute paths in the
+manifest. **Four instances now, one open and three closed:** the `DEFERRED` row written into another
+worktree (**failed open — a false clean**), and three false alarms. **The open one is the only one
+that cost anything, and the pattern to take from all four is that a path bug's DIRECTION is luck —
+the remedy has to be mechanical because its consequences are not predictable.**
+
+(3) ⚠️ **USE AN ABSOLUTE PATH IN EVERY COMMAND — not just in verifications.** Strengthened
 2026-08-13 after the **third** instance in one session, all the coordinator's: the `DEFERRED` row
 written into the wrong worktree; a `sha256sum -c` run from the repo root against a manifest whose
 paths were relative to `output/` (reported **0 of 44 OK**, i.e. apparent total data loss); and a
@@ -984,6 +996,14 @@ forgotten rather than parked.
   `output/SHA256SUMS_p4_4_p4_5.txt` (44 entries, re-verified after removal).** `git worktree list`
   shows one tree. ⚠️ **Do not delete `output/p4_4/` or `output/p4_5/`:** they are gitignored but they
   are the only copies of the models behind every merged P4.4 and P4.5 number.
+- **All three task worktrees are retired** (2026-08-13). ⚠️ **Every model behind every merged number
+  now lives ONLY in the main tree's gitignored `output/`, and nowhere else:** `p4_dt` **5**
+  checkpoints · `p4_4` **15** · `p4_5` **20**, plus `p4_3`'s ten grid artifacts and every raw
+  evaluation JSON. Integrity: `output/SHA256SUMS_p4_3.txt` (**10/10**) and
+  `SHA256SUMS_p4_4_p4_5.txt` (**44/44**), both re-verified **after** the removals, and all 35
+  checkpoints verified by **canonical digest** against their committed artifacts. **Do not delete
+  `output/`.** Everything else those worktrees held — 463 MB of `scenarios/draws/` and the caches —
+  was let go deliberately and is byte-regenerable.
 - ✅ **P4.3 IS MERGED** (2026-08-13). The return prompt is a **weak lever in-domain** — 0.9026 across a
   13,000-wide declared grid — and **§8.6's block is lifted**: %BC and IQL lead the DT at **every** grid
   point, every paired CI excluding zero.
