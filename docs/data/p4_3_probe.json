@@ -1,0 +1,1324 @@
+{
+  "best_source_return": -5762.0,
+  "best_source_return_meaning": "the maximum episode return of the training split -- the naive rule's target, and R_best_source in Rule B",
+  "budgets": {
+    "k100": {
+      "draw_ids": [
+        201,
+        202,
+        203,
+        204,
+        205,
+        206,
+        207,
+        208,
+        209,
+        210,
+        211,
+        212,
+        213,
+        214,
+        215,
+        216,
+        217,
+        218,
+        219,
+        220,
+        221,
+        222,
+        223,
+        224,
+        225,
+        226,
+        227,
+        228,
+        229,
+        230,
+        231,
+        232,
+        233,
+        234,
+        235,
+        236,
+        237,
+        238,
+        239,
+        240,
+        241,
+        242,
+        243,
+        244,
+        245,
+        246,
+        247,
+        248,
+        249,
+        250,
+        251,
+        252,
+        253,
+        254,
+        255,
+        256,
+        257,
+        258,
+        259,
+        260,
+        261,
+        262,
+        263,
+        264,
+        265,
+        266,
+        267,
+        268,
+        269,
+        270,
+        271,
+        272,
+        273,
+        274,
+        275,
+        276,
+        277,
+        278,
+        279,
+        280,
+        281,
+        282,
+        283,
+        284,
+        285,
+        286,
+        287,
+        288,
+        289,
+        290,
+        291,
+        292,
+        293,
+        294,
+        295,
+        296,
+        297,
+        298,
+        299,
+        300
+      ],
+      "k": 100,
+      "rule_a_targets": {
+        "q0.5": {
+          "evaluated": false,
+          "grid_position": {
+            "above_key": "dt_g8",
+            "above_target": -13000.0,
+            "below_key": null,
+            "below_target": null,
+            "outside_grid": true,
+            "target_rtg": -18513.0
+          },
+          "quantile": 0.5,
+          "target_rtg": -18513.0
+        },
+        "q0.75": {
+          "evaluated": false,
+          "grid_position": {
+            "above_key": "dt_g8",
+            "above_target": -13000.0,
+            "below_key": null,
+            "below_target": null,
+            "outside_grid": true,
+            "target_rtg": -17210.75
+          },
+          "quantile": 0.75,
+          "target_rtg": -17210.75
+        },
+        "q0.9": {
+          "evaluated": false,
+          "grid_position": {
+            "above_key": "dt_g8",
+            "above_target": -13000.0,
+            "below_key": null,
+            "below_target": null,
+            "outside_grid": true,
+            "target_rtg": -16147.4
+          },
+          "quantile": 0.9,
+          "target_rtg": -16147.4
+        },
+        "q1": {
+          "evaluated": true,
+          "grid_position": {
+            "above_key": "dt_g7",
+            "above_target": -9991.0,
+            "below_key": "dt_g8",
+            "below_target": -13000.0,
+            "outside_grid": false,
+            "target_rtg": -12532.0
+          },
+          "quantile": 1.0,
+          "target_rtg": -12532.0
+        }
+      },
+      "rule_b_in_domain_target": {
+        "max": -5762.0,
+        "mean": -5762.0
+      },
+      "source_domain_ratio": {
+        "max": 0.459782955633578,
+        "mean": 0.309775120036515
+      },
+      "statistics": {
+        "max": -12532.0,
+        "mean": -18600.59
+      }
+    },
+    "k20": {
+      "draw_ids": [
+        201,
+        202,
+        203,
+        204,
+        205,
+        206,
+        207,
+        208,
+        209,
+        210,
+        211,
+        212,
+        213,
+        214,
+        215,
+        216,
+        217,
+        218,
+        219,
+        220
+      ],
+      "k": 20,
+      "rule_a_targets": {
+        "q0.5": {
+          "evaluated": false,
+          "grid_position": {
+            "above_key": "dt_g8",
+            "above_target": -13000.0,
+            "below_key": null,
+            "below_target": null,
+            "outside_grid": true,
+            "target_rtg": -18323.0
+          },
+          "quantile": 0.5,
+          "target_rtg": -18323.0
+        },
+        "q0.75": {
+          "evaluated": false,
+          "grid_position": {
+            "above_key": "dt_g8",
+            "above_target": -13000.0,
+            "below_key": null,
+            "below_target": null,
+            "outside_grid": true,
+            "target_rtg": -16525.25
+          },
+          "quantile": 0.75,
+          "target_rtg": -16525.25
+        },
+        "q0.9": {
+          "evaluated": false,
+          "grid_position": {
+            "above_key": "dt_g8",
+            "above_target": -13000.0,
+            "below_key": null,
+            "below_target": null,
+            "outside_grid": true,
+            "target_rtg": -15421.4
+          },
+          "quantile": 0.9,
+          "target_rtg": -15421.4
+        },
+        "q1": {
+          "evaluated": false,
+          "grid_position": {
+            "above_key": "dt_g7",
+            "above_target": -9991.0,
+            "below_key": "dt_g8",
+            "below_target": -13000.0,
+            "outside_grid": false,
+            "target_rtg": -12532.0
+          },
+          "quantile": 1.0,
+          "target_rtg": -12532.0
+        }
+      },
+      "rule_b_in_domain_target": {
+        "max": -5762.0,
+        "mean": -5762.0
+      },
+      "source_domain_ratio": {
+        "max": 0.459782955633578,
+        "mean": 0.3168258035427085
+      },
+      "statistics": {
+        "max": -12532.0,
+        "mean": -18186.65
+      }
+    },
+    "k5": {
+      "draw_ids": [
+        201,
+        202,
+        203,
+        204,
+        205
+      ],
+      "k": 5,
+      "rule_a_targets": {
+        "q0.5": {
+          "evaluated": false,
+          "grid_position": {
+            "above_key": "dt_g8",
+            "above_target": -13000.0,
+            "below_key": null,
+            "below_target": null,
+            "outside_grid": true,
+            "target_rtg": -17792.0
+          },
+          "quantile": 0.5,
+          "target_rtg": -17792.0
+        },
+        "q0.75": {
+          "evaluated": false,
+          "grid_position": {
+            "above_key": "dt_g8",
+            "above_target": -13000.0,
+            "below_key": null,
+            "below_target": null,
+            "outside_grid": true,
+            "target_rtg": -17409.0
+          },
+          "quantile": 0.75,
+          "target_rtg": -17409.0
+        },
+        "q0.9": {
+          "evaluated": false,
+          "grid_position": {
+            "above_key": "dt_g8",
+            "above_target": -13000.0,
+            "below_key": null,
+            "below_target": null,
+            "outside_grid": true,
+            "target_rtg": -16260.6
+          },
+          "quantile": 0.9,
+          "target_rtg": -16260.6
+        },
+        "q1": {
+          "evaluated": false,
+          "grid_position": {
+            "above_key": "dt_g8",
+            "above_target": -13000.0,
+            "below_key": null,
+            "below_target": null,
+            "outside_grid": true,
+            "target_rtg": -15495.0
+          },
+          "quantile": 1.0,
+          "target_rtg": -15495.0
+        }
+      },
+      "rule_b_in_domain_target": {
+        "max": -5762.0,
+        "mean": -5762.0
+      },
+      "source_domain_ratio": {
+        "max": 0.3718618909325589,
+        "mean": 0.3082536217928142
+      },
+      "statistics": {
+        "max": -15495.0,
+        "mean": -18692.4
+      }
+    }
+  },
+  "disjointness": {
+    "held_out_range": [
+      1000,
+      1099
+    ],
+    "n_training_draws": 200,
+    "overlap_with_held_out": [],
+    "overlap_with_training": [],
+    "probe_draw_start": 201,
+    "training_draw_ids_source": "docs/data/p4_training.json"
+  },
+  "draw_ids": [
+    201,
+    202,
+    203,
+    204,
+    205,
+    206,
+    207,
+    208,
+    209,
+    210,
+    211,
+    212,
+    213,
+    214,
+    215,
+    216,
+    217,
+    218,
+    219,
+    220,
+    221,
+    222,
+    223,
+    224,
+    225,
+    226,
+    227,
+    228,
+    229,
+    230,
+    231,
+    232,
+    233,
+    234,
+    235,
+    236,
+    237,
+    238,
+    239,
+    240,
+    241,
+    242,
+    243,
+    244,
+    245,
+    246,
+    247,
+    248,
+    249,
+    250,
+    251,
+    252,
+    253,
+    254,
+    255,
+    256,
+    257,
+    258,
+    259,
+    260,
+    261,
+    262,
+    263,
+    264,
+    265,
+    266,
+    267,
+    268,
+    269,
+    270,
+    271,
+    272,
+    273,
+    274,
+    275,
+    276,
+    277,
+    278,
+    279,
+    280,
+    281,
+    282,
+    283,
+    284,
+    285,
+    286,
+    287,
+    288,
+    289,
+    290,
+    291,
+    292,
+    293,
+    294,
+    295,
+    296,
+    297,
+    298,
+    299,
+    300
+  ],
+  "engine_seed": 1000,
+  "env_settings": {
+    "control_mode": "acyclic",
+    "delta_time": 10,
+    "device": "cpu",
+    "eval_episodes": 2,
+    "global_reward_fn": "queue_length",
+    "global_reward_weight": 0.0,
+    "gui": false,
+    "libsumo": false,
+    "local_reward_fn": "queue_length",
+    "max_steps": 360,
+    "metrics": null,
+    "obs_norm": null,
+    "state_features": [
+      "lane_vehicle_count",
+      "lane_waiting",
+      "phase_onehot"
+    ],
+    "thread_num": 1,
+    "train_episodes": 10
+  },
+  "episodes": [
+    {
+      "att_horizon": 191.80088251516824,
+      "decisions": 360,
+      "draw_id": 201,
+      "horizon_vehicle_count": 116.0,
+      "local_return": -20966.0,
+      "local_return_from_lanes": -20966.0
+    },
+    {
+      "att_horizon": 170.42777777777778,
+      "decisions": 360,
+      "draw_id": 202,
+      "horizon_vehicle_count": 95.0,
+      "local_return": -17409.0,
+      "local_return_from_lanes": -17409.0
+    },
+    {
+      "att_horizon": 158.62826933778518,
+      "decisions": 360,
+      "draw_id": 203,
+      "horizon_vehicle_count": 94.0,
+      "local_return": -15495.0,
+      "local_return_from_lanes": -15495.0
+    },
+    {
+      "att_horizon": 197.4585635359116,
+      "decisions": 360,
+      "draw_id": 204,
+      "horizon_vehicle_count": 132.0,
+      "local_return": -21800.0,
+      "local_return_from_lanes": -21800.0
+    },
+    {
+      "att_horizon": 171.86600221483943,
+      "decisions": 360,
+      "draw_id": 205,
+      "horizon_vehicle_count": 116.0,
+      "local_return": -17792.0,
+      "local_return_from_lanes": -17792.0
+    },
+    {
+      "att_horizon": 163.33333333333334,
+      "decisions": 360,
+      "draw_id": 206,
+      "horizon_vehicle_count": 91.0,
+      "local_return": -16460.0,
+      "local_return_from_lanes": -16460.0
+    },
+    {
+      "att_horizon": 179.6307606885064,
+      "decisions": 360,
+      "draw_id": 207,
+      "horizon_vehicle_count": 121.0,
+      "local_return": -18900.0,
+      "local_return_from_lanes": -18900.0
+    },
+    {
+      "att_horizon": 162.43139407244786,
+      "decisions": 360,
+      "draw_id": 208,
+      "horizon_vehicle_count": 101.0,
+      "local_return": -16426.0,
+      "local_return_from_lanes": -16426.0
+    },
+    {
+      "att_horizon": 153.36453744493392,
+      "decisions": 360,
+      "draw_id": 209,
+      "horizon_vehicle_count": 94.0,
+      "local_return": -14759.0,
+      "local_return_from_lanes": -14759.0
+    },
+    {
+      "att_horizon": 178.7229916897507,
+      "decisions": 360,
+      "draw_id": 210,
+      "horizon_vehicle_count": 117.0,
+      "local_return": -18816.0,
+      "local_return_from_lanes": -18816.0
+    },
+    {
+      "att_horizon": 175.04376367614879,
+      "decisions": 360,
+      "draw_id": 211,
+      "horizon_vehicle_count": 107.0,
+      "local_return": -18424.0,
+      "local_return_from_lanes": -18424.0
+    },
+    {
+      "att_horizon": 172.92896174863387,
+      "decisions": 360,
+      "draw_id": 212,
+      "horizon_vehicle_count": 109.0,
+      "local_return": -18222.0,
+      "local_return_from_lanes": -18222.0
+    },
+    {
+      "att_horizon": 164.86733001658374,
+      "decisions": 360,
+      "draw_id": 213,
+      "horizon_vehicle_count": 102.0,
+      "local_return": -16619.0,
+      "local_return_from_lanes": -16619.0
+    },
+    {
+      "att_horizon": 203.76529477196885,
+      "decisions": 360,
+      "draw_id": 214,
+      "horizon_vehicle_count": 114.0,
+      "local_return": -22736.0,
+      "local_return_from_lanes": -22736.0
+    },
+    {
+      "att_horizon": 185.09413067552603,
+      "decisions": 360,
+      "draw_id": 215,
+      "horizon_vehicle_count": 113.0,
+      "local_return": -19856.0,
+      "local_return_from_lanes": -19856.0
+    },
+    {
+      "att_horizon": 140.19553072625698,
+      "decisions": 360,
+      "draw_id": 216,
+      "horizon_vehicle_count": 80.0,
+      "local_return": -12532.0,
+      "local_return_from_lanes": -12532.0
+    },
+    {
+      "att_horizon": 189.84997272231314,
+      "decisions": 360,
+      "draw_id": 217,
+      "horizon_vehicle_count": 121.0,
+      "local_return": -20826.0,
+      "local_return_from_lanes": -20826.0
+    },
+    {
+      "att_horizon": 190.62847608453836,
+      "decisions": 360,
+      "draw_id": 218,
+      "horizon_vehicle_count": 120.0,
+      "local_return": -20628.0,
+      "local_return_from_lanes": -20628.0
+    },
+    {
+      "att_horizon": 163.36612021857923,
+      "decisions": 360,
+      "draw_id": 219,
+      "horizon_vehicle_count": 102.0,
+      "local_return": -16547.0,
+      "local_return_from_lanes": -16547.0
+    },
+    {
+      "att_horizon": 174.99453253143795,
+      "decisions": 360,
+      "draw_id": 220,
+      "horizon_vehicle_count": 124.0,
+      "local_return": -18520.0,
+      "local_return_from_lanes": -18520.0
+    },
+    {
+      "att_horizon": 178.49778270509978,
+      "decisions": 360,
+      "draw_id": 221,
+      "horizon_vehicle_count": 117.0,
+      "local_return": -18670.0,
+      "local_return_from_lanes": -18670.0
+    },
+    {
+      "att_horizon": 151.44306651634724,
+      "decisions": 360,
+      "draw_id": 222,
+      "horizon_vehicle_count": 94.0,
+      "local_return": -14228.0,
+      "local_return_from_lanes": -14228.0
+    },
+    {
+      "att_horizon": 167.17439293598235,
+      "decisions": 360,
+      "draw_id": 223,
+      "horizon_vehicle_count": 103.0,
+      "local_return": -16990.0,
+      "local_return_from_lanes": -16990.0
+    },
+    {
+      "att_horizon": 170.99551318003364,
+      "decisions": 360,
+      "draw_id": 224,
+      "horizon_vehicle_count": 82.0,
+      "local_return": -17242.0,
+      "local_return_from_lanes": -17242.0
+    },
+    {
+      "att_horizon": 188.5960591133005,
+      "decisions": 360,
+      "draw_id": 225,
+      "horizon_vehicle_count": 115.0,
+      "local_return": -20556.0,
+      "local_return_from_lanes": -20556.0
+    },
+    {
+      "att_horizon": 181.33097441480675,
+      "decisions": 360,
+      "draw_id": 226,
+      "horizon_vehicle_count": 113.0,
+      "local_return": -19569.0,
+      "local_return_from_lanes": -19569.0
+    },
+    {
+      "att_horizon": 174.28453494771603,
+      "decisions": 360,
+      "draw_id": 227,
+      "horizon_vehicle_count": 109.0,
+      "local_return": -18227.0,
+      "local_return_from_lanes": -18227.0
+    },
+    {
+      "att_horizon": 187.4684585847504,
+      "decisions": 360,
+      "draw_id": 228,
+      "horizon_vehicle_count": 122.0,
+      "local_return": -20436.0,
+      "local_return_from_lanes": -20436.0
+    },
+    {
+      "att_horizon": 158.5706340378198,
+      "decisions": 360,
+      "draw_id": 229,
+      "horizon_vehicle_count": 86.0,
+      "local_return": -15534.0,
+      "local_return_from_lanes": -15534.0
+    },
+    {
+      "att_horizon": 174.11000552791597,
+      "decisions": 360,
+      "draw_id": 230,
+      "horizon_vehicle_count": 109.0,
+      "local_return": -18149.0,
+      "local_return_from_lanes": -18149.0
+    },
+    {
+      "att_horizon": 189.9111111111111,
+      "decisions": 360,
+      "draw_id": 231,
+      "horizon_vehicle_count": 128.0,
+      "local_return": -20569.0,
+      "local_return_from_lanes": -20569.0
+    },
+    {
+      "att_horizon": 166.88151398793198,
+      "decisions": 360,
+      "draw_id": 232,
+      "horizon_vehicle_count": 110.0,
+      "local_return": -17061.0,
+      "local_return_from_lanes": -17061.0
+    },
+    {
+      "att_horizon": 180.3762268266085,
+      "decisions": 360,
+      "draw_id": 233,
+      "horizon_vehicle_count": 125.0,
+      "local_return": -19445.0,
+      "local_return_from_lanes": -19445.0
+    },
+    {
+      "att_horizon": 176.48026315789474,
+      "decisions": 360,
+      "draw_id": 234,
+      "horizon_vehicle_count": 119.0,
+      "local_return": -18643.0,
+      "local_return_from_lanes": -18643.0
+    },
+    {
+      "att_horizon": 171.5174672489083,
+      "decisions": 360,
+      "draw_id": 235,
+      "horizon_vehicle_count": 110.0,
+      "local_return": -17899.0,
+      "local_return_from_lanes": -17899.0
+    },
+    {
+      "att_horizon": 163.45555555555555,
+      "decisions": 360,
+      "draw_id": 236,
+      "horizon_vehicle_count": 104.0,
+      "local_return": -16303.0,
+      "local_return_from_lanes": -16303.0
+    },
+    {
+      "att_horizon": 218.27462850853055,
+      "decisions": 360,
+      "draw_id": 237,
+      "horizon_vehicle_count": 158.0,
+      "local_return": -25356.0,
+      "local_return_from_lanes": -25356.0
+    },
+    {
+      "att_horizon": 174.2566079295154,
+      "decisions": 360,
+      "draw_id": 238,
+      "horizon_vehicle_count": 108.0,
+      "local_return": -18282.0,
+      "local_return_from_lanes": -18282.0
+    },
+    {
+      "att_horizon": 157.16740576496673,
+      "decisions": 360,
+      "draw_id": 239,
+      "horizon_vehicle_count": 95.0,
+      "local_return": -15317.0,
+      "local_return_from_lanes": -15317.0
+    },
+    {
+      "att_horizon": 183.5107556536128,
+      "decisions": 360,
+      "draw_id": 240,
+      "horizon_vehicle_count": 116.0,
+      "local_return": -19714.0,
+      "local_return_from_lanes": -19714.0
+    },
+    {
+      "att_horizon": 199.1878453038674,
+      "decisions": 360,
+      "draw_id": 241,
+      "horizon_vehicle_count": 142.0,
+      "local_return": -22225.0,
+      "local_return_from_lanes": -22225.0
+    },
+    {
+      "att_horizon": 192.7675176534492,
+      "decisions": 360,
+      "draw_id": 242,
+      "horizon_vehicle_count": 129.0,
+      "local_return": -21561.0,
+      "local_return_from_lanes": -21561.0
+    },
+    {
+      "att_horizon": 195.72249589490968,
+      "decisions": 360,
+      "draw_id": 243,
+      "horizon_vehicle_count": 139.0,
+      "local_return": -21880.0,
+      "local_return_from_lanes": -21880.0
+    },
+    {
+      "att_horizon": 193.46153846153845,
+      "decisions": 360,
+      "draw_id": 244,
+      "horizon_vehicle_count": 130.0,
+      "local_return": -21305.0,
+      "local_return_from_lanes": -21305.0
+    },
+    {
+      "att_horizon": 182.59290072102053,
+      "decisions": 360,
+      "draw_id": 245,
+      "horizon_vehicle_count": 106.0,
+      "local_return": -19414.0,
+      "local_return_from_lanes": -19414.0
+    },
+    {
+      "att_horizon": 176.56197887715396,
+      "decisions": 360,
+      "draw_id": 246,
+      "horizon_vehicle_count": 114.0,
+      "local_return": -18471.0,
+      "local_return_from_lanes": -18471.0
+    },
+    {
+      "att_horizon": 173.33425567238518,
+      "decisions": 360,
+      "draw_id": 247,
+      "horizon_vehicle_count": 105.0,
+      "local_return": -17958.0,
+      "local_return_from_lanes": -17958.0
+    },
+    {
+      "att_horizon": 170.60175054704595,
+      "decisions": 360,
+      "draw_id": 248,
+      "horizon_vehicle_count": 113.0,
+      "local_return": -17722.0,
+      "local_return_from_lanes": -17722.0
+    },
+    {
+      "att_horizon": 184.7316538882804,
+      "decisions": 360,
+      "draw_id": 249,
+      "horizon_vehicle_count": 123.0,
+      "local_return": -19976.0,
+      "local_return_from_lanes": -19976.0
+    },
+    {
+      "att_horizon": 169.01780745687256,
+      "decisions": 360,
+      "draw_id": 250,
+      "horizon_vehicle_count": 103.0,
+      "local_return": -17229.0,
+      "local_return_from_lanes": -17229.0
+    },
+    {
+      "att_horizon": 210.01095290251916,
+      "decisions": 360,
+      "draw_id": 251,
+      "horizon_vehicle_count": 142.0,
+      "local_return": -24161.0,
+      "local_return_from_lanes": -24161.0
+    },
+    {
+      "att_horizon": 170.01103752759383,
+      "decisions": 360,
+      "draw_id": 252,
+      "horizon_vehicle_count": 114.0,
+      "local_return": -17442.0,
+      "local_return_from_lanes": -17442.0
+    },
+    {
+      "att_horizon": 177.08839779005524,
+      "decisions": 360,
+      "draw_id": 253,
+      "horizon_vehicle_count": 106.0,
+      "local_return": -18560.0,
+      "local_return_from_lanes": -18560.0
+    },
+    {
+      "att_horizon": 163.75762617859124,
+      "decisions": 360,
+      "draw_id": 254,
+      "horizon_vehicle_count": 105.0,
+      "local_return": -16419.0,
+      "local_return_from_lanes": -16419.0
+    },
+    {
+      "att_horizon": 188.00386526780784,
+      "decisions": 360,
+      "draw_id": 255,
+      "horizon_vehicle_count": 125.0,
+      "local_return": -20279.0,
+      "local_return_from_lanes": -20279.0
+    },
+    {
+      "att_horizon": 165.99182561307902,
+      "decisions": 360,
+      "draw_id": 256,
+      "horizon_vehicle_count": 102.0,
+      "local_return": -17077.0,
+      "local_return_from_lanes": -17077.0
+    },
+    {
+      "att_horizon": 171.2111111111111,
+      "decisions": 360,
+      "draw_id": 257,
+      "horizon_vehicle_count": 110.0,
+      "local_return": -17584.0,
+      "local_return_from_lanes": -17584.0
+    },
+    {
+      "att_horizon": 175.10359869138495,
+      "decisions": 360,
+      "draw_id": 258,
+      "horizon_vehicle_count": 126.0,
+      "local_return": -18562.0,
+      "local_return_from_lanes": -18562.0
+    },
+    {
+      "att_horizon": 202.82037239868566,
+      "decisions": 360,
+      "draw_id": 259,
+      "horizon_vehicle_count": 138.0,
+      "local_return": -22974.0,
+      "local_return_from_lanes": -22974.0
+    },
+    {
+      "att_horizon": 180.09413067552603,
+      "decisions": 360,
+      "draw_id": 260,
+      "horizon_vehicle_count": 108.0,
+      "local_return": -19000.0,
+      "local_return_from_lanes": -19000.0
+    },
+    {
+      "att_horizon": 181.76486937187326,
+      "decisions": 360,
+      "draw_id": 261,
+      "horizon_vehicle_count": 116.0,
+      "local_return": -19251.0,
+      "local_return_from_lanes": -19251.0
+    },
+    {
+      "att_horizon": 166.44376049244545,
+      "decisions": 360,
+      "draw_id": 262,
+      "horizon_vehicle_count": 89.0,
+      "local_return": -16564.0,
+      "local_return_from_lanes": -16564.0
+    },
+    {
+      "att_horizon": 178.25013865779258,
+      "decisions": 360,
+      "draw_id": 263,
+      "horizon_vehicle_count": 105.0,
+      "local_return": -18719.0,
+      "local_return_from_lanes": -18719.0
+    },
+    {
+      "att_horizon": 173.4884994523549,
+      "decisions": 360,
+      "draw_id": 264,
+      "horizon_vehicle_count": 124.0,
+      "local_return": -18225.0,
+      "local_return_from_lanes": -18225.0
+    },
+    {
+      "att_horizon": 166.51735722284434,
+      "decisions": 360,
+      "draw_id": 265,
+      "horizon_vehicle_count": 92.0,
+      "local_return": -16655.0,
+      "local_return_from_lanes": -16655.0
+    },
+    {
+      "att_horizon": 170.40481400437636,
+      "decisions": 360,
+      "draw_id": 266,
+      "horizon_vehicle_count": 110.0,
+      "local_return": -17687.0,
+      "local_return_from_lanes": -17687.0
+    },
+    {
+      "att_horizon": 179.59105779716467,
+      "decisions": 360,
+      "draw_id": 267,
+      "horizon_vehicle_count": 113.0,
+      "local_return": -19202.0,
+      "local_return_from_lanes": -19202.0
+    },
+    {
+      "att_horizon": 164.72451790633608,
+      "decisions": 360,
+      "draw_id": 268,
+      "horizon_vehicle_count": 96.0,
+      "local_return": -16622.0,
+      "local_return_from_lanes": -16622.0
+    },
+    {
+      "att_horizon": 178.8170865279299,
+      "decisions": 360,
+      "draw_id": 269,
+      "horizon_vehicle_count": 115.0,
+      "local_return": -19041.0,
+      "local_return_from_lanes": -19041.0
+    },
+    {
+      "att_horizon": 175.19230769230768,
+      "decisions": 360,
+      "draw_id": 270,
+      "horizon_vehicle_count": 123.0,
+      "local_return": -18506.0,
+      "local_return_from_lanes": -18506.0
+    },
+    {
+      "att_horizon": 177.66963292547274,
+      "decisions": 360,
+      "draw_id": 271,
+      "horizon_vehicle_count": 117.0,
+      "local_return": -18577.0,
+      "local_return_from_lanes": -18577.0
+    },
+    {
+      "att_horizon": 187.77034559643255,
+      "decisions": 360,
+      "draw_id": 272,
+      "horizon_vehicle_count": 102.0,
+      "local_return": -19963.0,
+      "local_return_from_lanes": -19963.0
+    },
+    {
+      "att_horizon": 175.14364640883977,
+      "decisions": 360,
+      "draw_id": 273,
+      "horizon_vehicle_count": 109.0,
+      "local_return": -18278.0,
+      "local_return_from_lanes": -18278.0
+    },
+    {
+      "att_horizon": 170.81140350877192,
+      "decisions": 360,
+      "draw_id": 274,
+      "horizon_vehicle_count": 103.0,
+      "local_return": -17679.0,
+      "local_return_from_lanes": -17679.0
+    },
+    {
+      "att_horizon": 193.31017231795443,
+      "decisions": 360,
+      "draw_id": 275,
+      "horizon_vehicle_count": 128.0,
+      "local_return": -21015.0,
+      "local_return_from_lanes": -21015.0
+    },
+    {
+      "att_horizon": 176.82766190998902,
+      "decisions": 360,
+      "draw_id": 276,
+      "horizon_vehicle_count": 115.0,
+      "local_return": -18685.0,
+      "local_return_from_lanes": -18685.0
+    },
+    {
+      "att_horizon": 160.51076753175042,
+      "decisions": 360,
+      "draw_id": 277,
+      "horizon_vehicle_count": 72.0,
+      "local_return": -15867.0,
+      "local_return_from_lanes": -15867.0
+    },
+    {
+      "att_horizon": 191.7792915531335,
+      "decisions": 360,
+      "draw_id": 278,
+      "horizon_vehicle_count": 126.0,
+      "local_return": -21174.0,
+      "local_return_from_lanes": -21174.0
+    },
+    {
+      "att_horizon": 173.2517866959868,
+      "decisions": 360,
+      "draw_id": 279,
+      "horizon_vehicle_count": 89.0,
+      "local_return": -18022.0,
+      "local_return_from_lanes": -18022.0
+    },
+    {
+      "att_horizon": 195.33935413245757,
+      "decisions": 360,
+      "draw_id": 280,
+      "horizon_vehicle_count": 132.0,
+      "local_return": -21697.0,
+      "local_return_from_lanes": -21697.0
+    },
+    {
+      "att_horizon": 186.2671420735052,
+      "decisions": 360,
+      "draw_id": 281,
+      "horizon_vehicle_count": 124.0,
+      "local_return": -20154.0,
+      "local_return_from_lanes": -20154.0
+    },
+    {
+      "att_horizon": 184.05681191395476,
+      "decisions": 360,
+      "draw_id": 282,
+      "horizon_vehicle_count": 121.0,
+      "local_return": -19750.0,
+      "local_return_from_lanes": -19750.0
+    },
+    {
+      "att_horizon": 175.3717878622198,
+      "decisions": 360,
+      "draw_id": 283,
+      "horizon_vehicle_count": 116.0,
+      "local_return": -18578.0,
+      "local_return_from_lanes": -18578.0
+    },
+    {
+      "att_horizon": 172.03440742763516,
+      "decisions": 360,
+      "draw_id": 284,
+      "horizon_vehicle_count": 111.0,
+      "local_return": -17966.0,
+      "local_return_from_lanes": -17966.0
+    },
+    {
+      "att_horizon": 151.5888888888889,
+      "decisions": 360,
+      "draw_id": 285,
+      "horizon_vehicle_count": 89.0,
+      "local_return": -14374.0,
+      "local_return_from_lanes": -14374.0
+    },
+    {
+      "att_horizon": 180.0467289719626,
+      "decisions": 360,
+      "draw_id": 286,
+      "horizon_vehicle_count": 118.0,
+      "local_return": -19183.0,
+      "local_return_from_lanes": -19183.0
+    },
+    {
+      "att_horizon": 183.48385331143953,
+      "decisions": 360,
+      "draw_id": 287,
+      "horizon_vehicle_count": 112.0,
+      "local_return": -19797.0,
+      "local_return_from_lanes": -19797.0
+    },
+    {
+      "att_horizon": 175.83147321428572,
+      "decisions": 360,
+      "draw_id": 288,
+      "horizon_vehicle_count": 108.0,
+      "local_return": -18313.0,
+      "local_return_from_lanes": -18313.0
+    },
+    {
+      "att_horizon": 174.46183415705656,
+      "decisions": 360,
+      "draw_id": 289,
+      "horizon_vehicle_count": 112.0,
+      "local_return": -18292.0,
+      "local_return_from_lanes": -18292.0
+    },
+    {
+      "att_horizon": 178.9190687361419,
+      "decisions": 360,
+      "draw_id": 290,
+      "horizon_vehicle_count": 102.0,
+      "local_return": -18796.0,
+      "local_return_from_lanes": -18796.0
+    },
+    {
+      "att_horizon": 199.3547501372872,
+      "decisions": 360,
+      "draw_id": 291,
+      "horizon_vehicle_count": 127.0,
+      "local_return": -22353.0,
+      "local_return_from_lanes": -22353.0
+    },
+    {
+      "att_horizon": 162.19620958751395,
+      "decisions": 360,
+      "draw_id": 292,
+      "horizon_vehicle_count": 99.0,
+      "local_return": -16070.0,
+      "local_return_from_lanes": -16070.0
+    },
+    {
+      "att_horizon": 163.5394515948517,
+      "decisions": 360,
+      "draw_id": 293,
+      "horizon_vehicle_count": 84.0,
+      "local_return": -16156.0,
+      "local_return_from_lanes": -16156.0
+    },
+    {
+      "att_horizon": 174.84991662034463,
+      "decisions": 360,
+      "draw_id": 294,
+      "horizon_vehicle_count": 109.0,
+      "local_return": -18198.0,
+      "local_return_from_lanes": -18198.0
+    },
+    {
+      "att_horizon": 190.30925013683634,
+      "decisions": 360,
+      "draw_id": 295,
+      "horizon_vehicle_count": 129.0,
+      "local_return": -20917.0,
+      "local_return_from_lanes": -20917.0
+    },
+    {
+      "att_horizon": 189.6681294569391,
+      "decisions": 360,
+      "draw_id": 296,
+      "horizon_vehicle_count": 123.0,
+      "local_return": -20736.0,
+      "local_return_from_lanes": -20736.0
+    },
+    {
+      "att_horizon": 167.27347611202637,
+      "decisions": 360,
+      "draw_id": 297,
+      "horizon_vehicle_count": 98.0,
+      "local_return": -17156.0,
+      "local_return_from_lanes": -17156.0
+    },
+    {
+      "att_horizon": 163.13120176405732,
+      "decisions": 360,
+      "draw_id": 298,
+      "horizon_vehicle_count": 101.0,
+      "local_return": -16401.0,
+      "local_return_from_lanes": -16401.0
+    },
+    {
+      "att_horizon": 182.15151515151516,
+      "decisions": 360,
+      "draw_id": 299,
+      "horizon_vehicle_count": 109.0,
+      "local_return": -19462.0,
+      "local_return_from_lanes": -19462.0
+    },
+    {
+      "att_horizon": 150.75875486381324,
+      "decisions": 360,
+      "draw_id": 300,
+      "horizon_vehicle_count": 90.0,
+      "local_return": -14256.0,
+      "local_return_from_lanes": -14256.0
+    }
+  ],
+  "format_version": "p4.3-rtg/1.0",
+  "n_episodes": 100,
+  "probe_arm": "probe_maxpressure",
+  "probe_policy": "maxpressure",
+  "return_definition": "per-intersection episode return under the collection reward, summed over the post-step infos of one episode; verified against -sum(lane_waiting over the intersection's incoming lanes) on every episode",
+  "returns": {
+    "max": -12532.0,
+    "mean": -18600.59,
+    "min": -25356.0,
+    "quantiles": {
+      "q0": -25356.0,
+      "q0.1": -21330.6,
+      "q0.25": -19882.75,
+      "q0.5": -18513.0,
+      "q0.75": -17210.75,
+      "q0.9": -16147.4,
+      "q1": -12532.0
+    }
+  },
+  "role": "the in-domain MaxPressure probe: the input to both calibration rules, and the source-domain half of Rule B's ratio that P7 consumes",
+  "rtg_scale": 9991.0,
+  "rules": {
+    "rule_a": "target = quantile(probe returns); the DECLARED ALTERNATIVE, predicted before the run to be poor because it targets probe-achievable rather than best-achievable return",
+    "rule_b": "target = best_source x (probe_target_stat / probe_source_stat); THE MECHANISM. In domain the two statistics coincide, the ratio is exactly 1 and the rule returns the naive target, so this task asserts the identity and measures the source-domain half of the ratio rather than validating the rule"
+  },
+  "runtime": {
+    "cuda_available": true,
+    "cuda_device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "git_commit": "6e4526c4bb949bb5652b9ec19945f698c1d61210",
+    "measurement_git_commits": [],
+    "numpy_version": "2.5.1",
+    "python_version": "3.12.13",
+    "torch_cuda_version": "12.8",
+    "torch_num_threads": 1,
+    "torch_version": "2.11.0+cu128",
+    "unreachable_measurement_commits": [],
+    "written_at_git_commit": "6e4526c4bb949bb5652b9ec19945f698c1d61210"
+  },
+  "scenario_id": "cityflow1x1",
+  "training_rtg_range": [
+    -9991.0,
+    -6.0
+  ]
+}

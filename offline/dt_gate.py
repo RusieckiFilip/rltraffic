@@ -460,11 +460,40 @@ def stack_dataset(
     return stacked
 
 
-def runtime_provenance() -> dict[str, Any]:
+def runtime_provenance(
+    measurement_git_commits: Sequence[str] | None = None,
+) -> dict[str, Any]:
     """Device, library and repo state -- the state that determines float reduction order.
 
     P8.0 finding N8: the provenance file omitted exactly this, in the document whose MAPPO rows
     were attributed to reduction order.
+
+    **Measurement provenance versus written-at provenance** (``DEFERRED`` 39, extended additively
+    on 2026-08-13 under the authorisation in ``BRIEF_15`` section 8 and ``PROJECT_PLAN`` section 6).
+    ``git_commit`` records ``git rev-parse HEAD`` **at write time** and keeps that meaning exactly,
+    so nothing that reads it changes behaviour.  Two facts make it insufficient on its own:
+
+    * an artifact can never be committed at the commit it records -- committing moves ``HEAD``,
+      the same fixed point as a document that hashes itself;
+    * it is already wrong for a chunked campaign.  Measured 2026-08-12: ``output/p4_4/gate_a.json``
+      carries ``738884b`` while the three ``eval_*.json`` carry ``c13aaa9``, so **no single commit
+      produced all the measurements** and the report's single value means "when the report was
+      assembled".
+
+    So three keys are ADDED and none is changed: ``written_at_git_commit`` names the write-time
+    commit unambiguously (``None`` when git is unavailable, which the legacy ``git_commit`` reports
+    as ``""`` and continues to), ``measurement_git_commits`` carries the sorted, de-duplicated
+    commits **of the inputs** -- empty when the caller supplies none, which is every pre-existing
+    call site -- and ``unreachable_measurement_commits`` carries the ones that failed the check
+    below.
+
+    **REACHABILITY IS CHECKED, and that check is the point** (P4.3 review, finding F6).  The first
+    artifact written under this schema recorded ``8b647a40...``, a commit that had been amended away
+    and resolved only because git had not yet garbage-collected it: **a provenance field naming an
+    object a future reader cannot check out defeats the whole deliverable.**  Every supplied commit
+    is therefore tested with ``git merge-base --is-ancestor <commit> HEAD`` at write time.  Ones
+    that fail are **moved, not dropped** -- silently discarding them would hide exactly the
+    situation this field exists to expose -- and the artifact records both lists.
     """
     try:
         commit = subprocess.run(
@@ -475,6 +504,7 @@ def runtime_provenance() -> dict[str, Any]:
         ).stdout.strip()
     except OSError:  # pragma: no cover - git is present in this repo
         commit = ""
+    reachable, unreachable = _partition_reachable_commits(measurement_git_commits or ())
     return {
         "torch_version": torch.__version__,
         "torch_cuda_version": torch.version.cuda,
@@ -486,7 +516,32 @@ def runtime_provenance() -> dict[str, Any]:
         "numpy_version": np.__version__,
         "python_version": platform.python_version(),
         "git_commit": commit,
+        "written_at_git_commit": commit or None,
+        "measurement_git_commits": reachable,
+        "unreachable_measurement_commits": unreachable,
     }
+
+
+def _partition_reachable_commits(commits: Sequence[str]) -> tuple[list[str], list[str]]:
+    """Split *commits* into those reachable from ``HEAD`` and those that are not.
+
+    ``git merge-base --is-ancestor A B`` exits 0 when ``A`` is an ancestor of ``B``, 1 when it is
+    not, and 128 when the object does not exist at all -- an amended-away or garbage-collected
+    commit hits one of the latter two, and both belong in the unreachable list.
+    """
+    reachable: list[str] = []
+    unreachable: list[str] = []
+    for candidate in sorted({str(c) for c in commits if str(c)}):
+        try:
+            result = subprocess.run(
+                ["git", "merge-base", "--is-ancestor", candidate, "HEAD"],
+                capture_output=True,
+                check=False,
+            ).returncode
+        except OSError:  # pragma: no cover - git is present in this repo
+            result = 1
+        (reachable if result == 0 else unreachable).append(candidate)
+    return reachable, unreachable
 
 
 # ----------------------------------------------------------------------
