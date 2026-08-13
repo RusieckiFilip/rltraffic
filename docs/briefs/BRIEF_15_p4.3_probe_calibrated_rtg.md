@@ -61,6 +61,12 @@ mechanism's name**, and the paper would be claiming a mechanism it did not use.
 4. **What is the in-support fraction for each?** — see §5, and note it needs **no evaluation return at
    all**.
 
+⚠️ **CORRECTED by §12.1 — this note was HALF WRONG and the half matters.** *"Any correct rule must
+approximately reproduce the naive target here"* holds for the **probe-relative** form (Rule B), where
+the cross-domain ratio is 1 in-domain, and **not** for the **probe-quantile** form: a quantile of
+MaxPressure's returns targets **−13112**, i.e. MaxPressure's own performance, because MaxPressure is
+not the behaviour policy. **Read §12.1 and §12.2 before planning around this paragraph.**
+
 ⚠️ **Be honest about what the in-domain case can and cannot test, and say so in the packet.** In-domain
 the probe's *cross-domain* job is trivial: source and target coincide, so **any correct rule must
 approximately reproduce the naive target here**, and the probe's real work is not exercised until
@@ -84,15 +90,23 @@ Probe episodes are MaxPressure rollouts; 100 of them cost about two minutes.
 
 ## 5. The two criteria, and only one of them may select
 
+> 🚨 **WITHDRAWN 2026-08-13, BEFORE ANY NUMBER EXISTED — see §12.1. The table below said the
+> in-support fraction MAY select a rule. That is wrong, and it is measurably wrong.** The training
+> RTG support is `[−9991.0, −6.0]`; `target = 0` sits above it for the entire episode (in-support
+> **0.000**) and is the point P4's reviewer measured **best** at n = 1. **A criterion that would
+> reject the apparently best point is not a weak proxy — on this evidence it points the wrong way**,
+> because conditioning a return-conditioned model on an optimistic and therefore extreme return is
+> *what the mechanism is*. **In-support is a RELIABILITY diagnostic and a caveat generator. It never
+> selects.** The original text follows, struck through in substance.
+
 | criterion | what it measures | may it select the rule? |
 |---|---|---|
-| **in-support fraction** | the fraction of decisions whose RTG input lies inside the training RTG range — computable from the conditioning trajectory alone | **YES** — it uses no evaluation return, and a rule that keeps the model in support is better *by construction* |
+| ~~**in-support fraction**~~ | the fraction of decisions whose RTG input lies inside the training RTG range | ~~YES~~ → **NO** (§12.1). Reported for every point as a **reliability** diagnostic |
 | **ATT on the held-out draws** | the outcome | **NO. It scores the rule and never chooses it.** |
 
-**This split is the point of the task.** The in-support fraction gives a **leakage-free** way to
-prefer one rule over another, which is exactly what a method needs and what "sweep and pick the best"
-does not have. **Report it for every grid point and for the rule**, with the training RTG range it is
-measured against stated as a number.
+**With both selectors gone, what makes the rule non-arbitrary is its FORM** — see §12.1. **Report the
+in-support fraction for every grid point and for the rule**, with the training RTG range it is
+measured against stated as a number: `[−9991.0, −6.0]`, measured over 72,000 rows.
 
 ## 6. Per-file requirements
 
@@ -185,3 +199,86 @@ DT-versus-baseline sentence is written.
 conditioning does not recover the DT's headroom in the easy case, and the honest paper says the
 mechanism's value is confined to cross-domain transfer — where C3 will test it — rather than claiming
 it generally. **Both outcomes are registered. Neither requires anything to be renegotiated.**
+
+---
+
+## 12. RULINGS on the plan of 2026-08-13 — **plan approved**, one design of mine withdrawn, four answers
+
+**Your exploration earned a better task than the one I briefed.** All three findings verified here
+independently before ruling.
+
+### 12.1 🚨 §5's in-support selector is WITHDRAWN — my error, and you found it before it cost compute
+
+**Measured here:** the training RTG support is `[−9991.0, −6.0]` (72,000 rows, your figure exactly).
+`target = 0` is above it for the whole episode — **in-support 0.000** — and it is the point P4's
+reviewer measured **best**. **A criterion that rejects the apparently best point is not a weak proxy;
+it points the wrong way.**
+
+**Why I got it wrong:** I conflated **reliability** (out-of-support inputs make behaviour
+unpredictable — true) with **performance** (in-support targets do better — does not follow). For a
+return-conditioned model it is close to backwards: **you condition on an optimistic, therefore
+extreme, return on purpose. That is what the mechanism IS.** In-support is now a reported diagnostic
+and a caveat generator, and it selects nothing.
+
+⚠️ **And your Rule A has the mirror-image defect, which I also verified: `q = 1.00` of the PROBE's
+distribution sets `target_rtg = −13112`** (MaxPressure's best of 200 draws), **7,350 below the naive
+−5762 — it asks the DT to achieve MaxPressure-level return.** Your q=1.0-by-form argument is right
+about the *functional* and wrong about the *distribution*: the naive rule is the max of the
+**behaviour policy's** returns, and MaxPressure is not the behaviour policy. **So Rule A is not the
+naive rule transported; it is a different and worse rule.**
+
+**What this leaves, and it is the honest position:** with both selectors gone, the rule is justified
+**by its form alone** — and only **Rule B** has the right form, because only Rule B estimates
+*best-achievable* rather than *probe-achievable*:
+
+```
+target_target = R_probe_target x ( R_best_source / R_probe_source )
+```
+
+**In-domain the ratio is 1 by construction, so Rule B is an identity here and cannot be validated in
+this task.** You were right that my §3 honesty note was half wrong; it is now fully stated.
+
+### 12.2 So what P4.3 delivers, restated
+
+**The mechanism cannot be validated in-domain. Its components can, and the landscape must be.**
+
+1. **The landscape** — the declared grid. This is necessary regardless: it says whether the target
+   matters at all, and it is the only thing that lets `docs/reviews/P4.4.md` §8.6 be lifted.
+2. **The source-domain half of Rule B's ratio**, `R_best_source / R_probe_source`, measurable here and
+   needed by P7. Report it with both a max-based and a mean-based probe statistic.
+3. **Rule B named, and its in-domain identity ASSERTED by test** (§12.4).
+4. **Rule A evaluated as a declared alternative, with the prediction registered NOW that it will be
+   poor, and the reason: it targets probe performance rather than best-achievable performance.** A
+   registered prediction that a plausible-looking rule fails, followed by its failure, is worth more
+   than quietly not running it — it is the evidence that the mechanism must be **relative**.
+
+### 12.3 Q1 — DEFERRED 31: **your reading is right and the contradiction is mine.** §8 said back-fill
+into `docs/data/p4_gate.json`; §9 forbade editing P4's committed artifacts. **Ruled: the sidecar, as
+you propose.** A new artifact carrying the rank-biserial and paired CIs recomputed from
+`p4_gate.json`'s own records, with that file's sha256 recorded as the source and **the committed file
+untouched.** Editing a merged, cited artifact to add fields would change its hash and force the whole
+regeneration protocol for zero scientific gain. **No in-place edit is authorised.**
+
+### 12.4 Q2 — **assert Rule B's in-domain identity in a test.** One line, no campaign, and it is the
+difference between claiming a structural property and demonstrating it. It also pins the mechanism's
+form for P7, which is the task that will actually exercise it.
+
+### 12.5 Q3 — **in-session, with one condition.** ~12 jobs of ~9 minutes is within the `BRIEF_11` §7 Q8
+precedent under which P4.4 ran a 25-minute Gate A. The risk is not wall time, it is losing completed
+work: **each grid point writes its own artifact as it finishes**, so a crash or a `DEFERRED` 41
+deadlock costs one point and not the campaign. Every job carries the thread pin and ends with the
+completed-equals-requested assertion.
+
+### 12.6 Q4 — **do not run the secondary quantiles.** Compute the target value each `q ∈ {0.5, 0.75,
+0.9}` maps to — that is free — and report **where each falls on the grid**. Do not roll them out.
+**The grid already spans the target space; the quantiles are a labelling of that space, not new
+points in it**, so extra rollouts would re-measure what the grid measures. And a table nobody may
+select from is not evidence — **it is temptation with a provenance**, and the first question a
+referee asks of it is why it was computed and not used.
+
+### 12.7 Gate A stays exactly as you wrote it
+
+The `−5762` grid point is P4's configuration, so its 500 records **must reproduce `p4_gate.json`
+per-episode by `==`, and nothing else is reported if it fails.** That is the same instrument check
+that made P4.4 and P4.5 trustworthy, and it is worth more here than in either, because this task
+changes the one parameter that configuration is defined by.
