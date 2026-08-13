@@ -800,6 +800,37 @@ def test_p2_scores_the_partial_clause_and_refuses_the_mixture_clause_without_mix
     assert score_p2(cells, [])["partial_outcome"] == "FAILED"
 
 
+def test_p2_carries_the_paired_interval_of_each_tiers_bc_versus_bc_top10_contrast() -> None:
+    """The advantage is only interpretable next to its CI, and the pair's ORDER fixes its sign."""
+    episodes_by_arm = {
+        arm_key("bc", "random"): episodes_for(arm_key("bc", "random"), {1000: 400.0, 1001: 402.0}),
+        arm_key("bc_top10", "random"): episodes_for(
+            arm_key("bc_top10", "random"), {1000: 399.0, 1001: 401.0}
+        ),
+    }
+    comparisons = grid_comparisons(episodes_by_arm)
+    cells = {
+        "random": {
+            "bc": {"att_horizon_mean": 401.0},
+            "bc_top10": {"att_horizon_mean": 400.0},
+        }
+    }
+    scored = score_p2(cells, comparisons)
+    interval = scored["advantage_intervals"]["random"]
+    assert interval["mean_difference"] == pytest.approx(1.0)
+    assert interval["ci95_width"] == pytest.approx(2.0 * (interval["ci95_high"] - interval["mean_difference"]))
+
+    reversed_pair = grid_comparisons(
+        {
+            arm_key("bc_top10", "random"): episodes_by_arm[arm_key("bc_top10", "random")],
+            arm_key("bc", "random"): episodes_by_arm[arm_key("bc", "random")],
+        }
+    )
+    assert reversed_pair[0].left_arm == arm_key("bc", "random"), (
+        "grid_comparisons must order a pair by METHODS, whatever order the arms arrived in"
+    )
+
+
 def test_p3_is_scored_by_the_declared_or_rule_per_tier() -> None:
     """Either check may carry the signature; both are reported whichever way they come out."""
     diagnostics = {

@@ -1511,11 +1511,19 @@ def score_p2(
         except ValueError:
             continue
         if left_tier == right_tier and {left_method, right_method} == {"bc", "bc_top10"}:
-            sign = 1.0 if left_method == "bc" else -1.0
+            if left_method != "bc":
+                # grid_comparisons emits pairs in METHODS order, so bc is always on the left.  A
+                # reversed pair would silently flip the sign of every advantage reported here, so
+                # it is refused rather than accommodated by a branch no caller can reach.
+                raise ValueError(
+                    f"the bc/bc_top10 comparison for {left_tier} arrived as "
+                    f"{comparison.left_arm} vs {comparison.right_arm}; P2's advantage is defined "
+                    "as bc minus bc_top10 and the pair order fixes its sign"
+                )
             intervals[left_tier] = {
-                "mean_difference": sign * comparison.mean_difference,
-                "ci95_low": sign * comparison.ci95_high if sign < 0 else comparison.ci95_low,
-                "ci95_high": sign * comparison.ci95_low if sign < 0 else comparison.ci95_high,
+                "mean_difference": comparison.mean_difference,
+                "ci95_low": comparison.ci95_low,
+                "ci95_high": comparison.ci95_high,
                 "ci95_width": comparison.ci95_width,
                 "rank_biserial": comparison.rank_biserial,
             }
