@@ -255,8 +255,14 @@ def test_the_override_reaches_the_model_on_a_real_committed_checkpoint(tmp_path:
         agent.act(info, explore=False)
 
     for step in range(len(rewards) + 1):
-        expected = (override - math.fsum(rewards[:step])) / scale
-        assert float(captured[step][0, -1, 0]) == pytest.approx(expected, abs=1e-9)
+        # EXACT, not a tolerance: `_window` stores the quotient as float32
+        # (agent/DTAgent.py:596), so the value the model receives is the float32 round-trip of
+        # the float64 quotient.  Asserting against that pins the storage convention as well as
+        # the arithmetic; asserting the float64 value with a tolerance would pin neither, and
+        # this checkpoint's rtg_scale (9991.0) is not a power of two, so the two differ by up to
+        # 1e-8 -- measured 5.8e-9 at step 0.
+        expected = float(np.float32((override - math.fsum(rewards[:step])) / scale))
+        assert float(captured[step][0, -1, 0]) == expected, f"step {step}"
     assert float(captured[0][0, -1, 0]) != float(payload["target_rtg"]) / scale
 
 
