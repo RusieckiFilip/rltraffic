@@ -334,3 +334,55 @@ session removes the one reader who would have noticed. So:
 
 **The Return Packet must state which cells came from which `tmux` run**, since the campaign is no
 longer one process with one log.
+
+### 12.1 AMENDED 2026-08-13, ~40 minutes after §12 was written, against the RUNNING campaign
+
+**§12 arrived after training had already started, and this section says what actually happens rather
+than pretending it arrived in time.** Measured from the `main` tree, read-only, at 21:05:
+
+**What is already true and does not need changing.** The plan was committed **before the first
+gradient step** (`622cf2e`, then `30073d8` folding in §11 — *"still before the first gradient step"*),
+so **the registered predictions are intact and §11 reached the work in time**. `1f35ea3` generalised
+the reporting path per §11.A2 with the regression gate passing at **0 leaves changed outside
+`runtime`**. `DEFERRED` 42 and 43 are done. The jobs **are** pinned — `OMP_NUM_THREADS=1
+MKL_NUM_THREADS=1 --torch-threads 1` — so **§12.3 is already satisfied**.
+
+**Where the campaign stands: 1 tier of 4.** 20 checkpoints (the `random` tier), `gate.json` written,
+`eval_fixedtime_behaviour.json` written, `behaviour --tier random` running. **`fixedtime`,
+`maxpressure` and `mappo500` — 60 checkpoints and their evaluations — are still ahead.** The bulk of
+the compute is in front of the campaign, not behind it, which is why §12 still applies.
+
+> **RULED: do NOT kill the running job.** `behaviour --tier random` is minutes from writing a real
+> artifact and killing it wastes it. **Let it finish, then move the remaining three tiers to `tmux`.**
+
+**The handoff is cheap, and this is the fact that makes it cheap:** `method_tier_grid` has **no
+skip-if-exists logic** — grepped, and the only hits are unrelated docstrings — but it is **invoked per
+tier** (`--tier random`). So resumption is achieved by not re-invoking a finished tier, and **nothing
+already computed is recomputed.**
+
+> **§12.4 is SCOPED DOWN accordingly, and I am scoping a condition I wrote 40 minutes ago.** Applying
+> the diagnostic from `PROJECT_PLAN` §7 — *name the party this rule protects, and check that party is
+> present* — §12.4 protects **someone returning cold to a half-finished campaign**, and per-tier
+> invocation plus per-tier artifacts already protects them. **A refactor to skip-if-exists is NOT
+> required.** What replaces it: **the script logs each tier as it completes, by name, and §12.2's
+> `completed == requested` assertion covers the full tier set** — so a `set -e` abort at tier 2 is
+> visible rather than silent.
+
+### 12.2 THE `until`-LOOP SELF-MATCH IS LIVE IN THIS TASK, AND IT IS DEMONSTRATED, NOT PREDICTED
+
+The running wrapper polls with:
+
+```
+until [ -f output/p4_6/eval_random_behaviour.json ] || ! pgrep -f "behaviour --tier random"; do sleep 30; done
+```
+
+⚠️ **`pgrep -f` matches the WRAPPER SHELL'S OWN COMMAND LINE, which contains that literal string.**
+Measured — `pgrep -af "behaviour --tier random"` returned **three** pids: the python job, the wrapper
+shell, **and the shell running my own `pgrep`**, which self-matched on its own pattern argument.
+So `! pgrep …` is **always false** while the wrapper lives, and the loop can exit **only** by the file
+appearing. **If the job dies without writing the file, the loop spins forever.**
+
+**This is precisely the P4.4 hang the user cited as their reason for §12, recurring inside the task
+§12 was written for** — which is the strongest available argument that the ruling is right, and it is
+evidence rather than anticipation. **Stop the `until`-poll pattern immediately, independently of
+`tmux`:** it is both the context burn and a live hang.
