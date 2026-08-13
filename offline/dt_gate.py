@@ -460,11 +460,31 @@ def stack_dataset(
     return stacked
 
 
-def runtime_provenance() -> dict[str, Any]:
+def runtime_provenance(
+    measurement_git_commits: Sequence[str] | None = None,
+) -> dict[str, Any]:
     """Device, library and repo state -- the state that determines float reduction order.
 
     P8.0 finding N8: the provenance file omitted exactly this, in the document whose MAPPO rows
     were attributed to reduction order.
+
+    **Measurement provenance versus written-at provenance** (``DEFERRED`` 39, extended additively
+    on 2026-08-13 under the authorisation in ``BRIEF_15`` section 8 and ``PROJECT_PLAN`` section 6).
+    ``git_commit`` records ``git rev-parse HEAD`` **at write time** and keeps that meaning exactly,
+    so nothing that reads it changes behaviour.  Two facts make it insufficient on its own:
+
+    * an artifact can never be committed at the commit it records -- committing moves ``HEAD``,
+      the same fixed point as a document that hashes itself;
+    * it is already wrong for a chunked campaign.  Measured 2026-08-12: ``output/p4_4/gate_a.json``
+      carries ``738884b`` while the three ``eval_*.json`` carry ``c13aaa9``, so **no single commit
+      produced all the measurements** and the report's single value means "when the report was
+      assembled".
+
+    So two keys are ADDED and none is changed: ``written_at_git_commit`` names the write-time
+    commit unambiguously (``None`` when git is unavailable, which the legacy ``git_commit`` reports
+    as ``""`` and continues to), and ``measurement_git_commits`` carries the sorted, de-duplicated
+    commits **of the inputs** -- empty when the caller supplies none, which is every pre-existing
+    call site.
     """
     try:
         commit = subprocess.run(
@@ -486,6 +506,8 @@ def runtime_provenance() -> dict[str, Any]:
         "numpy_version": np.__version__,
         "python_version": platform.python_version(),
         "git_commit": commit,
+        "written_at_git_commit": commit or None,
+        "measurement_git_commits": sorted({str(c) for c in (measurement_git_commits or ())}),
     }
 
 
