@@ -764,6 +764,16 @@ def evaluate_point(
             f"the canary cell {canary_cell} was not evaluated, so this point carries no "
             "recomputable conditioning trajectory for a later reader"
         )
+
+    # Completeness is asserted HERE as well as at the call site, and here it is stronger: the
+    # expectation is built from this function's own arguments -- the declared checkpoints and the
+    # registered draw set -- so it cannot be derived from the episodes being checked.
+    from offline.offline_baselines import assert_campaign_complete
+
+    assert_campaign_complete(
+        requested_runs(str(point_key), sorted(checkpoints), [int(d) for d in draw_ids]),
+        episodes,
+    )
     return PointRun(
         point_key=str(point_key),
         target_rtg=float(target_rtg),
