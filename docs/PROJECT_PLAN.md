@@ -1019,8 +1019,10 @@ forgotten rather than parked.
   `random`'s 400 streams down to 200 (BRIEF_17 §7.1 as tightened by §11.A1 — **one episode per draw**,
   since P4.5's confound otherwise returns in new clothes), and the gated re-use of `mappo1000`'s
   column (§7.5 — canonical digests plus a declared re-rolled sample, mismatch ⇒ BLOCKED).
-  ⚠️ **`BRIEF_17` gained §11 at `53da8fd`, after the implementer had already read the file.** Five
-  findings from auditing my own brief against the artifacts, and §11 overrides §1–§10 on conflict.
+  ⚠️ **`BRIEF_17` gained §11 at `53da8fd` and §12 at `dac40f4`, after the implementer had already read
+  the file.** §11 is five findings from auditing my own brief against the artifacts; **§12 rules that
+  the ≈7 h campaign runs in a user-started `tmux` session, not as session background jobs** — which
+  `CLAUDE.md` §5 already bound and §1–§11 were silent on. Both override §1–§10 on conflict.
   **The implementer must re-read the brief from `/home/filip/rltraffic/docs/briefs/BRIEF_17_p4.6_method_tier_grid.md`
   (absolute path, the `main` tree) before writing `docs/plans/p4.6.md`.**
 - **Two worktrees, and they are properly separated** — `/home/filip/rltraffic` on `main` (mine) and
