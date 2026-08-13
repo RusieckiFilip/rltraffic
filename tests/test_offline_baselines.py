@@ -1537,3 +1537,90 @@ def test_the_delta_rounding_cross_check_fires_on_a_verdict_that_turns_on_the_rou
             env_settings={},
             engine_seed=1000,
         )
+
+
+# ----------------------------------------------------------------------
+# P4.6 (BRIEF_17 section 11, finding A2): the reporting path is generalised additively.
+# The default path must keep behaving EXACTLY as it did -- the regression gate that
+# docs/data/p4_4_baselines.json regenerates byte-identically is what makes the generalisation
+# safe, and these tests are its unit-level half.
+# ----------------------------------------------------------------------
+
+
+def test_the_artifact_can_report_against_a_behaviour_reference_that_is_not_mappo1000() -> None:
+    """P4.6's random and fixedtime tiers have no mappo1000 arm; the report must still build."""
+    draws = {1000: 300.0, 1001: 310.0, 1002: 320.0}
+    episodes = _episodes("madt", draws, seed=101)
+    episodes += _episodes("random", {d: v + 90.0 for d, v in draws.items()}, seed=101)
+    for method in METHODS:
+        episodes += _episodes(method, {d: v + 1.0 for d, v in draws.items()}, seed=101)
+
+    payload = baselines_artifact(
+        episodes=episodes,
+        training={"declared_gradient_steps": DECLARED_GRADIENT_STEPS, "seeds": []},
+        gate_a={"status": "PASS", "compared": 0, "mismatches": 0},
+        env_settings={"max_steps": 360},
+        engine_seed=1000,
+        behaviour_reference="random",
+        emit_verdicts=False,
+    )
+    assert payload["behaviour_reference"] == "random"
+    assert "random_vs_madt" in payload["behaviour_policy_comparisons"]
+    assert payload["cells"]["random"]["policy_source"] == "stochastic_heuristic"
+
+    for method in METHODS:
+        entry = payload["comparisons"][f"madt_vs_{method}"]
+        assert "recovered_fraction" in entry, "the recovered fraction is reference-relative, not delta-relative"
+        assert "verdict" not in entry
+        assert "delta" not in entry
+    for absent in (
+        "equivalence_margin_delta",
+        "equivalence_margin_delta_derivation",
+        "decision_rule",
+        "registered_forecasts",
+    ):
+        assert absent not in payload, f"{absent} is a verdict-mode key"
+    assert "no equivalence verdict" in payload["reporting_rule"]
+
+
+def test_the_artifact_without_its_behaviour_reference_is_still_refused() -> None:
+    """Generalising the reference must not weaken the requirement that there IS one."""
+    draws = {1000: 100.0}
+    episodes = _episodes("madt", draws, seed=101) + _episodes("bc", draws, seed=101)
+    with pytest.raises(ValueError, match="the artifact needs the 'random' arm"):
+        baselines_artifact(
+            episodes=episodes,
+            training={"declared_gradient_steps": DECLARED_GRADIENT_STEPS, "seeds": []},
+            gate_a={"status": "PASS", "compared": 0, "mismatches": 0},
+            env_settings={"max_steps": 360},
+            engine_seed=1000,
+            behaviour_reference="random",
+            emit_verdicts=False,
+        )
+
+
+def test_the_default_reporting_path_is_unchanged_by_the_generalisation() -> None:
+    """The default call must produce exactly the keys and values it produced before P4.6.
+
+    Byte-level, on everything but the self-describing ``runtime`` block: this is the unit-level
+    form of the regression gate declared in ``docs/plans/p4.6.md`` section 15.2.
+    """
+    common = {
+        "episodes": _artifact_episodes(),
+        "training": {"declared_gradient_steps": DECLARED_GRADIENT_STEPS, "seeds": []},
+        "gate_a": {"status": "PASS", "compared": 0, "mismatches": 0},
+        "env_settings": {"max_steps": 360},
+        "engine_seed": 1000,
+    }
+    implicit = baselines_artifact(**common)
+    explicit = baselines_artifact(**common, behaviour_reference="mappo1000", emit_verdicts=True)
+
+    implicit.pop("runtime")
+    explicit.pop("runtime")
+    assert json.dumps(implicit, sort_keys=True) == json.dumps(explicit, sort_keys=True)
+    assert implicit["equivalence_margin_delta"] == DELTA_ATT
+    assert "behaviour_reference" not in implicit, (
+        "the default payload must carry exactly the key set the committed artifact carries"
+    )
+    assert all(f"madt_vs_{method}" in implicit["comparisons"] for method in METHODS)
+    assert all("verdict" in entry for entry in implicit["comparisons"].values())
