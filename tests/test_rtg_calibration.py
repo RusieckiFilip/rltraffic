@@ -895,8 +895,17 @@ def test_pearson_r_refuses_a_constant_series() -> None:
 
 
 def _landscape_points(atts: Sequence[float], fractions: Sequence[float]) -> list[dict[str, Any]]:
-    """Evaluated grid points whose per-draw ATTs are PAIRED: the same draws under every point."""
+    """Evaluated grid points whose per-draw ATTs are PAIRED: the same draws under every point.
+
+    Two noise components, and the second one exists because a mutation survived without it.  The
+    **shared** draw effect is large and cancels under pairing -- that is what makes the paired CI
+    narrower than the marginal one.  The **independent** jitter does not cancel, so the paired
+    difference varies across draws and its CI has real width; without it every step's CI would be
+    degenerate, every step would "resolve", and a `resolves` verdict computed from the point
+    estimate's sign would be indistinguishable from one computed from the CI.
+    """
     keys = list(grid_targets())
+    rng = np.random.default_rng(1414)
     out: list[dict[str, Any]] = []
     for index, (att, fraction) in enumerate(zip(atts, fractions)):
         key = keys[index]
@@ -910,9 +919,12 @@ def _landscape_points(atts: Sequence[float], fractions: Sequence[float]) -> list
                         "arm": key,
                         "seed": seed,
                         "draw_id": draw,
-                        # Per-draw structure shared across points, so the pairing is real: the
-                        # draw effect cancels and the point effect does not.
-                        "att_horizon": att + 0.5 * ((draw % 7) - 3) + 0.1 * ((seed % 3) - 1),
+                        "att_horizon": (
+                            att
+                            + 0.5 * ((draw % 7) - 3)          # shared: cancels under pairing
+                            + 0.1 * ((seed % 3) - 1)          # shared
+                            + float(rng.normal(0.0, 0.15))    # independent: does not cancel
+                        ),
                         "horizon_vehicle_count": 44.0,
                         "episode_reward": -7000.0,
                     }
@@ -950,12 +962,28 @@ def test_adjacent_steps_are_compared_PAIRED_and_each_carries_a_resolution_verdic
     assert len(adjacent) == len(DECLARED_GRID) - 1
     first = adjacent["dt_g0_to_dt_g1"]
     assert first["from_target"] == 0.0 and first["to_target"] == -1000.0
-    # Paired: the shared per-draw structure cancels exactly, so the difference is the point offset.
-    assert first["mean_difference"] == pytest.approx(atts[1] - atts[0], abs=1e-9)
+    # Paired: the shared per-draw structure cancels, so the difference is the point offset plus
+    # only the independent jitter.
+    assert first["mean_difference"] == pytest.approx(atts[1] - atts[0], abs=0.1)
     assert first["paired"] is True
     assert first["n_shared_draws"] == 20
     assert "rank_biserial" in first and "ci95_low" in first and "ci95_high" in first
-    assert first["resolves"] == (first["ci95_low"] > 0.0 or first["ci95_high"] < 0.0)
+
+    # The verdict must come from the CI, not from the sign of the point estimate.  The fixture
+    # deliberately contains both kinds of step, so a verdict computed from the sign alone would
+    # disagree with at least one of them -- which is how this assertion has teeth.
+    for name, step in adjacent.items():
+        expected = step["ci95_low"] > 0.0 or step["ci95_high"] < 0.0
+        assert step["resolves"] == expected, name
+        assert step["ci95_half_width"] > 0.0, f"{name}: a degenerate CI cannot test a verdict"
+    verdicts = {name: step["resolves"] for name, step in adjacent.items()}
+    assert any(verdicts.values()), "the fixture must contain a step that resolves"
+    assert not all(verdicts.values()), "the fixture must contain a step that does NOT resolve"
+    signs = {name: adjacent[name]["mean_difference"] != 0.0 for name in adjacent}
+    assert verdicts != signs, (
+        "every step's point estimate is non-zero, so a `resolves` computed from the sign would "
+        "agree with the CI everywhere and this test could not tell them apart"
+    )
 
     # The paired CI must be NARROWER than the marginal one the D1 defect would have used: the
     # fixture's per-draw spread is shared by both points, so pairing removes it.  The marginal
