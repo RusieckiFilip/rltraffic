@@ -134,6 +134,7 @@ __all__ = [
     "in_support_counts",
     "leaf_diff",
     "main",
+    "pearson_r",
     "point_artifact",
     "probe_artifact",
     "probe_draw_ids",
@@ -852,6 +853,39 @@ def gate_a_result(
 # ----------------------------------------------------------------------
 
 
+def pearson_r(xs: Sequence[float], ys: Sequence[float]) -> float:
+    """Pearson correlation of two equal-length series.
+
+    Used for one thing: the correlation between the **withdrawn** in-support criterion and the
+    outcome it was meant to proxy (``BRIEF_15`` section 14.1).  Reported as a result rather than
+    as an erratum -- a plausible, leakage-free selection criterion turning out to be almost
+    perfectly *anti*-correlated with performance is a methodological finding, and it is the
+    strongest evidence available here that conditioning a return-conditioned model outside its
+    training support is the mechanism operating as designed rather than a defect to engineer away.
+
+    A zero-variance series raises instead of returning 0.0, which would read as "unrelated".
+    """
+    left = [float(v) for v in xs]
+    right = [float(v) for v in ys]
+    if len(left) != len(right):
+        raise ValueError(f"pearson_r needs equal-length series, got {len(left)} and {len(right)}")
+    if len(left) < 2:
+        raise ValueError("pearson_r needs at least two points")
+    mean_left = math.fsum(left) / len(left)
+    mean_right = math.fsum(right) / len(right)
+    var_left = math.fsum((v - mean_left) ** 2 for v in left)
+    var_right = math.fsum((v - mean_right) ** 2 for v in right)
+    if var_left == 0.0 or var_right == 0.0:
+        raise ValueError(
+            "pearson_r received a series with zero variance, so the correlation is undefined; "
+            "returning 0.0 would read as 'unrelated' when the truth is 'unmeasurable'"
+        )
+    covariance = math.fsum(
+        (a - mean_left) * (b - mean_right) for a, b in zip(left, right)
+    )
+    return covariance / math.sqrt(var_left * var_right)
+
+
 def locate_on_grid(target: float) -> dict[str, Any]:
     """Where *target* falls on the declared grid: the bracketing points, or which end it is past.
 
@@ -1176,6 +1210,83 @@ def report_artifact(
                 "z": comparison.wilcoxon.z,
             }
 
+    # ADJACENT STEPS ARE PAIRED, and this is not a refinement (BRIEF_15 section 14).  Every point
+    # is measured on the SAME 100 held-out draws with the SAME five seeds, so the difference
+    # between two adjacent cells is a paired quantity and its marginal CI is the wrong ruler --
+    # the D1 defect from the P2.6 review, already in the Decisions Log.  Each step carries its
+    # paired CI, its effect size, and an explicit verdict on whether it resolves at all, because
+    # a landscape described by point estimates alone reads as monotone when no single step is
+    # distinguishable from noise.
+    graded = [
+        p for p in sorted(points, key=lambda p: -float(p["target_rtg"]))
+        if str(p["point_key"]) in declared
+    ]
+    adjacent: dict[str, Any] = {}
+    for left_point, right_point in zip(graded, graded[1:]):
+        left_key = str(left_point["point_key"])
+        right_key = str(right_point["point_key"])
+        if not episodes_by_key.get(left_key) or not episodes_by_key.get(right_key):
+            continue
+        step = paired_comparison(episodes_by_key[right_key], episodes_by_key[left_key])
+        resolves = step.ci95_low > 0.0 or step.ci95_high < 0.0
+        adjacent[f"{left_key}_to_{right_key}"] = {
+            "from_key": left_key,
+            "to_key": right_key,
+            "from_target": float(left_point["target_rtg"]),
+            "to_target": float(right_point["target_rtg"]),
+            "paired": True,
+            "pairing_note": (
+                "per-draw differences over draws shared by both points; the marginal CI of "
+                "either cell is the wrong ruler for this quantity (P2.6 review, defect D1)"
+            ),
+            "n_shared_draws": step.n_shared_draws,
+            "mean_difference": step.mean_difference,
+            "ci95_half_width": step.ci95_half_width,
+            "ci95_low": step.ci95_low,
+            "ci95_high": step.ci95_high,
+            "median_difference": step.median_difference,
+            "wins": step.wins,
+            "losses": step.losses,
+            "ties": step.ties,
+            "rank_biserial": step.rank_biserial,
+            "p_value": step.wilcoxon.p_value,
+            "z": step.wilcoxon.z,
+            "resolves": bool(resolves),
+        }
+
+    # The withdrawn criterion, scored against the outcome it was meant to proxy.
+    fractions = [
+        float(p["in_support"]["mean_fraction"]) for p in graded if "in_support" in p
+    ]
+    atts = [
+        float(p["cell"]["att_horizon_mean"]) if "cell" in p
+        else float(np.mean([e["att_horizon"] for e in p["episodes"]]))
+        for p in graded
+        if "in_support" in p
+    ]
+    correlation: dict[str, Any] = {}
+    if len(fractions) >= 2 and len(set(fractions)) > 1 and len(set(atts)) > 1:
+        correlation = {
+            "pearson_r": pearson_r(fractions, atts),
+            "n_points": len(fractions),
+            "point_keys": [str(p["point_key"]) for p in graded if "in_support" in p],
+            "in_support_range": [min(fractions), max(fractions)],
+            "att_range": [min(atts), max(atts)],
+            "higher_in_support_is_better": False,
+            "first_six_points_pearson_r": (
+                pearson_r(fractions[:6], atts[:6]) if len(fractions) >= 6 else None
+            ),
+            "interpretation": (
+                "ATT is lower-is-better, so a POSITIVE correlation means the in-support fraction "
+                "ranks the targets BACKWARDS. This is reported as a result: the criterion "
+                "BRIEF_15 section 5 originally allowed to select a rule is anti-correlated with "
+                "the outcome it was meant to proxy, which is why its withdrawal (section 12.1) "
+                "was necessary rather than merely cautious, and which is evidence that "
+                "conditioning outside the training support is the mechanism operating as "
+                "designed rather than a defect"
+            ),
+        }
+
     return {
         "format_version": ARTIFACT_FORMAT_VERSION,
         "role": (
@@ -1184,6 +1295,8 @@ def report_artifact(
             "reliability diagnostic. EXPLORATORY (PREREGISTRATION.md section 2): effect sizes and "
             "CIs, no inferential claim, no multiplicity correction"
         ),
+        "adjacent_comparisons": adjacent,
+        "in_support_vs_att": correlation,
         "analysis_status": "exploratory",
         "declared_grid": list(DECLARED_GRID),
         "declared_grid_keys": list(GRID_POINT_KEYS),

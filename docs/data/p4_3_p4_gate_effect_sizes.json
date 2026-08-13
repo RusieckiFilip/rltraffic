@@ -1,0 +1,67 @@
+{
+  "comparisons": {
+    "madt_vs_mappo1000": {
+      "ci95_high": -0.3935161976236239,
+      "ci95_low": -0.8590350962458511,
+      "losses": 24,
+      "mean_difference": -0.6262756469347375,
+      "median_difference": -0.7415276284297079,
+      "n_shared_draws": 100,
+      "p_value": 6.344854575852746e-07,
+      "rank_biserial": -0.5738613861386138,
+      "ties": 0,
+      "wins": 76,
+      "z": -4.9804135359638915
+    },
+    "madt_vs_mappo500": {
+      "ci95_high": -2.854335466434749,
+      "ci95_low": -3.417371041016399,
+      "losses": 0,
+      "mean_difference": -3.135853253725574,
+      "median_difference": -3.0989016262163744,
+      "n_shared_draws": 100,
+      "p_value": 3.9559116088995575e-18,
+      "rank_biserial": -1.0,
+      "ties": 0,
+      "wins": 100,
+      "z": -8.680051067684394
+    },
+    "madt_vs_maxpressure": {
+      "ci95_high": -69.21074801260781,
+      "ci95_low": -74.6601230565403,
+      "losses": 0,
+      "mean_difference": -71.93543553457405,
+      "median_difference": -71.43404809218947,
+      "n_shared_draws": 100,
+      "p_value": 3.9559116088995575e-18,
+      "rank_biserial": -1.0,
+      "ties": 0,
+      "wins": 100,
+      "z": -8.680051067684394
+    }
+  },
+  "effect_size_definition": "rank-biserial correlation (w_plus - w_minus) / (w_plus + w_minus), with the sign convention of offline.offline_baselines.rank_biserial: negative means the LEFT arm (the DT) had the lower ATT more often and by larger ranks",
+  "format_version": "p4.3-rtg/1.0",
+  "role": "DEFERRED 31: the effect sizes PREREGISTRATION.md section 8 requires beside every p-value, for P4's three paired tests. A SIDECAR: p4_gate.json is read and hashed, never edited (ruled 2026-08-13, BRIEF_15 section 12.3)",
+  "runtime": {
+    "cuda_available": true,
+    "cuda_device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "git_commit": "20804f581db36980ef92cd3ba9dab7cd40bd7392",
+    "measurement_git_commits": [
+      "1414daa21e7c509f92530cc24ea488f22a903146",
+      "862706c70d5d53bc10db80c815bb84fc8aca0fca"
+    ],
+    "numpy_version": "2.5.1",
+    "python_version": "3.12.13",
+    "torch_cuda_version": "12.8",
+    "torch_num_threads": 1,
+    "torch_version": "2.11.0+cu128",
+    "written_at_git_commit": "20804f581db36980ef92cd3ba9dab7cd40bd7392"
+  },
+  "source": {
+    "path": "docs/data/p4_gate.json",
+    "sha256": "f8aee52f393e68a988cb8d4815ead3487cb3458044585b7f1115a54320b40f55",
+    "thresholds_path": "docs/data/p4_heldout_thresholds.json",
+    "thresholds_sha256": "fd81b1c65230724de4fe1449c8f1b823e1ed7661cfb8821a12333aef517f102e"
+  }
+}

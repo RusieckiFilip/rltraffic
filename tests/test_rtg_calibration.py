@@ -27,7 +27,13 @@ import pytest
 import torch
 
 from agent.DTAgent import DTAgent
-from offline.dt_gate import HELD_OUT_DRAWS, TRAINING_SEEDS, EpisodeResult, runtime_provenance
+from offline.dt_gate import (
+    HELD_OUT_DRAWS,
+    TRAINING_SEEDS,
+    EpisodeResult,
+    mean_ci95,
+    runtime_provenance,
+)
 from offline.offline_baselines import assert_campaign_complete, paired_comparison
 from offline.rtg_calibration import (
     DECLARED_GRID,
@@ -51,6 +57,7 @@ from offline.rtg_calibration import (
     grid_targets,
     in_support_counts,
     leaf_diff,
+    pearson_r,
     point_artifact,
     probe_artifact,
     probe_draw_ids,
@@ -859,6 +866,129 @@ def test_the_report_refuses_points_that_disagree_about_the_rtg_scale() -> None:
             rtg_range=(-9991.0, -6.0),
             checkpoints={101: "a.pt"},
         )
+
+
+def test_pearson_r_matches_an_independent_recomputation_and_the_known_extremes() -> None:
+    """The correlation behind the withdrawn criterion's result (BRIEF_15 section 14.1).
+
+    Recomputed from the centred cross-product by hand rather than by calling the same helper,
+    and pinned at both extremes so a sign error or a dropped centring cannot survive.
+    """
+    assert pearson_r([1.0, 2.0, 3.0], [2.0, 4.0, 6.0]) == pytest.approx(1.0, abs=1e-12)
+    assert pearson_r([1.0, 2.0, 3.0], [-2.0, -4.0, -6.0]) == pytest.approx(-1.0, abs=1e-12)
+
+    rng = np.random.default_rng(1403)
+    xs = list(rng.uniform(0.0, 1.0, size=17))
+    ys = list(rng.uniform(100.0, 110.0, size=17))
+    mean_x = math.fsum(xs) / len(xs)
+    mean_y = math.fsum(ys) / len(ys)
+    cov = math.fsum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys))
+    var_x = math.fsum((x - mean_x) ** 2 for x in xs)
+    var_y = math.fsum((y - mean_y) ** 2 for y in ys)
+    assert pearson_r(xs, ys) == pytest.approx(cov / math.sqrt(var_x * var_y), abs=1e-12)
+
+
+def test_pearson_r_refuses_a_constant_series() -> None:
+    """A zero-variance series has no correlation; returning 0.0 would read as 'unrelated'."""
+    with pytest.raises(ValueError, match="zero variance"):
+        pearson_r([1.0, 1.0, 1.0], [1.0, 2.0, 3.0])
+
+
+def _landscape_points(atts: Sequence[float], fractions: Sequence[float]) -> list[dict[str, Any]]:
+    """Evaluated grid points whose per-draw ATTs are PAIRED: the same draws under every point."""
+    keys = list(grid_targets())
+    out: list[dict[str, Any]] = []
+    for index, (att, fraction) in enumerate(zip(atts, fractions)):
+        key = keys[index]
+        out.append(
+            {
+                "point_key": key,
+                "target_rtg": DECLARED_GRID[index],
+                "rtg_scale": 9991.0,
+                "episodes": [
+                    {
+                        "arm": key,
+                        "seed": seed,
+                        "draw_id": draw,
+                        # Per-draw structure shared across points, so the pairing is real: the
+                        # draw effect cancels and the point effect does not.
+                        "att_horizon": att + 0.5 * ((draw % 7) - 3) + 0.1 * ((seed % 3) - 1),
+                        "horizon_vehicle_count": 44.0,
+                        "episode_reward": -7000.0,
+                    }
+                    for seed in (101, 202)
+                    for draw in range(1000, 1020)
+                ],
+                "in_support": {
+                    "mean_fraction": fraction,
+                    "mean_below": 0.0,
+                    "mean_above": 360.0 * (1.0 - fraction),
+                },
+            }
+        )
+    return out
+
+
+def test_adjacent_steps_are_compared_PAIRED_and_each_carries_a_resolution_verdict() -> None:
+    """BRIEF_15 section 14: adjacent cells share draws and seeds, so their difference is paired.
+
+    Using a marginal CI for a paired quantity is the D1 defect from the P2.6 review.  The fixture
+    makes the difference visible: a large per-draw spread is shared by both points, so the
+    marginal CI is wide while the paired CI is narrow, and a report that used the marginal one
+    would call a resolved step unresolved.
+    """
+    atts = [104.5564, 104.6121, 104.6928, 104.7700, 104.7633, 104.9558, 104.8640, 104.9000, 105.0]
+    fractions = [0.0, 0.1775, 0.3348, 0.4651, 0.5787, 0.8180, 0.95, 1.0, 0.9]
+    payload = report_artifact(
+        points=_landscape_points(atts, fractions),
+        probe={"format_version": "p4.3-rtg/1.0"},
+        rtg_range=(-9991.0, -6.0),
+        checkpoints={101: "a.pt"},
+    )
+
+    adjacent = payload["adjacent_comparisons"]
+    assert len(adjacent) == len(DECLARED_GRID) - 1
+    first = adjacent["dt_g0_to_dt_g1"]
+    assert first["from_target"] == 0.0 and first["to_target"] == -1000.0
+    # Paired: the shared per-draw structure cancels exactly, so the difference is the point offset.
+    assert first["mean_difference"] == pytest.approx(atts[1] - atts[0], abs=1e-9)
+    assert first["paired"] is True
+    assert first["n_shared_draws"] == 20
+    assert "rank_biserial" in first and "ci95_low" in first and "ci95_high" in first
+    assert first["resolves"] == (first["ci95_low"] > 0.0 or first["ci95_high"] < 0.0)
+
+    # The paired CI must be NARROWER than the marginal one the D1 defect would have used: the
+    # fixture's per-draw spread is shared by both points, so pairing removes it.  The marginal
+    # half-width is computed here from the episodes rather than read from the artifact, so the
+    # comparison does not depend on the artifact's own aggregation.
+    marginal_half = mean_ci95(
+        [e["att_horizon"] for e in payload["points"][0]["episodes"]]
+    ).ci95
+    assert first["ci95_half_width"] < marginal_half, (
+        f"paired {first['ci95_half_width']} is not narrower than marginal {marginal_half}; "
+        "the fixture no longer distinguishes the two rulers"
+    )
+
+
+def test_the_report_carries_the_withdrawn_criterions_correlation_with_the_outcome() -> None:
+    """BRIEF_15 section 14.1: reported as a RESULT, with the number, over the graded points."""
+    atts = [104.5564, 104.6121, 104.6928, 104.7700, 104.7633, 104.9558, 104.8640, 104.9000, 105.0]
+    fractions = [0.0, 0.1775, 0.3348, 0.4651, 0.5787, 0.8180, 0.95, 1.0, 0.9]
+    payload = report_artifact(
+        points=_landscape_points(atts, fractions),
+        probe={"format_version": "p4.3-rtg/1.0"},
+        rtg_range=(-9991.0, -6.0),
+        checkpoints={101: "a.pt"},
+    )
+    block = payload["in_support_vs_att"]
+    assert block["n_points"] == len(DECLARED_GRID)
+    assert block["pearson_r"] == pytest.approx(pearson_r(fractions, atts), abs=1e-12)
+    assert block["higher_in_support_is_better"] is False
+    # The six-point subset the coordinator computed independently must be reported too, so the
+    # two instruments can be compared on identical inputs.
+    assert block["first_six_points_pearson_r"] == pytest.approx(
+        pearson_r(fractions[:6], atts[:6]), abs=1e-12
+    )
 
 
 def test_the_report_labels_its_statistics_exploratory() -> None:
