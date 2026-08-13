@@ -165,3 +165,112 @@ literature and would still be ours to report.
 ranking shift to *quality* alone (quality and coverage move together on axis 1); it may not present
 the DT's prompt as tuned; and it may not claim novelty for the ladder concept itself, which
 `arXiv:2112.02845` established in another domain in 2021.
+
+---
+
+## 11. ADDENDUM, 2026-08-13 — five findings from auditing this brief against the artifacts
+
+**Written after the brief was issued and before the plan exists.** I measured the things §1–§10
+asserted instead of trusting them. §1's table survived exactly; four other statements did not, and one
+of the four is mine in `PROJECT_PLAN` §6. **This section overrides anything above that conflicts with
+it.** All five are *tightenings before any number exists*, which `PROJECT_PLAN` §7 (2026-08-12) makes
+free by construction.
+
+### A1. Subsample `random` by DRAW, one episode per draw — not uniformly over the 400
+
+**Measured** (`datasets_v11/cf_hz1x1__*/manifest.json`, all 23 hz1x1 tier dirs, 2026-08-13):
+`cf_hz1x1__random` holds **exactly 2 episodes for each of draws 1–200**; every other tier holds
+exactly 1 per draw over the same range 1–200. §7.1's *"subsample it to 200 with a declared RNG"*
+permits a uniform 200-of-400, which would give **uneven draw coverage** and make `random` the only
+tier whose training demand distribution differs from the other four.
+
+> **Take exactly one episode per draw, for all 200 draws; the choice within each pair is the declared
+> RNG's only job. Record the selected `episode_sha256` list in the artifact.**
+
+This is size-matched **and** demand-matched, at no cost. **Measured impact on the DT's declared target
+(A4 below): at most 364 return units** — worst case `−38733` against the all-400 max `−38369`, i.e.
+**≤ 19 % of the tier's own 1925-wide return spread**, and over 2000 simulated RNG draws the **median
+outcome leaves the target unchanged**. So the tightening is free in effect as well as in cost.
+
+⚠️ **Note for the packet:** the five MAPPO seeds occupy **disjoint contiguous 40-draw blocks**
+(`seed101`→1–40 … `seed505`→161–200), verified here. That is `DEFERRED` 28's confound, it is inherited
+rather than introduced, and it means a MAPPO tier's "seed" and "demand block" cannot be separated.
+**State it; do not try to fix it here.**
+
+### A2. `PROJECT_PLAN` §6 says this is "a config loop". That is HALF TRUE, and the false half is mine
+
+Training and evaluation *are* a config loop — the tier enters through `--dataset-dir`. **The reporting
+path is not.** Read from `offline/offline_baselines.py` at `cacf5f8`:
+
+- **`:2367`** — `_run_report` **hard-requires the `mappo1000` arm** and raises without it. On a
+  `random` tier the behaviour policy is `random`, so the report cannot be built as written.
+- **`:2376`, `:2410–2413`** — `recovered_fraction` is defined against `mappo1000` by name.
+- **`:2383–2428`** — an equivalence **`verdict` is emitted for every method unconditionally**, under
+  `DELTA_ATT = 0.6263`. **§4 of this brief forbids exactly that**, so the ruling in §4 requires a code
+  change; it is not satisfiable by configuration.
+- **`:208`** — `CITED_ARMS = ("madt", "mappo1000", "maxpressure")`.
+
+> **Generalise the reporting path to a per-tier behaviour reference and a no-verdict mode.
+> REGRESSION GATE, non-negotiable: `docs/data/p4_4_baselines.json` must regenerate BYTE-IDENTICALLY
+> through the generalised path.** If it does not, the generalisation changed P4.4's merged numbers and
+> the task is BLOCKED, not patched.
+
+**This is the project's signature error, committed by me in the plan:** a true statement about one
+function (`evaluate_arm` does take arbitrary arms) written as a description of the whole pipeline.
+
+### A3. TWO OF THE FIVE TIERS HAVE NO BEHAVIOUR REFERENCE ON THE HELD-OUT POOL — and A5 forbids the substitute
+
+**Measured** from the merged artifacts: `docs/data/p4_gate.json` and `docs/data/p4_4_baselines.json`
+carry held-out cells for **`mappo1000` (n=500), `mappo500` (n=500), `maxpressure` (n=100)** and for no
+other behaviour policy. **`random` and `fixedtime` have none.**
+
+C1's most valuable per-tier sentence is *"does an offline method beat the policy that produced its
+data?"* — and on `random` that is the headline of the whole ladder. Substituting the tier's
+training-draw ATT (422.52 / 262.09, draws **1–200**) is **VOID under `PREREGISTRATION` A5**: every
+reported comparison must be over **shared draw ids**, and 1–200 against 1000–1099 is not.
+
+> **In scope for phase 1: evaluate `random` and `fixedtime` on the SAME 100 held-out draws, through
+> the SAME path.** `offline/dt_gate.py:753 evaluate_arm` already takes an arbitrary
+> `choose_action_factory` (`:1054 _maxpressure_factory` is the model to copy), so this is two factories,
+> not a harness. Cost at P2.0b's measured hz1x1 rollout of 0.59–0.83 s/episode: `fixedtime`
+> deterministic → 100 episodes ≈ **80 s**; `random` stochastic → 5 seeds × 100 ≈ **7 min**.
+
+⚠️ **Both factories must reproduce the policy that COLLECTED the tier, not a fresh implementation of
+the same idea.** This is amendment **A2**'s error class — a hand-rolled random sampler is *a different
+realisation of the random policy* and its number is not comparable to the corpus's.
+- `random` → the semantics of `offline/collect.py::_make_random` / `_random_legal_action`.
+- `fixedtime` → `offline/policies/fixed_time.py::make_fixedtime`, **and read `k` FROM THE TIER'S
+  MANIFEST.** ⚠️ **`cf_hz1x1__fixedtime` was collected at `fixed_time_k = 6`** with
+  `fixed_time_schedule_source = "shipped_plan"` and `fixed_time_plan_sha256 = 1b0aa65a…` — measured
+  from the manifest today. **`PROJECT_PLAN` §6's P2.5 entry says "Ships `k=4`", which is true of what
+  P2.5 shipped and FALSE of what this corpus used.** Assume k=4 and the reference line is a policy
+  that never generated any of these episodes. **Assert the manifest's `fixed_time_plan_sha256` matches
+  the plan the factory loads.**
+
+### A4. The DT's per-tier target is computed AFTER subsampling, over the actual training set
+
+§5 says *"that tier's naive target: `max(training-split episode return)`"*, and §1's table gives it
+per tier. **Verified today — every value in §1's table reproduces exactly** from
+`manifest.json::episodes[].total_global_reward` and `att_per_step[-1]`: max returns
+−38369 / −29707 / −13112 / −17310 / −8210 / −6362 / **−5762** and mean horizon ATT
+422.52 / 262.09 / 176.50 / 281.89 / 125.03 / 107.50 / 105.46. `mappo1000`'s **−5762 is exactly P4's
+naive target**, which confirms the field.
+
+> **But `random`'s −38369 is the max over 400 episodes and the training set will be 200.** Compute
+> each tier's target over the **episodes actually trained on**, so the prompt is in-support by
+> construction, and record it in the plan file before the first gradient step.
+
+### A5. On a mixture tier, report what the filter selected on BOTH axes
+
+P4.5 measured that `mappo1000`'s five seeds span **3.8190 ATT**. So on a mixture the top-decile filter
+can select the expert **fraction** *and*, within it, the best **seeds** — and §6's prediction P2 reads
+only the first. **Report the kept set's composition as expert-vs-random AND as a seed histogram**, the
+way F3 did (`{202:10, 101:9, 505:1, 303:0, 404:0}`), or *"the filter selects the expert fraction"* is
+confounded with the checkpoint selection P4.5 already established.
+
+### Scope, restated honestly
+
+Phase 1 is now **16 cells + 2 behaviour cells + the gated re-use + a generalised reporting path**,
+plus `DEFERRED` 42 and 43. **That is a full task.** If phase 2 (the mixture tiers) is not reached,
+**it becomes P4.7 and that is the expected outcome, not a failure** — §3 already requires phase 1 to
+stand alone, and A5 above is written so P4.7 inherits it.
