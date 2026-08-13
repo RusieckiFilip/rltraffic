@@ -107153,14 +107153,15 @@
     "runtime": {
       "cuda_available": true,
       "cuda_device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
-      "git_commit": "20804f581db36980ef92cd3ba9dab7cd40bd7392",
+      "git_commit": "6e4526c4bb949bb5652b9ec19945f698c1d61210",
       "measurement_git_commits": [],
       "numpy_version": "2.5.1",
       "python_version": "3.12.13",
       "torch_cuda_version": "12.8",
       "torch_num_threads": 1,
       "torch_version": "2.11.0+cu128",
-      "written_at_git_commit": "20804f581db36980ef92cd3ba9dab7cd40bd7392"
+      "unreachable_measurement_commits": [],
+      "written_at_git_commit": "6e4526c4bb949bb5652b9ec19945f698c1d61210"
     },
     "scenario_id": "cityflow1x1",
     "training_rtg_range": [
@@ -107173,12 +107174,11 @@
   "runtime": {
     "cuda_available": true,
     "cuda_device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
-    "git_commit": "293514740cc9f0f97d55c300b39d4988405ebd86",
+    "git_commit": "6e4526c4bb949bb5652b9ec19945f698c1d61210",
     "measurement_git_commits": [
       "20804f581db36980ef92cd3ba9dab7cd40bd7392",
       "293514740cc9f0f97d55c300b39d4988405ebd86",
       "7ea97fad69f18cf18cd4d1758d1f63ea9c18fdce",
-      "8b647a4023346f55cb4fb4ec19361b80552570ca",
       "98e3efb54dec9325140f329c70ac65ec776a1e19",
       "b136c79c16ebda0cc1ead6acbd399fbc9715fe53",
       "b7bcc2f6f9b07d913a2eb23ff889037537f7e52e"
@@ -107188,7 +107188,10 @@
     "torch_cuda_version": "12.8",
     "torch_num_threads": 1,
     "torch_version": "2.11.0+cu128",
-    "written_at_git_commit": "293514740cc9f0f97d55c300b39d4988405ebd86"
+    "unreachable_measurement_commits": [
+      "8b647a4023346f55cb4fb4ec19361b80552570ca"
+    ],
+    "written_at_git_commit": "6e4526c4bb949bb5652b9ec19945f698c1d61210"
   },
   "selection": {
     "att_may_select": false,

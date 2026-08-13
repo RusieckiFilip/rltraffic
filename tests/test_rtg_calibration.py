@@ -8,8 +8,10 @@ self-referential.
 
 Every assertion is exact where the types allow it.  The float64 identity in
 :func:`test_rule_b_is_the_identity_in_domain_including_a_value_where_reassociation_is_not` is exact
-by construction and the test pins the association that makes it so -- ``7.06 %`` of random
-real-valued probe statistics fail under the other one (measured, 2026-08-13, 200,000 draws).
+by construction and the test pins the association that makes it so: **a substantial minority of
+real-valued probe statistics fail under the other association**, and the exact rate depends on the
+sampling distribution and on ``best_source_return``, so the test pins three MEASURED counterexamples
+rather than a rate (see the note in ``offline/rtg_calibration.rule_b_target``).
 """
 
 from __future__ import annotations

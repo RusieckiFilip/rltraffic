@@ -46,7 +46,7 @@
   "runtime": {
     "cuda_available": true,
     "cuda_device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
-    "git_commit": "20804f581db36980ef92cd3ba9dab7cd40bd7392",
+    "git_commit": "6e4526c4bb949bb5652b9ec19945f698c1d61210",
     "measurement_git_commits": [
       "1414daa21e7c509f92530cc24ea488f22a903146",
       "862706c70d5d53bc10db80c815bb84fc8aca0fca"
@@ -56,7 +56,8 @@
     "torch_cuda_version": "12.8",
     "torch_num_threads": 1,
     "torch_version": "2.11.0+cu128",
-    "written_at_git_commit": "20804f581db36980ef92cd3ba9dab7cd40bd7392"
+    "unreachable_measurement_commits": [],
+    "written_at_git_commit": "6e4526c4bb949bb5652b9ec19945f698c1d61210"
   },
   "source": {
     "path": "docs/data/p4_gate.json",

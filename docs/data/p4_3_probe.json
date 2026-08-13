@@ -1306,14 +1306,15 @@
   "runtime": {
     "cuda_available": true,
     "cuda_device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
-    "git_commit": "20804f581db36980ef92cd3ba9dab7cd40bd7392",
+    "git_commit": "6e4526c4bb949bb5652b9ec19945f698c1d61210",
     "measurement_git_commits": [],
     "numpy_version": "2.5.1",
     "python_version": "3.12.13",
     "torch_cuda_version": "12.8",
     "torch_num_threads": 1,
     "torch_version": "2.11.0+cu128",
-    "written_at_git_commit": "20804f581db36980ef92cd3ba9dab7cd40bd7392"
+    "unreachable_measurement_commits": [],
+    "written_at_git_commit": "6e4526c4bb949bb5652b9ec19945f698c1d61210"
   },
   "scenario_id": "cityflow1x1",
   "training_rtg_range": [
