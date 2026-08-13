@@ -3649,10 +3649,15 @@ def _run_report(
     # sides of the comparison shrank together; a test now reproduces that and the loop is uniform.
     # This changes no reported number: every method in the committed artifact was trained on all
     # five declared seeds, which a second test asserts from the artifact itself.
+    # P4.6's two flags are read with getattr so the generalisation is additive for EVERY caller,
+    # including a hand-built Namespace: a caller that predates them keeps P4.4's behaviour exactly.
+    behaviour_reference = str(getattr(args, "behaviour_reference", "mappo1000"))
+    emit_verdicts = not bool(getattr(args, "no_verdicts", False))
+
     requested: list[tuple[str, int | None, int]] = [
         ("maxpressure", None, draw) for draw in HELD_OUT_DRAWS
     ]
-    for arm in ("madt", args.behaviour_reference, *methods):
+    for arm in ("madt", behaviour_reference, *methods):
         requested += [(arm, seed, draw) for seed in TRAINING_SEEDS for draw in HELD_OUT_DRAWS]
     assert_campaign_complete(requested, episodes)
     artifact = baselines_artifact(
@@ -3674,8 +3679,8 @@ def _run_report(
         gate_a={key: gate[key] for key in ("status", "compared", "mismatches", "arms")},
         env_settings=settings,
         engine_seed=int(args.engine_seed),
-        behaviour_reference=str(args.behaviour_reference),
-        emit_verdicts=not bool(args.no_verdicts),
+        behaviour_reference=behaviour_reference,
+        emit_verdicts=emit_verdicts,
     )
     write_json_atomic(artifact, out_dir / "p4_4_baselines.json")
 

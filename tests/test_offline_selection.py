@@ -37,7 +37,9 @@ from offline.dataset import TrajectoryWindowDataset
 from offline.dt_gate import HELD_OUT_DRAWS, TRAINING_SEEDS, EpisodeResult
 from offline.offline_baselines import (
     DELTA_ATT,
+    _behaviour_seed,
     MATCHED_SUBSET_COUNT,
+    REUSED_ARM,
     SELECTION_ARMS,
     VERDICT_INCONCLUSIVE,
     VERDICT_MATCHES,
@@ -1212,3 +1214,140 @@ def test_the_committed_comparisons_are_far_from_the_margin_so_the_guard_never_fi
         assert entry["delta_verdict_turns_on_the_rounding"] is False, name
         distances.append(distance)
     assert min(distances) == pytest.approx(0.012963537457243324, abs=1e-12)
+
+
+# ----------------------------------------------------------------------
+# DEFERRED 42 (P4.5 review N2): four guard branches that survived being disabled.
+# The row's own instruction: "the pattern is a guard whose failing branch no correct campaign ever
+# reaches, which means only a deliberately malformed fixture can exercise it" -- so each test below
+# builds exactly that fixture.  Third queue entry for this family (33, 42, 44); fixed here.
+# ----------------------------------------------------------------------
+
+
+def test_the_composition_sum_check_fires_when_a_composition_does_not_add_up() -> None:
+    """Guard 1 of 4: the recorded composition must sum to the arm's declared count.
+
+    Reachable only by hand: the writer builds the composition by counting the very streams it
+    records.  A malformed artifact -- one edited after the fact, or written by a future path that
+    counts differently -- is exactly what the guard exists to refuse.
+
+    Killed by: deleting the ``sum(composition.values()) != expected_count`` branch.
+    """
+    payload = _design_payload()
+    entry = payload["arms"]["bc_any_20"]["per_training_seed"]["101"]
+    seed = next(iter(entry["per_behaviour_seed_composition"]))
+    entry["per_behaviour_seed_composition"][seed] += 1
+
+    with pytest.raises(ValueError, match="does not sum to the declared count"):
+        assert_selection_design(payload)
+
+
+def test_the_composition_must_be_the_one_its_own_stream_list_implies() -> None:
+    """Guard 1, second branch: a composition that sums correctly but describes other streams.
+
+    Moving one stream's count from one behaviour seed to another keeps the sum at the declared
+    count, so the first branch passes and only this one can catch it.  That is the case a
+    hand-edited artifact produces, and it is the reason the two checks are not one check.
+
+    Killed by: deleting the ``recomputed != composition`` branch.
+
+    (An earlier draft of this test simply removed a stream; that is caught one guard earlier, by
+    the stream-count check, and never reaches this branch -- recorded because the difference is
+    the whole point of the row.)
+    """
+    payload = _design_payload()
+    entry = payload["arms"]["bc_any_20"]["per_training_seed"]["202"]
+    composition = entry["per_behaviour_seed_composition"]
+    donor, receiver = sorted(composition)[:2]
+    composition[donor] -= 1
+    composition[receiver] += 1
+
+    with pytest.raises(ValueError, match="is not the one its own stream list implies"):
+        assert_selection_design(payload)
+
+
+def test_the_pool_versus_declared_seeds_check_is_covered_by_two_earlier_refusals(
+    tmp_path: Path,
+) -> None:
+    """Guard 2 of 4, and the answer is that it CANNOT FIRE -- measured, not asserted.
+
+    ``select_arm_streams`` compares the behaviour seeds observed in its pool against the declared
+    ones.  Two attempts to provoke that branch were both caught upstream, and the reason is
+    structural rather than accidental:
+
+    1. ``_dirs_for_behaviour_seeds`` maps a directory to a seed with ``re.search(r"seed(\\d+)$")``
+       and refuses a declared seed with no directory;
+    2. ``streams_from_datasets`` refuses a declared directory that yields no stream;
+    3. ``_behaviour_seed`` re-derives the seed from the SAME anchored regex on the same directory
+       name.
+
+    So every stream in the pool carries a seed that is, by construction, one of the declared ones,
+    and the observed set equals the declared set whenever (1) and (2) pass.  **The inner branch is
+    unreachable through this function.**  This test pins the two refusals that make it so; if
+    either is weakened -- for instance to a substring match, under which ``seed1010`` would satisfy
+    a request for ``seed101`` -- the inner guard becomes reachable again and must stay.
+
+    Killed by: deleting either upstream refusal.
+    """
+    left = write_dataset_dir(tmp_path, "cf_hz1x1__mappo1000__seed101", draws=(1, 2))
+    right = write_dataset_dir(tmp_path, "cf_hz1x1__mappo1000__seed202", draws=(3, 4))
+    spec = ArmSpec(
+        arm="bc_best2_20",
+        selector="random_subset",
+        behaviour_seeds=(101, 202),
+        count=2,
+        role="fixture",
+    )
+
+    # (1) a declared seed with no directory
+    dataset = TrajectoryWindowDataset([left], context_length=CONTEXT, split="train")
+    with pytest.raises(ValueError, match="no directory for behaviour seed"):
+        select_arm_streams(dataset, spec, dataset_dirs=[left], rng=np.random.default_rng(0))
+
+    # (2) both directories declared, but the dataset was built over only one of them
+    with pytest.raises(ValueError, match="yield no streams"):
+        select_arm_streams(
+            dataset, spec, dataset_dirs=[left, right], rng=np.random.default_rng(0)
+        )
+
+    # ... and when both hold, the pool is exactly the declared seeds, so the inner branch cannot
+    # distinguish anything.  This is the positive control that makes the two refusals meaningful.
+    both = TrajectoryWindowDataset([left, right], context_length=CONTEXT, split="train")
+    selected = select_arm_streams(
+        both, spec, dataset_dirs=[left, right], rng=np.random.default_rng(0)
+    )
+    assert len(selected) == 2
+    assert {_behaviour_seed(stream) for stream in selected} <= {101, 202}
+
+
+def test_the_artifact_refuses_an_arm_that_was_trained_and_never_evaluated() -> None:
+    """Guard 3 of 4: a selection block with no episodes must not be reported.
+
+    A complete campaign never reaches it -- the runner evaluates what it trains -- so the fixture
+    drops one arm's episodes while leaving its selection block in place, which is what an
+    interrupted campaign would leave behind.
+
+    Killed by: deleting the ``arm not in by_arm`` branch.
+    """
+    inputs = _artifact_inputs()
+    episodes = [e for e in inputs["episodes"] if e.arm != "bc_worst2_20"]
+
+    with pytest.raises(ValueError, match="but no episode does"):
+        selection_artifact(**{**inputs, "episodes": episodes})
+
+
+def test_the_artifact_refuses_to_report_without_the_reused_reference_arm() -> None:
+    """Guard 4 of 4: ``bc_top10`` is the measured reference the primary prediction is about.
+
+    Without it there is nothing to compare the matched arms against, and the artifact would
+    silently describe a different experiment.
+
+    Killed by: deleting the ``REUSED_ARM not in by_arm`` branch.
+    """
+    inputs = _artifact_inputs()
+    episodes = [e for e in inputs["episodes"] if e.arm != REUSED_ARM]
+    selection = json.loads(json.dumps(inputs["selection"]))
+    selection["arms"].pop(REUSED_ARM, None)
+
+    with pytest.raises(ValueError, match="is the measured reference"):
+        selection_artifact(**{**inputs, "episodes": episodes, "selection": selection})
