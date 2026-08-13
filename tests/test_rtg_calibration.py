@@ -295,7 +295,7 @@ def test_a_checkpoint_saved_at_another_step_count_is_refused(tmp_path: Path) -> 
     """The no-online-selection guard must survive the override wrapper, not be bypassed by it."""
     path = tmp_path / "dt.pt"
     _write_checkpoint(path, target_rtg=-100.0, steps=999)
-    with pytest.raises(ValueError, match="gradient steps"):
+    with pytest.raises(ValueError, match="checkpoint was saved at"):
         agent_with_target(
             _StubEnv([("ix_only", FIXTURE_N_ACTIONS)]),
             path,
@@ -349,7 +349,7 @@ def test_the_probe_budgets_are_nested_so_the_k_ablation_is_a_prefix_ablation() -
 )
 def test_a_probe_touching_training_or_held_out_draws_is_refused(draws: tuple[int, ...]) -> None:
     training = json.loads((DATA / "p4_training.json").read_text(encoding="utf-8"))
-    with pytest.raises(ValueError, match="probe"):
+    with pytest.raises(ValueError, match="not disjoint"):
         assert_probe_draws_disjoint(
             draws,
             training_draw_ids=training["training_draw_ids"],
@@ -420,7 +420,7 @@ def test_the_probe_artifact_refuses_an_episode_whose_two_routes_disagree() -> No
     payload = probe_artifact(episodes=[good], **kwargs)
     assert payload["n_episodes"] == 1
 
-    with pytest.raises(ValueError, match="two routes"):
+    with pytest.raises(ValueError, match="disagree between their two routes"):
         probe_artifact(episodes=[good, bad], **kwargs)
 
 
@@ -458,7 +458,7 @@ def test_rule_a_matches_an_independent_quantile_computation() -> None:
 
 
 def test_rule_a_refuses_an_empty_probe() -> None:
-    with pytest.raises(ValueError, match="no probe episodes"):
+    with pytest.raises(ValueError, match="rule A is a quantile"):
         rule_a_target([], 1.0)
 
 
@@ -515,7 +515,7 @@ def test_rule_b_moves_the_target_with_the_ratio_when_the_domains_differ() -> Non
 
 
 def test_rule_b_refuses_a_zero_source_statistic() -> None:
-    with pytest.raises(ValueError, match="source probe statistic"):
+    with pytest.raises(ValueError, match=r"Rule B\'s ratio is undefined"):
         rule_b_target(best_source_return=-1.0, probe_source_stat=0.0, probe_target_stat=-1.0)
 
 
@@ -681,7 +681,7 @@ def test_an_undeclared_point_cannot_enter_the_report() -> None:
     common = {"probe": probe, "rtg_range": (-9991.0, -6.0), "checkpoints": {101: "a.pt"}}
 
     undeclared_key = [{"point_key": "dt_g99", "target_rtg": -1234.0, "rtg_scale": 9991.0}]
-    with pytest.raises(ValueError, match="not a declared point"):
+    with pytest.raises(ValueError, match="may not enter the report"):
         report_artifact(points=undeclared_key, **common)
 
     moved_value = [{"point_key": "dt_g3", "target_rtg": -3333.0, "rtg_scale": 9991.0}]
@@ -852,7 +852,7 @@ def test_the_report_refuses_points_that_disagree_about_the_rtg_scale() -> None:
         {"point_key": "dt_g5", "target_rtg": NAIVE_TARGET, "rtg_scale": 9991.0},
         {"point_key": "dt_g0", "target_rtg": 0.0, "rtg_scale": 5000.0},
     ]
-    with pytest.raises(ValueError, match="rtg_scale"):
+    with pytest.raises(ValueError, match="disagree about rtg_scale"):
         report_artifact(
             points=points,
             probe={"format_version": "p4.3-rtg/1.0"},
