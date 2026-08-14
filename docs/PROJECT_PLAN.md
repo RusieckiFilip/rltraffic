@@ -1031,10 +1031,13 @@ forgotten rather than parked.
   sessions"* hazard is retired. **The coordinator commits only from the `main` tree and checks
   `git rev-parse --abbrev-ref HEAD` first**; when an implementer is live on a branch I need to touch,
   the route is a throwaway worktree, `git -C` for every command, and never `cd` into it before removal.
-- ⚠️ **THE SAME RULE APPLIES TO `/home/filip/rltraffic-p46` WHEN IT RETIRES:** P4.6 writes checkpoints
-  and raw evaluation JSONs into its own gitignored `output/`, and `git worktree remove` deletes them
-  without warning (2026-08-11 rule). **Secure them into the main tree's `output/p4_6/` with a
-  `SHA256SUMS_p4_6.txt` written in absolute or own-directory form BEFORE removing the tree.**
+- ✅ **P4.6's EVIDENCE IS SECURED (2026-08-14), and it was done BEFORE any merge or retirement.**
+  `output/p4_6/` in the **main** tree holds **80 checkpoints**, all **18 evaluation cells**, `gate.json`
+  and the campaign logs — **237 MB, 125 files**. `output/SHA256SUMS_p4_6.txt` verifies **125/125** from
+  `output/` itself (§7 rule 3b), and **the copy was proved byte-faithful by checking the ORIGINALS in
+  the worktree against the manifest built from the COPY — 125/125**. That direction is the one that
+  detects a corrupted copy; verifying the copy against itself would not. ⚠️ **Do not delete
+  `output/p4_6/`.**
 - **No simulation or training jobs running.** The reviewer's scratch worktree was removed and
   `/home/filip/rltraffic-p44` was left clean (`git status --porcelain` empty, checkpoint mtimes
   unchanged) — checked, because a review that mutates the thing it reviews is worse than no review.
