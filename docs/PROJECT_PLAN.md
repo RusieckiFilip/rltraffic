@@ -696,6 +696,24 @@ original wording said *"after any edit, verify by absolute path"*, which is too 
 is relying on the working directory at all**, and it bites reads, writes and checks alike. **The
 remedy is mechanical and therefore reliable; vigilance is neither.**
 
+**A REGISTERED VALUE CAN BE UNRUNNABLE AND STAY UNNOTICED, BECAUSE THE CODE THAT WOULD REJECT IT NEVER RAN (added 2026-08-14, found by the P4.7 implementer during exploration).**
+`docs/plans/p4.6.md` declared all three mixture tiers at `target_rtg = −5762.0`, `rtg_scale = 40294.0`
+— derived from the **union** of both components' full splits — while
+`assert_declaration_matches_corpus` computes both over the **composed 200-stream training set**. At
+`mix33` the argmax expert stream has a **33 %** chance of being drawn, so `train --tier mix33` would
+have **raised before its first gradient step**. **Nothing would have caught it until the campaign
+crashed**, because the mixture path is precisely the one P4.6's reviewer listed under *"declared and
+unit-tested, never executed"*.
+**The general form: a declaration is a CLAIM, and a claim on a path with no execution behind it is
+untested no matter how carefully it was written.** A guard cannot reject what never reaches it, so
+*"the module validates its own declarations"* is true and worthless until the path runs.
+> **Binding: when a task declares values for a phase it will not itself run, either execute that path
+> once against the real corpus, or mark the declaration PROVISIONAL and re-derive it in the task that
+> does run it.** Same family as `DEFERRED` 37 (a mutant that is equivalent on today's data and becomes
+> live at P5) and `DEFERRED` 42/44 (a guard branch no correct campaign ever reaches).
+**Action carried into P4.7:** audit whether any other declaration in `p4.6.md` or `p4.7.md` describes a
+path with no execution behind it.
+
 **A COMMIT IS A LOCAL ACT. NO TASK IS CLOSED UNTIL `git rev-parse HEAD == git rev-parse origin/main` IS PASTED (added 2026-08-14, found by the user — THIRD instance of one class in three days).**
 **Found by the user, not by me: `git status -sb` read `[ahead 28]` while `origin/main` still sat at
 `cacf5f8`, the pre-campaign commit.** Everything since existed **only on this laptop** — the P4.6
