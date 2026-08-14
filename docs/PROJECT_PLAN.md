@@ -696,6 +696,39 @@ original wording said *"after any edit, verify by absolute path"*, which is too 
 is relying on the working directory at all**, and it bites reads, writes and checks alike. **The
 remedy is mechanical and therefore reliable; vigilance is neither.**
 
+**A COMMIT IS A LOCAL ACT. NO TASK IS CLOSED UNTIL `git rev-parse HEAD == git rev-parse origin/main` IS PASTED (added 2026-08-14, found by the user — THIRD instance of one class in three days).**
+**Found by the user, not by me: `git status -sb` read `[ahead 28]` while `origin/main` still sat at
+`cacf5f8`, the pre-campaign commit.** Everything since existed **only on this laptop** — the P4.6
+merge, `docs/reviews/P4.6.md`, the `BRIEF_18` fix round, §1b, §10's rewrite and the `DEFERRED` sweep.
+**Four consecutive turns ended `THINGS YOU NEED TO DO: nothing` while 28 commits were unpushed.**
+⚠️ **The pattern is legible in my own messages, which is why it is a rule and not an apology:** P4.4
+closed with *"merged and pushed (`2cccc3e`)"* and P4.3 with *"`main` is at `58f7f1b`, pushed, refs
+compared"* — then P4.6 and everything after it closed with *"merged"*, *"committed"*, *"recorded"*, and
+no push and no comparison. **The habit decayed silently because nothing checks it.**
+
+> **Rule: a task is not closed until the two SHAs are pasted and equal — the same standard as a suite
+> run, which is not evidence until its tail is pasted.** Verify against the remote
+> (`git ls-remote origin refs/heads/main`), not only the local tracking ref, since a stale `origin/main`
+> agrees with a push that never happened. **This is `Verify by EFFECT, not by STATUS` applied to the
+> one act whose omission produces no output at all.**
+
+⚠️ **THIRD INSTANCE OF ONE CLASS, and naming the class is the point:** the `DEFERRED` row written into
+the wrong worktree (2026-08-12), `docs/reviews/P4.6.md` existing only in a task notification
+(2026-08-14), and now 28 unpushed commits. **Every time: THE WORK WAS DONE AND THE RECORD OUTSIDE THIS
+MACHINE WAS NOT, and I believed the second followed from the first.** Writing, publishing and pushing
+are **separate acts** from doing, and they are the ones that get skipped precisely because the work
+already feels finished.
+
+🚨 **AND THE COST WAS NOT WHAT I THOUGHT I HAD INSURED AGAINST.** I spent this session securing
+`output/p4_6/` against `git worktree remove` — 125/125, verified in both directions, twice. **But
+`output/` is gitignored, so the 80 checkpoints were never in git at all, and the git history was never
+off this disk. Both "protections" shared a single point of failure: this laptop.** A disk failure this
+week would have taken **the merge, the review, §1b and every checkpoint together**. **"Secured" meant
+secured against one failure mode, and I did not ask which.** ⚠️ **Open consequence, recorded rather
+than solved: the corpus and every checkpoint remain single-copy and un-pushable at ~4 GiB. P10.0's
+release packaging is where that is answered; until then it is a known, named exposure and not a
+solved problem.**
+
 **A TEST-HYGIENE FIX MAY NOT REQUIRE CHANGING PRODUCTION TEXT (added 2026-08-12).**
 P4.5's fix round found one **irreducible** token: `load_baseline_checkpoint` and
 `dt_gate.load_gate_checkpoint` raise textually identical messages, so no lengthening can separate
