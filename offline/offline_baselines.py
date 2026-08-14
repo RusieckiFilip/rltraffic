@@ -2354,6 +2354,8 @@ def baselines_artifact(
     env_settings: dict[str, Any],
     engine_seed: int,
     delta: float = DELTA_ATT,
+    behaviour_reference: str = "mappo1000",
+    emit_verdicts: bool = True,
 ) -> dict[str, Any]:
     """The reported artifact: cells, paired comparisons, verdicts and recovered fractions.
 
@@ -2362,9 +2364,25 @@ def baselines_artifact(
     and the recovered fraction.  The verdict is computed under **both** the declared ``delta``
     and its full-precision derivation, and the artifact refuses to be built if the two disagree
     -- A6's multiplier is a choice, and a verdict must not turn on a rounding.
+
+    **Generalised additively for P4.6** (``BRIEF_17`` section 11, finding A2), because this
+    function hard-required the ``mappo1000`` arm and emitted a verdict unconditionally, and a
+    data-quality ladder has a different behaviour policy on every tier:
+
+    * ``behaviour_reference`` names the arm the recovered fraction and the behaviour comparisons
+      are taken against.  It defaults to ``"mappo1000"``, which is P4.4's arm.
+    * ``emit_verdicts=False`` removes every equivalence-verdict quantity -- the verdict itself,
+      its full-precision cross-check, ``delta``, the CI-endpoint distance, the two top-level
+      margin fields, the decision rule and the delta-scored forecasts -- and records the reporting
+      rule and the reference instead.  ``BRIEF_17`` section 4 forbids per-tier verdicts, and A6's
+      delta is a ``mappo1000`` quantity that cannot be derived per tier without circularity.
+
+    **The defaults reproduce this function's pre-P4.6 output exactly**, key for key and value for
+    value; ``docs/data/p4_4_baselines.json`` regenerating byte-identically through this path
+    (outside its self-describing ``runtime`` block) is the declared regression gate.
     """
     by_arm = _grouped(episodes)
-    for required in ("madt", "mappo1000"):
+    for required in ("madt", behaviour_reference):
         if required not in by_arm:
             raise ValueError(
                 f"the artifact needs the {required!r} arm: without it there is no comparison "
@@ -2373,40 +2391,48 @@ def baselines_artifact(
 
     cells = {arm: _cell(results) for arm, results in sorted(by_arm.items())}
     att = {arm: cell["att_horizon_mean"] for arm, cell in cells.items()}
-    reference, dt_mean = att["mappo1000"], att["madt"]
+    reference, dt_mean = att[behaviour_reference], att["madt"]
 
     comparisons: dict[str, Any] = {}
     for method in METHODS:
         if method not in by_arm:
             continue
         comparison = paired_comparison(by_arm["madt"], by_arm[method])
-        verdict = equivalence_verdict(
-            comparison.mean_difference, comparison.ci95_half_width, delta
-        )
-        alternative = equivalence_verdict(
-            comparison.mean_difference, comparison.ci95_half_width, DELTA_ATT_DERIVATION
-        )
-        if verdict != alternative:
-            raise ValueError(
-                f"the verdict for {method!r} depends on delta's rounding: {verdict!r} at "
-                f"delta={delta} and {alternative!r} at delta={DELTA_ATT_DERIVATION}. A6's "
-                "multiplier is a choice and a verdict must not turn on it; report this instead "
-                "of picking one"
+        verdicts: dict[str, Any] = {}
+        if emit_verdicts:
+            verdict = equivalence_verdict(
+                comparison.mean_difference, comparison.ci95_half_width, delta
             )
-        distance = min(
-            abs(comparison.ci95_low + delta),
-            abs(comparison.ci95_low - delta),
-            abs(comparison.ci95_high + delta),
-            abs(comparison.ci95_high - delta),
-        )
-        if distance <= DELTA_PROXIMITY_TOLERANCE:
-            raise ValueError(
-                f"a CI endpoint for {method!r} sits {distance:.3e} from the equivalence margin "
-                f"delta={delta}, which is within {DELTA_PROXIMITY_TOLERANCE}. A6's multiplier of "
-                "1.0 is a CHOICE, so a verdict decided at that distance would be decided by the "
-                "margin's rounding rather than by the data; report the CI and the distance "
-                "instead of a verdict"
+            alternative = equivalence_verdict(
+                comparison.mean_difference, comparison.ci95_half_width, DELTA_ATT_DERIVATION
             )
+            if verdict != alternative:
+                raise ValueError(
+                    f"the verdict for {method!r} depends on delta's rounding: {verdict!r} at "
+                    f"delta={delta} and {alternative!r} at delta={DELTA_ATT_DERIVATION}. A6's "
+                    "multiplier is a choice and a verdict must not turn on it; report this instead "
+                    "of picking one"
+                )
+            distance = min(
+                abs(comparison.ci95_low + delta),
+                abs(comparison.ci95_low - delta),
+                abs(comparison.ci95_high + delta),
+                abs(comparison.ci95_high - delta),
+            )
+            if distance <= DELTA_PROXIMITY_TOLERANCE:
+                raise ValueError(
+                    f"a CI endpoint for {method!r} sits {distance:.3e} from the equivalence margin "
+                    f"delta={delta}, which is within {DELTA_PROXIMITY_TOLERANCE}. A6's multiplier of "
+                    "1.0 is a CHOICE, so a verdict decided at that distance would be decided by the "
+                    "margin's rounding rather than by the data; report the CI and the distance "
+                    "instead of a verdict"
+                )
+            verdicts = {
+                "verdict": verdict,
+                "verdict_at_full_precision_delta": alternative,
+                "delta": float(delta),
+                "distance_from_ci_endpoints_to_delta": distance,
+            }
         direct = recovered_fraction(reference, att[method], dt_mean)
         # Second route to the same number: 1 - mean(arm - DT) / (reference - DT).  The two agree
         # exactly only for a balanced design, which is what "seed crossed with draw" gives.
@@ -2419,23 +2445,43 @@ def baselines_artifact(
             )
         comparisons[f"madt_vs_{method}"] = {
             **comparison.to_json_obj(),
-            "verdict": verdict,
-            "verdict_at_full_precision_delta": alternative,
-            "delta": float(delta),
+            **verdicts,
             "recovered_fraction": direct,
             "recovered_fraction_paired_route": paired_route,
-            "distance_from_ci_endpoints_to_delta": distance,
         }
 
     behaviour: dict[str, Any] = {}
     for arm in ("madt", *METHODS):
-        if arm in by_arm and arm != "mappo1000":
-            behaviour[f"mappo1000_vs_{arm}"] = paired_comparison(
-                by_arm["mappo1000"], by_arm[arm]
+        if arm in by_arm and arm != behaviour_reference:
+            behaviour[f"{behaviour_reference}_vs_{arm}"] = paired_comparison(
+                by_arm[behaviour_reference], by_arm[arm]
             ).to_json_obj()
 
     draw_ids = sorted({episode.draw_id for episode in episodes})
-    forecasts = _forecast_outcomes(comparisons, by_arm, delta)
+    verdict_fields: dict[str, Any] = (
+        {
+            "equivalence_margin_delta": float(delta),
+            "equivalence_margin_delta_derivation": DELTA_ATT_DERIVATION,
+            "decision_rule": (
+                "PREREGISTRATION.md A6: matches iff the 95% CI of the paired per-draw difference "
+                "(DT - baseline) lies entirely within [-delta, +delta]; the DT is genuinely better "
+                "iff it lies entirely below -delta; a CI entirely above +delta is the baseline "
+                "genuinely better, a branch A6 does not name; anything else is inconclusive at this "
+                "power, reported with the CI width"
+            ),
+            "registered_forecasts": _forecast_outcomes(comparisons, by_arm, delta),
+        }
+        if emit_verdicts
+        else {
+            "behaviour_reference": behaviour_reference,
+            "reporting_rule": (
+                "paired mean differences with 95 % CIs, CI widths and rank-biserial effect sizes; "
+                "no equivalence verdict is issued, because A6's delta is a mappo1000 quantity and "
+                "no per-tier margin can be derived before the run without using its own result "
+                "(BRIEF_17 section 4)"
+            ),
+        }
+    )
     return {
         "format_version": ARTIFACT_FORMAT_VERSION,
         "role": (
@@ -2446,15 +2492,7 @@ def baselines_artifact(
         "draw_ids": draw_ids,
         "engine_seed": int(engine_seed),
         "env_settings": {k: v for k, v in env_settings.items() if k != "compare_with"},
-        "equivalence_margin_delta": float(delta),
-        "equivalence_margin_delta_derivation": DELTA_ATT_DERIVATION,
-        "decision_rule": (
-            "PREREGISTRATION.md A6: matches iff the 95% CI of the paired per-draw difference "
-            "(DT - baseline) lies entirely within [-delta, +delta]; the DT is genuinely better "
-            "iff it lies entirely below -delta; a CI entirely above +delta is the baseline "
-            "genuinely better, a branch A6 does not name; anything else is inconclusive at this "
-            "power, reported with the CI width"
-        ),
+        **verdict_fields,
         "attribution_caveat": (
             "DT minus baseline is a COMBINED difference: attention/context plus return-to-go "
             "conditioning plus the timestep embedding. It is not a sequence-modelling effect; "
@@ -2468,7 +2506,6 @@ def baselines_artifact(
         "cells": cells,
         "comparisons": comparisons,
         "behaviour_policy_comparisons": behaviour,
-        "registered_forecasts": forecasts,
         "gate_a": dict(gate_a),
         "training": dict(training),
         "episodes": [
@@ -2581,6 +2618,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     report = sub.add_parser("report", help="merge the per-method runs into the artifact")
     report.add_argument("--methods", default=",".join(METHODS))
+    # P4.6 (BRIEF_17 section 11, finding A2): a ladder tier's behaviour policy is not mappo1000,
+    # and BRIEF_17 section 4 forbids per-tier equivalence verdicts.  Both defaults are P4.4's.
+    report.add_argument("--behaviour-reference", default="mappo1000")
+    report.add_argument(
+        "--no-verdicts",
+        action="store_true",
+        help="report differences, CIs, widths and effect sizes without any equivalence verdict",
+    )
 
     gate_b = sub.add_parser(
         "gate-selection",
@@ -3604,10 +3649,15 @@ def _run_report(
     # sides of the comparison shrank together; a test now reproduces that and the loop is uniform.
     # This changes no reported number: every method in the committed artifact was trained on all
     # five declared seeds, which a second test asserts from the artifact itself.
+    # P4.6's two flags are read with getattr so the generalisation is additive for EVERY caller,
+    # including a hand-built Namespace: a caller that predates them keeps P4.4's behaviour exactly.
+    behaviour_reference = str(getattr(args, "behaviour_reference", "mappo1000"))
+    emit_verdicts = not bool(getattr(args, "no_verdicts", False))
+
     requested: list[tuple[str, int | None, int]] = [
         ("maxpressure", None, draw) for draw in HELD_OUT_DRAWS
     ]
-    for arm in ("madt", "mappo1000", *methods):
+    for arm in ("madt", behaviour_reference, *methods):
         requested += [(arm, seed, draw) for seed in TRAINING_SEEDS for draw in HELD_OUT_DRAWS]
     assert_campaign_complete(requested, episodes)
     artifact = baselines_artifact(
@@ -3629,6 +3679,8 @@ def _run_report(
         gate_a={key: gate[key] for key in ("status", "compared", "mismatches", "arms")},
         env_settings=settings,
         engine_seed=int(args.engine_seed),
+        behaviour_reference=behaviour_reference,
+        emit_verdicts=emit_verdicts,
     )
     write_json_atomic(artifact, out_dir / "p4_4_baselines.json")
 
@@ -3641,12 +3693,14 @@ def _run_report(
         )
     print("", flush=True)
     for name, entry in sorted(artifact["comparisons"].items()):
+        # The verdict is absent under --no-verdicts, which is a mode and not a missing value.
+        verdict = f"  -> {entry['verdict']}" if "verdict" in entry else ""
         print(
             f"  {name:20s} diff {entry['mean_difference']:+.4f} "
             f"CI [{entry['ci95_low']:+.4f}, {entry['ci95_high']:+.4f}] "
             f"width {entry['ci95_width']:.4f}  p {entry['wilcoxon']['p_value']:.3e}  "
-            f"r {entry['rank_biserial']:+.3f}  recovered {entry['recovered_fraction']:+.4f}  "
-            f"-> {entry['verdict']}",
+            f"r {entry['rank_biserial']:+.3f}  recovered {entry['recovered_fraction']:+.4f}"
+            f"{verdict}",
             flush=True,
         )
     return 0
