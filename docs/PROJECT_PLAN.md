@@ -103,6 +103,82 @@ design directly tests.
 
 **Non-negotiable baselines (offline-RL venue standard):** BC and %BC on the expert slice (if BC matches MADT, sequence modeling adds nothing — must be tested), IQL (independent per-intersection), CQL optional; plus online MAPPO/IPPO/DQN, MaxPressure, fixed-time, random; plus **domain-randomized MAPPO** for C2.
 
+---
+
+## 1b. EXPLANATORY READING OF THE C1 GRID — what we FOUND (added 2026-08-14, after P4.6 merged)
+
+⚠️ **This section is a different kind of object from §1's four claim constraints, and the distinction is
+the point.** Those are **limits on what we may SAY**. These are **explanations of what we FOUND**, and
+until now they existed **only in conversation** — the paper's central reading, unrecorded, while every
+guard around it was written down. *(Grepped `main` before writing: "stitch" appeared exactly twice —
+`PREREGISTRATION` H1 from 10 July, and `docs/plans/p4.md`.)*
+
+🚨 **ALL FOUR ARE POST-HOC. P1, P2 and P3 ALL FAILED**, so every reading below was arrived at **after
+seeing the data.** They are **legitimate as explanation and illegitimate as confirmation**, and the
+paper must carry that label. **Each names the measurement it rests on AND the ones it does not.**
+All figures below are from the **corrected** artifact, never the withdrawn void row.
+
+**R1 — Cloning transfers quality and essentially nothing else.** BC lands within **1.51 ATT** of its own
+behaviour policy on four tiers (`mappo1000` −0.4186 · `mappo500` −0.8136 · `random` −0.9296 ·
+`maxpressure` −1.5019) and **+3.7616** on `fixedtime`. *Rests on:* the 20 BC cells against the five
+held-out behaviour cells. *Does NOT test:* that nothing **but** quality transfers — P4.5's 92 % figure
+was measured on **one** tier, and this extends it by pattern, not by measurement.
+
+**R2 — %BC CHANGES SIGN against its own behaviour policy.** Better on `maxpressure` **−11.1144**,
+`mappo500` **−3.3396**, `mappo1000` **−2.4193**; **worse** on `fixedtime` **+13.9285** and `random`
+**+3.3013**. ⚠️ **Two tiers, not one.** Reading: the top-decile filter selects the best behaviour **mode
+available**, and on a uniformly weak single-controller tier there is no mode, so it selects noise —
+**P4.5's three-instantiation hypothesis reaching its third instantiation.** *Rests on:* the sign change
+itself, plus P4.5's F3 (`{202:10, 101:9, 505:1, 303:0, 404:0}`, r = −0.991). ⚠️ *Does NOT test that it
+selects **noise*** — **P3 was the diagnostic for exactly that and it FAILED on `random`** (overlap 3/20,
+p = 0.3213). **The "what does the filter select on weak data" question is OPEN, and R2 must not be
+written as if P3 answered it.**
+
+**R3 — IQL improves most where the data is worst, AT THE ENDPOINTS ONLY.** IQL over BC, tiers ordered
+**worst data first**: `random` **+34.5561** · `fixedtime` **+5.4937** · `maxpressure` **+16.5092** ·
+`mappo500` **+2.4585** · `mappo1000` **+1.6871**. 🚨 **THIS IS NOT MONOTONE — `fixedtime` breaks it**,
+sitting below `maxpressure` despite being worse data. **Report it by its endpoints (34.56 against
+1.69), never as a trend**, exactly as P4.3's landscape is reported. *Rests on:* five paired
+differences. ⚠️ *Does NOT test the STITCHING explanation* — that expectile regression over states,
+rather than a max over actions, lets IQL compose a policy from fragments of poor trajectories while
+BC and %BC clone whole ones. **That reading is CONSISTENT WITH the pattern and NOT TESTED BY it.**
+Testing it needs a **trajectory-fragment diagnostic that nobody has run**, and `fixedtime`'s
+non-monotonicity is the first thing such a diagnostic would have to explain.
+
+**R4 — a CROSSOVER with the inversion point BRACKETED TO ONE RUNG, and that rung is a tie.** %BC vs IQL,
+paired: `mappo1000` **−0.3137**, CI [−0.5680, −0.0594] **resolves, %BC leads** · `mappo500` **−0.0675**,
+CI [−0.3169, +0.1819] **DOES NOT RESOLVE** · `maxpressure` **+6.8966** · `fixedtime` **+15.6606** ·
+`random` **+38.7869**, all three resolving, **IQL leads**. **So the crossing is located to within one
+rung and that rung is a statistical tie** — which is a stronger and more honest statement than naming
+a point. *Does NOT test:* that the inversion is caused by data quality rather than by anything else
+covarying with tier identity — **§1 already records that our ladder confounds quality with state
+coverage**, and P4.7's mixture tiers are the design that separates them.
+
+### ⭐ R5 — THE ONE OBSERVATION REGISTERED IN THE OPPOSITE DIRECTION, AND THEREFORE THE STRONGEST
+
+**`BRIEF_11` §7 bound the interpretation BEFORE P4.4 ran:** *"a LOSING untuned IQL cannot support any
+claim of MADT superiority."* **We wrote that guard because we expected IQL to lose. It won — and it
+now wins the entire weak half of the ladder.**
+
+**Verified in source today** (`offline/offline_baselines.py:197-200, 1594-1603, 1935-1936`): IQL runs
+`tau = 0.7`, `beta = 3.0`, `gamma = 0.99`, Polyak `0.005`, weight clip `100`, and a
+`1000/(max_return − min_return)` reward scale — **published D4RL LOCOMOTION values, i.e. continuous-control
+MuJoCo settings transplanted onto a discrete 8-phase action space, with a normalisation convention used
+outside the domain it was defined for. NOT ONE HAS EVER BEEN TUNED FOR THIS PROBLEM**, and the module's
+own docstring says so.
+
+> **Binding, and it must be stated in the direction that cuts against us:** a method configured
+> **against itself** beats every other arm on three of five tiers. **A tuned IQL would presumably do
+> better, so the measured gap is a LOWER bound on IQL's advantage and an UPPER bound on the DT's
+> standing against it.** State that explicitly — a referee will ask otherwise.
+
+**It also retires an objection we would otherwise have to answer: *"your IQL was a straw man."* It
+cannot be.** It lost every configuration argument in advance and won anyway. **The registration written
+to guard against a weak baseline ended up certifying a strong one** — and until this section existed,
+the record held the guard without the outcome.
+
+---
+
 **Unified narrative:** *Offline MADT for TSC under two axes of distribution shift — scenario shift (C2) and dynamics shift (C3) — with the data-quality ladder (C1) as the foundation.* Enabled by the repo's **6** genuinely paired scenarios (4× hangzhou_1x1 + cologne1 + cologne3 have flow.json AND .rou.xml AND .net.xml). **CORRECTION 2026-07-27: grid4x4 is NOT paired** — its `.sumocfg` references a `grid4x4.rou.xml` that does not exist in the repo, and there is no `.net.xml`. C3 transfer therefore runs on hangzhou_1x1 and cologne1/3; grid4x4 stays a CityFlow-only coordination scenario unless someone generates its SUMO files.
 
 **Closest prior art (cite prominently or die):** ⚠️ **arXiv:2112.02845 — Meng et al., "Offline Pre-trained Multi-Agent Decision Transformer", model named MADT, PEER-REVIEWED in *Machine Intelligence Research* (s11633-022-1383-7). Our exact method class — offline + multi-agent + decision transformer — on SMAC rather than TSC. ADDED 2026-08-12: it was absent from this list and from every project document, which is a citation gap a referee finds in one search, and it is where the name "MADT" actually comes from.** · arXiv:2602.02903 (Su, Sun & Deng, 2 Feb 2026, *"Spatiotemporal Decision Transformer for Traffic Coordination"* — **verified 2026-08-12: it names its own model MADT, in our exact domain**; architecture overlap, no transfer/ladder); DTLight 2312.07795 + DTRL datasets; DataLight 2303.10828 (negative DT result — our hook); X-Light (cross-city transfer); OffLight; TransformerLight; arXiv:2603.22315 (offline DT for emergency-vehicle corridors, Mar 2026 — overlaps C2's EV perturbation; ours is a robustness study, theirs an EV method); iLLM-TSC; CoLLMLight; LATS. Space is moving monthly — speed on P1–P5 matters.
