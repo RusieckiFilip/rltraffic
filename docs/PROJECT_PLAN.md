@@ -17,6 +17,27 @@ Three claims, each independently defensible (hardened 2026-07-10 after external 
 | C2 | **Pre-registered RQ:** does offline sequence modeling degrade more gracefully under scenario shift (demand shocks, incidents, sensor dropout)? Answered via a **2×2 design** ({nominal, shift-augmented} training data × {MADT, MAPPO}) + mechanism ablations (context length, data diversity). | The 2×2 with domain-randomized MAPPO removes the data/architecture confound (the single most likely rejection reason). Known DT risk under shift (ESPER/infeasible-RTG) is addressed by calibrated prompting — and plausibly explains DataLight's negative result. Negative/mixed answer still publishes. **Load-bearing.** |
 | C3 | **Dynamics-shift study:** transfer *curve* of CityFlow-trained MADT on SUMO — zero-shot → few-shot (k ∈ {5, 20, 100} episodes, collected by a MaxPressure probe, spanning scenario variants) → full retrain — with within-backend-normalized metrics (vs fixed-time AND max-pressure anchors) and calibrated RTG prompting. Interface documented precisely; one alternative-state-encoding robustness ablation. | No systematic cross-simulator dynamics-shift study for TSC exists (cross-city ≠ cross-backend; X-Light took cross-city). Every curve outcome is publishable. k=1 dropped (statistically meaningless; CityFlow determinism makes same-scenario episodes near-duplicates). Paper stands on C1+C2 if C3 lands negative. |
 
+**⚠️ CLAIM CONSTRAINT — THE "WE UNDER-CONFIGURED THE DT" EXPLANATION IS CLOSED (2026-08-14, P4.6 phase 1; the user's ruling, verified first-hand by the coordinator from the raw records).**
+**The DT leads on ZERO of five tiers.** Recomputed independently from `output/p4_6/eval_*.json`, ranks
+within each tier: `mappo1000` **3/4** · `mappo500` **3/4** · `maxpressure` **4/4, i.e. last** ·
+`fixedtime` **2/4** · `random` **2/4**. And on `maxpressure` it **does not separate from its own
+behaviour policy** — paired **+0.6885**, CI **[−1.7629, +3.1399]**, spanning zero.
+**Taken with P4.3 (a weak lever across a 13,000-wide declared grid) and P4.4 (%BC and IQL ahead at
+every one of ten prompts), the DT's deficit is now robust to the PROMPT, to DATA QUALITY, and to the
+PRESENCE OR ABSENCE OF A FILTER.** Three independent knobs, none of which rescues it.
+> **Binding: no paper sentence may attribute the DT's deficit to configuration, tuning, prompt choice
+> or training budget.** Those are measured and excluded. **What remains is the single-intersection
+> setting and the architecture itself, and the paper must state which it believes — or state plainly
+> that this evidence cannot distinguish them — rather than leaving a reader to infer it.**
+⚠️ **The constraint has a SECOND HALF and omitting it would be an overstatement in the other
+direction: the DT beats the policy that generated its own data on THREE of five tiers, decisively** —
+`mappo1000` **−0.6263**, `mappo500` **−1.4360**, `random` **−8.5076**, every CI excluding zero.
+**"Does the model exceed its data?" is C1's question and the answer is YES on 3 of 5; "does it lead
+the offline-method field?" is a different question and the answer is NO on 5 of 5.** Both are
+reported, and neither may be quoted as the other. *(Consistency check worth keeping: the `mappo1000`
+margin **−0.6263** is exactly A6's δ, which was derived from that same margin — so the re-used column
+is demonstrably the same measurement.)*
+
 **⚠️ CLAIM CONSTRAINT — THE RETURN PROMPT IS A WEAK LEVER IN-DOMAIN, MEASURED (2026-08-13, P4.3).**
 Across a **pre-declared nine-point grid spanning 13,000 units of return**, the DT's held-out ATT moves
 by **0.9026** end to end, and the naive-to-best contrast is **0.3994** (paired, 100 shared draws,
