@@ -38,8 +38,17 @@ accused of one.** But:
 1. **It is one of four natural continuous readings of "BC's rank worsens", and they disagree in SIGN:**
    `bc − min(other)` absolute **+0.80** (declared) · normalised by tier behaviour ATT **+0.40** ·
    `bc − max(other)` absolute **−0.60** · BC's position within the tier's method spread **−0.53**.
-2. **The mechanism is wrong.** The gap grows because **IQL pulls away**, not because BC deteriorates —
-   **BC tracks its own behaviour policy within 1.5 ATT on every tier.**
+2. **The mechanism is wrong.** The gap grows because **IQL pulls away**, not because BC deteriorates.
+   ⚠️ **CORRECTED 2026-08-14 — the bound in this line was FALSE and the error was the coordinator's**,
+   relayed from the review without measuring it. It read *"BC tracks its own behaviour policy within
+   1.5 ATT on every tier"*. **Measured by the coordinator from `p4_6_grid.json`: it fails on TWO of the
+   five tiers, not one.** `mappo1000` **−0.4186** · `mappo500` **−0.8136** · `random` **−0.9296** ·
+   `maxpressure` **−1.5019** (over by 0.0019) · `fixedtime` **+3.7616**. **The implementer caught this
+   and named `fixedtime`; the marginal `maxpressure` breach is a second instance it did not name, and
+   both are recorded here rather than the more convenient one.** **Correct statement: BC lands within
+   1.51 ATT of its behaviour policy on four tiers, and +3.7616 on `fixedtime`.** **The mechanism claim
+   survives — BC does not deteriorate; IQL pulls away — but the BOUND does not, and a bound is exactly
+   the kind of sentence that ends up in a figure caption.**
 3. The rank rule and the companion can disagree **by construction**: the rank counts position among
    *all* others, the gap measures distance to the *best* other.
 
