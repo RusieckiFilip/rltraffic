@@ -34,7 +34,6 @@ import offline.method_tier_grid as grid
 from offline.dataset import TrajectoryWindowDataset
 from offline.dt_gate import EpisodeResult, mean_ci95
 from offline.method_tier_grid import (
-    BEHAVIOUR_ATT,
     BEHAVIOUR_METHOD,
     BEHAVIOUR_REFERENCE_BY_TIER,
     DECLARED_GRADIENT_STEPS,
@@ -78,7 +77,7 @@ from offline.method_tier_grid import (
     training_streams,
     volume_check,
 )
-from offline.offline_baselines import StreamReturn, stream_returns
+from offline.offline_baselines import StreamReturn, paired_comparison, stream_returns
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -260,6 +259,26 @@ def episodes_for(arm: str, values: dict[int, float], seeds: Sequence[int] = (101
     ]
 
 
+def declaration_entry(**overrides: Any) -> dict[str, Any]:
+    """A declaration tier block carrying every field ``grid_artifact`` copies forward.
+
+    Written as a helper after a thin fixture raised ``KeyError: 'target_rtg'``: the artifact is
+    SUPPOSED to demand all eight fields, so the fixture is what was wrong, not the guard.
+    """
+    entry = {
+        "training_streams": 200,
+        "training_windows": 72000,
+        "top_decile_streams": 20,
+        "target_rtg": -1.0,
+        "rtg_scale": 2.0,
+        "statistics_digest": "0" * 64,
+        "subsample": "none",
+        "iql_reward_scale": 0.5,
+    }
+    entry.update(overrides)
+    return entry
+
+
 @pytest.fixture(scope="module")
 def corpus_v11_root() -> Path:
     """``RLTRAFFIC_CORPUS_V11``, else ``<repo>/datasets_v11``; skip if neither exists."""
@@ -278,7 +297,7 @@ def corpus_v11_root() -> Path:
 # ----------------------------------------------------------------------
 
 
-def test_the_behaviour_att_constants_are_the_committed_ladders_and_order_the_tiers() -> None:
+def test_the_tier_label_att_constants_are_the_committed_ladders_and_order_the_tiers() -> None:
     """The tier order is measured ATT, and the constants are the artifact's, digit for digit.
 
     ``BRIEF_17`` section 1: order by measured ATT, never by tier name or training budget --
@@ -287,14 +306,15 @@ def test_the_behaviour_att_constants_are_the_committed_ladders_and_order_the_tie
     ladder = json.loads(
         (REPO_ROOT / "docs/data/att_ladder_v11.json").read_text(encoding="utf-8")
     )
+    labels = grid.TIER_LABEL_ATT_TRAINING_DRAWS
     committed = {
         cell["tier"]: cell["att_horizon_mean"]
         for cell in ladder["cells"]
         if cell["scenario"] == "cf_hz1x1"
     }
-    for tier, value in BEHAVIOUR_ATT.items():
+    for tier, value in labels.items():
         assert value == committed[tier], f"{tier}: declared {value} against committed {committed[tier]}"
-    assert PHASE1_TIER_ORDER == tuple(sorted(BEHAVIOUR_ATT, key=lambda t: BEHAVIOUR_ATT[t]))
+    assert PHASE1_TIER_ORDER == tuple(sorted(labels, key=lambda t: labels[t]))
 
 
 def test_every_declared_tier_has_a_spec_and_an_unknown_tier_is_refused() -> None:
@@ -1164,3 +1184,177 @@ def test_the_rebuilt_flow_matches_the_recorded_hash_for_a_declared_sample(
     assert len({arrivals[d] for d in arrivals}) > 1, (
         "constant arrivals would make check A vacuous"
     )
+
+
+# ----------------------------------------------------------------------
+# BRIEF_18 finding F4: four quantities the paper will quote, none of which had a test.  The reviewer
+# ran these four mutations and ALL FOUR SURVIVED the suite at 763 passed.  DEFERRED 44 ruled that a
+# fourth sighting of this family stops being queued and gets fixed, so each test below is written to
+# die when its protection is removed, and each mutation's failure is pasted in the Return Packet.
+# ----------------------------------------------------------------------
+
+
+def test_p1s_gap_is_measured_to_the_BEST_other_method_and_min_is_not_max() -> None:
+    """F4.1: `min` -> `max` at the gap site inverts the headline tau-b from +0.80 to -0.60.
+
+    The declared companion is BC's distance to the **best** other method.  Swapping the extremum
+    silently answers a different question -- distance to the worst -- and the two disagree in SIGN
+    on this grid, which is precisely why the packet may not lean on either.
+
+    Killed by: `min(...)` -> `max(...)` in `score_p1`.
+    """
+    # bc is worst on the first tier and mid-field on the second, so min and max differ in sign.
+    cells = {
+        "mappo1000": {
+            "bc": {"att_horizon_mean": 110.0},
+            "bc_top10": {"att_horizon_mean": 100.0},
+            "iql": {"att_horizon_mean": 105.0},
+            "dt": {"att_horizon_mean": 108.0},
+        },
+        "random": {
+            "bc": {"att_horizon_mean": 400.0},
+            "bc_top10": {"att_horizon_mean": 460.0},
+            "iql": {"att_horizon_mean": 300.0},
+            "dt": {"att_horizon_mean": 420.0},
+        },
+    }
+    scored = score_p1(cells)
+    gaps = scored["bc_gap_to_best_other"]
+
+    assert gaps["mappo1000"] == pytest.approx(110.0 - 100.0), "distance to the BEST other method"
+    assert gaps["random"] == pytest.approx(400.0 - 300.0), "distance to the BEST other method"
+    # Under min -> max these would be 110-108=2 and 400-460=-60: same magnitudes are impossible,
+    # and the second even changes sign.
+    assert gaps["random"] > 0.0
+    assert gaps["mappo1000"] != pytest.approx(110.0 - 108.0)
+    assert gaps["random"] != pytest.approx(400.0 - 460.0)
+
+
+def test_the_report_summary_reads_the_held_out_behaviour_cell_not_the_training_draw_label(
+    tmp_path: Path,
+) -> None:
+    """F4.2 and F2: the tier label (draws 1-200) may never stand in for a held-out cell.
+
+    ``PREREGISTRATION`` A5 makes a comparison across different draw sets void, and the substitution
+    reverses one statement in twenty on the real grid.  This asserts the artifact carries the two
+    quantities under DIFFERENT names and that the held-out one is the behaviour cell's own value.
+
+    Killed by: `behaviour_cells[tier]` -> `TIER_LABEL_ATT_TRAINING_DRAWS[tier]` in `grid_artifact`.
+    """
+    episodes_by_arm = {
+        arm_key(m, "random"): episodes_for(arm_key(m, "random"), {1000: 400.0 + i, 1001: 402.0 + i})
+        for i, m in enumerate(METHODS)
+    }
+    episodes_by_arm[f"{BEHAVIOUR_METHOD}@random"] = episodes_for(
+        f"{BEHAVIOUR_METHOD}@random", {1000: 500.0, 1001: 502.0}
+    )
+    payload = grid.grid_artifact(
+        {"tiers": {"random": declaration_entry()}},
+        {"runs": []},
+        {"tiers": {}},
+        {"status": "PASS"},
+        episodes_by_arm,
+    )
+    held_out = payload["behaviour_cells"]["random"]["att_horizon_mean"]
+    assert held_out == pytest.approx(501.0), "the behaviour cell is the held-out measurement"
+    label = payload["tier_label_att_training_draws"]["random"]
+    assert label == grid.TIER_LABEL_ATT_TRAINING_DRAWS["random"]
+    assert label != pytest.approx(held_out), (
+        "the tier label and the held-out behaviour cell must be different quantities under "
+        "different names, or a reader can substitute one for the other (BRIEF_18 F2)"
+    )
+
+
+def test_the_volume_check_uses_the_sample_variance_and_not_the_population_one() -> None:
+    """F4.3: `ddof=1` -> `ddof=0` shrinks every P3 interval and no test noticed.
+
+    No P3 decision flips today, but `random`'s interval sits 0.44 vehicles from flipping, so the
+    difference between the two estimators is inside the margin the prediction is scored on.
+
+    Killed by: `ddof=1` -> `ddof=0` in `volume_check`.
+    """
+    arrivals = {1: 100, 2: 110, 3: 90, 4: 105, 5: 95, 6: 200, 7: 210, 8: 190, 9: 205, 10: 195}
+    kept, others = [1, 2, 3, 4, 5], [6, 7, 8, 9, 10]
+    result = volume_check(kept, others, arrivals)
+
+    left = [float(arrivals[d]) for d in kept]
+    right = [float(arrivals[d]) for d in others]
+
+    def variance(values: list[float], ddof: int) -> float:
+        mean = math.fsum(values) / len(values)
+        return math.fsum((v - mean) ** 2 for v in values) / (len(values) - ddof)
+
+    sample = math.sqrt(variance(left, 1) / len(left) + variance(right, 1) / len(right))
+    population = math.sqrt(variance(left, 0) / len(left) + variance(right, 0) / len(right))
+    assert sample != pytest.approx(population), "the fixture must separate the two estimators"
+    assert result["standard_error"] == pytest.approx(sample, rel=1e-12)
+    assert result["standard_error"] != pytest.approx(population, rel=1e-12)
+    assert result["ci95_high"] - result["difference"] == pytest.approx(1.96 * sample, rel=1e-12)
+
+
+def test_a_tier_missing_one_method_cannot_enter_the_artifact() -> None:
+    """F4.4: plan T14's second clause -- a tier enters only when all four methods are complete.
+
+    The first clause (a cell missing a seed or a draw) was tested; this one was not, and the
+    refusal survived being disabled.
+
+    Killed by: deleting the `incomplete` refusal in `grid_artifact`.
+    """
+    partial = {
+        arm_key(m, "random"): episodes_for(arm_key(m, "random"), {1000: 400.0, 1001: 402.0})
+        for m in ("bc", "bc_top10", "iql")            # dt missing
+    }
+    declaration = {"tiers": {"random": declaration_entry()}}
+    with pytest.raises(ValueError, match="missing methods"):
+        grid.grid_artifact(declaration, {"runs": []}, {"tiers": {}}, {"status": "PASS"}, partial)
+
+
+def test_a_withdrawn_difficulty_check_cannot_carry_a_demand_signature() -> None:
+    """F3: withdrawing a check in the ARTIFACT, not only in prose.
+
+    On the tier whose own policy defines the difficulty ranking the check is circular, so its
+    p-value -- the smallest in the task -- must not be allowed to assert a signature.  The numbers
+    stay visible; only their power to conclude is removed.
+
+    Killed by: dropping the `withdrawn` guard in `score_p3`.
+    """
+    diagnostics = {
+        "tiers": {
+            "maxpressure": {
+                "volume": {"difference": -1.0, "ci95_low": -4.0, "ci95_high": +2.0},
+                "difficulty": {
+                    "overlap": 19, "expected_overlap": 2.0, "p_value": 2.232e-24,
+                    "withdrawn": True, "withdrawn_reason": "circular on this tier",
+                },
+            },
+            "random": {
+                "volume": {"difference": -1.0, "ci95_low": -4.0, "ci95_high": +2.0},
+                "difficulty": {"overlap": 3, "expected_overlap": 2.0, "p_value": 0.32},
+            },
+        }
+    }
+    scored = score_p3(diagnostics)
+    assert scored["by_tier"]["maxpressure"]["difficulty_withdrawn"] is True
+    assert scored["by_tier"]["maxpressure"]["demand_signature"] is False, (
+        "a p-value of 2e-24 from a circular check must not assert a signature"
+    )
+    assert scored["by_tier"]["maxpressure"]["difficulty_p_value"] == pytest.approx(2.232e-24), (
+        "withdrawing a check must not hide its numbers"
+    )
+
+
+def test_a_comparison_resting_on_a_handful_of_untied_pairs_carries_its_own_caveat() -> None:
+    """BRIEF_18 section 5: prose does not reach a figure script, so the caveat is a field.
+
+    Killed by: emitting `comparison.to_json_obj()` directly instead of `comparison_json`.
+    """
+    identical = episodes_for("dt@fixedtime", {1000: 262.0, 1001: 263.0, 1002: 264.0})
+    twin = episodes_for("behaviour@fixedtime", {1000: 262.0, 1001: 263.0, 1002: 264.0})
+    tied = grid.comparison_json(paired_comparison(identical, twin))
+    assert tied["effect_size_usable"] is False
+    assert "non-tied pair" in tied["effect_size_caveat"]
+
+    apart = episodes_for("iql@fixedtime", {1000: 250.0, 1001: 251.0, 1002: 252.0})
+    genuine = grid.comparison_json(paired_comparison(apart, twin))
+    assert genuine["effect_size_usable"] is True
+    assert "effect_size_caveat" not in genuine

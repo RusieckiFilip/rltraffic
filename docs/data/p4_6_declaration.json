@@ -189,7 +189,7 @@
   "runtime": {
     "cuda_available": true,
     "cuda_device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
-    "git_commit": "1f35ea3d16df7e0bd4b5eca9d809979b091dc763",
+    "git_commit": "0e1b6eb33837e026e13e3e46ba12257de7ce265e",
     "measurement_git_commits": [],
     "numpy_version": "2.5.1",
     "python_version": "3.12.13",
@@ -197,7 +197,7 @@
     "torch_num_threads": 1,
     "torch_version": "2.11.0+cu128",
     "unreachable_measurement_commits": [],
-    "written_at_git_commit": "1f35ea3d16df7e0bd4b5eca9d809979b091dc763"
+    "written_at_git_commit": "0e1b6eb33837e026e13e3e46ba12257de7ce265e"
   },
   "seeds": [
     101,
@@ -206,7 +206,7 @@
     404,
     505
   ],
-  "tier_order_by_behaviour_att": [
+  "tier_order_by_tier_label_att": [
     "mappo1000",
     "mappo500",
     "maxpressure",
@@ -215,7 +215,6 @@
   ],
   "tiers": {
     "fixedtime": {
-      "behaviour_att": 262.08867095947267,
       "behaviour_reference": {
         "arm": "fixedtime",
         "artifact": "offline/policies/fixed_time.py::make_fixedtime, k from the tier's manifest",
@@ -1838,6 +1837,7 @@
       "subsample_rng_seed": null,
       "target_rtg": -29707.0,
       "target_rule": "target_rtg = max episode return in the TRAINING SET; rtg_scale = max|rtg|",
+      "tier_label_att_training_draws": 262.08867095947267,
       "top_decile": [
         {
           "dataset_dir": "/home/filip/rltraffic/datasets_v11/cf_hz1x1__fixedtime",
@@ -2226,7 +2226,6 @@
       "training_windows": 72000
     },
     "mappo1000": {
-      "behaviour_att": 105.46135581970215,
       "behaviour_reference": {
         "arm": "mappo1000",
         "artifact": "docs/data/p4_heldout_thresholds.json",
@@ -3853,6 +3852,7 @@
       "subsample_rng_seed": null,
       "target_rtg": -5762.0,
       "target_rule": "target_rtg = max episode return in the TRAINING SET; rtg_scale = max|rtg|",
+      "tier_label_att_training_draws": 105.46135581970215,
       "top_decile": [
         {
           "dataset_dir": "/home/filip/rltraffic/datasets_v11/cf_hz1x1__mappo1000__seed101",
@@ -4257,7 +4257,6 @@
       "training_windows": 72000
     },
     "mappo500": {
-      "behaviour_att": 107.49564304351807,
       "behaviour_reference": {
         "arm": "mappo500",
         "artifact": "docs/data/p4_heldout_thresholds.json",
@@ -5884,6 +5883,7 @@
       "subsample_rng_seed": null,
       "target_rtg": -6362.0,
       "target_rule": "target_rtg = max episode return in the TRAINING SET; rtg_scale = max|rtg|",
+      "tier_label_att_training_draws": 107.49564304351807,
       "top_decile": [
         {
           "dataset_dir": "/home/filip/rltraffic/datasets_v11/cf_hz1x1__mappo500__seed101",
@@ -6290,7 +6290,6 @@
       "training_windows": 72000
     },
     "maxpressure": {
-      "behaviour_att": 176.50006713867188,
       "behaviour_reference": {
         "arm": "maxpressure",
         "artifact": "docs/data/p4_heldout_thresholds.json",
@@ -7913,6 +7912,7 @@
       "subsample_rng_seed": null,
       "target_rtg": -13112.0,
       "target_rule": "target_rtg = max episode return in the TRAINING SET; rtg_scale = max|rtg|",
+      "tier_label_att_training_draws": 176.50006713867188,
       "top_decile": [
         {
           "dataset_dir": "/home/filip/rltraffic/datasets_v11/cf_hz1x1__maxpressure",
@@ -8301,7 +8301,6 @@
       "training_windows": 72000
     },
     "random": {
-      "behaviour_att": 422.5187595367432,
       "behaviour_reference": {
         "arm": "random",
         "artifact": "offline/collect.py::_make_random, one fresh default_rng(seed) per draw",
@@ -9924,6 +9923,7 @@
       "subsample_rng_seed": 20260813,
       "target_rtg": -38369.0,
       "target_rule": "target_rtg = max episode return in the TRAINING SET; rtg_scale = max|rtg|",
+      "tier_label_att_training_draws": 422.5187595367432,
       "top_decile": [
         {
           "dataset_dir": "/home/filip/rltraffic/datasets_v11/cf_hz1x1__random",

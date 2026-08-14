@@ -17,7 +17,7 @@
   "runtime": {
     "cuda_available": true,
     "cuda_device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
-    "git_commit": "1f35ea3d16df7e0bd4b5eca9d809979b091dc763",
+    "git_commit": "0e1b6eb33837e026e13e3e46ba12257de7ce265e",
     "measurement_git_commits": [],
     "numpy_version": "2.5.1",
     "python_version": "3.12.13",
@@ -25,7 +25,7 @@
     "torch_num_threads": 1,
     "torch_version": "2.11.0+cu128",
     "unreachable_measurement_commits": [],
-    "written_at_git_commit": "1f35ea3d16df7e0bd4b5eca9d809979b091dc763"
+    "written_at_git_commit": "0e1b6eb33837e026e13e3e46ba12257de7ce265e"
   },
   "tiers": {
     "fixedtime": {
@@ -80,7 +80,9 @@
         "null": "hypergeometric, drawing the kept set uniformly from the training draws",
         "overlap": 4,
         "p_value": 0.12224175671655779,
-        "population": 200
+        "population": 200,
+        "withdrawn": false,
+        "withdrawn_reason": null
       },
       "kept_draws": [
         30,
@@ -105,6 +107,7 @@
         195
       ],
       "kept_streams": 20,
+      "return_versus_difficulty_rho": -0.0309632330833558,
       "volume": {
         "approximation": "welch_normal",
         "ci95_high": -7.829209675188149,
@@ -171,7 +174,9 @@
         "null": "hypergeometric, drawing the kept set uniformly from the training draws",
         "overlap": 4,
         "p_value": 0.12224175671655779,
-        "population": 200
+        "population": 200,
+        "withdrawn": false,
+        "withdrawn_reason": null
       },
       "kept_draws": [
         3,
@@ -196,6 +201,7 @@
         172
       ],
       "kept_streams": 20,
+      "return_versus_difficulty_rho": -0.1298407132802251,
       "volume": {
         "approximation": "welch_normal",
         "ci95_high": -0.34757125281618606,
@@ -262,7 +268,9 @@
         "null": "hypergeometric, drawing the kept set uniformly from the training draws",
         "overlap": 4,
         "p_value": 0.12224175671655779,
-        "population": 200
+        "population": 200,
+        "withdrawn": false,
+        "withdrawn_reason": null
       },
       "kept_draws": [
         2,
@@ -287,6 +295,7 @@
         158
       ],
       "kept_streams": 20,
+      "return_versus_difficulty_rho": -0.23119432023478784,
       "volume": {
         "approximation": "welch_normal",
         "ci95_high": -6.432036699945856,
@@ -353,7 +362,9 @@
         "null": "hypergeometric, drawing the kept set uniformly from the training draws",
         "overlap": 19,
         "p_value": 2.231672814366183e-24,
-        "population": 200
+        "population": 200,
+        "withdrawn": true,
+        "withdrawn_reason": "check B ranks the kept draws by the maxpressure tier's own att_horizon, and this IS that tier: its top decile by return and the easiest draws by its own ATT are two functions of the same episodes (measured Spearman rho = -0.9967 between stream return and own-tier difficulty, against -0.23 or weaker on every other tier).  The hypergeometric null assumes the two sets are independent and they are not, so the p-value does not mean what it appears to mean and this check is withdrawn on this tier (BRIEF_18 finding F3)"
       },
       "kept_draws": [
         2,
@@ -378,6 +389,7 @@
         186
       ],
       "kept_streams": 20,
+      "return_versus_difficulty_rho": -0.9967231656217952,
       "volume": {
         "approximation": "welch_normal",
         "ci95_high": -6.907081443184087,
@@ -444,7 +456,9 @@
         "null": "hypergeometric, drawing the kept set uniformly from the training draws",
         "overlap": 3,
         "p_value": 0.32132303788556676,
-        "population": 200
+        "population": 200,
+        "withdrawn": false,
+        "withdrawn_reason": null
       },
       "kept_draws": [
         9,
@@ -469,6 +483,7 @@
         199
       ],
       "kept_streams": 20,
+      "return_versus_difficulty_rho": -0.008491760060286194,
       "volume": {
         "approximation": "welch_normal",
         "ci95_high": 0.5562545904241532,

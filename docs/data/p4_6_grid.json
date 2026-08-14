@@ -1,11 +1,4 @@
 {
-  "behaviour_att": {
-    "fixedtime": 262.08867095947267,
-    "mappo1000": 105.46135581970215,
-    "mappo500": 107.49564304351807,
-    "maxpressure": 176.50006713867188,
-    "random": 422.5187595367432
-  },
   "behaviour_cells": {
     "fixedtime": {
       "arm": "behaviour@fixedtime",
@@ -729,6 +722,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc@mappo1000",
       "losses": 38,
       "mean_difference": -0.41856537854544984,
@@ -857,6 +851,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc_top10@mappo1000",
       "losses": 2,
       "mean_difference": -2.4193359951955036,
@@ -985,6 +980,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "iql@mappo1000",
       "losses": 7,
       "mean_difference": -2.1056299888738397,
@@ -1113,6 +1109,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "dt@mappo1000",
       "losses": 24,
       "mean_difference": -0.6262756469347375,
@@ -1241,6 +1238,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc@mappo500",
       "losses": 27,
       "mean_difference": -0.8136314967048651,
@@ -1369,6 +1367,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc_top10@mappo500",
       "losses": 0,
       "mean_difference": -3.3396337550620476,
@@ -1497,6 +1496,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "iql@mappo500",
       "losses": 0,
       "mean_difference": -3.2721643712904607,
@@ -1625,6 +1625,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "dt@mappo500",
       "losses": 18,
       "mean_difference": -1.436025388612615,
@@ -1753,6 +1754,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc@maxpressure",
       "losses": 44,
       "mean_difference": -1.501865185850489,
@@ -1881,6 +1883,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc_top10@maxpressure",
       "losses": 15,
       "mean_difference": -11.114436247410872,
@@ -2009,6 +2012,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "iql@maxpressure",
       "losses": 5,
       "mean_difference": -18.011046627796823,
@@ -2137,6 +2141,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "dt@maxpressure",
       "losses": 56,
       "mean_difference": 0.6885357833981732,
@@ -2265,6 +2270,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc@fixedtime",
       "losses": 83,
       "mean_difference": 3.7615574860736745,
@@ -2393,6 +2399,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc_top10@fixedtime",
       "losses": 94,
       "mean_difference": 13.928470503355388,
@@ -2521,6 +2528,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "iql@fixedtime",
       "losses": 33,
       "mean_difference": -1.7321382435482493,
@@ -2649,6 +2657,8 @@
         1098,
         1099
       ],
+      "effect_size_caveat": "rank_biserial and p_value rest on 2 non-tied pair(s) of 100 shared draws (98 exact ties), which is below the declared 10% floor.  The two arms are (near-)identical on these draws; the tie count is the result and these two statistics are not comparable with the artifact's other pairs",
+      "effect_size_usable": false,
       "left_arm": "dt@fixedtime",
       "losses": 0,
       "mean_difference": -5.684341886080802e-16,
@@ -2777,6 +2787,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc@random",
       "losses": 47,
       "mean_difference": -0.9295622945290433,
@@ -2905,6 +2916,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc_top10@random",
       "losses": 69,
       "mean_difference": 3.3012572802079863,
@@ -3033,6 +3045,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "iql@random",
       "losses": 0,
       "mean_difference": -35.48561682002646,
@@ -3161,6 +3174,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "dt@random",
       "losses": 0,
       "mean_difference": -8.507551870707097,
@@ -8694,6 +8708,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc@mappo1000",
       "losses": 93,
       "mean_difference": 2.000770616650054,
@@ -8822,6 +8837,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc@mappo1000",
       "losses": 90,
       "mean_difference": 1.68706461032839,
@@ -8950,6 +8966,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc@mappo1000",
       "losses": 61,
       "mean_difference": 0.20771026838928763,
@@ -9078,6 +9095,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc_top10@mappo1000",
       "losses": 39,
       "mean_difference": -0.31370600632166384,
@@ -9206,6 +9224,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc_top10@mappo1000",
       "losses": 8,
       "mean_difference": -1.7930603482607659,
@@ -9334,6 +9353,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "iql@mappo1000",
       "losses": 14,
       "mean_difference": -1.4793543419391018,
@@ -9462,6 +9482,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc@mappo500",
       "losses": 97,
       "mean_difference": 2.526002258357183,
@@ -9590,6 +9611,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc@mappo500",
       "losses": 99,
       "mean_difference": 2.458532874585595,
@@ -9718,6 +9740,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc@mappo500",
       "losses": 61,
       "mean_difference": 0.6223938919077502,
@@ -9846,6 +9869,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc_top10@mappo500",
       "losses": 49,
       "mean_difference": -0.06746938377158812,
@@ -9974,6 +9998,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc_top10@mappo500",
       "losses": 10,
       "mean_difference": -1.9036083664494328,
@@ -10102,6 +10127,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "iql@mappo500",
       "losses": 15,
       "mean_difference": -1.8361389826778451,
@@ -10230,6 +10256,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc@maxpressure",
       "losses": 96,
       "mean_difference": 9.61257106156038,
@@ -10358,6 +10385,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc@maxpressure",
       "losses": 100,
       "mean_difference": 16.509181441946332,
@@ -10486,6 +10514,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc@maxpressure",
       "losses": 39,
       "mean_difference": -2.190400969248662,
@@ -10614,6 +10643,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc_top10@maxpressure",
       "losses": 90,
       "mean_difference": 6.89661038038595,
@@ -10742,6 +10772,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc_top10@maxpressure",
       "losses": 2,
       "mean_difference": -11.802972030809045,
@@ -10870,6 +10901,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "iql@maxpressure",
       "losses": 0,
       "mean_difference": -18.699582411194996,
@@ -10998,6 +11030,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc@fixedtime",
       "losses": 9,
       "mean_difference": -10.166913017281711,
@@ -11126,6 +11159,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc@fixedtime",
       "losses": 92,
       "mean_difference": 5.4936957296219235,
@@ -11254,6 +11288,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc@fixedtime",
       "losses": 83,
       "mean_difference": 3.761557486073676,
@@ -11382,6 +11417,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc_top10@fixedtime",
       "losses": 96,
       "mean_difference": 15.660608746903637,
@@ -11510,6 +11546,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc_top10@fixedtime",
       "losses": 94,
       "mean_difference": 13.928470503355388,
@@ -11638,6 +11675,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "iql@fixedtime",
       "losses": 33,
       "mean_difference": -1.7321382435482489,
@@ -11766,6 +11804,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc@random",
       "losses": 37,
       "mean_difference": -4.23081957473703,
@@ -11894,6 +11933,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc@random",
       "losses": 100,
       "mean_difference": 34.55605452549741,
@@ -12022,6 +12062,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc@random",
       "losses": 91,
       "mean_difference": 7.5779895761780525,
@@ -12150,6 +12191,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc_top10@random",
       "losses": 100,
       "mean_difference": 38.78687410023444,
@@ -12278,6 +12320,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc_top10@random",
       "losses": 94,
       "mean_difference": 11.808809150915081,
@@ -12406,6 +12449,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "iql@random",
       "losses": 0,
       "mean_difference": -26.97806494931936,
@@ -12534,6 +12578,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc@mappo1000",
       "losses": 13,
       "mean_difference": -2.1145114886314205,
@@ -12662,6 +12707,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc@mappo1000",
       "losses": 0,
       "mean_difference": -70.22586008033429,
@@ -12790,6 +12836,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc@mappo1000",
       "losses": 0,
       "mean_difference": -160.66870887035537,
@@ -12918,6 +12965,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc@mappo1000",
       "losses": 0,
       "mean_difference": -322.79090680825993,
@@ -13046,6 +13094,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc@mappo500",
       "losses": 0,
       "mean_difference": -68.11134859170286,
@@ -13174,6 +13223,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc@mappo500",
       "losses": 0,
       "mean_difference": -158.55419738172395,
@@ -13302,6 +13352,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc@mappo500",
       "losses": 0,
       "mean_difference": -320.67639531962845,
@@ -13430,6 +13481,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc@maxpressure",
       "losses": 0,
       "mean_difference": -90.44284879002109,
@@ -13558,6 +13610,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc@maxpressure",
       "losses": 0,
       "mean_difference": -252.56504672792562,
@@ -13686,6 +13739,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc@fixedtime",
       "losses": 0,
       "mean_difference": -162.12219793790456,
@@ -13814,6 +13868,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc_top10@mappo1000",
       "losses": 16,
       "mean_difference": -1.5892798469242913,
@@ -13942,6 +13997,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc_top10@mappo1000",
       "losses": 0,
       "mean_difference": -62.614059635423956,
@@ -14070,6 +14126,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc_top10@mappo1000",
       "losses": 0,
       "mean_difference": -172.83639250428712,
@@ -14198,6 +14255,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc_top10@mappo1000",
       "losses": 0,
       "mean_difference": -329.02249699964705,
@@ -14326,6 +14384,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc_top10@mappo500",
       "losses": 0,
       "mean_difference": -61.024779788499664,
@@ -14454,6 +14513,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc_top10@mappo500",
       "losses": 0,
       "mean_difference": -171.2471126573628,
@@ -14582,6 +14642,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc_top10@mappo500",
       "losses": 0,
       "mean_difference": -327.4332171527227,
@@ -14710,6 +14771,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc_top10@maxpressure",
       "losses": 0,
       "mean_difference": -110.22233286886318,
@@ -14838,6 +14900,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc_top10@maxpressure",
       "losses": 0,
       "mean_difference": -266.40843736422306,
@@ -14966,6 +15029,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "bc_top10@fixedtime",
       "losses": 0,
       "mean_difference": -156.1861044953599,
@@ -15094,6 +15158,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "iql@mappo1000",
       "losses": 14,
       "mean_difference": -1.3430432243742154,
@@ -15222,6 +15287,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "iql@mappo1000",
       "losses": 0,
       "mean_difference": -55.403743248716346,
@@ -15350,6 +15416,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "iql@mappo1000",
       "losses": 0,
       "mean_difference": -156.86207775106183,
@@ -15478,6 +15545,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "iql@mappo1000",
       "losses": 0,
       "mean_difference": -289.92191689309095,
@@ -15606,6 +15674,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "iql@mappo500",
       "losses": 0,
       "mean_difference": -54.060700024342125,
@@ -15734,6 +15803,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "iql@mappo500",
       "losses": 0,
       "mean_difference": -155.51903452668762,
@@ -15862,6 +15932,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "iql@mappo500",
       "losses": 0,
       "mean_difference": -288.57887366871665,
@@ -15990,6 +16061,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "iql@maxpressure",
       "losses": 0,
       "mean_difference": -101.45833450234551,
@@ -16118,6 +16190,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "iql@maxpressure",
       "losses": 0,
       "mean_difference": -234.51817364437457,
@@ -16246,6 +16319,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "iql@fixedtime",
       "losses": 0,
       "mean_difference": -133.05983914202906,
@@ -16374,6 +16448,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "dt@mappo1000",
       "losses": 14,
       "mean_difference": -1.6998278651129584,
@@ -16502,6 +16577,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "dt@mappo1000",
       "losses": 0,
       "mean_difference": -72.62397131797223,
@@ -16630,6 +16706,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "dt@mappo1000",
       "losses": 0,
       "mean_difference": -157.11486165267098,
@@ -16758,6 +16835,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "dt@mappo1000",
       "losses": 0,
       "mean_difference": -315.42062750047114,
@@ -16886,6 +16964,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "dt@mappo500",
       "losses": 0,
       "mean_difference": -70.92414345285928,
@@ -17014,6 +17093,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "dt@mappo500",
       "losses": 0,
       "mean_difference": -155.41503378755803,
@@ -17142,6 +17222,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "dt@mappo500",
       "losses": 0,
       "mean_difference": -313.7207996353582,
@@ -17270,6 +17351,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "dt@maxpressure",
       "losses": 0,
       "mean_difference": -84.49089033469876,
@@ -17398,6 +17480,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "dt@maxpressure",
       "losses": 0,
       "mean_difference": -242.79665618249896,
@@ -17526,6 +17609,7 @@
         1098,
         1099
       ],
+      "effect_size_usable": true,
       "left_arm": "dt@fixedtime",
       "losses": 0,
       "mean_difference": -158.30576584780016,
@@ -17624,7 +17708,7 @@
     "runtime": {
       "cuda_available": true,
       "cuda_device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
-      "git_commit": "1f35ea3d16df7e0bd4b5eca9d809979b091dc763",
+      "git_commit": "0e1b6eb33837e026e13e3e46ba12257de7ce265e",
       "measurement_git_commits": [],
       "numpy_version": "2.5.1",
       "python_version": "3.12.13",
@@ -17632,7 +17716,7 @@
       "torch_num_threads": 1,
       "torch_version": "2.11.0+cu128",
       "unreachable_measurement_commits": [],
-      "written_at_git_commit": "1f35ea3d16df7e0bd4b5eca9d809979b091dc763"
+      "written_at_git_commit": "0e1b6eb33837e026e13e3e46ba12257de7ce265e"
     },
     "tiers": {
       "fixedtime": {
@@ -17687,7 +17771,9 @@
           "null": "hypergeometric, drawing the kept set uniformly from the training draws",
           "overlap": 4,
           "p_value": 0.12224175671655779,
-          "population": 200
+          "population": 200,
+          "withdrawn": false,
+          "withdrawn_reason": null
         },
         "kept_draws": [
           30,
@@ -17712,6 +17798,7 @@
           195
         ],
         "kept_streams": 20,
+        "return_versus_difficulty_rho": -0.0309632330833558,
         "volume": {
           "approximation": "welch_normal",
           "ci95_high": -7.829209675188149,
@@ -17778,7 +17865,9 @@
           "null": "hypergeometric, drawing the kept set uniformly from the training draws",
           "overlap": 4,
           "p_value": 0.12224175671655779,
-          "population": 200
+          "population": 200,
+          "withdrawn": false,
+          "withdrawn_reason": null
         },
         "kept_draws": [
           3,
@@ -17803,6 +17892,7 @@
           172
         ],
         "kept_streams": 20,
+        "return_versus_difficulty_rho": -0.1298407132802251,
         "volume": {
           "approximation": "welch_normal",
           "ci95_high": -0.34757125281618606,
@@ -17869,7 +17959,9 @@
           "null": "hypergeometric, drawing the kept set uniformly from the training draws",
           "overlap": 4,
           "p_value": 0.12224175671655779,
-          "population": 200
+          "population": 200,
+          "withdrawn": false,
+          "withdrawn_reason": null
         },
         "kept_draws": [
           2,
@@ -17894,6 +17986,7 @@
           158
         ],
         "kept_streams": 20,
+        "return_versus_difficulty_rho": -0.23119432023478784,
         "volume": {
           "approximation": "welch_normal",
           "ci95_high": -6.432036699945856,
@@ -17960,7 +18053,9 @@
           "null": "hypergeometric, drawing the kept set uniformly from the training draws",
           "overlap": 19,
           "p_value": 2.231672814366183e-24,
-          "population": 200
+          "population": 200,
+          "withdrawn": true,
+          "withdrawn_reason": "check B ranks the kept draws by the maxpressure tier's own att_horizon, and this IS that tier: its top decile by return and the easiest draws by its own ATT are two functions of the same episodes (measured Spearman rho = -0.9967 between stream return and own-tier difficulty, against -0.23 or weaker on every other tier).  The hypergeometric null assumes the two sets are independent and they are not, so the p-value does not mean what it appears to mean and this check is withdrawn on this tier (BRIEF_18 finding F3)"
         },
         "kept_draws": [
           2,
@@ -17985,6 +18080,7 @@
           186
         ],
         "kept_streams": 20,
+        "return_versus_difficulty_rho": -0.9967231656217952,
         "volume": {
           "approximation": "welch_normal",
           "ci95_high": -6.907081443184087,
@@ -18051,7 +18147,9 @@
           "null": "hypergeometric, drawing the kept set uniformly from the training draws",
           "overlap": 3,
           "p_value": 0.32132303788556676,
-          "population": 200
+          "population": 200,
+          "withdrawn": false,
+          "withdrawn_reason": null
         },
         "kept_draws": [
           9,
@@ -18076,6 +18174,7 @@
           199
         ],
         "kept_streams": 20,
+        "return_versus_difficulty_rho": -0.008491760060286194,
         "volume": {
           "approximation": "welch_normal",
           "ci95_high": 0.5562545904241532,
@@ -112096,6 +112195,12 @@
           "difficulty_expected": 2.0,
           "difficulty_overlap": 4,
           "difficulty_p_value": 0.12224175671655779,
+          "difficulty_withdrawn": false,
+          "difficulty_withdrawn_reason": null,
+          "return_versus_difficulty_rho": -0.0309632330833558,
+          "signature_carried_by": [
+            "volume"
+          ],
           "volume_ci95": [
             -17.99301254703393,
             -7.829209675188149
@@ -112108,6 +112213,12 @@
           "difficulty_expected": 2.0,
           "difficulty_overlap": 4,
           "difficulty_p_value": 0.12224175671655779,
+          "difficulty_withdrawn": false,
+          "difficulty_withdrawn_reason": null,
+          "return_versus_difficulty_rho": -0.1298407132802251,
+          "signature_carried_by": [
+            "volume"
+          ],
           "volume_ci95": [
             -11.585762080516753,
             -0.34757125281618606
@@ -112120,6 +112231,12 @@
           "difficulty_expected": 2.0,
           "difficulty_overlap": 4,
           "difficulty_p_value": 0.12224175671655779,
+          "difficulty_withdrawn": false,
+          "difficulty_withdrawn_reason": null,
+          "return_versus_difficulty_rho": -0.23119432023478784,
+          "signature_carried_by": [
+            "volume"
+          ],
           "volume_ci95": [
             -17.05685218894274,
             -6.432036699945856
@@ -112132,6 +112249,12 @@
           "difficulty_expected": 2.0,
           "difficulty_overlap": 19,
           "difficulty_p_value": 2.231672814366183e-24,
+          "difficulty_withdrawn": true,
+          "difficulty_withdrawn_reason": "check B ranks the kept draws by the maxpressure tier's own att_horizon, and this IS that tier: its top decile by return and the easiest draws by its own ATT are two functions of the same episodes (measured Spearman rho = -0.9967 between stream return and own-tier difficulty, against -0.23 or weaker on every other tier).  The hypergeometric null assumes the two sets are independent and they are not, so the p-value does not mean what it appears to mean and this check is withdrawn on this tier (BRIEF_18 finding F3)",
+          "return_versus_difficulty_rho": -0.9967231656217952,
+          "signature_carried_by": [
+            "volume"
+          ],
           "volume_ci95": [
             -18.026251890149307,
             -6.907081443184087
@@ -112144,6 +112267,10 @@
           "difficulty_expected": 2.0,
           "difficulty_overlap": 3,
           "difficulty_p_value": 0.32132303788556676,
+          "difficulty_withdrawn": false,
+          "difficulty_withdrawn_reason": null,
+          "return_versus_difficulty_rho": -0.008491760060286194,
+          "signature_carried_by": null,
           "volume_ci95": [
             -9.711810145979719,
             0.5562545904241532
@@ -112175,9 +112302,10 @@
   "runtime": {
     "cuda_available": true,
     "cuda_device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
-    "git_commit": "0d3ccce7ceaa41052de2e02be3ca72a0d02fe3da",
+    "git_commit": "0e1b6eb33837e026e13e3e46ba12257de7ce265e",
     "measurement_git_commits": [
       "0d3ccce7ceaa41052de2e02be3ca72a0d02fe3da",
+      "0e1b6eb33837e026e13e3e46ba12257de7ce265e",
       "13732f3afc92b677cc348b06e5052ff2e8103d33",
       "1f35ea3d16df7e0bd4b5eca9d809979b091dc763",
       "801f28b45b15fc06a456e172a617a2f39d69c82f"
@@ -112188,7 +112316,7 @@
     "torch_num_threads": 1,
     "torch_version": "2.11.0+cu128",
     "unreachable_measurement_commits": [],
-    "written_at_git_commit": "0d3ccce7ceaa41052de2e02be3ca72a0d02fe3da"
+    "written_at_git_commit": "0e1b6eb33837e026e13e3e46ba12257de7ce265e"
   },
   "seeds": [
     101,
@@ -112197,7 +112325,14 @@
     404,
     505
   ],
-  "tier_order_by_behaviour_att": [
+  "tier_label_att_training_draws": {
+    "fixedtime": 262.08867095947267,
+    "mappo1000": 105.46135581970215,
+    "mappo500": 107.49564304351807,
+    "maxpressure": 176.50006713867188,
+    "random": 422.5187595367432
+  },
+  "tier_order_by_tier_label_att": [
     "mappo1000",
     "mappo500",
     "maxpressure",

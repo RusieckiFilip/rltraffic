@@ -143,13 +143,26 @@ REUSED_ARM_KEYS: Mapping[str, str] = {
     "dt": "madt",
 }
 
-#: Behaviour ATT of each tier's own data, measured over draws 1-200 and read from
-#: ``docs/data/att_ladder_v11.json``.  **This is the only ordering used for tiers**: never the tier
-#: name, never the training budget (``BRIEF_17`` section 1).
-#: Copied digit for digit from that artifact and asserted against it by a test, rather than read at
-#: run time: the ordering is a declaration of this task, and a declaration that silently follows a
-#: file it does not control is not a declaration.
-BEHAVIOUR_ATT: Mapping[str, float] = {
+#: ⚠️ **A TIER LABEL, MEASURED ON THE TRAINING DRAWS (1-200), AND NEVER A COMPARATOR.**
+#: Each tier's own corpus ATT, read from ``docs/data/att_ladder_v11.json``.  It orders the tiers --
+#: the only ordering this task uses, never the tier name and never the training budget
+#: (``BRIEF_17`` section 1) -- and it must **never** be placed beside a held-out cell:
+#: ``PREREGISTRATION`` A5 makes a comparison across different draw sets **void**, and the held-out
+#: behaviour cells in ``behaviour_cells`` are the only lawful reference for "did the method beat the
+#: policy that produced its data?".
+#:
+#: **Renamed from ``BEHAVIOUR_ATT`` on 2026-08-14 (``BRIEF_18`` finding F2), because the old name
+#: invited exactly that void reading and the report's own summary table had taken it**: it printed
+#: this training-draw value beside four held-out means, with a **maximum substitution error of
+#: 6.3652 ATT** and **one of twenty statements reversing sign** (`bc@random` read +5.4356 "worse"
+#: against the true −0.9296 "better").  The rename is necessary and not sufficient -- the offending
+#: site was a *use* -- so every consumption site is enumerated and classified in
+#: ``docs/returns/P4.6.md`` section 5a.
+#:
+#: Copied digit for digit from the ladder artifact and asserted against it by a test, rather than
+#: read at run time: the ordering is a declaration of this task, and a declaration that silently
+#: follows a file it does not control is not a declaration.
+TIER_LABEL_ATT_TRAINING_DRAWS: Mapping[str, float] = {
     "mappo1000": 105.46135581970215,
     "mappo500": 107.49564304351807,
     "maxpressure": 176.50006713867188,
@@ -669,7 +682,7 @@ def declaration_artifact(
             "subsample_rng_seed": (
                 RANDOM_SUBSAMPLE_RNG_SEED if spec.subsample == "one_per_draw" else None
             ),
-            "behaviour_att": BEHAVIOUR_ATT.get(spec.tier),
+            "tier_label_att_training_draws": TIER_LABEL_ATT_TRAINING_DRAWS.get(spec.tier),
             "behaviour_reference": BEHAVIOUR_REFERENCE_BY_TIER.get(spec.tier),
             "target_rtg": declared["target_rtg"],
             "rtg_scale": declared["rtg_scale"],
@@ -730,7 +743,7 @@ def declaration_artifact(
             ),
             "reported_as": "untuned",
         },
-        "tier_order_by_behaviour_att": [
+        "tier_order_by_tier_label_att": [
             tier for tier in (*PHASE1_TIER_ORDER, *MIXTURE_TIER_ORDER) if tier in entries
         ],
         "reused_tier": REUSED_TIER,
@@ -905,8 +918,18 @@ def difficulty_check(
     difficulty: Mapping[int, float],
     *,
     easiest_count: int = EASIEST_DRAW_COUNT,
+    withdrawn_reason: str | None = None,
 ) -> dict[str, Any]:
-    """P3 check B: overlap of the kept draws with the easiest draws, and its exact p-value."""
+    """P3 check B: overlap of the kept draws with the easiest draws, and its exact p-value.
+
+    ``withdrawn_reason`` marks the result **withdrawn in the artifact itself**, not only in prose
+    (``BRIEF_18`` finding F3).  It exists for one measured situation: on the tier whose own
+    behaviour policy DEFINES the difficulty ranking, "top decile by return" and "easiest draws by
+    that policy's ATT" are two functions of the same episodes, so the overlap is close to a
+    tautology and the hypergeometric null -- which assumes the two sets are independent -- does not
+    apply.  A withdrawn check's numbers are still reported, because hiding them would be a second
+    error; :func:`score_p3` refuses to let a withdrawn check contribute to a signature.
+    """
     kept = sorted({int(d) for d in kept_draws})
     unknown = [d for d in kept if d not in difficulty]
     if unknown:
@@ -918,7 +941,7 @@ def difficulty_check(
     easiest = sorted(ordered[: int(easiest_count)])
     overlap = len(set(kept) & set(easiest))
     population = len(difficulty)
-    return {
+    result = {
         "population": population,
         "kept_count": len(kept),
         "easiest_count": int(easiest_count),
@@ -928,7 +951,60 @@ def difficulty_check(
         "expected_overlap": len(kept) * int(easiest_count) / population,
         "p_value": hypergeometric_upper_tail(population, int(easiest_count), len(kept), overlap),
         "null": "hypergeometric, drawing the kept set uniformly from the training draws",
+        "withdrawn": False,
+        "withdrawn_reason": None,
     }
+    if withdrawn_reason is not None:
+        result["withdrawn"] = True
+        result["withdrawn_reason"] = str(withdrawn_reason)
+    return result
+
+
+def spearman_rho(xs: Sequence[float], ys: Sequence[float]) -> float:
+    """Spearman's rank correlation, average ranks on ties, computed without a new dependency.
+
+    Used for one job (``BRIEF_18`` finding F3): measuring how far each tier's stream returns already
+    determine the difficulty ranking check B scores them against.  On the tier whose own policy
+    defines that ranking the answer is near −1, which is what makes the check circular there.
+    """
+    if len(xs) != len(ys):
+        raise ValueError(f"spearman_rho needs equal lengths, got {len(xs)} and {len(ys)}")
+    if len(xs) < 3:
+        raise ValueError(f"spearman_rho needs at least three points, got {len(xs)}")
+
+    def ranks(values: Sequence[float]) -> list[float]:
+        order = sorted(range(len(values)), key=lambda i: values[i])
+        out = [0.0] * len(values)
+        index = 0
+        while index < len(order):
+            stop = index
+            while stop + 1 < len(order) and values[order[stop + 1]] == values[order[index]]:
+                stop += 1
+            average = (index + stop) / 2.0 + 1.0
+            for position in range(index, stop + 1):
+                out[order[position]] = average
+            index = stop + 1
+        return out
+
+    left, right = ranks(list(xs)), ranks(list(ys))
+    n = float(len(left))
+    mean_left, mean_right = sum(left) / n, sum(right) / n
+    cov = math.fsum((a - mean_left) * (b - mean_right) for a, b in zip(left, right))
+    var_left = math.fsum((a - mean_left) ** 2 for a in left)
+    var_right = math.fsum((b - mean_right) ** 2 for b in right)
+    if var_left == 0.0 or var_right == 0.0:
+        return 0.0
+    return cov / math.sqrt(var_left * var_right)
+
+
+def return_versus_difficulty_rho(
+    streams: Sequence[StreamReturn], difficulty: Mapping[int, float]
+) -> float:
+    """How far a tier's own stream returns already determine the difficulty ranking (F3)."""
+    pairs = [(s.total_return, difficulty[int(s.flow_draw)]) for s in streams if int(s.flow_draw) in difficulty]
+    if len(pairs) < 3:
+        raise ValueError("too few streams overlap the difficulty ranking to correlate them")
+    return spearman_rho([p[0] for p in pairs], [p[1] for p in pairs])
 
 
 def selection_diagnostics_artifact(
@@ -954,11 +1030,32 @@ def selection_diagnostics_artifact(
         kept = top_decile_streams(selected)
         kept_draws = sorted({int(s.flow_draw) for s in kept})
         other_draws = sorted({int(s.flow_draw) for s in selected} - set(kept_draws))
+        rho = return_versus_difficulty_rho(selected, difficulty)
+        # F3: on the tier whose own policy DEFINES the difficulty ranking, check B scores a
+        # selection against a ranking that selection is a function of.  Withdrawn there, by tier
+        # identity rather than by a threshold on rho -- a threshold would be a second chosen
+        # constant, and the circularity is structural, not empirical.
+        withdrawn = (
+            (
+                f"check B ranks the kept draws by the {DIFFICULTY_TIER} tier's own att_horizon, and "
+                f"this IS that tier: its top decile by return and the easiest draws by its own ATT "
+                f"are two functions of the same episodes (measured Spearman rho = {rho:.4f} between "
+                "stream return and own-tier difficulty, against -0.23 or weaker on every other "
+                "tier).  The hypergeometric null assumes the two sets are independent and they are "
+                "not, so the p-value does not mean what it appears to mean and this check is "
+                "withdrawn on this tier (BRIEF_18 finding F3)"
+            )
+            if spec.tier == DIFFICULTY_TIER
+            else None
+        )
         entries[spec.tier] = {
             "kept_streams": len(kept),
             "kept_draws": kept_draws,
+            "return_versus_difficulty_rho": rho,
             "volume": volume_check(kept_draws, other_draws, arrivals),
-            "difficulty": difficulty_check(kept_draws, difficulty),
+            "difficulty": difficulty_check(
+                kept_draws, difficulty, withdrawn_reason=withdrawn
+            ),
         }
 
     return {
@@ -1423,6 +1520,39 @@ def behaviour_comparisons(
     return out
 
 
+#: A signed-rank effect size computed on this few non-tied pairs describes the residue, not the
+#: arms.  Declared as a fraction of the shared draws so it scales with the design (``BRIEF_18``
+#: section 5): with 100 shared draws it flags any comparison resting on fewer than 10 of them.
+TIED_PAIR_CAVEAT_FRACTION = 0.10
+
+
+def comparison_json(comparison: PairedComparison) -> dict[str, Any]:
+    """A paired comparison as JSON, **carrying its own caveat when its effect size is unusable**.
+
+    ``dt@fixedtime`` against its behaviour policy is the case this exists for: the two arms are
+    identical, so 98 of 100 per-draw differences are exactly zero, Wilcoxon drops them and runs on
+    **two float residues** -- returning ``rank_biserial = -1.0``, the same value 45 genuine effects
+    in this artifact carry.  **A figure script sorting by |r| cannot tell them apart, and prose in a
+    Return Packet does not reach a figure script**, so the caveat is a FIELD.
+    """
+    payload = comparison.to_json_obj()
+    n_used = int(comparison.wilcoxon.n_used)
+    n_zero = int(comparison.wilcoxon.n_zero)
+    floor = TIED_PAIR_CAVEAT_FRACTION * float(comparison.n_shared_draws)
+    if n_zero > 0 and n_used < floor:
+        payload["effect_size_caveat"] = (
+            f"rank_biserial and p_value rest on {n_used} non-tied pair(s) of "
+            f"{comparison.n_shared_draws} shared draws ({n_zero} exact ties), which is below the "
+            f"declared {TIED_PAIR_CAVEAT_FRACTION:.0%} floor.  The two arms are (near-)identical on "
+            "these draws; the tie count is the result and these two statistics are not comparable "
+            "with the artifact's other pairs"
+        )
+        payload["effect_size_usable"] = False
+    else:
+        payload["effect_size_usable"] = True
+    return payload
+
+
 def _ranks(values: Mapping[str, float]) -> dict[str, float]:
     """Ranks by ascending value, 1 = lowest; exact ties take the average rank."""
     ordered = sorted(values, key=lambda k: (values[k], k))
@@ -1578,7 +1708,11 @@ def score_p3(diagnostics: Mapping[str, Any]) -> dict[str, Any]:
                 float(volume["ci95_low"]) > 0.0 or float(volume["ci95_high"]) < 0.0,
             )
         )
-        significant = float(difficulty["p_value"]) < P3_ALPHA
+        # A withdrawn check contributes nothing to a signature, whatever its p-value says
+        # (BRIEF_18 finding F3).  Its numbers are still reported: withdrawing a check is not the
+        # same as hiding it.
+        withdrawn = bool(difficulty.get("withdrawn", False))
+        significant = (not withdrawn) and float(difficulty["p_value"]) < P3_ALPHA
         by_tier[tier] = {
             "volume_difference": float(volume["difference"]),
             "volume_ci95": [float(volume["ci95_low"]), float(volume["ci95_high"])],
@@ -1586,7 +1720,14 @@ def score_p3(diagnostics: Mapping[str, Any]) -> dict[str, Any]:
             "difficulty_overlap": int(difficulty["overlap"]),
             "difficulty_expected": float(difficulty["expected_overlap"]),
             "difficulty_p_value": float(difficulty["p_value"]),
+            "difficulty_withdrawn": withdrawn,
+            "difficulty_withdrawn_reason": difficulty.get("withdrawn_reason"),
+            "return_versus_difficulty_rho": entry.get("return_versus_difficulty_rho"),
             "demand_signature": bool(significant or excludes_zero),
+            "signature_carried_by": (
+                [name for name, on in (("volume", excludes_zero), ("difficulty", significant)) if on]
+                or None
+            ),
         }
     if "random" not in by_tier:
         outcome = "NOT SCORABLE"
@@ -1739,8 +1880,12 @@ def grid_artifact(
         "seeds": list(TRAINING_SEEDS),
         "held_out_draws": list(HELD_OUT_DRAWS),
         "tiers_present": tiers_present,
-        "tier_order_by_behaviour_att": tiers_present,
-        "behaviour_att": {tier: BEHAVIOUR_ATT[tier] for tier in tiers_present if tier in BEHAVIOUR_ATT},
+        "tier_order_by_tier_label_att": tiers_present,
+        "tier_label_att_training_draws": {
+            tier: TIER_LABEL_ATT_TRAINING_DRAWS[tier]
+            for tier in tiers_present
+            if tier in TIER_LABEL_ATT_TRAINING_DRAWS
+        },
         "phase": 1 if not any(tier in MIXTURE_TIER_ORDER for tier in tiers_present) else 2,
         "reporting_rule": (
             "paired mean differences with 95 % CIs, CI widths and rank-biserial effect sizes; NO "
@@ -1754,13 +1899,15 @@ def grid_artifact(
         "cells": flat_cells,
         "cells_by_tier": cells_by_tier,
         "behaviour_cells": behaviour_cells,
-        "behaviour_comparisons": [c.to_json_obj() for c in behaviour_comparisons(episodes_by_arm)],
+        "behaviour_comparisons": [
+            comparison_json(c) for c in behaviour_comparisons(episodes_by_arm)
+        ],
         "behaviour_reference_rule": (
             "each method against the policy that COLLECTED its tier, over the same 100 held-out "
             "draws; substituting a tier's training-draw ATT would be void under PREREGISTRATION "
             "A5, which is why random and fixedtime were evaluated here (BRIEF_17 section 11, A3)"
         ),
-        "comparisons": [c.to_json_obj() for c in comparisons],
+        "comparisons": [comparison_json(c) for c in comparisons],
         "predictions": {
             "P1": score_p1(cells_by_tier),
             "P2": score_p2(cells_by_tier, comparisons),
@@ -2583,10 +2730,17 @@ def _run_report(args: argparse.Namespace, out_dir: Path, work_dir: Path) -> int:
     assert_no_verdicts(payload)
     write_json_atomic(payload, out_dir / "p4_6_grid.json")
 
+    # F2 (BRIEF_18 section 2): this row USED to print the tier label -- a mean over training draws
+    # 1-200 -- beside four held-out means, which is the comparison PREREGISTRATION A5 makes void.  It
+    # now reads the held-out behaviour cell, and every column states its draw range.
+    print("tier          behaviour[1000-1099]  " + "  ".join(f"{m}[1000-1099]" for m in METHODS),
+          flush=True)
     for tier in payload["tiers_present"]:
         row = payload["cells_by_tier"][tier]
+        reference = payload["behaviour_cells"].get(tier)
+        behaviour = float("nan") if reference is None else reference["att_horizon_mean"]
         print(
-            f"{tier:12s} behaviour {BEHAVIOUR_ATT.get(tier, float('nan')):8.2f}  "
+            f"{tier:12s} {behaviour:20.4f}  "
             + "  ".join(
                 f"{method} {row[method]['att_horizon_mean']:8.4f}" for method in METHODS
             ),
