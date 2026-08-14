@@ -1049,6 +1049,61 @@ with a mechanism: on multi-modal behaviour data, BC and the DT land near the **m
 and IQL recover the **best mode**. The standing filter still applies — *before the next commit, ask
 whether it moves `offline/` forward* — and it has been satisfied continuously since 2026-08-07.
 
+### ⭐ SEQUENCING RULING TO END OF SEPTEMBER (made 2026-08-14, while NOTHING is in flight — deliberately)
+
+**Why now:** C1 landed ahead of schedule, so there is slack, and **slack spent by arrival order is slack
+spent by accident.** ⚠️ **The trap this ruling exists to defuse: in three weeks, whichever task is
+running will look like the one that must finish.** Sunk cost is not a reason to continue and *"it is
+nearly done"* is the sentence to distrust. **The cut order is therefore registered BEFORE anything
+starts, which is the same asymmetry §7 records — tightening before measurement is free, loosening after
+a result is not.**
+
+**Budget, measured:** **47 days from 2026-08-14 = 6.7 weeks.** ⚠️ **Reserve ~2 weeks for P10.1/P10.2.
+Writing time is NOT slack — §9's mitigation for the scoop risk (rated HIGH, "one relevant paper every
+1–3 months") is literally *"arXiv early"*, so the draft is a risk control, not a reward.** That leaves
+**≈4.5 weeks of experimental work.**
+
+**ORDER, and each entry says what it BUYS rather than what it is:**
+
+1. **P4.7 — the mixture tiers (≈5 h).** ⚠️ **This is not "more results"; it REMOVES A LIVE CONSTRAINT ON
+   RESULTS WE ALREADY HAVE.** §1's constraint (a) currently forbids attributing *any* C1 ranking to data
+   quality alone, because our single-controller ladder confounds quality with state coverage. P4.7 is
+   the design that separates them. It also makes the composition axis **directly comparable to
+   OffLight**, and it is the one corpus where §1b's **R2 open question** is answerable. **Cheapest item
+   on the list and the only one that improves work already banked.**
+2. **P7.0 — the cross-backend gate (~1 day + the vType fix). PROMOTED from October, on new evidence and
+   not on preference.** **P4.3 measured the in-domain return prompt at 0.9026 ATT across a 13,000-wide
+   grid** — so *probe-calibrated return prompting*, **the paper's only NAMED contribution** (`A9`), now
+   rests **entirely** on the cross-domain axis, and P7.0 is the gate on exactly that axis. **It is a
+   decision-generating experiment: both outcomes change what the paper claims**, which is the highest
+   information-per-hour on this list. ⚠️ **Bind hangzhou's vType FIRST** (Decisions Log 2026-07-31) —
+   the shipped `.rou.xml` binds none, so SUMO runs **55.55 m/s against CityFlow's 11.11** and the gate
+   would measure a **5× speed-limit artifact**. Descoping C3 on that number would descope it for the
+   wrong reason.
+3. **P5.1 + P5.2 — spatial mixing on grid4x4.** ⭐ **The only experiment that can distinguish the two
+   explanations §1b's R5 leaves standing.** Every result we hold comes from a setting where the DT has
+   **no structural advantage**: BC, %BC and IQL are independent per intersection *by construction*, and
+   so is our DT today. **Grid4x4 is the one place sequence modelling could earn its complexity.**
+   ⚠️ **Highest value AND highest risk**: §9 rates offline-DT collapse on 16-intersection grids on
+   **prior evidence, not speculation** — DTLight's own Table 1, **446.8 ± 128.0** from EMP data.
+4. **P6 — the 2×2 shift benchmark. STAYS OCTOBER**, as §10's governing constraint already had it.
+
+**CUT ORDER IF THE CALENDAR BINDS — first cut first, decided now:**
+
+| # | Cut | What it costs | Why it goes first |
+|---|---|---|---|
+| **1** | **P6 entirely** | C2 | Already October; needs the most new machinery (perturbation tools **plus** a domain-randomized MAPPO training run **plus** the 2×2). §1 already says the paper stands on C1+C3. |
+| **2** | **P5.2's BREADTH, not P5.1** | the "does spatial mixing help *more on poor data*" question | Keep **P5.1 + grid4x4 on ONE tier (`mappo1000`)**; drop the per-tier sweep. **The structural question — does spatial mixing help at all — does not need five rungs. Only the interaction does, and the interaction is the expendable half.** Rough saving: ~4 h against ~20 h. |
+| **3** | **P7.0** | the named contribution's validation | ⚠️ **State the consequence rather than absorbing it:** without P7.0 the paper **may not claim probe-calibrated prompting as a validated contribution** and must present it as a **0.9026-ATT in-domain ablation plus a registered, unrun cross-domain hypothesis.** That is a real demotion of the only named novelty, which is why it is third and not first. |
+| **—** | **NEVER CUT: P4.7, and the writing reserve** | — | P4.7 is 5 hours against a constraint on already-delivered work. The writing reserve is §9's scoop mitigation. **Cutting either trades a certainty for a maybe.** |
+
+⚠️ **What I do NOT know, stated so the ruling is not read as more precise than it is:** P5.1's
+architecture work is **new code, not a config loop, and has no measured cost** — the ~20 h figure for
+P5.2 is extrapolated from P2.0b's per-episode timings (**grid4x4 training 2.81 s/ep against hz1x1's
+1.04**, i.e. 2.7×) and from P4.6's measured ~1 h per hz1x1 tier. **It is an estimate, not a
+measurement, and P5.1 is the item most likely to overrun.** If it does, cut **2** fires before cut
+**3** — that ordering is the point of writing this down.
+
 ### The governing constraint (added 2026-08-06)
 **A defensible, presentable result by end of September 2026** — eight weeks from 2026-08-06. Not the
 finished paper. **Guaranteed target: C1 ladder + P4** (single-intersection DT, pre-registered gate,
