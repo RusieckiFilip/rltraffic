@@ -4,9 +4,16 @@
 # =====================================================================================
 #   tmux new -s p47
 #   export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
+#   mkdir -p /home/filip/rltraffic-p47/output/p4_7/logs        # <-- REQUIRED BEFORE THE PIPE
 #   bash /home/filip/rltraffic-p47/offline/campaigns/p4_7_phase2.sh 2>&1 | tee \
 #        /home/filip/rltraffic-p47/output/p4_7/logs/phase2.log
 #   # detach with C-b d ; reattach with: tmux attach -t p47
+#
+# ⚠️ THE mkdir LINE IS NOT DECORATION.  The shell opens `tee`'s target BEFORE the script runs, so a
+# log directory this script creates does not yet exist when the pipeline is built.  Measured on the
+# real launch of 2026-08-15: `tee` failed with "No such file or directory", the campaign ran to
+# completion regardless, and `phase2.log` was never written -- it was recovered from the tmux pane
+# afterwards.  Same content, different provenance, and P4.6's phase1.log was inside its checksums.
 #
 # BRIEF_17 section 12, inherited by BRIEF_19 section 7: the implementer writes this script, the USER
 # launches it, and the implementer never sleep-polls it.  CLAUDE.md section 5 already bound this.
