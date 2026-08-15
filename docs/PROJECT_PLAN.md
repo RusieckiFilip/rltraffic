@@ -145,6 +145,25 @@ sentence may say the mixture settled what the filter selects.** The design that 
 measured in `DEFERRED` 46 — **`mappo1000 + mappo200`, 43.5 % overlap**, where a return filter must
 discriminate and can fail.
 
+### ⭐⭐ THE MOST IMPORTANT THING P4.7 PRODUCED IS THE FALSIFICATION OF R3 — AND R3 WAS MINE
+
+**Stated as the headline rather than buried as an amendment, because the episode is the argument for
+the whole apparatus.** R3 was **the coordinator's reading**, drawn from the single-controller ladder —
+the axis §1's constraint (a) explicitly says **confounds quality with state coverage** — and it was
+recorded **post-hoc-labelled at the user's insistence**. **The composition axis existed precisely to
+separate those two things, and the first thing it did was kill a reading taken from the axis that
+conflates them.**
+
+> **Had R3 gone into the paper as a FINDING rather than as a labelled READING, it would be false
+> today.** That is the post-hoc labelling discipline paying for itself in a measurable way, on a
+> specific sentence, within one task of being written.
+
+⚠️ **And the replacement is better than what it replaces, which is the part worth carrying:**
+*"how weak AND how unimodal"* names a **mechanism** — a bimodal corpus contains good trajectories to
+clone, so %BC simply takes them — where *"how weak"* named only a **correlation**. **It is testable
+rather than descriptive, and `DEFERRED` 46's overlapping-component design is what would test it**,
+which is a second reason that row is worth more than it looked when parked.
+
 🚨 **R3 IS AMENDED BY P4.7 (2026-08-15) — THE AXIS IS NOT "HOW WEAK" BUT "HOW WEAK *AND UNIMODAL*".**
 **Measured by me from the raw records:** IQL ranks **1 of 4 on all three weak SINGLE-CONTROLLER tiers**
 (`maxpressure`, `fixedtime`, `random`) and **3 of 4 on all three MIXTURES** — and a mixture is **weak on
@@ -156,6 +175,13 @@ to separate quality from coverage, and the first thing it did was falsify a read
 single-controller ladder alone.** ⚠️ *Consistent with, and NOT tested by,* the stitching explanation:
 composing fragments helps when there is nothing good to clone, and loses to cloning when there is.
 **R3's original text stands below as what was measured on the single-controller axis.**
+✅ **AND THE FALSIFICATION DOES NOT DEPEND ON THE CONSTRUCTED REFERENCE — checked, because it would
+otherwise rest on the one quantity in P4.7 that is neither measured nor re-used from a merged
+artifact.** **BC clones its data and does nothing else, so BC's own cell mean is a MEASURED proxy for
+how cloneable a corpus is.** `bc@mix33` = **261.2149** against `bc@fixedtime` = **265.8322** — equally
+cloneable to within **4.6173 ATT** — yet **IQL ranks 3/4 on the first and 1/4 on the second.**
+**No constructed quantity enters that comparison, so R3's falsification survives even if the
+constructed reference is wrong.**
 
 **R3 — IQL improves most where the data is worst, AT THE ENDPOINTS ONLY.** IQL over BC, tiers ordered
 **worst data first**: `random` **+34.5561** · `fixedtime` **+5.4937** · `maxpressure` **+16.5092** ·
