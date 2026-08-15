@@ -177,11 +177,26 @@ composing fragments helps when there is nothing good to clone, and loses to clon
 **R3's original text stands below as what was measured on the single-controller axis.**
 ✅ **AND THE FALSIFICATION DOES NOT DEPEND ON THE CONSTRUCTED REFERENCE — checked, because it would
 otherwise rest on the one quantity in P4.7 that is neither measured nor re-used from a merged
-artifact.** **BC clones its data and does nothing else, so BC's own cell mean is a MEASURED proxy for
-how cloneable a corpus is.** `bc@mix33` = **261.2149** against `bc@fixedtime` = **265.8322** — equally
-cloneable to within **4.6173 ATT** — yet **IQL ranks 3/4 on the first and 1/4 on the second.**
-**No constructed quantity enters that comparison, so R3's falsification survives even if the
-constructed reference is wrong.**
+artifact.** **R3's falsification survives on THREE independent operationalisations of "how weak the data is"** —
+the third supplied by P4.7's reviewer, using neither the construction nor BC:
+
+1. **The constructed references** — `322.24 / 267.27 / 212.27`, all worse than `maxpressure`'s 176.89.
+2. **The BC proxy (the coordinator's).** BC clones its data and does nothing else, so its own cell mean
+   measures how cloneable a corpus is: `bc@mix33` **261.2149** against `bc@fixedtime` **265.8322**, yet
+   IQL ranks **3/4** on the first and **1/4** on the second. ⚠️ **CORRECTED 2026-08-15 by the reviewer,
+   and the correction is the amendment's own thesis: BC is a sound proxy only for the MEAN.** This line
+   read *"equally cloneable to within 4.6173 ATT"*; it must read **equally cloneable ON AVERAGE, and
+   radically differently PER EPISODE** — `bc@mix33` has sd **158.06** with **51 %** of episodes below
+   150 ATT, `bc@fixedtime` sd **8.91** with **0 %** below 150. **The very bimodality that makes the two
+   corpora equally cloneable on average is what makes IQL's rank invert.**
+3. **Mean training-set return, read from the committed declarations** (the reviewer's, no construction
+   and no BC): `fixedtime` **−31,328.1** (IQL 1/4) against `mix33` **−28,833.3** (IQL 3/4), and
+   `maxpressure` **−18,546.5** (1/4) against `mix67` **−17,735.3** (3/4) — **matched to 8 % and 5 % on
+   corpus quality, ranks inverted**, with the ranges telling the story
+   (`fixedtime [−33225, −29707]` unimodal against `mix33 [−40223, −5994]` bimodal).
+
+**No constructed quantity enters (2) or (3), so the falsification does not rest on the one number in
+P4.7 that is neither measured nor re-used from a merged artifact.**
 
 **R3 — IQL improves most where the data is worst, AT THE ENDPOINTS ONLY.** IQL over BC, tiers ordered
 **worst data first**: `random` **+34.5561** · `fixedtime` **+5.4937** · `maxpressure` **+16.5092** ·
