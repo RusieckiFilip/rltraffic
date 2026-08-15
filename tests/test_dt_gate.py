@@ -271,7 +271,7 @@ def test_window_means_splits_the_curve_into_equal_windows() -> None:
 
 
 def test_window_means_refuses_a_curve_that_does_not_fill_its_windows() -> None:
-    with pytest.raises(ValueError, match="window"):
+    with pytest.raises(ValueError, match="windows of"):
         window_means([1.0, 2.0, 3.0], 2)
 
 
@@ -282,7 +282,7 @@ def test_plateau_needs_the_last_two_relative_changes_below_the_tolerance() -> No
 
 
 def test_plateau_needs_at_least_three_windows() -> None:
-    with pytest.raises(ValueError, match="three"):
+    with pytest.raises(ValueError, match="least three"):
         plateau_reached([10.0, 9.9])
 
 
@@ -349,7 +349,7 @@ def test_stacking_a_multi_group_dataset_without_naming_the_group_raises(
 ) -> None:
     """C6 forbids padding across intersections, so silently taking the first group is wrong."""
     assert len(synthetic_dataset.groups) > 1
-    with pytest.raises(ValueError, match="groups"):
+    with pytest.raises(ValueError, match="pass group="):
         stack_dataset(synthetic_dataset)
 
 
@@ -426,7 +426,7 @@ def test_a_checkpoint_from_another_step_count_cannot_be_evaluated(
         max_steps = 8
         action_space = None
 
-    with pytest.raises(ValueError, match="gradient steps"):
+    with pytest.raises(ValueError, match="gradient steps but"):
         load_gate_checkpoint(_Env(), result.checkpoint_path, declared_gradient_steps=20000)
 
 
@@ -477,7 +477,7 @@ def test_the_reported_budget_is_checked_against_the_DECLARATION_not_against_itse
         expected_reported_steps(sneaky, declared=20000)
 
     # an artifact produced under a different declaration entirely
-    with pytest.raises(ValueError, match="declared budget"):
+    with pytest.raises(ValueError, match="a declared budget"):
         expected_reported_steps(raised, declared=30000)
 
     # a third budget, reachable by neither the declaration nor the single raise
@@ -549,7 +549,7 @@ def test_env_settings_refuse_a_manifest_without_a_local_reward_function(tmp_path
     )
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
 
-    with pytest.raises(ValueError, match="local_reward_fn"):
+    with pytest.raises(ValueError, match="with local_reward_fn"):
         env_settings_from_manifest(manifest_path)
 
 

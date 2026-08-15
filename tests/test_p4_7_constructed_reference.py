@@ -317,5 +317,5 @@ def test_component_episodes_reads_one_arm_of_a_grid_artifact(tmp_path: Path) -> 
     payload["episodes"].append(dict(payload["episodes"][0]))
     with pytest.raises(ValueError, match="twice"):
         component_episodes(payload, "behaviour@mappo1000")
-    with pytest.raises(ValueError, match="no episodes"):
+    with pytest.raises(ValueError, match="artifact carries no episodes"):
         component_episodes(payload, "behaviour@nothing")

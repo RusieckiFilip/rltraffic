@@ -470,7 +470,7 @@ def test_a_missing_reward_key_raises_instead_of_freezing_the_return_to_go() -> N
     agent.act(_info(0, {"ix_only": _payload([1.0, 1.0, 1.0, 1.0], [0, 1, 2])}))
     payload = _payload([1.0, 1.0, 1.0, 1.0], [0, 1, 2])
     del payload["reward"]
-    with pytest.raises(KeyError, match="reward"):
+    with pytest.raises(KeyError, match="'reward'"):
         agent.act(_info(1, {"ix_only": payload}))
 
 
@@ -484,7 +484,7 @@ def test_a_skipped_decision_step_raises() -> None:
 
 def test_heterogeneous_intersections_are_refused_naming_both_shapes() -> None:
     env = _StubEnv([("ix_zulu", 2), ("ix_alpha", 3)])
-    with pytest.raises(ValueError, match="n_actions"):
+    with pytest.raises(ValueError, match="but n_actions"):
         _agent(env)
 
 
@@ -637,7 +637,7 @@ def test_a_checkpoint_for_another_shape_is_refused_and_changes_nothing(tmp_path:
         name: parameter.detach().clone()
         for name, parameter in victim.model.named_parameters()
     }
-    with pytest.raises(ValueError, match="n_actions"):
+    with pytest.raises(ValueError, match="checkpoint n_actions"):
         victim.load(str(path))
     after = {
         name: parameter.detach().clone()

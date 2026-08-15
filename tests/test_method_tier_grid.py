@@ -526,7 +526,7 @@ def test_env_settings_must_be_identical_across_every_tier(tmp_path: Path) -> Non
         episodes=[(1, -1.0, 100.0), (2, -2.0, 110.0)],
         manifest_extra={"max_steps": FIXTURE_T + 1},
     )
-    with pytest.raises(ValueError, match="env settings"):
+    with pytest.raises(ValueError, match="of env settings"):
         env_settings_for_tiers([*specs, fixture_spec("c", [c.name])], tmp_path)
 
 
@@ -999,7 +999,7 @@ def test_a_cell_missing_one_seed_or_one_draw_is_refused() -> None:
 
     with pytest.raises(ValueError, match="incomplete cell"):
         assert_cell_complete("bc", "random", seeds, draws, produced[:-1])
-    with pytest.raises(ValueError, match="not requested"):
+    with pytest.raises(ValueError, match="not requested for"):
         assert_cell_complete(
             "bc", "random", seeds, draws,
             [*produced, *episodes_for(arm_key("bc", "random"), {1002: 3.0}, seeds=(101,))],
@@ -1026,7 +1026,7 @@ def test_merging_training_records_keeps_other_cells_and_refuses_another_declarat
     }
     assert any(r.get("final_loss") == 0.1 for r in merged), "the fresh record must win"
 
-    with pytest.raises(ValueError, match="different designs"):
+    with pytest.raises(ValueError, match="describe different designs"):
         merge_training_records(existing, {**fresh, "declared_gradient_steps": 20_000})
 
 

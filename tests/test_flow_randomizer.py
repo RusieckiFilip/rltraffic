@@ -862,7 +862,7 @@ def test_collect_refuses_flow_draw_on_non_cityflow() -> None:
     SUMO collection additionally needs a generated .sumocfg and a --flow-source-json
     flag; that is P7.3, not this task.
     """
-    with pytest.raises(SystemExit, match="cityflow"):
+    with pytest.raises(SystemExit, match="'cityflow'"):
         collect._require_cityflow_for_draws("sumo", [0, 1])
     collect._require_cityflow_for_draws("cityflow", [0, 1])
     collect._require_cityflow_for_draws("sumo", [None])
