@@ -682,7 +682,7 @@ def test_explicit_draw_ids_narrow_within_the_split(corpus: Path) -> None:
 
 
 def test_unknown_split_raises(corpus: Path) -> None:
-    with pytest.raises(ValueError, match="split"):
+    with pytest.raises(ValueError, match="unknown split"):
         TrajectoryWindowDataset([corpus], context_length=K, split="validation")
 
 
@@ -735,14 +735,14 @@ def test_manifest_and_npz_draw_disagreement_raises(tmp_path: Path) -> None:
     out_dir = write_dataset_dir(
         tmp_path, "liar__policy", draws=(1, 2), manifest_draw_override={1: 7}
     )
-    with pytest.raises(ValueError, match="flow_draw"):
+    with pytest.raises(ValueError, match="manifest flow_draw"):
         TrajectoryWindowDataset([out_dir], context_length=K, split="train")
 
 
 def test_nan_local_reward_raises(tmp_path: Path) -> None:
     """A corpus collected without a local reward function cannot produce an RTG."""
     out_dir = write_dataset_dir(tmp_path, "nan__policy", draws=(1,), nan_rewards=True)
-    with pytest.raises(ValueError, match="NaN"):
+    with pytest.raises(ValueError, match="has NaN"):
         TrajectoryWindowDataset([out_dir], context_length=K, split="train")
 
 

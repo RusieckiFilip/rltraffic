@@ -12,6 +12,11 @@
 * ``p4.6-grid/1.0`` -- ``docs/data/p4_6_grid.json``: the cells, every per-episode record, the paired
   comparisons and the scored predictions.
 
+The four filenames above are the ``--artifact-prefix p4_6`` default (P4.7, coordinator RULING 3 of
+2026-08-15).  **The format versions are NOT renamed with the prefix**: they name the schema, which
+P4.7 re-uses unchanged, and renaming a version string because a caller changed would make two
+identical layouts look like two formats.
+
 **Conventions this module is bound by, stated because a reader must not have to infer them.**
 
 *Alignment* is contract C6's, unchanged: observations carry ``T+1`` rows, decisions and outcomes
@@ -240,12 +245,28 @@ TIERS: Mapping[str, TierSpec] = {
         stream_count=TRAINING_STREAM_COUNT,
         subsample="one_per_draw",
     ),
+    # ⚠️ **THE THREE MIXTURE TARGETS WERE CORRECTED IN P4.7, BEFORE ANY MIXTURE NUMBER EXISTED**
+    # (``docs/plans/p4.7.md`` section 3.5, coordinator RULING 1 of 2026-08-15).  Until then all three
+    # declared ``target_rtg=-5762.0, rtg_scale=40294.0`` -- the maximum and the largest absolute
+    # return of the six directories' **600-episode union**, from ``docs/plans/p4.6.md`` section 8.
+    # But :func:`assert_declaration_matches_corpus` computes both over the **composed 200-stream
+    # training set** (``BRIEF_17`` section 11 finding A4, which supersedes that plan's section 3.3),
+    # and **neither the union's best expert stream nor its worst random stream is drawn into any of
+    # the three mixtures** -- measured, not assumed.  So the old declaration was not merely loose: it
+    # was **unrunnable**, and ``train --tier mix33`` would have raised before its first gradient step.
+    # It went unnoticed because the path had never been executed; that is the general lesson recorded
+    # in ``PROJECT_PLAN`` section 7 (``a91ddda``) and it is why this comment is here rather than in a
+    # packet.  **The rule, not the numbers, is the declaration:** ``target_rtg = max(total_return)``
+    # and ``rtg_scale = max|total_return|`` over the composed training set, which is exactly what
+    # :func:`recomputed_target_and_scale` returns.  The three pairs below are that rule evaluated on
+    # the deterministic composition, re-derived from the raw ``.npz`` by an independent route in
+    # ``tests/test_mixture_tiers.py``.
     "mix33": TierSpec(
         tier="mix33",
         dirs=_MIXTURE_DIRS,
         phase=2,
-        target_rtg=-5762.0,
-        rtg_scale=40294.0,
+        target_rtg=-5994.0,
+        rtg_scale=40223.0,
         stream_count=TRAINING_STREAM_COUNT,
         subsample="mixture",
         components=("mappo1000", "random"),
@@ -254,8 +275,8 @@ TIERS: Mapping[str, TierSpec] = {
         tier="mix50",
         dirs=_MIXTURE_DIRS,
         phase=2,
-        target_rtg=-5762.0,
-        rtg_scale=40294.0,
+        target_rtg=-5959.0,
+        rtg_scale=40223.0,
         stream_count=TRAINING_STREAM_COUNT,
         subsample="mixture",
         components=("mappo1000", "random"),
@@ -264,8 +285,8 @@ TIERS: Mapping[str, TierSpec] = {
         tier="mix67",
         dirs=_MIXTURE_DIRS,
         phase=2,
-        target_rtg=-5762.0,
-        rtg_scale=40294.0,
+        target_rtg=-5959.0,
+        rtg_scale=40123.0,
         stream_count=TRAINING_STREAM_COUNT,
         subsample="mixture",
         components=("mappo1000", "random"),
@@ -346,6 +367,41 @@ _VERDICT_VALUES = frozenset(
 # ----------------------------------------------------------------------
 # The declaration
 # ----------------------------------------------------------------------
+
+
+#: Default filename prefix of the four artifacts this module writes.  ``--artifact-prefix`` overrides
+#: it, and **the default reproduces every pre-P4.7 invocation byte for byte**.
+DEFAULT_ARTIFACT_PREFIX = "p4_6"
+
+
+def artifact_path(out_dir: str | Path, name: str, prefix: str = DEFAULT_ARTIFACT_PREFIX) -> Path:
+    """``<out_dir>/<prefix>_<name>.json`` -- the one place a reported filename is decided.
+
+    Added in P4.7 under coordinator RULING 3 of 2026-08-15, **additively**: phase 2 re-uses this
+    module's ``train`` and ``evaluate`` unchanged but must not write into P4.6's merged records, and
+    the alternative -- isolating them in a ``docs/data/p4_7/`` directory under their P4.6 names --
+    *protects the artifact and does nothing for the reader*.  A ``p4_6_training.json`` holding P4.7's
+    runs is the misnaming hazard that defeated an expert reader on ``BEHAVIOUR_ATT`` two days
+    earlier, rebuilt one directory deeper.  The prefix is therefore part of the name, not part of the
+    path.
+    """
+    token = str(prefix).strip()
+    if not token:
+        raise ValueError("artifact prefix must be a non-empty string, e.g. 'p4_6' or 'p4_7'")
+    return Path(out_dir) / f"{token}_{name}.json"
+
+
+def _artifact_prefix(args: argparse.Namespace) -> str:
+    """The prefix this invocation writes under, defaulting for a namespace built by hand.
+
+    ``argparse`` always supplies the attribute, so this default fires only for a caller that builds
+    a :class:`argparse.Namespace` itself -- which P4.6's ``test_the_training_cli_path_runs_end_to_end
+    _on_a_fixture`` does, and which is a legitimate way to test a subcommand without a parser.
+    **Reading it through ``getattr`` is what lets P4.7 add the flag without editing a single
+    pre-existing test**, and the fallback is the documented default, so such a caller gets exactly
+    the filenames it got before this argument existed.
+    """
+    return str(getattr(args, "artifact_prefix", DEFAULT_ARTIFACT_PREFIX))
 
 
 def tier_spec(tier: str) -> TierSpec:
@@ -1986,6 +2042,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--device", default=None)
     parser.add_argument("--steps", type=int, default=DECLARED_GRADIENT_STEPS)
     parser.add_argument(
+        "--artifact-prefix",
+        default=DEFAULT_ARTIFACT_PREFIX,
+        help="filename prefix of the four artifacts this module writes and reads "
+        f"(default: {DEFAULT_ARTIFACT_PREFIX}, which reproduces every pre-P4.7 invocation "
+        "exactly; P4.7's phase-2 campaign passes p4_7 so it cannot write into P4.6's records)",
+    )
+    parser.add_argument(
         "--torch-threads",
         type=int,
         default=1,
@@ -2157,7 +2220,7 @@ def _run_declare(args: argparse.Namespace, out_dir: Path) -> int:
     """Everything is validated before the first byte is written."""
     tiers = _requested_tiers(args.tiers)
     payload = declaration_artifact(args.corpus_root, tiers)
-    write_json_atomic(payload, out_dir / "p4_6_declaration.json")
+    write_json_atomic(payload, artifact_path(out_dir, "declaration", _artifact_prefix(args)))
     for tier in tiers:
         entry = payload["tiers"][tier]
         print(
@@ -2173,7 +2236,9 @@ def _run_declare(args: argparse.Namespace, out_dir: Path) -> int:
 def _run_diagnostics(args: argparse.Namespace, out_dir: Path) -> int:
     tiers = _requested_tiers(args.tiers)
     payload = selection_diagnostics_artifact(args.corpus_root, tiers)
-    write_json_atomic(payload, out_dir / "p4_6_selection_diagnostics.json")
+    write_json_atomic(
+        payload, artifact_path(out_dir, "selection_diagnostics", _artifact_prefix(args))
+    )
     for tier in tiers:
         entry = payload["tiers"][tier]
         volume = entry["volume"]
@@ -2493,7 +2558,7 @@ def _run_train(args: argparse.Namespace, out_dir: Path) -> int:
         "runs": runs,
         "runtime": runtime_provenance(),
     }
-    destination = out_dir / "p4_6_training.json"
+    destination = artifact_path(out_dir, "training", _artifact_prefix(args))
     if destination.is_file():
         existing = json.loads(destination.read_text(encoding="utf-8"))
         payload["runs"] = merge_training_records(existing, payload)
@@ -2530,7 +2595,9 @@ def _run_evaluate(
 ) -> int:
     """Evaluate ONE cell over the held-out pool, so no single job runs long."""
     spec = tier_spec(args.tier)
-    training = json.loads((out_dir / "p4_6_training.json").read_text(encoding="utf-8"))
+    training = json.loads(
+        artifact_path(out_dir, "training", _artifact_prefix(args)).read_text(encoding="utf-8")
+    )
     if int(training["declared_gradient_steps"]) != int(args.steps):
         raise ValueError(
             f"the training artifact was produced under a declared budget of "
@@ -2641,11 +2708,17 @@ def _run_report(args: argparse.Namespace, out_dir: Path, work_dir: Path) -> int:
     """Assemble the reported artifact from the gate, the declaration and the per-cell runs."""
     tiers = _requested_tiers(args.tiers)
     gate = json.loads((work_dir / "gate.json").read_text(encoding="utf-8"))
-    declaration = json.loads((out_dir / "p4_6_declaration.json").read_text(encoding="utf-8"))
-    diagnostics = json.loads(
-        (out_dir / "p4_6_selection_diagnostics.json").read_text(encoding="utf-8")
+    declaration = json.loads(
+        artifact_path(out_dir, "declaration", _artifact_prefix(args)).read_text(encoding="utf-8")
     )
-    training = json.loads((out_dir / "p4_6_training.json").read_text(encoding="utf-8"))
+    diagnostics = json.loads(
+        artifact_path(out_dir, "selection_diagnostics", _artifact_prefix(args)).read_text(
+            encoding="utf-8"
+        )
+    )
+    training = json.loads(
+        artifact_path(out_dir, "training", _artifact_prefix(args)).read_text(encoding="utf-8")
+    )
     baselines = json.loads(Path("docs/data/p4_4_baselines.json").read_text(encoding="utf-8"))
 
     # DEFERRED 39, used from the start here because a tmux campaign is maximally chunked: every
@@ -2728,7 +2801,7 @@ def _run_report(args: argparse.Namespace, out_dir: Path, work_dir: Path) -> int:
         ),
     }
     assert_no_verdicts(payload)
-    write_json_atomic(payload, out_dir / "p4_6_grid.json")
+    write_json_atomic(payload, artifact_path(out_dir, "grid", _artifact_prefix(args)))
 
     # F2 (BRIEF_18 section 2): this row USED to print the tier label -- a mean over training draws
     # 1-200 -- beside four held-out means, which is the comparison PREREGISTRATION A5 makes void.  It
