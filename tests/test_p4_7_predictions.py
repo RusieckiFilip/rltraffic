@@ -353,6 +353,41 @@ def test_a_withdrawn_difficulty_check_cannot_carry_a_demand_signature() -> None:
     assert result["outcome"] == "HELD"
 
 
+def test_q3_says_whether_its_composition_null_was_applicable_at_all() -> None:
+    """⚠️ A p-value whose null does not apply must SAY SO in the artifact, not in a packet.
+
+    If the two components' returns do not overlap and the tier holds at least as many expert
+    streams as the filter keeps, the top decile by return is all-expert **with probability 1** --
+    so the hypergeometric null, which assumes a uniform draw, is inapplicable and the p-value is
+    not evidence about the filter.  The registered RULE is unchanged; what this field records is
+    whether the null was applicable, which is a different question from whether it was crossed.
+
+    This is P4.6's ``maxpressure`` circularity in a new place, and its lesson -- that a caveat
+    reaching only prose does not reach a figure script -- applied in advance of the figure.
+    """
+    separated = declaration_with(
+        {t: 20 for t in MIXTURE_TIER_ORDER},
+        streams={"expert": [-6000.0] * 100, "random": [-38000.0] * 100},
+    )
+    result = score_q3(separated, diagnostics_with(volume_excludes=False, difficulty_p=0.62))
+    for tier in MIXTURE_TIER_ORDER:
+        entry = result["by_tier"][tier]
+        assert entry["component_returns_separate_completely"] is True, tier
+        assert entry["composition_null_applicable"] is False, tier
+        assert "probability 1" in entry["composition_circularity_note"], tier
+
+    overlapping = declaration_with(
+        {t: 20 for t in MIXTURE_TIER_ORDER},
+        streams={"expert": [-6000.0] * 100, "random": [-5000.0] + [-38000.0] * 99},
+    )
+    result = score_q3(overlapping, diagnostics_with(volume_excludes=False, difficulty_p=0.62))
+    for tier in MIXTURE_TIER_ORDER:
+        entry = result["by_tier"][tier]
+        assert entry["component_returns_separate_completely"] is False, tier
+        assert entry["composition_null_applicable"] is True, tier
+        assert entry["composition_circularity_note"] is None, tier
+
+
 def test_q3_records_the_multiplicity_of_draws_shared_by_both_components() -> None:
     """The volume check works on SETS of draw ids, so a mixture's repeats must be disclosed."""
     result = score_q3(

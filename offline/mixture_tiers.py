@@ -693,11 +693,34 @@ def score_q3(declaration: Mapping[str, Any], diagnostics: Mapping[str, Any]) -> 
         withdrawn = bool(difficulty.get("withdrawn", False))
         significant = (not withdrawn) and float(difficulty["p_value"]) < P3_ALPHA
         composition_p = float(q1["by_tier"][tier]["hypergeometric_p_value"])
+        overlap = q1["by_tier"][tier].get("overlap_disclosure")
+        # ⚠️ The pre-registered disclosure of section 4.1, carried as a FIELD beside the outcome it
+        # qualifies rather than left in prose.  P4.6's review established that a caveat which lives
+        # only in a Return Packet does not reach a figure script; this is the same lesson applied to
+        # a p-value whose null may not apply.  The RULE is unchanged -- the signature is still
+        # `composition_p < alpha` exactly as registered -- and this field says whether that null was
+        # applicable, which is a different question from whether it was crossed.
+        forced = bool(overlap and overlap["separates_completely"]
+                      and counts[tier]["kept"] <= counts[tier]["training_expert"])
         by_tier[tier] = {
             "kept_expert": counts[tier]["expert"],
             "expected_expert": q1["by_tier"][tier]["expected_expert"],
             "composition_p_value": composition_p,
             "composition_signature": composition_p < P3_ALPHA,
+            "composition_null_applicable": not forced,
+            "component_returns_separate_completely": bool(overlap["separates_completely"])
+            if overlap
+            else None,
+            "composition_circularity_note": (
+                "the two components' return distributions do not overlap and the tier holds at "
+                "least as many expert streams as the filter keeps, so the top decile BY RETURN is "
+                "all-expert with probability 1.  The hypergeometric null assumes the kept set is "
+                "drawn uniformly from the training set; it is not, and this p-value therefore does "
+                "not mean what it appears to mean.  The outcome is reported as the registered rule "
+                "computes it and is uninformative about the filter"
+            )
+            if forced
+            else None,
             "volume_difference": float(volume["difference"]),
             "volume_ci95": [float(volume["ci95_low"]), float(volume["ci95_high"])],
             "volume_excludes_zero": excludes_zero,
