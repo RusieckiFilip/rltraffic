@@ -32,14 +32,31 @@ EXPERT_DIR = "cf_hz1x1__mappo1000__seed101"
 RANDOM_DIR = "cf_hz1x1__random"
 
 
-def declaration_with(kept: dict[str, int], streams: dict[str, list[float]] | None = None) -> dict[str, Any]:
-    """A declaration carrying a chosen kept-composition per mixture tier."""
+def declaration_with(
+    kept: dict[str, int],
+    streams: dict[str, list[float]] | None = None,
+    expert_draws: list[int] | None = None,
+    random_draws: list[int] | None = None,
+) -> dict[str, Any]:
+    """A declaration carrying a chosen kept-composition per mixture tier.
+
+    ``expert_draws`` / ``random_draws`` set each component's ``flow_draw`` values, which is what the
+    both-component multiplicity disclosure counts.  They default to disjoint ranges so a test that
+    does not care about multiplicity sees a clean tier.
+    """
     tiers: dict[str, Any] = {}
     for tier in MIXTURE_TIER_ORDER:
         expert = kept[tier]
         tiers[tier] = {
             "top_decile_streams": 20,
             "training_streams": TRAINING_STREAM_COUNT,
+            # the fields grid_artifact copies into the reported declaration block
+            "training_windows": TRAINING_STREAM_COUNT * 360,
+            "target_rtg": -5994.0,
+            "rtg_scale": 40223.0,
+            "statistics_digest": "0" * 64,
+            "subsample": "mixture",
+            "iql_reward_scale": 0.0292,
             "top_decile_composition": {
                 "by_dataset_dir": {EXPERT_DIR: expert, RANDOM_DIR: 20 - expert},
                 "by_behaviour_seed": {"101": expert},
@@ -52,12 +69,18 @@ def declaration_with(kept: dict[str, int], streams: dict[str, list[float]] | Non
             },
         }
         if streams is not None:
+            ex_draws = expert_draws or list(range(1, len(streams["expert"]) + 1))
+            rn_draws = random_draws or [
+                d + len(streams["expert"]) for d in range(1, len(streams["random"]) + 1)
+            ]
             tiers[tier]["streams"] = [
-                {"dataset_dir": f"/corpus/{EXPERT_DIR}", "total_return": value}
-                for value in streams["expert"]
+                {"dataset_dir": f"/corpus/{EXPERT_DIR}", "total_return": value,
+                 "flow_draw": ex_draws[i % len(ex_draws)]}
+                for i, value in enumerate(streams["expert"])
             ] + [
-                {"dataset_dir": f"/corpus/{RANDOM_DIR}", "total_return": value}
-                for value in streams["random"]
+                {"dataset_dir": f"/corpus/{RANDOM_DIR}", "total_return": value,
+                 "flow_draw": rn_draws[i % len(rn_draws)]}
+                for i, value in enumerate(streams["random"])
             ]
     return {"tiers": tiers}
 
@@ -115,9 +138,45 @@ def test_q1_carries_its_exact_hypergeometric_companion_and_the_seed_histogram() 
     entry = result["by_tier"]["mix33"]
     assert 0.0 <= entry["hypergeometric_p_value"] <= 1.0
     assert entry["by_behaviour_seed"] == {"101": 18}
-    assert "threshold" not in entry["companion_note"].lower() or "no threshold" in entry[
-        "companion_note"
-    ].lower()
+    # The version at `2021cc7` read `"threshold" not in note or "no threshold" in note`, which is
+    # true of every string and could not fail (the review's "Theatre" item).  These two can:
+    # the companion must SAY it carries no threshold, and the RULE must not mention it, because the
+    # verdict is the floor alone and a companion that entered the rule would be a second criterion.
+    assert "carry no threshold" in entry["companion_note"]
+    assert "hypergeometric" not in result["rule"]
+    assert str(Q1_EXPERT_FRACTION_FLOOR) in result["rule"]
+
+
+def test_q1_carries_its_uninformative_qualifier_beside_the_verdict_not_three_levels_down() -> None:
+    """N7: a reader who takes ``outcome`` alone must not be able to read it as evidence.
+
+    On a corpus whose components do not overlap, Q1's HELD is forced and the qualifier has to say so
+    **at verdict level**; on one where they overlap, the same fields must say the opposite.  The
+    review found the disclosure sitting three levels down inside a per-tier record.
+    """
+    forced = score_q1(
+        declaration_with(
+            {t: 20 for t in MIXTURE_TIER_ORDER},
+            streams={"expert": [-6000.0] * 100, "random": [-38000.0] * 100},
+        )
+    )
+    assert forced["outcome"] == "HELD"
+    assert forced["informative"] is False
+    assert "FORCED BY CONSTRUCTION" in forced["outcome_qualifier"]
+    assert sorted(forced["forced_tiers"]) == sorted(MIXTURE_TIER_ORDER)
+    assert "could not have failed" in forced["forced_note"]
+    assert "R2 remains" in forced["forced_note"]
+
+    informative = score_q1(
+        declaration_with(
+            {t: 20 for t in MIXTURE_TIER_ORDER},
+            streams={"expert": [-6000.0] * 100, "random": [-5000.0] + [-38000.0] * 99},
+        )
+    )
+    assert informative["informative"] is True
+    assert informative["forced_tiers"] == []
+    assert informative["forced_note"] is None
+    assert "FORCED" not in informative["outcome_qualifier"]
 
 
 def test_the_component_overlap_disclosure_is_measured_not_assumed() -> None:
@@ -188,6 +247,14 @@ def test_q2_is_not_resolved_when_two_advantages_are_exactly_equal() -> None:
     tied = score_q2(cells({"mix33": 5.0, "mix50": 5.0, "mix67": 1.0}), [])
     assert tied["outcome"] == "NOT RESOLVED"
     assert tied["ordering_holds"] is False
+
+    # N1: the registered rule is "any two exactly equal", not "any two ADJACENT".  The
+    # non-adjacent case is the one that distinguishes them: mix33 == mix67 with mix50 below is
+    # NOT RESOLVED under the registration and FAILED under the adjacent-only reading.  The code was
+    # aligned to the plan, so this must be NOT RESOLVED.
+    non_adjacent = score_q2(cells({"mix33": 5.0, "mix50": 1.0, "mix67": 5.0}), [])
+    assert non_adjacent["outcome"] == "NOT RESOLVED"
+    assert "any two" in non_adjacent["rule"]
 
 
 def test_q2_is_not_scorable_without_all_three_mixtures() -> None:
@@ -312,6 +379,8 @@ def test_q3_fails_when_the_composition_signature_is_absent() -> None:
     assert result["outcome"] == "FAILED"
     assert result["by_tier"]["mix33"]["composition_signature"] is False
     assert result["falsifies_r2"] is True
+    # N8: when the check WAS applicable the boolean is a genuine result, and the qualifier says so.
+    assert "genuine result" in result["falsifies_r2_qualifier"]
 
 
 def test_q3_reports_every_sub_check_whichever_way_it_falls() -> None:
@@ -375,6 +444,10 @@ def test_q3_says_whether_its_composition_null_was_applicable_at_all() -> None:
         assert entry["component_returns_separate_completely"] is True, tier
         assert entry["composition_null_applicable"] is False, tier
         assert "probability 1" in entry["composition_circularity_note"], tier
+    # N8: `falsifies_r2: false` must not read as "R2 survived a test" when no test was run.
+    assert result["falsifies_r2"] is False
+    assert "NO TEST OF R2 WAS RUN" in result["falsifies_r2_qualifier"]
+    assert "R2 remains" in result["falsifies_r2_qualifier"]
 
     overlapping = declaration_with(
         {t: 20 for t in MIXTURE_TIER_ORDER},
@@ -388,14 +461,49 @@ def test_q3_says_whether_its_composition_null_was_applicable_at_all() -> None:
         assert entry["composition_circularity_note"] is None, tier
 
 
-def test_q3_records_the_multiplicity_of_draws_shared_by_both_components() -> None:
-    """The volume check works on SETS of draw ids, so a mixture's repeats must be disclosed."""
-    result = score_q3(
-        declaration_with({"mix33": 20, "mix50": 20, "mix67": 20}),
-        diagnostics_with(volume_excludes=False, difficulty_p=0.62),
+def test_q3_emits_the_registered_both_component_draw_count_and_weakens_the_volume_check() -> None:
+    """⚠️ The pre-registered disclosure of plan §4.3, tested by its CONTENT and not by a substring.
+
+    The version of this test shipped at `2021cc7` asserted that a prose field contained the word
+    ``"set"``.  It could not fail, and it **licensed a false claim**: the count was in no artifact,
+    the word "weakened" appeared nowhere, and a module docstring asserted the count *was* reported.
+    That is the review's N3 and it is a pre-registered disclosure, so it was never discretionary.
+
+    This version asserts the number itself, the label that depends on it, and — the part that makes
+    it fail when the disclosure is dropped — that a tier whose components share draws is labelled
+    ``WEAKENED`` while a tier whose components share none is labelled ``clean``.
+    """
+    overlapping = declaration_with(
+        {t: 20 for t in MIXTURE_TIER_ORDER},
+        streams={"expert": [-6000.0] * 100, "random": [-38000.0] * 100},
+        expert_draws=list(range(1, 101)),
+        random_draws=list(range(51, 151)),   # 50 draws enter through BOTH components
     )
-    assert "multiplicity" in result
-    assert "set" in result["multiplicity"].lower()
+    result = score_q3(overlapping, diagnostics_with(volume_excludes=False, difficulty_p=0.62))
+    for tier in MIXTURE_TIER_ORDER:
+        entry = result["by_tier"][tier]
+        assert entry["draws_in_both_components"] == 50, tier
+        assert entry["distinct_training_draws"] == 150, tier
+        assert entry["training_streams"] == 200, tier
+        assert entry["streams_lost_to_the_set_collapse"] == 50, tier
+        assert entry["volume_check_status"] == "WEAKENED", tier
+        assert "WEAKENED" in entry["volume_check_status_reason"], tier
+    assert result["volume_check_status"] == {t: "WEAKENED" for t in MIXTURE_TIER_ORDER}
+
+    disjoint = declaration_with(
+        {t: 20 for t in MIXTURE_TIER_ORDER},
+        streams={"expert": [-6000.0] * 100, "random": [-38000.0] * 100},
+        expert_draws=list(range(1, 101)),
+        random_draws=list(range(101, 201)),  # no draw enters twice
+    )
+    clean = score_q3(disjoint, diagnostics_with(volume_excludes=False, difficulty_p=0.62))
+    for tier in MIXTURE_TIER_ORDER:
+        entry = clean["by_tier"][tier]
+        assert entry["draws_in_both_components"] == 0, tier
+        assert entry["volume_check_status"] == "clean", tier
+
+    # And the threshold question is answered in the artifact rather than by a constant chosen now.
+    assert "NONE, deliberately" in result["multiplicity_threshold"]
 
 
 # ----------------------------------------------------------------------
@@ -484,6 +592,167 @@ def test_an_unlabelled_constructed_reference_is_refused() -> None:
     payload["behaviour_cells"]["mappo1000"]["reference"] = None
     with pytest.raises(ValueError, match="no reference record at all"):
         label_constructed_references(payload, {"mix33": {"source": "constructed"}})
+
+
+# ----------------------------------------------------------------------
+# The report-assembly WIRING (review M2 / N11) -- the sixth sighting of the guard family
+# ----------------------------------------------------------------------
+
+
+def assembled(committed_overrides: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Run ``mixture_grid_artifact`` on a minimal but complete set of inputs.
+
+    ⚠️ **This helper exists because five functions in the report path were called by NO test**, so
+    two mutations in it survived the whole 844-test suite: Gate P1 comparing the artifact with
+    itself, and the P4.6 sidecar reading its "before" column out of the new payload.  Both are
+    invisible to a test of the parts and visible only to a test of the wiring.
+    """
+    from offline.dt_gate import EpisodeResult
+    from offline.method_tier_grid import METHODS, PHASE1_TIER_ORDER
+    from offline.mixture_tiers import mixture_grid_artifact
+
+    seeds, draws = (101, 202), (1000, 1001, 1002)
+    tiers = list(PHASE1_TIER_ORDER) + list(MIXTURE_TIER_ORDER)
+
+    def cell(arm: str, base: float) -> list[EpisodeResult]:
+        return [
+            EpisodeResult(arm=arm, seed=s, draw_id=d, att_horizon=base + 0.5 * i + 0.25 * j,
+                          horizon_vehicle_count=1800.0, episode_reward=-1000.0)
+            for i, s in enumerate(seeds) for j, d in enumerate(draws)
+        ]
+
+    episodes = {}
+    for ti, tier in enumerate(tiers):
+        for mi, method in enumerate(METHODS):
+            episodes[f"{method}@{tier}"] = cell(f"{method}@{tier}", 100.0 + 10 * ti + 3 * mi)
+        episodes[f"behaviour@{tier}"] = cell(f"behaviour@{tier}", 500.0 + ti)
+
+    declaration = declaration_with(
+        {t: 20 for t in MIXTURE_TIER_ORDER},
+        streams={"expert": [-6000.0] * 100, "random": [-38000.0] * 100},
+    )
+    diagnostics = diagnostics_with(volume_excludes=False, difficulty_p=0.62)
+    references = {t: {"source": "constructed", "rng_seed": 20260814} for t in MIXTURE_TIER_ORDER}
+
+    # The COMMITTED artifact: phase-1 cells identical to the candidate's, and P4.6's own recorded
+    # prediction outcomes, which the sidecar must read from HERE and not from the new payload.
+    committed = {
+        "tiers_present": list(PHASE1_TIER_ORDER),
+        "cells_by_tier": {
+            t: {m: {"att_horizon_mean": episodes[f"{m}@{t}"][0].att_horizon}
+                for m in METHODS}
+            for t in PHASE1_TIER_ORDER
+        },
+        "behaviour_cells": {},
+        "comparisons": [],
+        "behaviour_comparisons": [],
+        "predictions": {"P1": {"outcome": "FAILED"},
+                        "P2": {"full_outcome": "NOT SCORABLE", "partial_outcome": "FAILED"},
+                        "P3": {"outcome": "FAILED"}},
+    }
+    # the committed cells must equal the CANDIDATE's cell means, not one episode's ATT
+    for t in PHASE1_TIER_ORDER:
+        for m in METHODS:
+            values = [e.att_horizon for e in episodes[f"{m}@{t}"]]
+            committed["cells_by_tier"][t][m] = {"att_horizon_mean": sum(values) / len(values)}
+    for key, value in (committed_overrides or {}).items():
+        committed[key] = value
+
+    return mixture_grid_artifact(
+        declaration,
+        {"format_version": "p4.6-grid-training/1.0", "runs": []},
+        diagnostics,
+        {"status": "PASS"},
+        {"status": "PASS"},
+        episodes,
+        references,
+        committed,
+    )
+
+
+def test_the_report_wiring_runs_end_to_end_and_gate_p1_compares_the_two_artifacts() -> None:
+    """⚠️ Kills the mutation ``assert_phase1_reproduces(payload, payload)``.
+
+    A gate that compares the artifact with itself can never fail, and nothing in the suite noticed.
+    The committed payload here carries a phase-1 cell that DIFFERS from the candidate's, so a
+    self-comparison passes and a real comparison must refuse.
+    """
+    payload = assembled()
+    assert payload["gate_p1"]["status"] == "PASS"
+    assert payload["gate_p1"]["cells_compared"] == 20
+
+    from offline.method_tier_grid import PHASE1_TIER_ORDER
+
+    # The gate walks the phase-1 tiers in SORTED order, so the arm it names first is `bc@fixedtime`
+    # rather than the declaration's first tier; the assertion is written to the refusal's substance
+    # (a named arm and the bit-identity requirement) instead of to that ordering.
+    with pytest.raises(ValueError, match=r"bc@\w+: att_horizon_mean regenerated as .* bit-identically"):
+        assembled(
+            committed_overrides={
+                "tiers_present": list(PHASE1_TIER_ORDER),
+                "cells_by_tier": {
+                    **{t: {m: {"att_horizon_mean": 1.0} for m in ("bc", "bc_top10", "iql", "dt")}
+                       for t in PHASE1_TIER_ORDER},
+                },
+                "behaviour_cells": {}, "comparisons": [], "behaviour_comparisons": [],
+                "predictions": {"P1": {"outcome": "FAILED"},
+                                "P2": {"full_outcome": "NOT SCORABLE"},
+                                "P3": {"outcome": "FAILED"}},
+            }
+        )
+
+
+def test_the_sidecar_reads_p4_6s_column_from_the_COMMITTED_artifact() -> None:
+    """⚠️ Kills the mutation that reads the "before" column out of the new payload.
+
+    P4.6 recorded ``P2.full_outcome = NOT SCORABLE`` because it had no mixtures.  If the sidecar
+    reads the new payload instead, that becomes ``FAILED`` in **both** columns and P4.6's record is
+    silently overwritten — **the precise rescue RULING 2 exists to prevent**, and the review found it
+    surviving the full suite.
+    """
+    payload = assembled()
+    sidecar = payload["inherited_predictions"]
+    assert sidecar["as_scored_by_p4_6"]["P2"]["full_outcome"] == "NOT SCORABLE"
+    assert sidecar["as_scored_with_the_full_design"]["P2"]["full_outcome"] in ("HELD", "FAILED")
+    assert (
+        sidecar["as_scored_by_p4_6"]["P2"]["full_outcome"]
+        != sidecar["as_scored_with_the_full_design"]["P2"]["full_outcome"]
+    ), "the two columns are identical, so the sidecar is not reading two different sources"
+    assert sidecar["tiers_available_to_p4_6"] == list(payload["gate_p1"] and
+                                                      __import__("offline.method_tier_grid",
+                                                                 fromlist=["PHASE1_TIER_ORDER"]
+                                                                 ).PHASE1_TIER_ORDER)
+    assert len(sidecar["tiers_available_now"]) == 8
+
+
+def test_the_report_refuses_an_unlabelled_mixture_reference_through_the_wiring() -> None:
+    """`label_constructed_references` is reached by the assembly, not only by its own unit test."""
+    with pytest.raises(ValueError, match="behaviour@mix33"):
+        from offline.dt_gate import EpisodeResult  # noqa: F401  (kept for symmetry)
+
+        import offline.mixture_tiers as mt
+
+        original = mt.label_constructed_references
+        try:
+            assembled_no_reference = assembled
+            mt.label_constructed_references = lambda payload, references: original(payload, {})
+            assembled_no_reference()
+        finally:
+            mt.label_constructed_references = original
+
+
+def test_the_seed_dimension_block_is_emitted_by_the_assembly() -> None:
+    """F1's per-seed table must reach the ARTIFACT, not only the packet."""
+    payload = assembled()
+    seed_block = payload["mixture_predictions"]["Q2"]["seed_dimension"]
+    assert seed_block["available"] is True
+    assert sorted(seed_block["advantage_per_seed"]) == sorted(MIXTURE_TIER_ORDER)
+    assert set(seed_block["pairwise_ordering"]) == {"mix33_minus_mix50", "mix50_minus_mix67"}
+    for entry in seed_block["pairwise_ordering"].values():
+        assert entry["n_seeds"] == 2
+        assert "t" in entry and "seeds_reversed" in entry
+    assert "blind spot" in payload["mixture_predictions"]["Q2"]["companion_blind_spot"].lower() \
+        or "CANNOT" in payload["mixture_predictions"]["Q2"]["companion_blind_spot"]
 
 
 def test_gate_p1_refuses_a_changed_behaviour_comparison() -> None:

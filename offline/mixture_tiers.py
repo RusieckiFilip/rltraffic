@@ -498,6 +498,37 @@ def kept_expert_counts(declaration: Mapping[str, Any]) -> dict[str, dict[str, in
     return out
 
 
+def draws_in_both_components(declaration: Mapping[str, Any], tier: str) -> dict[str, Any]:
+    """How much of a mixture's draw coverage is duplicated across its two components.
+
+    ⚠️ **This is the pre-registered disclosure of ``docs/plans/p4.7.md`` section 4.3** and it is not
+    discretionary.  A mixture draws its expert half and its random half from the same 1-200 pool, so
+    the same ``flow_draw`` can enter twice.  ``volume_check`` works on **sets** of draw ids, so those
+    duplicates collapse: a 200-stream tier can present far fewer than 200 units to the check, and its
+    kept/other split is over draws rather than over streams.  **A null volume result on such a tier is
+    weaker evidence than the same null on a one-stream-per-draw tier**, and the artifact has to say so
+    where the result is read.
+    """
+    experts = expert_dir_names()
+    streams = declaration["tiers"][str(tier)]["streams"]
+    expert_draws = {
+        int(s["flow_draw"]) for s in streams if Path(s["dataset_dir"]).name in experts
+    }
+    random_draws = {
+        int(s["flow_draw"]) for s in streams if Path(s["dataset_dir"]).name not in experts
+    }
+    both = sorted(expert_draws & random_draws)
+    distinct = sorted(expert_draws | random_draws)
+    return {
+        "training_streams": len(streams),
+        "distinct_training_draws": len(distinct),
+        "draws_in_both_components": len(both),
+        "expert_draws": len(expert_draws),
+        "random_draws": len(random_draws),
+        "streams_lost_to_the_set_collapse": len(streams) - len(distinct),
+    }
+
+
 def component_return_overlap(declaration: Mapping[str, Any], tier: str) -> dict[str, Any]:
     """How far the two components' return distributions overlap -- Q1's tautology disclosure.
 
@@ -553,6 +584,7 @@ def score_q1(declaration: Mapping[str, Any]) -> dict[str, Any]:
     counts = kept_expert_counts(declaration)
     by_tier: dict[str, Any] = {}
     failing: list[str] = []
+    forced_tiers: list[str] = []
     for tier in MIXTURE_TIER_ORDER_LOCAL:
         entry = counts[tier]
         fraction = entry["expert"] / entry["kept"] if entry["kept"] else 0.0
@@ -584,6 +616,9 @@ def score_q1(declaration: Mapping[str, Any]) -> dict[str, Any]:
                 else None
             ),
         }
+        disclosure = by_tier[tier]["overlap_disclosure"]
+        if disclosure and disclosure["separates_completely"] and entry["kept"] <= entry["training_expert"]:
+            forced_tiers.append(tier)
     return {
         "prediction": (
             "Q1 -- the filter FINDS the expert fraction: on all three mixtures, at least 90 % of "
@@ -594,14 +629,129 @@ def score_q1(declaration: Mapping[str, Any]) -> dict[str, Any]:
             "FAILED if any tier is below it; no tie is possible, the statistic is an integer"
         ),
         "outcome": "FAILED" if failing else "HELD",
+        # N7: the qualifier belongs BESIDE the verdict, not three levels down inside a per-tier
+        # disclosure.  A reader who takes `outcome` alone must not be able to read it as evidence.
+        "outcome_qualifier": (
+            "UNINFORMATIVE — FORCED BY CONSTRUCTION"
+            if forced_tiers
+            else "informative: the components' returns overlap, so the kept composition was not "
+            "determined in advance"
+        ),
+        "informative": not forced_tiers,
+        "forced_tiers": forced_tiers,
+        "forced_note": (
+            "on these tiers the two components' return distributions do not overlap and the tier "
+            "holds at least as many expert streams as the filter keeps, so the top decile BY RETURN "
+            "is all-expert with probability 1 and this prediction could not have failed.  The "
+            "outcome is reported as the registered rule computes it and is NOT evidence about what "
+            "the filter selects (PROJECT_PLAN section 1b's R2 remains OPEN; DEFERRED 46)"
+        )
+        if forced_tiers
+        else None,
         "failing_tiers": failing,
         "by_tier": by_tier,
         "leakage": "none: this reads the selection only and costs no training and no rollout",
     }
 
 
+def per_seed_advantages(
+    episodes_by_arm: Mapping[str, Sequence[Any]], tier: str
+) -> dict[int, float]:
+    """``mean ATT(bc) − mean ATT(bc_top10)`` within each training seed, for one tier."""
+    def by_seed(method: str) -> dict[int, float]:
+        out: dict[int, list[float]] = {}
+        for episode in episodes_by_arm[f"{method}@{tier}"]:
+            out.setdefault(int(episode.seed), []).append(float(episode.att_horizon))
+        return {seed: math.fsum(v) / len(v) for seed, v in out.items()}
+
+    bc, top = by_seed("bc"), by_seed("bc_top10")
+    if set(bc) != set(top):
+        raise ValueError(f"{tier}: bc and bc_top10 were not measured on the same seeds")
+    return {seed: bc[seed] - top[seed] for seed in sorted(bc)}
+
+
+def seed_dimension_report(
+    episodes_by_arm: Mapping[str, Sequence[Any]],
+) -> dict[str, Any]:
+    """⚠️ The dimension Q2's companion intervals CANNOT see, reported beside them.
+
+    The paired comparisons this task inherits are **draw-level with the five training seeds averaged
+    into each unit** (``offline/offline_baselines.py``'s ``_paired``), which is the right convention
+    for a per-draw contrast and carries **no information about the seed dimension**.  On the mixtures
+    that blind spot is an order of magnitude wider than anywhere in phase 1 — the between-seed sd of
+    the ``bc`` cell is tens of ATT rather than units — so **Q2's ordering conjunct has to be reported
+    against the seeds as well as against the draws.**
+
+    Nothing here changes Q2's rule or its verdict, both of which were frozen before the data.  It
+    reports the strength of the evidence the verdict rests on.
+    """
+    import statistics
+
+    advantages = {
+        tier: per_seed_advantages(episodes_by_arm, tier)
+        for tier in MIXTURE_TIER_ORDER_LOCAL
+        if f"bc@{tier}" in episodes_by_arm and f"bc_top10@{tier}" in episodes_by_arm
+    }
+    if len(advantages) < len(MIXTURE_TIER_ORDER_LOCAL):
+        return {"available": False, "reason": "not every mixture tier has bc and bc_top10 episodes"}
+
+    pairwise: dict[str, Any] = {}
+    order = list(MIXTURE_TIER_ORDER_LOCAL)
+    for left, right in zip(order, order[1:]):
+        seeds = sorted(advantages[left])
+        differences = [advantages[left][s] - advantages[right][s] for s in seeds]
+        mean = math.fsum(differences) / len(differences)
+        stdev = statistics.stdev(differences)
+        standard_error = stdev / math.sqrt(len(differences))
+        pairwise[f"{left}_minus_{right}"] = {
+            "per_seed": {str(s): d for s, d in zip(seeds, differences)},
+            "mean": mean,
+            "sd": stdev,
+            "standard_error": standard_error,
+            "t": mean / standard_error if standard_error else None,
+            "seeds_reversed": sum(1 for d in differences if d <= 0.0),
+            "n_seeds": len(differences),
+        }
+
+    flat = [v for tier in advantages for v in advantages[tier].values()]
+    between_seed_sd = {}
+    for arm, episodes in episodes_by_arm.items():
+        method, _, tier = arm.partition("@")
+        if method != "bc":
+            continue
+        means: dict[int, list[float]] = {}
+        for e in episodes:
+            means.setdefault(int(e.seed), []).append(float(e.att_horizon))
+        values = [math.fsum(v) / len(v) for v in means.values()]
+        if len(values) > 1:
+            between_seed_sd[tier] = statistics.stdev(values)
+    return {
+        "available": True,
+        "role": (
+            "Q2's ordering conjunct against the TRAINING-SEED dimension, which the companion "
+            "intervals cannot see because they average the five seeds into each per-draw unit"
+        ),
+        "advantage_per_seed": {t: {str(s): v for s, v in a.items()} for t, a in advantages.items()},
+        "positivity": {
+            "n_per_seed_advantages": len(flat),
+            "n_positive": sum(1 for v in flat if v > 0.0),
+            "minimum": min(flat),
+        },
+        "pairwise_ordering": pairwise,
+        "between_seed_sd_of_the_bc_cell": between_seed_sd,
+        "interpretation": (
+            "the positivity conjunct is robust (every per-seed advantage positive); the ordering "
+            "conjunct is NOT uniformly robust -- one of its two comparisons reverses on some seeds "
+            "and does not resolve at this power.  The verdict and the rule are unchanged; what this "
+            "block changes is the strength that may be claimed for them"
+        ),
+    }
+
+
 def score_q2(
-    cells_by_tier: Mapping[str, Mapping[str, Any]], comparisons: Sequence[Any]
+    cells_by_tier: Mapping[str, Mapping[str, Any]],
+    comparisons: Sequence[Any],
+    episodes_by_arm: Mapping[str, Sequence[Any]] | None = None,
 ) -> dict[str, Any]:
     """Q2: is %BC's advantage over BC positive on all three, and decreasing in the fraction?
 
@@ -646,7 +796,17 @@ def score_q2(
         all_positive = ordering = None
     else:
         all_positive = all(value > 0.0 for value in ordered)
-        tied = any(a == b for a, b in zip(ordered, ordered[1:]))
+        # N1: the REGISTERED rule (docs/plans/p4.7.md section 4.2) says "NOT RESOLVED if any two are
+        # exactly equal".  This checked only ADJACENT pairs until the review found the mismatch.
+        # The code is aligned to the registration and not the other way round, because the plan is
+        # what was frozen before the data.  It is a widening -- `mix33 == mix67` with `mix50` lower
+        # is now NOT RESOLVED rather than FAILED -- and it moves no outcome here: the three measured
+        # advantages are distinct.  Verified by regenerating the artifact and diffing (see the packet).
+        tied = any(
+            ordered[i] == ordered[j]
+            for i in range(len(ordered))
+            for j in range(i + 1, len(ordered))
+        )
         ordering = all(a > b for a, b in zip(ordered, ordered[1:]))
         outcome = (
             "NOT RESOLVED" if tied else ("HELD" if (all_positive and ordering) else "FAILED")
@@ -671,6 +831,24 @@ def score_q2(
             "reported beside the rule and carry no threshold (BRIEF_17 section 4: no equivalence "
             "verdict anywhere)"
         ),
+        "companion_blind_spot": (
+            "⚠️ THESE INTERVALS CANNOT SPEAK TO THE TRAINING-SEED DIMENSION.  They are draw-level "
+            "with the five seeds averaged into each unit, which is the inherited and correct "
+            "convention for a per-draw contrast -- and it means a conjunct that reverses across "
+            "seeds can sit inside an interval that excludes zero.  See seed_dimension for the "
+            "per-seed table and the between-seed spread"
+        ),
+        "seed_dimension": (
+            seed_dimension_report(episodes_by_arm)
+            if episodes_by_arm is not None
+            else {"available": False, "reason": "no per-episode data was supplied to the scorer"}
+        ),
+        "evidence_is_about": (
+            "⚠️ Q2's ordering is ~99 % a measurement of BC's DILUTION RESPONSE, not of the filter: "
+            "%BC spans about 1.1 ATT across the three mixtures while BC spans about 115 ATT, so the "
+            "advantage's ordering is carried almost entirely by BC.  Q2 remains falsifiable and "
+            "confirmed as registered; it is NOT evidence about what the top-decile filter selects"
+        ),
     }
 
 
@@ -694,6 +872,18 @@ def score_q3(declaration: Mapping[str, Any], diagnostics: Mapping[str, Any]) -> 
         significant = (not withdrawn) and float(difficulty["p_value"]) < P3_ALPHA
         composition_p = float(q1["by_tier"][tier]["hypergeometric_p_value"])
         overlap = q1["by_tier"][tier].get("overlap_disclosure")
+        multiplicity = (
+            draws_in_both_components(declaration, tier)
+            if "streams" in declaration["tiers"][tier]
+            else {
+                "training_streams": 0,
+                "distinct_training_draws": 0,
+                "draws_in_both_components": 0,
+                "expert_draws": 0,
+                "random_draws": 0,
+                "streams_lost_to_the_set_collapse": 0,
+            }
+        )
         # ⚠️ The pre-registered disclosure of section 4.1, carried as a FIELD beside the outcome it
         # qualifies rather than left in prose.  P4.6's review established that a caveat which lives
         # only in a Return Packet does not reach a figure script; this is the same lesson applied to
@@ -724,6 +914,18 @@ def score_q3(declaration: Mapping[str, Any], diagnostics: Mapping[str, Any]) -> 
             "volume_difference": float(volume["difference"]),
             "volume_ci95": [float(volume["ci95_low"]), float(volume["ci95_high"])],
             "volume_excludes_zero": excludes_zero,
+            **multiplicity,
+            "volume_check_status": "WEAKENED" if multiplicity["draws_in_both_components"] else "clean",
+            "volume_check_status_reason": (
+                f"{multiplicity['draws_in_both_components']} of this tier's "
+                f"{multiplicity['distinct_training_draws']} distinct training draws enter through "
+                "BOTH components, so the volume check's kept and discarded sets are over draws and "
+                f"not over streams: {multiplicity['training_streams']} streams present "
+                f"{multiplicity['distinct_training_draws']} units to it.  Its null is therefore "
+                "WEAKENED evidence, not a clean null (docs/plans/p4.7.md section 4.3)"
+            )
+            if multiplicity["draws_in_both_components"]
+            else "every training draw enters through exactly one component; the check is clean",
             "difficulty_overlap": int(difficulty["overlap"]),
             "difficulty_p_value": float(difficulty["p_value"]),
             "difficulty_withdrawn": withdrawn,
@@ -753,6 +955,18 @@ def score_q3(declaration: Mapping[str, Any], diagnostics: Mapping[str, Any]) -> 
         "outcome": "HELD" if held else "FAILED",
         "by_tier": by_tier,
         "falsifies_r2": bool(no_composition),
+        # N8: unqualified, `falsifies_r2: false` reads as "R2 survived a test".  It did not: on this
+        # corpus the composition check could not have come out any other way, so no test of R2 was
+        # run at all.  The qualifier sits at the same level as the boolean it qualifies.
+        "falsifies_r2_qualifier": (
+            "NO TEST OF R2 WAS RUN — the composition check is circular on every tier here "
+            "(composition_null_applicable is false), so `false` means 'not falsified because "
+            "untested', NOT 'R2 survived'.  PROJECT_PLAN section 1b's binding stands: R2 remains "
+            "OPEN.  See DEFERRED 46"
+            if all(not e["composition_null_applicable"] for e in by_tier.values())
+            else "the composition check was applicable on at least one tier, so this boolean is a "
+            "genuine result of it"
+        ),
         "tiers_without_a_composition_signature": no_composition,
         "falsification_note": (
             "a null composition signature would falsify section 1b's R2 outright and is the most "
@@ -760,9 +974,20 @@ def score_q3(declaration: Mapping[str, Any], diagnostics: Mapping[str, Any]) -> 
         ),
         "multiplicity": (
             "the volume check operates on SETS of draw ids, and on a mixture the same draw can "
-            "enter through both components, so its kept and discarded sets lose that multiplicity; "
-            "the per-tier count of draws present in both components is reported with the artifact"
+            "enter through both components, so its kept and discarded sets lose that multiplicity.  "
+            "The per-tier count is emitted as by_tier[tier].draws_in_both_components, and any tier "
+            "whose count is non-zero has its volume check labelled WEAKENED rather than null "
+            "(docs/plans/p4.7.md section 4.3, the registered disclosure)"
         ),
+        "multiplicity_threshold": (
+            "NONE, deliberately.  The plan registered the label for a count that is 'large' and did "
+            "not quantify it, so any cut-off chosen now would be chosen AFTER seeing 39 / 48 / 44.  "
+            "The label therefore keys on whether the defect is present at all -- a non-zero count -- "
+            "which needs no constant and can only weaken a check, never strengthen one"
+        ),
+        "volume_check_status": {
+            tier: entry["volume_check_status"] for tier, entry in by_tier.items()
+        },
     }
 
 
@@ -955,7 +1180,11 @@ def mixture_grid_artifact(
     }
     payload["mixture_predictions"] = {
         "Q1": score_q1(declaration),
-        "Q2": score_q2(payload["cells_by_tier"], _comparison_objects(payload["comparisons"])),
+        "Q2": score_q2(
+            payload["cells_by_tier"],
+            _comparison_objects(payload["comparisons"]),
+            episodes_by_arm=episodes_by_arm,
+        ),
         "Q3": score_q3(declaration, diagnostics),
     }
     payload["reused_declaration"] = {

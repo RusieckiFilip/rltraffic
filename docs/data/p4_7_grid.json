@@ -190817,8 +190817,16 @@
         }
       },
       "failing_tiers": [],
+      "forced_note": "on these tiers the two components' return distributions do not overlap and the tier holds at least as many expert streams as the filter keeps, so the top decile BY RETURN is all-expert with probability 1 and this prediction could not have failed.  The outcome is reported as the registered rule computes it and is NOT evidence about what the filter selects (PROJECT_PLAN section 1b's R2 remains OPEN; DEFERRED 46)",
+      "forced_tiers": [
+        "mix33",
+        "mix50",
+        "mix67"
+      ],
+      "informative": false,
       "leakage": "none: this reads the selection only and costs no training and no rollout",
       "outcome": "HELD",
+      "outcome_qualifier": "UNINFORMATIVE \u2014 FORCED BY CONSTRUCTION",
       "prediction": "Q1 -- the filter FINDS the expert fraction: on all three mixtures, at least 90 % of %BC's kept top-decile streams come from the mappo1000 dirs",
       "rule": "HELD iff kept_expert / kept >= 0.9 on every mixture tier; FAILED if any tier is below it; no tie is possible, the statistic is an integer"
     },
@@ -190852,11 +190860,88 @@
         }
       },
       "all_positive": true,
+      "companion_blind_spot": "\u26a0\ufe0f THESE INTERVALS CANNOT SPEAK TO THE TRAINING-SEED DIMENSION.  They are draw-level with the five seeds averaged into each unit, which is the inherited and correct convention for a per-draw contrast -- and it means a conjunct that reverses across seeds can sit inside an interval that excludes zero.  See seed_dimension for the per-seed table and the between-seed spread",
       "companion_note": "the paired difference, its 95 % CI, the CI WIDTH and the rank-biserial effect size are reported beside the rule and carry no threshold (BRIEF_17 section 4: no equivalence verdict anywhere)",
+      "evidence_is_about": "\u26a0\ufe0f Q2's ordering is ~99 % a measurement of BC's DILUTION RESPONSE, not of the filter: %BC spans about 1.1 ATT across the three mixtures while BC spans about 115 ATT, so the advantage's ordering is carried almost entirely by BC.  Q2 remains falsifiable and confirmed as registered; it is NOT evidence about what the top-decile filter selects",
       "ordering_holds": true,
       "outcome": "HELD",
       "prediction": "Q2 -- %BC's advantage over BC is POSITIVE on all three mixtures, and DECREASES as the expert fraction RISES",
-      "rule": "advantage = mean ATT(bc) - mean ATT(bc_top10), positive meaning %BC is better.  HELD iff all three are positive AND advantage(mix33) > advantage(mix50) > advantage(mix67) strictly; NOT RESOLVED if any two are exactly equal; NOT SCORABLE without all three"
+      "rule": "advantage = mean ATT(bc) - mean ATT(bc_top10), positive meaning %BC is better.  HELD iff all three are positive AND advantage(mix33) > advantage(mix50) > advantage(mix67) strictly; NOT RESOLVED if any two are exactly equal; NOT SCORABLE without all three",
+      "seed_dimension": {
+        "advantage_per_seed": {
+          "mix33": {
+            "101": 159.95641065147092,
+            "202": 132.83581539794255,
+            "303": 145.63302451915538,
+            "404": 179.04754581791815,
+            "505": 166.91546260047875
+          },
+          "mix50": {
+            "101": 135.4853886534261,
+            "202": 161.14057423481503,
+            "303": 31.17256224266532,
+            "404": 181.41514027757626,
+            "505": 138.14260399876474
+          },
+          "mix67": {
+            "101": 12.502833653404991,
+            "202": 53.06858799615651,
+            "303": 9.629371398241602,
+            "404": 71.76869602500697,
+            "505": 67.26305604203044
+          }
+        },
+        "available": true,
+        "between_seed_sd_of_the_bc_cell": {
+          "fixedtime": 0.598751138826436,
+          "mappo1000": 0.3651290868993829,
+          "mappo500": 0.29402183535043747,
+          "maxpressure": 1.2238560287358706,
+          "mix33": 18.079717070206705,
+          "mix50": 57.848668305460855,
+          "mix67": 29.778058011369314,
+          "random": 2.311113523236491
+        },
+        "interpretation": "the positivity conjunct is robust (every per-seed advantage positive); the ordering conjunct is NOT uniformly robust -- one of its two comparisons reverses on some seeds and does not resolve at this power.  The verdict and the rule are unchanged; what this block changes is the strength that may be claimed for them",
+        "pairwise_ordering": {
+          "mix33_minus_mix50": {
+            "mean": 27.40639791594366,
+            "n_seeds": 5,
+            "per_seed": {
+              "101": 24.47102199804482,
+              "202": -28.30475883687248,
+              "303": 114.46046227649006,
+              "404": -2.3675944596581076,
+              "505": 28.772858601714006
+            },
+            "sd": 53.803153664526334,
+            "seeds_reversed": 2,
+            "standard_error": 24.061501799549557,
+            "t": 1.139014436599162
+          },
+          "mix50_minus_mix67": {
+            "mean": 86.62474485848138,
+            "n_seeds": 5,
+            "per_seed": {
+              "101": 122.98255500002111,
+              "202": 108.07198623865852,
+              "303": 21.54319084442372,
+              "404": 109.64644425256928,
+              "505": 70.8795479567343
+            },
+            "sd": 41.2170870588251,
+            "seeds_reversed": 0,
+            "standard_error": 18.43284169961196,
+            "t": 4.699478586652484
+          }
+        },
+        "positivity": {
+          "minimum": 9.629371398241602,
+          "n_per_seed_advantages": 15,
+          "n_positive": 15
+        },
+        "role": "Q2's ordering conjunct against the TRAINING-SEED dimension, which the companion intervals cannot see because they average the five seeds into each per-draw unit"
+      }
     },
     "Q3": {
       "by_tier": {
@@ -190871,9 +190956,17 @@
           "difficulty_overlap": 2,
           "difficulty_p_value": 0.6217883048350896,
           "difficulty_withdrawn": false,
+          "distinct_training_draws": 161,
+          "draws_in_both_components": 39,
           "expected_expert": 6.6,
+          "expert_draws": 66,
           "kept_expert": 20,
+          "random_draws": 134,
           "return_versus_difficulty_rho": -0.04545831266364905,
+          "streams_lost_to_the_set_collapse": 39,
+          "training_streams": 200,
+          "volume_check_status": "WEAKENED",
+          "volume_check_status_reason": "39 of this tier's 161 distinct training draws enter through BOTH components, so the volume check's kept and discarded sets are over draws and not over streams: 200 streams present 161 units to it.  Its null is therefore WEAKENED evidence, not a clean null (docs/plans/p4.7.md section 4.3)",
           "volume_ci95": [
             -9.038548389686081,
             2.9733001627358933
@@ -190892,9 +190985,17 @@
           "difficulty_overlap": 2,
           "difficulty_p_value": 0.6217883048350896,
           "difficulty_withdrawn": false,
+          "distinct_training_draws": 152,
+          "draws_in_both_components": 48,
           "expected_expert": 10.0,
+          "expert_draws": 100,
           "kept_expert": 20,
+          "random_draws": 100,
           "return_versus_difficulty_rho": -0.02026635285317252,
+          "streams_lost_to_the_set_collapse": 48,
+          "training_streams": 200,
+          "volume_check_status": "WEAKENED",
+          "volume_check_status_reason": "48 of this tier's 152 distinct training draws enter through BOTH components, so the volume check's kept and discarded sets are over draws and not over streams: 200 streams present 152 units to it.  Its null is therefore WEAKENED evidence, not a clean null (docs/plans/p4.7.md section 4.3)",
           "volume_ci95": [
             -11.811098448307762,
             1.0383711755802825
@@ -190913,9 +191014,17 @@
           "difficulty_overlap": 3,
           "difficulty_p_value": 0.32132303788556676,
           "difficulty_withdrawn": false,
+          "distinct_training_draws": 156,
+          "draws_in_both_components": 44,
           "expected_expert": 13.4,
+          "expert_draws": 134,
           "kept_expert": 20,
+          "random_draws": 66,
           "return_versus_difficulty_rho": -0.07601449667232023,
+          "streams_lost_to_the_set_collapse": 44,
+          "training_streams": 200,
+          "volume_check_status": "WEAKENED",
+          "volume_check_status_reason": "44 of this tier's 156 distinct training draws enter through BOTH components, so the volume check's kept and discarded sets are over draws and not over streams: 200 streams present 156 units to it.  Its null is therefore WEAKENED evidence, not a clean null (docs/plans/p4.7.md section 4.3)",
           "volume_ci95": [
             -9.767057375458712,
             1.8729397283997935
@@ -190926,11 +191035,18 @@
       },
       "falsification_note": "a null composition signature would falsify section 1b's R2 outright and is the most informative outcome available here; it is reported as such rather than explained away",
       "falsifies_r2": false,
-      "multiplicity": "the volume check operates on SETS of draw ids, and on a mixture the same draw can enter through both components, so its kept and discarded sets lose that multiplicity; the per-tier count of draws present in both components is reported with the artifact",
+      "falsifies_r2_qualifier": "NO TEST OF R2 WAS RUN \u2014 the composition check is circular on every tier here (composition_null_applicable is false), so `false` means 'not falsified because untested', NOT 'R2 survived'.  PROJECT_PLAN section 1b's binding stands: R2 remains OPEN.  See DEFERRED 46",
+      "multiplicity": "the volume check operates on SETS of draw ids, and on a mixture the same draw can enter through both components, so its kept and discarded sets lose that multiplicity.  The per-tier count is emitted as by_tier[tier].draws_in_both_components, and any tier whose count is non-zero has its volume check labelled WEAKENED rather than null (docs/plans/p4.7.md section 4.3, the registered disclosure)",
+      "multiplicity_threshold": "NONE, deliberately.  The plan registered the label for a count that is 'large' and did not quantify it, so any cut-off chosen now would be chosen AFTER seeing 39 / 48 / 44.  The label therefore keys on whether the defect is present at all -- a non-zero count -- which needs no constant and can only weaken a check, never strengthen one",
       "outcome": "HELD",
       "prediction": "Q3 -- the kept set's COMPOSITION signature is strong where P4.6's DEMAND signature was absent: on a mixture the filter selects MODE, not DIFFICULTY",
       "rule": "a composition signature iff the exact hypergeometric tail is below 0.05; a demand signature iff the difficulty p-value is below 0.05 OR the volume 95 % interval excludes zero.  HELD iff every mixture carries the first and none carries the second",
-      "tiers_without_a_composition_signature": []
+      "tiers_without_a_composition_signature": [],
+      "volume_check_status": {
+        "mix33": "WEAKENED",
+        "mix50": "WEAKENED",
+        "mix67": "WEAKENED"
+      }
     }
   },
   "multiplicity": "160 paired comparisons, no correction applied and none needed: no decision rule is attached to any of them",
@@ -191160,7 +191276,7 @@
   "runtime": {
     "cuda_available": true,
     "cuda_device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
-    "git_commit": "cee0293701883ff0f0850ef66baa12f678ee9117",
+    "git_commit": "2021cc7ffeb7d91e70f94a349ba8fe36b5f4d9ec",
     "measurement_git_commits": [
       "0d3ccce7ceaa41052de2e02be3ca72a0d02fe3da",
       "13732f3afc92b677cc348b06e5052ff2e8103d33",
@@ -191175,7 +191291,7 @@
     "torch_num_threads": 1,
     "torch_version": "2.11.0+cu128",
     "unreachable_measurement_commits": [],
-    "written_at_git_commit": "cee0293701883ff0f0850ef66baa12f678ee9117"
+    "written_at_git_commit": "2021cc7ffeb7d91e70f94a349ba8fe36b5f4d9ec"
   },
   "seeds": [
     101,
