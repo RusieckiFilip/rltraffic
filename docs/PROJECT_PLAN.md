@@ -145,6 +145,18 @@ sentence may say the mixture settled what the filter selects.** The design that 
 measured in `DEFERRED` 46 — **`mappo1000 + mappo200`, 43.5 % overlap**, where a return filter must
 discriminate and can fail.
 
+🚨 **R3 IS AMENDED BY P4.7 (2026-08-15) — THE AXIS IS NOT "HOW WEAK" BUT "HOW WEAK *AND UNIMODAL*".**
+**Measured by me from the raw records:** IQL ranks **1 of 4 on all three weak SINGLE-CONTROLLER tiers**
+(`maxpressure`, `fixedtime`, `random`) and **3 of 4 on all three MIXTURES** — and a mixture is **weak on
+average** (constructed references **322.24 / 267.27 / 212.27**, i.e. worse than `maxpressure`'s 176.89)
+**but BIMODAL.** So *"IQL improves most where the data is worst"* **does not survive the
+quality-versus-composition distinction**: on a bimodal corpus there are good trajectories to clone, and
+%BC simply takes them. ⭐ **This is the payoff of §1's constraint (a) — the composition axis was built
+to separate quality from coverage, and the first thing it did was falsify a reading drawn from the
+single-controller ladder alone.** ⚠️ *Consistent with, and NOT tested by,* the stitching explanation:
+composing fragments helps when there is nothing good to clone, and loses to cloning when there is.
+**R3's original text stands below as what was measured on the single-controller axis.**
+
 **R3 — IQL improves most where the data is worst, AT THE ENDPOINTS ONLY.** IQL over BC, tiers ordered
 **worst data first**: `random` **+34.5561** · `fixedtime` **+5.4937** · `maxpressure` **+16.5092** ·
 `mappo500` **+2.4585** · `mappo1000` **+1.6871**. 🚨 **THIS IS NOT MONOTONE — `fixedtime` breaks it**,
@@ -164,6 +176,19 @@ rung and that rung is a statistical tie** — which is a stronger and more hones
 a point. *Does NOT test:* that the inversion is caused by data quality rather than by anything else
 covarying with tier identity — **§1 already records that our ladder confounds quality with state
 coverage**, and P4.7's mixture tiers are the design that separates them.
+
+**R6 — %BC IS ALMOST INDIFFERENT TO DILUTION, AND THIS IS THE MOST PRACTICALLY USEFUL NUMBER IN C1 (added 2026-08-15 from P4.7, verified by me).**
+`bc_top10@mix33` = **104.3372** against `bc_top10@mappo1000` = **103.1627**. **Replacing 134 of 200
+expert streams with random ones costs 1.1745 ATT; at mix67 the cost is 0.0734.** ⚠️ **Stated as what it
+is: on THIS corpus, whose expert and random components do not overlap at all (`DEFERRED` 46), a
+top-decile filter recovers the expert fraction essentially for free.** *Does NOT test* that the same
+holds when components overlap — which is exactly what `DEFERRED` 46's `mappo1000+mappo200` design is
+for. **The practical reading — you can dilute an expert corpus threefold and a return filter barely
+notices — is worth reporting, and its scope condition must travel with it.**
+
+**R7 — the DT's best relative standing anywhere is on the mixtures, and it changes nothing (2026-08-15).**
+**2 of 4 on all three**, its best rank in the study — and it still **leads on ZERO of eight tiers**.
+§1's claim constraint is unchanged and now rests on **eight** tiers rather than five.
 
 ### ⭐ R5 — THE ONE OBSERVATION REGISTERED IN THE OPPOSITE DIRECTION, AND THEREFORE THE STRONGEST
 
