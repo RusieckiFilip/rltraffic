@@ -133,6 +133,17 @@ itself, plus P4.5's F3 (`{202:10, 101:9, 505:1, 303:0, 404:0}`, r = −0.991). �
 selects **noise*** — **P3 was the diagnostic for exactly that and it FAILED on `random`** (overlap 3/20,
 p = 0.3213). **The "what does the filter select on weak data" question is OPEN, and R2 must not be
 written as if P3 answered it.**
+🚨 **NOR DID P4.7'S MIXTURES ANSWER IT, and that was a DESIGN ERROR OF MINE (2026-08-15, `DEFERRED` 46).**
+`BRIEF_19`'s Q1 was **unfalsifiable by construction** — `mappo1000` spans **[−9991, −5762]** and
+`random` spans **[−40294, −38369]**, a **+28,378 gap with 0 of 400 random streams above the expert
+minimum** — so an all-expert top decile was certain before a single gradient step. **Caught by the
+implementer, verified independently by me.** It is §7's 2026-08-07 rule (*a fixture that satisfies the
+assertion by construction is a tautology*) recurring **at the level of a registered prediction**.
+**What the mixtures DID show is A5's second axis: the kept decile concentrates on 3–4 of 5 expert
+seeds — CHECKPOINT selection, P4.5's effect, not composition selection.** ⚠️ **Binding: no paper
+sentence may say the mixture settled what the filter selects.** The design that would settle it is
+measured in `DEFERRED` 46 — **`mappo1000 + mappo200`, 43.5 % overlap**, where a return filter must
+discriminate and can fail.
 
 **R3 — IQL improves most where the data is worst, AT THE ENDPOINTS ONLY.** IQL over BC, tiers ordered
 **worst data first**: `random` **+34.5561** · `fixedtime` **+5.4937** · `maxpressure` **+16.5092** ·
