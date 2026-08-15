@@ -1264,7 +1264,7 @@ forgotten rather than parked.
 - **Suite: 343 passed, run by the coordinator on main 2026-08-06** — first-hand, not hearsay.
 - P0 closed except P0.9 · P1 · P2.0/b/c · P2.5 · P8.0 · P2.2-draws.
 
-### State today — ⭐ P4 IS CLOSED AND THE SEPTEMBER TARGET IS MET (verified 2026-08-14 by `git worktree list`, `git log` and `sha256sum -c`, in that order, BEFORE reading this section)
+### State today — ⭐ P4 IS CLOSED, BOTH C1 AXES ARE MEASURED, AND THE SEPTEMBER TARGET IS MET (verified 2026-08-15 by `git worktree list`, `git log` and `sha256sum -c`, in that order, BEFORE reading this section)
 - ✅ **P4.4 IS MERGED** (2026-08-12), after `docs/reviews/P4.4.md` (**PASS-WITH-NOTES**) and the
   mandated fix round `BRIEF_12` — 14 tests, **11 mutations executed**, and **no reported number
   moved**, which I verified myself from the committed artifact rather than from the packet (≤1e−11 on
@@ -1282,20 +1282,35 @@ forgotten rather than parked.
   **28/28 mutations killed**, suite **769 passed, 3 skipped**. §6's box ticked in the merge commit.
   **The reading is in §1b, and it is labelled post-hoc because all three registered predictions failed.**
   **Phase 2 — the three OffLight-matched mixture tiers — is `P4.7` and is NOT done.**
+- ⭐ **P4.7 IS MERGED (2026-08-15) — THE MIXTURE AXIS, AND IT FALSIFIED A READING OF MINE.**
+  `docs/reviews/P4.7.md` **PASS-WITH-NOTES**, 2 MAJOR, no blockers, then fix round `BRIEF_20`:
+  **0 numeric leaves changed**, suite **849 passed, 3 skipped**. §6's box ticked in the merge commit.
+  **`bc_top10` leads all three mixtures; the DT reaches 2/4 — its best standing anywhere — and still
+  leads 0 of 8 tiers; and IQL INVERTS, 1/4 on the weak single-controller tiers against 3/4 on all
+  three mixtures.** ⭐ **That killed §1b's R3, which was mine, and the replacement is a mechanism
+  rather than a correlation.** ⚠️ **Three defects carried, all recorded:** `BRIEF_19`'s **Q1 was
+  unfalsifiable by construction** (my design error; `DEFERRED` 46 has the measured fix), **Q2's
+  "decisively" was withdrawn** (`mix33 > mix50` reverses on 2 of 5 seeds), and **a pre-registered
+  disclosure was undelivered while a docstring claimed otherwise**.
 - 🟢 **NOTHING IS IN FLIGHT. ONE WORKTREE.** `git worktree list` shows only `/home/filip/rltraffic` on
-  `main`. `/home/filip/rltraffic-p46` was retired 2026-08-14 **after** its evidence was secured and
-  **re-verified after the removal**. The 2026-08-07 *"one tree, two sessions"* hazard stays retired:
+  `main`. `/home/filip/rltraffic-p46` was retired 2026-08-14 and `/home/filip/rltraffic-p47` on
+  2026-08-15, **both after their evidence was secured and re-verified after the removal**. The
+  2026-08-07 *"one tree, two sessions"* hazard stays retired:
   **the coordinator commits only from the `main` tree and checks `git rev-parse --abbrev-ref HEAD`
   first**; when an implementer is live on a branch I need to touch, the route is a throwaway worktree,
   `git -C` for every command, and never `cd` into it before removal.
 - 🔒 **EVERY MODEL BEHIND EVERY MERGED NUMBER LIVES ONLY IN THE MAIN TREE'S GITIGNORED `output/`, AND
-  NOWHERE ELSE.** `p4_dt` **5** checkpoints · `p4_4` **15** · `p4_5` **20** · `p4_6` **80**, plus
-  `p4_3`'s ten grid artifacts, P4.6's **18** evaluation cells and every raw evaluation JSON.
-  **Integrity, all three re-verified AFTER the removals and from `output/` itself (§7 rule 3b):**
+  NOWHERE ELSE.** **180 checkpoints, counted 2026-08-15:** `p4_dt` **5** · `p4_4` **15** · `p4_5` **20**
+  · `p4_6` **80** · `p4_7` **60**, plus `p4_3`'s ten grid artifacts, P4.6's 18 and P4.7's 15 evaluation
+  cells, and every raw evaluation JSON.
+  **Integrity, all FOUR re-verified AFTER the removals and from `output/` itself (§7 rule 3b):**
   `SHA256SUMS_p4_3.txt` **10/10** · `SHA256SUMS_p4_4_p4_5.txt` **44/44** · `SHA256SUMS_p4_6.txt`
-  **125/125**. P4.6's copy was additionally proved byte-faithful by checking the **originals** against
-  the manifest built from the **copy** — the direction that detects a corrupted copy. ⚠️ **DO NOT
-  DELETE `output/`.** Everything else those worktrees held — `scenarios/draws/` and the caches — was
+  **125/125** · `SHA256SUMS_p4_7.txt` **112/112**. P4.6's and P4.7's copies were additionally proved
+  byte-faithful by checking the **originals** against the manifest built from the **copy** — the
+  direction that detects a corrupted copy. ⚠️ **DO NOT DELETE `output/`.**
+  🚨 **AND THE EXPOSURE NAMED ON 2026-08-14 IS STILL OPEN: `output/` is gitignored, so none of this is
+  in git, and the corpus is ~4 GiB. A disk failure takes 180 checkpoints and every raw cell at once.**
+  Recorded as a named exposure for **P10.0**, not as a solved problem. Everything else those worktrees held — `scenarios/draws/` and the caches — was
   let go deliberately and is byte-regenerable.
   ⚠️ **`output/p4_6/logs/` was RE-SECURED after the fix round, and that was a correction, not a
   refresh:** the first manifest was computed over a `report.log` containing the **A5-void** row.
@@ -1336,26 +1351,33 @@ forgotten rather than parked.
 
 0a. 🔓 **RULING 2026-08-07 — `compare_corpora` exempts cf_cologne3 from BIT-IDENTITY, and the replacement is a MEASURED envelope, not a waiver.** cologne3 is not bit-reproducible (7.7 % of draws diverge under identical code), so bit-identity cannot be its acceptance criterion. **Replacement, all three required:** (i) episode counts and draw ids must match **exactly** — those are bookkeeping and are reproducible; (ii) the tier-level mean of `total_global_reward` must agree within **1 %** (measured self-noise **0.080 %**, so ≈12× headroom); (iii) the fraction of differing episodes must be **≤ 20 %** (measured self-noise **7.7 %**, ≈2.6× headroom). **The tolerances are recorded with the measurement that produced them** so a later reader sees where they came from rather than finding round numbers. hz1x1 and grid4x4 keep strict bit-identity — they earned it, 44/44 tiers. **The exemption is recorded in the tool's output the way `fixedtime`'s is, naming cologne3 and the reason, so a passing gate never hides it.**
 0b. 🔒 **B1 MUST BLOCK BY CONSTRUCTION, AND TODAY IT DOES NOT — stated plainly rather than claimed.** The user required written confirmation that `rederive_anchors.py` cannot be run against the NOT SETTLED cells until it can load existing checkpoints, *because a blocker that depends on someone remembering it is the same class as the A2 sweep that recurred inside its own fix*. **Honest status: right now the block is CONVENTIONAL.** The coordinator does not write source, so the mechanism does not exist until an implementer builds it, and claiming otherwise would be the exact overclaim this plan keeps logging. **The registered mechanism, which is the first commit of whoever takes queue item 0:** (i) every cell `rederive_anchors.py` emits carries a machine-readable `policy_source` of `"retrained"` or `"checkpoint"`; (ii) the tool **exits non-zero** rather than emitting a cell for a checkpoint-backed tier while in retrain mode; (iii) any consumer that settles a NOT SETTLED cell **asserts `policy_source == "checkpoint"`** for every cell it uses. **Acceptance is mechanical: the refusal test must FAIL when the refusal is deleted** — a guard that passes its own test when removed is what `check_test_hygiene.sh` exists for. Until (i)-(iii) land, no number from that tool may settle anything, and that sentence is the whole of the protection.
-1. **P4.7** — the three OffLight-matched **mixture tiers** (33/50/67 % expert + random), P4.6's phase 2,
-   ≈5 h. **Built by RESAMPLING episodes we already own** — no new collection. ⚠️ **It inherits
-   `BRIEF_17` §11.A5 (report the kept set's composition on BOTH axes — expert/random AND seed) and
-   §11.A1's one-episode-per-draw size-match**, and it is **the design that separates data quality from
-   state coverage**, which §1's constraint (a) says our single-controller ladder cannot. **It is also
-   the only regime OffLight's data speaks to**, so it is where R2's open question — *what does the
-   top-decile filter select on weak data, given P3 failed?* — becomes answerable.
-2. **P2.4** — corpus linter. Checks already specified by the ad-hoc verification of 2026-08-06, plus
+**Governed by the SEQUENCING RULING of 2026-08-14 above, which also fixes the cut order. `P4.7` was
+item 1 and is DONE, so the ruling advances by one — it is not re-opened.**
+
+1. ⚡ **P7.0 — the cross-backend gate (~1 day + the vType fix).** ⚠️ **Bind hangzhou's vType FIRST**
+   (Decisions Log 2026-07-31): the shipped `.rou.xml` binds none, so SUMO runs **55.55 m/s against
+   CityFlow's 11.11** and the gate would measure a **5× speed-limit artifact**. **Why it is first and
+   not fourth:** P4.3 measured the in-domain return prompt at **0.9026 ATT** across a 13,000-wide grid,
+   so **probe-calibrated return prompting — the paper's only NAMED contribution under `A9` — now rests
+   entirely on the cross-domain axis P7.0 gates.** Both outcomes change what the paper claims, which is
+   the highest information-per-hour available.
+2. **P5.1 + P5.2** — spatial mixing on grid4x4. ⭐ **The only experiment that can separate the two
+   explanations §1b's R5 leaves standing**, now reinforced by P4.7: **the DT leads 0 of 8 tiers, and
+   every one of those 8 is a setting where it has NO structural advantage** — BC, %BC and IQL are
+   independent per intersection by construction, and so is our DT. ⚠️ `DEFERRED` 37 must be in its
+   brief **explicitly**. ⚠️ §9 rates offline-DT collapse on 16-intersection grids on **prior evidence**
+   (DTLight Table 1, **446.8 ± 128.0**). **This is the item most likely to overrun; if it does, cut 2
+   of the ruling fires before cut 3.**
+3. **P2.4** — corpus linter. Checks already specified by the ad-hoc verification of 2026-08-06, plus
    the binding constraints in §6's P2.4 entry and `DEFERRED` rows 20, 24, 25, 26, 30.
-3. **P8.1** — ≥5 seeds everywhere, mean ± 95 % CI, paired tests vs the strongest baseline.
-   *(⚠️ Corrected 2026-08-14 within minutes of being written: this item named `DEFERRED` 31 as
-   outstanding. **Row 31 was discharged by P4.3 on 2026-08-13** — `docs/data/p4_3_p4_gate_effect_sizes.json`
-   is on disk — **but the row was never marked, so the parked list overstated the backlog and I copied
-   the overstatement straight into the queue.** Marked now. **The failure mode is the mirror of the one
-   `DEFERRED.md`'s header warns about**: it guards against work that is parked-but-forgotten, and this
-   was work that was done-but-unmarked.)*
-4. **P5.2** — grid4x4 multi-agent DT. **Stretch, October**, and `DEFERRED` 37 must be in its brief
-   explicitly (the wrong-intersection-statistics mutant is equivalent on hz1x1 and live at P5).
-*(Rewritten 2026-08-14, never appended to. It listed P2.6/P3/P4 as pending until 2026-08-13, all long
-merged; P4.6 was item 1 until today.)*
+4. **P8.1** — ≥5 seeds everywhere, mean ± 95 % CI, paired tests vs the strongest baseline.
+   ⭐ **P4.7 raised this item's value: M1 showed our per-draw CIs average the 5 training seeds into each
+   unit, so they say NOTHING about between-seed spread — which is 18.08 / 57.85 / 29.78 on the mixtures
+   against a phase-1 maximum of 2.3111.** A statistics-hardening task that does not address the seed
+   dimension would miss the one place the convention has already misled us.
+5. **P6** — the 2×2 shift benchmark. **October**, and **cut 1** if the calendar binds.
+*(Rewritten 2026-08-15, never appended to. It listed P2.6/P3/P4 as pending until 2026-08-13 and P4.6
+as item 1 until 2026-08-14; both were long merged by the time anyone read it.)*
 
 **⚠️ Scheduling flag — P7.0 has never been run.** It is scoped as the ~1-day early kill-switch for C3
 and was to run "right after P1, parallel to P2"; P1 closed 2026-07-27. Whoever writes its brief **must
