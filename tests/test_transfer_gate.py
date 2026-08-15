@@ -495,3 +495,76 @@ def test_declared_thresholds_match_the_registered_plan() -> None:
     )
     for token in ("0.30", "0.50", "0.70", "2.0 · M", "0.5 · M"):
         assert token in plan, token
+
+
+# ----------------------------------------------------------------------
+# The lane-convention diagnostic -- added after the registered run, selects nothing
+# ----------------------------------------------------------------------
+
+
+def test_cityflow_and_sumo_disagree_on_which_lane_index_turns_left() -> None:
+    """The structural fact the diagnostic rests on, read from the scenario files.
+
+    Neither side of this is an outcome: both are static attributes shipped with the
+    scenario.  It is asserted here so that if a future scenario ships a consistent
+    numbering, this test goes red and the diagnostic stops being needed rather than
+    silently continuing to "correct" something that is already correct.
+    """
+    cf = tg.cityflow_lane_turns(
+        parity.DECLARED_SCENARIO_DIR / "roadnet.json", "intersection_1_1"
+    )
+    su = tg.sumo_lane_turns(parity.DECLARED_SOURCE_NET)
+    for road in ("road_0_1_0", "road_1_0_1", "road_2_1_2", "road_1_2_3"):
+        assert cf[f"{road}_0"] == frozenset({"l"}), road
+        assert cf[f"{road}_1"] == frozenset({"s"}), road
+        assert su[f"{road}_0"] == frozenset({"s"}), road
+        assert su[f"{road}_1"] == frozenset({"l"}), road
+
+
+def test_semantic_correspondence_reverses_every_incoming_lane_on_this_scenario() -> None:
+    cf = tg.cityflow_lane_turns(
+        parity.DECLARED_SCENARIO_DIR / "roadnet.json", "intersection_1_1"
+    )
+    su = tg.sumo_lane_turns(parity.DECLARED_SOURCE_NET)
+    lane_ids = sorted(cf)
+    mapping = tg.lane_semantic_correspondence(cf, su, lane_ids)
+    assert len(mapping) == 8
+    assert tg.lane_semantic_correspondence(cf, su, lane_ids) == {
+        lane: f"{lane.rsplit('_', 1)[0]}_{1 - int(lane.rsplit('_', 1)[1])}"
+        for lane in lane_ids
+    }
+    assert not any(k == v for k, v in mapping.items())
+
+
+def test_semantic_correspondence_is_the_identity_when_conventions_agree() -> None:
+    """The diagnostic must not invent a permutation where none is needed."""
+    cf = {"r_0": frozenset({"s"}), "r_1": frozenset({"l"})}
+    su = {"r_0": frozenset({"s"}), "r_1": frozenset({"l"})}
+    assert tg.lane_semantic_correspondence(cf, su, ["r_0", "r_1"]) == {
+        "r_0": "r_0",
+        "r_1": "r_1",
+    }
+
+
+def test_semantic_correspondence_refuses_a_genuine_topology_difference() -> None:
+    cf = {"r_0": frozenset({"s"}), "r_1": frozenset({"l"})}
+    su = {"r_0": frozenset({"s"}), "r_1": frozenset({"s"})}
+    with pytest.raises(ValueError, match="disagree on topology"):
+        tg.lane_semantic_correspondence(cf, su, ["r_0", "r_1"])
+
+
+def test_road_level_samples_are_invariant_to_the_lane_permutation() -> None:
+    base, permuted, lane_ids = _fixture_pair()
+    left = tg.road_level_samples([base], "lane_vehicle_count", lane_ids)
+    right = tg.road_level_samples([permuted], "lane_vehicle_count", lane_ids)
+    assert set(left) == {"road_a", "road_b"}
+    for road in left:
+        assert np.array_equal(left[road], right[road]), road
+
+
+def test_road_level_summation_is_double_computed() -> None:
+    base, _, lane_ids = _fixture_pair()
+    rows = tg.road_level_samples([base], "lane_vehicle_count", lane_ids)
+    per_lane = tg.lane_feature_samples([base], "lane_vehicle_count", lane_ids)
+    assert np.array_equal(rows["road_a"], per_lane["road_a_0"] + per_lane["road_a_1"])
+    assert np.array_equal(rows["road_b"], per_lane["road_b_0"])

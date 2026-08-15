@@ -489,6 +489,185 @@ def evaluate_branch(
 
 
 # ----------------------------------------------------------------------
+# Lane-convention diagnostic -- IS A LANE ID THE SAME PHYSICAL LANE IN BOTH
+# BACKENDS?  Added 2026-08-16, after the registered run, and it selects nothing.
+# ----------------------------------------------------------------------
+#
+# ⚠️ WHY THIS EXISTS, stated so it is never mistaken for part of the gate.
+# ``docs/plans/p7.0.md`` section 5.3 registered a per-feature comparison "aligned by
+# lane id".  That rests on an unstated premise -- that a lane id denotes the same
+# PHYSICAL lane in both backends -- and the premise is false on this scenario.  Read
+# from the two scenario files, which is a structural fact and not an outcome:
+# CityFlow's ``roadnet.json`` gives ``road_X_0`` the ``turn_left`` roadLink and
+# ``road_X_1`` the ``go_straight`` one, while SUMO's ``.net.xml`` gives ``road_X_0``
+# ``dir="s"`` and ``road_X_1`` ``dir="l"``.  SUMO indexes lanes right-to-left, CityFlow
+# left-to-right, so the two conventions are reversed and the registered table compared
+# a left-turn lane against a through lane.
+#
+# **These functions produce a DIAGNOSTIC. They do not feed evaluate_branch, and no
+# branch may be re-derived from them without the coordinator re-registering section
+# 5.3.** Choosing a correspondence after seeing a verdict is the researcher degree of
+# freedom the registration exists to remove; the correspondence below is justified by
+# the ``type``/``dir`` attributes alone, which were read before any corrected number
+# was computed.
+
+_CITYFLOW_TO_SUMO_TURN = {
+    "go_straight": "s",
+    "turn_left": "l",
+    "turn_right": "r",
+}
+
+
+def cityflow_lane_turns(roadnet_path: str | Path, ix_id: str) -> dict[str, frozenset[str]]:
+    """Movements each incoming lane serves, from a CityFlow ``roadnet.json``."""
+    data = json.loads(Path(roadnet_path).read_bytes())
+    matches = [ix for ix in data.get("intersections", []) if ix.get("id") == ix_id]
+    if len(matches) != 1:
+        raise ValueError(f"{ix_id!r} matches {len(matches)} intersections in {roadnet_path}")
+    turns: dict[str, set[str]] = {}
+    for link in matches[0].get("roadLinks", []):
+        kind = str(link.get("type"))
+        if kind not in _CITYFLOW_TO_SUMO_TURN:
+            raise ValueError(f"unknown CityFlow roadLink type {kind!r}")
+        for lane_link in link.get("laneLinks", []):
+            lane_id = f"{link['startRoad']}_{lane_link['startLaneIndex']}"
+            turns.setdefault(lane_id, set()).add(_CITYFLOW_TO_SUMO_TURN[kind])
+    return {lane_id: frozenset(kinds) for lane_id, kinds in turns.items()}
+
+
+def sumo_lane_turns(net_xml_path: str | Path) -> dict[str, frozenset[str]]:
+    """Movements each lane serves, from a SUMO ``.net.xml``'s ``<connection>`` set."""
+    import xml.etree.ElementTree as ET
+
+    root = ET.parse(net_xml_path).getroot()
+    turns: dict[str, set[str]] = {}
+    for conn in root.findall("connection"):
+        edge = conn.get("from")
+        if edge is None or edge.startswith(":"):
+            continue
+        lane_id = f"{edge}_{int(str(conn.get('fromLane')))}"
+        turns.setdefault(lane_id, set()).add(str(conn.get("dir")))
+    return {lane_id: frozenset(kinds) for lane_id, kinds in turns.items()}
+
+
+def lane_semantic_correspondence(
+    cityflow_turns: Mapping[str, frozenset[str]],
+    sumo_turns: Mapping[str, frozenset[str]],
+    lane_ids: Sequence[str],
+) -> dict[str, str]:
+    """Map each CityFlow lane to the SUMO lane on the same road serving the same turns.
+
+    Refuses anything but a unique match: a road where the movement sets do not pair up
+    one-to-one is a genuine topology difference between the two scenario files, not a
+    numbering convention, and it must be reported rather than resolved by a heuristic.
+    """
+    by_road: dict[str, list[str]] = {}
+    for lane_id in sumo_turns:
+        by_road.setdefault(lane_id.rsplit("_", 1)[0], []).append(lane_id)
+
+    mapping: dict[str, str] = {}
+    for lane_id in lane_ids:
+        road = str(lane_id).rsplit("_", 1)[0]
+        if lane_id not in cityflow_turns:
+            raise KeyError(f"{lane_id!r} serves no CityFlow roadLink")
+        wanted = cityflow_turns[lane_id]
+        candidates = [c for c in by_road.get(road, []) if sumo_turns[c] == wanted]
+        if len(candidates) != 1:
+            raise ValueError(
+                f"{lane_id!r} serving {sorted(wanted)} matches {len(candidates)} SUMO "
+                f"lanes on road {road!r}; the two scenario files disagree on topology "
+                "rather than on lane numbering, which is a finding and not something "
+                "to resolve with a heuristic"
+            )
+        mapping[str(lane_id)] = candidates[0]
+    return mapping
+
+
+def road_level_samples(
+    episodes: Sequence[Any],
+    array_name: str,
+    lane_ids: Sequence[str],
+) -> dict[str, np.ndarray]:
+    """Sum each road's lane columns. Invariant to the lane-numbering convention."""
+    per_lane = lane_feature_samples(episodes, array_name, lane_ids)
+    roads: dict[str, np.ndarray] = {}
+    for lane_id, column in per_lane.items():
+        road = lane_id.rsplit("_", 1)[0]
+        roads[road] = column if road not in roads else roads[road] + column
+    return roads
+
+
+def diagnose_lane_convention(
+    cityflow_episodes: Sequence[Any],
+    sumo_episodes: Sequence[Any],
+    lane_ids: Sequence[str],
+    roadnet_path: str | Path,
+    net_xml_path: str | Path,
+    ix_id: str,
+) -> dict[str, Any]:
+    """Two convention-independent readings of the same episodes. Selects nothing.
+
+    ``road_level`` aggregates each road's lanes, so it is invariant to the numbering
+    convention outright.  ``semantic_per_feature`` re-pairs the lanes by the movements
+    they serve.  Both are labelled diagnostics; the registered table stands unchanged.
+    """
+    cf_turns = cityflow_lane_turns(roadnet_path, ix_id)
+    su_turns = sumo_lane_turns(net_xml_path)
+    mapping = lane_semantic_correspondence(cf_turns, su_turns, lane_ids)
+    reversed_ids = sorted(k for k, v in mapping.items() if k != v)
+
+    road_rows: list[dict[str, Any]] = []
+    for array_name in LANE_ARRAYS:
+        left = road_level_samples(cityflow_episodes, array_name, lane_ids)
+        right = road_level_samples(sumo_episodes, array_name, lane_ids)
+        for road in sorted(left):
+            x, y = left[road], right[road]
+            road_rows.append(
+                {
+                    "feature": f"{array_name}@{road}",
+                    "ks_statistic": ks_statistic(x, y),
+                    "overlap_coefficient": overlap_coefficient(x, y),
+                    "mean_cityflow": float(np.mean(x)),
+                    "mean_sumo": float(np.mean(y)),
+                }
+            )
+
+    semantic_rows: list[dict[str, Any]] = []
+    for array_name in LANE_ARRAYS:
+        left = lane_feature_samples(cityflow_episodes, array_name, lane_ids)
+        right = lane_feature_samples(
+            sumo_episodes, array_name, sorted(set(mapping.values()))
+        )
+        for lane_id in lane_ids:
+            x, y = left[str(lane_id)], right[mapping[str(lane_id)]]
+            semantic_rows.append(
+                {
+                    "feature": f"{array_name}@{lane_id}",
+                    "cityflow_lane": str(lane_id),
+                    "sumo_lane": mapping[str(lane_id)],
+                    "turns": sorted(cf_turns[str(lane_id)]),
+                    "ks_statistic": ks_statistic(x, y),
+                    "overlap_coefficient": overlap_coefficient(x, y),
+                    "mean_cityflow": float(np.mean(x)),
+                    "mean_sumo": float(np.mean(y)),
+                }
+            )
+
+    return {
+        "is_a_diagnostic_not_a_gate_input": True,
+        "cityflow_lane_turns": {k: sorted(v) for k, v in sorted(cf_turns.items())},
+        "sumo_lane_turns": {
+            k: sorted(v) for k, v in sorted(su_turns.items()) if k in set(mapping.values())
+        },
+        "semantic_correspondence": mapping,
+        "identity_correspondence": all(k == v for k, v in mapping.items()),
+        "lanes_whose_id_denotes_a_different_physical_lane": reversed_ids,
+        "road_level": road_rows,
+        "semantic_per_feature": semantic_rows,
+    }
+
+
+# ----------------------------------------------------------------------
 # DEFERRED 18 -- is info["average_travel_time"] metric-set independent on SUMO?
 # ----------------------------------------------------------------------
 
@@ -888,6 +1067,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         seed=int(args.base_seed),
     )
 
+    # Additive, and it feeds nothing above: `evaluate_branch` has already run on the
+    # registered inputs by this point and is not consulted again.
+    diagnostic = diagnose_lane_convention(
+        episodes_by_cell["cityflow__maxpressure"],
+        episodes_by_cell["sumo__maxpressure"],
+        shared,
+        parity.DECLARED_SCENARIO_DIR / "roadnet.json",
+        parity.DECLARED_SOURCE_NET,
+        ix_id,
+    )
+    n_rows = features[0].n_cityflow if features else 0
+    m_rows = features[0].n_sumo if features else 0
+
     payload: dict[str, Any] = {
         "format_version": GATE_FORMAT_VERSION,
         "task": "P7.0",
@@ -932,6 +1124,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         "cells": cells,
         "lane_alignment": lane_note,
         "per_feature": [asdict(row) for row in features],
+        "ks_noise_floor": {
+            "pooled_n_cityflow": n_rows,
+            "pooled_n_sumo": m_rows,
+            "critical_value_5pct_pooled": (
+                1.358 * ((n_rows + m_rows) / (n_rows * m_rows)) ** 0.5
+                if n_rows and m_rows
+                else None
+            ),
+            "note": (
+                "a reading aid, never a test: the rows are autocorrelated and a "
+                "deterministic backend repeats its episodes, so the effective sample "
+                "size is the distinct-episode count reported per cell"
+            ),
+        },
         "rho": {
             "formula": "(ATT_fixedtime - ATT_policy) / (ATT_fixedtime - ATT_maxpressure)",
             "computed_within_each_backend": True,
@@ -950,6 +1156,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         },
         "deferred_18": deferred_18,
         "deferred_23": enumeration,
+        "lane_convention_diagnostic": diagnostic,
         "runtime": {
             "written_at_git_commit": _git_commit(),
             "collect_invocations": invocations,
