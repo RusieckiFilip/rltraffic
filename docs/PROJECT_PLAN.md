@@ -773,6 +773,25 @@ original wording said *"after any edit, verify by absolute path"*, which is too 
 is relying on the working directory at all**, and it bites reads, writes and checks alike. **The
 remedy is mechanical and therefore reliable; vigilance is neither.**
 
+**READING A DOCUMENT'S SECTION HEADERS IS NOT READING THE DOCUMENT, AND DECLARING IT BINDING IS A CLAIM ABOUT ITS CONTENT (added 2026-08-16, found by the P7.0 implementer).**
+`BRIEF_21` §2 asserted that binding the shipped `pkw` vType achieves CityFlow/SUMO parity and that its
+`maxSpeed` was *"exactly CityFlow's speed"*. **Both false.** `flow.json` says **11.11**, not 11.111;
+and **`docs/notes/P7.0_vtype_investigation.md`, dated 2026-08-04 and measured on SUMO 1.27.1, records
+that binding `pkw` alone is a +0.6 % effect while adding CityFlow's `tau = 2.0` is +49 % with −23 %
+arrivals** — because the shipped `pkw` sets no `tau`. **Followed literally, the brief would have
+carried a ~50 % headway confound into the gate and descoped C3 on an artifact — the exact failure §2
+was written to prevent, one parameter over.**
+**Two distinct errors, and the second is the transferable one.**
+1. **I never opened `docs/notes/P7.0_vtype_investigation.md`** — a dated, measured note whose entire
+   subject is the question §2 answered wrongly. **Before writing a brief section about a topic, grep
+   `docs/notes/` for it; this project writes notes precisely so a later session does not re-derive
+   them badly.**
+2. 🚨 **I declared `BRIEF_04` §3 "still binding" having read only its SECTION HEADERS.** My audit ran
+   `grep -n "^## "` over it and nothing more. §3 lists `tau`/`headwayTime` **first** among the matched
+   parameters — so **the brief contradicted, in §2, the contract it declared binding in §0.**
+   **Declaring another document binding is a claim about its content, and it must be read to the depth
+   you are relying on.** A table of contents is not evidence.
+
 **A REGISTERED VALUE CAN BE UNRUNNABLE AND STAY UNNOTICED, BECAUSE THE CODE THAT WOULD REJECT IT NEVER RAN (added 2026-08-14, found by the P4.7 implementer during exploration).**
 `docs/plans/p4.6.md` declared all three mixture tiers at `target_rtg = −5762.0`, `rtg_scale = 40294.0`
 — derived from the **union** of both components' full splits — while

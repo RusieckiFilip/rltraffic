@@ -35,8 +35,27 @@ scenarios/hangzhou_1x1_bc-tyc_18041610_1h/…rou.xml
   vType declarations: 1 · vehicles: 2021 · vehicles carrying type=: 0
 ```
 
-**The correct vType is already there, with `maxSpeed="11.111"` — exactly CityFlow's speed. Nothing
-references it.** For contrast, `scenarios/cologne1/cologne1.rou.xml` is natively authored and **2015 of
+🚨 **CORRECTED 2026-08-16 BY THE P7.0 IMPLEMENTER — THE TWO SENTENCES THAT STOOD HERE WERE WRONG AND
+WOULD HAVE CARRIED A ~50 % CONFOUND INTO THE GATE.** They read: *"The correct vType is already there,
+with `maxSpeed="11.111"` — exactly CityFlow's speed"*, and *"the defect is one attribute"*.
+**Both are false against the repo, which wins:**
+1. **`flow.json` says `maxSpeed: 11.11`, not `11.111`.** Physically negligible; *"exactly"* is not.
+2. 🚨 **BINDING THE SHIPPED `pkw` DOES NOT ACHIEVE PARITY, and the repo has said so in a dated,
+   measured note since 2026-08-04.** `docs/notes/P7.0_vtype_investigation.md` records that the shipped
+   `pkw` **does not set `tau`**, that binding it alone moves travel time **+0.6 %**, and that adding
+   CityFlow's **`tau = 2.0`** moves it **+49 %** with **−23 % arrivals**. CityFlow's `flow.json` carries
+   `headwayTime: 2.0` against SUMO's default `tau = 1.0`. **`BRIEF_04` §3 — which §0 of this brief
+   declares still binding — lists `tau`/`headwayTime` FIRST among the matched parameters.**
+> **BINDING: the bound vType is a PARITY vType carrying `BRIEF_04` §3's full contract — `tau = 2.0`,
+> `speedFactor = 1.0`, `maxSpeed = 11.11`, `sigma` left native and declared unmatchable — NOT a copy of
+> the shipped `pkw`.** It takes a **distinct id** so one name never means two things in two files, and
+> the mechanical check strengthens accordingly: every `type=` must equal the parity id, and the emitted
+> `<vType>` attributes must equal a committed parity artifact which must equal `flow.json`.
+⚠️ **Why this correction is the whole point rather than a detail: followed literally, this section
+would have descoped C3 on a headway artifact — the exact failure it was written to prevent, one
+parameter over.**
+
+For contrast, `scenarios/cologne1/cologne1.rou.xml` is natively authored and **2015 of
 its vehicles carry `type=`**.
 
 > **REQUIRED, as the FIRST commit and before any measurement: bind the vType.** Every `<vehicle>` in
