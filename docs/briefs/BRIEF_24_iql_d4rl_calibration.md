@@ -2,7 +2,12 @@
 
 **Mode:** Claude Code · **Branch:** `task/p8.2-iql-calibration`, from `main`
 **Worktree:** fresh — `git worktree add /home/filip/rltraffic-p82 -b task/p8.2-iql-calibration main`
-**Runs in PARALLEL with P5.1. ⚠️ DEADLINE: the result must exist BEFORE P5.2 starts.**
+⚠️ **SCHEDULING CORRECTED 2026-08-17 — this does NOT run concurrently with P5.1's campaign.**
+**It runs in the window between P5.1's Gate 1 and Gate 2.** P5.1's campaign is **~13 h on the same
+GPU**, and running both at once makes **both sets of timings uninterpretable in a project that reports
+training seconds as artifacts** (`p*_training.json` carries them; P4.6's brief budgeted from measured
+`s/episode`). ⚠️ **The real deadline is the start of P5.2, not P5.1** — P5.1 is a DT-architecture
+question and does not consume IQL, whereas **P5.2 inherits it as a baseline.**
 **Read first:** `PROJECT_PLAN` **§1b (R3, R5)**, `docs/reviews/P4.6.md`, `docs/reviews/P4.7.md`.
 
 ⚠️ Absolute paths · pin threads · no traffic simulator is needed anywhere in this task.

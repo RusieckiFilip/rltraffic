@@ -46,6 +46,38 @@ Record the known baseline and fail only on a **regression against it** — and *
 check works by introducing a synthetic violation and showing CI go red.** A green badge that cannot go
 red is the decoration this project has already caught twice.
 
+### 3.1 🚨 THE SKIP COUNT IS PART OF THE RESULT, OR THIS SHIPS AS DECORATION
+
+**A clean GitHub runner has no corpus and no SUMO, so corpus- and backend-gated tests skip silently.**
+**A green CI would then mean *"what could run, ran"*, not *"the suite passed"*** — and that is §7's own
+rule, *a clean result must name its corpus*, applied to the one place nobody reads the output carefully.
+
+**Measured by the coordinator, 2026-08-17, so the ceiling is a number and not a guess:**
+
+| condition | result |
+|---|---|
+| corpus present (dev machine) | **923 passed, 3 skipped** |
+| corpus **absent** — the runner's condition, simulated by pointing the vars at a nonexistent path | **898 passed, 28 skipped** |
+
+> **25 tests stop running and nothing says so.** ⚠️ **And that measurement still had SUMO and `traci`
+> installed — 14 test files reference them — so a real runner's floor is HIGHER than 28 and must be
+> measured on the runner itself.**
+
+⚠️ **Note the trap I hit while measuring: UNSETTING `RLTRAFFIC_CORPUS_V11` changes nothing on a machine
+where the corpus sits at the default path — the suite still returned 923/3.** **The gate is the
+DIRECTORY's absence, not the variable's**, so a local "I tested it without the env var" proves nothing
+about the runner.
+
+> **REQUIRED, all four:**
+> 1. **The workflow reports `passed` / `skipped` / `failed` counts as part of its RESULT**, not in
+>    scrollback — a job summary or an explicit echo of the tail.
+> 2. **A DECLARED skip ceiling, measured on the runner's first green run and committed**, with the
+>    reason for each skipped test recorded (`pytest -rs`).
+> 3. **Exceeding the ceiling FAILS the job.** Otherwise the first time someone breaks the corpus env
+>    vars, CI goes green and stays green.
+> 4. **Prove it: raise a synthetic skip above the ceiling and show the job go RED.** A ceiling nobody
+>    has seen enforced is the same decoration as a guard nobody has seen fail.
+
 ⚠️ **`.github/` is not in `FROZEN_PATTERNS`** — verified — so this needs no authorisation. **`scripts/`
 is frozen: do not edit a guard.**
 
