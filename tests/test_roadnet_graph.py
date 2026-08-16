@@ -279,6 +279,111 @@ def test_a_grid_automorphism_leaves_the_matrix_identical_so_the_order_must_be_ca
 # ----------------------------------------------------------------------
 
 
+# ----------------------------------------------------------------------
+# A ONE-WAY network: on grid4x4 the directed relation is already symmetric, so
+# "undirected = directed | directed.T" is an EQUIVALENT MUTANT there (measured -- it
+# survives all 27 grid4x4 tests).  Same family as DEFERRED 37: equivalent on today's
+# data, live on tomorrow's.  This fixture makes it live now.
+# ----------------------------------------------------------------------
+
+
+def _one_way_roadnet(path: Path) -> tuple[str, ...]:
+    """Write a minimal roadnet with a single one-way road ``X -> Y``; return the node order.
+
+    ``W`` and ``Z`` are boundary nodes carrying ``gt_virtual`` so the frozen parser skips them,
+    exactly as grid4x4's 16 boundary nodes are skipped.  ``X`` feeds ``Y`` and nothing feeds ``X``
+    from ``Y``, so the directed relation is asymmetric by construction.
+    """
+
+    def road(rid: str, start: str, end: str) -> dict:
+        return {
+            "id": rid,
+            "startIntersection": start,
+            "endIntersection": end,
+            "points": [{"x": 0.0, "y": 0.0}, {"x": 100.0, "y": 0.0}],
+            "lanes": [{"width": 4.0, "maxSpeed": 11.11}],
+        }
+
+    def controllable(iid: str, start_road: str, end_road: str) -> dict:
+        return {
+            "id": iid,
+            "point": {"x": 0.0, "y": 0.0},
+            "width": 10.0,
+            "roads": [start_road, end_road],
+            "roadLinks": [
+                {
+                    "startRoad": start_road,
+                    "endRoad": end_road,
+                    "laneLinks": [{"startLaneIndex": 0, "endLaneIndex": 0}],
+                }
+            ],
+            "trafficLight": {"roadLinkIndices": [0], "lightphases": [{"time": 30.0,
+                                                                     "availableRoadLinks": [0]}]},
+            "virtual": False,
+            "gt_virtual": False,
+        }
+
+    def boundary(iid: str) -> dict:
+        return {"id": iid, "point": {"x": 0.0, "y": 0.0}, "width": 0.0, "roads": [],
+                "roadLinks": [], "trafficLight": {"roadLinkIndices": [], "lightphases": []},
+                "virtual": False, "gt_virtual": True}
+
+    payload = {
+        "intersections": [
+            controllable("X", "WX", "XY"),
+            controllable("Y", "XY", "YZ"),
+            boundary("W"),
+            boundary("Z"),
+        ],
+        "roads": [road("WX", "W", "X"), road("XY", "X", "Y"), road("YZ", "Y", "Z")],
+    }
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return ("X", "Y")
+
+
+def test_on_a_one_way_network_the_directed_relation_is_asymmetric(tmp_path):
+    roadnet = tmp_path / "one_way_roadnet.json"
+    nodes = _one_way_roadnet(roadnet)
+    spec = adjacency_from_roadnet_file(roadnet, nodes)
+
+    assert spec.directed_edges() == frozenset({("X", "Y")})
+    assert not spec.is_symmetric
+    assert not np.array_equal(spec.directed, spec.directed.T)
+
+
+def test_the_undirected_relation_really_is_the_symmetrisation(tmp_path):
+    """Kills the ``undirected = directed`` mutant, which grid4x4 alone cannot kill."""
+    roadnet = tmp_path / "one_way_roadnet.json"
+    nodes = _one_way_roadnet(roadnet)
+    spec = adjacency_from_roadnet_file(roadnet, nodes)
+
+    assert np.array_equal(spec.undirected, spec.directed | spec.directed.T)
+    assert not np.array_equal(spec.undirected, spec.directed)
+    assert spec.undirected_edges() == frozenset({frozenset({"X", "Y"})})
+    # Both nodes see each other once the relation is symmetrised; only X sees Y before it.
+    assert spec.degrees() == {"X": 1, "Y": 1}
+    assert int(spec.directed[1].sum()) == 0
+
+
+def test_the_mixing_mask_is_symmetric_even_on_a_one_way_network(tmp_path):
+    """Coordination information flows both ways; the mask must not inherit the road direction."""
+    roadnet = tmp_path / "one_way_roadnet.json"
+    nodes = _one_way_roadnet(roadnet)
+    mask = adjacency_from_roadnet_file(roadnet, nodes).attention_mask(spatial_mixing=True)
+
+    assert np.array_equal(mask, mask.T)
+    assert np.array_equal(mask, np.ones((2, 2), dtype=bool))
+
+
+def test_the_roads_route_agrees_on_a_one_way_network_too(tmp_path):
+    roadnet = tmp_path / "one_way_roadnet.json"
+    nodes = _one_way_roadnet(roadnet)
+    spec = adjacency_from_roadnet_file(roadnet, nodes)
+
+    assert spec.directed_edges() == _roads_route(roadnet, nodes)
+    assert assert_reproduces_from_roads(spec)["directed_edges"] == 1
+
+
 def test_a_node_set_that_is_not_the_controllable_set_is_refused():
     roadnet = parse_roadnet(GRID4X4_ROADNET)
     with pytest.raises(ValueError, match="not the roadnet's controllable set"):
