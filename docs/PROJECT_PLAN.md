@@ -828,6 +828,23 @@ untested no matter how carefully it was written.** A guard cannot reject what ne
 **Action carried into P4.7:** audit whether any other declaration in `p4.6.md` or `p4.7.md` describes a
 path with no execution behind it.
 
+**A RULE ATTACHED TO AN ACTION MUST TRAVEL WITH THE ACTION WHEN THE ACTION IS DELEGATED (added 2026-08-16, found by the user while retiring P7.0's worktree).**
+The 2026-08-11 rule says *check a worktree's IGNORED artifacts before retiring it*. **I applied it
+myself for P4.6's and P4.7's worktrees — and then handed P7.0's retirement to the user as a bare
+`git worktree remove`, with the check nowhere in the instruction.** The user ran it anyway and found
+what my enumeration had missed: **`output/p7_0/` held the 30 raw `.npz` episodes and their 6 manifests
+across six policy × backend directories**, and `docs/data/p7_0_gate.json` carries **the results but not
+the inputs**. Secured before removal; **36/36 verified in both directions**, the reverse leg only
+possible because the worktree still existed.
+**The failure is not that the rule was forgotten — it is that the rule was attached to ME doing the
+thing, and I checked P7.0's four EXISTING manifests without asking whether P7.0 had produced a fifth.**
+> **Two forms, both binding. (i) Any handover of an action carries that action's checks IN THE
+> INSTRUCTION, not in the coordinator's memory. (ii) After every task that writes to `output/`, ask
+> whether it produced a NEW artifact directory — verifying the manifests that already exist cannot
+> detect the one that does not.**
+⚠️ **Note what saved it: the reverse-direction check (originals against the copy's manifest) is only
+available BEFORE removal, so "secure it, then retire" is not interchangeable with "retire, then notice".**
+
 **A COMMIT IS A LOCAL ACT. NO TASK IS CLOSED UNTIL `git rev-parse HEAD == git rev-parse origin/main` IS PASTED (added 2026-08-14, found by the user — THIRD instance of one class in three days).**
 **Found by the user, not by me: `git status -sb` read `[ahead 28]` while `origin/main` still sat at
 `cacf5f8`, the pre-campaign commit.** Everything since existed **only on this laptop** — the P4.6
@@ -1342,9 +1359,13 @@ forgotten rather than parked.
   NOWHERE ELSE.** **180 checkpoints, counted 2026-08-15:** `p4_dt` **5** · `p4_4` **15** · `p4_5` **20**
   · `p4_6` **80** · `p4_7` **60**, plus `p4_3`'s ten grid artifacts, P4.6's 18 and P4.7's 15 evaluation
   cells, and every raw evaluation JSON.
-  **Integrity, all FOUR re-verified AFTER the removals and from `output/` itself (§7 rule 3b):**
+  ⭐ **AND P7.0's RAW EVIDENCE, which the first enumeration MISSED:** `output/p7_0/` holds the **30 raw
+  `.npz` episodes and their 6 manifests** across six policy × backend directories (`cityflow__` and
+  `sumo__` × `random`/`fixedtime`/`maxpressure`), **812 KB**. ⚠️ **`docs/data/p7_0_gate.json` carries the
+  RESULTS but not the INPUTS** — without this directory P7.0's gate is unreproducible.
+  **Integrity, all FIVE re-verified from `output/` itself (§7 rule 3b):**
   `SHA256SUMS_p4_3.txt` **10/10** · `SHA256SUMS_p4_4_p4_5.txt` **44/44** · `SHA256SUMS_p4_6.txt`
-  **125/125** · `SHA256SUMS_p4_7.txt` **112/112**. P4.6's and P4.7's copies were additionally proved
+  **125/125** · `SHA256SUMS_p4_7.txt` **112/112** · `SHA256SUMS_p7_0.txt` **36/36**. P4.6's and P4.7's copies were additionally proved
   byte-faithful by checking the **originals** against the manifest built from the **copy** — the
   direction that detects a corrupted copy. ⚠️ **DO NOT DELETE `output/`.**
   🚨 **AND THE EXPOSURE NAMED ON 2026-08-14 IS STILL OPEN: `output/` is gitignored, so none of this is
