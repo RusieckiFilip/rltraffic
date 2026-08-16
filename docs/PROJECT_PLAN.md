@@ -773,6 +773,24 @@ original wording said *"after any edit, verify by absolute path"*, which is too 
 is relying on the working directory at all**, and it bites reads, writes and checks alike. **The
 remedy is mechanical and therefore reliable; vigilance is neither.**
 
+**AN ALIGNMENT CONVENTION IS A LOAD-BEARING ASSUMPTION. WHENEVER TWO SYSTEMS ARE COMPARED, THE KEY THAT PAIRS THEM MUST BE TESTED, NEVER ASSUMED (added 2026-08-16, found by the P7.0 implementer).**
+P7.0's plan registered a per-feature comparison *"aligned by lane id"*. **That rests on a premise
+nobody stated: that a lane id denotes the same physical lane in both backends. It does not.** Verified
+by the coordinator from the network files alone, **with no result in hand**:
+`CityFlow road_0_1_0 lane _0 = turn_left, lane _1 = go_straight`; `SUMO road_0_1_0 lane _0 = "s",
+lane _1 = "l"` — **exactly inverted, on all four incoming roads. 8 of 8 lane ids mis-denote, so the
+registered table compared a LEFT-TURN lane against a THROUGH lane.** Its `min OVL = 0.0554` measured
+turning-versus-through traffic, **not a dynamics shift**, and would have descoped C3 on an indexing
+convention — `BRIEF_21` §2's own warning, one level above the vType it was written about.
+**This is §7's 2026-08-12 rule — *a registered criterion can silently measure something other than what
+it was named for* — recurring, and it is the second time in two days that a registered thing rested on
+an untested premise** (the other: a declared value on a path that never ran).
+> **Binding, and it generalises past this task: any cross-system comparison must PROVE its pairing key
+> before using it, and the proof must be derivable from structure alone — network files, schemas,
+> manifests — never from the results being compared.** `DEFERRED` 23 anticipated this at intersection
+> level and **understated it**: P7.0 found the same class at LANE level, and at intersection level
+> found that **neither ids nor positions are a valid cross-backend key.**
+
 **READING A DOCUMENT'S SECTION HEADERS IS NOT READING THE DOCUMENT, AND DECLARING IT BINDING IS A CLAIM ABOUT ITS CONTENT (added 2026-08-16, found by the P7.0 implementer).**
 `BRIEF_21` §2 asserted that binding the shipped `pkw` vType achieves CityFlow/SUMO parity and that its
 `maxSpeed` was *"exactly CityFlow's speed"*. **Both false.** `flow.json` says **11.11**, not 11.111;
