@@ -19,6 +19,44 @@ git show v0.1-prereg:PREREGISTRATION.md | sha256sum # must equal it
 git log -1 --format=%cI v0.1-prereg^{commit}       # commit timestamp
 ```
 
+### ⭐ EXTERNAL TIMESTAMP — RECORD DOI (deposited 2026-08-16)
+
+> **DOI `10.5281/zenodo.21968773`** · <https://zenodo.org/records/21968773>
+> **This is the RECORD DOI, not a concept DOI** — it carries a fixed date and resolves to this exact
+> deposit rather than to a moving "latest version".
+
+**What was deposited: `PREREGISTRATION.md` ALONE — deliberately not the repository.** The
+GitHub–Zenodo release integration would archive the whole tagged tree, including **188.9 MB of
+`scenarios/`** whose redistribution rights `PROJECT_PLAN` **P2.3** records as unaudited, under this
+repo's MIT licence and with a permanent DOI attached. **A DOI cannot be withdrawn once cited.** The
+integration stays off until P2.3's audit is done (ruling, `PROJECT_PLAN` §8, 2026-08-16).
+
+**Correspondence, verified by effect on 2026-08-16 and checkable from either side:**
+
+| | value |
+|---|---|
+| Zenodo upload md5 | `2c045cb2491e940f09d75d350921d874` |
+| `md5sum PREREGISTRATION.md` (working tree at deposit time) | **identical** |
+| `git show v1.0-prereg-a9:PREREGISTRATION.md \| md5sum` | **identical** |
+| annotated **tag object** | `3eaff47c3e717ab02d5e43a1c396dbd028753daa` |
+| **commit** it points to (`v1.0-prereg-a9^{}`) | `4200a97ce6f874caa3fd3720bf757d67e4eda5d6` |
+
+⚠️ **The two hashes are different object TYPES and must not be interchanged** — `git cat-file -t` on
+the first returns `tag`, on the second `commit`. Both are pushed to the public remote.
+
+⚠️ **SELF-REFERENCE, stated rather than hidden, and it is the same fixed-point problem as the sha256
+above: this subsection did not exist in the deposited file.** The deposit is of the file as it stood at
+`v1.0-prereg-a9`, whose md5 is recorded in the table above. **Verify against the tag, never against the
+working tree**, and expect the working tree to differ by exactly this block and any later amendment.
+
+**What the DOI discharges, and what it does not.** It closes the gap this section names — a local tag
+is not a third-party timestamp, and the deposit is one under an institution's control. ⚠️ **It does
+NOT discharge `PROJECT_PLAN` §9's scoop risk**, whose registered mitigation names **arXiv**
+specifically. **Registration priority and priority of results are different risks and the record keeps
+them apart deliberately.**
+
+---
+
 **What this proves.** That the content of this document is exactly what it was when the tag was made,
 and that it precedes — in the repository's history — every commit that produces corpus or results.
 Any later edit to this file changes its hash and is visible as a diff against the tag.
