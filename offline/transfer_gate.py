@@ -10,16 +10,29 @@ Artifact format version
 
 What is compared, and the alignment convention that makes it meaningful
 -----------------------------------------------------------------------
-⚠️ **Lane features are aligned by LANE ID, never by position, and this is not
-defensive coding.**  Measured 2026-08-16: ``utils/cityflow_utils.py`` appends an
-intersection's ``incoming_lanes`` in roadLinks/laneLinks discovery order, whose first
-entry for hangzhou's ``intersection_1_1`` is ``road_0_1_0_1``; ``utils/sumo_utils.py``
-stores ``sorted(incoming_lanes)``, whose first entry is ``road_0_1_0_0``.  **A
-positional comparison would silently compare different lanes in the two backends** --
-`DEFERRED` 23's failure class, one level below the intersection keying that row is
-about.  The corpus's own lane arrays are keyed by a sorted ``lane_ids`` vector, so
-reading them by id is both correct and cheap; the per-intersection ``state`` vector is
-the artifact that carries the mismatch, and the gate reports that rather than using it.
+⚠️ **The registered alignment is BY MOVEMENT, not by lane id and not by position.**
+Each CityFlow incoming lane is compared against the SUMO lane **on the same road
+serving the same movement set**.  See :data:`ALIGNMENT_STANDING`.
+
+**The history matters more than the rule, because the rule is only correct in the
+light of it.**  This module first aligned by lane **id**, on the argument -- true as
+far as it went -- that ``utils/cityflow_utils.py`` appends ``incoming_lanes`` in
+roadLinks discovery order while ``utils/sumo_utils.py`` stores ``sorted(...)``, so a
+**positional** read would compare different lanes.  That fixed the ordering and left a
+deeper premise untested: **that a lane id denotes the same physical lane in both
+backends.**  On this scenario it does not -- CityFlow's ``road_X_0`` carries the
+``turn_left`` roadLink while SUMO's ``road_X_0`` carries ``dir="s"``, on all four
+incoming roads, because SUMO indexes lanes right-to-left and CityFlow left-to-right.
+The by-id reading compared a left-turn lane against a through lane and is **VOID**.
+
+⚠️ **The general rule this produced, now `PROJECT_PLAN` section 7's newest:** *any
+cross-system comparison must prove its pairing key from structure alone, before using
+it.*  Here that proof is :func:`lane_semantic_correspondence`, which reads only the
+``type``/``dir`` attributes and refuses anything but a unique match.
+
+The per-intersection ``state`` vector carries the same defect and is **worse than a
+permutation**: sorting its lanes does not repair it, because the labels themselves
+denote different movements.  The gate reports that and does not use it.
 
 Both statistics are exact rationals
 -----------------------------------
@@ -115,12 +128,42 @@ CRITERION_SCALES: Mapping[str, str] = {
 }
 
 
+#: The three alignments, and their standing after the 2026-08-16 re-registration.
+ALIGNMENT_BY_LANE_ID = "by_lane_id"
+ALIGNMENT_BY_MOVEMENT = "by_movement"
+ALIGNMENT_ROAD_LEVEL = "road_level"
+
+ALIGNMENT_STANDING: Mapping[str, str] = {
+    ALIGNMENT_BY_LANE_ID: (
+        "VOID -- not unfavourable, VOID. A lane id denotes a different physical lane "
+        "in the two backends on this scenario (CityFlow lane _0 is turn_left, SUMO "
+        "lane _0 is dir='s'), so this reading compares a left-turn lane against a "
+        "through lane and is not a measurement of dynamics shift at all. It yields NO "
+        "branch: not B, and not C either, because branch C is a valid instrument "
+        "landing in the middle band and this is an invalid instrument."
+    ),
+    ALIGNMENT_BY_MOVEMENT: (
+        "REGISTERED (coordinator ruling, 2026-08-16; docs/plans/p7.0.md section 11). "
+        "The only reading that compares like with like at lane granularity. The "
+        "correspondence is derived from the type/dir attributes alone, which is "
+        "establishable with no result in hand."
+    ),
+    ALIGNMENT_ROAD_LEVEL: (
+        "DIAGNOSTIC, deliberately not promoted: invariant to the numbering convention "
+        "but coarser, and its 8 features do not map onto thresholds written for 16."
+    ),
+}
+
+
 @dataclass(frozen=True)
 class FeatureComparison:
     """One row of the per-feature table. **Never pooled with another row.**
 
     Pooling is what would hide a single catastrophic feature inside an average, which
     is why ``BRIEF_21`` section 4 forbids it and why criterion B2 is a minimum.
+
+    ``lane_id`` is the CityFlow lane; ``sumo_lane`` is the lane it is compared against,
+    which is **not** the same string under the registered movement-paired alignment.
     """
 
     feature: str
@@ -132,6 +175,8 @@ class FeatureComparison:
     overlap_coefficient: float
     mean_cityflow: float
     mean_sumo: float
+    sumo_lane: str = ""
+    turns: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -164,12 +209,21 @@ class CriterionRow:
 
 @dataclass(frozen=True)
 class BranchVerdict:
-    """The gate's reading. It names a branch; it does not act on one."""
+    """The gate's reading. It names a branch; it does not act on one.
+
+    ``non_firing_ranked`` is the full ascending ranking of non-firing criteria by
+    ``abs(relative_distance)``, reported rather than a single tie-broken winner:
+    on this scenario ``B2`` and ``A3max`` sit at the same distance for a structural
+    reason (both extrema come from the same feature, on which ``OVL + KS == 1.0``,
+    and their two thresholds also sum to 1.0), and a lone ``nearest_non_firing``
+    would hide one of them behind a float tie-break.
+    """
 
     branch: str
     firing_criteria: tuple[str, ...]
     failed_a_criteria: tuple[str, ...]
     nearest_non_firing: str | None
+    non_firing_ranked: tuple[tuple[str, float], ...]
     rows: tuple[CriterionRow, ...]
 
 
@@ -281,14 +335,35 @@ def compare_lane_features(
     cityflow_episodes: Sequence[Any],
     sumo_episodes: Sequence[Any],
     lane_ids: Sequence[str],
+    correspondence: Mapping[str, str] | None = None,
+    turns: Mapping[str, frozenset[str]] | None = None,
 ) -> list[FeatureComparison]:
-    """The per-feature table: one row per (lane array, lane id). Never pooled."""
+    """The per-feature table: one row per (lane array, CityFlow lane). Never pooled.
+
+    ``correspondence`` maps each CityFlow lane to the SUMO lane it is compared against.
+    ``None`` means the identity, which is the **VOID** by-lane-id reading on this
+    scenario: see :data:`ALIGNMENT_STANDING`.  The registered reading passes the
+    movement-paired correspondence explicitly, because a lane id is not a valid
+    cross-backend key here and defaulting to one silently would be the defect this
+    task exists to have found.
+    """
+    mapping = (
+        {str(lane): str(lane) for lane in lane_ids}
+        if correspondence is None
+        else {str(k): str(v) for k, v in correspondence.items()}
+    )
+    missing = [str(lane) for lane in lane_ids if str(lane) not in mapping]
+    if missing:
+        raise KeyError(f"the correspondence does not cover {missing}")
+
     rows: list[FeatureComparison] = []
     for array_name in LANE_ARRAYS:
         left = lane_feature_samples(cityflow_episodes, array_name, lane_ids)
-        right = lane_feature_samples(sumo_episodes, array_name, lane_ids)
+        right = lane_feature_samples(
+            sumo_episodes, array_name, sorted({mapping[str(lane)] for lane in lane_ids})
+        )
         for lane_id in lane_ids:
-            x, y = left[str(lane_id)], right[str(lane_id)]
+            x, y = left[str(lane_id)], right[mapping[str(lane_id)]]
             rows.append(
                 FeatureComparison(
                     feature=f"{array_name}@{lane_id}",
@@ -300,6 +375,8 @@ def compare_lane_features(
                     overlap_coefficient=overlap_coefficient(x, y),
                     mean_cityflow=float(np.mean(x)),
                     mean_sumo=float(np.mean(y)),
+                    sumo_lane=mapping[str(lane_id)],
+                    turns=tuple(sorted((turns or {}).get(str(lane_id), ()))),
                 )
             )
     return rows
@@ -474,16 +551,17 @@ def evaluate_branch(
     candidates = [
         r for r in rows if not r.fired and r.relative_distance is not None
     ]
-    nearest = (
-        min(candidates, key=lambda r: abs(float(r.relative_distance))).criterion
-        if candidates
-        else None
+    ranked = tuple(
+        (r.criterion, abs(float(r.relative_distance)))
+        for r in sorted(candidates, key=lambda r: abs(float(r.relative_distance)))
     )
+    nearest = ranked[0][0] if ranked else None
     return BranchVerdict(
         branch=branch,
         firing_criteria=firing,
         failed_a_criteria=failed_a,
         nearest_non_firing=nearest,
+        non_firing_ranked=ranked,
         rows=tuple(rows),
     )
 
@@ -632,29 +710,7 @@ def diagnose_lane_convention(
                 }
             )
 
-    semantic_rows: list[dict[str, Any]] = []
-    for array_name in LANE_ARRAYS:
-        left = lane_feature_samples(cityflow_episodes, array_name, lane_ids)
-        right = lane_feature_samples(
-            sumo_episodes, array_name, sorted(set(mapping.values()))
-        )
-        for lane_id in lane_ids:
-            x, y = left[str(lane_id)], right[mapping[str(lane_id)]]
-            semantic_rows.append(
-                {
-                    "feature": f"{array_name}@{lane_id}",
-                    "cityflow_lane": str(lane_id),
-                    "sumo_lane": mapping[str(lane_id)],
-                    "turns": sorted(cf_turns[str(lane_id)]),
-                    "ks_statistic": ks_statistic(x, y),
-                    "overlap_coefficient": overlap_coefficient(x, y),
-                    "mean_cityflow": float(np.mean(x)),
-                    "mean_sumo": float(np.mean(y)),
-                }
-            )
-
     return {
-        "is_a_diagnostic_not_a_gate_input": True,
         "cityflow_lane_turns": {k: sorted(v) for k, v in sorted(cf_turns.items())},
         "sumo_lane_turns": {
             k: sorted(v) for k, v in sorted(su_turns.items()) if k in set(mapping.values())
@@ -663,7 +719,7 @@ def diagnose_lane_convention(
         "identity_correspondence": all(k == v for k, v in mapping.items()),
         "lanes_whose_id_denotes_a_different_physical_lane": reversed_ids,
         "road_level": road_rows,
-        "semantic_per_feature": semantic_rows,
+        "road_level_standing": ALIGNMENT_STANDING[ALIGNMENT_ROAD_LEVEL],
     }
 
 
@@ -787,6 +843,99 @@ def metric_set_independence(
 # ----------------------------------------------------------------------
 
 
+def green_action_lane_sets(intersection: Any) -> list[dict[str, Any]]:
+    """For each green ACTION index, the incoming lanes that action releases.
+
+    Under ``acyclic`` control an action selects the a-th green phase, greens being the
+    phases whose file duration exceeds ``TRANSITION_PHASE_MAX_DURATION`` -- the same
+    rule ``AcyclicPhases`` and ``green_action_phases`` both apply.  Resolving the
+    action to the SET OF LANES IT RELEASES is what makes "action a means the same
+    thing in both backends" checkable instead of assumed, and it is backend-neutral
+    even though the two file-phase vocabularies have different widths (9 against 16).
+    """
+    from envs.phase_control import TRANSITION_PHASE_MAX_DURATION
+
+    durations = list(getattr(intersection, "phase_durations", None) or [])
+    mapping = list(getattr(intersection, "phase_roadlink_mapping", None) or [])
+    roadlink_lanes = list(getattr(intersection, "roadlink_lanes", None) or [])
+    greens = [
+        p
+        for p in range(int(intersection.num_phases))
+        if p < len(durations) and float(durations[p]) > TRANSITION_PHASE_MAX_DURATION
+    ]
+    out: list[dict[str, Any]] = []
+    for action, phase in enumerate(greens):
+        lanes: set[str] = set()
+        for link_idx in mapping[phase] if phase < len(mapping) else []:
+            if 0 <= int(link_idx) < len(roadlink_lanes):
+                lanes.update(str(lid) for lid in roadlink_lanes[int(link_idx)][0])
+        out.append(
+            {
+                "action": action,
+                "file_phase": int(phase),
+                "released_incoming_lanes": sorted(lanes),
+            }
+        )
+    return out
+
+
+def compare_green_action_semantics(
+    cityflow_actions: Sequence[Mapping[str, Any]],
+    sumo_actions: Sequence[Mapping[str, Any]],
+    correspondence: Mapping[str, str],
+) -> dict[str, Any]:
+    """Does action ``a`` release the same physical lanes in both backends?
+
+    The SUMO lane set is translated into CityFlow names through the movement-paired
+    correspondence first, because comparing the raw names would repeat the very error
+    section 11 of the plan voids.
+    """
+    inverse = {str(v): str(k) for k, v in correspondence.items()}
+    rows: list[dict[str, Any]] = []
+    for action in range(max(len(cityflow_actions), len(sumo_actions))):
+        cf = (
+            sorted(cityflow_actions[action]["released_incoming_lanes"])
+            if action < len(cityflow_actions)
+            else None
+        )
+        raw = (
+            list(sumo_actions[action]["released_incoming_lanes"])
+            if action < len(sumo_actions)
+            else None
+        )
+        translated = (
+            sorted(inverse.get(lane, f"UNMAPPED:{lane}") for lane in raw)
+            if raw is not None
+            else None
+        )
+        rows.append(
+            {
+                "action": action,
+                "cityflow_file_phase": (
+                    cityflow_actions[action]["file_phase"]
+                    if action < len(cityflow_actions)
+                    else None
+                ),
+                "sumo_file_phase": (
+                    sumo_actions[action]["file_phase"]
+                    if action < len(sumo_actions)
+                    else None
+                ),
+                "cityflow_released_lanes": cf,
+                "sumo_released_lanes_raw": raw,
+                "sumo_released_lanes_in_cityflow_names": translated,
+                "sets_agree": cf is not None and translated is not None and cf == translated,
+            }
+        )
+    return {
+        "n_actions_cityflow": len(cityflow_actions),
+        "n_actions_sumo": len(sumo_actions),
+        "n_actions_agreeing": sum(1 for r in rows if r["sets_agree"]),
+        "all_actions_agree": bool(rows) and all(r["sets_agree"] for r in rows),
+        "rows": rows,
+    }
+
+
 def intersection_enumeration(backend: str, config_path: str | Path) -> dict[str, Any]:
     """``[ix.id for ix in env.intersections]`` plus each one's incoming-lane order.
 
@@ -815,6 +964,9 @@ def intersection_enumeration(backend: str, config_path: str | Path) -> dict[str,
                 for ix in env.intersections
             },
             "num_phases": {str(ix.id): int(ix.num_phases) for ix in env.intersections},
+            "green_action_lane_sets": {
+                str(ix.id): green_action_lane_sets(ix) for ix in env.intersections
+            },
         }
     finally:
         env.close()
@@ -1032,10 +1184,33 @@ def main(argv: Sequence[str] | None = None) -> int:
         "compared_lanes": shared,
     }
 
+    # --- the three readings, one REGISTERED, one VOID, one diagnostic -------------
+    # docs/plans/p7.0.md section 11 (coordinator ruling, 2026-08-16).
+    diagnostic = diagnose_lane_convention(
+        episodes_by_cell["cityflow__maxpressure"],
+        episodes_by_cell["sumo__maxpressure"],
+        shared,
+        parity.DECLARED_SCENARIO_DIR / "roadnet.json",
+        parity.DECLARED_SOURCE_NET,
+        ix_id,
+    )
+    correspondence = diagnostic["semantic_correspondence"]
+    cf_turns = cityflow_lane_turns(
+        parity.DECLARED_SCENARIO_DIR / "roadnet.json", ix_id
+    )
+
+    voided_features = compare_lane_features(
+        episodes_by_cell["cityflow__maxpressure"],
+        episodes_by_cell["sumo__maxpressure"],
+        shared,
+    )
+    # REGISTERED. This is the table the branch is computed from, and the only one.
     features = compare_lane_features(
         episodes_by_cell["cityflow__maxpressure"],
         episodes_by_cell["sumo__maxpressure"],
         shared,
+        correspondence,
+        cf_turns,
     )
 
     att = {key: cells[key]["att_horizon_mean"] for key in cells}
@@ -1067,18 +1242,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         seed=int(args.base_seed),
     )
 
-    # Additive, and it feeds nothing above: `evaluate_branch` has already run on the
-    # registered inputs by this point and is not consulted again.
-    diagnostic = diagnose_lane_convention(
-        episodes_by_cell["cityflow__maxpressure"],
-        episodes_by_cell["sumo__maxpressure"],
-        shared,
-        parity.DECLARED_SCENARIO_DIR / "roadnet.json",
-        parity.DECLARED_SOURCE_NET,
-        ix_id,
-    )
     n_rows = features[0].n_cityflow if features else 0
     m_rows = features[0].n_sumo if features else 0
+
+    green_semantics = compare_green_action_semantics(
+        cf_enum["green_action_lane_sets"][ix_id],
+        sumo_enum["green_action_lane_sets"].get(ix_id, []),
+        correspondence,
+    )
+    # Discriminating power for the table above: under the VOID identity key the same
+    # comparison must DISAGREE, or "all 8 actions agree" would be worth nothing.
+    green_semantics["identity_key_control"] = compare_green_action_semantics(
+        cf_enum["green_action_lane_sets"][ix_id],
+        sumo_enum["green_action_lane_sets"].get(ix_id, []),
+        {lane: lane for lane in shared},
+    )
 
     payload: dict[str, Any] = {
         "format_version": GATE_FORMAT_VERSION,
@@ -1123,7 +1301,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         },
         "cells": cells,
         "lane_alignment": lane_note,
+        "alignment_standing": dict(ALIGNMENT_STANDING),
+        "registered_alignment": ALIGNMENT_BY_MOVEMENT,
         "per_feature": [asdict(row) for row in features],
+        "voided_per_feature": {
+            "alignment": ALIGNMENT_BY_LANE_ID,
+            "standing": ALIGNMENT_STANDING[ALIGNMENT_BY_LANE_ID],
+            "yields_no_branch": True,
+            "rows": [asdict(row) for row in voided_features],
+        },
+        "green_action_semantics": green_semantics,
         "ks_noise_floor": {
             "pooled_n_cityflow": n_rows,
             "pooled_n_sumo": m_rows,
@@ -1148,9 +1335,22 @@ def main(argv: Sequence[str] | None = None) -> int:
         },
         "branch": {
             "branch": verdict.branch,
+            "computed_from_alignment": ALIGNMENT_BY_MOVEMENT,
+            "operational_meaning": (
+                "C3 is neither licensed nor descoped. CUT 3 of the 2026-08-14 "
+                "sequencing ruling does NOT fire. P5 is next regardless. BRIEF_21 "
+                "section 5 binds: a gate that returns 'unclear' and is read as "
+                "'proceed' is how a kill-switch stops being one."
+            )
+            if verdict.branch == "C"
+            else "see BRIEF_21 section 5 for what this branch licenses",
             "firing_criteria": list(verdict.firing_criteria),
             "failed_a_criteria": list(verdict.failed_a_criteria),
             "nearest_non_firing": verdict.nearest_non_firing,
+            "non_firing_ranked": [
+                {"criterion": name, "relative_distance": value}
+                for name, value in verdict.non_firing_ranked
+            ],
             "criterion_scales": dict(CRITERION_SCALES),
             "rows": [asdict(row) for row in verdict.rows],
         },
@@ -1167,9 +1367,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     }
 
     written = write_artifact(payload, args.artifact)
-    print(f"branch={verdict.branch} firing={list(verdict.firing_criteria)} "
-          f"failed_a={list(verdict.failed_a_criteria)} "
-          f"nearest_non_firing={verdict.nearest_non_firing}")
+    print(
+        f"branch={verdict.branch} (alignment={ALIGNMENT_BY_MOVEMENT}) "
+        f"firing={list(verdict.firing_criteria)} "
+        f"failed_a={list(verdict.failed_a_criteria)}"
+    )
+    for name, value in verdict.non_firing_ranked:
+        print(f"  non-firing {name:8s} relative distance {value:.6f}")
     print(f"wrote {written}")
     return 0
 

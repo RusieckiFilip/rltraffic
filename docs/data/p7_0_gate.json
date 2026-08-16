@@ -440,6 +440,12 @@
       "road_1_2_3_1"
     ]
   },
+  "alignment_standing": {
+    "by_lane_id": "VOID -- not unfavourable, VOID. A lane id denotes a different physical lane in the two backends on this scenario (CityFlow lane _0 is turn_left, SUMO lane _0 is dir='s'), so this reading compares a left-turn lane against a through lane and is not a measurement of dynamics shift at all. It yields NO branch: not B, and not C either, because branch C is a valid instrument landing in the middle band and this is an invalid instrument.",
+    "by_movement": "REGISTERED (coordinator ruling, 2026-08-16; docs/plans/p7.0.md section 11). The only reading that compares like with like at lane granularity. The correspondence is derived from the type/dir attributes alone, which is establishable with no result in hand.",
+    "road_level": "DIAGNOSTIC, deliberately not promoted: invariant to the numbering convention but coarser, and its 8 features do not map onto thresholds written for 16."
+  },
+  "registered_alignment": "by_movement",
   "per_feature": [
     {
       "feature": "lane_vehicle_count@road_0_1_0_1",
@@ -447,10 +453,14 @@
       "lane_id": "road_0_1_0_1",
       "n_cityflow": 1805,
       "n_sumo": 1805,
-      "ks_statistic": 0.450415512465374,
-      "overlap_coefficient": 0.49141274238227145,
+      "ks_statistic": 0.2659279778393352,
+      "overlap_coefficient": 0.5573407202216066,
       "mean_cityflow": 24.213296398891966,
-      "mean_sumo": 15.240443213296398
+      "mean_sumo": 27.76786703601108,
+      "sumo_lane": "road_0_1_0_0",
+      "turns": [
+        "s"
+      ]
     },
     {
       "feature": "lane_vehicle_count@road_0_1_0_0",
@@ -458,10 +468,14 @@
       "lane_id": "road_0_1_0_0",
       "n_cityflow": 1805,
       "n_sumo": 1805,
-      "ks_statistic": 0.942382271468144,
-      "overlap_coefficient": 0.057617728531855955,
+      "ks_statistic": 0.4659279778393352,
+      "overlap_coefficient": 0.5119113573407202,
       "mean_cityflow": 7.847645429362881,
-      "mean_sumo": 27.76786703601108
+      "mean_sumo": 15.240443213296398,
+      "sumo_lane": "road_0_1_0_1",
+      "turns": [
+        "l"
+      ]
     },
     {
       "feature": "lane_vehicle_count@road_1_0_1_1",
@@ -469,10 +483,14 @@
       "lane_id": "road_1_0_1_1",
       "n_cityflow": 1805,
       "n_sumo": 1805,
-      "ks_statistic": 0.2770083102493075,
-      "overlap_coefficient": 0.643213296398892,
+      "ks_statistic": 0.2515235457063712,
+      "overlap_coefficient": 0.6343490304709142,
       "mean_cityflow": 23.39612188365651,
-      "mean_sumo": 16.6393351800554
+      "mean_sumo": 26.755124653739614,
+      "sumo_lane": "road_1_0_1_0",
+      "turns": [
+        "s"
+      ]
     },
     {
       "feature": "lane_vehicle_count@road_1_0_1_0",
@@ -480,10 +498,14 @@
       "lane_id": "road_1_0_1_0",
       "n_cityflow": 1805,
       "n_sumo": 1805,
-      "ks_statistic": 0.9445983379501385,
-      "overlap_coefficient": 0.055401662049861494,
+      "ks_statistic": 0.5091412742382272,
+      "overlap_coefficient": 0.4698060941828255,
       "mean_cityflow": 8.301939058171746,
-      "mean_sumo": 26.755124653739614
+      "mean_sumo": 16.6393351800554,
+      "sumo_lane": "road_1_0_1_1",
+      "turns": [
+        "l"
+      ]
     },
     {
       "feature": "lane_vehicle_count@road_2_1_2_1",
@@ -491,10 +513,14 @@
       "lane_id": "road_2_1_2_1",
       "n_cityflow": 1805,
       "n_sumo": 1805,
-      "ks_statistic": 0.592797783933518,
-      "overlap_coefficient": 0.3739612188365651,
+      "ks_statistic": 0.4121883656509695,
+      "overlap_coefficient": 0.5468144044321329,
       "mean_cityflow": 7.501385041551247,
-      "mean_sumo": 20.107479224376732
+      "mean_sumo": 16.61939058171745,
+      "sumo_lane": "road_2_1_2_0",
+      "turns": [
+        "s"
+      ]
     },
     {
       "feature": "lane_vehicle_count@road_2_1_2_0",
@@ -502,10 +528,14 @@
       "lane_id": "road_2_1_2_0",
       "n_cityflow": 1805,
       "n_sumo": 1805,
-      "ks_statistic": 0.17839335180055402,
-      "overlap_coefficient": 0.6614958448753463,
+      "ks_statistic": 0.0997229916897507,
+      "overlap_coefficient": 0.6105263157894737,
       "mean_cityflow": 19.285318559556785,
-      "mean_sumo": 16.61939058171745
+      "mean_sumo": 20.107479224376732,
+      "sumo_lane": "road_2_1_2_1",
+      "turns": [
+        "l"
+      ]
     },
     {
       "feature": "lane_vehicle_count@road_1_2_3_0",
@@ -513,10 +543,14 @@
       "lane_id": "road_1_2_3_0",
       "n_cityflow": 1805,
       "n_sumo": 1805,
-      "ks_statistic": 0.10027700831024931,
-      "overlap_coefficient": 0.6470914127423822,
+      "ks_statistic": 0.16066481994459833,
+      "overlap_coefficient": 0.6698060941828254,
       "mean_cityflow": 18.318559556786703,
-      "mean_sumo": 18.08365650969529
+      "mean_sumo": 20.726315789473684,
+      "sumo_lane": "road_1_2_3_1",
+      "turns": [
+        "l"
+      ]
     },
     {
       "feature": "lane_vehicle_count@road_1_2_3_1",
@@ -524,10 +558,14 @@
       "lane_id": "road_1_2_3_1",
       "n_cityflow": 1805,
       "n_sumo": 1805,
-      "ks_statistic": 0.6299168975069253,
-      "overlap_coefficient": 0.3174515235457064,
+      "ks_statistic": 0.46426592797783933,
+      "overlap_coefficient": 0.5296398891966759,
       "mean_cityflow": 9.063711911357341,
-      "mean_sumo": 20.726315789473684
+      "mean_sumo": 18.08365650969529,
+      "sumo_lane": "road_1_2_3_0",
+      "turns": [
+        "s"
+      ]
     },
     {
       "feature": "lane_waiting_vehicle_count@road_0_1_0_1",
@@ -535,10 +573,14 @@
       "lane_id": "road_0_1_0_1",
       "n_cityflow": 1805,
       "n_sumo": 1805,
-      "ks_statistic": 0.2952908587257618,
-      "overlap_coefficient": 0.667590027700831,
+      "ks_statistic": 0.5745152354570637,
+      "overlap_coefficient": 0.42548476454293627,
       "mean_cityflow": 15.983379501385041,
-      "mean_sumo": 10.651523545706372
+      "mean_sumo": 5.4664819944598335,
+      "sumo_lane": "road_0_1_0_0",
+      "turns": [
+        "s"
+      ]
     },
     {
       "feature": "lane_waiting_vehicle_count@road_0_1_0_0",
@@ -546,10 +588,14 @@
       "lane_id": "road_0_1_0_0",
       "n_cityflow": 1805,
       "n_sumo": 1805,
-      "ks_statistic": 0.2642659279778393,
-      "overlap_coefficient": 0.6720221606648199,
+      "ks_statistic": 0.29750692520775623,
+      "overlap_coefficient": 0.6487534626038781,
       "mean_cityflow": 6.930747922437673,
-      "mean_sumo": 5.4664819944598335
+      "mean_sumo": 10.651523545706372,
+      "sumo_lane": "road_0_1_0_1",
+      "turns": [
+        "l"
+      ]
     },
     {
       "feature": "lane_waiting_vehicle_count@road_1_0_1_1",
@@ -557,10 +603,14 @@
       "lane_id": "road_1_0_1_1",
       "n_cityflow": 1805,
       "n_sumo": 1805,
-      "ks_statistic": 0.2581717451523546,
-      "overlap_coefficient": 0.7030470914127424,
+      "ks_statistic": 0.6592797783933518,
+      "overlap_coefficient": 0.3407202216066482,
       "mean_cityflow": 15.509695290858726,
-      "mean_sumo": 11.800554016620499
+      "mean_sumo": 4.347368421052631,
+      "sumo_lane": "road_1_0_1_0",
+      "turns": [
+        "s"
+      ]
     },
     {
       "feature": "lane_waiting_vehicle_count@road_1_0_1_0",
@@ -568,10 +618,14 @@
       "lane_id": "road_1_0_1_0",
       "n_cityflow": 1805,
       "n_sumo": 1805,
-      "ks_statistic": 0.3490304709141274,
-      "overlap_coefficient": 0.6171745152354571,
+      "ks_statistic": 0.34515235457063714,
+      "overlap_coefficient": 0.5850415512465375,
       "mean_cityflow": 7.371191135734072,
-      "mean_sumo": 4.347368421052631
+      "mean_sumo": 11.800554016620499,
+      "sumo_lane": "road_1_0_1_1",
+      "turns": [
+        "l"
+      ]
     },
     {
       "feature": "lane_waiting_vehicle_count@road_2_1_2_1",
@@ -579,10 +633,14 @@
       "lane_id": "road_2_1_2_1",
       "n_cityflow": 1805,
       "n_sumo": 1805,
-      "ks_statistic": 0.624376731301939,
-      "overlap_coefficient": 0.3673130193905817,
+      "ks_statistic": 0.10969529085872576,
+      "overlap_coefficient": 0.7867036011080333,
       "mean_cityflow": 3.78393351800554,
-      "mean_sumo": 15.514681440443214
+      "mean_sumo": 3.034349030470914,
+      "sumo_lane": "road_2_1_2_0",
+      "turns": [
+        "s"
+      ]
     },
     {
       "feature": "lane_waiting_vehicle_count@road_2_1_2_0",
@@ -590,10 +648,14 @@
       "lane_id": "road_2_1_2_0",
       "n_cityflow": 1805,
       "n_sumo": 1805,
-      "ks_statistic": 0.6997229916897507,
-      "overlap_coefficient": 0.2969529085872576,
+      "ks_statistic": 0.2631578947368421,
+      "overlap_coefficient": 0.5850415512465375,
       "mean_cityflow": 18.42105263157895,
-      "mean_sumo": 3.034349030470914
+      "mean_sumo": 15.514681440443214,
+      "sumo_lane": "road_2_1_2_1",
+      "turns": [
+        "l"
+      ]
     },
     {
       "feature": "lane_waiting_vehicle_count@road_1_2_3_0",
@@ -601,10 +663,14 @@
       "lane_id": "road_1_2_3_0",
       "n_cityflow": 1805,
       "n_sumo": 1805,
-      "ks_statistic": 0.7168975069252077,
-      "overlap_coefficient": 0.27202216066481993,
+      "ks_statistic": 0.16066481994459833,
+      "overlap_coefficient": 0.667590027700831,
       "mean_cityflow": 17.537396121883656,
-      "mean_sumo": 3.044321329639889
+      "mean_sumo": 16.432686980609418,
+      "sumo_lane": "road_1_2_3_1",
+      "turns": [
+        "l"
+      ]
     },
     {
       "feature": "lane_waiting_vehicle_count@road_1_2_3_1",
@@ -612,12 +678,535 @@
       "lane_id": "road_1_2_3_1",
       "n_cityflow": 1805,
       "n_sumo": 1805,
-      "ks_statistic": 0.6975069252077563,
-      "overlap_coefficient": 0.30249307479224374,
+      "ks_statistic": 0.2299168975069252,
+      "overlap_coefficient": 0.7578947368421053,
       "mean_cityflow": 4.900277008310249,
-      "mean_sumo": 16.432686980609418
+      "mean_sumo": 3.044321329639889,
+      "sumo_lane": "road_1_2_3_0",
+      "turns": [
+        "s"
+      ]
     }
   ],
+  "voided_per_feature": {
+    "alignment": "by_lane_id",
+    "standing": "VOID -- not unfavourable, VOID. A lane id denotes a different physical lane in the two backends on this scenario (CityFlow lane _0 is turn_left, SUMO lane _0 is dir='s'), so this reading compares a left-turn lane against a through lane and is not a measurement of dynamics shift at all. It yields NO branch: not B, and not C either, because branch C is a valid instrument landing in the middle band and this is an invalid instrument.",
+    "yields_no_branch": true,
+    "rows": [
+      {
+        "feature": "lane_vehicle_count@road_0_1_0_1",
+        "array": "lane_vehicle_count",
+        "lane_id": "road_0_1_0_1",
+        "n_cityflow": 1805,
+        "n_sumo": 1805,
+        "ks_statistic": 0.450415512465374,
+        "overlap_coefficient": 0.49141274238227145,
+        "mean_cityflow": 24.213296398891966,
+        "mean_sumo": 15.240443213296398,
+        "sumo_lane": "road_0_1_0_1",
+        "turns": []
+      },
+      {
+        "feature": "lane_vehicle_count@road_0_1_0_0",
+        "array": "lane_vehicle_count",
+        "lane_id": "road_0_1_0_0",
+        "n_cityflow": 1805,
+        "n_sumo": 1805,
+        "ks_statistic": 0.942382271468144,
+        "overlap_coefficient": 0.057617728531855955,
+        "mean_cityflow": 7.847645429362881,
+        "mean_sumo": 27.76786703601108,
+        "sumo_lane": "road_0_1_0_0",
+        "turns": []
+      },
+      {
+        "feature": "lane_vehicle_count@road_1_0_1_1",
+        "array": "lane_vehicle_count",
+        "lane_id": "road_1_0_1_1",
+        "n_cityflow": 1805,
+        "n_sumo": 1805,
+        "ks_statistic": 0.2770083102493075,
+        "overlap_coefficient": 0.643213296398892,
+        "mean_cityflow": 23.39612188365651,
+        "mean_sumo": 16.6393351800554,
+        "sumo_lane": "road_1_0_1_1",
+        "turns": []
+      },
+      {
+        "feature": "lane_vehicle_count@road_1_0_1_0",
+        "array": "lane_vehicle_count",
+        "lane_id": "road_1_0_1_0",
+        "n_cityflow": 1805,
+        "n_sumo": 1805,
+        "ks_statistic": 0.9445983379501385,
+        "overlap_coefficient": 0.055401662049861494,
+        "mean_cityflow": 8.301939058171746,
+        "mean_sumo": 26.755124653739614,
+        "sumo_lane": "road_1_0_1_0",
+        "turns": []
+      },
+      {
+        "feature": "lane_vehicle_count@road_2_1_2_1",
+        "array": "lane_vehicle_count",
+        "lane_id": "road_2_1_2_1",
+        "n_cityflow": 1805,
+        "n_sumo": 1805,
+        "ks_statistic": 0.592797783933518,
+        "overlap_coefficient": 0.3739612188365651,
+        "mean_cityflow": 7.501385041551247,
+        "mean_sumo": 20.107479224376732,
+        "sumo_lane": "road_2_1_2_1",
+        "turns": []
+      },
+      {
+        "feature": "lane_vehicle_count@road_2_1_2_0",
+        "array": "lane_vehicle_count",
+        "lane_id": "road_2_1_2_0",
+        "n_cityflow": 1805,
+        "n_sumo": 1805,
+        "ks_statistic": 0.17839335180055402,
+        "overlap_coefficient": 0.6614958448753463,
+        "mean_cityflow": 19.285318559556785,
+        "mean_sumo": 16.61939058171745,
+        "sumo_lane": "road_2_1_2_0",
+        "turns": []
+      },
+      {
+        "feature": "lane_vehicle_count@road_1_2_3_0",
+        "array": "lane_vehicle_count",
+        "lane_id": "road_1_2_3_0",
+        "n_cityflow": 1805,
+        "n_sumo": 1805,
+        "ks_statistic": 0.10027700831024931,
+        "overlap_coefficient": 0.6470914127423822,
+        "mean_cityflow": 18.318559556786703,
+        "mean_sumo": 18.08365650969529,
+        "sumo_lane": "road_1_2_3_0",
+        "turns": []
+      },
+      {
+        "feature": "lane_vehicle_count@road_1_2_3_1",
+        "array": "lane_vehicle_count",
+        "lane_id": "road_1_2_3_1",
+        "n_cityflow": 1805,
+        "n_sumo": 1805,
+        "ks_statistic": 0.6299168975069253,
+        "overlap_coefficient": 0.3174515235457064,
+        "mean_cityflow": 9.063711911357341,
+        "mean_sumo": 20.726315789473684,
+        "sumo_lane": "road_1_2_3_1",
+        "turns": []
+      },
+      {
+        "feature": "lane_waiting_vehicle_count@road_0_1_0_1",
+        "array": "lane_waiting_vehicle_count",
+        "lane_id": "road_0_1_0_1",
+        "n_cityflow": 1805,
+        "n_sumo": 1805,
+        "ks_statistic": 0.2952908587257618,
+        "overlap_coefficient": 0.667590027700831,
+        "mean_cityflow": 15.983379501385041,
+        "mean_sumo": 10.651523545706372,
+        "sumo_lane": "road_0_1_0_1",
+        "turns": []
+      },
+      {
+        "feature": "lane_waiting_vehicle_count@road_0_1_0_0",
+        "array": "lane_waiting_vehicle_count",
+        "lane_id": "road_0_1_0_0",
+        "n_cityflow": 1805,
+        "n_sumo": 1805,
+        "ks_statistic": 0.2642659279778393,
+        "overlap_coefficient": 0.6720221606648199,
+        "mean_cityflow": 6.930747922437673,
+        "mean_sumo": 5.4664819944598335,
+        "sumo_lane": "road_0_1_0_0",
+        "turns": []
+      },
+      {
+        "feature": "lane_waiting_vehicle_count@road_1_0_1_1",
+        "array": "lane_waiting_vehicle_count",
+        "lane_id": "road_1_0_1_1",
+        "n_cityflow": 1805,
+        "n_sumo": 1805,
+        "ks_statistic": 0.2581717451523546,
+        "overlap_coefficient": 0.7030470914127424,
+        "mean_cityflow": 15.509695290858726,
+        "mean_sumo": 11.800554016620499,
+        "sumo_lane": "road_1_0_1_1",
+        "turns": []
+      },
+      {
+        "feature": "lane_waiting_vehicle_count@road_1_0_1_0",
+        "array": "lane_waiting_vehicle_count",
+        "lane_id": "road_1_0_1_0",
+        "n_cityflow": 1805,
+        "n_sumo": 1805,
+        "ks_statistic": 0.3490304709141274,
+        "overlap_coefficient": 0.6171745152354571,
+        "mean_cityflow": 7.371191135734072,
+        "mean_sumo": 4.347368421052631,
+        "sumo_lane": "road_1_0_1_0",
+        "turns": []
+      },
+      {
+        "feature": "lane_waiting_vehicle_count@road_2_1_2_1",
+        "array": "lane_waiting_vehicle_count",
+        "lane_id": "road_2_1_2_1",
+        "n_cityflow": 1805,
+        "n_sumo": 1805,
+        "ks_statistic": 0.624376731301939,
+        "overlap_coefficient": 0.3673130193905817,
+        "mean_cityflow": 3.78393351800554,
+        "mean_sumo": 15.514681440443214,
+        "sumo_lane": "road_2_1_2_1",
+        "turns": []
+      },
+      {
+        "feature": "lane_waiting_vehicle_count@road_2_1_2_0",
+        "array": "lane_waiting_vehicle_count",
+        "lane_id": "road_2_1_2_0",
+        "n_cityflow": 1805,
+        "n_sumo": 1805,
+        "ks_statistic": 0.6997229916897507,
+        "overlap_coefficient": 0.2969529085872576,
+        "mean_cityflow": 18.42105263157895,
+        "mean_sumo": 3.034349030470914,
+        "sumo_lane": "road_2_1_2_0",
+        "turns": []
+      },
+      {
+        "feature": "lane_waiting_vehicle_count@road_1_2_3_0",
+        "array": "lane_waiting_vehicle_count",
+        "lane_id": "road_1_2_3_0",
+        "n_cityflow": 1805,
+        "n_sumo": 1805,
+        "ks_statistic": 0.7168975069252077,
+        "overlap_coefficient": 0.27202216066481993,
+        "mean_cityflow": 17.537396121883656,
+        "mean_sumo": 3.044321329639889,
+        "sumo_lane": "road_1_2_3_0",
+        "turns": []
+      },
+      {
+        "feature": "lane_waiting_vehicle_count@road_1_2_3_1",
+        "array": "lane_waiting_vehicle_count",
+        "lane_id": "road_1_2_3_1",
+        "n_cityflow": 1805,
+        "n_sumo": 1805,
+        "ks_statistic": 0.6975069252077563,
+        "overlap_coefficient": 0.30249307479224374,
+        "mean_cityflow": 4.900277008310249,
+        "mean_sumo": 16.432686980609418,
+        "sumo_lane": "road_1_2_3_1",
+        "turns": []
+      }
+    ]
+  },
+  "green_action_semantics": {
+    "n_actions_cityflow": 8,
+    "n_actions_sumo": 8,
+    "n_actions_agreeing": 8,
+    "all_actions_agree": true,
+    "rows": [
+      {
+        "action": 0,
+        "cityflow_file_phase": 1,
+        "sumo_file_phase": 0,
+        "cityflow_released_lanes": [
+          "road_0_1_0_1",
+          "road_2_1_2_1"
+        ],
+        "sumo_released_lanes_raw": [
+          "road_0_1_0_0",
+          "road_2_1_2_0"
+        ],
+        "sumo_released_lanes_in_cityflow_names": [
+          "road_0_1_0_1",
+          "road_2_1_2_1"
+        ],
+        "sets_agree": true
+      },
+      {
+        "action": 1,
+        "cityflow_file_phase": 2,
+        "sumo_file_phase": 2,
+        "cityflow_released_lanes": [
+          "road_1_0_1_1",
+          "road_1_2_3_1"
+        ],
+        "sumo_released_lanes_raw": [
+          "road_1_0_1_0",
+          "road_1_2_3_0"
+        ],
+        "sumo_released_lanes_in_cityflow_names": [
+          "road_1_0_1_1",
+          "road_1_2_3_1"
+        ],
+        "sets_agree": true
+      },
+      {
+        "action": 2,
+        "cityflow_file_phase": 3,
+        "sumo_file_phase": 4,
+        "cityflow_released_lanes": [
+          "road_0_1_0_0",
+          "road_2_1_2_0"
+        ],
+        "sumo_released_lanes_raw": [
+          "road_0_1_0_1",
+          "road_2_1_2_1"
+        ],
+        "sumo_released_lanes_in_cityflow_names": [
+          "road_0_1_0_0",
+          "road_2_1_2_0"
+        ],
+        "sets_agree": true
+      },
+      {
+        "action": 3,
+        "cityflow_file_phase": 4,
+        "sumo_file_phase": 6,
+        "cityflow_released_lanes": [
+          "road_1_0_1_0",
+          "road_1_2_3_0"
+        ],
+        "sumo_released_lanes_raw": [
+          "road_1_0_1_1",
+          "road_1_2_3_1"
+        ],
+        "sumo_released_lanes_in_cityflow_names": [
+          "road_1_0_1_0",
+          "road_1_2_3_0"
+        ],
+        "sets_agree": true
+      },
+      {
+        "action": 4,
+        "cityflow_file_phase": 5,
+        "sumo_file_phase": 8,
+        "cityflow_released_lanes": [
+          "road_0_1_0_0",
+          "road_0_1_0_1"
+        ],
+        "sumo_released_lanes_raw": [
+          "road_0_1_0_0",
+          "road_0_1_0_1"
+        ],
+        "sumo_released_lanes_in_cityflow_names": [
+          "road_0_1_0_0",
+          "road_0_1_0_1"
+        ],
+        "sets_agree": true
+      },
+      {
+        "action": 5,
+        "cityflow_file_phase": 6,
+        "sumo_file_phase": 10,
+        "cityflow_released_lanes": [
+          "road_2_1_2_0",
+          "road_2_1_2_1"
+        ],
+        "sumo_released_lanes_raw": [
+          "road_2_1_2_0",
+          "road_2_1_2_1"
+        ],
+        "sumo_released_lanes_in_cityflow_names": [
+          "road_2_1_2_0",
+          "road_2_1_2_1"
+        ],
+        "sets_agree": true
+      },
+      {
+        "action": 6,
+        "cityflow_file_phase": 7,
+        "sumo_file_phase": 12,
+        "cityflow_released_lanes": [
+          "road_1_0_1_0",
+          "road_1_0_1_1"
+        ],
+        "sumo_released_lanes_raw": [
+          "road_1_0_1_0",
+          "road_1_0_1_1"
+        ],
+        "sumo_released_lanes_in_cityflow_names": [
+          "road_1_0_1_0",
+          "road_1_0_1_1"
+        ],
+        "sets_agree": true
+      },
+      {
+        "action": 7,
+        "cityflow_file_phase": 8,
+        "sumo_file_phase": 14,
+        "cityflow_released_lanes": [
+          "road_1_2_3_0",
+          "road_1_2_3_1"
+        ],
+        "sumo_released_lanes_raw": [
+          "road_1_2_3_0",
+          "road_1_2_3_1"
+        ],
+        "sumo_released_lanes_in_cityflow_names": [
+          "road_1_2_3_0",
+          "road_1_2_3_1"
+        ],
+        "sets_agree": true
+      }
+    ],
+    "identity_key_control": {
+      "n_actions_cityflow": 8,
+      "n_actions_sumo": 8,
+      "n_actions_agreeing": 4,
+      "all_actions_agree": false,
+      "rows": [
+        {
+          "action": 0,
+          "cityflow_file_phase": 1,
+          "sumo_file_phase": 0,
+          "cityflow_released_lanes": [
+            "road_0_1_0_1",
+            "road_2_1_2_1"
+          ],
+          "sumo_released_lanes_raw": [
+            "road_0_1_0_0",
+            "road_2_1_2_0"
+          ],
+          "sumo_released_lanes_in_cityflow_names": [
+            "road_0_1_0_0",
+            "road_2_1_2_0"
+          ],
+          "sets_agree": false
+        },
+        {
+          "action": 1,
+          "cityflow_file_phase": 2,
+          "sumo_file_phase": 2,
+          "cityflow_released_lanes": [
+            "road_1_0_1_1",
+            "road_1_2_3_1"
+          ],
+          "sumo_released_lanes_raw": [
+            "road_1_0_1_0",
+            "road_1_2_3_0"
+          ],
+          "sumo_released_lanes_in_cityflow_names": [
+            "road_1_0_1_0",
+            "road_1_2_3_0"
+          ],
+          "sets_agree": false
+        },
+        {
+          "action": 2,
+          "cityflow_file_phase": 3,
+          "sumo_file_phase": 4,
+          "cityflow_released_lanes": [
+            "road_0_1_0_0",
+            "road_2_1_2_0"
+          ],
+          "sumo_released_lanes_raw": [
+            "road_0_1_0_1",
+            "road_2_1_2_1"
+          ],
+          "sumo_released_lanes_in_cityflow_names": [
+            "road_0_1_0_1",
+            "road_2_1_2_1"
+          ],
+          "sets_agree": false
+        },
+        {
+          "action": 3,
+          "cityflow_file_phase": 4,
+          "sumo_file_phase": 6,
+          "cityflow_released_lanes": [
+            "road_1_0_1_0",
+            "road_1_2_3_0"
+          ],
+          "sumo_released_lanes_raw": [
+            "road_1_0_1_1",
+            "road_1_2_3_1"
+          ],
+          "sumo_released_lanes_in_cityflow_names": [
+            "road_1_0_1_1",
+            "road_1_2_3_1"
+          ],
+          "sets_agree": false
+        },
+        {
+          "action": 4,
+          "cityflow_file_phase": 5,
+          "sumo_file_phase": 8,
+          "cityflow_released_lanes": [
+            "road_0_1_0_0",
+            "road_0_1_0_1"
+          ],
+          "sumo_released_lanes_raw": [
+            "road_0_1_0_0",
+            "road_0_1_0_1"
+          ],
+          "sumo_released_lanes_in_cityflow_names": [
+            "road_0_1_0_0",
+            "road_0_1_0_1"
+          ],
+          "sets_agree": true
+        },
+        {
+          "action": 5,
+          "cityflow_file_phase": 6,
+          "sumo_file_phase": 10,
+          "cityflow_released_lanes": [
+            "road_2_1_2_0",
+            "road_2_1_2_1"
+          ],
+          "sumo_released_lanes_raw": [
+            "road_2_1_2_0",
+            "road_2_1_2_1"
+          ],
+          "sumo_released_lanes_in_cityflow_names": [
+            "road_2_1_2_0",
+            "road_2_1_2_1"
+          ],
+          "sets_agree": true
+        },
+        {
+          "action": 6,
+          "cityflow_file_phase": 7,
+          "sumo_file_phase": 12,
+          "cityflow_released_lanes": [
+            "road_1_0_1_0",
+            "road_1_0_1_1"
+          ],
+          "sumo_released_lanes_raw": [
+            "road_1_0_1_0",
+            "road_1_0_1_1"
+          ],
+          "sumo_released_lanes_in_cityflow_names": [
+            "road_1_0_1_0",
+            "road_1_0_1_1"
+          ],
+          "sets_agree": true
+        },
+        {
+          "action": 7,
+          "cityflow_file_phase": 8,
+          "sumo_file_phase": 14,
+          "cityflow_released_lanes": [
+            "road_1_2_3_0",
+            "road_1_2_3_1"
+          ],
+          "sumo_released_lanes_raw": [
+            "road_1_2_3_0",
+            "road_1_2_3_1"
+          ],
+          "sumo_released_lanes_in_cityflow_names": [
+            "road_1_2_3_0",
+            "road_1_2_3_1"
+          ],
+          "sets_agree": true
+        }
+      ]
+    }
+  },
   "ks_noise_floor": {
     "pooled_n_cityflow": 1805,
     "pooled_n_sumo": 1805,
@@ -644,17 +1233,45 @@
     }
   },
   "branch": {
-    "branch": "B",
-    "firing_criteria": [
-      "B2"
-    ],
+    "branch": "C",
+    "computed_from_alignment": "by_movement",
+    "operational_meaning": "C3 is neither licensed nor descoped. CUT 3 of the 2026-08-14 sequencing ruling does NOT fire. P5 is next regardless. BRIEF_21 section 5 binds: a gate that returns 'unclear' and is read as 'proceed' is how a kill-switch stops being one.",
+    "firing_criteria": [],
     "failed_a_criteria": [
       "A2",
-      "A3max",
-      "A3count",
       "A4"
     ],
-    "nearest_non_firing": "B3",
+    "nearest_non_firing": "A3max",
+    "non_firing_ranked": [
+      {
+        "criterion": "A3max",
+        "relative_distance": 0.04072022160664812
+      },
+      {
+        "criterion": "B2",
+        "relative_distance": 0.04072022160664823
+      },
+      {
+        "criterion": "A3count",
+        "relative_distance": 0.0625
+      },
+      {
+        "criterion": "B1",
+        "relative_distance": 0.30811503243825367
+      },
+      {
+        "criterion": "A1",
+        "relative_distance": 0.30811503243825367
+      },
+      {
+        "criterion": "B4",
+        "relative_distance": 0.32453703314278703
+      },
+      {
+        "criterion": "B3",
+        "relative_distance": 0.375
+      }
+    ],
     "criterion_scales": {
       "B1": "delta_cityflow (the training-domain anchor span)",
       "B2": "1.0 (the overlap coefficient already lies on [0, 1])",
@@ -682,26 +1299,26 @@
       {
         "criterion": "B2",
         "branch": "B",
-        "statistic": 0.055401662049861494,
+        "statistic": 0.3407202216066482,
         "threshold": 0.3,
         "comparison": ">=",
-        "signed_distance": -0.2445983379501385,
-        "fired": true,
+        "signed_distance": 0.04072022160664823,
+        "fired": false,
         "scale": 1.0,
-        "relative_distance": -0.2445983379501385,
+        "relative_distance": 0.04072022160664823,
         "detail": "minimum overlap coefficient over 16 features; a minimum and never a mean, so one catastrophic feature cannot hide in an average"
       },
       {
         "criterion": "B3",
         "branch": "B",
-        "statistic": 8.0,
+        "statistic": 3.0,
         "threshold": 9.0,
         "comparison": "<",
-        "signed_distance": 1.0,
+        "signed_distance": 6.0,
         "fired": false,
         "scale": 16.0,
-        "relative_distance": 0.0625,
-        "detail": "8 of 16 features exceed a KS statistic of 0.5"
+        "relative_distance": 0.375,
+        "detail": "3 of 16 features exceed a KS statistic of 0.5"
       },
       {
         "criterion": "B4",
@@ -730,38 +1347,38 @@
       {
         "criterion": "A2",
         "branch": "A",
-        "statistic": 0.055401662049861494,
+        "statistic": 0.3407202216066482,
         "threshold": 0.5,
         "comparison": ">=",
-        "signed_distance": -0.4445983379501385,
+        "signed_distance": -0.15927977839335178,
         "fired": true,
         "scale": 1.0,
-        "relative_distance": -0.4445983379501385,
+        "relative_distance": -0.15927977839335178,
         "detail": "minimum overlap coefficient over 16 features"
       },
       {
         "criterion": "A3max",
         "branch": "A",
-        "statistic": 0.9445983379501385,
+        "statistic": 0.6592797783933518,
         "threshold": 0.7,
         "comparison": "<=",
-        "signed_distance": -0.24459833795013852,
-        "fired": true,
+        "signed_distance": 0.04072022160664812,
+        "fired": false,
         "scale": 1.0,
-        "relative_distance": -0.24459833795013852,
+        "relative_distance": 0.04072022160664812,
         "detail": "largest KS statistic over 16 features"
       },
       {
         "criterion": "A3count",
         "branch": "A",
-        "statistic": 8.0,
+        "statistic": 3.0,
         "threshold": 4.0,
         "comparison": "<=",
-        "signed_distance": -4.0,
-        "fired": true,
+        "signed_distance": 1.0,
+        "fired": false,
         "scale": 16.0,
-        "relative_distance": -0.25,
-        "detail": "8 of 16 features exceed a KS statistic of 0.5"
+        "relative_distance": 0.0625,
+        "detail": "3 of 16 features exceed a KS statistic of 0.5"
       },
       {
         "criterion": "A4",
@@ -825,6 +1442,74 @@
       },
       "num_phases": {
         "intersection_1_1": 9
+      },
+      "green_action_lane_sets": {
+        "intersection_1_1": [
+          {
+            "action": 0,
+            "file_phase": 1,
+            "released_incoming_lanes": [
+              "road_0_1_0_1",
+              "road_2_1_2_1"
+            ]
+          },
+          {
+            "action": 1,
+            "file_phase": 2,
+            "released_incoming_lanes": [
+              "road_1_0_1_1",
+              "road_1_2_3_1"
+            ]
+          },
+          {
+            "action": 2,
+            "file_phase": 3,
+            "released_incoming_lanes": [
+              "road_0_1_0_0",
+              "road_2_1_2_0"
+            ]
+          },
+          {
+            "action": 3,
+            "file_phase": 4,
+            "released_incoming_lanes": [
+              "road_1_0_1_0",
+              "road_1_2_3_0"
+            ]
+          },
+          {
+            "action": 4,
+            "file_phase": 5,
+            "released_incoming_lanes": [
+              "road_0_1_0_0",
+              "road_0_1_0_1"
+            ]
+          },
+          {
+            "action": 5,
+            "file_phase": 6,
+            "released_incoming_lanes": [
+              "road_2_1_2_0",
+              "road_2_1_2_1"
+            ]
+          },
+          {
+            "action": 6,
+            "file_phase": 7,
+            "released_incoming_lanes": [
+              "road_1_0_1_0",
+              "road_1_0_1_1"
+            ]
+          },
+          {
+            "action": 7,
+            "file_phase": 8,
+            "released_incoming_lanes": [
+              "road_1_2_3_0",
+              "road_1_2_3_1"
+            ]
+          }
+        ]
       }
     },
     "hangzhou_1x1_bc-tyc__sumo": {
@@ -847,6 +1532,74 @@
       },
       "num_phases": {
         "intersection_1_1": 16
+      },
+      "green_action_lane_sets": {
+        "intersection_1_1": [
+          {
+            "action": 0,
+            "file_phase": 0,
+            "released_incoming_lanes": [
+              "road_0_1_0_0",
+              "road_2_1_2_0"
+            ]
+          },
+          {
+            "action": 1,
+            "file_phase": 2,
+            "released_incoming_lanes": [
+              "road_1_0_1_0",
+              "road_1_2_3_0"
+            ]
+          },
+          {
+            "action": 2,
+            "file_phase": 4,
+            "released_incoming_lanes": [
+              "road_0_1_0_1",
+              "road_2_1_2_1"
+            ]
+          },
+          {
+            "action": 3,
+            "file_phase": 6,
+            "released_incoming_lanes": [
+              "road_1_0_1_1",
+              "road_1_2_3_1"
+            ]
+          },
+          {
+            "action": 4,
+            "file_phase": 8,
+            "released_incoming_lanes": [
+              "road_0_1_0_0",
+              "road_0_1_0_1"
+            ]
+          },
+          {
+            "action": 5,
+            "file_phase": 10,
+            "released_incoming_lanes": [
+              "road_2_1_2_0",
+              "road_2_1_2_1"
+            ]
+          },
+          {
+            "action": 6,
+            "file_phase": 12,
+            "released_incoming_lanes": [
+              "road_1_0_1_0",
+              "road_1_0_1_1"
+            ]
+          },
+          {
+            "action": 7,
+            "file_phase": 14,
+            "released_incoming_lanes": [
+              "road_1_2_3_0",
+              "road_1_2_3_1"
+            ]
+          }
+        ]
       }
     },
     "cologne3__cityflow": {
@@ -888,6 +1641,119 @@
         "360082": 6,
         "360086": 8,
         "cluster_2415878664_254486231_359566_359576": 8
+      },
+      "green_action_lane_sets": {
+        "360082": [
+          {
+            "action": 0,
+            "file_phase": 0,
+            "released_incoming_lanes": [
+              "-241660955#17_0",
+              "-241660955#17_1",
+              "241660955#14_0",
+              "241660955#14_1"
+            ]
+          },
+          {
+            "action": 1,
+            "file_phase": 2,
+            "released_incoming_lanes": [
+              "-241660955#17_0",
+              "-241660955#17_1",
+              "241660955#14_0",
+              "241660955#14_1"
+            ]
+          },
+          {
+            "action": 2,
+            "file_phase": 4,
+            "released_incoming_lanes": [
+              "-130160207#0_0",
+              "241660955#14_0",
+              "241660955#14_1"
+            ]
+          }
+        ],
+        "360086": [
+          {
+            "action": 0,
+            "file_phase": 0,
+            "released_incoming_lanes": [
+              "-241660955#10_0",
+              "-241660955#10_1",
+              "241660955#7_0",
+              "241660955#7_1"
+            ]
+          },
+          {
+            "action": 1,
+            "file_phase": 2,
+            "released_incoming_lanes": [
+              "-241660955#10_0",
+              "-241660955#10_1",
+              "241660955#7_0",
+              "241660955#7_1"
+            ]
+          },
+          {
+            "action": 2,
+            "file_phase": 4,
+            "released_incoming_lanes": [
+              "-41910185#2_0",
+              "4045329#5_0"
+            ]
+          },
+          {
+            "action": 3,
+            "file_phase": 6,
+            "released_incoming_lanes": [
+              "-41910185#2_0",
+              "4045329#5_0"
+            ]
+          }
+        ],
+        "cluster_2415878664_254486231_359566_359576": [
+          {
+            "action": 0,
+            "file_phase": 0,
+            "released_incoming_lanes": [
+              "-241660955#3_0",
+              "-241660955#3_1",
+              "200818108#0_0",
+              "200818108#0_1"
+            ]
+          },
+          {
+            "action": 1,
+            "file_phase": 2,
+            "released_incoming_lanes": [
+              "-241660955#3_0",
+              "-241660955#3_1",
+              "200818108#0_0",
+              "200818108#0_1"
+            ]
+          },
+          {
+            "action": 2,
+            "file_phase": 4,
+            "released_incoming_lanes": [
+              "241660957#0_0",
+              "241660957#0_1",
+              "319261593#16_0",
+              "319261593#16_1"
+            ]
+          },
+          {
+            "action": 3,
+            "file_phase": 6,
+            "released_incoming_lanes": [
+              "241660957#0_0",
+              "241660957#0_1",
+              "319261593#16_0",
+              "319261593#16_1"
+            ]
+          }
+        ]
       }
     },
     "cologne3__sumo": {
@@ -929,11 +1795,114 @@
         "360082": 6,
         "360086": 8,
         "GS_cluster_2415878664_254486231_359566_359576": 8
+      },
+      "green_action_lane_sets": {
+        "360082": [
+          {
+            "action": 0,
+            "file_phase": 0,
+            "released_incoming_lanes": [
+              "-241660955#17_0",
+              "-241660955#17_1",
+              "241660955#14_0",
+              "241660955#14_1"
+            ]
+          },
+          {
+            "action": 1,
+            "file_phase": 2,
+            "released_incoming_lanes": [
+              "-241660955#17_1",
+              "241660955#14_1"
+            ]
+          },
+          {
+            "action": 2,
+            "file_phase": 4,
+            "released_incoming_lanes": [
+              "-130160207#0_0",
+              "241660955#14_0"
+            ]
+          }
+        ],
+        "360086": [
+          {
+            "action": 0,
+            "file_phase": 0,
+            "released_incoming_lanes": [
+              "-241660955#10_0",
+              "-241660955#10_1",
+              "241660955#7_0",
+              "241660955#7_1"
+            ]
+          },
+          {
+            "action": 1,
+            "file_phase": 2,
+            "released_incoming_lanes": [
+              "-241660955#10_1",
+              "241660955#7_1"
+            ]
+          },
+          {
+            "action": 2,
+            "file_phase": 4,
+            "released_incoming_lanes": [
+              "-41910185#2_0",
+              "4045329#5_0"
+            ]
+          },
+          {
+            "action": 3,
+            "file_phase": 6,
+            "released_incoming_lanes": [
+              "-41910185#2_0",
+              "4045329#5_0"
+            ]
+          }
+        ],
+        "GS_cluster_2415878664_254486231_359566_359576": [
+          {
+            "action": 0,
+            "file_phase": 0,
+            "released_incoming_lanes": [
+              "-241660955#3_0",
+              "-241660955#3_1",
+              "200818108#0_0",
+              "200818108#0_1"
+            ]
+          },
+          {
+            "action": 1,
+            "file_phase": 2,
+            "released_incoming_lanes": [
+              "-241660955#3_1",
+              "200818108#0_1"
+            ]
+          },
+          {
+            "action": 2,
+            "file_phase": 4,
+            "released_incoming_lanes": [
+              "241660957#0_0",
+              "241660957#0_1",
+              "319261593#16_0",
+              "319261593#16_1"
+            ]
+          },
+          {
+            "action": 3,
+            "file_phase": 6,
+            "released_incoming_lanes": [
+              "241660957#0_1",
+              "319261593#16_1"
+            ]
+          }
+        ]
       }
     }
   },
   "lane_convention_diagnostic": {
-    "is_a_diagnostic_not_a_gate_input": true,
     "cityflow_lane_turns": {
       "road_0_1_0_0": [
         "l"
@@ -1065,417 +2034,13 @@
         "mean_sumo": 18.54903047091413
       }
     ],
-    "semantic_per_feature": [
-      {
-        "feature": "lane_vehicle_count@road_0_1_0_1",
-        "cityflow_lane": "road_0_1_0_1",
-        "sumo_lane": "road_0_1_0_0",
-        "turns": [
-          "s"
-        ],
-        "ks_statistic": 0.2659279778393352,
-        "overlap_coefficient": 0.5573407202216066,
-        "mean_cityflow": 24.213296398891966,
-        "mean_sumo": 27.76786703601108
-      },
-      {
-        "feature": "lane_vehicle_count@road_0_1_0_0",
-        "cityflow_lane": "road_0_1_0_0",
-        "sumo_lane": "road_0_1_0_1",
-        "turns": [
-          "l"
-        ],
-        "ks_statistic": 0.4659279778393352,
-        "overlap_coefficient": 0.5119113573407202,
-        "mean_cityflow": 7.847645429362881,
-        "mean_sumo": 15.240443213296398
-      },
-      {
-        "feature": "lane_vehicle_count@road_1_0_1_1",
-        "cityflow_lane": "road_1_0_1_1",
-        "sumo_lane": "road_1_0_1_0",
-        "turns": [
-          "s"
-        ],
-        "ks_statistic": 0.2515235457063712,
-        "overlap_coefficient": 0.6343490304709142,
-        "mean_cityflow": 23.39612188365651,
-        "mean_sumo": 26.755124653739614
-      },
-      {
-        "feature": "lane_vehicle_count@road_1_0_1_0",
-        "cityflow_lane": "road_1_0_1_0",
-        "sumo_lane": "road_1_0_1_1",
-        "turns": [
-          "l"
-        ],
-        "ks_statistic": 0.5091412742382272,
-        "overlap_coefficient": 0.4698060941828255,
-        "mean_cityflow": 8.301939058171746,
-        "mean_sumo": 16.6393351800554
-      },
-      {
-        "feature": "lane_vehicle_count@road_2_1_2_1",
-        "cityflow_lane": "road_2_1_2_1",
-        "sumo_lane": "road_2_1_2_0",
-        "turns": [
-          "s"
-        ],
-        "ks_statistic": 0.4121883656509695,
-        "overlap_coefficient": 0.5468144044321329,
-        "mean_cityflow": 7.501385041551247,
-        "mean_sumo": 16.61939058171745
-      },
-      {
-        "feature": "lane_vehicle_count@road_2_1_2_0",
-        "cityflow_lane": "road_2_1_2_0",
-        "sumo_lane": "road_2_1_2_1",
-        "turns": [
-          "l"
-        ],
-        "ks_statistic": 0.0997229916897507,
-        "overlap_coefficient": 0.6105263157894737,
-        "mean_cityflow": 19.285318559556785,
-        "mean_sumo": 20.107479224376732
-      },
-      {
-        "feature": "lane_vehicle_count@road_1_2_3_0",
-        "cityflow_lane": "road_1_2_3_0",
-        "sumo_lane": "road_1_2_3_1",
-        "turns": [
-          "l"
-        ],
-        "ks_statistic": 0.16066481994459833,
-        "overlap_coefficient": 0.6698060941828254,
-        "mean_cityflow": 18.318559556786703,
-        "mean_sumo": 20.726315789473684
-      },
-      {
-        "feature": "lane_vehicle_count@road_1_2_3_1",
-        "cityflow_lane": "road_1_2_3_1",
-        "sumo_lane": "road_1_2_3_0",
-        "turns": [
-          "s"
-        ],
-        "ks_statistic": 0.46426592797783933,
-        "overlap_coefficient": 0.5296398891966759,
-        "mean_cityflow": 9.063711911357341,
-        "mean_sumo": 18.08365650969529
-      },
-      {
-        "feature": "lane_waiting_vehicle_count@road_0_1_0_1",
-        "cityflow_lane": "road_0_1_0_1",
-        "sumo_lane": "road_0_1_0_0",
-        "turns": [
-          "s"
-        ],
-        "ks_statistic": 0.5745152354570637,
-        "overlap_coefficient": 0.42548476454293627,
-        "mean_cityflow": 15.983379501385041,
-        "mean_sumo": 5.4664819944598335
-      },
-      {
-        "feature": "lane_waiting_vehicle_count@road_0_1_0_0",
-        "cityflow_lane": "road_0_1_0_0",
-        "sumo_lane": "road_0_1_0_1",
-        "turns": [
-          "l"
-        ],
-        "ks_statistic": 0.29750692520775623,
-        "overlap_coefficient": 0.6487534626038781,
-        "mean_cityflow": 6.930747922437673,
-        "mean_sumo": 10.651523545706372
-      },
-      {
-        "feature": "lane_waiting_vehicle_count@road_1_0_1_1",
-        "cityflow_lane": "road_1_0_1_1",
-        "sumo_lane": "road_1_0_1_0",
-        "turns": [
-          "s"
-        ],
-        "ks_statistic": 0.6592797783933518,
-        "overlap_coefficient": 0.3407202216066482,
-        "mean_cityflow": 15.509695290858726,
-        "mean_sumo": 4.347368421052631
-      },
-      {
-        "feature": "lane_waiting_vehicle_count@road_1_0_1_0",
-        "cityflow_lane": "road_1_0_1_0",
-        "sumo_lane": "road_1_0_1_1",
-        "turns": [
-          "l"
-        ],
-        "ks_statistic": 0.34515235457063714,
-        "overlap_coefficient": 0.5850415512465375,
-        "mean_cityflow": 7.371191135734072,
-        "mean_sumo": 11.800554016620499
-      },
-      {
-        "feature": "lane_waiting_vehicle_count@road_2_1_2_1",
-        "cityflow_lane": "road_2_1_2_1",
-        "sumo_lane": "road_2_1_2_0",
-        "turns": [
-          "s"
-        ],
-        "ks_statistic": 0.10969529085872576,
-        "overlap_coefficient": 0.7867036011080333,
-        "mean_cityflow": 3.78393351800554,
-        "mean_sumo": 3.034349030470914
-      },
-      {
-        "feature": "lane_waiting_vehicle_count@road_2_1_2_0",
-        "cityflow_lane": "road_2_1_2_0",
-        "sumo_lane": "road_2_1_2_1",
-        "turns": [
-          "l"
-        ],
-        "ks_statistic": 0.2631578947368421,
-        "overlap_coefficient": 0.5850415512465375,
-        "mean_cityflow": 18.42105263157895,
-        "mean_sumo": 15.514681440443214
-      },
-      {
-        "feature": "lane_waiting_vehicle_count@road_1_2_3_0",
-        "cityflow_lane": "road_1_2_3_0",
-        "sumo_lane": "road_1_2_3_1",
-        "turns": [
-          "l"
-        ],
-        "ks_statistic": 0.16066481994459833,
-        "overlap_coefficient": 0.667590027700831,
-        "mean_cityflow": 17.537396121883656,
-        "mean_sumo": 16.432686980609418
-      },
-      {
-        "feature": "lane_waiting_vehicle_count@road_1_2_3_1",
-        "cityflow_lane": "road_1_2_3_1",
-        "sumo_lane": "road_1_2_3_0",
-        "turns": [
-          "s"
-        ],
-        "ks_statistic": 0.2299168975069252,
-        "overlap_coefficient": 0.7578947368421053,
-        "mean_cityflow": 4.900277008310249,
-        "mean_sumo": 3.044321329639889
-      }
-    ]
+    "road_level_standing": "DIAGNOSTIC, deliberately not promoted: invariant to the numbering convention but coarser, and its 8 features do not map onto thresholds written for 16."
   },
   "runtime": {
-    "written_at_git_commit": "0b58b31044a27d4f9d2e653043331481009522f8",
-    "collect_invocations": {
-      "cityflow__maxpressure": [
-        "--backend",
-        "cityflow",
-        "--env-config",
-        "/home/filip/rltraffic-p70/configs/sim/cityflow1x1.json",
-        "--policy",
-        "maxpressure",
-        "--episodes",
-        "5",
-        "--base-seed",
-        "1000",
-        "--out-dir",
-        "output/p7_0/cityflow__maxpressure",
-        "--overwrite",
-        "--max-steps",
-        "360",
-        "--delta-time",
-        "10",
-        "--control-mode",
-        "acyclic",
-        "--global-reward-fn",
-        "queue_length",
-        "--local-reward-fn",
-        "queue_length",
-        "--global-reward-weight",
-        "0.0",
-        "--state-features",
-        "lane_vehicle_count",
-        "lane_waiting",
-        "phase_onehot",
-        "--fixed-time-k",
-        "4",
-        "--thread-num",
-        "1"
-      ],
-      "cityflow__fixedtime": [
-        "--backend",
-        "cityflow",
-        "--env-config",
-        "/home/filip/rltraffic-p70/configs/sim/cityflow1x1.json",
-        "--policy",
-        "fixedtime",
-        "--episodes",
-        "5",
-        "--base-seed",
-        "1000",
-        "--out-dir",
-        "output/p7_0/cityflow__fixedtime",
-        "--overwrite",
-        "--max-steps",
-        "360",
-        "--delta-time",
-        "10",
-        "--control-mode",
-        "acyclic",
-        "--global-reward-fn",
-        "queue_length",
-        "--local-reward-fn",
-        "queue_length",
-        "--global-reward-weight",
-        "0.0",
-        "--state-features",
-        "lane_vehicle_count",
-        "lane_waiting",
-        "phase_onehot",
-        "--fixed-time-k",
-        "4",
-        "--thread-num",
-        "1"
-      ],
-      "cityflow__random": [
-        "--backend",
-        "cityflow",
-        "--env-config",
-        "/home/filip/rltraffic-p70/configs/sim/cityflow1x1.json",
-        "--policy",
-        "random",
-        "--episodes",
-        "5",
-        "--base-seed",
-        "1000",
-        "--out-dir",
-        "output/p7_0/cityflow__random",
-        "--overwrite",
-        "--max-steps",
-        "360",
-        "--delta-time",
-        "10",
-        "--control-mode",
-        "acyclic",
-        "--global-reward-fn",
-        "queue_length",
-        "--local-reward-fn",
-        "queue_length",
-        "--global-reward-weight",
-        "0.0",
-        "--state-features",
-        "lane_vehicle_count",
-        "lane_waiting",
-        "phase_onehot",
-        "--fixed-time-k",
-        "4",
-        "--thread-num",
-        "1"
-      ],
-      "sumo__maxpressure": [
-        "--backend",
-        "sumo",
-        "--env-config",
-        "/home/filip/rltraffic-p70/scenarios/hangzhou_1x1_bc-tyc_18041610_1h_parity/hangzhou_1x1_bc-tyc_18041610_1h_parity.sumocfg",
-        "--policy",
-        "maxpressure",
-        "--episodes",
-        "5",
-        "--base-seed",
-        "1000",
-        "--out-dir",
-        "output/p7_0/sumo__maxpressure",
-        "--overwrite",
-        "--max-steps",
-        "360",
-        "--delta-time",
-        "10",
-        "--control-mode",
-        "acyclic",
-        "--global-reward-fn",
-        "queue_length",
-        "--local-reward-fn",
-        "queue_length",
-        "--global-reward-weight",
-        "0.0",
-        "--state-features",
-        "lane_vehicle_count",
-        "lane_waiting",
-        "phase_onehot",
-        "--fixed-time-k",
-        "4",
-        "--thread-num",
-        "1"
-      ],
-      "sumo__fixedtime": [
-        "--backend",
-        "sumo",
-        "--env-config",
-        "/home/filip/rltraffic-p70/scenarios/hangzhou_1x1_bc-tyc_18041610_1h_parity/hangzhou_1x1_bc-tyc_18041610_1h_parity.sumocfg",
-        "--policy",
-        "fixedtime",
-        "--episodes",
-        "5",
-        "--base-seed",
-        "1000",
-        "--out-dir",
-        "output/p7_0/sumo__fixedtime",
-        "--overwrite",
-        "--max-steps",
-        "360",
-        "--delta-time",
-        "10",
-        "--control-mode",
-        "acyclic",
-        "--global-reward-fn",
-        "queue_length",
-        "--local-reward-fn",
-        "queue_length",
-        "--global-reward-weight",
-        "0.0",
-        "--state-features",
-        "lane_vehicle_count",
-        "lane_waiting",
-        "phase_onehot",
-        "--fixed-time-k",
-        "4",
-        "--thread-num",
-        "1"
-      ],
-      "sumo__random": [
-        "--backend",
-        "sumo",
-        "--env-config",
-        "/home/filip/rltraffic-p70/scenarios/hangzhou_1x1_bc-tyc_18041610_1h_parity/hangzhou_1x1_bc-tyc_18041610_1h_parity.sumocfg",
-        "--policy",
-        "random",
-        "--episodes",
-        "5",
-        "--base-seed",
-        "1000",
-        "--out-dir",
-        "output/p7_0/sumo__random",
-        "--overwrite",
-        "--max-steps",
-        "360",
-        "--delta-time",
-        "10",
-        "--control-mode",
-        "acyclic",
-        "--global-reward-fn",
-        "queue_length",
-        "--local-reward-fn",
-        "queue_length",
-        "--global-reward-weight",
-        "0.0",
-        "--state-features",
-        "lane_vehicle_count",
-        "lane_waiting",
-        "phase_onehot",
-        "--fixed-time-k",
-        "4",
-        "--thread-num",
-        "1"
-      ]
-    },
+    "written_at_git_commit": "35ec8d7c231dc04c9ccbbfabdd024c95eeb30de4",
+    "collect_invocations": {},
     "episodes_per_cell": 5,
     "base_seed": 1000,
-    "skip_collect": false
+    "skip_collect": true
   }
 }

@@ -568,3 +568,123 @@ def test_road_level_summation_is_double_computed() -> None:
     per_lane = tg.lane_feature_samples([base], "lane_vehicle_count", lane_ids)
     assert np.array_equal(rows["road_a"], per_lane["road_a_0"] + per_lane["road_a_1"])
     assert np.array_equal(rows["road_b"], per_lane["road_b_0"])
+
+
+# ----------------------------------------------------------------------
+# The 2026-08-16 re-registration: movement-paired alignment, and the VOID label
+# ----------------------------------------------------------------------
+
+
+def test_compare_lane_features_honours_a_non_identity_correspondence() -> None:
+    """The registered alignment must actually re-pair the columns.
+
+    ``base`` and ``permuted`` hold the same three columns in different orders; here
+    the correspondence deliberately points each CityFlow lane at a DIFFERENT lane, so
+    a comparison that quietly ignored it would return the perfect match that the
+    identity produces and this test would not fire.
+    """
+    base, permuted, lane_ids = _fixture_pair()
+    swap = {"road_a_0": "road_a_1", "road_a_1": "road_a_0", "road_b_0": "road_b_0"}
+    rows = {r.feature: r for r in tg.compare_lane_features([base], [permuted], lane_ids, swap)}
+
+    identity = {
+        r.feature: r for r in tg.compare_lane_features([base], [permuted], lane_ids)
+    }
+    assert identity["lane_vehicle_count@road_a_0"].ks_statistic == 0.0
+    assert rows["lane_vehicle_count@road_a_0"].ks_statistic == 1.0
+    assert rows["lane_vehicle_count@road_a_0"].sumo_lane == "road_a_1"
+    assert rows["lane_vehicle_count@road_b_0"].ks_statistic == 0.0
+
+
+def test_compare_lane_features_refuses_an_incomplete_correspondence() -> None:
+    base, permuted, lane_ids = _fixture_pair()
+    with pytest.raises(KeyError, match="does not cover"):
+        tg.compare_lane_features([base], [permuted], lane_ids, {"road_a_0": "road_a_0"})
+
+
+def test_the_void_alignment_is_labelled_void_and_yields_no_branch() -> None:
+    standing = tg.ALIGNMENT_STANDING[tg.ALIGNMENT_BY_LANE_ID]
+    assert "VOID" in standing
+    assert "not B, and not C either" in standing
+    assert "REGISTERED" in tg.ALIGNMENT_STANDING[tg.ALIGNMENT_BY_MOVEMENT]
+    assert "DIAGNOSTIC" in tg.ALIGNMENT_STANDING[tg.ALIGNMENT_ROAD_LEVEL]
+
+
+def test_non_firing_ranked_is_ascending_and_covers_every_non_firing_row() -> None:
+    verdict = tg.evaluate_branch(**_HEALTHY)
+    names = [name for name, _ in verdict.non_firing_ranked]
+    values = [value for _, value in verdict.non_firing_ranked]
+    assert values == sorted(values)
+    expected = {
+        r.criterion for r in verdict.rows
+        if not r.fired and r.relative_distance is not None
+    }
+    assert set(names) == expected
+    assert verdict.nearest_non_firing == names[0]
+
+
+def test_a_near_tie_between_two_criteria_is_reported_rather_than_broken() -> None:
+    """B2 and A3max coincide when one feature is extremal in both statistics.
+
+    Constructed here rather than taken from the run: a single feature with
+    ``OVL == 1 - KS`` makes B2's margin ``ovl - 0.30`` and A3max's ``0.70 - ks`` the
+    same number, because the thresholds also sum to 1.0.  A lone
+    ``nearest_non_firing`` would hide one of them behind a float tie-break.
+    """
+    verdict = tg.evaluate_branch(
+        **{**_HEALTHY, "features": _features([0.66] + [0.10] * 15, [0.34] + [0.90] * 15)}
+    )
+    ranked = dict(verdict.non_firing_ranked)
+    assert "B2" in ranked and "A3max" in ranked
+    assert ranked["B2"] == pytest.approx(ranked["A3max"], abs=1e-12)
+    assert ranked["B2"] == pytest.approx(0.04, abs=1e-12)
+
+
+# ----------------------------------------------------------------------
+# Section 5.4 -- the green-phase lane-set correspondence table
+# ----------------------------------------------------------------------
+
+
+class _FakeIx:
+    def __init__(self, num_phases, durations, mapping, roadlink_lanes):
+        self.num_phases = num_phases
+        self.phase_durations = durations
+        self.phase_roadlink_mapping = mapping
+        self.roadlink_lanes = roadlink_lanes
+
+
+def test_green_action_lane_sets_skips_clearance_phases() -> None:
+    """Greens are the phases longer than the clearance bound, in ascending order."""
+    ix = _FakeIx(
+        num_phases=4,
+        durations=[5.0, 30.0, 5.0, 30.0],
+        mapping=[[], [0], [], [1]],
+        roadlink_lanes=[(["r_1"], ["out"]), (["r_0"], ["out"])],
+    )
+    rows = tg.green_action_lane_sets(ix)
+    assert [r["action"] for r in rows] == [0, 1]
+    assert [r["file_phase"] for r in rows] == [1, 3]
+    assert rows[0]["released_incoming_lanes"] == ["r_1"]
+    assert rows[1]["released_incoming_lanes"] == ["r_0"]
+
+
+def test_green_action_semantics_agree_once_the_lanes_are_translated() -> None:
+    """The whole point: raw names disagree, movement-translated names agree."""
+    cf = [{"action": 0, "file_phase": 1, "released_incoming_lanes": ["r_1"]}]
+    su = [{"action": 0, "file_phase": 0, "released_incoming_lanes": ["r_0"]}]
+    correspondence = {"r_0": "r_1", "r_1": "r_0"}
+
+    translated = tg.compare_green_action_semantics(cf, su, correspondence)
+    assert translated["all_actions_agree"] is True
+    assert translated["rows"][0]["sumo_released_lanes_in_cityflow_names"] == ["r_1"]
+
+    raw = tg.compare_green_action_semantics(cf, su, {"r_0": "r_0", "r_1": "r_1"})
+    assert raw["all_actions_agree"] is False
+
+
+def test_green_action_semantics_flags_a_genuine_disagreement() -> None:
+    cf = [{"action": 0, "file_phase": 1, "released_incoming_lanes": ["r_1", "s_1"]}]
+    su = [{"action": 0, "file_phase": 0, "released_incoming_lanes": ["r_0"]}]
+    out = tg.compare_green_action_semantics(cf, su, {"r_0": "r_1", "r_1": "r_0"})
+    assert out["all_actions_agree"] is False
+    assert out["n_actions_agreeing"] == 0
