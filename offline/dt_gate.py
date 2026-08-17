@@ -284,6 +284,13 @@ def _erfc_deterministic(x: float) -> float:
     the runner's libm was the inaccurate one.  All **322** committed ``(z, p_value)`` pairs in
     ``docs/data/*.json`` were recomputed through this routine and **0 changed**.
 
+    **The exact boundary of the claim**, so it is not read as wider than it is: no libm call
+    influences the *value*.  ``math.log(10.0)`` below sizes the working precision only -- a
+    1-ulp difference there could shift the digit count by one out of 45 guard digits, which
+    cannot change a correctly-rounded double -- and ``math.sqrt`` in :func:`_normal_cdf` is
+    correctly rounded by IEEE 754 mandate, unlike ``erfc``.  ``tests/test_erfc_determinism.py``
+    pins the mechanism by monkeypatching ``math.erfc`` into a landmine.
+
     Method: ``erfc(x) = 1 - erf(x)`` with ``erf`` by its everywhere-convergent Taylor series,
     evaluated in :mod:`decimal`, whose arithmetic is exactly specified and therefore
     platform-independent.  Working precision grows with ``x**2`` because the series
