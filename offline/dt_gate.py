@@ -62,6 +62,7 @@ import subprocess
 import tempfile
 import time
 from dataclasses import asdict, dataclass
+from decimal import Decimal, localcontext
 from pathlib import Path
 from typing import Any, Callable, Sequence
 
@@ -225,9 +226,112 @@ def _average_ranks(values: np.ndarray) -> tuple[np.ndarray, list[int]]:
     return ranks, ties
 
 
+_PI_BY_PRECISION: dict[int, Decimal] = {}
+
+
+def _pi_at(precision: int) -> Decimal:
+    """Pi to *precision* digits, computed by Machin's formula and memoised.
+
+    Computed rather than tabulated so the constant carries no transcription risk, and
+    memoised because the series is the expensive part of :func:`_erfc_deterministic`.
+    """
+    cached = _PI_BY_PRECISION.get(precision)
+    if cached is not None:
+        return cached
+    with localcontext() as context:
+        context.prec = precision + 10
+
+        def arctan_inverse(n: int) -> Decimal:
+            """``atan(1/n)`` by its Taylor series, which converges fast for n = 5 and 239."""
+            reciprocal = Decimal(1) / Decimal(n)
+            total = term = reciprocal
+            k = 0
+            while True:
+                k += 1
+                term = -term / (Decimal(n) ** 2)
+                addend = term / (2 * k + 1)
+                if addend == 0:
+                    return total
+                total += addend
+
+        value = +(16 * arctan_inverse(5) - 4 * arctan_inverse(239))
+    _PI_BY_PRECISION[precision] = value
+    return value
+
+
+def _erfc_deterministic(x: float) -> float:
+    """``erfc(x)``, correctly rounded, and **identical on every machine**.
+
+    WHY THIS EXISTS (P0.10, 2026-08-17; superseded ``math.erfc`` here)
+    ------------------------------------------------------------------
+    ``math.erfc`` is the platform's libm and is **not correctly rounded**, so it differs
+    between C libraries.  The project's first cross-machine CI run measured exactly that:
+    every intermediate of this module's Wilcoxon path was bit-identical on the dev machine
+    and on a GitHub runner -- ``w_plus``, ``variance``, ``z`` and even the erfc argument, to
+    the last hex digit -- and only the libm call differed, by **1 ulp** (glibc 2.43 against
+    2.39).  That was enough to fail the sidecar's regeneration guard in
+    ``offline/rtg_calibration.py``, which requires a recomputed p-value to equal the
+    committed one exactly.
+
+    **The exactness is restored rather than the comparison loosened.**  There is nothing here
+    for ``math.fsum`` to stabilise: the ranks are half-integers and sum exactly (verified --
+    ``w_plus`` equals its own ``fsum``), and everything from there to the erfc argument is
+    integer or IEEE-exact arithmetic.  The single non-deterministic step was the special
+    function itself, so the special function is what changed.
+
+    **No committed number moves.**  The exact value at the failing point is
+    ``6.34485457585274551...e-07``; correctly rounded that is the **committed** double, and
+    the runner's libm was the inaccurate one.  All **322** committed ``(z, p_value)`` pairs in
+    ``docs/data/*.json`` were recomputed through this routine and **0 changed**.
+
+    Method: ``erfc(x) = 1 - erf(x)`` with ``erf`` by its everywhere-convergent Taylor series,
+    evaluated in :mod:`decimal`, whose arithmetic is exactly specified and therefore
+    platform-independent.  Working precision grows with ``x**2`` because the series
+    cancels to about ``e**(x**2)``; the guard digits are what make the final rounding correct.
+    Beyond ``|x| = 30`` the result is 0.0 or 2.0 in double precision, so it is returned
+    directly instead of running a series that would need hundreds of digits to say so.
+    """
+    if math.isnan(x):
+        return x
+    if x >= 30.0:
+        return 0.0
+    if x <= -30.0:
+        return 2.0
+
+    # The series cancels to roughly exp(x**2); carry that many digits, plus guards.
+    precision = int(2.0 * x * x / math.log(10.0)) + 45
+    with localcontext() as context:
+        context.prec = precision
+        value = Decimal(x)
+        square = value * value
+        term = value
+        total = value
+        n = 0
+        while True:
+            n += 1
+            term = -term * square / n
+            addend = term / (2 * n + 1)
+            total += addend
+            # Terminating on smallness alone is safe here, which is not obvious and was
+            # checked rather than assumed (P0.10 mutation M): |addend_n| rises monotonically
+            # until n ~ x**2, so an early exit would need |addend_1| = |x|**3/3 to be under
+            # the threshold already.  With precision >= 45 that needs |x| < 1.4e-14, and at
+            # such x the series is decreasing from n = 1 anyway.  A second `n > x*x` guard
+            # was therefore removed as provably unreachable rather than left as decoration.
+            if abs(addend) < Decimal(10) ** -(precision - 3):
+                break
+        erf = 2 / _pi_at(precision).sqrt() * total
+        return float(1 - erf)
+
+
 def _normal_cdf(z: float) -> float:
-    """Standard normal CDF via ``erfc``; stdlib only, and exact enough far into the tail."""
-    return 0.5 * math.erfc(-z / math.sqrt(2.0))
+    """Standard normal CDF, stdlib only, and identical on every machine.
+
+    Uses :func:`_erfc_deterministic` rather than ``math.erfc``; see that function for the
+    cross-machine measurement that forced the change and for the evidence that no committed
+    number moves.
+    """
+    return 0.5 * _erfc_deterministic(-z / math.sqrt(2.0))
 
 
 def wilcoxon_signed_rank(x: Sequence[float], y: Sequence[float]) -> WilcoxonResult:
