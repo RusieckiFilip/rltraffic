@@ -63,6 +63,15 @@ def _erfc_continued_fraction(x: float, precision: int = 80) -> float:
     series, and :meth:`Decimal.exp` instead of a Taylor sum -- so agreement is evidence
     rather than a restatement.  This is the "compute it twice by different routes" rule
     applied to a special function.
+
+    ⚠️ **DO NOT "improve" this by passing an exact real instead of the float.**  The oracle
+    takes the identical ``float64`` the implementation takes, and that shared premise is the
+    point: the question under test is *"what is erfc of this double?"*, not *"what is erfc of
+    the real number the double approximates?"*.  The coordinator's independent check of this
+    module first appeared to contradict it at the 13th digit for exactly that reason -- both
+    of their methods were fed the exact ``|z|/sqrt(2)`` while the code passes the rounded
+    double, and one ulp in the argument times ``d/dx erfc = -4.6e-6`` is ~2e-21 out.  **Two
+    algorithms that share a premise measure only that premise** (project rule, 0d21a19).
     """
     with localcontext() as context:
         context.prec = precision
