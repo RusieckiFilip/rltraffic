@@ -773,6 +773,25 @@ original wording said *"after any edit, verify by absolute path"*, which is too 
 is relying on the working directory at all**, and it bites reads, writes and checks alike. **The
 remedy is mechanical and therefore reliable; vigilance is neither.**
 
+🚨 **EVERY BITWISE CLAIM WE HOLD IS A WITHIN-MACHINE PROPERTY, AND THE QUALIFIER IS NOWHERE WRITTEN (added 2026-08-17, the user's observation, measured by the coordinator).**
+**Counted: `PROJECT_PLAN.md` carries 39 claims of the form *byte-identical* / *bit-identical* /
+*bit-exact* / *byte-for-byte*. Across `PROJECT_PLAN.md`, `PREREGISTRATION.md` and
+`docs/CONTRACTS.md` there are ZERO occurrences of *cross-machine*, *second machine*, or a differing
+*glibc* / *libm* / *CPU* / *host*.** Every one of them — P4.3's byte-identical retrains, P4.5's
+byte-identical digests, the 1-vs-16-thread invariance proof, P7.0's float tie-break, P4.6's and P4.7's
+regeneration diffs — **was verified on ONE MACHINE, and none carries the qualifier.**
+⚠️ **This is not hypothetical: P0.10's CI, the first cross-machine execution this project has ever
+had, found a real 1-ulp `libm` disagreement on a committed p-value within its first runs.** And the
+structural reason it went unnoticed is Mutation K: **reverting to `math.erfc` passed all 24 tests
+locally, because one machine cannot falsify a cross-machine property.**
+> **Binding on the paper: the reproducibility section states that our bitwise reproduction claims are
+> WITHIN-MACHINE properties unless a cross-machine run exists for that specific claim.** The qualifier
+> is **true today and unwritten**, and a referee with a different glibc discovers it in one afternoon.
+⭐ **State it as strength rather than limitation, because that is what the record supports:** we hold
+39 within-machine reproduction claims, **we built the cross-machine check**, and the first thing it did
+was find and fix a libm difference we would otherwise have shipped. **A limitation disclosed with the
+instrument that found it reads differently from one disclosed because a referee asked.**
+
 **TWO INDEPENDENT METHODS AGREEING IS NOT EVIDENCE WHEN THEY SHARE AN INPUT (added 2026-08-17, the coordinator's own error, caught before it became a ruling).**
 Checking P0.10's claim that a committed p-value was the correctly-rounded `erfc`, I computed the value
 two ways — an asymptotic continued fraction and a convergent Taylor series, at 140 and 160 digits.
