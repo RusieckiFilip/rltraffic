@@ -292,6 +292,35 @@ def test_pytest_gate_fails_on_a_failing_suite_even_below_the_ceiling(tmp_path: P
     assert "failed=1" in result.stdout
 
 
+def test_pytest_gate_reports_every_violation_and_not_only_the_first(tmp_path: Path) -> None:
+    """A red suite must not hide that the run also breached its skip ceiling.
+
+    Found on the gate's own first run against a real GitHub runner (32021100181): the suite
+    was red *and* 10 skips over the declared ceiling, and the original ``elif`` chain
+    printed only the failure -- which would have left the ceiling check looking untested on
+    a runner while it had in fact fired.
+    """
+    terminal, junit = write_run(
+        tmp_path,
+        "1 failed, 891 passed, 72 skipped, 1 warning in 68.52s (0:01:08)",
+        tests=964,
+        skipped=72,
+        failures=1,
+    )
+    baseline = write_baseline(tmp_path, ceiling=62)
+
+    result = run_gate(
+        "pytest-gate",
+        "--terminal", str(terminal),
+        "--junit", str(junit),
+        "--baseline", str(baseline),
+    )
+
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "the suite is red" in result.stdout
+    assert "72 tests skipped against a declared ceiling of 62" in result.stdout
+
+
 def test_pytest_gate_refuses_an_unparseable_tail(tmp_path: Path) -> None:
     """A parser that returns zeros on garbage is the badge that cannot go red."""
     terminal = tmp_path / "pytest.txt"
@@ -645,18 +674,30 @@ def test_committed_ceiling_declares_that_it_is_provisional_and_names_its_expiry(
 
 
 def test_committed_baseline_records_why_the_ceiling_has_the_value_it_has() -> None:
-    """Ruled 2026-08-17: the ceiling is 62 BECAUSE CityFlow is not built in CI.
+    """Ruled 2026-08-17: the ceiling is what it is BECAUSE CityFlow is not built in CI.
 
     A future reader must be able to see that the number is a consequence of a choice, and
     what the number would be under the other choice.
+
+    The pinned value is **72**, measured on GitHub Actions run 32021100181 -- the first
+    real run of this workflow.  It supersedes a simulated 62 that was wrong: see
+    ``superseded`` in the baseline file, and section "harness errors" of
+    ``docs/returns/P0.10.md``.  The constant is pinned here, in a second file, precisely so
+    that widening it is a visible edit in a diff rather than a quiet number change.
     """
     baseline = json.loads(BASELINE_FILE.read_text(encoding="utf-8"))
     block = baseline["pytest"]
 
-    assert block["skip_ceiling"] == 62
+    assert block["skip_ceiling"] == 72
+    assert block["measured"]["measured_on_a_github_runner"] is True
     provenance = json.dumps(block)
     assert "CityFlow" in provenance
-    assert "31" in provenance, "the alternative (CityFlow built) must be recorded too"
+    assert "40" in provenance, "the alternative (CityFlow built) must be recorded too"
+
+    # A superseded measurement is kept, not deleted: the reason a number moved is part of
+    # the number.  This is an addition to the test, not a relaxation of it.
+    assert block["measured"]["superseded"]["value"] == 62
+    assert block["measured"]["superseded"]["why_it_was_wrong"].strip()
 
 
 # --------------------------------------------------------------------------------------

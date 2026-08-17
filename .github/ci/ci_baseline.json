@@ -3,21 +3,25 @@
   "written_by": "P0.10 (BRIEF_23), 2026-08-17, branch task/p0.10-reproducibility",
   "read_by": ".github/ci/ci_gate.py -- see its module docstring for the format contract",
   "pytest": {
-    "skip_ceiling": 62,
+    "skip_ceiling": 72,
     "provisional": true,
     "measured": {
-      "value": 62,
-      "condition": "simulated GitHub runner on the dev machine: cityflow and matplotlib made unimportable with a ModuleNotFoundError-faithful meta_path blocker, sumo removed from PATH via a symlink farm, SUMO_HOME and every RLTRAFFIC_* variable unset, OMP_NUM_THREADS=MKL_NUM_THREADS=1, CUDA_VISIBLE_DEVICES empty",
-      "result": "864 passed, 62 skipped, 0 failed (926 collected)",
-      "tree": "task/p0.10-reproducibility at 3aaae2d, worktree /home/filip/rltraffic-p010",
+      "value": 72,
+      "condition": "the real thing: GitHub Actions ubuntu-latest, run 32021100181, first push of task/p0.10-reproducibility, workflow as committed (pinned threads, dev extra only, CityFlow not built, no corpus, no SUMO binary)",
+      "result": "1 failed, 891 passed, 72 skipped (964 collected). The failure is UNRELATED to the ceiling -- see docs/returns/P0.10.md: offline/rtg_calibration.py asserts a committed p-value reproduces exactly, and it differs by 1 ulp on the runner.",
+      "breakdown": "32 cityflow-gated + 28 corpus/checkpoint-gated + 10 SUMO/traci-gated + 2 matplotlib = 72, counted from the run's own -rs block",
+      "tree": "task/p0.10-reproducibility at 7aee68f",
       "date": "2026-08-17",
-      "measured_on_a_github_runner": false,
-      "note": "A plain ImportError is NOT a faithful blocker: envs/__init__.py branches on exc.name != 'cityflow' and re-raises, which kills collection outright. The first measurement made that mistake and was discarded."
+      "measured_on_a_github_runner": true,
+      "superseded": {
+        "value": 62,
+        "why_it_was_wrong": "It came from a simulated runner on the dev machine, and the simulation was defeated by usrmerge: the harness removed `sumo` from a symlink copy of /usr/bin but left /bin on PATH, and /bin IS /usr/bin on this system, so shutil.which('sumo') kept finding it and 10 SUMO-gated tests ran that a runner skips. The error was invisible locally and was caught by the first real run -- which is the reason the ceiling was declared provisional and the branch was pushed."
+      }
     },
     "ceiling_is_a_consequence_of": [
-      "the workflow does NOT build the vendored CityFlow (coordinator ruling 2026-08-17: an unverified C++ build step is a new failure surface on the one task whose purpose is reliability). Building it would move this ceiling from 62 to 31 -- measured, same tree, same day: 895 passed, 31 skipped.",
-      "no corpus is available on a runner: datasets*/ is gitignored and ~189 MB, so every corpus-gated test skips.",
-      "SUMO is not installed on the runner, so _sumo_available() is False and the SUMO-backed tests skip cleanly.",
+      "the workflow does NOT build the vendored CityFlow (coordinator ruling 2026-08-17: an unverified C++ build step is a new failure surface on the one task whose purpose is reliability). 32 of these 72 skips are cityflow-gated, so building it would move the ceiling from 72 to 40.",
+      "no corpus is available on a runner: datasets*/ is gitignored and ~189 MB, so 28 corpus- and checkpoint-gated tests skip. That 28 independently reproduces the coordinator's 2026-08-16 corpus-absent measurement.",
+      "SUMO is not installed on the runner, so _sumo_available() is False and 10 SUMO-backed tests skip cleanly. sumolib IS present -- traci declares sumolib>=1.27.1 and pip resolved it -- so the gate here is the missing binary, not the missing module.",
       "the workflow installs the dev extra only, so the 2 matplotlib-gated tests skip."
     ],
     "re_measure_required_at": {
@@ -33,10 +37,18 @@
       "invocation": "bash scripts/check_test_hygiene.sh   (NO arguments -- with arguments it scans a subset)",
       "total": 16,
       "by_file": {
-        "tests/test_cityflow_env_phase_constraints.py": {"TH006": 8},
-        "tests/test_sumo_env_phase_constraints.py": {"TH006": 5},
-        "tests/test_phase_control.py": {"TH006": 2},
-        "tests/test_base_traffic_env.py": {"TH006": 1}
+        "tests/test_cityflow_env_phase_constraints.py": {
+          "TH006": 8
+        },
+        "tests/test_sumo_env_phase_constraints.py": {
+          "TH006": 5
+        },
+        "tests/test_phase_control.py": {
+          "TH006": 2
+        },
+        "tests/test_base_traffic_env.py": {
+          "TH006": 1
+        }
       },
       "why_not_zero": "DEFERRED 45: 16 pre-existing TH006 findings in four frozen-adjacent test files. They are recorded, not tolerated silently, and they may NOT be 'fixed' to make CI green -- the files are next to frozen code and the fix is a task of its own. Re-measured for P0.10 from the full output of a no-argument run on 2026-08-17: 16, matching the coordinator's four independent counts.",
       "expected_exit_code": 1
@@ -46,11 +58,21 @@
       "invocation": "bash scripts/check_english.sh   (NO arguments -- with arguments it scans only those paths)",
       "total": 5,
       "by_file": {
-        ".claude/agents/master-coordinator.md": {"PL": 1},
-        "README.md": {"PL": 1},
-        "docs/patches/claude_guard_g1.patch": {"PL": 1},
-        "docs/patches/claude_guard_hygiene.patch": {"PL": 1},
-        "scripts/claude_guard.sh": {"PL": 1}
+        ".claude/agents/master-coordinator.md": {
+          "PL": 1
+        },
+        "README.md": {
+          "PL": 1
+        },
+        "docs/patches/claude_guard_g1.patch": {
+          "PL": 1
+        },
+        "docs/patches/claude_guard_hygiene.patch": {
+          "PL": 1
+        },
+        "scripts/claude_guard.sh": {
+          "PL": 1
+        }
       },
       "why_not_zero": "P0.9, still open: the o-acute false positive. Three of these five are the guard's own documentation of the character class it detects, quoted in claude_guard.sh and in two committed patches; de-diacriticising them would corrupt a record. Measured for P0.10 on 2026-08-17: 5.",
       "expected_exit_code": 1

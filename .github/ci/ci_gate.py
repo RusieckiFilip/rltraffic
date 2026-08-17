@@ -270,27 +270,36 @@ def _pytest_gate(args: argparse.Namespace) -> int:
     verdict = 0
 
     if terminal != junit:
+        # A disagreement short-circuits: if the two counts differ, every check below is
+        # being applied to a number that may not be the run's.
         lines.append(
             "FAIL pytest-gate: the two independent parsers disagree -- "
             f"terminal says [{terminal.describe()}], JUnit says [{junit.describe()}]"
         )
         verdict = 1
-    elif terminal.failed or terminal.errors:
-        lines.append(f"FAIL pytest-gate: the suite is red ({terminal.describe()})")
-        verdict = 1
-    elif terminal.skipped > ceiling:
-        lines.append(
-            f"FAIL pytest-gate: {terminal.skipped} tests skipped against a declared "
-            f"ceiling of {ceiling}. The skip count is part of the result: either the "
-            "environment lost something it used to have (corpus paths, an engine), or "
-            "the ceiling is stale and must be re-measured and committed with the reason."
-        )
-        verdict = 1
     else:
-        lines.append(
-            f"OK pytest-gate: {terminal.describe()}, skip ceiling {ceiling} "
-            f"({ceiling - terminal.skipped} to spare)"
-        )
+        # Every violation is reported, not just the first. Found on this gate's own first
+        # run against a real runner (32021100181): the suite was red AND over its ceiling,
+        # and an elif chain showed only the failure, so the ceiling check looked untested
+        # when it had in fact fired.
+        problems: list[str] = []
+        if terminal.failed or terminal.errors:
+            problems.append(f"FAIL pytest-gate: the suite is red ({terminal.describe()})")
+        if terminal.skipped > ceiling:
+            problems.append(
+                f"FAIL pytest-gate: {terminal.skipped} tests skipped against a declared "
+                f"ceiling of {ceiling}. The skip count is part of the result: either the "
+                "environment lost something it used to have (corpus paths, an engine), or "
+                "the ceiling is stale and must be re-measured and committed with the reason."
+            )
+        if problems:
+            lines.extend(problems)
+            verdict = 1
+        else:
+            lines.append(
+                f"OK pytest-gate: {terminal.describe()}, skip ceiling {ceiling} "
+                f"({ceiling - terminal.skipped} to spare)"
+            )
 
     if baseline.get("provisional"):
         expiry = baseline.get("re_measure_required_at", {})
