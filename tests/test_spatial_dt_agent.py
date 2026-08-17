@@ -180,6 +180,82 @@ def test_no_other_nodes_action_at_step_t_can_change_the_prediction_at_step_t():
         )
 
 
+def test_the_spatial_sublayer_is_strictly_position_wise():
+    """Property 1 of the two the leak-freedom rests on -- measured, not argued.
+
+    The spatial sublayer moves information ACROSS NODES and never ACROSS TIME.  Perturbing one
+    node's token at one position must change the spatial output at that position and nowhere else.
+    """
+    torch.manual_seed(0)
+    from agent.SpatialDTAgent import _SpatialBlock
+
+    width, length = 16, 12
+    block = _SpatialBlock(width, 1, 0.0).eval()
+    bias = spatial_attention_bias(
+        NEIGHBOUR_MASK, device=torch.device("cpu"), dtype=torch.float32
+    )
+
+    def spatial_only(x: torch.Tensor) -> torch.Tensor:
+        b, n, l, d = x.shape
+        h = x.permute(0, 2, 1, 3).reshape(b * l, n, d)
+        h = h + block.spatial(block.ln_spatial(h), bias)
+        return h.reshape(b, l, n, d).permute(0, 2, 1, 3)
+
+    base_input = torch.randn(2, N_NODES, length, width)
+    probe = base_input.clone()
+    probe[:, 1, 7] += 5.0
+
+    with torch.no_grad():
+        difference = (spatial_only(probe) - spatial_only(base_input)).abs()
+    changed = [p for p in range(length) if float(difference[:, :, p].max()) > 0.0]
+    assert changed == [7], f"the spatial sublayer moved information to positions {changed}"
+
+
+def test_temporal_attention_is_strictly_causal():
+    """Property 2: a perturbation at position ``p`` reaches ``>= p`` and never earlier."""
+    torch.manual_seed(0)
+    from agent.DTAgent import _attention_bias
+    from agent.SpatialDTAgent import _SpatialBlock
+
+    width, length = 16, 12
+    block = _SpatialBlock(width, 1, 0.0).eval()
+    bias = _attention_bias(
+        None, length, batch=2 * N_NODES, device=torch.device("cpu"), dtype=torch.float32
+    )
+
+    def temporal_only(x: torch.Tensor) -> torch.Tensor:
+        b, n, l, d = x.shape
+        h = x.reshape(b * n, l, d)
+        h = h + block.temporal(block.ln_temporal(h), bias)
+        return h.reshape(b, n, l, d)
+
+    base_input = torch.randn(2, N_NODES, length, width)
+    probe = base_input.clone()
+    probe[:, 1, 7] += 5.0
+
+    with torch.no_grad():
+        difference = (temporal_only(probe) - temporal_only(base_input)).abs()
+    changed = [p for p in range(length) if float(difference[:, :, p].max()) > 0.0]
+    assert changed and min(changed) == 7, f"information reached positions {changed}, some before 7"
+
+
+def test_the_shipped_block_applies_temporal_before_spatial():
+    """A REPRODUCIBILITY pin, deliberately labelled as one.
+
+    ⚠️ This is **not** a correctness guard, and the distinction is recorded because the opposite
+    was believed for a while.  Mutation S1 swapped these two sublayers and every test still
+    passed: the leak-freedom comes from the two properties pinned above, both of which hold in
+    either order.  This test exists so the shipped architecture is the one ``docs/plans/p5.1.md``
+    describes, so that two checkpoints trained under this file are comparable -- nothing more.
+    """
+    import inspect
+
+    from agent.SpatialDTAgent import _SpatialBlock
+
+    source = inspect.getsource(_SpatialBlock.forward)
+    assert source.index("self.temporal(") < source.index("self.spatial(")
+
+
 def test_a_peers_action_at_an_earlier_step_does_reach_the_prediction():
     """Discriminating power for the test above: history is supposed to matter."""
     model = _model(NEIGHBOUR_MASK)

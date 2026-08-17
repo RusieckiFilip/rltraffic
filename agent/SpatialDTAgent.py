@@ -41,19 +41,27 @@ is legitimate and "node ``i`` may see node ``j``'s **action** at step ``t``" is 
 precisely the quantity ``i`` is being asked to predict for itself, from a policy that in deployment
 has not chosen it yet.
 
-The composition is safe, and the argument is structural rather than empirical:
+The composition is safe, and it rests on **exactly two** properties, both measured rather than
+argued (``tests/test_spatial_dt_agent.py`` pins each one directly):
 
-1. **Temporal runs before spatial in every block.**  After the temporal sublayer, node ``j``'s token
-   at position ``3t+1`` has absorbed ``j``'s history **up to and including ``3t+1``**, which excludes
-   ``a_t^j`` at ``3t+2``.
-2. **Spatial mixes position-wise.**  Node ``i`` at ``3t+1`` reads node ``j`` at ``3t+1`` only.
-3. **Temporal attention is causal, so nothing flows backwards.**  Node ``i``'s token at ``3t+2`` --
-   which *has* absorbed ``j``'s action token through the spatial sublayer -- can never reach position
-   ``3t+1`` in a later block.
+1. **The spatial sublayer is strictly position-wise.**  Perturbing node ``j``'s token at position
+   ``p`` changes the spatial output at position ``p`` **and at no other position** -- verified by
+   perturbation, not by inspection.  It moves information *across nodes*, never *across time*.
+2. **Temporal attention is strictly causal.**  Perturbing position ``p`` changes positions
+   ``>= p`` only, so ``a_t`` at ``3t+2`` can never reach the prediction read from ``3t+1``.
 
-Swapping the two sublayers would break step 1, and the model would still train.
-``tests/test_spatial_dt_agent.py::test_no_other_nodes_action_at_step_t_can_change_the_prediction_at_step_t``
-is the mechanical form of this argument and is the single most load-bearing test in the file.
+Since the *only* operation that moves information across positions is causal, ``a_t^j`` cannot
+reach any node's prediction at step ``t`` by any route.
+
+🚨 **CORRECTION, 2026-08-17, found by mutation and recorded because the false version is the
+dangerous one.**  This docstring previously argued that the safety came from *"temporal runs before
+spatial in every block"* and claimed *"swapping the two sublayers would break it"*.  **That is
+false.**  Mutation S1 swapped the two sublayers and **all 25 tests still passed** -- correctly, as
+it turns out, because properties (1) and (2) hold in either order and they are what does the work.
+The ordering is a **reproducibility pin**, not a correctness guard, and
+``test_the_shipped_block_applies_temporal_before_spatial`` says so in those words.  A plausible
+structural argument stated in a docstring as if it were load-bearing is exactly the kind of claim
+that reaches a methods section unchallenged; it was caught here only because the mutation was run.
 
 THE NO-MIXING CONTROL
 ---------------------
@@ -238,10 +246,11 @@ class _SpatialBlock(nn.Module):
     ) -> torch.Tensor:
         """``x`` is ``(B, N, L, d)``; both biases are additive masks.
 
-        ⚠️ **The order of the first two sublayers is load-bearing, not stylistic.**  Temporal must
-        run first, so that when the spatial sublayer mixes position ``3t+1`` across nodes, no
-        node's token at that position has yet absorbed its own action at ``3t+2``.  Swapping them
-        leaks every peer's concurrent action into every prediction, and the model still trains.
+        Temporal runs before spatial.  ⚠️ **That order is a reproducibility pin and NOT what makes
+        the model leak-free** -- swapping the two sublayers was measured (mutation S1) to leave
+        every test passing, because the spatial sublayer is position-wise and temporal attention is
+        causal, and those two properties are what prevent a peer's concurrent action from reaching
+        a prediction.  See the module docstring's correction of 2026-08-17.
         """
         batch, nodes, length, width = x.shape
 
