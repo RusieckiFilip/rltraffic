@@ -773,6 +773,21 @@ original wording said *"after any edit, verify by absolute path"*, which is too 
 is relying on the working directory at all**, and it bites reads, writes and checks alike. **The
 remedy is mechanical and therefore reliable; vigilance is neither.**
 
+**TWO INDEPENDENT METHODS AGREEING IS NOT EVIDENCE WHEN THEY SHARE AN INPUT (added 2026-08-17, the coordinator's own error, caught before it became a ruling).**
+Checking P0.10's claim that a committed p-value was the correctly-rounded `erfc`, I computed the value
+two ways — an asymptotic continued fraction and a convergent Taylor series, at 140 and 160 digits.
+**They agreed with each other to ~48 significant figures and disagreed with the implementer at the
+13th.** I was one message away from telling a correct implementer their 120-digit computation was wrong.
+**The cause: I fed both methods `|z|/sqrt(2)` evaluated as an EXACT REAL, while the code passes the
+FLOAT64 rounding of it.** The argument differs by ~1 ulp; `d/dx erfc` at x = 3.52 is ≈ −4.6e−6, so the
+output differs by ~2e−21 — **exactly the discrepancy I was seeing.** At the float64 argument my series
+reproduces the implementer's value to all 18 stated digits and the committed double exactly.
+> **The two methods were independent in ALGORITHM and identical in PREMISE, so their agreement measured
+> only their shared input.** This is `DEFERRED` 23's lesson in numerical form: **agreement between
+> routes that share an assumption proves nothing about the assumption.** The double-compute rule
+> (CLAUDE.md §2) is satisfied only when the routes differ in what they ASSUME, not merely in how they
+> compute — **so a double-compute must state its shared inputs, and vary the one under suspicion.**
+
 **AN ALIGNMENT CONVENTION IS A LOAD-BEARING ASSUMPTION. WHENEVER TWO SYSTEMS ARE COMPARED, THE KEY THAT PAIRS THEM MUST BE TESTED, NEVER ASSUMED (added 2026-08-16, found by the P7.0 implementer).**
 P7.0's plan registered a per-feature comparison *"aligned by lane id"*. **That rests on a premise
 nobody stated: that a lane id denotes the same physical lane in both backends. It does not.** Verified
