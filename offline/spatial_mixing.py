@@ -858,23 +858,33 @@ def _run_train(args: argparse.Namespace) -> int:
     records: list[dict[str, Any]] = []
     for seed in TRAINING_SEEDS:
         destination = checkpoints / f"{TIER}_{args.method}_seed{seed}.pt"
+        if resume_decision(destination, int(args.gradient_steps), args.method) == "skip":
+            print(
+                f"SKIP {args.method} seed {seed}: checkpoint already on disk at the declared "
+                f"budget ({destination})",
+                flush=True,
+            )
+            continue
         print(f"TRAIN {args.method} seed {seed} -> {destination}", flush=True)
-        result = train_spatial_dt(
-            stacked,
-            index=parts["index"],
-            method=args.method,
-            seed=int(seed),
-            adjacency=parts["adjacency"],
-            prompts=parts["prompts"],
-            stats=parts["dataset"].stats,
-            state_dim=int(parts["index"].state_dim),
-            n_actions=int(parts["index"].n_actions),
-            gradient_steps=int(args.gradient_steps),
-            batch_size=int(args.batch_size),
-            device=device,
-            checkpoint_path=destination,
-            provenance={"runtime": runtime_provenance()},
-            log_every=int(args.log_every),
+        result = _train_atomically(
+            lambda partial, seed=seed: train_spatial_dt(
+                stacked,
+                index=parts["index"],
+                method=args.method,
+                seed=int(seed),
+                adjacency=parts["adjacency"],
+                prompts=parts["prompts"],
+                stats=parts["dataset"].stats,
+                state_dim=int(parts["index"].state_dim),
+                n_actions=int(parts["index"].n_actions),
+                gradient_steps=int(args.gradient_steps),
+                batch_size=int(args.batch_size),
+                device=device,
+                checkpoint_path=partial,
+                provenance={"runtime": runtime_provenance()},
+                log_every=int(args.log_every),
+            ),
+            destination,
         )
         records.append(
             {
@@ -883,7 +893,8 @@ def _run_train(args: argparse.Namespace) -> int:
                 "gradient_steps": result.gradient_steps,
                 "seconds": result.seconds,
                 "final_loss": result.losses[-1],
-                "checkpoint_path": result.checkpoint_path,
+                # The trainer wrote to the .partial sibling; record where it LANDED.
+                "checkpoint_path": str(destination),
             }
         )
         print(
@@ -962,27 +973,42 @@ def _run_train_baselines(args: argparse.Namespace) -> int:
     for method in ("bc", "bc_top10", "iql"):
         for seed in TRAINING_SEEDS:
             path = checkpoints / f"{TIER}_{method}_seed{seed}.pt"
+            if resume_decision(path, int(args.gradient_steps), method) == "skip":
+                print(
+                    f"SKIP {method} seed {seed}: checkpoint already on disk at the declared "
+                    f"budget ({path})",
+                    flush=True,
+                )
+                continue
             print(f"TRAIN {method} seed {seed} -> {path}", flush=True)
             if method == "iql":
+                # Built lazily and ONLY when an iql seed actually needs running, so a resume that
+                # skips every iql seed never pays for the 1.15M-transition rebuild.
                 if table is None:
                     table = build_transitions(dataset, group=group, reward_scale=scale)
                     print(f"  transitions {len(table)}", flush=True)
-                record = train_iql(
-                    table, state_dim=group[0], n_actions=group[1], seed=int(seed),
-                    declared_gradient_steps=int(args.gradient_steps),
-                    batch_size=IQL_BATCH_TRANSITIONS, device=device, checkpoint_path=path,
-                    stats=dataset.stats, scenario_id=SCENARIO_ID,
-                    provenance={**provenance, "runtime": runtime_provenance()},
-                    log_every=int(args.log_every),
+                record = _train_atomically(
+                    lambda partial, seed=seed: train_iql(
+                        table, state_dim=group[0], n_actions=group[1], seed=int(seed),
+                        declared_gradient_steps=int(args.gradient_steps),
+                        batch_size=IQL_BATCH_TRANSITIONS, device=device, checkpoint_path=partial,
+                        stats=dataset.stats, scenario_id=SCENARIO_ID,
+                        provenance={**provenance, "runtime": runtime_provenance()},
+                        log_every=int(args.log_every),
+                    ),
+                    path,
                 )
             else:
-                record = train_bc(
-                    batches[method], state_dim=group[0], n_actions=group[1], seed=int(seed),
-                    method=method, declared_gradient_steps=int(args.gradient_steps),
-                    batch_size=JOINT_BATCH_SIZE, device=device, checkpoint_path=path,
-                    stats=dataset.stats, scenario_id=SCENARIO_ID,
-                    provenance={**provenance, "runtime": runtime_provenance()},
-                    log_every=int(args.log_every),
+                record = _train_atomically(
+                    lambda partial, method=method, seed=seed: train_bc(
+                        batches[method], state_dim=group[0], n_actions=group[1], seed=int(seed),
+                        method=method, declared_gradient_steps=int(args.gradient_steps),
+                        batch_size=JOINT_BATCH_SIZE, device=device, checkpoint_path=partial,
+                        stats=dataset.stats, scenario_id=SCENARIO_ID,
+                        provenance={**provenance, "runtime": runtime_provenance()},
+                        log_every=int(args.log_every),
+                    ),
+                    path,
                 )
             records.append(
                 {"method": method, "seed": int(seed), "checkpoint_path": str(path),
@@ -1042,6 +1068,56 @@ def assert_declared_budget(path: str | Path, declared: int, method: str) -> dict
                 "would have caught the swap"
             )
     return {"gradient_steps": int(recorded), "method": method}
+
+
+def resume_decision(path: str | Path, declared: int, method: str) -> str:
+    """``"train"`` if this seed still needs running, ``"skip"`` if a valid checkpoint exists.
+
+    Resumability is at **seed** granularity, not arm granularity, and the difference is measured
+    in hours: at the campaign's ~85 min per seed, an arm-granularity skip loses up to four hours
+    of finished work when a run dies at seed four of five.
+
+    A checkpoint that exists but **disagrees** with the declared budget -- or, for a spatial arm,
+    with the arm's own mixing flag -- is **refused**, never silently reused and never silently
+    overwritten.  Silently reusing it would report the wrong budget; silently overwriting it would
+    destroy a legitimate artifact.  The hazard is concrete: a smoke run at ``--gradient-steps 3``
+    pointed at the campaign's checkpoint directory would otherwise be resumed straight into the
+    reported cells.
+    """
+    destination = Path(path)
+    if not destination.is_file():
+        return "train"
+    try:
+        assert_declared_budget(destination, declared, method)
+    except ValueError as exc:
+        raise ValueError(
+            f"refusing to resume: {exc}. This file is neither a valid checkpoint at the declared "
+            "budget nor absent, so neither reusing it nor overwriting it is safe. Move it aside "
+            "deliberately, or point --checkpoint-dir somewhere else"
+        ) from exc
+    return "skip"
+
+
+def _train_atomically(
+    run: Callable[[Path], Any], final_path: str | Path
+) -> Any:
+    """Train into a ``.partial`` file and ``os.replace`` it into place only on success.
+
+    ``torch.save`` is **not** atomic: a process killed mid-save leaves a truncated ``.pt`` that
+    ``torch.load`` cannot read, and on a 17 h campaign the resume would then abort instead of
+    retraining that seed.  Writing to a sibling temporary and renaming makes a killed run leave
+    either the previous checkpoint or nothing -- the same barrier ``dt_gate.write_json_atomic``
+    applies to artifacts, applied here to weights.  The ``.partial`` name is not a checkpoint
+    name, so :func:`resume_decision` ignores whatever a kill leaves behind.
+    """
+    import os as _os
+
+    destination = Path(final_path)
+    partial = destination.with_name(destination.name + ".partial")
+    partial.unlink(missing_ok=True)
+    result = run(partial)
+    _os.replace(partial, destination)
+    return result
 
 
 def _mappo_checkpoint_for(seed: int, root: str | Path) -> Path:

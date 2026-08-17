@@ -31,9 +31,19 @@
 #        and byte-verified against the five survivors in the main tree); run any tier but
 #        mappo1000 -- section 10's CUT 2 keeps P5.1 on ONE tier and drops the sweep.
 #
-# RESUMABLE AT ARM GRANULARITY: an arm whose 5 checkpoints exist is not retrained, and an arm whose
-# eval JSON exists is not re-rolled.  Every skip is logged BY NAME.  Nothing already computed is
-# recomputed.
+# RESUMABLE AT SEED GRANULARITY FOR TRAINING, CELL GRANULARITY FOR EVALUATION.  Every skip is
+# logged BY NAME and nothing already computed is recomputed:
+#   * each training seed whose checkpoint exists AT THE DECLARED BUDGET is skipped, so a crash at
+#     seed four of five costs one seed (~85 min) and not one arm (~7 h).  Arm granularity alone is
+#     what this script had first, and it would have thrown away up to four hours of finished work;
+#   * a checkpoint that exists but records a DIFFERENT budget, or the other arm's mixing flag, is
+#     REFUSED rather than reused or overwritten -- the concrete hazard is a rehearsal or smoke run
+#     whose 3-step checkpoints sit in the campaign's directory;
+#   * training writes to a `.partial` sibling and renames on success, because `torch.save` is not
+#     atomic and a kill mid-save would otherwise leave a truncated file that aborts the resume;
+#   * each evaluation cell whose `eval_<arm>.json` exists is not re-rolled, and that artifact is
+#     written through `write_json_atomic` (temp file + `os.replace`), so a kill leaves the previous
+#     file or nothing, never a partial cell.
 #
 # FAILS CLOSED: `set -euo pipefail`, and a final assertion that the completed cells equal the cells
 # derived from the DECLARATION, never from the files being checked -- exiting non-zero on any
@@ -55,7 +65,23 @@ set -euo pipefail
 ROOT=/home/filip/rltraffic-p51
 PY=/home/filip/rltraffic/.venv/bin/python
 CORPUS=/home/filip/rltraffic/datasets_v11
-WORK=$ROOT/output/p5_1
+
+# REHEARSAL KNOBS.  Both default to the declared campaign values and exist so this script's own
+# control flow -- the resume branches and the completeness assertion -- can be EXECUTED before an
+# overnight handover rather than read.  PROJECT_PLAN section 7 (2026-08-14): a declared path with
+# no execution behind it is untested however carefully it was written, and P4.7's resumability
+# probe aborted at tier 1 on exactly this class, after handover.
+#
+# ⚠️ A REHEARSAL CANNOT MASQUERADE AS A CAMPAIGN.  The completeness assertion below reads the
+# declared budget out of every cell and refuses anything but 40,000, so a reduced-budget run exits
+# non-zero and CAMPAIGN_COMPLETE is never written.  The per-seed resume guard additionally REFUSES
+# to reuse a checkpoint whose recorded budget is not the declared one, so rehearsal checkpoints
+# left in a campaign directory abort the campaign loudly instead of entering a reported cell.
+STEPS=${P51_STEPS:-40000}
+WORK=${P51_WORK:-$ROOT/output/p5_1}
+# The report lands here.  Overridable for the same reason as WORK: a rehearsal that reaches the
+# report must NOT write docs/data/p5_1_grid.json into the repository.
+OUT=${P51_OUT:-$ROOT/docs/data}
 LOGS=$WORK/logs
 
 # The pin is re-asserted INSIDE the script, not only exported in the tmux shell.  DEFERRED 41 has
@@ -66,9 +92,10 @@ export MKL_NUM_THREADS=1
 
 COMMON=(--corpus-root "$CORPUS"
         --draws-root "$ROOT/scenarios/draws"
-        --out-dir "$ROOT/docs/data"
+        --out-dir "$OUT"
         --work-dir "$WORK"
         --checkpoint-dir "$WORK/checkpoints"
+        --gradient-steps "$STEPS"
         --torch-threads 1)
 
 SPATIAL_ARMS=(dt_spatial dt_nomix)
@@ -83,7 +110,15 @@ cd "$ROOT"
 stamp() { date +"%Y-%m-%d %H:%M:%S"; }
 say()   { echo "[$(stamp)] $*"; }
 
+if [ "$STEPS" -ne 40000 ]; then
+  say "################################################################"
+  say "REHEARSAL: STEPS=$STEPS, not the declared 40000."
+  say "This exercises the control flow ONLY.  The completeness assertion"
+  say "will refuse these cells and CAMPAIGN_COMPLETE will NOT be written."
+  say "################################################################"
+fi
 say "P5.1 campaign starting; pin OMP=$OMP_NUM_THREADS MKL=$MKL_NUM_THREADS"
+say "work dir: $WORK   out dir: $OUT"
 say "arms: ${ALL_ARMS[*]}   seeds: ${SEEDS[*]}"
 
 # -------------------------------------------------------------------------------------
@@ -114,8 +149,16 @@ say "declaration present"
 # Training.  The two spatial arms first: they are the primary comparison and the long pole.
 # -------------------------------------------------------------------------------------
 for ARM in "${SPATIAL_ARMS[@]}"; do
-  # find, not ls+glob: an unmatched glob under `set -o pipefail` would abort the campaign
-  TRAINED=$(find "$WORK/checkpoints" -maxdepth 1 -name "grid4x4_mappo1000_${ARM}_seed*.pt" 2>/dev/null | wc -l)
+  # find, not ls+glob: an unmatched glob under `set -o pipefail` would abort the campaign.
+  # ⚠️ No `2>/dev/null` here, deliberately.  With it, a missing checkpoints directory aborts the
+  # script SILENTLY -- measured: exit 1 straight after "declaration present", with no reason on
+  # screen.  The mkdir above makes that unreachable, but a guard whose failure is invisible is
+  # how P4.7's probe went unnoticed until after handover.
+  # This shell guard is only a FAST PATH that avoids rebuilding the dataset when an arm is wholly
+  # done.  The real resumability is per SEED and lives in offline.spatial_mixing._run_train, which
+  # skips each checkpoint already on disk at the declared budget and refuses one that disagrees.
+  # Arm granularity alone would lose up to four hours when a run dies at seed four of five.
+  TRAINED=$(find "$WORK/checkpoints" -maxdepth 1 -name "grid4x4_mappo1000_${ARM}_seed*.pt" | wc -l)
   if [ "$TRAINED" -eq 5 ]; then
     say "SKIP training $ARM: 5 checkpoints already on disk"
   else
@@ -128,7 +171,7 @@ done
 
 BASE_TRAINED=$(find "$WORK/checkpoints" -maxdepth 1 -name "grid4x4_mappo1000_bc_seed*.pt" -o \
                     -name "grid4x4_mappo1000_bc_top10_seed*.pt" -o \
-                    -name "grid4x4_mappo1000_iql_seed*.pt" 2>/dev/null | wc -l)
+                    -name "grid4x4_mappo1000_iql_seed*.pt" | wc -l)
 if [ "$BASE_TRAINED" -eq 15 ]; then
   say "SKIP training baselines: 15 checkpoints already on disk"
 else

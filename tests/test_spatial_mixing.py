@@ -516,6 +516,93 @@ def test_the_artifact_version_is_stated():
     assert DECLARATION_FORMAT_VERSION == "p5.1-declaration/1.0"
 
 
+# ----------------------------------------------------------------------
+# Resumability, at SEED granularity.  A 17 h campaign must lose one seed to a
+# crash, not one arm -- at ~85 min/seed the difference is four hours.
+# ----------------------------------------------------------------------
+
+
+def _fake_checkpoint(path, *, steps: int, spatial_mixing: bool = True) -> None:
+    torch.save(
+        {
+            "config": {"spatial_mixing": spatial_mixing},
+            "provenance": {"gradient_steps": int(steps)},
+        },
+        path,
+    )
+
+
+def test_an_absent_checkpoint_means_train(tmp_path):
+    from offline.spatial_mixing import resume_decision
+
+    assert resume_decision(tmp_path / "nothing.pt", 40_000, "dt_spatial") == "train"
+
+
+def test_a_checkpoint_at_the_declared_budget_means_skip(tmp_path):
+    from offline.spatial_mixing import resume_decision
+
+    path = tmp_path / "c.pt"
+    _fake_checkpoint(path, steps=40_000, spatial_mixing=True)
+    assert resume_decision(path, 40_000, "dt_spatial") == "skip"
+
+
+def test_a_checkpoint_at_the_WRONG_budget_is_refused_not_reused_and_not_overwritten(tmp_path):
+    """🚨 The concrete hazard: a smoke run at 3 steps pointed at the campaign's directory.
+
+    Resuming it would report a 3-step model as a 40,000-step cell.  Refusing is the only safe
+    action; silently overwriting could destroy a legitimate artifact instead.
+    """
+    from offline.spatial_mixing import resume_decision
+
+    path = tmp_path / "c.pt"
+    _fake_checkpoint(path, steps=3, spatial_mixing=True)
+    before = path.read_bytes()
+    with pytest.raises(ValueError, match="refusing to resume"):
+        resume_decision(path, 40_000, "dt_spatial")
+    assert path.read_bytes() == before, "a refusal must not touch the file"
+
+
+def test_a_checkpoint_of_the_OTHER_ARM_is_refused_on_resume(tmp_path):
+    from offline.spatial_mixing import resume_decision
+
+    path = tmp_path / "c.pt"
+    _fake_checkpoint(path, steps=40_000, spatial_mixing=True)
+    with pytest.raises(ValueError, match="refusing to resume"):
+        resume_decision(path, 40_000, "dt_nomix")
+
+
+def test_a_partial_file_left_by_a_kill_is_invisible_to_the_resume(tmp_path):
+    """``torch.save`` is not atomic; the ``.partial`` sibling is what a kill leaves behind."""
+    from offline.spatial_mixing import resume_decision
+
+    final = tmp_path / "c.pt"
+    (tmp_path / "c.pt.partial").write_bytes(b"truncated garbage, not a torch file")
+    assert resume_decision(final, 40_000, "dt_spatial") == "train"
+
+
+def test_training_lands_atomically_and_leaves_nothing_behind_on_failure(tmp_path):
+    """A failed run must leave the previous checkpoint untouched and create no final file."""
+    from offline.spatial_mixing import _train_atomically
+
+    final = tmp_path / "c.pt"
+
+    def ok(partial):
+        _fake_checkpoint(partial, steps=7)
+        return "done"
+
+    assert _train_atomically(ok, final) == "done"
+    assert final.is_file() and not (tmp_path / "c.pt.partial").exists()
+    first = final.read_bytes()
+
+    def boom(partial):
+        _fake_checkpoint(partial, steps=99)
+        raise RuntimeError("killed mid-training")
+
+    with pytest.raises(RuntimeError, match="killed mid-training"):
+        _train_atomically(boom, final)
+    assert final.read_bytes() == first, "the previous checkpoint was clobbered"
+
+
 def test_a_smoke_artifact_can_never_be_mistaken_for_a_cell(tmp_path):
     """The smoke facility is quarantined BY NAME, so it cannot contaminate a campaign.
 
@@ -552,15 +639,29 @@ def test_a_smoke_artifact_can_never_be_mistaken_for_a_cell(tmp_path):
 
 
 def test_the_campaign_completeness_check_reads_eval_not_smoke_eval():
-    """The other half: the shipped script's glob must not match a smoke artifact."""
+    """The other half: no campaign path may reference a smoke artifact's filename.
+
+    ⚠️ **This assertion was SHARPENED on 2026-08-17 and the reason is recorded rather than left
+    to the diff.** It first read ``"smoke" not in script.lower()`` -- a ban on the *word* -- and it
+    fired on a comment that documented the very hazard it guards ("a rehearsal or smoke run whose
+    3-step checkpoints sit in the campaign's directory"). That is ``PROJECT_PLAN`` section 7's
+    fragile-text-match class: the discriminating power of a string is a property of the corpus it
+    runs against, and this one banned documentation while the real hazard is a **filename**.
+
+    The replacement targets the hazard directly and adds two positive assertions, so the net test
+    is stronger: no reference to the quarantined stem, and both artifact names the campaign
+    actually uses.
+    """
     script = (Path(__file__).resolve().parents[1] / "offline" / "campaigns" / "p5_1.sh").read_text(
         encoding="utf-8"
     )
-    assert 'work / f"eval_{arm}.json"' in script
-    assert "smoke" not in script.lower(), (
-        "the campaign script must not know about the smoke facility at all; if it grows a "
-        "smoke branch, a partial cell could reach the completeness check"
+    assert "smoke_eval" not in script, (
+        "a campaign path references the quarantined smoke artifact name; a partial cell could "
+        "then reach the skip branch or the completeness check"
     )
+    # Positive: the two places that read a cell both read the real name.
+    assert 'work / f"eval_{arm}.json"' in script, "the completeness check lost its artifact name"
+    assert '"$WORK/eval_${ARM}.json"' in script, "the evaluation skip branch lost its artifact name"
 
 
 def test_tier_dirs_refuses_a_missing_directory(tmp_path):
