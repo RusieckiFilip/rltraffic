@@ -12,8 +12,9 @@ platform's libm and is not correctly rounded, so it is not a portable function.
 arithmetic is exactly specified, and therefore identical everywhere.  These tests pin the
 three properties that makes the replacement safe:
 
-1. **it is correct** -- it agrees with libm wherever libm is right, and it is right where
-   they disagree (checked against an independently computed high-precision value);
+1. **it is correct** -- checked against an *independent* algorithm (Laplace's continued
+   fraction, computed in :mod:`decimal`), never against the platform libm, which is the
+   thing under suspicion.  Agreement with libm is asserted only as a **1-ulp bound**;
 2. **no committed number moves** -- every ``(z, p_value)`` pair in ``docs/data/*.json``
    still reproduces exactly;
 3. **it does not depend on ambient state** -- the caller's :mod:`decimal` context cannot
@@ -27,6 +28,7 @@ from __future__ import annotations
 
 import json
 import math
+import struct
 from decimal import Decimal, getcontext, localcontext
 from pathlib import Path
 
@@ -49,17 +51,53 @@ def test_pi_is_computed_correctly() -> None:
     assert str(_pi_at(60))[:17] == "3.141592653589793"
 
 
+def _ulp_distance(a: float, b: float) -> int:
+    """Number of representable doubles between *a* and *b* (same sign, finite)."""
+    return abs(struct.unpack("<q", struct.pack("<d", a))[0] - struct.unpack("<q", struct.pack("<d", b))[0])
+
+
+def _erfc_continued_fraction(x: float, precision: int = 80) -> float:
+    """An INDEPENDENT high-precision erfc: Laplace's continued fraction, for ``x > 0``.
+
+    Deliberately a different algorithm from the implementation under test -- a different
+    series, and :meth:`Decimal.exp` instead of a Taylor sum -- so agreement is evidence
+    rather than a restatement.  This is the "compute it twice by different routes" rule
+    applied to a special function.
+    """
+    with localcontext() as context:
+        context.prec = precision
+        value = Decimal(x)
+        fraction = Decimal(0)
+        for k in range(400, 0, -1):
+            fraction = Decimal(k) / 2 / (value + fraction)
+        fraction = 1 / (value + fraction)
+        return float((-value * value).exp() / _pi_at(precision).sqrt() * fraction)
+
+
+@pytest.mark.parametrize("x", [1.0, 1.5, 2.0, 2.5, 3.0, 3.5216841843933384, 4.0, 5.0, 6.0, 8.0])
+def test_is_correctly_rounded_against_an_independent_continued_fraction(x: float) -> None:
+    """The real correctness oracle, and it depends on no platform library.
+
+    ⚠️ This replaced an earlier test of mine that asserted equality with ``math.erfc``.
+    That test passed on the dev machine and **failed at 6 of 17 points on the CI runner**,
+    because glibc 2.39 is 1 ulp off there while 2.43 is not -- it asserted the portability
+    of the very thing this module exists to stop depending on.  See docs/returns/P0.10.md.
+    """
+    assert _erfc_deterministic(x) == _erfc_continued_fraction(x)
+
+
 @pytest.mark.parametrize(
     "x",
     [0.0, 0.25, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 8.0, -0.5, -1.0, -2.0, -3.5, -6.0],
 )
-def test_agrees_with_the_platform_libm_where_the_platform_is_right(x: float) -> None:
-    """A replacement that disagreed with libm everywhere would be a new bug, not a fix.
+def test_stays_within_one_ulp_of_the_platform_libm(x: float) -> None:
+    """A replacement that disagreed with libm *wildly* would be a new bug, not a fix.
 
-    These are points where this machine's glibc happens to be correctly rounded, which is
-    the overwhelmingly common case -- the whole issue is the rare last-ulp disagreement.
+    The bound is 1 ulp rather than equality on purpose: libm is not correctly rounded and
+    differs between C libraries, so equality with it is not a portable property. Measured
+    2026-08-17 -- glibc 2.43 agrees exactly at all 17 of these points, glibc 2.39 at 11.
     """
-    assert _erfc_deterministic(x) == math.erfc(x)
+    assert _ulp_distance(_erfc_deterministic(x), math.erfc(x)) <= 1
 
 
 def test_it_returns_the_correctly_rounded_value_where_two_libms_disagree() -> None:
