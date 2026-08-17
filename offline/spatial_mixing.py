@@ -766,7 +766,20 @@ def build_parser() -> argparse.ArgumentParser:
         "train-baselines", help="train BC, %BC and IQL on the same tier, across every seed"
     )
     evaluate = sub.add_parser("evaluate", help="roll one arm over the held-out pool")
-    evaluate.add_argument("--method", required=True, choices=[*METHODS, COLLAPSE_REFERENCE_METHOD])
+    evaluate.add_argument(
+        "--method", required=True, choices=[*METHODS, BEHAVIOUR_METHOD, COLLAPSE_REFERENCE_METHOD]
+    )
+    evaluate.add_argument(
+        "--smoke-draws",
+        type=int,
+        default=0,
+        help=(
+            "SMOKE ONLY: roll the first N held-out draws with the first seed, to execute the "
+            "evaluation wiring once before an overnight campaign. Writes smoke_eval_<method>.json, "
+            "which the report and the campaign's completeness check both ignore by name, so a "
+            "smoke run can never be mistaken for a cell"
+        ),
+    )
     sub.add_parser("report", help="assemble the cells, comparisons and prediction scores")
     return parser
 
@@ -1081,10 +1094,21 @@ def _run_evaluate(args: argparse.Namespace) -> int:
     from offline.materialise_draws import draw_config_path
 
     settings = env_settings_from_manifest(tier_dirs(args.corpus_root)[0] / "manifest.json")
-    draws = list(HELD_OUT_DRAWS)
+    smoke = int(getattr(args, "smoke_draws", 0) or 0)
+    if smoke < 0:
+        raise ValueError(f"--smoke-draws must be >= 0, got {smoke}")
+    draws = list(HELD_OUT_DRAWS)[:smoke] if smoke else list(HELD_OUT_DRAWS)
+    seeds = [TRAINING_SEEDS[0]] if smoke else list(TRAINING_SEEDS)
+    if smoke:
+        print(
+            f"### SMOKE RUN: {args.method} over {len(draws)} draw(s) {draws} with seed "
+            f"{seeds[0]} only. This EXECUTES the evaluation wiring; it is NOT a cell and is "
+            f"written to smoke_eval_{args.method}.json, which the report ignores by name.",
+            flush=True,
+        )
     arm = f"{args.method}@{TIER}"
     produced: list[EpisodeResult] = []
-    for seed in TRAINING_SEEDS:
+    for seed in seeds:
         print(f"{arm} seed {seed} over {len(draws)} draws", flush=True)
         produced.extend(
             evaluate_arm(
@@ -1101,7 +1125,7 @@ def _run_evaluate(args: argparse.Namespace) -> int:
             )
         )
 
-    expected = {(int(s), int(d)) for s in TRAINING_SEEDS for d in draws}
+    expected = {(int(s), int(d)) for s in seeds for d in draws}
     got = {(int(r.seed), int(r.draw_id)) for r in produced}
     if got != expected:
         raise ValueError(
@@ -1111,12 +1135,14 @@ def _run_evaluate(args: argparse.Namespace) -> int:
 
     work = Path(args.work_dir)
     work.mkdir(parents=True, exist_ok=True)
+    name = f"smoke_eval_{args.method}.json" if smoke else f"eval_{args.method}.json"
     write_json_atomic(
         {
             "format_version": ARTIFACT_FORMAT_VERSION,
             "arm": arm,
             "tier": TIER,
             "method": args.method,
+            "smoke": bool(smoke),
             "declared_gradient_steps": int(args.gradient_steps),
             "engine_seed": int(args.engine_seed),
             "cell": _cell(produced),
@@ -1130,9 +1156,9 @@ def _run_evaluate(args: argparse.Namespace) -> int:
                 for e in produced
             ],
         },
-        work / f"eval_{args.method}.json",
+        work / name,
     )
-    print(f"{arm}: {len(produced)} episodes written to {work / f'eval_{args.method}.json'}")
+    print(f"{arm}: {len(produced)} episodes written to {work / name}")
     return 0
 
 

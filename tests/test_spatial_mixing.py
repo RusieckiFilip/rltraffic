@@ -13,6 +13,7 @@ to float32 -- the order ``offline/dataset.py::_returns_to_go`` documents -- and 
 
 from __future__ import annotations
 
+import json
 import os
 from collections import defaultdict
 from pathlib import Path
@@ -513,6 +514,53 @@ def test_the_declaration_artifact_records_the_graph_and_every_prompt(small_tier)
 def test_the_artifact_version_is_stated():
     assert ARTIFACT_FORMAT_VERSION == "p5.1-spatial/1.0"
     assert DECLARATION_FORMAT_VERSION == "p5.1-declaration/1.0"
+
+
+def test_a_smoke_artifact_can_never_be_mistaken_for_a_cell(tmp_path):
+    """The smoke facility is quarantined BY NAME, so it cannot contaminate a campaign.
+
+    ``--smoke-draws`` exists to execute the evaluation wiring once before an overnight run
+    (coordinator ruling, 2026-08-17; PROJECT_PLAN section 7's rule of 2026-08-14).  It writes
+    ``smoke_eval_<method>.json``; the report and the campaign's completeness check both read
+    ``eval_<method>.json`` only.  A partial cell therefore cannot be picked up by either.
+    """
+    import argparse
+
+    from offline.spatial_mixing import _run_report
+
+    work = tmp_path / "work"
+    work.mkdir()
+    for method in METHODS:
+        (work / f"smoke_eval_{method}.json").write_text(
+            json.dumps(
+                {
+                    "arm": f"{method}@grid4x4_mappo1000", "smoke": True,
+                    "cell": {"att_horizon_mean": 1.0},
+                    "episodes": [
+                        {"arm": f"{method}@grid4x4_mappo1000", "seed": 101, "draw_id": 1000,
+                         "att_horizon": 1.0, "horizon_vehicle_count": 1.0, "episode_reward": -1.0}
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+    args = argparse.Namespace(work_dir=str(work), out_dir=str(tmp_path / "out"))
+    # Every smoke file is present and NONE of them is a cell, so the report refuses.
+    with pytest.raises(ValueError, match="the report is missing"):
+        _run_report(args)
+    assert not (tmp_path / "out" / "p5_1_grid.json").exists()
+
+
+def test_the_campaign_completeness_check_reads_eval_not_smoke_eval():
+    """The other half: the shipped script's glob must not match a smoke artifact."""
+    script = (Path(__file__).resolve().parents[1] / "offline" / "campaigns" / "p5_1.sh").read_text(
+        encoding="utf-8"
+    )
+    assert 'work / f"eval_{arm}.json"' in script
+    assert "smoke" not in script.lower(), (
+        "the campaign script must not know about the smoke facility at all; if it grows a "
+        "smoke branch, a partial cell could reach the completeness check"
+    )
 
 
 def test_tier_dirs_refuses_a_missing_directory(tmp_path):
