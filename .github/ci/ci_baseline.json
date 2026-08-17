@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "written_by": "P0.10 (BRIEF_23), 2026-08-17, branch task/p0.10-reproducibility",
+  "read_by": ".github/ci/ci_gate.py -- see its module docstring for the format contract",
+  "pytest": {
+    "skip_ceiling": 62,
+    "provisional": true,
+    "measured": {
+      "value": 62,
+      "condition": "simulated GitHub runner on the dev machine: cityflow and matplotlib made unimportable with a ModuleNotFoundError-faithful meta_path blocker, sumo removed from PATH via a symlink farm, SUMO_HOME and every RLTRAFFIC_* variable unset, OMP_NUM_THREADS=MKL_NUM_THREADS=1, CUDA_VISIBLE_DEVICES empty",
+      "result": "864 passed, 62 skipped, 0 failed (926 collected)",
+      "tree": "task/p0.10-reproducibility at 3aaae2d, worktree /home/filip/rltraffic-p010",
+      "date": "2026-08-17",
+      "measured_on_a_github_runner": false,
+      "note": "A plain ImportError is NOT a faithful blocker: envs/__init__.py branches on exc.name != 'cityflow' and re-raises, which kills collection outright. The first measurement made that mistake and was discarded."
+    },
+    "ceiling_is_a_consequence_of": [
+      "the workflow does NOT build the vendored CityFlow (coordinator ruling 2026-08-17: an unverified C++ build step is a new failure surface on the one task whose purpose is reliability). Building it would move this ceiling from 62 to 31 -- measured, same tree, same day: 895 passed, 31 skipped.",
+      "no corpus is available on a runner: datasets*/ is gitignored and ~189 MB, so every corpus-gated test skips.",
+      "SUMO is not installed on the runner, so _sumo_available() is False and the SUMO-backed tests skip cleanly.",
+      "the workflow installs the dev extra only, so the 2 matplotlib-gated tests skip."
+    ],
+    "re_measure_required_at": {
+      "event": "merge of P5.1 (task/p5.1-spatial-mixing)",
+      "reason": "P5.1 adds tests that skip without a corpus. It measured 984 passed, 53 skipped corpus-absent in its own tree on 2026-08-17, against 898 passed, 28 skipped for the same condition on main -- roughly +25 skips. This ceiling WILL breach on that merge, and it is meant to: the job goes red and prints the observed number.",
+      "mandated_by": "coordinator ruling on BRIEF_23 Q1, 2026-08-17 -- 'a ceiling whose expiry lives only in a chat is a ceiling that silently breaches'"
+    },
+    "how_to_update": "Read the observed count from the failing job's summary, re-measure deliberately, and commit the new value together with the reason in the same commit. Never widen it with slack: slack is what blinds the gate."
+  },
+  "guards": {
+    "hygiene": {
+      "script": "scripts/check_test_hygiene.sh",
+      "invocation": "bash scripts/check_test_hygiene.sh   (NO arguments -- with arguments it scans a subset)",
+      "total": 16,
+      "by_file": {
+        "tests/test_cityflow_env_phase_constraints.py": {"TH006": 8},
+        "tests/test_sumo_env_phase_constraints.py": {"TH006": 5},
+        "tests/test_phase_control.py": {"TH006": 2},
+        "tests/test_base_traffic_env.py": {"TH006": 1}
+      },
+      "why_not_zero": "DEFERRED 45: 16 pre-existing TH006 findings in four frozen-adjacent test files. They are recorded, not tolerated silently, and they may NOT be 'fixed' to make CI green -- the files are next to frozen code and the fix is a task of its own. Re-measured for P0.10 from the full output of a no-argument run on 2026-08-17: 16, matching the coordinator's four independent counts.",
+      "expected_exit_code": 1
+    },
+    "english": {
+      "script": "scripts/check_english.sh",
+      "invocation": "bash scripts/check_english.sh   (NO arguments -- with arguments it scans only those paths)",
+      "total": 5,
+      "by_file": {
+        ".claude/agents/master-coordinator.md": {"PL": 1},
+        "README.md": {"PL": 1},
+        "docs/patches/claude_guard_g1.patch": {"PL": 1},
+        "docs/patches/claude_guard_hygiene.patch": {"PL": 1},
+        "scripts/claude_guard.sh": {"PL": 1}
+      },
+      "why_not_zero": "P0.9, still open: the o-acute false positive. Three of these five are the guard's own documentation of the character class it detects, quoted in claude_guard.sh and in two committed patches; de-diacriticising them would corrupt a record. Measured for P0.10 on 2026-08-17: 5.",
+      "expected_exit_code": 1
+    }
+  },
+  "frozen_guard": {
+    "script": "scripts/claude_guard.sh --frozen-only",
+    "vacuous_on_ci": true,
+    "why": "The guard derives everything from `git status --porcelain`, which is clean on a fresh checkout, so on a runner it always passes and proves nothing. It is invoked anyway because its absence would be worse, and the workflow says so at the call site rather than letting a green tick imply more than it proves. A PR-diff variant is a NEW enforcement mechanism and needs its own authorisation -- coordinator ruling 2026-08-17, parked as a DEFERRED row."
+  }
+}
