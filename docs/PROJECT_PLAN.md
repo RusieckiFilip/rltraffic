@@ -774,8 +774,18 @@ is relying on the working directory at all**, and it bites reads, writes and che
 remedy is mechanical and therefore reliable; vigilance is neither.**
 
 🚨 **EVERY BITWISE CLAIM WE HOLD IS A WITHIN-MACHINE PROPERTY, AND THE QUALIFIER IS NOWHERE WRITTEN (added 2026-08-17, the user's observation, measured by the coordinator).**
-**Counted: `PROJECT_PLAN.md` carries 39 claims of the form *byte-identical* / *bit-identical* /
-*bit-exact* / *byte-for-byte*. Across `PROJECT_PLAN.md`, `PREREGISTRATION.md` and
+⚠️ **COUNT CORRECTED 2026-08-17 — THE FIGURE 39 PUBLISHED HERE DOES NOT REPRODUCE AND IS WITHDRAWN.**
+Challenged by the P0.10 implementer, who could not reproduce it under five candidate rules, and
+**checked by me at `5d82a20`, the very commit that published it: 37 lines match, 46 occurrences,
+30 of them `byte-identical` alone.** The P0.10 reviewer measured **27** — `byte-identical`
+occurrences on the branch's older tree. **None of these is 39.** ⚠️ **This is the project's own
+*a measured claim must state its sample* rule, broken by me INSIDE a rule about measurement —
+I published a bare count without the pattern that produced it, so nobody including me could
+check it.** **Convention adopted, the implementer's: quote the matches, and name the PATTERN,
+the FILE and the COMMIT.**
+**Reproducible statement: at `5d82a20`, `grep -cE "byte-identical|bit-identical|bit-exact|byte-for-byte|bitwise" docs/PROJECT_PLAN.md` = 37 lines.**
+**`docs/CONTRACTS.md` re-measured: 0 determinism claims, 0 cross-machine mentions.**
+The substantive point is untouched by the arithmetic — dozens of claims, zero qualifiers. Across `PROJECT_PLAN.md`, `PREREGISTRATION.md` and
 `docs/CONTRACTS.md` there are ZERO occurrences of *cross-machine*, *second machine*, or a differing
 *glibc* / *libm* / *CPU* / *host*.** Every one of them — P4.3's byte-identical retrains, P4.5's
 byte-identical digests, the 1-vs-16-thread invariance proof, P7.0's float tie-break, P4.6's and P4.7's
