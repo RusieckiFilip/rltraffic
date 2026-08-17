@@ -428,6 +428,47 @@ def test_each_nodes_return_to_go_advances_by_its_own_reward():
     }
 
 
+def test_the_control_arm_discards_a_real_graph_it_is_handed():
+    """``spatial_mixing=False`` must win over the adjacency, not merely agree with it.
+
+    ⚠️ This test exists because mutation S3 -- deleting the ``spatial_mixing`` branch entirely --
+    SURVIVED the first version of this file.  Every no-mixing case there was constructed with
+    ``adjacency=IDENTITY_MASK``, so ``mask | I == I`` and the branch could be removed without any
+    assertion noticing.  A fixture that satisfies the assertion by construction is a tautology
+    (``PROJECT_PLAN`` section 7, 2026-08-07); here the control arm is handed a REAL graph and must
+    still come out isolated.
+    """
+    agent = _agent(_three_node_env(), spatial_mixing=False, adjacency=NEIGHBOUR_MASK)
+    assert np.array_equal(agent.spatial_mask, IDENTITY_MASK)
+    assert agent.config.spatial_mixing is False
+
+
+def test_the_treatment_arm_keeps_the_graph_it_is_handed():
+    """The other half of the pair, so the test above cannot pass by isolating everything."""
+    agent = _agent(_three_node_env(), spatial_mixing=True, adjacency=NEIGHBOUR_MASK)
+    assert np.array_equal(agent.spatial_mask, NEIGHBOUR_MASK)
+    assert not np.array_equal(agent.spatial_mask, IDENTITY_MASK)
+
+
+def test_an_adjacency_spec_is_asked_for_the_arm_the_agent_actually_is():
+    """An ``AdjacencySpec`` must be consulted with this agent's own mixing flag."""
+    from offline.roadnet_graph import AdjacencySpec
+
+    off_diagonal = NEIGHBOUR_MASK & ~np.eye(N_NODES, dtype=bool)
+    spec = AdjacencySpec(
+        node_ids=("ix_zulu", "ix_alpha", "ix_mike"),
+        directed=off_diagonal,
+        undirected=off_diagonal,
+        roadnet_path="/dev/null",
+        roadnet_sha256="0" * 64,
+    )
+    treatment = _agent(_three_node_env(), spatial_mixing=True, adjacency=spec)
+    control = _agent(_three_node_env(), spatial_mixing=False, adjacency=spec)
+
+    assert np.array_equal(treatment.spatial_mask, NEIGHBOUR_MASK)
+    assert np.array_equal(control.spatial_mask, IDENTITY_MASK)
+
+
 def test_an_adjacency_whose_order_disagrees_with_the_env_is_refused():
     from offline.roadnet_graph import AdjacencySpec
 
