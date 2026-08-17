@@ -62,7 +62,17 @@ import subprocess
 import tempfile
 import time
 from dataclasses import asdict, dataclass
-from decimal import Decimal, localcontext
+from decimal import (
+    Clamped,
+    Decimal,
+    FloatOperation,
+    Inexact,
+    ROUND_HALF_EVEN,
+    Rounded,
+    Subnormal,
+    Underflow,
+    localcontext,
+)
 from pathlib import Path
 from typing import Any, Callable, Sequence
 
@@ -234,12 +244,39 @@ def _pi_at(precision: int) -> Decimal:
 
     Computed rather than tabulated so the constant carries no transcription risk, and
     memoised because the series is the expensive part of :func:`_erfc_deterministic`.
+
+    **The context is fully specified, not inherited** (review item R3, 2026-08-17).
+    ``localcontext()`` copies the *caller's* context, and the original exit test was
+    ``addend == 0``, i.e. it waited for underflow.  Under ``ROUND_UP`` or ``ROUND_05UP`` an
+    addend never reaches zero, so the loop **did not terminate** -- measured by the reviewer
+    with ``SIGALRM``: both ran past 8 s against a 0.31 s baseline, and five ``traps`` settings
+    raised instead.  Nothing on ``main`` sets a decimal context, so no result was ever
+    affected; it is fixed rather than documented because a caller that sets one is a
+    reasonable thing for a future task to do.
+
+    Three changes, each doing one job: the exit test is now a **magnitude threshold** (it
+    terminates under every rounding mode), the rounding mode is **pinned** to the
+    round-to-nearest the series assumes, and the informational traps a caller might enable
+    (``Inexact``, ``Rounded``, ``FloatOperation``, ``Underflow``, ``Subnormal``, ``Clamped``)
+    are cleared -- they describe ordinary events in this algorithm, not errors.  Genuine
+    error traps such as ``InvalidOperation`` and ``DivisionByZero`` are deliberately left
+    alone.
     """
     cached = _PI_BY_PRECISION.get(precision)
     if cached is not None:
         return cached
     with localcontext() as context:
         context.prec = precision + 10
+        context.rounding = ROUND_HALF_EVEN
+        for signal in (Inexact, Rounded, FloatOperation, Underflow, Subnormal, Clamped):
+            context.traps[signal] = False
+
+        # Converge BELOW the guard region, not merely below the reported precision: the value
+        # is carried at `precision + 10` digits, so a threshold of 1e-(precision+9) would move
+        # its last stored digit. At 1e-(precision+12) every stored digit is identical to what
+        # the previous underflow-based exit produced -- verified at five precisions, which is
+        # what makes this fix provably inert on every committed number.
+        threshold = Decimal(10) ** -(precision + 12)
 
         def arctan_inverse(n: int) -> Decimal:
             """``atan(1/n)`` by its Taylor series, which converges fast for n = 5 and 239."""
@@ -250,9 +287,16 @@ def _pi_at(precision: int) -> Decimal:
                 k += 1
                 term = -term / (Decimal(n) ** 2)
                 addend = term / (2 * k + 1)
-                if addend == 0:
+                if abs(addend) < threshold:
                     return total
                 total += addend
+                if k > 10 * precision + 100:
+                    # Unreachable for n = 5 and 239 (each term shrinks by >= 25x), so this
+                    # raises rather than returning a half-summed value: a silent wrong pi
+                    # would be worse than a crash, and every caller is a test or a gate.
+                    raise RuntimeError(
+                        f"atan(1/{n}) did not converge at precision {precision}"
+                    )
 
         value = +(16 * arctan_inverse(5) - 4 * arctan_inverse(239))
     _PI_BY_PRECISION[precision] = value
@@ -309,6 +353,14 @@ def _erfc_deterministic(x: float) -> float:
     precision = int(2.0 * x * x / math.log(10.0)) + 45
     with localcontext() as context:
         context.prec = precision
+        # Same reasoning as _pi_at (review item R3): localcontext() copies the CALLER's
+        # context, so an ambient rounding mode or trap would reach a result that is supposed
+        # to depend on nothing but x. Rounding is pinned to the round-to-nearest the series
+        # assumes; the informational signals are cleared because an inexact series raises
+        # them by construction; genuine error traps are left alone.
+        context.rounding = ROUND_HALF_EVEN
+        for signal in (Inexact, Rounded, FloatOperation, Underflow, Subnormal, Clamped):
+            context.traps[signal] = False
         value = Decimal(x)
         square = value * value
         term = value

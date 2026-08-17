@@ -388,6 +388,60 @@ def _guard_gate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _libc_matrix_gate(args: argparse.Namespace) -> int:
+    """Assert the CI matrix really spans two C libraries (review item R2).
+
+    ``math.erfc`` differing between glibc versions is what P0.10 fixed, and the evidence for
+    the fix is that two *different* C libraries agree. On a single ``ubuntu-latest`` that
+    evidence is an accident of which image the label resolves to, and its loss is silent --
+    which is the definition of a check that cannot go red. So each leg records
+    ``platform.libc_ver()`` and this gate fails unless at least two legs report **different,
+    non-empty** versions.
+    """
+    directory = Path(args.inputs)
+    legs: list[tuple[str, tuple[str, str]]] = []
+    for path in sorted(directory.rglob("libc-*.json")):
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        libc = payload.get("libc") or ["", ""]
+        legs.append((str(payload.get("image", path.stem)), (str(libc[0]), str(libc[1]))))
+
+    lines = ["## libc matrix"]
+    for image, (name, version) in legs:
+        lines.append(f"  {image}: {name or '<none>'} {version or '<none>'}")
+
+    if len(legs) < 2:
+        lines.append(
+            f"FAIL libc-matrix: {len(legs)} leg(s) reported. Cross-library agreement cannot be "
+            "demonstrated by one machine -- that is the whole point of the matrix."
+        )
+        _emit(lines, args.summary_file)
+        return 1
+
+    unreported = [image for image, (name, version) in legs if not name or not version]
+    if unreported:
+        lines.append(
+            f"FAIL libc-matrix: {unreported} reported no C library version. "
+            "platform.libc_ver() returns ('', '') off glibc, so this leg proves nothing about "
+            "the property under test."
+        )
+        _emit(lines, args.summary_file)
+        return 1
+
+    distinct = {version for _, (_, version) in legs}
+    if len(distinct) < 2:
+        lines.append(
+            f"FAIL libc-matrix: every leg runs {sorted(distinct)[0]}. The matrix has collapsed "
+            "onto one C library, so the cross-library evidence for the erfc fix is gone. Pin a "
+            "second image with a different glibc (see .github/ci/ci_baseline.json)."
+        )
+        _emit(lines, args.summary_file)
+        return 1
+
+    lines.append(f"OK libc-matrix: {len(legs)} legs spanning {len(distinct)} C libraries {sorted(distinct)}")
+    _emit(lines, args.summary_file)
+    return 0
+
+
 def _wheel_gate(args: argparse.Namespace) -> int:
     repo_root = Path(args.repo_root).resolve()
     declared = declared_package_files(repo_root)
@@ -432,6 +486,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     guard.add_argument("--baseline", required=True)
     guard.add_argument("--summary-file", default=None)
     guard.set_defaults(handler=_guard_gate)
+
+    libc = subparsers.add_parser("libc-matrix", help="the matrix spans two C libraries")
+    libc.add_argument("--inputs", required=True, help="directory of libc-*.json leg reports")
+    libc.add_argument("--summary-file", default=None)
+    libc.set_defaults(handler=_libc_matrix_gate)
 
     wheel = subparsers.add_parser("wheel-gate", help="every declared package is in the wheel")
     wheel.add_argument("--wheel", required=True)

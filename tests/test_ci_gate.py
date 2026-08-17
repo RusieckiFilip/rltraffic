@@ -744,3 +744,96 @@ def test_workflow_does_not_silently_swallow_the_suite_result() -> None:
 def test_ci_files_exist(path: Path) -> None:
     """A missing file must fail as itself, not as a confusing parse error elsewhere."""
     assert path.is_file(), f"{path} is missing"
+
+
+# --------------------------------------------------------------------------------------
+# libc-matrix -- review item R2: the second C library must be declared, not incidental
+# --------------------------------------------------------------------------------------
+def write_leg(directory: Path, image: str, libc: tuple[str, str]) -> Path:
+    """Write one matrix leg's recorded C library, in the shape the workflow emits."""
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / f"libc-{image}.json"
+    path.write_text(json.dumps({"image": image, "libc": list(libc)}), encoding="utf-8")
+    return path
+
+
+def test_libc_matrix_passes_when_the_legs_really_differ(tmp_path: Path) -> None:
+    """The point of the matrix: two legs, two different C libraries."""
+    legs = tmp_path / "legs"
+    write_leg(legs, "ubuntu-22.04", ("glibc", "2.35"))
+    write_leg(legs, "ubuntu-24.04", ("glibc", "2.39"))
+
+    result = run_gate("libc-matrix", "--inputs", str(legs))
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "OK" in result.stdout
+    assert "2.35" in result.stdout and "2.39" in result.stdout
+
+
+def test_libc_matrix_fails_when_both_legs_have_the_same_c_library(tmp_path: Path) -> None:
+    """THE POINT OF R2. The day GitHub bumps both images to one glibc, this must go red.
+
+    Before this gate existed, the dev-2.43-versus-runner-2.39 coverage was an accident of
+    which image `ubuntu-latest` happened to resolve to, and its loss would have been silent.
+    """
+    legs = tmp_path / "legs"
+    write_leg(legs, "ubuntu-24.04", ("glibc", "2.39"))
+    write_leg(legs, "ubuntu-24.04-arm", ("glibc", "2.39"))
+
+    result = run_gate("libc-matrix", "--inputs", str(legs))
+
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "FAIL" in result.stdout
+    assert "2.39" in result.stdout
+
+
+def test_libc_matrix_fails_when_a_leg_is_missing(tmp_path: Path) -> None:
+    """One leg cannot demonstrate cross-library agreement, and a silent pass would claim it."""
+    legs = tmp_path / "legs"
+    write_leg(legs, "ubuntu-24.04", ("glibc", "2.39"))
+
+    result = run_gate("libc-matrix", "--inputs", str(legs))
+
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "FAIL" in result.stdout
+
+
+def test_libc_matrix_fails_when_a_leg_reported_no_version(tmp_path: Path) -> None:
+    """``platform.libc_ver()`` returns ``('', '')`` on a musl or non-glibc image."""
+    legs = tmp_path / "legs"
+    write_leg(legs, "ubuntu-24.04", ("glibc", "2.39"))
+    write_leg(legs, "alpine", ("", ""))
+
+    result = run_gate("libc-matrix", "--inputs", str(legs))
+
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "FAIL" in result.stdout
+
+
+def workflow_configuration() -> str:
+    """The workflow with comments stripped -- the configuration, not the prose about it.
+
+    Same distinction the ``dt_gate`` libm guard draws with an AST: the file *documents* why
+    ``ubuntu-latest`` was removed, and a naive substring scan would flag that sentence. A guard
+    with false positives is a guard that gets deleted.
+    """
+    lines = []
+    for line in WORKFLOW_FILE.read_text(encoding="utf-8").splitlines():
+        stripped = line.split(" #", 1)[0] if " #" in line else line
+        if stripped.lstrip().startswith("#"):
+            continue
+        lines.append(stripped)
+    return "\n".join(lines)
+
+
+def test_the_workflow_pins_its_images_and_never_uses_latest() -> None:
+    """R2: `ubuntu-latest` makes the second C library an accident that can vanish silently."""
+    text = workflow_configuration()
+
+    assert "ubuntu-latest" not in text, (
+        "a floating image makes the two-libc coverage incidental: the day GitHub bumps it, "
+        "the matrix legs can collapse onto one C library and nothing fails"
+    )
+    assert "ubuntu-22.04" in text and "ubuntu-24.04" in text
+    assert "libc-matrix" in text, "the workflow never checks that the legs actually differ"
+    assert "libc_ver" in text, "no leg records its C library"

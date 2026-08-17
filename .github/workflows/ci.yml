@@ -31,7 +31,18 @@ concurrency:
 
 jobs:
   suite-and-guards:
-    runs-on: ubuntu-latest
+    # TWO PINNED IMAGES WITH DIFFERENT glibc (review item R2, 2026-08-17).
+    # The defect P0.10 fixed was `math.erfc` differing between C libraries, and the evidence
+    # for the fix is that two DIFFERENT ones now agree. A single `ubuntu-latest` made that
+    # coverage an accident of what the label resolved to on the day -- and its loss would have
+    # been silent, which is the definition of a check that cannot go red. `latest` is banned
+    # here by `tests/test_ci_gate.py::test_the_workflow_pins_its_images_and_never_uses_latest`,
+    # and the `libc-matrix` job below FAILS if the two legs ever report the same glibc.
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.image }}
     timeout-minutes: 40
     env:
       # DEFERRED 41: the suite can deadlock unpinned -- 8 minutes at ~0 % CPU with 35
@@ -62,6 +73,18 @@ jobs:
 
       - name: Prepare artifact directory
         run: mkdir -p artifacts
+
+      - name: Record this leg's C library
+        # platform.libc_ver() is the property under test: it is what differs between the
+        # machines whose disagreement started this. Recorded per leg and compared in a
+        # separate job, because one leg cannot see another's value.
+        run: |
+          python - <<'PY' > artifacts/libc-${{ matrix.image }}.json
+          import json, platform
+          print(json.dumps({"image": "${{ matrix.image }}", "libc": list(platform.libc_ver()),
+                            "platform": platform.platform()}))
+          PY
+          cat artifacts/libc-${{ matrix.image }}.json
 
       - name: Run the pinned test suite
         # -rs so every skip states its reason; --junit-xml so the gate can count the run a
@@ -135,10 +158,39 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ci-artifacts
+          name: ci-artifacts-${{ matrix.image }}
           path: |
             artifacts/pytest.txt
             artifacts/junit.xml
             artifacts/english.out
             artifacts/hygiene.out
+            artifacts/libc-${{ matrix.image }}.json
           if-no-files-found: warn
+
+  libc-matrix:
+    # THE ASSERTION THAT MAKES THE MATRIX EVIDENCE RATHER THAN DECORATION.
+    # Fails if the legs collapse onto one C library, or if a leg reports none.
+    needs: suite-and-guards
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Collect every leg's C library report
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ci-artifacts-*
+          path: legs
+
+      - name: Gate - the matrix really spans two C libraries
+        run: |
+          python .github/ci/ci_gate.py libc-matrix \
+            --inputs legs \
+            --summary-file "$GITHUB_STEP_SUMMARY"
