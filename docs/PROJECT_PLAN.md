@@ -64,7 +64,7 @@ single-intersection tiers reverses on the first multi-intersection tier we measu
 > nodes, therefore trained on 16× the windows. **(iii)** Part of the margin is a known artefact rather
 > than DT strength: `bc_top10`'s 749.58 is R2/R6's **load sorter** collapsing, so only the **−11.13 vs
 > `bc`** and **−117.99 vs `iql`** legs are clean. **(iv)** One tier is not a ladder.
-> **P5.2 IS THE TEST**, and this is why it outranks everything else queued: it is no longer a follow-up
+> ⚠️ **AND THE OBVIOUS THIRD POINT DOES NOT EXIST: measured 2026-08-18, `cf_cologne3`'s three intersections share NO lane, so its derived adjacency has ZERO off-diagonal edges and `dt_spatial` ≡ `dt_nomix` there BY CONSTRUCTION** (control, same command: grid4x4 gives 48 edges over 16 nodes). **The intersection-count axis therefore has exactly two points, 1 and 16, and cologne3 cannot supply a third for the SPATIAL question at any price.** **P5.2 IS THE TEST**, and this is why it outranks everything else queued: it is no longer a follow-up
 > to a negative spatial-mixing result, it is **the measurement that decides which of §1's two surviving
 > explanations the paper argues for.**
 

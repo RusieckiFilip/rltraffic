@@ -110,9 +110,18 @@ grid4x4** — `DEFERRED` 6 still records `dqn` as an unstarted nice-to-have.
 `datasets_v11/` holds exactly three scenarios — `cf_hz1x1`, `cf_grid4x4`, `cf_cologne3`. There is no
 hangzhou_4x4 corpus**, and collecting one is a campaign, not a task.
 
-> **RULED: P5.2 is `cf_grid4x4` ACROSS THE LADDER. hangzhou_4x4 is struck from the item.** If a third
-> topology is wanted, **`cf_cologne3` exists (3 intersections, real network) and is the cheap option** —
-> but it is **NOT in this brief** and may not be added without a ruling.
+> **RULED: P5.2 is `cf_grid4x4` ACROSS THE LADDER. hangzhou_4x4 is struck from the item.**
+> 🚨 **AND `cf_cologne3` IS STRUCK TOO — CORRECTED 2026-08-18, BY MEASUREMENT, AFTER THIS PARAGRAPH
+> OFFERED IT AS *"the cheap option"*.** I derived its graph rather than assuming one:
+> `adjacency_from_roadnet_file('scenarios/cologne3/cologne3_roadnet_red.json', ix_ids)` over the
+> corpus's own node order returns a **3×3 mask with ZERO off-diagonal edges** — cologne3's three
+> intersections share no lane, so `A.outgoing_lanes ∩ B.incoming_lanes = ∅` for every pair.
+> **Control, same command: grid4x4 returns 48 off-diagonal edges over 16 nodes, exactly a 4×4 grid** —
+> so the zero is a property of the network, not a broken tool.
+> ⚠️ **CONSEQUENCE: on cologne3 the graph IS the identity, so `dt_spatial` and `dt_nomix` are THE SAME
+> MODEL. A spatial-mixing arm there is a tautology by construction** — the failure `PROJECT_PLAN` §7
+> (2026-08-07) and `DEFERRED` 46 both exist to prevent, and it would have been discovered after the
+> compute was spent. **No third topology is available for the spatial question without a new corpus.**
 
 ## 1. What P5.2 is for
 
