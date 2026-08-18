@@ -104,6 +104,106 @@ grid4x4** — `DEFERRED` 6 still records `dqn` as an unstarted nice-to-have.
 
 ---
 
+## ⭐ AMENDMENT B — 2026-08-18, the plan-mode gate: four rulings, and one of the conflicts is MINE
+
+**The implementer returned three conflicts between this brief and the repo. I verified all three from
+the artifacts before ruling. All three stand, and C-1 is my error.**
+
+### B0 🚨 C-1 CONFIRMED — §5's ATT FIGURES ARE `cf_hz1x1`'s, QUOTED AS `cf_grid4x4`'s. MINE.
+
+§5 warns *"`mappo060` is WORSE than `fixedtime` (281.89 vs 262.09)"*. **Read from
+`docs/data/att_ladder_v11.json` today: `281.89` and `262.09` are `cf_hz1x1`'s cells.** The scenario
+this task runs on reads:
+
+| grid4x4 tier | ATT at horizon | grid4x4 tier | ATT at horizon |
+|---|---|---|---|
+| `mappo1000` | **160.33** | `random` | **257.73** |
+| `maxpressure` | **167.49** | `mappo200` | **568.40** |
+| `mappo500` | **192.70** | `mappo060` | **1370.22** |
+| `fixedtime` | **206.93** | | |
+
+**The instruction survives — `mappo060` is worse than `fixedtime` on grid4x4 too, by 6.6× — but the
+RATIONALE does not, and the rationale is what chose the tiers.** ⚠️ **This is the project's signature
+error, mine, in a brief: a number true of one scenario stated about another.** **Every figure in this
+task orders by `cf_grid4x4`'s column above, and no hz1x1 ATT number may be quoted as grid4x4's.**
+
+### B1 ✅ TIER SET — **KEEP `{mappo1000, maxpressure, random}`**, for a reason the brief never gave, with the weakness DISCLOSED and a fourth tier PRE-DECLARED
+
+The implementer recommended keeping and was right, but the ladder-spacing objection it raised is real
+and must travel with the result rather than be dismissed.
+> **RULED, and the deciding reason is the question A1 created, not the one §5 argued from: `maxpressure`
+> is the tier where the DT ranked 4 of 4 — LAST — on hz1x1** (§1's claim constraint). **P5.2's headline
+> question is now *does `dt_nomix`'s lead survive*, and the most falsifying rung available is the one
+> where the DT was worst elsewhere.** `fixedtime`, where the DT ranked 2/4, is a softer test.
+> ⚠️ **DISCLOSE, in the plan and in the packet, in these terms: on grid4x4 `mappo1000` and
+> `maxpressure` are 7.16 ATT apart — 4.5 % — so the three tiers do NOT evenly span the corpus's
+> measured range (160.33 → 1370.22), and no sentence may say they do.** **The tiers separate on the
+> RETURN axis** (implementer's measurement from raw `.npz`: `mappo1000` −165.6 · `maxpressure` −251.5 ·
+> `random` −918.6, a **5.5×** spread) **and C1 is registered in measured return, so the design is sound
+> — say that, rather than claiming an ATT span we do not have.**
+> ⭐ **`fixedtime` (206.93, return −492.6) IS PRE-DECLARED NOW AS THE FOURTH TIER, to be run only if
+> phase B finishes with budget left** (~13.4 h). **Declared before any P5.2 number exists, so adding it
+> later is not post-hoc; it is the best-spaced middle rung and it is the tier that broke §1b R3's
+> monotonicity and flipped R2's sign on hz1x1, so reproducing those is free information.** **It may not
+> REPLACE `maxpressure`.**
+
+### B2 ✅ GATE STRUCTURE — CONFIRMED, exactly P5.1's shape
+
+Gate 1 = plan, tests, code, declaration, campaign script, **committed before any training**. The user
+launches the `tmux` campaign. Gate 2 scores it in a later session. **The declaration and the plan are
+committed BEFORE the launch, or the registration is worthless.**
+
+### B3 ✅ REUSE GATE — APPROVED, with three conditions, two of them from §7's new rule
+
+The random-anchor re-roll is the right gate: a CPU-deterministic policy, so exact equality is the
+correct bar, and it tests draw materialisation **and** the evaluation harness at once.
+> **RULED, all three binding.** **(a)** Verify the reused files against `output/SHA256SUMS_p5_1.txt` **at
+> consumption time** and record source path **and** digest per reused cell in the artifact — I
+> re-verified 48/48 on 2026-08-18, and a digest checked once is not a digest checked when used.
+> **(b) The equality check needs a POSITIVE CONTROL and a non-empty assertion** (`PROJECT_PLAN` §7,
+> 2026-08-18): assert the comparison set is **exactly 500 episodes** before comparing — so *"found no
+> differences"* can never be *"compared nothing"* — and prove the check fires by perturbing one episode
+> deliberately and pasting the failure. **(c) On mismatch the campaign REFUSES AND STOPS. It does not
+> silently fall back to re-running**, because a fallback hides exactly the drift the gate exists to
+> detect, and the mismatch is then a reportable finding about our own reproducibility.
+
+### B4 ✅ SIZE-MATCH THE `random` TIER — YES, AND THE PRECEDENT IS VERIFIED RATHER THAN ASSUMED
+
+C-3 confirmed and it is **wider than reported**: `random` holds **400** episodes on **all three
+scenarios** (`cf_hz1x1`, `cf_grid4x4`, `cf_cologne3`); every other tier holds 200.
+> **RULED: mirror P4.6 exactly — `subsample="one_per_draw"`, 200 streams, declared RNG, selection
+> recorded in the artifact.** ✅ **I verified P4.6 did this rather than taking it on report:
+> `p4_6_grid.json` carries `"subsample": "one_per_draw"` with `training_streams: 200` on the
+> `target_rtg −38369` cell — the `random` tier — against `"subsample": "none"` elsewhere. So no merged
+> P4.6/P4.7 number is confounded with corpus size, and this ruling follows precedent instead of
+> inventing one.** ⚠️ **Unmatched, tier would be confounded with training-set size — the one confound
+> §7 (2026-08-12) records as already having misled us, where *"plateaued"* tracked training-set size
+> and not convergence.**
+
+### B5 📏 THE REGISTERED PREDICTION — THREE ADDITIONS BEFORE IT IS COMMITTED
+
+The proposed rule is falsifiable, uses only on-disk quantities and builds no rescue. **Three things it
+must add, all cheap, all before the first gradient step:**
+1. **SCORE RANK, NOT ONLY LEVEL.** The paper's sentence is *"the DT leads / does not lead"*. **A ±30 %
+   ATT band can hold on every cell while every ordering flips.** Register an explicit **per-tier rank
+   prediction** — which arm is 1st — and score it **separately** from the band.
+2. **EXCLUDE SEEN CELLS FROM THE DENOMINATOR.** `mappo1000` is reused and already seen; those cells are
+   free hits. **Enumerate the out-of-sample cell set explicitly and score `k of N` over that set only.**
+3. **FIX THE BAND AND THE THRESHOLD IN THE COMMIT.** ±30 % against a calibrated median error of 23.9 %
+   is close to a coin flip per cell, which makes it a real test — **and it may not be widened after any
+   result is visible.** State the calibration (median 23.9 %, max 378.5 %) beside it.
+
+### B6 ✅ COST FIGURE CORRECTED — the implementer's number is better than mine
+
+A4 said *"≈ 13 h 26, measured from preserved mtimes"*. **The log is the artifact and it is more precise:
+`output/p5_1/logs/campaign.log` reads `[2026-08-17 13:46:36]` start and `03:11:01` finish = 13 h 24 m
+25 s.** Mine was inferred by extrapolating backwards from the first checkpoint; theirs was read.
+⚠️ **Also worth carrying: the same log shows the pre-run estimate `~85 min/seed measured for
+dt_spatial` against ~59 min/seed actual — a 1.4× over-estimate, which is the prior to apply to the
+~38 h projection rather than treating it as tight.**
+
+---
+
 ## 0. ⚠️ SCOPE CORRECTION BEFORE ANYTHING ELSE — §6's P5.2 NAMES A SCENARIO WE DO NOT HAVE
 
 §6 reads *"Train + evaluate on grid4x4, **hangzhou_4x4** per ladder tier"*. **Measured today:
@@ -183,10 +283,14 @@ rests on a column that has an anchor rather than one nobody had checked.**
 
 grid4x4 trains at **2.81 s/episode** against hz1x1's 1.04. **P5.1's single tier was ~17 h.** A full
 seven-tier sweep is not affordable in the September window.
-> **RULED: three tiers — `mappo1000`, `maxpressure`, `random` — spanning the ladder's measured ATT
-> range, not its tier names.** ⚠️ **`mappo060` is WORSE than `fixedtime` (281.89 vs 262.09), so order
-> every figure by measured ATT.** **If it overruns, drop to `mappo1000` + `random`** — the endpoints
-> carry the interaction; the middle does not.
+> **RULED: three tiers — `mappo1000`, `maxpressure`, `random`.** 🚨 **THE JUSTIFICATION IN THIS
+> PARAGRAPH IS WITHDRAWN — SEE AMENDMENT B0/B1. `281.89` and `262.09` are `cf_hz1x1`'s cells, quoted
+> here as grid4x4's; the tiers do NOT span grid4x4's measured ATT range (160.33 → 1370.22) and no
+> sentence may say they do.** The set is kept for a different and better reason (B1: `maxpressure` is
+> where the DT ranked LAST on hz1x1, so it is the most falsifying rung for the lead question), it
+> separates on the **return** axis by 5.5×, and **`fixedtime` is pre-declared as an optional fourth
+> tier**. **Order every figure by grid4x4's own measured ATT.** **If it overruns, drop to `mappo1000` +
+> `random`** — the endpoints carry the interaction; the middle does not.
 
 ## 6. Definition of Done
 
