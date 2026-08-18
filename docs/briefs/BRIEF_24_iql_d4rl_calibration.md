@@ -35,6 +35,9 @@ value-decomposition's advantage specifically to *"the severe multimodal distribu
 policies on mixed-quality datasets"*. **Our P4.7 has %BC leading all three mixtures while IQL drops to
 3/4 — the opposite.**
 
+🚨 **AND THE OFFLINE-MARL HALF IS WITHDRAWN TOO (2026-08-18, checked at source by the user against OMIGA's and OMSD's own tables). Filtered/%BC appears in NO table of either paper; where plain BC appears it BEATS the value-based methods on MaMuJoCo; neither measures modality with any statistic; and OMSD — the only paper stating the multimodality thesis — argues the OPPOSITE MECHANISM, its best method on mixed data being behaviour-modelling. THERE IS NO CONTRADICTION TO SETTLE.**
+> ⭐ **This makes the task MORE clearly motivated, not less. The question was always *is our IQL implementation sound* and it never depended on the anomaly.** It is now sharpened by two things that are OURS and VERIFIED: **the single-Q deviation** (`offline_baselines.py:1960-1963` — no clipped double Q, present in every merged P4.x number) and **IQL losing to `random` at 36/100 draws won on grid4x4** while winning the entire weak half on one intersection. **What goes is any framing that a result would *settle a contradiction with the literature*.**
+
 **Two explanations produce exactly that pattern and no dataset statistic can separate them:**
 **(A)** our IQL is doing something wrong that four reviews did not catch, or **(B)** our IQL is correct
 and the domain differs. **This measurement separates them, and it is the only one of the three
