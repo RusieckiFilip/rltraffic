@@ -524,6 +524,20 @@ def per_seed_advantages(
     }
     values = np.array(list(advantages.values()), dtype=np.float64)
     favouring = int((values < 0).sum())
+    minority = (
+        int(len(values) - favouring) if favouring >= len(values) - favouring else favouring
+    )
+    # ⚠️ TWO DEFINITIONS, because they are not the same question and P5.1's review found the
+    # first one under-reports (J1c).  ``reverses_on_n_seeds`` is the seed MINORITY -- how lopsided
+    # the split is, regardless of which side the pooled mean landed on.  ``reverses_against_
+    # pooled_sign`` counts the seeds that disagree with the POOLED sign, which is the one that
+    # matters when a stated ORDERING is being qualified.  They coincide whenever the majority
+    # carries the pooled sign, which is every pair in P5.1's cell -- and they diverge exactly
+    # where a few large seeds outvote a numerous small-effect majority.
+    pooled_sign = float(values.mean())
+    against_pooled = int(
+        sum(1 for v in values if (v < 0) != (pooled_sign < 0) and v != 0.0)
+    )
     return {
         "by_seed": {str(seed): value for seed, value in advantages.items()},
         "n_seeds": len(shared),
@@ -532,15 +546,46 @@ def per_seed_advantages(
         "min": float(values.min()),
         "max": float(values.max()),
         "n_seeds_favouring_left": favouring,
-        "reverses_on_n_seeds": int(len(values) - favouring)
-        if favouring >= len(values) - favouring
-        else favouring,
+        "reverses_on_n_seeds": minority,
+        "reverses_against_pooled_sign": against_pooled,
+        "definitions": {
+            "reverses_on_n_seeds": "size of the seed MINORITY by sign, whichever side that is",
+            "reverses_against_pooled_sign": (
+                "seeds whose sign disagrees with the pooled mean's sign; this is the one that "
+                "qualifies a stated ordering, and it can differ from the minority when a few "
+                "large seeds outvote a numerous small-effect majority"
+            ),
+        },
         "note": (
             "the draw-level CI averages these seeds into each unit and carries no information "
             "about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage "
             "favours the left arm"
         ),
     }
+
+
+def seed_reversal_qualifier(per_seed: Mapping[str, Any], left: str, right: str) -> str | None:
+    """The sentence a consumer must print beside any ordering this pair fixes, or ``None``.
+
+    🚨 **This exists because P5.1's review found the datum already computed and not reaching the
+    prose** — ``reverses_on_n_seeds`` was in the artifact for ``dt_spatial`` vs ``bc`` while the
+    packet's own seed-robustness section omitted the pair. **An author remembering to read a field
+    they already computed is not a mechanism**, so the qualifier is emitted by the generator.
+    """
+    n = int(per_seed.get("reverses_against_pooled_sign", 0))
+    if not n:
+        return None
+    by_seed = per_seed["by_seed"]
+    offenders = sorted(
+        seed for seed, value in by_seed.items()
+        if (value < 0) != (per_seed["mean"] < 0) and value != 0.0
+    )
+    return (
+        f"⚠️ ORDERING NOT ROBUST ACROSS SEEDS: {left} vs {right} reverses on {n} of "
+        f"{per_seed['n_seeds']} training seeds ({', '.join(offenders)}); per-seed advantages "
+        f"{ {k: round(v, 4) for k, v in sorted(by_seed.items())} }. The pooled CI averages the "
+        "seed dimension away and carries no information about it (P4.7 M1)."
+    )
 
 
 def _outcome_from_interval(low: float, high: float) -> str:
@@ -559,7 +604,7 @@ def _paired_block(
     from offline.offline_baselines import paired_comparison
 
     comparison = paired_comparison(left, right)
-    return {
+    block = {
         "left_arm": comparison.left_arm,
         "right_arm": comparison.right_arm,
         "n_shared_draws": comparison.n_shared_draws,
@@ -578,6 +623,10 @@ def _paired_block(
         "p_value": comparison.wilcoxon.p_value,
         "per_seed": per_seed_advantages(left, right),
     }
+    block["seed_reversal_qualifier"] = seed_reversal_qualifier(
+        block["per_seed"], comparison.left_arm, comparison.right_arm
+    )
+    return block
 
 
 def score_p1(
@@ -629,6 +678,27 @@ def score_p2(
     best_other = min(others, key=lambda method: means[method])
     block = _paired_block(episodes_by_method["dt_spatial"], episodes_by_method[best_other])
 
+    # J1(a): a POOLED ranking with no per-seed annotation lets a consumer inherit a rank as
+    # settled.  P5.1's review found exactly that -- dt_spatial is 3/5 pooled and 2/5 on seed 101 --
+    # so the per-seed order ships beside the pooled one, emitted here rather than remembered.
+    per_seed_means: dict[str, dict[str, float]] = {}
+    for method in METHODS:
+        buckets: dict[int, list[float]] = {}
+        for record in episodes_by_method[method]:
+            if record.seed is not None:
+                buckets.setdefault(int(record.seed), []).append(record.att_horizon)
+        per_seed_means[method] = {
+            str(seed): float(np.mean(values)) for seed, values in sorted(buckets.items())
+        }
+    seeds = sorted({s for m in METHODS for s in per_seed_means[m]})
+    per_seed_order = {
+        seed: sorted(METHODS, key=lambda m: per_seed_means[m][seed]) for seed in seeds
+    }
+    per_seed_rank = {
+        seed: per_seed_order[seed].index("dt_spatial") + 1 for seed in seeds
+    }
+    unstable = sorted({r for r in per_seed_rank.values()} - {rank})
+
     p2a = {
         "conjunct": "P2a",
         "statement": "dt_spatial has the lowest held-out mean att_horizon of the five method arms",
@@ -636,6 +706,19 @@ def score_p2(
         "n_arms": len(METHODS),
         "means": means,
         "order": ordered,
+        "per_seed_means": per_seed_means,
+        "per_seed_order": per_seed_order,
+        "per_seed_rank_of_dt_spatial": per_seed_rank,
+        "order_qualifier": (
+            None
+            if not unstable
+            else (
+                f"⚠️ THE POOLED ORDER IS NOT THE ORDER ON EVERY SEED. dt_spatial ranks {rank} "
+                f"pooled and {sorted(set(per_seed_rank.values()))} across the individual training "
+                f"seeds ({per_seed_rank}). A consumer reading 'rank {rank}' as settled would be "
+                "inheriting a pooled statistic that the seed dimension does not support."
+            )
+        ),
         "outcome": "HELD" if rank == 1 else "FAILED",
         "note": (
             "on the eight prior single-intersection tiers the DT ranked 3/4, 3/4, 4/4, 2/4, 2/4 "
@@ -1290,6 +1373,11 @@ def _run_report(args: argparse.Namespace) -> int:
                     episodes_by_method[left], episodes_by_method[right]
                 ),
             }
+            # J1(b): the qualifier is emitted HERE, by the generator, for every comparison that
+            # reverses -- not left to an author to notice a field they already computed.
+            entry["seed_reversal_qualifier"] = seed_reversal_qualifier(
+                entry["per_seed"], comparison.left_arm, comparison.right_arm
+            )
             comparisons.append(entry)
 
     predictions: dict[str, Any] = {

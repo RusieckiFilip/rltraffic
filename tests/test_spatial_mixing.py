@@ -65,6 +65,16 @@ def _corpus_root() -> Path:
 
 
 def test_the_declared_constants_are_the_ones_the_plan_registered():
+    """⚠️ **Strengthened 2026-08-18 (P5.1 review, "theatre"): it never read the plan.**
+
+    It asserted the module's constants against literals retyped from the same author's memory,
+    so a constant and its registration could drift apart and this test would still pass. It now
+    reads ``docs/plans/p5.1.md`` -- the pre-registered document -- and requires each value to
+    appear there.
+    """
+    plan = (Path(__file__).resolve().parents[1] / "docs" / "plans" / "p5.1.md").read_text(
+        encoding="utf-8"
+    )
     assert DECLARED_GRADIENT_STEPS == 40_000
     assert JOINT_BATCH_SIZE == 64
     assert CONTEXT_LENGTH == 20
@@ -72,6 +82,13 @@ def test_the_declared_constants_are_the_ones_the_plan_registered():
     assert METHODS == ("dt_spatial", "dt_nomix", "bc", "bc_top10", "iql")
     assert DT_METHODS == ("dt_spatial", "dt_nomix")
     assert len(TIER_DIRS) == 5
+
+    # The registration itself, not a second copy of the belief.
+    assert "40,000" in plan or "40000" in plan, "the plan does not register the budget"
+    assert "64 joint windows" in plan, "the plan does not register the batch size"
+    for method in METHODS:
+        assert f"`{method}`" in plan, f"the plan does not name the arm {method}"
+    assert "5 seeds" in plan and "1000-1099" in plan.replace("\u2013", "-")
 
 
 def test_the_batch_size_gives_the_same_epoch_count_as_the_hz1x1_dt_arms():
@@ -210,6 +227,41 @@ def test_a_declaration_that_disagrees_by_one_unit_is_refused(small_tier):
     declared["C1"]["target_rtg"] += 1.0
     with pytest.raises(ValueError, match="declares target_rtg"):
         assert_declaration_matches_corpus(declared, streams)
+
+
+def test_a_declaration_whose_rtg_SCALE_disagrees_is_refused(small_tier):
+    """m5, 2026-08-18: this branch shipped untested and the packet read as if it were covered.
+
+    ``assert_declaration_matches_corpus`` has two refusals, one per constant. The Gate-1 packet's
+    mutation M4 disabled only the ``target_rtg`` branch, so a reader would take both as guarded
+    while the ``rtg_scale`` branch had no test at all -- P5.1's review found it surviving.
+    """
+    _, streams = small_tier
+    prompts = per_node_prompts(streams)
+    declared = {
+        ix: {"target_rtg": p.target_rtg, "rtg_scale": p.rtg_scale} for ix, p in prompts.items()
+    }
+    declared["B2"]["rtg_scale"] += 1.0
+    with pytest.raises(ValueError, match="declares rtg_scale"):
+        assert_declaration_matches_corpus(declared, streams)
+
+
+def test_the_two_declaration_branches_are_independent(small_tier):
+    """Matched pair: a correct scale with a wrong target, and a correct target with a wrong scale."""
+    _, streams = small_tier
+    prompts = per_node_prompts(streams)
+
+    def declaration():
+        return {ix: {"target_rtg": p.target_rtg, "rtg_scale": p.rtg_scale}
+                for ix, p in prompts.items()}
+
+    bad_target = declaration(); bad_target["C1"]["target_rtg"] -= 1.0
+    with pytest.raises(ValueError, match="declares target_rtg"):
+        assert_declaration_matches_corpus(bad_target, streams)
+
+    bad_scale = declaration(); bad_scale["C1"]["rtg_scale"] -= 1.0
+    with pytest.raises(ValueError, match="declares rtg_scale"):
+        assert_declaration_matches_corpus(bad_scale, streams)
 
 
 def test_a_declaration_missing_a_node_is_refused(small_tier):
@@ -360,12 +412,37 @@ def test_the_collapse_criterion_fires_only_against_the_shared_draw_reference():
     assert healthy["outcome"] == "NOT COLLAPSED"
 
 
-def test_the_collapse_criterion_records_dtlight_as_context_and_not_as_a_threshold():
-    result = collapse_criterion(_flat("dt_spatial", 150.0), _flat("random", 260.0))
-    assert result["dtlight_grid4x4_reference"] == 446.8
-    assert "not our threshold" in result["dtlight_note"]
-    # The verdict must not depend on that number in any way.
-    assert result["outcome"] == "NOT COLLAPSED"
+def test_the_collapse_criterion_records_dtlight_as_context_and_not_as_a_threshold(monkeypatch):
+    """⚠️ **Strengthened 2026-08-18 (P5.1 review, "theatre"): it could not fail for its own reason.**
+
+    It asserted the constant is recorded and the verdict is ``NOT COLLAPSED`` -- but a criterion
+    that secretly branched on 446.8 would have passed it too. The independence is now MEASURED:
+    the constant is moved to an absurd value and every verdict must be unchanged.
+    """
+    import offline.spatial_mixing as sm
+
+    arms = [(150.0, "NOT COLLAPSED"), (400.0, "COLLAPSED"), (261.0, "NOT RESOLVED")]
+    baseline = {}
+    for att, _ in arms:
+        jitter = 40.0 if att == 261.0 else 5.0
+        baseline[att] = collapse_criterion(
+            _flat("dt_spatial", att, jitter=jitter), _flat("random", 260.0, jitter=jitter)
+        )["outcome"]
+    assert [baseline[a] for a, _ in arms] == [e for _, e in arms], baseline
+
+    for absurd in (0.0, 1e9, -446.8):
+        monkeypatch.setattr(sm, "DTLIGHT_GRID4X4_REFERENCE", absurd)
+        for att, expected in arms:
+            jitter = 40.0 if att == 261.0 else 5.0
+            out = collapse_criterion(
+                _flat("dt_spatial", att, jitter=jitter), _flat("random", 260.0, jitter=jitter)
+            )
+            assert out["outcome"] == expected, (
+                f"the verdict moved to {out['outcome']} when the DTLight constant became {absurd}; "
+                "a branch reads it"
+            )
+            assert out["dtlight_grid4x4_reference"] == absurd
+            assert "not our threshold" in out["dtlight_note"]
 
 
 def test_the_collapse_criterion_does_not_fire_on_an_unresolved_difference():
@@ -511,9 +588,21 @@ def test_the_declaration_artifact_records_the_graph_and_every_prompt(small_tier)
     assert payload["prompt_rule"].startswith("target_rtg = max")
 
 
-def test_the_artifact_version_is_stated():
+def test_the_artifact_version_reaches_the_artifacts_it_versions():
+    """⚠️ **Strengthened 2026-08-18 (P5.1 review, "theatre"): it asserted a literal against itself.**
+
+    Comparing a constant with its own source text proves nothing about the artifacts the version
+    is supposed to stamp. It now requires the string to appear in a REAL generated artifact.
+    """
     assert ARTIFACT_FORMAT_VERSION == "p5.1-spatial/1.0"
     assert DECLARATION_FORMAT_VERSION == "p5.1-declaration/1.0"
+
+    grid = Path(__file__).resolve().parents[1] / "docs" / "data" / "p5_1_grid.json"
+    decl = Path(__file__).resolve().parents[1] / "docs" / "data" / "p5_1_declaration.json"
+    if not (grid.is_file() and decl.is_file()):
+        pytest.skip("the committed P5.1 artifacts are not present in this worktree")
+    assert json.loads(grid.read_text())["format_version"] == ARTIFACT_FORMAT_VERSION
+    assert json.loads(decl.read_text())["format_version"] == DECLARATION_FORMAT_VERSION
 
 
 # ----------------------------------------------------------------------
@@ -667,3 +756,85 @@ def test_the_campaign_completeness_check_reads_eval_not_smoke_eval():
 def test_tier_dirs_refuses_a_missing_directory(tmp_path):
     with pytest.raises(FileNotFoundError, match="not a collected dataset directory"):
         tier_dirs(tmp_path)
+
+
+# ----------------------------------------------------------------------
+# J1 -- the qualifier is emitted by the GENERATOR, not remembered by an author
+# ----------------------------------------------------------------------
+
+
+def _reversing_pair():
+    """A pair whose per-seed advantages disagree with the pooled sign on exactly one seed."""
+    left, right = [], []
+    for index, seed in enumerate(SEEDS):
+        offset = -14.0 if index == 0 else +40.0
+        for draw in range(1000, 1100):
+            left.append(EpisodeResult("dt_spatial", seed, draw, 100.0 + offset, 10.0, -1.0))
+            right.append(EpisodeResult("bc", seed, draw, 100.0, 10.0, -1.0))
+    return left, right
+
+
+def test_a_reversing_pair_emits_a_qualifier_naming_the_offending_seeds():
+    from offline.spatial_mixing import seed_reversal_qualifier
+
+    left, right = _reversing_pair()
+    per_seed = per_seed_advantages(left, right)
+    assert per_seed["reverses_against_pooled_sign"] == 1
+    text = seed_reversal_qualifier(per_seed, "dt_spatial", "bc")
+    assert text is not None
+    assert "ORDERING NOT ROBUST ACROSS SEEDS" in text
+    assert "101" in text and "1 of 5" in text
+
+
+def test_a_unanimous_pair_emits_no_qualifier():
+    """The matched half: without it, a generator that always emitted would also pass."""
+    from offline.spatial_mixing import seed_reversal_qualifier
+
+    left = [EpisodeResult("a", s, d, 100.0, 10.0, -1.0) for s in SEEDS for d in range(1000, 1100)]
+    right = [EpisodeResult("b", s, d, 120.0, 10.0, -1.0) for s in SEEDS for d in range(1000, 1100)]
+    per_seed = per_seed_advantages(left, right)
+    assert per_seed["reverses_against_pooled_sign"] == 0
+    assert seed_reversal_qualifier(per_seed, "a", "b") is None
+
+
+def test_the_two_reversal_definitions_are_documented_and_can_diverge():
+    """J1(c): ``reverses_on_n_seeds`` is the seed MINORITY, which is not the same question.
+
+    The review noted they coincide in P5.1's cell but that the minority metric under-reports where
+    they diverge. Both ship, both are documented in the artifact, and this constructs the divergent
+    case: three small-effect seeds one way, two large-effect seeds the other, so the pooled sign
+    follows the MINORITY.
+    """
+    left, right = [], []
+    for index, seed in enumerate(SEEDS):
+        offset = -1.0 if index < 3 else +100.0
+        for draw in range(1000, 1100):
+            left.append(EpisodeResult("a", seed, draw, 100.0 + offset, 10.0, -1.0))
+            right.append(EpisodeResult("b", seed, draw, 100.0, 10.0, -1.0))
+    per_seed = per_seed_advantages(left, right)
+
+    assert per_seed["mean"] > 0, "the pooled mean must follow the two large seeds"
+    assert per_seed["reverses_on_n_seeds"] == 2, "the minority is the two large seeds"
+    assert per_seed["reverses_against_pooled_sign"] == 3, "three seeds disagree with the pooled sign"
+    assert per_seed["reverses_on_n_seeds"] != per_seed["reverses_against_pooled_sign"]
+    assert set(per_seed["definitions"]) == {
+        "reverses_on_n_seeds", "reverses_against_pooled_sign"
+    }
+
+
+def test_the_committed_artifact_carries_a_qualifier_on_every_reversing_pair():
+    """The enforcement, checked on the real artifact rather than on a fixture."""
+    grid = Path(__file__).resolve().parents[1] / "docs" / "data" / "p5_1_grid.json"
+    if not grid.is_file():
+        pytest.skip("the committed P5.1 grid artifact is not present in this worktree")
+    payload = json.loads(grid.read_text(encoding="utf-8"))
+    for comparison in payload["comparisons"]:
+        reverses = comparison["per_seed"]["reverses_against_pooled_sign"]
+        qualifier = comparison.get("seed_reversal_qualifier")
+        assert (qualifier is not None) == bool(reverses), (
+            f"{comparison['left_arm']} vs {comparison['right_arm']}: reverses={reverses} "
+            f"but qualifier={qualifier!r}"
+        )
+    p2a = payload["predictions"]["P2"]["p2a"]
+    assert p2a["per_seed_rank_of_dt_spatial"] == {"101": 2, "202": 3, "303": 3, "404": 3, "505": 3}
+    assert p2a["order_qualifier"] is not None, "the pooled order is not the order on every seed"

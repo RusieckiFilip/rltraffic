@@ -159,10 +159,15 @@ def test_a_fully_masked_spatial_row_is_refused_rather_than_producing_nan():
 def test_no_other_nodes_action_at_step_t_can_change_the_prediction_at_step_t():
     """Every node acts simultaneously, so a peer's action at ``t`` may not reach a prediction at ``t``.
 
-    Structural argument in the module docstring: temporal runs before spatial in every block, so a
-    peer's token at ``3t+1`` has not yet absorbed its own ``a_t``; spatial mixes position-wise; and
-    causal temporal attention cannot carry ``3t+2`` back to ``3t+1``.  This is that argument made
-    mechanical.  **Swapping the two sublayers breaks it and the model still trains.**
+    🚨 **m4, 2026-08-18: this docstring carried the RETRACTED version of the argument and is now
+    corrected.** It claimed the safety came from "temporal runs before spatial" and that "swapping
+    the two sublayers breaks it" -- **false**, and mutation S1 proved it by surviving. The module
+    docstring was corrected on 2026-08-17 and this copy was missed; P5.1's review found it.
+
+    The safety rests on exactly two measured properties, each pinned by its own test above: the
+    spatial sublayer is **strictly position-wise**, and temporal attention is **strictly causal**.
+    Since the only operation that moves information across positions is causal, a peer's ``a_t``
+    cannot reach a prediction at ``t`` **in either sublayer order**.
     """
     model = _model(NEIGHBOUR_MASK)
     batch = _batch()
@@ -247,13 +252,50 @@ def test_the_shipped_block_applies_temporal_before_spatial():
     passed: the leak-freedom comes from the two properties pinned above, both of which hold in
     either order.  This test exists so the shipped architecture is the one ``docs/plans/p5.1.md``
     describes, so that two checkpoints trained under this file are comparable -- nothing more.
+
+    ⚠️ **Strengthened 2026-08-18 (P5.1 review, "theatre").** It was an ``inspect.getsource``
+    substring check, which pins the SOURCE TEXT and not the computation -- a reordering that kept
+    the call sites in place would have passed.  It now recomputes both orders explicitly and
+    asserts the shipped block equals the temporal-then-spatial one **exactly**, plus that the two
+    orders differ on this fixture so the pin is not vacuous.
     """
-    import inspect
-
     from agent.SpatialDTAgent import _SpatialBlock
+    from agent.DTAgent import _attention_bias
 
-    source = inspect.getsource(_SpatialBlock.forward)
-    assert source.index("self.temporal(") < source.index("self.spatial(")
+    torch.manual_seed(0)
+    width, length, nodes, batch = 16, 6, N_NODES, 2
+    block = _SpatialBlock(width, 1, 0.0).eval()
+    sbias = spatial_attention_bias(NEIGHBOUR_MASK, device=torch.device("cpu"), dtype=torch.float32)
+    tbias = _attention_bias(None, length, batch=batch * nodes,
+                            device=torch.device("cpu"), dtype=torch.float32)
+    x = torch.randn(batch, nodes, length, width)
+
+    def temporal_then_spatial(h):
+        h = h.reshape(batch * nodes, length, width)
+        h = h + block.temporal(block.ln_temporal(h), tbias)
+        h = h.reshape(batch, nodes, length, width).permute(0, 2, 1, 3).reshape(batch * length, nodes, width)
+        h = h + block.spatial(block.ln_spatial(h), sbias)
+        h = h.reshape(batch, length, nodes, width).permute(0, 2, 1, 3)
+        return h + block.mlp(block.ln_mlp(h))
+
+    def spatial_then_temporal(h):
+        h = h.permute(0, 2, 1, 3).reshape(batch * length, nodes, width)
+        h = h + block.spatial(block.ln_spatial(h), sbias)
+        h = h.reshape(batch, length, nodes, width).permute(0, 2, 1, 3)
+        h = h.reshape(batch * nodes, length, width)
+        h = h + block.temporal(block.ln_temporal(h), tbias)
+        h = h.reshape(batch, nodes, length, width)
+        return h + block.mlp(block.ln_mlp(h))
+
+    with torch.no_grad():
+        shipped = block(x, tbias, sbias)
+        assert torch.allclose(shipped, temporal_then_spatial(x), atol=0, rtol=0), (
+            "the shipped block does not compute temporal-then-spatial"
+        )
+        # Discriminating power: the two orders are genuinely different functions here.
+        assert not torch.allclose(temporal_then_spatial(x), spatial_then_temporal(x)), (
+            "the two orders agree on this fixture, so this pin cannot see a swap"
+        )
 
 
 def test_a_peers_action_at_an_earlier_step_does_reach_the_prediction():
@@ -553,3 +595,90 @@ def test_the_agent_uses_the_mask_the_checkpoint_recorded_not_the_one_it_was_hand
     )
     assert restored.config.spatial_mixing is False
     assert np.array_equal(restored.spatial_mask, IDENTITY_MASK)
+
+
+# ----------------------------------------------------------------------
+# J2 -- the inference-time readout position.
+# ``agent/SpatialDTAgent.py``'s ``act`` reads ``logits[0, :, -1]``: the CURRENT decision step.
+# P5.1's review proved ``[0, :, -2]`` survives the entire suite and is NOT equivalent -- an exact
+# one-step lag with a degenerate read at step 0.  The shipped code was correct; the guard was
+# missing, on the most alignment-sensitive line in the agent, which produced every number in the
+# primary contrast.
+# ----------------------------------------------------------------------
+
+
+def test_act_reads_the_CURRENT_steps_logits_not_a_lagged_position():
+    """The action returned must be the argmax at window position ``-1``, and at no other.
+
+    Captured from the model's own forward, so this pins the index directly rather than testing a
+    caller's belief about it.
+    """
+    agent = _agent(_three_node_env())
+    seen: list[torch.Tensor] = []
+    original = agent.model.forward
+
+    def spy(rtg, state, action, timestep, spatial_mask, attention_mask=None, avail_mask=None):
+        out = original(rtg, state, action, timestep, spatial_mask, attention_mask, avail_mask)
+        seen.append(out.detach().clone())
+        return out
+
+    agent.model.forward = spy
+    actions = agent.act(_three_node_info(0), explore=False)
+
+    assert len(seen) == 1
+    logits = seen[0]
+    assert logits.shape == (1, N_NODES, CONTEXT, N_ACTIONS)
+    expected = torch.argmax(logits[0, :, -1], dim=-1).cpu().numpy()
+    assert np.array_equal(actions, expected), (
+        "act() did not return the argmax at the CURRENT step's window position"
+    )
+
+
+def test_the_readout_position_is_distinguishable_from_its_neighbour():
+    """Discriminating power: the test above is worthless if position -2 gives the same answer.
+
+    Measured rather than assumed -- at step 0 position ``-2`` is a padded slot, so a lagged read is
+    a *different* action vector and the guard can see it.
+    """
+    agent = _agent(_three_node_env())
+    seen: list[torch.Tensor] = []
+    original = agent.model.forward
+
+    def spy(rtg, state, action, timestep, spatial_mask, attention_mask=None, avail_mask=None):
+        out = original(rtg, state, action, timestep, spatial_mask, attention_mask, avail_mask)
+        seen.append(out.detach().clone())
+        return out
+
+    agent.model.forward = spy
+    agent.act(_three_node_info(0), explore=False)
+
+    logits = seen[0]
+    at_last = torch.argmax(logits[0, :, -1], dim=-1)
+    at_prev = torch.argmax(logits[0, :, -2], dim=-1)
+    assert not torch.equal(at_last, at_prev), (
+        "positions -1 and -2 agree on this fixture, so the guard above cannot see a one-step lag"
+    )
+
+
+def test_the_readout_tracks_the_step_across_a_rolling_context():
+    """Behavioural half: over several steps the action must follow the newest state, not the last.
+
+    A one-step lag reproduces the PREVIOUS decision's action from step 1 onward, which this
+    compares against directly.
+    """
+    agent = _agent(_three_node_env())
+    captured: list[torch.Tensor] = []
+    original = agent.model.forward
+
+    def spy(rtg, state, action, timestep, spatial_mask, attention_mask=None, avail_mask=None):
+        out = original(rtg, state, action, timestep, spatial_mask, attention_mask, avail_mask)
+        captured.append(out.detach().clone())
+        return out
+
+    agent.model.forward = spy
+    for step in range(4):
+        actions = agent.act(_three_node_info(step, reward=-1.0), explore=False)
+        logits = captured[-1]
+        assert np.array_equal(
+            actions, torch.argmax(logits[0, :, -1], dim=-1).cpu().numpy()
+        ), f"step {step}: the returned action is not the current position's argmax"

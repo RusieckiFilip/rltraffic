@@ -848,16 +848,22 @@
           "404": 32.749560190653085,
           "505": 23.47153647816566
         },
+        "definitions": {
+          "reverses_against_pooled_sign": "seeds whose sign disagrees with the pooled mean's sign; this is the one that qualifies a stated ordering, and it can differ from the minority when a few large seeds outvote a numerous small-effect majority",
+          "reverses_on_n_seeds": "size of the seed MINORITY by sign, whichever side that is"
+        },
         "max": 72.07412354024478,
         "mean": 39.564858203026354,
         "min": 1.0292000591612975,
         "n_seeds": 5,
         "n_seeds_favouring_left": 0,
         "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+        "reverses_against_pooled_sign": 0,
         "reverses_on_n_seeds": 0
       },
       "rank_biserial": 1.0,
-      "right_arm": "dt_nomix@grid4x4_mappo1000"
+      "right_arm": "dt_nomix@grid4x4_mappo1000",
+      "seed_reversal_qualifier": null
     },
     {
       "ci95_high": 32.868396044529,
@@ -878,16 +884,22 @@
           "404": 22.096493947637157,
           "505": 12.886967837682192
         },
+        "definitions": {
+          "reverses_against_pooled_sign": "seeds whose sign disagrees with the pooled mean's sign; this is the one that qualifies a stated ordering, and it can differ from the minority when a few large seeds outvote a numerous small-effect majority",
+          "reverses_on_n_seeds": "size of the seed MINORITY by sign, whichever side that is"
+        },
         "max": 63.290256451891594,
         "mean": 28.43195103700114,
         "min": -14.047724990162209,
         "n_seeds": 5,
         "n_seeds_favouring_left": 1,
         "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+        "reverses_against_pooled_sign": 1,
         "reverses_on_n_seeds": 1
       },
       "rank_biserial": 0.9461386138613861,
-      "right_arm": "bc@grid4x4_mappo1000"
+      "right_arm": "bc@grid4x4_mappo1000",
+      "seed_reversal_qualifier": "\u26a0\ufe0f ORDERING NOT ROBUST ACROSS SEEDS: dt_spatial@grid4x4_mappo1000 vs bc@grid4x4_mappo1000 reverses on 1 of 5 training seeds (101); per-seed advantages {'101': -14.0477, '202': 63.2903, '303': 57.9338, '404': 22.0965, '505': 12.887}. The pooled CI averages the seed dimension away and carries no information about it (P4.7 M1)."
     },
     {
       "ci95_high": -543.851610524657,
@@ -908,16 +920,22 @@
           "404": -557.1561833731196,
           "505": -572.1957501813639
         },
+        "definitions": {
+          "reverses_against_pooled_sign": "seeds whose sign disagrees with the pooled mean's sign; this is the one that qualifies a stated ordering, and it can differ from the minority when a few large seeds outvote a numerous small-effect majority",
+          "reverses_on_n_seeds": "size of the seed MINORITY by sign, whichever side that is"
+        },
         "max": -495.61919504662825,
         "mean": -552.1670132740448,
         "min": -573.7679150464883,
         "n_seeds": 5,
         "n_seeds_favouring_left": 5,
         "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+        "reverses_against_pooled_sign": 0,
         "reverses_on_n_seeds": 0
       },
       "rank_biserial": -1.0,
-      "right_arm": "bc_top10@grid4x4_mappo1000"
+      "right_arm": "bc_top10@grid4x4_mappo1000",
+      "seed_reversal_qualifier": null
     },
     {
       "ci95_high": -70.59803572215702,
@@ -938,16 +956,22 @@
           "404": -100.15067306676679,
           "505": -133.87264636027888
         },
+        "definitions": {
+          "reverses_against_pooled_sign": "seeds whose sign disagrees with the pooled mean's sign; this is the one that qualifies a stated ordering, and it can differ from the minority when a few large seeds outvote a numerous small-effect majority",
+          "reverses_on_n_seeds": "size of the seed MINORITY by sign, whichever side that is"
+        },
         "max": -7.909358111585732,
         "mean": -78.42283704789804,
         "min": -133.87264636027888,
         "n_seeds": 5,
         "n_seeds_favouring_left": 5,
         "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+        "reverses_against_pooled_sign": 0,
         "reverses_on_n_seeds": 0
       },
       "rank_biserial": -0.9996039603960396,
-      "right_arm": "iql@grid4x4_mappo1000"
+      "right_arm": "iql@grid4x4_mappo1000",
+      "seed_reversal_qualifier": null
     },
     {
       "ci95_high": 40.63601200379923,
@@ -968,16 +992,22 @@
           "404": 31.11069392598148,
           "505": 21.535489147488363
         },
+        "definitions": {
+          "reverses_against_pooled_sign": "seeds whose sign disagrees with the pooled mean's sign; this is the one that qualifies a stated ordering, and it can differ from the minority when a few large seeds outvote a numerous small-effect majority",
+          "reverses_on_n_seeds": "size of the seed MINORITY by sign, whichever side that is"
+        },
         "max": 70.5355448532234,
         "mean": 37.13457235286706,
         "min": -4.415860309367076,
         "n_seeds": 5,
         "n_seeds_favouring_left": 1,
         "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+        "reverses_against_pooled_sign": 1,
         "reverses_on_n_seeds": 1
       },
       "rank_biserial": 1.0,
-      "right_arm": "behaviour@grid4x4_mappo1000"
+      "right_arm": "behaviour@grid4x4_mappo1000",
+      "seed_reversal_qualifier": "\u26a0\ufe0f ORDERING NOT ROBUST ACROSS SEEDS: dt_spatial@grid4x4_mappo1000 vs behaviour@grid4x4_mappo1000 reverses on 1 of 5 training seeds (101); per-seed advantages {'101': -4.4159, '202': 70.5355, '303': 66.907, '404': 31.1107, '505': 21.5355}. The pooled CI averages the seed dimension away and carries no information about it (P4.7 M1)."
     },
     {
       "ci95_high": -59.43154830732855,
@@ -998,16 +1028,22 @@
           "404": -65.31957525296411,
           "505": -82.21886830458064
         },
+        "definitions": {
+          "reverses_against_pooled_sign": "seeds whose sign disagrees with the pooled mean's sign; this is the one that qualifies a stated ordering, and it can differ from the minority when a few large seeds outvote a numerous small-effect majority",
+          "reverses_on_n_seeds": "size of the seed MINORITY by sign, whichever side that is"
+        },
         "max": -27.042372869135107,
         "mean": -62.94757695890733,
         "min": -104.02917730291477,
         "n_seeds": 5,
         "n_seeds_favouring_left": 5,
         "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+        "reverses_against_pooled_sign": 0,
         "reverses_on_n_seeds": 0
       },
       "rank_biserial": -1.0,
-      "right_arm": "random@grid4x4_mappo1000"
+      "right_arm": "random@grid4x4_mappo1000",
+      "seed_reversal_qualifier": null
     },
     {
       "ci95_high": -8.472631673435993,
@@ -1028,16 +1064,22 @@
           "404": -10.653066243015928,
           "505": -10.584568640483468
         },
+        "definitions": {
+          "reverses_against_pooled_sign": "seeds whose sign disagrees with the pooled mean's sign; this is the one that qualifies a stated ordering, and it can differ from the minority when a few large seeds outvote a numerous small-effect majority",
+          "reverses_on_n_seeds": "size of the seed MINORITY by sign, whichever side that is"
+        },
         "max": -8.78386708835319,
         "mean": -11.13290716602521,
         "min": -15.076925049323506,
         "n_seeds": 5,
         "n_seeds_favouring_left": 5,
         "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+        "reverses_against_pooled_sign": 0,
         "reverses_on_n_seeds": 0
       },
       "rank_biserial": -0.7215841584158416,
-      "right_arm": "bc@grid4x4_mappo1000"
+      "right_arm": "bc@grid4x4_mappo1000",
+      "seed_reversal_qualifier": null
     },
     {
       "ci95_high": -584.8016310224368,
@@ -1058,16 +1100,22 @@
           "404": -589.9057435637726,
           "505": -595.6672866595295
         },
+        "definitions": {
+          "reverses_against_pooled_sign": "seeds whose sign disagrees with the pooled mean's sign; this is the one that qualifies a stated ordering, and it can differ from the minority when a few large seeds outvote a numerous small-effect majority",
+          "reverses_on_n_seeds": "size of the seed MINORITY by sign, whichever side that is"
+        },
         "max": -564.1190657935351,
         "mean": -591.7318714770711,
         "min": -634.1701462628688,
         "n_seeds": 5,
         "n_seeds_favouring_left": 5,
         "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+        "reverses_against_pooled_sign": 0,
         "reverses_on_n_seeds": 0
       },
       "rank_biserial": -1.0,
-      "right_arm": "bc_top10@grid4x4_mappo1000"
+      "right_arm": "bc_top10@grid4x4_mappo1000",
+      "seed_reversal_qualifier": null
     },
     {
       "ci95_high": -110.89284887798249,
@@ -1088,16 +1136,22 @@
           "404": -132.90023325741987,
           "505": -157.34418283844454
         },
+        "definitions": {
+          "reverses_against_pooled_sign": "seeds whose sign disagrees with the pooled mean's sign; this is the one that qualifies a stated ordering, and it can differ from the minority when a few large seeds outvote a numerous small-effect majority",
+          "reverses_on_n_seeds": "size of the seed MINORITY by sign, whichever side that is"
+        },
         "max": -76.40922885849267,
         "mean": -117.98769525092439,
         "min": -157.34418283844454,
         "n_seeds": 5,
         "n_seeds_favouring_left": 5,
         "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+        "reverses_against_pooled_sign": 0,
         "reverses_on_n_seeds": 0
       },
       "rank_biserial": -1.0,
-      "right_arm": "iql@grid4x4_mappo1000"
+      "right_arm": "iql@grid4x4_mappo1000",
+      "seed_reversal_qualifier": null
     },
     {
       "ci95_high": -2.2810165419331607,
@@ -1118,16 +1172,22 @@
           "404": -1.6388662646716057,
           "505": -1.9360473306772974
         },
+        "definitions": {
+          "reverses_against_pooled_sign": "seeds whose sign disagrees with the pooled mean's sign; this is the one that qualifies a stated ordering, and it can differ from the minority when a few large seeds outvote a numerous small-effect majority",
+          "reverses_on_n_seeds": "size of the seed MINORITY by sign, whichever side that is"
+        },
         "max": -1.538578687021385,
         "mean": -2.4302858501592937,
         "min": -5.445060368528374,
         "n_seeds": 5,
         "n_seeds_favouring_left": 5,
         "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+        "reverses_against_pooled_sign": 0,
         "reverses_on_n_seeds": 0
       },
       "rank_biserial": -0.9603960396039604,
-      "right_arm": "behaviour@grid4x4_mappo1000"
+      "right_arm": "behaviour@grid4x4_mappo1000",
+      "seed_reversal_qualifier": null
     },
     {
       "ci95_high": -102.17620270923722,
@@ -1148,16 +1208,22 @@
           "404": -98.0691354436172,
           "505": -105.6904047827463
         },
+        "definitions": {
+          "reverses_against_pooled_sign": "seeds whose sign disagrees with the pooled mean's sign; this is the one that qualifies a stated ordering, and it can differ from the minority when a few large seeds outvote a numerous small-effect majority",
+          "reverses_on_n_seeds": "size of the seed MINORITY by sign, whichever side that is"
+        },
         "max": -98.0691354436172,
         "mean": -102.51243516193367,
         "min": -105.6904047827463,
         "n_seeds": 5,
         "n_seeds_favouring_left": 5,
         "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+        "reverses_against_pooled_sign": 0,
         "reverses_on_n_seeds": 0
       },
       "rank_biserial": -1.0,
-      "right_arm": "random@grid4x4_mappo1000"
+      "right_arm": "random@grid4x4_mappo1000",
+      "seed_reversal_qualifier": null
     },
     {
       "ci95_high": -573.3301814767309,
@@ -1178,16 +1244,22 @@
           "404": -579.2526773207567,
           "505": -585.0827180190461
         },
+        "definitions": {
+          "reverses_against_pooled_sign": "seeds whose sign disagrees with the pooled mean's sign; this is the one that qualifies a stated ordering, and it can differ from the minority when a few large seeds outvote a numerous small-effect majority",
+          "reverses_on_n_seeds": "size of the seed MINORITY by sign, whichever side that is"
+        },
         "max": -553.5529569845852,
         "mean": -580.5989643110458,
         "min": -625.3862791745156,
         "n_seeds": 5,
         "n_seeds_favouring_left": 5,
         "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+        "reverses_against_pooled_sign": 0,
         "reverses_on_n_seeds": 0
       },
       "rank_biserial": -1.0,
-      "right_arm": "bc_top10@grid4x4_mappo1000"
+      "right_arm": "bc_top10@grid4x4_mappo1000",
+      "seed_reversal_qualifier": null
     },
     {
       "ci95_high": -99.6719239941166,
@@ -1208,16 +1280,22 @@
           "404": -122.24716701440394,
           "505": -146.75961419796107
         },
+        "definitions": {
+          "reverses_against_pooled_sign": "seeds whose sign disagrees with the pooled mean's sign; this is the one that qualifies a stated ordering, and it can differ from the minority when a few large seeds outvote a numerous small-effect majority",
+          "reverses_on_n_seeds": "size of the seed MINORITY by sign, whichever side that is"
+        },
         "max": -65.8431200495427,
         "mean": -106.85478808489918,
         "min": -146.75961419796107,
         "n_seeds": 5,
         "n_seeds_favouring_left": 5,
         "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+        "reverses_against_pooled_sign": 0,
         "reverses_on_n_seeds": 0
       },
       "rank_biserial": -1.0,
-      "right_arm": "iql@grid4x4_mappo1000"
+      "right_arm": "iql@grid4x4_mappo1000",
+      "seed_reversal_qualifier": null
     },
     {
       "ci95_high": 11.3519358739728,
@@ -1238,16 +1316,22 @@
           "404": 9.014199978344323,
           "505": 8.64852130980617
         },
+        "definitions": {
+          "reverses_against_pooled_sign": "seeds whose sign disagrees with the pooled mean's sign; this is the one that qualifies a stated ordering, and it can differ from the minority when a few large seeds outvote a numerous small-effect majority",
+          "reverses_on_n_seeds": "size of the seed MINORITY by sign, whichever side that is"
+        },
         "max": 9.631864680795132,
         "mean": 8.702621315865917,
         "min": 7.2452884013318055,
         "n_seeds": 5,
         "n_seeds_favouring_left": 0,
         "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+        "reverses_against_pooled_sign": 0,
         "reverses_on_n_seeds": 0
       },
       "rank_biserial": 0.6423762376237624,
-      "right_arm": "behaviour@grid4x4_mappo1000"
+      "right_arm": "behaviour@grid4x4_mappo1000",
+      "seed_reversal_qualifier": null
     },
     {
       "ci95_high": -88.75136104255537,
@@ -1268,16 +1352,22 @@
           "404": -87.41606920060127,
           "505": -95.10583614226283
         },
+        "definitions": {
+          "reverses_against_pooled_sign": "seeds whose sign disagrees with the pooled mean's sign; this is the one that qualifies a stated ordering, and it can differ from the minority when a few large seeds outvote a numerous small-effect majority",
+          "reverses_on_n_seeds": "size of the seed MINORITY by sign, whichever side that is"
+        },
         "max": -87.41606920060127,
         "mean": -91.37952799590846,
         "min": -95.10583614226283,
         "n_seeds": 5,
         "n_seeds_favouring_left": 5,
         "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+        "reverses_against_pooled_sign": 0,
         "reverses_on_n_seeds": 0
       },
       "rank_biserial": -1.0,
-      "right_arm": "random@grid4x4_mappo1000"
+      "right_arm": "random@grid4x4_mappo1000",
+      "seed_reversal_qualifier": null
     },
     {
       "ci95_high": 483.18951656413304,
@@ -1298,16 +1388,22 @@
           "404": 457.00551030635273,
           "505": 438.323103821085
         },
+        "definitions": {
+          "reverses_against_pooled_sign": "seeds whose sign disagrees with the pooled mean's sign; this is the one that qualifies a stated ordering, and it can differ from the minority when a few large seeds outvote a numerous small-effect majority",
+          "reverses_on_n_seeds": "size of the seed MINORITY by sign, whichever side that is"
+        },
         "max": 514.4753661586117,
         "mean": 473.74417622614675,
         "min": 438.323103821085,
         "n_seeds": 5,
         "n_seeds_favouring_left": 0,
         "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+        "reverses_against_pooled_sign": 0,
         "reverses_on_n_seeds": 0
       },
       "rank_biserial": 1.0,
-      "right_arm": "iql@grid4x4_mappo1000"
+      "right_arm": "iql@grid4x4_mappo1000",
+      "seed_reversal_qualifier": null
     },
     {
       "ci95_high": 596.2156080405656,
@@ -1328,16 +1424,22 @@
           "404": 588.266877299101,
           "505": 593.7312393288522
         },
+        "definitions": {
+          "reverses_against_pooled_sign": "seeds whose sign disagrees with the pooled mean's sign; this is the one that qualifies a stated ordering, and it can differ from the minority when a few large seeds outvote a numerous small-effect majority",
+          "reverses_on_n_seeds": "size of the seed MINORITY by sign, whichever side that is"
+        },
         "max": 632.6315675758474,
         "mean": 589.3015856269118,
         "min": 562.5261891936374,
         "n_seeds": 5,
         "n_seeds_favouring_left": 0,
         "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+        "reverses_against_pooled_sign": 0,
         "reverses_on_n_seeds": 0
       },
       "rank_biserial": 1.0,
-      "right_arm": "behaviour@grid4x4_mappo1000"
+      "right_arm": "behaviour@grid4x4_mappo1000",
+      "seed_reversal_qualifier": null
     },
     {
       "ci95_high": 496.15201269930185,
@@ -1358,16 +1460,22 @@
           "404": 491.8366081201554,
           "505": 489.97688187678324
         },
+        "definitions": {
+          "reverses_against_pooled_sign": "seeds whose sign disagrees with the pooled mean's sign; this is the one that qualifies a stated ordering, and it can differ from the minority when a few large seeds outvote a numerous small-effect majority",
+          "reverses_on_n_seeds": "size of the seed MINORITY by sign, whichever side that is"
+        },
         "max": 535.0536498534889,
         "mean": 489.2194363151375,
         "min": 459.49130398168626,
         "n_seeds": 5,
         "n_seeds_favouring_left": 0,
         "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+        "reverses_against_pooled_sign": 0,
         "reverses_on_n_seeds": 0
       },
       "rank_biserial": 1.0,
-      "right_arm": "random@grid4x4_mappo1000"
+      "right_arm": "random@grid4x4_mappo1000",
+      "seed_reversal_qualifier": null
     },
     {
       "ci95_high": 122.64452474710012,
@@ -1388,16 +1496,22 @@
           "404": 131.26136699274826,
           "505": 155.40813550776724
         },
+        "definitions": {
+          "reverses_against_pooled_sign": "seeds whose sign disagrees with the pooled mean's sign; this is the one that qualifies a stated ordering, and it can differ from the minority when a few large seeds outvote a numerous small-effect majority",
+          "reverses_on_n_seeds": "size of the seed MINORITY by sign, whichever side that is"
+        },
         "max": 155.40813550776724,
         "mean": 115.5574094007651,
         "min": 74.81635225859486,
         "n_seeds": 5,
         "n_seeds_favouring_left": 0,
         "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+        "reverses_against_pooled_sign": 0,
         "reverses_on_n_seeds": 0
       },
       "rank_biserial": 1.0,
-      "right_arm": "behaviour@grid4x4_mappo1000"
+      "right_arm": "behaviour@grid4x4_mappo1000",
+      "seed_reversal_qualifier": null
     },
     {
       "ci95_high": 22.58864973234733,
@@ -1418,16 +1532,22 @@
           "404": 34.83109781380267,
           "505": 51.65377805569824
         },
+        "definitions": {
+          "reverses_against_pooled_sign": "seeds whose sign disagrees with the pooled mean's sign; this is the one that qualifies a stated ordering, and it can differ from the minority when a few large seeds outvote a numerous small-effect majority",
+          "reverses_on_n_seeds": "size of the seed MINORITY by sign, whichever side that is"
+        },
         "max": 51.65377805569824,
         "mean": 15.475260088990717,
         "min": -28.21853295335626,
         "n_seeds": 5,
         "n_seeds_favouring_left": 2,
         "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+        "reverses_against_pooled_sign": 2,
         "reverses_on_n_seeds": 2
       },
       "rank_biserial": 0.4407920792079208,
-      "right_arm": "random@grid4x4_mappo1000"
+      "right_arm": "random@grid4x4_mappo1000",
+      "seed_reversal_qualifier": "\u26a0\ufe0f ORDERING NOT ROBUST ACROSS SEEDS: iql@grid4x4_mappo1000 vs random@grid4x4_mappo1000 reverses on 2 of 5 training seeds (101, 303); per-seed advantages {'101': -1.4683, '202': 20.5783, '303': -28.2185, '404': 34.8311, '505': 51.6538}. The pooled CI averages the seed dimension away and carries no information about it (P4.7 M1)."
     },
     {
       "ci95_high": -99.77938818883582,
@@ -1448,16 +1568,22 @@
           "404": -96.4302691789456,
           "505": -103.754357452069
         },
+        "definitions": {
+          "reverses_against_pooled_sign": "seeds whose sign disagrees with the pooled mean's sign; this is the one that qualifies a stated ordering, and it can differ from the minority when a few large seeds outvote a numerous small-effect majority",
+          "reverses_on_n_seeds": "size of the seed MINORITY by sign, whichever side that is"
+        },
         "max": -96.4302691789456,
         "mean": -100.08214931177437,
         "min": -103.754357452069,
         "n_seeds": 5,
         "n_seeds_favouring_left": 5,
         "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+        "reverses_against_pooled_sign": 0,
         "reverses_on_n_seeds": 0
       },
       "rank_biserial": -1.0,
-      "right_arm": "random@grid4x4_mappo1000"
+      "right_arm": "random@grid4x4_mappo1000",
+      "seed_reversal_qualifier": null
     }
   ],
   "format_version": "p5.1-spatial/1.0",
@@ -1587,18 +1713,24 @@
           "404": 32.749560190653085,
           "505": 23.47153647816566
         },
+        "definitions": {
+          "reverses_against_pooled_sign": "seeds whose sign disagrees with the pooled mean's sign; this is the one that qualifies a stated ordering, and it can differ from the minority when a few large seeds outvote a numerous small-effect majority",
+          "reverses_on_n_seeds": "size of the seed MINORITY by sign, whichever side that is"
+        },
         "max": 72.07412354024478,
         "mean": 39.564858203026354,
         "min": 1.0292000591612975,
         "n_seeds": 5,
         "n_seeds_favouring_left": 0,
         "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+        "reverses_against_pooled_sign": 0,
         "reverses_on_n_seeds": 0
       },
       "prediction": "P1",
       "rank_biserial": 1.0,
       "right_arm": "dt_nomix@grid4x4_mappo1000",
       "rule": "HELD iff the 95% CI of mean(ATT_spatial - ATT_nomix) lies entirely below 0; FAILED iff entirely above 0, which is a decisive result in the other direction and is never folded into 'inconclusive'; NOT RESOLVED otherwise, reported with the CI width",
+      "seed_reversal_qualifier": null,
       "statement": "spatial mixing beats its own no-mixing control on cf_grid4x4__mappo1000",
       "ties": 0,
       "wins": 0
@@ -1623,7 +1755,89 @@
           "iql",
           "bc_top10"
         ],
+        "order_qualifier": "\u26a0\ufe0f THE POOLED ORDER IS NOT THE ORDER ON EVERY SEED. dt_spatial ranks 3 pooled and [2, 3] across the individual training seeds ({'101': 2, '202': 3, '303': 3, '404': 3, '505': 3}). A consumer reading 'rank 3' as settled would be inheriting a pooled statistic that the seed dimension does not support.",
         "outcome": "FAILED",
+        "per_seed_means": {
+          "bc": {
+            "101": 172.9578441416543,
+            "202": 166.77863591634716,
+            "303": 168.32192826150558,
+            "404": 168.39235187926636,
+            "505": 168.45247070226856
+          },
+          "bc_top10": {
+            "101": 732.6780341979803,
+            "202": 792.1649150908628,
+            "303": 721.8748852460908,
+            "404": 747.645029200023,
+            "505": 753.5351887213146
+          },
+          "dt_nomix": {
+            "101": 157.8809190923308,
+            "202": 157.99476882799397,
+            "303": 157.7558194525556,
+            "404": 157.73928563625043,
+            "505": 157.8679020617851
+          },
+          "dt_spatial": {
+            "101": 158.9101191514921,
+            "202": 230.06889236823875,
+            "303": 226.25569019946255,
+            "404": 190.4888458269035,
+            "505": 181.33943853995075
+          },
+          "iql": {
+            "101": 261.47097028833855,
+            "202": 277.6895489322511,
+            "303": 234.16504831104828,
+            "404": 290.6395188936703,
+            "505": 315.2120849002296
+          }
+        },
+        "per_seed_order": {
+          "101": [
+            "dt_nomix",
+            "dt_spatial",
+            "bc",
+            "iql",
+            "bc_top10"
+          ],
+          "202": [
+            "dt_nomix",
+            "bc",
+            "dt_spatial",
+            "iql",
+            "bc_top10"
+          ],
+          "303": [
+            "dt_nomix",
+            "bc",
+            "dt_spatial",
+            "iql",
+            "bc_top10"
+          ],
+          "404": [
+            "dt_nomix",
+            "bc",
+            "dt_spatial",
+            "iql",
+            "bc_top10"
+          ],
+          "505": [
+            "dt_nomix",
+            "bc",
+            "dt_spatial",
+            "iql",
+            "bc_top10"
+          ]
+        },
+        "per_seed_rank_of_dt_spatial": {
+          "101": 2,
+          "202": 3,
+          "303": 3,
+          "404": 3,
+          "505": 3
+        },
         "rank": 3,
         "statement": "dt_spatial has the lowest held-out mean att_horizon of the five method arms"
       },
@@ -1753,16 +1967,22 @@
             "404": 32.749560190653085,
             "505": 23.47153647816566
           },
+          "definitions": {
+            "reverses_against_pooled_sign": "seeds whose sign disagrees with the pooled mean's sign; this is the one that qualifies a stated ordering, and it can differ from the minority when a few large seeds outvote a numerous small-effect majority",
+            "reverses_on_n_seeds": "size of the seed MINORITY by sign, whichever side that is"
+          },
           "max": 72.07412354024478,
           "mean": 39.564858203026354,
           "min": 1.0292000591612975,
           "n_seeds": 5,
           "n_seeds_favouring_left": 0,
           "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+          "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
         "rank_biserial": 1.0,
         "right_arm": "dt_nomix@grid4x4_mappo1000",
+        "seed_reversal_qualifier": null,
         "statement": "dt_spatial's paired advantage over the best other arm resolves",
         "ties": 0,
         "wins": 0
@@ -1898,18 +2118,24 @@
             "404": -98.0691354436172,
             "505": -105.6904047827463
           },
+          "definitions": {
+            "reverses_against_pooled_sign": "seeds whose sign disagrees with the pooled mean's sign; this is the one that qualifies a stated ordering, and it can differ from the minority when a few large seeds outvote a numerous small-effect majority",
+            "reverses_on_n_seeds": "size of the seed MINORITY by sign, whichever side that is"
+          },
           "max": -98.0691354436172,
           "mean": -102.51243516193367,
           "min": -105.6904047827463,
           "n_seeds": 5,
           "n_seeds_favouring_left": 5,
           "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+          "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
         "prediction": "P3",
         "rank_biserial": -1.0,
         "right_arm": "random@grid4x4_mappo1000",
         "rule": "COLLAPSED iff mean(ATT_arm - ATT_random) > 0 with the 95% CI excluding 0; NOT COLLAPSED iff the CI lies entirely below 0; NOT RESOLVED otherwise",
+        "seed_reversal_qualifier": null,
         "statement": "the arm's held-out mean att_horizon is worse than the random behaviour arm's, on the same draws",
         "ties": 0,
         "wins": 100
@@ -2040,18 +2266,24 @@
             "404": -65.31957525296411,
             "505": -82.21886830458064
           },
+          "definitions": {
+            "reverses_against_pooled_sign": "seeds whose sign disagrees with the pooled mean's sign; this is the one that qualifies a stated ordering, and it can differ from the minority when a few large seeds outvote a numerous small-effect majority",
+            "reverses_on_n_seeds": "size of the seed MINORITY by sign, whichever side that is"
+          },
           "max": -27.042372869135107,
           "mean": -62.94757695890733,
           "min": -104.02917730291477,
           "n_seeds": 5,
           "n_seeds_favouring_left": 5,
           "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+          "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
         "prediction": "P3",
         "rank_biserial": -1.0,
         "right_arm": "random@grid4x4_mappo1000",
         "rule": "COLLAPSED iff mean(ATT_arm - ATT_random) > 0 with the 95% CI excluding 0; NOT COLLAPSED iff the CI lies entirely below 0; NOT RESOLVED otherwise",
+        "seed_reversal_qualifier": null,
         "statement": "the arm's held-out mean att_horizon is worse than the random behaviour arm's, on the same draws",
         "ties": 0,
         "wins": 100
