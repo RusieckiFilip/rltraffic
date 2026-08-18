@@ -26,10 +26,10 @@ objection: *it lost every configuration argument in advance and won anyway*. **R
 implementation is CORRECT**, and its correctness currently rests **entirely on internal verification** —
 four independent reviews, none of which compared it to anything outside this repo.
 
-🚨 **The anomaly that forces the issue.** Our result contradicts two neighbouring literatures. On
-D4RL `halfcheetah-medium-expert-v2` the canonical figures are **BC 45.8, 10%BC 86.4, TD3+BC 92.2,
-IQL 89.9, CQL 86.3**, and on hopper/walker2d medium-expert IQL reaches ~110 and matches or beats
-10%BC. Offline MARL runs the same way — **OMIGA (2307.11620)** reports behaviour-modelling struggling
+🚨 **CORRECTED 2026-08-18 BY THE IMPLEMENTER, FROM THE PRIMARY SOURCE — THE FIGURES THAT STOOD HERE WERE WRONG AND THE ARGUMENT THEY SUPPORTED IS INVERTED.** This section read *"our result contradicts two neighbouring literatures"* and quoted **BC 45.8, 10%BC 86.4, TD3+BC 92.2, IQL 89.9, CQL 86.3**. **Retrieved from arXiv:2110.06169 Table 1 and verified by DOUBLE-COMPUTATION — the paper's own locomotion-v2 total row reproduces exactly from the summed BC column (466.7) and 10%BC column (666.2) — the true figures for `halfcheetah-medium-expert-v2` are BC 55.2 · 10%BC 92.9 · TD3+BC 90.7 · CQL 91.6 · IQL 86.7. NONE of the five matched.**
+🚨 **AND THE DIRECTION REVERSES: the source has 10%BC (92.9) ABOVE IQL (86.7) on this exact dataset — the SAME direction as P4.7's `bc_top10` leading IQL, not the opposite. On hopper-me it is 10%BC 110.9 against IQL 91.5, also the same direction. So the *"contradicts D4RL"* premise is INVERTED on 2 of the 3 medium-expert tasks.**
+⚠️ **The coordinator's error, and it is the exact class `DEFERRED` 40 exists to prevent: these figures were relayed in a message and entered a brief WITHOUT the source being opened.** The rule was written after the OffLight episode and says read the PDF before any of it enters a brief.
+> **What survives, and it is why the task still runs: THE QUESTION IS UNTOUCHED — is our IQL implementation sound? What changes is what a result LICENSES afterwards.** The D4RL half of the motivation is withdrawn; **the offline-MARL half (OMIGA, OMSD) is NOT yet re-verified and must be treated as unconfirmed until it is**; and **the primary motivation is now §1b's grid4x4 instance — IQL losing to `random` at 36/100 draws won while winning the entire weak half on one intersection.** Offline MARL runs the same way — **OMIGA (2307.11620)** reports behaviour-modelling struggling
 and implicit value learning gaining on mixed suboptimal data; **OMSD (2505.05968)** attributes
 value-decomposition's advantage specifically to *"the severe multimodal distribution of joint behaviour
 policies on mixed-quality datasets"*. **Our P4.7 has %BC leading all three mixtures while IQL drops to
