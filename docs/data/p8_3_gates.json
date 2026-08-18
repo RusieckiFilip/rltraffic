@@ -1,0 +1,146 @@
+{
+  "declared": {
+    "codebook_iterations": 25,
+    "codebook_seed": 0,
+    "codebook_sizes": [
+      8,
+      64,
+      256
+    ],
+    "codebook_subsample": 200000,
+    "gate_c_episodes": 20,
+    "gate_d_samples": 10000,
+    "primary_codebook_size": 64,
+    "published_scores": {
+      "bc": 55.2,
+      "bc_top10": 92.9,
+      "iql": 86.7
+    },
+    "reference_max_score": 12135.0,
+    "reference_min_score": -280.178953
+  },
+  "environment": {
+    "env_id": "HalfCheetah-v4",
+    "gymnasium": "1.3.0",
+    "h5py": "3.16.0",
+    "mujoco": "3.11.0",
+    "note": "the -v2 datasets were generated under mujoco-py 2.1 with gym HalfCheetah-v3; this is gymnasium's port onto the current bindings, and Gate D measures the substitution",
+    "numpy": "2.5.1",
+    "python": "3.12.13",
+    "torch": "2.11.0+cu128"
+  },
+  "format_version": "p8.3-d4rl-calibration/1.0",
+  "gate_a_provenance": {
+    "action_dim": 6,
+    "action_max": 1.0,
+    "action_min": -1.0,
+    "bytes": 474567252,
+    "dataset": "halfcheetah-medium-expert-v2",
+    "passed": true,
+    "path": "/home/filip/d4rl-calib-data/halfcheetah_medium_expert-v2.hdf5",
+    "reward_max": 13.854623794555664,
+    "reward_min": -3.0135135650634766,
+    "rows": 2000000,
+    "sha256": "015db75dae5bbe8e94029b71fa0bafc2073365df0c94744e71031189f3f79c06",
+    "state_dim": 17,
+    "url": "http://rail.eecs.berkeley.edu/datasets/offline_rl/gym_mujoco_v2/halfcheetah_medium_expert-v2.hdf5"
+  },
+  "gate_b_no_terminals": {
+    "episode_length_max": 1000,
+    "episode_length_min": 1000,
+    "episodes": 2000,
+    "passed": true,
+    "rows_covered": 2000000,
+    "rows_dropped_as_trailing_partial": 0,
+    "terminal_count": 0,
+    "timeout_count": 2000
+  },
+  "gate_c_quantisation_ceiling": {
+    "by_codebook_size": {
+      "256": {
+        "ceiling_ratio": 1.975086401620274,
+        "codebook_digest": "be78c88c5f59789e4b9d9ec298120aeeb0b5b36fa580b545d33887110dc9af1f",
+        "normalised_score_of_quantised_replay": 0.9092552049383099,
+        "quantisation_error": {
+          "actions": 200000,
+          "max_l2": 1.6481262420645748,
+          "mean_l2": 0.3073231261562991
+        },
+        "quantised_replay_return_mean": -167.2932921674419
+      },
+      "64": {
+        "ceiling_ratio": 1.7996033031913299,
+        "codebook_digest": "baf7ef9f8cb486d6e5ddbfb4527b65fe701deca85215aa64fc8d45a76ef5ec26",
+        "normalised_score_of_quantised_replay": 1.028977418752726,
+        "quantisation_error": {
+          "actions": 200000,
+          "max_l2": 2.07884253911188,
+          "mean_l2": 0.429424753965417
+        },
+        "quantised_replay_return_mean": -152.42956507588886
+      },
+      "8": {
+        "ceiling_ratio": 1.2353910470090712,
+        "codebook_digest": "e4573cfde533467209f399f1075bb3dfaf97eaf93e2a4fbf7f228b41553504b2",
+        "normalised_score_of_quantised_replay": 1.4139075970782364,
+        "quantisation_error": {
+          "actions": 200000,
+          "max_l2": 2.683668653470803,
+          "mean_l2": 0.8545244426698742
+        },
+        "quantised_replay_return_mean": -104.6397945926747
+      }
+    },
+    "dataset_return_mean": 10757.61703556131,
+    "episodes": [
+      1980,
+      1981,
+      1982,
+      1983,
+      1984,
+      1985,
+      1986,
+      1987,
+      1988,
+      1989,
+      1990,
+      1991,
+      1992,
+      1993,
+      1994,
+      1995,
+      1996,
+      1997,
+      1998,
+      1999
+    ],
+    "raw_replay_return_mean": -84.70175888518186,
+    "replay_fidelity_ratio": -0.007873654416696968
+  },
+  "gate_d_dynamics_fidelity": {
+    "next_observation_abs_error_max": 16.330403681049134,
+    "next_observation_abs_error_median": 0.18196612581534088,
+    "passed": false,
+    "reward_abs_error_max": 0.12439278617662097,
+    "reward_abs_error_mean": 0.006928621592370689,
+    "reward_abs_error_median": 0.005608043933357898,
+    "reward_abs_error_p99": 0.026352789899850033,
+    "samples": 10000,
+    "threshold_median_reward_abs_error": 1e-05
+  },
+  "runtime": {
+    "cuda_available": true,
+    "cuda_device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "git_commit": "a03cb7a4bb084fdec6d8d02a2cde8e3e8b6935a0",
+    "measurement_git_commits": [],
+    "numpy_version": "2.5.1",
+    "python_version": "3.12.13",
+    "torch_cuda_version": "12.8",
+    "torch_num_threads": 1,
+    "torch_version": "2.11.0+cu128",
+    "unreachable_measurement_commits": [],
+    "written_at_git_commit": "a03cb7a4bb084fdec6d8d02a2cde8e3e8b6935a0"
+  },
+  "stage": "gates",
+  "task": "P8.3"
+}
