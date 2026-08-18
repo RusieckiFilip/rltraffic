@@ -370,6 +370,34 @@ amendment, and `f02c917` is no longer reachable from `HEAD`** (checked with `git
 > `git rev-parse <ref>:<path>` — the blob — and names the commit only as a convenience.**
 > **The approved plan is blob `d8a5da62`; the amendment is `2baf2cd`.**
 
+### D6 🔒 WHAT A NEGATIVE C1 CONTROL ACTUALLY THREATENS — and the fallback, fixed NOW rather than after
+
+⚠️ **I declared D the last round two paragraphs ago and this is one addition after that declaration.
+The reason it cannot wait: the alternative is choosing a fallback AFTER seeing the control's outcome,
+which is the loosening §7 forbids. Registering it now can only constrain us.**
+
+The implementer will *"come back if the C1 control comes out negative, since that changes what the
+packet can claim about the reused cells."* **The instinct is right and the target is slightly off, and
+the difference decides what the fallback has to be.** A negative control does **not** weaken the
+reused cells — those are sha256-verified outputs and their validity does not depend on whether the
+trainer reproduces. **What it threatens is phase A's headline quantity.**
+
+```
+d1 = ATT(dt_spatial@1H) − ATT(dt_nomix@1H)     ← P5.1's cells, produced by the OLD trainer
+d4 = ATT(dt_spatial@4H) − ATT(dt_nomix@4H)     ← produced by the NEW trainer
+I  = d4 − d1                                    ← conflates HEAD COUNT with TRAINER CHANGE
+                                                  unless old ≡ new
+```
+
+> **REGISTERED FALLBACK, before the control runs: if the same-device control shows `train_spatial_dt`
+> does not reproduce itself, and the old-vs-new difference is not inside that measured envelope, then
+> `d1` is RE-PRODUCED WITH THE NEW TRAINER — `dt_spatial@1H` and `dt_nomix@1H` retrained on the new
+> code path, ~9.8 h — so that `I` is a within-code-path quantity.** In that branch P5.1's cells stay
+> in the report as the **published comparator** and are reported **beside** the re-produced pair, with
+> both values shown; they are not replaced and not discarded. ⚠️ **If the two differ materially, THAT
+> is a finding about our own reproducibility and it is reported, not reconciled.**
+> **Q0's stop rule and every §4 prediction are unchanged in either branch.**
+
 ### D5 ✅ Verified in the amendment, first-hand
 
 `2baf2cd` touches **only** the two documents — `git diff --stat main...HEAD -- offline/ tests/ agent/`
@@ -502,6 +530,9 @@ seven-tier sweep is not affordable in the September window.
       delete after all validation; the resume path writes-validates-moves and cannot mistake a
       half-written cell for a complete one
 - [ ] **D2** — C2's step set includes **step 500, expected `0.501`**
+- [ ] **D6** — the registered fallback for a negative C1 control is in the plan **before the control
+      runs**: `d1` re-produced on the new code path so `I` is within-code-path, P5.1's cells reported
+      beside it rather than replaced
 - [ ] Every ordering with its per-seed count **and** range, **emitted by the generator**
 - [ ] `DEFERRED` 37's mutation executed, failure pasted; every mutation's failure pasted
 - [ ] Campaign in a **user-launched `tmux`**; **no `until`-poll**; `mkdir -p` before `tee`, and the
