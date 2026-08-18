@@ -87,8 +87,26 @@ more than the total:
 | evaluation, 7 arms × 5 seeds × 100 draws | **3 h 00** (`behaviour` alone is 56 min) |
 
 **DT training is 73 % of the campaign and scales with the number of DT cells — nothing else does.**
-Projected for this brief **with A3's reuse**: ~13.5 h per NEW tier × 2 new tiers + ~11 h for the
-4-head pair + ~1.5 h for the new %BC arm ≈ **52 h**. Without reuse, ≈ 65 h.
+🚨 **PROJECTION CORRECTED 2026-08-18 — BOTH TOTALS BELOW WERE WRONG, AND THE FIRST CONTRADICTED ITS
+OWN FORMULA IN THE SAME SENTENCE.** It read *"~13.5 × 2 new tiers + ~11 + ~1.5 ≈ **52 h**. Without
+reuse, ≈ 65 h."* **13.5 × 2 + 11 + 1.5 = 39.5, not 52** — the 52 was the pre-A3 three-new-tier figure,
+left standing when A3 removed a tier from the count, and **65 was never derivable from any version.**
+⚠️ **A document that carries 52 in A4 and 38 in B6 has no cost estimate at all.** Recomputed from the
+same measured units, with the arithmetic shown so it can be checked rather than trusted:
+
+| what | h | how |
+|---|---|---|
+| one FULL tier | **13.9** | 9.8 DT training (2 arms × 5 seeds × 59 min) + 0.7 baselines + 3.4 eval (8 arms) |
+| `mappo1000` — **reused**, new arms only | **0.5** | per-intersection %BC: train + evaluate |
+| 2 new tiers (`maxpressure`, `random`) | **27.8** | 2 × 13.9 |
+| 4-head pair at `mappo1000` | **10.8** | 9.8 training + ~1.0 eval |
+| **TOTAL, as ruled** | **≈ 39 h** | agrees with the implementer's independent **~38 h** |
+| *+ optional `fixedtime` 4th tier (B1)* | *≈ 53* | *+13.9* |
+| *without A3's reuse* | *≈ 52.6* | *+13.5 to re-run `mappo1000`* |
+
+⚠️ **The 1.4× over-estimate prior from B6 does NOT apply on top of this: the 59 min/seed above is the
+MEASURED per-seed cost from P5.1's checkpoint times, not the 85 min/seed pre-run bench that the prior
+was computed against.** Discounting it again would double-count the correction.
 > §5's cut is unchanged and is now costed: **dropping `maxpressure` saves ~13.5 h.** ⚠️ **If the
 > 4-head pair overruns, it does NOT get cut — A2 makes it the task's first result and §2 makes it a
 > stop rule.** The tier breadth is the expendable half; the architecture question is not.
@@ -303,6 +321,18 @@ seven-tier sweep is not affordable in the September window.
 - [ ] Three tiers × arms, 5 seeds × 100 held-out draws, 40,000 steps; per-intersection %BC as a **new
       arm** beside the global filter. **`mappo1000` is reused per A3, with provenance and sha256 in the
       artifact; only new arms run there**
+- [ ] **B1** — the tier set is `{mappo1000, maxpressure, random}`; **the disclosure is IN the plan and
+      the packet**: the top two rungs are 7.16 ATT (4.5 %) apart, the tiers do NOT span grid4x4's
+      160.33→1370.22 range, separation is on the RETURN axis (5.5×). **`fixedtime` recorded as the
+      pre-declared optional fourth tier, never as a replacement**
+- [ ] **B3** — reuse gate: digests re-checked **at consumption**, the equality check asserts **exactly
+      500 episodes** before comparing, its **positive control is executed and the failure pasted**, and
+      a mismatch **refuses and stops** rather than re-running
+- [ ] **B4** — `random` tier size-matched to **200 streams, `one_per_draw`**, declared RNG, selection
+      recorded in the artifact
+- [ ] **B5** — the registered prediction scores **rank separately from level**, **excludes already-seen
+      `mappo1000` cells from the denominator with the out-of-sample set enumerated**, and **fixes band
+      and threshold in the commit** with the calibration stated beside them
 - [ ] Every ordering with its per-seed count **and** range, **emitted by the generator**
 - [ ] `DEFERRED` 37's mutation executed, failure pasted; every mutation's failure pasted
 - [ ] Campaign in a **user-launched `tmux`**; **no `until`-poll**; `mkdir -p` before `tee`, and the
