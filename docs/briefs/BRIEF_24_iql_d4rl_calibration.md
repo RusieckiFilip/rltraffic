@@ -45,6 +45,12 @@ candidate measurements that can.**
 > **If it lands far below: the defect is in IQL and not in the data — and we learn it in an afternoon
 > rather than from a referee**, before P5.2 consumes the same IQL as a baseline.
 
+## 1b. ⭐ A SECOND, SHARPER INSTANCE ARRIVED 2026-08-18 — AND IT IS A SCOPE QUESTION, NOT INSTABILITY
+
+**P5.1 ran IQL on grid4x4 and it LOSES TO `random`: 275.8354 against 260.3602, winning only 36 of 100 draws** — independently confirmed by P5.1's reviewer (per-seed `−1.47 / +20.58 / −28.22 / +34.83 / +51.65`, pooled `+15.4753`). **The same untuned IQL won the ENTIRE weak half of the hz1x1 ladder** (1/4 on `maxpressure`, `fixedtime` and `random`).
+> **Frame it as SCOPE, not instability.** An ordering reversing on 2 of 5 seeds is instability; **an arm losing to RANDOM on a 16-intersection network while winning the weak half on ONE intersection is a question about IQL itself** — and that is precisely what an external calibration answers. **One measurement now settles both this and the D4RL/offline-MARL anomaly in §1**, which is the argument for running it before P5.2 inherits IQL as a baseline.
+⚠️ **Report both instances in the packet.** The hz1x1 anomaly (%BC leading the mixtures while OMIGA and OMSD report value-based methods gaining on multimodal data) and the grid4x4 one (IQL below random) are **two faces of the same question**, and a calibration that lands near ~90 licenses a domain-side reading for both.
+
 ## 2. What to run
 
 **Our own `train_iql`, UNCHANGED and UNTUNED, on `halfcheetah-medium-expert-v2`.** Same code path, same
