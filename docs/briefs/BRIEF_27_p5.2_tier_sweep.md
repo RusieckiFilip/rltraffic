@@ -300,6 +300,86 @@ global top-decile filter concentrates on 6–11 of 16 nodes on EVERY grid4x4 tie
 
 ---
 
+## ⭐ AMENDMENT D — 2026-08-19. **The LAST requirement round on the plan.** One load-bearing gap, two corrections of mine, one durable rule
+
+**The plan amendment at `2baf2cd` is accepted.** C1–C4 all landed, and **C4 landed better than I asked
+for**: no threshold was registered on the hard subset, because a second threshold would be a second
+registered claim rather than the disclosure C4 wanted. That is the right call. **Phase 3 is OPEN once
+D1 is in the plan.** ⚠️ **This is the stopping point: D1 is a data-destruction risk, D2 is one number,
+D3 and D4 are my errors. A further round would return style, and §7 says stop then.**
+
+### D1 🚨 THE FILESYSTEM-MUTATION BARRIER IS ABSENT FROM THE PLAN, AND THIS CAMPAIGN IS ITS WORST-CASE SHAPE
+
+Measured in `docs/plans/p5.2.md`: **`mutation barrier` 0 · `delete` 0 · `overwrite` 0 · `out_dir` 0**,
+against **`resum` 2**. §7's barrier (*every write AND delete happens after all validation*) has
+**already fired twice in this repo** — P1's NB2, where `--overwrite` destroyed a corpus **before**
+constructor validation, and P2.0, where draw materialisation ran before the populated-`out_dir` check.
+**A resumable campaign is precisely the shape that reintroduces it**: resume logic decides *"is this
+cell already done?"* and then either skips or re-runs, and a re-run that truncates before its
+replacement validates converts a crash into data loss.
+
+> **REQUIRED, three parts, and the first is the one that matters most.**
+> **(a) `output/p5_1/` IS READ-ONLY TO THIS TASK, ENFORCED IN CODE, NOT BY INTENTION.** Those seven
+> cells and 25 checkpoints are the **only copy** of the evidence behind a merged, independently
+> reviewed result — `output/` is gitignored, there is no backup, and §10 carries that as an open
+> exposure for P10.0. **`tier_sweep.py` and `p5_2.sh` must REFUSE any write or delete whose resolved
+> path lies under `output/p5_1/`**, with the refusal tested and its failure pasted. **The reuse gate
+> reads those files; nothing in this task may open them for writing.**
+> **(b) Every write and delete in `tier_sweep.py` happens after all validation.** A refused run
+> constructs nothing and destroys nothing.
+> **(c) The resume path never truncates or deletes an existing cell before its replacement has
+> validated** — write to a temporary name, validate, then move. **Test the crash case: a half-written
+> cell must not be mistaken for a complete one**, which is the failure resume logic exists to survive
+> and the one that silently poisons a campaign.
+
+### D2 📏 C2's STEP SET HAS ONE BLIND SPOT — ADD STEP 500
+
+The pinned expectations are right: at `total = 40,000`, `warmup = 1000` and
+`λ = min(1, (step+1)/1000)` gives `0.001 · 1.0 · 1.0 · 1.0 · 1.0` at `{0, 999, 1000, 1001, 40000}`,
+and **step 999 is correctly identified as the discriminating point** — an off-by-one reads 0.999 there.
+⚠️ **But four of the five expected values are identical, so the set's whole power sits at 0 and 999,
+and a schedule that agreed at both endpoints while differing in SHAPE — a cosine or quadratic ramp —
+would pass.**
+> **REQUIRED: add step 500, expected `0.501`.** One number, it costs nothing, and it turns a
+> two-point check into one that pins the ramp's shape. §7: a check must report its discriminating
+> power, and a check whose points nearly all return the same value has little.
+
+### D3 ⚠️ TWO ERRORS OF MINE THAT THE IMPLEMENTER ABSORBED WITHOUT COMPLAINT — CORRECTED HERE
+
+**(i) `C4`'s *"within 147 ATT of each other at `maxpressure`"* is WRONG, and the implementer recovered
+the real provenance rather than repeating it.** The four hard arms span **42.17** at `maxpressure` and
+**62.71** at `random`; **146.81** is the **pooled two-tier** span (166.09 → 312.90). **I attributed a
+pooled figure to one tier — the same scoping error as B0's hz1x1 numbers wearing grid4x4's label, one
+week and three instances running.**
+**(ii) `C1` described a conflation that was ALREADY IN THE FILE I HAD JUST APPROVED, and I did not say
+so.** The approved obligation 6 read *"This is what licenses P5.1's cells as comparators for cells
+produced by new code."* **That is the error, sitting in the text, while my requirement discussed it as
+a future risk in the packet.** ⚠️ **I named the class and did not check the instance in front of me,
+which is the inverse of *fix the class, not the sentence* and is the failure my own §7 rule was
+written to prevent.** The implementer caught it and corrected the file.
+
+### D4 🔒 AN APPROVAL MUST PIN A BLOB, NOT A COMMIT — MY OWN CITATION IS ALREADY DEAD
+
+Amendment C approved *"`docs/plans/p5.2.md` @ `f02c917`"*. **The implementer then rebased onto that
+amendment, and `f02c917` is no longer reachable from `HEAD`** (checked with `git merge-base
+--is-ancestor`). **Measured: the blob is `d8a5da62…` at both `f02c917` and its rebased twin `6c7a049`
+— the content I approved is intact and the container I named is gone.**
+> ⚠️ **Our workflow GUARANTEES this collision: the coordinator amends the brief on `main`, the
+> implementer rebases to see the amendment, and every commit hash the coordinator just cited dies in
+> the same act.** **Rule, now in `PROJECT_PLAN` §7: any approval or ruling that pins a document pins
+> `git rev-parse <ref>:<path>` — the blob — and names the commit only as a convenience.**
+> **The approved plan is blob `d8a5da62`; the amendment is `2baf2cd`.**
+
+### D5 ✅ Verified in the amendment, first-hand
+
+`2baf2cd` touches **only** the two documents — `git diff --stat main...HEAD -- offline/ tests/ agent/`
+is **empty**, so no code exists and the registration genuinely predates it. C4's arithmetic checks:
+`iql` and `bc_top10` touch **9 of 15** pairs (5 + 5 − 1), leaving exactly **6**. C2's λ values are
+correct at every pinned step. §0.1 records the four changes and their direction, so the one edit the
+registered set has had is visible and dated rather than silent.
+
+---
+
 ## 0. ⚠️ SCOPE CORRECTION BEFORE ANYTHING ELSE — §6's P5.2 NAMES A SCENARIO WE DO NOT HAVE
 
 §6 reads *"Train + evaluate on grid4x4, **hangzhou_4x4** per ladder tier"*. **Measured today:
@@ -418,6 +498,10 @@ seven-tier sweep is not affordable in the September window.
 - [ ] **C3** — the plan carries the **P8.3 fence**: no sentence cites its D4RL numbers as IQL validation
 - [ ] **C4** — Q2b reports the **6-pair hard subset** `{dt_nomix, bc_top10_perix, bc, dt_spatial}` beside
       the 15-pair concordance; the registered threshold is unchanged
+- [ ] **D1** — `output/p5_1/` **read-only, enforced in code**, refusal tested and pasted; every write and
+      delete after all validation; the resume path writes-validates-moves and cannot mistake a
+      half-written cell for a complete one
+- [ ] **D2** — C2's step set includes **step 500, expected `0.501`**
 - [ ] Every ordering with its per-seed count **and** range, **emitted by the generator**
 - [ ] `DEFERRED` 37's mutation executed, failure pasted; every mutation's failure pasted
 - [ ] Campaign in a **user-launched `tmux`**; **no `until`-poll**; `mkdir -p` before `tee`, and the
