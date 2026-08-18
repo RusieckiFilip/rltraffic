@@ -222,6 +222,84 @@ dt_spatial` against ~59 min/seed actual — a 1.4× over-estimate, which is the 
 
 ---
 
+## ⭐ AMENDMENT C — 2026-08-18, the plan gate: `docs/plans/p5.2.md` @ `f02c917` is APPROVED, with four requirements
+
+**I audited the plan against the artifacts, not against its summary. It is the strongest planning
+document this project has produced.** ⭐ **Its registered level table reproduces EXACTLY: I
+re-implemented rule R′ from the plan's own formula against `p5_1_grid.json`, `p4_6_grid.json` and
+`att_ladder_v11.json`, and all 13 predicted cells agree to < 5e−5** — and the calibration's anchors
+resolve to the known merged values (`104.9558` for the DT, `103.16` for %BC), so the rule is wired to
+the artifacts it claims. **`bc_top10_perix` is defined as the controlled contrast it needs to be:**
+`ceil(0.10 · n)` **within each node's own stream set** — 20 × 16 = **320**, exactly the global filter's
+320 — so the two filter arms differ in **which** streams they keep and not how many.
+**Coding may begin once the four below are in the plan file.**
+
+### C1 🔒 PROOF OBLIGATION 6 NEEDS A SAME-DEVICE CONTROL, OR A FAILURE IS UNINTERPRETABLE
+
+Byte-identity between the **old** and **new** trainer is evidence only if the **old** trainer is
+byte-identical **to itself** on that device first.
+> **REQUIRED: run `spatial_mixing.train_spatial_dt` TWICE at `n_head=1`, same seed, same budget, same
+> device, and report whether it reproduces itself — BEFORE comparing it to the new trainer.** If it
+> does, `==` is the right bar and the obligation stands as written. **If it does not, byte-identity is
+> unavailable on that device and the honest bar is CPU equality plus a REPORTED variance envelope from
+> the control** — never a silent relaxation to `allclose`. This is §7's discriminating-power rule: a
+> check must report the distance between the right answer and a wrong one, not only that it passed.
+> ⚠️ **And say which obligation licenses what, because obligation 6 alone does not license reuse:**
+> **6 licenses the CODE PATH** (new trainer ≡ old at 1 head); **B3's digest + random-anchor gate
+> licenses the ARTIFACTS** (P5.1's CUDA-trained cells are comparable with P5.2's). Both are needed and
+> the plan has both — the risk is a packet sentence that credits one with the other's work.
+
+### C2 🔒 THE EQUIVALENCE RUN EXERCISES A SCHEDULE THE CAMPAIGN NEVER USES
+
+Verified in source today: `offline/spatial_mixing.py:400` computes
+`warmup = min(WARMUP_STEPS, max(1, total // 2))` with `WARMUP_STEPS = 1000`. **So warmup is a FUNCTION
+OF THE BUDGET** — `total=100 → 50`, `total=500 → 250`, `total=40000 → 1000`. A short-budget run
+therefore crosses *its own* boundary automatically (good) **but proves nothing about the schedule the
+campaign runs.**
+> **REQUIRED, and it costs no training: assert old and new trainers compute the SAME `warmup` and the
+> SAME LR multiplier at `total = 40,000`, evaluated at steps `{0, 999, 1000, 1001, 40000}`.** A
+> divergence there would change every reported cell while a 100-step equality test stayed green.
+> *(`DEFERRED` 36 already records `warmup_steps` as an under-recorded knob; this is the same knob
+> becoming load-bearing.)*
+
+### C3 🔒 BRIEF §4.8's P8.3 FENCE IS BINDING AND APPEARS **ZERO** TIMES IN THE PLAN
+
+Measured: `grep -c "P8.3" docs/plans/p5.2.md` → **0**. The single-Q disclosure is present and correct;
+the fence is not.
+> **REQUIRED, one line in the plan: no P5.2 sentence — plan, artifact, packet or paper — may cite
+> P8.3's D4RL numbers as validation of the IQL arm.** P8.3 is an unreviewed external calibration whose
+> own §6 fences it. ⚠️ **The failure mode is specific and attractive: justifying the IQL baseline with
+> *"externally validated against D4RL"*.** The arm's honest disclosure is the single-Q deviation, which
+> the plan already carries.
+
+### C4 📏 Q2b's CONCORDANCE IS INFLATED BY TWO OBVIOUS PAIRS — REPORT THE HARD SUBSET BESIDE IT
+
+The predicted orderings put `bc_top10` at **751 / 1243** and `iql` at **264 / 415**, far from the
+other four arms. **Those two arms supply 9 of the 15 pairs per tier, and getting them right is nearly
+free — so ≥ 12 of 15 can be met while every ordering that matters is wrong.**
+> **REQUIRED, as an ADDITIONAL report and NOT a change to the registered threshold** (the primary is
+> registered and stays): **report concordance restricted to the 6 pairs among
+> `{dt_nomix, bc_top10_perix, bc, dt_spatial}`** — the four arms predicted within 147 ATT of each
+> other at `maxpressure` — **beside the 15-pair count.** The paper's ordering sentence lives in that
+> subset. **Adding a secondary before any data exists is free; discovering afterwards that the primary
+> was carried by two easy pairs is not.**
+
+### C5 ✅ WHAT I CHECKED AND FOUND SOUND — recorded so a later reader knows the audit's extent
+
+Level table (13/13 to <5e−5) · calibration errors (23.9 / −1.0 / 5.8 / 378.5 / 75.5, median 23.9, 3 of
+5 in band) · both predicted orderings sort correctly from the table · Q3b's margins (−0.9655,
+−10.1702) follow from it · the size match is 200 episodes / 3,200 streams on every tier, with the unit
+deviation correctly reasoned from `build_joint_index`'s refusal · the stop rule is in the phase order
+and writes `STOPPED_BY_RULE` · Gate 1 refuses and stops · the completeness assertion reads the
+declaration rather than the files being checked · rehearsal knobs execute the control flow and the
+40,000-step assertion stops a rehearsal masquerading as a campaign · A5, the ATT-skew requirement,
+`DEFERRED` 21, `DEFERRED` 37 and the per-seed emission are all present.
+⭐ **§2.4 is a NEW measured finding and it generalises `PROJECT_PLAN` §1b's R2/R6 scope condition: the
+global top-decile filter concentrates on 6–11 of 16 nodes on EVERY grid4x4 tier, not only
+`mappo1000`.** It is correctly labelled a corpus measurement rather than a prediction.
+
+---
+
 ## 0. ⚠️ SCOPE CORRECTION BEFORE ANYTHING ELSE — §6's P5.2 NAMES A SCENARIO WE DO NOT HAVE
 
 §6 reads *"Train + evaluate on grid4x4, **hangzhou_4x4** per ladder tier"*. **Measured today:
@@ -333,6 +411,13 @@ seven-tier sweep is not affordable in the September window.
 - [ ] **B5** — the registered prediction scores **rank separately from level**, **excludes already-seen
       `mappo1000` cells from the denominator with the out-of-sample set enumerated**, and **fixes band
       and threshold in the commit** with the calibration stated beside them
+- [ ] **C1** — the trainer-equivalence obligation runs a **same-device old-vs-old control first**, and
+      reports it; `==` only if the control reproduces, otherwise CPU equality plus a reported envelope
+- [ ] **C2** — old and new trainers assert the same `warmup` and LR multiplier at **`total = 40,000`**,
+      steps `{0, 999, 1000, 1001, 40000}`, computed rather than trained
+- [ ] **C3** — the plan carries the **P8.3 fence**: no sentence cites its D4RL numbers as IQL validation
+- [ ] **C4** — Q2b reports the **6-pair hard subset** `{dt_nomix, bc_top10_perix, bc, dt_spatial}` beside
+      the 15-pair concordance; the registered threshold is unchanged
 - [ ] Every ordering with its per-seed count **and** range, **emitted by the generator**
 - [ ] `DEFERRED` 37's mutation executed, failure pasted; every mutation's failure pasted
 - [ ] Campaign in a **user-launched `tmux`**; **no `until`-poll**; `mkdir -p` before `tee`, and the
