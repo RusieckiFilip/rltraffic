@@ -131,6 +131,10 @@ behaviour policy on four tiers (`mappo1000` −0.4186 · `mappo500` −0.8136 ·
 held-out behaviour cells. *Does NOT test:* that nothing **but** quality transfers — P4.5's 92 % figure
 was measured on **one** tier, and this extends it by pattern, not by measurement.
 
+🚨 **SCOPE CONDITION ADDED 2026-08-18, AND IT APPLIES TO BOTH R2 AND R6: EVERYTHING BELOW WAS MEASURED ON hz1x1, WHERE A SINGLE INTERSECTION MAKES RETURNS TRIVIALLY COMPARABLE — SO THE CONDITION WAS INVISIBLE.** P5.1 ran the same unmodified `top_return_streams` on grid4x4's **16** intersections and `bc_top10` collapsed to **749.58**, with **505 of ~1300 vehicles still in network**. **The mechanism is an exact set identity: the filter kept streams from exactly the 8 intersections with the highest own-max return, and those 8 are the QUIETEST** (C2 tops out at −64, D1 at −142). **Per-intersection returns on a network are dominated by LOAD, not by control quality, so a global return quantile is a LOAD SORTER — it trained on the eight quietest nodes and was asked to control sixteen.**
+> **The transferable form: a return-quantile filter is a QUALITY filter only when returns are COMPARABLE ACROSS THE UNITS BEING FILTERED.** R2 and R6 were never wrong; **they were measured under a condition nobody could see was a condition**, and they may not be stated without it.
+⚠️ **This does NOT retro-apply to P4.4–P4.7's merged cells** — on one intersection the filter did what those tasks reported. **Per-intersection %BC is a NEW ARM, declared and reported beside the global filter, never a re-specification of a method after watching it collapse** (§7's asymmetry). **The un-re-specified collapse IS the transferable result.**
+
 **R2 — %BC CHANGES SIGN against its own behaviour policy.** Better on `maxpressure` **−11.1144**,
 `mappo500` **−3.3396**, `mappo1000` **−2.4193**; **worse** on `fixedtime` **+13.9285** and `random`
 **+3.3013**. ⚠️ **Two tiers, not one.** Reading: the top-decile filter selects the best behaviour **mode
@@ -934,6 +938,15 @@ untested no matter how carefully it was written.** A guard cannot reject what ne
 > live at P5) and `DEFERRED` 42/44 (a guard branch no correct campaign ever reaches).
 **Action carried into P4.7:** audit whether any other declaration in `p4.6.md` or `p4.7.md` describes a
 path with no execution behind it.
+
+**FIVE TIMES NOW, A NEW MEASUREMENT HAS NARROWED A RECORDED CLAIM — AND THE REMAINING UNQUALIFIED CLAIMS ARE PROBABLY CONDITIONAL ON SOMETHING hz1x1 MADE INVISIBLE (added 2026-08-18, the user's pattern).**
+The five: **C1's prior art** (the ladder concept was 2021 prior art), **C3 twice** (the axis is occupied; then even default-vs-default is confounded), **R3's falsification** (the axis is weak *and unimodal*, not weak), **the configuration sentence** (narrowed to three measured knobs), and now **R2/R6's comparability condition**.
+> **Every one was a claim that was TRUE UNDER A CONDITION NOBODY COULD SEE WAS A CONDITION, because the setting that would expose it had not been run.** hz1x1 has one intersection, so returns are trivially comparable, masks never bind, ID-keying is trivially correct and lane denotation cannot differ. **grid4x4 and SUMO are where those conditions become visible.**
+> **Cheapest place to find the rest: the moment each new scenario lands — not at writing time.** **Binding: when a task first runs on a scenario with a property hz1x1 lacked (multiple intersections, a second backend, a mixture), re-read §1b's readings and ask of each which hz1x1 property it silently assumed.**
+
+**AN ORDERING UNANIMOUS IN SIGN CAN BE HETEROGENEOUS IN MAGNITUDE BY TWO ORDERS, AND THE PER-DRAW CI SHOWS NEITHER (added 2026-08-18).**
+P5.1's primary effect is **+39.5649** with **0/100 draws** won and **5/5 seeds** agreeing in sign — and the per-seed effects are **{101: +1.03, 202: +72.07, 303: +68.50, 404: +32.75, 505: +23.47}**, a **70× span** in which **seed 101 is within noise of zero on its own.** The verdict is unaffected; the *stability* of the quantity is not what the pooled CI suggests. **P4.7's M1 recorded that our per-draw unit averages the seeds away; this is the same blind spot showing a different face.**
+> **Binding: every reported ordering carries BOTH its per-seed agreement COUNT and its per-seed RANGE.** The count protects against the `iql`-vs-`random` class (reverses on 2/5); **the range protects against reporting +39.56 as though it were a stable quantity.**
 
 **A COPY IS EVIDENCE OF CONTENT. EVIDENCE OF PRODUCTION HAS TO BE PRESERVED DELIBERATELY OR IT IS GONE (added 2026-08-18, the user's generalisation of the `cp -r` instance below).**
 **Content identity and provenance identity are different properties, and a copy can preserve one while destroying the other.** ⚠️ **Every *"secured N/N"* this project has done — `p4_3` 10/10, `p4_4_p4_5` 44/44, `p4_6` 125/125, `p4_7` 112/112, `p7_0` 36/36, `p5_1` 48/48 — is a CONTENT check.** None of them attests to *when* or *by what* the bytes were produced.
