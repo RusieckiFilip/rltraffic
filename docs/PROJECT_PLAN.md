@@ -935,6 +935,11 @@ untested no matter how carefully it was written.** A guard cannot reject what ne
 **Action carried into P4.7:** audit whether any other declaration in `p4.6.md` or `p4.7.md` describes a
 path with no execution behind it.
 
+**A COPY IS EVIDENCE OF CONTENT. EVIDENCE OF PRODUCTION HAS TO BE PRESERVED DELIBERATELY OR IT IS GONE (added 2026-08-18, the user's generalisation of the `cp -r` instance below).**
+**Content identity and provenance identity are different properties, and a copy can preserve one while destroying the other.** ⚠️ **Every *"secured N/N"* this project has done — `p4_3` 10/10, `p4_4_p4_5` 44/44, `p4_6` 125/125, `p4_7` 112/112, `p7_0` 36/36, `p5_1` 48/48 — is a CONTENT check.** None of them attests to *when* or *by what* the bytes were produced.
+**This is the same distinction `DEFERRED` 29 records from the other side:** a checkpoint's file hash depends on its **filename and provenance block**, so *"reproduces byte-identically"* is not testable at file level and needs a **canonical digest over sorted `state_dict` bytes**. There, provenance polluted a content claim; here, a content copy destroyed provenance. **Same axis, opposite failures.**
+> **Practical form: when securing evidence, ask which of the two properties the artifact will later be asked to support.** If any later claim rests on **when** or **by what** it was written — mtime correspondence, run ordering, a log-to-artifact match — **that evidence must be captured on purpose, because a checksum will not carry it and a copy will silently drop it.**
+
 **SECURING EVIDENCE WITH `cp -r` DESTROYS METADATA THAT PRIOR REVIEWS HAVE USED AS EVIDENCE (added 2026-08-18, my own error, caught within one command).**
 Securing P5.1 I ran `cp -r`, which **reset every mtime in the copy to the copy time** — and the very next thing I did was try to answer *"did the machine suspend before or after completion?"* **from those mtimes.** The answer was only recoverable because the ORIGINALS were untouched. ⚠️ **This is not cosmetic: P4.7's reviewer used log-to-artifact mtime correspondence *"identical to the nanosecond"* as evidence that a script wrote what it claimed.** A copy that verifies by `sha256` has correct **CONTENT** and, after `cp -r`, **no TIMING evidence at all.**
 > **Rule: `cp -rp`, always, when the copy is evidence — and verify a preserved mtime alongside the checksums.**

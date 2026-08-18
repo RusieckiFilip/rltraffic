@@ -3,6 +3,30 @@
 # WHAT THIS FILE IS: a record of the exact environment that produced the merged numbers in
 # output/ and in docs/data/. It is evidence, not configuration.
 #
+# WHY THIS FILE IS NOT UPGRADED, AND WHY DEPENDABOT MAY NOT TOUCH IT
+# (ruling 2026-08-18, PROJECT_PLAN section 8 -- read this before "fixing" an alert here)
+#
+# Dependabot opens alerts against this file. They must be closed as won't-fix, every time.
+# The reason is not that the vulnerabilities are unimportant; it is that this file answers a
+# different question from pyproject.toml, and Dependabot cannot tell the two apart:
+#
+#   pyproject.toml            "what must a reproducer INSTALL?"   -- a constraint. May move.
+#   requirements-frozen.txt   "what PRODUCED these numbers?"      -- a historical fact. May not.
+#
+# Bumping a version here does not patch anything. It FALSIFIES the record: every number in
+# output/ and docs/data/ was produced under the versions written below, and a record silently
+# patched forward reconstructs nothing. That is the exact inverse of why P0.10 wrote this file.
+#
+# As of 2026-08-18 the open alerts are setuptools (1 high, 1 moderate) and torch (2 low, both
+# memory corruption via torch.jit.script). Measured the same day: `grep -rn "torch\.jit"
+# offline/ agent/` returns 0 -- nothing this project ships calls it, so the torch alerts are
+# unreachable from our code. That measurement is a courtesy, not the argument; the argument
+# holds even for a reachable vulnerability.
+#
+# IF A VULNERABILITY IS EVER REACHABLE FROM OUR CODE, the answer is to RE-RUN the numbers under
+# a patched environment and record THAT, as a new frozen record beside this one. Never edit the
+# record of a run that happened.
+#
 # WHAT IT IS NOT: a supported matrix, and not an installer input. Two lines below cannot be
 # resolved on another machine and are kept because removing them would delete provenance:
 #   * `CityFlow @ file:///home/filip/rltraffic/CityFlow` -- built from the vendored tree
