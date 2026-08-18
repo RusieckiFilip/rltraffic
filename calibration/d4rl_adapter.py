@@ -84,6 +84,7 @@ __all__ = [
     "build_transition_table",
     "episode_returns",
     "episode_spans",
+    "normalised_difference",
     "normalization_stats",
     "normalized_score",
     "top_return_episodes",
@@ -141,6 +142,31 @@ def normalized_score(
         )
     values = np.asarray(episode_return, dtype=np.float64)
     return 100.0 * (values - float(ref_min)) / span
+
+
+def normalised_difference(
+    return_difference: float | Sequence[float] | np.ndarray,
+    *,
+    ref_min: float = REF_MIN_SCORE,
+    ref_max: float = REF_MAX_SCORE,
+) -> np.ndarray:
+    """A **difference** of returns expressed in normalised-score units.  Never a level.
+
+    Gate D fired, and ruling 10c(a) forbids publishing any absolute normalised score: the
+    evaluation environment is not the one the published table was measured in.  A *difference*
+    between two arms measured in the *same* environment is untouched by that, because the
+    environment-level bias is common to both and cancels -- and the normalisation is affine, so
+    ``score(a) - score(b) == 100 * (a - b) / span`` exactly as a definition.
+
+    The separate name is the enforcement: ``tests/test_d4rl_calibration.py`` fails if the runner
+    calls :func:`normalized_score` at all.
+    """
+    span = float(ref_max) - float(ref_min)
+    if span <= 0.0:
+        raise ValueError(
+            f"the reference scores do not span a positive range (min {ref_min}, max {ref_max})"
+        )
+    return 100.0 * np.asarray(return_difference, dtype=np.float64) / span
 
 
 @dataclass(frozen=True)

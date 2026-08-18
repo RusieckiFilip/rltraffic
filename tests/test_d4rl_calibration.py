@@ -35,6 +35,7 @@ from calibration.d4rl_adapter import (
     build_transition_table,
     episode_returns,
     episode_spans,
+    normalised_difference,
     normalization_stats,
     normalized_score,
     top_return_episodes,
@@ -130,6 +131,63 @@ def test_the_withdrawn_comparator_appears_nowhere_in_the_calibration_code() -> N
             f"{path.relative_to(REPO_ROOT)} carries the withdrawn comparator 89.9; the verified "
             "value is 86.7 (arXiv:2110.06169 Table 1)"
         )
+
+
+def test_a_normalised_difference_is_the_difference_of_two_normalised_scores() -> None:
+    """Ruling 10c allows a DIFFERENCE in normalised units and forbids a level.
+
+    The two routes are checked against each other: the direct definition ``100 * d / span``
+    exactly, and the difference of two levels as an independent route.  The second carries a
+    tolerance because subtracting two affine images associates the arithmetic differently, which
+    is a float property and not a disagreement about the quantity.
+    """
+    left = np.array([1000.0, 5000.0, 11000.0], dtype=np.float64)
+    right = np.array([900.0, 5200.0, 10000.0], dtype=np.float64)
+    span = REF_MAX_SCORE - REF_MIN_SCORE
+
+    assert np.array_equal(normalised_difference(left - right), 100.0 * (left - right) / span)
+    np.testing.assert_allclose(
+        normalised_difference(left - right),
+        normalized_score(left) - normalized_score(right),
+        rtol=0.0,
+        atol=1e-9,
+    )
+
+
+def test_the_runner_never_computes_an_absolute_normalised_score() -> None:
+    """Ruling 10c (a), enforced mechanically rather than by a comment.
+
+    R-D fired, so no absolute normalised score may be published -- not IQL's against 86.7 and not
+    ``bc_top10``'s against 92.9, because the ceiling comparison is itself an absolute comparison
+    against a ``mujoco-py`` 2.1 number.  Differences survive, because an environment-level bias is
+    common to all three arms and cancels.  The runner is therefore forbidden to call
+    ``normalized_score`` at all; it uses ``normalised_difference``, and the distinction lives in
+    the name rather than in someone's memory.
+    """
+    source = (CALIBRATION_DIR / "d4rl_run.py").read_text(encoding="utf-8")
+    called = {
+        node.func.id
+        for node in ast.walk(ast.parse(source, filename="d4rl_run.py"))
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+    }
+    assert "normalized_score" not in called, (
+        "the runner may not compute an absolute normalised score: R-D fired and ruling 10c(a) "
+        "narrows the claim to relative comparisons between arms"
+    )
+    assert "normalised_difference" in called, (
+        "the runner should be reporting between-arm differences in normalised units"
+    )
+
+
+def test_the_scanner_for_the_absolute_score_ban_can_fail() -> None:
+    """Positive control for the ban above; a scan nobody has seen fail proves nothing."""
+    planted = "x = normalized_score(returns)\n"
+    called = {
+        node.func.id
+        for node in ast.walk(ast.parse(planted, filename="<planted>"))
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+    }
+    assert "normalized_score" in called
 
 
 # --------------------------------------------------------------------------------------

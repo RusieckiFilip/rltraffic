@@ -5,9 +5,17 @@ Artifact format version: ``p8.3-d4rl-calibration/1.0`` (see ``calibration/d4rl_a
 WHAT IT DOES
 ------------
 Runs **our own unchanged** ``offline.offline_baselines.train_iql`` and ``train_bc`` on
-``halfcheetah-medium-expert-v2`` and reports the D4RL normalised score against the IQL paper's
-own Table 1.  ``docs/plans/p8.3.md`` fixes every knob, gate and reading rule; this file executes
-them and refuses to invent one.
+``halfcheetah-medium-expert-v2``.  ``docs/plans/p8.3.md`` fixes every knob, gate and reading rule;
+this file executes them and refuses to invent one.
+
+⚠️ **It does NOT report an absolute D4RL normalised score, and it is not allowed to.**  Gate D
+fired -- the evaluation environment reproduces the dataset's own one-step dynamics only to
+``5.6e-3`` in reward -- so pre-registered rule R-D holds and ruling 10c(a) narrows the claim: no
+level may be compared against the published table, **including ``bc_top10`` against 92.9**, because
+that comparison is equally absolute.  What is reported is **raw returns and between-arm
+differences**, in which an environment-level bias is common to every arm and cancels, plus an
+ordering comparison that uses the published table's **ranks only**.  A test fails if this file so
+much as calls ``normalized_score``.
 
     python -m calibration.d4rl_run gates --dataset PATH --out DIR
     python -m calibration.d4rl_run train --dataset PATH --out DIR [--arms ...] [--codebook 64]
@@ -74,8 +82,8 @@ from calibration.d4rl_adapter import (
     build_transition_table,
     episode_returns,
     episode_spans,
+    normalised_difference,
     normalization_stats,
-    normalized_score,
     top_return_episodes,
 )
 from offline.dt_gate import (
@@ -83,6 +91,7 @@ from offline.dt_gate import (
     TRAINING_SEEDS,
     mean_ci95,
     runtime_provenance,
+    wilcoxon_signed_rank,
     write_json_atomic,
 )
 from offline.offline_baselines import (
@@ -92,6 +101,7 @@ from offline.offline_baselines import (
     TOP_RETURN_FRACTION,
     iql_reward_scale,
     pin_torch_threads,
+    rank_biserial,
     train_bc,
     train_iql,
 )
@@ -313,12 +323,23 @@ def gate_c_ceiling(
     *,
     episodes: int = GATE_C_EPISODES,
 ) -> dict[str, Any]:
-    """How much return survives quantisation, for every declared codebook size.
+    """⛔ RETRACTED 2026-08-18: this probe measures nothing and its output proves it.
 
-    The comparison is quantised replay against **raw replay**, not against the dataset's recorded
-    return: both replays start from the same exact state and run open loop, so whatever the
-    substitute environment does to a long rollout it does to both.  The raw-replay-against-dataset
-    ratio is reported alongside as a second, independent check on the replay itself.
+    The intent was to measure how much return survives quantisation, by comparing open-loop replay
+    of the recorded actions against open-loop replay of their code words from the same exact
+    state.  **HalfCheetah is chaotic and open-loop replay over 1,000 steps diverges completely**:
+    raw replay returns **-84.70** against a recorded episode mean of **10,757.62**, and the
+    resulting "ceiling ratios" come out at **1.2354 / 1.7996 / 1.9751** for K = 8 / 64 / 256 --
+    above 1.0, which a ceiling cannot be.
+
+    It is kept, and kept running, so the retraction is reproducible rather than asserted; nothing
+    reads its ratios.  ``docs/plans/p8.3.md`` section 9b records why a single-step repair is not a
+    ceiling either (k-means centroids shrink toward their cluster mean, lowering ``0.1 * ||a||^2``
+    and *raising* immediate reward, while lost control precision only appears over a trajectory),
+    and ruling 10c(a) then removed the closed-loop substitute as well: ``bc_top10`` against the
+    published 92.9 is an absolute comparison and R-D governs it.  **This task does not measure the
+    quantisation ceiling.**  What survives is the descriptive, training-free L2 code error below,
+    monotone in K.
     """
     env = gym.make(ENV_ID)
     env.reset(seed=0)
@@ -353,9 +374,6 @@ def gate_c_ceiling(
                 ),
                 "quantised_replay_return_mean": float(np.mean(values)),
                 "ceiling_ratio": float(np.sum(values)) / raw_total,
-                "normalised_score_of_quantised_replay": float(
-                    normalized_score(np.mean(values))
-                ),
             }
             for size, values in quantised.items()
         },
@@ -526,7 +544,6 @@ def train_and_evaluate(
                 seed_base=1000 + 10 * int(seed),
                 device=device,
             )
-            scores = normalized_score(np.asarray(episode_return, dtype=np.float64))
             cells.append(
                 {
                     "arm": arm,
@@ -538,32 +555,115 @@ def train_and_evaluate(
                     "canonical_digest": record.canonical_digest,
                     "checkpoint_path": record.checkpoint_path,
                     "episode_returns": [float(v) for v in episode_return],
-                    "episode_scores": [float(v) for v in scores],
-                    "score_mean": float(scores.mean()),
+                    "return_mean": float(np.mean(episode_return)),
                     "diagnostics": record.diagnostics,
                 }
             )
             print(
-                f"  {arm} seed {seed}: score {float(scores.mean()):.2f} "
-                f"(return {float(np.mean(episode_return)):.1f}) in "
+                f"  {arm} seed {seed}: return {float(np.mean(episode_return)):.1f} in "
                 f"{time.time() - started:.0f}s",
                 flush=True,
             )
 
     summary: dict[str, Any] = {}
     for arm in arms:
-        per_seed = [cell["score_mean"] for cell in cells if cell["arm"] == arm]
+        per_seed = [cell["return_mean"] for cell in cells if cell["arm"] == arm]
         stat = mean_ci95(per_seed)
         summary[arm] = {
             "seeds": len(per_seed),
-            "per_seed_score": per_seed,
-            "score_mean": stat.mean,
-            "score_std": stat.std,
-            "score_ci95_halfwidth": stat.ci95,
-            "published_score": PUBLISHED_SCORES[arm],
-            "difference_from_published": stat.mean - PUBLISHED_SCORES[arm],
+            "per_seed_return": per_seed,
+            "return_mean": stat.mean,
+            "return_std": stat.std,
+            "return_ci95_halfwidth": stat.ci95,
         }
-    return {"cells": cells, "summary": summary, "top_decile_episodes": int(top.size)}
+    return {
+        "cells": cells,
+        "summary": summary,
+        "contrasts": between_arm_contrasts(cells, arms),
+        "published_ordering_check": published_ordering_check(summary, arms),
+        "top_decile_episodes": int(top.size),
+        "reporting_rule": (
+            "R-D fired (Gate D), so ruling 10c(a) forbids any ABSOLUTE normalised score, "
+            "including bc_top10 against the published 92.9. Levels are reported as raw "
+            "undiscounted returns; the result is the set of between-arm differences, in which "
+            "the environment-level bias is common to both arms and cancels."
+        ),
+    }
+
+
+def between_arm_contrasts(
+    cells: Sequence[dict[str, Any]], arms: Sequence[str]
+) -> dict[str, Any]:
+    """Every arm pair, paired on the evaluation seed.  This is the reportable result.
+
+    Each (training seed, episode index) uses the **same** environment seed across arms --
+    ``seed_base`` depends only on the training seed -- so the arms see identical initial states
+    and the pairing is exact rather than nominal.
+
+    ⚠️ **The sign convention is the opposite of the traffic domain's.**  Here a HIGHER return is
+    better, so ``wins`` counts differences **above** zero; ``offline_baselines.paired_comparison``
+    counts them below zero because lower ATT is better.  The two are not interchangeable and this
+    function deliberately does not reuse it -- only the scale-free statistics beneath it.
+    """
+    by_arm: dict[str, list[float]] = {}
+    for arm in arms:
+        rows = sorted(
+            (cell for cell in cells if cell["arm"] == arm), key=lambda c: int(c["seed"])
+        )
+        by_arm[arm] = [value for cell in rows for value in cell["episode_returns"]]
+        by_arm[f"{arm}__per_seed"] = [float(np.mean(cell["episode_returns"])) for cell in rows]
+
+    out: dict[str, Any] = {}
+    for index, left in enumerate(arms):
+        for right in arms[index + 1 :]:
+            episodes_left = np.asarray(by_arm[left], dtype=np.float64)
+            episodes_right = np.asarray(by_arm[right], dtype=np.float64)
+            per_seed = np.asarray(by_arm[f"{left}__per_seed"], dtype=np.float64) - np.asarray(
+                by_arm[f"{right}__per_seed"], dtype=np.float64
+            )
+            differences = episodes_left - episodes_right
+            seed_stat = mean_ci95(per_seed.tolist())
+            test = wilcoxon_signed_rank(episodes_left.tolist(), episodes_right.tolist())
+            out[f"{left}_vs_{right}"] = {
+                "unit_of_analysis": "training seed (n=5), as declared; episodes reported beside it",
+                "per_seed_difference": per_seed.tolist(),
+                "mean_difference_return": seed_stat.mean,
+                "ci95_halfwidth_return": seed_stat.ci95,
+                "ci95_low_return": seed_stat.mean - seed_stat.ci95,
+                "ci95_high_return": seed_stat.mean + seed_stat.ci95,
+                "mean_difference_normalised_units": float(normalised_difference(seed_stat.mean)),
+                "ci95_halfwidth_normalised_units": float(normalised_difference(seed_stat.ci95)),
+                "seeds_won_by_left": int(np.count_nonzero(per_seed > 0)),
+                "episodes": int(differences.size),
+                "episodes_won_by_left": int(np.count_nonzero(differences > 0)),
+                "episode_median_difference": float(np.median(differences)),
+                "wilcoxon_p_value": float(test.p_value),
+                "wilcoxon_n_used": int(test.n_used),
+                "rank_biserial": rank_biserial(test),
+                "sign_convention": "positive means the LEFT arm earned more return",
+            }
+    return out
+
+
+def published_ordering_check(summary: dict[str, Any], arms: Sequence[str]) -> dict[str, Any]:
+    """Our arms' ORDER against the published table's order.  Ranks only, never levels.
+
+    Ranks are invariant to the environment-level bias Gate D measured, so this comparison
+    survives R-D while a level comparison does not.  The published ranks come from
+    arXiv:2110.06169 Table 1; their values are used only to sort.
+    """
+    ours = sorted(arms, key=lambda arm: -float(summary[arm]["return_mean"]))
+    published = sorted(arms, key=lambda arm: -PUBLISHED_SCORES[arm])
+    return {
+        "our_order_best_first": ours,
+        "published_order_best_first": published,
+        "orders_agree": ours == published,
+        "note": (
+            "ranks only. R-D forbids comparing a level against the published table, because our "
+            "evaluation environment is not the mujoco-py 2.1 environment that table was measured "
+            "in; a rank is unaffected by an environment-level bias common to every arm."
+        ),
+    }
 
 
 # ----------------------------------------------------------------------
@@ -696,7 +796,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         "context_length": CONTEXT_LENGTH,
         "eval_episodes_per_seed": EVAL_EPISODES_PER_SEED,
         "seeds": list(seeds),
-        "published_scores": PUBLISHED_SCORES,
+        "published_scores_ranks_only": PUBLISHED_SCORES,
+        "published_scores_use_restriction": (
+            "arXiv:2110.06169 Table 1. Under R-D and ruling 10c(a) these may be used only "
+            "to ORDER the arms; comparing any level against them is forbidden, because our "
+            "evaluation environment is not the mujoco-py 2.1 one they were measured in."
+        ),
         "environment": environment_provenance(),
         "runtime": runtime_provenance(),
         **result,
