@@ -10,6 +10,100 @@ arguments**, counted from **full output** · `tmux` for the campaign (`BRIEF_17`
 
 ---
 
+## ⭐ AMENDMENT A — 2026-08-18, issued while the implementer is in PLAN MODE and before any plan file exists
+
+**Five corrections, all mine, all found by auditing this brief against the artifacts rather than
+against its own prose. A1 and A2 change what the task measures; A3 changes what it runs; A4 replaces
+an estimate with a measurement; A5 fixes a checkbox this task will otherwise tick falsely.**
+
+### A1 🚨 THE RESULT THIS BRIEF OMITTED, AND IT CHANGES WHAT P5.2 IS FOR
+
+**`dt_nomix` — the identity-graph CONTROL — ranks 1 of 5 method arms on `grid4x4@mappo1000` and beats
+the MAPPO policy that collected the corpus.** §1 below leads with the treatment's harm and never says
+this. Verified by me on 2026-08-18 from `docs/data/p5_1_grid.json` directly, **not** from the packet's
+table:
+
+| paired contrast | mean difference | CI95 | seed reversal |
+|---|---|---|---|
+| `dt_nomix` − `behaviour` (MAPPO@1000) | **−2.4303** | [−2.5796, −2.2810] | **none** (rb −0.9604, p 7.7e−17) |
+| `dt_nomix` − `bc` | **−11.1329** | [−13.7932, −8.4726] | **none** |
+| `dt_nomix` − `iql` | **−117.9877** | [−125.0825, −110.8928] | **none** |
+| `dt_nomix` − `bc_top10` | **−591.7319** | [−598.6621, −584.8016] | **none** |
+
+**This is the first tier anywhere in this study where a DT arm ranks FIRST among the method arms.**
+`PROJECT_PLAN` says *"the DT leads 0 of 8 tiers"* in three places and uses it as P5.2's motivation —
+that sentence is about **eight hz1x1 tiers**, and the ninth tier, the first with 16 intersections, is
+**led by a DT**. ⚠️ **The fence P5.1's packet already put on it stands and must travel with every
+sentence: `dt_nomix` is the identity-graph model, NOT the merged `agent/DTAgent.py`** — one
+parameter-shared model over 16 nodes with no cross-node information flow.
+
+> **RULED: §3's out-of-sample registration must cover `dt_nomix`'s RANK and its paired difference
+> against `behaviour` AND against the best non-DT arm, PER TIER — not only the `dt_spatial` −
+> `dt_nomix` contrast.** The same cells answer two questions and **the second is the more publishable
+> one**: (i) does spatial mixing's harm survive the ladder, (ii) **does the DT's lead survive it.**
+> ⚠️ `mappo1000` is **already seen** and is therefore NOT out-of-sample for (ii); only `maxpressure`
+> and `random` are. **Say so in the registration rather than letting a seen cell be scored as a hit.**
+
+### A2 🔒 THE HEAD-COUNT ARM IS A 2×2, NOT ONE CELL — §2 AS WRITTEN IS CONFOUNDED
+
+§2's stop rule fires on *"`n_head = 4` reverses P5.1's sign"*. **That sign is (`dt_spatial` −
+`dt_nomix`), and it is only defined when BOTH arms carry the same head count.** Running
+`dt_spatial@4H` against `dt_nomix@1H` varies mixing and head count together and answers neither
+question. **The ambiguity is mine and it is the kind that gets frozen into a campaign.**
+
+> **RULED: the head-count arm is `{dt_spatial, dt_nomix} × n_head ∈ {1, 4}` at `mappo1000`.** The two
+> 1-head cells are P5.1's and are **reused verbatim** (A3), so the new training is **two cells × 5
+> seeds**. **The reported quantity is the INTERACTION** — (spatial − nomix)@4H **minus**
+> (spatial − nomix)@1H — with the two simple effects beside it. **The stop rule fires on the sign of
+> (spatial − nomix)@4H and on nothing else.**
+> ⚠️ **State this in the plan, because the paper may not call the 4-head arm a GAT-head ablation:**
+> `SpatialDTAgent.py:233-235` gives the temporal and spatial sublayers the **same** `n_head`, so
+> `n_head=4` also raises the TEMPORAL head count, in **both** arms. Verified in source by me today.
+> That is a property of the architecture under test, not a defect — but it must be named.
+
+### A3 🔒 `mappo1000` IS NOT RE-RUN — P5.1's CELLS ARE REUSED VERBATIM
+
+**The reason is scientific before it is economic.** Re-training that tier would produce a **second,
+slightly different value** for `dt_nomix@grid4x4_mappo1000` (`DEFERRED` 51: GPU/BLAS nondeterminism is
+an open exposure, not a closed one), and **a merged, independently reviewed number appearing twice
+with two values is worse than any saving it buys.**
+
+> **RULED:** P5.2 consumes `output/p5_1/eval_*.json` for the seven `mappo1000` cells and records their
+> provenance in the artifact — source path plus the sha256 from `output/SHA256SUMS_p5_1.txt`, which I
+> re-verified **48/48** on 2026-08-18. **Only NEW arms are run at that tier** (per-intersection %BC,
+> and the two 4-head cells). **Any `mappo1000` cell P5.2 re-runs anyway must be declared in the plan
+> with its reason** — reuse is the default and the exception is what needs an argument.
+
+### A4 📏 MEASURED COST — replacing §5's extrapolation, measured by me tonight from P5.1's preserved mtimes
+
+`output/p5_1/` mtimes are originals (§6 records *"48/48, mtimes preserved"*). Campaign span
+**2026-08-17 ~13:45 → 2026-08-18 03:11 ≈ 13 h 26**, not the ~17 h estimated, and the shape matters
+more than the total:
+
+| stage | measured |
+|---|---|
+| DT training | **~59 min per (arm, seed)** → ~4 h 55 per 5-seed DT arm; **9 h 44 for both arms** |
+| BC / %BC / IQL training, 3 arms × 5 seeds | **42 min total** |
+| evaluation, 7 arms × 5 seeds × 100 draws | **3 h 00** (`behaviour` alone is 56 min) |
+
+**DT training is 73 % of the campaign and scales with the number of DT cells — nothing else does.**
+Projected for this brief **with A3's reuse**: ~13.5 h per NEW tier × 2 new tiers + ~11 h for the
+4-head pair + ~1.5 h for the new %BC arm ≈ **52 h**. Without reuse, ≈ 65 h.
+> §5's cut is unchanged and is now costed: **dropping `maxpressure` saves ~13.5 h.** ⚠️ **If the
+> 4-head pair overruns, it does NOT get cut — A2 makes it the task's first result and §2 makes it a
+> stop rule.** The tier breadth is the expendable half; the architecture question is not.
+
+### A5 §6's P5.2 LINE ALSO DEMANDS TWO ONLINE BASELINES WE DO NOT HAVE
+
+§0 strikes `hangzhou_4x4`. The same line reads *"compare vs online **MAPPO/IPPO/DQN**"*. `behaviour`
+(MAPPO@1000) is the online-MAPPO comparison and exists; **IPPO and DQN have never been trained on
+grid4x4** — `DEFERRED` 6 still records `dqn` as an unstarted nice-to-have.
+> **RULED: strike `IPPO/DQN` from §6's P5.2 text in the same commit that strikes `hangzhou_4x4`**, or
+> the ticked box claims work nobody did. **An unticked box is information; a falsely ticked one is a
+> corrupted record.**
+
+---
+
 ## 0. ⚠️ SCOPE CORRECTION BEFORE ANYTHING ELSE — §6's P5.2 NAMES A SCENARIO WE DO NOT HAVE
 
 §6 reads *"Train + evaluate on grid4x4, **hangzhou_4x4** per ladder tier"*. **Measured today:
@@ -74,7 +168,7 @@ rests on a column that has an anchor rather than one nobody had checked.**
    disclosed wherever an IQL number appears.**
 8. **P8.3's numbers are fenced**: they license nothing and may not enter the paper without a review.
 9. **Any cancellation argument names WHICH component is common** and verifies the rest or declares them
-   uncontrolled (§7, 2026-08-19).
+   uncontrolled (§7, 2026-08-18).
 
 ## 5. Cost and the cut that governs it
 
@@ -87,11 +181,15 @@ seven-tier sweep is not affordable in the September window.
 
 ## 6. Definition of Done
 
-- [ ] `docs/plans/p5.2.md` committed **before any training**, carrying §3's out-of-sample registration,
-      §2's stop rule, and the declared tier set
-- [ ] `n_head ∈ {1, 4}` on one tier, **reported first**; stop rule honoured if the sign reverses
+- [ ] `docs/plans/p5.2.md` committed **before any training**, carrying §3's out-of-sample registration
+      **extended per A1 to `dt_nomix`'s rank and its paired differences**, §2's stop rule as **A2's
+      interaction**, the declared tier set, and **A3's reuse declaration with the cells it covers**
+- [ ] **A2's 2×2** — `{dt_spatial, dt_nomix} × n_head ∈ {1, 4}` at `mappo1000`, the 1-head pair reused
+      from P5.1 — **reported first**, as the interaction with both simple effects beside it; stop rule
+      honoured if (spatial − nomix)@4H changes sign
 - [ ] Three tiers × arms, 5 seeds × 100 held-out draws, 40,000 steps; per-intersection %BC as a **new
-      arm** beside the global filter
+      arm** beside the global filter. **`mappo1000` is reused per A3, with provenance and sha256 in the
+      artifact; only new arms run there**
 - [ ] Every ordering with its per-seed count **and** range, **emitted by the generator**
 - [ ] `DEFERRED` 37's mutation executed, failure pasted; every mutation's failure pasted
 - [ ] Campaign in a **user-launched `tmux`**; **no `until`-poll**; `mkdir -p` before `tee`, and the
@@ -99,4 +197,4 @@ seven-tier sweep is not affordable in the September window.
 - [ ] Suite green, tail pasted, pinned; three guards, no arguments, full-output counts, corpus named
 - [ ] Return Packet at `docs/returns/P5.2.md` with the AI-assistance record
 - [ ] §6's checkbox unticked; it is mine, in the merge commit — **and §6's P5.2 text must be corrected
-      to strike hangzhou_4x4 in that same commit**
+      to strike hangzhou_4x4 AND `IPPO/DQN` (A5) in that same commit**
