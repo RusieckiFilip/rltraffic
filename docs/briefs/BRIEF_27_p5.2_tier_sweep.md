@@ -588,6 +588,57 @@ precondition block, beside D1(a)'s path check, where it costs seconds instead of
 
 ---
 
+## 🛑 AMENDMENT G — 2026-08-19. **E1's LAUNCH IS HELD.** `CUBLAS_WORKSPACE_CONFIG` puts E1 in a regime P5.1 never ran in
+
+**The objection is correct on every factual point and I verified all three first-hand:**
+`offline/campaigns/p5_1.sh` exports **`OMP_NUM_THREADS` and `MKL_NUM_THREADS` only** (lines 90–91);
+**`CUBLAS` appears nowhere else on `main`**; and P5.1's captured launch line reads
+`export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1` and nothing more. **So `d1(202) = +72.07` — the single
+quantity E1 exists to compare against — was produced WITHOUT that variable.**
+
+### G1 🚨 THE DEFECT, AND IT IS OPTION (b) ARRIVING THROUGH A LINE LABELLED "harmless"
+
+`p5_2.sh` sets `export CUBLAS_WORKSPACE_CONFIG=${CUBLAS_WORKSPACE_CONFIG:-:4096:8}` unconditionally,
+commented *"harmless in the default regime"*. **It is not neutral: it is part of the determinism
+recipe** — it fixes the cuBLAS workspace and thereby constrains GEMM kernel selection between runs.
+> 🚨 **E1 exists to measure the run-to-run envelope OF THE REGIME P5.1 RAN IN. A replicate carrying a
+> variable P5.1 lacked conflates the noise we want with a systematic effect of the cuBLAS
+> configuration — which is EXACTLY the pathology `E2` rejected as option (b), reached through a
+> comment rather than a decision.**
+> ⚠️ **And the direction of the error is the damaging one: the variable SUPPRESSES variance, so E1
+> would report an envelope SMALLER than the real one, the regime ruling would go to (a) on a flattering
+> number, and P5.1's published figures would still carry the larger, unmeasured envelope.**
+
+### G2 ✅ THE FIX IS FREE AND DOES NOT DEPEND ON SETTLING THE MECHANISM
+
+> **RULED: E1 runs in P5.1's exact environment — `OMP_NUM_THREADS=1`, `MKL_NUM_THREADS=1`, and
+> `CUBLAS_WORKSPACE_CONFIG` UNSET.** `p5_2.sh` sets it **only when `--deterministic` is requested**,
+> never unconditionally, and the launch block drops the export. **F6(a) is unchanged and still correct
+> for the deterministic regime; what was wrong was applying it to a measurement of the default one.**
+> **Removing it costs nothing and removes the question entirely, whatever the mechanism turns out to
+> be** — which is why this is ruled rather than researched first.
+
+### G3 🔬 THE MECHANISM IS STILL OWED, AND MY OWN ATTEMPT TO SETTLE IT HAD NO DISCRIMINATING POWER
+
+The open question — *did the C1 control's "CUDA default" arm carry the variable?* — is not answerable
+from the reports. **I tried to settle it directly and failed, and the failure is worth recording rather
+than hiding:** I ran a 60-step GEMM-heavy CUDA model twice per condition and got
+**`0/10` tensors differing WITH the variable and `0/10` WITHOUT it.** ⚠️ **That is not evidence the
+variable does nothing. It is a NULL INSTRUMENT: my probe never exhibited nondeterminism at all, so it
+cannot distinguish the two conditions**, and reporting its agreement as a result would be §7's
+discriminating-power rule broken by the person who enforces it. **The real model shows 63/66; mine
+shows 0/10; only an instrument that reproduces the phenomenon can test what suppresses it.**
+> **REQUIRED, on the harness that already exhibits it — minutes, not hours: re-run the C1 control's
+> DEFAULT arm twice, once with `CUBLAS_WORKSPACE_CONFIG=:4096:8` and once with it unset, and report
+> both tensor-difference counts.** **If unset differs and set does not, the variable suppresses
+> variance here and G1 was a live defect caught before it cost anything. If both differ alike, it
+> suppresses nothing on this model and G2 is a cleanliness measure — say which, in the packet.**
+> ⚠️ **Also state, from the C1 control's own environment, whether its "default" arm carried the
+> variable.** If it did, the C1 numbers themselves are numbers about a regime P5.1 never ran in, and
+> that is a disclosure the packet owes independently of E1.
+
+---
+
 ## 0. ⚠️ SCOPE CORRECTION BEFORE ANYTHING ELSE — §6's P5.2 NAMES A SCENARIO WE DO NOT HAVE
 
 §6 reads *"Train + evaluate on grid4x4, **hangzhou_4x4** per ladder tier"*. **Measured today:
@@ -726,6 +777,10 @@ seven-tier sweep is not affordable in the September window.
 - [ ] **F7** — E1 reports the **paired per-draw CI** of (replicate − P5.1) for `dt_spatial`, `dt_nomix`
       and `d1`, each with whether it excludes zero, and states that obligation 6's CPU byte-identity is
       what attributes any difference to the device rather than to the trainer
+- [ ] **G2** — E1 runs with `CUBLAS_WORKSPACE_CONFIG` **UNSET**, matching P5.1 exactly; `p5_2.sh` sets it
+      only under `--deterministic`
+- [ ] **G3** — the with/without comparison run on the C1 harness, both counts reported, plus whether the
+      C1 control's own default arm carried the variable
 - [ ] Every ordering with its per-seed count **and** range, **emitted by the generator**
 - [ ] `DEFERRED` 37's mutation executed, failure pasted; every mutation's failure pasted
 - [ ] Campaign in a **user-launched `tmux`**; **no `until`-poll**; `mkdir -p` before `tee`, and the
