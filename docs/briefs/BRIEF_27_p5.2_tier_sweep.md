@@ -814,6 +814,32 @@ burying it is the right call.
 
 ---
 
+## 📌 NOTE L — 2026-08-20, written MID-CAMPAIGN so it cannot be a post-hoc reading of Q0
+
+**Observed while checking phase A's progress, from `output/p5_2/logs/train_mappo1000_dt_spatial_h4.log`
+and the checkpoint times. Neither is a result; both are recorded now precisely because saying them
+AFTER Q0 resolves would be rationalisation.**
+
+**(a) The 4-head arm's training loss is markedly LOWER, and that predicts NEITHER Q0 outcome.**
+`dt_spatial_h4` seed 303 finishes at **0.14703**, against P5.1's 1-head `dt_spatial` finals of
+**0.2058 · 0.2227 · 0.2103 · 0.1947 · 0.2034** (mean ≈ 0.207) — roughly **29 % lower**.
+> ⚠️ **BINDING ON THE PACKET: a lower imitation loss is a DIAGNOSTIC, not evidence about control.**
+> **P5.1 already measured exactly this dissociation** — its §4.2 records that *the mixing arm fit its
+> data better and controlled worse*, 0.207 against `dt_nomix`'s 0.437 while losing by 39.57 ATT — and
+> §7 (2026-08-12) records that on this corpus loss-based criteria track **training-set size**, not
+> competence. **So 0.147 is consistent with Q0a HELD and with Q0a FAILED, and may not be offered as
+> support for either.** ⭐ **If Q0a fails, the honest sentence is *"4 heads reversed the contrast"*, NOT
+> *"the lower loss explained it"*; if Q0a holds, this becomes a THIRD data point in the fit-better /
+> control-worse pattern, which is a stronger version of P5.1's finding.**
+
+**(b) `n_head = 4` is free in PARAMETERS and NOT free in WALL CLOCK — the earlier claim was right about
+what it measured and is being read too broadly.** Measured per-seed: **65 · 59 · 68 min** against the
+1-head **59 min/seed** from P5.1 — mean ≈ **64 min, about 8 % slower.** The `853,128 params either way`
+figure is correct and is about **parameters**; multi-head attention at fixed `d_model` reshapes rather
+than adds. **Carry the ≈8 % into the remaining projection rather than treating phase A as free.**
+
+---
+
 ## 0. ⚠️ SCOPE CORRECTION BEFORE ANYTHING ELSE — §6's P5.2 NAMES A SCENARIO WE DO NOT HAVE
 
 §6 reads *"Train + evaluate on grid4x4, **hangzhou_4x4** per ladder tier"*. **Measured today:
