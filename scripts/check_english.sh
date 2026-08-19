@@ -27,7 +27,7 @@ PL_CLASS='[\x{0104}\x{0105}\x{0106}\x{0107}\x{0118}\x{0119}\x{0141}\x{0142}\x{01
 
 # Proper nouns permitted to keep their diacritics. Extend this list rather than de-diacriticising a
 # name. Kept deliberately narrow: full surnames/given names, not fragments.
-ALLOWED_NAMES='Paweł|Woliński|Grudziński'
+ALLOWED_NAMES='Paweł|Woliński|Grudziński|Mikołaj'
 
 # Vendored trees are excluded wholesale: not our prose, not ours to rewrite.
 # (`grep -I` handles binaries; this list is for text we still do not own.)
