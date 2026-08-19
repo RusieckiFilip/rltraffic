@@ -434,6 +434,76 @@ registered set has had is visible and dated rather than silent.
 
 ---
 
+## ⭐ AMENDMENT E — 2026-08-19. The C1 control came back NEGATIVE on CUDA. What that licenses, and what it does not
+
+**The control is accepted as measured and it is a good measurement.** CUDA default: 63/66 and 61/66
+tensors differ, losses diverge from step 8 and step 4. CPU: 0/66. CUDA + `use_deterministic_algorithms(True)`:
+0/66. Cost of determinism **+10.3 %**, and the fixture is representative — **58.0 min/seed against
+P5.1's measured 59, 1.7 % apart**, which I verified independently from P5.1's checkpoint mtimes.
+
+### E0 🚨 THE FRAMING NEEDS ONE CORRECTION, AND IT CHANGES WHAT THE DECISION IS ABOUT
+
+The three options are framed as a choice about **`I`'s cleanliness**. That is the smaller half.
+> 🚨 **DETERMINISM DOES NOT MAKE THE METHOD STABLE. IT MAKES OUR NUMBERS REPRODUCIBLE.** If
+> `dt_spatial`'s outcome is genuinely sensitive to bit-level perturbation, **that is a property of the
+> method and a FINDING**, and switching on determinism does not remove it — it picks one arbitrary
+> realisation and hides it.
+> 🚨 **AND THERE IS A DEBT AGAINST A MERGED RESULT.** P5.1's headline, already merged, reads *"spatial
+> mixing sometimes loses control, and how badly is UNSTABLE ACROSS SEEDS"* — treatment sd **30.36**
+> against control **0.10**. **That sentence attributes the instability to SEEDS. A competing
+> explanation now has a demonstrated mechanism and has never been measured.** P5.1's review already
+> listed GPU determinism as could-not-verify; the control has now answered it in the direction that
+> makes the question live.
+
+### E1 🔒 THE ENVELOPE MEASUREMENT IS MANDATORY, INDEPENDENT OF THE REGIME CHOICE — and its design is not the one proposed
+
+It is **not** a P5.2 cost. It is owed by P5.1's merged claim, and it is owed whichever regime P5.2 runs in.
+> ⚠️ **The proposed design measures the wrong arm.** `dt_nomix` has per-seed sd **0.10** — replicating
+> the stable arm gives the noise FLOOR and cannot discriminate anything. **The question lives in
+> `dt_spatial`, sd 30.36.**
+> **REQUIRED DESIGN: replicate BOTH arms at seed 202 — the seed with the largest per-seed effect
+> (`d1 = +72.07`, against `{101: +1.03, 303: +68.50, 404: +32.75, 505: +23.47}`) — at the full 40,000
+> steps under DEFAULT CUDA, evaluate both, and compare the replicated `d1(202)` against P5.1's
+> +72.07.** ≈ 3 h. **That measures noise directly in the headline quantity's own constituent**, and
+> replicating the *most* unstable seed is the highest-information single replicate: a small discrepancy
+> there is strong evidence the floor is low; a large one is decisive the other way.
+> **It is reported either way and it goes in the paper. No TSC paper I know of reports this envelope.**
+
+### E2 ⛔ OPTION (b) IS REJECTED, and the reason generalises
+
+Deterministic for P5.2's new runs only puts `d4` and `d1` in **different numerical regimes**, which
+converts run-to-run noise into a **systematic offset** — worse than the noise it removes, because noise
+is disclosable and a systematic is a confound. The implementer's own reading, and it is right.
+
+### E3 ⚠️ A SEAM IN OPTION (c) THAT THE THREE OPTIONS DO NOT MENTION — and how it resolves
+
+Under (c) the whole 2×2 is deterministic, **but the ladder's `mappo1000` column is REUSED from P5.1 and
+is default-regime**, while `maxpressure` and `random` would be new and deterministic. **So (c) fixes the
+regime across the head axis and opens one across the TIER axis.**
+> **RULED, and it resolves cleanly because the two axes ask different questions:** **Q3 and every
+> within-tier ranking use one regime per tier** — all arms at a tier are compared only with each other,
+> so the seam does not enter them. **`mappo1000`'s rankings keep using P5.1's DEFAULT-regime cells,
+> including its `dt_nomix`.** **The deterministic 1-head pair serves the INTERACTION `I` and nothing
+> else.** ⚠️ **Q1's LEVEL predictions do cross tiers**, so they carry the regime difference as a small
+> systematic — **bounded by E1's envelope and disclosed with the Q1 result.**
+> ⚠️ **Note what this means for A3: under (c) the 1-head `mappo1000` DT cells exist TWICE, on purpose.**
+> That is D6 operating as registered — both values reported, P5.1's as the published comparator — and it
+> is a deliberate exception to A3, not a breach of it.
+
+### E4 ⏸️ THE REGIME CHOICE IS THE AUTHOR'S — my recommendation is (c), and E1 runs first regardless
+
+**(a)** 38.8 h, `I` carries unmeasured variance · **(b)** rejected · **(c)** ≈52.6 h, one regime and
+reproducible.
+> **Recommended: (c), with E1's 3 h first**, total ≈ 55.6 h. **The justification is a division of
+> labour, not a preference: E1's measurement is the SCIENCE — it quantifies a sensitivity that is a
+> property of the method — and determinism is the BOOKKEEPING that makes the reported cells
+> reproducible.** Doing only (c) would hide the sensitivity; doing only E1 leaves the artifact
+> irreproducible. ⚠️ **`DEFERRED` 51 lists five determinism claims a second machine could falsify and
+> P10.0 owes a reproducibility section — (c) is the first result in this project whose cells would
+> reproduce bit-exactly under a declared flag, and that is a paper asset we do not currently have.**
+
+---
+
 ## 0. ⚠️ SCOPE CORRECTION BEFORE ANYTHING ELSE — §6's P5.2 NAMES A SCENARIO WE DO NOT HAVE
 
 §6 reads *"Train + evaluate on grid4x4, **hangzhou_4x4** per ladder tier"*. **Measured today:
@@ -559,6 +629,10 @@ seven-tier sweep is not affordable in the September window.
 - [ ] **D6** — the registered fallback for a negative C1 control is in the plan **before the control
       runs**: `d1` re-produced on the new code path so `I` is within-code-path, P5.1's cells reported
       beside it rather than replaced
+- [ ] **E1** — the envelope: both arms replicated at **seed 202**, 40,000 steps, **default CUDA**,
+      evaluated, `d1(202)` compared against P5.1's **+72.07**; reported whichever way it comes out
+- [ ] **E3** — `mappo1000`'s within-tier rankings use P5.1's default-regime cells; the deterministic
+      1-head pair serves `I` alone; Q1's cross-tier seam is disclosed with the Q1 result
 - [ ] Every ordering with its per-seed count **and** range, **emitted by the generator**
 - [ ] `DEFERRED` 37's mutation executed, failure pasted; every mutation's failure pasted
 - [ ] Campaign in a **user-launched `tmux`**; **no `until`-poll**; `mkdir -p` before `tee`, and the
