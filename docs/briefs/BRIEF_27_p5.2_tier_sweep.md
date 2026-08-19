@@ -639,6 +639,62 @@ shows 0/10; only an instrument that reproduces the phenomenon can test what supp
 
 ---
 
+## ✅ AMENDMENT H — 2026-08-19. **REGIME RULED: (a) DEFAULT CUDA, FOUR TIERS.** E1 is closed; phase A may start
+
+### H1 ✅ THE RULING (the author's), recorded with its reasoning rather than reconstructed later
+
+> **Phases A/B/C run under DEFAULT CUDA. The tier set is FOUR: `mappo1000` (reused), `maxpressure`,
+> `random`, `fixedtime`.** The pre-declared contingency (B1, F4) fires as written.
+> **Reasoning on the record: (c) had exactly two stated advantages and E1 removed both.** `I` carries
+> **zero** run-to-run variance — measured, not bounded — and the reproducibility benefit is **void**,
+> because the reported cells already reproduce bit-exactly without determinism; determinism would
+> reproduce the **weights**, and **no number in the paper depends on the weights.** *"Spending 13.8 h to
+> make a quantity reproducible that is already reproducible is not a trade I would defend to a
+> referee."* **Cost, from A4's corrected arithmetic: ≈53 h.**
+
+### H2 🚨 REGISTERED SCOPE LIMIT — THE ZERO ENVELOPE IS A `mappo1000` MEASUREMENT, AND MARGINS ARE TIER-DEPENDENT
+
+**The author's, and it closes a gap in my own reasoning: I stated the mechanism — a 1e−04 perturbation
+stayed below every decision margin — and did not draw out that MARGINS ARE A PROPERTY OF HOW
+CONFIDENTLY THE LEARNED POLICY SEPARATES PHASES.** A model trained on the `random` tier's corpus has
+**no guarantee of equally wide margins**, and phase B goes there.
+> **REGISTERED: the envelope is exactly 0.0000 for `grid4x4@mappo1000`, seed 202, ONE replicate, and it
+> is NOT ESTABLISHED FOR THE DEGRADED TIERS.** Every use of the number carries that limit.
+> **And the qualification already written travels with it: *envelope = 0* is a statement about the
+> METRIC as much as about the training — sub-margin perturbations are invisible, and a larger
+> perturbation or a draw nearer a margin would flip DISCONTINUOUSLY. It does NOT mean the optimisation
+> is stable.**
+
+### H3 📋 WORK REQUIRED BEFORE PHASE B, because a fourth tier changes a REGISTERED DENOMINATOR
+
+Adding `fixedtime` is not just another cell set — **it changes `Q1`'s aggregate criterion, and moving a
+threshold after data exists is loosening.** All of this lands **before phase B runs**:
+1. **`fixedtime`'s predicted cells**, computed by the **unchanged rule R′** from the same on-disk
+   quantities (`ladder(grid4x4, fixedtime) = 206.9318`), added to §4.0.2's table.
+2. **The out-of-sample set N grows from 13 to 19** (six more method cells). **Restate `Q1`'s threshold
+   by a STATED PRINCIPLE, not a fresh judgement** — 9/13 is 69.2 %, so name the rule that carries it to
+   N = 19 and apply it. **Fix it in the commit; it may not move afterwards.**
+3. **`Q2`'s rank prediction for `fixedtime`**, and the **hard-subset** count restated for the new tier.
+4. **`Q3`/`Q4`'s per-tier statements** extended to four tiers.
+⚠️ **All of it is a function of quantities already on disk, so it is registrable now and post-hoc after
+phase B. Do it in the same commit that adds the tier.**
+
+### H4 📌 DISCLOSURES CARRIED FORWARD — neither affects the ruling, both would look like concealment if found later
+
+1. **The provenance `tier` label changed** from `grid4x4_mappo1000` (P5.1) to `mappo1000` (P5.2) — same
+   tier, different label, in checkpoints that sit side by side.
+2. **The `+10.3 %` determinism timing was measured with `CUBLAS_WORKSPACE_CONFIG` SET IN BOTH ARMS**, so
+   it is the **flag's cost GIVEN the variable**, not the flag's cost alone.
+3. **The E1 verification chain belongs in the packet as its own paragraph** — the author's instruction:
+   the zero was treated as a suspected defect *because it contradicted our own C1 control*; the
+   checkpoints were checked; **a file hash was found to carry provenance rather than weights
+   (`DEFERRED` 29)**; a canonical `state_dict` digest was computed instead; **every recorded field was
+   checked rather than ATT alone**; and **a positive control proved the detector resolves 1e−12.**
+   ⚠️ **Without that last step the result would have been indistinguishable from a self-comparison, and
+   F7 did not require it.**
+
+---
+
 ## 0. ⚠️ SCOPE CORRECTION BEFORE ANYTHING ELSE — §6's P5.2 NAMES A SCENARIO WE DO NOT HAVE
 
 §6 reads *"Train + evaluate on grid4x4, **hangzhou_4x4** per ladder tier"*. **Measured today:
@@ -781,6 +837,13 @@ seven-tier sweep is not affordable in the September window.
       only under `--deterministic`
 - [ ] **G3** — the with/without comparison run on the C1 harness, both counts reported, plus whether the
       C1 control's own default arm carried the variable
+- [ ] **H1** — phases A/B/C under **default CUDA**, four tiers: `mappo1000` (reused), `maxpressure`,
+      `random`, `fixedtime`
+- [ ] **H2** — the zero envelope is registered as a `mappo1000`-only measurement wherever it is used
+- [ ] **H3** — `fixedtime`'s R′ cells, the restated `Q1` denominator and threshold by a stated
+      principle, `Q2`'s rank prediction and hard subset, and `Q3`/`Q4` extended — **all before phase B**
+- [ ] **H4** — the three disclosures carried into the packet, the E1 verification chain as its own
+      paragraph
 - [ ] Every ordering with its per-seed count **and** range, **emitted by the generator**
 - [ ] `DEFERRED` 37's mutation executed, failure pasted; every mutation's failure pasted
 - [ ] Campaign in a **user-launched `tmux`**; **no `until`-poll**; `mkdir -p` before `tee`, and the
