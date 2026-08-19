@@ -1005,6 +1005,119 @@ def test_the_stop_rule_does_not_fire_on_an_interval_touching_zero() -> None:
 
 
 # ----------------------------------------------------------------------
+# E1 / F7 -- the paired replicate report.
+# ----------------------------------------------------------------------
+
+
+def _seeded_cell(seed: int, values: dict[int, float]) -> dict[str, Any]:
+    return {
+        "method": "dt_spatial",
+        "declared_gradient_steps": 40_000,
+        "episodes": [
+            {"seed": seed, "draw_id": d, "att_horizon": v, "horizon_vehicle_count": 1.0,
+             "episode_reward": -1.0, "arm": "dt_spatial@t"}
+            for d, v in values.items()
+        ],
+    }
+
+
+def test_an_identical_replicate_reports_zero_and_does_not_exclude_zero() -> None:
+    """F7's accept control: a perfect replicate must not be reported as a difference."""
+    values = {1000 + i: 100.0 + i for i in range(100)}
+    report = ts.paired_replicate_report(
+        _seeded_cell(202, values), _seeded_cell(202, dict(values)), seed=202
+    )
+    assert report["n_shared_draws"] == 100
+    assert report["mean_difference"] == 0.0
+    assert report["excludes_zero"] is False
+
+
+def test_a_constant_offset_replicate_excludes_zero() -> None:
+    """F7: a systematic shift with no scatter must be reported as excluding zero.
+
+    This is the case whose meaning the amendment spells out -- two runs of the same code at the
+    same seed producing measurably different policies.
+    """
+    values = {1000 + i: 100.0 + i for i in range(100)}
+    shifted = {d: v + 5.0 for d, v in values.items()}
+    report = ts.paired_replicate_report(
+        _seeded_cell(202, shifted), _seeded_cell(202, values), seed=202
+    )
+    assert report["mean_difference"] == pytest.approx(5.0)
+    assert report["excludes_zero"] is True
+
+
+def test_the_SAME_mean_difference_excludes_zero_or_not_depending_on_the_scatter() -> None:
+    """F7's whole point, tested exactly: two point estimates cannot be judged.
+
+    Both cases have a mean difference of EXACTLY +5.0.  One has no scatter and excludes zero; the
+    other alternates +105 / -95 and does not.  That is why E1 reports an interval rather than
+    ``72.07 against 68.5``.
+
+    Deterministic by construction rather than by a random draw: an earlier version of this test
+    sampled ``normal(0, 30)`` and assumed the realised mean would be small, which is a property of
+    the draw and not of the rule -- it failed for that reason and is replaced.
+    """
+    values = {1000 + i: 100.0 + i for i in range(100)}
+    tight = {d: v + 5.0 for d, v in values.items()}
+    wide = {d: v + (105.0 if i % 2 == 0 else -95.0) for i, (d, v) in enumerate(values.items())}
+
+    tight_report = ts.paired_replicate_report(
+        _seeded_cell(202, tight), _seeded_cell(202, values), seed=202
+    )
+    wide_report = ts.paired_replicate_report(
+        _seeded_cell(202, wide), _seeded_cell(202, values), seed=202
+    )
+    assert tight_report["mean_difference"] == pytest.approx(5.0)
+    assert wide_report["mean_difference"] == pytest.approx(5.0)
+    assert tight_report["excludes_zero"] is True
+    assert wide_report["excludes_zero"] is False
+    assert wide_report["ci95_width"] > tight_report["ci95_width"]
+
+
+def test_the_paired_report_refuses_a_partial_or_unshared_draw_set() -> None:
+    """A5: a comparison that cannot be made over shared draws is void, not approximated."""
+    left = _seeded_cell(202, {1000 + i: 100.0 for i in range(100)})
+    right = _seeded_cell(202, {2000 + i: 100.0 for i in range(100)})
+    with pytest.raises(ValueError, match="share no draw ids"):
+        ts.paired_replicate_report(left, right, seed=202)
+    short = _seeded_cell(202, {1000 + i: 100.0 for i in range(50)})
+    with pytest.raises(ValueError, match="different draw sets"):
+        ts.paired_replicate_report(short, _seeded_cell(202, {1000 + i: 100.0 for i in range(100)}),
+                                   seed=202)
+
+
+def test_the_paired_report_selects_only_the_requested_seed() -> None:
+    """E1 replicates ONE seed; pooling another seed's episodes into it would be a different test."""
+    mixed = _seeded_cell(202, {1000 + i: 100.0 for i in range(100)})
+    mixed["episodes"].extend(
+        {"seed": 303, "draw_id": 1000 + i, "att_horizon": 999.0,
+         "horizon_vehicle_count": 1.0, "episode_reward": -1.0, "arm": "x"}
+        for i in range(100)
+    )
+    report = ts.paired_replicate_report(
+        mixed, _seeded_cell(202, {1000 + i: 100.0 for i in range(100)}), seed=202
+    )
+    assert report["n_shared_draws"] == 100
+    assert report["mean_difference"] == 0.0
+
+
+def test_the_published_seed_202_cells_are_present_and_pairable() -> None:
+    """F7's inputs, checked against the secured artifact rather than taken on report.
+
+    Skips rather than failing when the secured tree is absent, because it is outside this worktree.
+    """
+    src = Path("/home/filip/rltraffic/output/p5_1")
+    if not src.is_dir():
+        pytest.skip("the secured output/p5_1 tree is not present on this machine")
+    for arm in ("dt_spatial", "dt_nomix"):
+        payload = json.loads((src / f"eval_{arm}.json").read_text(encoding="utf-8"))
+        by_draw = ts.episodes_of_seed(payload, 202)
+        assert len(by_draw) == 100
+        assert sorted(by_draw) == list(range(1000, 1100))
+
+
+# ----------------------------------------------------------------------
 # The declarations, checked against the plan and against the corpus.
 # ----------------------------------------------------------------------
 

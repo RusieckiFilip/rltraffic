@@ -1065,6 +1065,79 @@ def concordance(
     }
 
 
+def episodes_of_seed(payload: Mapping[str, Any], seed: int) -> dict[int, dict[str, float]]:
+    """``{draw_id: episode}`` for one training seed, refusing duplicate draws."""
+    out: dict[int, dict[str, float]] = {}
+    for episode in payload["episodes"]:
+        if int(episode["seed"]) != int(seed):
+            continue
+        draw = int(episode["draw_id"])
+        if draw in out:
+            raise ValueError(
+                f"draw {draw} appears twice for seed {seed}; a paired comparison needs one "
+                "episode per draw and a duplicate would silently weight it twice"
+            )
+        out[draw] = episode
+    if not out:
+        raise ValueError(f"no episodes for seed {seed}; nothing to pair")
+    return out
+
+
+def paired_replicate_report(
+    replicate: Mapping[str, Any],
+    published: Mapping[str, Any],
+    *,
+    seed: int,
+    metric: str = "att_horizon",
+) -> dict[str, Any]:
+    """E1/F7: the paired per-draw difference between a replicate cell and P5.1's own, at one seed.
+
+    Two point estimates cannot be judged -- ``72.07`` against ``68.5`` and against ``20.1`` look the
+    same on the page until the per-draw scatter is known.  This returns ``mean(replicate -
+    published)`` over the SHARED draw ids with its 95 % CI and whether that interval excludes zero.
+
+    🚨 **If the interval excludes zero, two independent training runs of the same code at the same
+    seed produced measurably different policies.** That is a finding about our own reproducibility
+    and it is reported as one, not reconciled.
+
+    ⭐ The attribution is clean because obligation 6 proved ``train_tier_dt`` reproduces
+    ``spatial_mixing.train_spatial_dt`` byte-exactly at one head on CPU: any difference measured here
+    on CUDA is **device nondeterminism alone**, not the trainer change.
+    """
+    from offline.dt_gate import mean_ci95
+
+    left = episodes_of_seed(replicate, seed)
+    right = episodes_of_seed(published, seed)
+    shared = sorted(set(left) & set(right))
+    if not shared:
+        raise ValueError(
+            f"the two cells share no draw ids at seed {seed}: {sorted(left)[:5]} against "
+            f"{sorted(right)[:5]}. A5 makes an unshared comparison void"
+        )
+    if len(shared) != len(left) or len(shared) != len(right):
+        raise ValueError(
+            f"the two cells cover different draw sets at seed {seed}: {len(left)} and "
+            f"{len(right)} episodes with {len(shared)} shared; refusing a partial pairing"
+        )
+    differences = [float(left[d][metric]) - float(right[d][metric]) for d in shared]
+    stats = mean_ci95(differences)
+    # mean_ci95 returns a HALF-WIDTH in `ci95`; the interval is mean +/- that.
+    low, high = stats.mean - stats.ci95, stats.mean + stats.ci95
+    return {
+        "metric": metric,
+        "seed": int(seed),
+        "n_shared_draws": len(shared),
+        "mean_difference": stats.mean,
+        "std": stats.std,
+        "ci95_low": low,
+        "ci95_high": high,
+        "ci95_width": high - low,
+        "excludes_zero": bool(low > 0.0 or high < 0.0),
+        "mean_replicate": sum(float(left[d][metric]) for d in shared) / len(shared),
+        "mean_published": sum(float(right[d][metric]) for d in shared) / len(shared),
+    }
+
+
 def stop_rule_verdict(ci_low: float, ci_high: float) -> str:
     """Q0's stop rule: ``STOP`` iff the CI of ``d4`` lies entirely below zero.
 
