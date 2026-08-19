@@ -504,6 +504,71 @@ reproducible.
 
 ---
 
+## ⭐ AMENDMENT F — 2026-08-19. The author defers the regime and changes the SEQUENCING. Accepted, with two technical caveats
+
+### F1 ⏸️ RULING (the author's): the regime is NOT chosen now. E1 runs first and the ruling follows from a number
+
+**Accepted, and it is the better call.** E1 measures precisely the quantity that separates (a) from
+(c) — replicated `d1(202)` against **+72.07**. **Close → default-CUDA noise in the headline quantity is
+measured and small, (a)'s *"unmeasured variance"* becomes a bounded and disclosed one, and (c) buys
+13.8 h of nothing. Far → (a) is untenable and (c) is the only way phase A resolves at five seeds.**
+**Deferring costs nothing:** `train_tier_dt` does not exist, so the regime is a launch parameter and
+not an architectural fork. **Build it with `deterministic: bool`.**
+
+### F2 ⚠️ MY E4 RECOMMENDATION CONTRADICTED MY OWN E0, AND THE AUTHOR CAUGHT IT
+
+E0 says *"switching determinism on does not remove the sensitivity — it picks one arbitrary
+realisation and hides it."* **E4 then recommended switching it on.** The author's sharpening stands and
+goes into the post-E1 recommendation: **a MEASURED nondeterminism envelope is a stronger
+reproducibility contribution than a suppressed one — nobody in this literature reports the envelope and
+everybody reports the flag.** ⚠️ **The counter-argument is real and must be weighed beside it: a large
+envelope may make the head-count question unanswerable at five seeds without (c).** **Both go in the
+recommendation I bring after E1; neither is assumed now.**
+
+### F3 ⛔ "RUN THE 2×2 UNDER BOTH REGIMES" IS REJECTED NOW, so it does not return later
+
+**The author's reason, and it is correct:** default-vs-deterministic conflates the **regime effect**
+with **a single draw of the noise**, and `n = 1` cannot separate them — ~11 h for a number nobody can
+interpret. **What adds information is more replicates WITHIN default**, and that is a call to make
+after E1's first one.
+
+### F4 🔀 CONTINGENT REALLOCATION, declared before the measurement that triggers it
+
+> **If E1 comes back SMALL, the 13.8 h that (c) would have cost goes to the pre-declared `fixedtime`
+> fourth rung instead** (B1 already registered it, so this is not post-hoc). **The author's reason, and
+> I am adopting it rather than merely accepting it: three matched tiers strengthen C1, which is the
+> question the paper asks; numerical-regime robustness strengthens our bookkeeping, which no referee at
+> this venue is asking about.** ⭐ It also fixes the ladder's spacing weakness disclosed in B1 —
+> `160.33 · 167.49 · 206.93 · 257.73` is a graded ladder where `160 · 167 · 258` is two rungs and a gap.
+
+### F5 🔒 BINDING ON E1's WRITE-UP — it is owed by MERGED work, so it lands with the correction
+
+**Whatever E1 returns, P5.1's headline sentence is corrected or corroborated IN THE SAME COMMIT.** It
+reads *"how badly is UNSTABLE ACROSS SEEDS"*, treatment sd **30.36** against control **0.10** — an
+attribution to seeds, while a second mechanism now has demonstrated existence and no measurement.
+> ⭐ **AND ONE NUMBER THE AUTHOR SUPPLIED THAT I VERIFIED AND FOUND SHARPER THAN STATED. The published
+> CI `[+36.05, +43.08]` is over DRAWS. Over SEEDS the same five values give `[+1.88, +77.25]`**
+> (t, df = 4; the normal form gives `[+12.96, +66.17]`) — **10.7× wider, with a lower bound of +1.88
+> that barely clears zero.** **The DIRECTION is untouched — 5/5 seeds agree in sign and 0/100 draws are
+> won — but the MAGNITUDE's confidence over the seed dimension is far weaker than the published
+> interval suggests.** ⚠️ **This is P4.7's M1 recurring on a headline result** (*our per-draw unit
+> averages the seeds away*), it is `P8.1`'s registered work, and **it must be reported beside the
+> per-seed spread `{101: +1.03 … 202: +72.07}`, 70×.**
+
+### F6 ⚠️ TWO TECHNICAL CAVEATS ON `deterministic: bool`, so a late failure does not kill a campaign
+
+**(a) It is NOT a per-call parameter underneath.** `torch.use_deterministic_algorithms(True)` is
+**process-global**, and `CUBLAS_WORKSPACE_CONFIG=:4096:8` must be exported **before the CUDA context is
+created** — an environment variable set at process entry, not a mid-run toggle. **`deterministic: bool`
+is the right INTERFACE; its implementation must act at process entry, and `p5_2.sh` must export the
+variable.** A flag flipped after CUDA is initialised can silently fail to take effect.
+**(b) Determinism is verified for the two DT arms ONLY.** `use_deterministic_algorithms(True)` **RAISES**
+on any op lacking a deterministic implementation. **If (c) is chosen, it must be proved for `bc`,
+`bc_top10`, `bc_top10_perix`, `iql` and the EVALUATION path before the campaign starts** — in Gate 0's
+precondition block, beside D1(a)'s path check, where it costs seconds instead of failing ten hours in.
+
+---
+
 ## 0. ⚠️ SCOPE CORRECTION BEFORE ANYTHING ELSE — §6's P5.2 NAMES A SCENARIO WE DO NOT HAVE
 
 §6 reads *"Train + evaluate on grid4x4, **hangzhou_4x4** per ladder tier"*. **Measured today:
@@ -633,6 +698,12 @@ seven-tier sweep is not affordable in the September window.
       evaluated, `d1(202)` compared against P5.1's **+72.07**; reported whichever way it comes out
 - [ ] **E3** — `mappo1000`'s within-tier rankings use P5.1's default-regime cells; the deterministic
       1-head pair serves `I` alone; Q1's cross-tier seam is disclosed with the Q1 result
+- [ ] **F5** — E1's write-up corrects or corroborates P5.1's *"unstable across seeds"* sentence **in the
+      same commit**, and reports the seed-level CI `[+1.88, +77.25]` beside the published draw-level
+      `[+36.05, +43.08]` and the 70× per-seed spread
+- [ ] **F6** — `deterministic: bool` acts at **process entry** with `CUBLAS_WORKSPACE_CONFIG` exported by
+      the script; if (c) is chosen, determinism is proved for **every arm and the evaluation path** in
+      Gate 0, not just the two DT arms
 - [ ] Every ordering with its per-seed count **and** range, **emitted by the generator**
 - [ ] `DEFERRED` 37's mutation executed, failure pasted; every mutation's failure pasted
 - [ ] Campaign in a **user-launched `tmux`**; **no `until`-poll**; `mkdir -p` before `tee`, and the
