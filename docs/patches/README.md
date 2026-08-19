@@ -23,13 +23,27 @@ this repository is built on; `Woliński` is already allowed and `Mikołaj` was n
 baseline is 5, and the regression is `docs/returns/P8.3.md:141`, where the packet documents the gap by
 **writing the name** — *"Mikołaj" (an `ALLOWED_NAMES` gap: only `Woliński` is listed)* — so the
 sentence describing the defect became an instance of it. Applying this clears **two** hits, both
-carrying `ł` + `ń` from that name: `README.md:30` (the author list) and `docs/returns/P8.3.md:141`.
-**6 → 4.**
+carrying the l-with-stroke and n-with-acute of that name: the **repository-root** `README.md:30` (the
+author list) and `docs/returns/P8.3.md:141`. **6 → 4.**
 
 ⚠️ **What it does NOT clear, checked rather than assumed:** `.claude/agents/master-coordinator.md:158`
-carries `ń` from the Polish **word** *"skończone"*, not from a name, so it stays; and the three `ó`
-hits (`scripts/claude_guard.sh:47`, two committed patches) are P0.9's open o-acute false positive and
-stay by design. **`.github/ci/ci_baseline.json` records the post-apply total as 4, so CI reports a
+carries an n-with-acute from a Polish **word** in an illustrative quotation, not from a name, so it
+stays; and the three o-with-acute hits (`scripts/claude_guard.sh:47`, two committed patches) are
+P0.9's open false positive and stay by design.
+
+🚨 **WHY THIS ENTRY NAMES THE CHARACTERS INSTEAD OF SHOWING THEM, so a later editor does not helpfully
+restore them.** The first version of these two paragraphs QUOTED the diacritics, and the guard then
+flagged `docs/patches/README.md:26` and `:30` — **so the prose explaining that a sentence describing
+the defect had become an instance of it became an instance of it.** Third occurrence of that shape in
+two days, this one inside the fix for the second.
+> **The discriminating principle, because there IS a standing exemption and this is not it: the three
+> tolerated hits carry their character because they QUOTE the guard's own class, and de-diacriticising
+> them would FALSIFY a record of what the guard contains. These two lines carried them by choice, in
+> prose written today, describing them. Nothing is falsified by naming them.**
+> **An exemption is for text the fix would FALSIFY — not for text that finds the fix inconvenient.**
+> ⭐ And naming them is the better prose anyway: **a reader cannot tell l-with-stroke from l, or
+> n-with-acute from n, at a glance in a monospace diff — which is exactly the failure being
+> documented.** It is also what the guard's own error message does. **`.github/ci/ci_baseline.json` records the post-apply total as 4, so CI reports a
 mismatch until this patch is applied — deliberately, so the pending action cannot be forgotten.**
 
 ## `mappo_metric_keys_guard.patch` — make contract C8 mechanical (AUTHORISATION C)
