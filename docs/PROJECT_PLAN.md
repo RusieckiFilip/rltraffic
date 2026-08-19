@@ -1158,6 +1158,8 @@ mid-campaign) and `BRIEF_24` — at a cost of zero rebases.**
 > `git -C <worktree> status --porcelain` must be **empty** — a rebase under an implementer holding
 > uncommitted work destroys it. **If it is non-empty: stop and ask. Never `--force`, never `stash`.**
 > **4. One rebase before the merge is expected**, as every earlier task had.
+> 🚨 **5. NEVER REBASE A WORKTREE WITH A LIVE CAMPAIGN IN IT (added 2026-08-19, found while checking whether a rebase was the answer to P5.2's red CI).** `git rebase` replays the branch's commits ON TOP of the new base, so the working tree **passes through the base's state first** — and every file the branch alone owns is **transiently deleted and recreated.** For `task/p5.2-tier-sweep` those files are **`offline/tier_sweep.py` and `offline/campaigns/p5_2.sh`**, which the running campaign re-invokes as `$PY -m offline.tier_sweep` between every phase. **A rebase timed between two phases kills a 50-hour run, and the empty-`--porcelain` precondition does NOT catch it** — the tree is clean the whole time.
+> **Precondition, mechanical: before rebasing a worktree, check that no campaign is running in it** (`ps` for the script or the module, or the absence of a `PHASES_COMPLETE`/`CAMPAIGN_COMPLETE` marker against a started log). ⚠️ **This is the second unstated precondition found in this rule since it was written yesterday, and both were found by checking rather than by recalling.**
 
 ⚠️ **Interaction with the one-writer rule (2026-08-07), stated rather than left to collide.** That rule
 protects *a session sharing a tree from having its branch moved underneath it*, and part 3 does
