@@ -733,6 +733,49 @@ phase B. Do it in the same commit that adds the tier.**
 
 ---
 
+## ✅ AMENDMENT J — 2026-08-19. **BOTH ARMS, SEED 202, PRE-DECLARED.** The last open item; phase A may start
+
+### J1 ✅ RULED: both arms on the `random` tier, and the SEED is declared now — the catch was the author's
+
+> **Both arms, so the random tier yields `d1` — the SAME QUANTITY E1 reported at `mappo1000`.** The
+> author's reason for overturning his own single-arm ruling: *"a single-arm envelope at one end and
+> `d1` at the other under one sentence is two things wearing one claim"*, and the fallback it would
+> have needed — replicate `dt_nomix` too if `dt_spatial` comes back non-zero — **reinstates the
+> conditional trigger removed an hour earlier.** ≈2.2 h, 16 % of what the regime ruling freed.
+
+🚨 **AND THE THING NOBODY HAD NAMED, WHICH IS THE AUTHOR'S AND IS A REAL HOLE: WHICH SEED.**
+**E1 chose 202 because it carried the largest per-seed `d1`. That principle CANNOT be applied on the
+`random` tier, because the per-seed spread there does not exist until phase B has run.** So any rule of
+the form *"replicate the seed with the largest effect"* is **post-hoc selection on a quantity related
+to the one being measured** — it would let the envelope be measured on the seed most, or least, likely
+to show one, chosen after seeing which is which.
+> **DECLARED NOW: seed 202, both arms, `random` tier.** **It is arbitrary in the sense that 202 has no
+> intrinsic property on a tier it has not run — and that is exactly why it is the right choice.** It is
+> pre-declared, and it makes the two envelope measurements **the same seed at both ends of the ladder**,
+> which is the strongest form of the paired comparison the sentence claims.
+> ⚠️ **If phase B later shows 202 is unrepresentative of the `random` tier's per-seed spread, that is a
+> DISCLOSURE, not a reason to re-select.**
+
+### J2 🔒 THE REPLICATE MUST BE PROVED INDEPENDENT BEFORE ITS ZERO MEANS ANYTHING
+
+**Derived from what actually happened today: E1's `+0.0000` was only interpretable because I checked BY
+HAND that the two checkpoints differed — 66/66 tensors, worst 1.22e−04. F7 did not require that, and
+without it the result was indistinguishable from a self-comparison.** The machinery must now do what I
+did manually.
+> **REQUIRED, three parts.** **(a)** The replicate is an **independent training run from scratch** at
+> the same seed — never a re-evaluation of phase B's checkpoint, which returns zero **by construction**.
+> **(b)** Its artifacts are written under a **distinct key** so no cache, resume branch or report path
+> can serve phase B's cell in their place. **(c) Before any envelope is reported, the machinery asserts
+> the two runs' CANONICAL `state_dict` DIGESTS DIFFER** — sorted-key tensor bytes, **not** the file
+> sha256, which today was shown to differ on provenance alone (`git_commit`, `deterministic`, `n_head`,
+> a changed `tier` label) while saying nothing about weights.
+> 🚨 **EQUAL digests are a REFUSAL, not a zero.** They mean either two identical models were compared —
+> a defect — or training reproduced exactly, which would contradict the C1 control and invalidate the
+> measurement's premise. **Either way it forces a look instead of silently reporting the answer the
+> question was asked to avoid.** **Report the digests beside the envelope.**
+
+---
+
 ## 0. ⚠️ SCOPE CORRECTION BEFORE ANYTHING ELSE — §6's P5.2 NAMES A SCENARIO WE DO NOT HAVE
 
 §6 reads *"Train + evaluate on grid4x4, **hangzhou_4x4** per ladder tier"*. **Measured today:
@@ -882,8 +925,12 @@ seven-tier sweep is not affordable in the September window.
       principle, `Q2`'s rank prediction and hard subset, and `Q3`/`Q4` extended — **all before phase B**
 - [ ] **H4** — the three disclosures carried into the packet, the E1 verification chain as its own
       paragraph
-- [ ] **I1** — `dt_spatial` replicated at one seed on the **`random`** tier as part of phase B,
-      unconditionally, with F7's machinery and the 1e−12 positive control
+- [ ] **I1/J1** — **BOTH arms at SEED 202** replicated on the **`random`** tier inside phase B,
+      unconditionally, yielding `d1`'s envelope at both ends of the ladder; F7's machinery and the
+      1e−12 positive control; the seed is **pre-declared** and is not re-selected after phase B
+- [ ] **J2** — the replicate is an independent training run under a **distinct artifact key**, and the
+      machinery **asserts the two canonical `state_dict` digests DIFFER** before reporting any envelope;
+      equal digests are a **refusal**, and the digests are reported beside the number
 - [ ] **I2** — the registered reading is in the plan **before the number exists**: a non-zero envelope
       is a finding, a zero envelope is not the only acceptable outcome, both are publishable
 - [ ] **I3** — `Q1`'s threshold is `k = ceil(9/13 × N)`, stated in the commit, giving **14 of 19**;
