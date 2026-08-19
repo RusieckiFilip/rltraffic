@@ -1148,3 +1148,596 @@ def stop_rule_verdict(ci_low: float, ci_high: float) -> str:
     if float(ci_high) < 0.0:
         return "STOP"
     return "CONTINUE"
+
+
+# ----------------------------------------------------------------------
+# The tier's inputs, built once and identically for every command.
+# ----------------------------------------------------------------------
+
+
+def node_ids_from_corpus(spec: TierSpec, corpus_root: str | Path) -> tuple[str, ...]:
+    """The controlled intersection order, read from the CORPUS rather than from the roadnet.
+
+    This is the pairing key: it comes from the data the model trains on, and ``derive_adjacency``
+    then refuses unless it is exactly the roadnet's controllable set, which is what makes the graph
+    provably about these rows (``PROJECT_PLAN`` section 7, 2026-08-16).  P5.1's function of the
+    same name is tier-fixed; this one takes the tier, and both read the manifest the same way.
+    """
+    import json as _json
+
+    from offline.trajectory_logger import load_episode
+
+    directory = tier_dirs(spec, corpus_root)[0]
+    manifest = _json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
+    first = sorted(str(entry["filename"]) for entry in manifest["episodes"])[0]
+    episode = load_episode(directory / first)
+    ids = tuple(str(ix) for ix in episode.ix_ids)
+    if len(ids) != EXPECTED_NODES:
+        raise ValueError(
+            f"{directory / first} carries {len(ids)} intersections, expected {EXPECTED_NODES}; "
+            "grid4x4 is a 16-intersection scenario and a different count means the wrong corpus"
+        )
+    return ids
+
+
+def adjacency_for_tier(
+    spec: TierSpec, corpus_root: str | Path, node_ids: Sequence[str],
+    sim_config: str | Path | None = None,
+) -> Any:
+    """The graph of the network THIS tier was collected on, taken from its own manifest."""
+    import json as _json
+
+    from offline.roadnet_graph import adjacency_from_sim_config
+
+    if sim_config is None:
+        manifest = _json.loads(
+            (tier_dirs(spec, corpus_root)[0] / "manifest.json").read_text(encoding="utf-8")
+        )
+        sim_config = manifest["run_metadata"]["env_paths"]["config"]
+    return adjacency_from_sim_config(sim_config, node_ids)
+
+
+def tier_dataset(spec: TierSpec, corpus_root: str | Path, context_length: int) -> Any:
+    """The tier's training-split window dataset, statistics fitted on the training split only.
+
+    ``split="train"`` is not a default being accepted: it is the mechanism that makes a held-out
+    draw raise instead of quietly entering the corpus.
+    """
+    from offline.dataset import TrajectoryWindowDataset
+
+    return TrajectoryWindowDataset(
+        list(tier_dirs(spec, corpus_root)),
+        context_length=int(context_length),
+        split="train",
+        normalize=True,
+    )
+
+
+def tier_parts(
+    tier: str, corpus_root: str | Path, *, sim_config: str | Path | None = None,
+    context_length: int = CONTEXT_LENGTH,
+) -> dict[str, Any]:
+    """Everything every command needs for one tier, built once and identically.
+
+    The size match (B4) happens HERE, before anything downstream sees the corpus, so the DT arms
+    and the per-intersection comparators are guaranteed to train on the same episode set.
+    """
+    from offline.joint_windows import build_joint_index, stack_joint
+    from offline.offline_baselines import stream_returns
+    from offline.spatial_mixing import per_node_prompts
+
+    spec = tier_spec(tier)
+    node_ids = node_ids_from_corpus(spec, corpus_root)
+    adjacency = adjacency_for_tier(spec, corpus_root, node_ids, sim_config)
+    dataset = tier_dataset(spec, corpus_root, context_length)
+    all_episodes = episodes_in(dataset)
+    chosen = selected_episodes(spec, all_episodes)
+    all_streams = stream_returns(dataset)
+    streams = streams_of_episodes(all_streams, chosen)
+    prompts = per_node_prompts(streams)
+
+    def stack() -> dict[str, Any]:
+        """The joint tensors, restricted to the size-matched episode set."""
+        index = build_joint_index(dataset, node_ids)
+        stacked = stack_joint(dataset, index)
+        keep = {e.episode_index for e in chosen}
+        rows = np.array(
+            [i for i, ep in enumerate(index.episode_index) if int(ep) in keep], dtype=np.int64
+        )
+        if rows.size == 0:
+            raise ValueError(f"{spec.tier}: the size match selected no joint windows")
+        out = dict(stacked)
+        out["member_index"] = stacked["member_index"][rows]
+        return out
+
+    index = build_joint_index(dataset, node_ids)
+    return {
+        "spec": spec,
+        "node_ids": node_ids,
+        "adjacency": adjacency,
+        "dataset": dataset,
+        "index": index,
+        "episodes_all": all_episodes,
+        "episodes": chosen,
+        "streams": streams,
+        "streams_all": all_streams,
+        "prompts": prompts,
+        "stack": stack,
+    }
+
+
+# ----------------------------------------------------------------------
+# The declaration, and the two gates the campaign runs before any training.
+# ----------------------------------------------------------------------
+
+
+def declaration_artifact(parts: Mapping[str, Any], corpus_root: str | Path) -> dict[str, Any]:
+    """The full pre-training record for one tier: graph, node order, selection, prompts, budget."""
+    from offline.dt_gate import HELD_OUT_DRAWS, TRAINING_SEEDS
+    from offline.roadnet_graph import assert_reproduces_from_roads
+    from offline.spatial_mixing import assert_declaration_matches_corpus
+
+    spec: TierSpec = parts["spec"]
+    adjacency = parts["adjacency"]
+    roads = assert_reproduces_from_roads(adjacency)
+    graph = adjacency.to_json_obj()
+    graph["roads_route_agrees"] = bool(roads["agrees_with_lane_route"])
+    graph["roads_route_directed_edges"] = int(roads["directed_edges"])
+    declared = {
+        ix: {"target_rtg": p.target_rtg, "rtg_scale": p.rtg_scale}
+        for ix, p in parts["prompts"].items()
+    }
+    check = assert_declaration_matches_corpus(declared, parts["streams"])
+    return {
+        "format_version": DECLARATION_FORMAT_VERSION,
+        "tier": spec.tier,
+        "scenario_id": SCENARIO_ID,
+        "scenario_key": SCENARIO_KEY,
+        "corpus_root": str(Path(corpus_root).resolve()),
+        "dataset_dirs": [str(d) for d in tier_dirs(spec, corpus_root)],
+        "graph": graph,
+        "node_order": list(parts["index"].node_ids),
+        "state_dim": int(parts["index"].state_dim),
+        "n_actions": int(parts["index"].n_actions),
+        "ladder_att": spec.ladder_att,
+        "ladder_att_source": (
+            "docs/data/att_ladder_v11.json, randomised draws 1-200. PROJECT_PLAN section 10 item 0 "
+            "discharges this ladder for figures and for the prediction rule's T(t) term; the "
+            "nominal draw-0 comparison and anything from rederive_anchors.py stay blocked. "
+            "DEFERRED 27: the ladder tool's JSON-writing path has zero tests, so the artifact's "
+            "CONTENT is verified and the PATH that wrote it is not. Corroboration: P5.1's two "
+            "anchors landed 0.0540 and 2.6276 ATT (0.03 % and 1.0 %) from these values on "
+            "independently rolled held-out draws"
+        ),
+        "mean_training_return": spec.mean_training_return,
+        "subsample": spec.subsample,
+        "subsample_rng_seed": (
+            RANDOM_SUBSAMPLE_RNG_SEED if spec.subsample == "one_per_draw" else None
+        ),
+        "episodes_available": len(parts["episodes_all"]),
+        "episodes_selected": len(parts["episodes"]),
+        "selected_episodes": [
+            {"dataset_dir": e.dataset_dir, "episode_file": e.episode_file,
+             "episode_index": e.episode_index, "flow_draw": e.flow_draw}
+            for e in parts["episodes"]
+        ],
+        "training_streams": len(parts["streams"]),
+        "prompts": {
+            ix: {
+                "target_rtg": p.target_rtg, "rtg_scale": p.rtg_scale, "n_streams": p.n_streams,
+                "return_min": p.return_min, "return_max": p.return_max,
+            }
+            for ix, p in sorted(parts["prompts"].items())
+        },
+        "prompt_rule": (
+            "target_rtg = max episode return in THIS INTERSECTION's training streams; rtg_scale = "
+            "max|return| over the same set (docs/plans/p5.2.md D3, inherited from P5.1's D3)"
+        ),
+        "declaration_check": check,
+        "methods": list(METHODS),
+        "head_methods": list(HEAD_METHODS),
+        "n_head_by_method": dict(N_HEAD_BY_METHOD),
+        "seeds": list(TRAINING_SEEDS),
+        "declared_gradient_steps": DECLARED_GRADIENT_STEPS,
+        "batch_size": JOINT_BATCH_SIZE,
+        "context_length": CONTEXT_LENGTH,
+        "held_out_draws": list(HELD_OUT_DRAWS),
+        "statistics_split": parts["dataset"].stats.split,
+        "statistics_draw_ids": list(parts["dataset"].stats.draw_ids),
+    }
+
+
+def verify_reuse_gate(
+    reuse_root: str | Path, checksums: str | Path, arms: Sequence[str] = REUSED_CELLS
+) -> dict[str, Any]:
+    """B3(a): re-verify every reused cell's digest AT CONSUMPTION, not once at securing time.
+
+    Returns the source path and measured digest per arm, for the artifact.  Any mismatch RAISES,
+    and the campaign stops rather than falling back to re-running (B3c).
+    """
+    root = Path(reuse_root)
+    recorded = parse_sha256sums(Path(checksums).read_text(encoding="utf-8"))
+    prefix = root.name
+    out: dict[str, Any] = {}
+    for arm in arms:
+        name = f"{prefix}/eval_{arm}.json"
+        if name not in recorded:
+            raise ValueError(
+                f"{name} is not in {checksums}; every reused cell must carry a recorded digest, "
+                "and an unrecorded one cannot be shown to be the reviewed artifact"
+            )
+        path = root / f"eval_{arm}.json"
+        digest = assert_reused_digest(path, recorded[name], relative_name=name)
+        out[arm] = {"source": str(path), "sha256": digest}
+    return out
+
+
+# ----------------------------------------------------------------------
+# CLI.  The regime is configured ONCE, at process entry, before anything touches CUDA.
+# ----------------------------------------------------------------------
+
+
+def build_parser() -> Any:
+    """CLI: ``declare``, ``train``, ``evaluate``, ``verify-reuse``, ``replicate-report``."""
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        prog="python -m offline.tier_sweep",
+        description="P5.2: the spatial DT across the grid4x4 ladder, and the head-count 2x2.",
+    )
+    parser.add_argument("--corpus-root", default="datasets_v11")
+    parser.add_argument("--draws-root", default="scenarios/draws")
+    parser.add_argument("--sim-config", default=None)
+    parser.add_argument("--out-dir", default="docs/data")
+    parser.add_argument("--work-dir", default="output/p5_2")
+    parser.add_argument("--checkpoint-dir", default="output/p5_2/checkpoints")
+    parser.add_argument(
+        "--reuse-root",
+        default="/home/filip/rltraffic/output/p5_1",
+        help="P5.1's secured cells. READ-ONLY: every write resolving under it is refused.",
+    )
+    parser.add_argument(
+        "--checksums", default="/home/filip/rltraffic/output/SHA256SUMS_p5_1.txt"
+    )
+    parser.add_argument(
+        "--mappo-checkpoint-dir", default="/home/filip/rltraffic/output/checkpoints"
+    )
+    parser.add_argument("--scenario-key", default=SCENARIO_KEY)
+    parser.add_argument("--scenario-id", default=SCENARIO_ID)
+    parser.add_argument("--engine-seed", type=int, default=1000)
+    parser.add_argument("--device", default=None)
+    parser.add_argument("--torch-threads", type=int, default=1)
+    parser.add_argument("--gradient-steps", type=int, default=DECLARED_GRADIENT_STEPS)
+    parser.add_argument("--batch-size", type=int, default=JOINT_BATCH_SIZE)
+    parser.add_argument("--log-every", type=int, default=0)
+    parser.add_argument(
+        "--deterministic", action="store_true",
+        help="run in the deterministic numerical regime (F6: acts at process entry; the campaign "
+             "script must export CUBLAS_WORKSPACE_CONFIG before this process starts)",
+    )
+    parser.add_argument(
+        "--seeds", default=None,
+        help="comma-separated training seeds; defaults to the registered five. E1 uses '202'.",
+    )
+    parser.add_argument("--tier", default=None, help=f"one of {sorted(TIERS)}")
+
+    sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser("declare", help="write the pre-training declaration for one tier")
+    train = sub.add_parser("train", help="train one spatial arm")
+    train.add_argument("--method", required=True, choices=list(DT_METHODS))
+    evaluate = sub.add_parser("evaluate", help="roll one arm over the held-out pool")
+    evaluate.add_argument("--method", required=True)
+    sub.add_parser("verify-reuse", help="B3: re-verify the reused cells' digests at consumption")
+    replicate = sub.add_parser(
+        "replicate-report", help="E1/F7: the paired per-draw report against P5.1's cells"
+    )
+    replicate.add_argument("--seed", type=int, default=202)
+    return parser
+
+
+def _seeds_of(args: Any) -> tuple[int, ...]:
+    from offline.dt_gate import TRAINING_SEEDS
+
+    if not args.seeds:
+        return tuple(TRAINING_SEEDS)
+    return tuple(int(s) for s in str(args.seeds).split(",") if s.strip())
+
+
+def _protected_of(args: Any) -> tuple[Path, ...]:
+    return protected_roots_from([args.reuse_root])
+
+
+def _require_tier(args: Any) -> str:
+    if not args.tier:
+        raise SystemExit(f"--tier is required; this task declares {sorted(TIERS)}")
+    return str(args.tier)
+
+
+def _checkpoint_name(tier: str, method: str, seed: int) -> str:
+    return f"grid4x4_{tier}_{method}_seed{seed}.pt"
+
+
+def _run_declare(args: Any) -> int:
+    protected = _protected_of(args)
+    tier = _require_tier(args)
+    parts = tier_parts(tier, args.corpus_root, sim_config=args.sim_config)
+    payload = declaration_artifact(parts, args.corpus_root)
+    out = Path(args.out_dir) / f"p5_2_declaration_{tier}.json"
+    assert_writable(out, protected)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    write_json_guarded(payload, out, protected)
+    print(f"declaration written to {out}")
+    print(
+        f"  graph: {payload['graph']['undirected_edges']} undirected edges, "
+        f"degrees {payload['graph']['degree_histogram']}, "
+        f"roads route agrees: {payload['graph']['roads_route_agrees']}"
+    )
+    print(
+        f"  size match: {payload['episodes_selected']} of {payload['episodes_available']} "
+        f"episodes ({payload['subsample']}), {payload['training_streams']} streams"
+    )
+    return 0
+
+
+def _run_train(args: Any) -> int:
+    import torch
+
+    from offline.dt_gate import runtime_provenance
+
+    protected = _protected_of(args)
+    tier = _require_tier(args)
+    parts = tier_parts(tier, args.corpus_root, sim_config=args.sim_config)
+    stacked = parts["stack"]()
+    checkpoints = Path(args.checkpoint_dir)
+    assert_writable(checkpoints, protected)
+    checkpoints.mkdir(parents=True, exist_ok=True)
+    device = torch.device(
+        args.device if args.device else ("cuda" if torch.cuda.is_available() else "cpu")
+    )
+    records: list[dict[str, Any]] = []
+    for seed in _seeds_of(args):
+        destination = checkpoints / _checkpoint_name(tier, args.method, seed)
+        if destination.is_file():
+            print(f"SKIP {tier}/{args.method} seed {seed}: checkpoint on disk", flush=True)
+            continue
+        print(f"TRAIN {tier}/{args.method} seed {seed} -> {destination}", flush=True)
+        partial = destination.with_name(destination.name + ".partial")
+        assert_writable(partial, protected)
+        partial.unlink(missing_ok=True)
+        result = train_tier_dt(
+            stacked, parts["index"], tier=tier, method=args.method, seed=int(seed),
+            adjacency=parts["adjacency"], prompts=parts["prompts"],
+            stats=parts["dataset"].stats, state_dim=int(parts["index"].state_dim),
+            n_actions=int(parts["index"].n_actions), gradient_steps=int(args.gradient_steps),
+            batch_size=int(args.batch_size), device=device, checkpoint_path=partial,
+            protected=protected, provenance={"runtime": runtime_provenance()},
+            deterministic=bool(args.deterministic), log_every=int(args.log_every),
+        )
+        replace_guarded(partial, destination, protected)
+        records.append({
+            "tier": tier, "method": args.method, "seed": int(seed),
+            "gradient_steps": result.gradient_steps, "seconds": result.seconds,
+            "final_loss": result.losses[-1], "checkpoint_path": str(destination),
+            "deterministic": bool(args.deterministic),
+        })
+        print(f"  done in {result.seconds:.1f}s, final loss {result.losses[-1]:.5f}", flush=True)
+    work = Path(args.work_dir)
+    assert_writable(work, protected)
+    work.mkdir(parents=True, exist_ok=True)
+    write_json_guarded(
+        {
+            "format_version": ARTIFACT_FORMAT_VERSION, "tier": tier, "method": args.method,
+            "declared_gradient_steps": int(args.gradient_steps),
+            "batch_size": int(args.batch_size), "deterministic": bool(args.deterministic),
+            "runs": records,
+        },
+        work / f"training_{tier}_{args.method}.json", protected,
+    )
+    return 0
+
+
+def _arm_factory(tier: str, method: str, args: Any, seed: int) -> Any:
+    """The action factory for one arm-seed.  One place, so no arm is wired twice."""
+    from offline.method_tier_grid import _random_factory
+    from offline.offline_baselines import _baseline_factory
+
+    checkpoints = Path(args.checkpoint_dir)
+    if method in DT_METHODS:
+        path = str(checkpoints / _checkpoint_name(tier, method, seed))
+
+        def factory(env: Any) -> Any:
+            from agent.SpatialDTAgent import SpatialDTAgent
+
+            agent = SpatialDTAgent.from_checkpoint(env, path, device=args.device)
+            return lambda _env, info: agent.act(info, explore=False, update_memory=True)
+
+        return factory
+    if method in ("bc", "bc_top10", "bc_top10_perix", "iql"):
+        path = str(checkpoints / _checkpoint_name(tier, method, seed))
+        return _baseline_factory(method, path, int(args.gradient_steps), args.device)
+    if method == COLLAPSE_REFERENCE_METHOD:
+        return _random_factory(int(seed))
+    if method == BEHAVIOUR_METHOD:
+        if tier == "random":
+            return _random_factory(int(seed))
+        if tier == "maxpressure":
+            from offline.dt_gate import _maxpressure_factory
+
+            return _maxpressure_factory
+        if tier == "mappo1000":
+            from offline.dt_gate import _mappo_factory
+
+            path = Path(args.mappo_checkpoint_dir) / f"cf_grid4x4__mappo__seed{seed}.pt"
+            if not path.is_file():
+                raise FileNotFoundError(f"{path} does not exist; the behaviour anchor needs it")
+            return _mappo_factory(str(path), args.device)
+    raise ValueError(f"no action factory is declared for {method!r} at tier {tier!r}")
+
+
+def _run_evaluate(args: Any) -> int:
+    from offline.dt_gate import (
+        HELD_OUT_DRAWS,
+        _cell,
+        env_settings_from_manifest,
+        evaluate_arm,
+    )
+    from offline.materialise_draws import draw_config_path
+
+    protected = _protected_of(args)
+    tier = _require_tier(args)
+    spec = tier_spec(tier)
+    settings = env_settings_from_manifest(tier_dirs(spec, args.corpus_root)[0] / "manifest.json")
+    draws = list(HELD_OUT_DRAWS)
+    arm = f"{args.method}@{tier}"
+    produced: list[Any] = []
+    for seed in _seeds_of(args):
+        print(f"{arm} seed {seed} over {len(draws)} draws", flush=True)
+        produced.extend(
+            evaluate_arm(
+                arm=arm, seed=int(seed), draw_ids=draws,
+                config_for_draw=lambda d: draw_config_path(
+                    args.scenario_key, d, out_root=args.draws_root
+                ),
+                env_settings=settings, scenario_id=args.scenario_id,
+                choose_action_factory=_arm_factory(tier, args.method, args, int(seed)),
+                engine_seed=int(args.engine_seed),
+            )
+        )
+    expected = {(int(s), int(d)) for s in _seeds_of(args) for d in draws}
+    got = {(int(r.seed), int(r.draw_id)) for r in produced}
+    if got != expected:
+        raise ValueError(
+            f"{arm}: {len(got)} episodes against {len(expected)} requested "
+            f"(missing {len(expected - got)}, unexpected {len(got - expected)})"
+        )
+    work = Path(args.work_dir)
+    assert_writable(work, protected)
+    work.mkdir(parents=True, exist_ok=True)
+    seeds_tag = "" if not args.seeds else f"_seed{'_'.join(str(s) for s in _seeds_of(args))}"
+    write_json_guarded(
+        {
+            "format_version": ARTIFACT_FORMAT_VERSION, "arm": arm, "tier": tier,
+            "method": args.method, "declared_gradient_steps": int(args.gradient_steps),
+            "engine_seed": int(args.engine_seed), "deterministic": bool(args.deterministic),
+            "cell": _cell(produced),
+            "episodes": [
+                {"arm": e.arm, "seed": e.seed, "draw_id": e.draw_id,
+                 "att_horizon": e.att_horizon,
+                 "horizon_vehicle_count": e.horizon_vehicle_count,
+                 "episode_reward": e.episode_reward}
+                for e in produced
+            ],
+        },
+        work / f"eval_{tier}_{args.method}{seeds_tag}.json", protected,
+    )
+    print(f"{arm}: {len(produced)} episodes written")
+    return 0
+
+
+def _run_verify_reuse(args: Any) -> int:
+    record = verify_reuse_gate(args.reuse_root, args.checksums)
+    for arm, entry in sorted(record.items()):
+        print(f"  {arm:16s} {entry['sha256'][:16]}...  {entry['source']}")
+    print(f"verified {len(record)} reused cells at consumption")
+    return 0
+
+
+def _run_replicate_report(args: Any) -> int:
+    """E1/F7: the paired per-draw comparison of the replicate against P5.1's own seed-202 cells."""
+    import json as _json
+
+    protected = _protected_of(args)
+    tier = _require_tier(args)
+    work = Path(args.work_dir)
+    reuse = Path(args.reuse_root)
+    seed = int(args.seed)
+    blocks: dict[str, Any] = {}
+    per_draw: dict[str, dict[int, float]] = {}
+    for method in ("dt_spatial", "dt_nomix"):
+        replicate = _json.loads(
+            (work / f"eval_{tier}_{method}_seed{seed}.json").read_text(encoding="utf-8")
+        )
+        published = _json.loads((reuse / f"eval_{method}.json").read_text(encoding="utf-8"))
+        blocks[method] = paired_replicate_report(replicate, published, seed=seed)
+        per_draw[f"{method}_replicate"] = {
+            int(e["draw_id"]): float(e["att_horizon"])
+            for e in replicate["episodes"] if int(e["seed"]) == seed
+        }
+        per_draw[f"{method}_published"] = {
+            int(e["draw_id"]): float(e["att_horizon"])
+            for e in published["episodes"] if int(e["seed"]) == seed
+        }
+    # d1 = spatial - nomix, per draw, in each of the two runs; then the paired difference of those.
+    from offline.dt_gate import mean_ci95
+
+    shared = sorted(
+        set(per_draw["dt_spatial_replicate"]) & set(per_draw["dt_nomix_replicate"])
+        & set(per_draw["dt_spatial_published"]) & set(per_draw["dt_nomix_published"])
+    )
+    if len(shared) != 100:
+        raise ValueError(f"expected 100 shared draws for d1, found {len(shared)}")
+    d1_replicate = [
+        per_draw["dt_spatial_replicate"][d] - per_draw["dt_nomix_replicate"][d] for d in shared
+    ]
+    d1_published = [
+        per_draw["dt_spatial_published"][d] - per_draw["dt_nomix_published"][d] for d in shared
+    ]
+    stats = mean_ci95([a - b for a, b in zip(d1_replicate, d1_published)])
+    blocks["d1"] = {
+        "metric": "att_horizon", "seed": seed, "n_shared_draws": len(shared),
+        "mean_difference": stats.mean, "std": stats.std,
+        "ci95_low": stats.mean - stats.ci95, "ci95_high": stats.mean + stats.ci95,
+        "ci95_width": 2 * stats.ci95,
+        "excludes_zero": bool(stats.mean - stats.ci95 > 0 or stats.mean + stats.ci95 < 0),
+        "d1_replicate": sum(d1_replicate) / len(d1_replicate),
+        "d1_published": sum(d1_published) / len(d1_published),
+    }
+    payload = {
+        "format_version": ARTIFACT_FORMAT_VERSION,
+        "measurement": "E1 -- the nondeterminism envelope (docs/plans/p5.2.md section 4.7)",
+        "tier": tier, "seed": seed, "regime": "default CUDA",
+        "attribution": (
+            "obligation 6 proved train_tier_dt reproduces spatial_mixing.train_spatial_dt "
+            "byte-exactly at one head on CPU -- identical loss sequence and all 66 state_dict "
+            "tensors -- so any difference measured here is attributable to DEVICE "
+            "NONDETERMINISM ALONE and not to the trainer change"
+        ),
+        "published_d1_seed202": 72.07412354024478,
+        "blocks": blocks,
+    }
+    out = work / f"e1_envelope_{tier}_seed{seed}.json"
+    write_json_guarded(payload, out, protected)
+    for name, block in blocks.items():
+        print(
+            f"  {name:11s} mean {block['mean_difference']:+9.4f}  "
+            f"CI [{block['ci95_low']:+9.4f}, {block['ci95_high']:+9.4f}]  "
+            f"excludes zero: {block['excludes_zero']}"
+        )
+    print(f"E1 report written to {out}")
+    return 0
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """Entry point for ``python -m offline.tier_sweep``."""
+    import torch
+
+    args = build_parser().parse_args(argv)
+    # F6(a): the regime is configured ONCE, here, before anything can touch CUDA.
+    configure_determinism(bool(args.deterministic))
+    if int(args.torch_threads) > 0:
+        torch.set_num_threads(int(args.torch_threads))
+    if args.command == "declare":
+        return _run_declare(args)
+    if args.command == "train":
+        return _run_train(args)
+    if args.command == "evaluate":
+        return _run_evaluate(args)
+    if args.command == "verify-reuse":
+        return _run_verify_reuse(args)
+    if args.command == "replicate-report":
+        return _run_replicate_report(args)
+    raise SystemExit(f"unknown command {args.command!r}")
+
+
+if __name__ == "__main__":  # pragma: no cover - exercised via the campaign script
+    raise SystemExit(main())

@@ -1118,6 +1118,59 @@ def test_the_published_seed_202_cells_are_present_and_pairable() -> None:
 
 
 # ----------------------------------------------------------------------
+# B3(a) -- the reuse gate as the campaign runs it.
+# ----------------------------------------------------------------------
+
+
+def _fake_reuse_tree(root: Path, arms: tuple[str, ...]) -> Path:
+    (root / "p5_1").mkdir()
+    lines = []
+    for arm in arms:
+        path = root / "p5_1" / f"eval_{arm}.json"
+        path.write_text(json.dumps({"arm": arm, "episodes": []}), encoding="utf-8")
+        lines.append(f"{hashlib.sha256(path.read_bytes()).hexdigest()}  p5_1/eval_{arm}.json")
+    manifest = root / "SHA256SUMS.txt"
+    manifest.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return manifest
+
+
+def test_the_reuse_gate_verifies_every_declared_cell(tmp_path: Path) -> None:
+    """B3(a)'s accept control: the gate must pass on an untouched tree and say what it checked."""
+    arms = ("dt_spatial", "dt_nomix")
+    manifest = _fake_reuse_tree(tmp_path, arms)
+    record = ts.verify_reuse_gate(tmp_path / "p5_1", manifest, arms=arms)
+    assert set(record) == set(arms)
+    assert all(len(entry["sha256"]) == 64 for entry in record.values())
+
+
+def test_the_reuse_gate_refuses_a_cell_whose_bytes_changed_since_securing(
+    tmp_path: Path,
+) -> None:
+    """B3(a): the check is AT CONSUMPTION, so a file edited after securing must be refused."""
+    arms = ("dt_spatial",)
+    manifest = _fake_reuse_tree(tmp_path, arms)
+    (tmp_path / "p5_1" / "eval_dt_spatial.json").write_text("{}", encoding="utf-8")
+    with pytest.raises(ValueError, match="digest"):
+        ts.verify_reuse_gate(tmp_path / "p5_1", manifest, arms=arms)
+
+
+def test_the_reuse_gate_refuses_a_cell_that_has_no_recorded_digest(tmp_path: Path) -> None:
+    """B3(a): an unrecorded file cannot be shown to be the reviewed artifact."""
+    manifest = _fake_reuse_tree(tmp_path, ("dt_spatial",))
+    (tmp_path / "p5_1" / "eval_iql.json").write_text("{}", encoding="utf-8")
+    with pytest.raises(ValueError, match="not in"):
+        ts.verify_reuse_gate(tmp_path / "p5_1", manifest, arms=("dt_spatial", "iql"))
+
+
+def test_the_reuse_gate_covers_all_seven_reused_cells_by_default() -> None:
+    """A3: the seven cells the plan lists are the seven the gate checks -- no silent subset."""
+    assert len(ts.REUSED_CELLS) == 7
+    assert set(ts.REUSED_CELLS) == {
+        "dt_spatial", "dt_nomix", "bc", "bc_top10", "iql", "behaviour", "random"
+    }
+
+
+# ----------------------------------------------------------------------
 # The declarations, checked against the plan and against the corpus.
 # ----------------------------------------------------------------------
 
