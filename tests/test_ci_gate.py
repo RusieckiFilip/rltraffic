@@ -629,11 +629,17 @@ def test_wheel_gate_does_not_require_the_test_package(tmp_path: Path) -> None:
 # the committed baseline itself
 # --------------------------------------------------------------------------------------
 def test_committed_baseline_records_the_guard_findings_measured_on_this_tree() -> None:
-    """The 16 and the 5, recorded independently of the JSON so a silent widening fails.
+    """The 16 and the 4, recorded independently of the JSON so a silent widening fails.
 
     The per-file split is ``DEFERRED`` 45's own enumeration (8 + 5 + 2 + 1 = 16), counted
     four independent times by the coordinator, and re-measured for P0.10 from the full
     output of a no-argument run.
+
+    ⚠️ **The English total moved 5 -> 4 when ``Mikolaj`` joined ``ALLOWED_NAMES``** (the patch
+    applied on ``main``; the baseline records 4 and the tree measures 4).  It is pinned here, in a
+    second file, so that widening it is a visible edit in a diff rather than a quiet number change
+    -- which is exactly why this literal must be moved deliberately whenever the guard's allow-list
+    changes.  ``DEFERRED`` 54.
     """
     baseline = json.loads(BASELINE_FILE.read_text(encoding="utf-8"))
     hygiene = baseline["guards"]["hygiene"]
@@ -646,7 +652,7 @@ def test_committed_baseline_records_the_guard_findings_measured_on_this_tree() -
         "tests/test_base_traffic_env.py": {"TH006": 1},
     }
     assert hygiene["total"] == 16
-    assert english["total"] == 5
+    assert english["total"] == 4
 
     # Recomputed from the map rather than trusted: the totals must be the sum of the parts.
     for guard in (hygiene, english):
@@ -659,8 +665,18 @@ def test_committed_baseline_records_the_guard_findings_measured_on_this_tree() -
 def test_committed_ceiling_declares_that_it_is_provisional_and_names_its_expiry() -> None:
     """A ceiling whose expiry lives only in a chat is a ceiling that silently breaches.
 
-    P5.1 is in flight and its merge adds roughly 24-25 corpus-gated skips, so the baseline
-    must carry the re-measure mandate in the file a runner actually reads.
+    The baseline must carry the re-measure mandate in the file a runner actually reads, so every
+    field of it is asserted non-empty below.
+
+    ⚠️ **The event NAME is deliberately NOT pinned, and the removal was ruled rather than drifted
+    into** (``DEFERRED`` 54).  This file's purpose is that widening a LOOSENABLE quantity is a
+    visible edit in a diff; the two numbers -- the English total and the skip ceiling -- are those
+    quantities, and they already force an edit here at every expiry move, so the speed bump
+    survives.  **The event is a POINTER and cannot be widened.**  Pinning it fires at every
+    CORRECT retarget -- when P5.1's merge landed and the mandate properly moved to P5.2, and again
+    when P5.2's does -- which is the class this repo refuses: a check that condemns correct
+    artifacts teaches the reader to ignore it.  The completeness loop above is the load-bearing
+    half and it stays.
     """
     baseline = json.loads(BASELINE_FILE.read_text(encoding="utf-8"))
     block = baseline["pytest"]
@@ -670,7 +686,6 @@ def test_committed_ceiling_declares_that_it_is_provisional_and_names_its_expiry(
     expiry = block["re_measure_required_at"]
     for key in ("event", "reason", "mandated_by"):
         assert expiry[key].strip(), f"{key} must say something a reader can act on"
-    assert "P5.1" in expiry["event"]
 
 
 def test_committed_baseline_records_why_the_ceiling_has_the_value_it_has() -> None:
@@ -679,16 +694,22 @@ def test_committed_baseline_records_why_the_ceiling_has_the_value_it_has() -> No
     A future reader must be able to see that the number is a consequence of a choice, and
     what the number would be under the other choice.
 
-    The pinned value is **72**, measured on GitHub Actions run 32021100181 -- the first
-    real run of this workflow.  It supersedes a simulated 62 that was wrong: see
-    ``superseded`` in the baseline file, and section "harness errors" of
-    ``docs/returns/P0.10.md``.  The constant is pinned here, in a second file, precisely so
-    that widening it is a visible edit in a diff rather than a quiet number change.
+    The pinned value is **98**.  It supersedes **72** -- which did not turn out to be wrong but
+    EXPIRED EXACTLY AS ITS OWN ENTRY PREDICTED, when P5.1's merge added the corpus-gated skips that
+    entry forecast -- and 72 in turn superseded a simulated **62** that WAS wrong (see section
+    "harness errors" of ``docs/returns/P0.10.md``).  The constant is pinned here, in a second file,
+    precisely so that widening it is a visible edit in a diff rather than a quiet number change.
+
+    ⚠️ **Moving the ceiling requires FOUR edits in this file and not three** (``DEFERRED`` 54):
+    the ceiling, the superseded value, the newly nested ``its_own_superseded``, and the English
+    total.  **Assertions after the first failure in a test never run**, so a run that shows three
+    failures can still be hiding a fourth -- which is exactly how this wall was hit.  The next
+    person to move the ceiling will hit it too.
     """
     baseline = json.loads(BASELINE_FILE.read_text(encoding="utf-8"))
     block = baseline["pytest"]
 
-    assert block["skip_ceiling"] == 72
+    assert block["skip_ceiling"] == 98
     assert block["measured"]["measured_on_a_github_runner"] is True
     provenance = json.dumps(block)
     assert "CityFlow" in provenance
@@ -696,8 +717,13 @@ def test_committed_baseline_records_why_the_ceiling_has_the_value_it_has() -> No
 
     # A superseded measurement is kept, not deleted: the reason a number moved is part of
     # the number.  This is an addition to the test, not a relaxation of it.
-    assert block["measured"]["superseded"]["value"] == 62
+    assert block["measured"]["superseded"]["value"] == 72
     assert block["measured"]["superseded"]["why_it_was_wrong"].strip()
+    # The chain stays pinned to its root: 98 supersedes 72 supersedes 62.  Pinning only the most
+    # recent link would let the original defect -- the simulated 62 -- drop out of the record
+    # silently the next time the ceiling moves.
+    assert block["measured"]["superseded"]["its_own_superseded"]["value"] == 62
+    assert block["measured"]["superseded"]["its_own_superseded"]["why_it_was_wrong"].strip()
 
 
 # --------------------------------------------------------------------------------------
