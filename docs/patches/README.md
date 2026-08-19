@@ -1,5 +1,68 @@
 # Patches a Claude Code session cannot apply itself
 
+## `ci_gate_baseline_pins.patch` — DEFERRED 54, the four baseline pins (blocking CI)
+
+**Apply with:**
+```bash
+git apply docs/patches/ci_gate_baseline_pins.patch      # on main
+.venv/bin/pytest tests/test_ci_gate.py -q               # 34 pass once applied
+```
+Verified 2026-08-19 with `git apply --check` against `tests/test_ci_gate.py` at blob
+`3d3b3559`, which is **byte-identical on `main` and on `task/p5.2-tier-sweep`** (`sha256`
+compared directly, and `git diff HEAD main -- tests/test_ci_gate.py` is empty) — so the check run
+in the branch worktree is a check against `main`'s bytes. 105 lines, six hunks: four literals and
+two docstrings.
+
+**Why it is a patch and not a commit, and this one is unusual — it is not a permission problem.**
+`tests/` is not frozen and not deny-listed; a session can edit it. **The reason is that the change
+is correct on `main` and WRONG on the branch it would have been committed from.** `96e12f8` moved
+`.github/ci/ci_baseline.json` on `main` (English total 5 → 4, skip ceiling 72 → 98, superseded
+62 → 72 nesting the old 62) and did not move the second copy of those constants in
+`tests/test_ci_gate.py`. `task/p5.2-tier-sweep` does not have `96e12f8`, so it still carries the
+old baseline. Measured both ways:
+
+| test file | baseline it reads | result |
+|---|---|---|
+| patched | `main`'s (4 / 98 / 72 / 62) | **34 passed** |
+| patched | the branch's (5 / 72 / 62) | **2 failed, 32 passed** |
+| unpatched | the branch's | 34 passed |
+
+Committing it on the branch would have left that branch red for the ~50 h of P5.2's campaign, and
+P5.2's Definition of Done requires a green suite. **Coordinator ruling, 2026-08-19: land it on
+`main` only.**
+
+⚠️ **The alternative — copying `main`'s `ci_baseline.json` onto the branch to make it green — was
+offered and REFUSED, and the refusal is upheld in the record:** the branch's tree measures **6**
+English hits, not `main`'s 4, because the branch also lacks `a060fa3`'s `ALLOWED_NAMES` patch. That
+would have committed *a measurement that does not describe the tree it sits in* — the exact class of
+error this file exists to catch.
+
+**What the four changes are, and why one is a DELETION.**
+1. `english["total"]` **5 → 4** — `Mikolaj` joined `ALLOWED_NAMES`.
+2. `assert "P5.1" in expiry["event"]` — **DELETED, not updated.** The completeness loop immediately
+   above already asserts `event`, `reason` and `mandated_by` are each non-empty, so the load-bearing
+   check survives; the two number pins still force an edit to this file at every expiry move, so the
+   speed bump survives. **The two numbers are the loosenable quantities; the event is a POINTER and
+   cannot be widened.** Pinning it fires at every *correct* retarget — it fired when P5.1's merge
+   properly moved the mandate to P5.2, and would fire again at P5.3 — which is the class this repo
+   refuses: *a check that condemns correct artifacts teaches the reader to ignore it.*
+3. `block["skip_ceiling"]` **72 → 98**.
+4. `superseded["value"]` **62 → 72**, plus a new `its_own_superseded["value"] == 62` and its
+   `why_it_was_wrong`, so the chain **98 → 72 → 62** stays pinned to its root rather than losing the
+   original defect at the next move.
+
+🚨 **FOUR changes and not the three the failures show, and the docstrings now say so, because the
+next person to move the ceiling hits this same wall: assertions after the first failure in a test
+never run**, so a run reporting three failures can still be hiding a fourth.
+
+**Tested before shipping, not after, and the scratch tree was proved to be the one under test.**
+`main`'s `test_ci_gate.py`, `ci_baseline.json`, `ci_gate.py` and `ci.yml` were copied to
+`/tmp/mainchk`, the patch applied there with `patch -p1`, and the file run: **34 passed**.
+⚠️ The README's own warning applies — a scratch copy can go green against the wrong file — so the
+scratch baseline was then perturbed (`skip_ceiling` → 999) and the run went **red on exactly the
+ceiling test**, and green again on restore. The branch worktree was untouched throughout
+(`git diff --quiet -- tests/test_ci_gate.py`).
+
 ## `mappo_metric_keys_guard.patch` — make contract C8 mechanical (AUTHORISATION C)
 
 **Apply with:**
