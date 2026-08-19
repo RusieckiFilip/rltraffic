@@ -782,6 +782,22 @@ exact-equality bar — which is true.** The stronger reading is that the *point*
 it took a sweep of the whole ramp to see it. **A margin reported at one point is evidence about that
 point; only a sweep says whether a better point existed.**
 
+**EVERY REPORTED SUITE RUN STATES ITS CORPUS ENVIRONMENT AND ITS SKIP COUNT (added 2026-08-19, after the coordinator nearly reported a non-defect).**
+Running P5.2's suite from the task worktree I measured **1217 passed, 55 skipped** against the
+implementer's **1256 passed, 3 skipped**, and began chasing a 52-test skip increase as a branch defect.
+**It was my invocation.** The corpus lives in the main tree, and 52 corpus-backed tests self-skip unless
+`RLTRAFFIC_CORPUS_V11` (and `RLTRAFFIC_CORPUS`) point at it — 14 `test_joint_windows`, 12
+`test_spatial_mixing`, 12 `test_mixture_tiers`, 7+1 `test_offline_dataset_corpus`, 4
+`test_method_tier_grid`, 2 `test_rtg_calibration`. With the variables set: **1269 passed, 3 skipped.**
+> ⚠️ **The hazard is not the skipping — it is that the tests which self-skip are EXACTLY the ones that
+> would catch a corpus-facing defect, and their absence is invisible in a green summary line.** §7's
+> *verify by EFFECT not by STATUS* already names *"a green suite whose corpus tests all skipped"*; this
+> is that instance, live, and it caught the person enforcing the rule.
+> **Binding, and it is the shape `DEFERRED` 41 already uses for the thread pin: every reported suite
+> run states (a) whether the corpus environment was set, (b) the skip count, and (c) the pin.** A bare
+> *"1217 passed"* from a worktree is not comparable with a *"1256 passed"* from the main tree, and the
+> difference is 52 tests that certify the corpus.
+
 **A CHECK THAT REPORTS BY PRINTING IS NOT A CHECK, AND IT MUST CARRY A POSITIVE CONTROL PROVING IT LOOKED (added 2026-08-18, proposed by the user, and the instance that earned it was the coordinator's, committed the same hour).**
 §7 already says *verify by EFFECT, not by STATUS*. This is the sibling failure: a verification whose
 failure mode is **printing a line** delegates the verdict to whoever reads the output, and **silence

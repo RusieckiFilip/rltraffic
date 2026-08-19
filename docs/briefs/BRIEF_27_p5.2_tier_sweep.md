@@ -555,6 +555,25 @@ attribution to seeds, while a second mechanism now has demonstrated existence an
 > averages the seeds away*), it is `P8.1`'s registered work, and **it must be reported beside the
 > per-seed spread `{101: +1.03 … 202: +72.07}`, 70×.**
 
+### F7 🔒 E1 REPORTS A PAIRED CI, NOT TWO NUMBERS — added 2026-08-19, after obligation 6 discharged
+
+E1 is currently specified as *"compare the replicated `d1(202)` against +72.07"*. **Two point estimates
+cannot be judged: `72.07` against `68.5` and `72.07` against `20.1` look the same on the page until the
+per-draw scatter is known.**
+> **REQUIRED: report the PAIRED PER-DRAW difference between the replicate and P5.1's own seed-202
+> cells, over the shared draw ids, with `mean_ci95` — for `dt_spatial`, for `dt_nomix`, and for `d1`
+> — and state for each whether the interval excludes zero.** ✅ **The data exists and I verified it
+> today: `output/p5_1/eval_dt_spatial.json` and `eval_dt_nomix.json` carry 100 seed-202 episodes each,
+> keyed by `draw_id` and `seed`, so this is arithmetic over committed data and costs no compute.**
+> 🚨 **If the arm-level interval excludes zero, two independent training runs of THE SAME CODE AT THE
+> SAME SEED produced measurably different policies. That is the finding, and it is reported as one.**
+
+⭐ **AND THE ATTRIBUTION IS NOW CLEAN, WHICH IS OBLIGATION 6'S RETURN ON ITS OWN COST.** Because the new
+trainer reproduces `train_spatial_dt` **byte-exactly at one head on CPU** — identical loss sequence, all
+66 tensors — **any difference E1 measures on CUDA is attributable to DEVICE NONDETERMINISM ALONE and
+not to the trainer change.** Without obligation 6 the two explanations would be inseparable and E1
+would be uninterpretable. **State this in E1's write-up: it is what makes the number mean anything.**
+
 ### F6 ⚠️ TWO TECHNICAL CAVEATS ON `deterministic: bool`, so a late failure does not kill a campaign
 
 **(a) It is NOT a per-call parameter underneath.** `torch.use_deterministic_algorithms(True)` is
@@ -704,6 +723,9 @@ seven-tier sweep is not affordable in the September window.
 - [ ] **F6** — `deterministic: bool` acts at **process entry** with `CUBLAS_WORKSPACE_CONFIG` exported by
       the script; if (c) is chosen, determinism is proved for **every arm and the evaluation path** in
       Gate 0, not just the two DT arms
+- [ ] **F7** — E1 reports the **paired per-draw CI** of (replicate − P5.1) for `dt_spatial`, `dt_nomix`
+      and `d1`, each with whether it excludes zero, and states that obligation 6's CPU byte-identity is
+      what attributes any difference to the device rather than to the trainer
 - [ ] Every ordering with its per-seed count **and** range, **emitted by the generator**
 - [ ] `DEFERRED` 37's mutation executed, failure pasted; every mutation's failure pasted
 - [ ] Campaign in a **user-launched `tmux`**; **no `until`-poll**; `mkdir -p` before `tee`, and the
