@@ -1171,6 +1171,74 @@ def test_the_reuse_gate_covers_all_seven_reused_cells_by_default() -> None:
 
 
 # ----------------------------------------------------------------------
+# G2 -- E1 must run in P5.1's exact environment.
+# ----------------------------------------------------------------------
+
+CAMPAIGN_PATH = REPO_ROOT / "offline" / "campaigns" / "p5_2.sh"
+
+
+def test_the_campaign_never_exports_the_cublas_variable_unconditionally() -> None:
+    """G2: the variable is part of the determinism recipe, not a neutral setting.
+
+    An earlier version of the script exported it at top level, commented ``harmless in the default
+    regime``.  E1 measures the run-to-run envelope OF THE REGIME P5.1 RAN IN, and P5.1 exported
+    OMP and MKL only -- so a replicate carrying it would conflate the noise being measured with a
+    systematic effect of the cuBLAS configuration.  This test is why that cannot come back.
+    """
+    lines = CAMPAIGN_PATH.read_text(encoding="utf-8").splitlines()
+    top_level_exports = [
+        line for line in lines
+        if line.startswith("export CUBLAS_WORKSPACE_CONFIG")
+    ]
+    assert top_level_exports == [], (
+        f"the campaign exports CUBLAS_WORKSPACE_CONFIG unconditionally: {top_level_exports}"
+    )
+
+
+def test_the_campaign_actively_unsets_the_variable_in_the_default_regime() -> None:
+    """G2: not setting it is not enough -- the launcher's own shell may already carry it."""
+    text = CAMPAIGN_PATH.read_text(encoding="utf-8")
+    assert "unset CUBLAS_WORKSPACE_CONFIG" in text, (
+        "the default branch must UNSET the variable, because inheriting it from the launching "
+        "shell is how E1 would silently run in a regime P5.1 never ran in"
+    )
+
+
+def test_the_campaign_sets_the_variable_only_inside_the_deterministic_branch() -> None:
+    """G2: it is still required for the deterministic regime (F6a); only the default one drops it."""
+    lines = CAMPAIGN_PATH.read_text(encoding="utf-8").splitlines()
+    setters = [
+        (i, line) for i, line in enumerate(lines)
+        if "export CUBLAS_WORKSPACE_CONFIG=" in line and not line.lstrip().startswith("#")
+    ]
+    assert len(setters) == 1, f"expected exactly one setter, found {setters}"
+    index, line = setters[0]
+    assert line.startswith("  "), "the setter must be indented inside the deterministic branch"
+    preceding = "\n".join(lines[max(0, index - 4):index])
+    assert "DETERMINISTIC" in preceding, (
+        f"the setter is not guarded by the deterministic branch; preceding lines:\n{preceding}"
+    )
+
+
+def test_the_launch_header_does_not_instruct_exporting_the_variable() -> None:
+    """G2: the launch block is copied and pasted, so an instruction there is as binding as code.
+
+    Matches a commented shell ASSIGNMENT (``#   export CUBLAS_WORKSPACE_CONFIG=...``) rather than
+    the bare name: the header also carries a sentence FORBIDDING the export, and an earlier version
+    of this test flagged that sentence as the very thing it prohibits.  Requiring the ``=`` is what
+    separates an instruction from a prohibition.
+    """
+    import re
+
+    header = CAMPAIGN_PATH.read_text(encoding="utf-8").splitlines()[:40]
+    instructions = [
+        line for line in header
+        if re.match(r"^#\s+export\s+CUBLAS_WORKSPACE_CONFIG\s*=", line)
+    ]
+    assert instructions == [], f"the launch block instructs the export: {instructions}"
+
+
+# ----------------------------------------------------------------------
 # The declarations, checked against the plan and against the corpus.
 # ----------------------------------------------------------------------
 

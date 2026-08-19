@@ -5,7 +5,6 @@
 # =====================================================================================
 #   tmux new -s p52
 #   export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
-#   export CUBLAS_WORKSPACE_CONFIG=:4096:8          # <-- REQUIRED BEFORE ANY PYTHON STARTS
 #   mkdir -p /home/filip/rltraffic-p52/output/p5_2/logs      # <-- REQUIRED BEFORE THE PIPE
 #   bash /home/filip/rltraffic-p52/offline/campaigns/p5_2.sh 2>&1 | tee \
 #        /home/filip/rltraffic-p52/output/p5_2/logs/campaign.log
@@ -16,11 +15,13 @@
 # this project a log TWICE -- P4.7 on 2026-08-15 and P5.1 on 2026-08-17 -- and both were recovered
 # only from the tmux pane afterwards.  This script also never clears the log directory afterwards.
 #
-# ⚠️ THE CUBLAS_WORKSPACE_CONFIG LINE IS ALSO NOT DECORATION (BRIEF_27 F6a).  cuBLAS reads it when
-# the CUDA context is created, so it must be exported before Python starts.  `--deterministic`
-# REFUSES rather than proceeding when it is unset, because a flag that silently fails to take
-# effect produces a run that BELIEVES it is reproducible and is not.  Exporting it always is
-# harmless in the default regime and is what makes the deterministic one available.
+# ⚠️ DO NOT export CUBLAS_WORKSPACE_CONFIG in the launch shell.  E1 measures the envelope of the
+# regime P5.1 ran in, and P5.1 exported OMP and MKL only.  This script sets the variable ONLY under
+# P52_DETERMINISTIC=1 and actively UNSETS it otherwise, so a launcher whose shell happens to carry
+# it cannot silently move E1 into a different environment (BRIEF_27 G2).  F6(a) still holds for the
+# deterministic regime: `--deterministic` REFUSES rather than proceeding when the variable is
+# absent, because a flag that silently fails to take effect produces a run that BELIEVES it is
+# reproducible and is not.
 #
 # BRIEF_17 section 12: the implementer writes this script, the USER launches it, and the
 # implementer never sleep-polls it.  ⚠️ NO `until`-POLL ANYWHERE, deliberately: `pgrep -f` matches
@@ -70,10 +71,24 @@ TIER=mappo1000
 
 export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
-# F6(a): exported HERE as well as in the launch header, because each $PY call below is a fresh
-# process and cuBLAS reads this when that process creates its CUDA context.  Harmless in the
-# default regime; it is what makes the deterministic regime available without relaunching.
-export CUBLAS_WORKSPACE_CONFIG=${CUBLAS_WORKSPACE_CONFIG:-:4096:8}
+
+# 🚨 CUBLAS_WORKSPACE_CONFIG IS SET ONLY UNDER --deterministic (BRIEF_27 G2).  An earlier version of
+# this script exported it unconditionally, commented "harmless in the default regime".  It is not
+# neutral -- it is part of the determinism recipe, constraining cuBLAS workspace and thereby GEMM
+# kernel selection between runs.  E1 exists to measure the run-to-run envelope OF THE REGIME P5.1
+# RAN IN, and P5.1 exported OMP and MKL only (verified: offline/campaigns/p5_1.sh lines 90-91, and
+# CUBLAS appears nowhere else on main).  A replicate carrying a variable P5.1 lacked would conflate
+# the noise being measured with a systematic effect of the cuBLAS configuration.
+#
+# The default branch UNSETS it rather than merely not setting it, because the launcher's own shell
+# may carry it: E1 must reproduce P5.1's environment exactly, and inheriting is how it would fail
+# to, silently.
+DETERMINISTIC=${P52_DETERMINISTIC:-0}
+if [ "$DETERMINISTIC" = "1" ]; then
+  export CUBLAS_WORKSPACE_CONFIG=:4096:8
+else
+  unset CUBLAS_WORKSPACE_CONFIG
+fi
 
 COMMON=(--corpus-root "$CORPUS"
         --draws-root "$ROOT/scenarios/draws"
@@ -100,7 +115,12 @@ if [ "$STEPS" -ne 40000 ]; then
 fi
 say "P5.2 campaign starting; pin OMP=$OMP_NUM_THREADS MKL=$MKL_NUM_THREADS"
 say "work dir: $WORK   out dir: $OUT   tier: $TIER   E1 seed: $E1_SEED"
-say "regime: DEFAULT CUDA (E1 measures the envelope of the regime P5.1 ran in)"
+if [ "$DETERMINISTIC" = "1" ]; then
+  say "regime: DETERMINISTIC (CUBLAS_WORKSPACE_CONFIG=$CUBLAS_WORKSPACE_CONFIG)"
+  COMMON+=(--deterministic)
+else
+  say "regime: DEFAULT CUDA, CUBLAS_WORKSPACE_CONFIG unset -- P5.1's exact environment (G2)"
+fi
 
 # -------------------------------------------------------------------------------------
 # GATE 0 -- preconditions.  Each is a refusal, not a warning, and each costs seconds.
@@ -135,6 +155,34 @@ for label, path in (("--work-dir", work), ("--out-dir", out)):
 print(f"read-only guard: {reuse} is protected; work and out directories are outside it")
 PYEOF
 say "read-only path check passed"
+
+# G2 at launch: the regime E1 runs in must be P5.1's, and it is asserted in the CHILD process --
+# where it matters -- rather than in this shell.
+$PY - "$DETERMINISTIC" <<'PYEOF'
+import os
+import sys
+
+import torch
+
+wanted_deterministic = sys.argv[1] == "1"
+configured = os.environ.get("CUBLAS_WORKSPACE_CONFIG")
+if wanted_deterministic:
+    if configured != ":4096:8":
+        sys.exit(f"FATAL: deterministic regime requested but CUBLAS_WORKSPACE_CONFIG={configured!r}")
+else:
+    if configured is not None:
+        sys.exit(
+            f"FATAL: CUBLAS_WORKSPACE_CONFIG={configured!r} leaked into the DEFAULT regime. E1 must "
+            "reproduce P5.1's environment exactly, and P5.1 exported OMP and MKL only. Unset it."
+        )
+    if torch.are_deterministic_algorithms_enabled():
+        sys.exit("FATAL: deterministic algorithms are on in the default regime")
+print(
+    f"regime check: CUBLAS_WORKSPACE_CONFIG={configured!r}, "
+    f"deterministic_algorithms={torch.are_deterministic_algorithms_enabled()}"
+)
+PYEOF
+say "regime check passed (E1 runs in P5.1's environment: OMP and MKL only)"
 
 DRAWS=$(find "$ROOT/scenarios/draws/cityflow_grid4x4" -maxdepth 1 -type d -name 'draw_10??' 2>/dev/null | wc -l)
 if [ "$DRAWS" -ne 100 ]; then
