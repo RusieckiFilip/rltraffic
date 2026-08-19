@@ -1,0 +1,850 @@
+"""Tests for ``offline.tier_sweep`` -- P5.2's tier sweep and head-count 2x2.
+
+Written BEFORE the implementation, against a signature-only skeleton, so each test fails for its
+own reason rather than sharing one import error.  The obligations these discharge are numbered in
+``docs/plans/p5.2.md`` section 6; the number is named in each test's docstring so a reader can go
+from a failure to the requirement that asked for it.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import math
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+import pytest
+
+from offline import tier_sweep as ts
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+PLAN_PATH = REPO_ROOT / "docs" / "plans" / "p5.2.md"
+
+
+# ----------------------------------------------------------------------
+# Obligation 11(a) -- output/p5_1/ is read-only, enforced in code.
+# A STRING comparison passes three of these four evasions.
+# ----------------------------------------------------------------------
+
+
+def test_assert_writable_refuses_the_protected_root_given_absolutely(tmp_path: Path) -> None:
+    """Obligation 11(a): the plain case, given as an absolute path."""
+    protected = ts.protected_roots_from([tmp_path / "p5_1"])
+    (tmp_path / "p5_1").mkdir()
+    with pytest.raises(PermissionError, match="read-only"):
+        ts.assert_writable(tmp_path / "p5_1" / "eval_bc.json", protected)
+
+
+def test_assert_writable_refuses_a_relative_path_into_the_protected_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Obligation 11(a): a relative path resolves against the cwd and must still be caught."""
+    (tmp_path / "p5_1").mkdir()
+    protected = ts.protected_roots_from([tmp_path / "p5_1"])
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(PermissionError, match="read-only"):
+        ts.assert_writable(Path("p5_1") / "eval_bc.json", protected)
+
+
+def test_assert_writable_refuses_a_dotdot_traversal_that_lands_inside(tmp_path: Path) -> None:
+    """Obligation 11(a): ``work/../p5_1/x`` is textually different and resolves inside."""
+    (tmp_path / "p5_1").mkdir()
+    (tmp_path / "work").mkdir()
+    protected = ts.protected_roots_from([tmp_path / "p5_1"])
+    with pytest.raises(PermissionError, match="read-only"):
+        ts.assert_writable(tmp_path / "work" / ".." / "p5_1" / "eval_bc.json", protected)
+
+
+def test_assert_writable_refuses_a_symlink_pointing_into_the_protected_root(
+    tmp_path: Path,
+) -> None:
+    """Obligation 11(a): the evasion a textual check cannot see at all."""
+    (tmp_path / "p5_1").mkdir()
+    (tmp_path / "work").mkdir()
+    (tmp_path / "work" / "link").symlink_to(tmp_path / "p5_1", target_is_directory=True)
+    protected = ts.protected_roots_from([tmp_path / "p5_1"])
+    with pytest.raises(PermissionError, match="read-only"):
+        ts.assert_writable(tmp_path / "work" / "link" / "eval_bc.json", protected)
+
+
+def test_assert_writable_accepts_a_path_outside_the_protected_root(tmp_path: Path) -> None:
+    """Obligation 11(a)'s ACCEPT CONTROL: a guard that refuses everything is not a guard.
+
+    Without this, all four refusals above are satisfied by ``raise PermissionError`` on line one.
+    """
+    (tmp_path / "p5_1").mkdir()
+    (tmp_path / "p5_2").mkdir()
+    protected = ts.protected_roots_from([tmp_path / "p5_1"])
+    resolved = ts.assert_writable(tmp_path / "p5_2" / "eval_bc.json", protected)
+    assert resolved == (tmp_path / "p5_2" / "eval_bc.json").resolve()
+
+
+def test_assert_writable_refuses_the_protected_root_itself_not_only_children(
+    tmp_path: Path,
+) -> None:
+    """Obligation 11(a): ``rmtree(root)`` is the deletion that would cost the most."""
+    (tmp_path / "p5_1").mkdir()
+    protected = ts.protected_roots_from([tmp_path / "p5_1"])
+    with pytest.raises(PermissionError, match="read-only"):
+        ts.assert_writable(tmp_path / "p5_1", protected)
+
+
+def test_a_sibling_whose_name_merely_starts_with_the_root_is_not_protected(
+    tmp_path: Path,
+) -> None:
+    """Obligation 11(a): ``p5_1_backup`` must NOT be caught by a prefix test on the string."""
+    (tmp_path / "p5_1").mkdir()
+    (tmp_path / "p5_1_backup").mkdir()
+    protected = ts.protected_roots_from([tmp_path / "p5_1"])
+    resolved = ts.assert_writable(tmp_path / "p5_1_backup" / "x.json", protected)
+    assert resolved.name == "x.json"
+
+
+# ----------------------------------------------------------------------
+# Obligation 11(b) -- a refused write creates nothing.
+# ----------------------------------------------------------------------
+
+
+def _tree(root: Path) -> set[str]:
+    """Every path under *root*, relative and sorted -- the exact set, never a count."""
+    return {str(p.relative_to(root)) for p in root.rglob("*")}
+
+
+def test_a_refused_write_creates_no_file_and_no_directory(tmp_path: Path) -> None:
+    """Obligation 11(b): the filesystem-mutation barrier, asserted on the exact file set."""
+    (tmp_path / "p5_1").mkdir()
+    protected = ts.protected_roots_from([tmp_path / "p5_1"])
+    before = _tree(tmp_path)
+    with pytest.raises(PermissionError, match="read-only"):
+        ts.write_json_guarded({"a": 1}, tmp_path / "p5_1" / "deep" / "x.json", protected)
+    assert _tree(tmp_path) == before
+
+
+def test_write_json_guarded_writes_when_the_path_is_allowed(tmp_path: Path) -> None:
+    """The accept control for obligation 11(b), and it pins the payload round-trip."""
+    (tmp_path / "p5_1").mkdir()
+    protected = ts.protected_roots_from([tmp_path / "p5_1"])
+    destination = tmp_path / "out.json"
+    ts.write_json_guarded({"a": 1, "b": [2, 3]}, destination, protected)
+    assert json.loads(destination.read_text(encoding="utf-8")) == {"a": 1, "b": [2, 3]}
+
+
+def test_replace_guarded_refuses_to_move_onto_a_protected_destination(tmp_path: Path) -> None:
+    """Obligation 11(b): a move is a write AND a delete; the destination is guarded too."""
+    (tmp_path / "p5_1").mkdir()
+    source = tmp_path / "new.json"
+    source.write_text("{}", encoding="utf-8")
+    victim = tmp_path / "p5_1" / "eval_bc.json"
+    victim.write_text('{"cell": "the only copy"}', encoding="utf-8")
+    protected = ts.protected_roots_from([tmp_path / "p5_1"])
+    with pytest.raises(PermissionError, match="read-only"):
+        ts.replace_guarded(source, victim, protected)
+    assert victim.read_text(encoding="utf-8") == '{"cell": "the only copy"}'
+    assert source.exists()
+
+
+# ----------------------------------------------------------------------
+# Obligation 11(c) -- a half-written cell is never mistaken for a complete one.
+# ----------------------------------------------------------------------
+
+
+def _cell_payload(
+    *, seeds: tuple[int, ...], draws: tuple[int, ...], steps: int = 40_000, method: str = "bc"
+) -> dict[str, Any]:
+    return {
+        "method": method,
+        "declared_gradient_steps": steps,
+        "episodes": [
+            {"seed": s, "draw_id": d, "att_horizon": 100.0 + d, "horizon_vehicle_count": 1.0,
+             "episode_reward": -1.0, "arm": f"{method}@t"}
+            for s in seeds
+            for d in draws
+        ],
+    }
+
+
+def test_a_complete_cell_is_complete() -> None:
+    """Obligation 11(c)'s accept control."""
+    payload = _cell_payload(seeds=(101, 202), draws=(1000, 1001))
+    assert ts.cell_is_complete(
+        payload, seeds=(101, 202), draws=(1000, 1001), declared_steps=40_000, method="bc"
+    )
+
+
+def test_a_cell_missing_one_episode_is_not_complete() -> None:
+    """Obligation 11(c): the crash case -- a truncated cell must not be resumed over."""
+    payload = _cell_payload(seeds=(101, 202), draws=(1000, 1001))
+    payload["episodes"].pop()
+    assert not ts.cell_is_complete(
+        payload, seeds=(101, 202), draws=(1000, 1001), declared_steps=40_000, method="bc"
+    )
+
+
+def test_a_cell_at_the_wrong_budget_is_not_complete() -> None:
+    """Obligation 11(c): a rehearsal at 3 steps may not be resumed into a reported cell."""
+    payload = _cell_payload(seeds=(101,), draws=(1000,), steps=3)
+    assert not ts.cell_is_complete(
+        payload, seeds=(101,), draws=(1000,), declared_steps=40_000, method="bc"
+    )
+
+
+def test_a_cell_of_the_wrong_arm_is_not_complete() -> None:
+    """Obligation 11(c): the arms are weight-compatible, so nothing else would catch a swap."""
+    payload = _cell_payload(seeds=(101,), draws=(1000,), method="bc")
+    assert not ts.cell_is_complete(
+        payload, seeds=(101,), draws=(1000,), declared_steps=40_000, method="iql"
+    )
+
+
+def test_a_duplicated_episode_does_not_make_a_short_cell_look_complete() -> None:
+    """Obligation 11(c): completeness is a SET identity, not a count -- a count is fooled here."""
+    payload = _cell_payload(seeds=(101,), draws=(1000, 1001))
+    payload["episodes"][1] = dict(payload["episodes"][0])
+    assert not ts.cell_is_complete(
+        payload, seeds=(101,), draws=(1000, 1001), declared_steps=40_000, method="bc"
+    )
+
+
+# ----------------------------------------------------------------------
+# Obligation 6b (C2 / D2) -- the schedule the campaign actually runs.
+# ----------------------------------------------------------------------
+
+
+def test_warmup_is_a_function_of_the_budget() -> None:
+    """Obligation 6b: warmup is ``min(1000, total // 2)``, so a short run has its own boundary."""
+    assert (ts.warmup_for(100), ts.warmup_for(500), ts.warmup_for(40_000)) == (50, 250, 1000)
+
+
+def test_the_lr_multiplier_matches_the_registered_probe_exactly() -> None:
+    """Obligation 6b: the values pinned in the plan, at the budget the campaign runs.
+
+    ``==`` and not ``approx``: these are the registered numbers, and D2's cosine margin at step 500
+    is 5.7e-4, which any tolerance worth writing would swallow.
+    """
+    warmup = ts.warmup_for(40_000)
+    measured = tuple(ts.lr_multiplier(step, warmup) for step in ts.LR_PROBE_STEPS)
+    assert measured == ts.LR_PROBE_EXPECTED
+
+
+def test_step_249_separates_the_ramp_shapes_and_step_499_does_not() -> None:
+    """D2-CORRECTED: the discriminating power of the probe point, measured rather than asserted.
+
+    The midpoint of a monotone ramp is where endpoint-matched shapes cross, so it is the LEAST
+    informative interior point.  This test is why step 249 is in the probe and step 499 is not.
+    """
+    warmup = ts.warmup_for(40_000)
+
+    def cosine(step: int) -> float:
+        return 0.5 * (1.0 - math.cos(math.pi * min(1.0, (step + 1) / warmup)))
+
+    gap_at_249 = abs(cosine(249) - ts.lr_multiplier(249, warmup))
+    gap_at_499 = abs(cosine(499) - ts.lr_multiplier(499, warmup))
+    assert gap_at_499 < 1e-15
+    assert gap_at_249 > 0.1
+    assert gap_at_249 / max(gap_at_499, 1e-300) > 1e13
+
+
+def test_249_is_in_the_probe_and_the_blind_midpoint_is_not() -> None:
+    """D2-CORRECTED: the probe set itself, so a later edit cannot quietly drop the sharp point."""
+    assert 249 in ts.LR_PROBE_STEPS
+    assert 499 not in ts.LR_PROBE_STEPS
+    assert len(ts.LR_PROBE_STEPS) == len(ts.LR_PROBE_EXPECTED)
+
+
+def test_the_old_trainer_builds_the_same_schedule_at_the_campaign_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Obligation 6b: OLD vs NEW agreement, on the real lambda, at ``total = 40,000``.
+
+    The old trainer's ramp lives in a closure inside ``train_spatial_dt``.  It is captured by
+    intercepting the ``LambdaLR`` the trainer constructs and aborting before the first gradient
+    step -- so this exercises the real code path at the real budget and trains nothing.  Reading
+    the formula out of the source text instead would be the ``inspect.getsource`` theatre P5.1's
+    review rejected.
+    """
+    import torch
+
+    from offline import spatial_mixing as sm
+
+    captured: dict[str, Any] = {}
+
+    class _Abort(RuntimeError):
+        pass
+
+    def fake_lambda_lr(optimiser: Any, fn: Any) -> Any:
+        captured["fn"] = fn
+        raise _Abort("captured the schedule")
+
+    monkeypatch.setattr(torch.optim.lr_scheduler, "LambdaLR", fake_lambda_lr)
+    setup = _tiny_joint_setup()
+    with pytest.raises(_Abort, match="captured the schedule"):
+        sm.train_spatial_dt(
+            setup["stacked"],
+            setup["index"],
+            method="dt_nomix",
+            seed=101,
+            adjacency=setup["adjacency"],
+            prompts=setup["prompts"],
+            stats=setup["stats"],
+            state_dim=setup["state_dim"],
+            n_actions=setup["n_actions"],
+            gradient_steps=40_000,
+            batch_size=2,
+            device=torch.device("cpu"),
+            checkpoint_path=setup["checkpoint_path"],
+            provenance={},
+        )
+
+    old = captured["fn"]
+    warmup = ts.warmup_for(40_000)
+    for step in ts.LR_PROBE_STEPS:
+        assert old(step) == ts.lr_multiplier(step, warmup), f"schedules differ at step {step}"
+
+
+# ----------------------------------------------------------------------
+# Obligation 6 -- the fixture the equivalence run and the schedule capture share.
+# ----------------------------------------------------------------------
+
+
+def _tiny_joint_setup(n_nodes: int = 2, context: int = 3, state_dim: int = 4) -> dict[str, Any]:
+    """A minimal joint training setup: real dataclasses, synthetic tensors, two nodes."""
+    import torch
+
+    from offline.dataset import NormalizationStats
+    from offline.joint_windows import JointWindowIndex
+    from offline.roadnet_graph import AdjacencySpec
+    from offline.spatial_mixing import NodePrompt
+
+    n_actions = 3
+    n_windows = 4
+    rows = n_windows * n_nodes
+    node_ids = tuple(f"N{i}" for i in range(n_nodes))
+    generator = np.random.default_rng(7)
+    stacked = {
+        "state": torch.from_numpy(
+            generator.standard_normal((rows, context, state_dim)).astype(np.float32)
+        ),
+        "rtg": torch.from_numpy(
+            generator.standard_normal((rows, context, 1)).astype(np.float32)
+        ),
+        "action": torch.from_numpy(
+            generator.integers(0, n_actions, size=(rows, context)).astype(np.int64)
+        ),
+        "timestep": torch.from_numpy(
+            np.tile(np.arange(context, dtype=np.int64), (rows, 1))
+        ),
+        "attention_mask": torch.ones((rows, context), dtype=torch.bool),
+        "avail_mask": torch.ones((rows, context, n_actions), dtype=torch.bool),
+        "member_index": torch.from_numpy(
+            np.arange(rows, dtype=np.int64).reshape(n_windows, n_nodes)
+        ),
+    }
+    directed = np.zeros((n_nodes, n_nodes), dtype=np.bool_)
+    directed[0, 1] = True
+    adjacency = AdjacencySpec(
+        node_ids=node_ids,
+        directed=directed,
+        undirected=directed | directed.T,
+        roadnet_path="synthetic",
+        roadnet_sha256="0" * 64,
+    )
+    index = JointWindowIndex(
+        node_ids=node_ids,
+        member_index=np.arange(rows, dtype=np.int64).reshape(n_windows, n_nodes),
+        episode_index=np.zeros(n_windows, dtype=np.int64),
+        t=np.arange(n_windows, dtype=np.int64),
+        state_dim=state_dim,
+        n_actions=n_actions,
+    )
+    stats = NormalizationStats(
+        stats_version="test/1.0",
+        split="train",
+        draw_ids=(1,),
+        dataset_dirs=("synthetic",),
+        state_mean={},
+        state_std={},
+        row_count={},
+        rtg={},
+    )
+    prompts = {
+        node: NodePrompt(
+            ix_id=node, target_rtg=-1.0, rtg_scale=10.0, n_streams=1,
+            return_min=-2.0, return_max=-1.0,
+        )
+        for node in node_ids
+    }
+    import tempfile
+
+    directory = Path(tempfile.mkdtemp())
+    return {
+        "stacked": stacked,
+        "index": index,
+        "adjacency": adjacency,
+        "prompts": prompts,
+        "stats": stats,
+        "state_dim": state_dim,
+        "n_actions": n_actions,
+        "checkpoint_path": directory / "ckpt.pt",
+    }
+
+
+# ----------------------------------------------------------------------
+# B4 -- the size match.
+# ----------------------------------------------------------------------
+
+
+def _episodes(n_draws: int, per_draw: int) -> tuple[ts.EpisodeRef, ...]:
+    out = []
+    index = 0
+    for draw in range(1, n_draws + 1):
+        for copy in range(per_draw):
+            out.append(
+                ts.EpisodeRef(
+                    dataset_dir="d",
+                    episode_file=f"ep{index:06d}_seed{1000 + copy}_draw{draw}.npz",
+                    episode_index=index,
+                    flow_draw=draw,
+                )
+            )
+            index += 1
+    return tuple(out)
+
+
+def test_a_none_subsample_tier_keeps_every_episode() -> None:
+    """B4: only the ``random`` tier is subsampled; the others must pass through untouched."""
+    episodes = _episodes(n_draws=200, per_draw=1)
+    spec = ts.tier_spec("maxpressure")
+    assert ts.selected_episodes(spec, episodes) == episodes
+
+
+def test_the_size_match_is_asserted_on_EVERY_tier_not_only_the_subsampled_one() -> None:
+    """B4: a partial ``maxpressure`` tier must be refused exactly as a partial ``random`` one is.
+
+    Written after the first draft of this file let an un-subsampled tier through without a count
+    check, which would have accepted a truncated corpus silently.
+    """
+    spec = ts.tier_spec("maxpressure")
+    with pytest.raises(ValueError, match="200"):
+        ts.selected_episodes(spec, _episodes(n_draws=5, per_draw=1))
+
+
+def test_one_per_draw_keeps_exactly_one_episode_per_draw() -> None:
+    """B4: 400 -> 200 on the ``random`` tier, one per draw, so tiers are size-matched."""
+    episodes = _episodes(n_draws=200, per_draw=2)
+    spec = ts.tier_spec("random")
+    chosen = ts.selected_episodes(spec, episodes, rng=np.random.default_rng(1))
+    assert len(chosen) == 200
+    assert sorted(e.flow_draw for e in chosen) == list(range(1, 201))
+
+
+def test_one_per_draw_is_deterministic_given_the_declared_seed() -> None:
+    """B4: the selection is recorded in the artifact, so it must reproduce from the seed alone."""
+    episodes = _episodes(n_draws=200, per_draw=2)
+    spec = ts.tier_spec("random")
+    first = ts.selected_episodes(
+        spec, episodes, rng=np.random.default_rng(ts.RANDOM_SUBSAMPLE_RNG_SEED)
+    )
+    second = ts.selected_episodes(
+        spec, episodes, rng=np.random.default_rng(ts.RANDOM_SUBSAMPLE_RNG_SEED)
+    )
+    assert [e.key for e in first] == [e.key for e in second]
+
+
+def test_one_per_draw_does_not_depend_on_the_order_episodes_arrive_in() -> None:
+    """B4: selection must depend on the RNG and the ids, never on filesystem order."""
+    episodes = _episodes(n_draws=200, per_draw=2)
+    spec = ts.tier_spec("random")
+    forward = ts.selected_episodes(
+        spec, episodes, rng=np.random.default_rng(ts.RANDOM_SUBSAMPLE_RNG_SEED)
+    )
+    shuffled = list(episodes)
+    np.random.default_rng(99).shuffle(shuffled)
+    reversed_order = ts.selected_episodes(
+        spec, tuple(shuffled), rng=np.random.default_rng(ts.RANDOM_SUBSAMPLE_RNG_SEED)
+    )
+    assert [e.key for e in forward] == [e.key for e in reversed_order]
+
+
+def test_a_different_seed_selects_a_different_set_so_the_seed_is_load_bearing() -> None:
+    """B4's discriminating power: if any seed gave the same answer the record would be empty."""
+    episodes = _episodes(n_draws=200, per_draw=2)
+    spec = ts.tier_spec("random")
+    declared = ts.selected_episodes(
+        spec, episodes, rng=np.random.default_rng(ts.RANDOM_SUBSAMPLE_RNG_SEED)
+    )
+    other = ts.selected_episodes(spec, episodes, rng=np.random.default_rng(12345))
+    assert [e.key for e in declared] != [e.key for e in other]
+
+
+def test_a_tier_that_cannot_supply_its_declared_episode_count_is_refused() -> None:
+    """B4: a partial tier may not train -- the size match is asserted, not hoped for."""
+    episodes = _episodes(n_draws=3, per_draw=2)
+    spec = ts.tier_spec("random")
+    with pytest.raises(ValueError, match="200"):
+        ts.selected_episodes(spec, episodes, rng=np.random.default_rng(1))
+
+
+# ----------------------------------------------------------------------
+# The new arm -- per-intersection %BC.
+# ----------------------------------------------------------------------
+
+
+def _streams(per_node: int, nodes: tuple[str, ...], offsets: dict[str, float]) -> list[Any]:
+    from offline.offline_baselines import StreamReturn
+
+    out = []
+    for node in nodes:
+        for i in range(per_node):
+            out.append(
+                StreamReturn(
+                    dataset_dir="d",
+                    episode_file=f"ep{i:06d}.npz",
+                    ix_id=node,
+                    ix_index=nodes.index(node),
+                    episode_index=i,
+                    flow_draw=i + 1,
+                    group=(4, 3),
+                    total_return=offsets[node] - i,
+                )
+            )
+    return out
+
+
+def test_the_per_intersection_filter_keeps_the_same_decile_from_every_node() -> None:
+    """R2/R6's scope condition: the per-node filter must not be a load sorter.
+
+    The global filter on this fixture keeps 20 streams from ONE node, because ``A``'s returns
+    dominate ``B``'s.  The per-intersection filter must keep 10 from each.
+    """
+    nodes = ("A", "B")
+    streams = _streams(per_node=100, nodes=nodes, offsets={"A": 0.0, "B": -10_000.0})
+    kept = ts.per_intersection_top_streams(streams, fraction=0.10)
+    counts = {node: sum(1 for s in kept if s.ix_id == node) for node in nodes}
+    assert counts == {"A": 10, "B": 10}
+
+
+def test_the_per_intersection_filter_keeps_the_same_TOTAL_as_the_global_one() -> None:
+    """The two filter arms differ in WHICH streams they keep, not how many (``BRIEF_27`` C).
+
+    Equal totals are what makes the comparison controlled; a different training-set size would
+    confound the filter with the amount of data.
+    """
+    from offline.offline_baselines import TOP_RETURN_FRACTION
+
+    nodes = ("A", "B", "C", "D")
+    streams = _streams(
+        per_node=50, nodes=nodes, offsets={"A": 0.0, "B": -100.0, "C": -200.0, "D": -300.0}
+    )
+    kept = ts.per_intersection_top_streams(streams, fraction=TOP_RETURN_FRACTION)
+    expected_global = math.ceil(TOP_RETURN_FRACTION * len(streams))
+    assert len(kept) == expected_global
+
+
+def test_the_per_intersection_filter_takes_the_BEST_of_each_node() -> None:
+    """It is a top-decile filter within a node, not an arbitrary decile."""
+    nodes = ("A",)
+    streams = _streams(per_node=100, nodes=nodes, offsets={"A": 0.0})
+    kept = ts.per_intersection_top_streams(streams, fraction=0.10)
+    assert {s.total_return for s in kept} == {-float(i) for i in range(10)}
+
+
+def test_the_per_intersection_filter_is_deterministic_under_a_shuffle() -> None:
+    """Ties are broken by ``(dataset_dir, episode_file, ix_id)``, never by load order."""
+    nodes = ("A", "B")
+    streams = _streams(per_node=40, nodes=nodes, offsets={"A": 0.0, "B": 0.0})
+    for stream in streams:
+        object.__setattr__(stream, "total_return", -1.0)
+    shuffled = list(streams)
+    np.random.default_rng(3).shuffle(shuffled)
+    first = [s.key for s in ts.per_intersection_top_streams(streams, fraction=0.10)]
+    second = [s.key for s in ts.per_intersection_top_streams(shuffled, fraction=0.10)]
+    assert first == second
+
+
+def test_the_per_intersection_filter_refuses_a_fraction_outside_the_unit_interval() -> None:
+    """Mirrors ``top_return_streams``' own refusal rather than inventing a second convention."""
+    streams = _streams(per_node=10, nodes=("A",), offsets={"A": 0.0})
+    with pytest.raises(ValueError, match="fraction"):
+        ts.per_intersection_top_streams(streams, fraction=0.0)
+
+
+# ----------------------------------------------------------------------
+# B3 -- the reuse gate.
+# ----------------------------------------------------------------------
+
+
+def test_sha256_of_matches_hashlib_on_the_same_bytes(tmp_path: Path) -> None:
+    """B3(a): the digest is recomputed by an independent route in the test."""
+    target = tmp_path / "x.json"
+    payload = b'{"cell": 1}\n'
+    target.write_bytes(payload)
+    assert ts.sha256_of(target) == hashlib.sha256(payload).hexdigest()
+
+
+def test_parse_sha256sums_reads_the_manifest_format_the_repo_actually_uses() -> None:
+    """B3(a): parsed against the real two-space format ``sha256sum`` writes."""
+    text = "aa11  p5_1/eval_bc.json\nbb22  p5_1/checkpoints/x.pt\n"
+    assert ts.parse_sha256sums(text) == {
+        "p5_1/eval_bc.json": "aa11",
+        "p5_1/checkpoints/x.pt": "bb22",
+    }
+
+
+def test_a_reused_cell_whose_digest_changed_is_refused_at_consumption(tmp_path: Path) -> None:
+    """B3(a): a digest checked once is not a digest checked when used."""
+    target = tmp_path / "eval_bc.json"
+    target.write_bytes(b"original")
+    good = hashlib.sha256(b"original").hexdigest()
+    assert ts.assert_reused_digest(target, good) == good
+    target.write_bytes(b"tampered")
+    with pytest.raises(ValueError, match="digest"):
+        ts.assert_reused_digest(target, good)
+
+
+def test_identical_cells_compare_equal_and_report_what_they_compared() -> None:
+    """B3(b)'s accept control, and it pins the non-empty count in the returned record."""
+    payload = _cell_payload(seeds=(101, 202), draws=(1000, 1001))
+    report = ts.assert_cells_identical(payload, json.loads(json.dumps(payload)), expected_n=4)
+    assert report["n_compared"] == 4
+
+
+def test_the_equality_check_refuses_a_set_that_is_not_exactly_the_expected_size() -> None:
+    """B3(b): ``found no differences`` may never be ``compared nothing``.
+
+    Two EMPTY cells are trivially equal; without this assertion the gate passes on them.
+    """
+    empty = {"method": "random", "declared_gradient_steps": 40_000, "episodes": []}
+    with pytest.raises(ValueError, match="exactly 500"):
+        ts.assert_cells_identical(empty, empty, expected_n=500)
+
+
+def test_the_equality_check_fires_on_a_single_perturbed_episode() -> None:
+    """B3(b)'s POSITIVE CONTROL: perturb one value of 500 and the gate must refuse."""
+    left = _cell_payload(seeds=(101,), draws=tuple(range(1000, 1500)))
+    right = json.loads(json.dumps(left))
+    right["episodes"][283]["att_horizon"] += 1e-9
+    with pytest.raises(ValueError, match="differ"):
+        ts.assert_cells_identical(left, right, expected_n=500)
+
+
+def test_the_equality_check_fires_when_an_episode_is_missing_rather_than_wrong() -> None:
+    """B3(b): a dropped episode is a different failure from a changed one and must also refuse."""
+    left = _cell_payload(seeds=(101,), draws=tuple(range(1000, 1500)))
+    right = json.loads(json.dumps(left))
+    right["episodes"].pop()
+    with pytest.raises(ValueError, match="exactly 500"):
+        ts.assert_cells_identical(left, right, expected_n=500)
+
+
+def test_episode_key_set_is_the_seed_draw_pairing_and_not_a_count() -> None:
+    """B3(b): the comparison is keyed, so a reordered payload is still equal."""
+    payload = _cell_payload(seeds=(101, 202), draws=(1000, 1001))
+    assert ts.episode_key_set(payload) == frozenset(
+        {(101, 1000), (101, 1001), (202, 1000), (202, 1001)}
+    )
+
+
+def test_a_reordered_cell_is_still_identical() -> None:
+    """B3(b): episode order is not a property of the measurement and must not fail the gate."""
+    left = _cell_payload(seeds=(101, 202), draws=(1000, 1001))
+    right = json.loads(json.dumps(left))
+    right["episodes"].reverse()
+    report = ts.assert_cells_identical(left, right, expected_n=4)
+    assert report["n_compared"] == 4
+
+
+# ----------------------------------------------------------------------
+# The registered scorers.
+# ----------------------------------------------------------------------
+
+
+def test_score_level_counts_a_cell_inside_the_band_as_a_hit() -> None:
+    """Q1: the per-cell rule is a RELATIVE error against the registered band."""
+    measured = {cell: ts.PREDICTED_LEVELS[cell[0]][cell[1]] for cell in ts.OUT_OF_SAMPLE_CELLS}
+    report = ts.score_level(measured)
+    assert report["n_held"] == len(ts.OUT_OF_SAMPLE_CELLS)
+    assert report["outcome"] == "HELD"
+
+
+def test_score_level_fails_the_aggregate_when_too_few_cells_hold() -> None:
+    """Q1: the threshold is load-bearing, so a majority of misses must FAIL it."""
+    measured = {
+        cell: ts.PREDICTED_LEVELS[cell[0]][cell[1]] * 10.0 for cell in ts.OUT_OF_SAMPLE_CELLS
+    }
+    report = ts.score_level(measured)
+    assert report["n_held"] == 0
+    assert report["outcome"] == "FAILED"
+
+
+def test_score_level_scores_exactly_the_registered_cells_and_ignores_seen_ones() -> None:
+    """B5.2: a seen cell may never enter the denominator, even if it is supplied."""
+    measured = {cell: ts.PREDICTED_LEVELS[cell[0]][cell[1]] for cell in ts.OUT_OF_SAMPLE_CELLS}
+    measured[("dt_nomix", "mappo1000")] = 1e6
+    report = ts.score_level(measured)
+    assert report["n_cells"] == 13
+    assert ("dt_nomix", "mappo1000") not in {tuple(c["cell"]) for c in report["cells"]}
+
+
+def test_the_band_edge_is_inclusive_and_just_outside_it_is_a_miss() -> None:
+    """Q1: the band is ``<= 0.30``; a cell at 30.0000001 % must not be counted as a hit.
+
+    Injected predicted values rather than the registered table, because ``p * 1.30`` is NOT a
+    relative error of exactly 0.30 in binary floating point: measured on four of the five
+    registered levels it lands at 0.30000000000000004, so the same test written against the real
+    table would have been failing on a float artefact rather than on the rule. ``100 -> 130`` is
+    exact, so the boundary is tested as the rule states it.
+    """
+    predicted = {"x": {"t": 100.0}}
+    cells = (("x", "t"),)
+    on_edge = ts.score_level(
+        {("x", "t"): 130.0}, predicted=predicted, cells=cells, threshold=1
+    )
+    just_outside = ts.score_level(
+        {("x", "t"): 130.0000001}, predicted=predicted, cells=cells, threshold=1
+    )
+    assert (on_edge["n_held"], just_outside["n_held"]) == (1, 0)
+
+
+def test_the_band_is_symmetric_so_an_arm_that_beats_its_prediction_can_also_miss() -> None:
+    """Q1: the rule is |measured - predicted| / predicted, so a large UNDERSHOOT is also a miss.
+
+    Registered that way deliberately: a rule that only punished overshoot would score an arm that
+    collapsed upward as a failure and one that improved beyond prediction as a success.
+    """
+    predicted = {"x": {"t": 100.0}}
+    cells = (("x", "t"),)
+    assert ts.score_level(
+        {("x", "t"): 69.0}, predicted=predicted, cells=cells, threshold=1
+    )["n_held"] == 0
+    assert ts.score_level(
+        {("x", "t"): 71.0}, predicted=predicted, cells=cells, threshold=1
+    )["n_held"] == 1
+
+
+def test_predicted_order_sorts_the_arms_by_predicted_att() -> None:
+    """Q2: the predicted ordering is derived from the registered table, never retyped."""
+    assert ts.predicted_order("random") == (
+        "dt_nomix", "bc", "bc_top10_perix", "dt_spatial", "iql", "bc_top10",
+    )
+
+
+def test_predicted_order_puts_the_new_arm_first_on_maxpressure() -> None:
+    """Q2a: registered as a coin flip -- 0.43 ATT -- and it must be scored as the rule says."""
+    assert ts.predicted_order("maxpressure")[0] == "bc_top10_perix"
+
+
+def test_concordance_counts_all_fifteen_pairs_and_the_hard_subset_counts_six() -> None:
+    """Q2b and C4: the subset is 6 of 15, and the two counts are reported side by side."""
+    order = ts.predicted_order("random")
+    full = ts.concordance(order, order)
+    hard = ts.concordance(order, order, subset=ts.HARD_SUBSET)
+    assert (full["n_pairs"], hard["n_pairs"]) == (15, 6)
+    assert (full["n_concordant"], hard["n_concordant"]) == (15, 6)
+
+
+def test_concordance_can_be_high_overall_while_the_hard_subset_collapses() -> None:
+    """C4's whole argument, executed: the two easy arms carry 9 pairs.
+
+    Reversing the four hard arms among themselves leaves 9 of 15 correct -- and 0 of 6 -- which is
+    exactly the case a 15-pair count alone would report as a near miss rather than a collapse.
+    """
+    predicted = ts.predicted_order("random")
+    hard_reversed = [a for a in predicted if a in ts.HARD_SUBSET][::-1]
+    measured: list[str] = []
+    iterator = iter(hard_reversed)
+    for arm in predicted:
+        measured.append(next(iterator) if arm in ts.HARD_SUBSET else arm)
+    full = ts.concordance(predicted, measured)
+    hard = ts.concordance(predicted, measured, subset=ts.HARD_SUBSET)
+    assert full["n_concordant"] == 9
+    assert hard["n_concordant"] == 0
+
+
+def test_the_stop_rule_fires_only_when_the_interval_lies_entirely_below_zero() -> None:
+    """Q0: a straddling CI is NOT a reversal, and the plan says phase B proceeds."""
+    assert ts.stop_rule_verdict(-8.0, -2.0) == "STOP"
+    assert ts.stop_rule_verdict(-8.0, +2.0) == "CONTINUE"
+    assert ts.stop_rule_verdict(+2.0, +8.0) == "CONTINUE"
+
+
+def test_the_stop_rule_does_not_fire_on_an_interval_touching_zero() -> None:
+    """Q0: ``entirely below`` is strict; a CI whose upper end is 0 has not resolved."""
+    assert ts.stop_rule_verdict(-8.0, 0.0) == "CONTINUE"
+
+
+# ----------------------------------------------------------------------
+# The declarations, checked against the plan and against the corpus.
+# ----------------------------------------------------------------------
+
+
+def test_the_registered_constants_appear_in_the_committed_plan() -> None:
+    """The registration is the PLAN; this module must not drift from it.
+
+    P5.1's review found a ``declared constants`` test that never read the plan.  This one reads
+    the committed file and fails if a registered number is not in it.
+    """
+    plan = PLAN_PATH.read_text(encoding="utf-8")
+    assert "≥ 9 of the 13" in plan
+    assert "0.30" in plan or "±30 %" in plan
+    for arm, tier in ts.OUT_OF_SAMPLE_CELLS:
+        value = ts.PREDICTED_LEVELS[arm][tier]
+        assert f"{value:.4f}" in plan, f"{arm}@{tier} = {value:.4f} is not in the plan"
+
+
+def test_the_out_of_sample_set_excludes_every_reused_cell() -> None:
+    """B5.2, asserted structurally rather than by reading the list: no seen cell may be scored."""
+    reused = {(arm, ts.REUSED_TIER) for arm in ts.REUSED_CELLS}
+    assert not (set(ts.OUT_OF_SAMPLE_CELLS) & reused)
+
+
+def test_the_out_of_sample_set_is_exactly_thirteen_cells() -> None:
+    """B5.2: the denominator is enumerated, so a silent addition changes a registered score."""
+    assert len(ts.OUT_OF_SAMPLE_CELLS) == 13
+    assert len(set(ts.OUT_OF_SAMPLE_CELLS)) == 13
+
+
+def test_the_tier_order_is_grid4x4s_own_measured_att_order() -> None:
+    """B0/B1: no hz1x1 number may order a grid4x4 figure."""
+    values = [ts.TIERS[tier].ladder_att for tier in ts.TIER_ORDER]
+    assert values == sorted(values)
+
+
+def test_the_declared_ladder_att_matches_the_committed_ladder_artifact() -> None:
+    """B0: the tier table is checked against ``att_ladder_v11.json``, not against memory."""
+    ladder = json.loads(
+        (REPO_ROOT / "docs" / "data" / "att_ladder_v11.json").read_text(encoding="utf-8")
+    )
+    measured = {
+        cell["tier"]: cell["att_horizon_mean"]
+        for cell in ladder["cells"]
+        if cell["scenario"] == "cf_grid4x4"
+    }
+    for tier, spec in ts.TIERS.items():
+        assert spec.ladder_att == measured[tier], tier
+
+
+def test_the_head_map_covers_every_dt_arm_and_divides_the_model_width() -> None:
+    """A2: ``d_model = 128`` must be divisible by every declared head count."""
+    assert set(ts.N_HEAD_BY_METHOD) == set(ts.DT_METHODS)
+    for method, heads in ts.N_HEAD_BY_METHOD.items():
+        assert 128 % heads == 0, method
+
+
+def test_the_new_arm_is_a_method_and_the_head_arms_are_not() -> None:
+    """A3: the head cells are a 2x2 at one tier, not rungs of the ladder's method set."""
+    assert "bc_top10_perix" in ts.METHODS
+    assert not set(ts.HEAD_METHODS) & set(ts.METHODS)
+
+
+def test_tier_spec_refuses_an_undeclared_tier() -> None:
+    """A tier that is not declared may not enter the sweep by being named."""
+    with pytest.raises(ValueError, match="unknown tier"):
+        ts.tier_spec("mappo060")
+
+
+def test_fixedtime_is_declared_but_not_in_the_running_order() -> None:
+    """B1: pre-declared as the optional fourth tier, and never a replacement for maxpressure."""
+    assert "fixedtime" in ts.TIERS
+    assert "fixedtime" not in ts.TIER_ORDER
