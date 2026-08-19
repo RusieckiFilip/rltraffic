@@ -398,6 +398,32 @@ I  = d4 − d1                                    ← conflates HEAD COUNT with 
 > is a finding about our own reproducibility and it is reported, not reconciled.**
 > **Q0's stop rule and every §4 prediction are unchanged in either branch.**
 
+### D2-CORRECTED 🚨 STEP 500 IS ONE STEP FROM THE **WORST** POINT IN THE RAMP — ADD STEP 249. **My number, my error.**
+
+**Not a new review round: I am correcting a value I supplied.** The implementer measured D2's
+discrimination honestly and reported it — quadratic `0.251`, square-root `0.7078`, cosine `0.501571`,
+so a **5.7e−4** margin against a cosine — and drew the mild conclusion that this reinforces the `==`
+bar. **It does, and the sharper reading is that I picked a bad point.** Measured by me over the whole
+ramp today:
+
+| step | linear | quadratic | square-root | cosine | \|cos − lin\| |
+|---|---|---|---|---|---|
+| **249** | 0.250000 | 0.062500 | 0.500000 | 0.146447 | **1.04e−01** |
+| 332 | 0.333000 | 0.110889 | 0.577062 | 0.249547 | 8.35e−02 |
+| **499** | 0.500000 | 0.250000 | 0.707107 | 0.500000 | **5.55e−17** ← the exact crossing |
+| **500** | 0.501000 | 0.251001 | 0.707814 | 0.501571 | **5.71e−04** |
+
+> 🚨 **The midpoint of a monotone ramp is where alternative shapes with the SAME ENDPOINTS CROSS — so
+> it is the LEAST informative interior point, not the most.** Step 499 is blind to a cosine at
+> **5.55e−17**; my step 500 escapes that only by the `+1` in `(step+1)/warmup`. **Step 249 is 181×
+> more discriminating for free.**
+> **REQUIRED: add step 249, expected `0.250000`. Keep step 500** — it costs nothing and it is a clean
+> linear check. **Nothing else about obligation 6b changes.**
+> ⚠️ **The transferable lesson, and it generalises past this test: when choosing probe points to
+> separate two curves that agree at their endpoints, pick where they DIVERGE MOST, and MEASURE that
+> rather than reaching for the midpoint.** §7 already requires a check to report its discriminating
+> power; this is the same rule applied to *where you sample*, not just *whether you sampled*.
+
 ### D5 ✅ Verified in the amendment, first-hand
 
 `2baf2cd` touches **only** the two documents — `git diff --stat main...HEAD -- offline/ tests/ agent/`
@@ -529,7 +555,7 @@ seven-tier sweep is not affordable in the September window.
 - [ ] **D1** — `output/p5_1/` **read-only, enforced in code**, refusal tested and pasted; every write and
       delete after all validation; the resume path writes-validates-moves and cannot mistake a
       half-written cell for a complete one
-- [ ] **D2** — C2's step set includes **step 500, expected `0.501`**
+- [ ] **D2** — C2's step set includes **step 249 (expected `0.250000`) AND step 500 (expected `0.501`)**; 249 is the discriminating point, 500 is the linear check
 - [ ] **D6** — the registered fallback for a negative C1 control is in the plan **before the control
       runs**: `d1` re-produced on the new code path so `I` is within-code-path, P5.1's cells reported
       beside it rather than replaced
