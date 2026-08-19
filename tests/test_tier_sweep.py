@@ -491,6 +491,68 @@ def test_the_head_count_reaches_the_model_and_is_recorded(tmp_path: Path) -> Non
     assert payload["provenance"]["deterministic"] is False
 
 
+@pytest.mark.parametrize(
+    ("method", "mixes"),
+    [
+        ("dt_spatial", True),
+        ("dt_spatial_h4", True),
+        ("dt_nomix", False),
+        ("dt_nomix_h4", False),
+    ],
+)
+def test_each_arm_of_the_2x2_gets_the_graph_its_name_promises(
+    tmp_path: Path, method: str, mixes: bool
+) -> None:
+    """A2: the 4-head TREATMENT arm must actually mix.
+
+    Written after a mutation survived: narrowing the mixing test to ``method == "dt_spatial"``
+    left ``dt_spatial_h4`` training as a NO-MIXING model with a treatment arm's name, which would
+    have made phase A a comparison of two controls and moved nothing but the head count.  Nothing
+    else in the suite noticed, because the two arms are weight-compatible by design.
+    """
+    import torch
+
+    setup = _tiny_joint_setup()
+    ts.train_tier_dt(
+        setup["stacked"], setup["index"], tier="mappo1000", method=method, seed=101,
+        adjacency=setup["adjacency"], prompts=setup["prompts"], stats=setup["stats"],
+        state_dim=setup["state_dim"], n_actions=setup["n_actions"], gradient_steps=2,
+        batch_size=2, device=torch.device("cpu"), checkpoint_path=tmp_path / f"{method}.pt",
+        protected=(), provenance={},
+    )
+    payload = torch.load(tmp_path / f"{method}.pt", map_location="cpu", weights_only=False)
+    assert payload["config"]["spatial_mixing"] is mixes
+    mask = np.asarray(payload["spatial_mask"], dtype=bool)
+    off_diagonal = mask & ~np.eye(mask.shape[0], dtype=bool)
+    assert bool(off_diagonal.any()) is mixes, (
+        "a mixing arm must have an off-diagonal edge and a control must be the identity"
+    )
+
+
+def test_the_trainer_itself_refuses_a_regime_mismatch_not_only_the_helper(
+    tmp_path: Path,
+) -> None:
+    """F6(a): the assertion must be ON THE TRAINER, not merely available beside it.
+
+    Written after a mutation survived: deleting ``assert_process_regime`` from ``train_tier_dt``
+    left the helper tested and unused, so a run could train in the default regime while recording
+    ``deterministic: True`` in its provenance -- an unattributable cell that looks attributable.
+    """
+    import torch
+
+    setup = _tiny_joint_setup()
+    before = _tree(tmp_path)
+    with pytest.raises(RuntimeError, match="deterministic algorithms"):
+        ts.train_tier_dt(
+            setup["stacked"], setup["index"], tier="mappo1000", method="dt_nomix", seed=101,
+            adjacency=setup["adjacency"], prompts=setup["prompts"], stats=setup["stats"],
+            state_dim=setup["state_dim"], n_actions=setup["n_actions"], gradient_steps=2,
+            batch_size=2, device=torch.device("cpu"), checkpoint_path=tmp_path / "x.pt",
+            protected=(), provenance={}, deterministic=True,
+        )
+    assert _tree(tmp_path) == before, "a refused run must create nothing"
+
+
 def test_the_trainer_refuses_to_write_a_checkpoint_into_the_protected_root(
     tmp_path: Path,
 ) -> None:
