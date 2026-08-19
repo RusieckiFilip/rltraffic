@@ -695,6 +695,44 @@ phase B. Do it in the same commit that adds the tier.**
 
 ---
 
+## ✅ AMENDMENT I — 2026-08-19. The random-tier envelope is UNCONDITIONAL, and a non-zero result is registered as a FINDING
+
+### I1 ✅ RULED (the author's): the replicate becomes unconditional, in phase B
+
+> **One arm-seed is replicated on the `random` tier as part of phase B — not triggered by anyone
+> judging that a result *"turns on a small margin"*.** The author's own reason for overturning his
+> earlier version, recorded because it is the better half of the exchange: **a trigger that depends on
+> someone judging a result they already hold is worse than no safeguard, because it reads as one in the
+> plan while firing on attention.** ≈1.1 h, **8 % of what the regime ruling freed**, and it converts an
+> extrapolation a referee will press into **a measurement at both ends of the data-quality axis**.
+> **Arm: `dt_spatial`**, matching E1's logic — the arm that exhibits the phenomenon, where `dt_nomix`'s
+> sd of 0.10 measures only the floor. **Same F7 machinery, same positive control proving 1e−12
+> resolution**, because that control is what separated E1's zero from a self-comparison.
+
+### I2 🔒 REGISTERED BEFORE THE NUMBER EXISTS — A NON-ZERO ENVELOPE IS A FINDING, NOT A FAILURE
+
+> **Registered now so that neither outcome can be re-read afterwards.** A non-zero envelope on the
+> `random` tier would mean **run-to-run nondeterminism propagates to the metric when the learned policy
+> separates phases less confidently** — the decision-margin mechanism, **measured rather than argued,
+> and a dependence nobody in this literature reports.**
+> ⚠️ **So: a non-zero result is NOT a defect in the campaign, and a zero result is NOT the only
+> acceptable outcome. Both are publishable and this sentence says so in advance** — which is exactly
+> what `PREREGISTRATION` §10 asks of every outcome branch.
+
+### I3 🔢 THE Q1 THRESHOLD RULE, NAMED AND APPLIED MECHANICALLY — with one figure corrected
+
+> **THE RULE, fixed in the commit and never re-derived: `k = ceil(9/13 × N)`** — the smallest integer
+> count whose proportion is at least the registered rate.
+> ✅ **It SELF-CHECKS, which is why it is the right rule rather than a plausible one: at `N = 13` it
+> returns `k = 9`, reproducing the registered threshold exactly.** So it is a faithful carry-across and
+> not a new criterion wearing the old one's clothes. **At `N = 19` it returns `k = 14`** (14/19 =
+> 73.68 %; 13/19 = **68.42 %**, which is below the registered 69.23 % and therefore excluded).
+> ⚠️ **One figure in the ruling as issued is a slip and is corrected here so it is not copied forward:
+> it read *"73.7 % at 13/19 is too low"*. **13/19 is 68.42 %**, not 73.7 %; 73.68 % is 14/19. **The
+> conclusion — 14 of 19 — is unaffected and correct.**
+
+---
+
 ## 0. ⚠️ SCOPE CORRECTION BEFORE ANYTHING ELSE — §6's P5.2 NAMES A SCENARIO WE DO NOT HAVE
 
 §6 reads *"Train + evaluate on grid4x4, **hangzhou_4x4** per ladder tier"*. **Measured today:
@@ -844,6 +882,12 @@ seven-tier sweep is not affordable in the September window.
       principle, `Q2`'s rank prediction and hard subset, and `Q3`/`Q4` extended — **all before phase B**
 - [ ] **H4** — the three disclosures carried into the packet, the E1 verification chain as its own
       paragraph
+- [ ] **I1** — `dt_spatial` replicated at one seed on the **`random`** tier as part of phase B,
+      unconditionally, with F7's machinery and the 1e−12 positive control
+- [ ] **I2** — the registered reading is in the plan **before the number exists**: a non-zero envelope
+      is a finding, a zero envelope is not the only acceptable outcome, both are publishable
+- [ ] **I3** — `Q1`'s threshold is `k = ceil(9/13 × N)`, stated in the commit, giving **14 of 19**;
+      the rule reproduces `k = 9` at `N = 13` and that self-check is recorded
 - [ ] Every ordering with its per-seed count **and** range, **emitted by the generator**
 - [ ] `DEFERRED` 37's mutation executed, failure pasted; every mutation's failure pasted
 - [ ] Campaign in a **user-launched `tmux`**; **no `until`-poll**; `mkdir -p` before `tee`, and the
