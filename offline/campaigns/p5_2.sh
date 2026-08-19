@@ -36,19 +36,36 @@
 #
 # WHAT IT DOES, IN ORDER
 # -----------------------------------------------------------------------------------
-#   GATE 0   preconditions: CUDA, the read-only path check, the held-out draws, the declaration
+#   GATE 0   preconditions: CUDA, the read-only path check, the regime check, the held-out draws,
+#            the per-tier declaration and the CAMPAIGN declaration (which enumerates every cell)
 #   GATE 1   re-verify P5.1's seven cells AT CONSUMPTION (B3a) and re-roll the `random` anchor,
 #            requiring EXACT equality with P5.1's 500 episodes.  MISMATCH => REFUSE AND STOP
-#   PHASE E1 replicate dt_spatial + dt_nomix at seed 202, 40,000 steps, DEFAULT CUDA; evaluate;
-#            report the paired per-draw intervals against P5.1's own seed-202 cells (F7)
-#            >>> THE CAMPAIGN STOPS HERE AND RETURNS FOR THE REGIME RULING (F1) <<<
+#   PHASE E1 replicate dt_spatial + dt_nomix at seed 202; the envelope (F7).  DONE 2026-08-19,
+#            returned +0.0000 on all three blocks; skips on its existing artifacts
+#   PHASE A  the head-count 2x2 at mappo1000, then the STOP RULE -- which HALTS the campaign if
+#            CI(d4) lies entirely below zero, writing STOPPED_BY_RULE
+#   PHASE C  bc_top10_perix at mappo1000 -- the only NEW arm at the reused tier (A3)
+#   PHASE B  the ladder: maxpressure, fixedtime, random; 6 method arms + the behaviour anchor
+#   VERIFY   completed cells must equal the cells the CAMPAIGN DECLARATION names
 #
-# Phases A, B and C are NOT in this script yet, deliberately: the numerical regime they run under
-# is chosen after E1 returns, and writing them now would bake in a choice the author has deferred.
+# ⚠️ STILL DEFERRED AND DELIBERATELY NOT HERE: the I1/J1 random-tier replicate.  It compares against
+# phase B's own random-tier cell, and inventing that wiring while the ladder runs is how a replicate
+# ends up re-evaluating the cell it is supposed to be independent of -- the zero-by-construction J2
+# exists to refuse.  Its two cells ARE enumerated in the campaign declaration (K2), so the
+# completeness assertion refuses to write CAMPAIGN_COMPLETE until they exist.  That is a mechanism,
+# not a promise to remember.
 #
-# EXPECTED WALL CLOCK: about 3 h for E1.  Measured from P5.1's own campaign log: 59 min per DT
-# arm-seed at 40,000 steps and ~28 min per evaluation cell of 5 seeds x 100 draws, so one seed's
-# evaluation is ~6 min.  ⚠️ Only those two rates are measurements; the total is an estimate.
+# EXPECTED WALL CLOCK: about 50 h remaining.  Measured from P5.1's own campaign log: 59 min per DT
+# arm-seed at 40,000 steps, 42 min for a tier's baselines, ~28 min per evaluation cell of 5 seeds x
+# 100 draws.  ⚠️ Only those rates are measurements; the total is an estimate.
+#
+# RESUME IS SAFE BECAUSE THE WRITER IS ATOMIC, NOT BECAUSE THE READER IS CLEVER.  The conditions
+# below are bare existence tests -- `[ -f cell.json ]` and a checkpoint count of 5 -- which would be
+# D1(c)'s exact failure if a crash could leave a truncated artifact at a final name.  It cannot:
+# training writes to `<name>.partial` and `replace_guarded` does an `os.replace` behind the barrier,
+# and evaluation writes through `write_json_atomic`.  A kill therefore leaves a `.partial` or the
+# previous file, never a half-written one at the name the resume tests, so an existence test is
+# sufficient BY CONSTRUCTION -- and D1(c) is satisfied at the WRITER, which is the right place.
 #
 set -euo pipefail
 
@@ -198,6 +215,14 @@ say "held-out demand present: 100 draws"
   $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$TIER" declare
 }
 say "declaration present"
+
+# K2: the campaign-wide declaration enumerates EVERY cell the campaign owes -- including the two
+# I1/J1 replicate cells, whose wiring is deliberately deferred.  The completeness assertion at the
+# end derives its expectation from THIS FILE, never from the files being checked, so a campaign
+# that lacks them refuses to report itself complete rather than depending on anyone remembering.
+[ -f "$OUT/p5_2_declaration.json" ] || \
+  $PY -m offline.tier_sweep "${COMMON[@]}" declare-campaign
+say "campaign declaration present (expected cells enumerated, replicates included)"
 
 # -------------------------------------------------------------------------------------
 # GATE 1 -- the reuse gate (B3).  Digests AT CONSUMPTION, then the random-anchor re-roll.
@@ -351,6 +376,26 @@ for LADDER_TIER in maxpressure fixedtime random; do
     fi
   done
 done
+
+# -------------------------------------------------------------------------------------
+# Verify by EFFECT: completed cells must equal the cells the DECLARATION names.
+# -------------------------------------------------------------------------------------
+say "verifying the campaign against its declaration"
+set +e
+$PY -m offline.tier_sweep "${COMMON[@]}" assert-complete | tee "$LOGS/assert_complete.log"
+COMPLETE_STATUS=${PIPESTATUS[0]}
+set -e
+if [ "$COMPLETE_STATUS" -ne 0 ]; then
+  say "################################################################"
+  say "CAMPAIGN INCOMPLETE -- see above.  This is EXPECTED at this point:"
+  say "the two I1/J1 replicate cells are declared and not yet wired, so"
+  say "the assertion refuses by design until they exist (BRIEF_27 K2)."
+  say "PHASES_COMPLETE is still written; CAMPAIGN_COMPLETE is NOT."
+  say "################################################################"
+else
+  echo "CAMPAIGN COMPLETE $(stamp)" > "$WORK/CAMPAIGN_COMPLETE"
+  say "complete == declared"
+fi
 
 say "================================================================"
 say "PHASES A, C and B ARE COMPLETE."

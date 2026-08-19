@@ -307,6 +307,107 @@ LR_PROBE_STEPS: tuple[int, ...] = (0, 249, 500, 999, 1000, 1001, 40000)
 LR_PROBE_EXPECTED: tuple[float, ...] = (0.001, 0.250000, 0.501, 1.0, 1.0, 1.0, 1.0)
 
 
+#: I1/J1's envelope replicate: BOTH arms, seed 202, on the ``random`` tier, unconditional.
+#: The seed is PRE-DECLARED and is not re-selected after phase B -- E1 chose 202 for its largest
+#: per-seed effect, and that principle cannot be applied to a tier whose per-seed spread does not
+#: exist until phase B has run, so applying it later would be post-hoc selection on a quantity
+#: related to the one being measured.
+REPLICATE_TIER = "random"
+REPLICATE_SEED = 202
+REPLICATE_ARMS: tuple[str, ...] = ("dt_spatial", "dt_nomix")
+
+#: J2(b): the replicate's artifacts carry a DISTINCT key, so no cache, resume branch or report path
+#: can serve phase B's own cell in their place -- which would return zero by construction.
+REPLICATE_SUFFIX = "_replicate"
+
+
+def cell_filename(tier: str, method: str, seed: int | None = None, replicate: bool = False) -> str:
+    """The evaluation artifact name for one cell.  One place, so no path is spelled twice."""
+    tag = "" if seed is None else f"_seed{int(seed)}"
+    return f"eval_{tier}_{method}{tag}{REPLICATE_SUFFIX if replicate else ''}.json"
+
+
+def campaign_cell_manifest() -> tuple[dict[str, Any], ...]:
+    """Every cell the campaign must produce, DERIVED FROM THE DECLARED CONSTANTS.
+
+    ⚠️ **This is what the completeness assertion checks against -- never the files on disk.**  A
+    campaign that verified itself against its own output would report success for whatever it
+    happened to produce; ``PROJECT_PLAN`` section 7 records a campaign that ran *"on to a clean-looking
+    end"* with half its output missing.
+
+    🔒 **The two I1/J1 replicate cells are enumerated HERE, before phases A/C/B run (``BRIEF_27``
+    K2).**  Their wiring is deliberately not in the campaign script yet -- inventing it while the
+    ladder runs is how a replicate ends up re-evaluating the cell it is supposed to be independent of
+    -- but listing them means a campaign that lacks them **refuses to report itself complete**, which
+    is a mechanism rather than a promise to remember.
+    """
+    out: list[dict[str, Any]] = []
+    for arm in REUSED_CELLS:
+        out.append({
+            "cell": f"eval_{arm}.json", "tier": REUSED_TIER, "method": arm,
+            "role": "reused", "produced_by": "P5.1", "source": "reuse_root",
+        })
+    for method in HEAD_METHODS:
+        out.append({
+            "cell": cell_filename(REUSED_TIER, method), "tier": REUSED_TIER, "method": method,
+            "role": "head_2x2", "produced_by": "phase A", "source": "work_dir",
+        })
+    out.append({
+        "cell": cell_filename(REUSED_TIER, "bc_top10_perix"), "tier": REUSED_TIER,
+        "method": "bc_top10_perix", "role": "new_arm_at_reused_tier",
+        "produced_by": "phase C", "source": "work_dir",
+    })
+    for tier in TIER_ORDER:
+        if tier == REUSED_TIER:
+            continue
+        for method in METHODS:
+            out.append({
+                "cell": cell_filename(tier, method), "tier": tier, "method": method,
+                "role": "ladder", "produced_by": "phase B", "source": "work_dir",
+            })
+        if tier != "random":
+            out.append({
+                "cell": cell_filename(tier, BEHAVIOUR_METHOD), "tier": tier,
+                "method": BEHAVIOUR_METHOD, "role": "behaviour_anchor",
+                "produced_by": "phase B", "source": "work_dir",
+            })
+    out.append({
+        "cell": cell_filename(REUSED_TIER, COLLAPSE_REFERENCE_METHOD),
+        "tier": "all", "method": COLLAPSE_REFERENCE_METHOD,
+        "role": "shared_collapse_reference",
+        "produced_by": "gate 1", "source": "work_dir",
+        "note": (
+            "one cell serves every tier and doubles as the random tier's behaviour anchor: env "
+            "settings are identical across all four tier manifests (verified) and the factory is a "
+            "function of the seed alone (docs/plans/p5.2.md D12)"
+        ),
+    })
+    for method in REPLICATE_ARMS:
+        out.append({
+            "cell": cell_filename(REUSED_TIER, method, REPLICATE_SEED), "tier": REUSED_TIER,
+            "method": method, "seed": REPLICATE_SEED, "role": "envelope_replicate_E1",
+            "produced_by": "phase E1", "source": "work_dir",
+            "note": (
+                "one seed, so 100 episodes and not 500; the `seed` field is what tells the "
+                "completeness assertion that, and omitting it made two correct cells report as "
+                "defective"
+            ),
+        })
+    for method in REPLICATE_ARMS:
+        out.append({
+            "cell": cell_filename(REPLICATE_TIER, method, REPLICATE_SEED, replicate=True),
+            "tier": REPLICATE_TIER, "method": method, "seed": REPLICATE_SEED,
+            "role": "envelope_replicate_I1_J1", "produced_by": "NOT YET WIRED",
+            "source": "work_dir",
+            "note": (
+                "BRIEF_27 K2: enumerated before phases A/C/B so the completeness assertion refuses "
+                "a campaign that lacks it. Distinct key per J2(b); it is an independent training "
+                "run from scratch, never a re-evaluation of phase B's checkpoint"
+            ),
+        })
+    return tuple(out)
+
+
 @dataclass(frozen=True)
 class EpisodeRef:
     """One episode of a tier, identified the way the loader identifies it."""
@@ -1526,6 +1627,12 @@ def build_parser() -> Any:
     evaluate = sub.add_parser("evaluate", help="roll one arm over the held-out pool")
     evaluate.add_argument("--method", required=True)
     sub.add_parser(
+        "declare-campaign", help="write the campaign-wide declaration of every expected cell"
+    )
+    sub.add_parser(
+        "assert-complete", help="refuse unless every cell the declaration names exists"
+    )
+    sub.add_parser(
         "train-baselines", help="train bc, bc_top10, bc_top10_perix and iql on one tier"
     )
     sub.add_parser("verify-reuse", help="B3: re-verify the reused cells' digests at consumption")
@@ -1940,6 +2047,119 @@ def _run_stop_rule(args: Any) -> int:
     return 0
 
 
+def _run_declare_campaign(args: Any) -> int:
+    """Write the campaign-wide declaration: every cell the campaign owes, before it runs."""
+    from offline.dt_gate import HELD_OUT_DRAWS, TRAINING_SEEDS
+
+    protected = _protected_of(args)
+    manifest = campaign_cell_manifest()
+    payload = {
+        "format_version": DECLARATION_FORMAT_VERSION,
+        "scenario_id": SCENARIO_ID,
+        "regime": "default CUDA (BRIEF_27 H1); CUBLAS_WORKSPACE_CONFIG unset (G2)",
+        "tier_order": list(TIER_ORDER),
+        "tier_order_basis": "cf_grid4x4's own measured att_horizon (BRIEF_27 B0)",
+        "methods": list(METHODS),
+        "head_methods": list(HEAD_METHODS),
+        "seeds": list(TRAINING_SEEDS),
+        "held_out_draws": list(HELD_OUT_DRAWS),
+        "declared_gradient_steps": DECLARED_GRADIENT_STEPS,
+        "reused_tier": REUSED_TIER,
+        "reused_cells": list(REUSED_CELLS),
+        "envelope_replicate": {
+            "tier": REPLICATE_TIER, "seed": REPLICATE_SEED, "arms": list(REPLICATE_ARMS),
+            "suffix": REPLICATE_SUFFIX,
+            "seed_is_pre_declared": True,
+            "note": (
+                "BRIEF_27 I1/J1: unconditional, both arms, seed pre-declared. If phase B shows 202 "
+                "is unrepresentative of this tier's per-seed spread that is a DISCLOSURE, not a "
+                "reason to re-select"
+            ),
+        },
+        "out_of_sample_cells": [list(cell) for cell in OUT_OF_SAMPLE_CELLS],
+        "level_band": LEVEL_BAND,
+        "level_threshold": LEVEL_THRESHOLD,
+        "level_threshold_rule": (
+            f"k = ceil({REGISTERED_LEVEL_RATE[0]}/{REGISTERED_LEVEL_RATE[1]} * N); at N = "
+            f"{REGISTERED_LEVEL_RATE[1]} it returns {level_threshold_for(REGISTERED_LEVEL_RATE[1])}, "
+            "reproducing the originally registered threshold (BRIEF_27 I3)"
+        ),
+        "expected_cells": [dict(entry) for entry in manifest],
+        "n_expected_cells": len(manifest),
+    }
+    out = Path(args.out_dir) / "p5_2_declaration.json"
+    assert_writable(out, protected)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    write_json_guarded(payload, out, protected)
+    print(f"campaign declaration written to {out}")
+    roles: dict[str, int] = {}
+    for entry in manifest:
+        roles[str(entry["role"])] = roles.get(str(entry["role"]), 0) + 1
+    for role, count in sorted(roles.items()):
+        print(f"  {role:28s} {count}")
+    print(f"  {'TOTAL':28s} {len(manifest)}")
+    return 0
+
+
+def assert_campaign_complete(
+    declaration: Mapping[str, Any], work_dir: str | Path, reuse_root: str | Path
+) -> dict[str, Any]:
+    """Refuse unless every cell the DECLARATION names exists and is a finished cell.
+
+    ⚠️ **Expected is derived from the declaration, never from the files being checked.**  A campaign
+    that verified itself against its own output would report success for whatever it happened to
+    produce -- the failure ``PROJECT_PLAN`` section 7 records as running *"on to a clean-looking end"*
+    with half its output missing.
+    """
+    import json
+
+    from offline.dt_gate import HELD_OUT_DRAWS, TRAINING_SEEDS
+
+    work, reuse = Path(work_dir), Path(reuse_root)
+    problems: list[str] = []
+    present: list[str] = []
+    for entry in declaration["expected_cells"]:
+        root = reuse if entry.get("source") == "reuse_root" else work
+        path = root / str(entry["cell"])
+        if not path.is_file():
+            problems.append(f"{entry['cell']}: missing ({entry['role']}, {entry['produced_by']})")
+            continue
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        seeds = [int(entry["seed"])] if entry.get("seed") is not None else list(TRAINING_SEEDS)
+        got = episode_key_set(payload)
+        want = {(int(s), int(d)) for s in seeds for d in HELD_OUT_DRAWS}
+        if got != want or len(payload["episodes"]) != len(want):
+            problems.append(
+                f"{entry['cell']}: {len(payload['episodes'])} episodes over {len(got)} distinct "
+                f"keys, expected exactly {len(want)}"
+            )
+            continue
+        present.append(str(entry["cell"]))
+    return {
+        "n_expected": len(declaration["expected_cells"]),
+        "n_present": len(present),
+        "problems": problems,
+        "complete": not problems,
+    }
+
+
+def _run_assert_complete(args: Any) -> int:
+    import json
+
+    declaration = json.loads(
+        (Path(args.out_dir) / "p5_2_declaration.json").read_text(encoding="utf-8")
+    )
+    report = assert_campaign_complete(declaration, args.work_dir, args.reuse_root)
+    print(f"expected cells: {report['n_expected']}   present: {report['n_present']}")
+    if not report["complete"]:
+        print("\nCAMPAIGN INCOMPLETE:")
+        for problem in report["problems"][:20]:
+            print(f"  - {problem}")
+        return 1
+    print("complete == declared, every cell holds its declared seeds x 100 draws")
+    return 0
+
+
 def _run_verify_reuse(args: Any) -> int:
     record = verify_reuse_gate(args.reuse_root, args.checksums)
     for arm, entry in sorted(record.items()):
@@ -2038,6 +2258,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_train(args)
     if args.command == "evaluate":
         return _run_evaluate(args)
+    if args.command == "declare-campaign":
+        return _run_declare_campaign(args)
+    if args.command == "assert-complete":
+        return _run_assert_complete(args)
     if args.command == "train-baselines":
         return _run_train_baselines(args)
     if args.command == "verify-reuse":

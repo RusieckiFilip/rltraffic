@@ -1,0 +1,528 @@
+{
+  "declared_gradient_steps": 40000,
+  "envelope_replicate": {
+    "arms": [
+      "dt_spatial",
+      "dt_nomix"
+    ],
+    "note": "BRIEF_27 I1/J1: unconditional, both arms, seed pre-declared. If phase B shows 202 is unrepresentative of this tier's per-seed spread that is a DISCLOSURE, not a reason to re-select",
+    "seed": 202,
+    "seed_is_pre_declared": true,
+    "suffix": "_replicate",
+    "tier": "random"
+  },
+  "expected_cells": [
+    {
+      "cell": "eval_dt_spatial.json",
+      "method": "dt_spatial",
+      "produced_by": "P5.1",
+      "role": "reused",
+      "source": "reuse_root",
+      "tier": "mappo1000"
+    },
+    {
+      "cell": "eval_dt_nomix.json",
+      "method": "dt_nomix",
+      "produced_by": "P5.1",
+      "role": "reused",
+      "source": "reuse_root",
+      "tier": "mappo1000"
+    },
+    {
+      "cell": "eval_bc.json",
+      "method": "bc",
+      "produced_by": "P5.1",
+      "role": "reused",
+      "source": "reuse_root",
+      "tier": "mappo1000"
+    },
+    {
+      "cell": "eval_bc_top10.json",
+      "method": "bc_top10",
+      "produced_by": "P5.1",
+      "role": "reused",
+      "source": "reuse_root",
+      "tier": "mappo1000"
+    },
+    {
+      "cell": "eval_iql.json",
+      "method": "iql",
+      "produced_by": "P5.1",
+      "role": "reused",
+      "source": "reuse_root",
+      "tier": "mappo1000"
+    },
+    {
+      "cell": "eval_behaviour.json",
+      "method": "behaviour",
+      "produced_by": "P5.1",
+      "role": "reused",
+      "source": "reuse_root",
+      "tier": "mappo1000"
+    },
+    {
+      "cell": "eval_random.json",
+      "method": "random",
+      "produced_by": "P5.1",
+      "role": "reused",
+      "source": "reuse_root",
+      "tier": "mappo1000"
+    },
+    {
+      "cell": "eval_mappo1000_dt_spatial_h4.json",
+      "method": "dt_spatial_h4",
+      "produced_by": "phase A",
+      "role": "head_2x2",
+      "source": "work_dir",
+      "tier": "mappo1000"
+    },
+    {
+      "cell": "eval_mappo1000_dt_nomix_h4.json",
+      "method": "dt_nomix_h4",
+      "produced_by": "phase A",
+      "role": "head_2x2",
+      "source": "work_dir",
+      "tier": "mappo1000"
+    },
+    {
+      "cell": "eval_mappo1000_bc_top10_perix.json",
+      "method": "bc_top10_perix",
+      "produced_by": "phase C",
+      "role": "new_arm_at_reused_tier",
+      "source": "work_dir",
+      "tier": "mappo1000"
+    },
+    {
+      "cell": "eval_maxpressure_dt_spatial.json",
+      "method": "dt_spatial",
+      "produced_by": "phase B",
+      "role": "ladder",
+      "source": "work_dir",
+      "tier": "maxpressure"
+    },
+    {
+      "cell": "eval_maxpressure_dt_nomix.json",
+      "method": "dt_nomix",
+      "produced_by": "phase B",
+      "role": "ladder",
+      "source": "work_dir",
+      "tier": "maxpressure"
+    },
+    {
+      "cell": "eval_maxpressure_bc.json",
+      "method": "bc",
+      "produced_by": "phase B",
+      "role": "ladder",
+      "source": "work_dir",
+      "tier": "maxpressure"
+    },
+    {
+      "cell": "eval_maxpressure_bc_top10.json",
+      "method": "bc_top10",
+      "produced_by": "phase B",
+      "role": "ladder",
+      "source": "work_dir",
+      "tier": "maxpressure"
+    },
+    {
+      "cell": "eval_maxpressure_bc_top10_perix.json",
+      "method": "bc_top10_perix",
+      "produced_by": "phase B",
+      "role": "ladder",
+      "source": "work_dir",
+      "tier": "maxpressure"
+    },
+    {
+      "cell": "eval_maxpressure_iql.json",
+      "method": "iql",
+      "produced_by": "phase B",
+      "role": "ladder",
+      "source": "work_dir",
+      "tier": "maxpressure"
+    },
+    {
+      "cell": "eval_maxpressure_behaviour.json",
+      "method": "behaviour",
+      "produced_by": "phase B",
+      "role": "behaviour_anchor",
+      "source": "work_dir",
+      "tier": "maxpressure"
+    },
+    {
+      "cell": "eval_fixedtime_dt_spatial.json",
+      "method": "dt_spatial",
+      "produced_by": "phase B",
+      "role": "ladder",
+      "source": "work_dir",
+      "tier": "fixedtime"
+    },
+    {
+      "cell": "eval_fixedtime_dt_nomix.json",
+      "method": "dt_nomix",
+      "produced_by": "phase B",
+      "role": "ladder",
+      "source": "work_dir",
+      "tier": "fixedtime"
+    },
+    {
+      "cell": "eval_fixedtime_bc.json",
+      "method": "bc",
+      "produced_by": "phase B",
+      "role": "ladder",
+      "source": "work_dir",
+      "tier": "fixedtime"
+    },
+    {
+      "cell": "eval_fixedtime_bc_top10.json",
+      "method": "bc_top10",
+      "produced_by": "phase B",
+      "role": "ladder",
+      "source": "work_dir",
+      "tier": "fixedtime"
+    },
+    {
+      "cell": "eval_fixedtime_bc_top10_perix.json",
+      "method": "bc_top10_perix",
+      "produced_by": "phase B",
+      "role": "ladder",
+      "source": "work_dir",
+      "tier": "fixedtime"
+    },
+    {
+      "cell": "eval_fixedtime_iql.json",
+      "method": "iql",
+      "produced_by": "phase B",
+      "role": "ladder",
+      "source": "work_dir",
+      "tier": "fixedtime"
+    },
+    {
+      "cell": "eval_fixedtime_behaviour.json",
+      "method": "behaviour",
+      "produced_by": "phase B",
+      "role": "behaviour_anchor",
+      "source": "work_dir",
+      "tier": "fixedtime"
+    },
+    {
+      "cell": "eval_random_dt_spatial.json",
+      "method": "dt_spatial",
+      "produced_by": "phase B",
+      "role": "ladder",
+      "source": "work_dir",
+      "tier": "random"
+    },
+    {
+      "cell": "eval_random_dt_nomix.json",
+      "method": "dt_nomix",
+      "produced_by": "phase B",
+      "role": "ladder",
+      "source": "work_dir",
+      "tier": "random"
+    },
+    {
+      "cell": "eval_random_bc.json",
+      "method": "bc",
+      "produced_by": "phase B",
+      "role": "ladder",
+      "source": "work_dir",
+      "tier": "random"
+    },
+    {
+      "cell": "eval_random_bc_top10.json",
+      "method": "bc_top10",
+      "produced_by": "phase B",
+      "role": "ladder",
+      "source": "work_dir",
+      "tier": "random"
+    },
+    {
+      "cell": "eval_random_bc_top10_perix.json",
+      "method": "bc_top10_perix",
+      "produced_by": "phase B",
+      "role": "ladder",
+      "source": "work_dir",
+      "tier": "random"
+    },
+    {
+      "cell": "eval_random_iql.json",
+      "method": "iql",
+      "produced_by": "phase B",
+      "role": "ladder",
+      "source": "work_dir",
+      "tier": "random"
+    },
+    {
+      "cell": "eval_mappo1000_random.json",
+      "method": "random",
+      "note": "one cell serves every tier and doubles as the random tier's behaviour anchor: env settings are identical across all four tier manifests (verified) and the factory is a function of the seed alone (docs/plans/p5.2.md D12)",
+      "produced_by": "gate 1",
+      "role": "shared_collapse_reference",
+      "source": "work_dir",
+      "tier": "all"
+    },
+    {
+      "cell": "eval_mappo1000_dt_spatial_seed202.json",
+      "method": "dt_spatial",
+      "note": "one seed, so 100 episodes and not 500; the `seed` field is what tells the completeness assertion that, and omitting it made two correct cells report as defective",
+      "produced_by": "phase E1",
+      "role": "envelope_replicate_E1",
+      "seed": 202,
+      "source": "work_dir",
+      "tier": "mappo1000"
+    },
+    {
+      "cell": "eval_mappo1000_dt_nomix_seed202.json",
+      "method": "dt_nomix",
+      "note": "one seed, so 100 episodes and not 500; the `seed` field is what tells the completeness assertion that, and omitting it made two correct cells report as defective",
+      "produced_by": "phase E1",
+      "role": "envelope_replicate_E1",
+      "seed": 202,
+      "source": "work_dir",
+      "tier": "mappo1000"
+    },
+    {
+      "cell": "eval_random_dt_spatial_seed202_replicate.json",
+      "method": "dt_spatial",
+      "note": "BRIEF_27 K2: enumerated before phases A/C/B so the completeness assertion refuses a campaign that lacks it. Distinct key per J2(b); it is an independent training run from scratch, never a re-evaluation of phase B's checkpoint",
+      "produced_by": "NOT YET WIRED",
+      "role": "envelope_replicate_I1_J1",
+      "seed": 202,
+      "source": "work_dir",
+      "tier": "random"
+    },
+    {
+      "cell": "eval_random_dt_nomix_seed202_replicate.json",
+      "method": "dt_nomix",
+      "note": "BRIEF_27 K2: enumerated before phases A/C/B so the completeness assertion refuses a campaign that lacks it. Distinct key per J2(b); it is an independent training run from scratch, never a re-evaluation of phase B's checkpoint",
+      "produced_by": "NOT YET WIRED",
+      "role": "envelope_replicate_I1_J1",
+      "seed": 202,
+      "source": "work_dir",
+      "tier": "random"
+    }
+  ],
+  "format_version": "p5.2-declaration/1.0",
+  "head_methods": [
+    "dt_spatial_h4",
+    "dt_nomix_h4"
+  ],
+  "held_out_draws": [
+    1000,
+    1001,
+    1002,
+    1003,
+    1004,
+    1005,
+    1006,
+    1007,
+    1008,
+    1009,
+    1010,
+    1011,
+    1012,
+    1013,
+    1014,
+    1015,
+    1016,
+    1017,
+    1018,
+    1019,
+    1020,
+    1021,
+    1022,
+    1023,
+    1024,
+    1025,
+    1026,
+    1027,
+    1028,
+    1029,
+    1030,
+    1031,
+    1032,
+    1033,
+    1034,
+    1035,
+    1036,
+    1037,
+    1038,
+    1039,
+    1040,
+    1041,
+    1042,
+    1043,
+    1044,
+    1045,
+    1046,
+    1047,
+    1048,
+    1049,
+    1050,
+    1051,
+    1052,
+    1053,
+    1054,
+    1055,
+    1056,
+    1057,
+    1058,
+    1059,
+    1060,
+    1061,
+    1062,
+    1063,
+    1064,
+    1065,
+    1066,
+    1067,
+    1068,
+    1069,
+    1070,
+    1071,
+    1072,
+    1073,
+    1074,
+    1075,
+    1076,
+    1077,
+    1078,
+    1079,
+    1080,
+    1081,
+    1082,
+    1083,
+    1084,
+    1085,
+    1086,
+    1087,
+    1088,
+    1089,
+    1090,
+    1091,
+    1092,
+    1093,
+    1094,
+    1095,
+    1096,
+    1097,
+    1098,
+    1099
+  ],
+  "level_band": 0.3,
+  "level_threshold": 14,
+  "level_threshold_rule": "k = ceil(9/13 * N); at N = 13 it returns 9, reproducing the originally registered threshold (BRIEF_27 I3)",
+  "methods": [
+    "dt_spatial",
+    "dt_nomix",
+    "bc",
+    "bc_top10",
+    "bc_top10_perix",
+    "iql"
+  ],
+  "n_expected_cells": 35,
+  "out_of_sample_cells": [
+    [
+      "dt_spatial",
+      "maxpressure"
+    ],
+    [
+      "dt_nomix",
+      "maxpressure"
+    ],
+    [
+      "bc",
+      "maxpressure"
+    ],
+    [
+      "bc_top10",
+      "maxpressure"
+    ],
+    [
+      "bc_top10_perix",
+      "maxpressure"
+    ],
+    [
+      "iql",
+      "maxpressure"
+    ],
+    [
+      "dt_spatial",
+      "fixedtime"
+    ],
+    [
+      "dt_nomix",
+      "fixedtime"
+    ],
+    [
+      "bc",
+      "fixedtime"
+    ],
+    [
+      "bc_top10",
+      "fixedtime"
+    ],
+    [
+      "bc_top10_perix",
+      "fixedtime"
+    ],
+    [
+      "iql",
+      "fixedtime"
+    ],
+    [
+      "dt_spatial",
+      "random"
+    ],
+    [
+      "dt_nomix",
+      "random"
+    ],
+    [
+      "bc",
+      "random"
+    ],
+    [
+      "bc_top10",
+      "random"
+    ],
+    [
+      "bc_top10_perix",
+      "random"
+    ],
+    [
+      "iql",
+      "random"
+    ],
+    [
+      "bc_top10_perix",
+      "mappo1000"
+    ]
+  ],
+  "regime": "default CUDA (BRIEF_27 H1); CUBLAS_WORKSPACE_CONFIG unset (G2)",
+  "reused_cells": [
+    "dt_spatial",
+    "dt_nomix",
+    "bc",
+    "bc_top10",
+    "iql",
+    "behaviour",
+    "random"
+  ],
+  "reused_tier": "mappo1000",
+  "scenario_id": "cityflow_grid4x4",
+  "seeds": [
+    101,
+    202,
+    303,
+    404,
+    505
+  ],
+  "tier_order": [
+    "mappo1000",
+    "maxpressure",
+    "fixedtime",
+    "random"
+  ],
+  "tier_order_basis": "cf_grid4x4's own measured att_horizon (BRIEF_27 B0)"
+}

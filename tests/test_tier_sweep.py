@@ -1171,6 +1171,118 @@ def test_the_reuse_gate_covers_all_seven_reused_cells_by_default() -> None:
 
 
 # ----------------------------------------------------------------------
+# K2 -- the deferred replicate is anchored by a mechanism, not by a promise.
+# ----------------------------------------------------------------------
+
+
+def _manifest_cell(entry: dict[str, Any]) -> dict[str, Any]:
+    from offline.dt_gate import HELD_OUT_DRAWS, TRAINING_SEEDS
+
+    seeds = [int(entry["seed"])] if entry.get("seed") is not None else list(TRAINING_SEEDS)
+    return {
+        "method": entry["method"], "declared_gradient_steps": 40_000,
+        "episodes": [
+            {"seed": s, "draw_id": d, "att_horizon": 1.0, "horizon_vehicle_count": 1.0,
+             "episode_reward": -1.0, "arm": "x"}
+            for s in seeds for d in HELD_OUT_DRAWS
+        ],
+    }
+
+
+def _materialise(manifest: Any, work: Path, reuse: Path, skip_roles: set[str]) -> None:
+    work.mkdir(parents=True, exist_ok=True)
+    reuse.mkdir(parents=True, exist_ok=True)
+    for entry in manifest:
+        if entry["role"] in skip_roles:
+            continue
+        root = reuse if entry.get("source") == "reuse_root" else work
+        (root / entry["cell"]).write_text(json.dumps(_manifest_cell(entry)), encoding="utf-8")
+
+
+def test_the_manifest_enumerates_the_two_deferred_replicate_cells() -> None:
+    """K2: the replicate is anchored in the DECLARATION before phases A/C/B run.
+
+    Its wiring is deliberately not in the campaign script -- inventing it while the ladder runs is
+    how a replicate ends up re-evaluating the cell it must be independent of.  Listing it here is
+    what turns "I will wire it later" from a promise into a refusal.
+    """
+    manifest = ts.campaign_cell_manifest()
+    replicates = [e for e in manifest if e["role"] == "envelope_replicate_I1_J1"]
+    assert len(replicates) == 2
+    assert {e["method"] for e in replicates} == set(ts.REPLICATE_ARMS)
+    assert all(e["tier"] == ts.REPLICATE_TIER for e in replicates)
+    assert all(e["seed"] == ts.REPLICATE_SEED for e in replicates)
+    assert all(ts.REPLICATE_SUFFIX in e["cell"] for e in replicates)
+
+
+def test_a_campaign_missing_ONLY_the_replicates_refuses_to_report_itself_complete(
+    tmp_path: Path,
+) -> None:
+    """K2's whole point, executed: 33 of 35 cells present must still be INCOMPLETE."""
+    manifest = ts.campaign_cell_manifest()
+    work, reuse = tmp_path / "work", tmp_path / "reuse"
+    _materialise(manifest, work, reuse, skip_roles={"envelope_replicate_I1_J1"})
+    report = ts.assert_campaign_complete({"expected_cells": list(manifest)}, work, reuse)
+    assert report["complete"] is False
+    assert report["n_present"] == len(manifest) - 2
+    assert all("replicate" in problem for problem in report["problems"])
+
+
+def test_a_campaign_with_every_declared_cell_is_complete(tmp_path: Path) -> None:
+    """K2's accept control: a guard that never passes would be indistinguishable from a bug."""
+    manifest = ts.campaign_cell_manifest()
+    work, reuse = tmp_path / "work", tmp_path / "reuse"
+    _materialise(manifest, work, reuse, skip_roles=set())
+    report = ts.assert_campaign_complete({"expected_cells": list(manifest)}, work, reuse)
+    assert report["complete"] is True
+    assert report["n_present"] == len(manifest)
+
+
+def test_a_single_seed_cell_is_validated_against_ONE_seed_not_five(tmp_path: Path) -> None:
+    """The manifest's ``seed`` field is load-bearing, and omitting it was a real defect.
+
+    E1's two cells hold 100 episodes at seed 202.  Without ``seed`` on their manifest entries they
+    were checked against all five training seeds and two CORRECT cells reported as defective --
+    caught by running the assertion rather than by reading it.
+    """
+    manifest = ts.campaign_cell_manifest()
+    e1 = [e for e in manifest if e["role"] == "envelope_replicate_E1"]
+    assert len(e1) == 2
+    assert all(e["seed"] == ts.REPLICATE_SEED for e in e1), "the seed field must be present"
+    work, reuse = tmp_path / "work", tmp_path / "reuse"
+    _materialise(e1, work, reuse, skip_roles=set())
+    report = ts.assert_campaign_complete({"expected_cells": e1}, work, reuse)
+    assert report["complete"] is True, report["problems"]
+
+
+def test_a_truncated_cell_is_refused_even_though_the_file_exists(tmp_path: Path) -> None:
+    """Completeness is a set identity over (seed, draw), not a file-existence test."""
+    manifest = [e for e in ts.campaign_cell_manifest() if e["role"] == "head_2x2"]
+    work, reuse = tmp_path / "work", tmp_path / "reuse"
+    _materialise(manifest, work, reuse, skip_roles=set())
+    victim = work / manifest[0]["cell"]
+    payload = json.loads(victim.read_text(encoding="utf-8"))
+    payload["episodes"].pop()
+    victim.write_text(json.dumps(payload), encoding="utf-8")
+    report = ts.assert_campaign_complete({"expected_cells": manifest}, work, reuse)
+    assert report["complete"] is False
+    assert "499 episodes" in report["problems"][0]
+
+
+def test_the_manifest_covers_every_declared_tier_and_arm() -> None:
+    """A manifest that silently omitted a tier would make the assertion vacuous for it."""
+    manifest = ts.campaign_cell_manifest()
+    ladder = {(e["tier"], e["method"]) for e in manifest if e["role"] == "ladder"}
+    expected = {
+        (tier, method)
+        for tier in ts.TIER_ORDER if tier != ts.REUSED_TIER
+        for method in ts.METHODS
+    }
+    assert ladder == expected
+    assert len(manifest) == 35
+
+
+# ----------------------------------------------------------------------
 # I3 -- Q1's threshold is carried across by a rule, not re-decided.
 # ----------------------------------------------------------------------
 
