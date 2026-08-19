@@ -776,6 +776,44 @@ did manually.
 
 ---
 
+## ✅ AMENDMENT K — 2026-08-19. Phases A/C/B approved to launch, with ONE mechanical anchor on the deferred replicate
+
+### K1 ✅ VERIFIED BEFORE APPROVING ~50 h, in the artifacts
+
+**All six `fixedtime` cells reproduce exactly** from my own implementation of the unchanged rule R′
+(`T = 206.93176498413087 / 160.33195198059082 = 1.290646`): `dt_nomix` **204.94** < `bc` **222.11** <
+`bc_top10_perix` **230.60** < `dt_spatial` **256.31** < `iql` **360.85** < `bc_top10` **1042.75**.
+**Q4b now has four graded rungs — `+39.56*` → `+41.74` → `+51.37` → `+62.71` — a real monotonicity
+test rather than a two-point line**, which is what the fourth tier was reallocated to buy.
+✅ **`k = ceil(9/13 × N)` → 14 of 19, with the `N = 13 → k = 9` self-check recorded.** ✅ **D2's probe
+landed: `LR_PROBE_STEPS = (0, 249, 500, 999, 1000, 1001, 40000)` with step 249 named as the
+discriminating point.**
+⭐ **AND A CONCERN I RAISED AND WITHDREW, recorded because the answer is the interesting part.** The
+shell's resume conditions are bare existence tests — `[ -f cell.json ]` and a checkpoint count of 5 —
+which would be D1(c)'s exact failure **if the writer were not atomic. It is:** `os.replace` behind the
+barrier, training to `<name>.partial` then `replace_guarded`. **A crash therefore leaves a `.partial`,
+never a truncated artifact at a final name, so an existence test is sufficient BY CONSTRUCTION.**
+**D1(c) is satisfied at the WRITER, which is the right place — a reader-side check would have had to
+re-validate every artifact on every resume.**
+
+### K2 🔒 THE DEFERRED REPLICATE NEEDS A MECHANISM, NOT A PROMISE — and it costs nothing
+
+The implementer's reason for leaving I1/J1 out of this run is **correct and I am accepting it**: the
+replicate compares against phase B's own `random`-tier cell, and **inventing that wiring while the
+ladder runs is precisely how a replicate ends up re-evaluating the cell it is supposed to be
+independent of — the zero-by-construction J2 exists to refuse.** Flagging it visibly rather than
+burying it is the right call.
+> ⚠️ **But *"I will wire it before the ladder finishes"* is a promise, and this project's whole method
+> is that a step depending on someone remembering is the weak kind.**
+> **REQUIRED, and it is zero new code: enumerate the two replicate cells in
+> `docs/data/p5_2_declaration.json` NOW.** The campaign's final completeness assertion already
+> **derives its expected cells from the declaration rather than from the files being checked**, so
+> listing them makes a campaign that lacks them **refuse to report itself complete, automatically.**
+> ✅ **Legitimate as a registration act rather than a change: I1/J1 were RULED into the design today,
+> before any phase-B number exists, so this completes the registration rather than editing it.**
+
+---
+
 ## 0. ⚠️ SCOPE CORRECTION BEFORE ANYTHING ELSE — §6's P5.2 NAMES A SCENARIO WE DO NOT HAVE
 
 §6 reads *"Train + evaluate on grid4x4, **hangzhou_4x4** per ladder tier"*. **Measured today:
@@ -928,6 +966,8 @@ seven-tier sweep is not affordable in the September window.
 - [ ] **I1/J1** — **BOTH arms at SEED 202** replicated on the **`random`** tier inside phase B,
       unconditionally, yielding `d1`'s envelope at both ends of the ladder; F7's machinery and the
       1e−12 positive control; the seed is **pre-declared** and is not re-selected after phase B
+- [ ] **K2** — the two replicate cells are enumerated in the declaration **before phases A/C/B run**, so
+      the completeness assertion refuses a campaign that lacks them
 - [ ] **J2** — the replicate is an independent training run under a **distinct artifact key**, and the
       machinery **asserts the two canonical `state_dict` digests DIFFER** before reporting any envelope;
       equal digests are a **refusal**, and the digests are reported beside the number
