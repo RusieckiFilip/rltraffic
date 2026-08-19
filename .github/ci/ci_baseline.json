@@ -68,9 +68,6 @@
         ".claude/agents/master-coordinator.md": {
           "PL": 1
         },
-        "README.md": {
-          "PL": 1
-        },
         "docs/patches/claude_guard_g1.patch": {
           "PL": 1
         },
@@ -83,7 +80,8 @@
       },
       "why_not_zero": "P0.9, still open: the o-acute false positive. THREE of these four are the guard's own documentation of the character class it detects, quoted in claude_guard.sh and in two committed patches; de-diacriticising them would corrupt a record. The fourth is .claude/agents/master-coordinator.md, which carries a Polish WORD ('skonczone', with n-acute) inside an illustrative quotation, not a name -- checked, not assumed.",
       "expected_exit_code": 1,
-      "pending_patch": "4 is the POST-APPLY total and requires docs/patches/check_english_mikolaj.patch, which adds 'Mikolaj' to ALLOWED_NAMES. Until a human applies it the tree measures 6 and THIS GATE REPORTS A MISMATCH ON PURPOSE, so the pending action cannot be forgotten. The regression that took it from the recorded 5 to 6 is docs/returns/P8.3.md:141, where the packet documents the allowlist gap BY WRITING THE NAME, making the sentence an instance of the defect it describes. Applying clears two hits (README.md:30 and that line), both carrying l-stroke and n-acute from 'Mikolaj Wolinski'."
+      "pending_patch": "4 is the POST-APPLY total and requires docs/patches/check_english_mikolaj.patch, which adds 'Mikolaj' to ALLOWED_NAMES. Until a human applies it the tree measures 6 and THIS GATE REPORTS A MISMATCH ON PURPOSE, so the pending action cannot be forgotten. The regression that took it from the recorded 5 to 6 is docs/returns/P8.3.md:141, where the packet documents the allowlist gap BY WRITING THE NAME, making the sentence an instance of the defect it describes. Applying clears two hits (README.md:30 and that line), both carrying l-stroke and n-acute from 'Mikolaj Wolinski'.",
+      "by_file_note": "by_file is the POST-APPLY enumeration and sums to total (4). README.md:30 was dropped on 2026-08-19: it carries l-stroke and n-acute from 'Mikolaj Wolinski' and clears when docs/patches/check_english_mikolaj.patch is applied, so leaving it listed would send the next auditor looking for a finding that is not there. docs/returns/P8.3.md:141 never enters this list for the same reason -- it clears with the same patch. WARNING FOR WHOEVER NEXT EDITS ci_gate.py: nothing mechanically asserts sum(by_file) == total. compare_to_baseline only visits observed paths and flags seen > known, so a file dropping to zero is silent and a by_file that disagrees with its own total passes the gate. That inconsistency was introduced in 96e12f8 by updating total and not its enumeration, and caught by a human reader. One assertion at load time would close it permanently."
     }
   },
   "frozen_guard": {
