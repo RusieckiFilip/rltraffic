@@ -3,19 +3,24 @@
   "written_by": "P0.10 (BRIEF_23), 2026-08-17, branch task/p0.10-reproducibility",
   "read_by": ".github/ci/ci_gate.py -- see its module docstring for the format contract",
   "pytest": {
-    "skip_ceiling": 72,
+    "skip_ceiling": 98,
     "provisional": true,
     "measured": {
-      "value": 72,
-      "condition": "the real thing: GitHub Actions ubuntu-latest, run 32021100181, first push of task/p0.10-reproducibility, workflow as committed (pinned threads, dev extra only, CityFlow not built, no corpus, no SUMO binary)",
-      "result": "1 failed, 891 passed, 72 skipped (964 collected). The failure is UNRELATED to the ceiling -- see docs/returns/P0.10.md: offline/rtg_calibration.py asserts a committed p-value reproduces exactly, and it differs by 1 ulp on the runner.",
-      "breakdown": "32 cityflow-gated + 28 corpus/checkpoint-gated + 10 SUMO/traci-gated + 2 matplotlib = 72, counted from the run's own -rs block",
-      "tree": "task/p0.10-reproducibility at 7aee68f",
-      "date": "2026-08-17",
+      "value": 98,
+      "condition": "GitHub Actions, run 32300811749, job 'suite-and-guards (ubuntu-22.04)' on main after P5.1 and P8.3 merged; workflow unchanged (pinned threads, dev extra only, CityFlow not built, no corpus, no SUMO binary)",
+      "result": "1100 passed, 98 skipped, read from the job's own summary line. Both matrix legs (ubuntu-22.04 and ubuntu-24.04) failed on this gate; libc-matrix passed.",
+      "breakdown": "DERIVED, not recounted, and it RECONCILES: 32 cityflow + 54 corpus/checkpoint + 10 SUMO + 2 matplotlib = 98. Only the corpus term moved (28 -> 54, +26) because P5.1 added corpus-gated tests and no cityflow-, SUMO- or matplotlib-gated ones. Cross-checked independently: a corpus-absent run on the P5.2 worktree attributes exactly 26 skips to P5.1's two files (test_joint_windows 14 + test_spatial_mixing 12), which equals the observed delta.",
+      "why_not_recounted_from_the_log": "The runner's -rs block aggregates parametrised skips as 'SKIPPED [N] file:line: reason' and gh run view --log duplicates lines, so a category sum taken from the log does not reproduce the summary total. A wrong breakdown in this file is worse than none, so the derivation above is used instead and is stated as derived.",
+      "tree": "main at b2add7e",
+      "date": "2026-08-19",
       "measured_on_a_github_runner": true,
       "superseded": {
-        "value": 62,
-        "why_it_was_wrong": "It came from a simulated runner on the dev machine, and the simulation was defeated by usrmerge: the harness removed `sumo` from a symlink copy of /usr/bin but left /bin on PATH, and /bin IS /usr/bin on this system, so shutil.which('sumo') kept finding it and 10 SUMO-gated tests ran that a runner skips. The error was invisible locally and was caught by the first real run -- which is the reason the ceiling was declared provisional and the branch was pushed."
+        "value": 72,
+        "why_it_was_wrong": "Not wrong -- EXPIRED EXACTLY AS PREDICTED. The 2026-08-17 entry declared 're_measure_required_at: merge of P5.1' and forecast 'roughly +25 skips ... this ceiling WILL breach on that merge, and it is meant to'. Observed delta: +26. The mechanism worked; the number was stale.",
+        "its_own_superseded": {
+          "value": 62,
+          "why_it_was_wrong": "It came from a simulated runner on the dev machine, and the simulation was defeated by usrmerge: the harness removed `sumo` from a symlink copy of /usr/bin but left /bin on PATH, and /bin IS /usr/bin on this system, so shutil.which('sumo') kept finding it and 10 SUMO-gated tests ran that a runner skips. The error was invisible locally and was caught by the first real run -- which is the reason the ceiling was declared provisional and the branch was pushed."
+        }
       }
     },
     "ceiling_is_a_consequence_of": [
@@ -25,9 +30,11 @@
       "the workflow installs the dev extra only, so the 2 matplotlib-gated tests skip."
     ],
     "re_measure_required_at": {
-      "event": "merge of P5.1 (task/p5.1-spatial-mixing)",
-      "reason": "P5.1 adds tests that skip without a corpus. It measured 984 passed, 53 skipped corpus-absent in its own tree on 2026-08-17, against 898 passed, 28 skipped for the same condition on main -- roughly +25 skips. This ceiling WILL breach on that merge, and it is meant to: the job goes red and prints the observed number.",
-      "mandated_by": "coordinator ruling on BRIEF_23 Q1, 2026-08-17 -- 'a ceiling whose expiry lives only in a chat is a ceiling that silently breaches'"
+      "event": "merge of P5.2 (task/p5.2-tier-sweep)",
+      "predicted_delta": "+1, MEASURED rather than guessed",
+      "reason": "tests/test_tier_sweep.py is 89 tests and contains exactly ONE skip site: a single test function with an inline pytest.skip('the secured output/p5_1 tree is not present on this machine'). It has ZERO cityflow references and, checked on the branch under the corpus-absent condition, contributes ZERO corpus-gated skips -- P5.2's tests are synthetic. So the expected observation at that merge is 99, not a large jump.",
+      "what_to_do": "Re-measure and commit 99 deliberately. DO NOT pre-bump the ceiling to absorb the +1: a one-skip breach is exactly the size that invites slack, and slack is what blinds the gate.",
+      "mandated_by": "coordinator ruling on BRIEF_23 Q1, 2026-08-17 -- 'a ceiling whose expiry lives only in a chat is a ceiling that silently breaches'. Restated 2026-08-19 after the P5.1 expiry fired correctly."
     },
     "how_to_update": "Read the observed count from the failing job's summary, re-measure deliberately, and commit the new value together with the reason in the same commit. Never widen it with slack: slack is what blinds the gate."
   },
@@ -56,7 +63,7 @@
     "english": {
       "script": "scripts/check_english.sh",
       "invocation": "bash scripts/check_english.sh   (NO arguments -- with arguments it scans only those paths)",
-      "total": 5,
+      "total": 4,
       "by_file": {
         ".claude/agents/master-coordinator.md": {
           "PL": 1
@@ -74,8 +81,9 @@
           "PL": 1
         }
       },
-      "why_not_zero": "P0.9, still open: the o-acute false positive. Three of these five are the guard's own documentation of the character class it detects, quoted in claude_guard.sh and in two committed patches; de-diacriticising them would corrupt a record. Measured for P0.10 on 2026-08-17: 5.",
-      "expected_exit_code": 1
+      "why_not_zero": "P0.9, still open: the o-acute false positive. THREE of these four are the guard's own documentation of the character class it detects, quoted in claude_guard.sh and in two committed patches; de-diacriticising them would corrupt a record. The fourth is .claude/agents/master-coordinator.md, which carries a Polish WORD ('skonczone', with n-acute) inside an illustrative quotation, not a name -- checked, not assumed.",
+      "expected_exit_code": 1,
+      "pending_patch": "4 is the POST-APPLY total and requires docs/patches/check_english_mikolaj.patch, which adds 'Mikolaj' to ALLOWED_NAMES. Until a human applies it the tree measures 6 and THIS GATE REPORTS A MISMATCH ON PURPOSE, so the pending action cannot be forgotten. The regression that took it from the recorded 5 to 6 is docs/returns/P8.3.md:141, where the packet documents the allowlist gap BY WRITING THE NAME, making the sentence an instance of the defect it describes. Applying clears two hits (README.md:30 and that line), both carrying l-stroke and n-acute from 'Mikolaj Wolinski'."
     }
   },
   "frozen_guard": {

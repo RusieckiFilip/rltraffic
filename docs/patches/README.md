@@ -1,5 +1,37 @@
 # Patches a Claude Code session cannot apply itself
 
+## `check_english_mikolaj.patch` — add a thesis co-author's given name to `ALLOWED_NAMES`
+
+**Apply with:**
+```bash
+git apply docs/patches/check_english_mikolaj.patch
+bash scripts/check_english.sh ; echo "exit=$?"   # -> exit 1 with 4 hits, DOWN from 6
+```
+Verified with `git apply --check` on 2026-08-19 against `scripts/check_english.sh` at blob
+`6761831bc773`. One hunk, one line: `ALLOWED_NAMES='Paweł|Woliński|Grudziński'` gains `|Mikołaj`.
+
+**Why a patch and not an edit:** `scripts/**` is denied at permission level as a glob, and the guard
+honours `check_english.sh` as a `FROZEN_EXCEPTIONS` entry — so the patch route is the mechanism, not a
+workaround (CLAUDE.md §1).
+
+**Why this fix and not a translation:** the script's own failure message says *"If a hit is a proper
+noun, add it to ALLOWED_NAMES … instead of removing the diacritics from someone's name"*, and its
+line-24 comment anticipates extending the list. **Mikołaj Woliński is one of the four thesis authors
+this repository is built on; `Woliński` is already allowed and `Mikołaj` was not.**
+
+**Measured effect — the total goes DOWN, and this is the point.** Current hits are **6**; the recorded
+baseline is 5, and the regression is `docs/returns/P8.3.md:141`, where the packet documents the gap by
+**writing the name** — *"Mikołaj" (an `ALLOWED_NAMES` gap: only `Woliński` is listed)* — so the
+sentence describing the defect became an instance of it. Applying this clears **two** hits, both
+carrying `ł` + `ń` from that name: `README.md:30` (the author list) and `docs/returns/P8.3.md:141`.
+**6 → 4.**
+
+⚠️ **What it does NOT clear, checked rather than assumed:** `.claude/agents/master-coordinator.md:158`
+carries `ń` from the Polish **word** *"skończone"*, not from a name, so it stays; and the three `ó`
+hits (`scripts/claude_guard.sh:47`, two committed patches) are P0.9's open o-acute false positive and
+stay by design. **`.github/ci/ci_baseline.json` records the post-apply total as 4, so CI reports a
+mismatch until this patch is applied — deliberately, so the pending action cannot be forgotten.**
+
 ## `mappo_metric_keys_guard.patch` — make contract C8 mechanical (AUTHORISATION C)
 
 **Apply with:**

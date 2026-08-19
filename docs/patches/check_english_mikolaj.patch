@@ -1,0 +1,11 @@
+--- a/scripts/check_english.sh
++++ b/scripts/check_english.sh
+@@ -27,7 +27,7 @@
+
+ # Proper nouns permitted to keep their diacritics. Extend this list rather than de-diacriticising a
+ # name. Kept deliberately narrow: full surnames/given names, not fragments.
+-ALLOWED_NAMES='Paweł|Woliński|Grudziński'
++ALLOWED_NAMES='Paweł|Woliński|Grudziński|Mikołaj'
+
+ # Vendored trees are excluded wholesale: not our prose, not ours to rewrite.
+ # (`grep -I` handles binaries; this list is for text we still do not own.)
