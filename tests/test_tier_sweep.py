@@ -913,7 +913,7 @@ def test_score_level_scores_exactly_the_registered_cells_and_ignores_seen_ones()
     measured = {cell: ts.PREDICTED_LEVELS[cell[0]][cell[1]] for cell in ts.OUT_OF_SAMPLE_CELLS}
     measured[("dt_nomix", "mappo1000")] = 1e6
     report = ts.score_level(measured)
-    assert report["n_cells"] == 13
+    assert report["n_cells"] == 19
     assert ("dt_nomix", "mappo1000") not in {tuple(c["cell"]) for c in report["cells"]}
 
 
@@ -1171,6 +1171,111 @@ def test_the_reuse_gate_covers_all_seven_reused_cells_by_default() -> None:
 
 
 # ----------------------------------------------------------------------
+# I3 -- Q1's threshold is carried across by a rule, not re-decided.
+# ----------------------------------------------------------------------
+
+
+def test_the_threshold_rule_reproduces_the_originally_registered_threshold() -> None:
+    """I3's self-check, and it is why the rule is a carry-across rather than a new criterion.
+
+    If ``ceil(9/13 * N)`` did not return 9 at N = 13 it would be a fresh judgement wearing the old
+    threshold's clothes.
+    """
+    assert ts.level_threshold_for(13) == 9
+
+
+def test_the_threshold_at_the_current_denominator_is_fourteen_of_nineteen() -> None:
+    """I3: adding fixedtime grows N from 13 to 19, and the rule -- not a person -- sets k."""
+    assert len(ts.OUT_OF_SAMPLE_CELLS) == 19
+    assert ts.level_threshold_for(19) == 14
+    assert ts.LEVEL_THRESHOLD == 14
+
+
+def test_thirteen_of_nineteen_is_below_the_registered_rate_and_is_excluded() -> None:
+    """I3: the arithmetic that decides 14 rather than 13, asserted rather than asserted about."""
+    registered = 9 / 13
+    assert 13 / 19 < registered
+    assert 14 / 19 >= registered
+
+
+def test_the_threshold_rule_is_monotone_and_never_loosens_the_rate() -> None:
+    """I3: whatever N becomes, the rule may not return a proportion below the registered rate."""
+    for n in range(1, 60):
+        assert ts.level_threshold_for(n) / n >= 9 / 13 - 1e-12
+
+
+# ----------------------------------------------------------------------
+# J2 -- the replicate must be proved independent before its envelope means anything.
+# ----------------------------------------------------------------------
+
+
+def _tiny_checkpoint(path: Path, scale: float) -> None:
+    import torch
+
+    torch.save(
+        {
+            "model": {"b.weight": torch.tensor([[1.0, 2.0]]) * scale,
+                      "a.bias": torch.tensor([3.0, 4.0])},
+            "provenance": {"tier": "mappo1000"},
+        },
+        path,
+    )
+
+
+def test_two_different_checkpoints_have_different_canonical_digests(tmp_path: Path) -> None:
+    """J2(c)'s accept control."""
+    _tiny_checkpoint(tmp_path / "a.pt", 1.0)
+    _tiny_checkpoint(tmp_path / "b.pt", 1.0000001)
+    record = ts.assert_independent_replicate(tmp_path / "a.pt", tmp_path / "b.pt")
+    assert record["replicate_state_dict_sha256"] != record["original_state_dict_sha256"]
+
+
+def test_comparing_a_checkpoint_with_itself_is_REFUSED_not_reported_as_zero(
+    tmp_path: Path,
+) -> None:
+    """J2(c): a re-evaluation of the same checkpoint returns zero BY CONSTRUCTION.
+
+    That is the failure mode the assertion exists for: without it, the machinery would report the
+    answer the question was asked to avoid.
+    """
+    _tiny_checkpoint(tmp_path / "a.pt", 1.0)
+    with pytest.raises(ValueError, match="canonical state_dict digest"):
+        ts.assert_independent_replicate(tmp_path / "a.pt", tmp_path / "a.pt")
+
+
+def test_the_canonical_digest_ignores_provenance_and_tracks_only_weights(
+    tmp_path: Path,
+) -> None:
+    """J2(c): the FILE hash differs on provenance alone (DEFERRED 29); this one must not.
+
+    E1 met this live -- two runs' file hashes differed on git_commit, deterministic, n_head and a
+    changed tier label while saying nothing about the weights.
+    """
+    import torch
+
+    weights = {"a.bias": torch.tensor([3.0, 4.0]), "b.weight": torch.tensor([[1.0, 2.0]])}
+    torch.save({"model": weights, "provenance": {"tier": "mappo1000", "n_head": 1}},
+               tmp_path / "one.pt")
+    torch.save({"model": weights, "provenance": {"tier": "grid4x4_mappo1000", "n_head": 4}},
+               tmp_path / "two.pt")
+    assert ts.sha256_of(tmp_path / "one.pt") != ts.sha256_of(tmp_path / "two.pt")
+    assert ts.canonical_state_dict_digest(tmp_path / "one.pt") == ts.canonical_state_dict_digest(
+        tmp_path / "two.pt"
+    )
+
+
+def test_the_canonical_digest_does_not_depend_on_key_insertion_order(tmp_path: Path) -> None:
+    """J2(c): sorted-key ordering, so two dicts with the same weights agree whatever their order."""
+    import torch
+
+    torch.save({"model": {"a": torch.tensor([1.0]), "b": torch.tensor([2.0])}}, tmp_path / "x.pt")
+    torch.save({"model": {"b": torch.tensor([2.0]), "a": torch.tensor([1.0])}}, tmp_path / "y.pt")
+    assert ts.canonical_state_dict_digest(tmp_path / "x.pt") == ts.canonical_state_dict_digest(
+        tmp_path / "y.pt"
+    )
+
+
+# ----------------------------------------------------------------------
 # G2 -- E1 must run in P5.1's exact environment.
 # ----------------------------------------------------------------------
 
@@ -1250,7 +1355,8 @@ def test_the_registered_constants_appear_in_the_committed_plan() -> None:
     the committed file and fails if a registered number is not in it.
     """
     plan = PLAN_PATH.read_text(encoding="utf-8")
-    assert "≥ 9 of the 13" in plan
+    assert "k = ceil(9/13 · N)" in plan, "the plan must state the threshold RULE, not a bare number"
+    assert f"k = {ts.LEVEL_THRESHOLD}" in plan, "the plan must state the threshold at today's N"
     assert "0.30" in plan or "±30 %" in plan
     for arm, tier in ts.OUT_OF_SAMPLE_CELLS:
         value = ts.PREDICTED_LEVELS[arm][tier]
@@ -1263,10 +1369,17 @@ def test_the_out_of_sample_set_excludes_every_reused_cell() -> None:
     assert not (set(ts.OUT_OF_SAMPLE_CELLS) & reused)
 
 
-def test_the_out_of_sample_set_is_exactly_thirteen_cells() -> None:
-    """B5.2: the denominator is enumerated, so a silent addition changes a registered score."""
-    assert len(ts.OUT_OF_SAMPLE_CELLS) == 13
-    assert len(set(ts.OUT_OF_SAMPLE_CELLS)) == 13
+def test_the_out_of_sample_set_is_exactly_nineteen_cells() -> None:
+    """B5.2: the denominator is enumerated, so a silent addition changes a registered score.
+
+    It was 13 until ``fixedtime`` joined under H1 and grew it to 19.  The threshold moved WITH it,
+    by the stated rule rather than by a judgement -- see the I3 tests above.
+    """
+    assert len(ts.OUT_OF_SAMPLE_CELLS) == 19
+    assert len(set(ts.OUT_OF_SAMPLE_CELLS)) == 19
+    per_tier = {t: sum(1 for _, tier in ts.OUT_OF_SAMPLE_CELLS if tier == t)
+                for _, t in ts.OUT_OF_SAMPLE_CELLS}
+    assert per_tier == {"maxpressure": 6, "fixedtime": 6, "random": 6, "mappo1000": 1}
 
 
 def test_the_tier_order_is_grid4x4s_own_measured_att_order() -> None:
@@ -1308,7 +1421,14 @@ def test_tier_spec_refuses_an_undeclared_tier() -> None:
         ts.tier_spec("mappo060")
 
 
-def test_fixedtime_is_declared_but_not_in_the_running_order() -> None:
-    """B1: pre-declared as the optional fourth tier, and never a replacement for maxpressure."""
+def test_fixedtime_joined_the_running_order_without_replacing_maxpressure() -> None:
+    """B1/F4/H1: the pre-declared contingency fired; it was ADDED beside maxpressure, not swapped.
+
+    This test asserted the opposite until H1, when E1's zero envelope removed regime (c)'s case and
+    F4's pre-declared reallocation sent the freed budget here.  The load-bearing half is unchanged
+    and is what this now pins: maxpressure is still in the set.
+    """
     assert "fixedtime" in ts.TIERS
-    assert "fixedtime" not in ts.TIER_ORDER
+    assert "fixedtime" in ts.TIER_ORDER
+    assert "maxpressure" in ts.TIER_ORDER
+    assert len(ts.TIER_ORDER) == 4

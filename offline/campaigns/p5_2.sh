@@ -258,8 +258,104 @@ $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$TIER" replicate-report --seed 
     | tee "$LOGS/e1_report.log"
 
 echo "E1 COMPLETE $(stamp)" > "$WORK/E1_COMPLETE"
+say "E1 complete"
+
+# -------------------------------------------------------------------------------------
+# PHASE A -- the head-count 2x2, and the STOP RULE.  Reported first (A2).
+# -------------------------------------------------------------------------------------
+say "PHASE A: the 4-head pair at $TIER (the 1-head pair is P5.1's, reused)"
+for ARM in dt_spatial_h4 dt_nomix_h4; do
+  CKPT_COUNT=$(find "$WORK/checkpoints" -maxdepth 1 -name "grid4x4_${TIER}_${ARM}_seed*.pt" | wc -l)
+  if [ "$CKPT_COUNT" -eq 5 ]; then
+    say "SKIP training $ARM: 5 checkpoints already on disk"
+  else
+    say "TRAIN $ARM (5 seeds x $STEPS steps)"
+    $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$TIER" train --method "$ARM" \
+        > "$LOGS/train_${TIER}_$ARM.log" 2>&1
+  fi
+  if [ -f "$WORK/eval_${TIER}_${ARM}.json" ]; then
+    say "SKIP evaluate $ARM: cell already on disk"
+  else
+    say "EVALUATE $ARM (5 seeds x 100 held-out draws)"
+    $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$TIER" evaluate --method "$ARM" \
+        > "$LOGS/eval_${TIER}_$ARM.log" 2>&1
+  fi
+done
+
+# 🚨 THE STOP RULE IS ENFORCED HERE, BY THE SCRIPT, NOT REMEMBERED.  Exit 3 means the CI of d4 lies
+# entirely below zero: spatial mixing HELPS at 4 heads, P5.1's sign has reversed, and the ladder
+# would be measuring the wrong architecture.  `set -e` is deliberately suspended for this one call
+# so the campaign can halt CLEANLY with its own message rather than dying on a non-zero exit.
+say "SCORING THE STOP RULE (Q0)"
+set +e
+$PY -m offline.tier_sweep "${COMMON[@]}" --tier "$TIER" stop-rule | tee "$LOGS/stop_rule.log"
+RULE_STATUS=${PIPESTATUS[0]}
+set -e
+if [ "$RULE_STATUS" -eq 3 ]; then
+  say "################################################################"
+  say "STOP RULE FIRED.  The ladder sweep is NOT run."
+  say "$WORK/STOPPED_BY_RULE records the interval that fired it."
+  say "This is a REGISTERED OUTCOME, not a failure: report it and stop."
+  say "################################################################"
+  exit 0
+elif [ "$RULE_STATUS" -ne 0 ]; then
+  say "FATAL: the stop rule could not be scored (exit $RULE_STATUS)"
+  exit "$RULE_STATUS"
+fi
+say "stop rule did not fire; phase B proceeds"
+
+# -------------------------------------------------------------------------------------
+# PHASE C -- the new baseline arm at the reused tier.  Only NEW arms run at mappo1000 (A3).
+# -------------------------------------------------------------------------------------
+say "PHASE C: bc_top10_perix at $TIER (the only new baseline arm at the reused tier)"
+$PY -m offline.tier_sweep "${COMMON[@]}" --tier "$TIER" train-baselines \
+    > "$LOGS/train_${TIER}_baselines.log" 2>&1
+[ -f "$WORK/eval_${TIER}_bc_top10_perix.json" ] || \
+  $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$TIER" evaluate --method bc_top10_perix \
+      > "$LOGS/eval_${TIER}_bc_top10_perix.log" 2>&1
+
+# -------------------------------------------------------------------------------------
+# PHASE B -- the ladder.  Four tiers in measured-ATT order; mappo1000 is reused, not re-run.
+# -------------------------------------------------------------------------------------
+for LADDER_TIER in maxpressure fixedtime random; do
+  say "PHASE B: tier $LADDER_TIER"
+  [ -f "$OUT/p5_2_declaration_${LADDER_TIER}.json" ] || \
+    $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$LADDER_TIER" declare
+  for ARM in dt_spatial dt_nomix; do
+    TRAINED=$(find "$WORK/checkpoints" -maxdepth 1 -name "grid4x4_${LADDER_TIER}_${ARM}_seed*.pt" | wc -l)
+    if [ "$TRAINED" -eq 5 ]; then
+      say "SKIP training $LADDER_TIER/$ARM: 5 checkpoints on disk"
+    else
+      say "TRAIN $LADDER_TIER/$ARM (5 seeds)"
+      $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$LADDER_TIER" train --method "$ARM" \
+          > "$LOGS/train_${LADDER_TIER}_$ARM.log" 2>&1
+    fi
+  done
+  say "TRAIN $LADDER_TIER baselines (bc, bc_top10, bc_top10_perix, iql)"
+  $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$LADDER_TIER" train-baselines \
+      > "$LOGS/train_${LADDER_TIER}_baselines.log" 2>&1
+  for ARM in dt_spatial dt_nomix bc bc_top10 bc_top10_perix iql behaviour; do
+    # The `random` tier's behaviour policy IS the shared random anchor (D12), verified common:
+    # env settings identical across all four tier manifests, and the factory is a function of the
+    # seed alone.  Rolling it twice would be two names for one measurement.
+    if [ "$LADDER_TIER" = "random" ] && [ "$ARM" = "behaviour" ]; then
+      say "SKIP $LADDER_TIER/behaviour: it IS the shared random anchor (D12)"
+      continue
+    fi
+    if [ -f "$WORK/eval_${LADDER_TIER}_${ARM}.json" ]; then
+      say "SKIP evaluate $LADDER_TIER/$ARM: cell on disk"
+    else
+      say "EVALUATE $LADDER_TIER/$ARM"
+      $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$LADDER_TIER" evaluate --method "$ARM" \
+          > "$LOGS/eval_${LADDER_TIER}_$ARM.log" 2>&1
+    fi
+  done
+done
+
 say "================================================================"
-say "E1 IS COMPLETE AND THE CAMPAIGN STOPS HERE BY DESIGN (BRIEF_27 F1)."
-say "The numerical regime for phases A/B/C is the author's ruling and it"
-say "follows from the numbers above.  Do not start phase A from this script."
+say "PHASES A, C and B ARE COMPLETE."
+say "STILL OWED before the report, and NOT in this script: the random-tier"
+say "envelope replicate (I1/J1) -- BOTH arms at seed 202 under a DISTINCT"
+say "artifact key, with J2's canonical state_dict digest assertion."
 say "================================================================"
+echo "PHASES COMPLETE $(stamp)" > "$WORK/PHASES_COMPLETE"

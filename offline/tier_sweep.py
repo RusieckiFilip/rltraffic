@@ -161,8 +161,9 @@ REUSED_CELLS: tuple[str, ...] = (
 )
 
 #: Tiers in ``cf_grid4x4``'s OWN measured ATT order (``BRIEF_27`` B0: no hz1x1 number may be quoted
-#: as grid4x4's).  ``fixedtime`` is the pre-declared optional fourth tier and is not in this tuple.
-TIER_ORDER: tuple[str, ...] = ("mappo1000", "maxpressure", "random")
+#: as grid4x4's).  ``fixedtime`` joined under H1 when E1's zero envelope freed regime (c)'s budget --
+#: the contingency B1 and F4 pre-declared, firing as written.
+TIER_ORDER: tuple[str, ...] = ("mappo1000", "maxpressure", "fixedtime", "random")
 
 
 @dataclass(frozen=True)
@@ -223,37 +224,71 @@ TIERS: Mapping[str, TierSpec] = {
 #: Rule R' applied to every arm x tier cell.  ``mappo1000``'s method entries other than
 #: ``bc_top10_perix`` are P5.1's MEASURED values, reused, and are not predictions.
 PREDICTED_LEVELS: Mapping[str, Mapping[str, float]] = {
-    "dt_spatial": {"mappo1000": 197.4126, "maxpressure": 208.2667, "random": 312.9006},
-    "dt_nomix": {"mappo1000": 157.8477, "maxpressure": 166.5265, "random": 250.1900},
-    "bc": {"mappo1000": 168.9806, "maxpressure": 175.7248, "random": 272.1254},
-    "bc_top10": {"mappo1000": 749.5796, "maxpressure": 751.0633, "random": 1242.6948},
-    "bc_top10_perix": {"mappo1000": 165.7657, "maxpressure": 166.0938, "random": 274.8156},
-    "iql": {"mappo1000": 275.8354, "maxpressure": 264.0804, "random": 414.9930},
-    "behaviour": {"mappo1000": 160.2780, "maxpressure": 167.4920, "random": 260.3602},
+    "dt_spatial": {
+        "mappo1000": 197.4126, "maxpressure": 208.2667,
+        "fixedtime": 256.3101, "random": 312.9006,
+    },
+    "dt_nomix": {
+        "mappo1000": 157.8477, "maxpressure": 166.5265,
+        "fixedtime": 204.9412, "random": 250.1900,
+    },
+    "bc": {
+        "mappo1000": 168.9806, "maxpressure": 175.7248,
+        "fixedtime": 222.1050, "random": 272.1254,
+    },
+    "bc_top10": {
+        "mappo1000": 749.5796, "maxpressure": 751.0633,
+        "fixedtime": 1042.7531, "random": 1242.6948,
+    },
+    "bc_top10_perix": {
+        "mappo1000": 165.7657, "maxpressure": 166.0938,
+        "fixedtime": 230.5996, "random": 274.8156,
+    },
+    "iql": {
+        "mappo1000": 275.8354, "maxpressure": 264.0804,
+        "fixedtime": 360.8493, "random": 414.9930,
+    },
+    "behaviour": {
+        "mappo1000": 160.2780, "maxpressure": 167.4920,
+        "fixedtime": 206.9318, "random": 260.3602,
+    },
 }
 
 #: The 13 cells scored by Q1.  Seen cells are excluded so a free hit cannot enter the denominator
 #: (``BRIEF_27`` B5.2); ``behaviour@maxpressure`` is scored separately as Q1b's instrument check.
-OUT_OF_SAMPLE_CELLS: tuple[tuple[str, str], ...] = (
-    ("dt_spatial", "maxpressure"),
-    ("dt_nomix", "maxpressure"),
-    ("bc", "maxpressure"),
-    ("bc_top10", "maxpressure"),
-    ("bc_top10_perix", "maxpressure"),
-    ("iql", "maxpressure"),
-    ("dt_spatial", "random"),
-    ("dt_nomix", "random"),
-    ("bc", "random"),
-    ("bc_top10", "random"),
-    ("bc_top10_perix", "random"),
-    ("iql", "random"),
-    ("bc_top10_perix", "mappo1000"),
-)
+OUT_OF_SAMPLE_CELLS: tuple[tuple[str, str], ...] = tuple(
+    (method, tier)
+    for tier in ("maxpressure", "fixedtime", "random")
+    for method in METHODS
+) + (("bc_top10_perix", "mappo1000"),)
 
-#: Q1's band and threshold, fixed in the commit that registered them and NOT widenable afterwards.
-#: Calibration behind the choice: median relative error 23.9 %, max 378.5 %, 3 of 5 inside the band.
+#: Q1's band, fixed in the commit that registered it and NOT widenable afterwards.  Calibration
+#: behind the choice: median relative error 23.9 %, max 378.5 %, 3 of 5 inside the band.
 LEVEL_BAND = 0.30
-LEVEL_THRESHOLD = 9
+
+#: The registered rate: 9 of 13 out-of-sample cells, declared when N was 13.
+REGISTERED_LEVEL_RATE = (9, 13)
+
+
+def level_threshold_for(n_cells: int) -> int:
+    """``k = ceil(9/13 * N)`` -- the registered rate carried to any denominator (``BRIEF_27`` I3).
+
+    ⚠️ **This is a carry-across, not a fresh judgement.**  Adding ``fixedtime`` grew the
+    out-of-sample set from 13 cells to 19, and moving a threshold after data exists is loosening --
+    so the rule that transports it is named and applied mechanically rather than re-decided.
+
+    ✅ **It SELF-CHECKS, which is why it is the right rule rather than a plausible one: at ``N = 13``
+    it returns 9, reproducing the originally registered threshold exactly.**  At ``N = 19`` it
+    returns **14** (73.68 %); 13/19 is 68.42 %, below the registered 69.23 %, and is excluded.
+    """
+    import math
+
+    numerator, denominator = REGISTERED_LEVEL_RATE
+    return math.ceil(numerator / denominator * int(n_cells))
+
+
+#: Q1's aggregate threshold at the current denominator.  19 cells -> 14.
+LEVEL_THRESHOLD = level_threshold_for(len(OUT_OF_SAMPLE_CELLS))
 
 #: Q1b's tighter band for the behaviour anchor.  P5.1's two anchors landed 0.03 % and 1.0 % away.
 ANCHOR_BAND = 0.10
@@ -1065,6 +1100,69 @@ def concordance(
     }
 
 
+def canonical_state_dict_digest(checkpoint_path: str | Path) -> str:
+    """SHA-256 over the WEIGHTS alone, keys sorted -- not the file, which carries provenance.
+
+    ``DEFERRED`` 29 records this from the other side: a checkpoint's FILE hash depends on its
+    filename and provenance block, so *"reproduces byte-identically"* is not testable at file level.
+    E1 met that live -- the two runs' file hashes differed on ``git_commit``, ``deterministic``,
+    ``n_head`` and a changed ``tier`` label while saying nothing about the weights.
+
+    This digests ``state_dict`` tensors in sorted-key order, as raw bytes with their dtype and
+    shape, so two checkpoints agree here **iff their weights agree**.
+    """
+    import hashlib
+
+    import torch
+
+    payload = torch.load(Path(checkpoint_path), map_location="cpu", weights_only=False)
+    model = payload["model"]
+    digest = hashlib.sha256()
+    for key in sorted(model):
+        tensor = model[key].detach().cpu().contiguous()
+        digest.update(key.encode("utf-8"))
+        digest.update(str(tensor.dtype).encode("utf-8"))
+        digest.update(str(tuple(tensor.shape)).encode("utf-8"))
+        digest.update(tensor.numpy().tobytes())
+    return digest.hexdigest()
+
+
+def assert_independent_replicate(
+    replicate_checkpoint: str | Path, original_checkpoint: str | Path
+) -> dict[str, str]:
+    """J2(c): refuse to report an envelope unless the two runs produced DIFFERENT weights.
+
+    🚨 **EQUAL digests are a REFUSAL, not a zero.**  They mean either that two identical models were
+    compared -- a defect, and the one a re-evaluation of the same checkpoint would produce **by
+    construction** -- or that training reproduced exactly, which would contradict the C1 control and
+    invalidate the measurement's premise.  Either way it forces a look instead of silently reporting
+    the answer the question was asked to avoid.
+
+    Derived from what happened in E1: its ``+0.0000`` was only interpretable because the two
+    checkpoints were checked BY HAND and found to differ (66/66 tensors, worst 1.22e-04).  F7 did
+    not require that, and without it the result was indistinguishable from a self-comparison.  The
+    machinery now does what was done manually.
+    """
+    replicate = canonical_state_dict_digest(replicate_checkpoint)
+    original = canonical_state_dict_digest(original_checkpoint)
+    if replicate == original:
+        raise ValueError(
+            f"the replicate and the original share a canonical state_dict digest ({replicate}). "
+            "An envelope may not be reported from this pair: either the same checkpoint was "
+            "compared with itself -- which returns zero by construction -- or training reproduced "
+            "exactly, which contradicts the C1 control and invalidates the premise. Refusing "
+            "rather than reporting the answer the question was asked to avoid (BRIEF_27 J2c)"
+        )
+    return {
+        "replicate_state_dict_sha256": replicate,
+        "original_state_dict_sha256": original,
+        "note": (
+            "canonical digest over sorted state_dict tensor bytes, NOT the file sha256, which "
+            "differs on provenance alone (DEFERRED 29)"
+        ),
+    }
+
+
 def episodes_of_seed(payload: Mapping[str, Any], seed: int) -> dict[int, dict[str, float]]:
     """``{draw_id: episode}`` for one training seed, refusing duplicate draws."""
     out: dict[int, dict[str, float]] = {}
@@ -1427,7 +1525,14 @@ def build_parser() -> Any:
     train.add_argument("--method", required=True, choices=list(DT_METHODS))
     evaluate = sub.add_parser("evaluate", help="roll one arm over the held-out pool")
     evaluate.add_argument("--method", required=True)
+    sub.add_parser(
+        "train-baselines", help="train bc, bc_top10, bc_top10_perix and iql on one tier"
+    )
     sub.add_parser("verify-reuse", help="B3: re-verify the reused cells' digests at consumption")
+    sub.add_parser(
+        "stop-rule",
+        help="Q0: score d4 from the two 4-head cells; exit 3 (STOP) if its CI is entirely below 0",
+    )
     replicate = sub.add_parser(
         "replicate-report", help="E1/F7: the paired per-draw report against P5.1's cells"
     )
@@ -1536,6 +1641,116 @@ def _run_train(args: Any) -> int:
     return 0
 
 
+def _run_train_baselines(args: Any) -> int:
+    """BC, %BC, per-intersection %BC and IQL on one tier, on the SAME size-matched episode set.
+
+    ⚠️ These arms are independent per intersection BY CONSTRUCTION and cannot use the neighbour
+    information ``dt_spatial`` is given.  **That asymmetry IS the experiment** and is stated rather
+    than hidden.  The trainers, batching, loss and optimiser are ``offline.offline_baselines``',
+    imported unchanged; the only new selection is ``per_intersection_top_streams``.
+    """
+    import torch
+
+    from offline.dt_gate import runtime_provenance, stack_dataset
+    from offline.offline_baselines import (
+        IQL_BATCH_TRANSITIONS,
+        build_transitions,
+        filter_stacked_to_streams,
+        iql_reward_scale,
+        top_return_streams,
+        train_bc,
+        train_iql,
+    )
+
+    protected = _protected_of(args)
+    tier = _require_tier(args)
+    parts = tier_parts(tier, args.corpus_root, sim_config=args.sim_config)
+    dataset = parts["dataset"]
+    group = next(iter(dataset.groups))
+    streams = parts["streams"]
+    kept_global = tuple(s for s in top_return_streams(dataset) if s in set(streams))
+    kept_perix = per_intersection_top_streams(streams)
+    scale = iql_reward_scale([s.total_return for s in streams])
+    stacked_all = stack_dataset(dataset, group)
+    stacked = filter_stacked_to_streams(dataset, stacked_all, streams)
+    batches = {
+        "bc": stacked,
+        "bc_top10": filter_stacked_to_streams(dataset, stacked_all, kept_global),
+        "bc_top10_perix": filter_stacked_to_streams(dataset, stacked_all, kept_perix),
+    }
+    device = torch.device(
+        args.device if args.device else ("cuda" if torch.cuda.is_available() else "cpu")
+    )
+    checkpoints = Path(args.checkpoint_dir)
+    assert_writable(checkpoints, protected)
+    checkpoints.mkdir(parents=True, exist_ok=True)
+    provenance = {
+        "tier": tier,
+        "dataset_dirs": [str(d) for d in tier_dirs(parts["spec"], args.corpus_root)],
+        "scenario_id": SCENARIO_ID,
+        "training_streams": len(streams),
+        "independent_per_intersection": True,
+    }
+    print(
+        f"baselines @{tier}: {len(streams)} streams, global decile {len(kept_global)}, "
+        f"per-intersection decile {len(kept_perix)}, iql reward scale {scale}, device {device}",
+        flush=True,
+    )
+    records: list[dict[str, Any]] = []
+    table = None
+    for method in ("bc", "bc_top10", "bc_top10_perix", "iql"):
+        for seed in _seeds_of(args):
+            path = checkpoints / _checkpoint_name(tier, method, seed)
+            if path.is_file():
+                print(f"SKIP {tier}/{method} seed {seed}: checkpoint on disk", flush=True)
+                continue
+            assert_writable(path, protected)
+            partial = path.with_name(path.name + ".partial")
+            partial.unlink(missing_ok=True)
+            print(f"TRAIN {tier}/{method} seed {seed} -> {path}", flush=True)
+            if method == "iql":
+                if table is None:
+                    table = build_transitions(dataset, group=group, reward_scale=scale)
+                    print(f"  transitions {len(table)}", flush=True)
+                train_iql(
+                    table, state_dim=group[0], n_actions=group[1], seed=int(seed),
+                    declared_gradient_steps=int(args.gradient_steps),
+                    batch_size=IQL_BATCH_TRANSITIONS, device=device, checkpoint_path=partial,
+                    stats=dataset.stats, scenario_id=SCENARIO_ID,
+                    provenance={**provenance, "runtime": runtime_provenance()},
+                    log_every=int(args.log_every),
+                )
+            else:
+                train_bc(
+                    batches[method], state_dim=group[0], n_actions=group[1], seed=int(seed),
+                    method=method, declared_gradient_steps=int(args.gradient_steps),
+                    batch_size=JOINT_BATCH_SIZE, device=device, checkpoint_path=partial,
+                    stats=dataset.stats, scenario_id=SCENARIO_ID,
+                    provenance={**provenance, "runtime": runtime_provenance()},
+                    log_every=int(args.log_every),
+                )
+            replace_guarded(partial, path, protected)
+            records.append({"tier": tier, "method": method, "seed": int(seed),
+                            "checkpoint_path": str(path),
+                            "gradient_steps": int(args.gradient_steps)})
+    work = Path(args.work_dir)
+    work.mkdir(parents=True, exist_ok=True)
+    write_json_guarded(
+        {
+            "format_version": ARTIFACT_FORMAT_VERSION, "tier": tier,
+            "methods": ["bc", "bc_top10", "bc_top10_perix", "iql"],
+            "declared_gradient_steps": int(args.gradient_steps),
+            "iql_reward_scale": scale,
+            "global_decile_streams": len(kept_global),
+            "per_intersection_decile_streams": len(kept_perix),
+            "training_streams": len(streams),
+            "runs": records,
+        },
+        work / f"training_{tier}_baselines.json", protected,
+    )
+    return 0
+
+
 def _arm_factory(tier: str, method: str, args: Any, seed: int) -> Any:
     """The action factory for one arm-seed.  One place, so no arm is wired twice."""
     from offline.method_tier_grid import _random_factory
@@ -1631,6 +1846,97 @@ def _run_evaluate(args: Any) -> int:
         work / f"eval_{tier}_{args.method}{seeds_tag}.json", protected,
     )
     print(f"{arm}: {len(produced)} episodes written")
+    return 0
+
+
+def score_stop_rule(
+    spatial: Mapping[str, Any], nomix: Mapping[str, Any], seeds: Sequence[int]
+) -> dict[str, Any]:
+    """Q0's stop rule, scored from the two 4-head cells: ``d4`` paired per draw over shared draws.
+
+    ⚠️ **The quantity this fires on must BE the mixing contrast, not merely be named one.**  A
+    mutation that voided the mixing flag on ``dt_spatial_h4`` would make ``d4`` about zero, the CI
+    would straddle, the rule would NOT fire, and the ladder would run on a quantity that is not the
+    contrast.  What guarantees it is not this function but
+    ``test_each_arm_of_the_2x2_gets_the_graph_its_name_promises``, which asserts at the ARTIFACT that
+    each arm's saved mask has an off-diagonal edge iff its name says it mixes.
+    """
+    from offline.dt_gate import mean_ci95
+
+    per_draw: dict[str, dict[int, list[float]]] = {}
+    for name, payload in (("spatial", spatial), ("nomix", nomix)):
+        grouped: dict[int, list[float]] = {}
+        for episode in payload["episodes"]:
+            if int(episode["seed"]) not in {int(s) for s in seeds}:
+                continue
+            grouped.setdefault(int(episode["draw_id"]), []).append(float(episode["att_horizon"]))
+        per_draw[name] = grouped
+    shared = sorted(set(per_draw["spatial"]) & set(per_draw["nomix"]))
+    if not shared:
+        raise ValueError("the two 4-head cells share no draw ids; A5 makes the comparison void")
+    differences = [
+        sum(per_draw["spatial"][d]) / len(per_draw["spatial"][d])
+        - sum(per_draw["nomix"][d]) / len(per_draw["nomix"][d])
+        for d in shared
+    ]
+    stats = mean_ci95(differences)
+    low, high = stats.mean - stats.ci95, stats.mean + stats.ci95
+    verdict = stop_rule_verdict(low, high)
+    return {
+        "quantity": "d4 = ATT(dt_spatial_h4) - ATT(dt_nomix_h4), paired per shared draw",
+        "n_shared_draws": len(shared),
+        "mean_difference": stats.mean,
+        "ci95_low": low,
+        "ci95_high": high,
+        "verdict": verdict,
+        "reading": (
+            "STOP: the CI lies entirely below zero, so spatial mixing HELPS at 4 heads and P5.1's "
+            "sign has reversed -- the ladder would be measuring the wrong architecture"
+            if verdict == "STOP"
+            else (
+                "CONTINUE: the CI straddles zero, so the contrast DOES NOT RESOLVE at 4 heads; "
+                "this is not a reversal and phase B proceeds"
+                if low <= 0.0 <= high
+                else "CONTINUE: the CI lies entirely above zero, so mixing still hurts at 4 heads"
+            )
+        ),
+    }
+
+
+def _run_stop_rule(args: Any) -> int:
+    """Score Q0 and REFUSE to continue if the sign reversed.  Exit 3 means STOP."""
+    import json as _json
+
+    protected = _protected_of(args)
+    tier = _require_tier(args)
+    work = Path(args.work_dir)
+    spatial = _json.loads(
+        (work / f"eval_{tier}_dt_spatial_h4.json").read_text(encoding="utf-8")
+    )
+    nomix = _json.loads((work / f"eval_{tier}_dt_nomix_h4.json").read_text(encoding="utf-8"))
+    report = score_stop_rule(spatial, nomix, _seeds_of(args))
+    print(
+        f"  d4 = {report['mean_difference']:+.4f}  "
+        f"CI [{report['ci95_low']:+.4f}, {report['ci95_high']:+.4f}]  "
+        f"over {report['n_shared_draws']} shared draws"
+    )
+    print(f"  VERDICT: {report['verdict']} -- {report['reading']}")
+    write_json_guarded(
+        {"format_version": ARTIFACT_FORMAT_VERSION, "measurement": "Q0 stop rule", **report},
+        work / f"stop_rule_{tier}.json", protected,
+    )
+    if report["verdict"] == "STOP":
+        marker = work / "STOPPED_BY_RULE"
+        assert_writable(marker, protected)
+        marker.write_text(
+            f"d4 = {report['mean_difference']:.4f} CI [{report['ci95_low']:.4f}, "
+            f"{report['ci95_high']:.4f}] lies entirely below zero.\n"
+            "The ladder sweep is NOT run: at 4 heads spatial mixing helps, P5.1's sign has "
+            "reversed, and the sweep would be measuring the wrong architecture "
+            "(docs/plans/p5.2.md section 4, Q0).\n",
+            encoding="utf-8",
+        )
+        return 3
     return 0
 
 
@@ -1732,8 +2038,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_train(args)
     if args.command == "evaluate":
         return _run_evaluate(args)
+    if args.command == "train-baselines":
+        return _run_train_baselines(args)
     if args.command == "verify-reuse":
         return _run_verify_reuse(args)
+    if args.command == "stop-rule":
+        return _run_stop_rule(args)
     if args.command == "replicate-report":
         return _run_replicate_report(args)
     raise SystemExit(f"unknown command {args.command!r}")
