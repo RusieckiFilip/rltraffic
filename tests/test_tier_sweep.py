@@ -391,6 +391,174 @@ def _tiny_joint_setup(n_nodes: int = 2, context: int = 3, state_dim: int = 4) ->
 
 
 # ----------------------------------------------------------------------
+# Obligation 6 -- the new trainer IS the old trainer at one head.
+# ----------------------------------------------------------------------
+
+
+def test_the_new_trainer_reproduces_the_old_one_exactly_at_one_head(tmp_path: Path) -> None:
+    """Obligation 6: old vs new, EXACT, on CPU.
+
+    The bar is ``==`` and not ``allclose``, and the bar was chosen by the C1 control rather than by
+    preference: the control showed ``train_spatial_dt`` reproduces itself exactly on CPU (0/66
+    tensors) and NOT on CUDA (61-63/66).  So CPU equality is the available bar, and it is asserted
+    exactly (``BRIEF_27`` C1b).
+
+    ⚠️ This licenses the CODE PATH only.  B3's digest check and the ``random``-anchor re-roll are
+    what license the reused ARTIFACTS; neither substitutes for the other.
+    """
+    import torch
+
+    from offline import spatial_mixing as sm
+
+    setup = _tiny_joint_setup()
+    common = dict(
+        seed=101,
+        adjacency=setup["adjacency"],
+        prompts=setup["prompts"],
+        stats=setup["stats"],
+        state_dim=setup["state_dim"],
+        n_actions=setup["n_actions"],
+        gradient_steps=60,
+        batch_size=2,
+        device=torch.device("cpu"),
+        provenance={},
+    )
+    old = sm.train_spatial_dt(
+        setup["stacked"], setup["index"], method="dt_nomix",
+        checkpoint_path=tmp_path / "old.pt", **common,
+    )
+    new = ts.train_tier_dt(
+        setup["stacked"], setup["index"], tier="mappo1000", method="dt_nomix",
+        checkpoint_path=tmp_path / "new.pt", protected=(), **common,
+    )
+    assert new.losses == old.losses, "the loss sequences diverge"
+
+    old_model = torch.load(tmp_path / "old.pt", map_location="cpu", weights_only=False)["model"]
+    new_model = torch.load(tmp_path / "new.pt", map_location="cpu", weights_only=False)["model"]
+    assert set(new_model) == set(old_model)
+    differing = [k for k in sorted(old_model) if not torch.equal(old_model[k], new_model[k])]
+    assert differing == [], f"{len(differing)} tensors differ, first {differing[:4]}"
+
+
+def test_the_equivalence_check_would_notice_a_changed_trainer(tmp_path: Path) -> None:
+    """Obligation 6's discriminating power: the same comparison on a DIFFERENT arm must differ.
+
+    Without this, ``the tensors are equal`` could mean the comparison is insensitive.  Training the
+    mixing arm instead of the control changes the mask and must move the weights.
+    """
+    import torch
+
+    from offline import spatial_mixing as sm
+
+    setup = _tiny_joint_setup()
+    common = dict(
+        seed=101, adjacency=setup["adjacency"], prompts=setup["prompts"], stats=setup["stats"],
+        state_dim=setup["state_dim"], n_actions=setup["n_actions"], gradient_steps=60,
+        batch_size=2, device=torch.device("cpu"), provenance={},
+    )
+    sm.train_spatial_dt(
+        setup["stacked"], setup["index"], method="dt_nomix",
+        checkpoint_path=tmp_path / "control.pt", **common,
+    )
+    ts.train_tier_dt(
+        setup["stacked"], setup["index"], tier="mappo1000", method="dt_spatial",
+        checkpoint_path=tmp_path / "treatment.pt", protected=(), **common,
+    )
+    a = torch.load(tmp_path / "control.pt", map_location="cpu", weights_only=False)["model"]
+    b = torch.load(tmp_path / "treatment.pt", map_location="cpu", weights_only=False)["model"]
+    differing = [k for k in sorted(a) if not torch.equal(a[k], b[k])]
+    assert differing, "the comparison cannot tell two different models apart"
+
+
+def test_the_head_count_reaches_the_model_and_is_recorded(tmp_path: Path) -> None:
+    """A2: the 4-head arms must actually be four-headed, and the checkpoint must say so."""
+    import torch
+
+    setup = _tiny_joint_setup()
+    common = dict(
+        seed=101, adjacency=setup["adjacency"], prompts=setup["prompts"], stats=setup["stats"],
+        state_dim=setup["state_dim"], n_actions=setup["n_actions"], gradient_steps=2,
+        batch_size=2, device=torch.device("cpu"), provenance={}, protected=(),
+    )
+    ts.train_tier_dt(
+        setup["stacked"], setup["index"], tier="mappo1000", method="dt_spatial_h4",
+        checkpoint_path=tmp_path / "h4.pt", **common,
+    )
+    payload = torch.load(tmp_path / "h4.pt", map_location="cpu", weights_only=False)
+    assert payload["config"]["n_head"] == 4
+    assert payload["provenance"]["n_head"] == 4
+    assert payload["provenance"]["tier"] == "mappo1000"
+    assert payload["provenance"]["deterministic"] is False
+
+
+def test_the_trainer_refuses_to_write_a_checkpoint_into_the_protected_root(
+    tmp_path: Path,
+) -> None:
+    """D1 reaches the trainer: the guard is on the write path, not only on the report path."""
+    import torch
+
+    (tmp_path / "p5_1" / "checkpoints").mkdir(parents=True)
+    protected = ts.protected_roots_from([tmp_path / "p5_1"])
+    setup = _tiny_joint_setup()
+    before = _tree(tmp_path)
+    with pytest.raises(PermissionError, match="read-only"):
+        ts.train_tier_dt(
+            setup["stacked"], setup["index"], tier="mappo1000", method="dt_nomix", seed=101,
+            adjacency=setup["adjacency"], prompts=setup["prompts"], stats=setup["stats"],
+            state_dim=setup["state_dim"], n_actions=setup["n_actions"], gradient_steps=2,
+            batch_size=2, device=torch.device("cpu"),
+            checkpoint_path=tmp_path / "p5_1" / "checkpoints" / "x.pt",
+            protected=protected, provenance={},
+        )
+    assert _tree(tmp_path) == before
+
+
+# ----------------------------------------------------------------------
+# F6 -- the numerical regime is a launch parameter that acts at process entry.
+# ----------------------------------------------------------------------
+
+
+def test_determinism_refuses_without_the_cublas_workspace_variable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """F6(a): the variable must be exported BEFORE the process starts, so this is a refusal.
+
+    A flag that silently fails to take effect is worse than no flag: it produces a run that
+    believes it is reproducible and is not.
+    """
+    monkeypatch.delenv("CUBLAS_WORKSPACE_CONFIG", raising=False)
+    with pytest.raises(RuntimeError, match="CUBLAS_WORKSPACE_CONFIG"):
+        ts.configure_determinism(True)
+
+
+def test_determinism_refuses_a_workspace_value_that_is_not_one_of_the_accepted_ones(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """F6(a): ``:2:2`` is a value cuBLAS will not accept; a truthy check would pass it."""
+    monkeypatch.setenv("CUBLAS_WORKSPACE_CONFIG", ":2:2")
+    with pytest.raises(RuntimeError, match="CUBLAS_WORKSPACE_CONFIG"):
+        ts.configure_determinism(True)
+
+
+def test_the_default_regime_records_itself_without_touching_the_process(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """F6(a)'s accept control: the default path must not enable anything globally."""
+    import torch
+
+    monkeypatch.delenv("CUBLAS_WORKSPACE_CONFIG", raising=False)
+    record = ts.configure_determinism(False)
+    assert record["deterministic"] is False
+    assert torch.are_deterministic_algorithms_enabled() is False
+
+
+def test_the_trainer_refuses_when_the_process_regime_is_not_the_one_requested() -> None:
+    """F6(a): ``deterministic`` is an assertion about the process, never a mid-run toggle."""
+    with pytest.raises(RuntimeError, match="deterministic algorithms"):
+        ts.assert_process_regime(True)
+
+
+# ----------------------------------------------------------------------
 # B4 -- the size match.
 # ----------------------------------------------------------------------
 

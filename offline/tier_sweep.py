@@ -533,6 +533,276 @@ def lr_multiplier(step: int, warmup: int) -> float:
 
 
 # ----------------------------------------------------------------------
+# F6 -- the numerical regime.  A launch parameter, acting at PROCESS ENTRY.
+# ----------------------------------------------------------------------
+
+#: The cuBLAS workspace settings that make its reductions reproducible.  PyTorch requires one of
+#: these to be exported BEFORE the CUDA context is created; there is no way to set it afterwards.
+ACCEPTED_CUBLAS_WORKSPACE_CONFIGS: tuple[str, ...] = (":4096:8", ":16:8")
+
+
+def configure_determinism(deterministic: bool) -> dict[str, Any]:
+    """Put THIS PROCESS into the requested numerical regime, at entry, before any CUDA work.
+
+    ⚠️ ``torch.use_deterministic_algorithms`` is PROCESS-GLOBAL and ``CUBLAS_WORKSPACE_CONFIG``
+    must be exported **before the CUDA context exists** (``BRIEF_27`` F6a).  ``deterministic`` is
+    therefore the right *interface* and cannot be a per-call *parameter*: this function is called
+    once, from ``main``, and :func:`train_tier_dt` only ever asserts that the process is in the
+    state it was asked for.
+
+    **A flag that silently fails to take effect is worse than no flag**, because it produces a run
+    that believes it is reproducible and is not.  So both preconditions are REFUSALS: the
+    environment variable must already be set to an accepted value, and CUDA must not be initialised.
+
+    Measured on this machine, campaign shape, 100 steps: default CUDA does **not** reproduce itself
+    (63/66 and 61/66 tensors differ, worst |dw| 3.774e-06); with this flag it reproduces exactly
+    (0/66), at +10.3 % wall clock.  Determinism does NOT make the method stable -- it makes our
+    numbers reproducible (``docs/plans/p5.2.md`` section 4.7).
+    """
+    import os
+
+    import torch
+
+    if not deterministic:
+        return {
+            "deterministic": False,
+            "cublas_workspace_config": os.environ.get("CUBLAS_WORKSPACE_CONFIG"),
+            "note": (
+                "default numerical regime: the same regime P5.1's merged cells were trained in, "
+                "and NOT reproducible run to run on CUDA -- the envelope is measured by E1"
+            ),
+        }
+    configured = os.environ.get("CUBLAS_WORKSPACE_CONFIG")
+    if configured not in ACCEPTED_CUBLAS_WORKSPACE_CONFIGS:
+        raise RuntimeError(
+            f"CUBLAS_WORKSPACE_CONFIG is {configured!r} and deterministic training needs one of "
+            f"{list(ACCEPTED_CUBLAS_WORKSPACE_CONFIGS)}. It must be exported BEFORE this process "
+            "started -- offline/campaigns/p5_2.sh exports it -- because cuBLAS reads it when the "
+            "CUDA context is created and setting it now would not take effect"
+        )
+    if torch.cuda.is_available() and torch.cuda.is_initialized():
+        raise RuntimeError(
+            "the CUDA context is already initialised, so requesting determinism now would not "
+            "reliably take effect; configure_determinism must run at process entry, before any "
+            "tensor reaches the device"
+        )
+    torch.use_deterministic_algorithms(True)
+    return {
+        "deterministic": True,
+        "cublas_workspace_config": configured,
+        "note": (
+            "deterministic regime: reproducible run to run on CUDA, measured 0/66 tensors "
+            "differing at campaign shape, at +10.3 % wall clock"
+        ),
+    }
+
+
+def assert_process_regime(deterministic: bool) -> None:
+    """Refuse to train unless the process is in the regime the caller asked for."""
+    import torch
+
+    actual = bool(torch.are_deterministic_algorithms_enabled())
+    if actual != bool(deterministic):
+        raise RuntimeError(
+            f"this process has deterministic algorithms {'on' if actual else 'off'} but the run "
+            f"asked for {'on' if deterministic else 'off'}. The regime is set once at process "
+            "entry by configure_determinism(); it is not a per-call toggle, and training under a "
+            "regime the checkpoint will not record is how a cell becomes unattributable"
+        )
+
+
+# ----------------------------------------------------------------------
+# Obligation 6 -- the trainer.  Tier- and head-parameterised; equivalent to P5.1's at 1 head.
+# ----------------------------------------------------------------------
+
+
+def train_tier_dt(
+    stacked: Mapping[str, Any],
+    index: Any,
+    *,
+    tier: str,
+    method: str,
+    seed: int,
+    adjacency: Any,
+    prompts: Mapping[str, Any],
+    stats: Any,
+    state_dim: int,
+    n_actions: int,
+    gradient_steps: int,
+    batch_size: int,
+    device: Any,
+    checkpoint_path: str | Path,
+    protected: Sequence[Path],
+    provenance: Mapping[str, Any],
+    deterministic: bool = False,
+    log_every: int = 0,
+) -> Any:
+    """Train one spatial arm at one tier and head count, and save the checkpoint.
+
+    ⚠️ **This is ``spatial_mixing.train_spatial_dt`` with two axes added -- the TIER and the HEAD
+    COUNT -- and nothing else.**  Every constant it uses is IMPORTED from that module rather than
+    restated, so the two cannot drift on a value; obligation 6 tests that they do not drift on the
+    FORM either, by requiring exact equality of the loss sequence and every ``state_dict`` tensor
+    at ``n_head = 1`` on CPU, where the C1 control proved reproduction is available.
+
+    ⚠️ **What obligation 6 licenses and what it does not:** it licenses the CODE PATH -- this
+    trainer is P5.1's at one head.  It says nothing about artifacts; B3's digest check and the
+    ``random``-anchor re-roll license those.  Neither substitutes for the other.
+    """
+    import time
+
+    import torch
+
+    from agent.DTAgent import action_loss
+    from agent.SpatialDTAgent import (
+        SPATIAL_CHECKPOINT_FORMAT_VERSION,
+        SpatialDecisionTransformer,
+        SpatialDTConfig,
+    )
+    from agent.utils.utils import Utils
+    from offline.spatial_mixing import GRAD_CLIP, LEARNING_RATE, WEIGHT_DECAY
+
+    if method not in DT_METHODS:
+        raise ValueError(
+            f"{method!r} is not a spatial arm; this trainer builds {list(DT_METHODS)}. The "
+            "per-intersection comparators are trained by offline.offline_baselines, imported "
+            "rather than duplicated"
+        )
+    if tier not in TIERS:
+        raise ValueError(f"unknown tier {tier!r}; this task declares {sorted(TIERS)}")
+    total = int(gradient_steps)
+    if total < 1:
+        raise ValueError(f"gradient_steps must be >= 1, got {gradient_steps}")
+    if list(index.node_ids) != list(adjacency.node_ids):
+        raise ValueError(
+            f"the joint index node order {list(index.node_ids)[:6]} is not the adjacency's "
+            f"{list(adjacency.node_ids)[:6]}; the mask would apply to the wrong columns"
+        )
+    missing = [ix for ix in index.node_ids if ix not in prompts]
+    if missing:
+        raise ValueError(f"no declared prompt for {missing[:8]}")
+    assert_process_regime(deterministic)
+    # Filesystem-mutation barrier: the destination is guarded BEFORE any work, so a refused run
+    # trains nothing and writes nothing (docs/plans/p5.2.md section 3.2).
+    destination = assert_writable(checkpoint_path, protected)
+    if not destination.parent.is_dir():
+        raise FileNotFoundError(
+            f"checkpoint directory does not exist: {destination.parent}; nothing is created here"
+        )
+
+    n_head = int(N_HEAD_BY_METHOD[method])
+    spatial = method in ("dt_spatial", "dt_spatial_h4")
+    mask = adjacency.attention_mask(spatial_mixing=spatial)
+
+    Utils.seed_everything(int(seed), seed_python_random=False)
+    config = SpatialDTConfig(
+        state_dim=int(state_dim),
+        n_actions=int(n_actions),
+        n_nodes=index.n_nodes,
+        context_length=int(stacked["state"].shape[1]),
+        max_ep_len=int(stacked["timestep"].max()) + 1,
+        spatial_mixing=spatial,
+        n_head=n_head,
+    )
+    model = SpatialDecisionTransformer(config).to(device)
+    optimiser = torch.optim.AdamW(
+        model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY
+    )
+    warmup = warmup_for(total)
+    schedule = torch.optim.lr_scheduler.LambdaLR(
+        optimiser, lambda step: lr_multiplier(step, warmup)
+    )
+
+    members = stacked["member_index"]
+    count = int(members.shape[0])
+    if count < 1:
+        raise ValueError("the joint index is empty")
+    mask_tensor = torch.from_numpy(np.asarray(mask, dtype=np.bool_)).to(device)
+    scale = (
+        torch.tensor([prompts[ix].rtg_scale for ix in index.node_ids], dtype=torch.float32)
+        .view(1, index.n_nodes, 1, 1)
+        .to(device)
+    )
+
+    generator = np.random.default_rng(int(seed))
+    losses: list[float] = []
+    model.train()
+    started = time.time()
+    for step in range(total):
+        rows = torch.from_numpy(
+            generator.integers(0, count, size=int(batch_size)).astype(np.int64)
+        )
+        selected = members[rows]
+        action = stacked["action"][selected].to(device)
+        logits = model(
+            stacked["rtg"][selected].to(device) / scale,
+            stacked["state"][selected].to(device),
+            action,
+            stacked["timestep"][selected].to(device),
+            mask_tensor,
+            stacked["attention_mask"][selected].to(device),
+            stacked["avail_mask"][selected].to(device),
+        )
+        loss = action_loss(logits, action)
+        optimiser.zero_grad(set_to_none=True)
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), GRAD_CLIP)
+        optimiser.step()
+        schedule.step()
+        losses.append(float(loss.detach()))
+        if log_every and (step + 1) % log_every == 0:
+            print(
+                f"  {tier}/{method} seed {seed} step {step + 1}/{total} "
+                f"loss {np.mean(losses[-log_every:]):.5f}",
+                flush=True,
+            )
+    seconds = time.time() - started
+
+    torch.save(
+        {
+            "format_version": SPATIAL_CHECKPOINT_FORMAT_VERSION,
+            "config": config.to_json_obj(),
+            "model": {key: value.detach().cpu() for key, value in model.state_dict().items()},
+            "target_rtg": {ix: prompts[ix].target_rtg for ix in index.node_ids},
+            "rtg_scale": {ix: prompts[ix].rtg_scale for ix in index.node_ids},
+            "normalise": True,
+            "scenario_id": SCENARIO_ID,
+            "stats": stats.to_json_obj(),
+            "intersection_ids": list(index.node_ids),
+            "spatial_mask": np.asarray(mask, dtype=np.bool_).tolist(),
+            "provenance": {
+                **dict(provenance),
+                "method": method,
+                "tier": tier,
+                "n_head": n_head,
+                "deterministic": bool(deterministic),
+                "seed": int(seed),
+                "gradient_steps": int(total),
+                "batch_size": int(batch_size),
+                "learning_rate": LEARNING_RATE,
+                "weight_decay": WEIGHT_DECAY,
+                "warmup_steps": int(warmup),
+                "grad_clip": GRAD_CLIP,
+                "device": str(device),
+                "spatial_mixing": spatial,
+                "roadnet_sha256": adjacency.roadnet_sha256,
+            },
+        },
+        destination,
+    )
+    from offline.spatial_mixing import TrainResult
+
+    return TrainResult(
+        method=method,
+        seed=int(seed),
+        gradient_steps=total,
+        losses=tuple(losses),
+        checkpoint_path=str(destination),
+        seconds=float(seconds),
+    )
+
+
+# ----------------------------------------------------------------------
 # B3 -- the reuse gate.
 # ----------------------------------------------------------------------
 
