@@ -814,6 +814,69 @@ burying it is the right call.
 
 ---
 
+## ⭐⭐ NOTE N — 2026-08-20. PHASE A's RESULT, THE INTERACTION COMPUTED, AND TWO REGISTRATIONS BEFORE PHASE B
+
+### N1 ✅ THE INTERACTION, COMPUTED AS A2 REGISTERED IT — paired per-draw, not two intervals
+
+The implementer was right to refuse its own eyeball and ask for the registered quantity. **I computed
+it independently from the four cells, pairing on the 100 shared draws** (`I_i = d4_i − d1_i`, each a
+5-seed per-draw mean):
+
+| quantity | mean | CI95 |
+|---|---|---|
+| `d1` — 1 head (P5.1) | **+39.5649** | [+36.0510, +43.0787] |
+| `d4` — 4 heads (P5.2) | **+27.1004** | [+23.8150, +30.3858] |
+| **`I = d4 − d1`** | **−12.4645** | **[−16.3575, −8.5714]** |
+
+**`d1` and `d4` reproduce the reported values exactly.** ⭐ **The paired interval is STRONGER than the
+non-overlap eyeball, not weaker** — pairing removes between-draw variance, so the registered test
+resolves more decisively than the conservative one. ⚠️ **And it carries something the eyeball cannot:
+`I < 0` on 70 of 100 draws, not on all of them. The 31.5 % reduction is a mean over a split
+population and must be reported with that count, per §5's per-seed/per-draw rule.**
+> ⭐ **E1 is what makes `I` interpretable at all: `d1` and `d4` come from different training runs, and
+> the run-to-run envelope on this metric was measured at exactly 0.0000. Without it, `I` would carry
+> unmeasured noise from two independent runs.** ⚠️ **Scope, per H2: that zero was measured on the
+> 1-HEAD arms at `mappo1000`. It is not established for the 4-head models, whose decision margins
+> could differ — state that beside `I` rather than inheriting it silently.**
+
+### N2 🔒 REGISTERED: THE EXTRAPOLATION IS REFUSED, AND THE REFUSAL IS SHARPER THAN THE TREND
+
+The implementer's arithmetic is right — 1→4 heads is **two** doublings, so **6.23 ATT per doubling**,
+putting 8 at ≈20.9, 16 at ≈14.6, 64 at ≈2.2 — and its instinct to register the refusal rather than the
+extrapolation is right. **The refusal must be stronger than it framed it.**
+> 🚨 **TWO POINTS DETERMINE A LINE BY CONSTRUCTION, SO THEY CARRY NO INFORMATION ABOUT FUNCTIONAL
+> FORM.** The data cannot distinguish decay toward zero from a plateau from a reversal. **So even
+> *"shrinking but not vanishing"* is unlicensed — it is the linear reading asserted as a shape.**
+> **BINDING: the measured claim covers `n_head ∈ {1, 4}` and nothing else. No sentence may state,
+> imply or invite a value at 8, 16 or 64 heads, including qualitatively.** The per-doubling figure is
+> recorded here **as the thing being refused**, because a referee will compute it in ten seconds and
+> silence would look like we had not noticed.
+
+### N3 🔒 REGISTERED: THE LAYER AXIS — and *"we tested the literature's configuration"* IS NOT AVAILABLE
+
+The implementer flags that layers were never varied. **Verified in source, and the limitation is
+sharper than "we held them at the inherited value":** `SpatialDTConfig.n_layer = 3` and every
+`_SpatialBlock` carries **one temporal and one spatial sublayer**, so our spatial mixing is
+**interleaved three times**. The in-domain papers use **4 heads with a separate 2-layer GAT stack**
+(2603.22315: *"d=128, L=3, NH=4, 2 GAT layers with 4 heads"*).
+> ⚠️ **So we do not have FEWER spatial layers than they do — we have a DIFFERENT ARRANGEMENT at a
+> different depth, and we matched only the head count.** **BINDING: the sentence *"we tested the
+> literature's configuration"* may not be written. What is true and sufficient is *"the harm persists
+> at the head count both in-domain papers use"*.** **The head-count × layer-count interaction is
+> unmeasured, and that travels in the same sentence as the result — it is exactly the overclaim the
+> result invites.**
+
+### N4 ⭐ WHAT PHASE A ACTUALLY BOUGHT
+
+**P5.1's negative is not a single-head artifact, and that removes the rebuttal we could not answer.**
+§1b's **C3** registered the confound before P5.1's campaign landed — *"a collapse or a null is
+CONFOUNDED with head count against both architectures ours is closest to"* — and it is now measured
+rather than qualified away. ⚠️ **And the harm is head-count DEPENDENT: 31.5 % of it is attributable to
+the single-head configuration.** **Both halves are the result; reporting the first without the second
+would be the mirror of the overclaim N3 forbids.**
+
+---
+
 ## 🚨 NOTE M — 2026-08-20. A CLOCK JUMP IN `campaign.log`, and the slowdown has a mechanism
 
 ### M1 ✅ P5.1 IS UNAFFECTED, and I checked it the only way that could have shown otherwise
