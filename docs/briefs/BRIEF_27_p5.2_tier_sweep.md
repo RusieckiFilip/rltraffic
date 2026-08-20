@@ -829,34 +829,46 @@ interval that spans it — `dt_nomix_h4` seed 505, `07:59 → 11:25`, 206 → 76
 
 | stage | measured | n |
 |---|---|---|
-| DT arm-seed, 40,000 steps | `66 · 59 · 68 · 70 · 80` then `83 · 81 · 82 · 81 · 76` — **mean 74.6 min**, range **59–83** | 10 |
+| 🚨 DT arm-seed, 40,000 steps — **4-HEAD ONLY, mislabelled here as the population (P4)** | `66 · 59 · 68 · 70 · 80` then `83 · 81 · 82 · 81 · 76` — ~~**mean 74.6 min**~~, range **59–83**. **The ladder is 1-HEAD at ≈57 min** | 10, all `_h4` |
 | baselines, 4 arms × 5 seeds | **53 min** (`11:53 → 12:46`) | 1 tier |
 | evaluate one DT cell, 5 seeds × 100 draws | **28 min** (twice, `02:04→02:32` and `11:25→11:53`) | 2 |
 | evaluate one baseline cell | **18 min** (`12:46 → 13:04`) | 1 |
 | evaluate `behaviour` | **56.5 min** (P5.1's log, unchanged) | — |
 
-> **A FULL NEW TIER = 16.4 h** — 12.4 DT training (10 arm-seeds × 74.6 min) + 0.9 baselines + 3.1
+🚨 **EVERY FIGURE IN THE BLOCK BELOW IS WITHDRAWN — SEE AMENDMENT P4. Corrected: a ladder DT arm-seed
+is ≈57 min (1-head), A FULL TIER IS ≈13.5 h, ≈40–42 h remain, and cutting `fixedtime` saves ≈13.5 h =
+0.56 days = 2.1 %.** The block stands as the record of what was claimed.
+
+> ~~**A FULL NEW TIER = 16.4 h** — 12.4 DT training (10 arm-seeds × 74.6 min) + 0.9 baselines + 3.1
 > evaluation (7 cells). Against the plan §2.5 projection of **13.9 h**: **+18 %**.
 > **Remaining as scheduled: `maxpressure` 16.4 + `fixedtime` 16.4 + `random` 15.5 (no behaviour anchor,
 > it is the shared gate-1 cell) + the I1/J1 replicate 2.7 = ≈ 51 h**, i.e. ending **≈ 2026-08-22 16:00**.
-> **Cutting `fixedtime` saves 16.4 h = 0.68 days.**
+> **Cutting `fixedtime` saves 16.4 h = 0.68 days.**~~
 
-⚠️ **What this measurement does NOT settle, stated so it is not read as tighter than it is: 74.6 min is
+🚨 **THE 74.6 min FIGURE AND ITS CAVEAT ARE BOTH WITHDRAWN, 2026-08-20, BY THE AUTHOR. SEE AMENDMENT
+P4. ALL TEN OBSERVATIONS ARE 4-HEAD CELLS AND THE ENTIRE LADDER IS 1-HEAD** — a number true of a
+sample, stated as the population's, **inside the amendment that answers a costing question**. The
+withdrawn caveat follows, and it is worse than no caveat because it named the wrong confound and
+therefore gave false assurance that the confound had been considered.
+
+⚠️ ~~**What this measurement does NOT settle, stated so it is not read as tighter than it is: 74.6 min is
 an ARM-LEVEL MEAN spanning a cool start and a throttled steady state (`NOTE M4`).** The GPU reads
 **56 °C** as I write this against the overnight throttled regime, so `maxpressure`'s own seeds may land
 nearer 59 than 83. **The mean of a full 10-seed phase is the right planning unit precisely because a
-fresh tier reproduces that same cool-start-to-throttled shape** — but the first three `maxpressure`
+fresh tier reproduces that same cool-start-to-throttled shape**~~ — but the first three `maxpressure`
 checkpoints will replace this estimate with a same-tier measurement, and the packet quotes those.
+**That last clause is the only part that survived contact, and it is what produced the correction.**
 
-### O2 ✅ RULED: `fixedtime` IS NOT CUT. The saving is 2.6 % of the budget and the rung is the most falsifying one left
+### O2 ✅ RULED: `fixedtime` IS NOT CUT. The saving is ~~2.6~~ **2.1 %** of the budget (corrected in P4) and the rung is the most falsifying one left
 
 **This is the question the author asked me to bring back once phase B gave a real per-tier time. It has
 an answer and the answer is no** — and it is a ruling rather than an escalation because **keeping four
 tiers is the STATUS QUO under `H1`; cutting is the change.**
 
-1. **The saving is negligible against the constraint it would be protecting.** 0.68 days against
+1. **The saving is negligible against the constraint it would be protecting.** ~~0.68~~ **0.56 days
+   (P4)** against
    **41 days to the end-of-September target** (`PROJECT_PLAN` §10), of which ~2 weeks are the writing
-   reserve, leaving ≈27 experimental days. **16.4 h is 2.6 % of that.** The cut contingency was written
+   reserve, leaving ≈27 experimental days. **~~16.4 h is 2.6 %~~ 13.5 h is 2.1 % of that (P4).** The cut contingency was written
    when the tier cost was an extrapolation; the measurement has made the risk it hedged against small.
 2. **`fixedtime` is the rung most likely to falsify us, and that is why `B1`/`F4` chose it.** It is
    *"the tier that broke §1b R3's monotonicity and flipped R2's sign on hz1x1"*. **Cutting the rung
@@ -873,7 +885,7 @@ tiers is the STATUS QUO under `H1`; cutting is the change.**
 
 > ⚠️ **The trap this ruling is checked against, and I checked it explicitly:** §10's sequencing ruling
 > warns that *"whichever task is running will look like the one that must finish"*. **The test is
-> whether I would ADD this tier today at 16.4 h if it were not already scheduled. I would — for
+> whether I would ADD this tier today at ~~16.4~~ **13.5** h if it were not already scheduled. I would — for
 > reasons 2 and 3, which are about what the tier measures and not about it being underway.** That is
 > what separates this from sunk cost.
 
@@ -975,6 +987,146 @@ checkpoints. **The 15 unused checkpoints are inert for reporting.**
 
 ---
 
+## ⛔ AMENDMENT P — 2026-08-20, 15:05. **THE AUTHOR REFUSES THE INTERRUPTION.** Three of my numbers are wrong, one of my claims is false, and the ruling is better than the escalation that prompted it
+
+**Amendment O asked for a kill and a reorder. The answer is no, and on checking, the escalation should
+not have been made in the form I made it.** ⚠️ **What follows corrects me in four places. O2's ruling
+— `fixedtime` stays — is the only part that survives intact, and it survives cheaper than I priced it.**
+
+### P1 ⛔ THE RULING (the author's), recorded in his words rather than paraphrased
+
+> **"I am not interrupting the campaign. The reorder does not happen; phase B runs
+> `maxpressure → fixedtime → random` as the script stands. The reasoning is the risk, not the compute.
+> A resume now is a MID-ARM resume, which is exactly the `O4` case you found today and which is not yet
+> fixed. Killing a healthy nineteen-hour run to buy a scheduling property is a trade I am not making
+> while the fix for the failure mode it would trigger is still pending."**
+
+⭐ **The argument is stronger than mine and it uses my own finding against my own recommendation.** I
+reported `O4` — a mid-arm resume silently truncates the arm's training record — **and then, in the same
+message, recommended an action whose entire cost model assumed a resume.** I priced the kill at *"the
+in-flight seed"* and never added the defect I had just documented. **`O4` is not a cost I forgot to
+carry; it is a cost I had written down four paragraphs earlier.**
+
+### P2 🔒 REGISTERED IN THE AUTHOR'S NAME, at his instruction, so it is never read later as an oversight
+
+> **"With this order, the only tier the cut rule can ever reach is `random` — which carries the
+> mandatory I1/J1 replicate that `K2` wired into the completeness assertion. So the ladder is now
+> ALL-OR-NOTHING BY CONSTRUCTION: four tiers, or a campaign that mechanically refuses to report itself
+> complete."**
+
+✅ **Verified mechanically rather than accepted as reasoning, because it is being registered as a
+fact.** `docs/data/p5_2_declaration.json` declares **35 cells** — `mappo1000` 12, `maxpressure` 7,
+`fixedtime` 7, `random` 8, plus one campaign-level entry — and carries
+`envelope_replicate = {tier: "random", arms: [dt_spatial, dt_nomix], seed: 202,
+seed_is_pre_declared: true}`. `assert-complete` derives its expected set from **that file, never from
+the files being checked** (`tier_sweep.py:2105-2122`), so **dropping any tier leaves
+`CAMPAIGN_COMPLETE` unwritten and `PHASES_COMPLETE` written in its place.** The consequence is real and
+it is now a registered property of the design, not a discovered one.
+
+### P3 🚨 `NOTE M4` IS FALSIFIED — the thermal mechanism was mine, asserted from a shape, and it is dead
+
+**The author's falsification, and it is the right instrument:** measured at 15:00:39 after **nineteen
+hours of continuous GPU load** — maximum heat soak — `maxpressure/dt_spatial` runs at **58.4 and
+55.8 min/seed**. **M4's mechanism predicts the machine is in a throttled steady state NOW and therefore
+slow. It is the fastest it has been.** A mechanism falsified by its own prediction is falsified.
+
+⭐ **And there is a MATCHED PAIR that closes it without relying on the head count, which I found while
+checking his numbers and which is cleaner than either of our arguments:** the two **1-head** E1 cells
+ran at **64.1 and 64.9 min** ten minutes into the session; the two **1-head** `maxpressure` cells ran
+at **58.4 and 55.8** nineteen hours in. **Head count held constant, heat soak maximal, and it got
+≈13 % FASTER.** That is the controlled version of the test, and it points the same way.
+
+⚠️ **WHAT I MUST NOT DO IS SUBSTITUTE A NEW MECHANISM ASSERTED FROM A DIFFERENT SHAPE — that is
+precisely how M4 was written.** Head count separates the two populations and does **not** explain
+everything:
+- **4-head, exact from the artifacts' own `seconds`:** `dt_spatial_h4` **64.5 · 59.5 · 67.4 · 69.9 ·
+  80.7**, `dt_nomix_h4` **81.5 · 81.3 · 81.3 · 81.7 · [205.4 → ~75.4]**. Mean of the 9 clean cells
+  **74.2 min**.
+- **1-head:** P5.1's arm means **59.1 / 57.5**, E1 **64.1 / 64.9**, `maxpressure` **58.4 / 55.8** —
+  range **55.8–64.9**.
+- 🚨 **The populations separate in DIRECTION and the estimate is not clean: `dt_spatial_h4` spans
+  59.5 → 80.7, a 36 % ramp AT CONSTANT HEAD COUNT, which is larger than the between-head-count gap.**
+  **So "4 heads are slower" is supported; a percentage is not, and the packet may not quote one.**
+- **Two candidate explanations for the ramp, both killed from data rather than left vague:** thermal
+  (P3, above); and per-process allocator growth across the five seeds, which `_run_train` runs in **one
+  process** — **falsified because `dt_nomix_h4` opened its own process at 81.5 instead of resetting to
+  ~60.** **The within-arm ramp is UNEXPLAINED and is reported as unexplained**, exactly as P5.1's seed
+  101 was.
+
+### P4 📏 O1's COST NUMBER IS WITHDRAWN — n = 10 and all ten are 4-head cells, while the whole ladder is 1-head
+
+🚨 **This is the project's signature error, committed by me, in the amendment that exists to answer a
+costing question: a quantity true of a SAMPLE reported as the POPULATION's.** The ladder arms are
+`dt_spatial` and `dt_nomix`; the ten observations behind **74.6 min** are `dt_spatial_h4` and
+`dt_nomix_h4`. ⚠️ **And the caveat I attached made it worse rather than better — it named the wrong
+confound (cool start versus throttling) and so certified that the confound had been considered.**
+
+| | withdrawn (O1) | corrected |
+|---|---|---|
+| DT arm-seed on the ladder | 74.6 min *(4-head)* | **≈57 min** *(1-head; 55.8 and 58.4 measured on this very tier today)* |
+| a full tier | 16.4 h | **≈13.5 h**, bounded **13.5–14.8** across the 1-head range 55.8–64.9 |
+| remaining | ≈51 h | **≈40–42 h**, ending **the morning of 2026-08-22** |
+| cutting `fixedtime` saves | 16.4 h | **≈13.5 h = 0.56 days = 2.1 %** of the remaining experimental budget |
+
+> ✅ **`O2`'s ruling is UNCHANGED and now rests on a smaller number: `fixedtime` stays.** The saving
+> shrank from 2.6 % to **2.1 %** while the rung's value did not move, so the trade got worse for
+> cutting. **A ruling whose margin widens under correction is one I am happy to leave standing.**
+> ⚠️ **Also corrected here: plan §2.5's synthetic benchmark reports `n_head=1` at 163.99 ms/step against
+> `n_head=4` at 126.85 and concludes *"no cost penalty"* — i.e. it says 4 heads are 23 % FASTER. The
+> campaign says the opposite. The microbenchmark does not reproduce the real workload and its
+> conclusion may not be quoted;** `NOTE L(b)`'s *"≈8 % slower"* was computed against the wrong 1-head
+> baseline and is superseded by the two populations above.
+
+### P5 🚨 O3's CENTRAL FACTUAL CLAIM IS FALSE — the tier order IS registered, and I checked the plan instead of the artifact
+
+**O3 said: *"the executing order is registered nowhere"*, with the parenthetical *"checked: §5 line 861
+is the only run-order statement"*.** ⛔ **Measured today:
+`docs/data/p5_2_declaration.json` carries `tier_order: ["mappo1000", "maxpressure", "fixedtime",
+"random"]` and `tier_order_basis: "cf_grid4x4's own measured att_horizon (BRIEF_27 B0)"`** — written at
+Gate 0, **before phase A, before any P5.2 result existed**, in the machine-readable artifact that drives
+the completeness assertion.
+
+> 🚨 **So the order is a PRE-REGISTERED design decision with a stated basis, following `B0`'s own
+> ruling, and my escalation described it as an unregistered accident.** ⚠️ **My sentence was true of the
+> PLAN and I wrote it as true of the REGISTRATION** — the same quantifier error as P4, twice in one
+> message, and the second time inside a paragraph criticising someone else's stale document. **I read
+> the plan and the script and did not open the declaration: verify the artifact, not the description,
+> failed by the person whose §7 rule that is.**
+> ⭐ **It also inverts the merits: reordering would have been an UNREGISTERED DEVIATION FROM A
+> REGISTERED DESIGN, decided after phase A's result was visible. The author's refusal protects the
+> registration; my recommendation would have breached it.**
+> ✅ **What survives, and it is now the whole of O3: `docs/plans/p5.2.md:861` says *"PHASE B maxpressure,
+> then random"* and contradicts both the declaration and the script.** `911796e` updated §2.5 and `H3`
+> and left that block standing. **The plan is stale; the design is not. Correct the plan line in the
+> implementer's next commit** — and correct it **to the declaration**, which is the artifact.
+
+### P6 🔎 THE CLOCK JUMP IS INSIDE A COMMITTED ARTIFACT, not only in the log
+
+`training_mappo1000_dt_nomix_h4.json` records seed 505 at **205.4 min** against its siblings' 81.3–81.7.
+**`result.seconds` is wall-clock, so it inherited `NOTE M2`'s ≈130-min forward jump** — corrected value
+**≈75.4 min**. `M3` ruled that *durations* be read from checkpoint cadence rather than log deltas; **this
+is the same defect one layer in, in a file the packet will quote.**
+> **REQUIRED in the packet: quote that cell as `205.4 (recorded) / ≈75.4 (corrected)` with the jump
+> named, and do not silently substitute the corrected value.** ⭐ **The durable fix is `M2`'s own
+> instrument: a training timer should be `time.monotonic()`, which is immune to a wall-clock jump by
+> construction.** Recorded for the implementer; it changes no cell and is not urgent.
+
+### P7 ⚠️ MY PROCEDURE CARRIED A PRECONDITION THAT DECAYS, AND THE AUTHOR CAUGHT IT EXPIRING
+
+**His report:** *"`maxpressure` had two completed checkpoints at 15:00:39 — seed 101 at 14:03:00 and
+seed 202 at 14:58:49 — so the 'zero checkpoints' premise in your procedure had already expired when I
+read it. Nothing was run against it."*
+> ⚠️ **The defect is not that the fact changed; it is that I wrote the fact as an EXPECTATION rather
+> than as a GATE.** Step (b) read *"expect: nothing, or only `*.partial`"* and said **nothing about what
+> to do if that expectation failed** — so a reader following it at 15:00 would have found two
+> checkpoints and no instruction. **A procedure whose correctness depends on a decaying fact must carry
+> the CHECK THAT STOPS on it, with the stop condition written out, never the fact.**
+> **Rule, and it generalises past this instance: any `THINGS YOU NEED TO DO` step resting on a
+> time-sensitive precondition states the precondition as a refusal — *"if this returns anything, STOP
+> and come back"* — because the block is read minutes to hours after it is written.**
+
+---
+
 ## ⭐⭐ NOTE N — 2026-08-20. PHASE A's RESULT, THE INTERACTION COMPUTED, AND TWO REGISTRATIONS BEFORE PHASE B
 
 ### N1 ✅ THE INTERACTION, COMPUTED AS A2 REGISTERED IT — paired per-draw, not two intervals
@@ -1072,6 +1224,13 @@ not depend on knowing how WSL resyncs:
    the corpus and the model, not from the clock. **Only durations are, and only those spanning it.**
 
 ### M4 ⭐ THE SLOWDOWN IS THERMAL, AND THE CADENCE SHAPE SAYS SO
+
+🚨 **WITHDRAWN 2026-08-20 BY THE AUTHOR — THE MECHANISM ASSERTED BELOW IS FALSIFIED BY ITS OWN
+PREDICTION. SEE AMENDMENT P3.** It said a *"cool start rising to a throttled steady state"*; nineteen
+hours of continuous load later, 1-head arm-seeds run at **55.8–58.4 min**, i.e. **faster** than the
+same configuration ran ten minutes into the session. **The paragraph stands unedited below as the
+record of what was claimed, and its opening clause — *"it is NOT the architecture"* — is the part that
+was wrong.**
 
 The implementer established it is **not the architecture** — parameter count is identical at 4 heads —
 and left the mechanism open. **The shape supplies one, and it is testable rather than asserted:**
