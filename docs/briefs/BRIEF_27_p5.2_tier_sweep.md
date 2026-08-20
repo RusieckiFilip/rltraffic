@@ -814,6 +814,167 @@ burying it is the right call.
 
 ---
 
+## ⭐ AMENDMENT O — 2026-08-20, 13:20, mid-campaign. The cost question is ANSWERED and `fixedtime` STAYS; and the ladder's RUN ORDER makes three registered cut rules unexecutable
+
+**Written while `maxpressure`/`dt_spatial` seed 101 is ~16 min into training, deliberately before it
+finishes: O3 is cheapest to act on at this exact moment and gets more expensive every minute.**
+**O1 and O2 answer the open question I owed the author. O3 is a defect I found by reading the campaign
+script rather than its header, and it is not the question he asked — it is the one underneath it.**
+
+### O1 📏 THE MEASURED PER-TIER COST — the number the cut decision was waiting on
+
+Measured by me today from **checkpoint cadence, not log deltas** (`NOTE M3`: the ≈2 h 10 m forward
+clock jump after 07:59:54 inflates exactly one interval, and I subtracted **130 min** from the single
+interval that spans it — `dt_nomix_h4` seed 505, `07:59 → 11:25`, 206 → 76 min):
+
+| stage | measured | n |
+|---|---|---|
+| DT arm-seed, 40,000 steps | `66 · 59 · 68 · 70 · 80` then `83 · 81 · 82 · 81 · 76` — **mean 74.6 min**, range **59–83** | 10 |
+| baselines, 4 arms × 5 seeds | **53 min** (`11:53 → 12:46`) | 1 tier |
+| evaluate one DT cell, 5 seeds × 100 draws | **28 min** (twice, `02:04→02:32` and `11:25→11:53`) | 2 |
+| evaluate one baseline cell | **18 min** (`12:46 → 13:04`) | 1 |
+| evaluate `behaviour` | **56.5 min** (P5.1's log, unchanged) | — |
+
+> **A FULL NEW TIER = 16.4 h** — 12.4 DT training (10 arm-seeds × 74.6 min) + 0.9 baselines + 3.1
+> evaluation (7 cells). Against the plan §2.5 projection of **13.9 h**: **+18 %**.
+> **Remaining as scheduled: `maxpressure` 16.4 + `fixedtime` 16.4 + `random` 15.5 (no behaviour anchor,
+> it is the shared gate-1 cell) + the I1/J1 replicate 2.7 = ≈ 51 h**, i.e. ending **≈ 2026-08-22 16:00**.
+> **Cutting `fixedtime` saves 16.4 h = 0.68 days.**
+
+⚠️ **What this measurement does NOT settle, stated so it is not read as tighter than it is: 74.6 min is
+an ARM-LEVEL MEAN spanning a cool start and a throttled steady state (`NOTE M4`).** The GPU reads
+**56 °C** as I write this against the overnight throttled regime, so `maxpressure`'s own seeds may land
+nearer 59 than 83. **The mean of a full 10-seed phase is the right planning unit precisely because a
+fresh tier reproduces that same cool-start-to-throttled shape** — but the first three `maxpressure`
+checkpoints will replace this estimate with a same-tier measurement, and the packet quotes those.
+
+### O2 ✅ RULED: `fixedtime` IS NOT CUT. The saving is 2.6 % of the budget and the rung is the most falsifying one left
+
+**This is the question the author asked me to bring back once phase B gave a real per-tier time. It has
+an answer and the answer is no** — and it is a ruling rather than an escalation because **keeping four
+tiers is the STATUS QUO under `H1`; cutting is the change.**
+
+1. **The saving is negligible against the constraint it would be protecting.** 0.68 days against
+   **41 days to the end-of-September target** (`PROJECT_PLAN` §10), of which ~2 weeks are the writing
+   reserve, leaving ≈27 experimental days. **16.4 h is 2.6 % of that.** The cut contingency was written
+   when the tier cost was an extrapolation; the measurement has made the risk it hedged against small.
+2. **`fixedtime` is the rung most likely to falsify us, and that is why `B1`/`F4` chose it.** It is
+   *"the tier that broke §1b R3's monotonicity and flipped R2's sign on hz1x1"*. **Cutting the rung
+   selected for its power to break our own pattern, to buy 2.6 % of the budget, is the trade this
+   project exists not to make.**
+3. **It is the difference between a monotonicity test and a line.** `K1` measured the four predicted
+   rungs at **+39.56\* → +41.74 → +51.37 → +62.71**. Three points test monotonicity; **four are the
+   first that can show a KINK** — which is `N2`'s own lesson about the head axis (*two points determine
+   a line by construction*) applied one axis over.
+4. **Its six cells are already registered** — `H3`/`I3` grew `N` from 13 to 19 and fixed `k = 14` by the
+   `ceil(9/13 × N)` rule. Dropping them is mechanically clean under that rule, so **the objection to
+   cutting is not procedural**; it is that we would be paying a real scientific price for a saving we
+   do not need.
+
+> ⚠️ **The trap this ruling is checked against, and I checked it explicitly:** §10's sequencing ruling
+> warns that *"whichever task is running will look like the one that must finish"*. **The test is
+> whether I would ADD this tier today at 16.4 h if it were not already scheduled. I would — for
+> reasons 2 and 3, which are about what the tier measures and not about it being underway.** That is
+> what separates this from sunk cost.
+
+### O3 🚨 THE LADDER RUNS `maxpressure → fixedtime → random`, AND FOUR REGISTERED STATEMENTS SAY IT MUST NOT
+
+**Found by reading `offline/campaigns/p5_2.sh` rather than its header comment.** Verified in the
+artifacts, both sides:
+
+| where | what it says |
+|---|---|
+| `offline/campaigns/p5_2.sh:345` | `for LADDER_TIER in maxpressure fixedtime random; do` |
+| `docs/plans/p5.2.md:861` (**the plan's registered phase order**) | `PHASE B maxpressure, then random: 6 method arms + the tier's behaviour anchor` |
+
+**The plan's §5 phase-order block was never updated when `H1` added the fourth tier** — `911796e`
+updated §2.5's cost table and `H3`'s registration and left §5 standing. **So the executing order is
+not the registered order, and it is not registered anywhere else in the plan** (checked: §5 line 861 is
+the only run-order statement; line 661's *"in measured-ATT tier order"* governs how `Q4b` is
+**reported**, not what runs when).
+
+🚨 **The consequence is not cosmetic. Four registered statements make `fixedtime` the expendable rung
+and `random` the load-bearing one, and the order makes every one of them unexecutable:**
+
+- **`B1`:** *"`fixedtime` … IS PRE-DECLARED NOW AS THE FOURTH TIER, **to be run only if phase B
+  finishes with budget left**"* — it is scheduled **inside** phase B, so that condition can never be
+  evaluated.
+- **brief §5:** *"If it overruns, **drop to `mappo1000` + `random`** — the endpoints carry the
+  interaction; the middle does not."* — unreachable: at every moment before hour ~33 we hold the two
+  middles and not the endpoint.
+- **`NOTE M5` (written yesterday, AFTER `H1`):** *"`fixedtime` is the declared fourth rung and
+  therefore **the first thing to drop if the calendar binds**."*
+- **`H1` itself** lists the tier set as *"`mappo1000` (reused), `maxpressure`, `random`, `fixedtime`"*.
+
+> 🚨 **AND THE ASYMMETRY IS THE REAL DAMAGE, not the inconsistency.** Under this order the only cut
+> ever available is `random`, and `random` carries **(i)** the endpoint of the data-quality axis,
+> **(ii)** §1b's R2/R6 load-sorter scope condition at its most extreme, and **(iii)** the **entire
+> I1/J1 replicate**, which `K2` wired into the completeness assertion as an **unconditional, mandatory**
+> deliverable. **A truncation under the current order costs a REGISTERED MANDATORY item; under
+> `maxpressure → random → fixedtime` it costs a PRE-DECLARED OPTIONAL one.** That is the whole
+> argument, and it is worth ≤30 minutes.
+
+**What it costs to fix, measured rather than guessed:**
+
+- **One token: `maxpressure fixedtime random` → `maxpressure random fixedtime`.** I verified the change
+  is a pure scheduling change: per-tier declarations are generated inside the loop, `random`'s
+  `behaviour` skip resolves to the **gate-1** anchor which already exists, and the campaign declaration
+  and completeness assertion enumerate cells and are order-independent (`tier_sweep.py:2122` resolves
+  each declared cell to the reuse root or the work dir by its own `source` field).
+- **Resume is verified in production ON THIS CAMPAIGN, not assumed:** `campaign.log` records **two**
+  launches — `16:02:06` and `20:21:53` on 2026-08-19 — and the second correctly logged
+  `SKIP E1 training dt_spatial seed 202: checkpoint already on disk` for four completed E1 cells.
+- ⭐ **NOW IS THE CHEAPEST MOMENT AND IT IS CHEAPEST BY CONSTRUCTION.** `maxpressure` has **zero**
+  checkpoints on disk, so there is nothing to skip and no partial training record. **A kill costs only
+  the in-flight seed** (~30 min as I write). **Ten minutes into seed 3 it would cost that plus O4's
+  defect firing.**
+- ⚠️ **The script must NOT be edited while `bash` is executing it** — `bash` re-reads by byte offset and
+  a shifted offset executes garbage. **Kill first, then edit, then relaunch.** A relaunch re-runs the
+  gates in **~15 s** (the random anchor re-roll is skipped on its existing artifact).
+
+> ⏸️ **THE CALL IS THE AUTHOR'S, because it costs him a kill and a relaunch of a 51-hour job.** My
+> recommendation is to reorder. **What is NOT in question either way: `docs/plans/p5.2.md:861` is stale
+> and must be corrected to the four-tier order with its reason, in the implementer's next commit,
+> whichever order we run.** A plan that names a two-tier phase B while a four-tier one executes is the
+> artifact-versus-description error in our own registration.
+
+### O4 🔎 A LATENT DEFECT THAT A MID-ARM RESUME MAKES LIVE — for the implementer, not for tonight
+
+`tier_sweep.py:1739-1747` writes `training_{tier}_{method}.json` from **`records`, the seeds trained in
+THIS invocation**, while `:1712-1714` skips seeds whose checkpoint already exists. **So a training run
+resumed mid-arm silently overwrites the arm's training record with a SUBSET** — the skipped seeds'
+`final_loss` and `seconds` are lost, and **nothing reads the file** (grepped), so no completeness
+assertion or guard can notice.
+
+✅ **Not live today, verified rather than assumed:** every training artifact on disk is complete —
+`dt_spatial_h4` and `dt_nomix_h4` carry **5 runs each** with seeds `[101, 202, 303, 404, 505]`,
+`baselines` carries **20**, and E1's two single-seed files carry **1** each, as designed.
+⚠️ **It fires on the first mid-arm resume, and the campaign advertises resumability.** `NOTE L(a)` and
+`M3` both quote per-seed `final_loss` and durations, so it is provenance the packet uses.
+> **REQUIRED, in the implementer's next commit, not by interrupting the campaign: merge by
+> `(tier, method, seed)` into any existing record rather than overwriting it, and test the resume case
+> — write 3 seeds, resume, assert the file holds 5.** ⚠️ **`_run_train`'s per-seed skip branch has been
+> READ by me and has never been OBSERVED to execute** (the two production resumes both skipped at whole
+> -arm granularity). **State that in the packet rather than crediting it as exercised.**
+
+### O5 📌 DISCLOSURE OWED BY PHASE C — `A3` says only new arms run at `mappo1000`; four did
+
+`p5_2.sh:336` calls `train-baselines` at `mappo1000` with no arm filter, so **`bc`, `bc_top10`,
+`bc_top10_perix` and `iql` were all trained there — 20 checkpoints, ~53 min** — while `:338-340`
+evaluates **only `bc_top10_perix`.**
+✅ **`A3`'s SCIENTIFIC content is intact and I checked the mechanism, not the intention: no second
+value for a merged number can be produced, because the report resolves every reused cell through the
+declaration's own `"source": "reuse_root"` field** (`tier_sweep.py:348, 2122`), never by globbing
+checkpoints. **The 15 unused checkpoints are inert for reporting.**
+> **Disclose it in the packet in these terms: `A3`'s wording is *"only NEW arms are run at that tier"*
+> and three old arms were TRAINED there and not evaluated.** ⚠️ **The reason to write it down is not
+> the 53 minutes: 15 checkpoints now sit in `output/p5_2/checkpoints/` named
+> `grid4x4_mappo1000_{bc,bc_top10,iql}_seed*.pt`, i.e. exactly what a future glob-based reader would
+> find and mistake for P5.2 cells at a reused tier.** A hazard that is documented is a hazard; an
+> undocumented one is a trap for whoever writes the release package.
+
+---
+
 ## ⭐⭐ NOTE N — 2026-08-20. PHASE A's RESULT, THE INTERACTION COMPUTED, AND TWO REGISTRATIONS BEFORE PHASE B
 
 ### N1 ✅ THE INTERACTION, COMPUTED AS A2 REGISTERED IT — paired per-draw, not two intervals
