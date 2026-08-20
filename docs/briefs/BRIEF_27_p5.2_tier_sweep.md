@@ -814,6 +814,62 @@ burying it is the right call.
 
 ---
 
+## 🚨 NOTE M — 2026-08-20. A CLOCK JUMP IN `campaign.log`, and the slowdown has a mechanism
+
+### M1 ✅ P5.1 IS UNAFFECTED, and I checked it the only way that could have shown otherwise
+
+**The report matters because A4 and B6 both measured P5.1's cost from `campaign.log`, and B6 REPLACED
+my mtime-derived figure with the log-derived one — so if that file could straddle clocks, a merged
+number was measured by an instrument that changed units.** ⚠️ **Comparing mtimes against log
+timestamps would NOT have settled it: both read the same system clock and a jump shifts both alike.**
+> **The discriminating check is the INTERNAL GAP PATTERN, because a jump inflates exactly ONE interval.**
+> **Measured across P5.1's eight checkpoint intervals: `60.8 · 59.3 · 63.9 · 53.8 | 58.1 · 58.5 · 55.1
+> · 58.6` — a band of 53.8–63.9 min with no outlier.** A 2 h 11 m jump would have added **~131 min** to
+> one of them. **There is none. P5.1's campaign was single-clock and its 13 h 24 m 25 s stands, as does
+> B6's correction.**
+
+### M2 🔒 THE DEFECT IS REAL, AND HERE IS THE PROOF A REVIEWER CAN RE-RUN
+
+The `btime` argument is right that the check has no power, but the positive proof is cleaner and does
+not depend on knowing how WSL resyncs:
+> **The training process's MONOTONIC age (`etime` 05:59:32 at 10:43:39) places its start at 04:44:07.
+> The first checkpoint it wrote is stamped 03:55. A process cannot write a file 49 minutes before it
+> starts.** ⭐ **Monotonic elapsed time is immune to a wall-clock jump; that is why the contradiction
+> appears at all, and it is the instrument to reach for whenever a duration looks wrong.**
+> **Magnitude ≈ 2 h 10 m, forward, after 07:59:54.**
+
+### M3 📋 BINDING ON THE PACKET — both requirements accepted as the implementer framed them
+
+1. **Report phase durations from the CHECKPOINT CADENCE, not from log deltas.** Cadence intervals lie
+   within one clock and are therefore valid; only totals spanning the jump are inflated.
+   **Measured, all pre-jump: `dt_spatial_h4` 59.5 · 67.4 · 69.9 · 80.7 · then `dt_nomix_h4` 81.3 · 81.3
+   · 81.7.**
+2. **Disclose the jump with the observation that no CELL is affected** — every cell's numbers come from
+   the corpus and the model, not from the clock. **Only durations are, and only those spanning it.**
+
+### M4 ⭐ THE SLOWDOWN IS THERMAL, AND THE CADENCE SHAPE SAYS SO
+
+The implementer established it is **not the architecture** — parameter count is identical at 4 heads —
+and left the mechanism open. **The shape supplies one, and it is testable rather than asserted:**
+> **`dt_spatial_h4` ramps MONOTONICALLY — 59.5 → 67.4 → 69.9 → 80.7 — and `dt_nomix_h4` then sits FLAT
+> at 81.3 · 81.3 · 81.7.** **A cool start rising to a throttled steady state is what heat soak looks
+> like on a laptop GPU; a per-arm cost difference would step at the arm boundary and stay level within
+> each arm, which is the opposite of what the first arm does.**
+> ⭐ **It also dissolves the counterintuitive part: the CONTROL is not intrinsically slower than the
+> TREATMENT. `dt_nomix_h4` ran entirely in the throttled regime while `dt_spatial_h4`'s average
+> includes its cool start.** P5.1's own arms were 58.6 and 59.0 — indistinguishable.
+
+### M5 ⚠️ THE PROJECTION MOVES, AND IT IS A SCHEDULE FACT NOT A DEFECT
+
+**Steady state is ≈81.4 min per DT arm-seed against the 59 every projection used — 1.38×.** A4's
+~53 h assumed 9.8 h of DT training per tier; at 81.4 that is **13.6 h per tier**. With three tiers
+still to run plus the I1/J1 replicate, **the remaining campaign is on the order of a day and a half
+longer than the figure the regime ruling was priced against.** ⚠️ **Nothing about the ruling changes —
+it turned on a measured zero envelope, not on cost — but §10's cut order exists for exactly this, and
+`fixedtime` is the declared fourth rung and therefore the first thing to drop if the calendar binds.**
+
+---
+
 ## 📌 NOTE L — 2026-08-20, written MID-CAMPAIGN so it cannot be a post-hoc reading of Q0
 
 **Observed while checking phase A's progress, from `output/p5_2/logs/train_mappo1000_dt_spatial_h4.log`
