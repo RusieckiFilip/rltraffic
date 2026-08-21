@@ -1127,6 +1127,72 @@ read it. Nothing was run against it."*
 
 ---
 
+## 🛑 NOTE O — 2026-08-21. THE MACHINE RESTARTED. State recovered, Note M corrected, and one ordering change
+
+### O1 ✅ NOTHING IS CORRUPTED, AND EVERYTHING THROUGH `maxpressure` SURVIVED
+
+Verified from the artifacts, not from the log: **`E1_COMPLETE`, `stop_rule_mappo1000.json`, all four
+`mappo1000` DT cells, phase C's `bc_top10_perix`, and the ENTIRE `maxpressure` tier — 30 checkpoints
+across 6 arms and 7 evaluation cells including the behaviour anchor.** All four declarations parse.
+**Zero `.partial` files.**
+> **Lost: exactly one thing — `fixedtime/dt_spatial` seed 101, in training since 02:20:28 and killed
+> before its first save.** ⭐ **This is D1(c) and the atomic writer working as designed: the campaign
+> died mid-training and left NO half-written artifact at a final name**, so the resume path's existence
+> tests remain sound and nothing needs re-validating by hand.
+
+### O2 ⚠️ NOTE M's MECHANISM IS CORRECTED — it was half right, and the half it missed is the head count
+
+**Note M attributed the slowdown to heat soak and reported *"not the architecture"*. The `maxpressure`
+tier is the control that experiment needed, and it falsifies the simple version.** Measured gaps:
+
+| arm | heads | gaps (min) |
+|---|---|---|
+| `mappo1000_dt_spatial_h4` | 4 | **59 · 67 · 70 · 81** — ramp |
+| `mappo1000_dt_nomix_h4` | 4 | **81 · 81 · 82** — plateau |
+| `maxpressure_dt_spatial` | 1 | **56 · 57 · 64 · 57** — flat |
+| `maxpressure_dt_nomix` | 1 | **65 · 64 · 66 · 60** — flat |
+
+> **The 1-head arms ran AFTER phase A's sustained load with about an hour of light work between, and
+> they sit at 58–64, not 81. So the machine was not permanently heat-soaked, and pure thermal
+> accumulation does not survive.** ⭐ **The reading that fits everything: COLD-START speed is the same
+> for both (59 against 56), and SUSTAINED speed differs by head count (≈81 against ≈60). The ramp is
+> warm-up to an arm's own steady state, and the head count sets WHICH steady state.**
+> ⚠️ **So *"the parameter count is identical, therefore it is not the architecture"* does not hold:
+> multi-head attention at fixed `d_model` is the same FLOPs with a different memory access pattern
+> (head dim 32 against 128), and wall clock is not parameter count.** **I asserted a mechanism from one
+> arm's data; the control arrived a day later and narrowed it.**
+
+### O3 ✅ THE CLOCK JUMP IS CONFIRMED IN EXACTLY THE PREDICTED FORM
+
+Note M said a jump inflates **exactly one interval** and used the absence of such a gap to clear P5.1.
+**`mappo1000_dt_nomix_h4`'s gaps are `81 · 81 · 82 · 205`.** The 205 sits among 81s — **an excess of
+about 123 min, matching the reported jump.** ⭐ **The instrument that cleared P5.1 has now been
+validated on a case where a jump DID occur, which is the discriminating power §7 asks for.**
+
+### O4 📉 THE REMAINING COST IS BETTER THAN NOTE M PROJECTED, because the remaining tiers are 1-HEAD
+
+Note M carried 1.38× into the projection from phase A's 4-head plateau. **The ladder arms are
+`n_head = 1` and run at ≈61 min/seed.** Measured from `maxpressure`: training 14:03 → 00:05 ≈ **10 h**,
+evaluation 00:05 → 02:20 ≈ **2 h 15**, so **one full ladder tier ≈ 12.3 h.**
+> **Two tiers remaining plus the I1/J1 replicate ≈ 27 h, not the ~40 h Note M's 1.38× implied.**
+
+### O5 🚨 ORDERING — THE LOOP RUNS THE OPTIONAL TIER BEFORE A REQUIRED ONE
+
+`p5_2.sh:345` reads `for LADDER_TIER in maxpressure fixedtime random`. **`maxpressure` is done, so the
+next tier is `fixedtime` — the tier B1 pre-declared as the OPTIONAL fourth rung — and `random` runs
+last.**
+> 🚨 **`random` is load-bearing three times over and `fixedtime` is not: it is one of B1's three
+> ORIGINAL tiers; it is where **Q3a** predicts the DT LEADS, which is A1's headline question; and it is
+> the tier **J1** puts the envelope replicate on. `fixedtime` is the rung added from budget freed by
+> the regime ruling.**
+> ⚠️ **After one unexplained restart, running the optional tier first means a second restart costs the
+> required one.** **RECOMMENDED: swap the loop to `maxpressure random fixedtime`.** It changes no
+> registration — the tier set, the predictions, the threshold and the arms are all fixed and order is
+> not a registered quantity — and it front-loads the tier the paper needs. ⚠️ **The restart's cause is
+> unknown and I am not speculating; the mitigation is the same whatever it was.**
+
+---
+
 ## ⭐⭐ NOTE N — 2026-08-20. PHASE A's RESULT, THE INTERACTION COMPUTED, AND TWO REGISTRATIONS BEFORE PHASE B
 
 ### N1 ✅ THE INTERACTION, COMPUTED AS A2 REGISTERED IT — paired per-draw, not two intervals
