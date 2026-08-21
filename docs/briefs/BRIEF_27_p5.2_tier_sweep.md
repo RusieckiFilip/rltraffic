@@ -1127,6 +1127,58 @@ read it. Nothing was run against it."*
 
 ---
 
+## ⛔ AMENDMENT Q — 2026-08-21. **O5's CLAIM IS WITHDRAWN — IT IS YESTERDAY'S CORRECTED ERROR, REPEATED.** The reorder proceeds as a DECLARED DEVIATION
+
+### Q1 ⛔ WITHDRAWN: *"order is not a registered quantity"*
+
+**O5 asserted it. It is false, and it is the same sentence `584630b` corrected yesterday.** That commit's
+§P5 reads: *"O3's CENTRAL FACTUAL CLAIM IS FALSE — the tier order IS registered, and I checked the plan
+instead of the artifact"*, against O3's *"the executing order is registered nowhere"*. **Measured, then
+and again now: `docs/data/p5_2_declaration.json` carries
+`tier_order: ["mappo1000", "maxpressure", "fixedtime", "random"]` and
+`tier_order_basis: "cf_grid4x4's own measured att_horizon (BRIEF_27 B0)"`, written at Gate 0 before any
+P5.2 result existed.** **It is a pre-registered design decision with a stated basis.**
+> 🚨 **The failure is worse than yesterday's, not equal to it. Yesterday I checked the WRONG artifact —
+> `docs/plans/p5.2.md:861` instead of the declaration. Today I checked NOTHING and asserted it.**
+> 🚨 **And `584630b` was in my own cold-start log. I read its subject line — *"three of my numbers plus
+> one claim do not survive the check"* — and never opened it.** **That is the P0.3 failure, the
+> canonical example in my own operating instructions, committed against a commit whose message
+> announced that my claims had failed.**
+> **RULE, because this is the second time in two days on the SAME FIELD: before asserting that anything
+> is or is not registered, grep `docs/data/*_declaration*.json`. THE DECLARATIONS ARE THE REGISTRATION —
+> not the plan, not the brief, not the script.** *(The author's instruction, generalised: "Check the
+> declaration, not the plan and not the script — that was the exact failure last time.")*
+
+### Q2 ✅ THE REORDER STILL HAPPENS — because the REFUSAL'S OWN REASON HAS EXPIRED, not because I re-litigated it
+
+⚠️ **This is not the settled question being reopened.** `584630b` refused on a stated ground: *"a resume
+now is a mid-arm resume, which is the O4 defect I had reported four paragraphs before recommending an
+action whose cost model assumed a resume."*
+> **That ground is gone, measured: there is no running campaign, and `fixedtime` has ZERO checkpoints.
+> The kill costs nothing because there is nothing to kill.** The restart also converted the risk from
+> hypothetical to observed, and `random` carries **J1's mandatory replicate** and **A1's headline
+> question** while `fixedtime` is B1's optional fourth rung.
+
+### Q3 🔒 IT GOES IN AS A DECLARED DEVIATION — the author's framing, and the reason it is right
+
+> **Executed order: `maxpressure → random → fixedtime`. Registered order:
+> `mappo1000 → maxpressure → fixedtime → random`. THE DEVIATION IS DECLARED, WITH ITS REASON, IN THE
+> PACKET AND IN THE CAMPAIGN LOG. The declaration is NOT edited** — it is a Gate 0 registration and
+> rewriting it to match the execution would destroy the very record that makes this visible.
+> ⭐ **Why it is bookkeeping and not science, stated with evidence rather than as an assumption: each
+> tier trains on its own corpus and seeds and evaluates on the same fixed 100 held-out draws, with no
+> cross-tier state — and E1 MEASURED the run-to-run envelope on this metric at exactly 0.0000. So a
+> tier's NUMBERS do not depend on when it ran. Its DURATION does, through thermal state (Note O), and
+> durations are already governed by M3's cadence rule.**
+> ✅ **Nothing mechanically breaks: `TIER_ORDER` the constant is untouched, so
+> `test_the_tier_order_is_grid4x4s_own_measured_att_order` still passes, and B0's rule — *order every
+> FIGURE by measured ATT* — is satisfied by the report, which reads the constant and not the run order.**
+> ⛔ **What may NOT be written is O5's sentence, *"this changes nothing about the design"*. It changes
+> the executed order away from a registered one, and the honest form is that the deviation is declared
+> and its effect is confined to duration.**
+
+---
+
 ## 🛑 NOTE O — 2026-08-21. THE MACHINE RESTARTED. State recovered, Note M corrected, and one ordering change
 
 ### O1 ✅ NOTHING IS CORRUPTED, AND EVERYTHING THROUGH `maxpressure` SURVIVED
