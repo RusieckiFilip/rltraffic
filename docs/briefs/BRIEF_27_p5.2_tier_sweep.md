@@ -1127,6 +1127,85 @@ read it. Nothing was run against it."*
 
 ---
 
+## ✅ AMENDMENT R — 2026-08-22, ruled BEFORE the ladder's numbers were read
+
+### R1 ✅ THE I1/J1 REPLICATE RUNS TONIGHT, AS ITS OWN PHASE. Approved as framed
+
+**The state is expected, not a defect, and K2 is the reason it is visible:** the campaign will close at
+33 of 35 cells with `PHASES_COMPLETE` written and `CAMPAIGN_COMPLETE` withheld, which is exactly the
+refusal K2 was built to produce. **The implementer's reason for deferring the wiring stands and was
+right: a replicate wired mid-campaign is how it ends up re-evaluating the cell it is meant to be
+independent of.**
+> **RULED: wire it now and run it tonight — `{dt_spatial, dt_nomix}` at the PRE-DECLARED seed **202** on
+> the **`random`** tier (J1), under J2's three conditions: independent training from scratch, a distinct
+> artifact key, and the canonical `state_dict` digests asserted DIFFERENT before any envelope is
+> reported, **equal digests being a refusal and not a zero**. ≈2.2 h.**
+> ⭐ **Wire it BEFORE the packet is drafted, and the author's reason is the right one — but note WHY it
+> is safe to wire after the ladder's numbers are visible: the replicate's design is ALREADY FULLY
+> REGISTERED by J1 and J2 — arm set, seed, tier, conditions, and the reading of a non-zero result
+> (I2). Nothing about it is left to choose, so seeing the numbers cannot influence it.** **That is what
+> pre-registration buys, and it is why the deferral was affordable in the first place.**
+
+### R2 💰 COSTS, and the one I refuse to guess
+
+**Proposal 1 — the tier-matched scale contrast. VERIFIED: all four tiers exist on BOTH scenarios**
+(`cf_hz1x1` and `cf_grid4x4`, `mappo1000 · maxpressure · fixedtime · random`). **The arithmetic is ZERO
+GPU** — every cell is committed.
+> ⚠️ **The confound-closing run I will NOT cost from an armchair.** Anchor: P4.6 measured ≈1 h per
+> hz1x1 tier for a **four-method** grid, and a 1-node DT should be far cheaper than grid4x4's 16-node
+> ≈60 min/seed because the joint forward scales with nodes — but *should be* is exactly the word this
+> project's estimates keep dying on, mine at "≈52 h" included. **REQUIRED: a ONE-SEED timing probe
+> (≈10 min) before any commitment.** The ~5 h figure is the right order and is unmeasured.
+**Proposal 2 — the return/load analysis. ZERO GPU**, corpus arithmetic, minutes to an hour of CPU.
+**Proposal 3 — the P7.0 repair. Hours for the re-score, and MORE than hours for the repair itself**,
+because `DEFERRED` 23 and §7's rule do not ask for a corrected index — they ask that **any cross-system
+comparison PROVE its pairing key from structure alone before using it.** **Producing a proved lane
+pairing is the work; re-scoring against it is the cheap part, and costing the second as the whole is
+how this becomes a two-day job that was quoted as an afternoon.**
+
+### R3 🔧 REGISTRABILITY — one is registrable, two need tightening, and both defects are real
+
+**PREDICTION 1 — TIGHTEN, because the two sides do not have the same arm set.** hz1x1's grid carries
+**4** method arms (`madt`, `bc`, `bc_top10`, `iql`); grid4x4 carries **6** (adding `dt_spatial` and
+`bc_top10_perix`). **A rank out of 6 is not comparable with a rank out of 4, so "ranks higher on
+grid4x4" is not a well-defined quantity as written.**
+> **Register instead: (i) the DT's rank within the COMMON arm set `{DT, bc, bc_top10, iql}` — four on
+> both sides; and (ii) the paired difference `DT − bc` as the continuous quantity, which is
+> within-scenario and therefore comparable across scenarios without a rank at all.**
+> ⚠️ **And "the gap widens as the tier degrades" is a MONOTONICITY claim over four points.** §1b's R3
+> was falsified on exactly that shape — `fixedtime` broke the ladder's monotonicity on hz1x1 — and its
+> standing instruction is to **report by endpoints, never as a trend.** Register the endpoints.
+**PREDICTION 2 — REFORMULATE, because the two sides measure different things.** The load-sorter
+mechanism operates **BETWEEN NODES within an episode**; on `cf_hz1x1` there is **one** node, so a
+between-node correlation does not exist and the only computable quantity there is across DRAWS. **The
+proposed hz1x1-versus-grid4x4 correlation compares a between-node effect with a between-draw one.**
+> **Register instead a VARIANCE DECOMPOSITION on grid4x4 alone: of the variance in per-stream return,
+> what fraction is BETWEEN nodes versus WITHIN a node across draws? If the between-node component
+> dominates, a global return quantile is a node selector — which IS the mechanism, measured directly.**
+> **`cf_hz1x1` then enters as the degenerate case where the between-node component is zero BY
+> CONSTRUCTION — a statement, not a measurement — and that is a stronger argument than a correlation
+> comparison because it cannot be confounded.**
+> ✅ **The second half — *"`bc_top10_perix` does not collapse where the global filter does"* — is
+> ALREADY REGISTERED as `Q5` and needs no new registration.** ⭐ **And the falsification clause is
+> accepted as written: if `perix` collapses too, the explanation is reported as falsified, in P8.3's
+> manner.**
+**PREDICTION 3 — the measurement is fine; the NOVELTY claim needs a caution.** *"The literature search
+found nobody who says it"* rests on a search with three declared degradations — Google Scholar
+unreachable, OpenReview term search proven non-functional, 32 of 171 records screened on metadata only.
+> ⚠️ **And we hold adjacent evidence in our own tree: `CityFlow/tools/converter/converter_v2.py:464`
+> carries a TODO marking direction *"falsely defined"*, so the tooling authors knew direction handling
+> was wrong without stating our specific finding.** **Register the claim as *"not stated in the
+> literature we searched, and flagged as a known problem in CityFlow's own converter source"* — which
+> is both true and more interesting than *"nobody has noticed."***
+
+### R4 ✅ SEQUENCING — endorsed, with one free improvement
+
+P5.3 first is right for the author's own reason: **the no-RTG ablation decides whether `A9` has an
+object at all.** ⭐ **But Proposals 1 and 2 are ZERO-GPU analysis, so they run DURING P5.3's training
+rather than after it.** Then Proposal 3 as the entry to P7.
+
+---
+
 ## ⛔ AMENDMENT Q — 2026-08-21. **O5's CLAIM IS WITHDRAWN — IT IS YESTERDAY'S CORRECTED ERROR, REPEATED.** The reorder proceeds as a DECLARED DEVIATION
 
 ### Q1 ⛔ WITHDRAWN: *"order is not a registered quantity"*
