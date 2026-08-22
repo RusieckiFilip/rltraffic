@@ -1635,6 +1635,10 @@ def build_parser() -> Any:
         "declare-campaign", help="write the campaign-wide declaration of every expected cell"
     )
     sub.add_parser(
+        "check-factories",
+        help="Gate 0: every declared cell must have a constructible action factory",
+    )
+    sub.add_parser(
         "assert-complete", help="refuse unless every cell the declaration names exists"
     )
     sub.add_parser(
@@ -1906,6 +1910,31 @@ def _arm_factory(tier: str, method: str, args: Any, seed: int) -> Any:
             from offline.dt_gate import _maxpressure_factory
 
             return _maxpressure_factory
+        if tier == "fixedtime":
+            # P4.6's factory, imported rather than reimplemented, because it does one thing more
+            # than build the controller: it ASSERTS the resolved plan's hash and schedule source
+            # against the ones recorded in the tier's own manifest, so an evaluation that would
+            # measure a DIFFERENT fixed-time policy than the one that collected the corpus is
+            # refused instead of reported.  Fixed-time is deterministic, so the factory ignores
+            # the seed -- the five seed slots hold five identical rollouts, exactly as the
+            # maxpressure anchor does (measured: all five per-seed means 167.561778).
+            from offline.materialise_draws import draw_config_path
+            from offline.method_tier_grid import (
+                _fixedtime_factory,
+                fixedtime_collection_settings,
+            )
+
+            collected = fixedtime_collection_settings(
+                tier_dirs(tier_spec(tier), args.corpus_root)[0] / "manifest.json"
+            )
+            from offline.dt_gate import HELD_OUT_DRAWS
+
+            return _fixedtime_factory(
+                draw_config_path(
+                    args.scenario_key, HELD_OUT_DRAWS[0], out_root=args.draws_root
+                ),
+                collected,
+            )
         if tier == "mappo1000":
             from offline.dt_gate import _mappo_factory
 
@@ -1914,6 +1943,53 @@ def _arm_factory(tier: str, method: str, args: Any, seed: int) -> Any:
                 raise FileNotFoundError(f"{path} does not exist; the behaviour anchor needs it")
             return _mappo_factory(str(path), args.device)
     raise ValueError(f"no action factory is declared for {method!r} at tier {tier!r}")
+
+
+def assert_factories_constructible(args: Any) -> dict[str, Any]:
+    """Gate 0: every cell the DECLARATION names must have a CONSTRUCTIBLE action factory.
+
+    🚨 **Why this exists, and it is a defect this campaign actually paid for.**
+    ``_arm_factory``'s ``behaviour`` branch had no ``fixedtime`` case, so it fell through to its
+    own ``raise``.  The failure was **deterministic and reachable only at evaluation time**, three
+    days into a 53 h campaign, and it recurred on every resume.
+
+    ⚠️ **``assert-complete`` cannot catch this class.** It compares the declared cells to the cells
+    on disk, so it only ever fires **after** the work that was supposed to produce them -- it tells
+    you a cell is missing, never that a cell is unproducible.  This asserts the *capability* before
+    any training starts: it walks the declared ``(tier, method)`` matrix, builds each factory, and
+    refuses on anything that raises.  Seconds, no training, no environment.
+
+    Building the factory does not construct an env -- the returned closure takes one -- so this is
+    cheap, but it DOES exercise the real preconditions: the MAPPO anchor's checkpoint must exist,
+    and the fixed-time plan must resolve and hash-match its tier's manifest.
+    """
+    checked: list[dict[str, str]] = []
+    problems: list[str] = []
+    seed = int(_seeds_of(args)[0])
+    for entry in campaign_cell_manifest():
+        if entry.get("source") == "reuse_root":
+            continue
+        tier, method = str(entry["tier"]), str(entry["method"])
+        if tier == "all":
+            tier = REUSED_TIER
+        try:
+            _arm_factory(tier, method, args, seed)
+        except Exception as exc:  # noqa: BLE001 - any failure here is a refusal
+            problems.append(f"{method}@{tier}: {type(exc).__name__}: {exc}")
+            continue
+        checked.append({"tier": tier, "method": method})
+    return {"n_checked": len(checked), "problems": problems, "ok": not problems}
+
+
+def _run_check_factories(args: Any) -> int:
+    report = assert_factories_constructible(args)
+    print(f"action factories constructible: {report['n_checked']} checked")
+    if not report["ok"]:
+        print("\nREFUSED -- these declared cells have no constructible factory:")
+        for problem in report["problems"]:
+            print(f"  - {problem}")
+        return 1
+    return 0
 
 
 def _run_evaluate(args: Any) -> int:
@@ -2469,6 +2545,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_evaluate(args)
     if args.command == "declare-campaign":
         return _run_declare_campaign(args)
+    if args.command == "check-factories":
+        return _run_check_factories(args)
     if args.command == "assert-complete":
         return _run_assert_complete(args)
     if args.command == "train-baselines":

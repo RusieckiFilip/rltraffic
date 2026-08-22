@@ -132,6 +132,32 @@ cd "$ROOT"
 stamp() { date +"%Y-%m-%d %H:%M:%S"; }
 say()   { echo "[$(stamp)] $*"; }
 
+# 🚨 A CAMPAIGN THAT REDIRECTS EACH STEP TO ITS OWN LOG HAS PUT ITS FAILURES WHERE THE CAMPAIGN LOG
+# CANNOT SHOW THEM.  Measured the hard way: `behaviour@fixedtime` failed with a deterministic
+# ValueError on every attempt, the traceback sat in logs/eval_fixedtime_behaviour.log, and NOTHING
+# reached campaign.log or the tmux pane -- so restarts were spent on an environmental hypothesis
+# while the answer was on disk.  `step` runs a redirected command and, on failure, echoes the tail
+# of its log into the campaign log before returning the failure.  `set -e` still aborts; what
+# changes is that the reason is visible where the operator is looking.
+step() {
+  local log="$1"; shift
+  # ⚠️ The status is captured with `|| code=$?` and NOT with `if ! cmd; then local code=$?`.
+  # Measured: inside `if !` the status is already reset, so that form reports exit 0 and the
+  # function RETURNS SUCCESS -- `set -e` then sails past a failed step.  A log-surfacing helper
+  # that swallows failures is far worse than the invisibility it was written to fix, and this
+  # comment is here because the first version of it did exactly that.
+  local code=0
+  "$@" > "$log" 2>&1 || code=$?
+  if [ "$code" -ne 0 ]; then
+    say "STEP FAILED (exit $code): $*"
+    say "---- last 15 lines of $log ----"
+    tail -15 "$log" | sed "s/^/    /"
+    say "---- end of $log ----"
+    return "$code"
+  fi
+  return 0
+}
+
 if [ "$STEPS" -ne 40000 ]; then
   say "################################################################"
   say "REHEARSAL: STEPS=$STEPS, not the declared 40000."
@@ -233,6 +259,16 @@ say "declaration present"
   $PY -m offline.tier_sweep "${COMMON[@]}" declare-campaign
 say "campaign declaration present (expected cells enumerated, replicates included)"
 
+# 🚨 EVERY DECLARED CELL MUST HAVE A CONSTRUCTIBLE ACTION FACTORY, asserted HERE, in seconds.
+# This exists because it did not, and the campaign paid for it: `_arm_factory`'s behaviour branch
+# had no `fixedtime` case, so it fell through to its own raise.  The failure was deterministic and
+# reachable ONLY at evaluation time -- after that tier had already trained -- and it recurred on
+# every resume.  `assert-complete` cannot catch this class: it compares declared cells to cells on
+# disk, so it fires only AFTER the work that was meant to produce them.  This asserts the
+# capability BEFORE any of it starts.
+$PY -m offline.tier_sweep "${COMMON[@]}" check-factories
+say "action factories constructible for every declared cell"
+
 # -------------------------------------------------------------------------------------
 # GATE 1 -- the reuse gate (B3).  Digests AT CONSUMPTION, then the random-anchor re-roll.
 # -------------------------------------------------------------------------------------
@@ -241,8 +277,7 @@ $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$TIER" verify-reuse
 
 if [ ! -f "$WORK/eval_${TIER}_random.json" ]; then
   say "GATE 1: re-rolling the random anchor (CPU-deterministic policy; exact equality is the bar)"
-  $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$TIER" evaluate --method random \
-      > "$LOGS/eval_random.log" 2>&1
+  step "$LOGS/eval_random.log" $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$TIER" evaluate --method random
 fi
 $PY - "$WORK/eval_${TIER}_random.json" "$REUSE/eval_random.json" <<'PYEOF'
 import json
@@ -270,8 +305,7 @@ for ARM in dt_spatial dt_nomix; do
     say "SKIP E1 training $ARM seed $E1_SEED: checkpoint already on disk"
   else
     say "E1 TRAIN $ARM seed $E1_SEED (~59 min measured for a DT arm-seed at 40,000 steps)"
-    $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$TIER" --seeds "$E1_SEED" \
-        train --method "$ARM" > "$LOGS/e1_train_$ARM.log" 2>&1
+    step "$LOGS/e1_train_$ARM.log" $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$TIER" --seeds "$E1_SEED" train --method "$ARM"
     say "E1 TRAIN $ARM COMPLETE"
   fi
 done
@@ -281,8 +315,7 @@ for ARM in dt_spatial dt_nomix; do
     say "SKIP E1 evaluate $ARM: cell already on disk"
   else
     say "E1 EVALUATE $ARM seed $E1_SEED over 100 held-out draws"
-    $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$TIER" --seeds "$E1_SEED" \
-        evaluate --method "$ARM" > "$LOGS/e1_eval_$ARM.log" 2>&1
+    step "$LOGS/e1_eval_$ARM.log" $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$TIER" --seeds "$E1_SEED" evaluate --method "$ARM"
     say "E1 EVALUATE $ARM COMPLETE"
   fi
 done
@@ -304,15 +337,13 @@ for ARM in dt_spatial_h4 dt_nomix_h4; do
     say "SKIP training $ARM: 5 checkpoints already on disk"
   else
     say "TRAIN $ARM (5 seeds x $STEPS steps)"
-    $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$TIER" train --method "$ARM" \
-        > "$LOGS/train_${TIER}_$ARM.log" 2>&1
+    step "$LOGS/train_${TIER}_$ARM.log" $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$TIER" train --method "$ARM"
   fi
   if [ -f "$WORK/eval_${TIER}_${ARM}.json" ]; then
     say "SKIP evaluate $ARM: cell already on disk"
   else
     say "EVALUATE $ARM (5 seeds x 100 held-out draws)"
-    $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$TIER" evaluate --method "$ARM" \
-        > "$LOGS/eval_${TIER}_$ARM.log" 2>&1
+    step "$LOGS/eval_${TIER}_$ARM.log" $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$TIER" evaluate --method "$ARM"
   fi
 done
 
@@ -342,11 +373,9 @@ say "stop rule did not fire; phase B proceeds"
 # PHASE C -- the new baseline arm at the reused tier.  Only NEW arms run at mappo1000 (A3).
 # -------------------------------------------------------------------------------------
 say "PHASE C: bc_top10_perix at $TIER (the only new baseline arm at the reused tier)"
-$PY -m offline.tier_sweep "${COMMON[@]}" --tier "$TIER" train-baselines \
-    > "$LOGS/train_${TIER}_baselines.log" 2>&1
+step "$LOGS/train_${TIER}_baselines.log" $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$TIER" train-baselines
 [ -f "$WORK/eval_${TIER}_bc_top10_perix.json" ] || \
-  $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$TIER" evaluate --method bc_top10_perix \
-      > "$LOGS/eval_${TIER}_bc_top10_perix.log" 2>&1
+  step "$LOGS/eval_${TIER}_bc_top10_perix.log" $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$TIER" evaluate --method bc_top10_perix
 
 # -------------------------------------------------------------------------------------
 # PHASE B -- the ladder.  Four tiers in measured-ATT order; mappo1000 is reused, not re-run.
@@ -361,13 +390,11 @@ for LADDER_TIER in maxpressure random fixedtime; do
       say "SKIP training $LADDER_TIER/$ARM: 5 checkpoints on disk"
     else
       say "TRAIN $LADDER_TIER/$ARM (5 seeds)"
-      $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$LADDER_TIER" train --method "$ARM" \
-          > "$LOGS/train_${LADDER_TIER}_$ARM.log" 2>&1
+      step "$LOGS/train_${LADDER_TIER}_$ARM.log" $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$LADDER_TIER" train --method "$ARM"
     fi
   done
   say "TRAIN $LADDER_TIER baselines (bc, bc_top10, bc_top10_perix, iql)"
-  $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$LADDER_TIER" train-baselines \
-      > "$LOGS/train_${LADDER_TIER}_baselines.log" 2>&1
+  step "$LOGS/train_${LADDER_TIER}_baselines.log" $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$LADDER_TIER" train-baselines
   for ARM in dt_spatial dt_nomix bc bc_top10 bc_top10_perix iql behaviour; do
     # The `random` tier's behaviour policy IS the shared random anchor (D12), verified common:
     # env settings identical across all four tier manifests, and the factory is a function of the
@@ -380,8 +407,7 @@ for LADDER_TIER in maxpressure random fixedtime; do
       say "SKIP evaluate $LADDER_TIER/$ARM: cell on disk"
     else
       say "EVALUATE $LADDER_TIER/$ARM"
-      $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$LADDER_TIER" evaluate --method "$ARM" \
-          > "$LOGS/eval_${LADDER_TIER}_$ARM.log" 2>&1
+      step "$LOGS/eval_${LADDER_TIER}_$ARM.log" $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$LADDER_TIER" evaluate --method "$ARM"
     fi
   done
 done
@@ -410,18 +436,14 @@ for ARM in dt_spatial dt_nomix; do
     say "SKIP replicate training $ARM: checkpoint already on disk"
   else
     say "REPLICATE TRAIN $ARM (independent run from scratch, distinct key; ~60 min)"
-    $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$REPLICATE_TIER" \
-        --seeds "$REPLICATE_SEED" --replicate train --method "$ARM" \
-        > "$LOGS/replicate_train_$ARM.log" 2>&1
+    step "$LOGS/replicate_train_$ARM.log" $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$REPLICATE_TIER" --seeds "$REPLICATE_SEED" --replicate train --method "$ARM"
   fi
   RCELL="$WORK/eval_${REPLICATE_TIER}_${ARM}_seed${REPLICATE_SEED}_replicate.json"
   if [ -f "$RCELL" ]; then
     say "SKIP replicate evaluate $ARM: cell already on disk"
   else
     say "REPLICATE EVALUATE $ARM over 100 held-out draws"
-    $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$REPLICATE_TIER" \
-        --seeds "$REPLICATE_SEED" --replicate evaluate --method "$ARM" \
-        > "$LOGS/replicate_eval_$ARM.log" 2>&1
+    step "$LOGS/replicate_eval_$ARM.log" $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$REPLICATE_TIER" --seeds "$REPLICATE_SEED" --replicate evaluate --method "$ARM"
   fi
 done
 

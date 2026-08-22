@@ -1283,6 +1283,107 @@ def test_the_manifest_covers_every_declared_tier_and_arm() -> None:
 
 
 # ----------------------------------------------------------------------
+# Every declared cell must have a CONSTRUCTIBLE action factory (Gate 0).
+# ----------------------------------------------------------------------
+
+
+def _factory_args(**overrides: Any) -> Any:
+    from types import SimpleNamespace
+
+    base = dict(
+        corpus_root="/home/filip/rltraffic/datasets_v11",
+        draws_root=str(REPO_ROOT / "scenarios" / "draws"),
+        work_dir=str(REPO_ROOT / "output" / "p5_2"),
+        checkpoint_dir=str(REPO_ROOT / "output" / "p5_2" / "checkpoints"),
+        out_dir=str(REPO_ROOT / "docs" / "data"),
+        reuse_root="/home/filip/rltraffic/output/p5_1",
+        mappo_checkpoint_dir="/home/filip/rltraffic/output/checkpoints",
+        scenario_key=ts.SCENARIO_KEY, scenario_id=ts.SCENARIO_ID,
+        gradient_steps=40_000, device=None, seeds=None, replicate=False,
+    )
+    base.update(overrides)
+    return SimpleNamespace(**base)
+
+
+@pytest.mark.parametrize("tier", ["maxpressure", "fixedtime"])
+def test_every_behaviour_anchor_this_campaign_PRODUCES_has_a_factory(tier: str) -> None:
+    """The defect this cost three days to find: ``behaviour@fixedtime`` had no branch.
+
+    ``_arm_factory`` fell through to its own ``raise``, and the failure was reachable only at
+    EVALUATION time -- so it surfaced after the tier had already been trained, and recurred on
+    every resume.  A factory that cannot be built is a cell that cannot be produced, and that is
+    knowable in seconds without touching a GPU.
+
+    ⚠️ The parametrisation is the set of behaviour anchors this campaign PRODUCES, taken from the
+    declaration and asserted below rather than typed from memory.  ``mappo1000``'s anchor is a
+    REUSED P5.1 cell and its MAPPO checkpoint is not in this tree, so requiring its factory here
+    would fail on an artifact the campaign never reads; ``random``'s is the shared collapse
+    reference, served by ``_random_factory``.
+    """
+    if not Path("/home/filip/rltraffic/datasets_v11").is_dir():
+        pytest.skip("the corpus is not present on this machine")
+    produced = {
+        e["tier"] for e in ts.campaign_cell_manifest() if e["role"] == "behaviour_anchor"
+    }
+    assert tier in produced, "the parametrisation has drifted from the declaration"
+    assert produced == {"maxpressure", "fixedtime"}
+    factory = ts._arm_factory(tier, ts.BEHAVIOUR_METHOD, _factory_args(), 101)
+    assert callable(factory)
+
+
+def test_the_mappo1000_behaviour_anchor_is_reused_and_not_produced_here() -> None:
+    """States the exclusion above rather than leaving it as an untested gap.
+
+    If this ever stops being true, the test above must grow a case -- and this assertion is what
+    makes that visible instead of silent.
+    """
+    reused = {
+        e["tier"] for e in ts.campaign_cell_manifest()
+        if e["method"] == ts.BEHAVIOUR_METHOD and e.get("source") == "reuse_root"
+    }
+    assert reused == {"mappo1000"}
+
+
+def test_the_fixedtime_behaviour_factory_asserts_the_plan_against_the_manifest() -> None:
+    """It is P4.6's factory, imported, and the import is what buys the hash assertion.
+
+    A hand-rolled ``make_fixedtime`` call would build a working controller and silently skip the
+    check that the plan being EVALUATED is the plan that COLLECTED the tier.
+    """
+    if not Path("/home/filip/rltraffic/datasets_v11").is_dir():
+        pytest.skip("the corpus is not present on this machine")
+    from offline.method_tier_grid import fixedtime_collection_settings
+
+    collected = fixedtime_collection_settings(
+        Path("/home/filip/rltraffic/datasets_v11/cf_grid4x4__fixedtime/manifest.json")
+    )
+    assert collected["fixed_time_schedule_source"] == "equal_split"
+    # The factory refuses when the recorded source disagrees with what resolves today.
+    from offline.method_tier_grid import _fixedtime_factory
+    from offline.materialise_draws import draw_config_path
+
+    config = draw_config_path(ts.SCENARIO_KEY, 1000, out_root=REPO_ROOT / "scenarios" / "draws")
+    with pytest.raises(ValueError, match="schedule source"):
+        _fixedtime_factory(config, {**collected, "fixed_time_schedule_source": "from_file"})
+
+
+def test_the_factory_check_covers_every_cell_the_campaign_must_produce() -> None:
+    """Gate 0's check must walk the DECLARATION, not a hand-kept list that can drift from it."""
+    if not Path("/home/filip/rltraffic/datasets_v11").is_dir():
+        pytest.skip("the corpus is not present on this machine")
+    report = ts.assert_factories_constructible(_factory_args())
+    produced = [e for e in ts.campaign_cell_manifest() if e.get("source") != "reuse_root"]
+    assert report["n_checked"] == len(produced)
+    assert report["ok"] is True, report["problems"]
+
+
+def test_the_factory_check_REFUSES_an_undeclared_arm() -> None:
+    """Discriminating power: a check that never refuses is indistinguishable from a no-op."""
+    with pytest.raises(ValueError, match="no action factory is declared"):
+        ts._arm_factory("fixedtime", "not_an_arm", _factory_args(), 101)
+
+
+# ----------------------------------------------------------------------
 # I1/J1 -- the replicate's distinct key and its positive control.
 # ----------------------------------------------------------------------
 
