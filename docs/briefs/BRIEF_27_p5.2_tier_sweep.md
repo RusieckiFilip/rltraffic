@@ -1127,6 +1127,71 @@ read it. Nothing was run against it."*
 
 ---
 
+## ⛔ NOTE T — 2026-08-22. **IT WAS NEVER A KILL.** A deterministic code defect, and the traceback was on disk throughout
+
+### T1 ⛔ THE CAUSE, and it is three lines away from where both of us were looking
+
+`output/p5_2/logs/eval_fixedtime_behaviour.log`:
+```
+behaviour@fixedtime seed 101 over 100 draws
+ValueError: no action factory is declared for 'behaviour' at tier 'fixedtime'
+```
+**Immediate, deterministic, raised at seed 101 before a single episode ran.** Not a SIGKILL, not the
+host, not memory, not the GPU passthrough layer.
+> 🚨 **We both reasoned from the ABSENCE of a traceback in `campaign.log` and the tmux pane — where it
+> was never going to appear, because the script redirects every evaluation to its own per-arm log
+> (`> "$LOGS/eval_${TIER}_${ARM}.log" 2>&1`).** The reasoning *"stderr goes through `2>&1 | tee`, so a
+> Python exception would be in the log"* is true of the campaign's own output and false of the step's.
+> ⚠️ **And *"it died ~17 minutes into a ~56-minute evaluation"* is not a measurement — it failed in
+> about a second; 17 minutes is when the pane was next looked at.** The dmesg findings are real and
+> unrelated: the `dxg` ioctl errors span ~14.7 h including successful runs, so they are background.
+
+### T2 ⛔ MY ERROR, AND IT IS IN A COMMITTED NOTE
+
+**Note S records *"an unexplained silent SIGKILL"* and *"three kills, three different causes"*, and
+S3 makes that a packet sentence.** I took the characterisation from the report and never opened the
+per-arm log — **a directory I had listed myself earlier in this same session.** That is *verify the
+artifact, not the description*, failed by me, one hour after writing the check that found the cells
+intact.
+> **CORRECTIONS, both binding on the packet: there were TWO kills, not three** — the screen lock and
+> the Windows Update restart. **S3's sentence must read two, with the third interruption described as
+> what it was: a deterministic defect that the atomic writer never had to survive.**
+> ⭐ **What S1's structural check established is untouched** — 25/25 cells intact, 122/122 checkpoints
+> loadable, zero stray temporaries. **That evidence stands; only the story attached to it was wrong.**
+
+### T3 🔧 THE DEFECT AND ITS OWNER — one branch, and the policy already exists
+
+`offline/tier_sweep.py:1900-1914`, the `BEHAVIOUR_METHOD` branch of `_arm_factory`, handles
+`tier == "random"`, `"maxpressure"` and `"mappo1000"`. **`fixedtime` is absent**, so it falls through to
+the `raise`. **`offline/policies/fixed_time.py:379` already provides `make_fixedtime(env, args, rng)`.**
+> 🚨 **ROOT CAUSE, and it is a coordination failure rather than a coding one: `fixedtime` was added
+> late (F4/H1), and H3 listed the REGISTRATION work meticulously — R′'s cells, `Q1`'s denominator
+> restated by rule, `Q2`'s rank prediction and hard subset, `Q3`/`Q4` extended — and NOBODY LISTED THE
+> IMPLEMENTATION.** **The declaration declares 35 cells; the factory can build 34.** ⚠️ **That is the
+> 2026-08-19 rule — *a plan says WILL, code says DOES* — recurring at the level of a tier addition.**
+
+### T4 🔒 THE MECHANICAL PREVENTION, required with the fix
+
+> **REQUIRED at Gate 0: assert that EVERY cell the declaration names has a CONSTRUCTIBLE factory —
+> loop the declared `(tier, method)` matrix, call `_arm_factory`, and refuse on any that raises.** No
+> training, no evaluation, seconds to run. **It would have caught this before three days of compute,
+> and it closes the general gap rather than the instance: any future tier or arm added to a
+> declaration without an implementation fails at launch instead of at the last cell.**
+> ⚠️ **Note where the existing guards were blind: `assert-complete` compares declared cells to cells ON
+> DISK, so it can only fire AFTER the work; K2's refusal held correctly and told us a cell was missing,
+> not that it was unbuildable.**
+
+### T5 ✅ THE PROPOSED EXPERIMENT IS UNNECESSARY — and it was good design for the hypothesis it addressed
+
+The reduced-draw / same-wall-clock-versus-same-draw-index test is a **correct discriminator** for
+time-versus-data, and proposing it rather than *"rerun and hope"* was right — *"a third attempt tests
+nothing"* is exactly the standard this project asks for. **It is simply not needed: the failure is
+deterministic and the log names it.** ⭐ **The cheaper instrument that beat it, and the one to reach
+for first next time: READ THE STEP'S OWN LOG. A campaign that redirects each step to its own file has
+put the evidence somewhere the campaign log cannot show you.**
+
+---
+
 ## ✅ NOTE S — 2026-08-22. The third kill: 32 cells verified INTACT, and the restart is a plain resume
 
 ### S1 ✅ THE CELLS ARE INTACT, NOT MERELY PRESENT — and the author was right to demand the difference
