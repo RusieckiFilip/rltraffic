@@ -1127,6 +1127,59 @@ read it. Nothing was run against it."*
 
 ---
 
+## ✅ NOTE S — 2026-08-22. The third kill: 32 cells verified INTACT, and the restart is a plain resume
+
+### S1 ✅ THE CELLS ARE INTACT, NOT MERELY PRESENT — and the author was right to demand the difference
+
+**The objection that earned this check is the correct one: the resume's existence tests are safe ONLY
+because the writer is atomic, that atomicity was argued FROM SOURCE, and the process that just died
+mid-write is exactly the case the argument was made against.** So it was checked structurally rather
+than by presence:
+
+| check | result |
+|---|---|
+| every `eval_*.json` parses, episode count = seeds × draws | **25 / 25** |
+| draw ids exactly `1000–1099`, all five seeds (one for the seed-202 cells) | **25 / 25** |
+| non-finite values in `att_horizon`, `episode_reward`, `horizon_vehicle_count` | **0** |
+| duplicate `(seed, draw)` pairs | **0** |
+| required field set present | **25 / 25** |
+| checkpoints load with `model` / `config` / `provenance`, model non-empty | **122 / 122** |
+| stray or temporary files under `output/p5_2` | **0** |
+
+⭐ **And completeness was taken from the REGISTERED artifact rather than from my own enumeration** —
+`assert-complete` reports **32 of 35**, missing exactly `eval_fixedtime_behaviour` and the two
+`envelope_replicate_I1_J1` cells. **No fourth surprise.**
+
+### S2 ✅ RULED: PLAIN RESUME. Nothing needs declaring, and here is what I checked rather than assumed
+
+The author's reading is right, and because three kills is the point to stop trusting a reading, the
+candidates were enumerated rather than waved past: **the missing cell is a DETERMINISTIC fixed-time
+controller on FIXED held-out draws in a bit-reproducible engine**, so its value cannot depend on when
+it runs; **no cell depends on another** — each trains and evaluates independently, which is the same
+property that made Amendment Q's order deviation bookkeeping; **Gate 0's draws exist and are
+byte-verified on entry**, and **Gate 1's random anchor is already on disk so the re-roll skips**; and
+**the tier-order deviation is already declared (Q3)**. **Nothing new is registrable and nothing is
+withheld.**
+
+### S3 ⭐ THE PACKET SENTENCE, STRENGTHENED BY WHAT THE CHECK MEASURED
+
+The author proposed: *"D1(c) was validated on three unannounced kills rather than on unit tests."*
+**That is right and it can be said harder, because the check above supplies the evidence:**
+> **Three kills, three different causes — a screen lock, a Windows Update restart, and an unexplained
+> silent SIGKILL — at points nobody chose, one mid-TRAINING and one mid-EVALUATION. The result is
+> 25/25 evaluation cells structurally intact, 122/122 checkpoints loadable, zero stray temporaries, and
+> exactly the three known cells absent. Each kill cost only the unit in flight.**
+> ⭐ **No unit test could have produced that evidence, because the kill POINTS were unchosen — which is
+> precisely what makes it stronger than the source argument it replaces.** ⚠️ **State it as validation
+> of the WRITER, not of the resume logic: the existence tests are still only as good as the atomicity
+> beneath them, and what changed today is that the atomicity is now measured rather than argued.**
+
+⚠️ **Not prescribed, recorded: the cause of the third kill is unknown and I am not speculating.** The
+remaining exposure is ~66 min plus the ≈2.2 h replicate, and the resume bounds any further loss to one
+unit — **so no protocol change is warranted on a hypothesis.**
+
+---
+
 ## ✅ AMENDMENT R — 2026-08-22, ruled BEFORE the ladder's numbers were read
 
 ### R1 ✅ THE I1/J1 REPLICATE RUNS TONIGHT, AS ITS OWN PHASE. Approved as framed
