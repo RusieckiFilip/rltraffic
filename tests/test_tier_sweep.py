@@ -1283,6 +1283,71 @@ def test_the_manifest_covers_every_declared_tier_and_arm() -> None:
 
 
 # ----------------------------------------------------------------------
+# I1/J1 -- the replicate's distinct key and its positive control.
+# ----------------------------------------------------------------------
+
+
+def test_the_replicate_key_differs_from_phase_Bs_at_every_path(tmp_path: Path) -> None:
+    """J2(b): a shared name is how the replicate ends up being phase B's own cell.
+
+    Both the checkpoint and the evaluation cell must differ, because either collision alone would
+    make the envelope zero by construction -- the answer the measurement exists to avoid.
+    """
+    plain_ckpt = ts._checkpoint_name("random", "dt_spatial", 202)
+    repl_ckpt = ts._checkpoint_name("random", "dt_spatial", 202, replicate=True)
+    plain_cell = ts.cell_filename("random", "dt_spatial", 202)
+    repl_cell = ts.cell_filename("random", "dt_spatial", 202, replicate=True)
+    assert plain_ckpt != repl_ckpt
+    assert plain_cell != repl_cell
+    assert ts.REPLICATE_SUFFIX in repl_ckpt and ts.REPLICATE_SUFFIX in repl_cell
+    assert ts.REPLICATE_SUFFIX not in plain_ckpt and ts.REPLICATE_SUFFIX not in plain_cell
+
+
+def test_the_replicate_cell_names_match_what_the_declaration_enumerated() -> None:
+    """K2 and J2(b) must agree, or the completeness assertion guards a file nobody writes."""
+    declared = {
+        e["cell"] for e in ts.campaign_cell_manifest()
+        if e["role"] == "envelope_replicate_I1_J1"
+    }
+    produced = {
+        ts.cell_filename(ts.REPLICATE_TIER, method, ts.REPLICATE_SEED, replicate=True)
+        for method in ts.REPLICATE_ARMS
+    }
+    assert declared == produced
+
+
+def test_the_positive_control_fires_on_a_1e_12_shift() -> None:
+    """I1: the control that separated E1's zero from a self-comparison.
+
+    A reported ``+0.0000`` means nothing unless the instrument is shown to move when something
+    moves, and F7 did not require this.
+    """
+    published = _seeded_cell(202, {1000 + i: 100.0 + i for i in range(100)})
+    control = ts.positive_control_resolution(published, 202, epsilon=1e-12)
+    assert control["detected"] is True
+    assert control["observed_mean_difference"] != 0.0
+    assert control["epsilon"] == 1e-12
+
+
+def test_the_positive_control_does_not_touch_the_payload_it_was_given() -> None:
+    """It runs on a COPY: a control that mutated the artifact would corrupt the measurement."""
+    published = _seeded_cell(202, {1000 + i: 100.0 + i for i in range(100)})
+    before = json.dumps(published, sort_keys=True)
+    ts.positive_control_resolution(published, 202)
+    assert json.dumps(published, sort_keys=True) == before
+
+
+def test_the_positive_control_RAISES_when_the_detector_cannot_resolve_epsilon() -> None:
+    """A control that quietly reported 'not detected' would be worse than no control at all.
+
+    Epsilon zero is the degenerate case: nothing moved, so nothing may be claimed resolved.
+    """
+    published = _seeded_cell(202, {1000 + i: 100.0 + i for i in range(100)})
+    with pytest.raises(ValueError, match="positive control did not fire"):
+        ts.positive_control_resolution(published, 202, epsilon=0.0)
+
+
+# ----------------------------------------------------------------------
 # I3 -- Q1's threshold is carried across by a rule, not re-decided.
 # ----------------------------------------------------------------------
 

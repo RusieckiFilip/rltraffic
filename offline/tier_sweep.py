@@ -1619,6 +1619,11 @@ def build_parser() -> Any:
         help="comma-separated training seeds; defaults to the registered five. E1 uses '202'.",
     )
     parser.add_argument("--tier", default=None, help=f"one of {sorted(TIERS)}")
+    parser.add_argument(
+        "--replicate", action="store_true",
+        help="I1/J1: write under the DISTINCT replicate key (J2b), so the independent run cannot "
+             "be served by, or serve, phase B's own checkpoint and cell",
+    )
 
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("declare", help="write the pre-training declaration for one tier")
@@ -1644,6 +1649,11 @@ def build_parser() -> Any:
         "replicate-report", help="E1/F7: the paired per-draw report against P5.1's cells"
     )
     replicate.add_argument("--seed", type=int, default=202)
+    envelope = sub.add_parser(
+        "envelope-report",
+        help="I1/J1: the random-tier envelope, replicate vs phase B, under J2's conditions",
+    )
+    envelope.add_argument("--seed", type=int, default=REPLICATE_SEED)
     return parser
 
 
@@ -1665,8 +1675,11 @@ def _require_tier(args: Any) -> str:
     return str(args.tier)
 
 
-def _checkpoint_name(tier: str, method: str, seed: int) -> str:
-    return f"grid4x4_{tier}_{method}_seed{seed}.pt"
+def _checkpoint_name(tier: str, method: str, seed: int, replicate: bool = False) -> str:
+    """J2(b): the replicate's checkpoint carries a DISTINCT key, so no resume branch, cache or
+    report path can serve phase B's own checkpoint in its place -- which would make the envelope
+    zero by construction."""
+    return f"grid4x4_{tier}_{method}_seed{seed}{REPLICATE_SUFFIX if replicate else ''}.pt"
 
 
 def _run_declare(args: Any) -> int:
@@ -1708,7 +1721,9 @@ def _run_train(args: Any) -> int:
     )
     records: list[dict[str, Any]] = []
     for seed in _seeds_of(args):
-        destination = checkpoints / _checkpoint_name(tier, args.method, seed)
+        destination = checkpoints / _checkpoint_name(
+            tier, args.method, seed, replicate=bool(getattr(args, "replicate", False))
+        )
         if destination.is_file():
             print(f"SKIP {tier}/{args.method} seed {seed}: checkpoint on disk", flush=True)
             continue
@@ -1865,7 +1880,12 @@ def _arm_factory(tier: str, method: str, args: Any, seed: int) -> Any:
 
     checkpoints = Path(args.checkpoint_dir)
     if method in DT_METHODS:
-        path = str(checkpoints / _checkpoint_name(tier, method, seed))
+        path = str(
+            checkpoints
+            / _checkpoint_name(
+                tier, method, seed, replicate=bool(getattr(args, "replicate", False))
+            )
+        )
 
         def factory(env: Any) -> Any:
             from agent.SpatialDTAgent import SpatialDTAgent
@@ -1936,6 +1956,8 @@ def _run_evaluate(args: Any) -> int:
     assert_writable(work, protected)
     work.mkdir(parents=True, exist_ok=True)
     seeds_tag = "" if not args.seeds else f"_seed{'_'.join(str(s) for s in _seeds_of(args))}"
+    if getattr(args, "replicate", False):
+        seeds_tag += REPLICATE_SUFFIX
     write_json_guarded(
         {
             "format_version": ARTIFACT_FORMAT_VERSION, "arm": arm, "tier": tier,
@@ -2160,6 +2182,193 @@ def _run_assert_complete(args: Any) -> int:
     return 0
 
 
+def positive_control_resolution(
+    published: Mapping[str, Any], seed: int, epsilon: float = 1e-12
+) -> dict[str, Any]:
+    """Prove the detector resolves *epsilon* by perturbing one episode and re-running it.
+
+    ⚠️ **This is what separated E1's zero from a self-comparison, and F7 did not require it.**  A
+    reported ``+0.0000`` means nothing unless the instrument that produced it is shown to move when
+    something moves.  One episode of the published cell is shifted by ``epsilon`` in a COPY -- the
+    artifact on disk is never touched -- and the report must then differ from zero.
+    """
+    import copy
+
+    perturbed = copy.deepcopy(dict(published))
+    perturbed["episodes"] = [dict(e) for e in published["episodes"]]
+    target = next(e for e in perturbed["episodes"] if int(e["seed"]) == int(seed))
+    target["att_horizon"] = float(target["att_horizon"]) + float(epsilon)
+    report = paired_replicate_report(perturbed, published, seed=seed)
+    detected = report["mean_difference"] != 0.0
+    if not detected:
+        raise ValueError(
+            f"the positive control did not fire: a {epsilon} shift in one episode produced a mean "
+            "difference of exactly zero, so this detector cannot resolve it and any zero it "
+            "reports is uninterpretable"
+        )
+    return {
+        "epsilon": float(epsilon),
+        "perturbed_episodes": 1,
+        "observed_mean_difference": report["mean_difference"],
+        "detected": bool(detected),
+        "note": (
+            "run on a COPY; the artifact on disk is untouched. Without this a zero envelope is "
+            "indistinguishable from a self-comparison"
+        ),
+    }
+
+
+def _run_envelope_report(args: Any) -> int:
+    """I1/J1: the random-tier envelope, under J2's three conditions.
+
+    Compares the REPLICATE (an independent training run from scratch under a distinct key) against
+    phase B's own cell at the same pre-declared seed, for both arms and for ``d1``.
+    """
+    import json as _json
+
+    from offline.dt_gate import mean_ci95
+
+    protected = _protected_of(args)
+    tier = _require_tier(args)
+    seed = int(args.seed)
+    work = Path(args.work_dir)
+    checkpoints = Path(args.checkpoint_dir)
+
+    # Every input is checked to EXIST before anything is loaded, so a missing artifact says which
+    # one and what produces it rather than surfacing as a torch traceback.
+    required: list[tuple[str, Path]] = []
+    for method in REPLICATE_ARMS:
+        required.append((
+            f"phase R checkpoint for {method} (run: --replicate --seeds {seed} train)",
+            checkpoints / _checkpoint_name(tier, method, seed, replicate=True),
+        ))
+        required.append((
+            f"phase B checkpoint for {method} (produced by phase B)",
+            checkpoints / _checkpoint_name(tier, method, seed),
+        ))
+        required.append((
+            f"phase R cell for {method} (run: --replicate --seeds {seed} evaluate)",
+            work / cell_filename(tier, method, seed, replicate=True),
+        ))
+        required.append((
+            f"phase B cell for {method} (produced by phase B)",
+            work / cell_filename(tier, method),
+        ))
+    absent = [(what, path) for what, path in required if not path.is_file()]
+    if absent:
+        lines = "\n".join(f"  - {what}: {path}" for what, path in absent)
+        raise SystemExit(
+            f"the envelope report needs {len(absent)} artifact(s) that do not exist:\n{lines}\n"
+            "Phase R must run before its report; nothing is computed from a partial input."
+        )
+
+    # J2(c) FIRST: no envelope is computed, let alone reported, until the two runs are shown to
+    # have produced DIFFERENT weights.  Equal digests are a refusal, not a zero.
+    digests: dict[str, Any] = {}
+    for method in REPLICATE_ARMS:
+        digests[method] = assert_independent_replicate(
+            checkpoints / _checkpoint_name(tier, method, seed, replicate=True),
+            checkpoints / _checkpoint_name(tier, method, seed),
+        )
+        print(
+            f"  {method}: replicate {digests[method]['replicate_state_dict_sha256'][:16]}... vs "
+            f"original {digests[method]['original_state_dict_sha256'][:16]}... DIFFER",
+            flush=True,
+        )
+
+    blocks: dict[str, Any] = {}
+    per_draw: dict[str, dict[int, float]] = {}
+    controls: dict[str, Any] = {}
+    for method in REPLICATE_ARMS:
+        replicate = _json.loads(
+            (work / cell_filename(tier, method, seed, replicate=True)).read_text(encoding="utf-8")
+        )
+        published = _json.loads(
+            (work / cell_filename(tier, method)).read_text(encoding="utf-8")
+        )
+        blocks[method] = paired_replicate_report(replicate, published, seed=seed)
+        controls[method] = positive_control_resolution(published, seed)
+        per_draw[f"{method}_replicate"] = {
+            int(e["draw_id"]): float(e["att_horizon"])
+            for e in replicate["episodes"] if int(e["seed"]) == seed
+        }
+        per_draw[f"{method}_published"] = {
+            int(e["draw_id"]): float(e["att_horizon"])
+            for e in published["episodes"] if int(e["seed"]) == seed
+        }
+
+    shared = sorted(
+        set(per_draw["dt_spatial_replicate"]) & set(per_draw["dt_nomix_replicate"])
+        & set(per_draw["dt_spatial_published"]) & set(per_draw["dt_nomix_published"])
+    )
+    if len(shared) != 100:
+        raise ValueError(f"expected 100 shared draws for d1, found {len(shared)}")
+    differences = [
+        (per_draw["dt_spatial_replicate"][d] - per_draw["dt_nomix_replicate"][d])
+        - (per_draw["dt_spatial_published"][d] - per_draw["dt_nomix_published"][d])
+        for d in shared
+    ]
+    stats = mean_ci95(differences)
+    low, high = stats.mean - stats.ci95, stats.mean + stats.ci95
+    blocks["d1"] = {
+        "metric": "att_horizon", "seed": seed, "n_shared_draws": len(shared),
+        "mean_difference": stats.mean, "std": stats.std,
+        "ci95_low": low, "ci95_high": high, "ci95_width": high - low,
+        "excludes_zero": bool(low > 0.0 or high < 0.0),
+        "d1_replicate": sum(
+            per_draw["dt_spatial_replicate"][d] - per_draw["dt_nomix_replicate"][d] for d in shared
+        ) / len(shared),
+        "d1_published": sum(
+            per_draw["dt_spatial_published"][d] - per_draw["dt_nomix_published"][d] for d in shared
+        ) / len(shared),
+    }
+
+    payload = {
+        "format_version": ARTIFACT_FORMAT_VERSION,
+        "measurement": (
+            "I1/J1 -- the nondeterminism envelope on the random tier "
+            "(docs/plans/p5.2.md section 4.8)"
+        ),
+        "tier": tier, "seed": seed, "regime": "default CUDA",
+        "seed_is_pre_declared": True,
+        "seed_note": (
+            "202 was declared before phase B ran, because the principle that chose it for E1 -- "
+            "the largest per-seed effect -- cannot be applied to a tier whose per-seed spread does "
+            "not exist until phase B has run. If 202 is unrepresentative of this tier's spread "
+            "that is a DISCLOSURE, not a reason to re-select (BRIEF_27 J1)"
+        ),
+        "independence": digests,
+        "positive_control": controls,
+        "attribution": (
+            "obligation 6 proved train_tier_dt reproduces spatial_mixing.train_spatial_dt "
+            "byte-exactly at one head on CPU, so any difference here is device nondeterminism "
+            "alone and not a trainer change"
+        ),
+        "registered_reading": (
+            "BRIEF_27 I2, registered before this number existed: a NON-ZERO envelope is a FINDING "
+            "-- nondeterminism reaching the metric where the learned policy separates phases less "
+            "confidently -- and a ZERO is not the only acceptable outcome. Both are publishable"
+        ),
+        "mappo1000_envelope_for_comparison": 0.0,
+        "mappo1000_scope_limit": (
+            "BRIEF_27 H2: E1's 0.0000 is a mappo1000-only measurement and is NOT established for "
+            "the degraded tiers; decision margins are a property of how confidently the learned "
+            "policy separates phases"
+        ),
+        "blocks": blocks,
+    }
+    out = work / f"envelope_{tier}_seed{seed}.json"
+    write_json_guarded(payload, out, protected)
+    for name, block in blocks.items():
+        print(
+            f"  {name:11s} mean {block['mean_difference']:+9.4f}  "
+            f"CI [{block['ci95_low']:+9.4f}, {block['ci95_high']:+9.4f}]  "
+            f"excludes zero: {block['excludes_zero']}"
+        )
+    print(f"envelope report written to {out}")
+    return 0
+
+
 def _run_verify_reuse(args: Any) -> int:
     record = verify_reuse_gate(args.reuse_root, args.checksums)
     for arm, entry in sorted(record.items()):
@@ -2270,6 +2479,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_stop_rule(args)
     if args.command == "replicate-report":
         return _run_replicate_report(args)
+    if args.command == "envelope-report":
+        return _run_envelope_report(args)
     raise SystemExit(f"unknown command {args.command!r}")
 
 

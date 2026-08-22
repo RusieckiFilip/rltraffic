@@ -45,17 +45,24 @@
 #   PHASE A  the head-count 2x2 at mappo1000, then the STOP RULE -- which HALTS the campaign if
 #            CI(d4) lies entirely below zero, writing STOPPED_BY_RULE
 #   PHASE C  bc_top10_perix at mappo1000 -- the only NEW arm at the reused tier (A3)
-#   PHASE B  the ladder: maxpressure, fixedtime, random; 6 method arms + the behaviour anchor
+#   PHASE B  the ladder; 6 method arms + the behaviour anchor per tier.
+#            ⚠️ EXECUTED ORDER `maxpressure -> random -> fixedtime`, against the REGISTERED
+#            `mappo1000 -> maxpressure -> fixedtime -> random`.  This is a DECLARED DEVIATION
+#            (Amendment Q3), not a correction: the registered order stays registered.  It is
+#            bookkeeping and not science because each tier trains on its own corpus and seeds and
+#            evaluates on the same fixed 100 held-out draws with no cross-tier state -- and E1
+#            MEASURED the run-to-run envelope on this metric at exactly 0.0000, so a tier's NUMBERS
+#            do not depend on when it ran.  Its DURATION does, through thermal state, and durations
+#            are governed by M3's cadence rule.
+#   PHASE R  the I1/J1 envelope replicate on `random`, seed 202, both arms, under J2's three
+#            conditions -- wired 2026-08-22 per Amendment R1.  It runs AFTER phase B because it
+#            compares against phase B's own cell.  Its two cells were enumerated in the campaign
+#            declaration (K2) before phases A/C/B ran, so the completeness assertion has been
+#            refusing CAMPAIGN_COMPLETE in their absence ever since -- a mechanism, not a promise.
 #   VERIFY   completed cells must equal the cells the CAMPAIGN DECLARATION names
 #
-# ⚠️ STILL DEFERRED AND DELIBERATELY NOT HERE: the I1/J1 random-tier replicate.  It compares against
-# phase B's own random-tier cell, and inventing that wiring while the ladder runs is how a replicate
-# ends up re-evaluating the cell it is supposed to be independent of -- the zero-by-construction J2
-# exists to refuse.  Its two cells ARE enumerated in the campaign declaration (K2), so the
-# completeness assertion refuses to write CAMPAIGN_COMPLETE until they exist.  That is a mechanism,
-# not a promise to remember.
-#
-# EXPECTED WALL CLOCK: about 50 h remaining.  Measured from P5.1's own campaign log: 59 min per DT
+# EXPECTED WALL CLOCK on a fresh run: about 53 h.  Remaining as of 2026-08-22: the fixedtime
+# behaviour anchor (~6 min) plus phase R (~2.2 h).  Everything else skips on its artifacts.  Measured from P5.1's own campaign log: 59 min per DT
 # arm-seed at 40,000 steps, 42 min for a tier's baselines, ~28 min per evaluation cell of 5 seeds x
 # 100 draws.  ⚠️ Only those rates are measurements; the total is an estimate.
 #
@@ -85,6 +92,8 @@ OUT=${P52_OUT:-$ROOT/docs/data}
 LOGS=$WORK/logs
 E1_SEED=202
 TIER=mappo1000
+REPLICATE_TIER=random
+REPLICATE_SEED=202
 
 export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
@@ -342,7 +351,7 @@ $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$TIER" train-baselines \
 # -------------------------------------------------------------------------------------
 # PHASE B -- the ladder.  Four tiers in measured-ATT order; mappo1000 is reused, not re-run.
 # -------------------------------------------------------------------------------------
-for LADDER_TIER in maxpressure fixedtime random; do
+for LADDER_TIER in maxpressure random fixedtime; do
   say "PHASE B: tier $LADDER_TIER"
   [ -f "$OUT/p5_2_declaration_${LADDER_TIER}.json" ] || \
     $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$LADDER_TIER" declare
@@ -378,6 +387,49 @@ for LADDER_TIER in maxpressure fixedtime random; do
 done
 
 # -------------------------------------------------------------------------------------
+# PHASE R -- the I1/J1 envelope replicate on the `random` tier.  Its own phase, on purpose.
+# -------------------------------------------------------------------------------------
+# ⚠️ IT RUNS LAST, AFTER PHASE B, AND THAT IS NOT AN ACCIDENT OF SCHEDULING.  The replicate is
+# compared against phase B's OWN random-tier cell, so phase B must have produced it first.  Wiring
+# this earlier is how a replicate ends up re-evaluating the cell it is meant to be independent of.
+#
+# 🔒 Seeing phase B's numbers cannot influence this measurement, because NOTHING about it is left to
+# choose: the arm set, the seed, the tier, the three J2 conditions and the reading of a non-zero
+# result (I2) are all registered in docs/plans/p5.2.md before any of those numbers existed.  That is
+# what the pre-registration buys, and it is why deferring the wiring was affordable.
+#
+# J2's three conditions, all mechanical: (a) an INDEPENDENT training run from scratch -- never a
+# re-evaluation of phase B's checkpoint, which returns zero by construction; (b) a DISTINCT artifact
+# key, so no resume branch or report path can substitute phase B's cell; (c) the canonical
+# state_dict digests asserted DIFFERENT before any envelope is reported -- EQUAL DIGESTS ARE A
+# REFUSAL, NOT A ZERO.
+say "PHASE R: the I1/J1 envelope replicate -- ${REPLICATE_TIER} tier, seed ${REPLICATE_SEED}, both arms"
+for ARM in dt_spatial dt_nomix; do
+  RCKPT="$WORK/checkpoints/grid4x4_${REPLICATE_TIER}_${ARM}_seed${REPLICATE_SEED}_replicate.pt"
+  if [ -f "$RCKPT" ]; then
+    say "SKIP replicate training $ARM: checkpoint already on disk"
+  else
+    say "REPLICATE TRAIN $ARM (independent run from scratch, distinct key; ~60 min)"
+    $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$REPLICATE_TIER" \
+        --seeds "$REPLICATE_SEED" --replicate train --method "$ARM" \
+        > "$LOGS/replicate_train_$ARM.log" 2>&1
+  fi
+  RCELL="$WORK/eval_${REPLICATE_TIER}_${ARM}_seed${REPLICATE_SEED}_replicate.json"
+  if [ -f "$RCELL" ]; then
+    say "SKIP replicate evaluate $ARM: cell already on disk"
+  else
+    say "REPLICATE EVALUATE $ARM over 100 held-out draws"
+    $PY -m offline.tier_sweep "${COMMON[@]}" --tier "$REPLICATE_TIER" \
+        --seeds "$REPLICATE_SEED" --replicate evaluate --method "$ARM" \
+        > "$LOGS/replicate_eval_$ARM.log" 2>&1
+  fi
+done
+
+say "PHASE R REPORT (J2c asserts the digests differ BEFORE any envelope is reported)"
+$PY -m offline.tier_sweep "${COMMON[@]}" --tier "$REPLICATE_TIER" \
+    envelope-report --seed "$REPLICATE_SEED" | tee "$LOGS/envelope_report.log"
+
+# -------------------------------------------------------------------------------------
 # Verify by EFFECT: completed cells must equal the cells the DECLARATION names.
 # -------------------------------------------------------------------------------------
 say "verifying the campaign against its declaration"
@@ -398,9 +450,6 @@ else
 fi
 
 say "================================================================"
-say "PHASES A, C and B ARE COMPLETE."
-say "STILL OWED before the report, and NOT in this script: the random-tier"
-say "envelope replicate (I1/J1) -- BOTH arms at seed 202 under a DISTINCT"
-say "artifact key, with J2's canonical state_dict digest assertion."
+say "PHASES A, C, B AND R ARE COMPLETE."
 say "================================================================"
 echo "PHASES COMPLETE $(stamp)" > "$WORK/PHASES_COMPLETE"
