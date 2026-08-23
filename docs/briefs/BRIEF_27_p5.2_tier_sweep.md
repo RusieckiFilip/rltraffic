@@ -1127,6 +1127,72 @@ read it. Nothing was run against it."*
 
 ---
 
+## ✅ AMENDMENT U — 2026-08-23. The four open questions, answered. **MERGE IS HELD PENDING INDEPENDENT REVIEW**
+
+### U1 ✅ Q4's INVERSION vs §6's MERGED P5.1 ENTRY — annotate, never rewrite
+
+**P5.1's entry is not wrong: it measured one tier and its numbers stand.** What is wrong is how it
+READS — *"SPATIAL MIXING SOMETIMES LOSES CONTROL"* with no scope, in the section that is the project's
+completion state.
+> **RULED: annotate §6's P5.1 entry IN PLACE with a dated pointer** — the +39.5649 harm is now measured
+> as **confined to `mappo1000`** (+0.7267 · 0.0000 · −0.7063 on the other three). **Do not restate
+> P5.1's numbers and do not soften its headline: it was true of what it measured, and the correction is
+> a scope, not a retraction.** ⚠️ **This is the same discipline as §1's supersession — the earlier
+> result keeps its text and gains its limit.**
+
+### U2 ⭐⭐ IQL WINNING TWO TIERS IS NOT AN ANOMALY — **it REPLICATES §1b's R3 on a second scenario**
+
+The implementer flags it as *"the opposite of P5.1's grid4x4 result"*. **It is not opposite; it is the
+same pattern P4.6/P4.7 measured on `cf_hz1x1`, arriving on a 16-intersection network.** Measured ranks
+of `iql` across grid4x4's ladder: **4th at `mappo1000` (275.84) → 1st at `fixedtime` (203.95) → 1st at
+`random` (190.96)**, against §1b R3's amended form — *IQL improves most where the data is weak AND
+unimodal* — and all three degraded tiers here are single-controller, therefore unimodal.
+> ⭐⭐ **THE FINDING IS BIGGER THAN EITHER ARM: grid4x4 shows a CLEAN CROSSOVER ALONG THE DATA-QUALITY
+> AXIS. `dt_nomix` leads at `mappo1000`, `bc` at `maxpressure`, `iql` at `fixedtime` and `random`.
+> Three different methods win at three different data qualities, on one scenario, with five seeds and
+> paired intervals.** **That is C1's actual question — *which method for which data* — and it is a far
+> better result than either *"the DT wins"* or *"the DT loses"*.**
+> ⚠️ **Two constraints travel with it: §1b R3's endpoint rule (report 4th→1st, never as a trend), and
+> §1b R5's binding sentence — our IQL runs UNTUNED published D4RL locomotion hyperparameters, so the
+> gap is a LOWER bound on IQL's advantage.** **Registered as a REPLICATION rather than a new claim: R3
+> was measured on hz1x1 and amended by P4.7; this is its first test at scale, and it survived.**
+
+### U3 ⛔ NO SECOND REPLICATE NOW — and the arithmetic says why, in the direction that cuts against us
+
+The implementer's *"I would not choose the seed after seeing this"* is exactly right and I am ratifying
+it. **But the case for stopping is NOT that the envelope is small — it is that more precision buys
+nothing where it matters.**
+> ⚠️ **Stated against our own interest, because it is the honest reading: the envelope's CI half-width
+> is 1.30 (one seed, n=100) while Q4's `random` effect has half-width 0.61 (five seeds). THE ENVELOPE
+> IS MEASURED LESS PRECISELY THAN THE EFFECT IT IS SUPPOSED TO BOUND. So we CANNOT claim the −0.7063
+> sign reversal at `random` exceeds run-to-run noise, and the packet must say so.**
+> ✅ **What IS safe, by three orders of separation: Q4's headline is the ENDPOINT CONTRAST — +39.5649
+> at `mappo1000` against ~0 at the degraded tiers — and 39.56 against an envelope point estimate of
+> 0.1036 is unassailable.** **Only the `random` sign reversal is exposed, and it is the least
+> load-bearing number in the task.**
+> **RULED: do not spend ~11 h tightening a bound on the one number we can simply caveat. Report the
+> reversal WITH the statement that it lies within the measured envelope's uncertainty.**
+> 🔒 **AND PRE-DECLARE THE SEED NOW, WHILE IT IS FREE: any future `random`-tier replicate uses seed
+> `303`** — chosen because 202 is taken and 303 is next in the fixed seed order, on no property of any
+> result. **If a referee presses the reversal, the seed is already fixed and cannot be selected then.**
+
+### U4 ⚠️ THE CI CEILING — **my `+1` prediction is WITHDRAWN; it was made against an older file**
+
+I predicted P5.2 would add **+1** skip, from *"exactly ONE skip site"* in `test_tier_sweep.py`.
+**Measured in the DELIVERED file: FOUR skip sites, in four distinct test functions** — the secured
+`output/p5_1` tree (absent on a runner) and three corpus-gated ones — **and one of the four is
+parametrised by tier, so it can contribute more than one.** The file grew from 89 to **113 tests**
+after the factory fix and the Gate 0 constructibility check.
+> ⚠️ **I cannot measure the runner count from here: all four paths EXIST on this machine, so the local
+> run is `113 passed, 0 skipped` even with the corpus env unset.** **The delta is ≥ 4 and its exact
+> value is not knowable locally.**
+> **RULED: follow `ci_baseline.json`'s own protocol rather than predicting again — merge, let the gate
+> go red, READ the observed count from the job summary, and commit it with its breakdown in one
+> commit. Do NOT pre-bump.** ⭐ **The lesson is the one that keeps recurring: I predicted from a file I
+> had read days earlier and the file had changed underneath the prediction.**
+
+---
+
 ## ⭐⭐ GATE 2 — 2026-08-23. EVERY REGISTERED PREDICTION SCORED FROM THE RAW EPISODES
 
 **Scored by the coordinator from `output/p5_2/eval_*.json` directly — no report was read, and the
