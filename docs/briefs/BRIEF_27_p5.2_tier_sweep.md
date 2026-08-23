@@ -1230,8 +1230,16 @@ EACH out-of-sample tier — FAILED 3/3.**
 > parenthetical *"(≥ 24 of 30 overall)"* written when there were TWO out-of-sample tiers. Scored
 > against three tiers the count is 27/45, which passes 24 and is MEANINGLESS — a 3-tier count against a
 > 2-tier threshold.** **The per-tier criterion is the registered primary and it is unambiguous.**
-> ⭐ **AND C4 IS VINDICATED EXACTLY AS SPECIFIED: the hard subset is `2/6 · 2/6 · 3/6` = 7 of 18, BELOW
-> the 9 that coin-flipping gives.** The 15-pair counts are carried entirely by `iql` and `bc_top10`
+> ⛔ **CORRECTED 2026-08-23 BY THE INDEPENDENT REVIEWER (MJ-5) — this read *"the hard subset is
+> `2/6 · 2/6 · 3/6` = 7 of 18, BELOW the 9 that coin-flipping gives"*, and the *"below 9"* half DOES
+> NOT SURVIVE.** `fixedtime` carries **two exact ties** (`dt_spatial == dt_nomix`, `bc ==
+> bc_top10_perix`) and **no tie-break rule is declared anywhere**, so the count is order-dependent.
+> **Enumerated by me over every valid ordering: `maxpressure` 2..2 · `fixedtime` 2..4 · `random` 3..3,
+> giving a total range of 7..9 — and 9 IS the coin-flip expectation, not below it.**
+> ✅ **What survives, and it is still C4's point: the hard subset is at best AT chance while the 15-pair
+> counts sit at 11 · 8 · 8. The subset still shows the aggregate is carried by the two distant arms.**
+> ⚠️ **No sentence may claim "below chance" until a tie-break rule is declared. Q2b's FAILED verdict
+> (max 9 < 12) and Q3's "does not lead" (rank ≥ 2 always) are ROBUST to every tie-break.** The 15-pair counts are carried entirely by `iql` and `bc_top10`
 > sitting far from the field. **Without the subset, 27/45 could have been reported as a partial success
 > while every ordering the paper depends on was wrong — which is the sentence C4 was written to
 > prevent, five days before the data existed.**
