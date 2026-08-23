@@ -1127,6 +1127,98 @@ read it. Nothing was run against it."*
 
 ---
 
+## ⭐⭐ GATE 2 — 2026-08-23. EVERY REGISTERED PREDICTION SCORED FROM THE RAW EPISODES
+
+**Scored by the coordinator from `output/p5_2/eval_*.json` directly — no report was read, and the
+registered values were taken from `docs/plans/p5.2.md` §4.0.2 and `p5_2_declaration.json`, not from
+memory.** ⭐ **Verified first: 25/25 cells structurally sound, 122/122 checkpoints loadable, and
+`assert-complete` reports 35 of 35 against the declaration.**
+
+### G0 ✅ ONE ALARM RAISED AND CLEARED — the `fixedtime` tier is not a self-comparison
+
+`fixedtime`'s `behaviour`, `dt_nomix` and `dt_spatial` report **identical ATT to four decimals and
+identical vehicle counts**, which is the self-comparison signature. **Checked at episode level: 0 of
+500 episodes differ between all three, and `bc_top10_perix` is likewise identical to `bc`.** But
+**`bc` differs from `behaviour` on 500 of 500**, so the pipeline distinguishes policies, and the four
+DT checkpoints carry **distinct weight digests with correct `spatial_mixing` flags**.
+> ⭐ **It is a REAL RESULT and the strongest instance of §1b's R1 anywhere: a fixed-time controller is
+> state-independent, so every DT arm learns it EXACTLY — identical actions, identical trajectories,
+> identical ATT, from four different models.** **Different weights, same argmax — E1's decision-margin
+> mechanism at its limit.** ⚠️ **It makes three contrasts exactly `0.0000` at that tier, and those
+> zeros are informative rather than missing data.**
+
+### G1 ✅ Q1 LEVEL — **HELD, 15 of 19** (threshold 14). Q1b instrument check **HELD** at 0.04 % / 0.09 %
+
+**The four failures are all the same shape and it is the informative one: R′ predicted DEGRADATION
+that did not arrive.** `bc_top10@fixedtime` 1042.75 predicted against **207.47** measured (80.1 % off),
+`iql@fixedtime` 360.85 against **203.95** (43.5 %), `bc_top10@random` 1242.69 against **350.34**
+(71.8 %), `iql@random` 414.99 against **190.96** (54.0 %). **`iql` did not merely beat its prediction —
+it WON those tiers.**
+
+### G2 ⛔ Q2 RANK — **FAILED on every tier, and C4's subset is why we can say so**
+
+**`Q2a` (first place) FAILED 3/3**: predicted `bc_top10_perix`/`dt_nomix`/`dt_nomix`, observed
+`bc`/`iql`/`iql`. **`Q2b` concordance is `11 · 8 · 8` of 15 against a registered threshold of ≥12 ON
+EACH out-of-sample tier — FAILED 3/3.**
+> ⚠️ **A stale-threshold trap I nearly walked into and am recording: the registered text carries a
+> parenthetical *"(≥ 24 of 30 overall)"* written when there were TWO out-of-sample tiers. Scored
+> against three tiers the count is 27/45, which passes 24 and is MEANINGLESS — a 3-tier count against a
+> 2-tier threshold.** **The per-tier criterion is the registered primary and it is unambiguous.**
+> ⭐ **AND C4 IS VINDICATED EXACTLY AS SPECIFIED: the hard subset is `2/6 · 2/6 · 3/6` = 7 of 18, BELOW
+> the 9 that coin-flipping gives.** The 15-pair counts are carried entirely by `iql` and `bc_top10`
+> sitting far from the field. **Without the subset, 27/45 could have been reported as a partial success
+> while every ordering the paper depends on was wrong — which is the sentence C4 was written to
+> prevent, five days before the data existed.**
+
+### G3 🚨 Q3 — **THE DT'S LEAD DOES NOT SURVIVE. FAILED 3 of 3, and it supersedes a §1 reading of mine**
+
+`dt_nomix` ranks **2/6 · 3/6 · 3/6**; every paired difference against the best non-DT arm resolves
+**against** the DT. **§1's 2026-08-18 update is superseded there, in place.**
+> ✅ **`Q3b` still HOLDS where it can be tested: `dt_nomix` beats its own behaviour policy on
+> `maxpressure` (`−0.7294`, CI [−0.9139, −0.5450]) and equals it EXACTLY on `fixedtime`.** **So the DT
+> still meets C1's question — *does the model exceed its data* — while failing the field question.**
+> ⭐ **What survives and is worth reporting: the DT arms are the ONLY arms that never collapse.**
+
+### G4 🚨 Q4 — **THE HARM IS CONFINED TO THE BEST-DATA TIER, and the registered direction is INVERTED**
+
+| tier | `d = dt_spatial − dt_nomix` | CI95 | per-seed agreement |
+|---|---|---|---|
+| `mappo1000` | **+39.5649** | [+36.0510, +43.0787] | 5/5 |
+| `maxpressure` | **+0.7267** | [+0.6206, +0.8328] | 5/5 |
+| `fixedtime` | **0.0000** | exact | n/a |
+| `random` | **−0.7063** | [−1.3172, −0.0953] | 4/5 |
+
+**Registered: `+39.56 → +41.74 → +51.37 → +62.71`, growing. Measured: it vanishes, and on `random` the
+sign REVERSES with the CI excluding zero.** ⚠️ **Report by endpoints, never as a trend (§1b R3's
+standing instruction): 39.56 at the best tier against −0.71 at the worst.**
+> ⭐ **This is the most consequential number in the task. P5.1's headline — spatial mixing is
+> decisively harmful — is now known to be a `mappo1000` phenomenon, and P5.1 could not have known that
+> because it ran one tier.** ⚠️ **The honest reading is that mixing HURTS ONLY WHERE THERE IS
+> SOMETHING TO LOSE**: the tiers where it costs nothing are the tiers where every arm converges on the
+> behaviour policy. **`fixedtime`'s exact zero is the proof — no arm can differ there.**
+
+### G5 ✅ Q5 — **THE LOAD-SORTER MECHANISM IS CONFIRMED, decisively and twice**
+
+`bc_top10_perix − bc_top10`: **−469.69** [−477.81, −461.58] on `maxpressure`, **−49.16**
+[−55.26, −43.05] on `random`, **−0.28** [−0.67, +0.11] unresolved on `fixedtime`.
+> ⭐ **The global return quantile collapses (679.96 on `maxpressure`) exactly where the per-intersection
+> filter does not (210.27). §1b's R2/R6 scope condition is no longer a one-tier observation** — and the
+> `fixedtime` null is *predicted* by the mechanism, because a state-independent controller makes every
+> stream equivalent so both filters select the same thing.
+
+### G6 ✅ THE I1/J1 ENVELOPE — **NON-ZERO ON THE TREATMENT ARM, exactly where H2 said it might be**
+
+Verified independently: **`dt_nomix` 0 of 100 draws differ — exact zero, as at `mappo1000`. `dt_spatial`
+100 of 100 draws differ, mean +0.1036, CI [−1.1990, +1.4062] — does not resolve.**
+> ⭐ **H2's scope limit was justified by measurement rather than caution: the zero envelope did NOT
+> transfer to the degraded tier for the mixing arm.** ⚠️ **Read per I2: this is a FINDING, not a
+> failure — run-to-run nondeterminism reaches the metric when margins narrow, and the effect is
+> present but too small to resolve at n=100.**
+> 🚨 **And it vindicates making the replicate UNCONDITIONAL: nothing here "turned on a small margin"
+> in a way a human would have noticed, so the triggered version would never have run.**
+
+---
+
 ## ⛔ NOTE T — 2026-08-22. **IT WAS NEVER A KILL.** A deterministic code defect, and the traceback was on disk throughout
 
 ### T1 ⛔ THE CAUSE, and it is three lines away from where both of us were looking
