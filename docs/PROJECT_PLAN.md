@@ -1,6 +1,6 @@
 # PROJECT MASTER PLAN — Offline Multi-Agent Decision Transformer for Traffic Signal Control
 
-**Version:** 1.6 · **Last updated:** 2026-08-24 · **Maintained in:** Master Coordination Chat
+**Version:** 1.7 · **Last updated:** 2026-08-24 · **Maintained in:** Master Coordination Chat
 **Mentor:** Paweł Gora (Quantum AI Foundation) · **Target:** arXiv → IEEE ITSC / IEEE T-ITS / TRB (Q2/Q1)
 
 ---
@@ -641,7 +641,10 @@ Python ≥3.12, PyTorch, type hints (`from __future__ import annotations`), nump
 ### Phase P5 — Multi-Agent DT (the paper's core model)
 - [x] **P5.1** ✅ **DONE 2026-08-18 — SPATIAL MIXING SOMETIMES LOSES CONTROL, AND HOW BADLY IS UNSTABLE ACROSS SEEDS.** 🚨 **SCOPE ADDED 2026-08-24 BY P5.2, and the numbers below are unchanged: this entry measured ONE tier. Across the ladder the harm reads +39.5649 → +0.7267 → 0.0000 → −0.7063, so it is CONFINED TO `mappo1000` and reverses sign on `random`. The headline is true of what it measured and must not be read as general.** ✅ **What P5.2 CORROBORATED: the instability is real and is not bit-level nondeterminism** — E1 measured the run-to-run envelope at exactly 0.0000 on this metric. Merged after `docs/reviews/P5.1.md` (**PASS-WITH-NOTES**, 2 MAJOR, no blockers) and the fix round `BRIEF_26`: **0 of 1845 shared leaves changed**, suite **1054 passed, 3 skipped**. **`dt_spatial` 197.4126 against `dt_nomix` 157.8477 — paired +39.5649, CI [+36.0510, +43.0787], 0 of 100 draws won, 5/5 seeds, 7.9× the MDE.** ⚠️ **The headline is the DISTRIBUTION'S SHAPE, not its mean:** per-seed sd **30.36** for the treatment against **0.10** for the control — a **292× ratio belonging entirely to the treatment arm** — with vehicles at horizon **16.15 · 133.94 · 123.15 · 75.66 · 49.36** against a control flat at ~15. **A mean over those five is a summary that hides its own subject.** ⭐ **This lands where NEITHER 2026 preprint predicted** (2603.22315 predicts a null at 4×4, 2602.02903 calls mixing the primary driver) **and reports something neither could have seen, because both report a mean with a sign** — which is §1b's C2 framing paying off. ⚠️ **C1 honoured: no sentence claims the architecture explanation is excluded — a mechanism that HURTS says nothing about whether a correct one would help. C3 binds: single-head, shared across sublayers, against 4 heads × 2 GAT layers in both in-domain papers.** **Seed 101's near-null is reported UNEXPLAINED**, with three negative probes — it is the MOST graph-dependent seed (48.83 % of actions flip without the graph, the highest) and the least harmed. ⭐ **`bc_top10` collapsed to 749.58 with 505 of ~1300 vehicles in network: the global return quantile is a LOAD SORTER**, keeping 302/320 streams from the 8 quietest of 16 nodes — **the scope condition that §1b's R2/R6 could not see on a one-intersection scenario.** **P1 and P2 FAILED; P3 did not fire.** ⭐⭐ **AND THE ENTRY ABOVE OMITTED THE TASK'S MOST CONSEQUENTIAL RESULT UNTIL 2026-08-18, WHEN THE COORDINATOR FOUND IT BY READING `docs/data/p5_1_grid.json` RATHER THAN THIS SUMMARY: `dt_nomix` — the CONTROL — RANKS 1 OF 5 METHOD ARMS AND BEATS THE MAPPO POLICY THAT COLLECTED THE CORPUS.** vs `behaviour` **−2.4303** [−2.5796, −2.2810] · vs `bc` **−11.1329** [−13.7932, −8.4726] · vs `iql` **−117.9877** · vs `bc_top10` **−591.7319**, **no seed reversal on any of the four.** **This is the first tier anywhere in the study where a DT arm ranks FIRST**, it bears directly on §1's two surviving explanations of the DT deficit, and the four limits in §1's 2026-08-18 update travel with it. ⚠️ **The lesson is the omission, not the number: an entry can be true sentence-by-sentence and still bury the finding, because it was written to report the REGISTERED contrast and the result arrived in the CONTROL arm.** Evidence: `output/p5_1/` (**48/48**, mtimes preserved). Original item: Spatial mixing layer across intersections (graph attention over road-network adjacency from `RoadnetInfo`) interleaved with temporal causal attention
 - [x] **P5.2** ✅ **DONE 2026-08-24 — THE DT'S LEAD DOES NOT SURVIVE THE LADDER, AND THE SPATIAL HARM IS CONFINED TO THE BEST-DATA TIER.** Merged after `docs/reviews/P5.2.md` (**FAIL, 2 blockers**) and the mandated fix round: **both blockers closed with mutation evidence**, **1341 passed, 3 skipped** (pinned, corpus env set), and **no reported number moved** — I recomputed Q4's four contrasts and Q5's two intervals from raw episodes after the refactor and every one matched to <5e−5. **`Q1` HELD 15/19** (threshold 14, `k = ceil(9/13·N)`; instrument anchors 0.04 % / 0.09 %). **`Q2a` and `Q2b` FAILED 3/3** (11 · 8 · 8 against ≥12). **`Q3` FAILED 3/3 — `dt_nomix` ranks 2/6 · 3/6 · 3/6 and leads NO out-of-sample tier**, superseding §1's 2026-08-18 update, which was mine and carried *"one tier is not a ladder"* as one of its four limits. **`Q4` INVERTED: +39.5649 → +0.7267 → 0.0000 → −0.7063**, so spatial mixing's harm is a `mappo1000` phenomenon and P5.1 could not have known that from one tier. **`Q5` CONFIRMED the load sorter twice** (−469.69, −49.16). ⭐ **The publishable shape is a CROSSOVER along the data-quality axis — `dt_nomix` leads at `mappo1000`, `bc` at `maxpressure`, `iql` at `fixedtime` and `random`** — which replicates §1b's R3 at 16 intersections and is C1's actual question. ⭐ **And the DT arms are the ONLY arms that never collapse.** ⚠️ **Carried defects, all disclosed: BL-1 destroyed six training-provenance records** (`final_loss`/`seconds` per run, unrecoverable — `output/` is gitignored, and I had verified those files intact on 2026-08-20); **`fixedtime` carries two exact ties, so the *"below chance"* half of the hard-subset sentence is WITHDRAWN** (range 7..9, and 9 is chance); **four minors remain open** (MN-1, 3, 4, 5). **Scope: `cf_grid4x4` only — `hangzhou_4x4` was STRUCK on measurement (no corpus exists) and `IPPO/DQN` struck as never trained on grid4x4.** Evidence: `output/p5_2/`, 35/35 cells, 124 checkpoints. Original item: Train + evaluate on grid4x4 **per ladder tier**; compare vs online MAPPO, MaxPressure, fixed-time, random, **and offline BC/%BC/IQL**
-- [ ] **P5.3** Ablations: no-spatial-mixing, no-RTG, context-length K
+- [ ] **P5.3** Ablations: ~~no-spatial-mixing~~, no-RTG, context-length K. ⚠️ **SCOPE CORRECTED 2026-08-24: `no-spatial-mixing` IS ALREADY DELIVERED and must not be run again — `dt_nomix` is that arm** (`SpatialDTConfig.spatial_mixing=False`, `agent/SpatialDTAgent.py`), P5.1 ran it on one tier and **P5.2 ran it across all four**, giving the `Q4` curve **+39.5649 → +0.7267 → 0.0000 → −0.7063**. That is a stronger result than the ablation as written asked for, because it is a curve rather than a point. **Two sub-tasks remain.**
+  - [ ] **P5.3a** — `BRIEF_28`, **zero GPU**. The `rtg_mode` mechanism (an `rtg_mode` field on `DTConfig`, default byte-identical) + the **teacher-forced RTG sensitivity probe** on the *already merged* `dt` checkpoints + the Gate-0 tables (per-tier return/RTG spread; per-tier δ read from committed artifacts) that P5.3b's registration needs. **Decisive in one direction on its own:** if the trained DT's actions never change across P4.3's own 13,000-unit RTG grid, the token is provably inert, `A9` has no in-domain object, and we know it without training anything. ⚠️ **Not a stop rule** — inference-time invariance does not prove training-time irrelevance, so P5.3b runs either way.
+  - [ ] **P5.3b** — the `dt_nortg` campaign on hz1x1. **Registration deferred until P5.3a's numbers exist, deliberately** (2026-08-24 ruling): tier set and equivalence scale are chosen by declared rules over tables P5.3a measures. The `dt` column is **reused** from P4.6/P4.7 (same corpus, seeds, 40,000 steps, held-out draws 1000–1099), so only the new arm trains.
+  - [ ] **P5.3c** — context-length **K**. ⭐ **This is the direct reply to DataLight**, whose negative result on DTs for TSC tested **K ∈ {1,2}** — and K=1 is not sequence modelling at all. Separate brief: the no-RTG answer changes what a K sweep means. **`DTConfig.context_length` is already a knob, so this is configuration, not new code.**
 
 ### Phase P6 — OOD / robustness suite (claim C2)
 - [ ] **P6.1** Scenario perturbation tools: demand surges, lane/approach closures, sensor dropout (state masking), emergency-vehicle flows (cite/differentiate arXiv:2603.22315)
@@ -1413,6 +1416,9 @@ is still running"* are two claims, and the second needs its own command.
 
 | Date | Decision | Rationale |
 |------|----------|-----------|
+| 2026-08-24 | **P5.3 IS SPLIT IN TWO, AND THE ZERO-GPU HALF GOES FIRST: `BRIEF_28` (P5.3a, the RTG probe + the `rtg_mode` mechanism, NO TRAINING) before P5.3b (the `dt_nortg` campaign).** Also ruled: the ablation is a `DTConfig` FIELD, not a subclass; the campaign REUSES P4.6/P4.7's committed `dt` cells rather than retraining them; the tier set is chosen by a rule declared before the spread table is computed. | **The split is not bookkeeping — P5.3b's declaration needs numbers only P5.3a can produce.** Which tiers to run depends on a measured return-spread table; the equivalence scale depends on the per-tier DT-vs-behaviour margin read out of committed artifacts. Writing P5.3b's brief now would mean guessing both, and a guessed registration is worse than a late one. **And the front-loaded half carries the risk:** the only edit to `agent/DTAgent.py` this project has ever made lands in a task whose entire job is proving it changed nothing, verified by re-rolling a committed `dt` cell bit-exactly. **The config-field route over a subclass** follows the project's own precedent (`SpatialDTConfig.spatial_mixing` is exactly this, and `dt_nomix` is that flag set False) and, decisively, **the mode then travels INSIDE the checkpointed config** — a subclass would write a checkpoint that `DTAgent.load` reconstructs as a *conditioned* `DecisionTransformer` (`agent/DTAgent.py:801`), producing a plausible number from the wrong model. **The reuse** is what makes the paired comparison exact: same corpus, seeds, budget, held-out draws 1000–1099, and a `dt` column already measured. Amendment R4 (`9320fee`) sequenced no-RTG first; this ruling only says which half of it runs first. |
+| 2026-08-24 | **CI red on `main` @ `884a6df`: `DEFERRED` 54's third instance. Fixed what the file PINS, not what the failure SHOWED — 5 stale pins, 3 of them masked — and shipped as `docs/patches/ci_gate_ceiling_104_and_chain_walk.patch` because `tests/**` and `.github/ci/**` are outside the coordinator's hands by role.** The chain is now walked and pinned as one literal, so moving the ceiling is **one** edit rather than four. | **The failure showed two assertions; three more were behind them, because assertions after the first failure never run** — the exact mechanism the previous fix's own docstring warned about. **One inverts the natural reading and is the JSON's defect, not the test's:** `69680fa` deleted `re_measure_required_at.reason`, which `ci_gate.py:39` declares part of the format and `:308` reads through a `.get(..., '')` default, so the loss printed an **empty clause into every job summary** instead of failing; the test was the only thing that noticed. **The durable finding is that the old shape guaranteed its own recurrence:** each ceiling move adds a nesting level, so a depth-addressed test needs a new assertion every time, and at the 98→104 move the root `62` — the only link that was ever actually wrong — **fell out of the pinned set entirely**, which is precisely what the previous docstring said must never happen. **Three dump-greps were removed and each was measured, not argued:** `"40" in json.dumps(block)` **expired** rather than having always been empty (False at the 98 era, True at 104, carried by the `"1240 passed"` the 104 measurement itself introduced) — *a substring assertion's discriminating power is a function of data it does not name, so it can stop discriminating with nobody editing it*; `"CityFlow" in json.dumps(block)` survived deleting the entire CityFlow entry; **and the coordinator wrote a third one inside this very patch**, tripped by the note documenting its own fix, because a dump-grep cannot tell a key from prose about a key. **10 mutations, 10 as required, including a no-op control.** |
+| 2026-08-24 | **Master-chat error avoided by measurement, recorded because the near-miss is the point: the cold-start briefing stated "CI green after the ceiling was re-measured to 104". It was false — the last two completed runs had FAILED and the third was still in flight.** Checked with `gh run list` before acting on it. | **A handoff message is a description, not an artifact, and this project's canonical failure is trusting one.** The briefing was otherwise accurate on every item verified (worktrees, tmux, 8 manifests, 221/221, §6 tick), which is what makes the single false line dangerous: accuracy elsewhere is not evidence for the line you did not check. **Also verified rather than repeated: §6's P5.1 entry ALREADY carries Q4's scope annotation** (`🚨 SCOPE ADDED 2026-08-24 BY P5.2 … CONFINED TO mappo1000`), so the open item listed in the briefing was already discharged — doing it again would have produced a second annotation beside the first, which is `DEFERRED` 26's duplicate-`P8.3`-box mechanism exactly. |
 | 2026-07-08 | Headline = Offline MADT + cross-backend transfer (Track B / H3-core) | Least saturated axis; hardware-optimal (sim on CPU, supervised DT on GPU); differentiates vs arXiv:2602.02903 via C3 |
 | 2026-07-08 | LLM demoted to optional training-time teacher (P9) | Avoids latency & trustworthiness critiques dominating 2025–26 reviews |
 | 2026-07-08 | One `.npz` per episode + run manifest | Simple, appendable, parallel-writer-safe, no new deps (HDF5 rejected for now) |
@@ -1731,23 +1737,34 @@ forgotten rather than parked.
 - **Suite: 343 passed, run by the coordinator on main 2026-08-06** — first-hand, not hearsay.
 - P0 closed except P0.9 · P1 · P2.0/b/c · P2.5 · P8.0 · P2.2-draws.
 
-### State today — ⭐ P5.1 GAVE US THE FIRST TIER A DT LEADS, AND P5.2 IS IN FLIGHT (rewritten 2026-08-18, never appended to; every number below measured by the coordinator this session by running the command, before reading the section it replaces)
+### State today — ⭐ THE LADDER IS SCORED AND P5.2 IS MERGED; NOTHING IS RUNNING; P5.3a IS NEXT (rewritten 2026-08-24, never appended to; every number below measured by the coordinator this session by running the command, before reading the section it replaces)
 
-⚠️ **The block replaced here was dated 2026-08-15 and had been false for three days**: it said
-*"NOTHING IS IN FLIGHT, ONE WORKTREE"* while a second worktree exists, listed five integrity manifests
-where there are seven, and its queue named P7.0 and P5.1 — both merged — as items 1 and 2. **That is
-the 2026-08-13 Decisions Log row recurring verbatim, in the section whose own header warns about it.**
+⚠️ **The block replaced here was dated 2026-08-20 and had been false for four days**: its first bullet
+read *"TWO WORKTREES, AND P5.2's CAMPAIGN IS RUNNING RIGHT NOW"* while P5.2 merged at `63e384e` on
+2026-08-24, the `p52` worktree is retired and no `tmux` server exists. **That is the FOURTH consecutive
+rewrite of this bullet to correct a stale liveness claim** — and this time the claim was stale in the
+*safe* direction (it said work was running when none was), which is the only reason it cost nothing.
 
-- 🔴 **TWO WORKTREES, AND P5.2's CAMPAIGN IS RUNNING RIGHT NOW — verified by command 2026-08-20 13:16, not inherited.** `/home/filip/rltraffic` on `main` (clean) and `/home/filip/rltraffic-p52` on
-  `task/p5.2-tier-sweep` @ `9460800`. **`tmux ls` → `p52: 1 windows (created Wed Aug 19 20:21:23 2026)`**,
-  and `ps` shows `p5_2.sh` at **etime 14:47** with a live `offline.tier_sweep … --tier maxpressure train
-  --method dt_spatial` at 99.9 % CPU. **GPU: RTX 5080, 96 % util, 56 °C.**
-  ⚠️ *This bullet was rewritten in full on 2026-08-20. The version replaced here was dated 2026-08-18 and
-  said **"P5.2 is in plan mode; `docs/plans/p5.2.md` does not exist yet"** and **"NO `tmux` SERVER IS
-  RUNNING and no training or simulation process exists"**. Both had been false for a day and a half: the
-  plan file is **77,800 bytes** on the branch and a ~51-hour campaign is mid-flight. **This is the third
-  consecutive rewrite of this bullet to correct a stale liveness claim in the section whose own header
-  warns about exactly that** — the recurrence is the finding, and the rule it earns is below.*
+⚠️ **AND THE COLD-START BRIEFING THAT OPENED THIS SESSION CARRIED A FALSE LINE: *"CI green after the
+ceiling was re-measured to 104."* Measured with `gh run list` before acting: the last two completed
+runs had FAILED and the third was still in flight.** Every other item in that briefing verified
+(worktrees, `tmux`, 8 manifests, 221/221, the §6 tick), **which is exactly what makes one false line
+dangerous — accuracy elsewhere is not evidence for the line you did not check.**
+
+- 🟢 **ONE WORKTREE, NOTHING RUNNING, AND THE COMMANDS THAT SAY SO — 2026-08-24 ~20:30, run this session, not inherited** (the 2026-08-20 rule below requires exactly this form):
+  `git worktree list` → **`/home/filip/rltraffic  884a6df [main]`, one line**; `tmux ls` → **`no server
+  running on /tmp/tmux-1000/default`**; `git status -sb` → **clean, `## main...origin/main`**.
+  The `p52` worktree is retired; `task/p5.2-tier-sweep` is kept on `origin` as a pre-merge copy.
+  ⚠️ **`main` is at `37b01f9` after this session's docs commit; `884a6df` is the commit CI last ran on.**
+- 🔴 **CI IS RED ON `main` AND THE FIX IS A PATCH AWAITING A HUMAN — `docs/patches/ci_gate_ceiling_104_and_chain_walk.patch`.** `gh run list` 2026-08-24: **three consecutive failures**
+  (`63e384e`, `69680fa`, `884a6df`); all three guards **pass** on both legs, so the redness is the suite
+  and the gate downstream of it. **`DEFERRED` 54's third instance**: `69680fa` moved the ceiling to 104
+  in the JSON and left `tests/test_ci_gate.py:712` pinned at 98. **Five pins were stale, three of them
+  masked** — assertions after the first failure never run. Verified applied-and-run in a throwaway
+  worktree: **34 passed**, full suite **1288 passed / 56 skipped**, guards **English 4 · hygiene 16 · 0
+  findings in the touched file**, **10 mutations 10 as required incl. a no-op control**.
+  ⚠️ **`main` stays red until the human applies it. Nothing else is blocked by it** — the suite passes
+  locally and P5.3a's work does not touch these files.
   > 🔒 **RULE EARNED 2026-08-20: a §10 bullet asserting that NOTHING is running must carry the command
   > that produced it and the timestamp it ran at, or it may not be written.** *"No server running"* is a
   > claim with a half-life of hours, and it is the one shape of §10 statement that turns into a wrong
@@ -1823,11 +1840,19 @@ the 2026-08-13 Decisions Log row recurring verbatim, in the section whose own he
 and item 3 (`P5.1` + `P5.2`) is HALF DONE and IN FLIGHT, so the ruling has advanced to its third entry
 — it is not re-opened. Item 4 (`P6`) stays October and stays cut 1.**
 
-1. 🔵 **P5.2 — CAMPAIGN RUNNING, PHASE B** on `task/p5.2-tier-sweep`, `BRIEF_27` + amendments A–O. The
-   ladder sweep on grid4x4, with **the head-count 2×2 first and a stop rule on it**. ⚠️ **Amendment A
-   changed what it measures:** the same cells now answer *"does spatial mixing's harm survive the
-   ladder"* **and** *"does `dt_nomix`'s LEAD survive the ladder"*, and the second is the more
-   publishable question.
+1. ✅ **P5.2 — MERGED 2026-08-24 at `63e384e`, §6 ticked in the merge commit. This item is CLOSED and is
+   kept only so the queue's history is legible; the result lives in §6's P5.2 entry.** `Q1` HELD 15/19 ·
+   `Q2a`/`Q2b` FAILED 3/3 · **`Q3` FAILED 3/3 — the DT leads NO out-of-sample tier** · `Q4` INVERTED
+   (+39.5649 → −0.7063, the spatial harm is a `mappo1000` phenomenon) · `Q5` confirmed twice. Review
+   `docs/reviews/P5.2.md` **FAIL, 2 blockers**, both closed with mutation evidence before the merge.
+   ⚠️ **Four minors remain OPEN and unfixed: MN-1, MN-3, MN-4, MN-5.** ⚠️ **BL-1 destroyed six
+   training-provenance records** (`final_loss`/`seconds` per run) — unrecoverable, `output/` is
+   gitignored, and no reported number depends on them.
+   ~~*CAMPAIGN RUNNING, PHASE B*~~ **withdrawn 2026-08-24.**
+0d. ⚡ **P5.3a — `BRIEF_28`, THE NEXT TASK, AND IT USES NO GPU.** The RTG probe and the `rtg_mode`
+   mechanism: does the return prompt do anything at all, measured on checkpoints we already own,
+   before a single new model is trained. **Split out of P5.3 by the 2026-08-24 ruling** — P5.3b's
+   registration needs a measured return-spread table and a per-tier δ that only this task produces.
    **DONE:** Gates 0/1 (7 reused cells re-verified at consumption, `random` anchor exact on 500
    episodes) · **E1's envelope = exactly 0.0000** · **PHASE A** · **PHASE C**. **RUNNING:** phase B,
    `maxpressure`, since `13:04:38`.
@@ -1875,6 +1900,23 @@ and item 3 (`P5.1` + `P5.2`) is HALF DONE and IN FLIGHT, so the ruling has advan
    establishes that the prompt is a lever at all.** It is a training-config ablation on hz1x1, where
    P4.6 measured ~1 h per tier, so this is **hours, not days, for a result that decides whether a named
    contribution survives.** Registered at §6 P5.3 and named in `docs/plans/p4.4.md:295`.
+   > ⭐ **SPLIT IN TWO ON 2026-08-24, zero-GPU half first (`BRIEF_28` = P5.3a, then P5.3b).** ⚠️ **And
+   > the reason is a real gap in the design as it stood here: a no-RTG ablation run on `mappo1000`
+   > ALONE answers the wrong half.** If it comes back null, the first referee question is *"of course —
+   > your data has no return spread; you never gave the token a chance"*, which is **§1b's C4 hypothesis
+   > itself**, unaddressed. **So the campaign must vary the return spread**, and P4.7 already owns the
+   > corpora that do it (`mix33/50/67`, whose components are ~29,600 return units apart) alongside the
+   > single-policy tiers. **Which tiers, and at what scale a null counts as equivalence, are numbers
+   > P5.3a measures** — hence the split, and hence P5.3b's registration is not written yet.
+   > 🔒 **Ruled with it, so a later reader does not re-open them:** the ablation is an `rtg_mode` FIELD
+   > on `DTConfig`, never a subclass (a subclass writes a checkpoint that `DTAgent.load` rebuilds as a
+   > *conditioned* model at `agent/DTAgent.py:801` — a plausible number from the wrong weights); the
+   > `dt` column is **REUSED** from P4.6/P4.7, not retrained; and Amendment R2's standing instruction
+   > holds — **a one-seed timing probe before any campaign commitment, no armchair costing.**
+   > ⚠️ **`P5.3`'s FIRST listed ablation, *no-spatial-mixing*, IS ALREADY DELIVERED** — `dt_nomix` is
+   > that arm and P5.2 ran it across four tiers. **P5.3's remaining scope is no-RTG and context-length
+   > K**, and K is a separate brief because the no-RTG answer changes what K measures. **K is also our
+   > direct reply to DataLight, who tested K ∈ {1,2} and concluded a DT cannot work for TSC.**
 3. **P8.1** — ≥5 seeds everywhere, mean ± 95 % CI, paired tests vs the strongest baseline.
    ⭐ **Its value has risen twice more since it was queued.** P4.7's M1 showed our per-draw CIs average
    the 5 training seeds into each unit, so they say **nothing** about between-seed spread — and **P5.1
