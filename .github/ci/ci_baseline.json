@@ -3,23 +3,27 @@
   "written_by": "P0.10 (BRIEF_23), 2026-08-17, branch task/p0.10-reproducibility",
   "read_by": ".github/ci/ci_gate.py -- see its module docstring for the format contract",
   "pytest": {
-    "skip_ceiling": 98,
+    "skip_ceiling": 104,
     "provisional": true,
     "measured": {
-      "value": 98,
-      "condition": "GitHub Actions, run 32300811749, job 'suite-and-guards (ubuntu-22.04)' on main after P5.1 and P8.3 merged; workflow unchanged (pinned threads, dev extra only, CityFlow not built, no corpus, no SUMO binary)",
-      "result": "1100 passed, 98 skipped, read from the job's own summary line. Both matrix legs (ubuntu-22.04 and ubuntu-24.04) failed on this gate; libc-matrix passed.",
-      "breakdown": "DERIVED, not recounted, and it RECONCILES: 32 cityflow + 54 corpus/checkpoint + 10 SUMO + 2 matplotlib = 98. Only the corpus term moved (28 -> 54, +26) because P5.1 added corpus-gated tests and no cityflow-, SUMO- or matplotlib-gated ones. Cross-checked independently: a corpus-absent run on the P5.2 worktree attributes exactly 26 skips to P5.1's two files (test_joint_windows 14 + test_spatial_mixing 12), which equals the observed delta.",
-      "why_not_recounted_from_the_log": "The runner's -rs block aggregates parametrised skips as 'SKIPPED [N] file:line: reason' and gh run view --log duplicates lines, so a category sum taken from the log does not reproduce the summary total. A wrong breakdown in this file is worse than none, so the derivation above is used instead and is stated as derived.",
-      "tree": "main at b2add7e",
-      "date": "2026-08-19",
+      "value": 104,
+      "condition": "GitHub Actions run 32753659114, job 'suite-and-guards (ubuntu-24.04)', on main at 63e384e after P5.2 merged; workflow unchanged (pinned threads, dev extra only, CityFlow not built, no corpus, no SUMO binary)",
+      "result": "1240 passed, 104 skipped, read from the run's own pytest.txt artifact. Both matrix legs failed this gate and nothing else; libc-matrix passed, and all three guards passed.",
+      "breakdown": "COUNTED, not derived, from the run's junit.xml by classifying every <skipped> message: 59 corpus/checkpoint + 32 cityflow + 10 SUMO/traci + 2 matplotlib + 1 'the campaign output is not present on this machine' = 104. Only the corpus family moved (54 -> 59, +5) plus the one new campaign-output gate, because P5.2 added corpus-gated tests and no cityflow-, SUMO- or matplotlib-gated ones.",
+      "how_it_was_obtained": "`gh run view --log` returned ZERO lines for both jobs, so the log route was unavailable. The artifacts were: `gh run download <id> -n ci-artifacts-ubuntu-24.04`, which carries pytest.txt, junit.xml, english.out and hygiene.out. junit.xml is the better instrument anyway -- it classifies each skip by its own message instead of relying on a grep over aggregated `SKIPPED [N]` lines, which is what defeated the 2026-08-19 attempt to recount 98 from a log.",
+      "tree": "main at 63e384e",
+      "date": "2026-08-24",
       "measured_on_a_github_runner": true,
       "superseded": {
-        "value": 72,
-        "why_it_was_wrong": "Not wrong -- EXPIRED EXACTLY AS PREDICTED. The 2026-08-17 entry declared 're_measure_required_at: merge of P5.1' and forecast 'roughly +25 skips ... this ceiling WILL breach on that merge, and it is meant to'. Observed delta: +26. The mechanism worked; the number was stale.",
+        "value": 98,
+        "why_it_was_wrong": "Not wrong -- EXPIRED AS DECLARED. The 2026-08-19 entry named 'merge of P5.2' as its expiry. Observed delta +6. The coordinator's own predictions of that delta were wrong TWICE and are recorded because the pattern matters: '+1' on 2026-08-19 (read from a test file that then grew from 89 to 146 tests) and '>=4' on 2026-08-23 (counting skip SITES, which undercounts because one is parametrised). The protocol -- merge, read the observed number, commit it -- got it right both times without a prediction.",
         "its_own_superseded": {
-          "value": 62,
-          "why_it_was_wrong": "It came from a simulated runner on the dev machine, and the simulation was defeated by usrmerge: the harness removed `sumo` from a symlink copy of /usr/bin but left /bin on PATH, and /bin IS /usr/bin on this system, so shutil.which('sumo') kept finding it and 10 SUMO-gated tests ran that a runner skips. The error was invisible locally and was caught by the first real run -- which is the reason the ceiling was declared provisional and the branch was pushed."
+          "value": 72,
+          "why_it_was_wrong": "Not wrong -- EXPIRED EXACTLY AS PREDICTED. The 2026-08-17 entry declared 're_measure_required_at: merge of P5.1' and forecast 'roughly +25 skips ... this ceiling WILL breach on that merge, and it is meant to'. Observed delta: +26. The mechanism worked; the number was stale.",
+          "its_own_superseded": {
+            "value": 62,
+            "why_it_was_wrong": "It came from a simulated runner on the dev machine, and the simulation was defeated by usrmerge: the harness removed `sumo` from a symlink copy of /usr/bin but left /bin on PATH, and /bin IS /usr/bin on this system, so shutil.which('sumo') kept finding it and 10 SUMO-gated tests ran that a runner skips. The error was invisible locally and was caught by the first real run -- which is the reason the ceiling was declared provisional and the branch was pushed."
+          }
         }
       }
     },
@@ -30,11 +34,10 @@
       "the workflow installs the dev extra only, so the 2 matplotlib-gated tests skip."
     ],
     "re_measure_required_at": {
-      "event": "merge of P5.2 (task/p5.2-tier-sweep)",
-      "predicted_delta": "+1, MEASURED rather than guessed",
-      "reason": "tests/test_tier_sweep.py is 89 tests and contains exactly ONE skip site: a single test function with an inline pytest.skip('the secured output/p5_1 tree is not present on this machine'). It has ZERO cityflow references and, checked on the branch under the corpus-absent condition, contributes ZERO corpus-gated skips -- P5.2's tests are synthetic. So the expected observation at that merge is 99, not a large jump.",
-      "what_to_do": "Re-measure and commit 99 deliberately. DO NOT pre-bump the ceiling to absorb the +1: a one-skip breach is exactly the size that invites slack, and slack is what blinds the gate.",
-      "mandated_by": "coordinator ruling on BRIEF_23 Q1, 2026-08-17 -- 'a ceiling whose expiry lives only in a chat is a ceiling that silently breaches'. Restated 2026-08-19 after the P5.1 expiry fired correctly."
+      "event": "merge of P5.3 (the no-RTG / context-length ablations), or any task adding corpus-gated tests",
+      "predicted_delta": "NOT PREDICTED -- deliberately. Two coordinator predictions of this delta have been wrong; the protocol below does not need one.",
+      "what_to_do": "Merge, let this gate go red, download `ci-artifacts-<leg>` and classify junit.xml's <skipped> messages, then commit the observed value with its breakdown. Do NOT pre-bump and do NOT widen with slack: slack is what blinds the gate.",
+      "mandated_by": "coordinator ruling on BRIEF_23 Q1, 2026-08-17 -- 'a ceiling whose expiry lives only in a chat is a ceiling that silently breaches'."
     },
     "how_to_update": "Read the observed count from the failing job's summary, re-measure deliberately, and commit the new value together with the reason in the same commit. Never widen it with slack: slack is what blinds the gate."
   },
