@@ -94,6 +94,16 @@ scan_line_rules() {
         "constant assertion: this can never fail" "$prev"
     fi
 
+    # TH002b -- a conditional expression whose taken branch is constant.
+    # `assert X if False else True` reduces to `assert True`, and `assert True if C else True`
+    # is constant on both branches.  Written after exactly this line reached a delivered test
+    # file (P5.2 fix round, self-disclosed by the implementer) and was NOT caught by TH002,
+    # which only matches a bare constant operand.
+    if printf '%s' "$line" | grep -qE '^[[:space:]]*assert[[:space:]].*[[:space:]]if[[:space:]]+(False|0)[[:space:]]+else[[:space:]]+(True|1)[[:space:]]*(,|#|$)|^[[:space:]]*assert[[:space:]]+(True|1)[[:space:]]+if[[:space:]].*[[:space:]]else[[:space:]]+(True|1)[[:space:]]*(,|#|$)'; then
+      report TH002 "$file" "$lineno" "$line" \
+        "conditional constant: the taken branch is constant, so this can never fail" "$prev"
+    fi
+
     # TH003 -- dead code disguised as a branch.
     if printf '%s' "$line" | grep -qE '^[[:space:]]*if[[:space:]]+(False|0)[[:space:]]*:'; then
       report TH003 "$file" "$lineno" "$line" \
