@@ -23,13 +23,23 @@ state token at ``3t+1`` predicts ``a_t``** come from ``agent/DTAgent.py`` and ``
 unchanged.  Joint grouping is ``offline.joint_windows.build_joint_index``, which reads
 ``TrajectoryWindowDataset.item_meta`` rather than index arithmetic.  Nothing here redefines a window.
 
-THE PROTOCOL IS P4'S AND P5.1'S, REUSED RATHER THAN RESTATED
--------------------------------------------------------------
-Rollouts go through ``offline.dt_gate.evaluate_arm``; cells come from ``dt_gate._cell``, pairing
-from ``dt_gate._paired``, descriptives from ``mean_ci95``, the paired test from
-``wilcoxon_signed_rank`` and the comparison object from ``offline_baselines.paired_comparison``.
-``bc``, ``bc_top10`` and ``iql`` are trained by ``offline.offline_baselines``' own trainers.  A
-second implementation of a protocol is exactly how two arms stop being comparable.
+THE PROTOCOL IS P4'S AND P5.1'S, REUSED RATHER THAN RESTATED — AND HERE IS EXACTLY HOW FAR
+--------------------------------------------------------------------------------------------
+Rollouts go through ``offline.dt_gate.evaluate_arm``; cells come from ``dt_gate._cell``;
+descriptives from ``dt_gate.mean_ci95``; per-seed blocks and the reversal qualifier from
+``spatial_mixing.per_seed_advantages`` and ``spatial_mixing.seed_reversal_qualifier``.  ``bc``,
+``bc_top10``, ``bc_top10_perix`` and ``iql`` are trained by ``offline.offline_baselines``' own
+trainers.  A second implementation of a protocol is exactly how two arms stop being comparable.
+
+⚠️ **WHAT THIS MODULE DOES NOT USE, stated because an earlier version of this docstring claimed it
+did.**  It does **not** call ``dt_gate._paired``, ``wilcoxon_signed_rank`` or
+``offline_baselines.paired_comparison``: **no Wilcoxon p-value and no rank-biserial is computed
+here.**  Every interval in this module is ``mean_ci95`` over paired per-draw differences.  P5.2's
+headline comparisons were scored by the coordinator from the raw episodes, and **this module
+generates no cross-arm comparison report** -- the artifacts it writes are the stop rule, the two
+envelope reports and the declarations.  A docstring that names imports the file does not make is a
+false description of the artifact, which is the one thing this project cannot tolerate in a
+docstring.
 
 🚨 THE FILESYSTEM-MUTATION BARRIER (docs/plans/p5.2.md section 3.2)
 -------------------------------------------------------------------
@@ -1166,7 +1176,11 @@ def predicted_order(tier: str, arms: Sequence[str] = METHODS) -> tuple[str, ...]
 
 
 def concordance(
-    predicted: Sequence[str], measured: Sequence[str], *, subset: Sequence[str] | None = None
+    predicted: Sequence[str],
+    measured: Sequence[str],
+    *,
+    subset: Sequence[str] | None = None,
+    measured_levels: Mapping[str, float] | None = None,
 ) -> dict[str, Any]:
     """Count the unordered arm pairs ordered as predicted, optionally within *subset* only.
 
@@ -1188,16 +1202,32 @@ def concordance(
     rank_predicted = {arm: i for i, arm in enumerate(left)}
     rank_measured = {arm: i for i, arm in enumerate(right)}
     pairs = list(itertools.combinations(sorted(left), 2))
+
+    def tied(a: str, b: str) -> bool:
+        """The declared tie-break rule: EXACTLY equal measured levels are not an ordering."""
+        if measured_levels is None:
+            return False
+        return float(measured_levels[a]) == float(measured_levels[b])
+
     concordant = [
         (a, b)
         for a, b in pairs
-        if (rank_predicted[a] < rank_predicted[b]) == (rank_measured[a] < rank_measured[b])
+        if not tied(a, b)
+        and (rank_predicted[a] < rank_predicted[b]) == (rank_measured[a] < rank_measured[b])
     ]
+    ties = [list(pair) for pair in pairs if tied(*pair)]
     return {
         "n_pairs": len(pairs),
         "n_concordant": len(concordant),
         "arms": list(left),
         "discordant": [list(pair) for pair in pairs if pair not in set(concordant)],
+        "n_tied": len(ties),
+        "tied_pairs": ties,
+        "tie_rule": (
+            "a pair whose MEASURED levels are exactly equal is scored DISCORDANT for both orders: "
+            "neither arm is placed ahead of the other, so no predicted ordering between them can "
+            "be credited (docs/plans/p5.2.md, declared 2026-08-24)"
+        ),
     }
 
 
@@ -1439,12 +1469,9 @@ def tier_parts(
         """The joint tensors, restricted to the size-matched episode set."""
         index = build_joint_index(dataset, node_ids)
         stacked = stack_joint(dataset, index)
-        keep = {e.episode_index for e in chosen}
-        rows = np.array(
-            [i for i, ep in enumerate(index.episode_index) if int(ep) in keep], dtype=np.int64
+        rows = joint_rows_for_episodes(
+            index.episode_index, [e.episode_index for e in chosen]
         )
-        if rows.size == 0:
-            raise ValueError(f"{spec.tier}: the size match selected no joint windows")
         out = dict(stacked)
         out["member_index"] = stacked["member_index"][rows]
         return out
@@ -1727,6 +1754,143 @@ def merge_training_runs(
     return [by_key[key] for key in sorted(by_key, key=lambda k: tuple(str(part) for part in k))]
 
 
+def joint_rows_for_episodes(
+    episode_index: Any, selected: Sequence[int]
+) -> Any:
+    """MJ-2: the joint-window rows belonging to the size-matched episode set.
+
+    🚨 **This is B4's size match ON THE TRAINING INPUT, and it was untested.**  With the selection
+    ignored, the two DT arms would train on the ``random`` tier's 400 episodes while the four
+    baselines trained on the size-matched 200 -- the exact confound B4 exists to prevent -- and the
+    declaration would still read 3,200 streams, so no artifact would show it.
+    """
+    keep = {int(e) for e in selected}
+    rows = np.array(
+        [i for i, episode in enumerate(episode_index) if int(episode) in keep], dtype=np.int64
+    )
+    if rows.size == 0:
+        raise ValueError("the size match selected no joint windows")
+    return rows
+
+
+def baseline_stream_selections(
+    dataset: Any, streams: Sequence[Any]
+) -> dict[str, tuple[Any, ...]]:
+    """The three BC-family training sets, built in one place so the wiring is testable.
+
+    ⚠️ **MJ-3: with ``bc_top10_perix`` wired to the global filter, Q5 becomes a self-comparison** --
+    and the artifact alone cannot reveal it, because both filters keep the same NUMBER of streams by
+    design (320 on a 200-episode tier).  Only a test that asserts the two selections DIFFER can.
+    """
+    from offline.offline_baselines import top_return_streams
+
+    kept = set(streams)
+    return {
+        "bc": tuple(streams),
+        "bc_top10": tuple(s for s in top_return_streams(dataset) if s in kept),
+        "bc_top10_perix": per_intersection_top_streams(streams),
+    }
+
+
+def paired_d1_block(
+    spatial_left: Mapping[str, Any],
+    nomix_left: Mapping[str, Any],
+    spatial_right: Mapping[str, Any],
+    nomix_right: Mapping[str, Any],
+    *,
+    seed: int,
+    metric: str = "att_horizon",
+) -> dict[str, Any]:
+    """The ``d1`` composite: ``(spatial−nomix)_left − (spatial−nomix)_right``, paired per draw.
+
+    Used by BOTH envelope reports -- E1's against P5.1's published cells and I1/J1's against phase
+    B's -- so the composite exists once and is testable.  ⚠️ It was inline in both callers and
+    untested: a sign flip and a mutant that stopped subtracting the right-hand run both survived
+    the suite while the values happened to be correct.
+
+    The subtraction order is fixed and named here because it is the whole meaning of the number:
+    **left is the REPLICATE and right is the PUBLISHED run**, so a positive value means the
+    replicate scored higher (worse) ATT than the run it replicates.
+    """
+    from offline.dt_gate import mean_ci95
+
+    def by_draw(payload: Mapping[str, Any]) -> dict[int, float]:
+        return {
+            int(e["draw_id"]): float(e[metric])
+            for e in payload["episodes"] if int(e["seed"]) == int(seed)
+        }
+
+    sl, nl = by_draw(spatial_left), by_draw(nomix_left)
+    sr, nr = by_draw(spatial_right), by_draw(nomix_right)
+    shared = sorted(set(sl) & set(nl) & set(sr) & set(nr))
+    if not shared:
+        raise ValueError(f"the four cells share no draw ids at seed {seed}; A5 makes this void")
+    if not (len(sl) == len(nl) == len(sr) == len(nr) == len(shared)):
+        raise ValueError(
+            f"the four cells cover different draw sets at seed {seed}: "
+            f"{len(sl)}/{len(nl)}/{len(sr)}/{len(nr)} with {len(shared)} shared"
+        )
+    left_d1 = [sl[d] - nl[d] for d in shared]
+    right_d1 = [sr[d] - nr[d] for d in shared]
+    stats = mean_ci95([a - b for a, b in zip(left_d1, right_d1)])
+    low, high = stats.mean - stats.ci95, stats.mean + stats.ci95
+    return {
+        "metric": metric, "seed": int(seed), "n_shared_draws": len(shared),
+        "mean_difference": stats.mean, "std": stats.std,
+        "ci95_low": low, "ci95_high": high, "ci95_width": high - low,
+        "excludes_zero": bool(low > 0.0 or high < 0.0),
+        "d1_replicate": sum(left_d1) / len(left_d1),
+        "d1_published": sum(right_d1) / len(right_d1),
+        "definition": (
+            "(spatial - nomix) of the REPLICATE minus (spatial - nomix) of the PUBLISHED run, "
+            "paired per shared draw"
+        ),
+    }
+
+
+def per_seed_block(
+    left: Sequence[Mapping[str, Any]],
+    right: Sequence[Mapping[str, Any]],
+    *,
+    left_name: str,
+    right_name: str,
+    metric: str = "att_horizon",
+) -> dict[str, Any]:
+    """D9: the per-seed advantages AND the reversal qualifier, EMITTED rather than remembered.
+
+    ``PROJECT_PLAN`` §7 (2026-08-18): *where the generator can emit the qualifier, it must -- if
+    ``reverses_on_n_seeds`` is non-zero, the prose stating that ordering should not be writable
+    without it.*  P5.1's J1 was a datum its artifact already held that its prose did not read.
+
+    🚨 **This module previously described that mechanism in its plan and did not have it.**  It bit
+    exactly where predicted: on the ``random`` tier the ``dt_spatial − dt_nomix`` sign reverses on
+    seed 202 (+0.6926 against four negatives), and that qualifier reached the packet only because a
+    human computed it by hand.
+
+    The two workers are P5.1's, imported unchanged -- a second implementation of a per-seed
+    statistic is how two tasks stop being comparable.
+    """
+    from offline.dt_gate import EpisodeResult
+    from offline.spatial_mixing import per_seed_advantages, seed_reversal_qualifier
+
+    def as_results(rows: Sequence[Mapping[str, Any]], arm: str) -> list[Any]:
+        return [
+            EpisodeResult(
+                arm=arm, seed=int(r["seed"]), draw_id=int(r["draw_id"]),
+                att_horizon=float(r[metric]),
+                horizon_vehicle_count=float(r.get("horizon_vehicle_count", 0.0)),
+                episode_reward=float(r.get("episode_reward", 0.0)),
+            )
+            for r in rows
+        ]
+
+    block = per_seed_advantages(as_results(left, left_name), as_results(right, right_name))
+    return {
+        "per_seed": block,
+        "seed_reversal_qualifier": seed_reversal_qualifier(block, left_name, right_name),
+    }
+
+
 def write_training_record(
     path: str | Path,
     header: Mapping[str, Any],
@@ -1866,15 +2030,18 @@ def _run_train_baselines(args: Any) -> int:
     dataset = parts["dataset"]
     group = next(iter(dataset.groups))
     streams = parts["streams"]
-    kept_global = tuple(s for s in top_return_streams(dataset) if s in set(streams))
-    kept_perix = per_intersection_top_streams(streams)
+    selections = baseline_stream_selections(dataset, streams)
+    kept_global = selections["bc_top10"]
+    kept_perix = selections["bc_top10_perix"]
     scale = iql_reward_scale([s.total_return for s in streams])
     stacked_all = stack_dataset(dataset, group)
     stacked = filter_stacked_to_streams(dataset, stacked_all, streams)
     batches = {
         "bc": stacked,
-        "bc_top10": filter_stacked_to_streams(dataset, stacked_all, kept_global),
-        "bc_top10_perix": filter_stacked_to_streams(dataset, stacked_all, kept_perix),
+        "bc_top10": filter_stacked_to_streams(dataset, stacked_all, selections["bc_top10"]),
+        "bc_top10_perix": filter_stacked_to_streams(
+            dataset, stacked_all, selections["bc_top10_perix"]
+        ),
     }
     device = torch.device(
         args.device if args.device else ("cuda" if torch.cuda.is_available() else "cpu")
@@ -2107,6 +2274,26 @@ def _run_evaluate(args: Any) -> int:
     work = Path(args.work_dir)
     assert_writable(work, protected)
     work.mkdir(parents=True, exist_ok=True)
+
+    # MN-2: J2's chain had a missing link -- assert_independent_replicate compares checkpoint
+    # FILES, but nothing recorded WHICH model a cell came from, so a replicate that silently
+    # evaluated phase B's checkpoint would return zero by construction and the digest assertion
+    # would not see it.  Every cell now carries the path AND the canonical weight digest of the
+    # model that produced it, per seed.
+    model_provenance: dict[str, Any] = {}
+    if args.method in DT_METHODS or args.method in ("bc", "bc_top10", "bc_top10_perix", "iql"):
+        for seed in _seeds_of(args):
+            ckpt = Path(args.checkpoint_dir) / _checkpoint_name(
+                tier, args.method, int(seed), replicate=bool(getattr(args, "replicate", False))
+            )
+            entry: dict[str, Any] = {"checkpoint_path": str(ckpt)}
+            if ckpt.is_file():
+                try:
+                    entry["state_dict_sha256"] = canonical_state_dict_digest(ckpt)
+                except Exception as exc:  # noqa: BLE001 - provenance must never fail a cell
+                    entry["state_dict_sha256_error"] = f"{type(exc).__name__}: {exc}"
+            model_provenance[str(seed)] = entry
+
     seeds_tag = "" if not args.seeds else f"_seed{'_'.join(str(s) for s in _seeds_of(args))}"
     if getattr(args, "replicate", False):
         seeds_tag += REPLICATE_SUFFIX
@@ -2115,6 +2302,8 @@ def _run_evaluate(args: Any) -> int:
             "format_version": ARTIFACT_FORMAT_VERSION, "arm": arm, "tier": tier,
             "method": args.method, "declared_gradient_steps": int(args.gradient_steps),
             "engine_seed": int(args.engine_seed), "deterministic": bool(args.deterministic),
+            "replicate": bool(getattr(args, "replicate", False)),
+            "model_provenance": model_provenance,
             "cell": _cell(produced),
             "episodes": [
                 {"arm": e.arm, "seed": e.seed, "draw_id": e.draw_id,
@@ -2163,7 +2352,14 @@ def score_stop_rule(
     stats = mean_ci95(differences)
     low, high = stats.mean - stats.ci95, stats.mean + stats.ci95
     verdict = stop_rule_verdict(low, high)
+    wanted = {int(s) for s in seeds}
+    qualifier = per_seed_block(
+        [e for e in spatial["episodes"] if int(e["seed"]) in wanted],
+        [e for e in nomix["episodes"] if int(e["seed"]) in wanted],
+        left_name="dt_spatial_h4", right_name="dt_nomix_h4",
+    )
     return {
+        **qualifier,
         "quantity": "d4 = ATT(dt_spatial_h4) - ATT(dt_nomix_h4), paired per shared draw",
         "n_shared_draws": len(shared),
         "mean_difference": stats.mean,
@@ -2453,31 +2649,22 @@ def _run_envelope_report(args: Any) -> int:
             for e in published["episodes"] if int(e["seed"]) == seed
         }
 
-    shared = sorted(
-        set(per_draw["dt_spatial_replicate"]) & set(per_draw["dt_nomix_replicate"])
-        & set(per_draw["dt_spatial_published"]) & set(per_draw["dt_nomix_published"])
+    blocks["d1"] = paired_d1_block(
+        _json.loads((work / cell_filename(tier, "dt_spatial", seed, replicate=True))
+                    .read_text(encoding="utf-8")),
+        _json.loads((work / cell_filename(tier, "dt_nomix", seed, replicate=True))
+                    .read_text(encoding="utf-8")),
+        _json.loads((work / cell_filename(tier, "dt_spatial")).read_text(encoding="utf-8")),
+        _json.loads((work / cell_filename(tier, "dt_nomix")).read_text(encoding="utf-8")),
+        seed=seed,
     )
-    if len(shared) != 100:
-        raise ValueError(f"expected 100 shared draws for d1, found {len(shared)}")
-    differences = [
-        (per_draw["dt_spatial_replicate"][d] - per_draw["dt_nomix_replicate"][d])
-        - (per_draw["dt_spatial_published"][d] - per_draw["dt_nomix_published"][d])
-        for d in shared
-    ]
-    stats = mean_ci95(differences)
-    low, high = stats.mean - stats.ci95, stats.mean + stats.ci95
-    blocks["d1"] = {
-        "metric": "att_horizon", "seed": seed, "n_shared_draws": len(shared),
-        "mean_difference": stats.mean, "std": stats.std,
-        "ci95_low": low, "ci95_high": high, "ci95_width": high - low,
-        "excludes_zero": bool(low > 0.0 or high < 0.0),
-        "d1_replicate": sum(
-            per_draw["dt_spatial_replicate"][d] - per_draw["dt_nomix_replicate"][d] for d in shared
-        ) / len(shared),
-        "d1_published": sum(
-            per_draw["dt_spatial_published"][d] - per_draw["dt_nomix_published"][d] for d in shared
-        ) / len(shared),
-    }
+    # D9: the qualifier is emitted by the generator for the tier's own headline contrast.
+    spatial_all = _json.loads((work / cell_filename(tier, "dt_spatial")).read_text(encoding="utf-8"))
+    nomix_all = _json.loads((work / cell_filename(tier, "dt_nomix")).read_text(encoding="utf-8"))
+    tier_contrast = per_seed_block(
+        spatial_all["episodes"], nomix_all["episodes"],
+        left_name=f"dt_spatial@{tier}", right_name=f"dt_nomix@{tier}",
+    )
 
     payload = {
         "format_version": ARTIFACT_FORMAT_VERSION,
@@ -2505,6 +2692,7 @@ def _run_envelope_report(args: Any) -> int:
             "-- nondeterminism reaching the metric where the learned policy separates phases less "
             "confidently -- and a ZERO is not the only acceptable outcome. Both are publishable"
         ),
+        "tier_headline_contrast_per_seed": tier_contrast,
         "mappo1000_envelope_for_comparison": 0.0,
         "mappo1000_scope_limit": (
             "BRIEF_27 H2: E1's 0.0000 is a mappo1000-only measurement and is NOT established for "

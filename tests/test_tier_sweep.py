@@ -1410,6 +1410,210 @@ def test_the_training_record_name_carries_the_replicate_key(tmp_path: Path) -> N
 
 
 # ----------------------------------------------------------------------
+# MJ-5 -- the declared tie-break rule, implemented rather than only written.
+# ----------------------------------------------------------------------
+
+
+def test_an_exact_tie_is_scored_discordant_for_both_orders() -> None:
+    """MJ-5's declared rule: a tie is not an ordering, so no prediction between the two is credited.
+
+    `fixedtime` produced two EXACT ties to full double precision -- `dt_spatial` = `dt_nomix` and
+    `bc` = `bc_top10_perix` -- and three reported integers were tie-break dependent with the range
+    unstated.
+    """
+    levels = {"a": 1.0, "b": 1.0, "c": 2.0}
+    forward = ts.concordance(("a", "b", "c"), ("a", "b", "c"), measured_levels=levels)
+    reversed_ = ts.concordance(("a", "b", "c"), ("b", "a", "c"), measured_levels=levels)
+    assert forward["n_concordant"] == reversed_["n_concordant"] == 2
+    assert forward["n_tied"] == 1 and forward["tied_pairs"] == [["a", "b"]]
+
+
+def test_the_tie_rule_changes_nothing_when_no_levels_are_supplied() -> None:
+    """Backwards compatible: the registered Q2b counts were scored without levels."""
+    assert ts.concordance(("a", "b", "c"), ("a", "b", "c"))["n_concordant"] == 3
+
+
+def test_a_near_tie_is_NOT_treated_as_a_tie() -> None:
+    """The rule says EXACTLY equal.  A 1e-12 gap is an ordering, and a tolerance would be a
+    second undeclared threshold."""
+    levels = {"a": 1.0, "b": 1.0 + 1e-12, "c": 2.0}
+    assert ts.concordance(("a", "b", "c"), ("a", "b", "c"), measured_levels=levels)["n_tied"] == 0
+
+
+def test_the_fixedtime_ties_are_real_and_exact() -> None:
+    """Read from the cells rather than taken on report: two pairs are equal to full precision."""
+    work = REPO_ROOT / "output" / "p5_2"
+    if not (work / "eval_fixedtime_bc.json").is_file():
+        pytest.skip("the campaign output is not present on this machine")
+    levels = {
+        m: json.loads((work / f"eval_fixedtime_{m}.json").read_text(encoding="utf-8"))
+        ["cell"]["att_horizon_mean"]
+        for m in ts.METHODS
+    }
+    assert levels["dt_spatial"] == levels["dt_nomix"]
+    assert levels["bc"] == levels["bc_top10_perix"]
+    report = ts.concordance(
+        ts.predicted_order("fixedtime"), sorted(ts.METHODS, key=lambda m: levels[m]),
+        subset=ts.HARD_SUBSET, measured_levels=levels,
+    )
+    assert report["n_tied"] == 2, "both ties fall inside the hard subset"
+
+
+# ----------------------------------------------------------------------
+# MJ-1 -- the d1 composite, shared by both envelope reports.
+# ----------------------------------------------------------------------
+
+
+def _d1_cell(seed: int, values: dict[int, float]) -> dict[str, Any]:
+    return {
+        "episodes": [
+            {"seed": seed, "draw_id": d, "att_horizon": v, "horizon_vehicle_count": 1.0,
+             "episode_reward": -1.0, "arm": "x"}
+            for d, v in values.items()
+        ]
+    }
+
+
+def test_d1_subtracts_the_PUBLISHED_run_from_the_REPLICATE_and_not_the_reverse() -> None:
+    """M32/M33: a sign flip and a mutant that stops subtracting both survived the old suite.
+
+    ``d1`` is ``(spatial−nomix)_replicate − (spatial−nomix)_published``.  Constructed so the two
+    inner differences are +10 and +4: the composite is +6 and nothing else.
+    """
+    draws = range(1000, 1100)
+    rep_s = _d1_cell(202, {d: 210.0 for d in draws})
+    rep_n = _d1_cell(202, {d: 200.0 for d in draws})   # replicate d1 = +10
+    pub_s = _d1_cell(202, {d: 204.0 for d in draws})
+    pub_n = _d1_cell(202, {d: 200.0 for d in draws})   # published d1 = +4
+    block = ts.paired_d1_block(rep_s, rep_n, pub_s, pub_n, seed=202)
+    assert block["d1_replicate"] == pytest.approx(10.0)
+    assert block["d1_published"] == pytest.approx(4.0)
+    assert block["mean_difference"] == pytest.approx(6.0), "sign or operand order is wrong"
+
+
+def test_d1_is_zero_when_the_replicate_reproduces_the_published_run() -> None:
+    """The accept control, and the shape E1 actually returned."""
+    draws = range(1000, 1100)
+    s_cell = _d1_cell(202, {d: 210.0 + (d % 5) for d in draws})
+    n_cell = _d1_cell(202, {d: 200.0 for d in draws})
+    block = ts.paired_d1_block(s_cell, n_cell, s_cell, n_cell, seed=202)
+    assert block["mean_difference"] == 0.0
+    assert block["ci95_width"] == 0.0
+    assert block["excludes_zero"] is False
+
+
+def test_d1_refuses_when_the_four_cells_do_not_share_their_draws() -> None:
+    """A5: an unshared comparison is void, not approximated."""
+    a = _d1_cell(202, {d: 1.0 for d in range(1000, 1100)})
+    b = _d1_cell(202, {d: 1.0 for d in range(2000, 2100)})
+    with pytest.raises(ValueError, match="share no draw ids"):
+        ts.paired_d1_block(a, a, b, b, seed=202)
+
+
+def test_d1_refuses_a_partial_overlap_rather_than_scoring_the_intersection() -> None:
+    """Silently scoring the overlap would report a number over a set nobody declared."""
+    full = _d1_cell(202, {d: 1.0 for d in range(1000, 1100)})
+    short = _d1_cell(202, {d: 1.0 for d in range(1000, 1050)})
+    with pytest.raises(ValueError, match="different draw sets"):
+        ts.paired_d1_block(full, full, short, full, seed=202)
+
+
+# ----------------------------------------------------------------------
+# MJ-2 / MJ-3 -- the size match on the training input, and the new arm's wiring.
+# ----------------------------------------------------------------------
+
+
+def test_the_joint_stack_keeps_ONLY_the_size_matched_episodes() -> None:
+    """MJ-2: with the selection ignored, the DT arms would train on 400 episodes while the
+    baselines trained on 200 -- the exact confound B4 exists to prevent, and the declaration would
+    still read 3,200 streams so no artifact would show it."""
+    episode_index = np.array([0, 0, 1, 1, 2, 2, 3, 3], dtype=np.int64)
+    rows = ts.joint_rows_for_episodes(episode_index, [0, 2])
+    assert rows.tolist() == [0, 1, 4, 5]
+
+
+def test_the_joint_stack_refuses_a_selection_that_matches_nothing() -> None:
+    """An empty gather would train on zero windows; it must refuse rather than produce a model."""
+    with pytest.raises(ValueError, match="selected no joint windows"):
+        ts.joint_rows_for_episodes(np.array([0, 1], dtype=np.int64), [99])
+
+
+def test_the_size_match_halves_a_double_length_tier_at_the_STACK() -> None:
+    """The `random` tier's shape: two episodes per draw in, one per draw through to training."""
+    episode_index = np.repeat(np.arange(400, dtype=np.int64), 3)   # 3 windows per episode
+    rows = ts.joint_rows_for_episodes(episode_index, list(range(0, 400, 2)))
+    assert rows.size == 200 * 3
+
+
+def test_the_per_intersection_filter_is_NOT_the_global_filter(tmp_path: Path) -> None:
+    """MJ-3: wired to the global filter, `bc_top10_perix` becomes a copy and Q5 a self-comparison.
+
+    The artifact cannot reveal it -- both filters keep the same NUMBER of streams by design -- so
+    only an assertion that the two SELECTIONS differ can.  The fixture gives one node far higher
+    returns than the other, which is the load-sorter condition the arm exists to answer.
+    """
+    from offline.offline_baselines import top_return_streams
+
+    class _FakeDataset:
+        pass
+
+    streams = _streams(per_node=50, nodes=("A", "B"), offsets={"A": 0.0, "B": -10_000.0})
+    perix = ts.per_intersection_top_streams(streams)
+    # the global filter over the same pool, computed here rather than through the dataset object
+    ordered = sorted(streams, key=lambda s: (-s.total_return, s.dataset_dir, s.episode_file, s.ix_id))
+    global_kept = tuple(ordered[: len(perix)])
+    assert len(perix) == len(global_kept), "the two arms must keep the same COUNT"
+    assert {s.key for s in perix} != {s.key for s in global_kept}, (
+        "the two arms must differ in WHICH streams they keep, or Q5 is a self-comparison"
+    )
+    assert {s.ix_id for s in global_kept} == {"A"}, "the global filter is a load sorter here"
+    assert {s.ix_id for s in perix} == {"A", "B"}, "the per-node filter draws from both nodes"
+
+
+# ----------------------------------------------------------------------
+# MJ-4 -- the per-seed qualifier, emitted by the generator.
+# ----------------------------------------------------------------------
+
+
+def test_the_generator_emits_a_qualifier_when_an_ordering_reverses_on_a_seed() -> None:
+    """D9: it must be EMITTED, not remembered.
+
+    The case is the one the review named: on `random` the spatial-minus-nomix sign reverses on
+    seed 202, and that qualifier reached the packet only because a human computed it by hand.
+    """
+    left = [{"seed": s, "draw_id": d, "att_horizon": 200.0 + (5.0 if s == 202 else -5.0),
+             "horizon_vehicle_count": 1.0, "episode_reward": -1.0}
+            for s in SEEDS_5 for d in range(1000, 1010)]
+    right = [{"seed": s, "draw_id": d, "att_horizon": 200.0,
+              "horizon_vehicle_count": 1.0, "episode_reward": -1.0}
+             for s in SEEDS_5 for d in range(1000, 1010)]
+    block = ts.per_seed_block(left, right, left_name="dt_spatial", right_name="dt_nomix")
+    assert block["per_seed"]["reverses_on_n_seeds"] == 1
+    assert block["seed_reversal_qualifier"] is not None
+    assert "202" in block["seed_reversal_qualifier"]
+
+
+def test_no_qualifier_is_emitted_when_every_seed_agrees() -> None:
+    """The accept control: a qualifier on every comparison would be noise, not information."""
+    left = [{"seed": s, "draw_id": d, "att_horizon": 205.0, "horizon_vehicle_count": 1.0,
+             "episode_reward": -1.0} for s in SEEDS_5 for d in range(1000, 1010)]
+    right = [{"seed": s, "draw_id": d, "att_horizon": 200.0, "horizon_vehicle_count": 1.0,
+              "episode_reward": -1.0} for s in SEEDS_5 for d in range(1000, 1010)]
+    block = ts.per_seed_block(left, right, left_name="a", right_name="b")
+    assert block["per_seed"]["reverses_on_n_seeds"] == 0
+    assert block["seed_reversal_qualifier"] is None
+
+
+def test_the_stop_rule_report_carries_its_per_seed_block() -> None:
+    """Q0's own verdict is an ordering, so D9 applies to it too."""
+    spatial = _stop_cell("dt_spatial_h4", {s: +8.0 for s in SEEDS_5})
+    nomix = _stop_cell("dt_nomix_h4", {s: 0.0 for s in SEEDS_5})
+    report = ts.score_stop_rule(spatial, nomix, SEEDS_5)
+    assert "per_seed" in report and report["per_seed"]["n_seeds"] == 5
+    assert "seed_reversal_qualifier" in report
+
+
+# ----------------------------------------------------------------------
 # BL-2 -- score_stop_rule: Q0's d4, the task's declared FIRST result.
 # ----------------------------------------------------------------------
 
