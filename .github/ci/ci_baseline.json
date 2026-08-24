@@ -4,6 +4,16 @@
   "read_by": ".github/ci/ci_gate.py -- see its module docstring for the format contract",
   "pytest": {
     "skip_ceiling": 104,
+    "skip_breakdown": {
+      "corpus_or_checkpoint": 59,
+      "cityflow": 32,
+      "sumo_traci": 10,
+      "matplotlib": 2,
+      "campaign_output": 1
+    },
+    "ceiling_if_cityflow_were_built": 72,
+    "superseded_chain_is_uniformly_named": "2026-08-24. Every link of measured.superseded.* is now keyed 'superseded', at every depth. It used to be 'superseded' at depth 1 and 'its_own_superseded' below, which is TWO NAMES FOR ONE RELATION and is exactly why the chain could only be pinned one depth at a time: a generic walk stops at the first name it does not recognise, and the coordinator's first attempt at this patch did precisely that, reading the chain as (104, 98) and stopping. Caught by running the test, not by reading it. tests/test_ci_gate.py now asserts the legacy key is absent, so the shape cannot come back.",
+    "breakdown_and_alternative_added": "2026-08-24. The breakdown existed only as prose inside measured.breakdown and the alternative only as prose inside ceiling_is_a_consequence_of, so NOTHING checked that the parts summed to the ceiling -- the same defect as the guards' by_file-versus-total gap recorded in guards.english.by_file_note, one block higher in this same file. tests/test_ci_gate.py now closes both by arithmetic. NOTE the coincidence, because it will confuse someone: ceiling_if_cityflow_were_built is 72, which is also the ceiling this file carried on 2026-08-17. Unrelated -- 104 - 32 = 72.",
     "provisional": true,
     "measured": {
       "value": 104,
@@ -17,10 +27,10 @@
       "superseded": {
         "value": 98,
         "why_it_was_wrong": "Not wrong -- EXPIRED AS DECLARED. The 2026-08-19 entry named 'merge of P5.2' as its expiry. Observed delta +6. The coordinator's own predictions of that delta were wrong TWICE and are recorded because the pattern matters: '+1' on 2026-08-19 (read from a test file that then grew from 89 to 146 tests) and '>=4' on 2026-08-23 (counting skip SITES, which undercounts because one is parametrised). The protocol -- merge, read the observed number, commit it -- got it right both times without a prediction.",
-        "its_own_superseded": {
+        "superseded": {
           "value": 72,
           "why_it_was_wrong": "Not wrong -- EXPIRED EXACTLY AS PREDICTED. The 2026-08-17 entry declared 're_measure_required_at: merge of P5.1' and forecast 'roughly +25 skips ... this ceiling WILL breach on that merge, and it is meant to'. Observed delta: +26. The mechanism worked; the number was stale.",
-          "its_own_superseded": {
+          "superseded": {
             "value": 62,
             "why_it_was_wrong": "It came from a simulated runner on the dev machine, and the simulation was defeated by usrmerge: the harness removed `sumo` from a symlink copy of /usr/bin but left /bin on PATH, and /bin IS /usr/bin on this system, so shutil.which('sumo') kept finding it and 10 SUMO-gated tests ran that a runner skips. The error was invisible locally and was caught by the first real run -- which is the reason the ceiling was declared provisional and the branch was pushed."
           }
@@ -28,13 +38,15 @@
       }
     },
     "ceiling_is_a_consequence_of": [
-      "the workflow does NOT build the vendored CityFlow (coordinator ruling 2026-08-17: an unverified C++ build step is a new failure surface on the one task whose purpose is reliability). 32 of these 72 skips are cityflow-gated, so building it would move the ceiling from 72 to 40.",
-      "no corpus is available on a runner: datasets*/ is gitignored and ~189 MB, so 28 corpus- and checkpoint-gated tests skip. That 28 independently reproduces the coordinator's 2026-08-16 corpus-absent measurement.",
+      "the workflow does NOT build the vendored CityFlow (coordinator ruling 2026-08-17: an unverified C++ build step is a new failure surface on the one task whose purpose is reliability). 32 of these 104 skips are cityflow-gated, so building it would move the ceiling from 104 to 72. CORRECTED 2026-08-24: this entry read '32 of these 72 ... from 72 to 40' and had survived TWO ceiling moves (72 -> 98 -> 104) unedited, because the only assertion over it was a substring grep, assert '40' in json.dumps(block), and that assertion EXPIRED rather than having always been empty. Measured 2026-08-24 on both eras: with the alternative deleted the expression is False on the 98-era file (4866d52) and True on this one, because the 104 measurement itself introduced the string '1240 passed' into measured.result. A substring assertion's discriminating power is a function of data it does not name, so it can stop discriminating with nobody editing it. The arithmetic is now pinned to ceiling_if_cityflow_were_built instead.",
+      "no corpus is available on a runner: datasets*/ is gitignored and ~189 MB, so 59 corpus- and checkpoint-gated tests skip. CORRECTED 2026-08-24 from 28, which was the 2026-08-17 measurement and had also survived two ceiling moves unedited; the 28 that once reproduced the coordinator's 2026-08-16 corpus-absent count is history, and P4.7, P5.1 and P5.2 each added corpus-gated tests since.",
       "SUMO is not installed on the runner, so _sumo_available() is False and 10 SUMO-backed tests skip cleanly. sumolib IS present -- traci declares sumolib>=1.27.1 and pip resolved it -- so the gate here is the missing binary, not the missing module.",
-      "the workflow installs the dev extra only, so the 2 matplotlib-gated tests skip."
+      "the workflow installs the dev extra only, so the 2 matplotlib-gated tests skip.",
+      "P5.2's campaign output lives in the gitignored output/p5_2, absent on a runner, so 1 further test skips. This category did not exist before 2026-08-24 and was missing from this list while being counted in measured.breakdown."
     ],
     "re_measure_required_at": {
       "event": "merge of P5.3 (the no-RTG / context-length ablations), or any task adding corpus-gated tests",
+      "reason": "The ceiling is a COUNT of environment-gated skips, not a policy, so every task that adds a corpus-, CityFlow-, SUMO- or matplotlib-gated test moves it: it is stale by construction after any such merge, and a stale ceiling stops gating without saying so. RESTORED 2026-08-24 -- this field was dropped in 69680fa while ci_gate.py:39 still declares it part of the format and ci_gate.py:308 still reads it through a .get(..., '') default, so its absence printed an empty clause into every job summary instead of failing. tests/test_ci_gate.py:687 caught it; the gate could not.",
       "predicted_delta": "NOT PREDICTED -- deliberately. Two coordinator predictions of this delta have been wrong; the protocol below does not need one.",
       "what_to_do": "Merge, let this gate go red, download `ci-artifacts-<leg>` and classify junit.xml's <skipped> messages, then commit the observed value with its breakdown. Do NOT pre-bump and do NOT widen with slack: slack is what blinds the gate.",
       "mandated_by": "coordinator ruling on BRIEF_23 Q1, 2026-08-17 -- 'a ceiling whose expiry lives only in a chat is a ceiling that silently breaches'."

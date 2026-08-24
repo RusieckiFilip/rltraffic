@@ -28,6 +28,7 @@ import json
 import subprocess
 import sys
 import zipfile
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -684,7 +685,16 @@ def test_committed_ceiling_declares_that_it_is_provisional_and_names_its_expiry(
     assert block["provisional"] is True
     assert isinstance(block["skip_ceiling"], int)
     expiry = block["re_measure_required_at"]
-    for key in ("event", "reason", "mandated_by"):
+    # The full contracted key set, not a subset: ``reason`` was dropped from the baseline in
+    # 69680fa and only this loop noticed, because ci_gate.py:308 reads it through a
+    # ``.get(..., "")`` default and prints an empty clause rather than failing.  ``predicted_delta``
+    # and ``what_to_do`` are pinned for the same reason -- they carry the protocol that replaced a
+    # prediction, and a silent deletion would leave the next person without it.
+    for key in ("event", "reason", "predicted_delta", "what_to_do", "mandated_by"):
+        assert key in expiry, (
+            f"{key} is missing: ci_gate.py:39 declares it part of this file's format and "
+            f"ci_gate.py:308 reads it behind a .get default, so the gate cannot notice its loss"
+        )
         assert expiry[key].strip(), f"{key} must say something a reader can act on"
 
 
@@ -694,36 +704,108 @@ def test_committed_baseline_records_why_the_ceiling_has_the_value_it_has() -> No
     A future reader must be able to see that the number is a consequence of a choice, and
     what the number would be under the other choice.
 
-    The pinned value is **98**.  It supersedes **72** -- which did not turn out to be wrong but
-    EXPIRED EXACTLY AS ITS OWN ENTRY PREDICTED, when P5.1's merge added the corpus-gated skips that
-    entry forecast -- and 72 in turn superseded a simulated **62** that WAS wrong (see section
-    "harness errors" of ``docs/returns/P0.10.md``).  The constant is pinned here, in a second file,
-    precisely so that widening it is a visible edit in a diff rather than a quiet number change.
+    The chain is **104 -> 98 -> 72 -> 62**, newest first.  Only the root was ever WRONG: 62 came
+    from a simulated runner (see section "harness errors" of ``docs/returns/P0.10.md``).  72 and 98
+    EXPIRED EXACTLY AS THEIR OWN ENTRIES SAID THEY WOULD, on the merges of P5.1 and P5.2.  The chain
+    is pinned here, in a second file, precisely so that widening it is a visible edit in a diff
+    rather than a quiet number change.
 
-    ⚠️ **Moving the ceiling requires FOUR edits in this file and not three** (``DEFERRED`` 54):
-    the ceiling, the superseded value, the newly nested ``its_own_superseded``, and the English
-    total.  **Assertions after the first failure in a test never run**, so a run that shows three
-    failures can still be hiding a fourth -- which is exactly how this wall was hit.  The next
-    person to move the ceiling will hit it too.
+    ⚠️ **Moving the ceiling is now ONE literal in this file: ``CEILING_CHAIN``.**  It used to be
+    four, one per nesting depth, under two different key names, and that shape guaranteed its own
+    recurrence -- every move added a
+    level, so it needed a NEW assertion each time, and **at the 98 -> 104 move the root 62 fell out
+    of the pinned set entirely**, which is the one thing the previous docstring said must never
+    happen.  ``DEFERRED`` 54, third instance.  The walk below reaches the root at whatever depth it
+    lands.  *(If a skip CATEGORY moves rather than the total, ``skip_breakdown`` in the baseline
+    moves too and the arithmetic below fails until it does -- that is intended.)*
     """
+    #: The declared ceiling and every value it supersedes, newest first.  ONE literal, walked
+    #: rather than addressed by depth -- see the docstring for why the depth-addressed form let
+    #: the root drop out of the record.
+    CEILING_CHAIN = (104, 98, 72, 62)
+
     baseline = json.loads(BASELINE_FILE.read_text(encoding="utf-8"))
     block = baseline["pytest"]
 
-    assert block["skip_ceiling"] == 98
     assert block["measured"]["measured_on_a_github_runner"] is True
-    provenance = json.dumps(block)
-    assert "CityFlow" in provenance
-    assert "40" in provenance, "the alternative (CityFlow built) must be recorded too"
+    # The headline and its own evidence are two fields that have always been edited by hand and
+    # independently; nothing asserted they agree until now.
+    assert block["skip_ceiling"] == block["measured"]["value"], (
+        "skip_ceiling and measured.value are the same number recorded twice and they disagree"
+    )
 
-    # A superseded measurement is kept, not deleted: the reason a number moved is part of
-    # the number.  This is an addition to the test, not a relaxation of it.
-    assert block["measured"]["superseded"]["value"] == 72
-    assert block["measured"]["superseded"]["why_it_was_wrong"].strip()
-    # The chain stays pinned to its root: 98 supersedes 72 supersedes 62.  Pinning only the most
-    # recent link would let the original defect -- the simulated 62 -- drop out of the record
-    # silently the next time the ceiling moves.
-    assert block["measured"]["superseded"]["its_own_superseded"]["value"] == 62
-    assert block["measured"]["superseded"]["its_own_superseded"]["why_it_was_wrong"].strip()
+    chain = [int(block["skip_ceiling"])]
+    why: list[str] = []
+    link = block["measured"]
+    while "superseded" in link:
+        link = link["superseded"]
+        chain.append(int(link["value"]))
+        why.append(str(link["why_it_was_wrong"]))
+
+    assert tuple(chain) == CEILING_CHAIN, (
+        f"the ceiling chain on disk is {tuple(chain)} against the pinned {CEILING_CHAIN}"
+    )
+    assert chain[-1] == 62, (
+        "the ONLY link that was ever actually wrong -- the simulated 62 -- must stay in the "
+        "record at whatever depth the next move pushes it to"
+    )
+    assert len(why) == len(CEILING_CHAIN) - 1
+    assert all(text.strip() for text in why), "the reason a number moved is part of the number"
+    # One relation, one key name, at every depth.  The baseline used to say "superseded" at the
+    # first level and "its_own_superseded" below it, and a generic walk stops dead at the second
+    # name -- which is why the chain could previously only be pinned one depth at a time, and
+    # which truncated the first draft of this very walk to (104, 98).
+    #
+    # Asserted over KEYS, recursively, and not over ``json.dumps(block)``: a substring test over
+    # the dump cannot tell a key from PROSE ABOUT a key, and the first draft of this assertion was
+    # tripped by the baseline note that documents the rename.  That is the same weak shape as the
+    # ``"40" in provenance`` test removed below, written one assertion after removing it.
+    def every_key(node: object) -> Iterator[str]:
+        if isinstance(node, dict):
+            for key, value in node.items():
+                yield key
+                yield from every_key(value)
+        elif isinstance(node, list):
+            for item in node:
+                yield from every_key(item)
+
+    assert "its_own_superseded" not in set(every_key(block)), (
+        "a second name for the superseded relation is back as a KEY; the walk above will "
+        "silently truncate at it and the root will drop out of the record again"
+    )
+
+    # The alternative -- what the ceiling would be if CityFlow were built -- is checked as
+    # ARITHMETIC over a declared breakdown.  What stood here was ``assert "40" in json.dumps(block)``,
+    # and that assertion EXPIRED rather than having always been empty.  Measured 2026-08-24 on both
+    # eras: with the alternative deleted the expression is False on the 98-era baseline (4866d52)
+    # and True on this one, because the 104 measurement itself introduced the string "1240 passed"
+    # into ``measured.result``.  A substring assertion's discriminating power is a function of data
+    # it does not name, so it can stop discriminating with nobody editing it -- and that is how the
+    # sentence it was guarding stayed at the 72-era numbers through two ceiling moves.
+    breakdown = block["skip_breakdown"]
+    assert sum(breakdown.values()) == block["skip_ceiling"], (
+        f"the skip breakdown sums to {sum(breakdown.values())} against a ceiling of "
+        f"{block['skip_ceiling']}; a total and an enumeration that disagree is DEFERRED 53's class"
+    )
+    assert (
+        block["ceiling_if_cityflow_were_built"]
+        == block["skip_ceiling"] - breakdown["cityflow"]
+    ), "the recorded alternative does not equal ceiling minus the CityFlow-gated skips"
+    # Every category the ceiling is MADE of must carry a recorded reason.  This ties the prose to
+    # the arithmetic: an unexplained category, or a silently emptied explanation list, now fails.
+    # It is also what would have caught the campaign-output category, which was counted in
+    # ``measured.breakdown`` from the 104 move and never added to this list until 2026-08-24.
+    # ``assert "CityFlow" in json.dumps(block)`` stood here and SURVIVED deleting the entire
+    # CityFlow entry, because "CityFlow not built" also appears in ``measured.condition`` -- the
+    # third dump-grep in this one test to be satisfied by a string it was not asking about.
+    consequences = block["ceiling_is_a_consequence_of"]
+    assert len(consequences) == len(breakdown), (
+        f"{len(breakdown)} skip categories against {len(consequences)} recorded reasons; "
+        "every category the ceiling is made of must say why it is there"
+    )
+    assert any("CityFlow" in entry for entry in consequences), (
+        "the CityFlow choice is the ceiling's largest single cause and must stay stated in prose"
+    )
 
 
 # --------------------------------------------------------------------------------------
