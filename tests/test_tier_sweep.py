@@ -1346,6 +1346,54 @@ def test_load_existing_runs_treats_an_absent_record_as_empty(tmp_path: Path) -> 
     assert ts.load_existing_runs(tmp_path / "nope.json") == []
 
 
+def test_the_WRITER_preserves_a_complete_record_when_a_resume_trains_nothing(
+    tmp_path: Path,
+) -> None:
+    """The destructive case end to end, through the function the campaign actually calls.
+
+    ⚠️ Written after a mutation SURVIVED: testing ``merge_training_runs`` as a pure function did
+    NOT cover the writer, so a mutant that discarded the merge and wrote an empty list passed the
+    whole suite -- which is precisely the defect that emptied all four baselines records.  The
+    load-merge-write path is now one function and this exercises it against a real file.
+    """
+    record = tmp_path / "training_random_baselines.json"
+    existing = [
+        _run_entry("random", m, s)
+        for m in ("bc", "bc_top10", "bc_top10_perix", "iql")
+        for s in (101, 202, 303, 404, 505)
+    ]
+    record.write_text(json.dumps({"runs": existing}), encoding="utf-8")
+
+    payload = ts.write_training_record(record, {"tier": "random"}, [], protected=())
+
+    assert payload["runs_this_invocation"] == 0
+    assert len(payload["runs"]) == 20
+    assert len(json.loads(record.read_text(encoding="utf-8"))["runs"]) == 20
+
+
+def test_the_WRITER_adds_the_new_seeds_to_what_is_already_there(tmp_path: Path) -> None:
+    """O4's acceptance case through the writer: 3 on disk, 2 produced, 5 in the file."""
+    record = tmp_path / "training_random_dt_spatial.json"
+    record.write_text(
+        json.dumps({"runs": [_run_entry("random", "dt_spatial", s) for s in (101, 202, 303)]}),
+        encoding="utf-8",
+    )
+    produced = [_run_entry("random", "dt_spatial", s) for s in (404, 505)]
+    payload = ts.write_training_record(record, {"tier": "random"}, produced, protected=())
+    assert sorted(r["seed"] for r in payload["runs"]) == [101, 202, 303, 404, 505]
+    assert len(json.loads(record.read_text(encoding="utf-8"))["runs"]) == 5
+
+
+def test_the_WRITER_refuses_a_path_under_the_read_only_root(tmp_path: Path) -> None:
+    """D1 reaches the training record too -- it is a write like any other."""
+    (tmp_path / "p5_1").mkdir()
+    protected = ts.protected_roots_from([tmp_path / "p5_1"])
+    with pytest.raises(PermissionError, match="read-only"):
+        ts.write_training_record(
+            tmp_path / "p5_1" / "training_x.json", {"tier": "random"}, [], protected
+        )
+
+
 def test_the_training_record_name_carries_the_replicate_key(tmp_path: Path) -> None:
     """The J2(b) LEAK that caused the loss: the suffix covered the checkpoint and the cell but NOT
     this path, so phase R's replicate wrote into phase B's record and destroyed it.

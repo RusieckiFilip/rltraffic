@@ -1727,6 +1727,24 @@ def merge_training_runs(
     return [by_key[key] for key in sorted(by_key, key=lambda k: tuple(str(part) for part in k))]
 
 
+def write_training_record(
+    path: str | Path,
+    header: Mapping[str, Any],
+    produced: Sequence[Mapping[str, Any]],
+    protected: Sequence[Path],
+) -> dict[str, Any]:
+    """Load, MERGE, then write -- the whole O4 path in one place so it can be tested end to end.
+
+    Both training writers call this.  Keeping the load-merge-write sequence inside a single
+    function is what makes the destructive case reachable by a test: a mutant that writes
+    ``produced`` alone, or an empty list, is caught here rather than only in the pure merge.
+    """
+    merged = merge_training_runs(load_existing_runs(path), produced)
+    payload = {**dict(header), "runs": merged, "runs_this_invocation": len(produced)}
+    write_json_guarded(payload, path, protected)
+    return payload
+
+
 def _checkpoint_name(tier: str, method: str, seed: int, replicate: bool = False) -> str:
     """J2(b): the replicate's checkpoint carries a DISTINCT key, so no resume branch, cache or
     report path can serve phase B's own checkpoint in its place -- which would make the envelope
@@ -1808,17 +1826,15 @@ def _run_train(args: Any) -> int:
     record_path = work / training_record_name(
         tier, args.method, replicate=bool(getattr(args, "replicate", False))
     )
-    merged = merge_training_runs(load_existing_runs(record_path), records)
-    write_json_guarded(
+    write_training_record(
+        record_path,
         {
             "format_version": ARTIFACT_FORMAT_VERSION, "tier": tier, "method": args.method,
             "declared_gradient_steps": int(args.gradient_steps),
             "batch_size": int(args.batch_size), "deterministic": bool(args.deterministic),
             "replicate": bool(getattr(args, "replicate", False)),
-            "runs": merged,
-            "runs_this_invocation": len(records),
         },
-        record_path, protected,
+        records, protected,
     )
     return 0
 
@@ -1921,8 +1937,8 @@ def _run_train_baselines(args: Any) -> int:
     # destroyed by the absence of this line: on a resume every seed is skipped, `records` is empty,
     # and the old code wrote that empty list over 20 complete entries.
     record_path = work / f"training_{tier}_baselines.json"
-    merged = merge_training_runs(load_existing_runs(record_path), records)
-    write_json_guarded(
+    write_training_record(
+        record_path,
         {
             "format_version": ARTIFACT_FORMAT_VERSION, "tier": tier,
             "methods": ["bc", "bc_top10", "bc_top10_perix", "iql"],
@@ -1931,10 +1947,8 @@ def _run_train_baselines(args: Any) -> int:
             "global_decile_streams": len(kept_global),
             "per_intersection_decile_streams": len(kept_perix),
             "training_streams": len(streams),
-            "runs": merged,
-            "runs_this_invocation": len(records),
         },
-        record_path, protected,
+        records, protected,
     )
     return 0
 
