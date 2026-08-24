@@ -1,5 +1,101 @@
 # Patches a Claude Code session cannot apply itself
 
+## `ci_gate_ceiling_104_and_chain_walk.patch` — DEFERRED 54, THIRD instance, and the shape that guaranteed it
+
+**Apply with:**
+```bash
+git apply docs/patches/ci_gate_ceiling_104_and_chain_walk.patch    # on main
+.venv/bin/pytest tests/test_ci_gate.py -q                          # -> 34 passed
+```
+Verified with `git apply --check` against `main` @ `884a6df` on 2026-08-24, and applied-and-run in a
+throwaway worktree at the same commit. Two files: `.github/ci/ci_baseline.json` and
+`tests/test_ci_gate.py`. **Neither is the coordinator's to write** — `tests/**` by role,
+`.github/ci/**` by the `DEFERRED` 53 ruling — so this is the patch route, not a workaround.
+
+**What was red.** `69680fa` moved the ceiling in the JSON to 104 and left the second pin untouched:
+`tests/test_ci_gate.py:712` still read `== 98`. The suite failed, and the gate failed downstream of
+it. All three guards passed on both runner legs, so the TH002 patch introduced nothing.
+
+**Fixed what the file pins, not what the failure showed.** Assertions after the first failure never
+run, so the two visible failures were hiding three more:
+
+| # | Pin | On disk | Visible? |
+|---|---|---|---|
+| 1 | `expiry["reason"]` | **deleted by `69680fa`** | yes (`KeyError`) |
+| 2 | `skip_ceiling == 98` | 104 | yes |
+| 3 | `superseded.value == 72` | 98 | **masked by 2** |
+| 4 | `its_own_superseded.value == 62` | 72 | **masked by 2** |
+| 5 | the root `62` | now at depth 3, **pinned by nothing** | **masked by 2** |
+
+**Finding 1 is the JSON's defect, not the test's, and it inverts the natural reading.**
+`.github/ci/ci_gate.py:39` declares `reason` part of this file's format and `:308` prints it into the
+job summary through `expiry.get('reason', '')` — so the deletion produced an *empty clause in every
+job summary* instead of an error. The test was the only thing that noticed. `reason` is restored, and
+the loop now pins all five contracted keys.
+
+**Finding 5 is the durable one: the old shape guaranteed its own recurrence.** Each ceiling move adds
+a nesting level, so a depth-addressed test needs a *new* assertion every time — and at the 98→104
+move the root `62` fell out of the pinned set entirely, which is the one thing the previous
+docstring said must never happen. The chain is now **walked** and pinned as one literal,
+`CEILING_CHAIN = (104, 98, 72, 62)`, with the root asserted at whatever depth it lands. **Moving the
+ceiling is one edit from here on, not four.**
+
+**Two names for one relation is why a walk was impossible, and the coordinator's first draft proved
+it.** The JSON keyed the first link `superseded` and every deeper link `its_own_superseded`; the
+first version of the walk read the chain as `(104, 98)` and stopped. Caught by running the test, not
+by reading it. The JSON is now uniformly `superseded` at every depth, and a recursive **key** check
+forbids the second name returning.
+
+**Three dump-greps removed, each measured rather than argued.**
+- `assert "40" in json.dumps(block)` — *the alternative (CityFlow built) must be recorded too*.
+  **It expired rather than having always been empty:** with the alternative deleted the expression is
+  `False` on the 98-era baseline (`4866d52`) and `True` on this one, because the 104 measurement
+  itself introduced the string `"1240 passed"` into `measured.result`. **A substring assertion's
+  discriminating power is a function of data it does not name, so it can stop discriminating with
+  nobody editing it.** Replaced by arithmetic over a new declared `skip_breakdown`
+  (`sum == skip_ceiling`) and `ceiling_if_cityflow_were_built == skip_ceiling − breakdown["cityflow"]`.
+- `assert "CityFlow" in json.dumps(block)` — **survived deleting the entire CityFlow entry**, carried
+  by `"CityFlow not built"` in `measured.condition`. Replaced by a per-category invariant: one
+  recorded reason per skip category.
+- The coordinator wrote a **third** one in this very patch (`"its_own_superseded" not in
+  json.dumps(block)`) and it was tripped by the baseline note *documenting the rename* — a dump-grep
+  cannot tell a key from prose about a key. Replaced by the recursive key walk. Recorded here because
+  writing the defect one assertion after removing it is the finding.
+
+**Two stale prose entries corrected, and one category that never existed.**
+`ceiling_is_a_consequence_of` still said *"32 of these 72 skips … from 72 to 40"* and *"28 corpus-
+gated tests"* — the 2026-08-17 numbers, unedited through **two** ceiling moves, because the only
+assertion over them was the expired grep. Now 104/72 and 59, and the `campaign_output` category that
+`measured.breakdown` counted from the 104 move but this list never listed is added. The new
+`len(consequences) == len(breakdown)` assertion is what would have caught it.
+
+**Falsified, not inspected — 10 mutations, 10 behaved as required**, run against the patched tree in
+a throwaway worktree:
+
+```
+KILLED   M1 delete re_measure_required_at.reason (= 69680fa's own regression)
+KILLED   M2 skip_ceiling 104->105 with measured.value left at 104
+KILLED   M3 delete the ROOT link 62 from the chain
+KILLED   M4 skip_breakdown.cityflow 32->31
+KILLED   M5 delete ceiling_if_cityflow_were_built
+KILLED   M6 re-introduce the its_own_superseded key name
+KILLED   M8 delete the CityFlow prose alternative
+KILLED   M9 add a 6th skip category with no reason recorded for it
+KILLED   M10 blank why_it_was_wrong on the root link
+KILLED   M7 CONTROL: reword unrelated prose -- 34 passed, as required
+```
+
+M8 **survived** the first time and is why the third dump-grep was found; M3 is the defect the old
+test could not catch at all after the 104 move.
+
+**Measured on the patched tree:** `tests/test_ci_gate.py` **34 passed**; full suite **1288 passed, 56
+skipped** (pinned; 56 not 104 because this machine has the corpus and CityFlow — collected totals
+agree with the runner's 1238 + 2 + 104 = 1344). Guards: **English 4**, **hygiene 16**, **0 findings in
+`test_ci_gate.py`** — the baseline needs no guard edit.
+
+**The ceiling value itself is not re-derived here.** 104 was counted from the runner's `junit.xml` in
+`69680fa` and is taken as given; this patch pins it, explains it and makes the parts sum to it.
+
 ## `check_test_hygiene_conditional_constant.patch` — TH002 misses `assert X if False else True`
 
 **Apply with:**

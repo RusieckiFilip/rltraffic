@@ -1,0 +1,213 @@
+--- a/.github/ci/ci_baseline.json
++++ b/.github/ci/ci_baseline.json
+@@ -4,6 +4,16 @@
+   "read_by": ".github/ci/ci_gate.py -- see its module docstring for the format contract",
+   "pytest": {
+     "skip_ceiling": 104,
++    "skip_breakdown": {
++      "corpus_or_checkpoint": 59,
++      "cityflow": 32,
++      "sumo_traci": 10,
++      "matplotlib": 2,
++      "campaign_output": 1
++    },
++    "ceiling_if_cityflow_were_built": 72,
++    "superseded_chain_is_uniformly_named": "2026-08-24. Every link of measured.superseded.* is now keyed 'superseded', at every depth. It used to be 'superseded' at depth 1 and 'its_own_superseded' below, which is TWO NAMES FOR ONE RELATION and is exactly why the chain could only be pinned one depth at a time: a generic walk stops at the first name it does not recognise, and the coordinator's first attempt at this patch did precisely that, reading the chain as (104, 98) and stopping. Caught by running the test, not by reading it. tests/test_ci_gate.py now asserts the legacy key is absent, so the shape cannot come back.",
++    "breakdown_and_alternative_added": "2026-08-24. The breakdown existed only as prose inside measured.breakdown and the alternative only as prose inside ceiling_is_a_consequence_of, so NOTHING checked that the parts summed to the ceiling -- the same defect as the guards' by_file-versus-total gap recorded in guards.english.by_file_note, one block higher in this same file. tests/test_ci_gate.py now closes both by arithmetic. NOTE the coincidence, because it will confuse someone: ceiling_if_cityflow_were_built is 72, which is also the ceiling this file carried on 2026-08-17. Unrelated -- 104 - 32 = 72.",
+     "provisional": true,
+     "measured": {
+       "value": 104,
+@@ -17,10 +27,10 @@
+       "superseded": {
+         "value": 98,
+         "why_it_was_wrong": "Not wrong -- EXPIRED AS DECLARED. The 2026-08-19 entry named 'merge of P5.2' as its expiry. Observed delta +6. The coordinator's own predictions of that delta were wrong TWICE and are recorded because the pattern matters: '+1' on 2026-08-19 (read from a test file that then grew from 89 to 146 tests) and '>=4' on 2026-08-23 (counting skip SITES, which undercounts because one is parametrised). The protocol -- merge, read the observed number, commit it -- got it right both times without a prediction.",
+-        "its_own_superseded": {
++        "superseded": {
+           "value": 72,
+           "why_it_was_wrong": "Not wrong -- EXPIRED EXACTLY AS PREDICTED. The 2026-08-17 entry declared 're_measure_required_at: merge of P5.1' and forecast 'roughly +25 skips ... this ceiling WILL breach on that merge, and it is meant to'. Observed delta: +26. The mechanism worked; the number was stale.",
+-          "its_own_superseded": {
++          "superseded": {
+             "value": 62,
+             "why_it_was_wrong": "It came from a simulated runner on the dev machine, and the simulation was defeated by usrmerge: the harness removed `sumo` from a symlink copy of /usr/bin but left /bin on PATH, and /bin IS /usr/bin on this system, so shutil.which('sumo') kept finding it and 10 SUMO-gated tests ran that a runner skips. The error was invisible locally and was caught by the first real run -- which is the reason the ceiling was declared provisional and the branch was pushed."
+           }
+@@ -28,13 +38,15 @@
+       }
+     },
+     "ceiling_is_a_consequence_of": [
+-      "the workflow does NOT build the vendored CityFlow (coordinator ruling 2026-08-17: an unverified C++ build step is a new failure surface on the one task whose purpose is reliability). 32 of these 72 skips are cityflow-gated, so building it would move the ceiling from 72 to 40.",
+-      "no corpus is available on a runner: datasets*/ is gitignored and ~189 MB, so 28 corpus- and checkpoint-gated tests skip. That 28 independently reproduces the coordinator's 2026-08-16 corpus-absent measurement.",
++      "the workflow does NOT build the vendored CityFlow (coordinator ruling 2026-08-17: an unverified C++ build step is a new failure surface on the one task whose purpose is reliability). 32 of these 104 skips are cityflow-gated, so building it would move the ceiling from 104 to 72. CORRECTED 2026-08-24: this entry read '32 of these 72 ... from 72 to 40' and had survived TWO ceiling moves (72 -> 98 -> 104) unedited, because the only assertion over it was a substring grep, assert '40' in json.dumps(block), and that assertion EXPIRED rather than having always been empty. Measured 2026-08-24 on both eras: with the alternative deleted the expression is False on the 98-era file (4866d52) and True on this one, because the 104 measurement itself introduced the string '1240 passed' into measured.result. A substring assertion's discriminating power is a function of data it does not name, so it can stop discriminating with nobody editing it. The arithmetic is now pinned to ceiling_if_cityflow_were_built instead.",
++      "no corpus is available on a runner: datasets*/ is gitignored and ~189 MB, so 59 corpus- and checkpoint-gated tests skip. CORRECTED 2026-08-24 from 28, which was the 2026-08-17 measurement and had also survived two ceiling moves unedited; the 28 that once reproduced the coordinator's 2026-08-16 corpus-absent count is history, and P4.7, P5.1 and P5.2 each added corpus-gated tests since.",
+       "SUMO is not installed on the runner, so _sumo_available() is False and 10 SUMO-backed tests skip cleanly. sumolib IS present -- traci declares sumolib>=1.27.1 and pip resolved it -- so the gate here is the missing binary, not the missing module.",
+-      "the workflow installs the dev extra only, so the 2 matplotlib-gated tests skip."
++      "the workflow installs the dev extra only, so the 2 matplotlib-gated tests skip.",
++      "P5.2's campaign output lives in the gitignored output/p5_2, absent on a runner, so 1 further test skips. This category did not exist before 2026-08-24 and was missing from this list while being counted in measured.breakdown."
+     ],
+     "re_measure_required_at": {
+       "event": "merge of P5.3 (the no-RTG / context-length ablations), or any task adding corpus-gated tests",
++      "reason": "The ceiling is a COUNT of environment-gated skips, not a policy, so every task that adds a corpus-, CityFlow-, SUMO- or matplotlib-gated test moves it: it is stale by construction after any such merge, and a stale ceiling stops gating without saying so. RESTORED 2026-08-24 -- this field was dropped in 69680fa while ci_gate.py:39 still declares it part of the format and ci_gate.py:308 still reads it through a .get(..., '') default, so its absence printed an empty clause into every job summary instead of failing. tests/test_ci_gate.py:687 caught it; the gate could not.",
+       "predicted_delta": "NOT PREDICTED -- deliberately. Two coordinator predictions of this delta have been wrong; the protocol below does not need one.",
+       "what_to_do": "Merge, let this gate go red, download `ci-artifacts-<leg>` and classify junit.xml's <skipped> messages, then commit the observed value with its breakdown. Do NOT pre-bump and do NOT widen with slack: slack is what blinds the gate.",
+       "mandated_by": "coordinator ruling on BRIEF_23 Q1, 2026-08-17 -- 'a ceiling whose expiry lives only in a chat is a ceiling that silently breaches'."
+--- a/tests/test_ci_gate.py
++++ b/tests/test_ci_gate.py
+@@ -28,6 +28,7 @@
+ import subprocess
+ import sys
+ import zipfile
++from collections.abc import Iterator
+ from pathlib import Path
+ 
+ import pytest
+@@ -684,7 +685,16 @@
+     assert block["provisional"] is True
+     assert isinstance(block["skip_ceiling"], int)
+     expiry = block["re_measure_required_at"]
+-    for key in ("event", "reason", "mandated_by"):
++    # The full contracted key set, not a subset: ``reason`` was dropped from the baseline in
++    # 69680fa and only this loop noticed, because ci_gate.py:308 reads it through a
++    # ``.get(..., "")`` default and prints an empty clause rather than failing.  ``predicted_delta``
++    # and ``what_to_do`` are pinned for the same reason -- they carry the protocol that replaced a
++    # prediction, and a silent deletion would leave the next person without it.
++    for key in ("event", "reason", "predicted_delta", "what_to_do", "mandated_by"):
++        assert key in expiry, (
++            f"{key} is missing: ci_gate.py:39 declares it part of this file's format and "
++            f"ci_gate.py:308 reads it behind a .get default, so the gate cannot notice its loss"
++        )
+         assert expiry[key].strip(), f"{key} must say something a reader can act on"
+ 
+ 
+@@ -694,36 +704,108 @@
+     A future reader must be able to see that the number is a consequence of a choice, and
+     what the number would be under the other choice.
+ 
+-    The pinned value is **98**.  It supersedes **72** -- which did not turn out to be wrong but
+-    EXPIRED EXACTLY AS ITS OWN ENTRY PREDICTED, when P5.1's merge added the corpus-gated skips that
+-    entry forecast -- and 72 in turn superseded a simulated **62** that WAS wrong (see section
+-    "harness errors" of ``docs/returns/P0.10.md``).  The constant is pinned here, in a second file,
+-    precisely so that widening it is a visible edit in a diff rather than a quiet number change.
+-
+-    ⚠️ **Moving the ceiling requires FOUR edits in this file and not three** (``DEFERRED`` 54):
+-    the ceiling, the superseded value, the newly nested ``its_own_superseded``, and the English
+-    total.  **Assertions after the first failure in a test never run**, so a run that shows three
+-    failures can still be hiding a fourth -- which is exactly how this wall was hit.  The next
+-    person to move the ceiling will hit it too.
++    The chain is **104 -> 98 -> 72 -> 62**, newest first.  Only the root was ever WRONG: 62 came
++    from a simulated runner (see section "harness errors" of ``docs/returns/P0.10.md``).  72 and 98
++    EXPIRED EXACTLY AS THEIR OWN ENTRIES SAID THEY WOULD, on the merges of P5.1 and P5.2.  The chain
++    is pinned here, in a second file, precisely so that widening it is a visible edit in a diff
++    rather than a quiet number change.
++
++    ⚠️ **Moving the ceiling is now ONE literal in this file: ``CEILING_CHAIN``.**  It used to be
++    four, one per nesting depth, under two different key names, and that shape guaranteed its own
++    recurrence -- every move added a
++    level, so it needed a NEW assertion each time, and **at the 98 -> 104 move the root 62 fell out
++    of the pinned set entirely**, which is the one thing the previous docstring said must never
++    happen.  ``DEFERRED`` 54, third instance.  The walk below reaches the root at whatever depth it
++    lands.  *(If a skip CATEGORY moves rather than the total, ``skip_breakdown`` in the baseline
++    moves too and the arithmetic below fails until it does -- that is intended.)*
+     """
++    #: The declared ceiling and every value it supersedes, newest first.  ONE literal, walked
++    #: rather than addressed by depth -- see the docstring for why the depth-addressed form let
++    #: the root drop out of the record.
++    CEILING_CHAIN = (104, 98, 72, 62)
++
+     baseline = json.loads(BASELINE_FILE.read_text(encoding="utf-8"))
+     block = baseline["pytest"]
+ 
+-    assert block["skip_ceiling"] == 98
+     assert block["measured"]["measured_on_a_github_runner"] is True
+-    provenance = json.dumps(block)
+-    assert "CityFlow" in provenance
+-    assert "40" in provenance, "the alternative (CityFlow built) must be recorded too"
+-
+-    # A superseded measurement is kept, not deleted: the reason a number moved is part of
+-    # the number.  This is an addition to the test, not a relaxation of it.
+-    assert block["measured"]["superseded"]["value"] == 72
+-    assert block["measured"]["superseded"]["why_it_was_wrong"].strip()
+-    # The chain stays pinned to its root: 98 supersedes 72 supersedes 62.  Pinning only the most
+-    # recent link would let the original defect -- the simulated 62 -- drop out of the record
+-    # silently the next time the ceiling moves.
+-    assert block["measured"]["superseded"]["its_own_superseded"]["value"] == 62
+-    assert block["measured"]["superseded"]["its_own_superseded"]["why_it_was_wrong"].strip()
++    # The headline and its own evidence are two fields that have always been edited by hand and
++    # independently; nothing asserted they agree until now.
++    assert block["skip_ceiling"] == block["measured"]["value"], (
++        "skip_ceiling and measured.value are the same number recorded twice and they disagree"
++    )
++
++    chain = [int(block["skip_ceiling"])]
++    why: list[str] = []
++    link = block["measured"]
++    while "superseded" in link:
++        link = link["superseded"]
++        chain.append(int(link["value"]))
++        why.append(str(link["why_it_was_wrong"]))
++
++    assert tuple(chain) == CEILING_CHAIN, (
++        f"the ceiling chain on disk is {tuple(chain)} against the pinned {CEILING_CHAIN}"
++    )
++    assert chain[-1] == 62, (
++        "the ONLY link that was ever actually wrong -- the simulated 62 -- must stay in the "
++        "record at whatever depth the next move pushes it to"
++    )
++    assert len(why) == len(CEILING_CHAIN) - 1
++    assert all(text.strip() for text in why), "the reason a number moved is part of the number"
++    # One relation, one key name, at every depth.  The baseline used to say "superseded" at the
++    # first level and "its_own_superseded" below it, and a generic walk stops dead at the second
++    # name -- which is why the chain could previously only be pinned one depth at a time, and
++    # which truncated the first draft of this very walk to (104, 98).
++    #
++    # Asserted over KEYS, recursively, and not over ``json.dumps(block)``: a substring test over
++    # the dump cannot tell a key from PROSE ABOUT a key, and the first draft of this assertion was
++    # tripped by the baseline note that documents the rename.  That is the same weak shape as the
++    # ``"40" in provenance`` test removed below, written one assertion after removing it.
++    def every_key(node: object) -> Iterator[str]:
++        if isinstance(node, dict):
++            for key, value in node.items():
++                yield key
++                yield from every_key(value)
++        elif isinstance(node, list):
++            for item in node:
++                yield from every_key(item)
++
++    assert "its_own_superseded" not in set(every_key(block)), (
++        "a second name for the superseded relation is back as a KEY; the walk above will "
++        "silently truncate at it and the root will drop out of the record again"
++    )
++
++    # The alternative -- what the ceiling would be if CityFlow were built -- is checked as
++    # ARITHMETIC over a declared breakdown.  What stood here was ``assert "40" in json.dumps(block)``,
++    # and that assertion EXPIRED rather than having always been empty.  Measured 2026-08-24 on both
++    # eras: with the alternative deleted the expression is False on the 98-era baseline (4866d52)
++    # and True on this one, because the 104 measurement itself introduced the string "1240 passed"
++    # into ``measured.result``.  A substring assertion's discriminating power is a function of data
++    # it does not name, so it can stop discriminating with nobody editing it -- and that is how the
++    # sentence it was guarding stayed at the 72-era numbers through two ceiling moves.
++    breakdown = block["skip_breakdown"]
++    assert sum(breakdown.values()) == block["skip_ceiling"], (
++        f"the skip breakdown sums to {sum(breakdown.values())} against a ceiling of "
++        f"{block['skip_ceiling']}; a total and an enumeration that disagree is DEFERRED 53's class"
++    )
++    assert (
++        block["ceiling_if_cityflow_were_built"]
++        == block["skip_ceiling"] - breakdown["cityflow"]
++    ), "the recorded alternative does not equal ceiling minus the CityFlow-gated skips"
++    # Every category the ceiling is MADE of must carry a recorded reason.  This ties the prose to
++    # the arithmetic: an unexplained category, or a silently emptied explanation list, now fails.
++    # It is also what would have caught the campaign-output category, which was counted in
++    # ``measured.breakdown`` from the 104 move and never added to this list until 2026-08-24.
++    # ``assert "CityFlow" in json.dumps(block)`` stood here and SURVIVED deleting the entire
++    # CityFlow entry, because "CityFlow not built" also appears in ``measured.condition`` -- the
++    # third dump-grep in this one test to be satisfied by a string it was not asking about.
++    consequences = block["ceiling_is_a_consequence_of"]
++    assert len(consequences) == len(breakdown), (
++        f"{len(breakdown)} skip categories against {len(consequences)} recorded reasons; "
++        "every category the ceiling is made of must say why it is there"
++    )
++    assert any("CityFlow" in entry for entry in consequences), (
++        "the CityFlow choice is the ceiling's largest single cause and must stay stated in prose"
++    )
+ 
+ 
+ # --------------------------------------------------------------------------------------
