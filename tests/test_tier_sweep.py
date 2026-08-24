@@ -1283,6 +1283,222 @@ def test_the_manifest_covers_every_declared_tier_and_arm() -> None:
 
 
 # ----------------------------------------------------------------------
+# BL-1 / O4 -- a resume MERGES into the training record; it never overwrites it.
+# ----------------------------------------------------------------------
+
+
+def _run_entry(tier: str, method: str, seed: int, **extra: Any) -> dict[str, Any]:
+    return {"tier": tier, "method": method, "seed": seed, "final_loss": 0.1, **extra}
+
+
+def test_a_resume_that_trains_three_seeds_then_two_leaves_a_record_of_FIVE() -> None:
+    """O4's acceptance case, stated by the amendment: write 3 seeds, resume, assert the file has 5.
+
+    🚨 This test exists because its absence destroyed six records in an un-backed-up tree.  The old
+    writer held only the seeds trained in the CURRENT invocation and wrote them over whatever was
+    there, so a resume -- which skips every seed already on disk -- wrote a SHORT record, and a
+    resume with nothing left to do wrote an EMPTY one.
+    """
+    first = [_run_entry("random", "dt_spatial", s) for s in (101, 202, 303)]
+    second = [_run_entry("random", "dt_spatial", s) for s in (404, 505)]
+    merged = ts.merge_training_runs(first, second)
+    assert len(merged) == 5
+    assert sorted(r["seed"] for r in merged) == [101, 202, 303, 404, 505]
+
+
+def test_a_resume_with_nothing_left_to_do_preserves_the_whole_record() -> None:
+    """The exact shape that emptied all four ``*_baselines.json`` files: produced == []."""
+    existing = [
+        _run_entry(t, m, s)
+        for t in ("random",) for m in ("bc", "bc_top10", "bc_top10_perix", "iql")
+        for s in (101, 202, 303, 404, 505)
+    ]
+    assert len(existing) == 20
+    merged = ts.merge_training_runs(existing, [])
+    assert len(merged) == 20, "a resume that trains nothing must not empty the record"
+
+
+def test_a_rerun_of_one_seed_REPLACES_its_entry_rather_than_duplicating_it() -> None:
+    """Merging by (tier, method, seed) means a re-run updates, and the record stays one-per-cell."""
+    existing = [_run_entry("random", "dt_spatial", s, final_loss=0.9) for s in (101, 202)]
+    merged = ts.merge_training_runs(existing, [_run_entry("random", "dt_spatial", 202, final_loss=0.1)])
+    assert len(merged) == 2
+    assert {r["seed"]: r["final_loss"] for r in merged} == {101: 0.9, 202: 0.1}
+
+
+def test_the_merge_keys_on_all_three_fields_so_arms_and_tiers_cannot_collide() -> None:
+    """One record can hold several methods -- the baselines file holds four -- so the key needs all
+    three fields.  Keying on ``seed`` alone would let ``bc`` overwrite ``iql``."""
+    existing = [_run_entry("random", "bc", 101), _run_entry("random", "iql", 101)]
+    merged = ts.merge_training_runs(existing, [_run_entry("random", "bc", 101, final_loss=0.2)])
+    assert len(merged) == 2
+    assert {(r["method"], r["final_loss"]) for r in merged} == {("bc", 0.2), ("iql", 0.1)}
+
+
+def test_the_merged_record_is_ordered_deterministically() -> None:
+    """A stable order means a diff on this file shows real changes, not reordering."""
+    runs = [_run_entry("random", "iql", 505), _run_entry("random", "bc", 101)]
+    assert ts.merge_training_runs(runs, []) == ts.merge_training_runs(list(reversed(runs)), [])
+
+
+def test_load_existing_runs_treats_an_absent_record_as_empty(tmp_path: Path) -> None:
+    """The first invocation has nothing to merge into, and that must not be an error."""
+    assert ts.load_existing_runs(tmp_path / "nope.json") == []
+
+
+def test_the_training_record_name_carries_the_replicate_key(tmp_path: Path) -> None:
+    """The J2(b) LEAK that caused the loss: the suffix covered the checkpoint and the cell but NOT
+    this path, so phase R's replicate wrote into phase B's record and destroyed it.
+
+    A distinct artifact key is only distinct if it covers every artifact class the run writes.
+    """
+    plain = ts.training_record_name("random", "dt_spatial")
+    repl = ts.training_record_name("random", "dt_spatial", replicate=True)
+    assert plain != repl
+    assert ts.REPLICATE_SUFFIX in repl and ts.REPLICATE_SUFFIX not in plain
+    # and it must be distinct in the same way the other two artifact classes are
+    assert (ts.REPLICATE_SUFFIX in ts._checkpoint_name("random", "dt_spatial", 202, replicate=True)
+            and ts.REPLICATE_SUFFIX in ts.cell_filename("random", "dt_spatial", 202, replicate=True))
+
+
+# ----------------------------------------------------------------------
+# BL-2 -- score_stop_rule: Q0's d4, the task's declared FIRST result.
+# ----------------------------------------------------------------------
+
+
+def _stop_cell(method: str, per_seed_offset: dict[int, float]) -> dict[str, Any]:
+    return {
+        "method": method, "declared_gradient_steps": 40_000,
+        "episodes": [
+            {"seed": s, "draw_id": d, "att_horizon": 200.0 + (d % 7) + off,
+             "horizon_vehicle_count": 15.0, "episode_reward": -1.0, "arm": f"{method}@mappo1000"}
+            for s, off in per_seed_offset.items() for d in range(1000, 1100)
+        ],
+    }
+
+
+SEEDS_5 = (101, 202, 303, 404, 505)
+
+
+def test_the_stop_rule_scores_d4_as_spatial_MINUS_nomix_and_not_the_reverse() -> None:
+    """M04: a sign flip turns ``+27.10 CONTINUE`` into ``-27.10 STOP``.
+
+    The campaign would then refuse the ladder and report a reversal that did not happen -- on the
+    task's declared FIRST result.  The direction is the whole meaning of the quantity.
+    """
+    spatial = _stop_cell("dt_spatial_h4", {s: +8.0 for s in SEEDS_5})
+    nomix = _stop_cell("dt_nomix_h4", {s: 0.0 for s in SEEDS_5})
+    report = ts.score_stop_rule(spatial, nomix, SEEDS_5)
+    assert report["mean_difference"] == pytest.approx(+8.0)
+    assert report["verdict"] == "CONTINUE"
+
+
+def test_the_stop_rule_fires_when_the_MIXING_arm_is_better() -> None:
+    """The other side of M04, so the test cannot be satisfied by a constant."""
+    spatial = _stop_cell("dt_spatial_h4", {s: -8.0 for s in SEEDS_5})
+    nomix = _stop_cell("dt_nomix_h4", {s: 0.0 for s in SEEDS_5})
+    report = ts.score_stop_rule(spatial, nomix, SEEDS_5)
+    assert report["mean_difference"] == pytest.approx(-8.0)
+    assert report["verdict"] == "STOP"
+
+
+def test_the_stop_rule_uses_ONLY_the_requested_seeds() -> None:
+    """M05: dropping the seed filter pools episodes the caller excluded.
+
+    A seed present in the cell but not in the declared set would then enter d4 silently.
+    """
+    spatial = _stop_cell("dt_spatial_h4", {101: +8.0, 202: +8.0, 909: -500.0})
+    nomix = _stop_cell("dt_nomix_h4", {101: 0.0, 202: 0.0, 909: 0.0})
+    report = ts.score_stop_rule(spatial, nomix, (101, 202))
+    assert report["mean_difference"] == pytest.approx(+8.0), "seed 909 must not enter d4"
+    assert report["verdict"] == "CONTINUE"
+
+
+def test_the_stop_rule_pairs_WITHIN_each_draw_and_not_against_a_pooled_mean() -> None:
+    """M06: pairing each draw against the nomix MEAN discards the pairing A5 requires.
+
+    Constructed so the two agree on the mean and disagree on the interval: the per-draw differences
+    are constant (+8) and therefore have zero variance, while differencing against a pooled mean
+    inherits the draw-to-draw spread and widens the CI.  A mutant that unpairs is caught by the
+    WIDTH even when the point estimate survives.
+    """
+    spatial = _stop_cell("dt_spatial_h4", {s: +8.0 for s in SEEDS_5})
+    nomix = _stop_cell("dt_nomix_h4", {s: 0.0 for s in SEEDS_5})
+    report = ts.score_stop_rule(spatial, nomix, SEEDS_5)
+    assert report["mean_difference"] == pytest.approx(+8.0)
+    # The WIDTH is what kills the unpairing mutant: paired per-draw differences are constant here,
+    # so the interval collapses to a point.  Differencing against a pooled mean inherits the
+    # draw-to-draw spread and the width becomes non-zero while the point estimate survives.
+    assert report["ci95_width"] == pytest.approx(0.0, abs=1e-9)
+    assert report["ci95_low"] == pytest.approx(+8.0)
+    assert report["ci95_high"] == pytest.approx(+8.0)
+
+
+def test_the_stop_rule_refuses_cells_that_share_no_draws() -> None:
+    """A5: a comparison that cannot be made over shared draws is void, not approximated."""
+    spatial = _stop_cell("dt_spatial_h4", {101: 0.0})
+    nomix = {
+        "method": "dt_nomix_h4", "declared_gradient_steps": 40_000,
+        "episodes": [{"seed": 101, "draw_id": d, "att_horizon": 1.0,
+                      "horizon_vehicle_count": 1.0, "episode_reward": -1.0, "arm": "x"}
+                     for d in range(5000, 5100)],
+    }
+    with pytest.raises(ValueError, match="share no draw ids"):
+        ts.score_stop_rule(spatial, nomix, (101,))
+
+
+def test_the_stop_rule_reports_the_quantity_it_scores() -> None:
+    """The artifact must name d4 explicitly, so a reader is not left inferring the direction."""
+    spatial = _stop_cell("dt_spatial_h4", {101: +1.0})
+    nomix = _stop_cell("dt_nomix_h4", {101: 0.0})
+    report = ts.score_stop_rule(spatial, nomix, (101,))
+    assert "dt_spatial_h4" in report["quantity"] and "dt_nomix_h4" in report["quantity"]
+    assert report["n_shared_draws"] == 100
+
+
+def test_the_stop_rule_COMMAND_exits_3_and_writes_the_marker(tmp_path: Path) -> None:
+    """``_run_stop_rule``'s exit-3 branch: the halt is the campaign's, and the script reads it.
+
+    The script suspends ``set -e`` for exactly this call and branches on 3, so an exit code that
+    silently became 1 would abort the campaign as an ERROR instead of halting it as a registered
+    OUTCOME -- and STOPPED_BY_RULE would never be written.
+    """
+    work = tmp_path / "work"
+    work.mkdir()
+    (work / "eval_mappo1000_dt_spatial_h4.json").write_text(
+        json.dumps(_stop_cell("dt_spatial_h4", {s: -8.0 for s in SEEDS_5})), encoding="utf-8"
+    )
+    (work / "eval_mappo1000_dt_nomix_h4.json").write_text(
+        json.dumps(_stop_cell("dt_nomix_h4", {s: 0.0 for s in SEEDS_5})), encoding="utf-8"
+    )
+    args = _factory_args(work_dir=str(work), out_dir=str(work), tier="mappo1000",
+                         reuse_root=str(tmp_path / "reuse"))
+    (tmp_path / "reuse").mkdir()
+    assert ts._run_stop_rule(args) == 3
+    assert (work / "STOPPED_BY_RULE").is_file()
+    assert "entirely below zero" in (work / "STOPPED_BY_RULE").read_text(encoding="utf-8")
+
+
+def test_the_stop_rule_COMMAND_exits_0_and_writes_no_marker_when_it_continues(
+    tmp_path: Path,
+) -> None:
+    """The accept control: a guard that always halts is not a guard."""
+    work = tmp_path / "work"
+    work.mkdir()
+    (work / "eval_mappo1000_dt_spatial_h4.json").write_text(
+        json.dumps(_stop_cell("dt_spatial_h4", {s: +8.0 for s in SEEDS_5})), encoding="utf-8"
+    )
+    (work / "eval_mappo1000_dt_nomix_h4.json").write_text(
+        json.dumps(_stop_cell("dt_nomix_h4", {s: 0.0 for s in SEEDS_5})), encoding="utf-8"
+    )
+    args = _factory_args(work_dir=str(work), out_dir=str(work), tier="mappo1000",
+                         reuse_root=str(tmp_path / "reuse"))
+    (tmp_path / "reuse").mkdir()
+    assert ts._run_stop_rule(args) == 0
+    assert not (work / "STOPPED_BY_RULE").exists()
+
+
+# ----------------------------------------------------------------------
 # Every declared cell must have a CONSTRUCTIBLE action factory (Gate 0).
 # ----------------------------------------------------------------------
 

@@ -1679,6 +1679,54 @@ def _require_tier(args: Any) -> str:
     return str(args.tier)
 
 
+#: O4: a training record is keyed by these, and a resume MERGES into it rather than overwriting.
+TRAINING_RECORD_KEY: tuple[str, ...] = ("tier", "method", "seed")
+
+
+def training_record_name(tier: str, method: str, replicate: bool = False) -> str:
+    """The training record's filename.
+
+    ⚠️ **It carries ``REPLICATE_SUFFIX`` too, and its absence was a J2(b) LEAK that destroyed data.**
+    The suffix covered the checkpoint name and the evaluation cell but not this path, so phase R's
+    replicate wrote into phase B's record and overwrote it.  A "distinct artifact key" is only
+    distinct if it covers every artifact class the run writes.
+    """
+    return f"training_{tier}_{method}{REPLICATE_SUFFIX if replicate else ''}.json"
+
+
+def load_existing_runs(path: str | Path) -> list[dict[str, Any]]:
+    """The ``runs`` already recorded at *path*, or an empty list if there is no record yet."""
+    import json as _json
+
+    target = Path(path)
+    if not target.is_file():
+        return []
+    payload = _json.loads(target.read_text(encoding="utf-8"))
+    return [dict(run) for run in payload.get("runs", [])]
+
+
+def merge_training_runs(
+    existing: Sequence[Mapping[str, Any]], produced: Sequence[Mapping[str, Any]]
+) -> list[dict[str, Any]]:
+    """``BRIEF_27`` O4: merge by ``(tier, method, seed)`` instead of overwriting.
+
+    🚨 **THIS EXISTS BECAUSE ITS ABSENCE DESTROYED SIX RECORDS IN AN UN-BACKED-UP TREE.**  The old
+    code held only the seeds trained in the CURRENT invocation and wrote ``"runs": records`` over
+    whatever was there.  A resume, which skips every seed already on disk, therefore wrote an EMPTY
+    list over a complete one -- and that is exactly what happened to all four ``*_baselines.json``
+    records, each of which had held 20 runs.
+
+    A run produced now REPLACES the entry with the same key -- a re-run of one seed should update
+    it, not duplicate it -- and every other entry is preserved.  The result is sorted so the file
+    is stable across invocations and a diff shows real changes rather than reordering.
+    """
+    by_key: dict[tuple[Any, ...], dict[str, Any]] = {}
+    for run in list(existing) + list(produced):
+        key = tuple(run.get(field) for field in TRAINING_RECORD_KEY)
+        by_key[key] = dict(run)
+    return [by_key[key] for key in sorted(by_key, key=lambda k: tuple(str(part) for part in k))]
+
+
 def _checkpoint_name(tier: str, method: str, seed: int, replicate: bool = False) -> str:
     """J2(b): the replicate's checkpoint carries a DISTINCT key, so no resume branch, cache or
     report path can serve phase B's own checkpoint in its place -- which would make the envelope
@@ -1755,14 +1803,22 @@ def _run_train(args: Any) -> int:
     work = Path(args.work_dir)
     assert_writable(work, protected)
     work.mkdir(parents=True, exist_ok=True)
+    # O4: merge by (tier, method, seed).  A resume skips the seeds already on disk, so writing
+    # `records` alone would overwrite a complete record with a partial one -- or an empty one.
+    record_path = work / training_record_name(
+        tier, args.method, replicate=bool(getattr(args, "replicate", False))
+    )
+    merged = merge_training_runs(load_existing_runs(record_path), records)
     write_json_guarded(
         {
             "format_version": ARTIFACT_FORMAT_VERSION, "tier": tier, "method": args.method,
             "declared_gradient_steps": int(args.gradient_steps),
             "batch_size": int(args.batch_size), "deterministic": bool(args.deterministic),
-            "runs": records,
+            "replicate": bool(getattr(args, "replicate", False)),
+            "runs": merged,
+            "runs_this_invocation": len(records),
         },
-        work / f"training_{tier}_{args.method}.json", protected,
+        record_path, protected,
     )
     return 0
 
@@ -1861,6 +1917,11 @@ def _run_train_baselines(args: Any) -> int:
                             "gradient_steps": int(args.gradient_steps)})
     work = Path(args.work_dir)
     work.mkdir(parents=True, exist_ok=True)
+    # O4: merge by (tier, method, seed).  All four of this task's *_baselines.json records were
+    # destroyed by the absence of this line: on a resume every seed is skipped, `records` is empty,
+    # and the old code wrote that empty list over 20 complete entries.
+    record_path = work / f"training_{tier}_baselines.json"
+    merged = merge_training_runs(load_existing_runs(record_path), records)
     write_json_guarded(
         {
             "format_version": ARTIFACT_FORMAT_VERSION, "tier": tier,
@@ -1870,9 +1931,10 @@ def _run_train_baselines(args: Any) -> int:
             "global_decile_streams": len(kept_global),
             "per_intersection_decile_streams": len(kept_perix),
             "training_streams": len(streams),
-            "runs": records,
+            "runs": merged,
+            "runs_this_invocation": len(records),
         },
-        work / f"training_{tier}_baselines.json", protected,
+        record_path, protected,
     )
     return 0
 
@@ -2091,8 +2153,12 @@ def score_stop_rule(
         "quantity": "d4 = ATT(dt_spatial_h4) - ATT(dt_nomix_h4), paired per shared draw",
         "n_shared_draws": len(shared),
         "mean_difference": stats.mean,
+        "std": stats.std,
         "ci95_low": low,
         "ci95_high": high,
+        # D8: every reported pair carries the CI WIDTH, not only its endpoints.  It is also what
+        # discriminates a paired difference from an unpaired one when the point estimate agrees.
+        "ci95_width": high - low,
         "verdict": verdict,
         "reading": (
             "STOP: the CI lies entirely below zero, so spatial mixing HELPS at 4 heads and P5.1's "
