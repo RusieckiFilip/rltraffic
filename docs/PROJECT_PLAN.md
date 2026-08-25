@@ -1758,7 +1758,8 @@ dangerous — accuracy elsewhere is not evidence for the line you did not check.
   running on /tmp/tmux-1000/default`**; `git status -sb` → **clean, `## main...origin/main`**.
   The `p52` worktree is retired; `task/p5.2-tier-sweep` is kept on `origin` as a pre-merge copy.
   ⚠️ **`main` is at `37b01f9` after this session's docs commit; `884a6df` is the commit CI last ran on.**
-- 🔴 **CI IS RED ON `main` AND THE FIX IS A PATCH AWAITING A HUMAN — `docs/patches/ci_gate_ceiling_104_and_chain_walk.patch`.** `gh run list` 2026-08-24: **three consecutive failures**
+- ✅ **CI IS GREEN AGAIN — patch applied by the author at `7ee606a`, run `completed success`, read from `gh run list` on 2026-08-25, not from the commit message.** The bullet below is kept as the record of what was wrong. ⚠️ **The ceiling's own expiry now names *"merge of P5.3"*, so this gate is EXPECTED to go red at P5.3a's merge — that is the mechanism working, and the protocol is in `re_measure_required_at.what_to_do`: merge, read the observed count from `junit.xml`, commit it with its breakdown. Do not pre-bump.**
+- 🔴 **WAS RED, 2026-08-24 — `docs/patches/ci_gate_ceiling_104_and_chain_walk.patch`, now applied.** `gh run list` 2026-08-24: **three consecutive failures**
   (`63e384e`, `69680fa`, `884a6df`); all three guards **pass** on both legs, so the redness is the suite
   and the gate downstream of it. **`DEFERRED` 54's third instance**: `69680fa` moved the ceiling to 104
   in the JSON and left `tests/test_ci_gate.py:712` pinned at 98. **Five pins were stale, three of them
