@@ -284,9 +284,59 @@ nothing is BC with extra parameters, which is exactly what BC-within-1.51-ATT lo
 For scale, 2603.22315's Table 8 sweeps composition on 4×4 — expert-only **118.5** ETT against their
 70/15/15 mixture's **88.6**, i.e. **expert-only is 33.7 % WORSE** — and 2602.02903 measures removing
 return conditioning at **5.2 %** (328.5 → 345.6).
+> ⛔ **SUPERSEDED 2026-08-25 BY MEASUREMENT — SEE THE CORRECTION BLOCK IMMEDIATELY BELOW. The
+> sentence stands unedited as the record of what was believed.**
 > **BINDING: the prompt is a weak lever IN THIS CORPUS. The sentence may not be read as excluding
 > corpus-side return spread, which was NEVER MEASURED. The discriminating measurement is the no-RTG
 > ablation, already registered as P5.3 and named in `docs/plans/p4.4.md:295`.**
+
+### 🚨 CORRECTION 2026-08-25 — *"P4.3 MADE THE PROMPT A WEAK LEVER"* IS A MISREADING OF ITS OWN NUMBER, AND IT HAS BEEN IN THIS PLAN SINCE 2026-08-13
+
+**This block supersedes FOUR sites, listed so the sweep is checkable rather than asserted:** this
+section's BINDING sentence above, **§1's line 68** (*"P4.3 (a weak lever across a 13,000-wide declared
+grid)"*), **§10 queue item 2** (*"made it weak in-domain"*) and **§10 queue item 5** (*"P4.3 made the
+prompt a weak lever IN-DOMAIN (0.9026 ATT across 13,000 units)"*). **Every one is the coordinator's
+own sentence.**
+
+**The number was never wrong; the reading was.** `docs/data/p4_3_rtg.json` has carried per-episode ATT
+for every grid point since 2026-08-13. Pairing `dt_g0` (target `0`) against `dt_g8` (target `−13000`)
+over the same 100 held-out draws × 5 seeds — **n = 500 paired cells, computed 2026-08-25:**
+
+| quantity | value |
+|---|---|
+| mean difference | **+0.9026** — reproduces P4.3's committed headline exactly, which is what validates the pairing |
+| median | +0.9553 |
+| **sd** | **2.6300** |
+| min / max | **−9.6692 / +11.5798** |
+| cells that move at all | **499 of 500** |
+| cells moving ≥ 2 ATT | **211 of 500 (42.2 %)** |
+| mean absolute movement | **2.1281** |
+
+**0.9026 is the mean of a distribution whose spread is three times its mean.** The prompt moves
+**499 of 500** episodes, by a mean absolute **2.13 ATT** and up to **11.58**, and it moves them **in
+the registered direction** — prompting for a worse return yields worse performance. Naively, +0.9026
+against SE ≈ 0.118 is **t ≈ 7.7**; ⚠️ **the seed/draw dependence structure means P8.1 owns the real
+interval and this figure may NOT be quoted as one.**
+
+> ✅ **THE CORRECTED CLAIM, and it is narrower than either the old sentence or its opposite: the return
+> prompt is a STRONG lever on the POLICY and a WEAK lever on MEAN PERFORMANCE. Those are different
+> statements and the paper must not collapse them.** **`A9` therefore has an object** — the model did
+> learn to condition on the token, so there is something for a calibration protocol to calibrate, and
+> **`P7.2` has a subject.** **What remains unproven is that calibration IMPROVES quality in-domain**,
+> which is a much narrower gap than *"the prompt does nothing"*.
+> ⭐ **Corroborated independently by P5.3a on a different instrument:** teacher-forced probing shows the
+> greedy action changing on 0.00–1.17 % of decisions on *behaviour-policy* states, while a live rollout
+> of the same cell flips **47.22 %** of 360 decisions between the grid endpoints. **Instantaneous
+> sensitivity is small; compounded closed-loop sensitivity is large.** That is the same dissociation
+> from the other side.
+> ⚠️ **`fixedtime` and `random` are genuine exceptions and stay exceptions:** their DTs are insensitive
+> at the argmax (0 of 7200 flips), independently confirmed. **The claim is about the corpus in general,
+> not about every tier.**
+> 🚨 **The lesson is the one this project keeps paying for, and this time in the coordinator's own
+> hand: a summary statistic was read as a property.** 0.9026 is a *mean of differences*; *"weak lever"*
+> is a claim about the *distribution*. **Nobody opened the distribution for twelve days, and it cost
+> the framing of the paper's only named contribution.** The correction cost one command against an
+> artifact we already had.
 
 ### ⭐⭐ THE MOST IMPORTANT THING P4.7 PRODUCED IS THE FALSIFICATION OF R3 — AND R3 WAS MINE
 
