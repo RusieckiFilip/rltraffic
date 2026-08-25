@@ -414,3 +414,187 @@ number of any kind exists.
   `.github/ci/ci_baseline.json` only. **It is not yours to fix and it does not touch your files.** If
   your branch shows those two tests failing, that is the inherited state — say so in the packet and
   do not edit either file.
+
+---
+
+# ✅ AMENDMENT A — 2026-08-25, ruled at GATE 1
+
+**All five questions answered, all twelve findings accepted or corrected, and one ruling is a
+withdrawal of something this brief registered six days ago and got wrong.** The plan file is
+`docs/plans/p5.3a.md` (finding 9 is right; repo convention wins over anything said in chat).
+
+## A0 — what the coordinator re-verified first-hand, and what he took on report
+
+**Re-verified by running the command, 2026-08-25:** finding **1** (`scenarios/draws/cityflow1x1/`
+holds exactly **11** dirs — `draw_0000…0005` and `draw_1000…1004`; `.gitignore:227` ignores
+`scenarios/draws/`; `git ls-files` returns **0**), finding **12** (`output/p4_6/checkpoints/` carries
+only `fixedtime, mappo500, maxpressure, random`; `mappo1000`'s DT column is `output/p4_dt/dt_seed*.pt`),
+finding **3** (δ is stored signed; `dt@mappo1000 = −0.6262756469347375`, `dt@fixedtime =
+−5.684341886080802e-16`), finding **5** (only committed `NormalizationStats` copy is inside the
+checkpoint payload — `find` over `output/`, `datasets_v11/`, `docs/data/` returns nothing), and
+`method_tier_grid.py:2035,2104,2114` (`--draws-root` defaults to `scenarios/draws` and resolves each
+draw through `draw_config_path`, so **the evaluation path really does need the draws on disk**).
+
+**Taken on your report, and named as such:** findings 4, 6, 7, 8, 10, 11 and the 17 signature checks.
+
+⭐ **Finding 1 is not just a blocker, it is a LOSS, and it belongs in the record:** P4.6 and P4.7
+materialised draws 1000–1099 inside their own worktrees, `scenarios/draws/` is gitignored and therefore
+**per-worktree**, and retiring those worktrees deleted them. `PROJECT_PLAN` §10 already carries the rule
+*"before retiring any worktree, run `git status --porcelain --ignored` and ask whether a merged artifact
+references anything ignored there"* — **the rule existed and this still slipped through**, because the
+merged artifacts reference the draws by **id** and an id looks like data rather than like a file.
+
+## A1 — Q1: MATERIALISE 1000–1099 into `scenarios/draws/`, with a bit-identity control first
+
+**Ruled: the shared root, not a scratch root.** It is gitignored, idempotent, the resolver already
+defaults to it, and **P5.3b needs the same 100 draws** — so this restores a lost shared resource
+rather than creating a private one. Restricting §6.1 to the 5 surviving draws is **refused**: the
+committed column has 100 and comparing 5 while the artifact says 100 is the sample-versus-population
+error this project exists to catch.
+
+> 🔒 **REQUIRED FIRST, AND IT IS FREE: regenerate `draw_1000…1004` into a scratch root and assert
+> BIT-IDENTITY against the five that already exist on disk.** If they reproduce, the generator is the
+> same function that produced the originals and the other 95 are trustworthy. **If they do NOT
+> reproduce, STOP and report `BLOCKED`** — every downstream number would then be measured on draws
+> that are not the draws P4.6 evaluated on, and it would be undetectable afterwards.
+> ⚠️ **Do not overwrite the surviving five.** Generate to a scratch root, compare, and only then fill
+> in the 95 that are missing. Filesystem-mutation barrier: validate, then write.
+
+## A2 — Q2: `output/p5_3a/` IS the right name; my fence was overbroad and I withdraw it
+
+§5 said *"never write into `output/p5_*`"*. I meant **never write into an EXISTING campaign
+directory**. As written it forbids the one name that follows the project's own convention
+(`output/p4_6`, `output/p5_1`, `output/p5_2`).
+> **Corrected fence: create and write `output/p5_3a/`. Never write into, and never delete from,
+> `output/p4_3`, `output/p4_dt`, `output/p4_probe`, `output/p4_4`, `output/p4_5`, `output/p4_6`,
+> `output/p4_7`, `output/p5_1`, `output/p5_2`, `output/p7_0`, `output/p8_3` or
+> `output/checkpoints*`.** Naming them is better than a glob, which is what went wrong here.
+
+## A3 — Q3: YES, add it — one line, and the packet must be honest about the test
+
+Add `rtg_mode=config.rtg_mode` to `from_checkpoint`'s constructor call. **Reason, and it is not the
+one offered:** `from_checkpoint` builds the model **twice** — once via `__init__` → `_build_model`
+(`:465-466, :486`), once in `load` (`:801`) — and the first build would otherwise construct a
+*conditioned* model for a *zero* checkpoint. It is inert today because the second build replaces it
+inside the same function. **Add it so the code says what is true**, rather than leaving a comment
+explaining why a wrong value is harmless.
+> ⚠️ **Required in the packet:** the round-trip test for this **passes with and without the line**,
+> so it is a **regression guard, not a discriminating test**. Say that. A test whose docstring claims
+> power it does not have is what `docs/reviews/P5.2.md` filed under *"theatre"*.
+
+## A4 — Q4: TWO cells, and the second is chosen by a rule rather than by preference
+
+1. **`mappo1000`, seed 101, from `output/p4_dt/dt_seed101.pt`** — the headline tier, the one A6's δ
+   and P4.3's whole 13,000-unit sweep were measured on. Its committed column is the reused one; verify
+   it through `assert_reused_checkpoint_identity` exactly as P5.2's Gate 1 did.
+2. **The tier with the LARGEST committed `RtgSummary.std` among those with checkpoints under
+   `output/p4_6/checkpoints/`, at seed 101.** ⭐ **The rule is not decoration: the identity test is
+   strongest where the RTG carries the most variance, because that is where forcing `rtg_mode="zero"`
+   does the most damage — and mutation 1 of §6.1 must actually fail.**
+
+> 🚨 **And this is why one cell was not enough: `dt@fixedtime`'s δ is −5.68e-16 and P5.2's reviewer
+> showed the grid4x4 DT reproduces the fixed-time controller entry for entry, 0 of 5760 actions
+> differing. Had §6.1 landed on `fixedtime`, forcing `rtg_mode="zero"` might have changed nothing,
+> mutation 1 would have "passed" by surviving, and the load-bearing test would have certified
+> nothing.** Both cells must reproduce bit-exactly; **both mutations must fail on cell 2**, and the
+> packet reports whether they also failed on cell 1.
+
+## A5 — Q5: yes, the checkpoint-embedded `stats` payload is the committed `NormalizationStats`
+
+Confirmed by search: there is no other copy. Say so in the artifact, so the next reader does not go
+looking for a file.
+
+## A6 — Finding 4 is RIGHT and it corrects THIS BRIEF: §4.2 asked for two routes to two different numbers
+
+§4.2 said *"read `RtgSummary` out of the committed `NormalizationStats` AND recompute it independently
+from the raw episode arrays; assert they agree."* **You have shown those are not the same quantity.**
+`RtgSummary` is over the **concatenated per-step RTG of every stream in the tier's whole training
+split**, `ddof=0`, fitted over `TierSpec.dirs` — not over per-episode returns, and not over the
+200-stream subsample.
+> **Corrected: the independent recomputation must target THE SAME POPULATION AND THE SAME ESTIMATOR**
+> (concatenated per-step RTG over the same dirs, `ddof=0`). **The per-episode-return statistics are a
+> SEPARATE ROW of the table and are not a cross-check of anything.** ⚠️ **Asserting agreement between
+> them would have failed for a correct implementation on `random` and the mixtures — a test that
+> condemns a correct artifact, which is the class this repo refused on 2026-08-19.**
+> **Both rows are still wanted.** The between-episode RTG spread at fixed timesteps (§4.2) remains the
+> quantity C4's hypothesis is about and is neither of the two above.
+
+## A7 — 🚨 THE δ RULE IS WITHDRAWN. It was mine, it is six days old, and it is broken in BOTH directions
+
+§4.2 and §6.4 registered *"δ per tier = the DT's own paired margin over its behaviour reference"*.
+**Measured across all eight tiers from the committed artifacts, 2026-08-25:**
+
+| tier | δ (signed) | CI contains 0? | as an equivalence margin |
+|---|---|---|---|
+| `mix33` | −214.1190 | no | **vacuously permissive** |
+| `mix50` | −159.5624 | no | vacuously permissive |
+| `mix67` | −107.0298 | no | vacuously permissive |
+| `random` | −8.5076 | no | usable |
+| `mappo500` | −1.4360 | no | usable |
+| `maxpressure` | **+0.6886** | **YES** | **a DEFICIT, not a margin** |
+| `mappo1000` | −0.6263 | no | usable (= A6's 0.6263) |
+| `fixedtime` | **−5.68e-16** | **YES** | **impossible by construction** |
+
+**δ spans ELEVEN ORDERS OF MAGNITUDE.** On `fixedtime` a ±5.7e-16 band means **no measured difference
+could ever be declared equivalent**; on `mix33` a ±214 band on a scenario whose ATT is ~105–300 means
+**every result would be declared equivalent**. On `maxpressure` the "margin" is the DT *losing* to its
+behaviour policy. **A rule that cannot return one of its answers on part of its domain is exactly
+`DEFERRED` 46's defect — Q1's unfalsifiable-by-construction prediction, which was also mine — and I
+reproduced it in a brief written six days after logging that lesson.**
+
+> ⛔ **WITHDRAWN as a decision rule. It survives as a MEASURED TABLE and nothing more.**
+> **P5.3a emits, per tier:** signed δ, `ci95_low`, `ci95_high`, `ci95_half_width`, `wilcoxon`,
+> `rank_biserial`, `wins/losses/ties`, `n_shared_draws`, and a derived boolean
+> **`behaviour_margin_degenerate` = (`ci95_low ≤ 0 ≤ ci95_high`)** — **2 of 8 tiers are `true`**, so
+> the flag is not hypothetical.
+> **The decision rule for P5.3b is NOT registered here and will not be this one.** That is the
+> deferral working as designed: the rule is being chosen *because* the table exists, instead of the
+> table being made to fit a rule chosen in advance.
+> ✅ **A6's δ = 0.6263 is untouched.** It was registered for `mappo1000` and remains correct there;
+> the error was mine in generalising its *form* to seven other tiers.
+
+## A8 — ⭐ NEW REGISTERED PREDICTION, written before any probe number exists
+
+**`fixedtime` will show `flip_rate = 0.0` on every intervention, including `zero` and the two grid
+endpoints.** Basis, stated so this is a prediction and not a hedge: `dt@fixedtime`'s δ is −5.68e-16,
+i.e. the DT's ATT is bit-equal to the behaviour policy's, and P5.2's independent reviewer showed the
+grid4x4 DT reproducing the fixed-time controller **entry for entry, 0 of 5760 actions differing**. A
+deterministic cycle has no room for the prompt to act.
+> **This is a control on the PROBE, not a result about the prompt.** If `fixedtime` shows non-zero
+> flips, **the probe is suspect before the finding is** — that is the direction of inference, and it is
+> registered now so it cannot be reversed later. ⚠️ **The hz1x1 evidence is the ATT identity; the
+> action-level identity was measured on grid4x4. So this is a prediction, not a restatement.**
+> **Add `fixedtime` to the probe's cell set for this reason.**
+
+## A9 — Finding 5: the divergence from `SpatialDTConfig` is DELIBERATE, and the docstring must say why
+
+`SpatialDTConfig.from_json_obj` hard-raises on an absent `spatial_mixing` (`:174-176`); `rtg_mode`
+must **default**. You are right that these are opposite, and the difference is not an inconsistency:
+**`SpatialDTConfig` was born with its flag and has no checkpoints predating it. `DTConfig` has 225
+checkpoints in the wild** (`PROJECT_PLAN` §10), and a hard raise would make every one unloadable.
+> **Required: `from_json_obj`'s docstring states the asymmetry, names the 225, and names
+> `SpatialDTAgent.py:174-176` as the contrasting case**, so the next reader sees a decision instead of
+> a discrepancy. **`to_json_obj` always emits the key**, so only pre-existing checkpoints ever take
+> the default. **A test must cover both:** an 8-key payload loads as `"conditioned"`, and a 9-key
+> payload round-trips its value.
+
+## A10 — Findings 6, 7, 8, 10, 11: accepted as stated
+
+**6** — `p4_dt_config.json["architecture"]` gaining a 9th key affects nothing here, because **P5.3a
+writes no checkpoints**; note it forward for P5.3b, which will. **10** — 16 TH006, matching §6.5;
+thank you for refusing to report the truncated 8, which is `DEFERRED` 45's exact mechanism.
+**11** — measure the timing; Amendment R2 forbids armchair costing and my own 52 h estimate is the
+cautionary case.
+
+## A11 — What does NOT change
+
+The scope fence (§3) except as corrected in **A2**. No training. One mode, `"zero"`. No touching
+`TOKENS_PER_STEP`, `METHODS`, or any P4.6/P4.7 artifact. §6.1 stays the load-bearing test and its two
+mutations stay mandatory. §6.2's positive control stays mandatory. The artifact still emits **no
+verdict**.
+
+## A12 — Gate 1 verdict
+
+✅ **PROCEED TO PLAN.** Write `docs/plans/p5.3a.md` incorporating A1–A11 and stop at Gate 2. **The
+plan must state, in its own words, what §6.1 would fail to detect** — every phase boundary in this
+project that went wrong went wrong on an assumption nobody wrote down.
