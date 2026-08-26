@@ -598,3 +598,140 @@ verdict**.
 ✅ **PROCEED TO PLAN.** Write `docs/plans/p5.3a.md` incorporating A1–A11 and stop at Gate 2. **The
 plan must state, in its own words, what §6.1 would fail to detect** — every phase boundary in this
 project that went wrong went wrong on an assumption nobody wrote down.
+
+---
+
+# ✅ AMENDMENT B — 2026-08-25, ruled at GATE 2
+
+**Verdict: APPROVED TO CODE**, with B0–B5 folded into the plan first. **Two of the three questions
+found errors of mine**, and a measurement made while checking the third **reverses my own provisional
+reading of it** — that reversal is B2 and it is the most important paragraph here.
+
+## B0 ⛔ FIRST, AND IT IS NOT COSMETIC: `docs/plans/p5.3a.md` ends with two stray tool-call tags
+
+Lines 372–373 are `</content>` and `</invoke>`. **Delete them and re-read the file's tail before
+committing.** The plan is a registration document; a referee-facing artifact that ends in the
+scaffolding of the tool that wrote it undermines it for free. ⚠️ **This is `PROJECT_PLAN` §7's *verify
+your own edits* rule, which the coordinator has broken twice on markdown tables in two days — so it is
+raised as a shared failure mode, not as a criticism.**
+
+## B1 ✅ Q1 — **INCLUDE the three mixture tiers in the probe.** 8 tiers × 5 seeds
+
+R3 registered 5 tiers and excluded the mixtures. **Overruled, and B2 is the reason.** You were right
+that Gate 2 is the last moment this is free, and right to force the choice now.
+> **Registered: the probe covers the SAME EIGHT TIERS as the tables** — `fixedtime, mappo1000,
+> mappo500, maxpressure, random, mix33, mix50, mix67` × 5 seeds = **40 cells**. The checkpoints exist
+> (`output/p4_7/checkpoints/mix*_dt_seed*.pt`, and they ARE manifest-covered, unlike cell 1 — see B4).
+> **Reason, and it is not symmetry for its own sake: `flip_rate` is only interpretable against row B,
+> and a correlation over five points where the mixtures are the only structurally different case is
+> not a measurement, it is a gesture.** If the probe returns ~0 everywhere on five single-policy
+> tiers, the first question asked will be *"and where the corpus is bimodal?"* — and P5.3a would have
+> to answer *"we did not look."*
+
+## B2 ⭐⭐ THE MEASUREMENT THAT REVERSED MY OWN READING — `RtgSummary.std` is mostly the within-episode RAMP, and two tiers can share it for OPPOSITE reasons
+
+I checked your cell-2 rule and computed the **scaled** spread (`std / rtg_scale` — what the network
+actually receives, since `agent/DTAgent.py:596` divides). **Measured 2026-08-25 from the
+checkpoint-embedded stats at seed 101:**
+
+| tier | raw `std` | `rtg_scale` | **scaled** | pure-ramp prediction: `abs(target) / (2*sqrt(3)) / rtg_scale` | measured / ramp |
+|---|---|---|---|---|---|
+| `random` | 12149.7093 | 40294 | **0.3015** | 0.2749 | **1.10** |
+| `fixedtime` | 9303.5481 | 33225 | **0.2800** | 0.2581 | **1.08** |
+| `maxpressure` | 5837.9472 | 24115 | **0.2421** | 0.1570 | **1.54** |
+| `mappo1000` | 2188.9709 | 9991 | **0.2191** | 0.1665 | **1.32** |
+| `mappo500` | 2297.8980 | 11043 | **0.2081** | 0.1663 | **1.25** |
+| `mix50` | 13155.3172 | 40223 | **0.3271** | **0.0428** | **7.65** |
+
+**My provisional read was "the mixtures barely differ — scaled spread is 0.208–0.328 everywhere, a
+factor of 1.58, so the spread axis is weak." That read is WRONG and the last column is why.**
+
+- On the five single-policy tiers the marginal std is **1.08–1.54× a pure within-episode ramp**, so
+  **65–93 % of it is the deterministic decay of RTG from target to zero across 360 steps** — the same
+  shape in every tier, carrying no information about *which* episode this is.
+- On `mix50` the ratio is **7.65**, because its `target_rtg` is **−5959** (an expert-like quantile)
+  while its `rtg_scale` is **40223** (set by the random component). Its spread is **between-episode
+  and bimodal**, which is exactly the informative kind.
+- **So `random` at 0.3015 and `mix50` at 0.3271 are nearly equal marginally and are not remotely the
+  same quantity.** One is a ramp; the other is a corpus that genuinely contains two populations.
+
+> 🔒 **Consequences, all three binding:**
+> **(i)** **My A4 cell-2 rule was stated on the wrong quantity** — "largest `RtgSummary.std`" selects
+> partly on ramp amplitude. ✅ **The answer is unchanged: `random` ranks 1st raw AND 1st scaled, so
+> cell 2 stands.** The rule's *basis* is corrected to the scaled figure; the selection is not re-opened.
+> **(ii)** ⭐ **Row B is promoted from a table row to the task's second real result.** It is the only
+> quantity here that separates ramp from information, and **nothing in this project has ever measured
+> it.** Report it raw and scaled, and report it beside the ramp prediction above so a reader can see
+> the decomposition.
+> **(iii)** ⚠️ **P5.3b is warned now: a "narrow vs wide spread" axis chosen on the MARGINAL statistic
+> would have picked `random` as its wide endpoint and measured a ramp.** The axis must be built on
+> row B. **This is the single most useful thing P5.3a can hand forward, and it was not in the brief.**
+
+## B3 ⚠️ Q2 — YOU ARE RIGHT AND MY SENTENCE WAS WRONG. P5.2's Gate 1 did not use that function
+
+A4 said *"exactly as P5.2's Gate 1 did"*. **Measured: `assert_reused_checkpoint_identity` has exactly
+one call site in the repo, `offline/method_tier_grid.py:2269` — P4.6/P4.7's gate. `offline/tier_sweep.py`
+has none.** P5.2 used its own `assert_reused_digest` (`tier_sweep.py`), which re-verifies a **file
+sha256 against `output/SHA256SUMS_p5_1.txt` AT CONSUMPTION** — a manifest route, not this one.
+**I described a route from memory instead of opening the file. That is the project's signature error,
+and refusing to assume you knew what I meant was the correct response.**
+> **RULED — use both, they check different things and both are cheap:**
+> **(a)** cell 1 → `assert_reused_checkpoint_identity(p4_4_training, p4_gate, …)` called directly, as
+> you proposed. That is the P4 route and it is what A4 should have said.
+> **(b)** cell 2 → `canonical_digest_of` against `p4_6_training.json`'s committed value, **plus** a
+> `SHA256SUMS_p4_6.txt` check **at consumption**, in `assert_reused_digest`'s spirit: *a digest
+> checked once is not a digest checked when used* (`BRIEF_27` B3(a)).
+> **(c)** ⚠️ **Cell 1 cannot have (b) — see B4.**
+
+## B4 🚨 NEW FINDING — `output/p4_dt/` IS IN NO INTEGRITY MANIFEST, AND IT HOLDS THE P4 GATE'S FIVE MODELS
+
+Measured across every `output/SHA256SUMS_*.txt`: **0 lines mention `p4_dt`.** Coverage is
+`p5_2` 221 · `p4_6` 125 · `p4_7` 112 · `p5_1` 48 · `p7_0` 36 · `p4_5` 25 · `p4_4` 19 · `p8_3` 18 ·
+`p4_3` 10 — and `SHA256SUMS_p4_3.txt`'s ten entries are all `p4_3/eval_dt_g*.json`, **not** checkpoints.
+**`output/p4_dt/` and `output/p4_probe/` are uncovered.**
+> **`output/p4_dt/dt_seed*.pt` are the five models behind the pre-registered P4 gate, the models P4.3
+> swept across 13,000 RTG units, the reused `mappo1000` DT column in P4.6 and P4.7 — and §6.1's cell
+> 1.** They are gitignored, unbacked-up **and unmanifested**: the one class of evidence in this project
+> with no integrity record at all. ⚠️ **Not P5.3a's to fix** — writing a manifest for someone else's
+> merged output is out of fence. **`DEFERRED` 56 records it.** State the gap in the packet: cell 1's
+> identity rests on a **file sha256** (`DEFERRED` 29: filename-dependent) with **no manifest behind it**,
+> and say so rather than letting the two cells read as equally protected.
+
+## B5 ✅ Q3 — GATE 0 IS APPROVED AND IS NOW MANDATORY. It is yours, and it should have been mine
+
+**You are right that §6.1 is unfalsifiable without it**, and the sharpest form of the argument is the
+one your plan does not quite make: **if Gate 0 FAILS, §6.1 cannot be run at all** and the task needs a
+different instrument — which is something to discover in four minutes, before the edit, rather than
+after. It also converts a red §6.1 from ambiguous into attributable.
+> **Registered as a gate with the power to stop the task**, exactly as you wrote it. ⭐ **And it is the
+> reason the two mutations mean anything: without a pre-edit reproduction, "the mutation made it fail"
+> and "this environment cannot reproduce the column" are the same observation.**
+
+## B6 ✅ Accepted as stated, no change required
+
+Your **self-correction** on cell 1's committed identity (a **file sha256**, not a canonical digest —
+`method_tier_grid.py:1222`, with `:1233-1235` explaining that `p4_training.json` never carried one).
+Confirmed independently: `p4_training.json` contains **neither** `file_sha256` **nor**
+`canonical_digest`; `p4_4_training.json` contains both. **Writing the asymmetry into the plan instead
+of smoothing it over is exactly right.**
+**R6** — `mappo1000`'s `grid_g5` target is `−5762.0`, which **is** that checkpoint's own `target_rtg`
+(verified: `torch.load(...)["target_rtg"] == -5762.0`), so its `flip_rate` must be **exactly 0.0**.
+⭐ **A live null control inside the campaign, at zero cost, that neither the brief nor Amendment A
+thought of.** **R4**'s stratified stream indices, **§2**'s seven-item blindness list, and test **26**
+(recomputing row C on the *wrong* population must DISAGREE) are all stronger than what was asked for.
+
+## B7 🧹 `docs/plans/p5.3a.md` §11 item 12 is already stale
+
+It says *"`main` is red pending `ci_gate_ceiling_104_and_chain_walk.patch`"*. **The patch was applied
+at `7ee606a` and CI is green — verified from `gh run list`, not from the commit message.** Rewrite it:
+the ceiling is **expected** to breach at P5.3a's merge, and the protocol is
+`re_measure_required_at.what_to_do` in the baseline — merge, read the observed count from `junit.xml`,
+commit it with its breakdown. **Do not pre-bump it.**
+
+## B8 📋 Fold into the plan, then code
+
+B0 (delete the stray tags) · B1 (8 tiers × 5 seeds; update R3, §6, §11 item 13) · B2 (correct A4's
+basis; promote row B and report it against the ramp prediction) · B3 (both identity routes) · B4 (state
+the manifest gap in the packet) · B5 (Gate 0 registered) · B7 (fix the CI sentence).
+**Nothing else in the plan changes.** Tests first, run them red, then implement. Stop before merge for
+`contract-reviewer`.

@@ -83,6 +83,7 @@ from .utils.utils import Utils
 
 __all__ = [
     "CHECKPOINT_FORMAT_VERSION",
+    "RTG_MODES",
     "DTAgent",
     "DTConfig",
     "DecisionTransformer",
@@ -95,10 +96,22 @@ CHECKPOINT_FORMAT_VERSION = "dt-checkpoint/1.0"
 #: Tokens per decision step: (RTG, state, action).
 TOKENS_PER_STEP = 3
 
+#: What the RTG token is allowed to carry.  ``"conditioned"`` is the return-to-go the caller built;
+#: ``"zero"`` replaces it with zeros inside the model, which is P5.3a's information ablation.
+RTG_MODES: tuple[str, ...] = ("conditioned", "zero")
+
 
 @dataclass(frozen=True)
 class DTConfig:
-    """Architecture of one Decision Transformer.  Frozen at construction and checkpointed."""
+    """Architecture of one Decision Transformer.  Frozen at construction and checkpointed.
+
+    ``rtg_mode`` is part of the architecture record for the same reason
+    ``SpatialDTConfig.spatial_mixing`` is: :meth:`DTAgent.load` rebuilds the **base**
+    :class:`DecisionTransformer` from this config, so a mode that lived anywhere else -- a subclass,
+    a constructor argument, a flag beside the checkpoint -- would let the ordinary loader rebuild a
+    zero-mode model as a conditioned one and evaluate it happily.  Carried here, the mode travels
+    inside the checkpoint and the right model is reconstructed automatically.
+    """
 
     state_dim: int
     n_actions: int
@@ -108,6 +121,7 @@ class DTConfig:
     d_model: int = 128
     dropout: float = 0.1
     max_ep_len: int = 360
+    rtg_mode: str = "conditioned"
 
     def __post_init__(self) -> None:
         if self.state_dim < 1 or self.n_actions < 1:
@@ -122,9 +136,19 @@ class DTConfig:
             )
         if self.max_ep_len < 1:
             raise ValueError(f"max_ep_len must be >= 1, got {self.max_ep_len}")
+        if self.rtg_mode not in RTG_MODES:
+            raise ValueError(
+                f"rtg_mode must be 'conditioned' or 'zero', got {self.rtg_mode!r}. "
+                "'conditioned' feeds the return-to-go the caller built; 'zero' replaces it with "
+                "zeros inside the model, holding the architecture exactly fixed"
+            )
 
     def to_json_obj(self) -> dict[str, Any]:
-        """JSON-ready mapping; every field round-trips exactly."""
+        """JSON-ready mapping; every field round-trips exactly.
+
+        ``rtg_mode`` is emitted unconditionally, so only checkpoints written before P5.3a can ever
+        be silent about it -- and those are exactly the ones :meth:`from_json_obj` defaults.
+        """
         return {
             "state_dim": int(self.state_dim),
             "n_actions": int(self.n_actions),
@@ -134,11 +158,22 @@ class DTConfig:
             "d_model": int(self.d_model),
             "dropout": float(self.dropout),
             "max_ep_len": int(self.max_ep_len),
+            "rtg_mode": str(self.rtg_mode),
         }
 
     @classmethod
     def from_json_obj(cls, payload: dict[str, Any]) -> DTConfig:
-        """Rebuild a config written by :meth:`to_json_obj`."""
+        """Rebuild a config written by :meth:`to_json_obj`.
+
+        **An absent ``rtg_mode`` defaults to ``"conditioned"``, and that asymmetry with
+        ``SpatialDTConfig.from_json_obj`` is deliberate.**  That one *hard-raises* on an absent
+        ``spatial_mixing`` (``agent/SpatialDTAgent.py:174-176``), which is right for it: it was born
+        with its flag and no checkpoint predates it.  This one has **225 checkpoints in the wild**
+        (``PROJECT_PLAN`` section 10) written before ``rtg_mode`` existed, every merged DT number in
+        the paper flows through them, and a hard raise would make all of them unloadable.  The
+        default is the behaviour those checkpoints were actually trained and evaluated with, so it
+        restates their history rather than guessing at it.
+        """
         return cls(
             state_dim=int(payload["state_dim"]),
             n_actions=int(payload["n_actions"]),
@@ -148,6 +183,7 @@ class DTConfig:
             d_model=int(payload["d_model"]),
             dropout=float(payload["dropout"]),
             max_ep_len=int(payload["max_ep_len"]),
+            rtg_mode=str(payload.get("rtg_mode", "conditioned")),
         )
 
 
@@ -332,6 +368,14 @@ class DecisionTransformer(nn.Module):
                 f"[{int(action.min())}, {int(action.max())}]"
             )
 
+        if config.rtg_mode == "zero":
+            # Substituted AFTER every check above, never instead of them: an ill-shaped rtg still
+            # raises, so the ablation cannot hide a shape bug behind itself.  Zeroing here rather
+            # than dropping the token keeps the sequence length, the attention pattern and the
+            # state-token index at line 364 exactly as the conditioned model has them, which is
+            # what makes this an information ablation and not an architecture change.
+            rtg = torch.zeros_like(rtg)
+
         time_embedding = self.embed_timestep(timestep)
         # PAD_ACTION is a loss TARGET, never an embedding input: nn.Embedding rejects -1, so
         # padded inputs take the dedicated pad row n_actions.
@@ -410,6 +454,7 @@ class DTAgent(BaseAgent):
         device: str | None = None,
         seed: int | None = None,
         state_dim: int | None = None,
+        rtg_mode: str = "conditioned",
     ) -> None:
         super().__init__(gym_env)
         self.env = gym_env
@@ -459,6 +504,7 @@ class DTAgent(BaseAgent):
             d_model=int(d_model),
             dropout=float(dropout),
             max_ep_len=int(max_ep_len),
+            rtg_mode=str(rtg_mode),
         )
         self._config: DTConfig | None = None
         self.model: DecisionTransformer | None = None  # type: ignore[assignment]
@@ -814,7 +860,15 @@ class DTAgent(BaseAgent):
     def from_checkpoint(
         cls, gym_env: Any, path: str, device: str | None = None
     ) -> DTAgent:
-        """Build an agent whose architecture comes from the checkpoint, then load it."""
+        """Build an agent whose architecture comes from the checkpoint, then load it.
+
+        ``rtg_mode`` is passed through even though :meth:`load` overwrites ``_config`` a few lines
+        later: this constructor call **builds a model** (``state_dim`` is not ``None``, so
+        ``_build_model`` runs), and without it that first model would be a *conditioned* one for a
+        *zero* checkpoint.  It is replaced before anyone can use it, so this is the code saying what
+        is true rather than a defect being fixed -- stated here so a later reader does not delete it
+        as redundant.
+        """
         payload = torch.load(path, map_location="cpu", weights_only=False)
         config = DTConfig.from_json_obj(payload["config"])
         agent = cls(
@@ -827,6 +881,7 @@ class DTAgent(BaseAgent):
             max_ep_len=config.max_ep_len,
             device=device,
             state_dim=config.state_dim,
+            rtg_mode=config.rtg_mode,
         )
         agent.load(path)
         return agent
