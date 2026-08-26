@@ -237,11 +237,30 @@ def test_it_returns_the_correctly_rounded_value_where_two_libms_disagree() -> No
 
 
 def test_the_committed_p_values_all_still_reproduce_exactly() -> None:
-    """THE LOAD-BEARING TEST: 322 published p-values, none of which may move.
+    """THE LOAD-BEARING TEST: 330 published p-values, none of which may move.
 
     Recomputed from each artifact's own recorded ``z`` through the replacement routine and
     compared with ``==``.  A tolerance here would defeat the purpose: the question is
     precisely whether any published number changes.
+
+    **The count moved from 322 to 330 on 2026-08-26, deliberately.**  P5.3a's
+    ``docs/data/p5_3a_rtg_probe.json`` carries a per-tier delta table whose ``wilcoxon`` block is
+    **copied** from ``p4_6_grid.json`` / ``p4_7_grid.json`` -- eight tiers, so eight further
+    ``(z, p_value)`` pairs.  They are not new measurements: each is bit-identical to its source and
+    all eight reproduce through ``_normal_cdf``, so only the count assertion fired.
+
+    Coordinator's written authorisation, ``BRIEF_29`` section 1 §B, dated 2026-08-25, quoted rather
+    than paraphrased: *"the implementer is authorised to change the pinned count in
+    tests/test_erfc_determinism.py from 322 to 330, and only that literal, recording in the test's
+    docstring that P5.3a's delta table copies eight (z, p_value) pairs from p4_6_grid.json /
+    p4_7_grid.json."*  This is a spec change ruled by the coordinator, not a test weakened to pass;
+    the guard asked for a deliberate update and this is it.
+
+    ⚠️ **Duplicating published p-values into a second artifact is exactly the drift this guard
+    exists to catch**, so the duplication is tied to its source by
+    ``tests/test_rtg_probe_artifact.py::test_the_delta_table_is_a_checked_copy_of_the_committed_grids``,
+    which compares every copied field against the row it came from.  Without that pointer the eight
+    extra pairs would be exposure rather than protection.
     """
     pairs: list[tuple[str, float, float]] = []
 
@@ -256,12 +275,13 @@ def test_the_committed_p_values_all_still_reproduce_exactly() -> None:
                 walk(value, f"{path}[{index}]")
 
     # R8: rglob, not glob -- docs/data/ has subdirectories, and a future artifact placed in
-    # one would have escaped this sweep WITHOUT tripping the == 322 count guard.
+    # one would have escaped this sweep WITHOUT tripping the == 330 count guard.
     for artifact in sorted(DATA_DIR.rglob("*.json")):
         walk(json.loads(artifact.read_text(encoding="utf-8")), artifact.name)
 
-    assert len(pairs) == 322, (
-        f"expected the 322 committed (z, p_value) pairs measured on 2026-08-17, found "
+    assert len(pairs) == 330, (
+        f"expected the 330 committed (z, p_value) pairs -- 322 measured on 2026-08-17 plus the 8 "
+        f"P5.3a copies out of p4_6_grid.json / p4_7_grid.json (BRIEF_29 section 1 B) -- found "
         f"{len(pairs)}; if artifacts were added, re-measure and update this count deliberately"
     )
 

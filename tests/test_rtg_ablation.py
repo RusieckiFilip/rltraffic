@@ -35,6 +35,8 @@ from gymnasium import spaces as gym_spaces
 from agent.DTAgent import DTAgent, masked_action_logits
 from offline.dataset import RtgSummary
 from offline.method_tier_grid import TIERS, assert_no_verdicts
+from offline.rtg_calibration import DECLARED_GRID
+from offline.trajectory_logger import load_episode
 from offline.rtg_ablation import (
     ARTIFACT_FORMAT_VERSION,
     INTERVENTION_KEYS,
@@ -44,20 +46,26 @@ from offline.rtg_ablation import (
     RTG_SPREAD_TIMESTEPS,
     InterventionComparison,
     ProbeCell,
+    _split_episode_paths,
+    _tier_streams,
     assert_declared_interventions,
     behaviour_margin_degenerate,
     between_episode_rtg_spread,
+    checkpoint_path_for,
     committed_rtg_summary,
     compare_logits,
     conditioning_series,
+    crosscheck_targets,
     declared_interventions,
     delta_table,
     episode_return_stats,
     flip_rate,
+    probe_cell,
     ramp_prediction,
     recomputed_rtg_summary,
     report_artifact,
     selected_stream_indices,
+    spread_table,
     teacher_forced_logits,
     total_variation_distance,
 )
@@ -267,9 +275,11 @@ def test_flip_rate_counts_exactly_the_steps_that_differ() -> None:
     differing = int(np.count_nonzero(baseline != other))
     assert differing == 3
     assert flip_rate(baseline, other) == 3 / 7
-    assert flip_rate(baseline, other) != np.ceil(3 / 7)
-    assert flip_rate(baseline, other) != np.floor(3 / 7)
-    assert flip_rate(baseline, other) != 0.5
+    # The three assertions that used to sit here -- != ceil, != floor, != 0.5 -- were logically
+    # implied by the equality above and could not fail independently of it. That is the exact
+    # shape this project's own reviewer stripped from tests/test_erfc_determinism.py, and the
+    # review found it here too. The fixture's k=3, n=7 is what does the real work: no rounding
+    # rule reproduces 3/7 by accident.
 
 
 def test_flip_rate_refuses_sequences_of_different_length() -> None:
@@ -307,10 +317,9 @@ def test_the_availability_mask_is_applied_and_can_change_the_flip_rate() -> None
 
     without_action_one = everything.copy()
     without_action_one[:, 1] = False
-    masked = compare_logits("k", baseline, other, without_action_one)
-    # Baseline now picks action 2 (1.0 > 0.0); the intervention also picks 2 (3.0 > 0.0) -- so
-    # masking must instead be shown to bite on a fixture where the two disagree.
-    assert masked.flip_rate == 0.0
+    # The middle block that used to sit here asserted 0.0 for a masking its own comment said does
+    # not bite -- an assertion about a fixture chosen so it could not fail. Removed; the fixture
+    # below is the one where masking genuinely changes the answer.
 
     other_low = np.array([[0.0, 4.0, -9.0], [0.0, 4.0, -9.0]], dtype=np.float32)
     assert compare_logits("k", baseline, other_low, everything).flip_rate == 0.0
@@ -587,6 +596,114 @@ def test_the_report_refuses_an_undeclared_intervention_key() -> None:
     assert_declared_interventions({k: {} for k in INTERVENTION_KEYS})
 
 
+# ----------------------------------------------------------------------
+# The functions the review found had no test at all (m20-m24)
+# ----------------------------------------------------------------------
+
+
+def test_every_tier_resolves_to_its_own_checkpoint_and_no_two_share_one() -> None:
+    """m20: swapping two tiers' checkpoint paths mislabels two whole columns, silently.
+
+    ``mix50`` and ``mix67`` are the dangerous pair -- same directory, same filename shape, same
+    architecture, and their committed deltas differ by 52 ATT. Nothing downstream would notice.
+    """
+    resolved = {
+        tier: checkpoint_path_for(tier, 101, output_root="output") for tier in PROBE_TIERS
+    }
+    assert len(set(map(str, resolved.values()))) == len(PROBE_TIERS), "two tiers share a path"
+    # Every tier names itself in its path EXCEPT mappo1000, whose dt column is P4's re-used one
+    # and is stored as output/p4_dt/dt_seed*.pt with no tier in the name at all -- checked
+    # separately below rather than papered over with a looser pattern.
+    for tier, path in resolved.items():
+        if tier == "mappo1000":
+            continue
+        assert tier in path.name or tier in str(path.parent), f"{tier}: {path} is not its own"
+    assert resolved["mappo1000"] == Path("output/p4_dt/dt_seed101.pt")
+    assert resolved["mappo1000"].parent.name == "p4_dt"
+    for tier in ("mix33", "mix50", "mix67"):
+        assert resolved[tier].parent.parent.name == "p4_7"
+    for tier in ("fixedtime", "mappo500", "maxpressure", "random"):
+        assert resolved[tier].parent.parent.name == "p4_6"
+
+    with pytest.raises(ValueError, match="mappo060"):
+        checkpoint_path_for("mappo060", 101, output_root="output")
+
+
+def test_the_crosscheck_uses_the_declared_grids_endpoints_and_not_its_first_two() -> None:
+    """m21: ``(grid[0], grid[1])`` is a different measurement reported under the same name.
+
+    The 47.22 % headline is defined as the spread between the WIDEST pair P4.3 registered. Between
+    the first two it would be a much narrower intervention wearing the same label.
+    """
+    low, high = crosscheck_targets()
+    assert (low, high) == (DECLARED_GRID[0], DECLARED_GRID[-1])
+    assert (low, high) == (0.0, -13000.0)
+    assert (low, high) != (DECLARED_GRID[0], DECLARED_GRID[1])
+    assert abs(high - low) == 13000.0, "the registered 13,000-unit span"
+
+
+def test_the_probe_selects_streams_by_the_registered_stride_rule_at_its_call_site() -> None:
+    """m22: R4 was enforced in ``selected_stream_indices`` and nowhere at the site that uses it.
+
+    ``chosen[:20]`` and ``chosen[::10]`` both yield ``n_streams == 20``, so no downstream field
+    could distinguish them. The cell now records the indices it actually used.
+    """
+    root = _corpus_root()
+    path = _checkpoint("p4_dt/dt_seed101.pt")
+    streams = _tier_streams("mappo1000", root)
+    cell = probe_cell(
+        "mappo1000", 101, checkpoint_path=path, corpus_root=root, streams=streams
+    )
+    assert cell.stream_indices == tuple(range(0, 200, 10))
+    assert cell.stream_indices != tuple(range(20)), "the first-20 selection is not the rule"
+    assert len(cell.stream_keys) == PROBE_STREAM_COUNT == 20
+    # The stride is what stratifies across the five behaviour-seed directories; the first-20
+    # selection would take them all from one.
+    assert len({key[0] for key in cell.stream_keys}) == 5
+
+
+def test_the_spread_table_uses_the_whole_declared_training_set_not_the_probe_subsample() -> None:
+    """m23: row A and row B on 20 of 200 streams would be wrong by an order of magnitude in n."""
+    root = _corpus_root()
+    table = spread_table(root, output_root="output", tiers=("mappo1000",))
+    entry = table["mappo1000"]
+    assert entry["training_streams"] == 200
+    assert entry["episode_return_raw"]["n"] == 200
+    assert entry["between_episode_rtg_raw"]["n_episodes"] == 200
+    assert entry["between_episode_rtg_scaled"]["n_episodes"] == 200
+    assert entry["episode_return_raw"]["n"] != PROBE_STREAM_COUNT
+    # M1: computed, not a hardcoded literal.
+    assert entry["rtg_summary_routes_agree"] is True
+    # M2/M3: the row records which seed and checkpoint it read, and names its population.
+    assert entry["seed"] == 101
+    assert "dt_seed101.pt" in entry["checkpoint"]
+    assert "training set" in entry["episode_return_population"]
+    assert "training set" in entry["between_episode_rtg_population"]
+
+
+def test_episodes_are_read_in_manifest_order_because_float_reductions_depend_on_it() -> None:
+    """m24: reversing the episode order changes ``mean``/``std`` in the last bits, silently.
+
+    ``_fit_stats`` concatenates per-stream arrays in load order, so row C's two routes only agree
+    bit-for-bit when this order matches. A reversed glob survives tests 25 and 26 by luck.
+    """
+    root = _corpus_root()
+    directories = [root / name for name in TIERS["mappo1000"].dirs]
+    produced = _split_episode_paths(directories, "train")
+
+    expected: list[Path] = []
+    for directory in directories:
+        manifest = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
+        expected.extend(directory / str(e["filename"]) for e in manifest["episodes"])
+
+    assert produced == expected
+    assert produced != list(reversed(expected)), "the order must not be reversible undetected"
+    assert len(produced) == 200
+    # Directory order comes from TierSpec.dirs, not from a filesystem scan.
+    assert str(produced[0].parent).endswith("seed101")
+    assert str(produced[-1].parent).endswith("seed505")
+
+
 def test_the_probe_covers_the_eight_registered_tiers() -> None:
     """B1 overruled the five-tier registration; the probe and the tables share one tier list."""
     assert PROBE_TIERS == (
@@ -644,8 +761,31 @@ def test_recomputing_the_rtg_summary_on_the_wrong_population_disagrees() -> None
     # 400 episodes x 360 decisions: the whole split, not the 200-stream training subsample.
     assert committed.count == 144000
 
-    half = recomputed_rtg_summary(dirs, split="train")
-    assert half.count == committed.count, "sanity: the same call must be stable"
+    # THE WRONG POPULATION, computed here rather than described: the tier's DECLARED 200-stream
+    # training set, which is what BRIEF_28 section 4.2 originally asked us to compare against the
+    # committed summary. `random` subsamples one_per_draw, so it is exactly half the split.
+    streams = _tier_streams("random", root)
+    assert len(streams) == 200, f"random's declared training set is 200 streams, got {len(streams)}"
+    chunks = []
+    for stream in streams:
+        episode = load_episode(Path(stream.dataset_dir) / stream.episode_file)
+        rewards = np.asarray(
+            episode.intersections[stream.ix_id].local_reward, dtype=np.float32
+        )
+        chunks.append(np.cumsum(rewards.astype(np.float64)[::-1])[::-1].astype(np.float32))
+    subsample = np.concatenate(chunks).astype(np.float64)
+
+    assert subsample.size == 72000, "200 streams x 360 decisions"
+    assert subsample.size != committed.count, "the two populations must differ, or this is vacuous"
+    # The point of A6: these do NOT agree, so asserting they should would have condemned a
+    # correct implementation.
+    assert float(subsample.mean()) != committed.mean
+    assert float(subsample.std()) != committed.std
+    # ⚠️ `min` DOES coincide (-40294.0 in both) and that is not a counter-example: the split's
+    # single worst episode happens to survive the one_per_draw subsample, so an extremum can agree
+    # while the distribution does not. Asserted so nobody later "strengthens" this test by adding
+    # a min/max check and finds it passes for the wrong reason.
+    assert float(subsample.min()) == committed.min
 
 
 def test_the_mixture_tiers_share_one_committed_summary_because_it_is_fitted_on_their_union() -> None:
@@ -669,32 +809,49 @@ def test_the_mixture_tiers_share_one_committed_summary_because_it_is_fitted_on_t
 
 
 def test_every_availability_mask_in_this_corpus_is_all_true_so_masking_changes_nothing() -> None:
-    """``DEFERRED`` 21, asserted rather than assumed by the code that relies on it."""
+    """``DEFERRED`` 21, asserted rather than assumed by the code that relies on it.
+
+    Scope stated exactly: this reads **every episode of the whole `mappo1000` tier** -- all five
+    behaviour-seed directories, 200 episodes, 72,000 decision rows -- not a sample of one
+    directory. It does not read the other seven tiers, so it is a claim about this tier and not
+    about the 32,000-stream corpus, which ``docs/reviews/P3.md`` covers.
+    """
     root = _corpus_root()
     from offline.trajectory_logger import load_episode
 
-    directory = root / "cf_hz1x1__mappo1000__seed101"
-    if not directory.is_dir():
-        pytest.skip(f"tier directory absent: {directory}")
-    files = sorted(directory.glob("*.npz"))[:3]
-    assert files, "the fixture directory must contain episodes"
+    directories = [root / name for name in TIERS["mappo1000"].dirs]
+    for directory in directories:
+        if not directory.is_dir():
+            pytest.skip(f"tier directory absent: {directory}")
 
-    agent = _agent()
-    for path in files:
-        episode = load_episode(path)
-        ix_id = episode.ix_ids[0]
-        arrays = episode.intersections[ix_id]
-        assert bool(np.asarray(arrays.avail_mask).all()), f"{path}: a mask is not all-True"
+    rows = 0
+    episodes = 0
+    for directory in directories:
+        for path in sorted(directory.glob("*.npz")):
+            arrays = load_episode(path).intersections[load_episode(path).ix_ids[0]]
+            mask = np.asarray(arrays.avail_mask)
+            assert bool(mask.all()), f"{path}: a mask is not all-True"
+            rows += int(mask.shape[0])
+            episodes += 1
+    assert episodes == 200, f"the mappo1000 tier holds 200 episodes, read {episodes}"
+    assert rows == 200 * 361
 
-    # The consequence the probe relies on, checked on a fixture of the same shape.
-    episode_arrays = _episode()
+    # The consequence the probe relies on: with an all-True mask, masking is a no-op...
     logits_a = np.array([[0.0, 5.0, 1.0], [2.0, 0.0, 1.0]], dtype=np.float32)
     logits_b = np.array([[0.0, 4.0, 1.0], [2.0, 0.0, 3.0]], dtype=np.float32)
     everything = np.ones((2, N_ACTIONS), dtype=np.bool_)
-    with_mask = compare_logits("k", logits_a, logits_b, everything)
     assert np.array_equal(
         masked_action_logits(torch.from_numpy(logits_a), torch.from_numpy(everything)).numpy(),
         logits_a,
     )
-    assert with_mask.flip_rate == compare_logits("k", logits_a, logits_b, everything).flip_rate
-    assert episode_arrays["avail_mask"].all()
+    # ...and the comparison is NOT vacuous, because a mask that does bind changes the answer.
+    # Without this second half the assertion above would hold for a compare_logits that ignored
+    # the mask entirely. The fixture is the one from
+    # test_the_availability_mask_is_applied_and_can_change_the_flip_rate, where disabling action 1
+    # moves the argmax in one arm and not the other.
+    binding = everything.copy()
+    binding[:, 1] = False
+    bites_a = np.array([[0.0, 5.0, 1.0], [0.0, 5.0, 1.0]], dtype=np.float32)
+    bites_b = np.array([[0.0, 4.0, -9.0], [0.0, 4.0, -9.0]], dtype=np.float32)
+    assert compare_logits("k", bites_a, bites_b, everything).flip_rate == 0.0
+    assert compare_logits("k", bites_a, bites_b, binding).flip_rate == 1.0

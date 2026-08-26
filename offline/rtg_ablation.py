@@ -220,6 +220,12 @@ class ProbeCell:
     n_streams: int
     n_steps: int
     comparisons: tuple[InterventionComparison, ...]
+    #: Indices into the tier's declared training set that R4's stride rule selected.  Recorded so
+    #: the selection is auditable from the artifact: without it, ``chosen[:20]`` and
+    #: ``chosen[::10]`` produce the same ``n_streams`` and nothing downstream can tell them apart.
+    stream_indices: tuple[int, ...] = ()
+    #: ``(dataset_dir, episode_file, ix_id)`` of each selected stream, in selection order.
+    stream_keys: tuple[tuple[str, str, str], ...] = ()
 
     def to_json_obj(self) -> dict[str, Any]:
         return {
@@ -230,6 +236,8 @@ class ProbeCell:
             "rtg_scale": float(self.rtg_scale),
             "n_streams": int(self.n_streams),
             "n_steps": int(self.n_steps),
+            "stream_indices": [int(i) for i in self.stream_indices],
+            "stream_keys": [list(key) for key in self.stream_keys],
             "interventions": {c.key: c.to_json_obj() for c in self.comparisons},
         }
 
@@ -596,7 +604,7 @@ def recomputed_rtg_summary(
 # ----------------------------------------------------------------------
 
 
-def episode_return_stats(returns: Sequence[float]) -> dict[str, float]:
+def episode_return_stats(returns: Sequence[float]) -> dict[str, Any]:
     """Row A: ``mean, sd, IQR, min, max`` of the per-episode return.  ``ddof=0``, like everything else."""
     values = np.asarray(list(returns), dtype=np.float64)
     if values.size == 0:
@@ -674,7 +682,12 @@ def behaviour_margin_degenerate(entry: Mapping[str, Any]) -> bool:
     return float(entry["ci95_low"]) <= 0.0 <= float(entry["ci95_high"])
 
 
-def delta_table(grids: Sequence[Mapping[str, Any]], tiers: Sequence[str]) -> dict[str, Any]:
+def delta_table(
+    grids: Sequence[Mapping[str, Any]],
+    tiers: Sequence[str],
+    *,
+    grid_names: Sequence[str] = ("p4_6_grid.json", "p4_7_grid.json"),
+) -> dict[str, Any]:
     """Per tier: the DT's paired margin over its behaviour reference, read from committed grids.
 
     ⛔ **This is a measured table and NOT a decision rule.**  AMENDMENT A7 withdrew the rule after
@@ -684,12 +697,17 @@ def delta_table(grids: Sequence[Mapping[str, Any]], tiers: Sequence[str]) -> dic
     ``behaviour_margin_degenerate`` marks the two tiers where the CI contains zero.
     """
     found: dict[str, Mapping[str, Any]] = {}
-    for grid in grids:
+    sources: dict[str, str] = {}
+    names = list(grid_names) + [f"grid[{i}]" for i in range(len(grid_names), len(grids))]
+    for grid, name in zip(grids, names):
         for comparison in grid.get("behaviour_comparisons", []):
             arm = str(comparison.get("left_arm", ""))
             if not arm.startswith("dt@"):
                 continue
-            found.setdefault(arm[len("dt@") :], comparison)
+            tier_name = arm[len("dt@") :]
+            if tier_name not in found:
+                found[tier_name] = comparison
+                sources[tier_name] = name
 
     missing = [tier for tier in tiers if tier not in found]
     if missing:
@@ -703,6 +721,11 @@ def delta_table(grids: Sequence[Mapping[str, Any]], tiers: Sequence[str]) -> dic
     for tier in tiers:
         entry = found[tier]
         table[tier] = {
+            # A copy of a published number with no pointer is the drift hazard;
+            # a copy with a checked pointer is not.  `source_artifact` names where every field in
+            # this row came from, and a test asserts copy == source (BRIEF_29 section B).
+            "source_artifact": str(sources[tier]),
+            "source_arm": str(entry["left_arm"]),
             "left_arm": str(entry["left_arm"]),
             "right_arm": str(entry["right_arm"]),
             "mean_difference": float(entry["mean_difference"]),
@@ -751,6 +774,7 @@ def probe_cell(
     corpus_root: str | Path,
     device: str | None = None,
     streams: Sequence[StreamReturn] | None = None,
+    stream_indices: Sequence[int] | None = None,
 ) -> ProbeCell:
     """Measure every declared intervention on one (tier, seed) cell.
 
@@ -765,7 +789,16 @@ def probe_cell(
 
     spec = tier_spec(tier)
     chosen = list(streams) if streams is not None else list(_tier_streams(tier, corpus_root))
-    picked = [chosen[i] for i in selected_stream_indices(len(chosen))]
+    # *stream_indices* exists for ONE caller: the second-route test, which must compare the two
+    # implementations on the same episodes without paying for all twenty.  The campaign never
+    # passes it, so R4's stride rule remains the only selection any reported number was measured
+    # under -- asserted by test_the_probe_selects_streams_by_the_registered_stride_rule.
+    indices = (
+        selected_stream_indices(len(chosen))
+        if stream_indices is None
+        else tuple(int(i) for i in stream_indices)
+    )
+    picked = [chosen[i] for i in indices]
 
     settings = env_settings_for_tiers([spec], corpus_root)
     from experiments.config import EnvSpec
@@ -832,6 +865,10 @@ def probe_cell(
         n_streams=len(picked),
         n_steps=int(baseline.shape[0]),
         comparisons=comparisons,
+        stream_indices=tuple(int(i) for i in indices),
+        stream_keys=tuple(
+            (str(s.dataset_dir), str(s.episode_file), str(s.ix_id)) for s in picked
+        ),
     )
 
 
@@ -875,21 +912,32 @@ def spread_table(
             )
 
         ramp = ramp_prediction(target, scale)
+        declared_population = (
+            f"the tier's declared {len(picked)}-stream training set (training_streams), the "
+            "streams the DT actually trained on -- NOT the whole split, which is what row C's "
+            "RtgSummary covers"
+        )
         table[tier] = {
+            "seed": int(seed),
+            "checkpoint": str(checkpoint),
             "target_rtg": target,
             "rtg_scale": scale,
             "training_streams": len(picked),
             "episode_return_raw": episode_return_stats(returns),
             "episode_return_scaled": episode_return_stats([r / scale for r in returns]),
+            "episode_return_population": declared_population,
             "between_episode_rtg_raw": raw_b,
             "between_episode_rtg_scaled": scaled_b,
+            "between_episode_rtg_population": declared_population,
             "ramp_prediction_scaled": ramp,
             "pooled_scaled_over_ramp": scaled_b["pooled"] / ramp,
             "marginal_std_scaled": committed.std / scale,
             "marginal_std_over_ramp": (committed.std / scale) / ramp,
             "rtg_summary_committed": _summary_json(committed),
             "rtg_summary_recomputed": _summary_json(recomputed),
-            "rtg_summary_routes_agree": True,
+            # Computed, not asserted as a literal.  A hardcoded True cannot be False, which makes
+            # it a decoration rather than a record of a check (review M1).
+            "rtg_summary_routes_agree": bool(recomputed == committed),
             "rtg_summary_population": (
                 "concatenated per-step RTG of every stream in the tier's whole training split "
                 f"over {[Path(d).name for d in tier_dirs(spec, corpus_root)]}, ddof=0 -- NOT the "
@@ -961,6 +1009,15 @@ def crosscheck(
 
             def choose(_env: Any, info: dict[str, Any], _agent: Any = agent, _taken: list[int] = taken) -> np.ndarray:
                 action = _agent.act(info, explore=False, update_memory=True)
+                # Asserted, not assumed: hz1x1 has one intersection, and recording action[0] on a
+                # multi-intersection scenario would silently compare one junction's actions and
+                # call the result an episode flip rate (review M7).
+                if action.shape != (1,):
+                    raise ValueError(
+                        f"the crosscheck records one action per step and this env returned "
+                        f"{action.shape[0]}; it is declared on the single-intersection scenario "
+                        f"{_CROSSCHECK_TIER!r} and will not silently take the first of several"
+                    )
                 _taken.append(int(action[0]))
                 return action
 
@@ -1009,14 +1066,56 @@ def assert_declared_interventions(payload: Any) -> None:
         )
 
 
+def across_seed_spread(cells: Sequence[ProbeCell]) -> dict[str, Any]:
+    """Per tier and intervention: min / max / mean / sd over the seeds.
+
+    **Never a bare pooled mean** (BRIEF_28 section 4.2, P5.1's lesson: *a mean over those five is a
+    summary that hides its own subject*).  Emitted into the artifact rather than only into the
+    packet, so a reader of the data sees the spread without recomputing it (review M4).
+    """
+    by_tier: dict[str, dict[str, list[ProbeCell]]] = {}
+    for cell in cells:
+        by_tier.setdefault(cell.tier, {}).setdefault("cells", []).append(cell)
+
+    out: dict[str, Any] = {}
+    for tier, payload in by_tier.items():
+        group = payload["cells"]
+        per_key: dict[str, Any] = {}
+        for key in INTERVENTION_KEYS:
+            for field in ("flip_rate", "tvd", "mean_abs_logit_delta"):
+                values = [
+                    float(getattr(c, field))
+                    for cell in group
+                    for c in cell.comparisons
+                    if c.key == key
+                ]
+                if not values:
+                    continue
+                per_key.setdefault(key, {})[field] = {
+                    "min": float(np.min(values)),
+                    "max": float(np.max(values)),
+                    "mean": float(np.mean(values)),
+                    "sd": float(np.std(values)),
+                    "n_seeds": len(values),
+                }
+        out[tier] = per_key
+    return out
+
+
 def report_artifact(
     *,
     cells: Sequence[ProbeCell],
     tables: Mapping[str, Any],
     crosscheck: Mapping[str, Any],
     timings: Mapping[str, Any] | None = None,
+    measurement_git_commits: Sequence[Mapping[str, Any]] = (),
 ) -> dict[str, Any]:
-    """Assemble the one committed artifact.  It carries measured quantities and NO verdict."""
+    """Assemble the one committed artifact.  It carries measured quantities and NO verdict.
+
+    *measurement_git_commits* takes the **chunk payloads**, not commits: ``measurement_commits``
+    reads ``runtime.git_commit`` out of each and de-duplicates them, so the artifact records which
+    commits produced its inputs rather than only when it was assembled (``DEFERRED`` 39).
+    """
     for cell in cells:
         assert_declared_interventions({c.key: c for c in cell.comparisons})
 
@@ -1043,13 +1142,14 @@ def report_artifact(
         },
         "probe": {
             "cells": by_tier,
+            "across_seed_spread": across_seed_spread(cells),
             "limitation": _LIMITATION,
             "n_cells": len(cells),
         },
         "tables": dict(tables),
         "crosscheck": dict(crosscheck),
         "timings": dict(timings or {}),
-        "runtime": runtime_provenance(measurement_commits([])),
+        "runtime": runtime_provenance(measurement_commits(list(measurement_git_commits))),
     }
     assert_no_verdicts(payload)
     return payload
@@ -1159,11 +1259,17 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     cells: list[ProbeCell] = []
     timings: dict[str, Any] = {}
+    # Every chunk this report is assembled from, kept so `measurement_commits` can record which
+    # commits produced the INPUTS.  A single write-time `git_commit` describes when the report was
+    # assembled and nothing about what produced its numbers (DEFERRED 39), and this campaign is
+    # chunked into ten separate invocations.
+    chunks: list[Mapping[str, Any]] = []
     for tier in PROBE_TIERS:
         path = work / f"probe_{tier}.json"
         if not path.is_file():
             raise FileNotFoundError(f"{path}: run `probe --tier {tier}` first")
         chunk = json.loads(path.read_text(encoding="utf-8"))
+        chunks.append(chunk)
         timings.update(chunk.get("timings_seconds", {}))
         for entry in chunk["cells"]:
             cells.append(
@@ -1175,6 +1281,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                     rtg_scale=float(entry["rtg_scale"]),
                     n_streams=int(entry["n_streams"]),
                     n_steps=int(entry["n_steps"]),
+                    stream_indices=tuple(int(i) for i in entry.get("stream_indices", ())),
+                    stream_keys=tuple(
+                        (str(k[0]), str(k[1]), str(k[2])) for k in entry.get("stream_keys", ())
+                    ),
                     comparisons=tuple(
                         InterventionComparison(
                             key=key,
@@ -1189,12 +1299,21 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
     tables = json.loads((work / "tables.json").read_text(encoding="utf-8"))
     checked = json.loads((work / "crosscheck.json").read_text(encoding="utf-8"))
+    chunks.append(tables)
+    chunks.append(checked)
     payload = report_artifact(
         cells=cells,
         tables={"spread": tables["spread"], "delta": tables["delta"]},
         crosscheck=checked,
         timings={"probe_seconds": timings},
+        measurement_git_commits=chunks,
     )
+    if not payload["runtime"]["measurement_git_commits"]:
+        raise ValueError(
+            f"the report was assembled from {len(chunks)} chunk payloads but recorded no "
+            "measurement commits; runtime.git_commit would then describe only when the report was "
+            "written, which is the defect DEFERRED 39 exists to prevent"
+        )
     write_json_atomic(payload, out_dir / "p5_3a_rtg_probe.json")
     return 0
 

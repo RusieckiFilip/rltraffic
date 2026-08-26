@@ -297,6 +297,14 @@ def test_the_p4_dt_checkpoints_are_covered_by_no_integrity_manifest() -> None:
     This is a **statement of a known deficiency**, not a guard.  If a future task writes a manifest
     covering ``output/p4_dt/``, this test fails and should be deleted along with the note in the
     packet -- that is the intended way for it to end.
+
+    ⚠️ **It is INVERTED, and inverted tests are a class this project refused on 2026-08-19 —
+    *a test that condemns a correct artifact*.**  Green here means the repository is defective; red
+    means somebody fixed it.  It is kept as a deliberate, named exception to that ruling because
+    the deficiency it records is otherwise invisible: ``output/p4_dt/`` holds the five models behind
+    the pre-registered P4 gate, P4.3's entire sweep, the re-used ``mappo1000`` DT column in P4.6 and
+    P4.7, and this file's cell 1 -- gitignored, un-backed-up and in no ``SHA256SUMS_*.txt``.  The
+    exception is bounded: **whoever closes ``DEFERRED`` 56 deletes this test in the same commit.**
     """
     manifests = sorted(OUTPUT.glob("SHA256SUMS_*.txt"))
     if not manifests:
@@ -335,11 +343,72 @@ def test_a_committed_dt_cell_reproduces_bit_exactly_through_the_changed_code(
     assert compared == len(HELD_OUT_DRAWS) == 100
 
 
-def test_the_two_identity_cells_are_the_registered_ones() -> None:
-    """R8, restated where a test can see it: a quiet change of cell would change what is protected."""
-    assert CELL_ONE[0] == "mappo1000" and CELL_ONE[1] == 101
-    assert CELL_TWO[0] == "random" and CELL_TWO[1] == 101
+def test_cell_two_is_the_tier_a4s_rule_actually_selects() -> None:
+    """A4's rule, RE-EVALUATED from the checkpoints rather than restated as a literal.
+
+    The four assertions that used to open this test compared module constants to their own
+    literals -- a change-detector, not a check (review, theatre item 8). What is worth checking is
+    that ``CELL_TWO`` is still what the registered rule *returns*: the largest committed
+    ``RtgSummary.std`` among the tiers whose checkpoints live under ``output/p4_6/checkpoints/``.
+
+    ⚠️ **And the rule is recorded here as the wrong one.** ``BRIEF_28`` A4 chose on the marginal
+    ``std``; ``BRIEF_29`` §A accepted that this picked the **worst** discriminating cell available,
+    because that statistic is ramp-dominated and ``random`` is the narrowest tier of the eight on
+    the between-episode spread. The cell is kept -- re-choosing after seeing the outcome is worse
+    -- and this test pins what the rule returns, not that the rule was a good one.
+    """
+    from offline.rtg_ablation import committed_rtg_summary
+
+    p4_6_tiers = ("fixedtime", "mappo500", "maxpressure", "random")
+    measured = {}
+    for tier in p4_6_tiers:
+        path = OUTPUT / "p4_6" / "checkpoints" / f"{tier}_dt_seed101.pt"
+        if not path.is_file():
+            pytest.skip(f"checkpoint not present in this tree: {path}")
+        measured[tier] = committed_rtg_summary(path).std
+
+    assert max(measured, key=measured.__getitem__) == CELL_TWO[0]
+    assert measured["random"] > measured["fixedtime"] > measured["maxpressure"]
+    # Cell 1 is named, not selected: it is the headline tier A6's delta was measured on.
+    assert CELL_ONE[0] == "mappo1000"
     assert TIERS[CELL_ONE[0]].target_rtg == -5762.0
     assert TIERS[CELL_TWO[0]].target_rtg == -38369.0
+
+
+def test_cell_two_is_not_a_discriminating_cell_and_the_suite_says_so() -> None:
+    """⭐ ``BRIEF_29`` §A, required: no later reader may count two cells as two protections.
+
+    Both §6.1 mutations FAIL on cell 1 and PASS on cell 2. That is not a defect in the test: the
+    probe independently measures ``random``'s DT at ``flip_rate = 0.0`` on every intervention and
+    every seed, so zeroing its RTG cannot change a single action, and its per-episode ATT is
+    therefore unchanged. **Cell 2 is a second bit-exactness witness, not a second guard.**
+
+    This test holds the *convergence* of the two independent routes to that fact, so if a future
+    change makes ``random`` responsive, the claim in the packet stops being true and this fails.
+    """
+    artifact = DATA / "p5_3a_rtg_probe.json"
+    if not artifact.is_file():
+        pytest.skip(f"{artifact} has not been generated in this tree")
+    cells = json.loads(artifact.read_text(encoding="utf-8"))["probe"]["cells"][CELL_TWO[0]]
+    flips = [
+        value["flip_rate"]
+        for cell in cells.values()
+        for value in cell["interventions"].values()
+    ]
+    assert flips and max(flips) == 0.0, (
+        "cell 2's tier is now RTG-responsive, so the packet's explanation of why both mutations "
+        "survive on it no longer holds"
+    )
+    # Cell 1's tier IS responsive, which is why the mutations bite there.
+    cell_one = json.loads(artifact.read_text(encoding="utf-8"))["probe"]["cells"][CELL_ONE[0]]
+    assert max(
+        value["flip_rate"]
+        for cell in cell_one.values()
+        for value in cell["interventions"].values()
+    ) > 0.0
+
+
+def test_the_registered_constants_of_the_identity_run() -> None:
+    """The two numbers a silent change would most quietly invalidate."""
     assert DECLARED_GRADIENT_STEPS == 40000
     assert len(HELD_OUT_DRAWS) == 100
