@@ -54,7 +54,7 @@ equivalence threshold.
 
 | # | Prediction | Falsifiable how |
 |---|---|---|
-| **Q1** | **ORDERING, by endpoints:** the paired `\|dt − dt_nortg\|` is **largest on `mix50`** and **smallest on `random`**. | Either endpoint out of place falsifies it. **Endpoints, never a trend** — §1b's R3 was falsified on exactly a monotonicity claim, and the standing instruction is to register endpoints. |
+| **Q1** | **ORDERING, by endpoints:** the paired absolute difference between the `dt` and `dt_nortg` arms is **largest on `mix50`** and **smallest on `random`**. | Either endpoint out of place falsifies it. **Endpoints, never a trend** — §1b's R3 was falsified on exactly a monotonicity claim, and the standing instruction is to register endpoints. |
 | **Q2** | ⭐ **`random` is a NULL CONTROL, predicted from an independent instrument.** P5.3a measured `random`'s conditioned DT at `flip_rate = 0.000000`, 0 of 7200, on every intervention. If the token carries nothing there, training without it should cost nothing there: **`dt − dt_nortg` on `random` has a CI containing 0.** | A large, CI-excluding difference on `random` **indicts the wiring before it indicts the science** — same direction of inference as A8's `fixedtime` prediction in P5.3a, and registered now so it cannot be reversed later. |
 | **Q3** | **Arm validity, mechanical:** every `dt_nortg` checkpoint shows `flip_rate` **exactly 0.0** under P5.3a's probe on all 12 interventions, and carries `rtg_mode == "zero"` in its checkpoint config. | Anything non-zero means `rtg_mode` did not reach the training path. **This is a gate, not a result.** |
 
