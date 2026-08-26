@@ -1,5 +1,68 @@
 # Patches a Claude Code session cannot apply itself
 
+## `ci_gate_ceiling_121_p5_3a.patch` — the skip ceiling moves 104 → 121, exactly as its own expiry said it would
+
+**Apply with:**
+```bash
+git apply docs/patches/ci_gate_ceiling_121_p5_3a.patch    # on main
+.venv/bin/pytest tests/test_ci_gate.py -q                 # -> 34 passed
+```
+Verified with `git apply --check` against `main` @ `d312dfd` on 2026-08-26, and applied-and-run in a
+throwaway worktree. Two files, neither the coordinator's to write by role: `.github/ci/ci_baseline.json`
+and `tests/test_ci_gate.py`.
+
+**This is the registered protocol running, not a repair.** `re_measure_required_at.event` named
+*"merge of P5.3"*; P5.3a merged at `f4a73d3`; the gate went red on the ceiling and **on nothing else** —
+the suite step passed on both legs, as did all three guards, the wheel gate and `libc-matrix`.
+`what_to_do` says: *merge, let it go red, classify `junit.xml`, commit the observed value with its
+breakdown, do not pre-bump and do not widen with slack.* That is what this is.
+
+**Measured, not derived — run `33011650275`, both legs:**
+
+| category | now | was | delta |
+|---|---|---|---|
+| corpus / checkpoint | **76** | 59 | **+17** |
+| cityflow | 32 | 32 | 0 |
+| SUMO / traci | 10 | 10 | 0 |
+| matplotlib | 2 | 2 | 0 |
+| campaign output | 1 | 1 | 0 |
+| **total** | **121** | 104 | **+17** |
+
+**FOUR independent readings agree**: `junit.xml` **and** `pytest.txt` on **each** of the two legs, all
+four giving 121 and the same five-category split. **The entire +17 is one family**, which is what
+P5.3a should do — it added corpus- and checkpoint-gated tests and no engine-gated ones. Six of the
++17 carry a new message shape, `checkpoint not present in this tree: <path>`; two more are
+`surviving draw 1000 is absent` and `no integrity manifests in this tree`.
+`ceiling_if_cityflow_were_built` follows the arithmetic to **89** (121 − 32).
+
+### ⭐ The point of interest: this is the first ceiling move under the walked-chain design, and the "one edit" claim was tested rather than repeated
+
+`ci_gate_ceiling_104_and_chain_walk.patch` (2026-08-24) claimed *"moving the ceiling is ONE edit from
+here on, not four."* **Measured today: changing `CEILING_CHAIN` from `(104, 98, 72, 62)` to
+`(121, 104, 98, 72, 62)` and NOTHING else in that file gave `34 passed`.** Under the previous
+depth-addressed form the same move needed four edits and the fourth was masked by the first
+(`DEFERRED` 54). The docstring now records the measurement instead of the promise.
+
+**Falsified, not inspected — 7 mutations, 7 behaved as required**, in a throwaway worktree:
+
+```
+KILLED   ceiling 121->122 with measured.value left at 121
+KILLED   drop the ROOT link 62 -- NOW AT DEPTH 4
+KILLED   corpus_or_checkpoint 76->75 (breaks sum == ceiling)
+KILLED   ceiling_if_cityflow_were_built 89->72 (the stale value)
+KILLED   delete re_measure_required_at.reason
+KILLED   drop the NEW 104 link from the middle of the chain
+KILLED   CONTROL: reword prose only -- 34 passed, as required
+```
+
+⭐ **The second one is the whole argument for the redesign: the root `62` is now at depth 4 and
+deleting it still fails the suite.** At the 98 → 104 move, under the old design, the root silently
+fell out of the pinned set — which is precisely what the old docstring said must never happen.
+
+**Not touched:** the `re_measure_required_at` protocol text, and `predicted_delta` remains *NOT
+PREDICTED* — deliberately, for the third time. Two coordinator predictions of this delta were wrong;
+the third expiry was handled with no prediction at all and cost minutes.
+
 ## `ci_gate_ceiling_104_and_chain_walk.patch` — DEFERRED 54, THIRD instance, and the shape that guaranteed it
 
 **Apply with:**
