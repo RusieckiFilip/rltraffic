@@ -704,7 +704,7 @@ def test_committed_baseline_records_why_the_ceiling_has_the_value_it_has() -> No
     A future reader must be able to see that the number is a consequence of a choice, and
     what the number would be under the other choice.
 
-    The chain is **104 -> 98 -> 72 -> 62**, newest first.  Only the root was ever WRONG: 62 came
+    The chain is **121 -> 104 -> 98 -> 72 -> 62**, newest first.  Only the root was ever WRONG: 62 came
     from a simulated runner (see section "harness errors" of ``docs/returns/P0.10.md``).  72 and 98
     EXPIRED EXACTLY AS THEIR OWN ENTRIES SAID THEY WOULD, on the merges of P5.1 and P5.2.  The chain
     is pinned here, in a second file, precisely so that widening it is a visible edit in a diff
@@ -718,11 +718,17 @@ def test_committed_baseline_records_why_the_ceiling_has_the_value_it_has() -> No
     happen.  ``DEFERRED`` 54, third instance.  The walk below reaches the root at whatever depth it
     lands.  *(If a skip CATEGORY moves rather than the total, ``skip_breakdown`` in the baseline
     moves too and the arithmetic below fails until it does -- that is intended.)*
+
+    ✅ **MEASURED 2026-08-26, the first move under this design: it really was ONE edit.**  The
+    104 -> 121 move (P5.3a's merge, +17 skips, all of them corpus/checkpoint-gated) was made by
+    changing ``CEILING_CHAIN`` and nothing else in this file, and the 34 tests passed.  Under the
+    previous depth-addressed form the same move needed four edits and the fourth was masked by the
+    first (``DEFERRED`` 54).  The claim is now checked rather than argued.
     """
     #: The declared ceiling and every value it supersedes, newest first.  ONE literal, walked
     #: rather than addressed by depth -- see the docstring for why the depth-addressed form let
     #: the root drop out of the record.
-    CEILING_CHAIN = (104, 98, 72, 62)
+    CEILING_CHAIN = (121, 104, 98, 72, 62)
 
     baseline = json.loads(BASELINE_FILE.read_text(encoding="utf-8"))
     block = baseline["pytest"]
