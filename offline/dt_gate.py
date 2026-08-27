@@ -730,13 +730,33 @@ def train_dt(
     rtg_scale: float,
     provenance: dict[str, Any],
     log_every: int = 0,
+    rtg_mode: str = "conditioned",
 ) -> TrainResult:
     """Train one seed for exactly *declared_gradient_steps* steps and save the checkpoint.
 
     ``raise_to`` is recorded, never acted on here: the registered criterion is all-or-nothing
     across seeds, so the raise is orchestrated by the caller once every seed's curve exists.
+
+    ``rtg_mode`` -- P5.3b's information ablation, added 2026-08-27 under ``BRIEF_30`` section 4.1
+    ------------------------------------------------------------------------------------------
+    ``"conditioned"`` (the default) feeds the return-to-go the caller stacked; ``"zero"`` makes
+    :class:`agent.DTAgent.DecisionTransformer` replace it with zeros *inside* the model, holding the
+    sequence length, the attention pattern and the state-token index exactly fixed -- an information
+    ablation rather than an architecture change.  **The mode travels inside the checkpointed
+    config**, so ``DTAgent.load`` rebuilds the right model with no extra flag; a mode carried
+    anywhere else would let the ordinary loader evaluate a zero-mode checkpoint as a conditioned one
+    (``agent/DTAgent.py``'s ``load``, and ``BRIEF_28`` section 4.1's ruling).
+
+    ⚠️ **The default reproduces every pre-P5.3b call bit for bit, and that is measured rather than
+    argued.**  ``docs/plans/p5.3b.md`` section 2 records the pre-edit control: on the unmodified
+    tree, ``(mappo500, dt, 101)`` retrained at 40,000 steps to
+    ``5d98d5351198c45054cce1e38b810dabd789708e71e3563e9428d37a49e0e563``, the digest committed in
+    ``docs/data/p4_6_training.json``, with a bit-identical final loss.
+    ``tests/test_train_dt_rtg_mode.py`` re-runs that comparison **through this signature** and is
+    the guard on this edit; it calls this function with **no** ``rtg_mode`` argument, deliberately,
+    so that changing the default below is a failing test rather than a silent campaign.
     """
-    from agent.DTAgent import DecisionTransformer, DTConfig
+    from agent.DTAgent import RTG_MODES, DecisionTransformer, DTConfig
     from agent.utils.utils import Utils
 
     total = int(declared_gradient_steps)
@@ -745,6 +765,15 @@ def train_dt(
     count = int(stacked["state"].shape[0])
     if count < 1:
         raise ValueError("the stacked dataset is empty")
+    # Checked here, beside the other argument guards, so a rejected run never reaches the RNG and
+    # never reaches the filesystem: validate, then act.  ``RTG_MODES`` is the single definition of
+    # what is legal; restating the pair here would let the two drift.
+    if str(rtg_mode) not in RTG_MODES:
+        raise ValueError(
+            f"rtg_mode must be one of {list(RTG_MODES)}, got {rtg_mode!r}; 'conditioned' feeds "
+            "the return-to-go the caller stacked and 'zero' replaces it with zeros inside the "
+            "model, and nothing is trained or written for any other value"
+        )
 
     Utils.seed_everything(int(seed), seed_python_random=False)
     config = DTConfig(
@@ -752,6 +781,7 @@ def train_dt(
         n_actions=int(n_actions),
         context_length=int(context_length),
         max_ep_len=int(stacked["timestep"].max()) + 1,
+        rtg_mode=str(rtg_mode),
     )
     model = DecisionTransformer(config).to(device)
     optimiser = torch.optim.AdamW(
