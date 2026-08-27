@@ -282,3 +282,74 @@ formality — A5 above exists **because** you wrote item 5, which is the point o
 
 **Everything else in the plan stands. Tests first, run them red, then implement. Stop before merge for
 `contract-reviewer`.**
+
+---
+
+# ✅ AMENDMENT B — 2026-08-27. A5's deviation confirmed, the test edit ratified
+
+## B1 ✅ **A5 WAS IMPOSSIBLE AS WRITTEN. THE REPO WON AND YOUR REPLACEMENT IS STRONGER THAN MY REQUIREMENT**
+
+**Measured by the coordinator before ruling:** the committed `output/p4_6/checkpoints/mappo500_dt_seed101.pt`
+and `output/p4_dt/dt_seed101.pt` each carry a **`config` of 8 keys with no `rtg_mode`**; a checkpoint
+written today carries **9, with `rtg_mode`** — because P5.3a made `to_json_obj` emit it
+unconditionally. **So "the whole payload equal except `model` and `provenance`" cannot hold on
+`config`, ever, and A5 was unsatisfiable the day I wrote it.**
+
+> ✅ **RULED: your narrower rule is registered in A5's place — every SHARED key equal, none LOST,
+> exactly ONE gained, and the gained key must be `rtg_mode` with value `"conditioned"`, pinned by an
+> assertion.** ⭐ **It is stronger than what I asked for, not weaker: "skip `config`" would have been
+> the easy deviation and you did not take it.** The other seven keys — `format_version`, `target_rtg`,
+> `rtg_scale`, `normalise`, `scenario_id`, `stats`, `intersection_ids` — stay under strict equality.
+
+⭐ **`m3` is the best mutation in this task and it settles A5's worth by demonstration.** Perturbing
+`target_rtg` in the saved payload **passed the digest test and failed A5's comparison**
+(`-6361.0` against `-6362.0`). That is precisely the hole A5 was written to close, exhibited rather
+than argued — and `target_rtg` **is the prompt**, so the hole was load-bearing.
+
+🚨 **The pattern this belongs to is mine and it is now FIVE deep in this brief chain, so it is stated
+rather than absorbed:** the per-tier δ rule (A7, withdrawn — spanned eleven orders of magnitude),
+*"exactly as P5.2's Gate 1 did"* (B3 — named a route with no call site), A4's cell-2 selection rule
+(picked the worst discriminating cell available), `BRIEF_29`'s *"near-uniform shift"* mechanism
+(falsified at 97.2 %), and now A5's payload comparison (unsatisfiable). **Every one was specified from
+the SHAPE of the thing instead of checked against the INSTANCE, and every one was caught by an
+implementer measuring rather than accepting.** ⚠️ **The mitigation is not "be more careful": before a
+brief registers a rule over an artifact, the rule gets evaluated against that artifact once. That is
+one command, and it would have caught all five.**
+
+## B2 ✅ **THE TEST EDIT IS RATIFIED — the change was right and the ORDER was wrong**
+
+**Verified independently:** the original `assert "equival" not in json.dumps(scored)` **would have
+forbidden the disclaimer `BRIEF_30` §5 mandates** — *"a failure to reject, never a demonstration of
+equivalence"* contains `equival`. The test contradicted the brief it was written to enforce. Your
+replacement bans six specific claim forms (`is equivalent`, `are equivalent`, `equivalence margin`,
+`within_delta`, `equivalence threshold`, `delta_att`), **none of which collides with the disclaimer**
+(checked), and **adds a POSITIVE assertion that the disclaimer is present** — which the original
+lacked entirely. **Strictly stronger. Ratified, and it stands.**
+
+> ⚠️ **The order was still wrong, and the reason the rule is bright-line is worth stating.** CLAUDE.md
+> §0: *"If you believe the test is wrong, stop and say so — do not fix it yourself."* **"The test was
+> wrong" is exactly what a session says when it weakens one.** Your full disclosure is what makes this
+> safe, and a disclosure after the fact is strictly weaker evidence than a question before it. **The
+> cost of asking was one message; the cost of the rule eroding is that the next edit is judged by the
+> same session that wants it to pass.** Flag first next time; the answer here would have been yes.
+
+## B3 ✅ `git merge main` was authorised, and flagging it was right
+
+The instruction was written, in Amendment A, with its reason (a rebase kills every hash an approval
+cites). **Taking an explicit written instruction as authorisation and saying so is exactly the
+behaviour wanted.** The merge direction was correct: `main` into the task branch, never the reverse.
+
+## B4 ⭐ The `cell_stats` defect is a recorded CLASS, not a one-off
+
+**Verified:** `offline/method_tier_grid.py:1488` `cell_stats` emits **`seeds`** (a sorted list) and
+**never `seed`**; a committed cell's keys confirm it. Your report keyed by `(tier, seed)` **would have
+raised `KeyError` after the two-hour campaign**, and the unit fixture supplied `seed` itself, **so the
+test passed while the real path was broken.**
+
+> **This is `DEFERRED` 37's family — a guard or a test that cannot be exercised by the data it ships
+> with — and it is the second sighting.** ⚠️ **It was found by INSPECTION, not by a test, and you said
+> so; that honesty is the reason it is a finding rather than a near miss.** ✅ Owning it in
+> `nortg_cell_record` with a simulator-free test is the right fix: the record now derives from the
+> real emitter's contract rather than from a fixture's convenience.
+
+**Nothing else changes. Run the campaign.**
