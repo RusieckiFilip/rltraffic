@@ -353,3 +353,88 @@ test passed while the real path was broken.**
 > real emitter's contract rather than from a fixture's convenience.
 
 **Nothing else changes. Run the campaign.**
+
+---
+
+# ⛔ AMENDMENT C — 2026-08-28. THE CAMPAIGN IS HELD. A short fix round first
+
+`docs/reviews/P5.3b-preflight.md` says **CLEAR TO RUN, no blockers**, and I am overriding that to
+**HOLD** — not because anything can be destroyed, but because **two of its MAJOR findings would be
+baked into the artifact by a run that starts now, and both cost minutes to fix while nothing is
+running.** ⭐ **This is the first PRE-FLIGHT REVIEW and it has already paid for itself: `M5` alone
+would have written a knowably false commit into `measurement_git_commits`.**
+
+**Everything below is small. Estimated together: well under the 36 minutes `M5` costs on its own.**
+
+## C1 🚨 **M5 — DELETE the four `mappo1000` chunks and re-run them. Not disclosed, deleted**
+
+**Coordinator-verified before ruling:** `f115b7c` defines `nortg_cell_record` **zero** times, `39a4eef`
+defines it **once**, and `eval_mappo1000_seed101.json` **contains `cell.seed`** while recording
+`git_commit = f115b7ce…`; its mtime (22:27:08) sits between the two commits. **The chunk was written
+by a dirty tree and its provenance is false.**
+> **RULED: `rm output/p5_3b/{gate1,train_mappo1000,eval_mappo1000_seed101,probe_mappo1000}.json` and
+> the `mappo1000` checkpoints, then let the campaign regenerate them.** ≈36 min of a ≈2 h run.
+> **Disclosure is NOT an acceptable substitute here.** `measurement_git_commits` is the one field
+> `DEFERRED` 39 exists to make trustworthy; a provenance we KNOW to be wrong, left in place because
+> fixing it costs 36 minutes, is the trade this project exists to refuse. **Nothing has started. This
+> is the cheapest this decision will ever be.**
+> ⚠️ **The other three chunks have no behavioural tell, so I am not claiming they are clean — I am
+> deleting them because I cannot tell, and "cannot tell" is the reason, stated.**
+
+## C2 🔒 **Add a dirtiness flag to `runtime_provenance` — M5's mechanism, and its second sighting**
+
+`offline/dt_gate.py:636` records `git rev-parse HEAD` **with no dirtiness check**. `docs/reviews/P5.3a.md`
+**M6** logged exactly this as *"pre-existing"* three days ago. **It has now bitten for real.**
+> **Required: `runtime_provenance` records `git_dirty` (from `git status --porcelain`, non-empty →
+> `true`), and the campaign REFUSES to write a chunk from a dirty tree unless `--allow-dirty` is
+> passed explicitly.** `dt_gate.py` is already this task's file, so it is in scope. ⭐ **A provenance
+> field that cannot distinguish a clean tree from a dirty one is not provenance.**
+
+## C3 **M1 + M2 — the probe must verify the digest AND enforce Gate 3 where it runs**
+
+`_run_probe` neither checks the checkpoint digest (which `_run_evaluate` does at `:1475`) nor refuses
+a non-zero `flip_rate` — it prints `worst` and writes the chunk anyway. **Demonstrated against the
+committed conditioned checkpoint: `max flip_rate 0.004722`, exit 0.**
+> **Required: `_run_probe` recomputes `canonical_digest_of` and refuses a mismatch, exactly as
+> `_run_evaluate` does; and it RAISES on any non-zero `flip_rate` or any `rtg_mode != "zero"`.**
+> 🚨 **The caching is what makes this urgent rather than cosmetic: the driver skips a tier whose
+> `probe_$TIER.json` exists, so a bad probe chunk survives every restart and the only signal arrives
+> two stages later.** A gate that reports at the end of a two-hour run is not a gate.
+
+## C4 **M3 — assert the chunk describes the tier being run.** Two lines
+
+`_run_evaluate` checks the seed and never `training["tier"] == args.tier`. Demonstrated: a copied
+chunk evaluated a `mappo1000` checkpoint and wrote `arm: dt_nortg@mix50`, exit 0, every downstream
+assertion passing. ⚠️ **The reviewer's judgement is right — it needs a manual rename to arise, and
+this tree is being hand-managed, which is exactly why it is cheap insurance rather than theory.**
+
+## C5 **M4 — reap the fan-out's children before exiting**
+
+`run_campaign.sh:86-95` `exit 1`s on the first failure while four background jobs keep running and
+writing. **An immediate restart gives 8–10 concurrent evaluations on one GPU**, against the script's
+own stated one-thread-per-cell protocol. **Kill or wait for the remaining children before `fail`.**
+
+## C6 **M6 — the script must re-verify the reused manifests after the run**
+
+`BRIEF_30` §8 and the plan §9 both require it; the script does neither. **Add `sha256sum -c` on
+`SHA256SUMS_p4_3 / p4_6 / p4_7 / p5_3a` at the end, with the counts printed.** The reviewer measured
+the "before": **all nine manifests verify, zero failures.**
+
+## C7 **Correct the plan's §9 disclosure — over-disclosure is still a false claim**
+
+§9 says CityFlow rollouts rewrite `output/roadnet.json` and `output/replay.txt`. **Coordinator-verified:
+all 100 held-out draw configs carry `saveReplay: False` and `replayLogFile: None`**, and the
+reviewer's real rollouts left both mtimes untouched. ⚠️ **Not a contradiction of P5.3a's reviewer, who
+observed the SUITE — different configs — rewriting them; both are right about different things, and
+the packet should say which.** **Delete the claim or narrow it to the suite.**
+
+## C8 ✅ What is NOT required, so the fix round does not sprawl
+
+The non-atomic `torch.save`, the single unfenced write to the git-tracked artifact, the
+directory-not-sibling fence, the stale `COMPLETE` marker and `probe_cell`'s `--draws-root` are all
+**recorded and not fixed** — none is reachable by a correct run and the reviewer bounded each.
+**Do not touch them.** ⭐ **And nothing in the campaign's design changed: the resume logic was attacked
+with truncated, stale, wrong-seed and SIGKILLed states and held every time. P5.2's O4 defect is not
+repeated — `_run_train` writes the complete column once, atomically, after the loop.**
+
+**When C1–C7 are done: re-run the three P5.3b test files, paste the tail, then start the campaign.**
