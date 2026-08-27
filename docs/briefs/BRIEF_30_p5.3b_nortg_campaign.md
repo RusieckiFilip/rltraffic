@@ -188,3 +188,97 @@ State these in the packet, plainly:
    therefore consistent-with rather than evidence-for C4.
 3. **`random`'s DT is 4× worse in ATT than the other two** (420.38 against ~105). A difference measured
    there is not comparable in magnitude to one measured on `mappo1000`.
+
+---
+
+# ✅ AMENDMENT A — 2026-08-27, ruled at the plan gate
+
+**Verdict: APPROVED TO CODE.** Plan pinned at blob `84e4d2c0187ee4f7fd3fb455c2926c19a02ceed2`
+(`docs/plans/p5.3b.md` on `task/p5.3b-nortg-campaign` @ `cc859eb`). ⚠️ **Bring this amendment onto the
+branch with `git merge main`, NOT a rebase** — `PROJECT_PLAN` §7's rule of 2026-08-19: a rebase replays
+onto a new base and every hash an approval cites dies in that act. **Approvals pin blobs.**
+
+## A0 — what the coordinator re-verified first-hand
+
+**G0-b is real, and it is the measurement that makes this task possible.** `p4_6_training.json`'s run
+`(mappo500, dt, 101)` carries `canonical_digest = 5d98d5351198c45054cce1e38b810dabd789708e71e3563e9428d37a49e0e563`
+and `seconds = 213.3009614944458` — matching your retrain's digest exactly and your 212.4 s closely.
+`canonical_digest_of` confirmed at `offline/method_tier_grid.py:1180-1185` to read `payload["model"]`
+only. **Taken on your report:** G0-a, G0-c, G0-d and the five conflicts.
+
+⭐ **Running G0-b before writing anything was the right call and it was not asked for.** `BRIEF_30` §7
+asked for a *timing* probe; you ran a **feasibility** probe, and it retired the task's largest unknown
+for 3.5 minutes. **The contrast you found is the reason it was a real risk:** `docs/returns/P5.2.md`
+measured 61–63 of 66 tensors differing between two runs of the **spatial** trainer, and `dt_gate.py`
+sets no determinism flag — so §4.1's instrument could have been a coin toss, and nobody had checked.
+
+## A1 — Q1: **KEEP Gate 1b, and widen it to ONE RE-ROLL PER TIER**
+
+Keep. Your reason stands: a paired comparison is only valid if both arms were measured by the same
+instrument, and the `dt` column was measured in a worktree that no longer exists.
+> ⭐ **But one cell does not license three, and the reason is provenance, not sampling: the three `dt`
+> columns come from three different places** — `mappo1000` from `output/p4_dt/` (P4's reused column),
+> `mix50` from `output/p4_7/`, `random` from `output/p4_6/`. **Re-roll one cell in each of the three,
+> ≈3 minutes each against a ≈2 h campaign.**
+> 🚨 **And on `mappo1000` it is not belt-and-braces, it is the ONLY integrity evidence available.**
+> `DEFERRED` 56: `output/p4_dt/` is in no manifest, so Gate 1's manifest half cannot run there and its
+> file-sha256 is filename-dependent (`DEFERRED` 29). **A behavioural re-roll is the compensating
+> control for a known, recorded gap — say exactly that in the packet rather than listing the three
+> tiers as equally protected.**
+
+## A2 — Q2: **CONFIRMED. `abs(mean_difference)` is the primary and the only scored quantity**
+
+Your §3.2 disambiguation is ruled correct and is now registered by this amendment. It is the quantity
+Q2's CI is about, so Q1 and Q2 stay on one scale — which is the property that matters.
+`mean(|per-draw difference|)` stays a reported, explicitly unregistered secondary.
+
+⭐ **One thing to add to the packet, because a referee will ask and the answer is favourable: scoring
+Q1 on the RAW scale is CONSERVATIVE.** The three `dt` ATTs are 105 · 108 · **420**. If differences
+scale at all with baseline ATT, `random` would show the **largest** raw difference — which is the
+**opposite** of what Q1 predicts. **So the registered scale makes Q1 harder to confirm, not easier**,
+and §3.3's normalised column is a reading aid rather than the escape hatch it might look like.
+**State that, and state that switching to the normalised ordering after the fact remains forbidden by
+your own §3.3.**
+
+## A3 — Q3: approved. The campaign goes to a user-started `tmux`
+
+Write `output/p5_3b/run_campaign.sh` and hand it over (CLAUDE.md §5). Report the measured wall clock
+against your ≈2 h projection; **P5.3c needs the number and Amendment R2 forbids armchair costing.**
+
+## A4 — the two conflicts that change what you build: both rulings CONFIRMED
+
+**F2** — `rtg_ablation`'s CLI resolves paths from `_CHECKPOINT_LAYOUT`, keyed by tier, so it cannot
+address new checkpoints. **Calling `probe_cell(..., checkpoint_path=…)` directly, module unmodified,
+is right** — editing a merged, reviewed module to add a path is a larger change than the problem.
+**F3** — `arm_key` validates against `METHODS`, which §6.5 forbids editing. **Keying the arm locally
+is right**, and your note that `assert_cell_complete`, `cell_stats` and `paired_comparison` do not
+validate is the part that makes it safe. ✅ F1, F4, F5 accepted as recorded.
+
+## A5 — 🚨 ONE NEW REQUIREMENT: your §5.1 point 5 is only half-closed, and the unclosed half is the prompt itself
+
+You wrote that the canonical digest covers `payload["model"]` only, *"so a corrupted `config`,
+`stats`, `target_rtg` or `provenance` block leaves it green"*, and closed the **`config`** half with an
+explicit key/mode test. **`target_rtg` and `rtg_scale` are left open, and they ARE the prompt** — a
+thread-through that perturbed either would leave Gate 2 green, leave your config test green, and
+change every number in the campaign.
+
+> **REQUIRED: Gate 2 additionally asserts the retrained control cell's whole payload equals the
+> committed one for every key EXCEPT `model` and `provenance`** — i.e. `format_version`, `config`,
+> `target_rtg`, `rtg_scale`, `normalise`, `scenario_id`, `stats`, `intersection_ids`. `model` is the
+> digest's job; **`provenance` legitimately differs and the exclusion must be stated, not silent.**
+> It is a dict comparison over data you already load. ⭐ **Finding your own blind spot and then
+> covering three-quarters of it is the failure mode this project logs most often — the sweep is the
+> hard part, not the sighting.**
+
+## A6 — what is strong, recorded because it should be repeated
+
+**§3.4** defines `seeds_reversed` before the data, counts an exact zero as a reversal (the
+conservative direction), and — the part worth copying — **records that `d_s` and `D` average in
+different orders and refuses to assert equality between them, because that would condemn a correct
+implementation.** That is `A6`'s lesson and `A7`'s applied without being told.
+**§3.3**'s self-binding sentence (*"switching to it after seeing the result is forbidden by this
+sentence"*) is the right way to register a secondary. **§5.1** is a real blind-spot list, not a
+formality — A5 above exists **because** you wrote item 5, which is the point of requiring it.
+
+**Everything else in the plan stands. Tests first, run them red, then implement. Stop before merge for
+`contract-reviewer`.**
