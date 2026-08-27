@@ -570,6 +570,24 @@ def evaluate_cell(
 # ----------------------------------------------------------------------
 
 
+def nortg_cell_record(episodes: Sequence[EpisodeResult], seed: int) -> dict[str, Any]:
+    """``cell_stats`` plus the scalar ``seed`` this campaign's cells are keyed by.
+
+    ``method_tier_grid.cell_stats`` emits ``seeds`` -- a **list**, because a P4.6 cell spans all
+    five training seeds.  P5.3b evaluates one seed per job so its cells are per-seed, and the
+    artifact is keyed by ``(tier, seed)``.  Adding the scalar here rather than at the call site
+    keeps one definition of what a P5.3b cell record is, and gives it a test that does not need a
+    simulator.
+    """
+    record = cell_stats(episodes)
+    if record["seeds"] != [int(seed)]:
+        raise ValueError(
+            f"a P5.3b cell describes exactly one training seed; cell_stats reports "
+            f"{record['seeds']} for seed {int(seed)}"
+        )
+    return {**record, "seed": int(seed)}
+
+
 def committed_dt_episodes(tier: str, *, data_dir: str | Path) -> list[EpisodeResult]:
     """The committed ``dt@<tier>`` per-episode records, read from the merged grid artifact."""
     grid = json.loads(
@@ -1485,7 +1503,7 @@ def _run_evaluate(args: argparse.Namespace, work: Path) -> int:
             "canonical_digest": digest,
             "seconds": seconds,
             "seconds_per_episode": seconds / len(produced),
-            "cell": cell_stats(produced),
+            "cell": nortg_cell_record(produced, int(args.seed)),
             "episodes": [
                 {
                     "arm": e.arm,

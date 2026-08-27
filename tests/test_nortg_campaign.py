@@ -147,6 +147,28 @@ def test_the_tier_rule_is_re_evaluated_from_committed_row_b_and_returns_the_thre
     assert all(tier in TIERS for tier in NORTG_TIERS)
 
 
+def test_a_cell_record_carries_the_scalar_seed_the_artifact_is_keyed_by() -> None:
+    """⚠️ ``cell_stats`` emits ``seeds`` (a list) and never ``seed``.
+
+    This gap was found by reading the production path against the artifact test, **not** by a test:
+    the report assembles cells by ``(tier, seed)`` and would have raised ``KeyError`` after the
+    two-hour campaign.  It has a test now, and the test needs no simulator.
+    """
+    from offline.nortg_campaign import nortg_cell_record
+
+    episodes = _episodes("dt_nortg@mix50", dict.fromkeys(SEEDS, 0.0))
+    one_seed = [e for e in episodes if e.seed == 101]
+    record = nortg_cell_record(one_seed, 101)
+    assert record["seed"] == 101
+    assert record["seeds"] == [101]
+    assert record["tier"] == "mix50"
+    assert record["arm"] == "dt_nortg@mix50"
+    assert record["n_episodes"] == len(DRAWS)
+
+    with pytest.raises(ValueError, match="describes exactly one training seed"):
+        nortg_cell_record(episodes, 101)
+
+
 def test_gate_1b_reroll_cells_cover_all_three_provenances() -> None:
     """AMENDMENT A1: one re-roll per tier, because the three ``dt`` columns come from three places.
 
