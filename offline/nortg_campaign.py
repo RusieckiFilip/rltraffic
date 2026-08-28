@@ -570,6 +570,105 @@ def evaluate_cell(
 # ----------------------------------------------------------------------
 
 
+def assert_recordable_tree(allow_dirty: bool = False) -> dict[str, Any]:
+    """Refuse to write a chunk from a tree whose provenance would be false (AMENDMENT C2).
+
+    ``runtime_provenance`` stamps every chunk with ``git rev-parse HEAD``.  On a modified tree that
+    hash names a commit that did **not** produce the bytes, and ``measurement_commits`` then carries
+    it into the artifact -- the one field ``DEFERRED`` 39 exists to make trustworthy.  It is not
+    hypothetical: P5.3b's own first four chunks recorded ``f115b7ce`` while one of them contained a
+    field that commit does not define.
+
+    **Fails closed.**  ``git_dirty is None`` means git could not be asked, and *cannot determine* is
+    refused for the same reason *dirty* is.  ``allow_dirty=True`` is an explicit operator decision
+    and is **recorded in the chunk**, so a permitted dirty run never looks like a clean one.
+    """
+    provenance = runtime_provenance()
+    dirty = provenance.get("git_dirty")
+    if dirty is not False and not allow_dirty:
+        state = "modified" if dirty else "of undetermined cleanliness"
+        raise ValueError(
+            f"refusing to write a chunk from a tree that is {state}: the chunk would record "
+            f"git_commit {provenance.get('git_commit', '')[:8]!r}, which did not produce these "
+            "bytes, and measurement_git_commits would carry it into the artifact. Commit or stash "
+            "first, or pass --allow-dirty to record the run as dirty on purpose"
+        )
+    return {
+        "git_commit": provenance.get("git_commit"),
+        "git_dirty": dirty,
+        "allow_dirty_used": bool(allow_dirty and dirty is not False),
+    }
+
+
+def assert_training_run_matches(
+    training: Mapping[str, Any], tier: str, seed: int
+) -> dict[str, Any]:
+    """The chunk must describe THIS tier and seed, and its checkpoint must be the weights it recorded.
+
+    AMENDMENT C3 + C4.  ``_run_probe`` previously did neither, while ``_run_evaluate`` checked the
+    digest and neither checked the tier.  The reviewer demonstrated both: a chunk pointing at
+    another seed's file was evaluated as if it were this one's, and ``train_mappo1000.json`` copied
+    to ``train_mix50.json`` produced episodes labelled ``dt_nortg@mix50`` from a ``mappo1000``
+    checkpoint, exit 0, every downstream assertion passing.
+    """
+    recorded = str(training.get("tier", ""))
+    if recorded != str(tier):
+        raise ValueError(
+            f"the training chunk describes tier {recorded!r} but this invocation is for "
+            f"{tier!r}; a chunk that does not describe its own subject would label another "
+            "tier's checkpoint with this tier's arm key"
+        )
+    runs = [run for run in training.get("runs", []) if int(run["seed"]) == int(seed)]
+    if len(runs) != 1:
+        raise ValueError(
+            f"{tier} seed {seed}: the training chunk records {len(runs)} runs, not 1"
+        )
+    run = runs[0]
+    digest = canonical_digest_of(run["checkpoint"])
+    if digest != run["canonical_digest"]:
+        raise ValueError(
+            f"{run['checkpoint']}: canonical digest {digest} is not the trained "
+            f"{run['canonical_digest']}; this is not the model the training chunk records"
+        )
+    return run
+
+
+def assert_probe_cell_is_ablated(cell: Mapping[str, Any]) -> Mapping[str, Any]:
+    """One probe cell must show the ablation took.  Raises where the cell is MEASURED.
+
+    AMENDMENT C3.  ``_run_probe`` used to print the worst flip rate and write the chunk regardless;
+    the reviewer demonstrated ``max flip_rate 0.004722``, exit 0, against a **conditioned**
+    checkpoint.  🚨 **The driver skips a tier whose probe chunk exists, so a bad chunk survived
+    every restart and the only signal arrived two stages later. A gate that reports at the end of a
+    two-hour run is not a gate.**
+
+    This is the single definition of "this cell is a valid ablation"; :func:`assert_arm_validity`
+    calls it per cell rather than repeating the checks, because two copies would drift and the
+    drift would be invisible -- one copy runs on a live tree, the other on committed bytes.
+    """
+    where = f"{cell['tier']}@{cell['seed']}"
+    interventions = cell["interventions"]
+    if sorted(interventions) != sorted(INTERVENTION_KEYS):
+        raise ValueError(
+            f"{where}: the twelve declared interventions are {sorted(INTERVENTION_KEYS)}, got "
+            f"{sorted(interventions)}; the grid may not grow after the fact"
+        )
+    if str(cell.get("rtg_mode")) != NORTG_RTG_MODE:
+        raise ValueError(
+            f"{where}: the checkpoint records rtg_mode {cell.get('rtg_mode')!r}, so rtg_mode "
+            f"did not reach the training path and this arm is not the ablation it claims"
+        )
+    for key, values in interventions.items():
+        flip = float(values["flip_rate"])
+        if flip != 0.0:
+            raise ValueError(
+                f"{where} intervention {key}: flip_rate is {flip!r}, so this checkpoint "
+                "did not ignore the return token it was never trained with; rtg_mode did not "
+                "reach the training path"
+            )
+    return cell
+
+
 def nortg_cell_record(episodes: Sequence[EpisodeResult], seed: int) -> dict[str, Any]:
     """``cell_stats`` plus the scalar ``seed`` this campaign's cells are keyed by.
 
@@ -1004,27 +1103,11 @@ def assert_arm_validity(probe_cells: Sequence[Mapping[str, Any]]) -> dict[str, A
     max_flip = 0.0
     max_tvd = 0.0
     for cell in cells:
-        where = f"{cell['tier']}@{cell['seed']}"
-        interventions = cell["interventions"]
-        if sorted(interventions) != sorted(INTERVENTION_KEYS):
-            raise ValueError(
-                f"{where}: the twelve declared interventions are {sorted(INTERVENTION_KEYS)}, got "
-                f"{sorted(interventions)}; the grid may not grow after the fact"
-            )
-        if str(cell.get("rtg_mode")) != NORTG_RTG_MODE:
-            raise ValueError(
-                f"{where}: the checkpoint records rtg_mode {cell.get('rtg_mode')!r}, so rtg_mode "
-                f"did not reach the training path and this arm is not the ablation it claims"
-            )
-        for key, values in interventions.items():
-            flip = float(values["flip_rate"])
-            if flip != 0.0:
-                raise ValueError(
-                    f"{where} intervention {key}: flip_rate is {flip!r}, so this checkpoint "
-                    "did not ignore the return token it was never trained with; rtg_mode did not "
-                    "reach the training path"
-                )
-            max_flip = max(max_flip, flip)
+        # One definition, called per cell -- see assert_probe_cell_is_ablated's docstring for why
+        # a second copy here would drift invisibly.
+        assert_probe_cell_is_ablated(cell)
+        for values in cell["interventions"].values():
+            max_flip = max(max_flip, float(values["flip_rate"]))
             max_tvd = max(max_tvd, float(values.get("tvd", 0.0)))
             checked += 1
 
@@ -1260,6 +1343,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--steps", type=int, default=DECLARED_GRADIENT_STEPS)
     parser.add_argument("--torch-threads", type=int, default=1)
     parser.add_argument("--log-every", type=int, default=10_000)
+    parser.add_argument(
+        "--allow-dirty",
+        action="store_true",
+        help="record a chunk from a modified working tree on purpose (AMENDMENT C2). Without it "
+        "every writing subcommand REFUSES a dirty or undeterminable tree, because the chunk's "
+        "git_commit would name a commit that did not produce its bytes",
+    )
 
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("gate1", help="reused dt identity, manifests, and the per-tier re-rolls")
@@ -1308,6 +1398,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 def _run_gate1(args: argparse.Namespace, work: Path, data_dir: Path) -> int:
+    tree = assert_recordable_tree(args.allow_dirty)
     identity = assert_reused_dt_identity(data_dir=data_dir, output_root=args.output_root)
     rerolls: dict[str, Any] = {}
     for tier, seed in GATE_1B_CELLS:
@@ -1353,6 +1444,7 @@ def _run_gate1(args: argparse.Namespace, work: Path, data_dir: Path) -> int:
                         "harness; on mappo1000 it is the compensating control for DEFERRED 56",
                 "cells": rerolls,
             },
+            "tree": tree,
             "runtime": runtime_provenance(),
         },
         assert_writable(work / "gate1.json"),
@@ -1361,6 +1453,7 @@ def _run_gate1(args: argparse.Namespace, work: Path, data_dir: Path) -> int:
 
 
 def _run_control(args: argparse.Namespace, work: Path, data_dir: Path) -> int:
+    tree = assert_recordable_tree(args.allow_dirty)
     tier, seed = CONTROL_CELL
     inputs = training_inputs(tier, args.corpus_root)
     scratch = assert_writable(work / "control")
@@ -1407,6 +1500,7 @@ def _run_control(args: argparse.Namespace, work: Path, data_dir: Path) -> int:
             "canonical_digest": digest,
             "committed_digest": CONTROL_COMMITTED_DIGEST,
             "payload_comparison": payload_record,
+            "tree": tree,
             "runtime": runtime_provenance(),
         },
         assert_writable(work / "control.json"),
@@ -1416,6 +1510,7 @@ def _run_control(args: argparse.Namespace, work: Path, data_dir: Path) -> int:
 
 
 def _run_train(args: argparse.Namespace, work: Path) -> int:
+    tree = assert_recordable_tree(args.allow_dirty)
     inputs = training_inputs(args.tier, args.corpus_root)
     print(
         f"tier {args.tier}: training streams {inputs.n_streams}  windows {inputs.n_windows}  "
@@ -1457,6 +1552,7 @@ def _run_train(args: argparse.Namespace, work: Path) -> int:
                 "the summary is not a property of mix50."
             ),
             "runs": runs,
+            "tree": tree,
             "runtime": runtime_provenance(),
         },
         assert_writable(work / f"train_{args.tier}.json"),
@@ -1465,19 +1561,10 @@ def _run_train(args: argparse.Namespace, work: Path) -> int:
 
 
 def _run_evaluate(args: argparse.Namespace, work: Path) -> int:
+    tree = assert_recordable_tree(args.allow_dirty)
     training = _chunk(work, f"train_{args.tier}.json")
-    runs = [run for run in training["runs"] if int(run["seed"]) == int(args.seed)]
-    if len(runs) != 1:
-        raise ValueError(
-            f"{args.tier} seed {args.seed}: the training chunk records {len(runs)} runs, not 1"
-        )
-    run = runs[0]
-    digest = canonical_digest_of(run["checkpoint"])
-    if digest != run["canonical_digest"]:
-        raise ValueError(
-            f"{run['checkpoint']}: canonical digest {digest} is not the trained "
-            f"{run['canonical_digest']}; this is not the model the training chunk records"
-        )
+    run = assert_training_run_matches(training, args.tier, int(args.seed))
+    digest = run["canonical_digest"]
     arm = nortg_arm_key(args.tier)
     print(f"{arm} seed {args.seed} over {len(HELD_OUT_DRAWS)} draws", flush=True)
     started = time.time()
@@ -1515,6 +1602,7 @@ def _run_evaluate(args: argparse.Namespace, work: Path) -> int:
                 }
                 for e in produced
             ],
+            "tree": tree,
             "runtime": runtime_provenance(),
         },
         assert_writable(work / f"eval_{args.tier}_seed{args.seed}.json"),
@@ -1524,28 +1612,38 @@ def _run_evaluate(args: argparse.Namespace, work: Path) -> int:
 
 
 def _run_probe(args: argparse.Namespace, work: Path) -> int:
+    """Gate 3, ENFORCED where it is measured (AMENDMENT C3).
+
+    The checkpoint digest is re-verified exactly as ``_run_evaluate`` does, and a cell that shows
+    any non-zero flip rate or any ``rtg_mode != "zero"`` raises **before** the chunk is written.
+    The driver skips a tier whose probe chunk exists, so a bad chunk written here would be cached
+    and reused on every restart, and the only signal would arrive two stages later at ``report``.
+    """
+    tree = assert_recordable_tree(args.allow_dirty)
     training = _chunk(work, f"train_{args.tier}.json")
     from offline.rtg_ablation import _tier_streams
 
     streams = _tier_streams(args.tier, args.corpus_root)
     cells = []
     timings = {}
-    for run in sorted(training["runs"], key=lambda r: int(r["seed"])):
+    for seed in TRAINING_SEEDS:
+        run = assert_training_run_matches(training, args.tier, int(seed))
         started = time.time()
         cell = probe_nortg_cell(
             args.tier,
-            int(run["seed"]),
+            int(seed),
             checkpoint_path=run["checkpoint"],
             corpus_root=args.corpus_root,
             device=args.device,
             streams=streams,
         )
         elapsed = time.time() - started
-        timings[f"{args.tier}@{run['seed']}"] = elapsed
+        timings[f"{args.tier}@{seed}"] = elapsed
+        assert_probe_cell_is_ablated(cell)
         cells.append(cell)
         worst = max(float(v["flip_rate"]) for v in cell["interventions"].values())
         print(
-            f"probe {args.tier} seed {run['seed']}: rtg_mode {cell['rtg_mode']}  "
+            f"probe {args.tier} seed {seed}: rtg_mode {cell['rtg_mode']}  "
             f"max flip_rate {worst:.6f}  n={cell['n_steps']} in {elapsed:.1f}s",
             flush=True,
         )
@@ -1556,6 +1654,7 @@ def _run_probe(args: argparse.Namespace, work: Path) -> int:
             "tier": args.tier,
             "cells": cells,
             "timings_seconds": timings,
+            "tree": tree,
             "runtime": runtime_provenance(),
         },
         assert_writable(work / f"probe_{args.tier}.json"),

@@ -682,7 +682,39 @@ def runtime_provenance(
         "written_at_git_commit": commit or None,
         "measurement_git_commits": reachable,
         "unreachable_measurement_commits": unreachable,
+        "git_dirty": _git_tree_is_dirty(),
     }
+
+
+def _git_tree_is_dirty() -> bool | None:
+    """Was the working tree modified when this artifact was written?  ``None`` = undetermined.
+
+    Added 2026-08-28 under ``BRIEF_30`` AMENDMENT C2.  ``docs/reviews/P5.3a.md`` **M6** logged the
+    absent flag as *"pre-existing"* two days earlier; it then bit for real, and that is why it is a
+    field rather than a note.  P5.3b's ``eval_mappo1000_seed101.json`` recorded
+    ``git_commit = f115b7ce`` while containing ``cell.seed``, a field that commit does not define:
+    the chunk came from a dirty tree, ``measurement_git_commits`` would have carried a knowably
+    false commit, and **no later gate could have caught it**.
+
+    ⚠️ **Three states, not two.**  ``offline/materialise_draws.py``'s ``_git_commit`` returns
+    ``False`` when git errors, which is right for a record and wrong for a gate: *could not
+    determine* must never read as *clean*.  A caller that gates on this must treat ``None`` as
+    "cannot vouch for" -- see ``offline/nortg_campaign.assert_recordable_tree``.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=str(Path(__file__).resolve().parent),
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):  # pragma: no cover - git is present here
+        return None
+    if result.returncode != 0:  # pragma: no cover - git is present here
+        return None
+    return bool(result.stdout.strip())
 
 
 def _partition_reachable_commits(commits: Sequence[str]) -> tuple[list[str], list[str]]:

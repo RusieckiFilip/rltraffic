@@ -219,6 +219,188 @@ def test_the_fenced_set_names_every_merged_campaign_directory() -> None:
     assert "p5_3b" not in FENCED_OUTPUT_DIRS
 
 
+# ----------------------------------------------------------------------
+# AMENDMENT C2 -- provenance that cannot tell a clean tree from a dirty one is not provenance
+# ----------------------------------------------------------------------
+
+
+def test_runtime_provenance_records_whether_the_tree_was_dirty() -> None:
+    """``BRIEF_30`` AMENDMENT C2, and it is `docs/reviews/P5.3a.md` **M6**'s second sighting.
+
+    M6 logged the absent dirtiness flag as *"pre-existing"* on 2026-08-26.  It bit for real on
+    2026-08-27: ``eval_mappo1000_seed101.json`` recorded ``git_commit = f115b7ce`` while containing
+    a field that commit does not define, so its provenance was false and nothing could see it.
+
+    The value is checked against an **independent** ``git status --porcelain`` run here rather than
+    pinned to a constant, so the test is right whatever state the tree is in when it runs.
+    """
+    import subprocess
+
+    from offline.dt_gate import runtime_provenance
+
+    record = runtime_provenance()
+    assert "git_dirty" in record, "the change must be additive but it must actually be there"
+    assert record["git_dirty"] in (True, False, None)
+
+    result = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=str(REPO), capture_output=True, text=True, check=False,
+    )
+    if result.returncode == 0:
+        assert record["git_dirty"] is bool(result.stdout.strip())
+
+
+def test_runtime_provenance_keeps_every_field_it_already_had() -> None:
+    """Additively only: ``DEFERRED`` 39's split and every older field keep their names."""
+    from offline.dt_gate import runtime_provenance
+
+    record = runtime_provenance()
+    for key in (
+        "torch_version", "torch_cuda_version", "cuda_available", "cuda_device_name",
+        "torch_num_threads", "numpy_version", "python_version", "git_commit",
+        "written_at_git_commit", "measurement_git_commits", "unreachable_measurement_commits",
+    ):
+        assert key in record, f"{key} disappeared; the change must be additive"
+
+
+@pytest.mark.parametrize("dirty", [True, None])
+def test_the_campaign_refuses_to_write_a_chunk_from_a_tree_it_cannot_vouch_for(
+    dirty: bool | None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """⚠️ ``None`` -- git unavailable -- refuses too.  A provenance check fails CLOSED.
+
+    ``offline/materialise_draws.py``'s ``_git_commit`` returns ``False`` when git errors, which is
+    right for a record and wrong for a gate: 'could not determine' must not read as 'clean'.
+    """
+    monkeypatch.setattr(
+        nortg_campaign, "runtime_provenance",
+        lambda *a, **k: {"git_commit": "abc1234", "git_dirty": dirty},
+    )
+    with pytest.raises(ValueError, match="refusing to write a chunk from a tree") as excinfo:
+        nortg_campaign.assert_recordable_tree(allow_dirty=False)
+    assert "--allow-dirty" in str(excinfo.value)
+
+
+def test_a_clean_tree_is_recordable_without_the_escape_hatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        nortg_campaign, "runtime_provenance",
+        lambda *a, **k: {"git_commit": "abc1234", "git_dirty": False},
+    )
+    record = nortg_campaign.assert_recordable_tree(allow_dirty=False)
+    assert record["git_dirty"] is False
+    assert record["allow_dirty_used"] is False
+
+
+def test_the_escape_hatch_is_recorded_in_the_chunk_and_never_silent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """If a dirty run is ever permitted, the artifact must say so rather than look clean."""
+    monkeypatch.setattr(
+        nortg_campaign, "runtime_provenance",
+        lambda *a, **k: {"git_commit": "abc1234", "git_dirty": True},
+    )
+    record = nortg_campaign.assert_recordable_tree(allow_dirty=True)
+    assert record["git_dirty"] is True
+    assert record["allow_dirty_used"] is True
+
+
+# ----------------------------------------------------------------------
+# AMENDMENT C3 + C4 -- a chunk must describe the tier and seed being run, and its checkpoint
+# must still be the weights it recorded
+# ----------------------------------------------------------------------
+
+
+def _training_chunk(tmp_path: Path, tier: str, seed: int) -> tuple[dict[str, Any], Path]:
+    import torch
+
+    from offline.method_tier_grid import canonical_digest_of
+
+    checkpoint = tmp_path / f"{tier}_dt_nortg_seed{seed}.pt"
+    torch.save({"model": {"w": torch.zeros(3)}}, checkpoint)
+    chunk = {
+        "tier": tier,
+        "runs": [
+            {
+                "tier": tier,
+                "seed": seed,
+                "checkpoint": str(checkpoint),
+                "canonical_digest": canonical_digest_of(checkpoint),
+            }
+        ],
+    }
+    return chunk, checkpoint
+
+
+def test_a_training_chunk_that_describes_another_tier_is_refused(tmp_path: Path) -> None:
+    """M3, demonstrated by the reviewer: a copied chunk evaluated a ``mappo1000`` checkpoint and
+    wrote ``arm: dt_nortg@mix50``, exit 0, every downstream assertion passing."""
+    chunk, _ = _training_chunk(tmp_path, "mappo1000", 101)
+    with pytest.raises(ValueError, match="describes tier"):
+        nortg_campaign.assert_training_run_matches(chunk, "mix50", 101)
+
+
+def test_a_training_chunk_without_the_requested_seed_is_refused(tmp_path: Path) -> None:
+    chunk, _ = _training_chunk(tmp_path, "mix50", 101)
+    with pytest.raises(ValueError, match="records 0 runs"):
+        nortg_campaign.assert_training_run_matches(chunk, "mix50", 202)
+
+
+def test_a_checkpoint_whose_weights_moved_since_training_is_refused(tmp_path: Path) -> None:
+    """M1: ``_run_probe`` did not do this while ``_run_evaluate`` did, so Gate 3 could certify a
+    file the campaign cannot prove is the one it evaluated."""
+    import torch
+
+    chunk, checkpoint = _training_chunk(tmp_path, "mix50", 101)
+    torch.save({"model": {"w": torch.ones(3)}}, checkpoint)
+    with pytest.raises(ValueError, match="is not the trained"):
+        nortg_campaign.assert_training_run_matches(chunk, "mix50", 101)
+
+
+def test_a_matching_chunk_returns_its_run(tmp_path: Path) -> None:
+    chunk, checkpoint = _training_chunk(tmp_path, "mix50", 101)
+    run = nortg_campaign.assert_training_run_matches(chunk, "mix50", 101)
+    assert run["checkpoint"] == str(checkpoint)
+
+
+def test_a_single_probe_cell_is_refused_where_it_is_measured_not_two_stages_later(
+    tmp_path: Path,
+) -> None:
+    """⭐ M2, and the caching is what made it urgent: the driver skips a tier whose probe chunk
+    exists, so a bad chunk survived every restart and the only signal arrived at ``report``.
+
+    Demonstrated by the reviewer against the committed **conditioned** checkpoint:
+    ``max flip_rate 0.004722``, **exit 0**.
+    """
+    good = _probe_cell("mix50", 101)
+    assert nortg_campaign.assert_probe_cell_is_ablated(good) is good
+
+    flipped = _probe_cell("mix50", 101, flip=0.004722)
+    with pytest.raises(ValueError, match="did not ignore the return token") as excinfo:
+        nortg_campaign.assert_probe_cell_is_ablated(flipped)
+    assert "grid_g8" in str(excinfo.value)
+
+    conditioned = _probe_cell("mix50", 101, mode="conditioned")
+    with pytest.raises(ValueError, match="rtg_mode did not reach the training path"):
+        nortg_campaign.assert_probe_cell_is_ablated(conditioned)
+
+
+def test_the_whole_cell_set_check_and_the_single_cell_check_share_one_definition() -> None:
+    """One definition of 'this cell is a valid ablation', used at probe time and at report time.
+
+    Two copies would drift, and the drift would be invisible: the probe-time copy runs on a live
+    tree and the report-time copy on committed bytes.
+    """
+    cells = _all_cells()
+    cells[7]["interventions"]["grid_g8"]["flip_rate"] = 1.0 / 7200.0
+    with pytest.raises(ValueError, match="did not ignore the return token") as whole:
+        assert_arm_validity(cells)
+    with pytest.raises(ValueError, match="did not ignore the return token") as single:
+        nortg_campaign.assert_probe_cell_is_ablated(cells[7])
+    assert str(single.value) in str(whole.value) or str(whole.value) == str(single.value)
+
+
 def test_a_report_whose_inputs_are_missing_writes_nothing_and_creates_no_directory(
     tmp_path: Path,
 ) -> None:
