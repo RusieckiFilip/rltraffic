@@ -343,3 +343,64 @@ C7 claims P5.1's and P5.2's `grid4x4_mappo1000_{bc,bc_top10,iql}` checkpoints di
 - **11 mutations, 11 caught**, and A0's two effects separated at population scale — **24 fully-admitted
   cells span `att_ours − att_engine` ∈ [+3.25, +7.18], 15 censored cells reach −370.92.** That is the
   M1/B1 decomposition confirmed on 39 cells rather than 4.
+
+---
+
+# ✅ AMENDMENT C — 2026-08-28. The grid4x4 draw restore is authorised, with two binding conditions
+
+**Authorised by the author:** regenerate `cityflow_grid4x4` held-out draws **1010–1099** before the
+escalation, using `admission_probe restore-draws`, the same tool, scenario and Gate −1 verification
+phase 1 already used and recorded in `output/p8_4a/draw_restoration.json`.
+
+**Why it was needed at all, found before the run rather than during it:** `escalation-plan` names
+**14 cells, 6 of them `grid4x4`**, the escalation runs **100 draws**, `cityflow1x1` has 100
+materialised and **`cityflow_grid4x4` has 10** — and the `--escalate` path materialises nothing
+(`p8_4a.sh:260-288`). grid4x4 is first in the plan, so it would have failed on the first cell.
+
+## C1 🚨 BINDING — all ten survivors must come back `kept`, and the count is reported BEFORE anything else runs
+
+`draw_restoration.json` records all ten of `1000…1009` as `kept` from phase 1. The restore re-verifies
+them on the way to writing 1010–1099.
+
+> **If even ONE regenerates differently, STOP. Do not run the escalation, do not continue the task,
+> report it immediately.**
+> ⭐ **The author's reason, and it is larger than this task: `(source, base_seed, draw_id) → draw` being
+> a PURE FUNCTION is the assumption T1's entire recoverability argument rests on** — it is what makes
+> ruling (a) cost simulation time instead of re-collection, and it is what `DEFERRED` 55 relied on when
+> the hz1x1 draws were regenerated. **A survivor that does not reproduce falsifies that assumption, and
+> that is a bigger finding than P8.4a.**
+> **So this restore is not a chore. It is a live test of a load-bearing assumption, and its result is
+> reported as such — the count, explicitly, before any escalation cell is rolled.**
+
+## C2 🔒 BINDING — the restore is recorded in the packet as a REPAIR, with its reason, never as setup
+
+**Author's ruling, quoted:** *"the restore goes in the packet as a repair with its reason, not as
+setup, because `scenarios/draws` being gitignored and per-worktree is what deleted them twice."*
+
+> **`DEFERRED` 55 documents the first loss** — P4.6/P4.7 materialised draws 1000–1099 inside their own
+> worktrees, `scenarios/draws/` is gitignored and therefore per-worktree, and retiring those worktrees
+> deleted them. **P5.3a repaired hz1x1. This repairs grid4x4. That is twice, by the same mechanism,
+> and calling it "setup" would erase the pattern the third occurrence needs.**
+> **Required in the packet:** what was missing, why it was missing, that it is the second instance of
+> `DEFERRED` 55, and that the restore byte-verified the survivors rather than assuming them.
+
+## C3 ⭐ THE LESSON THE AUTHOR NAMED, recorded because it is now twice in one week
+
+> *"I asked which directory and which path because your main-tree path was wrong, and the answer turned
+> out to be 'it does not matter, the script cds itself' — but running `escalation-plan` to answer it is
+> what found the six grid4x4 cells with ten draws. The question was about paths and it surfaced a
+> run-ending trap."*
+
+**Both instances this week:**
+1. **This one.** A question about a **path** → answering it required running `escalation-plan` →
+   which enumerated the cells → which exposed a 90-draw shortfall that would have killed the run.
+2. **P5.3b's pre-flight.** A question about **process** — *should pre-campaign review be a rule?* →
+   the review that followed found `M5`, a chunk carrying a `git_commit` from a dirty tree, which would
+   have written false provenance into the artifact.
+
+⭐ **The transferable part is WHY it works, and it generalises `PROJECT_PLAN` §7's falsification rule to
+handoffs: answering a delivery question honestly requires EXECUTING the delivery path, and executing
+it is what finds the defect that READING it would not.** I could have answered "which path" by reading
+`p8_4a.sh` — the header even explains the `cd`. **Reading it would have been correct and would have
+missed the trap entirely.** ⚠️ **A delivery detail is not overhead. It is the one part of a handoff
+that is always executed, so it is the cheapest place to run a real test.**

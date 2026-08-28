@@ -737,6 +737,27 @@ Candidates parked here deliberately: each is scientifically attractive but compe
 
 ## 7. Sub-chat Protocol (hardened 2026-07-12 — designed for AI-written code)
 
+### 🔒 ANSWER A DELIVERY QUESTION BY EXECUTING THE DELIVERY PATH, NEVER BY READING IT (added 2026-08-28)
+
+**When the author asks *which directory, which script, which command* — do not answer from the source.
+Run the thing.** ⭐ **Twice in one week the delivery detail was where the run-ending defect lived, and
+both times it was found by executing rather than reading:**
+
+1. **2026-08-28, P8.4a.** A question about a **path**. Answering it meant running `escalation-plan`,
+   which enumerated **14 cells, 6 of them `grid4x4`** — against **10 of the 100 required draws
+   materialised**, with the `--escalate` path materialising nothing. **A 3.4 h run would have died on
+   its first cell.** ⚠️ **Reading `p8_4a.sh` would have answered the path question correctly — its
+   header even documents the `cd` — and would have missed the trap completely.**
+2. **2026-08-27, P5.3b.** A question about **process** (*should pre-campaign review be a rule?*). The
+   review it triggered found a chunk carrying a `git_commit` from a **dirty tree**, which the
+   campaign's own resume logic would have skipped and written into `measurement_git_commits`.
+
+**Why it works, and it is §7's falsification rule applied to handoffs: a delivery path is the one part
+of a plan that is ALWAYS executed, so it is the cheapest place to run a real test — and answering the
+question honestly forces you to execute it.** ⚠️ **The corollary binds the coordinator: a command
+handed to the author is a claim, and an unrun command is an unverified claim.** *(Both instances began
+with a wrong path of mine — the P5.2 patch's shape, recurring.)*
+
 ### 🔒 PRE-FLIGHT REVIEW — mandatory before a long or destructive run (added 2026-08-27, on the author's proposal)
 
 **Trigger, and it is deliberately NOT duration alone:** a pre-flight review is required before starting
