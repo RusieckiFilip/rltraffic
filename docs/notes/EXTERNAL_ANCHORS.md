@@ -11,7 +11,9 @@ against an outside value?"* had never been written down and the honest answer wa
 > attempt was made, at the algorithm layer (IQL on D4RL, P8.3), and it did not resolve. The simulation
 > and metric layer has no external anchor.**
 
-**Status 2026-08-28: PARTIALLY SUPERSEDED by §2 below — the metric layer now has one weak external
+🚨 **STATUS 2026-08-28, SAME DAY, AFTER T1 FAILED: §2's anchor IS NOW SUSPECT IN ITS OWN RIGHT AND MUST NOT BE QUOTED UNTIL THE METRIC QUESTION IS SETTLED.** T1 established that our `average_travel_time` and CityFlow's own `getAverageTravelTime` **average over different populations** — ours excludes vehicles created but never admitted, the engine's does not — and that on hz1x1 the two read **247.75 against 264.72** for MaxPressure and **427.04 against 877.95** for Random. **DataLight's 284.44 / 327.62, the figures §2 compares us against, are almost certainly the ENGINE's quantity, so §2 compared our 247.75 to a number computed a different way.** ⚠️ **Under the engine's definition our MaxPressure is 264.72, which lands even closer to DataLight's range — so the anchor probably SURVIVES and may strengthen. But it is not established, and an anchor whose two sides are known to measure different populations is not an anchor.** **Re-derive §2 once the metric is settled, and state which definition each side uses.**
+
+**Status 2026-08-28 (earlier): PARTIALLY SUPERSEDED by §2 below — the metric layer now has one weak external
 anchor, and the sentence must be updated to say so rather than left standing.** It is kept verbatim
 because it was true until this date and because the paper needs the history, not just the state.
 
