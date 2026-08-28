@@ -108,9 +108,13 @@ directory.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import argparse
+import hashlib
+import json
+import time
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Iterable, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 import numpy as np
 
@@ -168,6 +172,15 @@ ESCALATION_DRAWS: tuple[int, ...] = tuple(range(1000, 1100))
 PROBE_SEEDS: tuple[int, ...] = (101, 202, 303, 404, 505)
 
 BEHAVIOUR_METHOD = "behaviour"
+
+#: Tiers whose behaviour policy is deterministic, so their committed cells carry one ``seed: null``
+#: slot rather than five.  ``maxpressure`` is a function of the state and ``fixedtime`` of the clock.
+DETERMINISTIC_ANCHOR_TIERS: frozenset[str] = frozenset({"maxpressure", "fixedtime"})
+
+#: The declared training budget every checkpoint this module loads must record.  Both campaigns ran
+#: at 40,000 and the loaders refuse anything else, which is the mechanical form of "no online model
+#: selection" (``PREREGISTRATION`` section 6).
+DECLARED_GRADIENT_STEPS = 40_000
 
 #: E2's registered band: anything below this on a ``mappo1000`` arm indicts the probe, not the science.
 E2_ADMISSION_FLOOR = 0.99
@@ -278,7 +291,35 @@ def created_from_flow(flow_path: str | Path, *, horizon_seconds: int) -> int:
     (``startTime < endTime``) would emit ``floor((endTime - startTime) / interval) + 1`` vehicles and
     silently break this count, so it raises instead.
     """
-    raise NotImplementedError
+    horizon = int(horizon_seconds)
+    if horizon <= 0:
+        raise ValueError(
+            f"horizon_seconds must be positive, got {horizon_seconds!r}; an episode of no length "
+            "creates no vehicles and the count would be vacuous"
+        )
+    path = Path(flow_path)
+    entries = json.loads(path.read_bytes())
+    if not isinstance(entries, list):
+        raise ValueError(f"{path}: a CityFlow flow file is a JSON list, got {type(entries).__name__}")
+
+    created = 0
+    for index, entry in enumerate(entries):
+        if "startTime" not in entry or "endTime" not in entry:
+            raise ValueError(
+                f"{path}: flow entry {index} has no startTime/endTime, so it cannot be counted"
+            )
+        start = int(entry["startTime"])
+        end = int(entry["endTime"])
+        if start != end:
+            raise ValueError(
+                f"{path}: flow entry {index} has startTime {start} != endTime {end}. This count "
+                "models one vehicle per entry, which is exact only for the single-vehicle shape "
+                "every materialised draw uses; a repeating entry emits "
+                "floor((endTime - startTime) / interval) + 1 vehicles and would be undercounted"
+            )
+        if start <= horizon - 1:
+            created += 1
+    return created
 
 
 @dataclass(frozen=True)
@@ -295,7 +336,9 @@ class AdmissionCounts:
     @property
     def entered_fraction(self) -> float:
         """``entered / created``; ``0.0`` when a draw creates no vehicles at all."""
-        raise NotImplementedError
+        if self.created == 0:
+            return 0.0
+        return self.entered / self.created
 
 
 def reconcile_admission(
@@ -313,7 +356,54 @@ def reconcile_admission(
     file) must agree exactly.  ``==`` and not ``isclose``: these are counts, and a route that is one
     vehicle out is a defect, not a tolerance.
     """
-    raise NotImplementedError
+    counts = {
+        "n_running": int(n_running),
+        "n_with_waiting": int(n_with_waiting),
+        "n_depart_time": int(n_depart_time),
+        "n_completed": int(n_completed),
+        "created_from_flow": int(created_from_flow),
+    }
+    for name, value in counts.items():
+        if value < 0:
+            raise ValueError(f"{name} must be non-negative, got {value}")
+
+    never_entered = counts["n_with_waiting"] - counts["n_running"]
+    if never_entered < 0:
+        raise ValueError(
+            f"never_entered is {never_entered}: get_vehicles(include_waiting=True) returned "
+            f"{counts['n_with_waiting']} against {counts['n_running']} without waiting, but R1 "
+            "makes the first a superset of the second (engine.cpp:780-789). A negative difference "
+            "is a defect in the read, not a measurement"
+        )
+
+    entered_r2 = counts["n_depart_time"]
+    entered_r3 = counts["n_completed"] + counts["n_running"]
+    if entered_r2 != entered_r3:
+        raise ValueError(
+            f"the two routes to entered disagree: R2 (the metric's depart_time set) says "
+            f"{entered_r2} and R3 (completed + running) says {entered_r3}. They can only differ "
+            "if a vehicle entered and left inside one decision window, or if the metric's "
+            "bookkeeping is broken; either way this episode is not interpretable"
+        )
+
+    created_r4 = entered_r2 + never_entered
+    if created_r4 != counts["created_from_flow"]:
+        raise ValueError(
+            f"the two routes to created disagree: R4 (entered + never_entered) says {created_r4} "
+            f"and R5 (the flow file, counting entries that fire inside the horizon) says "
+            f"{counts['created_from_flow']}. Either R5's single-vehicle-per-entry assumption or "
+            "the episode horizon is wrong, and the admission ratio would then be measured against "
+            "the wrong denominator"
+        )
+
+    return AdmissionCounts(
+        created=created_r4,
+        entered=entered_r2,
+        never_entered=never_entered,
+        completed=counts["n_completed"],
+        running=counts["n_running"],
+        waiting=never_entered,
+    )
 
 
 def read_admission_at_horizon(env: Any, *, created: int) -> AdmissionCounts:
@@ -327,7 +417,26 @@ def read_admission_at_horizon(env: Any, *, created: int) -> AdmissionCounts:
     ``count_of_vehicles_completing_journey`` to be requested, and must not, since the collection
     manifests do not request it.
     """
-    raise NotImplementedError
+    engine = getattr(env, "_eng", None)
+    metrics = getattr(env, "_metrics", None)
+    if engine is None or metrics is None or not hasattr(metrics, "_episode"):
+        raise TypeError(
+            f"{type(env).__name__} exposes no live CityFlow engine and metrics pair "
+            "(_eng / _metrics._episode), so its admission counts cannot be read. This probe is "
+            "CityFlow-only by construction: SUMO and MOSS report travel time from the engine and "
+            "have no insertion buffer of this shape"
+        )
+
+    n_running = len(engine.get_vehicles(include_waiting=False))
+    n_with_waiting = len(engine.get_vehicles(include_waiting=True))
+    episode_state = metrics._episode
+    return reconcile_admission(
+        n_running=n_running,
+        n_with_waiting=n_with_waiting,
+        n_depart_time=len(episode_state["depart_time"]),
+        n_completed=len(episode_state["completed"]),
+        created_from_flow=int(created),
+    )
 
 
 # ----------------------------------------------------------------------
@@ -357,10 +466,38 @@ class AdmissionEpisode:
     horizon_vehicle_count: float
     episode_reward: float
     seconds: float
+    seconds_rollout: float = 0.0
 
     def as_record(self) -> dict[str, Any]:
-        """The JSON row, with keys sorted by the artifact writer rather than here."""
-        raise NotImplementedError
+        """The JSON row, with keys sorted by the artifact writer rather than here.
+
+        ``seconds`` is the whole per-episode cost -- env construction, policy construction, rollout
+        and the horizon reads -- because that is the quantity P8.4b's cost model needs.
+        ``seconds_rollout`` isolates the simulation from the ``torch.load`` that ``evaluate_arm``'s
+        contract puts in front of every draw.
+        """
+        return {
+            "scenario": self.scenario,
+            "tier": self.tier,
+            "method": self.method,
+            "arm": self.arm,
+            "seed": self.seed,
+            "draw_id": int(self.draw_id),
+            "created": int(self.created),
+            "entered": int(self.entered),
+            "never_entered": int(self.never_entered),
+            "entered_fraction": float(self.entered_fraction),
+            "completed_at_horizon": int(self.completed_at_horizon),
+            "running_at_horizon": int(self.running_at_horizon),
+            "waiting_at_horizon": int(self.waiting_at_horizon),
+            "att_ours": float(self.att_ours),
+            "att_engine": float(self.att_engine),
+            "att_difference": float(self.att_ours - self.att_engine),
+            "horizon_vehicle_count": float(self.horizon_vehicle_count),
+            "episode_reward": float(self.episode_reward),
+            "seconds": float(self.seconds),
+            "seconds_rollout": float(self.seconds_rollout),
+        }
 
 
 def probe_episode(
@@ -384,7 +521,67 @@ def probe_episode(
     ``horizon_rollout(env, factory(env), episodes=1, seed=engine_seed)``, same ``env.close()`` in a
     ``finally`` -- with the engine and metrics read inserted between the rollout and the close.
     """
-    raise NotImplementedError
+    from experiments.config import EnvSpec
+    from experiments.envs import make_env
+
+    from offline.horizon_metric import horizon_rollout
+
+    path = Path(config_path)
+    if not path.is_file():
+        raise FileNotFoundError(
+            f"draw {draw_id} has no materialised sim config at {path}; run "
+            "offline.materialise_draws for the held-out pool first"
+        )
+
+    started = time.perf_counter()
+    env = make_env(
+        EnvSpec(
+            id=scenario_id,
+            backend="cityflow",
+            paths={"config": str(path)},
+            settings=dict(env_settings),
+        )
+    )
+    try:
+        choose_action = choose_action_factory(env)
+        rollout_started = time.perf_counter()
+        rollout = horizon_rollout(env, choose_action, episodes=1, seed=int(engine_seed))
+        rollout_seconds = time.perf_counter() - rollout_started
+        counts = read_admission_at_horizon(env, created=int(created))
+        att_engine = float(env._eng.get_average_travel_time())
+    finally:
+        env.close()
+    seconds = time.perf_counter() - started
+
+    if counts.running != int(rollout.final_vehicle_count):
+        raise ValueError(
+            f"{arm} seed {seed} draw {draw_id}: the horizon reader reports "
+            f"{rollout.final_vehicle_count} running vehicles from info['vehicle_count'] but the "
+            f"engine reports {counts.running} now. Nothing may advance the simulation between the "
+            "last step and the admission read, and something did"
+        )
+
+    return AdmissionEpisode(
+        scenario=scenario,
+        tier=tier,
+        method=method,
+        arm=arm,
+        seed=None if seed is None else int(seed),
+        draw_id=int(draw_id),
+        created=counts.created,
+        entered=counts.entered,
+        never_entered=counts.never_entered,
+        entered_fraction=counts.entered_fraction,
+        completed_at_horizon=counts.completed,
+        running_at_horizon=counts.running,
+        waiting_at_horizon=counts.waiting,
+        att_ours=float(rollout.per_episode_horizon[0]),
+        att_engine=att_engine,
+        horizon_vehicle_count=float(rollout.final_vehicle_count),
+        episode_reward=float(rollout.episode_reward),
+        seconds=seconds,
+        seconds_rollout=rollout_seconds,
+    )
 
 
 # ----------------------------------------------------------------------
@@ -398,7 +595,43 @@ def env_settings_for(scenario: str, tier: str, roots: ProbeRoots) -> dict[str, A
     Every directory of the tier must agree; a disagreement raises rather than picking the first,
     because the settings decide what the episode IS and a silent pick would compare two things.
     """
-    raise NotImplementedError
+    from offline.dt_gate import env_settings_from_manifest
+
+    seen: dict[str, list[str]] = {}
+    settings: dict[str, Any] | None = None
+    for directory in tier_corpus_dirs(scenario, tier, roots):
+        candidate = env_settings_from_manifest(directory / "manifest.json")
+        key = json.dumps(candidate, sort_keys=True, default=str)
+        seen.setdefault(key, []).append(str(directory))
+        if settings is None:
+            settings = candidate
+    if settings is None:
+        raise ValueError(f"{scenario}/{tier} names no corpus directory, so it has no env settings")
+    if len(seen) > 1:
+        summary = {sorted(paths)[0]: len(paths) for paths in seen.values()}
+        raise ValueError(
+            f"{scenario}/{tier}'s corpus directories disagree on the evaluation env settings "
+            f"({summary}); picking one would compare two different episodes under one tier name"
+        )
+    return settings
+
+
+def tier_corpus_dirs(scenario: str, tier: str, roots: ProbeRoots) -> tuple[Path, ...]:
+    """The corpus directories behind one ``(scenario, tier)``, refusing a missing one."""
+    try:
+        names = TIER_CORPUS_DIRS[scenario][tier]
+    except KeyError as exc:
+        raise ValueError(
+            f"no corpus directories are declared for {scenario!r}/{tier!r}; the probe inventory is "
+            "docs/plans/p8.4a.md section 3 and does not cover this cell"
+        ) from exc
+    paths = tuple(Path(roots.corpus_root) / name for name in names)
+    missing = [str(p) for p in paths if not (p / "manifest.json").is_file()]
+    if missing:
+        raise FileNotFoundError(
+            f"{scenario}/{tier}: these corpus directories have no manifest.json: {missing}"
+        )
+    return paths
 
 
 def seeds_for(scenario: str, tier: str, method: str) -> tuple[int | None, ...]:
@@ -408,7 +641,30 @@ def seeds_for(scenario: str, tier: str, method: str) -> tuple[int | None, ...]:
     ``behaviour@maxpressure`` and ``behaviour@fixedtime``, which are deterministic and whose
     committed cells carry ``seed: null``.
     """
-    raise NotImplementedError
+    _assert_declared_cell(scenario, tier, method)
+    if method == BEHAVIOUR_METHOD and tier in DETERMINISTIC_ANCHOR_TIERS:
+        return (None,)
+    return PROBE_SEEDS
+
+
+def _assert_declared_cell(scenario: str, tier: str, method: str) -> ProbeScenario:
+    """Refuse a cell the plan does not declare, so a typo cannot invent one."""
+    if scenario not in PROBE_SCENARIOS:
+        raise ValueError(
+            f"{scenario!r} is not a probed scenario; docs/plans/p8.4a.md section 3 declares "
+            f"{sorted(PROBE_SCENARIOS)}"
+        )
+    spec = PROBE_SCENARIOS[scenario]
+    if tier not in spec.tiers:
+        raise ValueError(
+            f"{tier!r} is not a probed tier of {scenario}; the declared tiers are {list(spec.tiers)}"
+        )
+    if method != BEHAVIOUR_METHOD and method not in spec.methods:
+        raise ValueError(
+            f"{method!r} is not a probed method of {scenario}; the declared arms are "
+            f"{list(spec.methods)} plus {BEHAVIOUR_METHOD!r}"
+        )
+    return spec
 
 
 @dataclass(frozen=True)
@@ -442,7 +698,206 @@ def build_factory(
     **MAPPO anchors are read, not guessed:** the checkpoint path and its sha256 come from the tier's
     own collection manifest ``run_metadata``, and the digest is verified before the policy is built.
     """
-    raise NotImplementedError
+    _assert_declared_cell(scenario, tier, method)
+    if method == BEHAVIOUR_METHOD:
+        return _behaviour_factory(scenario, tier, seed, roots, device=device, config_path=config_path)
+    return _method_factory(scenario, tier, method, seed, roots, device=device)
+
+
+def _behaviour_factory(
+    scenario: str,
+    tier: str,
+    seed: int | None,
+    roots: ProbeRoots,
+    *,
+    device: str | None,
+    config_path: str | Path,
+) -> tuple[Callable[[Any], Any], ArmSource]:
+    """The policy that COLLECTED a tier, rebuilt from that tier's own manifest."""
+    from offline.dt_gate import _mappo_factory, _maxpressure_factory
+    from offline.method_tier_grid import (
+        _fixedtime_factory,
+        _random_factory,
+        fixedtime_collection_settings,
+    )
+
+    if tier == "maxpressure":
+        return _maxpressure_factory, ArmSource(
+            kind="algorithmic",
+            detail="algorithms.max_pressure.MaxPressureAgent via dt_gate._maxpressure_factory",
+        )
+
+    if tier == "fixedtime":
+        manifest = tier_corpus_dirs(scenario, tier, roots)[0] / "manifest.json"
+        collected = fixedtime_collection_settings(manifest)
+        factory = _fixedtime_factory(config_path, collected)
+        return factory, ArmSource(
+            kind="plan",
+            detail=(
+                "offline.policies.fixed_time.make_fixedtime with k="
+                f"{collected['fixed_time_k']} and the plan hash asserted against {manifest}"
+            ),
+            checkpoint_sha256=str(collected["fixed_time_plan_sha256"]),
+        )
+
+    if tier == "random":
+        if seed is None:
+            raise ValueError("the random behaviour anchor is seeded and cannot take seed=None")
+        return _random_factory(int(seed)), ArmSource(
+            kind="algorithmic",
+            detail=(
+                "offline.collect._make_random with numpy.random.default_rng"
+                f"({int(seed)}) rebuilt per draw, via method_tier_grid._random_factory"
+            ),
+        )
+
+    if tier in ("mappo1000", "mappo500"):
+        if seed is None:
+            raise ValueError(f"the {tier} behaviour anchor is per-seed and cannot take seed=None")
+        path, digest = _manifest_checkpoint(scenario, tier, int(seed), roots)
+        return _mappo_factory(str(path), device), ArmSource(
+            kind="checkpoint",
+            detail=(
+                "agent.MAPPOAgent via dt_gate._mappo_factory; path and digest read from the "
+                "collecting run's own manifest run_metadata, never guessed"
+            ),
+            checkpoint=str(path),
+            checkpoint_sha256=digest,
+        )
+
+    raise ValueError(f"no behaviour factory is declared for {scenario!r}/{tier!r}")
+
+
+def _manifest_checkpoint(
+    scenario: str, tier: str, seed: int, roots: ProbeRoots
+) -> tuple[Path, str]:
+    """The checkpoint that collected one ``(tier, seed)``, with its recorded digest verified.
+
+    The corpus manifest records ``checkpoint`` **and** ``checkpoint_sha256``; the path is stored
+    relative to the repository root that ran the collection, so it is resolved against the tree that
+    actually holds ``output/``.  The digest is then recomputed and compared, so a file that moved,
+    was migrated or was rebuilt cannot be substituted silently.
+    """
+    directory = next(
+        d for d in tier_corpus_dirs(scenario, tier, roots) if d.name.endswith(f"seed{seed}")
+    )
+    metadata = json.loads((directory / "manifest.json").read_bytes())["run_metadata"]
+    recorded = metadata.get("checkpoint")
+    expected = metadata.get("checkpoint_sha256")
+    if not recorded or not expected:
+        raise ValueError(
+            f"{directory}/manifest.json records no behaviour checkpoint for {tier} seed {seed}; "
+            "the anchor cannot be rebuilt from a manifest that does not name its policy"
+        )
+    relative = Path(recorded)
+    candidates = [relative] if relative.is_absolute() else [
+        Path(roots.output_root).parent / relative,
+        Path(roots.repo_root) / relative,
+    ]
+    for candidate in candidates:
+        if candidate.is_file():
+            digest = hashlib.sha256(candidate.read_bytes()).hexdigest()
+            if digest != expected:
+                raise ValueError(
+                    f"{candidate}: sha256 {digest} is not the {expected} the collection manifest "
+                    f"records for {tier} seed {seed}; this is not the policy that collected the tier"
+                )
+            return candidate, digest
+    raise FileNotFoundError(
+        f"the behaviour checkpoint {recorded!r} recorded by {directory}/manifest.json was not "
+        f"found at any of {[str(c) for c in candidates]}"
+    )
+
+
+def _method_checkpoint(scenario: str, tier: str, method: str, seed: int, roots: ProbeRoots) -> Path:
+    """Where the model behind a cell's COMMITTED numbers lives.
+
+    ⚠️ **The grid4x4 ``mappo1000`` rows are the trap this table exists for.**  P5.2 reused P5.1's
+    cells for ``dt_spatial``, ``dt_nomix``, ``bc``, ``bc_top10`` and ``iql`` at that tier but
+    retrained its own baselines anyway: ``output/p5_2/checkpoints/grid4x4_mappo1000_bc_seed101.pt``
+    and ``output/p5_1/checkpoints/grid4x4_mappo1000_bc_seed101.pt`` are **different files**
+    (verified by ``cmp`` on 2026-08-28), and the reported cell came from the P5.1 one.  Loading the
+    P5.2 file would produce a plausible number that reproduces nothing.
+    """
+    out = Path(roots.output_root)
+    if scenario == "hz1x1":
+        if tier == "mappo1000":
+            if method == "dt":
+                return out / "p4_dt" / f"dt_seed{seed}.pt"
+            return out / "p4_4" / "checkpoints" / f"{method}_seed{seed}.pt"
+        return out / "p4_6" / "checkpoints" / f"{tier}_{method}_seed{seed}.pt"
+    if scenario == "grid4x4":
+        name = f"grid4x4_{tier}_{method}_seed{seed}.pt"
+        if tier == "mappo1000" and method != "bc_top10_perix":
+            return out / "p5_1" / "checkpoints" / name
+        return out / "p5_2" / "checkpoints" / name
+    raise ValueError(f"no checkpoint layout is declared for scenario {scenario!r}")
+
+
+def _method_factory(
+    scenario: str,
+    tier: str,
+    method: str,
+    seed: int | None,
+    roots: ProbeRoots,
+    *,
+    device: str | None,
+) -> tuple[Callable[[Any], Any], ArmSource]:
+    """A trained arm, loaded through the same loader that produced its committed cell."""
+    from offline.offline_baselines import _baseline_factory
+
+    if seed is None:
+        raise ValueError(f"{method}@{tier} is a five-seed arm and cannot take seed=None")
+    path = _method_checkpoint(scenario, tier, method, int(seed), roots)
+    if not path.is_file():
+        raise FileNotFoundError(
+            f"{path} does not exist; {method}@{tier} on {scenario} cannot be probed without the "
+            "checkpoint that produced its committed cell"
+        )
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+
+    if method in ("dt_spatial", "dt_nomix"):
+        from offline.spatial_mixing import assert_declared_budget
+
+        def spatial(env: Any) -> Callable[[Any, dict[str, Any]], np.ndarray]:
+            from agent.SpatialDTAgent import SpatialDTAgent
+
+            assert_declared_budget(str(path), DECLARED_GRADIENT_STEPS, method)
+            agent = SpatialDTAgent.from_checkpoint(env, str(path), device=device)
+            return lambda _env, info: agent.act(info, explore=False, update_memory=True)
+
+        return spatial, ArmSource(
+            kind="checkpoint",
+            detail="agent.SpatialDTAgent, budget asserted by spatial_mixing.assert_declared_budget",
+            checkpoint=str(path),
+            checkpoint_sha256=digest,
+        )
+
+    if method == "dt":
+        from offline.method_tier_grid import TIERS as HZ_TIERS
+        from offline.method_tier_grid import _dt_factory
+
+        target = float(HZ_TIERS[tier].target_rtg)
+        return _dt_factory(str(path), DECLARED_GRADIENT_STEPS, target, device), ArmSource(
+            kind="checkpoint",
+            detail=(
+                "agent.DTAgent via method_tier_grid._dt_factory with the declared target_rtg "
+                f"{target}; for mappo1000 that is exactly docs/data/p4_training.json's recorded "
+                "target, so this path and P4's load_gate_checkpoint condition identically"
+            ),
+            checkpoint=str(path),
+            checkpoint_sha256=digest,
+        )
+
+    if method in ("bc", "bc_top10", "bc_top10_perix", "iql"):
+        return _baseline_factory(method, str(path), DECLARED_GRADIENT_STEPS, device), ArmSource(
+            kind="checkpoint",
+            detail="agent BC/IQL via offline_baselines._baseline_factory",
+            checkpoint=str(path),
+            checkpoint_sha256=digest,
+        )
+
+    raise ValueError(f"no action factory is declared for {method!r} at {scenario}/{tier}")
 
 
 def probe_cell(
@@ -455,9 +910,78 @@ def probe_cell(
     engine_seed: int,
     device: str | None,
     seeds: Sequence[int | None] | None = None,
-) -> list[AdmissionEpisode]:
-    """Probe every ``(seed, draw)`` of one cell, in seed-then-draw order."""
-    raise NotImplementedError
+) -> tuple[list[AdmissionEpisode], dict[str, ArmSource]]:
+    """Probe every ``(seed, draw)`` of one cell, in seed-then-draw order.
+
+    Returns the episodes and the provenance of the policy behind each seed slot, so a cell can be
+    traced to the exact file it came from.  ``created`` is computed once per draw and reused across
+    seeds: it is a property of the flow file, not of the policy, and computing it once is also what
+    makes "identical in every cell" checkable at report time.
+    """
+    from offline.materialise_draws import draw_config_path
+
+    spec = _assert_declared_cell(scenario, tier, method)
+    settings = env_settings_for(scenario, tier, roots)
+    horizon = int(settings["max_steps"]) * int(settings["delta_time"])
+    slots = tuple(seeds) if seeds is not None else seeds_for(scenario, tier, method)
+    arm = f"{method}@{tier}"
+
+    configs: dict[int, Path] = {}
+    created: dict[int, int] = {}
+    for draw_id in draw_ids:
+        config = Path(
+            draw_config_path(spec.scenario_key, int(draw_id), out_root=roots.draws_root)
+        )
+        if not config.is_file():
+            raise FileNotFoundError(
+                f"draw {draw_id} has no materialised sim config at {config}; run "
+                "offline.materialise_draws for the held-out pool first"
+            )
+        configs[int(draw_id)] = config
+        created[int(draw_id)] = created_from_flow(
+            config.parent / "flow.json", horizon_seconds=horizon
+        )
+
+    produced: list[AdmissionEpisode] = []
+    sources: dict[str, ArmSource] = {}
+    for slot in slots:
+        factory, source = build_factory(
+            scenario,
+            tier,
+            method,
+            slot,
+            roots,
+            device=device,
+            config_path=configs[int(draw_ids[0])],
+        )
+        sources[str(slot)] = source
+        print(f"{scenario}/{arm} seed {slot} over {len(draw_ids)} draws", flush=True)
+        for draw_id in draw_ids:
+            produced.append(
+                probe_episode(
+                    scenario=scenario,
+                    tier=tier,
+                    method=method,
+                    arm=arm,
+                    seed=slot,
+                    draw_id=int(draw_id),
+                    config_path=configs[int(draw_id)],
+                    env_settings=settings,
+                    scenario_id=spec.scenario_id,
+                    choose_action_factory=factory,
+                    engine_seed=int(engine_seed),
+                    created=created[int(draw_id)],
+                )
+            )
+
+    expected = {(slot, int(d)) for slot in slots for d in draw_ids}
+    got = {(e.seed, e.draw_id) for e in produced}
+    if got != expected:
+        raise ValueError(
+            f"{scenario}/{arm}: {len(got)} episodes against {len(expected)} requested "
+            f"(missing {len(expected - got)}, unexpected {len(got - expected)})"
+        )
+    return produced, sources
 
 
 # ----------------------------------------------------------------------
@@ -476,8 +1000,13 @@ class ReferenceCheck:
 
     @property
     def exact(self) -> bool:
-        """True only when every probed episode matched and none was missing."""
-        raise NotImplementedError
+        """True only when every probed episode matched and none was missing.
+
+        ``n_compared == 0`` is deliberately **not** exact: an empty comparison is the shape a
+        silently mis-keyed lookup takes, and reporting it as a pass is how a cell with no reference
+        at all would read as verified.
+        """
+        return self.n_compared > 0 and self.n_missing == 0 and not self.mismatches
 
 
 def committed_reference(
@@ -499,7 +1028,67 @@ def committed_reference(
       behaviour anchor.  **This module asserts the env-settings equality that claim rests on rather
       than inheriting it.**
     """
-    raise NotImplementedError
+    _assert_declared_cell(scenario, tier, method)
+    if scenario == "hz1x1":
+        path = Path(roots.repo_root) / "docs/data/p4_6_grid.json"
+        return _reference_from(path, f"{method}@{tier}"), str(path)
+
+    out = Path(roots.output_root)
+    if tier == "mappo1000":
+        if method == "bc_top10_perix":
+            path = out / "p5_2" / "eval_mappo1000_bc_top10_perix.json"
+            return _reference_from(path, "bc_top10_perix@mappo1000"), str(path)
+        path = out / "p5_1" / f"eval_{method}.json"
+        return _reference_from(path, f"{method}@grid4x4_mappo1000"), str(path)
+
+    if tier == "random":
+        if method == BEHAVIOUR_METHOD:
+            # tier_sweep.campaign_cell_manifest():384-394 records that this one cell serves every
+            # tier AND doubles as the random tier's behaviour anchor, on the ground that the env
+            # settings are identical across all four tier manifests and the factory is a function
+            # of the seed alone.  The settings half of that ground is asserted here rather than
+            # inherited: an inherited "(verified)" is exactly the claim A5 turned out to be.
+            here = env_settings_for(scenario, "random", roots)
+            there = env_settings_for(scenario, "mappo1000", roots)
+            if here != there:
+                raise ValueError(
+                    "the grid4x4 random and mappo1000 tiers disagree on the evaluation env "
+                    "settings, so eval_mappo1000_random.json cannot serve as the random tier's "
+                    "behaviour anchor; tier_sweep.campaign_cell_manifest's note rests on that "
+                    "equality and it does not hold in this tree"
+                )
+            path = out / "p5_2" / "eval_mappo1000_random.json"
+            source = (
+                f"{path} (the shared collapse reference, which doubles as the random tier's "
+                "behaviour anchor; env-settings equality re-verified here)"
+            )
+            return _reference_from(path, "random@mappo1000"), source
+        path = out / "p5_2" / f"eval_random_{method}.json"
+        return _reference_from(path, f"{method}@random"), str(path)
+
+    raise ValueError(f"no committed reference is declared for {scenario}/{method}@{tier}")
+
+
+def _reference_from(path: Path, arm: str) -> dict[tuple[int | None, int], float]:
+    """Every ``(seed, draw_id) -> att_horizon`` of one arm in one committed artifact."""
+    if not path.is_file():
+        raise FileNotFoundError(
+            f"{path} does not exist, so {arm} has no committed att_horizon to reproduce; the "
+            "fidelity check cannot be skipped by treating a missing reference as agreement"
+        )
+    payload = json.loads(path.read_bytes())
+    rows = [row for row in payload["episodes"] if row["arm"] == arm]
+    if not rows:
+        arms = sorted({str(row["arm"]) for row in payload["episodes"]})
+        raise ValueError(f"{path} holds no episodes for arm {arm!r}; it holds {arms}")
+    reference: dict[tuple[int | None, int], float] = {}
+    for row in rows:
+        seed = None if row.get("seed") is None else int(row["seed"])
+        key = (seed, int(row["draw_id"]))
+        if key in reference:
+            raise ValueError(f"{path}: {arm} has two episodes for seed {seed} draw {key[1]}")
+        reference[key] = float(row["att_horizon"])
+    return reference
 
 
 def check_against_reference(
@@ -513,7 +1102,33 @@ def check_against_reference(
     tolerance here would hide the one failure mode this check exists to catch -- that the probe is
     measuring a different episode than the one the paper reported.
     """
-    raise NotImplementedError
+    compared = 0
+    missing = 0
+    mismatches: list[Mapping[str, Any]] = []
+    for episode in episodes:
+        key = (episode.seed, int(episode.draw_id))
+        if key not in reference:
+            missing += 1
+            continue
+        compared += 1
+        committed = reference[key]
+        if episode.att_ours != committed:
+            mismatches.append(
+                {
+                    "arm": episode.arm,
+                    "seed": episode.seed,
+                    "draw_id": int(episode.draw_id),
+                    "probed": float(episode.att_ours),
+                    "committed": float(committed),
+                    "difference": float(episode.att_ours - committed),
+                }
+            )
+    return ReferenceCheck(
+        source=source,
+        n_compared=compared,
+        n_missing=missing,
+        mismatches=tuple(mismatches),
+    )
 
 
 # ----------------------------------------------------------------------
@@ -523,7 +1138,14 @@ def check_against_reference(
 
 def cell_admission_ratio(episodes: Sequence[AdmissionEpisode]) -> float:
     """``sum(entered) / sum(created)`` -- a population ratio, not a mean of per-episode ratios."""
-    raise NotImplementedError
+    if not episodes:
+        raise ValueError("cell_admission_ratio received no episodes")
+    created = sum(int(e.created) for e in episodes)
+    if created == 0:
+        raise ValueError(
+            "every episode in this cell created zero vehicles, so an admission ratio is undefined"
+        )
+    return sum(int(e.entered) for e in episodes) / created
 
 
 def per_seed_admission_ratios(
@@ -534,12 +1156,20 @@ def per_seed_admission_ratios(
     Reported always: ``BRIEF_31`` section 5 forbids a bare pooled mean, and A5's own error was a
     statistic computed on a subset and stated of the population.
     """
-    raise NotImplementedError
+    if not episodes:
+        raise ValueError("per_seed_admission_ratios received no episodes")
+    by_seed: dict[str, list[AdmissionEpisode]] = {}
+    for episode in episodes:
+        by_seed.setdefault(str(episode.seed), []).append(episode)
+    return {seed: cell_admission_ratio(rows) for seed, rows in sorted(by_seed.items())}
 
 
 def admission_spread(ratios: Mapping[str, float]) -> float:
     """``max - min`` over the per-seed ratios; ``0.0`` for a single-seeded arm."""
-    raise NotImplementedError
+    if not ratios:
+        raise ValueError("admission_spread received no per-seed ratios")
+    values = [float(v) for v in ratios.values()]
+    return float(max(values) - min(values))
 
 
 @dataclass(frozen=True)
@@ -567,12 +1197,72 @@ class CellSummary:
 
     def as_record(self) -> dict[str, Any]:
         """The JSON block for one cell."""
-        raise NotImplementedError
+        return {
+            "scenario": self.scenario,
+            "tier": self.tier,
+            "method": self.method,
+            "arm": self.arm,
+            "n_episodes": int(self.n_episodes),
+            "seeds": list(self.seeds),
+            "draw_ids": list(self.draw_ids),
+            "created_total": int(self.created_total),
+            "entered_total": int(self.entered_total),
+            "never_entered_total": int(self.never_entered_total),
+            "admission_ratio": float(self.admission_ratio),
+            "per_seed_admission": dict(self.per_seed_admission),
+            "admission_spread": float(self.admission_spread),
+            "att_ours_mean": float(self.att_ours_mean),
+            "att_engine_mean": float(self.att_engine_mean),
+            "att_difference_mean": float(self.att_difference_mean),
+            "horizon_vehicle_count_mean": float(self.horizon_vehicle_count_mean),
+            "seconds_total": float(self.seconds_total),
+            "seconds_per_episode": float(self.seconds_total / self.n_episodes),
+        }
 
 
 def summarise_cell(episodes: Sequence[AdmissionEpisode]) -> CellSummary:
     """Summarise one cell, refusing a mixed-arm input."""
-    raise NotImplementedError
+    if not episodes:
+        raise ValueError("summarise_cell received no episodes")
+    arms = {e.arm for e in episodes}
+    if len(arms) != 1:
+        raise ValueError(
+            f"summarise_cell describes ONE cell but was given the arms {sorted(arms)}; mixing two "
+            "is how a tier ends up wearing two labels"
+        )
+    scenarios = {e.scenario for e in episodes}
+    if len(scenarios) != 1:
+        raise ValueError(
+            f"summarise_cell was given episodes from the scenarios {sorted(scenarios)}"
+        )
+    keys = [(e.seed, e.draw_id) for e in episodes]
+    if len(set(keys)) != len(keys):
+        raise ValueError("summarise_cell was given the same (seed, draw) twice")
+
+    per_seed = per_seed_admission_ratios(episodes)
+    first = episodes[0]
+    return CellSummary(
+        scenario=first.scenario,
+        tier=first.tier,
+        method=first.method,
+        arm=first.arm,
+        n_episodes=len(episodes),
+        seeds=tuple(sorted(per_seed)),
+        draw_ids=tuple(sorted({int(e.draw_id) for e in episodes})),
+        created_total=sum(int(e.created) for e in episodes),
+        entered_total=sum(int(e.entered) for e in episodes),
+        never_entered_total=sum(int(e.never_entered) for e in episodes),
+        admission_ratio=cell_admission_ratio(episodes),
+        per_seed_admission=per_seed,
+        admission_spread=admission_spread(per_seed),
+        att_ours_mean=float(np.mean([e.att_ours for e in episodes])),
+        att_engine_mean=float(np.mean([e.att_engine for e in episodes])),
+        att_difference_mean=float(np.mean([e.att_ours - e.att_engine for e in episodes])),
+        horizon_vehicle_count_mean=float(
+            np.mean([e.horizon_vehicle_count for e in episodes])
+        ),
+        seconds_total=float(sum(e.seconds for e in episodes)),
+    )
 
 
 def paired_admission_difference(
@@ -585,7 +1275,41 @@ def paired_admission_difference(
     ``behaviour@maxpressure`` and ``behaviour@fixedtime`` are -- the one anchor episode of a draw
     pairs against every arm seed's episode of that draw, and the record says so.
     """
-    raise NotImplementedError
+    from offline.dt_gate import mean_ci95
+
+    if not arm_episodes:
+        raise ValueError("paired_admission_difference received no arm episodes")
+    if not behaviour_episodes:
+        raise ValueError("paired_admission_difference received no behaviour episodes")
+
+    anchor_seeds = {e.seed for e in behaviour_episodes}
+    single_seeded = anchor_seeds == {None}
+    if single_seeded:
+        anchor = {int(e.draw_id): e.entered_fraction for e in behaviour_episodes}
+    else:
+        anchor = {(e.seed, int(e.draw_id)): e.entered_fraction for e in behaviour_episodes}
+
+    differences: list[float] = []
+    for episode in arm_episodes:
+        key: Any = int(episode.draw_id) if single_seeded else (episode.seed, int(episode.draw_id))
+        if key not in anchor:
+            raise ValueError(
+                f"{episode.arm} seed {episode.seed} draw {episode.draw_id} has no behaviour "
+                f"episode to pair with (the anchor covers {sorted(map(str, anchor))}); dropping it "
+                "would shrink the denominator silently"
+            )
+        differences.append(episode.entered_fraction - anchor[key])
+
+    stats = mean_ci95(differences)
+    return {
+        "n_pairs": int(stats.n),
+        "mean": float(stats.mean),
+        "std": float(stats.std),
+        "ci95": float(stats.ci95),
+        "anchor_is_single_seeded": bool(single_seeded),
+        "quantity": "arm entered/created minus behaviour entered/created, paired per episode",
+        "draw_ids": sorted({int(e.draw_id) for e in arm_episodes}),
+    }
 
 
 def score_e1(cells: Mapping[str, Mapping[str, CellSummary]]) -> dict[str, Any]:
@@ -597,12 +1321,101 @@ def score_e1(cells: Mapping[str, Mapping[str, CellSummary]]) -> dict[str, Any]:
     ``Delta`` says** -- the permissive verdict threshold is only acceptable because the escalation
     threshold is zero (Amendment A3).
     """
-    raise NotImplementedError
+    arms: list[dict[str, Any]] = []
+    for scenario in sorted(cells):
+        scenario_cells = cells[scenario]
+        anchors = {
+            summary.tier: summary
+            for summary in scenario_cells.values()
+            if summary.method == BEHAVIOUR_METHOD
+        }
+        for arm in sorted(scenario_cells):
+            summary = scenario_cells[arm]
+            if summary.method == BEHAVIOUR_METHOD:
+                continue
+            anchor = anchors.get(summary.tier)
+            if anchor is None:
+                raise ValueError(
+                    f"{scenario}/{arm} has no behaviour anchor at tier {summary.tier!r}; E1 is a "
+                    "comparison against the policy that produced the arm's data and cannot be "
+                    "scored without it"
+                )
+            deficit = anchor.admission_ratio - summary.admission_ratio
+            delta = max(anchor.admission_spread, summary.admission_spread)
+            if deficit <= 0.0:
+                status = "holds"
+            elif deficit <= delta:
+                status = "close"
+            else:
+                status = "falsified"
+            arms.append(
+                {
+                    "scenario": scenario,
+                    "tier": summary.tier,
+                    "method": summary.method,
+                    "arm": arm,
+                    "admission_ratio_arm": float(summary.admission_ratio),
+                    "admission_ratio_behaviour": float(anchor.admission_ratio),
+                    "per_seed_admission_arm": dict(summary.per_seed_admission),
+                    "per_seed_admission_behaviour": dict(anchor.per_seed_admission),
+                    "spread_arm": float(summary.admission_spread),
+                    "spread_behaviour": float(anchor.admission_spread),
+                    "deficit": float(deficit),
+                    "delta": float(delta),
+                    "status": status,
+                    "escalate": bool(deficit > 0.0),
+                }
+            )
+
+    return {
+        "prediction": (
+            "every learned arm admits at least as many vehicles as the behaviour policy of its own "
+            "tier, per cell, on shared draws"
+        ),
+        "rule": (
+            "deficit = r(behaviour) - r(arm); Delta = max(spread_behaviour, spread_arm); "
+            "deficit <= 0 holds, 0 < deficit <= Delta is close, deficit > Delta is falsified; "
+            "ANY deficit > 0 escalates that arm to the full 100 held-out draws"
+        ),
+        "registered_in": "docs/plans/p8.4a.md section 4, approved as BRIEF_31 Amendment A3",
+        "n_arms": len(arms),
+        "n_holds": sum(1 for a in arms if a["status"] == "holds"),
+        "n_close": sum(1 for a in arms if a["status"] == "close"),
+        "n_falsified": sum(1 for a in arms if a["status"] == "falsified"),
+        "escalated_arms": [f"{a['scenario']}/{a['arm']}" for a in arms if a["escalate"]],
+        "arms": arms,
+    }
 
 
 def score_e2(cells: Mapping[str, Mapping[str, CellSummary]]) -> dict[str, Any]:
     """E2: every ``mappo1000`` arm at ``r >= 0.99``, on both scenarios.  The null control."""
-    raise NotImplementedError
+    arms: list[dict[str, Any]] = []
+    for scenario in sorted(cells):
+        for arm in sorted(cells[scenario]):
+            summary = cells[scenario][arm]
+            if summary.tier != "mappo1000":
+                continue
+            arms.append(
+                {
+                    "scenario": scenario,
+                    "tier": summary.tier,
+                    "arm": arm,
+                    "admission_ratio": float(summary.admission_ratio),
+                    "per_seed_admission": dict(summary.per_seed_admission),
+                    "passes": bool(summary.admission_ratio >= E2_ADMISSION_FLOOR),
+                }
+            )
+    return {
+        "prediction": "every mappo1000 arm sits at approximately 100 % admission",
+        "role": (
+            "the null control: anything materially below the floor here indicts the probe before "
+            "it indicts the science, and that direction of inference is registered"
+        ),
+        "floor": E2_ADMISSION_FLOOR,
+        "n_arms": len(arms),
+        "n_below": sum(1 for a in arms if not a["passes"]),
+        "arms": arms,
+    }
 
 
 def score_e3(cells: Mapping[str, Mapping[str, CellSummary]]) -> dict[str, Any]:
@@ -617,7 +1430,62 @@ def score_e3(cells: Mapping[str, Mapping[str, CellSummary]]) -> dict[str, Any]:
     falsifier -- *"a flat profile indicts the replay"* -- was written against an hz1x1 measurement,
     and applying it to grid4x4 would condemn a correct result.
     """
-    raise NotImplementedError
+
+    def profile(scenario: str) -> list[dict[str, Any]]:
+        scenario_cells = cells.get(scenario, {})
+        order = PROBE_SCENARIOS[scenario].tiers if scenario in PROBE_SCENARIOS else ()
+        rows: list[dict[str, Any]] = []
+        for tier in order:
+            summary = scenario_cells.get(f"{BEHAVIOUR_METHOD}@{tier}")
+            if summary is None:
+                continue
+            rows.append(
+                {
+                    "tier": tier,
+                    "admission_ratio": float(summary.admission_ratio),
+                    "per_seed_admission": dict(summary.per_seed_admission),
+                    "never_entered_total": int(summary.never_entered_total),
+                    "created_total": int(summary.created_total),
+                }
+            )
+        return rows
+
+    hz_profile = profile(E3_SCORED_SCENARIO)
+    ratios = {row["tier"]: row["admission_ratio"] for row in hz_profile}
+    holds: bool | None = None
+    if "mappo1000" in ratios and "random" in ratios:
+        holds = bool(ratios["mappo1000"] > ratios["random"])
+    monotone = all(
+        hz_profile[i]["admission_ratio"] >= hz_profile[i + 1]["admission_ratio"]
+        for i in range(len(hz_profile) - 1)
+    )
+
+    return {
+        "prediction": (
+            "over hz1x1's five behaviour anchors the admission profile is monotone-ish with "
+            "mappo1000 highest and random lowest"
+        ),
+        "registered_in": "BRIEF_31 Amendment A6, which re-registered E3 over the tiers P4.6 has",
+        "context_not_prediction": (
+            "T1's 100.0 / 90.8 / 92.9 / 65.0 for mappo1000 / fixedtime / mappo060 / random was "
+            "measured on TRAINING draws with the corpus behaviour policies, and mappo060 is not a "
+            "P4.6 tier; it is context and is not the prediction"
+        ),
+        "scored_scenario": E3_SCORED_SCENARIO,
+        "scored_as": "admission_ratio(behaviour@mappo1000) > admission_ratio(behaviour@random)",
+        "profile": hz_profile,
+        "rank_order": [row["tier"] for row in sorted(
+            hz_profile, key=lambda r: -float(r["admission_ratio"])
+        )],
+        "holds": holds,
+        "monotone": bool(monotone),
+        "grid4x4_note": (
+            "reported as a measurement with its own row, never as a scoping exclusion (Amendment "
+            "A4): never_entered there is expected to be 0 or near it for every arm, and a "
+            "materially non-zero value is a finding in its own right"
+        ),
+        "grid4x4_profile": profile("grid4x4"),
+    }
 
 
 # ----------------------------------------------------------------------
@@ -658,7 +1526,62 @@ def restore_draws(
     undetectably.  *The tool being no-op-or-refuse is the mechanism; reporting what it found is the
     evidence.*
     """
-    raise NotImplementedError
+    from offline.materialise_draws import materialise
+
+    survivor_ids = [int(d) for d in survivors]
+    wanted_ids = [int(d) for d in wanted]
+    overlap = sorted(set(survivor_ids) & set(wanted_ids))
+    if overlap != sorted(survivor_ids):
+        raise ValueError(
+            f"the survivors {survivor_ids} must be a subset of the wanted draws {wanted_ids}; "
+            "verifying draws the campaign will not use proves nothing about the ones it will"
+        )
+
+    actions: dict[str, str] = {}
+    flow_sha256: dict[str, str] = {}
+    n_vehicles: dict[str, int] = {}
+    scenario_key = ""
+
+    verified = materialise(sim_config, survivor_ids, out_root=out_root, force=False)
+    for record in verified:
+        scenario_key = record.scenario_key
+        actions[str(record.draw_id)] = record.action
+        flow_sha256[str(record.draw_id)] = record.flow_sha256
+        n_vehicles[str(record.draw_id)] = int(record.n_vehicles)
+    unreproduced = sorted(d for d, a in actions.items() if a != "kept")
+    if unreproduced:
+        raise ValueError(
+            f"the surviving draws {unreproduced} came back {[actions[d] for d in unreproduced]} "
+            "rather than 'kept', so they are not byte-identical to what P5.2 evaluated on. Nothing "
+            "further has been written; this is BLOCKED, because every grid4x4 number measured "
+            "afterwards would be measured on different demand, undetectably"
+        )
+
+    remaining = [d for d in wanted_ids if d not in set(survivor_ids)]
+    restored: list[int] = []
+    if remaining:
+        for record in materialise(sim_config, remaining, out_root=out_root, force=False):
+            scenario_key = record.scenario_key
+            actions[str(record.draw_id)] = record.action
+            flow_sha256[str(record.draw_id)] = record.flow_sha256
+            n_vehicles[str(record.draw_id)] = int(record.n_vehicles)
+            restored.append(int(record.draw_id))
+        replaced = sorted(d for d in map(str, remaining) if actions[d] == "replaced")
+        if replaced:
+            raise ValueError(
+                f"draws {replaced} were REPLACED, which force=False makes unreachable; the "
+                "materialiser's contract has changed and this run may not be trusted"
+            )
+
+    return DrawRestoration(
+        scenario_key=scenario_key,
+        survivors=tuple(survivor_ids),
+        restored=tuple(sorted(restored)),
+        actions=actions,
+        flow_sha256=flow_sha256,
+        n_vehicles=n_vehicles,
+        survivors_reproduced=True,
+    )
 
 
 # ----------------------------------------------------------------------
@@ -673,7 +1596,16 @@ def default_protected_roots(roots: ProbeRoots) -> tuple[Path, ...]:
     Resolution happens in ``tier_sweep.protected_roots_from``, so a relative path, a ``..``
     traversal and a symlink all resolve into the protected root and are refused.
     """
-    raise NotImplementedError
+    from offline.tier_sweep import protected_roots_from
+
+    output = Path(roots.output_root)
+    work = Path(roots.work_dir).resolve()
+    candidates: list[Path] = [Path(roots.corpus_root)]
+    if output.is_dir():
+        for child in sorted(output.iterdir()):
+            if child.is_dir() and child.resolve() != work:
+                candidates.append(child)
+    return protected_roots_from(candidates)
 
 
 def assert_no_science_verdict(payload: Any) -> None:
@@ -684,7 +1616,25 @@ def assert_no_science_verdict(payload: Any) -> None:
     turn a measurement of admission into a claim about whether P5.2's headline survives, which
     ``BRIEF_31`` section 6 reserves.
     """
-    raise NotImplementedError
+    from offline.method_tier_grid import assert_no_verdicts
+
+    assert_no_verdicts(payload)
+
+    def walk(node: Any, path: str) -> None:
+        if isinstance(node, Mapping):
+            for key, value in node.items():
+                walk(value, f"{path}.{key}")
+        elif isinstance(node, (list, tuple)):
+            for index, value in enumerate(node):
+                walk(value, f"{path}[{index}]")
+        elif isinstance(node, str) and node in SCIENCE_VERDICT_STRINGS:
+            raise ValueError(
+                f"{path}: {node!r} is a verdict on the science, and BRIEF_31 section 6 reserves "
+                "that. This artifact measures admission and scores three instrument predictions; "
+                "it says nothing about whether P5.2's headline survives"
+            )
+
+    walk(payload, "artifact")
 
 
 def admission_artifact(
@@ -702,12 +1652,380 @@ def admission_artifact(
     reference checks, the draw-restoration report, the per-cell timing P8.4b's cost model needs, and
     E1/E2/E3 scored.  It carries **no** verdict on the science.
     """
-    raise NotImplementedError
+    created_by_draw: dict[str, set[int]] = {}
+    for episode in episodes:
+        created_by_draw.setdefault(
+            f"{episode.scenario}/{episode.draw_id}", set()
+        ).add(int(episode.created))
+    inconsistent = {k: sorted(v) for k, v in created_by_draw.items() if len(v) != 1}
+    if inconsistent:
+        raise ValueError(
+            f"created is a property of a draw and must be identical in every cell that used it, "
+            f"but these draws disagree: {inconsistent}"
+        )
+
+    payload: dict[str, Any] = {
+        "format_version": ARTIFACT_FORMAT_VERSION,
+        "role": (
+            "P8.4a: how many vehicles each arm admits, measured first rather than co-reported "
+            "(BRIEF_31 section 3), with both ATT definitions on every episode"
+        ),
+        "what_this_does_not_say": [
+            "the metric is not wrong; it computes what its docstring says, and it measures a "
+            "different population than the field's",
+            "no conclusion about P5.2's headline beyond what E1 measures",
+            "no novelty claim: BRIEF_31 section 7 rules that unsearched",
+        ],
+        "registered": {
+            "draws": list(PROBE_DRAWS),
+            "escalation_draws": [ESCALATION_DRAWS[0], ESCALATION_DRAWS[-1]],
+            "seeds": list(PROBE_SEEDS),
+            "declared_in": "docs/plans/p8.4a.md sections 3 and 4, before any number existed",
+            "identity": (
+                "never_entered = |get_vehicles(True)| - |get_vehicles(False)|; "
+                "entered = |depart_time| = completed + running; "
+                "created = entered + never_entered = flow entries firing inside the horizon"
+            ),
+        },
+        "created_per_draw": {
+            key: sorted(values)[0] for key, values in sorted(created_by_draw.items())
+        },
+        "draw_restoration": {
+            scenario: {
+                "scenario_key": record.scenario_key,
+                "survivors": list(record.survivors),
+                "restored": list(record.restored),
+                "actions": dict(record.actions),
+                "flow_sha256": dict(record.flow_sha256),
+                "n_vehicles": dict(record.n_vehicles),
+                "survivors_reproduced": bool(record.survivors_reproduced),
+            }
+            for scenario, record in sorted(restoration.items())
+        },
+        "reference_checks": {
+            arm: {
+                "source": check.source,
+                "n_compared": int(check.n_compared),
+                "n_missing": int(check.n_missing),
+                "exact": bool(check.exact),
+                "mismatches": [dict(m) for m in check.mismatches],
+            }
+            for arm, check in sorted(references.items())
+        },
+        "cells": {
+            scenario: {arm: cells[scenario][arm].as_record() for arm in sorted(cells[scenario])}
+            for scenario in sorted(cells)
+        },
+        "e1": score_e1(cells),
+        "e2": score_e2(cells),
+        "e3": score_e3(cells),
+        "timing": dict(timing),
+        "episodes": [e.as_record() for e in episodes],
+        "provenance": dict(provenance),
+    }
+    assert_no_science_verdict(payload)
+    return payload
+
+
+def build_parser() -> argparse.ArgumentParser:
+    """Return the CLI parser.
+
+    One cell per process, mirroring every campaign in this repo: a job that dies takes one cell with
+    it and the resume path is "run the cells that have no file".
+    """
+    parser = argparse.ArgumentParser(
+        prog="python -m offline.admission_probe",
+        description="P8.4a: measure how many vehicles each arm admits, and both ATT definitions",
+    )
+    parser.add_argument("--repo-root", default=".", help="this worktree (holds docs/data)")
+    parser.add_argument("--corpus-root", default="datasets_v11")
+    parser.add_argument("--draws-root", default="scenarios/draws")
+    parser.add_argument("--output-root", default="output", help="the MAIN tree's output/")
+    parser.add_argument("--work-dir", default="output/p8_4a")
+    parser.add_argument("--engine-seed", type=int, default=1000)
+    parser.add_argument("--device", default=None)
+    parser.add_argument("--torch-threads", type=int, default=1)
+    parser.add_argument(
+        "--protect",
+        action="append",
+        default=[],
+        metavar="PATH",
+        help="an extra read-only root, on top of the corpus and every sibling output/ directory",
+    )
+
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    restore = sub.add_parser("restore-draws", help="Gate -1: verify the survivors, then fill gaps")
+    restore.add_argument("--scenario", required=True, choices=sorted(PROBE_SCENARIOS))
+    restore.add_argument("--survivors", type=int, nargs="+", required=True)
+    restore.add_argument("--wanted", type=int, nargs="+", required=True)
+
+    for name, help_text in (
+        ("timing", "Gate 0: probe one cell and report seconds per episode"),
+        ("probe", "probe one cell and write its work file"),
+    ):
+        cell_parser = sub.add_parser(name, help=help_text)
+        cell_parser.add_argument("--scenario", required=True, choices=sorted(PROBE_SCENARIOS))
+        cell_parser.add_argument("--tier", required=True)
+        cell_parser.add_argument("--method", required=True)
+        cell_parser.add_argument("--draws", type=int, nargs="+", default=list(PROBE_DRAWS))
+        cell_parser.add_argument("--seeds", type=int, nargs="+", default=None)
+        cell_parser.add_argument(
+            "--escalated",
+            action="store_true",
+            help="use the full held-out pool and write under a distinct name",
+        )
+
+    report = sub.add_parser("report", help="assemble docs/data/p8_4a_admission.json")
+    report.add_argument("--out", default="docs/data/p8_4a_admission.json")
+    return parser
+
+
+def _roots_of(args: argparse.Namespace) -> ProbeRoots:
+    return ProbeRoots(
+        repo_root=Path(args.repo_root),
+        corpus_root=Path(args.corpus_root),
+        draws_root=Path(args.draws_root),
+        output_root=Path(args.output_root),
+        work_dir=Path(args.work_dir),
+    )
+
+
+def work_file_name(scenario: str, tier: str, method: str, *, escalated: bool = False) -> str:
+    """``admission_<scenario>_<tier>_<method>[_full].json`` -- one file per cell."""
+    suffix = "_full" if escalated else ""
+    return f"admission_{scenario}_{tier}_{method}{suffix}.json"
+
+
+def _run_cell(args: argparse.Namespace, *, write: bool) -> int:
+    from offline.dt_gate import runtime_provenance
+    from offline.offline_baselines import pin_torch_threads
+    from offline.tier_sweep import assert_writable, protected_roots_from, write_json_guarded
+
+    pin_torch_threads(args.torch_threads)
+    roots = _roots_of(args)
+    protected = default_protected_roots(roots) + protected_roots_from(args.protect)
+    draws = list(ESCALATION_DRAWS) if args.escalated else [int(d) for d in args.draws]
+    seeds = None if args.seeds is None else tuple(int(s) for s in args.seeds)
+
+    started = time.perf_counter()
+    episodes, sources = probe_cell(
+        scenario=args.scenario,
+        tier=args.tier,
+        method=args.method,
+        draw_ids=draws,
+        roots=roots,
+        engine_seed=int(args.engine_seed),
+        device=args.device,
+        seeds=seeds,
+    )
+    elapsed = time.perf_counter() - started
+
+    summary = summarise_cell(episodes)
+    reference, source = committed_reference(args.scenario, args.tier, args.method, roots)
+    check = check_against_reference(episodes, reference, source)
+
+    print(
+        f"  {args.scenario}/{summary.arm}: admission {summary.admission_ratio:.6f} "
+        f"({summary.entered_total}/{summary.created_total}), att_ours "
+        f"{summary.att_ours_mean:.4f}, att_engine {summary.att_engine_mean:.4f}, "
+        f"n={summary.n_episodes}, {elapsed / summary.n_episodes:.3f} s/episode",
+        flush=True,
+    )
+    print(
+        f"  reference {source}: compared {check.n_compared}, missing {check.n_missing}, "
+        f"mismatches {len(check.mismatches)}, exact={check.exact}",
+        flush=True,
+    )
+    for mismatch in check.mismatches[:5]:
+        print(f"    MISMATCH {mismatch}", flush=True)
+
+    if not write:
+        return 0 if check.exact else 1
+
+    destination = Path(roots.work_dir) / work_file_name(
+        args.scenario, args.tier, args.method, escalated=bool(args.escalated)
+    )
+    assert_writable(destination, protected)
+    Path(roots.work_dir).mkdir(parents=True, exist_ok=True)
+    write_json_guarded(
+        {
+            "format_version": ARTIFACT_FORMAT_VERSION,
+            "scenario": args.scenario,
+            "tier": args.tier,
+            "method": args.method,
+            "arm": summary.arm,
+            "engine_seed": int(args.engine_seed),
+            "escalated": bool(args.escalated),
+            "draw_ids": draws,
+            "seconds_wall": elapsed,
+            "seconds_per_episode": elapsed / summary.n_episodes,
+            "arm_sources": {
+                slot: {
+                    "kind": src.kind,
+                    "detail": src.detail,
+                    "checkpoint": src.checkpoint,
+                    "checkpoint_sha256": src.checkpoint_sha256,
+                }
+                for slot, src in sorted(sources.items())
+            },
+            "cell": summary.as_record(),
+            "reference": {
+                "source": check.source,
+                "n_compared": check.n_compared,
+                "n_missing": check.n_missing,
+                "exact": check.exact,
+                "mismatches": [dict(m) for m in check.mismatches],
+            },
+            "episodes": [e.as_record() for e in episodes],
+            "runtime": runtime_provenance(),
+        },
+        destination,
+        protected,
+    )
+    print(f"  wrote {destination}", flush=True)
+    return 0 if check.exact else 1
+
+
+def _run_restore(args: argparse.Namespace) -> int:
+    spec = PROBE_SCENARIOS[args.scenario]
+    record = restore_draws(
+        Path(args.repo_root) / spec.sim_config,
+        survivors=args.survivors,
+        wanted=args.wanted,
+        out_root=args.draws_root,
+    )
+    print(f"survivors reproduced byte-identically: {sorted(record.survivors)}", flush=True)
+    for draw_id in sorted(record.actions, key=int):
+        print(
+            f"  draw {draw_id}: {record.actions[draw_id]}  "
+            f"n_vehicles={record.n_vehicles[draw_id]}  flow_sha256={record.flow_sha256[draw_id]}",
+            flush=True,
+        )
+    return 0
+
+
+def _run_report(args: argparse.Namespace) -> int:
+    from offline.dt_gate import runtime_provenance
+    from offline.tier_sweep import assert_writable, protected_roots_from, write_json_guarded
+
+    roots = _roots_of(args)
+    protected = default_protected_roots(roots) + protected_roots_from(args.protect)
+    work = Path(roots.work_dir)
+    files = sorted(work.glob("admission_*.json"))
+    if not files:
+        raise FileNotFoundError(f"no cell files under {work}; run the probe subcommand first")
+
+    cells: dict[str, dict[str, CellSummary]] = {}
+    references: dict[str, ReferenceCheck] = {}
+    episodes: list[AdmissionEpisode] = []
+    timing: dict[str, Any] = {"per_cell": {}}
+    restoration: dict[str, DrawRestoration] = {}
+
+    for path in files:
+        payload = json.loads(path.read_bytes())
+        if payload.get("escalated"):
+            # An escalated cell supersedes its 10-draw form; both stay on disk and the report
+            # names which one it used, because silently preferring one is how two denominators
+            # end up under one label.
+            continue
+        rows = [
+            AdmissionEpisode(
+                scenario=row["scenario"],
+                tier=row["tier"],
+                method=row["method"],
+                arm=row["arm"],
+                seed=row["seed"],
+                draw_id=int(row["draw_id"]),
+                created=int(row["created"]),
+                entered=int(row["entered"]),
+                never_entered=int(row["never_entered"]),
+                entered_fraction=float(row["entered_fraction"]),
+                completed_at_horizon=int(row["completed_at_horizon"]),
+                running_at_horizon=int(row["running_at_horizon"]),
+                waiting_at_horizon=int(row["waiting_at_horizon"]),
+                att_ours=float(row["att_ours"]),
+                att_engine=float(row["att_engine"]),
+                horizon_vehicle_count=float(row["horizon_vehicle_count"]),
+                episode_reward=float(row["episode_reward"]),
+                seconds=float(row["seconds"]),
+                seconds_rollout=float(row.get("seconds_rollout", 0.0)),
+            )
+            for row in payload["episodes"]
+        ]
+        episodes.extend(rows)
+        scenario = payload["scenario"]
+        arm = payload["arm"]
+        cells.setdefault(scenario, {})[arm] = summarise_cell(rows)
+        reference = payload["reference"]
+        references[f"{scenario}/{arm}"] = ReferenceCheck(
+            source=reference["source"],
+            n_compared=int(reference["n_compared"]),
+            n_missing=int(reference["n_missing"]),
+            mismatches=tuple(reference["mismatches"]),
+        )
+        timing["per_cell"][f"{scenario}/{arm}"] = {
+            "seconds_wall": float(payload["seconds_wall"]),
+            "seconds_per_episode": float(payload["seconds_per_episode"]),
+            "n_episodes": len(rows),
+        }
+
+    restoration_file = work / "draw_restoration.json"
+    if restoration_file.is_file():
+        for scenario, record in json.loads(restoration_file.read_bytes()).items():
+            restoration[scenario] = DrawRestoration(
+                scenario_key=record["scenario_key"],
+                survivors=tuple(record["survivors"]),
+                restored=tuple(record["restored"]),
+                actions=record["actions"],
+                flow_sha256=record["flow_sha256"],
+                n_vehicles=record["n_vehicles"],
+                survivors_reproduced=bool(record["survivors_reproduced"]),
+            )
+
+    timing["seconds_total"] = float(sum(e.seconds for e in episodes))
+    timing["n_episodes"] = len(episodes)
+    timing["note"] = (
+        "seconds is the whole per-episode cost including env construction and the per-draw "
+        "policy load; seconds_rollout isolates the simulation. Both are needed by P8.4b"
+    )
+
+    payload = admission_artifact(
+        cells=cells,
+        episodes=episodes,
+        references=references,
+        restoration=restoration,
+        timing=timing,
+        provenance={
+            "runtime": runtime_provenance(),
+            "cell_files": [p.name for p in files],
+        },
+    )
+    destination = Path(args.repo_root) / args.out
+    assert_writable(destination, protected)
+    write_json_guarded(payload, destination, protected)
+
+    exact = sum(1 for c in references.values() if c.exact)
+    print(f"cells: {sum(len(v) for v in cells.values())}, episodes: {len(episodes)}", flush=True)
+    print(f"reference checks exact: {exact}/{len(references)}", flush=True)
+    print(f"E1 holds/close/falsified: {payload['e1']['n_holds']}/"
+          f"{payload['e1']['n_close']}/{payload['e1']['n_falsified']}", flush=True)
+    print(f"E2 arms below the floor: {payload['e2']['n_below']}/{payload['e2']['n_arms']}", flush=True)
+    print(f"E3 holds: {payload['e3']['holds']}, monotone: {payload['e3']['monotone']}", flush=True)
+    print(f"wrote {destination}", flush=True)
+    return 0 if exact == len(references) else 1
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     """Run one subcommand; returns a process exit code."""
-    raise NotImplementedError
+    args = build_parser().parse_args(argv)
+    if args.command == "restore-draws":
+        return _run_restore(args)
+    if args.command == "timing":
+        return _run_cell(args, write=False)
+    if args.command == "probe":
+        return _run_cell(args, write=True)
+    return _run_report(args)
 
 
 if __name__ == "__main__":  # pragma: no cover - CLI entry point

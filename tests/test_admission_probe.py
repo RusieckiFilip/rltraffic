@@ -401,11 +401,16 @@ def test_score_e1_holds_when_the_arm_admits_at_least_as_many() -> None:
 
 
 def test_score_e1_escalates_a_deficit_inside_delta_and_calls_it_close() -> None:
-    """``0 < deficit <= Delta`` is close, and closeness escalates -- it is not a result at n=10."""
+    """``0 < deficit <= Delta`` is close, and closeness escalates -- it is not a result at n=10.
+
+    Hand arithmetic, over two draws of 1000 created vehicles each: the anchor's seeds pool to
+    ``(600+600+700+700)/4000 = 0.65`` with a spread of ``0.70 - 0.60 = 0.10``; the arm pools to
+    ``630*4/4000 = 0.63``.  So ``deficit = 0.02``, ``Delta = 0.10``, and 0.02 sits inside it.
+    """
     cells = {
         "hz1x1": {
             "behaviour@random": cell(method=BEHAVIOUR_METHOD, per_seed_entered={101: 600, 202: 700}),
-            "bc@random": cell(method="bc", per_seed_entered={101: 640, 202: 640}),
+            "bc@random": cell(method="bc", per_seed_entered={101: 630, 202: 630}),
         }
     }
     scored = score_e1(cells)
@@ -752,18 +757,23 @@ def test_analytic_created_matches_a_raw_engine(
         pytest.skip(f"the hz1x1 roadnet is not present at {scenario}, so no engine can be built")
 
     horizon = 20
-    route = json.loads((scenario / "flow.json").read_bytes())[0]["route"]
+    # The engine validates the vehicle block field by field, so the template is the scenario's own
+    # rather than a minimal stand-in; only the timing fields are this test's.
+    template = json.loads((scenario / "flow.json").read_bytes())[0]
     entries = [
-        {**flow_entry(t), "route": route}
+        {**template, "interval": 5.0, "startTime": t, "endTime": t}
         for t in (0, 5, horizon - 1, horizon, horizon + 1)
     ]
+    # CityFlow resolves roadnetFile and flowFile against `dir`, so both must live under it: the
+    # scenario tree is read-only to this test, hence a tmp_path copy of the roadnet.
+    (tmp_path / "roadnet.json").write_bytes((scenario / "roadnet.json").read_bytes())
     flow_path = write_flow(tmp_path, entries)
     config = {
         "interval": 1.0,
         "seed": 0,
-        "dir": f"{scenario}/",
+        "dir": f"{tmp_path}/",
         "roadnetFile": "roadnet.json",
-        "flowFile": str(flow_path),
+        "flowFile": flow_path.name,
         "rlTrafficLight": False,
         "saveReplay": False,
         "laneChange": False,
