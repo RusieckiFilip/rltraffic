@@ -235,3 +235,55 @@ $PY -m offline.admission_probe "${COMMON[@]}" report --out docs/data/p8_4a_admis
 
 say "CAMPAIGN COMPLETE"
 touch "$WORK/CAMPAIGN_COMPLETE"
+
+# ---------------------------------------------------------------------------------------------
+# PHASE 2 -- the registered escalation, run only when explicitly asked for.
+# ---------------------------------------------------------------------------------------------
+# `docs/plans/p8.4a.md` section 4, approved as Amendment A3: **any arm with `deficit > 0` at all --
+# close OR falsified -- is re-run over the full 100 held-out draws before anything is said about
+# it.**  The permissive `Delta` that governs the VERDICT is only acceptable because this ESCALATION
+# threshold sits at zero, and neither may be loosened without the other being re-argued.
+#
+# The cell list is DERIVED from the scored artifact by `escalation-plan`, never hand-written, and it
+# carries the behaviour anchor of every escalated arm's tier: E1 is a comparison, and a 100-draw arm
+# may only be compared against a 100-draw anchor.
+#
+# 🔒 THE TWO GRAINS ARE NEVER MIXED.  Escalated cells are written as `*_full.json` and reported into
+# `docs/data/p8_4a_admission_escalated.json`; the 10-draw artifact is left exactly as it is.  A
+# report whose cells span two draw counts REFUSES.
+#
+# MEASURED COST, from this campaign's own per-cell rates: 14 cells, 6200 episodes, **3.44 h serial**
+# -- so Amendment A2's one-hour rule sends this phase to a user-started tmux, not to a session.
+#
+#   bash offline/campaigns/p8_4a.sh --escalate
+#
+if [ "${1:-}" = "--escalate" ]; then
+  say "PHASE 2: the registered escalation to $(printf '%s' "100") held-out draws"
+  [ -f "$WORK/CAMPAIGN_COMPLETE" ] || fail "phase 1 has not completed; there is nothing to escalate"
+
+  PLAN="$($PY -m offline.admission_probe "${COMMON[@]}" escalation-plan \
+          --artifact docs/data/p8_4a_admission.json | grep -v '^#')"
+  [ -n "$PLAN" ] || say "nothing to escalate: no arm had a deficit above zero"
+
+  while read -r scenario tier method; do
+    [ -n "$scenario" ] || continue
+    file="$WORK/admission_${scenario}_${tier}_${method}_full.json"
+    if [ -f "$file" ]; then
+      printf '  SKIP %s/%s@%s -- %s exists\n' "$scenario" "$method" "$tier" "$(basename "$file")"
+      continue
+    fi
+    say "ESCALATE $scenario/$method@$tier over the full held-out pool"
+    $PY -m offline.admission_probe "${COMMON[@]}" \
+        probe --scenario "$scenario" --tier "$tier" --method "$method" --escalated \
+        2>&1 | tee "$WORK/logs/${scenario}_${tier}_${method}_full.log"
+    status="${PIPESTATUS[0]}"
+    [ "$status" -eq 0 ] || fail "$scenario/$method@$tier exited $status at the escalated grain"
+  done <<< "$PLAN"
+
+  say "ESCALATED REPORT"
+  $PY -m offline.admission_probe "${COMMON[@]}" report --escalated \
+      --out docs/data/p8_4a_admission_escalated.json 2>&1 | tee "$WORK/logs/report_escalated.log"
+  [ "${PIPESTATUS[0]}" -eq 0 ] || fail "the escalated report exited non-zero"
+  say "ESCALATION COMPLETE"
+  touch "$WORK/ESCALATION_COMPLETE"
+fi

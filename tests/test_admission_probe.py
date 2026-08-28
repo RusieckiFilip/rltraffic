@@ -39,9 +39,11 @@ from offline.admission_probe import (
     admission_spread,
     assert_no_science_verdict,
     cell_admission_ratio,
+    cell_files,
     check_against_reference,
     created_from_flow,
     default_protected_roots,
+    escalation_targets,
     paired_admission_difference,
     per_seed_admission_ratios,
     probe_episode,
@@ -52,6 +54,7 @@ from offline.admission_probe import (
     score_e3,
     seeds_for,
     summarise_cell,
+    work_file_name,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -668,6 +671,65 @@ def test_assert_no_science_verdict_accepts_the_registered_status_words() -> None
         "e1": {"arms": [{"status": "falsified"}, {"status": "close"}, {"status": "holds"}]},
     }
     assert_no_science_verdict(payload)
+
+
+def test_cell_files_never_mixes_the_two_draw_grains(tmp_path: Path) -> None:
+    """A 10-draw cell and a 100-draw cell may not land in one report.
+
+    Comparing an escalated arm against a 10-draw anchor is the "two denominators under one label"
+    hazard, and the selector is the only thing standing between the two grains.
+    """
+    for name in (
+        "admission_hz1x1_random_bc.json",
+        "admission_hz1x1_random_bc_full.json",
+        "admission_hz1x1_random_behaviour.json",
+        "admission_hz1x1_random_behaviour_full.json",
+        "draw_restoration.json",
+    ):
+        (tmp_path / name).write_text("{}", encoding="utf-8")
+
+    ten = [p.name for p in cell_files(tmp_path, escalated=False)]
+    hundred = [p.name for p in cell_files(tmp_path, escalated=True)]
+    assert ten == ["admission_hz1x1_random_bc.json", "admission_hz1x1_random_behaviour.json"]
+    assert hundred == [
+        "admission_hz1x1_random_bc_full.json",
+        "admission_hz1x1_random_behaviour_full.json",
+    ]
+    assert set(ten).isdisjoint(hundred)
+    assert "draw_restoration.json" not in ten + hundred
+
+
+def test_work_file_name_round_trips_both_grains() -> None:
+    assert work_file_name("hz1x1", "random", "bc") == "admission_hz1x1_random_bc.json"
+    assert (
+        work_file_name("hz1x1", "random", "bc", escalated=True)
+        == "admission_hz1x1_random_bc_full.json"
+    )
+
+
+def test_escalation_targets_carry_every_anchor_of_every_escalated_arm() -> None:
+    """A 100-draw arm may only be scored against a 100-draw anchor, so the anchor comes too."""
+    scored = {
+        "escalated_arms": ["hz1x1/bc@random", "grid4x4/iql@mappo1000"],
+        "arms": [
+            {"scenario": "hz1x1", "tier": "random", "arm": "bc@random"},
+            {"scenario": "grid4x4", "tier": "mappo1000", "arm": "iql@mappo1000"},
+            {"scenario": "hz1x1", "tier": "fixedtime", "arm": "bc@fixedtime"},
+        ],
+    }
+    assert escalation_targets(scored) == (
+        ("grid4x4", "mappo1000", "behaviour"),
+        ("grid4x4", "mappo1000", "iql"),
+        ("hz1x1", "random", "bc"),
+        ("hz1x1", "random", "behaviour"),
+    )
+
+
+def test_escalation_targets_refuse_an_arm_with_no_matching_row() -> None:
+    """An arm named in the escalation list but absent from the scored rows has no tier to anchor."""
+    scored = {"escalated_arms": ["hz1x1/bc@random"], "arms": []}
+    with pytest.raises(ValueError, match="bc@random"):
+        escalation_targets(scored)
 
 
 def test_summarise_cell_refuses_a_mixed_arm_input() -> None:

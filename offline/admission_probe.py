@@ -141,11 +141,13 @@ __all__ = [
     "assert_no_science_verdict",
     "build_factory",
     "cell_admission_ratio",
+    "cell_files",
     "check_against_reference",
     "committed_reference",
     "created_from_flow",
     "default_protected_roots",
     "env_settings_for",
+    "escalation_targets",
     "paired_admission_difference",
     "per_seed_admission_ratios",
     "probe_cell",
@@ -158,6 +160,7 @@ __all__ = [
     "score_e3",
     "seeds_for",
     "summarise_cell",
+    "work_file_name",
 ]
 
 ARTIFACT_FORMAT_VERSION = "p8.4a-admission/1.0"
@@ -1652,6 +1655,16 @@ def admission_artifact(
     reference checks, the draw-restoration report, the per-cell timing P8.4b's cost model needs, and
     E1/E2/E3 scored.  It carries **no** verdict on the science.
     """
+    draws_per_cell = {len(cell.draw_ids) for block in cells.values() for cell in block.values()}
+    if len(draws_per_cell) != 1:
+        raise ValueError(
+            f"the cells of one artifact span {sorted(draws_per_cell)} draws; the 10-draw and "
+            "100-draw grains are reported as separate artifacts precisely so that a 100-draw arm "
+            "is never scored against a 10-draw anchor"
+        )
+    n_draws = next(iter(draws_per_cell))
+    grain = f"{n_draws} held-out draws" + (" (escalated)" if n_draws > len(PROBE_DRAWS) else "")
+
     created_by_draw: dict[str, set[int]] = {}
     for episode in episodes:
         created_by_draw.setdefault(
@@ -1678,6 +1691,8 @@ def admission_artifact(
         ],
         "registered": {
             "draws": list(PROBE_DRAWS),
+            "grain": grain,
+            "draws_per_cell": sorted(draws_per_cell),
             "escalation_draws": [ESCALATION_DRAWS[0], ESCALATION_DRAWS[-1]],
             "seeds": list(PROBE_SEEDS),
             "declared_in": "docs/plans/p8.4a.md sections 3 and 4, before any number existed",
@@ -1778,7 +1793,29 @@ def build_parser() -> argparse.ArgumentParser:
 
     report = sub.add_parser("report", help="assemble docs/data/p8_4a_admission.json")
     report.add_argument("--out", default="docs/data/p8_4a_admission.json")
+    report.add_argument(
+        "--escalated",
+        action="store_true",
+        help="report the 100-draw grain instead of the 10-draw one; the two are NEVER mixed and "
+        "each is written as its own internally consistent artifact",
+    )
+
+    escalate = sub.add_parser(
+        "escalation-plan", help="print the cells the registered rule sends to 100 draws"
+    )
+    escalate.add_argument("--artifact", default="docs/data/p8_4a_admission.json")
     return parser
+
+
+def _run_escalation_plan(args: argparse.Namespace) -> int:
+    """Derive the escalation list from the scored artifact, never from a hand-written list."""
+    payload = json.loads((Path(args.repo_root) / args.artifact).read_bytes())
+    targets = escalation_targets(payload["e1"])
+    print(f"# {len(targets)} cells at {len(ESCALATION_DRAWS)} draws, derived from {args.artifact}")
+    print("# rule: any arm with deficit > 0, plus the behaviour anchor of its own tier")
+    for scenario, tier, method in targets:
+        print(f"{scenario} {tier} {method}")
+    return 0
 
 
 def _roots_of(args: argparse.Namespace) -> ProbeRoots:
@@ -1791,10 +1828,54 @@ def _roots_of(args: argparse.Namespace) -> ProbeRoots:
     )
 
 
+#: The suffix that marks a cell rolled over the full held-out pool rather than the ten probe draws.
+ESCALATED_SUFFIX = "_full"
+
+
 def work_file_name(scenario: str, tier: str, method: str, *, escalated: bool = False) -> str:
-    """``admission_<scenario>_<tier>_<method>[_full].json`` -- one file per cell."""
-    suffix = "_full" if escalated else ""
+    """``admission_<scenario>_<tier>_<method>[_full].json`` -- one file per cell per grain."""
+    suffix = ESCALATED_SUFFIX if escalated else ""
     return f"admission_{scenario}_{tier}_{method}{suffix}.json"
+
+
+def cell_files(work_dir: str | Path, *, escalated: bool) -> tuple[Path, ...]:
+    """The cell files of ONE draw grain, sorted.
+
+    🔒 **The two grains are never mixed, and this selector is the only thing that guarantees it.**
+    Scoring a 100-draw arm against a 10-draw anchor puts two denominators under one label, which is
+    the shape of the error ``PREREGISTRATION`` A5 made and T1 found.  Each grain is reported as its
+    own internally consistent artifact instead.
+    """
+    found: list[Path] = []
+    for path in sorted(Path(work_dir).glob("admission_*.json")):
+        is_escalated = path.stem.endswith(ESCALATED_SUFFIX)
+        if is_escalated == bool(escalated):
+            found.append(path)
+    return tuple(found)
+
+
+def escalation_targets(scored_e1: Mapping[str, Any]) -> tuple[tuple[str, str, str], ...]:
+    """Every ``(scenario, tier, method)`` the registered escalation rule requires at 100 draws.
+
+    That is each arm with ``deficit > 0`` **plus the behaviour anchor of its own tier**: E1 is a
+    comparison, and a 100-draw arm may only be compared against a 100-draw anchor.
+    """
+    by_key = {
+        f"{row['scenario']}/{row['arm']}": row for row in scored_e1.get("arms", ())
+    }
+    targets: set[tuple[str, str, str]] = set()
+    for key in scored_e1.get("escalated_arms", ()):
+        row = by_key.get(key)
+        if row is None:
+            raise ValueError(
+                f"{key} is named in escalated_arms but has no scored row, so its tier -- and "
+                "therefore the behaviour anchor it must be compared against -- is unknown"
+            )
+        scenario, tier = str(row["scenario"]), str(row["tier"])
+        targets.add((scenario, tier, str(row["method"]) if "method" in row else
+                     str(row["arm"]).split("@")[0]))
+        targets.add((scenario, tier, BEHAVIOUR_METHOD))
+    return tuple(sorted(targets))
 
 
 def _run_cell(args: argparse.Namespace, *, write: bool) -> int:
@@ -1936,9 +2017,13 @@ def _run_report(args: argparse.Namespace) -> int:
     roots = _roots_of(args)
     protected = default_protected_roots(roots) + protected_roots_from(args.protect)
     work = Path(roots.work_dir)
-    files = sorted(work.glob("admission_*.json"))
+    escalated = bool(getattr(args, "escalated", False))
+    files = cell_files(work, escalated=escalated)
     if not files:
-        raise FileNotFoundError(f"no cell files under {work}; run the probe subcommand first")
+        grain = "100-draw" if escalated else "10-draw"
+        raise FileNotFoundError(
+            f"no {grain} cell files under {work}; run the probe subcommand first"
+        )
 
     cells: dict[str, dict[str, CellSummary]] = {}
     references: dict[str, ReferenceCheck] = {}
@@ -1948,11 +2033,12 @@ def _run_report(args: argparse.Namespace) -> int:
 
     for path in files:
         payload = json.loads(path.read_bytes())
-        if payload.get("escalated"):
-            # An escalated cell supersedes its 10-draw form; both stay on disk and the report
-            # names which one it used, because silently preferring one is how two denominators
-            # end up under one label.
-            continue
+        if bool(payload.get("escalated")) != escalated:
+            raise ValueError(
+                f"{path} records escalated={payload.get('escalated')} but was selected for the "
+                f"escalated={escalated} grain; the filename and the payload disagree and mixing "
+                "the two grains would put two denominators under one label"
+            )
         rows = [
             AdmissionEpisode(
                 scenario=row["scenario"],
@@ -2049,6 +2135,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_cell(args, write=False)
     if args.command == "probe":
         return _run_cell(args, write=True)
+    if args.command == "escalation-plan":
+        return _run_escalation_plan(args)
     return _run_report(args)
 
 
