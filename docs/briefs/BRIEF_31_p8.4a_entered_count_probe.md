@@ -404,3 +404,65 @@ it is what finds the defect that READING it would not.** I could have answered "
 `p8_4a.sh` — the header even explains the `cd`. **Reading it would have been correct and would have
 missed the trap entirely.** ⚠️ **A delivery detail is not overhead. It is the one part of a handoff
 that is always executed, so it is the cheapest place to run a real test.**
+
+---
+
+# ✅ AMENDMENT D — 2026-08-28. The restore refusal: C1 is satisfied in substance, and DEFERRED 61 must be fixed
+
+**The author refused to use `--force` and asked for a ruling. Correct on both counts.**
+
+## D1 ⭐ THE AUTHOR'S INFERENCE DOES NOT HOLD — AND THE CONCLUSION SURVIVES BY A STRONGER ROUTE
+
+**The inference offered:** *"the gate refused on `source_config` and NOT on `source_config_sha256`,
+which is in the same block and would also differ if the file differed."*
+🚨 **It does not hold. `_existing_conflict` (`offline/materialise_draws.py`) RETURNS on the first
+mismatch, and its provenance loop iterates `sorted(set(on_disk) | set(fresh))` — so `source_config`
+precedes `source_config_sha256` alphabetically and the sha256 was NEVER REACHED.** The absence of a
+sha256 complaint is the loop stopping, not the hashes agreeing. **That is `DEFERRED` 54's mechanism —
+*assertions after the first failure never run* — surfacing in a third file.**
+
+> ✅ **But the conclusion is right, by a better argument that sits ABOVE the provenance loop.**
+> `_existing_conflict` compares **every rendered file byte-for-byte** — `flow.json`, `cityflow.json`,
+> everything except `provenance.json` — and returns `"<name> differs byte-for-byte"` on any
+> difference. **It did not return that. It returned a provenance-FIELD complaint, which is strictly
+> later.** **So the draw itself is byte-identical and only a metadata path string differs.**
+> ⚠️ **Precision that matters for C1: this proves byte-identity for the draw the gate refused ON, and
+> for any it cleared before it — not for all ten. C1's ten-survivor verification has NOT happened
+> and is still owed.**
+
+## D2 🔧 THE RULING — option C, and A and B are dead ends for stated reasons
+
+- ⛔ **B does not exist.** `p8_4a.sh` contains **no restore invocation** — only a check that
+  `draw_restoration.json` is present (`:97`). Gate −1 was run in-session. And every module call in the
+  script passes `--repo-root "$WORKTREE"` in `COMMON`, so it would hit the identical wall.
+- ⛔ **A cannot work as posed.** The stored `source_config` is **relative** —
+  `configs/sim/cityflow_grid4x4.json` — and **no choice of an absolute `--repo-root` reproduces a
+  relative string.**
+- ✅ **C is the answer, and it is the semantically correct one rather than a workaround.**
+  `_NON_IDENTITY_FIELDS` is `{"git_commit", "git_dirty"}`. **`source_config` and `source_roadnet`
+  belong in it: the sha256 companions are the identity of the CONTENT, and the path is only the
+  identity of WHERE IT HAPPENED TO LIVE.** Comparing where it lived as identity *is* the
+  CWD-dependence defect. **The change strictly narrows identity to content — a genuinely different
+  file still refuses, because the sha256 fields stay identity fields.**
+  > **Required with it, both directions:** a fixture where the **path differs and the sha256 matches**
+  > → `kept`; and one where the **sha256 differs** → refuses. ⚠️ **This is merged, reviewed code that
+  > P2.2, P4.x and P5.x all used, so the second test is what makes the first safe.**
+
+## D3 ⚡ UNBLOCK NOW WITHOUT TOUCHING MERGED CODE UNDER TIME PRESSURE
+
+**Phase 1's Gate −1 SUCCEEDED and recorded all ten as `kept`, so a known-good invocation exists.**
+It must have produced a **relative** `source_config`, matching the stored one.
+> **Ask the implementer for phase 1's exact `restore-draws` invocation and reproduce it.** That is
+> cheaper and lower-risk than changing identity semantics in merged code while a campaign waits.
+> **Then land D2's fix in the same task, so the second sighting in two days is also the last.**
+
+## D4 ⚠️ `git_dirty: True` — the survivors' own provenance is the weak kind
+
+`scenarios/draws/cityflow_grid4x4/draw_1000/provenance.json` carries **`git_dirty: True`**. **These
+draws were materialised from a dirty tree.**
+> **Harmless for the draw CONTENT — D1's byte comparison settles that, and purity is about
+> `(source, base_seed, draw_id) → bytes`, not about the tree state of whoever ran it.** ⚠️ **But it
+> means the surviving draws cannot say which code produced them**, and it is the third instance of the
+> class **P5.3b's C2 added `git_dirty` detection for**: P5.3b's chunk carrying a commit from a dirty
+> tree, `runtime_provenance` having no dirtiness check at all, and now this. **Recorded in
+> `DEFERRED` 61.**
