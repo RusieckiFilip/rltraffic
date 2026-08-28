@@ -150,3 +150,98 @@ does not depend on the finding being novel:** the registered document contained 
 objection was overruled on a measurement that was true of a subset and false of the population, and
 **the registration is what made the overruling legible enough to catch.** An unregistered project
 would have had no safeguard to remove and no record of removing it.
+
+---
+
+# ✅ AMENDMENT A — 2026-08-28, ruled at the plan gate
+
+**APPROVED TO CODE.** All five questions answered; four of the six conflicts are my errors and are
+corrected below.
+
+## A0 ⭐ THE EXPLORATION ALREADY SEPARATED TWO EFFECTS I HAD CONFLATED, AND IT MAY HAVE ANSWERED THE AUTHOR'S QUESTION
+
+**Register this before scoring anything, because it reframes the exposure.** From the four exploratory
+episodes:
+
+| cell | `att_ours` − `att_engine` | never entered |
+|---|---|---|
+| hz1x1 maxpressure | **+3.35** | 0 |
+| grid4x4 maxpressure | **+6.88** | 0 |
+| grid4x4 random | **+7.14** | 0 |
+| **hz1x1 random** | **−355.62** | **615 (33.9 %)** |
+
+> ⭐ **When admission is complete, ours sits +3 to +7 s ABOVE the engine's — that is T1's M1
+> quantisation bias, isolated. When admission is incomplete, ours falls 355 s BELOW — that is B1's
+> selection bias. TWO SEPARABLE EFFECTS, separated without being asked to.**
+> 🚨 **AND THE EXPOSURE IS PROBABLY hz1x1-LOCALISED, WHICH INVERTS WHICH RESULTS ARE AT RISK.**
+> **Coordinator's corroboration, mechanical rather than measured: hz1x1 pushes 1813 vehicles through
+> ONE intersection; grid4x4 pushes 1323 through SIXTEEN — roughly 24x the per-node load.** The
+> insertion buffer only backs up when the network cannot absorb the demand, so zero blocking on
+> grid4x4 is *expected*, not lucky.
+> **If that holds: P5.2's grid4x4 headline is NOT vulnerable to B1, and the exposure lives in
+> P4.6/P4.7's hz1x1 ladder — which is C1.** ⚠️ **One draw, behaviour policies only, plus a plausibility
+> argument. It is a hypothesis to test, not a result, and the packet must say so in those words.**
+
+## A1 ✅ Q1 — YES, materialise grid4x4 draws 1005–1009
+
+`offline/campaigns/p5_2.sh:239-244` already prescribes it, `scenarios/draws/` is gitignored, and
+`DEFERRED` 55 records that these keep being deleted by routine cleanups — **restoring them is repairing
+a known loss, not creating a private resource.**
+> 🔒 **REQUIRED, and it is P5.3a's Gate −1 pattern: regenerate the FIVE SURVIVORS first and report the
+> byte-identity result explicitly. If any survivor does not reproduce, STOP and report `BLOCKED`** —
+> every downstream number would then be measured on draws that are not P5.2's, undetectably. **The
+> tool being no-op-or-refuse is the mechanism; reporting what it found is the evidence.**
+
+## A2 ✅ Q2 — MY OWN §7 THRESHOLD ANSWERS THIS, AND YOUR MEASUREMENT MOVES IT
+
+`PROJECT_PLAN` §7's pre-flight rule triggers at **one hour**. **Your measured 0.7 s (hz1x1) and 1.2 s
+(grid4x4) per episode put 1870 episodes at 22–37 minutes, not the ~2 h you conservatively quoted.**
+> **RULED, on the measurement rather than on the convention: if the Gate-0 timing probe confirms the
+> whole campaign is under ONE HOUR, background it inside your session. If it comes out over an hour,
+> hand off `offline/campaigns/p8_4a.sh` to a user-started `tmux` and return `PARTIAL`.**
+> ⭐ **The criterion is measured, not guessed, and it is the same threshold that governs whether a
+> pre-flight review is required — one rule, two uses.**
+
+## A3 ✅ Q3 — your scoring rules are registered as proposed, and the reason they are safe is worth stating
+
+`Δ = max(spread_behaviour, spread_arm)` is the **permissive** choice — a larger Δ makes a violation
+*harder* to declare. **That would worry me on its own. It does not, because your second rule sets the
+ESCALATION trigger at `deficit > 0`.**
+> ⭐ **Two thresholds doing different jobs: Δ governs the VERDICT, and any deficit at all — however
+> small — governs the ESCALATION to 100 draws. The escalation trigger sitting at zero is exactly what
+> makes the permissive Δ acceptable, and neither may be loosened without the other being re-argued.**
+> **Registered as yours, before any number.**
+
+## A4 ✅ Q4 — E3 on hz1x1 only, AND grid4x4's flatness is promoted to a first-class result
+
+**Correct, and for the right reason: E3's falsifier — *"a flat profile indicts the replay"* — was
+written against an hz1x1 measurement. Applying it to grid4x4 would condemn a correct result**, which
+is the class this project refused on 2026-08-19.
+> 🔒 **But do NOT report grid4x4's flatness as a scoping exclusion. Report it as a MEASUREMENT with its
+> own row**, because per A0 it may be the answer to the question this task was commissioned for.
+> **Registered now: on grid4x4, `never_entered` is expected to be 0 or near it for every arm; a
+> materially non-zero value there is a finding in its own right and is reported, not absorbed.**
+
+## A5 ✅ Q5 — M3 is out of your fence. The two DOCS sites are mine and are fixed in this commit
+
+`docs/plans/p2.6.md:40` and `docs/PROJECT_PLAN.md:1637` are corrected here.
+⚠️ **`offline/policies/plan_replay.py:15` and `:43` are SOURCE and stay untouched** — they carry the
+inverted claim in a docstring (*"the engine's native `get_average_travel_time` … is
+survivorship-biased"*, *"no survivorship bias"*). **Queued for P8.4b**, because a docstring correction
+in a file this task replays through should land with the metric change, not before it.
+
+## A6 🔧 The conflicts — four are my errors
+
+- **C1 ✅ accepted, and it is stronger than what I wrote.** Held-out evals store `att_horizon`; the
+  corpus stores `att_per_step`. Check against the committed `att_horizon` with `==`.
+- **C2** → A1. · **C5 ✅** your measurement supersedes my 1.684 s. · **C6 ✅** accepted.
+- **C3 🚨 MY ERROR.** §2's E3 names `mappo060`, which **is not a P4.6 tier** — it is a corpus tier T1
+  happened to measure. **E3 is re-registered over the tiers that exist in P4.6:
+  `mappo1000, mappo500, maxpressure, fixedtime, random`**, predicting a *monotone-ish* admission
+  profile with `mappo1000` highest and `random` lowest. **The 100.0 / 90.8 / 92.9 / 65.0 figures stay
+  as T1's context and are NOT the prediction.**
+- **C4 🚨 MY ERROR.** §4 lists `dt` for P5.2; **P5.2's DT arms are `dt_spatial` and `dt_nomix`**. Use
+  the arms that exist.
+⭐ **Both are the same error twice in one brief: I wrote an arm list from memory of a neighbouring task
+instead of reading the artifact. That is the sixth instance of this shape and it is why §2's E2/E3
+exist as instrument controls at all.**
