@@ -1888,6 +1888,11 @@ def _run_cell(args: argparse.Namespace, *, write: bool) -> int:
 
 
 def _run_restore(args: argparse.Namespace) -> int:
+    """Gate -1, and the report of what it found is the deliverable, not a side effect."""
+    from offline.tier_sweep import assert_writable, protected_roots_from, write_json_guarded
+
+    roots = _roots_of(args)
+    protected = default_protected_roots(roots) + protected_roots_from(args.protect)
     spec = PROBE_SCENARIOS[args.scenario]
     record = restore_draws(
         Path(args.repo_root) / spec.sim_config,
@@ -1902,6 +1907,25 @@ def _run_restore(args: argparse.Namespace) -> int:
             f"n_vehicles={record.n_vehicles[draw_id]}  flow_sha256={record.flow_sha256[draw_id]}",
             flush=True,
         )
+
+    destination = Path(roots.work_dir) / "draw_restoration.json"
+    assert_writable(destination, protected)
+    Path(roots.work_dir).mkdir(parents=True, exist_ok=True)
+    existing: dict[str, Any] = {}
+    if destination.is_file():
+        existing = json.loads(destination.read_bytes())
+    existing[args.scenario] = {
+        "scenario_key": record.scenario_key,
+        "survivors": list(record.survivors),
+        "restored": list(record.restored),
+        "actions": dict(record.actions),
+        "flow_sha256": dict(record.flow_sha256),
+        "n_vehicles": dict(record.n_vehicles),
+        "survivors_reproduced": bool(record.survivors_reproduced),
+        "sim_config": str(Path(args.repo_root) / spec.sim_config),
+    }
+    write_json_guarded(existing, destination, protected)
+    print(f"  wrote {destination}", flush=True)
     return 0
 
 
