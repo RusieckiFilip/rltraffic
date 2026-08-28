@@ -282,3 +282,159 @@ formality — A5 above exists **because** you wrote item 5, which is the point o
 
 **Everything else in the plan stands. Tests first, run them red, then implement. Stop before merge for
 `contract-reviewer`.**
+
+---
+
+# ✅ AMENDMENT B — 2026-08-27. A5's deviation confirmed, the test edit ratified
+
+## B1 ✅ **A5 WAS IMPOSSIBLE AS WRITTEN. THE REPO WON AND YOUR REPLACEMENT IS STRONGER THAN MY REQUIREMENT**
+
+**Measured by the coordinator before ruling:** the committed `output/p4_6/checkpoints/mappo500_dt_seed101.pt`
+and `output/p4_dt/dt_seed101.pt` each carry a **`config` of 8 keys with no `rtg_mode`**; a checkpoint
+written today carries **9, with `rtg_mode`** — because P5.3a made `to_json_obj` emit it
+unconditionally. **So "the whole payload equal except `model` and `provenance`" cannot hold on
+`config`, ever, and A5 was unsatisfiable the day I wrote it.**
+
+> ✅ **RULED: your narrower rule is registered in A5's place — every SHARED key equal, none LOST,
+> exactly ONE gained, and the gained key must be `rtg_mode` with value `"conditioned"`, pinned by an
+> assertion.** ⭐ **It is stronger than what I asked for, not weaker: "skip `config`" would have been
+> the easy deviation and you did not take it.** The other seven keys — `format_version`, `target_rtg`,
+> `rtg_scale`, `normalise`, `scenario_id`, `stats`, `intersection_ids` — stay under strict equality.
+
+⭐ **`m3` is the best mutation in this task and it settles A5's worth by demonstration.** Perturbing
+`target_rtg` in the saved payload **passed the digest test and failed A5's comparison**
+(`-6361.0` against `-6362.0`). That is precisely the hole A5 was written to close, exhibited rather
+than argued — and `target_rtg` **is the prompt**, so the hole was load-bearing.
+
+🚨 **The pattern this belongs to is mine and it is now FIVE deep in this brief chain, so it is stated
+rather than absorbed:** the per-tier δ rule (A7, withdrawn — spanned eleven orders of magnitude),
+*"exactly as P5.2's Gate 1 did"* (B3 — named a route with no call site), A4's cell-2 selection rule
+(picked the worst discriminating cell available), `BRIEF_29`'s *"near-uniform shift"* mechanism
+(falsified at 97.2 %), and now A5's payload comparison (unsatisfiable). **Every one was specified from
+the SHAPE of the thing instead of checked against the INSTANCE, and every one was caught by an
+implementer measuring rather than accepting.** ⚠️ **The mitigation is not "be more careful": before a
+brief registers a rule over an artifact, the rule gets evaluated against that artifact once. That is
+one command, and it would have caught all five.**
+
+## B2 ✅ **THE TEST EDIT IS RATIFIED — the change was right and the ORDER was wrong**
+
+**Verified independently:** the original `assert "equival" not in json.dumps(scored)` **would have
+forbidden the disclaimer `BRIEF_30` §5 mandates** — *"a failure to reject, never a demonstration of
+equivalence"* contains `equival`. The test contradicted the brief it was written to enforce. Your
+replacement bans six specific claim forms (`is equivalent`, `are equivalent`, `equivalence margin`,
+`within_delta`, `equivalence threshold`, `delta_att`), **none of which collides with the disclaimer**
+(checked), and **adds a POSITIVE assertion that the disclaimer is present** — which the original
+lacked entirely. **Strictly stronger. Ratified, and it stands.**
+
+> ⚠️ **The order was still wrong, and the reason the rule is bright-line is worth stating.** CLAUDE.md
+> §0: *"If you believe the test is wrong, stop and say so — do not fix it yourself."* **"The test was
+> wrong" is exactly what a session says when it weakens one.** Your full disclosure is what makes this
+> safe, and a disclosure after the fact is strictly weaker evidence than a question before it. **The
+> cost of asking was one message; the cost of the rule eroding is that the next edit is judged by the
+> same session that wants it to pass.** Flag first next time; the answer here would have been yes.
+
+## B3 ✅ `git merge main` was authorised, and flagging it was right
+
+The instruction was written, in Amendment A, with its reason (a rebase kills every hash an approval
+cites). **Taking an explicit written instruction as authorisation and saying so is exactly the
+behaviour wanted.** The merge direction was correct: `main` into the task branch, never the reverse.
+
+## B4 ⭐ The `cell_stats` defect is a recorded CLASS, not a one-off
+
+**Verified:** `offline/method_tier_grid.py:1488` `cell_stats` emits **`seeds`** (a sorted list) and
+**never `seed`**; a committed cell's keys confirm it. Your report keyed by `(tier, seed)` **would have
+raised `KeyError` after the two-hour campaign**, and the unit fixture supplied `seed` itself, **so the
+test passed while the real path was broken.**
+
+> **This is `DEFERRED` 37's family — a guard or a test that cannot be exercised by the data it ships
+> with — and it is the second sighting.** ⚠️ **It was found by INSPECTION, not by a test, and you said
+> so; that honesty is the reason it is a finding rather than a near miss.** ✅ Owning it in
+> `nortg_cell_record` with a simulator-free test is the right fix: the record now derives from the
+> real emitter's contract rather than from a fixture's convenience.
+
+**Nothing else changes. Run the campaign.**
+
+---
+
+# ⛔ AMENDMENT C — 2026-08-28. THE CAMPAIGN IS HELD. A short fix round first
+
+`docs/reviews/P5.3b-preflight.md` says **CLEAR TO RUN, no blockers**, and I am overriding that to
+**HOLD** — not because anything can be destroyed, but because **two of its MAJOR findings would be
+baked into the artifact by a run that starts now, and both cost minutes to fix while nothing is
+running.** ⭐ **This is the first PRE-FLIGHT REVIEW and it has already paid for itself: `M5` alone
+would have written a knowably false commit into `measurement_git_commits`.**
+
+**Everything below is small. Estimated together: well under the 36 minutes `M5` costs on its own.**
+
+## C1 🚨 **M5 — DELETE the four `mappo1000` chunks and re-run them. Not disclosed, deleted**
+
+**Coordinator-verified before ruling:** `f115b7c` defines `nortg_cell_record` **zero** times, `39a4eef`
+defines it **once**, and `eval_mappo1000_seed101.json` **contains `cell.seed`** while recording
+`git_commit = f115b7ce…`; its mtime (22:27:08) sits between the two commits. **The chunk was written
+by a dirty tree and its provenance is false.**
+> **RULED: `rm output/p5_3b/{gate1,train_mappo1000,eval_mappo1000_seed101,probe_mappo1000}.json` and
+> the `mappo1000` checkpoints, then let the campaign regenerate them.** ≈36 min of a ≈2 h run.
+> **Disclosure is NOT an acceptable substitute here.** `measurement_git_commits` is the one field
+> `DEFERRED` 39 exists to make trustworthy; a provenance we KNOW to be wrong, left in place because
+> fixing it costs 36 minutes, is the trade this project exists to refuse. **Nothing has started. This
+> is the cheapest this decision will ever be.**
+> ⚠️ **The other three chunks have no behavioural tell, so I am not claiming they are clean — I am
+> deleting them because I cannot tell, and "cannot tell" is the reason, stated.**
+
+## C2 🔒 **Add a dirtiness flag to `runtime_provenance` — M5's mechanism, and its second sighting**
+
+`offline/dt_gate.py:636` records `git rev-parse HEAD` **with no dirtiness check**. `docs/reviews/P5.3a.md`
+**M6** logged exactly this as *"pre-existing"* three days ago. **It has now bitten for real.**
+> **Required: `runtime_provenance` records `git_dirty` (from `git status --porcelain`, non-empty →
+> `true`), and the campaign REFUSES to write a chunk from a dirty tree unless `--allow-dirty` is
+> passed explicitly.** `dt_gate.py` is already this task's file, so it is in scope. ⭐ **A provenance
+> field that cannot distinguish a clean tree from a dirty one is not provenance.**
+
+## C3 **M1 + M2 — the probe must verify the digest AND enforce Gate 3 where it runs**
+
+`_run_probe` neither checks the checkpoint digest (which `_run_evaluate` does at `:1475`) nor refuses
+a non-zero `flip_rate` — it prints `worst` and writes the chunk anyway. **Demonstrated against the
+committed conditioned checkpoint: `max flip_rate 0.004722`, exit 0.**
+> **Required: `_run_probe` recomputes `canonical_digest_of` and refuses a mismatch, exactly as
+> `_run_evaluate` does; and it RAISES on any non-zero `flip_rate` or any `rtg_mode != "zero"`.**
+> 🚨 **The caching is what makes this urgent rather than cosmetic: the driver skips a tier whose
+> `probe_$TIER.json` exists, so a bad probe chunk survives every restart and the only signal arrives
+> two stages later.** A gate that reports at the end of a two-hour run is not a gate.
+
+## C4 **M3 — assert the chunk describes the tier being run.** Two lines
+
+`_run_evaluate` checks the seed and never `training["tier"] == args.tier`. Demonstrated: a copied
+chunk evaluated a `mappo1000` checkpoint and wrote `arm: dt_nortg@mix50`, exit 0, every downstream
+assertion passing. ⚠️ **The reviewer's judgement is right — it needs a manual rename to arise, and
+this tree is being hand-managed, which is exactly why it is cheap insurance rather than theory.**
+
+## C5 **M4 — reap the fan-out's children before exiting**
+
+`run_campaign.sh:86-95` `exit 1`s on the first failure while four background jobs keep running and
+writing. **An immediate restart gives 8–10 concurrent evaluations on one GPU**, against the script's
+own stated one-thread-per-cell protocol. **Kill or wait for the remaining children before `fail`.**
+
+## C6 **M6 — the script must re-verify the reused manifests after the run**
+
+`BRIEF_30` §8 and the plan §9 both require it; the script does neither. **Add `sha256sum -c` on
+`SHA256SUMS_p4_3 / p4_6 / p4_7 / p5_3a` at the end, with the counts printed.** The reviewer measured
+the "before": **all nine manifests verify, zero failures.**
+
+## C7 **Correct the plan's §9 disclosure — over-disclosure is still a false claim**
+
+§9 says CityFlow rollouts rewrite `output/roadnet.json` and `output/replay.txt`. **Coordinator-verified:
+all 100 held-out draw configs carry `saveReplay: False` and `replayLogFile: None`**, and the
+reviewer's real rollouts left both mtimes untouched. ⚠️ **Not a contradiction of P5.3a's reviewer, who
+observed the SUITE — different configs — rewriting them; both are right about different things, and
+the packet should say which.** **Delete the claim or narrow it to the suite.**
+
+## C8 ✅ What is NOT required, so the fix round does not sprawl
+
+The non-atomic `torch.save`, the single unfenced write to the git-tracked artifact, the
+directory-not-sibling fence, the stale `COMPLETE` marker and `probe_cell`'s `--draws-root` are all
+**recorded and not fixed** — none is reachable by a correct run and the reviewer bounded each.
+**Do not touch them.** ⭐ **And nothing in the campaign's design changed: the resume logic was attacked
+with truncated, stale, wrong-seed and SIGKILLed states and held every time. P5.2's O4 defect is not
+repeated — `_run_train` writes the complete column once, atomically, after the loop.**
+
+**When C1–C7 are done: re-run the three P5.3b test files, paste the tail, then start the campaign.**
