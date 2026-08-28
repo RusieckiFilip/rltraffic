@@ -245,3 +245,101 @@ in a file this task replays through should land with the metric change, not befo
 ⭐ **Both are the same error twice in one brief: I wrote an arm list from memory of a neighbouring task
 instead of reading the artifact. That is the sixth instance of this shape and it is why §2's E2/E3
 exist as instrument controls at all.**
+
+---
+
+# ✅ AMENDMENT B — 2026-08-28. The author's question is answered; three rulings, and C7 does not hold
+
+## B0 ⭐ THE ANSWER, and it is favourable on both counts
+
+**`iql@random` on grid4x4 — the cell the author's question named — admits `1.000000`, exactly as its
+behaviour anchor.** So do `dt_spatial`, `dt_nomix` and `bc_top10_perix`; `bc` and `bc_top10` sit at
+0.999955 / 0.999669.
+> ✅ **The correct statement is §6.3's and no stronger: *the ATT gap is not explained by differential
+> admission on these cells.* NOT "the result is safe".**
+> ⭐ **And on hz1x1's `random` tier, where 34.5 % never enter, `iql` admits +5.39 pp and `dt` +1.43 pp
+> MORE than the policy that produced their data — so their advantage there is UNDERSTATED, not
+> inflated.** A0's hypothesis holds: the exposure is hz1x1-localised.
+
+## B1 🚨 RULING ON E2 — IT FIRED, IT STAYS FIRED, AND THE INSTRUMENT IS EXONERATED BY BETTER EVIDENCE THAN E2 EVER WAS
+
+`grid4x4/bc_top10@mappo1000` reads **0.967** against E2's registered 0.99 floor, whose falsifier says a
+failure there *"indicts the probe before it indicts the science, registered so it cannot be reversed
+later"*.
+
+> **RULED, and the two halves must not be run together:**
+> **(i) E2 FIRED. It is recorded as fired, in the packet and here. It is not waived, explained away, or
+> quietly rescored.**
+> **(ii) The PROBE is nonetheless exonerated — by evidence that is strictly stronger than E2:
+> 39 / 39 cells reproduce their committed `att_horizon` EXACTLY under `==`, including that very cell,
+> and the same tier's behaviour anchor reads exactly `1.000000`. The instrument demonstrably reports
+> 1.0 on this tier, on these draws, and reproduces the committed number for the cell in question.**
+> **So what fired is not the probe. E2 was MIS-SPECIFIED, and the mis-specification is mine:** §2's E2
+> reads *"`mappo1000`'s ARMS sit at ≈100 %"* on the strength of T1 measuring the **behaviour policy**
+> at 100.0 %. **A property of one policy, registered as a property of every arm of the tier — A5's
+> exact shape, committed by me in the amendment that was correcting A5's shape.**
+> ⚠️ **This correction is POST-HOC and it FAVOURS US. It is labelled as both, here and in the packet.
+> The implementer flagged that before I did, and declining to explain it away was the right call.**
+> ⛔ **What this ruling does NOT do: it does not touch E1. E2's wording being wrong says nothing about
+> whether that arm admits fewer vehicles. See B2.**
+
+## B2 ✅ RULING ON E1 — the falsification STANDS and is reported as §2 requires
+
+`bc_top10@mappo1000`, deficit **0.0328** against Δ **0.0118**. **§2's consequence applies unchanged:
+that arm's ATT advantage is reported as a possible selection artefact.**
+
+⭐ **And there is a MECHANISM with prior support, which makes this interesting rather than merely a
+caveat.** `bc_top10` is the top-decile filter, and **P5.1's Q5 established it is a LOAD SORTER** —
+it kept 302 of 320 streams from the **8 quietest of 16 nodes**. **A policy trained on the quietest
+nodes' streams plausibly under-serves the busiest approaches, and under-serving a busy approach is
+exactly what depresses admission.**
+> **Registered as a hypothesis, not an explanation: if the mechanism is real, the admission deficit
+> CONCENTRATES on the busiest nodes rather than spreading evenly.** That is checkable from the
+> escalation run's per-node data and it is falsifiable. **Do not assert it; test it.**
+
+## B3 ✅ RULING ON THE ESCALATION — run it unchanged, and I considered loosening it and refused
+
+14 cells, 6,200 episodes, **3.44 h**, to `tmux` per A2's threshold. Six of nine arms escalate only
+because the trigger sits at zero.
+> **RULED: run it as registered.** ⚠️ **I registered the zero trigger deliberately, in A3, as the thing
+> that makes the permissive `Δ = max(spread)` acceptable, and wrote that *"neither may be loosened
+> without the other being re-argued"*. **Loosening it now, after seeing which arms it catches, is
+> precisely the post-hoc move the registration exists to prevent** — and it would be loosening the
+> half that protects, while keeping the half that permits.
+> **3.44 h of CPU with no GPU is affordable. Recorded so the reasoning is not re-litigated later: if
+> the calendar ever binds, this is a candidate to narrow — but not today, and never after seeing the
+> results it would exclude.**
+
+## B4 ⛔ C7 DOES NOT HOLD, AND I CHECKED IT BECAUSE OF HOW ALARMING IT WAS
+
+C7 claims P5.1's and P5.2's `grid4x4_mappo1000_{bc,bc_top10,iql}` checkpoints differ such that
+*"loading P5.2's would have reproduced nothing"*.
+> **Measured by the coordinator across ALL 15 pairs (3 methods × 5 seeds): canonical digests IDENTICAL
+> on 15/15, and the ONLY differing payload key is `provenance`. `target_rtg`, `rtg_scale`, `stats`,
+> `config`, `intersection_ids` — all identical. Loading P5.2's copy would reproduce the SAME numbers,
+> not nothing.**
+> ✅ **The underlying observation is real and worth keeping: they are different FILES with different
+> sha256, and the reported cells came from P5.1's. That is a PROVENANCE ambiguity — T4's `M-a`, that
+> eval cells record no checkpoint path or digest — and it is not a numerical trap.**
+> ⚠️ **The consequence was overstated, and "the one that would have produced plausible wrong numbers"
+> is exactly the shape of claim that has to be checked rather than accepted. It was found honestly and
+> it is a real finding at its true size; the packet must state it at that size.**
+> ⭐ *(T4 independently reached the same measurement and called these "harmless duplicates". T4 was
+> right.)*
+
+## B5 ✅ Accepted, and one of them is the best incidental catch of the session
+
+- **Gate −1's CWD trap.** `materialise_draws` compares **CWD-resolved absolute paths as identity
+  fields**, so run from the worktree it would have reported a **FALSE `BLOCKED`** on 20/20 draws that
+  are byte-identical. ⭐ **That is the *condemns-a-correct-artifact* class this project refused on
+  2026-08-19, in a gate whose whole purpose is to refuse — the worst place for it.** Recorded as
+  `DEFERRED` 61 with the suite's sibling CWD dependency.
+- **The two corrected tests** — fixture defects with the implementation correct, no assertion
+  weakened, disclosed in full. Accepted. **Disclosing a corrected test in the packet is what makes it
+  a correction rather than an edit.**
+- **The suite's one failure** — a pre-existing relative-path dependency in `tests/test_rtg_ablation.py`,
+  proved to pass from the main tree and untouched. Accepted; it is the same CWD class and joins
+  `DEFERRED` 61.
+- **11 mutations, 11 caught**, and A0's two effects separated at population scale — **24 fully-admitted
+  cells span `att_ours − att_engine` ∈ [+3.25, +7.18], 15 censored cells reach −370.92.** That is the
+  M1/B1 decomposition confirmed on 39 cells rather than 4.
