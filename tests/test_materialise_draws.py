@@ -437,10 +437,71 @@ def test_non_identity_fields_are_exactly_the_declared_set() -> None:
     assert module._NON_IDENTITY_FIELDS == frozenset(
         {"git_commit", "git_dirty", "source_config", "source_flow", "source_roadnet"}
     )
-    # Symmetry is the property that made the omission visible: every exempted path has a digest
-    # twin, and every digest twin is still identity.
-    for path_field in ("source_config", "source_flow", "source_roadnet"):
-        assert f"{path_field}_sha256" not in module._NON_IDENTITY_FIELDS
+
+
+def test_no_digest_field_is_ever_exempted_from_identity(tmp_path: Path) -> None:
+    """The invariant, asserted OVER THE SET rather than over a hardcoded tuple.
+
+    ⚠️ **This replaces a loop that could not fail.** The previous version iterated a literal
+    3-tuple and checked ``f"{name}_sha256" not in _NON_IDENTITY_FIELDS`` immediately after an
+    exact-set assertion pinning the set to five members none of which end in ``_sha256`` -- so the
+    loop was dead code, it would not have noticed a fourth path field, and it never checked that a
+    twin EXISTS.  Review ``docs/reviews/P8.4a.md`` MJ-1; Amendment G3's praise for it was withdrawn
+    by Amendment I3.  Written here so the property is real: derived from the set and from a real
+    provenance record, with nothing hardcoded.
+    """
+    import offline.materialise_draws as module
+
+    exempt = module._NON_IDENTITY_FIELDS
+    assert [f for f in exempt if f.endswith("_sha256")] == []
+
+    [record] = materialise(HZ1X1_CONFIG, [1], out_root=tmp_path)
+    provenance = json.loads((record.directory / "provenance.json").read_bytes())
+
+    # Every exempted field that names a path in a REAL record must keep its digest as identity.
+    exempt_paths = [
+        f for f in sorted(exempt)
+        if isinstance(provenance.get(f), str) and "/" in provenance[f]
+    ]
+    assert exempt_paths == ["source_config", "source_flow", "source_roadnet"]
+    for field in exempt_paths:
+        twin = f"{field}_sha256"
+        assert twin in provenance, f"{field} is exempt but has no {twin} in the record"
+        assert twin not in exempt, f"{twin} must remain an identity field"
+
+
+def test_the_path_fields_without_a_digest_twin_are_exactly_the_two_known_sumo_ones(
+    tmp_path: Path,
+) -> None:
+    """⚠️ GAP PIN, not a contract: review MJ-2, and the class is NOT closed.
+
+    Amendment E3 exempted three named path fields; the docstring in ``materialise_draws`` claims
+    every path field has a ``*_sha256`` twin.  That is true of the EXEMPT set and **false of the
+    record**: ``sumo.sumocfg`` and ``sumo.template_rou`` are absolute, CWD-resolved paths with no
+    digest twin at all, and the whole ``sumo`` dict is still an identity field -- so a cross-tree
+    re-materialisation of a SUMO-paired scenario would refuse on them.
+
+    Not a regression: identity is stricter, never looser, and in practice the ``cityflow.json``
+    byte comparison fires first.  **Amendment I3 asks for the failing test and then a decision
+    between exempting them and giving them twins; that decision is the coordinator's**, so this
+    records the exact current state and fails the moment a third such field appears or one of these
+    is fixed.  See ``docs/returns/P8.4a.md`` section 13.
+    """
+    [record] = materialise(HZ1X1_CONFIG, [1], out_root=tmp_path)
+    provenance = json.loads((record.directory / "provenance.json").read_bytes())
+
+    def path_fields_without_twin(node: Any, prefix: str = "") -> list[str]:
+        found = []
+        for key, value in sorted(node.items()):
+            name = f"{prefix}{key}"
+            if isinstance(value, dict):
+                found += path_fields_without_twin(value, f"{name}.")
+            elif isinstance(value, str) and value.startswith("/") and f"{key}_sha256" not in node:
+                found.append(name)
+        return found
+
+    assert path_fields_without_twin(provenance) == ["sumo.sumocfg", "sumo.template_rou"]
+    assert "sumo" not in __import__("offline.materialise_draws", fromlist=["x"])._NON_IDENTITY_FIELDS
 
 
 @pytest.mark.parametrize("field", ["source_config", "source_flow", "source_roadnet"])

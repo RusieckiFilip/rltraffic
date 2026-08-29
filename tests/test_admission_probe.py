@@ -41,6 +41,7 @@ from offline.admission_probe import (
     assert_cwd_renders_the_recorded_scenario_dir,
     assert_no_science_verdict,
     cell_admission_ratio,
+    code_provenance,
     cell_files,
     check_against_reference,
     created_from_flow,
@@ -1184,3 +1185,88 @@ def test_score_e3_reports_holds_None_when_a_registered_tier_is_absent() -> None:
     assert scored["holds"] is None
     assert scored["monotone"] is True
     assert [r["tier"] for r in scored["profile"]] == ["maxpressure", "fixedtime", "random"]
+
+
+# ----------------------------------------------------------------------
+# Code provenance (review BL-2 / Amendment I2)
+# ----------------------------------------------------------------------
+
+
+def test_code_provenance_reports_the_tree_the_CODE_came_from_not_the_working_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """BL-2: both artifacts recorded a commit from another task's branch, and this is why.
+
+    ``dt_gate.runtime_provenance`` runs ``git rev-parse HEAD`` in the process CWD, and Amendment A2
+    deliberately puts the CWD in the MAIN tree to defuse ``DEFERRED`` 61 -- whose HEAD is whatever
+    branch that tree has checked out.  **The CWD and the code root are two different things**, and
+    Amendment I2 rules that the provenance must record the second.  Reproduced here with a throwaway
+    git repository standing in for the main tree.
+    """
+    import subprocess
+
+    other = tmp_path / "other_tree"
+    other.mkdir()
+    for command in (
+        ["git", "init", "-q"],
+        ["git", "config", "user.email", "t@t"],
+        ["git", "config", "user.name", "t"],
+        ["git", "commit", "-q", "--allow-empty", "-m", "a foreign branch's commit"],
+    ):
+        subprocess.run(command, cwd=other, check=True, capture_output=True)
+    foreign = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=other, capture_output=True, text=True, check=True
+    ).stdout.strip()
+
+    monkeypatch.chdir(other)
+    record = code_provenance()
+
+    mine = subprocess.run(
+        ["git", "-C", str(REPO_ROOT), "rev-parse", "HEAD"],
+        capture_output=True, text=True, check=True,
+    ).stdout.strip()
+    assert record["git_commit"] == mine
+    assert record["git_commit"] != foreign
+    assert Path(record["code_root"]).resolve() == REPO_ROOT
+    assert record["module"].endswith("offline/admission_probe.py")
+    assert isinstance(record["git_dirty"], bool)
+    assert "working_directory" in record and Path(record["working_directory"]) == other
+
+
+def test_the_artifact_carries_code_provenance_beside_the_cwd_runtime_block() -> None:
+    """The two must both be present and must be distinguishable, which is I2's whole point."""
+    payload = admission_artifact(**artifact_inputs())
+
+    code = payload["provenance"]["code_provenance"]
+    assert Path(code["code_root"]).resolve() == REPO_ROOT
+    assert code["git_commit"]
+    assert "caveat" in payload["provenance"]
+
+
+def test_the_cwd_check_examines_EVERY_draw_not_just_the_first(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Review MINOR 1: returning on the first existing draw lets a mixed-origin pool through.
+
+    ``DEFERRED`` 55 keeps producing exactly those pools -- the grid4x4 tree in this very task was
+    assembled from three different processes.  A check that stops at draw 1000 would clear a pool
+    whose later draws came from another tree, and ``materialise`` would then die with the message
+    E4 exists to eliminate.
+    """
+    from offline.materialise_draws import materialise
+
+    tree_a, tree_b = tmp_path / "tree_a", tmp_path / "tree_b"
+    draws = tmp_path / "draws"
+    config_a, config_b = mini_scenario(tree_a), mini_scenario(tree_b)
+    monkeypatch.chdir(tree_a)
+    materialise(config_a, [1000], out_root=draws)
+    monkeypatch.chdir(tree_b)
+    materialise(config_b, [1001], out_root=draws)
+
+    # From tree A, draw 1000 agrees and draw 1001 does not.  Stopping at the first would pass.
+    monkeypatch.chdir(tree_a)
+    with pytest.raises(RuntimeError, match="working directory") as excinfo:
+        assert_cwd_renders_the_recorded_scenario_dir(
+            config_a, scenario_key="mini", draw_ids=[1000, 1001], out_root=draws
+        )
+    assert "1001" in str(excinfo.value)

@@ -145,6 +145,7 @@ __all__ = [
     "build_factory",
     "cell_admission_ratio",
     "cell_files",
+    "code_provenance",
     "check_against_reference",
     "committed_reference",
     "created_from_flow",
@@ -1499,6 +1500,53 @@ def score_e3(cells: Mapping[str, Mapping[str, CellSummary]]) -> dict[str, Any]:
 # ----------------------------------------------------------------------
 
 
+def code_provenance() -> dict[str, Any]:
+    """The tree the CODE was imported from, which is NOT the process working directory.
+
+    🚨 **Review BL-2 / Amendment I2.**  ``dt_gate.runtime_provenance`` records
+    ``git rev-parse HEAD`` **in the process CWD**, and Amendment A2 deliberately puts the CWD in the
+    MAIN tree so that re-materialising a draw does not hit ``DEFERRED`` 61's false ``BLOCKED``.  The
+    main tree's HEAD is whatever branch it happens to have checked out -- for this campaign,
+    ``task/p5.3b-nortg-campaign`` -- so both committed artifacts recorded a commit **from another
+    task's branch that contains none of this code**.
+
+    ⛔ **The fix is not to move the CWD back**; that reopens ``DEFERRED`` 61.  The CWD and the code
+    root are two different facts and the provenance must record the second.  This resolves the tree
+    from this module's own ``__file__``, so it is correct however the process was launched and
+    whatever ``PYTHONPATH`` pointed at it.
+    """
+    import subprocess
+
+    root = Path(__file__).resolve().parent.parent
+
+    def git(*args: str) -> str | None:
+        try:
+            done = subprocess.run(
+                ["git", "-C", str(root), *args],
+                capture_output=True, text=True, check=True, timeout=30,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return None
+        return done.stdout.strip()
+
+    commit = git("rev-parse", "HEAD")
+    status = git("status", "--porcelain")
+    return {
+        "code_root": str(root),
+        "module": str(Path(__file__).resolve()),
+        "git_commit": commit,
+        "git_dirty": None if status is None else bool(status),
+        "working_directory": str(Path.cwd()),
+        "pythonpath": os.environ.get("PYTHONPATH", ""),
+        "note": (
+            "code_root is resolved from this module's __file__, not from the working directory. "
+            "runtime.git_commit beside it comes from dt_gate.runtime_provenance, which reads "
+            "git rev-parse HEAD in the CWD -- and BRIEF_31 Amendment A2 puts the CWD in the main "
+            "tree, so the two can and do differ (review P8.4a BL-2)"
+        ),
+    }
+
+
 @dataclass(frozen=True)
 class WorkingDirectoryCheck:
     """What the process working directory would render, against what the draws on disk record."""
@@ -1540,6 +1588,7 @@ def assert_cwd_renders_the_recorded_scenario_dir(
     )
 
     here = Path(_scenario_dir(sim_config))
+    agreed: int | None = None
     for draw_id in draw_ids:
         config = (
             Path(draw_dir(scenario_key, int(draw_id), out_root=out_root))
@@ -1549,13 +1598,10 @@ def assert_cwd_renders_the_recorded_scenario_dir(
             continue
         recorded = Path(os.path.normpath(json.loads(config.read_bytes()).get("dir", "")))
         if recorded == here:
-            return WorkingDirectoryCheck(
-                scenario_key=scenario_key,
-                here=here,
-                recorded=recorded,
-                checked_draw=int(draw_id),
-                matches=True,
-            )
+            # Keep going: a pool assembled by several processes can agree on its first draw and
+            # disagree later, and DEFERRED 55 keeps producing exactly those (review MINOR 1).
+            agreed = agreed or int(draw_id)
+            continue
         raise RuntimeError(
             f"this process's working directory is {Path.cwd()}, from which {sim_config} resolves "
             f"its scenario to {here}; the draws already in {Path(out_root)} were rendered against "
@@ -1567,6 +1613,14 @@ def assert_cwd_renders_the_recorded_scenario_dir(
             "2026-08-28 across all ten cityflow_grid4x4 held-out draws, flow.json identical 10/10. "
             "Only the config wrapper's embedded path differs.\n\n"
             f"  Re-run with the working directory set to the tree holding {recorded}."
+        )
+    if agreed is not None:
+        return WorkingDirectoryCheck(
+            scenario_key=scenario_key,
+            here=here,
+            recorded=here,
+            checked_draw=agreed,
+            matches=True,
         )
     return WorkingDirectoryCheck(
         scenario_key=scenario_key, here=here, recorded=None, checked_draw=None, matches=True
@@ -1822,7 +1876,19 @@ def admission_artifact(
         "e3": score_e3(cells),
         "timing": dict(timing),
         "episodes": [e.as_record() for e in episodes],
-        "provenance": dict(provenance),
+        "provenance": {
+            **dict(provenance),
+            # Review BL-2 / Amendment I2: `runtime.git_commit` below is the CWD's HEAD, and the CWD
+            # is the MAIN tree by Amendment A2's ruling.  The commit that actually produced these
+            # numbers is in `code_provenance`.
+            "code_provenance": code_provenance(),
+            "caveat": (
+                "runtime.git_commit (if present) is git rev-parse HEAD in the process WORKING "
+                "DIRECTORY, which BRIEF_31 Amendment A2 requires to be the main tree; that tree's "
+                "HEAD belongs to whichever branch it has checked out and may contain none of this "
+                "code. Read code_provenance.git_commit for the code that produced these numbers"
+            ),
+        },
     }
     assert_no_science_verdict(payload)
     return payload
