@@ -619,3 +619,74 @@ right and must not be quietly upgraded.
    1005–1009** (E1 of Amendment E).
 6. The cross-worktree purity result: **`flow.json` byte-identical 10/10.**
 7. `DEFERRED` 61's remaining half: `source_flow`, and the worktree-CWD refusal message (E3/E4 above).
+
+---
+
+# ✅ AMENDMENT G — 2026-08-29. E2's final disposition, and the 0.045 % reporting call
+
+## G1 🔒 E2 — FINAL DISPOSITION. It fired, it is permanent, and it does NOT block the merge
+
+B1 and F4 analysed E2; what was missing is a **disposition**, so here it is in one place and it is
+final.
+
+> 1. **E2 FIRED** — `grid4x4/bc_top10@mappo1000` at **0.9705** against a 0.99 floor, at ten draws and
+>    again at a hundred. **It is recorded as fired, permanently, in the artifact and the packet. It is
+>    not waived, rescored, or quietly re-registered.**
+> 2. **E2 was a control on the INSTRUMENT, and the instrument is independently exonerated:
+>    14/14 reference checks exact under `==`, including that very cell.** The probe reproduces
+>    committed `att_horizon` for the cell whose admission it questions.
+> 3. **E2's WORDING was mine and was wrong.** It reads *"`mappo1000`'s ARMS sit at ≈100 %"* on the
+>    strength of T1 measuring the **behaviour policy** — one policy's property registered as every
+>    arm's. **A5's shape, in the amendment correcting A5's shape.**
+> 4. **Therefore: E2's firing is a finding about E2, not about the probe, and it does not block the
+>    merge. Task status DONE stands.**
+> ⚠️ **Stated every time it is mentioned, including in the packet: this correction is POST-HOC and it
+> FAVOURS US.** ⛔ **And it does not touch E1 — the `bc_top10@mappo1000` falsification stands on its
+> own evidence and is reported as a possible selection artefact.**
+
+## G2 ⚖️ THE 0.045 % CALL — the rule's output stands verbatim, and the PAPER reports materiality, which is a different question
+
+`grid4x4/bc_top10@random`: deficit **0.000450** against Δ **0.000354** — **299 vehicles in 663,785**,
+about **0.6 per episode**. Falsified only because both arms are so consistent that Δ collapses.
+
+> **RULED, three parts:**
+> **(a) The rule's output is reported verbatim, everywhere it appears.** `falsified` stays `falsified`
+> in the artifact and the packet. ⛔ **No re-definition, no threshold change, no "effectively holds".
+> Loosening a registered rule after seeing which arms it catches is the move the registration exists
+> to prevent, and this is the second time this task I have declined it.**
+> **(b) The PAPER reports MATERIALITY, which is a different question from DETECTABILITY.** E1's Δ asks
+> *can we detect a difference*; the paper asks *could this difference explain the ATT gap*. **Those
+> have different answers here and both are honest.** The paper's sentence is about the substantive
+> arm; the 0.045 % arm appears in the artifact and the packet with its magnitude, not as a headline.
+> **(c) 🚨 DO NOT ASSERT THAT IT IS IMMATERIAL — COMPUTE IT.** *(This is the correction to my own
+> instinct: I was about to write "negligible".)* **Required in the packet: the ATT sensitivity to that
+> deficit, computed** — what `att_ours` would become if those 299 vehicles were admitted and counted,
+> against the arm's reported ATT. **If the bound is far below the ATT differences the paper quotes,
+> that is a measured statement and it is worth more than the word "negligible". If it is not, we have
+> learned something and the reporting changes.**
+
+## G3 ✅ The removed test — approved, and the reasoning is the part worth keeping
+
+`test_source_flow_is_still_an_identity_field_...` asserted **the opposite of E3's ruling**. **Deleting
+it rather than editing it into agreement was correct**: a test edited to match a new spec is
+indistinguishable from a test weakened to pass, while a deletion with a comment naming its replacement
+is auditable. **Disclosed in §11.2, net `source_flow` coverage up, the "path differs → kept" test now
+parametrised over all three fields.**
+> ⭐ **And the pinning test now asserts the invariant that made my omission visible in the first place
+> — every exempted path has a `*_sha256` twin, and no twin is exempted. That generalises the fix from
+> three named fields to a property, so a fourth path field added later cannot repeat this.** That is
+> fixing the class rather than the instance.
+
+## G4 ⭐ Two disclosures that are better than the things they disclose
+
+- **The `git add -A` that swept my escalation artifact.** Caught from an unaccounted 139,575-line diff,
+  verified independently (14/14 references exact, 0 identity violations, 3,200 hz1x1 values equal to
+  their committed originals), every number labelled as the author's run. ⚠️ **Symmetry worth stating:
+  this is the same command that swept the implementer's plan draft into my commit `094b53f` on
+  2026-08-27. Twice in three days, in both directions. `git add -A` is how work you did not do enters
+  a commit you signed. Name the files.**
+- **E4's verification detail.** The refusal test patches `offline.materialise_draws.materialise` rather
+  than `admission_probe.materialise`, *"which would have passed vacuously, since the import is
+  function-local."* ⭐ **Knowing WHY the obvious patch target would have made the test theatre is the
+  difference between a test and a decoration**, and it is the kind of thing that usually only surfaces
+  in a review.
