@@ -37,6 +37,7 @@ from offline.admission_probe import (
     ProbeRoots,
     ReferenceCheck,
     admission_spread,
+    assert_cwd_renders_the_recorded_scenario_dir,
     assert_no_science_verdict,
     cell_admission_ratio,
     cell_files,
@@ -49,6 +50,7 @@ from offline.admission_probe import (
     probe_episode,
     read_admission_at_horizon,
     reconcile_admission,
+    restore_draws,
     score_e1,
     score_e2,
     score_e3,
@@ -747,6 +749,146 @@ def test_summarise_cell_carries_per_seed_admission_never_only_the_pooled_number(
     record = summary.as_record()
     assert record["per_seed_admission"] == {"101": 0.9, "202": 0.8}
     assert record["att_difference_mean"] == pytest.approx(-10.0)
+
+
+# ----------------------------------------------------------------------
+# The working-directory check (BRIEF_31 Amendment E4)
+# ----------------------------------------------------------------------
+
+
+def mini_scenario(root: Path) -> Path:
+    """A minimal but real CityFlow scenario tree, so the CWD check can be exercised hermetically.
+
+    ``materialise`` hashes the roadnet and randomises the flow but never parses the roadnet, so a
+    stub roadnet and a short real flow are enough -- and keep the test at a few milliseconds.
+    """
+    (root / "configs/sim").mkdir(parents=True, exist_ok=True)
+    (root / "scenarios/mini").mkdir(parents=True, exist_ok=True)
+    entries = [
+        {
+            "vehicle": {
+                "length": 5.0, "width": 2.0, "maxPosAcc": 2.0, "maxNegAcc": 4.5,
+                "usualPosAcc": 2.0, "usualNegAcc": 4.5, "minGap": 2.5,
+                "maxSpeed": 11.11, "headwayTime": 2.0,
+            },
+            "route": ["road_0_1_0", "road_1_1_0"],
+            "interval": 5.0,
+            "startTime": t,
+            "endTime": t,
+        }
+        for t in range(0, 200, 5)
+    ]
+    (root / "scenarios/mini/flow.json").write_text(json.dumps(entries), encoding="utf-8")
+    (root / "scenarios/mini/roadnet.json").write_text(
+        '{"intersections": [], "roads": []}', encoding="utf-8"
+    )
+    config = root / "configs/sim/mini.json"
+    config.write_text(
+        json.dumps(
+            {
+                "network": "mini", "interval": 1.0, "seed": 0, "dir": "scenarios/mini/",
+                "roadnetFile": "roadnet.json", "flowFile": "flow.json",
+                "rlTrafficLight": True, "saveReplay": False, "laneChange": False,
+            }
+        ),
+        encoding="utf-8",
+    )
+    return config
+
+
+def test_restore_draws_refuses_a_working_directory_that_renders_a_different_scenario_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Amendment E4: the refusal must name its own cause instead of blaming the demand.
+
+    ``cityflow.json`` embeds ``dir`` as an absolute path resolved against the process working
+    directory, and ``_existing_conflict`` compares rendered files BEFORE any provenance field -- so
+    from another tree the tool said ``cityflow.json differs byte-for-byte``.  A reader sees a
+    scenario-named file "differing" and concludes the demand changed.  **It did not**, and E4 rules
+    that the fix is a legible refusal rather than normalising the embedded path.
+    """
+    from offline.materialise_draws import materialise
+
+    tree_a, tree_b = tmp_path / "tree_a", tmp_path / "tree_b"
+    draws = tmp_path / "draws"
+    config_a, config_b = mini_scenario(tree_a), mini_scenario(tree_b)
+    monkeypatch.chdir(tree_a)
+    materialise(config_a, [1000, 1001], out_root=draws)
+
+    monkeypatch.chdir(tree_b)
+    with pytest.raises(RuntimeError, match="working directory") as excinfo:
+        restore_draws(config_b, survivors=[1000], wanted=[1000, 1001], out_root=draws)
+
+    message = str(excinfo.value)
+    assert str(tree_b) in message
+    assert str(tree_a) in message
+    assert "byte-for-byte" not in message
+    assert "demand" in message
+
+
+def test_restore_draws_refuses_the_wrong_directory_BEFORE_it_materialises_anything(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The check is a precondition, not a diagnosis after the fact.
+
+    A refusal that ran after ``materialise`` would still be legible but would have done the work --
+    and on the real tree that is 90 draws of rendering before being told the directory was wrong.
+    """
+    import offline.materialise_draws as draws_module
+    from offline.materialise_draws import materialise
+
+    tree_a, tree_b = tmp_path / "tree_a", tmp_path / "tree_b"
+    draws = tmp_path / "draws"
+    config_a, config_b = mini_scenario(tree_a), mini_scenario(tree_b)
+    monkeypatch.chdir(tree_a)
+    materialise(config_a, [1000], out_root=draws)
+
+    def explode(*args: Any, **kwargs: Any) -> None:
+        raise AssertionError("materialise must not be reached once the CWD check has failed")
+
+    # ``restore_draws`` does ``from offline.materialise_draws import materialise`` INSIDE the
+    # function, so the name is resolved on that module at call time -- patching the attribute on
+    # ``admission_probe`` would set something nothing ever reads and the test would pass vacuously.
+    monkeypatch.setattr(draws_module, "materialise", explode)
+    monkeypatch.chdir(tree_b)
+    with pytest.raises(RuntimeError, match="working directory"):
+        restore_draws(config_b, survivors=[1000], wanted=[1000], out_root=draws)
+
+
+def test_restore_draws_proceeds_from_the_directory_the_draws_were_made_from(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The control: the check must not refuse the configuration that actually works."""
+    from offline.materialise_draws import materialise
+
+    tree_a = tmp_path / "tree_a"
+    draws = tmp_path / "draws"
+    config_a = mini_scenario(tree_a)
+    monkeypatch.chdir(tree_a)
+    materialise(config_a, [1000], out_root=draws)
+
+    record = restore_draws(config_a, survivors=[1000], wanted=[1000, 1001], out_root=draws)
+
+    assert record.actions["1000"] == "kept"
+    assert record.actions["1001"] == "written"
+    assert record.survivors_reproduced is True
+
+
+def test_the_working_directory_check_is_silent_when_no_draw_exists_yet(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With nothing on disk there is nothing to disagree with, and any directory is legitimate."""
+    tree_a = tmp_path / "tree_a"
+    config_a = mini_scenario(tree_a)
+    monkeypatch.chdir(tree_a)
+
+    check = assert_cwd_renders_the_recorded_scenario_dir(
+        config_a, scenario_key="mini", draw_ids=[1000], out_root=tmp_path / "empty"
+    )
+
+    assert check.recorded is None
+    assert check.checked_draw is None
+    assert check.matches is True
 
 
 # ----------------------------------------------------------------------

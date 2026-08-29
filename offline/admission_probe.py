@@ -111,6 +111,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -138,6 +139,8 @@ __all__ = [
     "ReferenceCheck",
     "admission_artifact",
     "admission_spread",
+    "WorkingDirectoryCheck",
+    "assert_cwd_renders_the_recorded_scenario_dir",
     "assert_no_science_verdict",
     "build_factory",
     "cell_admission_ratio",
@@ -1497,6 +1500,80 @@ def score_e3(cells: Mapping[str, Mapping[str, CellSummary]]) -> dict[str, Any]:
 
 
 @dataclass(frozen=True)
+class WorkingDirectoryCheck:
+    """What the process working directory would render, against what the draws on disk record."""
+
+    scenario_key: str
+    here: Path
+    recorded: Path | None
+    checked_draw: int | None
+    matches: bool
+
+
+def assert_cwd_renders_the_recorded_scenario_dir(
+    sim_config: str | Path,
+    *,
+    scenario_key: str,
+    draw_ids: Sequence[int],
+    out_root: str | Path,
+) -> WorkingDirectoryCheck:
+    """Amendment E4: refuse a working directory that would render a different scenario dir.
+
+    A materialised ``cityflow.json`` embeds ``dir`` as an ABSOLUTE path resolved against the process
+    working directory, because CityFlow requires one.  ``_existing_conflict`` compares rendered files
+    **before** any provenance field, so re-materialising from another tree refuses with
+    ``cityflow.json differs byte-for-byte`` -- a message that names a scenario file and reads as
+    though the demand changed.  **It has not**: measured on 2026-08-28, all ten grid4x4 held-out
+    draws regenerate a byte-identical ``flow.json`` from a second worktree while all ten
+    ``cityflow.json`` differ.
+
+    E4 rules that the embedded path is NOT normalised -- that would change rendering semantics in
+    merged code for a diagnostic's convenience -- and that the refusal is made legible instead.
+
+    Returns a check describing what was compared.  When no requested draw exists yet there is
+    nothing to disagree with and any working directory is legitimate, so ``recorded`` is ``None``.
+    """
+    from offline.materialise_draws import (
+        CITYFLOW_CONFIG_FILENAME,
+        _scenario_dir,
+        draw_dir,
+    )
+
+    here = Path(_scenario_dir(sim_config))
+    for draw_id in draw_ids:
+        config = (
+            Path(draw_dir(scenario_key, int(draw_id), out_root=out_root))
+            / CITYFLOW_CONFIG_FILENAME
+        )
+        if not config.is_file():
+            continue
+        recorded = Path(os.path.normpath(json.loads(config.read_bytes()).get("dir", "")))
+        if recorded == here:
+            return WorkingDirectoryCheck(
+                scenario_key=scenario_key,
+                here=here,
+                recorded=recorded,
+                checked_draw=int(draw_id),
+                matches=True,
+            )
+        raise RuntimeError(
+            f"this process's working directory is {Path.cwd()}, from which {sim_config} resolves "
+            f"its scenario to {here}; the draws already in {Path(out_root)} were rendered against "
+            f"{recorded} (read from draw {int(draw_id)}). A materialised cityflow.json embeds that "
+            "directory as an absolute path, so re-materialising from here would be refused for a "
+            "rendered-config difference.\n\n"
+            "  THIS IS NOT A STATEMENT ABOUT THE DEMAND. The drawn demand is a pure function of "
+            "(source, base_seed, draw_id) and is identical from either tree -- measured on "
+            "2026-08-28 across all ten cityflow_grid4x4 held-out draws, flow.json identical 10/10. "
+            "Only the config wrapper's embedded path differs.\n\n"
+            f"  Re-run with the working directory set to the tree holding {recorded}."
+        )
+    return WorkingDirectoryCheck(
+        scenario_key=scenario_key, here=here, recorded=None, checked_draw=None, matches=True
+    )
+
+
+@dataclass(frozen=True)
 class DrawRestoration:
     """What ``offline.materialise_draws`` did, reported rather than trusted."""
 
@@ -1529,10 +1606,19 @@ def restore_draws(
     undetectably.  *The tool being no-op-or-refuse is the mechanism; reporting what it found is the
     evidence.*
     """
-    from offline.materialise_draws import materialise
+    from offline.materialise_draws import materialise, scenario_key_for_config
 
     survivor_ids = [int(d) for d in survivors]
     wanted_ids = [int(d) for d in wanted]
+
+    # Amendment E4: the working-directory check runs FIRST, before a single draw is built, so a
+    # wrong directory costs a message rather than 90 draws of rendering.
+    assert_cwd_renders_the_recorded_scenario_dir(
+        sim_config,
+        scenario_key=scenario_key_for_config(sim_config),
+        draw_ids=wanted_ids,
+        out_root=out_root,
+    )
     overlap = sorted(set(survivor_ids) & set(wanted_ids))
     if overlap != sorted(survivor_ids):
         raise ValueError(

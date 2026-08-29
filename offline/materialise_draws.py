@@ -60,12 +60,13 @@ rest of the 1000-1099 pool later never rebuilds what is already there.  Identity
 on the *artifacts and the parameters that determine them* -- the three rendered files
 byte-for-byte, plus every provenance field except those in :data:`_NON_IDENTITY_FIELDS`:
 ``git_commit`` / ``git_dirty``, which describe **when** a draw was materialised, and
-``source_config`` / ``source_roadnet``, which describe **where the source happened to live**.
-Including the first pair would make every commit invalidate the whole tree; including the
-second made the same scenario reached from a second worktree look like different demand
-(``BRIEF_31`` Amendment D2, ``DEFERRED`` 61).  **The ``*_sha256`` companions of both paths
-remain identity fields, so a genuinely different source still refuses.**  A draw that exists
-but differs is **refused**, never silently rewritten, and only ``force=True`` replaces it.
+``source_config`` / ``source_flow`` / ``source_roadnet``, which describe **where the source
+happened to live**.  Including the first pair would make every commit invalidate the whole
+tree; including the second group made the same scenario reached from a second worktree look
+like different demand (``BRIEF_31`` Amendments D2 and E3, ``DEFERRED`` 61).  **The
+``*_sha256`` companion of each of those three paths remains an identity field, so a genuinely
+different source still refuses.**  A draw that exists but differs is **refused**, never
+silently rewritten, and only ``force=True`` replaces it.
 
 WARNING: a path exemption does NOT make the tool working-directory independent.  The rendered
 ``cityflow.json`` embeds ``dir`` as an absolute path resolved against the process working
@@ -199,12 +200,15 @@ _KEY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 #: from a second worktree, or through an absolute rather than a relative path, produced a different
 #: string and an identical draw was refused as though its demand had changed.
 #:
-#: WARNING: ``source_flow`` is deliberately NOT here.  It is the same kind of CWD-resolved absolute
-#: path with the same ``_sha256`` companion, so D2's own rationale arguably covers it, but D2 names
-#: two fields and extending a ruling silently is not a thing this file's history can afford.
-#: Recorded as an open question in ``docs/returns/P8.4a.md`` and pinned by a test.
+#: ``source_flow`` joined on 2026-08-29 under Amendment E3, which closed the asymmetry D2 left.  It
+#: is stored ABSOLUTE (``/.../scenarios/grid4x4/grid4x4_flow.json``), so it was not a latent case --
+#: it was the next field to fire from any other tree, and only the first-mismatch return of
+#: :func:`_existing_conflict` kept it hidden behind ``source_config``.
+#:
+#: **The invariant to preserve: every path field here has a ``*_sha256`` twin that is NOT here.**
+#: Exempting a digest would delete the check rather than narrow it, and a test asserts both halves.
 _NON_IDENTITY_FIELDS = frozenset(
-    {"git_commit", "git_dirty", "source_config", "source_roadnet"}
+    {"git_commit", "git_dirty", "source_config", "source_flow", "source_roadnet"}
 )
 
 _STAGING_PREFIX = ".staging-"

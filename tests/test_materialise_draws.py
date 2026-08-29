@@ -426,39 +426,49 @@ def test_a_conflicting_draw_is_refused_and_only_force_replaces_it(
 def test_non_identity_fields_are_exactly_the_declared_set() -> None:
     """Widening what is NOT identity is how a real difference stops being noticed.
 
-    Pinned so a future addition is a deliberate, reviewed act.  ``source_config`` and
-    ``source_roadnet`` joined on 2026-08-29 under ``BRIEF_31`` Amendment D2: the ``*_sha256``
-    companions carry the identity of the CONTENT, and the bare path carries only the identity of
-    where it happened to live, which is the working directory of whoever ran the tool.
+    Pinned so a future addition is a deliberate, reviewed act.  All three ``source_*`` PATH fields
+    joined on 2026-08-29: ``source_config`` and ``source_roadnet`` under ``BRIEF_31`` Amendment D2,
+    ``source_flow`` under Amendment E3, which closed the asymmetry D2 left.  The ``*_sha256``
+    companions carry the identity of the CONTENT; a bare path carries only the identity of where it
+    happened to live, which is the working directory of whoever ran the tool.
     """
     import offline.materialise_draws as module
 
     assert module._NON_IDENTITY_FIELDS == frozenset(
-        {"git_commit", "git_dirty", "source_config", "source_roadnet"}
+        {"git_commit", "git_dirty", "source_config", "source_flow", "source_roadnet"}
     )
+    # Symmetry is the property that made the omission visible: every exempted path has a digest
+    # twin, and every digest twin is still identity.
+    for path_field in ("source_config", "source_flow", "source_roadnet"):
+        assert f"{path_field}_sha256" not in module._NON_IDENTITY_FIELDS
 
 
+@pytest.mark.parametrize("field", ["source_config", "source_flow", "source_roadnet"])
 def test_a_draw_is_kept_when_a_source_PATH_differs_but_its_sha256_matches(
-    tmp_path: Path,
+    field: str, tmp_path: Path
 ) -> None:
-    """Amendment D2, direction 1: where the source lived is not part of the draw's identity.
+    """Direction 1: where the source lived is not part of the draw's identity.
 
-    ``source_config`` is recorded as the string the caller passed, so the SAME scenario reached
-    through a different worktree, a different ``--repo-root`` or an absolute rather than a relative
-    path produced a different string and the draw was refused as though its demand had changed.
+    Each of the three is recorded as a path -- ``source_config`` verbatim from the caller's
+    argument, ``source_flow`` and ``source_roadnet`` resolved against the process working directory
+    -- so the SAME scenario reached from a different worktree, or through an absolute rather than a
+    relative ``--repo-root``, produced a different string and the draw was refused as though its
+    demand had changed.
+
+    Parametrised over all three deliberately: D2 exempted two of them and the third was left to fire
+    from the next tree (Amendment E3).  One test per field is what makes a future omission visible.
     """
     materialise(HZ1X1_CONFIG, [1], out_root=tmp_path)
     snapshot = _tree_snapshot(tmp_path)
 
     provenance_path = draw_dir(HZ1X1_KEY, 1, out_root=tmp_path) / "provenance.json"
     provenance = json.loads(provenance_path.read_bytes())
-    original_config = provenance["source_config"]
-    provenance["source_config"] = f"/somewhere/else/{original_config}"
-    provenance["source_roadnet"] = "/somewhere/else/roadnet.json"
+    original = provenance[field]
+    provenance[field] = f"/somewhere/else/{Path(original).name}"
     provenance_path.write_bytes(
         (json.dumps(provenance, indent=2, sort_keys=True) + "\n").encode("utf-8")
     )
-    assert provenance["source_config"] != original_config
+    assert provenance[field] != original
     tampered_snapshot = _tree_snapshot(tmp_path)
 
     [record] = materialise(HZ1X1_CONFIG, [1], out_root=tmp_path)
@@ -495,28 +505,14 @@ def test_a_draw_is_refused_when_a_source_SHA256_differs(field: str, tmp_path: Pa
     assert _tree_snapshot(tmp_path) == tampered_snapshot
 
 
-def test_source_flow_is_still_an_identity_field_and_a_path_change_there_refuses(
-    tmp_path: Path,
-) -> None:
-    """``source_flow`` was NOT granted the exemption, and the asymmetry is deliberate here.
-
-    Amendment D2 names ``source_config`` and ``source_roadnet`` only.  ``source_flow`` is the same
-    kind of absolute path with the same ``_sha256`` companion, so by D2's own rationale it arguably
-    belongs too -- but extending a coordinator ruling silently is not this task's to do.  This test
-    RECORDS the current behaviour so the gap is visible rather than assumed, and it must be revisited
-    with the ruling, not around it.  See ``docs/returns/P8.4a.md``.
-    """
-    materialise(HZ1X1_CONFIG, [1], out_root=tmp_path)
-
-    provenance_path = draw_dir(HZ1X1_KEY, 1, out_root=tmp_path) / "provenance.json"
-    provenance = json.loads(provenance_path.read_bytes())
-    provenance["source_flow"] = "/somewhere/else/flow.json"
-    provenance_path.write_bytes(
-        (json.dumps(provenance, indent=2, sort_keys=True) + "\n").encode("utf-8")
-    )
-
-    with pytest.raises(FileExistsError, match="source_flow"):
-        materialise(HZ1X1_CONFIG, [1], out_root=tmp_path)
+# NOTE (2026-08-29): ``test_source_flow_is_still_an_identity_field_and_a_path_change_there_refuses``
+# stood here and asserted the OPPOSITE of the line above.  It was written to pin the gap Amendment
+# D2 left -- D2 exempted ``source_config`` and ``source_roadnet`` and not ``source_flow`` -- and its
+# own docstring said it "must be revisited with the ruling, not around it".  Amendment E3 ruled
+# ``source_flow`` into the set, so the behaviour it pinned is now the defect rather than the
+# contract, and it was removed rather than edited into agreement.  Its coverage did not vanish: the
+# parametrised test above now asserts the new behaviour for the same field, and
+# ``test_a_draw_is_refused_when_a_source_SHA256_differs[source_flow_sha256]`` keeps the digest side.
 
 
 def test_a_rendered_file_difference_still_refuses_after_the_path_exemption(
