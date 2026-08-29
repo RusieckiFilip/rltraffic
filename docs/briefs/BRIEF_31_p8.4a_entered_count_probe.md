@@ -534,3 +534,159 @@ the implementer dry-ran `1000 / 1005 / 1010 / 1011` with no refusal.
 > **Run it. E3 and E4 land in the same task as durable repairs.** ⚠️ **And when it runs, the evidence
 > to report is the FIVE genuine survivors' `kept`, with `1005–1009` reported separately as
 > same-session re-verification — per E1, not pooled.**
+
+---
+
+# ✅ AMENDMENT F — 2026-08-29. The escalation is scored. How it goes in the packet
+
+**14 cells, 6,200 episodes, reference checks exact 14/14.** Read by the coordinator from
+`docs/data/p8_4a_admission_escalated.json`, not from the campaign log.
+
+## F1 ⭐ THE AUTHOR'S QUESTION IS ANSWERED AT 100 DRAWS, AND THE ANSWER HELD
+
+**`iql@random` on grid4x4 was not escalated at all — its deficit was ≤ 0 at ten draws, so it HOLDS.**
+The grid4x4 `random` arms that were escalated come back at **0.99991 (`bc`)** and **0.99955
+(`bc_top10`)** against a **1.000000** anchor.
+> ✅ **P5.2's headline is not a metric artefact of this kind, now on 500 episodes per cell rather than
+> 50.** The sentence stays §6.3's: *the ATT gap is not explained by differential admission on these
+> cells.*
+
+## F2 🚨 E1: 1 HOLDS, 6 CLOSE, 2 FALSIFIED — and the two are NOT comparable in size
+
+| arm | arm | anchor | deficit | Δ | status |
+|---|---|---|---|---|---|
+| **grid4x4/bc_top10@mappo1000** | 0.970454 | 1.000000 | **0.029546** | 0.009596 | **falsified** |
+| hz1x1/bc_top10@fixedtime | 0.890840 | 0.907449 | 0.016609 | 0.026875 | close |
+| hz1x1/bc_top10@random | 0.648887 | 0.656212 | 0.007325 | 0.030341 | close |
+| hz1x1/bc@fixedtime | 0.904997 | 0.907449 | 0.002452 | 0.002883 | close |
+| grid4x4/iql@mappo1000 | 0.999168 | 1.000000 | 0.000832 | 0.001145 | close |
+| **grid4x4/bc_top10@random** | 0.999550 | 1.000000 | **0.000450** | 0.000354 | **falsified** |
+| hz1x1/bc@random | 0.655833 | 0.656212 | 0.000379 | 0.030341 | close |
+| grid4x4/bc@random | 0.999910 | 1.000000 | 0.000090 | 0.000218 | close |
+| hz1x1/dt@maxpressure | 0.999913 | 0.999906 | −0.000007 | 0.000055 | **holds** |
+
+🚨 **BINDING ON THE PACKET: never write "2 of 9 falsified" without the magnitudes.** The two are
+different findings wearing one label:
+- **`bc_top10@mappo1000` is SUBSTANTIVE** — a **2.95 %** admission deficit, three times its Δ. **Its
+  ATT advantage is reported as a possible selection artefact, per §2.**
+- **`bc_top10@random` is a TECHNICALITY** — **0.045 %**, roughly one vehicle in 2,200. It is falsified
+  only because both arms are so consistent that Δ collapses to 0.00035. ⚠️ **Reporting it beside the
+  first without that distinction would overstate our own problem, and a referee would find the
+  imprecision immediately.**
+> **Registered reading: report deficit, Δ, AND the deficit as a fraction of the anchor, for every arm.
+> The verdict word is not sufficient on its own.**
+
+## F3 ⭐ B2's HYPOTHESIS IS SUPPORTED AT THE ARM LEVEL, AND ITS ACTUAL TEST IS STILL OWED
+
+**Both falsified arms are `bc_top10`, and the three largest deficits in the whole table are `bc_top10`**
+(0.0295, 0.0166, 0.0073). Amendment B2 registered, before this data existed, that `bc_top10` is
+**P5.1's load sorter** — it kept 302 of 320 streams from the **8 quietest of 16 nodes** — and that a
+policy trained on the quietest nodes plausibly under-serves the busiest approaches.
+> ✅ **The arm-level pattern is exactly what that predicts, and it was registered in advance.**
+> ⛔ **But B2's prediction was PER-NODE — *"the deficit CONCENTRATES on the busiest nodes rather than
+> spreading evenly"* — and that has NOT been tested.** ⚠️ **An arm-level correlation is consistent with
+> the mechanism and does not establish it; three arms of one method is also consistent with something
+> particular to `bc_top10`'s training that has nothing to do with load.** **The per-node test is owed
+> and the packet must say it is owed, not imply it is done.**
+
+## F4 ✅ E2 — fired at ten draws, fires at a hundred, and Amendment B1's ruling is unchanged
+
+`grid4x4/bc_top10@mappo1000` at **0.9705** against the 0.99 floor; **1 of 3 below.** **B1 stands: E2
+fired and stays fired; the PROBE is exonerated by evidence stronger than E2 — now 14/14 exact
+reference checks including that cell — and E2's wording was mine, generalising a behaviour-policy
+measurement to every arm of the tier.** Nothing here changes that ruling; it confirms it at scale.
+
+## F5 ⭐ E3 reports `holds: None`, and that is the honest answer rather than a gap
+
+`scored_scenario: hz1x1`, `holds: None`, `monotone: True`, rank order
+**`maxpressure > fixedtime > random`** at **0.99991 → 0.90745 → 0.65621**.
+**`None` is correct: Amendment A6 re-registered E3 over five P4.6 tiers and only three were escalated,
+so it cannot be scored as registered.** Reporting `None` rather than `True` on the three available is
+right and must not be quietly upgraded.
+> ⭐ **But the profile is a FIRST-CLASS RESULT in its own right, and it is the mechanism behind B1
+> measured directly: ADMISSION TRACKS DATA QUALITY. The weaker the behaviour policy, the more vehicles
+> its rollouts never admit — 0.01 %, 9.3 %, 34.4 % — which is precisely why our ATT metric flatters
+> weak policies and why the C1 ladder is where the distortion lives.** Report it as a measurement of
+> the mechanism, not as a scored prediction.
+
+## F6 📋 What the packet must carry
+
+1. F2's full table **with magnitudes and fractions**, and the substantive/technical distinction stated.
+2. F1's answer in §6.3's words, and **that `iql@random` held without escalation**.
+3. F3's hypothesis status: **supported at arm level, per-node test owed.**
+4. F5's profile as a measurement; E3's `None` with its reason.
+5. **The restore as a repair** (C2), with the **five genuine survivors reported separately from
+   1005–1009** (E1 of Amendment E).
+6. The cross-worktree purity result: **`flow.json` byte-identical 10/10.**
+7. `DEFERRED` 61's remaining half: `source_flow`, and the worktree-CWD refusal message (E3/E4 above).
+
+---
+
+# ✅ AMENDMENT G — 2026-08-29. E2's final disposition, and the 0.045 % reporting call
+
+## G1 🔒 E2 — FINAL DISPOSITION. It fired, it is permanent, and it does NOT block the merge
+
+B1 and F4 analysed E2; what was missing is a **disposition**, so here it is in one place and it is
+final.
+
+> 1. **E2 FIRED** — `grid4x4/bc_top10@mappo1000` at **0.9705** against a 0.99 floor, at ten draws and
+>    again at a hundred. **It is recorded as fired, permanently, in the artifact and the packet. It is
+>    not waived, rescored, or quietly re-registered.**
+> 2. **E2 was a control on the INSTRUMENT, and the instrument is independently exonerated:
+>    14/14 reference checks exact under `==`, including that very cell.** The probe reproduces
+>    committed `att_horizon` for the cell whose admission it questions.
+> 3. **E2's WORDING was mine and was wrong.** It reads *"`mappo1000`'s ARMS sit at ≈100 %"* on the
+>    strength of T1 measuring the **behaviour policy** — one policy's property registered as every
+>    arm's. **A5's shape, in the amendment correcting A5's shape.**
+> 4. **Therefore: E2's firing is a finding about E2, not about the probe, and it does not block the
+>    merge. Task status DONE stands.**
+> ⚠️ **Stated every time it is mentioned, including in the packet: this correction is POST-HOC and it
+> FAVOURS US.** ⛔ **And it does not touch E1 — the `bc_top10@mappo1000` falsification stands on its
+> own evidence and is reported as a possible selection artefact.**
+
+## G2 ⚖️ THE 0.045 % CALL — the rule's output stands verbatim, and the PAPER reports materiality, which is a different question
+
+`grid4x4/bc_top10@random`: deficit **0.000450** against Δ **0.000354** — **299 vehicles in 663,785**,
+about **0.6 per episode**. Falsified only because both arms are so consistent that Δ collapses.
+
+> **RULED, three parts:**
+> **(a) The rule's output is reported verbatim, everywhere it appears.** `falsified` stays `falsified`
+> in the artifact and the packet. ⛔ **No re-definition, no threshold change, no "effectively holds".
+> Loosening a registered rule after seeing which arms it catches is the move the registration exists
+> to prevent, and this is the second time this task I have declined it.**
+> **(b) The PAPER reports MATERIALITY, which is a different question from DETECTABILITY.** E1's Δ asks
+> *can we detect a difference*; the paper asks *could this difference explain the ATT gap*. **Those
+> have different answers here and both are honest.** The paper's sentence is about the substantive
+> arm; the 0.045 % arm appears in the artifact and the packet with its magnitude, not as a headline.
+> **(c) 🚨 DO NOT ASSERT THAT IT IS IMMATERIAL — COMPUTE IT.** *(This is the correction to my own
+> instinct: I was about to write "negligible".)* **Required in the packet: the ATT sensitivity to that
+> deficit, computed** — what `att_ours` would become if those 299 vehicles were admitted and counted,
+> against the arm's reported ATT. **If the bound is far below the ATT differences the paper quotes,
+> that is a measured statement and it is worth more than the word "negligible". If it is not, we have
+> learned something and the reporting changes.**
+
+## G3 ✅ The removed test — approved, and the reasoning is the part worth keeping
+
+`test_source_flow_is_still_an_identity_field_...` asserted **the opposite of E3's ruling**. **Deleting
+it rather than editing it into agreement was correct**: a test edited to match a new spec is
+indistinguishable from a test weakened to pass, while a deletion with a comment naming its replacement
+is auditable. **Disclosed in §11.2, net `source_flow` coverage up, the "path differs → kept" test now
+parametrised over all three fields.**
+> ⭐ **And the pinning test now asserts the invariant that made my omission visible in the first place
+> — every exempted path has a `*_sha256` twin, and no twin is exempted. That generalises the fix from
+> three named fields to a property, so a fourth path field added later cannot repeat this.** That is
+> fixing the class rather than the instance.
+
+## G4 ⭐ Two disclosures that are better than the things they disclose
+
+- **The `git add -A` that swept my escalation artifact.** Caught from an unaccounted 139,575-line diff,
+  verified independently (14/14 references exact, 0 identity violations, 3,200 hz1x1 values equal to
+  their committed originals), every number labelled as the author's run. ⚠️ **Symmetry worth stating:
+  this is the same command that swept the implementer's plan draft into my commit `094b53f` on
+  2026-08-27. Twice in three days, in both directions. `git add -A` is how work you did not do enters
+  a commit you signed. Name the files.**
+- **E4's verification detail.** The refusal test patches `offline.materialise_draws.materialise` rather
+  than `admission_probe.materialise`, *"which would have passed vacuously, since the import is
+  function-local."* ⭐ **Knowing WHY the obvious patch target would have made the test theatre is the
+  difference between a test and a decoration**, and it is the kind of thing that usually only surfaces
+  in a review.
