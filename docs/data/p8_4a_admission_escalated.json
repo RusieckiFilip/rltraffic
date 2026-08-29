@@ -139347,8 +139347,8 @@
     ],
     "code_provenance": {
       "code_root": "/home/filip/rltraffic-p84a",
-      "git_commit": "e7cbb601c4faf7bc3f6ffd00e14c1163876651d8",
-      "git_dirty": true,
+      "git_commit": "3544314460d40290ce4d786801c8ad9dc53d4e77",
+      "git_dirty": false,
       "module": "/home/filip/rltraffic-p84a/offline/admission_probe.py",
       "note": "code_root is resolved from this module's __file__, not from the working directory. runtime.git_commit beside it comes from dt_gate.runtime_provenance, which reads git rev-parse HEAD in the CWD -- and BRIEF_31 Amendment A2 puts the CWD in the main tree, so the two can and do differ (review P8.4a BL-2)",
       "pythonpath": "/home/filip/rltraffic-p84a",
