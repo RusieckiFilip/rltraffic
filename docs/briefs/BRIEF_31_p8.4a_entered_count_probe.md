@@ -690,3 +690,72 @@ parametrised over all three fields.**
   function-local."* ⭐ **Knowing WHY the obvious patch target would have made the test theatre is the
   difference between a test and a decoration**, and it is the kind of thing that usually only surfaces
   in a review.
+
+---
+
+# ✅ AMENDMENT H — 2026-08-29. G2(c) accepted, and a stronger second route is already in your data
+
+**G2(c) is discharged and it did what it was set for: the word "negligible" was replaced by a number,
+and the number is smaller than the word would have implied.** Merge review is running.
+
+## H1 ✅ The bound is accepted, and reporting the DISTRIBUTION rather than the mean was the right call
+
+**425 of 500 episodes have zero never-entered vehicles; 75 have some; the worst has 20.** ⭐ **"0.6 per
+episode" would have been a mean over a shape that is mostly zeros, which is P5.1's lesson — *a mean
+over those five is a summary that hides its own subject* — applied without being told.**
+**−0.187 / +1.420 s on a reported 350.339805, interval width 1.608 s, against gaps of 70–90 s on this
+tier: 1.79 % of the arm's own gap and 2.29 % of P5.2's headline gap.** Accepted.
+✅ **And `enterTime` is confirmed by the coordinator at `CityFlow/src/vehicle/vehicle.cpp` — it is set
+inside the `Vehicle` CONSTRUCTOR, so `att_engine` does count never-admitted vehicles at their full
+wait.** The independent route's premise holds.
+
+## H2 ⚠️ THE BAND ARGUMENT IS WEAKER THAN IT READS — and the data already contains a better one
+
+The packet argues that this cell's `att_ours − att_engine` of **+6.3684** sits inside
+**[+3.2469, +7.1809]**, *"the band set by the 24 cells with no censoring at all"*.
+> ⚠️ **That band comes from the PRIMARY 39-cell artifact, not the escalated one. Within the escalated
+> artifact only TWO cells are uncensored, giving [+7.1377, +7.1840] — and +6.3684 is BELOW it.**
+> Borrowing the wider band is legitimate, but the argument is doing less work than it appears to, and a
+> reviewer who recomputes it inside the escalated artifact will find the opposite sign of conclusion.
+
+⭐ **The stronger argument is measured, monotone, and sits in the escalated artifact itself — grid4x4,
+ordered by censoring:**
+
+| cell | never entered | `att_ours − att_engine` |
+|---|---|---|
+| behaviour@mappo1000 | 0 | **+7.1840** |
+| behaviour@random | 0 | **+7.1377** |
+| bc@random | 60 | +6.8758 |
+| **bc_top10@random** | **299** | **+6.3684** |
+| iql@mappo1000 | 552 | +5.8877 |
+| bc_top10@mappo1000 | 19,612 | **+2.4375** |
+
+> ⭐⭐ **A clean dose-response: the offset falls monotonically as censoring rises, from +7.18 at zero to
+> +2.44 at 19,612. That is B1's mechanism measured directly on six cells of one scenario.**
+> **And it turns the bound into a corroborated measurement: the zero-censoring level is +7.1609, this
+> cell sits at +6.3684, so the MEASURED censoring effect is 0.7924 s — against the packet's ANALYTIC
+> upper bound of 1.420 s.** ✅ **Two independent routes agree, and the measurement sits INSIDE the
+> bound, which is what a correct upper bound must do.**
+> **REQUIRED: replace the band-membership sentence with this. It is stronger, it is internal to the
+> artifact under discussion, and it demonstrates the bound is conservative rather than merely asserting
+> it.** ⚠️ **Report the zero-censoring level as n=2 within this artifact; do not present +7.1609 as a
+> population constant.**
+
+## H3 ✅ The honesty ledger entry is correct and stays
+
+*"The AI-assistance record and the self-review checklist now say **partly** on 'every number produced
+in this session' — the 6,200-episode escalation was the author's run, verified by me, and it is
+labelled as his everywhere it appears."*
+> ⭐ **That is the right answer to CLAUDE.md §2's rule, not a weakening of it. The rule exists so a
+> number's producer is knowable; "partly", with the exception named and labelled, satisfies it exactly.
+> A `Y` would have been false and an `N` would have been misleading.**
+
+## H4 ✅ Catching your own checklist row was the best small thing in this packet
+
+The row claimed *"`negligible` appears nowhere"*; the word appeared **twice**, both times naming itself
+rather than making a claim. **You grepped, found it, and fixed the row instead of the word.**
+> ⭐ **A checklist row that is literally false is worth more attention than the thing it describes,
+> because the row is what the next reader trusts.** This project has logged three ticked-but-false
+> boxes; this is the first one caught by its own author before anyone else read it.
+
+**Nothing else changes. Await the review.**
