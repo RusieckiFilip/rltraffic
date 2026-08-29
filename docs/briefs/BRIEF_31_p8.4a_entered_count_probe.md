@@ -844,3 +844,59 @@ iterates a hardcoded 3-tuple rather than the set, and it never asserts the twin 
 applied to grid4x4. ⚠️ **We are one unvalidated quantity away from the ruling-(a) re-derivation resting
 on a number nobody has checked — which is precisely the shape of the defect this whole sequence began
 with.**
+
+---
+
+# ✅ AMENDMENT J — 2026-08-29. MERGED at `c6ba1eb`. MJ-2 ruled, `code_dirty` approved
+
+**Both blockers verified closed by the coordinator from the artifacts, not the packet:** `cf569af`
+contains `admission_probe.py` and is on the branch, with `53e995d` **kept alongside** as evidence of
+the class rather than deleted; and §7's false sentence survives **only as the retracted claim**, with
+the four censored grid4x4 cells tabulated. **Tenth manifest written: `SHA256SUMS_p8_4a.txt`, 111/111.**
+
+## J1 ⚖️ MJ-2 — LEAVE AS-IS, PINNED. Neither option is right today, and the reason is a migration
+
+`sumo.sumocfg` and `sumo.template_rou` are absolute CWD-resolved paths with no digest twin, inside a
+still-identity `sumo` dict. **You were right to pin the current state and hand the choice up rather
+than pick one.**
+
+> ⛔ **Giving them twins is NOT a two-line fix — it is a provenance FORMAT MIGRATION.**
+> `_existing_conflict` iterates `sorted(set(on_disk) | set(fresh))`, so **a field present in the fresh
+> record and absent from an existing one compares `None != digest` and REFUSES.** Adding
+> `sumocfg_sha256` would make **every existing draw refuse on first comparison** — a versioned-record
+> change with a migration, not a repair.
+> ⛔ **Exempting them is worse: it removes identity with nothing replacing it**, and unlike the three
+> path fields E3 exempted, **the SUMO sources are not rendered into any compared file**, so no digest
+> covers their content by another route.
+> ✅ **RULED: leave both as identity fields, keep your test pinning the exact current state, and record
+> the choice as OWED to whoever first needs SUMO draws — P7.x.** ⚠️ **The defect is latent: it needs a
+> SUMO-paired scenario AND a cross-tree comparison, and SUMO work is October.** **Deciding a
+> format migration now, under time pressure, for a code path we may not use, is the wrong trade — and
+> `DEFERRED` 61 carries it.**
+
+## J2 ✅ `code_dirty` — approved, and it is a better distinction than the one I asked for
+
+**P5.3b's C2 asked for dirtiness detection and did not distinguish WHAT was dirty.** Regenerating two
+artifacts in sequence makes the second see the first as an uncommitted change, so a whole-tree flag
+reads dirty for a reason that has nothing to do with the code.
+> ⭐ **`git_dirty` answers *was the tree modified*; `code_dirty` answers *was the CODE modified* — and
+> only the second bears on whether the artifact's numbers are reproducible.** Recording both, with
+> `code_dirty` excluding `docs/`, is right. **Pinned by a three-step test, which is what makes it a
+> field rather than a hope.** ✅ **Adopt this shape wherever `runtime_provenance` is used.**
+
+## J3 ⭐ The third `git add -A` earns a rule, not a fourth disclosure
+
+*"What saved it was where the output happened to land, not a control."* **That sentence is the
+finding.** Three instances in four days, both directions, none caught by a control.
+> **`PROJECT_PLAN` §7 now forbids `git add -A` and `git add .`, requires named paths, and names the
+> control: `git status --porcelain` before committing, `git show --stat` before pushing.** ⚠️ **And the
+> specific trap in your instance: a `cd` DOES persist within one compound command even though shell
+> state does not persist between tool calls. Use `git -C`.**
+> ⭐ **Disclosing a near-miss that cost nothing is worth more than disclosing a failure that cost
+> something, because it is the only evidence available before the expensive instance.**
+
+## J4 📋 Carried to P8.4b, unchanged and first in line
+
+**`att_engine` has no external reference on grid4x4.** T1 reconstructed the engine metric by hand on
+hz1x1 only; **A0's decomposition, §7's conclusion and G2(c)'s second route all rest on grid4x4's
+`att_engine`, which nothing has checked.** **P8.4b's first obligation, before any re-derivation.**

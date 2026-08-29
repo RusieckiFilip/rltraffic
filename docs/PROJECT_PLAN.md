@@ -746,6 +746,28 @@ Candidates parked here deliberately: each is scientifically attractive but compe
 
 ## 7. Sub-chat Protocol (hardened 2026-07-12 — designed for AI-written code)
 
+### 🔒 STAGE NAMED PATHS. `git add -A` AND `git add .` ARE FORBIDDEN (added 2026-08-29, after the third instance)
+
+**Three instances in four days, in both directions, and every one was saved by luck rather than by a
+control:**
+1. **2026-08-27** — the coordinator's `git add -A docs/` swept the implementer's uncommitted plan
+   draft into `094b53f`, freezing the stray tool-call tags the same commit's ruling ordered deleted.
+2. **2026-08-29** — the implementer's `git add -A` committed the author's 139,575-line escalation
+   artifact before anyone had inspected it. **Caught only from an unaccounted diff size.**
+3. **2026-08-29** — a `cd` persisted through a compound command and the implementer's
+   `git add -A && git commit` ran **in the main tree, on another task's branch.** It committed nothing
+   **because the tree happened to be clean** — the artifacts go to the worktree via `--repo-root`.
+   ⚠️ **In the implementer's own words: *what saved it was where the output happened to land, not a
+   control.***
+
+> **RULE: every commit stages named paths. `git add -A` and `git add .` are not used in this repo.**
+> ⭐ **And the CONTROL, because a habit is not one: read `git status --porcelain` before committing and
+> `git show --stat` before pushing.** Instance 2 was caught by exactly that, applied late — the diff
+> size was unaccounted and the implementer stopped. **Applied early it costs one command.**
+> ⚠️ **`cd` in a compound command is the specific trap in instance 3: shell state does not persist
+> between tool calls, but it does persist within one.** Use `git -C <path>` rather than `cd`, which is
+> already §10's rule for touching another tree and is hereby general.
+
 ### 🔒 A RULING ON `main` IS NOT DELIVERED UNTIL THE BRANCH MERGES IT (added 2026-08-29)
 
 **The coordinator writes amendments to `main`; implementers work on task branches; nothing makes the
