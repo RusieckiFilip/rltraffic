@@ -690,3 +690,157 @@ parametrised over all three fields.**
   function-local."* ⭐ **Knowing WHY the obvious patch target would have made the test theatre is the
   difference between a test and a decoration**, and it is the kind of thing that usually only surfaces
   in a review.
+
+---
+
+# ✅ AMENDMENT H — 2026-08-29. G2(c) accepted, and a stronger second route is already in your data
+
+**G2(c) is discharged and it did what it was set for: the word "negligible" was replaced by a number,
+and the number is smaller than the word would have implied.** Merge review is running.
+
+## H1 ✅ The bound is accepted, and reporting the DISTRIBUTION rather than the mean was the right call
+
+**425 of 500 episodes have zero never-entered vehicles; 75 have some; the worst has 20.** ⭐ **"0.6 per
+episode" would have been a mean over a shape that is mostly zeros, which is P5.1's lesson — *a mean
+over those five is a summary that hides its own subject* — applied without being told.**
+**−0.187 / +1.420 s on a reported 350.339805, interval width 1.608 s, against gaps of 70–90 s on this
+tier: 1.79 % of the arm's own gap and 2.29 % of P5.2's headline gap.** Accepted.
+✅ **And `enterTime` is confirmed by the coordinator at `CityFlow/src/vehicle/vehicle.cpp` — it is set
+inside the `Vehicle` CONSTRUCTOR, so `att_engine` does count never-admitted vehicles at their full
+wait.** The independent route's premise holds.
+
+## H2 ⚠️ THE BAND ARGUMENT IS WEAKER THAN IT READS — and the data already contains a better one
+
+The packet argues that this cell's `att_ours − att_engine` of **+6.3684** sits inside
+**[+3.2469, +7.1809]**, *"the band set by the 24 cells with no censoring at all"*.
+> ⚠️ **That band comes from the PRIMARY 39-cell artifact, not the escalated one. Within the escalated
+> artifact only TWO cells are uncensored, giving [+7.1377, +7.1840] — and +6.3684 is BELOW it.**
+> Borrowing the wider band is legitimate, but the argument is doing less work than it appears to, and a
+> reviewer who recomputes it inside the escalated artifact will find the opposite sign of conclusion.
+
+⭐ **The stronger argument is measured, monotone, and sits in the escalated artifact itself — grid4x4,
+ordered by censoring:**
+
+| cell | never entered | `att_ours − att_engine` |
+|---|---|---|
+| behaviour@mappo1000 | 0 | **+7.1840** |
+| behaviour@random | 0 | **+7.1377** |
+| bc@random | 60 | +6.8758 |
+| **bc_top10@random** | **299** | **+6.3684** |
+| iql@mappo1000 | 552 | +5.8877 |
+| bc_top10@mappo1000 | 19,612 | **+2.4375** |
+
+> ⭐⭐ **A clean dose-response: the offset falls monotonically as censoring rises, from +7.18 at zero to
+> +2.44 at 19,612. That is B1's mechanism measured directly on six cells of one scenario.**
+> **And it turns the bound into a corroborated measurement: the zero-censoring level is +7.1609, this
+> cell sits at +6.3684, so the MEASURED censoring effect is 0.7924 s — against the packet's ANALYTIC
+> upper bound of 1.420 s.** ✅ **Two independent routes agree, and the measurement sits INSIDE the
+> bound, which is what a correct upper bound must do.**
+> **REQUIRED: replace the band-membership sentence with this. It is stronger, it is internal to the
+> artifact under discussion, and it demonstrates the bound is conservative rather than merely asserting
+> it.** ⚠️ **Report the zero-censoring level as n=2 within this artifact; do not present +7.1609 as a
+> population constant.**
+
+## H3 ✅ The honesty ledger entry is correct and stays
+
+*"The AI-assistance record and the self-review checklist now say **partly** on 'every number produced
+in this session' — the 6,200-episode escalation was the author's run, verified by me, and it is
+labelled as his everywhere it appears."*
+> ⭐ **That is the right answer to CLAUDE.md §2's rule, not a weakening of it. The rule exists so a
+> number's producer is knowable; "partly", with the exception named and labelled, satisfies it exactly.
+> A `Y` would have been false and an `N` would have been misleading.**
+
+## H4 ✅ Catching your own checklist row was the best small thing in this packet
+
+The row claimed *"`negligible` appears nowhere"*; the word appeared **twice**, both times naming itself
+rather than making a claim. **You grepped, found it, and fixed the row instead of the word.**
+> ⭐ **A checklist row that is literally false is worth more attention than the thing it describes,
+> because the row is what the next reader trusts.** This project has logged three ticked-but-false
+> boxes; this is the first one caught by its own author before anyone else read it.
+
+**Nothing else changes. Await the review.**
+
+---
+
+# ⛔ AMENDMENT I — 2026-08-29. FIX-FIRST. `docs/reviews/P8.4a.md`: PASS-WITH-NOTES, 2 blocking
+
+**Do not merge.** Both blockers are text and provenance rather than numbers — **and both would mislead
+the reader of the record, one of them about whether to release a held campaign.** The reviewer's own
+summary stands: *"the defects are in claims about the work, not in the work's numbers."*
+
+## I1 🚨 BL-1 — §7's prose contradicts §7's own table, in the paragraph that gates P5.3b
+
+**Coordinator-verified: grid4x4 has FOUR censored cells of fourteen, the largest being
+`bc_top10@mappo1000` at admission 0.967168 (2183 never entered) — the arm this task calls
+SUBSTANTIVE.** The sentence *"grid4x4 is at ≈100 % everywhere"* is false.
+> **Required: rewrite §7's prose to match its own table, and state the grid4x4 censoring explicitly
+> with its four cells.** ⚠️ **The correct claim is COMPARATIVE, not absolute: censoring on grid4x4 is
+> two orders of magnitude smaller than on hz1x1's weak tiers (3.3 % against 34.5 %), which is what
+> supports the hz1x1-localised reading — NOT that grid4x4 is clean.** ⭐ **My own Amendment A0 hedged
+> this correctly (*"a hypothesis to test, not a result"*); the packet hardened the hedge into an
+> absolute. Restore the hedge.**
+
+## I2 🚨 BL-2 — the artifacts record another task's commit, AND THE CAUSE IS MY OWN A2 RULING
+
+Both artifacts carry `git_commit = 53e995da…`. **Verified: that commit does not contain
+`offline/admission_probe.py` and it lives on `task/p5.3b-nortg-campaign`.**
+> 🚨 **I ruled in A2 that the campaign runs with CWD = the main tree, to defuse `DEFERRED` 61. The main
+> tree's HEAD is the P5.3b branch, and `runtime_provenance()` reads `git rev-parse HEAD` from the
+> process CWD. So the fix I approved put a foreign branch's commit into two committed artifacts. Fourth
+> sighting of this class, and the first one I caused.**
+> **Required, in this order:**
+> 1. **Disclose it in the packet** — what the field says, why it says it, and that it is a consequence
+>    of A2's main-tree requirement.
+> 2. **Record the TRUE code provenance** in both artifacts: the worktree's `HEAD` at measurement time,
+>    plus `git_dirty`, plus the `PYTHONPATH` the code was actually imported from. **The information
+>    exists; nothing captured it.**
+> 3. ⛔ **Do NOT fix this by moving the CWD back to the worktree** — that reopens `DEFERRED` 61's false
+>    `BLOCKED`. **The CWD and the code root are two different things and the provenance must record the
+>    second, not the first.**
+
+## I3 ⚠️ MJ-1 — MY AMENDMENT G3 WAS WRONG, and I am withdrawing the praise
+
+G3 said the pinning test *"generalises the fix from three named fields to a property"*. ✅ **Verified at
+`tests/test_materialise_draws.py:435-441`: the exact-set assertion pins the set to a five-element
+literal containing no `_sha256` name, so the loop that follows CANNOT FAIL. It is dead code, it
+iterates a hardcoded 3-tuple rather than the set, and it never asserts the twin exists.**
+> **G3's second paragraph is WITHDRAWN. The exact-set pin and the parametrised digest-refusal test are
+> load-bearing and were correctly identified; the "property" was not asserted anywhere and I said it
+> was.** ⚠️ **I praised a test for fixing the class after telling the implementer to fix the class —
+> which is the most expensive kind of wrong praise, because it closes the question.**
+> **Required: make it real or delete it.** The honest version asserts over the SET, not a literal
+> tuple: every member ending in `_sha256` is absent, and every exempt path field has its twin present
+> in a real provenance record. **MJ-2 says the second half is FALSE of the record today** (`sumo.sumocfg`
+> and `sumo.template_rou` are absolute paths with no twin), **so write the test that fails, then decide
+> whether to exempt them or to add twins.**
+
+## I4 📋 The rest
+
+- **MJ-3 — cover the wiring.** `admission_artifact` is never named in the test file, so the verdict
+  guard, the two-grain refusal and the created-consistency refusal are decorative. ⚠️ **Priority is
+  E3's `holds = None → True` mutation surviving 49/49: that is the guard against the exact upgrade F5
+  and G forbade.** Kill all five survivors with the failure pasted.
+- **MJ-4** — the grid4x4 row is off by one: 10 of 14 cells are zero, not 11.
+- **MINOR 1** — the CWD check returns on the first existing draw; a heterogeneous pool defeats it, and
+  `DEFERRED` 55 keeps producing exactly those. Check all, or say in the message that it checked one.
+- **MINOR 2** — `p8_4a.sh:19-21` and §4 still say the path fields are identity fields. **They are not,
+  since E3. Correct them** — a stale comment that describes the pre-fix world is how D1's misreading
+  happened.
+- **MINOR 6 — accept the correction and change one word.** G2(c)'s bound is a **re-accounting** bound:
+  say *"if the 299 were COUNTED"*, not *"admitted"*. **Admitting them would change the other vehicles'
+  travel times; counting them does not. The arithmetic is right and the word overreached** — and the
+  word was mine, in G2(c).
+- **MINOR 3, 4, 5, 7** — fix the timing table's provenance column, the artifact operator/commit fields
+  (folded into I2), the `restored` field name, and the internal counts.
+- **Merge gate:** §6's `P8.4a` box, ticked in the merge commit.
+
+## I5 ⭐ Carried forward to P8.4b, and it is the most important line in the review
+
+> **`att_engine` has NO external reference. Nothing in the repo pins it. T1 validated the
+> engine-metric reconstruction on hz1x1 ONLY, and grid4x4's `att_engine` is unvalidated against any
+> independent route — while A0's decomposition, §7's conclusion and G2(c)'s second route all rest on
+> it.**
+**P8.4b's first obligation is to close that**, by the same hand-reconstruction T1 used on hz1x1,
+applied to grid4x4. ⚠️ **We are one unvalidated quantity away from the ruling-(a) re-derivation resting
+on a number nobody has checked — which is precisely the shape of the defect this whole sequence began
+with.**

@@ -746,6 +746,24 @@ Candidates parked here deliberately: each is scientifically attractive but compe
 
 ## 7. Sub-chat Protocol (hardened 2026-07-12 — designed for AI-written code)
 
+### 🔒 A RULING ON `main` IS NOT DELIVERED UNTIL THE BRANCH MERGES IT (added 2026-08-29)
+
+**The coordinator writes amendments to `main`; implementers work on task branches; nothing makes the
+gap visible.** ⚠️ **Measured instance, 2026-08-29: P8.4a's implementer delivered a packet and asked for
+a review that had ALREADY RUN — the review was on `main` with two blockers, and Amendments H and I with
+it, while the branch's last merge predated both. The branch had not drifted (`cada7cd` was exactly what
+was reviewed), so nothing was wasted; the next occurrence may not be so cheap.**
+
+> ⭐ **MECHANISM, because "remember to relay" is not one: every Return Packet states WHICH AMENDMENTS
+> IT WAS WRITTEN AGAINST, by letter.** A packet that says *"written against A–G"* when the brief
+> carries A–I is **visibly** stale to its first reader, including its author. **One line, and it turns
+> an invisible gap into a mismatch anyone can see.**
+> ⚠️ **The related failure this does NOT fix, and it has now happened in both directions: a ruling
+> committed to the WRONG ref.** `094b53f` landed on a task branch instead of `main`; here the ruling
+> landed correctly on `main` and simply never arrived. **Check `git merge-base --is-ancestor` before
+> assuming an implementer has seen a ruling — the same discipline as `git rev-parse --abbrev-ref HEAD`
+> before committing.**
+
 ### 🔒 ANSWER A DELIVERY QUESTION BY EXECUTING THE DELIVERY PATH, NEVER BY READING IT (added 2026-08-28)
 
 **When the author asks *which directory, which script, which command* — do not answer from the source.
