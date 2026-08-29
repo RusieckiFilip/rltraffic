@@ -16,13 +16,24 @@
 #
 # 🚨 IT RUNS FROM THE MAIN TREE, AND THAT IS A REQUIREMENT RATHER THAN A CONVENIENCE.
 # ------------------------------------------------------------------------------------
-# `offline/materialise_draws.py` records `source_flow` and `source_roadnet` as ABSOLUTE paths
-# resolved against the process working directory, and `_existing_conflict` compares them as identity
-# fields.  Re-materialising from the task worktree therefore reports `cityflow.json differs
-# byte-for-byte` on draws that are in fact correct -- MEASURED on 2026-08-28, and it would have been
-# a FALSE `BLOCKED` under Amendment A1's stop rule.  So: working directory is the MAIN tree, and the
-# code comes from the worktree via PYTHONPATH with PYTHONSAFEPATH=1, which is what stops the main
-# tree's own `offline` package (which has no `admission_probe`) from shadowing it.
+# A materialised `cityflow.json` embeds `dir` as an ABSOLUTE path resolved against the process
+# working directory, and `_existing_conflict` compares rendered files BYTE-FOR-BYTE before it looks
+# at any provenance field.  Re-materialising from the task worktree therefore reports `cityflow.json
+# differs byte-for-byte` on draws that are in fact correct -- MEASURED on 2026-08-28, and it would
+# have been a FALSE `BLOCKED` under Amendment A1's stop rule.  So: working directory is the MAIN
+# tree, and the code comes from the worktree via PYTHONPATH with PYTHONSAFEPATH=1, which is what
+# stops the main tree's own `offline` package (which has no `admission_probe`) from shadowing it.
+#
+# ⚠️ NOT the provenance path fields.  `source_config`, `source_flow` and `source_roadnet` USED to be
+# compared as identity and are not since Amendment E3 (`DEFERRED` 61); an earlier version of this
+# header blamed them, which is the same misreading Amendment D1 made.  The remaining cause is the
+# rendered config, and Amendment E4 rules that it is not normalised -- `restore-draws` detects a
+# non-main working directory and refuses with a message that says so.
+#
+# 🚨 AND THE CWD HAS A PROVENANCE COST, recorded rather than hidden (review BL-2 / Amendment I2):
+# `dt_gate.runtime_provenance` reads `git rev-parse HEAD` in the CWD, so the `runtime.git_commit` in
+# anything this script writes is the MAIN TREE's HEAD -- another task's branch, containing none of
+# this code.  `admission_probe.code_provenance()` records the real code root and commit beside it.
 #
 # WHAT IT DOES
 # -----------------------------------------------------------------------------------

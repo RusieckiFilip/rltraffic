@@ -1933,6 +1933,7 @@
         "1098": "b001a19e4e9b1655b5254fe00b9d97534b1c176b08253926b5fe7cda461272e0",
         "1099": "b5e25d3eebbe3e4d4f9a69cef4d2ef0de7294a28b898cbe63771551374c5a536"
       },
+      "n_kept": 100,
       "n_vehicles": {
         "1000": 1323,
         "1001": 1343,
@@ -2035,7 +2036,8 @@
         "1098": 1321,
         "1099": 1323
       },
-      "restored": [
+      "n_written": 0,
+      "requested_beyond_survivors": [
         1005,
         1006,
         1007,
@@ -2167,6 +2169,7 @@
         "1008": "f5c589bc35c97c35d7fc4afc6ef4392afdccfcb7a4484ba63ad46af33cc6c68f",
         "1009": "1794b10e184876e800dfea5bffe55afbd24e6d0f36d316ca4a3d0333c281b334"
       },
+      "n_kept": 10,
       "n_vehicles": {
         "1000": 1821,
         "1001": 1828,
@@ -2179,7 +2182,8 @@
         "1008": 1814,
         "1009": 1812
       },
-      "restored": [],
+      "n_written": 0,
+      "requested_beyond_survivors": [],
       "scenario_key": "cityflow1x1",
       "survivors": [
         1000,
@@ -44551,8 +44555,8 @@
     ],
     "code_provenance": {
       "code_root": "/home/filip/rltraffic-p84a",
-      "git_commit": "953be9bf61d7cbe1b2fa8cfa36a4e01a566dda03",
-      "git_dirty": false,
+      "git_commit": "cdc7396e34294e45bf8ca01dbc73966454871a1d",
+      "git_dirty": true,
       "module": "/home/filip/rltraffic-p84a/offline/admission_probe.py",
       "note": "code_root is resolved from this module's __file__, not from the working directory. runtime.git_commit beside it comes from dt_gate.runtime_provenance, which reads git rev-parse HEAD in the CWD -- and BRIEF_31 Amendment A2 puts the CWD in the main tree, so the two can and do differ (review P8.4a BL-2)",
       "pythonpath": "/home/filip/rltraffic-p84a",

@@ -1633,7 +1633,11 @@ class DrawRestoration:
 
     scenario_key: str
     survivors: tuple[int, ...]
-    restored: tuple[int, ...]
+    #: The draws requested BEYOND the declared survivors.  ⚠️ Review MINOR 5: this is the set the
+    #: second materialise call was asked for, NOT the set it wrote -- an id here whose ``actions``
+    #: entry is ``kept`` already existed and was re-verified rather than created.  Read ``actions``
+    #: for what happened; this field says only what was requested.
+    requested_beyond_survivors: tuple[int, ...]
     actions: Mapping[str, str]
     flow_sha256: Mapping[str, str]
     n_vehicles: Mapping[str, int]
@@ -1719,7 +1723,7 @@ def restore_draws(
     return DrawRestoration(
         scenario_key=scenario_key,
         survivors=tuple(survivor_ids),
-        restored=tuple(sorted(restored)),
+        requested_beyond_survivors=tuple(sorted(restored)),
         actions=actions,
         flow_sha256=flow_sha256,
         n_vehicles=n_vehicles,
@@ -1849,7 +1853,9 @@ def admission_artifact(
             scenario: {
                 "scenario_key": record.scenario_key,
                 "survivors": list(record.survivors),
-                "restored": list(record.restored),
+                "requested_beyond_survivors": list(record.requested_beyond_survivors),
+                "n_written": sum(1 for a in record.actions.values() if a == "written"),
+                "n_kept": sum(1 for a in record.actions.values() if a == "kept"),
                 "actions": dict(record.actions),
                 "flow_sha256": dict(record.flow_sha256),
                 "n_vehicles": dict(record.n_vehicles),
@@ -2150,7 +2156,9 @@ def _run_restore(args: argparse.Namespace) -> int:
     existing[args.scenario] = {
         "scenario_key": record.scenario_key,
         "survivors": list(record.survivors),
-        "restored": list(record.restored),
+        "requested_beyond_survivors": list(record.requested_beyond_survivors),
+        "n_written": sum(1 for a in record.actions.values() if a == "written"),
+        "n_kept": sum(1 for a in record.actions.values() if a == "kept"),
         "actions": dict(record.actions),
         "flow_sha256": dict(record.flow_sha256),
         "n_vehicles": dict(record.n_vehicles),
@@ -2238,7 +2246,7 @@ def _run_report(args: argparse.Namespace) -> int:
             restoration[scenario] = DrawRestoration(
                 scenario_key=record["scenario_key"],
                 survivors=tuple(record["survivors"]),
-                restored=tuple(record["restored"]),
+                requested_beyond_survivors=tuple(record["requested_beyond_survivors"]),
                 actions=record["actions"],
                 flow_sha256=record["flow_sha256"],
                 n_vehicles=record["n_vehicles"],
