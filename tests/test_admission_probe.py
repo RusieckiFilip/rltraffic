@@ -36,6 +36,7 @@ from offline.admission_probe import (
     AdmissionEpisode,
     ProbeRoots,
     ReferenceCheck,
+    admission_artifact,
     admission_spread,
     assert_cwd_renders_the_recorded_scenario_dir,
     assert_no_science_verdict,
@@ -1045,3 +1046,141 @@ def test_probe_reproduces_a_committed_att_horizon(
     assert result.created == 1813
     assert result.entered == 1813
     assert result.never_entered == 0
+
+
+# ----------------------------------------------------------------------
+# The artifact's own guards (review MJ-3: five mutations survived 49 tests)
+# ----------------------------------------------------------------------
+
+
+def artifact_inputs(
+    *,
+    cells: dict[str, dict[str, Any]] | None = None,
+    episodes: list[AdmissionEpisode] | None = None,
+) -> dict[str, Any]:
+    """The minimum ``admission_artifact`` needs, with every guarded property satisfied."""
+    rows = episodes if episodes is not None else [
+        episode(seed=101, draw_id=1000, created=1000, entered=900),
+        episode(seed=101, draw_id=1001, created=1000, entered=900),
+        episode(method=BEHAVIOUR_METHOD, seed=101, draw_id=1000, created=1000, entered=950),
+        episode(method=BEHAVIOUR_METHOD, seed=101, draw_id=1001, created=1000, entered=950),
+    ]
+    if cells is None:
+        by_arm: dict[str, list[AdmissionEpisode]] = {}
+        for row in rows:
+            by_arm.setdefault(row.arm, []).append(row)
+        cells = {"hz1x1": {arm: summarise_cell(rs) for arm, rs in by_arm.items()}}
+    return {
+        "cells": cells,
+        "episodes": rows,
+        "references": {},
+        "restoration": {},
+        "timing": {"per_cell": {}},
+        "provenance": {},
+    }
+
+
+def test_admission_artifact_runs_the_science_verdict_guard() -> None:
+    """MJ-3: deleting the guard call from the assembler failed nothing, because nothing called it.
+
+    ``BRIEF_31`` section 6 reserves any verdict on the science, and the guard is the mechanism.  A
+    mechanism the suite never exercises is a decoration.
+    """
+    payload = artifact_inputs()
+    payload["timing"] = {"per_cell": {}, "reading": "artefact"}
+    with pytest.raises(ValueError, match="artefact"):
+        admission_artifact(**payload)
+
+
+def test_admission_artifact_refuses_cells_that_span_two_draw_grains() -> None:
+    """MJ-3: the 10-draw and 100-draw grains must never meet inside one artifact.
+
+    Scoring a 100-draw arm against a 10-draw anchor puts two denominators under one label.
+    """
+    ten = [episode(seed=101, draw_id=d, created=1000, entered=900) for d in (1000, 1001)]
+    hundred = [
+        episode(method=BEHAVIOUR_METHOD, seed=101, draw_id=d, created=1000, entered=950)
+        for d in (1000, 1001, 1002)
+    ]
+    cells = {
+        "hz1x1": {
+            "bc@random": summarise_cell(ten),
+            "behaviour@random": summarise_cell(hundred),
+        }
+    }
+    with pytest.raises(ValueError, match="grain"):
+        admission_artifact(**artifact_inputs(cells=cells, episodes=ten + hundred))
+
+
+def test_admission_artifact_refuses_a_draw_whose_created_differs_between_cells() -> None:
+    """MJ-3: ``created`` is a property of the draw, so two cells disagreeing on it is a defect.
+
+    This is the check that would catch a draw silently re-materialised between two cells of one
+    campaign -- exactly what ``DEFERRED`` 55 keeps producing.
+    """
+    rows = [
+        episode(seed=101, draw_id=1000, created=1000, entered=900),
+        episode(method=BEHAVIOUR_METHOD, seed=101, draw_id=1000, created=1001, entered=950),
+    ]
+    cells = {
+        "hz1x1": {
+            "bc@random": summarise_cell(rows[:1]),
+            "behaviour@random": summarise_cell(rows[1:]),
+        }
+    }
+    with pytest.raises(ValueError, match="created"):
+        admission_artifact(**artifact_inputs(cells=cells, episodes=rows))
+
+
+def test_admission_artifact_accepts_a_consistent_payload_and_carries_the_registered_rules() -> None:
+    """The control: the three refusals above must not fire on a well-formed artifact."""
+    payload = admission_artifact(**artifact_inputs())
+
+    assert payload["format_version"] == ARTIFACT_FORMAT_VERSION
+    assert payload["registered"]["draws"] == list(PROBE_DRAWS)
+    assert payload["registered"]["seeds"] == list(PROBE_SEEDS)
+    assert "e1" in payload and "e2" in payload and "e3" in payload
+    assert payload["created_per_draw"] == {"hz1x1/1000": 1000, "hz1x1/1001": 1000}
+
+
+def test_score_e1_calls_a_deficit_exactly_equal_to_delta_CLOSE_not_falsified() -> None:
+    """MJ-3: the registered boundary is ``0 < deficit <= Delta`` -> close.  ``<`` survived 49 tests.
+
+    Equality lands on the permissive side by registration, and moving it is loosening in the
+    direction that declares more falsifications, which is not a safe direction either.
+    """
+    # Counts chosen so every ratio is a dyadic rational and the equality is EXACT rather than
+    # float-lucky: anchor seeds 0.5 and 0.75 -> pooled 0.625, spread 0.25; arm 0.375; deficit 0.25.
+    cells = {
+        "hz1x1": {
+            "behaviour@random": cell(
+                method=BEHAVIOUR_METHOD, per_seed_entered={101: 512, 202: 768}, created=1024
+            ),
+            "bc@random": cell(method="bc", per_seed_entered={101: 384, 202: 384}, created=1024),
+        }
+    }
+    entry = next(e for e in score_e1(cells)["arms"] if e["arm"] == "bc@random")
+
+    assert entry["deficit"] == 0.25
+    assert entry["delta"] == 0.25
+    assert entry["deficit"] == entry["delta"]
+    assert entry["status"] == "close"
+    assert entry["escalate"] is True
+
+
+def test_score_e3_reports_holds_None_when_a_registered_tier_is_absent() -> None:
+    """MJ-3, the priority survivor: ``holds = None`` -> ``True`` passed every test.
+
+    Amendment A6 registered E3 over five hz1x1 tiers.  When the tiers needed for the registered pair
+    are not all present the answer is ``None``, and F5 and G both forbid upgrading it to ``True`` on
+    whichever tiers happen to be available.
+    """
+    partial = {
+        f"behaviour@{tier}": cell(tier=tier, method=BEHAVIOUR_METHOD, per_seed_entered={101: n})
+        for tier, n in (("maxpressure", 999), ("fixedtime", 900), ("random", 650))
+    }
+    scored = score_e3({"hz1x1": partial, "grid4x4": {}})
+
+    assert scored["holds"] is None
+    assert scored["monotone"] is True
+    assert [r["tier"] for r in scored["profile"]] == ["maxpressure", "fixedtime", "random"]
