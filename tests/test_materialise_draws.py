@@ -423,6 +423,176 @@ def test_a_conflicting_draw_is_refused_and_only_force_replaces_it(
     assert _tree_snapshot(tmp_path) == good_snapshot
 
 
+def test_non_identity_fields_are_exactly_the_declared_set() -> None:
+    """Widening what is NOT identity is how a real difference stops being noticed.
+
+    Pinned so a future addition is a deliberate, reviewed act.  All three ``source_*`` PATH fields
+    joined on 2026-08-29: ``source_config`` and ``source_roadnet`` under ``BRIEF_31`` Amendment D2,
+    ``source_flow`` under Amendment E3, which closed the asymmetry D2 left.  The ``*_sha256``
+    companions carry the identity of the CONTENT; a bare path carries only the identity of where it
+    happened to live, which is the working directory of whoever ran the tool.
+    """
+    import offline.materialise_draws as module
+
+    assert module._NON_IDENTITY_FIELDS == frozenset(
+        {"git_commit", "git_dirty", "source_config", "source_flow", "source_roadnet"}
+    )
+
+
+def test_no_digest_field_is_ever_exempted_from_identity(tmp_path: Path) -> None:
+    """The invariant, asserted OVER THE SET rather than over a hardcoded tuple.
+
+    ⚠️ **This replaces a loop that could not fail.** The previous version iterated a literal
+    3-tuple and checked ``f"{name}_sha256" not in _NON_IDENTITY_FIELDS`` immediately after an
+    exact-set assertion pinning the set to five members none of which end in ``_sha256`` -- so the
+    loop was dead code, it would not have noticed a fourth path field, and it never checked that a
+    twin EXISTS.  Review ``docs/reviews/P8.4a.md`` MJ-1; Amendment G3's praise for it was withdrawn
+    by Amendment I3.  Written here so the property is real: derived from the set and from a real
+    provenance record, with nothing hardcoded.
+    """
+    import offline.materialise_draws as module
+
+    exempt = module._NON_IDENTITY_FIELDS
+    assert [f for f in exempt if f.endswith("_sha256")] == []
+
+    [record] = materialise(HZ1X1_CONFIG, [1], out_root=tmp_path)
+    provenance = json.loads((record.directory / "provenance.json").read_bytes())
+
+    # Every exempted field that names a path in a REAL record must keep its digest as identity.
+    exempt_paths = [
+        f for f in sorted(exempt)
+        if isinstance(provenance.get(f), str) and "/" in provenance[f]
+    ]
+    assert exempt_paths == ["source_config", "source_flow", "source_roadnet"]
+    for field in exempt_paths:
+        twin = f"{field}_sha256"
+        assert twin in provenance, f"{field} is exempt but has no {twin} in the record"
+        assert twin not in exempt, f"{twin} must remain an identity field"
+
+
+def test_the_path_fields_without_a_digest_twin_are_exactly_the_two_known_sumo_ones(
+    tmp_path: Path,
+) -> None:
+    """⚠️ GAP PIN, not a contract: review MJ-2, and the class is NOT closed.
+
+    Amendment E3 exempted three named path fields; the docstring in ``materialise_draws`` claims
+    every path field has a ``*_sha256`` twin.  That is true of the EXEMPT set and **false of the
+    record**: ``sumo.sumocfg`` and ``sumo.template_rou`` are absolute, CWD-resolved paths with no
+    digest twin at all, and the whole ``sumo`` dict is still an identity field -- so a cross-tree
+    re-materialisation of a SUMO-paired scenario would refuse on them.
+
+    Not a regression: identity is stricter, never looser, and in practice the ``cityflow.json``
+    byte comparison fires first.  **Amendment I3 asks for the failing test and then a decision
+    between exempting them and giving them twins; that decision is the coordinator's**, so this
+    records the exact current state and fails the moment a third such field appears or one of these
+    is fixed.  See ``docs/returns/P8.4a.md`` section 13.
+    """
+    [record] = materialise(HZ1X1_CONFIG, [1], out_root=tmp_path)
+    provenance = json.loads((record.directory / "provenance.json").read_bytes())
+
+    def path_fields_without_twin(node: Any, prefix: str = "") -> list[str]:
+        found = []
+        for key, value in sorted(node.items()):
+            name = f"{prefix}{key}"
+            if isinstance(value, dict):
+                found += path_fields_without_twin(value, f"{name}.")
+            elif isinstance(value, str) and value.startswith("/") and f"{key}_sha256" not in node:
+                found.append(name)
+        return found
+
+    assert path_fields_without_twin(provenance) == ["sumo.sumocfg", "sumo.template_rou"]
+    assert "sumo" not in __import__("offline.materialise_draws", fromlist=["x"])._NON_IDENTITY_FIELDS
+
+
+@pytest.mark.parametrize("field", ["source_config", "source_flow", "source_roadnet"])
+def test_a_draw_is_kept_when_a_source_PATH_differs_but_its_sha256_matches(
+    field: str, tmp_path: Path
+) -> None:
+    """Direction 1: where the source lived is not part of the draw's identity.
+
+    Each of the three is recorded as a path -- ``source_config`` verbatim from the caller's
+    argument, ``source_flow`` and ``source_roadnet`` resolved against the process working directory
+    -- so the SAME scenario reached from a different worktree, or through an absolute rather than a
+    relative ``--repo-root``, produced a different string and the draw was refused as though its
+    demand had changed.
+
+    Parametrised over all three deliberately: D2 exempted two of them and the third was left to fire
+    from the next tree (Amendment E3).  One test per field is what makes a future omission visible.
+    """
+    materialise(HZ1X1_CONFIG, [1], out_root=tmp_path)
+    snapshot = _tree_snapshot(tmp_path)
+
+    provenance_path = draw_dir(HZ1X1_KEY, 1, out_root=tmp_path) / "provenance.json"
+    provenance = json.loads(provenance_path.read_bytes())
+    original = provenance[field]
+    provenance[field] = f"/somewhere/else/{Path(original).name}"
+    provenance_path.write_bytes(
+        (json.dumps(provenance, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    )
+    assert provenance[field] != original
+    tampered_snapshot = _tree_snapshot(tmp_path)
+
+    [record] = materialise(HZ1X1_CONFIG, [1], out_root=tmp_path)
+
+    assert record.action == "kept"
+    # "kept" writes nothing at all, so the edited provenance is still on disk untouched.
+    assert _tree_snapshot(tmp_path) == tampered_snapshot
+    assert _tree_snapshot(tmp_path) != snapshot
+
+
+@pytest.mark.parametrize(
+    "field", ["source_config_sha256", "source_roadnet_sha256", "source_flow_sha256"]
+)
+def test_a_draw_is_refused_when_a_source_SHA256_differs(field: str, tmp_path: Path) -> None:
+    """Amendment D2, direction 2, and it is what makes direction 1 safe.
+
+    The digests stay identity fields, so a genuinely different source still refuses.  Without this
+    the first test would be indistinguishable from having deleted the check.
+    """
+    materialise(HZ1X1_CONFIG, [1], out_root=tmp_path)
+
+    provenance_path = draw_dir(HZ1X1_KEY, 1, out_root=tmp_path) / "provenance.json"
+    provenance = json.loads(provenance_path.read_bytes())
+    assert provenance[field] != "0" * 64
+    provenance[field] = "0" * 64
+    provenance_path.write_bytes(
+        (json.dumps(provenance, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    )
+    tampered_snapshot = _tree_snapshot(tmp_path)
+
+    with pytest.raises(FileExistsError, match=field):
+        materialise(HZ1X1_CONFIG, [1], out_root=tmp_path)
+
+    assert _tree_snapshot(tmp_path) == tampered_snapshot
+
+
+# NOTE (2026-08-29): ``test_source_flow_is_still_an_identity_field_and_a_path_change_there_refuses``
+# stood here and asserted the OPPOSITE of the line above.  It was written to pin the gap Amendment
+# D2 left -- D2 exempted ``source_config`` and ``source_roadnet`` and not ``source_flow`` -- and its
+# own docstring said it "must be revisited with the ruling, not around it".  Amendment E3 ruled
+# ``source_flow`` into the set, so the behaviour it pinned is now the defect rather than the
+# contract, and it was removed rather than edited into agreement.  Its coverage did not vanish: the
+# parametrised test above now asserts the new behaviour for the same field, and
+# ``test_a_draw_is_refused_when_a_source_SHA256_differs[source_flow_sha256]`` keeps the digest side.
+
+
+def test_a_rendered_file_difference_still_refuses_after_the_path_exemption(
+    tmp_path: Path,
+) -> None:
+    """The exemption is scoped to provenance METADATA and never reaches the drawn demand.
+
+    ``_existing_conflict`` compares every rendered file byte-for-byte BEFORE it looks at provenance
+    at all, and D2 does not touch that loop.  Pinned because the whole point of the exemption is that
+    it narrows identity to content -- so content must still bite.
+    """
+    materialise(HZ1X1_CONFIG, [1], out_root=tmp_path)
+    flow = draw_dir(HZ1X1_KEY, 1, out_root=tmp_path) / "flow.json"
+    flow.write_bytes(flow.read_bytes() + b"\n")
+
+    with pytest.raises(FileExistsError, match="flow.json differs byte-for-byte"):
+        materialise(HZ1X1_CONFIG, [1], out_root=tmp_path)
+
+
 # --------------------------------------------------------------------------
 # T8 -- SUMO rendering where the scenario is paired, and an honest skip where not
 # --------------------------------------------------------------------------
