@@ -139350,11 +139350,12 @@
       "admission_hz1x1_random_behaviour_full.json"
     ],
     "code_provenance": {
+      "code_dirty": false,
       "code_root": "/home/filip/rltraffic-p84a",
-      "git_commit": "591ce9981bbc917858d8aa08ec8c5af511b42c1d",
+      "git_commit": "cf569af499668180eda010b92c13c336036b4a36",
       "git_dirty": true,
       "module": "/home/filip/rltraffic-p84a/offline/admission_probe.py",
-      "note": "code_root is resolved from this module's __file__, not from the working directory. runtime.git_commit beside it comes from dt_gate.runtime_provenance, which reads git rev-parse HEAD in the CWD -- and BRIEF_31 Amendment A2 puts the CWD in the main tree, so the two can and do differ (review P8.4a BL-2)",
+      "note": "code_root is resolved from this module's __file__, not from the working directory. git_dirty covers the whole tree and code_dirty excludes docs/, where every artifact lives, so it answers whether the CODE was modified. runtime.git_commit beside it comes from dt_gate.runtime_provenance, which reads git rev-parse HEAD in the CWD -- and BRIEF_31 Amendment A2 puts the CWD in the main tree, so the two can and do differ (review P8.4a BL-2)",
       "pythonpath": "/home/filip/rltraffic-p84a",
       "working_directory": "/home/filip/rltraffic"
     },
