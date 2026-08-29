@@ -1923,14 +1923,33 @@ re-verified in both implementations:
 
 #### 🟡 Liveness — commands and timestamps, per the 2026-08-20 rule
 
-**2026-08-29:** `git worktree list` → **TWO**: `/home/filip/rltraffic` on **`task/p5.3b-nortg-campaign`
-@ `53e995d`** and `/home/filip/rltraffic-p84a` on `task/p8.4a-entered-probe` @ `369f079`.
-**`tmux ls` → `fix05` and `p84a` both EXIST and are ATTACHED** — ⚠️ **but `tmux list-panes` shows only
-`bash` in each and `pgrep -fa "python|cityflow|sumo"` returns nothing of ours. They are IDLE SHELLS,
-not live campaigns.** *(Say it that way; "nothing is running" is false and "a campaign is running" is
-false.)*
-⚠️ **THE MAIN TREE IS NOT ON `main`. A fresh session must `git checkout main` there first**, and the
-coordinator commits from a throwaway worktree with `git -C` (§7).
+**2026-08-29 23:23, RE-MEASURED — the block written earlier the same day was stale in THREE ways within
+hours, which is the rule working rather than failing.** Commands run, not recalled:
+- `git worktree list` → still lists `/home/filip/rltraffic-p84a`, **but the directory DOES NOT EXIST**
+  (`git -C … status` → `fatal: cannot change to …`). It is a **stale administrative entry**; `git
+  worktree prune` clears it. The main tree is on **`main` @ `3748a33`, `status --porcelain` empty** —
+  so the earlier block's *"THE MAIN TREE IS NOT ON `main`, check it out first"* is **discharged**.
+- `tmux ls` → **`fix05` only. `p84a` is GONE.** `fix05` holds one `bash`; `pgrep -fa
+  "python|cityflow|sumo"` returns nothing of ours. **Nothing is running, and no worktree is live.**
+- `git rev-parse main` = `git ls-remote origin refs/heads/main` = **`3748a33`**. Pushed, refs compared.
+> ✅ **AND NOTHING WAS LOST WITH THE WORKTREE — checked rather than assumed, because this is exactly
+> `DEFERRED` 55's failure mode.** `output/p8_4a` is secured in the main tree and **111/111 verify**
+> (coordinator ran `sha256sum -c` this session, subshell-`cd` form); `scenarios/draws/` holds
+> **cityflow1x1 106, cityflow_grid4x4 106, cologne3 11**, i.e. draws 0–5 + 1000–1099 for both scenarios
+> P8.4b needs. ⭐ **What saved them is worth naming: the campaign ran from the MAIN tree because
+> `DEFERRED` 61's CWD-dependent Gate −1 forced it to. A workaround adopted for an unrelated reason
+> prevented the loss that retiring the worktree would otherwise have caused.**
+> ⚠️ **cologne3 has only 11 materialised draws — 1005–1099 are ABSENT.** Any P8.4b cell on cologne3
+> starts with a regeneration; hz1x1 and grid4x4 do not.
+
+**🔴 CI IS RED ON `main`, AND IT IS THE REGISTERED RED — classified, not assumed.** Run `33275392200`:
+**`counts: passed=1364 skipped=123 failed=0 errors=0`** against the declared ceiling of **121**.
+**Zero failures, zero errors; the whole red is +2 skips.** The registered protocol
+(`re_measure_required_at.what_to_do`) is *merge, let it go red, classify `junit.xml`, commit the
+observed value* — **so the outstanding action is to classify the +2 and commit 123 with its reason**,
+via `docs/patches/` (`.github/ci/**` is outside the coordinator's hands by role, `DEFERRED` 54).
+⚠️ **This is `DEFERRED` 45's class the moment it is left: a guard red for a reason everyone expects
+stops being read.**
 
 #### ✅ Merged since the last rewrite
 
@@ -1961,6 +1980,54 @@ except a shape violation.** · **T4** — **no wrong keys, no skipped cells, no 
 ⚠️ **`output/` is gitignored with no backup.** ⚠️ **CI is EXPECTED to go red on the skip ceiling at
 P8.4a's merge** — the registered protocol is `re_measure_required_at.what_to_do`: merge, let it go red,
 classify `junit.xml`, commit the observed value. **Do not pre-bump.**
+
+#### 🆕 2026-08-29, found on a cold-start audit — THE REGISTRATION STILL CARRIES THE FALSEHOOD T1 REFUTED, AND RULING (a) IS NOT REGISTERED AT ALL
+
+**Three findings, each verified in the artifact this session.**
+
+**(1) `PREREGISTRATION.md` §3.1 lines 121–128 are UNCORRECTED.** They still read: *"Verified in source on
+2026-08-03 in the three implementations … In all three checked: the metric averages over **all vehicles
+that entered the network** … **It is therefore free of survivorship bias.**"* 🚨 **T1's B3 refuted exactly
+this for the C++ implementation** (`engine.cpp:682-691` iterates the whole `vehiclePool` with no filter →
+all vehicles ever **CREATED**), and T1's M3 showed the *"free of survivorship bias"* conclusion is
+**inverted on the entry axis** for our own Python metric. **`grep -c "A11"` = 0; the amendments table ends
+at A10.** So the document a referee reads to check whether the goalposts moved currently asserts a
+statement we have known to be false since 2026-08-28 — **and it is the sentence A4 cited to withdraw the
+safeguard.**
+
+**(2) Ruling (a) is NOT in the registration.** It lives in this §10 and in the Decisions Log row of
+2026-08-28. **§7's own rule governs: *the declarations are the registration — not the plan, not the brief,
+not the script.*** A change to what every reported ATT cell must carry is a change to §3.1's registered
+outcome specification and belongs in §12.
+
+**(3) WHICH DEFINITION THE CLAIMS REST ON IS DECIDED NOWHERE — I checked §1, §6, §8 and §10.** Ruling (a)
+settles **disclosure** (*both are carried*), never **primacy**. That is not academic: T1's B2 shows the
+two definitions **invert the ranking of two corpus behaviour policies in 7 of 8 matched draws**, and
+`offline/dt_gate.py:466-468` makes the project's go/no-go decision by comparing exactly this quantity.
+
+> ⭐ **THE MEASUREMENT THAT BEARS ON (3), taken on our own merged artifact rather than on T1's 8 draws.**
+> `docs/data/p8_4a_admission.json`, **1,870 cells**, hz1x1 + grid4x4, 20 draws × up to 25 distinct
+> (method, tier, arm) combinations:
+> - **`created` varies across policies in 0 of 20 draws — maximum within-draw spread `0.0000 %`.**
+> - **`entered` varies in 20 of 20 — maximum within-draw spread `61.54 %` (hz1x1), `5.91 %` (grid4x4).**
+>
+> **So on a shared draw `att_engine`'s denominator population is identical across every policy BY
+> CONSTRUCTION, while `att_ours`'s differs by up to 61.5 %.** A5's shared-draw rule therefore already
+> guarantees, for the engine definition, the matched population it was written to guarantee — and cannot
+> deliver it for ours. ⚠️ **Sample stated: hz1x1 and grid4x4 only. cf_cologne3 is NOT in this artifact**,
+> and it is the one scenario with non-deterministic demand.
+> ⚠️ **Third independent refutation of A5's ground:** A5 registered a **4.1 %** spread, T1 measured
+> **35.0 %**, and this measurement puts the maximum at **61.54 %** — wider still because it includes the
+> offline-learned arms and not only the behaviour tiers.
+
+**Retired this session, and measured on the POPULATION rather than a sample:** T1's shadow-vehicle MINOR
+(`getAverageTravelTime` lacks the `isReal()` filter, so lane-change shadow vehicles would double-count) is
+**inert across all 13 CityFlow sim configs** — 11 set `laneChange: false` explicitly, and the 2 that omit
+it (`cologne1`, `cologne3`) take `engine.cpp:53`'s default, which is `false`. **Also verified rather than
+inherited:** `offline/admission_probe.py` really does emit all five quantities, and **`att_engine` is a
+DIRECT engine call** (`env._eng.get_average_travel_time()`), not a reconstruction — which re-poses
+P8.4b's Gate 0: it is not *"is our arithmetic right"* but ***"does the engine's own quantity mean on
+grid4x4 what T1 established it means on hz1x1"***.
 
 ### Immediate queue, in order
 
