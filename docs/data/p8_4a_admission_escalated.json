@@ -139328,6 +139328,7 @@
   ],
   "format_version": "p8.4a-admission/1.0",
   "provenance": {
+    "caveat": "runtime.git_commit (if present) is git rev-parse HEAD in the process WORKING DIRECTORY, which BRIEF_31 Amendment A2 requires to be the main tree; that tree's HEAD belongs to whichever branch it has checked out and may contain none of this code. Read code_provenance.git_commit for the code that produced these numbers",
     "cell_files": [
       "admission_grid4x4_mappo1000_bc_top10_full.json",
       "admission_grid4x4_mappo1000_behaviour_full.json",
@@ -139344,6 +139345,15 @@
       "admission_hz1x1_random_bc_top10_full.json",
       "admission_hz1x1_random_behaviour_full.json"
     ],
+    "code_provenance": {
+      "code_root": "/home/filip/rltraffic-p84a",
+      "git_commit": "e7cbb601c4faf7bc3f6ffd00e14c1163876651d8",
+      "git_dirty": true,
+      "module": "/home/filip/rltraffic-p84a/offline/admission_probe.py",
+      "note": "code_root is resolved from this module's __file__, not from the working directory. runtime.git_commit beside it comes from dt_gate.runtime_provenance, which reads git rev-parse HEAD in the CWD -- and BRIEF_31 Amendment A2 puts the CWD in the main tree, so the two can and do differ (review P8.4a BL-2)",
+      "pythonpath": "/home/filip/rltraffic-p84a",
+      "working_directory": "/home/filip/rltraffic"
+    },
     "runtime": {
       "cuda_available": true,
       "cuda_device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
