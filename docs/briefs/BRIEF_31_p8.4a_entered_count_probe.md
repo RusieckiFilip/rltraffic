@@ -759,3 +759,88 @@ rather than making a claim. **You grepped, found it, and fixed the row instead o
 > boxes; this is the first one caught by its own author before anyone else read it.
 
 **Nothing else changes. Await the review.**
+
+---
+
+# ⛔ AMENDMENT I — 2026-08-29. FIX-FIRST. `docs/reviews/P8.4a.md`: PASS-WITH-NOTES, 2 blocking
+
+**Do not merge.** Both blockers are text and provenance rather than numbers — **and both would mislead
+the reader of the record, one of them about whether to release a held campaign.** The reviewer's own
+summary stands: *"the defects are in claims about the work, not in the work's numbers."*
+
+## I1 🚨 BL-1 — §7's prose contradicts §7's own table, in the paragraph that gates P5.3b
+
+**Coordinator-verified: grid4x4 has FOUR censored cells of fourteen, the largest being
+`bc_top10@mappo1000` at admission 0.967168 (2183 never entered) — the arm this task calls
+SUBSTANTIVE.** The sentence *"grid4x4 is at ≈100 % everywhere"* is false.
+> **Required: rewrite §7's prose to match its own table, and state the grid4x4 censoring explicitly
+> with its four cells.** ⚠️ **The correct claim is COMPARATIVE, not absolute: censoring on grid4x4 is
+> two orders of magnitude smaller than on hz1x1's weak tiers (3.3 % against 34.5 %), which is what
+> supports the hz1x1-localised reading — NOT that grid4x4 is clean.** ⭐ **My own Amendment A0 hedged
+> this correctly (*"a hypothesis to test, not a result"*); the packet hardened the hedge into an
+> absolute. Restore the hedge.**
+
+## I2 🚨 BL-2 — the artifacts record another task's commit, AND THE CAUSE IS MY OWN A2 RULING
+
+Both artifacts carry `git_commit = 53e995da…`. **Verified: that commit does not contain
+`offline/admission_probe.py` and it lives on `task/p5.3b-nortg-campaign`.**
+> 🚨 **I ruled in A2 that the campaign runs with CWD = the main tree, to defuse `DEFERRED` 61. The main
+> tree's HEAD is the P5.3b branch, and `runtime_provenance()` reads `git rev-parse HEAD` from the
+> process CWD. So the fix I approved put a foreign branch's commit into two committed artifacts. Fourth
+> sighting of this class, and the first one I caused.**
+> **Required, in this order:**
+> 1. **Disclose it in the packet** — what the field says, why it says it, and that it is a consequence
+>    of A2's main-tree requirement.
+> 2. **Record the TRUE code provenance** in both artifacts: the worktree's `HEAD` at measurement time,
+>    plus `git_dirty`, plus the `PYTHONPATH` the code was actually imported from. **The information
+>    exists; nothing captured it.**
+> 3. ⛔ **Do NOT fix this by moving the CWD back to the worktree** — that reopens `DEFERRED` 61's false
+>    `BLOCKED`. **The CWD and the code root are two different things and the provenance must record the
+>    second, not the first.**
+
+## I3 ⚠️ MJ-1 — MY AMENDMENT G3 WAS WRONG, and I am withdrawing the praise
+
+G3 said the pinning test *"generalises the fix from three named fields to a property"*. ✅ **Verified at
+`tests/test_materialise_draws.py:435-441`: the exact-set assertion pins the set to a five-element
+literal containing no `_sha256` name, so the loop that follows CANNOT FAIL. It is dead code, it
+iterates a hardcoded 3-tuple rather than the set, and it never asserts the twin exists.**
+> **G3's second paragraph is WITHDRAWN. The exact-set pin and the parametrised digest-refusal test are
+> load-bearing and were correctly identified; the "property" was not asserted anywhere and I said it
+> was.** ⚠️ **I praised a test for fixing the class after telling the implementer to fix the class —
+> which is the most expensive kind of wrong praise, because it closes the question.**
+> **Required: make it real or delete it.** The honest version asserts over the SET, not a literal
+> tuple: every member ending in `_sha256` is absent, and every exempt path field has its twin present
+> in a real provenance record. **MJ-2 says the second half is FALSE of the record today** (`sumo.sumocfg`
+> and `sumo.template_rou` are absolute paths with no twin), **so write the test that fails, then decide
+> whether to exempt them or to add twins.**
+
+## I4 📋 The rest
+
+- **MJ-3 — cover the wiring.** `admission_artifact` is never named in the test file, so the verdict
+  guard, the two-grain refusal and the created-consistency refusal are decorative. ⚠️ **Priority is
+  E3's `holds = None → True` mutation surviving 49/49: that is the guard against the exact upgrade F5
+  and G forbade.** Kill all five survivors with the failure pasted.
+- **MJ-4** — the grid4x4 row is off by one: 10 of 14 cells are zero, not 11.
+- **MINOR 1** — the CWD check returns on the first existing draw; a heterogeneous pool defeats it, and
+  `DEFERRED` 55 keeps producing exactly those. Check all, or say in the message that it checked one.
+- **MINOR 2** — `p8_4a.sh:19-21` and §4 still say the path fields are identity fields. **They are not,
+  since E3. Correct them** — a stale comment that describes the pre-fix world is how D1's misreading
+  happened.
+- **MINOR 6 — accept the correction and change one word.** G2(c)'s bound is a **re-accounting** bound:
+  say *"if the 299 were COUNTED"*, not *"admitted"*. **Admitting them would change the other vehicles'
+  travel times; counting them does not. The arithmetic is right and the word overreached** — and the
+  word was mine, in G2(c).
+- **MINOR 3, 4, 5, 7** — fix the timing table's provenance column, the artifact operator/commit fields
+  (folded into I2), the `restored` field name, and the internal counts.
+- **Merge gate:** §6's `P8.4a` box, ticked in the merge commit.
+
+## I5 ⭐ Carried forward to P8.4b, and it is the most important line in the review
+
+> **`att_engine` has NO external reference. Nothing in the repo pins it. T1 validated the
+> engine-metric reconstruction on hz1x1 ONLY, and grid4x4's `att_engine` is unvalidated against any
+> independent route — while A0's decomposition, §7's conclusion and G2(c)'s second route all rest on
+> it.**
+**P8.4b's first obligation is to close that**, by the same hand-reconstruction T1 used on hz1x1,
+applied to grid4x4. ⚠️ **We are one unvalidated quantity away from the ruling-(a) re-derivation resting
+on a number nobody has checked — which is precisely the shape of the defect this whole sequence began
+with.**
