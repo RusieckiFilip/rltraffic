@@ -534,3 +534,88 @@ the implementer dry-ran `1000 / 1005 / 1010 / 1011` with no refusal.
 > **Run it. E3 and E4 land in the same task as durable repairs.** ⚠️ **And when it runs, the evidence
 > to report is the FIVE genuine survivors' `kept`, with `1005–1009` reported separately as
 > same-session re-verification — per E1, not pooled.**
+
+---
+
+# ✅ AMENDMENT F — 2026-08-29. The escalation is scored. How it goes in the packet
+
+**14 cells, 6,200 episodes, reference checks exact 14/14.** Read by the coordinator from
+`docs/data/p8_4a_admission_escalated.json`, not from the campaign log.
+
+## F1 ⭐ THE AUTHOR'S QUESTION IS ANSWERED AT 100 DRAWS, AND THE ANSWER HELD
+
+**`iql@random` on grid4x4 was not escalated at all — its deficit was ≤ 0 at ten draws, so it HOLDS.**
+The grid4x4 `random` arms that were escalated come back at **0.99991 (`bc`)** and **0.99955
+(`bc_top10`)** against a **1.000000** anchor.
+> ✅ **P5.2's headline is not a metric artefact of this kind, now on 500 episodes per cell rather than
+> 50.** The sentence stays §6.3's: *the ATT gap is not explained by differential admission on these
+> cells.*
+
+## F2 🚨 E1: 1 HOLDS, 6 CLOSE, 2 FALSIFIED — and the two are NOT comparable in size
+
+| arm | arm | anchor | deficit | Δ | status |
+|---|---|---|---|---|---|
+| **grid4x4/bc_top10@mappo1000** | 0.970454 | 1.000000 | **0.029546** | 0.009596 | **falsified** |
+| hz1x1/bc_top10@fixedtime | 0.890840 | 0.907449 | 0.016609 | 0.026875 | close |
+| hz1x1/bc_top10@random | 0.648887 | 0.656212 | 0.007325 | 0.030341 | close |
+| hz1x1/bc@fixedtime | 0.904997 | 0.907449 | 0.002452 | 0.002883 | close |
+| grid4x4/iql@mappo1000 | 0.999168 | 1.000000 | 0.000832 | 0.001145 | close |
+| **grid4x4/bc_top10@random** | 0.999550 | 1.000000 | **0.000450** | 0.000354 | **falsified** |
+| hz1x1/bc@random | 0.655833 | 0.656212 | 0.000379 | 0.030341 | close |
+| grid4x4/bc@random | 0.999910 | 1.000000 | 0.000090 | 0.000218 | close |
+| hz1x1/dt@maxpressure | 0.999913 | 0.999906 | −0.000007 | 0.000055 | **holds** |
+
+🚨 **BINDING ON THE PACKET: never write "2 of 9 falsified" without the magnitudes.** The two are
+different findings wearing one label:
+- **`bc_top10@mappo1000` is SUBSTANTIVE** — a **2.95 %** admission deficit, three times its Δ. **Its
+  ATT advantage is reported as a possible selection artefact, per §2.**
+- **`bc_top10@random` is a TECHNICALITY** — **0.045 %**, roughly one vehicle in 2,200. It is falsified
+  only because both arms are so consistent that Δ collapses to 0.00035. ⚠️ **Reporting it beside the
+  first without that distinction would overstate our own problem, and a referee would find the
+  imprecision immediately.**
+> **Registered reading: report deficit, Δ, AND the deficit as a fraction of the anchor, for every arm.
+> The verdict word is not sufficient on its own.**
+
+## F3 ⭐ B2's HYPOTHESIS IS SUPPORTED AT THE ARM LEVEL, AND ITS ACTUAL TEST IS STILL OWED
+
+**Both falsified arms are `bc_top10`, and the three largest deficits in the whole table are `bc_top10`**
+(0.0295, 0.0166, 0.0073). Amendment B2 registered, before this data existed, that `bc_top10` is
+**P5.1's load sorter** — it kept 302 of 320 streams from the **8 quietest of 16 nodes** — and that a
+policy trained on the quietest nodes plausibly under-serves the busiest approaches.
+> ✅ **The arm-level pattern is exactly what that predicts, and it was registered in advance.**
+> ⛔ **But B2's prediction was PER-NODE — *"the deficit CONCENTRATES on the busiest nodes rather than
+> spreading evenly"* — and that has NOT been tested.** ⚠️ **An arm-level correlation is consistent with
+> the mechanism and does not establish it; three arms of one method is also consistent with something
+> particular to `bc_top10`'s training that has nothing to do with load.** **The per-node test is owed
+> and the packet must say it is owed, not imply it is done.**
+
+## F4 ✅ E2 — fired at ten draws, fires at a hundred, and Amendment B1's ruling is unchanged
+
+`grid4x4/bc_top10@mappo1000` at **0.9705** against the 0.99 floor; **1 of 3 below.** **B1 stands: E2
+fired and stays fired; the PROBE is exonerated by evidence stronger than E2 — now 14/14 exact
+reference checks including that cell — and E2's wording was mine, generalising a behaviour-policy
+measurement to every arm of the tier.** Nothing here changes that ruling; it confirms it at scale.
+
+## F5 ⭐ E3 reports `holds: None`, and that is the honest answer rather than a gap
+
+`scored_scenario: hz1x1`, `holds: None`, `monotone: True`, rank order
+**`maxpressure > fixedtime > random`** at **0.99991 → 0.90745 → 0.65621**.
+**`None` is correct: Amendment A6 re-registered E3 over five P4.6 tiers and only three were escalated,
+so it cannot be scored as registered.** Reporting `None` rather than `True` on the three available is
+right and must not be quietly upgraded.
+> ⭐ **But the profile is a FIRST-CLASS RESULT in its own right, and it is the mechanism behind B1
+> measured directly: ADMISSION TRACKS DATA QUALITY. The weaker the behaviour policy, the more vehicles
+> its rollouts never admit — 0.01 %, 9.3 %, 34.4 % — which is precisely why our ATT metric flatters
+> weak policies and why the C1 ladder is where the distortion lives.** Report it as a measurement of
+> the mechanism, not as a scored prediction.
+
+## F6 📋 What the packet must carry
+
+1. F2's full table **with magnitudes and fractions**, and the substantive/technical distinction stated.
+2. F1's answer in §6.3's words, and **that `iql@random` held without escalation**.
+3. F3's hypothesis status: **supported at arm level, per-node test owed.**
+4. F5's profile as a measurement; E3's `None` with its reason.
+5. **The restore as a repair** (C2), with the **five genuine survivors reported separately from
+   1005–1009** (E1 of Amendment E).
+6. The cross-worktree purity result: **`flow.json` byte-identical 10/10.**
+7. `DEFERRED` 61's remaining half: `source_flow`, and the worktree-CWD refusal message (E3/E4 above).
