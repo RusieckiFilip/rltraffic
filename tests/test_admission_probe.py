@@ -1270,3 +1270,40 @@ def test_the_cwd_check_examines_EVERY_draw_not_just_the_first(
             config_a, scenario_key="mini", draw_ids=[1000, 1001], out_root=draws
         )
     assert "1001" in str(excinfo.value)
+
+
+def test_code_provenance_separates_code_dirtiness_from_artifact_dirtiness(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``git_dirty`` over the whole tree cannot answer "was the code modified".
+
+    Regenerating two artifacts in sequence makes the second see the first as an uncommitted change,
+    so the whole-tree flag reads dirty for a reason that has nothing to do with the code that
+    produced the numbers.  ``code_dirty`` excludes ``docs/`` -- where every artifact this task writes
+    lives -- so it answers the question ``DEFERRED`` 61 and Amendment I2 actually ask.
+    """
+    import subprocess
+
+    repo = tmp_path / "repo"
+    (repo / "offline").mkdir(parents=True)
+    (repo / "docs" / "data").mkdir(parents=True)
+    (repo / "offline" / "mod.py").write_text("x = 1\n", encoding="utf-8")
+    (repo / "docs" / "data" / "artifact.json").write_text("{}", encoding="utf-8")
+    for command in (
+        ["git", "init", "-q"],
+        ["git", "config", "user.email", "t@t"],
+        ["git", "config", "user.name", "t"],
+        ["git", "add", "-A"],
+        ["git", "commit", "-q", "-m", "base"],
+    ):
+        subprocess.run(command, cwd=repo, check=True, capture_output=True)
+
+    from offline.admission_probe import _git_dirtiness
+
+    assert _git_dirtiness(repo) == (False, False)
+
+    (repo / "docs" / "data" / "artifact.json").write_text('{"a": 1}', encoding="utf-8")
+    assert _git_dirtiness(repo) == (True, False), "an artifact rewrite is not a code change"
+
+    (repo / "offline" / "mod.py").write_text("x = 2\n", encoding="utf-8")
+    assert _git_dirtiness(repo) == (True, True), "a source edit must show as code dirtiness"

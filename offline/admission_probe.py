@@ -1500,6 +1500,29 @@ def score_e3(cells: Mapping[str, Mapping[str, CellSummary]]) -> dict[str, Any]:
 # ----------------------------------------------------------------------
 
 
+#: Paths whose modification is not a change to the code that produced a number.  Every artifact this
+#: task writes lives under ``docs/``, so regenerating two of them in sequence makes the second see
+#: the first as an uncommitted change -- which says nothing about the code.
+_NON_CODE_PREFIXES: tuple[str, ...] = ("docs/",)
+
+
+def _git_dirtiness(root: str | Path) -> tuple[bool | None, bool | None]:
+    """``(whole tree dirty, code dirty)`` for *root*, or ``(None, None)`` outside a repository."""
+    import subprocess
+
+    try:
+        done = subprocess.run(
+            ["git", "-C", str(root), "status", "--porcelain"],
+            capture_output=True, text=True, check=True, timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None, None
+    lines = [line for line in done.stdout.splitlines() if line.strip()]
+    paths = [line[3:].split(" -> ")[-1].strip().strip('"') for line in lines]
+    code = [p for p in paths if not p.startswith(_NON_CODE_PREFIXES)]
+    return bool(paths), bool(code)
+
+
 def code_provenance() -> dict[str, Any]:
     """The tree the CODE was imported from, which is NOT the process working directory.
 
@@ -1530,16 +1553,19 @@ def code_provenance() -> dict[str, Any]:
         return done.stdout.strip()
 
     commit = git("rev-parse", "HEAD")
-    status = git("status", "--porcelain")
+    tree_dirty, code_dirty = _git_dirtiness(root)
     return {
         "code_root": str(root),
         "module": str(Path(__file__).resolve()),
         "git_commit": commit,
-        "git_dirty": None if status is None else bool(status),
+        "git_dirty": tree_dirty,
+        "code_dirty": code_dirty,
         "working_directory": str(Path.cwd()),
         "pythonpath": os.environ.get("PYTHONPATH", ""),
         "note": (
             "code_root is resolved from this module's __file__, not from the working directory. "
+            "git_dirty covers the whole tree and code_dirty excludes docs/, where every "
+            "artifact lives, so it answers whether the CODE was modified. "
             "runtime.git_commit beside it comes from dt_gate.runtime_provenance, which reads "
             "git rev-parse HEAD in the CWD -- and BRIEF_31 Amendment A2 puts the CWD in the main "
             "tree, so the two can and do differ (review P8.4a BL-2)"
