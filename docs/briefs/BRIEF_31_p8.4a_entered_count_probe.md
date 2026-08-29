@@ -466,3 +466,71 @@ draws were materialised from a dirty tree.**
 > class **P5.3b's C2 added `git_dirty` detection for**: P5.3b's chunk carrying a commit from a dirty
 > tree, `runtime_provenance` having no dirtiness check at all, and now this. **Recorded in
 > `DEFERRED` 61.**
+
+---
+
+# ✅ AMENDMENT E — 2026-08-29. Two corrections to me, and the `source_flow` ruling
+
+## E1 🚨 C1's "ALL TEN SURVIVORS" WAS WRONG, AND IT INFLATED THE EVIDENCE IN THE DIRECTION THAT FLATTERS
+
+**C1 required "all ten survivors" to come back `kept` and called it a live test of purity. Only FIVE
+are survivors.** `1000–1004` carry `git_commit 29ab244`; **`1005–1009` were written by the implementer
+on 2026-08-28 (`git_commit 964d3b0`) and re-verified minutes later in the same tree — their `kept`
+tests SAME-SESSION DETERMINISM, not purity.**
+> 🚨 **Counting them doubles the apparent evidence base for the one assumption T1's whole
+> recoverability argument rests on. That is a sample stated as a population, in a condition I wrote
+> to guard against exactly that, and it erred toward more reassurance rather than less.**
+> ⭐ **And the right response was not to argue the definition but to run the correct test: regenerating
+> all ten from a DIFFERENT worktree and comparing bytes. `flow.json` — THE DEMAND — is byte-identical
+> 10/10, differing 0.** **Purity holds, measured cross-worktree. T1's recoverability argument stands,
+> and now on evidence that actually tests it.**
+
+## E2 🚨 D1 CONFLATED TWO DIFFERENT REFUSALS, AND ONE OF MY CONCLUSIONS IS FALSE AS STATED
+
+There were **two** refusals and I wrote about "the refusal" as if there were one:
+
+| configuration | refusal | layer |
+|---|---|---|
+| main-tree CWD + absolute `--repo-root` (the author's) | `source_config differs` | provenance field |
+| worktree CWD (the implementer's) | **`cityflow.json differs byte-for-byte`** | **rendered file — strictly EARLIER** |
+
+**D1's reasoning is correct about the author's refusal and I generalised it to both.** ⚠️ **And the
+conclusion I drew from it — *"the draw itself is byte-identical"* — is TRUE OF `flow.json` AND FALSE
+OF `cityflow.json`**, which embeds a CWD-resolved directory and differs **10/10** across worktrees.
+> ✅ **The correct decomposition, which the implementer measured: the DEMAND (`flow.json`) is pure and
+> path-independent; the CONFIG WRAPPER (`cityflow.json`) is path-dependent by construction. Purity is a
+> property of the demand, and that is the property T1 needs.**
+
+## E3 ✅ RULING — `source_flow` IS extended into the set. The omission was mine
+
+**Measured: all three path-like fields — `source_config`, `source_flow`, `source_roadnet` — have a
+`_sha256` twin, and only two were exempted.** ⚠️ **And `source_flow` is stored ABSOLUTE
+(`/home/filip/rltraffic/scenarios/grid4x4/grid4x4_flow.json`), so it is not a latent case — it is the
+NEXT field to fire from any other tree.**
+> **RULED: `_NON_IDENTITY_FIELDS = {git_commit, git_dirty, source_config, source_flow,
+> source_roadnet}`, with the same both-directions test D2 required — path differs and `source_flow_sha256`
+> matches → `kept`; `source_flow_sha256` differs → refuses.**
+> ⭐ **Implementing the ruling AS WRITTEN and pinning its gap with a test, rather than extending it
+> silently, was exactly right and I want it on the record.** A coordinator's incomplete instruction
+> silently "improved" by an implementer is a ruling nobody can audit; a gap pinned by a test is a
+> question I have to answer. **Do that every time.**
+
+## E4 🔧 `DEFERRED` 61 (a)'s REMAINING HALF — make the worktree failure LEGIBLE rather than fix the embedding
+
+`cityflow.json` embeds a CWD-resolved directory because CityFlow requires an absolute `dir`. **Do not
+normalise it — that changes rendering semantics in merged code for a diagnostic's convenience.**
+> **RULED: `restore-draws` detects a CWD that is not the main tree and refuses with a message that
+> SAYS SO**, instead of the current `cityflow.json differs byte-for-byte`. ⚠️ **The harm is the
+> misreading, not the refusal: a reader sees "differs byte-for-byte" on a file whose name contains the
+> scenario and concludes the DEMAND changed. It did not — `flow.json` is identical 10/10.** A refusal
+> that names its own cause is the whole repair here.
+
+## E5 ✅ The restore may proceed NOW; the fixes are durable repairs, not blockers
+
+**The invocation is verified and its three load-bearing parts are understood** — main-tree CWD (makes
+the rendered `cityflow.json`'s absolute dir match), `--repo-root .` (yields the relative
+`source_config`), `PYTHONSAFEPATH=1` (stops the main tree's `offline` shadowing the worktree's) — and
+the implementer dry-ran `1000 / 1005 / 1010 / 1011` with no refusal.
+> **Run it. E3 and E4 land in the same task as durable repairs.** ⚠️ **And when it runs, the evidence
+> to report is the FIVE genuine survivors' `kept`, with `1005–1009` reported separately as
+> same-session re-verification — per E1, not pooled.**
