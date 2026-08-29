@@ -1,6 +1,6 @@
 # PROJECT MASTER PLAN — Offline Multi-Agent Decision Transformer for Traffic Signal Control
 
-**Version:** 1.8 · **Last updated:** 2026-08-26 · **Maintained in:** Master Coordination Chat
+**Version:** 1.9 · **Last updated:** 2026-08-29 · **Maintained in:** Master Coordination Chat
 **Mentor:** Paweł Gora (Quantum AI Foundation) · **Target:** arXiv → IEEE ITSC / IEEE T-ITS / TRB (Q2/Q1)
 
 ---
@@ -1893,89 +1893,111 @@ forgotten rather than parked.
 - **Suite: 343 passed, run by the coordinator on main 2026-08-06** — first-hand, not hearsay.
 - P0 closed except P0.9 · P1 · P2.0/b/c · P2.5 · P8.0 · P2.2-draws.
 
-### State today — ⭐ THE LADDER IS SCORED AND P5.2 IS MERGED; NOTHING IS RUNNING; P5.3a IS NEXT (rewritten 2026-08-24, never appended to; every number below measured by the coordinator this session by running the command, before reading the section it replaces)
+### State today — 🚨 THE PRIMARY METRIC IS WRONG-BY-DEFINITION AND RULING (a) IS IN FLIGHT; P5.3b IS HELD (rewritten 2026-08-29, never appended to; every fact below produced by running the command this session, before reading the section it replaces)
 
-⚠️ **The block replaced here was dated 2026-08-20 and had been false for four days**: its first bullet
-read *"TWO WORKTREES, AND P5.2's CAMPAIGN IS RUNNING RIGHT NOW"* while P5.2 merged at `63e384e` on
-2026-08-24, the `p52` worktree is retired and no `tmux` server exists. **That is the FOURTH consecutive
-rewrite of this bullet to correct a stale liveness claim** — and this time the claim was stale in the
-*safe* direction (it said work was running when none was), which is the only reason it cost nothing.
+⚠️ **The block replaced here was dated 2026-08-24 and said *"THE LADDER IS SCORED … P5.3a IS NEXT"*.
+P5.3a and P8.4a have both merged since, and the project's primary metric has been found defective.**
 
-⚠️ **AND THE COLD-START BRIEFING THAT OPENED THIS SESSION CARRIED A FALSE LINE: *"CI green after the
-ceiling was re-measured to 104."* Measured with `gh run list` before acting: the last two completed
-runs had FAILED and the third was still in flight.** Every other item in that briefing verified
-(worktrees, `tmux`, 8 manifests, 221/221, the §6 tick), **which is exactly what makes one false line
-dangerous — accuracy elsewhere is not evidence for the line you did not check.**
+#### 🔴 READ THIS FIRST: `average_travel_time` measures a different population than the field's
 
-- 🟢 **ONE WORKTREE, NOTHING RUNNING, AND THE COMMANDS THAT SAY SO — 2026-08-26, run this session, not inherited.** `git worktree list` → **one line, `/home/filip/rltraffic  f4a73d3 [main]`**; `git status --porcelain` → **empty**; the main tree is **on `main`** again after P5.3a's merge. `task/p5.3a-rtg-probe` is kept locally and on `origin` as a pre-merge copy. ⚠️ **CI was `in_progress` on `f4a73d3` when this was written and is EXPECTED to go red on the skip ceiling** — `re_measure_required_at.event` names *"merge of P5.3"*, P5.3a added corpus-gated tests in **two new files**, and the protocol is `what_to_do`: let it go red, classify `junit.xml`, commit the observed value with its breakdown, **do not pre-bump and do not widen with slack.** *(Superseded bullet, 2026-08-24 ~20:30:)* (the 2026-08-20 rule below requires exactly this form):
-  `git worktree list` → **`/home/filip/rltraffic  884a6df [main]`, one line**; `tmux ls` → **`no server
-  running on /tmp/tmux-1000/default`**; `git status -sb` → **clean, `## main...origin/main`**.
-  The `p52` worktree is retired; `task/p5.2-tier-sweep` is kept on `origin` as a pre-merge copy.
-  ⚠️ **`main` is at `37b01f9` after this session's docs commit; `884a6df` is the commit CI last ran on.**
-- ✅ **CI IS GREEN AGAIN — patch applied by the author at `7ee606a`, run `completed success`, read from `gh run list` on 2026-08-25, not from the commit message.** The bullet below is kept as the record of what was wrong. ⚠️ **The ceiling's own expiry now names *"merge of P5.3"*, so this gate is EXPECTED to go red at P5.3a's merge — that is the mechanism working, and the protocol is in `re_measure_required_at.what_to_do`: merge, read the observed count from `junit.xml`, commit it with its breakdown. Do not pre-bump.**
-- 🔴 **WAS RED, 2026-08-24 — `docs/patches/ci_gate_ceiling_104_and_chain_walk.patch`, now applied.** `gh run list` 2026-08-24: **three consecutive failures**
-  (`63e384e`, `69680fa`, `884a6df`); all three guards **pass** on both legs, so the redness is the suite
-  and the gate downstream of it. **`DEFERRED` 54's third instance**: `69680fa` moved the ceiling to 104
-  in the JSON and left `tests/test_ci_gate.py:712` pinned at 98. **Five pins were stale, three of them
-  masked** — assertions after the first failure never run. Verified applied-and-run in a throwaway
-  worktree: **34 passed**, full suite **1288 passed / 56 skipped**, guards **English 4 · hygiene 16 · 0
-  findings in the touched file**, **10 mutations 10 as required incl. a no-op control**.
-  ⚠️ **`main` stays red until the human applies it. Nothing else is blocked by it** — the suite passes
-  locally and P5.3a's work does not touch these files.
-  > 🔒 **RULE EARNED 2026-08-20: a §10 bullet asserting that NOTHING is running must carry the command
-  > that produced it and the timestamp it ran at, or it may not be written.** *"No server running"* is a
-  > claim with a half-life of hours, and it is the one shape of §10 statement that turns into a wrong
-  > INSTRUCTION rather than a stale fact. **The coordinator commits only from the main tree** and checks
-  > `git rev-parse --abbrev-ref HEAD` first; to touch the implementer's branch, use a throwaway worktree
-  > and `git -C`, never `cd`.
-- ⭐⭐ **P5.1's REAL HEADLINE IS NOT THE ONE §6's ENTRY LEADS WITH, AND I FOUND THE OMISSION BY READING
-  THE ARTIFACT.** §6 reports the treatment's harm and never says that **`dt_nomix` — the identity-graph
-  CONTROL — ranks 1 of 5 method arms and beats the MAPPO policy that collected the corpus.** From
-  `docs/data/p5_1_grid.json` directly: **vs `behaviour` −2.4303 [−2.5796, −2.2810]** · **vs `bc`
-  −11.1329 [−13.7932, −8.4726]** · **vs `iql` −117.9877** · **vs `bc_top10` −591.7319**, **no seed
-  reversal on any of the four.** **This is the first tier anywhere in this study where a DT arm ranks
-  FIRST**, and it is the 16-intersection scenario.
-  ⚠️ **The fence travels with it, and P5.1's packet wrote it first: `dt_nomix` is the identity-graph
-  model, NOT the merged `agent/DTAgent.py`.** ⚠️ **And *"the DT leads 0 of 8 tiers"* — still in this
-  document three times — is a claim about EIGHT hz1x1 TIERS. It is true of them and it is not a general
-  property.** The ninth tier is led by a DT. **Fix the sentence wherever the count is used as a
-  characterisation rather than as a count.**
-- ✅ **MERGED SINCE THE LAST REWRITE:** **P7.0** (2026-08-16, Branch C — the gate did not resolve, and
-  C3 is neither licensed nor descoped) · **P0.10** (2026-08-17, the repo installs and is tested on two C
-  libraries) · **P5.1** (2026-08-18, `docs/reviews/P5.1.md` PASS-WITH-NOTES + fix round `BRIEF_26`) ·
-  **P8.3** (2026-08-18, external IQL calibration on D4RL — **a failure to reject, not a demonstration
-  of correctness**, and **fenced: its numbers may not enter the paper without an independent review**).
-- 🔒 **EVERY MODEL BEHIND EVERY MERGED NUMBER LIVES ONLY IN THE MAIN TREE'S GITIGNORED `output/`.**
-  Counted this session: **345 `.pt` files = 225 offline-method checkpoints** (`p4_dt` 5 · `p4_probe` 5 ·
-  `p4_4` 15 · `p4_5` 20 · `p4_6` 80 · `p4_7` 60 · `p5_1` 25 · `p8_3` 15) **+ 60 MAPPO behaviour
-  checkpoints + 60 pre-C8-migration backups**, plus every raw evaluation JSON. `output/` is **927 MB**;
-  `datasets_v11/` is **3.8 GiB** and is separate. ⚠️ **DO NOT DELETE `output/`.**
-  **Integrity: ALL SEVEN manifests re-verified from `output/` itself (§7 rule 3b) on 2026-08-18 —
-  `p4_3` 10/10 · `p4_4_p4_5` 44/44 · `p4_6` 125/125 · `p4_7` 112/112 · `p5_1` 48/48 · `p7_0` 36/36 ·
-  `p8_3` 18/18 = 393/393 OK, 0 FAILED.**
-  🚨 **THE EXPOSURE NAMED ON 2026-08-14 IS STILL OPEN AND IS NOW LARGER: `output/` is gitignored, so
-  none of this is in git. A disk failure takes 225 checkpoints and every raw cell at once.** Recorded
-  for **P10.0** as a named exposure, not as a solved problem.
-- 📏 **P5.1's CAMPAIGN COST, MEASURED — the first real timing this project has for a grid4x4 campaign.**
-  Read from `output/p5_1/logs/campaign.log` itself: **`[2026-08-17 13:46:36]` → `03:11:01` = 13 h 24 m
-  25 s** *(corrected 2026-08-18 from "≈13 h 26", which I had inferred by extrapolating backwards from
-  the first checkpoint's mtime; the implementer read the log, and the log is the artifact)* for one
-  tier × 7 arms, against the ~17 h that had been extrapolated. **DT training is 73 % of it at ~59 min
-  per (arm, seed)**; the three baseline arms cost 42 min total and evaluation 3 h. **Cost anything DT-
-  shaped by counting DT cells; nothing else in the campaign scales.**
-- ⚠️ **`check_test_hygiene.sh` still exits 1 on `main` with 16 inherited TH006 findings** (`DEFERRED`
-  45). A guard that is red for reasons nobody expects to fix is a guard that stops being read.
-- **RULING 2026-08-07 — the v1.1 ATT field is `att_per_step`, not `average_travel_time`** (BRIEF_08 §9),
-  enforced by `tests/test_offline_naming_guard.py`. **The guard is not edited and gets no exception.**
-- ⚠️ **RULE EARNED 2026-08-14, still binding: AN AGENT'S FINDINGS ARE NOT AN ARTIFACT UNTIL THEY ARE ON
-  DISK.** A background-task notification is a delivery mechanism, not a record. `docs/reviews/` is where
-  a review exists; if it is not there, it did not happen.
-- ⚠️ **Before retiring any worktree, run `git -C <wt> status --porcelain --ignored`** and ask whether a
-  merged artifact references anything ignored there (§7, 2026-08-11). **Securing evidence with `cp -r`
-  destroys mtimes** — and this session used P5.1's mtimes to measure the campaign, which is the second
-  time that evidence has been load-bearing.
+`docs/reviews/T1-metric-ground-truth.md` (**FAIL, 4 blockers**) established, and the coordinator
+re-verified in both implementations:
+
+- **Ours** (`metrics/cityflow.py:60,159`) calls `get_vehicles(include_waiting=False)` — **vehicles
+  created but never admitted to the network are invisible to it.**
+- **CityFlow's own** (`engine.cpp:682-691`) iterates the whole `vehiclePool` with **no filter**.
+- **So our metric rewards a policy for preventing vehicles from entering.** hz1x1/Random: **427.04 ours
+  against 877.95 the engine's, with 774 of 2021 never entering.** In a saturated falsification **the
+  sign flips.** On matched draws it **inverts the ranking** of `fixedtime` and `mappo060` in 7 of 8.
+- 🚨 **§3.1 registered a safeguard against exactly this — an entered-count co-report with a >5 %
+  invalidation — and amendments A4 and A5 withdrew it. A5's ground was a spread measured WITHIN ONE
+  POLICY FAMILY (4.1 %) and stated OF ALL POLICIES (35.0 % measured). The coordinator recommended and
+  approved both.** **That is the strongest pre-registration argument the paper has and it does not
+  depend on novelty.**
+
+> ✅ **RULED 2026-08-28, option (a): every ATT cell carries BOTH definitions plus the entered count,
+> re-derived by deterministic replay.** **No re-collection and no retraining** — T1 verified flow draws
+> regenerate to matching sha256 and 36 shipped episodes replay bit-identically.
+> **Costed: 46,800 episodes / 100 cells → 21.9 h serial, 4.4 h at 5-way; 35,100 / 75 after removing the
+> 25 cells P4.7 contains bit-identically → 16.4 h / 3.3 h. hz1x1-calibrated; grid4x4 unmeasured.**
+
+#### 🟡 Liveness — commands and timestamps, per the 2026-08-20 rule
+
+**2026-08-29:** `git worktree list` → **TWO**: `/home/filip/rltraffic` on **`task/p5.3b-nortg-campaign`
+@ `53e995d`** and `/home/filip/rltraffic-p84a` on `task/p8.4a-entered-probe` @ `369f079`.
+**`tmux ls` → `fix05` and `p84a` both EXIST and are ATTACHED** — ⚠️ **but `tmux list-panes` shows only
+`bash` in each and `pgrep -fa "python|cityflow|sumo"` returns nothing of ours. They are IDLE SHELLS,
+not live campaigns.** *(Say it that way; "nothing is running" is false and "a campaign is running" is
+false.)*
+⚠️ **THE MAIN TREE IS NOT ON `main`. A fresh session must `git checkout main` there first**, and the
+coordinator commits from a throwaway worktree with `git -C` (§7).
+
+#### ✅ Merged since the last rewrite
+
+**P5.3a** (2026-08-26, `f4a73d3`) — the RTG probe. ⭐ **`A9` HAS AN OBJECT: the prompt moves 499 of 500
+episodes, mean absolute 2.13 ATT; "P4.3 made the prompt a weak lever" was a summary statistic read as
+a property and is corrected in §1b.** Carried: identity **cell 2 is NOT discriminating.**
+**P8.4a** (2026-08-29, `c6ba1eb`) — the entered-count probe, after `docs/reviews/P8.4a.md`
+(**PASS-WITH-NOTES, 2 blocking**, both closed). ⭐ **The offline-learned policies do NOT win by
+blocking entry: `iql@random` on grid4x4 admits `1.000000`; on hz1x1's `random` tier `iql` admits
++5.39 pp MORE than its behaviour policy, so its advantage is UNDERSTATED.** ⭐ **And the mechanism is
+measured: admission tracks data quality — 0.99991 / 0.90745 / 0.65621 — so the distortion lives in the
+C1 hz1x1 ladder, not in P5.2's grid4x4.**
+
+#### 📋 T1–T4, the ground-truth audit commissioned 2026-08-28
+
+**T1 FAIL** (above) · **T2** — `docs/notes/EXTERNAL_ANCHORS.md`, the project's **first external
+anchor**: our MaxPressure **247.75** against DataLight's **284.44 / 327.62** at the same 10 s interval.
+⚠️ **SUSPENDED until the definitions settle — DataLight's figures are almost certainly the engine's
+quantity.** · **T3 PASS-WITH-NOTES** — **C6 verified on the FULL hz1x1 population, 1600/1600 episodes,
+576,000 rows**; action→phase exact **129,600/129,600**. **But no DATA corruption is caught by anything
+except a shape violation.** · **T4** — **no wrong keys, no skipped cells, no tier mixing** across
+46,800 records; **but three of four campaigns could not have detected those failures themselves.**
+
+#### 🔒 Integrity
+
+**Ten manifests, all verifying: 735 files, 0 failures** (`p4_3` 10 · `p4_4_p4_5` 44 · `p4_6` 125 ·
+`p4_7` 112 · `p5_1` 48 · `p5_2` 221 · `p5_3a` 10 · `p7_0` 36 · `p8_3` 18 · `p8_4a` 111).
+⚠️ **`output/` is gitignored with no backup.** ⚠️ **CI is EXPECTED to go red on the skip ceiling at
+P8.4a's merge** — the registered protocol is `re_measure_required_at.what_to_do`: merge, let it go red,
+classify `junit.xml`, commit the observed value. **Do not pre-bump.**
 
 ### Immediate queue, in order
+
+**0. ⚡ P8.4b — THE RE-DERIVATION. Ruling (a)'s execution, and it has a prerequisite.**
+> 🚨 **FIRST OBLIGATION, before any re-derivation: `att_engine` has NO EXTERNAL REFERENCE on grid4x4.**
+> T1 reconstructed the engine metric by hand **on hz1x1 only**; A0's decomposition, P8.4a's §7
+> conclusion and G2(c)'s second route **all rest on grid4x4's `att_engine`, which nothing has checked.**
+> **Do the same hand-reconstruction on grid4x4 first.** ⚠️ *We are one unvalidated quantity away from
+> the re-derivation resting on a number nobody checked — the exact shape of the defect that started
+> this.*
+> **Then:** every ATT cell carries `att_ours`, `att_engine`, `entered`, `created`, `never_entered`.
+> **Priority is the hz1x1 ladder** (P4.6/P4.7), where P8.4a measured the censoring at 9.3–34.4 %;
+> grid4x4's worst is 3.3 %. **Reuse `offline/admission_probe.py`, which already emits all five.**
+
+**1. 🔴 P5.3b — HELD, and it must be RE-SCOPED before it runs.** Branch `task/p5.3b-nortg-campaign` @
+`53e995d`; **`BRIEF_30` Amendment C's fix round IS done**; the campaign **never ran** (no
+`docs/data/p5_3b_nortg.json`); pre-flight is `docs/reviews/P5.3b-preflight.md` (CLEAR, 6 major).
+> ⚠️ **Do NOT simply release it. Under ruling (a) it must emit BOTH ATT definitions and the entered
+> count AT COLLECTION TIME**, or its 15 cells join the re-derivation backlog. **That is a brief
+> amendment, not new code — `admission_probe` already computes all five quantities.**
+
+**2. P5.3c — context-length K.** Our direct reply to DataLight's K ∈ {1,2}. `DTConfig.context_length`
+is already a knob, so this is configuration.
+**3. P8.1** — ≥5 seeds, CIs, paired tests. **4. P2.4** — the corpus linter, which now inherits
+`DEFERRED` 20/59/60. **5. P7.x** — C3, October. **6. P6** — cut 1 if the calendar binds.
+
+#### 🔒 STANDING RULINGS CARRIED FORWARD — restored verbatim 2026-08-29
+
+🚨 **These four were DELETED by the coordinator's own §10 rewrite on 2026-08-29 and restored the same
+minute, caught by the diff check that rewrite is supposed to be followed by.** §10's *"REPLACED, never
+appended to"* governs the STATE NARRATIVE; it does not license deleting standing rulings parked in the
+queue. ⚠️ **The irony is the lesson: T1's finding is about ATT, and the item I deleted is titled *ATT
+RECOMPUTATION*. A rewrite driven by new information is exactly when the old information looks
+disposable.** ⭐ **`att_ladder_v11.json`'s licensing, `rederive_anchors`' B1/B2/B3 blockers, the
+`policy_source` mechanism and P2.6's unreviewed artifacts are all MORE relevant after T1, not less —
+`offline/att_ladder.py` produces the C1 ladder figure and is still unreviewed.**
+
 0. 🟡 **ATT RECOMPUTATION — PARTLY DISCHARGED 2026-08-07, AND THIS ITEM READ AS WHOLLY LIVE UNTIL 2026-08-19.** 🚨 **The contradiction, found while auditing P5.2's red tests: §3.1 line 416 records *"the randomised-draw recomputation is DONE and both findings reproduce with their signs intact"*, while the text below still says NO ATT CELL MAY ENTER A FIGURE, A TABLE OR A CLAIM.** Both cannot be true, and P5.2 quotes ladder ATT in every figure it orders. **This is §7's own rule failing on itself — *a corrected definition propagates in BOTH directions* — the 2026-08-07 update reached §3.1 and never reached this queue item.**
    > ✅ **DISCHARGED, and usable without further work: the RANDOMISED-DRAW ladder over draws 1–200, `docs/data/att_ladder_v11.json`.** All 63 within-scenario pairs share an identical draw set, so every comparison is valid under A5 by construction. **P5.1 corroborated it live — its two anchors landed `0.0540` and `2.6276` ATT (0.03 % and 1.0 %) from the ladder's values on independently rolled held-out draws.** **P5.2 may quote it, order figures by it, and use it as the prediction rule's `T(t)` term.**
    > 🚨 **STILL BLOCKED, and this is the whole of what remains:** (i) the **nominal draw-0** comparison, which is a different quantity by D4 and was never recomputed — §3.1's cells stay `NOT SETTLED` **for that reason alone**, and the outstanding run is a confirmation rather than an open question; (ii) **`offline/rederive_anchors.py`** and anything derived from it, which still carries B1/B2/B3 below and the `policy_source` mechanism of item 0b; (iii) any claim that **pools** draw-0 with draws 1–200.
@@ -1993,124 +2015,24 @@ dangerous — accuracy elsewhere is not evidence for the line you did not check.
 
 0a. 🔓 **RULING 2026-08-07 — `compare_corpora` exempts cf_cologne3 from BIT-IDENTITY, and the replacement is a MEASURED envelope, not a waiver.** cologne3 is not bit-reproducible (7.7 % of draws diverge under identical code), so bit-identity cannot be its acceptance criterion. **Replacement, all three required:** (i) episode counts and draw ids must match **exactly** — those are bookkeeping and are reproducible; (ii) the tier-level mean of `total_global_reward` must agree within **1 %** (measured self-noise **0.080 %**, so ≈12× headroom); (iii) the fraction of differing episodes must be **≤ 20 %** (measured self-noise **7.7 %**, ≈2.6× headroom). **The tolerances are recorded with the measurement that produced them** so a later reader sees where they came from rather than finding round numbers. hz1x1 and grid4x4 keep strict bit-identity — they earned it, 44/44 tiers. **The exemption is recorded in the tool's output the way `fixedtime`'s is, naming cologne3 and the reason, so a passing gate never hides it.**
 0b. 🔒 **B1 MUST BLOCK BY CONSTRUCTION, AND TODAY IT DOES NOT — stated plainly rather than claimed.** The user required written confirmation that `rederive_anchors.py` cannot be run against the NOT SETTLED cells until it can load existing checkpoints, *because a blocker that depends on someone remembering it is the same class as the A2 sweep that recurred inside its own fix*. **Honest status: right now the block is CONVENTIONAL.** The coordinator does not write source, so the mechanism does not exist until an implementer builds it, and claiming otherwise would be the exact overclaim this plan keeps logging. **The registered mechanism, which is the first commit of whoever takes queue item 0:** (i) every cell `rederive_anchors.py` emits carries a machine-readable `policy_source` of `"retrained"` or `"checkpoint"`; (ii) the tool **exits non-zero** rather than emitting a cell for a checkpoint-backed tier while in retrain mode; (iii) any consumer that settles a NOT SETTLED cell **asserts `policy_source == "checkpoint"`** for every cell it uses. **Acceptance is mechanical: the refusal test must FAIL when the refusal is deleted** — a guard that passes its own test when removed is what `check_test_hygiene.sh` exists for. Until (i)-(iii) land, no number from that tool may settle anything, and that sentence is the whole of the protection.
-**Governed by the SEQUENCING RULING of 2026-08-14 above. Its items 1 (`P4.7`) and 2 (`P7.0`) are DONE
-and item 3 (`P5.1` + `P5.2`) is HALF DONE and IN FLIGHT, so the ruling has advanced to its third entry
-— it is not re-opened. Item 4 (`P6`) stays October and stays cut 1.**
 
-1. ✅ **P5.2 — MERGED 2026-08-24 at `63e384e`, §6 ticked in the merge commit. This item is CLOSED and is
-   kept only so the queue's history is legible; the result lives in §6's P5.2 entry.** `Q1` HELD 15/19 ·
-   `Q2a`/`Q2b` FAILED 3/3 · **`Q3` FAILED 3/3 — the DT leads NO out-of-sample tier** · `Q4` INVERTED
-   (+39.5649 → −0.7063, the spatial harm is a `mappo1000` phenomenon) · `Q5` confirmed twice. Review
-   `docs/reviews/P5.2.md` **FAIL, 2 blockers**, both closed with mutation evidence before the merge.
-   ⚠️ **Four minors remain OPEN and unfixed: MN-1, MN-3, MN-4, MN-5.** ⚠️ **BL-1 destroyed six
-   training-provenance records** (`final_loss`/`seconds` per run) — unrecoverable, `output/` is
-   gitignored, and no reported number depends on them.
-   ~~*CAMPAIGN RUNNING, PHASE B*~~ **withdrawn 2026-08-24.**
-0d. ✅ **P5.3a — MERGED 2026-08-26 at `f4a73d3`. §6 ticked in the merge commit; ninth manifest written.** Result in §6's entry. ⭐ **`A9` has an object: the prompt is a strong lever on the POLICY (499 of 500 episodes move, mean absolute 2.13 ATT) and a weak one on MEAN QUALITY (+0.9026).** ⚠️ **Carried, unrepaired and deliberately so: identity cell 2 (`random`) is NOT discriminating** — both required mutations survive on it, so **only cell 1 protects `agent/DTAgent.py`'s default path**. ⚠️ **Also carried:** MJ-1's provenance split records one commit because all ten chunks were measured in one sitting, so **the genuinely chunked case is still undemonstrated**; and M2/M5/M6 are recorded, not fixed.
-0e. ⚡ **P5.3b — THE NEXT TASK, AND ITS REGISTRATION IS NOW WRITEABLE.** The `dt_nortg` campaign on hz1x1, reusing P4.6/P4.7's committed `dt` column. 🔒 **Three things P5.3a fixed in advance and its brief must carry: (i)** the spread axis is built on **row B**, never on `RtgSummary.std`, which is 65–93 % within-episode ramp on single-policy tiers and is fitted on the **union** of all three mixtures' directories, identical for all three; **(ii)** `offline/dt_gate.py:749-754` has **no `rtg_mode` parameter**, so threading it through `train_dt` is P5.3b's first commit; **(iii)** new checkpoints write a **9-key** `config`, and `docs/data/p4_dt_config.json`'s `architecture` block is literally `payload["config"]`. ⚠️ **And the question has changed shape: it is no longer *"is there a knob?"* — there is — but *"does removing it cost anything, and is the cost data-dependent?"***
-0f. 🔵 **P5.3c — context-length K**, the direct reply to DataLight's K ∈ {1,2}. `DTConfig.context_length` is already a knob, so this is configuration, not new code.
-~~0d. ⚡ P5.3a — BRIEF_28, THE NEXT TASK~~ **superseded above.** Original: **`BRIEF_28`, THE NEXT TASK, AND IT USES NO GPU.** The RTG probe and the `rtg_mode`
-   mechanism: does the return prompt do anything at all, measured on checkpoints we already own,
-   before a single new model is trained. **Split out of P5.3 by the 2026-08-24 ruling** — P5.3b's
-   registration needs a measured return-spread table and a per-tier δ that only this task produces.
-   **DONE:** Gates 0/1 (7 reused cells re-verified at consumption, `random` anchor exact on 500
-   episodes) · **E1's envelope = exactly 0.0000** · **PHASE A** · **PHASE C**. **RUNNING:** phase B,
-   `maxpressure`, since `13:04:38`.
-   ⭐ **PHASE A's RESULT, scored by the registered paired-per-draw test (`NOTE N1`): `d1` (1 head, P5.1)
-   **+39.5649** [+36.0510, +43.0787] · `d4` (4 heads) **+27.1004** [+23.8150, +30.3858] ·
-   **`I = d4 − d1` = −12.4645 [−16.3575, −8.5714]**. The stop rule did NOT fire. **The harm survives at
-   the head count both in-domain papers use, and 31.5 % of it was the head count** — with `I < 0` on
-   **70 of 100** draws, not all of them, which travels with the mean.**
-   📏 **COST — CORRECTED 2026-08-20 15:05 by the author (`BRIEF_27` P4); my first figure was wrong and
-   is withdrawn.** A ladder DT arm-seed is **≈57 min** — **1-head**, measured **55.8 and 58.4 on this
-   very tier today** — so **a full tier is ≈13.5 h** (bounded 13.5–14.8 across the observed 1-head range
-   55.8–64.9) and **≈40–42 h remain**, ending **the morning of 2026-08-22**.
-   ⚠️ ~~*74.6 min, a full tier 16.4 h, ≈51 h remaining*~~ **is WITHDRAWN: all ten observations behind it
-   were `_h4` cells and the entire ladder is 1-head.** *(The pre-campaign "≈39 h / ≈53 h" is superseded
-   too — it used 59 min/seed against a then-unmeasured tier count.)*
-   ✅ **RULED 2026-08-20 (`O2`, unchanged under correction): the pre-declared `fixedtime` fourth rung is
-   NOT cut.** Cutting now saves **≈13.5 h = 0.56 days = 2.1 %** of the ≈27 remaining experimental days,
-   while `fixedtime` is the rung `B1`/`F4` chose **because it broke §1b R3's monotonicity and flipped
-   R2's sign on hz1x1** — the most falsifying rung available — and the fourth point is what lets `Q4b`
-   show a **kink** rather than a line. **The correction shrank the saving and left the value untouched,
-   so the margin widened.** Checked against sunk cost: I would add this tier today at 13.5 h if it were
-   unscheduled.
-   ⛔ **RULED 2026-08-20 by the author (`P1`): THE CAMPAIGN IS NOT INTERRUPTED. Phase B runs
-   `maxpressure → fixedtime → random` as the script stands** — because a resume now is a **mid-arm**
-   resume, which is exactly the unfixed `O4` defect, and **my own escalation had priced the kill without
-   carrying the cost I had documented four paragraphs earlier.**
-   🔒 **REGISTERED IN THE AUTHOR'S NAME (`P2`), so it is never read later as an oversight: with this
-   order the only tier a cut can reach is `random`, which carries the mandatory I1/J1 replicate, so THE
-   LADDER IS ALL-OR-NOTHING BY CONSTRUCTION — four tiers, or a campaign that mechanically refuses to
-   report itself complete.** Verified in the artifact: `p5_2_declaration.json` declares **35 cells**
-   across all four tiers plus the `random`-tier replicate, and `assert-complete` derives its expected
-   set from that file rather than from the files being checked.
-   ⚠️ **Still open and purely documentary: `docs/plans/p5.2.md:861` reads *"PHASE B maxpressure, then
-   random"* and contradicts both the declaration and the script.** Correct it **to the declaration** in
-   the implementer's next commit.
-2. ⚡ **P5.3's NO-RTG ABLATION — promoted out of the generic "ablations" line, and it is the measurement
-   the paper's only NAMED contribution is currently missing.** §1b's **C4** states the problem exactly:
-   P4.3 measured the prompt at **0.9026 ATT** across a 13,000-wide grid, and an inference-time sweep
-   **cannot distinguish** *(i)* the model is robust to the target from *(ii)* **the model learned to
-   IGNORE the RTG token because our corpus lacks the return spread for it to be identifiable.** ⚠️
-   **Under (ii), inertness IS the mechanism rather than its exclusion — and a DT whose RTG token carries
-   nothing is BC with extra parameters, which is exactly what §1b's R1 (BC within 1.51 ATT) looks like.**
-   **Why it moves up: `A9` names *probe-calibrated return prompting* as our only claimed novelty, P4.3
-   made it weak in-domain, and P7.0's cross-domain gate DID NOT RESOLVE — so nothing currently
-   establishes that the prompt is a lever at all.** It is a training-config ablation on hz1x1, where
-   P4.6 measured ~1 h per tier, so this is **hours, not days, for a result that decides whether a named
-   contribution survives.** Registered at §6 P5.3 and named in `docs/plans/p4.4.md:295`.
-   > ⭐ **SPLIT IN TWO ON 2026-08-24, zero-GPU half first (`BRIEF_28` = P5.3a, then P5.3b).** ⚠️ **And
-   > the reason is a real gap in the design as it stood here: a no-RTG ablation run on `mappo1000`
-   > ALONE answers the wrong half.** If it comes back null, the first referee question is *"of course —
-   > your data has no return spread; you never gave the token a chance"*, which is **§1b's C4 hypothesis
-   > itself**, unaddressed. **So the campaign must vary the return spread**, and P4.7 already owns the
-   > corpora that do it (`mix33/50/67`, whose components are ~29,600 return units apart) alongside the
-   > single-policy tiers. **Which tiers, and at what scale a null counts as equivalence, are numbers
-   > P5.3a measures** — hence the split, and hence P5.3b's registration is not written yet.
-   > 🔒 **Ruled with it, so a later reader does not re-open them:** the ablation is an `rtg_mode` FIELD
-   > on `DTConfig`, never a subclass (a subclass writes a checkpoint that `DTAgent.load` rebuilds as a
-   > *conditioned* model at `agent/DTAgent.py:801` — a plausible number from the wrong weights); the
-   > `dt` column is **REUSED** from P4.6/P4.7, not retrained; and Amendment R2's standing instruction
-   > holds — **a one-seed timing probe before any campaign commitment, no armchair costing.**
-   > ⚠️ **`P5.3`'s FIRST listed ablation, *no-spatial-mixing*, IS ALREADY DELIVERED** — `dt_nomix` is
-   > that arm and P5.2 ran it across four tiers. **P5.3's remaining scope is no-RTG and context-length
-   > K**, and K is a separate brief because the no-RTG answer changes what K measures. **K is also our
-   > direct reply to DataLight, who tested K ∈ {1,2} and concluded a DT cannot work for TSC.**
-3. **P8.1** — ≥5 seeds everywhere, mean ± 95 % CI, paired tests vs the strongest baseline.
-   ⭐ **Its value has risen twice more since it was queued.** P4.7's M1 showed our per-draw CIs average
-   the 5 training seeds into each unit, so they say **nothing** about between-seed spread — and **P5.1
-   produced the sharpest instance yet: a treatment sd of 30.36 against a control's 0.10, with three
-   headline orderings carrying `reverses_on_n_seeds ≥ 1`.** ⚠️ **It also owns two open statistical
-   debts: §1b's R7 may not carry inferential weight without a family-wise correction that does not
-   exist, and ATT is bounded below and right-skewed, so every visibly non-unimodal arm needs a median
-   or a distributional comparison beside its mean.**
-4. **P2.4** — corpus linter. Checks already specified by the ad-hoc verification of 2026-08-06, plus the
-   binding constraints in §6's P2.4 entry and `DEFERRED` rows 20, 24, 25, 26, 30.
-5. 🚨 **P7.1 → P7.2 → P7.3 → P7.4 — THE REST OF C3, AND `P7.2` IS THE PAPER'S ONLY NAMED CONTRIBUTION.
-   PLACED HERE 2026-08-18 BECAUSE THEY WERE IN §6 AND IN NO RULING — raised by the user after they had
-   survived roughly 40 commits unscheduled.** §6 reads P7.2 as *"RTG calibration protocol for
-   cross-domain prompting — novel contribution candidate"*: that **is** `A9`'s *probe-calibrated return
-   prompting*, **the only thing this paper NAMES as its own**, and **no experiment for it is scheduled.**
-   ⚠️ **State the position plainly rather than letting it sit implied: P4.3 made the prompt a weak lever
-   IN-DOMAIN (0.9026 ATT across 13,000 units), §1 therefore rests the component's case entirely on the
-   CROSS-DOMAIN axis, and P7.0 — the gate on that axis — DID NOT RESOLVE. So the named contribution
-   currently has neither a positive in-domain result nor a resolved cross-domain one.**
-   > **Sequencing ruled, and the cheap test comes first: queue item 2's NO-RTG ABLATION IS A
-   > PREREQUISITE FOR P7.2, not a parallel ablation.** If the DT ignores the RTG token, there is no knob
-   > for a calibration protocol to calibrate, and P7.2 would be built on an inert mechanism. **Hours
-   > against weeks, and it can only shrink the work.**
-   > **Prerequisites that are CPU-only and can run while P5.2 holds the GPU:** `DEFERRED` **18** (SUMO's
-   > ATT is verified metric-set-independent on **CityFlow only** — a wrong-but-plausible ATT column in a
-   > SUMO corpus is the silent-number failure this repo exists to prevent) and `DEFERRED` **23** (**8 of
-   > 8 lane ids mis-denote across backends**, a P7.3 prerequisite found by P7.0 and written down by
-   > nobody before it). **Neither needs the card; both block any SUMO corpus.**
-   **Status: October, inheriting C3's October placement — not cut, not scheduled, and now visible.**
-6. **P6** — the 2×2 shift benchmark. **October**, and **cut 1** if the calendar binds.
-*(Rewritten 2026-08-18, never appended to. The version replaced here listed **P7.0 as item 1 and
-P5.1 as item 2 — both merged**, and carried a standing paragraph headed "P7.0 has never been run",
-which had been false since 2026-08-16. A stale instruction is worse than a stale fact: it is an order
-to act on a world that is gone.)*
+#### 🆕 Open from this session — read `DEFERRED` 56–61
+
+**57** two functions named `canonical_state_dict_digest` **disagree** (`4ac3ab78…` vs `314c9fe4…`), no
+version tag · **58** three of four campaign guards cannot detect the failures they exist to prevent ·
+**59** ⭐ **the alignment tests run on `datasets/` (v1.0) while every model trained on `datasets_v11/`
+— the fix is free and was demonstrated** · **60** `step` and `sim_time` are stored tripwires read by
+nothing · **61** CWD-dependent checks; **`source_flow` closed, the `sumo` dict's two path fields ruled
+LEFT AS IDENTITY** (giving them digest twins is a **format migration**: an absent field compares
+unequal to a present one, so every existing draw would refuse) · **56 was the coordinator's error and
+is corrected** — `p4_dt` and `p4_probe` **are** digest-covered elsewhere and verify.
+
+#### 🔒 New §7 rules earned this session
+
+**PRE-FLIGHT REVIEW** before any run over an hour or writing under `output/` while consuming a reused
+column · **answer a delivery question by EXECUTING the delivery path** · **a ruling on `main` is not
+delivered until the branch merges it** — every packet states which amendments it was written against ·
+**stage named paths; `git add -A` is forbidden** (three instances in four days, all saved by luck).
 
 **⚠️ Standing constraint inherited from P7.0, and it survives that task's closure — bind hangzhou's
 vType before ANY further cross-backend work** (Decisions Log 2026-07-31): the shipped `.rou.xml` binds
