@@ -1,0 +1,75 @@
+# A11 — DRAFT FOR APPROVAL. **NOT REGISTERED. NOT TAGGED.**
+
+**Status:** draft, **written 2026-08-29**, awaiting the author's approval.
+**On approval:** this row is moved verbatim into `PREREGISTRATION.md` §12 (newest row first, above A10),
+committed, pushed, and tagged. **Until that happens, nothing here is registered and no claim may cite it.**
+
+> 🔒 **THE DATE CELL IS LOAD-BEARING AND MUST BE THE DATE OF THE REGISTERING COMMIT, NOT OF THIS DRAFT.**
+> The drafting ran across midnight: the row was composed on **2026-08-29** and can now register no earlier
+> than **2026-08-30**, so the cell reads 2026-08-30 and the Change cell records the drafting date. **If
+> approval slips again, whoever lands it updates the cell to that day and leaves the drafting date
+> alone.** ⚠️ **§7 already records this exact trap in the other direction** — four rules were once written
+> a day ahead, and *"in a project where a rule's authority is its date, a rule dated in the future cannot
+> be checked against the commit that added it"*. `DEFERRED` 26 queues a `git blame`-versus-written-date
+> audit that would flag any mismatch here. **Nothing substantive turns on which of the two days it is —
+> no P8.4b number exists on either — which is precisely why there is no excuse for getting it wrong.**
+
+**Why this file exists rather than a chat message:** §7's rule of 2026-08-18 — *a number that arrives in
+prose and never becomes an artifact is subject to none of our verification rules*. A proposed amendment
+is exactly that class of object.
+
+---
+
+## Housekeeping found while preparing the tag, and it needs a decision at tagging time
+
+**A10 (2026-08-28) IS IN THE TABLE AND HAS NO TAG.** Measured: `git tag -l "v*prereg*"` returns ten tags,
+`v0.1-prereg` … `v1.0-prereg-a9`. There is no `v1.1-prereg-a10`. ⚠️ **This matters for A11 specifically,
+because A11's entire credibility rests on being externally timestamped before a number exists** — and
+the project's own §0 says a local artifact is not a third-party timestamp. Two options at tagging:
+tag A11 alone as `v1.1-prereg-a11`, or tag once as `v1.1-prereg-a10-a11` covering both. **Recommendation:
+the latter, and say in the annotation that A10 went untagged and is being anchored late** — an anchor
+placed late and labelled as late is worth more than a gap nobody explains.
+
+---
+
+## The proposed row, in final form
+
+| Date | Change | Reason | Results already seen? |
+|---|---|---|---|
+| 2026-08-30 | **A11 (drafted 2026-08-29, registered on the date in this cell) — §3.1's source-verification claim is CORRECTED, the 2026-08-28 ruling is REGISTERED, and the choice of which ATT definition the paper's claims rest on is registered as an OPEN QUESTION UNDER A TOTAL DECISION RULE, before any re-derived number exists.** **(a) FACTUAL CORRECTION.** §3.1 states, of `average_travel_time`, that it was *"verified in source … In all three checked: the metric averages over all vehicles that entered the network"* and *"is therefore free of survivorship bias"*. **The second and third implementations do not do that, and the conclusion is inverted for the first.** CityFlow's own `Engine::getAverageTravelTime` (`engine.cpp:682-691`) iterates the entire `vehiclePool` with **no filter**, so it averages over every vehicle ever **CREATED**, admitted or not; `getRunningVehicles` (`:780-786`) is the one that filters. Our `metrics/cityflow.py:60,159` calls `get_vehicles(include_waiting=False)`, so **vehicles created but never admitted are invisible to it** — which is not freedom from survivorship bias but a survivorship bias of its own, on the entry axis, **and it rewards a policy for preventing vehicles from entering.** Established by `docs/reviews/T1-metric-ground-truth.md` (2026-08-28, FAIL, blockers B1 and B3), whose reconstruction reproduces the engine value to **0.000e+00** on two hz1x1 episodes, and re-verified in both sources by the coordinator. **§3.1's body text is NOT edited** — this document's convention since A2 is that the registered text stands and corrections are amendments, so a reader always sees what was registered and what was later found false. **(b) THE 2026-08-28 RULING IS REGISTERED.** Every reported ATT cell carries, unconditionally, all five of `att_ours`, `att_engine`, `entered`, `created` and `never_entered`, re-derived by deterministic replay. **This RESTORES, in a stronger and non-thresholded form, the safeguard §3.1 originally registered and A4/A5 withdrew** — it is a disclosure requirement with no threshold, no verdict and therefore no researcher degree of freedom. **(c) PRIMACY IS OPEN, AND THE RULE THAT SETTLES IT IS REGISTERED NOW.** Ruling (a) settles what is *carried*; it never settled what the claims *rest on*, and the two definitions invert the ranking of two corpus behaviour policies in 7 of 8 matched draws. **RULE R (primacy), applied PER SCENARIO S on which any claim is made.** Define the ENGINE-SEMANTICS GATE on S: an independent reconstruction of the engine's quantity, computed from raw engine vehicle-id sets and depart/arrive times, importing nothing from `metrics/` and nothing from `offline/admission_probe.py`. **The gate PASSES on S iff all four hold, each reported with its observed value: (1) AGREEMENT** — the maximum absolute deviation between the reconstruction and `eng.get_average_travel_time()` over the gate's episodes is below **1e-4 s**; **(2) DENOMINATOR** — the reconstruction's vehicle count equals `created` (= `entered` + `never_entered`) exactly, on every episode; **(3) DISCRIMINATING POWER, as a positive control** — the same reconstruction restricted to admitted vehicles only differs from the engine value by exactly the `att_difference` that `admission_probe` independently reports, to within 1e-4 s, on every episode; **(4) COVERAGE** — at least seven behaviour tiers times at least three draws, including the minimum and maximum `entered_fraction` episodes available on S. **CONSEQUENCE, and every scenario is in exactly one branch. PASS on S: `att_engine` is the primary metric for every claim on S, and `att_ours` is reported beside it in every table with the three counts. FAIL on S, or NOT RUN on S: no claim on S rests on either definition alone; both are reported, and any comparison whose ordering differs between the definitions is reported as DEFINITION-DEPENDENT and never as a win.** A deviation landing between 1e-4 s and 1e-2 s is a FAIL and is root-caused before any re-run, being neither float noise nor any semantic difference we have measured. **The gate binds hz1x1 too: T1's result was produced by a reviewer's throwaway script that no longer exists and was never reviewed as code, so it is evidence and not a passed gate.** **RULE L (external comparability), applied PER COMPARATOR PAPER.** The read answers one question **from source code, never from prose**: does that paper's reported average-travel-time denominator include vehicles created or loaded but never admitted to the network? Each paper is classified ENGINE-EQUIVALENT, OTHER, or UNRESOLVED. **Consequences, total: the paper may call `att_engine` the comparator quantity only for papers classified ENGINE-EQUIVALENT, naming each; papers classified OTHER are named and any figure of theirs we quote is labelled a different quantity; papers classified UNRESOLVED are NAMED AS UNRESOLVED in the comparability paragraph; and if no comparator resolves to ENGINE-EQUIVALENT, the paper makes NO external comparability claim and A1's comparability justification is explicitly withdrawn where the results are reported. In every branch RULE R IS UNAFFECTED**, because primacy rests on the denominator-population argument, which is internal and already measured. **(d) BACKWARD PROPAGATION, so the rule is not incomplete where it matters most.** Every registered gate or decision rule whose verdict was computed on `att_ours` — the §9 P4 gate at `offline/dt_gate.py:466-468` first among them — is re-evaluated under whichever definition Rule R makes primary, and **both verdicts are reported**, whether or not they agree. | **(a) A registration that asserts a known falsehood while the campaign it governs is being planned is the worst available state**, and the falsehood is not incidental: it is the sentence **A4 cited to withdraw the safeguard**. **(b) The ruling existed only in `PROJECT_PLAN.md` §10 and the Decisions Log, which §7's own rule says is not a registration** — *the declarations are the registration, not the plan, not the brief, not the script.* **(c) rests on a measurement taken on our own merged artifact, `docs/data/p8_4a_admission.json`, 1,870 cells over 20 draws and up to 25 distinct method-tier-arm combinations: `created` varies across policies in 0 of 20 draws, maximum within-draw spread 0.0000 percent, while `entered` varies in 20 of 20, maximum spread 61.54 percent on hz1x1 and 5.91 percent on grid4x4.** So on a shared draw the engine definition compares policies over an **identical population by construction**, and ours does not — **A5's registered shared-draw requirement already delivers the matched population it was written to deliver, but only for the engine definition.** A metric whose denominator the policy controls cannot arbitrate between policies. **This is also the third independent refutation of A5's stated ground**, which registered a 4.1 percent spread measured within one policy family: T1 measured 35.0 percent, and this measurement puts the maximum at 61.54 percent. **The 1e-4 s tolerance is anchored to data, not chosen:** the smallest gap between the two definitions anywhere in those 1,870 cells is **0.031699 ATT**, the pooled median is **6.8295** and the maximum is **423.73**, so the tolerance sits **317 times** below the smallest semantic difference we have ever measured and cannot mistake one for agreement. **THE DATE IS THE ONLY THING THAT MAKES THIS CREDIBLE, AND THE REASON IS UNCOMFORTABLE ENOUGH TO STATE IN THE REGISTRATION RATHER THAN IN A CHAT: BOTH PLAUSIBLE DIRECTIONS FAVOUR US, WHICH IS EXACTLY WHY REGISTERING BEFORE ANY P8.4b NUMBER EXISTS IS THE ONLY THING THAT MAKES THE CHOICE CREDIBLE.** Under the engine definition MaxPressure's measured advantage over Random widens from 41.98 to 69.85 percent, which **strengthens** C1's ladder; and P8.4a measured that on hz1x1's weakest tier the offline-learned policies admit **more** vehicles than the behaviour policy that produced their data, so their advantage is **understated** under our definition and would widen too. **We are not switching to a metric that hurts us, and pretending otherwise would be the dishonest version of this amendment.** **WHAT THIS AMENDMENT COSTS, STATED PLAINLY AND NOT SMOOTHED: it corrects a claim that A4 cited to withdraw a safeguard, so this document's audit trail now contains a refuted premise (D6 and §3.1, 2026-08-03), a withdrawal made on that premise (A4 on 2026-08-06 and A5 on 2026-08-07), and a correction three weeks later (A11, 2026-08-29). The coordinator recommended and approved both withdrawals. That sequence is the argument FOR pre-registration — the removal was legible enough to catch and reverse — but it is that argument ONLY IF ALL THREE STEPS REMAIN VISIBLE, so none of them is edited, softened or relocated.** | **YES for everything except the quantity this amendment governs, and the boundary is the whole point.** **Seen:** every C1, P4 and P5 result under `att_ours`, including the ladder, the P4 gate, P4.6, P4.7, P5.1, P5.2 and P5.3a; and **`att_engine` itself on 1,870 P8.4a cells** — five tiers on hz1x1, two on grid4x4 — from which the favourable directions described above are already known and are disclosed here rather than discovered later. **NOT seen, because none exists:** any re-derived ATT cell, any re-derived C1 ladder, any re-derived gate verdict, any re-derived P4.6, P4.7, P5.1 or P5.2 number — **the 75 cells of P8.4b do not exist in any form.** **The engine-semantics gate of Rule R has NOT BEEN RUN ON ANY SCENARIO**, hz1x1 included, and the comparator source read of Rule L has not begun. **So the rule that decides the primary metric is registered while its inputs are unknown**, which is the only condition under which such a rule is worth registering at all. |
+
+---
+
+## Working notes behind the draft — not part of the registered row
+
+**Why Rule R is scenario-scoped rather than global.** The gate asks whether the engine's own quantity
+means the same thing on a given network. That is a per-network question: hz1x1 has one intersection and
+short routes, grid4x4 has sixteen and multi-hop routes, cologne3 has non-deterministic demand. **A global
+verdict would import hz1x1's answer into networks where nothing checked it — which is the exact defect
+that started this**, and §7's rule of 2026-08-18 says the properties hz1x1 made invisible are found the
+moment a scenario with the missing property first runs.
+
+**Why the FAIL branch does not fall back to `att_ours`.** A failed gate means we do not understand what
+the engine computes on that scenario. Falling back to `att_ours` would make the **known-defective**
+metric primary; falling forward to `att_engine` would make an **un-understood** one primary. The branch
+therefore makes neither primary and reports the disagreement, which is determinate and is also the
+honest scientific answer. **A gate failure is itself a finding** — it would mean CityFlow's own metric is
+not one well-defined quantity across networks, a stronger claim than T1's and one the paper should make.
+
+**Scenario status entering the rule, measured 2026-08-29.** `scenarios/draws/` holds **cityflow1x1 106,
+cityflow_grid4x4 106, cologne3 11**. So hz1x1 and grid4x4 can be gated immediately; **cologne3's draws
+1005–1099 are absent and any cologne3 gate begins with a regeneration.** Under Rule R, a cologne3 that is
+never gated simply falls into the NOT RUN branch and carries no single-definition claim — which is
+determinate, and cheap, and does not block the paper.
+
+**Retired while drafting, on the population rather than a sample.** T1's MINOR that
+`getAverageTravelTime` lacks the `isReal()` filter, so lane-change shadow vehicles would double-count, is
+**inert across all 13 CityFlow sim configs**: 11 set `laneChange: false` explicitly and the two that omit
+it take `engine.cpp:53`'s default, which is `false`. This matters to Rule R because a shadow vehicle in
+the pool would break criterion (2), the denominator check, on a network with lane changes enabled.
+
+**What the coordinator could NOT verify and is not claiming.** Whether the comparator papers report the
+engine quantity — that is Rule L's job and it is unstarted; T1 flagged its own M4 as an inference and
+said the reviewer did not read their code. Whether any cologne3 cell behaves like hz1x1 or grid4x4 under
+either definition — cf_cologne3 is **absent from `p8_4a_admission.json` entirely**, so every
+`created`-versus-`entered` number quoted above is hz1x1 and grid4x4 only.
