@@ -465,3 +465,61 @@ per the brief — and the coordinator's session, which had no part in that act, 
 onto your branch and committed a ruling and a **pre-registration amendment draft** there. It was repaired
 by fast-forward and is logged in the Decisions Log. **The fix is structural, not vigilance:** one tree,
 one writer.
+
+---
+
+# AMENDMENT C — 2026-08-30: BRIEF_33 IS CANCELLED. ONE TASK, COMPRESSED CYCLE, DATED.
+
+## The scope change
+
+⛔ **`BRIEF_33` will not be written. The re-derivation folds into THIS task**, on this branch, ending in
+one merge. **My split was waste and is logged as such in the Decisions Log** — I spent a whole task
+cycle insuring against a re-run that costs one overnight (2.5–5.2 h at 5-way). **If Gate 0 fails, you
+re-run the re-derivation under the changed design; that is cheaper than the cycle I was avoiding.**
+
+**Scope is Option A, chosen by the author 2026-08-30:** Gate 0 on **hz1x1 AND grid4x4** — grid4x4 is
+~23 episodes and about four minutes, and the module is the expensive part in either case — plus the
+re-derivation over the cells the paper cites.
+
+## The cycle, compressed. What is KEPT, and it is kept because it demonstrably fired
+
+1. ✅ **THE PLAN GATE.** It caught A11's criterion 3 in this very task, before a line of source existed.
+   **Already discharged — your plan is written and ruled on.** Do not redo it.
+2. ✅ **MUTATION TESTING.** The six mutations of §8 plus the load-bearing test. **Non-negotiable.**
+3. ✅ **THE PRE-FLIGHT CHECK**, before the re-derivation only — it writes under `output/`. Gate 0 needs
+   none: eight minutes, no destructive write, no reused merged column.
+
+## What is DROPPED, and these are standing changes, not a dispensation
+
+4. ⛔ **The blocking merge review becomes a POST-MERGE review.** `PROJECT_PLAN` §7's new proportionate-
+   review rule: the block earns its place from **the cost of a late fix**, and this artifact regenerates
+   in under an hour. **The review still happens and its findings are still fixed** — it leaves the
+   calendar, not the process.
+5. ⛔ **The second human gate is RETIRED**, project-wide (§7). Tests-first is unchanged; the round-trip
+   in the middle of it is gone. **Write the tests, run them, confirm they fail for the right reason, and
+   keep going without waiting.**
+6. ⛔ **No separate Return Packet.** A short **result note** — `docs/returns/P8.4b.md`, one page — plus
+   the artifacts. It still carries the four-line **AI-assistance record** (a publisher requirement) and
+   the amendment letters it was written against.
+7. ⛔ **Questions get direct rulings, not amendments.** Ask in-channel; only a change touching
+   `PREREGISTRATION.md` becomes an amendment.
+
+## Dates — the author's, and they do not move
+
+| Date | What |
+|---|---|
+| **2026-08-31** | Module + tests + 6 mutations + load-bearing test; **Gate 0 run on both scenarios**. ⚠️ **Flag any slip TODAY, not on the 2nd.** |
+| **2026-09-01** | Pre-flight on the write path; re-derivation campaign; result note; **merge**. |
+| **2026-09-02** | 🔴 **P8.4b COMPLETE.** Post-merge review and any fixes. |
+| **2026-09-10** | ⛔ Backstop: P8.4 closes regardless of state. Does not move. |
+
+⚠️ **Gate 0's compute is ~8 minutes and the campaign is 2.5–5.2 h at 5-way, both measured** (hz1x1
+`1.29 s`/episode, grid4x4 `2.67 s`, n=1,870). **So a slip here is a build-time slip, and it is the only
+kind worth flagging early.**
+
+## Unchanged from BRIEF_32 and Amendments A/B
+
+A11's criteria (1), (2), (4) and A12's (3a)/(3b)/(3c); the per-second observer and the `_simulate`
+subclass; the `Archive::dumpVehicle` route; the worktree and its four absolute-path settings; the §6
+`P8.4b-G0` tick — **now `P8.4b`, since it is one task again**; the CI skip-ceiling patch as a separate
+commit; and the rule that you report measurements, never a verdict on which definition is primary.
