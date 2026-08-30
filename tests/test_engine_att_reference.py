@@ -689,8 +689,14 @@ def test_criterion_three_a_needs_a_qualifying_episode_to_mean_anything() -> None
 
 
 def test_criterion_three_b_requires_a_difference_where_vehicles_were_censored() -> None:
-    """The positive counterpart: where ``never_entered > 0`` the two MUST differ."""
+    """The positive counterpart: where ``never_entered > 0`` the two MUST differ.
+
+    ``covering_episodes`` already contributes ONE censored episode -- its ``min`` extreme, which
+    carries ``never_entered = 688`` and a 40 s difference -- so planting a second censored episode
+    with NO difference makes two qualifiers, of which one fails.
+    """
     rows = covering_episodes()
+    assert sum(1 for e in rows if e.never_entered > 0) == 1, "the clean fixture changed shape"
     rows[1] = episode(
         scenario=rows[1].scenario,
         tier=rows[1].tier,
@@ -703,7 +709,7 @@ def test_criterion_three_b_requires_a_difference_where_vehicles_were_censored() 
         att_reference_entered_population=160.0,
     )
     got = evaluate_scenario(rows)
-    assert got.c3b_n_qualifying == 1
+    assert got.c3b_n_qualifying == 2
     assert got.c3b_min_difference == 0.0
     assert not got.c3b_passed
     assert not got.passed
@@ -779,7 +785,7 @@ def test_the_artifact_carries_every_episode_the_criteria_and_no_verdict_on_the_m
 def test_the_artifact_refuses_a_science_verdict_planted_in_it() -> None:
     """Proves ``assert_no_science_verdict`` is actually reached, not merely imported."""
     rows = covering_episodes()
-    with pytest.raises(ValueError, match="verdict"):
+    with pytest.raises(ValueError, match="is a verdict on the science"):
         gate_artifact(
             episodes=rows,
             criteria={"hz1x1": evaluate_scenario(rows)},
@@ -870,11 +876,13 @@ def test_the_gate_exits_non_zero_on_a_deliberately_wrong_reference(tmp_path: Pat
     out.mkdir(parents=True)
 
     def write(rows: list[GateEpisode]) -> None:
+        """Write the episode files exactly as the ``gate`` subcommand does, schema stamp included."""
         for path in work.glob("*.json"):
             path.unlink()
         for row in rows:
             name = cell_file_name(row.scenario, row.tier, row.method, row.seed, row.draw_id)
-            (work / name).write_text(json.dumps(row.as_record()), encoding="utf-8")
+            payload = {"format_version": ARTIFACT_FORMAT_VERSION, **row.as_record()}
+            (work / name).write_text(json.dumps(payload), encoding="utf-8")
 
     clean = covering_episodes()
     write(clean)
@@ -1015,8 +1023,11 @@ def test_first_seen_is_start_time_plus_one_interval_on_a_synthetic_flow(
         entry["startTime"] = start
         entry["endTime"] = start
         flow.append(entry)
-    flow_path = tmp_path / "flow.json"
-    flow_path.write_text(json.dumps(flow), encoding="utf-8")
+
+    # CityFlow resolves roadnetFile and flowFile against `dir`, so both must live under it: the
+    # scenario dir is read-only to this test, hence a private copy of the roadnet in tmp_path.
+    (tmp_path / "flow.json").write_text(json.dumps(flow), encoding="utf-8")
+    (tmp_path / roadnet.name).write_bytes(roadnet.read_bytes())
 
     config_path = tmp_path / "cityflow.json"
     config_path.write_text(
@@ -1024,9 +1035,9 @@ def test_first_seen_is_start_time_plus_one_interval_on_a_synthetic_flow(
             {
                 "interval": 1.0,
                 "seed": 0,
-                "dir": str(scenario_dir) + "/",
+                "dir": str(tmp_path) + "/",
                 "roadnetFile": roadnet.name,
-                "flowFile": str(flow_path),
+                "flowFile": "flow.json",
                 "rlTrafficLight": False,
                 "saveReplay": False,
                 "laneChange": False,
