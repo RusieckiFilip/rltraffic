@@ -2082,7 +2082,21 @@ in this queue, so §6 currently understates the remaining work. Whoever writes t
 
 ### Immediate queue, in order
 
-**0. ⚡ P8.4b — THE RE-DERIVATION. Ruling (a)'s execution, now governed by A11.**
+**0. ⚡ P8.4b — SPLIT IN TWO 2026-08-30, and the split follows the gate's own logic.**
+> ⭐ **`BRIEF_32` IS ISSUED: `P8.4b-G0`, Gate 0 ONLY**, branch `task/p8.4b-g0-engine-att-reference`.
+> **The re-derivation campaign is `BRIEF_33`, written only after Gate 0 returns — because if Gate 0
+> FAILS the campaign's design changes, and one brief carrying both invites starting the campaign before
+> the gate resolves.** `BRIEF_32` also carries the CI skip-ceiling re-measure as a separately-committed
+> patch, and explicitly fences OUT the `plan_replay.py` M3 docstring, which stays with the metric change
+> in `BRIEF_33`.
+> ⭐ **Sharpened while writing the brief, from `engine.cpp:682-691` rather than from T1's summary: the
+> engine's denominator is `finishedVehicleCnt + |vehiclePool|`, and a waiting vehicle contributes
+> `currentTime − enterTime` — the full entry-queue penalty our metric discards.** The reconstruction is
+> therefore a **per-second** observer built by subclassing `CityFlowEnv` and overriding `_simulate`
+> (`envs/cityflow_env.py:182-185`), **never an env-step-boundary observer**, because a 10 s grid
+> reproduces M1's own quantisation defect inside the instrument meant to be free of it.
+
+**Original item, unchanged — THE RE-DERIVATION. Ruling (a)'s execution, now governed by A11.**
 > 🔒 **A11 REPLACES THIS ITEM'S PREREQUISITE WITH A REGISTERED GATE. What was *"hand-reconstruct
 > `att_engine` on grid4x4"* is now `RULE R`'s ENGINE-SEMANTICS GATE, with four criteria that must each
 > be reported with their observed value:** (1) agreement with `eng.get_average_travel_time()` below
