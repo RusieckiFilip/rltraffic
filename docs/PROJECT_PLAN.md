@@ -947,7 +947,7 @@ DoD fails without it rather than depending on a coordinator's habit.
 
 **PASTE THE SWEEP, NEVER REPORT A COUNT (added 2026-08-11).** When fixing a class, **paste the full stem-grep output into the message, one line per hit, each labelled `LIVE` / `DATED-ANNOTATED` / `DIFFERENT-CLAIM`.** Never write *"five sites"*. **A count is a description of the sweep; the enumerated list IS the sweep.** Three consecutive sweeps came up short — `429.67 (Random)` vs `429.67 Random`, then `byte-identical` vs `byte-identity`, then a site the user could not check because I had reported a number — and **all three failed at the CLASSIFICATION step, not the search step.** The 2026-08-07 rule already says classify every hit; it kept failing because the classification happened in my head, where nothing can check it. Pasting moves it somewhere the other seat can audit. *Corollary learned the same day: a crude classifier is not a substitute for reading each line — an automated labeller flagged 40+ hits as defects that were a different claim entirely, and acting on it would have been the over-application failure of 2026-08-07.*
 
-**Check a worktree's IGNORED artifacts before retiring it (added 2026-08-11).** `git worktree remove` deletes gitignored state without warning, and `output/` is gitignored by design. Before removing any worktree, run `git -C <wt> status --porcelain --ignored`, and for each ignored path ask whether a **merged** artifact references it. P4's worktree held the five checkpoints backing the reported gate; they are now copied and sha256-verified against `docs/data/p4_gate.json`.
+🔒 **TWO RULINGS ON BRANCH BACKING (added 2026-08-30, on the author's finding). The practice was INCONSISTENT, NOT ABSENT — measured: 21 local `task/*` branches, 21 on `origin`, ZERO without an upstream — and an inconsistent practice is one that has been holding by habit.** **(1) A WORKTREE IS NOT RETIRED UNTIL ITS BRANCH HAS AN UPSTREAM.** Before `git worktree remove`, run `git rev-parse --verify refs/remotes/origin/<branch>`; if it fails, push first. **This joins the 2026-08-11 ignored-artifacts check as a second precondition on the same command, and it exists because the two failure modes are complementary: that rule protects gitignored FILES the worktree holds, this one protects the COMMITS the branch holds.** ⚠️ **A branch with no upstream is on one laptop, which §7 already recorded as the single point of failure that `output/` and the corpus share.** **(2) THE MERGE PROTOCOL PUSHES THE TASK BRANCH, NOT ONLY `main`.** A merge that pushes `main` alone leaves the branch's own history — the review round, the fix commits, the packet's provenance — unbacked, and the squashed or merged result does not preserve it. **Push both refs and paste both comparisons**, the same standard §7 already sets for `main`. **Original rule follows.** **Check a worktree's IGNORED artifacts before retiring it (added 2026-08-11).** `git worktree remove` deletes gitignored state without warning, and `output/` is gitignored by design. Before removing any worktree, run `git -C <wt> status --porcelain --ignored`, and for each ignored path ask whether a **merged** artifact references it. P4's worktree held the five checkpoints backing the reported gate; they are now copied and sha256-verified against `docs/data/p4_gate.json`.
 
 **Tick the checklist in the merge commit (added 2026-08-07).** §6 is the project's completion state, and a checkbox is a claim like any other. **The merge that lands a task ticks its boxes in the same commit** — never as a follow-up, because a follow-up is a step that gets skipped. This has now failed in **both directions**: on 2026-08-06 §10 read as progress that had not happened, and on 2026-08-07 §6 read as absence of work that had. Both make the section unusable as the thing it exists to be. The drift check is in §6's header and is one command.
 
@@ -1567,6 +1567,7 @@ is still running"* are two claims, and the second needs its own command.
 
 | Date | Decision | Rationale |
 |------|----------|-----------|
+| 2026-08-30 | 📅 **P8.4 GETS A DATED PLAN AND A CLOSURE CONDITION — owed to the author since 2026-08-26 and not delivered until he asked a fourth time. THE DELAY IS ITSELF THE FINDING: a probe without an end date is not a probe.** **Costed from measurement: per-episode wall time over the 1,870 episodes of `p8_4a_admission.json` is hz1x1 `1.29 s` and grid4x4 `2.67 s`, so Gate 0's compute is ~8 MINUTES for ~46 episodes and the re-derivation is 12.6-26.0 h serial, 2.5-5.2 h at 5-way — consistent with the registered 16.4 h / 3.3 h.** ⭐ **Gate 0 is therefore not a compute task at all; its whole cost is engineering time on new code, which has no measured basis here, so it gets a CHECKPOINT (2026-09-02, with three named fallbacks) rather than an estimate.** **Target 2026-09-08 for P8.4b merged; HARD BACKSTOP 2026-09-10 on which P8.4 closes regardless of state.** **CLOSURE CONDITION, both required: (A) `Rule R` has a verdict on every scenario a claim rests on, every ATT cell carries the five quantities, and A11(d)'s six verdicts are re-evaluated with both reported; (B) one consolidation pass returns zero items in buckets 1 (moves a reported number) and 2 (moves a registered decision rule), with bucket 3 — neither — going to `DEFERRED` plus a limitations sentence and NOT reopening P8.4.** 🚨 **And the honest correction: my 2026-08-30 re-cut costed P8.4b at 4-5 days and it is 7-11. I costed the CAMPAIGN, not the TASK — two briefs, two review rounds, new code, an amendment. Cuts 1, 2 and 3 fire.** | **The author's diagnosis is the sharpest thing said this week: four registered rules of mine falsified by measurement inside one task is the process working, but it is a loop with no stated exit, and P8.4 was scoped as a probe.** ⭐ **The pattern says the loop is closing, and it is CHECKABLE rather than reassuring: all five falsifications — A11 criterion 3, A11 criterion 4's tier count, `BRIEF_32`'s main-tree instruction, its `T - first_seen` formula, and the stale CI run id — are SPECIFICATION ERRORS IN DOCUMENTS I WROTE, every one caught at FIRST EXECUTION, and NOT ONE is a new defect in the metric. T1 found every metric defect we hold — B1-B4, M1-M4 — in a single pass on 2026-08-28, and nothing since has found another.** **So the work is not an unbounded defect population; it is a one-time specification debt being paid down, and conflating the two is what made it look endless.** ⚠️ **The backstop is a hard date only because A11 already contains its own graceful degradation: `Rule R`'s NOT RUN branch is determinate, and an ungated scenario reporting both definitions with definition-dependent orderings flagged is a PUBLISHABLE state, not a failure state. A stopping rule bounds the SEARCH, not the world — it cannot stop a bucket-1 finding arriving on 2026-09-09, and it does not claim to.** |
 | 2026-08-30 | ⭐ **RULED: P8.4b-G0 MOVES TO ITS OWN WORKTREE, AND `DEFERRED` 61 DOES NOT FORCE THE MAIN TREE — my brief was wrong to imply it.** `BRIEF_32` §0 put the task in the main tree; the author asked whether that was actually required, and it is not. **Measured rather than argued: a materialised draw's `cityflow.json` carries `dir` as an ABSOLUTE path into the main tree (`/home/filip/rltraffic/scenarios/grid4x4/`) with `flowFile` relative to it, so a draw config read from ANY working directory resolves to the same bytes.** And **Gate 0 READS draws and never materialises them** — all 20 it needs are present — while `DEFERRED` 61's refusal lives in `materialise_draws.py`'s Gate −1, which Gate 0 never invokes. **Mandatory with the worktree, because gitignored directories are per-worktree and empty: absolute `--draws-root`, absolute `--output-root` pointing at the MAIN tree, and `RLTRAFFIC_CORPUS_V11` / `RLTRAFFIC_CORPUS`.** Recorded as `BRIEF_32` Amendment B. | **I carried P8.4a's constraint to a task with a different shape without checking whether it applied — §7's *a rule has a SCOPE* failure in the OVER-application direction, which §7 itself names as the harder one to catch because it looks like diligence and nobody challenges it.** The prescribed diagnostic is one question — *name the party this rule protects and check that party is present* — and `DEFERRED` 61 protects a MATERIALISING run from a false BLOCKED. This task materialises nothing. ⚠️ **The trigger for asking was a collision that had already happened: two sessions sharing one tree, the implementer creating the branch and the coordinator's HEAD moving with it. The author was right that this needed a ruling rather than a note — a risk accepted knowingly is a different object from a risk nobody priced, and the price here turned out to be zero.** ⭐ **`output/` writes still go to the MAIN tree: `admission_probe`'s own flag help already says *the MAIN tree's `output/`*, and `DEFERRED` 55 records the 95 materialised draws lost when a gitignored per-worktree resource met a routine worktree retirement.** |
 | 2026-08-30 | 🚨 **COORDINATOR ERROR, FOURTH INSTANCE OF THE ONE-WRITER CLASS, AND THE TRIGGER IS NEW: I committed a ruling and a pre-registration amendment draft onto the IMPLEMENTER'S TASK BRANCH.** `git push origin main` then reported **`Everything up-to-date`** while `main` sat 1 commit behind — success and no-op observationally identical, exactly as §7 records. **Caught by the ref comparison, not by the push.** ⚠️ **What is new: the previous three instances were the COORDINATOR creating the branch. Here the IMPLEMENTER ran `git checkout -b task/p8.4b-g0-engine-att-reference` in the shared main tree, and my session's branch changed underneath me with no act of mine at all.** The ``git rev-parse --abbrev-ref HEAD`` check §7 mandates before any commit would still have caught it; I skipped it because nothing I had done should have changed my branch, which is precisely the assumption that fails here. **Repaired cleanly: my commit was the only one on the branch and its parent WAS `main`'s tip, so `git branch -f main <sha>` fast-forwarded `main` without touching HEAD, the working tree, or the implementer's untracked `docs/plans/p8.4b-g0.md`.** Delivered and verified by effect: `bb55421..555ed06  main -> main`, local and remote refs pasted and equal. | **The rule existed, was written by me, and names this exact failure — *`git checkout -b task/...` switches the branch for EVERY session sharing the tree, so a coordinator commit silently lands on the implementer's branch*. What it did NOT anticipate is the direction: it is phrased as a warning to the party who CREATES the branch, and here the creating party was the one correctly following their brief.** ⭐ **So the remedy has to move from *do not switch someone else's branch* to *never assume your own branch is where you left it* — `git rev-parse --abbrev-ref HEAD` immediately before every commit, unconditionally, because branch state is not a property any session owns in a shared tree.** ⚠️ **The cost was nearly high and only luck made it low: the payload was `docs/notes/A12_DRAFT.md`, a PRE-REGISTRATION AMENDMENT DRAFT. Had the branch been rebased or abandoned it would have gone with it — `094b53f`'s failure, *a ruling committed to the wrong ref*, with a registration document as the cargo.** **The durable fix is a worktree: this row was written from `/tmp/coord-wt` with `git -C`, which is what §7 already prescribes and what I should have been doing from the moment the implementer took the tree.** |
 | 2026-08-30 | ✅ **`PREREGISTRATION.md` A11 REGISTERED AND TAGGED `v1.1-prereg-a10-a11` — §3.1's source-verification claim corrected, ruling (a) registered, and the PRIMARY-METRIC CHOICE registered as an open question under a TOTAL decision rule.** Four parts. **(a)** §3.1's claim that all three implementations average over vehicles that ENTERED, and is *"therefore free of survivorship bias"*, is corrected: `engine.cpp:682-691` has no filter and averages over all vehicles ever CREATED, and `metrics/cityflow.py:60,159` carries an entry-side survivorship bias of its own. **§3.1's body text is NOT edited** — the convention since A2. **(b)** the 2026-08-28 ruling is registered: five quantities on every ATT cell, unconditional. **(c) RULE R** (primacy, per scenario, a four-criterion gate including a positive control) and **RULE L** (external comparability, per paper), both written so every branch maps to a determinate consequence — *no branch says "and then we decide"*, at the author's requirement. **(d)** the six ATT-based verdicts to be re-evaluated are **ENUMERATED by file and line** — `dt_gate.py:467-468`, `offline_baselines.py:998`, `mixture_tiers.py:767`, `spatial_mixing.py:646-650/:732`, `tier_sweep.py:1370/:2354`, `transfer_gate.py:1231` (in part) — with three named OUT of scope, one BLOCKED, the list declared PROVISIONAL and its completeness bound named. **All 11 file:line references were verified to resolve before landing; draft and registered rows verified byte-identical at 13,572 bytes; the tag was verified FROM A FRESH CLONE of the public remote** — object `0aa69ac`, type `tag`, → commit `0bba8ba`, `PREREGISTRATION.md` sha256 `999877b7…` equal to the annotation's recorded value. | **A registration that asserts a known falsehood while the campaign it governs is being planned is the worst available state — and the falsehood is the exact sentence A4 cited to withdraw the safeguard.** Ruling (a) had lived only in §10 and this log, which §7's own rule says is not a registration. **The primacy question was decided NOWHERE** (checked §1, §6, §8, §10): ruling (a) settles what is *carried*, never what the claims *rest on*, and T1's B2 shows the two definitions invert a behaviour-policy ranking in 7 of 8 matched draws. ⚠️ **THE UNCOMFORTABLE PART, registered in the amendment rather than left in a chat: BOTH plausible directions of the change FAVOUR US** — the engine definition widens MaxPressure's margin over Random from 41.98 % to 69.85 %, strengthening C1, and P8.4a measured our offline arms admitting MORE than their behaviour policy on hz1x1's weakest tier, so their advantage is understated under ours too. **That is precisely why registering before any P8.4b number exists is the only thing that makes the choice credible**, and why the row says so itself. ⭐ **Grounded on a measurement, not an argument: across 1,870 cells of `p8_4a_admission.json`, `created` varies across policies in 0 of 20 draws (spread 0.0000 %) while `entered` varies in 20 of 20 (max 61.54 % hz1x1, 5.91 % grid4x4) — so A5's shared-draw rule already delivers a matched population for the ENGINE definition and cannot for ours. Sample stated in the row itself: hz1x1 and grid4x4 only, cf_cologne3 absent from that artifact entirely.** Third refutation of A5's 4.1 % ground after T1's 35.0 %. **What it costs, unsmoothed and at the author's instruction: this document's audit trail now shows a refuted premise (2026-08-03), a withdrawal made on it (A4/A5), and a correction three weeks later — which is the argument FOR pre-registration only if all three steps stay visible, so none is edited or relocated. The coordinator recommended and approved both withdrawals.** |
@@ -2081,6 +2082,88 @@ overrun and duly did.** If Gate 0 overruns, cuts **1** and **2** fire immediatel
 reconsidered.
 ⚠️ **Also noted rather than fixed in passing: P5.3b and P5.3c have NO §6 checkboxes** — they exist only
 in this queue, so §6 currently understates the remaining work. Whoever writes their briefs adds the boxes.
+
+### 📅 P8.4 — THE DATED PLAN, AND THE CONDITION UNDER WHICH THE METRIC QUESTION CLOSES (2026-08-30)
+
+**Owed to the author since 2026-08-26 and not delivered until now. That delay is the finding: a probe
+without an end date is not a probe.**
+
+#### Costed from measurement, not estimated
+
+Per-episode wall time, measured over the **1,870 episodes** of `docs/data/p8_4a_admission.json`:
+**hz1x1 `1.29 s`, grid4x4 `2.67 s`** (means; medians 1.16 and 2.22).
+
+- **Gate 0 compute is ~8 MINUTES.** ~46 episodes (7 tiers x 3 draws x 2 scenarios, plus the extreme
+  `entered_fraction` cells) is 91 s of rollout, and even a 5x observer overhead leaves it under ten
+  minutes. ⭐ **Gate 0 is not a compute task. Its entire cost is ENGINEERING TIME ON NEW CODE, which has
+  no measured basis in this project — so per the author's instruction it gets a CHECKPOINT DATE rather
+  than an estimate.**
+- **The re-derivation is 12.6 h serial at hz1x1's rate and 26.0 h at grid4x4's** (35,100 episodes over
+  75 cells), i.e. **2.5-5.2 h at 5-way**. This is consistent with the 16.4 h / 3.3 h already registered.
+  ⭐ **And it needs NO per-second observer: all five quantities are horizon reads that
+  `admission_probe` already performs.** Only Gate 0 needs the observer.
+
+#### The dates
+
+| Date | Milestone | If it slips |
+|---|---|---|
+| **2026-09-02** | 🔴 **CHECKPOINT 1, HARD.** Gate 0 has a verdict on hz1x1 and grid4x4, or we stop and reassess. | **Three options, named now so the choice is not invented under pressure: (i) extend by a fixed 3 days, once; (ii) drop to hz1x1 only and let grid4x4 take A11's NOT RUN branch; (iii) take NOT RUN on both and proceed.** |
+| **2026-09-08** | 🎯 **TARGET: P8.4b merged** — Gate 0 plus the re-derivation, both reviewed. | Cuts 1-3 of the 2026-08-30 order fire immediately. |
+| **2026-09-10** | ⛔ **BACKSTOP: P8.4 CLOSES REGARDLESS OF STATE.** | Nothing. This date does not move. |
+
+⚠️ **THE BACKSTOP IS SAFE ONLY BECAUSE A11 ALREADY CONTAINS ITS OWN GRACEFUL DEGRADATION, and that is
+why it can be a hard date:** `Rule R`'s **NOT RUN** branch is already determinate — an ungated scenario
+carries **no single-definition claim**, both definitions are reported, and any ordering that differs
+between them is flagged **definition-dependent**. **That is a publishable state, not a failure state.**
+
+🚨 **AND THE HONEST CORRECTION TO MY OWN RE-CUT OF FOUR DAYS AGO: I costed P8.4b at 4-5 days. It is
+7-11. I costed the CAMPAIGN and not the TASK** — two briefs, two review rounds, new code and an
+amendment. **Consequence, stated rather than absorbed: cuts 1, 2 and 3 fire — P2.4 beyond `DEFERRED`
+59+60, P8.1's breadth, and P5.3c. P5.3b survives at the margin.**
+
+#### 🔒 THE CLOSURE CONDITION — what makes the metric question CLOSED
+
+**The author's diagnosis is correct and it is the sharpest thing said this week: four of my registered
+rules have been falsified by measurement inside this one task, and a loop with no stated exit is not a
+probe.** The enumeration, because a count is not a sweep:
+
+1. **A11 criterion 3** — unsatisfiable by construction (found by the implementer).
+2. **A11 criterion 4's *">=7 behaviour tiers"*** — unsatisfiable via `admission_probe`'s declared arm set.
+3. **`BRIEF_32` §0's *"main tree"*** — `DEFERRED` 61 does not force it.
+4. **`BRIEF_32` §4's `T - first_seen`** — under-specified; the implementer's collapse is correct.
+5. **The CI run id I named** — stale within a day.
+
+⭐ **BUT THE PATTERN SAYS THE LOOP IS CLOSING, AND IT IS CHECKABLE: ALL FIVE ARE SPECIFICATION ERRORS IN
+DOCUMENTS I WROTE, EVERY ONE CAUGHT AT FIRST EXECUTION. NOT ONE IS A NEW DEFECT IN THE METRIC.** T1
+found **every** metric defect we hold — B1, B2, B3, B4, M1, M2, M3, M4 — in a **single pass on
+2026-08-28**, and **nothing since has found another.** Everything after it has been (a) executing T1's
+findings and (b) paying down my specification debt. **Those are different problems with different
+exits, and conflating them is what makes the work look unbounded when it is not.**
+
+**P8.4 is CLOSED when BOTH hold.**
+
+**(A) DELIVERABLE.** `Rule R` has a verdict — PASS, FAIL or NOT RUN — on every scenario a claim rests
+on; every reported ATT cell carries the five quantities; and A11(d)'s six enumerated verdicts are
+re-evaluated under the chosen primary with **both** verdicts reported.
+
+**(B) STOPPING RULE.** One consolidation pass over the metric layer returns **zero** items in buckets 1
+and 2, where every finding is classified into exactly one bucket by a rule **fixed now, before the pass
+runs**:
+
+| Bucket | Finding | Consequence |
+|---|---|---|
+| **1** | **moves a reported number** | fix before the paper — **reopens work** |
+| **2** | **moves a registered decision rule** | amend before the paper — **reopens work** |
+| **3** | **neither** | `DEFERRED` + one limitations sentence — ⭐ **DOES NOT REOPEN P8.4** |
+
+**Why this terminates rather than looping: bucket 3 is an absorbing state, and on 2026-09-10 everything
+unresolved is classified into it by default.** It is the same shape as §7's review-round stopping rule —
+*a round is worth running while it can still find load-bearing defects; once it returns only preference,
+stop and ship* — applied to measurement instead of review.
+
+⚠️ **What this does NOT do, so it is not oversold: it cannot stop a bucket-1 finding from arriving on
+2026-09-09. It bounds the SEARCH, not the world.** What it guarantees is that we stop looking on a date,
+with everything found disclosed and everything unfound stated as unfound.
 
 ### Immediate queue, in order
 
