@@ -1195,6 +1195,69 @@ def test_the_reconstruction_reproduces_the_engine_on_a_real_episode(
     assert built.latency.maximum >= 0.0
 
 
+def test_the_reconstruction_separates_the_populations_on_a_censored_episode(
+    cityflow_available: bool, corpus_v11_root: Path, draws_root: Path
+) -> None:
+    """The two populations must come apart where vehicles were actually censored.
+
+    ⭐ **This test exists because mutation testing found the suite blind without it.** The
+    maxpressure episode the other corpus-backed tests use has ``never_entered == 0``, so the pool
+    population and the admitted population are the SAME SET there -- and two of the six required
+    mutations survived the whole suite as a result: M3 (drop the never-entered vehicles from the
+    denominator) and M5 (make the entered-only variant return the engine reconstruction) are both
+    no-ops on an uncensored episode. ``cf_hz1x1__random`` at draw 1000 censors 615 of 1813 vehicles,
+    which is where the instrument's discriminating power actually lives.
+
+    The censoring is asserted FIRST, so the test cannot pass vacuously on an episode that happened
+    not to censor anything.
+    """
+    from offline.admission_probe import created_from_flow, read_admission_at_horizon
+    from offline.horizon_metric import horizon_rollout
+    from offline.method_tier_grid import _random_factory
+
+    settings = _settings(corpus_v11_root, "cf_hz1x1__random")
+    config = draws_root / "cityflow1x1" / "draw_1000" / "cityflow.json"
+    if not config.is_file():
+        pytest.skip(f"hz1x1 draw 1000 is not materialised at {config}")
+
+    env = make_observer_env(config, settings)
+    try:
+        horizon_rollout(env, _random_factory(101)(env), episodes=1, seed=1000)
+        horizon = int(settings["max_steps"]) * int(settings["delta_time"])
+        created = created_from_flow(config.parent / "flow.json", horizon_seconds=horizon)
+        counts = read_admission_at_horizon(env, created=created)
+        att_engine_call = float(env._eng.get_average_travel_time())
+        built = reconstruct_episode(env.recorder)
+    finally:
+        env.close()
+
+    assert counts.never_entered > 0, (
+        "this episode censored nothing, so it cannot distinguish the pool population from the "
+        "admitted one and the two mutations this test exists to kill would both be no-ops"
+    )
+
+    # Criterion 1 holds on a censored episode too -- the engine counts the queue, and so must we.
+    assert abs(built.engine_population.value - att_engine_call) < C1_TOLERANCE
+
+    # Criterion 2: the denominator is EVERY created vehicle, censored ones included.
+    assert built.engine_population.n_ids == created
+    assert built.engine_population.n_ids == counts.entered + counts.never_entered
+
+    # A fourth independent route to the entered count: the per-second admitted population equals
+    # the metric's own depart_time set.
+    assert built.entered_running.n_ids == counts.entered
+    assert built.entered_running.n_ids < built.engine_population.n_ids
+
+    # A12 (3b): where vehicles were censored, the two reconstructions MUST differ.
+    assert built.entered_running.value != built.engine_population.value
+
+    # And the admission-latency term is real on this episode: same population, different clock.
+    assert built.entered_population.n_ids == built.entered_running.n_ids
+    assert built.entered_population.value != built.entered_running.value
+    assert built.latency.n_delayed > 0
+    assert built.latency.maximum > 0.0
+
+
 def test_a_ten_second_observation_grid_would_not_reproduce_the_engine(
     cityflow_available: bool, corpus_v11_root: Path, draws_root: Path
 ) -> None:
