@@ -2044,6 +2044,42 @@ DIRECT engine call** (`env._eng.get_average_travel_time()`), not a reconstructio
 P8.4b's Gate 0: it is not *"is our arithmetic right"* but ***"does the engine's own quantity mean on
 grid4x4 what T1 established it means on hz1x1"***.
 
+### ⭐ CALENDAR RE-CUT, 2026-08-30 — registered BEFORE anything runs, superseding the 2026-08-14 order
+
+**Why a re-cut at all: T1 did not exist on 2026-08-14, and P8.4b was in NO version of that budget.** The
+old order's four items (P4.7, P7.0, P5.1+P5.2, P6) are all resolved or already October, so what is left
+is a different list against a shorter calendar.
+
+**Budget, measured rather than felt:** 2026-08-30 → 2026-09-30 is **31 days**; §9's scoop mitigation
+reserves **~14 for P10.1/P10.2**, and *writing time is not slack*. That leaves **≈17 days of
+experimental work, ending ~2026-09-15.**
+
+**Estimated against that 17, and every figure is an ESTIMATE with its basis named:** P8.4b **4–5 d**
+(campaign costed at 16.4 h serial / 3.3 h at 5-way, plus Gate 0, plus a brief and review cycle) ·
+`Rule L`'s literature read **0.5 d** (reading, no compute, parallelisable) · P5.3b **2–3 d** (*cheap only
+because `BRIEF_30`, its Amendment C fix round and its pre-flight review are all DONE — the A11 rescope is
+a brief amendment, since `admission_probe` already computes all five quantities*) · P5.3c **2 d**
+(configuration; `DTConfig.context_length` is already a knob) · P8.1 **2–3 d** · `DEFERRED` 59+60 **~2 h**.
+**Total ≈11–13.5 against 17.** ⭐ **So nothing is cut TODAY. What follows is the order in which things
+die if that estimate is wrong** — and it is registered now precisely because in three weeks whichever
+task is running will look like the one that must finish.
+
+| # | Cut | What it costs | Why it sits here |
+|---|---|---|---|
+| **1** | **P2.4 beyond `DEFERRED` 59+60** | the full corpus linter | Keep only the two cheap checks that close *"no automated check looks at the corpus the models actually trained on"* — 59 is **free and already demonstrated** (T3 ran it, 46/46 both scenarios) and 60 is ~1 h. The rest is infrastructure, not a result. |
+| **2** | **P8.1's BREADTH** | extending `experiments/report.py` | Keep paired tests and CIs **on the headline contrasts**; drop the general harness work. §8 makes effect sizes mandatory beside every p-value — that obligation is satisfied per-contrast, not by a framework. |
+| **3** | **P5.3c** | the direct reply to DataLight's K ∈ {1,2} | It rebuts **prior work**; the items below it support **our own** claims, and a rebuttal we cannot run is a paragraph rather than a hole. |
+| **4** | **P5.3b** | ⚠️ **the no-RTG control for the NAMED contribution** | Fourth and not higher **because cutting it means the paper describes probe-calibrated return prompting with no arm that removes the prompt entirely.** P5.3a's 499/500 shows the prompt *moves* outcomes; it is not the same as an ablation. **If this one is ever reached, the paper says so in its limitations rather than quietly omitting the arm.** |
+| **—** | **NEVER CUT: P8.4b, `Rule L`'s read, the writing reserve** | — | P8.4b is the difference between reporting a defensible quantity and a registered-as-possibly-wrong one. The read closes A11's own comparability leg and unsuspends T2. The reserve is §9's scoop control. |
+
+⚠️ **The honest uncertainty, stated so the estimate is not read as a measurement: P8.4b's Gate 0 is NEW
+CODE with no measured cost** — an independent reconstruction, its tests and its positive control. **That
+is exactly the shape of the 2026-08-14 warning about P5.1, which was the item flagged most likely to
+overrun and duly did.** If Gate 0 overruns, cuts **1** and **2** fire immediately rather than being
+reconsidered.
+⚠️ **Also noted rather than fixed in passing: P5.3b and P5.3c have NO §6 checkboxes** — they exist only
+in this queue, so §6 currently understates the remaining work. Whoever writes their briefs adds the boxes.
+
 ### Immediate queue, in order
 
 **0. ⚡ P8.4b — THE RE-DERIVATION. Ruling (a)'s execution, now governed by A11.**
