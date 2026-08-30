@@ -703,8 +703,27 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _campaign_cells(args: argparse.Namespace, output_root: Path) -> list[CellKey]:
-    """The cells this invocation is responsible for: selected verdicts, then this worker's shard."""
+def is_constructed_reference(cell: CellKey) -> bool:
+    """Whether *cell* is a mixture tier's CONSTRUCTED behaviour reference, which is never rolled.
+
+    ``mixture_tiers.py:311`` and ``:412``; its CLI help says "no rollout, zero compute".  Re-rolling
+    one would invent a policy that never existed and replace a constructed reference with a measured
+    one.
+    """
+    method, tier = normalise_arm(cell.scenario, cell.arm)
+    return method == BEHAVIOUR_METHOD and tier in MIXTURE_TIERS
+
+
+def campaign_cell_set(args: argparse.Namespace, output_root: Path) -> list[CellKey]:
+    """The WHOLE campaign: every rollable cell of the selected verdicts, independent of ``--shard``.
+
+    🔒 **This is what the manifest declares, and it must not depend on which worker is asking.**
+    The first version of this function sharded before the manifest was built, so each of five
+    workers declared its own 7,700-cell slice as if it were the campaign; the digests genuinely
+    described different sets and :func:`assert_manifest_agrees` refused every worker after the
+    first.  **The guard was right and the declaration was wrong.**  Sharding now happens strictly
+    after this, in :func:`campaign_shard`.
+    """
     wanted = {str(v) for v in args.verdicts}
     unknown = wanted - {s.verdict_id for s in REDERIVATION_SOURCES}
     if unknown:
@@ -714,14 +733,13 @@ def _campaign_cells(args: argparse.Namespace, output_root: Path) -> list[CellKey
     for verdict_id, found in by_verdict.items():
         if verdict_id in wanted:
             selected |= found
-    # A mixture tier's behaviour reference is CONSTRUCTED, never rolled (mixture_tiers.py:311).
-    rollable = {
-        c for c in selected
-        if not (normalise_arm(c.scenario, c.arm) == (BEHAVIOUR_METHOD, "mix33")
-                or normalise_arm(c.scenario, c.arm)[0] == BEHAVIOUR_METHOD
-                and normalise_arm(c.scenario, c.arm)[1] in MIXTURE_TIERS)
-    }
-    return shard_cells(rollable, shard=int(args.shard), of=int(args.of))
+    rollable = {c for c in selected if not is_constructed_reference(c)}
+    return sorted(rollable, key=lambda c: (c.scenario, c.arm, str(c.seed), c.draw_id))
+
+
+def campaign_shard(cells: Sequence[CellKey], *, shard: int, of: int) -> list[CellKey]:
+    """The slice of the campaign THIS worker rolls.  Never what the manifest declares."""
+    return shard_cells(cells, shard=int(shard), of=int(of))
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -749,8 +767,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             work_dir=work_dir,
         )
         protected = default_protected_roots(roots)
-        cells = _campaign_cells(args, output_root)
-        manifest = campaign_manifest(cells, engine_seed=int(args.engine_seed))
+        # The manifest declares the WHOLE campaign; the worker rolls only its shard of it.  These
+        # two must never be the same list, which is the defect that stopped shards 1-4 on the first
+        # launch: every worker declared its own slice and the digests disagreed, correctly.
+        campaign = campaign_cell_set(args, output_root)
+        manifest = campaign_manifest(campaign, engine_seed=int(args.engine_seed))
+        cells = campaign_shard(campaign, shard=int(args.shard), of=int(args.of))
 
         manifest_path = work_dir / MANIFEST_NAME
         # (ii) DEFERRED 58: declare before running, and NEVER overwrite a disagreeing declaration.
@@ -763,7 +785,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.limit is not None:
             cells = cells[: int(args.limit)]
         print(
-            f"campaign: {len(cells)} cells for shard {args.shard}/{args.of}, work dir {work_dir}",
+            f"campaign declares {len(campaign)} cells (digest "
+            f"{manifest['declared_cells_sha256'][:12]}); this worker rolls {len(cells)} of them "
+            f"as shard {args.shard}/{args.of}. Work dir {work_dir}",
             flush=True,
         )
         committed = committed_att_index(repo_root=args.repo_root, output_root=output_root)
