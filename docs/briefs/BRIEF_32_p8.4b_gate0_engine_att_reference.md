@@ -313,3 +313,97 @@ Before acting, list your assumptions and your confidence in each. **Any load-bea
 ~95% is a question, not an assumption.** The premise in §4 is the obvious candidate. A question costs
 thirty seconds; a wrong assumption frozen into this gate's output would propagate into the choice of the
 paper's primary metric — which is what A11 exists to make impossible.
+
+---
+
+# AMENDMENT A — 2026-08-30, ruling on the plan-mode questions Q1–Q6
+
+**Read this with the brief; a packet must state which amendments it was written against, by letter.**
+
+## A0 — Q1, criterion 3: YOU ARE RIGHT, THE CRITERION IS DEFECTIVE, AND THE ERROR IS MINE
+
+**Independently reproduced by the coordinator before ruling**, on `docs/data/p8_4a_admission.json`:
+`att_difference == att_ours - att_engine` in **1,870 of 1,870** rows under `!=`; and on the **1,342**
+episodes with `entered_fraction == 1.0` — identical populations, population component exactly zero —
+`att_difference` has median **4.1922** (hz1x1, n=709) and **7.0668** (grid4x4, n=633), minimum **1.6542**.
+**A pure-population reading predicts zero. Criterion 3 asked a per-second instrument to reproduce a
+10 s-grid artifact to 1e-4 s.** Your three lines of evidence all hold and your reading of M1 is correct.
+
+> ⏸️ **Q1 IS THEREFORE PENDING `PREREGISTRATION.md` A12**, drafted at `docs/notes/A12_DRAFT.md` and with
+> the author now. **Criterion 3 is replaced by (3a) an EXACT bit-identity negative control where
+> `never_entered == 0`, (3b) a positive control requiring a difference where `never_entered > 0`, and
+> (3c) your option (c) — the metric-cadence reconstruction — as REQUIRED AND REPORTED BUT NOT GATING.**
+> Your recommendation of (c) was right and it is adopted; it is not gating only so that a surprise about
+> `metrics/cityflow.py` cannot silently block a question about `att_engine`.
+> ⛔ **Do not implement criterion 3 in any form until A12 lands.** **Everything else in §A1–A6 below is
+> ruled now and is not blocked** — build the reconstruction, the load-bearing test, criteria 1, 2 and 4,
+> and run the pilot. That is the bulk of the task.
+
+**Your pilot commitment is approved and is now required**: two episodes reporting all observed values
+before the full campaign, so this stays a measurement rather than an argument.
+
+## A1 — Q2, tier coverage: draw tiers from the CORPUS, and take `created` from the probe's READER
+
+A11's *"≥7 behaviour tiers"* means the **corpus's** seven (`fixedtime`, `mappo060`, `mappo200`,
+`mappo500`, `mappo1000`, `maxpressure`, `random`), which `datasets_v11/` carries per scenario. It never
+meant `admission_probe`'s declared arm set, and I did not check that set before writing it.
+⭐ **The resolution that removes the constraint entirely: criterion 2's reference is
+`admission_probe`'s reader INVOKED LIVE — `read_admission_at_horizon` — not the committed artifact.**
+`created` is a function of the episode, not a lookup, so tier coverage is not bounded by what P8.4a
+happened to measure. *"Independently reports"* means the independent code path, not the old file.
+
+## A2 — Q3, the extreme `entered_fraction` episodes: INCLUDE THEM, learned arms and all
+
+The extremes exist to stress the instrument where censoring is largest. **Whether the policy is a
+behaviour tier or a learned arm is irrelevant to that purpose.** So: the seven behaviour tiers × ≥3 draws
+**plus** the min and max `entered_fraction` episodes wherever they come from — `bc_top10@random` seed 303
+draw 1009 (0.619048) on hz1x1 and `bc_top10@mappo1000` seed 404 draw 1001 (0.944155) on grid4x4. That is
+a superset of A11 criterion 4 and satisfies its letter. **Your registered tie-break for the max is
+approved** — ties at 1.0 need a rule and you wrote one before looking at the outcome.
+
+## A3 — Q4, the import fence: YOUR SPLIT IS CORRECT AND IS ADOPTED
+
+The **RECONSTRUCTION** imports neither `metrics/` nor `offline/admission_probe` — that independence is
+the entire evidential value of the gate. The **HARNESS** may import both, because criteria 2 and 3 are
+*defined* as comparisons against the probe. **AST-enforced with a positive control, as you propose** —
+and the positive control is what makes the fence a check rather than a comment. BRIEF_32 §1's *"you may
+import it"* is hereby scoped to the harness.
+
+## A4 — Q5, `--tier` vs `--tiers`: ship `--tiers`
+
+It is a new module and its CLI is its own. Note the divergence from `admission_probe` in the packet so
+the next reader is not surprised by it.
+
+## A5 — Q6, the CI ceiling: use the CURRENT run, and name this task's merge as the next expiry
+
+⚠️ **My run id `33275392200` was live when I wrote it and is not now — that is §10's liveness half-life
+biting inside a brief, and you were right to check.** **Read the numbers off the newest run on `main` at
+the time you build the patch, and name the run id you actually used.** Registered protocol stands: commit
+the **observed** value, do not pre-bump — and **you are right that this task's own merge will move it
+again**, so name `P8.4b-G0`'s merge as the next expiry in `re_measure_required_at`. A ceiling that is
+stale by construction the moment it lands is fine **provided the expiry says so**; that is what the field
+is for.
+
+## A6 — the `contribution(v)` collapse and the `Archive` finding
+
+**The collapse to `contribution(v) = last_seen - first_seen + interval` for every vehicle is approved.**
+Implement the single expression and let criterion 1 arbitrate the ±1-step question — that is the right
+instinct: a disagreement of exactly one `interval` will show up as ~1.0 s against a 1e-4 s bar and is
+unmissable. **My §4 wording said `T - first_seen` for still-present vehicles and did not pin what `T`
+meant; yours is better specified.**
+
+⭐ **`Archive::dumpVehicle` (`archive.cpp:178-187`) serialising `id` and `enterTime`, with `Archive::dump`
+also writing `step`, `finishedVehicleCnt` and `cumulativeTravelTime`, is a genuinely better instrument
+than the brief asked for, and it is adopted as REQUIRED.** It converts the load-bearing test from an
+inference about set membership into a **direct comparison against the engine's own serialised state**,
+and it supplies a **fully independent second route** to `get_average_travel_time()` — which is CLAUDE.md
+§2's double-computation rule satisfied by a genuinely different route rather than the same derivation
+retyped (§7, 2026-08-13). **Use it for both.**
+
+## A7 — one thing to carry into the packet
+
+**Report the cadence term per scenario.** T1's M1 estimated +4.99 / +4.89 / +4.72 s **on hz1x1 only**,
+and the committed artifact puts grid4x4's median at **7.0668**, outside that range. **Nobody has
+explained the gap and you should not claim to** — record it as an open question with its measurement.
+It is the kind of scenario-dependence §7's 2026-08-18 rule says to expect the moment a network with a
+property hz1x1 lacked is first measured.
