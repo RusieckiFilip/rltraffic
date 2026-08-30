@@ -407,3 +407,61 @@ and the committed artifact puts grid4x4's median at **7.0668**, outside that ran
 explained the gap and you should not claim to** — record it as an open question with its measurement.
 It is the kind of scenario-dependence §7's 2026-08-18 rule says to expect the moment a network with a
 property hz1x1 lacked is first measured.
+
+---
+
+# AMENDMENT B — 2026-08-30: P8.4b-G0 MOVES TO ITS OWN WORKTREE. My "main tree" instruction was wrong.
+
+## The ruling
+
+**Work in `/home/filip/rltraffic-p84b-g0`, not in the main tree.** Create it with
+`git worktree add /home/filip/rltraffic-p84b-g0 task/p8.4b-g0-engine-att-reference`, copy your
+uncommitted `docs/plans/p8.4b-g0.md` across, and leave the main tree on `main`.
+
+## Why the brief said otherwise, and why that was my error
+
+BRIEF_32 §0 put this task in the main tree. **I carried that constraint over from P8.4a's campaign
+without checking whether it applies here. It does not.** `DEFERRED` 61's refusal — the one that forces
+work into the main tree — **lives in `offline/materialise_draws.py`'s Gate −1**, and **Gate 0 never
+invokes it: it READS draws and never materialises them.** All 20 draws it needs (1000–1009 across both
+scenarios) are already present.
+
+**Measured this session rather than argued:** a materialised draw's `cityflow.json` carries
+`"dir": "/home/filip/rltraffic/scenarios/grid4x4/"` — **an absolute path into the main tree** — with
+`"flowFile": "../draws/cityflow_grid4x4/draw_1000/flow.json"` relative to it. **So a draw config read
+from any working directory resolves to the same bytes in the main tree.** The CWD-dependence that
+`DEFERRED` 61 records simply cannot arise on a read-only path.
+
+⚠️ **This is §7's *a rule has a SCOPE* failure, and it is the over-application direction — the one that
+looks like diligence.** I applied P8.4a's constraint outside the case it protects. The diagnostic §7
+prescribes is one question: *name the party this rule protects, and check that party is present.*
+`DEFERRED` 61 protects a **materialising** run from a false BLOCKED. This task materialises nothing.
+
+## Mandatory settings, because a worktree's gitignored directories are EMPTY
+
+`scenarios/draws/`, `datasets_v11/` and `output/` are all gitignored and therefore **per-worktree**
+(`git ls-files` returns 0 for each). All four of these are required:
+
+```
+--draws-root  /home/filip/rltraffic/scenarios/draws
+--output-root /home/filip/rltraffic/output
+export RLTRAFFIC_CORPUS_V11=/home/filip/rltraffic/datasets_v11
+export RLTRAFFIC_CORPUS=/home/filip/rltraffic/datasets
+```
+
+🚨 **Every write under `output/` goes to the MAIN tree, never the worktree.** `admission_probe`'s own
+flag help already says `"the MAIN tree's output/"`, and `DEFERRED` 55 records what happens otherwise: a
+gitignored per-worktree resource is deleted by a routine worktree retirement, and it has already cost
+this project 95 materialised draws that every merged held-out number depended on.
+
+⚠️ **State the corpus environment, the skip count and the thread pin in every reported suite run** — from
+a worktree this is not optional bookkeeping: 52 corpus-backed tests self-skip when those variables are
+unset, and their absence is invisible in a green summary line (§7, 2026-08-19).
+
+## What triggered this
+
+**Two sessions shared one tree and collided.** You created the task branch in the main tree — correctly,
+per the brief — and the coordinator's session, which had no part in that act, found its own `HEAD` moved
+onto your branch and committed a ruling and a **pre-registration amendment draft** there. It was repaired
+by fast-forward and is logged in the Decisions Log. **The fix is structural, not vigilance:** one tree,
+one writer.
