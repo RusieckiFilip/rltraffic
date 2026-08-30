@@ -54,18 +54,31 @@ __all__ = [
     "ARTIFACT_FORMAT_VERSION",
     "MEASURED_SECONDS_PER_EPISODE",
     "REDERIVATION_SOURCES",
+    "BARE_ARM_TIERS",
+    "BEHAVIOUR_METHOD",
+    "CONTEXT_LENGTH_METHODS",
+    "HEURISTIC_METHODS",
+    "MIXTURE_TIERS",
+    "P4_5_METHODS",
     "CellKey",
     "VerdictSource",
     "build_parser",
+    "assert_reproduces_committed",
+    "committed_att_index",
     "cost_estimate",
     "factory_resolution",
     "main",
     "preflight",
+    "normalise_arm",
     "rederivation_cells",
+    "rederivation_checkpoint",
     "slots_from_episode_block",
 ]
 
 ARTIFACT_FORMAT_VERSION = "p8.4b-rederivation/1.0"
+
+#: Matches ``admission_probe.BEHAVIOUR_METHOD``; a tier's own collecting policy.
+BEHAVIOUR_METHOD = "behaviour"
 
 #: Seconds per episode, MEASURED rather than assumed.  These are the coordinator's rates from the
 #: 1,870-episode P8.4a campaign, which used the same ``probe_episode`` path this module uses, with
@@ -166,6 +179,167 @@ REDERIVATION_SOURCES: tuple[VerdictSource, ...] = (
         verdict_callable="offline.transfer_gate.evaluate_branch",
     ),
 )
+
+
+#: P4.7's three MIXTURE tiers.  Their checkpoints live under ``output/p4_7/checkpoints`` while every
+#: other hz1x1 non-``mappo1000`` tier reuses P4.6's, which is what ``_method_checkpoint`` already
+#: does -- so this set is exactly the override, and nothing wider.
+MIXTURE_TIERS: frozenset[str] = frozenset({"mix33", "mix50", "mix67"})
+
+#: Methods that are HEURISTICS, not checkpoints.  P5.1 evaluates a ``random`` ARM beside its learned
+#: ones, so ``random`` appears both as a tier name and as a method name; as a method it has no
+#: checkpoint to resolve and is rebuilt from ``method_tier_grid._random_factory`` exactly as
+#: collection built it.  Calling a heuristic a checkpoint is a provenance error, not a label.
+HEURISTIC_METHODS: frozenset[str] = frozenset({"random"})
+
+#: P5.2's context-length heads.  They are grid4x4/mappo1000 METHODS whose checkpoints live under
+#: ``output/p5_2/checkpoints`` rather than P5.1's, like ``bc_top10_perix`` before them.
+CONTEXT_LENGTH_METHODS: frozenset[str] = frozenset({"dt_nomix_h4", "dt_spatial_h4"})
+
+#: P4.5's data-selection arms.  They are METHODS of the ``mappo1000`` tier with their own checkpoint
+#: family under ``output/p4_5/checkpoints``, not tiers.
+P4_5_METHODS: frozenset[str] = frozenset(
+    {"bc_any_20", "bc_best2_20", "bc_best2_all", "bc_worst2_20"}
+)
+
+#: The P4 family writes its arms BARE -- ``madt``, ``mappo1000``, ``bc`` -- with the tier implied by
+#: the campaign rather than carried in the string.  ⚠️ **This map is the one place in this module
+#: where a name is resolved by declaration rather than parsed**, so it is small, explicit, and every
+#: entry is checked by the reproduction test: a wrong entry loads a different policy, and a different
+#: policy cannot reproduce the committed ``att_ours``.
+BARE_ARM_TIERS: Mapping[str, tuple[str, str]] = {
+    "madt": ("dt", "mappo1000"),
+    "bc": ("bc", "mappo1000"),
+    "bc_top10": ("bc_top10", "mappo1000"),
+    "iql": ("iql", "mappo1000"),
+    "mappo1000": ("behaviour", "mappo1000"),
+    "mappo500": ("behaviour", "mappo500"),
+    "maxpressure": ("behaviour", "maxpressure"),
+    "random": ("behaviour", "random"),
+    "fixedtime": ("behaviour", "fixedtime"),
+    **{name: (name, "mappo1000") for name in sorted(P4_5_METHODS)},
+}
+
+
+def normalise_arm(scenario: str, arm: str) -> tuple[str, str]:
+    """``arm`` -> ``(method, tier)``, absorbing the three naming conventions in play.
+
+    Three conventions, all of them real and all of them in committed artifacts:
+
+    * ``method@tier`` -- P4.7, P5.2, P8.4a.  The common case.
+    * ``method@<scenario>_<tier>`` -- P5.1 writes ``bc@grid4x4_mappo1000``.  The scenario prefix is
+      stripped; it names the network the cell is already filed under.
+    * a bare name -- the P4 family.  Resolved through :data:`BARE_ARM_TIERS`, never guessed.
+
+    Raises on an arm that matches none of the three, because a silent fallback here would file a
+    cell under the wrong tier and load the wrong checkpoint.
+    """
+    text = str(arm)
+    if "@" in text:
+        method, _, tier = text.partition("@")
+        prefix = f"{scenario}_"
+        if tier.startswith(prefix):
+            tier = tier[len(prefix) :]
+        return method, tier
+    try:
+        return BARE_ARM_TIERS[text]
+    except KeyError as exc:
+        raise ValueError(
+            f"{scenario}/{arm!r} carries no tier and is not a declared bare arm name; the declared "
+            f"ones are {sorted(BARE_ARM_TIERS)}. Guessing a tier would load a different policy"
+        ) from exc
+
+
+def rederivation_checkpoint(
+    scenario: str, tier: str, method: str, seed: int, roots: Any
+) -> Path:
+    """Where the model behind a cell's COMMITTED numbers lives.
+
+    Delegates to ``admission_probe._method_checkpoint`` for everything it already covers -- which,
+    checked against the directories on disk, is every grid4x4 tier and every hz1x1 tier except the
+    mixtures -- and overrides only the two families it does not know about.
+    """
+    from offline.admission_probe import _method_checkpoint
+
+    out = Path(roots.output_root)
+    if scenario == "hz1x1" and method in P4_5_METHODS:
+        return out / "p4_5" / "checkpoints" / f"{method}_seed{int(seed)}.pt"
+    if scenario == "hz1x1" and tier in MIXTURE_TIERS:
+        return out / "p4_7" / "checkpoints" / f"{tier}_{method}_seed{int(seed)}.pt"
+    if scenario == "grid4x4" and method in CONTEXT_LENGTH_METHODS:
+        # ⚠️ The SAME trap ``_method_checkpoint``'s docstring records for ``bc_top10_perix``: it
+        # routes grid4x4/mappo1000 to P5.1, but the context-length heads were trained by P5.2 and
+        # exist ONLY under output/p5_2/checkpoints.  Verified on disk 2026-08-31: 10 files there, 0
+        # in p5_1.  Loading the P5.1 path would not have failed loudly -- it would have failed to
+        # exist, and had a same-named file existed it would have produced a plausible number for a
+        # different model.
+        return out / "p5_2" / "checkpoints" / f"grid4x4_{tier}_{method}_seed{int(seed)}.pt"
+    return _method_checkpoint(scenario, tier, method, int(seed), roots)
+
+
+def committed_att_index(
+    *, repo_root: str | Path, output_root: str | Path
+) -> dict[tuple[str, str, int | None, int], float]:
+    """``(scenario, arm, seed, draw_id) -> committed att_horizon``, from the source artifacts.
+
+    🔒 **This index IS the acceptance test.**  A checkpoint's sha256 proves the file is intact, not
+    that it is the right file for that arm -- a wrong arm-to-checkpoint entry loads an intact
+    checkpoint belonging to a different policy and produces a plausible ATT for a cell nobody
+    reported.  The re-derived ``att_ours`` must reproduce the committed one for that cell, and the
+    episode has to be rolled anyway, so the strongest available check is also the free one.
+
+    A cell absent from this index is UNVERIFIED and is excluded from every verdict rather than
+    reported with a caveat.
+    """
+    repo, out = Path(repo_root), Path(output_root)
+    index: dict[tuple[str, str, int | None, int], float] = {}
+    for source in REDERIVATION_SOURCES:
+        for path in _resolve_sources(source, repo_root=repo, output_root=out):
+            try:
+                payload = json.loads(path.read_bytes())
+            except (ValueError, OSError):
+                continue
+            for row in slots_from_episode_block(payload):
+                value = row.get("att_horizon")
+                if value is None:
+                    continue
+                seed = row.get("seed")
+                key = (
+                    source.scenario,
+                    str(row["arm"]),
+                    None if seed is None else int(seed),
+                    int(row["draw_id"]),
+                )
+                index[key] = float(value)
+    return index
+
+
+def assert_reproduces_committed(
+    cell: CellKey, att_ours: float, committed: Mapping[tuple[str, str, int | None, int], float]
+) -> float:
+    """Refuse a re-derived ``att_ours`` that does not reproduce the committed one, EXACTLY.
+
+    ``==`` and not ``isclose``: P8.4a's own reference checks came back exact on 39 of 39 and 14 of 14
+    cells through this same rollout path, so exactness is the demonstrated bar and a tolerance here
+    would be slack nobody needs.  **Non-reproduction is a REFUSAL, never a warning** -- it means the
+    policy that was loaded is not the policy that produced the committed number, and every verdict
+    downstream would rest on a different arm wearing the right name.
+    """
+    key = (cell.scenario, cell.arm, cell.seed, cell.draw_id)
+    if key not in committed:
+        raise KeyError(
+            f"{cell.scenario}/{cell.arm} seed {cell.seed} draw {cell.draw_id} has no committed "
+            "att_ours at any grain, so it is UNVERIFIED and may not enter a verdict"
+        )
+    expected = committed[key]
+    if float(att_ours) != expected:
+        raise ValueError(
+            f"{cell.scenario}/{cell.arm} seed {cell.seed} draw {cell.draw_id}: re-derived att_ours "
+            f"{att_ours!r} does not reproduce the committed {expected!r}. The arm-to-checkpoint map "
+            "loaded a policy that did not produce this cell's committed number; a file hash would "
+            "not have caught this"
+        )
+    return expected
 
 
 def slots_from_episode_block(payload: Any) -> tuple[dict[str, Any], ...]:
@@ -316,46 +490,79 @@ def factory_resolution(
 
     resolvable: list[dict[str, Any]] = []
     unresolvable: list[dict[str, Any]] = []
+    constructed: list[dict[str, Any]] = []
     for (scenario, arm, seed), draws in sorted(slots.items(), key=lambda kv: kv[0]):
-        method, at, tier = arm.partition("@")
-        record = {
+        record: dict[str, Any] = {
             "scenario": scenario,
             "arm": arm,
-            "method": method,
-            "tier": tier,
             "seed": seed,
             "n_draws": len(draws),
         }
         if scenario not in MEASURED_SECONDS_PER_EPISODE:
             unresolvable.append({**record, "reason": f"no probe path for scenario {scenario!r}"})
             continue
-        if not at:
-            # P4.4/P4.5 name their arms bare -- 'madt', 'bc', 'mappo1000', 'maxpressure' -- with the
-            # tier implied by the artifact rather than carried in the string.  That is a naming
-            # convention to resolve, not a missing policy, and it is reported as its own class so it
-            # is not mistaken for one.
-            unresolvable.append(
-                {**record, "reason": "bare arm name carries no tier; the tier is implied by the "
-                                     "source artifact and must be resolved from it"}
-            )
+        try:
+            method, tier = normalise_arm(scenario, arm)
+        except ValueError as exc:
+            unresolvable.append({**record, "reason": f"ValueError: {exc}"})
+            continue
+        record |= {"method": method, "tier": tier}
+
+        if method == BEHAVIOUR_METHOD and tier in MIXTURE_TIERS:
+            # ⭐ A mixture tier's behaviour reference is CONSTRUCTED, not rolled out
+            # (mixture_tiers.py:311 and :412, and its CLI help says "no rollout, zero compute"):
+            # it is a weighted composition of the two component arms' cells, and those components
+            # ARE in this campaign.  So these cells must NOT be re-rolled -- re-rolling one would
+            # invent a policy that never existed and silently replace a constructed reference with
+            # a measured one.  They are excluded from the rollout and re-derived by the same
+            # construction from the re-derived components.
+            constructed.append({**record, "policy": "constructed reference, not rolled"})
+            continue
+        if method == BEHAVIOUR_METHOD:
+            # A behaviour anchor is rebuilt from its tier's own corpus manifest, never a checkpoint
+            # path this module invents.  ⚠️ Routed through GATE 0's build_factory, not the probe's:
+            # admission_probe declares five tiers on hz1x1 and two on grid4x4, while Gate 0 already
+            # covers all SEVEN behaviour tiers on BOTH scenarios and is tested there.  Reusing it is
+            # what keeps a second implementation of the same anchor out of this module.
+            from offline.engine_att_reference import build_factory as behaviour_factory
+
+            try:
+                behaviour_factory(
+                    scenario, tier, method, seed, roots,
+                    device=None, config_path=configs.get(scenario),
+                )
+            except Exception as exc:  # noqa: BLE001 - the reason is the deliverable
+                unresolvable.append({**record, "reason": f"{type(exc).__name__}: {exc}"})
+                continue
+            resolvable.append({**record, "policy": "behaviour anchor via admission_probe"})
+            continue
+
+        if method in HEURISTIC_METHODS:
+            if seed is None:
+                unresolvable.append(
+                    {**record, "reason": f"the {method} arm is seeded and cannot take seed=None"}
+                )
+                continue
+            resolvable.append({**record, "policy": f"heuristic: {method}, seeded {seed}"})
+            continue
+        if seed is None:
+            unresolvable.append({**record, "reason": "a learned arm cannot take seed=None"})
             continue
         try:
-            build_factory(
-                scenario,
-                tier,
-                method,
-                seed,
-                roots,
-                device=None,
-                config_path=configs.get(scenario),
-            )
-        except Exception as exc:  # noqa: BLE001 - the reason is the deliverable
+            checkpoint = rederivation_checkpoint(scenario, tier, method, int(seed), roots)
+        except Exception as exc:  # noqa: BLE001
             unresolvable.append({**record, "reason": f"{type(exc).__name__}: {exc}"})
             continue
-        resolvable.append(record)
+        if not checkpoint.is_file():
+            unresolvable.append({**record, "reason": f"checkpoint not on disk: {checkpoint}"})
+            continue
+        resolvable.append({**record, "policy": str(checkpoint)})
 
     return {
         "n_slots": len(slots),
+        "n_constructed_not_rolled": len(constructed),
+        "episodes_constructed_not_rolled": sum(r["n_draws"] for r in constructed),
+        "constructed": constructed,
         "n_resolvable": len(resolvable),
         "n_unresolvable": len(unresolvable),
         "episodes_unresolvable": sum(r["n_draws"] for r in unresolvable),

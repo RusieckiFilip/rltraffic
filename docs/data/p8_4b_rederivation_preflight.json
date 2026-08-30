@@ -1,5 +1,5 @@
 {
-  "clear_to_run": false,
+  "clear_to_run": true,
   "cost": {
     "episodes_by_scenario": {
       "grid4x4": 15700,
@@ -27,98 +27,155 @@
   },
   "format_version": "p8.4b-rederivation/1.0",
   "policy_rebuild": {
-    "episodes_unresolvable": 24600,
-    "n_resolvable": 154,
-    "n_slots": 400,
-    "n_unresolvable": 246,
-    "resolvable_sample": [
+    "constructed": [
       {
-        "arm": "bc@random",
-        "method": "bc",
+        "arm": "behaviour@mix33",
+        "method": "behaviour",
         "n_draws": 100,
-        "scenario": "grid4x4",
+        "policy": "constructed reference, not rolled",
+        "scenario": "hz1x1",
         "seed": 101,
-        "tier": "random"
+        "tier": "mix33"
       },
       {
-        "arm": "bc@random",
-        "method": "bc",
+        "arm": "behaviour@mix33",
+        "method": "behaviour",
         "n_draws": 100,
-        "scenario": "grid4x4",
+        "policy": "constructed reference, not rolled",
+        "scenario": "hz1x1",
         "seed": 202,
-        "tier": "random"
+        "tier": "mix33"
       },
       {
-        "arm": "bc@random",
-        "method": "bc",
+        "arm": "behaviour@mix33",
+        "method": "behaviour",
         "n_draws": 100,
-        "scenario": "grid4x4",
+        "policy": "constructed reference, not rolled",
+        "scenario": "hz1x1",
         "seed": 303,
-        "tier": "random"
+        "tier": "mix33"
       },
       {
-        "arm": "bc@random",
-        "method": "bc",
+        "arm": "behaviour@mix33",
+        "method": "behaviour",
         "n_draws": 100,
-        "scenario": "grid4x4",
+        "policy": "constructed reference, not rolled",
+        "scenario": "hz1x1",
         "seed": 404,
-        "tier": "random"
+        "tier": "mix33"
       },
       {
-        "arm": "bc@random",
-        "method": "bc",
+        "arm": "behaviour@mix33",
+        "method": "behaviour",
         "n_draws": 100,
-        "scenario": "grid4x4",
+        "policy": "constructed reference, not rolled",
+        "scenario": "hz1x1",
         "seed": 505,
-        "tier": "random"
+        "tier": "mix33"
       },
       {
-        "arm": "bc_top10@random",
-        "method": "bc_top10",
+        "arm": "behaviour@mix50",
+        "method": "behaviour",
         "n_draws": 100,
-        "scenario": "grid4x4",
+        "policy": "constructed reference, not rolled",
+        "scenario": "hz1x1",
         "seed": 101,
-        "tier": "random"
+        "tier": "mix50"
       },
       {
-        "arm": "bc_top10@random",
-        "method": "bc_top10",
+        "arm": "behaviour@mix50",
+        "method": "behaviour",
         "n_draws": 100,
-        "scenario": "grid4x4",
+        "policy": "constructed reference, not rolled",
+        "scenario": "hz1x1",
         "seed": 202,
-        "tier": "random"
+        "tier": "mix50"
       },
       {
-        "arm": "bc_top10@random",
-        "method": "bc_top10",
+        "arm": "behaviour@mix50",
+        "method": "behaviour",
         "n_draws": 100,
-        "scenario": "grid4x4",
+        "policy": "constructed reference, not rolled",
+        "scenario": "hz1x1",
         "seed": 303,
-        "tier": "random"
+        "tier": "mix50"
       },
       {
-        "arm": "bc_top10@random",
-        "method": "bc_top10",
+        "arm": "behaviour@mix50",
+        "method": "behaviour",
         "n_draws": 100,
-        "scenario": "grid4x4",
+        "policy": "constructed reference, not rolled",
+        "scenario": "hz1x1",
         "seed": 404,
-        "tier": "random"
+        "tier": "mix50"
       },
       {
-        "arm": "bc_top10@random",
-        "method": "bc_top10",
+        "arm": "behaviour@mix50",
+        "method": "behaviour",
         "n_draws": 100,
-        "scenario": "grid4x4",
+        "policy": "constructed reference, not rolled",
+        "scenario": "hz1x1",
         "seed": 505,
-        "tier": "random"
+        "tier": "mix50"
+      },
+      {
+        "arm": "behaviour@mix67",
+        "method": "behaviour",
+        "n_draws": 100,
+        "policy": "constructed reference, not rolled",
+        "scenario": "hz1x1",
+        "seed": 101,
+        "tier": "mix67"
+      },
+      {
+        "arm": "behaviour@mix67",
+        "method": "behaviour",
+        "n_draws": 100,
+        "policy": "constructed reference, not rolled",
+        "scenario": "hz1x1",
+        "seed": 202,
+        "tier": "mix67"
+      },
+      {
+        "arm": "behaviour@mix67",
+        "method": "behaviour",
+        "n_draws": 100,
+        "policy": "constructed reference, not rolled",
+        "scenario": "hz1x1",
+        "seed": 303,
+        "tier": "mix67"
+      },
+      {
+        "arm": "behaviour@mix67",
+        "method": "behaviour",
+        "n_draws": 100,
+        "policy": "constructed reference, not rolled",
+        "scenario": "hz1x1",
+        "seed": 404,
+        "tier": "mix67"
+      },
+      {
+        "arm": "behaviour@mix67",
+        "method": "behaviour",
+        "n_draws": 100,
+        "policy": "constructed reference, not rolled",
+        "scenario": "hz1x1",
+        "seed": 505,
+        "tier": "mix67"
       }
     ],
-    "unresolvable": [
+    "episodes_constructed_not_rolled": 1500,
+    "episodes_unresolvable": 0,
+    "n_constructed_not_rolled": 15,
+    "n_resolvable": 385,
+    "n_slots": 400,
+    "n_unresolvable": 0,
+    "resolvable_sample": [
       {
         "arm": "bc@fixedtime",
         "method": "bc",
         "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
+        "policy": "/home/filip/rltraffic/output/p5_2/checkpoints/grid4x4_fixedtime_bc_seed101.pt",
         "scenario": "grid4x4",
         "seed": 101,
         "tier": "fixedtime"
@@ -127,7 +184,7 @@
         "arm": "bc@fixedtime",
         "method": "bc",
         "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
+        "policy": "/home/filip/rltraffic/output/p5_2/checkpoints/grid4x4_fixedtime_bc_seed202.pt",
         "scenario": "grid4x4",
         "seed": 202,
         "tier": "fixedtime"
@@ -136,7 +193,7 @@
         "arm": "bc@fixedtime",
         "method": "bc",
         "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
+        "policy": "/home/filip/rltraffic/output/p5_2/checkpoints/grid4x4_fixedtime_bc_seed303.pt",
         "scenario": "grid4x4",
         "seed": 303,
         "tier": "fixedtime"
@@ -145,7 +202,7 @@
         "arm": "bc@fixedtime",
         "method": "bc",
         "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
+        "policy": "/home/filip/rltraffic/output/p5_2/checkpoints/grid4x4_fixedtime_bc_seed404.pt",
         "scenario": "grid4x4",
         "seed": 404,
         "tier": "fixedtime"
@@ -154,7 +211,7 @@
         "arm": "bc@fixedtime",
         "method": "bc",
         "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
+        "policy": "/home/filip/rltraffic/output/p5_2/checkpoints/grid4x4_fixedtime_bc_seed505.pt",
         "scenario": "grid4x4",
         "seed": 505,
         "tier": "fixedtime"
@@ -163,2175 +220,52 @@
         "arm": "bc@grid4x4_mappo1000",
         "method": "bc",
         "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
+        "policy": "/home/filip/rltraffic/output/p5_1/checkpoints/grid4x4_mappo1000_bc_seed101.pt",
         "scenario": "grid4x4",
         "seed": 101,
-        "tier": "grid4x4_mappo1000"
+        "tier": "mappo1000"
       },
       {
         "arm": "bc@grid4x4_mappo1000",
         "method": "bc",
         "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
+        "policy": "/home/filip/rltraffic/output/p5_1/checkpoints/grid4x4_mappo1000_bc_seed202.pt",
         "scenario": "grid4x4",
         "seed": 202,
-        "tier": "grid4x4_mappo1000"
+        "tier": "mappo1000"
       },
       {
         "arm": "bc@grid4x4_mappo1000",
         "method": "bc",
         "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
+        "policy": "/home/filip/rltraffic/output/p5_1/checkpoints/grid4x4_mappo1000_bc_seed303.pt",
         "scenario": "grid4x4",
         "seed": 303,
-        "tier": "grid4x4_mappo1000"
+        "tier": "mappo1000"
       },
       {
         "arm": "bc@grid4x4_mappo1000",
         "method": "bc",
         "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
+        "policy": "/home/filip/rltraffic/output/p5_1/checkpoints/grid4x4_mappo1000_bc_seed404.pt",
         "scenario": "grid4x4",
         "seed": 404,
-        "tier": "grid4x4_mappo1000"
+        "tier": "mappo1000"
       },
       {
         "arm": "bc@grid4x4_mappo1000",
         "method": "bc",
         "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 505,
-        "tier": "grid4x4_mappo1000"
-      },
-      {
-        "arm": "bc@maxpressure",
-        "method": "bc",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 101,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "bc@maxpressure",
-        "method": "bc",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 202,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "bc@maxpressure",
-        "method": "bc",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 303,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "bc@maxpressure",
-        "method": "bc",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 404,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "bc@maxpressure",
-        "method": "bc",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 505,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "bc_top10@fixedtime",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 101,
-        "tier": "fixedtime"
-      },
-      {
-        "arm": "bc_top10@fixedtime",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 202,
-        "tier": "fixedtime"
-      },
-      {
-        "arm": "bc_top10@fixedtime",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 303,
-        "tier": "fixedtime"
-      },
-      {
-        "arm": "bc_top10@fixedtime",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 404,
-        "tier": "fixedtime"
-      },
-      {
-        "arm": "bc_top10@fixedtime",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 505,
-        "tier": "fixedtime"
-      },
-      {
-        "arm": "bc_top10@grid4x4_mappo1000",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 101,
-        "tier": "grid4x4_mappo1000"
-      },
-      {
-        "arm": "bc_top10@grid4x4_mappo1000",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 202,
-        "tier": "grid4x4_mappo1000"
-      },
-      {
-        "arm": "bc_top10@grid4x4_mappo1000",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 303,
-        "tier": "grid4x4_mappo1000"
-      },
-      {
-        "arm": "bc_top10@grid4x4_mappo1000",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 404,
-        "tier": "grid4x4_mappo1000"
-      },
-      {
-        "arm": "bc_top10@grid4x4_mappo1000",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 505,
-        "tier": "grid4x4_mappo1000"
-      },
-      {
-        "arm": "bc_top10@maxpressure",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 101,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "bc_top10@maxpressure",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 202,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "bc_top10@maxpressure",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 303,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "bc_top10@maxpressure",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 404,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "bc_top10@maxpressure",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 505,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "bc_top10_perix@fixedtime",
-        "method": "bc_top10_perix",
-        "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 101,
-        "tier": "fixedtime"
-      },
-      {
-        "arm": "bc_top10_perix@fixedtime",
-        "method": "bc_top10_perix",
-        "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 202,
-        "tier": "fixedtime"
-      },
-      {
-        "arm": "bc_top10_perix@fixedtime",
-        "method": "bc_top10_perix",
-        "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 303,
-        "tier": "fixedtime"
-      },
-      {
-        "arm": "bc_top10_perix@fixedtime",
-        "method": "bc_top10_perix",
-        "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 404,
-        "tier": "fixedtime"
-      },
-      {
-        "arm": "bc_top10_perix@fixedtime",
-        "method": "bc_top10_perix",
-        "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 505,
-        "tier": "fixedtime"
-      },
-      {
-        "arm": "bc_top10_perix@maxpressure",
-        "method": "bc_top10_perix",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 101,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "bc_top10_perix@maxpressure",
-        "method": "bc_top10_perix",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 202,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "bc_top10_perix@maxpressure",
-        "method": "bc_top10_perix",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 303,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "bc_top10_perix@maxpressure",
-        "method": "bc_top10_perix",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 404,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "bc_top10_perix@maxpressure",
-        "method": "bc_top10_perix",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 505,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "behaviour@fixedtime",
-        "method": "behaviour",
-        "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 101,
-        "tier": "fixedtime"
-      },
-      {
-        "arm": "behaviour@fixedtime",
-        "method": "behaviour",
-        "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 202,
-        "tier": "fixedtime"
-      },
-      {
-        "arm": "behaviour@fixedtime",
-        "method": "behaviour",
-        "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 303,
-        "tier": "fixedtime"
-      },
-      {
-        "arm": "behaviour@fixedtime",
-        "method": "behaviour",
-        "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 404,
-        "tier": "fixedtime"
-      },
-      {
-        "arm": "behaviour@fixedtime",
-        "method": "behaviour",
-        "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 505,
-        "tier": "fixedtime"
-      },
-      {
-        "arm": "behaviour@grid4x4_mappo1000",
-        "method": "behaviour",
-        "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 101,
-        "tier": "grid4x4_mappo1000"
-      },
-      {
-        "arm": "behaviour@grid4x4_mappo1000",
-        "method": "behaviour",
-        "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 202,
-        "tier": "grid4x4_mappo1000"
-      },
-      {
-        "arm": "behaviour@grid4x4_mappo1000",
-        "method": "behaviour",
-        "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 303,
-        "tier": "grid4x4_mappo1000"
-      },
-      {
-        "arm": "behaviour@grid4x4_mappo1000",
-        "method": "behaviour",
-        "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 404,
-        "tier": "grid4x4_mappo1000"
-      },
-      {
-        "arm": "behaviour@grid4x4_mappo1000",
-        "method": "behaviour",
-        "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 505,
-        "tier": "grid4x4_mappo1000"
-      },
-      {
-        "arm": "behaviour@maxpressure",
-        "method": "behaviour",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 101,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "behaviour@maxpressure",
-        "method": "behaviour",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 202,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "behaviour@maxpressure",
-        "method": "behaviour",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 303,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "behaviour@maxpressure",
-        "method": "behaviour",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 404,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "behaviour@maxpressure",
-        "method": "behaviour",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 505,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "dt_nomix@fixedtime",
-        "method": "dt_nomix",
-        "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 101,
-        "tier": "fixedtime"
-      },
-      {
-        "arm": "dt_nomix@fixedtime",
-        "method": "dt_nomix",
-        "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 202,
-        "tier": "fixedtime"
-      },
-      {
-        "arm": "dt_nomix@fixedtime",
-        "method": "dt_nomix",
-        "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 303,
-        "tier": "fixedtime"
-      },
-      {
-        "arm": "dt_nomix@fixedtime",
-        "method": "dt_nomix",
-        "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 404,
-        "tier": "fixedtime"
-      },
-      {
-        "arm": "dt_nomix@fixedtime",
-        "method": "dt_nomix",
-        "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 505,
-        "tier": "fixedtime"
-      },
-      {
-        "arm": "dt_nomix@grid4x4_mappo1000",
-        "method": "dt_nomix",
-        "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 101,
-        "tier": "grid4x4_mappo1000"
-      },
-      {
-        "arm": "dt_nomix@grid4x4_mappo1000",
-        "method": "dt_nomix",
-        "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 202,
-        "tier": "grid4x4_mappo1000"
-      },
-      {
-        "arm": "dt_nomix@grid4x4_mappo1000",
-        "method": "dt_nomix",
-        "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 303,
-        "tier": "grid4x4_mappo1000"
-      },
-      {
-        "arm": "dt_nomix@grid4x4_mappo1000",
-        "method": "dt_nomix",
-        "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 404,
-        "tier": "grid4x4_mappo1000"
-      },
-      {
-        "arm": "dt_nomix@grid4x4_mappo1000",
-        "method": "dt_nomix",
-        "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 505,
-        "tier": "grid4x4_mappo1000"
-      },
-      {
-        "arm": "dt_nomix@maxpressure",
-        "method": "dt_nomix",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 101,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "dt_nomix@maxpressure",
-        "method": "dt_nomix",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 202,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "dt_nomix@maxpressure",
-        "method": "dt_nomix",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 303,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "dt_nomix@maxpressure",
-        "method": "dt_nomix",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 404,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "dt_nomix@maxpressure",
-        "method": "dt_nomix",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 505,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "dt_nomix_h4@mappo1000",
-        "method": "dt_nomix_h4",
-        "n_draws": 100,
-        "reason": "ValueError: 'dt_nomix_h4' is not a probed method of grid4x4; the declared arms are ['dt_spatial', 'dt_nomix', 'bc', 'bc_top10', 'bc_top10_perix', 'iql'] plus 'behaviour'",
-        "scenario": "grid4x4",
-        "seed": 101,
-        "tier": "mappo1000"
-      },
-      {
-        "arm": "dt_nomix_h4@mappo1000",
-        "method": "dt_nomix_h4",
-        "n_draws": 100,
-        "reason": "ValueError: 'dt_nomix_h4' is not a probed method of grid4x4; the declared arms are ['dt_spatial', 'dt_nomix', 'bc', 'bc_top10', 'bc_top10_perix', 'iql'] plus 'behaviour'",
-        "scenario": "grid4x4",
-        "seed": 202,
-        "tier": "mappo1000"
-      },
-      {
-        "arm": "dt_nomix_h4@mappo1000",
-        "method": "dt_nomix_h4",
-        "n_draws": 100,
-        "reason": "ValueError: 'dt_nomix_h4' is not a probed method of grid4x4; the declared arms are ['dt_spatial', 'dt_nomix', 'bc', 'bc_top10', 'bc_top10_perix', 'iql'] plus 'behaviour'",
-        "scenario": "grid4x4",
-        "seed": 303,
-        "tier": "mappo1000"
-      },
-      {
-        "arm": "dt_nomix_h4@mappo1000",
-        "method": "dt_nomix_h4",
-        "n_draws": 100,
-        "reason": "ValueError: 'dt_nomix_h4' is not a probed method of grid4x4; the declared arms are ['dt_spatial', 'dt_nomix', 'bc', 'bc_top10', 'bc_top10_perix', 'iql'] plus 'behaviour'",
-        "scenario": "grid4x4",
-        "seed": 404,
-        "tier": "mappo1000"
-      },
-      {
-        "arm": "dt_nomix_h4@mappo1000",
-        "method": "dt_nomix_h4",
-        "n_draws": 100,
-        "reason": "ValueError: 'dt_nomix_h4' is not a probed method of grid4x4; the declared arms are ['dt_spatial', 'dt_nomix', 'bc', 'bc_top10', 'bc_top10_perix', 'iql'] plus 'behaviour'",
+        "policy": "/home/filip/rltraffic/output/p5_1/checkpoints/grid4x4_mappo1000_bc_seed505.pt",
         "scenario": "grid4x4",
         "seed": 505,
         "tier": "mappo1000"
-      },
-      {
-        "arm": "dt_spatial@fixedtime",
-        "method": "dt_spatial",
-        "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 101,
-        "tier": "fixedtime"
-      },
-      {
-        "arm": "dt_spatial@fixedtime",
-        "method": "dt_spatial",
-        "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 202,
-        "tier": "fixedtime"
-      },
-      {
-        "arm": "dt_spatial@fixedtime",
-        "method": "dt_spatial",
-        "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 303,
-        "tier": "fixedtime"
-      },
-      {
-        "arm": "dt_spatial@fixedtime",
-        "method": "dt_spatial",
-        "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 404,
-        "tier": "fixedtime"
-      },
-      {
-        "arm": "dt_spatial@fixedtime",
-        "method": "dt_spatial",
-        "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 505,
-        "tier": "fixedtime"
-      },
-      {
-        "arm": "dt_spatial@grid4x4_mappo1000",
-        "method": "dt_spatial",
-        "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 101,
-        "tier": "grid4x4_mappo1000"
-      },
-      {
-        "arm": "dt_spatial@grid4x4_mappo1000",
-        "method": "dt_spatial",
-        "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 202,
-        "tier": "grid4x4_mappo1000"
-      },
-      {
-        "arm": "dt_spatial@grid4x4_mappo1000",
-        "method": "dt_spatial",
-        "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 303,
-        "tier": "grid4x4_mappo1000"
-      },
-      {
-        "arm": "dt_spatial@grid4x4_mappo1000",
-        "method": "dt_spatial",
-        "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 404,
-        "tier": "grid4x4_mappo1000"
-      },
-      {
-        "arm": "dt_spatial@grid4x4_mappo1000",
-        "method": "dt_spatial",
-        "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 505,
-        "tier": "grid4x4_mappo1000"
-      },
-      {
-        "arm": "dt_spatial@maxpressure",
-        "method": "dt_spatial",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 101,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "dt_spatial@maxpressure",
-        "method": "dt_spatial",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 202,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "dt_spatial@maxpressure",
-        "method": "dt_spatial",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 303,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "dt_spatial@maxpressure",
-        "method": "dt_spatial",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 404,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "dt_spatial@maxpressure",
-        "method": "dt_spatial",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 505,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "dt_spatial_h4@mappo1000",
-        "method": "dt_spatial_h4",
-        "n_draws": 100,
-        "reason": "ValueError: 'dt_spatial_h4' is not a probed method of grid4x4; the declared arms are ['dt_spatial', 'dt_nomix', 'bc', 'bc_top10', 'bc_top10_perix', 'iql'] plus 'behaviour'",
-        "scenario": "grid4x4",
-        "seed": 101,
-        "tier": "mappo1000"
-      },
-      {
-        "arm": "dt_spatial_h4@mappo1000",
-        "method": "dt_spatial_h4",
-        "n_draws": 100,
-        "reason": "ValueError: 'dt_spatial_h4' is not a probed method of grid4x4; the declared arms are ['dt_spatial', 'dt_nomix', 'bc', 'bc_top10', 'bc_top10_perix', 'iql'] plus 'behaviour'",
-        "scenario": "grid4x4",
-        "seed": 202,
-        "tier": "mappo1000"
-      },
-      {
-        "arm": "dt_spatial_h4@mappo1000",
-        "method": "dt_spatial_h4",
-        "n_draws": 100,
-        "reason": "ValueError: 'dt_spatial_h4' is not a probed method of grid4x4; the declared arms are ['dt_spatial', 'dt_nomix', 'bc', 'bc_top10', 'bc_top10_perix', 'iql'] plus 'behaviour'",
-        "scenario": "grid4x4",
-        "seed": 303,
-        "tier": "mappo1000"
-      },
-      {
-        "arm": "dt_spatial_h4@mappo1000",
-        "method": "dt_spatial_h4",
-        "n_draws": 100,
-        "reason": "ValueError: 'dt_spatial_h4' is not a probed method of grid4x4; the declared arms are ['dt_spatial', 'dt_nomix', 'bc', 'bc_top10', 'bc_top10_perix', 'iql'] plus 'behaviour'",
-        "scenario": "grid4x4",
-        "seed": 404,
-        "tier": "mappo1000"
-      },
-      {
-        "arm": "dt_spatial_h4@mappo1000",
-        "method": "dt_spatial_h4",
-        "n_draws": 100,
-        "reason": "ValueError: 'dt_spatial_h4' is not a probed method of grid4x4; the declared arms are ['dt_spatial', 'dt_nomix', 'bc', 'bc_top10', 'bc_top10_perix', 'iql'] plus 'behaviour'",
-        "scenario": "grid4x4",
-        "seed": 505,
-        "tier": "mappo1000"
-      },
-      {
-        "arm": "iql@fixedtime",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 101,
-        "tier": "fixedtime"
-      },
-      {
-        "arm": "iql@fixedtime",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 202,
-        "tier": "fixedtime"
-      },
-      {
-        "arm": "iql@fixedtime",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 303,
-        "tier": "fixedtime"
-      },
-      {
-        "arm": "iql@fixedtime",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 404,
-        "tier": "fixedtime"
-      },
-      {
-        "arm": "iql@fixedtime",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "ValueError: 'fixedtime' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 505,
-        "tier": "fixedtime"
-      },
-      {
-        "arm": "iql@grid4x4_mappo1000",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 101,
-        "tier": "grid4x4_mappo1000"
-      },
-      {
-        "arm": "iql@grid4x4_mappo1000",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 202,
-        "tier": "grid4x4_mappo1000"
-      },
-      {
-        "arm": "iql@grid4x4_mappo1000",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 303,
-        "tier": "grid4x4_mappo1000"
-      },
-      {
-        "arm": "iql@grid4x4_mappo1000",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 404,
-        "tier": "grid4x4_mappo1000"
-      },
-      {
-        "arm": "iql@grid4x4_mappo1000",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 505,
-        "tier": "grid4x4_mappo1000"
-      },
-      {
-        "arm": "iql@maxpressure",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 101,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "iql@maxpressure",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 202,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "iql@maxpressure",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 303,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "iql@maxpressure",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 404,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "iql@maxpressure",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "ValueError: 'maxpressure' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 505,
-        "tier": "maxpressure"
-      },
-      {
-        "arm": "random@grid4x4_mappo1000",
-        "method": "random",
-        "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 101,
-        "tier": "grid4x4_mappo1000"
-      },
-      {
-        "arm": "random@grid4x4_mappo1000",
-        "method": "random",
-        "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 202,
-        "tier": "grid4x4_mappo1000"
-      },
-      {
-        "arm": "random@grid4x4_mappo1000",
-        "method": "random",
-        "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 303,
-        "tier": "grid4x4_mappo1000"
-      },
-      {
-        "arm": "random@grid4x4_mappo1000",
-        "method": "random",
-        "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 404,
-        "tier": "grid4x4_mappo1000"
-      },
-      {
-        "arm": "random@grid4x4_mappo1000",
-        "method": "random",
-        "n_draws": 100,
-        "reason": "ValueError: 'grid4x4_mappo1000' is not a probed tier of grid4x4; the declared tiers are ['mappo1000', 'random']",
-        "scenario": "grid4x4",
-        "seed": 505,
-        "tier": "grid4x4_mappo1000"
-      },
-      {
-        "arm": "random@mappo1000",
-        "method": "random",
-        "n_draws": 100,
-        "reason": "ValueError: 'random' is not a probed method of grid4x4; the declared arms are ['dt_spatial', 'dt_nomix', 'bc', 'bc_top10', 'bc_top10_perix', 'iql'] plus 'behaviour'",
-        "scenario": "grid4x4",
-        "seed": 101,
-        "tier": "mappo1000"
-      },
-      {
-        "arm": "random@mappo1000",
-        "method": "random",
-        "n_draws": 100,
-        "reason": "ValueError: 'random' is not a probed method of grid4x4; the declared arms are ['dt_spatial', 'dt_nomix', 'bc', 'bc_top10', 'bc_top10_perix', 'iql'] plus 'behaviour'",
-        "scenario": "grid4x4",
-        "seed": 202,
-        "tier": "mappo1000"
-      },
-      {
-        "arm": "random@mappo1000",
-        "method": "random",
-        "n_draws": 100,
-        "reason": "ValueError: 'random' is not a probed method of grid4x4; the declared arms are ['dt_spatial', 'dt_nomix', 'bc', 'bc_top10', 'bc_top10_perix', 'iql'] plus 'behaviour'",
-        "scenario": "grid4x4",
-        "seed": 303,
-        "tier": "mappo1000"
-      },
-      {
-        "arm": "random@mappo1000",
-        "method": "random",
-        "n_draws": 100,
-        "reason": "ValueError: 'random' is not a probed method of grid4x4; the declared arms are ['dt_spatial', 'dt_nomix', 'bc', 'bc_top10', 'bc_top10_perix', 'iql'] plus 'behaviour'",
-        "scenario": "grid4x4",
-        "seed": 404,
-        "tier": "mappo1000"
-      },
-      {
-        "arm": "random@mappo1000",
-        "method": "random",
-        "n_draws": 100,
-        "reason": "ValueError: 'random' is not a probed method of grid4x4; the declared arms are ['dt_spatial', 'dt_nomix', 'bc', 'bc_top10', 'bc_top10_perix', 'iql'] plus 'behaviour'",
-        "scenario": "grid4x4",
-        "seed": 505,
-        "tier": "mappo1000"
-      },
-      {
-        "arm": "bc",
-        "method": "bc",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 101,
-        "tier": ""
-      },
-      {
-        "arm": "bc",
-        "method": "bc",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 202,
-        "tier": ""
-      },
-      {
-        "arm": "bc",
-        "method": "bc",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 303,
-        "tier": ""
-      },
-      {
-        "arm": "bc",
-        "method": "bc",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 404,
-        "tier": ""
-      },
-      {
-        "arm": "bc",
-        "method": "bc",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 505,
-        "tier": ""
-      },
-      {
-        "arm": "bc@mix33",
-        "method": "bc",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix33' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 101,
-        "tier": "mix33"
-      },
-      {
-        "arm": "bc@mix33",
-        "method": "bc",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix33' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 202,
-        "tier": "mix33"
-      },
-      {
-        "arm": "bc@mix33",
-        "method": "bc",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix33' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 303,
-        "tier": "mix33"
-      },
-      {
-        "arm": "bc@mix33",
-        "method": "bc",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix33' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 404,
-        "tier": "mix33"
-      },
-      {
-        "arm": "bc@mix33",
-        "method": "bc",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix33' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 505,
-        "tier": "mix33"
-      },
-      {
-        "arm": "bc@mix50",
-        "method": "bc",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix50' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 101,
-        "tier": "mix50"
-      },
-      {
-        "arm": "bc@mix50",
-        "method": "bc",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix50' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 202,
-        "tier": "mix50"
-      },
-      {
-        "arm": "bc@mix50",
-        "method": "bc",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix50' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 303,
-        "tier": "mix50"
-      },
-      {
-        "arm": "bc@mix50",
-        "method": "bc",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix50' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 404,
-        "tier": "mix50"
-      },
-      {
-        "arm": "bc@mix50",
-        "method": "bc",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix50' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 505,
-        "tier": "mix50"
-      },
-      {
-        "arm": "bc@mix67",
-        "method": "bc",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix67' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 101,
-        "tier": "mix67"
-      },
-      {
-        "arm": "bc@mix67",
-        "method": "bc",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix67' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 202,
-        "tier": "mix67"
-      },
-      {
-        "arm": "bc@mix67",
-        "method": "bc",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix67' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 303,
-        "tier": "mix67"
-      },
-      {
-        "arm": "bc@mix67",
-        "method": "bc",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix67' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 404,
-        "tier": "mix67"
-      },
-      {
-        "arm": "bc@mix67",
-        "method": "bc",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix67' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 505,
-        "tier": "mix67"
-      },
-      {
-        "arm": "bc_any_20",
-        "method": "bc_any_20",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 101,
-        "tier": ""
-      },
-      {
-        "arm": "bc_any_20",
-        "method": "bc_any_20",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 202,
-        "tier": ""
-      },
-      {
-        "arm": "bc_any_20",
-        "method": "bc_any_20",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 303,
-        "tier": ""
-      },
-      {
-        "arm": "bc_any_20",
-        "method": "bc_any_20",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 404,
-        "tier": ""
-      },
-      {
-        "arm": "bc_any_20",
-        "method": "bc_any_20",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 505,
-        "tier": ""
-      },
-      {
-        "arm": "bc_best2_20",
-        "method": "bc_best2_20",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 101,
-        "tier": ""
-      },
-      {
-        "arm": "bc_best2_20",
-        "method": "bc_best2_20",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 202,
-        "tier": ""
-      },
-      {
-        "arm": "bc_best2_20",
-        "method": "bc_best2_20",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 303,
-        "tier": ""
-      },
-      {
-        "arm": "bc_best2_20",
-        "method": "bc_best2_20",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 404,
-        "tier": ""
-      },
-      {
-        "arm": "bc_best2_20",
-        "method": "bc_best2_20",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 505,
-        "tier": ""
-      },
-      {
-        "arm": "bc_best2_all",
-        "method": "bc_best2_all",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 101,
-        "tier": ""
-      },
-      {
-        "arm": "bc_best2_all",
-        "method": "bc_best2_all",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 202,
-        "tier": ""
-      },
-      {
-        "arm": "bc_best2_all",
-        "method": "bc_best2_all",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 303,
-        "tier": ""
-      },
-      {
-        "arm": "bc_best2_all",
-        "method": "bc_best2_all",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 404,
-        "tier": ""
-      },
-      {
-        "arm": "bc_best2_all",
-        "method": "bc_best2_all",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 505,
-        "tier": ""
-      },
-      {
-        "arm": "bc_top10",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 101,
-        "tier": ""
-      },
-      {
-        "arm": "bc_top10",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 202,
-        "tier": ""
-      },
-      {
-        "arm": "bc_top10",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 303,
-        "tier": ""
-      },
-      {
-        "arm": "bc_top10",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 404,
-        "tier": ""
-      },
-      {
-        "arm": "bc_top10",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 505,
-        "tier": ""
-      },
-      {
-        "arm": "bc_top10@mix33",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix33' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 101,
-        "tier": "mix33"
-      },
-      {
-        "arm": "bc_top10@mix33",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix33' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 202,
-        "tier": "mix33"
-      },
-      {
-        "arm": "bc_top10@mix33",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix33' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 303,
-        "tier": "mix33"
-      },
-      {
-        "arm": "bc_top10@mix33",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix33' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 404,
-        "tier": "mix33"
-      },
-      {
-        "arm": "bc_top10@mix33",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix33' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 505,
-        "tier": "mix33"
-      },
-      {
-        "arm": "bc_top10@mix50",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix50' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 101,
-        "tier": "mix50"
-      },
-      {
-        "arm": "bc_top10@mix50",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix50' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 202,
-        "tier": "mix50"
-      },
-      {
-        "arm": "bc_top10@mix50",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix50' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 303,
-        "tier": "mix50"
-      },
-      {
-        "arm": "bc_top10@mix50",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix50' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 404,
-        "tier": "mix50"
-      },
-      {
-        "arm": "bc_top10@mix50",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix50' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 505,
-        "tier": "mix50"
-      },
-      {
-        "arm": "bc_top10@mix67",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix67' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 101,
-        "tier": "mix67"
-      },
-      {
-        "arm": "bc_top10@mix67",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix67' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 202,
-        "tier": "mix67"
-      },
-      {
-        "arm": "bc_top10@mix67",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix67' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 303,
-        "tier": "mix67"
-      },
-      {
-        "arm": "bc_top10@mix67",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix67' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 404,
-        "tier": "mix67"
-      },
-      {
-        "arm": "bc_top10@mix67",
-        "method": "bc_top10",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix67' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 505,
-        "tier": "mix67"
-      },
-      {
-        "arm": "bc_worst2_20",
-        "method": "bc_worst2_20",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 101,
-        "tier": ""
-      },
-      {
-        "arm": "bc_worst2_20",
-        "method": "bc_worst2_20",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 202,
-        "tier": ""
-      },
-      {
-        "arm": "bc_worst2_20",
-        "method": "bc_worst2_20",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 303,
-        "tier": ""
-      },
-      {
-        "arm": "bc_worst2_20",
-        "method": "bc_worst2_20",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 404,
-        "tier": ""
-      },
-      {
-        "arm": "bc_worst2_20",
-        "method": "bc_worst2_20",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 505,
-        "tier": ""
-      },
-      {
-        "arm": "behaviour@mix33",
-        "method": "behaviour",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix33' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 101,
-        "tier": "mix33"
-      },
-      {
-        "arm": "behaviour@mix33",
-        "method": "behaviour",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix33' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 202,
-        "tier": "mix33"
-      },
-      {
-        "arm": "behaviour@mix33",
-        "method": "behaviour",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix33' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 303,
-        "tier": "mix33"
-      },
-      {
-        "arm": "behaviour@mix33",
-        "method": "behaviour",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix33' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 404,
-        "tier": "mix33"
-      },
-      {
-        "arm": "behaviour@mix33",
-        "method": "behaviour",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix33' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 505,
-        "tier": "mix33"
-      },
-      {
-        "arm": "behaviour@mix50",
-        "method": "behaviour",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix50' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 101,
-        "tier": "mix50"
-      },
-      {
-        "arm": "behaviour@mix50",
-        "method": "behaviour",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix50' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 202,
-        "tier": "mix50"
-      },
-      {
-        "arm": "behaviour@mix50",
-        "method": "behaviour",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix50' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 303,
-        "tier": "mix50"
-      },
-      {
-        "arm": "behaviour@mix50",
-        "method": "behaviour",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix50' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 404,
-        "tier": "mix50"
-      },
-      {
-        "arm": "behaviour@mix50",
-        "method": "behaviour",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix50' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 505,
-        "tier": "mix50"
-      },
-      {
-        "arm": "behaviour@mix67",
-        "method": "behaviour",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix67' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 101,
-        "tier": "mix67"
-      },
-      {
-        "arm": "behaviour@mix67",
-        "method": "behaviour",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix67' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 202,
-        "tier": "mix67"
-      },
-      {
-        "arm": "behaviour@mix67",
-        "method": "behaviour",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix67' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 303,
-        "tier": "mix67"
-      },
-      {
-        "arm": "behaviour@mix67",
-        "method": "behaviour",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix67' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 404,
-        "tier": "mix67"
-      },
-      {
-        "arm": "behaviour@mix67",
-        "method": "behaviour",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix67' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 505,
-        "tier": "mix67"
-      },
-      {
-        "arm": "dt@mix33",
-        "method": "dt",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix33' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 101,
-        "tier": "mix33"
-      },
-      {
-        "arm": "dt@mix33",
-        "method": "dt",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix33' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 202,
-        "tier": "mix33"
-      },
-      {
-        "arm": "dt@mix33",
-        "method": "dt",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix33' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 303,
-        "tier": "mix33"
-      },
-      {
-        "arm": "dt@mix33",
-        "method": "dt",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix33' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 404,
-        "tier": "mix33"
-      },
-      {
-        "arm": "dt@mix33",
-        "method": "dt",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix33' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 505,
-        "tier": "mix33"
-      },
-      {
-        "arm": "dt@mix50",
-        "method": "dt",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix50' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 101,
-        "tier": "mix50"
-      },
-      {
-        "arm": "dt@mix50",
-        "method": "dt",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix50' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 202,
-        "tier": "mix50"
-      },
-      {
-        "arm": "dt@mix50",
-        "method": "dt",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix50' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 303,
-        "tier": "mix50"
-      },
-      {
-        "arm": "dt@mix50",
-        "method": "dt",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix50' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 404,
-        "tier": "mix50"
-      },
-      {
-        "arm": "dt@mix50",
-        "method": "dt",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix50' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 505,
-        "tier": "mix50"
-      },
-      {
-        "arm": "dt@mix67",
-        "method": "dt",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix67' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 101,
-        "tier": "mix67"
-      },
-      {
-        "arm": "dt@mix67",
-        "method": "dt",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix67' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 202,
-        "tier": "mix67"
-      },
-      {
-        "arm": "dt@mix67",
-        "method": "dt",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix67' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 303,
-        "tier": "mix67"
-      },
-      {
-        "arm": "dt@mix67",
-        "method": "dt",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix67' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 404,
-        "tier": "mix67"
-      },
-      {
-        "arm": "dt@mix67",
-        "method": "dt",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix67' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 505,
-        "tier": "mix67"
-      },
-      {
-        "arm": "iql",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 101,
-        "tier": ""
-      },
-      {
-        "arm": "iql",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 202,
-        "tier": ""
-      },
-      {
-        "arm": "iql",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 303,
-        "tier": ""
-      },
-      {
-        "arm": "iql",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 404,
-        "tier": ""
-      },
-      {
-        "arm": "iql",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 505,
-        "tier": ""
-      },
-      {
-        "arm": "iql@mix33",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix33' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 101,
-        "tier": "mix33"
-      },
-      {
-        "arm": "iql@mix33",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix33' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 202,
-        "tier": "mix33"
-      },
-      {
-        "arm": "iql@mix33",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix33' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 303,
-        "tier": "mix33"
-      },
-      {
-        "arm": "iql@mix33",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix33' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 404,
-        "tier": "mix33"
-      },
-      {
-        "arm": "iql@mix33",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix33' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 505,
-        "tier": "mix33"
-      },
-      {
-        "arm": "iql@mix50",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix50' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 101,
-        "tier": "mix50"
-      },
-      {
-        "arm": "iql@mix50",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix50' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 202,
-        "tier": "mix50"
-      },
-      {
-        "arm": "iql@mix50",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix50' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 303,
-        "tier": "mix50"
-      },
-      {
-        "arm": "iql@mix50",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix50' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 404,
-        "tier": "mix50"
-      },
-      {
-        "arm": "iql@mix50",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix50' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 505,
-        "tier": "mix50"
-      },
-      {
-        "arm": "iql@mix67",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix67' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 101,
-        "tier": "mix67"
-      },
-      {
-        "arm": "iql@mix67",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix67' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 202,
-        "tier": "mix67"
-      },
-      {
-        "arm": "iql@mix67",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix67' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 303,
-        "tier": "mix67"
-      },
-      {
-        "arm": "iql@mix67",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix67' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 404,
-        "tier": "mix67"
-      },
-      {
-        "arm": "iql@mix67",
-        "method": "iql",
-        "n_draws": 100,
-        "reason": "ValueError: 'mix67' is not a probed tier of hz1x1; the declared tiers are ['mappo1000', 'mappo500', 'maxpressure', 'fixedtime', 'random']",
-        "scenario": "hz1x1",
-        "seed": 505,
-        "tier": "mix67"
-      },
-      {
-        "arm": "madt",
-        "method": "madt",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 101,
-        "tier": ""
-      },
-      {
-        "arm": "madt",
-        "method": "madt",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 202,
-        "tier": ""
-      },
-      {
-        "arm": "madt",
-        "method": "madt",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 303,
-        "tier": ""
-      },
-      {
-        "arm": "madt",
-        "method": "madt",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 404,
-        "tier": ""
-      },
-      {
-        "arm": "madt",
-        "method": "madt",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 505,
-        "tier": ""
-      },
-      {
-        "arm": "mappo1000",
-        "method": "mappo1000",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 101,
-        "tier": ""
-      },
-      {
-        "arm": "mappo1000",
-        "method": "mappo1000",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 202,
-        "tier": ""
-      },
-      {
-        "arm": "mappo1000",
-        "method": "mappo1000",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 303,
-        "tier": ""
-      },
-      {
-        "arm": "mappo1000",
-        "method": "mappo1000",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 404,
-        "tier": ""
-      },
-      {
-        "arm": "mappo1000",
-        "method": "mappo1000",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 505,
-        "tier": ""
-      },
-      {
-        "arm": "mappo500",
-        "method": "mappo500",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 101,
-        "tier": ""
-      },
-      {
-        "arm": "mappo500",
-        "method": "mappo500",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 202,
-        "tier": ""
-      },
-      {
-        "arm": "mappo500",
-        "method": "mappo500",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 303,
-        "tier": ""
-      },
-      {
-        "arm": "mappo500",
-        "method": "mappo500",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 404,
-        "tier": ""
-      },
-      {
-        "arm": "mappo500",
-        "method": "mappo500",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": 505,
-        "tier": ""
-      },
-      {
-        "arm": "maxpressure",
-        "method": "maxpressure",
-        "n_draws": 100,
-        "reason": "bare arm name carries no tier; the tier is implied by the source artifact and must be resolved from it",
-        "scenario": "hz1x1",
-        "seed": null,
-        "tier": ""
       }
-    ]
+    ],
+    "unresolvable": []
   },
   "role": "P8.4b re-derivation pre-flight: cell count, wall-time estimate from measured rates, policy-rebuild coverage and write-path safety, before any episode is rolled",
-  "seconds_preflight": 1.3199906359659508,
+  "seconds_preflight": 1.578364119050093,
   "sources": [
     {
       "episode_sources": [
