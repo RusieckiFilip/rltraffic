@@ -681,14 +681,116 @@ def build_parser() -> argparse.ArgumentParser:
         allow_abbrev=False,
     )
     flight.add_argument("--out", default=None, help="write the report here as well as printing it")
+
+    runner = sub.add_parser(
+        "run", help="roll the campaign's cells, checking reproduction per cell", allow_abbrev=False
+    )
+    runner.add_argument(
+        "--verdicts", nargs="+", default=[s.verdict_id for s in REDERIVATION_SOURCES]
+    )
+    runner.add_argument("--shard", type=int, default=0, help="this worker's index, 0-based")
+    runner.add_argument("--of", type=int, default=1, help="how many workers share the campaign")
+    runner.add_argument("--engine-seed", type=int, default=1000)
+    runner.add_argument("--device", default=None)
+    runner.add_argument("--torch-threads", type=int, default=1)
+    runner.add_argument("--limit", type=int, default=None, help="roll at most N cells (smoke test)")
+
+    status = sub.add_parser(
+        "status", help="declared against present; complete is COMPUTED from disk",
+        allow_abbrev=False,
+    )
+    status.add_argument("--unused", action="store_true", help=argparse.SUPPRESS)
     return parser
 
 
+def _campaign_cells(args: argparse.Namespace, output_root: Path) -> list[CellKey]:
+    """The cells this invocation is responsible for: selected verdicts, then this worker's shard."""
+    wanted = {str(v) for v in args.verdicts}
+    unknown = wanted - {s.verdict_id for s in REDERIVATION_SOURCES}
+    if unknown:
+        raise ValueError(f"unknown verdict ids {sorted(unknown)}")
+    by_verdict = rederivation_cells(repo_root=args.repo_root, output_root=output_root)
+    selected: set[CellKey] = set()
+    for verdict_id, found in by_verdict.items():
+        if verdict_id in wanted:
+            selected |= found
+    # A mixture tier's behaviour reference is CONSTRUCTED, never rolled (mixture_tiers.py:311).
+    rollable = {
+        c for c in selected
+        if not (normalise_arm(c.scenario, c.arm) == (BEHAVIOUR_METHOD, "mix33")
+                or normalise_arm(c.scenario, c.arm)[0] == BEHAVIOUR_METHOD
+                and normalise_arm(c.scenario, c.arm)[1] in MIXTURE_TIERS)
+    }
+    return shard_cells(rollable, shard=int(args.shard), of=int(args.of))
+
+
 def main(argv: Sequence[str] | None = None) -> int:
-    """Run the CLI.  Non-zero when the pre-flight is NOT clear to run."""
+    """Run the CLI.  Non-zero when the pre-flight is NOT clear to run, or a campaign is incomplete."""
     args = build_parser().parse_args(argv)
     output_root = Path(args.output_root)
     work_dir = Path(args.work_dir) if args.work_dir else output_root / "p8_4b_rederivation"
+
+    if args.command == "status":
+        state = campaign_status(work_dir)
+        print(json.dumps(state, indent=2, sort_keys=True), flush=True)
+        return 0 if state.get("complete") else 1
+
+    if args.command == "run":
+        from offline.admission_probe import ProbeRoots, default_protected_roots
+        from offline.offline_baselines import pin_torch_threads
+        from offline.tier_sweep import assert_writable, write_json_guarded
+
+        pin_torch_threads(int(args.torch_threads))
+        roots = ProbeRoots(
+            repo_root=Path(args.repo_root),
+            corpus_root=Path(args.corpus_root),
+            draws_root=Path(args.draws_root),
+            output_root=output_root,
+            work_dir=work_dir,
+        )
+        protected = default_protected_roots(roots)
+        cells = _campaign_cells(args, output_root)
+        manifest = campaign_manifest(cells, engine_seed=int(args.engine_seed))
+
+        manifest_path = work_dir / MANIFEST_NAME
+        # (ii) DEFERRED 58: declare before running, and NEVER overwrite a disagreeing declaration.
+        assert_manifest_agrees(manifest_path, manifest)
+        assert_writable(manifest_path, protected)
+        work_dir.mkdir(parents=True, exist_ok=True)
+        if not manifest_path.is_file():
+            write_json_guarded(manifest, manifest_path, protected)
+
+        if args.limit is not None:
+            cells = cells[: int(args.limit)]
+        print(
+            f"campaign: {len(cells)} cells for shard {args.shard}/{args.of}, work dir {work_dir}",
+            flush=True,
+        )
+        committed = committed_att_index(repo_root=args.repo_root, output_root=output_root)
+        outcome = run_campaign(
+            cells,
+            roots=roots,
+            engine_seed=int(args.engine_seed),
+            device=args.device,
+            committed=committed,
+            protected=protected,
+        )
+        state = campaign_status(work_dir)
+        print(
+            f"rolled={outcome['rolled']} skipped={outcome['skipped_already_present']} "
+            f"in {outcome['seconds'] / 3600.0:.2f} h; "
+            f"declared={state['declared']} present={state['present']} complete={state['complete']}",
+            flush=True,
+        )
+        if state["complete"] and not state["marker_present"]:
+            marker = work_dir / COMPLETE_MARKER
+            assert_writable(marker, protected)
+            marker.write_text(
+                json.dumps({"declared_cells_sha256": state["declared_cells_sha256"]}) + "\n",
+                encoding="utf-8",
+            )
+            print(f"wrote {marker}", flush=True)
+        return 0 if state["complete"] else 1
 
     report = preflight(
         repo_root=args.repo_root,
@@ -740,6 +842,301 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     return 0 if report["clear_to_run"] else 1
 
+
+
+# ----------------------------------------------------------------------
+# The campaign runner
+# ----------------------------------------------------------------------
+
+
+#: The declared training budget every checkpoint this module loads must record, from
+#: ``admission_probe.DECLARED_GRADIENT_STEPS``.  The loaders refuse anything else, which is the
+#: mechanical form of "no online model selection".
+DECLARED_GRADIENT_STEPS = 40_000
+
+#: Written only when every declared cell has a file.  Its ABSENCE is what makes a partial run
+#: structurally distinguishable from a complete one (``DEFERRED`` 58).
+COMPLETE_MARKER = "CAMPAIGN_COMPLETE"
+
+#: The declaration of what this campaign is.  Never overwritten: P5.2's BL-1 overwrote a runs list
+#: after 53 hours of compute, so a second run that disagrees REFUSES instead of replacing it.
+MANIFEST_NAME = "campaign_manifest.json"
+
+
+def cell_file_name(cell: CellKey) -> str:
+    """One file per episode, so a job that dies takes one episode with it."""
+    arm = str(cell.arm).replace("@", "_at_").replace("/", "_")
+    slot = "none" if cell.seed is None else str(int(cell.seed))
+    return f"cell_{cell.scenario}_{arm}_seed{slot}_draw{int(cell.draw_id)}.json"
+
+
+def shard_cells(cells: Iterable[CellKey], *, shard: int, of: int) -> list[CellKey]:
+    """A deterministic slice of the campaign, for N-way parallelism.
+
+    Sorted first so the split is a property of the cell set and not of dictionary order: two workers
+    started minutes apart must partition the same way or they duplicate and miss work.
+    """
+    if int(of) < 1 or not 0 <= int(shard) < int(of):
+        raise ValueError(f"shard {shard!r} of {of!r} is not a valid partition")
+    ordered = sorted(cells, key=lambda c: (c.scenario, c.arm, str(c.seed), c.draw_id))
+    return [c for i, c in enumerate(ordered) if i % int(of) == int(shard)]
+
+
+def campaign_manifest(cells: Sequence[CellKey], *, engine_seed: int) -> dict[str, Any]:
+    """The declared cell set, with a digest so a disagreeing re-run can be refused."""
+    import hashlib
+
+    keys = sorted(
+        f"{c.scenario}|{c.arm}|{c.seed}|{c.draw_id}" for c in cells
+    )
+    digest = hashlib.sha256("\n".join(keys).encode("utf-8")).hexdigest()
+    return {
+        "format_version": ARTIFACT_FORMAT_VERSION,
+        "n_cells": len(keys),
+        "declared_cells_sha256": digest,
+        "engine_seed": int(engine_seed),
+        "cells": keys,
+    }
+
+
+def assert_manifest_agrees(path: str | Path, manifest: Mapping[str, Any]) -> None:
+    """Refuse a re-run whose declared cell set differs from the one already on disk.
+
+    ``DEFERRED`` 58, and P5.2's BL-1 concretely: a runs list was OVERWRITTEN after 53 hours of
+    compute, which silently redefined what the campaign had been.  A manifest that disagrees means
+    the two runs are not the same campaign, and resuming across them would mix two cell sets under
+    one directory.
+    """
+    existing = Path(path)
+    if not existing.is_file():
+        return
+    recorded = json.loads(existing.read_bytes())
+    if recorded.get("declared_cells_sha256") != manifest["declared_cells_sha256"]:
+        raise ValueError(
+            f"{existing} declares {recorded.get('n_cells')} cells with digest "
+            f"{recorded.get('declared_cells_sha256')!r}, but this run declares "
+            f"{manifest['n_cells']} with {manifest['declared_cells_sha256']!r}. These are different "
+            "campaigns; resuming across them would mix two cell sets under one directory. Point "
+            "--work-dir somewhere else, or delete the old one deliberately"
+        )
+
+
+def campaign_status(work_dir: str | Path) -> dict[str, Any]:
+    """Declared against present.  ``complete`` is a COMPUTED property, never a claim.
+
+    A reader must be able to tell a partial run from a finished one without reading a log, so the
+    answer is derived from the manifest and the files on disk every time it is asked.
+    """
+    work = Path(work_dir)
+    manifest_path = work / MANIFEST_NAME
+    if not manifest_path.is_file():
+        return {"declared": None, "present": 0, "complete": False, "reason": "no manifest"}
+    manifest = json.loads(manifest_path.read_bytes())
+    declared = list(manifest.get("cells", ()))
+    present: list[str] = []
+    missing: list[str] = []
+    for key in declared:
+        scenario, arm, seed, draw = key.split("|")
+        cell = CellKey(
+            scenario=scenario,
+            arm=arm,
+            seed=None if seed == "None" else int(seed),
+            draw_id=int(draw),
+        )
+        (present if (work / cell_file_name(cell)).is_file() else missing).append(key)
+    complete = not missing
+    return {
+        "declared": len(declared),
+        "present": len(present),
+        "missing": len(missing),
+        "missing_sample": missing[:5],
+        "complete": complete,
+        "marker_present": (work / COMPLETE_MARKER).is_file(),
+        "declared_cells_sha256": manifest.get("declared_cells_sha256"),
+    }
+
+
+def build_cell_factory(
+    scenario: str, arm: str, seed: int | None, roots: Any, *, device: str | None, config_path: Any
+) -> tuple[Any, dict[str, Any]]:
+    """The action factory for one arm-seed, from the module that produced its committed cell.
+
+    Every loader is imported, never reimplemented.  A wrong dispatch here loads a different policy,
+    and :func:`assert_reproduces_committed` turns that into a refusal on the FIRST episode of the
+    slot rather than a plausible number in a finished campaign.
+    """
+    method, tier = normalise_arm(scenario, arm)
+
+    if method == BEHAVIOUR_METHOD:
+        from offline.engine_att_reference import build_factory as behaviour_factory
+
+        factory, source = behaviour_factory(
+            scenario, tier, method, seed, roots, device=device, config_path=config_path
+        )
+        return factory, dict(source)
+
+    if method in HEURISTIC_METHODS:
+        from offline.method_tier_grid import _random_factory
+
+        if seed is None:
+            raise ValueError(f"the {method} arm is seeded and cannot take seed=None")
+        return _random_factory(int(seed)), {
+            "kind": "algorithmic",
+            "detail": f"method_tier_grid._random_factory({int(seed)})",
+        }
+
+    if seed is None:
+        raise ValueError(f"{arm} is a learned arm and cannot take seed=None")
+    checkpoint = rederivation_checkpoint(scenario, tier, method, int(seed), roots)
+    if not checkpoint.is_file():
+        raise FileNotFoundError(f"{checkpoint} does not exist; {arm} seed {seed} cannot be replayed")
+
+    if method == "dt":
+        from offline.method_tier_grid import TIERS as HZ_TIERS
+        from offline.method_tier_grid import _dt_factory
+
+        target = float(HZ_TIERS[tier].target_rtg)
+        return _dt_factory(str(checkpoint), DECLARED_GRADIENT_STEPS, target, device), {
+            "kind": "checkpoint",
+            "detail": f"method_tier_grid._dt_factory with the declared target_rtg {target}",
+            "checkpoint": str(checkpoint),
+        }
+
+    if method.startswith("dt_spatial") or method.startswith("dt_nomix"):
+        def spatial(env: Any) -> Any:
+            from agent.SpatialDTAgent import SpatialDTAgent
+
+            agent = SpatialDTAgent.from_checkpoint(env, str(checkpoint), device=device)
+            return lambda _env, info: agent.act(info, explore=False, update_memory=True)
+
+        return spatial, {
+            "kind": "checkpoint",
+            "detail": "agent.SpatialDTAgent.from_checkpoint",
+            "checkpoint": str(checkpoint),
+        }
+
+    from offline.offline_baselines import _baseline_factory
+
+    return _baseline_factory(method, str(checkpoint), DECLARED_GRADIENT_STEPS, device), {
+        "kind": "checkpoint",
+        "detail": "agent BC/IQL via offline_baselines._baseline_factory",
+        "checkpoint": str(checkpoint),
+    }
+
+
+def run_campaign(
+    cells: Sequence[CellKey],
+    *,
+    roots: Any,
+    engine_seed: int,
+    device: str | None,
+    committed: Mapping[tuple[str, str, int | None, int], float],
+    protected: Sequence[Path],
+) -> dict[str, Any]:
+    """Roll every cell, checking reproduction PER CELL, writing one file each.
+
+    Three properties this loop is built around:
+
+    * **The reproduction check is INSIDE the loop, never post-hoc.**  A mis-mapped arm raises on its
+      first episode -- seconds into a four-hour job -- instead of after it.
+    * **Resumable at episode granularity.**  A cell whose file already exists is skipped, so a job
+      that dies loses at most the episode in flight.
+    * **A partial run is structurally distinguishable from a complete one.**  The manifest declares
+      the cell set before anything runs and is never overwritten; the ``CAMPAIGN_COMPLETE`` marker
+      appears only when every declared cell has a file, and :func:`campaign_status` recomputes that
+      from disk rather than trusting the marker.
+    """
+    from offline.admission_probe import created_from_flow, probe_episode
+    from offline.materialise_draws import draw_config_path
+    from offline.tier_sweep import assert_writable, write_json_guarded
+    from offline.engine_att_reference import env_settings_for
+
+    work = Path(roots.work_dir)
+    scenario_keys = {"hz1x1": "cityflow1x1", "grid4x4": "cityflow_grid4x4"}
+
+    settings_cache: dict[tuple[str, str], dict[str, Any]] = {}
+    config_cache: dict[tuple[str, int], Path] = {}
+    created_cache: dict[tuple[str, int, int], int] = {}
+    factory_cache: dict[tuple[str, str, int | None], Any] = {}
+
+    rolled = skipped = 0
+    started = time.perf_counter()
+    for index, cell in enumerate(cells, start=1):
+        destination = work / cell_file_name(cell)
+        if destination.is_file():
+            skipped += 1
+            continue
+
+        method, tier = normalise_arm(cell.scenario, cell.arm)
+        tier_key = (cell.scenario, tier)
+        if tier_key not in settings_cache:
+            settings_cache[tier_key] = env_settings_for(cell.scenario, tier, roots)
+        settings = settings_cache[tier_key]
+        horizon = int(settings["max_steps"]) * int(settings["delta_time"])
+
+        config_key = (cell.scenario, int(cell.draw_id))
+        if config_key not in config_cache:
+            config_cache[config_key] = Path(
+                draw_config_path(
+                    scenario_keys[cell.scenario], int(cell.draw_id), out_root=roots.draws_root
+                )
+            )
+        config = config_cache[config_key]
+        created_key = (cell.scenario, int(cell.draw_id), horizon)
+        if created_key not in created_cache:
+            created_cache[created_key] = created_from_flow(
+                config.parent / "flow.json", horizon_seconds=horizon
+            )
+
+        factory_key = (cell.scenario, cell.arm, cell.seed)
+        if factory_key not in factory_cache:
+            factory_cache[factory_key] = build_cell_factory(
+                cell.scenario, cell.arm, cell.seed, roots, device=device, config_path=config
+            )
+        factory, source = factory_cache[factory_key]
+
+        episode = probe_episode(
+            scenario=cell.scenario,
+            tier=tier,
+            method=method,
+            arm=cell.arm,
+            seed=cell.seed,
+            draw_id=int(cell.draw_id),
+            config_path=config,
+            env_settings=settings,
+            scenario_id=scenario_keys[cell.scenario],
+            choose_action_factory=factory,
+            engine_seed=int(engine_seed),
+            created=created_cache[created_key],
+        )
+        # (i) PER CELL, INSIDE THE LOOP.  A wrong arm-to-checkpoint entry dies here.
+        expected = assert_reproduces_committed(cell, episode.att_ours, committed)
+
+        assert_writable(destination, protected)
+        write_json_guarded(
+            {
+                "format_version": ARTIFACT_FORMAT_VERSION,
+                **episode.as_record(),
+                "committed_att_ours": expected,
+                "reproduces_committed": True,
+                "policy_source": dict(source),
+            },
+            destination,
+            protected,
+        )
+        rolled += 1
+        if rolled % 25 == 0 or index == len(cells):
+            rate = (time.perf_counter() - started) / max(rolled, 1)
+            print(
+                f"  {index}/{len(cells)} rolled={rolled} skipped={skipped} {rate:.2f} s/episode",
+                flush=True,
+            )
+
+    return {
+        "rolled": rolled,
+        "skipped_already_present": skipped,
+        "seconds": time.perf_counter() - started,
+    }
 
 if __name__ == "__main__":  # pragma: no cover - CLI entry point
     raise SystemExit(main())
