@@ -849,14 +849,46 @@ class GateEpisode:
         )
 
     @property
-    def cadence_component(self) -> float:
-        """``att_ours - entered_running`` -- the 10 s-grid quantisation term, isolated."""
+    def term_population(self) -> float:
+        """Decomposition term 1: restrict the POPULATION, holding the pool clock fixed.
+
+        ``entered_population - engine_population``.  Exactly zero when ``never_entered == 0``, which
+        is what A12 (3a) asserts and what A13 scores it on.
+        """
+        return float(self.att_reference_entered_population) - float(
+            self.att_reference_engine_population
+        )
+
+    @property
+    def term_clock_origin(self) -> float:
+        """Decomposition term 2: move the CLOCK ORIGIN, holding the population fixed.
+
+        ``entered_running - entered_population`` -- minus the mean admission latency, i.e. the
+        insertion-buffer wait the engine counts and our metric does not.
+        """
+        return float(self.att_reference_entered_running) - float(
+            self.att_reference_entered_population
+        )
+
+    @property
+    def term_cadence(self) -> float:
+        """Decomposition term 3: the 10 s decision grid.
+
+        ``att_ours - entered_running`` -- the midpoint-departure and end-of-window-completion
+        estimators of ``metrics/cityflow.py``, isolated (T1's M1).
+        """
         return float(self.att_ours) - float(self.att_reference_entered_running)
 
     @property
-    def population_component(self) -> float:
-        """``entered_running - att_engine_call`` -- censoring plus admission latency, together."""
-        return float(self.att_reference_entered_running) - float(self.att_engine_call)
+    def decomposition_residual(self) -> float:
+        """``|(population + clock_origin + cadence) - (att_ours - att_engine_call)|``.
+
+        Zero whenever criteria 1 and (3c) are exact, because the three terms telescope through the
+        reconstructions and the two endpoints are then the engine's own call and our own metric.
+        Reported per episode so the decomposition is checkable rather than asserted.
+        """
+        total = float(self.att_ours) - float(self.att_engine_call)
+        return abs((self.term_population + self.term_clock_origin + self.term_cadence) - total)
 
     def as_record(self) -> dict[str, Any]:
         """The JSON row: every constructor field, then the derived quantities beside them."""
@@ -867,8 +899,10 @@ class GateEpisode:
                 "deviation_c3c": self.deviation_c3c,
                 "difference_c3a_running": self.difference_c3a_running,
                 "difference_c3a_population": self.difference_c3a_population,
-                "cadence_component": self.cadence_component,
-                "population_component": self.population_component,
+                "term_population": self.term_population,
+                "term_clock_origin": self.term_clock_origin,
+                "term_cadence": self.term_cadence,
+                "decomposition_residual": self.decomposition_residual,
                 "difference_ours_minus_engine": float(self.att_ours) - float(self.att_engine_call),
             }
         )
@@ -879,12 +913,17 @@ class GateEpisode:
 class ScenarioCriteria:
     """A11's four criteria as amended by A12, scored on one scenario, with observed values.
 
-    ⚠️ ``c3a_passed`` scores the criterion **exactly as registered** -- against ``entered_running``,
-    which is ``BRIEF_32`` section 4's entered-only variant and the definition A12 did not amend.
-    ``c3a_passed_population_reading`` reports the same criterion under the alternative reading raised
-    as Q7 in ``docs/plans/p8.4b-g0.md`` section 8.  **Reinterpreting a registered criterion is an
-    amendment and is not this module's to make**, so the gate's outcome uses the registered one and
-    the alternative is reported beside it.
+    🔒 **(3a) and (3b) are scored on the POPULATION READING, ruled by the coordinator on 2026-08-31
+    (Q7, option (b)) and registered as A13.**  The reading holds the CLOCK at the pool clock and
+    varies only the POPULATION, which is what A12 (3a)'s own justifying clause -- *"the two
+    populations are the same set of vehicles"* -- describes.  **Zero tolerance is retained.**
+
+    ⚠️ **The other reading is still reported, on every scenario, in
+    ``c3a_max_difference_running_reading`` / ``c3b_min_difference_running_reading``**: it is
+    ``BRIEF_32`` section 4's entered-only variant, whose clock starts at ADMISSION and which
+    therefore also carries the clock-origin term.  Measured at n=46, (3a) fails under that reading
+    (0.738 hz1x1, 0.098 grid4x4) and is exactly 0.0 under the ruled one on all 32 qualifying
+    episodes.  Both are kept so the ruling is checkable from the artifact alone.
 
     ``c3c`` is REQUIRED and REPORTED but explicitly NOT part of ``passed`` (A12).
     """
@@ -898,11 +937,13 @@ class ScenarioCriteria:
     c3a_n_qualifying: int
     c3a_max_difference: float
     c3a_passed: bool
-    c3a_max_difference_population_reading: float
-    c3a_passed_population_reading: bool
+    c3a_max_difference_running_reading: float
+    c3a_passed_running_reading: bool
     c3b_n_qualifying: int
     c3b_min_difference: float
     c3b_passed: bool
+    c3b_min_difference_running_reading: float
+    c3b_passed_running_reading: bool
     c3c_max_deviation: float
     c3c_agrees: bool
     c4_n_tiers: int
@@ -910,6 +951,7 @@ class ScenarioCriteria:
     c4_extremes_present: tuple[str, ...]
     c4_extremes_missing: tuple[str, ...]
     c4_passed: bool
+    decomposition: Mapping[str, Any]
 
     @property
     def passed(self) -> bool:
@@ -928,9 +970,12 @@ class ScenarioCriteria:
         record["c2_mismatches"] = [dict(m) for m in self.c2_mismatches]
         record["c4_extremes_present"] = list(self.c4_extremes_present)
         record["c4_extremes_missing"] = list(self.c4_extremes_missing)
+        record["decomposition"] = dict(self.decomposition)
         record["passed"] = self.passed
         record["c3a_reading_scored"] = (
-            "entered_running -- BRIEF_32 section 4's entered-only variant, which A12 did not amend"
+            "entered_population -- the pool clock on the entered population, i.e. population varied "
+            "and clock held. Ruled 2026-08-31 as Q7 option (b) and registered as A13; the "
+            "admission-clock reading is reported beside it in the *_running_reading fields"
         )
         record["c3c_is_gating"] = False
         return record
@@ -1404,16 +1449,25 @@ def evaluate_scenario(episodes: Sequence[GateEpisode]) -> ScenarioCriteria:
     )
 
     # A12 (3a) -- EXACT bit-identity where never_entered == 0.  Zero tolerance, not 1e-4.
+    # A13 (Q7 option (b), ruled 2026-08-31): scored on the POPULATION reading -- clock held at the
+    # pool clock, population varied -- which is what (3a)'s own justifying clause describes.  The
+    # admission-clock reading is measured and reported beside it, never substituted for it.
     uncensored = [e for e in rows if int(e.never_entered) == 0]
-    c3a_max = max((e.difference_c3a_running for e in uncensored), default=0.0)
-    c3a_max_population = max((e.difference_c3a_population for e in uncensored), default=0.0)
+    c3a_max = max((e.difference_c3a_population for e in uncensored), default=0.0)
+    c3a_max_running = max((e.difference_c3a_running for e in uncensored), default=0.0)
 
-    # A12 (3b) -- a difference is REQUIRED where never_entered > 0.
+    # A12 (3b) -- a difference is REQUIRED where never_entered > 0.  Scored on the same reading as
+    # (3a): A12 calls the two "a two-sided proof that the instrument distinguishes the two
+    # POPULATIONS", so the pair must vary the same thing.  Both readings are reported.
     censored = [e for e in rows if int(e.never_entered) > 0]
-    c3b_min = min((e.difference_c3a_running for e in censored), default=0.0)
+    c3b_min = min((e.difference_c3a_population for e in censored), default=0.0)
+    c3b_min_running = min((e.difference_c3a_running for e in censored), default=0.0)
 
     # A12 (3c) -- REQUIRED and REPORTED, never gating.
     c3c_max = max(e.deviation_c3c for e in rows)
+
+    # A13's three-component decomposition of att_ours - att_engine, reported per scenario.
+    decomposition = _decomposition_summary(rows)
 
     # Criterion 4 -- COVERAGE, counted over the tier cells, extremes checked by identity.
     tier_rows = [e for e in rows if e.role == "tier"]
@@ -1444,11 +1498,13 @@ def evaluate_scenario(episodes: Sequence[GateEpisode]) -> ScenarioCriteria:
         c3a_n_qualifying=len(uncensored),
         c3a_max_difference=float(c3a_max),
         c3a_passed=bool(uncensored) and c3a_max == 0.0,
-        c3a_max_difference_population_reading=float(c3a_max_population),
-        c3a_passed_population_reading=bool(uncensored) and c3a_max_population == 0.0,
+        c3a_max_difference_running_reading=float(c3a_max_running),
+        c3a_passed_running_reading=bool(uncensored) and c3a_max_running == 0.0,
         c3b_n_qualifying=len(censored),
         c3b_min_difference=float(c3b_min),
         c3b_passed=bool(censored) and c3b_min > 0.0,
+        c3b_min_difference_running_reading=float(c3b_min_running),
+        c3b_passed_running_reading=bool(censored) and c3b_min_running > 0.0,
         c3c_max_deviation=float(c3c_max),
         c3c_agrees=bool(c3c_max < C3C_TOLERANCE),
         c4_n_tiers=int(n_tiers),
@@ -1456,7 +1512,55 @@ def evaluate_scenario(episodes: Sequence[GateEpisode]) -> ScenarioCriteria:
         c4_extremes_present=tuple(sorted(present)),
         c4_extremes_missing=tuple(sorted(absent)),
         c4_passed=bool(n_tiers >= C4_MIN_TIERS and min_draws >= C4_MIN_DRAWS and not absent),
+        decomposition=decomposition,
     )
+
+
+def _decomposition_summary(rows: Sequence[GateEpisode]) -> dict[str, Any]:
+    """A13's three-component decomposition of ``att_ours - att_engine``, summarised per scenario.
+
+    ::
+
+        att_ours - att_engine  =  population  +  clock_origin  +  cadence
+
+    * **population** -- restrict from every CREATED vehicle to the ones that entered, pool clock
+      held fixed.  Exactly zero when ``never_entered == 0``, which is what (3a) scores.
+    * **clock_origin** -- move the clock from pool entry to admission, population held fixed.  This
+      is minus the mean admission latency: the insertion-buffer wait the engine counts and
+      ``metrics/cityflow.py`` does not.
+    * **cadence** -- the 10 s decision grid's midpoint-departure and end-of-window-completion
+      estimators (T1's M1).
+
+    The identity is EXACT rather than approximate whenever criteria 1 and (3c) are exact, because
+    the three terms telescope through the reconstructions and the endpoints are then the engine's
+    own call and our own metric.  ``residual_max`` reports that, so a reader can check the
+    decomposition instead of taking it on trust.
+    """
+    if not rows:
+        raise ValueError("the decomposition needs at least one episode to summarise")
+
+    def summarise(values: list[float]) -> dict[str, float]:
+        ordered = sorted(values)
+        middle, odd = divmod(len(ordered), 2)
+        median = ordered[middle] if odd else (ordered[middle - 1] + ordered[middle]) / 2.0
+        return {
+            "min": float(ordered[0]),
+            "median": float(median),
+            "max": float(ordered[-1]),
+            "mean": float(sum(ordered) / len(ordered)),
+        }
+
+    residuals = [e.decomposition_residual for e in rows]
+    return {
+        "identity": "att_ours - att_engine = population + clock_origin + cadence",
+        "n_episodes": len(rows),
+        "population": summarise([e.term_population for e in rows]),
+        "clock_origin": summarise([e.term_clock_origin for e in rows]),
+        "cadence": summarise([e.term_cadence for e in rows]),
+        "total": summarise([float(e.att_ours) - float(e.att_engine_call) for e in rows]),
+        "residual_max": float(max(residuals)),
+        "n_episodes_with_exactly_zero_residual": sum(1 for r in residuals if r == 0.0),
+    }
 
 
 def thread_regime() -> dict[str, Any]:
@@ -1795,7 +1899,7 @@ def _run_report(args: argparse.Namespace) -> int:
         print(
             f"{name}: n={block.n_episodes} c1={block.c1_max_deviation!r} "
             f"c2_exact={block.c2_exact} c3a={block.c3a_max_difference!r} "
-            f"(population reading {block.c3a_max_difference_population_reading!r}) "
+            f"(admission-clock reading {block.c3a_max_difference_running_reading!r}) "
             f"c3b_min={block.c3b_min_difference!r} c3c={block.c3c_max_deviation!r} "
             f"tiers={block.c4_n_tiers} draws={block.c4_min_draws_per_tier} "
             f"passed={block.passed}",

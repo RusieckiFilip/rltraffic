@@ -640,12 +640,16 @@ def test_criterion_two_is_exact_integer_equality_and_names_the_episode_that_brok
     assert not got.passed
 
 
-def test_criterion_three_a_is_scored_as_registered_and_the_alternative_is_reported_beside_it() -> None:
-    """A12 (3a): bit-identity where ``never_entered == 0``, ZERO tolerance.
+def test_criterion_three_a_is_scored_on_the_population_reading_ruled_by_a13() -> None:
+    """A12 (3a) as ruled by A13: bit-identity where ``never_entered == 0``, ZERO tolerance.
 
-    Scored against ``entered_running`` -- ``BRIEF_32`` section 4's entered-only variant, which A12
-    did not amend.  The population-only reading raised as Q7 is reported as its own field and is
-    never substituted for the registered one: reinterpreting a registered criterion is an amendment.
+    🔒 **Scored against ``entered_population``** -- the pool clock on the entered population, i.e.
+    population varied and clock held.  That is what (3a)'s own justifying clause describes, and it
+    is the reading the coordinator ruled on 2026-08-31 (Q7, option (b)).
+
+    ⚠️ **The admission-clock reading is still reported and is asserted here**, because the whole
+    point of the ruling is that the two differ: an episode that is bit-identical under the ruled
+    reading can carry a non-zero clock-origin term, and the artifact must show both.
     """
     rows = covering_episodes()
     rows[0] = episode(
@@ -658,10 +662,33 @@ def test_criterion_three_a_is_scored_as_registered_and_the_alternative_is_report
         att_reference_entered_population=160.0,
     )
     got = evaluate_scenario(rows)
-    assert not got.c3a_passed
-    assert got.c3a_max_difference == pytest.approx(0.670160)
-    assert got.c3a_passed_population_reading
-    assert got.c3a_max_difference_population_reading == 0.0
+    # The ruled reading: population varied, clock held -> exact.
+    assert got.c3a_passed
+    assert got.c3a_max_difference == 0.0
+    # The other reading is measured and reported, and it is NOT zero on this episode.
+    assert not got.c3a_passed_running_reading
+    assert got.c3a_max_difference_running_reading == pytest.approx(0.670160)
+    assert got.passed
+
+
+def test_criterion_three_a_still_fails_when_the_population_itself_is_wrong() -> None:
+    """The ruled reading is not a weaker criterion -- it still has zero tolerance.
+
+    A13 retains the zero tolerance and only changes WHICH difference is measured, so an instrument
+    that mis-selects the population on an uncensored episode must still fail.
+    """
+    rows = covering_episodes()
+    rows[0] = episode(
+        scenario=rows[0].scenario,
+        tier=rows[0].tier,
+        arm=rows[0].arm,
+        draw_id=rows[0].draw_id,
+        never_entered=0,
+        att_reference_entered_population=160.0 + 1e-9,
+    )
+    got = evaluate_scenario(rows)
+    assert not got.c3a_passed, "zero tolerance means 1e-9 is a failure, not a rounding allowance"
+    assert got.c3a_max_difference == pytest.approx(1e-9)
     assert not got.passed
 
 
@@ -729,6 +756,51 @@ def test_criterion_three_c_is_reported_and_never_folded_into_the_outcome() -> No
     assert not got.c3c_agrees
     assert got.c3c_max_deviation == pytest.approx(3.0)
     assert got.passed, "(3c) is REQUIRED and REPORTED but explicitly NOT GATING (A12)"
+
+
+def test_the_three_component_decomposition_is_an_exact_identity() -> None:
+    """A13: ``att_ours - att_engine == population + clock_origin + cadence``.
+
+    Recomputed here from the four reconstructions by an independent route rather than by calling
+    the properties that produce it, and asserted with ``==`` on a constructed episode whose values
+    are exact binary fractions, so the identity is pinned rather than approximated.
+    """
+    row = episode(
+        att_engine_call=160.0,
+        att_reference_engine_population=160.0,
+        att_reference_entered_population=157.5,
+        att_reference_entered_running=157.0,
+        att_ours=161.25,
+        never_entered=12,
+    )
+    assert row.term_population == 157.5 - 160.0
+    assert row.term_clock_origin == 157.0 - 157.5
+    assert row.term_cadence == 161.25 - 157.0
+    assert row.term_population + row.term_clock_origin + row.term_cadence == 161.25 - 160.0
+    assert row.decomposition_residual == 0.0
+
+    rows = covering_episodes() + [row]
+    block = evaluate_scenario(rows)
+    decomposition = block.decomposition
+    assert decomposition["identity"] == (
+        "att_ours - att_engine = population + clock_origin + cadence"
+    )
+    assert decomposition["n_episodes"] == len(rows)
+    assert decomposition["residual_max"] == 0.0
+    assert decomposition["n_episodes_with_exactly_zero_residual"] == len(rows)
+
+    # Recomputed by an independent route over the raw fields, never by calling the properties the
+    # summary itself is built from.
+    assert decomposition["cadence"]["max"] == max(
+        r.att_ours - r.att_reference_entered_running for r in rows
+    )
+    assert decomposition["population"]["min"] == min(
+        r.att_reference_entered_population - r.att_reference_engine_population for r in rows
+    )
+    assert decomposition["clock_origin"]["min"] == min(
+        r.att_reference_entered_running - r.att_reference_entered_population for r in rows
+    )
+    assert decomposition["total"]["max"] == max(r.att_ours - r.att_engine_call for r in rows)
 
 
 def test_criterion_four_fails_when_a_tier_or_an_extreme_is_missing() -> None:
