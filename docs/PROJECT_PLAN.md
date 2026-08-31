@@ -849,6 +849,51 @@ Threat model: the dominant failure mode of AI-heavy development is *confident co
 4. User pastes Return Packet(s) back → Master chat updates checkboxes, issues next brief.
 5. **Phase-boundary review:** before freezing any phase, Master chat writes down what that phase assumes about later phases (this caught determinism↔corpus and reward↔RTG couplings late; do it early now).
 
+🔒 **IMPLEMENTER AUTONOMY OVER MECHANICAL FAILURES (added 2026-08-31, on the author's instruction, and the evidence is his).**
+**The author is the only channel between two sessions, so every escalation costs hours of relay rather
+than hours of work.** ⭐ **Measured over P8.4b's ~11 round-trips: three bought NOTHING** — the import
+fence (I ratified the implementer's proposal verbatim), `--tier` versus `--tiers`, and a CI run id that
+had gone stale — **and three more were near-ratifications** (tier coverage, the extremes' provenance,
+runner option 1 versus 2, where the implementer's recommendation was adopted). **Four were genuine
+coordinator calls**: A11 criterion 3, A12 (3a), V6's reach, V2's scope. **So roughly half the latency
+bought nothing, and the author priced it before I did.**
+
+> **THE IMPLEMENTER FIXES AND DISCLOSES:** wrong paths, wrong map entries, crashes with obvious causes,
+> CLI shape, stale identifiers, and defects in its own tooling.
+> **THE COORDINATOR IS KEPT FOR:** scope changes, anything touching a registered decision, and cases
+> where **two explanations cannot be told apart**.
+
+**THREE BOUNDARY CONDITIONS, because *mechanical* is obvious at the extremes and fuzzy in the middle —
+and this task produced fuzzy cases in both directions.**
+
+1. **The test is WHICH FILE WOULD HAVE TO CHANGE, not how significant the fix feels.** If it requires
+   editing or reinterpreting text in `PREREGISTRATION.md`, `PROJECT_PLAN` §1 or §6, `docs/CONTRACTS.md`,
+   or a brief's registered criteria → **escalate**. If it changes code, paths, maps or a CLI →
+   **fix it**. ⭐ *Checkable from the inside, because it asks which artifact moves rather than asking for
+   a judgement of importance.*
+2. 🚨 **A FIX THAT CREATES A MEASUREMENT IS NEVER MECHANICAL — and this is the condition the autonomy
+   would otherwise break.** Rolling a policy that was never rolled, synthesising a missing cell, filling
+   a gap by construction: **escalate, however obvious the mechanism looks.** ⚠️ **This is exactly the
+   `behaviour@mix33/50/67` case, where re-rolling a CONSTRUCTED reference would have invented a policy
+   that never existed and produced 15 plausible wrong numbers inside a complete-looking campaign.** The
+   hazard is structural rather than hypothetical: **a 246 → 0 progression puts all the pressure on
+   clearing the last gap**, and by slot 385 *"it is nearly done"* is the sentence §10 already says to
+   distrust.
+3. **The autonomy is over HOW to fix, never over WHETHER to fix.** *Should this be fixed at all* is
+   always a question, and **several of this task's most valuable moments came from the implementer
+   STOPPING rather than clearing** — the constructed mixtures, the (3b) reading, criterion (3a) itself.
+
+**Disclosure discipline: fixes go into ONE classified section of the result note, never a running log.**
+A pile of undifferentiated disclosures is `DEFERRED` 45's class — a signal nobody reads.
+⭐ **And a fix later found to have touched a registered decision is a FINDING that recalibrates this
+boundary, not a fault.** The boundary is a hypothesis about where the line sits, and it is expected to
+move.
+
+**Compatible with what already exists, checked rather than assumed:** `CLAUDE.md` §0's plan gate is
+untouched, its phase-3 gate is already retired, the review is already post-merge, frozen files remain
+absolutely out of bounds (§1: *stop and write it as an open question*), and the **95 % rule still
+governs** — this narrows what counts as *unsure*, it does not license assuming.
+
 🔒 **PROPORTIONATE REVIEW: A BLOCKING MERGE REVIEW EARNS ITS PLACE FROM THE COST OF A LATE FIX, NOT FROM THE SIZE OF THE DIFF (added 2026-08-30, on the author's challenge, and it governs EVERY task from here rather than being a dispensation for one).**
 **The trigger question is one line: if this task's worst undetected defect were found AFTER merge, what would fixing it cost?**
 - **Expensive to re-run** — a campaign of hours or days, a destructive write, anything consuming a reused merged column, anything whose inputs are gitignored and unbacked → **the review BLOCKS the merge, as it always has.**
