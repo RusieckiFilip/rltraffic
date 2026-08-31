@@ -413,3 +413,122 @@ def test_status_counts_refusals_separately_from_present_cells(tmp_path: Path) ->
     assert state["refused"] == 1
     assert state["missing"] == 3, "a refused cell is MISSING, not present"
     assert state["complete"] is False
+
+
+# ----------------------------------------------------------------------
+# DISCRIMINABILITY -- binding, ruled 2026-08-31
+# ----------------------------------------------------------------------
+
+
+def test_identical_arms_report_cannot_discriminate_not_no_difference() -> None:
+    """🔒 The binding rule: those are different claims and only one of them is honest here."""
+    from offline.att_rederivation import contrast_discriminability
+
+    same = {(202, d): 100.0 + d for d in range(5)}
+    got = contrast_discriminability(
+        same, dict(same), tier="fixedtime", left="dt_spatial", right="dt_nomix"
+    )
+    assert got.identical is True
+    assert got.status == "cannot_discriminate"
+    assert got.n_differing == 0
+    assert got.max_abs_difference == 0.0
+    assert "cannot discriminate" in got.statement
+    assert "no difference was found" not in got.statement
+
+
+def test_distinct_arms_report_distinct_with_their_margin() -> None:
+    from offline.att_rederivation import contrast_discriminability
+
+    left = {(202, d): 100.0 + d for d in range(5)}
+    right = dict(left)
+    right[(202, 3)] = 107.5
+    got = contrast_discriminability(left, right, tier="random", left="a", right="b")
+    assert got.identical is False
+    assert got.status == "distinct"
+    assert got.n_differing == 1
+    assert got.max_abs_difference == pytest.approx(4.5)
+
+
+def test_a_contrast_over_no_shared_episode_refuses() -> None:
+    """Reporting 'identical' from an empty overlap is the strongest claim from no evidence."""
+    from offline.att_rederivation import contrast_discriminability
+
+    with pytest.raises(ValueError, match="share no episode"):
+        contrast_discriminability({(1, 1): 1.0}, {(2, 2): 1.0}, tier="t", left="a", right="b")
+
+
+def test_a_verdict_without_its_discriminability_is_refused() -> None:
+    """The binding rule is only binding if something checks it."""
+    from offline.att_rederivation import assert_contrast_reports_discriminability
+
+    ok = {
+        "contrasts": [
+            {"tier": "fixedtime", "outcome": "NOT RESOLVED", "discriminability": {"status": "x"}}
+        ]
+    }
+    assert_contrast_reports_discriminability(ok)
+
+    with pytest.raises(ValueError, match="without its discriminability"):
+        assert_contrast_reports_discriminability(
+            {"contrasts": [{"tier": "fixedtime", "outcome": "NOT RESOLVED"}]}
+        )
+    # Nested, because a shallow check would miss exactly the one a reader would.
+    with pytest.raises(ValueError, match="without its discriminability"):
+        assert_contrast_reports_discriminability(
+            {"v4": {"blocks": {"p2a": {"tier": "random", "verdict": "HELD"}}}}
+        )
+
+
+def test_the_fixedtime_collapse_is_reproduced_from_the_committed_artifacts() -> None:
+    """The finding itself, re-measured from P5.2's own cells rather than quoted.
+
+    Confined to ``fixedtime``: ``mappo1000``, ``maxpressure`` and ``random`` have every arm distinct.
+    On ``fixedtime``, ``dt_spatial`` and ``dt_nomix`` are IDENTICAL, which is P5.1's P2a contrast and
+    makes it zero by construction on that rung.
+    """
+    import glob
+    from collections import defaultdict
+
+    from offline.att_rederivation import contrast_discriminability
+
+    root = "/home/filip/rltraffic/output/p5_2"
+    files = [f for f in sorted(glob.glob(f"{root}/eval_*.json")) if "_replicate" not in f]
+    if not files:
+        pytest.skip(f"P5.2's campaign cells are not present under {root}")
+
+    by_tier: dict[str, dict[str, dict[tuple, float]]] = defaultdict(dict)
+    for path in files:
+        payload = json.loads(Path(path).read_bytes())
+        arm = payload.get("arm")
+        if not arm or "@" not in arm:
+            continue
+        tier = arm.split("@")[1]
+        for episode in payload.get("episodes", []):
+            by_tier[tier].setdefault(arm, {})[
+                (episode["seed"], episode["draw_id"])
+            ] = episode["att_horizon"]
+
+    assert by_tier, "no tiers were read -- the check would pass vacuously"
+    distinct_counts = {}
+    for tier, arms in by_tier.items():
+        signatures = {arm: tuple(sorted(v.items())) for arm, v in arms.items()}
+        distinct_counts[tier] = (len(set(signatures.values())), len(arms))
+
+    assert distinct_counts["mappo1000"][0] == distinct_counts["mappo1000"][1]
+    assert distinct_counts["maxpressure"][0] == distinct_counts["maxpressure"][1]
+    assert distinct_counts["random"][0] == distinct_counts["random"][1]
+    assert distinct_counts["fixedtime"][0] < distinct_counts["fixedtime"][1], (
+        "the fixedtime collapse is the finding; if every arm is distinct it has gone away and the "
+        "result note must be corrected"
+    )
+
+    # P5.1's P2a contrast, on the rung where it cannot discriminate.
+    got = contrast_discriminability(
+        by_tier["fixedtime"]["dt_spatial@fixedtime"],
+        by_tier["fixedtime"]["dt_nomix@fixedtime"],
+        tier="fixedtime",
+        left="dt_spatial",
+        right="dt_nomix",
+    )
+    assert got.status == "cannot_discriminate"
+    assert got.max_abs_difference == 0.0

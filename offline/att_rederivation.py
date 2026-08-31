@@ -1258,3 +1258,108 @@ def run_campaign(
 
 if __name__ == "__main__":  # pragma: no cover - CLI entry point
     raise SystemExit(main())
+
+
+# ----------------------------------------------------------------------
+# DISCRIMINABILITY -- binding on every re-derived contrast
+# ----------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class ContrastDiscriminability:
+    """Whether the two arms of a contrast are distinguishable AT ALL on this tier.
+
+    🔒 **BINDING, ruled 2026-08-31.**  Every re-derived contrast reports this beside its verdict.
+    When two arms produce identical per-draw ATT, the honest statement is **"the tier cannot
+    discriminate"** and NOT "no difference was found": the second implies a measurement was made
+    that could have come out otherwise, and on such a tier it could not.
+
+    Measured on grid4x4's ``fixedtime`` tier, which is where this rule comes from: 4 of 7 arms carry
+    distinct ATT vectors, ``behaviour``, ``dt_nomix`` and ``dt_spatial`` are mutually identical, and
+    ``bc`` is identical to ``bc_top10_perix``.  P5.1's P2a contrast -- ``mean(ATT_spatial -
+    ATT_nomix)`` -- is therefore **identically zero** on that rung, by construction rather than by
+    measurement.  The same check over ``mappo1000`` (6/6), ``maxpressure`` (7/7) and ``random``
+    (6/6) finds every arm distinct, so the collapse is confined to ``fixedtime``.
+    """
+
+    tier: str
+    left: str
+    right: str
+    n_paired: int
+    n_differing: int
+    max_abs_difference: float
+    identical: bool
+    status: str
+    statement: str
+
+
+def contrast_discriminability(
+    left_values: Mapping[Any, float],
+    right_values: Mapping[Any, float],
+    *,
+    tier: str,
+    left: str,
+    right: str,
+) -> ContrastDiscriminability:
+    """Compare two arms' per-episode ATT vectors on their SHARED keys.
+
+    Refuses an empty overlap: a contrast over no shared episode is not a contrast, and reporting
+    ``identical`` for it would be the strongest possible claim from the weakest possible evidence.
+    """
+    shared = sorted(set(left_values) & set(right_values), key=repr)
+    if not shared:
+        raise ValueError(
+            f"{left} and {right} on tier {tier} share no episode, so there is nothing to compare; "
+            "an empty overlap must refuse rather than report 'identical'"
+        )
+    differences = [float(left_values[k]) - float(right_values[k]) for k in shared]
+    n_differing = sum(1 for d in differences if d != 0.0)
+    identical = n_differing == 0
+    return ContrastDiscriminability(
+        tier=str(tier),
+        left=str(left),
+        right=str(right),
+        n_paired=len(shared),
+        n_differing=n_differing,
+        max_abs_difference=max(abs(d) for d in differences),
+        identical=identical,
+        status="cannot_discriminate" if identical else "distinct",
+        statement=(
+            f"{left} and {right} produce IDENTICAL ATT on all {len(shared)} shared episodes of "
+            f"tier {tier}; this tier cannot discriminate between them, so any contrast is zero by "
+            "construction and not by measurement"
+            if identical
+            else f"{left} and {right} differ on {n_differing} of {len(shared)} shared episodes of "
+            f"tier {tier} (max |difference| {max(abs(d) for d in differences)!r})"
+        ),
+    )
+
+
+def assert_contrast_reports_discriminability(payload: Any) -> None:
+    """Refuse a contrast block that does not carry its discriminability.
+
+    The binding rule is only binding if something checks it.  Every mapping that looks like a
+    contrast -- one carrying a ``verdict`` or an ``outcome`` alongside a ``tier`` -- must also carry
+    ``discriminability``, so a verdict can never be reported without saying whether the tier it sits
+    on could have produced a different answer.
+    """
+
+    def walk(node: Any, path: str) -> None:
+        if isinstance(node, Mapping):
+            looks_like_contrast = "tier" in node and (
+                "verdict" in node or "outcome" in node
+            )
+            if looks_like_contrast and "discriminability" not in node:
+                raise ValueError(
+                    f"{path}: this contrast reports a verdict on tier {node.get('tier')!r} without "
+                    "its discriminability. 'no difference was found' and 'the tier cannot "
+                    "discriminate' are different claims and the second must never be written as "
+                    "the first (ruled 2026-08-31)"
+                )
+            for key, value in node.items():
+                walk(value, f"{path}.{key}")
+        elif isinstance(node, (list, tuple)):
+            for index, value in enumerate(node):
+                walk(value, f"{path}[{index}]")
+
+    walk(payload, "$")
