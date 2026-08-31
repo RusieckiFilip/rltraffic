@@ -1112,6 +1112,46 @@ def build_cell_factory(
     }
 
 
+#: A run in which this many consecutive cells fail is not meeting bad cells, it is misconfigured.
+#: Continuing would burn hours producing nothing, so the run stops and says which.  A SINGLE bad
+#: cell can never trip this, which is the whole point.
+SYSTEMIC_FAILURE_THRESHOLD = 25
+
+
+def _write_refusal(
+    cell: CellKey,
+    exc: BaseException,
+    reason_class: str,
+    att_rederived: float | None,
+    committed: Mapping[tuple[str, str, int | None, int], float],
+    work: Path,
+    protected: Sequence[Path],
+) -> dict[str, Any]:
+    """Record one refused cell durably, and return the record."""
+    from offline.tier_sweep import assert_writable, write_json_guarded
+
+    record = {
+        "format_version": ARTIFACT_FORMAT_VERSION,
+        "scenario": cell.scenario,
+        "arm": cell.arm,
+        "seed": cell.seed,
+        "draw_id": cell.draw_id,
+        "reason_class": reason_class,
+        "reason": f"{type(exc).__name__}: {exc}",
+        "att_ours_rederived": None if att_rederived is None else float(att_rederived),
+        "att_ours_committed": committed.get((cell.scenario, cell.arm, cell.seed, cell.draw_id)),
+    }
+    refusal = work / refusal_file_name(cell)
+    assert_writable(refusal, protected)
+    write_json_guarded(record, refusal, protected)
+    print(
+        f"  REFUSED [{reason_class}] {cell.scenario}/{cell.arm} seed {cell.seed} "
+        f"draw {cell.draw_id}: {type(exc).__name__}: {str(exc)[:140]}",
+        flush=True,
+    )
+    return record
+
+
 def run_campaign(
     cells: Sequence[CellKey],
     *,
@@ -1123,21 +1163,23 @@ def run_campaign(
 ) -> dict[str, Any]:
     """Roll every cell, checking reproduction PER CELL, writing one file each.
 
-    Three properties this loop is built around:
+    🔒 **EVERY per-cell step is inside the refusal boundary, not just the reproduction check.**
+    The first version wrapped only :func:`assert_reproduces_committed`, so a ``ValueError`` from
+    tier resolution, checkpoint loading or the rollout itself still aborted all five workers -- which
+    is exactly what happened on ``mix33``.  A refusal must be about the CELL, whatever went wrong in
+    it, or the guarantee is only as good as the list of exceptions somebody remembered.
 
-    * **The reproduction check is INSIDE the loop, never post-hoc.**  A mis-mapped arm raises on its
-      first episode -- seconds into a four-hour job -- instead of after it.
-    * **Resumable at episode granularity.**  A cell whose file already exists is skipped, so a job
-      that dies loses at most the episode in flight.
-    * **A partial run is structurally distinguishable from a complete one.**  The manifest declares
-      the cell set before anything runs and is never overwritten; the ``CAMPAIGN_COMPLETE`` marker
-      appears only when every declared cell has a file, and :func:`campaign_status` recomputes that
-      from disk rather than trusting the marker.
+    * **Resumable at episode granularity.**  A cell whose file already exists is skipped; a refused
+      cell writes no cell file, so it is retried on the next resume and can never enter a verdict.
+    * **A partial run is structurally distinguishable from a complete one** -- see
+      :func:`campaign_status`, which recomputes completeness from disk.
+    * **A systemic failure still stops.**  :data:`SYSTEMIC_FAILURE_THRESHOLD` consecutive refusals
+      means the run is misconfigured rather than unlucky, and burning four hours to produce a
+      directory of refusals helps nobody.  One bad cell cannot trip it.
     """
     from offline.admission_probe import created_from_flow, probe_episode
     from offline.materialise_draws import draw_config_path
     from offline.tier_sweep import assert_writable, write_json_guarded
-    from offline.engine_att_reference import env_settings_for
 
     work = Path(roots.work_dir)
     scenario_keys = {"hz1x1": "cityflow1x1", "grid4x4": "cityflow_grid4x4"}
@@ -1148,104 +1190,113 @@ def run_campaign(
     factory_cache: dict[tuple[str, str, int | None], Any] = {}
 
     rolled = skipped = 0
+    consecutive = 0
     refused: list[dict[str, Any]] = []
     started = time.perf_counter()
+
     for index, cell in enumerate(cells, start=1):
         destination = work / cell_file_name(cell)
         if destination.is_file():
             skipped += 1
             continue
 
-        method, tier = normalise_arm(cell.scenario, cell.arm)
-        tier_key = (cell.scenario, tier)
-        if tier_key not in settings_cache:
-            settings_cache[tier_key] = env_settings_for(cell.scenario, tier, roots)
-        settings = settings_cache[tier_key]
-        horizon = int(settings["max_steps"]) * int(settings["delta_time"])
+        episode = None
+        try:
+            method, tier = normalise_arm(cell.scenario, cell.arm)
+            tier_key = (cell.scenario, tier)
+            if tier_key not in settings_cache:
+                settings_cache[tier_key] = rederivation_env_settings(cell.scenario, tier, roots)
+            settings = settings_cache[tier_key]
+            horizon = int(settings["max_steps"]) * int(settings["delta_time"])
 
-        config_key = (cell.scenario, int(cell.draw_id))
-        if config_key not in config_cache:
-            config_cache[config_key] = Path(
-                draw_config_path(
-                    scenario_keys[cell.scenario], int(cell.draw_id), out_root=roots.draws_root
+            config_key = (cell.scenario, int(cell.draw_id))
+            if config_key not in config_cache:
+                config_cache[config_key] = Path(
+                    draw_config_path(
+                        scenario_keys[cell.scenario], int(cell.draw_id), out_root=roots.draws_root
+                    )
+                )
+            config = config_cache[config_key]
+            created_key = (cell.scenario, int(cell.draw_id), horizon)
+            if created_key not in created_cache:
+                created_cache[created_key] = created_from_flow(
+                    config.parent / "flow.json", horizon_seconds=horizon
+                )
+
+            factory_key = (cell.scenario, cell.arm, cell.seed)
+            if factory_key not in factory_cache:
+                factory_cache[factory_key] = build_cell_factory(
+                    cell.scenario, cell.arm, cell.seed, roots, device=device, config_path=config
+                )
+            factory, source = factory_cache[factory_key]
+
+            episode = probe_episode(
+                scenario=cell.scenario,
+                tier=tier,
+                method=method,
+                arm=cell.arm,
+                seed=cell.seed,
+                draw_id=int(cell.draw_id),
+                config_path=config,
+                env_settings=settings,
+                scenario_id=scenario_keys[cell.scenario],
+                choose_action_factory=factory,
+                engine_seed=int(engine_seed),
+                created=created_cache[created_key],
+            )
+            expected = assert_reproduces_committed(cell, episode.att_ours, committed)
+        except KeyError as exc:
+            refused.append(
+                _write_refusal(cell, exc, "unverified", None, committed, work, protected)
+            )
+            consecutive += 1
+        except Exception as exc:  # noqa: BLE001 - a cell's failure is data, not a reason to abort
+            reason_class = (
+                "does_not_reproduce"
+                if episode is not None and "does not reproduce the committed" in str(exc)
+                else "cell_failed"
+            )
+            refused.append(
+                _write_refusal(
+                    cell,
+                    exc,
+                    reason_class,
+                    None if episode is None else episode.att_ours,
+                    committed,
+                    work,
+                    protected,
                 )
             )
-        config = config_cache[config_key]
-        created_key = (cell.scenario, int(cell.draw_id), horizon)
-        if created_key not in created_cache:
-            created_cache[created_key] = created_from_flow(
-                config.parent / "flow.json", horizon_seconds=horizon
+            consecutive += 1
+        else:
+            consecutive = 0
+            assert_writable(destination, protected)
+            write_json_guarded(
+                {
+                    "format_version": ARTIFACT_FORMAT_VERSION,
+                    **episode.as_record(),
+                    "committed_att_ours": expected,
+                    "reproduces_committed": True,
+                    "policy_source": dict(source),
+                },
+                destination,
+                protected,
             )
+            rolled += 1
+            if rolled % 25 == 0 or index == len(cells):
+                rate = (time.perf_counter() - started) / max(rolled, 1)
+                print(
+                    f"  {index}/{len(cells)} rolled={rolled} skipped={skipped} "
+                    f"refused={len(refused)} {rate:.2f} s/episode",
+                    flush=True,
+                )
 
-        factory_key = (cell.scenario, cell.arm, cell.seed)
-        if factory_key not in factory_cache:
-            factory_cache[factory_key] = build_cell_factory(
-                cell.scenario, cell.arm, cell.seed, roots, device=device, config_path=config
-            )
-        factory, source = factory_cache[factory_key]
-
-        episode = probe_episode(
-            scenario=cell.scenario,
-            tier=tier,
-            method=method,
-            arm=cell.arm,
-            seed=cell.seed,
-            draw_id=int(cell.draw_id),
-            config_path=config,
-            env_settings=settings,
-            scenario_id=scenario_keys[cell.scenario],
-            choose_action_factory=factory,
-            engine_seed=int(engine_seed),
-            created=created_cache[created_key],
-        )
-        # (i) PER CELL, INSIDE THE LOOP.  A cell that cannot be verified is RECORDED AS REFUSED and
-        # the campaign continues: aborting a four-hour job on its first bad cell throws away every
-        # good cell still ahead of it, and one refusal is a fact to report rather than a reason to
-        # stop measuring.  A refused cell writes NO cell file, so it can never be skipped on resume
-        # and can never enter a verdict.
-        try:
-            expected = assert_reproduces_committed(cell, episode.att_ours, committed)
-        except (ValueError, KeyError) as exc:
-            reason_class = "unverified" if isinstance(exc, KeyError) else "does_not_reproduce"
-            record = {
-                "format_version": ARTIFACT_FORMAT_VERSION,
-                "scenario": cell.scenario,
-                "arm": cell.arm,
-                "seed": cell.seed,
-                "draw_id": cell.draw_id,
-                "reason_class": reason_class,
-                "reason": str(exc),
-                "att_ours_rederived": float(episode.att_ours),
-                "att_ours_committed": committed.get(
-                    (cell.scenario, cell.arm, cell.seed, cell.draw_id)
-                ),
-            }
-            refusal = work / refusal_file_name(cell)
-            assert_writable(refusal, protected)
-            write_json_guarded(record, refusal, protected)
-            refused.append(record)
-            print(f"  REFUSED [{reason_class}] {cell.scenario}/{cell.arm} seed {cell.seed} "
-                  f"draw {cell.draw_id}", flush=True)
-            continue
-
-        assert_writable(destination, protected)
-        write_json_guarded(
-            {
-                "format_version": ARTIFACT_FORMAT_VERSION,
-                **episode.as_record(),
-                "committed_att_ours": expected,
-                "reproduces_committed": True,
-                "policy_source": dict(source),
-            },
-            destination,
-            protected,
-        )
-        rolled += 1
-        if rolled % 25 == 0 or index == len(cells):
-            rate = (time.perf_counter() - started) / max(rolled, 1)
-            print(
-                f"  {index}/{len(cells)} rolled={rolled} skipped={skipped} {rate:.2f} s/episode",
-                flush=True,
+        if consecutive >= SYSTEMIC_FAILURE_THRESHOLD:
+            raise RuntimeError(
+                f"{consecutive} consecutive cells failed, ending at {cell.scenario}/{cell.arm} "
+                f"seed {cell.seed} draw {cell.draw_id}. That is a misconfiguration, not a run of "
+                f"bad cells, and continuing would spend hours producing refusals. The refusal "
+                f"records under {work} name each one. A single bad cell cannot reach this threshold"
             )
 
     return {
@@ -1255,9 +1306,6 @@ def run_campaign(
         "n_refused": len(refused),
         "seconds": time.perf_counter() - started,
     }
-
-if __name__ == "__main__":  # pragma: no cover - CLI entry point
-    raise SystemExit(main())
 
 
 # ----------------------------------------------------------------------
@@ -1652,3 +1700,59 @@ def rederivation_artifact(
     assert_contrast_reports_discriminability(payload)
     assert_no_science_verdict(payload)
     return payload
+
+
+def rederivation_corpus_dirs(scenario: str, tier: str, roots: Any) -> tuple[Path, ...]:
+    """The corpus directories of any tier this campaign touches, mixtures included.
+
+    ⚠️ **Gate 0's ``tier_corpus_dirs`` covers the SEVEN BEHAVIOUR TIERS and nothing else**, which is
+    correct for Gate 0 and wrong here: this campaign also rolls P4.7's ``mix33`` / ``mix50`` /
+    ``mix67``, whose corpus is a BLEND and has no ``cf_hz1x1__mix33`` directory to find.  Calling the
+    Gate 0 helper on a mixture aborted all five workers.
+
+    ``method_tier_grid.TIERS`` already declares the directory list of every hz1x1 tier, mixtures
+    included -- ``mix33.dirs`` is the five ``mappo1000`` seeds plus ``random`` -- so that registered
+    declaration is used rather than a second one invented here.
+    """
+    from offline.method_tier_grid import TIERS as HZ_TIERS
+
+    if scenario == "hz1x1" and tier in HZ_TIERS:
+        paths = tuple(Path(roots.corpus_root) / name for name in HZ_TIERS[tier].dirs)
+        missing = [str(p) for p in paths if not (p / "manifest.json").is_file()]
+        if missing:
+            raise FileNotFoundError(
+                f"{scenario}/{tier}: these corpus directories have no manifest.json: {missing}"
+            )
+        return paths
+
+    from offline.engine_att_reference import tier_corpus_dirs
+
+    return tier_corpus_dirs(scenario, tier, roots)
+
+
+def rederivation_env_settings(scenario: str, tier: str, roots: Any) -> dict[str, Any]:
+    """Evaluation env settings for any tier, read from its own collection manifests.
+
+    Every directory of the tier must agree; a disagreement raises rather than picking the first,
+    because the settings decide what the episode IS.  A mixture's directories span two component
+    corpora, and they are asserted to agree exactly as a single tier's are.
+    """
+    from offline.dt_gate import env_settings_from_manifest
+
+    seen: dict[str, list[str]] = {}
+    settings: dict[str, Any] | None = None
+    for directory in rederivation_corpus_dirs(scenario, tier, roots):
+        candidate = env_settings_from_manifest(directory / "manifest.json")
+        key = json.dumps(candidate, sort_keys=True, default=str)
+        seen.setdefault(key, []).append(str(directory))
+        if settings is None:
+            settings = candidate
+    if settings is None:
+        raise ValueError(f"{scenario}/{tier} names no corpus directory, so it has no env settings")
+    if len(seen) > 1:
+        summary = {sorted(paths)[0]: len(paths) for paths in seen.values()}
+        raise ValueError(
+            f"{scenario}/{tier}'s corpus directories disagree on the evaluation env settings "
+            f"({summary}); picking one would compare two different episodes under one tier name"
+        )
+    return settings

@@ -695,3 +695,119 @@ def test_the_artifact_refuses_an_empty_contrast_list() -> None:
 
     with pytest.raises(ValueError, match="re-derives nothing"):
         rederivation_artifact([], provenance={})
+
+
+# ----------------------------------------------------------------------
+# Mixture tiers, and the refusal boundary around the WHOLE per-cell body
+# ----------------------------------------------------------------------
+
+
+def test_every_tier_the_campaign_rolls_can_resolve_its_env_settings() -> None:
+    """🔒 REGRESSION: mix33 killed all five workers through Gate 0's seven-tier helper.
+
+    Gate 0's ``tier_corpus_dirs`` covers the seven BEHAVIOUR tiers, which is right for Gate 0 and
+    wrong for this campaign: P4.7's mixtures have no ``cf_hz1x1__mix33`` directory because their
+    corpus is a blend. Every tier the campaign actually rolls must resolve.
+    """
+    from offline.admission_probe import ProbeRoots
+    from offline.att_rederivation import rederivation_corpus_dirs, rederivation_env_settings
+
+    corpus = Path("/home/filip/rltraffic/datasets_v11")
+    if not corpus.is_dir():
+        pytest.skip(f"the corpus is not present at {corpus}")
+    roots = ProbeRoots(
+        repo_root=Path("."), corpus_root=corpus,
+        draws_root=Path("/home/filip/rltraffic/scenarios/draws"),
+        output_root=Path("/home/filip/rltraffic/output"), work_dir=Path("/tmp/unused"),
+    )
+    expected = {
+        "hz1x1": ("mappo1000", "mappo500", "maxpressure", "fixedtime", "random",
+                  "mix33", "mix50", "mix67"),
+        "grid4x4": ("mappo1000", "maxpressure", "fixedtime", "random"),
+    }
+    for scenario, tiers in expected.items():
+        for tier in tiers:
+            dirs = rederivation_corpus_dirs(scenario, tier, roots)
+            assert dirs, f"{scenario}/{tier} resolved no corpus directory"
+            settings = rederivation_env_settings(scenario, tier, roots)
+            assert int(settings["max_steps"]) > 0 and int(settings["delta_time"]) > 0
+    # The mixtures blend two component corpora, so they name MORE directories than a plain tier.
+    assert len(rederivation_corpus_dirs("hz1x1", "mix33", roots)) > len(
+        rederivation_corpus_dirs("hz1x1", "random", roots)
+    )
+
+
+def test_any_per_cell_failure_is_a_refusal_not_an_abort(monkeypatch, tmp_path: Path) -> None:
+    """🔒 REGRESSION: the refusal path wrapped ONLY the reproduction check.
+
+    A ``ValueError`` from tier resolution therefore still aborted all five workers, which is exactly
+    what mix33 did. The boundary now covers the whole per-cell body, so a failure ANYWHERE in a cell
+    is recorded and skipped. Three cells, the middle one broken; the run must finish with 2 rolled
+    and 1 refused.
+    """
+    import offline.att_rederivation as module
+
+    calls: list[str] = []
+
+    def fake_settings(scenario: str, tier: str, roots):
+        calls.append(tier)
+        if tier == "boom":
+            raise ValueError("'boom' is not a gated tier")
+        return {"max_steps": 1, "delta_time": 1}
+
+    def fake_probe(**kwargs):
+        class Episode:
+            att_ours = 42.0
+
+            def as_record(self):
+                return {"arm": kwargs["arm"], "draw_id": kwargs["draw_id"], "att_ours": 42.0}
+
+        return Episode()
+
+    monkeypatch.setattr(module, "rederivation_env_settings", fake_settings)
+    monkeypatch.setattr(module, "build_cell_factory", lambda *a, **k: (None, {}))
+    monkeypatch.setattr(module, "normalise_arm", lambda s, arm: ("bc", arm.split("@")[1]))
+    monkeypatch.setattr("offline.admission_probe.probe_episode", fake_probe)
+    monkeypatch.setattr("offline.admission_probe.created_from_flow", lambda *a, **k: 1)
+    monkeypatch.setattr("offline.materialise_draws.draw_config_path", lambda *a, **k: tmp_path / "c.json")
+
+    cells = [
+        CellKey("hz1x1", "bc@good", 101, 1000),
+        CellKey("hz1x1", "bc@boom", 101, 1000),
+        CellKey("hz1x1", "bc@good", 101, 1001),
+    ]
+    committed = {("hz1x1", "bc@good", 101, 1000): 42.0, ("hz1x1", "bc@good", 101, 1001): 42.0}
+    roots = type("R", (), {"work_dir": tmp_path, "draws_root": tmp_path,
+                           "corpus_root": tmp_path, "output_root": tmp_path,
+                           "repo_root": tmp_path})()
+    out = module.run_campaign(
+        cells, roots=roots, engine_seed=1,
+        device=None, committed=committed, protected=(),
+    )
+    assert out["rolled"] == 2, "the run must continue past the broken cell"
+    assert out["n_refused"] == 1
+    assert out["refused"][0]["reason_class"] == "cell_failed"
+    assert "boom" in out["refused"][0]["reason"]
+    assert len(list(tmp_path.glob("cell_*.json"))) == 2
+    assert len(list(tmp_path.glob("refused_*.json"))) == 1
+
+
+def test_a_systemic_failure_still_stops_but_one_bad_cell_never_can(monkeypatch, tmp_path: Path) -> None:
+    """Burning four hours to produce a directory of refusals helps nobody."""
+    import offline.att_rederivation as module
+
+    monkeypatch.setattr(
+        module, "rederivation_env_settings",
+        lambda *a, **k: (_ for _ in ()).throw(ValueError("everything is broken")),
+    )
+    monkeypatch.setattr(module, "normalise_arm", lambda s, arm: ("bc", "t"))
+    many = [CellKey("hz1x1", "bc@t", 101, 1000 + i) for i in range(60)]
+    with pytest.raises(RuntimeError, match="consecutive cells failed"):
+        module.run_campaign(
+            many, roots=type("R", (), {"work_dir": tmp_path, "draws_root": tmp_path,
+                                       "corpus_root": tmp_path, "output_root": tmp_path,
+                                       "repo_root": tmp_path})(), engine_seed=1,
+            device=None, committed={}, protected=(),
+        )
+    assert module.SYSTEMIC_FAILURE_THRESHOLD > 1, "one bad cell must never trip the threshold"
+    assert len(list(tmp_path.glob("refused_*.json"))) == module.SYSTEMIC_FAILURE_THRESHOLD
