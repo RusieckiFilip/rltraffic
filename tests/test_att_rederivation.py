@@ -975,3 +975,80 @@ def test_two_workers_actually_rolling_real_cells_end_to_end(tmp_path: Path) -> N
         f"the committed artifacts -- a replicate or a second measurement has been admitted as the "
         f"reference. First: {disagreeing[0]}"
     )
+
+
+def test_the_module_actually_runs_as_a_command_line_program(tmp_path: Path) -> None:
+    """🔒 REGRESSION: the ``__main__`` block was deleted and NOTHING caught it.
+
+    A wholesale rewrite of ``run_campaign`` sliced out
+    ``if __name__ == "__main__": raise SystemExit(main())``. From that commit until this test,
+    ``python -m offline.att_rederivation <anything>`` imported the module, defined every function and
+    **exited 0 having done nothing** -- so ``status`` printed nothing and succeeded, and a worker
+    would have "finished" its shard instantly with an empty log.
+
+    Every other test in this file calls ``main()`` as a Python function, which is precisely why none
+    of them could see it. This one uses a SUBPROCESS, which is how the campaign is actually launched.
+    Silence and success must never be indistinguishable.
+    """
+    import subprocess
+    import sys
+
+    repo = Path(__file__).resolve().parents[1]
+    work = tmp_path / "empty_work"
+    work.mkdir()
+
+    done = subprocess.run(
+        [sys.executable, "-m", "offline.att_rederivation",
+         "--output-root", str(tmp_path), "--work-dir", str(work), "status"],
+        cwd=str(repo), capture_output=True, text=True, timeout=180,
+        env={"PATH": "/usr/bin:/bin", "PYTHONPATH": str(repo), "OMP_NUM_THREADS": "1"},
+    )
+    assert done.stdout.strip(), (
+        f"`status` produced NO OUTPUT. stderr: {done.stderr[-400:]}. A command that prints nothing "
+        "and exits is indistinguishable from one that never ran"
+    )
+    state = json.loads(done.stdout)
+    for field in ("declared", "present", "refused", "complete"):
+        assert field in state, f"`status` must always report {field}"
+    assert done.returncode != 0, "`status` must exit non-zero while the campaign is incomplete"
+
+    # `--help` is the cheapest possible proof that the entry point is wired at all.
+    helped = subprocess.run(
+        [sys.executable, "-m", "offline.att_rederivation", "--help"],
+        cwd=str(repo), capture_output=True, text=True, timeout=180,
+        env={"PATH": "/usr/bin:/bin", "PYTHONPATH": str(repo), "OMP_NUM_THREADS": "1"},
+    )
+    assert helped.returncode == 0 and "preflight" in helped.stdout and "run" in helped.stdout
+
+
+def test_a_run_with_no_work_still_says_what_it_decided(tmp_path: Path) -> None:
+    """A worker that finds nothing to do must say so, not exit silently.
+
+    Same defect class as the worker exit codes: an empty log and a successful run are the same
+    observation to whoever is watching five tmux windows.
+    """
+    from offline.att_rederivation import main
+
+    corpus = Path("/home/filip/rltraffic/datasets_v11")
+    output = Path("/home/filip/rltraffic/output")
+    if not (corpus.is_dir() and (output / "p5_1").is_dir()):
+        pytest.skip("the campaign's source artifacts are not present")
+
+    repo = Path(__file__).resolve().parents[1]
+    work = tmp_path / "work"
+    import contextlib
+    import io
+
+    buffer = io.StringIO()
+    with contextlib.redirect_stdout(buffer):
+        code = main([
+            "--repo-root", str(repo), "--corpus-root", str(corpus),
+            "--draws-root", "/home/filip/rltraffic/scenarios/draws",
+            "--output-root", str(output), "--work-dir", str(work),
+            "run", "--verdicts", "V1", "--limit", "0",
+        ])
+    printed = buffer.getvalue()
+    assert code == 0
+    assert "campaign declares" in printed, "a run must state the campaign it accepted"
+    assert "rolls 0 of them" in printed, "a run with no work must SAY it has no work"
+    assert "rolled=0" in printed, "a run must state its outcome even when it did nothing"

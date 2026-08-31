@@ -1016,8 +1016,21 @@ def campaign_status(work_dir: str | Path) -> dict[str, Any]:
     """
     work = Path(work_dir)
     manifest_path = work / MANIFEST_NAME
+    # ⚠️ EVERY branch returns the SAME keys.  This branch used to omit `refused` and
+    # `declared_cells_sha256`, so a caller reading the report had to know which shape it had got --
+    # and a field that is sometimes absent is a field nobody can rely on.
     if not manifest_path.is_file():
-        return {"declared": None, "present": 0, "complete": False, "reason": "no manifest"}
+        return {
+            "declared": None,
+            "present": len(list(work.glob("cell_*.json"))),
+            "missing": None,
+            "missing_sample": [],
+            "refused": len(list(work.glob("refused_*.json"))),
+            "complete": False,
+            "marker_present": (work / COMPLETE_MARKER).is_file(),
+            "declared_cells_sha256": None,
+            "reason": f"no manifest at {manifest_path}; the campaign has not been declared here",
+        }
     manifest = json.loads(manifest_path.read_bytes())
     declared = list(manifest.get("cells", ()))
     present: list[str] = []
@@ -1041,6 +1054,7 @@ def campaign_status(work_dir: str | Path) -> dict[str, Any]:
         "refused": len(list(work.glob("refused_*.json"))),
         "marker_present": (work / COMPLETE_MARKER).is_file(),
         "declared_cells_sha256": manifest.get("declared_cells_sha256"),
+        "reason": None if complete else f"{len(missing)} of {len(declared)} cells not yet rolled",
     }
 
 
@@ -1756,3 +1770,7 @@ def rederivation_env_settings(scenario: str, tier: str, roots: Any) -> dict[str,
             f"({summary}); picking one would compare two different episodes under one tier name"
         )
     return settings
+
+
+if __name__ == "__main__":  # pragma: no cover - exercised by a subprocess test, not by import
+    raise SystemExit(main())
