@@ -292,9 +292,16 @@ def committed_att_index(
     reported with a caveat.
     """
     repo, out = Path(repo_root), Path(output_root)
-    index: dict[tuple[str, str, int | None, int], float] = {}
+    #: key -> {value: the first file that reported it}.  Collected as a MAPPING rather than
+    #: overwritten, because the first version of this function assigned straight into a dict and a
+    #: replicate file -- sorting after the committed one -- silently replaced 100 committed values
+    #: with a second measurement's.  The campaign then failed four hours in on an arm whose
+    #: checkpoint map was CORRECT, and the error message blamed the map.
+    collected: dict[tuple[str, str, int | None, int], dict[float, str]] = {}
     for source in REDERIVATION_SOURCES:
         for path in _resolve_sources(source, repo_root=repo, output_root=out):
+            if is_replicate_artifact(path):
+                continue
             try:
                 payload = json.loads(path.read_bytes())
             except (ValueError, OSError):
@@ -310,8 +317,18 @@ def committed_att_index(
                     None if seed is None else int(seed),
                     int(row["draw_id"]),
                 )
-                index[key] = float(value)
-    return index
+                collected.setdefault(key, {}).setdefault(float(value), path.name)
+
+    conflicts = {k: v for k, v in collected.items() if len(v) > 1}
+    if conflicts:
+        key, values = sorted(conflicts.items())[0]
+        raise ValueError(
+            f"{len(conflicts)} cells have MORE THAN ONE committed att_ours across the source "
+            f"artifacts, so there is no single value to reproduce. First: {key} carries "
+            f"{sorted(values.items())}. A silent last-writer-wins here is what turns a reference "
+            "defect into a rollout failure that blames the checkpoint map"
+        )
+    return {key: next(iter(values)) for key, values in collected.items()}
 
 
 def assert_reproduces_committed(
@@ -357,6 +374,20 @@ def slots_from_episode_block(payload: Any) -> tuple[dict[str, Any], ...]:
     return tuple(
         row for row in episodes if isinstance(row, Mapping) and "draw_id" in row and "arm" in row
     )
+
+
+#: Filename marker for a REPLICATE: a deliberate SECOND measurement of a slot already measured, run
+#: to check reproducibility.  It is not the committed cell and must never stand in for one.
+#: ``output/p5_2/eval_random_dt_spatial_seed202_replicate.json`` is the instance that made this
+#: matter: its 100 rows disagree with the committed ones by 5-13 s in both directions, because a
+#: stochastic arm rolled twice gives two answers.  **Both are real measurements; only one is the
+#: number P5.2 reported.**
+REPLICATE_MARKER = "_replicate"
+
+
+def is_replicate_artifact(path: str | Path) -> bool:
+    """Whether *path* is a replicate rather than a committed cell file."""
+    return REPLICATE_MARKER in Path(path).stem
 
 
 def _resolve_sources(source: VerdictSource, *, repo_root: Path, output_root: Path) -> list[Path]:

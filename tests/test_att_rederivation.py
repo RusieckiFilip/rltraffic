@@ -321,3 +321,62 @@ def test_multi_worker_launch_through_main_agrees_on_the_manifest(tmp_path: Path)
     assert manifest["n_cells"] == status["declared"]
     assert manifest["n_cells"] > 3, "the manifest must declare the campaign, not a 3-cell shard"
     assert status["complete"] is False
+
+
+# ----------------------------------------------------------------------
+# The committed reference: one value per cell, or refuse
+# ----------------------------------------------------------------------
+
+
+def test_a_replicate_artifact_is_recognised_and_never_the_committed_cell() -> None:
+    """A replicate is a SECOND measurement of a slot, not the number that was reported."""
+    from offline.att_rederivation import is_replicate_artifact
+
+    assert is_replicate_artifact("eval_random_dt_spatial_seed202_replicate.json")
+    assert is_replicate_artifact(Path("/x/y/eval_mappo1000_bc_seed303_replicate.json"))
+    assert not is_replicate_artifact("eval_random_dt_spatial.json")
+    assert not is_replicate_artifact("p4_gate.json")
+
+
+def test_the_committed_index_refuses_a_cell_with_two_different_values(tmp_path: Path) -> None:
+    """🔒 REGRESSION: a silent last-writer-wins cost a four-hour campaign.
+
+    Two artifacts reported different ``att_horizon`` for the same ``(arm, seed, draw)``. The index
+    assigned straight into a dict, so the file that sorted later overwrote the committed value with
+    a replicate's -- and the campaign then died on an arm whose checkpoint map was CORRECT, with an
+    error message blaming the map. Detecting the collision is what turns that into an immediate,
+    accurate refusal.
+    """
+    from offline.att_rederivation import REDERIVATION_SOURCES, committed_att_index
+
+    docs = tmp_path / "docs" / "data"
+    docs.mkdir(parents=True)
+
+    def write(name: str, value: float) -> None:
+        (docs / name).write_text(
+            json.dumps(
+                {"episodes": [{"arm": "bc@x", "seed": 101, "draw_id": 1000, "att_horizon": value}]}
+            ),
+            encoding="utf-8",
+        )
+
+    # Both files are named by V1's source list, so both are read for the same scenario.
+    write("p4_gate.json", 100.0)
+    write("p4_heldout_thresholds.json", 100.0)
+    # Agreement is fine and must NOT raise: 1,800 real keys are reported by two files with the
+    # same value, and refusing those would refuse the whole campaign.
+    only_v1 = tuple(s for s in REDERIVATION_SOURCES if s.verdict_id == "V1")
+    import offline.att_rederivation as module
+
+    original = module.REDERIVATION_SOURCES
+    module.REDERIVATION_SOURCES = only_v1
+    try:
+        index = committed_att_index(repo_root=tmp_path, output_root=tmp_path)
+        assert index[("hz1x1", "bc@x", 101, 1000)] == 100.0
+
+        # Disagreement must raise, naming the cell and both values.
+        write("p4_heldout_thresholds.json", 263.5563114134543)
+        with pytest.raises(ValueError, match="MORE THAN ONE committed att_ours"):
+            committed_att_index(repo_root=tmp_path, output_root=tmp_path)
+    finally:
+        module.REDERIVATION_SOURCES = original
