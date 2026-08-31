@@ -1528,18 +1528,45 @@ class ContrastReport:
         }
 
 
-def load_cells(work_dir: str | Path) -> dict[str, dict[str, dict[tuple, dict[str, float]]]]:
-    """``{tier: {arm: {(seed, draw): {definition: value}}}}`` from the campaign's cell files.
+def load_cells(
+    work_dir: str | Path,
+) -> dict[str, dict[str, dict[str, dict[tuple, dict[str, float]]]]]:
+    """``{scenario: {tier: {method: {(seed, draw): {definition: value}}}}}`` from the cell files.
+
+    ⚠️ **Keyed by SCENARIO first, and that is not cosmetic.**  An earlier version keyed by tier
+    alone, which put ``bc@grid4x4_mappo1000`` and ``bc@mappo1000`` -- two different NETWORKS -- into
+    one bucket called ``mappo1000``.  Every contrast pooled over it would have averaged hz1x1 and
+    grid4x4 episodes into a single statistic and reported it under one tier name.
+
+    ⚠️ **The tier label is the RAW one, NOT the one ``normalise_arm`` produces**, and the difference
+    is load-bearing.  ``normalise_arm`` strips P5.1's scenario prefix so a checkpoint can be
+    resolved, which is right for that purpose and wrong here: it maps P5.1's
+    ``dt_nomix@grid4x4_mappo1000`` and P5.2's ``dt_nomix@mappo1000`` onto one key, and those are
+    DIFFERENT CELLS from different campaigns whose checkpoints are different files
+    (``admission_probe._method_checkpoint``'s own docstring records that trap).  Merging them would
+    average two campaigns into one number.  They stay separate tiers because they are separate tiers.
 
     Reads only ``cell_*.json``: a refusal record is not data and must never reach a verdict.
     """
-    cells: dict[str, dict[str, dict[tuple, dict[str, float]]]] = {}
+    cells: dict[str, dict[str, dict[str, dict[tuple, dict[str, float]]]]] = {}
     for path in sorted(Path(work_dir).glob("cell_*.json")):
         row = json.loads(path.read_bytes())
+        scenario = str(row["scenario"])
         arm = str(row["arm"])
-        _, tier = normalise_arm(str(row["scenario"]), arm)
+        tier = arm.partition("@")[2] if "@" in arm else BARE_ARM_TIERS[arm][1]
         key = (row.get("seed"), int(row["draw_id"]))
-        cells.setdefault(tier, {}).setdefault(arm, {})[key] = {
+        # The inner key is the arm string VERBATIM.  P4.4 writes ``bc`` and P4.7 writes
+        # ``bc@mappo1000`` for what is the same checkpoint, and P5.1 and P5.2 write
+        # ``dt_nomix@grid4x4_mappo1000`` and ``dt_nomix@mappo1000`` for what is NOT.  Only the
+        # source artifact knows which it meant, so nothing is folded together here and each verdict
+        # names the arms it consumed.
+        bucket = cells.setdefault(scenario, {}).setdefault(tier, {}).setdefault(arm, {})
+        if key in bucket:
+            raise ValueError(
+                f"{scenario}/{arm} has two records for seed {key[0]} draw {key[1]}; "
+                "whichever won would be an arbitrary choice between two measurements of one cell"
+            )
+        bucket[key] = {
             "att_ours": float(row["att_ours"]),
             "att_engine": float(row["att_engine"]),
         }
@@ -1598,13 +1625,12 @@ def pool_contrast(
             )
             differences: list[float] = []
             for tier in chosen:
-                block = cells[tier]
-                left_values = block[f"{left}@{tier}"]
-                right_values = block[f"{right}@{tier}"]
-                for key in sorted(set(left_values) & set(right_values), key=repr):
-                    differences.append(
-                        float(left_values[key][definition]) - float(right_values[key][definition])
+                # The REGISTERED pairing unit: per draw, averaged over seeds (dt_gate._paired).
+                differences.extend(
+                    _paired_differences(
+                        cells[tier], f"{left}@{tier}", f"{right}@{tier}", definition
                     )
+                )
             if not differences:
                 pooled.append(
                     PooledContrast(
@@ -1677,7 +1703,7 @@ def pool_contrast(
 
 
 def rederivation_artifact(
-    contrasts: Sequence[ContrastReport], *, provenance: Mapping[str, Any]
+    contrasts: Sequence[Any], *, provenance: Mapping[str, Any]
 ) -> dict[str, Any]:
     """Assemble the re-derivation artifact, with BOTH guards actually invoked.
 
@@ -1685,12 +1711,35 @@ def rederivation_artifact(
     enforcement function nobody calls is ``DEFERRED`` 42/44's class -- a guard that exists in the
     source and never in the execution -- so the artifact cannot be built without it passing.
     """
-    from offline.admission_probe import assert_no_science_verdict, code_provenance
+    from offline.admission_probe import SCIENCE_VERDICT_STRINGS, code_provenance
 
     if not contrasts:
         raise ValueError("the re-derivation artifact carries no contrast, so it re-derives nothing")
 
-    escalations = [c.verdict_id for c in contrasts if c.escalate]
+    records = [c if isinstance(c, Mapping) else c.as_record() for c in contrasts]
+    escalations: list[dict[str, Any]] = []
+    for record in records:
+        outcomes: dict[str, set[str]] = {}
+        for definition, block in (record.get("by_definition") or {}).items():
+            outcomes.setdefault(definition, set()).add(str(block.get("outcome")))
+        for pooled in record.get("pooled", ()):
+            outcomes.setdefault(pooled["definition"], set()).add(str(pooled["outcome"]))
+        # (a) the same definition giving different answers under the two poolings
+        pooling_dependent = sorted(d for d, v in outcomes.items() if len(v) > 1)
+        # (b) the two definitions giving different answers -- the finding this task exists for
+        collapsed = {d: tuple(sorted(v)) for d, v in outcomes.items()}
+        definition_dependent = len(set(collapsed.values())) > 1
+        record["pooling_dependent_for"] = pooling_dependent
+        record["definition_dependent"] = definition_dependent
+        record["outcomes_by_definition"] = {d: sorted(v) for d, v in outcomes.items()}
+        if pooling_dependent or definition_dependent:
+            escalations.append({
+                "contrast_id": record.get("contrast_id"),
+                "definition_dependent": definition_dependent,
+                "pooling_dependent_for": pooling_dependent,
+                "outcomes": {d: sorted(v) for d, v in outcomes.items()},
+                "ruling": "ESCALATED to the coordinator; this module reports and does not resolve",
+            })
     payload: dict[str, Any] = {
         "format_version": ARTIFACT_FORMAT_VERSION,
         "role": (
@@ -1706,14 +1755,51 @@ def rederivation_artifact(
         ],
         "definitions": list(DEFINITIONS),
         "poolings": list(POOLINGS),
-        "contrasts": [c.as_record() for c in contrasts],
+        "contrasts": records,
         "escalations": escalations,
         "n_escalations": len(escalations),
+        "n_definition_dependent": sum(1 for r in records if r.get("definition_dependent")),
+        "n_pooling_dependent": sum(1 for r in records if r.get("pooling_dependent_for")),
         "provenance": {**dict(provenance), "code_provenance": code_provenance()},
     }
     assert_contrast_reports_discriminability(payload)
-    assert_no_science_verdict(payload)
+    assert_no_primacy_verdict(payload)
     return payload
+
+
+def assert_no_primacy_verdict(payload: Any) -> None:
+    """Refuse a verdict on WHICH DEFINITION IS PRIMARY.  That is ``Rule R``'s question, not ours.
+
+    ⚠️ **This is deliberately NOT ``admission_probe.assert_no_science_verdict``, and the difference
+    is a scope decision worth stating.**  That helper also calls
+    ``method_tier_grid.assert_no_verdicts``, which forbids the equivalence-verdict vocabulary --
+    ``within_delta``, ``left_genuinely_better`` and so on -- under ``BRIEF_17`` section 4.  That rule
+    governs P4.6, whose artifact must issue no equivalence verdict.
+
+    **P8.4b's deliverable IS those verdicts.**  A11(d) requires each of the six to be re-evaluated
+    and *"both verdicts reported whether or not they agree"*, and ``offline_baselines.delta_verdict``
+    returns exactly that vocabulary.  Applying P4.6's guard here would forbid the artifact from
+    carrying the thing it exists to carry, so only the PRIMACY check is kept: no string anywhere may
+    claim which ATT definition the paper rests on.
+    """
+    from offline.admission_probe import SCIENCE_VERDICT_STRINGS
+
+    forbidden = set(SCIENCE_VERDICT_STRINGS)
+
+    def walk(node: Any, path: str) -> None:
+        if isinstance(node, Mapping):
+            for key, value in node.items():
+                walk(value, f"{path}.{key}")
+        elif isinstance(node, (list, tuple)):
+            for index, value in enumerate(node):
+                walk(value, f"{path}[{index}]")
+        elif isinstance(node, str) and node in forbidden:
+            raise ValueError(
+                f"{path}: {node!r} is a verdict on which definition is primary, and Rule R "
+                "reserves that. This artifact reports both definitions and chooses neither"
+            )
+
+    walk(payload, "$")
 
 
 def rederivation_corpus_dirs(scenario: str, tier: str, roots: Any) -> tuple[Path, ...]:
@@ -1774,3 +1860,267 @@ def rederivation_env_settings(scenario: str, tier: str, roots: Any) -> dict[str,
 
 if __name__ == "__main__":  # pragma: no cover - exercised by a subprocess test, not by import
     raise SystemExit(main())
+
+
+# ----------------------------------------------------------------------
+# A11(d)'s six, wired to their REGISTERED decision functions
+# ----------------------------------------------------------------------
+
+
+def _per_draw_means(
+    arm: Mapping[tuple, Mapping[str, float]], definition: str
+) -> dict[int, float]:
+    """``draw_id -> mean over training seeds``, which is the REGISTERED pairing unit.
+
+    ⚠️ ``dt_gate._paired`` (``:1131-1143``) and ``offline_baselines.paired_comparison`` pair per
+    DRAW after averaging over seeds, so seed and draw stay crossed.  Pairing per ``(seed, draw)``
+    instead gives the SAME mean -- averaging is linear -- but an n of 500 where the registered unit
+    has 100, which shrinks the confidence interval by roughly the square root of five and can flip
+    any verdict that reads the CI.  Verified against P5.1's committed P1: the mean agreed either
+    way, and the CI did not.
+    """
+    by_draw: dict[int, list[float]] = {}
+    for (_seed, draw), values in arm.items():
+        by_draw.setdefault(int(draw), []).append(float(values[definition]))
+    return {draw: sum(v) / len(v) for draw, v in by_draw.items()}
+
+
+def _paired_differences(
+    block: Mapping[str, Mapping[tuple, Mapping[str, float]]],
+    left_arm: str,
+    right_arm: str,
+    definition: str,
+) -> list[float]:
+    """``left - right`` per SHARED DRAW, on the registered pairing unit."""
+    left = _per_draw_means(block[left_arm], definition)
+    right = _per_draw_means(block[right_arm], definition)
+    shared = sorted(set(left) & set(right))
+    if not shared:
+        raise ValueError(f"{left_arm} and {right_arm} share no draw")
+    return [left[d] - right[d] for d in shared]
+
+
+def _cell_mean(block: Mapping[str, Mapping[tuple, Mapping[str, float]]], arm: str, definition: str) -> float:
+    values = [float(v[definition]) for v in block[arm].values()]
+    return sum(values) / len(values)
+
+
+def evaluate_all_verdicts(
+    cells: Mapping[str, Mapping[str, Mapping[str, Mapping[tuple, Mapping[str, float]]]]]
+) -> list[dict[str, Any]]:
+    """A11(d)'s verdicts, each under BOTH definitions, with discriminability attached.
+
+    Every decision function is IMPORTED from the module that carries the verdict.  The shapes differ
+    and are not forced into one: V1 is a threshold comparison of three cell means, V2 and V4 are
+    paired contrasts, V3 is an ORDERING rule over the three mixture tiers, and V5 is a paired
+    contrast pooled across four tiers -- which is the one where the pooling ruling bites, because
+    grid4x4's ``fixedtime`` tier cannot discriminate its arms.
+    """
+    from offline.dt_gate import gate_verdict, mean_ci95
+    from offline.offline_baselines import delta_verdict
+    from offline.spatial_mixing import _outcome_from_interval
+    from offline.tier_sweep import stop_rule_verdict
+
+    out: list[dict[str, Any]] = []
+    hz, grid = cells["hz1x1"], cells["grid4x4"]
+
+    # ---- V1: the P4 gate, three cell means, no pooling dimension -------------------------------
+    v1: dict[str, Any] = {
+        "contrast_id": "V1",
+        "name": "P4 gate: ATT_MADT <= ATT_MaxPressure and <= 1.05 x ATT_best_online",
+        "registered_at": "offline/dt_gate.py:467-468",
+        "scenario": "hz1x1",
+        "tier": "mappo1000",
+        "shape": "threshold comparison of three cell means; no pooling dimension",
+        "discriminability": [{
+            "tier": "mappo1000",
+            "status": "not_applicable",
+            "statement": "V1 compares three cell MEANS against thresholds rather than contrasting "
+                         "two arms, so per-tier arm distinctness does not apply to it",
+        }],
+        "by_definition": {},
+    }
+    for definition in DEFINITIONS:
+        verdict = gate_verdict(
+            att_madt=_cell_mean(hz["mappo1000"], "madt", definition),
+            att_maxpressure=_cell_mean(hz["maxpressure"], "maxpressure", definition),
+            att_best_online=_cell_mean(hz["mappo1000"], "mappo1000", definition),
+        )
+        v1["by_definition"][definition] = {
+            "att_madt": verdict.att_madt,
+            "att_maxpressure": verdict.att_maxpressure,
+            "att_best_online": verdict.att_best_online,
+            "threshold_online": verdict.threshold_online,
+            "gate_a": verdict.gate_a,
+            "gate_b": verdict.gate_b,
+            "outcome": "PASS" if verdict.passed else "FAIL",
+        }
+    out.append(v1)
+
+    # ---- V2: A6's equivalence margin, paired, within one tier -----------------------------------
+    for baseline in ("bc", "bc_top10", "iql"):
+        block = hz["mappo1000"]
+        entry: dict[str, Any] = {
+            "contrast_id": f"V2:madt_vs_{baseline}",
+            "name": "A6 equivalence margin on paired per-draw ATT differences",
+            "registered_at": "offline/offline_baselines.py:998",
+            "scenario": "hz1x1",
+            "tier": "mappo1000",
+            "shape": "paired contrast within ONE tier; the two poolings coincide",
+            "by_definition": {},
+        }
+        disc = contrast_discriminability(
+            {k: v["att_ours"] for k, v in block["madt"].items()},
+            {k: v["att_ours"] for k, v in block[baseline].items()},
+            tier="mappo1000", left="madt", right=baseline,
+        )
+        entry["discriminability"] = [{
+            "tier": disc.tier, "status": disc.status, "identical": disc.identical,
+            "n_paired": disc.n_paired, "n_differing": disc.n_differing,
+            "max_abs_difference": disc.max_abs_difference, "statement": disc.statement,
+        }]
+        for definition in DEFINITIONS:
+            differences = _paired_differences(block, "madt", baseline, definition)
+            stats = mean_ci95(differences)
+            entry["by_definition"][definition] = {
+                "n_paired": len(differences),
+                "mean_difference": float(stats.mean),
+                "ci95_half_width": float(stats.ci95),
+                "outcome": delta_verdict(float(stats.mean), float(stats.ci95)),
+            }
+        out.append(entry)
+
+    # ---- V3: P4.7 Q2, an ORDERING rule over the three mixtures ----------------------------------
+    mixture_order = ("mix33", "mix50", "mix67")
+    v3: dict[str, Any] = {
+        "contrast_id": "V3",
+        "name": "P4.7 Q2: advantage = mean ATT(bc) - mean ATT(bc_top10), positive and decreasing",
+        "registered_at": "offline/mixture_tiers.py:767 with the outcome at :795-815",
+        "scenario": "hz1x1",
+        "tier": "+".join(mixture_order),
+        "shape": "ordering rule over three tiers; pooling does not apply, the rule IS per tier",
+        "discriminability": [],
+        "by_definition": {},
+    }
+    for tier in mixture_order:
+        disc = contrast_discriminability(
+            {k: v["att_ours"] for k, v in hz[tier][f"bc@{tier}"].items()},
+            {k: v["att_ours"] for k, v in hz[tier][f"bc_top10@{tier}"].items()},
+            tier=tier, left="bc", right="bc_top10",
+        )
+        v3["discriminability"].append({
+            "tier": disc.tier, "status": disc.status, "identical": disc.identical,
+            "n_paired": disc.n_paired, "n_differing": disc.n_differing,
+            "max_abs_difference": disc.max_abs_difference, "statement": disc.statement,
+        })
+    for definition in DEFINITIONS:
+        advantage = {
+            tier: _cell_mean(hz[tier], f"bc@{tier}", definition)
+            - _cell_mean(hz[tier], f"bc_top10@{tier}", definition)
+            for tier in mixture_order
+        }
+        ordered = [advantage[t] for t in mixture_order]
+        tied = any(ordered[i] == ordered[j] for i in range(len(ordered))
+                   for j in range(i + 1, len(ordered)))
+        all_positive = all(v > 0.0 for v in ordered)
+        ordering = all(a > b for a, b in zip(ordered, ordered[1:]))
+        v3["by_definition"][definition] = {
+            "advantage": advantage,
+            "all_positive": all_positive,
+            "strictly_decreasing": ordering,
+            "outcome": "NOT RESOLVED" if tied else ("HELD" if (all_positive and ordering) else "FAILED"),
+        }
+    out.append(v3)
+
+    # ---- V4: P5.1 P2a, paired, ONE tier ---------------------------------------------------------
+    v4_tier = "grid4x4_mappo1000"
+    v4: dict[str, Any] = {
+        "contrast_id": "V4",
+        "name": "P5.1 P2a: CI of mean(ATT_spatial - ATT_nomix) entirely below zero",
+        "registered_at": "offline/spatial_mixing.py:646-650 and :732",
+        "scenario": "grid4x4",
+        "tier": v4_tier,
+        "shape": "paired contrast within ONE tier; the two poolings coincide",
+        "by_definition": {},
+    }
+    block = grid[v4_tier]
+    disc = contrast_discriminability(
+        {k: v["att_ours"] for k, v in block[f"dt_spatial@{v4_tier}"].items()},
+        {k: v["att_ours"] for k, v in block[f"dt_nomix@{v4_tier}"].items()},
+        tier=v4_tier, left="dt_spatial", right="dt_nomix",
+    )
+    v4["discriminability"] = [{
+        "tier": disc.tier, "status": disc.status, "identical": disc.identical,
+        "n_paired": disc.n_paired, "n_differing": disc.n_differing,
+        "max_abs_difference": disc.max_abs_difference, "statement": disc.statement,
+    }]
+    for definition in DEFINITIONS:
+        differences = _paired_differences(
+            block, f"dt_spatial@{v4_tier}", f"dt_nomix@{v4_tier}", definition
+        )
+        stats = mean_ci95(differences)
+        low, high = stats.mean - stats.ci95, stats.mean + stats.ci95
+        v4["by_definition"][definition] = {
+            "n_paired": len(differences), "mean_difference": float(stats.mean),
+            "ci95_low": float(low), "ci95_high": float(high),
+            "outcome": _outcome_from_interval(low, high),
+        }
+    out.append(v4)
+
+    # ---- V5: P5.2 Q0, d4 from the TWO 4-HEAD CELLS, one tier -----------------------------------
+    # ⚠️ "the four-head ATT difference" is FOUR ATTENTION HEADS, not four tiers.  tier_sweep.py:2363
+    # states the quantity: d4 = ATT(dt_spatial_h4) - ATT(dt_nomix_h4), paired per shared draw, from
+    # the two 4-head cells at ONE tier.  I first read it as dt_spatial vs dt_nomix pooled across
+    # four tiers, which is a different contrast wearing the same name.
+    v5_tier = "mappo1000"
+    v5: dict[str, Any] = {
+        "contrast_id": "V5",
+        "name": "P5.2 Q0 stop rule: d4 = ATT(dt_spatial_h4) - ATT(dt_nomix_h4), CI entirely below 0",
+        "registered_at": "offline/tier_sweep.py:1370 used at :2354",
+        "scenario": "grid4x4",
+        "tier": v5_tier,
+        "shape": "paired contrast between the two 4-HEAD cells within ONE tier; poolings coincide",
+        "by_definition": {},
+    }
+    block = grid[v5_tier]
+    disc = contrast_discriminability(
+        {k: v["att_ours"] for k, v in block[f"dt_spatial_h4@{v5_tier}"].items()},
+        {k: v["att_ours"] for k, v in block[f"dt_nomix_h4@{v5_tier}"].items()},
+        tier=v5_tier, left="dt_spatial_h4", right="dt_nomix_h4",
+    )
+    v5["discriminability"] = [{
+        "tier": disc.tier, "status": disc.status, "identical": disc.identical,
+        "n_paired": disc.n_paired, "n_differing": disc.n_differing,
+        "max_abs_difference": disc.max_abs_difference, "statement": disc.statement,
+    }]
+    for definition in DEFINITIONS:
+        differences = _paired_differences(
+            block, f"dt_spatial_h4@{v5_tier}", f"dt_nomix_h4@{v5_tier}", definition
+        )
+        stats = mean_ci95(differences)
+        low, high = stats.mean - stats.ci95, stats.mean + stats.ci95
+        v5["by_definition"][definition] = {
+            "n_paired": len(differences), "mean_difference": float(stats.mean),
+            "ci95_low": float(low), "ci95_high": float(high),
+            "outcome": stop_rule_verdict(low, high),
+        }
+    out.append(v5)
+
+    # ---- V6: in scope, not executable ------------------------------------------------------------
+    out.append({
+        "contrast_id": "V6",
+        "name": "P7.0 branch verdict, rho terms only (within-backend ATT ratio)",
+        "registered_at": "offline/transfer_gate.py:1231",
+        "scenario": "multi",
+        "tier": "not_applicable",
+        "shape": "IN SCOPE, NOT EXECUTABLE",
+        "discriminability": [{
+            "tier": "not_applicable", "status": "not_applicable",
+            "statement": "output/p7_0 carries no per-arm ATT cell, so there is nothing to re-derive "
+                         "by this route; half of P7.0 is SUMO, where the engine-versus-ours "
+                         "distinction does not exist. Carries NO CLAIM until C3 runs",
+        }],
+        "by_definition": {},
+        "outcome": "NOT EXECUTABLE",
+    })
+    return out

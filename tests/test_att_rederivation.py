@@ -1106,3 +1106,87 @@ def test_every_offline_module_with_a_main_can_actually_be_run() -> None:
         f"these modules define main() but have no __main__ block, so `python -m` on them imports "
         f"and exits 0 having done nothing: {missing_entry}"
     )
+
+
+# ----------------------------------------------------------------------
+# The verdict layer, validated against the COMMITTED artifacts
+# ----------------------------------------------------------------------
+
+
+def _campaign_rows():
+    """The re-derived verdicts, or a skip when the campaign output is not present."""
+    from offline.att_rederivation import evaluate_all_verdicts, load_cells
+
+    work = Path("/home/filip/rltraffic/output/p8_4b_rederivation")
+    if not work.is_dir() or not any(work.glob("cell_*.json")):
+        pytest.skip(f"the re-derivation campaign output is not present at {work}")
+    return {r["contrast_id"]: r for r in evaluate_all_verdicts(load_cells(work))}
+
+
+def test_the_verdict_layer_reproduces_P5_2s_committed_Q0_exactly() -> None:
+    """🔒 THE ACCEPTANCE TEST FOR THE VERDICT WIRING, and it caught a real misreading.
+
+    A11(d) calls V5 *"the four-head ATT difference"*. I first wired it as ``dt_spatial`` versus
+    ``dt_nomix`` pooled across FOUR TIERS. ``tier_sweep.py:2363`` states the quantity:
+    ``d4 = ATT(dt_spatial_h4) - ATT(dt_nomix_h4), paired per shared draw`` -- FOUR ATTENTION HEADS,
+    one tier. Two different contrasts wearing one name, and only the committed number could tell
+    them apart.
+    """
+    committed_path = Path("/home/filip/rltraffic/output/p5_2/stop_rule_mappo1000.json")
+    if not committed_path.is_file():
+        pytest.skip(f"P5.2's committed Q0 is not present at {committed_path}")
+    committed = json.loads(committed_path.read_bytes())
+    mine = _campaign_rows()["V5"]["by_definition"]["att_ours"]
+
+    assert "dt_spatial_h4" in committed["quantity"], "the committed quantity changed shape"
+    assert mine["n_paired"] == committed["n_shared_draws"] == 100
+    assert mine["mean_difference"] == committed["mean_difference"]
+    assert mine["ci95_low"] == committed["ci95_low"]
+    assert mine["ci95_high"] == committed["ci95_high"]
+    assert mine["outcome"] == committed["verdict"]
+
+
+def test_the_verdict_layer_reproduces_P5_1s_committed_P2a_on_the_registered_pairing_unit() -> None:
+    """The pairing unit is per DRAW, averaged over seeds -- not per ``(seed, draw)``.
+
+    Pairing per episode gives the SAME mean (averaging is linear) and an ``n`` of 500 where the
+    registered unit has 100, which shrinks the CI by about sqrt(5) and can flip any verdict that
+    reads it. ``ci95_low`` is asserted BIT-IDENTICAL because that is what the registered unit
+    produces; the mean and the upper bound agree to float reduction order.
+    """
+    committed = json.loads(Path("docs/data/p5_1_grid.json").read_bytes())["predictions"]["P1"]
+    mine = _campaign_rows()["V4"]["by_definition"]["att_ours"]
+    assert committed["left_arm"] == "dt_spatial@grid4x4_mappo1000"
+    assert mine["n_paired"] == 100, "the registered pairing unit is 100 draws, not 500 episodes"
+    assert mine["ci95_low"] == committed["ci95_low"]
+    assert mine["mean_difference"] == pytest.approx(committed["mean_difference"], abs=1e-12)
+    assert mine["outcome"] == committed["outcome"]
+
+
+def test_every_verdict_reports_both_definitions_and_its_discriminability() -> None:
+    """A11(d): both verdicts reported whether or not they agree, with the tier's power attached."""
+    from offline.att_rederivation import DEFINITIONS
+
+    rows = _campaign_rows()
+    assert {"V1", "V3", "V4", "V5", "V6"} <= set(rows), sorted(rows)
+    for contrast_id, row in rows.items():
+        assert row["discriminability"], f"{contrast_id} carries no discriminability"
+        if contrast_id == "V6":
+            assert row["outcome"] == "NOT EXECUTABLE"
+            continue
+        for definition in DEFINITIONS:
+            assert definition in row["by_definition"], f"{contrast_id} is missing {definition}"
+            assert row["by_definition"][definition].get("outcome")
+
+
+def test_the_primacy_guard_refuses_a_claim_about_which_definition_is_primary() -> None:
+    """Rule R's question is the coordinator's; the artifact reports both and chooses neither.
+
+    The equivalence vocabulary IS allowed here and that is deliberate: ``delta_verdict`` returns it
+    and A11(d) requires the re-derived verdict to be reported.
+    """
+    from offline.att_rederivation import assert_no_primacy_verdict
+
+    assert_no_primacy_verdict({"contrasts": [{"outcome": "within_delta"}]})
+    with pytest.raises(ValueError, match="which definition is primary"):
+        assert_no_primacy_verdict({"summary": {"note": "headline_safe"}})
