@@ -811,3 +811,167 @@ def test_a_systemic_failure_still_stops_but_one_bad_cell_never_can(monkeypatch, 
         )
     assert module.SYSTEMIC_FAILURE_THRESHOLD > 1, "one bad cell must never trip the threshold"
     assert len(list(tmp_path.glob("refused_*.json"))) == module.SYSTEMIC_FAILURE_THRESHOLD
+
+
+def test_two_workers_actually_rolling_real_cells_end_to_end(tmp_path: Path) -> None:
+    """🔒 THE TEST THREE LAUNCH FAILURES SAY IS MISSING. Two workers, real cells, really rolled.
+
+    Every orchestration defect so far survived the unit tests and died on a real launch:
+
+    1. the manifest was shard-scoped, so four of five workers refused;
+    2. a replicate artifact silently overwrote 100 committed values, and the campaign died on an arm
+       whose checkpoint map was correct;
+    3. ``mix33`` reached Gate 0's seven-tier helper and a ``ValueError`` aborted all five shards,
+       because the refusal boundary wrapped only the reproduction check.
+
+    The end-to-end test written after (1) used ``--limit 0``, so it exercised the manifest path and
+    **never rolled a cell** -- which is precisely why it could not catch (2) or (3). This one rolls.
+    It drives ``main`` twice as two different workers against one work directory and checks the
+    composition: agreed manifest, disjoint work, real episodes, real reproduction, no refusals.
+
+    It is deliberately small -- three cells per worker -- because what is under test is the
+    composition, not the throughput.
+    """
+    from offline.att_rederivation import main, rederivation_env_settings
+
+    corpus = Path("/home/filip/rltraffic/datasets_v11")
+    draws = Path("/home/filip/rltraffic/scenarios/draws")
+    output = Path("/home/filip/rltraffic/output")
+    if not (corpus.is_dir() and draws.is_dir() and (output / "p5_1").is_dir()):
+        pytest.skip("the corpus, draws and campaign artifacts are not all present")
+    try:
+        import cityflow  # noqa: F401
+    except ImportError:
+        pytest.skip("the CityFlow engine is not installed, so no cell can be rolled")
+
+    work = tmp_path / "work"
+    repo = Path(__file__).resolve().parents[1]
+    common = [
+        "--repo-root", str(repo),
+        "--corpus-root", str(corpus),
+        "--draws-root", str(draws),
+        "--output-root", str(output),
+        "--work-dir", str(work),
+    ]
+
+    codes = [
+        main([*common, "run", "--verdicts", "V1", "--shard", str(shard), "--of", "2",
+              "--limit", "3", "--torch-threads", "1"])
+        for shard in (0, 1)
+    ]
+    assert codes == [0, 0], f"a worker that rolled its cells with no refusals must exit 0: {codes}"
+
+    # Both workers accepted one campaign-scoped manifest.
+    manifest = json.loads((work / "campaign_manifest.json").read_bytes())
+    status = campaign_status(work)
+    assert manifest["n_cells"] == status["declared"] > 6, (
+        "the manifest must declare the CAMPAIGN, not either worker's shard"
+    )
+
+    # Real work happened, it is disjoint, and nothing was refused.
+    rolled = sorted(work.glob("cell_*.json"))
+    assert len(rolled) == 6, f"two workers x 3 cells must produce 6 cell files, got {len(rolled)}"
+    assert not list(work.glob("refused_*.json")), "no cell should have been refused"
+    assert status["present"] == 6 and status["refused"] == 0
+    assert status["complete"] is False
+
+    # Every rolled cell is a real episode carrying all five A11(b) quantities, and every one
+    # reproduced its committed att_ours exactly -- which is what "rolled" is supposed to mean.
+    keys = set()
+    for path in rolled:
+        row = json.loads(path.read_bytes())
+        key = (row["scenario"], row["arm"], row["seed"], row["draw_id"])
+        assert key not in keys, f"{key} was rolled by BOTH workers; the shards are not disjoint"
+        keys.add(key)
+        for field in ("att_ours", "att_engine", "entered", "created", "never_entered"):
+            assert field in row, f"{path.name} is missing A11(b)'s {field}"
+        assert row["reproduces_committed"] is True
+        assert row["att_ours"] == row["committed_att_ours"]
+        assert int(row["created"]) == int(row["entered"]) + int(row["never_entered"])
+
+    # The composition-level form of the mix33 defect: EVERY tier the declared campaign contains must
+    # resolve its env settings.  Rolling all 38,500 cells to learn this would take hours; resolving
+    # every declared tier takes a second and fails on exactly the same bug.
+    from offline.admission_probe import ProbeRoots
+    from offline.att_rederivation import normalise_arm
+
+    roots = ProbeRoots(repo_root=repo, corpus_root=corpus, draws_root=draws,
+                       output_root=output, work_dir=work)
+    # ⚠️ Over the FULL campaign, not this run's --verdicts V1 slice: V1 touches three hz1x1 tiers
+    # and no mixture at all, so checking only the declared slice would have missed mix33 entirely.
+    import argparse
+
+    from offline.att_rederivation import REDERIVATION_SOURCES, campaign_cell_set
+
+    every_cell = campaign_cell_set(
+        argparse.Namespace(
+            repo_root=str(repo), verdicts=[v.verdict_id for v in REDERIVATION_SOURCES]
+        ),
+        output,
+    )
+    declared_tiers = {
+        (c.scenario, normalise_arm(c.scenario, c.arm)[1]) for c in every_cell
+    }
+    assert declared_tiers, "no tier was declared -- the check would pass vacuously"
+    assert any(tier in MIXTURE_TIERS for _, tier in declared_tiers), (
+        "the full campaign must contain P4.7's mixture tiers; if it does not, the check that "
+        "would have caught mix33 is not actually covering them"
+    )
+    for scenario, tier in sorted(declared_tiers):
+        settings = rederivation_env_settings(scenario, tier, roots)
+        assert int(settings["max_steps"]) > 0, f"{scenario}/{tier} resolved no usable settings"
+
+    # The composition-level form of the REPLICATE defect, by an INDEPENDENT route.  The affected
+    # slot was grid4x4/dt_spatial@random seed 202, which this run does not roll -- and a reference
+    # defect anywhere poisons the acceptance test everywhere, so the whole index is checked.
+    #
+    # The index is rebuilt here from the COMMITTED cell files only, applying the replicate rule
+    # directly rather than through the production helper, and the production helper is then required
+    # to agree with it on every key.  Re-scanning with the same helper would prove nothing; this way
+    # a change that readmits a replicate makes the two disagree.
+    from collections import defaultdict
+
+    from offline.att_rederivation import (
+        _resolve_sources,
+        committed_att_index,
+        is_replicate_artifact,
+        slots_from_episode_block,
+    )
+
+    independent: dict[tuple, set[float]] = defaultdict(set)
+    for source in REDERIVATION_SOURCES:
+        for path in _resolve_sources(source, repo_root=repo, output_root=output):
+            if is_replicate_artifact(path):
+                continue
+            try:
+                payload = json.loads(path.read_bytes())
+            except (ValueError, OSError):
+                continue
+            for episode_row in slots_from_episode_block(payload):
+                value = episode_row.get("att_horizon")
+                if value is None:
+                    continue
+                independent[
+                    (source.scenario, str(episode_row["arm"]),
+                     episode_row.get("seed"), int(episode_row["draw_id"]))
+                ].add(float(value))
+    assert independent, "no committed value was read -- the check would pass vacuously"
+
+    ambiguous = {k: v for k, v in independent.items() if len(v) > 1}
+    assert not ambiguous, (
+        f"{len(ambiguous)} cells carry more than one committed value among the COMMITTED artifacts "
+        f"alone. First: {sorted(ambiguous)[0]} -> {sorted(ambiguous[sorted(ambiguous)[0]])}"
+    )
+
+    production = committed_att_index(repo_root=repo, output_root=output)
+    assert len(production) == len(independent)
+    disagreeing = [
+        (k, production[k], next(iter(v)))
+        for k, v in independent.items()
+        if k in production and production[k] != next(iter(v))
+    ]
+    assert not disagreeing, (
+        f"{len(disagreeing)} cells where the committed index disagrees with an independent scan of "
+        f"the committed artifacts -- a replicate or a second measurement has been admitted as the "
+        f"reference. First: {disagreeing[0]}"
+    )
