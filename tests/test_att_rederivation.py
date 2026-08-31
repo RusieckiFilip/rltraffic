@@ -477,6 +477,12 @@ def test_a_verdict_without_its_discriminability_is_refused() -> None:
         assert_contrast_reports_discriminability(
             {"v4": {"blocks": {"p2a": {"tier": "random", "verdict": "HELD"}}}}
         )
+    # Every spelling a contrast is written in must trip it, not just "verdict": keying on one
+    # spelling is how this guard was silently switched off by a field rename.
+    for shape in ({"tier": "t", "outcome": "X"}, {"tier": "t", "pooled": []},
+                  {"tier": "t", "contrast_id": "V4"}):
+        with pytest.raises(ValueError, match="without its discriminability"):
+            assert_contrast_reports_discriminability({"c": [shape]})
 
 
 def test_the_fixedtime_collapse_is_reproduced_from_the_committed_artifacts() -> None:
@@ -532,3 +538,160 @@ def test_the_fixedtime_collapse_is_reproduced_from_the_committed_artifacts() -> 
     )
     assert got.status == "cannot_discriminate"
     assert got.max_abs_difference == 0.0
+
+
+# ----------------------------------------------------------------------
+# THE VERDICT LAYER: both definitions, both poolings, guard actually wired
+# ----------------------------------------------------------------------
+
+
+def _outcome(mean: float, half: float, low: float, high: float) -> str:
+    """P5.1's registered rule, restated here only as a TEST double."""
+    if high < 0.0:
+        return "HELD"
+    if low > 0.0:
+        return "FAILED"
+    return "NOT RESOLVED"
+
+
+def _cells_two_tiers(*, collapse: bool, effect: float) -> dict:
+    """Two tiers: ``good`` always discriminates; ``flat`` collapses when *collapse* is set."""
+    cells: dict = {}
+    for tier in ("good", "flat"):
+        cells[tier] = {}
+        for arm, shift in (("l@" + tier, 0.0), ("r@" + tier, None)):
+            cells[tier][arm] = {}
+        for i in range(40):
+            key = (101, 1000 + i)
+            base = 100.0 + (i % 7)
+            cells[tier]["l@" + tier][key] = {"att_ours": base, "att_engine": base + 2.0}
+            if tier == "flat" and collapse:
+                right = base                      # identical -> cannot discriminate
+            else:
+                right = base - effect
+            cells[tier]["r@" + tier][key] = {"att_ours": right, "att_engine": right + 2.0}
+    return cells
+
+
+def test_a_collapsed_tier_is_pooled_BOTH_ways_and_neither_is_chosen() -> None:
+    """🔒 THE RULING: report including and excluding, with the structural reason. Never choose."""
+    from offline.att_rederivation import POOLINGS, pool_contrast
+
+    report = pool_contrast(
+        _cells_two_tiers(collapse=True, effect=6.0),
+        verdict_id="V4",
+        name="test contrast",
+        left="l",
+        right="r",
+        tiers=("good", "flat"),
+        verdict_fn=_outcome,
+    )
+    assert report.tiers_non_distinct == ("flat",)
+    assert "zero BY CONSTRUCTION" in report.structural_reason
+    assert "post-hoc exclusion" in report.structural_reason
+
+    # Four pooled rows: 2 definitions x 2 poolings, and BOTH poolings are present for each.
+    assert len(report.pooled) == 4
+    for definition in ("att_ours", "att_engine"):
+        got = {p.pooling for p in report.pooled if p.definition == definition}
+        assert got == set(POOLINGS)
+
+    including = next(p for p in report.pooled if p.definition == "att_ours"
+                     and p.pooling == "including_non_distinct")
+    excluding = next(p for p in report.pooled if p.definition == "att_ours"
+                     and p.pooling == "excluding_non_distinct")
+    # The structural zero halves the pooled effect, which is exactly why it must not be hidden.
+    assert including.n_paired == 80
+    assert excluding.n_paired == 40
+    assert including.tiers == ("good", "flat")
+    assert excluding.tiers == ("good",)
+    assert abs(including.mean_difference) < abs(excluding.mean_difference)
+
+
+def test_a_verdict_that_differs_between_poolings_is_ESCALATED_not_resolved() -> None:
+    """Choosing between the poolings is a degree of freedom this module does not have."""
+    from offline.att_rederivation import pool_contrast
+
+    # An explicit threshold on the pooled mean, so the disagreement is a property of the POOLING
+    # and not of CI arithmetic: the structural zeros halve the mean and carry it across the bar.
+    def threshold_rule(mean: float, half: float, low: float, high: float) -> str:
+        return "RESOLVES" if abs(mean) >= 1.0 else "DOES NOT RESOLVE"
+
+    report = pool_contrast(
+        _cells_two_tiers(collapse=True, effect=1.4),
+        verdict_id="V4",
+        name="test contrast",
+        left="l",
+        right="r",
+        tiers=("good", "flat"),
+        verdict_fn=threshold_rule,
+    )
+    outcomes = {
+        (p.definition, p.pooling): p.verdict for p in report.pooled
+    }
+    assert outcomes[("att_ours", "including_non_distinct")] != outcomes[
+        ("att_ours", "excluding_non_distinct")
+    ], "this fixture is meant to make the two poolings disagree"
+    assert report.escalate is True
+    assert report.poolings_agree["att_ours"] is False
+    assert "coordinator" in (report.escalation_reason or "")
+
+
+def test_when_every_tier_discriminates_the_two_poolings_coincide() -> None:
+    from offline.att_rederivation import pool_contrast
+
+    report = pool_contrast(
+        _cells_two_tiers(collapse=False, effect=6.0),
+        verdict_id="V4", name="t", left="l", right="r",
+        tiers=("good", "flat"), verdict_fn=_outcome,
+    )
+    assert report.tiers_non_distinct == ()
+    assert report.escalate is False
+    including = next(p for p in report.pooled if p.pooling == "including_non_distinct"
+                     and p.definition == "att_ours")
+    excluding = next(p for p in report.pooled if p.pooling == "excluding_non_distinct"
+                     and p.definition == "att_ours")
+    assert including.n_paired == excluding.n_paired == 80
+    assert including.verdict == excluding.verdict
+
+
+def test_a_contrast_with_no_tier_carrying_both_arms_refuses() -> None:
+    from offline.att_rederivation import pool_contrast
+
+    with pytest.raises(ValueError, match="no tier carries both"):
+        pool_contrast({}, verdict_id="V4", name="t", left="l", right="r",
+                      tiers=("good",), verdict_fn=_outcome)
+
+
+def test_the_artifact_cannot_be_built_without_the_discriminability_guard_passing() -> None:
+    """🔒 DEFERRED 42/44: an enforcement function nobody calls is not an enforcement function.
+
+    The guard is invoked by ``rederivation_artifact`` on the assembled payload, so a contrast that
+    somehow lost its discriminability cannot be written. Proved by stripping it and re-checking.
+    """
+    from offline.att_rederivation import (
+        assert_contrast_reports_discriminability,
+        pool_contrast,
+        rederivation_artifact,
+    )
+
+    report = pool_contrast(
+        _cells_two_tiers(collapse=True, effect=6.0),
+        verdict_id="V4", name="t", left="l", right="r",
+        tiers=("good", "flat"), verdict_fn=_outcome,
+    )
+    payload = rederivation_artifact([report], provenance={"runtime": {}})
+    assert payload["contrasts"][0]["discriminability"]
+    assert payload["n_escalations"] == 0
+
+    stripped = json.loads(json.dumps(payload))
+    del stripped["contrasts"][0]["discriminability"]
+    with pytest.raises(ValueError, match="without its discriminability"):
+        assert_contrast_reports_discriminability(stripped)
+
+
+def test_the_artifact_refuses_an_empty_contrast_list() -> None:
+    from offline.att_rederivation import rederivation_artifact
+
+    with pytest.raises(ValueError, match="re-derives nothing"):
+        rederivation_artifact([], provenance={})

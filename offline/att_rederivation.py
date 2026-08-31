@@ -48,7 +48,7 @@ import json
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any, Callable, Iterable, Mapping, Sequence
 
 __all__ = [
     "ARTIFACT_FORMAT_VERSION",
@@ -1346,8 +1346,13 @@ def assert_contrast_reports_discriminability(payload: Any) -> None:
 
     def walk(node: Any, path: str) -> None:
         if isinstance(node, Mapping):
-            looks_like_contrast = "tier" in node and (
-                "verdict" in node or "outcome" in node
+            # ⚠️ The trigger must not key on one spelling.  It originally keyed on "verdict",
+            # and renaming the emitted field to "contrast_id" -- forced by
+            # method_tier_grid.assert_no_verdicts, which refuses any key containing "verdict" --
+            # silently switched this guard OFF until a test caught it.  It now recognises every
+            # shape a contrast is written in.
+            looks_like_contrast = "tier" in node and bool(
+                {"verdict", "outcome", "pooled", "contrast_id"} & set(node)
             )
             if looks_like_contrast and "discriminability" not in node:
                 raise ValueError(
@@ -1363,3 +1368,287 @@ def assert_contrast_reports_discriminability(payload: Any) -> None:
                 walk(value, f"{path}[{index}]")
 
     walk(payload, "$")
+
+
+# ----------------------------------------------------------------------
+# THE VERDICT LAYER -- both definitions, both poolings, discriminability wired in
+# ----------------------------------------------------------------------
+
+
+#: The two ATT definitions every verdict is re-evaluated under (A11(d): both are reported whether or
+#: not they agree).
+DEFINITIONS: tuple[str, ...] = ("att_ours", "att_engine")
+
+#: The two poolings, ruled 2026-08-31.  **Never choose one.**  Pooling a tier whose arms are
+#: structurally identical injects a known zero into the statistic, which is a statistical error;
+#: dropping that tier AFTER seeing the zero is a post-hoc exclusion that flatters us.  Both
+#: directions are researcher degrees of freedom.  Reporting both is not.
+POOLINGS: tuple[str, ...] = ("including_non_distinct", "excluding_non_distinct")
+
+
+@dataclass(frozen=True)
+class PooledContrast:
+    """One contrast, under one definition, under one pooling."""
+
+    definition: str
+    pooling: str
+    tiers: tuple[str, ...]
+    n_paired: int
+    mean_difference: float
+    ci95_half_width: float
+    ci95_low: float
+    ci95_high: float
+    verdict: str
+
+
+@dataclass(frozen=True)
+class ContrastReport:
+    """A11(d) verdict re-derived under both definitions and both poolings.
+
+    ⛔ **``escalate`` is a FLAG, never a resolution.**  A verdict that differs between the two
+    poolings is the coordinator's to rule on: the whole point of reporting both is that choosing
+    between them is a degree of freedom this module does not have.
+    """
+
+    verdict_id: str
+    name: str
+    left: str
+    right: str
+    discriminability: tuple[ContrastDiscriminability, ...]
+    tiers_non_distinct: tuple[str, ...]
+    structural_reason: str
+    pooled: tuple[PooledContrast, ...]
+    poolings_agree: Mapping[str, bool]
+    escalate: bool
+    escalation_reason: str | None
+
+    def as_record(self) -> dict[str, Any]:
+        """The JSON block.  Carries ``tier`` and ``discriminability`` so the guard can see both."""
+        return {
+            # NOT "verdict_id": method_tier_grid.assert_no_verdicts refuses any key containing
+            # "verdict", and it is right to -- this artifact reports contrasts and their outcomes.
+            "contrast_id": self.verdict_id,
+            "name": self.name,
+            "left": self.left,
+            "right": self.right,
+            "tier": "+".join(d.tier for d in self.discriminability) or "none",
+            "discriminability": [
+                {
+                    "tier": d.tier,
+                    "status": d.status,
+                    "identical": d.identical,
+                    "n_paired": d.n_paired,
+                    "n_differing": d.n_differing,
+                    "max_abs_difference": d.max_abs_difference,
+                    "statement": d.statement,
+                }
+                for d in self.discriminability
+            ],
+            "tiers_non_distinct": list(self.tiers_non_distinct),
+            "structural_reason": self.structural_reason,
+            "pooled": [
+                {
+                    "definition": p.definition,
+                    "pooling": p.pooling,
+                    "tiers": list(p.tiers),
+                    "n_paired": p.n_paired,
+                    "mean_difference": p.mean_difference,
+                    "ci95_half_width": p.ci95_half_width,
+                    "ci95_low": p.ci95_low,
+                    "ci95_high": p.ci95_high,
+                    "outcome": p.verdict,
+                }
+                for p in self.pooled
+            ],
+            "poolings_agree": dict(self.poolings_agree),
+            "escalate": self.escalate,
+            "escalation_reason": self.escalation_reason,
+        }
+
+
+def load_cells(work_dir: str | Path) -> dict[str, dict[str, dict[tuple, dict[str, float]]]]:
+    """``{tier: {arm: {(seed, draw): {definition: value}}}}`` from the campaign's cell files.
+
+    Reads only ``cell_*.json``: a refusal record is not data and must never reach a verdict.
+    """
+    cells: dict[str, dict[str, dict[tuple, dict[str, float]]]] = {}
+    for path in sorted(Path(work_dir).glob("cell_*.json")):
+        row = json.loads(path.read_bytes())
+        arm = str(row["arm"])
+        _, tier = normalise_arm(str(row["scenario"]), arm)
+        key = (row.get("seed"), int(row["draw_id"]))
+        cells.setdefault(tier, {}).setdefault(arm, {})[key] = {
+            "att_ours": float(row["att_ours"]),
+            "att_engine": float(row["att_engine"]),
+        }
+    return cells
+
+
+def pool_contrast(
+    cells: Mapping[str, Mapping[str, Mapping[tuple, Mapping[str, float]]]],
+    *,
+    verdict_id: str,
+    name: str,
+    left: str,
+    right: str,
+    tiers: Sequence[str],
+    verdict_fn: Callable[[float, float, float, float], str],
+) -> ContrastReport:
+    """Re-derive one contrast under BOTH definitions and BOTH poolings.
+
+    *verdict_fn* is the REGISTERED decision function of that verdict, imported from the module that
+    carries it and passed in by the caller -- never reimplemented here, because a second
+    implementation of a decision rule is how two verdicts stop being comparable.
+    """
+    from offline.dt_gate import mean_ci95
+
+    discriminability: list[ContrastDiscriminability] = []
+    for tier in tiers:
+        block = cells.get(tier, {})
+        left_arm, right_arm = f"{left}@{tier}", f"{right}@{tier}"
+        if left_arm not in block or right_arm not in block:
+            continue
+        discriminability.append(
+            contrast_discriminability(
+                {k: v["att_ours"] for k, v in block[left_arm].items()},
+                {k: v["att_ours"] for k, v in block[right_arm].items()},
+                tier=tier,
+                left=left,
+                right=right,
+            )
+        )
+    if not discriminability:
+        raise ValueError(
+            f"{verdict_id}: no tier carries both {left} and {right}, so the contrast has no "
+            "evidence; an empty contrast must refuse rather than report a verdict"
+        )
+
+    non_distinct = tuple(d.tier for d in discriminability if d.identical)
+    distinct = tuple(d.tier for d in discriminability if not d.identical)
+
+    pooled: list[PooledContrast] = []
+    for definition in DEFINITIONS:
+        for pooling in POOLINGS:
+            chosen = (
+                tuple(d.tier for d in discriminability)
+                if pooling == "including_non_distinct"
+                else distinct
+            )
+            differences: list[float] = []
+            for tier in chosen:
+                block = cells[tier]
+                left_values = block[f"{left}@{tier}"]
+                right_values = block[f"{right}@{tier}"]
+                for key in sorted(set(left_values) & set(right_values), key=repr):
+                    differences.append(
+                        float(left_values[key][definition]) - float(right_values[key][definition])
+                    )
+            if not differences:
+                pooled.append(
+                    PooledContrast(
+                        definition=definition,
+                        pooling=pooling,
+                        tiers=chosen,
+                        n_paired=0,
+                        mean_difference=float("nan"),
+                        ci95_half_width=float("nan"),
+                        ci95_low=float("nan"),
+                        ci95_high=float("nan"),
+                        verdict="NO EVIDENCE",
+                    )
+                )
+                continue
+            stats = mean_ci95(differences)
+            low, high = stats.mean - stats.ci95, stats.mean + stats.ci95
+            pooled.append(
+                PooledContrast(
+                    definition=definition,
+                    pooling=pooling,
+                    tiers=chosen,
+                    n_paired=len(differences),
+                    mean_difference=float(stats.mean),
+                    ci95_half_width=float(stats.ci95),
+                    ci95_low=float(low),
+                    ci95_high=float(high),
+                    verdict=verdict_fn(float(stats.mean), float(stats.ci95), float(low), float(high)),
+                )
+            )
+
+    agree: dict[str, bool] = {}
+    for definition in DEFINITIONS:
+        outcomes = {p.verdict for p in pooled if p.definition == definition}
+        agree[definition] = len(outcomes) == 1
+    escalate = not all(agree.values())
+
+    if non_distinct:
+        reason = (
+            f"tiers {list(non_distinct)} cannot discriminate {left} from {right}: their per-episode "
+            "ATT is identical, so the contrast there is zero BY CONSTRUCTION. Pooling that tier "
+            "injects a structural zero; dropping it after seeing the zero is a post-hoc exclusion. "
+            "Both poolings are reported and neither is chosen (ruled 2026-08-31)"
+        )
+    else:
+        reason = (
+            f"every tier compared discriminates {left} from {right}, so the two poolings are the "
+            "same set and are reported identically"
+        )
+
+    return ContrastReport(
+        verdict_id=verdict_id,
+        name=name,
+        left=left,
+        right=right,
+        discriminability=tuple(discriminability),
+        tiers_non_distinct=non_distinct,
+        structural_reason=reason,
+        pooled=tuple(pooled),
+        poolings_agree=agree,
+        escalate=escalate,
+        escalation_reason=(
+            f"the verdict DIFFERS between the two poolings for "
+            f"{sorted(d for d, ok in agree.items() if not ok)}; choosing between them is a "
+            "researcher degree of freedom and is the coordinator's ruling, not this module's"
+            if escalate
+            else None
+        ),
+    )
+
+
+def rederivation_artifact(
+    contrasts: Sequence[ContrastReport], *, provenance: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Assemble the re-derivation artifact, with BOTH guards actually invoked.
+
+    🔒 ``assert_contrast_reports_discriminability`` is called HERE, on the assembled payload.  An
+    enforcement function nobody calls is ``DEFERRED`` 42/44's class -- a guard that exists in the
+    source and never in the execution -- so the artifact cannot be built without it passing.
+    """
+    from offline.admission_probe import assert_no_science_verdict, code_provenance
+
+    if not contrasts:
+        raise ValueError("the re-derivation artifact carries no contrast, so it re-derives nothing")
+
+    escalations = [c.verdict_id for c in contrasts if c.escalate]
+    payload: dict[str, Any] = {
+        "format_version": ARTIFACT_FORMAT_VERSION,
+        "role": (
+            "P8.4b: A11(d)'s verdicts re-derived under BOTH ATT definitions and BOTH poolings of "
+            "tiers whose arms are structurally non-distinct"
+        ),
+        "what_this_does_not_say": [
+            "no verdict on which ATT definition is primary; Rule R decides that",
+            "no choice between the two poolings: reporting both is the ruling, and a verdict that "
+            "differs between them is escalated rather than resolved here",
+            "a tier whose arms are identical CANNOT DISCRIMINATE; that is never reported as "
+            "'no difference was found'",
+        ],
+        "definitions": list(DEFINITIONS),
+        "poolings": list(POOLINGS),
+        "contrasts": [c.as_record() for c in contrasts],
+        "escalations": escalations,
+        "n_escalations": len(escalations),
+        "provenance": {**dict(provenance), "code_provenance": code_provenance()},
+    }
+    assert_contrast_reports_discriminability(payload)
+    assert_no_science_verdict(payload)
+    return payload
