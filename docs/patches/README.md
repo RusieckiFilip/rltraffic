@@ -1,5 +1,53 @@
 # Patches a Claude Code session cannot apply itself
 
+## `ci_gate_ceiling_123_p8_4b.patch` — the skip ceiling moves 121 → 123, and part of it is a reclassification
+
+**Apply with:**
+```bash
+git apply docs/patches/ci_gate_ceiling_123_p8_4b.patch    # on main
+.venv/bin/pytest tests/test_ci_gate.py -q                 # -> 34 passed
+```
+Verified with `git apply --check`, then applied, `tests/test_ci_gate.py` run (**34 passed**) and
+reverted, so the patch is known to apply AND to satisfy the gate it moves. Two files, neither the
+coordinator's to write by role (`DEFERRED` 54): `.github/ci/ci_baseline.json` and
+`tests/test_ci_gate.py`.
+
+**This is the registered protocol running, not a repair.** `what_to_do` says: *merge, let it go red,
+classify `junit.xml`, commit the observed value with its breakdown, do not pre-bump and do not widen
+with slack.* That is what this is.
+
+**Measured, not derived — run `33434191684`, both legs, FOUR independent readings:**
+`junit.xml` and `pytest.txt` on each of `ubuntu-24.04` and `ubuntu-22.04`, all four giving
+**1364 passed, 123 skipped, 0 failures, 0 errors**. The suite step itself PASSED on both legs; only
+the ceiling gate failed, which is the registered red.
+
+**The breakdown was classified BY INSPECTION, not by regex** — the 17 distinct `<skipped>` message
+prefixes were listed and assigned by hand, because a regex that guesses is how a category silently
+moves:
+
+| category | was | now |
+|---|---|---|
+| `corpus_or_checkpoint` | 76 | **75** |
+| `cityflow` | 32 | **34** |
+| `sumo_traci` | 10 | 10 |
+| `matplotlib` | 2 | 2 |
+| `campaign_output` | 1 | **2** |
+| **total** | **121** | **123** |
+
+⚠️ **The +2 is NOT one category growing.** `cityflow` +2 and `campaign_output` +1 against
+`corpus_or_checkpoint` −1, so part of this move is a **reclassification** of messages the previous
+count filed elsewhere, and it is recorded that way rather than as growth.
+
+⚠️ **`ceiling_if_cityflow_were_built` is UNCHANGED at 89**, and that is arithmetic rather than a
+stale value: 123 − 34 = 121 − 32 = 89. It looked like a missed edit, so it is called out here.
+
+🔒 **This ceiling expires on the merge of P8.4b — the very branch that produced this patch.**
+P8.4b adds `tests/test_engine_att_reference.py` and `tests/test_att_rederivation.py`, both carrying
+corpus-, draws- and CityFlow-gated tests, so it **will** breach 123 and is meant to. The expiry says
+so before it happens rather than after. No delta is predicted, for the fourth time deliberately:
+three coordinator predictions of this delta have been wrong and the no-prediction protocol has been
+right every time it was used.
+
 ## `ci_gate_ceiling_121_p5_3a.patch` — the skip ceiling moves 104 → 121, exactly as its own expiry said it would
 
 **Apply with:**

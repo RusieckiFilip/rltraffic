@@ -1,0 +1,407 @@
+{
+  "contrasts": [
+    {
+      "by_definition": {
+        "att_engine": {
+          "att_best_online": 101.33266044548085,
+          "att_madt": 100.7031944876944,
+          "att_maxpressure": 173.69753332587422,
+          "gate_a": true,
+          "gate_b": true,
+          "outcome": "PASS",
+          "threshold_online": 106.3992934677549
+        },
+        "att_ours": {
+          "att_best_online": 105.5820346287432,
+          "att_madt": 104.95575898180847,
+          "att_maxpressure": 176.89119451638254,
+          "gate_a": true,
+          "gate_b": true,
+          "outcome": "PASS",
+          "threshold_online": 110.86113636018037
+        }
+      },
+      "contrast_id": "V1",
+      "definition_dependent": false,
+      "discriminability": [
+        {
+          "statement": "V1 compares three cell MEANS against thresholds rather than contrasting two arms, so per-tier arm distinctness does not apply to it",
+          "status": "not_applicable",
+          "tier": "mappo1000"
+        }
+      ],
+      "name": "P4 gate: ATT_MADT <= ATT_MaxPressure and <= 1.05 x ATT_best_online",
+      "outcomes_by_definition": {
+        "att_engine": [
+          "PASS"
+        ],
+        "att_ours": [
+          "PASS"
+        ]
+      },
+      "pooling_dependent_for": [],
+      "registered_at": "offline/dt_gate.py:467-468",
+      "scenario": "hz1x1",
+      "shape": "threshold comparison of three cell means; no pooling dimension",
+      "tier": "mappo1000"
+    },
+    {
+      "by_definition": {
+        "att_engine": {
+          "ci95_half_width": 0.2624848604540966,
+          "mean_difference": -0.196443199990446,
+          "n_paired": 100,
+          "outcome": "within_delta"
+        },
+        "att_ours": {
+          "ci95_half_width": 0.2612806670048776,
+          "mean_difference": -0.2077102683892882,
+          "n_paired": 100,
+          "outcome": "within_delta"
+        }
+      },
+      "contrast_id": "V2:madt_vs_bc",
+      "definition_dependent": false,
+      "discriminability": [
+        {
+          "identical": false,
+          "max_abs_difference": 11.865342163355407,
+          "n_differing": 499,
+          "n_paired": 500,
+          "statement": "madt and bc differ on 499 of 500 shared episodes of tier mappo1000 (max |difference| 11.865342163355407)",
+          "status": "distinct",
+          "tier": "mappo1000"
+        }
+      ],
+      "name": "A6 equivalence margin on paired per-draw ATT differences",
+      "outcomes_by_definition": {
+        "att_engine": [
+          "within_delta"
+        ],
+        "att_ours": [
+          "within_delta"
+        ]
+      },
+      "pooling_dependent_for": [],
+      "registered_at": "offline/offline_baselines.py:998",
+      "scenario": "hz1x1",
+      "shape": "paired contrast within ONE tier; the two poolings coincide",
+      "tier": "mappo1000"
+    },
+    {
+      "by_definition": {
+        "att_engine": {
+          "ci95_half_width": 0.25167065304542924,
+          "mean_difference": 1.7743315649937808,
+          "n_paired": 100,
+          "outcome": "right_genuinely_better"
+        },
+        "att_ours": {
+          "ci95_half_width": 0.25073048028700773,
+          "mean_difference": 1.7930603482607632,
+          "n_paired": 100,
+          "outcome": "right_genuinely_better"
+        }
+      },
+      "contrast_id": "V2:madt_vs_bc_top10",
+      "definition_dependent": false,
+      "discriminability": [
+        {
+          "identical": false,
+          "max_abs_difference": 12.87362637362638,
+          "n_differing": 500,
+          "n_paired": 500,
+          "statement": "madt and bc_top10 differ on 500 of 500 shared episodes of tier mappo1000 (max |difference| 12.87362637362638)",
+          "status": "distinct",
+          "tier": "mappo1000"
+        }
+      ],
+      "name": "A6 equivalence margin on paired per-draw ATT differences",
+      "outcomes_by_definition": {
+        "att_engine": [
+          "right_genuinely_better"
+        ],
+        "att_ours": [
+          "right_genuinely_better"
+        ]
+      },
+      "pooling_dependent_for": [],
+      "registered_at": "offline/offline_baselines.py:998",
+      "scenario": "hz1x1",
+      "shape": "paired contrast within ONE tier; the two poolings coincide",
+      "tier": "mappo1000"
+    },
+    {
+      "by_definition": {
+        "att_engine": {
+          "ci95_half_width": 0.26054419590345856,
+          "mean_difference": 1.47547746105366,
+          "n_paired": 100,
+          "outcome": "right_genuinely_better"
+        },
+        "att_ours": {
+          "ci95_half_width": 0.2599843645763345,
+          "mean_difference": 1.4793543419391026,
+          "n_paired": 100,
+          "outcome": "right_genuinely_better"
+        }
+      },
+      "contrast_id": "V2:madt_vs_iql",
+      "definition_dependent": false,
+      "discriminability": [
+        {
+          "identical": false,
+          "max_abs_difference": 11.339923119165292,
+          "n_differing": 500,
+          "n_paired": 500,
+          "statement": "madt and iql differ on 500 of 500 shared episodes of tier mappo1000 (max |difference| 11.339923119165292)",
+          "status": "distinct",
+          "tier": "mappo1000"
+        }
+      ],
+      "name": "A6 equivalence margin on paired per-draw ATT differences",
+      "outcomes_by_definition": {
+        "att_engine": [
+          "right_genuinely_better"
+        ],
+        "att_ours": [
+          "right_genuinely_better"
+        ]
+      },
+      "pooling_dependent_for": [],
+      "registered_at": "offline/offline_baselines.py:998",
+      "scenario": "hz1x1",
+      "shape": "paired contrast within ONE tier; the two poolings coincide",
+      "tier": "mappo1000"
+    },
+    {
+      "by_definition": {
+        "att_engine": {
+          "advantage": {
+            "mix33": 333.2174033629407,
+            "mix50": 273.8452278655774,
+            "mix67": 88.69376400140033
+          },
+          "all_positive": true,
+          "outcome": "HELD",
+          "strictly_decreasing": true
+        },
+        "att_ours": {
+          "advantage": {
+            "mix33": 156.87765179739313,
+            "mix50": 129.4712538814495,
+            "mix67": 42.84650902296809
+          },
+          "all_positive": true,
+          "outcome": "HELD",
+          "strictly_decreasing": true
+        }
+      },
+      "contrast_id": "V3",
+      "definition_dependent": false,
+      "discriminability": [
+        {
+          "identical": false,
+          "max_abs_difference": 363.40315506938117,
+          "n_differing": 499,
+          "n_paired": 500,
+          "statement": "bc and bc_top10 differ on 499 of 500 shared episodes of tier mix33 (max |difference| 363.40315506938117)",
+          "status": "distinct",
+          "tier": "mix33"
+        },
+        {
+          "identical": false,
+          "max_abs_difference": 362.3484864740517,
+          "n_differing": 500,
+          "n_paired": 500,
+          "statement": "bc and bc_top10 differ on 500 of 500 shared episodes of tier mix50 (max |difference| 362.3484864740517)",
+          "status": "distinct",
+          "tier": "mix50"
+        },
+        {
+          "identical": false,
+          "max_abs_difference": 352.31422253810314,
+          "n_differing": 500,
+          "n_paired": 500,
+          "statement": "bc and bc_top10 differ on 500 of 500 shared episodes of tier mix67 (max |difference| 352.31422253810314)",
+          "status": "distinct",
+          "tier": "mix67"
+        }
+      ],
+      "name": "P4.7 Q2: advantage = mean ATT(bc) - mean ATT(bc_top10), positive and decreasing",
+      "outcomes_by_definition": {
+        "att_engine": [
+          "HELD"
+        ],
+        "att_ours": [
+          "HELD"
+        ]
+      },
+      "pooling_dependent_for": [],
+      "registered_at": "offline/mixture_tiers.py:767 with the outcome at :795-815",
+      "scenario": "hz1x1",
+      "shape": "ordering rule over three tiers; pooling does not apply, the rule IS per tier",
+      "tier": "mix33+mix50+mix67"
+    },
+    {
+      "by_definition": {
+        "att_engine": {
+          "ci95_high": 43.56314618914256,
+          "ci95_low": 36.478839485810354,
+          "mean_difference": 40.020992837476456,
+          "n_paired": 100,
+          "outcome": "FAILED"
+        },
+        "att_ours": {
+          "ci95_high": 43.078673189402295,
+          "ci95_low": 36.051043216650456,
+          "mean_difference": 39.564858203026375,
+          "n_paired": 100,
+          "outcome": "FAILED"
+        }
+      },
+      "contrast_id": "V4",
+      "definition_dependent": false,
+      "discriminability": [
+        {
+          "identical": false,
+          "max_abs_difference": 250.44576523031202,
+          "n_differing": 499,
+          "n_paired": 500,
+          "statement": "dt_spatial and dt_nomix differ on 499 of 500 shared episodes of tier grid4x4_mappo1000 (max |difference| 250.44576523031202)",
+          "status": "distinct",
+          "tier": "grid4x4_mappo1000"
+        }
+      ],
+      "name": "P5.1 P2a: CI of mean(ATT_spatial - ATT_nomix) entirely below zero",
+      "outcomes_by_definition": {
+        "att_engine": [
+          "FAILED"
+        ],
+        "att_ours": [
+          "FAILED"
+        ]
+      },
+      "pooling_dependent_for": [],
+      "registered_at": "offline/spatial_mixing.py:646-650 and :732",
+      "scenario": "grid4x4",
+      "shape": "paired contrast within ONE tier; the two poolings coincide",
+      "tier": "grid4x4_mappo1000"
+    },
+    {
+      "by_definition": {
+        "att_engine": {
+          "ci95_high": 30.770197967811875,
+          "ci95_low": 24.136549976432804,
+          "mean_difference": 27.45337397212234,
+          "n_paired": 100,
+          "outcome": "CONTINUE"
+        },
+        "att_ours": {
+          "ci95_high": 30.38577993219743,
+          "ci95_low": 23.815032830215493,
+          "mean_difference": 27.10040638120646,
+          "n_paired": 100,
+          "outcome": "CONTINUE"
+        }
+      },
+      "contrast_id": "V5",
+      "definition_dependent": false,
+      "discriminability": [
+        {
+          "identical": false,
+          "max_abs_difference": 176.88059701492537,
+          "n_differing": 500,
+          "n_paired": 500,
+          "statement": "dt_spatial_h4 and dt_nomix_h4 differ on 500 of 500 shared episodes of tier mappo1000 (max |difference| 176.88059701492537)",
+          "status": "distinct",
+          "tier": "mappo1000"
+        }
+      ],
+      "name": "P5.2 Q0 stop rule: d4 = ATT(dt_spatial_h4) - ATT(dt_nomix_h4), CI entirely below 0",
+      "outcomes_by_definition": {
+        "att_engine": [
+          "CONTINUE"
+        ],
+        "att_ours": [
+          "CONTINUE"
+        ]
+      },
+      "pooling_dependent_for": [],
+      "registered_at": "offline/tier_sweep.py:1370 used at :2354",
+      "scenario": "grid4x4",
+      "shape": "paired contrast between the two 4-HEAD cells within ONE tier; poolings coincide",
+      "tier": "mappo1000"
+    },
+    {
+      "by_definition": {},
+      "contrast_id": "V6",
+      "definition_dependent": false,
+      "discriminability": [
+        {
+          "statement": "output/p7_0 carries no per-arm ATT cell, so there is nothing to re-derive by this route; half of P7.0 is SUMO, where the engine-versus-ours distinction does not exist. Carries NO CLAIM until C3 runs",
+          "status": "not_applicable",
+          "tier": "not_applicable"
+        }
+      ],
+      "name": "P7.0 branch verdict, rho terms only (within-backend ATT ratio)",
+      "outcome": "NOT EXECUTABLE",
+      "outcomes_by_definition": {},
+      "pooling_dependent_for": [],
+      "registered_at": "offline/transfer_gate.py:1231",
+      "scenario": "multi",
+      "shape": "IN SCOPE, NOT EXECUTABLE",
+      "tier": "not_applicable"
+    }
+  ],
+  "definitions": [
+    "att_ours",
+    "att_engine"
+  ],
+  "escalations": [],
+  "format_version": "p8.4b-rederivation/1.0",
+  "n_definition_dependent": 0,
+  "n_escalations": 0,
+  "n_pooling_dependent": 0,
+  "poolings": [
+    "including_non_distinct",
+    "excluding_non_distinct"
+  ],
+  "provenance": {
+    "campaign": {
+      "n_cells": 38500,
+      "n_refused": 0,
+      "work_dir": "/home/filip/rltraffic/output/p8_4b_rederivation"
+    },
+    "code_provenance": {
+      "code_dirty": true,
+      "code_root": "/home/filip/rltraffic-p84b-g0",
+      "git_commit": "b1cb0886f6dbdf55ec8132f265ba7af82b134d32",
+      "git_dirty": true,
+      "module": "/home/filip/rltraffic-p84b-g0/offline/admission_probe.py",
+      "note": "code_root is resolved from this module's __file__, not from the working directory. git_dirty covers the whole tree and code_dirty excludes docs/, where every artifact lives, so it answers whether the CODE was modified. runtime.git_commit beside it comes from dt_gate.runtime_provenance, which reads git rev-parse HEAD in the CWD -- and BRIEF_31 Amendment A2 puts the CWD in the main tree, so the two can and do differ (review P8.4a BL-2)",
+      "pythonpath": "",
+      "working_directory": "/home/filip/rltraffic-p84b-g0"
+    },
+    "rule_r": "Gate 0 PASSED both scenarios, so att_engine is primary on hz1x1 and grid4x4; att_ours is reported beside it with the three counts; cologne3 carries no single-definition claim",
+    "runtime": {
+      "cuda_available": true,
+      "cuda_device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+      "git_commit": "b1cb0886f6dbdf55ec8132f265ba7af82b134d32",
+      "measurement_git_commits": [],
+      "numpy_version": "2.5.1",
+      "python_version": "3.12.13",
+      "torch_cuda_version": "12.8",
+      "torch_num_threads": 1,
+      "torch_version": "2.11.0+cu128",
+      "unreachable_measurement_commits": [],
+      "written_at_git_commit": "b1cb0886f6dbdf55ec8132f265ba7af82b134d32"
+    }
+  },
+  "role": "P8.4b: A11(d)'s verdicts re-derived under BOTH ATT definitions and BOTH poolings of tiers whose arms are structurally non-distinct",
+  "what_this_does_not_say": [
+    "no verdict on which ATT definition is primary; Rule R decides that",
+    "no choice between the two poolings: reporting both is the ruling, and a verdict that differs between them is escalated rather than resolved here",
+    "a tier whose arms are identical CANNOT DISCRIMINATE; that is never reported as 'no difference was found'"
+  ]
+}
