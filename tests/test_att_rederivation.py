@@ -1052,3 +1052,57 @@ def test_a_run_with_no_work_still_says_what_it_decided(tmp_path: Path) -> None:
     assert "campaign declares" in printed, "a run must state the campaign it accepted"
     assert "rolls 0 of them" in printed, "a run with no work must SAY it has no work"
     assert "rolled=0" in printed, "a run must state its outcome even when it did nothing"
+
+
+def test_every_name_a_module_exports_actually_exists() -> None:
+    """🔒 THE THIRD INSTANCE of one defect class: a DECLARATION that no longer matches the artifact.
+
+    ``engine_att_reference.__all__`` listed ``PerSecondEngineObserver`` after that class was made
+    lazily-constructed and stopped being a module attribute, so ``from ... import *`` would have
+    raised. Nothing caught it because nothing checked ``__all__``.
+
+    The same shape as the two edits before it: the entry point deleted by a slice rewrite, and a
+    string replace whose match was never asserted. In every case the declaration and the artifact
+    disagreed and only a reader could tell.
+    """
+    import importlib
+
+    for name in ("offline.engine_att_reference", "offline.att_rederivation"):
+        module = importlib.import_module(name)
+        exported = list(getattr(module, "__all__", []))
+        assert exported, f"{name} exports nothing -- the check would pass vacuously"
+        missing = [entry for entry in exported if not hasattr(module, entry)]
+        assert missing == [], (
+            f"{name}.__all__ names {missing}, which do not exist on the module. "
+            "`from module import *` would raise, and a declaration that does not match the "
+            "artifact is exactly the class of defect this test exists for"
+        )
+
+
+def test_every_offline_module_with_a_main_can_actually_be_run() -> None:
+    """A ``main()`` with no ``__main__`` block is a CLI that silently does nothing.
+
+    Generalised from my own defect: I deleted ``if __name__ == "__main__"`` from
+    ``att_rederivation`` and ``python -m offline.att_rederivation`` then exited 0 having done
+    nothing, for every subcommand, for two commits. This scans the whole package so the next
+    instance is caught wherever it happens.
+    """
+    repo = Path(__file__).resolve().parents[1]
+    offline = repo / "offline"
+    assert offline.is_dir(), f"no offline package at {offline}"
+
+    with_main = []
+    missing_entry = []
+    for path in sorted(offline.glob("*.py")):
+        source = path.read_text(encoding="utf-8")
+        if "\ndef main(" not in source:
+            continue
+        with_main.append(path.name)
+        if '__name__ == "__main__"' not in source:
+            missing_entry.append(path.name)
+
+    assert with_main, "no module under offline/ defines main() -- the check would pass vacuously"
+    assert missing_entry == [], (
+        f"these modules define main() but have no __main__ block, so `python -m` on them imports "
+        f"and exits 0 having done nothing: {missing_entry}"
+    )

@@ -129,7 +129,8 @@ __all__ = [
     "GateCell",
     "GateEpisode",
     "GateScenario",
-    "PerSecondEngineObserver",
+    # NOT "PerSecondEngineObserver": the class is built lazily by observer_env_class() so that
+    # importing this module needs no native cityflow, so it is not a module attribute.
     "ReconstructedAtt",
     "ScenarioCriteria",
     "VehicleWindows",
