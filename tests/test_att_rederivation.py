@@ -314,7 +314,9 @@ def test_multi_worker_launch_through_main_agrees_on_the_manifest(tmp_path: Path)
         # one raised ValueError('...different campaigns...') and the campaign could never start.
         code = main([*common, "run", "--verdicts", "V1", "--shard", str(shard), "--of", "3",
                      "--limit", "0"])
-        assert code == 1, "an empty run is incomplete, so main must report 1"
+        # A WORKER's exit code is about its own slice, not the campaign's completeness: a worker
+        # that rolled its cells with no refusals succeeded even though other shards have not run.
+        assert code == 0, "a worker with no refusals must report success"
 
     manifest = json.loads((work / "campaign_manifest.json").read_bytes())
     status = campaign_status(work)
@@ -380,3 +382,34 @@ def test_the_committed_index_refuses_a_cell_with_two_different_values(tmp_path: 
             committed_att_index(repo_root=tmp_path, output_root=tmp_path)
     finally:
         module.REDERIVATION_SOURCES = original
+
+
+def test_a_refusal_record_is_not_a_cell_file_and_so_is_never_skipped() -> None:
+    """A REFUSED cell must never be mistaken for data or for completed work.
+
+    ``campaign_status`` counts ``cell_*.json``; a refusal writes ``refused_*.json``, so the campaign
+    stays incomplete, the cell is retried on the next resume, and it can never enter a verdict.
+    """
+    from offline.att_rederivation import refusal_file_name
+
+    cell = CellKey(scenario="grid4x4", arm="bc@fixedtime", seed=202, draw_id=1000)
+    assert refusal_file_name(cell).startswith("refused_")
+    assert not refusal_file_name(cell).startswith("cell_")
+    assert refusal_file_name(cell) != cell_file_name(cell)
+
+
+def test_status_counts_refusals_separately_from_present_cells(tmp_path: Path) -> None:
+    """A refused cell leaves the campaign incomplete and is reported as its own number."""
+    from offline.att_rederivation import refusal_file_name
+
+    campaign = cells(4)
+    (tmp_path / "campaign_manifest.json").write_text(
+        json.dumps(campaign_manifest(campaign, engine_seed=1000)), encoding="utf-8"
+    )
+    (tmp_path / cell_file_name(campaign[0])).write_text("{}", encoding="utf-8")
+    (tmp_path / refusal_file_name(campaign[1])).write_text("{}", encoding="utf-8")
+    state = campaign_status(tmp_path)
+    assert state["present"] == 1
+    assert state["refused"] == 1
+    assert state["missing"] == 3, "a refused cell is MISSING, not present"
+    assert state["complete"] is False

@@ -814,7 +814,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             write_json_guarded(manifest, manifest_path, protected)
 
         if args.limit is not None:
-            cells = cells[: int(args.limit)]
+            # --limit means "roll N cells I have not already done", not "look at the first N".
+            # Slicing before the resume filter makes the flag a no-op on a resumed campaign, which
+            # is precisely when a bounded test run is wanted.
+            pending = [c for c in cells if not (work_dir / cell_file_name(c)).is_file()]
+            cells = pending[: int(args.limit)]
+            print(f"  --limit {args.limit}: {len(pending)} pending in this shard, rolling "
+                  f"{len(cells)}", flush=True)
         print(
             f"campaign declares {len(campaign)} cells (digest "
             f"{manifest['declared_cells_sha256'][:12]}); this worker rolls {len(cells)} of them "
@@ -833,10 +839,22 @@ def main(argv: Sequence[str] | None = None) -> int:
         state = campaign_status(work_dir)
         print(
             f"rolled={outcome['rolled']} skipped={outcome['skipped_already_present']} "
-            f"in {outcome['seconds'] / 3600.0:.2f} h; "
-            f"declared={state['declared']} present={state['present']} complete={state['complete']}",
+            f"refused={outcome['n_refused']} in {outcome['seconds'] / 3600.0:.2f} h; "
+            f"declared={state['declared']} present={state['present']} "
+            f"refused_on_disk={state['refused']} complete={state['complete']}",
             flush=True,
         )
+        if outcome["n_refused"]:
+            print(f"REFUSED {outcome['n_refused']} cells:", flush=True)
+            for row in outcome["refused"][:20]:
+                print(
+                    f"  [{row['reason_class']}] {row['scenario']}/{row['arm']} seed {row['seed']} "
+                    f"draw {row['draw_id']}: rederived {row['att_ours_rederived']!r} vs committed "
+                    f"{row['att_ours_committed']!r}",
+                    flush=True,
+                )
+            if outcome["n_refused"] > 20:
+                print(f"  ... and {outcome['n_refused'] - 20} more", flush=True)
         if state["complete"] and not state["marker_present"]:
             marker = work_dir / COMPLETE_MARKER
             assert_writable(marker, protected)
@@ -845,7 +863,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 encoding="utf-8",
             )
             print(f"wrote {marker}", flush=True)
-        return 0 if state["complete"] else 1
+        # A WORKER's exit code is about the WORKER's slice, not the campaign's completeness.
+        # Returning 1 because other shards have not finished made all five report failure after a
+        # clean run, which is the kind of signal that stops being read.  Campaign-level
+        # completeness is what the `status` subcommand answers, and it still exits 1 until done.
+        return 1 if outcome["n_refused"] else 0
 
     report = preflight(
         repo_root=args.repo_root,
@@ -923,6 +945,16 @@ def cell_file_name(cell: CellKey) -> str:
     arm = str(cell.arm).replace("@", "_at_").replace("/", "_")
     slot = "none" if cell.seed is None else str(int(cell.seed))
     return f"cell_{cell.scenario}_{arm}_seed{slot}_draw{int(cell.draw_id)}.json"
+
+
+def refusal_file_name(cell: CellKey) -> str:
+    """A REFUSED cell's record.  Deliberately NOT a ``cell_*.json``.
+
+    A refusal must never be mistaken for data: ``campaign_status`` counts ``cell_*`` files, so a
+    refused cell leaves the campaign INCOMPLETE and is retried on the next resume rather than
+    silently skipped.
+    """
+    return "refused_" + cell_file_name(cell)[len("cell_"):]
 
 
 def shard_cells(cells: Iterable[CellKey], *, shard: int, of: int) -> list[CellKey]:
@@ -1006,6 +1038,7 @@ def campaign_status(work_dir: str | Path) -> dict[str, Any]:
         "missing": len(missing),
         "missing_sample": missing[:5],
         "complete": complete,
+        "refused": len(list(work.glob("refused_*.json"))),
         "marker_present": (work / COMPLETE_MARKER).is_file(),
         "declared_cells_sha256": manifest.get("declared_cells_sha256"),
     }
@@ -1115,6 +1148,7 @@ def run_campaign(
     factory_cache: dict[tuple[str, str, int | None], Any] = {}
 
     rolled = skipped = 0
+    refused: list[dict[str, Any]] = []
     started = time.perf_counter()
     for index, cell in enumerate(cells, start=1):
         destination = work / cell_file_name(cell)
@@ -1164,8 +1198,35 @@ def run_campaign(
             engine_seed=int(engine_seed),
             created=created_cache[created_key],
         )
-        # (i) PER CELL, INSIDE THE LOOP.  A wrong arm-to-checkpoint entry dies here.
-        expected = assert_reproduces_committed(cell, episode.att_ours, committed)
+        # (i) PER CELL, INSIDE THE LOOP.  A cell that cannot be verified is RECORDED AS REFUSED and
+        # the campaign continues: aborting a four-hour job on its first bad cell throws away every
+        # good cell still ahead of it, and one refusal is a fact to report rather than a reason to
+        # stop measuring.  A refused cell writes NO cell file, so it can never be skipped on resume
+        # and can never enter a verdict.
+        try:
+            expected = assert_reproduces_committed(cell, episode.att_ours, committed)
+        except (ValueError, KeyError) as exc:
+            reason_class = "unverified" if isinstance(exc, KeyError) else "does_not_reproduce"
+            record = {
+                "format_version": ARTIFACT_FORMAT_VERSION,
+                "scenario": cell.scenario,
+                "arm": cell.arm,
+                "seed": cell.seed,
+                "draw_id": cell.draw_id,
+                "reason_class": reason_class,
+                "reason": str(exc),
+                "att_ours_rederived": float(episode.att_ours),
+                "att_ours_committed": committed.get(
+                    (cell.scenario, cell.arm, cell.seed, cell.draw_id)
+                ),
+            }
+            refusal = work / refusal_file_name(cell)
+            assert_writable(refusal, protected)
+            write_json_guarded(record, refusal, protected)
+            refused.append(record)
+            print(f"  REFUSED [{reason_class}] {cell.scenario}/{cell.arm} seed {cell.seed} "
+                  f"draw {cell.draw_id}", flush=True)
+            continue
 
         assert_writable(destination, protected)
         write_json_guarded(
@@ -1190,6 +1251,8 @@ def run_campaign(
     return {
         "rolled": rolled,
         "skipped_already_present": skipped,
+        "refused": refused,
+        "n_refused": len(refused),
         "seconds": time.perf_counter() - started,
     }
 
