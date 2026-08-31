@@ -1763,6 +1763,17 @@ def rederivation_artifact(
         "provenance": {**dict(provenance), "code_provenance": code_provenance()},
     }
     assert_contrast_reports_discriminability(payload)
+    # ⚠️ NARROWED GUARD, RULED 2026-08-31, AND THE NARROWING IS RECORDED HERE RATHER THAN ONLY IN A
+    # COMMIT MESSAGE.  This is deliberately NOT admission_probe.assert_no_science_verdict, which
+    # also calls method_tier_grid.assert_no_verdicts.  That rule is BRIEF_17 section 4 and it
+    # protects A READER OF P4.6's GRID from an equivalence verdict that artifact must not issue.
+    # THAT PARTY IS ABSENT HERE: this artifact is not P4.6's grid, and A11(d) COMMISSIONS exactly
+    # the vocabulary BRIEF_17 forbids -- it requires each of the six verdicts re-evaluated and
+    # "both verdicts reported whether or not they agree", and offline_baselines.delta_verdict
+    # returns within_delta / left_genuinely_better / right_genuinely_better by design.  Applying
+    # P4.6's guard here would forbid the artifact from carrying the thing it exists to carry.
+    # What REMAINS guarded is the primacy claim, which is Rule R's and not ours, and
+    # tests/test_att_rederivation.py ships a positive control so the residual is known to fire.
     assert_no_primacy_verdict(payload)
     return payload
 

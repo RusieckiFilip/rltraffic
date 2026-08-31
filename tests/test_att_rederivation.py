@@ -1187,6 +1187,25 @@ def test_the_primacy_guard_refuses_a_claim_about_which_definition_is_primary() -
     """
     from offline.att_rederivation import assert_no_primacy_verdict
 
+    from offline.admission_probe import SCIENCE_VERDICT_STRINGS
+
+    # The commissioned vocabulary passes: A11(d) requires it and delta_verdict returns it.
     assert_no_primacy_verdict({"contrasts": [{"outcome": "within_delta"}]})
+    assert_no_primacy_verdict({"contrasts": [{"outcome": "right_genuinely_better"}]})
+
+    # POSITIVE CONTROL, required by the ruling: the residual guard must actually fire, on EVERY
+    # primacy string, and at the depth one would really appear -- nested inside a contrast, not at
+    # the top level where any check would catch it.
+    assert SCIENCE_VERDICT_STRINGS, "the primacy vocabulary is empty; the guard would be vacuous"
+    for claim in sorted(SCIENCE_VERDICT_STRINGS):
+        with pytest.raises(ValueError, match="which definition is primary"):
+            assert_no_primacy_verdict(
+                {"contrasts": [{"by_definition": {"att_engine": {"note": claim}}}]}
+            )
+
+    # And it fires on the real artifact shape too, not only on a hand-made dict.
+    rows = _campaign_rows()
+    poisoned = json.loads(json.dumps({"contrasts": [rows["V1"]]}))
+    poisoned["contrasts"][0]["by_definition"]["att_engine"]["note"] = "headline_safe"
     with pytest.raises(ValueError, match="which definition is primary"):
-        assert_no_primacy_verdict({"summary": {"note": "headline_safe"}})
+        assert_no_primacy_verdict(poisoned)

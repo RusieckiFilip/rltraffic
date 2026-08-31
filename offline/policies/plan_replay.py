@@ -12,8 +12,30 @@ Comparability (brief §9, Ruling 1; metric per prereg A1)
 The registered per-step metric ``average_travel_time`` is computed by the **same**
 :class:`metrics.CityFlowMetrics` class the env uses, driven at the same ``delta_time`` cadence
 (``warmup`` once, then ``pre_step`` -> advance ``delta_time`` seconds -> ``update`` per decision
-step).  The engine's native ``get_average_travel_time`` is *not* used: it is survivorship-biased
-and would not be comparable to the k=3 / k=4 numbers.  From the same per-step samples this helper
+step).  The engine's native ``get_average_travel_time`` is *not* used, **because it would not be
+comparable to the k=3 / k=4 numbers, which were produced through the metrics class.**
+
+⚠️ **CORRECTED 2026-08-31 (T1's M3, landed with the metric change as ``BRIEF_31`` Amendment A5
+queued it).  This paragraph used to justify that choice by calling the engine's metric
+"survivorship-biased", and ON THE DOMINANT AXIS THAT IS BACKWARDS.**
+``Engine::getAverageTravelTime`` (``CityFlow/src/engine/engine.cpp:682-691``) averages over
+``finishedVehicleCnt + |vehiclePool|`` with **no filter at all** -- every vehicle ever created,
+including ones still queued in a lane's insertion buffer.  It is ``metrics/cityflow.py``'s
+``average_travel_time`` that carries an entry-side survivorship bias: its population is
+``get_vehicles(include_waiting=False)``, so a vehicle that never reaches a lane is never counted,
+and its clock starts at ADMISSION rather than at creation.
+
+**Measured, not argued** (P8.4b Gate 0, ``docs/data/p8_4b_g0_reference.json``, 46 episodes):
+``att_ours - att_engine`` decomposes exactly -- residual 0.0 on 46 of 46 -- into a POPULATION term,
+a CLOCK-ORIGIN term and a CADENCE term.  ``PREREGISTRATION`` A11 registered the correction, A12 and
+A13 the gate that tested it, and Gate 0 PASSED on both scenarios, so ``att_engine`` is the primary
+metric there under ``Rule R``.
+
+**The operative reason for this helper's choice is unchanged and still holds:** it must match the
+pipeline the k=3 / k=4 numbers came from, and that pipeline is the metrics class.  Only the
+justification's characterisation of WHICH metric is biased was wrong.
+
+From the same per-step samples this helper
 reports both A1 aggregations -- ``att_horizon`` (the value at the episode horizon, the paper's
 primary metric) and ``att_running_mean`` (the legacy runner.py mean-of-samples).
 ``tests/test_fixed_time_env_mapping.py`` asserts the two pipelines agree exactly on a degenerate
