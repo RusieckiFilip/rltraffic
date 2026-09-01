@@ -1154,7 +1154,12 @@ def test_the_verdict_layer_reproduces_P5_1s_committed_P2a_on_the_registered_pair
     reads it. ``ci95_low`` is asserted BIT-IDENTICAL because that is what the registered unit
     produces; the mean and the upper bound agree to float reduction order.
     """
-    committed = json.loads(Path("docs/data/p5_1_grid.json").read_bytes())["predictions"]["P1"]
+    # REPO_ROOT, not a relative path: this opened "docs/data/..." and so CRASHED with
+    # FileNotFoundError instead of skipping when the CWD was not the repository root.
+    committed_path = Path(__file__).resolve().parents[1] / "docs/data/p5_1_grid.json"
+    if not committed_path.is_file():
+        pytest.skip(f"P5.1's committed grid is not present at {committed_path}")
+    committed = json.loads(committed_path.read_bytes())["predictions"]["P1"]
     mine = _campaign_rows()["V4"]["by_definition"]["att_ours"]
     assert committed["left_arm"] == "dt_spatial@grid4x4_mappo1000"
     assert mine["n_paired"] == 100, "the registered pairing unit is 100 draws, not 500 episodes"
