@@ -728,7 +728,7 @@ def test_committed_baseline_records_why_the_ceiling_has_the_value_it_has() -> No
     #: The declared ceiling and every value it supersedes, newest first.  ONE literal, walked
     #: rather than addressed by depth -- see the docstring for why the depth-addressed form let
     #: the root drop out of the record.
-    CEILING_CHAIN = (123, 121, 104, 98, 72, 62)
+    CEILING_CHAIN = (139, 123, 121, 104, 98, 72, 62)
 
     baseline = json.loads(BASELINE_FILE.read_text(encoding="utf-8"))
     block = baseline["pytest"]
