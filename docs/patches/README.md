@@ -1,5 +1,48 @@
 # Patches a Claude Code session cannot apply itself
 
+## `ci_gate_ceiling_139_p8_4b.patch` — the skip ceiling moves 123 → 139, and all +16 is P8.4b's own tests
+
+**Apply with:**
+```bash
+git apply docs/patches/ci_gate_ceiling_139_p8_4b.patch    # on main
+.venv/bin/pytest tests/test_ci_gate.py -q                 # -> 34 passed
+```
+Verified with `git apply --check`, then applied, `tests/test_ci_gate.py` run (**34 passed**) and
+reverted with `cmp` proving both files byte-identical to their originals. **Additionally verified
+end-to-end**, which the previous entry did not do: `ci_gate.py pytest-gate` run against the real
+`junit.xml` of the run being measured, with the new baseline, returns
+`OK pytest-gate: passed=1445 skipped=139 failed=0 errors=0, skip ceiling 139 (0 to spare)` and exits 0.
+
+**Two files:** `.github/ci/ci_baseline.json` and one literal in `tests/test_ci_gate.py`
+(`CEILING_CHAIN`), which is exactly the "moving the ceiling is ONE literal" design that the 2026-08-24
+chain-walk introduced — the first move to test that promise, and it held.
+
+**Measured, not read off a summary:** `gh run download 33502850557`, `junit.xml` parsed with
+`xml.etree`, skips tallied by message. **Both legs identical** at `tests=1584 skipped=139 failures=0
+errors=0`. All **33 distinct** skip messages classified by inspection, not by regex:
+
+| category | 123 | 139 | delta |
+|---|---|---|---|
+| cityflow | 34 | 41 | **+7** |
+| corpus_or_checkpoint | 75 | 75 | 0 |
+| sumo_traci | 10 | 10 | 0 |
+| matplotlib | 2 | 2 | 0 |
+| campaign_output | 2 | 11 | **+9** |
+
+⭐ **The +16 is entirely P8.4b's own new tests** — `test_engine_att_reference.py` needs the CityFlow
+engine, `test_att_rederivation.py` needs `output/p8_4b_rederivation` and the other campaign trees —
+**which is precisely what the superseded entry's expiry named before the merge that triggered it.**
+The `predicted_delta` field declines to predict for the **fifth** time running; the four coordinator
+predictions before the protocol were wrong, and it was right again here.
+
+⚠️ **Written by the coordinator at the author's explicit instruction.** `tests/**` and `.github/ci/**`
+are normally outside the coordinator's role; the crossing is disclosed here, in the baseline's
+`how_it_was_obtained`, and in the Decisions Log entry of 2026-09-01. ⚠️ **Two defects in the
+coordinator's first draft were caught by `tests/test_ci_gate.py` and not by the coordinator**: three
+dropped fields from `re_measure_required_at` (including `predicted_delta`, whose loss `ci_gate.py`
+reads behind a `.get` default and therefore cannot notice) and a superseded link nested as the whole
+prior `measured` block instead of the reduced `{value, why_it_was_wrong, superseded}` record.
+
 ## `ci_gate_ceiling_123_p8_4b.patch` — the skip ceiling moves 121 → 123, and part of it is a reclassification
 
 **Apply with:**
