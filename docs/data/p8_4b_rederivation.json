@@ -39,6 +39,11 @@
           "PASS"
         ]
       },
+      "pooling": {
+        "applies": false,
+        "reason": "V1 compares three cell MEANS at one tier against thresholds; it spans no second tier, so there is nothing to include or exclude"
+      },
+      "pooling_applies": false,
       "pooling_dependent_for": [],
       "registered_at": "offline/dt_gate.py:467-468",
       "scenario": "hz1x1",
@@ -82,6 +87,11 @@
           "within_delta"
         ]
       },
+      "pooling": {
+        "applies": false,
+        "reason": "a single-tier paired contrast spans no second tier, so the two poolings are the same set and neither can differ from the other"
+      },
+      "pooling_applies": false,
       "pooling_dependent_for": [],
       "registered_at": "offline/offline_baselines.py:998",
       "scenario": "hz1x1",
@@ -125,6 +135,11 @@
           "right_genuinely_better"
         ]
       },
+      "pooling": {
+        "applies": false,
+        "reason": "a single-tier paired contrast spans no second tier, so the two poolings are the same set and neither can differ from the other"
+      },
+      "pooling_applies": false,
       "pooling_dependent_for": [],
       "registered_at": "offline/offline_baselines.py:998",
       "scenario": "hz1x1",
@@ -168,6 +183,11 @@
           "right_genuinely_better"
         ]
       },
+      "pooling": {
+        "applies": false,
+        "reason": "a single-tier paired contrast spans no second tier, so the two poolings are the same set and neither can differ from the other"
+      },
+      "pooling_applies": false,
       "pooling_dependent_for": [],
       "registered_at": "offline/offline_baselines.py:998",
       "scenario": "hz1x1",
@@ -237,6 +257,34 @@
           "HELD"
         ]
       },
+      "pooling": {
+        "applies": true,
+        "by_definition": {
+          "att_engine": {
+            "agree": true,
+            "excluding_non_distinct": "HELD",
+            "including_non_distinct": "HELD"
+          },
+          "att_ours": {
+            "agree": true,
+            "excluding_non_distinct": "HELD",
+            "including_non_distinct": "HELD"
+          }
+        },
+        "reason": "V3 spans three mixture tiers, so a tier whose arms cannot discriminate would enter the ordering as a structural zero. The REGISTERED rule is evaluated both ways and neither is chosen (ruled 2026-08-31)",
+        "tiers_all": [
+          "mix33",
+          "mix50",
+          "mix67"
+        ],
+        "tiers_distinct": [
+          "mix33",
+          "mix50",
+          "mix67"
+        ],
+        "tiers_non_distinct": []
+      },
+      "pooling_applies": true,
       "pooling_dependent_for": [],
       "registered_at": "offline/mixture_tiers.py:767 with the outcome at :795-815",
       "scenario": "hz1x1",
@@ -282,6 +330,11 @@
           "FAILED"
         ]
       },
+      "pooling": {
+        "applies": false,
+        "reason": "a single-tier paired contrast spans no second tier, so the two poolings are the same set and neither can differ from the other"
+      },
+      "pooling_applies": false,
       "pooling_dependent_for": [],
       "registered_at": "offline/spatial_mixing.py:646-650 and :732",
       "scenario": "grid4x4",
@@ -327,6 +380,11 @@
           "CONTINUE"
         ]
       },
+      "pooling": {
+        "applies": false,
+        "reason": "d4 is defined on the two 4-head cells at ONE tier (tier_sweep.py:2363), so it spans no second tier and pooling cannot apply"
+      },
+      "pooling_applies": false,
       "pooling_dependent_for": [],
       "registered_at": "offline/tier_sweep.py:1370 used at :2354",
       "scenario": "grid4x4",
@@ -347,6 +405,11 @@
       "name": "P7.0 branch verdict, rho terms only (within-backend ATT ratio)",
       "outcome": "NOT EXECUTABLE",
       "outcomes_by_definition": {},
+      "pooling": {
+        "applies": false,
+        "reason": "V6 is not executable at all, so no statistic exists to pool"
+      },
+      "pooling_applies": false,
       "pooling_dependent_for": [],
       "registered_at": "offline/transfer_gate.py:1231",
       "scenario": "multi",
@@ -362,7 +425,9 @@
   "format_version": "p8.4b-rederivation/1.0",
   "n_definition_dependent": 0,
   "n_escalations": 0,
+  "n_pooling_applicable": 1,
   "n_pooling_dependent": 0,
+  "pooling_note": "BL-2 EXECUTED. n_pooling_dependent is computed over the n_pooling_applicable contrasts that actually span more than one tier; every other contrast records applies=false with its reason. A count over an empty set would be unfalsifiable and is not reported as a finding",
   "poolings": [
     "including_non_distinct",
     "excluding_non_distinct"
@@ -376,7 +441,7 @@
     "code_provenance": {
       "code_dirty": true,
       "code_root": "/home/filip/rltraffic-p84b-g0",
-      "git_commit": "b1cb0886f6dbdf55ec8132f265ba7af82b134d32",
+      "git_commit": "3f8d0490f8808940d82673c91755365ba978bcf0",
       "git_dirty": true,
       "module": "/home/filip/rltraffic-p84b-g0/offline/admission_probe.py",
       "note": "code_root is resolved from this module's __file__, not from the working directory. git_dirty covers the whole tree and code_dirty excludes docs/, where every artifact lives, so it answers whether the CODE was modified. runtime.git_commit beside it comes from dt_gate.runtime_provenance, which reads git rev-parse HEAD in the CWD -- and BRIEF_31 Amendment A2 puts the CWD in the main tree, so the two can and do differ (review P8.4a BL-2)",
@@ -387,7 +452,7 @@
     "runtime": {
       "cuda_available": true,
       "cuda_device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
-      "git_commit": "b1cb0886f6dbdf55ec8132f265ba7af82b134d32",
+      "git_commit": "3f8d0490f8808940d82673c91755365ba978bcf0",
       "measurement_git_commits": [],
       "numpy_version": "2.5.1",
       "python_version": "3.12.13",
@@ -395,7 +460,7 @@
       "torch_num_threads": 1,
       "torch_version": "2.11.0+cu128",
       "unreachable_measurement_commits": [],
-      "written_at_git_commit": "b1cb0886f6dbdf55ec8132f265ba7af82b134d32"
+      "written_at_git_commit": "3f8d0490f8808940d82673c91755365ba978bcf0"
     }
   },
   "role": "P8.4b: A11(d)'s verdicts re-derived under BOTH ATT definitions and BOTH poolings of tiers whose arms are structurally non-distinct",
