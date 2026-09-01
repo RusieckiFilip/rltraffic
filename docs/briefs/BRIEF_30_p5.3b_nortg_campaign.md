@@ -438,3 +438,67 @@ with truncated, stale, wrong-seed and SIGKILLed states and held every time. P5.2
 repeated — `_run_train` writes the complete column once, atomically, after the loop.**
 
 **When C1–C7 are done: re-run the three P5.3b test files, paste the tail, then start the campaign.**
+
+---
+
+# AMENDMENT D — 2026-09-01: the A11 re-scope. This is why P5.3b was held, and it is the only thing blocking it.
+
+**P5.3b was HELD on 2026-08-28** because T1 found the primary metric wrong-by-definition. That question
+is now closed (P8.4 merged 2026-09-01), and the hold lifts **subject to this amendment**.
+
+## D1 — the campaign emits all FIVE quantities AT COLLECTION TIME
+
+`PREREGISTRATION` **A11(b)** makes it unconditional: every reported ATT cell carries
+**`att_ours`, `att_engine`, `entered`, `created`, `never_entered`.** No threshold, no verdict, no
+condition — the five appear on every cell, always.
+
+⭐ **This is a brief amendment, not new code.** `offline/admission_probe.py` already computes all five:
+`read_admission_at_horizon(env, *, created)` at **`:416`** and `probe_episode` at **`:510`**. Import and
+call them; do not reimplement, and do not modify `admission_probe.py` — it is merged, reviewed and its
+artifacts are cited in A11 itself.
+
+🚨 **AT COLLECTION TIME, not re-derived afterwards.** P8.4b spent 38,500 episodes and ~3.2 h re-deriving
+cells that were collected without them. **Emitting them now costs a horizon read per episode and
+approximately nothing.** A campaign that ships without them joins the re-derivation backlog, and that
+backlog is exactly what P8.4 existed to clear.
+
+## D2 — Rule R has fired, so the reporting convention is settled before you start
+
+**`att_engine` is the PRIMARY metric on hz1x1 and grid4x4**; `att_ours` is reported beside it in every
+table with the three counts. **`cf_cologne3` is NOT RUN under Rule R and carries no single-definition
+claim** — if P5.3b touches cologne3, both definitions are reported and any ordering that differs between
+them is flagged **definition-dependent**, never presented as a result.
+
+## D3 — two reporting rules inherited from P8.4b, both already ruled
+
+1. **Discriminability (ruled 2026-08-31).** Every reported contrast states, per tier, **whether the arms
+   it compares are distinct at all.** *A contrast over identical inputs is not a null result.* This is
+   live for P5.3b: on `fixedtime`, the DT reproduces its behaviour policy **bit-identically** on both
+   scenarios (measured 2026-08-31), so a no-RTG-versus-RTG contrast on that tier may have nothing to
+   measure. **Say so if it does.**
+2. **Both poolings (ruled 2026-08-31).** For any contrast whose arms are non-distinct on a tier, report
+   the pooled statistic **including** that tier and **excluding** it, with the structural reason. Never
+   choose one. ⚠️ **And the narrowing P8.4b earned: if the excluded set is empty, the two poolings are
+   the same computation and their agreement carries no information — say that rather than reporting an
+   agreement.**
+
+## D4 — the branch is 111 commits behind `main`, and this one warrants a merge
+
+`task/p5.3b-nortg-campaign` @ `53e995d` is **111 commits behind**. Under §7's rebase rule a rebase or
+merge is warranted only when `main` moves **code, tests or the guard scripts** under the branch —
+**and it has, substantially**: `offline/engine_att_reference.py`, `offline/att_rederivation.py`, their
+two test files, and the `plan_replay.py` docstring correction. **No campaign is running in the worktree
+and it has never run**, so the 2026-08-19 precondition is satisfied. **`git merge main` in
+`/home/filip/rltraffic-p53b`**, as `BRIEF_30` B3 already authorised once.
+
+## D5 — inherited, and it is not optional
+
+**The CI skip-ceiling patch names P5.3b's merge as its own next expiry** (`docs/patches/README.md`,
+`ci_gate_ceiling_139_p8_4b.patch`). Re-measure it at merge from the real `junit.xml` and ship it as a
+**separate commit**, classifying the delta by inspection rather than by regex. **Do not pre-bump.**
+
+## What is UNCHANGED
+
+`BRIEF_30`'s §1–§9, Amendments A, B and C, the completed fix round, and the CLEAR pre-flight
+(`docs/reviews/P5.3b-preflight.md`, no blockers, 6 major). **Nothing in the campaign's scientific design
+moves.** D1–D3 change what each cell CARRIES and how contrasts are REPORTED; D4 and D5 are mechanics.
