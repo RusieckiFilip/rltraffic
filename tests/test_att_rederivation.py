@@ -1209,3 +1209,182 @@ def test_the_primacy_guard_refuses_a_claim_about_which_definition_is_primary() -
     poisoned["contrasts"][0]["by_definition"]["att_engine"]["note"] = "headline_safe"
     with pytest.raises(ValueError, match="which definition is primary"):
         assert_no_primacy_verdict(poisoned)
+
+
+# ----------------------------------------------------------------------
+# BL-1: the att_engine column must actually be computed from att_engine
+# ----------------------------------------------------------------------
+#
+# 🚨 EVERY TEST BELOW IS CORPUS-FREE, and that is the point rather than a convenience.
+# MN-1 measured 16 of the 91 new tests skipping on a runner, INCLUDING ALL FOUR verdict-layer
+# tests -- so a corpus-backed test for BL-1 would leave all five mutations alive on CI, which is
+# exactly where the protection is needed. The fixture below is synthetic and in-memory: att_ours
+# and att_engine differ BY CONSTRUCTION, and they are chosen so that swapping one for the other
+# changes an OUTCOME and not merely a decimal.
+
+
+def _arm(ours: float, engine: float, *, draws: int = 10, seeds=(101, 202)) -> dict:
+    """One arm whose two ATT columns are far apart and constant, so a swap is unmissable."""
+    return {
+        (seed, 1000 + d): {"att_ours": float(ours), "att_engine": float(engine)}
+        for seed in seeds
+        for d in range(draws)
+    }
+
+
+def synthetic_cells() -> dict:
+    """A whole campaign in memory, engineered so each definition gives a DIFFERENT verdict.
+
+    * **V1** PASSes under ``att_ours`` and FAILs under ``att_engine`` (madt 100 vs 200 against a
+      MaxPressure of 150), so a swap collapses the two definitions onto one answer.
+    * **V3** is HELD under ``att_ours`` (advantages +30, +20, +10: positive and decreasing) and
+      FAILED under ``att_engine`` (+10, +20, +30: increasing).
+    * **V4** is FAILED under ``att_ours`` (+5) and HELD under ``att_engine`` (-5).
+    * **V5** likewise, in the opposite direction.
+    """
+    return {
+        "hz1x1": {
+            "mappo1000": {
+                "madt": _arm(100.0, 200.0),
+                "mappo1000": _arm(100.0, 100.0),
+                "bc": _arm(100.0, 200.0),
+                "bc_top10": _arm(100.0, 200.0),
+                "iql": _arm(100.0, 200.0),
+            },
+            "maxpressure": {"maxpressure": _arm(150.0, 150.0)},
+            "mix33": {"bc@mix33": _arm(130.0, 110.0), "bc_top10@mix33": _arm(100.0, 100.0)},
+            "mix50": {"bc@mix50": _arm(120.0, 120.0), "bc_top10@mix50": _arm(100.0, 100.0)},
+            "mix67": {"bc@mix67": _arm(110.0, 130.0), "bc_top10@mix67": _arm(100.0, 100.0)},
+        },
+        "grid4x4": {
+            "grid4x4_mappo1000": {
+                "dt_spatial@grid4x4_mappo1000": _arm(105.0, 95.0),
+                "dt_nomix@grid4x4_mappo1000": _arm(100.0, 100.0),
+            },
+            "mappo1000": {
+                "dt_spatial_h4@mappo1000": _arm(95.0, 105.0),
+                "dt_nomix_h4@mappo1000": _arm(100.0, 100.0),
+            },
+        },
+    }
+
+
+def test_BL1_load_cells_reads_att_engine_from_the_att_engine_column(tmp_path: Path) -> None:
+    """MUTATION 1 (``:1571``): the ``att_engine`` field read from ``row['att_ours']``.
+
+    Corpus-free: three synthetic cell files on ``tmp_path``, whose two columns are 100 apart.
+    """
+    from offline.att_rederivation import ARTIFACT_FORMAT_VERSION, cell_file_name, load_cells
+
+    for draw in (1000, 1001, 1002):
+        cell = CellKey("hz1x1", "bc@mix33", 101, draw)
+        (tmp_path / cell_file_name(cell)).write_text(
+            json.dumps({
+                "format_version": ARTIFACT_FORMAT_VERSION, "scenario": "hz1x1",
+                "arm": "bc@mix33", "seed": 101, "draw_id": draw,
+                "att_ours": 100.0 + draw, "att_engine": 200.0 + draw,
+            }),
+            encoding="utf-8",
+        )
+    loaded = load_cells(tmp_path)["hz1x1"]["mix33"]["bc@mix33"]
+    assert len(loaded) == 3
+    for draw in (1000, 1001, 1002):
+        row = loaded[(101, draw)]
+        assert row["att_ours"] == 100.0 + draw
+        assert row["att_engine"] == 200.0 + draw, (
+            "the att_engine column was not read from att_engine; a definition swap here poisons "
+            "every downstream verdict identically and invisibly"
+        )
+        assert row["att_engine"] != row["att_ours"]
+
+
+def test_BL1_V1_uses_the_definition_it_is_given() -> None:
+    """MUTATION 2 (``:1956``): V1's ``att_madt`` reading ``att_ours`` regardless of definition."""
+    from offline.att_rederivation import evaluate_all_verdicts
+
+    v1 = {r["contrast_id"]: r for r in evaluate_all_verdicts(synthetic_cells())}["V1"]
+    ours, engine = v1["by_definition"]["att_ours"], v1["by_definition"]["att_engine"]
+    assert ours["att_madt"] == 100.0
+    assert engine["att_madt"] == 200.0, "V1 ignored the definition it was asked for"
+    assert ours["outcome"] == "PASS"
+    assert engine["outcome"] == "FAIL", "the fixture is built so the two definitions must differ"
+
+
+def test_BL1_V3_advantage_uses_the_definition_it_is_given() -> None:
+    """MUTATION 3 (``:2029-2030``): V3's advantage using ``att_ours`` for both definitions."""
+    from offline.att_rederivation import evaluate_all_verdicts
+
+    v3 = {r["contrast_id"]: r for r in evaluate_all_verdicts(synthetic_cells())}["V3"]
+    ours = v3["by_definition"]["att_ours"]["advantage"]
+    engine = v3["by_definition"]["att_engine"]["advantage"]
+    assert [ours[t] for t in ("mix33", "mix50", "mix67")] == [30.0, 20.0, 10.0]
+    assert [engine[t] for t in ("mix33", "mix50", "mix67")] == [10.0, 20.0, 30.0], (
+        "V3's advantage ignored the definition it was asked for"
+    )
+    assert v3["by_definition"]["att_ours"]["outcome"] == "HELD"
+    assert v3["by_definition"]["att_engine"]["outcome"] == "FAILED"
+
+
+def test_BL1_V4_and_V5_paired_differences_use_the_definition_they_are_given() -> None:
+    """MUTATION 4 (``:2069-2071``): V4's paired differences using ``att_ours`` for both."""
+    from offline.att_rederivation import evaluate_all_verdicts
+
+    rows = {r["contrast_id"]: r for r in evaluate_all_verdicts(synthetic_cells())}
+    v4, v5 = rows["V4"], rows["V5"]
+    assert v4["by_definition"]["att_ours"]["mean_difference"] == 5.0
+    assert v4["by_definition"]["att_engine"]["mean_difference"] == -5.0, (
+        "V4 ignored the definition it was asked for"
+    )
+    assert v4["by_definition"]["att_ours"]["outcome"] == "FAILED"
+    assert v4["by_definition"]["att_engine"]["outcome"] == "HELD"
+    assert v5["by_definition"]["att_ours"]["mean_difference"] == -5.0
+    assert v5["by_definition"]["att_engine"]["mean_difference"] == 5.0
+    assert v5["by_definition"]["att_ours"]["outcome"] == "STOP"
+    assert v5["by_definition"]["att_engine"]["outcome"] == "CONTINUE"
+
+
+def test_BL1_definition_dependent_is_COMPUTED_not_assumed() -> None:
+    """MUTATION 5 (``:1731``): ``definition_dependent = False`` hardcoded.
+
+    On the real campaign every contrast agrees across definitions, so a hardcoded ``False`` prints
+    the true headline and survives. This fixture makes four contrasts genuinely differ, so the
+    artifact must ESCALATE -- and a hardcoded ``False`` reports zero escalations against four.
+    """
+    from offline.att_rederivation import evaluate_all_verdicts, rederivation_artifact
+
+    payload = rederivation_artifact(
+        evaluate_all_verdicts(synthetic_cells()), provenance={"runtime": {}}
+    )
+    dependent = sorted(
+        r["contrast_id"] for r in payload["contrasts"] if r.get("definition_dependent")
+    )
+    assert dependent == ["V1", "V3", "V4", "V5"], dependent
+    assert payload["n_definition_dependent"] == 4, (
+        "definition_dependent was not computed from the two definitions' outcomes"
+    )
+    assert payload["n_escalations"] >= 4
+    for escalation in payload["escalations"]:
+        assert escalation["definition_dependent"] is True
+        assert "coordinator" in escalation["ruling"] or "resolve" in escalation["ruling"]
+
+
+def test_BL1_the_synthetic_fixture_needs_no_corpus_and_no_absolute_path() -> None:
+    """The design constraint itself, asserted rather than trusted.
+
+    MN-1: 16 of 91 new tests skip on a runner. These five must not join them, so the fixture is
+    checked to be pure in-memory data with both columns genuinely different.
+    """
+    cells = synthetic_cells()
+    assert set(cells) == {"hz1x1", "grid4x4"}
+    differing = same = 0
+    for scenario in cells.values():
+        for tier in scenario.values():
+            for arm in tier.values():
+                assert arm, "an empty arm would make the fixture vacuous"
+                for row in arm.values():
+                    if row["att_ours"] == row["att_engine"]:
+                        same += 1
+                    else:
+                        differing += 1
+    assert differing > 0, "no cell has differing columns; a definition swap would be invisible"
+    assert differing >= same, "most cells must differ, or the fixture barely tests the swap"

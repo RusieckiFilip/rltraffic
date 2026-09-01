@@ -1724,12 +1724,23 @@ def rederivation_artifact(
             outcomes.setdefault(definition, set()).add(str(block.get("outcome")))
         for pooled in record.get("pooled", ()):
             outcomes.setdefault(pooled["definition"], set()).add(str(pooled["outcome"]))
-        # (a) the same definition giving different answers under the two poolings
+        # (a) the same definition giving different answers under the two poolings.
+        # BL-2: this is now computed over the contrasts where pooling APPLIES.  Every contrast
+        # declares its applicability with a reason, and a contrast that spans one tier says so
+        # rather than contributing a silent zero to a count nobody could have falsified.
+        pooling = record.get("pooling") or {}
+        pooling_applies = bool(pooling.get("applies"))
         pooling_dependent = sorted(d for d, v in outcomes.items() if len(v) > 1)
+        if pooling_applies:
+            for definition, block in (pooling.get("by_definition") or {}).items():
+                if not block.get("agree") and definition not in pooling_dependent:
+                    pooling_dependent.append(definition)
+            pooling_dependent = sorted(pooling_dependent)
         # (b) the two definitions giving different answers -- the finding this task exists for
         collapsed = {d: tuple(sorted(v)) for d, v in outcomes.items()}
         definition_dependent = len(set(collapsed.values())) > 1
-        record["pooling_dependent_for"] = pooling_dependent
+        record["pooling_applies"] = pooling_applies
+        record["pooling_dependent_for"] = pooling_dependent if pooling_applies else []
         record["definition_dependent"] = definition_dependent
         record["outcomes_by_definition"] = {d: sorted(v) for d, v in outcomes.items()}
         if pooling_dependent or definition_dependent:
@@ -1759,7 +1770,14 @@ def rederivation_artifact(
         "escalations": escalations,
         "n_escalations": len(escalations),
         "n_definition_dependent": sum(1 for r in records if r.get("definition_dependent")),
+        "n_pooling_applicable": sum(1 for r in records if r.get("pooling_applies")),
         "n_pooling_dependent": sum(1 for r in records if r.get("pooling_dependent_for")),
+        "pooling_note": (
+            "BL-2 EXECUTED. n_pooling_dependent is computed over the n_pooling_applicable contrasts "
+            "that actually span more than one tier; every other contrast records applies=false with "
+            "its reason. A count over an empty set would be unfalsifiable and is not reported as a "
+            "finding"
+        ),
         "provenance": {**dict(provenance), "code_provenance": code_provenance()},
     }
     assert_contrast_reports_discriminability(payload)
@@ -1911,6 +1929,24 @@ def _paired_differences(
     return [left[d] - right[d] for d in shared]
 
 
+def _q2_outcome(ordered: Sequence[float]) -> str:
+    """P4.7 Q2's REGISTERED rule (``mixture_tiers.py:795-815``), applied to a tier set.
+
+    HELD iff every advantage is positive AND the sequence is strictly decreasing; NOT RESOLVED if
+    any two are exactly equal; FAILED otherwise.  Extracted so the same rule can be applied to the
+    full tier set and to the discriminating subset, which is what BL-2's pooling requires.
+    """
+    values = list(ordered)
+    if not values:
+        return "NOT SCORABLE"
+    tied = any(values[i] == values[j] for i in range(len(values)) for j in range(i + 1, len(values)))
+    if tied:
+        return "NOT RESOLVED"
+    positive = all(v > 0.0 for v in values)
+    decreasing = all(a > b for a, b in zip(values, values[1:]))
+    return "HELD" if (positive and decreasing) else "FAILED"
+
+
 def _cell_mean(block: Mapping[str, Mapping[tuple, Mapping[str, float]]], arm: str, definition: str) -> float:
     values = [float(v[definition]) for v in block[arm].values()]
     return sum(values) / len(values)
@@ -1950,6 +1986,11 @@ def evaluate_all_verdicts(
                          "two arms, so per-tier arm distinctness does not apply to it",
         }],
         "by_definition": {},
+        "pooling": {
+            "applies": False,
+            "reason": "V1 compares three cell MEANS at one tier against thresholds; it spans no "
+                      "second tier, so there is nothing to include or exclude",
+        },
     }
     for definition in DEFINITIONS:
         verdict = gate_verdict(
@@ -1979,6 +2020,11 @@ def evaluate_all_verdicts(
             "tier": "mappo1000",
             "shape": "paired contrast within ONE tier; the two poolings coincide",
             "by_definition": {},
+            "pooling": {
+                "applies": False,
+                "reason": "a single-tier paired contrast spans no second tier, so the two poolings "
+                          "are the same set and neither can differ from the other",
+            },
         }
         disc = contrast_discriminability(
             {k: v["att_ours"] for k, v in block["madt"].items()},
@@ -2039,7 +2085,33 @@ def evaluate_all_verdicts(
             "advantage": advantage,
             "all_positive": all_positive,
             "strictly_decreasing": ordering,
-            "outcome": "NOT RESOLVED" if tied else ("HELD" if (all_positive and ordering) else "FAILED"),
+            "outcome": _q2_outcome(ordered),
+        }
+    # BL-2 EXECUTED for V3, the ONLY registered contrast spanning more than one tier: the REGISTERED
+    # ordering rule is applied twice -- over every mixture tier, and over only those whose arms are
+    # distinct -- so "pooling-dependent" is computed over something rather than over nothing.
+    non_distinct_v3 = tuple(d["tier"] for d in v3["discriminability"] if d["identical"])
+    distinct_v3 = tuple(t for t in mixture_order if t not in non_distinct_v3)
+    v3["pooling"] = {
+        "applies": True,
+        "reason": (
+            "V3 spans three mixture tiers, so a tier whose arms cannot discriminate would enter the "
+            "ordering as a structural zero. The REGISTERED rule is evaluated both ways and neither "
+            "is chosen (ruled 2026-08-31)"
+        ),
+        "tiers_all": list(mixture_order),
+        "tiers_non_distinct": list(non_distinct_v3),
+        "tiers_distinct": list(distinct_v3),
+        "by_definition": {},
+    }
+    for definition in DEFINITIONS:
+        advantage = v3["by_definition"][definition]["advantage"]
+        including = _q2_outcome([advantage[t] for t in mixture_order])
+        excluding = _q2_outcome([advantage[t] for t in distinct_v3])
+        v3["pooling"]["by_definition"][definition] = {
+            "including_non_distinct": including,
+            "excluding_non_distinct": excluding,
+            "agree": including == excluding,
         }
     out.append(v3)
 
@@ -2053,6 +2125,11 @@ def evaluate_all_verdicts(
         "tier": v4_tier,
         "shape": "paired contrast within ONE tier; the two poolings coincide",
         "by_definition": {},
+        "pooling": {
+            "applies": False,
+            "reason": "a single-tier paired contrast spans no second tier, so the two poolings are "
+                      "the same set and neither can differ from the other",
+        },
     }
     block = grid[v4_tier]
     disc = contrast_discriminability(
@@ -2092,6 +2169,11 @@ def evaluate_all_verdicts(
         "tier": v5_tier,
         "shape": "paired contrast between the two 4-HEAD cells within ONE tier; poolings coincide",
         "by_definition": {},
+        "pooling": {
+            "applies": False,
+            "reason": "d4 is defined on the two 4-head cells at ONE tier (tier_sweep.py:2363), so "
+                      "it spans no second tier and pooling cannot apply",
+        },
     }
     block = grid[v5_tier]
     disc = contrast_discriminability(
@@ -2133,5 +2215,9 @@ def evaluate_all_verdicts(
         }],
         "by_definition": {},
         "outcome": "NOT EXECUTABLE",
+        "pooling": {
+            "applies": False,
+            "reason": "V6 is not executable at all, so no statistic exists to pool",
+        },
     })
     return out
