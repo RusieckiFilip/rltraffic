@@ -3,39 +3,43 @@
   "written_by": "P0.10 (BRIEF_23), 2026-08-17, branch task/p0.10-reproducibility",
   "read_by": ".github/ci/ci_gate.py -- see its module docstring for the format contract",
   "pytest": {
-    "skip_ceiling": 121,
+    "skip_ceiling": 123,
     "skip_breakdown": {
-      "corpus_or_checkpoint": 76,
-      "cityflow": 32,
+      "corpus_or_checkpoint": 75,
+      "cityflow": 34,
       "sumo_traci": 10,
       "matplotlib": 2,
-      "campaign_output": 1
+      "campaign_output": 2
     },
     "ceiling_if_cityflow_were_built": 89,
     "superseded_chain_is_uniformly_named": "2026-08-24. Every link of measured.superseded.* is now keyed 'superseded', at every depth. It used to be 'superseded' at depth 1 and 'its_own_superseded' below, which is TWO NAMES FOR ONE RELATION and is exactly why the chain could only be pinned one depth at a time: a generic walk stops at the first name it does not recognise, and the coordinator's first attempt at this patch did precisely that, reading the chain as (104, 98) and stopping. Caught by running the test, not by reading it. tests/test_ci_gate.py now asserts the legacy key is absent, so the shape cannot come back.",
     "breakdown_and_alternative_added": "2026-08-24. The breakdown existed only as prose inside measured.breakdown and the alternative only as prose inside ceiling_is_a_consequence_of, so NOTHING checked that the parts summed to the ceiling -- the same defect as the guards' by_file-versus-total gap recorded in guards.english.by_file_note, one block higher in this same file. tests/test_ci_gate.py now closes both by arithmetic. NOTE the coincidence, because it will confuse someone: ceiling_if_cityflow_were_built is 72, which is also the ceiling this file carried on 2026-08-17. Unrelated -- 104 - 32 = 72.",
     "provisional": true,
     "measured": {
-      "value": 121,
-      "condition": "GitHub Actions run 33011650275, BOTH jobs 'suite-and-guards (ubuntu-24.04)' and '(ubuntu-22.04)', on main at f4a73d3 after P5.3a merged; workflow unchanged (pinned threads, dev extra only, CityFlow not built, no corpus, no SUMO binary)",
-      "result": "1297 passed, 121 skipped. FOUR independent readings agree: junit.xml AND pytest.txt on EACH of the two legs, all four giving 121 and the same five-category breakdown. Only the ceiling gate failed -- the suite step itself PASSED on both legs, as did all three guards, the wheel gate and libc-matrix.",
-      "breakdown": "COUNTED, not derived, from each run's junit.xml by classifying every <skipped> message: 76 corpus/checkpoint + 32 cityflow + 10 SUMO/traci + 2 matplotlib + 1 campaign-output = 121. THE ENTIRE +17 IS THE CORPUS/CHECKPOINT FAMILY (59 -> 76); cityflow, SUMO, matplotlib and campaign-output are unchanged at 32/10/2/1, which is exactly what P5.3a should do -- it added corpus- and checkpoint-gated tests in tests/test_rtg_mode_identity.py, tests/test_rtg_probe_second_route.py and tests/test_rtg_ablation.py, and no engine-gated ones. Six of the +17 carry a NEW message shape, 'checkpoint not present in this tree: <path>'; two more are 'surviving draw 1000 is absent' and 'no integrity manifests in this tree'.",
-      "how_it_was_obtained": "`gh run download 33011650275 -n ci-artifacts-ubuntu-24.04` (and -22.04), which carry pytest.txt, junit.xml, english.out and hygiene.out. Unlike 2026-08-24 the log route was not needed. junit.xml remains the instrument of record because it classifies each skip by its own message; pytest.txt's terminal tail is the independent second parser and agreed at 121 on both legs.",
-      "tree": "main at f4a73d3",
-      "date": "2026-08-26",
+      "value": 123,
+      "condition": "GitHub Actions run 33434191684, BOTH jobs 'suite-and-guards (ubuntu-24.04)' and '(ubuntu-22.04)', on main after Rule R fired; workflow unchanged (pinned threads, dev extra only, CityFlow not built, no corpus, no SUMO binary)",
+      "result": "1364 passed, 123 skipped, 0 failures, 0 errors. FOUR independent readings agree: junit.xml AND pytest.txt on EACH of the two legs, all four giving 123. The suite itself PASSED on both legs; only the ceiling gate failed, which is the registered red.",
+      "breakdown": "COUNTED, not derived, by listing the 17 distinct <skipped> message prefixes in junit.xml and classifying each BY INSPECTION rather than by regex: cityflow 34 = 31 'cityflow not installed' + 2 'the CityFlow engine is not installed, so no episode can be rolled' + 1 'cityflow engine is not importable here'; corpus_or_checkpoint 75 = 52 + 7 + 6 + 4 + one each of the datasets/ lint skip, RLTRAFFIC_CORPUS_V11, RLTRAFFIC_P4_DT_CHECKPOINTS, probe draw 201, surviving draw 1000 and 'no integrity manifests'; sumo_traci 10; matplotlib 2; campaign_output 2 = output/p5_1 + the campaign output. 75+34+10+2+2 = 123. NOTE ceiling_if_cityflow_were_built is UNCHANGED at 89 (123-34 = 121-32); that is arithmetic, not a stale value.",
+      "how_it_was_obtained": "`gh run download 33434191684` for both ci-artifacts-ubuntu-24.04 and -22.04, which carry pytest.txt and junit.xml. junit.xml is the instrument of record because it classifies each skip by its own message; pytest.txt's terminal tail is the independent second parser and agreed at 123 on both legs.",
+      "tree": "main after Rule R fired (run 33434191684)",
+      "date": "2026-08-31",
       "measured_on_a_github_runner": true,
       "superseded": {
-        "value": 104,
-        "why_it_was_wrong": "Not wrong -- EXPIRED AS DECLARED, and this is the FIRST expiry under the walked-chain design. The 2026-08-24 entry named 'merge of P5.3' as its expiry and deliberately declined to predict the delta, on the record that two coordinator predictions of it had already been wrong. Observed delta +17, all of it in one category. No prediction was made and none was needed: the protocol -- merge, let the gate go red, classify junit.xml, commit the observed value with its breakdown -- produced the number in minutes.",
+        "value": 121,
+        "why_it_was_wrong": "Not wrong -- EXPIRED AS DECLARED. The 2026-08-26 entry named 'any task adding corpus-, checkpoint-, CityFlow-, SUMO- or matplotlib-gated tests' as its expiry. Observed delta +2, and it is NOT one category growing: cityflow +2 and campaign_output +1 against corpus_or_checkpoint -1, so part of the move is a RECLASSIFICATION of messages the previous count filed elsewhere. No prediction was made and none was needed.",
         "superseded": {
-          "value": 98,
-          "why_it_was_wrong": "Not wrong -- EXPIRED AS DECLARED. The 2026-08-19 entry named 'merge of P5.2' as its expiry. Observed delta +6. The coordinator's own predictions of that delta were wrong TWICE and are recorded because the pattern matters: '+1' on 2026-08-19 (read from a test file that then grew from 89 to 146 tests) and '>=4' on 2026-08-23 (counting skip SITES, which undercounts because one is parametrised). The protocol -- merge, read the observed number, commit it -- got it right both times without a prediction.",
+          "value": 104,
+          "why_it_was_wrong": "Not wrong -- EXPIRED AS DECLARED, and this is the FIRST expiry under the walked-chain design. The 2026-08-24 entry named 'merge of P5.3' as its expiry and deliberately declined to predict the delta, on the record that two coordinator predictions of it had already been wrong. Observed delta +17, all of it in one category. No prediction was made and none was needed: the protocol -- merge, let the gate go red, classify junit.xml, commit the observed value with its breakdown -- produced the number in minutes.",
           "superseded": {
-            "value": 72,
-            "why_it_was_wrong": "Not wrong -- EXPIRED EXACTLY AS PREDICTED. The 2026-08-17 entry declared 're_measure_required_at: merge of P5.1' and forecast 'roughly +25 skips ... this ceiling WILL breach on that merge, and it is meant to'. Observed delta: +26. The mechanism worked; the number was stale.",
+            "value": 98,
+            "why_it_was_wrong": "Not wrong -- EXPIRED AS DECLARED. The 2026-08-19 entry named 'merge of P5.2' as its expiry. Observed delta +6. The coordinator's own predictions of that delta were wrong TWICE and are recorded because the pattern matters: '+1' on 2026-08-19 (read from a test file that then grew from 89 to 146 tests) and '>=4' on 2026-08-23 (counting skip SITES, which undercounts because one is parametrised). The protocol -- merge, read the observed number, commit it -- got it right both times without a prediction.",
             "superseded": {
-              "value": 62,
-              "why_it_was_wrong": "It came from a simulated runner on the dev machine, and the simulation was defeated by usrmerge: the harness removed `sumo` from a symlink copy of /usr/bin but left /bin on PATH, and /bin IS /usr/bin on this system, so shutil.which('sumo') kept finding it and 10 SUMO-gated tests ran that a runner skips. The error was invisible locally and was caught by the first real run -- which is the reason the ceiling was declared provisional and the branch was pushed."
+              "value": 72,
+              "why_it_was_wrong": "Not wrong -- EXPIRED EXACTLY AS PREDICTED. The 2026-08-17 entry declared 're_measure_required_at: merge of P5.1' and forecast 'roughly +25 skips ... this ceiling WILL breach on that merge, and it is meant to'. Observed delta: +26. The mechanism worked; the number was stale.",
+              "superseded": {
+                "value": 62,
+                "why_it_was_wrong": "It came from a simulated runner on the dev machine, and the simulation was defeated by usrmerge: the harness removed `sumo` from a symlink copy of /usr/bin but left /bin on PATH, and /bin IS /usr/bin on this system, so shutil.which('sumo') kept finding it and 10 SUMO-gated tests ran that a runner skips. The error was invisible locally and was caught by the first real run -- which is the reason the ceiling was declared provisional and the branch was pushed."
+              }
             }
           }
         }
@@ -49,9 +53,9 @@
       "P5.2's campaign output lives in the gitignored output/p5_2, absent on a runner, so 1 further test skips. This category did not exist before 2026-08-24 and was missing from this list while being counted in measured.breakdown."
     ],
     "re_measure_required_at": {
-      "event": "merge of P5.3b (the dt_nortg campaign) or P5.3c (context-length K), or any task adding corpus-, checkpoint-, CityFlow-, SUMO- or matplotlib-gated tests",
+      "event": "merge of P8.4b -- this move's OWN next expiry, because P8.4b adds tests/test_engine_att_reference.py and tests/test_att_rederivation.py, both carrying corpus-, draws- and CityFlow-gated tests -- or P5.3b / P5.3c, or any task adding corpus-, checkpoint-, CityFlow-, SUMO- or matplotlib-gated tests",
       "reason": "The ceiling is a COUNT of environment-gated skips, not a policy, so every task that adds a corpus-, CityFlow-, SUMO- or matplotlib-gated test moves it: it is stale by construction after any such merge, and a stale ceiling stops gating without saying so. RESTORED 2026-08-24 -- this field was dropped in 69680fa while ci_gate.py:39 still declares it part of the format and ci_gate.py:308 still reads it through a .get(..., '') default, so its absence printed an empty clause into every job summary instead of failing. tests/test_ci_gate.py:687 caught it; the gate could not.",
-      "predicted_delta": "NOT PREDICTED -- deliberately, for the third time. Two coordinator predictions of this delta were wrong; the third expiry was handled with no prediction at all and cost minutes. The protocol does not need one.",
+      "predicted_delta": "NOT PREDICTED -- fourth time, deliberately. Three coordinator predictions of this delta have been wrong and the no-prediction protocol has been right every time it was used. P8.4b's merge WILL breach this ceiling and is meant to; the expiry above says so before it happens rather than after.",
       "what_to_do": "Merge, let this gate go red, download `ci-artifacts-<leg>` and classify junit.xml's <skipped> messages, then commit the observed value with its breakdown. Do NOT pre-bump and do NOT widen with slack: slack is what blinds the gate.",
       "mandated_by": "coordinator ruling on BRIEF_23 Q1, 2026-08-17 -- 'a ceiling whose expiry lives only in a chat is a ceiling that silently breaches'."
     },
