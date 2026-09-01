@@ -18,7 +18,7 @@ task "looks small". The gates exist because a wrong assumption is cheapest to ki
 |---|---|---|---|
 | **1. Explore** | read files, delegate to `repo-cartographer`, ask questions | write anything | user approves the findings |
 | **2. Plan** | write `docs/plans/<id>.md` only | touch source or tests | user approves the plan file |
-| **3. Code** | tests first, then implementation, run them | change the spec, weaken a test | user reads the tests before implementation |
+| **3. Code** | tests first, then implementation, run them | change the spec, weaken a test | ⛔ **GATE RETIRED 2026-08-30** — see `PROJECT_PLAN` §7. It never caught a defect the plan gate or mutation testing did not. **Tests-first is unchanged and still mandatory; only the human round-trip is gone.** |
 | **4. Commit** | commit on the task branch, write the Return Packet | merge to `main` | `/review` must PASS |
 
 Start every session in **plan mode**. Leave it only after the user approves the plan.

@@ -58,10 +58,23 @@ IDEMPOTENCE AND WHAT "IDENTICAL" MEANS
 Re-materialising an existing draw is a **no-op** (``action == "kept"``), so filling in the
 rest of the 1000-1099 pool later never rebuilds what is already there.  Identity is judged
 on the *artifacts and the parameters that determine them* -- the three rendered files
-byte-for-byte, plus every provenance field except ``git_commit`` / ``git_dirty``.  Those
-two describe **when** a draw was materialised, not **what** it is; including them would
-make every commit invalidate the whole tree.  A draw that exists but differs is
-**refused**, never silently rewritten, and only ``force=True`` replaces it.
+byte-for-byte, plus every provenance field except those in :data:`_NON_IDENTITY_FIELDS`:
+``git_commit`` / ``git_dirty``, which describe **when** a draw was materialised, and
+``source_config`` / ``source_flow`` / ``source_roadnet``, which describe **where the source
+happened to live**.  Including the first pair would make every commit invalidate the whole
+tree; including the second group made the same scenario reached from a second worktree look
+like different demand (``BRIEF_31`` Amendments D2 and E3, ``DEFERRED`` 61).  **The
+``*_sha256`` companion of each of those three paths remains an identity field, so a genuinely
+different source still refuses.**  A draw that exists but differs is **refused**, never
+silently rewritten, and only ``force=True`` replaces it.
+
+WARNING: a path exemption does NOT make the tool working-directory independent.  The rendered
+``cityflow.json`` embeds ``dir`` as an absolute path resolved against the process working
+directory, and rendered files are compared *before* any provenance field -- so re-materialising
+from a different working directory still refuses, with ``cityflow.json differs byte-for-byte``.
+Measured on 2026-08-28 against the ten ``cityflow_grid4x4`` held-out draws: all ten rendered
+configs differed across worktrees while all ten ``flow.json`` -- the drawn demand -- were
+byte-identical.
 
 FILESYSTEM-MUTATION BARRIER
 ---------------------------
@@ -175,9 +188,28 @@ HELD_OUT_POOL = range(1000, 1100)
 #: neither ``..`` nor ``.`` nor ``a/b`` can ever reach a path join.
 _KEY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 
-#: Provenance fields that describe *when* a draw was materialised rather than *what* it
-#: is, and are therefore excluded from the identity comparison (see the module docstring).
-_NON_IDENTITY_FIELDS = frozenset({"git_commit", "git_dirty"})
+#: Provenance fields that describe *when* and *where* a draw was materialised rather than *what*
+#: it is, and are therefore excluded from the identity comparison (see the module docstring).
+#:
+#: ``source_config`` and ``source_roadnet`` joined on 2026-08-29 under ``BRIEF_31`` Amendment D2,
+#: which closes ``DEFERRED`` 61.  **The change strictly NARROWS identity to content.**  Each of them
+#: has a ``*_sha256`` companion that stays an identity field, and the digest is what says whether the
+#: source is the same file; the bare string only says which directory the person who ran the tool was
+#: standing in.  ``source_config`` is recorded verbatim from the caller's argument and
+#: ``source_roadnet`` is resolved against the process working directory, so the SAME scenario reached
+#: from a second worktree, or through an absolute rather than a relative path, produced a different
+#: string and an identical draw was refused as though its demand had changed.
+#:
+#: ``source_flow`` joined on 2026-08-29 under Amendment E3, which closed the asymmetry D2 left.  It
+#: is stored ABSOLUTE (``/.../scenarios/grid4x4/grid4x4_flow.json``), so it was not a latent case --
+#: it was the next field to fire from any other tree, and only the first-mismatch return of
+#: :func:`_existing_conflict` kept it hidden behind ``source_config``.
+#:
+#: **The invariant to preserve: every path field here has a ``*_sha256`` twin that is NOT here.**
+#: Exempting a digest would delete the check rather than narrow it, and a test asserts both halves.
+_NON_IDENTITY_FIELDS = frozenset(
+    {"git_commit", "git_dirty", "source_config", "source_flow", "source_roadnet"}
+)
 
 _STAGING_PREFIX = ".staging-"
 
@@ -559,9 +591,16 @@ def _provenance_bytes(record: dict[str, Any]) -> bytes:
 def _existing_conflict(target: Path, built: _BuiltDraw) -> str | None:
     """Return why *target* differs from *built*, or ``None`` when it is identical.
 
-    Rendered files are compared byte-for-byte; the provenance record is compared field
-    by field with ``git_commit`` / ``git_dirty`` excluded, so a later commit does not
-    make an existing, correct draw look stale.
+    Rendered files are compared byte-for-byte; the provenance record is then compared field by
+    field with :data:`_NON_IDENTITY_FIELDS` excluded, so neither a later commit nor a different
+    working directory makes an existing, correct draw look stale.
+
+    WARNING: this returns on the FIRST mismatch, and the provenance loop walks
+    ``sorted(set(on_disk) | set(fresh))``.  So a complaint about ``source_config`` means the fields
+    after it alphabetically -- ``source_config_sha256`` among them -- were never reached, and the
+    ABSENCE of a digest complaint is the loop stopping rather than the digests agreeing.  That is
+    ``DEFERRED`` 54's class (assertions after the first failure never run) and it misled a reader on
+    2026-08-28; it is recorded here so the next one is not misled the same way.
     """
     expected = set(built.files)
     present = {path.name for path in target.iterdir() if path.is_file()}
