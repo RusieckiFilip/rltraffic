@@ -523,3 +523,86 @@ A11's criteria (1), (2), (4) and A12's (3a)/(3b)/(3c); the per-second observer a
 subclass; the `Archive::dumpVehicle` route; the worktree and its four absolute-path settings; the §6
 `P8.4b-G0` tick — **now `P8.4b`, since it is one task again**; the CI skip-ceiling patch as a separate
 commit; and the rule that you report measurements, never a verdict on which definition is primary.
+
+---
+
+# AMENDMENT D — 2026-09-01: the LAST round of P8.4b. Two blockers, nothing else.
+
+**Author's scope decision, 2026-09-01.** `docs/reviews/P8.4b.md` returned **2 blocking, 7 major, 10
+minor**. **This round fixes the two blockers and nothing else.** Everything else — MJ-1 through MJ-7 and
+all ten minors — is **deferred with numbers** (`DEFERRED` 63–68), to be picked up **after P5.3b and P7**.
+
+⭐ **Deferred is not *won't do*, and the reason it is safe to defer is measurable: the 38,500 cells are on
+disk under a manifest, none of the outstanding work needs simulation, and the reviewer already recomputed
+MJ-4's ten P4.5 comparisons and found that none flips.** The window after P7 and before the final draft
+is late enough not to compete with the science and early enough that a later fix does not force a
+limitations paragraph to be rewritten.
+
+⚠️ **The numbers are not in question.** The reviewer recomputed Gate 0's six criteria from the 46 episode
+rows and five of six verdicts from the 38,500 cell files **by a pure-stdlib route importing nothing from
+the module** — bit-identical or 1 ULP throughout. *"Nine mutations survive"* is a statement about our
+**test suite**, not about our **results**, and it goes to the paper as a disclosed limitation citing the
+review.
+
+## BL-1 — assert that the `att_engine` column was computed from `att_engine`
+
+**Five mutations survive today, and each prints our headline result.** They must all be killed:
+
+| # | mutation | site |
+|---|---|---|
+| 1 | `att_engine` field read from `row["att_ours"]` | `offline/att_rederivation.py:1571` |
+| 2 | V1 `att_madt` uses `"att_ours"` regardless of `definition` | `:1956` |
+| 3 | V3 advantage uses `"att_ours"` for both definitions | `:2029-2030` |
+| 4 | V4 paired differences use `"att_ours"` for both | `:2069-2071` |
+| 5 | `definition_dependent = False` hardcoded | `:1731` |
+
+🚨 **DESIGN CONSTRAINT, and it is the one that decides whether this fix works anywhere but this laptop:
+the new tests MUST NOT depend on the corpus or on a hardcoded absolute path.** MN-1 measured that **16 of
+the 91 new tests skip on a runner**, including all four verdict-layer tests — so a corpus-backed test for
+BL-1 would leave every one of these five mutations alive on CI, which is where the protection is most
+needed. **Use a synthetic fixture in which `att_ours` and `att_engine` differ BY CONSTRUCTION** (e.g. a
+handful of cells where the two columns are deliberately far apart), so a definition-swap changes the
+result visibly and the test runs everywhere. **This sidesteps MN-1 for the new tests without attempting
+MN-1's sweep, which is deferred.**
+
+## BL-2 — the pooling field: execute it, or withdraw it AND the claim that rests on it
+
+**Measured today by the coordinator:** `pool_contrast` has **zero production callers** (defined once in
+`offline/att_rederivation.py`, called from `tests/` only); **0 of 8 contrasts carry a `pooled` block**; so
+`n_pooling_dependent = 0` is computed **over nothing** and *"none is pooling-dependent"* could not have
+come out otherwise.
+
+**Either path is acceptable and the choice is yours as an engineering call:**
+
+- **(a) EXECUTE.** Give `pool_contrast` a production caller so every contrast spanning more than one tier
+  is pooled both ways, and single-tier contrasts record explicitly that pooling does not apply. Then
+  `n_pooling_dependent` is computed over something and the 2026-08-31 ruling is discharged.
+- **(b) WITHDRAW.** Remove the field.
+
+> 🚨 **BINDING ON (b), and this is the author's instruction verbatim in substance: if the pooling field is
+> withdrawn rather than executed, THE CLAIM *"no verdict is pooling-dependent"* GOES WITH IT. It was never
+> measured. Say so plainly in `docs/returns/P8.4b.md` rather than letting the sentence survive its
+> evidence.**
+> ⭐ **Whichever path you take, the result note states WHICH, in one sentence.**
+
+## Also required in the result note, because they are the disclosures replacing the deferred work
+
+1. **The nine surviving mutations**, as a limitation, citing `docs/reviews/P8.4b.md` — with the
+   distinction the reviewer drew: *the numbers are right and the suite cannot show it*, and the
+   independent pure-stdlib recomputation is what establishes the first half.
+2. **The 16 runner-skipped tests**: the number, and which classes they cover.
+3. **MJ-5's correction**: §5's *"≈8 h, not 4 h"* is withdrawn — the 0.890 cells/s rate behind it was
+   measured while test suites ran in the same session; clean 5-way is 1.973 cells/s, the campaign took
+   ≈3.2 h, and **the original pre-flight's 4.07 h was roughly right**. *(This one is a factual correction
+   inside a document you own, not deferred work.)*
+
+## Definition of Done
+
+- [ ] All five BL-1 mutations killed, each pasted, **and the new tests run without the corpus**
+- [ ] BL-2 executed or withdrawn, with the claim withdrawn too if the field is
+- [ ] Result note carries the three disclosures above
+- [ ] Suite run stating corpus environment, skip count and thread pin
+- [ ] Zero frozen files; named paths staged; committed on the branch
+- [ ] **Do not re-tick §6** — P8.4b's box is already ticked; this round amends, it does not re-deliver
+
+**After this lands, P8.4 CLOSES** in whatever state the minors are in, and the next task is **P5.3b**.
