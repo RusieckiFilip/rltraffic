@@ -1751,13 +1751,60 @@ def _run_gate1(args: argparse.Namespace, work: Path, data_dir: Path) -> int:
                 f"{tier} seed {seed}: {len(committed)} committed episodes, not "
                 f"{len(HELD_OUT_DRAWS)}; 'found no differences' must never be 'compared nothing'"
             )
+        # The committed grids carry att_ours under the name att_horizon, so the identity half of
+        # Gate 1b is projected onto that definition.  ⭐ This projection is the line the gate caught
+        # breaking: D1 changed evaluate_cell's return type at 0e24434 and this call site still
+        # handed AdmissionEpisode objects to a function expecting EpisodeResult.  E1's reason for
+        # keeping the gate -- "the HARNESS is separate at each site" -- is what surfaced it.
+        identity_half = assert_reused_cells_reproduce(
+            committed, episode_results(produced, definition="att_ours")
+        )
+
+        # E1's other half: the same re-roll against P8.4b's re-derived cells, under BOTH
+        # definitions.  That is what makes this an instrument check on THIS campaign's harness
+        # rather than a re-reading of P8.4b's own reproduces_committed flag.
+        reference_rows = [
+            row
+            for row in rederived_dt_episodes(
+                tier,
+                rederivation_dir=default_rederivation_dir(args.output_root),
+                data_dir=data_dir,
+            )
+            if int(row["seed"]) == seed
+        ]
+        against_p8_4b: dict[str, Any] = {}
+        for definition in ATT_DEFINITIONS:
+            reference = {int(r["draw_id"]): float(r[definition]) for r in reference_rows}
+            mine = {int(e.draw_id): float(getattr(e, definition)) for e in produced}
+            shared = sorted(set(reference) & set(mine))
+            if len(shared) != len(HELD_OUT_DRAWS):
+                raise ValueError(
+                    f"{tier} seed {seed}: {len(shared)} shared draws against P8.4b, not "
+                    f"{len(HELD_OUT_DRAWS)}"
+                )
+            differing = [d for d in shared if reference[d] != mine[d]]
+            if differing:
+                raise ValueError(
+                    f"{tier} seed {seed} {definition}: this campaign's harness disagrees with "
+                    f"P8.4b's on {len(differing)} of {len(shared)} draws, first {differing[:3]}. "
+                    "probe_episode is shared but the harness around it is not, and that is exactly "
+                    "what this gate exists to check (BRIEF_30 E1)"
+                )
+            against_p8_4b[definition] = {"n_compared": len(shared), "n_differing": 0}
+
         rerolls[tier] = {
             "seed": seed,
             "checkpoint": str(checkpoint),
             "seconds": time.time() - started,
-            **assert_reused_cells_reproduce(committed, produced),
+            "against_committed_grid": identity_half,
+            "against_p8_4b_rederivation": against_p8_4b,
+            **identity_half,
         }
-        print(f"gate 1b {tier} seed {seed}: {rerolls[tier]['compared']} episodes reproduce", flush=True)
+        print(
+            f"gate 1b {tier} seed {seed}: {identity_half['compared']} episodes reproduce the "
+            f"committed grid; both definitions agree with P8.4b on {len(HELD_OUT_DRAWS)} draws",
+            flush=True,
+        )
 
     work.mkdir(parents=True, exist_ok=True)
     write_json_atomic(
