@@ -566,6 +566,4 @@ walks straight into this.**
 **`--draws-root` and `--output-root` fix the CAMPAIGN's paths. `RLTRAFFIC_CORPUS` / `RLTRAFFIC_CORPUS_V11`
 are what stop the GATE-2 TEST skipping.** Verified: `RLTRAFFIC_CORPUS` appears **0 times** in
 `nortg_campaign.py`. **My relay merged two mechanisms into one sentence; they are not
-interchangeable.** *(Your own `:1336-1337` cite for the path flags lands on `ci_contains_zero`/`holds`
-in the committed branch — the same citation slip, and it is why both of us should resolve a line before
-quoting it.)*
+interchangeable.** 🚨 **WITHDRAWN 2026-09-09 — I ACCUSED THE AUTHOR OF A CITATION SLIP AND I WAS THE ONE WITHOUT A REF.** I wrote that his `:1336-1337` cite *"lands on `ci_contains_zero`/`holds`"*. **Measured: at `53e995d` those two lines ARE `--draws-root` and `--output-root`, and `ci_contains_zero` IS at `:1221`. At `0e24434` — the branch head, +149 lines from D1 — they are `ci_contains_zero`/`holds`.** He read `53e995d` because `0e24434` was never pushed and is invisible to him; I read the local head because the worktrees share one object store. **Both correct on our own ref. Neither named one.** ⭐ **This is not his defect or mine — it is a SHARED one, and it applies to EVERY line number in this thread.** A new §7 rule follows from it: **cite `<ref>:<path>:<line>`, never a bare line**, which is the 2026-08-19 blob rule (*an approval pins a BLOB, not a commit*) extended from documents to code citations.
