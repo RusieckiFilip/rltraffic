@@ -1052,3 +1052,38 @@ def test_q2_refuses_to_score_without_a_discriminability_record() -> None:
     """E4 makes the record mandatory, so its absence is a refusal rather than a default."""
     with pytest.raises(ValueError, match="E4 requires the discriminability record"):
         nortg_campaign.score_q2(_comparisons({"random": 0.1}), discriminability={})
+
+
+# ----------------------------------------------------------------------
+# The output fence is DEFAULT-DENY, found by the Amendment C pre-flight
+# ----------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "relative",
+    ["p8_4b_rederivation/cell_x.json", "p8_4a/x.json", "p8_4b_g0/x.json", "experiments/x.json",
+     "p4_6/checkpoints/x.pt", "p5_3a/probe.json", "some_campaign_invented_in_2027/x.json"],
+)
+def test_the_fence_refuses_everything_under_output_that_is_not_this_task(relative: str) -> None:
+    """⭐ Found by the Amendment C pre-flight: ``output/p8_4b_rederivation`` was NOT fenced.
+
+    It holds P8.4b's 38,502 re-derived cells -- the column this campaign now reads for the pairing.
+    It arrived on ``main`` after ``FENCED_OUTPUT_DIRS`` was written and the list did not follow,
+    which is the same shape as D1: the tree moved and a constant did not.
+
+    ⚠️ **So the rule is inverted to DEFAULT-DENY.**  Naming the four directories would have closed
+    four instances; refusing everything that is not ``output/p5_3b`` closes the class, and the last
+    parameter above is a directory that does not exist yet.
+    """
+    with pytest.raises(ValueError, match="belongs to another campaign and is read-only here"):
+        assert_writable(Path("/home/filip/rltraffic/output") / relative)
+
+
+@pytest.mark.parametrize(
+    "relative", ["p5_3b/checkpoints/x.pt", "p5_3b/gate1.json", "SHA256SUMS_p5_3b.txt"]
+)
+def test_the_fence_allows_exactly_this_tasks_own_outputs(relative: str) -> None:
+    """Including this task's own manifest, which sits directly in ``output/`` and not in a
+    subdirectory -- a default-deny rule that forgot it would refuse the campaign's last step."""
+    target = Path("/home/filip/rltraffic-p53b/output") / relative
+    assert assert_writable(target) == target

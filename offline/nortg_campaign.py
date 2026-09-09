@@ -227,12 +227,19 @@ EXCLUDED_PAYLOAD_KEYS: tuple[str, ...] = ("model", "provenance")
 #: value it gains must be the pre-P5.3a behaviour.  A schema fact becomes a checked claim.
 CONFIG_KEYS_ADDED_AFTER_P4: Mapping[str, Any] = {"rtg_mode": "conditioned"}
 
-#: Directories under ``output/`` that belong to a merged campaign.  Never written, never deleted
-#: (``BRIEF_30`` section 6.6).  ``p5_3b`` is deliberately absent: it is this task's own.
+#: The ONLY entries under ``output/`` this task may write.  Everything else is refused by
+#: :func:`assert_writable`, including directories that do not exist yet -- see its docstring for
+#: why the rule is default-deny rather than an allow-list.
+ALLOWED_OUTPUT_ENTRIES: tuple[str, ...] = ("p5_3b", "SHA256SUMS_p5_3b.txt")
+
+#: Directories under ``output/`` known to belong to a merged campaign, as of 2026-09-09.  ⚠️ This
+#: is now a **descriptive record used only to sharpen an error message**, NOT the rule: it went
+#: stale within twelve days (``p8_4a``, ``p8_4b_g0``, ``p8_4b_rederivation``, ``experiments``), and
+#: a fence that depends on a list somebody has to remember to update is the defect, not the list.
 FENCED_OUTPUT_DIRS: tuple[str, ...] = (
     "p4_3", "p4_4", "p4_5", "p4_6", "p4_7", "p4_dt", "p4_probe",
     "p5_1", "p5_2", "p5_3a", "p7_0", "p8_3", "checkpoints",
-    "checkpoints.pre_c8_migration",
+    "checkpoints.pre_c8_migration", "p8_4a", "p8_4b_g0", "p8_4b_rederivation", "experiments",
 )
 
 #: Which merged grid holds each tier's committed ``dt`` column.
@@ -300,23 +307,37 @@ def nortg_arm_key(tier: str) -> str:
 
 
 def assert_writable(path: str | Path) -> Path:
-    """Refuse any path inside a merged campaign's output directory, and return *path* unchanged.
+    """DEFAULT-DENY: refuse anything under an ``output/`` that is not this task's own.
 
-    A path is fenced when a component ``output`` is **immediately followed** by a fenced name.
-    Neither a string prefix nor a bare component test would do: a prefix test makes ``output/p5_3a``
-    and ``output/p5_3b`` indistinguishable, and a bare component test refuses this task's own
-    ``output/p5_3b/checkpoints/`` because ``output/checkpoints/`` is itself fenced.  Both traps are
-    covered by tests.  P5.2's BL-1 destroyed six irrecoverable training records in an un-backed-up
+    A path is allowed when the component after ``output`` is in :data:`ALLOWED_OUTPUT_ENTRIES`;
+    **everything else under ``output/`` is refused**, including directories that do not exist yet.
+
+    🚨 **Inverted from an allow-list on 2026-09-09, and the reason is a defect this fence had.**
+    Amendment C's pre-flight measured ``output/p8_4b_rederivation`` as **NOT fenced** -- the
+    directory holding P8.4b's 38,502 re-derived cells, which is the column this campaign now reads
+    for its pairing.  It, ``p8_4a``, ``p8_4b_g0`` and ``experiments`` all landed on ``main`` after
+    :data:`FENCED_OUTPUT_DIRS` was written, and the list did not follow.  **That is the same shape
+    as AMENDMENT D1: the tree moved and a constant did not.**  Naming the four would have closed
+    four instances; refusing everything that is not ours closes the class.
+
+    Matching is on whole **path components**, never on a string prefix: a prefix test makes
+    ``output/p5_3a`` and ``output/p5_3b`` indistinguishable.  ``output/SHA256SUMS_p5_3b.txt`` is
+    allowed explicitly because it sits directly in ``output/`` rather than in a subdirectory, and a
+    default-deny rule that forgot it would refuse the campaign's own last step.  Every trap here is
+    covered by a test.  P5.2's BL-1 destroyed six irrecoverable training records in an un-backed-up
     tree; ``output/`` is gitignored and has no backup.
     """
     target = Path(path)
     parts = Path(target).resolve().parts
     for index, part in enumerate(parts[:-1]):
         head = parts[index + 1]
-        if part == "output" and head in FENCED_OUTPUT_DIRS:
+        if part == "output" and head not in ALLOWED_OUTPUT_ENTRIES:
+            known = " (a merged campaign)" if head in FENCED_OUTPUT_DIRS else ""
             raise ValueError(
-                f"{target}: output/{head} belongs to another campaign and is read-only here; "
-                f"P5.3b writes only under output/p5_3b (BRIEF_30 section 6.6)"
+                f"{target}: output/{head}{known} belongs to another campaign and is read-only "
+                f"here; P5.3b writes only {list(ALLOWED_OUTPUT_ENTRIES)} (BRIEF_30 section 6.6). "
+                "This fence is default-deny, so a directory added to output/ after this code was "
+                "written is protected without being named"
             )
     return target
 
