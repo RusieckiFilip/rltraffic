@@ -502,3 +502,68 @@ and it has never run**, so the 2026-08-19 precondition is satisfied. **`git merg
 `BRIEF_30`'s §1–§9, Amendments A, B and C, the completed fix round, and the CLEAR pre-flight
 (`docs/reviews/P5.3b-preflight.md`, no blockers, 6 major). **Nothing in the campaign's scientific design
 moves.** D1–D3 change what each cell CARRIES and how contrasts are REPORTED; D4 and D5 are mechanics.
+
+---
+
+# AMENDMENT E — 2026-09-09: my `ad018bd` ruling completed, and the null-control question registered BEFORE any number exists
+
+**Four corrections from the implementer, all verified by the coordinator before acceptance. The
+artifact half of `ad018bd` stands; one consequence of it was wrong.**
+
+## E1 — GATE 1b STAYS, at three cells, through `nortg_campaign.evaluate_cell`
+
+🚨 **My condition *"assert in code that both arms came through `probe_episode`"* would have been
+satisfied while the two harnesses differed.** Verified: `evaluate_cell` (`:545`) builds its own EnvSpec,
+seeding, `created_from_flow` (`:610`) and draw loop around `probe_episode` (`:598`), and it was
+**rewritten at `0e24434`**. `att_rederivation` does the same at its own call site (`:1247`).
+**`probe_episode` is the shared INNER function; the HARNESS is separate at each site.**
+
+⚠️ **`reproduces_committed: true` validates `att_rederivation`'s harness at P8.4b's campaign time. It
+says nothing about `nortg_campaign`'s harness after `0e24434`.** ⭐ **And this is exactly where P8.4b's
+own two worst defects lived — the cell-key structure and the pairing unit were both HARNESS defects
+sitting above a correct inner function.**
+
+> **KEEP Gate 1b: three cells, rolled through `nortg_campaign.evaluate_cell`, compared against the
+> P8.4b cells.** ⭐ **It is now STRONGER than A1 assumed, because the reference carries 100 draws
+> instead of 10.** Cost `3 × 100 × 1.29 s ≈ 6.5 min` serial — A1 already budgeted ~3 min per cell.
+> **The `ad018bd` ruling needed completing, not reversing: read the column for the PAIRING, and keep
+> Gate 1b as the INSTRUMENT check.**
+
+## E2 — cite `:1194` and `:1247`, never `:84`
+
+**`att_rederivation.py:84` is a comment block explaining the seconds-per-episode constant; it mentions
+`probe_episode` in passing.** The structural evidence is the **import at `:1194`** and the **call at
+`:1247`**. ⚠️ **An assertion written against `:84` asserts against prose.** *My ruling cited a comment
+about the code as though it were the code — §7's "reading the section headers is not reading the
+document", one layer down.*
+
+## E3 — Gate 0 is still undischarged, and its rate was already in the repo
+
+**`offline/att_rederivation.py:89` carries `MEASURED_SECONDS_PER_EPISODE = {"hz1x1": 1.29, "grid4x4":
+2.67}` and `:92` carries `DEFAULT_WORKERS = 5`.** The "~50 min" estimate was computable from committed
+constants. ⭐ **That is the same lesson I drew for myself in `ad018bd` — *grep the existing artifacts
+before commissioning a measurement* — landing on the other side of the seam within a day. Discharge
+Gate 0 and quote the constant rather than re-estimating.**
+
+## E4 — 🚨 REGISTERED BEFORE ANY NUMBER EXISTS: a non-distinct null control is an ARTEFACT, not a null
+
+**D3.1 illustrates discriminability on `fixedtime`, which §6.1 forbids. The place it actually bites is
+the tier carrying Q2's null control**, where P5.3a measured a **flip rate of `0.000000`**.
+
+> **BINDING, and registered now precisely because no P5.3b number exists yet: if `dt` and `dt_nortg`
+> are NON-DISTINCT on the null-control tier, then a confidence interval containing zero is an ARTEFACT
+> OF NON-DISCRIMINATION AND NOT A NULL RESULT, and it may not be reported as evidence that removing the
+> prompt costs nothing.** The campaign reports, per tier, **whether the two arms differ at all**, and
+> the null control's verdict is stated as *the tier cannot discriminate* wherever they do not.
+
+⭐ **This is the 2026-08-31 discriminability rule — *a contrast over identical inputs is not a null
+result* — applied to the one tier where the paper's headline could be silently manufactured.** ⚠️ **And
+it is the reason my *"NO DECISION NEEDED"* was wrong: I had just instructed D2/D3 reporting, which
+walks straight into this.**
+
+## E5 — the two env mechanisms do two different jobs
+
+**`--draws-root` and `--output-root` fix the CAMPAIGN's paths. `RLTRAFFIC_CORPUS` / `RLTRAFFIC_CORPUS_V11`
+are what stop the GATE-2 TEST skipping.** Verified: `RLTRAFFIC_CORPUS` appears **0 times** in
+`nortg_campaign.py`. **My relay merged two mechanisms into one sentence; they are not
+interchangeable.** 🚨 **WITHDRAWN 2026-09-09 — I ACCUSED THE AUTHOR OF A CITATION SLIP AND I WAS THE ONE WITHOUT A REF.** I wrote that his `:1336-1337` cite *"lands on `ci_contains_zero`/`holds`"*. **Measured: at `53e995d` those two lines ARE `--draws-root` and `--output-root`, and `ci_contains_zero` IS at `:1221`. At `0e24434` — the branch head, +149 lines from D1 — they are `ci_contains_zero`/`holds`.** He read `53e995d` because `0e24434` was never pushed and is invisible to him; I read the local head because the worktrees share one object store. **Both correct on our own ref. Neither named one.** ⭐ **This is not his defect or mine — it is a SHARED one, and it applies to EVERY line number in this thread.** A new §7 rule follows from it: **cite `<ref>:<path>:<line>`, never a bare line**, which is the 2026-08-19 blob rule (*an approval pins a BLOB, not a commit*) extended from documents to code citations.
