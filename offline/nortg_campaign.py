@@ -779,14 +779,17 @@ def episode_results(
             f"{list(ATT_DEFINITIONS)}; Rule R makes {PRIMARY_ATT!r} primary on hz1x1 and the other "
             "is reported beside it, and no third definition is registered"
         )
+    def field(row: Any, name: str) -> Any:
+        return row[name] if isinstance(row, Mapping) else getattr(row, name)
+
     return [
         EpisodeResult(
-            arm=episode.arm,
-            seed=episode.seed,
-            draw_id=int(episode.draw_id),
-            att_horizon=float(getattr(episode, definition)),
-            horizon_vehicle_count=float(episode.horizon_vehicle_count),
-            episode_reward=float(episode.episode_reward),
+            arm=str(field(episode, "arm")),
+            seed=int(field(episode, "seed")),
+            draw_id=int(field(episode, "draw_id")),
+            att_horizon=float(field(episode, definition)),
+            horizon_vehicle_count=float(field(episode, "horizon_vehicle_count")),
+            episode_reward=float(field(episode, "episode_reward")),
         )
         for episode in episodes
     ]
@@ -1417,6 +1420,7 @@ def score_q1(comparisons: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
         "registered_in": "BRIEF_30 section 3 Q1; scoring quantity fixed in docs/plans/p5.3b.md "
                          "section 3.2 and confirmed by AMENDMENT A2",
         "quantity": "abs(mean_difference) of the paired per-draw comparison",
+        "definition": PRIMARY_ATT,
         "scale": "raw ATT",
         "scale_is_conservative": (
             "if paired differences scaled with baseline ATT, random (dt ATT 420.38) would show the "
@@ -1573,6 +1577,14 @@ def report_artifact(
         "method": NORTG_METHOD,
         "reference_method": REFERENCE_METHOD,
         "rtg_mode": NORTG_RTG_MODE,
+        "primary_att_definition": PRIMARY_ATT,
+        "att_definitions": list(ATT_DEFINITIONS),
+        "att_definition_note": (
+            "Rule R makes att_engine primary on hz1x1 and grid4x4; att_ours is reported beside it "
+            "in every table with the three admission counts (PREREGISTRATION A11(b), BRIEF_30 D2). "
+            "Every comparisons.<tier> block carries the primary at its top level and both under "
+            "by_definition."
+        ),
         "tiers": list(NORTG_TIERS),
         "seeds": list(TRAINING_SEEDS),
         "held_out_draws": list(HELD_OUT_DRAWS),
@@ -1961,6 +1973,7 @@ def _run_report(args: argparse.Namespace, work: Path, out_dir: Path, data_dir: P
     episodes: list[dict[str, Any]] = []
     probe_cells: list[dict[str, Any]] = []
     comparisons: dict[str, dict[str, Any]] = {}
+    discriminability: dict[str, dict[str, Any]] = {}
     timings: dict[str, Any] = {"train_seconds": {}, "evaluate_seconds": {}, "probe_seconds": {}}
 
     for tier in NORTG_TIERS:
@@ -1972,37 +1985,56 @@ def _run_report(args: argparse.Namespace, work: Path, out_dir: Path, data_dir: P
             timings["train_seconds"][f"{tier}@{run['seed']}"] = run["seconds"]
         timings["probe_seconds"].update(probe.get("timings_seconds", {}))
 
-        produced: list[EpisodeResult] = []
+        produced_rows: list[dict[str, Any]] = []
         for seed in TRAINING_SEEDS:
             chunk = _chunk(work, f"eval_{tier}_seed{seed}.json")
             chunks.append(chunk)
             timings["evaluate_seconds"][f"{tier}@{seed}"] = chunk["seconds"]
             cells.append(chunk["cell"])
             episodes.extend(chunk["episodes"])
-            produced.extend(
-                EpisodeResult(
-                    arm=e["arm"],
-                    seed=int(e["seed"]),
-                    draw_id=int(e["draw_id"]),
-                    att_horizon=float(e["att_horizon"]),
-                    horizon_vehicle_count=float(e["horizon_vehicle_count"]),
-                    episode_reward=float(e["episode_reward"]),
-                )
-                for e in chunk["episodes"]
-            )
-        assert_cell_complete(NORTG_METHOD, tier, list(TRAINING_SEEDS), list(HELD_OUT_DRAWS), produced)
+            produced_rows.extend(chunk["episodes"])
+        # A11(b) is unconditional, and it is checked on the BYTES that will be paired rather than
+        # on the objects that produced them.
+        assert_admission_complete(produced_rows)
+        assert_cell_complete(
+            NORTG_METHOD, tier, list(TRAINING_SEEDS), list(HELD_OUT_DRAWS),
+            episode_results(produced_rows, definition=PRIMARY_ATT),
+        )
 
-        reference = committed_dt_episodes(tier, data_dir=data_dir)
-        stats = paired_stats(reference, produced)
-        pooled = float(stats["paired"]["mean_difference"])
-        stats["per_seed"] = per_seed_differences(reference, produced, pooled)
-        stats["att_dt_mean"] = float(
+        reference_rows = rederived_dt_episodes(
+            tier, rederivation_dir=default_rederivation_dir(args.output_root), data_dir=data_dir
+        )
+        assert_admission_complete(reference_rows)
+
+        # D3.1 / E4: does this tier discriminate between the two arms AT ALL?  Computed under the
+        # primary definition and recorded before any contrast is read, because a contrast over
+        # identical inputs is not a null result.
+        discriminability[tier] = assert_arms_are_distinct(
+            reference_rows, produced_rows, definition=PRIMARY_ATT
+        )
+
+        # D2: both definitions in every table.  The primary's fields sit at the top level so the
+        # scorers and the artifact tests read one convention; ``by_definition`` carries both.
+        by_definition: dict[str, Any] = {}
+        for definition in ATT_DEFINITIONS:
+            left = episode_results(reference_rows, definition=definition)
+            right = episode_results(produced_rows, definition=definition)
+            entry = paired_stats(left, right)
+            pooled = float(entry["paired"]["mean_difference"])
+            entry["per_seed"] = per_seed_differences(left, right, pooled)
+            entry["att_dt_mean"] = float(np.mean([e.att_horizon for e in left]))
+            entry["att_dt_nortg_mean"] = float(np.mean([e.att_horizon for e in right]))
+            by_definition[definition] = entry
+
+        stats = dict(by_definition[PRIMARY_ATT])
+        stats["definition"] = PRIMARY_ATT
+        stats["primary_definition"] = PRIMARY_ATT
+        stats["by_definition"] = by_definition
+        stats["discriminability"] = discriminability[tier]
+        stats["committed_att_ours_mean"] = float(
             json.loads((data_dir / TIER_GRID_ARTIFACT[tier]).read_text(encoding="utf-8"))["cells"][
                 f"{REFERENCE_METHOD}@{tier}"
             ]["att_horizon_mean"]
-        )
-        stats["att_dt_nortg_mean"] = float(
-            np.mean([e.att_horizon for e in produced])
         )
         comparisons[tier] = stats
 
@@ -2024,6 +2056,7 @@ def _run_report(args: argparse.Namespace, work: Path, out_dir: Path, data_dir: P
         },
         selection=assert_selection_still_holds(probe_artifact),
         timings=timings,
+        discriminability=discriminability,
         measurement_inputs=chunks,
     )
     if not payload["runtime"]["measurement_git_commits"]:

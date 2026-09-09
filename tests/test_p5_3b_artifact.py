@@ -28,9 +28,12 @@ import pytest
 from offline.dt_gate import HELD_OUT_DRAWS, TRAINING_SEEDS
 from offline.method_tier_grid import assert_no_verdicts
 from offline.nortg_campaign import (
+    ADMISSION_FIELDS,
     ARTIFACT_FORMAT_VERSION,
+    ATT_DEFINITIONS,
     NORTG_METHOD,
     NORTG_TIERS,
+    PRIMARY_ATT,
     TIER_GRID_ARTIFACT,
     nortg_arm_key,
 )
@@ -59,7 +62,7 @@ def _committed_dt_episodes(tier: str) -> list[dict[str, Any]]:
     return [entry for entry in grid["episodes"] if entry["arm"] == f"dt@{tier}"]
 
 
-def _per_draw_means(records: list[dict[str, Any]]) -> dict[int, float]:
+def _per_draw_means(records: list[dict[str, Any]], key: str = "att_horizon") -> dict[int, float]:
     """An independent reimplementation of ``dt_gate._per_draw_means``, written here.
 
     The campaign sorts both arms by ``(seed, draw_id)`` before pairing, so this bucketing sees the
@@ -67,7 +70,7 @@ def _per_draw_means(records: list[dict[str, Any]]) -> dict[int, float]:
     """
     buckets: dict[int, list[float]] = defaultdict(list)
     for record in sorted(records, key=lambda r: (int(r["seed"]), int(r["draw_id"]))):
-        buckets[int(record["draw_id"])].append(float(record["att_horizon"]))
+        buckets[int(record["draw_id"])].append(float(record[key]))
     return {draw: float(np.mean(values)) for draw, values in buckets.items()}
 
 
@@ -149,8 +152,11 @@ def test_the_arm_validity_summary_agrees_with_the_cells_it_summarises(artifact: 
 def test_the_reported_paired_difference_recomputes_from_the_episodes(artifact: dict[str, Any]) -> None:
     """⭐ CLAUDE.md section 2: the critical quantity computed twice, by a different route.
 
-    The ``dt`` side is read from the **committed grid artifacts**, not from this artifact's copy of
-    them, so a transcription error in the copy cannot hide here.
+    Under ``att_ours`` the ``dt`` side is read from the **committed grid artifacts**, not from this
+    artifact's copy, so a transcription error in the copy cannot hide here.  ``att_ours`` is the
+    definition the committed grids carry; the primary (``att_engine``) half is recomputed against
+    the artifact's own reference rows in
+    :func:`test_the_primary_definition_recomputes_from_the_reference_column`.
     """
     nortg_by_tier: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for entry in artifact["episodes"]:
@@ -158,16 +164,61 @@ def test_the_reported_paired_difference_recomputes_from_the_episodes(artifact: d
 
     for tier in NORTG_TIERS:
         left = _per_draw_means(_committed_dt_episodes(tier))
-        right = _per_draw_means(nortg_by_tier[tier])
+        right = _per_draw_means(nortg_by_tier[tier], "att_ours")
         shared = sorted(set(left) & set(right))
         assert len(shared) == 100, tier
         differences = [left[draw] - right[draw] for draw in shared]
         recomputed = float(np.asarray(differences, dtype=np.float64).mean())
 
-        reported = artifact["comparisons"][tier]["paired"]
+        reported = artifact["comparisons"][tier]["by_definition"]["att_ours"]["paired"]
         assert reported["n_shared_draws"] == 100, tier
         assert reported["mean_difference"] == recomputed, tier
-        assert artifact["comparisons"][tier]["abs_mean_difference"] == abs(recomputed), tier
+
+
+def test_every_episode_carries_the_five_a11b_quantities(artifact: dict[str, Any]) -> None:
+    """AMENDMENT D1 / A11(b), pinned in the shipped bytes: unconditional, on every cell."""
+    assert tuple(ADMISSION_FIELDS) == (
+        "att_ours", "att_engine", "entered", "created", "never_entered"
+    )
+    for entry in artifact["episodes"]:
+        for field in ADMISSION_FIELDS:
+            assert field in entry, f"{entry.get('arm')} {entry.get('draw_id')} {field}"
+        assert entry["entered"] + entry["never_entered"] == entry["created"]
+
+
+def test_every_contrast_reports_both_definitions_with_att_engine_primary(
+    artifact: dict[str, Any],
+) -> None:
+    """AMENDMENT D2 / Rule R: ``att_engine`` primary on hz1x1, ``att_ours`` beside it, every table."""
+    assert artifact["primary_att_definition"] == PRIMARY_ATT == "att_engine"
+    for tier in NORTG_TIERS:
+        entry = artifact["comparisons"][tier]
+        assert sorted(entry["by_definition"]) == sorted(ATT_DEFINITIONS), tier
+        assert entry["primary_definition"] == PRIMARY_ATT, tier
+        # the top level IS the primary, so no reader can mistake which one it is
+        assert entry["paired"] == entry["by_definition"][PRIMARY_ATT]["paired"], tier
+
+
+def test_every_tier_states_whether_its_two_arms_differ_at_all(artifact: dict[str, Any]) -> None:
+    """AMENDMENT D3.1 / E4: *a contrast over identical inputs is not a null result.*"""
+    for tier in NORTG_TIERS:
+        record = artifact["discriminability"][tier]
+        assert set(record) >= {"distinct", "n_identical", "n_compared", "definition"}, tier
+        assert record["n_compared"] == 500, tier
+        assert isinstance(record["distinct"], bool), tier
+
+
+def test_a_non_distinct_null_control_is_never_reported_as_a_null(artifact: dict[str, Any]) -> None:
+    """🚨 E4, the binding half: registered before any P5.3b number existed."""
+    q2 = artifact["predictions"]["Q2"]
+    distinct = artifact["discriminability"]["random"]["distinct"]
+    assert q2["arms_distinct"] == distinct
+    if not distinct:
+        assert q2["holds"] is None, "a non-distinct contrast scores neither pass nor fail"
+        assert q2["artefact_of_non_discrimination"] is True
+        assert "cannot discriminate" in q2["reading"].lower()
+    else:
+        assert q2["artefact_of_non_discrimination"] is False
 
 
 def test_the_dt_reference_cells_are_the_committed_ones(artifact: dict[str, Any]) -> None:
@@ -179,7 +230,11 @@ def test_the_dt_reference_cells_are_the_committed_ones(artifact: dict[str, Any])
 
         grid = json.loads((DATA / TIER_GRID_ARTIFACT[tier]).read_text(encoding="utf-8"))
         assert grid["cells"][f"dt@{tier}"]["att_horizon_mean"] == COMMITTED_DT_ATT[tier], tier
-        assert artifact["comparisons"][tier]["att_dt_mean"] == COMMITTED_DT_ATT[tier], tier
+        assert artifact["comparisons"][tier]["committed_att_ours_mean"] == COMMITTED_DT_ATT[tier], tier
+        assert (
+            artifact["comparisons"][tier]["by_definition"]["att_ours"]["att_dt_mean"]
+            == COMMITTED_DT_ATT[tier]
+        ), tier
 
 
 def test_the_scored_predictions_agree_with_the_comparisons_they_are_scored_from(
@@ -188,6 +243,7 @@ def test_the_scored_predictions_agree_with_the_comparisons_they_are_scored_from(
     magnitudes = {
         tier: artifact["comparisons"][tier]["abs_mean_difference"] for tier in NORTG_TIERS
     }
+    assert artifact["predictions"]["Q1"]["definition"] == PRIMARY_ATT
     q1 = artifact["predictions"]["Q1"]
     assert q1["largest"] == max(magnitudes, key=lambda tier: magnitudes[tier])
     assert q1["smallest"] == min(magnitudes, key=lambda tier: magnitudes[tier])
@@ -197,13 +253,11 @@ def test_the_scored_predictions_agree_with_the_comparisons_they_are_scored_from(
     paired = artifact["comparisons"]["random"]["paired"]
     q2 = artifact["predictions"]["Q2"]
     assert q2["ci_contains_zero"] == (paired["ci95_low"] <= 0.0 <= paired["ci95_high"])
-    assert q2["holds"] == q2["ci_contains_zero"]
-    assert "failure to reject" in q2["reading"].lower()
 
 
 def test_every_tier_reports_its_per_seed_reversals(artifact: dict[str, Any]) -> None:
     for tier in NORTG_TIERS:
-        record = artifact["comparisons"][tier]["per_seed"]
+        record = artifact["comparisons"][tier]["by_definition"][PRIMARY_ATT]["per_seed"]
         assert record["n_seeds"] == 5
         assert sorted(int(s) for s in record["per_seed"]) == sorted(TRAINING_SEEDS)
         assert 0 <= record["seeds_reversed"] <= 5
