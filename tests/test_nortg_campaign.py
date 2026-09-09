@@ -147,6 +147,103 @@ def test_the_tier_rule_is_re_evaluated_from_committed_row_b_and_returns_the_thre
     assert all(tier in TIERS for tier in NORTG_TIERS)
 
 
+# ----------------------------------------------------------------------
+# AMENDMENT D1 -- all five quantities on every ATT cell, AT COLLECTION TIME, unconditionally
+# ----------------------------------------------------------------------
+
+
+def _admission(arm: str, seed: int, draw: int, **over: Any) -> Any:
+    from offline.admission_probe import AdmissionEpisode
+
+    fields: dict[str, Any] = dict(
+        scenario="hz1x1", tier=arm.split("@", 1)[1], method=arm.split("@", 1)[0], arm=arm,
+        seed=seed, draw_id=draw, created=1800, entered=1750, never_entered=50,
+        entered_fraction=1750 / 1800, completed_at_horizon=1700, running_at_horizon=50,
+        waiting_at_horizon=50, att_ours=104.5, att_engine=100.7,
+        horizon_vehicle_count=50.0, episode_reward=-5000.0, seconds=1.9, seconds_rollout=1.7,
+    )
+    fields.update(over)
+    return AdmissionEpisode(**fields)
+
+
+def test_the_campaign_imports_the_merged_admission_probe_and_does_not_reimplement_it() -> None:
+    """``BRIEF_30`` AMENDMENT D1: *"Import and call them; do not reimplement."*
+
+    ``offline/admission_probe.py`` is merged, reviewed and cited in ``PREREGISTRATION`` A11 itself.
+    ⚠️ This test exists because the amendment arrived on the branch and **the code did not**: the
+    campaign was written at ``f115b7c``, before A11, and the merge that brought the document did
+    not revisit it.  A11(b) is unconditional, so an import is the minimum evidence.
+    """
+    import offline.admission_probe as probe
+
+    assert nortg_campaign.probe_episode is probe.probe_episode
+    assert nortg_campaign.created_from_flow is probe.created_from_flow
+
+
+def test_every_collected_episode_carries_all_five_quantities() -> None:
+    """A11(b): ``att_ours``, ``att_engine``, ``entered``, ``created``, ``never_entered``.
+
+    No threshold, no verdict, no condition -- the five appear on every cell, always.
+    """
+    record = nortg_campaign.admission_record(_admission("dt_nortg@mix50", 101, 1000))
+    for field in ("att_ours", "att_engine", "entered", "created", "never_entered"):
+        assert field in record, field
+    assert record["att_engine"] == 100.7
+    assert record["created"] == 1800
+    assert record["entered"] + record["never_entered"] == record["created"]
+
+
+@pytest.mark.parametrize(
+    "missing", ["att_ours", "att_engine", "entered", "created", "never_entered"]
+)
+def test_an_episode_missing_any_of_the_five_is_refused(missing: str) -> None:
+    """Unconditional means refusing, not warning.  P8.4b spent 38,500 episodes and ~3.2 h
+    re-deriving cells collected without these; a campaign that ships without them joins that
+    backlog, and clearing it is what P8.4 existed for."""
+    record = nortg_campaign.admission_record(_admission("dt_nortg@mix50", 101, 1000))
+    del record[missing]
+    with pytest.raises(ValueError, match=r"A11\(b\) requires all five"):
+        nortg_campaign.assert_admission_complete([record])
+
+
+def test_the_five_are_required_on_the_reused_arm_too_not_only_the_new_one() -> None:
+    good = nortg_campaign.admission_record(_admission("dt@mix50", 101, 1000))
+    nortg_campaign.assert_admission_complete([good])
+    del good["att_engine"]
+    with pytest.raises(ValueError, match=r"A11\(b\) requires all five"):
+        nortg_campaign.assert_admission_complete([good])
+
+
+def test_the_primary_definition_is_att_engine_and_both_are_declared() -> None:
+    """D2 / Rule R: ``att_engine`` is PRIMARY on hz1x1; ``att_ours`` is reported beside it."""
+    assert nortg_campaign.PRIMARY_ATT == "att_engine"
+    assert nortg_campaign.ATT_DEFINITIONS == ("att_engine", "att_ours")
+    assert nortg_campaign.PRIMARY_ATT == nortg_campaign.ATT_DEFINITIONS[0]
+
+
+@pytest.mark.parametrize("definition", ["att_engine", "att_ours"])
+def test_episode_results_project_the_requested_definition_onto_the_paired_machinery(
+    definition: str,
+) -> None:
+    """The paired protocol consumes ``EpisodeResult``; each definition gets its own projection.
+
+    ⚠️ Which ATT lands in ``att_horizon`` is the whole question, so it is named at every call site
+    rather than defaulted: a default here would silently decide the primary metric.
+    """
+    episodes = [_admission("dt_nortg@mix50", 101, draw) for draw in DRAWS]
+    projected = nortg_campaign.episode_results(episodes, definition=definition)
+    assert {e.arm for e in projected} == {"dt_nortg@mix50"}
+    expected = 100.7 if definition == "att_engine" else 104.5
+    assert all(e.att_horizon == expected for e in projected)
+    assert all(e.horizon_vehicle_count == 50.0 for e in projected)
+
+
+def test_projecting_an_undeclared_definition_is_refused() -> None:
+    episodes = [_admission("dt_nortg@mix50", 101, 1000)]
+    with pytest.raises(ValueError, match="the two declared ATT definitions"):
+        nortg_campaign.episode_results(episodes, definition="att_something")
+
+
 def test_a_cell_record_carries_the_scalar_seed_the_artifact_is_keyed_by() -> None:
     """⚠️ ``cell_stats`` emits ``seeds`` (a list) and never ``seed``.
 
@@ -796,7 +893,9 @@ def _minimal_report_inputs() -> dict[str, Any]:
 
 def test_the_assembled_artifact_carries_no_verdict_and_no_threshold() -> None:
     payload = report_artifact(**_minimal_report_inputs())
-    assert payload["format_version"] == "p5.3b-nortg/1.0"
+    # 1.0 -> 1.1 at AMENDMENT D1: every episode row now carries A11(b)'s five quantities, which
+    # is a layout change, and contract C6 requires a version bump for one.
+    assert payload["format_version"] == "p5.3b-nortg/1.1"
     assert_no_verdicts(payload)
     text = json.dumps(payload).lower()
     for token in ("equivalent", "within_delta", "equivalence margin", "delta_att", "inert"):

@@ -1,6 +1,9 @@
 """P5.3b -- the ``dt_nortg`` campaign: does removing the return prompt cost anything?
 
-Artifact format version: ``p5.3b-nortg/1.0`` -- ``docs/data/p5_3b_nortg.json``.
+Artifact format version: ``p5.3b-nortg/1.1`` -- ``docs/data/p5_3b_nortg.json``.
+**1.0 -> 1.1 (2026-09-09, AMENDMENT D1):** every episode row gained ``PREREGISTRATION`` A11(b)'s
+five quantities -- ``att_ours``, ``att_engine``, ``entered``, ``created``, ``never_entered`` -- read
+from the live engine at collection time.  A layout change, so contract C6 requires the bump.
 
 The question, and why it is not the one P5.3 was created to ask
 ---------------------------------------------------------------
@@ -103,6 +106,7 @@ from offline.offline_baselines import (
     pin_torch_threads,
     thread_regime,
 )
+from offline.admission_probe import AdmissionEpisode, created_from_flow, probe_episode
 from offline.rtg_ablation import INTERVENTION_KEYS, probe_cell
 
 __all__ = [
@@ -140,7 +144,24 @@ __all__ = [
     "training_inputs",
 ]
 
-ARTIFACT_FORMAT_VERSION = "p5.3b-nortg/1.0"
+ARTIFACT_FORMAT_VERSION = "p5.3b-nortg/1.1"
+
+#: ``PREREGISTRATION`` A11(b), via ``BRIEF_30`` AMENDMENT D1: every reported ATT cell carries these
+#: five, **at collection time, unconditionally** -- no threshold, no verdict, no condition.
+#: ⚠️ They are read from the live engine between the rollout and ``env.close()``, which is why they
+#: cannot be bolted on afterwards: P8.4b spent 38,500 episodes and ~3.2 h re-deriving cells that
+#: were collected without them, and clearing that backlog is what P8.4 existed for.
+ADMISSION_FIELDS: tuple[str, ...] = (
+    "att_ours", "att_engine", "entered", "created", "never_entered",
+)
+
+#: ``BRIEF_30`` D2: Rule R has fired, so this is settled before the campaign starts.
+#: ``att_engine`` is PRIMARY on hz1x1; ``att_ours`` is reported beside it in every table.
+ATT_DEFINITIONS: tuple[str, ...] = ("att_engine", "att_ours")
+PRIMARY_ATT = "att_engine"
+
+#: The scenario label P8.4a's artifacts use, so a P5.3b row joins them without a translation table.
+PROBE_SCENARIO = "hz1x1"
 
 #: This task's arm.  It is NOT added to ``method_tier_grid.METHODS`` -- see the module docstring.
 NORTG_METHOD = "dt_nortg"
@@ -532,8 +553,8 @@ def evaluate_cell(
     device: str | None = None,
     arm: str | None = None,
     draws: Sequence[int] | None = None,
-) -> list[EpisodeResult]:
-    """Roll one cell over the held-out pool through ``evaluate_arm`` and ``_dt_factory``.
+) -> list[AdmissionEpisode]:
+    """Roll one cell over the held-out pool, emitting **all five** A11(b) quantities per episode.
 
     ``_dt_factory`` is P4.6's own DT evaluation path -- load, **then** apply the declared target,
     then act greedily -- reused rather than re-implemented, because ``DTAgent.load`` overwrites
@@ -541,28 +562,55 @@ def evaluate_cell(
     (``offline/rtg_calibration.py``'s ``agent_with_target``).  The declared ``target_rtg`` is the
     tier's own, exactly as the ``dt`` arm used: the ablation is in the weights, not in the prompt
     handed to the harness, and Q3 proves the model ignores it.
+
+    ⭐ **AMENDMENT D1 -- why this is ``probe_episode`` and not ``dt_gate.evaluate_arm``.**
+    ``read_admission_at_horizon`` must run **between** ``horizon_rollout`` and ``env.close()``, and
+    ``evaluate_arm`` closes the env inside its own ``finally``, so the five quantities cannot be
+    bolted on from outside it.  ``admission_probe.probe_episode`` is the merged, reviewed drop-in:
+    its docstring records that its body *"mirrors ``dt_gate.evaluate_arm``'s loop exactly -- same
+    ``EnvSpec``, same ``horizon_rollout(env, factory(env), episodes=1, seed=engine_seed)``, same
+    ``env.close()`` in a ``finally``"* with the reads inserted.
+
+    🔒 **That the swap is inert is not asserted here, it is MEASURED by Gate 1b**: the reused ``dt``
+    cells are re-rolled through this very function and must reproduce ``p4_6_grid.json`` /
+    ``p4_7_grid.json``'s committed ``att_horizon`` **bit-exactly** under ``att_ours``.  If the swap
+    moved a number, that gate goes red before any new cell is trusted.
+
+    ``created`` is a property of the draw's flow file, not of the policy, so it is computed once per
+    draw and reused across seeds -- the same convention ``admission_probe.probe_cell`` uses, and
+    what makes "identical in every cell" checkable at report time.
     """
     from offline.materialise_draws import draw_config_path
 
     spec = tier_spec(tier)
     settings = env_settings_for_tiers([spec], corpus_root)
+    horizon = int(settings["max_steps"]) * int(settings["delta_time"])
     factory = _dt_factory(
         str(checkpoint), DECLARED_GRADIENT_STEPS, float(spec.target_rtg), device
     )
-    return list(
-        evaluate_arm(
-            arm=arm or nortg_arm_key(tier),
-            seed=int(seed),
-            draw_ids=list(draws if draws is not None else HELD_OUT_DRAWS),
-            config_for_draw=lambda draw: draw_config_path(
-                SCENARIO_KEY, int(draw), out_root=draws_root
-            ),
-            env_settings=settings,
-            scenario_id=SCENARIO_ID,
-            choose_action_factory=factory,
-            engine_seed=int(engine_seed),
+    resolved_arm = arm or nortg_arm_key(tier)
+    method, _, _ = resolved_arm.partition("@")
+
+    produced: list[AdmissionEpisode] = []
+    for draw_id in list(draws if draws is not None else HELD_OUT_DRAWS):
+        config = Path(draw_config_path(SCENARIO_KEY, int(draw_id), out_root=draws_root))
+        produced.append(
+            probe_episode(
+                scenario=PROBE_SCENARIO,
+                tier=tier,
+                method=method,
+                arm=resolved_arm,
+                seed=int(seed),
+                draw_id=int(draw_id),
+                config_path=config,
+                env_settings=settings,
+                scenario_id=SCENARIO_ID,
+                choose_action_factory=factory,
+                engine_seed=int(engine_seed),
+                created=created_from_flow(config.parent / "flow.json", horizon_seconds=horizon),
+            )
         )
-    )
+    return produced
 
 
 # ----------------------------------------------------------------------
@@ -667,6 +715,73 @@ def assert_probe_cell_is_ablated(cell: Mapping[str, Any]) -> Mapping[str, Any]:
                 "reach the training path"
             )
     return cell
+
+
+def admission_record(episode: AdmissionEpisode) -> dict[str, Any]:
+    """One collected episode as a JSON row, through the merged probe's own ``as_record``.
+
+    ``offline/admission_probe.py`` is merged, reviewed and cited in ``PREREGISTRATION`` A11 itself,
+    so its serialisation is reused rather than restated (``BRIEF_30`` D1: *"Import and call them;
+    do not reimplement"*).  The row therefore carries all five A11(b) quantities plus the counts
+    they are reconciled from.
+    """
+    return episode.as_record()
+
+
+def assert_admission_complete(records: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """A11(b) is UNCONDITIONAL: refuse a row missing any of the five, on either arm.
+
+    ⚠️ Refusing rather than warning is the point.  P8.4b spent 38,500 episodes and ~3.2 h
+    re-deriving cells that were collected without these; a campaign that ships without them joins
+    that backlog, and clearing it is what P8.4 existed for.
+    """
+    rows = list(records)
+    if not rows:
+        raise ValueError("A11(b) requires all five quantities on every ATT cell, and no cell was "
+                         "given to check")
+    for row in rows:
+        missing = [field for field in ADMISSION_FIELDS if field not in row]
+        if missing:
+            raise ValueError(
+                f"{row.get('arm')} seed {row.get('seed')} draw {row.get('draw_id')}: "
+                f"A11(b) requires all five quantities on every ATT cell and {missing} are absent. "
+                "They are read from the live engine between the rollout and env.close(), so they "
+                "cannot be added afterwards without re-running the episode"
+            )
+    return {
+        "n_episodes": len(rows),
+        "fields": list(ADMISSION_FIELDS),
+        "registered_in": "PREREGISTRATION A11(b) via BRIEF_30 AMENDMENT D1",
+        "collected_at": "collection time, from the live engine between the rollout and env.close()",
+    }
+
+
+def episode_results(
+    episodes: Sequence[AdmissionEpisode], *, definition: str
+) -> list[EpisodeResult]:
+    """Project one ATT definition onto the ``EpisodeResult`` the paired protocol consumes.
+
+    ⚠️ ``definition`` is keyword-only and has **no default**: which ATT lands in ``att_horizon`` is
+    the whole question this task now reports twice, and a default here would silently decide the
+    primary metric at a call site nobody re-reads.
+    """
+    if definition not in ATT_DEFINITIONS:
+        raise ValueError(
+            f"{definition!r} is not one of the two declared ATT definitions "
+            f"{list(ATT_DEFINITIONS)}; Rule R makes {PRIMARY_ATT!r} primary on hz1x1 and the other "
+            "is reported beside it, and no third definition is registered"
+        )
+    return [
+        EpisodeResult(
+            arm=episode.arm,
+            seed=episode.seed,
+            draw_id=int(episode.draw_id),
+            att_horizon=float(getattr(episode, definition)),
+            horizon_vehicle_count=float(episode.horizon_vehicle_count),
+            episode_reward=float(episode.episode_reward),
+        )
+        for episode in episodes
+    ]
 
 
 def nortg_cell_record(episodes: Sequence[EpisodeResult], seed: int) -> dict[str, Any]:
