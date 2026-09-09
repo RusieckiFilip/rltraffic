@@ -688,7 +688,10 @@ EQUIVALENCE_CLAIMS = (
 def test_q2_reports_a_ci_containing_zero_as_a_failure_to_reject_and_never_as_equivalence() -> None:
     """⚠️ A6's own words.  ``PREREGISTRATION`` A7 withdrew the per-tier delta rule; this task
     issues no equivalence verdict and defines no threshold."""
-    scored = score_q2(_comparisons({"random": 0.1}, ci={"random": (-0.4, 0.6)}))
+    scored = score_q2(
+        _comparisons({"random": 0.1}, ci={"random": (-0.4, 0.6)}),
+        discriminability={"random": {"distinct": True, "n_identical": 3, "n_compared": 500}},
+    )
     assert scored["ci_contains_zero"] is True
     assert scored["holds"] is True
     assert "failure to reject" in scored["reading"].lower()
@@ -702,7 +705,10 @@ def test_q2_reports_a_ci_containing_zero_as_a_failure_to_reject_and_never_as_equ
 
 
 def test_q2_reports_a_ci_excluding_zero_without_issuing_a_verdict() -> None:
-    scored = score_q2(_comparisons({"random": 2.0}, ci={"random": (1.5, 2.5)}))
+    scored = score_q2(
+        _comparisons({"random": 2.0}, ci={"random": (1.5, 2.5)}),
+        discriminability={"random": {"distinct": True, "n_identical": 0, "n_compared": 500}},
+    )
     assert scored["ci_contains_zero"] is False
     assert scored["holds"] is False
     text = json.dumps(scored).lower()
@@ -888,6 +894,10 @@ def _minimal_report_inputs() -> dict[str, Any]:
         "gates": {"gate_1": {}, "gate_1b": {}, "gate_2": {}},
         "selection": {"tiers": list(NORTG_TIERS)},
         "timings": {},
+        "discriminability": {
+            tier: {"distinct": True, "n_identical": 0, "n_compared": 500, "definition": "att_engine"}
+            for tier in NORTG_TIERS
+        },
     }
 
 
@@ -915,3 +925,130 @@ def test_the_artifact_refuses_a_cell_set_that_is_not_three_tiers_by_five_seeds()
     inputs["cells"] = inputs["cells"][:14]
     with pytest.raises(ValueError, match="the declared cell set is 3 tiers x 5 seeds"):
         report_artifact(**inputs)
+
+
+# ----------------------------------------------------------------------
+# AMENDMENT E1 -- the reused dt column is READ from P8.4b, and Gate 1b is the INSTRUMENT check
+# ----------------------------------------------------------------------
+
+
+def _rederivation_dir() -> Path:
+    """``BRIEF_30`` E5: ``--output-root`` fixes the CAMPAIGN's paths; this env var is what stops
+    the TEST skipping.  They are two mechanisms doing two jobs and are not interchangeable."""
+    import os
+
+    root = Path(os.environ.get("RLTRAFFIC_OUTPUT_ROOT", str(REPO / "output")))
+    directory = nortg_campaign.default_rederivation_dir(root)
+    if not directory.is_dir():
+        pytest.skip(
+            f"P8.4b's re-derived cells are not present at {directory}: set RLTRAFFIC_OUTPUT_ROOT "
+            "to a tree that carries output/p8_4b_rederivation"
+        )
+    return directory
+
+
+def test_the_reused_dt_column_comes_from_p8_4b_and_carries_both_definitions() -> None:
+    """⭐ ``BRIEF_30`` E1: *"read the column for the PAIRING."*
+
+    P8.4b re-derived every ``dt`` cell of these three tiers at full coverage -- 100 draws x 5 seeds,
+    both ATT definitions and all five A11(b) quantities -- so the paired contrast needs no re-roll
+    of the ``dt`` arm.  ⚠️ **I recommended re-rolling all 15 cells before measuring this; the repo
+    had already done it and the recommendation was wrong.**
+
+    ``reproduces_committed`` is re-checked here rather than trusted: the flag is P8.4b's own, and a
+    reused column must be verified by the task that reuses it.
+    """
+    for tier in NORTG_TIERS:
+        records = nortg_campaign.rederived_dt_episodes(
+            tier, rederivation_dir=_rederivation_dir(), data_dir=DATA
+        )
+        assert len(records) == 500, tier
+        assert {int(r["seed"]) for r in records} == set(SEEDS), tier
+        assert len({int(r["draw_id"]) for r in records}) == 100, tier
+        for r in records:
+            for field in ("att_ours", "att_engine", "entered", "created", "never_entered"):
+                assert field in r, f"{tier} {field}"
+
+
+def test_the_reused_column_is_refused_if_it_does_not_reproduce_the_committed_grid() -> None:
+    """The independent re-check, not P8.4b's own flag."""
+    records = nortg_campaign.rederived_dt_episodes(
+        "mappo1000", rederivation_dir=_rederivation_dir(), data_dir=DATA
+    )
+    tampered = [dict(r) for r in records]
+    tampered[0]["att_ours"] = tampered[0]["att_ours"] + 1e-9
+    with pytest.raises(ValueError, match="does not reproduce the committed"):
+        nortg_campaign.assert_rederived_matches_committed(tampered, "mappo1000", data_dir=DATA)
+
+
+# ----------------------------------------------------------------------
+# AMENDMENT E4 -- a non-distinct null control is an ARTEFACT, not a null
+# ----------------------------------------------------------------------
+
+
+def _pair(n_identical: int, n_total: int = 4) -> tuple[list[Any], list[Any]]:
+    left = [_admission("dt@random", 101, 1000 + i, att_engine=700.0 + i) for i in range(n_total)]
+    right = [
+        _admission(
+            "dt_nortg@random", 101, 1000 + i,
+            att_engine=700.0 + i if i < n_identical else 700.0 + i + 5.0,
+        )
+        for i in range(n_total)
+    ]
+    return left, right
+
+
+def test_two_arms_that_never_differ_are_reported_as_non_distinct() -> None:
+    left, right = _pair(n_identical=4)
+    record = nortg_campaign.assert_arms_are_distinct(left, right, definition="att_engine")
+    assert record["distinct"] is False
+    assert record["n_identical"] == 4
+    assert record["n_compared"] == 4
+
+
+def test_two_arms_that_differ_anywhere_are_reported_as_distinct() -> None:
+    left, right = _pair(n_identical=3)
+    record = nortg_campaign.assert_arms_are_distinct(left, right, definition="att_engine")
+    assert record["distinct"] is True
+    assert record["n_identical"] == 3
+
+
+def test_a_ci_containing_zero_on_a_NON_DISTINCT_null_control_is_an_artefact_not_a_null() -> None:
+    """🚨 ``BRIEF_30`` E4, registered before any P5.3b number existed.
+
+    *"If ``dt`` and ``dt_nortg`` are NON-DISTINCT on the null-control tier, then a confidence
+    interval containing zero is an ARTEFACT OF NON-DISCRIMINATION AND NOT A NULL RESULT, and it may
+    not be reported as evidence that removing the prompt costs nothing."*
+
+    This is the 2026-08-31 discriminability rule -- *a contrast over identical inputs is not a null
+    result* -- applied to the one tier where the paper's headline could be silently manufactured.
+    """
+    comparisons = _comparisons({"random": 0.0}, ci={"random": (-0.0, 0.0)})
+    scored = nortg_campaign.score_q2(
+        comparisons, discriminability={"random": {"distinct": False, "n_identical": 500,
+                                                  "n_compared": 500}}
+    )
+    assert scored["ci_contains_zero"] is True
+    assert scored["arms_distinct"] is False
+    assert scored["holds"] is None, "a non-distinct contrast scores neither pass nor fail"
+    assert scored["artefact_of_non_discrimination"] is True
+    assert "cannot discriminate" in scored["reading"].lower()
+    assert "no evidence" in scored["reading"].lower() or "may not be read" in scored["reading"].lower()
+
+
+def test_a_ci_containing_zero_on_a_DISTINCT_null_control_is_a_genuine_failure_to_reject() -> None:
+    comparisons = _comparisons({"random": 0.1}, ci={"random": (-0.4, 0.6)})
+    scored = nortg_campaign.score_q2(
+        comparisons, discriminability={"random": {"distinct": True, "n_identical": 3,
+                                                  "n_compared": 500}}
+    )
+    assert scored["arms_distinct"] is True
+    assert scored["artefact_of_non_discrimination"] is False
+    assert scored["holds"] is True
+    assert "failure to reject" in scored["reading"].lower()
+
+
+def test_q2_refuses_to_score_without_a_discriminability_record() -> None:
+    """E4 makes the record mandatory, so its absence is a refusal rather than a default."""
+    with pytest.raises(ValueError, match="E4 requires the discriminability record"):
+        nortg_campaign.score_q2(_comparisons({"random": 0.1}), discriminability={})

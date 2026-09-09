@@ -163,6 +163,14 @@ PRIMARY_ATT = "att_engine"
 #: The scenario label P8.4a's artifacts use, so a P5.3b row joins them without a translation table.
 PROBE_SCENARIO = "hz1x1"
 
+#: P8.4b's per-episode re-derivation, under ``--output-root``.  ``BRIEF_30`` E1: *"read the column
+#: for the PAIRING"* -- it re-derived every ``dt`` cell of these three tiers at FULL coverage
+#: (100 draws x 5 seeds), carrying both ATT definitions and all five A11(b) quantities, so the
+#: paired contrast needs no re-roll of the ``dt`` arm.
+#: ⚠️ I recommended re-rolling all 15 cells before measuring this. The repo had already done it.
+REDERIVATION_DIRNAME = "p8_4b_rederivation"
+REDERIVED_CELL_TEMPLATE = "cell_{scenario}_{method}_at_{tier}_seed{seed}_draw{draw}.json"
+
 #: This task's arm.  It is NOT added to ``method_tier_grid.METHODS`` -- see the module docstring.
 NORTG_METHOD = "dt_nortg"
 REFERENCE_METHOD = "dt"
@@ -802,6 +810,137 @@ def nortg_cell_record(episodes: Sequence[EpisodeResult], seed: int) -> dict[str,
     return {**record, "seed": int(seed)}
 
 
+def default_rederivation_dir(output_root: str | Path = "output") -> Path:
+    """Where P8.4b's per-episode re-derivation lives, under *output_root*."""
+    return Path(output_root) / REDERIVATION_DIRNAME
+
+
+def rederived_dt_episodes(
+    tier: str, *, rederivation_dir: str | Path, data_dir: str | Path
+) -> list[dict[str, Any]]:
+    """The reused ``dt@<tier>`` column, read from P8.4b with BOTH ATT definitions.
+
+    ``BRIEF_30`` E1: *"read the column for the PAIRING; Gate 1b is the INSTRUMENT check."*  The
+    committed ``p4_6``/``p4_7`` grids carry ``att_horizon`` only, which is ``att_ours``; pairing
+    under the primary metric (``att_engine``, Rule R) needs the re-derived column.
+
+    Every row is verified against the committed grid before it is returned, because
+    ``reproduces_committed`` is P8.4b's own flag and a reused column must be checked by the task
+    that reuses it.
+    """
+    root = Path(rederivation_dir)
+    if not root.is_dir():
+        raise FileNotFoundError(
+            f"{root}: P8.4b's re-derived cells are not present. They carry the att_engine half of "
+            "the reused dt column, so the paired contrast cannot be made under the primary metric "
+            "without them (BRIEF_30 E1)"
+        )
+    records: list[dict[str, Any]] = []
+    for seed in TRAINING_SEEDS:
+        for draw in HELD_OUT_DRAWS:
+            path = root / REDERIVED_CELL_TEMPLATE.format(
+                scenario=PROBE_SCENARIO, method=REFERENCE_METHOD, tier=tier,
+                seed=int(seed), draw=int(draw),
+            )
+            if not path.is_file():
+                raise FileNotFoundError(
+                    f"{path}: the reused dt column is incomplete at ({tier}, {seed}, {draw}); a "
+                    "paired comparison over a partial column is void"
+                )
+            records.append(json.loads(path.read_text(encoding="utf-8")))
+    assert_rederived_matches_committed(records, tier, data_dir=data_dir)
+    return records
+
+
+def assert_rederived_matches_committed(
+    records: Sequence[Mapping[str, Any]], tier: str, *, data_dir: str | Path
+) -> dict[str, Any]:
+    """Every re-derived ``att_ours`` must equal the committed grid's ``att_horizon`` EXACTLY.
+
+    An independent re-check of P8.4b's own ``reproduces_committed`` flag, on the bytes this task
+    will actually pair over.  ``==`` and not a tolerance: a tolerance here would accept precisely
+    the drift the check exists to detect.
+    """
+    grid = json.loads(
+        (Path(data_dir) / TIER_GRID_ARTIFACT[str(tier)]).read_text(encoding="utf-8")
+    )
+    arm = f"{REFERENCE_METHOD}@{tier}"
+    committed = {
+        (int(e["seed"]), int(e["draw_id"])): float(e["att_horizon"])
+        for e in grid["episodes"]
+        if e["arm"] == arm and e.get("seed") is not None
+    }
+    mismatches: list[str] = []
+    flagged = 0
+    for row in records:
+        key = (int(row["seed"]), int(row["draw_id"]))
+        if key not in committed:
+            mismatches.append(f"{key}: not in the committed grid")
+            continue
+        if float(row["att_ours"]) != committed[key]:
+            mismatches.append(
+                f"{key}: {row['att_ours']!r} against committed {committed[key]!r}"
+            )
+        if row.get("reproduces_committed") is not True:
+            flagged += 1
+    if mismatches:
+        raise ValueError(
+            f"{arm}: the re-derived column does not reproduce the committed grid on "
+            f"{len(mismatches)} of {len(records)} episodes, first {mismatches[:3]}; the reused "
+            "column and the committed one must be the same measurement"
+        )
+    if flagged:
+        raise ValueError(
+            f"{arm}: {flagged} re-derived episodes do not carry reproduces_committed=true"
+        )
+    return {
+        "arm": arm,
+        "n_compared": len(records),
+        "comparison": "exact float equality against the committed grid att_horizon",
+        "source": TIER_GRID_ARTIFACT[str(tier)],
+    }
+
+
+def assert_arms_are_distinct(
+    left: Sequence[Any], right: Sequence[Any], *, definition: str
+) -> dict[str, Any]:
+    """Do the two arms differ AT ALL on this tier?  (ruled 2026-08-31; ``BRIEF_30`` D3.1, E4)
+
+    *A contrast over identical inputs is not a null result.*  Two arms are distinct when their ATT
+    differs on at least one shared ``(seed, draw)``.
+
+    🚨 **E4, registered before any P5.3b number existed:** if the arms are NON-DISTINCT on the
+    null-control tier, a CI containing zero is an **artefact of non-discrimination**, not a null,
+    and may not be reported as evidence that removing the prompt costs nothing.
+    """
+    if definition not in ATT_DEFINITIONS:
+        raise ValueError(f"{definition!r} is not one of {list(ATT_DEFINITIONS)}")
+
+    def keyed(rows: Sequence[Any]) -> dict[tuple[int, int], float]:
+        out: dict[tuple[int, int], float] = {}
+        for row in rows:
+            if isinstance(row, Mapping):
+                out[(int(row["seed"]), int(row["draw_id"]))] = float(row[definition])
+            else:
+                out[(int(row.seed), int(row.draw_id))] = float(getattr(row, definition))
+        return out
+
+    a, b = keyed(left), keyed(right)
+    shared = sorted(set(a) & set(b))
+    if not shared:
+        raise ValueError("the two arms share no (seed, draw), so distinctness cannot be assessed")
+    identical = [key for key in shared if a[key] == b[key]]
+    return {
+        "definition": definition,
+        "n_compared": len(shared),
+        "n_identical": len(identical),
+        "identical_fraction": len(identical) / len(shared),
+        "distinct": len(identical) != len(shared),
+        "rule": "two arms are distinct when their ATT differs on at least one shared (seed, draw); "
+                "a contrast over identical inputs is not a null result (ruled 2026-08-31)",
+    }
+
+
 def committed_dt_episodes(tier: str, *, data_dir: str | Path) -> list[EpisodeResult]:
     """The committed ``dt@<tier>`` per-episode records, read from the merged grid artifact."""
     grid = json.loads(
@@ -1301,7 +1440,11 @@ def score_q1(comparisons: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
     }
 
 
-def score_q2(comparisons: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
+def score_q2(
+    comparisons: Mapping[str, Mapping[str, Any]],
+    *,
+    discriminability: Mapping[str, Mapping[str, Any]],
+) -> dict[str, Any]:
     """Q2: ``random`` is a null control predicted from an independent instrument.
 
     P5.3a measured ``random``'s conditioned DT at ``flip_rate = 0.000000``, 0 of 7200, on every
@@ -1309,24 +1452,53 @@ def score_q2(comparisons: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
     there.  A large CI-excluding difference on ``random`` **indicts the wiring before it indicts the
     science** -- the same direction of inference as A8's ``fixedtime`` prediction in P5.3a.
 
+    🚨 **AMENDMENT E4, registered 2026-09-09 before any P5.3b number existed.**  *"If ``dt`` and
+    ``dt_nortg`` are NON-DISTINCT on the null-control tier, then a confidence interval containing
+    zero is an ARTEFACT OF NON-DISCRIMINATION AND NOT A NULL RESULT, and it may not be reported as
+    evidence that removing the prompt costs nothing."*  ``discriminability`` is therefore
+    **required and keyword-only**, not optional: without it this function cannot tell a null from
+    an artefact, and defaulting it would let the paper's headline be manufactured silently.
+    ``holds`` is ``None`` -- neither pass nor fail -- when the arms cannot discriminate, because a
+    prediction that could not have been falsified was not tested.
+
     ⚠️ No equivalence verdict and no threshold: ``PREREGISTRATION`` A7 withdrew the per-tier delta
     rule, and a CI containing 0 is a failure to reject, never a demonstration of equivalence.
     """
     if "random" not in comparisons:
         raise ValueError("Q2 is a prediction about the random tier and it is not in the comparisons")
+    record = discriminability.get("random") if discriminability else None
+    if not record:
+        raise ValueError(
+            "E4 requires the discriminability record for the null-control tier: without it a CI "
+            "containing zero cannot be distinguished from an artefact of two identical arms, and "
+            "that distinction is the whole of E4"
+        )
     paired = comparisons["random"]["paired"]
     low, high = float(paired["ci95_low"]), float(paired["ci95_high"])
     contains = low <= 0.0 <= high
-    reading = (
-        "the 95 % CI of the paired difference contains 0: a FAILURE TO REJECT the null of no "
-        "difference, and never a demonstration of equivalence"
-        if contains
-        else "the 95 % CI of the paired difference excludes 0: removing the prompt changed mean "
-             "held-out ATT on this tier, at this budget, at 5 seeds"
-    )
+    distinct = bool(record["distinct"])
+    artefact = bool(contains and not distinct)
+
+    if not distinct:
+        reading = (
+            f"the two arms are IDENTICAL on {record['n_identical']} of {record['n_compared']} "
+            "shared (seed, draw) cells, so this tier CANNOT DISCRIMINATE between them. A CI "
+            "containing zero here is an ARTEFACT of non-discrimination, not a null result, and it "
+            "is NO EVIDENCE that removing the prompt costs nothing (BRIEF_30 E4)"
+        )
+    elif contains:
+        reading = (
+            "the 95 % CI of the paired difference contains 0: a FAILURE TO REJECT the null of no "
+            "difference, and never a demonstration of equivalence"
+        )
+    else:
+        reading = (
+            "the 95 % CI of the paired difference excludes 0: removing the prompt changed mean "
+            "held-out ATT on this tier, at this budget, at 5 seeds"
+        )
     return {
         "prediction": "dt - dt_nortg on random has a 95 % CI containing 0",
-        "registered_in": "BRIEF_30 section 3 Q2",
+        "registered_in": "BRIEF_30 section 3 Q2, qualified by AMENDMENT E4",
         "basis": "P5.3a measured random's conditioned DT at flip_rate 0.000000, 0 of 7200, on "
                  "every intervention -- an independent instrument",
         "tier": "random",
@@ -1334,7 +1506,10 @@ def score_q2(comparisons: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
         "ci95_low": low,
         "ci95_high": high,
         "ci_contains_zero": bool(contains),
-        "holds": bool(contains),
+        "arms_distinct": distinct,
+        "discriminability": dict(record),
+        "artefact_of_non_discrimination": artefact,
+        "holds": None if not distinct else bool(contains),
         "reading": reading,
         "if_falsified": "a large CI-excluding difference on random indicts the wiring before it "
                         "indicts the science",
@@ -1370,6 +1545,7 @@ def report_artifact(
     gates: Mapping[str, Any],
     selection: Mapping[str, Any],
     timings: Mapping[str, Any],
+    discriminability: Mapping[str, Mapping[str, Any]],
     measurement_inputs: Sequence[Mapping[str, Any]] = (),
 ) -> dict[str, Any]:
     """Assemble the one committed artifact.  Validates the design; ``main`` validates the data."""
@@ -1416,9 +1592,10 @@ def report_artifact(
             for tier in NORTG_TIERS
         },
         "arm_validity": arm_validity,
+        "discriminability": {tier: dict(r) for tier, r in discriminability.items()},
         "predictions": {
             "Q1": score_q1(comparisons),
-            "Q2": score_q2(comparisons),
+            "Q2": score_q2(comparisons, discriminability=discriminability),
             "Q3": score_q3(probe_cells),
         },
         "gates": dict(gates),
