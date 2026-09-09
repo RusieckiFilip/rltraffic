@@ -965,6 +965,68 @@ def assert_arms_are_distinct(
     }
 
 
+def evaluation_chunk(
+    *,
+    tier: str,
+    seed: int,
+    checkpoint: str,
+    canonical_digest: str,
+    produced: Sequence[AdmissionEpisode],
+    seconds: float,
+    tree: Mapping[str, Any],
+) -> dict[str, Any]:
+    """One evaluated cell as its on-disk chunk, with A11(b) enforced HERE, at collection time.
+
+    🚨 **Extracted after the 2026-09-10 campaign failure, and the crash was the lucky half.**
+    ``_run_evaluate`` built this dict inline from ``evaluate_cell``'s output.  D1 changed that
+    output from :class:`EpisodeResult` to :class:`AdmissionEpisode`, and three consumers here were
+    never swept: ``assert_cell_complete`` (silently fine -- the attributes it reads happen to
+    exist), ``nortg_cell_record`` (**crashed** on ``att_horizon``), and the per-episode dict, which
+    wrote **six** fields and **none of A11(b)'s five**.  The crash stopped a run that would
+    otherwise have shipped chunks in breach of D1, caught two stages later by
+    :func:`assert_admission_complete` in ``report`` -- the same *"a gate that reports at the end of
+    a run is not a gate"* shape AMENDMENT C3 fixed for the probe.
+
+    ⚠️ **The lesson is A5's, and this is its third instance in this task:** *finding your own blind
+    spot and then covering three-quarters of it.*  I fixed this class in ``_run_gate1`` at
+    ``dd9d4ba`` and did not sweep for the other call site.  It is a function now so that it has a
+    test that needs no simulator.
+
+    ``cell`` carries the primary definition's statistics, with both definitions' means beside it
+    (D2); every episode row carries all five quantities (D1).
+    """
+    rows = [admission_record(episode) for episode in produced]
+    assert_admission_complete(rows)
+    projected = {
+        definition: episode_results(produced, definition=definition)
+        for definition in ATT_DEFINITIONS
+    }
+    assert_cell_complete(
+        NORTG_METHOD, tier, [int(seed)], list(HELD_OUT_DRAWS), projected[PRIMARY_ATT]
+    )
+    cell = nortg_cell_record(projected[PRIMARY_ATT], int(seed))
+    cell["definition"] = PRIMARY_ATT
+    cell["att_horizon_mean_by_definition"] = {
+        definition: float(np.mean([e.att_horizon for e in episodes]))
+        for definition, episodes in projected.items()
+    }
+    return {
+        "format_version": ARTIFACT_FORMAT_VERSION,
+        "arm": nortg_arm_key(tier),
+        "tier": tier,
+        "seed": int(seed),
+        "checkpoint": str(checkpoint),
+        "canonical_digest": str(canonical_digest),
+        "primary_att_definition": PRIMARY_ATT,
+        "seconds": float(seconds),
+        "seconds_per_episode": float(seconds) / len(rows),
+        "cell": cell,
+        "episodes": rows,
+        "tree": dict(tree),
+        "runtime": runtime_provenance(),
+    }
+
+
 def committed_dt_episodes(tier: str, *, data_dir: str | Path) -> list[EpisodeResult]:
     """The committed ``dt@<tier>`` per-episode records, read from the merged grid artifact."""
     grid = json.loads(
@@ -1950,33 +2012,17 @@ def _run_evaluate(args: argparse.Namespace, work: Path) -> int:
         device=args.device,
     )
     seconds = time.time() - started
-    assert_cell_complete(NORTG_METHOD, args.tier, [int(args.seed)], list(HELD_OUT_DRAWS), produced)
     work.mkdir(parents=True, exist_ok=True)
     write_json_atomic(
-        {
-            "format_version": ARTIFACT_FORMAT_VERSION,
-            "arm": arm,
-            "tier": args.tier,
-            "seed": int(args.seed),
-            "checkpoint": run["checkpoint"],
-            "canonical_digest": digest,
-            "seconds": seconds,
-            "seconds_per_episode": seconds / len(produced),
-            "cell": nortg_cell_record(produced, int(args.seed)),
-            "episodes": [
-                {
-                    "arm": e.arm,
-                    "seed": e.seed,
-                    "draw_id": e.draw_id,
-                    "att_horizon": e.att_horizon,
-                    "horizon_vehicle_count": e.horizon_vehicle_count,
-                    "episode_reward": e.episode_reward,
-                }
-                for e in produced
-            ],
-            "tree": tree,
-            "runtime": runtime_provenance(),
-        },
+        evaluation_chunk(
+            tier=args.tier,
+            seed=int(args.seed),
+            checkpoint=run["checkpoint"],
+            canonical_digest=digest,
+            produced=produced,
+            seconds=seconds,
+            tree=tree,
+        ),
         assert_writable(work / f"eval_{args.tier}_seed{args.seed}.json"),
     )
     print(f"  {arm} seed {args.seed}: {seconds:.1f}s ({seconds / len(produced):.3f}s/episode)", flush=True)

@@ -34,7 +34,10 @@ from offline.dt_gate import EpisodeResult, _paired, wilcoxon_signed_rank
 from offline.method_tier_grid import METHODS, TIERS, arm_key, assert_no_verdicts
 from offline.offline_baselines import paired_comparison
 from offline.nortg_campaign import (
+    ADMISSION_FIELDS,
+    ATT_DEFINITIONS,
     COMPARED_PAYLOAD_KEYS,
+    evaluation_chunk,
     EXCLUDED_PAYLOAD_KEYS,
     GATE_1B_CELLS,
     NORTG_METHOD,
@@ -1087,3 +1090,67 @@ def test_the_fence_allows_exactly_this_tasks_own_outputs(relative: str) -> None:
     subdirectory -- a default-deny rule that forgot it would refuse the campaign's last step."""
     target = Path("/home/filip/rltraffic-p53b/output") / relative
     assert assert_writable(target) == target
+
+
+# ----------------------------------------------------------------------
+# The evaluation chunk -- the call site the 2026-09-10 campaign failure exposed
+# ----------------------------------------------------------------------
+
+
+def _produced(tier: str = "mix50", seed: int = 101) -> list[Any]:
+    from offline.dt_gate import HELD_OUT_DRAWS
+
+    return [
+        _admission(f"dt_nortg@{tier}", seed, draw, att_engine=100.0 + i * 0.01,
+                   att_ours=104.0 + i * 0.01)
+        for i, draw in enumerate(HELD_OUT_DRAWS)
+    ]
+
+
+def test_the_evaluation_chunk_carries_all_five_on_every_episode() -> None:
+    """🚨 The regression the campaign hit, and the one it was HIDING.
+
+    ``_run_evaluate`` built its chunk inline and wrote **six** per-episode fields, none of them
+    A11(b)'s five.  It crashed first on ``att_horizon``, so the D1 breach never reached disk -- but
+    only by luck, and it would have been caught two stages later at ``report``.
+
+    ⚠️ Three consumers of ``evaluate_cell``'s output changed type at D1 and I swept one of them
+    (``_run_gate1``, ``dd9d4ba``).  That is A5's lesson -- *the sweep is the hard part, not the
+    sighting* -- for the third time in this task.
+    """
+    chunk = evaluation_chunk(
+        tier="mix50", seed=101, checkpoint="/tmp/x.pt", canonical_digest="abc",
+        produced=_produced(), seconds=176.3,
+        tree={"git_commit": "abc1234", "git_dirty": False, "allow_dirty_used": False},
+    )
+    assert len(chunk["episodes"]) == 100
+    for row in chunk["episodes"]:
+        for field in ADMISSION_FIELDS:
+            assert field in row, field
+    assert chunk["arm"] == "dt_nortg@mix50"
+    assert chunk["primary_att_definition"] == "att_engine"
+
+
+def test_the_evaluation_chunks_cell_is_the_primary_definition_with_both_means_beside_it() -> None:
+    """D2: the primary at the top, both reported.  A cell that did not name its definition would
+    make ``att_horizon_mean`` mean two different things in two artifacts."""
+    chunk = evaluation_chunk(
+        tier="mix50", seed=101, checkpoint="/tmp/x.pt", canonical_digest="abc",
+        produced=_produced(), seconds=176.3, tree={},
+    )
+    cell = chunk["cell"]
+    assert cell["definition"] == "att_engine"
+    assert cell["seed"] == 101
+    both = cell["att_horizon_mean_by_definition"]
+    assert sorted(both) == sorted(ATT_DEFINITIONS)
+    assert cell["att_horizon_mean"] == both["att_engine"]
+    assert both["att_ours"] != both["att_engine"]
+
+
+def test_the_evaluation_chunk_refuses_an_incomplete_cell() -> None:
+    """'found no differences' must never be 'compared nothing' -- here, at collection time."""
+    with pytest.raises(ValueError, match="incomplete cell"):
+        evaluation_chunk(
+            tier="mix50", seed=101, checkpoint="/tmp/x.pt", canonical_digest="abc",
+            produced=_produced()[:99], seconds=1.0, tree={},
+        )
