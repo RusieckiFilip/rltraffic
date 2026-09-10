@@ -187,6 +187,22 @@ DECLARED_TIER = "mappo1000"
 #: than a remembered one.
 NORTG_TIERS: tuple[str, ...] = ("mappo1000", "mix50", "random")
 
+#: Q1's two limbs and the tier each was REGISTERED against (``BRIEF_30`` section 3 Q1).  A limb's
+#: ``as_registered`` is its measured tier against this map -- kept as data rather than inline
+#: literals so the registration appears once and a test can recompute it by its own route.
+Q1_REGISTERED_TIERS: Mapping[str, str] = {"largest": "mix50", "smallest": "random"}
+
+#: MJ-3's rule, verbatim from ``BRIEF_33`` section 2.1, shipped in the artifact so a reader never has
+#: to infer why ``predictions.Q1.holds`` is ``None``.  ⚠️ The order of the branches is load-bearing:
+#: the ``False`` test comes first, so a measured falsification is never hidden behind a ``None``.
+Q1_HOLDS_RULE = (
+    "holds = False  if any limb has is_evidence == True and as_registered == False   "
+    "(measured falsification)\n"
+    "holds = True   if every limb has is_evidence == True and as_registered == True\n"
+    "holds = None   otherwise  (some limb rests on a non-discriminating tier, and no "
+    "evidence-bearing limb is falsified)"
+)
+
 #: Gate 1b (``BRIEF_30`` AMENDMENT A1): one committed ``dt`` cell re-rolled per tier, because the
 #: three ``dt`` columns have three different provenances -- ``output/p4_dt/`` (P4's reused column,
 #: in **no** integrity manifest, ``DEFERRED`` 56), ``output/p4_7/``, ``output/p4_6/``.
@@ -1500,6 +1516,19 @@ def score_q1(
     tier returns for **any** pair of arms whatsoever, so it is **not evidence** about the return
     prompt.  ``discriminability`` is therefore required and keyword-only, exactly as in
     :func:`score_q2`.
+
+    🚨 **MJ-3 (``BRIEF_33`` section 2.1, ruled 2026-09-10): ``holds`` is THREE-VALUED.**  It was
+    ``bool(largest == "mix50" and smallest == "random")`` -- an unqualified ``True`` sitting beside a
+    limb marked ``is_evidence: false``, which is exactly the *"lets a reader keep the whole
+    prediction"* outcome the limb ruling forbade.  ``score_q2`` has returned ``None`` under the same
+    condition since AMENDMENT E4; this makes Q1 parallel to it.  :data:`Q1_HOLDS_RULE` is the rule,
+    shipped in the artifact so it explains its own ``None``.
+
+    ⭐ **``None`` never hides a falsification, and that ordering is the point.**  The ``False`` branch
+    is tested FIRST: a limb that *could* have been falsified and *was* displaced from its registered
+    tier falsifies the prediction whatever the other limb does.  A rule of the shape *"None if any
+    tier is non-discriminating"* would swallow that, and is strictly worse than the ``True`` this
+    ruling removes.
     """
     missing = [t for t in comparisons if t not in (discriminability or {})]
     if missing:
@@ -1523,6 +1552,8 @@ def score_q1(
     }
     secondary_order = sorted(secondary_abs, key=lambda tier: (secondary_abs[tier], tier))
     normalised_order = sorted(normalised, key=lambda tier: (normalised[tier], tier))
+    largest_limb = _q1_limb("largest", largest, magnitudes[largest], discriminability)
+    smallest_limb = _q1_limb("smallest", smallest, magnitudes[smallest], discriminability)
     return {
         "prediction": "the paired absolute difference between the dt and dt_nortg arms is largest "
                       "on mix50 and smallest on random",
@@ -1540,13 +1571,14 @@ def score_q1(
         "smallest": smallest,
         "tie_break": "tier name ascending",
         "ties_present": len(set(values)) != len(values),
-        "holds": bool(largest == "mix50" and smallest == "random"),
+        "holds": _q1_holds(largest_limb, smallest_limb),
+        "holds_rule": Q1_HOLDS_RULE,
         "limbs_are_scored_separately": (
             "the registered prediction has two limbs and they do not stand or fall together; a "
             "limb is evidence only where the tier that satisfies it can discriminate the two arms"
         ),
-        "largest_limb": _q1_limb("largest", largest, magnitudes[largest], discriminability),
-        "smallest_limb": _q1_limb("smallest", smallest, magnitudes[smallest], discriminability),
+        "largest_limb": largest_limb,
+        "smallest_limb": smallest_limb,
         "secondary_not_registered": {
             "mean_absolute_difference": dict(sorted(secondary_abs.items())),
             "mean_absolute_difference_largest": secondary_order[-1],
@@ -1559,12 +1591,35 @@ def score_q1(
     }
 
 
+def _q1_holds(*limbs: Mapping[str, Any]) -> bool | None:
+    """:data:`Q1_HOLDS_RULE`, in the order the rule states it (``BRIEF_33`` section 2.1).
+
+    ⚠️ The ``False`` branch is first and that is not stylistic: a limb that could have been falsified
+    and was displaced from its registered tier falsifies the prediction regardless of what the other
+    limb does.  Testing ``all(is_evidence)`` first, or returning ``None`` whenever any tier fails to
+    discriminate, would hide a measured falsification behind an inconclusive.
+    """
+    if any(limb["is_evidence"] and not limb["as_registered"] for limb in limbs):
+        return False
+    if all(limb["is_evidence"] and limb["as_registered"] for limb in limbs):
+        return True
+    return None
+
+
 def _q1_limb(
     which: str, tier: str, magnitude: float, discriminability: Mapping[str, Mapping[str, Any]]
 ) -> dict[str, Any]:
-    """One limb of Q1, with its evidential status decided by the tier's discriminability."""
+    """One limb of Q1, with its evidential status decided by the tier's discriminability.
+
+    Two axes, and they are independent -- that independence is the whole of MJ-3.  ``is_evidence``
+    asks *could this limb have been falsified at all* (does the tier discriminate); ``as_registered``
+    asks *did it land where the registration said it would* (is this the tier Q1 named).  A limb can
+    be evidence and displaced (a measured falsification), evidence and as registered (a measured
+    confirmation), or not evidence at all, in which case where it landed carries no information.
+    """
     record = discriminability[tier]
     distinct = bool(record["distinct"])
+    registered_tier = Q1_REGISTERED_TIERS[which]
     if distinct:
         reading = (
             f"the {which} paired absolute difference is on {tier}, whose two arms are distinct on "
@@ -1581,6 +1636,8 @@ def _q1_limb(
     return {
         "limb": which,
         "tier": tier,
+        "registered_tier": registered_tier,
+        "as_registered": bool(tier == registered_tier),
         "abs_mean_difference": float(magnitude),
         "arms_distinct": distinct,
         "status": "established" if distinct else "satisfied_by_a_non_discriminating_tier",
