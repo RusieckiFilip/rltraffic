@@ -1,9 +1,13 @@
 """P5.3b -- the ``dt_nortg`` campaign: does removing the return prompt cost anything?
 
-Artifact format version: ``p5.3b-nortg/1.1`` -- ``docs/data/p5_3b_nortg.json``.
+Artifact format version: ``p5.3b-nortg/1.2`` -- ``docs/data/p5_3b_nortg.json``.
 **1.0 -> 1.1 (2026-09-09, AMENDMENT D1):** every episode row gained ``PREREGISTRATION`` A11(b)'s
 five quantities -- ``att_ours``, ``att_engine``, ``entered``, ``created``, ``never_entered`` -- read
 from the live engine at collection time.  A layout change, so contract C6 requires the bump.
+**1.1 -> 1.2 (2026-09-10, ``BRIEF_33``):** adds ``mechanism``,
+``comparisons.*.definition_difference_decomposition``, ``predictions.Q1.holds_rule``,
+``*_limb.registered_tier`` and ``*_limb.as_registered``.  **Nothing is renamed or removed, and no
+measured value moves** -- ``BRIEF_33`` section 3.5's path diff is the proof of that, not this note.
 
 The question, and why it is not the one P5.3 was created to ask
 ---------------------------------------------------------------
@@ -144,7 +148,7 @@ __all__ = [
     "training_inputs",
 ]
 
-ARTIFACT_FORMAT_VERSION = "p5.3b-nortg/1.1"
+ARTIFACT_FORMAT_VERSION = "p5.3b-nortg/1.2"
 
 #: ``PREREGISTRATION`` A11(b), via ``BRIEF_30`` AMENDMENT D1: every reported ATT cell carries these
 #: five, **at collection time, unconditionally** -- no threshold, no verdict, no condition.
@@ -1742,6 +1746,241 @@ def score_q3(probe_cells: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
 # ----------------------------------------------------------------------
 
 
+#: BL-2(c)'s eight fields.  Two episodes are "the same outcome" when all eight agree exactly.
+#: Chosen by the reviewer and re-verified by the coordinator; they span the ATT under both
+#: definitions, the admission counts and the episode's own reward, so agreement on all eight is a
+#: strong statement about the trajectory and a weak one about the POLICY -- which is why
+#: ``action_sequence_sha256`` exists beside them.
+MECHANISM_FIELDS: tuple[str, ...] = (
+    "att_engine",
+    "att_ours",
+    "entered",
+    "created",
+    "never_entered",
+    "horizon_vehicle_count",
+    "episode_reward",
+    "completed_at_horizon",
+)
+
+#: The reference cell every mechanism comparison is made against: the ``random``-corpus DT at the
+#: lowest seed.  ``dt_nortg@random`` is measured seed-invariant, so the choice of 101 is immaterial
+#: and the artifact reports the seed-invariance rather than assuming it.
+MECHANISM_REFERENCE = ("random", 101)
+
+
+def mechanism_outcome_identity(episodes: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """BL-2(c) part 1: outcome identity, from this artifact's OWN committed episode rows.
+
+    Per ``mix50`` seed, the count of held-out draws on which ``dt_nortg@mix50`` equals
+    ``dt_nortg@random`` seed 101 on all of :data:`MECHANISM_FIELDS`; plus ``dt_nortg@random``'s
+    seed-invariance, each seed against seed 101.
+
+    ⚠️ **This is an OUTCOME-identity statement, not a claim about the policy.**  Two runs can land on
+    the same eight numbers without taking the same decisions; the artifact's ``action_identity``
+    block is what turns *"the same attractor"* into a statement about actions, and until it is read
+    beside this one the honest word is *outcome*.
+
+    ⭐ Computable from committed bytes alone, which is the point: the ``dt@random`` rows the review
+    compared against live only in gitignored ``output/p8_4b_rederivation/``, while this chain --
+    ``dt_nortg@mix50`` -> ``dt_nortg@random`` -> ``discriminability.random`` -- is checkable from a
+    clone.
+    """
+    keyed: dict[tuple[str, int], dict[int, tuple[Any, ...]]] = {}
+    for entry in episodes:
+        cell = (str(entry["tier"]), int(entry["seed"]))
+        keyed.setdefault(cell, {})[int(entry["draw_id"])] = tuple(
+            entry[field] for field in MECHANISM_FIELDS
+        )
+
+    reference = keyed[MECHANISM_REFERENCE]
+
+    def against_reference(cell: tuple[str, int]) -> dict[str, Any]:
+        rows = keyed[cell]
+        shared = sorted(set(rows) & set(reference))
+        identical = [draw for draw in shared if rows[draw] == reference[draw]]
+        return {
+            "n_compared": len(shared),
+            "n_identical": len(identical),
+            "non_identical_draws": [draw for draw in shared if rows[draw] != reference[draw]],
+        }
+
+    return {
+        "fields": list(MECHANISM_FIELDS),
+        "reference_cell": f"dt_nortg@{MECHANISM_REFERENCE[0]} seed {MECHANISM_REFERENCE[1]}",
+        "rule": "two episodes are outcome-identical when all eight fields agree exactly",
+        "mix50_against_reference": {
+            str(seed): against_reference(("mix50", seed)) for seed in TRAINING_SEEDS
+        },
+        "random_seed_invariance": {
+            str(seed): against_reference(("random", seed)) for seed in TRAINING_SEEDS
+        },
+        "link_to_dt_random": (
+            "discriminability.random records dt and dt_nortg as identical on 500 of 500 shared "
+            "(seed, draw) cells under att_engine, so dt_nortg@random IS dt@random on this pool. "
+            "That is the committed-bytes link from these counts to the reused dt column, and it is "
+            "checkable from a clone; the dt@random per-episode rows themselves live only in "
+            "gitignored output/p8_4b_rederivation/."
+        ),
+        "this_is_outcome_identity_not_policy_identity": (
+            "Agreement on eight outcome fields does not establish that the two policies took the "
+            "same decisions. See mechanism.action_identity, which measures that directly."
+        ),
+    }
+
+
+def mechanism_action_identity(decomposition: Mapping[str, Any]) -> dict[str, Any]:
+    """BL-2(c) part 2: ACTION identity, read from ``docs/data/p5_3b_decomposition.json``.
+
+    The same counts as :func:`mechanism_outcome_identity` but keyed on ``action_sequence_sha256``
+    instead of outcomes, plus ``dt@random`` against ``dt_nortg@random`` -- the comparison the review
+    made, now available under both arms because the decomposition re-rolled both.
+
+    The ``action_counts`` histogram is **reported, not interpreted**: ``constant_action`` is set only
+    where every decision on every compared draw was the same action, and the record states on how
+    many draws that was checked.  ⛔ Nothing here says why the arm collapses.
+    """
+    digests: dict[tuple[str, str, int], dict[int, str]] = {}
+    counts: dict[tuple[str, str, int], list[list[int]]] = {}
+    for row in decomposition["episodes"]:
+        cell = (str(row["method"]), str(row["tier"]), int(row["seed"]))
+        digests.setdefault(cell, {})[int(row["draw_id"])] = str(row["action_sequence_sha256"])
+        counts.setdefault(cell, []).append(row["action_counts"])
+
+    reference = digests[(NORTG_METHOD, *MECHANISM_REFERENCE)]
+
+    def compare(cell: tuple[str, str, int]) -> dict[str, Any]:
+        rows = digests[cell]
+        shared = sorted(set(rows) & set(reference))
+        identical = [draw for draw in shared if rows[draw] == reference[draw]]
+        return {
+            "n_compared": len(shared),
+            "n_identical": len(identical),
+            "non_identical_draws": [draw for draw in shared if rows[draw] != reference[draw]],
+        }
+
+    def histogram(cell: tuple[str, str, int]) -> dict[str, Any]:
+        per_episode = counts[cell]
+        n_intersections = len(per_episode[0])
+        totals = [
+            [sum(episode[ix][action] for episode in per_episode)
+             for action in range(len(per_episode[0][ix]))]
+            for ix in range(n_intersections)
+        ]
+        single = all(sum(1 for value in row if value) == 1 for row in totals)
+        return {
+            "action_counts_summed_over_episodes": totals,
+            "n_episodes": len(per_episode),
+            "constant_action": bool(single),
+            "reading": (
+                "every decision on every one of these episodes was the same action"
+                if single
+                else "the policy used more than one action on these episodes"
+            ),
+        }
+
+    return {
+        "quantity": "action_sequence_sha256 -- sha256 over the int64 bytes of the (T, n_ix) action "
+                    "array, NOT contract C6's episode_sha256, which also covers rewards",
+        "reference_cell": f"dt_nortg@{MECHANISM_REFERENCE[0]} seed {MECHANISM_REFERENCE[1]}",
+        "mix50_against_reference": {
+            str(seed): compare((NORTG_METHOD, "mix50", seed)) for seed in TRAINING_SEEDS
+        },
+        "random_seed_invariance": {
+            str(seed): compare((NORTG_METHOD, "random", seed)) for seed in TRAINING_SEEDS
+        },
+        "dt_random_against_dt_nortg_random": {
+            str(seed): compare((REFERENCE_METHOD, "random", seed)) for seed in TRAINING_SEEDS
+        },
+        "action_counts": {
+            f"{method}@{tier} seed {seed}": histogram((method, tier, seed))
+            for method in (REFERENCE_METHOD, NORTG_METHOD)
+            for tier, seed in (("mix50", 101), ("mix50", 404), ("random", 101))
+        },
+    }
+
+
+#: A13(b)'s three terms, in the orientation ``offline/engine_att_reference.py`` implements
+#: (``att_ours - att_engine``).  ⚠️ That is the NEGATION of the orientation A13(b) writes; see
+#: ``offline/nortg_decomposition.py``'s module docstring, which states the negation in full.
+DECOMPOSITION_TERMS: tuple[str, ...] = ("population", "clock_origin", "cadence")
+
+#: The tolerance the embedded block's own identity is checked to.  Exact equality is wrong here for
+#: the reason ``nortg_decomposition.CONTRAST_TOLERANCE`` documents: summation order differs.
+DECOMPOSITION_TOLERANCE = 1e-9
+
+
+def _embedded_decomposition(payload: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
+    """Reshape the decomposition artifact into one block per tier, for ``comparisons.<tier>``."""
+    summary = payload["summary"]
+    blocks: dict[str, dict[str, Any]] = {}
+    for tier in NORTG_TIERS:
+        contrast = summary["contrast"][tier]
+        per_arm: dict[str, Any] = {}
+        for method in (REFERENCE_METHOD, NORTG_METHOD):
+            arm = summary["per_arm"][f"{method}@{tier}"]
+            per_arm[method] = {
+                **{term: float(arm[term]["mean"]) for term in DECOMPOSITION_TERMS},
+                "total": float(arm["total"]["mean"]),
+            }
+        blocks[tier] = {
+            "source": dict(payload["_source"]),
+            "orientation": payload["orientation"],
+            "orientation_note": payload["orientation_note"],
+            "identity": payload["identity"],
+            "n_episodes_per_arm": len(HELD_OUT_DRAWS) * len(TRAINING_SEEDS),
+            "per_arm": per_arm,
+            "contrast": {
+                **{term: float(contrast[term]) for term in DECOMPOSITION_TERMS},
+                "total": float(contrast["total"]),
+            },
+            "delta_ours_minus_delta_engine": float(contrast["delta_ours_minus_delta_engine"]),
+            "identity_gap": float(contrast["identity_gap"]),
+            "residual_max": float(summary["identity"]["residual_max"]),
+            "residual_is_not_independent": summary["identity"]["residual_is_not_independent"],
+        }
+    return blocks
+
+
+def assert_decomposition_embedded(payload: Mapping[str, Any]) -> dict[str, Any]:
+    """🔒 A13(b) is a REQUIRED reported quantity, so a report without it is not a valid report.
+
+    ``PREREGISTRATION`` A13(b) makes the three-component decomposition required *for every report of
+    the two definitions' difference*.  This artifact reports that difference in three places, and
+    P5.3b shipped without the decomposition in any of them -- ``docs/reviews/P5.3b.md`` BL-2(b).
+
+    Refuses a payload where any tier lacks the block, or where the block's own three terms do not sum
+    to its total, per arm and for the contrast.  ⚠️ Called from :func:`_run_report`; that call site is
+    pinned by a test, because a guard nobody invokes is ``DEFERRED`` 63's class.
+    """
+    missing = [
+        tier
+        for tier in NORTG_TIERS
+        if "definition_difference_decomposition" not in payload["comparisons"].get(tier, {})
+    ]
+    if missing:
+        raise ValueError(
+            f"{missing} report the two definitions' difference without A13(b)'s decomposition. It "
+            "is a REQUIRED reported quantity, not an optional one, and a report without it is not a "
+            "valid report (PREREGISTRATION A13(b), docs/reviews/P5.3b.md BL-2(b))"
+        )
+
+    failures: list[str] = []
+    for tier in NORTG_TIERS:
+        block = payload["comparisons"][tier]["definition_difference_decomposition"]
+        for label, record in list(block["per_arm"].items()) + [("contrast", block["contrast"])]:
+            total = sum(float(record[term]) for term in DECOMPOSITION_TERMS)
+            if abs(total - float(record["total"])) >= DECOMPOSITION_TOLERANCE:
+                failures.append(f"{tier}/{label}: terms sum to {total!r}, total is {record['total']!r}")
+        if abs(float(block["identity_gap"])) >= DECOMPOSITION_TOLERANCE:
+            failures.append(f"{tier}: identity gap {block['identity_gap']!r}")
+    if failures:
+        raise ValueError(
+            f"the embedded decomposition does not close its own identity: {failures}. A block whose "
+            "terms do not sum to its total decomposes nothing"
+        )
+    return {"n_tiers": len(NORTG_TIERS), "tolerance": DECOMPOSITION_TOLERANCE}
+
+
 def report_artifact(
     *,
     cells: Sequence[Mapping[str, Any]],
@@ -1753,8 +1992,18 @@ def report_artifact(
     timings: Mapping[str, Any],
     discriminability: Mapping[str, Mapping[str, Any]],
     measurement_inputs: Sequence[Mapping[str, Any]] = (),
+    decomposition: Mapping[str, Any] | None = None,
+    mechanism: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Assemble the one committed artifact.  Validates the design; ``main`` validates the data."""
+    """Assemble the one committed artifact.  Validates the design; ``main`` validates the data.
+
+    ``decomposition`` and ``mechanism`` are **defaulted** rather than required, deliberately: three
+    tests construct a minimal payload through this function and ``BRIEF_33`` authorises no edit to
+    them.  **The requirement is enforced where it belongs** -- :func:`_run_report` refuses to run
+    without the decomposition artifact and calls :func:`assert_decomposition_embedded` on the
+    assembled payload, and ``tests/test_nortg_decomposition.py`` pins that call site because a guard
+    nobody invokes is ``DEFERRED`` 63's class (``BRIEF_33`` AMENDMENT A2).
+    """
     if sorted(comparisons) != sorted(NORTG_TIERS):
         raise ValueError(
             f"the registered tier set is {list(NORTG_TIERS)} and the comparisons cover "
@@ -1770,6 +2019,14 @@ def report_artifact(
         )
 
     arm_validity = assert_arm_validity(probe_cells)
+    embedded = _embedded_decomposition(decomposition) if decomposition else {}
+    merged_comparisons: dict[str, Any] = {}
+    for tier, entry in comparisons.items():
+        record = dict(entry)
+        if tier in embedded:
+            record["definition_difference_decomposition"] = embedded[tier]
+        merged_comparisons[tier] = record
+
     payload: dict[str, Any] = {
         "format_version": ARTIFACT_FORMAT_VERSION,
         "role": "P5.3b: fifteen dt_nortg cells trained with rtg_mode='zero', paired against the "
@@ -1795,7 +2052,7 @@ def report_artifact(
         "tier_selection": dict(selection),
         "cells": [dict(cell) for cell in cells],
         "episodes": [dict(entry) for entry in episodes],
-        "comparisons": {tier: dict(entry) for tier, entry in comparisons.items()},
+        "comparisons": merged_comparisons,
         # ⚠️ NO BARE ``att_horizon_mean`` HERE, DELIBERATELY.  The committed grids use that name
         # for ``att_ours``; this task's primary is ``att_engine``.  A field carrying the engine
         # mean under the committed grid's field name, beside ``"source": p4_6_grid.json``, is the
@@ -1837,6 +2094,8 @@ def report_artifact(
         "limitations": list(_LIMITATIONS),
         "runtime": runtime_provenance(measurement_commits(list(measurement_inputs))),
     }
+    if mechanism is not None:
+        payload["mechanism"] = dict(mechanism)
     assert_no_verdicts(payload)
     return payload
 
@@ -2292,6 +2551,26 @@ def _run_report(args: argparse.Namespace, work: Path, out_dir: Path, data_dir: P
     probe_artifact = json.loads(
         (data_dir / "p5_3a_rtg_probe.json").read_text(encoding="utf-8")
     )
+
+    # A13(b)'s decomposition is a REQUIRED reported quantity, so its absence is a refusal and not a
+    # smaller artifact.  Read here rather than in report_artifact so the three tests that build a
+    # minimal payload through that function keep working (BRIEF_33 AMENDMENT A2).
+    decomposition_path = data_dir / "p5_3b_decomposition.json"
+    if not decomposition_path.is_file():
+        raise FileNotFoundError(
+            f"{decomposition_path}: PREREGISTRATION A13(b) makes the three-component decomposition "
+            "a required reported quantity for every report of the two definitions' difference, and "
+            "this artifact reports that difference in three places. Run "
+            "`python -m offline.nortg_decomposition ... report` first; a report without it is not a "
+            "valid report (docs/reviews/P5.3b.md BL-2(b))"
+        )
+    decomposition = json.loads(decomposition_path.read_text(encoding="utf-8"))
+    decomposition["_source"] = {
+        "path": str(Path("docs/data") / decomposition_path.name),
+        "sha256": file_sha256(decomposition_path),
+        "format_version": decomposition["format_version"],
+    }
+
     payload = report_artifact(
         cells=cells,
         episodes=episodes,
@@ -2306,7 +2585,27 @@ def _run_report(args: argparse.Namespace, work: Path, out_dir: Path, data_dir: P
         timings=timings,
         discriminability=discriminability,
         measurement_inputs=chunks,
+        decomposition=decomposition,
+        mechanism={
+            "registered": False,
+            "exploratory": True,
+            "found_by": "post-merge review, docs/reviews/P5.3b.md, 2026-09-10",
+            "status": (
+                "EXPLORATORY (PREREGISTRATION section 2): the no-RTG ablation is named in the "
+                "exploratory list, and this block was found after the numbers existed. It is "
+                "reported with counts and no inferential claim."
+            ),
+            "outcome_identity": mechanism_outcome_identity(episodes),
+            "action_identity": mechanism_action_identity(decomposition),
+            "what_this_does_not_say": [
+                "It does not say WHY the ablated mix50 arm collapses. No mechanism for the collapse "
+                "is claimed, and none may be read out of these counts.",
+                "Outcome identity is not policy identity; the action_identity block is what speaks "
+                "about decisions, and the two are reported separately for that reason.",
+            ],
+        },
     )
+    assert_decomposition_embedded(payload)
     if not payload["runtime"]["measurement_git_commits"]:
         raise ValueError(
             f"the report was assembled from {len(chunks)} chunk payloads but recorded no "

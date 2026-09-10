@@ -584,6 +584,25 @@ def test_a_chunk_that_agrees_with_itself_but_not_with_the_committed_column_is_re
         assert_rows_reproduce_committed(_rows(chunks), committed=_committed(_chunks()))
 
 
+@pytest.mark.parametrize("field", ["att_engine_call", "att_ours"])
+def test_a_chunk_inconsistent_with_its_own_committed_pair_is_refused_by_the_reproduction_guard(
+    field: str,
+) -> None:
+    """🔒 The reproduction guard, exercised DIRECTLY rather than through the pipeline.
+
+    ⚠️ Written after a mutation survived: deleting the ``att_engine_call ==
+    committed_att_engine`` equality left the end-to-end test green, because
+    :func:`assert_identity_is_exact` reached the same tampered row first and refused for its own
+    reason.  A test that passes because a *different* guard fired does not pin the guard it names,
+    and the only way to tell the two apart is to call the guard on its own.
+    """
+    chunks = _chunks()
+    row = chunks[7]["episodes"][42]
+    row[field] = float(row[field]) + 1e-9
+    with pytest.raises(ValueError, match="reproduce the committed cell"):
+        assert_rows_reproduce_committed(_rows(chunks), committed=_committed(_chunks()))
+
+
 def test_the_reproduction_check_does_not_read_the_chunks_own_flag() -> None:
     """A row flagged ``reproduces_committed: false`` that DOES reproduce is accepted on the numbers.
 
@@ -636,3 +655,51 @@ def test_the_report_actually_calls_the_decomposition_guard() -> None:
     source = inspect.getsource(nortg_campaign._run_report)
     assert "assert_decomposition_embedded" in source
     assert callable(nortg_campaign.assert_decomposition_embedded)
+
+
+def _embedded_block(**over: Any) -> dict[str, Any]:
+    """One well-formed ``definition_difference_decomposition`` block."""
+    arm = {"population": 3.0, "clock_origin": 95.5, "cadence": 6.0, "total": 104.5}
+    block = {
+        "source": {"path": "docs/data/p5_3b_decomposition.json", "sha256": "b" * 64},
+        "orientation": "att_ours - att_engine",
+        "orientation_note": "the negation of A13(b)'s writing",
+        "identity": "att_ours - att_engine = population + clock_origin + cadence",
+        "n_episodes_per_arm": 500,
+        "per_arm": {"dt": dict(arm), "dt_nortg": dict(arm)},
+        "contrast": dict(arm),
+        "delta_ours_minus_delta_engine": 104.5,
+        "identity_gap": 0.0,
+        "residual_max": 0.0,
+        "residual_is_not_independent": "corroborates criterion 1 and nothing further",
+    }
+    block.update(over)
+    return block
+
+
+def _payload_with_blocks(**per_tier: Any) -> dict[str, Any]:
+    return {"comparisons": {tier: {"definition_difference_decomposition": block}
+                            for tier, block in per_tier.items()}}
+
+
+def test_a_report_missing_the_decomposition_on_any_tier_is_refused() -> None:
+    """🔒 A13(b) makes it REQUIRED, so a tier without it is a refusal and not a smaller artifact."""
+    payload = _payload_with_blocks(**{tier: _embedded_block() for tier in TIERS})
+    del payload["comparisons"]["mix50"]["definition_difference_decomposition"]
+    with pytest.raises(ValueError, match="REQUIRED reported quantity"):
+        nortg_campaign.assert_decomposition_embedded(payload)
+
+
+def test_an_embedded_block_whose_terms_do_not_sum_to_its_total_is_refused() -> None:
+    """A block that does not close its own identity decomposes nothing."""
+    blocks = {tier: _embedded_block() for tier in TIERS}
+    blocks["random"]["contrast"]["cadence"] = 6.5
+    with pytest.raises(ValueError, match="identity"):
+        nortg_campaign.assert_decomposition_embedded(_payload_with_blocks(**blocks))
+
+
+def test_a_well_formed_embedded_decomposition_is_accepted() -> None:
+    record = nortg_campaign.assert_decomposition_embedded(
+        _payload_with_blocks(**{tier: _embedded_block() for tier in TIERS})
+    )
+    assert record["n_tiers"] == len(TIERS)

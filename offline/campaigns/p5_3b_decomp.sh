@@ -42,11 +42,19 @@
 # ---------------------------------------------------------------------------
 # 4. THE SCHEDULE IS MEASURED HERE, NOT INHERITED (BRIEF_33 AMENDMENT A5)
 # ---------------------------------------------------------------------------
-# ⛔ DO NOT quote a parallel speedup from a previous campaign. BRIEF_33 assumed 5x and printed
-# "~35 min"; docs/returns/P5.3b.md:178 had MEASURED 2.55x on 30 episodes -- and even that did not
-# hold at scale: P5.3b's mix50 five-tuple took 12.5 min against the 6 min 2.55x implied. Both the
-# per-episode rate and the 5-worker speedup are measured at G2 on this exact code path, over a
-# stated episode count, and the measured numbers are what schedules this run.
+# ⛔ DO NOT quote a parallel speedup extrapolated from a small sample. BRIEF_33 assumed 5x and
+# printed "~35 min"; AMENDMENT A applied a 30-episode 2.55x to an already-contended per-process rate
+# and printed "61-69 min". Both were wrong, in opposite directions, and neither needed estimating:
+# output/p5_3b/ holds three directly measured 500-episode five-tuple wall clocks. Re-measured from
+# the committed eval chunks (max `seconds` per five-tuple / 500 episodes):
+#
+#     mappo1000  273.8 s -> 0.548 s/episode      mix50  297.7 s -> 0.595 s/episode
+#     random     304.5 s -> 0.609 s/episode      (5 concurrent cells, 100 draws each)
+#
+# Serial reference 1.85 s/episode (P5.3b.md:178, 11.1 s / 6 episodes), so the AT-SCALE speedup is
+# 3.1x -- contention settled BETTER at 500 episodes than the 30-episode transient suggested.
+# The one unmeasured term is the observer's overhead on a DT episode; the G2 smoke measures it over
+# 10 episodes and the packet reports the run's own wall clock beside the projection.
 #
 # 3,000 episodes = 30 cells x 100 held-out draws, 6 groups of 5 concurrent cells.
 

@@ -929,7 +929,13 @@ def test_the_assembled_artifact_carries_no_verdict_and_no_threshold() -> None:
     payload = report_artifact(**_minimal_report_inputs())
     # 1.0 -> 1.1 at AMENDMENT D1: every episode row now carries A11(b)'s five quantities, which
     # is a layout change, and contract C6 requires a version bump for one.
-    assert payload["format_version"] == "p5.3b-nortg/1.1"
+    # ⚠️ AUTHORISED EDIT, BRIEF_33 AMENDMENT A1 (2026-09-10): "the implementer changes
+    # tests/test_nortg_campaign.py:932 from "p5.3b-nortg/1.1" to "p5.3b-nortg/1.2" and extends the
+    # adjacent comment with the 1.1 -> 1.2 migration line. Same class as section 2.2's two edits: a
+    # spec change ruled by the brief." 1.1 -> 1.2 adds `mechanism`,
+    # `comparisons.*.definition_difference_decomposition`, `predictions.Q1.holds_rule`,
+    # `*_limb.registered_tier` and `*_limb.as_registered`; nothing is renamed or removed.
+    assert payload["format_version"] == "p5.3b-nortg/1.2"
     assert_no_verdicts(payload)
     text = json.dumps(payload).lower()
     for token in ("equivalent", "within_delta", "equivalence margin", "delta_att", "inert"):
