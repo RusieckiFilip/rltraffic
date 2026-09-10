@@ -1684,11 +1684,25 @@ def report_artifact(
         "cells": [dict(cell) for cell in cells],
         "episodes": [dict(entry) for entry in episodes],
         "comparisons": {tier: dict(entry) for tier, entry in comparisons.items()},
+        # ⚠️ NO BARE ``att_horizon_mean`` HERE, DELIBERATELY.  The committed grids use that name
+        # for ``att_ours``; this task's primary is ``att_engine``.  A field carrying the engine
+        # mean under the committed grid's field name, beside ``"source": p4_6_grid.json``, is the
+        # BEHAVIOUR_ATT hazard exactly -- one name, two meanings, in two artifacts.  Both
+        # definitions are named explicitly and neither inherits the ambiguous name.
         "reference_dt_cells": {
             tier: {
                 "arm": f"{REFERENCE_METHOD}@{tier}",
                 "source": TIER_GRID_ARTIFACT[tier],
-                "att_horizon_mean": float(comparisons[tier]["att_dt_mean"]),
+                "att_ours_mean": float(
+                    comparisons[tier]["by_definition"]["att_ours"]["att_dt_mean"]
+                ),
+                "att_engine_mean": float(
+                    comparisons[tier]["by_definition"]["att_engine"]["att_dt_mean"]
+                ),
+                "att_ours_mean_matches": (
+                    "the committed grid's att_horizon, which IS att_ours; the engine mean has no "
+                    "committed counterpart because P4.6/P4.7 predate A11"
+                ),
                 "reused": "read, never retrained (BRIEF_30 section 6.2)",
             }
             for tier in NORTG_TIERS

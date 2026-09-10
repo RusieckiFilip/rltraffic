@@ -226,7 +226,15 @@ def test_the_dt_reference_cells_are_the_committed_ones(artifact: dict[str, Any])
     for tier in NORTG_TIERS:
         reference = artifact["reference_dt_cells"][tier]
         assert reference["source"] == TIER_GRID_ARTIFACT[tier]
-        assert reference["att_horizon_mean"] == COMMITTED_DT_ATT[tier], tier
+        # ⚠️ Named explicitly: the committed grids' ``att_horizon`` IS ``att_ours``, and this
+        # task's primary is ``att_engine``.  A bare ``att_horizon_mean`` here would carry the
+        # engine mean under the committed grid's own field name -- the BEHAVIOUR_ATT hazard.
+        assert "att_horizon_mean" not in reference, (
+            "reference_dt_cells must not reuse the committed grid's field name for a different "
+            "definition"
+        )
+        assert reference["att_ours_mean"] == COMMITTED_DT_ATT[tier], tier
+        assert reference["att_engine_mean"] != reference["att_ours_mean"], tier
 
         grid = json.loads((DATA / TIER_GRID_ARTIFACT[tier]).read_text(encoding="utf-8"))
         assert grid["cells"][f"dt@{tier}"]["att_horizon_mean"] == COMMITTED_DT_ATT[tier], tier

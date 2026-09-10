@@ -889,6 +889,13 @@ def _minimal_report_inputs() -> dict[str, Any]:
     comparisons = _comparisons({tier: -1.0 for tier in NORTG_TIERS})
     for tier in comparisons:
         comparisons[tier]["per_seed"] = {"seeds_reversed": 0, "n_seeds": 5, "per_seed": {}}
+        # The fixture must carry the shape production carries.  A fixture that supplies fields the
+        # real path does not (and omits ones it does) is what let the cell["seed"] defect through
+        # to a two-hour campaign; ``by_definition`` is D2's shape and belongs here too.
+        comparisons[tier]["by_definition"] = {
+            d: {**comparisons[tier], "att_dt_mean": 100.0 + i}
+            for i, d in enumerate(ATT_DEFINITIONS)
+        }
     return {
         "cells": cells,
         "episodes": [],
