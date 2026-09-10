@@ -1,0 +1,2272 @@
+"""P5.3b -- the ``dt_nortg`` campaign: does removing the return prompt cost anything?
+
+Artifact format version: ``p5.3b-nortg/1.1`` -- ``docs/data/p5_3b_nortg.json``.
+**1.0 -> 1.1 (2026-09-09, AMENDMENT D1):** every episode row gained ``PREREGISTRATION`` A11(b)'s
+five quantities -- ``att_ours``, ``att_engine``, ``entered``, ``created``, ``never_entered`` -- read
+from the live engine at collection time.  A layout change, so contract C6 requires the bump.
+
+The question, and why it is not the one P5.3 was created to ask
+---------------------------------------------------------------
+P5.3a settled that the return prompt is a **strong lever on the policy** (499 of 500 held-out
+episodes move between targets ``0`` and ``-13000``) and a **weak one on mean quality** (+0.9026).
+So the knob exists.  What is unproven is that it is worth anything, and that is what this campaign
+measures: **fifteen ``dt_nortg`` cells trained with ``rtg_mode="zero"``**, paired against the
+committed ``dt`` column of P4.6/P4.7 over the same corpus, seeds, budget and held-out draws.
+
+Conventions this module is bound by, stated because a reader must not have to infer them
+-----------------------------------------------------------------------------------------
+*Alignment* is contract C6's, unchanged; nothing here re-derives it.
+
+*The arm key is* ``dt_nortg@<tier>``, produced by :func:`nortg_arm_key` and **not** by
+``method_tier_grid.arm_key``, which validates against ``METHODS``.  ``BRIEF_30`` section 6.5 forbids
+adding to ``METHODS`` because ``method_tier_grid.py:1701`` records that ``grid_comparisons`` emits
+pairs in that order, so an entry would change the comparison enumeration of two merged artifacts.
+``assert_cell_complete``, ``cell_stats`` and ``paired_comparison`` do not validate against
+``METHODS`` and are therefore reused unchanged.
+
+*The paired protocol is the repo's, imported and CALLED* -- ``dt_gate._paired``,
+``dt_gate.wilcoxon_signed_rank`` and ``offline_baselines.paired_comparison``.
+``docs/reviews/P5.2.md`` **MJ-4** found a packet whose docstring claimed exactly this reuse while
+*"none of which was imported or called"*; three tests here fail if any of the three calls is
+removed.  **Both arms are sorted by ``(seed, draw_id)`` before pairing**, so the float reduction
+order inside ``_per_draw_means`` is fixed and an independent recomputation can assert exact
+equality rather than a tolerance.
+
+*The probe is P5.3a's*.  ``BRIEF_30`` section 4.4 asks for ``offline/rtg_ablation.py probe``; that
+CLI resolves checkpoints through ``_CHECKPOINT_LAYOUT``, keyed by tier, and cannot address a
+``dt_nortg`` file.  :func:`probe_nortg_cell` calls ``rtg_ablation.probe_cell`` directly with an
+explicit path -- the same instrument one layer down, with ``offline/rtg_ablation.py`` unmodified
+(``docs/plans/p5.3b.md`` section 8 F2, confirmed by ``BRIEF_30`` AMENDMENT A4).
+
+⛔ *No equivalence threshold and no equivalence verdict.*  ``PREREGISTRATION`` A7 withdrew the
+per-tier delta rule on 2026-08-25 because it spanned eleven orders of magnitude and could not return
+one of its answers on part of its domain.  This module reports the paired difference, its 95 % CI,
+the per-seed reversals and the tier's own ``dt`` ATT beside them.  **A CI containing 0 is a failure
+to reject, never a demonstration of equivalence** -- and that disclaimer is emitted, not merely
+implied.  :func:`assert_no_verdicts` re-checks the payload.
+
+*Division of validation labour.*  :func:`report_artifact` validates the **design** -- the tier set,
+the fifteen cells, arm validity, verdict-freedom -- and treats ``episodes`` as an opaque payload.
+The **data** is validated by ``main``, which calls ``assert_cell_complete`` for every cell before a
+report is assembled, and by ``tests/test_p5_3b_artifact.py``, which pins the shipped bytes.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import time
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+import torch
+
+from offline.dataset import NormalizationStats
+from offline.dt_gate import (
+    BATCH_SIZE,
+    HELD_OUT_DRAWS,
+    TRAINING_SEEDS,
+    EpisodeResult,
+    _paired,
+    evaluate_arm,
+    runtime_provenance,
+    stack_dataset,
+    train_dt,
+    wilcoxon_signed_rank,
+    write_json_atomic,
+)
+from offline.method_tier_grid import (
+    CONTEXT_LENGTH,
+    DECLARED_GRADIENT_STEPS,
+    TIERS,
+    TierSpec,
+    _component_streams,
+    _dt_factory,
+    assert_cell_complete,
+    assert_declaration_matches_corpus,
+    assert_no_verdicts,
+    assert_reused_cells_reproduce,
+    assert_reused_checkpoint_identity,
+    canonical_digest_of,
+    cell_stats,
+    env_settings_for_tiers,
+    file_sha256,
+    measurement_commits,
+    tier_dataset,
+    tier_dirs,
+    tier_spec,
+    training_streams,
+)
+from offline.offline_baselines import (
+    filter_stacked_to_streams,
+    paired_comparison,
+    pin_torch_threads,
+    thread_regime,
+)
+from offline.admission_probe import AdmissionEpisode, created_from_flow, probe_episode
+from offline.rtg_ablation import INTERVENTION_KEYS, probe_cell
+
+__all__ = [
+    "ARTIFACT_FORMAT_VERSION",
+    "COMPARED_PAYLOAD_KEYS",
+    "CONTROL_CELL",
+    "CONTROL_COMMITTED_DIGEST",
+    "EXCLUDED_PAYLOAD_KEYS",
+    "FENCED_OUTPUT_DIRS",
+    "GATE_1B_CELLS",
+    "NORTG_METHOD",
+    "NORTG_RTG_MODE",
+    "NORTG_TIERS",
+    "TIER_GRID_ARTIFACT",
+    "TrainingInputs",
+    "assert_arm_validity",
+    "assert_committed_dt_agrees_across_grids",
+    "assert_payload_matches_committed",
+    "assert_reused_dt_identity",
+    "assert_writable",
+    "committed_dt_episodes",
+    "evaluate_cell",
+    "main",
+    "nortg_arm_key",
+    "paired_stats",
+    "per_seed_differences",
+    "probe_nortg_cell",
+    "report_artifact",
+    "row_b_pooled_scaled",
+    "score_q1",
+    "score_q2",
+    "score_q3",
+    "select_tiers",
+    "train_cell",
+    "training_inputs",
+]
+
+ARTIFACT_FORMAT_VERSION = "p5.3b-nortg/1.1"
+
+#: ``PREREGISTRATION`` A11(b), via ``BRIEF_30`` AMENDMENT D1: every reported ATT cell carries these
+#: five, **at collection time, unconditionally** -- no threshold, no verdict, no condition.
+#: ⚠️ They are read from the live engine between the rollout and ``env.close()``, which is why they
+#: cannot be bolted on afterwards: P8.4b spent 38,500 episodes and ~3.2 h re-deriving cells that
+#: were collected without them, and clearing that backlog is what P8.4 existed for.
+ADMISSION_FIELDS: tuple[str, ...] = (
+    "att_ours", "att_engine", "entered", "created", "never_entered",
+)
+
+#: ``BRIEF_30`` D2: Rule R has fired, so this is settled before the campaign starts.
+#: ``att_engine`` is PRIMARY on hz1x1; ``att_ours`` is reported beside it in every table.
+ATT_DEFINITIONS: tuple[str, ...] = ("att_engine", "att_ours")
+PRIMARY_ATT = "att_engine"
+
+#: The scenario label P8.4a's artifacts use, so a P5.3b row joins them without a translation table.
+PROBE_SCENARIO = "hz1x1"
+
+#: P8.4b's per-episode re-derivation, under ``--output-root``.  ``BRIEF_30`` E1: *"read the column
+#: for the PAIRING"* -- it re-derived every ``dt`` cell of these three tiers at FULL coverage
+#: (100 draws x 5 seeds), carrying both ATT definitions and all five A11(b) quantities, so the
+#: paired contrast needs no re-roll of the ``dt`` arm.
+#: ⚠️ I recommended re-rolling all 15 cells before measuring this. The repo had already done it.
+REDERIVATION_DIRNAME = "p8_4b_rederivation"
+REDERIVED_CELL_TEMPLATE = "cell_{scenario}_{method}_at_{tier}_seed{seed}_draw{draw}.json"
+
+#: This task's arm.  It is NOT added to ``method_tier_grid.METHODS`` -- see the module docstring.
+NORTG_METHOD = "dt_nortg"
+REFERENCE_METHOD = "dt"
+
+#: The ablation, one mode only.  ``rtg_shuffled`` remains unregistered (``BRIEF_30`` section 6.3).
+NORTG_RTG_MODE = "zero"
+
+#: The headline tier of ``BRIEF_28`` section 9's rule; clause (i).
+DECLARED_TIER = "mappo1000"
+
+#: The rule's output, evaluated on P5.3a's row B before any P5.3b number existed.  Re-derived from
+#: ``docs/data/p5_3a_rtg_probe.json`` by :func:`select_tiers` and asserted against this constant by
+#: ``tests/test_nortg_campaign.py`` and by ``main`` at run time, so it is a checked answer rather
+#: than a remembered one.
+NORTG_TIERS: tuple[str, ...] = ("mappo1000", "mix50", "random")
+
+#: Gate 1b (``BRIEF_30`` AMENDMENT A1): one committed ``dt`` cell re-rolled per tier, because the
+#: three ``dt`` columns have three different provenances -- ``output/p4_dt/`` (P4's reused column,
+#: in **no** integrity manifest, ``DEFERRED`` 56), ``output/p4_7/``, ``output/p4_6/``.
+GATE_1B_CELLS: tuple[tuple[str, int], ...] = tuple((tier, 101) for tier in NORTG_TIERS)
+
+#: Gate 2's control cell (``BRIEF_30`` section 4.1).  **Not ``random``**: its conditioned DT is
+#: already RTG-inert at the argmax, so a control there would pass whether or not ``rtg_mode``
+#: reached the trainer.  ``mappo500`` over ``maxpressure`` because P5.3a measured its ``zero`` flip
+#: rate at 0.002361-0.005417 against 0.000139-0.000278; and it is not a campaign tier.
+CONTROL_CELL: tuple[str, int] = ("mappo500", 101)
+CONTROL_COMMITTED_DIGEST = "5d98d5351198c45054cce1e38b810dabd789708e71e3563e9428d37a49e0e563"
+
+#: AMENDMENT A5.  ``canonical_digest_of`` hashes ``payload["model"]`` alone, so ``target_rtg`` and
+#: ``rtg_scale`` -- **which are the prompt** -- are invisible to it.  Gate 2 compares every other
+#: key.  ``provenance`` is excluded because it legitimately differs (seed, timings, device, commit).
+COMPARED_PAYLOAD_KEYS: tuple[str, ...] = (
+    "config",
+    "format_version",
+    "intersection_ids",
+    "normalise",
+    "rtg_scale",
+    "scenario_id",
+    "stats",
+    "target_rtg",
+)
+EXCLUDED_PAYLOAD_KEYS: tuple[str, ...] = ("model", "provenance")
+
+#: 🚨 **A5 versus the repo, and the repo wins (CLAUDE.md section 2).**  AMENDMENT A5 asks for the
+#: whole payload except ``model`` and ``provenance`` to be *equal*.  It cannot be, and the reason is
+#: **P5.3a's merged change, not this task's**: ``DTConfig.to_json_obj`` emits ``rtg_mode``
+#: unconditionally, so a checkpoint written today carries a **9**-key config where the committed
+#: P4.6 one carries **8** (measured: the committed ``mappo500`` seed 101 config is exactly
+#: ``context_length, d_model, dropout, max_ep_len, n_actions, n_head, n_layer, state_dim``).
+#: ``BRIEF_30`` section 6.8 and ``docs/plans/p5.3b.md`` section 8 F4 both predicted it.
+#:
+#: The allowance below is **narrower than skipping ``config``, not wider than comparing it**: every
+#: shared key must be equal, the candidate may not LOSE a key, it may gain only this one, and the
+#: value it gains must be the pre-P5.3a behaviour.  A schema fact becomes a checked claim.
+CONFIG_KEYS_ADDED_AFTER_P4: Mapping[str, Any] = {"rtg_mode": "conditioned"}
+
+#: The ONLY entries under ``output/`` this task may write.  Everything else is refused by
+#: :func:`assert_writable`, including directories that do not exist yet -- see its docstring for
+#: why the rule is default-deny rather than an allow-list.
+ALLOWED_OUTPUT_ENTRIES: tuple[str, ...] = ("p5_3b", "SHA256SUMS_p5_3b.txt")
+
+#: Directories under ``output/`` known to belong to a merged campaign, as of 2026-09-09.  ⚠️ This
+#: is now a **descriptive record used only to sharpen an error message**, NOT the rule: it went
+#: stale within twelve days (``p8_4a``, ``p8_4b_g0``, ``p8_4b_rederivation``, ``experiments``), and
+#: a fence that depends on a list somebody has to remember to update is the defect, not the list.
+FENCED_OUTPUT_DIRS: tuple[str, ...] = (
+    "p4_3", "p4_4", "p4_5", "p4_6", "p4_7", "p4_dt", "p4_probe",
+    "p5_1", "p5_2", "p5_3a", "p7_0", "p8_3", "checkpoints",
+    "checkpoints.pre_c8_migration", "p8_4a", "p8_4b_g0", "p8_4b_rederivation", "experiments",
+)
+
+#: Which merged grid holds each tier's committed ``dt`` column.
+TIER_GRID_ARTIFACT: Mapping[str, str] = {
+    "mappo1000": "p4_6_grid.json",
+    "mix50": "p4_7_grid.json",
+    "random": "p4_6_grid.json",
+}
+
+#: Which merged training record holds each tier's committed ``dt`` canonical digest.  ``mappo1000``
+#: has **none**: ``p4_training.json`` never carried one (``method_tier_grid.py:1233-1235``), which
+#: is why its identity goes through ``assert_reused_checkpoint_identity``'s file-sha256 route.
+TIER_TRAINING_ARTIFACT: Mapping[str, str | None] = {
+    "mappo1000": None,
+    "mix50": "p4_7_training.json",
+    "random": "p4_6_training.json",
+}
+
+TIER_CHECKPOINT_TEMPLATE: Mapping[str, str] = {
+    "mappo1000": "p4_dt/dt_seed{seed}.pt",
+    "mix50": "p4_7/checkpoints/mix50_dt_seed{seed}.pt",
+    "random": "p4_6/checkpoints/random_dt_seed{seed}.pt",
+}
+
+#: The integrity manifest covering each tier's ``dt`` checkpoints, at consumption
+#: (``BRIEF_27`` B3(a)).  ⚠️ ``mappo1000`` has **none** -- ``DEFERRED`` 56.
+TIER_MANIFEST: Mapping[str, str | None] = {
+    "mappo1000": None,
+    "mix50": "SHA256SUMS_p4_7.txt",
+    "random": "SHA256SUMS_p4_6.txt",
+}
+
+SCENARIO_KEY = "cityflow1x1"
+SCENARIO_ID = "cityflow1x1"
+ENGINE_SEED = 1000
+
+_LIMITATIONS: tuple[str, ...] = (
+    "A null on a tier is not 'the prompt is useless'. It is 'removing the prompt did not change "
+    "mean held-out ATT on this corpus, at this budget, at 5 seeds, on this tier'. A 95 % CI "
+    "containing 0 is a failure to reject, never a demonstration of equivalence.",
+    "The three tiers differ in more than return spread: composition, state coverage and data "
+    "quality move together. Row B is an axis we can measure, not one we can isolate, so Q1's "
+    "ordering is consistent with hypothesis C4 rather than evidence for it.",
+    "random's DT is 4x worse in ATT than the other two (420.3764 against 104.9558 and 107.7026). A "
+    "difference measured there is not comparable in magnitude to one measured on mappo1000.",
+    "mix50's NormalizationStats is fitted on the UNION of all three mixtures' six directories and "
+    "is identical for mix33, mix50 and mix67: count 216000, raw std 13155.3172. That is how P4.7 "
+    "trained it, so reusing it is consistent -- but the summary is not a property of mix50.",
+    "Q1 is scored on the RAW ATT scale, which is the conservative choice: if paired differences "
+    "scaled with baseline ATT, random would show the largest raw difference, which is the opposite "
+    "of what Q1 predicts. The scale-normalised column is a reading aid and is not a scored claim.",
+)
+
+
+# ----------------------------------------------------------------------
+# Identity, and the output fence
+# ----------------------------------------------------------------------
+
+
+def nortg_arm_key(tier: str) -> str:
+    """``"dt_nortg@<tier>"``, refusing a tier this task does not declare."""
+    if str(tier) not in TIERS:
+        raise ValueError(f"unknown tier {tier!r}; the platform declares {sorted(TIERS)}")
+    return f"{NORTG_METHOD}@{tier}"
+
+
+def assert_writable(path: str | Path) -> Path:
+    """DEFAULT-DENY: refuse anything under an ``output/`` that is not this task's own.
+
+    A path is allowed when the component after ``output`` is in :data:`ALLOWED_OUTPUT_ENTRIES`;
+    **everything else under ``output/`` is refused**, including directories that do not exist yet.
+
+    🚨 **Inverted from an allow-list on 2026-09-09, and the reason is a defect this fence had.**
+    Amendment C's pre-flight measured ``output/p8_4b_rederivation`` as **NOT fenced** -- the
+    directory holding P8.4b's 38,502 re-derived cells, which is the column this campaign now reads
+    for its pairing.  It, ``p8_4a``, ``p8_4b_g0`` and ``experiments`` all landed on ``main`` after
+    :data:`FENCED_OUTPUT_DIRS` was written, and the list did not follow.  **That is the same shape
+    as AMENDMENT D1: the tree moved and a constant did not.**  Naming the four would have closed
+    four instances; refusing everything that is not ours closes the class.
+
+    Matching is on whole **path components**, never on a string prefix: a prefix test makes
+    ``output/p5_3a`` and ``output/p5_3b`` indistinguishable.  ``output/SHA256SUMS_p5_3b.txt`` is
+    allowed explicitly because it sits directly in ``output/`` rather than in a subdirectory, and a
+    default-deny rule that forgot it would refuse the campaign's own last step.  Every trap here is
+    covered by a test.  P5.2's BL-1 destroyed six irrecoverable training records in an un-backed-up
+    tree; ``output/`` is gitignored and has no backup.
+    """
+    target = Path(path)
+    parts = Path(target).resolve().parts
+    for index, part in enumerate(parts[:-1]):
+        head = parts[index + 1]
+        if part == "output" and head not in ALLOWED_OUTPUT_ENTRIES:
+            known = " (a merged campaign)" if head in FENCED_OUTPUT_DIRS else ""
+            raise ValueError(
+                f"{target}: output/{head}{known} belongs to another campaign and is read-only "
+                f"here; P5.3b writes only {list(ALLOWED_OUTPUT_ENTRIES)} (BRIEF_30 section 6.6). "
+                "This fence is default-deny, so a directory added to output/ after this code was "
+                "written is protected without being named"
+            )
+    return target
+
+
+# ----------------------------------------------------------------------
+# The tier rule, re-evaluated rather than remembered
+# ----------------------------------------------------------------------
+
+
+def row_b_pooled_scaled(probe_artifact: Mapping[str, Any]) -> dict[str, float]:
+    """Row B's pooled between-episode sd of the **scaled** RTG, per tier, from P5.3a's artifact.
+
+    Row B and not ``RtgSummary.std``: the marginal statistic is 65-93 % within-episode ramp on the
+    single-policy tiers and is fitted on the wrong population entirely for the mixtures
+    (``docs/plans/p5.3a.md`` section 2, and ``docs/returns/P5.3a.md``'s hand-forward).
+    """
+    spread = probe_artifact.get("tables", {}).get("spread")
+    if not isinstance(spread, Mapping) or not spread:
+        raise ValueError(
+            "the P5.3a probe artifact carries no tables.spread block, so row B cannot be read and "
+            "the tier rule cannot be evaluated"
+        )
+    pooled: dict[str, float] = {}
+    for tier, entry in spread.items():
+        try:
+            pooled[str(tier)] = float(entry["between_episode_rtg_scaled"]["pooled"])
+        except (KeyError, TypeError) as error:
+            raise ValueError(f"{tier}: row B is missing from the spread table ({error})") from error
+    return pooled
+
+
+def select_tiers(probe_artifact: Mapping[str, Any]) -> dict[str, Any]:
+    """``BRIEF_28`` section 9's rule, evaluated on row B.  Registered 2026-08-24, before the data.
+
+    *"(i) ``mappo1000``, the headline tier; (ii) the tier with the largest measured between-episode
+    scaled-RTG sd; (iii) the tier with the smallest.  If (ii) or (iii) is ``mappo1000``, take the
+    next one in that direction."*  Ties break by tier name ascending, declared here because P5.2's
+    **MJ-5** found three reported integers resting on an undeclared tie-break.
+    """
+    pooled = row_b_pooled_scaled(probe_artifact)
+    order = sorted(pooled, key=lambda tier: (pooled[tier], tier))
+    if len(order) < 3:
+        raise ValueError(f"the rule needs at least three tiers, got {order}")
+
+    fallback_fired = False
+    widest = order[-1]
+    if widest == DECLARED_TIER:
+        widest = order[-2]
+        fallback_fired = True
+    narrowest = order[0]
+    if narrowest == DECLARED_TIER:
+        narrowest = order[1]
+        fallback_fired = True
+
+    values = sorted(pooled.values())
+    return {
+        "rule": (
+            "BRIEF_28 section 9, registered 2026-08-24 before any spread number existed: (i) the "
+            "declared headline tier, (ii) the largest between-episode scaled-RTG sd, (iii) the "
+            "smallest; if (ii) or (iii) is the headline tier, take the next one in that direction"
+        ),
+        "axis": "row B: pooled between-episode sd of the scaled RTG, over the declared 200-stream "
+                "training set",
+        "source": "docs/data/p5_3a_rtg_probe.json tables.spread.<tier>."
+                  "between_episode_rtg_scaled.pooled",
+        "row_b_pooled_scaled": dict(sorted(pooled.items())),
+        "declared": DECLARED_TIER,
+        "widest": widest,
+        "narrowest": narrowest,
+        "fallback_fired": fallback_fired,
+        "tie_break": "tier name ascending",
+        "ties_present": len(set(values)) != len(values),
+        "spread_ratio_widest_over_narrowest": pooled[widest] / pooled[narrowest],
+        "tiers": sorted({DECLARED_TIER, widest, narrowest}),
+    }
+
+
+def assert_selection_still_holds(probe_artifact: Mapping[str, Any]) -> dict[str, Any]:
+    """The registered tier set must still be what the rule returns.  Checked at run time."""
+    selection = select_tiers(probe_artifact)
+    if tuple(selection["tiers"]) != NORTG_TIERS:
+        raise ValueError(
+            f"the tier rule now returns {selection['tiers']} but this task is registered for "
+            f"{list(NORTG_TIERS)}; a registration may not follow its inputs silently"
+        )
+    return selection
+
+
+# ----------------------------------------------------------------------
+# Training: the same inputs method_tier_grid._run_train builds
+# ----------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class TrainingInputs:
+    """Everything ``train_dt`` needs for one tier, built exactly as ``_run_train`` builds it."""
+
+    tier: str
+    spec: TierSpec
+    group: tuple[int, int]
+    batch: dict[str, torch.Tensor]
+    stats: NormalizationStats
+    scenario_id: str
+    provenance: dict[str, Any]
+    declared: Mapping[str, Any]
+    n_streams: int
+    n_windows: int
+
+
+def training_inputs(tier: str, corpus_root: str | Path) -> TrainingInputs:
+    """One tier's training batch, by ``method_tier_grid._run_train``'s own recipe.
+
+    ⚠️ **This function is validated by Gate 2, not by a unit test.**  The control cell retrains
+    through these inputs and must reproduce ``p4_6_training.json``'s committed canonical digest; a
+    batch that differed from ``_run_train``'s in any way would not reproduce it.  That coupling is
+    why the two share this one definition instead of each carrying their own.
+    """
+    spec = tier_spec(tier)
+    dataset = tier_dataset(spec, corpus_root)
+    stacked = stack_dataset(dataset)
+    group = next(iter(dataset.groups))
+    scenario_id = dataset.episode_records[0].scenario_id
+    components = (
+        _component_streams(spec, corpus_root, context_length=CONTEXT_LENGTH)
+        if spec.subsample == "mixture"
+        else None
+    )
+    selected = training_streams(spec, dataset, component_streams=components)
+    # The prompt, the RTG scale and the reward scale are computed over the TRAINING SET, so the
+    # declaration is checked after the selection and never before it (BRIEF_17 section 11, A4).
+    declared = assert_declaration_matches_corpus(spec, selected)
+    batch = filter_stacked_to_streams(dataset, stacked, selected)
+    provenance = {
+        "tier": spec.tier,
+        "dataset_dirs": [str(d) for d in tier_dirs(spec, corpus_root)],
+        "training_draw_ids": list(dataset.stats.draw_ids),
+        "scenario_id": scenario_id,
+        "statistics_digest": None,
+        "subsample": spec.subsample,
+        "training_streams": len(selected),
+    }
+    from offline.method_tier_grid import statistics_digest
+
+    provenance["statistics_digest"] = statistics_digest(dataset)
+    return TrainingInputs(
+        tier=spec.tier,
+        spec=spec,
+        group=(int(group[0]), int(group[1])),
+        batch=batch,
+        stats=dataset.stats,
+        scenario_id=scenario_id,
+        provenance=provenance,
+        declared=declared,
+        n_streams=len(selected),
+        n_windows=int(batch["state"].shape[0]),
+    )
+
+
+def train_cell(
+    tier: str,
+    seed: int,
+    *,
+    corpus_root: str | Path,
+    checkpoint_dir: str | Path,
+    device: str | None = None,
+    steps: int = DECLARED_GRADIENT_STEPS,
+    log_every: int = 0,
+    inputs: TrainingInputs | None = None,
+) -> dict[str, Any]:
+    """Train one ``dt_nortg`` cell.  ``rtg_mode="zero"`` is the whole intervention."""
+    from agent.utils.utils import Utils
+
+    prepared = inputs if inputs is not None else training_inputs(tier, corpus_root)
+    directory = assert_writable(checkpoint_dir)
+    directory.mkdir(parents=True, exist_ok=True)
+    destination = assert_writable(directory / f"{tier}_{NORTG_METHOD}_seed{int(seed)}.pt")
+    resolved = torch.device(device) if device else Utils.resolve_device(None)
+
+    started = time.time()
+    result = train_dt(
+        prepared.batch,
+        state_dim=prepared.group[0],
+        n_actions=prepared.group[1],
+        seed=int(seed),
+        declared_gradient_steps=int(steps),
+        raise_to=None,
+        context_length=CONTEXT_LENGTH,
+        batch_size=BATCH_SIZE,
+        device=resolved,
+        checkpoint_path=destination,
+        stats=prepared.stats,
+        scenario_id=prepared.scenario_id,
+        target_rtg=float(prepared.spec.target_rtg),
+        rtg_scale=float(prepared.spec.rtg_scale),
+        provenance={**prepared.provenance, "rtg_mode": NORTG_RTG_MODE, "campaign": "p5.3b"},
+        log_every=int(log_every),
+        rtg_mode=NORTG_RTG_MODE,
+    )
+    seconds = time.time() - started
+    payload = torch.load(destination, map_location="cpu", weights_only=False)
+    if payload["config"].get("rtg_mode") != NORTG_RTG_MODE:
+        raise ValueError(
+            f"{destination}: the checkpoint records rtg_mode "
+            f"{payload['config'].get('rtg_mode')!r}, not {NORTG_RTG_MODE!r}; rtg_mode did not "
+            "reach the training path and the arm would be indistinguishable from dt"
+        )
+    return {
+        "tier": tier,
+        "method": NORTG_METHOD,
+        "seed": int(seed),
+        "rtg_mode": NORTG_RTG_MODE,
+        "gradient_steps": int(result.gradient_steps),
+        "declared_gradient_steps": int(steps),
+        "plateaued": bool(result.plateaued),
+        "final_loss": float(result.losses[-1]),
+        "seconds": float(seconds),
+        "train_dt_seconds": float(result.seconds),
+        "checkpoint": str(destination),
+        "canonical_digest": canonical_digest_of(destination),
+        "file_sha256": file_sha256(destination),
+        "target_rtg": float(prepared.spec.target_rtg),
+        "rtg_scale": float(prepared.spec.rtg_scale),
+        "training_streams": prepared.n_streams,
+        "training_windows": prepared.n_windows,
+        "thread_regime": thread_regime(),
+    }
+
+
+# ----------------------------------------------------------------------
+# Evaluation, through P4.6's own instrument
+# ----------------------------------------------------------------------
+
+
+def evaluate_cell(
+    tier: str,
+    seed: int,
+    *,
+    checkpoint: str | Path,
+    corpus_root: str | Path,
+    draws_root: str | Path,
+    engine_seed: int = ENGINE_SEED,
+    device: str | None = None,
+    arm: str | None = None,
+    draws: Sequence[int] | None = None,
+) -> list[AdmissionEpisode]:
+    """Roll one cell over the held-out pool, emitting **all five** A11(b) quantities per episode.
+
+    ``_dt_factory`` is P4.6's own DT evaluation path -- load, **then** apply the declared target,
+    then act greedily -- reused rather than re-implemented, because ``DTAgent.load`` overwrites
+    ``_target_rtg`` from the payload and a target passed to the constructor is silently discarded
+    (``offline/rtg_calibration.py``'s ``agent_with_target``).  The declared ``target_rtg`` is the
+    tier's own, exactly as the ``dt`` arm used: the ablation is in the weights, not in the prompt
+    handed to the harness, and Q3 proves the model ignores it.
+
+    ⭐ **AMENDMENT D1 -- why this is ``probe_episode`` and not ``dt_gate.evaluate_arm``.**
+    ``read_admission_at_horizon`` must run **between** ``horizon_rollout`` and ``env.close()``, and
+    ``evaluate_arm`` closes the env inside its own ``finally``, so the five quantities cannot be
+    bolted on from outside it.  ``admission_probe.probe_episode`` is the merged, reviewed drop-in:
+    its docstring records that its body *"mirrors ``dt_gate.evaluate_arm``'s loop exactly -- same
+    ``EnvSpec``, same ``horizon_rollout(env, factory(env), episodes=1, seed=engine_seed)``, same
+    ``env.close()`` in a ``finally``"* with the reads inserted.
+
+    🔒 **That the swap is inert is not asserted here, it is MEASURED by Gate 1b**: the reused ``dt``
+    cells are re-rolled through this very function and must reproduce ``p4_6_grid.json`` /
+    ``p4_7_grid.json``'s committed ``att_horizon`` **bit-exactly** under ``att_ours``.  If the swap
+    moved a number, that gate goes red before any new cell is trusted.
+
+    ``created`` is a property of the draw's flow file, not of the policy, so it is computed once per
+    draw and reused across seeds -- the same convention ``admission_probe.probe_cell`` uses, and
+    what makes "identical in every cell" checkable at report time.
+    """
+    from offline.materialise_draws import draw_config_path
+
+    spec = tier_spec(tier)
+    settings = env_settings_for_tiers([spec], corpus_root)
+    horizon = int(settings["max_steps"]) * int(settings["delta_time"])
+    factory = _dt_factory(
+        str(checkpoint), DECLARED_GRADIENT_STEPS, float(spec.target_rtg), device
+    )
+    resolved_arm = arm or nortg_arm_key(tier)
+    method, _, _ = resolved_arm.partition("@")
+
+    produced: list[AdmissionEpisode] = []
+    for draw_id in list(draws if draws is not None else HELD_OUT_DRAWS):
+        config = Path(draw_config_path(SCENARIO_KEY, int(draw_id), out_root=draws_root))
+        produced.append(
+            probe_episode(
+                scenario=PROBE_SCENARIO,
+                tier=tier,
+                method=method,
+                arm=resolved_arm,
+                seed=int(seed),
+                draw_id=int(draw_id),
+                config_path=config,
+                env_settings=settings,
+                scenario_id=SCENARIO_ID,
+                choose_action_factory=factory,
+                engine_seed=int(engine_seed),
+                created=created_from_flow(config.parent / "flow.json", horizon_seconds=horizon),
+            )
+        )
+    return produced
+
+
+# ----------------------------------------------------------------------
+# The reused dt column
+# ----------------------------------------------------------------------
+
+
+def assert_recordable_tree(allow_dirty: bool = False) -> dict[str, Any]:
+    """Refuse to write a chunk from a tree whose provenance would be false (AMENDMENT C2).
+
+    ``runtime_provenance`` stamps every chunk with ``git rev-parse HEAD``.  On a modified tree that
+    hash names a commit that did **not** produce the bytes, and ``measurement_commits`` then carries
+    it into the artifact -- the one field ``DEFERRED`` 39 exists to make trustworthy.  It is not
+    hypothetical: P5.3b's own first four chunks recorded ``f115b7ce`` while one of them contained a
+    field that commit does not define.
+
+    **Fails closed.**  ``git_dirty is None`` means git could not be asked, and *cannot determine* is
+    refused for the same reason *dirty* is.  ``allow_dirty=True`` is an explicit operator decision
+    and is **recorded in the chunk**, so a permitted dirty run never looks like a clean one.
+    """
+    provenance = runtime_provenance()
+    dirty = provenance.get("git_dirty")
+    if dirty is not False and not allow_dirty:
+        state = "modified" if dirty else "of undetermined cleanliness"
+        raise ValueError(
+            f"refusing to write a chunk from a tree that is {state}: the chunk would record "
+            f"git_commit {provenance.get('git_commit', '')[:8]!r}, which did not produce these "
+            "bytes, and measurement_git_commits would carry it into the artifact. Commit or stash "
+            "first, or pass --allow-dirty to record the run as dirty on purpose"
+        )
+    return {
+        "git_commit": provenance.get("git_commit"),
+        "git_dirty": dirty,
+        "allow_dirty_used": bool(allow_dirty and dirty is not False),
+    }
+
+
+def assert_training_run_matches(
+    training: Mapping[str, Any], tier: str, seed: int
+) -> dict[str, Any]:
+    """The chunk must describe THIS tier and seed, and its checkpoint must be the weights it recorded.
+
+    AMENDMENT C3 + C4.  ``_run_probe`` previously did neither, while ``_run_evaluate`` checked the
+    digest and neither checked the tier.  The reviewer demonstrated both: a chunk pointing at
+    another seed's file was evaluated as if it were this one's, and ``train_mappo1000.json`` copied
+    to ``train_mix50.json`` produced episodes labelled ``dt_nortg@mix50`` from a ``mappo1000``
+    checkpoint, exit 0, every downstream assertion passing.
+    """
+    recorded = str(training.get("tier", ""))
+    if recorded != str(tier):
+        raise ValueError(
+            f"the training chunk describes tier {recorded!r} but this invocation is for "
+            f"{tier!r}; a chunk that does not describe its own subject would label another "
+            "tier's checkpoint with this tier's arm key"
+        )
+    runs = [run for run in training.get("runs", []) if int(run["seed"]) == int(seed)]
+    if len(runs) != 1:
+        raise ValueError(
+            f"{tier} seed {seed}: the training chunk records {len(runs)} runs, not 1"
+        )
+    run = runs[0]
+    digest = canonical_digest_of(run["checkpoint"])
+    if digest != run["canonical_digest"]:
+        raise ValueError(
+            f"{run['checkpoint']}: canonical digest {digest} is not the trained "
+            f"{run['canonical_digest']}; this is not the model the training chunk records"
+        )
+    return run
+
+
+def assert_probe_cell_is_ablated(cell: Mapping[str, Any]) -> Mapping[str, Any]:
+    """One probe cell must show the ablation took.  Raises where the cell is MEASURED.
+
+    AMENDMENT C3.  ``_run_probe`` used to print the worst flip rate and write the chunk regardless;
+    the reviewer demonstrated ``max flip_rate 0.004722``, exit 0, against a **conditioned**
+    checkpoint.  🚨 **The driver skips a tier whose probe chunk exists, so a bad chunk survived
+    every restart and the only signal arrived two stages later. A gate that reports at the end of a
+    two-hour run is not a gate.**
+
+    This is the single definition of "this cell is a valid ablation"; :func:`assert_arm_validity`
+    calls it per cell rather than repeating the checks, because two copies would drift and the
+    drift would be invisible -- one copy runs on a live tree, the other on committed bytes.
+    """
+    where = f"{cell['tier']}@{cell['seed']}"
+    interventions = cell["interventions"]
+    if sorted(interventions) != sorted(INTERVENTION_KEYS):
+        raise ValueError(
+            f"{where}: the twelve declared interventions are {sorted(INTERVENTION_KEYS)}, got "
+            f"{sorted(interventions)}; the grid may not grow after the fact"
+        )
+    if str(cell.get("rtg_mode")) != NORTG_RTG_MODE:
+        raise ValueError(
+            f"{where}: the checkpoint records rtg_mode {cell.get('rtg_mode')!r}, so rtg_mode "
+            f"did not reach the training path and this arm is not the ablation it claims"
+        )
+    for key, values in interventions.items():
+        flip = float(values["flip_rate"])
+        if flip != 0.0:
+            raise ValueError(
+                f"{where} intervention {key}: flip_rate is {flip!r}, so this checkpoint "
+                "did not ignore the return token it was never trained with; rtg_mode did not "
+                "reach the training path"
+            )
+    return cell
+
+
+def admission_record(episode: AdmissionEpisode) -> dict[str, Any]:
+    """One collected episode as a JSON row, through the merged probe's own ``as_record``.
+
+    ``offline/admission_probe.py`` is merged, reviewed and cited in ``PREREGISTRATION`` A11 itself,
+    so its serialisation is reused rather than restated (``BRIEF_30`` D1: *"Import and call them;
+    do not reimplement"*).  The row therefore carries all five A11(b) quantities plus the counts
+    they are reconciled from.
+    """
+    return episode.as_record()
+
+
+def assert_admission_complete(records: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """A11(b) is UNCONDITIONAL: refuse a row missing any of the five, on either arm.
+
+    ⚠️ Refusing rather than warning is the point.  P8.4b spent 38,500 episodes and ~3.2 h
+    re-deriving cells that were collected without these; a campaign that ships without them joins
+    that backlog, and clearing it is what P8.4 existed for.
+    """
+    rows = list(records)
+    if not rows:
+        raise ValueError("A11(b) requires all five quantities on every ATT cell, and no cell was "
+                         "given to check")
+    for row in rows:
+        missing = [field for field in ADMISSION_FIELDS if field not in row]
+        if missing:
+            raise ValueError(
+                f"{row.get('arm')} seed {row.get('seed')} draw {row.get('draw_id')}: "
+                f"A11(b) requires all five quantities on every ATT cell and {missing} are absent. "
+                "They are read from the live engine between the rollout and env.close(), so they "
+                "cannot be added afterwards without re-running the episode"
+            )
+    return {
+        "n_episodes": len(rows),
+        "fields": list(ADMISSION_FIELDS),
+        "registered_in": "PREREGISTRATION A11(b) via BRIEF_30 AMENDMENT D1",
+        "collected_at": "collection time, from the live engine between the rollout and env.close()",
+    }
+
+
+def episode_results(
+    episodes: Sequence[AdmissionEpisode], *, definition: str
+) -> list[EpisodeResult]:
+    """Project one ATT definition onto the ``EpisodeResult`` the paired protocol consumes.
+
+    ⚠️ ``definition`` is keyword-only and has **no default**: which ATT lands in ``att_horizon`` is
+    the whole question this task now reports twice, and a default here would silently decide the
+    primary metric at a call site nobody re-reads.
+    """
+    if definition not in ATT_DEFINITIONS:
+        raise ValueError(
+            f"{definition!r} is not one of the two declared ATT definitions "
+            f"{list(ATT_DEFINITIONS)}; Rule R makes {PRIMARY_ATT!r} primary on hz1x1 and the other "
+            "is reported beside it, and no third definition is registered"
+        )
+    def field(row: Any, name: str) -> Any:
+        return row[name] if isinstance(row, Mapping) else getattr(row, name)
+
+    return [
+        EpisodeResult(
+            arm=str(field(episode, "arm")),
+            seed=int(field(episode, "seed")),
+            draw_id=int(field(episode, "draw_id")),
+            att_horizon=float(field(episode, definition)),
+            horizon_vehicle_count=float(field(episode, "horizon_vehicle_count")),
+            episode_reward=float(field(episode, "episode_reward")),
+        )
+        for episode in episodes
+    ]
+
+
+def nortg_cell_record(episodes: Sequence[EpisodeResult], seed: int) -> dict[str, Any]:
+    """``cell_stats`` plus the scalar ``seed`` this campaign's cells are keyed by.
+
+    ``method_tier_grid.cell_stats`` emits ``seeds`` -- a **list**, because a P4.6 cell spans all
+    five training seeds.  P5.3b evaluates one seed per job so its cells are per-seed, and the
+    artifact is keyed by ``(tier, seed)``.  Adding the scalar here rather than at the call site
+    keeps one definition of what a P5.3b cell record is, and gives it a test that does not need a
+    simulator.
+    """
+    record = cell_stats(episodes)
+    if record["seeds"] != [int(seed)]:
+        raise ValueError(
+            f"a P5.3b cell describes exactly one training seed; cell_stats reports "
+            f"{record['seeds']} for seed {int(seed)}"
+        )
+    return {**record, "seed": int(seed)}
+
+
+def default_rederivation_dir(output_root: str | Path = "output") -> Path:
+    """Where P8.4b's per-episode re-derivation lives, under *output_root*."""
+    return Path(output_root) / REDERIVATION_DIRNAME
+
+
+def rederived_dt_episodes(
+    tier: str, *, rederivation_dir: str | Path, data_dir: str | Path
+) -> list[dict[str, Any]]:
+    """The reused ``dt@<tier>`` column, read from P8.4b with BOTH ATT definitions.
+
+    ``BRIEF_30`` E1: *"read the column for the PAIRING; Gate 1b is the INSTRUMENT check."*  The
+    committed ``p4_6``/``p4_7`` grids carry ``att_horizon`` only, which is ``att_ours``; pairing
+    under the primary metric (``att_engine``, Rule R) needs the re-derived column.
+
+    Every row is verified against the committed grid before it is returned, because
+    ``reproduces_committed`` is P8.4b's own flag and a reused column must be checked by the task
+    that reuses it.
+    """
+    root = Path(rederivation_dir)
+    if not root.is_dir():
+        raise FileNotFoundError(
+            f"{root}: P8.4b's re-derived cells are not present. They carry the att_engine half of "
+            "the reused dt column, so the paired contrast cannot be made under the primary metric "
+            "without them (BRIEF_30 E1)"
+        )
+    records: list[dict[str, Any]] = []
+    for seed in TRAINING_SEEDS:
+        for draw in HELD_OUT_DRAWS:
+            path = root / REDERIVED_CELL_TEMPLATE.format(
+                scenario=PROBE_SCENARIO, method=REFERENCE_METHOD, tier=tier,
+                seed=int(seed), draw=int(draw),
+            )
+            if not path.is_file():
+                raise FileNotFoundError(
+                    f"{path}: the reused dt column is incomplete at ({tier}, {seed}, {draw}); a "
+                    "paired comparison over a partial column is void"
+                )
+            records.append(json.loads(path.read_text(encoding="utf-8")))
+    assert_rederived_matches_committed(records, tier, data_dir=data_dir)
+    return records
+
+
+def assert_rederived_matches_committed(
+    records: Sequence[Mapping[str, Any]], tier: str, *, data_dir: str | Path
+) -> dict[str, Any]:
+    """Every re-derived ``att_ours`` must equal the committed grid's ``att_horizon`` EXACTLY.
+
+    An independent re-check of P8.4b's own ``reproduces_committed`` flag, on the bytes this task
+    will actually pair over.  ``==`` and not a tolerance: a tolerance here would accept precisely
+    the drift the check exists to detect.
+    """
+    grid = json.loads(
+        (Path(data_dir) / TIER_GRID_ARTIFACT[str(tier)]).read_text(encoding="utf-8")
+    )
+    arm = f"{REFERENCE_METHOD}@{tier}"
+    committed = {
+        (int(e["seed"]), int(e["draw_id"])): float(e["att_horizon"])
+        for e in grid["episodes"]
+        if e["arm"] == arm and e.get("seed") is not None
+    }
+    mismatches: list[str] = []
+    flagged = 0
+    for row in records:
+        key = (int(row["seed"]), int(row["draw_id"]))
+        if key not in committed:
+            mismatches.append(f"{key}: not in the committed grid")
+            continue
+        if float(row["att_ours"]) != committed[key]:
+            mismatches.append(
+                f"{key}: {row['att_ours']!r} against committed {committed[key]!r}"
+            )
+        if row.get("reproduces_committed") is not True:
+            flagged += 1
+    if mismatches:
+        raise ValueError(
+            f"{arm}: the re-derived column does not reproduce the committed grid on "
+            f"{len(mismatches)} of {len(records)} episodes, first {mismatches[:3]}; the reused "
+            "column and the committed one must be the same measurement"
+        )
+    if flagged:
+        raise ValueError(
+            f"{arm}: {flagged} re-derived episodes do not carry reproduces_committed=true"
+        )
+    return {
+        "arm": arm,
+        "n_compared": len(records),
+        "comparison": "exact float equality against the committed grid att_horizon",
+        "source": TIER_GRID_ARTIFACT[str(tier)],
+    }
+
+
+def assert_arms_are_distinct(
+    left: Sequence[Any], right: Sequence[Any], *, definition: str
+) -> dict[str, Any]:
+    """Do the two arms differ AT ALL on this tier?  (ruled 2026-08-31; ``BRIEF_30`` D3.1, E4)
+
+    *A contrast over identical inputs is not a null result.*  Two arms are distinct when their ATT
+    differs on at least one shared ``(seed, draw)``.
+
+    🚨 **E4, registered before any P5.3b number existed:** if the arms are NON-DISTINCT on the
+    null-control tier, a CI containing zero is an **artefact of non-discrimination**, not a null,
+    and may not be reported as evidence that removing the prompt costs nothing.
+    """
+    if definition not in ATT_DEFINITIONS:
+        raise ValueError(f"{definition!r} is not one of {list(ATT_DEFINITIONS)}")
+
+    def keyed(rows: Sequence[Any]) -> dict[tuple[int, int], float]:
+        out: dict[tuple[int, int], float] = {}
+        for row in rows:
+            if isinstance(row, Mapping):
+                out[(int(row["seed"]), int(row["draw_id"]))] = float(row[definition])
+            else:
+                out[(int(row.seed), int(row.draw_id))] = float(getattr(row, definition))
+        return out
+
+    a, b = keyed(left), keyed(right)
+    shared = sorted(set(a) & set(b))
+    if not shared:
+        raise ValueError("the two arms share no (seed, draw), so distinctness cannot be assessed")
+    identical = [key for key in shared if a[key] == b[key]]
+    return {
+        "definition": definition,
+        "n_compared": len(shared),
+        "n_identical": len(identical),
+        "identical_fraction": len(identical) / len(shared),
+        "distinct": len(identical) != len(shared),
+        "rule": "two arms are distinct when their ATT differs on at least one shared (seed, draw); "
+                "a contrast over identical inputs is not a null result (ruled 2026-08-31)",
+    }
+
+
+def evaluation_chunk(
+    *,
+    tier: str,
+    seed: int,
+    checkpoint: str,
+    canonical_digest: str,
+    produced: Sequence[AdmissionEpisode],
+    seconds: float,
+    tree: Mapping[str, Any],
+) -> dict[str, Any]:
+    """One evaluated cell as its on-disk chunk, with A11(b) enforced HERE, at collection time.
+
+    🚨 **Extracted after the 2026-09-10 campaign failure, and the crash was the lucky half.**
+    ``_run_evaluate`` built this dict inline from ``evaluate_cell``'s output.  D1 changed that
+    output from :class:`EpisodeResult` to :class:`AdmissionEpisode`, and three consumers here were
+    never swept: ``assert_cell_complete`` (silently fine -- the attributes it reads happen to
+    exist), ``nortg_cell_record`` (**crashed** on ``att_horizon``), and the per-episode dict, which
+    wrote **six** fields and **none of A11(b)'s five**.  The crash stopped a run that would
+    otherwise have shipped chunks in breach of D1, caught two stages later by
+    :func:`assert_admission_complete` in ``report`` -- the same *"a gate that reports at the end of
+    a run is not a gate"* shape AMENDMENT C3 fixed for the probe.
+
+    ⚠️ **The lesson is A5's, and this is its third instance in this task:** *finding your own blind
+    spot and then covering three-quarters of it.*  I fixed this class in ``_run_gate1`` at
+    ``dd9d4ba`` and did not sweep for the other call site.  It is a function now so that it has a
+    test that needs no simulator.
+
+    ``cell`` carries the primary definition's statistics, with both definitions' means beside it
+    (D2); every episode row carries all five quantities (D1).
+    """
+    rows = [admission_record(episode) for episode in produced]
+    assert_admission_complete(rows)
+    projected = {
+        definition: episode_results(produced, definition=definition)
+        for definition in ATT_DEFINITIONS
+    }
+    assert_cell_complete(
+        NORTG_METHOD, tier, [int(seed)], list(HELD_OUT_DRAWS), projected[PRIMARY_ATT]
+    )
+    cell = nortg_cell_record(projected[PRIMARY_ATT], int(seed))
+    cell["definition"] = PRIMARY_ATT
+    cell["att_horizon_mean_by_definition"] = {
+        definition: float(np.mean([e.att_horizon for e in episodes]))
+        for definition, episodes in projected.items()
+    }
+    return {
+        "format_version": ARTIFACT_FORMAT_VERSION,
+        "arm": nortg_arm_key(tier),
+        "tier": tier,
+        "seed": int(seed),
+        "checkpoint": str(checkpoint),
+        "canonical_digest": str(canonical_digest),
+        "primary_att_definition": PRIMARY_ATT,
+        "seconds": float(seconds),
+        "seconds_per_episode": float(seconds) / len(rows),
+        "cell": cell,
+        "episodes": rows,
+        "tree": dict(tree),
+        "runtime": runtime_provenance(),
+    }
+
+
+def committed_dt_episodes(tier: str, *, data_dir: str | Path) -> list[EpisodeResult]:
+    """The committed ``dt@<tier>`` per-episode records, read from the merged grid artifact."""
+    grid = json.loads(
+        (Path(data_dir) / TIER_GRID_ARTIFACT[str(tier)]).read_text(encoding="utf-8")
+    )
+    arm = f"{REFERENCE_METHOD}@{tier}"
+    records = [entry for entry in grid["episodes"] if entry["arm"] == arm]
+    expected = len(TRAINING_SEEDS) * len(HELD_OUT_DRAWS)
+    if len(records) != expected:
+        raise ValueError(
+            f"{arm}: the committed grid holds {len(records)} episodes, not {expected}; the paired "
+            "comparison would rest on an incomplete column"
+        )
+    return [
+        EpisodeResult(
+            arm=arm,
+            seed=int(record["seed"]),
+            draw_id=int(record["draw_id"]),
+            att_horizon=float(record["att_horizon"]),
+            horizon_vehicle_count=float(record["horizon_vehicle_count"]),
+            episode_reward=float(record["episode_reward"]),
+        )
+        for record in records
+    ]
+
+
+def assert_committed_dt_agrees_across_grids(tier: str, *, data_dir: str | Path) -> dict[str, Any]:
+    """For a tier present in both merged grids, the two copies must be bit-identical.
+
+    ``mappo1000`` and ``random`` appear in ``p4_6_grid.json`` **and** ``p4_7_grid.json`` (P4.7
+    re-reports phase 1).  Asserting they agree makes the choice of file provably immaterial instead
+    of merely conventional.
+    """
+    root = Path(data_dir)
+    arm = f"{REFERENCE_METHOD}@{tier}"
+    copies: dict[str, list[tuple[int, int, float, float, float]]] = {}
+    for name in ("p4_6_grid.json", "p4_7_grid.json"):
+        grid = json.loads((root / name).read_text(encoding="utf-8"))
+        rows = sorted(
+            (
+                int(e["seed"]),
+                int(e["draw_id"]),
+                float(e["att_horizon"]),
+                float(e["horizon_vehicle_count"]),
+                float(e["episode_reward"]),
+            )
+            for e in grid["episodes"]
+            if e["arm"] == arm
+        )
+        if rows:
+            copies[name] = rows
+    if len(copies) < 2:
+        return {"tier": tier, "grids": sorted(copies), "compared": False,
+                "reason": "the tier appears in only one merged grid"}
+    (first, left), (second, right) = sorted(copies.items())
+    if left != right:
+        raise ValueError(
+            f"{arm}: {first} and {second} disagree on the committed column, so which file is read "
+            "would change the reported comparison"
+        )
+    return {"tier": tier, "grids": [first, second], "compared": True, "n_episodes": len(left)}
+
+
+def _manifest_digests(path: Path) -> dict[str, str]:
+    digests: dict[str, str] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        digest, _, name = line.partition("  ")
+        digests[name.strip()] = digest.strip()
+    return digests
+
+
+def assert_reused_dt_identity(
+    *, data_dir: str | Path, output_root: str | Path
+) -> dict[str, Any]:
+    """Gate 1: the reused ``dt`` checkpoints are the committed weights, checked AT CONSUMPTION.
+
+    ``BRIEF_27`` B3(a): *a digest checked once is not a digest checked when used.*  Two routes,
+    because they protect different things -- a canonical ``state_dict`` digest against the merged
+    training record, and a file sha256 against the campaign's integrity manifest.
+
+    🚨 **The three tiers are NOT equally protected.**  ``output/p4_dt/`` appears in **no** integrity
+    manifest (``DEFERRED`` 56), and ``p4_training.json`` never carried a canonical digest for those
+    five checkpoints (``method_tier_grid.py:1233-1235``), so ``mappo1000`` rests on a
+    filename-dependent file sha256 (``DEFERRED`` 29) with nothing behind it.  Gate 1b's behavioural
+    re-roll is the compensating control for that recorded gap, and the record below says so rather
+    than letting the three tiers read as equal.
+    """
+    root = Path(output_root)
+    data = Path(data_dir)
+    tiers: dict[str, Any] = {}
+
+    for tier in NORTG_TIERS:
+        template = TIER_CHECKPOINT_TEMPLATE[tier]
+        manifest_name = TIER_MANIFEST[tier]
+        manifest = _manifest_digests(root / manifest_name) if manifest_name else {}
+        training_name = TIER_TRAINING_ARTIFACT[tier]
+        committed: dict[int, str] = {}
+        if training_name:
+            training = json.loads((data / training_name).read_text(encoding="utf-8"))
+            committed = {
+                int(run["seed"]): str(run["canonical_digest"])
+                for run in training["runs"]
+                if run["tier"] == tier and run["method"] == REFERENCE_METHOD
+            }
+            if sorted(committed) != sorted(TRAINING_SEEDS):
+                raise ValueError(
+                    f"{tier}: {training_name} records dt digests for seeds {sorted(committed)}, "
+                    f"not {list(TRAINING_SEEDS)}"
+                )
+
+        seeds: list[dict[str, Any]] = []
+        for seed in TRAINING_SEEDS:
+            relative = template.format(seed=seed)
+            path = root / relative
+            if not path.is_file():
+                raise FileNotFoundError(f"reused dt checkpoint is missing: {path}")
+            digest = canonical_digest_of(path)
+            if committed and digest != committed[int(seed)]:
+                raise ValueError(
+                    f"{path}: canonical digest {digest} is not the committed {committed[int(seed)]}"
+                    "; the reused column would describe different weights"
+                )
+            sha = file_sha256(path)
+            if manifest_name:
+                if relative not in manifest:
+                    raise ValueError(
+                        f"{relative} is not listed in {manifest_name}; a checkpoint outside its "
+                        "own campaign manifest has no integrity record at consumption"
+                    )
+                if manifest[relative] != sha:
+                    raise ValueError(
+                        f"{path}: file sha256 {sha} is not {manifest_name}'s {manifest[relative]}"
+                    )
+            seeds.append(
+                {
+                    "seed": int(seed),
+                    "path": str(path),
+                    "canonical_digest": digest,
+                    "file_sha256": sha,
+                    "canonical_digest_checked_against": training_name,
+                    "manifest_checked_against": manifest_name,
+                }
+            )
+
+        tiers[tier] = {
+            "checkpoints": seeds,
+            "canonical_digest_route": bool(training_name),
+            "manifest_route": bool(manifest_name),
+            "grid_artifact": TIER_GRID_ARTIFACT[tier],
+            "cross_grid_agreement": assert_committed_dt_agrees_across_grids(tier, data_dir=data),
+        }
+
+    p4_dt = tiers[DECLARED_TIER]
+    p4_dt["deferred_56"] = (
+        "output/p4_dt/ appears in no integrity manifest and p4_training.json never carried a "
+        "canonical digest for these five checkpoints, so this tier's identity rests on a "
+        "filename-dependent file sha256 alone. Gate 1b's behavioural re-roll is the compensating "
+        "control. The three tiers are not equally protected."
+    )
+    p4_dt["file_sha256_route"] = assert_reused_checkpoint_identity(
+        json.loads((data / "p4_4_training.json").read_text(encoding="utf-8")),
+        json.loads((data / "p4_gate.json").read_text(encoding="utf-8")),
+        baselines_root=root / "p4_4" / "checkpoints",
+        dt_root=root / "p4_dt",
+    )
+    return {
+        "role": "Gate 1: reused dt checkpoint identity, verified at consumption (BRIEF_27 B3(a))",
+        "tiers": tiers,
+        "manifest_coverage": {tier: TIER_MANIFEST[tier] for tier in NORTG_TIERS},
+    }
+
+
+def assert_payload_matches_committed(
+    candidate: str | Path, committed: str | Path
+) -> dict[str, Any]:
+    """AMENDMENT A5: every payload key except ``model`` and ``provenance`` must be equal.
+
+    ``canonical_digest_of`` hashes ``payload["model"]`` alone
+    (``offline/method_tier_grid.py:1180-1185``), so ``target_rtg`` and ``rtg_scale`` -- **which are
+    the prompt** -- are invisible to it.  A thread-through that perturbed either would leave the
+    digest green and change every number in the campaign.  ``model`` is excluded because the digest
+    covers it; ``provenance`` is excluded because it legitimately records the seed, the timings, the
+    device and the write-time commit.  The exclusion is named, never silent.
+    """
+    left = torch.load(Path(candidate), map_location="cpu", weights_only=False)
+    right = torch.load(Path(committed), map_location="cpu", weights_only=False)
+    if set(left) != set(right):
+        raise ValueError(
+            f"the two payloads do not carry the same keys: {sorted(set(left) ^ set(right))}; a "
+            "payload that gained or lost a key must not slip through uncompared"
+        )
+    compared = tuple(sorted(set(left) - set(EXCLUDED_PAYLOAD_KEYS)))
+    if compared != COMPARED_PAYLOAD_KEYS:
+        raise ValueError(
+            f"the compared key set is {list(compared)} but this task registered "
+            f"{list(COMPARED_PAYLOAD_KEYS)}; the comparison must cover every key the digest cannot"
+        )
+    differing: list[str] = []
+    details: dict[str, Any] = {}
+    for key in compared:
+        if key == "config":
+            reasons = _config_differences(left[key], right[key])
+            if reasons:
+                differing.append(key)
+                details[key] = reasons
+        elif left[key] != right[key]:
+            differing.append(key)
+            details[key] = [f"{left[key]!r} against {right[key]!r}"]
+    if differing:
+        raise ValueError(
+            f"payload keys differ outside model and provenance: {differing}; the canonical digest "
+            f"cannot see any of these, and target_rtg and rtg_scale ARE the prompt. {details}"
+        )
+    return {
+        "candidate": str(candidate),
+        "committed": str(committed),
+        "compared_keys": list(compared),
+        "excluded_keys": list(EXCLUDED_PAYLOAD_KEYS),
+        "excluded_because": {
+            "model": "covered by the canonical state_dict digest",
+            "provenance": "legitimately differs: seed, timings, device, write-time git commit",
+        },
+        "config_key_allowance": {
+            "may_be_gained": dict(CONFIG_KEYS_ADDED_AFTER_P4),
+            "why": "DTConfig.to_json_obj has emitted rtg_mode unconditionally since P5.3a, so a "
+                   "checkpoint written today carries a 9-key config where a P4.6-era one carries "
+                   "8. Every shared key must still be equal, no key may be lost, and the gained "
+                   "value must be the pre-P5.3a behaviour.",
+        },
+        "differing_keys": differing,
+    }
+
+
+def _config_differences(candidate: Mapping[str, Any], committed: Mapping[str, Any]) -> list[str]:
+    """Every way the retrained config may differ from the committed one, as reasons.
+
+    An empty list is the only acceptable answer; see :data:`CONFIG_KEYS_ADDED_AFTER_P4` for the one
+    declared allowance and why it is narrower than skipping the key.
+    """
+    reasons: list[str] = []
+    lost = sorted(set(committed) - set(candidate))
+    if lost:
+        reasons.append(f"the retrained config LOST {lost}")
+    gained = sorted(set(candidate) - set(committed))
+    undeclared = [key for key in gained if key not in CONFIG_KEYS_ADDED_AFTER_P4]
+    if undeclared:
+        reasons.append(f"the retrained config gained undeclared key(s) {undeclared}")
+    for key in gained:
+        if key in CONFIG_KEYS_ADDED_AFTER_P4:
+            expected = CONFIG_KEYS_ADDED_AFTER_P4[key]
+            if candidate[key] != expected:
+                reasons.append(
+                    f"{key} is {candidate[key]!r}, not the pre-P5.3a behaviour {expected!r}"
+                )
+    reasons.extend(
+        f"{key}: {candidate[key]!r} against committed {committed[key]!r}"
+        for key in sorted(set(candidate) & set(committed))
+        if candidate[key] != committed[key]
+    )
+    return reasons
+
+
+# ----------------------------------------------------------------------
+# The paired statistics -- imported and CALLED (docs/reviews/P5.2.md MJ-4)
+# ----------------------------------------------------------------------
+
+
+def _sorted_for_pairing(episodes: Sequence[EpisodeResult]) -> list[EpisodeResult]:
+    """``(seed, draw_id)`` order, so ``_per_draw_means``' float reduction order is fixed."""
+    return sorted(episodes, key=lambda e: (int(e.seed if e.seed is not None else -1), int(e.draw_id)))
+
+
+def paired_stats(
+    dt_episodes: Sequence[EpisodeResult], nortg_episodes: Sequence[EpisodeResult]
+) -> dict[str, Any]:
+    """Paired per-draw comparison of ``dt`` against ``dt_nortg`` over their shared draws.
+
+    Sign convention, registered in ``docs/plans/p5.3b.md`` section 3.1:
+    ``mean_difference = mean(ATT_dt - ATT_dt_nortg)``, **left = dt**.  Lower ATT is better, so a
+    negative difference means the prompted arm is better.
+
+    Three repo functions are called, not merely described: ``dt_gate._paired`` supplies the shared
+    draws (``PREREGISTRATION`` A5 point 3 makes a comparison without them **void**),
+    ``offline_baselines.paired_comparison`` supplies the headline, and
+    ``dt_gate.wilcoxon_signed_rank`` is run a **second time on the same vectors** and compared to
+    the one inside the ``PairedComparison``.  A disagreement is a refusal, not a warning.
+    """
+    left_episodes = _sorted_for_pairing(dt_episodes)
+    right_episodes = _sorted_for_pairing(nortg_episodes)
+    left_values, right_values, shared = _paired(left_episodes, right_episodes)
+    comparison = paired_comparison(left_episodes, right_episodes)
+    reference = wilcoxon_signed_rank(left_values, right_values)
+
+    inner = comparison.wilcoxon
+    fields = ("w_plus", "w_minus", "statistic", "n_used", "n_zero", "z", "p_value")
+    disagreement = [
+        field
+        for field in fields
+        if getattr(reference, field) != getattr(inner, field)
+    ]
+    if disagreement:
+        raise ValueError(
+            f"the two Wilcoxon routes disagree on {disagreement}; the same test run on the same "
+            "paired vectors must give the same answer, so this is a defect in the pairing rather "
+            "than a numerical nicety"
+        )
+
+    differences = [a - b for a, b in zip(left_values, right_values)]
+    return {
+        "paired": comparison.to_json_obj(),
+        "abs_mean_difference": abs(float(comparison.mean_difference)),
+        "mean_absolute_difference": float(np.mean(np.abs(np.asarray(differences, np.float64)))),
+        "n_shared_draws": len(shared),
+        "sign_convention": "mean(ATT_dt - ATT_dt_nortg); lower ATT is better, so a negative value "
+                           "means the prompted arm is better",
+        "wilcoxon_second_route_agrees": True,
+    }
+
+
+def per_seed_differences(
+    dt_episodes: Sequence[EpisodeResult],
+    nortg_episodes: Sequence[EpisodeResult],
+    pooled_difference: float,
+) -> dict[str, Any]:
+    """The seed dimension the per-draw comparison averages away.
+
+    ``d_s`` averages draws inside a seed while the pooled difference averages seeds inside a draw,
+    so the two are the same quantity in exact arithmetic and may differ in the last bits.  Both are
+    reported with their measured difference and **no equality is asserted between them**: that
+    would condemn a correct implementation (``docs/plans/p5.3b.md`` section 3.4).
+
+    A seed whose difference is exactly ``0.0`` counts as a reversal -- the conservative direction.
+    """
+    def by_seed(episodes: Sequence[EpisodeResult]) -> dict[int, float]:
+        buckets: dict[int, list[float]] = {}
+        for episode in episodes:
+            buckets.setdefault(int(episode.seed), []).append(float(episode.att_horizon))
+        return {seed: float(np.mean(values)) for seed, values in buckets.items()}
+
+    left, right = by_seed(dt_episodes), by_seed(nortg_episodes)
+    shared = sorted(set(left) & set(right))
+    if not shared:
+        raise ValueError("the two arms share no training seed, so the seed dimension is empty")
+    differences = {seed: left[seed] - right[seed] for seed in shared}
+    pooled = float(pooled_difference)
+    mean_of_per_seed = float(np.mean(np.asarray(list(differences.values()), np.float64)))
+    return {
+        "per_seed": {str(seed): value for seed, value in differences.items()},
+        "n_seeds": len(shared),
+        "seeds_reversed": int(sum(1 for value in differences.values() if value * pooled <= 0.0)),
+        "reversal_rule": "sign(d_s) differs from sign(the pooled difference), counting an exact "
+                         "zero as a reversal",
+        "pooled_difference": pooled,
+        "mean_of_per_seed_differences": mean_of_per_seed,
+        "difference_between_the_two_averaging_orders": mean_of_per_seed - pooled,
+        "note": "d_s averages draws inside a seed; the pooled difference averages seeds inside a "
+                "draw. Equal in exact arithmetic, and no equality is asserted between them.",
+    }
+
+
+# ----------------------------------------------------------------------
+# Arm validity -- P5.3a's probe, pointed at the new checkpoints
+# ----------------------------------------------------------------------
+
+
+def probe_nortg_cell(
+    tier: str,
+    seed: int,
+    *,
+    checkpoint_path: str | Path,
+    corpus_root: str | Path,
+    device: str | None = None,
+    streams: Sequence[Any] | None = None,
+    draws_root: str | Path | None = None,
+) -> dict[str, Any]:
+    """P5.3a's teacher-forced probe on one ``dt_nortg`` checkpoint, plus its recorded ``rtg_mode``.
+
+    ``draws_root`` is the THIRD consumer of the draws root, which AMENDMENT E5 enumerated as two.
+    ``--corpus-root``/``--draws-root``/``--output-root`` fix the campaign's paths and
+    ``RLTRAFFIC_CORPUS_V11``/``RLTRAFFIC_OUTPUT_ROOT`` gate the tests -- and this path, inside
+    ``rtg_ablation.probe_cell``, received neither and resolved relative to the working directory.
+
+    ``rtg_ablation.probe_cell`` is called with an explicit ``checkpoint_path`` because its CLI
+    resolves paths through ``_CHECKPOINT_LAYOUT``, keyed by tier, and knows nothing of a
+    ``dt_nortg`` file.  Same instrument, one layer down; ``offline/rtg_ablation.py`` is unmodified.
+    """
+    cell = probe_cell(
+        tier,
+        int(seed),
+        checkpoint_path=checkpoint_path,
+        corpus_root=corpus_root,
+        device=device,
+        streams=streams,
+        draws_root=draws_root,
+    )
+    payload = cell.to_json_obj()
+    config = torch.load(Path(checkpoint_path), map_location="cpu", weights_only=False)["config"]
+    payload["rtg_mode"] = str(config.get("rtg_mode", "conditioned"))
+    return payload
+
+
+def assert_arm_validity(probe_cells: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """Q3, the GATE: every ``dt_nortg`` checkpoint ignores a token it was never shown.
+
+    ⚠️ Q3 and Q2 are different claims and must not be conflated.  Q3 says the *trained* model
+    ignores the token; Q2 says training without it cost nothing on a tier.  Anything non-zero here
+    means ``rtg_mode`` did not reach the training path -- a wiring finding, not a scientific one.
+    """
+    cells = list(probe_cells)
+    expected = {(tier, int(seed)) for tier in NORTG_TIERS for seed in TRAINING_SEEDS}
+    got = {(str(cell["tier"]), int(cell["seed"])) for cell in cells}
+    if got != expected or len(cells) != len(expected):
+        raise ValueError(
+            f"the declared cell set is 3 tiers x 5 seeds = {len(expected)}; got {len(cells)} "
+            f"records covering {len(got)} distinct cells, missing {sorted(expected - got)}"
+        )
+
+    checked = 0
+    max_flip = 0.0
+    max_tvd = 0.0
+    for cell in cells:
+        # One definition, called per cell -- see assert_probe_cell_is_ablated's docstring for why
+        # a second copy here would drift invisibly.
+        assert_probe_cell_is_ablated(cell)
+        for values in cell["interventions"].values():
+            max_flip = max(max_flip, float(values["flip_rate"]))
+            max_tvd = max(max_tvd, float(values.get("tvd", 0.0)))
+            checked += 1
+
+    return {
+        "role": "Q3, the arm-validity GATE: a model trained without the return token must be "
+                "insensitive to it under every declared intervention",
+        "n_cells": len(cells),
+        "n_values_checked": checked,
+        "max_flip_rate": max_flip,
+        "max_tvd": max_tvd,
+        "interventions": list(INTERVENTION_KEYS),
+        "cells": cells,
+    }
+
+
+# ----------------------------------------------------------------------
+# Scoring the registered predictions
+# ----------------------------------------------------------------------
+
+
+def score_q1(
+    comparisons: Mapping[str, Mapping[str, Any]],
+    *,
+    discriminability: Mapping[str, Mapping[str, Any]],
+) -> dict[str, Any]:
+    """Q1: the paired absolute difference is largest on ``mix50`` and smallest on ``random``.
+
+    The scored quantity is ``abs(mean_difference)`` on the **raw ATT scale**, registered in
+    ``docs/plans/p5.3b.md`` section 3.2 and confirmed by ``BRIEF_30`` AMENDMENT A2.  It is the
+    quantity Q2's CI is about, so the two predictions stay on one scale.
+
+    ⭐ The raw scale is the **conservative** choice: the three ``dt`` ATTs are 105, 108 and 420, so
+    if differences scaled with baseline ATT then ``random`` would show the largest raw difference --
+    the opposite of what Q1 predicts.  The normalised column below is a reading aid and is **not** a
+    scored claim; switching to it after seeing the result is forbidden by the plan's section 3.3.
+
+    **Endpoints, never a trend** -- section 1b's R3 was falsified on exactly a monotonicity claim.
+
+    🚨 **The two limbs are scored SEPARATELY (ruled 2026-09-10), and the wording is the ruling.**
+    ⛔ *"Do not write 'Q1 has a caveat'; that lets a reader keep the whole prediction."*  A limb is
+    ``established`` only where the two arms are **distinct** on that tier.  Where they are not, the
+    limb is ``satisfied_by_a_non_discriminating_tier``: the magnitude that satisfied it is what the
+    tier returns for **any** pair of arms whatsoever, so it is **not evidence** about the return
+    prompt.  ``discriminability`` is therefore required and keyword-only, exactly as in
+    :func:`score_q2`.
+    """
+    missing = [t for t in comparisons if t not in (discriminability or {})]
+    if missing:
+        raise ValueError(
+            f"score_q1 requires the discriminability record for every tier it scores; {missing} "
+            "are absent. Without it a limb satisfied by a tier that cannot tell the two arms apart "
+            "is indistinguishable from a measured one"
+        )
+    magnitudes = {tier: float(entry["abs_mean_difference"]) for tier, entry in comparisons.items()}
+    order = sorted(magnitudes, key=lambda tier: (magnitudes[tier], tier))
+    largest, smallest = order[-1], order[0]
+    values = sorted(magnitudes.values())
+    secondary_abs = {
+        tier: float(entry.get("mean_absolute_difference", float("nan")))
+        for tier, entry in comparisons.items()
+    }
+    normalised = {
+        tier: magnitudes[tier] / float(entry["att_dt_mean"])
+        for tier, entry in comparisons.items()
+        if float(entry.get("att_dt_mean", 0.0))
+    }
+    secondary_order = sorted(secondary_abs, key=lambda tier: (secondary_abs[tier], tier))
+    normalised_order = sorted(normalised, key=lambda tier: (normalised[tier], tier))
+    return {
+        "prediction": "the paired absolute difference between the dt and dt_nortg arms is largest "
+                      "on mix50 and smallest on random",
+        "registered_in": "BRIEF_30 section 3 Q1; scoring quantity fixed in docs/plans/p5.3b.md "
+                         "section 3.2 and confirmed by AMENDMENT A2",
+        "quantity": "abs(mean_difference) of the paired per-draw comparison",
+        "definition": PRIMARY_ATT,
+        "scale": "raw ATT",
+        "scale_is_conservative": (
+            "if paired differences scaled with baseline ATT, random (dt ATT 420.38) would show the "
+            "largest raw difference, which is the opposite of what Q1 predicts"
+        ),
+        "abs_mean_difference": dict(sorted(magnitudes.items())),
+        "largest": largest,
+        "smallest": smallest,
+        "tie_break": "tier name ascending",
+        "ties_present": len(set(values)) != len(values),
+        "holds": bool(largest == "mix50" and smallest == "random"),
+        "limbs_are_scored_separately": (
+            "the registered prediction has two limbs and they do not stand or fall together; a "
+            "limb is evidence only where the tier that satisfies it can discriminate the two arms"
+        ),
+        "largest_limb": _q1_limb("largest", largest, magnitudes[largest], discriminability),
+        "smallest_limb": _q1_limb("smallest", smallest, magnitudes[smallest], discriminability),
+        "secondary_not_registered": {
+            "mean_absolute_difference": dict(sorted(secondary_abs.items())),
+            "mean_absolute_difference_largest": secondary_order[-1],
+            "mean_absolute_difference_smallest": secondary_order[0],
+            "normalised_by_att_dt_mean": dict(sorted(normalised.items())),
+            "normalised_largest": normalised_order[-1] if normalised_order else None,
+            "normalised_smallest": normalised_order[0] if normalised_order else None,
+            "status": "reported, not scored; the registered ordering is the raw one above",
+        },
+    }
+
+
+def _q1_limb(
+    which: str, tier: str, magnitude: float, discriminability: Mapping[str, Mapping[str, Any]]
+) -> dict[str, Any]:
+    """One limb of Q1, with its evidential status decided by the tier's discriminability."""
+    record = discriminability[tier]
+    distinct = bool(record["distinct"])
+    if distinct:
+        reading = (
+            f"the {which} paired absolute difference is on {tier}, whose two arms are distinct on "
+            f"{record['n_compared'] - record['n_identical']} of {record['n_compared']} shared "
+            "cells, so this limb is a measured contrast"
+        )
+    else:
+        reading = (
+            f"the {which} paired absolute difference is on {tier}, whose two arms are IDENTICAL on "
+            f"{record['n_identical']} of {record['n_compared']} shared cells. {magnitude} is what "
+            "that tier returns for ANY pair of arms whatsoever, so this limb is satisfied by a "
+            "tier that cannot discriminate and is NOT EVIDENCE about the return prompt"
+        )
+    return {
+        "limb": which,
+        "tier": tier,
+        "abs_mean_difference": float(magnitude),
+        "arms_distinct": distinct,
+        "status": "established" if distinct else "satisfied_by_a_non_discriminating_tier",
+        "is_evidence": distinct,
+        "reading": reading,
+    }
+
+
+def score_q2(
+    comparisons: Mapping[str, Mapping[str, Any]],
+    *,
+    discriminability: Mapping[str, Mapping[str, Any]],
+) -> dict[str, Any]:
+    """Q2: ``random`` is a null control predicted from an independent instrument.
+
+    P5.3a measured ``random``'s conditioned DT at ``flip_rate = 0.000000``, 0 of 7200, on every
+    intervention.  If the token carries nothing there, training without it should cost nothing
+    there.  A large CI-excluding difference on ``random`` **indicts the wiring before it indicts the
+    science** -- the same direction of inference as A8's ``fixedtime`` prediction in P5.3a.
+
+    🚨 **AMENDMENT E4, registered 2026-09-09 before any P5.3b number existed.**  *"If ``dt`` and
+    ``dt_nortg`` are NON-DISTINCT on the null-control tier, then a confidence interval containing
+    zero is an ARTEFACT OF NON-DISCRIMINATION AND NOT A NULL RESULT, and it may not be reported as
+    evidence that removing the prompt costs nothing."*  ``discriminability`` is therefore
+    **required and keyword-only**, not optional: without it this function cannot tell a null from
+    an artefact, and defaulting it would let the paper's headline be manufactured silently.
+    ``holds`` is ``None`` -- neither pass nor fail -- when the arms cannot discriminate, because a
+    prediction that could not have been falsified was not tested.
+
+    ⚠️ No equivalence verdict and no threshold: ``PREREGISTRATION`` A7 withdrew the per-tier delta
+    rule, and a CI containing 0 is a failure to reject, never a demonstration of equivalence.
+    """
+    if "random" not in comparisons:
+        raise ValueError("Q2 is a prediction about the random tier and it is not in the comparisons")
+    record = discriminability.get("random") if discriminability else None
+    if not record:
+        raise ValueError(
+            "E4 requires the discriminability record for the null-control tier: without it a CI "
+            "containing zero cannot be distinguished from an artefact of two identical arms, and "
+            "that distinction is the whole of E4"
+        )
+    paired = comparisons["random"]["paired"]
+    low, high = float(paired["ci95_low"]), float(paired["ci95_high"])
+    contains = low <= 0.0 <= high
+    distinct = bool(record["distinct"])
+    artefact = bool(contains and not distinct)
+
+    if not distinct:
+        reading = (
+            f"the two arms are IDENTICAL on {record['n_identical']} of {record['n_compared']} "
+            "shared (seed, draw) cells, so this tier CANNOT DISCRIMINATE between them. A CI "
+            "containing zero here is an ARTEFACT of non-discrimination, not a null result, and it "
+            "is NO EVIDENCE that removing the prompt costs nothing (BRIEF_30 E4)"
+        )
+    elif contains:
+        reading = (
+            "the 95 % CI of the paired difference contains 0: a FAILURE TO REJECT the null of no "
+            "difference, and never a demonstration of equivalence"
+        )
+    else:
+        reading = (
+            "the 95 % CI of the paired difference excludes 0: removing the prompt changed mean "
+            "held-out ATT on this tier, at this budget, at 5 seeds"
+        )
+    return {
+        "prediction": "dt - dt_nortg on random has a 95 % CI containing 0",
+        "registered_in": "BRIEF_30 section 3 Q2, qualified by AMENDMENT E4",
+        "basis": "P5.3a measured random's conditioned DT at flip_rate 0.000000, 0 of 7200, on "
+                 "every intervention -- an independent instrument",
+        "tier": "random",
+        "mean_difference": float(paired["mean_difference"]),
+        "ci95_low": low,
+        "ci95_high": high,
+        "ci_contains_zero": bool(contains),
+        "arms_distinct": distinct,
+        "discriminability": dict(record),
+        "artefact_of_non_discrimination": artefact,
+        "holds": None if not distinct else bool(contains),
+        "reading": reading,
+        "if_falsified": "a large CI-excluding difference on random indicts the wiring before it "
+                        "indicts the science",
+    }
+
+
+def score_q3(probe_cells: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """Q3 as a scored record.  The refusal lives in :func:`assert_arm_validity`; this reports it."""
+    record = assert_arm_validity(probe_cells)
+    return {
+        "prediction": "every dt_nortg checkpoint shows flip_rate exactly 0.0 under P5.3a's probe "
+                      "on all 12 interventions, and carries rtg_mode == 'zero'",
+        "registered_in": "BRIEF_30 section 3 Q3",
+        "status": "a GATE, not a result",
+        "n_cells": record["n_cells"],
+        "n_values_checked": record["n_values_checked"],
+        "max_flip_rate": record["max_flip_rate"],
+        "holds": bool(record["max_flip_rate"] == 0.0),
+    }
+
+
+# ----------------------------------------------------------------------
+# The artifact
+# ----------------------------------------------------------------------
+
+
+def report_artifact(
+    *,
+    cells: Sequence[Mapping[str, Any]],
+    episodes: Sequence[Mapping[str, Any]],
+    comparisons: Mapping[str, Mapping[str, Any]],
+    probe_cells: Sequence[Mapping[str, Any]],
+    gates: Mapping[str, Any],
+    selection: Mapping[str, Any],
+    timings: Mapping[str, Any],
+    discriminability: Mapping[str, Mapping[str, Any]],
+    measurement_inputs: Sequence[Mapping[str, Any]] = (),
+) -> dict[str, Any]:
+    """Assemble the one committed artifact.  Validates the design; ``main`` validates the data."""
+    if sorted(comparisons) != sorted(NORTG_TIERS):
+        raise ValueError(
+            f"the registered tier set is {list(NORTG_TIERS)} and the comparisons cover "
+            f"{sorted(comparisons)}; a tier may not be added after the numbers exist "
+            "(BRIEF_30 section 6.1)"
+        )
+    expected = {(tier, int(seed)) for tier in NORTG_TIERS for seed in TRAINING_SEEDS}
+    got = {(str(cell["tier"]), int(cell["seed"])) for cell in cells}
+    if got != expected or len(list(cells)) != len(expected):
+        raise ValueError(
+            f"the declared cell set is 3 tiers x 5 seeds = {len(expected)}; got "
+            f"{len(list(cells))} records covering {len(got)} distinct cells"
+        )
+
+    arm_validity = assert_arm_validity(probe_cells)
+    payload: dict[str, Any] = {
+        "format_version": ARTIFACT_FORMAT_VERSION,
+        "role": "P5.3b: fifteen dt_nortg cells trained with rtg_mode='zero', paired against the "
+                "committed dt column of P4.6/P4.7 over the same corpus, seeds, budget and held-out "
+                "draws. It reports measured quantities and issues no equivalence verdict.",
+        "registered_in": "docs/plans/p5.3b.md; predictions Q1-Q3 in BRIEF_30 section 3",
+        "method": NORTG_METHOD,
+        "reference_method": REFERENCE_METHOD,
+        "rtg_mode": NORTG_RTG_MODE,
+        "primary_att_definition": PRIMARY_ATT,
+        "att_definitions": list(ATT_DEFINITIONS),
+        "att_definition_note": (
+            "Rule R makes att_engine primary on hz1x1 and grid4x4; att_ours is reported beside it "
+            "in every table with the three admission counts (PREREGISTRATION A11(b), BRIEF_30 D2). "
+            "Every comparisons.<tier> block carries the primary at its top level and both under "
+            "by_definition."
+        ),
+        "tiers": list(NORTG_TIERS),
+        "seeds": list(TRAINING_SEEDS),
+        "held_out_draws": list(HELD_OUT_DRAWS),
+        "declared_gradient_steps": DECLARED_GRADIENT_STEPS,
+        "context_length": CONTEXT_LENGTH,
+        "tier_selection": dict(selection),
+        "cells": [dict(cell) for cell in cells],
+        "episodes": [dict(entry) for entry in episodes],
+        "comparisons": {tier: dict(entry) for tier, entry in comparisons.items()},
+        # ⚠️ NO BARE ``att_horizon_mean`` HERE, DELIBERATELY.  The committed grids use that name
+        # for ``att_ours``; this task's primary is ``att_engine``.  A field carrying the engine
+        # mean under the committed grid's field name, beside ``"source": p4_6_grid.json``, is the
+        # BEHAVIOUR_ATT hazard exactly -- one name, two meanings, in two artifacts.  Both
+        # definitions are named explicitly and neither inherits the ambiguous name.
+        "reference_dt_cells": {
+            tier: {
+                "arm": f"{REFERENCE_METHOD}@{tier}",
+                "source": TIER_GRID_ARTIFACT[tier],
+                "att_ours_mean": float(
+                    comparisons[tier]["by_definition"]["att_ours"]["att_dt_mean"]
+                ),
+                "att_engine_mean": float(
+                    comparisons[tier]["by_definition"]["att_engine"]["att_dt_mean"]
+                ),
+                "att_ours_mean_matches": (
+                    "the committed grid's att_horizon, which IS att_ours; the engine mean has no "
+                    "committed counterpart because P4.6/P4.7 predate A11"
+                ),
+                "reused": "read, never retrained (BRIEF_30 section 6.2)",
+            }
+            for tier in NORTG_TIERS
+        },
+        "arm_validity": arm_validity,
+        "discriminability": {tier: dict(r) for tier, r in discriminability.items()},
+        "predictions": {
+            "Q1": score_q1(comparisons, discriminability=discriminability),
+            "Q2": score_q2(comparisons, discriminability=discriminability),
+            "Q3": score_q3(probe_cells),
+        },
+        "gates": dict(gates),
+        "timings_seconds": dict(timings),
+        "equivalence": (
+            "NONE. PREREGISTRATION A7 withdrew the per-tier delta rule on 2026-08-25 because it "
+            "spanned eleven orders of magnitude. This task defines no threshold and issues no "
+            "verdict. A 95 % CI containing 0 is a failure to reject, never a demonstration of "
+            "equivalence."
+        ),
+        "limitations": list(_LIMITATIONS),
+        "runtime": runtime_provenance(measurement_commits(list(measurement_inputs))),
+    }
+    assert_no_verdicts(payload)
+    return payload
+
+
+# ----------------------------------------------------------------------
+# CLI
+# ----------------------------------------------------------------------
+
+
+def build_parser() -> argparse.ArgumentParser:
+    """CLI: ``gate1``, ``control``, ``train``, ``evaluate``, ``probe``, ``report``."""
+    parser = argparse.ArgumentParser(
+        prog="python -m offline.nortg_campaign",
+        description="P5.3b: the dt_nortg campaign on hz1x1.",
+    )
+    parser.add_argument("--corpus-root", required=True)
+    parser.add_argument("--draws-root", default="scenarios/draws")
+    parser.add_argument("--output-root", default="output")
+    parser.add_argument("--work-dir", default="output/p5_3b")
+    parser.add_argument("--checkpoint-dir", default="output/p5_3b/checkpoints")
+    parser.add_argument("--out-dir", default="docs/data")
+    parser.add_argument("--device", default=None)
+    parser.add_argument("--engine-seed", type=int, default=ENGINE_SEED)
+    parser.add_argument("--steps", type=int, default=DECLARED_GRADIENT_STEPS)
+    parser.add_argument("--torch-threads", type=int, default=1)
+    parser.add_argument("--log-every", type=int, default=10_000)
+    parser.add_argument(
+        "--allow-dirty",
+        action="store_true",
+        help="record a chunk from a modified working tree on purpose (AMENDMENT C2). Without it "
+        "every writing subcommand REFUSES a dirty or undeterminable tree, because the chunk's "
+        "git_commit would name a commit that did not produce its bytes",
+    )
+
+    sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser("gate1", help="reused dt identity, manifests, and the per-tier re-rolls")
+    sub.add_parser("control", help="Gate 2: retrain the committed control cell and compare")
+    train = sub.add_parser("train", help="train one tier's five dt_nortg seeds")
+    train.add_argument("--tier", required=True, choices=list(NORTG_TIERS))
+    evaluate = sub.add_parser("evaluate", help="evaluate ONE cell over the held-out pool")
+    evaluate.add_argument("--tier", required=True, choices=list(NORTG_TIERS))
+    evaluate.add_argument("--seed", required=True, type=int, choices=list(TRAINING_SEEDS))
+    probe = sub.add_parser("probe", help="Gate 3: arm validity over one tier's five checkpoints")
+    probe.add_argument("--tier", required=True, choices=list(NORTG_TIERS))
+    sub.add_parser("report", help="assemble docs/data/p5_3b_nortg.json")
+    return parser
+
+
+def _chunk(work: Path, name: str) -> dict[str, Any]:
+    path = work / name
+    if not path.is_file():
+        raise FileNotFoundError(
+            f"{path}: this report needs every campaign chunk; run `train` and `evaluate` for it "
+            "first"
+        )
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """Run one subcommand; returns a process exit code."""
+    args = build_parser().parse_args(argv)
+    work = assert_writable(args.work_dir)
+    out_dir = Path(args.out_dir)
+    data_dir = Path(args.out_dir)
+
+    if args.command == "report":
+        return _run_report(args, work, out_dir, data_dir)
+
+    pin_torch_threads(args.torch_threads)
+    if args.command == "gate1":
+        return _run_gate1(args, work, data_dir)
+    if args.command == "control":
+        return _run_control(args, work, data_dir)
+    if args.command == "train":
+        return _run_train(args, work)
+    if args.command == "evaluate":
+        return _run_evaluate(args, work)
+    return _run_probe(args, work)
+
+
+def _run_gate1(args: argparse.Namespace, work: Path, data_dir: Path) -> int:
+    tree = assert_recordable_tree(args.allow_dirty)
+    identity = assert_reused_dt_identity(data_dir=data_dir, output_root=args.output_root)
+    rerolls: dict[str, Any] = {}
+    for tier, seed in GATE_1B_CELLS:
+        checkpoint = Path(args.output_root) / TIER_CHECKPOINT_TEMPLATE[tier].format(seed=seed)
+        started = time.time()
+        produced = evaluate_cell(
+            tier,
+            seed,
+            checkpoint=checkpoint,
+            corpus_root=args.corpus_root,
+            draws_root=args.draws_root,
+            engine_seed=args.engine_seed,
+            device=args.device,
+            arm=f"{REFERENCE_METHOD}@{tier}",
+        )
+        committed = [
+            entry
+            for entry in json.loads(
+                (data_dir / TIER_GRID_ARTIFACT[tier]).read_text(encoding="utf-8")
+            )["episodes"]
+            if entry["arm"] == f"{REFERENCE_METHOD}@{tier}" and int(entry["seed"]) == seed
+        ]
+        if len(committed) != len(HELD_OUT_DRAWS):
+            raise ValueError(
+                f"{tier} seed {seed}: {len(committed)} committed episodes, not "
+                f"{len(HELD_OUT_DRAWS)}; 'found no differences' must never be 'compared nothing'"
+            )
+        # The committed grids carry att_ours under the name att_horizon, so the identity half of
+        # Gate 1b is projected onto that definition.  ⭐ This projection is the line the gate caught
+        # breaking: D1 changed evaluate_cell's return type at 0e24434 and this call site still
+        # handed AdmissionEpisode objects to a function expecting EpisodeResult.  E1's reason for
+        # keeping the gate -- "the HARNESS is separate at each site" -- is what surfaced it.
+        identity_half = assert_reused_cells_reproduce(
+            committed, episode_results(produced, definition="att_ours")
+        )
+
+        # E1's other half: the same re-roll against P8.4b's re-derived cells, under BOTH
+        # definitions.  That is what makes this an instrument check on THIS campaign's harness
+        # rather than a re-reading of P8.4b's own reproduces_committed flag.
+        reference_rows = [
+            row
+            for row in rederived_dt_episodes(
+                tier,
+                rederivation_dir=default_rederivation_dir(args.output_root),
+                data_dir=data_dir,
+            )
+            if int(row["seed"]) == seed
+        ]
+        against_p8_4b: dict[str, Any] = {}
+        for definition in ATT_DEFINITIONS:
+            reference = {int(r["draw_id"]): float(r[definition]) for r in reference_rows}
+            mine = {int(e.draw_id): float(getattr(e, definition)) for e in produced}
+            shared = sorted(set(reference) & set(mine))
+            if len(shared) != len(HELD_OUT_DRAWS):
+                raise ValueError(
+                    f"{tier} seed {seed}: {len(shared)} shared draws against P8.4b, not "
+                    f"{len(HELD_OUT_DRAWS)}"
+                )
+            differing = [d for d in shared if reference[d] != mine[d]]
+            if differing:
+                raise ValueError(
+                    f"{tier} seed {seed} {definition}: this campaign's harness disagrees with "
+                    f"P8.4b's on {len(differing)} of {len(shared)} draws, first {differing[:3]}. "
+                    "probe_episode is shared but the harness around it is not, and that is exactly "
+                    "what this gate exists to check (BRIEF_30 E1)"
+                )
+            against_p8_4b[definition] = {"n_compared": len(shared), "n_differing": 0}
+
+        rerolls[tier] = {
+            "seed": seed,
+            "checkpoint": str(checkpoint),
+            "seconds": time.time() - started,
+            "against_committed_grid": identity_half,
+            "against_p8_4b_rederivation": against_p8_4b,
+            **identity_half,
+        }
+        print(
+            f"gate 1b {tier} seed {seed}: {identity_half['compared']} episodes reproduce the "
+            f"committed grid; both definitions agree with P8.4b on {len(HELD_OUT_DRAWS)} draws",
+            flush=True,
+        )
+
+    work.mkdir(parents=True, exist_ok=True)
+    write_json_atomic(
+        {
+            "format_version": ARTIFACT_FORMAT_VERSION,
+            "gate_1": identity,
+            "gate_1b": {
+                "role": "the reused dt column re-rolls bit-exactly under this campaign's own "
+                        "harness; on mappo1000 it is the compensating control for DEFERRED 56",
+                "cells": rerolls,
+            },
+            "tree": tree,
+            "runtime": runtime_provenance(),
+        },
+        assert_writable(work / "gate1.json"),
+    )
+    return 0
+
+
+def _run_control(args: argparse.Namespace, work: Path, data_dir: Path) -> int:
+    tree = assert_recordable_tree(args.allow_dirty)
+    tier, seed = CONTROL_CELL
+    inputs = training_inputs(tier, args.corpus_root)
+    scratch = assert_writable(work / "control")
+    scratch.mkdir(parents=True, exist_ok=True)
+    destination = assert_writable(scratch / f"{tier}_dt_seed{seed}.pt")
+    from agent.utils.utils import Utils
+
+    device = torch.device(args.device) if args.device else Utils.resolve_device(None)
+    started = time.time()
+    train_dt(
+        inputs.batch,
+        state_dim=inputs.group[0],
+        n_actions=inputs.group[1],
+        seed=seed,
+        declared_gradient_steps=int(args.steps),
+        raise_to=None,
+        context_length=CONTEXT_LENGTH,
+        batch_size=BATCH_SIZE,
+        device=device,
+        checkpoint_path=destination,
+        stats=inputs.stats,
+        scenario_id=inputs.scenario_id,
+        target_rtg=float(inputs.spec.target_rtg),
+        rtg_scale=float(inputs.spec.rtg_scale),
+        provenance=inputs.provenance,
+        log_every=int(args.log_every),
+    )
+    seconds = time.time() - started
+    digest = canonical_digest_of(destination)
+    if digest != CONTROL_COMMITTED_DIGEST:
+        raise ValueError(
+            f"{destination}: canonical digest {digest} is not the committed "
+            f"{CONTROL_COMMITTED_DIGEST}; threading rtg_mode through train_dt moved the "
+            "conditioned path and every merged DT number would be affected"
+        )
+    committed = Path(args.output_root) / "p4_6" / "checkpoints" / f"{tier}_dt_seed{seed}.pt"
+    payload_record = assert_payload_matches_committed(destination, committed)
+    write_json_atomic(
+        {
+            "format_version": ARTIFACT_FORMAT_VERSION,
+            "role": "Gate 2: the committed control cell retrained through the modified train_dt",
+            "cell": {"tier": tier, "seed": seed},
+            "seconds": seconds,
+            "canonical_digest": digest,
+            "committed_digest": CONTROL_COMMITTED_DIGEST,
+            "payload_comparison": payload_record,
+            "tree": tree,
+            "runtime": runtime_provenance(),
+        },
+        assert_writable(work / "control.json"),
+    )
+    print(f"gate 2: digest {digest[:12]} reproduces in {seconds:.1f}s", flush=True)
+    return 0
+
+
+def _run_train(args: argparse.Namespace, work: Path) -> int:
+    tree = assert_recordable_tree(args.allow_dirty)
+    inputs = training_inputs(args.tier, args.corpus_root)
+    print(
+        f"tier {args.tier}: training streams {inputs.n_streams}  windows {inputs.n_windows}  "
+        f"target {inputs.spec.target_rtg}  scale {inputs.spec.rtg_scale}  "
+        f"rtg_mode {NORTG_RTG_MODE}",
+        flush=True,
+    )
+    runs = []
+    for seed in TRAINING_SEEDS:
+        record = train_cell(
+            args.tier,
+            int(seed),
+            corpus_root=args.corpus_root,
+            checkpoint_dir=args.checkpoint_dir,
+            device=args.device,
+            steps=int(args.steps),
+            log_every=int(args.log_every),
+            inputs=inputs,
+        )
+        runs.append(record)
+        print(
+            f"  {args.tier} dt_nortg seed {seed}: {record['seconds']:.1f}s  "
+            f"final loss {record['final_loss']:.5f}  digest {record['canonical_digest'][:12]}",
+            flush=True,
+        )
+    work.mkdir(parents=True, exist_ok=True)
+    write_json_atomic(
+        {
+            "format_version": ARTIFACT_FORMAT_VERSION,
+            "tier": args.tier,
+            "rtg_mode": NORTG_RTG_MODE,
+            "declared_gradient_steps": int(args.steps),
+            "training_streams": inputs.n_streams,
+            "training_windows": inputs.n_windows,
+            "normalisation_note": (
+                "mix50's NormalizationStats is fitted on the UNION of the six directories the "
+                "three mixtures share and is identical for mix33/mix50/mix67 (count 216000, raw "
+                "std 13155.3172). That is how P4.7 trained it, so reusing it is consistent, but "
+                "the summary is not a property of mix50."
+            ),
+            "runs": runs,
+            "tree": tree,
+            "runtime": runtime_provenance(),
+        },
+        assert_writable(work / f"train_{args.tier}.json"),
+    )
+    return 0
+
+
+def _run_evaluate(args: argparse.Namespace, work: Path) -> int:
+    tree = assert_recordable_tree(args.allow_dirty)
+    training = _chunk(work, f"train_{args.tier}.json")
+    run = assert_training_run_matches(training, args.tier, int(args.seed))
+    digest = run["canonical_digest"]
+    arm = nortg_arm_key(args.tier)
+    print(f"{arm} seed {args.seed} over {len(HELD_OUT_DRAWS)} draws", flush=True)
+    started = time.time()
+    produced = evaluate_cell(
+        args.tier,
+        int(args.seed),
+        checkpoint=run["checkpoint"],
+        corpus_root=args.corpus_root,
+        draws_root=args.draws_root,
+        engine_seed=args.engine_seed,
+        device=args.device,
+    )
+    seconds = time.time() - started
+    work.mkdir(parents=True, exist_ok=True)
+    write_json_atomic(
+        evaluation_chunk(
+            tier=args.tier,
+            seed=int(args.seed),
+            checkpoint=run["checkpoint"],
+            canonical_digest=digest,
+            produced=produced,
+            seconds=seconds,
+            tree=tree,
+        ),
+        assert_writable(work / f"eval_{args.tier}_seed{args.seed}.json"),
+    )
+    print(f"  {arm} seed {args.seed}: {seconds:.1f}s ({seconds / len(produced):.3f}s/episode)", flush=True)
+    return 0
+
+
+def _run_probe(args: argparse.Namespace, work: Path) -> int:
+    """Gate 3, ENFORCED where it is measured (AMENDMENT C3).
+
+    The checkpoint digest is re-verified exactly as ``_run_evaluate`` does, and a cell that shows
+    any non-zero flip rate or any ``rtg_mode != "zero"`` raises **before** the chunk is written.
+    The driver skips a tier whose probe chunk exists, so a bad chunk written here would be cached
+    and reused on every restart, and the only signal would arrive two stages later at ``report``.
+    """
+    tree = assert_recordable_tree(args.allow_dirty)
+    training = _chunk(work, f"train_{args.tier}.json")
+    from offline.rtg_ablation import _tier_streams
+
+    streams = _tier_streams(args.tier, args.corpus_root)
+    cells = []
+    timings = {}
+    for seed in TRAINING_SEEDS:
+        run = assert_training_run_matches(training, args.tier, int(seed))
+        started = time.time()
+        cell = probe_nortg_cell(
+            args.tier,
+            int(seed),
+            checkpoint_path=run["checkpoint"],
+            corpus_root=args.corpus_root,
+            device=args.device,
+            streams=streams,
+            draws_root=args.draws_root,
+        )
+        elapsed = time.time() - started
+        timings[f"{args.tier}@{seed}"] = elapsed
+        assert_probe_cell_is_ablated(cell)
+        cells.append(cell)
+        worst = max(float(v["flip_rate"]) for v in cell["interventions"].values())
+        print(
+            f"probe {args.tier} seed {seed}: rtg_mode {cell['rtg_mode']}  "
+            f"max flip_rate {worst:.6f}  n={cell['n_steps']} in {elapsed:.1f}s",
+            flush=True,
+        )
+    work.mkdir(parents=True, exist_ok=True)
+    write_json_atomic(
+        {
+            "format_version": ARTIFACT_FORMAT_VERSION,
+            "tier": args.tier,
+            "cells": cells,
+            "timings_seconds": timings,
+            "tree": tree,
+            "runtime": runtime_provenance(),
+        },
+        assert_writable(work / f"probe_{args.tier}.json"),
+    )
+    return 0
+
+
+def _run_report(args: argparse.Namespace, work: Path, out_dir: Path, data_dir: Path) -> int:
+    """Read every chunk, validate the data, assemble, then write.  Validation precedes the write."""
+    chunks: list[Mapping[str, Any]] = []
+    cells: list[dict[str, Any]] = []
+    episodes: list[dict[str, Any]] = []
+    probe_cells: list[dict[str, Any]] = []
+    comparisons: dict[str, dict[str, Any]] = {}
+    discriminability: dict[str, dict[str, Any]] = {}
+    timings: dict[str, Any] = {"train_seconds": {}, "evaluate_seconds": {}, "probe_seconds": {}}
+
+    for tier in NORTG_TIERS:
+        training = _chunk(work, f"train_{tier}.json")
+        probe = _chunk(work, f"probe_{tier}.json")
+        chunks.extend((training, probe))
+        probe_cells.extend(probe["cells"])
+        for run in training["runs"]:
+            timings["train_seconds"][f"{tier}@{run['seed']}"] = run["seconds"]
+        timings["probe_seconds"].update(probe.get("timings_seconds", {}))
+
+        produced_rows: list[dict[str, Any]] = []
+        for seed in TRAINING_SEEDS:
+            chunk = _chunk(work, f"eval_{tier}_seed{seed}.json")
+            chunks.append(chunk)
+            timings["evaluate_seconds"][f"{tier}@{seed}"] = chunk["seconds"]
+            cells.append(chunk["cell"])
+            episodes.extend(chunk["episodes"])
+            produced_rows.extend(chunk["episodes"])
+        # A11(b) is unconditional, and it is checked on the BYTES that will be paired rather than
+        # on the objects that produced them.
+        assert_admission_complete(produced_rows)
+        assert_cell_complete(
+            NORTG_METHOD, tier, list(TRAINING_SEEDS), list(HELD_OUT_DRAWS),
+            episode_results(produced_rows, definition=PRIMARY_ATT),
+        )
+
+        reference_rows = rederived_dt_episodes(
+            tier, rederivation_dir=default_rederivation_dir(args.output_root), data_dir=data_dir
+        )
+        assert_admission_complete(reference_rows)
+
+        # D3.1 / E4: does this tier discriminate between the two arms AT ALL?  Computed under the
+        # primary definition and recorded before any contrast is read, because a contrast over
+        # identical inputs is not a null result.
+        discriminability[tier] = assert_arms_are_distinct(
+            reference_rows, produced_rows, definition=PRIMARY_ATT
+        )
+
+        # D2: both definitions in every table.  The primary's fields sit at the top level so the
+        # scorers and the artifact tests read one convention; ``by_definition`` carries both.
+        by_definition: dict[str, Any] = {}
+        for definition in ATT_DEFINITIONS:
+            left = episode_results(reference_rows, definition=definition)
+            right = episode_results(produced_rows, definition=definition)
+            entry = paired_stats(left, right)
+            pooled = float(entry["paired"]["mean_difference"])
+            entry["per_seed"] = per_seed_differences(left, right, pooled)
+            entry["att_dt_mean"] = float(np.mean([e.att_horizon for e in left]))
+            entry["att_dt_nortg_mean"] = float(np.mean([e.att_horizon for e in right]))
+            by_definition[definition] = entry
+
+        stats = dict(by_definition[PRIMARY_ATT])
+        stats["definition"] = PRIMARY_ATT
+        stats["primary_definition"] = PRIMARY_ATT
+        stats["by_definition"] = by_definition
+        stats["discriminability"] = discriminability[tier]
+        stats["committed_att_ours_mean"] = float(
+            json.loads((data_dir / TIER_GRID_ARTIFACT[tier]).read_text(encoding="utf-8"))["cells"][
+                f"{REFERENCE_METHOD}@{tier}"
+            ]["att_horizon_mean"]
+        )
+        comparisons[tier] = stats
+
+    gate1 = _chunk(work, "gate1.json")
+    control = _chunk(work, "control.json")
+    chunks.extend((gate1, control))
+    probe_artifact = json.loads(
+        (data_dir / "p5_3a_rtg_probe.json").read_text(encoding="utf-8")
+    )
+    payload = report_artifact(
+        cells=cells,
+        episodes=episodes,
+        comparisons=comparisons,
+        probe_cells=probe_cells,
+        gates={
+            "gate_1": gate1["gate_1"],
+            "gate_1b": gate1["gate_1b"],
+            "gate_2": {k: v for k, v in control.items() if k != "runtime"},
+        },
+        selection=assert_selection_still_holds(probe_artifact),
+        timings=timings,
+        discriminability=discriminability,
+        measurement_inputs=chunks,
+    )
+    if not payload["runtime"]["measurement_git_commits"]:
+        raise ValueError(
+            f"the report was assembled from {len(chunks)} chunk payloads but recorded no "
+            "measurement commits; runtime.git_commit would then describe only when the report was "
+            "written, which is the defect DEFERRED 39 exists to prevent"
+        )
+    write_json_atomic(payload, out_dir / "p5_3b_nortg.json")
+    for tier in NORTG_TIERS:
+        paired = comparisons[tier]["paired"]
+        print(
+            f"{tier}: dt - dt_nortg {paired['mean_difference']:+.4f} "
+            f"[{paired['ci95_low']:+.4f}, {paired['ci95_high']:+.4f}]  "
+            f"reversals {comparisons[tier]['per_seed']['seeds_reversed']}/5",
+            flush=True,
+        )
+    return 0
+
+
+if __name__ == "__main__":  # pragma: no cover - exercised through the CLI
+    raise SystemExit(main())

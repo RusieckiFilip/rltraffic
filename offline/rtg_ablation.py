@@ -775,8 +775,24 @@ def probe_cell(
     device: str | None = None,
     streams: Sequence[StreamReturn] | None = None,
     stream_indices: Sequence[int] | None = None,
+    draws_root: str | Path | None = None,
 ) -> ProbeCell:
     """Measure every declared intervention on one (tier, seed) cell.
+
+    ``draws_root`` -- added 2026-09-10; ``BRIEF_30`` AMENDMENT C8 reopened for this edit
+    ------------------------------------------------------------------------------------
+    This function needs a materialised draw only as **scaffolding**: the env it builds is what
+    ``agent_with_target`` attaches the agent to, and the probe then replays *logged* episodes
+    teacher-forced, so the draw fixes the action space and roadnet and nothing that is measured.
+
+    It previously resolved that draw through ``draw_config_path``'s default ``out_root`` --
+    ``scenarios/draws`` **relative to the process working directory**.  P5.3b's pre-flight recorded
+    that as a minor and C8 declined to fix it, on the premise that *no correct run reaches it*.
+    **Moving P5.3b into its own worktree falsified that premise**: training and evaluation take
+    ``--draws-root`` explicitly and survived; this path never received it and failed on
+    ``draw_1000/cityflow.json``.  ⚠️ ``None`` preserves the old default **exactly**, so every P5.3a
+    call and every committed number is unaffected -- proved by re-running a committed P5.3a cell
+    through this signature, with no ``draws_root``, before the parameter was used anywhere.
 
     The agent is built through ``agent_with_target`` at the checkpoint's **own** recorded target, so
     the baseline arm is exactly the configuration P4.6 evaluated; the interventions then vary only
@@ -809,7 +825,15 @@ def probe_cell(
         EnvSpec(
             id="cityflow1x1",
             backend="cityflow",
-            paths={"config": str(draw_config_path("cityflow1x1", int(HELD_OUT_DRAWS[0])))},
+            paths={
+                "config": str(
+                    draw_config_path("cityflow1x1", int(HELD_OUT_DRAWS[0]))
+                    if draws_root is None
+                    else draw_config_path(
+                        "cityflow1x1", int(HELD_OUT_DRAWS[0]), out_root=draws_root
+                    )
+                )
+            },
             settings=settings,
         )
     )

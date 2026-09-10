@@ -682,7 +682,39 @@ def runtime_provenance(
         "written_at_git_commit": commit or None,
         "measurement_git_commits": reachable,
         "unreachable_measurement_commits": unreachable,
+        "git_dirty": _git_tree_is_dirty(),
     }
+
+
+def _git_tree_is_dirty() -> bool | None:
+    """Was the working tree modified when this artifact was written?  ``None`` = undetermined.
+
+    Added 2026-08-28 under ``BRIEF_30`` AMENDMENT C2.  ``docs/reviews/P5.3a.md`` **M6** logged the
+    absent flag as *"pre-existing"* two days earlier; it then bit for real, and that is why it is a
+    field rather than a note.  P5.3b's ``eval_mappo1000_seed101.json`` recorded
+    ``git_commit = f115b7ce`` while containing ``cell.seed``, a field that commit does not define:
+    the chunk came from a dirty tree, ``measurement_git_commits`` would have carried a knowably
+    false commit, and **no later gate could have caught it**.
+
+    ⚠️ **Three states, not two.**  ``offline/materialise_draws.py``'s ``_git_commit`` returns
+    ``False`` when git errors, which is right for a record and wrong for a gate: *could not
+    determine* must never read as *clean*.  A caller that gates on this must treat ``None`` as
+    "cannot vouch for" -- see ``offline/nortg_campaign.assert_recordable_tree``.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=str(Path(__file__).resolve().parent),
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):  # pragma: no cover - git is present here
+        return None
+    if result.returncode != 0:  # pragma: no cover - git is present here
+        return None
+    return bool(result.stdout.strip())
 
 
 def _partition_reachable_commits(commits: Sequence[str]) -> tuple[list[str], list[str]]:
@@ -730,13 +762,33 @@ def train_dt(
     rtg_scale: float,
     provenance: dict[str, Any],
     log_every: int = 0,
+    rtg_mode: str = "conditioned",
 ) -> TrainResult:
     """Train one seed for exactly *declared_gradient_steps* steps and save the checkpoint.
 
     ``raise_to`` is recorded, never acted on here: the registered criterion is all-or-nothing
     across seeds, so the raise is orchestrated by the caller once every seed's curve exists.
+
+    ``rtg_mode`` -- P5.3b's information ablation, added 2026-08-27 under ``BRIEF_30`` section 4.1
+    ------------------------------------------------------------------------------------------
+    ``"conditioned"`` (the default) feeds the return-to-go the caller stacked; ``"zero"`` makes
+    :class:`agent.DTAgent.DecisionTransformer` replace it with zeros *inside* the model, holding the
+    sequence length, the attention pattern and the state-token index exactly fixed -- an information
+    ablation rather than an architecture change.  **The mode travels inside the checkpointed
+    config**, so ``DTAgent.load`` rebuilds the right model with no extra flag; a mode carried
+    anywhere else would let the ordinary loader evaluate a zero-mode checkpoint as a conditioned one
+    (``agent/DTAgent.py``'s ``load``, and ``BRIEF_28`` section 4.1's ruling).
+
+    ⚠️ **The default reproduces every pre-P5.3b call bit for bit, and that is measured rather than
+    argued.**  ``docs/plans/p5.3b.md`` section 2 records the pre-edit control: on the unmodified
+    tree, ``(mappo500, dt, 101)`` retrained at 40,000 steps to
+    ``5d98d5351198c45054cce1e38b810dabd789708e71e3563e9428d37a49e0e563``, the digest committed in
+    ``docs/data/p4_6_training.json``, with a bit-identical final loss.
+    ``tests/test_train_dt_rtg_mode.py`` re-runs that comparison **through this signature** and is
+    the guard on this edit; it calls this function with **no** ``rtg_mode`` argument, deliberately,
+    so that changing the default below is a failing test rather than a silent campaign.
     """
-    from agent.DTAgent import DecisionTransformer, DTConfig
+    from agent.DTAgent import RTG_MODES, DecisionTransformer, DTConfig
     from agent.utils.utils import Utils
 
     total = int(declared_gradient_steps)
@@ -745,6 +797,15 @@ def train_dt(
     count = int(stacked["state"].shape[0])
     if count < 1:
         raise ValueError("the stacked dataset is empty")
+    # Checked here, beside the other argument guards, so a rejected run never reaches the RNG and
+    # never reaches the filesystem: validate, then act.  ``RTG_MODES`` is the single definition of
+    # what is legal; restating the pair here would let the two drift.
+    if str(rtg_mode) not in RTG_MODES:
+        raise ValueError(
+            f"rtg_mode must be one of {list(RTG_MODES)}, got {rtg_mode!r}; 'conditioned' feeds "
+            "the return-to-go the caller stacked and 'zero' replaces it with zeros inside the "
+            "model, and nothing is trained or written for any other value"
+        )
 
     Utils.seed_everything(int(seed), seed_python_random=False)
     config = DTConfig(
@@ -752,6 +813,7 @@ def train_dt(
         n_actions=int(n_actions),
         context_length=int(context_length),
         max_ep_len=int(stacked["timestep"].max()) + 1,
+        rtg_mode=str(rtg_mode),
     )
     model = DecisionTransformer(config).to(device)
     optimiser = torch.optim.AdamW(

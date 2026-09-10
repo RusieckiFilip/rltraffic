@@ -1,0 +1,1230 @@
+"""``offline.nortg_campaign`` -- the P5.3b ``dt_nortg`` campaign, without a simulator or a GPU.
+
+What this file is defending, in order of how much it would cost to get wrong
+----------------------------------------------------------------------------
+1. **The tier set is a RULE evaluated on committed data, not three names.**  ``BRIEF_28`` section 9
+   registered the rule on 2026-08-24, before any spread number existed; P5.3a's row B resolved it.
+   The test re-evaluates it from ``docs/data/p5_3a_rtg_probe.json`` rather than comparing constants
+   to their own literals -- the class ``docs/reviews/P5.3a.md`` filed as theatre #8.
+2. **The paired statistics are the repo's, imported and CALLED.**  ``docs/reviews/P5.2.md`` **MJ-4**:
+   that packet's docstring claimed the protocol was reused from ``dt_gate._paired``,
+   ``wilcoxon_signed_rank`` and ``offline_baselines.paired_comparison`` -- *"none of which was
+   imported or called"*.  Three tests here fail if any of the three calls is removed.
+3. **The probe is P5.3a's, one layer down.**  ``BRIEF_30`` section 4.4 asks for
+   ``offline/rtg_ablation.py probe``; its CLI resolves checkpoints from ``_CHECKPOINT_LAYOUT`` and
+   cannot address a ``dt_nortg`` file, so the campaign calls ``probe_cell`` directly with an
+   explicit path (plan section 8, F2 -- confirmed by AMENDMENT A4).  A test pins that it really is
+   that function and not a reimplementation.
+4. **No equivalence threshold and no verdict, anywhere** (``PREREGISTRATION`` A7, ``BRIEF_30``
+   section 5).  A CI containing 0 is a failure to reject, never a demonstration of equivalence.
+5. **The output fence is code-enforced**, including the trap that ``output/p5_3a`` is fenced while
+   ``output/p5_3b`` is not -- a string-prefix implementation would refuse this task's own directory.
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+from offline import nortg_campaign
+from offline.dt_gate import EpisodeResult, _paired, wilcoxon_signed_rank
+from offline.method_tier_grid import METHODS, TIERS, arm_key, assert_no_verdicts
+from offline.offline_baselines import paired_comparison
+from offline.nortg_campaign import (
+    ADMISSION_FIELDS,
+    ATT_DEFINITIONS,
+    COMPARED_PAYLOAD_KEYS,
+    evaluation_chunk,
+    EXCLUDED_PAYLOAD_KEYS,
+    GATE_1B_CELLS,
+    NORTG_METHOD,
+    NORTG_RTG_MODE,
+    NORTG_TIERS,
+    assert_arm_validity,
+    assert_payload_matches_committed,
+    assert_writable,
+    nortg_arm_key,
+    paired_stats,
+    per_seed_differences,
+    probe_nortg_cell,
+    report_artifact,
+    row_b_pooled_scaled,
+    score_q1,
+    score_q2,
+    select_tiers,
+)
+from offline.rtg_ablation import INTERVENTION_KEYS, PROBE_SEEDS, PROBE_TIERS
+
+REPO = Path(__file__).resolve().parents[1]
+DATA = REPO / "docs" / "data"
+
+SEEDS = (101, 202, 303, 404, 505)
+DRAWS = (1000, 1001, 1002, 1003)
+
+
+def _episodes(arm: str, per_seed_offset: dict[int, float], base: float = 100.0) -> list[EpisodeResult]:
+    """One arm over ``SEEDS`` x ``DRAWS``; each seed sits ``per_seed_offset[seed]`` above *base*."""
+    return [
+        EpisodeResult(
+            arm=arm,
+            seed=seed,
+            draw_id=draw,
+            att_horizon=base + float(draw - DRAWS[0]) + per_seed_offset[seed],
+            horizon_vehicle_count=40.0,
+            episode_reward=-1.0,
+        )
+        for seed in SEEDS
+        for draw in DRAWS
+    ]
+
+
+@pytest.fixture()
+def paired_arms() -> tuple[list[EpisodeResult], list[EpisodeResult]]:
+    """``dt`` minus ``dt_nortg`` is ``+13, -2, -2, -2, -2`` by seed: pooled ``+1.0``, 4 reversals.
+
+    4 is deliberately none of ``ceil(5/2) = 3``, ``floor(5/2) = 2``, ``5/2 = 2.5``, ``0`` or ``5``,
+    so no rounding rule agrees with it by accident (P5.2 **MN-5**).  The pooled mean is carried by a
+    single seed, which is exactly the shape a per-seed qualifier exists to expose.
+    """
+    deltas = {101: 13.0, 202: -2.0, 303: -2.0, 404: -2.0, 505: -2.0}
+    dt = _episodes("dt@mix50", deltas)
+    nortg = _episodes("dt_nortg@mix50", dict.fromkeys(SEEDS, 0.0))
+    return dt, nortg
+
+
+# ----------------------------------------------------------------------
+# The declared design
+# ----------------------------------------------------------------------
+
+
+def test_the_declared_arm_and_mode_are_the_registered_ones() -> None:
+    assert NORTG_METHOD == "dt_nortg"
+    assert NORTG_RTG_MODE == "zero"
+    assert nortg_arm_key("mix50") == "dt_nortg@mix50"
+
+
+def test_the_campaign_keys_its_own_arm_because_METHODS_may_not_grow() -> None:
+    """``BRIEF_30`` section 6.5 forbids editing ``METHODS``; ``arm_key`` validates against it.
+
+    ``offline/method_tier_grid.py:1701`` records that ``grid_comparisons`` emits pairs in
+    ``METHODS`` order, so an entry added there would change the comparison enumeration of two
+    merged artifacts.  This test pins both halves of the constraint: the tuple is untouched, and
+    the campaign therefore cannot use ``arm_key`` for its own arm.
+    """
+    assert METHODS == ("bc", "bc_top10", "iql", "dt")
+    assert NORTG_METHOD not in METHODS
+    with pytest.raises(ValueError, match="unknown method 'dt_nortg'"):
+        arm_key(NORTG_METHOD, "mix50")
+
+
+def test_the_tier_rule_is_re_evaluated_from_committed_row_b_and_returns_the_three() -> None:
+    """⭐ The rule, not the answer.  ``BRIEF_28`` section 9 evaluated on P5.3a's row B.
+
+    Row B is the **between-episode** sd of the scaled RTG.  It is the axis because the marginal
+    ``RtgSummary.std`` is 65-93 % within-episode ramp on the single-policy tiers and is fitted on
+    the wrong population entirely for the mixtures (``docs/plans/p5.3a.md`` section 2).
+    """
+    probe = json.loads((DATA / "p5_3a_rtg_probe.json").read_text(encoding="utf-8"))
+    pooled = row_b_pooled_scaled(probe)
+    assert sorted(pooled) == sorted(PROBE_TIERS)
+    assert len(pooled) == 8
+
+    widest = max(pooled, key=lambda tier: pooled[tier])
+    narrowest = min(pooled, key=lambda tier: pooled[tier])
+    assert widest == "mix50"
+    assert narrowest == "random"
+    assert pooled[widest] / pooled[narrowest] > 50.0, pooled
+
+    selection = select_tiers(probe)
+    assert selection["widest"] == "mix50"
+    assert selection["narrowest"] == "random"
+    assert selection["declared"] == "mappo1000"
+    assert tuple(selection["tiers"]) == NORTG_TIERS == ("mappo1000", "mix50", "random")
+    assert selection["fallback_fired"] is False, (
+        "the rule's 'if (ii) or (iii) is mappo1000, take the next one' clause did not fire, and "
+        "recording that is what makes the selection auditable"
+    )
+    assert all(tier in TIERS for tier in NORTG_TIERS)
+
+
+# ----------------------------------------------------------------------
+# AMENDMENT D1 -- all five quantities on every ATT cell, AT COLLECTION TIME, unconditionally
+# ----------------------------------------------------------------------
+
+
+def _admission(arm: str, seed: int, draw: int, **over: Any) -> Any:
+    from offline.admission_probe import AdmissionEpisode
+
+    fields: dict[str, Any] = dict(
+        scenario="hz1x1", tier=arm.split("@", 1)[1], method=arm.split("@", 1)[0], arm=arm,
+        seed=seed, draw_id=draw, created=1800, entered=1750, never_entered=50,
+        entered_fraction=1750 / 1800, completed_at_horizon=1700, running_at_horizon=50,
+        waiting_at_horizon=50, att_ours=104.5, att_engine=100.7,
+        horizon_vehicle_count=50.0, episode_reward=-5000.0, seconds=1.9, seconds_rollout=1.7,
+    )
+    fields.update(over)
+    return AdmissionEpisode(**fields)
+
+
+def test_the_campaign_imports_the_merged_admission_probe_and_does_not_reimplement_it() -> None:
+    """``BRIEF_30`` AMENDMENT D1: *"Import and call them; do not reimplement."*
+
+    ``offline/admission_probe.py`` is merged, reviewed and cited in ``PREREGISTRATION`` A11 itself.
+    ⚠️ This test exists because the amendment arrived on the branch and **the code did not**: the
+    campaign was written at ``f115b7c``, before A11, and the merge that brought the document did
+    not revisit it.  A11(b) is unconditional, so an import is the minimum evidence.
+    """
+    import offline.admission_probe as probe
+
+    assert nortg_campaign.probe_episode is probe.probe_episode
+    assert nortg_campaign.created_from_flow is probe.created_from_flow
+
+
+def test_every_collected_episode_carries_all_five_quantities() -> None:
+    """A11(b): ``att_ours``, ``att_engine``, ``entered``, ``created``, ``never_entered``.
+
+    No threshold, no verdict, no condition -- the five appear on every cell, always.
+    """
+    record = nortg_campaign.admission_record(_admission("dt_nortg@mix50", 101, 1000))
+    for field in ("att_ours", "att_engine", "entered", "created", "never_entered"):
+        assert field in record, field
+    assert record["att_engine"] == 100.7
+    assert record["created"] == 1800
+    assert record["entered"] + record["never_entered"] == record["created"]
+
+
+@pytest.mark.parametrize(
+    "missing", ["att_ours", "att_engine", "entered", "created", "never_entered"]
+)
+def test_an_episode_missing_any_of_the_five_is_refused(missing: str) -> None:
+    """Unconditional means refusing, not warning.  P8.4b spent 38,500 episodes and ~3.2 h
+    re-deriving cells collected without these; a campaign that ships without them joins that
+    backlog, and clearing it is what P8.4 existed for."""
+    record = nortg_campaign.admission_record(_admission("dt_nortg@mix50", 101, 1000))
+    del record[missing]
+    with pytest.raises(ValueError, match=r"A11\(b\) requires all five"):
+        nortg_campaign.assert_admission_complete([record])
+
+
+def test_the_five_are_required_on_the_reused_arm_too_not_only_the_new_one() -> None:
+    good = nortg_campaign.admission_record(_admission("dt@mix50", 101, 1000))
+    nortg_campaign.assert_admission_complete([good])
+    del good["att_engine"]
+    with pytest.raises(ValueError, match=r"A11\(b\) requires all five"):
+        nortg_campaign.assert_admission_complete([good])
+
+
+def test_the_primary_definition_is_att_engine_and_both_are_declared() -> None:
+    """D2 / Rule R: ``att_engine`` is PRIMARY on hz1x1; ``att_ours`` is reported beside it."""
+    assert nortg_campaign.PRIMARY_ATT == "att_engine"
+    assert nortg_campaign.ATT_DEFINITIONS == ("att_engine", "att_ours")
+    assert nortg_campaign.PRIMARY_ATT == nortg_campaign.ATT_DEFINITIONS[0]
+
+
+@pytest.mark.parametrize("definition", ["att_engine", "att_ours"])
+def test_episode_results_project_the_requested_definition_onto_the_paired_machinery(
+    definition: str,
+) -> None:
+    """The paired protocol consumes ``EpisodeResult``; each definition gets its own projection.
+
+    ⚠️ Which ATT lands in ``att_horizon`` is the whole question, so it is named at every call site
+    rather than defaulted: a default here would silently decide the primary metric.
+    """
+    episodes = [_admission("dt_nortg@mix50", 101, draw) for draw in DRAWS]
+    projected = nortg_campaign.episode_results(episodes, definition=definition)
+    assert {e.arm for e in projected} == {"dt_nortg@mix50"}
+    expected = 100.7 if definition == "att_engine" else 104.5
+    assert all(e.att_horizon == expected for e in projected)
+    assert all(e.horizon_vehicle_count == 50.0 for e in projected)
+
+
+def test_projecting_an_undeclared_definition_is_refused() -> None:
+    episodes = [_admission("dt_nortg@mix50", 101, 1000)]
+    with pytest.raises(ValueError, match="the two declared ATT definitions"):
+        nortg_campaign.episode_results(episodes, definition="att_something")
+
+
+def test_a_cell_record_carries_the_scalar_seed_the_artifact_is_keyed_by() -> None:
+    """⚠️ ``cell_stats`` emits ``seeds`` (a list) and never ``seed``.
+
+    This gap was found by reading the production path against the artifact test, **not** by a test:
+    the report assembles cells by ``(tier, seed)`` and would have raised ``KeyError`` after the
+    two-hour campaign.  It has a test now, and the test needs no simulator.
+    """
+    from offline.nortg_campaign import nortg_cell_record
+
+    episodes = _episodes("dt_nortg@mix50", dict.fromkeys(SEEDS, 0.0))
+    one_seed = [e for e in episodes if e.seed == 101]
+    record = nortg_cell_record(one_seed, 101)
+    assert record["seed"] == 101
+    assert record["seeds"] == [101]
+    assert record["tier"] == "mix50"
+    assert record["arm"] == "dt_nortg@mix50"
+    assert record["n_episodes"] == len(DRAWS)
+
+    with pytest.raises(ValueError, match="describes exactly one training seed"):
+        nortg_cell_record(episodes, 101)
+
+
+def test_gate_1b_reroll_cells_cover_all_three_provenances() -> None:
+    """AMENDMENT A1: one re-roll per tier, because the three ``dt`` columns come from three places.
+
+    ``mappo1000`` from ``output/p4_dt/`` (P4's reused column, in **no** integrity manifest --
+    ``DEFERRED`` 56), ``mix50`` from ``output/p4_7/checkpoints/``, ``random`` from
+    ``output/p4_6/checkpoints/``.
+    """
+    assert tuple(tier for tier, _ in GATE_1B_CELLS) == NORTG_TIERS
+    assert {seed for _, seed in GATE_1B_CELLS} == {101}
+    assert all(seed in PROBE_SEEDS for _, seed in GATE_1B_CELLS)
+
+
+# ----------------------------------------------------------------------
+# The output fence, and the filesystem-mutation barrier
+# ----------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "relative",
+    ["p4_6/checkpoints/x.pt", "p4_7/checkpoints/x.pt", "p4_dt/dt_seed101.pt", "p5_3a/probe.json"],
+)
+def test_writing_into_another_campaigns_directory_is_refused(relative: str, tmp_path: Path) -> None:
+    root = tmp_path / "output"
+    target = root / relative
+    with pytest.raises(ValueError, match="belongs to another campaign and is read-only here"):
+        assert_writable(target)
+
+
+def test_this_tasks_own_directory_is_writable_even_though_p5_3a_is_fenced(tmp_path: Path) -> None:
+    """⭐ The prefix trap: ``output/p5_3a`` is fenced and ``output/p5_3b`` is not.
+
+    A string-prefix implementation of the fence would refuse this task's own work directory, or --
+    worse, if the comparison ran the other way -- would let ``output/p5_3a`` through.
+    """
+    root = tmp_path / "output"
+    assert assert_writable(root / "p5_3b" / "checkpoints" / "x.pt") == root / "p5_3b" / "checkpoints" / "x.pt"
+    with pytest.raises(ValueError, match="belongs to another campaign and is read-only here"):
+        assert_writable(root / "p5_3a" / "x.json")
+
+
+def test_the_fenced_set_names_every_merged_campaign_directory() -> None:
+    from offline.nortg_campaign import FENCED_OUTPUT_DIRS
+
+    assert set(FENCED_OUTPUT_DIRS) >= {
+        "p4_3", "p4_4", "p4_5", "p4_6", "p4_7", "p4_dt", "p4_probe",
+        "p5_1", "p5_2", "p5_3a", "p7_0", "p8_3",
+    }
+    assert "p5_3b" not in FENCED_OUTPUT_DIRS
+
+
+# ----------------------------------------------------------------------
+# AMENDMENT C2 -- provenance that cannot tell a clean tree from a dirty one is not provenance
+# ----------------------------------------------------------------------
+
+
+def test_runtime_provenance_records_whether_the_tree_was_dirty() -> None:
+    """``BRIEF_30`` AMENDMENT C2, and it is `docs/reviews/P5.3a.md` **M6**'s second sighting.
+
+    M6 logged the absent dirtiness flag as *"pre-existing"* on 2026-08-26.  It bit for real on
+    2026-08-27: ``eval_mappo1000_seed101.json`` recorded ``git_commit = f115b7ce`` while containing
+    a field that commit does not define, so its provenance was false and nothing could see it.
+
+    The value is checked against an **independent** ``git status --porcelain`` run here rather than
+    pinned to a constant, so the test is right whatever state the tree is in when it runs.
+    """
+    import subprocess
+
+    from offline.dt_gate import runtime_provenance
+
+    record = runtime_provenance()
+    assert "git_dirty" in record, "the change must be additive but it must actually be there"
+    assert record["git_dirty"] in (True, False, None)
+
+    result = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=str(REPO), capture_output=True, text=True, check=False,
+    )
+    if result.returncode == 0:
+        assert record["git_dirty"] is bool(result.stdout.strip())
+
+
+def test_runtime_provenance_keeps_every_field_it_already_had() -> None:
+    """Additively only: ``DEFERRED`` 39's split and every older field keep their names."""
+    from offline.dt_gate import runtime_provenance
+
+    record = runtime_provenance()
+    for key in (
+        "torch_version", "torch_cuda_version", "cuda_available", "cuda_device_name",
+        "torch_num_threads", "numpy_version", "python_version", "git_commit",
+        "written_at_git_commit", "measurement_git_commits", "unreachable_measurement_commits",
+    ):
+        assert key in record, f"{key} disappeared; the change must be additive"
+
+
+@pytest.mark.parametrize("dirty", [True, None])
+def test_the_campaign_refuses_to_write_a_chunk_from_a_tree_it_cannot_vouch_for(
+    dirty: bool | None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """⚠️ ``None`` -- git unavailable -- refuses too.  A provenance check fails CLOSED.
+
+    ``offline/materialise_draws.py``'s ``_git_commit`` returns ``False`` when git errors, which is
+    right for a record and wrong for a gate: 'could not determine' must not read as 'clean'.
+    """
+    monkeypatch.setattr(
+        nortg_campaign, "runtime_provenance",
+        lambda *a, **k: {"git_commit": "abc1234", "git_dirty": dirty},
+    )
+    with pytest.raises(ValueError, match="refusing to write a chunk from a tree") as excinfo:
+        nortg_campaign.assert_recordable_tree(allow_dirty=False)
+    assert "--allow-dirty" in str(excinfo.value)
+
+
+def test_a_clean_tree_is_recordable_without_the_escape_hatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        nortg_campaign, "runtime_provenance",
+        lambda *a, **k: {"git_commit": "abc1234", "git_dirty": False},
+    )
+    record = nortg_campaign.assert_recordable_tree(allow_dirty=False)
+    assert record["git_dirty"] is False
+    assert record["allow_dirty_used"] is False
+
+
+def test_the_escape_hatch_is_recorded_in_the_chunk_and_never_silent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """If a dirty run is ever permitted, the artifact must say so rather than look clean."""
+    monkeypatch.setattr(
+        nortg_campaign, "runtime_provenance",
+        lambda *a, **k: {"git_commit": "abc1234", "git_dirty": True},
+    )
+    record = nortg_campaign.assert_recordable_tree(allow_dirty=True)
+    assert record["git_dirty"] is True
+    assert record["allow_dirty_used"] is True
+
+
+# ----------------------------------------------------------------------
+# AMENDMENT C3 + C4 -- a chunk must describe the tier and seed being run, and its checkpoint
+# must still be the weights it recorded
+# ----------------------------------------------------------------------
+
+
+def _training_chunk(tmp_path: Path, tier: str, seed: int) -> tuple[dict[str, Any], Path]:
+    import torch
+
+    from offline.method_tier_grid import canonical_digest_of
+
+    checkpoint = tmp_path / f"{tier}_dt_nortg_seed{seed}.pt"
+    torch.save({"model": {"w": torch.zeros(3)}}, checkpoint)
+    chunk = {
+        "tier": tier,
+        "runs": [
+            {
+                "tier": tier,
+                "seed": seed,
+                "checkpoint": str(checkpoint),
+                "canonical_digest": canonical_digest_of(checkpoint),
+            }
+        ],
+    }
+    return chunk, checkpoint
+
+
+def test_a_training_chunk_that_describes_another_tier_is_refused(tmp_path: Path) -> None:
+    """M3, demonstrated by the reviewer: a copied chunk evaluated a ``mappo1000`` checkpoint and
+    wrote ``arm: dt_nortg@mix50``, exit 0, every downstream assertion passing."""
+    chunk, _ = _training_chunk(tmp_path, "mappo1000", 101)
+    with pytest.raises(ValueError, match="describes tier"):
+        nortg_campaign.assert_training_run_matches(chunk, "mix50", 101)
+
+
+def test_a_training_chunk_without_the_requested_seed_is_refused(tmp_path: Path) -> None:
+    chunk, _ = _training_chunk(tmp_path, "mix50", 101)
+    with pytest.raises(ValueError, match="records 0 runs"):
+        nortg_campaign.assert_training_run_matches(chunk, "mix50", 202)
+
+
+def test_a_checkpoint_whose_weights_moved_since_training_is_refused(tmp_path: Path) -> None:
+    """M1: ``_run_probe`` did not do this while ``_run_evaluate`` did, so Gate 3 could certify a
+    file the campaign cannot prove is the one it evaluated."""
+    import torch
+
+    chunk, checkpoint = _training_chunk(tmp_path, "mix50", 101)
+    torch.save({"model": {"w": torch.ones(3)}}, checkpoint)
+    with pytest.raises(ValueError, match="is not the trained"):
+        nortg_campaign.assert_training_run_matches(chunk, "mix50", 101)
+
+
+def test_a_matching_chunk_returns_its_run(tmp_path: Path) -> None:
+    chunk, checkpoint = _training_chunk(tmp_path, "mix50", 101)
+    run = nortg_campaign.assert_training_run_matches(chunk, "mix50", 101)
+    assert run["checkpoint"] == str(checkpoint)
+
+
+def test_a_single_probe_cell_is_refused_where_it_is_measured_not_two_stages_later(
+    tmp_path: Path,
+) -> None:
+    """⭐ M2, and the caching is what made it urgent: the driver skips a tier whose probe chunk
+    exists, so a bad chunk survived every restart and the only signal arrived at ``report``.
+
+    Demonstrated by the reviewer against the committed **conditioned** checkpoint:
+    ``max flip_rate 0.004722``, **exit 0**.
+    """
+    good = _probe_cell("mix50", 101)
+    assert nortg_campaign.assert_probe_cell_is_ablated(good) is good
+
+    flipped = _probe_cell("mix50", 101, flip=0.004722)
+    with pytest.raises(ValueError, match="did not ignore the return token") as excinfo:
+        nortg_campaign.assert_probe_cell_is_ablated(flipped)
+    assert "grid_g8" in str(excinfo.value)
+
+    conditioned = _probe_cell("mix50", 101, mode="conditioned")
+    with pytest.raises(ValueError, match="rtg_mode did not reach the training path"):
+        nortg_campaign.assert_probe_cell_is_ablated(conditioned)
+
+
+def test_the_whole_cell_set_check_and_the_single_cell_check_share_one_definition() -> None:
+    """One definition of 'this cell is a valid ablation', used at probe time and at report time.
+
+    Two copies would drift, and the drift would be invisible: the probe-time copy runs on a live
+    tree and the report-time copy on committed bytes.
+    """
+    cells = _all_cells()
+    cells[7]["interventions"]["grid_g8"]["flip_rate"] = 1.0 / 7200.0
+    with pytest.raises(ValueError, match="did not ignore the return token") as whole:
+        assert_arm_validity(cells)
+    with pytest.raises(ValueError, match="did not ignore the return token") as single:
+        nortg_campaign.assert_probe_cell_is_ablated(cells[7])
+    assert str(single.value) in str(whole.value) or str(whole.value) == str(single.value)
+
+
+def test_a_report_whose_inputs_are_missing_writes_nothing_and_creates_no_directory(
+    tmp_path: Path,
+) -> None:
+    """The filesystem-mutation barrier: validate, then write.  Never the other way round."""
+    work = tmp_path / "work"
+    work.mkdir()
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
+    with pytest.raises(FileNotFoundError, match="run `train` and `evaluate` for it first"):
+        nortg_campaign.main(
+            [
+                "--corpus-root", str(tmp_path / "corpus"),
+                "--work-dir", str(work),
+                "--out-dir", str(out_dir),
+                "report",
+            ]
+        )
+    assert list(out_dir.iterdir()) == []
+    assert list(work.iterdir()) == []
+
+
+# ----------------------------------------------------------------------
+# The paired statistics: imported, called, and each call independently detectable
+# ----------------------------------------------------------------------
+
+
+def test_paired_stats_returns_exactly_what_paired_comparison_returns(
+    paired_arms: tuple[list[EpisodeResult], list[EpisodeResult]],
+) -> None:
+    """Field for field against a direct call, so the protocol is reused rather than described."""
+    dt, nortg = paired_arms
+    direct = paired_comparison(dt, nortg).to_json_obj()
+    ours = paired_stats(dt, nortg)
+    assert ours["paired"] == direct
+    assert ours["paired"]["n_shared_draws"] == len(DRAWS)
+    assert ours["paired"]["left_arm"] == "dt@mix50"
+    assert ours["paired"]["right_arm"] == "dt_nortg@mix50"
+    assert ours["abs_mean_difference"] == abs(direct["mean_difference"])
+
+
+def test_removing_the_paired_comparison_call_is_detectable(
+    monkeypatch: pytest.MonkeyPatch,
+    paired_arms: tuple[list[EpisodeResult], list[EpisodeResult]],
+) -> None:
+    """MJ-4's fix, mechanically: the docstring's claim is a call the test can see."""
+    def _sentinel(*args: Any, **kwargs: Any) -> Any:
+        raise RuntimeError("sentinel: paired_comparison really was called")
+
+    monkeypatch.setattr(nortg_campaign, "paired_comparison", _sentinel)
+    with pytest.raises(RuntimeError, match="sentinel: paired_comparison really was called"):
+        paired_stats(*paired_arms)
+
+
+def test_removing_the_shared_draw_pairing_call_is_detectable(
+    monkeypatch: pytest.MonkeyPatch,
+    paired_arms: tuple[list[EpisodeResult], list[EpisodeResult]],
+) -> None:
+    def _sentinel(*args: Any, **kwargs: Any) -> Any:
+        raise RuntimeError("sentinel: _paired really was called")
+
+    monkeypatch.setattr(nortg_campaign, "_paired", _sentinel)
+    with pytest.raises(RuntimeError, match="sentinel: _paired really was called"):
+        paired_stats(*paired_arms)
+
+
+def test_the_wilcoxon_double_compute_is_live_and_refuses_a_disagreement(
+    monkeypatch: pytest.MonkeyPatch,
+    paired_arms: tuple[list[EpisodeResult], list[EpisodeResult]],
+) -> None:
+    """``wilcoxon_signed_rank`` is called on the SAME vectors and compared to the one inside
+    ``PairedComparison``.  Two routes to one quantity; a disagreement is a refusal, not a warning."""
+    dt, nortg = paired_arms
+    left, right, shared = _paired(dt, nortg)
+    assert len(shared) == len(DRAWS)
+    reference = wilcoxon_signed_rank(left, right)
+    assert paired_stats(dt, nortg)["paired"]["wilcoxon"]["p_value"] == reference.p_value
+
+    def _wrong(*args: Any, **kwargs: Any) -> Any:
+        return reference.__class__(
+            w_plus=-1.0, w_minus=-1.0, statistic=-1.0, n_used=0, n_zero=0, z=0.0, p_value=0.5
+        )
+
+    monkeypatch.setattr(nortg_campaign, "wilcoxon_signed_rank", _wrong)
+    with pytest.raises(ValueError, match="the two Wilcoxon routes disagree"):
+        paired_stats(dt, nortg)
+
+
+def test_a_comparison_without_shared_draws_is_void_and_raises(
+    paired_arms: tuple[list[EpisodeResult], list[EpisodeResult]],
+) -> None:
+    """``PREREGISTRATION`` A5 point 3: not approximate -- void."""
+    dt, _ = paired_arms
+    elsewhere = [
+        EpisodeResult(
+            arm="dt_nortg@mix50", seed=101, draw_id=draw, att_horizon=1.0,
+            horizon_vehicle_count=1.0, episode_reward=-1.0,
+        )
+        for draw in (2000, 2001)
+    ]
+    with pytest.raises(ValueError, match="makes this comparison"):
+        paired_stats(dt, elsewhere)
+
+
+def test_per_seed_reversals_counts_four_of_five_on_a_fixture_no_rounding_rule_matches(
+    paired_arms: tuple[list[EpisodeResult], list[EpisodeResult]],
+) -> None:
+    dt, nortg = paired_arms
+    pooled = paired_stats(dt, nortg)["paired"]["mean_difference"]
+    assert pooled > 0.0
+    record = per_seed_differences(dt, nortg, pooled)
+    assert record["seeds_reversed"] == 4
+    assert record["n_seeds"] == 5
+    assert record["per_seed"]["101"] == 13.0
+    assert record["per_seed"]["505"] == -2.0
+    assert 4 not in {3, 2, 0, 5}, "guard against a rounding rule agreeing by accident (MN-5)"
+
+
+def test_a_seed_whose_difference_is_exactly_zero_counts_as_a_reversal() -> None:
+    """The conservative direction, registered in ``docs/plans/p5.3b.md`` section 3.4."""
+    deltas = {101: 5.0, 202: 5.0, 303: 5.0, 404: 5.0, 505: 0.0}
+    dt = _episodes("dt@mix50", deltas)
+    nortg = _episodes("dt_nortg@mix50", dict.fromkeys(SEEDS, 0.0))
+    pooled = paired_stats(dt, nortg)["paired"]["mean_difference"]
+    record = per_seed_differences(dt, nortg, pooled)
+    assert record["per_seed"]["505"] == 0.0
+    assert record["seeds_reversed"] == 1
+
+
+# ----------------------------------------------------------------------
+# Q1 and Q2: scored, and no verdict anywhere
+# ----------------------------------------------------------------------
+
+
+def _comparisons(values: dict[str, float], ci: dict[str, tuple[float, float]] | None = None) -> dict[str, Any]:
+    bounds = ci or {tier: (value - 1.0, value + 1.0) for tier, value in values.items()}
+    return {
+        tier: {
+            "paired": {
+                "mean_difference": value,
+                "ci95_low": bounds[tier][0],
+                "ci95_high": bounds[tier][1],
+            },
+            "abs_mean_difference": abs(value),
+            "mean_absolute_difference": abs(value),
+            "att_dt_mean": 100.0,
+        }
+        for tier, value in values.items()
+    }
+
+
+def _disc(**distinct: bool) -> dict[str, Any]:
+    return {
+        t: {"distinct": d, "n_identical": 0 if d else 500, "n_compared": 500,
+            "definition": "att_engine"}
+        for t, d in distinct.items()
+    }
+
+
+def test_q1_holds_when_both_endpoints_are_in_place() -> None:
+    scored = score_q1(
+        _comparisons({"mix50": -3.0, "mappo1000": -1.0, "random": 0.2}),
+        discriminability=_disc(mix50=True, mappo1000=True, random=True),
+    )
+    assert scored["largest"] == "mix50"
+    assert scored["smallest"] == "random"
+    assert scored["holds"] is True
+    assert scored["scale"] == "raw ATT"
+
+
+@pytest.mark.parametrize(
+    ("values", "why"),
+    [
+        ({"mix50": -1.0, "mappo1000": -3.0, "random": 0.2}, "mix50 displaced from largest"),
+        ({"mix50": -3.0, "mappo1000": -0.1, "random": -1.0}, "random displaced from smallest"),
+    ],
+)
+def test_q1_fails_when_either_endpoint_is_displaced(values: dict[str, float], why: str) -> None:
+    """Both directions.  **Endpoints, never a trend** -- section 1b's R3 was falsified on
+    exactly a monotonicity claim, and the standing instruction is to register endpoints."""
+    scored = score_q1(
+        _comparisons(values),
+        discriminability=_disc(mix50=True, mappo1000=True, random=True),
+    )
+    assert scored["holds"] is False, why
+
+
+#: Phrases that would CLAIM equivalence.  ⚠️ A blanket ban on the substring ``equival`` would
+#: forbid the disclaimer ``BRIEF_30`` section 5 **requires** -- *"a CI containing 0 is a failure to
+#: reject, never a demonstration of equivalence"* -- so the ban is on the claim forms and the
+#: disclaimer is asserted PRESENT instead.  (This replaced a wrong assertion of mine; the Return
+#: Packet discloses it.)
+EQUIVALENCE_CLAIMS = (
+    "is equivalent",
+    "are equivalent",
+    "equivalence margin",
+    "within_delta",
+    "equivalence threshold",
+    "delta_att",
+)
+
+
+def test_q2_reports_a_ci_containing_zero_as_a_failure_to_reject_and_never_as_equivalence() -> None:
+    """⚠️ A6's own words.  ``PREREGISTRATION`` A7 withdrew the per-tier delta rule; this task
+    issues no equivalence verdict and defines no threshold."""
+    scored = score_q2(
+        _comparisons({"random": 0.1}, ci={"random": (-0.4, 0.6)}),
+        discriminability={"random": {"distinct": True, "n_identical": 3, "n_compared": 500}},
+    )
+    assert scored["ci_contains_zero"] is True
+    assert scored["holds"] is True
+    assert "failure to reject" in scored["reading"].lower()
+    assert "demonstration of equivalence" in scored["reading"].lower(), (
+        "the disclaimer BRIEF_30 section 5 mandates must be present, not merely not-contradicted"
+    )
+    text = json.dumps(scored).lower()
+    for claim in EQUIVALENCE_CLAIMS:
+        assert claim not in text, claim
+    assert_no_verdicts(scored)
+
+
+def test_q2_reports_a_ci_excluding_zero_without_issuing_a_verdict() -> None:
+    scored = score_q2(
+        _comparisons({"random": 2.0}, ci={"random": (1.5, 2.5)}),
+        discriminability={"random": {"distinct": True, "n_identical": 0, "n_compared": 500}},
+    )
+    assert scored["ci_contains_zero"] is False
+    assert scored["holds"] is False
+    text = json.dumps(scored).lower()
+    for claim in EQUIVALENCE_CLAIMS:
+        assert claim not in text, claim
+    assert_no_verdicts(scored)
+
+
+# ----------------------------------------------------------------------
+# Q3: arm validity, the gate
+# ----------------------------------------------------------------------
+
+
+def _probe_cell(tier: str, seed: int, *, flip: float = 0.0, mode: str = "zero") -> dict[str, Any]:
+    return {
+        "tier": tier,
+        "seed": seed,
+        "checkpoint": f"output/p5_3b/checkpoints/{tier}_dt_nortg_seed{seed}.pt",
+        "rtg_mode": mode,
+        "n_steps": 7200,
+        "n_streams": 20,
+        "interventions": {
+            key: {
+                "flip_rate": flip if key == "grid_g8" else 0.0,
+                "tvd": 0.0,
+                "mean_abs_logit_delta": 0.0,
+                "n_steps_compared": 7200,
+            }
+            for key in INTERVENTION_KEYS
+        },
+    }
+
+
+def _all_cells(**kwargs: Any) -> list[dict[str, Any]]:
+    return [_probe_cell(tier, seed, **kwargs) for tier in NORTG_TIERS for seed in PROBE_SEEDS]
+
+
+def test_arm_validity_passes_when_every_flip_rate_is_exactly_zero() -> None:
+    record = assert_arm_validity(_all_cells())
+    assert record["n_cells"] == 15
+    assert record["n_values_checked"] == 15 * len(INTERVENTION_KEYS)
+    assert record["max_flip_rate"] == 0.0
+
+
+def test_arm_validity_raises_naming_the_cell_and_the_intervention_on_any_non_zero_flip() -> None:
+    cells = _all_cells()
+    cells[7]["interventions"]["grid_g8"]["flip_rate"] = 1.0 / 7200.0
+    with pytest.raises(ValueError, match="did not ignore the return token") as excinfo:
+        assert_arm_validity(cells)
+    message = str(excinfo.value)
+    assert "grid_g8" in message and cells[7]["tier"] in message
+
+
+def test_arm_validity_raises_when_a_checkpoint_is_not_in_zero_mode() -> None:
+    cells = _all_cells()
+    cells[3]["rtg_mode"] = "conditioned"
+    with pytest.raises(ValueError, match="rtg_mode did not reach the training path"):
+        assert_arm_validity(cells)
+
+
+def test_arm_validity_refuses_a_cell_set_that_is_not_the_declared_fifteen() -> None:
+    with pytest.raises(ValueError, match="the declared cell set is 3 tiers x 5 seeds"):
+        assert_arm_validity(_all_cells()[:14])
+
+
+def test_arm_validity_refuses_an_undeclared_intervention_key() -> None:
+    cells = _all_cells()
+    cells[0]["interventions"]["grid_g9"] = {"flip_rate": 0.0, "tvd": 0.0,
+                                            "mean_abs_logit_delta": 0.0, "n_steps_compared": 7200}
+    with pytest.raises(ValueError, match="the twelve declared interventions"):
+        assert_arm_validity(cells)
+
+
+def test_the_probe_is_p5_3as_and_not_a_reimplementation(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``BRIEF_30`` section 4.4 asks for P5.3a's probe; plan F2 records why the CLI cannot be used.
+
+    Calling ``rtg_ablation.probe_cell`` with an explicit ``checkpoint_path`` is the same instrument
+    one layer down, and this test is what makes that a fact rather than a claim.
+    """
+    def _sentinel(*args: Any, **kwargs: Any) -> Any:
+        raise RuntimeError(f"sentinel: probe_cell called with checkpoint {kwargs['checkpoint_path']}")
+
+    monkeypatch.setattr(nortg_campaign, "probe_cell", _sentinel)
+    with pytest.raises(RuntimeError, match="sentinel: probe_cell called with checkpoint /tmp/x.pt"):
+        probe_nortg_cell("mix50", 101, checkpoint_path="/tmp/x.pt", corpus_root="/tmp/corpus")
+
+
+# ----------------------------------------------------------------------
+# AMENDMENT A5: the payload comparison
+# ----------------------------------------------------------------------
+
+
+def test_the_a5_key_split_is_the_registered_one() -> None:
+    assert EXCLUDED_PAYLOAD_KEYS == ("model", "provenance")
+    assert COMPARED_PAYLOAD_KEYS == (
+        "config", "format_version", "intersection_ids", "normalise",
+        "rtg_scale", "scenario_id", "stats", "target_rtg",
+    )
+    assert set(COMPARED_PAYLOAD_KEYS).isdisjoint(EXCLUDED_PAYLOAD_KEYS)
+
+
+def _payload(**overrides: Any) -> dict[str, Any]:
+    payload = {
+        "format_version": "dt-checkpoint/1.0",
+        "config": {"state_dim": 25, "n_actions": 8, "rtg_mode": "conditioned"},
+        "model": {"w": [1.0, 2.0]},
+        "target_rtg": -6362.0,
+        "rtg_scale": 11043.0,
+        "normalise": True,
+        "scenario_id": "cityflow1x1",
+        "stats": {"rtg": {"count": 72000}},
+        "intersection_ids": [],
+        "provenance": {"seed": 101, "seconds": 213.3},
+    }
+    payload.update(overrides)
+    return payload
+
+
+def test_the_a5_comparison_accepts_payloads_that_differ_only_in_provenance(tmp_path: Path) -> None:
+    import torch
+
+    left, right = tmp_path / "l.pt", tmp_path / "r.pt"
+    torch.save(_payload(), left)
+    torch.save(_payload(provenance={"seed": 101, "seconds": 999.9, "device": "cuda"}), right)
+    record = assert_payload_matches_committed(left, right)
+    assert record["differing_keys"] == []
+    assert tuple(record["compared_keys"]) == COMPARED_PAYLOAD_KEYS
+
+
+@pytest.mark.parametrize("key", ["target_rtg", "rtg_scale", "config", "stats", "scenario_id"])
+def test_the_a5_comparison_refuses_a_difference_in_any_compared_key(key: str, tmp_path: Path) -> None:
+    import torch
+
+    changed = {
+        "target_rtg": -1.0, "rtg_scale": 1.0, "config": {"state_dim": 1},
+        "stats": {"rtg": {"count": 1}}, "scenario_id": "elsewhere",
+    }[key]
+    left, right = tmp_path / "l.pt", tmp_path / "r.pt"
+    torch.save(_payload(), left)
+    torch.save(_payload(**{key: changed}), right)
+    with pytest.raises(ValueError, match="payload keys differ outside model and provenance") as e:
+        assert_payload_matches_committed(left, right)
+    assert key in str(e.value)
+
+
+def test_the_a5_comparison_refuses_a_payload_that_gained_or_lost_a_key(tmp_path: Path) -> None:
+    """A later payload growing a key must not slip through uncompared."""
+    import torch
+
+    left, right = tmp_path / "l.pt", tmp_path / "r.pt"
+    grown = _payload()
+    grown["new_field"] = 1
+    torch.save(grown, left)
+    torch.save(_payload(), right)
+    with pytest.raises(ValueError, match="the two payloads do not carry the same keys"):
+        assert_payload_matches_committed(left, right)
+
+
+# ----------------------------------------------------------------------
+# The artifact: shape, and what it refuses
+# ----------------------------------------------------------------------
+
+
+def _minimal_report_inputs() -> dict[str, Any]:
+    cells = [
+        {
+            "arm": nortg_arm_key(tier), "method": NORTG_METHOD, "tier": tier, "seed": seed,
+            "n_episodes": 100, "att_horizon_mean": 100.0, "att_horizon_std": 1.0,
+            "att_horizon_ci95": 0.2, "horizon_vehicle_count_mean": 40.0,
+            "horizon_vehicle_count_std": 1.0, "draw_ids": list(DRAWS), "seeds": [seed],
+        }
+        for tier in NORTG_TIERS
+        for seed in PROBE_SEEDS
+    ]
+    comparisons = _comparisons({tier: -1.0 for tier in NORTG_TIERS})
+    for tier in comparisons:
+        comparisons[tier]["per_seed"] = {"seeds_reversed": 0, "n_seeds": 5, "per_seed": {}}
+        # The fixture must carry the shape production carries.  A fixture that supplies fields the
+        # real path does not (and omits ones it does) is what let the cell["seed"] defect through
+        # to a two-hour campaign; ``by_definition`` is D2's shape and belongs here too.
+        comparisons[tier]["by_definition"] = {
+            d: {**comparisons[tier], "att_dt_mean": 100.0 + i}
+            for i, d in enumerate(ATT_DEFINITIONS)
+        }
+    return {
+        "cells": cells,
+        "episodes": [],
+        "comparisons": comparisons,
+        "probe_cells": _all_cells(),
+        "gates": {"gate_1": {}, "gate_1b": {}, "gate_2": {}},
+        "selection": {"tiers": list(NORTG_TIERS)},
+        "timings": {},
+        "discriminability": {
+            tier: {"distinct": True, "n_identical": 0, "n_compared": 500, "definition": "att_engine"}
+            for tier in NORTG_TIERS
+        },
+    }
+
+
+def test_the_assembled_artifact_carries_no_verdict_and_no_threshold() -> None:
+    payload = report_artifact(**_minimal_report_inputs())
+    # 1.0 -> 1.1 at AMENDMENT D1: every episode row now carries A11(b)'s five quantities, which
+    # is a layout change, and contract C6 requires a version bump for one.
+    assert payload["format_version"] == "p5.3b-nortg/1.1"
+    assert_no_verdicts(payload)
+    text = json.dumps(payload).lower()
+    for token in ("equivalent", "within_delta", "equivalence margin", "delta_att", "inert"):
+        assert token not in text, token
+
+
+def test_the_artifact_refuses_a_tier_outside_the_registered_three() -> None:
+    inputs = _minimal_report_inputs()
+    inputs["comparisons"] = dict(inputs["comparisons"])
+    inputs["comparisons"]["mix33"] = inputs["comparisons"]["mix50"]
+    with pytest.raises(ValueError, match="the registered tier set is"):
+        report_artifact(**inputs)
+
+
+def test_the_artifact_refuses_a_cell_set_that_is_not_three_tiers_by_five_seeds() -> None:
+    inputs = _minimal_report_inputs()
+    inputs["cells"] = inputs["cells"][:14]
+    with pytest.raises(ValueError, match="the declared cell set is 3 tiers x 5 seeds"):
+        report_artifact(**inputs)
+
+
+# ----------------------------------------------------------------------
+# AMENDMENT E1 -- the reused dt column is READ from P8.4b, and Gate 1b is the INSTRUMENT check
+# ----------------------------------------------------------------------
+
+
+def _rederivation_dir() -> Path:
+    """``BRIEF_30`` E5: ``--output-root`` fixes the CAMPAIGN's paths; this env var is what stops
+    the TEST skipping.  They are two mechanisms doing two jobs and are not interchangeable."""
+    import os
+
+    root = Path(os.environ.get("RLTRAFFIC_OUTPUT_ROOT", str(REPO / "output")))
+    directory = nortg_campaign.default_rederivation_dir(root)
+    if not directory.is_dir():
+        pytest.skip(
+            f"P8.4b's re-derived cells are not present at {directory}: set RLTRAFFIC_OUTPUT_ROOT "
+            "to a tree that carries output/p8_4b_rederivation"
+        )
+    return directory
+
+
+def test_the_reused_dt_column_comes_from_p8_4b_and_carries_both_definitions() -> None:
+    """⭐ ``BRIEF_30`` E1: *"read the column for the PAIRING."*
+
+    P8.4b re-derived every ``dt`` cell of these three tiers at full coverage -- 100 draws x 5 seeds,
+    both ATT definitions and all five A11(b) quantities -- so the paired contrast needs no re-roll
+    of the ``dt`` arm.  ⚠️ **I recommended re-rolling all 15 cells before measuring this; the repo
+    had already done it and the recommendation was wrong.**
+
+    ``reproduces_committed`` is re-checked here rather than trusted: the flag is P8.4b's own, and a
+    reused column must be verified by the task that reuses it.
+    """
+    for tier in NORTG_TIERS:
+        records = nortg_campaign.rederived_dt_episodes(
+            tier, rederivation_dir=_rederivation_dir(), data_dir=DATA
+        )
+        assert len(records) == 500, tier
+        assert {int(r["seed"]) for r in records} == set(SEEDS), tier
+        assert len({int(r["draw_id"]) for r in records}) == 100, tier
+        for r in records:
+            for field in ("att_ours", "att_engine", "entered", "created", "never_entered"):
+                assert field in r, f"{tier} {field}"
+
+
+def test_the_reused_column_is_refused_if_it_does_not_reproduce_the_committed_grid() -> None:
+    """The independent re-check, not P8.4b's own flag."""
+    records = nortg_campaign.rederived_dt_episodes(
+        "mappo1000", rederivation_dir=_rederivation_dir(), data_dir=DATA
+    )
+    tampered = [dict(r) for r in records]
+    tampered[0]["att_ours"] = tampered[0]["att_ours"] + 1e-9
+    with pytest.raises(ValueError, match="does not reproduce the committed"):
+        nortg_campaign.assert_rederived_matches_committed(tampered, "mappo1000", data_dir=DATA)
+
+
+# ----------------------------------------------------------------------
+# AMENDMENT E4 -- a non-distinct null control is an ARTEFACT, not a null
+# ----------------------------------------------------------------------
+
+
+def _pair(n_identical: int, n_total: int = 4) -> tuple[list[Any], list[Any]]:
+    left = [_admission("dt@random", 101, 1000 + i, att_engine=700.0 + i) for i in range(n_total)]
+    right = [
+        _admission(
+            "dt_nortg@random", 101, 1000 + i,
+            att_engine=700.0 + i if i < n_identical else 700.0 + i + 5.0,
+        )
+        for i in range(n_total)
+    ]
+    return left, right
+
+
+def test_two_arms_that_never_differ_are_reported_as_non_distinct() -> None:
+    left, right = _pair(n_identical=4)
+    record = nortg_campaign.assert_arms_are_distinct(left, right, definition="att_engine")
+    assert record["distinct"] is False
+    assert record["n_identical"] == 4
+    assert record["n_compared"] == 4
+
+
+def test_two_arms_that_differ_anywhere_are_reported_as_distinct() -> None:
+    left, right = _pair(n_identical=3)
+    record = nortg_campaign.assert_arms_are_distinct(left, right, definition="att_engine")
+    assert record["distinct"] is True
+    assert record["n_identical"] == 3
+
+
+def test_a_ci_containing_zero_on_a_NON_DISTINCT_null_control_is_an_artefact_not_a_null() -> None:
+    """🚨 ``BRIEF_30`` E4, registered before any P5.3b number existed.
+
+    *"If ``dt`` and ``dt_nortg`` are NON-DISTINCT on the null-control tier, then a confidence
+    interval containing zero is an ARTEFACT OF NON-DISCRIMINATION AND NOT A NULL RESULT, and it may
+    not be reported as evidence that removing the prompt costs nothing."*
+
+    This is the 2026-08-31 discriminability rule -- *a contrast over identical inputs is not a null
+    result* -- applied to the one tier where the paper's headline could be silently manufactured.
+    """
+    comparisons = _comparisons({"random": 0.0}, ci={"random": (-0.0, 0.0)})
+    scored = nortg_campaign.score_q2(
+        comparisons, discriminability={"random": {"distinct": False, "n_identical": 500,
+                                                  "n_compared": 500}}
+    )
+    assert scored["ci_contains_zero"] is True
+    assert scored["arms_distinct"] is False
+    assert scored["holds"] is None, "a non-distinct contrast scores neither pass nor fail"
+    assert scored["artefact_of_non_discrimination"] is True
+    assert "cannot discriminate" in scored["reading"].lower()
+    assert "no evidence" in scored["reading"].lower() or "may not be read" in scored["reading"].lower()
+
+
+def test_a_ci_containing_zero_on_a_DISTINCT_null_control_is_a_genuine_failure_to_reject() -> None:
+    comparisons = _comparisons({"random": 0.1}, ci={"random": (-0.4, 0.6)})
+    scored = nortg_campaign.score_q2(
+        comparisons, discriminability={"random": {"distinct": True, "n_identical": 3,
+                                                  "n_compared": 500}}
+    )
+    assert scored["arms_distinct"] is True
+    assert scored["artefact_of_non_discrimination"] is False
+    assert scored["holds"] is True
+    assert "failure to reject" in scored["reading"].lower()
+
+
+def test_q2_refuses_to_score_without_a_discriminability_record() -> None:
+    """E4 makes the record mandatory, so its absence is a refusal rather than a default."""
+    with pytest.raises(ValueError, match="E4 requires the discriminability record"):
+        nortg_campaign.score_q2(_comparisons({"random": 0.1}), discriminability={})
+
+
+# ----------------------------------------------------------------------
+# The output fence is DEFAULT-DENY, found by the Amendment C pre-flight
+# ----------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "relative",
+    ["p8_4b_rederivation/cell_x.json", "p8_4a/x.json", "p8_4b_g0/x.json", "experiments/x.json",
+     "p4_6/checkpoints/x.pt", "p5_3a/probe.json", "some_campaign_invented_in_2027/x.json"],
+)
+def test_the_fence_refuses_everything_under_output_that_is_not_this_task(relative: str) -> None:
+    """⭐ Found by the Amendment C pre-flight: ``output/p8_4b_rederivation`` was NOT fenced.
+
+    It holds P8.4b's 38,502 re-derived cells -- the column this campaign now reads for the pairing.
+    It arrived on ``main`` after ``FENCED_OUTPUT_DIRS`` was written and the list did not follow,
+    which is the same shape as D1: the tree moved and a constant did not.
+
+    ⚠️ **So the rule is inverted to DEFAULT-DENY.**  Naming the four directories would have closed
+    four instances; refusing everything that is not ``output/p5_3b`` closes the class, and the last
+    parameter above is a directory that does not exist yet.
+    """
+    with pytest.raises(ValueError, match="belongs to another campaign and is read-only here"):
+        assert_writable(Path("/home/filip/rltraffic/output") / relative)
+
+
+@pytest.mark.parametrize(
+    "relative", ["p5_3b/checkpoints/x.pt", "p5_3b/gate1.json", "SHA256SUMS_p5_3b.txt"]
+)
+def test_the_fence_allows_exactly_this_tasks_own_outputs(relative: str) -> None:
+    """Including this task's own manifest, which sits directly in ``output/`` and not in a
+    subdirectory -- a default-deny rule that forgot it would refuse the campaign's last step."""
+    target = Path("/home/filip/rltraffic-p53b/output") / relative
+    assert assert_writable(target) == target
+
+
+# ----------------------------------------------------------------------
+# The evaluation chunk -- the call site the 2026-09-10 campaign failure exposed
+# ----------------------------------------------------------------------
+
+
+def _produced(tier: str = "mix50", seed: int = 101) -> list[Any]:
+    from offline.dt_gate import HELD_OUT_DRAWS
+
+    return [
+        _admission(f"dt_nortg@{tier}", seed, draw, att_engine=100.0 + i * 0.01,
+                   att_ours=104.0 + i * 0.01)
+        for i, draw in enumerate(HELD_OUT_DRAWS)
+    ]
+
+
+def test_the_evaluation_chunk_carries_all_five_on_every_episode() -> None:
+    """🚨 The regression the campaign hit, and the one it was HIDING.
+
+    ``_run_evaluate`` built its chunk inline and wrote **six** per-episode fields, none of them
+    A11(b)'s five.  It crashed first on ``att_horizon``, so the D1 breach never reached disk -- but
+    only by luck, and it would have been caught two stages later at ``report``.
+
+    ⚠️ Three consumers of ``evaluate_cell``'s output changed type at D1 and I swept one of them
+    (``_run_gate1``, ``dd9d4ba``).  That is A5's lesson -- *the sweep is the hard part, not the
+    sighting* -- for the third time in this task.
+    """
+    chunk = evaluation_chunk(
+        tier="mix50", seed=101, checkpoint="/tmp/x.pt", canonical_digest="abc",
+        produced=_produced(), seconds=176.3,
+        tree={"git_commit": "abc1234", "git_dirty": False, "allow_dirty_used": False},
+    )
+    assert len(chunk["episodes"]) == 100
+    for row in chunk["episodes"]:
+        for field in ADMISSION_FIELDS:
+            assert field in row, field
+    assert chunk["arm"] == "dt_nortg@mix50"
+    assert chunk["primary_att_definition"] == "att_engine"
+
+
+def test_the_evaluation_chunks_cell_is_the_primary_definition_with_both_means_beside_it() -> None:
+    """D2: the primary at the top, both reported.  A cell that did not name its definition would
+    make ``att_horizon_mean`` mean two different things in two artifacts."""
+    chunk = evaluation_chunk(
+        tier="mix50", seed=101, checkpoint="/tmp/x.pt", canonical_digest="abc",
+        produced=_produced(), seconds=176.3, tree={},
+    )
+    cell = chunk["cell"]
+    assert cell["definition"] == "att_engine"
+    assert cell["seed"] == 101
+    both = cell["att_horizon_mean_by_definition"]
+    assert sorted(both) == sorted(ATT_DEFINITIONS)
+    assert cell["att_horizon_mean"] == both["att_engine"]
+    assert both["att_ours"] != both["att_engine"]
+
+
+def test_the_evaluation_chunk_refuses_an_incomplete_cell() -> None:
+    """'found no differences' must never be 'compared nothing' -- here, at collection time."""
+    with pytest.raises(ValueError, match="incomplete cell"):
+        evaluation_chunk(
+            tier="mix50", seed=101, checkpoint="/tmp/x.pt", canonical_digest="abc",
+            produced=_produced()[:99], seconds=1.0, tree={},
+        )
+
+
+# ----------------------------------------------------------------------
+# Q1's two limbs are scored SEPARATELY (ruled 2026-09-10)
+# ----------------------------------------------------------------------
+
+
+def test_q1_reports_its_two_limbs_separately_and_not_as_one_prediction() -> None:
+    """⛔ *"Do not write 'Q1 has a caveat'; that lets a reader keep the whole prediction."*
+
+    The registered prediction has two limbs and this campaign supports exactly one of them.
+    ``largest on mix50`` is ESTABLISHED: the arms are distinct there, so the 409.1450 is a measured
+    contrast.  ``smallest on random`` is SATISFIED BY A NON-DISCRIMINATING TIER: the two arms are
+    the same policy on all 500 episodes, so 0.0000 is what that tier must return for any pair of
+    arms whatsoever, and it is **not evidence** about the return prompt.
+    """
+    scored = score_q1(
+        _comparisons({"mix50": -409.145, "mappo1000": 0.1226, "random": 0.0}),
+        discriminability=_disc(mix50=True, mappo1000=True, random=False),
+    )
+    largest, smallest = scored["largest_limb"], scored["smallest_limb"]
+
+    assert largest["tier"] == "mix50"
+    assert largest["status"] == "established"
+    assert largest["arms_distinct"] is True
+    assert largest["is_evidence"] is True
+
+    assert smallest["tier"] == "random"
+    assert smallest["status"] == "satisfied_by_a_non_discriminating_tier"
+    assert smallest["arms_distinct"] is False
+    assert smallest["is_evidence"] is False
+    assert "not evidence" in smallest["reading"].lower()
+
+    # the ordering still holds as registered -- the limbs qualify it, they do not withdraw it
+    assert scored["holds"] is True
+    # ...and no single field lets a reader carry the whole prediction away
+    assert "caveat" not in json.dumps(scored).lower()
+
+
+def test_q1_both_limbs_are_established_when_every_tier_discriminates() -> None:
+    scored = score_q1(
+        _comparisons({"mix50": -409.145, "mappo1000": 0.1226, "random": 0.0}),
+        discriminability=_disc(mix50=True, mappo1000=True, random=True),
+    )
+    assert scored["largest_limb"]["status"] == "established"
+    assert scored["smallest_limb"]["status"] == "established"
+    assert scored["smallest_limb"]["is_evidence"] is True
+
+
+def test_q1_refuses_to_score_without_the_discriminability_record() -> None:
+    with pytest.raises(ValueError, match="requires the discriminability record"):
+        score_q1(_comparisons({"mix50": -1.0, "mappo1000": 0.1, "random": 0.0}),
+                 discriminability={})

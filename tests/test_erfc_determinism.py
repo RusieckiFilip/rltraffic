@@ -279,9 +279,20 @@ def test_the_committed_p_values_all_still_reproduce_exactly() -> None:
     for artifact in sorted(DATA_DIR.rglob("*.json")):
         walk(json.loads(artifact.read_text(encoding="utf-8")), artifact.name)
 
-    assert len(pairs) == 330, (
-        f"expected the 330 committed (z, p_value) pairs -- 322 measured on 2026-08-17 plus the 8 "
-        f"P5.3a copies out of p4_6_grid.json / p4_7_grid.json (BRIEF_29 section 1 B) -- found "
+    # 330 -> 339 on 2026-09-10, AUTHORISED IN WRITING on the same footing as BRIEF_29 section 1 B:
+    # "test_erfc_determinism 330 -> 339 AUTHORISED, same footing as BRIEF_29 section 1 B. Your
+    # enumeration is what makes it an authorisation rather than a rubber stamp."
+    # The nine are P5.3b's, enumerated before the literal was touched -- 3 tiers x (2 ATT
+    # definitions + 1 top-level copy of the primary):
+    #   comparisons.{mappo1000,mix50,random}.by_definition.{att_engine,att_ours}.paired.wilcoxon  6
+    #   comparisons.{mappo1000,mix50,random}.paired.wilcoxon                                      3
+    # The three top-level pairs DUPLICATE the att_engine ones by construction: BRIEF_30 D2 puts the
+    # primary definition at the top level so no reader can mistake which definition a bare `paired`
+    # block carries. Only the literal changed; all 339 still reproduce through _normal_cdf.
+    assert len(pairs) == 339, (
+        f"expected the 339 committed (z, p_value) pairs -- 322 measured on 2026-08-17, plus the 8 "
+        f"P5.3a copies out of p4_6_grid.json / p4_7_grid.json (BRIEF_29 section 1 B), plus the 9 "
+        f"P5.3b wilcoxon blocks in p5_3b_nortg.json (authorised 2026-09-10) -- found "
         f"{len(pairs)}; if artifacts were added, re-measure and update this count deliberately"
     )
 
