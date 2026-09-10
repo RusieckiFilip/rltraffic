@@ -504,3 +504,52 @@ A5 replaced ≈35 min with ≈61–69 min by applying the 30-episode 2.55× to a
 same contended rate) that cancelled. **Neither route was the right one: the artifact holds three
 directly measured 500-episode five-tuple wall clocks, and that is the number.** Decisions Log row of
 this date records both errors.
+
+---
+
+# ⛔ AMENDMENT C — 2026-09-10, on the pre-flight review: NOT YET CLEAR TO RUN. Six fixes first, then the token
+
+`docs/reviews/P5.3b-fix-preflight.md`: **CLEAR WITH CONDITIONS, 0 blockers, 5 major, 7 minor**, every
+finding by execution in a sandbox, both `output/` snapshots identical before and after, real token
+never created. **The reviewer's four conditions are operator-side; the coordinator converts five of
+them into code, because a condition an operator must remember is `DEFERRED` 61's class — the driver
+must not depend on the cwd or on the author's memory.** Nothing here touches the science; the code has
+not run yet, so tightening is free.
+
+## C1 — REQUIRED before the token (all six; ~1 h; each with a test or an executed demonstration)
+
+1. **M2 — `cd "$WORK_TREE"` in the driver, before the token check**, exactly as `p5_3b.sh:56` had it;
+   and the driver asserts `python -c "import offline.nortg_decomposition"` succeeds **before**
+   consuming the token. A refused start must burn nothing.
+2. **M1 — `chunk_is_reusable` compares `payload["method"]`, `["tier"]`, `["seed"]` to the invocation**
+   and returns `False` on any disagreement; test: the reviewer's wrong-cell chunk under the right
+   filename → re-run, not skipped.
+3. **M5 — a chunk that does not parse is `False`, never a crash**: `JSONDecodeError` (and an empty
+   file) inside the predicate → re-run; test with a truncated chunk and an empty file.
+4. **M3 — the driver traps `INT`/`TERM` and kills its own process group** (`trap 'kill -- -$$' INT TERM`
+   or the `setsid` equivalent), writes `FAILED`, exits; **and refuses to start while
+   `pgrep -f nortg_decomposition` is non-empty**. Demonstrate the trap the reviewer's way: three
+   sleeping children, SIGINT to the group, none survive. The load statement in the artifact must be
+   true, and it cannot be if two campaigns can overlap.
+5. **M4 — apply the fence to `out_dir / "p5_3b_decomposition.json"` too**; test: `--out-dir
+   <root>/output/p5_3b` refused, `docs/data` allowed.
+6. **m1 — the manifest excludes `smoke/`** (`find ... -path '*/smoke' -prune -o ...`), so the smoke
+   stays as G2 evidence without becoming a deletion hazard. The manifest write becomes atomic
+   (write to `.tmp`, `mv`).
+
+## C2 — ACCEPTED as is, recorded rather than fixed
+
+**m6** (a restart after a successful `report` refuses on the untracked artifact) is correct behaviour —
+the artifact is meant to be committed, and the driver's NEXT STEPS say so; the packet names it.
+**m2** — the flags are not enforced by design; `report` recounts from rows, which is the right source;
+the docstring says so. **m3** — the fence is scoped to `output/` by design; `--work-dir` is hardcoded.
+**m4** — the `reap` comment is corrected to what it does. **m5**, **m7** — positives, for the record.
+
+## C3 — Then, without a second full pre-flight
+
+The six fixes are local to the driver and the predicate. The coordinator verifies them on the branch by
+reading the diff and running the new tests plus the reviewer's M1/M5 sandbox states; **no second
+reviewer round** (stopping rule: the first round found nothing load-bearing in the writing paths, and
+a second would return preference). **The token is written by the author only after the coordinator
+says CLEAR in writing, in the Decisions Log.** Start command, from the worktree:
+`tmux new -s p53bfix` → `cd /home/filip/rltraffic-p53b && bash offline/campaigns/p5_3b_decomp.sh`.
