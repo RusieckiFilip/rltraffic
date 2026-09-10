@@ -461,3 +461,46 @@ handed to the author is corrected: ≈61–69 min wall clock at 5 workers**, not
 assumed 5× where the packet had a *measured* 2.55×. G2's measured observed-DT rate replaces both
 estimates before the run is scheduled. Branch point `78c6383` (the brief-issuing commit) supersedes
 the header's `0852ba6`; the brief was written before its own commit existed.
+
+---
+
+# ✅ AMENDMENT B — 2026-09-10, ruled at G2a: NO separate timing leg; the schedule basis is already in the artifact
+
+**G2a is accepted** — 36 red across eight real surfaces plus one genuine assertion, the self-vouching
+chunk, the second-route identity test and the `Utils.infer_action_counts` width are exactly right, and
+tightening the bare `pytest.raises` was the tool being right on the merits.
+
+## B1 — The timing question, resolved from the artifact rather than by another run
+
+The implementer proposed a timing leg *"at a scale where GPU contention has settled"* before the run,
+citing *"the mix50 five-tuple took 12.5 min against the ~6 min 2.55× implied"*. **The coordinator
+checked `output/p5_3b/` and the artifact contradicts the 12.5 min:** all five `eval_mix50_seed*.json`
+chunks ended within 10 s of each other (01:07:43–01:07:53) and each records 287.6–297.7 s, so the
+five-tuple's wall clock was **≈298 s = 5.0 min for 500 episodes**; `mappo1000` 273.8 s and `random`
+303.5 s the same way. **Implementer: name the source of the 12.5 min in the packet's classified
+section, and remove it from the driver header.** A number that the artifact contradicts must not be
+encoded anywhere.
+
+**The basis, all measured:** serial **1.85 s/episode** (`P5.3b.md:178`, 11.1 s / 6); 5-way effective
+**0.596 s/episode** over a complete 500-episode five-tuple (298 s / 500) — contention settled *better*
+than the 30-episode transient's 0.727, not worse, and the at-scale speedup is 1.85 / 0.596 = **3.1×**.
+The only unmeasured term is the observer's overhead on a DT episode; Gate 0 put it at ≈+15 % on
+non-DT hz1x1 episodes (1.475 vs 1.29 s).
+
+> **RULING:** no timing leg beyond the smoke. Every run under `output/` that consumes reused merged
+> columns is the pre-flight review's domain (§7 trigger (b)); a timing leg is not a correctness gate
+> and buys only a figure the artifact already contains. **The smoke is widened from draws 1000–1001
+> to 1000–1004** — one `dt_nortg` cell and one `dt` cell, **10 episodes**, under
+> `output/p5_3b_decomp/smoke/`, ≤ 1 min — and reports the serial s/episode under the observer over
+> those 10, beside the 1.85 s uncontended serial rate without it, as the overhead ratio.
+> **Schedule handed to the author = 3,000 × 0.596 s × (measured overhead ratio)** — with ratio 1.15
+> that is **≈34 min wall at 5 workers, ≈1.7 h serial.** The packet reports the run's own wall clock
+> beside it.
+
+## B2 — The coordinator's A5 figure was wrong too, and it is logged
+
+A5 replaced ≈35 min with ≈61–69 min by applying the 30-episode 2.55× to a per-process *contended* rate
+(2.90 s) — double-counting contention. The brief's original ≈35 came from two wrong terms (5×, and the
+same contended rate) that cancelled. **Neither route was the right one: the artifact holds three
+directly measured 500-episode five-tuple wall clocks, and that is the number.** Decisions Log row of
+this date records both errors.
