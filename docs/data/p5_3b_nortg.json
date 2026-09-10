@@ -39990,6 +39990,16 @@
       "definition": "att_engine",
       "holds": true,
       "largest": "mix50",
+      "largest_limb": {
+        "abs_mean_difference": 409.1449848194759,
+        "arms_distinct": true,
+        "is_evidence": true,
+        "limb": "largest",
+        "reading": "the largest paired absolute difference is on mix50, whose two arms are distinct on 500 of 500 shared cells, so this limb is a measured contrast",
+        "status": "established",
+        "tier": "mix50"
+      },
+      "limbs_are_scored_separately": "the registered prediction has two limbs and they do not stand or fall together; a limb is evidence only where the tier that satisfies it can discriminate the two arms",
       "prediction": "the paired absolute difference between the dt and dt_nortg arms is largest on mix50 and smallest on random",
       "quantity": "abs(mean_difference) of the paired per-draw comparison",
       "registered_in": "BRIEF_30 section 3 Q1; scoring quantity fixed in docs/plans/p5.3b.md section 3.2 and confirmed by AMENDMENT A2",
@@ -40013,6 +40023,15 @@
         "status": "reported, not scored; the registered ordering is the raw one above"
       },
       "smallest": "random",
+      "smallest_limb": {
+        "abs_mean_difference": 0.0,
+        "arms_distinct": false,
+        "is_evidence": false,
+        "limb": "smallest",
+        "reading": "the smallest paired absolute difference is on random, whose two arms are IDENTICAL on 500 of 500 shared cells. 0.0 is what that tier returns for ANY pair of arms whatsoever, so this limb is satisfied by a tier that cannot discriminate and is NOT EVIDENCE about the return prompt",
+        "status": "satisfied_by_a_non_discriminating_tier",
+        "tier": "random"
+      },
       "tie_break": "tier name ascending",
       "ties_present": false
     },
@@ -40083,7 +40102,7 @@
   "runtime": {
     "cuda_available": true,
     "cuda_device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
-    "git_commit": "24d717d33091018d7e7aef31b9c5e65eb46b701a",
+    "git_commit": "f20b365c1e978de71e62d7f43f0651759bdcdac6",
     "git_dirty": true,
     "measurement_git_commits": [
       "24d717d33091018d7e7aef31b9c5e65eb46b701a",
@@ -40096,7 +40115,7 @@
     "torch_num_threads": 1,
     "torch_version": "2.11.0+cu128",
     "unreachable_measurement_commits": [],
-    "written_at_git_commit": "24d717d33091018d7e7aef31b9c5e65eb46b701a"
+    "written_at_git_commit": "f20b365c1e978de71e62d7f43f0651759bdcdac6"
   },
   "seeds": [
     101,

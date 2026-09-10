@@ -1475,7 +1475,11 @@ def assert_arm_validity(probe_cells: Sequence[Mapping[str, Any]]) -> dict[str, A
 # ----------------------------------------------------------------------
 
 
-def score_q1(comparisons: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
+def score_q1(
+    comparisons: Mapping[str, Mapping[str, Any]],
+    *,
+    discriminability: Mapping[str, Mapping[str, Any]],
+) -> dict[str, Any]:
     """Q1: the paired absolute difference is largest on ``mix50`` and smallest on ``random``.
 
     The scored quantity is ``abs(mean_difference)`` on the **raw ATT scale**, registered in
@@ -1488,7 +1492,22 @@ def score_q1(comparisons: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
     scored claim; switching to it after seeing the result is forbidden by the plan's section 3.3.
 
     **Endpoints, never a trend** -- section 1b's R3 was falsified on exactly a monotonicity claim.
+
+    🚨 **The two limbs are scored SEPARATELY (ruled 2026-09-10), and the wording is the ruling.**
+    ⛔ *"Do not write 'Q1 has a caveat'; that lets a reader keep the whole prediction."*  A limb is
+    ``established`` only where the two arms are **distinct** on that tier.  Where they are not, the
+    limb is ``satisfied_by_a_non_discriminating_tier``: the magnitude that satisfied it is what the
+    tier returns for **any** pair of arms whatsoever, so it is **not evidence** about the return
+    prompt.  ``discriminability`` is therefore required and keyword-only, exactly as in
+    :func:`score_q2`.
     """
+    missing = [t for t in comparisons if t not in (discriminability or {})]
+    if missing:
+        raise ValueError(
+            f"score_q1 requires the discriminability record for every tier it scores; {missing} "
+            "are absent. Without it a limb satisfied by a tier that cannot tell the two arms apart "
+            "is indistinguishable from a measured one"
+        )
     magnitudes = {tier: float(entry["abs_mean_difference"]) for tier, entry in comparisons.items()}
     order = sorted(magnitudes, key=lambda tier: (magnitudes[tier], tier))
     largest, smallest = order[-1], order[0]
@@ -1522,6 +1541,12 @@ def score_q1(comparisons: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
         "tie_break": "tier name ascending",
         "ties_present": len(set(values)) != len(values),
         "holds": bool(largest == "mix50" and smallest == "random"),
+        "limbs_are_scored_separately": (
+            "the registered prediction has two limbs and they do not stand or fall together; a "
+            "limb is evidence only where the tier that satisfies it can discriminate the two arms"
+        ),
+        "largest_limb": _q1_limb("largest", largest, magnitudes[largest], discriminability),
+        "smallest_limb": _q1_limb("smallest", smallest, magnitudes[smallest], discriminability),
         "secondary_not_registered": {
             "mean_absolute_difference": dict(sorted(secondary_abs.items())),
             "mean_absolute_difference_largest": secondary_order[-1],
@@ -1531,6 +1556,36 @@ def score_q1(comparisons: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
             "normalised_smallest": normalised_order[0] if normalised_order else None,
             "status": "reported, not scored; the registered ordering is the raw one above",
         },
+    }
+
+
+def _q1_limb(
+    which: str, tier: str, magnitude: float, discriminability: Mapping[str, Mapping[str, Any]]
+) -> dict[str, Any]:
+    """One limb of Q1, with its evidential status decided by the tier's discriminability."""
+    record = discriminability[tier]
+    distinct = bool(record["distinct"])
+    if distinct:
+        reading = (
+            f"the {which} paired absolute difference is on {tier}, whose two arms are distinct on "
+            f"{record['n_compared'] - record['n_identical']} of {record['n_compared']} shared "
+            "cells, so this limb is a measured contrast"
+        )
+    else:
+        reading = (
+            f"the {which} paired absolute difference is on {tier}, whose two arms are IDENTICAL on "
+            f"{record['n_identical']} of {record['n_compared']} shared cells. {magnitude} is what "
+            "that tier returns for ANY pair of arms whatsoever, so this limb is satisfied by a "
+            "tier that cannot discriminate and is NOT EVIDENCE about the return prompt"
+        )
+    return {
+        "limb": which,
+        "tier": tier,
+        "abs_mean_difference": float(magnitude),
+        "arms_distinct": distinct,
+        "status": "established" if distinct else "satisfied_by_a_non_discriminating_tier",
+        "is_evidence": distinct,
+        "reading": reading,
     }
 
 
@@ -1710,7 +1765,7 @@ def report_artifact(
         "arm_validity": arm_validity,
         "discriminability": {tier: dict(r) for tier, r in discriminability.items()},
         "predictions": {
-            "Q1": score_q1(comparisons),
+            "Q1": score_q1(comparisons, discriminability=discriminability),
             "Q2": score_q2(comparisons, discriminability=discriminability),
             "Q3": score_q3(probe_cells),
         },

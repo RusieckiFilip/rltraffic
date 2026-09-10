@@ -651,8 +651,19 @@ def _comparisons(values: dict[str, float], ci: dict[str, tuple[float, float]] | 
     }
 
 
+def _disc(**distinct: bool) -> dict[str, Any]:
+    return {
+        t: {"distinct": d, "n_identical": 0 if d else 500, "n_compared": 500,
+            "definition": "att_engine"}
+        for t, d in distinct.items()
+    }
+
+
 def test_q1_holds_when_both_endpoints_are_in_place() -> None:
-    scored = score_q1(_comparisons({"mix50": -3.0, "mappo1000": -1.0, "random": 0.2}))
+    scored = score_q1(
+        _comparisons({"mix50": -3.0, "mappo1000": -1.0, "random": 0.2}),
+        discriminability=_disc(mix50=True, mappo1000=True, random=True),
+    )
     assert scored["largest"] == "mix50"
     assert scored["smallest"] == "random"
     assert scored["holds"] is True
@@ -669,7 +680,10 @@ def test_q1_holds_when_both_endpoints_are_in_place() -> None:
 def test_q1_fails_when_either_endpoint_is_displaced(values: dict[str, float], why: str) -> None:
     """Both directions.  **Endpoints, never a trend** -- section 1b's R3 was falsified on
     exactly a monotonicity claim, and the standing instruction is to register endpoints."""
-    scored = score_q1(_comparisons(values))
+    scored = score_q1(
+        _comparisons(values),
+        discriminability=_disc(mix50=True, mappo1000=True, random=True),
+    )
     assert scored["holds"] is False, why
 
 
@@ -1161,3 +1175,56 @@ def test_the_evaluation_chunk_refuses_an_incomplete_cell() -> None:
             tier="mix50", seed=101, checkpoint="/tmp/x.pt", canonical_digest="abc",
             produced=_produced()[:99], seconds=1.0, tree={},
         )
+
+
+# ----------------------------------------------------------------------
+# Q1's two limbs are scored SEPARATELY (ruled 2026-09-10)
+# ----------------------------------------------------------------------
+
+
+def test_q1_reports_its_two_limbs_separately_and_not_as_one_prediction() -> None:
+    """⛔ *"Do not write 'Q1 has a caveat'; that lets a reader keep the whole prediction."*
+
+    The registered prediction has two limbs and this campaign supports exactly one of them.
+    ``largest on mix50`` is ESTABLISHED: the arms are distinct there, so the 409.1450 is a measured
+    contrast.  ``smallest on random`` is SATISFIED BY A NON-DISCRIMINATING TIER: the two arms are
+    the same policy on all 500 episodes, so 0.0000 is what that tier must return for any pair of
+    arms whatsoever, and it is **not evidence** about the return prompt.
+    """
+    scored = score_q1(
+        _comparisons({"mix50": -409.145, "mappo1000": 0.1226, "random": 0.0}),
+        discriminability=_disc(mix50=True, mappo1000=True, random=False),
+    )
+    largest, smallest = scored["largest_limb"], scored["smallest_limb"]
+
+    assert largest["tier"] == "mix50"
+    assert largest["status"] == "established"
+    assert largest["arms_distinct"] is True
+    assert largest["is_evidence"] is True
+
+    assert smallest["tier"] == "random"
+    assert smallest["status"] == "satisfied_by_a_non_discriminating_tier"
+    assert smallest["arms_distinct"] is False
+    assert smallest["is_evidence"] is False
+    assert "not evidence" in smallest["reading"].lower()
+
+    # the ordering still holds as registered -- the limbs qualify it, they do not withdraw it
+    assert scored["holds"] is True
+    # ...and no single field lets a reader carry the whole prediction away
+    assert "caveat" not in json.dumps(scored).lower()
+
+
+def test_q1_both_limbs_are_established_when_every_tier_discriminates() -> None:
+    scored = score_q1(
+        _comparisons({"mix50": -409.145, "mappo1000": 0.1226, "random": 0.0}),
+        discriminability=_disc(mix50=True, mappo1000=True, random=True),
+    )
+    assert scored["largest_limb"]["status"] == "established"
+    assert scored["smallest_limb"]["status"] == "established"
+    assert scored["smallest_limb"]["is_evidence"] is True
+
+
+def test_q1_refuses_to_score_without_the_discriminability_record() -> None:
+    with pytest.raises(ValueError, match="requires the discriminability record"):
+        score_q1(_comparisons({"mix50": -1.0, "mappo1000": 0.1, "random": 0.0}),
+                 discriminability={})
