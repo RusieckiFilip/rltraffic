@@ -46,6 +46,7 @@ from offline.nortg_decomposition import (
     assert_rows_reproduce_committed,
     chunk_is_reusable,
     chunk_name,
+    reusable_chunk_at,
     decomposition_artifact,
     recording_factory,
 )
@@ -652,7 +653,9 @@ def test_the_reproduction_check_does_not_read_the_chunks_own_flag() -> None:
 
 
 def test_a_complete_and_clean_chunk_may_be_skipped() -> None:
-    assert chunk_is_reusable(_chunk("dt", "mix50", 101)) is True
+    assert chunk_is_reusable(
+        _chunk("dt", "mix50", 101), method="dt", tier="mix50", seed=101
+    ) is True
 
 
 @pytest.mark.parametrize(
@@ -661,6 +664,7 @@ def test_a_complete_and_clean_chunk_may_be_skipped() -> None:
         ("a partial chunk", {"draws": list(HELD_OUT_DRAWS)[:50], "is_complete": False}),
         ("a chunk with a mismatch", {"n_mismatches": 1}),
         ("a chunk from another format version", {"format_version": "p5.3b-decomposition/0.9"}),
+        ("a chunk with a non-numeric mismatch count", {"n_mismatches": "none"}),
     ],
 )
 def test_a_partial_or_mismatching_chunk_is_re_run_not_skipped(why: str, over: dict[str, Any]) -> None:
@@ -668,7 +672,115 @@ def test_a_partial_or_mismatching_chunk_is_re_run_not_skipped(why: str, over: di
     records the cost: *"a bad chunk survived every restart."*"""
     draws = over.pop("draws", None)
     chunk = _chunk("dt", "mix50", 101, draws=draws, **over)
-    assert chunk_is_reusable(chunk) is False, why
+    assert chunk_is_reusable(chunk, method="dt", tier="mix50", seed=101) is False, why
+
+
+@pytest.mark.parametrize(
+    ("why", "chunk_cell"),
+    [
+        ("another arm entirely", ("dt_nortg", "random", 505)),
+        ("the right arm, the wrong tier", ("dt", "random", 101)),
+        ("the right cell but the wrong seed", ("dt", "mix50", 202)),
+        ("the right tier and seed, the wrong method", ("dt_nortg", "mix50", 101)),
+    ],
+)
+def test_a_chunk_for_another_cell_under_the_right_filename_is_re_run(
+    why: str, chunk_cell: tuple[str, str, int]
+) -> None:
+    """🔒 The pre-flight's **M1**, which was a LIVELOCK rather than a corruption.
+
+    A chunk describing ``dt_nortg@random`` seed 505 saved as ``decomp_dt_mix50_seed101.json`` was
+    skipped as *"complete and clean"*.  ``report`` still refused the campaign, so it could never
+    reach the artifact -- and every restart skipped it again, so the run could never finish either.
+    **A predicate that reads only the filename trusts the filename.**
+    """
+    chunk = _chunk(*chunk_cell)
+    assert chunk_is_reusable(chunk, method="dt", tier="mix50", seed=101) is False, why
+
+
+def test_a_chunk_whose_header_is_right_but_whose_rows_are_another_cells_is_re_run() -> None:
+    """The header alone can be edited; the rows are what the artifact would actually carry."""
+    chunk = _chunk("dt", "mix50", 101)
+    chunk["episodes"][17] = _episode("dt", "random", 101, 1017)
+    assert chunk_is_reusable(chunk, method="dt", tier="mix50", seed=101) is False
+
+
+@pytest.mark.parametrize(
+    ("why", "contents"),
+    [
+        ("a truncated chunk", '{"format_version": "p5.3b-decomposition/1.0", "episo'),
+        ("an empty file", ""),
+        ("whitespace only", "   \n"),
+        ("valid JSON that is not an object", "[1, 2, 3]"),
+    ],
+)
+def test_a_chunk_that_does_not_parse_is_re_run_and_never_crashes(
+    tmp_path: Path, why: str, contents: str
+) -> None:
+    """🔒 The pre-flight's **M5**.  ``json.loads`` ran BEFORE the predicate, so a truncated chunk
+    raised ``JSONDecodeError``, the driver wrote ``FAILED``, and every restart hit the same crash --
+    while the docstring promised a partial chunk would be re-run.  A file we cannot read is a file we
+    have no evidence about, and the only safe reading of no evidence is *roll it again*."""
+    path = tmp_path / chunk_name("dt", "mix50", 101)
+    path.write_text(contents, encoding="utf-8")
+    assert reusable_chunk_at(path, method="dt", tier="mix50", seed=101) is False, why
+
+
+def test_a_chunk_that_is_not_there_at_all_is_re_run(tmp_path: Path) -> None:
+    assert reusable_chunk_at(
+        tmp_path / chunk_name("dt", "mix50", 101), method="dt", tier="mix50", seed=101
+    ) is False
+
+
+def test_a_good_chunk_on_disk_is_still_skippable(tmp_path: Path) -> None:
+    """Positive control: the M5 hardening must not make everything unskippable."""
+    path = tmp_path / chunk_name("dt", "mix50", 101)
+    path.write_text(json.dumps(_chunk("dt", "mix50", 101)), encoding="utf-8")
+    assert reusable_chunk_at(path, method="dt", tier="mix50", seed=101) is True
+
+
+@pytest.mark.parametrize(
+    "relative", ["p5_3b", "p8_4b_rederivation", "p4_dt", "never_seen"]
+)
+def test_the_report_refuses_to_write_the_artifact_into_another_campaigns_tree(
+    tmp_path: Path, relative: str
+) -> None:
+    """🔒 The pre-flight's **M4**: the fence was applied to ``--work-dir`` only.
+
+    ``report --out-dir <root>/output/p5_3b`` wrote ``p5_3b_decomposition.json`` straight into the
+    predecessor's tree -- the one the module docstring says it must never write.  The driver
+    hardcodes a safe ``--out-dir``, so no live path reached it; but *"every other component under
+    output/ is refused"* was not true of this path, and a fence with an undocumented exception is
+    not a fence.
+    """
+    with pytest.raises(ValueError, match="another campaign|read-only|belongs"):
+        nortg_decomposition.main(
+            [
+                "--output-root", str(tmp_path / "output"),
+                "--work-dir", str(tmp_path / "output" / "p5_3b_decomp"),
+                "--out-dir", str(tmp_path / "output" / relative),
+                "--allow-dirty",
+                "report",
+            ]
+        )
+
+
+def test_the_report_accepts_the_docs_data_destination_it_actually_uses(tmp_path: Path) -> None:
+    """Positive control for M4: the real destination must still be allowed.
+
+    It gets past the fence and fails later, on the absent chunks -- which is the proof that the
+    fence let it through rather than that nothing was checked.
+    """
+    with pytest.raises(FileNotFoundError, match="needs every cell chunk"):
+        nortg_decomposition.main(
+            [
+                "--output-root", str(tmp_path / "output"),
+                "--work-dir", str(tmp_path / "output" / "p5_3b_decomp"),
+                "--out-dir", str(tmp_path / "docs" / "data"),
+                "--allow-dirty",
+                "report",
+            ]
+        )
 
 
 # ----------------------------------------------------------------------

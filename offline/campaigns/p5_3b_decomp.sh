@@ -88,8 +88,37 @@ export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 # campaign's paths. Two mechanisms, two jobs.
 
 # ---------------------------------------------------------------------------
-# TOKEN -- checked before ANY mutation, including mkdir
+# PRECONDITIONS -- every one of them BEFORE the token is touched (pre-flight M2)
 # ---------------------------------------------------------------------------
+# `offline` is importable only from a tree root: the venv has no `offline` on sys.path. The header
+# said "run from the task WORKTREE" and gave no `cd`, so from any other cwd all five cells died with
+# ModuleNotFoundError -- AFTER the token had been burnt and FAILED written. A condition the operator
+# must remember is DEFERRED 61's class; this is the same condition, enforced.
+cd "$WORK_TREE"
+
+if ! $PY -c "import offline.nortg_decomposition" >/dev/null 2>&1; then
+  echo "REFUSING TO START: cannot import offline.nortg_decomposition from $PWD" >&2
+  echo "  This is what a wrong cwd looks like. Nothing has been consumed." >&2
+  exit 2
+fi
+
+# pre-flight M3: SIGINT to the tmux pane killed the driver while the five python cells SURVIVED and
+# kept writing. A second start while they run was accepted, which would double the GPU load and make
+# the artifact's own concurrent-load statement false. Refuse rather than overlap.
+# ⚠️ The pattern requires `python` before the module name, and this process and its parent are
+# excluded: a bare `offline\.nortg_decomposition` also matches the SHELL that is running this
+# script whenever the module name appears in its own command line, which would make the driver
+# refuse to start because of itself. It still fails CLOSED -- an unrecognised match refuses --
+# because overlapping two campaigns makes the artifact's concurrent-load statement false.
+ALIVE=$(pgrep -f 'python.*offline\.nortg_decomposition' 2>/dev/null | grep -vx -e "$$" -e "$PPID" || true)
+if [ -n "$ALIVE" ]; then
+  echo "REFUSING TO START: cells from another run are still alive:" >&2
+  # shellcheck disable=SC2086
+  ps -o pid=,etime=,args= -p $(echo "$ALIVE" | tr '\n' ' ') >&2 2>/dev/null || echo "$ALIVE" >&2
+  echo '  Wait until `pgrep -f nortg_decomposition` is empty. Nothing has been consumed.' >&2
+  exit 3
+fi
+
 TOKEN=$WORK/AUTHORISED_TO_RUN
 if [ ! -f "$TOKEN" ]; then
   echo "REFUSING TO START: no run authorisation token at $TOKEN" >&2
@@ -109,8 +138,28 @@ rm -f "$WORK/FAILED" "$WORK/COMPLETE"
 
 fail() { echo "CAMPAIGN FAILED at $1" | tee "$WORK/FAILED"; exit 1; }
 
-# Reap the fan-out's children before exiting, or a restart gives 10 concurrent evaluations on one
-# GPU against this script's own one-thread-per-cell protocol (p5_3b.sh AMENDMENT C5).
+# The pids of the cells currently in flight. Global, so the signal handler can reach them: bash
+# traps do not see a caller's locals.
+CELL_PIDS=()
+
+# pre-flight M3. Ctrl-C in tmux signals the process GROUP, and a child started with `&` does not die
+# with the shell -- the reviewer's three test children ran to completion after the driver exited 130.
+# So the handler kills the cells explicitly, by pid, then the group; and it writes FAILED FIRST, so
+# the record survives even if the group kill takes the script with it.
+on_signal() {
+  trap '' INT TERM
+  echo "CAMPAIGN INTERRUPTED by a signal; stopping ${#CELL_PIDS[@]} cell(s)" | tee "$WORK/FAILED" >&2
+  for pid in "${CELL_PIDS[@]:-}"; do [ -z "$pid" ] || kill -TERM "$pid" 2>/dev/null || true; done
+  sleep 2
+  for pid in "${CELL_PIDS[@]:-}"; do [ -z "$pid" ] || kill -KILL "$pid" 2>/dev/null || true; done
+  kill -- -$$ 2>/dev/null || true
+  exit 130
+}
+trap on_signal INT TERM
+
+# The failure path's reaper. ⚠️ m4, corrected: `wait` below returns only once EVERY cell has
+# finished, so by the time this runs the other four have already completed and written their chunks.
+# It is a belt-and-braces kill of anything still alive, not a way to stop four healthy cells early.
 reap() {
   local pids=("$@")
   for pid in "${pids[@]:-}"; do [ -z "$pid" ] || kill "$pid" 2>/dev/null || true; done
@@ -128,14 +177,17 @@ for TIER in mix50 mappo1000 random; do
   for METHOD in dt_nortg dt; do
     echo "=== $METHOD@$TIER: 5 seeds in parallel, each pinned to one torch thread"
     pids=()
+    CELL_PIDS=()
     for SEED in "${SEEDS[@]}"; do
       $PY -m offline.nortg_decomposition "${COMMON[@]}" \
           run --method "$METHOD" --tier "$TIER" --seed "$SEED" \
           > "$LOGS/decomp_${METHOD}_${TIER}_seed${SEED}.log" 2>&1 &
       pids+=($!)
+      CELL_PIDS+=($!)
     done
     failed=0
     for pid in "${pids[@]:-}"; do [ -z "$pid" ] || wait "$pid" || failed=1; done
+    CELL_PIDS=()
     if [ "$failed" -ne 0 ]; then
       echo "--- tail of every log for $METHOD@$TIER ---" >&2
       for SEED in "${SEEDS[@]}"; do
@@ -162,9 +214,16 @@ tail -3 "$LOGS/report.log"
 # ---------------------------------------------------------------------------
 # MANIFEST -- written LAST, from a stable tree
 # ---------------------------------------------------------------------------
-echo "=== writing output/SHA256SUMS_p5_3b_decomp.txt"
-( cd "$MAIN/output" && find p5_3b_decomp -type f \( -name '*.json' -o -name '*.log' \) \
-    | LC_ALL=C sort | xargs sha256sum > SHA256SUMS_p5_3b_decomp.txt )
+# m1: `smoke/` is PRUNED. It is G2's evidence, produced at an earlier commit (5000cc26, not this
+# run's), and listing it would make deleting it later break `sha256sum -c` on this campaign's own
+# manifest -- turning a tidy-up into a false integrity failure. The write is tmp + mv so an
+# interrupted manifest step cannot leave a half-written one that verifies nothing.
+echo "=== writing output/SHA256SUMS_p5_3b_decomp.txt (smoke/ pruned)"
+( cd "$MAIN/output" \
+  && find p5_3b_decomp -path 'p5_3b_decomp/smoke' -prune -o \
+       -type f \( -name '*.json' -o -name '*.log' \) -print \
+     | LC_ALL=C sort | xargs sha256sum > SHA256SUMS_p5_3b_decomp.txt.tmp \
+  && mv SHA256SUMS_p5_3b_decomp.txt.tmp SHA256SUMS_p5_3b_decomp.txt ) || fail "manifest write"
 echo "    $(wc -l < "$MAIN/output/SHA256SUMS_p5_3b_decomp.txt") entries"
 
 # Re-verify every manifest this campaign READ, in the tree it read them from (p5_3b.sh AMENDMENT C6).

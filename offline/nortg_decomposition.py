@@ -130,6 +130,7 @@ __all__ = [
     "build_parser",
     "chunk_name",
     "chunk_is_reusable",
+    "reusable_chunk_at",
     "committed_reference_rows",
     "contrast_summaries",
     "declared_contrasts",
@@ -465,26 +466,79 @@ def chunk_name(method: str, tier: str, seed: int) -> str:
     return f"decomp_{method}_{tier}_seed{int(seed)}.json"
 
 
-def chunk_is_reusable(payload: Mapping[str, Any]) -> bool:
-    """May a restart SKIP this cell?  Only if the chunk is complete AND clean.
+def chunk_is_reusable(
+    payload: Mapping[str, Any], *, method: str, tier: str, seed: int
+) -> bool:
+    """May a restart SKIP this cell?  Only if the chunk is complete, clean AND **this cell's**.
 
-    Complete = every one of ``HELD_OUT_DRAWS`` present; clean = ``n_mismatches == 0``; and the
-    format version must match.  ⚠️ ``offline/campaigns/p5_3b.sh`` skips on ``[ -f ]`` alone, and
-    ``assert_probe_cell_is_ablated``'s docstring records what that cost: *"the driver skips a tier
-    whose probe chunk exists, so a bad chunk survived every restart."*  A partial or mismatching
-    chunk is re-run and overwritten.
+    Complete = every one of ``HELD_OUT_DRAWS`` present; clean = ``n_mismatches == 0``; the format
+    version must match; and the chunk must describe the cell the caller asked for, both at the top
+    level and on every episode row.
+
+    ⚠️ ``offline/campaigns/p5_3b.sh`` skips on ``[ -f ]`` alone, and ``assert_probe_cell_is_ablated``'s
+    docstring records what that cost: *"the driver skips a tier whose probe chunk exists, so a bad
+    chunk survived every restart."*
+
+    🚨 **The cell-identity check is the pre-flight's M1** (``BRIEF_33`` AMENDMENT C1.2).  Without it a
+    chunk for ``dt_nortg@random`` seed 505 sitting under the filename
+    ``decomp_dt_mix50_seed101.json`` was skipped as *"complete and clean"*.  ``report`` still refused
+    the campaign, so it could never reach the artifact -- but every restart skipped it again, so the
+    run could never finish either, until someone deleted the file by hand.  **A predicate that reads
+    only the filename trusts the filename.**  Any disagreement returns ``False``: the cell is re-run
+    and the chunk overwritten.
     """
-    if str(payload.get("format_version")) != ARTIFACT_FORMAT_VERSION:
+    try:
+        if str(payload.get("method")) != str(method):
+            return False
+        if str(payload.get("tier")) != str(tier):
+            return False
+        if int(payload.get("seed")) != int(seed):
+            return False
+        if str(payload.get("format_version")) != ARTIFACT_FORMAT_VERSION:
+            return False
+        if not bool(payload.get("is_complete")):
+            return False
+        if int(payload.get("n_mismatches", 1)) != 0:
+            return False
+        if sorted(int(draw) for draw in payload.get("draws", ())) != sorted(
+            int(draw) for draw in HELD_OUT_DRAWS
+        ):
+            return False
+        episodes = payload.get("episodes", ())
+        if len(episodes) != len(HELD_OUT_DRAWS):
+            return False
+        # the rows must describe the same cell as the header: a header can be edited in isolation
+        return all(
+            str(row.get("method")) == str(method)
+            and str(row.get("tier")) == str(tier)
+            and int(row.get("seed")) == int(seed)
+            for row in episodes
+        )
+    except (TypeError, ValueError, AttributeError):
+        # a malformed field is a reason to RE-RUN, never a reason to crash: the alternative is a
+        # driver that dies on a bad chunk and dies again on every restart
         return False
-    if not bool(payload.get("is_complete")):
+
+
+def reusable_chunk_at(path: str | Path, *, method: str, tier: str, seed: int) -> bool:
+    """:func:`chunk_is_reusable`, applied to a file that may not exist or may not parse.
+
+    🚨 **The pre-flight's M5** (``BRIEF_33`` AMENDMENT C1.3).  ``json.loads`` used to run *before* the
+    predicate, so a truncated or empty chunk raised ``JSONDecodeError``, the driver wrote ``FAILED``,
+    and **every restart hit the same crash** -- while the docstring promised a partial chunk would be
+    re-run.  A file we cannot read is a file we have no evidence about, and the only safe reading of
+    no evidence is *roll it again*.
+    """
+    target = Path(path)
+    if not target.is_file():
         return False
-    if int(payload.get("n_mismatches", 1)) != 0:
+    try:
+        payload = json.loads(target.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError, OSError, ValueError):
         return False
-    if sorted(int(draw) for draw in payload.get("draws", ())) != sorted(
-        int(draw) for draw in HELD_OUT_DRAWS
-    ):
+    if not isinstance(payload, Mapping):
         return False
-    return len(payload.get("episodes", ())) == len(HELD_OUT_DRAWS)
+    return chunk_is_reusable(payload, method=method, tier=tier, seed=seed)
 
 
 def run_cell(
@@ -1149,11 +1203,16 @@ def _run_cell_command(args: argparse.Namespace, work: Path, out_dir: Path) -> in
         work / chunk_name(args.method, args.tier, args.seed)
     )
     if destination.is_file():
-        existing = json.loads(destination.read_text(encoding="utf-8"))
-        if chunk_is_reusable(existing):
+        if reusable_chunk_at(
+            destination, method=args.method, tier=args.tier, seed=args.seed
+        ):
             print(f"{destination.name}: complete and clean, skipping", flush=True)
             return 0
-        print(f"{destination.name}: incomplete or mismatching, re-running", flush=True)
+        print(
+            f"{destination.name}: incomplete, mismatching, unreadable or for another cell, "
+            "re-running",
+            flush=True,
+        )
 
     tree = nortg_campaign.assert_recordable_tree(args.allow_dirty)
     root = Path(args.output_root)
@@ -1208,6 +1267,12 @@ def _run_report(args: argparse.Namespace, work: Path, out_dir: Path) -> int:
     from offline.dt_gate import runtime_provenance
     from offline.method_tier_grid import file_sha256, measurement_commits
 
+    # 🚨 The pre-flight's M4 (BRIEF_33 AMENDMENT C1.5): the fence was applied to --work-dir only,
+    # so `report --out-dir <root>/output/p5_3b` wrote the artifact straight into the predecessor's
+    # tree -- the one this module's docstring says it must never write. The driver hardcodes a safe
+    # --out-dir, so no live path reached it; but "every other component under output/ is refused"
+    # was not true of this path, and a fence with an exception nobody documented is not a fence.
+    destination = assert_decomposition_writable(out_dir / "p5_3b_decomposition.json")
     tree = nortg_campaign.assert_recordable_tree(args.allow_dirty)
     chunks: list[dict[str, Any]] = []
     provenance: list[dict[str, Any]] = []
@@ -1243,9 +1308,9 @@ def _run_report(args: argparse.Namespace, work: Path, out_dir: Path) -> int:
             "concurrent_load": _CONCURRENT_LOAD_NOTE,
         },
     )
-    nortg_campaign.write_json_atomic(payload, out_dir / "p5_3b_decomposition.json")
+    nortg_campaign.write_json_atomic(payload, destination)
     print(
-        f"wrote {out_dir / 'p5_3b_decomposition.json'}: {len(payload['episodes'])} episodes, "
+        f"wrote {destination}: {len(payload['episodes'])} episodes, "
         f"{payload['summary']['reproduction']['n_reproducing']} reproducing",
         flush=True,
     )
