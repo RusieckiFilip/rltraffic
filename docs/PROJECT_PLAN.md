@@ -1923,7 +1923,14 @@ is still running"* are two claims, and the second needs its own command.
 
 ## 10. Current Status
 
-> 📄 **START HERE IF YOU ARE A FRESH SESSION: `docs/notes/HANDOFF_2026-09-01.md`.** It carries the state as verified by running commands on 2026-09-01, the two decisions of that date, what P5.3b needs, and P7's cost estimates with their basis. **This §10's *State today* block predates P8.4's closure and is owed a full rewrite.**
+> 📄 **START HERE IF YOU ARE A FRESH SESSION: `docs/notes/HANDOFF_2026-09-10.md`** — P5.3b merged,
+> its review, the author's fix-round decision, P7.1's entry conditions, and what in this file is
+> stale. `docs/notes/HANDOFF_2026-09-01.md` remains accurate on its own date and carries the P7
+> cost estimates.
+> ⛔ **§10's *State today* block below predates BOTH P8.4's closure and P5.3b's merge and is owed a
+> full rewrite; the *Immediate queue* still lists P5.3b as held, and it is merged.**
+>
+> 📄 *(prior handoff)* **`docs/notes/HANDOFF_2026-09-01.md`.** It carries the state as verified by running commands on 2026-09-01, the two decisions of that date, what P5.3b needs, and P7's cost estimates with their basis. **This §10's *State today* block predates P8.4's closure and is owed a full rewrite.**
 
 **Rewritten in full 2026-08-07.** ⚠️ **REPLACED, never appended to.** §8 holds history; §10 holds only
 what is true today. **A fresh Master session should read, in order: this section → §7 (protocol) →
