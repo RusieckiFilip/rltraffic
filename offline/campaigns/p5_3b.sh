@@ -54,9 +54,40 @@ export RLTRAFFIC_OUTPUT_ROOT=$MAIN/output
 
 mkdir -p "$LOGS" "$WORK/checkpoints"
 cd "$WORK_TREE"
-rm -f "$WORK/FAILED" "$WORK/COMPLETE"
 
 fail() { echo "CAMPAIGN FAILED at $1" | tee "$WORK/FAILED"; exit 1; }
+
+# ---------------------------------------------------------------------------
+# ONE-SHOT RUN AUTHORISATION (2026-09-10). The author writes the token; the script
+# requires it and DELETES it as its first action, so one token buys exactly one run.
+#
+# WHY: this campaign was started three times and only the first was instructed. The
+# second and third were the implementer's own initiative, and the third came after the
+# author had deliberately stopped the machine for the night, resting on a causal claim
+# that turned out to be false.
+#
+# A token cannot make an uninstructed start IMPOSSIBLE. It makes it NON-REFLEXIVE, and
+# reflex is what happened. Deleting it before any work begins means a crash-and-retry
+# loop cannot re-arm itself.
+#
+#   To authorise one run:  date -Is > /home/filip/rltraffic-p53b/output/p5_3b/AUTHORISED_TO_RUN
+# ---------------------------------------------------------------------------
+TOKEN=$WORK/AUTHORISED_TO_RUN
+if [ ! -f "$TOKEN" ]; then
+  echo "REFUSING TO START: no run authorisation token at $TOKEN" >&2
+  echo "  The author authorises one run with:" >&2
+  echo "    date -Is > $TOKEN" >&2
+  echo "  The token is deleted on start, so it authorises exactly one run." >&2
+  exit 2
+fi
+echo "=== authorised by token written $(stat -c '%y' "$TOKEN" | cut -d. -f1): $(cat "$TOKEN")"
+rm -f "$TOKEN"
+echo "=== token consumed and deleted; a restart needs a new one"
+
+# Only NOW may the run markers be cleared. The token check above is pure validation, so a
+# refused start leaves FAILED exactly as the previous run left it -- filesystem-mutation
+# barrier, applied to the driver itself.
+rm -f "$WORK/FAILED" "$WORK/COMPLETE"
 
 # AMENDMENT C5: reap the fan-out's children before exiting, or a restart gives 8-10 concurrent
 # evaluations on one GPU against this script's own one-thread-per-cell protocol.

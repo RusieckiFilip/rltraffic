@@ -1402,8 +1402,14 @@ def probe_nortg_cell(
     corpus_root: str | Path,
     device: str | None = None,
     streams: Sequence[Any] | None = None,
+    draws_root: str | Path | None = None,
 ) -> dict[str, Any]:
     """P5.3a's teacher-forced probe on one ``dt_nortg`` checkpoint, plus its recorded ``rtg_mode``.
+
+    ``draws_root`` is the THIRD consumer of the draws root, which AMENDMENT E5 enumerated as two.
+    ``--corpus-root``/``--draws-root``/``--output-root`` fix the campaign's paths and
+    ``RLTRAFFIC_CORPUS_V11``/``RLTRAFFIC_OUTPUT_ROOT`` gate the tests -- and this path, inside
+    ``rtg_ablation.probe_cell``, received neither and resolved relative to the working directory.
 
     ``rtg_ablation.probe_cell`` is called with an explicit ``checkpoint_path`` because its CLI
     resolves paths through ``_CHECKPOINT_LAYOUT``, keyed by tier, and knows nothing of a
@@ -1416,6 +1422,7 @@ def probe_nortg_cell(
         corpus_root=corpus_root,
         device=device,
         streams=streams,
+        draws_root=draws_root,
     )
     payload = cell.to_json_obj()
     config = torch.load(Path(checkpoint_path), map_location="cpu", weights_only=False)["config"]
@@ -2054,6 +2061,7 @@ def _run_probe(args: argparse.Namespace, work: Path) -> int:
             corpus_root=args.corpus_root,
             device=args.device,
             streams=streams,
+            draws_root=args.draws_root,
         )
         elapsed = time.time() - started
         timings[f"{args.tier}@{seed}"] = elapsed
