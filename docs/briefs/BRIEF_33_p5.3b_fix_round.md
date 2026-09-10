@@ -407,3 +407,57 @@ value as its own commit*. **Do not pre-bump.**
 output; the G2 smoke's four records and measured s/episode; the §3.5 path diff; the 3,000-count line;
 `sha256sum -c` output for all eleven manifests; the classified disclosure section; the AI-assistance
 record; the line *"written against BRIEF_33 (no amendments)"* or the amendment letters if any are issued.
+
+---
+
+# ✅ AMENDMENT A — 2026-09-10, ruled at the plan gate on `docs/plans/p5.3b-fix.md`
+
+**Every claim in the plan's §2 was re-verified in the artifact by the coordinator before ruling:**
+`tests/test_nortg_campaign.py:932` carries the literal; `engine_att_reference.py:853–892` implements
+`att_ours − att_engine`; `ls output/SHA256SUMS_*.txt | wc -l` → 11; the 2.55× is
+`docs/returns/P5.3b.md:178`. **The plan is approved. Commit it as the first commit on the branch, then
+start G1.** Written against: this brief + Amendment A — say so in the packet.
+
+## A1 — Q1: AUTHORISED, and the omission was the brief's
+
+*Written authorisation, 2026-09-10: the implementer changes `tests/test_nortg_campaign.py:932` from
+`"p5.3b-nortg/1.1"` to `"p5.3b-nortg/1.2"` and extends the adjacent comment with the 1.1 → 1.2
+migration line. Same class as §2.2's two edits: a spec change ruled by the brief.* The brief ordered a
+version bump without grepping for the literal it would break — *fix the class, not the sentence*,
+applied to my own document. Refusing to touch the line unprompted was exactly right.
+
+## A2 — Q2: CONFIRMED as proposed, with one addition against `DEFERRED` 63's class
+
+`report_artifact(decomposition=None)` defaulted; the refusal lives in `_run_report`
+(`FileNotFoundError` naming A13(b)) plus `assert_decomposition_embedded(payload)` called after assembly
+and covered by a mutation. **Addition:** a guard whose *call* can be deleted with zero test failures is
+`DEFERRED` 63 (P8.4b MJ-1/MN-2), so pin the call site too — a test that reads `_run_report`'s source
+(`inspect.getsource`) and asserts the guard's name appears in it is cheap and is enough; the mutation
+*delete the call* must fail it. No existing test is edited for Q2.
+
+## A3 — Q3: CONFIRMED — the repo's orientation, the negation stated everywhere
+
+Report in the module's `att_ours − att_engine` orientation. The artifact carries `orientation`,
+`orientation_note` (that it is the negation of A13(b)'s writing) and the identity string; every
+docstring says the same; `term_clock_origin` is expected **negative** and the artifact says so.
+Re-signing would be a second implementation of `_decomposition_summary`, which §3.1 forbids — the
+registered quantity is the decomposition, not its sign convention.
+
+## A4 — Q4: all six accepted as disclosed
+
+The smoke under `output/p5_3b_decomp/smoke/` (the fence holds; the root's *must not exist* rule is
+read as *must hold no run chunks*) · `<arm>` in the chunk filename · the Python-side skip predicate
+(complete AND zero-mismatch — `p5_3b.sh`'s `[ -f ]` is the shape `assert_probe_cell_is_ablated`'s
+docstring records failing) · `runtime.concurrent_load` · `assert_recordable_tree` on `report` ·
+importing the private `_decomposition_summary` (disclosed; no change to the module) · §2.7's reading
+that `residual_max` corroborates criterion 1 and nothing further — correct, and the artifact says so.
+⭐ **Re-reading the committed rows in `report` rather than trusting the chunk's `reproduces_committed`
+flag is the right call and is the load-bearing design decision of this task.**
+
+## A5 — Q5: both corrections to the brief are accepted and logged as the coordinator's
+
+Eleven manifests today, twelve at delivery; paste real `sha256sum -c` counts for all. **The schedule
+handed to the author is corrected: ≈61–69 min wall clock at 5 workers**, not ≈35 — the brief used an
+assumed 5× where the packet had a *measured* 2.55×. G2's measured observed-DT rate replaces both
+estimates before the run is scheduled. Branch point `78c6383` (the brief-issuing commit) supersedes
+the header's `0852ba6`; the brief was written before its own commit existed.
