@@ -553,3 +553,43 @@ reviewer round** (stopping rule: the first round found nothing load-bearing in t
 a second would return preference). **The token is written by the author only after the coordinator
 says CLEAR in writing, in the Decisions Log.** Start command, from the worktree:
 `tmux new -s p53bfix` → `cd /home/filip/rltraffic-p53b && bash offline/campaigns/p5_3b_decomp.sh`.
+
+---
+
+# ✅ AMENDMENT D — 2026-09-10, after the run: the numbers, and one field G4 adds to the `mechanism` block
+
+**Run: `COMPLETE` in 1,883 s (31 min; projection 32).** 30 chunks, manifest 61/61, `output/p5_3b_decomp/`
+holds only the run, `smoke/` and `logs/`. **Read by the coordinator from the branch artifact before
+G4, pre-review:** 3,000/3,000 reproduce both committed definitions under `==`; `deviation_c1`,
+`deviation_c3c` and `decomposition_residual` are `0.0` on all 3,000.
+
+**The decomposition (`att_ours − att_engine`, `dt − dt_nortg`, `mix50`):** total **214.669** =
+clock origin **202.163** + population **11.734** + cadence **0.772**. **94.2 % of the gap between the
+two definitions' contrasts is the insertion-buffer wait of vehicles that DID enter** (mean admission
+latency 300–326 s on the three collapsed seeds, 30–43 s on the two that did not), **5.5 % is the
+never-admitted population, 0.4 % cadence.** The review's *"entirely vehicles the ablated policy never
+admitted"* is falsified on the actual arms by 3,000 episodes. `mappo1000`: total −0.005 (all terms
+≈ 0). `random`: identically 0 on every term, as E4 requires.
+
+**The attractor is ONE open-loop action sequence.** `action_sequence_sha256 = 47c0ff33…` on **100/100
+draws × 5 seeds × both arms of `random`** (one distinct sequence per cell), and on **99 / 97 / 88 of 100**
+draws for `dt_nortg@mix50` seeds 404 / 505 / 202 — action identity equals the outcome identity draw
+for draw. Seeds 101 and 303 carry it on 0/100 and emit 100 distinct sequences each, as every
+un-collapsed cell does. Its histogram over 360 decisions is `[43, 48, 40, 43, 43, 49, 41, 53]` on every
+draw: the same fixed sequence regardless of observation or demand.
+
+## D1 — G4 adds to `mechanism` (in `p5_3b_nortg.json`) one thing the brief did not name
+
+Per cell: `n_distinct_action_sequences` over its 100 draws, and per tier the `attractor_sequence_sha256`
+with the count of cells and draws carrying it. This is what turns *"same outcome"* into *"the same fixed
+sequence, independent of input"*, and it must be checkable from the artifact rather than from this
+amendment. The reading string may now say: *"on 3 of 5 seeds the ablated mix50 DT emits, on 99/97/88 of
+100 held-out draws, the single open-loop 360-action sequence that the random-corpus DT emits on every
+draw, every seed, with or without the return prompt."* Still no sentence about **why**.
+
+## D2 — G4, in order, exactly as §3.5 and the plan's §4.7
+
+Commit the decomposition artifact → `nortg_campaign report` from a **clean** tree → `diff-paths`
+against `git show bd36a0a:docs/data/p5_3b_nortg.json` (paste the sorted differing-path set) → tests
+7–10 → `sha256sum -c` on all twelve manifests → packet with the classified section, the `12.5 min`
+source, and *"written against BRIEF_33 + Amendments A–D"*.
