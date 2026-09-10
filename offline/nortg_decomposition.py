@@ -1198,10 +1198,17 @@ def _run_cell_command(args: argparse.Namespace, work: Path, out_dir: Path) -> in
 
 
 def _run_report(args: argparse.Namespace, work: Path, out_dir: Path) -> int:
-    """Read every chunk, validate all of it, then write.  Validation precedes the write."""
+    """Read every chunk, validate all of it, then write.  Validation precedes the write.
+
+    ⚠️ This one DOES refuse a dirty tree, unlike ``nortg_campaign._run_report``, whose exemption is
+    review finding MJ-7.  ``BRIEF_33`` section 3.5 says *"there is no reason to repeat it"*: the
+    artifact records ``runtime.git_commit``, and a commit that did not produce the bytes is a
+    provenance claim that is simply false.  ``--allow-dirty`` remains the recorded escape hatch.
+    """
     from offline.dt_gate import runtime_provenance
     from offline.method_tier_grid import file_sha256, measurement_commits
 
+    tree = nortg_campaign.assert_recordable_tree(args.allow_dirty)
     chunks: list[dict[str, Any]] = []
     provenance: list[dict[str, Any]] = []
     for method in DECOMP_METHODS:
@@ -1228,7 +1235,7 @@ def _run_report(args: argparse.Namespace, work: Path, out_dir: Path) -> int:
             "committed_dt_nortg": str(Path(out_dir) / "p5_3b_nortg.json"),
             "committed_dt": str(nortg_campaign.default_rederivation_dir(root)),
         },
-        runtime=runtime_provenance(measurement_commits(chunks)),
+        runtime={**runtime_provenance(measurement_commits(chunks)), "tree": tree},
         timing={
             "per_cell_seconds": {
                 f"{chunk['arm']}@seed{chunk['seed']}": float(chunk["seconds"]) for chunk in chunks

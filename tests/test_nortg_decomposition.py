@@ -241,16 +241,47 @@ def test_a_refused_report_writes_nothing_and_creates_no_directory(tmp_path: Path
     # ``match=`` matters here beyond hygiene: without it a ValueError raised by a typo in this
     # test's own sandbox would masquerade as the refusal under test, and the assertion below
     # ("nothing was written") would pass for the wrong reason.
+    # ⚠️ ``--allow-dirty`` is not laziness: without it this test's outcome depends on whether the
+    # REPO's working tree happens to be clean when pytest runs, because `report` refuses a dirty
+    # tree before it reaches the check under test. A test whose result depends on uncommitted files
+    # elsewhere is not deterministic, and determinism is a feature here (CLAUDE.md section 2). The
+    # tree guard has its own test below.
     with pytest.raises(ValueError, match="committed|reproduc"):
         nortg_decomposition.main(
             [
                 "--output-root", str(tmp_path / "output"),
                 "--work-dir", str(work),
                 "--out-dir", str(data),
+                "--allow-dirty",
                 "report",
             ]
         )
     assert not destination.exists(), "a refused report must leave no artifact behind"
+
+
+def test_the_report_refuses_a_tree_it_cannot_vouch_for(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``report`` writes a COMMITTED artifact carrying ``runtime.git_commit``.
+
+    ``nortg_campaign._run_report`` is exempt from this check and that exemption is review finding
+    MJ-7; ``BRIEF_33`` section 3.5 says there is no reason to repeat it. A commit that did not
+    produce the bytes is a provenance claim that is simply false.
+    """
+    monkeypatch.setattr(
+        nortg_campaign,
+        "runtime_provenance",
+        lambda *a, **k: {"git_commit": "deadbeef" * 5, "git_dirty": True},
+    )
+    with pytest.raises(ValueError, match="modified|undetermined"):
+        nortg_decomposition.main(
+            [
+                "--output-root", str(tmp_path / "output"),
+                "--work-dir", str(tmp_path / "output" / "p5_3b_decomp"),
+                "--out-dir", str(tmp_path),
+                "report",
+            ]
+        )
 
 
 def _write_committed_sources(root: Path, chunks: Sequence[Mapping[str, Any]]) -> None:
