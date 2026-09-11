@@ -1913,12 +1913,70 @@ def attractor_record(
         "n_cells_carrying_it": sum(1 for count in per_cell.values() if count),
         "n_draws_carrying_it": sum(per_cell.values()),
         "per_cell": per_cell,
+        # ⚠️ mn-3: the old template said "the same fixed [0, 0, 0, 0, 0] of 100 draws on mappo1000
+        # emit the byte-identical action sequence ... regardless of observation or demand" -- which
+        # reads as a POSITIVE claim about a tier where the measurement is the opposite. A reading
+        # string has to be false-able in the direction the numbers actually point.
         "reading": (
-            f"the same fixed {list(per_cell.values())} of 100 draws on {tier} emit the byte-identical "
-            "action sequence the random-corpus DT emits on every draw, regardless of observation or "
-            "demand"
+            (
+                f"{sum(per_cell.values())} of {len(per_cell) * len(HELD_OUT_DRAWS)} draws on {tier} "
+                f"({sum(1 for c in per_cell.values() if c)} of {len(per_cell)} seeds, per seed "
+                f"{list(per_cell.values())}) emit the byte-identical action sequence the "
+                "random-corpus DT emits on every draw, regardless of observation or demand"
+            )
+            if sum(per_cell.values())
+            else (
+                f"no draw on {tier} emits the random-corpus DT's action sequence; this tier does "
+                "not carry the attractor"
+            )
         ),
     }
+
+
+def mechanism_reading(
+    episodes: Sequence[Mapping[str, Any]],
+    attractor: Mapping[str, Any],
+    comparisons: Mapping[str, Mapping[str, Any]],
+    *,
+    tier: str = "mix50",
+) -> str:
+    """``BRIEF_33`` section 3.3(3)'s sentence, built from the measured numbers.
+
+    ⛔ **The shape is fixed by the brief and it contains no *why*.**  It says which seeds collapse,
+    on how many draws, onto what, and what the seeds that do not collapse measure instead.  Any
+    sentence about the CAUSE of the collapse is the coordinator's to write after the numbers exist,
+    and this function must not be extended into one.
+    """
+    per_cell = {int(seed): int(count) for seed, count in attractor["per_cell"].items()}
+    carrying = {seed: count for seed, count in per_cell.items() if count}
+    other = sorted(seed for seed, count in per_cell.items() if not count)
+
+    by_seed: dict[int, list[float]] = {}
+    for entry in episodes:
+        if str(entry["tier"]) == tier:
+            by_seed.setdefault(int(entry["seed"]), []).append(float(entry["att_engine"]))
+    means = {seed: float(np.mean(values)) for seed, values in by_seed.items()}
+    reference = float(comparisons[tier]["by_definition"][PRIMARY_ATT]["att_dt_mean"])
+
+    if not carrying:
+        return (
+            f"no {NORTG_METHOD}@{tier} cell emits the random-corpus DT's action sequence on any "
+            "held-out draw"
+        )
+    counts = sorted(carrying.values())
+    span = f"{counts[0]} of 100" if counts[0] == counts[-1] else f"{counts[0]}-{counts[-1]} of 100"
+    tail = (
+        "; on the other seeds it does not collapse ("
+        + ", ".join(f"seed {seed} att_engine {means[seed]:.2f}" for seed in other)
+        + f", against dt's {reference:.2f})"
+        if other
+        else ""
+    )
+    return (
+        f"on {len(carrying)} of {len(per_cell)} seeds, the ablated {tier} DT produces on {span} "
+        "held-out draws the same action sequence and the same episode outcome as the random-corpus "
+        "DT, which is itself identical across all 5 seeds and both arms" + tail
+    )
 
 
 def mechanism_action_identity(decomposition: Mapping[str, Any]) -> dict[str, Any]:
@@ -1987,7 +2045,11 @@ def mechanism_action_identity(decomposition: Mapping[str, Any]) -> dict[str, Any
         "action_counts": {
             f"{method}@{tier} seed {seed}": histogram((method, tier, seed))
             for method in (REFERENCE_METHOD, NORTG_METHOD)
-            for tier, seed in (("mix50", 101), ("mix50", 404), ("random", 101))
+            # mn-4: section 3.3(2) asks for "the collapsed cells" -- 202, 404 and 505 -- with 101
+            # kept as the un-collapsed contrast and random 101 as the attractor's own cell.
+            for tier, seed in (
+                ("mix50", 101), ("mix50", 202), ("mix50", 404), ("mix50", 505), ("random", 101)
+            )
         },
         # AMENDMENT D1: the two fields that turn "the same outcome" into "the same FIXED sequence,
         # independent of input". Both are computed from the decomposition artifact's own rows.
@@ -2701,6 +2763,11 @@ def _run_report(args: argparse.Namespace, work: Path, out_dir: Path, data_dir: P
             ),
             "outcome_identity": mechanism_outcome_identity(episodes),
             "action_identity": mechanism_action_identity(decomposition),
+            "reading": mechanism_reading(
+                episodes,
+                attractor_record(decomposition["episodes"], tier="mix50"),
+                comparisons,
+            ),
             "what_this_does_not_say": [
                 "It does not say WHY the ablated mix50 arm collapses. No mechanism for the collapse "
                 "is claimed, and none may be read out of these counts.",

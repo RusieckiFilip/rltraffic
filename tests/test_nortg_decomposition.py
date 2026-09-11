@@ -882,6 +882,74 @@ def test_no_attractor_is_reported_when_the_null_control_is_not_open_loop() -> No
     assert "not open-loop" in record["reading"].lower()
 
 
+def test_the_embedded_block_puts_each_arms_means_under_its_own_key() -> None:
+    """🔒 MJ-1: ``_embedded_decomposition`` had no unit test, so a per-arm SWAP shipped green.
+
+    The per-arm clock-origin split is a number the paper quotes (`dt_nortg@mix50` at −204.98 against
+    `dt@mix50` at −2.81). A mutation writing ``dt``'s means under ``dt_nortg`` and vice versa
+    survived 176 tests. This is BL-1's shape one task later: a quantity a reader takes as tested
+    because it is published, which no assertion reads.
+    """
+    summary = {
+        "summary": {
+            "per_arm": {
+                f"{method}@{tier}": {
+                    "population": {"mean": base + 1.0},
+                    "clock_origin": {"mean": base + 2.0},
+                    "cadence": {"mean": base + 3.0},
+                    "total": {"mean": base + 6.0},
+                }
+                for tier in TIERS
+                for method, base in (("dt", 10.0), ("dt_nortg", 100.0))
+            },
+            "contrast": {
+                tier: {
+                    "population": -90.0, "clock_origin": -90.0, "cadence": -90.0, "total": -270.0,
+                    "delta_ours_minus_delta_engine": -270.0, "identity_gap": 0.0,
+                }
+                for tier in TIERS
+            },
+            "identity": {"residual_max": 0.0, "residual_is_not_independent": "..."},
+        },
+        "orientation": "att_ours - att_engine",
+        "orientation_note": "the negation of A13(b)'s writing",
+        "identity": "att_ours - att_engine = population + clock_origin + cadence",
+        "_source": {"path": "docs/data/p5_3b_decomposition.json", "sha256": "c" * 64},
+    }
+    blocks = nortg_campaign._embedded_decomposition(summary)
+    for tier in TIERS:
+        per_arm = blocks[tier]["per_arm"]
+        # dt's means are the 10-based ones and dt_nortg's the 100-based ones -- a swap moves both
+        assert per_arm["dt"] == {
+            "population": 11.0, "clock_origin": 12.0, "cadence": 13.0, "total": 16.0
+        }, tier
+        assert per_arm["dt_nortg"] == {
+            "population": 101.0, "clock_origin": 102.0, "cadence": 103.0, "total": 106.0
+        }, tier
+
+
+def test_a_genuinely_non_zero_deviation_is_refused_by_the_zero_check_alone() -> None:
+    """🔒 MJ-2: the ``deviation_c1 == deviation_c3c == residual == 0.0`` refusal was unpinned.
+
+    ⚠️ The existing parametrised test perturbs the STORED ``deviation_c3c``, which route two catches
+    by recomputation -- and its message contains "deviation", so the ``match=`` passed **for the
+    wrong reason** while the zero check itself could be deleted with 176 tests still green. That is
+    the same class the packet found for ``att_engine_call`` and did not extend to the deviations.
+
+    Here the episode is made genuinely inconsistent with Gate 0's criterion: the metric-cadence
+    reconstruction really moves, and ``deviation_c3c`` is stored CONSISTENTLY with it, so route two
+    is satisfied and only the zero check can refuse.
+    """
+    rows = _rows(_chunks())
+    row = rows[23]
+    moved = float(row["att_reference_metric_cadence"]) + 0.25
+    row["att_reference_metric_cadence"] = moved
+    row["deviation_c3c"] = abs(moved - float(row["att_ours"]))  # consistent: route two passes
+    assert row["deviation_c3c"] != 0.0
+    with pytest.raises(ValueError, match="non-zero deviation"):
+        assert_identity_is_exact(rows)
+
+
 def _embedded_block(**over: Any) -> dict[str, Any]:
     """One well-formed ``definition_difference_decomposition`` block."""
     arm = {"population": 3.0, "clock_origin": 95.5, "cadence": 6.0, "total": 104.5}

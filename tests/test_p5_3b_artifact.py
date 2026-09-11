@@ -32,6 +32,7 @@ from offline.nortg_campaign import (
     ADMISSION_FIELDS,
     ARTIFACT_FORMAT_VERSION,
     ATT_DEFINITIONS,
+    MECHANISM_FIELDS,
     NORTG_METHOD,
     NORTG_TIERS,
     PRIMARY_ATT,
@@ -495,3 +496,86 @@ def test_the_attractor_is_identified_from_the_null_control_and_counted_on_mix50(
         assert record["n_draws_carrying_it"] == carrying
     else:
         assert record["attractor_sequence_sha256"] is None
+
+
+def test_the_embedded_per_arm_block_equals_the_decomposition_artifacts_own_summary(
+    artifact: dict[str, Any],
+) -> None:
+    """🔒 MJ-1: the per-arm split is a number the paper quotes, and nothing read it.
+
+    A swap of ``per_arm.dt`` and ``per_arm.dt_nortg`` in the shipped bytes survived 178 tests, as did
+    shifting one arm's ``clock_origin`` and ``total`` together. The summing check next door cannot
+    see either, because a swapped or shifted block still sums to its own total.
+
+    The tie is to the decomposition artifact **read from disk**, arm by arm, under ``==``.
+    """
+    decomposition = json.loads(DECOMPOSITION.read_text(encoding="utf-8"))
+    for tier in NORTG_TIERS:
+        per_arm = artifact["comparisons"][tier]["definition_difference_decomposition"]["per_arm"]
+        for method in ("dt", "dt_nortg"):
+            source = decomposition["summary"]["per_arm"][f"{method}@{tier}"]
+            for term in (*TERMS, "total"):
+                assert per_arm[method][term] == source[term]["mean"], (tier, method, term)
+
+
+def test_the_outcome_identity_is_defined_on_exactly_the_eight_registered_fields(
+    artifact: dict[str, Any],
+) -> None:
+    """🔒 MJ-3: the eight-field definition was unprotected in code AND in the artifact.
+
+    Dropping ``completed_at_horizon`` from ``MECHANISM_FIELDS`` survived 176 tests, and popping a
+    name from the shipped list survived 178 -- on this data the counts coincide on seven fields,
+    which is exactly why nothing noticed. The paper sentence *"identical on eight fields"* would
+    then rest on a list no test reads.
+
+    The eight names are written out literally here rather than imported into the expectation, so the
+    constant and the artifact are both checked against the brief's text and not against each other.
+    """
+    registered = (
+        "att_engine",
+        "att_ours",
+        "entered",
+        "created",
+        "never_entered",
+        "horizon_vehicle_count",
+        "episode_reward",
+        "completed_at_horizon",
+    )
+    assert tuple(MECHANISM_FIELDS) == registered
+    assert tuple(artifact["mechanism"]["outcome_identity"]["fields"]) == registered
+
+
+def test_the_attractor_reading_never_reads_as_a_claim_on_a_tier_that_does_not_carry_it(
+    artifact: dict[str, Any],
+) -> None:
+    """mn-3: ``mappo1000`` carries the attractor on 0 draws and its reading must say so.
+
+    The old template produced *"the same fixed [0, 0, 0, 0, 0] of 100 draws on mappo1000 emit the
+    byte-identical action sequence ... regardless of observation or demand"* -- a sentence that reads
+    as a positive claim about a tier where the measurement is the opposite.
+    """
+    attractor = artifact["mechanism"]["action_identity"]["attractor"]
+    assert attractor["mappo1000"]["n_draws_carrying_it"] == 0
+    reading = attractor["mappo1000"]["reading"].lower()
+    assert "no draw" in reading or "does not" in reading, reading
+    assert "regardless of observation" not in reading
+    # and the tier that DOES carry it still says so
+    assert attractor["mix50"]["n_draws_carrying_it"] > 0
+    assert "regardless of observation" in attractor["mix50"]["reading"]
+
+
+def test_the_mechanism_ships_a_reading_of_the_registered_shape(artifact: dict[str, Any]) -> None:
+    """``BRIEF_33`` section 3.3(3) fixes the shape of the sentence, and forbids any *why*."""
+    reading = artifact["mechanism"]["reading"]
+    assert "3 of 5" in reading
+    for number in ("99", "97", "88", "105.59"):
+        assert number in reading, number
+    for forbidden in ("because", "cause", "due to", "explains why", "the reason"):
+        assert forbidden not in reading.lower(), forbidden
+
+
+def test_the_action_histograms_cover_every_collapsed_mix50_cell(artifact: dict[str, Any]) -> None:
+    """mn-4: section 3.3(2) asks for *the collapsed cells* -- 202, 404 and 505, not 404 alone."""
+    histograms = artifact["mechanism"]["action_identity"]["action_counts"]
+    for seed in (101, 202, 404, 505):
+        assert f"dt_nortg@mix50 seed {seed}" in histograms, seed

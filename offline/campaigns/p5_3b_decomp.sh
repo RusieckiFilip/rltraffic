@@ -255,6 +255,16 @@ cat <<'NEXT'
      of section 3.5's enumeration:
        git show bd36a0a:docs/data/p5_3b_nortg.json > /tmp/p5_3b_nortg.bd36a0a.json
        python -m offline.nortg_decomposition diff-paths --baseline /tmp/p5_3b_nortg.bd36a0a.json \
-           --candidate docs/data/p5_3b_nortg.json --allow format_version predictions.Q1 comparisons mechanism runtime
+           --candidate docs/data/p5_3b_nortg.json \
+           --allow format_version \
+                   predictions.Q1.holds predictions.Q1.holds_rule \
+                   predictions.Q1.largest_limb.registered_tier predictions.Q1.largest_limb.as_registered \
+                   predictions.Q1.smallest_limb.registered_tier predictions.Q1.smallest_limb.as_registered \
+                   comparisons.mappo1000.definition_difference_decomposition \
+                   comparisons.mix50.definition_difference_decomposition \
+                   comparisons.random.definition_difference_decomposition \
+                   mechanism runtime.
+     ⚠️ mn-5: the enumeration is PER-TIER and per-field on purpose. A blanket `comparisons` prefix
+     tolerates a moved mean_difference, and a blanket `predictions.Q1` tolerates a moved `largest`.
      Anything outside that set is a FINDING, not something to add to the list.
 NEXT
