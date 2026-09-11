@@ -40104,6 +40104,23 @@
           "n_episodes": 100,
           "reading": "the policy used more than one action on these episodes"
         },
+        "dt@mix50 seed 202": {
+          "action_counts_summed_over_episodes": [
+            [
+              14942,
+              13111,
+              3666,
+              3136,
+              170,
+              7,
+              962,
+              6
+            ]
+          ],
+          "constant_action": false,
+          "n_episodes": 100,
+          "reading": "the policy used more than one action on these episodes"
+        },
         "dt@mix50 seed 404": {
           "action_counts_summed_over_episodes": [
             [
@@ -40115,6 +40132,23 @@
               11,
               1109,
               4
+            ]
+          ],
+          "constant_action": false,
+          "n_episodes": 100,
+          "reading": "the policy used more than one action on these episodes"
+        },
+        "dt@mix50 seed 505": {
+          "action_counts_summed_over_episodes": [
+            [
+              14529,
+              13030,
+              3786,
+              3145,
+              259,
+              103,
+              1073,
+              75
             ]
           ],
           "constant_action": false,
@@ -40155,6 +40189,23 @@
           "n_episodes": 100,
           "reading": "the policy used more than one action on these episodes"
         },
+        "dt_nortg@mix50 seed 202": {
+          "action_counts_summed_over_episodes": [
+            [
+              5101,
+              5478,
+              4017,
+              4216,
+              3995,
+              4513,
+              3870,
+              4810
+            ]
+          ],
+          "constant_action": false,
+          "n_episodes": 100,
+          "reading": "the policy used more than one action on these episodes"
+        },
         "dt_nortg@mix50 seed 404": {
           "action_counts_summed_over_episodes": [
             [
@@ -40166,6 +40217,23 @@
               4900,
               4110,
               5287
+            ]
+          ],
+          "constant_action": false,
+          "n_episodes": 100,
+          "reading": "the policy used more than one action on these episodes"
+        },
+        "dt_nortg@mix50 seed 505": {
+          "action_counts_summed_over_episodes": [
+            [
+              4287,
+              4814,
+              4021,
+              4308,
+              4300,
+              4906,
+              4104,
+              5260
             ]
           ],
           "constant_action": false,
@@ -40203,7 +40271,7 @@
             "404": 0,
             "505": 0
           },
-          "reading": "the same fixed [0, 0, 0, 0, 0] of 100 draws on mappo1000 emit the byte-identical action sequence the random-corpus DT emits on every draw, regardless of observation or demand"
+          "reading": "no draw on mappo1000 emits the random-corpus DT's action sequence; this tier does not carry the attractor"
         },
         "mix50": {
           "attractor_sequence_sha256": "47c0ff33c38bc3253a0c5f56e34375645441d345c5d3e585d60b9561f147d148",
@@ -40217,7 +40285,7 @@
             "404": 99,
             "505": 97
           },
-          "reading": "the same fixed [0, 88, 0, 99, 97] of 100 draws on mix50 emit the byte-identical action sequence the random-corpus DT emits on every draw, regardless of observation or demand"
+          "reading": "284 of 500 draws on mix50 (3 of 5 seeds, per seed [0, 88, 0, 99, 97]) emit the byte-identical action sequence the random-corpus DT emits on every draw, regardless of observation or demand"
         },
         "random": {
           "attractor_sequence_sha256": "47c0ff33c38bc3253a0c5f56e34375645441d345c5d3e585d60b9561f147d148",
@@ -40231,7 +40299,7 @@
             "404": 100,
             "505": 100
           },
-          "reading": "the same fixed [100, 100, 100, 100, 100] of 100 draws on random emit the byte-identical action sequence the random-corpus DT emits on every draw, regardless of observation or demand"
+          "reading": "500 of 500 draws on random (5 of 5 seeds, per seed [100, 100, 100, 100, 100]) emit the byte-identical action sequence the random-corpus DT emits on every draw, regardless of observation or demand"
         }
       },
       "dt_random_against_dt_nortg_random": {
@@ -40864,6 +40932,7 @@
       "rule": "two episodes are outcome-identical when all eight fields agree exactly",
       "this_is_outcome_identity_not_policy_identity": "Agreement on eight outcome fields does not establish that the two policies took the same decisions. See mechanism.action_identity, which measures that directly."
     },
+    "reading": "on 3 of 5 seeds, the ablated mix50 DT produces on 88-99 of 100 held-out draws the same action sequence and the same episode outcome as the random-corpus DT, which is itself identical across all 5 seeds and both arms; on the other seeds it does not collapse (seed 101 att_engine 155.97, seed 303 att_engine 183.28, against dt's 105.59)",
     "registered": false,
     "status": "EXPLORATORY (PREREGISTRATION section 2): the no-RTG ablation is named in the exploratory list, and this block was found after the numbers existed. It is reported with counts and no inferential claim.",
     "what_this_does_not_say": [
@@ -40999,7 +41068,7 @@
   "runtime": {
     "cuda_available": true,
     "cuda_device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
-    "git_commit": "c864bfa06c9d60f03987996fdcd5bf55c33a9842",
+    "git_commit": "82a41286b66a94487c927258cb2b614825ad342d",
     "git_dirty": false,
     "measurement_git_commits": [
       "24d717d33091018d7e7aef31b9c5e65eb46b701a",
@@ -41012,7 +41081,7 @@
     "torch_num_threads": 1,
     "torch_version": "2.11.0+cu128",
     "unreachable_measurement_commits": [],
-    "written_at_git_commit": "c864bfa06c9d60f03987996fdcd5bf55c33a9842"
+    "written_at_git_commit": "82a41286b66a94487c927258cb2b614825ad342d"
   },
   "seeds": [
     101,
