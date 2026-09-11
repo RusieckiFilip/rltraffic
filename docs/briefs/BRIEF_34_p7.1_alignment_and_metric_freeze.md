@@ -469,3 +469,34 @@ gudang (A–D, F; no parity file exists for E — say so).
 **One new structure-only line, no retrieval:** record grid4x4's conversion signature from its CityFlow
 files alone (phase structure, even-indexed greens in the corpus, the flow block's SUMO defaults, the
 dangling `.sumocfg`) as evidence for `DEFERRED` 77. Do not download anything; do not run `converter_v2`.
+
+---
+
+# ✅ AMENDMENT C — 2026-09-11: the grid4x4 pair is on disk; half B audits it too (A–D, F; E re-derived)
+
+`DEFERRED` 77 is resolved: our shipped `scenarios/grid4x4/*.json` are sha256-identical to LibSignal's
+`data/raw_data/grid4x4/` (their s2c conversion), and the SUMO-native original is RESCO's —
+`scenarios/grid4x4_candidates/resco/resco_benchmark/environments/grid4x4/grid4x4.net.xml`
+(`netedit 1.9.0`, sha256 `8d192de4…`) plus `grid4x4_1.rou.xml` **inside** `grid4x4.zip` in the same
+directory (sha256 `2350dce7…`), which matches our `flow.json` on 1,473/1,473 exact (depart, route) pairs.
+**The candidates directory is gitignored and READ-ONLY for this task; the files are CC BY-NC-SA 4.0 and are
+never copied into the tree.** Read the route file directly from the zip (`zipfile`), never extract into
+the repo.
+
+**Half B adds the grid4x4 pair to §3.1's table and to the CAP audit** with the same tool it builds for
+hangzhou: **(A)** junction/edge bijection (ids are shared: `A0…D3`, `A0A1…`), lane counts; **(B)**
+coordinates (RESCO `netOffset 0,0`), per-lane length and speed (net 13.89 vs converted flow 13.39 — report
+it as the converter's cap, the cologne shape); **(C)** connection sets under the correspondence — note RESCO
+has no `t` connections, 576 = 192 × {r, s, l}; **(D)** released-lane sets per action against the CityFlow
+roadnet's 16 phases (the odd CityFlow phases carry 2–5 roadLinks — the converter's rendering of SUMO's
+yellow/`s` states; state exactly what the CityFlow env treats as actions on this scenario, read from
+`envs/phase_control.py` and the corpus's `avail_mask` width, and what the SUMO env would); **(E)** the
+1,473/1,473 demand equality re-derived by the tool, plus the vType situation (the route file defines
+none → `DEFAULT_VEHTYPE`; parity instance for grid4x4 recorded as values only: `maxSpeed 13.39, tau 1.5,
+accel 2.6, decel 4.5, length 5.0, minGap 2.5, width 1.8, speedFactor 1.0` — no parity file is built,
+that is `DEFERRED` 75); **(F)** provenance: RESCO clone sha `f1ed9a174f8de41fc9d8689373b836bc882570dc`,
+LibSignal clone sha `127af9f93902778e556de2eedb2b606c4c9447e6`, the zip member name, both sha256s, the
+`netedit` header — and the fact that LibSignal's converter, not `converter_v2`, produced our CityFlow side
+(so the three `converter_v2` TODOs are cited as the class, with their LibSignal-side counterparts
+identified where the files show them). **No simulation on grid4x4 in this task** — (G) is P7.3's.
+Add ≈ half a day to half B; the table is the deliverable A14's admission rests on.

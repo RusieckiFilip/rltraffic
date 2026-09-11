@@ -231,3 +231,7 @@ checkpoints/
 wandb/
 .pytest_cache/
 __pycache__/
+
+# Third-party scenario originals retrieved for CAP audits (DEFERRED 77). CC BY-NC-SA 4.0 (RESCO grid4x4) --
+# never committed into this MIT tree; referenced by URL + clone sha + sha256 instead.
+scenarios/grid4x4_candidates/
