@@ -73,8 +73,11 @@ zero-shot is feasible on hz1x1 only.** grid4x4 has no SUMO network (`.sumocfg` i
 **0.4 `phase_onehot` is not backend-neutral, but the map is exact.** Width 9 on CityFlow (file phase 0 =
 clearance, 1–8 = greens) against 16 on SUMO (greens at 0, 2, …, 14; yellows/all-red at odd indices);
 the hot index for action 0 is file phase 1 vs 0 (`docs/data/p7_0_gate.json:green_action_semantics`).
-The corpus observes only greens at decision boundaries (`ix0_current_phase` never 0 — transitions
-finish inside the 10 s step), so the clearance slot is dead. **The frozen convention is the CityFlow
+The corpus observes only greens at decision boundaries — **measured on the population, not a sample:
+577,600 `current_phase` rows across all 1,600 hz1x1 episodes in `datasets_v11/` carry phases 1–8 and
+zero rows carry 0; P7.0's 5,415 CityFlow rows likewise; P7.0's 5,415 SUMO rows carry even phases
+only, zero odd** (transitions finish inside the 10 s step, including at row 0). So the clearance
+slot is dead in the data the models trained on. **The frozen convention is the CityFlow
 corpus's (width 9); the adapter maps SUMO even phase `2k → k+1`, odd → 0.** P7.0 §3.7 established
 that action `a` releases the same physical lanes on both backends (8/8 under translation, 4/8 under the
 void identity) — the adapter **tests** that with `transfer_gate.green_action_lane_sets`, it does not
