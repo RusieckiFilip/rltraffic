@@ -374,3 +374,77 @@ commit the observed value as its own commit. **Do not pre-bump.**
 against `output/p7_0/` on both backends; the halting-threshold max abs difference; the teleport count per
 episode; timing per episode with `n`; the recomputed 16-row table beside P7.0's; §3.4's provenance
 evidence; every deviation from the brief in one classified section.
+
+---
+
+# ✅ AMENDMENT A — 2026-09-11, ruled at the plan gate on `docs/plans/p7.1.md` @ `bfe6257`
+
+**The plan is approved. Start half A.** Every claim behind the six questions was re-verified in the artifact
+by the coordinator before ruling: the `.net.xml` header (`netconvert 1.13.0`, 2022-10-19, inputs under
+`/home/lxl/LibSignal/main_cp/LibSignal/data/raw_data/…`), junction coordinates equal to CityFlow `points`
+plus `netOffset` with residual **0.0 on 5/5**, `.nod/.edg/.con` present for all five hangzhou scenarios;
+`att_per_step` is `float32` in the P7.0 npz; `offline/transfer_gate.py:1068` runs `collect.main(argv)`;
+`metrics/sumo.py:424` fills `depart_time` inside `update()`. Written against: this brief + Amendment A.
+
+## A1 — Q1: PROCEED. The STOP fired correctly, and the correction is the coordinator's, made today
+
+**Confirmed: every hangzhou SUMO network in this repo was generated from the CityFlow roadnet by
+LibSignal's toolchain.** `PROJECT_PLAN` §1's *"natively authored in both backends, converter confound
+absent by construction"* is **false**, and the NATIVE pillar of the C3 positioning is **withdrawn in §1
+this turn** — cologne1/cologne3 run the other way (SUMO-native, CityFlow derived), so **no pair in this
+repo is natively authored in both backends.** What replaces it is stronger than a caution, and it is now
+the freeze document's job to make it checkable: **topology, routes and signal timing are shared BY
+CONSTRUCTION through one documented conversion** (LibSignal's, upstream, cited), **vehicle dynamics are
+matched by the parity vType (what the converter does not cover — §1:59's clause, answered in the
+affirmative), and the conversion's structural artefacts are AUDITED.**
+**→ Half B gains one bounded deliverable, structure only, no simulation:** a converter-artefact table
+for `hangzhou_1x1_bc-tyc` and hz4x4 gudang — per lane: length and speed in `roadnet.json` vs `.net.xml`;
+per intersection: the connection/turn set, the TLS phase structure (9 vs 16, yellow inserted by the
+converter), lane counts; per scenario: the route/flow correspondence (2021 vehicles, departure times,
+edge sequences). Report exact matches and every difference with its magnitude. P7.0 already holds part of
+it (lane speeds `11.11/9.84/9.26/3.65`; 8/8 green actions). **The adapter is unaffected; the packet
+carries the finding; §1:21–23 already carry the correction.**
+
+## A2 — Q2: CONFIRMED — `np.float32(fresh) == stored`, and the float64 is recorded beside it
+
+Exact after the storage rounding, no tolerance; `n_equal / n` reported. The artifact keeps the fresh
+float64 so a future full-precision comparison is possible. This is a substitution of the exact form the
+artifact permits, not a loosening — say so in the docstring.
+
+## A3 — Q3: CONFIRMED — `offline.collect.POLICIES` through `collect.build_parser()`'s real args
+
+**The brief was wrong and the repo won**: it named `dt_gate._maxpressure_factory` /
+`method_tier_grid._fixedtime_factory` / `_random_factory` because `engine_att_reference.build_factory` uses
+them, without checking what P7.0 ran. Two of the three would have changed the arm and A1's reproduction
+would have failed for the brief's reason, not SUMO's. Logged as the coordinator's error.
+
+## A4 — Q4: CONFIRMED — Layer A inside a `collect`-shaped loop, not `gate_episode`
+
+The RNG continuity of the random arm across five episodes is exactly what the reproduction check tests;
+`gate_episode`'s one-env-per-call would break it. Condition: A2's `random` cells must reproduce P7.0's
+CityFlow `random` rows under the A2 form — that is the test that proves the loop is collect-shaped.
+
+## A5 — Q5: MEASURE IT; a non-zero result is a FINDING INSIDE P7.1, and it does not stop the freeze
+
+The brief's *"zero by construction"* was a premise stated as a fact — the plan is right to refuse it.
+Ruling: (i) two counters, `n_zero / n` per episode; (ii) **if non-zero, SUMO's identity gains its third
+term** — `att_sumo_env − W_sumo` is SUMO's cadence term, reported exactly like `C − W_running` on CityFlow,
+so the decomposition stays symmetric with A13; (iii) the brief's `W_sumo == att_sumo_env` check becomes:
+equal under `==` whenever the counter is zero, otherwise the difference **is** the cadence term and is
+reported per episode. **Why it does not stop the freeze: the frozen primary (`E_sumo`) is computed by
+the per-second observer and does not inherit the env metric's bookkeeping; the env metric is the
+co-reported definition.** A non-zero count is also a finding about `metrics/sumo.py` (frozen) — write it
+as an open question in the packet, never as a fix.
+
+## A6 — Q6: CONFIRMED — 30 SUMO episodes (15 observed + 15 unobserved)
+
+The unobserved arm is the observer-interference control and the timing basis at once; both are needed.
+Report the observed/unobserved wall clocks per arm with `n = 5` each, beside the plan's `12.44 s`
+(`n = 1`).
+
+## A7 — Recorded, no action
+
+`git checkout -b task/p7.1-alignment main` in the linked worktree — correct; `git checkout main` is
+impossible there and the brief should not have implied it. hz1x1 SUMO **12.44 s/episode** (`n = 1`) is the
+first hz1x1 SUMO timing on disk; SUMO's bit-for-bit reproduction across five weeks and two worktrees
+(3 episodes, 2 routes) is the determinism finding P7.3 needed — both go into the freeze document.
