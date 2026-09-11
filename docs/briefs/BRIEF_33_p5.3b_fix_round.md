@@ -593,3 +593,58 @@ Commit the decomposition artifact → `nortg_campaign report` from a **clean** t
 against `git show bd36a0a:docs/data/p5_3b_nortg.json` (paste the sorted differing-path set) → tests
 7–10 → `sha256sum -c` on all twelve manifests → packet with the classified section, the `12.5 min`
 source, and *"written against BRIEF_33 + Amendments A–D"*.
+
+---
+
+# ⛔ AMENDMENT E — 2026-09-11, on the merge review: FIX-FIRST, then merge. Tests only; no number moves
+
+`docs/reviews/P5.3b-fix.md`: **PASS-WITH-NOTES, 0 blocking, 3 major, 9 minor.** Every shipped number
+recomputed stdlib-only to ≤ 3e-14; 3 re-rolled episodes bit-identical on 41 fields; the only changed
+pre-existing assertions are the three authorised. ⭐ **The decomposition tie now protects BL-1's
+headline from a clone: `−409.1450 → −300.0` is KILLED by two tests where the original review's identical
+mutation survived 17.**
+
+**Why fix-first and not merge-then-fix:** the three majors are one shape — a guard or a shipped block
+that nothing pins — on exactly the quantities the paper will quote (the per-arm clock-origin split, the
+zero-deviation refusal, the eight-field identity). Each is a test, none moves a number, and together
+they are under an hour. Merging a per-arm block that a swap leaves green is BL-1's shape one task later,
+and the review says so.
+
+## E1 — REQUIRED before merge
+
+1. **MJ-1** — a unit test for `_embedded_decomposition` (`nortg_campaign.py:2016-2045`) on a synthetic
+   decomposition summary, asserting each arm's means land under its own key; and an artifact test that
+   `per_arm.dt` / `per_arm.dt_nortg` in the shipped block equal the decomposition artifact's
+   `summary.per_arm` for that arm (read from disk by path, `==`). The reviewer's two data mutations
+   (per-arm shift, per-arm swap) must be KILLED.
+2. **MJ-2** — a test with a *genuinely* non-zero `deviation_c3c` (perturb `att_reference_metric_cadence`
+   and store the deviation consistently, the reviewer's construction) so the zero check at
+   `nortg_decomposition.py:836-838` is the only thing that refuses; the reviewer's M25 must be KILLED.
+3. **MJ-3** — the artifact test asserts `mechanism.outcome_identity.fields == MECHANISM_FIELDS ==` the
+   eight names the brief lists, literally; dropping `completed_at_horizon` from the constant and popping
+   a field from the shipped list must both be KILLED.
+4. **mn-3** — the attractor reading string must not read as a positive claim on a tier carrying it on
+   zero draws: for `mappo1000` (0 cells) the reading says so; ship the §3.3(3)-shaped `mechanism.reading`
+   for `mix50` with the measured numbers (3 of 5 seeds; 99/97/88; seeds 101/303 at 156/183 against
+   `dt`'s 105.6; no *why*).
+5. **mn-4** — `action_counts` histograms for all four collapsed/un-collapsed `mix50` cells named in the
+   brief (202, 404, 505 collapsed; 101 as the un-collapsed contrast); **mn-5** — the driver's NEXT STEPS
+   `--allow` list replaced by the tightened enumeration the packet used.
+
+Regenerate `p5_3b_nortg.json` from a clean tree after (4)–(5); the §3.5 path diff is re-run and pasted
+(expected additions: `mechanism.reading`, the extra histograms, `runtime.*` only). **No number in
+`comparisons`, `predictions`, `episodes` or `summary` may differ from `8cb41d3`'s — assert it.**
+
+## E2 — RECORDED, not fixed here
+
+**mn-1** (header-level cell check unpinned; the row check is, and `assert_chunks_complete` catches the
+sub-case) · **mn-2** (key order is `write_json_atomic`'s sort; the fields are present) · **mn-6**
+(`per_cell` count pinned through the action-identity route) · **mn-7** (behaviourally equivalent) ·
+**mn-8** (merge carries `d36a268`) · **mn-9** (9 vs 10 files) — all go into the packet's classified
+section and `DEFERRED` 73's row as a note.
+
+## E3 — Then merge, without a second reviewer round
+
+The coordinator re-runs the reviewer's three surviving mutations (per-arm swap, zero-check deletion,
+`MECHANISM_FIELDS` 8→7) on the fixed branch and merges on KILLED × 3. Packet: *"written against
+BRIEF_33 + Amendments A–E"*.
