@@ -800,6 +800,88 @@ def test_the_report_actually_calls_the_decomposition_guard() -> None:
     assert callable(nortg_campaign.assert_decomposition_embedded)
 
 
+def _decomposition_payload(sequences: Mapping[tuple[str, str, int], list[str]]) -> dict[str, Any]:
+    """A decomposition artifact carrying only what ``mechanism_action_identity`` reads."""
+    episodes = []
+    for (method, tier, seed), digests in sequences.items():
+        for draw, digest in zip(HELD_OUT_DRAWS, digests):
+            episodes.append(
+                {
+                    "method": method, "tier": tier, "seed": int(seed), "draw_id": int(draw),
+                    "action_sequence_sha256": digest,
+                    "action_counts": [[43, 48, 40, 43, 43, 49, 41, 53]],
+                }
+            )
+    return {"episodes": episodes}
+
+
+def test_the_mechanism_counts_distinct_action_sequences_per_cell() -> None:
+    """🔒 ``BRIEF_33`` AMENDMENT D1: what turns *"same outcome"* into *"the same FIXED sequence"*.
+
+    A cell that emits one digest on all 100 draws took the same 360 decisions whatever it observed
+    -- an open-loop policy. A cell that emits 100 distinct digests responded to its input. The count
+    is the difference between those two readings, and it must be checkable from the artifact rather
+    than from an amendment.
+    """
+    attractor = "47c0ff33" + "a" * 56
+    payload = _decomposition_payload(
+        {
+            # collapsed: one sequence on every draw
+            ("dt_nortg", "random", 101): [attractor] * 100,
+            # un-collapsed: a different sequence every draw
+            ("dt_nortg", "mix50", 101): [f"{i:064x}" for i in range(100)],
+            # partly collapsed: the attractor on 99, one of its own on the last
+            ("dt_nortg", "mix50", 404): [attractor] * 99 + ["f" * 64],
+        }
+    )
+    counts = nortg_campaign.action_sequence_counts(payload["episodes"])
+    assert counts[("dt_nortg", "random", 101)]["n_distinct_action_sequences"] == 1
+    assert counts[("dt_nortg", "mix50", 101)]["n_distinct_action_sequences"] == 100
+    assert counts[("dt_nortg", "mix50", 404)]["n_distinct_action_sequences"] == 2
+    assert counts[("dt_nortg", "mix50", 404)]["n_draws"] == 100
+
+
+def test_the_attractor_is_the_sequence_the_null_control_emits_on_every_draw() -> None:
+    """The attractor digest is IDENTIFIED from the null control, never assumed.
+
+    ``dt_nortg@random`` is the cell measured seed-invariant and identical to ``dt@random``; the
+    sequence it emits on every draw of every seed is what the collapsed ``mix50`` cells are then
+    counted against. Defining it from ``random``'s own rows -- rather than hard-coding a digest --
+    is what keeps this checkable from the artifact.
+    """
+    attractor = "47c0ff33" + "a" * 56
+    payload = _decomposition_payload(
+        {
+            ("dt_nortg", "random", 101): [attractor] * 100,
+            ("dt_nortg", "mix50", 404): [attractor] * 99 + ["f" * 64],
+            ("dt_nortg", "mix50", 101): [f"{i:064x}" for i in range(100)],
+        }
+    )
+    record = nortg_campaign.attractor_record(payload["episodes"], tier="mix50")
+    assert record["attractor_sequence_sha256"] == attractor
+    assert record["identified_from"].startswith("dt_nortg@random")
+    assert record["n_draws_carrying_it"] == 99
+    assert record["n_cells_carrying_it"] == 1
+
+
+def test_no_attractor_is_reported_when_the_null_control_is_not_open_loop() -> None:
+    """If ``random`` emits more than one sequence there is no single attractor to name.
+
+    ⚠️ Reporting the modal sequence instead would manufacture an attractor out of a policy that does
+    not have one, which is the shape of claim this whole block exists to avoid.
+    """
+    payload = _decomposition_payload(
+        {
+            ("dt_nortg", "random", 101): [f"{i:064x}" for i in range(100)],
+            ("dt_nortg", "mix50", 404): ["f" * 64] * 100,
+        }
+    )
+    record = nortg_campaign.attractor_record(payload["episodes"], tier="mix50")
+    assert record["attractor_sequence_sha256"] is None
+    assert record["n_draws_carrying_it"] == 0
+    assert "not open-loop" in record["reading"].lower()
+
+
 def _embedded_block(**over: Any) -> dict[str, Any]:
     """One well-formed ``definition_difference_decomposition`` block."""
     arm = {"population": 3.0, "clock_origin": 95.5, "cadence": 6.0, "total": 104.5}

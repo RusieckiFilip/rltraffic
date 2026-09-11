@@ -1828,6 +1828,99 @@ def mechanism_outcome_identity(episodes: Sequence[Mapping[str, Any]]) -> dict[st
     }
 
 
+def action_sequence_counts(
+    episodes: Sequence[Mapping[str, Any]],
+) -> dict[tuple[str, str, int], dict[str, Any]]:
+    """Per cell, how many DISTINCT action sequences its 100 held-out draws produced.
+
+    🚨 ``BRIEF_33`` AMENDMENT D1, and it is the measurement that changes what may be said.  A cell
+    emitting **one** digest across 100 draws took the same 360 decisions whatever it observed --
+    open-loop, independent of observation and of demand.  A cell emitting **100** responded to its
+    input.  *"The same outcome"* cannot tell those apart; this can.
+    """
+    by_cell: dict[tuple[str, str, int], list[str]] = {}
+    for row in episodes:
+        key = (str(row["method"]), str(row["tier"]), int(row["seed"]))
+        by_cell.setdefault(key, []).append(str(row["action_sequence_sha256"]))
+    return {
+        key: {
+            "n_draws": len(digests),
+            "n_distinct_action_sequences": len(set(digests)),
+            "is_open_loop": len(set(digests)) == 1,
+        }
+        for key, digests in by_cell.items()
+    }
+
+
+def attractor_record(
+    episodes: Sequence[Mapping[str, Any]], *, tier: str
+) -> dict[str, Any]:
+    """The single action sequence the null-control DT emits, and how far it reaches into *tier*.
+
+    ⭐ **Identified from the data, never hard-coded.**  The attractor is *whatever*
+    ``dt_nortg@random`` emits -- that cell is the one measured seed-invariant and identical to
+    ``dt@random`` -- and it is only named when **every** ``random`` cell emits exactly one sequence
+    and they all agree.  ⚠️ If ``random`` is not open-loop there is no single attractor, and this
+    returns ``None`` rather than the modal sequence: reporting a mode would manufacture an attractor
+    out of a policy that does not have one.
+    """
+    counts = action_sequence_counts(episodes)
+    reference = {
+        key: record for key, record in counts.items()
+        if key[0] == NORTG_METHOD and key[1] == MECHANISM_REFERENCE[0]
+    }
+    digests = {
+        str(row["action_sequence_sha256"])
+        for row in episodes
+        if str(row["method"]) == NORTG_METHOD and str(row["tier"]) == MECHANISM_REFERENCE[0]
+    }
+    open_loop = bool(reference) and all(r["is_open_loop"] for r in reference.values()) and len(digests) == 1
+
+    if not open_loop:
+        return {
+            "attractor_sequence_sha256": None,
+            "identified_from": f"dt_nortg@{MECHANISM_REFERENCE[0]}",
+            "n_cells_carrying_it": 0,
+            "n_draws_carrying_it": 0,
+            "per_cell": {},
+            "reading": (
+                f"dt_nortg@{MECHANISM_REFERENCE[0]} is NOT open-loop ({len(digests)} distinct "
+                "sequences), so there is no single attractor to name. The modal sequence is "
+                "deliberately not reported: it would manufacture an attractor out of a policy that "
+                "does not have one"
+            ),
+        }
+
+    attractor = digests.pop()
+    per_cell: dict[str, int] = {}
+    for seed in TRAINING_SEEDS:
+        carrying = sum(
+            1
+            for row in episodes
+            if str(row["method"]) == NORTG_METHOD
+            and str(row["tier"]) == str(tier)
+            and int(row["seed"]) == int(seed)
+            and str(row["action_sequence_sha256"]) == attractor
+        )
+        per_cell[str(seed)] = carrying
+    return {
+        "attractor_sequence_sha256": attractor,
+        "identified_from": (
+            f"dt_nortg@{MECHANISM_REFERENCE[0]}, which emits this one sequence on every draw of "
+            "every seed; discriminability.random records that arm as identical to dt@random on "
+            "500 of 500 cells, so it is the random-corpus DT's sequence under both arms"
+        ),
+        "n_cells_carrying_it": sum(1 for count in per_cell.values() if count),
+        "n_draws_carrying_it": sum(per_cell.values()),
+        "per_cell": per_cell,
+        "reading": (
+            f"the same fixed {list(per_cell.values())} of 100 draws on {tier} emit the byte-identical "
+            "action sequence the random-corpus DT emits on every draw, regardless of observation or "
+            "demand"
+        ),
+    }
+
+
 def mechanism_action_identity(decomposition: Mapping[str, Any]) -> dict[str, Any]:
     """BL-2(c) part 2: ACTION identity, read from ``docs/data/p5_3b_decomposition.json``.
 
@@ -1895,6 +1988,17 @@ def mechanism_action_identity(decomposition: Mapping[str, Any]) -> dict[str, Any
             f"{method}@{tier} seed {seed}": histogram((method, tier, seed))
             for method in (REFERENCE_METHOD, NORTG_METHOD)
             for tier, seed in (("mix50", 101), ("mix50", 404), ("random", 101))
+        },
+        # AMENDMENT D1: the two fields that turn "the same outcome" into "the same FIXED sequence,
+        # independent of input". Both are computed from the decomposition artifact's own rows.
+        "n_distinct_action_sequences": {
+            f"{method}@{tier} seed {seed}": record["n_distinct_action_sequences"]
+            for (method, tier, seed), record in sorted(
+                action_sequence_counts(decomposition["episodes"]).items()
+            )
+        },
+        "attractor": {
+            tier: attractor_record(decomposition["episodes"], tier=tier) for tier in NORTG_TIERS
         },
     }
 
