@@ -448,3 +448,24 @@ Report the observed/unobserved wall clocks per arm with `n = 5` each, beside the
 impossible there and the brief should not have implied it. hz1x1 SUMO **12.44 s/episode** (`n = 1`) is the
 first hz1x1 SUMO timing on disk; SUMO's bit-for-bit reproduction across five weeks and two worktrees
 (3 episodes, 2 routes) is the determinism finding P7.3 needed — both go into the freeze document.
+
+---
+
+# ✅ AMENDMENT B — 2026-09-11: half B's audit table is the first instance of the Conversion Audit Protocol
+
+`PROJECT_PLAN` §6 P11.5 was narrowed today into CAP (criteria A–H, quoted there). **Amendment A1's
+converter-artefact table is built to CAP's columns**, so the same tool audits a second pair later:
+**(A)** intersection/road bijection and lane counts · **(B)** junction-coordinate residual, per-lane length
+and speed with max abs difference · **(C)** connection sets under the movement correspondence, extras
+enumerated (hz1x1 has 4 `t` connections, hz4x4 16 — count them from the files) · **(D)** released-lane
+sets per action (reuse `transfer_gate.green_action_lane_sets`), phase counts, the `phase_onehot` map,
+and the sentence that `SumoEnv` renders transitions itself (`envs/sumo_env.py:252-278`) with the
+converter's clearance states quoted (`r` on hz1x1, `s` on hz4x4) · **(E)** demand equality per vehicle
+(id, depart, route) between `flow.json` and the parity `.rou.xml` · **(F)** provenance from the
+`.net.xml` header (tool, version, date, input paths) — the LibSignal lineage, cited. **(G)** is half A's
+output and is cross-referenced, not recomputed. Scenarios: `hangzhou_1x1_bc-tyc` (full) and hz4x4
+gudang (A–D, F; no parity file exists for E — say so).
+
+**One new structure-only line, no retrieval:** record grid4x4's conversion signature from its CityFlow
+files alone (phase structure, even-indexed greens in the corpus, the flow block's SUMO defaults, the
+dangling `.sumocfg`) as evidence for `DEFERRED` 77. Do not download anything; do not run `converter_v2`.
