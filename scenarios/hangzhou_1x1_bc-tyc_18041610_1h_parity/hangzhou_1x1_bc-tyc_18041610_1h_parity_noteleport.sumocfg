@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- P7.1 A1b (BRIEF_34 Amendment D2). A NEW file: the parity configuration with teleporting
+     DISABLED, so the metric freeze can report the effect size of a regime rather than a formula.
+     The shipped .sumocfg and the P7.0 parity .sumocfg are UNTOUCHED, because recorded runs used
+     them, and P7.0's SUMO cells are labelled "teleports enabled" for that reason.
+
+     Identical to hangzhou_1x1_bc-tyc_18041610_1h_parity.sumocfg in every other respect: the same
+     SHIPPED network and the same parity route file (cf_parity, tau=2.0), both REFERENCED rather
+     than copied, so the vType binding cannot drift between the two regimes.
+
+     Why the value is -1 and not 0: SUMO's own help for time-to-teleport says it "defaults to 300,
+     non-positive values disable teleporting". Measured on this scenario at P7.1 G1, one
+     MaxPressure episode teleported 13 vehicles under that default.
+
+     end=4000 exceeds the env horizon of 3600 s so the env, not this file, owns the episode
+     length on both backends. -->
+<configuration>
+	<input>
+		<net-file value="../hangzhou_1x1_bc-tyc_18041610_1h/hangzhou_1x1_bc-tyc_18041610_1h.net.xml"/>
+		<route-files value="hangzhou_1x1_bc-tyc_18041610_1h_parity.rou.xml"/>
+	</input>
+	<time>
+		<begin value="0"/>
+		<end value="4000"/>
+	</time>
+	<processing>
+		<time-to-teleport value="-1"/>
+	</processing>
+</configuration>

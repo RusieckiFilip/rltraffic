@@ -218,6 +218,14 @@ HALT_SPEED_THRESHOLD = 0.1
 #: P7.0's three anchors, in the order ``transfer_gate.CELLS`` declares them per backend.
 ANCHOR_ARMS: tuple[str, ...] = ("fixedtime", "maxpressure", "random")
 
+#: The two SUMO regimes (``BRIEF_34`` Amendment D2).  ``parity`` is P7.0's own configuration and is
+#: the one the reproduction check is defined against -- it runs with SUMO's default
+#: ``--time-to-teleport 300`` and is labelled *teleports enabled*.  ``noteleport`` is the candidate
+#: frozen regime: the same network and the same parity route file with teleporting disabled.
+#: ⚠️ **Selecting a regime selects its assertion too** (:func:`run_sumo_arm`), so there is no way to
+#: run the teleport-free regime without checking that it was in fact teleport-free.
+SUMO_REGIMES: tuple[str, ...] = ("parity", "noteleport")
+
 #: P7.0's collection seed and episode count (``transfer_gate.main``'s defaults, and what
 #: ``output/p7_0/*/manifest.json`` records).  Episode ``i`` used ``reset(seed=BASE_SEED + i)``.
 BASE_SEED = 1000
@@ -963,6 +971,9 @@ class FreezeEpisode:
     halting_n_disagreeing_lane_seconds: int
     n_observations: int
     seconds: float
+    #: Which SUMO configuration produced this episode (:data:`SUMO_REGIMES`).  CityFlow rows carry
+    #: the default: there is one CityFlow configuration and no teleporting to disable.
+    regime: str = "parity"
 
     @property
     def term_population(self) -> float:
@@ -1150,6 +1161,7 @@ def run_sumo_arm(
     base_seed: int = BASE_SEED,
     observer: bool = True,
     halting_episodes: int = 1,
+    regime: str = "parity",
 ) -> dict[str, Any]:
     """Roll one SUMO anchor arm, mirroring ``collect.main``'s loop, and reconstruct every episode.
 
@@ -1167,8 +1179,13 @@ def run_sumo_arm(
     from agent.utils.utils import Utils
     from offline.collect import _build_env_spec
 
+    if regime not in SUMO_REGIMES:
+        raise ValueError(f"{regime!r} is not one of {list(SUMO_REGIMES)}")
+    # ⚠️ Amendment D2: the regime selects its own assertion. A teleport-free regime that was not in
+    # fact teleport-free would otherwise be reported as one.
+    require_no_teleports = regime == "noteleport"
     cell = f"sumo__{arm}"
-    stored = _stored_reference(cell, output_root, episodes)
+    stored = _stored_reference(cell, output_root, episodes, regime=regime)
 
     # collect.main:596 seeds the global RNGs before the env is built; the order is part of the
     # protocol, not decoration.
@@ -1230,10 +1247,15 @@ def run_sumo_arm(
                         ),
                         n_observations=built.n_observations,
                         seconds=seconds,
+                        regime=regime,
                     )
                 )
             else:
-                rows.append(_unobserved_row("sumo", arm, index, engine_seed, att_env, stored, seconds))
+                rows.append(
+                    _unobserved_row(
+                        "sumo", arm, index, engine_seed, att_env, stored, seconds, regime=regime
+                    )
+                )
             print(
                 f"  sumo/{arm} ep{index} seed={engine_seed} att={att_env!r} "
                 f"{seconds:.2f}s",
@@ -1254,10 +1276,26 @@ def run_sumo_arm(
         )
     finally:
         env.close()
+
+    if require_no_teleports:
+        offenders = [
+            f"ep{row.episode} ({row.n_teleports} teleports, "
+            f"{row.n_vanished_without_arrival} vanished)"
+            for row in rows
+            if row.observer and (row.n_teleports != 0 or row.n_vanished_without_arrival != 0)
+        ]
+        if offenders:
+            raise ValueError(
+                f"the {regime!r} regime is defined by teleporting being OFF, but {len(offenders)} "
+                f"episode(s) teleported or lost a vehicle: {offenders[:5]}. Either the .sumocfg "
+                "does not carry <time-to-teleport value='-1'/> or SUMO removed a vehicle for "
+                "another reason; reporting this arm as teleport-free would be false"
+            )
+
     return _chunk_payload(
         "sumo", arm, rows, observer=observer, episodes=episodes, base_seed=base_seed,
         config_path=config_path, seconds=time.perf_counter() - started,
-        halting_episodes=int(halting_episodes) if observer else 0,
+        halting_episodes=int(halting_episodes) if observer else 0, regime=regime,
     )
 
 
@@ -1269,6 +1307,8 @@ def _unobserved_row(
     att_env: float,
     stored: Sequence[float],
     seconds: float,
+    *,
+    regime: str = "parity",
 ) -> FreezeEpisode:
     """A control episode: the env metric and the wall clock, and NaN where nothing was observed.
 
@@ -1302,12 +1342,20 @@ def _unobserved_row(
         halting_n_disagreeing_lane_seconds=0,
         n_observations=0,
         seconds=seconds,
+        regime=regime,
     )
 
 
-def _stored_reference(cell: str, output_root: str | Path, episodes: int) -> tuple[float, ...]:
-    """P7.0's per-episode cells for *cell*, or NaNs when this cell has no P7.0 counterpart."""
-    if cell not in P7_0_CELL_DIRS:
+def _stored_reference(
+    cell: str, output_root: str | Path, episodes: int, *, regime: str = "parity"
+) -> tuple[float, ...]:
+    """P7.0's per-episode cells for *cell*, or NaNs when this cell has no P7.0 counterpart.
+
+    ⚠️ **Only the ``parity`` regime has one.**  A1b runs a different ``.sumocfg``, so comparing it
+    against P7.0's teleport-enabled cells would assert that two different configurations produce the
+    same number -- the opposite of what A1b is measuring. Its rows are reported as unverified.
+    """
+    if regime != "parity" or cell not in P7_0_CELL_DIRS:
         return tuple(float("nan") for _ in range(int(episodes)))
     stored = p7_0_horizon_att(cell, output_root)
     if len(stored) < int(episodes):
@@ -1329,6 +1377,7 @@ def _chunk_payload(
     config_path: str | Path,
     seconds: float,
     halting_episodes: int,
+    regime: str = "parity",
 ) -> dict[str, Any]:
     """One cell's chunk: the header the resume predicate reads, and every row."""
     records = [row.as_record() for row in rows]
@@ -1338,6 +1387,7 @@ def _chunk_payload(
         "backend": backend,
         "arm": arm,
         "observer": bool(observer),
+        "regime": str(regime),
         "halting_episodes": int(halting_episodes),
         "config": str(config_path),
         "episodes": int(episodes),
@@ -1590,14 +1640,31 @@ def assert_metric_freeze_writable(path: str | Path) -> Path:
     return target
 
 
-def chunk_name(backend: str, arm: str, *, observer: bool = True) -> str:
-    """``freeze_<backend>_<arm>[_unobserved].json`` -- one file per cell."""
-    suffix = "" if observer else "_unobserved"
-    return f"freeze_{backend}_{arm}{suffix}.json"
+def chunk_name(
+    backend: str, arm: str, *, observer: bool = True, regime: str = "parity"
+) -> str:
+    """``freeze_<backend>_<arm>[_noteleport][_unobserved].json`` -- one file per cell.
+
+    The regime is in the NAME as well as in the header: A1 and A1b are two measurements of the same
+    arm and must not overwrite each other.
+    """
+    if regime not in SUMO_REGIMES:
+        raise ValueError(f"{regime!r} is not one of {list(SUMO_REGIMES)}")
+    return (
+        f"freeze_{backend}_{arm}"
+        f"{'' if regime == 'parity' else '_' + regime}"
+        f"{'' if observer else '_unobserved'}.json"
+    )
 
 
 def chunk_is_reusable(
-    payload: Mapping[str, Any], *, backend: str, arm: str, observer: bool, episodes: int
+    payload: Mapping[str, Any],
+    *,
+    backend: str,
+    arm: str,
+    observer: bool,
+    episodes: int,
+    regime: str = "parity",
 ) -> bool:
     """Whether an existing chunk may be skipped rather than re-rolled.
 
@@ -1613,6 +1680,8 @@ def chunk_is_reusable(
             return False
         if bool(payload.get("observer")) is not bool(observer):
             return False
+        if str(payload.get("regime", "parity")) != str(regime):
+            return False
         if not bool(payload.get("is_complete")):
             return False
         if int(payload.get("episodes", -1)) != int(episodes):
@@ -1626,6 +1695,8 @@ def chunk_is_reusable(
             if str(row["backend"]) != str(backend) or str(row["arm"]) != str(arm):
                 return False
             if bool(row["observer"]) is not bool(observer):
+                return False
+            if str(row.get("regime", "parity")) != str(regime):
                 return False
     except (AttributeError, KeyError, TypeError, ValueError):
         return False
@@ -1728,6 +1799,11 @@ def freeze_artifact(chunks: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
         if not bool(chunk["observer"]):
             continue
         backend, arm = str(chunk["backend"]), str(chunk["arm"])
+        regime = str(chunk.get("regime", "parity"))
+        # ⚠️ The regime is part of the label, not a footnote: rho is normalised WITHIN one backend
+        # and one configuration, and pooling two regimes' anchors would compare a teleporting
+        # fixed-time against a teleport-free MaxPressure.
+        label = backend if regime == "parity" else f"{backend}_{regime}"
         rows = chunk["rows"]
         summary = {
             "n_episodes": len(rows),
@@ -1746,11 +1822,12 @@ def freeze_artifact(chunks: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
             "reproduction": chunk["reproduction"],
             "seconds_per_episode": float(chunk["seconds_per_episode"]),
         }
-        cells[f"{backend}__{arm}"] = summary
-        att_by_cell[f"{backend}__{arm}__created_population"] = summary[
+        summary["regime"] = regime
+        cells[f"{label}__{arm}"] = summary
+        att_by_cell[f"{label}__{arm}__created_population"] = summary[
             "att_created_population_mean"
         ]
-        att_by_cell[f"{backend}__{arm}__env"] = summary["att_env_mean"]
+        att_by_cell[f"{label}__{arm}__env"] = summary["att_env_mean"]
 
     complete_backends = {
         backend
@@ -1786,8 +1863,7 @@ def freeze_artifact(chunks: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
             "comparison": "np.float32(fresh) == np.float32(stored)",
             "detection_floor": "one float32 ulp of the stored value",
             "per_cell": {
-                f"{chunk['backend']}__{chunk['arm']}"
-                + ("" if chunk["observer"] else "__unobserved"): chunk["reproduction"]
+                _chunk_label(chunk): chunk["reproduction"]
                 for chunk in chunks
             },
         },
@@ -1833,18 +1909,25 @@ def freeze_artifact(chunks: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
             ),
         },
         "timing": {
-            f"{chunk['backend']}__{chunk['arm']}"
-            + ("" if chunk["observer"] else "__unobserved"): {
+            _chunk_label(chunk): {
                 "seconds": float(chunk["seconds"]),
                 "seconds_per_episode": float(chunk["seconds_per_episode"]),
                 "n": len(chunk["rows"]),
                 "observer": bool(chunk["observer"]),
+                "regime": str(chunk.get("regime", "parity")),
                 "halting_episodes": int(chunk.get("halting_episodes", 0)),
             }
             for chunk in chunks
         },
         "episodes": every_row,
     }
+
+
+def _chunk_label(chunk: Mapping[str, Any]) -> str:
+    """``<backend>[_<regime>]__<arm>[__unobserved]`` -- unique per measurement, not per arm."""
+    regime = str(chunk.get("regime", "parity"))
+    backend = str(chunk["backend"]) if regime == "parity" else f"{chunk['backend']}_{regime}"
+    return f"{backend}__{chunk['arm']}" + ("" if chunk["observer"] else "__unobserved")
 
 
 def _mean(rows: Sequence[Mapping[str, Any]], key: str) -> float:
@@ -1886,6 +1969,16 @@ def build_parser() -> argparse.ArgumentParser:
         cell.add_argument("--config", default=None, help="override the declared scenario config")
         if name == "run-sumo":
             cell.add_argument(
+                "--regime",
+                choices=sorted(SUMO_REGIMES),
+                default="parity",
+                help=(
+                    "parity = P7.0's own .sumocfg, teleports ENABLED (the reproduction is defined "
+                    "against it); noteleport = A1b's new file with time-to-teleport -1, which also "
+                    "ASSERTS that no episode teleported"
+                ),
+            )
+            cell.add_argument(
                 "--observer",
                 action=argparse.BooleanOptionalAction,
                 default=True,
@@ -1919,7 +2012,7 @@ def _work_dir(args: argparse.Namespace) -> Path:
     )
 
 
-def _declared_config(command: str, override: str | None) -> Path:
+def _declared_config(command: str, override: str | None, regime: str = "parity") -> Path:
     """The scenario a subcommand runs, defaulting to the one P7.0 used for that backend."""
     if override is not None:
         return Path(override)
@@ -1927,6 +2020,9 @@ def _declared_config(command: str, override: str | None) -> Path:
     from offline.transfer_gate import backend_config
 
     if command == "run-sumo":
+        if regime == "noteleport":
+            # Amendment D2's NEW file. The parity .sumocfg is never edited: recorded runs used it.
+            return Path(str(parity.DECLARED_PARITY_SUMOCFG).replace(".sumocfg", "_noteleport.sumocfg"))
         return Path(parity.DECLARED_PARITY_SUMOCFG)
     if command == "run-cityflow":
         return Path(backend_config("cityflow"))
@@ -1945,8 +2041,9 @@ def _run_cell(args: argparse.Namespace) -> int:
     work = _work_dir(args)
     backend = "sumo" if args.command == "run-sumo" else "cityflow"
     observer = bool(getattr(args, "observer", True))
+    regime = str(getattr(args, "regime", "parity"))
     destination = assert_metric_freeze_writable(
-        work / chunk_name(backend, args.arm, observer=observer)
+        work / chunk_name(backend, args.arm, observer=observer, regime=regime)
     )
     if reusable_chunk_at(
         destination,
@@ -1954,6 +2051,7 @@ def _run_cell(args: argparse.Namespace) -> int:
         arm=args.arm,
         observer=observer,
         episodes=int(args.episodes),
+        regime=regime,
     ):
         print(f"{destination.name}: complete and clean, skipping", flush=True)
         return 0
@@ -1963,7 +2061,7 @@ def _run_cell(args: argparse.Namespace) -> int:
             flush=True,
         )
 
-    config = _declared_config(args.command, args.config)
+    config = _declared_config(args.command, args.config, regime)
     if backend == "sumo":
         payload = run_sumo_arm(
             args.arm,
@@ -1973,6 +2071,7 @@ def _run_cell(args: argparse.Namespace) -> int:
             base_seed=int(args.base_seed),
             observer=observer,
             halting_episodes=int(getattr(args, "halting_episodes", 1)),
+            regime=regime,
         )
     else:
         payload = run_cityflow_arm(
@@ -2004,7 +2103,7 @@ def _run_timing(args: argparse.Namespace) -> int:
     destination = assert_metric_freeze_writable(work / "timing_hz4x4_gudang.json")
     payload = run_sumo_arm(
         "random",
-        config_path=_declared_config("timing-hz4x4", None),
+        config_path=_declared_config("timing-hz4x4", None, "parity"),
         output_root=args.output_root,
         episodes=int(args.episodes),
         base_seed=int(args.base_seed),

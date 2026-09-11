@@ -815,6 +815,101 @@ def test_an_abbreviated_flag_is_refused_rather_than_guessed(
     assert "--halting" in capsys.readouterr().err
 
 
+def test_the_two_teleport_regimes_are_separate_measurements_everywhere() -> None:
+    """A1 and A1b are the same arm under two configurations and must never overwrite each other.
+
+    The regime is in the filename, in the chunk header and in the resume predicate: a name-only
+    separation would let a ``noteleport`` chunk be inherited by a ``parity`` run whose file happened
+    to be missing.
+    """
+    parity_name = sar.chunk_name("sumo", "maxpressure", regime="parity")
+    noteleport_name = sar.chunk_name("sumo", "maxpressure", regime="noteleport")
+
+    assert parity_name != noteleport_name
+    assert "noteleport" in noteleport_name
+    assert sar.chunk_name("sumo", "maxpressure", observer=False, regime="noteleport") not in (
+        parity_name,
+        noteleport_name,
+    )
+    # The header, not only the name.
+    assert not sar.chunk_is_reusable(
+        _chunk(), backend="sumo", arm="maxpressure", observer=True, episodes=5, regime="noteleport"
+    )
+
+
+def test_an_unknown_regime_is_refused_rather_than_folded_into_parity() -> None:
+    """A typo must not silently produce a parity-named chunk carrying another configuration."""
+    with pytest.raises(ValueError, match="not one of"):
+        sar.chunk_name("sumo", "maxpressure", regime="no_teleport")
+
+
+def test_the_teleport_free_regime_has_no_p7_0_counterpart_to_reproduce() -> None:
+    """⚠️ A1b runs a DIFFERENT ``.sumocfg``, so P7.0's cells are not its reference.
+
+    Asserting reproduction here would assert that two configurations give the same number, which is
+    the opposite of what A1b measures; its rows are reported as unverified instead.
+    """
+    episode = _episode(regime="noteleport", att_p7_0_stored=float("nan"))
+
+    assert episode.has_p7_0_reference is False
+    assert episode.as_record()["reproduces_p7_0"] is None
+    with pytest.raises(ValueError, match="no P7.0 counterpart"):
+        _ = episode.reproduces_p7_0
+
+
+def test_the_noteleport_sumocfg_exists_and_differs_only_in_the_teleport_setting() -> None:
+    """🔒 Amendment D2's new file: same network, same parity routes, teleporting off.
+
+    The shipped and P7.0 parity configs are read here too, and asserted UNCHANGED in the respects
+    that would invalidate the comparison -- a new regime is only a regime if one thing differs.
+    """
+    import xml.etree.ElementTree as ET
+
+    from offline import parity
+
+    original = Path(str(parity.DECLARED_PARITY_SUMOCFG))
+    new = original.with_name(original.name.replace(".sumocfg", "_noteleport.sumocfg"))
+    assert new.is_file()
+
+    def _inputs(path: Path) -> dict[str, str]:
+        root = ET.parse(path).getroot()
+        return {
+            element.tag: str(element.get("value"))
+            for element in root.iter()
+            if element.tag in {"net-file", "route-files", "begin", "end"}
+        }
+
+    assert _inputs(new) == _inputs(original)
+    assert sar.route_files_of(new) == sar.route_files_of(original)
+
+    teleport = [
+        element.get("value")
+        for element in ET.parse(new).getroot().iter()
+        if element.tag == "time-to-teleport"
+    ]
+    assert teleport == ["-1"]
+    # The original keeps SUMO's 300 s default, which is why P7.0's cells are "teleports enabled".
+    assert not [
+        element for element in ET.parse(original).getroot().iter() if element.tag == "time-to-teleport"
+    ]
+
+
+def test_selecting_the_teleport_free_regime_selects_its_config_and_its_assertion() -> None:
+    """⭐ One knob: there is no way to run A1b against the wrong file or without the check."""
+    config = sar._declared_config("run-sumo", None, "noteleport")
+
+    assert config.name.endswith("_noteleport.sumocfg")
+    assert config.is_file()
+    assert sar._declared_config("run-sumo", None, "parity").name.endswith("_parity.sumocfg")
+    # The assertion is derived from the regime inside run_sumo_arm, not passed beside it: read the
+    # source rather than trusting the docstring.
+    import inspect
+
+    source = inspect.getsource(sar.run_sumo_arm)
+    assert 'require_no_teleports = regime == "noteleport"' in source
+    assert "n_vanished_without_arrival != 0" in source
+
+
 def test_chunk_names_separate_the_observed_and_unobserved_arms() -> None:
     """The two arms of A1 are different measurements and must not overwrite each other."""
     assert sar.chunk_name("sumo", "maxpressure", observer=True) != sar.chunk_name(
@@ -931,6 +1026,101 @@ def test_the_report_destination_is_fenced_too(tmp_path: Path) -> None:
 
     assert code != 0
     assert sorted(victim.iterdir()) == []
+
+
+# ----------------------------------------------------------------------
+# 8b. The driver -- structural, because its behavioural falsification is the pre-flight's job
+# ----------------------------------------------------------------------
+
+
+DRIVER = REPO / "offline" / "campaigns" / "p7_1_metric_freeze.sh"
+
+
+def test_the_driver_exists_and_is_syntactically_valid() -> None:
+    """A driver that does not parse fails after the token has been spent, not before."""
+    import subprocess
+
+    assert DRIVER.is_file()
+    assert subprocess.run(["bash", "-n", str(DRIVER)], capture_output=True).returncode == 0
+
+
+def test_the_driver_checks_everything_that_can_refuse_before_it_spends_the_token() -> None:
+    """⭐ Validate-then-mutate, applied to the driver itself.
+
+    Every guard must appear ABOVE the line that deletes the token, and the first mkdir must appear
+    BELOW it: a refused start has to leave the tree exactly as it found it. Asserted on line
+    positions rather than on presence, because presence in the wrong order is the defect.
+    """
+    lines = DRIVER.read_text(encoding="utf-8").splitlines()
+
+    def _first(needle: str) -> int:
+        for index, line in enumerate(lines):
+            if needle in line and not line.lstrip().startswith("#"):
+                return index
+        raise AssertionError(f"{needle!r} is not in the driver")
+
+    def _first_command(command: str) -> int:
+        """The first line that RUNS *command*, not the first that mentions it.
+
+        The refusal message tells the author how to write the token and contains the string
+        "mkdir -p"; matching on substrings alone would read that advice as a mutation.
+        """
+        for index, line in enumerate(lines):
+            if line.lstrip().startswith(command + " "):
+                return index
+        raise AssertionError(f"no line runs {command!r}")
+
+    token_consumed = _first('rm -f "$TOKEN"')
+    for guard in (
+        'cd "$WORK_TREE"',
+        "import offline.sumo_att_reference",
+        "pgrep -f",
+        "_noteleport.sumocfg",
+        "sha256sum -c SHA256SUMS_p7_0.txt",
+        'if [ ! -f "$TOKEN" ]',
+    ):
+        assert _first(guard) < token_consumed, guard
+    assert token_consumed < _first_command("mkdir")
+    # The status wipe is a mutation too: p5_3b.sh did it before the token check, which is the
+    # ordering C1-M2 corrected. (The first `rm` in the file IS the token deletion, so the property
+    # has to name the wipe rather than the first removal.)
+    assert token_consumed < _first('rm -f "$WORK/FAILED"')
+
+
+def test_the_driver_runs_every_stage_amendment_d4_names() -> None:
+    """A1 observed and unobserved, A1b, A2, A4, the smoke and the report."""
+    text = DRIVER.read_text(encoding="utf-8")
+
+    assert "--regime parity --halting-episodes 1" in text
+    assert "--regime parity --no-observer" in text
+    assert "--regime noteleport --halting-episodes 1" in text
+    assert "run-cityflow --arm" in text
+    assert "timing-hz4x4" in text
+    assert 'run_cell "report" report' in text
+    assert "--work-dir \"$SMOKE\"" in text
+
+
+def test_the_driver_has_no_filename_only_skip_guard() -> None:
+    """⛔ The skip decision lives in Python: `[ -f <chunk> ]` is what let a bad chunk survive."""
+    import re
+
+    text = DRIVER.read_text(encoding="utf-8")
+    code = [line for line in text.splitlines() if not line.lstrip().startswith("#")]
+
+    # `[ ! -f "$TOKEN" ]` and the two precondition file checks are the only file tests allowed.
+    for line in code:
+        for match in re.finditer(r"\[\s*!?\s*-f\s+([^\]]+)\]", line):
+            assert match.group(1).strip() in {'"$TOKEN"', '"$NOTELEPORT"'}, line
+
+
+def test_the_driver_writes_the_manifest_atomically_and_includes_the_smoke() -> None:
+    """Amendment D1: the smoke is this run's evidence, so it is listed rather than pruned."""
+    text = DRIVER.read_text(encoding="utf-8")
+
+    assert "SHA256SUMS_p7_1.txt.tmp" in text
+    assert "mv SHA256SUMS_p7_1.txt.tmp SHA256SUMS_p7_1.txt" in text
+    assert "-prune" not in text
+    assert "LC_ALL=C sort" in text
 
 
 # ----------------------------------------------------------------------
