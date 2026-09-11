@@ -929,7 +929,13 @@ def test_the_assembled_artifact_carries_no_verdict_and_no_threshold() -> None:
     payload = report_artifact(**_minimal_report_inputs())
     # 1.0 -> 1.1 at AMENDMENT D1: every episode row now carries A11(b)'s five quantities, which
     # is a layout change, and contract C6 requires a version bump for one.
-    assert payload["format_version"] == "p5.3b-nortg/1.1"
+    # ⚠️ AUTHORISED EDIT, BRIEF_33 AMENDMENT A1 (2026-09-10): "the implementer changes
+    # tests/test_nortg_campaign.py:932 from "p5.3b-nortg/1.1" to "p5.3b-nortg/1.2" and extends the
+    # adjacent comment with the 1.1 -> 1.2 migration line. Same class as section 2.2's two edits: a
+    # spec change ruled by the brief." 1.1 -> 1.2 adds `mechanism`,
+    # `comparisons.*.definition_difference_decomposition`, `predictions.Q1.holds_rule`,
+    # `*_limb.registered_tier` and `*_limb.as_registered`; nothing is renamed or removed.
+    assert payload["format_version"] == "p5.3b-nortg/1.2"
     assert_no_verdicts(payload)
     text = json.dumps(payload).lower()
     for token in ("equivalent", "within_delta", "equivalence margin", "delta_att", "inert"):
@@ -1208,8 +1214,13 @@ def test_q1_reports_its_two_limbs_separately_and_not_as_one_prediction() -> None
     assert smallest["is_evidence"] is False
     assert "not evidence" in smallest["reading"].lower()
 
-    # the ordering still holds as registered -- the limbs qualify it, they do not withdraw it
-    assert scored["holds"] is True
+    # ⚠️ AUTHORISED EDIT, ``BRIEF_33`` section 2.2 (2026-09-10): this line asserted ``is True``.
+    # *"the implementer changes ``tests/test_nortg_campaign.py:1212`` from ``assert scored["holds"]
+    # is True`` to ``is None``, keeping every other assertion in that test."*  MJ-3: an ordering
+    # satisfied by a tier that cannot discriminate is not a prediction that was tested, so ``holds``
+    # is neither pass nor fail.  This is a spec change ruled by the coordinator, not a test weakened
+    # to pass -- the old expression is the mutation in section 2.3 and it must fail this line.
+    assert scored["holds"] is None
     # ...and no single field lets a reader carry the whole prediction away
     assert "caveat" not in json.dumps(scored).lower()
 
@@ -1228,3 +1239,89 @@ def test_q1_refuses_to_score_without_the_discriminability_record() -> None:
     with pytest.raises(ValueError, match="requires the discriminability record"):
         score_q1(_comparisons({"mix50": -1.0, "mappo1000": 0.1, "random": 0.0}),
                  discriminability={})
+
+
+# ----------------------------------------------------------------------
+# MJ-3: ``holds`` is None on a non-discriminating limb, False on a MEASURED falsification
+# (``BRIEF_33`` section 2.1, ruled 2026-09-10)
+# ----------------------------------------------------------------------
+
+
+def test_q1_does_not_score_when_a_limb_rests_on_a_non_discriminating_tier() -> None:
+    """The shipped configuration: ordering exactly as registered, ``random`` cannot discriminate.
+
+    ``score_q2`` has returned ``None`` -- neither pass nor fail -- under this condition since E4,
+    *"because a prediction that could not have been falsified was not tested"*.  Q1's ``smallest``
+    limb rests on the same tier and was scored ``True``.  ``random``'s ``abs_mean_difference`` is
+    the global minimum of a NON-NEGATIVE quantity, so that limb could not have been falsified by
+    any outcome whatsoever, and a ``True`` lets a reader carry the whole prediction away.
+    """
+    scored = score_q1(
+        _comparisons({"mix50": -409.145, "mappo1000": 0.1226, "random": 0.0}),
+        discriminability=_disc(mix50=True, mappo1000=True, random=False),
+    )
+    assert scored["largest"] == "mix50"
+    assert scored["smallest"] == "random"
+    assert scored["holds"] is None
+    assert scored["largest_limb"]["as_registered"] is True
+    assert scored["smallest_limb"]["as_registered"] is True
+    assert scored["smallest_limb"]["is_evidence"] is False
+
+
+def test_q1_is_False_when_an_evidence_bearing_limb_is_displaced_even_if_another_cannot_score() -> None:
+    """🔒 The case a simple *"None if any tier is non-discriminating"* rule gets WRONG.
+
+    ``mappo1000`` carries the largest magnitude here and its arms ARE distinct, so the ``largest``
+    limb is a **measured falsification** of the registered ordering.  ``random`` cannot discriminate,
+    so the ``smallest`` limb cannot score.  A rule that returned ``None`` because *some* limb is
+    unscorable would hide a real falsification behind an inconclusive, which is strictly worse than
+    the ``True`` this ruling removes.
+    """
+    scored = score_q1(
+        _comparisons({"mix50": -1.0, "mappo1000": -3.0, "random": 0.0}),
+        discriminability=_disc(mix50=True, mappo1000=True, random=False),
+    )
+    assert scored["largest"] == "mappo1000"
+    assert scored["largest_limb"]["is_evidence"] is True
+    assert scored["largest_limb"]["as_registered"] is False
+    assert scored["smallest_limb"]["is_evidence"] is False
+    assert scored["holds"] is False
+
+
+def test_q1_both_limbs_carry_the_tier_they_were_registered_against() -> None:
+    """``as_registered`` is the limb's tier against the REGISTERED one, computed and not asserted.
+
+    Recomputed here by a second route -- a literal map written in this test rather than read from
+    the module -- so a change to the registration has to be made in two places to go unnoticed.
+    """
+    registered = {"largest": "mix50", "smallest": "random"}
+    # magnitudes 1.0 / 3.0 / 2.0 -> smallest mix50, largest mappo1000: BOTH limbs displaced.
+    scored = score_q1(
+        _comparisons({"mix50": -1.0, "mappo1000": -3.0, "random": -2.0}),
+        discriminability=_disc(mix50=True, mappo1000=True, random=True),
+    )
+    # pin the ordering the fixture produces, so a future edit to the values cannot silently turn
+    # this into a weaker case than the one the test is named for
+    assert scored["largest"] == "mappo1000"
+    assert scored["smallest"] == "mix50"
+
+    for which in ("largest", "smallest"):
+        limb = scored[f"{which}_limb"]
+        assert limb["registered_tier"] == registered[which], which
+        assert limb["as_registered"] == (limb["tier"] == registered[which]), which
+    # this configuration displaces BOTH limbs and every tier discriminates, so it is a falsification
+    assert scored["largest_limb"]["as_registered"] is False
+    assert scored["smallest_limb"]["as_registered"] is False
+    assert scored["holds"] is False
+
+
+def test_the_artifact_explains_its_own_None_with_the_rule_that_produced_it() -> None:
+    """``holds_rule`` ships beside ``holds`` so a reader never has to infer why it is ``None``."""
+    scored = score_q1(
+        _comparisons({"mix50": -409.145, "mappo1000": 0.1226, "random": 0.0}),
+        discriminability=_disc(mix50=True, mappo1000=True, random=False),
+    )
+    rule = scored["holds_rule"]
+    assert "False" in rule and "True" in rule and "None" in rule
+    assert "is_evidence" in rule and "as_registered" in rule
+    assert "measured falsification" in rule
