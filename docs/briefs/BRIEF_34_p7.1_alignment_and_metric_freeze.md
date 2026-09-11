@@ -1,6 +1,6 @@
 # BRIEF_34 — P7.1: feature-space alignment and the transfer-metric freeze
 
-**Task id:** `P7.1` · **Branch:** `task/p7.1-alignment`, cut from `main` @ `b8accc9` · **Issued:** 2026-09-11
+**Task id:** `P7.1` · **Branch:** `task/p7.1-alignment`, cut from the `main` commit that carries this brief (`git rev-parse main` after `git merge main`; a header cannot know its own sha — `BRIEF_33`'s did not, and the implementer had to flag it) · **Issued:** 2026-09-11
 **Mode:** Claude Code, plan mode first, worktree `/home/filip/rltraffic-p53b` (checkout the new branch there)
 **Registered as:** `PROJECT_PLAN` §6 P7.1 — *"freeze the backend-neutral feature set (no backend-specific
 structured states) + freeze the normalized transfer metric"*. The metric is `PREREGISTRATION` §3.4's
@@ -28,7 +28,7 @@ freeze checkable. The reasoning is in §0.
 
 ## 0. What the coordinator verified before writing this, and what it changed
 
-Every fact here was produced on 2026-09-11 by a command against `main` @ `b8accc9`, or by a read-only
+Every fact here was produced on 2026-09-11 by a command against `main` @ `b8accc9` (the tree before this brief), or by a read-only
 survey whose citations were spot-checked. Re-run them; do not inherit them.
 
 **0.1 The handoff's five entry conditions, re-checked (`HANDOFF_2026-09-10.md` §5):**
