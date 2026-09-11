@@ -5294,6 +5294,41 @@
       },
       "committed_att_ours_mean": 104.95575898180847,
       "definition": "att_engine",
+      "definition_difference_decomposition": {
+        "contrast": {
+          "cadence": -0.0037006114222183405,
+          "clock_origin": -0.000840197797640686,
+          "population": -1.4252081960307722e-05,
+          "total": -0.004555061301819334
+        },
+        "delta_ours_minus_delta_engine": -0.004555061301816321,
+        "identity": "att_ours - att_engine = population + clock_origin + cadence",
+        "identity_gap": 3.013214677771714e-15,
+        "n_episodes_per_arm": 500,
+        "orientation": "att_ours - att_engine",
+        "orientation_note": "This is the NEGATION of the orientation PREREGISTRATION A13(b) writes, which states att_engine - att_ours = (E - P) + (P - W_running) + (W_running - C). offline/engine_att_reference.py:853-892 implements the negation term by term and this module reports the implementation's orientation (BRIEF_33 AMENDMENT A3), because re-signing would be a second implementation of a reviewed function. Consequence: clock_origin is expected NEGATIVE here -- it is minus the insertion-buffer wait of vehicles that DID enter the network.",
+        "per_arm": {
+          "dt": {
+            "cadence": 5.009108836267085,
+            "clock_origin": -0.7625627471021564,
+            "population": 0.006018404949130655,
+            "total": 4.25256449411406
+          },
+          "dt_nortg": {
+            "cadence": 5.012809447689304,
+            "clock_origin": -0.7617225493045158,
+            "population": 0.0060326570310909634,
+            "total": 4.25711955541588
+          }
+        },
+        "residual_is_not_independent": "decomposition_residual is algebraically |att_engine_call - att_reference_engine_population| = deviation_c1, so it corroborates criterion 1 and nothing further",
+        "residual_max": 0.0,
+        "source": {
+          "format_version": "p5.3b-decomposition/1.0",
+          "path": "docs/data/p5_3b_decomposition.json",
+          "sha256": "bc77d39ef4fd96b9b6dff1aa58e12f0ab14b2e33ff0223cf5657dd530e8e663b"
+        }
+      },
       "discriminability": {
         "definition": "att_engine",
         "distinct": true,
@@ -5766,6 +5801,41 @@
       },
       "committed_att_ours_mean": 107.70262931184996,
       "definition": "att_engine",
+      "definition_difference_decomposition": {
+        "contrast": {
+          "cadence": 0.7722667849940557,
+          "clock_origin": 202.16332848008045,
+          "population": 11.733663784556404,
+          "total": 214.66925904963094
+        },
+        "delta_ours_minus_delta_engine": 214.66925904963085,
+        "identity": "att_ours - att_engine = population + clock_origin + cadence",
+        "identity_gap": -5.684341886080802e-14,
+        "n_episodes_per_arm": 500,
+        "orientation": "att_ours - att_engine",
+        "orientation_note": "This is the NEGATION of the orientation PREREGISTRATION A13(b) writes, which states att_engine - att_ours = (E - P) + (P - W_running) + (W_running - C). offline/engine_att_reference.py:853-892 implements the negation term by term and this module reports the implementation's orientation (BRIEF_33 AMENDMENT A3), because re-signing would be a second implementation of a reviewed function. Consequence: clock_origin is expected NEGATIVE here -- it is minus the insertion-buffer wait of vehicles that DID enter the network.",
+        "per_arm": {
+          "dt": {
+            "cadence": 4.999093166477804,
+            "clock_origin": -2.814036477381188,
+            "population": -0.07265596502471444,
+            "total": 2.112400724071902
+          },
+          "dt_nortg": {
+            "cadence": 4.2268263814837495,
+            "clock_origin": -204.97736495746165,
+            "population": -11.806319749581116,
+            "total": -212.55685832555903
+          }
+        },
+        "residual_is_not_independent": "decomposition_residual is algebraically |att_engine_call - att_reference_engine_population| = deviation_c1, so it corroborates criterion 1 and nothing further",
+        "residual_max": 0.0,
+        "source": {
+          "format_version": "p5.3b-decomposition/1.0",
+          "path": "docs/data/p5_3b_decomposition.json",
+          "sha256": "bc77d39ef4fd96b9b6dff1aa58e12f0ab14b2e33ff0223cf5657dd530e8e663b"
+        }
+      },
       "discriminability": {
         "definition": "att_engine",
         "distinct": true,
@@ -6238,6 +6308,41 @@
       },
       "committed_att_ours_mean": 420.37638648227966,
       "definition": "att_engine",
+      "definition_difference_decomposition": {
+        "contrast": {
+          "cadence": 0.0,
+          "clock_origin": 0.0,
+          "population": 0.0,
+          "total": 0.0
+        },
+        "delta_ours_minus_delta_engine": 0.0,
+        "identity": "att_ours - att_engine = population + clock_origin + cadence",
+        "identity_gap": 0.0,
+        "n_episodes_per_arm": 500,
+        "orientation": "att_ours - att_engine",
+        "orientation_note": "This is the NEGATION of the orientation PREREGISTRATION A13(b) writes, which states att_engine - att_ours = (E - P) + (P - W_running) + (W_running - C). offline/engine_att_reference.py:853-892 implements the negation term by term and this module reports the implementation's orientation (BRIEF_33 AMENDMENT A3), because re-signing would be a second implementation of a reviewed function. Consequence: clock_origin is expected NEGATIVE here -- it is minus the insertion-buffer wait of vehicles that DID enter the network.",
+        "per_arm": {
+          "dt": {
+            "cadence": 3.756979181692628,
+            "clock_origin": -324.95002158133445,
+            "population": -20.53014305519072,
+            "total": -341.72318545483256
+          },
+          "dt_nortg": {
+            "cadence": 3.756979181692628,
+            "clock_origin": -324.95002158133445,
+            "population": -20.53014305519072,
+            "total": -341.72318545483256
+          }
+        },
+        "residual_is_not_independent": "decomposition_residual is algebraically |att_engine_call - att_reference_engine_population| = deviation_c1, so it corroborates criterion 1 and nothing further",
+        "residual_max": 0.0,
+        "source": {
+          "format_version": "p5.3b-decomposition/1.0",
+          "path": "docs/data/p5_3b_decomposition.json",
+          "sha256": "bc77d39ef4fd96b9b6dff1aa58e12f0ab14b2e33ff0223cf5657dd530e8e663b"
+        }
+      },
       "discriminability": {
         "definition": "att_engine",
         "distinct": false,
@@ -39428,7 +39533,7 @@
     }
   ],
   "equivalence": "NONE. PREREGISTRATION A7 withdrew the per-tier delta rule on 2026-08-25 because it spanned eleven orders of magnitude. This task defines no threshold and issues no verdict. A 95 % CI containing 0 is a failure to reject, never a demonstration of equivalence.",
-  "format_version": "p5.3b-nortg/1.1",
+  "format_version": "p5.3b-nortg/1.2",
   "gates": {
     "gate_1": {
       "manifest_coverage": {
@@ -39979,6 +40084,793 @@
     "mix50's NormalizationStats is fitted on the UNION of all three mixtures' six directories and is identical for mix33, mix50 and mix67: count 216000, raw std 13155.3172. That is how P4.7 trained it, so reusing it is consistent -- but the summary is not a property of mix50.",
     "Q1 is scored on the RAW ATT scale, which is the conservative choice: if paired differences scaled with baseline ATT, random would show the largest raw difference, which is the opposite of what Q1 predicts. The scale-normalised column is a reading aid and is not a scored claim."
   ],
+  "mechanism": {
+    "action_identity": {
+      "action_counts": {
+        "dt@mix50 seed 101": {
+          "action_counts_summed_over_episodes": [
+            [
+              14682,
+              13236,
+              3586,
+              3077,
+              227,
+              8,
+              1175,
+              9
+            ]
+          ],
+          "constant_action": false,
+          "n_episodes": 100,
+          "reading": "the policy used more than one action on these episodes"
+        },
+        "dt@mix50 seed 404": {
+          "action_counts_summed_over_episodes": [
+            [
+              14889,
+              12882,
+              3753,
+              3159,
+              193,
+              11,
+              1109,
+              4
+            ]
+          ],
+          "constant_action": false,
+          "n_episodes": 100,
+          "reading": "the policy used more than one action on these episodes"
+        },
+        "dt@random seed 101": {
+          "action_counts_summed_over_episodes": [
+            [
+              4300,
+              4800,
+              4000,
+              4300,
+              4300,
+              4900,
+              4100,
+              5300
+            ]
+          ],
+          "constant_action": false,
+          "n_episodes": 100,
+          "reading": "the policy used more than one action on these episodes"
+        },
+        "dt_nortg@mix50 seed 101": {
+          "action_counts_summed_over_episodes": [
+            [
+              13809,
+              12720,
+              3673,
+              3188,
+              534,
+              411,
+              1346,
+              319
+            ]
+          ],
+          "constant_action": false,
+          "n_episodes": 100,
+          "reading": "the policy used more than one action on these episodes"
+        },
+        "dt_nortg@mix50 seed 404": {
+          "action_counts_summed_over_episodes": [
+            [
+              4298,
+              4797,
+              3998,
+              4298,
+              4312,
+              4900,
+              4110,
+              5287
+            ]
+          ],
+          "constant_action": false,
+          "n_episodes": 100,
+          "reading": "the policy used more than one action on these episodes"
+        },
+        "dt_nortg@random seed 101": {
+          "action_counts_summed_over_episodes": [
+            [
+              4300,
+              4800,
+              4000,
+              4300,
+              4300,
+              4900,
+              4100,
+              5300
+            ]
+          ],
+          "constant_action": false,
+          "n_episodes": 100,
+          "reading": "the policy used more than one action on these episodes"
+        }
+      },
+      "attractor": {
+        "mappo1000": {
+          "attractor_sequence_sha256": "47c0ff33c38bc3253a0c5f56e34375645441d345c5d3e585d60b9561f147d148",
+          "identified_from": "dt_nortg@random, which emits this one sequence on every draw of every seed; discriminability.random records that arm as identical to dt@random on 500 of 500 cells, so it is the random-corpus DT's sequence under both arms",
+          "n_cells_carrying_it": 0,
+          "n_draws_carrying_it": 0,
+          "per_cell": {
+            "101": 0,
+            "202": 0,
+            "303": 0,
+            "404": 0,
+            "505": 0
+          },
+          "reading": "the same fixed [0, 0, 0, 0, 0] of 100 draws on mappo1000 emit the byte-identical action sequence the random-corpus DT emits on every draw, regardless of observation or demand"
+        },
+        "mix50": {
+          "attractor_sequence_sha256": "47c0ff33c38bc3253a0c5f56e34375645441d345c5d3e585d60b9561f147d148",
+          "identified_from": "dt_nortg@random, which emits this one sequence on every draw of every seed; discriminability.random records that arm as identical to dt@random on 500 of 500 cells, so it is the random-corpus DT's sequence under both arms",
+          "n_cells_carrying_it": 3,
+          "n_draws_carrying_it": 284,
+          "per_cell": {
+            "101": 0,
+            "202": 88,
+            "303": 0,
+            "404": 99,
+            "505": 97
+          },
+          "reading": "the same fixed [0, 88, 0, 99, 97] of 100 draws on mix50 emit the byte-identical action sequence the random-corpus DT emits on every draw, regardless of observation or demand"
+        },
+        "random": {
+          "attractor_sequence_sha256": "47c0ff33c38bc3253a0c5f56e34375645441d345c5d3e585d60b9561f147d148",
+          "identified_from": "dt_nortg@random, which emits this one sequence on every draw of every seed; discriminability.random records that arm as identical to dt@random on 500 of 500 cells, so it is the random-corpus DT's sequence under both arms",
+          "n_cells_carrying_it": 5,
+          "n_draws_carrying_it": 500,
+          "per_cell": {
+            "101": 100,
+            "202": 100,
+            "303": 100,
+            "404": 100,
+            "505": 100
+          },
+          "reading": "the same fixed [100, 100, 100, 100, 100] of 100 draws on random emit the byte-identical action sequence the random-corpus DT emits on every draw, regardless of observation or demand"
+        }
+      },
+      "dt_random_against_dt_nortg_random": {
+        "101": {
+          "n_compared": 100,
+          "n_identical": 100,
+          "non_identical_draws": []
+        },
+        "202": {
+          "n_compared": 100,
+          "n_identical": 100,
+          "non_identical_draws": []
+        },
+        "303": {
+          "n_compared": 100,
+          "n_identical": 100,
+          "non_identical_draws": []
+        },
+        "404": {
+          "n_compared": 100,
+          "n_identical": 100,
+          "non_identical_draws": []
+        },
+        "505": {
+          "n_compared": 100,
+          "n_identical": 100,
+          "non_identical_draws": []
+        }
+      },
+      "mix50_against_reference": {
+        "101": {
+          "n_compared": 100,
+          "n_identical": 0,
+          "non_identical_draws": [
+            1000,
+            1001,
+            1002,
+            1003,
+            1004,
+            1005,
+            1006,
+            1007,
+            1008,
+            1009,
+            1010,
+            1011,
+            1012,
+            1013,
+            1014,
+            1015,
+            1016,
+            1017,
+            1018,
+            1019,
+            1020,
+            1021,
+            1022,
+            1023,
+            1024,
+            1025,
+            1026,
+            1027,
+            1028,
+            1029,
+            1030,
+            1031,
+            1032,
+            1033,
+            1034,
+            1035,
+            1036,
+            1037,
+            1038,
+            1039,
+            1040,
+            1041,
+            1042,
+            1043,
+            1044,
+            1045,
+            1046,
+            1047,
+            1048,
+            1049,
+            1050,
+            1051,
+            1052,
+            1053,
+            1054,
+            1055,
+            1056,
+            1057,
+            1058,
+            1059,
+            1060,
+            1061,
+            1062,
+            1063,
+            1064,
+            1065,
+            1066,
+            1067,
+            1068,
+            1069,
+            1070,
+            1071,
+            1072,
+            1073,
+            1074,
+            1075,
+            1076,
+            1077,
+            1078,
+            1079,
+            1080,
+            1081,
+            1082,
+            1083,
+            1084,
+            1085,
+            1086,
+            1087,
+            1088,
+            1089,
+            1090,
+            1091,
+            1092,
+            1093,
+            1094,
+            1095,
+            1096,
+            1097,
+            1098,
+            1099
+          ]
+        },
+        "202": {
+          "n_compared": 100,
+          "n_identical": 88,
+          "non_identical_draws": [
+            1024,
+            1025,
+            1033,
+            1055,
+            1056,
+            1057,
+            1063,
+            1064,
+            1068,
+            1088,
+            1095,
+            1096
+          ]
+        },
+        "303": {
+          "n_compared": 100,
+          "n_identical": 0,
+          "non_identical_draws": [
+            1000,
+            1001,
+            1002,
+            1003,
+            1004,
+            1005,
+            1006,
+            1007,
+            1008,
+            1009,
+            1010,
+            1011,
+            1012,
+            1013,
+            1014,
+            1015,
+            1016,
+            1017,
+            1018,
+            1019,
+            1020,
+            1021,
+            1022,
+            1023,
+            1024,
+            1025,
+            1026,
+            1027,
+            1028,
+            1029,
+            1030,
+            1031,
+            1032,
+            1033,
+            1034,
+            1035,
+            1036,
+            1037,
+            1038,
+            1039,
+            1040,
+            1041,
+            1042,
+            1043,
+            1044,
+            1045,
+            1046,
+            1047,
+            1048,
+            1049,
+            1050,
+            1051,
+            1052,
+            1053,
+            1054,
+            1055,
+            1056,
+            1057,
+            1058,
+            1059,
+            1060,
+            1061,
+            1062,
+            1063,
+            1064,
+            1065,
+            1066,
+            1067,
+            1068,
+            1069,
+            1070,
+            1071,
+            1072,
+            1073,
+            1074,
+            1075,
+            1076,
+            1077,
+            1078,
+            1079,
+            1080,
+            1081,
+            1082,
+            1083,
+            1084,
+            1085,
+            1086,
+            1087,
+            1088,
+            1089,
+            1090,
+            1091,
+            1092,
+            1093,
+            1094,
+            1095,
+            1096,
+            1097,
+            1098,
+            1099
+          ]
+        },
+        "404": {
+          "n_compared": 100,
+          "n_identical": 99,
+          "non_identical_draws": [
+            1096
+          ]
+        },
+        "505": {
+          "n_compared": 100,
+          "n_identical": 97,
+          "non_identical_draws": [
+            1022,
+            1055,
+            1070
+          ]
+        }
+      },
+      "n_distinct_action_sequences": {
+        "dt@mappo1000 seed 101": 100,
+        "dt@mappo1000 seed 202": 100,
+        "dt@mappo1000 seed 303": 100,
+        "dt@mappo1000 seed 404": 100,
+        "dt@mappo1000 seed 505": 100,
+        "dt@mix50 seed 101": 100,
+        "dt@mix50 seed 202": 100,
+        "dt@mix50 seed 303": 100,
+        "dt@mix50 seed 404": 100,
+        "dt@mix50 seed 505": 100,
+        "dt@random seed 101": 1,
+        "dt@random seed 202": 1,
+        "dt@random seed 303": 1,
+        "dt@random seed 404": 1,
+        "dt@random seed 505": 1,
+        "dt_nortg@mappo1000 seed 101": 100,
+        "dt_nortg@mappo1000 seed 202": 100,
+        "dt_nortg@mappo1000 seed 303": 100,
+        "dt_nortg@mappo1000 seed 404": 100,
+        "dt_nortg@mappo1000 seed 505": 100,
+        "dt_nortg@mix50 seed 101": 100,
+        "dt_nortg@mix50 seed 202": 12,
+        "dt_nortg@mix50 seed 303": 97,
+        "dt_nortg@mix50 seed 404": 2,
+        "dt_nortg@mix50 seed 505": 4,
+        "dt_nortg@random seed 101": 1,
+        "dt_nortg@random seed 202": 1,
+        "dt_nortg@random seed 303": 1,
+        "dt_nortg@random seed 404": 1,
+        "dt_nortg@random seed 505": 1
+      },
+      "quantity": "action_sequence_sha256 -- sha256 over the int64 bytes of the (T, n_ix) action array, NOT contract C6's episode_sha256, which also covers rewards",
+      "random_seed_invariance": {
+        "101": {
+          "n_compared": 100,
+          "n_identical": 100,
+          "non_identical_draws": []
+        },
+        "202": {
+          "n_compared": 100,
+          "n_identical": 100,
+          "non_identical_draws": []
+        },
+        "303": {
+          "n_compared": 100,
+          "n_identical": 100,
+          "non_identical_draws": []
+        },
+        "404": {
+          "n_compared": 100,
+          "n_identical": 100,
+          "non_identical_draws": []
+        },
+        "505": {
+          "n_compared": 100,
+          "n_identical": 100,
+          "non_identical_draws": []
+        }
+      },
+      "reference_cell": "dt_nortg@random seed 101"
+    },
+    "exploratory": true,
+    "found_by": "post-merge review, docs/reviews/P5.3b.md, 2026-09-10",
+    "outcome_identity": {
+      "fields": [
+        "att_engine",
+        "att_ours",
+        "entered",
+        "created",
+        "never_entered",
+        "horizon_vehicle_count",
+        "episode_reward",
+        "completed_at_horizon"
+      ],
+      "link_to_dt_random": "discriminability.random records dt and dt_nortg as identical on 500 of 500 shared (seed, draw) cells under att_engine, so dt_nortg@random IS dt@random on this pool. That is the committed-bytes link from these counts to the reused dt column, and it is checkable from a clone; the dt@random per-episode rows themselves live only in gitignored output/p8_4b_rederivation/.",
+      "mix50_against_reference": {
+        "101": {
+          "n_compared": 100,
+          "n_identical": 0,
+          "non_identical_draws": [
+            1000,
+            1001,
+            1002,
+            1003,
+            1004,
+            1005,
+            1006,
+            1007,
+            1008,
+            1009,
+            1010,
+            1011,
+            1012,
+            1013,
+            1014,
+            1015,
+            1016,
+            1017,
+            1018,
+            1019,
+            1020,
+            1021,
+            1022,
+            1023,
+            1024,
+            1025,
+            1026,
+            1027,
+            1028,
+            1029,
+            1030,
+            1031,
+            1032,
+            1033,
+            1034,
+            1035,
+            1036,
+            1037,
+            1038,
+            1039,
+            1040,
+            1041,
+            1042,
+            1043,
+            1044,
+            1045,
+            1046,
+            1047,
+            1048,
+            1049,
+            1050,
+            1051,
+            1052,
+            1053,
+            1054,
+            1055,
+            1056,
+            1057,
+            1058,
+            1059,
+            1060,
+            1061,
+            1062,
+            1063,
+            1064,
+            1065,
+            1066,
+            1067,
+            1068,
+            1069,
+            1070,
+            1071,
+            1072,
+            1073,
+            1074,
+            1075,
+            1076,
+            1077,
+            1078,
+            1079,
+            1080,
+            1081,
+            1082,
+            1083,
+            1084,
+            1085,
+            1086,
+            1087,
+            1088,
+            1089,
+            1090,
+            1091,
+            1092,
+            1093,
+            1094,
+            1095,
+            1096,
+            1097,
+            1098,
+            1099
+          ]
+        },
+        "202": {
+          "n_compared": 100,
+          "n_identical": 88,
+          "non_identical_draws": [
+            1024,
+            1025,
+            1033,
+            1055,
+            1056,
+            1057,
+            1063,
+            1064,
+            1068,
+            1088,
+            1095,
+            1096
+          ]
+        },
+        "303": {
+          "n_compared": 100,
+          "n_identical": 0,
+          "non_identical_draws": [
+            1000,
+            1001,
+            1002,
+            1003,
+            1004,
+            1005,
+            1006,
+            1007,
+            1008,
+            1009,
+            1010,
+            1011,
+            1012,
+            1013,
+            1014,
+            1015,
+            1016,
+            1017,
+            1018,
+            1019,
+            1020,
+            1021,
+            1022,
+            1023,
+            1024,
+            1025,
+            1026,
+            1027,
+            1028,
+            1029,
+            1030,
+            1031,
+            1032,
+            1033,
+            1034,
+            1035,
+            1036,
+            1037,
+            1038,
+            1039,
+            1040,
+            1041,
+            1042,
+            1043,
+            1044,
+            1045,
+            1046,
+            1047,
+            1048,
+            1049,
+            1050,
+            1051,
+            1052,
+            1053,
+            1054,
+            1055,
+            1056,
+            1057,
+            1058,
+            1059,
+            1060,
+            1061,
+            1062,
+            1063,
+            1064,
+            1065,
+            1066,
+            1067,
+            1068,
+            1069,
+            1070,
+            1071,
+            1072,
+            1073,
+            1074,
+            1075,
+            1076,
+            1077,
+            1078,
+            1079,
+            1080,
+            1081,
+            1082,
+            1083,
+            1084,
+            1085,
+            1086,
+            1087,
+            1088,
+            1089,
+            1090,
+            1091,
+            1092,
+            1093,
+            1094,
+            1095,
+            1096,
+            1097,
+            1098,
+            1099
+          ]
+        },
+        "404": {
+          "n_compared": 100,
+          "n_identical": 99,
+          "non_identical_draws": [
+            1096
+          ]
+        },
+        "505": {
+          "n_compared": 100,
+          "n_identical": 97,
+          "non_identical_draws": [
+            1022,
+            1055,
+            1070
+          ]
+        }
+      },
+      "random_seed_invariance": {
+        "101": {
+          "n_compared": 100,
+          "n_identical": 100,
+          "non_identical_draws": []
+        },
+        "202": {
+          "n_compared": 100,
+          "n_identical": 100,
+          "non_identical_draws": []
+        },
+        "303": {
+          "n_compared": 100,
+          "n_identical": 100,
+          "non_identical_draws": []
+        },
+        "404": {
+          "n_compared": 100,
+          "n_identical": 100,
+          "non_identical_draws": []
+        },
+        "505": {
+          "n_compared": 100,
+          "n_identical": 100,
+          "non_identical_draws": []
+        }
+      },
+      "reference_cell": "dt_nortg@random seed 101",
+      "rule": "two episodes are outcome-identical when all eight fields agree exactly",
+      "this_is_outcome_identity_not_policy_identity": "Agreement on eight outcome fields does not establish that the two policies took the same decisions. See mechanism.action_identity, which measures that directly."
+    },
+    "registered": false,
+    "status": "EXPLORATORY (PREREGISTRATION section 2): the no-RTG ablation is named in the exploratory list, and this block was found after the numbers existed. It is reported with counts and no inferential claim.",
+    "what_this_does_not_say": [
+      "It does not say WHY the ablated mix50 arm collapses. No mechanism for the collapse is claimed, and none may be read out of these counts.",
+      "Outcome identity is not policy identity; the action_identity block is what speaks about decisions, and the two are reported separately for that reason."
+    ]
+  },
   "method": "dt_nortg",
   "predictions": {
     "Q1": {
@@ -39988,14 +40880,17 @@
         "random": 0.0
       },
       "definition": "att_engine",
-      "holds": true,
+      "holds": null,
+      "holds_rule": "holds = False  if any limb has is_evidence == True and as_registered == False   (measured falsification)\nholds = True   if every limb has is_evidence == True and as_registered == True\nholds = None   otherwise  (some limb rests on a non-discriminating tier, and no evidence-bearing limb is falsified)",
       "largest": "mix50",
       "largest_limb": {
         "abs_mean_difference": 409.1449848194759,
         "arms_distinct": true,
+        "as_registered": true,
         "is_evidence": true,
         "limb": "largest",
         "reading": "the largest paired absolute difference is on mix50, whose two arms are distinct on 500 of 500 shared cells, so this limb is a measured contrast",
+        "registered_tier": "mix50",
         "status": "established",
         "tier": "mix50"
       },
@@ -40026,9 +40921,11 @@
       "smallest_limb": {
         "abs_mean_difference": 0.0,
         "arms_distinct": false,
+        "as_registered": true,
         "is_evidence": false,
         "limb": "smallest",
         "reading": "the smallest paired absolute difference is on random, whose two arms are IDENTICAL on 500 of 500 shared cells. 0.0 is what that tier returns for ANY pair of arms whatsoever, so this limb is satisfied by a tier that cannot discriminate and is NOT EVIDENCE about the return prompt",
+        "registered_tier": "random",
         "status": "satisfied_by_a_non_discriminating_tier",
         "tier": "random"
       },
@@ -40102,8 +40999,8 @@
   "runtime": {
     "cuda_available": true,
     "cuda_device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
-    "git_commit": "f20b365c1e978de71e62d7f43f0651759bdcdac6",
-    "git_dirty": true,
+    "git_commit": "c864bfa06c9d60f03987996fdcd5bf55c33a9842",
+    "git_dirty": false,
     "measurement_git_commits": [
       "24d717d33091018d7e7aef31b9c5e65eb46b701a",
       "46e682cfc2004d40fe5f74e0e9b3dc05f39f21c4",
@@ -40115,7 +41012,7 @@
     "torch_num_threads": 1,
     "torch_version": "2.11.0+cu128",
     "unreachable_measurement_commits": [],
-    "written_at_git_commit": "f20b365c1e978de71e62d7f43f0651759bdcdac6"
+    "written_at_git_commit": "c864bfa06c9d60f03987996fdcd5bf55c33a9842"
   },
   "seeds": [
     101,
