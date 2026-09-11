@@ -448,3 +448,111 @@ Report the observed/unobserved wall clocks per arm with `n = 5` each, beside the
 impossible there and the brief should not have implied it. hz1x1 SUMO **12.44 s/episode** (`n = 1`) is the
 first hz1x1 SUMO timing on disk; SUMO's bit-for-bit reproduction across five weeks and two worktrees
 (3 episodes, 2 routes) is the determinism finding P7.3 needed — both go into the freeze document.
+
+---
+
+# ✅ AMENDMENT B — 2026-09-11: half B's audit table is the first instance of the Conversion Audit Protocol
+
+`PROJECT_PLAN` §6 P11.5 was narrowed today into CAP (criteria A–H, quoted there). **Amendment A1's
+converter-artefact table is built to CAP's columns**, so the same tool audits a second pair later:
+**(A)** intersection/road bijection and lane counts · **(B)** junction-coordinate residual, per-lane length
+and speed with max abs difference · **(C)** connection sets under the movement correspondence, extras
+enumerated (hz1x1 has 4 `t` connections, hz4x4 16 — count them from the files) · **(D)** released-lane
+sets per action (reuse `transfer_gate.green_action_lane_sets`), phase counts, the `phase_onehot` map,
+and the sentence that `SumoEnv` renders transitions itself (`envs/sumo_env.py:252-278`) with the
+converter's clearance states quoted (`r` on hz1x1, `s` on hz4x4) · **(E)** demand equality per vehicle
+(id, depart, route) between `flow.json` and the parity `.rou.xml` · **(F)** provenance from the
+`.net.xml` header (tool, version, date, input paths) — the LibSignal lineage, cited. **(G)** is half A's
+output and is cross-referenced, not recomputed. Scenarios: `hangzhou_1x1_bc-tyc` (full) and hz4x4
+gudang (A–D, F; no parity file exists for E — say so).
+
+**One new structure-only line, no retrieval:** record grid4x4's conversion signature from its CityFlow
+files alone (phase structure, even-indexed greens in the corpus, the flow block's SUMO defaults, the
+dangling `.sumocfg`) as evidence for `DEFERRED` 77. Do not download anything; do not run `converter_v2`.
+
+---
+
+# ✅ AMENDMENT C — 2026-09-11: the grid4x4 pair is on disk; half B audits it too (A–D, F; E re-derived)
+
+`DEFERRED` 77 is resolved: our shipped `scenarios/grid4x4/*.json` are sha256-identical to LibSignal's
+`data/raw_data/grid4x4/` (their s2c conversion), and the SUMO-native original is RESCO's —
+`scenarios/grid4x4_candidates/resco/resco_benchmark/environments/grid4x4/grid4x4.net.xml`
+(`netedit 1.9.0`, sha256 `8d192de4…`) plus `grid4x4_1.rou.xml` **inside** `grid4x4.zip` in the same
+directory (sha256 `2350dce7…`), which matches our `flow.json` on 1,473/1,473 exact (depart, route) pairs.
+**The candidates directory is gitignored and READ-ONLY for this task; the files are CC BY-NC-SA 4.0 and are
+never copied into the tree.** Read the route file directly from the zip (`zipfile`), never extract into
+the repo.
+
+**Half B adds the grid4x4 pair to §3.1's table and to the CAP audit** with the same tool it builds for
+hangzhou: **(A)** junction/edge bijection (ids are shared: `A0…D3`, `A0A1…`), lane counts; **(B)**
+coordinates (RESCO `netOffset 0,0`), per-lane length and speed (net 13.89 vs converted flow 13.39 — report
+it as the converter's cap, the cologne shape); **(C)** connection sets under the correspondence — note RESCO
+has no `t` connections, 576 = 192 × {r, s, l}; **(D)** released-lane sets per action against the CityFlow
+roadnet's 16 phases (the odd CityFlow phases carry 2–5 roadLinks — the converter's rendering of SUMO's
+yellow/`s` states; state exactly what the CityFlow env treats as actions on this scenario, read from
+`envs/phase_control.py` and the corpus's `avail_mask` width, and what the SUMO env would); **(E)** the
+1,473/1,473 demand equality re-derived by the tool, plus the vType situation (the route file defines
+none → `DEFAULT_VEHTYPE`; parity instance for grid4x4 recorded as values only: `maxSpeed 13.39, tau 1.5,
+accel 2.6, decel 4.5, length 5.0, minGap 2.5, width 1.8, speedFactor 1.0` — no parity file is built,
+that is `DEFERRED` 75); **(F)** provenance: RESCO clone sha `f1ed9a174f8de41fc9d8689373b836bc882570dc`,
+LibSignal clone sha `127af9f93902778e556de2eedb2b606c4c9447e6`, the zip member name, both sha256s, the
+`netedit` header — and the fact that LibSignal's converter, not `converter_v2`, produced our CityFlow side
+(so the three `converter_v2` TODOs are cited as the class, with their LibSignal-side counterparts
+identified where the files show them). **No simulation on grid4x4 in this task** — (G) is P7.3's.
+Add ≈ half a day to half B; the table is the deliverable A14's admission rests on.
+
+---
+
+# ✅ AMENDMENT D — 2026-09-11, at G1: accepted on a reproduction, and A1 gains a teleport-free twin
+
+**G1 is accepted — on evidence the coordinator produced, not on the relay.** `output/p7_1` did not exist
+and no file on the branch carried the smoke's numbers, so the coordinator ran the branch's own CLI
+(`run-sumo --arm maxpressure`, observed and `--no-observer`, `--episodes 1`) into a scratch work dir:
+`att_env 355.7984322508399` both ways, `reproduces_p7_0 True` (`np.float32` form, float64 gap
+`8.5e-7`), `E_sumo 442.3349826818407`, `P 452.5783874580067`, `W == att_env`, terms
+`+10.243404776166017 / −96.77995520716684 / 0.0`, created 2021 / entered 1786 / never 235 = pending 235,
+teleports 13, halting 28,800 lane-seconds and 0 disagreements, clock-origin second route `1.42e-14`;
+43.2 s observed with the halting check, 12.3 s frozen env (`n = 1` each). Every relayed number matches.
+
+## D1 — A record is a file. The smoke goes under `output/p7_1/smoke/` through the driver
+
+The driver (G2) carries a smoke stage — one observed `maxpressure` episode into
+`output/p7_1/smoke/` — and the packet cites that file, not a table typed from a terminal. Same shape as
+`BRIEF_33` §3.6 / plan §4.5.
+
+## D2 — 🔒 A1b: the same 15 episodes with teleports DISABLED, as a NEW parity `.sumocfg`
+
+13 teleports in one MaxPressure episode means §2.3(iii) fires, and a recommendation with a count and
+no effect size is a formula, not a number. **Add A1b:** `scenarios/hangzhou_1x1_bc-tyc_18041610_1h_parity/
+hangzhou_1x1_bc-tyc_18041610_1h_parity_noteleport.sumocfg` — a NEW file identical to the parity one plus
+`<processing><time-to-teleport value="-1"/></processing>` (the shipped and the P7.0 parity files stay
+untouched; recorded runs used them) — and the three arms × 5 observed episodes on it. Assert per episode
+`n_teleports == 0` and `n_vanished_without_arrival == 0`. **A1 (teleports enabled) remains the reproduction
+of P7.0 and is labelled *teleports enabled*; A1b is the candidate frozen regime**, and the freeze reports
+the per-arm difference between them under both definitions. ≈ +11 min. G3's total stays under an hour.
+
+## D3 — Accepted as measured, and the brief is corrected where it was wrong
+
+- **The decomposition residual on SUMO is a tautology** — `(P−E)+(W−P)+(att−W)−(att−E)` cancels
+  identically — and is **not** a gate; the two independent routes are (clock origin: `W−P` against mean
+  `getDepartDelay`, `1e-9`; population: `n_pending_at_horizon == n_never_entered` and the denominator
+  equal to the route file's `depart ≤ T` count). The brief's §2.1 *"identity exact"* is a consistency
+  check, not evidence; the artifact says `residual_is_tautological`. This is `P5.3b-fix` §2.7's class,
+  degenerate on SUMO because no engine call anchors `E`.
+- **The reproduction check's detection floor is one float32 ulp** (~`3e-5` at ATT 355); the brief's
+  *"refuses a 1e-9 perturbation"* was unsatisfiable against a float32 record and is replaced by the
+  one-ulp test that exists.
+- **The halting cross-check costs 2.9× on its own** (A7 falsified); it runs on a declared episode
+  count (default 1 per arm, 28,800 lane-seconds each) and every row carries its lane-seconds.
+- **The one-second offset** — SUMO's first observation of a vehicle is `intended_depart + dt` (`dt` from
+  `getDeltaT`, cross-checked against the observed grid), the twin of Gate 0's `first_seen = enterTime +
+  interval`. **Pin it with a named mutation in the packet: drop the `+ dt` → the pool identity must
+  refuse at the first second a vehicle departs.**
+
+## D4 — Then the driver, then the pre-flight
+
+`offline/campaigns/p7_1_metric_freeze.sh`: token consumed on start after `cd` and an import check;
+start lock on `pgrep -f 'python.*offline\.sumo_att_reference'`; `trap` killing the process group;
+stages A1 (observed + unobserved), **A1b**, A2, A4, smoke, `report`; `SHA256SUMS_p7_1.txt` last,
+atomic, `smoke/` included this time (it is part of the evidence) — state that in the header. The
+coordinator spawns the pre-flight on the commit that carries it.
