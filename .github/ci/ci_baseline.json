@@ -24,6 +24,20 @@
       "tree": "task/p5.3b-nortg-campaign at afb9062",
       "date": "2026-09-10",
       "measured_on_a_github_runner": true,
+      "reconfirmed": [
+        {
+          "value": 144,
+          "condition": "GitHub Actions run 34587670145, BOTH jobs 'suite-and-guards (ubuntu-24.04)' and '(ubuntu-22.04)', on main at 9dd224e after P5.3b-fix merged; workflow unchanged (pinned threads, dev extra only, CityFlow not built, no corpus, no SUMO binary).",
+          "result": "1635 passed, 144 skipped, 0 failures, 0 errors, 1779 tests collected. BOTH legs report identical counts and an identical 35-message skip breakdown. The skip-ceiling gate PASSED on both legs -- the first time this protocol has run without the ceiling breaching.",
+          "why_the_value_did_not_move": "P5.3b-fix added +80 collected tests (1699 -> 1779) and ZERO environment-gated ones: its new tests/test_nortg_decomposition.py is entirely synthetic (tmp_path fixtures, no corpus, no checkpoint, no engine) and its additions to tests/test_p5_3b_artifact.py read committed JSON under docs/data/. So the count of environment-gated skips is unchanged. ⭐ This is the first DIRECT evidence that the ceiling tracks the runner's environment rather than drifting with the suite's size, which is the property the gate was designed to have and which every previous move was consistent with but none demonstrated.",
+          "how_it_was_obtained": "`gh run download 34587670145` for both legs, then every <skipped> message extracted from junit.xml with xml.etree, the file:line prefix stripped, and the multiset compared -- BOTH legs identical. pytest.txt's terminal tail is the independent second parser and agreed at '1635 passed, 144 skipped' on both legs.",
+          "the_breakdown_is_UNCHANGED_and_this_was_verified_not_assumed": "The previous run's artifacts (34486928659, afb9062) were still retained, so the two runs' skip-message multisets were compared DIRECTLY rather than the classification being redone from memory: 35 distinct messages, identical counts, zero messages added, zero removed, zero changed. The recorded breakdown therefore describes exactly this data and is carried forward untouched. This is the check that distinguishes 'the number is the same' from 'the number is the same for the same reasons'.",
+          "an_honest_disagreement_about_the_CORPUS_versus_CAMPAIGN_boundary": "A keyword classifier over the same 144 messages returns corpus_or_checkpoint 79 / campaign_output 12 where this file records 76 / 15; cityflow 41, sumo_traci 10 and matplotlib 2 agree exactly, and the total agrees exactly at 144. The disagreement is entirely about which side of the corpus/campaign line three messages sit on -- the clearest being 'the corpus, draws and campaign artifacts are not all present' (tests/test_att_rederivation.py), which names both families in one sentence. The recorded split is retained because it was made BY INSPECTION over byte-identical data, which is the method the protocol mandates, and a keyword rule is explicitly what it forbids. Recorded here so the next auditor meets the ambiguity instead of rediscovering it, and so nobody 'corrects' the breakdown to a regex's answer. Only the TOTAL gates.",
+          "tree": "main at 9dd224e171286cd1dddc13f3b62610f97e8af645",
+          "date": "2026-09-11",
+          "measured_on_a_github_runner": true
+        }
+      ],
       "superseded": {
         "value": 139,
         "condition": "GitHub Actions run 33502850557, BOTH jobs 'suite-and-guards (ubuntu-24.04)' and '(ubuntu-22.04)', on main at 075a477 after P8.4b merged; workflow unchanged (pinned threads, dev extra only, CityFlow not built, no corpus, no SUMO binary). The ONLY failing step in that run is 'Gate - counts, cross-check and skip ceiling'; the suite, all three guards and the wheel are green, so this is the previous ceiling's own re_measure_required_at firing on the merged tree, not a defect.",
