@@ -1,5 +1,13 @@
 # Patches a Claude Code session cannot apply itself
 
+## `agents_incremental_findings.patch` — subagents persist findings as they go; two 25-minute reviewers died on an API limit and returned nothing
+
+**Apply with:**
+```bash
+git apply docs/patches/agents_incremental_findings.patch    # on main, from the repo root
+```
+Adds one section to `.claude/agents/contract-reviewer.md` (checklist first within three tool calls; one append per finding before the next command; read only named line ranges; continue-from-file semantics) and one paragraph to `.claude/agents/master-coordinator.md` (every long spawn names a `FINDINGS.md`, splits into ≤ 15-minute mandates, and on an agent's death files the partial and re-spawns a continuation). The rule itself is in `PROJECT_PLAN` §7 (2026-09-11); this patch makes it load with the agents rather than depend on the coordinator remembering to write it into each mandate. Verified with `git apply --check` on `main` at creation. Docs-only change to two agent definitions; no code, no tests.
+
 ## `ci_gate_ceiling_139_p8_4b.patch` — the skip ceiling moves 123 → 139, and all +16 is P8.4b's own tests
 
 **Apply with:**
