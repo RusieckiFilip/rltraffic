@@ -1,0 +1,2391 @@
+{
+  "format_version": "p7.1-alignment/1.0",
+  "task": "P7.1",
+  "role": "the frozen canonical feature order: the CityFlow corpus's own per-intersection incoming_lanes discovery order, with each lane's movement set and its SUMO partner",
+  "what_this_does_not_say": [
+    "It does not claim the two backends' lanes are interchangeable: the pairing is by MOVEMENT, and 8 of 8 lane ids on hz1x1 denote a different physical lane.",
+    "It fixes an ORDER and a PHASE MAP, not a state normalisation: obs_norm is out of scope and unchanged."
+  ],
+  "scenarios": {
+    "hangzhou_1x1_bc-tyc": {
+      "roadnet": "scenarios/hangzhou_1x1_bc-tyc_18041610_1h/roadnet.json",
+      "intersections": {
+        "intersection_1_1": {
+          "canonical_order": [
+            {
+              "position": 0,
+              "lane": "road_0_1_0_1",
+              "road": "road_0_1_0",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_0_1_0_0",
+              "sumo_position": 0
+            },
+            {
+              "position": 1,
+              "lane": "road_0_1_0_0",
+              "road": "road_0_1_0",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_0_1_0_1",
+              "sumo_position": 1
+            },
+            {
+              "position": 2,
+              "lane": "road_1_0_1_1",
+              "road": "road_1_0_1",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_1_0_1_0",
+              "sumo_position": 2
+            },
+            {
+              "position": 3,
+              "lane": "road_1_0_1_0",
+              "road": "road_1_0_1",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_1_0_1_1",
+              "sumo_position": 3
+            },
+            {
+              "position": 4,
+              "lane": "road_2_1_2_1",
+              "road": "road_2_1_2",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_2_1_2_0",
+              "sumo_position": 6
+            },
+            {
+              "position": 5,
+              "lane": "road_2_1_2_0",
+              "road": "road_2_1_2",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_2_1_2_1",
+              "sumo_position": 7
+            },
+            {
+              "position": 6,
+              "lane": "road_1_2_3_0",
+              "road": "road_1_2_3",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_1_2_3_1",
+              "sumo_position": 5
+            },
+            {
+              "position": 7,
+              "lane": "road_1_2_3_1",
+              "road": "road_1_2_3",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_1_2_3_0",
+              "sumo_position": 4
+            }
+          ],
+          "cityflow_num_phases": 9,
+          "sumo_num_phases": 16,
+          "n_green_actions": 8,
+          "canonical_state_width": 25,
+          "sumo_state_width": 32,
+          "n_lanes_denoting_a_different_physical_lane": 8
+        }
+      }
+    },
+    "hangzhou_4x4_gudang": {
+      "roadnet": "scenarios/hangzhou_4x4_gudang_18041610_1h/roadnet_4X4.json",
+      "intersections": {
+        "intersection_1_1": {
+          "canonical_order": [
+            {
+              "position": 0,
+              "lane": "road_0_1_0_1",
+              "road": "road_0_1_0",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_0_1_0_1",
+              "sumo_position": 1
+            },
+            {
+              "position": 1,
+              "lane": "road_0_1_0_0",
+              "road": "road_0_1_0",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_0_1_0_2",
+              "sumo_position": 2
+            },
+            {
+              "position": 2,
+              "lane": "road_0_1_0_2",
+              "road": "road_0_1_0",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_0_1_0_0",
+              "sumo_position": 0
+            },
+            {
+              "position": 3,
+              "lane": "road_1_0_1_2",
+              "road": "road_1_0_1",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_1_0_1_0",
+              "sumo_position": 3
+            },
+            {
+              "position": 4,
+              "lane": "road_1_0_1_1",
+              "road": "road_1_0_1",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_1_0_1_1",
+              "sumo_position": 4
+            },
+            {
+              "position": 5,
+              "lane": "road_1_0_1_0",
+              "road": "road_1_0_1",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_1_0_1_2",
+              "sumo_position": 5
+            },
+            {
+              "position": 6,
+              "lane": "road_2_1_2_2",
+              "road": "road_2_1_2",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_2_1_2_0",
+              "sumo_position": 9
+            },
+            {
+              "position": 7,
+              "lane": "road_2_1_2_1",
+              "road": "road_2_1_2",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_2_1_2_1",
+              "sumo_position": 10
+            },
+            {
+              "position": 8,
+              "lane": "road_2_1_2_0",
+              "road": "road_2_1_2",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_2_1_2_2",
+              "sumo_position": 11
+            },
+            {
+              "position": 9,
+              "lane": "road_1_2_3_0",
+              "road": "road_1_2_3",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_1_2_3_2",
+              "sumo_position": 8
+            },
+            {
+              "position": 10,
+              "lane": "road_1_2_3_2",
+              "road": "road_1_2_3",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_1_2_3_0",
+              "sumo_position": 6
+            },
+            {
+              "position": 11,
+              "lane": "road_1_2_3_1",
+              "road": "road_1_2_3",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_1_2_3_1",
+              "sumo_position": 7
+            }
+          ],
+          "cityflow_num_phases": 9,
+          "sumo_num_phases": 16,
+          "n_green_actions": 9,
+          "canonical_state_width": 33,
+          "sumo_state_width": 40,
+          "n_lanes_denoting_a_different_physical_lane": 8
+        },
+        "intersection_1_2": {
+          "canonical_order": [
+            {
+              "position": 0,
+              "lane": "road_0_2_0_1",
+              "road": "road_0_2_0",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_0_2_0_1",
+              "sumo_position": 1
+            },
+            {
+              "position": 1,
+              "lane": "road_0_2_0_0",
+              "road": "road_0_2_0",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_0_2_0_2",
+              "sumo_position": 2
+            },
+            {
+              "position": 2,
+              "lane": "road_0_2_0_2",
+              "road": "road_0_2_0",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_0_2_0_0",
+              "sumo_position": 0
+            },
+            {
+              "position": 3,
+              "lane": "road_1_1_1_2",
+              "road": "road_1_1_1",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_1_1_1_0",
+              "sumo_position": 3
+            },
+            {
+              "position": 4,
+              "lane": "road_1_1_1_1",
+              "road": "road_1_1_1",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_1_1_1_1",
+              "sumo_position": 4
+            },
+            {
+              "position": 5,
+              "lane": "road_1_1_1_0",
+              "road": "road_1_1_1",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_1_1_1_2",
+              "sumo_position": 5
+            },
+            {
+              "position": 6,
+              "lane": "road_2_2_2_2",
+              "road": "road_2_2_2",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_2_2_2_0",
+              "sumo_position": 9
+            },
+            {
+              "position": 7,
+              "lane": "road_2_2_2_1",
+              "road": "road_2_2_2",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_2_2_2_1",
+              "sumo_position": 10
+            },
+            {
+              "position": 8,
+              "lane": "road_2_2_2_0",
+              "road": "road_2_2_2",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_2_2_2_2",
+              "sumo_position": 11
+            },
+            {
+              "position": 9,
+              "lane": "road_1_3_3_0",
+              "road": "road_1_3_3",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_1_3_3_2",
+              "sumo_position": 8
+            },
+            {
+              "position": 10,
+              "lane": "road_1_3_3_2",
+              "road": "road_1_3_3",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_1_3_3_0",
+              "sumo_position": 6
+            },
+            {
+              "position": 11,
+              "lane": "road_1_3_3_1",
+              "road": "road_1_3_3",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_1_3_3_1",
+              "sumo_position": 7
+            }
+          ],
+          "cityflow_num_phases": 9,
+          "sumo_num_phases": 16,
+          "n_green_actions": 9,
+          "canonical_state_width": 33,
+          "sumo_state_width": 40,
+          "n_lanes_denoting_a_different_physical_lane": 8
+        },
+        "intersection_1_3": {
+          "canonical_order": [
+            {
+              "position": 0,
+              "lane": "road_0_3_0_1",
+              "road": "road_0_3_0",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_0_3_0_1",
+              "sumo_position": 1
+            },
+            {
+              "position": 1,
+              "lane": "road_0_3_0_0",
+              "road": "road_0_3_0",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_0_3_0_2",
+              "sumo_position": 2
+            },
+            {
+              "position": 2,
+              "lane": "road_0_3_0_2",
+              "road": "road_0_3_0",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_0_3_0_0",
+              "sumo_position": 0
+            },
+            {
+              "position": 3,
+              "lane": "road_1_2_1_2",
+              "road": "road_1_2_1",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_1_2_1_0",
+              "sumo_position": 3
+            },
+            {
+              "position": 4,
+              "lane": "road_1_2_1_1",
+              "road": "road_1_2_1",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_1_2_1_1",
+              "sumo_position": 4
+            },
+            {
+              "position": 5,
+              "lane": "road_1_2_1_0",
+              "road": "road_1_2_1",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_1_2_1_2",
+              "sumo_position": 5
+            },
+            {
+              "position": 6,
+              "lane": "road_2_3_2_2",
+              "road": "road_2_3_2",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_2_3_2_0",
+              "sumo_position": 9
+            },
+            {
+              "position": 7,
+              "lane": "road_2_3_2_1",
+              "road": "road_2_3_2",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_2_3_2_1",
+              "sumo_position": 10
+            },
+            {
+              "position": 8,
+              "lane": "road_2_3_2_0",
+              "road": "road_2_3_2",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_2_3_2_2",
+              "sumo_position": 11
+            },
+            {
+              "position": 9,
+              "lane": "road_1_4_3_0",
+              "road": "road_1_4_3",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_1_4_3_2",
+              "sumo_position": 8
+            },
+            {
+              "position": 10,
+              "lane": "road_1_4_3_2",
+              "road": "road_1_4_3",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_1_4_3_0",
+              "sumo_position": 6
+            },
+            {
+              "position": 11,
+              "lane": "road_1_4_3_1",
+              "road": "road_1_4_3",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_1_4_3_1",
+              "sumo_position": 7
+            }
+          ],
+          "cityflow_num_phases": 9,
+          "sumo_num_phases": 16,
+          "n_green_actions": 9,
+          "canonical_state_width": 33,
+          "sumo_state_width": 40,
+          "n_lanes_denoting_a_different_physical_lane": 8
+        },
+        "intersection_1_4": {
+          "canonical_order": [
+            {
+              "position": 0,
+              "lane": "road_0_4_0_1",
+              "road": "road_0_4_0",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_0_4_0_1",
+              "sumo_position": 1
+            },
+            {
+              "position": 1,
+              "lane": "road_0_4_0_0",
+              "road": "road_0_4_0",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_0_4_0_2",
+              "sumo_position": 2
+            },
+            {
+              "position": 2,
+              "lane": "road_0_4_0_2",
+              "road": "road_0_4_0",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_0_4_0_0",
+              "sumo_position": 0
+            },
+            {
+              "position": 3,
+              "lane": "road_1_3_1_2",
+              "road": "road_1_3_1",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_1_3_1_0",
+              "sumo_position": 3
+            },
+            {
+              "position": 4,
+              "lane": "road_1_3_1_1",
+              "road": "road_1_3_1",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_1_3_1_1",
+              "sumo_position": 4
+            },
+            {
+              "position": 5,
+              "lane": "road_1_3_1_0",
+              "road": "road_1_3_1",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_1_3_1_2",
+              "sumo_position": 5
+            },
+            {
+              "position": 6,
+              "lane": "road_2_4_2_2",
+              "road": "road_2_4_2",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_2_4_2_0",
+              "sumo_position": 9
+            },
+            {
+              "position": 7,
+              "lane": "road_2_4_2_1",
+              "road": "road_2_4_2",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_2_4_2_1",
+              "sumo_position": 10
+            },
+            {
+              "position": 8,
+              "lane": "road_2_4_2_0",
+              "road": "road_2_4_2",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_2_4_2_2",
+              "sumo_position": 11
+            },
+            {
+              "position": 9,
+              "lane": "road_1_5_3_0",
+              "road": "road_1_5_3",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_1_5_3_2",
+              "sumo_position": 8
+            },
+            {
+              "position": 10,
+              "lane": "road_1_5_3_2",
+              "road": "road_1_5_3",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_1_5_3_0",
+              "sumo_position": 6
+            },
+            {
+              "position": 11,
+              "lane": "road_1_5_3_1",
+              "road": "road_1_5_3",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_1_5_3_1",
+              "sumo_position": 7
+            }
+          ],
+          "cityflow_num_phases": 9,
+          "sumo_num_phases": 16,
+          "n_green_actions": 9,
+          "canonical_state_width": 33,
+          "sumo_state_width": 40,
+          "n_lanes_denoting_a_different_physical_lane": 8
+        },
+        "intersection_2_1": {
+          "canonical_order": [
+            {
+              "position": 0,
+              "lane": "road_1_1_0_1",
+              "road": "road_1_1_0",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_1_1_0_1",
+              "sumo_position": 1
+            },
+            {
+              "position": 1,
+              "lane": "road_1_1_0_0",
+              "road": "road_1_1_0",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_1_1_0_2",
+              "sumo_position": 2
+            },
+            {
+              "position": 2,
+              "lane": "road_1_1_0_2",
+              "road": "road_1_1_0",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_1_1_0_0",
+              "sumo_position": 0
+            },
+            {
+              "position": 3,
+              "lane": "road_2_0_1_2",
+              "road": "road_2_0_1",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_2_0_1_0",
+              "sumo_position": 3
+            },
+            {
+              "position": 4,
+              "lane": "road_2_0_1_1",
+              "road": "road_2_0_1",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_2_0_1_1",
+              "sumo_position": 4
+            },
+            {
+              "position": 5,
+              "lane": "road_2_0_1_0",
+              "road": "road_2_0_1",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_2_0_1_2",
+              "sumo_position": 5
+            },
+            {
+              "position": 6,
+              "lane": "road_3_1_2_2",
+              "road": "road_3_1_2",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_3_1_2_0",
+              "sumo_position": 9
+            },
+            {
+              "position": 7,
+              "lane": "road_3_1_2_1",
+              "road": "road_3_1_2",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_3_1_2_1",
+              "sumo_position": 10
+            },
+            {
+              "position": 8,
+              "lane": "road_3_1_2_0",
+              "road": "road_3_1_2",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_3_1_2_2",
+              "sumo_position": 11
+            },
+            {
+              "position": 9,
+              "lane": "road_2_2_3_0",
+              "road": "road_2_2_3",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_2_2_3_2",
+              "sumo_position": 8
+            },
+            {
+              "position": 10,
+              "lane": "road_2_2_3_2",
+              "road": "road_2_2_3",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_2_2_3_0",
+              "sumo_position": 6
+            },
+            {
+              "position": 11,
+              "lane": "road_2_2_3_1",
+              "road": "road_2_2_3",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_2_2_3_1",
+              "sumo_position": 7
+            }
+          ],
+          "cityflow_num_phases": 9,
+          "sumo_num_phases": 16,
+          "n_green_actions": 9,
+          "canonical_state_width": 33,
+          "sumo_state_width": 40,
+          "n_lanes_denoting_a_different_physical_lane": 8
+        },
+        "intersection_2_2": {
+          "canonical_order": [
+            {
+              "position": 0,
+              "lane": "road_1_2_0_1",
+              "road": "road_1_2_0",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_1_2_0_1",
+              "sumo_position": 1
+            },
+            {
+              "position": 1,
+              "lane": "road_1_2_0_0",
+              "road": "road_1_2_0",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_1_2_0_2",
+              "sumo_position": 2
+            },
+            {
+              "position": 2,
+              "lane": "road_1_2_0_2",
+              "road": "road_1_2_0",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_1_2_0_0",
+              "sumo_position": 0
+            },
+            {
+              "position": 3,
+              "lane": "road_2_1_1_2",
+              "road": "road_2_1_1",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_2_1_1_0",
+              "sumo_position": 3
+            },
+            {
+              "position": 4,
+              "lane": "road_2_1_1_1",
+              "road": "road_2_1_1",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_2_1_1_1",
+              "sumo_position": 4
+            },
+            {
+              "position": 5,
+              "lane": "road_2_1_1_0",
+              "road": "road_2_1_1",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_2_1_1_2",
+              "sumo_position": 5
+            },
+            {
+              "position": 6,
+              "lane": "road_3_2_2_2",
+              "road": "road_3_2_2",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_3_2_2_0",
+              "sumo_position": 9
+            },
+            {
+              "position": 7,
+              "lane": "road_3_2_2_1",
+              "road": "road_3_2_2",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_3_2_2_1",
+              "sumo_position": 10
+            },
+            {
+              "position": 8,
+              "lane": "road_3_2_2_0",
+              "road": "road_3_2_2",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_3_2_2_2",
+              "sumo_position": 11
+            },
+            {
+              "position": 9,
+              "lane": "road_2_3_3_0",
+              "road": "road_2_3_3",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_2_3_3_2",
+              "sumo_position": 8
+            },
+            {
+              "position": 10,
+              "lane": "road_2_3_3_2",
+              "road": "road_2_3_3",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_2_3_3_0",
+              "sumo_position": 6
+            },
+            {
+              "position": 11,
+              "lane": "road_2_3_3_1",
+              "road": "road_2_3_3",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_2_3_3_1",
+              "sumo_position": 7
+            }
+          ],
+          "cityflow_num_phases": 9,
+          "sumo_num_phases": 16,
+          "n_green_actions": 9,
+          "canonical_state_width": 33,
+          "sumo_state_width": 40,
+          "n_lanes_denoting_a_different_physical_lane": 8
+        },
+        "intersection_2_3": {
+          "canonical_order": [
+            {
+              "position": 0,
+              "lane": "road_1_3_0_1",
+              "road": "road_1_3_0",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_1_3_0_1",
+              "sumo_position": 1
+            },
+            {
+              "position": 1,
+              "lane": "road_1_3_0_0",
+              "road": "road_1_3_0",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_1_3_0_2",
+              "sumo_position": 2
+            },
+            {
+              "position": 2,
+              "lane": "road_1_3_0_2",
+              "road": "road_1_3_0",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_1_3_0_0",
+              "sumo_position": 0
+            },
+            {
+              "position": 3,
+              "lane": "road_2_2_1_2",
+              "road": "road_2_2_1",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_2_2_1_0",
+              "sumo_position": 3
+            },
+            {
+              "position": 4,
+              "lane": "road_2_2_1_1",
+              "road": "road_2_2_1",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_2_2_1_1",
+              "sumo_position": 4
+            },
+            {
+              "position": 5,
+              "lane": "road_2_2_1_0",
+              "road": "road_2_2_1",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_2_2_1_2",
+              "sumo_position": 5
+            },
+            {
+              "position": 6,
+              "lane": "road_3_3_2_2",
+              "road": "road_3_3_2",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_3_3_2_0",
+              "sumo_position": 9
+            },
+            {
+              "position": 7,
+              "lane": "road_3_3_2_1",
+              "road": "road_3_3_2",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_3_3_2_1",
+              "sumo_position": 10
+            },
+            {
+              "position": 8,
+              "lane": "road_3_3_2_0",
+              "road": "road_3_3_2",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_3_3_2_2",
+              "sumo_position": 11
+            },
+            {
+              "position": 9,
+              "lane": "road_2_4_3_0",
+              "road": "road_2_4_3",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_2_4_3_2",
+              "sumo_position": 8
+            },
+            {
+              "position": 10,
+              "lane": "road_2_4_3_2",
+              "road": "road_2_4_3",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_2_4_3_0",
+              "sumo_position": 6
+            },
+            {
+              "position": 11,
+              "lane": "road_2_4_3_1",
+              "road": "road_2_4_3",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_2_4_3_1",
+              "sumo_position": 7
+            }
+          ],
+          "cityflow_num_phases": 9,
+          "sumo_num_phases": 16,
+          "n_green_actions": 9,
+          "canonical_state_width": 33,
+          "sumo_state_width": 40,
+          "n_lanes_denoting_a_different_physical_lane": 8
+        },
+        "intersection_2_4": {
+          "canonical_order": [
+            {
+              "position": 0,
+              "lane": "road_1_4_0_1",
+              "road": "road_1_4_0",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_1_4_0_1",
+              "sumo_position": 1
+            },
+            {
+              "position": 1,
+              "lane": "road_1_4_0_0",
+              "road": "road_1_4_0",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_1_4_0_2",
+              "sumo_position": 2
+            },
+            {
+              "position": 2,
+              "lane": "road_1_4_0_2",
+              "road": "road_1_4_0",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_1_4_0_0",
+              "sumo_position": 0
+            },
+            {
+              "position": 3,
+              "lane": "road_2_3_1_2",
+              "road": "road_2_3_1",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_2_3_1_0",
+              "sumo_position": 3
+            },
+            {
+              "position": 4,
+              "lane": "road_2_3_1_1",
+              "road": "road_2_3_1",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_2_3_1_1",
+              "sumo_position": 4
+            },
+            {
+              "position": 5,
+              "lane": "road_2_3_1_0",
+              "road": "road_2_3_1",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_2_3_1_2",
+              "sumo_position": 5
+            },
+            {
+              "position": 6,
+              "lane": "road_3_4_2_2",
+              "road": "road_3_4_2",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_3_4_2_0",
+              "sumo_position": 9
+            },
+            {
+              "position": 7,
+              "lane": "road_3_4_2_1",
+              "road": "road_3_4_2",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_3_4_2_1",
+              "sumo_position": 10
+            },
+            {
+              "position": 8,
+              "lane": "road_3_4_2_0",
+              "road": "road_3_4_2",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_3_4_2_2",
+              "sumo_position": 11
+            },
+            {
+              "position": 9,
+              "lane": "road_2_5_3_0",
+              "road": "road_2_5_3",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_2_5_3_2",
+              "sumo_position": 8
+            },
+            {
+              "position": 10,
+              "lane": "road_2_5_3_2",
+              "road": "road_2_5_3",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_2_5_3_0",
+              "sumo_position": 6
+            },
+            {
+              "position": 11,
+              "lane": "road_2_5_3_1",
+              "road": "road_2_5_3",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_2_5_3_1",
+              "sumo_position": 7
+            }
+          ],
+          "cityflow_num_phases": 9,
+          "sumo_num_phases": 16,
+          "n_green_actions": 9,
+          "canonical_state_width": 33,
+          "sumo_state_width": 40,
+          "n_lanes_denoting_a_different_physical_lane": 8
+        },
+        "intersection_3_1": {
+          "canonical_order": [
+            {
+              "position": 0,
+              "lane": "road_2_1_0_1",
+              "road": "road_2_1_0",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_2_1_0_1",
+              "sumo_position": 1
+            },
+            {
+              "position": 1,
+              "lane": "road_2_1_0_0",
+              "road": "road_2_1_0",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_2_1_0_2",
+              "sumo_position": 2
+            },
+            {
+              "position": 2,
+              "lane": "road_2_1_0_2",
+              "road": "road_2_1_0",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_2_1_0_0",
+              "sumo_position": 0
+            },
+            {
+              "position": 3,
+              "lane": "road_3_0_1_2",
+              "road": "road_3_0_1",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_3_0_1_0",
+              "sumo_position": 3
+            },
+            {
+              "position": 4,
+              "lane": "road_3_0_1_1",
+              "road": "road_3_0_1",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_3_0_1_1",
+              "sumo_position": 4
+            },
+            {
+              "position": 5,
+              "lane": "road_3_0_1_0",
+              "road": "road_3_0_1",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_3_0_1_2",
+              "sumo_position": 5
+            },
+            {
+              "position": 6,
+              "lane": "road_4_1_2_2",
+              "road": "road_4_1_2",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_4_1_2_0",
+              "sumo_position": 9
+            },
+            {
+              "position": 7,
+              "lane": "road_4_1_2_1",
+              "road": "road_4_1_2",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_4_1_2_1",
+              "sumo_position": 10
+            },
+            {
+              "position": 8,
+              "lane": "road_4_1_2_0",
+              "road": "road_4_1_2",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_4_1_2_2",
+              "sumo_position": 11
+            },
+            {
+              "position": 9,
+              "lane": "road_3_2_3_0",
+              "road": "road_3_2_3",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_3_2_3_2",
+              "sumo_position": 8
+            },
+            {
+              "position": 10,
+              "lane": "road_3_2_3_2",
+              "road": "road_3_2_3",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_3_2_3_0",
+              "sumo_position": 6
+            },
+            {
+              "position": 11,
+              "lane": "road_3_2_3_1",
+              "road": "road_3_2_3",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_3_2_3_1",
+              "sumo_position": 7
+            }
+          ],
+          "cityflow_num_phases": 9,
+          "sumo_num_phases": 16,
+          "n_green_actions": 9,
+          "canonical_state_width": 33,
+          "sumo_state_width": 40,
+          "n_lanes_denoting_a_different_physical_lane": 8
+        },
+        "intersection_3_2": {
+          "canonical_order": [
+            {
+              "position": 0,
+              "lane": "road_2_2_0_1",
+              "road": "road_2_2_0",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_2_2_0_1",
+              "sumo_position": 1
+            },
+            {
+              "position": 1,
+              "lane": "road_2_2_0_0",
+              "road": "road_2_2_0",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_2_2_0_2",
+              "sumo_position": 2
+            },
+            {
+              "position": 2,
+              "lane": "road_2_2_0_2",
+              "road": "road_2_2_0",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_2_2_0_0",
+              "sumo_position": 0
+            },
+            {
+              "position": 3,
+              "lane": "road_3_1_1_2",
+              "road": "road_3_1_1",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_3_1_1_0",
+              "sumo_position": 3
+            },
+            {
+              "position": 4,
+              "lane": "road_3_1_1_1",
+              "road": "road_3_1_1",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_3_1_1_1",
+              "sumo_position": 4
+            },
+            {
+              "position": 5,
+              "lane": "road_3_1_1_0",
+              "road": "road_3_1_1",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_3_1_1_2",
+              "sumo_position": 5
+            },
+            {
+              "position": 6,
+              "lane": "road_4_2_2_2",
+              "road": "road_4_2_2",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_4_2_2_0",
+              "sumo_position": 9
+            },
+            {
+              "position": 7,
+              "lane": "road_4_2_2_1",
+              "road": "road_4_2_2",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_4_2_2_1",
+              "sumo_position": 10
+            },
+            {
+              "position": 8,
+              "lane": "road_4_2_2_0",
+              "road": "road_4_2_2",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_4_2_2_2",
+              "sumo_position": 11
+            },
+            {
+              "position": 9,
+              "lane": "road_3_3_3_0",
+              "road": "road_3_3_3",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_3_3_3_2",
+              "sumo_position": 8
+            },
+            {
+              "position": 10,
+              "lane": "road_3_3_3_2",
+              "road": "road_3_3_3",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_3_3_3_0",
+              "sumo_position": 6
+            },
+            {
+              "position": 11,
+              "lane": "road_3_3_3_1",
+              "road": "road_3_3_3",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_3_3_3_1",
+              "sumo_position": 7
+            }
+          ],
+          "cityflow_num_phases": 9,
+          "sumo_num_phases": 16,
+          "n_green_actions": 9,
+          "canonical_state_width": 33,
+          "sumo_state_width": 40,
+          "n_lanes_denoting_a_different_physical_lane": 8
+        },
+        "intersection_3_3": {
+          "canonical_order": [
+            {
+              "position": 0,
+              "lane": "road_2_3_0_1",
+              "road": "road_2_3_0",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_2_3_0_1",
+              "sumo_position": 1
+            },
+            {
+              "position": 1,
+              "lane": "road_2_3_0_0",
+              "road": "road_2_3_0",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_2_3_0_2",
+              "sumo_position": 2
+            },
+            {
+              "position": 2,
+              "lane": "road_2_3_0_2",
+              "road": "road_2_3_0",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_2_3_0_0",
+              "sumo_position": 0
+            },
+            {
+              "position": 3,
+              "lane": "road_3_2_1_2",
+              "road": "road_3_2_1",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_3_2_1_0",
+              "sumo_position": 3
+            },
+            {
+              "position": 4,
+              "lane": "road_3_2_1_1",
+              "road": "road_3_2_1",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_3_2_1_1",
+              "sumo_position": 4
+            },
+            {
+              "position": 5,
+              "lane": "road_3_2_1_0",
+              "road": "road_3_2_1",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_3_2_1_2",
+              "sumo_position": 5
+            },
+            {
+              "position": 6,
+              "lane": "road_4_3_2_2",
+              "road": "road_4_3_2",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_4_3_2_0",
+              "sumo_position": 9
+            },
+            {
+              "position": 7,
+              "lane": "road_4_3_2_1",
+              "road": "road_4_3_2",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_4_3_2_1",
+              "sumo_position": 10
+            },
+            {
+              "position": 8,
+              "lane": "road_4_3_2_0",
+              "road": "road_4_3_2",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_4_3_2_2",
+              "sumo_position": 11
+            },
+            {
+              "position": 9,
+              "lane": "road_3_4_3_0",
+              "road": "road_3_4_3",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_3_4_3_2",
+              "sumo_position": 8
+            },
+            {
+              "position": 10,
+              "lane": "road_3_4_3_2",
+              "road": "road_3_4_3",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_3_4_3_0",
+              "sumo_position": 6
+            },
+            {
+              "position": 11,
+              "lane": "road_3_4_3_1",
+              "road": "road_3_4_3",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_3_4_3_1",
+              "sumo_position": 7
+            }
+          ],
+          "cityflow_num_phases": 9,
+          "sumo_num_phases": 16,
+          "n_green_actions": 9,
+          "canonical_state_width": 33,
+          "sumo_state_width": 40,
+          "n_lanes_denoting_a_different_physical_lane": 8
+        },
+        "intersection_3_4": {
+          "canonical_order": [
+            {
+              "position": 0,
+              "lane": "road_2_4_0_1",
+              "road": "road_2_4_0",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_2_4_0_1",
+              "sumo_position": 1
+            },
+            {
+              "position": 1,
+              "lane": "road_2_4_0_0",
+              "road": "road_2_4_0",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_2_4_0_2",
+              "sumo_position": 2
+            },
+            {
+              "position": 2,
+              "lane": "road_2_4_0_2",
+              "road": "road_2_4_0",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_2_4_0_0",
+              "sumo_position": 0
+            },
+            {
+              "position": 3,
+              "lane": "road_3_3_1_2",
+              "road": "road_3_3_1",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_3_3_1_0",
+              "sumo_position": 3
+            },
+            {
+              "position": 4,
+              "lane": "road_3_3_1_1",
+              "road": "road_3_3_1",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_3_3_1_1",
+              "sumo_position": 4
+            },
+            {
+              "position": 5,
+              "lane": "road_3_3_1_0",
+              "road": "road_3_3_1",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_3_3_1_2",
+              "sumo_position": 5
+            },
+            {
+              "position": 6,
+              "lane": "road_4_4_2_2",
+              "road": "road_4_4_2",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_4_4_2_0",
+              "sumo_position": 9
+            },
+            {
+              "position": 7,
+              "lane": "road_4_4_2_1",
+              "road": "road_4_4_2",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_4_4_2_1",
+              "sumo_position": 10
+            },
+            {
+              "position": 8,
+              "lane": "road_4_4_2_0",
+              "road": "road_4_4_2",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_4_4_2_2",
+              "sumo_position": 11
+            },
+            {
+              "position": 9,
+              "lane": "road_3_5_3_0",
+              "road": "road_3_5_3",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_3_5_3_2",
+              "sumo_position": 8
+            },
+            {
+              "position": 10,
+              "lane": "road_3_5_3_2",
+              "road": "road_3_5_3",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_3_5_3_0",
+              "sumo_position": 6
+            },
+            {
+              "position": 11,
+              "lane": "road_3_5_3_1",
+              "road": "road_3_5_3",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_3_5_3_1",
+              "sumo_position": 7
+            }
+          ],
+          "cityflow_num_phases": 9,
+          "sumo_num_phases": 16,
+          "n_green_actions": 9,
+          "canonical_state_width": 33,
+          "sumo_state_width": 40,
+          "n_lanes_denoting_a_different_physical_lane": 8
+        },
+        "intersection_4_1": {
+          "canonical_order": [
+            {
+              "position": 0,
+              "lane": "road_3_1_0_1",
+              "road": "road_3_1_0",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_3_1_0_1",
+              "sumo_position": 1
+            },
+            {
+              "position": 1,
+              "lane": "road_3_1_0_0",
+              "road": "road_3_1_0",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_3_1_0_2",
+              "sumo_position": 2
+            },
+            {
+              "position": 2,
+              "lane": "road_3_1_0_2",
+              "road": "road_3_1_0",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_3_1_0_0",
+              "sumo_position": 0
+            },
+            {
+              "position": 3,
+              "lane": "road_4_0_1_2",
+              "road": "road_4_0_1",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_4_0_1_0",
+              "sumo_position": 3
+            },
+            {
+              "position": 4,
+              "lane": "road_4_0_1_1",
+              "road": "road_4_0_1",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_4_0_1_1",
+              "sumo_position": 4
+            },
+            {
+              "position": 5,
+              "lane": "road_4_0_1_0",
+              "road": "road_4_0_1",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_4_0_1_2",
+              "sumo_position": 5
+            },
+            {
+              "position": 6,
+              "lane": "road_5_1_2_2",
+              "road": "road_5_1_2",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_5_1_2_0",
+              "sumo_position": 9
+            },
+            {
+              "position": 7,
+              "lane": "road_5_1_2_1",
+              "road": "road_5_1_2",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_5_1_2_1",
+              "sumo_position": 10
+            },
+            {
+              "position": 8,
+              "lane": "road_5_1_2_0",
+              "road": "road_5_1_2",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_5_1_2_2",
+              "sumo_position": 11
+            },
+            {
+              "position": 9,
+              "lane": "road_4_2_3_0",
+              "road": "road_4_2_3",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_4_2_3_2",
+              "sumo_position": 8
+            },
+            {
+              "position": 10,
+              "lane": "road_4_2_3_2",
+              "road": "road_4_2_3",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_4_2_3_0",
+              "sumo_position": 6
+            },
+            {
+              "position": 11,
+              "lane": "road_4_2_3_1",
+              "road": "road_4_2_3",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_4_2_3_1",
+              "sumo_position": 7
+            }
+          ],
+          "cityflow_num_phases": 9,
+          "sumo_num_phases": 16,
+          "n_green_actions": 9,
+          "canonical_state_width": 33,
+          "sumo_state_width": 40,
+          "n_lanes_denoting_a_different_physical_lane": 8
+        },
+        "intersection_4_2": {
+          "canonical_order": [
+            {
+              "position": 0,
+              "lane": "road_3_2_0_1",
+              "road": "road_3_2_0",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_3_2_0_1",
+              "sumo_position": 1
+            },
+            {
+              "position": 1,
+              "lane": "road_3_2_0_0",
+              "road": "road_3_2_0",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_3_2_0_2",
+              "sumo_position": 2
+            },
+            {
+              "position": 2,
+              "lane": "road_3_2_0_2",
+              "road": "road_3_2_0",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_3_2_0_0",
+              "sumo_position": 0
+            },
+            {
+              "position": 3,
+              "lane": "road_4_1_1_2",
+              "road": "road_4_1_1",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_4_1_1_0",
+              "sumo_position": 3
+            },
+            {
+              "position": 4,
+              "lane": "road_4_1_1_1",
+              "road": "road_4_1_1",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_4_1_1_1",
+              "sumo_position": 4
+            },
+            {
+              "position": 5,
+              "lane": "road_4_1_1_0",
+              "road": "road_4_1_1",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_4_1_1_2",
+              "sumo_position": 5
+            },
+            {
+              "position": 6,
+              "lane": "road_5_2_2_2",
+              "road": "road_5_2_2",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_5_2_2_0",
+              "sumo_position": 9
+            },
+            {
+              "position": 7,
+              "lane": "road_5_2_2_1",
+              "road": "road_5_2_2",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_5_2_2_1",
+              "sumo_position": 10
+            },
+            {
+              "position": 8,
+              "lane": "road_5_2_2_0",
+              "road": "road_5_2_2",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_5_2_2_2",
+              "sumo_position": 11
+            },
+            {
+              "position": 9,
+              "lane": "road_4_3_3_0",
+              "road": "road_4_3_3",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_4_3_3_2",
+              "sumo_position": 8
+            },
+            {
+              "position": 10,
+              "lane": "road_4_3_3_2",
+              "road": "road_4_3_3",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_4_3_3_0",
+              "sumo_position": 6
+            },
+            {
+              "position": 11,
+              "lane": "road_4_3_3_1",
+              "road": "road_4_3_3",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_4_3_3_1",
+              "sumo_position": 7
+            }
+          ],
+          "cityflow_num_phases": 9,
+          "sumo_num_phases": 16,
+          "n_green_actions": 9,
+          "canonical_state_width": 33,
+          "sumo_state_width": 40,
+          "n_lanes_denoting_a_different_physical_lane": 8
+        },
+        "intersection_4_3": {
+          "canonical_order": [
+            {
+              "position": 0,
+              "lane": "road_3_3_0_1",
+              "road": "road_3_3_0",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_3_3_0_1",
+              "sumo_position": 1
+            },
+            {
+              "position": 1,
+              "lane": "road_3_3_0_0",
+              "road": "road_3_3_0",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_3_3_0_2",
+              "sumo_position": 2
+            },
+            {
+              "position": 2,
+              "lane": "road_3_3_0_2",
+              "road": "road_3_3_0",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_3_3_0_0",
+              "sumo_position": 0
+            },
+            {
+              "position": 3,
+              "lane": "road_4_2_1_2",
+              "road": "road_4_2_1",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_4_2_1_0",
+              "sumo_position": 3
+            },
+            {
+              "position": 4,
+              "lane": "road_4_2_1_1",
+              "road": "road_4_2_1",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_4_2_1_1",
+              "sumo_position": 4
+            },
+            {
+              "position": 5,
+              "lane": "road_4_2_1_0",
+              "road": "road_4_2_1",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_4_2_1_2",
+              "sumo_position": 5
+            },
+            {
+              "position": 6,
+              "lane": "road_5_3_2_2",
+              "road": "road_5_3_2",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_5_3_2_0",
+              "sumo_position": 9
+            },
+            {
+              "position": 7,
+              "lane": "road_5_3_2_1",
+              "road": "road_5_3_2",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_5_3_2_1",
+              "sumo_position": 10
+            },
+            {
+              "position": 8,
+              "lane": "road_5_3_2_0",
+              "road": "road_5_3_2",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_5_3_2_2",
+              "sumo_position": 11
+            },
+            {
+              "position": 9,
+              "lane": "road_4_4_3_0",
+              "road": "road_4_4_3",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_4_4_3_2",
+              "sumo_position": 8
+            },
+            {
+              "position": 10,
+              "lane": "road_4_4_3_2",
+              "road": "road_4_4_3",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_4_4_3_0",
+              "sumo_position": 6
+            },
+            {
+              "position": 11,
+              "lane": "road_4_4_3_1",
+              "road": "road_4_4_3",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_4_4_3_1",
+              "sumo_position": 7
+            }
+          ],
+          "cityflow_num_phases": 9,
+          "sumo_num_phases": 16,
+          "n_green_actions": 9,
+          "canonical_state_width": 33,
+          "sumo_state_width": 40,
+          "n_lanes_denoting_a_different_physical_lane": 8
+        },
+        "intersection_4_4": {
+          "canonical_order": [
+            {
+              "position": 0,
+              "lane": "road_3_4_0_1",
+              "road": "road_3_4_0",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_3_4_0_1",
+              "sumo_position": 1
+            },
+            {
+              "position": 1,
+              "lane": "road_3_4_0_0",
+              "road": "road_3_4_0",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_3_4_0_2",
+              "sumo_position": 2
+            },
+            {
+              "position": 2,
+              "lane": "road_3_4_0_2",
+              "road": "road_3_4_0",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_3_4_0_0",
+              "sumo_position": 0
+            },
+            {
+              "position": 3,
+              "lane": "road_4_3_1_2",
+              "road": "road_4_3_1",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_4_3_1_0",
+              "sumo_position": 3
+            },
+            {
+              "position": 4,
+              "lane": "road_4_3_1_1",
+              "road": "road_4_3_1",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_4_3_1_1",
+              "sumo_position": 4
+            },
+            {
+              "position": 5,
+              "lane": "road_4_3_1_0",
+              "road": "road_4_3_1",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_4_3_1_2",
+              "sumo_position": 5
+            },
+            {
+              "position": 6,
+              "lane": "road_5_4_2_2",
+              "road": "road_5_4_2",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_5_4_2_0",
+              "sumo_position": 9
+            },
+            {
+              "position": 7,
+              "lane": "road_5_4_2_1",
+              "road": "road_5_4_2",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_5_4_2_1",
+              "sumo_position": 10
+            },
+            {
+              "position": 8,
+              "lane": "road_5_4_2_0",
+              "road": "road_5_4_2",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_5_4_2_2",
+              "sumo_position": 11
+            },
+            {
+              "position": 9,
+              "lane": "road_4_5_3_0",
+              "road": "road_4_5_3",
+              "lane_index": 0,
+              "movements": [
+                "l"
+              ],
+              "sumo_lane": "road_4_5_3_2",
+              "sumo_position": 8
+            },
+            {
+              "position": 10,
+              "lane": "road_4_5_3_2",
+              "road": "road_4_5_3",
+              "lane_index": 2,
+              "movements": [
+                "r"
+              ],
+              "sumo_lane": "road_4_5_3_0",
+              "sumo_position": 6
+            },
+            {
+              "position": 11,
+              "lane": "road_4_5_3_1",
+              "road": "road_4_5_3",
+              "lane_index": 1,
+              "movements": [
+                "s"
+              ],
+              "sumo_lane": "road_4_5_3_1",
+              "sumo_position": 7
+            }
+          ],
+          "cityflow_num_phases": 9,
+          "sumo_num_phases": 16,
+          "n_green_actions": 9,
+          "canonical_state_width": 33,
+          "sumo_state_width": 40,
+          "n_lanes_denoting_a_different_physical_lane": 8
+        }
+      }
+    }
+  }
+}

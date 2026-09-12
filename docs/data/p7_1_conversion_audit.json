@@ -1,0 +1,1254 @@
+{
+  "format_version": "p7.1-conversion-audit/1.0",
+  "task": "P7.1",
+  "registered_in": "PREREGISTRATION A14 / PROJECT_PLAN section 6 P11.5 (CAP, criteria A-H)",
+  "role": "the structural audit that replaces the withdrawn 'natively authored' claim: what each documented conversion preserved and what it changed, from files alone",
+  "what_this_does_not_say": [
+    "It issues NO admissibility verdict: A14 makes CAP the rule and the coordinator applies it.",
+    "(G) -- the P7.0 protocol, rho, the OVL/KS table and half A's decomposition -- is CROSS-REFERENCED from docs/data/p7_0_gate.json and docs/data/p7_1_metric_freeze.json, never recomputed here.",
+    "No pair in this repo is natively authored in both backends; every row names its conversion direction.",
+    "Nothing here was simulated, and no file outside the repo was copied into it."
+  ],
+  "criteria": {
+    "A": "bijection of intersections and roads, lane counts",
+    "B": "junction coordinates, per-lane length and speed",
+    "C": "connection sets, extras enumerated",
+    "D": "signals as SumoEnv consumes them",
+    "E": "demand per vehicle",
+    "F": "provenance from the network header",
+    "G": "cross-referenced, never recomputed here"
+  },
+  "n_pairs": 3,
+  "pairs": [
+    {
+      "pair": "hangzhou_1x1_bc-tyc",
+      "direction": "CityFlow -> SUMO (LibSignal c2s toolchain, netconvert 1.13.0)",
+      "cityflow_roadnet": "scenarios/hangzhou_1x1_bc-tyc_18041610_1h/roadnet.json",
+      "sumo_net": "scenarios/hangzhou_1x1_bc-tyc_18041610_1h/hangzhou_1x1_bc-tyc_18041610_1h.net.xml",
+      "A_bijection": {
+        "n_cityflow_intersections_non_virtual": 1,
+        "n_sumo_traffic_lights": 1,
+        "intersection_ids_equal": true,
+        "n_cityflow_roads": 8,
+        "n_sumo_normal_edges": 8,
+        "road_ids_equal": true,
+        "n_roads_with_equal_lane_counts": 8,
+        "n_shared_road_ids": 8,
+        "n_cityflow_lanes": 16,
+        "n_sumo_lanes": 16,
+        "virtual_key_used": "virtual",
+        "n_intersection_entries_in_file": 5
+      },
+      "B_geometry": {
+        "net_offset": [
+          300.0,
+          300.0
+        ],
+        "proj_parameter": "!",
+        "n_junctions_compared": 5,
+        "max_abs_coordinate_residual": 0.0,
+        "cityflow_lane_speeds": {
+          "11.11": 16
+        },
+        "sumo_lane_speeds": {
+          "11.11": 16
+        },
+        "lane_speeds_equal": true,
+        "sumo_lane_length_min": 289.6,
+        "sumo_lane_length_max": 289.6
+      },
+      "C_connections": {
+        "all_connections": {
+          "l": 16,
+          "s": 16,
+          "t": 8
+        },
+        "from_non_internal_edges": {
+          "l": 8,
+          "s": 8,
+          "t": 4
+        },
+        "n_signal_controlled": 16,
+        "extra_directions": {
+          "t": 4
+        }
+      },
+      "D_signals": {
+        "per_intersection": {
+          "intersection_1_1": {
+            "link_index_permutation": [
+              7,
+              6,
+              4,
+              5,
+              2,
+              3,
+              0,
+              1
+            ],
+            "n_phases_matching_under_the_identity_permutation": 1,
+            "permutation_is_identity": false,
+            "n_cityflow_phases": 9,
+            "n_sumo_phases": 16,
+            "n_phases_matching_as_sets": 9,
+            "n_phases_compared": 9,
+            "n_cityflow_phase_lists_stored_unsorted": 0,
+            "clearance_characters": [
+              "r"
+            ]
+          }
+        },
+        "n_intersections": 1,
+        "n_phases_matching_as_sets": 9,
+        "n_phases_compared": 9,
+        "n_phases_matching_under_the_identity_permutation": 1,
+        "n_cityflow_phase_lists_stored_unsorted": 0,
+        "n_fully_matching": 1,
+        "how_the_env_uses_them": "SumoEnv renders transitions ITSELF via setRedYellowGreenState from phase_states[phase] (envs/sumo_env.py:252-278) with the recipe ('yellow', 3), ('all_red', 2), while CityFlow uses ('all_red', 5) (envs/phase_control.py:25). So the converter's clearance DURATIONS are inert -- the env never plays them -- and its clearance STATES are only the base string the env recolours. The phase COUNTS still matter, because phase_onehot is num_phases wide."
+      },
+      "E_demand": {
+        "compared": true,
+        "cityflow_flow": "scenarios/hangzhou_1x1_bc-tyc_18041610_1h/flow.json",
+        "sumo_routes": "scenarios/hangzhou_1x1_bc-tyc_18041610_1h/hangzhou_1x1_bc-tyc_18041610_1h.rou.xml",
+        "n_cityflow": 2021,
+        "n_sumo": 2021,
+        "counts_equal": true,
+        "multiset_equal": true,
+        "n_index_aligned_equal": 2021,
+        "order_matches": true,
+        "n_only_in_cityflow": 0,
+        "n_only_in_sumo": 0,
+        "depart_range_cityflow": [
+          0.0,
+          3599.0
+        ],
+        "depart_range_sumo": [
+          0.0,
+          3599.0
+        ]
+      },
+      "F_provenance": {
+        "file": "scenarios/hangzhou_1x1_bc-tyc_18041610_1h/hangzhou_1x1_bc-tyc_18041610_1h.net.xml",
+        "sha256": "679acffab386f0fa87aa40ae904f0744e31c1db1be964f381cbacc5a350b3d9f",
+        "tool": "netconvert",
+        "version": "1.13.0",
+        "generated_on": "2022-10-19 18:38:30",
+        "records_its_inputs": true,
+        "recorded_inputs": {
+          "node-files": "/home/lxl/LibSignal/main_cp/LibSignal/data/raw_data/hangzhou_1x1_bc-tyc_18041610_1h/hangzhou_1x1_bc-tyc_18041610_1h.nod.xml",
+          "edge-files": "/home/lxl/LibSignal/main_cp/LibSignal/data/raw_data/hangzhou_1x1_bc-tyc_18041610_1h/hangzhou_1x1_bc-tyc_18041610_1h.edg.xml",
+          "connection-files": "/home/lxl/LibSignal/main_cp/LibSignal/data/raw_data/hangzhou_1x1_bc-tyc_18041610_1h/hangzhou_1x1_bc-tyc_18041610_1h.con.xml",
+          "tllogic-files": "/home/lxl/LibSignal/main_cp/LibSignal/data/raw_data/hangzhou_1x1_bc-tyc_18041610_1h/hangzhou_1x1_bc-tyc_18041610_1h.tll.xml"
+        }
+      },
+      "notes": [
+        "The parity route file binds cf_parity (tau=2.0) to 2021/2021 vehicles; the SHIPPED route file defines pkw and binds it to 0 of 2021, so SUMO would use DEFAULT_VEHTYPE.",
+        "This net has NO right turns: 0 connections with dir='r'. Its 4 dir='t' turnarounds are at the perimeter junctions and carry no linkIndex and no tl, so they are not signalled.",
+        "(G) is cross-referenced from docs/data/p7_1_metric_freeze.json and p7_0_gate.json."
+      ]
+    },
+    {
+      "pair": "hangzhou_4x4_gudang",
+      "direction": "CityFlow -> SUMO (LibSignal c2s toolchain, netconvert 1.13.0)",
+      "cityflow_roadnet": "scenarios/hangzhou_4x4_gudang_18041610_1h/roadnet_4X4.json",
+      "sumo_net": "scenarios/hangzhou_4x4_gudang_18041610_1h/hangzhou_4x4_gudang_18041610_1h.net.xml",
+      "A_bijection": {
+        "n_cityflow_intersections_non_virtual": 16,
+        "n_sumo_traffic_lights": 16,
+        "intersection_ids_equal": true,
+        "n_cityflow_roads": 80,
+        "n_sumo_normal_edges": 80,
+        "road_ids_equal": true,
+        "n_roads_with_equal_lane_counts": 80,
+        "n_shared_road_ids": 80,
+        "n_cityflow_lanes": 240,
+        "n_sumo_lanes": 240,
+        "virtual_key_used": "virtual",
+        "n_intersection_entries_in_file": 32
+      },
+      "B_geometry": {
+        "net_offset": [
+          800.0,
+          600.0
+        ],
+        "proj_parameter": "!",
+        "n_junctions_compared": 32,
+        "max_abs_coordinate_residual": 0.0,
+        "cityflow_lane_speeds": {
+          "11.111": 240
+        },
+        "sumo_lane_speeds": {
+          "11.11": 240
+        },
+        "lane_speeds_equal": false,
+        "sumo_lane_length_min": 572.8,
+        "sumo_lane_length_max": 786.4
+      },
+      "C_connections": {
+        "all_connections": {
+          "l": 384,
+          "r": 384,
+          "s": 384,
+          "t": 32
+        },
+        "from_non_internal_edges": {
+          "l": 192,
+          "r": 192,
+          "s": 192,
+          "t": 16
+        },
+        "n_signal_controlled": 576,
+        "extra_directions": {
+          "t": 16
+        }
+      },
+      "D_signals": {
+        "per_intersection": {
+          "intersection_1_1": {
+            "link_index_permutation": [
+              10,
+              11,
+              9,
+              6,
+              7,
+              8,
+              3,
+              4,
+              5,
+              2,
+              0,
+              1
+            ],
+            "n_phases_matching_under_the_identity_permutation": 0,
+            "permutation_is_identity": false,
+            "n_cityflow_phases": 9,
+            "n_sumo_phases": 16,
+            "n_phases_matching_as_sets": 9,
+            "n_phases_compared": 9,
+            "n_cityflow_phase_lists_stored_unsorted": 1,
+            "clearance_characters": [
+              "r",
+              "s"
+            ]
+          },
+          "intersection_1_2": {
+            "link_index_permutation": [
+              10,
+              11,
+              9,
+              6,
+              7,
+              8,
+              3,
+              4,
+              5,
+              2,
+              0,
+              1
+            ],
+            "n_phases_matching_under_the_identity_permutation": 0,
+            "permutation_is_identity": false,
+            "n_cityflow_phases": 9,
+            "n_sumo_phases": 16,
+            "n_phases_matching_as_sets": 9,
+            "n_phases_compared": 9,
+            "n_cityflow_phase_lists_stored_unsorted": 1,
+            "clearance_characters": [
+              "r",
+              "s"
+            ]
+          },
+          "intersection_1_3": {
+            "link_index_permutation": [
+              10,
+              11,
+              9,
+              6,
+              7,
+              8,
+              3,
+              4,
+              5,
+              2,
+              0,
+              1
+            ],
+            "n_phases_matching_under_the_identity_permutation": 0,
+            "permutation_is_identity": false,
+            "n_cityflow_phases": 9,
+            "n_sumo_phases": 16,
+            "n_phases_matching_as_sets": 9,
+            "n_phases_compared": 9,
+            "n_cityflow_phase_lists_stored_unsorted": 1,
+            "clearance_characters": [
+              "r",
+              "s"
+            ]
+          },
+          "intersection_1_4": {
+            "link_index_permutation": [
+              10,
+              11,
+              9,
+              6,
+              7,
+              8,
+              3,
+              4,
+              5,
+              2,
+              0,
+              1
+            ],
+            "n_phases_matching_under_the_identity_permutation": 0,
+            "permutation_is_identity": false,
+            "n_cityflow_phases": 9,
+            "n_sumo_phases": 16,
+            "n_phases_matching_as_sets": 9,
+            "n_phases_compared": 9,
+            "n_cityflow_phase_lists_stored_unsorted": 1,
+            "clearance_characters": [
+              "r",
+              "s"
+            ]
+          },
+          "intersection_2_1": {
+            "link_index_permutation": [
+              10,
+              11,
+              9,
+              6,
+              7,
+              8,
+              3,
+              4,
+              5,
+              2,
+              0,
+              1
+            ],
+            "n_phases_matching_under_the_identity_permutation": 0,
+            "permutation_is_identity": false,
+            "n_cityflow_phases": 9,
+            "n_sumo_phases": 16,
+            "n_phases_matching_as_sets": 9,
+            "n_phases_compared": 9,
+            "n_cityflow_phase_lists_stored_unsorted": 1,
+            "clearance_characters": [
+              "r",
+              "s"
+            ]
+          },
+          "intersection_2_2": {
+            "link_index_permutation": [
+              10,
+              11,
+              9,
+              6,
+              7,
+              8,
+              3,
+              4,
+              5,
+              2,
+              0,
+              1
+            ],
+            "n_phases_matching_under_the_identity_permutation": 0,
+            "permutation_is_identity": false,
+            "n_cityflow_phases": 9,
+            "n_sumo_phases": 16,
+            "n_phases_matching_as_sets": 9,
+            "n_phases_compared": 9,
+            "n_cityflow_phase_lists_stored_unsorted": 1,
+            "clearance_characters": [
+              "r",
+              "s"
+            ]
+          },
+          "intersection_2_3": {
+            "link_index_permutation": [
+              10,
+              11,
+              9,
+              6,
+              7,
+              8,
+              3,
+              4,
+              5,
+              2,
+              0,
+              1
+            ],
+            "n_phases_matching_under_the_identity_permutation": 0,
+            "permutation_is_identity": false,
+            "n_cityflow_phases": 9,
+            "n_sumo_phases": 16,
+            "n_phases_matching_as_sets": 9,
+            "n_phases_compared": 9,
+            "n_cityflow_phase_lists_stored_unsorted": 1,
+            "clearance_characters": [
+              "r",
+              "s"
+            ]
+          },
+          "intersection_2_4": {
+            "link_index_permutation": [
+              10,
+              11,
+              9,
+              6,
+              7,
+              8,
+              3,
+              4,
+              5,
+              2,
+              0,
+              1
+            ],
+            "n_phases_matching_under_the_identity_permutation": 0,
+            "permutation_is_identity": false,
+            "n_cityflow_phases": 9,
+            "n_sumo_phases": 16,
+            "n_phases_matching_as_sets": 9,
+            "n_phases_compared": 9,
+            "n_cityflow_phase_lists_stored_unsorted": 1,
+            "clearance_characters": [
+              "r",
+              "s"
+            ]
+          },
+          "intersection_3_1": {
+            "link_index_permutation": [
+              10,
+              11,
+              9,
+              6,
+              7,
+              8,
+              3,
+              4,
+              5,
+              2,
+              0,
+              1
+            ],
+            "n_phases_matching_under_the_identity_permutation": 0,
+            "permutation_is_identity": false,
+            "n_cityflow_phases": 9,
+            "n_sumo_phases": 16,
+            "n_phases_matching_as_sets": 9,
+            "n_phases_compared": 9,
+            "n_cityflow_phase_lists_stored_unsorted": 1,
+            "clearance_characters": [
+              "r",
+              "s"
+            ]
+          },
+          "intersection_3_2": {
+            "link_index_permutation": [
+              10,
+              11,
+              9,
+              6,
+              7,
+              8,
+              3,
+              4,
+              5,
+              2,
+              0,
+              1
+            ],
+            "n_phases_matching_under_the_identity_permutation": 0,
+            "permutation_is_identity": false,
+            "n_cityflow_phases": 9,
+            "n_sumo_phases": 16,
+            "n_phases_matching_as_sets": 9,
+            "n_phases_compared": 9,
+            "n_cityflow_phase_lists_stored_unsorted": 1,
+            "clearance_characters": [
+              "r",
+              "s"
+            ]
+          },
+          "intersection_3_3": {
+            "link_index_permutation": [
+              10,
+              11,
+              9,
+              6,
+              7,
+              8,
+              3,
+              4,
+              5,
+              2,
+              0,
+              1
+            ],
+            "n_phases_matching_under_the_identity_permutation": 0,
+            "permutation_is_identity": false,
+            "n_cityflow_phases": 9,
+            "n_sumo_phases": 16,
+            "n_phases_matching_as_sets": 9,
+            "n_phases_compared": 9,
+            "n_cityflow_phase_lists_stored_unsorted": 1,
+            "clearance_characters": [
+              "r",
+              "s"
+            ]
+          },
+          "intersection_3_4": {
+            "link_index_permutation": [
+              10,
+              11,
+              9,
+              6,
+              7,
+              8,
+              3,
+              4,
+              5,
+              2,
+              0,
+              1
+            ],
+            "n_phases_matching_under_the_identity_permutation": 0,
+            "permutation_is_identity": false,
+            "n_cityflow_phases": 9,
+            "n_sumo_phases": 16,
+            "n_phases_matching_as_sets": 9,
+            "n_phases_compared": 9,
+            "n_cityflow_phase_lists_stored_unsorted": 1,
+            "clearance_characters": [
+              "r",
+              "s"
+            ]
+          },
+          "intersection_4_1": {
+            "link_index_permutation": [
+              10,
+              11,
+              9,
+              6,
+              7,
+              8,
+              3,
+              4,
+              5,
+              2,
+              0,
+              1
+            ],
+            "n_phases_matching_under_the_identity_permutation": 0,
+            "permutation_is_identity": false,
+            "n_cityflow_phases": 9,
+            "n_sumo_phases": 16,
+            "n_phases_matching_as_sets": 9,
+            "n_phases_compared": 9,
+            "n_cityflow_phase_lists_stored_unsorted": 1,
+            "clearance_characters": [
+              "r",
+              "s"
+            ]
+          },
+          "intersection_4_2": {
+            "link_index_permutation": [
+              10,
+              11,
+              9,
+              6,
+              7,
+              8,
+              3,
+              4,
+              5,
+              2,
+              0,
+              1
+            ],
+            "n_phases_matching_under_the_identity_permutation": 0,
+            "permutation_is_identity": false,
+            "n_cityflow_phases": 9,
+            "n_sumo_phases": 16,
+            "n_phases_matching_as_sets": 9,
+            "n_phases_compared": 9,
+            "n_cityflow_phase_lists_stored_unsorted": 1,
+            "clearance_characters": [
+              "r",
+              "s"
+            ]
+          },
+          "intersection_4_3": {
+            "link_index_permutation": [
+              10,
+              11,
+              9,
+              6,
+              7,
+              8,
+              3,
+              4,
+              5,
+              2,
+              0,
+              1
+            ],
+            "n_phases_matching_under_the_identity_permutation": 0,
+            "permutation_is_identity": false,
+            "n_cityflow_phases": 9,
+            "n_sumo_phases": 16,
+            "n_phases_matching_as_sets": 9,
+            "n_phases_compared": 9,
+            "n_cityflow_phase_lists_stored_unsorted": 1,
+            "clearance_characters": [
+              "r",
+              "s"
+            ]
+          },
+          "intersection_4_4": {
+            "link_index_permutation": [
+              10,
+              11,
+              9,
+              6,
+              7,
+              8,
+              3,
+              4,
+              5,
+              2,
+              0,
+              1
+            ],
+            "n_phases_matching_under_the_identity_permutation": 0,
+            "permutation_is_identity": false,
+            "n_cityflow_phases": 9,
+            "n_sumo_phases": 16,
+            "n_phases_matching_as_sets": 9,
+            "n_phases_compared": 9,
+            "n_cityflow_phase_lists_stored_unsorted": 1,
+            "clearance_characters": [
+              "r",
+              "s"
+            ]
+          }
+        },
+        "n_intersections": 16,
+        "n_phases_matching_as_sets": 144,
+        "n_phases_compared": 144,
+        "n_phases_matching_under_the_identity_permutation": 0,
+        "n_cityflow_phase_lists_stored_unsorted": 16,
+        "n_fully_matching": 16,
+        "how_the_env_uses_them": "SumoEnv renders transitions ITSELF via setRedYellowGreenState from phase_states[phase] (envs/sumo_env.py:252-278) with the recipe ('yellow', 3), ('all_red', 2), while CityFlow uses ('all_red', 5) (envs/phase_control.py:25). So the converter's clearance DURATIONS are inert -- the env never plays them -- and its clearance STATES are only the base string the env recolours. The phase COUNTS still matter, because phase_onehot is num_phases wide."
+      },
+      "E_demand": {
+        "compared": true,
+        "cityflow_flow": "scenarios/hangzhou_4x4_gudang_18041610_1h/hangzhou_4x4_gudang_18041610_1h.json",
+        "sumo_routes": "scenarios/hangzhou_4x4_gudang_18041610_1h/hangzhou_4x4_gudang_18041610_1h.rou.xml",
+        "n_cityflow": 2983,
+        "n_sumo": 2983,
+        "counts_equal": true,
+        "multiset_equal": true,
+        "n_index_aligned_equal": 1,
+        "order_matches": false,
+        "n_only_in_cityflow": 0,
+        "n_only_in_sumo": 0,
+        "depart_range_cityflow": [
+          0.0,
+          3599.0
+        ],
+        "depart_range_sumo": [
+          0.0,
+          3599.0
+        ]
+      },
+      "F_provenance": {
+        "file": "scenarios/hangzhou_4x4_gudang_18041610_1h/hangzhou_4x4_gudang_18041610_1h.net.xml",
+        "sha256": "5a74ada65f5148d23347be3f1f3babdb0b90df2418cd1382e6023469aee25499",
+        "tool": "netconvert",
+        "version": "1.13.0",
+        "generated_on": "2022-10-19 18:28:37",
+        "records_its_inputs": true,
+        "recorded_inputs": {
+          "node-files": "/home/lxl/LibSignal/main_cp/LibSignal/data/raw_data/hangzhou_4x4_gudang_18041610_1h/hangzhou_4x4_gudang_18041610_1h.nod.xml",
+          "edge-files": "/home/lxl/LibSignal/main_cp/LibSignal/data/raw_data/hangzhou_4x4_gudang_18041610_1h/hangzhou_4x4_gudang_18041610_1h.edg.xml",
+          "connection-files": "/home/lxl/LibSignal/main_cp/LibSignal/data/raw_data/hangzhou_4x4_gudang_18041610_1h/hangzhou_4x4_gudang_18041610_1h.con.xml",
+          "tllogic-files": "/home/lxl/LibSignal/main_cp/LibSignal/data/raw_data/hangzhou_4x4_gudang_18041610_1h/hangzhou_4x4_gudang_18041610_1h.tll.xml"
+        }
+      },
+      "notes": [
+        "NO parity route file exists for this scenario: the shipped .rou.xml defines pkw and binds it to 0 of 2983 vehicles, so criterion E's vehicle-parameter half is NOT met and DEFERRED 75 owns it.",
+        "16 dir='t' turnaround connections from normal edges (32 counting internal segments).",
+        "Lane speed differs by the net's 2-decimal rounding: CityFlow 11.111, SUMO 11.11."
+      ]
+    },
+    {
+      "pair": "grid4x4",
+      "direction": "SUMO -> CityFlow (LibSignal s2c; the SUMO side is RESCO's, netedit 1.9.0)",
+      "cityflow_roadnet": "scenarios/grid4x4/grid4x4_roadnet_red.json",
+      "sumo_net": "/home/filip/rltraffic/scenarios/grid4x4_candidates/resco/resco_benchmark/environments/grid4x4/grid4x4.net.xml",
+      "A_bijection": {
+        "n_cityflow_intersections_non_virtual": 16,
+        "n_sumo_traffic_lights": 16,
+        "intersection_ids_equal": true,
+        "n_cityflow_roads": 80,
+        "n_sumo_normal_edges": 80,
+        "road_ids_equal": true,
+        "n_roads_with_equal_lane_counts": 80,
+        "n_shared_road_ids": 80,
+        "n_cityflow_lanes": 240,
+        "n_sumo_lanes": 240,
+        "virtual_key_used": "gt_virtual",
+        "n_intersection_entries_in_file": 32
+      },
+      "B_geometry": {
+        "net_offset": [
+          0.0,
+          0.0
+        ],
+        "proj_parameter": "!",
+        "n_junctions_compared": 32,
+        "max_abs_coordinate_residual": 0.0,
+        "cityflow_lane_speeds": {
+          "13.89": 240
+        },
+        "sumo_lane_speeds": {
+          "13.89": 240
+        },
+        "lane_speeds_equal": true,
+        "sumo_lane_length_min": 272.8,
+        "sumo_lane_length_max": 286.4
+      },
+      "C_connections": {
+        "all_connections": {
+          "l": 576,
+          "r": 384,
+          "s": 384
+        },
+        "from_non_internal_edges": {
+          "l": 192,
+          "r": 192,
+          "s": 192
+        },
+        "n_signal_controlled": 576,
+        "extra_directions": {}
+      },
+      "D_signals": {
+        "per_intersection": {
+          "A0": {
+            "link_index_permutation": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11
+            ],
+            "n_phases_matching_under_the_identity_permutation": 16,
+            "permutation_is_identity": true,
+            "n_cityflow_phases": 16,
+            "n_sumo_phases": 16,
+            "n_phases_matching_as_sets": 16,
+            "n_phases_compared": 16,
+            "n_cityflow_phase_lists_stored_unsorted": 4,
+            "clearance_characters": [
+              "G",
+              "r",
+              "s",
+              "y"
+            ]
+          },
+          "A1": {
+            "link_index_permutation": [
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              0,
+              1,
+              2,
+              9,
+              10,
+              11
+            ],
+            "n_phases_matching_under_the_identity_permutation": 3,
+            "permutation_is_identity": false,
+            "n_cityflow_phases": 16,
+            "n_sumo_phases": 16,
+            "n_phases_matching_as_sets": 16,
+            "n_phases_compared": 16,
+            "n_cityflow_phase_lists_stored_unsorted": 4,
+            "clearance_characters": [
+              "G",
+              "r",
+              "s",
+              "y"
+            ]
+          },
+          "A2": {
+            "link_index_permutation": [
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              0,
+              1,
+              2,
+              9,
+              10,
+              11
+            ],
+            "n_phases_matching_under_the_identity_permutation": 3,
+            "permutation_is_identity": false,
+            "n_cityflow_phases": 16,
+            "n_sumo_phases": 16,
+            "n_phases_matching_as_sets": 16,
+            "n_phases_compared": 16,
+            "n_cityflow_phase_lists_stored_unsorted": 4,
+            "clearance_characters": [
+              "G",
+              "r",
+              "s",
+              "y"
+            ]
+          },
+          "A3": {
+            "link_index_permutation": [
+              9,
+              10,
+              11,
+              3,
+              4,
+              5,
+              0,
+              1,
+              2,
+              6,
+              7,
+              8
+            ],
+            "n_phases_matching_under_the_identity_permutation": 2,
+            "permutation_is_identity": false,
+            "n_cityflow_phases": 16,
+            "n_sumo_phases": 16,
+            "n_phases_matching_as_sets": 16,
+            "n_phases_compared": 16,
+            "n_cityflow_phase_lists_stored_unsorted": 3,
+            "clearance_characters": [
+              "G",
+              "r",
+              "s",
+              "y"
+            ]
+          },
+          "B0": {
+            "link_index_permutation": [
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              0,
+              1,
+              2
+            ],
+            "n_phases_matching_under_the_identity_permutation": 0,
+            "permutation_is_identity": false,
+            "n_cityflow_phases": 16,
+            "n_sumo_phases": 16,
+            "n_phases_matching_as_sets": 16,
+            "n_phases_compared": 16,
+            "n_cityflow_phase_lists_stored_unsorted": 4,
+            "clearance_characters": [
+              "G",
+              "r",
+              "s",
+              "y"
+            ]
+          },
+          "B1": {
+            "link_index_permutation": [
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              3,
+              4,
+              5,
+              0,
+              1,
+              2
+            ],
+            "n_phases_matching_under_the_identity_permutation": 0,
+            "permutation_is_identity": false,
+            "n_cityflow_phases": 16,
+            "n_sumo_phases": 16,
+            "n_phases_matching_as_sets": 16,
+            "n_phases_compared": 16,
+            "n_cityflow_phase_lists_stored_unsorted": 3,
+            "clearance_characters": [
+              "G",
+              "r",
+              "s",
+              "y"
+            ]
+          },
+          "B2": {
+            "link_index_permutation": [
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              3,
+              4,
+              5,
+              0,
+              1,
+              2
+            ],
+            "n_phases_matching_under_the_identity_permutation": 0,
+            "permutation_is_identity": false,
+            "n_cityflow_phases": 16,
+            "n_sumo_phases": 16,
+            "n_phases_matching_as_sets": 16,
+            "n_phases_compared": 16,
+            "n_cityflow_phase_lists_stored_unsorted": 3,
+            "clearance_characters": [
+              "G",
+              "r",
+              "s",
+              "y"
+            ]
+          },
+          "B3": {
+            "link_index_permutation": [
+              9,
+              10,
+              11,
+              6,
+              7,
+              8,
+              3,
+              4,
+              5,
+              0,
+              1,
+              2
+            ],
+            "n_phases_matching_under_the_identity_permutation": 0,
+            "permutation_is_identity": false,
+            "n_cityflow_phases": 16,
+            "n_sumo_phases": 16,
+            "n_phases_matching_as_sets": 16,
+            "n_phases_compared": 16,
+            "n_cityflow_phase_lists_stored_unsorted": 4,
+            "clearance_characters": [
+              "G",
+              "r",
+              "s",
+              "y"
+            ]
+          },
+          "C0": {
+            "link_index_permutation": [
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              0,
+              1,
+              2
+            ],
+            "n_phases_matching_under_the_identity_permutation": 0,
+            "permutation_is_identity": false,
+            "n_cityflow_phases": 16,
+            "n_sumo_phases": 16,
+            "n_phases_matching_as_sets": 16,
+            "n_phases_compared": 16,
+            "n_cityflow_phase_lists_stored_unsorted": 4,
+            "clearance_characters": [
+              "G",
+              "r",
+              "s",
+              "y"
+            ]
+          },
+          "C1": {
+            "link_index_permutation": [
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              3,
+              4,
+              5,
+              0,
+              1,
+              2
+            ],
+            "n_phases_matching_under_the_identity_permutation": 0,
+            "permutation_is_identity": false,
+            "n_cityflow_phases": 16,
+            "n_sumo_phases": 16,
+            "n_phases_matching_as_sets": 16,
+            "n_phases_compared": 16,
+            "n_cityflow_phase_lists_stored_unsorted": 3,
+            "clearance_characters": [
+              "G",
+              "r",
+              "s",
+              "y"
+            ]
+          },
+          "C2": {
+            "link_index_permutation": [
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              3,
+              4,
+              5,
+              0,
+              1,
+              2
+            ],
+            "n_phases_matching_under_the_identity_permutation": 0,
+            "permutation_is_identity": false,
+            "n_cityflow_phases": 16,
+            "n_sumo_phases": 16,
+            "n_phases_matching_as_sets": 16,
+            "n_phases_compared": 16,
+            "n_cityflow_phase_lists_stored_unsorted": 3,
+            "clearance_characters": [
+              "G",
+              "r",
+              "s",
+              "y"
+            ]
+          },
+          "C3": {
+            "link_index_permutation": [
+              9,
+              10,
+              11,
+              6,
+              7,
+              8,
+              3,
+              4,
+              5,
+              0,
+              1,
+              2
+            ],
+            "n_phases_matching_under_the_identity_permutation": 0,
+            "permutation_is_identity": false,
+            "n_cityflow_phases": 16,
+            "n_sumo_phases": 16,
+            "n_phases_matching_as_sets": 16,
+            "n_phases_compared": 16,
+            "n_cityflow_phase_lists_stored_unsorted": 4,
+            "clearance_characters": [
+              "G",
+              "r",
+              "s",
+              "y"
+            ]
+          },
+          "D0": {
+            "link_index_permutation": [
+              3,
+              4,
+              5,
+              9,
+              10,
+              11,
+              6,
+              7,
+              8,
+              0,
+              1,
+              2
+            ],
+            "n_phases_matching_under_the_identity_permutation": 2,
+            "permutation_is_identity": false,
+            "n_cityflow_phases": 16,
+            "n_sumo_phases": 16,
+            "n_phases_matching_as_sets": 16,
+            "n_phases_compared": 16,
+            "n_cityflow_phase_lists_stored_unsorted": 3,
+            "clearance_characters": [
+              "G",
+              "r",
+              "s",
+              "y"
+            ]
+          },
+          "D1": {
+            "link_index_permutation": [
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              3,
+              4,
+              5,
+              0,
+              1,
+              2
+            ],
+            "n_phases_matching_under_the_identity_permutation": 0,
+            "permutation_is_identity": false,
+            "n_cityflow_phases": 16,
+            "n_sumo_phases": 16,
+            "n_phases_matching_as_sets": 16,
+            "n_phases_compared": 16,
+            "n_cityflow_phase_lists_stored_unsorted": 3,
+            "clearance_characters": [
+              "G",
+              "r",
+              "s",
+              "y"
+            ]
+          },
+          "D2": {
+            "link_index_permutation": [
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              3,
+              4,
+              5,
+              0,
+              1,
+              2
+            ],
+            "n_phases_matching_under_the_identity_permutation": 0,
+            "permutation_is_identity": false,
+            "n_cityflow_phases": 16,
+            "n_sumo_phases": 16,
+            "n_phases_matching_as_sets": 16,
+            "n_phases_compared": 16,
+            "n_cityflow_phase_lists_stored_unsorted": 3,
+            "clearance_characters": [
+              "G",
+              "r",
+              "s",
+              "y"
+            ]
+          },
+          "D3": {
+            "link_index_permutation": [
+              9,
+              10,
+              11,
+              6,
+              7,
+              8,
+              3,
+              4,
+              5,
+              0,
+              1,
+              2
+            ],
+            "n_phases_matching_under_the_identity_permutation": 0,
+            "permutation_is_identity": false,
+            "n_cityflow_phases": 16,
+            "n_sumo_phases": 16,
+            "n_phases_matching_as_sets": 16,
+            "n_phases_compared": 16,
+            "n_cityflow_phase_lists_stored_unsorted": 4,
+            "clearance_characters": [
+              "G",
+              "r",
+              "s",
+              "y"
+            ]
+          }
+        },
+        "n_intersections": 16,
+        "n_phases_matching_as_sets": 256,
+        "n_phases_compared": 256,
+        "n_phases_matching_under_the_identity_permutation": 26,
+        "n_cityflow_phase_lists_stored_unsorted": 56,
+        "n_fully_matching": 16,
+        "how_the_env_uses_them": "SumoEnv renders transitions ITSELF via setRedYellowGreenState from phase_states[phase] (envs/sumo_env.py:252-278) with the recipe ('yellow', 3), ('all_red', 2), while CityFlow uses ('all_red', 5) (envs/phase_control.py:25). So the converter's clearance DURATIONS are inert -- the env never plays them -- and its clearance STATES are only the base string the env recolours. The phase COUNTS still matter, because phase_onehot is num_phases wide."
+      },
+      "E_demand": {
+        "compared": true,
+        "cityflow_flow": "scenarios/grid4x4/grid4x4_flow.json",
+        "sumo_routes": "/home/filip/rltraffic/scenarios/grid4x4_candidates/resco/resco_benchmark/environments/grid4x4/grid4x4.zip::grid4x4_1.rou.xml",
+        "n_cityflow": 1473,
+        "n_sumo": 1473,
+        "counts_equal": true,
+        "multiset_equal": true,
+        "n_index_aligned_equal": 1473,
+        "order_matches": true,
+        "n_only_in_cityflow": 0,
+        "n_only_in_sumo": 0,
+        "depart_range_cityflow": [
+          0.0,
+          3494.0
+        ],
+        "depart_range_sumo": [
+          0.0,
+          3494.0
+        ]
+      },
+      "F_provenance": {
+        "file": "/home/filip/rltraffic/scenarios/grid4x4_candidates/resco/resco_benchmark/environments/grid4x4/grid4x4.net.xml",
+        "sha256": "8d192de462497c192ed51f0a147b7522626e706b411ceba6f16b083b13183b38",
+        "tool": "netedit",
+        "version": "1.9.0",
+        "generated_on": "5/23/2021 4:30:41 PM",
+        "records_its_inputs": false,
+        "recorded_inputs": {}
+      },
+      "notes": [
+        "Our scenarios/grid4x4/*.json are sha256-identical to LibSignal's data/raw_data/grid4x4/.",
+        "The demand is RESCO's grid4x4_1.rou.xml, seed 1 of the 1400 in grid4x4.zip, read in place with zipfile and never extracted; the tree is gitignored, read-only and CC BY-NC-SA 4.0.",
+        "The flow block caps maxSpeed at 13.39 while both nets' lanes are 13.89 -- the converter's cap, the same shape as cologne. A grid4x4 parity vType would be maxSpeed 13.39, tau 1.5, accel 2.6, decel 4.5, length 5.0, minGap 2.5, width 1.8, speedFactor 1.0; no parity FILE is built here (DEFERRED 75).",
+        "scenarios/grid4x4/grid4x4.sumocfg is dangling: both its inputs are missing, and it differs from RESCO's own cfg only in naming grid4x4.rou.xml instead of grid4x4_1.",
+        "No simulation on grid4x4 in this task: (G) is P7.3's."
+      ]
+    }
+  ]
+}
