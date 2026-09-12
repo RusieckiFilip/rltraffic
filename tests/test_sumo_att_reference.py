@@ -24,6 +24,8 @@ v1   1         3             4         9        insertion delay 2 s, completes
 v2   2         2             3         never    still running at the horizon
 v4   4         --            never     --       never inserted: in E's population alone
 v3   100       --            --        --       never due inside the horizon: no population
+v5   10        --            --        --       declared AT T: insertable only at T + dt, so in
+                                                no population either (the M3b guard)
 ===  ========  ============  ========  =======  ==========================================
 
     E = (5 + 8 + 8 + 6) / 4 = 27/4 = 6.75          population {v0, v1, v2, v4}, clock intended
@@ -92,7 +94,18 @@ def output_root() -> Path:
 # ----------------------------------------------------------------------
 
 
-SYNTHETIC_INTENDED = {"v0": 0.0, "v1": 1.0, "v2": 2.0, "v4": 4.0, "v3": 100.0}
+SYNTHETIC_INTENDED = {
+    "v0": 0.0,
+    "v1": 1.0,
+    "v2": 2.0,
+    "v4": 4.0,
+    "v3": 100.0,
+    # 🔒 v5 sits in (T - dt, T]: declared AT the horizon, so it could not be inserted before
+    # T + dt and belongs to NO population. It exists to kill the reviewer's M3b -- dropping the
+    # measured (S) offset from E_sumo's own population call, which the old stream could not see
+    # because no vehicle was declared in that window.
+    "v5": 10.0,
+}
 SYNTHETIC_HORIZON = 10.0
 
 
@@ -161,6 +174,52 @@ def _recorder() -> sar.SumoObservationRecorder:
     return sar.SumoObservationRecorder(
         delta_time=5.0, intended_departures=_intended(), step_length=SYNTHETIC_STEP
     )
+
+
+_SYNTHETIC_SCENARIO: dict[str, Path] = {}
+
+
+def _synthetic_sumocfg() -> Path:
+    """A real .sumocfg + .rou.xml whose demand IS the synthetic stream's E population.
+
+    The artifact checks E_sumo's denominator against an independent regex pass over the route file
+    the chunk names, so a synthetic chunk needs a real route file or the check cannot run. Making it
+    carry exactly the four vehicles of this module's hand-computed population (departs 0, 1, 2, 4,
+    all insertable by the horizon of 10) means the second route agrees with the hand computation
+    rather than merely being satisfied.
+    """
+    if "cfg" not in _SYNTHETIC_SCENARIO:
+        import tempfile
+
+        root = Path(tempfile.mkdtemp(prefix="p7_1_synthetic_"))
+        vehicles = "\n".join(
+            f'\t<vehicle depart="{depart}" id="{vid}"><route edges="a b"/></vehicle>'
+            for vid, depart in sorted(SYNTHETIC_INTENDED.items())
+            if depart + SYNTHETIC_STEP <= SYNTHETIC_HORIZON
+        )
+        (root / "synthetic.rou.xml").write_text(
+            f'<?xml version="1.0" encoding="utf-8"?>\n<routes>\n{vehicles}\n</routes>\n',
+            encoding="utf-8",
+        )
+        (root / "synthetic.sumocfg").write_text(
+            '<?xml version="1.0" encoding="utf-8"?>\n<configuration><input>'
+            '<net-file value="synthetic.net.xml"/>'
+            '<route-files value="synthetic.rou.xml"/>'
+            "</input></configuration>\n",
+            encoding="utf-8",
+        )
+        _SYNTHETIC_SCENARIO["cfg"] = root / "synthetic.sumocfg"
+    return _SYNTHETIC_SCENARIO["cfg"]
+
+
+def test_the_synthetic_route_file_carries_the_hand_computed_population() -> None:
+    """The fixture is only useful if its demand equals the population the docstring computes."""
+    count = sar.route_file_vehicle_count_due_by(
+        sar.route_files_of(_synthetic_sumocfg())[0], SYNTHETIC_HORIZON, step_length=SYNTHETIC_STEP
+    )
+
+    assert count == 4  # v0, v1, v2, v4 -- v3 and v5 are in no population
+    assert count == _episode().n_created
 
 
 def _episode(**overrides: Any) -> sar.FreezeEpisode:
@@ -300,7 +359,7 @@ def _chunk(**overrides: Any) -> dict[str, Any]:
         "base_seed": 1000,
         "is_complete": True,
         "halting_episodes": 1,
-        "config": "scenarios/synthetic.sumocfg",
+        "config": str(_synthetic_sumocfg()),
         "rows": rows,
         "seconds": 60.0,
         "seconds_per_episode": 12.0,
@@ -506,7 +565,7 @@ def test_the_reconstruction_counts_the_populations_it_averages_over() -> None:
     """``never_entered`` is the gap between the demand file and the simulator, and is reported."""
     built = sar.reconstruct_sumo_episode(_drive_synthetic(_recorder()), horizon=SYNTHETIC_HORIZON)
 
-    assert built.n_intended == 5
+    assert built.n_intended == 6
     assert built.n_departed == 3
     assert built.n_arrived == 2
     assert built.n_never_inserted == 1
@@ -1445,6 +1504,99 @@ def test_a_null_count_reaches_the_operator_as_refused_and_not_as_a_traceback(
     assert not (out_dir / "p7_1_metric_freeze.json").exists()
 
 
+def test_a_cell_run_on_another_scenario_has_no_p7_0_reference(output_root: Path) -> None:
+    """🔒 H1.1 / half-A review MAJOR 1: the SCENARIO is part of the reference.
+
+    P7.0's cells are keyed `<backend>__<arm>`, which says nothing about which network ran. A4 rolls
+    `random` on hz4x4 gudang, and the shipped chunk scored it against hz1x1's `sumo__random` value —
+    reporting a 157 s reproduction failure that means nothing. The reference is now the config path
+    P7.0 actually ran, so a gudang episode has none.
+    """
+    from offline import parity
+
+    gudang = (
+        REPO / "scenarios" / "hangzhou_4x4_gudang_18041610_1h"
+        / "hangzhou_4x4_gudang_18041610_1h.sumocfg"
+    )
+    noteleport = Path(
+        str(parity.DECLARED_PARITY_SUMOCFG).replace(".sumocfg", "_noteleport.sumocfg")
+    )
+
+    # The hz1x1 parity config IS P7.0's, so it has a reference...
+    parity_reference = sar._stored_reference(
+        "sumo__random", output_root, 5, config_path=parity.DECLARED_PARITY_SUMOCFG
+    )
+    assert not any(np.isnan(parity_reference))
+    assert parity_reference[0] == 492.2801208496094
+
+    # ...and every other scenario or configuration has none.
+    for other in (gudang, noteleport):
+        stored = sar._stored_reference("sumo__random", output_root, 5, config_path=other)
+        assert len(stored) == 5
+        assert all(np.isnan(value) for value in stored), other
+
+    assert sar.p7_0_reference_config("sumo__random") is not None
+    assert sar.p7_0_reference_config("sumo__nonesuch") is None
+
+
+def test_a_row_without_a_p7_0_reference_reports_unverified_rather_than_failing() -> None:
+    """The consequence the shipped A4 chunk got wrong: no counterpart is not a failed comparison."""
+    unverifiable = _episode(att_p7_0_stored=float("nan"))
+
+    assert unverifiable.has_p7_0_reference is False
+    assert unverifiable.as_record()["reproduces_p7_0"] is None
+    assert sar.reproduction_report([], [])["n"] == 0
+
+
+def test_the_population_second_route_is_an_independent_count() -> None:
+    """🔒 H1.2 / MAJOR 2: E_sumo's denominator by a regex pass, sharing no code with the parser."""
+    from offline import parity
+
+    route_file = Path(str(parity.DECLARED_PARITY_ROU))
+    regex_route = sar.route_file_vehicle_count_due_by(route_file, 3600.0, step_length=1.0)
+    parser_route = len(
+        sar.read_intended_departures(route_file).due_by(3600.0, step_length=1.0)
+    )
+
+    assert regex_route == parser_route == 2021
+    # And the offset is load-bearing in BOTH routes: at a horizon of 1 s only the depart=0 vehicle
+    # can have been inserted.
+    assert sar.route_file_vehicle_count_due_by(route_file, 1.0, step_length=1.0) == 1
+
+
+def test_the_artifact_refuses_when_pending_and_never_entered_disagree() -> None:
+    """🔒 H1.2: at the horizon the two counts are the same set observed two ways."""
+    chunks = _campaign()
+    broken = next(c for c in chunks if sar._chunk_label(c) == "sumo__maxpressure")
+    broken["rows"][2]["n_pending_at_horizon"] = broken["rows"][2]["n_never_entered"] + 1
+
+    with pytest.raises(ValueError, match="pending at the horizon|never entered"):
+        sar.freeze_artifact(chunks)
+
+
+def test_the_artifact_refuses_a_denominator_its_route_file_contradicts() -> None:
+    """🔒 H1.2: `n_created` against the regex pass over the chunk's own route file."""
+    chunks = _campaign()
+    broken = next(c for c in chunks if sar._chunk_label(c) == "sumo__maxpressure")
+    for row in broken["rows"]:
+        row["n_created"] = row["n_created"] + 1
+        row["n_never_entered"] = row["n_never_entered"] + 1
+        row["n_pending_at_horizon"] = row["n_pending_at_horizon"] + 1
+
+    with pytest.raises(ValueError, match="independent regex pass|created"):
+        sar.freeze_artifact(chunks)
+
+
+def test_the_three_population_counts_must_partition() -> None:
+    """created == entered + never entered, asserted rather than assumed."""
+    chunks = _campaign()
+    broken = next(c for c in chunks if sar._chunk_label(c) == "sumo__maxpressure")
+    broken["rows"][0]["n_entered"] = broken["rows"][0]["n_entered"] + 1
+
+    with pytest.raises(ValueError, match="partition|entered"):
+        sar.freeze_artifact(chunks)
+
+
 def test_a4_skips_a_complete_timing_chunk_rather_than_re_rolling_seven_minutes(
     tmp_path: Path,
 ) -> None:
@@ -1490,24 +1642,23 @@ def test_a4_skips_a_complete_timing_chunk_rather_than_re_rolling_seven_minutes(
 def test_a4_does_not_mistake_an_a1_random_chunk_for_its_own(tmp_path: Path) -> None:
     """⭐ The discriminator: an A1 `random` cell shares every identity field with A4's chunk.
 
-    Without the ``role`` key the skip would fire on a chunk from a different scenario. Here the
-    re-roll is attempted and fails in the sandbox, which is how we know the skip did not fire.
+    ⚠️ Asserted on the DECISION, not on a downstream failure. Before Amendment H the sandbox re-roll
+    died at ``_stored_reference`` and the test read that as "the skip did not fire"; now that the
+    P7.0 reference is scenario-aware the re-roll would succeed by rolling a real 60 s gudang episode,
+    so a test written that way would be slow AND would stop proving anything about the skip.
     """
     work = tmp_path / "output" / "p7_1"
     work.mkdir(parents=True)
     payload = _chunk(arm="random", episodes=1, rows=[_episode(arm="random").as_record()])
     payload.pop("role", None)
-    (work / "timing_hz4x4_gudang.json").write_text(json.dumps(payload), encoding="utf-8")
+    destination = work / "timing_hz4x4_gudang.json"
+    destination.write_text(json.dumps(payload), encoding="utf-8")
 
-    code = sar.main(
-        [
-            "--output-root", str(tmp_path / "output"),
-            "--work-dir", str(work),
-            "timing-hz4x4", "--episodes", "1",
-        ]
-    )
-
-    assert code != 0
+    assert not sar._timing_chunk_is_reusable(destination, episodes=1)
+    # The positive control: the same chunk WITH the role key is reusable.
+    payload["role"] = sar.TIMING_ROLE
+    destination.write_text(json.dumps(payload), encoding="utf-8")
+    assert sar._timing_chunk_is_reusable(destination, episodes=1)
 
 
 # ----------------------------------------------------------------------

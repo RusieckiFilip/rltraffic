@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -25,19 +26,24 @@ HZ4X4 = REPO / "scenarios" / "hangzhou_4x4_gudang_18041610_1h"
 
 @pytest.fixture(scope="module")
 def resco() -> Path:
-    """RESCO's grid4x4 directory; skip unless the read-only candidates tree is present."""
+    """RESCO's grid4x4 directory, reached from the CANDIDATES ROOT the variable actually names.
+
+    ⚠️ Two corrections from the half-B review (MINOR 1). The variable is the candidates ROOT, as its
+    skip text always said, not the grid4x4 directory — the two disagreed, so the same variable meant
+    different things to the reader and to the code. And there is **no `/home/filip` default**: with
+    the variable unset these tests SKIP, instead of passing on one machine and skipping everywhere
+    else while the packet reports them as run.
+    """
     env_value = os.environ.get("RLTRAFFIC_GRID4X4_RESCO")
-    candidate = (
-        Path(env_value)
-        if env_value
-        else Path("/home/filip/rltraffic/scenarios/grid4x4_candidates/resco")
-        / "resco_benchmark/environments/grid4x4"
-    )
-    if not (candidate / "grid4x4.net.xml").is_file():
+    if not env_value:
         pytest.skip(
-            f"RESCO's grid4x4 net is not at {candidate}: set RLTRAFFIC_GRID4X4_RESCO to the "
-            "read-only candidates directory to run the grid4x4 half of the audit"
+            "RLTRAFFIC_GRID4X4_RESCO is unset: point it at the read-only, gitignored candidates "
+            "root (the directory holding resco/ and libsignal/) to run the grid4x4 half of the "
+            "audit. It is CC BY-NC-SA and is never copied into the tree."
         )
+    candidate = Path(env_value) / "resco/resco_benchmark/environments/grid4x4"
+    if not (candidate / "grid4x4.net.xml").is_file():
+        pytest.skip(f"RESCO's grid4x4 net is not at {candidate}")
     return candidate
 
 
@@ -233,6 +239,239 @@ def test_the_grid4x4_demand_is_rescos_seed_1_read_from_inside_the_zip(resco: Pat
     assert demand["multiset_equal"] is True
     assert demand["n_index_aligned_equal"] == 1473
     assert not (resco / "grid4x4_1.rou.xml").exists()  # nothing was extracted
+
+
+# ----------------------------------------------------------------------
+# CAP(B) and CAP(C) -- the two halves the half-B review found uncomputed and untested
+# ----------------------------------------------------------------------
+
+
+def _audit(name: str, roadnet: Path, net: Path) -> dict[str, Any]:
+    return ca.audit_pair(name, cityflow_roadnet=roadnet, sumo_net=net, direction="CityFlow -> SUMO")
+
+
+@pytest.mark.parametrize(
+    "name, roadnet, net, length_max, speed_max, speeds_equal",
+    [
+        (
+            "hz1x1",
+            HZ1X1 / "roadnet.json",
+            HZ1X1 / "hangzhou_1x1_bc-tyc_18041610_1h.net.xml",
+            10.4,
+            0.0,
+            True,
+        ),
+        (
+            "hz4x4",
+            HZ4X4 / "roadnet_4X4.json",
+            HZ4X4 / "hangzhou_4x4_gudang_18041610_1h.net.xml",
+            27.2,
+            0.001,
+            False,
+        ),
+    ],
+)
+def test_cap_b_enumerates_length_and_speed_per_lane_with_the_max_abs_difference(
+    name: str, roadnet: Path, net: Path, length_max: float, speed_max: float, speeds_equal: bool
+) -> None:
+    """🔒 H2.1 / B-1. CAP(B) asks for per-lane length AND speed with the maximum absolute difference.
+
+    The audit previously reported a SUMO-only length range and a SET comparison of speeds, so the
+    length half did not exist and the speed half could not see hz4x4's 11.111 against 11.11 (one
+    distinct value on each side). Both numbers are converter residuals and the table labels them so.
+
+    ⚠️ These kill the reviewer's **M12** (speed sets -> count equality): a count comparison returns
+    equal on hz4x4, where the truth is a 0.001 m/s difference on all 240 lanes.
+    """
+    b = _audit(name, roadnet, net)["B_geometry"]
+
+    assert b["max_abs_length_difference"] == pytest.approx(length_max, abs=5e-4)
+    assert b["max_abs_speed_difference"] == pytest.approx(speed_max, abs=1e-9)
+    assert b["lane_speeds_equal"] is speeds_equal
+    per_lane = b["per_lane"]
+    assert per_lane["n_lanes_compared"] == len(per_lane["length"]["per_lane"])
+    assert per_lane["n_lanes_only_in_cityflow"] == per_lane["n_lanes_only_in_sumo"] == 0
+    # Every row carries both sides and their difference, so the table is enumerable, not a summary.
+    row = per_lane["length"]["per_lane"][0]
+    assert set(row) == {"lane", "cityflow", "sumo", "abs_difference"}
+    assert row["abs_difference"] == abs(row["cityflow"] - row["sumo"])
+
+
+def test_cap_b_coordinate_residual_uses_the_net_offset() -> None:
+    """🔒 H2.1. Kills the reviewer's **M9** (netOffset ignored): the residual is 0.0 only WITH it.
+
+    Without the offset the same comparison gives 300.0 on hz1x1 and 800.0 on gudang, which is
+    exactly the recorded `netOffset` — a tool that dropped it would report a 300 m disagreement
+    between two files that agree perfectly.
+    """
+    hz1 = _audit("hz1x1", HZ1X1 / "roadnet.json", HZ1X1 / "hangzhou_1x1_bc-tyc_18041610_1h.net.xml")
+    hz4 = _audit(
+        "hz4x4", HZ4X4 / "roadnet_4X4.json", HZ4X4 / "hangzhou_4x4_gudang_18041610_1h.net.xml"
+    )
+
+    assert hz1["B_geometry"]["max_abs_coordinate_residual"] == 0.0
+    assert hz4["B_geometry"]["max_abs_coordinate_residual"] == 0.0
+    assert hz1["B_geometry"]["net_offset"] == [300.0, 300.0]
+    assert hz4["B_geometry"]["net_offset"] == [800.0, 600.0]
+    assert hz1["B_geometry"]["n_junctions_compared"] == 5
+    assert hz4["B_geometry"]["n_junctions_compared"] == 32
+
+
+@pytest.mark.parametrize(
+    "name, roadnet, net, n_links",
+    [
+        ("hz1x1", HZ1X1 / "roadnet.json", HZ1X1 / "hangzhou_1x1_bc-tyc_18041610_1h.net.xml", 16),
+        (
+            "hz4x4",
+            HZ4X4 / "roadnet_4X4.json",
+            HZ4X4 / "hangzhou_4x4_gudang_18041610_1h.net.xml",
+            576,
+        ),
+    ],
+)
+def test_cap_c_compares_the_connection_SETS_and_not_only_their_counts(
+    name: str, roadnet: Path, net: Path, n_links: int
+) -> None:
+    """🔒 H2.1 / B-1. CAP(C): the (in-lane → out-lane) set must EQUAL CityFlow's `laneLinks`.
+
+    The audit previously reported direction counts, which cannot see a connection that moved. The
+    equality holds on both pairs with zero missing, and the reversal rule the out-lanes are
+    translated through is itself checked against the movement correspondence.
+    """
+    c = _audit(name, roadnet, net)["C_connections"]
+    equality = c["lane_link_equality"]
+
+    assert equality["n_cityflow_lane_links"] == n_links
+    assert equality["n_equal"] == n_links
+    assert equality["sets_equal"] is True
+    assert equality["n_missing_in_sumo"] == 0
+    assert equality["n_extra_in_sumo"] == 0
+    assert equality["n_untranslatable"] == 0
+    agreement = c["reversal_agrees_with_the_movement_correspondence"]
+    assert agreement["n_disagree"] == 0
+    assert agreement["n_agree"] == (8 if name == "hz1x1" else 192)
+
+
+@pytest.mark.parametrize(
+    "label, mutate, n_missing, n_extra",
+    [
+        # Redirecting a roadLink to another road creates pairs SUMO does not have AND orphans the
+        # ones it does: both directions fire.
+        ("redirected-road", lambda e: e["roadLinks"][0].__setitem__("endRoad", "road_1_1_2"), 2, 2),
+        # Flipping an out-lane index COLLIDES with the sibling laneLink, so the CityFlow set shrinks
+        # to 15 and SUMO carries one CityFlow does not. Missing is 0 here, and that is correct --
+        # a set comparison reports what actually differs, not what a symmetric story would predict.
+        (
+            "collided-out-lane",
+            lambda e: e["roadLinks"][0]["laneLinks"][0].__setitem__("endLaneIndex", 1),
+            0,
+            1,
+        ),
+        ("deleted-lane-link", lambda e: e["roadLinks"][0]["laneLinks"].pop(0), 0, 1),
+    ],
+)
+def test_cap_c_detects_a_connection_that_moved(
+    label: str, mutate: Any, n_missing: int, n_extra: int
+) -> None:
+    """⭐ The control: without it, "sets_equal True" is satisfied by any implementation.
+
+    Three different perturbations of a COPY of the roadnet, each with the counts it actually
+    produces. ⚠️ The middle case is the one I got wrong first: flipping an out-lane index does not
+    create a missing connection, it collides with the sibling laneLink and shrinks the set. The
+    expectation is the measurement, not the symmetry one imagines.
+    """
+    import tempfile
+
+    data = json.loads((HZ1X1 / "roadnet.json").read_text(encoding="utf-8"))
+    entry = next(ix for ix in data["intersections"] if ix["id"] == "intersection_1_1")
+    mutate(entry)
+    moved = Path(tempfile.mkdtemp(prefix="cap_c_control_")) / "roadnet.json"
+    moved.write_text(json.dumps(data), encoding="utf-8")
+
+    equality = ca.connection_set_equality(
+        moved,
+        HZ1X1 / "hangzhou_1x1_bc-tyc_18041610_1h.net.xml",
+        lanes_per_road={road["id"]: len(road["lanes"]) for road in data["roads"]},
+        intersections=["intersection_1_1"],
+    )
+
+    assert equality["sets_equal"] is False
+    assert equality["n_missing_in_sumo"] == n_missing
+    assert equality["n_extra_in_sumo"] == n_extra
+
+
+@pytest.mark.parametrize(
+    "name, roadnet, net, extras",
+    [
+        (
+            "hz1x1",
+            HZ1X1 / "roadnet.json",
+            HZ1X1 / "hangzhou_1x1_bc-tyc_18041610_1h.net.xml",
+            {"t": 4},
+        ),
+        (
+            "hz4x4",
+            HZ4X4 / "roadnet_4X4.json",
+            HZ4X4 / "hangzhou_4x4_gudang_18041610_1h.net.xml",
+            {"t": 16},
+        ),
+    ],
+)
+def test_cap_c_enumerates_the_extra_sumo_connections(
+    name: str, roadnet: Path, net: Path, extras: dict[str, int]
+) -> None:
+    """🔒 H2.1. Kills the reviewer's **M11** (extras never enumerated).
+
+    CAP(C) requires every EXTRA SUMO connection to be enumerated with counts; the `t` turnarounds
+    are netconvert's and are not signalled, which is why the set equality above still holds.
+    """
+    c = _audit(name, roadnet, net)["C_connections"]
+
+    assert c["extra_directions"] == extras
+    assert set(c["from_non_internal_edges"]) - {"l", "s", "r"} == set(extras)
+
+
+def test_the_demand_comparison_detects_a_demand_that_actually_differs() -> None:
+    """🔒 H2.5 / the reviewer's M8a: multiset equality with a NEGATIVE CONTROL.
+
+    `multiset_equal := counts equal` passed every test, because every pair on disk agrees. One
+    changed departure time and one changed route must each break it, or "2983/2983 as a multiset" is
+    protected by nothing but the index-aligned count.
+    """
+    real = ca.demand_from_route_file(HZ1X1 / "hangzhou_1x1_bc-tyc_18041610_1h.rou.xml")
+    reference = ca.demand_from_cityflow_flow(HZ1X1 / "flow.json")
+
+    assert ca._compare_demand(reference, real)["multiset_equal"] is True
+
+    moved_depart = list(real)
+    moved_depart[7] = (moved_depart[7][0] + 1.0, moved_depart[7][1])
+    shifted = ca._compare_demand(reference, moved_depart)
+    assert shifted["multiset_equal"] is False
+    assert shifted["n_only_in_cityflow"] == shifted["n_only_in_sumo"] == 1
+    assert shifted["counts_equal"] is True  # same LENGTH, different demand
+
+    moved_route = list(real)
+    moved_route[3] = (moved_route[3][0], ("a_road_that_does_not_exist",))
+    assert ca._compare_demand(reference, moved_route)["multiset_equal"] is False
+
+    # And a pure REORDER must still be equal -- that is the whole point of the multiset.
+    assert ca._compare_demand(reference, list(reversed(real)))["multiset_equal"] is True
+
+
+def test_the_vtype_binding_is_reported_because_defined_is_not_bound() -> None:
+    """CAP(E)'s parameter half: hz1x1 and hz4x4 define `pkw` and bind it to zero vehicles."""
+    shipped = ca._route_vtype_facts(HZ1X1 / "hangzhou_1x1_bc-tyc_18041610_1h.rou.xml")
+    parity_file = ca._route_vtype_facts(
+        REPO / "scenarios/hangzhou_1x1_bc-tyc_18041610_1h_parity"
+        / "hangzhou_1x1_bc-tyc_18041610_1h_parity.rou.xml"
+    )
+
+    assert shipped["n_vehicles"] == 2021 and shipped["n_typed"] == 0
+    assert shipped["fully_bound"] is False
+    assert list(shipped["vtypes"]) == ["pkw"] and shipped["tau_present"] == {"pkw": False}
+    assert parity_file["n_typed"] == parity_file["n_vehicles"] == 2021
+    assert parity_file["fully_bound"] is True
+    assert parity_file["tau_present"] == {"cf_parity": True}
 
 
 # ----------------------------------------------------------------------

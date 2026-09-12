@@ -1,8 +1,5 @@
 """P7.1 half B: the movement-keyed adapter between a SUMO ``info`` and the CityFlow corpus's frame.
 
-⚠️ SKELETON.  Every function below raises :class:`NotImplementedError`; the constants are real.
-Tests are written against this surface first, so each fails for its own reason.
-
 Artifact format version: ``p7.1-alignment/1.0``.
 Written against ``BRIEF_34`` §3 + Amendments A–F, and ``docs/plans/p7.1.md``.
 
@@ -147,6 +144,13 @@ class ScenarioAlignment:
     scenario: str
     intersections: Mapping[str, IntersectionAlignment]
     metric_keys: tuple[str, ...]
+    #: Every lane id the CityFlow roadnet declares, incoming and outgoing.  ``align_info`` drops the
+    #: outgoing ones (they are monitored by ``SumoMetrics`` but are not part of the canonical
+    #: incoming frame) and REFUSES anything outside this set -- exact membership, never a prefix.
+    known_lanes: frozenset[str] = frozenset()
+    #: True where the pair is hangzhou-shaped (CityFlow 9, SUMO 16) and the ``2k -> k+1`` map
+    #: applies; False where the two programs have the same width and the map is the identity.
+    phase_map_is_hangzhou_shaped: bool = True
 
 
 def sumo_phase_for_action(action: int) -> int:
@@ -157,18 +161,25 @@ def sumo_phase_for_action(action: int) -> int:
     return 2 * index
 
 
-def cityflow_phase_for_sumo_phase(phase: int) -> int:
+def cityflow_phase_for_sumo_phase(phase: int, *, n_sumo_phases: int = 16) -> int:
     """SUMO file phase -> CityFlow file phase: ``2k -> k + 1``, odd -> the clearance slot.
 
-    ⚠️ The odd phases map onto CityFlow's phase 0 and that slot is DEAD in the corpus (577,600 rows,
-    none of them 0), so this branch exists to be total rather than to be exercised: a transition
-    always finishes inside the 10 s step, including at row 0.
+    ⚠️ **This map is HANGZHOU-SHAPED and is only correct where CityFlow has 9 phases against SUMO's
+    16** -- i.e. where the conversion collapsed SUMO's eight identical clearance phases into
+    CityFlow's single phase 0.  On a same-width pair such as grid4x4 (16 against 16) the two
+    programs are in 1:1 correspondence and the identity is the map; applying this one there sends
+    SUMO phase 14 to CityFlow phase 8, which on that scenario means something else entirely.
+    :func:`align_info` chooses by :attr:`ScenarioAlignment.phase_map_is_hangzhou_shaped`.
+
+    The odd phases map onto CityFlow's phase 0 and that slot is DEAD in the corpus (577,600 rows,
+    none of them 0), so that branch exists to be total rather than to be exercised.
     """
     index = int(phase)
-    if index < 0:
+    if not 0 <= index < int(n_sumo_phases):
         raise ValueError(
-            f"a SUMO file phase cannot be negative, got {phase!r}; the map is defined on the "
-            "tlLogic's own phase indices"
+            f"a SUMO file phase must be in [0, {int(n_sumo_phases)}), got {phase!r}; the map is "
+            "defined on the tlLogic's own phase indices and a phase outside them would silently "
+            "become a green the program does not have"
         )
     if index % 2:
         return CITYFLOW_CLEARANCE_PHASE
@@ -276,12 +287,53 @@ def alignment_for_scenario(
             permutation=permutation,
             cityflow_num_phases=int(entry.num_phases),
             sumo_num_phases=int(sumo_phases[ix_id]),
-            n_actions=sum(
-                1 for links in (entry.phase_roadlink_mapping or []) if links
-            ),
+            n_actions=_env_green_action_count(entry),
+        )
+    shapes = {
+        (ix.cityflow_num_phases, ix.sumo_num_phases) for ix in built.values()
+    }
+    if len(shapes) > 1:
+        raise ValueError(
+            f"{scenario}: the intersections do not share a phase shape ({sorted(shapes)}); one "
+            "phase map cannot serve two of them and this must be handled per intersection or "
+            "reported, never averaged"
+        )
+    hangzhou_shaped = shapes == {(9, 16)}
+    if not hangzhou_shaped and shapes and any(cf != su for cf, su in shapes):
+        raise ValueError(
+            f"{scenario}: phase counts {sorted(shapes)} are neither hangzhou-shaped (9, 16) nor "
+            "equal on the two sides, so neither the 2k -> k+1 map nor the identity is correct here. "
+            "A third mapping is design work, not a default"
         )
     return ScenarioAlignment(
-        scenario=str(scenario), intersections=built, metric_keys=tuple(metric_keys)
+        scenario=str(scenario),
+        intersections=built,
+        metric_keys=tuple(metric_keys),
+        known_lanes=frozenset(str(lane) for lane in parsed.lane_ids),
+        phase_map_is_hangzhou_shaped=hangzhou_shaped,
+    )
+
+
+def _env_green_action_count(entry: Any) -> int:
+    """How many GREEN actions the env exposes, by the env's own rule.
+
+    ⚠️ **Not "phases with a non-empty roadlink list".**  ``envs/phase_control.py`` treats a phase as
+    a transition when its duration is at most ``TRANSITION_PHASE_MAX_DURATION``; on grid4x4 every one
+    of the 16 phases releases something (its clearance phases keep right turns on ``s``), so counting
+    non-empty lists gives 16 where the env gives 8.  Amendment C(D) asked for the env's number and
+    this is it.
+    """
+    from envs.phase_control import TRANSITION_PHASE_MAX_DURATION
+
+    durations = list(getattr(entry, "phase_durations", None) or [])
+    mapping = list(getattr(entry, "phase_roadlink_mapping", None) or [])
+    if not durations:
+        return sum(1 for links in mapping if links)
+    return sum(
+        1
+        for index, duration in enumerate(durations)
+        if float(duration) > float(TRANSITION_PHASE_MAX_DURATION)
+        and (index >= len(mapping) or mapping[index])
     )
 
 
@@ -337,7 +389,11 @@ def align_info(
                 f"{ix_id}: the phase one-hot has {len(hot)} hot entries, not 1; it cannot be "
                 "re-encoded into CityFlow's width without inventing a phase"
             )
-        cityflow_phase = cityflow_phase_for_sumo_phase(hot[0])
+        cityflow_phase = (
+            cityflow_phase_for_sumo_phase(hot[0], n_sumo_phases=ix.sumo_num_phases)
+            if alignment.phase_map_is_hangzhou_shaped
+            else hot[0]
+        )
         if int(payload["current_phase"]) != hot[0]:
             raise ValueError(
                 f"{ix_id}: current_phase is {payload['current_phase']!r} but the one-hot is hot at "
@@ -390,7 +446,7 @@ def align_info(
             continue
         if any(lane in ix.sumo_lanes for ix in alignment.intersections.values()):
             continue
-        if _looks_like_an_outgoing_lane(lane, alignment):
+        if _is_a_known_lane(lane, alignment):
             continue
         raise KeyError(
             f"{lane!r} appears in the info's lane dict but belongs to no intersection this "
@@ -420,17 +476,16 @@ def align_info(
     return aligned
 
 
-def _looks_like_an_outgoing_lane(lane: str, alignment: ScenarioAlignment) -> bool:
-    """Whether *lane* is an outgoing lane of an aligned intersection rather than an unknown one.
+def _is_a_known_lane(lane: str, alignment: ScenarioAlignment) -> bool:
+    """Exact membership of the roadnet's incoming-or-outgoing lane set.
 
-    SUMO monitors incoming and outgoing lanes of every controlled traffic light
-    (``metrics/sumo.py:62-66``), so an outgoing lane in the info is expected and is dropped; an id
-    from another network is not, and raises.  The test is the road-level one CityFlow's own naming
-    supports: an outgoing lane's road leaves an intersection the alignment knows.
+    🚨 **This was a name-PREFIX test and it silently dropped lanes.**  The half-B review probed
+    ``road_1_1_99_0`` -- no such road, but a prefix of a known intersection's naming -- and the
+    adapter ACCEPTED and dropped it, while ``road_9_9_9_0`` raised.  A prefix is not membership, and
+    the module's own contract is that it *"raises on any lane it cannot place"*.  The set is now the
+    roadnet's own, read once when the alignment is built.
     """
-    road = lane.rsplit("_", 1)[0]
-    return any(road.startswith(f"road_{ix_id.removeprefix('intersection_')}_")
-               for ix_id in alignment.intersections)
+    return lane in alignment.known_lanes
 
 
 def canonical_order_artifact(
@@ -513,11 +568,16 @@ def paired_scenario_table(repo_root: str | Path) -> dict[str, Any]:
     cityflow_configs = _cityflow_configs_by_directory(root)
     rows: list[dict[str, Any]] = []
     for sumocfg in sorted((root / "scenarios").rglob("*.sumocfg")):
+        # ⚠️ The gitignored candidates clones are NOT our scenarios: they are third-party,
+        # CC BY-NC-SA and present on one machine. Walking them made this table 44 rows on a tree
+        # that had them and 20 on a clone, and read files the task is not licensed to ship.
+        if any(part.endswith("_candidates") for part in sumocfg.parts):
+            continue
         row: dict[str, Any] = {
             "sumocfg": str(sumocfg.relative_to(root)),
             "scenario_dir": str(sumocfg.parent.relative_to(root)),
         }
-        inputs = _sumocfg_inputs(sumocfg)
+        inputs = _sumocfg_inputs(sumocfg, root)
         row["inputs"] = inputs
         row["inputs_exist"] = all(entry["exists"] for entry in inputs.values())
         config = cityflow_configs.get(sumocfg.parent.resolve())
@@ -528,7 +588,7 @@ def paired_scenario_table(repo_root: str | Path) -> dict[str, Any]:
         # field their rows read as unpaired, which they are not.
         net_declared = inputs.get("net-file", {}).get("resolved")
         if config is None and net_declared is not None:
-            sibling = cityflow_configs.get(Path(net_declared).parent)
+            sibling = cityflow_configs.get((root / net_declared).resolve().parent)
             row["pairs_through"] = (
                 None if sibling is None else str(Path(sibling["path"]).relative_to(root))
             )
@@ -537,10 +597,10 @@ def paired_scenario_table(repo_root: str | Path) -> dict[str, Any]:
             row["status"] = "sumo inputs missing"
             rows.append(row)
             continue
-        net = Path(inputs["net-file"]["resolved"])
+        net = root / inputs["net-file"]["resolved"]
         row["sumo"] = _sumo_network_facts(net)
         row["vtype_binding"] = _route_vtype_facts(
-            [Path(inputs[key]["resolved"]) for key in inputs if key.startswith("route")]
+            [root / inputs[key]["resolved"] for key in inputs if key.startswith("route")]
         )
         if config is None:
             row["status"] = (
@@ -580,6 +640,12 @@ def paired_scenario_table(repo_root: str | Path) -> dict[str, Any]:
             row["sumo"]["traffic_light_ids"]
         )
 
+        # Amendment H2 item 8: the direction counts belong in the row, not only in prose. cologne3's
+        # `t` 39 / `L` 1 / `R` 1 are WHY its correspondence raises, and a reader of the table should
+        # not have to open the network to see it.
+        from offline.conversion_audit import sumo_connection_counts
+
+        row["connection_directions"] = sumo_connection_counts(net)["from_non_internal_edges"]
         sumo_turns = sumo_lane_turns(net)
         outcomes: dict[str, Any] = {}
         for ix in parsed.intersections:
@@ -653,8 +719,12 @@ def _cityflow_configs_by_directory(root: Path) -> dict[Path, dict[str, str]]:
     return found
 
 
-def _sumocfg_inputs(sumocfg: Path) -> dict[str, dict[str, Any]]:
-    """The files a ``.sumocfg`` declares, resolved against its own directory, with existence."""
+def _sumocfg_inputs(sumocfg: Path, repo_root: Path) -> dict[str, dict[str, Any]]:
+    """The files a ``.sumocfg`` declares, resolved against its own directory, with existence.
+
+    Paths are recorded RELATIVE to the repo root: an artifact that embeds one contributor's home
+    directory is not the same artifact on a clone, and this one is meant to regenerate byte-identically.
+    """
     root = ET.parse(sumocfg).getroot()
     inputs: dict[str, dict[str, Any]] = {}
     for element in root.iter():
@@ -666,9 +736,13 @@ def _sumocfg_inputs(sumocfg: Path) -> dict[str, dict[str, Any]]:
         ):
             resolved = (sumocfg.parent / name).resolve()
             key = element.tag if index == 0 else f"{element.tag}[{index}]"
+            try:
+                recorded = str(resolved.relative_to(repo_root))
+            except ValueError:
+                recorded = str(resolved)
             inputs[key] = {
                 "declared": name,
-                "resolved": str(resolved),
+                "resolved": recorded,
                 "exists": resolved.is_file(),
             }
     return inputs
@@ -728,3 +802,103 @@ def _route_vtype_facts(route_files: Sequence[Path]) -> dict[str, Any]:
         "vtypes": types,
         "tau_present": {name: "tau" in attrs for name, attrs in types.items()},
     }
+
+
+# ----------------------------------------------------------------------
+# The regenerating CLI -- Amendment H2 item 4
+# ----------------------------------------------------------------------
+
+#: The scenarios `alignment_for_scenario` is run over for the canonical-order artifact.  Declared
+#: here rather than passed on a command line so a regeneration cannot quietly change its scope.
+CANONICAL_SCENARIOS: tuple[tuple[str, str, str], ...] = (
+    (
+        "hangzhou_1x1_bc-tyc",
+        "scenarios/hangzhou_1x1_bc-tyc_18041610_1h/roadnet.json",
+        "scenarios/hangzhou_1x1_bc-tyc_18041610_1h/hangzhou_1x1_bc-tyc_18041610_1h.net.xml",
+    ),
+    (
+        "hangzhou_4x4_gudang",
+        "scenarios/hangzhou_4x4_gudang_18041610_1h/roadnet_4X4.json",
+        "scenarios/hangzhou_4x4_gudang_18041610_1h/hangzhou_4x4_gudang_18041610_1h.net.xml",
+    ),
+)
+
+
+def write_json_stable(payload: Mapping[str, Any], destination: str | Path) -> Path:
+    """Write an artifact deterministically, so a regeneration is byte-comparable.
+
+    ``indent=2`` and a trailing newline, exactly as the committed files carry, and no timestamp or
+    absolute path anywhere in the payload -- the whole point of Amendment H2 item 4 is that a second
+    run of the same command produces the same bytes.
+    """
+    target = Path(destination)
+    target.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    return target
+
+
+def build_parser() -> "Any":
+    """``python -m offline.backend_alignment tables`` -- regenerate all three artifacts."""
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        prog="python -m offline.backend_alignment",
+        description=(
+            "P7.1 half B: regenerate the canonical-order, paired-scenario and conversion-audit "
+            "artifacts from the files. Deterministic: the same tree gives the same bytes."
+        ),
+        allow_abbrev=False,
+    )
+    parser.add_argument("--repo-root", default=".")
+    parser.add_argument("--out-dir", default="docs/data")
+    parser.add_argument(
+        "--candidates-root",
+        default=None,
+        help=(
+            "the read-only, gitignored third-party clones (RESCO / LibSignal). Paths from it are "
+            "recorded RELATIVE to it, so the artifact is the same on a machine that has it "
+            "elsewhere; without it the grid4x4 row is omitted and the artifact says so."
+        ),
+    )
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers.add_parser("tables", help="write all three artifacts", allow_abbrev=False)
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """Regenerate the three half-B artifacts; returns a process exit code."""
+    from offline import conversion_audit
+
+    args = build_parser().parse_args(argv)
+    root = Path(args.repo_root).resolve()
+    out_dir = Path(args.out_dir)
+    if not out_dir.is_dir():
+        print(f"REFUSED: {out_dir} is not a directory; this command never creates one", flush=True)
+        return 2
+
+    alignments = []
+    roadnets = {}
+    for scenario, roadnet, net in CANONICAL_SCENARIOS:
+        alignments.append(
+            alignment_for_scenario(scenario, cityflow_roadnet=root / roadnet, sumo_net=root / net)
+        )
+        roadnets[scenario] = roadnet
+    written = [
+        write_json_stable(
+            canonical_order_artifact(alignments, roadnets=roadnets),
+            out_dir / "p7_1_canonical_order.json",
+        ),
+        write_json_stable(
+            paired_scenario_table(root), out_dir / "p7_1_paired_scenarios.json"
+        ),
+        write_json_stable(
+            conversion_audit.audit_all(root, candidates_root=args.candidates_root),
+            out_dir / "p7_1_conversion_audit.json",
+        ),
+    ]
+    for path in written:
+        print(f"wrote {path}", flush=True)
+    return 0
+
+
+if __name__ == "__main__":  # pragma: no cover
+    raise SystemExit(main())

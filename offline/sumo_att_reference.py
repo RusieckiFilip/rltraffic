@@ -189,6 +189,8 @@ __all__ = [
     "main",
     "make_observer_sumo_env",
     "p7_0_horizon_att",
+    "p7_0_reference_config",
+    "route_file_vehicle_count_due_by",
     "read_intended_departures",
     "reconstruct_sumo_episode",
     "reproduction_report",
@@ -1208,7 +1210,7 @@ def run_sumo_arm(
     # fact teleport-free would otherwise be reported as one.
     require_no_teleports = regime == "noteleport"
     cell = f"sumo__{arm}"
-    stored = _stored_reference(cell, output_root, episodes, regime=regime)
+    stored = _stored_reference(cell, output_root, episodes, config_path=config_path)
 
     # collect.main:596 seeds the global RNGs before the env is built; the order is part of the
     # protocol, not decoration.
@@ -1369,16 +1371,69 @@ def _unobserved_row(
     )
 
 
-def _stored_reference(
-    cell: str, output_root: str | Path, episodes: int, *, regime: str = "parity"
-) -> tuple[float, ...]:
-    """P7.0's per-episode cells for *cell*, or NaNs when this cell has no P7.0 counterpart.
+def route_file_vehicle_count_due_by(
+    route_file: str | Path, horizon: float, *, step_length: float = 1.0
+) -> int:
+    """Count ``<vehicle depart=…>`` with ``depart + dt <= horizon`` **by a regex over the raw text**.
 
-    ⚠️ **Only the ``parity`` regime has one.**  A1b runs a different ``.sumocfg``, so comparing it
-    against P7.0's teleport-enabled cells would assert that two different configurations produce the
-    same number -- the opposite of what A1b is measuring. Its rows are reported as unverified.
+    🔒 **A deliberately independent second route to E_sumo's denominator** (Amendment D3, half-A
+    review MAJOR 2).  ``read_intended_departures`` parses the file with ElementTree and
+    ``reconstruct_sumo_episode`` counts the same population through ``due_by``; both would agree with
+    each other even if the shared parsing were wrong.  This pass shares no code with either: it reads
+    bytes and matches attributes, so a disagreement means one of the two is wrong rather than that
+    both are consistent.
+
+    ⚠️ The ``+ dt`` is the measured offset (S): a vehicle declared at ``h`` cannot be inserted before
+    ``h + dt``, so it is not in the population a horizon of ``h`` averages over.
     """
-    if regime != "parity" or cell not in P7_0_CELL_DIRS:
+    import re
+
+    text = Path(route_file).read_text(encoding="utf-8", errors="strict")
+    pattern = re.compile(r"<vehicle\b[^>]*?\bdepart\s*=\s*\"([^\"]*)\"[^>]*>")
+    limit = float(horizon) - float(step_length)
+    total = 0
+    for match in pattern.finditer(text):
+        try:
+            depart = float(match.group(1))
+        except ValueError as exc:
+            raise ValueError(
+                f"{route_file}: a <vehicle> declares depart={match.group(1)!r}, which is not "
+                "numeric; the independent count cannot place it"
+            ) from exc
+        if depart <= limit:
+            total += 1
+    return total
+
+
+def p7_0_reference_config(cell: str) -> Path | None:
+    """The EXACT config P7.0 ran for *cell*, or ``None`` when P7.0 has no such cell.
+
+    🔒 **The scenario is part of the reference, and leaving it out was a real defect.**  P7.0's cells
+    are keyed ``<backend>__<arm>``, which says nothing about WHICH network was run; the A4 timing
+    stage rolls ``random`` on hz4x4 gudang, so a reference keyed by arm alone scored a gudang episode
+    against hz1x1's ``sumo__random`` value and reported a 157 s reproduction failure that means
+    nothing (half-A review, MAJOR 1).  A cell has a P7.0 counterpart **iff the config being run is
+    the very file P7.0 ran**, so this compares resolved paths and the regime falls out of it: A1b's
+    ``noteleport`` file is a different path and is therefore unverified, for the real reason rather
+    than by a flag.
+    """
+    from offline import parity
+    from offline.transfer_gate import backend_config
+
+    if cell not in P7_0_CELL_DIRS:
+        return None
+    backend = cell.split("__", 1)[0]
+    if backend == "sumo":
+        return Path(parity.DECLARED_PARITY_SUMOCFG)
+    return Path(backend_config(backend))
+
+
+def _stored_reference(
+    cell: str, output_root: str | Path, episodes: int, *, config_path: str | Path
+) -> tuple[float, ...]:
+    """P7.0's per-episode cells for *cell*, or NaNs when this cell has no P7.0 counterpart."""
+    reference = p7_0_reference_config(cell)
+    if reference is None or Path(config_path).resolve() != reference.resolve():
         return tuple(float("nan") for _ in range(int(episodes)))
     stored = p7_0_horizon_att(cell, output_root)
     if len(stored) < int(episodes):
@@ -1446,7 +1501,7 @@ def run_cityflow_arm(
     from offline.engine_att_reference import make_observer_env, reconstruct_episode
 
     cell = f"cityflow__{arm}"
-    stored = _stored_reference(cell, output_root, episodes)
+    stored = _stored_reference(cell, output_root, episodes, config_path=config_path)
 
     Utils.seed_everything(int(base_seed))
     args = collect_style_args(
@@ -1934,6 +1989,53 @@ def freeze_artifact(chunks: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
             f"{offenders[:5]}. The noteleport regime IS the claim that this did not happen, so the "
             "artifact may not report it as a teleport-free arm"
         )
+
+    # 2c. D3's POPULATION second route (Amendment H1 item 2, half-A review MAJOR 2). The clock-origin
+    #     term had an independent route from the start; the population term had none -- `n_created`
+    #     was `|due|` from the same `due_by` call the reconstruction used, so a wrong population was
+    #     consistent with itself. Two checks close it:
+    #       (i) per row, n_pending_at_horizon == n_never_entered. At the horizon every vehicle that
+    #           never entered is still queued for insertion, so these count the same set by two
+    #           different observations -- the pending list traci reports, and the difference between
+    #           the demand file and the departures.
+    #       (ii) per SUMO chunk, n_created against a REGEX pass over the route file, which shares no
+    #           code with the ElementTree parser the reconstruction used.
+    for row in every_row:
+        if not bool(row["observer"]) or str(row["backend"]) != "sumo":
+            continue
+        if int(row["n_pending_at_horizon"]) != int(row["n_never_entered"]):
+            raise ValueError(
+                f"{row['backend']}/{row['arm']} ep{row['episode']}: {row['n_pending_at_horizon']} "
+                f"vehicles are pending at the horizon but {row['n_never_entered']} never entered. "
+                "Every vehicle that never entered is still queued, so these are the same set "
+                "counted two ways and a difference means the population is wrong"
+            )
+        if int(row["n_created"]) != int(row["n_entered"]) + int(row["n_never_entered"]):
+            raise ValueError(
+                f"{row['backend']}/{row['arm']} ep{row['episode']}: created "
+                f"{row['n_created']} != entered {row['n_entered']} + never entered "
+                f"{row['n_never_entered']}; the three counts must partition the population"
+            )
+    for chunk in chunks:
+        if str(chunk["backend"]) != "sumo" or not bool(chunk["observer"]):
+            continue
+        config = chunk.get("config")
+        if not config or not Path(config).is_file():
+            raise ValueError(
+                f"{_chunk_label(chunk)}: the chunk records config {config!r}, which is not a file, "
+                "so E_sumo's denominator cannot be checked by its second route"
+            )
+        route_files = route_files_of(config)
+        horizon = float(chunk["rows"][0]["n_observations"])
+        independent = route_file_vehicle_count_due_by(route_files[0], horizon)
+        for row in chunk["rows"]:
+            if int(row["n_created"]) != independent:
+                raise ValueError(
+                    f"{_chunk_label(chunk)} ep{row['episode']}: the reconstruction counted "
+                    f"{row['n_created']} created vehicles but an independent regex pass over "
+                    f"{route_files[0]} counts {independent} with depart + dt <= {horizon}. The two "
+                    "routes share no code, so they disagree about the population itself"
+                )
 
     # 3. The clock-origin term by its second route -- the decomposition's ONE gating check.
     #    ⚠️ The residual is deliberately NOT gated on: it is an algebraic tautology (module

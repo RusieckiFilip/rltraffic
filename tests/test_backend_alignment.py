@@ -91,6 +91,44 @@ def test_the_two_lane_orders_are_the_ones_the_backends_own_parsers_produce(
     assert (ix.canonical_state_width(), ix.sumo_state_width()) == (25, 32)
 
 
+def _sumo_intersection_from_net(net_xml: Path, tls_id: str) -> Any:
+    """The three fields ``green_action_lane_sets`` reads, built from a ``.net.xml``.
+
+    ``utils/sumo_utils.extract_sumo_roadnet`` builds the real ``IntersectionInfo`` from a LIVE traci
+    connection; this assembles the same three attributes from the file so the derivation needs no
+    simulator. ``test_the_derived_sumo_lane_order_equals_the_live_envs`` is the standing check that
+    the file route and the live route agree.
+    """
+    import xml.etree.ElementTree as ET
+    from types import SimpleNamespace
+
+    root = ET.parse(net_xml).getroot()
+    logic = next(entry for entry in root.findall("tlLogic") if entry.get("id") == tls_id)
+    per_link: dict[int, str] = {}
+    for connection in root.findall("connection"):
+        if connection.get("tl") != tls_id or connection.get("linkIndex") is None:
+            continue
+        per_link[int(str(connection.get("linkIndex")))] = (
+            f"{connection.get('from')}_{int(str(connection.get('fromLane')))}"
+        )
+    roadlink_lanes = [([per_link[index]], []) for index in sorted(per_link)]
+    phases = logic.findall("phase")
+    return SimpleNamespace(
+        id=tls_id,
+        num_phases=len(phases),
+        phase_durations=[float(str(phase.get("duration"))) for phase in phases],
+        phase_roadlink_mapping=[
+            [
+                index
+                for index, link in enumerate(sorted(per_link))
+                if str(phase.get("state"))[link] in {"G", "g"}
+            ]
+            for phase in phases
+        ],
+        roadlink_lanes=roadlink_lanes,
+    )
+
+
 def _sumo_info(alignment: ba.ScenarioAlignment, *, phase: int = 4) -> dict[str, Any]:
     """A well-formed SUMO ``info`` (C2) whose lane values encode their own lane index."""
     ix = alignment.intersections["intersection_1_1"]
@@ -138,10 +176,16 @@ def test_the_phase_map_is_the_one_measured_from_the_two_network_files() -> None:
         assert ba.cityflow_phase_for_sumo_phase(odd) == ba.CITYFLOW_CLEARANCE_PHASE
 
 
-def test_the_phase_map_refuses_a_phase_outside_the_sumo_program() -> None:
-    """16 phases: a 17th would silently become a 9th green."""
+@pytest.mark.parametrize("phase", [-1, 16, 17, 100])
+def test_the_phase_map_refuses_a_phase_outside_the_sumo_program(phase: int) -> None:
+    """16 phases: a 17th would silently become a 9th green.
+
+    ⚠️ The docstring said that and the test only covered ``-1`` (half-B review, MINOR 2): phase 16
+    returned CityFlow phase 9, and the only thing that stopped it was an accidental ``IndexError``
+    downstream. The bound is now checked at both ends.
+    """
     with pytest.raises(ValueError, match="phase"):
-        ba.cityflow_phase_for_sumo_phase(-1)
+        ba.cityflow_phase_for_sumo_phase(phase, n_sumo_phases=16)
 
 
 # ----------------------------------------------------------------------
@@ -300,27 +344,56 @@ def test_the_green_actions_release_the_same_lanes_under_the_correspondence(
 ) -> None:
     """🔒 §3.3 test 3: 8/8 agree under the correspondence, 4/8 under the identity.
 
-    Reproduced from ``docs/data/p7_0_gate.json``'s released-lane sets rather than quoted, and the
-    identity control is what gives the 8/8 its discriminating power: the four that agree anyway are
-    exactly the actions releasing both lanes of one road, which are symmetric under a within-road
-    swap.
+    ⚠️ **DERIVED from the two network files via ``transfer_gate.green_action_lane_sets``**, which is
+    what the brief and the freeze say this test does. It previously read the released-lane sets out
+    of ``p7_0_gate.json`` and recounted them — the number was right and the provenance claim was not
+    (half-B review, M-5). The gate's stored sets are now the CROSS-CHECK at the end, not the source.
+
+    The identity control is what gives the 8/8 its power: the four that agree anyway are exactly the
+    actions releasing both lanes of one road, which are symmetric under a within-road swap.
     """
-    gate = json.loads((REPO / "docs" / "data" / "p7_0_gate.json").read_text(encoding="utf-8"))
+    from offline.transfer_gate import green_action_lane_sets
+    from utils.cityflow_utils import parse_roadnet
+    from utils.sumo_utils import extract_sumo_roadnet  # noqa: F401  (documented below)
+
     ix = hz1x1.intersections["intersection_1_1"]
     inverse = {sumo: cityflow for cityflow, sumo in ix.correspondence.items()}
+    cityflow_entry = parse_roadnet(
+        REPO / "scenarios/hangzhou_1x1_bc-tyc_18041610_1h/roadnet.json"
+    ).intersections[0]
+    cityflow_actions = green_action_lane_sets(cityflow_entry)
+    # The SUMO side needs an IntersectionInfo-shaped object; `extract_sumo_roadnet` builds one from a
+    # LIVE traci connection, so here it is assembled from the .net.xml — the same three fields
+    # `green_action_lane_sets` reads, and the assertion below is that the two agree action by action.
+    sumo_actions = green_action_lane_sets(
+        _sumo_intersection_from_net(
+            REPO / "scenarios/hangzhou_1x1_bc-tyc_18041610_1h/hangzhou_1x1_bc-tyc_18041610_1h.net.xml",
+            "intersection_1_1",
+        )
+    )
 
+    assert len(cityflow_actions) == len(sumo_actions) == 8
     agree_translated = 0
     agree_identity = 0
-    for row in gate["green_action_semantics"]["rows"]:
-        cityflow_lanes = sorted(row["cityflow_released_lanes"])
-        raw = sorted(row["sumo_released_lanes_raw"])
-        assert row["sumo_file_phase"] == ba.sumo_phase_for_action(row["action"])
-        assert row["cityflow_file_phase"] == ba.cityflow_phase_for_sumo_phase(row["sumo_file_phase"])
-        agree_translated += sorted(inverse[lane] for lane in raw) == cityflow_lanes
-        agree_identity += raw == cityflow_lanes
+    for cityflow_row, sumo_row in zip(cityflow_actions, sumo_actions):
+        assert cityflow_row["action"] == sumo_row["action"]
+        assert sumo_row["file_phase"] == ba.sumo_phase_for_action(cityflow_row["action"])
+        assert cityflow_row["file_phase"] == ba.cityflow_phase_for_sumo_phase(
+            sumo_row["file_phase"]
+        )
+        expected = sorted(cityflow_row["released_incoming_lanes"])
+        raw = sorted(sumo_row["released_incoming_lanes"])
+        agree_translated += sorted(inverse[lane] for lane in raw) == expected
+        agree_identity += raw == expected
 
     assert agree_translated == 8
     assert agree_identity == 4
+    # Cross-check against P7.0's stored table -- as a check, not as the source.
+    gate = json.loads((REPO / "docs" / "data" / "p7_0_gate.json").read_text(encoding="utf-8"))
+    for stored, derived in zip(gate["green_action_semantics"]["rows"], cityflow_actions):
+        assert sorted(stored["cityflow_released_lanes"]) == sorted(
+            derived["released_incoming_lanes"]
+        )
 
 
 # ----------------------------------------------------------------------
@@ -403,6 +476,46 @@ def test_align_info_accepts_a_short_avail_actions_list(hz1x1: ba.ScenarioAlignme
     aligned = ba.align_info(info, hz1x1)
 
     assert aligned["intersections"]["intersection_1_1"]["avail_actions"] == [0, 3]
+
+
+def test_align_info_refuses_a_lane_that_is_not_in_the_roadnet(
+    hz1x1: ba.ScenarioAlignment,
+) -> None:
+    """🔒 H2.2 / half-B review M-1: EXACT membership, never a name prefix.
+
+    ``road_1_1_99_0`` does not exist, but it shares a prefix with the aligned intersection's naming,
+    and the old prefix test ACCEPTED and silently DROPPED it while refusing ``road_9_9_9_0``. The
+    module's contract is that it raises on any lane it cannot place.
+    """
+    for ghost in ("road_1_1_99_0", "road_9_9_9_0", "road_0_1_0_7"):
+        info = _sumo_info(hz1x1)
+        info["lane_vehicle_count"][ghost] = 3
+        with pytest.raises(KeyError, match=ghost):
+            ba.align_info(info, hz1x1)
+    # The positive control: a REAL outgoing lane is expected and is dropped, not refused.
+    assert "road_1_1_0_0" in hz1x1.known_lanes
+    aligned = ba.align_info(_sumo_info(hz1x1), hz1x1)
+    assert "road_1_1_0_0" not in aligned["lane_vehicle_count"]
+
+
+def test_align_info_filters_the_metrics_to_the_declared_keys(
+    hz1x1: ba.ScenarioAlignment,
+) -> None:
+    """🔒 H2.5 / the reviewer's M6: `aligned["metrics"] = dict(metrics)` passed every test.
+
+    C8 makes the metric SET part of a MAPPO checkpoint's MDP, so passing SUMO's set through
+    unfiltered is how a checkpoint reads a different environment. Empty by default; exactly the
+    declared keys when named.
+    """
+    info = _sumo_info(hz1x1)
+    assert set(info["metrics"]) == {"average_travel_time", "queue"}
+
+    assert ba.align_info(info, hz1x1)["metrics"] == {}
+
+    named = _hz1x1_alignment(metric_keys=("queue",))
+    aligned = ba.align_info(info, named)
+    assert aligned["metrics"] == {"queue": 12.0}
+    assert "average_travel_time" not in aligned["metrics"]
 
 
 def test_align_info_refuses_a_metric_key_that_is_not_there(hz1x1: ba.ScenarioAlignment) -> None:
@@ -532,6 +645,39 @@ def test_the_derived_sumo_lane_order_equals_the_live_envs() -> None:
 # ----------------------------------------------------------------------
 # §3.3 test 6 -- hz4x4 gudang, structure only
 # ----------------------------------------------------------------------
+
+
+def test_a_same_width_pair_uses_the_identity_phase_map_and_the_envs_action_count() -> None:
+    """🔒 H2.3 / half-B review M-2, on grid4x4 -- the pair A14 admits as the C3 candidate.
+
+    Its CityFlow and SUMO programs are both 16 phases in 1:1 correspondence, so the hangzhou
+    ``2k -> k+1`` map is WRONG there (it would send SUMO phase 14 to CityFlow phase 8). And the
+    green-action count is the ENV's: ``phase_control`` calls a phase a transition when its duration
+    is at most 5 s, which gives 8, where counting non-empty roadlink lists gives 16 because
+    grid4x4's clearance phases keep right turns on ``s``.
+    """
+    resco = os.environ.get("RLTRAFFIC_GRID4X4_RESCO")
+    if not resco:
+        pytest.skip(
+            "set RLTRAFFIC_GRID4X4_RESCO to the read-only candidates root to run the grid4x4 half"
+        )
+    net = Path(resco) / "resco/resco_benchmark/environments/grid4x4/grid4x4.net.xml"
+    if not net.is_file():
+        pytest.skip(f"RESCO's grid4x4 net is not at {net}")
+
+    alignment = ba.alignment_for_scenario(
+        "grid4x4",
+        cityflow_roadnet=REPO / "scenarios/grid4x4/grid4x4_roadnet_red.json",
+        sumo_net=net,
+    )
+    ix = next(iter(alignment.intersections.values()))
+
+    assert (ix.cityflow_num_phases, ix.sumo_num_phases) == (16, 16)
+    assert alignment.phase_map_is_hangzhou_shaped is False
+    assert ix.n_actions == 8  # the env's rule, not the 16 non-empty phase lists
+    assert len(alignment.intersections) == 16
+    # The hangzhou map applied here would be wrong, and the hz1x1 alignment still uses it.
+    assert _hz1x1_alignment().phase_map_is_hangzhou_shaped is True
 
 
 def test_hz4x4_gudang_resolves_every_intersection() -> None:

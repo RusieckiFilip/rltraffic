@@ -250,7 +250,7 @@
           ],
           "cityflow_num_phases": 9,
           "sumo_num_phases": 16,
-          "n_green_actions": 9,
+          "n_green_actions": 8,
           "canonical_state_width": 33,
           "sumo_state_width": 40,
           "n_lanes_denoting_a_different_physical_lane": 8
@@ -392,7 +392,7 @@
           ],
           "cityflow_num_phases": 9,
           "sumo_num_phases": 16,
-          "n_green_actions": 9,
+          "n_green_actions": 8,
           "canonical_state_width": 33,
           "sumo_state_width": 40,
           "n_lanes_denoting_a_different_physical_lane": 8
@@ -534,7 +534,7 @@
           ],
           "cityflow_num_phases": 9,
           "sumo_num_phases": 16,
-          "n_green_actions": 9,
+          "n_green_actions": 8,
           "canonical_state_width": 33,
           "sumo_state_width": 40,
           "n_lanes_denoting_a_different_physical_lane": 8
@@ -676,7 +676,7 @@
           ],
           "cityflow_num_phases": 9,
           "sumo_num_phases": 16,
-          "n_green_actions": 9,
+          "n_green_actions": 8,
           "canonical_state_width": 33,
           "sumo_state_width": 40,
           "n_lanes_denoting_a_different_physical_lane": 8
@@ -818,7 +818,7 @@
           ],
           "cityflow_num_phases": 9,
           "sumo_num_phases": 16,
-          "n_green_actions": 9,
+          "n_green_actions": 8,
           "canonical_state_width": 33,
           "sumo_state_width": 40,
           "n_lanes_denoting_a_different_physical_lane": 8
@@ -960,7 +960,7 @@
           ],
           "cityflow_num_phases": 9,
           "sumo_num_phases": 16,
-          "n_green_actions": 9,
+          "n_green_actions": 8,
           "canonical_state_width": 33,
           "sumo_state_width": 40,
           "n_lanes_denoting_a_different_physical_lane": 8
@@ -1102,7 +1102,7 @@
           ],
           "cityflow_num_phases": 9,
           "sumo_num_phases": 16,
-          "n_green_actions": 9,
+          "n_green_actions": 8,
           "canonical_state_width": 33,
           "sumo_state_width": 40,
           "n_lanes_denoting_a_different_physical_lane": 8
@@ -1244,7 +1244,7 @@
           ],
           "cityflow_num_phases": 9,
           "sumo_num_phases": 16,
-          "n_green_actions": 9,
+          "n_green_actions": 8,
           "canonical_state_width": 33,
           "sumo_state_width": 40,
           "n_lanes_denoting_a_different_physical_lane": 8
@@ -1386,7 +1386,7 @@
           ],
           "cityflow_num_phases": 9,
           "sumo_num_phases": 16,
-          "n_green_actions": 9,
+          "n_green_actions": 8,
           "canonical_state_width": 33,
           "sumo_state_width": 40,
           "n_lanes_denoting_a_different_physical_lane": 8
@@ -1528,7 +1528,7 @@
           ],
           "cityflow_num_phases": 9,
           "sumo_num_phases": 16,
-          "n_green_actions": 9,
+          "n_green_actions": 8,
           "canonical_state_width": 33,
           "sumo_state_width": 40,
           "n_lanes_denoting_a_different_physical_lane": 8
@@ -1670,7 +1670,7 @@
           ],
           "cityflow_num_phases": 9,
           "sumo_num_phases": 16,
-          "n_green_actions": 9,
+          "n_green_actions": 8,
           "canonical_state_width": 33,
           "sumo_state_width": 40,
           "n_lanes_denoting_a_different_physical_lane": 8
@@ -1812,7 +1812,7 @@
           ],
           "cityflow_num_phases": 9,
           "sumo_num_phases": 16,
-          "n_green_actions": 9,
+          "n_green_actions": 8,
           "canonical_state_width": 33,
           "sumo_state_width": 40,
           "n_lanes_denoting_a_different_physical_lane": 8
@@ -1954,7 +1954,7 @@
           ],
           "cityflow_num_phases": 9,
           "sumo_num_phases": 16,
-          "n_green_actions": 9,
+          "n_green_actions": 8,
           "canonical_state_width": 33,
           "sumo_state_width": 40,
           "n_lanes_denoting_a_different_physical_lane": 8
@@ -2096,7 +2096,7 @@
           ],
           "cityflow_num_phases": 9,
           "sumo_num_phases": 16,
-          "n_green_actions": 9,
+          "n_green_actions": 8,
           "canonical_state_width": 33,
           "sumo_state_width": 40,
           "n_lanes_denoting_a_different_physical_lane": 8
@@ -2238,7 +2238,7 @@
           ],
           "cityflow_num_phases": 9,
           "sumo_num_phases": 16,
-          "n_green_actions": 9,
+          "n_green_actions": 8,
           "canonical_state_width": 33,
           "sumo_state_width": 40,
           "n_lanes_denoting_a_different_physical_lane": 8
@@ -2380,7 +2380,7 @@
           ],
           "cityflow_num_phases": 9,
           "sumo_num_phases": 16,
-          "n_green_actions": 9,
+          "n_green_actions": 8,
           "canonical_state_width": 33,
           "sumo_state_width": 40,
           "n_lanes_denoting_a_different_physical_lane": 8

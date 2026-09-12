@@ -43,9 +43,12 @@ Every one of these produces a plausible wrong number in a tool that does the obv
 2. **``availableRoadLinks`` is not sorted.**  56 of grid4x4's 256 phase lists and 16 of hz4x4's 144
    are stored in non-ascending order.  Compared as LISTS they look like differences; they are not.
    **Compared as sets.**
-3. **The ``linkIndex`` -> roadLink permutation is not the identity.**  It is on grid4x4 and hz1x1;
-   on hz4x4 it is ``[10, 11, 9, 6, 7, 8, 3, 4, 5, 2, 0, 1]``.  A tool that assumes identity
-   mis-maps every hz4x4 phase, so the permutation is DERIVED per intersection.
+3. **The ``linkIndex`` -> roadLink permutation is not the identity anywhere it matters, and the
+   claim that it was on hz1x1 and grid4x4 was WRONG** (half-B review, M-6): the artifact records
+   ``[7, 6, 4, 5, 2, 3, 0, 1]`` on hz1x1, ``[10, 11, 9, 6, 7, 8, 3, 4, 5, 2, 0, 1]`` on hz4x4, and
+   seven distinct permutations across grid4x4's sixteen intersections.  Scored under the identity
+   instead, the phase check falls to 1/9, 0/144 and 26/256, so the permutation is DERIVED per
+   intersection and that control is carried in every row.
 4. **Demand order differs between the two files on hz4x4.**  Index-aligned it matches on 35 of 2,983
    vehicles; as a MULTISET of ``(depart, route)`` it matches on 2,983 of 2,983.  hz1x1 and grid4x4
    happen to be index-aligned.  **Compared as a multiset, with the index-aligned count reported
@@ -72,7 +75,11 @@ __all__ = [
     "AUDIT_FORMAT_VERSION",
     "audit_artifact",
     "audit_pair",
+    "audit_all",
     "cityflow_phase_links",
+    "connection_set_equality",
+    "lane_index_reversal_map",
+    "per_lane_geometry",
     "demand_from_cityflow_flow",
     "demand_from_route_file",
     "link_index_permutation",
@@ -313,6 +320,115 @@ def demand_from_cityflow_flow(flow_json: str | Path) -> list[tuple[float, tuple[
     return [(float(entry["startTime"]), tuple(entry["route"])) for entry in data]
 
 
+def _route_vtype_facts(
+    route_file: str | Path, *, zip_member: str | None = None
+) -> dict[str, Any]:
+    """Whether the route file DEFINES a vType and whether it BINDS it to its vehicles.
+
+    ⚠️ Defined is not bound, and CAP(E) needs the distinction: hz1x1's and hz4x4's shipped files each
+    declare a correct-looking ``pkw`` and reference it from **zero** vehicles, so SUMO runs
+    ``DEFAULT_VEHTYPE`` (55.55 m/s, accel 2.6) instead. Only the parity file binds.
+    """
+    path = Path(route_file)
+    if zip_member is None:
+        root = ET.parse(path).getroot()
+    else:
+        with zipfile.ZipFile(path) as archive:
+            root = ET.fromstring(archive.read(zip_member))
+    types = {str(v.get("id")): {k: str(x) for k, x in v.attrib.items()} for v in root.iter("vType")}
+    vehicles = list(root.iter("vehicle"))
+    typed = sum(1 for vehicle in vehicles if vehicle.get("type"))
+    return {
+        "vtypes": types,
+        "n_vehicles": len(vehicles),
+        "n_typed": typed,
+        "fully_bound": bool(vehicles) and typed == len(vehicles),
+        "tau_present": {name: "tau" in attrs for name, attrs in types.items()},
+    }
+
+
+def audit_all(
+    repo_root: str | Path, *, candidates_root: str | Path | None = None
+) -> dict[str, Any]:
+    """Every declared pair, from one command, with no absolute path in the output.
+
+    ⚠️ **grid4x4's SUMO side lives in the read-only, gitignored, CC BY-NC-SA candidates tree.**  Its
+    row is produced only when *candidates_root* is given, and its paths are recorded RELATIVE to
+    that root so the artifact is identical on a machine that keeps the clone elsewhere.  Without it
+    the artifact carries two pairs and says why, rather than embedding one contributor's home
+    directory.
+    """
+    root = Path(repo_root).resolve()
+    pairs: list[dict[str, Any]] = []
+    for name, roadnet, net, flow, routes, direction in (
+        (
+            "hangzhou_1x1_bc-tyc",
+            "scenarios/hangzhou_1x1_bc-tyc_18041610_1h/roadnet.json",
+            "scenarios/hangzhou_1x1_bc-tyc_18041610_1h/hangzhou_1x1_bc-tyc_18041610_1h.net.xml",
+            "scenarios/hangzhou_1x1_bc-tyc_18041610_1h/flow.json",
+            "scenarios/hangzhou_1x1_bc-tyc_18041610_1h/hangzhou_1x1_bc-tyc_18041610_1h.rou.xml",
+            "CityFlow -> SUMO (LibSignal c2s toolchain, netconvert 1.13.0)",
+        ),
+        (
+            "hangzhou_4x4_gudang",
+            "scenarios/hangzhou_4x4_gudang_18041610_1h/roadnet_4X4.json",
+            "scenarios/hangzhou_4x4_gudang_18041610_1h/hangzhou_4x4_gudang_18041610_1h.net.xml",
+            "scenarios/hangzhou_4x4_gudang_18041610_1h/hangzhou_4x4_gudang_18041610_1h.json",
+            "scenarios/hangzhou_4x4_gudang_18041610_1h/hangzhou_4x4_gudang_18041610_1h.rou.xml",
+            "CityFlow -> SUMO (LibSignal c2s toolchain, netconvert 1.13.0)",
+        ),
+    ):
+        pair = audit_pair(
+            name,
+            cityflow_roadnet=root / roadnet,
+            sumo_net=root / net,
+            cityflow_flow=root / flow,
+            sumo_routes=root / routes,
+            direction=direction,
+        )
+        pair.update(cityflow_roadnet=roadnet, sumo_net=net)
+        pair["E_demand"]["cityflow_flow"] = flow
+        pair["E_demand"]["sumo_routes"] = routes
+        pair["F_provenance"]["file"] = net
+        pairs.append(pair)
+
+    grid4x4: dict[str, Any] | None = None
+    if candidates_root is not None:
+        base = Path(candidates_root).resolve()
+        relative = Path("resco/resco_benchmark/environments/grid4x4")
+        net = base / relative / "grid4x4.net.xml"
+        archive = base / relative / "grid4x4.zip"
+        if net.is_file() and archive.is_file():
+            grid4x4 = audit_pair(
+                "grid4x4",
+                cityflow_roadnet=root / "scenarios/grid4x4/grid4x4_roadnet_red.json",
+                sumo_net=net,
+                cityflow_flow=root / "scenarios/grid4x4/grid4x4_flow.json",
+                sumo_routes=archive,
+                sumo_routes_zip_member="grid4x4_1.rou.xml",
+                direction="SUMO -> CityFlow (LibSignal s2c; the SUMO side is RESCO's, netedit 1.9.0)",
+            )
+            grid4x4.update(
+                cityflow_roadnet="scenarios/grid4x4/grid4x4_roadnet_red.json",
+                sumo_net=f"<candidates>/{relative}/grid4x4.net.xml",
+            )
+            grid4x4["E_demand"]["cityflow_flow"] = "scenarios/grid4x4/grid4x4_flow.json"
+            grid4x4["E_demand"]["sumo_routes"] = f"<candidates>/{relative}/grid4x4.zip::grid4x4_1.rou.xml"
+            grid4x4["F_provenance"]["file"] = f"<candidates>/{relative}/grid4x4.net.xml"
+            pairs.append(grid4x4)
+
+    artifact = audit_artifact(pairs)
+    artifact["candidates_root_supplied"] = candidates_root is not None
+    artifact["grid4x4_included"] = grid4x4 is not None
+    if grid4x4 is None:
+        artifact["what_this_does_not_say"].append(
+            "grid4x4 is ABSENT from this run: its SUMO side is RESCO's, in a read-only gitignored "
+            "CC BY-NC-SA clone, and no --candidates-root was supplied. The pair is not unaudited, "
+            "it is un-auditable from this tree alone."
+        )
+    return artifact
+
+
 def _compare_demand(
     cityflow: Sequence[tuple[float, tuple[str, ...]]],
     sumo: Sequence[tuple[float, tuple[str, ...]]],
@@ -335,6 +451,162 @@ def _compare_demand(
         if cityflow
         else None,
         "depart_range_sumo": [min(d for d, _ in sumo), max(d for d, _ in sumo)] if sumo else None,
+    }
+
+
+def lane_index_reversal_map(lanes_per_road: Mapping[str, int]) -> dict[str, str]:
+    """``road_i -> road_(n-1-i)``: the whole-network lane pairing, incoming AND outgoing.
+
+    ``lane_semantic_correspondence`` proves the pairing on INCOMING lanes from the movements they
+    serve, and that is the load-bearing derivation.  CAP(C) also needs the OUT-lane of every
+    connection, which serves no movement of the intersection under audit, so it needs a rule that
+    covers every lane.  This is that rule -- and it is not assumed: :func:`connection_set_equality`
+    checks it against the movement correspondence on the incoming lanes and reports the agreement,
+    so a network where the two disagree is a finding rather than a silent re-index.
+    """
+    reversal: dict[str, str] = {}
+    for road, count in lanes_per_road.items():
+        for index in range(int(count)):
+            reversal[f"{road}_{index}"] = f"{road}_{int(count) - 1 - index}"
+    return reversal
+
+
+def connection_set_equality(
+    roadnet: str | Path,
+    net_xml: str | Path,
+    *,
+    lanes_per_road: Mapping[str, int],
+    intersections: Sequence[str],
+) -> dict[str, Any]:
+    """CAP(C)'s equality half: CityFlow ``laneLinks`` against SUMO's signalled connections.
+
+    P11.5: *"the (in-lane -> out-lane) connection set under the movement correspondence equals
+    CityFlow's laneLinks exactly ... any MISSING one a FAIL"*.  The audit previously reported
+    direction COUNTS only, which cannot see a connection that moved.
+
+    Both sides are reduced to a set of ``(in_lane, out_lane)`` pairs in CityFlow's naming, the SUMO
+    side translated through :func:`lane_index_reversal_map`.  Missing (in CityFlow, absent from
+    SUMO) and extra (the reverse) are reported separately, because they mean different things: a
+    missing connection is a topology difference, an extra one is usually a netconvert default.
+    """
+    data = json.loads(Path(roadnet).read_text(encoding="utf-8"))
+    reversal = lane_index_reversal_map(lanes_per_road)
+    root = ET.parse(Path(net_xml)).getroot()
+
+    cityflow_pairs: set[tuple[str, str]] = set()
+    for entry in data["intersections"]:
+        if entry["id"] not in set(intersections):
+            continue
+        for link in entry.get("roadLinks", []):
+            for lane_link in link.get("laneLinks", []):
+                cityflow_pairs.add(
+                    (
+                        f"{link['startRoad']}_{lane_link['startLaneIndex']}",
+                        f"{link['endRoad']}_{lane_link['endLaneIndex']}",
+                    )
+                )
+
+    sumo_pairs: set[tuple[str, str]] = set()
+    untranslatable: list[str] = []
+    for connection in root.findall("connection"):
+        if connection.get("tl") not in set(intersections):
+            continue
+        source = f"{connection.get('from')}_{int(str(connection.get('fromLane')))}"
+        target = f"{connection.get('to')}_{int(str(connection.get('toLane')))}"
+        if source not in reversal or target not in reversal:
+            untranslatable.append(f"{source} -> {target}")
+            continue
+        sumo_pairs.add((reversal[source], reversal[target]))
+
+    missing = sorted(cityflow_pairs - sumo_pairs)
+    extra = sorted(sumo_pairs - cityflow_pairs)
+    return {
+        "n_cityflow_lane_links": len(cityflow_pairs),
+        "n_sumo_signalled_connections": len(sumo_pairs),
+        "n_equal": len(cityflow_pairs & sumo_pairs),
+        "sets_equal": cityflow_pairs == sumo_pairs,
+        "n_missing_in_sumo": len(missing),
+        "missing_in_sumo": missing[:10],
+        "n_extra_in_sumo": len(extra),
+        "extra_in_sumo": extra[:10],
+        "n_untranslatable": len(untranslatable),
+        "untranslatable": untranslatable[:10],
+    }
+
+
+def per_lane_geometry(
+    roadnet: str | Path, net_xml: str | Path, *, lanes_per_road: Mapping[str, int]
+) -> dict[str, Any]:
+    """CAP(B)'s length and speed halves, ENUMERATED PER LANE with the maximum absolute difference.
+
+    P11.5: *"per-lane length and speed limit -- exact or enumerated per lane with max abs
+    difference"*.  The audit previously compared speeds as SETS (which cannot see 11.111 against
+    11.11 if both sides have one distinct value) and reported SUMO-only lengths (so the CityFlow
+    comparison did not exist at all).
+
+    The CityFlow length is the road polyline's, taken from the FROZEN parser's own ``road_lengths``
+    rather than recomputed here; the SUMO length is the lane's.  ⚠️ **The residual is real and is
+    not a defect of this tool**: a converted network's edges are straight lines between junction
+    centres while the lanes are cut back at the junction, so SUMO's lane is shorter by the junction
+    geometry.  It is a converter residual and the table labels it one.
+    """
+    from utils.cityflow_utils import parse_roadnet
+
+    parsed = parse_roadnet(Path(roadnet))
+    data = json.loads(Path(roadnet).read_text(encoding="utf-8"))
+    cityflow_speed = {
+        f"{road['id']}_{index}": float(lane["maxSpeed"])
+        for road in data["roads"]
+        for index, lane in enumerate(road["lanes"])
+    }
+    root = ET.parse(Path(net_xml)).getroot()
+    sumo_lane: dict[str, dict[str, float]] = {}
+    for edge in root.findall("edge"):
+        if edge.get("function") == "internal" or str(edge.get("id", "")).startswith(":"):
+            continue
+        for lane in edge.findall("lane"):
+            sumo_lane[str(lane.get("id"))] = {
+                "length": float(str(lane.get("length"))),
+                "speed": float(str(lane.get("speed"))),
+            }
+
+    shared = sorted(set(cityflow_speed) & set(sumo_lane))
+    length_rows: list[dict[str, Any]] = []
+    speed_rows: list[dict[str, Any]] = []
+    for lane_id in shared:
+        road = lane_id.rsplit("_", 1)[0]
+        cityflow_length = float(parsed.road_lengths.get(road, float("nan")))
+        length_rows.append(
+            {
+                "lane": lane_id,
+                "cityflow": cityflow_length,
+                "sumo": sumo_lane[lane_id]["length"],
+                "abs_difference": abs(cityflow_length - sumo_lane[lane_id]["length"]),
+            }
+        )
+        speed_rows.append(
+            {
+                "lane": lane_id,
+                "cityflow": cityflow_speed[lane_id],
+                "sumo": sumo_lane[lane_id]["speed"],
+                "abs_difference": abs(cityflow_speed[lane_id] - sumo_lane[lane_id]["speed"]),
+            }
+        )
+    return {
+        "n_lanes_compared": len(shared),
+        "n_lanes_only_in_cityflow": len(set(cityflow_speed) - set(sumo_lane)),
+        "n_lanes_only_in_sumo": len(set(sumo_lane) - set(cityflow_speed)),
+        "length": {
+            "max_abs_difference": max((r["abs_difference"] for r in length_rows), default=None),
+            "n_exact": sum(1 for r in length_rows if r["abs_difference"] == 0.0),
+            "cityflow_source": "the frozen parser's road_lengths (the roadnet polyline)",
+            "per_lane": length_rows,
+        },
+        "speed": {
+            "max_abs_difference": max((r["abs_difference"] for r in speed_rows), default=None),
+            "n_exact": sum(1 for r in speed_rows if r["abs_difference"] == 0.0),
+            "per_lane": speed_rows,
+        },
     }
 
 
@@ -390,7 +662,6 @@ def audit_pair(
     sumo_routes: str | Path | None = None,
     sumo_routes_zip_member: str | None = None,
     direction: str,
-    notes: Sequence[str] = (),
 ) -> dict[str, Any]:
     """CAP criteria A-F for one converted pair, from files alone.  No simulation, no verdict."""
     from utils.cityflow_utils import parse_roadnet
@@ -452,8 +723,49 @@ def audit_pair(
         "sumo_lane_length_max": max(l["length"] for l in geometry["lanes"].values()),
     }
 
+    # --- (B) continued: the per-lane halves CAP actually asks for --------
+    lanes_per_road = {road["id"]: len(road["lanes"]) for road in data["roads"]}
+    criterion_b["per_lane"] = per_lane_geometry(
+        roadnet_path, net_path, lanes_per_road=lanes_per_road
+    )
+    criterion_b["max_abs_length_difference"] = criterion_b["per_lane"]["length"][
+        "max_abs_difference"
+    ]
+    criterion_b["max_abs_speed_difference"] = criterion_b["per_lane"]["speed"][
+        "max_abs_difference"
+    ]
+
     # --- (C) connections -----------------------------------------------
     criterion_c = sumo_connection_counts(net_path)
+    criterion_c["lane_link_equality"] = connection_set_equality(
+        roadnet_path, net_path, lanes_per_road=lanes_per_road, intersections=cityflow_ids
+    )
+    # The reversal rule CAP(C) translates through is CHECKED against the movement correspondence on
+    # the incoming lanes, so it is derived evidence rather than a convention.
+    reversal = lane_index_reversal_map(lanes_per_road)
+    agree = disagree = 0
+    from offline.transfer_gate import cityflow_lane_turns, lane_semantic_correspondence, sumo_lane_turns
+
+    sumo_turns_all = sumo_lane_turns(net_path)
+    for ix_id in cityflow_ids:
+        try:
+            turns = cityflow_lane_turns(roadnet_path, ix_id)
+            mapping = lane_semantic_correspondence(turns, sumo_turns_all, sorted(turns))
+        except (KeyError, ValueError):
+            continue
+        for lane, partner in mapping.items():
+            if reversal.get(lane) == partner:
+                agree += 1
+            else:
+                disagree += 1
+    criterion_c["reversal_agrees_with_the_movement_correspondence"] = {
+        "n_agree": agree,
+        "n_disagree": disagree,
+        "note": (
+            "the index-reversal rule CAP(C) uses for OUT-lanes, checked against the movement "
+            "correspondence on the IN-lanes it can be derived for"
+        ),
+    }
 
     # --- (D) signals ----------------------------------------------------
     per_intersection: dict[str, Any] = {}
@@ -553,6 +865,10 @@ def audit_pair(
     if cityflow_flow is not None and sumo_routes is not None:
         criterion_e = {
             "compared": True,
+            "key": (
+                "(depart, route). Amendment B asks for (id, depart, route); CityFlow's flow.json "
+                "carries no vehicle ids, so the id cannot enter the key on either side"
+            ),
             "cityflow_flow": str(cityflow_flow),
             "sumo_routes": str(sumo_routes)
             + ("" if sumo_routes_zip_member is None else f"::{sumo_routes_zip_member}"),
@@ -560,7 +876,52 @@ def audit_pair(
                 demand_from_cityflow_flow(cityflow_flow),
                 demand_from_route_file(sumo_routes, zip_member=sumo_routes_zip_member),
             ),
+            "vtype": _route_vtype_facts(sumo_routes, zip_member=sumo_routes_zip_member),
         }
+
+    findings: list[str] = []
+    if criterion_b["max_abs_length_difference"]:
+        findings.append(
+            f"per-lane length differs by up to {criterion_b['max_abs_length_difference']} m "
+            "(the CityFlow road polyline runs junction centre to junction centre; the SUMO lane is "
+            "cut back at the junction) -- a converter residual, enumerated per lane"
+        )
+    if criterion_b["max_abs_speed_difference"]:
+        findings.append(
+            f"per-lane speed differs by up to {criterion_b['max_abs_speed_difference']} m/s"
+        )
+    if criterion_c["extra_directions"]:
+        findings.append(
+            f"SUMO carries extra connection directions {criterion_c['extra_directions']} that "
+            "CityFlow has no counterpart for"
+        )
+    if not criterion_c["lane_link_equality"]["sets_equal"]:
+        findings.append(
+            f"{criterion_c['lane_link_equality']['n_missing_in_sumo']} CityFlow laneLinks are "
+            "MISSING from the SUMO connection set"
+        )
+    if criterion_e.get("compared") and not criterion_e["order_matches"]:
+        findings.append(
+            "the two demand files agree as a multiset but not in record order "
+            f"({criterion_e['n_index_aligned_equal']} of {criterion_e['n_cityflow']} index-aligned)"
+        )
+    vtype = criterion_e.get("vtype")
+    if vtype and not vtype["fully_bound"]:
+        findings.append(
+            (
+                f"the SUMO route file defines no vType at all, so all {vtype['n_vehicles']} "
+                "vehicles run DEFAULT_VEHTYPE"
+                if not vtype["vtypes"]
+                else (
+                    f"the SUMO route file defines {sorted(vtype['vtypes'])} and binds it to "
+                    f"{vtype['n_typed']} of {vtype['n_vehicles']} vehicles, so they run "
+                    "DEFAULT_VEHTYPE instead"
+                )
+            )
+            + ": CAP(E)'s vehicle-parameter half is NOT met on this pair"
+        )
+    if not sumo_provenance(net_path)["records_its_inputs"]:
+        findings.append("the network header records no inputs: it cannot be traced from itself")
 
     return {
         "pair": name,
@@ -573,7 +934,7 @@ def audit_pair(
         "D_signals": criterion_d,
         "E_demand": criterion_e,
         "F_provenance": sumo_provenance(net_path),
-        "notes": list(notes),
+        "findings": findings,
     }
 
 
