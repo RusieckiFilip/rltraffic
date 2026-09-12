@@ -668,3 +668,29 @@ Commit the artifact first (D4's NEXT STEPS). Half B's paired-scenario table and 
 hangzhou (both scenarios) and for the grid4x4 pair from the candidates directory; `align_info` and the
 six tests of §3.3; §3.4's provenance answer is already established (Amendment A1) — cite it, do not redo
 it. Packet at G5: *"written against BRIEF_34 + Amendments A–F"*.
+
+---
+
+# ✅ AMENDMENT G — 2026-09-12, at G5: the packet is on the branch; F5's A4 rate is WITHDRAWN as the coordinator's error
+
+`docs/returns/P7.1.md` @ `6be6603`, written against A–F, 381 lines, diff stat byte-identical to the tree.
+**Merge review runs as two SEQUENTIAL reviewers with findings files (half A, then half B).**
+
+## G1 — A4's rate: 50.31 s (campaign chunk) / 60.59 s (idle re-measure), `n = 1` each; 438.69 s withdrawn
+
+Amendment F5 quoted **438.7 s per hz4x4 episode under the observer**. The campaign's own
+`timing_hz4x4_gudang.json` records **50.31 s** and the implementer's re-measurement on an idle machine
+**60.59 s**, bit-identical outputs. **The 438.69 s was the coordinator's pre-flight completion run on
+2026-09-12 ~09:12, and its own log shows what it measured: `real 7m23s` against `user 1m42s + sys
+1m38s` — the process was waiting, not computing.** The implementer's G4 demonstrations were rolling
+SUMO episodes on the same machine at that hour; per-second traci observation over 240 lanes is 3,600
+rounds of socket calls, and under CPU contention each call's latency balloons. **A wall clock carries no
+signature of the load it was taken under — the plan's own sentence — and the coordinator broke the
+*machine stays quiet* rule with a measurement, then reported it as a rate.** Withdrawn as a rate; kept
+in the record as one data point on contention. The freeze quotes **51–61 s** for P7.3's hz4x4 SUMO
+planning, `n = 1` each, and E1.5's "A4 alone 7.3 min" is void.
+
+## G2 — What the reviewers are asked, so the packet's open questions do not wait on them
+
+The reviewers verify; the coordinator rules. Open question 2 of the packet is answered by G1. Open
+question 1 (the paired set is 4 of 6, one network) and the DRAFT amendments go into A15 after PASS.
