@@ -668,3 +668,98 @@ Commit the artifact first (D4's NEXT STEPS). Half B's paired-scenario table and 
 hangzhou (both scenarios) and for the grid4x4 pair from the candidates directory; `align_info` and the
 six tests of §3.3; §3.4's provenance answer is already established (Amendment A1) — cite it, do not redo
 it. Packet at G5: *"written against BRIEF_34 + Amendments A–F"*.
+
+---
+
+# ✅ AMENDMENT G — 2026-09-12, at G5: the packet is on the branch; F5's A4 rate is WITHDRAWN as the coordinator's error
+
+`docs/returns/P7.1.md` @ `6be6603`, written against A–F, 381 lines, diff stat byte-identical to the tree.
+**Merge review runs as two SEQUENTIAL reviewers with findings files (half A, then half B).**
+
+## G1 — A4's rate: 50.31 s (campaign chunk) / 60.59 s (idle re-measure), `n = 1` each; 438.69 s withdrawn
+
+Amendment F5 quoted **438.7 s per hz4x4 episode under the observer**. The campaign's own
+`timing_hz4x4_gudang.json` records **50.31 s** and the implementer's re-measurement on an idle machine
+**60.59 s**, bit-identical outputs. **The 438.69 s was the coordinator's pre-flight completion run on
+2026-09-12 ~09:12, and its own log shows what it measured: `real 7m23s` against `user 1m42s + sys
+1m38s` — the process was waiting, not computing.** The implementer's G4 demonstrations were rolling
+SUMO episodes on the same machine at that hour; per-second traci observation over 240 lanes is 3,600
+rounds of socket calls, and under CPU contention each call's latency balloons. **A wall clock carries no
+signature of the load it was taken under — the plan's own sentence — and the coordinator broke the
+*machine stays quiet* rule with a measurement, then reported it as a rate.** Withdrawn as a rate; kept
+in the record as one data point on contention. The freeze quotes **51–61 s** for P7.3's hz4x4 SUMO
+planning, `n = 1` each, and E1.5's "A4 alone 7.3 min" is void.
+
+## G2 — What the reviewers are asked, so the packet's open questions do not wait on them
+
+The reviewers verify; the coordinator rules. Open question 2 of the packet is answered by G1. Open
+question 1 (the paired set is 4 of 6, one network) and the DRAFT amendments go into A15 after PASS.
+
+---
+
+# ⛔ AMENDMENT H — 2026-09-12, on the merge reviews: FIX-FIRST, both halves, one round
+
+`docs/reviews/P7.1-halfA.md` — **PASS-WITH-NOTES, 0 blocking, 2 major, 4 minor, 8/9 mutations killed.**
+`docs/reviews/P7.1-halfB.md` — **FAIL, 1 blocking, 6 major, 6 minor, 9/14 killed.**
+**Every shipped number in both halves recomputed by the reviewers' own routes and matched** (the 16-row
+table 16/16, the void twin 16/16, the released-lane sets from the files 8/8 and 4/8, ρ and Δ to
+≤ 1.4e-13, 45/45 against P7.0's npz, the audit's A/D/E/F cells, the provenance hashes). **What failed
+is completeness and protection: two cells of the paper's audit table were never computed, and five
+mutations on half B survive.** The same shape as `P5.3b-fix` Amendment E, and the same ruling.
+
+## H1 — REQUIRED, half A
+
+1. **(Major 1)** `_stored_reference` returns NaN and `has_p7_0_reference` is `False` for any cell without
+   a P7.0 counterpart — the hz4x4 timing scenario first; the A4 reuse test's fixture is produced by the
+   runner path (or asserts the runner's behaviour on a gudang-shaped config), never hand-written with
+   `nan`. Then **re-roll A4 once through a driver restart** (new token; the restart moves the false
+   chunk to `failed/`, re-rolls, re-runs `report`, rewrites the manifest) so the shipped chunk is honest.
+2. **(Major 2)** D3's population second route ASSERTED in `freeze_artifact` and in the recorder:
+   `n_pending_at_horizon == n_never_entered` per row, and `n_created` equal to an independent count of
+   `<vehicle depart=… ≤ T>` in the route file by a second code path (a regex pass, not the parser);
+   a synthetic test with a vehicle in `(T − dt, T]` so the reviewer's M3b dies.
+3. **(Minors)** label `6.057427` as P7.0's float32-derived statistic beside the float64 `6.057425`; drop
+   the 60.59 s figure from the freeze and the packet (not on disk — a number a clone cannot see is not
+   quoted) or put its chunk under `output/p7_1/` through the driver; correct the "7 unit tests" claim
+   to the count actually observed.
+
+## H2 — REQUIRED, half B
+
+1. **(Blocking B-1)** CAP(B) and CAP(C) implemented as CAP defines them, with tests and the reviewer's
+   surviving mutations killed: **B** — per-lane length (CityFlow polyline from `points` vs SUMO lane
+   length) and speed, enumerated per lane with the maximum absolute difference (the reviewer measured
+   10.4 / 27.2 / 27.2 m — those numbers enter the table, labelled as converter residuals); **C** — the
+   (in-lane → out-lane) connection set under the movement correspondence equal to CityFlow's
+   `laneLinks` (16/16, 576/576, 576/576 by the reviewer's route), any missing connection a FAIL, extras
+   enumerated. Mutations M9 (netOffset ignored), M11 (extras never enumerated), M12 (speed sets → count
+   equality) must be KILLED.
+2. **(M-1)** `align_info` refuses any lane not in the roadnet's incoming ∪ outgoing set — exact
+   membership, never a name-prefix test; test with `road_1_1_99_0`.
+3. **(M-2)** the phase map is conditional on the pair's phase structure: applied only where CityFlow
+   and SUMO phase counts are (9, 16) hangzhou-shaped; on same-width pairs it is the identity and the
+   alignment says so; `alignment_for_scenario` records the env's action count per scenario by the
+   env's own rule (`envs/phase_control.py` — duration > 5 s → green) and the freeze §7 states it for
+   hz1x1 and grid4x4, as Amendment C(D) asked.
+4. **(M-3)** a regenerating command for all three artifacts (`python -m offline.conversion_audit report`,
+   `python -m offline.backend_alignment tables`, or one CLI) from a declared pair list, byte-identical
+   on re-run; `paired_scenario_table` excludes `scenarios/*_candidates/` by default and records paths
+   relative to a declared candidates root, so a clone with or without the CC BY-NC-SA tree gets 20 rows
+   and never reads it by accident; the hand-written `notes` become generated fields or are dropped.
+5. **(M-4)** the metric filter tested (M6 killed); E's multiset comparison with a negative control
+   (M8a killed).
+6. **(M-5)** §3.3 test 3 DERIVES the released-lane sets via `transfer_gate.green_action_lane_sets`
+   from the network files; the gate's stored sets are the cross-check, not the source.
+7. **(M-6)** docstrings corrected: the `SKELETON … NotImplementedError` line gone; the permutation claim
+   replaced by what the artifact records (`[7,6,4,5,2,3,0,1]` on hz1x1, identity 1/9).
+8. **(Minors)** `RLTRAFFIC_GRID4X4_RESCO` semantics and no `/home/filip` default; phase index 16
+   refused; cologne3's direction counts (`t` 39, `L` 1, `R` 1) in the paired table; E's `(depart, route)`
+   key stated with the reason (`flow.json` has no ids).
+
+## H3 — Verification, then merge; no third reviewer
+
+The coordinator re-runs on the fixed branch: the six surviving mutations (M3b; M6, M8a, M9, M11, M12),
+the reviewers' own recomputation scripts (kept in their scratch dirs: `check_c_d.py`, `recompute16.py`,
+`recompute_A.py`) against the regenerated artifacts, the byte-identical regeneration of the three
+half-B artifacts and the freeze artifact from the CLIs, and `output/SHA256SUMS_p7_1.txt` after the A4
+re-roll. Merge on all green; the P7.0 fence lifts with the merge. Packet: *"written against BRIEF_34 +
+Amendments A–H"*.
