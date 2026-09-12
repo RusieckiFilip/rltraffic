@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 from pathlib import Path
 from typing import Any
@@ -189,9 +190,103 @@ def _episode(**overrides: Any) -> sar.FreezeEpisode:
         "halting_n_disagreeing_lane_seconds": 0,
         "n_observations": 10,
         "seconds": 1.0,
+        "regime": "parity",
     }
     base.update(overrides)
     return sar.FreezeEpisode(**base)
+
+
+#: A per-arm ATT offset, so the three anchors of a synthetic campaign are distinguishable and rho's
+#: anchor span is non-zero.  Applied to E, P, W and att_env together, which shifts the level and
+#: leaves every term of the decomposition intact.
+_ARM_OFFSET = {"fixedtime": 40.0, "maxpressure": 0.0, "random": 90.0}
+
+
+def _shifted_episode(
+    *, backend: str, arm: str, observer: bool, regime: str, episode: int, **overrides: Any
+) -> sar.FreezeEpisode:
+    """One row of a synthetic campaign cell, internally consistent under every gate."""
+    offset = _ARM_OFFSET[arm]
+    att_env = 19.0 / 3.0 + offset
+    fields: dict[str, Any] = {
+        "backend": backend,
+        "arm": arm,
+        "observer": observer,
+        "regime": regime,
+        "episode": episode,
+        "engine_seed": 1000 + episode,
+        "att_reference_created_population": 6.75 + offset,
+        "att_reference_entered_population": 7.0 + offset,
+        "att_reference_entered_running": att_env,
+        "att_env": att_env,
+        "att_p7_0_stored": float(np.float32(att_env)),
+    }
+    if not observer:
+        # The control arm reconstructs nothing; NaN and -1 are values, not absences.
+        nan = float("nan")
+        fields.update(
+            att_reference_created_population=nan,
+            att_reference_entered_population=nan,
+            att_reference_entered_running=nan,
+            mean_depart_delay=nan,
+            max_abs_depart_clock_deviation=nan,
+            n_created=-1,
+            n_entered=-1,
+            n_never_entered=-1,
+            n_pending_at_horizon=-1,
+            n_teleports=-1,
+            n_vanished_without_arrival=-1,
+            n_arrived_never_observed_at_a_boundary=-1,
+            halting_max_abs_difference=-1,
+            n_observations=0,
+        )
+    if regime == "noteleport":
+        # A1b has no P7.0 counterpart: a different .sumocfg is a different measurement.
+        fields["att_p7_0_stored"] = float("nan")
+    fields.update(overrides)
+    return _episode(**fields)
+
+
+def _campaign(**per_label: Any) -> list[dict[str, Any]]:
+    """The twelve chunks the driver produces, in the shape ``report`` requires.
+
+    *per_label* replaces or drops a cell by its label: ``_campaign(cityflow__random=None)`` deletes
+    it, ``_campaign(**{"sumo__maxpressure": chunk})`` substitutes one.
+    """
+    chunks: dict[str, dict[str, Any]] = {}
+    specs = (
+        [("sumo", arm, True, "parity") for arm in sar.ANCHOR_ARMS]
+        + [("sumo", arm, False, "parity") for arm in sar.ANCHOR_ARMS]
+        + [("sumo", arm, True, "noteleport") for arm in sar.ANCHOR_ARMS]
+        + [("cityflow", arm, True, "parity") for arm in sar.ANCHOR_ARMS]
+    )
+    for backend, arm, observer, regime in specs:
+        rows = [
+            _shifted_episode(
+                backend=backend, arm=arm, observer=observer, regime=regime, episode=index
+            ).as_record()
+            for index in range(5)
+        ]
+        chunk = _chunk(
+            backend=backend, arm=arm, observer=observer, regime=regime, rows=rows
+        )
+        chunks[sar._chunk_label(chunk)] = chunk
+    for label, replacement in per_label.items():
+        if replacement is None:
+            del chunks[label]
+        else:
+            chunks[label] = replacement
+    return list(chunks.values())
+
+
+def _write_campaign(work: Path, chunks: list[dict[str, Any]]) -> None:
+    """Lay a campaign out on disk under the filenames the driver would have used."""
+    work.mkdir(parents=True, exist_ok=True)
+    for chunk in chunks:
+        name = sar.chunk_name(
+            chunk["backend"], chunk["arm"], observer=chunk["observer"], regime=chunk["regime"]
+        )
+        (work / name).write_text(json.dumps(chunk), encoding="utf-8")
 
 
 def _chunk(**overrides: Any) -> dict[str, Any]:
@@ -1029,7 +1124,394 @@ def test_the_report_destination_is_fenced_too(tmp_path: Path) -> None:
 
 
 # ----------------------------------------------------------------------
-# 8b. The driver -- structural, because its behavioural falsification is the pre-flight's job
+# 8a. Amendment E1: the three gates the pre-flight found were held by a file rather than by code
+# ----------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("counter", ["n_teleports", "n_vanished_without_arrival"])
+def test_a_noteleport_chunk_that_teleported_is_not_reusable(counter: str) -> None:
+    """🔒 E1.1 / PART 2 MAJOR 1, the reviewer's exp1 `1n` state: D2 re-derived, not trusted.
+
+    ``run_sumo_arm`` raises before writing such a chunk, so this can only arrive as a file -- which
+    is precisely how the reviewer bypassed the assertion and got `complete and clean, skipping`.
+    """
+    rows = [
+        _shifted_episode(
+            backend="sumo", arm="maxpressure", observer=True, regime="noteleport", episode=index
+        ).as_record()
+        for index in range(5)
+    ]
+    rows[1][counter] = 1
+    payload = _chunk(arm="maxpressure", regime="noteleport", rows=rows)
+
+    assert not sar.chunk_is_reusable(
+        payload, backend="sumo", arm="maxpressure", observer=True, episodes=5, regime="noteleport"
+    )
+
+
+@pytest.mark.parametrize("counter", ["n_teleports", "n_vanished_without_arrival"])
+def test_the_artifact_refuses_a_noteleport_chunk_that_teleported(counter: str) -> None:
+    """The same state at the other end: `report` re-derives D2 too (the reviewer's exp2 `2d`/`2e`)."""
+    label = "sumo_noteleport__maxpressure"
+    rows = [
+        _shifted_episode(
+            backend="sumo", arm="maxpressure", observer=True, regime="noteleport", episode=index
+        ).as_record()
+        for index in range(5)
+    ]
+    rows[1][counter] = 1
+    broken = _chunk(arm="maxpressure", regime="noteleport", rows=rows)
+
+    with pytest.raises(ValueError, match="teleport-free|did teleport"):
+        sar.freeze_artifact(_campaign(**{label: broken}))
+
+
+def test_a_chunk_whose_reproduction_failed_is_not_reusable() -> None:
+    """🔒 E1.3 / E1.6 / PART 2 MAJOR 3, the reviewer's exp1 `1l`.
+
+    The cell is complete and its identity is right; one row does not reproduce its P7.0 value.
+    "Complete" is not "clean", and the predicate now recomputes the difference rather than reading
+    the row's own verdict.
+    """
+    rows = [_episode(episode=index).as_record() for index in range(5)]
+    stored = np.float32(rows[3]["att_p7_0_stored"])
+    rows[3]["att_env"] = float(np.nextafter(stored, np.float32(np.inf)))
+    # The lie a stored verdict would tell.
+    rows[3]["reproduces_p7_0"] = True
+
+    assert not sar.chunk_is_reusable(
+        _chunk(rows=rows), backend="sumo", arm="maxpressure", observer=True, episodes=5
+    )
+    # Positive control: the same chunk without the perturbation IS reusable.
+    assert sar.chunk_is_reusable(
+        _chunk(), backend="sumo", arm="maxpressure", observer=True, episodes=5
+    )
+
+
+def test_a_chunk_rolled_at_another_episode_count_is_not_reusable() -> None:
+    """E1.6: the header's ``episodes`` must equal the campaign's, not merely the row count."""
+    four = _chunk(episodes=4, rows=[_episode(episode=index).as_record() for index in range(4)])
+
+    assert not sar.chunk_is_reusable(
+        four, backend="sumo", arm="maxpressure", observer=True, episodes=5
+    )
+
+
+def test_rows_belonging_to_another_regime_are_not_reusable() -> None:
+    """E1.6: a parity header over noteleport rows, and the mirror case."""
+    parity_header = _chunk(
+        rows=[
+            _shifted_episode(
+                backend="sumo", arm="maxpressure", observer=True, regime="noteleport", episode=i
+            ).as_record()
+            for i in range(5)
+        ]
+    )
+    noteleport_header = _chunk(
+        regime="noteleport", rows=[_episode(episode=i).as_record() for i in range(5)]
+    )
+
+    assert not sar.chunk_is_reusable(
+        parity_header, backend="sumo", arm="maxpressure", observer=True, episodes=5
+    )
+    assert not sar.chunk_is_reusable(
+        noteleport_header,
+        backend="sumo",
+        arm="maxpressure",
+        observer=True,
+        episodes=5,
+        regime="noteleport",
+    )
+
+
+def test_the_failed_slot_is_outside_the_report_glob() -> None:
+    """⚠️ E1.3, and the deviation from its literal wording.
+
+    ``<name>.failed.json`` would still match ``freeze_*.json`` and be read back in as data. The
+    subdirectory is outside a non-recursive glob by construction, and the numeric suffix means a
+    second failure does not overwrite the first.
+    """
+    destination = Path("/tmp/whatever/output/p7_1/freeze_sumo_maxpressure.json")
+    keep = sar.failed_chunk_destination(destination)
+
+    assert keep.parent.name == "failed"
+    assert keep.name == "freeze_sumo_maxpressure.json"
+    assert keep not in set(destination.parent.glob("freeze_*.json"))
+    assert not keep.match("*/p7_1/freeze_*.json")
+
+
+def test_a_second_failure_does_not_overwrite_the_first(tmp_path: Path) -> None:
+    """Evidence accumulates; it is not replaced."""
+    work = tmp_path / "output" / "p7_1"
+    (work / "failed").mkdir(parents=True)
+    destination = work / "freeze_sumo_maxpressure.json"
+    (work / "failed" / "freeze_sumo_maxpressure.json").write_text("{}", encoding="utf-8")
+
+    assert sar.failed_chunk_destination(destination).name == "freeze_sumo_maxpressure.1.json"
+
+
+def test_a_failed_chunk_is_moved_aside_before_the_cell_is_re_rolled(tmp_path: Path) -> None:
+    """⭐ E1.3 end to end through the real CLI, by the reviewer's sandbox technique.
+
+    The sandbox has no ``p7_0``, so the re-roll stops at ``_stored_reference`` -- after the move,
+    which is the step under test. The chunk must be gone from the glob and present in ``failed/``.
+    """
+    work = tmp_path / "output" / "p7_1"
+    work.mkdir(parents=True)
+    rows = [_episode(episode=index).as_record() for index in range(5)]
+    stored = np.float32(rows[2]["att_p7_0_stored"])
+    rows[2]["att_env"] = float(np.nextafter(stored, np.float32(np.inf)))
+    destination = work / sar.chunk_name("sumo", "maxpressure")
+    destination.write_text(json.dumps(_chunk(rows=rows)), encoding="utf-8")
+
+    code = sar.main(
+        [
+            "--output-root", str(tmp_path / "output"),
+            "--work-dir", str(work),
+            "--episodes", "5",
+            "run-sumo", "--arm", "maxpressure",
+        ]
+    )
+
+    assert code != 0  # the re-roll cannot finish in a sandbox with no p7_0
+    assert not destination.exists()
+    assert (work / "failed" / destination.name).is_file()
+    assert list(work.glob("freeze_*.json")) == []
+
+
+# ----------------------------------------------------------------------
+# 8b. Amendment E1 item 2: the campaign's shape is a contract
+# ----------------------------------------------------------------------
+
+
+def test_the_expected_label_set_is_the_drivers_twelve_stages() -> None:
+    """Derived from the arms, so the list cannot drift from what the driver runs."""
+    assert len(sar.EXPECTED_CAMPAIGN_LABELS) == 12
+    assert len(set(sar.EXPECTED_CAMPAIGN_LABELS)) == 12
+    for arm in sar.ANCHOR_ARMS:
+        assert f"sumo__{arm}" in sar.EXPECTED_CAMPAIGN_LABELS
+        assert f"sumo__{arm}__unobserved" in sar.EXPECTED_CAMPAIGN_LABELS
+        assert f"sumo_noteleport__{arm}" in sar.EXPECTED_CAMPAIGN_LABELS
+        assert f"cityflow__{arm}" in sar.EXPECTED_CAMPAIGN_LABELS
+    # A4 is not a cell: its ATT is not a result and it enters no table.
+    assert not any("hz4x4" in label for label in sar.EXPECTED_CAMPAIGN_LABELS)
+
+
+def test_the_full_campaign_satisfies_the_shape_check() -> None:
+    """⭐ The positive control. Without it, every refusal below is met by `raise` on line one."""
+    sar.assert_campaign_complete(_campaign(), episodes=5)
+
+
+@pytest.mark.parametrize(
+    "missing", ["cityflow__random", "sumo__maxpressure", "sumo_noteleport__fixedtime"]
+)
+def test_the_shape_check_refuses_a_missing_cell(missing: str) -> None:
+    """E1.2 / PART 2 MAJOR 2 exp2 `2b`: a deleted chunk silently dropped a whole rho backend."""
+    with pytest.raises(ValueError, match="missing"):
+        sar.assert_campaign_complete(_campaign(**{missing: None}), episodes=5)
+
+
+def test_the_shape_check_refuses_two_chunks_claiming_the_same_cell() -> None:
+    """E1.2 / exp2 `2c`: a parity-header chunk under the noteleport FILENAME.
+
+    Both files label ``sumo__maxpressure``; one overwrote the other in the artifact while the log
+    counted twelve. The label is read from the header, so the collision is header-level.
+    """
+    duplicate = _chunk(arm="maxpressure", regime="parity")
+    chunks = _campaign(**{"sumo_noteleport__maxpressure": duplicate})
+
+    with pytest.raises(ValueError, match="more than once"):
+        sar.assert_campaign_complete(chunks, episodes=5)
+
+
+def test_the_shape_check_refuses_a_cell_rolled_at_another_episode_count() -> None:
+    """E1.2 / exp2 `2g`: a self-consistent 4-episode chunk was written up as a cell."""
+    short = _chunk(
+        episodes=4,
+        rows=[
+            _shifted_episode(
+                backend="sumo", arm="maxpressure", observer=True, regime="parity", episode=i
+            ).as_record()
+            for i in range(4)
+        ],
+    )
+
+    with pytest.raises(ValueError, match="episodes"):
+        sar.assert_campaign_complete(_campaign(**{"sumo__maxpressure": short}), episodes=5)
+
+
+def test_report_refuses_an_incomplete_campaign_and_writes_nothing(tmp_path: Path) -> None:
+    """E1.2 through the real CLI: eleven cells on disk, artifact absent, tree unchanged."""
+    work = tmp_path / "output" / "p7_1"
+    _write_campaign(work, _campaign(cityflow__random=None))
+    out_dir = tmp_path / "docs" / "data"
+    out_dir.mkdir(parents=True)
+    before = sorted(p.relative_to(tmp_path) for p in tmp_path.rglob("*"))
+
+    code = sar.main(
+        [
+            "--output-root", str(tmp_path / "output"),
+            "--work-dir", str(work),
+            "--out-dir", str(out_dir),
+            "report",
+        ]
+    )
+
+    assert code != 0
+    assert not (out_dir / "p7_1_metric_freeze.json").exists()
+    assert sorted(p.relative_to(tmp_path) for p in tmp_path.rglob("*")) == before
+
+
+def test_report_writes_the_artifact_when_the_campaign_is_whole(tmp_path: Path) -> None:
+    """⭐ The positive control for the CLI path: twelve cells in, one artifact out."""
+    work = tmp_path / "output" / "p7_1"
+    _write_campaign(work, _campaign())
+    out_dir = tmp_path / "docs" / "data"
+    out_dir.mkdir(parents=True)
+
+    code = sar.main(
+        [
+            "--output-root", str(tmp_path / "output"),
+            "--work-dir", str(work),
+            "--out-dir", str(out_dir),
+            "report",
+        ]
+    )
+
+    assert code == 0
+    artifact = json.loads((out_dir / "p7_1_metric_freeze.json").read_text(encoding="utf-8"))
+    assert sorted(artifact["rho"]) == ["cityflow", "sumo", "sumo_noteleport"]
+    assert artifact["reproduction"]["n_verified"] == 45
+    assert len(artifact["cells"]) == 9
+
+
+# ----------------------------------------------------------------------
+# 8c. Amendment E1 item 4: A4's skip, and a malformed row that used to be a traceback
+# ----------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "field", ["n_teleports", "att_env", "n_created", "mean_depart_delay", "observer"]
+)
+def test_a_row_carrying_null_is_refused_with_a_message_not_a_traceback(field: str) -> None:
+    """E1.4 / mn-6: `n_teleports: null` used to raise a bare TypeError out of the summary."""
+    chunks = _campaign()
+    # Nulled AFTER the chunk is built: the header's reproduction summary is computed from the rows,
+    # so a null in the builder would kill the fixture instead of exercising the check.
+    broken = next(chunk for chunk in chunks if sar._chunk_label(chunk) == "sumo__maxpressure")
+    broken["rows"][0][field] = None
+
+    with pytest.raises(ValueError, match=field):
+        sar.freeze_artifact(chunks)
+
+
+def test_a_row_whose_observer_flag_is_a_string_is_refused() -> None:
+    """PART 2 MINOR 5: JSON `"false"` is truthy, so a control row would be filed as observed."""
+    chunks = _campaign()
+    broken = next(chunk for chunk in chunks if sar._chunk_label(chunk) == "sumo__maxpressure")
+    broken["rows"][0]["observer"] = "false"
+
+    with pytest.raises(ValueError, match="observer"):
+        sar.freeze_artifact(chunks)
+
+
+def test_a_null_count_reaches_the_operator_as_refused_and_not_as_a_traceback(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """🔒 E1.4 / mn-6 as the operator meets it: through the CLI, on the exact field the reviewer used.
+
+    The driver classifies a `REFUSED:` line; it cannot classify a stack trace.
+    """
+    work = tmp_path / "output" / "p7_1"
+    chunks = _campaign()
+    next(c for c in chunks if sar._chunk_label(c) == "sumo__maxpressure")["rows"][0][
+        "n_teleports"
+    ] = None
+    _write_campaign(work, chunks)
+    out_dir = tmp_path / "docs" / "data"
+    out_dir.mkdir(parents=True)
+
+    code = sar.main(
+        [
+            "--output-root", str(tmp_path / "output"),
+            "--work-dir", str(work),
+            "--out-dir", str(out_dir),
+            "report",
+        ]
+    )
+
+    assert code == 2
+    assert "REFUSED:" in capsys.readouterr().out
+    assert not (out_dir / "p7_1_metric_freeze.json").exists()
+
+
+def test_a4_skips_a_complete_timing_chunk_rather_than_re_rolling_seven_minutes(
+    tmp_path: Path,
+) -> None:
+    """E1.4 / mn-1: A4 was the one stage every restart re-rolled, and the most expensive.
+
+    The sandbox has no gudang scenario reachable and no ``p7_0``; if the skip did not fire, the
+    re-roll would fail. rc 0 with the file untouched is therefore the whole assertion.
+    """
+    work = tmp_path / "output" / "p7_1"
+    work.mkdir(parents=True)
+    payload = _chunk(
+        arm="random",
+        episodes=1,
+        rows=[
+            _shifted_episode(
+                backend="sumo",
+                arm="random",
+                observer=True,
+                regime="parity",
+                episode=0,
+                att_p7_0_stored=float("nan"),
+            ).as_record()
+        ],
+    )
+    payload["role"] = sar.TIMING_ROLE
+    destination = work / "timing_hz4x4_gudang.json"
+    destination.write_text(json.dumps(payload), encoding="utf-8")
+    before = destination.read_bytes()
+
+    code = sar.main(
+        [
+            "--output-root", str(tmp_path / "output"),
+            "--work-dir", str(work),
+            "--episodes", "5",
+            "timing-hz4x4", "--episodes", "1",
+        ]
+    )
+
+    assert code == 0
+    assert destination.read_bytes() == before
+
+
+def test_a4_does_not_mistake_an_a1_random_chunk_for_its_own(tmp_path: Path) -> None:
+    """⭐ The discriminator: an A1 `random` cell shares every identity field with A4's chunk.
+
+    Without the ``role`` key the skip would fire on a chunk from a different scenario. Here the
+    re-roll is attempted and fails in the sandbox, which is how we know the skip did not fire.
+    """
+    work = tmp_path / "output" / "p7_1"
+    work.mkdir(parents=True)
+    payload = _chunk(arm="random", episodes=1, rows=[_episode(arm="random").as_record()])
+    payload.pop("role", None)
+    (work / "timing_hz4x4_gudang.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    code = sar.main(
+        [
+            "--output-root", str(tmp_path / "output"),
+            "--work-dir", str(work),
+            "timing-hz4x4", "--episodes", "1",
+        ]
+    )
+
+    assert code != 0
+
+
+# ----------------------------------------------------------------------
+# 8d. The driver -- structural, because its behavioural falsification is the pre-flight's job
 # ----------------------------------------------------------------------
 
 
@@ -1111,6 +1593,57 @@ def test_the_driver_has_no_filename_only_skip_guard() -> None:
     for line in code:
         for match in re.finditer(r"\[\s*!?\s*-f\s+([^\]]+)\]", line):
             assert match.group(1).strip() in {'"$TOKEN"', '"$NOTELEPORT"'}, line
+
+
+def test_the_driver_appends_to_logs_and_never_truncates_them() -> None:
+    """E1.4 / mn-2: a restart used to replace the first run's per-cell log with "skipping"."""
+    lines = [
+        line
+        for line in DRIVER.read_text(encoding="utf-8").splitlines()
+        if not line.lstrip().startswith("#")
+    ]
+    # Lines that REDIRECT INTO a log, not lines that merely mention one: `echo "… $log …" >&2`
+    # writes to stderr and is not a truncation.
+    into_a_log = re.compile(r">>?\s*\"?\$(log|LOGS)")
+    truncating = re.compile(r"(?<!>)>(?!>)\s*\"?\$(log|LOGS)")
+    redirects = [line for line in lines if into_a_log.search(line)]
+
+    assert redirects, "the driver writes no logs at all"
+    assert [line for line in redirects if truncating.search(line)] == []
+
+
+def test_the_driver_checks_the_interpreter_before_it_checks_the_import() -> None:
+    """E1.5 / PART 1 minor: behind the import check, the `-x` test was unreachable.
+
+    A missing interpreter would be reported as a wrong cwd, which is the one diagnosis it is not.
+    """
+    lines = DRIVER.read_text(encoding="utf-8").splitlines()
+    interpreter = next(i for i, line in enumerate(lines) if '[ ! -x "$PY" ]' in line)
+    import_check = next(
+        i for i, line in enumerate(lines) if "import offline.sumo_att_reference" in line
+        and not line.lstrip().startswith("#")
+    )
+
+    assert interpreter < import_check
+
+
+def test_the_driver_header_quotes_only_measured_rates() -> None:
+    """E1.5: A4 at 439 s and the CityFlow rate are measurements; the old header guessed both.
+
+    Pinned because a schedule is the thing this project has twice got wrong from an unmeasured
+    rate, and a header nobody checks is where the guess survives.
+    """
+    header = DRIVER.read_text(encoding="utf-8")
+
+    assert "438.69 s/episode" in header
+    assert "6.97 s/episode" in header
+    assert "44.94 s/episode" in header
+    assert "13.64 s/episode" in header
+    assert "TOTAL, as configured .............................................  24 min" in header
+    assert "PLAN FOR ~33 MIN" in header
+    # The superseded ~17 min appears exactly once, and only as the sentence that retires it.
+    assert header.count("~17 min") == 1
+    assert "The first version of this header projected ~17 min" in header
 
 
 def test_the_driver_writes_the_manifest_atomically_and_includes_the_smoke() -> None:

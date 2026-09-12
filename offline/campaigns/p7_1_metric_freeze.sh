@@ -39,26 +39,46 @@
 # token, so a refused start consumes nothing and changes nothing at all.
 #
 # ---------------------------------------------------------------------------
-# 4. THE SCHEDULE IS MEASURED (G1, n = 1 each, hz1x1 parity, maxpressure, seed 1000)
+# 4. THE SCHEDULE, FROM MEASURED RATES ONLY (Amendment E1 item 5)
 # ---------------------------------------------------------------------------
-#     frozen env, no observer .................... 13.64 s/episode
-#     observer, no halting check ................. 14.63 s/episode   (+19 % over the frozen env)
-#     observer + halting cross-check ............. 44.94 s/episode   (3.30x)
+# ⚠️ The first version of this header projected ~17 min from an ASSUMED ~1.5 s CityFlow episode and
+# an ASSUMED ~1.5 min A4. Both were wrong, and A4 by 5x. Every rate below is now a measurement with
+# its n; this project has twice shipped a wrong schedule from an unmeasured rate.
+#
+#   hz1x1 parity, maxpressure, seed 1000, one episode each (P7.1 G1):
+#     frozen env, no observer .................... 13.64 s/episode   (n = 1)
+#     observer, no halting check ................. 14.63 s/episode   (n = 1, +19 %)
+#     observer + halting cross-check ............. 44.94 s/episode   (n = 1, 3.30x)
+#   hz1x1 nominal, CityFlow, maxpressure, observed (P7.1 E1):
+#     Gate-0 observer ............................  6.97 s/episode   (n = 1)
+#   hz4x4 gudang, random, observed, no halting check (pre-flight PART 1 completion):
+#     observer ................................... 438.69 s/episode  (n = 1)  <- 8.6x the 51.0 s
+#                                                  bare rate the 2026-09-11 survey measured
+#
 # The halting check queries every vehicle's speed every second; it is 2.9x on its own, which
-# falsified the plan's A7. It therefore runs on the FIRST EPISODE of each observed SUMO arm only
+# falsified the plan's A7. It runs on the FIRST EPISODE of each observed SUMO arm only
 # (--halting-episodes 1), and every row records the lane-seconds it actually covered. One episode
 # is 28,800 lane-seconds; G1 measured max abs difference 0 over them.
 #
-# Projection from those rates, stated so the log can be compared against it:
-#     A1  observed    3 arms x 5 ep : 1 x 44.94 + 4 x 14.63 per arm ..... ~5.2 min
-#     A1  unobserved  3 arms x 5 ep : 5 x 13.64 per arm ................. ~3.4 min
-#     A1b observed    3 arms x 5 ep : same shape as A1 observed ......... ~5.2 min
-#     A2  cityflow    3 arms x 5 ep : hz1x1 CityFlow is ~1.5 s/episode ... ~0.6 min
-#     A4  hz4x4 gudang, 1 episode, no halting check ..................... ~1.5 min
-#     smoke + report .................................................... ~1 min
-#     TOTAL ............................................................. ~17 min
-# Well inside section 7's one-hour trigger; the PRE-FLIGHT is required by trigger (b) instead --
-# this writes under output/ while reading output/p7_0.
+# Projection for the stages AS THIS SCRIPT RUNS THEM, so the log can be compared against it:
+#     smoke           1 observed episode with the halting check ........  0.7 min
+#     A1  observed    3 arms x (1 x 44.94 + 4 x 14.63) ................   5.2 min
+#     A1  unobserved  3 arms x 5 x 13.64 ..............................   3.4 min
+#     A1b observed    3 arms x (1 x 44.94 + 4 x 14.63) ................   5.2 min
+#     A2  cityflow    3 arms x 5 x 6.97 ...............................   1.7 min
+#     A4  hz4x4 gudang, 1 episode ......................................  7.3 min
+#     report + manifest ................................................  0.5 min
+#     ----------------------------------------------------------------  --------
+#     TOTAL, as configured .............................................  24 min
+#
+# ⚠️ PLAN FOR ~33 MIN, NOT 24. Amendment E1 item 5 states G3 at ~33 min, which is the same rates
+# with the halting cross-check on EVERY observed episode (3 arms x 5 x 44.94 twice = 22.5 min
+# instead of 10.4). That is the conservative bound: it is what the run costs if --halting-episodes
+# is ever raised to 5, and a schedule that is an upper bound is the useful kind. Both figures are
+# stated because they differ by the --halting-episodes flag on the A1/A1b stages, not by an unknown.
+#
+# Either way this is inside section 7's one-hour trigger; the PRE-FLIGHT was required by trigger
+# (b) instead -- this writes under output/ while reading output/p7_0.
 #
 # ---------------------------------------------------------------------------
 # 5. WHAT THE STAGES ARE, AND WHY A1 AND A1b ARE BOTH RUN
@@ -73,7 +93,14 @@
 #                           It has NO P7.0 counterpart and its rows are reported as unverified.
 # A2  cityflow            : the same three arms through engine_att_reference's Layer A.
 # A4  hz4x4 gudang        : ONE episode, TIMING ONLY. Its ATT is not a result and the artifact says
-#                           so: the shipped gudang route file binds no parity vType.
+#                           so: the shipped gudang route file binds no parity vType. It is the one
+#                           stage a restart used to re-roll; it now skips a complete chunk, which
+#                           is worth 7.3 min (Amendment E1 item 4, mn-1).
+#
+# ⚠️ STAGE ORDER: the smoke runs FIRST, not between A4 and report as Amendment D4 lists it. D4's
+# line is a list of what must be present; running the cheapest failing stage first means a broken
+# tree costs 45 s rather than 24 min. Recorded here because the pre-flight noticed the difference
+# (PART 1 note, PART 2 MINOR 7) and a reader should not have to.
 #
 # ---------------------------------------------------------------------------
 # 6. THE MANIFEST INCLUDES smoke/ THIS TIME, AND THAT IS DELIBERATE (Amendment D1)
@@ -113,15 +140,18 @@ export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 # so it is enforced instead.
 cd "$WORK_TREE"
 
-if ! $PY -c "import offline.sumo_att_reference" >/dev/null 2>&1; then
-  echo "REFUSING TO START: cannot import offline.sumo_att_reference from $PWD" >&2
-  echo "  This is what a wrong cwd looks like. Nothing has been consumed." >&2
+# ⚠️ ORDER: the interpreter check comes FIRST. Behind the import check it was unreachable (PART 1's
+# minor): a missing $PY fails the import check first, and reports it as a wrong cwd, which is the
+# one diagnosis it is not.
+if [ ! -x "$PY" ]; then
+  echo "REFUSING TO START: no interpreter at $PY" >&2
+  echo "  The worktree has no .venv of its own; this campaign runs the MAIN tree's." >&2
   exit 2
 fi
 
-# The interpreter must be the main tree's venv, not whatever `python` resolves to.
-if [ ! -x "$PY" ]; then
-  echo "REFUSING TO START: no interpreter at $PY" >&2
+if ! $PY -c "import offline.sumo_att_reference" >/dev/null 2>&1; then
+  echo "REFUSING TO START: cannot import offline.sumo_att_reference from $PWD" >&2
+  echo "  This is what a wrong cwd looks like. Nothing has been consumed." >&2
   exit 2
 fi
 
@@ -204,7 +234,11 @@ run_cell() {
   local label=$1; shift
   local log=$LOGS/${label}.log
   echo "=== $label"
-  "$PY" -m offline.sumo_att_reference "${COMMON[@]}" "$@" > "$log" 2>&1 &
+  # ⚠️ APPENDED, never truncated (Amendment E1 item 4, mn-2): a restart used to replace the first
+  # run's per-cell log with the one line "skipping", destroying the only narrative record of what
+  # the cell actually did. The banner separates the runs.
+  echo "=== $label  run at $(date -Is)" >> "$log"
+  "$PY" -m offline.sumo_att_reference "${COMMON[@]}" "$@" >> "$log" 2>&1 &
   CELL_PID=$!
   if ! wait "$CELL_PID"; then
     CELL_PID=""
@@ -223,11 +257,12 @@ run_cell() {
 # packet cites a file rather than a terminal. It uses its own work dir, so it can never be mistaken
 # for an A1 cell or skipped into one.
 echo "=== smoke: 1 observed maxpressure episode into $SMOKE"
+echo "=== smoke  run at $(date -Is)" >> "$LOGS/smoke.log"
 "$PY" -m offline.sumo_att_reference \
     --output-root "$MAIN/output" --work-dir "$SMOKE" --out-dir "$WORK_TREE/docs/data" \
     --episodes 1 --base-seed 1000 \
     run-sumo --arm maxpressure --regime parity --halting-episodes 1 \
-    > "$LOGS/smoke.log" 2>&1 || { tail -5 "$LOGS/smoke.log" >&2; fail "smoke"; }
+    >> "$LOGS/smoke.log" 2>&1 || { tail -5 "$LOGS/smoke.log" >&2; fail "smoke"; }
 tail -1 "$LOGS/smoke.log"
 
 # ---------------------------------------------------------------------------

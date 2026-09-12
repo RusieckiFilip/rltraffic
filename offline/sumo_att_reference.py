@@ -165,21 +165,26 @@ __all__ = [
     "BASE_SEED",
     "DEFAULT_WORK_DIRNAME",
     "EPISODES_PER_ARM",
+    "EXPECTED_CAMPAIGN_LABELS",
     "HALT_SPEED_THRESHOLD",
     "P7_0_CELL_DIRS",
     "RECONSTRUCTION_SURFACE",
+    "SUMO_REGIMES",
+    "TIMING_ROLE",
     "FreezeEpisode",
     "HaltingAgreement",
     "IntendedDepartures",
     "SumoAtt",
     "SumoEpisodeReconstruction",
     "SumoObservationRecorder",
+    "assert_campaign_complete",
     "assert_metric_freeze_writable",
     "build_parser",
     "build_policy",
     "chunk_is_reusable",
     "chunk_name",
     "collect_style_args",
+    "failed_chunk_destination",
     "freeze_artifact",
     "main",
     "make_observer_sumo_env",
@@ -190,6 +195,7 @@ __all__ = [
     "reusable_chunk_at",
     "rho_table",
     "route_files_of",
+    "row_reproduces_p7_0",
     "run_cityflow_arm",
     "run_sumo_arm",
     "sumo_observer_env_class",
@@ -204,6 +210,10 @@ ALLOWED_P7_1_OUTPUT_ENTRIES: tuple[str, ...] = ("p7_1", "SHA256SUMS_p7_1.txt")
 
 DEFAULT_WORK_DIRNAME = "p7_1"
 
+#: A4's chunk carries this instead of being told apart by its identity fields: a timing episode and
+#: an A1 `random` episode share backend, arm, observer and regime, and differ only in the scenario.
+TIMING_ROLE = "timing_only"
+
 #: The tolerance of the clock-origin second route (``BRIEF_34`` section 2.1's ``1e-9``).  This is
 #: the decomposition's ONE gating check: unlike the residual it compares two independently recorded
 #: quantities -- a difference of averaged contributions against traci's own per-vehicle
@@ -217,6 +227,19 @@ HALT_SPEED_THRESHOLD = 0.1
 
 #: P7.0's three anchors, in the order ``transfer_gate.CELLS`` declares them per backend.
 ANCHOR_ARMS: tuple[str, ...] = ("fixedtime", "maxpressure", "random")
+
+#: The twelve cells ``report`` requires, derived from :data:`ANCHOR_ARMS` so the list cannot drift
+#: from the arms it is built out of: 3 arms x {parity observed, parity unobserved, noteleport} on
+#: SUMO, plus the 3 CityFlow arms.  ⚠️ A4's ``timing_hz4x4_gudang.json`` is deliberately absent --
+#: it is not a ``freeze_*.json`` cell, its ATT is not a result, and it is not part of any table.
+EXPECTED_CAMPAIGN_LABELS: tuple[str, ...] = tuple(
+    sorted(
+        [f"sumo__{arm}" for arm in ANCHOR_ARMS]
+        + [f"sumo__{arm}__unobserved" for arm in ANCHOR_ARMS]
+        + [f"sumo_noteleport__{arm}" for arm in ANCHOR_ARMS]
+        + [f"cityflow__{arm}" for arm in ANCHOR_ARMS]
+    )
+)
 
 #: The two SUMO regimes (``BRIEF_34`` Amendment D2).  ``parity`` is P7.0's own configuration and is
 #: the one the reproduction check is defined against -- it runs with SUMO's default
@@ -1670,6 +1693,19 @@ def chunk_is_reusable(
 
     Only when it is this exact cell, at this format version, complete, and clean -- never on the
     filename alone.  A chunk that does not parse is not reusable and is re-run.
+
+    **"Clean" is re-derived here, never read** (Amendment E1, pre-flight PART 2 MAJOR 1 and 3).
+    Three properties beyond identity, each of which a stored field could assert falsely:
+
+    * every row that has a P7.0 reference reproduces it, recomputed from ``att_env`` and
+      ``att_p7_0_stored`` rather than from the row's own ``reproduces_p7_0`` flag;
+    * on a ``noteleport`` chunk, every observed row really has ``n_teleports == 0`` and
+      ``n_vanished_without_arrival == 0`` -- D2's regime assertion lives in the runner, and a file
+      placed in the work dir would otherwise bypass it;
+    * the row count, the identity of every row, and the header all agree.
+
+    ⚠️ A chunk that fails the reproduction check is **evidence, not garbage**: the caller moves it
+    aside (see :func:`failed_chunk_destination`) instead of overwriting it.
     """
     try:
         if payload.get("format_version") != ARTIFACT_FORMAT_VERSION:
@@ -1698,9 +1734,54 @@ def chunk_is_reusable(
                 return False
             if str(row.get("regime", "parity")) != str(regime):
                 return False
+            # MAJOR 3: a cell that failed its reproduction is complete but NOT clean. Recomputed,
+            # because the row's own verdict is exactly what a hand-made chunk would lie about.
+            if not row_reproduces_p7_0(row):
+                return False
+            # MAJOR 1: D2's assertion, re-derived on the chunk rather than trusted.
+            if str(regime) == "noteleport" and bool(row["observer"]):
+                if int(row["n_teleports"]) != 0:
+                    return False
+                if int(row["n_vanished_without_arrival"]) != 0:
+                    return False
     except (AttributeError, KeyError, TypeError, ValueError):
         return False
     return True
+
+
+def row_reproduces_p7_0(row: Mapping[str, Any]) -> bool:
+    """Whether one stored row reproduces its P7.0 cell, recomputed from the two ATT values.
+
+    A row with no P7.0 counterpart (``att_p7_0_stored`` NaN -- every ``noteleport`` row, the hz4x4
+    timing episode) has nothing to reproduce and is not counted as a failure.  Comparison is
+    Amendment A2's exact form: ``np.float32(fresh) == np.float32(stored)``.
+    """
+    stored = np.float32(row["att_p7_0_stored"])
+    if bool(np.isnan(stored)):
+        return True
+    return bool(np.float32(row["att_env"]) == stored)
+
+
+def failed_chunk_destination(destination: str | Path) -> Path:
+    """Where a chunk that is complete but not clean is moved so it survives the re-roll.
+
+    ``<work>/failed/<name>``, with a numeric suffix if that slot is taken.
+
+    ⚠️ **Deviation from Amendment E1 item 3, disclosed rather than silently reinterpreted:** the
+    amendment says ``<name>.failed.json``, but ``freeze_sumo_maxpressure.json.failed.json`` still
+    matches ``report``'s ``freeze_*.json`` glob, so the evidence would be read back in as data --
+    the opposite of the intent. A subdirectory is outside a non-recursive glob by construction and
+    needs no name filter, which is the ``p5_3a``/``p5_3b`` prefix-trap shape this repo has been
+    bitten by. The manifest's ``find`` still lists it, so it stays part of the record.
+    """
+    target = Path(destination)
+    directory = target.parent / "failed"
+    candidate = directory / target.name
+    index = 1
+    while candidate.exists():
+        candidate = directory / f"{target.stem}.{index}{target.suffix}"
+        index += 1
+    return candidate
 
 
 def reusable_chunk_at(path: str | Path, **kwargs: Any) -> bool:
@@ -1715,6 +1796,59 @@ def reusable_chunk_at(path: str | Path, **kwargs: Any) -> bool:
     if not isinstance(payload, Mapping):
         return False
     return chunk_is_reusable(payload, **kwargs)
+
+
+def assert_campaign_complete(
+    chunks: Sequence[Mapping[str, Any]], *, episodes: int, sources: Sequence[str] | None = None
+) -> None:
+    """Refuse unless exactly the campaign's twelve cells are present, once each, at *episodes*.
+
+    Amendment E1 item 2, from pre-flight PART 2 MAJOR 2: ``report`` globbed whatever it found, so a
+    deleted chunk produced a smaller artifact with rho silently missing a backend, and two files
+    whose headers carried the same label silently overwrote one another while the log announced
+    twelve cells. **The artifact's shape is a contract, not whatever is on disk.**
+
+    Checked here rather than inside :func:`freeze_artifact` because the cell SET is the driver's
+    contract while the cell CONTENT is the artifact's; a later task that legitimately assembles a
+    different set calls the second and not the first.  ``_run_report`` calls both, in this order.
+    """
+    labels: dict[str, int] = {}
+    for index, chunk in enumerate(chunks):
+        try:
+            label = _chunk_label(chunk)
+        except (AttributeError, KeyError, TypeError) as exc:
+            source = (sources[index] if sources else None) or f"chunk {index}"
+            raise ValueError(
+                f"{source} carries no readable cell identity ({exc}); a chunk that cannot be "
+                "labelled cannot be checked against the campaign's cell set"
+            ) from exc
+        labels[label] = labels.get(label, 0) + 1
+        if int(chunk.get("episodes", -1)) != int(episodes):
+            raise ValueError(
+                f"{label}: the chunk records {chunk.get('episodes')!r} episodes but this campaign "
+                f"runs {int(episodes)}; a cell rolled at a different episode count is a different "
+                "measurement and must not be averaged into the same table"
+            )
+
+    duplicated = sorted(label for label, count in labels.items() if count > 1)
+    if duplicated:
+        raise ValueError(
+            f"{len(duplicated)} cell label(s) appear more than once: {duplicated}. Two files whose "
+            "headers claim the same cell would overwrite each other in the artifact while the log "
+            "still counted both -- check whether a chunk was copied under another filename"
+        )
+
+    expected = set(EXPECTED_CAMPAIGN_LABELS)
+    present = set(labels)
+    missing = sorted(expected - present)
+    unexpected = sorted(present - expected)
+    if missing or unexpected:
+        raise ValueError(
+            f"the campaign is not the declared one: {len(missing)} cell(s) missing {missing} and "
+            f"{len(unexpected)} unexpected {unexpected}. The artifact reports rho per backend and "
+            "per regime, so a missing anchor removes a whole normalisation rather than shrinking a "
+            "sample; run the missing cells or say in the packet why the set changed"
+        )
 
 
 def freeze_artifact(chunks: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
@@ -1754,16 +1888,23 @@ def freeze_artifact(chunks: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
 
     every_row = [row for chunk in chunks for row in chunk["rows"]]
 
+    # 1b. The row schema. Amendment E1 item 4 (mn-6): a row carrying `null` where a count belongs
+    #     used to reach the summary and raise a bare TypeError traceback. Every field the checks
+    #     and the summaries below read is validated here, once, so a malformed row is a REFUSED
+    #     with a name in it rather than a stack trace the driver cannot classify.
+    for chunk in chunks:
+        regime = str(chunk.get("regime", "parity"))
+        for row in chunk["rows"]:
+            _assert_row_is_well_formed(row, regime=regime)
+
     # 2. The reproduction against output/p7_0, RECOMPUTED here rather than trusting the flag the
     #    runner stored: a stored verdict is not evidence.
     failures: list[str] = []
     n_verified = 0
     for row in every_row:
-        stored = np.float32(row["att_p7_0_stored"])
-        if bool(np.isnan(stored)):
-            continue
-        n_verified += 1
-        if np.float32(row["att_env"]) != stored:
+        if not bool(np.isnan(np.float32(row["att_p7_0_stored"]))):
+            n_verified += 1
+        if not row_reproduces_p7_0(row):
             failures.append(
                 f"{row['backend']}/{row['arm']} ep{row['episode']} "
                 f"(fresh {row['att_env']!r} against stored {row['att_p7_0_stored']!r})"
@@ -1773,6 +1914,25 @@ def freeze_artifact(chunks: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
             f"{len(failures)} of {n_verified} episodes do not reproduce their P7.0 cell: "
             f"{failures[:5]}. That is a finding about SUMO's determinism and must be read, not "
             "averaged into a table"
+        )
+
+    # 2b. D2's regime assertion, RE-DERIVED on the stored rows (Amendment E1 item 1, PART 2
+    #     MAJOR 1). The runner raises before it writes such a chunk, so this can only fire on a
+    #     file that arrived some other way -- which is exactly the bypass the pre-flight found.
+    offenders = [
+        f"{row['backend']}/{row['arm']} ep{row['episode']} "
+        f"({row['n_teleports']} teleports, {row['n_vanished_without_arrival']} vanished)"
+        for chunk in chunks
+        if str(chunk.get("regime", "parity")) == "noteleport"
+        for row in chunk["rows"]
+        if bool(row["observer"])
+        and (int(row["n_teleports"]) != 0 or int(row["n_vanished_without_arrival"]) != 0)
+    ]
+    if offenders:
+        raise ValueError(
+            f"{len(offenders)} episode(s) in a teleport-free chunk did teleport or lose a vehicle: "
+            f"{offenders[:5]}. The noteleport regime IS the claim that this did not happen, so the "
+            "artifact may not report it as a teleport-free arm"
         )
 
     # 3. The clock-origin term by its second route -- the decomposition's ONE gating check.
@@ -1923,6 +2083,74 @@ def freeze_artifact(chunks: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     }
 
 
+#: Every row field the artifact's checks or summaries read, and the type each must carry.  A row is
+#: validated against this once, before anything reads it (Amendment E1 item 4, mn-6).
+_ROW_NUMERIC_FIELDS: tuple[str, ...] = (
+    "att_reference_created_population",
+    "att_reference_entered_population",
+    "att_reference_entered_running",
+    "att_env",
+    "att_p7_0_stored",
+    "term_population",
+    "term_clock_origin",
+    "term_cadence",
+    "decomposition_residual",
+    "clock_origin_second_route_error",
+    "mean_depart_delay",
+)
+_ROW_INTEGER_FIELDS: tuple[str, ...] = (
+    "episode",
+    "n_created",
+    "n_entered",
+    "n_never_entered",
+    "n_pending_at_horizon",
+    "n_teleports",
+    "n_vanished_without_arrival",
+    "n_arrived_never_observed_at_a_boundary",
+    "halting_max_abs_difference",
+    "halting_n_lane_seconds",
+    "halting_n_disagreeing_lane_seconds",
+    "n_observations",
+)
+
+
+def _assert_row_is_well_formed(row: Mapping[str, Any], *, regime: str) -> None:
+    """Refuse a row whose fields are missing, ``null`` or the wrong type, naming the field.
+
+    Unobserved rows carry ``NaN`` and ``-1`` where nothing was reconstructed; those are values, not
+    absences, and pass.  ``None`` never does: it is what a hand-edited chunk carries, and reading it
+    used to produce a ``TypeError`` traceback instead of a refusal the driver can classify.
+    """
+    where = (
+        f"{row.get('backend', '?')}/{row.get('arm', '?')} ep{row.get('episode', '?')}"
+        f"{'' if regime == 'parity' else ' [' + regime + ']'}"
+    )
+    for name in ("backend", "arm", "observer"):
+        if row.get(name) is None:
+            raise ValueError(f"{where}: the row has no {name!r}, so it cannot be placed in a cell")
+    if not isinstance(row["observer"], bool):
+        raise ValueError(
+            f"{where}: observer is {row['observer']!r} ({type(row['observer']).__name__}), not a "
+            "bool; a JSON string 'false' is truthy and would file a control row as an observed one"
+        )
+    for name in _ROW_NUMERIC_FIELDS + _ROW_INTEGER_FIELDS:
+        if name not in row:
+            raise ValueError(f"{where}: the row is missing {name!r}, which the artifact reads")
+        value = row[name]
+        if value is None or isinstance(value, bool):
+            raise ValueError(
+                f"{where}: {name} is {value!r}; a count or a travel time cannot be null or a bool, "
+                "and reading it would raise inside the summary instead of refusing here"
+            )
+        if not isinstance(value, (int, float)):
+            raise ValueError(
+                f"{where}: {name} is {value!r} ({type(value).__name__}), not a number"
+            )
+    for name in _ROW_INTEGER_FIELDS:
+        if float(row[name]) != int(row[name]):
+            raise ValueError(f"{where}: {name} is {row[name]!r}, which is not a whole count")
+
+
 def _chunk_label(chunk: Mapping[str, Any]) -> str:
     """``<backend>[_<regime>]__<arm>[__unobserved]`` -- unique per measurement, not per arm."""
     regime = str(chunk.get("regime", "parity"))
@@ -2045,19 +2273,37 @@ def _run_cell(args: argparse.Namespace) -> int:
     destination = assert_metric_freeze_writable(
         work / chunk_name(backend, args.arm, observer=observer, regime=regime)
     )
-    if reusable_chunk_at(
-        destination,
-        backend=backend,
-        arm=args.arm,
-        observer=observer,
-        episodes=int(args.episodes),
-        regime=regime,
-    ):
-        print(f"{destination.name}: complete and clean, skipping", flush=True)
+    identity = {
+        "backend": backend,
+        "arm": args.arm,
+        "observer": observer,
+        "episodes": int(args.episodes),
+        "regime": regime,
+    }
+    if reusable_chunk_at(destination, **identity):
+        # ⚠️ The message says WHAT was checked (Amendment E1 item 3): the previous wording,
+        # "complete and clean", was true of a chunk whose reproduction had failed, because the
+        # predicate did not look at it. It does now, and the message names the checks.
+        print(
+            f"{destination.name}: {int(args.episodes)} episodes, this cell "
+            f"({backend}/{args.arm}, observer={observer}, regime={regime}), every P7.0 reference "
+            "reproduced"
+            + (", no teleports" if regime == "noteleport" else "")
+            + " -- skipping",
+            flush=True,
+        )
         return 0
     if destination.exists():
+        # A complete chunk that merely failed its checks is EVIDENCE and is moved aside rather than
+        # overwritten; anything unreadable or for another cell is simply re-rolled over.
+        keep = failed_chunk_destination(destination)
+        assert_metric_freeze_writable(keep)
+        keep.parent.mkdir(parents=True, exist_ok=True)
+        os.replace(destination, keep)
         print(
-            f"{destination.name}: incomplete, for another cell or unreadable, re-running",
+            f"{destination.name}: not reusable (incomplete, for another cell, unreadable, "
+            f"non-reproducing or teleporting) -- moved to {keep.parent.name}/{keep.name} and "
+            "re-running",
             flush=True,
         )
 
@@ -2101,6 +2347,17 @@ def _run_timing(args: argparse.Namespace) -> int:
 
     work = _work_dir(args)
     destination = assert_metric_freeze_writable(work / "timing_hz4x4_gudang.json")
+    # Amendment E1 item 4 (mn-1): A4 was the one stage a restart always re-rolled, and it is the
+    # most expensive one -- 438.69 s under the observer, measured by the pre-flight. The `role`
+    # key is what stops an A1 `random` chunk being mistaken for it: the two share every identity
+    # field and differ only in the scenario they ran.
+    if destination.is_file() and _timing_chunk_is_reusable(destination, episodes=int(args.episodes)):
+        print(
+            f"{destination.name}: 1 timing episode on hz4x4 gudang, complete -- skipping "
+            "(re-rolling it costs 7.3 min and measures the same clock)",
+            flush=True,
+        )
+        return 0
     payload = run_sumo_arm(
         "random",
         config_path=_declared_config("timing-hz4x4", None, "parity"),
@@ -2110,6 +2367,7 @@ def _run_timing(args: argparse.Namespace) -> int:
         observer=True,
         halting_episodes=0,
     )
+    payload["role"] = TIMING_ROLE
     payload["att_is_not_a_result"] = (
         "the shipped gudang route file binds no parity vType (0 of 2983 vehicles, no tau), so "
         "this episode measures the clock and nothing else"
@@ -2120,20 +2378,39 @@ def _run_timing(args: argparse.Namespace) -> int:
     return 0
 
 
+def _timing_chunk_is_reusable(path: str | Path, *, episodes: int) -> bool:
+    """Whether A4's chunk is complete, for A4, and at this episode count."""
+    try:
+        payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return False
+    if not isinstance(payload, Mapping) or payload.get("role") != TIMING_ROLE:
+        return False
+    return chunk_is_reusable(
+        payload, backend="sumo", arm="random", observer=True, episodes=episodes, regime="parity"
+    )
+
+
 def _run_report(args: argparse.Namespace) -> int:
     """Assemble the artifact -- every destination fenced, everything validated, then one write."""
     from offline.dt_gate import write_json_atomic
 
     destination = assert_metric_freeze_writable(Path(args.out_dir) / "p7_1_metric_freeze.json")
     work = _work_dir(args)
-    chunks = [
-        json.loads(path.read_text(encoding="utf-8")) for path in sorted(work.glob("freeze_*.json"))
-    ]
+    # ⚠️ Non-recursive and anchored: `smoke/`, `failed/` and any `.p4-….json.tmp` are invisible
+    # here by construction rather than by a name filter.
+    paths = sorted(work.glob("freeze_*.json"))
+    chunks = [json.loads(path.read_text(encoding="utf-8")) for path in paths]
     if not chunks:
         raise FileNotFoundError(
             f"{work} holds no freeze_*.json chunk, so there is nothing to report; run the cells "
             "first"
         )
+    # The campaign's SHAPE before its content (Amendment E1 item 2): a deleted or duplicated cell
+    # is refused here, so the artifact cannot be quietly smaller than the campaign.
+    assert_campaign_complete(
+        chunks, episodes=int(args.episodes), sources=[str(path) for path in paths]
+    )
     payload = freeze_artifact(chunks)
     write_json_atomic(payload, destination)
     print(
