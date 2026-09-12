@@ -604,3 +604,67 @@ command lines contain the module name will trip the start lock (fail-closed, not
 The coordinator verifies E1's six on the branch (the reviewer's constructed states are recorded in both
 findings files and are cheap to replay), then writes CLEAR in the Decisions Log; the author writes the
 token only after that line exists.
+
+---
+
+# ✅ AMENDMENT F — 2026-09-12, at G3: the run is accepted, and the freeze's §"Metric" has its numbers
+
+**Run `COMPLETE` in 836 s (13 min)**, 29-entry manifest, all 13 manifests verify (864 files). Read by the
+coordinator from `docs/data/p7_1_metric_freeze.json` on the branch, **pre-review**: reproduction **45/45**
+against P7.0 on both backends (float32 form; float64 gaps ≤ `1.3e-5`); **SUMO's cadence term is `0.0` on
+30/30 observed episodes** (the 15 non-zero rows are CityFlow's, 3.8–4.8 ATT); halting **172,800
+lane-seconds, 0 disagreements**; clock-origin second route max `5.7e-14`; `n_vanished_without_arrival`
+0 everywhere.
+
+**The result, per arm (means of 5; `env` = the backend's admitted-population metric, `E` = the
+pool-clock all-created twin; terms in `att_env − E` orientation: population + clock origin + cadence):**
+
+| cell | env | E | population | clock origin | cadence | never entered | teleports |
+|---|---|---|---|---|---|---|---|
+| cityflow fixedtime | 285.42 | 499.92 | −3.41 | −215.87 | +4.78 | 360 | — |
+| cityflow maxpressure | 247.75 | 264.72 | +4.15 | −25.10 | +3.99 | 58 | — |
+| cityflow random | 421.59 | 846.84 | −8.75 | −420.33 | +3.82 | ≈780 | — |
+| sumo fixedtime (parity) | 371.63 | 689.83 | +2.80 | −321.00 | 0 | ≈572 | 0 |
+| sumo maxpressure (parity) | 360.02 | 452.20 | +11.19 | −103.37 | 0 | ≈254 | 13–15 |
+| sumo random (parity) | 483.88 | 954.54 | −7.17 | −463.49 | 0 | ≈891 | 0 |
+| sumo maxpressure (noteleport) | 364.16 | 461.46 | +11.81 | −109.12 | 0 | ≈257 | 0 |
+
+(fixed-time and random are bit-identical between the two SUMO regimes — no teleports occur there.)
+
+**ρ, both backends, both definitions (`fixedtime = 0`, `maxpressure = 1`):**
+
+| definition | Δ CityFlow | Δ SUMO | Δ SUMO-noteleport | ρ_random CityFlow | ρ_random SUMO | ρ_random SUMO-nt |
+|---|---|---|---|---|---|---|
+| admitted (`env`) | 37.66 | 11.61 | 7.47 | −3.615 | −9.673 | −15.034 |
+| pool-clock (`E`) | 235.20 | 237.63 | 228.36 | −1.475 | −1.114 | −1.159 |
+
+⭐ **Under the admitted definitions the two backends' anchor spreads differ 3.2× and ρ_random by 6.06 —
+P7.0's A4 failure. Under the pool-clock pair the spreads agree within 1 % and ρ_random within 0.36.**
+The 2026-08-31 threat was not a possibility to be argued away; it was the A4 result.
+
+## F1 — What `docs/notes/P7.1_FREEZE.md` §"Metric" DRAFTS (the coordinator registers; you propose)
+
+1. **The definition pair for ρ:** pool-clock, all-created on both backends — `att_engine` on CityFlow
+   (already primary on hz1x1 by Rule R) and `E_sumo` on SUMO — with the admitted pair (`att_ours`, the
+   SUMO env metric) reported beside it in every table, A11(b)'s discipline extended. Give the reason in
+   the numbers above, not in prose about "fairness".
+2. **The regime:** `time-to-teleport -1` (the `noteleport` `.sumocfg`) as the frozen SUMO configuration
+   for every later SUMO measurement, with the measured effect (MaxPressure +4.1 env / +9.3 E; the other
+   two arms unchanged) and the statement that P7.0's SUMO cells and A1 ran with teleports enabled.
+3. **The decomposition table above, per backend per arm**, as A13(b) requires of every report of the two
+   definitions' difference — now on both backends.
+4. **A11(d)(6), executed:** P7.0's ρ-based criteria (A4 and B4; A1/B1 are Δ-signs) re-scored under the
+   pool-clock pair, **both verdicts reported, no new branch decision** — the branch was C on A2 (state
+   overlap) as well, and A2 is not ATT and does not move. State exactly which criteria change verdict and
+   by how much (`0.5·M` recomputed under E).
+5. **SUMO's determinism** (45/45, float32 form, with the ulp floor stated) and **the timing table with
+   `n`**: hz1x1 SUMO bare 10.4–11.8 s/episode (`n = 5` per arm), observed 17.3–19.3 (halting on 1 of 5),
+   CityFlow 0.89–1.05 through Layer A, hz4x4 SUMO 438.7 s observed / 51.0 s bare (`n = 1` each).
+6. **The draft amendment text**, marked DRAFT, in the shape of A11–A14's rows.
+
+## F2 — Then G4 (half B) as briefed, with Amendments B and C's additions
+
+Commit the artifact first (D4's NEXT STEPS). Half B's paired-scenario table and the CAP audit for
+hangzhou (both scenarios) and for the grid4x4 pair from the candidates directory; `align_info` and the
+six tests of §3.3; §3.4's provenance answer is already established (Amendment A1) — cite it, do not redo
+it. Packet at G5: *"written against BRIEF_34 + Amendments A–F"*.
