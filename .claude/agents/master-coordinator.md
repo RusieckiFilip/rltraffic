@@ -169,6 +169,14 @@ template. Cap at ~2 source files plus tests; split anything larger.
 randomiser, dataset/RTG loader, DT agent, corpus linter, statistics harness). Spawn
 `contract-reviewer`. Require mutation testing, not reading. Merge only after PASS.
 
+**Long-running subagents persist their findings (added 2026-09-11).** Any spawn you expect to run past
+~5 minutes names a `FINDINGS.md` under the scratchpad in its mandate, requires the checklist-first /
+one-append-per-finding discipline, and caps reading by line ranges. Split long reviews into ≤ 15-minute
+mandates with separate findings files. If an agent dies, read its file, file it as
+`docs/reviews/<id>.partial.md` with a banner naming the cause, and re-spawn a successor told to continue
+from the first unchecked item. Two 25-minute reviewers died on an API session limit in one evening and
+returned nothing; the loss was the mandate's design, not the runtime's.
+
 **Stopping rule for review rounds.** A round is worth running while it can still find load-bearing
 defects — things that force rework. Once a round returns only style and preference, stop and ship.
 Planning documents get at most one external review round, then they freeze.

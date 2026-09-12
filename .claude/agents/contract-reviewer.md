@@ -35,6 +35,18 @@ to fix something, describe it instead.
 Run the tests yourself. Read the real output. If the tests do not run in this environment, say so —
 do not report a result you did not observe.
 
+## Incremental findings — mandatory whenever the request names a findings file (added 2026-09-11)
+A reviewer that reports only at the end loses everything if it is killed; two 25-minute reviews died
+that way in one evening and returned nothing. When the request names a `FINDINGS.md` path:
+1. **Your first write, within your first three tool calls, is the numbered checklist** of every check
+   you intend to run, each `[ ]`. Reading comes after the checklist exists, not before.
+2. **After every experiment or verified fact, append to the file before running the next command:**
+   item number, timestamp, the command or construction, the observed result, `<path>:<line>`, and tick
+   the item. One finding per append. **A finding not in the file does not exist.**
+3. Read only the line ranges the request names; do not read whole files.
+4. Your final report is assembled from the file. If the request says *continue from FINDINGS.md*, read it
+   first, do not redo `[x]` items, and start at the first `[ ]`.
+
 ## Output format
 
 ```
