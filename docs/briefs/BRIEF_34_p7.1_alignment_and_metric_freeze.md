@@ -556,3 +556,51 @@ start lock on `pgrep -f 'python.*offline\.sumo_att_reference'`; `trap` killing t
 stages A1 (observed + unobserved), **A1b**, A2, A4, smoke, `report`; `SHA256SUMS_p7_1.txt` last,
 atomic, `smoke/` included this time (it is part of the evidence) — state that in the header. The
 coordinator spawns the pre-flight on the commit that carries it.
+
+---
+
+# ⛔ AMENDMENT E — 2026-09-12, on the pre-flight (PART 1 partial + PART 2): NOT YET CLEAR. Six fixes, then the token
+
+`docs/reviews/P7.1-preflight-part2.md` — **CLEAR WITH CONDITIONS, 0 blocking, 3 major, 8 minor** (resume,
+signals, lock) — and `docs/reviews/P7.1-preflight-part1.partial.md` — **0 blocking, 0 major, 3 minor**
+(destruction paths; the reviewer died on an API limit with its findings file on disk, and the coordinator
+closed the open items from it). Nothing found can destroy or corrupt data through the driver; both real
+`output/` trees were byte-identical to the 20:47 baseline after every experiment. **The three majors are
+gates that hold only by stage order or by the runner, i.e. by a file rather than by the code — the same
+shape `BRIEF_33` Amendment C fixed before its run, for the same reason: tightening before the first
+episode is free.**
+
+## E1 — REQUIRED before the token (~1 h; each with a test or an executed demonstration)
+
+1. **PART 2 MAJOR 1** — `chunk_is_reusable` and `freeze_artifact` re-check `n_teleports == 0` and
+   `n_vanished_without_arrival == 0` on every observed row of a `noteleport` chunk; a stored verdict is not
+   evidence. Test: the reviewer's chunk with `rows[1].n_teleports = 1` → re-run, and → `report` REFUSED.
+2. **PART 2 MAJOR 2** — `report` asserts the campaign's cell set (the 12 expected labels from the driver's
+   stages: 3 arms × {parity observed, parity unobserved, noteleport} + 3 CityFlow), `chunk["episodes"] ==
+   args.episodes` for every `run-*` cell, and label uniqueness across files; a missing or duplicated label
+   → REFUSED, artifact absent. Test: delete one chunk; put a parity-header chunk under the `noteleport`
+   filename.
+3. **PART 2 MAJOR 3** — a complete chunk with any `reproduces_p7_0: false` row is **not reusable**: on
+   restart the driver renames it `<name>.failed.json` (evidence kept, outside the `freeze_*.json` glob) and
+   re-rolls; the "complete and clean" message says what it checked. Test: the reviewer's `1l` chunk.
+4. **mn-1** — A4 idempotent (skip a complete `timing_hz4x4_gudang.json`; it costs 7.3 min under the
+   observer, measured). **mn-2** — logs appended, never truncated on restart. **mn-6** — `n_teleports:
+   null` → `REFUSED: …`, not a traceback.
+5. **PART 1 minors** — drop or reorder the unreachable interpreter check; the driver header's schedule
+   corrected to measured rates: **A4 439 s (observer, `n = 1`), hz1x1 43 s observed / 12 s bare, G3 ≈ 33
+   min**, not ~17.
+6. The three surviving-mutation shapes from PART 2's test audit get real tests where cheap: rows-level
+   regime mismatch; header `episodes` ≠ CLI; a non-reproducing chunk is not reusable.
+
+## E2 — Operator conditions, retained from PART 2 (they hold after E1 too)
+
+Launch as a **tmux foreground** job (`bash offline/campaigns/p7_1_metric_freeze.sh` from the worktree) —
+never `nohup`/`&`, which inherits `SIGINT` ignored and disables the trap; `report` is never run by hand;
+`output/p7_1/` must not exist at first start and nothing is ever copied into it; other sessions whose
+command lines contain the module name will trip the start lock (fail-closed, nothing consumed).
+
+## E3 — Then CLEAR, without a second reviewer round
+
+The coordinator verifies E1's six on the branch (the reviewer's constructed states are recorded in both
+findings files and are cheap to replay), then writes CLEAR in the Decisions Log; the author writes the
+token only after that line exists.
