@@ -1,0 +1,40 @@
+diff --git a/.claude/agents/contract-reviewer.md b/.claude/agents/contract-reviewer.md
+--- a/.claude/agents/contract-reviewer.md
++++ b/.claude/agents/contract-reviewer.md
+@@ -35,6 +35,18 @@
+ Run the tests yourself. Read the real output. If the tests do not run in this environment, say so —
+ do not report a result you did not observe.
+ 
++## Incremental findings — mandatory whenever the request names a findings file (added 2026-09-11)
++A reviewer that reports only at the end loses everything if it is killed; two 25-minute reviews died
++that way in one evening and returned nothing. When the request names a `FINDINGS.md` path:
++1. **Your first write, within your first three tool calls, is the numbered checklist** of every check
++   you intend to run, each `[ ]`. Reading comes after the checklist exists, not before.
++2. **After every experiment or verified fact, append to the file before running the next command:**
++   item number, timestamp, the command or construction, the observed result, `<path>:<line>`, and tick
++   the item. One finding per append. **A finding not in the file does not exist.**
++3. Read only the line ranges the request names; do not read whole files.
++4. Your final report is assembled from the file. If the request says *continue from FINDINGS.md*, read it
++   first, do not redo `[x]` items, and start at the first `[ ]`.
++
+ ## Output format
+ 
+ ```
+diff --git a/.claude/agents/master-coordinator.md b/.claude/agents/master-coordinator.md
+--- a/.claude/agents/master-coordinator.md
++++ b/.claude/agents/master-coordinator.md
+@@ -169,6 +169,14 @@
+ randomiser, dataset/RTG loader, DT agent, corpus linter, statistics harness). Spawn
+ `contract-reviewer`. Require mutation testing, not reading. Merge only after PASS.
+ 
++**Long-running subagents persist their findings (added 2026-09-11).** Any spawn you expect to run past
++~5 minutes names a `FINDINGS.md` under the scratchpad in its mandate, requires the checklist-first /
++one-append-per-finding discipline, and caps reading by line ranges. Split long reviews into ≤ 15-minute
++mandates with separate findings files. If an agent dies, read its file, file it as
++`docs/reviews/<id>.partial.md` with a banner naming the cause, and re-spawn a successor told to continue
++from the first unchecked item. Two 25-minute reviewers died on an API session limit in one evening and
++returned nothing; the loss was the mandate's design, not the runtime's.
++
+ **Stopping rule for review rounds.** A round is worth running while it can still find load-bearing
+ defects — things that force rework. Once a round returns only style and preference, stop and ship.
+ Planning documents get at most one external review round, then they freeze.
