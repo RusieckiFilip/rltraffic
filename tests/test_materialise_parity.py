@@ -309,6 +309,67 @@ def test_cap_e_holds_on_every_draw_and_the_record_says_so(tmp_path: Path) -> Non
         assert record["n_bound"] == record["n_vehicles"] == audit["n_sumo"]
 
 
+def test_the_depart_offset_shift_is_applied_and_this_test_is_not_vacuous(tmp_path: Path) -> None:
+    """Amendment D1 (half A's surviving mutation M3): the shift needs a NON-ZERO offset.
+
+    ``_parity_demand_audit`` subtracts the scenario's ``<begin>`` from every SUMO depart before
+    comparing.  On ``cityflow1x1`` that offset is ``0.0``, so removing the subtraction changes
+    nothing and the CAP(E) test cannot see it -- it reads the offset back from the record it is
+    checking and shifts by the same zero.  A scenario with a real offset would then ship with an
+    untested shift, and cologne's is **25200** (verified from ``scenarios/cologne*/*.sumocfg``,
+    both files).
+
+    So this is a unit test of the function alone, on a synthetic pair, with no materialisation:
+    three entries whose SUMO departs are their CityFlow ``startTime`` plus 25200.  Under the
+    correct offset the two sides are the same demand; under ``0.0`` they are not, and that
+    second half is what makes the first half mean something.
+    """
+    import offline.materialise_draws as md
+
+    cologne_begin = 25200.0
+    start_times = [0, 45, 120]
+    routes = [("road_a", "road_b"), ("road_b", "road_c"), ("road_a", "road_c")]
+
+    flow_path = tmp_path / "flow.json"
+    flow_path.write_text(
+        json.dumps(
+            [
+                {"startTime": t, "endTime": t, "route": list(r)}
+                for t, r in zip(start_times, routes)
+            ]
+        ),
+        encoding="utf-8",
+    )
+    rou_path = tmp_path / "routes.rou.xml"
+    rou_path.write_text(
+        '<?xml version="1.0" encoding="utf-8"?>\n<routes>\n'
+        + "".join(
+            f'  <vehicle id="{i}" depart="{t + cologne_begin:.2f}">'
+            f'<route edges="{" ".join(r)}"/></vehicle>\n'
+            for i, (t, r) in enumerate(zip(start_times, routes))
+        )
+        + "</routes>\n",
+        encoding="utf-8",
+    )
+
+    shifted = md._parity_demand_audit(flow_path, rou_path, depart_offset=cologne_begin)
+    assert shifted["multiset_equal"] is True
+    assert shifted["n_index_aligned_equal"] == 3
+    assert shifted["order_matches"] is True
+    assert shifted["n_cityflow"] == shifted["n_sumo"] == 3
+    assert shifted["depart_offset"] == cologne_begin
+    # The recorded SUMO range is the RAW one, as written in the file, not the shifted one.
+    assert shifted["depart_range_cityflow"] == [0.0, 120.0]
+    assert shifted["depart_range_sumo"] == [25200.0, 25320.0]
+
+    # The control: the same pair judged without the shift is NOT the same demand.  If the
+    # subtraction is ever removed, the assertions above collapse onto these.
+    unshifted = md._parity_demand_audit(flow_path, rou_path, depart_offset=0.0)
+    assert unshifted["multiset_equal"] is False
+    assert unshifted["n_index_aligned_equal"] == 0
+    assert unshifted["order_matches"] is False
+
+
 def test_a_lost_vehicle_is_refused_in_validation_and_no_draw_gets_a_parity_dir(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -487,6 +548,54 @@ def test_a_differing_parity_dir_is_refused_and_only_force_replaces_it(tmp_path: 
     assert _parent_files(tmp_path, 1) == parent_before
     assert "<configuration/>" not in (target / PARITY_SUMOCFG_FILENAME).read_text(encoding="utf-8")
     assert [path.name for path in tmp_path.rglob(".staging*")] == []
+
+
+def test_a_record_that_differs_while_the_rendered_files_match_is_refused(tmp_path: Path) -> None:
+    """Amendment D2 (half A's surviving mutation M9): the provenance comparison was dead.
+
+    Both existing "differs" tests edit a **rendered file**, so they exercise the byte branch of
+    ``_existing_parity_conflict`` and never its field-by-field record comparison.  Deleting that
+    comparison therefore changed no test result: a ``parity/`` whose two rendered files are
+    byte-identical but whose record has gone stale -- a re-materialised parent, a changed shipped
+    network, a hand-edited ``demand_audit`` -- was reported ``kept``.
+
+    Nothing an engine reads would have moved, which is why this is minor; what would rot silently
+    is the record that says **which** files these are, and the digest twins the A7 test insists on
+    are exactly what goes stale.
+    """
+    materialise(HZ1X1_CONFIG, [1], out_root=tmp_path)
+    materialise_parity(HZ1X1_CONFIG, [1], out_root=tmp_path)
+
+    target = parity_dir(HZ1X1_KEY, 1, out_root=tmp_path)
+    rendered = {
+        name: _sha256_file(target / name)
+        for name in (PARITY_ROUTES_FILENAME, PARITY_SUMOCFG_FILENAME)
+    }
+    parent_before = _parent_files(tmp_path, 1)
+
+    record_path = target / "provenance.json"
+    record = json.loads(record_path.read_bytes())
+    assert record["net"]["sha256"] != "0" * 64
+    record["net"]["sha256"] = "0" * 64
+    record_path.write_bytes(json.dumps(record, indent=2, sort_keys=True).encode() + b"\n")
+
+    # Only the record was touched: the two files the engine reads are untouched, which is the
+    # whole point -- a byte comparison of them cannot see this.
+    assert {name: _sha256_file(target / name) for name in rendered} == rendered
+
+    with pytest.raises(FileExistsError, match=r"field 'net' differs"):
+        materialise_parity(HZ1X1_CONFIG, [1], out_root=tmp_path)
+    assert json.loads(record_path.read_bytes())["net"]["sha256"] == "0" * 64, (
+        "a refusal must leave the stale record exactly as it found it"
+    )
+
+    (replaced,) = materialise_parity(HZ1X1_CONFIG, [1], out_root=tmp_path, force=True)
+    assert replaced.action == "replaced"
+    assert json.loads(record_path.read_bytes())["net"]["sha256"] == _sha256_file(
+        parity.DECLARED_SOURCE_NET
+    )
+    assert {name: _sha256_file(target / name) for name in rendered} == rendered
+    assert _parent_files(tmp_path, 1) == parent_before
 
 
 def test_force_is_never_passed_to_the_parent_materialisation(
