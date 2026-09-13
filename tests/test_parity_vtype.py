@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -363,3 +364,75 @@ def test_shipped_plan_cycle_equals_the_equal_split_cycle_on_this_scenario() -> N
     shipped_cycle = tuple(index[phase] for phase in plan.green_order)
     assert shipped_cycle == equal_split_cycle(len(greens))
     assert shipped_cycle == (0, 1, 2, 3, 4, 5, 6, 7)
+
+
+# ----------------------------------------------------------------------
+# P7.2a (BRIEF_35 section 3.3): the optional teleport-free parameter
+# ----------------------------------------------------------------------
+def test_the_sumocfg_generator_default_is_byte_identical_to_the_committed_artifact() -> None:
+    """The control for P7.2a's new parameter.
+
+    The three ``test_parity_sumocfg_*`` tests above pin the COMMITTED P7.0 configuration; this
+    one pins the generator's default output against that same file, so a default that moved --
+    for instance by emitting the A15(c) header sentence unconditionally -- fails here rather
+    than silently rewriting what P7.0 ran.
+    """
+    net_reference = os.path.relpath(
+        Path(parity.DECLARED_SOURCE_NET).resolve(), Path(parity.DECLARED_PARITY_DIR).resolve()
+    )
+    route_reference = f"{parity.DECLARED_PARITY_STEM}.rou.xml"
+
+    generated = parity.render_parity_sumocfg_text(net_reference, route_reference)
+    assert generated == Path(parity.DECLARED_PARITY_SUMOCFG).read_text(encoding="utf-8")
+    assert generated == parity.render_parity_sumocfg_text(
+        net_reference, route_reference, time_to_teleport=None
+    )
+    assert "time-to-teleport" not in generated
+
+
+def test_a_teleport_free_config_carries_the_processing_block_and_names_the_amendment() -> None:
+    """A15(c): every .sumocfg generated for drawn demand carries the element.
+
+    Asserted as parsed XML rather than as a substring, because what binds is the element SUMO
+    reads, not the text a comment happens to contain.
+    """
+    generated = parity.render_parity_sumocfg_text("../net.xml", "routes.rou.xml", time_to_teleport=-1)
+    root = ET.fromstring(generated)
+    element = root.find("./processing/time-to-teleport")
+    assert element is not None, "the block must be nested under <processing>, where SUMO reads it"
+    assert element.get("value") == "-1"
+    assert "A15(c)" in generated.split("<configuration>")[0], "the header must name the amendment"
+    # The rest of the document is untouched by the option.
+    assert root.find("./input/net-file").get("value") == "../net.xml"  # type: ignore[union-attr]
+    assert root.find("./time/end").get("value") == str(parity.SUMO_END_SECONDS)  # type: ignore[union-attr]
+
+
+def test_a_positive_time_to_teleport_is_refused() -> None:
+    """A positive value re-enables the mechanism A15(c) froze off.
+
+    SUMO documents non-positive values as disabling teleporting, so 0 is accepted and 300 --
+    SUMO's own default, the one P7.1 measured at 13 teleported vehicles per MaxPressure
+    episode -- is exactly what must not be reachable through this argument.
+    """
+    with pytest.raises(ValueError, match="teleport"):
+        parity.render_parity_sumocfg_text("../net.xml", "routes.rou.xml", time_to_teleport=300)
+    with pytest.raises(ValueError, match="teleport"):
+        parity.render_parity_sumocfg_text("../net.xml", "routes.rou.xml", time_to_teleport=1)
+
+    accepted = parity.render_parity_sumocfg_text("../net.xml", "routes.rou.xml", time_to_teleport=0)
+    assert ET.fromstring(accepted).find("./processing/time-to-teleport").get("value") == "0"  # type: ignore[union-attr]
+
+
+def test_the_committed_teleport_free_config_is_the_exported_reference() -> None:
+    """``NOTELEPORT_SUMOCFG`` must name the file A15(c) registered, not a path that looks right."""
+    assert parity.NOTELEPORT_SUMOCFG.is_file()
+    assert parity.NOTELEPORT_SUMOCFG.name.endswith("_noteleport.sumocfg")
+    validate_sumo_inputs_exist(parity.NOTELEPORT_SUMOCFG)
+
+    root = ET.parse(parity.NOTELEPORT_SUMOCFG).getroot()
+    assert root.find("./processing/time-to-teleport").get("value") == "-1"  # type: ignore[union-attr]
+    # Identical to the parity config in every respect a simulator can observe except the regime.
+    committed = ET.parse(parity.DECLARED_PARITY_SUMOCFG).getroot()
+    for path in ("./input/net-file", "./input/route-files", "./time/begin", "./time/end"):
+        assert root.find(path).get("value") == committed.find(path).get("value")  # type: ignore[union-attr]
+    assert committed.find("./processing/time-to-teleport") is None
