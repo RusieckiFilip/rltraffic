@@ -965,13 +965,69 @@ def _linked_worktree_marker(path: str | Path) -> Path | None:
     return None
 
 
+def _checked_out_root_shape(out_root: str | Path) -> Path:
+    """Return *out_root* if it is a draws ROOT, else raise. ``BRIEF_35`` Amendment B1.
+
+    The pre-flight's item 9a: with ``out_root`` pointing at a draw directory this phase wrote a
+    nested ``draw_NNNN/<scenario_key>/draw_NNNN/{four files, parity/}`` **inside a pre-existing
+    draw**.  Not one byte was altered -- but the polluted draw then failed
+    :func:`_validate_parent_for_parity` on every later legitimate run until someone deleted the
+    nest by hand, so a mistyped ``--out-root`` naming ``draw_1000`` would have blocked a
+    held-out draw.  The freedom is inherited from :func:`materialise`, where it was harmless
+    because that function only ever created sibling directories; it is not harmless in a phase
+    whose purpose is to write *inside* existing draws, so the guard sits here, in front of the
+    only call site that does.
+
+    Three refusals.  Two are on the path itself -- no component may be a draw directory or the
+    parity directory.  The third is on **filesystem evidence**: a directory that directly holds
+    ``draw_NNNN`` children *is* a scenario directory, and pointing at one would nest a second
+    scenario level beside the real draws.  Evidence rather than the name, deliberately: a root
+    that merely happens to be *called* ``cityflow1x1`` is legitimate and must keep working, and
+    a name-only heuristic would refuse it.
+    """
+    resolved = Path(out_root).resolve()
+    for component in resolved.parts:
+        if re.fullmatch(r"draw_\d{4}", component):
+            raise ValueError(
+                f"refusing to use {resolved} as a draws root: its component {component!r} is a "
+                "draw directory, so this phase would write a nested tree INSIDE an existing "
+                "draw and every later run would then refuse that draw. The root is the "
+                "directory that holds the scenario keys, e.g. scenarios/draws"
+            )
+        if component == PARITY_DIRNAME:
+            raise ValueError(
+                f"refusing to use {resolved} as a draws root: its component "
+                f"{PARITY_DIRNAME!r} is a parity directory, which this phase writes, not one it "
+                "writes into"
+            )
+    if resolved.is_dir():
+        draws = sorted(
+            path.name
+            for path in resolved.iterdir()
+            if path.is_dir() and re.fullmatch(r"draw_\d{4}", path.name)
+        )
+        if draws:
+            raise ValueError(
+                f"refusing to use {resolved} as a draws root: it holds draw directories "
+                f"({draws[:3]}{' ...' if len(draws) > 3 else ''}) directly, so it is a scenario "
+                "directory and the root is its parent. Pointing here would nest a second "
+                "scenario level beside the real draws"
+            )
+    return Path(out_root)
+
+
 def _checked_parity_target(target: str | Path, out_root: str | Path) -> Path:
     """Return *target* if it is a parity directory of a draw inside *out_root*, else raise.
 
     ``_commit``'s ``os.replace(staged, target)`` is one wrong *target* away from replacing a
     **draw** instead of a parity subdirectory, and draws 1000-1099 are what every merged
-    held-out number since P4.6 resolves through.  Three properties, checked for every planned
+    held-out number since P4.6 resolves through.  Four properties, checked for every planned
     rename before the first one runs.
+
+    The fourth is depth (Amendment B2, pre-flight R3): name, parent pattern and containment
+    together still accept ``<out_root>/draw_0001/parity`` -- well-formed at the leaf and wrong
+    in the middle, which is the same class B1 closes at the other end.  The target is exactly
+    ``<out_root>/<scenario_key>/draw_NNNN/parity``: four levels, no more, no fewer.
     """
     path = Path(target)
     if path.name != PARITY_DIRNAME:
@@ -984,7 +1040,15 @@ def _checked_parity_target(target: str | Path, out_root: str | Path) -> Path:
             f"refusing to replace {path}: its parent {path.parent.name!r} is not a "
             "zero-padded draw directory"
         )
-    return _checked_output_path(out_root, path)
+    checked = _checked_output_path(out_root, path)
+    resolved = Path(path).resolve()
+    if resolved.parent.parent.parent != Path(out_root).resolve():
+        raise ValueError(
+            f"refusing to replace {path}: it sits at the wrong depth under {out_root}. The "
+            "target is exactly <out_root>/<scenario_key>/draw_NNNN/parity, and a path that is "
+            "well formed at the leaf can still be wrong in the middle"
+        )
+    return checked
 
 
 def _render_bound_routes(text: str, *, draw_id: int) -> str:
@@ -1263,6 +1327,16 @@ def _commit_parity(
     Mirrors :func:`_commit`, with one addition and one subtraction: every target passes
     :func:`_checked_parity_target` **before the first rename**, and no parent directory is ever
     created -- this phase writes inside draws that already exist and must never invent one.
+
+    ⚠️ **Accepted residual, inherited verbatim from :func:`_commit`** (``DEFERRED`` 79, which
+    names ``_commit`` as its owner; P7.2a's pre-flight R1/R2, found by reading and not
+    reproducible in its sandbox): a **second** fault occurring *during* rollback -- a partial
+    ``shutil.rmtree`` of the new target, or the ``aside -> target`` restore itself raising --
+    can leave the moved-aside original under ``staging_root``, where the ``finally`` deletes it.
+    One fault is safe, and both injected single faults were verified to restore the original
+    sha256-identically; two are not, and fixing it means moving the aside directory out of
+    ``staging_root``, which is a change to the shared pattern the 106 existing parents were
+    written through and therefore not this task's to make.
     """
     for _action, _built, target in plans:
         _checked_parity_target(target, out_root)
@@ -1334,7 +1408,7 @@ def materialise_parity(
         raise FileNotFoundError(f"source sim config not found: {source}")
     ids = _checked_draw_ids(draw_ids)
     scenario_key = scenario_key_for_config(source)
-    root = Path(out_root)
+    root = _checked_out_root_shape(out_root)
 
     marker = _linked_worktree_marker(root)
     if marker is not None and not allow_worktree:

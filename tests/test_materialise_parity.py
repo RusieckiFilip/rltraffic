@@ -427,6 +427,11 @@ def test_the_commit_guard_rejects_every_target_shape_that_is_not_a_parity_dir(
         (out_root / HZ1X1_KEY / "draw_1" / PARITY_DIRNAME, "not a .*draw directory"),  # unpadded
         (out_root / HZ1X1_KEY / "draw_0001" / "parity2", "must be named"),  # near-miss name
         (tmp_path / "elsewhere" / "draw_0001" / PARITY_DIRNAME, "outside out_root"),
+        # Amendment B2 (pre-flight R3): well-formed at the leaf, wrong in the middle.  The guard
+        # checked name, parent pattern and containment, so it accepted a target at ANY depth --
+        # the same class B1 closes at the other end.
+        (out_root / "draw_0001" / PARITY_DIRNAME, "depth"),  # no scenario level (3 levels)
+        (out_root / HZ1X1_KEY / "extra" / "draw_0001" / PARITY_DIRNAME, "depth"),  # 5 levels
     ):
         with pytest.raises(ValueError, match=reason):
             md._checked_parity_target(bad, out_root)
@@ -509,6 +514,55 @@ def test_force_is_never_passed_to_the_parent_materialisation(
 
     assert len(seen) == 1
     assert seen[0]["force"] is False, "--force must not reach the parent materialisation"
+
+
+def test_an_out_root_that_is_itself_a_draw_or_a_parity_directory_is_refused(
+    tmp_path: Path,
+) -> None:
+    """Amendment B1 (pre-flight F1): the reviewer's item 9a, as a test.
+
+    With ``out_root`` pointing at a draw directory the phase used to proceed and write a NESTED
+    ``draw_0001/cityflow1x1/draw_0001/{4 files, parity/}`` **inside a pre-existing draw**.  No
+    byte was altered -- but every later legitimate run then refused that draw with *unexpected
+    subdirectory ['cityflow1x1']* until someone deleted the nest by hand.  A mistyped
+    ``--out-root`` at gate 4 pointing at ``draw_1000`` would have blocked a held-out draw that
+    way.  The refusal must happen in phase 0, before phase 1 can call ``materialise()``.
+    """
+    materialise(HZ1X1_CONFIG, [1], out_root=tmp_path)
+    materialise_parity(HZ1X1_CONFIG, [1], out_root=tmp_path)
+    snapshot = _tree_snapshot(tmp_path)
+
+    draw = draw_dir(HZ1X1_KEY, 1, out_root=tmp_path)
+    for bad in (draw, draw / PARITY_DIRNAME, tmp_path / HZ1X1_KEY / "draw_0001" / "sub"):
+        with pytest.raises(ValueError, match="draw_0001|parity"):
+            materialise_parity(HZ1X1_CONFIG, [1], out_root=bad)
+
+    # Nothing written anywhere, and in particular no nest inside the pre-existing draw.
+    assert _tree_snapshot(tmp_path) == snapshot
+    assert [path.name for path in draw.iterdir() if path.is_dir()] == [PARITY_DIRNAME]
+
+
+def test_an_out_root_that_is_a_scenario_directory_is_refused(tmp_path: Path) -> None:
+    """Amendment B1, the third clause: ``out_root`` = ``<root>/<scenario_key>``.
+
+    Same pollution one level up -- it would nest ``cityflow1x1/cityflow1x1/draw_NNNN`` beside
+    the real draws.  Decided on **filesystem evidence** rather than on the name: a directory
+    that directly contains ``draw_NNNN`` children IS a scenario directory, whereas a root that
+    merely happens to be named after a scenario is legitimate and must still work.
+    """
+    materialise(HZ1X1_CONFIG, [1, 2], out_root=tmp_path)
+    snapshot = _tree_snapshot(tmp_path)
+
+    with pytest.raises(ValueError, match="scenario directory"):
+        materialise_parity(HZ1X1_CONFIG, [1], out_root=tmp_path / HZ1X1_KEY)
+
+    assert _tree_snapshot(tmp_path) == snapshot
+
+    # The control: a root that merely SHARES the name is not a scenario directory and works.
+    lookalike = tmp_path / "elsewhere" / HZ1X1_KEY
+    materialise(HZ1X1_CONFIG, [1], out_root=lookalike)
+    (record,) = materialise_parity(HZ1X1_CONFIG, [1], out_root=lookalike)
+    assert record.action == "written"
 
 
 def test_an_out_root_inside_a_linked_worktree_is_refused_without_the_flag(
