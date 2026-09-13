@@ -196,3 +196,30 @@ Order: **phase 0 → phase 2 on every parent that ALREADY EXISTS (0–5, 1000–
 - Conflict 2's consequence for the packet: say what `reset(seed=1000)` did — the env RNG seeded with 1000 drew SUMO's `--seed` — and record both numbers. The registration (A17, in draft) is being worded the same way today, so the brief, the packet and the amendment agree.
 
 **Proceed to gate 2.** The packet is written against `BRIEF_35` + Amendment A.
+
+---
+
+# ⛔ AMENDMENT B — 2026-09-13, on the pre-flight: CLEAR WITH CONDITIONS. Two fixes with tests, then the coordinator re-runs the construction, then gate 4
+
+`docs/reviews/P7.2a-preflight.md` — **0 blocking, 1 major, 3 minor**, 13 constructed states, every one judged by whole-tree sha256 snapshots. **Under every path — normal run, re-run, differing `parity/` with and without `force`, two injected mid-commit `os.replace` faults (one after the move-aside, the original restored sha256-identically), foreign subdirectory, the A6 order (a corrupt existing parent alongside a requested missing one → `draw_0201` not created), a wrong plan handed to `_commit_parity` (raised before `mkdtemp`, zero renames), the worktree marker, dry run on a mixed root, a leftover `.staging-*`, `verify_p4_3_probe` — zero pre-existing bytes altered or deleted.** That is the question the pre-flight exists to answer and the answer is clean. What it also found is the class this project keeps meeting: a freedom that was harmless in the code it was inherited from and is not harmless in the code that reuses it.
+
+## B1 — REQUIRED (F1, major): `out_root`'s shape is guarded in phase 0, before phase 1 can call `materialise()`
+With `out_root = <root>/cityflow1x1/draw_0001` the phase proceeds and writes a NESTED `draw_0001/cityflow1x1/draw_0001/{4 files, parity/}` **inside the pre-existing draw**; nothing is altered, but every later legitimate run then refuses that draw with *unexpected subdirectory ['cityflow1x1']* until someone hand-deletes the nest. `materialise()` on `main` has the same freedom; it did not matter when the tool only created sibling directories, and it matters now that it writes inside draws — a mistyped `--out-root` at gate 4 pointing at `draw_1000` would not corrupt a held-out draw but would block every later parity and verification run on it. **Fix:** in phase 0, refuse when any path component of `Path(out_root).resolve()` matches `^draw_\d{4}$` or equals `parity` (and, cheaply, when `out_root.name` is a scenario key that already exists as a child of its own parent — i.e. `out_root` is `<root>/<scenario_key>`; state whether you include this and why). The message names the offending component. **Test:** the reviewer's item 9a construction — `out_root` = a draw directory → refused; snapshot unchanged; plus `out_root` = `<draw>/parity` → refused. `materialise()` itself is NOT changed (its behaviour is pinned by its own tests and by 106 existing parents); the guard sits in `materialise_parity` and therefore in front of the only call site that now writes inside draws.
+
+## B2 — REQUIRED (R3, minor but one line): `_checked_parity_target` checks depth
+It accepts `<root>/draw_0001/parity` (no scenario level) because it checks name, parent pattern and containment only. Unreachable through `parity_dir()`, and the class is exactly the one B1 closes at the other end: a rename target that is well-formed at the leaf and wrong in the middle. **Fix:** require `target.parent.parent.parent == Path(out_root).resolve()` — the target is exactly `<out_root>/<scenario_key>/draw_NNNN/parity`, four levels, no more, no fewer. **Test:** extend the guard-shape test with the no-scenario-level path and with a five-level path.
+
+## B3 — ACCEPTED RESIDUAL (R1, R2): the double-fault rollback class, inherited from `_commit`
+If a second fault occurs *during* rollback (a partial `rmtree` of the new target, or the `aside → target` restore itself failing), the original `parity/` can end under `staging_root` and be deleted by the `finally`. Two faults, not reproducible in the sandbox, and the pattern is `main`'s `_commit` verbatim — which the 106 parents were written through. Not fixed here; **one sentence in `_commit_parity`'s docstring names the class**, so the next reader does not have to rediscover it, and it is recorded in `DEFERRED` with `_commit` as its owner.
+
+## B4 — RECORDED, no action
+- Phase-1 `materialise()` has no `allow_worktree` parameter, so parent creation inside a worktree is gated only by `materialise_parity`'s own check (item 10). Correct: the check runs first.
+- A `cp -r` copy of a draws tree is refused by `materialise()` because the parent `cityflow.json` embeds a path into the original root (item 11, attempt 1). Correct and conservative; recorded so nobody reads it as a defect.
+- `verify_p4_3_probe` on draw 201 in a fresh root: match, and the tree snapshot is unchanged (item 13). The band gate's instrument is clean.
+
+## B5 — Sequence to CLEAR
+1. `git -C /home/filip/rltraffic-p53b merge --no-edit main` (this amendment and the filed review).
+2. B1 + B2 + B3's sentence, tests first (red for their reasons), then green; `pytest tests/test_materialise_parity.py tests/test_parity_vtype.py tests/test_materialise_draws.py -q` and `scripts/check_test_hygiene.sh` on the new file; commit; report the sha. No campaign.
+3. The coordinator re-runs the reviewer's items 9a and 6f constructions against that commit (snapshots included) and logs **CLEAR** in the Decisions Log. **Only then gate 4**, from a committed tree, cwd `/home/filip/rltraffic`, `python -P`, the three invocations, dry-run first, as §5.4 says.
+
+The packet is written against `BRIEF_35` + Amendments A–B.
