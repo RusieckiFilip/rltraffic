@@ -240,3 +240,25 @@ Do not rewrite the packet now. After gates 4–6 the packet is revised once with
 
 ## C3 — Then the merge review
 On the revised packet the coordinator spawns the merge review (critical path: every C3 number will resolve through these draws) — mutation testing on B1/B2 and on the three load-bearing tests (T1, T2, T4), sequentially, findings file. The CI skip ceiling moves at merge by the registered route.
+
+---
+
+# ⛔ AMENDMENT D — 2026-09-13, on the merge reviews: FIX-FIRST, small — two tests and one packet revision, then merge
+
+`docs/reviews/P7.2a-halfA.md` — **PASS-WITH-NOTES, 0 / 0 / 2, 9 of 11 mutations killed.** `docs/reviews/P7.2a-halfB.md` — **PASS-WITH-NOTES, 0 / 0 / 1, every artifact number recomputed from raw files and matched.** Nothing in the 206 directories needs regenerating; what is owed is protection for two paths the suite does not exercise, and a packet that says what its timings were.
+
+## D1 — REQUIRED (half A, survivor M3): the depart shift gets a test that is not vacuous
+`_parity_demand_audit`'s `depart − offset` is untested because this scenario's `depart_offset` is `0.0` and the CAP(E) test reads the offset back from the record it checks. **Add a synthetic-pair unit test** on `_parity_demand_audit` alone (no materialisation): a tiny `flow.json` with three entries and a route file whose `depart` values are those `startTime`s **+ 25200** (cologne's `begin`), with `depart_offset=25200.0` → `multiset_equal True`, `n_index_aligned_equal 3`; the same pair with `depart_offset=0.0` → `multiset_equal False`. Removing the shift must fail this test; paste the mutation.
+
+## D2 — REQUIRED (half A, survivor M9): a differing RECORD with identical files is refused
+`_existing_parity_conflict`'s provenance-field comparison is dead under the suite — the two "differs" tests edit a rendered file, never the record. **Add a test:** materialise + parity for one draw, then edit `parity/provenance.json` only (change `net.sha256` to a wrong hex string, keeping the JSON valid) → re-run without `force` refuses naming the field; with `force` the record is rewritten and the two rendered files are byte-identical before and after. Skipping the field comparison must fail this test; paste the mutation.
+
+## D3 — REQUIRED: one packet revision, written against A–D
+1. **§10.6 and §12's last bullet — the rates.** Both were measured on a laptop running **on battery** (Windows' battery plan throttled the CPU under the WSL2 VM; the guest reported 0.10 load per core, 40 GB free, no swap). The coordinator re-ran P7.1's exact cells under the same state — CityFlow draw 0 **6.88 s** against P7.1's **0.89 s**, the nominal-parity bare SUMO episode **93.5 s** against P7.1's **11.84 s** (×7.8 on both, outputs bit-identical) — and the author found the cause; plugged in, the canary reads **0.7 s**. Replace both sentences: the gate-5 and gate-6 wall clocks are withdrawn as rates; **P7.2b plans from P7.1's quiet-machine table (bare hz1x1 SUMO 10.4–11.8 s per episode, `n = 5` per arm), so a 100-draw probe is on the order of 20 minutes, and it runs the §7 canary (mains power, performance plan, `run_probe` draw 0 ≈ 0.9 s) before any timing is written down.** Do not delete the measured numbers — keep them as what they are, with both clocks and the cause.
+2. **§9.4:** *"the report's own summary: `differing []`"* → *"every one of the 100 rows carries `differing: []`; the report has no top-level `differing` key"*.
+3. **§9.2:** state the digest recipe (what was hashed, in what order, how joined) so that `85157bbb…` and `21fadf83…` are reproducible by a reader; half B could not reproduce them because the recipe is not in the packet.
+4. **§9.3:** one sentence that the ORIGINAL August parent records carry `git_commit 29ab2445…, git_dirty True` (their own provenance, unchanged) while the 206 NEW parity records carry `672a7ba…, False` — two record layers, not a contradiction.
+5. Header: *written against `BRIEF_35` + Amendments A–D*. Status stays DONE.
+
+## D4 — Then merge, by the coordinator
+On the fix commit the coordinator re-applies M3 and M9 by hand (each must fail its new test), runs the three test files and the hygiene check, merges with §6's P7.2a box ticked and the Decisions Log row, pushes, and moves the CI skip ceiling by the registered route (classify the runner's `junit.xml`, commit the observed value — the two environment-gated tests will be skipped there). **The 206 directories are not in the merge** (`scenarios/draws/` is gitignored); what the merge carries is the tool that regenerates them and the gate that proves the regeneration.
