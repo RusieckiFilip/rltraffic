@@ -165,3 +165,34 @@ and one sentence to the header comment naming A15(c). The function refuses a **p
 ## 8. Return Packet
 
 `docs/returns/TEMPLATE.md`, plus: the dry-run and real outputs of step 5.4 (counts, not the 206 lines); the before/after tree digests; the 100/100 gate count with one example row; the SUMO smoke's three engine-read values; the new test totals; and **the amendments the packet was written against, by letter.** Open questions go to the coordinator; nothing in `scripts/` or `.claude/` is touched for any reason.
+
+---
+
+# ✅ AMENDMENT A — 2026-09-13, at the plan gate: PLAN APPROVED (`docs/plans/p7.2a.md` @ `be937be`), with six rulings and one reorder
+
+Read from the worktree, not from the relay. The layout argument (`_existing_conflict` sees files only, `:606`), the eleven verified facts, the target-path pre-pass and the worktree refusal are accepted as written. **Both brief-vs-repo conflicts are confirmed by the coordinator's own commands** — `COLLECT_SETTINGS` is an argv tuple; `BaseTrafficEnv.reset` draws `_engine_seed` from the env RNG (`envs/base_traffic_env.py:629-631`) and the `__init__` boot passes no `--seed` — and the brief was wrong on both. Rulings:
+
+## A1 — Q1: NOT a hand-assembled dict. Use the route the repo already tests on SUMO
+`collect_style_args("sumo", "maxpressure", <the draw's noteleport.sumocfg>, sentinel_out_dir=…)` → `offline.collect._build_env_spec(args)` → `make_env(spec)` — exactly what `tests/test_backend_alignment.py::test_align_info_is_inert_on_every_decision_step_of_a_real_episode` does. **Verified 2026-09-13: the resulting `spec.settings` equals `docs/data/p4_3_probe.json:env_settings` on all 15 common keys** (the spec carries one extra, `compare_with`). T2 asserts that equality, reading the artifact, as its cross-check; the `dict(SETTING_DEFAULTS) + env_settings` construction is not used. One code path, already exercised on SUMO, checkable under `==`.
+
+## A2 — Q2: YES, `--verify-p4-3-probe` lives in the tool. Authorised widening of the CLI, with four conditions
+(i) it writes **nothing** under `scenarios/draws/` — an optional `--report <path>` may write JSON *outside* that tree; (ii) it reuses `offline.rtg_calibration.run_probe` with `config_for_draw = draw_config_path(...)`, and the artifact's own `env_settings` and `engine_seed`, never retyped; (iii) it compares **all four** numbers per draw (`local_return`, `local_return_from_lanes`, `att_horizon`, `horizon_vehicle_count`, plus `decisions`) against `p4_3_probe.json:episodes[*]` under `==`, prints the first differing draw and exits 1; (iv) T4 calls the same function the mode calls, so the mode is covered by the unit test and not only by the campaign. Gate 5's pasted output is the count and one example row.
+
+## A3 — Q3: CONFIRMED, both halves
+"Exactly the four files" reads files only; **any subdirectory other than `parity/` inside a draw directory REFUSES, naming it.** Fail-closed costs nothing today (fact 2: no draw has a subdirectory) and a stray directory riding along unnoticed is exactly the class this tree has been bitten by.
+
+## A4 — Q4: CONFIRMED as a guarantee, and it gets a test that cannot pass by accident
+Phase 1 calls `materialise(...)` with `force=False` **regardless of `--force`**. T8 gains a spy: monkeypatch `materialise` and assert the kwarg it received when `--parity --force` was requested. A flag that cannot reach the parent path is a control; a convention that it does not is not.
+
+## A5 — Q5: CONFIRMED. The pre-flight (gate 3) blocks gate 4 only; tests proceed
+The reviewer is spawned on the commit where T1–T9 are green, so it reviews final code. ≤ 15 minutes, findings file per `PROJECT_PLAN` §7, destruction paths only, sandbox copy of a few draws — never the main tree.
+
+## A6 — The sequencing risk (§11): REORDERED so a refusal from anything that already exists writes nothing
+Order: **phase 0 → phase 2 on every parent that ALREADY EXISTS (0–5, 1000–1099) → phase 1 (`materialise()` for the missing 201–300) → phase 2 on the new parents → 3 → 4 → 5.** Every scenario-level validation (pairing, `flow_json_disagreements` on the SOURCE `flow.json`, the net reference resolving to the shipped `.net.xml` with its sha256, the worktree check) runs in phase 0, before phase 1. Consequence, stated for the packet: a refusal caused by an existing parent, by the scenario or by the tree happens **before any write**; only a defect in a brand-new parent's own content — systematic, and therefore already caught on the existing parents — can leave new parents without `parity/`, and `materialise()`'s own stage-then-commit means a phase-1 refusal writes nothing at all. A test constructs the existing-parent failure (a planted sha mismatch on draw 1) with draw 201 also requested and asserts draw 201 was **not** materialised.
+
+## A7 — Three small things, so they are not decided by the code
+- `time_to_teleport`: the function may accept `0`, **the phase writes `-1` and nothing else** — the registered value (A15(c)) — and the provenance echoes it.
+- `parity/provenance.json` follows the parent's rule that **no path field exists without a digest twin** (`net.reference`/`net.resolved` ↔ `net.sha256`; `parent.*` are digests); extend `test_the_path_fields_without_a_digest_twin_are_exactly_the_two_known_sumo_ones`'s idea to the new record rather than assuming it.
+- Conflict 2's consequence for the packet: say what `reset(seed=1000)` did — the env RNG seeded with 1000 drew SUMO's `--seed` — and record both numbers. The registration (A17, in draft) is being worded the same way today, so the brief, the packet and the amendment agree.
+
+**Proceed to gate 2.** The packet is written against `BRIEF_35` + Amendment A.
