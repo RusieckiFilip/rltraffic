@@ -223,3 +223,20 @@ If a second fault occurs *during* rollback (a partial `rmtree` of the new target
 3. The coordinator re-runs the reviewer's items 9a and 6f constructions against that commit (snapshots included) and logs **CLEAR** in the Decisions Log. **Only then gate 4**, from a committed tree, cwd `/home/filip/rltraffic`, `python -P`, the three invocations, dry-run first, as §5.4 says.
 
 The packet is written against `BRIEF_35` + Amendments A–B.
+
+---
+
+# ✅ AMENDMENT C — 2026-09-13: CLEAR. Gate 4 may run. Verified by the coordinator on `5c54d87`, by construction
+
+**Re-run of the pre-flight's constructions against the fixed commit, by the coordinator, with whole-tree sha256 snapshots (scratchpad sandbox, never the real trees):** item 9a — `out_root` = the draw directory itself → `ValueError` naming the component, snapshot unchanged, no nested tree; `out_root` = `<draw>/parity` → refused; `out_root` = the scenario directory → refused (*it holds draw directories directly*); the control — a legitimate root merely *named* `cityflow1x1` under another parent — writes its parity directory normally; item 6f — `_checked_parity_target` accepts the canonical four-level target and refuses the no-scenario-level path, a five-level path, the draw itself and a path outside the root (the last with the containment message, as B2's ordering note says). Baseline snapshot unchanged after everything; no `.staging*`. Three test files **83 passed**; hygiene and English exit 0. B1's third clause is accepted with its reasoning: filesystem evidence (a directory that directly holds `draw_NNNN` children is a scenario directory) rather than a name test, with the named-root control beside it.
+
+**Provenance at gate 4, answered by executing the delivery path, not by reading it:** from cwd `/home/filip/rltraffic` with `PYTHONPATH=/home/filip/rltraffic-p53b` and `python -P`, the imported module is `/home/filip/rltraffic-p53b/offline/materialise_draws.py` and `_git_commit()` returns `('5c54d877608cff5abdc6007a282f3ee3fce71e95', False)` — `_repo_git_hash` and the dirty check both resolve against the module's own directory. **So all 206 parity records will carry the branch's commit and `git_dirty: false`, provided the worktree stays committed for the duration of the run** (it is clean at `5c54d87`; do not edit anything in it until the campaign has finished).
+
+## C1 — Gate 4, exactly as §5.4 with Amendment A: three invocations, dry-run first, the `__file__` check pasted
+Then gate 5 (`--verify-p4-3-probe` on 201–300, expected 100/100, the count and one example row pasted, and if `--report` is used its path is outside `scenarios/draws/`) and gate 6 (one SUMO smoke on draw 1 in the main tree: `cf_parity` from `getTypeID`, `-1` from `getOption`, 0 teleports). **If any invocation refuses, stop and report; do not pass `--force` on the main tree.**
+
+## C2 — The packet question: one revision, after the campaign, written against `BRIEF_35` + Amendments A–C
+Do not rewrite the packet now. After gates 4–6 the packet is revised once with their outputs (the three dry-run and real summaries as counts, the before/after tree digests of the main tree's `scenarios/draws/cityflow1x1/`, the 100/100 count with one example row, the smoke's three engine-read values), its §7 and §9 updated for B1/B2, status moved from PARTIAL to DONE, and the header changed to *written against A–C*. One revision, one commit.
+
+## C3 — Then the merge review
+On the revised packet the coordinator spawns the merge review (critical path: every C3 number will resolve through these draws) — mutation testing on B1/B2 and on the three load-bearing tests (T1, T2, T4), sequentially, findings file. The CI skip ceiling moves at merge by the registered route.
