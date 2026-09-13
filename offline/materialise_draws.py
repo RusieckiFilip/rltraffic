@@ -116,11 +116,37 @@ names ``grid4x4.rou.xml``, which the repo does not contain).  The pairing is rea
 the ``.sumocfg`` rather than guessed from a directory listing, and an unusable pairing is
 recorded as ``sumo_skipped_reason`` instead of being silently dropped.
 
-**No ``.sumocfg`` is generated** -- that is P7.3's, along with the ``route-files``/``begin``
-agreement it needs.  A rendered file whose template leaves ``<vType>`` unbound (hangzhou)
-says so in its provenance: SUMO would run those vehicles as ``DEFAULT_VEHTYPE``, so the
-file must not feed a transfer measurement until P7.0's parity contract lands
-(``docs/briefs/BRIEF_04_p7.0_transfer_gate.md`` §3).
+A rendered file whose template leaves ``<vType>`` unbound (hangzhou) says so in its
+provenance: SUMO would run those vehicles as ``DEFAULT_VEHTYPE``, so **the parent's
+``routes.rou.xml`` must never feed a transfer measurement**.  It is kept as the input of the
+derivation below, and nothing else.
+
+THE PARITY SUBDIRECTORY (P7.2a, ``BRIEF_35``)
+---------------------------------------------
+``materialise_parity()`` adds one subdirectory per draw and **never writes to the parent**::
+
+    <out_root>/<scenario_key>/draw_<NNNN>/parity/
+        routes.rou.xml      the parent's rendering with the parity <vType> bound to EVERY vehicle
+        noteleport.sumocfg  the SHIPPED network by relative path, <time-to-teleport value="-1"/>
+        provenance.json     format ``materialised-draw-parity/1.0`` (the record below)
+
+**Format version** ``materialised-draw-parity/1.0``, written into every parity
+``provenance.json`` as ``format_version``, beside the parent's ``materialised-draw/1.0``.
+
+**Alignment convention: unchanged, and that is the point.**  Vehicle ids stay ``0..n-1`` in
+``startTime`` order and ``depart`` stays ``startTime + <begin>`` at two decimals -- the
+convention :func:`offline.flow_randomizer.FlowRandomizer.render_sumo` writes.  The parity step
+edits exactly two things, the single ``<vType>`` element and each ``<vehicle>``'s ``type``
+attribute, and :func:`offline.parity._verify_rendered_rou` re-parses the result to prove ids,
+departures and routes survived element for element.  Each draw's provenance then records CAP(E)
+over that draw -- the CityFlow demand against the bound rendering, multiset and index-aligned --
+so "the SUMO demand equals the CityFlow demand" is a measurement per draw, not an inference from
+the two having been produced by the same randomiser.
+
+The subdirectory is invisible to :func:`_existing_conflict`, which compares **files** only, so
+the parity phase cannot make a later ``materialise()`` refuse; a file placed beside the parent's
+four would.  ``<time-to-teleport value="-1"/>`` is A15(c), binding on every SUMO measurement
+recorded after 2026-09-12 and on every ``.sumocfg`` generated for drawn demand.
 """
 
 from __future__ import annotations
@@ -140,6 +166,9 @@ from typing import Any, Sequence
 
 import numpy as np
 
+from collections import Counter
+
+from offline import parity
 from offline.collect import _cityflow_flow_source, _write_draw_config
 from offline.flow_randomizer import (
     DEFAULT_BASE_SEED,
@@ -158,26 +187,52 @@ __all__ = [
     "FORMAT_VERSION",
     "HELD_OUT_POOL",
     "MaterialisedDraw",
+    "P4_3_PROBE_ARTIFACT",
+    "PARITY_DIRNAME",
+    "PARITY_FORMAT_VERSION",
+    "PARITY_ROUTES_FILENAME",
+    "PARITY_SUMOCFG_FILENAME",
     "PROVENANCE_FILENAME",
+    "ParityResult",
+    "ProbeCheck",
     "SUMO_ROUTES_FILENAME",
     "TRAINING_POOL",
     "build_parser",
     "classify_draw_pool",
     "draw_config_path",
     "draw_dir",
+    "load_parity_provenance",
     "load_provenance",
     "main",
     "materialise",
+    "materialise_parity",
+    "parity_dir",
+    "parity_sumocfg_path",
     "scenario_key_for_config",
+    "verify_p4_3_probe",
 ]
 
 FORMAT_VERSION = "materialised-draw/1.0"
+
+#: Format version of the additive parity subdirectory (P7.2a, ``BRIEF_35``).  Bumped by any
+#: change to that layout or to the meaning of a field in its ``provenance.json``.
+PARITY_FORMAT_VERSION = "materialised-draw-parity/1.0"
+
 DEFAULT_OUT_ROOT = Path("scenarios/draws")
 
 FLOW_FILENAME = "flow.json"
 CITYFLOW_CONFIG_FILENAME = "cityflow.json"
 SUMO_ROUTES_FILENAME = "routes.rou.xml"
 PROVENANCE_FILENAME = "provenance.json"
+
+#: The parity subdirectory and its three files.  ``PARITY_DIRNAME`` is also the suffix the
+#: commit-time target guard requires, so no ``os.replace`` of this phase can land on a draw.
+PARITY_DIRNAME = "parity"
+PARITY_ROUTES_FILENAME = "routes.rou.xml"
+PARITY_SUMOCFG_FILENAME = "noteleport.sumocfg"
+
+#: P4.3's committed in-domain probe -- the band gate's reference (``--verify-p4-3-probe``).
+P4_3_PROBE_ARTIFACT = Path(__file__).resolve().parent.parent / "docs" / "data" / "p4_3_probe.json"
 
 #: Registered draw pools (``PREREGISTRATION.md`` §5, D4).  Draw 0 is the nominal control
 #: and belongs to neither: it is reported separately and never pooled.
@@ -244,6 +299,44 @@ class MaterialisedDraw:
     n_vehicles: int
     flow_sha256: str
     action: str
+
+
+@dataclass(frozen=True)
+class ParityResult:
+    """One draw's parity subdirectory.
+
+    ``action`` is ``"written"``, ``"kept"``, ``"replaced"`` or ``"planned"`` (dry run), and
+    ``parent_action`` is what :func:`materialise` reported for the parent of the same draw, so a
+    caller can tell "the parent was created for me" from "the parent was already here".
+    """
+
+    scenario_key: str
+    draw_id: int
+    pool: str
+    directory: Path
+    routes_path: Path
+    sumocfg_path: Path
+    provenance_path: Path
+    n_vehicles: int
+    n_bound: int
+    action: str
+    parent_action: str
+    #: What the phase DECIDED, whether or not it was carried out: ``"written"``, ``"kept"``,
+    #: ``"replaced"`` or ``"differs"``.  Under ``dry_run`` ``action`` is ``"planned"`` for every
+    #: draw -- the convention :class:`MaterialisedDraw` already uses -- so the decision would
+    #: otherwise be unreportable, and the dry run's whole purpose is to report it.
+    planned_action: str
+
+
+@dataclass(frozen=True)
+class ProbeCheck:
+    """One draw's comparison against ``docs/data/p4_3_probe.json`` (the band gate)."""
+
+    draw_id: int
+    matches: bool
+    observed: dict[str, float]
+    expected: dict[str, float]
+    differing: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -390,6 +483,33 @@ def draw_config_path(
     whole rotation up front.
     """
     return draw_dir(scenario_key, draw_id, out_root=out_root) / CITYFLOW_CONFIG_FILENAME
+
+
+def parity_dir(
+    scenario_key: str, draw_id: int, *, out_root: str | Path = DEFAULT_OUT_ROOT
+) -> Path:
+    """Return the parity subdirectory of one materialised draw. Pure path arithmetic."""
+    return draw_dir(scenario_key, draw_id, out_root=out_root) / PARITY_DIRNAME
+
+
+def parity_sumocfg_path(
+    scenario_key: str, draw_id: int, *, out_root: str | Path = DEFAULT_OUT_ROOT
+) -> Path:
+    """Return the teleport-free SUMO config of one draw. Pure path arithmetic, no I/O.
+
+    This is P7.2b's lookup: "give me scenario S, draw D, runnable on SUMO under the parity
+    contract", resolvable without a directory scan so a probe can build its whole rotation up
+    front.
+    """
+    return parity_dir(scenario_key, draw_id, out_root=out_root) / PARITY_SUMOCFG_FILENAME
+
+
+def load_parity_provenance(
+    scenario_key: str, draw_id: int, *, out_root: str | Path = DEFAULT_OUT_ROOT
+) -> dict[str, Any]:
+    """Return the provenance record of one draw's parity subdirectory."""
+    path = parity_dir(scenario_key, draw_id, out_root=out_root) / PROVENANCE_FILENAME
+    return json.loads(path.read_bytes())
 
 
 def load_provenance(
@@ -808,6 +928,622 @@ def materialise(
     return records
 
 
+# -- the parity phase (P7.2a, BRIEF_35) ------------------------------------
+
+#: The registered regime (A15(c)).  The generator accepts 0 as well, because SUMO documents
+#: every non-positive value as disabling teleporting; **this phase writes -1 and nothing else**,
+#: and the provenance echoes it so what ran is never inferred from a default.
+PARITY_TIME_TO_TELEPORT = -1
+
+
+@dataclass(frozen=True)
+class _BuiltParity:
+    """One draw's parity subdirectory, held in memory before anything is written."""
+
+    draw_id: int
+    pool: str
+    files: dict[str, bytes]
+    n_vehicles: int
+    n_bound: int
+
+
+def _linked_worktree_marker(path: str | Path) -> Path | None:
+    """Return the ``.git`` FILE that puts *path* inside a linked worktree, else ``None``.
+
+    ``DEFERRED`` 55: ``scenarios/draws/`` is gitignored and per-worktree, and retiring a
+    worktree deleted held-out draws that merged numbers depend on.  The signal is the
+    repository marker itself -- a **directory** in a main tree, a **file** in a linked
+    worktree -- so this reads the filesystem rather than shelling out to git.
+    """
+    current = Path(path).resolve()
+    for candidate in (current, *current.parents):
+        marker = candidate / ".git"
+        if marker.is_file():
+            return marker
+        if marker.is_dir():
+            return None
+    return None
+
+
+def _checked_parity_target(target: str | Path, out_root: str | Path) -> Path:
+    """Return *target* if it is a parity directory of a draw inside *out_root*, else raise.
+
+    ``_commit``'s ``os.replace(staged, target)`` is one wrong *target* away from replacing a
+    **draw** instead of a parity subdirectory, and draws 1000-1099 are what every merged
+    held-out number since P4.6 resolves through.  Three properties, checked for every planned
+    rename before the first one runs.
+    """
+    path = Path(target)
+    if path.name != PARITY_DIRNAME:
+        raise ValueError(
+            f"refusing to replace {path}: the target of this phase must be named "
+            f"{PARITY_DIRNAME!r}, so a rename can never land on a draw directory"
+        )
+    if not re.fullmatch(r"draw_\d{4}", path.parent.name):
+        raise ValueError(
+            f"refusing to replace {path}: its parent {path.parent.name!r} is not a "
+            "zero-padded draw directory"
+        )
+    return _checked_output_path(out_root, path)
+
+
+def _render_bound_routes(text: str, *, draw_id: int) -> str:
+    """Bind the parity ``<vType>`` onto a drawn rendering, naming the draw on failure.
+
+    A thin seam over :func:`offline.parity.render_parity_rou_text` -- which refuses anything
+    that is not exactly one unbound ``<vType>`` and re-parses its own output -- so that a
+    failure says *which* draw failed in a 206-draw run.
+    """
+    try:
+        return parity.render_parity_rou_text(text)
+    except ValueError as exc:
+        raise ValueError(f"draw {draw_id}: {exc}") from exc
+
+
+def _scenario_net_file(sumocfg: str | Path) -> Path:
+    """The network a scenario's ``.sumocfg`` names, resolved as SUMO resolves it."""
+    cfg = Path(sumocfg).resolve()
+    root = ET.parse(cfg).getroot()
+    node = root.find("./input/net-file")
+    if node is None:
+        node = root.find(".//net-file")
+    raw = None if node is None else node.get("value")
+    if not raw:
+        raise ValueError(f"{cfg} has no <net-file value=...>, so no network can be referenced")
+    net = Path(raw)
+    if not net.is_absolute():
+        net = cfg.parent / net
+    return net.resolve()
+
+
+def _parity_demand_audit(
+    flow_path: str | Path, routes_path: str | Path, *, depart_offset: float
+) -> dict[str, Any]:
+    """CAP(E) on one draw: the CityFlow demand against the bound SUMO rendering.
+
+    Both sides come from :mod:`offline.conversion_audit`'s extractors, which return document
+    order and sort nothing -- so "the same multiset" and "the same order" stay two different
+    questions.  ``depart_range_sumo`` is the range **as written in the file** (unshifted); the
+    shift that makes the two comparable is recorded beside it as ``depart_offset``.
+    """
+    from offline.conversion_audit import demand_from_cityflow_flow, demand_from_route_file
+
+    cityflow = demand_from_cityflow_flow(flow_path)
+    raw = demand_from_route_file(routes_path)
+    offset = float(depart_offset)
+    sumo = [(depart - offset, route) for depart, route in raw]
+
+    def _range(items: list[tuple[float, tuple[str, ...]]]) -> list[float]:
+        return [min(t for t, _ in items), max(t for t, _ in items)] if items else []
+
+    return {
+        "n_cityflow": len(cityflow),
+        "n_sumo": len(sumo),
+        "multiset_equal": Counter(cityflow) == Counter(sumo),
+        "n_index_aligned_equal": sum(1 for a, b in zip(cityflow, sumo) if a == b),
+        "order_matches": cityflow == sumo,
+        "depart_range_cityflow": _range(cityflow),
+        "depart_range_sumo": _range(raw),
+        "depart_offset": offset,
+    }
+
+
+def _validate_parent_for_parity(target: Path, draw_id: int) -> dict[str, Any]:
+    """Everything the parent must satisfy to be a legal input. Read-only; never repairs.
+
+    Returns the parent's provenance record.  A parent that fails any check is refused, because
+    the parity artifacts are a *derivation* of it: binding a rendering whose demand no longer
+    matches its own record would produce a file that looks authoritative and is not.
+    """
+    if not target.is_dir():
+        raise FileNotFoundError(f"draw {draw_id}: {target} does not exist")
+
+    entries = sorted(target.iterdir())
+    files = {path.name for path in entries if path.is_file()}
+    expected = {
+        FLOW_FILENAME,
+        CITYFLOW_CONFIG_FILENAME,
+        SUMO_ROUTES_FILENAME,
+        PROVENANCE_FILENAME,
+    }
+    if files != expected:
+        raise ValueError(
+            f"draw {draw_id}: {target} holds {sorted(files)}, not the four files a "
+            f"materialised draw holds ({sorted(expected)})"
+        )
+    foreign = {path.name for path in entries if path.is_dir()} - {PARITY_DIRNAME}
+    if foreign:
+        raise ValueError(
+            f"draw {draw_id}: {target} holds unexpected subdirector{'y' if len(foreign) == 1 else 'ies'} "
+            f"{sorted(foreign)}; refusing to derive parity artifacts from a draw directory "
+            "whose contents this tool did not write"
+        )
+
+    record = json.loads((target / PROVENANCE_FILENAME).read_bytes())
+    if record.get("format_version") != FORMAT_VERSION:
+        raise ValueError(
+            f"draw {draw_id}: provenance format is {record.get('format_version')!r}, "
+            f"not {FORMAT_VERSION!r}"
+        )
+    for name, digest in sorted(record.get("files", {}).items()):
+        actual = _sha256_file(target / name)
+        if actual != digest:
+            raise ValueError(
+                f"draw {draw_id}: {name} does not match the digest in its own provenance "
+                f"({actual[:12]}... against {str(digest)[:12]}...); the parent is not the "
+                "draw its record describes"
+            )
+
+    sumo = record.get("sumo")
+    if not sumo:
+        raise ValueError(
+            f"draw {draw_id}: the parent carries no SUMO rendering "
+            f"({record.get('sumo_skipped_reason')}), so there is nothing to bind"
+        )
+    if sumo.get("vtype_bound") is not False:
+        raise ValueError(
+            f"draw {draw_id}: the parent's provenance says sumo.vtype_bound is "
+            f"{sumo.get('vtype_bound')!r}; a rendering that is already bound is not this "
+            "phase's input, and binding twice is what render_parity_rou_text refuses"
+        )
+    if _SUMO_CAVEAT_UNBOUND not in str(sumo.get("caveat", "")):
+        raise ValueError(
+            f"draw {draw_id}: the parent's SUMO caveat is not the unbound one, so its "
+            "rendering is not the file this phase expects to bind"
+        )
+
+    disagreements = parity.flow_json_disagreements(target / FLOW_FILENAME)
+    if disagreements:
+        raise ValueError(
+            f"draw {draw_id}: the declared parity table disagrees with the drawn "
+            f"{FLOW_FILENAME}: " + "; ".join(disagreements)
+        )
+    return record
+
+
+def _build_parity(
+    *,
+    draw_id: int,
+    parent_dir: Path,
+    parent_record: dict[str, Any],
+    net_path: Path,
+    net_resolved: str,
+    target: Path,
+    depart_offset: float,
+    scratch: Path,
+) -> _BuiltParity:
+    """Render one draw's parity artifacts entirely in memory.
+
+    The rendering helpers are pure text functions, so the only reason a file is written here is
+    that :func:`offline.parity.vtype_binding_report` and the demand extractors read paths.  That
+    write goes to an OS temp directory: nothing under ``out_root`` is touched while the run can
+    still fail.
+    """
+    source_text = (parent_dir / SUMO_ROUTES_FILENAME).read_text(encoding="utf-8")
+    bound_text = _render_bound_routes(source_text, draw_id=draw_id)
+
+    staged_routes = scratch / f"draw_{draw_id:04d}_{PARITY_ROUTES_FILENAME}"
+    staged_routes.write_text(bound_text, encoding="utf-8")
+
+    report = parity.vtype_binding_report(staged_routes)
+    if not parity.binding_is_complete(report):
+        raise ValueError(
+            f"draw {draw_id}: the bound rendering does not satisfy the parity contract "
+            f"({report.vehicles_with_type} of {report.vehicle_count} vehicles typed, "
+            f"vTypes {list(report.vtype_ids)})"
+        )
+
+    audit = _parity_demand_audit(
+        parent_dir / FLOW_FILENAME, staged_routes, depart_offset=depart_offset
+    )
+    if not audit["multiset_equal"]:
+        raise ValueError(
+            f"draw {draw_id}: the bound rendering's demand is not the parent's demand "
+            f"({audit['n_sumo']} SUMO vehicles against {audit['n_cityflow']} CityFlow "
+            "entries, multisets differ); A14(E) requires it exact per vehicle"
+        )
+    if report.vehicle_count != audit["n_cityflow"]:
+        raise ValueError(
+            f"draw {draw_id}: the bound rendering holds {report.vehicle_count} vehicles "
+            f"against the parent's {audit['n_cityflow']} flow entries"
+        )
+
+    net_reference = os.path.relpath(net_path, target.resolve())
+    cfg_text = parity.render_parity_sumocfg_text(
+        net_reference,
+        PARITY_ROUTES_FILENAME,
+        time_to_teleport=PARITY_TIME_TO_TELEPORT,
+    )
+
+    files: dict[str, bytes] = {
+        PARITY_ROUTES_FILENAME: bound_text.encode("utf-8"),
+        PARITY_SUMOCFG_FILENAME: cfg_text.encode("utf-8"),
+    }
+    record: dict[str, Any] = {
+        "format_version": PARITY_FORMAT_VERSION,
+        "scenario_key": parent_record["scenario_key"],
+        "draw_id": parent_record["draw_id"],
+        "pool": parent_record["pool"],
+        "parent": {
+            "flow_sha256": _sha256_file(parent_dir / FLOW_FILENAME),
+            "routes_sha256": _sha256_file(parent_dir / SUMO_ROUTES_FILENAME),
+            "provenance_sha256": _sha256_file(parent_dir / PROVENANCE_FILENAME),
+        },
+        "parity_contract_version": parity.PARITY_CONTRACT_VERSION,
+        "vtype_id": parity.PARITY_VTYPE_ID,
+        "vtype_attributes": parity.parity_vtype_attributes(),
+        "files": {name: _sha256(data) for name, data in sorted(files.items())},
+        "net": {
+            "reference": net_reference,
+            "resolved": net_resolved,
+            "sha256": _sha256_file(net_path),
+        },
+        "sumocfg": {
+            "begin": 0,
+            "end": parity.SUMO_END_SECONDS,
+            "time_to_teleport": PARITY_TIME_TO_TELEPORT,
+        },
+        "demand_audit": audit,
+        "n_vehicles": report.vehicle_count,
+        "n_bound": report.vehicles_with_type,
+    }
+    commit, dirty = _git_commit()
+    record["git_commit"] = commit
+    record["git_dirty"] = dirty
+
+    files[PROVENANCE_FILENAME] = _provenance_bytes(record)
+    return _BuiltParity(
+        draw_id=draw_id,
+        pool=str(parent_record["pool"]),
+        files=files,
+        n_vehicles=report.vehicle_count,
+        n_bound=report.vehicles_with_type,
+    )
+
+
+def _existing_parity_conflict(target: Path, built: _BuiltParity) -> str | None:
+    """Why *target* differs from *built*, or ``None`` when it is identical.
+
+    The same shape as :func:`_existing_conflict` and for the same reason: rendered files
+    byte-for-byte, then the record field by field with :data:`_NON_IDENTITY_FIELDS` excluded, so
+    a later commit does not make a correct artifact look stale.  It returns on the FIRST
+    mismatch, so the absence of a later complaint is the loop stopping, not agreement.
+    """
+    expected = set(built.files)
+    present = {path.name for path in target.iterdir() if path.is_file()}
+    extra = present - expected
+    if extra:
+        return f"it holds unexpected file(s) {sorted(extra)}"
+    missing = expected - present
+    if missing:
+        return f"it is missing {sorted(missing)}"
+    for name, data in sorted(built.files.items()):
+        if name == PROVENANCE_FILENAME:
+            continue
+        if (target / name).read_bytes() != data:
+            return f"{name} differs byte-for-byte"
+    try:
+        on_disk = json.loads((target / PROVENANCE_FILENAME).read_bytes())
+    except json.JSONDecodeError as exc:
+        return f"{PROVENANCE_FILENAME} is not readable JSON ({exc})"
+    fresh = json.loads(built.files[PROVENANCE_FILENAME])
+    for field in sorted(set(on_disk) | set(fresh)):
+        if field in _NON_IDENTITY_FIELDS:
+            continue
+        if on_disk.get(field) != fresh.get(field):
+            return f"{PROVENANCE_FILENAME} field {field!r} differs"
+    return None
+
+
+def _commit_parity(
+    plans: list[tuple[str, _BuiltParity, Path]], *, out_root: Path
+) -> None:
+    """Stage every parity directory, then move them into place, rolling back on any failure.
+
+    Mirrors :func:`_commit`, with one addition and one subtraction: every target passes
+    :func:`_checked_parity_target` **before the first rename**, and no parent directory is ever
+    created -- this phase writes inside draws that already exist and must never invent one.
+    """
+    for _action, _built, target in plans:
+        _checked_parity_target(target, out_root)
+
+    staging_root = Path(tempfile.mkdtemp(prefix=_STAGING_PREFIX, dir=out_root))
+    done: list[tuple[Path, Path | None]] = []
+    try:
+        staged_by_id = {}
+        for _action, built, _target in plans:
+            staged = staging_root / f"draw_{built.draw_id:04d}__{PARITY_DIRNAME}"
+            staged.mkdir(parents=True)
+            for name, data in sorted(built.files.items()):
+                (staged / name).write_bytes(data)
+            staged_by_id[built.draw_id] = staged
+
+        for _action, built, target in plans:
+            if not target.parent.is_dir():
+                raise FileNotFoundError(
+                    f"the draw directory {target.parent} is gone; this phase never creates one"
+                )
+            staged = staged_by_id[built.draw_id]
+            aside: Path | None = None
+            if target.exists():
+                # Move aside rather than delete: the old directory survives until the new one
+                # is in place, so a failure here cannot destroy prior data.
+                aside = staging_root / f"aside__draw_{built.draw_id:04d}"
+                os.replace(target, aside)
+            try:
+                os.replace(staged, target)
+            except BaseException:
+                if aside is not None:
+                    os.replace(aside, target)
+                raise
+            done.append((target, aside))
+    except BaseException:
+        for target, aside in reversed(done):
+            if target.exists():
+                shutil.rmtree(target, ignore_errors=True)
+            if aside is not None and aside.exists():
+                os.replace(aside, target)
+        raise
+    finally:
+        shutil.rmtree(staging_root, ignore_errors=True)
+
+
+def materialise_parity(
+    source_config: str | Path,
+    draw_ids: Sequence[int],
+    *,
+    out_root: str | Path = DEFAULT_OUT_ROOT,
+    force: bool = False,
+    dry_run: bool = False,
+    allow_worktree: bool = False,
+) -> list[ParityResult]:
+    """Add ``draw_NNNN/parity/`` to every requested draw of one scenario.
+
+    Phase order (``BRIEF_35`` Amendment A6): scenario-level refusals, then **every parent that
+    already exists is validated**, then the missing parents are materialised through
+    :func:`materialise`, then the new parents are validated, then everything is built in memory,
+    classified, staged and committed.  The consequence is the point of the order: a refusal
+    caused by the tree, the scenario or an existing parent happens **before any write**.
+
+    ``force`` replaces a differing ``parity/`` subdirectory only.  It is never forwarded to
+    :func:`materialise`, so no parent can be replaced through this entry point.
+    """
+    # ---- phase 0: scenario-level refusals, no filesystem mutation --------
+    source = Path(source_config)
+    if not source.is_file():
+        raise FileNotFoundError(f"source sim config not found: {source}")
+    ids = _checked_draw_ids(draw_ids)
+    scenario_key = scenario_key_for_config(source)
+    root = Path(out_root)
+
+    marker = _linked_worktree_marker(root)
+    if marker is not None and not allow_worktree:
+        raise ValueError(
+            f"refusing to materialise into {Path(root).resolve()}: it is inside a LINKED "
+            f"WORKTREE ({marker} is a file, not a directory). scenarios/draws/ is gitignored "
+            "and per-worktree, and retiring a worktree has already deleted held-out draws that "
+            "merged numbers depend on (DEFERRED 55), so draws are materialised in the MAIN "
+            "tree. Pass allow_worktree=True / --allow-worktree if you mean it."
+        )
+
+    sumo, sumo_skipped_reason = _sumo_pairing(source)
+    if sumo is None:
+        raise ValueError(
+            f"{source} has no usable SUMO pairing, so there is nothing to bind: "
+            f"{sumo_skipped_reason}"
+        )
+
+    source_flow = _cityflow_flow_source(source)
+    disagreements = parity.flow_json_disagreements(source_flow)
+    if disagreements:
+        raise ValueError(
+            f"the declared parity table disagrees with {source_flow}: "
+            + "; ".join(disagreements)
+        )
+
+    net_path = _scenario_net_file(sumo["sumocfg"])
+    if not net_path.is_file():
+        raise FileNotFoundError(
+            f"{sumo['sumocfg']} names a network that does not exist: {net_path}"
+        )
+    net_resolved = os.path.relpath(net_path, _scenario_dir(source).parent.parent)
+
+    targets = {draw_id: parity_dir(scenario_key, draw_id, out_root=root) for draw_id in ids}
+    for target in targets.values():
+        _checked_parity_target(target, root)
+
+    # ---- phase 2a: validate every parent that ALREADY exists (A6) -------
+    existed = {
+        draw_id
+        for draw_id in ids
+        if draw_dir(scenario_key, draw_id, out_root=root).is_dir()
+    }
+    parents: dict[int, dict[str, Any]] = {
+        draw_id: _validate_parent_for_parity(
+            draw_dir(scenario_key, draw_id, out_root=root), draw_id
+        )
+        for draw_id in ids
+        if draw_id in existed
+    }
+
+    # ---- phase 1: the missing parents, through the existing entry point --
+    records = materialise(source, ids, out_root=root, force=False, dry_run=dry_run)
+    parent_actions = {record.draw_id: record.action for record in records}
+
+    # ---- phase 2b: validate the parents phase 1 just created ------------
+    for draw_id in ids:
+        if draw_id in parents:
+            continue
+        target_parent = draw_dir(scenario_key, draw_id, out_root=root)
+        if dry_run and not target_parent.is_dir():
+            continue  # a dry run wrote nothing, so there is nothing to validate yet
+        parents[draw_id] = _validate_parent_for_parity(target_parent, draw_id)
+
+    # ---- phase 3: build every byte in memory ----------------------------
+    built_by_id: dict[int, _BuiltParity] = {}
+    with tempfile.TemporaryDirectory(prefix="materialise-parity-") as scratch_name:
+        scratch = Path(scratch_name)
+        for draw_id in ids:
+            if draw_id not in parents:
+                continue
+            built_by_id[draw_id] = _build_parity(
+                draw_id=draw_id,
+                parent_dir=draw_dir(scenario_key, draw_id, out_root=root),
+                parent_record=parents[draw_id],
+                net_path=net_path,
+                net_resolved=net_resolved,
+                target=targets[draw_id],
+                depart_offset=float(sumo["depart_offset"]),
+                scratch=scratch,
+            )
+
+    # ---- phase 4: classify, and refuse before writing -------------------
+    plans: list[tuple[str, _BuiltParity | None, Path]] = []
+    for draw_id in ids:
+        target = targets[draw_id]
+        built = built_by_id.get(draw_id)
+        if built is None:  # dry run, parent not there yet
+            plans.append(("written", None, target))
+            continue
+        if not target.exists():
+            plans.append(("written", built, target))
+            continue
+        conflict = _existing_parity_conflict(target, built)
+        if conflict is None:
+            plans.append(("kept", built, target))
+        elif force:
+            plans.append(("replaced", built, target))
+        elif dry_run:
+            plans.append(("differs", built, target))
+        else:
+            raise FileExistsError(
+                f"the parity directory {target} differs (refused): {conflict}. Nothing has "
+                "been written. Re-run with force=True / --force to replace it -- which "
+                "replaces the parity subdirectory only, never the draw."
+            )
+
+    # ---- phase 5: stage, then commit ------------------------------------
+    if not dry_run:
+        writable = [
+            (action, built, target)
+            for action, built, target in plans
+            if action in {"written", "replaced"} and built is not None
+        ]
+        if writable:
+            _commit_parity(writable, out_root=root)
+
+    results = []
+    for (action, built, target), draw_id in zip(plans, ids):
+        results.append(
+            ParityResult(
+                scenario_key=scenario_key,
+                draw_id=draw_id,
+                pool=classify_draw_pool(draw_id),
+                directory=target,
+                routes_path=target / PARITY_ROUTES_FILENAME,
+                sumocfg_path=target / PARITY_SUMOCFG_FILENAME,
+                provenance_path=target / PROVENANCE_FILENAME,
+                n_vehicles=0 if built is None else built.n_vehicles,
+                n_bound=0 if built is None else built.n_bound,
+                action="planned" if dry_run else action,
+                parent_action=(
+                    ("kept" if draw_id in existed else "planned")
+                    if dry_run
+                    else parent_actions[draw_id]
+                ),
+                planned_action=action,
+            )
+        )
+    return results
+
+
+def verify_p4_3_probe(
+    source_config: str | Path,
+    draw_ids: Sequence[int] | None = None,
+    *,
+    out_root: str | Path = DEFAULT_OUT_ROOT,
+    probe_artifact: str | Path = P4_3_PROBE_ARTIFACT,
+) -> list[ProbeCheck]:
+    """Re-run P4.3's in-domain probe on materialised draws and compare it to the artifact.
+
+    ``DEFERRED`` 55: a ``draw_ids`` list inside a committed JSON reads as self-contained data
+    and is in fact a **pointer into a gitignored directory**, so an id is not evidence that the
+    demand behind it still exists.  This is what turns the id back into evidence -- the probe
+    P4.3 ran, on the regenerated draws, compared under ``==``.
+
+    Nothing is written: the probe reads each draw's CityFlow config and rolls MaxPressure.  The
+    loop is :func:`offline.rtg_calibration.run_probe` -- P4.3's own -- and the settings and the
+    engine seed come from the artifact rather than being retyped here.
+    """
+    from offline.rtg_calibration import run_probe
+
+    artifact = json.loads(Path(probe_artifact).read_bytes())
+    scenario_key = scenario_key_for_config(source_config)
+    expected_by_id = {int(episode["draw_id"]): episode for episode in artifact["episodes"]}
+    ids = _checked_draw_ids(
+        [int(draw_id) for draw_id in (artifact["draw_ids"] if draw_ids is None else draw_ids)]
+    )
+    unknown = [draw_id for draw_id in ids if draw_id not in expected_by_id]
+    if unknown:
+        raise ValueError(
+            f"{Path(probe_artifact).name} records no episode for draw(s) {unknown}, so there "
+            "is nothing to compare them against"
+        )
+
+    episodes = run_probe(
+        draw_ids=ids,
+        config_for_draw=lambda draw_id: draw_config_path(
+            scenario_key, draw_id, out_root=out_root
+        ),
+        env_settings=artifact["env_settings"],
+        scenario_id=str(artifact["scenario_id"]),
+        engine_seed=int(artifact["engine_seed"]),
+    )
+
+    checks: list[ProbeCheck] = []
+    for episode in episodes:
+        recorded = expected_by_id[episode.draw_id]
+        observed = {
+            "local_return": episode.local_return,
+            "local_return_from_lanes": episode.local_return_from_lanes,
+            "att_horizon": episode.att_horizon,
+            "horizon_vehicle_count": episode.horizon_vehicle_count,
+            "decisions": episode.decisions,
+        }
+        expected = {key: recorded[key] for key in observed}
+        differing = tuple(key for key in observed if observed[key] != expected[key])
+        checks.append(
+            ProbeCheck(
+                draw_id=episode.draw_id,
+                matches=not differing,
+                observed=observed,
+                expected=expected,
+                differing=differing,
+            )
+        )
+    return checks
+
+
 # -- CLI -------------------------------------------------------------------
 
 
@@ -858,6 +1594,31 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="validate and report what would be written, without writing anything",
     )
+    parser.add_argument(
+        "--parity",
+        action="store_true",
+        help="add draw_NNNN/parity/ (bound routes + teleport-free .sumocfg) to every "
+        "requested draw, materialising missing parents first; the parent is never written to",
+    )
+    parser.add_argument(
+        "--allow-worktree",
+        action="store_true",
+        help="permit an --out-root inside a LINKED WORKTREE. DEFERRED 55: scenarios/draws/ is "
+        "gitignored and per-worktree, and retiring a worktree deleted held-out draws that merged "
+        "numbers depend on, so materialising into one is refused unless this is passed",
+    )
+    parser.add_argument(
+        "--verify-p4-3-probe",
+        action="store_true",
+        help="re-run P4.3's in-domain MaxPressure probe on the materialised draws and compare "
+        "every recorded number against docs/data/p4_3_probe.json; writes nothing under --out-root",
+    )
+    parser.add_argument(
+        "--report",
+        metavar="PATH",
+        help="with --verify-p4-3-probe, also write the comparison as JSON here (must be "
+        "outside --out-root)",
+    )
     return parser
 
 
@@ -877,12 +1638,124 @@ def _resolve_cli_draw_ids(args: argparse.Namespace) -> list[int]:
     return ids
 
 
+def _parity_state_word(record: ParityResult, *, dry_run: bool) -> str:
+    """The one phrase describing what happened, or would happen, to one draw."""
+    if not dry_run:
+        return f"parity {record.action}"
+    if record.parent_action == "planned":
+        return "parent missing (would materialise)"
+    if record.planned_action == "kept":
+        return "parity kept"
+    if record.planned_action == "differs":
+        return "parity differs (refused)"
+    return "would add parity"
+
+
+def _report_parity(args: argparse.Namespace, env_config: str, ids: Sequence[int]) -> int:
+    """Run the parity phase for one scenario and print one line per draw."""
+    records = materialise_parity(
+        env_config,
+        ids,
+        out_root=args.out_root,
+        force=bool(args.force),
+        dry_run=bool(args.dry_run),
+        allow_worktree=bool(args.allow_worktree),
+    )
+    for record in records:
+        print(
+            f"{record.scenario_key} draw {record.draw_id:>4} [{record.pool}] "
+            f"{_parity_state_word(record, dry_run=bool(args.dry_run))}: "
+            f"{record.n_bound}/{record.n_vehicles} bound -> {record.directory}",
+            flush=True,
+        )
+    differing = [record.draw_id for record in records if record.planned_action == "differs"]
+    if differing:
+        print(
+            f"materialise_draws: {len(differing)} parity director(y/ies) differ and would be "
+            f"refused: draws {differing[:5]}{' ...' if len(differing) > 5 else ''}",
+            flush=True,
+        )
+        return 1
+    return 0
+
+
+def _report_probe(args: argparse.Namespace, env_config: str, ids: Sequence[int]) -> int:
+    """Run the P4.3 band gate for one scenario; return 0 when every draw reproduces."""
+    checks = verify_p4_3_probe(env_config, ids, out_root=args.out_root)
+    reproduced = [check for check in checks if check.matches]
+    print(
+        f"P4.3 probe reproduction: {len(reproduced)}/{len(checks)} draws reproduce every "
+        "recorded number",
+        flush=True,
+    )
+    if checks:
+        example = checks[0]
+        print(
+            f"  example draw {example.draw_id}: "
+            + ", ".join(f"{key}={value!r}" for key, value in sorted(example.observed.items())),
+            flush=True,
+        )
+    first_bad = next((check for check in checks if not check.matches), None)
+    if first_bad is not None:
+        print(
+            f"  FIRST DIFFERING draw {first_bad.draw_id}: "
+            + "; ".join(
+                f"{key}: observed {first_bad.observed[key]!r} against recorded "
+                f"{first_bad.expected[key]!r}"
+                for key in first_bad.differing
+            ),
+            flush=True,
+        )
+
+    if args.report:
+        report_path = Path(args.report).resolve()
+        root = Path(args.out_root).resolve()
+        if report_path == root or report_path.is_relative_to(root):
+            raise ValueError(
+                f"--report {report_path} is inside --out-root {root}; this mode writes "
+                "nothing under the draws tree"
+            )
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_text(
+            json.dumps(
+                {
+                    "n_draws": len(checks),
+                    "n_reproduced": len(reproduced),
+                    "draws": [
+                        {
+                            "draw_id": check.draw_id,
+                            "matches": check.matches,
+                            "observed": check.observed,
+                            "expected": check.expected,
+                            "differing": list(check.differing),
+                        }
+                        for check in checks
+                    ],
+                },
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        print(f"wrote {report_path}", flush=True)
+    return 0 if first_bad is None else 1
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Run one materialisation; returns a process exit code."""
     args = build_parser().parse_args(argv)
     try:
         ids = _resolve_cli_draw_ids(args)
         for env_config in args.env_config:
+            if args.verify_p4_3_probe:
+                if _report_probe(args, env_config, ids) != 0:
+                    return 1
+                continue
+            if args.parity:
+                if _report_parity(args, env_config, ids) != 0:
+                    return 1
+                continue
             records = materialise(
                 env_config,
                 ids,
