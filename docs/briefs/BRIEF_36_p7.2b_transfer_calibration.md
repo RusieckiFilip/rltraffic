@@ -112,3 +112,33 @@
 ## 8. Return Packet
 
 `docs/returns/TEMPLATE.md`, plus: the canary and both clocks per stage; the per-k probe means and maxes beside the six source statistics; the eight targets per subject with the registered one marked and each target's in-support position; the smoke's mechanics with an explicit line *ATT deliberately not reported*; the amendments the packet was written against, by letter.
+
+---
+
+# ✅ AMENDMENT A — 2026-09-14, at the plan gate: PLAN APPROVED (`docs/plans/p7.2b.md` @ `d4a3a3a`), with seven rulings
+
+Read from the worktree. The canary (0.92 s, mains power, `−32648.0 / 247.75089149261333`, two routes agree) and the 10.85 s/episode measurement on the fenced draw 5 are accepted as the session's rate basis. The A17(b) clause table (§2) is complete. **Both conflicts that touch the registration were re-verified by the coordinator from the checkpoint payloads and the declaration** (§9.1: `mix50` `stats.rtg` `[−40294, −6]` over 216,000 rows against `rtg_scale 40223 = −training_return_min` over 72,000; `mappo1000` coincides at 9991; §9.2: both checkpoints' `provenance.training_draw_ids` are `1..200`, the declaration's `mix50` list is 152 ids in `[2, 199]`; 201–300 is disjoint from the union). The read-order error (§9.3) is the coordinator's and is logged.
+
+## A1 — Q1: report the REGISTERED range under its true name, with the training-set bound beside it; A17 is not amended
+`training_rtg_range` returns the checkpoint's `stats.rtg` range — the **split** range, `[−40294, −6]` over 216,000 rows for `mix50` — and that is the number A17(c) registered, so it is the range the in-support diagnostic is computed against. Name the field `support_range_over_the_split` with `n_rows` beside it, and add `training_set_return_min = −rtg_scale` (= the declaration's `training_return_min`, −40223 for `mix50`, −9991 for `mappo1000`, where the two coincide) as a disclosed second bound, with one sentence: *the two differ by 71 on a 40,000 scale for `mix50`; the diagnostic never selects and no claim rests on which bound is used.* No second diagnostic. A17's row is not edited (registration rows never are); the packet and the artifact carry the disclosure and the Decisions Log records it.
+
+## A2 — Q2: CONFIRMED, the plain env. The read order's parenthetical was wrong and it was the coordinator's
+`make_observer_sumo_env` counts teleports and has no vehicle-type read; the probe takes both from the engine directly per §3.2.1 (`getStartingTeleportIDList` per step, `getTypeID` for every present vehicle, `getOption("time-to-teleport")` once). ~13 min saved across the band is a consequence, not the reason.
+
+## A3 — Q3: YES — fence `episode_reward`, AND `rtg_last`, AND the per-decision RTG series
+`rtg_last = target − Σ rewards` **is** the episode return in disguise; recording it would leak the number the fence exists to hold. The smoke records, and the packet reports, **mechanics only**: `decisions == 360`, `rtg_first == target`, `rtg_advanced_every_decision` (bool: strictly changed on every decision whose reward was non-zero, unchanged otherwise), `n_decisions_in_support` (a count against the registered range), `actions_in_range` (bool), the engine-read type set and regime, `seconds`. Under `fenced_do_not_report`: `att_horizon`, `episode_reward`, `rtg_last`, the RTG series. `report` refuses to emit the key; a test asserts the committed artifact carries none of the four.
+
+## A4 — Q4: CONFIRMED — the smoke runs after the probe, its prompt from the same function `report` uses
+The brief's "probe, smoke ×2, report" was an enumeration, not an order; §3.3's order is right.
+
+## A5 — Q5: BOTH — a module constant AND the chunks' record
+`P4_3_PROBE_SHA256` is pinned in `offline/transfer_calibration.py` as the committed artifact's digest (compute it once, paste it, and a test asserts the file on disk matches); every chunk records the sha it read; `report` refuses if the file, the constant or any chunk disagree. The constant is the declaration — *these statistics came from THAT artifact* — and the chunk is the evidence. P4.3's artifact regenerates byte-identically (`docs/returns/P4.3.md` §16.0), so the constant moves only in a commit that also changes the artifact, which is a reviewed act.
+
+## A6 — Q6: CONFIRMED — `isinstance(env, envs.sumo_env.SumoEnv)`, imported lazily
+The class determines the info's shape; a suffix would accept the one case that matters and reject nothing. Refusing a wrapped `AlignedEnv` at construction is also accepted.
+
+## A7 — Two rulings the plan did not ask for
+1. **Disjointness against the UNION.** `assert_probe_draws_disjoint` runs against `provenance.training_draw_ids` of BOTH checkpoints ∪ the declaration's 152 ∪ the held-out pool. The superset is the safe direction; the artifact records all three sources and their sizes, and §9.2's trap in one sentence.
+2. **"The §7 canary" means `PROJECT_PLAN` §7's rule** (*THE MACHINE-HEALTH CANARY*, added 2026-09-13); the operative recipe is `BRIEF_36` §3.3. Both briefs are corrected by this amendment rather than edited in place: read every "§7 canary" as *the `PROJECT_PLAN` §7 rule, recipe in `BRIEF_36` §3.3*.
+
+**Proceed to gate 2.** T1's non-zero clause and the fence-first ordering in §11 are accepted as written. The pre-flight (gate 3, ≤ 10 min, destruction and resume paths) is spawned on the green commit. The packet is written against `BRIEF_36` + Amendment A.
