@@ -142,3 +142,27 @@ The class determines the info's shape; a suffix would accept the one case that m
 2. **"The §7 canary" means `PROJECT_PLAN` §7's rule** (*THE MACHINE-HEALTH CANARY*, added 2026-09-13); the operative recipe is `BRIEF_36` §3.3. Both briefs are corrected by this amendment rather than edited in place: read every "§7 canary" as *the `PROJECT_PLAN` §7 rule, recipe in `BRIEF_36` §3.3*.
 
 **Proceed to gate 2.** T1's non-zero clause and the fence-first ordering in §11 are accepted as written. The pre-flight (gate 3, ≤ 10 min, destruction and resume paths) is spawned on the green commit. The packet is written against `BRIEF_36` + Amendment A.
+
+---
+
+# ⛔ AMENDMENT B — 2026-09-14, on the pre-flight: CLEAR WITH CONDITIONS. Two fixes and one control, then the coordinator re-runs the no-token driver, then the token
+
+`docs/reviews/P7.2b-preflight.md` — **0 blocking, 0 major, 3 minor.** Everything that can destroy or misread state was exercised and held: six planted corruptions plus a lying verdict all rejected by `chunk_is_reusable`; the planted chunk moved to `failed/` byte-identically with a pre-existing sentinel untouched; a fresh chunk rolled with the same drawn seed and the same return; `report` refuses a missing, duplicated, mismatched or corrupt draw and writes nothing; the fence holds against a fenced block and a stray key. **The two items the reviewer's permission layer stopped it from running, the coordinator ran:** no token → canary 0.77 s → refusal, exit 2, no `output/p7_2b/` in either tree; the canary writes nothing under `scenarios/draws/`.
+
+## B1 — REQUIRED (minor 2): install the trap BEFORE the token is consumed
+`p7_2b_calibration.sh` deletes the token at `:115` and installs `trap on_signal INT TERM` at `:137`. A signal in that window consumes the one-shot authorisation and leaves neither `FAILED` nor `COMPLETE`. Move the `trap` (and the `fail`/`on_signal` definitions it needs) above the token block, so that from the first destructive line onward a signal writes `FAILED`. Verify by reading (line numbers in the packet); no test is required for a shell reorder, but state the new order in the driver's header.
+
+## B2 — REQUIRED (minor 1): a syntactically valid non-object chunk is moved aside like any other unclean chunk
+`run_sumo_probe` `:287-295` catches `JSONDecodeError` and `chunk_is_reusable` catches `(KeyError, TypeError, ValueError)`; a chunk that parses to a list or a scalar raises `AttributeError` on `payload.get` and the probe dies with a traceback, leaving the file in place. Check `isinstance(payload, Mapping)` first (returning *not reusable*), so the existing move-aside path handles it. **Test:** plant `[]` as a chunk → moved to `failed/`, re-rolled; the test needs no simulator if the roll is monkeypatched, or costs one SUMO episode if not — your choice, stated.
+
+## B3 — REQUIRED (minor 3, as a control rather than a comment): refuse to start unless the script leads its process group
+`kill -- -$$` is a no-op unless the driver is its own group leader, which `tmux` foreground gives and a stray `bash script.sh &` does not. Add, before the token: `[ "$(ps -o pgid= -p $$ | tr -d ' ')" = "$$" ] || { echo "REFUSING TO START: not a process-group leader; run in a tmux foreground pane" >&2; exit 2; }`. Fail-closed, one line, and it turns the operator condition of `BRIEF_34` E2 into something the driver checks.
+
+## B4 — Recorded, no action
+- The canary runs a CityFlow episode before the token; it writes nothing (`saveReplay: false` in every draw config; the draws tree is 1,442 files with none newer after four canaries and a 100-episode band gate).
+- `run_smoke` was not exercised by the pre-flight (its third SUMO episode was not spent); its fence is exercised through `report`'s whitelist, which is where the fence is enforced.
+
+## B5 — Sequence to CLEAR and the token
+1. `git -C /home/filip/rltraffic-p53b merge --no-edit main`; B1–B3; the B2 test; the three test files and hygiene; commit; report the sha. **No token.**
+2. The coordinator reads the diff, runs the no-token driver once more on the fixed commit (it must now refuse at the group-leader check when run under `timeout`, and at the token when run in a foreground pane — record both), and logs CLEAR.
+3. Then the author writes the token: `mkdir -p /home/filip/rltraffic/output/p7_2b && date -Is > /home/filip/rltraffic/output/p7_2b/AUTHORISED_TO_RUN`, and the implementer launches `bash offline/campaigns/p7_2b_calibration.sh` from the worktree in a **tmux foreground pane**, from a committed tree, on mains power. ≈ 20 min. Then the packet, written against `BRIEF_36` + Amendments A–B.
