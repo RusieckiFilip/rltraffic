@@ -371,7 +371,10 @@ def _roll_one_episode(
             )
         ix_id = str(intersections[0].id)
         lanes = list(intersections[0].incoming_lanes)
-        agent = MaxPressureAgent(env)
+        # Named `policy`, not `agent`: MaxPressureAgent.act takes no `explore` keyword, so a
+        # bare call here is correct -- and the name keeps it distinguishable from the DT's
+        # call in run_smoke, which must never be bare (Amendment E1).
+        policy = MaxPressureAgent(env)
 
         info = env.reset(seed=int(engine_seed))
         option = str(env._sumo.simulation.getOption("time-to-teleport"))
@@ -388,7 +391,7 @@ def _roll_one_episode(
                 types_seen.update(
                     env._sumo.vehicle.getTypeID(v) for v in env._sumo.vehicle.getIDList()
                 )
-            action = agent.act(info)
+            action = policy.act(info)
             _reward, terminated, truncated, info = env.step(action)
             post_step.append(info)
             samples.append(float(info.get("average_travel_time", 0.0)))
@@ -884,7 +887,16 @@ def run_smoke(
             rewards_in_info.append(
                 None if "reward" not in payload else float(payload["reward"])
             )
-            action = agent.act(info)
+            # explore=False is the DECLARED EVALUATION PATH (DTAgent.act's own docstring):
+            # the argmax over masked logits. The default is explore=True, which samples from
+            # the masked softmax through an unseeded torch.multinomial -- and the first run of
+            # this smoke took that default, which is why n_decisions_in_support moved 271 ->
+            # 231 between two runs of the same seed, checkpoint and draw. Every evaluation
+            # call site in this repository (fifteen, across dt_gate, method_tier_grid,
+            # att_rederivation, spatial_mixing, admission_probe and collect) passes
+            # explore=False, and the smoke must match them or it demonstrates a path P7.3
+            # will not take (Amendment E1).
+            action = agent.act(info, explore=False, update_memory=True)
             actions.append(int(np.asarray(action).reshape(-1)[0]))
             return action
 

@@ -441,6 +441,133 @@ def test_the_rtg_advance_check_refuses_a_missing_reward_and_a_length_mismatch() 
 
 
 # ----------------------------------------------------------------------------------
+# Amendment E1 -- the smoke drives the DT on the DECLARED EVALUATION PATH
+# ----------------------------------------------------------------------------------
+def test_every_act_call_in_a_smoke_passes_explore_false(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Amendment E1. The first smoke took ``DTAgent.act``'s default, which SAMPLES.
+
+    ``explore=True`` draws from the masked softmax through an unseeded ``torch.multinomial``, so
+    the same seed, checkpoint and draw gave ``n_decisions_in_support`` 271 then 231.  Fifteen
+    evaluation call sites in this repository pass ``explore=False`` -- the argmax the agent's own
+    docstring calls *the declared evaluation path* -- and the smoke must match them.
+
+    The spy records the kwargs of **every** call, not just the first: a loop that got it right once
+    and then fell back to a default would pass a first-call-only assertion.  No simulator is needed
+    -- the env, the agent and the rollout are substituted, which leaves ``run_smoke``'s own
+    ``choose`` (where the call shape lives) as the only real code under test.
+    """
+    import numpy as np
+
+    from offline.horizon_metric import HorizonRollout
+
+    calls: list[dict[str, Any]] = []
+    ix_id = "intersection_1_1"
+
+    class _Agent:
+        def current_rtg(self) -> dict[str, float]:
+            return {ix_id: -7185.0 - len(calls)}
+
+        def act(self, info: Mapping[str, Any], **kwargs: Any) -> np.ndarray:
+            calls.append(dict(kwargs))
+            return np.zeros(1, dtype=np.int64)
+
+    class _Sumo:
+        class simulation:  # noqa: N801 - mirrors traci's module shape
+            @staticmethod
+            def getOption(name: str) -> str:
+                return "-1"
+
+        class vehicle:  # noqa: N801
+            @staticmethod
+            def getIDList() -> list[str]:
+                return ["v0"]
+
+            @staticmethod
+            def getTypeID(vehicle_id: str) -> str:
+                return "cf_parity"
+
+    class _Env:
+        max_steps = 3
+        intersections = [type("Ix", (), {"id": ix_id})()]
+        _sumo = _Sumo()
+
+        def close(self) -> None:
+            pass
+
+    def fake_rollout(env: Any, choose: Any, episodes: int, seed: int) -> HorizonRollout:
+        info = {"intersections": {ix_id: {"reward": -2.0}}}
+        for _ in range(3):
+            choose(env, info)
+        return HorizonRollout(
+            att_horizon=1.0,
+            att_running_mean=1.0,
+            episode_reward=-1.0,
+            final_vehicle_count=1.0,
+            final_completed=float("nan"),
+            per_episode_horizon=(1.0,),
+            per_episode_running_mean=(1.0,),
+            episodes=1,
+            seed=seed,
+        )
+
+    facts = tc.SubjectFacts(
+        subject="mappo1000",
+        best_source_return=-5762.0,
+        rtg_scale=9991.0,
+        support_range_over_the_split=(-9991.0, -6.0),
+        n_rows=72000,
+        training_set_return_min=-9991.0,
+        checkpoints=("/nonexistent/dt_seed101.pt",),
+        state_dim=25,
+        context_length=20,
+    )
+    monkeypatch.setattr(tc, "registered_prompt_for", lambda *a, **k: (-7185.0, facts))
+    monkeypatch.setattr(tc, "aligned_sumo_env_for_draw", lambda *a, **k: _Env(), raising=False)
+    monkeypatch.setattr(
+        "offline.aligned_env.aligned_sumo_env_for_draw", lambda *a, **k: _Env()
+    )
+    monkeypatch.setattr("offline.rtg_calibration.agent_with_target", lambda *a, **k: _Agent())
+    monkeypatch.setattr("offline.horizon_metric.horizon_rollout", fake_rollout)
+
+    tc.run_smoke("mappo1000", out_root=tmp_path, work_dir=tmp_path, output_root=tmp_path)
+
+    assert calls, "the spy saw no act() call at all, so it asserted nothing"
+    assert all(call == {"explore": False, "update_memory": True} for call in calls), calls
+
+
+def test_the_module_contains_no_bare_dt_act_call() -> None:
+    """Amendment E1's source-level half, by AST rather than by grep.
+
+    The defect was a DEFAULT left in place, so what must be asserted is the absence of a call that
+    omits the keywords -- and a text search would trip over the docstrings that quote
+    ``agent.act(info)`` while explaining exactly this.  The MaxPressure probe's call is on a
+    receiver named ``policy`` because ``MaxPressureAgent.act`` takes no ``explore`` keyword.
+    """
+    import ast
+
+    source = Path(tc.__file__).read_text(encoding="utf-8")
+    offenders: list[int] = []
+    max_pressure_calls = 0
+    for node in ast.walk(ast.parse(source)):
+        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)):
+            continue
+        if node.func.attr != "act" or not isinstance(node.func.value, ast.Name):
+            continue
+        receiver = node.func.value.id
+        keywords = {kw.arg for kw in node.keywords}
+        if receiver == "policy":
+            max_pressure_calls += 1
+            assert not keywords, "MaxPressureAgent.act takes no keywords"
+        elif keywords != {"explore", "update_memory"}:
+            offenders.append(node.lineno)
+
+    assert offenders == [], f"bare or partial agent.act(...) at line(s) {offenders}"
+    assert max_pressure_calls == 1, "the probe's single MaxPressure call must remain, and be one"
+
+
+# ----------------------------------------------------------------------------------
 # T8 -- report: byte-identical, refusing, and FENCED
 # ----------------------------------------------------------------------------------
 @pytest.mark.skipif(not _checkpoints_available(), reason="P4 checkpoints are not in this tree")
