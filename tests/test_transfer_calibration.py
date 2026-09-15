@@ -1222,6 +1222,12 @@ def test_the_driver_gates_on_the_canary_before_consuming_the_token() -> None:
     assert min(log_writes) > code_token_at, (
         "canary.log is written before the token is consumed, so a refused start would create it"
     )
+    # The line ITSELF, not merely some write to that file: the log also carries a timestamp header,
+    # and a version of this test that only counted appends stayed green with the line's own write
+    # deleted -- which is precisely Amendment E1.2's defect coming back (mutant MD1b).
+    assert 'echo "$CANARY_LINE" >> "$LOGS/canary.log"' in code, (
+        "the observed canary values must reach the manifested log, not only the pane"
+    )
 
     # ... and the line must be VISIBLE even when the stage exits non-zero, or a mismatching canary
     # aborts with the observed values swallowed by the command substitution. Asserted on the CODE
@@ -1235,7 +1241,12 @@ def test_the_driver_gates_on_the_canary_before_consuming_the_token() -> None:
 
     # Amendment E1.4 item 1: this run's canary is parked in a manifested canary.json -- and, like
     # canary.log, only AFTER the token, so a refused start still creates nothing (Amendment B1).
-    assert code_token_at < code.index("record-canary"), (
+    invocation = 'record-canary --line "$CANARY_LINE"'
+    assert invocation in code, (
+        "the driver must hand the captured canary line to record-canary; report refuses a work "
+        "directory without canary.json, so a campaign without this line cannot finish"
+    )
+    assert code_token_at < code.index(invocation), (
         "record-canary runs before the token is consumed, so a refused start would create "
         "canary.json in the work directory"
     )
