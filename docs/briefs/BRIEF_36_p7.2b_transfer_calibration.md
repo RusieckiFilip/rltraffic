@@ -350,3 +350,19 @@ Before any re-roll, overwrite or removal: the artifact, every chunk about to be 
 
 ## The implementer session is at 92 % context
 It writes a state note to `docs/plans/p7.2b_state_2026-09-15.md` (what is done with shas; what is next: E1.3, E1.4, run 4, packet; where the driver ran) and `/clear`s. A fresh session reads this brief from Amendment E to here, the state note, and `docs/returns/TEMPLATE.md`.
+
+---
+
+# 🚨 CORRECTION FROM DISK (2026-09-15, ~17:00): "LOST" was FALSE for runs 1 and 2's canary lines and for run 3's driver stdout — all three are on disk; run 1's fenced smoke block is the only loss
+
+**Where the driver ran, in the implementer's exact words, for all three runs:** `tmux new-session -d -s p72b -c /home/filip/rltraffic-p53b "exec bash offline/campaigns/p7_2b_calibration.sh > /tmp/p72b_run3.log 2>&1"`, issued from a Bash tool call inside the Claude Code session. A detached tmux session, nobody attached, `exec` making the driver its own process-group leader (why B3 passed), stdout and stderr redirected to a file. The mechanical condition the driver enforces was met; the operator condition behind *tmux foreground pane* (a human attached, able to Ctrl-C and to read the scrollback) was not, in any of the three runs. **The packet states this in those terms.**
+
+**What that redirect preserved, and the coordinator's search missed:** `/tmp/p72b_run.log` (run 1: `canary 0.89 s`, token 12:19:46, `COMPLETE in 1150s`), `/tmp/p72b_reroll.log` (run 2: `canary 0.69 s`, token 14:06:13, 31 s), `/tmp/p72b_run3.log` (run 3: `canary 0.79 s`, the header garbled by `tee /dev/stderr` into a `>`-opened file, the line itself complete). **All three carry identical facts: `local_return -32648.0`, `att_horizon 247.75089149261333`, `two_routes_agree True`, `decisions 360`.** The coordinator had searched the tmux panes, `output/`, the worktree's `output/` and `/tmp/claude-1000` — never `/tmp` itself — and wrote *lost* twice. Secured now as `output/p7_2b_runs/tmp_capture_p72b_run.log` (`944395f0…`), `tmp_capture_p72b_reroll.log` (`5606ce4a…`), `tmp_capture_p72b_run3.log` (`db8573ec…`), together with every other `/tmp/p72b_*` file (the implementer's mutation scripts and before/after listings — evidence for the AI-assistance record). **`/tmp` is tmpfs on this machine** (RAM, gone at reboot, `systemd-tmpfiles` age 10 d): each of those files was one reboot from gone, which is exactly what §7's new rule calls *not a record*.
+
+**What IS lost, by a search stated:** run 1's smoke chunks — by name (`smoke_mappo1000*`, `smoke_mix50*`, `*smoke*mappo*`, `*smoke*mix50*`) and by content signature (`n_decisions_in_support` 271 / 256) over `/home/filip` and `/tmp`: only the artifact's published subset (`run1_f683e1e9.json`) exists; the fenced block does not.
+
+**Consequences for the blocks above (corrected here, not edited in place):**
+- The paste clause's resolution (*LOST, not reconstructed*) is withdrawn for the canary lines. The packet quotes all three lines with their capture files and shas. Nothing is reconstructed; it was found.
+- E1.4 item 6's packet sentence becomes: *the probe table's rate basis is run 1's canary, 0.89 s, whose correctness half is recovered from the run-1 driver capture (`944395f0…`) — not from the chunks, which do not carry it; the smokes' canary is run 4's, checked at the driver and re-verified by `report`.* E1.4's mechanism is unchanged: the chunks still carry no facts, and the artifact must still say so.
+- *Run 3's driver stdout LOST* is withdrawn; it is secured, header garbled, line complete.
+- Run 4 is run by the author, **attended**, in a tmux foreground pane, through `tee -a` — the operator condition met for the first time.
