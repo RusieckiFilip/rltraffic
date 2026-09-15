@@ -262,7 +262,7 @@ def run_sumo_probe(
     """A17(b)'s probe: one MaxPressure episode per draw on SUMO, with the engine reads.
 
     The loop mirrors :func:`offline.rtg_calibration.run_probe` (fresh env per draw,
-    ``reset(seed=engine_seed)``, ``agent.act(info)`` -> ``env.step``, post-step infos accumulated,
+    ``reset(seed=engine_seed)``, ``policy.act(info)`` -> ``env.step``, post-step infos accumulated,
     break on terminate/truncate, ``samples[-1]`` for the horizon reading) and differs in exactly
     three declared ways, each because A17(b) requires it:
 
@@ -891,11 +891,14 @@ def run_smoke(
             # the argmax over masked logits. The default is explore=True, which samples from
             # the masked softmax through an unseeded torch.multinomial -- and the first run of
             # this smoke took that default, which is why n_decisions_in_support moved 271 ->
-            # 231 between two runs of the same seed, checkpoint and draw. Every evaluation
-            # call site in this repository (fifteen, across dt_gate, method_tier_grid,
-            # att_rederivation, spatial_mixing, admission_probe and collect) passes
-            # explore=False, and the smoke must match them or it demonstrates a path P7.3
-            # will not take (Amendment E1).
+            # 231 between two runs of the same seed, checkpoint and draw.
+            # FIFTEEN other call sites in this repository pass explore=False, and the smoke must
+            # match them or it demonstrates a path P7.3 will not take (Amendment E1, corrected by
+            # E1.1). Counted by AST over offline/ and experiments/ -- calls carrying an explicit
+            # explore=False keyword, so docstrings cannot inflate it -- as dt_gate x2,
+            # method_tier_grid x3, offline_baselines x2, and one each in admission_probe,
+            # att_rederivation, collect, rtg_ablation, rtg_calibration, spatial_mixing,
+            # tier_sweep and experiments/runner.py. This call is the sixteenth.
             action = agent.act(info, explore=False, update_memory=True)
             actions.append(int(np.asarray(action).reshape(-1)[0]))
             return action
