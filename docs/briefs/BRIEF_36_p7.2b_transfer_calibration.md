@@ -366,3 +366,37 @@ It writes a state note to `docs/plans/p7.2b_state_2026-09-15.md` (what is done w
 - E1.4 item 6's packet sentence becomes: *the probe table's rate basis is run 1's canary, 0.89 s, whose correctness half is recovered from the run-1 driver capture (`944395f0…`) — not from the chunks, which do not carry it; the smokes' canary is run 4's, checked at the driver and re-verified by `report`.* E1.4's mechanism is unchanged: the chunks still carry no facts, and the artifact must still say so.
 - *Run 3's driver stdout LOST* is withdrawn; it is secured, header garbled, line complete.
 - Run 4 is run by the author, **attended**, in a tmux foreground pane, through `tee -a` — the operator condition met for the first time.
+
+---
+
+# ✅ E1.3 AND E1.4 CONFIRMED at code tip `5dfaaa2` (branch tip `ded56a0`, docs-only after the code tip) — RUN 4 MAY RUN, by the author, attended (2026-09-15, ~18:00)
+
+**Verified in a detached throwaway worktree at `5dfaaa2`, removed afterwards.** Baseline 62 passed on the two P7.2b files (46 → 62); whole suite in a second throwaway worktree: **1956 passed, 94 skipped, 26 warnings in 166.85s (0:02:46)**; hygiene, English 0; `bash -n` clean; `git diff --name-only 5dfaaa2..ded56a0` outside `docs/` empty; nothing frozen touched since `8e70d77`. The "more than one commit" refusal is over the **probe** chunks only (`chunks` is built from `probe_draw_*.json`; smokes are collected separately), so reuse runs are not refused. The changed assertion (`canary.seconds == 0.9` → the reporting run's value, plus a new assertion on the chunks' 0.9) is justified by E1.4 item 4 and is strictly stronger. The implementer's preview artifact, diffed by the coordinator against run 3's: exactly `canary`, `git_commit`, `git_dirty`; `checked_against` once; `probe_chunks_canary` = 0.89 s at `f31973e`, *not recorded in these chunks*.
+
+| mutant | change | outcome |
+|---|---|---|
+| M-A | check before print in `main` (E1.2's survivor MC8) | dies — exit-code test |
+| M-B (coordinator's) | only the `-a` dropped from `tee` | dies — driver test |
+| M-C | the re-check dropped in `_read_canary_record` | dies ×4 — every failing-facts case |
+| M-D | this run's `seconds` taken from the chunks (the misattribution reintroduced) | dies ×2 |
+| M-E (coordinator's) | `checked_against` leaked into `probe_chunks_canary` | dies — the once-only assertion |
+| **M-F (coordinator's)** | **`observed` replaced by the reference constants** | **SURVIVES — equivalent by construction** (below) |
+| M-G (coordinator's) | commit refusal widened to smoke chunks | dies — a future edit refusing every reuse run is caught |
+| M-H (coordinator's) | seconds parse zeroed | dies — round-trip |
+| M-I | `record-canary` hoisted above the token | dies — driver test |
+| M-J | `mkdir` before parse (the barrier) | dies ×8 |
+| M-K | missing-record refusal dropped (E1.3's survivor ME2) | dies — with `match="is not a run"` |
+
+**M-F is not a defect and needs no code; it is a fact about the design that the final packet must state correctly.** `report` refuses any record whose facts differ from the references, so in **every artifact it can write**, `observed` equals `checked_against` necessarily. The artifact's `observed` carries no independent information; the packet's deviation 2 (*observed and checked_against side by side … the stronger form*) overstates it. The independent evidence of what the engine answered is `canary.json` and `logs/canary.log`, both manifested — say that, and drop "stronger".
+
+**Accepted as disclosed:** MD1c (the timestamp header) as an equivalent mutant; extra fact names allowed by `parse_canary_line`; the two line formats in `canary.log` across its history; the interim packet's filename.
+
+**Corrected for the record:** at `4f3ae6a` the coordinator identified a `…/tasks/<id>.output` file as run 3's capture. That directory is this coordinator session's own task-output directory; the hit was almost certainly the coordinator's grep matching the capture of its own command line — §7's *a monitor that greps for a name matches itself* — and the implementer's launch command (`> /tmp/p72b_run3.log 2>&1`) was the authoritative account. The `4ad8813` correction already withdrew the loss; this names the mechanism.
+
+## RUN 4 — procedure (the author, attended, in a tmux foreground pane)
+1. The untracked run-3 artifact leaves the worktree (its sha equals the secured copy): `test "$(sha256sum /home/filip/rltraffic-p53b/docs/data/p7_2b_calibration.json | cut -c1-64)" = cfdf3829c23aac4b73a4ce7c0d83da4b13c070de43c30df37092e0539ca53a86 && rm /home/filip/rltraffic-p53b/docs/data/p7_2b_calibration.json && git -C /home/filip/rltraffic-p53b status --porcelain` → prints nothing.
+2. Provenance invariant: `git -C /home/filip/rltraffic-p53b rev-parse HEAD` is what run 4 records; `git -C /home/filip/rltraffic-p53b diff --name-only 5dfaaa2..HEAD -- offline tests` must be empty.
+3. Run 3's three files are secured (`db2fc5d8…`, `89e3a1ea…`); verify then remove: `cd /home/filip/rltraffic/output/p7_2b && sha256sum -c <(printf '%s  smoke_mappo1000.json\n%s  smoke_mix50.json\n' db2fc5d81e0880fa106bc18a944ed060e8a22a92b473728ee098b81a2f5e7607 89e3a1ea381a1f9e54a6bb3c1e95c8804c84a27e0d2a296b83bd6b521391c89a) && rm smoke_mappo1000.json smoke_mix50.json COMPLETE`.
+4. Mains power; token: `mkdir -p /home/filip/rltraffic/output/p7_2b && date -Is > /home/filip/rltraffic/output/p7_2b/AUTHORISED_TO_RUN`.
+5. In an **attended** pane (`tmux new-session -s p72b_run4`): `cd /home/filip/rltraffic-p53b && bash offline/campaigns/p7_2b_calibration.sh 2>&1 | tee -a /home/filip/rltraffic/output/p7_2b_runs/run4_driver_stdout.txt` — a foreground pipeline keeps the driver its own group leader; `tee -a` never truncates.
+6. Expected: the canary line as JSON (`-32648.0 / 247.75089149261333 / true / 360`, ≤ 2.0 s); `canary.json` and a second line in `canary.log`; probe ≈ 30 s (100 × reused, `probe` block byte-identical for the fourth time); two smokes — **230 / 269 again shows the smoke deterministic under `explore=False` by measurement; anything else is E3's finding, reported**; `report` with the branch tip as provenance and `git_dirty: false`; manifest; `COMPLETE`. Then the coordinator reads it from disk; the implementer writes `docs/returns/P7.2b.md` against `BRIEF_36` + Amendments A–E and these blocks, commits it WITH run 4's artifact, and the merge review follows.
