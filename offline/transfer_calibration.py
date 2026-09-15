@@ -61,6 +61,7 @@ from typing import Any, Mapping, Sequence
 
 __all__ = [
     "ARTIFACT_FORMAT_VERSION",
+    "CANARY_MAX_SECONDS",
     "DECLARED_GRADIENT_STEPS",
     "DEFAULT_ENGINE_SEED",
     "FENCED_KEY",
@@ -79,6 +80,7 @@ __all__ = [
     "probe_chunk_path",
     "probe_returns_from_chunks",
     "report",
+    "rtg_advanced_every_decision",
     "run_smoke",
     "run_sumo_probe",
     "statistics_table",
@@ -163,6 +165,12 @@ PARITY_VTYPE_ID = "cf_parity"
 
 #: A15(c): the regime SUMO must report.
 EXPECTED_TIME_TO_TELEPORT = "-1"
+
+#: ``PROJECT_PLAN`` §7's machine-health gate, recipe in ``BRIEF_36`` §3.3.  The driver refuses to
+#: start above this, and :func:`report` lifts the measured value into the artifact so a reader can
+#: see the rate basis of the run rather than take it on trust (Amendment D2).  The driver carries
+#: the same literal and a test asserts the two agree.
+CANARY_MAX_SECONDS = 2.0
 
 #: ``PREREGISTRATION`` §5: the pool a probe may never touch.
 HELD_OUT_DRAWS: tuple[int, ...] = tuple(range(1000, 1100))
@@ -766,6 +774,48 @@ def targets_table(
     return out
 
 
+def rtg_advanced_every_decision(
+    rtg_series: Sequence[float], rewards_in_info: Sequence[float | None]
+) -> bool:
+    """Did the RTG move exactly on the decisions whose driving reward was non-zero?
+
+    ⚠️ **THE ALIGNMENT IS SHIFTED BY ONE, AND THAT IS NOT AN OFF-BY-ONE -- IT IS THE AGENT'S RULE**
+    (Amendment D1; the first version of this check got it wrong and the campaign recorded ``False``
+    for a mechanism that was working).  ``run_smoke`` records ``agent.current_rtg()`` **before**
+    ``agent.act(info_t)``, and ``DTAgent.act`` updates ``reward_sum`` **inside** that call
+    (``agent/DTAgent.py``: ``current_rtg`` is ``target - reward_sum``; ``act`` adds
+    ``0.0 if step == 0 else self._reward_for(...)``).  So::
+
+        rtg[t] - rtg[t-1] == -r(info_{t-1})          for t >= 2
+        rtg[1] - rtg[0]   == 0                        ALWAYS
+
+    The second line is the agent forcing the step-0 reward to ``0.0`` regardless of what the info
+    carries, so index 1 is **forced unchanged** and is not evidence either way.  Comparing the
+    change at ``t`` with ``r(info_t)`` -- the current info's reward -- returns ``False`` as soon as
+    two consecutive rewards differ, which on a real episode is immediately.
+
+    Returns ``True`` when every decision agrees with the rule.  A missing reward on a decision that
+    needs one makes it ``False``: an absent reward cannot be shown to be zero.
+    """
+    if len(rtg_series) != len(rewards_in_info):
+        raise ValueError(
+            f"the RTG series has {len(rtg_series)} entries and the reward series "
+            f"{len(rewards_in_info)}; they are recorded per decision and must agree"
+        )
+    for index in range(1, len(rtg_series)):
+        changed = rtg_series[index] != rtg_series[index - 1]
+        if index == 1:
+            expected = False  # the agent's step-0 rule; see the docstring
+        else:
+            reward = rewards_in_info[index - 1]
+            if reward is None:
+                return False
+            expected = float(reward) != 0.0
+        if changed != expected:
+            return False
+    return True
+
+
 def registered_prompt_for(
     subject: str, *, work_dir: str | Path, output_root: str | Path
 ) -> tuple[float, SubjectFacts]:
@@ -846,15 +896,7 @@ def run_smoke(
         env.close()
     seconds = time.perf_counter() - started
 
-    # The RTG advanced exactly where the reward was non-zero: rtg[t] - rtg[t-1] == -r_{t-1}, and
-    # r_{t-1} is the reward carried by the info handed to decision t.
-    advanced_correctly = True
-    for index in range(1, len(rtg_series)):
-        reward = rewards_in_info[index]
-        changed = rtg_series[index] != rtg_series[index - 1]
-        if reward is None or bool(reward != 0.0) != changed:
-            advanced_correctly = False
-            break
+    advanced_correctly = rtg_advanced_every_decision(rtg_series, rewards_in_info)
 
     counts = in_support_counts(
         rtg_series,
@@ -980,10 +1022,40 @@ def report(*, work_dir: str | Path, out_path: str | Path, output_root: str | Pat
             )
         smoke.append({field: payload[field] for field in _SMOKE_PUBLISHED_FIELDS})
 
+    # Amendment D2: the rate basis of the run, lifted from the chunks rather than taken on trust.
+    # One campaign, one canary -- more than one distinct value means two runs' chunks were mixed,
+    # which would make every "seconds" in the table incomparable.
+    canary_values = {chunk.get("canary_seconds") for chunk in chunks}
+    if len(canary_values) != 1:
+        raise ValueError(
+            f"the chunks carry {len(canary_values)} distinct canary values "
+            f"({sorted(v for v in canary_values if v is not None)}); one campaign has one canary, "
+            "so these chunks come from more than one run and their timings are not comparable"
+        )
+    canary_value = canary_values.pop()
+    if canary_value is None:
+        canary_block: dict[str, Any] = {
+            "seconds": None,
+            "threshold_seconds": CANARY_MAX_SECONDS,
+            "verdict": "not recorded",
+        }
+    else:
+        canary_block = {
+            "seconds": float(canary_value),
+            "threshold_seconds": CANARY_MAX_SECONDS,
+            "verdict": "at speed" if float(canary_value) <= CANARY_MAX_SECONDS else "throttled",
+        }
+    canary_block["recipe"] = (
+        "PROJECT_PLAN section 7's rule; run_probe on CityFlow draw 0 through the committed "
+        "settings (BRIEF_36 section 3.3). A guest that reports a low load can still be running on "
+        "a throttled host, so the rate basis is measured in the same session or not written down."
+    )
+
     artifact: dict[str, Any] = {
         "format_version": ARTIFACT_FORMAT_VERSION,
         "registered_in": "PREREGISTRATION A17",
         "scenario_key": SCENARIO_KEY,
+        "canary": canary_block,
         "probe": [
             {
                 key: chunk[key]

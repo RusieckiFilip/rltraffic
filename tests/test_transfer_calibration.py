@@ -394,6 +394,53 @@ def test_both_subjects_report_the_registered_split_range_and_the_training_set_bo
 
 
 # ----------------------------------------------------------------------------------
+# Amendment D1 -- the RTG-advance check, whose alignment is shifted by one on purpose
+# ----------------------------------------------------------------------------------
+def test_the_rtg_advance_check_uses_the_PREVIOUS_infos_reward() -> None:
+    """Amendment D1, on the campaign's own false negative.
+
+    ``run_smoke`` reads ``current_rtg()`` **before** ``act(info_t)`` and the agent updates
+    ``reward_sum`` inside that call, so the change at ``t`` is driven by ``r(info_{t-1})``.  The
+    first version compared it with ``r(info_t)`` and the completed campaign recorded ``False`` for
+    both subjects while the agent was working correctly.
+
+    The synthetic series below is the discriminator Amendment D1 names: rewards ``[0, 0, -2, -4]``
+    give ``rtg = [T, T, T, T+2]`` -- the flag is ``True`` under the shifted alignment and ``False``
+    under the unshifted one, so a regression cannot pass this test.
+    """
+    target = -7185.0
+    rewards: list[float | None] = [0.0, 0.0, -2.0, -4.0]
+    series = [target, target, target, target + 2.0]
+
+    assert tc.rtg_advanced_every_decision(series, rewards) is True
+
+    # What the unshifted comparison would have concluded, recomputed here rather than asserted
+    # from memory: at index 2 it looks at r(info_2) = -2 and expects a change that belongs to
+    # index 3.
+    unshifted = all(
+        (series[i] != series[i - 1]) == (rewards[i] != 0.0) for i in range(1, len(series))
+    )
+    assert unshifted is False, "the synthetic series must discriminate the two alignments"
+
+
+def test_index_one_is_forced_unchanged_by_the_agents_step_zero_rule() -> None:
+    """``DTAgent.act`` adds ``0.0 if step == 0`` whatever the info carries, so the first
+    transition is structurally zero and is not evidence either way."""
+    target = -100.0
+    # A non-zero reward on info_0 that the agent ignores: the RTG must NOT move into index 1.
+    assert tc.rtg_advanced_every_decision([target, target, target - 5.0], [-9.0, 5.0, 0.0]) is True
+    # ... and a series that DOES move there contradicts the agent's rule.
+    assert tc.rtg_advanced_every_decision([target, target + 1.0, target + 1.0], [0.0, 0.0, 0.0]) is False
+
+
+def test_the_rtg_advance_check_refuses_a_missing_reward_and_a_length_mismatch() -> None:
+    """An absent reward cannot be shown to be zero, so it cannot support a True."""
+    assert tc.rtg_advanced_every_decision([1.0, 1.0, 1.0], [0.0, None, 0.0]) is False
+    with pytest.raises(ValueError, match="per decision"):
+        tc.rtg_advanced_every_decision([1.0, 1.0], [0.0])
+
+
+# ----------------------------------------------------------------------------------
 # T8 -- report: byte-identical, refusing, and FENCED
 # ----------------------------------------------------------------------------------
 @pytest.mark.skipif(not _checkpoints_available(), reason="P4 checkpoints are not in this tree")
@@ -452,6 +499,39 @@ def test_report_regenerates_byte_identically_and_carries_no_fenced_quantity(
     assert payload["format_version"] == tc.ARTIFACT_FORMAT_VERSION
     assert payload["registered_in"] == "PREREGISTRATION A17"
     assert len(payload["probe"]) == 100
+
+    # Amendment D2: the run's rate basis is IN the artifact, not only in the chunks.
+    assert payload["canary"]["seconds"] == 0.9
+    assert payload["canary"]["threshold_seconds"] == tc.CANARY_MAX_SECONDS == 2.0
+    assert payload["canary"]["verdict"] == "at speed"
+    assert "PROJECT_PLAN" in payload["canary"]["recipe"]
+
+
+@pytest.mark.skipif(not _checkpoints_available(), reason="P4 checkpoints are not in this tree")
+def test_report_refuses_chunks_from_two_runs_with_different_canaries(tmp_path: Path) -> None:
+    """Amendment D2: one campaign, one canary.
+
+    Two distinct values mean two runs' chunks were mixed, and every ``seconds`` in the probe table
+    would then be incomparable -- the class of defect the canary exists to prevent, arriving by the
+    back door.
+    """
+    work = tmp_path / "work"
+    _write_band(work)
+    path = tc.probe_chunk_path(250, work_dir=work)
+    chunk = json.loads(path.read_bytes())
+    chunk["canary_seconds"] = 6.88  # the throttled machine's value, from BRIEF_35 D3.1
+    path.write_text(json.dumps(chunk, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    out = tmp_path / "p7_2b_calibration.json"
+    with pytest.raises(ValueError, match="one campaign has one canary"):
+        tc.report(work_dir=work, out_path=out, output_root=OUTPUT_ROOT)
+    assert not out.exists()
+
+
+def test_the_driver_and_the_module_agree_on_the_canary_threshold() -> None:
+    """Two literals, one number. The driver cannot import Python constants, so a test ties them."""
+    text = DRIVER.read_text(encoding="utf-8")
+    assert f"CANARY_MAX_SECONDS={tc.CANARY_MAX_SECONDS}" in text
 
 
 @pytest.mark.skipif(not _checkpoints_available(), reason="P4 checkpoints are not in this tree")
