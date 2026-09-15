@@ -109,7 +109,13 @@ done
 # PROJECT_PLAN §7's rule; recipe in BRIEF_36 §3.3. A guest that reports a low load can still be
 # running on a throttled host, so the rate basis is measured in THIS session or not written down.
 echo "=== canary (PROJECT_PLAN section 7; recipe BRIEF_36 section 3.3)"
-CANARY_LINE=$(PYTHONPATH=$WORK_TREE "$PY" -P -m offline.transfer_calibration "${COMMON[@]}" canary)
+# `| tee /dev/stderr` so the OBSERVED values reach the pane even when the stage exits non-zero.
+# Without it the command substitution swallows them and `set -euo pipefail` aborts here with
+# nothing visible -- which is the same "the values exist on no disk and no screen" defect
+# Amendment E1.2 was written about. Verified by experiment: with tee, a failing canary prints its
+# line, does NOT reach the token, and exits 1; `pipefail` is what makes the pipeline's failure
+# propagate.
+CANARY_LINE=$(PYTHONPATH=$WORK_TREE "$PY" -P -m offline.transfer_calibration "${COMMON[@]}" canary | tee /dev/stderr)
 echo "$CANARY_LINE"
 CANARY=$(echo "$CANARY_LINE" | awk '{print $2}')
 if awk -v c="$CANARY" -v m="$CANARY_MAX_SECONDS" 'BEGIN { exit !(c > m) }'; then
@@ -168,6 +174,13 @@ echo "=== token consumed and deleted; a restart needs a new one"
 # Only NOW may anything be created or cleared.
 mkdir -p "$LOGS"
 rm -f "$WORK/FAILED" "$WORK/COMPLETE"
+
+# Amendment E1.2: the canary's observed values reach a MANIFESTED file, not only the pane.
+# Runs 1 and 2 printed them to stdout and nowhere else, so their correctness half exists on no
+# disk. Appended, never truncated, like the stage logs -- and written here, AFTER the token, so
+# Amendment B1's "a refused start creates nothing" still holds.
+echo "=== canary  run at $(date -Is)" >> "$LOGS/canary.log"
+echo "$CANARY_LINE" >> "$LOGS/canary.log"
 
 START=$(date +%s)
 

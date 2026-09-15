@@ -23,6 +23,7 @@ file asserts the committed artifact carries none of the four.
 from __future__ import annotations
 
 import json
+import math
 import shutil
 from pathlib import Path
 from typing import Any
@@ -40,6 +41,7 @@ from offline.rtg_calibration import (
 
 DRAWS_ROOT = Path("/home/filip/rltraffic/scenarios/draws")
 OUTPUT_ROOT = Path("/home/filip/rltraffic/output")
+REPO_DATA = Path(__file__).resolve().parents[1] / "docs" / "data"
 SMOKE_DRAW = 5
 IX = "intersection_1_1"
 
@@ -568,6 +570,110 @@ def test_the_module_contains_no_bare_dt_act_call() -> None:
 
 
 # ----------------------------------------------------------------------------------
+# Amendment E1.2 -- the canary's CORRECTNESS half
+# ----------------------------------------------------------------------------------
+def _canary_facts(**overrides: Any) -> dict[str, Any]:
+    facts = {
+        "decisions": tc.CANARY_REFERENCE_DECISIONS,
+        "local_return": tc.CANARY_REFERENCE_LOCAL_RETURN,
+        "att_horizon": tc.CANARY_REFERENCE_ATT_HORIZON,
+        "two_routes_agree": True,
+    }
+    facts.update(overrides)
+    return facts
+
+
+def test_check_canary_passes_on_the_recorded_control_episode() -> None:
+    """The reference facts are what draw 0 produces; the check must accept them."""
+    assert tc.check_canary(_canary_facts()) is None
+
+
+@pytest.mark.parametrize(
+    "overrides, expected",
+    [
+        ({"local_return": -32647.0}, "local_return"),
+        ({"att_horizon": math.nextafter(tc.CANARY_REFERENCE_ATT_HORIZON, math.inf)}, "att_horizon"),
+        ({"two_routes_agree": False}, "two_routes_agree"),
+        ({"decisions": 359}, "decisions"),
+    ],
+)
+def test_check_canary_refuses_each_comparison_by_itself(
+    overrides: dict[str, Any], expected: str
+) -> None:
+    """One test per comparison, so a mutation can kill exactly one.
+
+    The ``att_horizon`` case perturbs by exactly ONE ULP via ``math.nextafter``.  A hand-written
+    ``247.75089149261334`` does NOT work -- it parses to the same double as the reference, so the
+    first version of this test asserted a raise that could never happen.  One ULP is the smallest
+    perturbation that is a perturbation at all, which is the strictest honest form of an ``==``
+    check: every measurement of draw 0 on record agrees to the last bit, so a near-miss is a
+    finding about the engine rather than a tolerance to widen.
+    """
+    with pytest.raises(ValueError, match=expected):
+        tc.check_canary(_canary_facts(**overrides))
+
+
+def test_the_canary_stage_exits_non_zero_on_a_mismatch(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Through ``main``, asserting an EXIT CODE -- the driver sees a code, not an exception.
+
+    The observed values must be printed BEFORE the refusal, or a mismatch tells the operator only
+    that something was wrong (Amendment E1.2 item 3).
+    """
+    from offline.rtg_calibration import ProbeEpisode
+
+    wrong = ProbeEpisode(
+        draw_id=0,
+        local_return=-1.0,
+        local_return_from_lanes=-1.0,
+        att_horizon=1.0,
+        horizon_vehicle_count=1.0,
+        decisions=360,
+    )
+    monkeypatch.setattr("offline.rtg_calibration.run_probe", lambda **kwargs: [wrong])
+
+    code = tc.main(["--work-dir", "/tmp/p72b_unused", "canary"])
+    out = capsys.readouterr().out
+    assert code != 0, "a mismatching canary must return a non-zero exit code"
+    assert "canary" in out and "-1.0" in out, (
+        "the observed values must be printed before the refusal, not swallowed by it"
+    )
+
+
+def test_the_canary_references_are_tied_to_committed_artifacts() -> None:
+    """The constants are not free numbers: two committed artifacts carry them.
+
+    ⚠️ **The two anchors are not the same quantity, and the docstring says so rather than imply
+    identity.**  ``p7_1_metric_freeze.json``'s ``att_env_mean`` IS the canary's ``att_horizon`` --
+    the env's ``average_travel_time`` at the horizon, same scenario, same policy.  The P0.2
+    baseline's ``episode_reward``, however, is the **global** queue-length reward summed over the
+    episode (that run used ``global_reward_weight 1.0`` and ``local_reward_fn None``), while the
+    canary's ``local_return`` is the **per-intersection local** return under
+    ``global_reward_weight 0.0``.  They are equal because hz1x1 has exactly ONE intersection, so
+    the global and local queue-length rewards coincide -- an independent route to the same number,
+    which is why it is worth tying to, and a coincidence of the topology, which is why it must be
+    stated.
+    """
+    freeze = json.loads((REPO_DATA / "p7_1_metric_freeze.json").read_bytes())
+    assert (
+        freeze["cells"]["cityflow__maxpressure"]["att_env_mean"]
+        == tc.CANARY_REFERENCE_ATT_HORIZON
+    )
+
+    p0 = json.loads((REPO_DATA / "p0_baselines" / "results.json").read_bytes())
+    assert (
+        p0["cells"][0]["policies"]["MaxPressure"]["metrics"]["episode_reward"]
+        == tc.CANARY_REFERENCE_LOCAL_RETURN
+    )
+    assert (
+        p0["aggregated"]["cf_hz1x1"]["MaxPressure"]["episode_reward"]["mean"]
+        == tc.CANARY_REFERENCE_LOCAL_RETURN
+    )
+    assert tc.CANARY_REFERENCE_DECISIONS == tc.EXPECTED_DECISIONS == 360
+
+
+# ----------------------------------------------------------------------------------
 # T8 -- report: byte-identical, refusing, and FENCED
 # ----------------------------------------------------------------------------------
 @pytest.mark.skipif(not _checkpoints_available(), reason="P4 checkpoints are not in this tree")
@@ -821,6 +927,17 @@ def test_the_driver_gates_on_the_canary_before_consuming_the_token() -> None:
     # Amendment B3: `kill -- -$$` is a no-op unless the driver leads its process group.
     assert leader_at < token_at, "the group-leader check must refuse before the token"
     assert 'ps -o pgid= -p $$' in text
+    # Amendment E1.2 item 4: the canary's OBSERVED values must reach a manifested file, and the
+    # write must sit AFTER the token so Amendment B1's "a refused start creates nothing" holds.
+    canary_log_at = text.index('"$LOGS/canary.log"')
+    assert canary_log_at > token_at, (
+        "canary.log is written before the token is consumed, so a refused start would create it"
+    )
+    assert '>> "$LOGS/canary.log"' in text, "appended, never truncated, like the stage logs"
+    # ... and the line must be VISIBLE even when the stage exits non-zero, or a mismatching canary
+    # aborts with the observed values swallowed by the command substitution.
+    assert "tee /dev/stderr" in text
+
     # ... and the handler must not CREATE the work dir just to record a failure in it.
     assert text.count('if [ -d "$WORK" ]; then') == 2, (
         "both FAILED writers guard on $WORK existing, so a signal before the token still leaves "

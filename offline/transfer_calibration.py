@@ -72,7 +72,11 @@ __all__ = [
     "SUBJECTS",
     "ProbeRecord",
     "SubjectFacts",
+    "CANARY_REFERENCE_ATT_HORIZON",
+    "CANARY_REFERENCE_DECISIONS",
+    "CANARY_REFERENCE_LOCAL_RETURN",
     "build_parser",
+    "check_canary",
     "chunk_is_reusable",
     "disjointness_record",
     "in_support_position",
@@ -171,6 +175,26 @@ EXPECTED_TIME_TO_TELEPORT = "-1"
 #: see the rate basis of the run rather than take it on trust (Amendment D2).  The driver carries
 #: the same literal and a test asserts the two agree.
 CANARY_MAX_SECONDS = 2.0
+
+#: THE CANARY'S OTHER HALF (Amendment E1.2).  ``PROJECT_PLAN`` §7 names both in one sentence -- a
+#: canary measures *the machine and the engine* -- but ``BRIEF_36`` §3.3 wrote only the timing, the
+#: implementation matched the brief, and the pre-flight cleared it against the brief.  So runs 1 and
+#: 2 printed the engine's answers to the pane and compared none of them: a CityFlow that had
+#: silently changed its arithmetic would have passed a 0.89 s canary.
+#:
+#: The three references are the same episode read three ways, all on record and all bit-identical:
+#: draw 0 is the NOMINAL control (its ``flow.json`` is byte-identical to the shipped one), so
+#:   * ``-32648.0`` is P4.3's probe return on it (2026-08-13), and equals the P0.2 baseline's
+#:     MaxPressure ``episode_reward`` (2026-08, three seeds);
+#:   * ``247.75089149261333`` is P7.1's ``att_env_mean`` for ``cityflow__maxpressure``
+#:     (2026-09-12, n = 5, five identical episodes);
+#:   * 360 decisions is ``max_steps`` from the same committed settings.
+#: Compared under ``==``: every measurement on record agrees to the last digit, so a near-miss is a
+#: finding about the engine, not a tolerance to widen.
+CANARY_REFERENCE_LOCAL_RETURN = -32648.0
+CANARY_REFERENCE_ATT_HORIZON = 247.75089149261333
+#: The canary's decision count is the same 360 the probe episodes run, from the same settings.
+CANARY_REFERENCE_DECISIONS = EXPECTED_DECISIONS
 
 #: ``PREREGISTRATION`` §5: the pool a probe may never touch.
 HELD_OUT_DRAWS: tuple[int, ...] = tuple(range(1000, 1100))
@@ -1060,6 +1084,16 @@ def report(*, work_dir: str | Path, out_path: str | Path, output_root: str | Pat
             "threshold_seconds": CANARY_MAX_SECONDS,
             "verdict": "at speed" if float(canary_value) <= CANARY_MAX_SECONDS else "throttled",
         }
+    # Amendment E1.2: what the run could not have completed without matching.  The OBSERVED values
+    # live in the manifested output/p7_2b/logs/canary.log; this block records the references they
+    # were checked against, so a reader of docs/data/ alone can see that they were checked at all.
+    canary_block["checked_against"] = {
+        "local_return": CANARY_REFERENCE_LOCAL_RETURN,
+        "att_horizon": CANARY_REFERENCE_ATT_HORIZON,
+        "decisions": CANARY_REFERENCE_DECISIONS,
+        "two_routes_agree": True,
+        "comparison": "== (draw 0 is the nominal control; every measurement on record agrees)",
+    }
     canary_block["recipe"] = (
         "PROJECT_PLAN section 7's rule; run_probe on CityFlow draw 0 through the committed "
         "settings (BRIEF_36 section 3.3). A guest that reports a low load can still be running on "
@@ -1197,13 +1231,52 @@ def canary_seconds() -> tuple[float, dict[str, Any]]:
     }
 
 
+def check_canary(facts: Mapping[str, Any]) -> None:
+    """Raise unless the canary episode reproduced the engine's recorded answers exactly.
+
+    The timing half says the machine is at speed; this half says the ENGINE still computes what it
+    computed when the references were measured.  A canary that only times is a canary that would
+    have passed while CityFlow returned different numbers (Amendment E1.2).
+
+    Compared under ``==`` and not within a tolerance: draw 0 is the nominal control and every
+    measurement of it on record -- P4.3's probe return, the P0.2 baseline, P7.1's five identical
+    episodes -- agrees to the last digit.  A near-miss is a finding about the engine.
+    """
+    observed_return = facts.get("local_return")
+    if observed_return != CANARY_REFERENCE_LOCAL_RETURN:
+        raise ValueError(
+            f"canary local_return {observed_return!r} != the recorded "
+            f"{CANARY_REFERENCE_LOCAL_RETURN!r}; the engine did not reproduce draw 0"
+        )
+    observed_att = facts.get("att_horizon")
+    if observed_att != CANARY_REFERENCE_ATT_HORIZON:
+        raise ValueError(
+            f"canary att_horizon {observed_att!r} != the recorded "
+            f"{CANARY_REFERENCE_ATT_HORIZON!r}; the engine did not reproduce draw 0"
+        )
+    if facts.get("two_routes_agree") is not True:
+        raise ValueError(
+            f"canary two_routes_agree is {facts.get('two_routes_agree')!r}, not True; the "
+            "per-intersection return and the lane recomputation disagree on the control episode"
+        )
+    observed_decisions = facts.get("decisions")
+    if observed_decisions != CANARY_REFERENCE_DECISIONS:
+        raise ValueError(
+            f"canary decisions {observed_decisions!r} != {CANARY_REFERENCE_DECISIONS!r}; the "
+            "control episode did not run to the horizon"
+        )
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Run one stage; returns a process exit code."""
     args = build_parser().parse_args(argv)
     try:
         if args.stage == "canary":
             elapsed, facts = canary_seconds()
+            # PRINT FIRST, THEN CHECK: on a mismatch the observed values must be visible in the
+            # pane and in canary.log, or the refusal says only that something was wrong.
             print(f"canary {elapsed:.2f} s {facts}", flush=True)
+            check_canary(facts)
             return 0
         if args.stage == "probe":
             start, end = args.draws_range or (PROBE_DRAW_START_DEFAULT, PROBE_DRAW_END_DEFAULT)
