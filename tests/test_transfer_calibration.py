@@ -826,14 +826,24 @@ def test_record_canary_refuses_a_malformed_line(tmp_path: Path, line: str) -> No
 
 
 def test_report_refuses_a_work_directory_without_a_canary_record(tmp_path: Path) -> None:
-    """Amendment E1.4 item 2: from this commit on, a work directory without one is not a run."""
+    """Amendment E1.4 item 2: from this commit on, a work directory without one is not a run.
+
+    ⚠️ The ``match`` is the EXPLANATION, not the file name, and that is the whole strength of this
+    test.  The first version matched on ``canary.json``, and the implementer's mutant ME2 --
+    deleting the explicit refusal -- **survived it**: ``Path.read_bytes()`` then raises the
+    operating system's own ``FileNotFoundError``, whose message is
+    ``[Errno 2] No such file or directory: '…/canary.json'`` and therefore contains the file name.
+    The assertion was satisfied by ``ENOENT`` rather than by the refusal it was written to pin, and
+    a reader of that traceback would have learned nothing about why the file is required.
+    """
     work = tmp_path / "work"
     _write_band(work)
     (work / tc.CANARY_RECORD_NAME).unlink()
 
     out = tmp_path / "p7_2b_calibration.json"
-    with pytest.raises(FileNotFoundError, match=tc.CANARY_RECORD_NAME):
+    with pytest.raises(FileNotFoundError, match="is not a run") as excinfo:
         tc.report(work_dir=work, out_path=out, output_root=OUTPUT_ROOT)
+    assert tc.CANARY_RECORD_NAME in str(excinfo.value)
     assert not out.exists()
 
 
@@ -1200,22 +1210,27 @@ def test_the_driver_gates_on_the_canary_before_consuming_the_token() -> None:
     assert 'ps -o pgid= -p $$' in text
     # Amendment E1.2 item 4: the canary's OBSERVED values must reach a manifested file, and the
     # write must sit AFTER the token so Amendment B1's "a refused start creates nothing" holds.
-    canary_log_at = text.index('"$LOGS/canary.log"')
-    assert canary_log_at > token_at, (
+    # EVERY write, not just the first: one line moved above the token would create the log there.
+    code = _driver_code_text()
+    code_token_at = code.index('rm -f "$TOKEN"')
+    log_writes = [
+        index
+        for index in range(len(code))
+        if code.startswith('>> "$LOGS/canary.log"', index)
+    ]
+    assert log_writes, "the canary line must be appended to canary.log, never truncated into it"
+    assert min(log_writes) > code_token_at, (
         "canary.log is written before the token is consumed, so a refused start would create it"
     )
-    assert '>> "$LOGS/canary.log"' in text, "appended, never truncated, like the stage logs"
 
     # ... and the line must be VISIBLE even when the stage exits non-zero, or a mismatching canary
     # aborts with the observed values swallowed by the command substitution. Asserted on the CODE
     # line with its closing parenthesis, over comment-free text: the previous form was satisfied by
     # the comment that documents it (Amendment E1.3 item 2, mutant MD2).
-    code = _driver_code_text()
     assert "canary | tee -a /dev/stderr)" in code, (
         "the canary stage's output must be tee'd to stderr, APPENDING: plain `tee /dev/stderr` "
         "re-opens the target with O_TRUNC and destroys a combined log written with `>> log 2>&1`"
     )
-    code_token_at = code.index('rm -f "$TOKEN"')
     assert code.index("canary | tee -a /dev/stderr)") < code_token_at
 
     # Amendment E1.4 item 1: this run's canary is parked in a manifested canary.json -- and, like
