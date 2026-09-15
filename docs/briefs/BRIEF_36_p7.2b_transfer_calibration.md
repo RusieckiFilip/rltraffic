@@ -419,7 +419,7 @@ Committed **with** `docs/data/p7_2b_calibration.json` (run 4's, `92b1592d…`) i
 
 **The reviews are in `docs/reviews/P7.2b.md`:** fragment 2 (the artifact, recomputed from raw chunks and checkpoint
 payloads) **PASS**, no blocking findings, every number equal under `==`, the fence held, the regeneration claim confirmed
-to one differing leaf. Fragments 1 and 3 **PASS WITH FINDINGS**: six surviving mutants between them, **none of which is a
+to one differing leaf. Fragments 1 and 3 **PASS WITH FINDINGS**: seven surviving mutants between them (six distinct findings — see the correction in `docs/reviews/P7.2b.md`), **none of which is a
 defect in the shipped code** — all three reviewers found the code correct on every point they could falsify. What is weak
 is the test net.
 
@@ -479,4 +479,4 @@ the packet's final revision, not into code.
 Every test written first and red for its own reason; the four mutations above executed and pasted; the P7.2b test count
 goes up; `sha256sum docs/data/p7_2b_calibration.json` **unchanged at `92b1592d…`** and pasted as proof; the packet
 `docs/returns/P7.2b.md` gains a short section F recording the reviews, this round, and the four carried notes; report the
-tip sha. **The coordinator then re-runs the six surviving mutants itself before merging.**
+tip sha. **The coordinator then re-runs the surviving mutants itself before merging — SEVEN, not six; the count in this sentence was corrected on 2026-09-15 after the implementer challenged it.**
