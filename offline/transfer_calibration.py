@@ -72,6 +72,8 @@ __all__ = [
     "SUBJECTS",
     "ProbeRecord",
     "SubjectFacts",
+    "CANARY_FACT_NAMES",
+    "CANARY_RECORD_NAME",
     "CANARY_REFERENCE_ATT_HORIZON",
     "CANARY_REFERENCE_DECISIONS",
     "CANARY_REFERENCE_LOCAL_RETURN",
@@ -79,9 +81,12 @@ __all__ = [
     "check_canary",
     "chunk_is_reusable",
     "disjointness_record",
+    "format_canary_line",
     "in_support_position",
     "main",
+    "parse_canary_line",
     "probe_chunk_path",
+    "record_canary",
     "probe_returns_from_chunks",
     "report",
     "rtg_advanced_every_decision",
@@ -195,6 +200,24 @@ CANARY_REFERENCE_LOCAL_RETURN = -32648.0
 CANARY_REFERENCE_ATT_HORIZON = 247.75089149261333
 #: The canary's decision count is the same 360 the probe episodes run, from the same settings.
 CANARY_REFERENCE_DECISIONS = EXPECTED_DECISIONS
+
+#: The four names a canary line must carry.  A line that is missing one is refused rather than
+#: recorded with a hole, because :func:`check_canary` reads a missing name as ``None`` and would
+#: then refuse for the wrong reason.
+CANARY_FACT_NAMES: tuple[str, ...] = (
+    "att_horizon",
+    "decisions",
+    "local_return",
+    "two_routes_agree",
+)
+
+#: Amendment E1.4: THIS run's canary, in the work directory, written by the driver after the token
+#: and swept up by the manifest's ``find … -name '*.json'``.  Before it existed, :func:`report` built
+#: the artifact's canary block from the probe CHUNKS, and the chunks are reused across re-rolls -- so
+#: run 3's artifact reported run 1's 0.89 s beside ``checked_against``, implying a check that the
+#: code performing it did not yet exist to perform.  From this commit on, a work directory without
+#: this file is not a run.
+CANARY_RECORD_NAME = "canary.json"
 
 #: ``PREREGISTRATION`` §5: the pool a probe may never touch.
 HELD_OUT_DRAWS: tuple[int, ...] = tuple(range(1000, 1100))
@@ -1023,6 +1046,43 @@ def _validate_chunk(payload: Mapping[str, Any], path: Path) -> None:
         )
 
 
+def _read_canary_record(work: Path) -> dict[str, Any]:
+    """Read ``<work>/canary.json`` and RE-RUN :func:`check_canary` on its facts.
+
+    Amendment E1.4 item 2.  The record is a claim, and a claim is not evidence: ``report`` checks
+    the facts itself rather than trusting that whatever wrote the file checked them.  A missing
+    file is a refusal, not a fallback -- from that amendment on, a work directory without one is
+    not a run, and the previous behaviour (fall back on the probe chunks' ``canary_seconds``) is
+    precisely how run 3's artifact came to publish run 1's canary as its own.
+    """
+    path = work / CANARY_RECORD_NAME
+    if not path.is_file():
+        raise FileNotFoundError(
+            f"{path}: this run wrote no {CANARY_RECORD_NAME}. The driver writes it from the canary "
+            "line immediately after the token is consumed; a work directory without one is not a "
+            "run, and the chunks' canary_seconds is the canary of whoever ROLLED them, not of "
+            "whoever is reporting (Amendment E1.4)"
+        )
+    record = json.loads(path.read_bytes())
+    if not isinstance(record, dict):
+        raise ValueError(f"{CANARY_RECORD_NAME}: the record is a {type(record).__name__}, not an object")
+    facts = record.get("facts")
+    if not isinstance(facts, dict):
+        raise ValueError(
+            f"{CANARY_RECORD_NAME}: 'facts' is {type(facts).__name__}, not an object; the four "
+            "observed values are what the artifact reports and what check_canary compares"
+        )
+    try:
+        seconds = float(record["seconds"])
+    except (KeyError, TypeError, ValueError):
+        raise ValueError(
+            f"{CANARY_RECORD_NAME}: 'seconds' is {record.get('seconds')!r}, not a number"
+        ) from None
+    check_canary(facts)
+    # The coerced values last, so they win over the raw ones this dict is built from.
+    return {**record, "seconds": seconds, "facts": facts}
+
+
 def report(*, work_dir: str | Path, out_path: str | Path, output_root: str | Path) -> dict[str, Any]:
     """Build the committed artifact from the chunks. Every refusal precedes every write."""
     work = Path(work_dir)
@@ -1034,6 +1094,9 @@ def report(*, work_dir: str | Path, out_path: str | Path, output_root: str | Pat
             f"{P4_3_PROBE_ARTIFACT.name}: sha256 {on_disk} against the pinned {P4_3_PROBE_SHA256}"
         )
 
+    # Amendment E1.4 items 1-2: THIS run's canary, from the file the driver parked after the token.
+    canary_record = _read_canary_record(work)
+
     chunks: list[Mapping[str, Any]] = []
     for path in sorted(work.glob("probe_draw_*.json")):
         payload = json.loads(path.read_bytes())
@@ -1041,6 +1104,18 @@ def report(*, work_dir: str | Path, out_path: str | Path, output_root: str | Pat
         chunks.append(payload)
     if not chunks:
         raise ValueError(f"no probe chunks under {work}")
+
+    # Amendment E1.4 item 3: the artifact reports the chunks' own commit, so the chunks must carry
+    # ONE. They are rolled once and reused by every re-roll, so this is the revision that produced
+    # the probe table -- which is not, in general, the revision that wrote the artifact.
+    chunk_commits = {chunk.get("git_commit") for chunk in chunks}
+    if len(chunk_commits) != 1:
+        raise ValueError(
+            f"the probe chunks carry {len(chunk_commits)} distinct git commits "
+            f"({sorted(str(commit) for commit in chunk_commits)}); they were rolled by more than "
+            "one commit, so no single revision describes the code that produced the probe table"
+        )
+    chunk_commit = chunk_commits.pop()
 
     rows = probe_returns_from_chunks(work)
     statistics = statistics_table(rows)
@@ -1072,33 +1147,53 @@ def report(*, work_dir: str | Path, out_path: str | Path, output_root: str | Pat
             "so these chunks come from more than one run and their timings are not comparable"
         )
     canary_value = canary_values.pop()
-    if canary_value is None:
-        canary_block: dict[str, Any] = {
-            "seconds": None,
-            "threshold_seconds": CANARY_MAX_SECONDS,
-            "verdict": "not recorded",
-        }
-    else:
-        canary_block = {
-            "seconds": float(canary_value),
-            "threshold_seconds": CANARY_MAX_SECONDS,
-            "verdict": "at speed" if float(canary_value) <= CANARY_MAX_SECONDS else "throttled",
-        }
-    # Amendment E1.2: what the run could not have completed without matching.  The OBSERVED values
-    # live in the manifested output/p7_2b/logs/canary.log; this block records the references they
-    # were checked against, so a reader of docs/data/ alone can see that they were checked at all.
-    canary_block["checked_against"] = {
-        "local_return": CANARY_REFERENCE_LOCAL_RETURN,
-        "att_horizon": CANARY_REFERENCE_ATT_HORIZON,
-        "decisions": CANARY_REFERENCE_DECISIONS,
-        "two_routes_agree": True,
-        "comparison": "== (draw 0 is the nominal control; every measurement on record agrees)",
+
+    # ---------------------------------------------------------------- the canary block
+    # Amendment E1.4 items 3 and 4.  TWO canaries exist and run 3's artifact conflated them: the
+    # block's own seconds and verdict describe THE RUN THAT WROTE THIS FILE, read from canary.json
+    # and re-checked above; the probe chunks' canary is reported beside it under its own name,
+    # because the chunks are rolled once and reused unchanged by every re-roll.  `checked_against`
+    # sits in the first of those and nowhere else -- it names the references the OBSERVED values
+    # beside it were compared with, so a reader of docs/data/ alone can redo the comparison
+    # instead of taking a "checked" flag on trust.
+    this_run_seconds = float(canary_record["seconds"])
+    canary_block: dict[str, Any] = {
+        "seconds": this_run_seconds,
+        "threshold_seconds": CANARY_MAX_SECONDS,
+        "verdict": "at speed" if this_run_seconds <= CANARY_MAX_SECONDS else "throttled",
+        "observed": dict(canary_record["facts"]),
+        "checked_against": {
+            "local_return": CANARY_REFERENCE_LOCAL_RETURN,
+            "att_horizon": CANARY_REFERENCE_ATT_HORIZON,
+            "decisions": CANARY_REFERENCE_DECISIONS,
+            "two_routes_agree": True,
+            "comparison": "== (draw 0 is the nominal control; every measurement on record agrees)",
+        },
+        "source": (
+            f"output/p7_2b/{CANARY_RECORD_NAME}, written by the driver from the canary line right "
+            "after the token; the same line is appended to the manifested logs/canary.log, and "
+            "report re-ran check_canary on these facts before writing this file"
+        ),
+        "git_commit": canary_record.get("git_commit"),
+        "git_dirty": canary_record.get("git_dirty"),
+        "recipe": (
+            "PROJECT_PLAN section 7's rule; run_probe on CityFlow draw 0 through the committed "
+            "settings (BRIEF_36 section 3.3). A guest that reports a low load can still be running "
+            "on a throttled host, so the rate basis is measured in the same session or not written "
+            "down."
+        ),
+        "probe_chunks_canary": {
+            "seconds": None if canary_value is None else float(canary_value),
+            "git_commit": chunk_commit,
+            "correctness_half": "not recorded in these chunks",
+            "what_this_is": (
+                "the canary_seconds field the probe chunks carry, identical across all of them. A "
+                "re-roll reuses chunks by content and leaves them untouched, so this is the rate "
+                "basis of the probe TABLE and not necessarily of the run that wrote this file. The "
+                "chunks record a duration and no engine facts, which is what correctness_half says."
+            ),
+        },
     }
-    canary_block["recipe"] = (
-        "PROJECT_PLAN section 7's rule; run_probe on CityFlow draw 0 through the committed "
-        "settings (BRIEF_36 section 3.3). A guest that reports a low load can still be running on "
-        "a throttled host, so the rate basis is measured in the same session or not written down."
-    )
 
     artifact: dict[str, Any] = {
         "format_version": ARTIFACT_FORMAT_VERSION,
@@ -1196,6 +1291,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     subparsers.add_parser("report", help="write docs/data/p7_2b_calibration.json")
     subparsers.add_parser("canary", help="the machine-health canary (PROJECT_PLAN §7)")
+
+    record = subparsers.add_parser(
+        "record-canary", help="park the canary line in the work directory (Amendment E1.4)"
+    )
+    record.add_argument("--line", required=True)
     return parser
 
 
@@ -1267,6 +1367,96 @@ def check_canary(facts: Mapping[str, Any]) -> None:
         )
 
 
+#: The canary line's grammar, as two literals both halves of the round trip share:
+#: ``canary <seconds:.2f> s <JSON facts>``.
+_CANARY_LINE_PREFIX = "canary "
+_CANARY_LINE_SEPARATOR = " s "
+
+
+def format_canary_line(seconds: float, facts: Mapping[str, Any]) -> str:
+    """``canary <seconds> s <JSON facts>`` -- the one line the driver captures and parses back.
+
+    The facts are **JSON with sorted keys**, not a Python ``repr``.  Runs 1-3 printed a ``repr``,
+    which is why their observed values could only ever be read by a human: ``{'decisions': 360}``
+    is not JSON, so nothing could parse it into the artifact, and the artifact fell back on the
+    probe chunks (Amendment E1.4).  Every value here is a plain Python ``float``/``int``/``bool``
+    -- :func:`offline.rtg_calibration.episode_return_two_routes` appends ``float(...)`` and
+    ``run_probe`` sets ``att_horizon`` from a ``float(...)`` sample -- so ``json.dumps`` cannot
+    fail on them.
+    """
+    return (
+        f"{_CANARY_LINE_PREFIX}{seconds:.2f}{_CANARY_LINE_SEPARATOR}"
+        f"{json.dumps(dict(facts), sort_keys=True)}"
+    )
+
+
+def parse_canary_line(line: str) -> tuple[float, dict[str, Any]]:
+    """Inverse of :func:`format_canary_line`; raise ``ValueError`` on anything else.
+
+    Refused rather than salvaged, in every case: this line is the only route by which the engine's
+    observed answers reach ``canary.json`` and from there the artifact, so a line that does not
+    parse must stop the campaign rather than produce a record with a hole in it.  A missing fact
+    name in particular: :func:`check_canary` reads an absent name as ``None`` and would then refuse
+    for the wrong reason, reporting a wrong value where the truth is a missing one.
+    """
+    text = line.strip()
+    if "\n" in text:
+        raise ValueError(f"canary line is more than one line: {line!r}")
+    if not text.startswith(_CANARY_LINE_PREFIX):
+        raise ValueError(f"canary line does not start with {_CANARY_LINE_PREFIX!r}: {line!r}")
+    head, separator, payload = text.partition(_CANARY_LINE_SEPARATOR)
+    if not separator:
+        raise ValueError(f"canary line has no {_CANARY_LINE_SEPARATOR!r} separator: {line!r}")
+    try:
+        seconds = float(head[len(_CANARY_LINE_PREFIX) :])
+    except ValueError:
+        raise ValueError(f"canary line carries no parsable seconds: {line!r}") from None
+    try:
+        facts = json.loads(payload)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"canary line's facts are not JSON: {payload!r}") from exc
+    if not isinstance(facts, dict):
+        raise ValueError(
+            f"canary line's facts are a {type(facts).__name__}, not a JSON object: {payload!r}"
+        )
+    missing = [name for name in CANARY_FACT_NAMES if name not in facts]
+    if missing:
+        raise ValueError(f"canary line is missing the facts {missing}: {payload!r}")
+    return seconds, facts
+
+
+def record_canary(line: str, *, work_dir: str | Path) -> Path:
+    """Park the driver's canary line in ``<work_dir>/canary.json``; return the path written.
+
+    Amendment E1.4 item 1.  The driver runs this immediately after the token is consumed, so the
+    observed values reach a file the manifest hashes -- not only a pane that is gone by the time
+    anyone reads the artifact.
+
+    **It deliberately does not call :func:`check_canary`.**  Its job is to preserve what the engine
+    answered, including an answer that fails the check: that is the whole of Amendment E1.2's
+    lesson, and :func:`report` is the checker (item 2).  In practice the driver cannot reach here
+    with a failing canary anyway -- the canary stage exits non-zero and ``set -euo pipefail`` aborts
+    the pipeline before the token.
+
+    The line is parsed before the path is touched, so a refused line creates nothing, not even the
+    work directory (the same barrier Amendment B1 put in front of the token).
+    """
+    seconds, facts = parse_canary_line(line)
+    path = Path(work_dir) / CANARY_RECORD_NAME
+    _write_json(
+        path,
+        {
+            "format_version": ARTIFACT_FORMAT_VERSION,
+            "line": line,
+            "seconds": seconds,
+            "facts": facts,
+            "threshold_seconds": CANARY_MAX_SECONDS,
+            **_git_provenance(),
+        },
+    )
+    return path
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Run one stage; returns a process exit code."""
     args = build_parser().parse_args(argv)
@@ -1275,8 +1465,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             elapsed, facts = canary_seconds()
             # PRINT FIRST, THEN CHECK: on a mismatch the observed values must be visible in the
             # pane and in canary.log, or the refusal says only that something was wrong.
-            print(f"canary {elapsed:.2f} s {facts}", flush=True)
+            print(format_canary_line(elapsed, facts), flush=True)
             check_canary(facts)
+            return 0
+        if args.stage == "record-canary":
+            written = record_canary(args.line, work_dir=args.work_dir)
+            print(f"wrote {written}", flush=True)
             return 0
         if args.stage == "probe":
             start, end = args.draws_range or (PROBE_DRAW_START_DEFAULT, PROBE_DRAW_END_DEFAULT)

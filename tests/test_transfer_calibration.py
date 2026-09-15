@@ -87,14 +87,61 @@ def _synthetic_chunk(draw_id: int, local_return: float) -> dict[str, Any]:
         "config_sha256": "0" * 64,
         "p4_3_probe_sha256": tc.P4_3_PROBE_SHA256,
         "seconds": 10.5,
-        "canary_seconds": 0.9,
+        "canary_seconds": CHUNK_CANARY_SECONDS,
         "git_commit": "0" * 40,
         "git_dirty": False,
     }
 
 
+#: Amendment E1.4. The chunks' ``canary_seconds`` is 0.9 and this run's is 0.5, DELIBERATELY
+#: different: run 3's artifact reported the chunks' 0.89 as if it were the reporting run's, and a
+#: fixture in which the two coincide cannot tell that defect from its fix.
+CHUNK_CANARY_SECONDS = 0.9
+THIS_RUN_CANARY_SECONDS = 0.5
+
+
+def _write_canary_record(
+    work_dir: Path, *, seconds: float = THIS_RUN_CANARY_SECONDS, **fact_overrides: Any
+) -> Path:
+    """Write the ``canary.json`` the driver parks in the work directory after the token.
+
+    ``report`` refuses a work directory without one (Amendment E1.4 item 2), so every fixture that
+    calls ``report`` needs it; ``_write_band`` therefore writes one and the tests that exercise the
+    refusals remove or corrupt it afterwards.
+    """
+    work_dir.mkdir(parents=True, exist_ok=True)
+    facts = _canary_facts(**fact_overrides)
+    path = work_dir / tc.CANARY_RECORD_NAME
+    # The line is built here rather than by ``tc.format_canary_line`` so that every test using
+    # ``_write_band`` stays independent of the formatter; the formatter's exact bytes are pinned
+    # against a hand-written literal in ``test_the_canary_line_round_trips_through_record_canary``.
+    line = f"canary {seconds:.2f} s {json.dumps(facts, sort_keys=True)}"
+    path.write_text(
+        json.dumps(
+            {
+                "format_version": tc.ARTIFACT_FORMAT_VERSION,
+                "line": line,
+                "seconds": float(seconds),
+                "facts": facts,
+                "threshold_seconds": tc.CANARY_MAX_SECONDS,
+                "git_commit": "1" * 40,
+                "git_dirty": False,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return path
+
+
 def _write_band(work_dir: Path, *, returns: dict[int, float] | None = None) -> list[tuple[int, float]]:
-    """Write a full 100-draw synthetic band; returns the (draw_id, return) pairs written."""
+    """Write a full 100-draw synthetic band; returns the (draw_id, return) pairs written.
+
+    It also writes the work directory's ``canary.json``: a directory holding chunks but no canary
+    record is, from Amendment E1.4 on, not a run, and ``report`` refuses it.
+    """
     work_dir.mkdir(parents=True, exist_ok=True)
     rows: list[tuple[int, float]] = []
     for offset in range(100):
@@ -105,6 +152,7 @@ def _write_band(work_dir: Path, *, returns: dict[int, float] | None = None) -> l
             json.dumps(chunk, indent=2, sort_keys=True) + "\n", encoding="utf-8"
         )
         rows.append((draw_id, value))
+    _write_canary_record(work_dir)
     return rows
 
 
@@ -620,6 +668,15 @@ def test_the_canary_stage_exits_non_zero_on_a_mismatch(
 
     The observed values must be printed BEFORE the refusal, or a mismatch tells the operator only
     that something was wrong (Amendment E1.2 item 3).
+
+    ⚠️ **Strengthened by Amendment E1.3 item 1, after the coordinator's mutant MC8 -- moving
+    ``check_canary`` above the print -- SURVIVED the first version.**  That version asserted
+    ``"canary" in out and "-1.0" in out``, and ``main``'s refusal handler prints
+    ``transfer_calibration: canary local_return -1.0 != …``, which contains both substrings.  The
+    assertion was satisfied by the prose of the error message it was meant to precede.  So this
+    version asserts the facts LINE and its POSITION: line 0 is the facts line, it parses, and the
+    refusal comes after it.  The refusal message names one comparison and carries no JSON object,
+    so it cannot stand in for the facts line.
     """
     from offline.rtg_calibration import ProbeEpisode
 
@@ -636,8 +693,29 @@ def test_the_canary_stage_exits_non_zero_on_a_mismatch(
     code = tc.main(["--work-dir", "/tmp/p72b_unused", "canary"])
     out = capsys.readouterr().out
     assert code != 0, "a mismatching canary must return a non-zero exit code"
-    assert "canary" in out and "-1.0" in out, (
-        "the observed values must be printed before the refusal, not swallowed by it"
+
+    lines = [line for line in out.splitlines() if line.strip()]
+    assert lines[0].startswith("canary "), (
+        f"the first line must be the facts line, not {lines[0]!r}; printing after the check means "
+        "a mismatch tells the operator only that something was wrong"
+    )
+    head, separator, payload = lines[0].partition(" s ")
+    assert separator == " s ", f"the canary line has no ' s ' separator: {lines[0]!r}"
+    assert float(head.split()[1]) >= 0.0, "the seconds field must parse as a number"
+    observed = json.loads(payload)
+    assert sorted(observed) == sorted(tc.CANARY_FACT_NAMES), (
+        f"the facts line must carry all four facts as JSON; got {sorted(observed)}"
+    )
+    assert observed["local_return"] == -1.0
+    assert observed["two_routes_agree"] is True
+
+    refusals = [index for index, line in enumerate(lines) if line.startswith("transfer_calibration:")]
+    assert refusals == [1], (
+        f"the refusal must follow the facts line, and it is at {refusals}; if it is at 0 the check "
+        "ran before the print and the observed values never reached the pane or canary.log"
+    )
+    assert "two_routes_agree" not in lines[1], (
+        "the refusal names one comparison; it must not be mistakable for the facts line"
     )
 
 
@@ -671,6 +749,180 @@ def test_the_canary_references_are_tied_to_committed_artifacts() -> None:
         == tc.CANARY_REFERENCE_LOCAL_RETURN
     )
     assert tc.CANARY_REFERENCE_DECISIONS == tc.EXPECTED_DECISIONS == 360
+
+
+# ----------------------------------------------------------------------------------
+# Amendment E1.4 -- THIS run's canary reaches the artifact from a manifested canary.json
+# ----------------------------------------------------------------------------------
+def test_the_canary_line_round_trips_through_record_canary(tmp_path: Path) -> None:
+    """``format_canary_line`` -> ``parse_canary_line`` -> ``record-canary`` -> ``canary.json``.
+
+    The expected line is written out by hand rather than by calling the formatter twice: a
+    round-trip through one function's own output would agree with itself whatever shape that was,
+    and the driver passes this string across a shell boundary, so its exact bytes are the contract.
+    """
+    facts = _canary_facts()
+    line = tc.format_canary_line(0.79, facts)
+    assert line == (
+        'canary 0.79 s {"att_horizon": 247.75089149261333, "decisions": 360, '
+        '"local_return": -32648.0, "two_routes_agree": true}'
+    ), "JSON with sorted keys, not a Python repr: the driver's line is parsed back by machine"
+
+    seconds, parsed = tc.parse_canary_line(line)
+    assert seconds == 0.79
+    assert parsed == facts
+
+    work = tmp_path / "work"
+    code = tc.main(["--work-dir", str(work), "record-canary", "--line", line])
+    assert code == 0
+    record = json.loads((work / tc.CANARY_RECORD_NAME).read_bytes())
+    assert record["line"] == line, "the record keeps the exact line the driver captured"
+    assert record["seconds"] == 0.79
+    assert record["facts"] == facts
+    assert record["format_version"] == tc.ARTIFACT_FORMAT_VERSION
+    assert record["threshold_seconds"] == tc.CANARY_MAX_SECONDS
+
+    # Provenance, recomputed by an independent route: `git rev-parse HEAD` in this worktree, not
+    # the module's own helper. Without it the record cannot say WHICH code measured the canary.
+    import subprocess
+
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=str(DRIVER.parents[2]),
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    assert record["git_commit"] == head
+    assert record["git_dirty"] in (True, False)
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "",
+        "canary 0.79 s",
+        "0.79 s {}",
+        'canary abc s {"att_horizon": 1.0}',
+        "canary 0.79 s [1, 2]",
+        "canary 0.79 s {not json}",
+        'canary 0.79 s {"decisions": 360}',
+        'canary 0.79 s {"att_horizon": 1.0, "decisions": 360, "local_return": -1.0}',
+    ],
+)
+def test_record_canary_refuses_a_malformed_line(tmp_path: Path, line: str) -> None:
+    """A line that is not exactly the canary's shape is refused, and NOTHING is created.
+
+    The second assertion is the filesystem-mutation barrier: parse first, write second.  A
+    ``canary.json`` half-written from a line nobody could parse would be worse than none, because
+    ``report`` treats the file's presence as the evidence that a run happened.
+    """
+    work = tmp_path / "work"
+    with pytest.raises(ValueError, match="canary line"):
+        tc.record_canary(line, work_dir=work)
+    assert not work.exists(), (
+        "a refused record must not even create the work directory; validation precedes every write"
+    )
+
+
+def test_report_refuses_a_work_directory_without_a_canary_record(tmp_path: Path) -> None:
+    """Amendment E1.4 item 2: from this commit on, a work directory without one is not a run."""
+    work = tmp_path / "work"
+    _write_band(work)
+    (work / tc.CANARY_RECORD_NAME).unlink()
+
+    out = tmp_path / "p7_2b_calibration.json"
+    with pytest.raises(FileNotFoundError, match=tc.CANARY_RECORD_NAME):
+        tc.report(work_dir=work, out_path=out, output_root=OUTPUT_ROOT)
+    assert not out.exists()
+
+
+@pytest.mark.parametrize(
+    "overrides, expected",
+    [
+        ({"local_return": -32647.0}, "local_return"),
+        ({"att_horizon": math.nextafter(tc.CANARY_REFERENCE_ATT_HORIZON, math.inf)}, "att_horizon"),
+        ({"two_routes_agree": False}, "two_routes_agree"),
+        ({"decisions": 359}, "decisions"),
+    ],
+)
+def test_report_refuses_a_canary_record_whose_facts_fail_the_check(
+    tmp_path: Path, overrides: dict[str, Any], expected: str
+) -> None:
+    """Amendment E1.4 item 2: ``report`` RE-RUNS ``check_canary``; a self-claim is not evidence.
+
+    The driver cannot reach ``record-canary`` with a failing canary -- the stage exits non-zero and
+    ``set -euo pipefail`` aborts before the token -- so this refusal guards the case where the file
+    was produced by something other than that path, which is exactly when a check is worth having.
+    """
+    work = tmp_path / "work"
+    _write_band(work)
+    _write_canary_record(work, **overrides)
+
+    out = tmp_path / "p7_2b_calibration.json"
+    with pytest.raises(ValueError, match=expected):
+        tc.report(work_dir=work, out_path=out, output_root=OUTPUT_ROOT)
+    assert not out.exists()
+
+
+def test_report_refuses_probe_chunks_from_more_than_one_commit(tmp_path: Path) -> None:
+    """Amendment E1.4 item 3: the chunks' commit is reported, so the chunks must agree on one."""
+    work = tmp_path / "work"
+    _write_band(work)
+    path = tc.probe_chunk_path(250, work_dir=work)
+    chunk = json.loads(path.read_bytes())
+    chunk["git_commit"] = "9" * 40
+    path.write_text(json.dumps(chunk, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    out = tmp_path / "p7_2b_calibration.json"
+    with pytest.raises(ValueError, match="more than one commit"):
+        tc.report(work_dir=work, out_path=out, output_root=OUTPUT_ROOT)
+    assert not out.exists()
+
+
+@pytest.mark.skipif(not _checkpoints_available(), reason="P4 checkpoints are not in this tree")
+def test_the_artifact_canary_block_separates_this_run_from_the_probe_chunks(
+    tmp_path: Path,
+) -> None:
+    """Amendment E1.4 items 3 and 4, on the two numbers run 3's artifact conflated.
+
+    The chunks are rolled once and REUSED by every re-roll, so their ``canary_seconds`` is the
+    canary of whichever run first rolled them -- 0.89 s for run 1 -- while the run that writes the
+    artifact measures its own.  Run 3 published run 1's 0.89 beside ``checked_against``, implying a
+    check that ``check_canary`` did not exist to perform when run 1 ran.  Here the two fixture
+    values differ (0.5 against 0.9) so the assertion can tell them apart.
+    """
+    work = tmp_path / "work"
+    _write_band(work)
+    _write_canary_record(work, seconds=THIS_RUN_CANARY_SECONDS)
+
+    out = tmp_path / "p7_2b_calibration.json"
+    artifact = tc.report(work_dir=work, out_path=out, output_root=OUTPUT_ROOT)
+    block = artifact["canary"]
+
+    # The run that WROTE the artifact, with the facts it was checked against beside it.
+    assert block["seconds"] == THIS_RUN_CANARY_SECONDS
+    assert block["verdict"] == "at speed"
+    assert block["observed"] == _canary_facts()
+    assert block["checked_against"]["local_return"] == tc.CANARY_REFERENCE_LOCAL_RETURN
+    assert block["checked_against"]["att_horizon"] == tc.CANARY_REFERENCE_ATT_HORIZON
+    assert block["checked_against"]["decisions"] == tc.CANARY_REFERENCE_DECISIONS
+    assert block["checked_against"]["two_routes_agree"] is True
+    assert tc.CANARY_RECORD_NAME in block["source"]
+    assert block["git_commit"] == "1" * 40, "the commit that MEASURED the canary, from the record"
+
+    # ... and the chunks', named as the chunks' and claiming nothing about history.
+    chunks_block = block["probe_chunks_canary"]
+    assert chunks_block["seconds"] == CHUNK_CANARY_SECONDS
+    assert chunks_block["git_commit"] == "0" * 40
+    assert chunks_block["correctness_half"] == "not recorded in these chunks"
+    assert "checked_against" not in chunks_block, (
+        "the chunks carry a duration and no facts; a checked_against beside them would assert a "
+        "check that nothing performed"
+    )
+
+    # Item 4: exactly once in the whole artifact, beside the facts it was checked against.
+    assert json.dumps(artifact, sort_keys=True).count('"checked_against"') == 1
 
 
 # ----------------------------------------------------------------------------------
@@ -734,7 +986,12 @@ def test_report_regenerates_byte_identically_and_carries_no_fenced_quantity(
     assert len(payload["probe"]) == 100
 
     # Amendment D2: the run's rate basis is IN the artifact, not only in the chunks.
-    assert payload["canary"]["seconds"] == 0.9
+    # ⚠️ Amendment E1.4 CHANGED WHICH NUMBER THIS IS. It used to read the chunks' 0.9, which is the
+    # canary of whichever run first ROLLED them -- reused unchanged by every re-roll afterwards.
+    # The block's own seconds is now the reporting run's, from canary.json (0.5 in this fixture),
+    # and the chunks' is reported separately under its own name.
+    assert payload["canary"]["seconds"] == THIS_RUN_CANARY_SECONDS
+    assert payload["canary"]["probe_chunks_canary"]["seconds"] == CHUNK_CANARY_SECONDS
     assert payload["canary"]["threshold_seconds"] == tc.CANARY_MAX_SECONDS == 2.0
     assert payload["canary"]["verdict"] == "at speed"
     assert "PROJECT_PLAN" in payload["canary"]["recipe"]
@@ -887,6 +1144,20 @@ def test_chunk_reuse_is_judged_from_content_not_from_a_stored_verdict(tmp_path: 
 DRIVER = Path(__file__).resolve().parents[1] / "offline" / "campaigns" / "p7_2b_calibration.sh"
 
 
+def _driver_code_text() -> str:
+    """The driver with every whole-line comment removed.
+
+    ⚠️ **Amendment E1.3 item 2, after the coordinator's mutant MD2 SURVIVED.**  The test asserted
+    ``"tee /dev/stderr" in text``; deleting ``tee`` from the CODE line left the assertion satisfied
+    by the COMMENT that explains what ``tee`` is there for.  A text assertion over a file that
+    documents itself will be satisfied by its own documentation -- the same class of defect as
+    Amendment E1's, one commit later and in the other language.  Assertions about what the driver
+    DOES are made over this text; assertions about what it SAYS may use the whole file.
+    """
+    text = DRIVER.read_text(encoding="utf-8")
+    return "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
+
+
 def test_the_driver_exists_and_is_syntactically_valid() -> None:
     import subprocess
 
@@ -934,9 +1205,25 @@ def test_the_driver_gates_on_the_canary_before_consuming_the_token() -> None:
         "canary.log is written before the token is consumed, so a refused start would create it"
     )
     assert '>> "$LOGS/canary.log"' in text, "appended, never truncated, like the stage logs"
+
     # ... and the line must be VISIBLE even when the stage exits non-zero, or a mismatching canary
-    # aborts with the observed values swallowed by the command substitution.
-    assert "tee /dev/stderr" in text
+    # aborts with the observed values swallowed by the command substitution. Asserted on the CODE
+    # line with its closing parenthesis, over comment-free text: the previous form was satisfied by
+    # the comment that documents it (Amendment E1.3 item 2, mutant MD2).
+    code = _driver_code_text()
+    assert "canary | tee -a /dev/stderr)" in code, (
+        "the canary stage's output must be tee'd to stderr, APPENDING: plain `tee /dev/stderr` "
+        "re-opens the target with O_TRUNC and destroys a combined log written with `>> log 2>&1`"
+    )
+    code_token_at = code.index('rm -f "$TOKEN"')
+    assert code.index("canary | tee -a /dev/stderr)") < code_token_at
+
+    # Amendment E1.4 item 1: this run's canary is parked in a manifested canary.json -- and, like
+    # canary.log, only AFTER the token, so a refused start still creates nothing (Amendment B1).
+    assert code_token_at < code.index("record-canary"), (
+        "record-canary runs before the token is consumed, so a refused start would create "
+        "canary.json in the work directory"
+    )
 
     # ... and the handler must not CREATE the work dir just to record a failure in it.
     assert text.count('if [ -d "$WORK" ]; then') == 2, (

@@ -109,13 +109,19 @@ done
 # PROJECT_PLAN §7's rule; recipe in BRIEF_36 §3.3. A guest that reports a low load can still be
 # running on a throttled host, so the rate basis is measured in THIS session or not written down.
 echo "=== canary (PROJECT_PLAN section 7; recipe BRIEF_36 section 3.3)"
-# `| tee /dev/stderr` so the OBSERVED values reach the pane even when the stage exits non-zero.
+# `| tee -a /dev/stderr` so the OBSERVED values reach the pane even when the stage exits non-zero.
 # Without it the command substitution swallows them and `set -euo pipefail` aborts here with
 # nothing visible -- which is the same "the values exist on no disk and no screen" defect
 # Amendment E1.2 was written about. Verified by experiment: with tee, a failing canary prints its
 # line, does NOT reach the token, and exits 1; `pipefail` is what makes the pipeline's failure
 # propagate.
-CANARY_LINE=$(PYTHONPATH=$WORK_TREE "$PY" -P -m offline.transfer_calibration "${COMMON[@]}" canary | tee /dev/stderr)
+# ⚠️ THE `-a` IS LOAD-BEARING (Amendment E1.3 item 3). Plain `tee /dev/stderr` re-opens stderr with
+# O_TRUNC, so when an operator runs this driver with `>> log 2>&1` -- stdout and stderr in one
+# FILE, not a pty -- the open resets the file offset and destroys everything already written.
+# Falsified: a log holding two prior lines ended as 3 bytes. It happened here: run 3's capture
+# (output/p7_2b_runs/tmp_capture_p72b_run3.log) is cut through the canary line. On a pty both
+# forms are harmless, which is why the defect survived three runs.
+CANARY_LINE=$(PYTHONPATH=$WORK_TREE "$PY" -P -m offline.transfer_calibration "${COMMON[@]}" canary | tee -a /dev/stderr)
 echo "$CANARY_LINE"
 CANARY=$(echo "$CANARY_LINE" | awk '{print $2}')
 if awk -v c="$CANARY" -v m="$CANARY_MAX_SECONDS" 'BEGIN { exit !(c > m) }'; then
@@ -181,6 +187,14 @@ rm -f "$WORK/FAILED" "$WORK/COMPLETE"
 # Amendment B1's "a refused start creates nothing" still holds.
 echo "=== canary  run at $(date -Is)" >> "$LOGS/canary.log"
 echo "$CANARY_LINE" >> "$LOGS/canary.log"
+
+# Amendment E1.4: and into a MACHINE-READABLE record the report reads back, because a log is only
+# ever read by a human. Without it `report` built the artifact's canary block from the probe
+# CHUNKS -- which a re-roll reuses unchanged -- so run 3's artifact published run 1's 0.89 s as its
+# own, beside `checked_against`. `report` refuses a work directory without this file and re-runs
+# check_canary on its facts. Written here, after the token, for the same reason canary.log is.
+PYTHONPATH=$WORK_TREE "$PY" -P -m offline.transfer_calibration \
+  "${COMMON[@]}" record-canary --line "$CANARY_LINE" || fail "record-canary"
 
 START=$(date +%s)
 
