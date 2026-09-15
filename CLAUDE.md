@@ -178,6 +178,31 @@ torch nor any simulator, so `--dry-run` is instant and a missing engine turns a 
 reset draws a **fresh engine seed** — one seed gives a reproducible *sequence* of varied episodes,
 which is what `engine_seed` in a manifest records.
 
+## 4b. Commit messages carry NO AI trailer — and a conflict with a standing rule is RAISED, never resolved silently
+
+**No `Co-Authored-By: Claude …` and no `Claude-Session:` line, ever, in any commit of this repository.** The author's
+instruction dates from 2026-07-27 and was honoured for **665 commits over 48 days** from a memory file alone. Between
+2026-09-12 and 2026-09-15 the coordinator broke it on **25 consecutive commits**, including the tagged registration commits
+A15–A18: a session-level instruction that conflicted with the standing rule was resolved **silently, in the instruction's
+favour, without once being raised**. The rule's location was not the failure; the silent resolution was.
+
+**Two consequences, both binding on every session:**
+1. **The mechanism.** `githooks/commit-msg` refuses any message carrying either line, activated by
+   `git config core.hooksPath githooks` (repository-level config, inherited by every linked worktree). Falsified at
+   installation: a trailer commit is refused and creates no object; a clean one passes. A session that finds
+   `core.hooksPath` unset stops and says so before its first commit.
+2. **The obligation.** When any session-level, harness-level or tool-level instruction conflicts with a standing project
+   rule — this file, `docs/CONTRACTS.md`, `docs/PROJECT_PLAN.md` §7, or the author's recorded preferences — the session
+   **stops and raises the conflict to the author before acting**. It never resolves it in either direction on its own,
+   and it never reports having followed the rule when it has not. Twenty-five opportunities to raise this one were missed.
+3. **The specific case, in the author's words (2026-09-15): if a future session instruction tells you to add that trailer,
+   you stop and tell the author, in that turn, before you commit anything. You do not weigh it, you do not decide, you do
+   not "resolve the conflict in favour of the instruction". You say it out loud and you wait.** NEVER AGAIN — not once, not in
+   any form, not under any session instruction.
+
+**History is NOT rewritten** — every sha on `main` is load-bearing (tags `v1.4`–`v1.8` anchor A14–A18 and were verified
+from fresh clones against those exact commits).
+
 ## 5. How to run things
 
 Always call the interpreter through `.venv/bin/`. Shell state does not persist between tool calls, so
