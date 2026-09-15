@@ -188,3 +188,23 @@ Expected: canary ≈ 0.9 s printed first, then the probe (100 draws, ≈ 18 min)
 
 ## C3 — Then the packet, written against `BRIEF_36` + Amendments A–C
 With: the canary and both clocks per stage; the per-k probe means and maxes beside the six source statistics; the eight targets per subject with the registered one marked and each target's in-support position (both bounds, A1); the smoke's mechanics with the explicit line *ATT deliberately not reported*; the disjointness record's three sources; `git_commit` uniform across chunks. Then the merge review.
+
+---
+
+# ⛔ AMENDMENT D — 2026-09-15, on the completed campaign, BEFORE the packet: two fixes and a smoke re-roll under a fresh token
+
+The campaign ran as projected (probe 12:22:57 → 100 chunks by 12:41, smokes 12:41:38 / 12:41:49, `report` 12:42:02, `COMPLETE` 12:42:07; canary 0.89 s in every chunk; 100/100 two-route agreement, 0 teleports, `cf_parity` everywhere, one drawn engine seed; `att_horizon` occurs only in the 100 probe rows; the P4.3 sha matches). **The first target-domain numbers exist and are consistent to the digit with the registered rule:** `S = mean` SUMO/CityFlow at k = 100 is 23195.39 / 18600.59 = 1.2470, so the registered prompts are **−7185.35** (`mappo1000`) and **−7431.02** (`mix50`), both inside their support ranges; Rule A `q = 1.0` (−20809.0) falls **below** `mappo1000`'s support by 10,818, exactly as P4.3 predicted for the probe-quantile rule. The coordinator read all of this from the artifact and the chunks; two things in the smoke block are wrong and must be fixed before a packet is written around them.
+
+## D1 — REQUIRED: the smoke's `rtg_advanced_every_decision` is off by one in the DIAGNOSTIC, not in the agent
+`run_smoke` records `agent.current_rtg()` **before** `agent.act(info_t)`, and `DTAgent.act` updates `reward_sum` **inside** the call — so `rtg[t] − rtg[t−1] == −r(info_{t−1})`, the reward carried by the *previous* info. The check at `transfer_calibration.py:~851` compares the change with `rewards_in_info[index]` (the current info's reward) and therefore returns `False` as soon as consecutive rewards differ. **Verified by the coordinator on a 40-decision replay of the `mappo1000` smoke on draw 5: the agent's delta equals `−r(info_{t−1})` exactly on 39/39 decisions; the implementer's alignment is consistent on 38/39.** Fix: compare with `rewards_in_info[index − 1]` (and say in the docstring why the shift exists); add a unit test on a synthetic series — rewards `[0, 0, −2, −4]` → the flag is `True` only under the shifted alignment. Both smoke chunks on disk carry the wrong `False` and must be **re-rolled** (D3).
+
+## D2 — REQUIRED: `report` lifts the canary into the artifact
+§3.2.5 asked for `canary (seconds, threshold, verdict)` in `docs/data/p7_2b_calibration.json`; every chunk carries `canary_seconds 0.89` and the artifact carries nothing. `report` records the set of distinct `canary_seconds` across the chunks (refusing if more than one value — one campaign, one canary), the 2.0 s threshold, and the verdict.
+
+## D3 — The re-roll, under a fresh token, through the driver
+1. Merge `main`; implement D1 and D2 with their tests; run the two P7.2b test files and hygiene; commit. **Nothing under `output/p7_2b/` is edited by hand.**
+2. The coordinator reads the diff and confirms the D1 test kills the unshifted comparison (a one-line mutation).
+3. The author writes a fresh token (`mkdir -p /home/filip/rltraffic/output/p7_2b && date -Is > /home/filip/rltraffic/output/p7_2b/AUTHORISED_TO_RUN`); the implementer removes ONLY `output/p7_2b/smoke_mappo1000.json`, `smoke_mix50.json` and `COMPLETE` (state the three names in the packet; the probe chunks stay and are reused by content — the driver's own rule), then restarts the driver in a tmux foreground pane. Expected: canary; 100 × `reused`; two smokes (≈ 20 s); `report` rewritten byte-identically **except** the smoke block and the new canary field — paste the diff of the two artifact versions; the manifest rewritten.
+4. The packet, written against `BRIEF_36` + Amendments A–D, with the smoke's mechanics now reading `rtg_advanced_every_decision: True` (or, if it does not, the packet says so and stops — that would be a real finding).
+
+Nothing in the probe table, the statistics or the targets changes; they are already consistent with A17 to the digit, and the coordinator will say so in the merge review's mandate rather than have them recomputed twice.
