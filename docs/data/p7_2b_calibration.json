@@ -1,0 +1,2150 @@
+{
+  "canary": {
+    "checked_against": {
+      "att_horizon": 247.75089149261333,
+      "comparison": "== (draw 0 is the nominal control; every measurement on record agrees)",
+      "decisions": 360,
+      "local_return": -32648.0,
+      "two_routes_agree": true
+    },
+    "git_commit": "ded56a0e46717f4ee0aee6d1912cb97a80c4c797",
+    "git_dirty": false,
+    "observed": {
+      "att_horizon": 247.75089149261333,
+      "decisions": 360,
+      "local_return": -32648.0,
+      "two_routes_agree": true
+    },
+    "probe_chunks_canary": {
+      "correctness_half": "not recorded in these chunks",
+      "git_commit": "f31973ebb770597152807e536dcf3f83cd9cb47e",
+      "seconds": 0.89,
+      "what_this_is": "the canary_seconds field the probe chunks carry, identical across all of them. A re-roll reuses chunks by content and leaves them untouched, so this is the rate basis of the probe TABLE and not necessarily of the run that wrote this file. The chunks record a duration and no engine facts, which is what correctness_half says."
+    },
+    "recipe": "PROJECT_PLAN section 7's rule; run_probe on CityFlow draw 0 through the committed settings (BRIEF_36 section 3.3). A guest that reports a low load can still be running on a throttled host, so the rate basis is measured in the same session or not written down.",
+    "seconds": 0.68,
+    "source": "output/p7_2b/canary.json, written by the driver from the canary line right after the token; the same line is appended to the manifested logs/canary.log, and report re-ran check_canary on these facts before writing this file",
+    "threshold_seconds": 2.0,
+    "verdict": "at speed"
+  },
+  "disjointness": {
+    "disjoint": true,
+    "n_probe_draws": 100,
+    "probe_draws": [
+      201,
+      300
+    ],
+    "sources": [
+      {
+        "n": 200,
+        "name": "mappo1000:provenance.training_draw_ids",
+        "overlap_with_probe": 0,
+        "path": "/home/filip/rltraffic/output/p4_dt/dt_seed101.pt"
+      },
+      {
+        "n": 200,
+        "name": "mix50:provenance.training_draw_ids",
+        "overlap_with_probe": 0,
+        "path": "/home/filip/rltraffic/output/p4_7/checkpoints/mix50_dt_seed101.pt"
+      },
+      {
+        "n": 152,
+        "name": "p4_7_declaration:tiers.mix50.training_draws",
+        "overlap_with_probe": 0,
+        "path": "docs/data/p4_7_declaration.json"
+      },
+      {
+        "n": 100,
+        "name": "held_out_pool",
+        "overlap_with_probe": 0,
+        "path": "PREREGISTRATION \u00a75"
+      }
+    ],
+    "the_trap": "both checkpoints' provenance.training_draw_ids are 1..200; the mix50 field records the candidate pool, not the 152 draws of tiers.mix50.training_draws, so the assertion runs against the union of all three sources",
+    "union_size": 300
+  },
+  "format_version": "p7.2b-calibration/1.0",
+  "git_commit": "ded56a0e46717f4ee0aee6d1912cb97a80c4c797",
+  "git_dirty": false,
+  "probe": [
+    {
+      "att_horizon": 320.57285546415983,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 201,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 208.0,
+      "local_return": -23938.0,
+      "local_return_from_lanes": -23938.0,
+      "n_teleports": 0,
+      "seconds": 11.469076005043462,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 316.51421800947867,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 202,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 202.0,
+      "local_return": -22917.0,
+      "local_return_from_lanes": -22917.0,
+      "n_teleports": 0,
+      "seconds": 11.363805565983057,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 328.6011834319527,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 203,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 233.0,
+      "local_return": -23124.0,
+      "local_return_from_lanes": -23124.0,
+      "n_teleports": 0,
+      "seconds": 11.202936751069501,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 317.70413511939427,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 204,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 225.0,
+      "local_return": -23214.0,
+      "local_return_from_lanes": -23214.0,
+      "n_teleports": 0,
+      "seconds": 11.21380663686432,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 326.5320284697509,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 205,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 237.0,
+      "local_return": -23739.0,
+      "local_return_from_lanes": -23739.0,
+      "n_teleports": 0,
+      "seconds": 11.482051191851497,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 308.21794134560093,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 206,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 224.0,
+      "local_return": -23313.0,
+      "local_return_from_lanes": -23313.0,
+      "n_teleports": 0,
+      "seconds": 11.108358243945986,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 313.2807737397421,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 207,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 219.0,
+      "local_return": -22896.0,
+      "local_return_from_lanes": -22896.0,
+      "n_teleports": 0,
+      "seconds": 11.02177215507254,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 309.9667812142039,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 208,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 237.0,
+      "local_return": -22937.0,
+      "local_return_from_lanes": -22937.0,
+      "n_teleports": 0,
+      "seconds": 11.179770790040493,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 307.272780034823,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 209,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 233.0,
+      "local_return": -22163.0,
+      "local_return_from_lanes": -22163.0,
+      "n_teleports": 0,
+      "seconds": 10.834794076858088,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 320.9481525625745,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 210,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 233.0,
+      "local_return": -22655.0,
+      "local_return_from_lanes": -22655.0,
+      "n_teleports": 0,
+      "seconds": 10.873125375946984,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 348.6771929824561,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 211,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 245.0,
+      "local_return": -25257.0,
+      "local_return_from_lanes": -25257.0,
+      "n_teleports": 0,
+      "seconds": 11.702528254827484,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 315.0877192982456,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 212,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 215.0,
+      "local_return": -23047.0,
+      "local_return_from_lanes": -23047.0,
+      "n_teleports": 0,
+      "seconds": 11.53625341807492,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 311.4600583090379,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 213,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 227.0,
+      "local_return": -22685.0,
+      "local_return_from_lanes": -22685.0,
+      "n_teleports": 0,
+      "seconds": 11.043483837973326,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 320.5026117237377,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 214,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 231.0,
+      "local_return": -23888.0,
+      "local_return_from_lanes": -23888.0,
+      "n_teleports": 0,
+      "seconds": 11.312845240114257,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 307.5020673360898,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 215,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 226.0,
+      "local_return": -21659.0,
+      "local_return_from_lanes": -21659.0,
+      "n_teleports": 0,
+      "seconds": 10.600638632895425,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 308.22910578609003,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 216,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 231.0,
+      "local_return": -21848.0,
+      "local_return_from_lanes": -21848.0,
+      "n_teleports": 0,
+      "seconds": 10.844198535894975,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 328.76248548199766,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 217,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 246.0,
+      "local_return": -25017.0,
+      "local_return_from_lanes": -25017.0,
+      "n_teleports": 0,
+      "seconds": 11.29463850101456,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 290.735860058309,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 218,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 197.0,
+      "local_return": -22267.0,
+      "local_return_from_lanes": -22267.0,
+      "n_teleports": 0,
+      "seconds": 10.736133688827977,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 307.7217741935484,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 219,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 214.0,
+      "local_return": -23631.0,
+      "local_return_from_lanes": -23631.0,
+      "n_teleports": 0,
+      "seconds": 11.04801111901179,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 307.5188624492165,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 220,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 241.0,
+      "local_return": -22438.0,
+      "local_return_from_lanes": -22438.0,
+      "n_teleports": 0,
+      "seconds": 10.697740957839414,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 301.64431486880466,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 221,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 211.0,
+      "local_return": -22625.0,
+      "local_return_from_lanes": -22625.0,
+      "n_teleports": 0,
+      "seconds": 10.87021931190975,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 283.3546140452699,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 222,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 213.0,
+      "local_return": -21294.0,
+      "local_return_from_lanes": -21294.0,
+      "n_teleports": 0,
+      "seconds": 10.526341151911765,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 299.68957617411223,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 223,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 232.0,
+      "local_return": -22753.0,
+      "local_return_from_lanes": -22753.0,
+      "n_teleports": 0,
+      "seconds": 10.964877503924072,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 288.4809607498535,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 224,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 194.0,
+      "local_return": -20984.0,
+      "local_return_from_lanes": -20984.0,
+      "n_teleports": 0,
+      "seconds": 10.238495185039937,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 327.3395457192778,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 225,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 245.0,
+      "local_return": -23431.0,
+      "local_return_from_lanes": -23431.0,
+      "n_teleports": 0,
+      "seconds": 11.267156706890091,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 331.86574074074076,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 226,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 248.0,
+      "local_return": -24439.0,
+      "local_return_from_lanes": -24439.0,
+      "n_teleports": 0,
+      "seconds": 11.799568021902815,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 321.6514186450492,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 227,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 239.0,
+      "local_return": -23569.0,
+      "local_return_from_lanes": -23569.0,
+      "n_teleports": 0,
+      "seconds": 11.253254521870986,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 288.163802978236,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 228,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 207.0,
+      "local_return": -22140.0,
+      "local_return_from_lanes": -22140.0,
+      "n_teleports": 0,
+      "seconds": 10.494423959869891,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 311.9488372093023,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 229,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 230.0,
+      "local_return": -23124.0,
+      "local_return_from_lanes": -23124.0,
+      "n_teleports": 0,
+      "seconds": 10.860214788932353,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 305.0609613130129,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 230,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 211.0,
+      "local_return": -23055.0,
+      "local_return_from_lanes": -23055.0,
+      "n_teleports": 0,
+      "seconds": 10.68878774298355,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 315.34247374562426,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 231,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 225.0,
+      "local_return": -23947.0,
+      "local_return_from_lanes": -23947.0,
+      "n_teleports": 0,
+      "seconds": 10.925585552118719,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 325.25567850902735,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 232,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 250.0,
+      "local_return": -23545.0,
+      "local_return_from_lanes": -23545.0,
+      "n_teleports": 0,
+      "seconds": 11.185048808110878,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 335.34389671361504,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 233,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 242.0,
+      "local_return": -23629.0,
+      "local_return_from_lanes": -23629.0,
+      "n_teleports": 0,
+      "seconds": 11.374965511029586,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 333.30053034767235,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 234,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 251.0,
+      "local_return": -24302.0,
+      "local_return_from_lanes": -24302.0,
+      "n_teleports": 0,
+      "seconds": 11.567057542968541,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 323.87766878245816,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 235,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 242.0,
+      "local_return": -24077.0,
+      "local_return_from_lanes": -24077.0,
+      "n_teleports": 0,
+      "seconds": 11.498521181987599,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 301.4840948525159,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 236,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 217.0,
+      "local_return": -22434.0,
+      "local_return_from_lanes": -22434.0,
+      "n_teleports": 0,
+      "seconds": 10.739520927891135,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 331.9011117612639,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 237,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 241.0,
+      "local_return": -24233.0,
+      "local_return_from_lanes": -24233.0,
+      "n_teleports": 0,
+      "seconds": 11.47085012984462,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 349.07071887784923,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 238,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 247.0,
+      "local_return": -24527.0,
+      "local_return_from_lanes": -24527.0,
+      "n_teleports": 0,
+      "seconds": 11.974094382952899,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 292.9988365328679,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 239,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 210.0,
+      "local_return": -22110.0,
+      "local_return_from_lanes": -22110.0,
+      "n_teleports": 0,
+      "seconds": 10.613292627967894,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 341.0785463071512,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 240,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 238.0,
+      "local_return": -24793.0,
+      "local_return_from_lanes": -24793.0,
+      "n_teleports": 0,
+      "seconds": 11.513618906028569,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 320.2855457227139,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 241,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 226.0,
+      "local_return": -22823.0,
+      "local_return_from_lanes": -22823.0,
+      "n_teleports": 0,
+      "seconds": 11.12879533902742,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 313.9786620530565,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 242,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 235.0,
+      "local_return": -22879.0,
+      "local_return_from_lanes": -22879.0,
+      "n_teleports": 0,
+      "seconds": 11.213143319124356,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 305.7293233082707,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 243,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 223.0,
+      "local_return": -22596.0,
+      "local_return_from_lanes": -22596.0,
+      "n_teleports": 0,
+      "seconds": 10.924847767921165,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 301.33993015133876,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 244,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 207.0,
+      "local_return": -22794.0,
+      "local_return_from_lanes": -22794.0,
+      "n_teleports": 0,
+      "seconds": 10.597631335025653,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 325.0035149384886,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 245,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 236.0,
+      "local_return": -23027.0,
+      "local_return_from_lanes": -23027.0,
+      "n_teleports": 0,
+      "seconds": 11.219771474134177,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 324.7634218289086,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 246,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 246.0,
+      "local_return": -23959.0,
+      "local_return_from_lanes": -23959.0,
+      "n_teleports": 0,
+      "seconds": 11.070158615941182,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 326.28588304784404,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 247,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 231.0,
+      "local_return": -23698.0,
+      "local_return_from_lanes": -23698.0,
+      "n_teleports": 0,
+      "seconds": 11.137270143954083,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 325.02552204176334,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 248,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 246.0,
+      "local_return": -23739.0,
+      "local_return_from_lanes": -23739.0,
+      "n_teleports": 0,
+      "seconds": 11.208180821035057,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 327.6625945317045,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 249,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 250.0,
+      "local_return": -24298.0,
+      "local_return_from_lanes": -24298.0,
+      "n_teleports": 0,
+      "seconds": 11.615933869965374,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 284.6736596736597,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 250,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 200.0,
+      "local_return": -21303.0,
+      "local_return_from_lanes": -21303.0,
+      "n_teleports": 0,
+      "seconds": 10.596580961951986,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 314.6914085330216,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 251,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 220.0,
+      "local_return": -23179.0,
+      "local_return_from_lanes": -23179.0,
+      "n_teleports": 0,
+      "seconds": 11.245850631967187,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 292.59942028985506,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 252,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 216.0,
+      "local_return": -22155.0,
+      "local_return_from_lanes": -22155.0,
+      "n_teleports": 0,
+      "seconds": 10.579139411915094,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 292.38933486238534,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 253,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 211.0,
+      "local_return": -21934.0,
+      "local_return_from_lanes": -21934.0,
+      "n_teleports": 0,
+      "seconds": 11.01382026495412,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 314.61876832844575,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 254,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 235.0,
+      "local_return": -22488.0,
+      "local_return_from_lanes": -22488.0,
+      "n_teleports": 0,
+      "seconds": 11.171007920056581,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 295.32711370262393,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 255,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 200.0,
+      "local_return": -22024.0,
+      "local_return_from_lanes": -22024.0,
+      "n_teleports": 0,
+      "seconds": 10.930195808177814,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 310.2860411899313,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 256,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 229.0,
+      "local_return": -23172.0,
+      "local_return_from_lanes": -23172.0,
+      "n_teleports": 0,
+      "seconds": 11.112653855001554,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 312.4406286379511,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 257,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 214.0,
+      "local_return": -22582.0,
+      "local_return_from_lanes": -22582.0,
+      "n_teleports": 0,
+      "seconds": 11.191746234195307,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 304.63252314814815,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 258,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 229.0,
+      "local_return": -22241.0,
+      "local_return_from_lanes": -22241.0,
+      "n_teleports": 0,
+      "seconds": 10.847892215009779,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 310.64953271028037,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 259,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 228.0,
+      "local_return": -22511.0,
+      "local_return_from_lanes": -22511.0,
+      "n_teleports": 0,
+      "seconds": 11.261420309077948,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 323.6135831381733,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 260,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 227.0,
+      "local_return": -23416.0,
+      "local_return_from_lanes": -23416.0,
+      "n_teleports": 0,
+      "seconds": 11.132008414017037,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 330.5188679245283,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 261,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 230.0,
+      "local_return": -23909.0,
+      "local_return_from_lanes": -23909.0,
+      "n_teleports": 0,
+      "seconds": 11.428662386955693,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 286.3205128205128,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 262,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 195.0,
+      "local_return": -20809.0,
+      "local_return_from_lanes": -20809.0,
+      "n_teleports": 0,
+      "seconds": 10.339631121139973,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 316.9982342554444,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 263,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 215.0,
+      "local_return": -23381.0,
+      "local_return_from_lanes": -23381.0,
+      "n_teleports": 0,
+      "seconds": 11.183498532976955,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 325.7811955890888,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 264,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 239.0,
+      "local_return": -24061.0,
+      "local_return_from_lanes": -24061.0,
+      "n_teleports": 0,
+      "seconds": 11.222684966167435,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 301.3052995391705,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 265,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 228.0,
+      "local_return": -23123.0,
+      "local_return_from_lanes": -23123.0,
+      "n_teleports": 0,
+      "seconds": 10.737060029059649,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 309.93531468531467,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 266,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 215.0,
+      "local_return": -23184.0,
+      "local_return_from_lanes": -23184.0,
+      "n_teleports": 0,
+      "seconds": 11.01782845100388,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 321.4634847613571,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 267,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 243.0,
+      "local_return": -24270.0,
+      "local_return_from_lanes": -24270.0,
+      "n_teleports": 0,
+      "seconds": 11.444391092984006,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 310.1754079254079,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 268,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 223.0,
+      "local_return": -22964.0,
+      "local_return_from_lanes": -22964.0,
+      "n_teleports": 0,
+      "seconds": 10.958633946022019,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 307.92539863325743,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 269,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 223.0,
+      "local_return": -23764.0,
+      "local_return_from_lanes": -23764.0,
+      "n_teleports": 0,
+      "seconds": 10.845546428114176,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 301.506936416185,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 270,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 211.0,
+      "local_return": -22300.0,
+      "local_return_from_lanes": -22300.0,
+      "n_teleports": 0,
+      "seconds": 11.186691867886111,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 297.46958062610753,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 271,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 194.0,
+      "local_return": -22338.0,
+      "local_return_from_lanes": -22338.0,
+      "n_teleports": 0,
+      "seconds": 10.623124615987763,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 309.7588652482269,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 272,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 209.0,
+      "local_return": -23627.0,
+      "local_return_from_lanes": -23627.0,
+      "n_teleports": 0,
+      "seconds": 10.897932440973818,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 304.5014526438117,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 273,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 224.0,
+      "local_return": -22217.0,
+      "local_return_from_lanes": -22217.0,
+      "n_teleports": 0,
+      "seconds": 11.030470395926386,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 354.2979228486647,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 274,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 251.0,
+      "local_return": -24807.0,
+      "local_return_from_lanes": -24807.0,
+      "n_teleports": 0,
+      "seconds": 11.61225839308463,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 324.9857482185273,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 275,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 208.0,
+      "local_return": -23195.0,
+      "local_return_from_lanes": -23195.0,
+      "n_teleports": 0,
+      "seconds": 11.368904314935207,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 316.2524723676556,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 276,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 221.0,
+      "local_return": -23047.0,
+      "local_return_from_lanes": -23047.0,
+      "n_teleports": 0,
+      "seconds": 11.499590535182506,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 333.4979733642154,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 277,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 249.0,
+      "local_return": -24494.0,
+      "local_return_from_lanes": -24494.0,
+      "n_teleports": 0,
+      "seconds": 11.708424317883328,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 311.42781998831094,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 278,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 220.0,
+      "local_return": -22913.0,
+      "local_return_from_lanes": -22913.0,
+      "n_teleports": 0,
+      "seconds": 12.29722186201252,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 318.0945790080738,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 279,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 221.0,
+      "local_return": -24546.0,
+      "local_return_from_lanes": -24546.0,
+      "n_teleports": 0,
+      "seconds": 12.762777823023498,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 318.0426267281106,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 280,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 250.0,
+      "local_return": -23363.0,
+      "local_return_from_lanes": -23363.0,
+      "n_teleports": 0,
+      "seconds": 12.357123838970438,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 325.9188712522046,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 281,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 240.0,
+      "local_return": -23227.0,
+      "local_return_from_lanes": -23227.0,
+      "n_teleports": 0,
+      "seconds": 11.920534854056314,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 307.7887405687754,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 282,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 219.0,
+      "local_return": -22952.0,
+      "local_return_from_lanes": -22952.0,
+      "n_teleports": 0,
+      "seconds": 11.133180652977899,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 327.22706155632983,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 283,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 246.0,
+      "local_return": -23895.0,
+      "local_return_from_lanes": -23895.0,
+      "n_teleports": 0,
+      "seconds": 11.811745048034936,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 321.687898089172,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 284,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 249.0,
+      "local_return": -23747.0,
+      "local_return_from_lanes": -23747.0,
+      "n_teleports": 0,
+      "seconds": 11.85024898708798,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 313.68662790697675,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 285,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 232.0,
+      "local_return": -23134.0,
+      "local_return_from_lanes": -23134.0,
+      "n_teleports": 0,
+      "seconds": 11.444787892978638,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 323.553415061296,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 286,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 240.0,
+      "local_return": -23638.0,
+      "local_return_from_lanes": -23638.0,
+      "n_teleports": 0,
+      "seconds": 11.616334123071283,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 319.91817650496785,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 287,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 238.0,
+      "local_return": -23007.0,
+      "local_return_from_lanes": -23007.0,
+      "n_teleports": 0,
+      "seconds": 11.481420356081799,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 336.1833234772324,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 288,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 246.0,
+      "local_return": -24029.0,
+      "local_return_from_lanes": -24029.0,
+      "n_teleports": 0,
+      "seconds": 11.62394630885683,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 326.25058548009366,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 289,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 244.0,
+      "local_return": -23403.0,
+      "local_return_from_lanes": -23403.0,
+      "n_teleports": 0,
+      "seconds": 11.331104163778946,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 317.77841892671665,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 290,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 244.0,
+      "local_return": -24017.0,
+      "local_return_from_lanes": -24017.0,
+      "n_teleports": 0,
+      "seconds": 11.158150375820696,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 294.8130733944954,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 291,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 206.0,
+      "local_return": -22365.0,
+      "local_return_from_lanes": -22365.0,
+      "n_teleports": 0,
+      "seconds": 10.9113773109857,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 332.0005896226415,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 292,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 235.0,
+      "local_return": -23387.0,
+      "local_return_from_lanes": -23387.0,
+      "n_teleports": 0,
+      "seconds": 11.263490173965693,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 299.9708284714119,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 293,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 210.0,
+      "local_return": -22908.0,
+      "local_return_from_lanes": -22908.0,
+      "n_teleports": 0,
+      "seconds": 10.714490110054612,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 314.63084112149534,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 294,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 206.0,
+      "local_return": -23155.0,
+      "local_return_from_lanes": -23155.0,
+      "n_teleports": 0,
+      "seconds": 11.106431409018114,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 320.3456647398844,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 295,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 234.0,
+      "local_return": -24021.0,
+      "local_return_from_lanes": -24021.0,
+      "n_teleports": 0,
+      "seconds": 11.183927576057613,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 322.16560877091746,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 296,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 246.0,
+      "local_return": -24123.0,
+      "local_return_from_lanes": -24123.0,
+      "n_teleports": 0,
+      "seconds": 11.330580850830302,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 316.2591093117409,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 297,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 212.0,
+      "local_return": -23883.0,
+      "local_return_from_lanes": -23883.0,
+      "n_teleports": 0,
+      "seconds": 11.262120309984311,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 319.7671152720889,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 298,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 239.0,
+      "local_return": -22430.0,
+      "local_return_from_lanes": -22430.0,
+      "n_teleports": 0,
+      "seconds": 11.38708509108983,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 321.39652173913043,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 299,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 222.0,
+      "local_return": -24456.0,
+      "local_return_from_lanes": -24456.0,
+      "n_teleports": 0,
+      "seconds": 11.14299172302708,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "att_horizon": 316.0562390158172,
+      "canary_seconds": 0.89,
+      "decisions": 360,
+      "draw_id": 300,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "horizon_vehicle_count": 216.0,
+      "local_return": -22988.0,
+      "local_return_from_lanes": -22988.0,
+      "n_teleports": 0,
+      "seconds": 10.994379251031205,
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    }
+  ],
+  "registered_in": "PREREGISTRATION A17",
+  "rule_a_secondary_values": {
+    "mappo1000": {
+      "q0.5": -23163.5,
+      "q0.75": -22617.75,
+      "q0.9": -22153.5
+    },
+    "mix50": {
+      "q0.5": -23163.5,
+      "q0.75": -22617.75,
+      "q0.9": -22153.5
+    }
+  },
+  "scenario_key": "cityflow1x1",
+  "smoke": [
+    {
+      "actions_in_range": true,
+      "checkpoint": "/home/filip/rltraffic/output/p4_dt/dt_seed101.pt",
+      "decisions": 360,
+      "draw_id": 5,
+      "n_decisions_in_support": 230,
+      "rtg_advanced_every_decision": true,
+      "rtg_first": -7185.354721543778,
+      "seconds": 9.054240875178948,
+      "subject": "mappo1000",
+      "target_rtg": -7185.354721543778,
+      "time_to_teleport_option": "-1",
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "actions_in_range": true,
+      "checkpoint": "/home/filip/rltraffic/output/p4_7/checkpoints/mix50_dt_seed101.pt",
+      "decisions": 360,
+      "draw_id": 5,
+      "n_decisions_in_support": 269,
+      "rtg_advanced_every_decision": true,
+      "rtg_first": -7431.0185327454665,
+      "seconds": 9.302055191015825,
+      "subject": "mix50",
+      "target_rtg": -7431.0185327454665,
+      "time_to_teleport_option": "-1",
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    }
+  ],
+  "statistics": {
+    "k100": {
+      "draw_ids": [
+        201,
+        300
+      ],
+      "k": 100,
+      "max": {
+        "cityflow": -12532.0,
+        "sumo": -20809.0
+      },
+      "mean": {
+        "cityflow": -18600.59,
+        "sumo": -23195.39
+      }
+    },
+    "k20": {
+      "draw_ids": [
+        201,
+        220
+      ],
+      "k": 20,
+      "max": {
+        "cityflow": -12532.0,
+        "sumo": -21659.0
+      },
+      "mean": {
+        "cityflow": -18186.65,
+        "sumo": -23131.65
+      }
+    },
+    "k5": {
+      "draw_ids": [
+        201,
+        205
+      ],
+      "k": 5,
+      "max": {
+        "cityflow": -15495.0,
+        "sumo": -22917.0
+      },
+      "mean": {
+        "cityflow": -18692.4,
+        "sumo": -23386.4
+      }
+    },
+    "read_from": {
+      "never_recomputed": "A17(b): S(R_probe_cityflow) is read from this artifact, not re-run",
+      "path": "docs/data/p4_3_probe.json",
+      "sha256": "dc12f8b7e791bdf1a2097fc372a0e8918f67b40b8bf531f7bbde802f07b12a74"
+    }
+  },
+  "subjects": {
+    "mappo1000": {
+      "best_source_return": -5762.0,
+      "checkpoints": [
+        "/home/filip/rltraffic/output/p4_dt/dt_seed101.pt",
+        "/home/filip/rltraffic/output/p4_dt/dt_seed202.pt",
+        "/home/filip/rltraffic/output/p4_dt/dt_seed303.pt",
+        "/home/filip/rltraffic/output/p4_dt/dt_seed404.pt",
+        "/home/filip/rltraffic/output/p4_dt/dt_seed505.pt"
+      ],
+      "context_length": 20,
+      "n_rows": 72000,
+      "rtg_scale": 9991.0,
+      "state_dim": 25,
+      "support_range_over_the_split": [
+        -9991.0,
+        -6.0
+      ],
+      "the_two_bounds": "support_range_over_the_split is the checkpoint's stats.rtg range, which A17(c) registered and which the diagnostic is computed against; training_set_return_min is -rtg_scale, the bound of the training set the target came from. They coincide for mappo1000 and differ by 71 on a 40,000 scale for mix50. The diagnostic never selects and no claim rests on which bound is used.",
+      "training_set_return_min": -9991.0
+    },
+    "mix50": {
+      "best_source_return": -5959.0,
+      "checkpoints": [
+        "/home/filip/rltraffic/output/p4_7/checkpoints/mix50_dt_seed101.pt",
+        "/home/filip/rltraffic/output/p4_7/checkpoints/mix50_dt_seed202.pt",
+        "/home/filip/rltraffic/output/p4_7/checkpoints/mix50_dt_seed303.pt",
+        "/home/filip/rltraffic/output/p4_7/checkpoints/mix50_dt_seed404.pt",
+        "/home/filip/rltraffic/output/p4_7/checkpoints/mix50_dt_seed505.pt"
+      ],
+      "context_length": 20,
+      "n_rows": 216000,
+      "rtg_scale": 40223.0,
+      "state_dim": 25,
+      "support_range_over_the_split": [
+        -40294.0,
+        -6.0
+      ],
+      "the_two_bounds": "support_range_over_the_split is the checkpoint's stats.rtg range, which A17(c) registered and which the diagnostic is computed against; training_set_return_min is -rtg_scale, the bound of the training set the target came from. They coincide for mappo1000 and differ by 71 on a 40,000 scale for mix50. The diagnostic never selects and no claim rests on which bound is used.",
+      "training_set_return_min": -40223.0
+    }
+  },
+  "targets": {
+    "mappo1000": [
+      {
+        "in_support": {
+          "margin": 0.0,
+          "position": "inside",
+          "range": [
+            -9991.0,
+            -6.0
+          ],
+          "target_rtg": -8521.958954501451
+        },
+        "inputs": {
+          "best_source_return": -5762.0,
+          "probe_source_stat": -15495.0,
+          "probe_target_stat": -22917.0
+        },
+        "k": 5,
+        "role": "ablation",
+        "rule": "rule_b",
+        "statistic": "max",
+        "target_rtg": -8521.958954501451
+      },
+      {
+        "in_support": {
+          "margin": 0.0,
+          "position": "inside",
+          "range": [
+            -9991.0,
+            -6.0
+          ],
+          "target_rtg": -7208.94250069547
+        },
+        "inputs": {
+          "best_source_return": -5762.0,
+          "probe_source_stat": -18692.4,
+          "probe_target_stat": -23386.4
+        },
+        "k": 5,
+        "role": "ablation",
+        "rule": "rule_b",
+        "statistic": "mean",
+        "target_rtg": -7208.94250069547
+      },
+      {
+        "in_support": {
+          "margin": 0.0,
+          "position": "inside",
+          "range": [
+            -9991.0,
+            -6.0
+          ],
+          "target_rtg": -9958.439036067668
+        },
+        "inputs": {
+          "best_source_return": -5762.0,
+          "probe_source_stat": -12532.0,
+          "probe_target_stat": -21659.0
+        },
+        "k": 20,
+        "role": "ablation",
+        "rule": "rule_b",
+        "statistic": "max",
+        "target_rtg": -9958.439036067668
+      },
+      {
+        "in_support": {
+          "margin": 0.0,
+          "position": "inside",
+          "range": [
+            -9991.0,
+            -6.0
+          ],
+          "target_rtg": -7328.703598518693
+        },
+        "inputs": {
+          "best_source_return": -5762.0,
+          "probe_source_stat": -18186.65,
+          "probe_target_stat": -23131.65
+        },
+        "k": 20,
+        "role": "ablation",
+        "rule": "rule_b",
+        "statistic": "mean",
+        "target_rtg": -7328.703598518693
+      },
+      {
+        "in_support": {
+          "margin": 0.0,
+          "position": "inside",
+          "range": [
+            -9991.0,
+            -6.0
+          ],
+          "target_rtg": -9567.623523779126
+        },
+        "inputs": {
+          "best_source_return": -5762.0,
+          "probe_source_stat": -12532.0,
+          "probe_target_stat": -20809.0
+        },
+        "k": 100,
+        "role": "ablation",
+        "rule": "rule_b",
+        "statistic": "max",
+        "target_rtg": -9567.623523779126
+      },
+      {
+        "in_support": {
+          "margin": 0.0,
+          "position": "inside",
+          "range": [
+            -9991.0,
+            -6.0
+          ],
+          "target_rtg": -7185.354721543778
+        },
+        "inputs": {
+          "best_source_return": -5762.0,
+          "probe_source_stat": -18600.59,
+          "probe_target_stat": -23195.39
+        },
+        "k": 100,
+        "role": "registered_prompt",
+        "rule": "rule_b",
+        "statistic": "mean",
+        "target_rtg": -7185.354721543778
+      },
+      {
+        "in_support": {
+          "margin": -10818.0,
+          "position": "below",
+          "range": [
+            -9991.0,
+            -6.0
+          ],
+          "target_rtg": -20809.0
+        },
+        "inputs": {
+          "n": 100,
+          "quantile": 1.0
+        },
+        "k": 100,
+        "role": "ablation",
+        "rule": "rule_a",
+        "statistic": "q1.0",
+        "target_rtg": -20809.0
+      },
+      {
+        "in_support": {
+          "margin": 0.0,
+          "position": "inside",
+          "range": [
+            -9991.0,
+            -6.0
+          ],
+          "target_rtg": -5762.0
+        },
+        "inputs": {
+          "best_source_return": -5762.0
+        },
+        "k": null,
+        "role": "ablation",
+        "rule": "naive",
+        "statistic": "none",
+        "target_rtg": -5762.0
+      }
+    ],
+    "mix50": [
+      {
+        "in_support": {
+          "margin": 0.0,
+          "position": "inside",
+          "range": [
+            -40294.0,
+            -6.0
+          ],
+          "target_rtg": -8813.320619554695
+        },
+        "inputs": {
+          "best_source_return": -5959.0,
+          "probe_source_stat": -15495.0,
+          "probe_target_stat": -22917.0
+        },
+        "k": 5,
+        "role": "ablation",
+        "rule": "rule_b",
+        "statistic": "max",
+        "target_rtg": -8813.320619554695
+      },
+      {
+        "in_support": {
+          "margin": 0.0,
+          "position": "inside",
+          "range": [
+            -40294.0,
+            -6.0
+          ],
+          "target_rtg": -7455.412766685926
+        },
+        "inputs": {
+          "best_source_return": -5959.0,
+          "probe_source_stat": -18692.4,
+          "probe_target_stat": -23386.4
+        },
+        "k": 5,
+        "role": "ablation",
+        "rule": "rule_b",
+        "statistic": "mean",
+        "target_rtg": -7455.412766685926
+      },
+      {
+        "in_support": {
+          "margin": 0.0,
+          "position": "inside",
+          "range": [
+            -40294.0,
+            -6.0
+          ],
+          "target_rtg": -10298.913262049155
+        },
+        "inputs": {
+          "best_source_return": -5959.0,
+          "probe_source_stat": -12532.0,
+          "probe_target_stat": -21659.0
+        },
+        "k": 20,
+        "role": "ablation",
+        "rule": "rule_b",
+        "statistic": "max",
+        "target_rtg": -10298.913262049155
+      },
+      {
+        "in_support": {
+          "margin": 0.0,
+          "position": "inside",
+          "range": [
+            -40294.0,
+            -6.0
+          ],
+          "target_rtg": -7579.268438662425
+        },
+        "inputs": {
+          "best_source_return": -5959.0,
+          "probe_source_stat": -18186.65,
+          "probe_target_stat": -23131.65
+        },
+        "k": 20,
+        "role": "ablation",
+        "rule": "rule_b",
+        "statistic": "mean",
+        "target_rtg": -7579.268438662425
+      },
+      {
+        "in_support": {
+          "margin": 0.0,
+          "position": "inside",
+          "range": [
+            -40294.0,
+            -6.0
+          ],
+          "target_rtg": -9894.735955952761
+        },
+        "inputs": {
+          "best_source_return": -5959.0,
+          "probe_source_stat": -12532.0,
+          "probe_target_stat": -20809.0
+        },
+        "k": 100,
+        "role": "ablation",
+        "rule": "rule_b",
+        "statistic": "max",
+        "target_rtg": -9894.735955952761
+      },
+      {
+        "in_support": {
+          "margin": 0.0,
+          "position": "inside",
+          "range": [
+            -40294.0,
+            -6.0
+          ],
+          "target_rtg": -7431.0185327454665
+        },
+        "inputs": {
+          "best_source_return": -5959.0,
+          "probe_source_stat": -18600.59,
+          "probe_target_stat": -23195.39
+        },
+        "k": 100,
+        "role": "registered_prompt",
+        "rule": "rule_b",
+        "statistic": "mean",
+        "target_rtg": -7431.0185327454665
+      },
+      {
+        "in_support": {
+          "margin": 0.0,
+          "position": "inside",
+          "range": [
+            -40294.0,
+            -6.0
+          ],
+          "target_rtg": -20809.0
+        },
+        "inputs": {
+          "n": 100,
+          "quantile": 1.0
+        },
+        "k": 100,
+        "role": "ablation",
+        "rule": "rule_a",
+        "statistic": "q1.0",
+        "target_rtg": -20809.0
+      },
+      {
+        "in_support": {
+          "margin": 0.0,
+          "position": "inside",
+          "range": [
+            -40294.0,
+            -6.0
+          ],
+          "target_rtg": -5959.0
+        },
+        "inputs": {
+          "best_source_return": -5959.0
+        },
+        "k": null,
+        "role": "ablation",
+        "rule": "naive",
+        "statistic": "none",
+        "target_rtg": -5959.0
+      }
+    ]
+  },
+  "what_this_does_not_say": "This task evaluates nothing. No held-out draw was rolled, no rho was computed and no ATT or return of any DT is reported anywhere: the smoke's outcome is fenced. The zero-shot point, the calibrated-vs-naive contrast (exploratory per PREREGISTRATION \u00a72 and A17(d)) and every transfer-curve number are P7.3's."
+}
