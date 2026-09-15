@@ -451,43 +451,68 @@ def test_rule_a_computes_the_quantile_its_label_names(tmp_path: Path) -> None:
     nothing published rests on it today -- but it is printed beside the registered prompt and will
     be read as a comparison point.
 
-    Everything here is recomputed by ``_linear_quantile`` or by ``max``, never by calling
+    ⚠️ **The assertion that matters runs through ``targets_table``, not through ``rule_a_target``.**
+    The first version of this test pinned ``rule_a_target`` directly and read the rest out of the
+    committed artifact -- and F3-M **survived it**, because the mutation is at the CALL SITE, the
+    committed artifact was produced before the mutation, and neither half of the test executed the
+    labelling code at all.  A pin on a function does not pin the argument its caller passes.
+
+    Every expected value is recomputed by ``_linear_quantile`` or by ``max``, never by calling
     ``rule_a_target``, and compared under ``==``.
     """
-    from offline.rtg_calibration import RULE_A_QUANTILE, SECONDARY_QUANTILES, rule_a_target
+    from offline.rtg_calibration import (
+        RULE_A_K,
+        RULE_A_QUANTILE,
+        SECONDARY_QUANTILES,
+        rule_a_target,
+    )
 
-    # -- the definition itself, on the synthetic band --------------------------------------
+    # -- the definition itself ---------------------------------------------------------------
     rows = _write_band(tmp_path)
     values = [value for _, value in rows]
     assert rule_a_target(values, 1.0) == max(values), "q1.0 of a sample is its maximum"
     for q in (*SECONDARY_QUANTILES, RULE_A_QUANTILE):
         assert rule_a_target(values, q) == _linear_quantile(values, q), f"q{q} is not the q{q}"
 
-    # -- and on the REAL band, against the committed artifact's own cells -------------------
+    # -- and the CALL SITE: the label the table prints against the quantile it computed --------
+    statistics = tc.statistics_table(rows)
+    facts = {
+        name: tc.subject_facts(name, output_root=OUTPUT_ROOT) for name in ("mappo1000", "mix50")
+    }
+    targets = tc.targets_table(statistics, rows, facts)
+    banded = [value for _, value in sorted(rows)[:RULE_A_K]]
+    expected_q1 = _linear_quantile(banded, RULE_A_QUANTILE)
+    assert expected_q1 == max(banded)
+    assert expected_q1 != _linear_quantile(banded, 0.9), (
+        "q1.0 and q0.9 coincide on this band, so a mislabelled quantile would be invisible and "
+        "this test would not be pinning what it claims to pin"
+    )
+
+    for subject in facts:
+        rule_a_rows = [row for row in targets[subject] if row["rule"] == "rule_a"]
+        assert len(rule_a_rows) == 1
+        row = rule_a_rows[0]
+        assert (row["statistic"], row["k"]) == (f"q{RULE_A_QUANTILE}", RULE_A_K)
+        assert row["target_rtg"] == expected_q1, (
+            f"{subject}: the row labelled q{RULE_A_QUANTILE} carries {row['target_rtg']!r}, and "
+            f"q{RULE_A_QUANTILE} of the band it was given is {expected_q1!r}"
+        )
+        secondary = targets["rule_a_secondary_values"][subject]
+        assert sorted(secondary) == sorted(f"q{q}" for q in SECONDARY_QUANTILES)
+        for q in SECONDARY_QUANTILES:
+            assert secondary[f"q{q}"] == _linear_quantile(banded, q), f"the q{q} cell is not q{q}"
+
+    # -- anchored to the REAL band's published cells, recomputed the same independent way ------
     artifact = json.loads((REPO_DATA / "p7_2b_calibration.json").read_bytes())
     real = [row["local_return"] for row in artifact["probe"]]
     assert len(real) == 100
-
-    registered = [
-        row
-        for row in artifact["targets"]["mappo1000"]
-        if row["rule"] == "rule_a"
-    ]
-    assert len(registered) == 1
-    published_q1 = registered[0]["target_rtg"]
-    assert registered[0]["statistic"] == f"q{RULE_A_QUANTILE}"
-    assert published_q1 == max(real) == _linear_quantile(real, 1.0) == -20809.0
-
-    secondary = artifact["rule_a_secondary_values"]["mappo1000"]
-    for q in SECONDARY_QUANTILES:
-        assert secondary[f"q{q}"] == _linear_quantile(real, q), f"the published q{q} is not q{q}"
-    assert secondary == {"q0.5": -23163.5, "q0.75": -22617.75, "q0.9": -22153.5}
-
-    # The pairing of LABEL to VALUE is the thing under test, so the two must be distinguishable.
-    assert published_q1 != secondary["q0.9"], (
-        "q1.0 and q0.9 coincide on this band, so a mislabelled quantile would be invisible here "
-        "and this test would not be pinning what it claims to pin"
-    )
+    published = [row for row in artifact["targets"]["mappo1000"] if row["rule"] == "rule_a"]
+    assert len(published) == 1
+    assert published[0]["statistic"] == f"q{RULE_A_QUANTILE}"
+    assert published[0]["target_rtg"] == max(real) == _linear_quantile(real, 1.0) == -20809.0
+    assert artifact["rule_a_secondary_values"]["mappo1000"] == {
+        f"q{q}": _linear_quantile(real, q) for q in SECONDARY_QUANTILES
+    } == {"q0.5": -23163.5, "q0.75": -22617.75, "q0.9": -22153.5}
 
 
 def test_probe_returns_from_chunks_refuses_a_gap_and_a_duplicate(tmp_path: Path) -> None:
