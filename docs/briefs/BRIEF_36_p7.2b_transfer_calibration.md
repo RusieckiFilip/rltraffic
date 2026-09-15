@@ -208,3 +208,26 @@ The campaign ran as projected (probe 12:22:57 → 100 chunks by 12:41, smokes 12
 4. The packet, written against `BRIEF_36` + Amendments A–D, with the smoke's mechanics now reading `rtg_advanced_every_decision: True` (or, if it does not, the packet says so and stops — that would be a real finding).
 
 Nothing in the probe table, the statistics or the targets changes; they are already consistent with A17 to the digit, and the coordinator will say so in the merge review's mandate rather than have them recomputed twice.
+
+---
+
+# ⛔ AMENDMENT E — 2026-09-15, on the re-rolled smoke: the smoke ran the SAMPLING path; fix, pin the call shape, re-roll under a fresh token with a clean tree
+
+The D3.3 re-roll did what it was asked: exactly three files removed, 100 probe chunks reused by content in 31 s, two smokes, `report`, manifest; `rtg_advanced_every_decision` now `True` on both subjects — the implementer's prediction held; the diff against the pre-re-roll copy (`f683e1e9…` → `8b8987d8…`) is confined to the canary block, the smoke block and the git provenance. **The implementer then found the defect this amendment is about and did not write the packet around it:** `run_smoke` calls `agent.act(info)` with the defaults, and `DTAgent.act`'s default is `explore=True` — sampling from the masked softmax through an unseeded `torch.multinomial`. Every other evaluation call site in the repository (`dt_gate`, `method_tier_grid`, `att_rederivation`, `spatial_mixing`, `admission_probe`, `collect` — fifteen sites) uses `explore=False`, the argmax the agent's own docstring calls *the declared evaluation path*. Consequence, measured: `n_decisions_in_support` moved 271 → 231 and 256 → 230 between two runs of the same seed, checkpoint and draw. The mechanics claim (the DT runs on SUMO through A16's door, actions in range, RTG advancing) stands; the count does not, and a P7.3 built on this smoke's shape would have evaluated by sampling.
+
+## E1 — REQUIRED: `agent.act(info, explore=False, update_memory=True)`, pinned by a test
+The smoke's `choose` calls `agent.act(info, explore=False, update_memory=True)`. **Test:** spy on `agent.act` (monkeypatch or a recording wrapper) and assert the kwargs of every call in a smoke; a second assertion that the module contains no bare `agent.act(info)` call (a source-level grep in the test is acceptable here, because the defect was precisely a default left in place). Docstring: one sentence naming the fifteen sites and why the smoke must match them.
+
+## E2 — REQUIRED: the re-roll, with a CLEAN tree so the provenance is honest
+Run 2's artifact records `git_dirty: true` only because run 1's **untracked** artifact sat in `docs/data/` when `report` computed provenance (`git status --porcelain` lists untracked files). The implementer's choice not to commit a known-false artifact was right; the cost is a provenance flag that would be read as *code was modified*. Procedure: **(1)** commit E1 (code + test) so the worktree is clean; **(2)** move the untracked `docs/data/p7_2b_calibration.json` OUT of the tree into the scratchpad (record its sha256 — `8b8987d8…` — in the packet as run 2's copy, beside run 1's `f683e1e9…`); **(3)** the author writes a fresh token; **(4)** remove exactly `smoke_mappo1000.json`, `smoke_mix50.json`, `COMPLETE`; restart the driver in the tmux pane. Expected: canary; 100 × reused; two smokes; `report` writes a fresh artifact whose provenance is the E1 commit with `git_dirty: false`; manifest. **(5)** The packet pastes the three-way diff run 1 → run 2 → run 3: nothing outside the smoke block, the canary block and the git provenance may differ, and the probe table, statistics, targets and disjointness must be byte-identical across all three.
+
+## E3 — What the packet says about the smoke, now that its count is reproducible
+`rtg_advanced_every_decision: True`, `n_decisions_in_support` as a deterministic number under `explore=False` (state it as such), the engine-read type and regime, actions in range, and the line *ATT deliberately not reported*. If run 3's count differs from a fourth run under identical inputs, that is a finding about GPU argmax ties and is reported, not smoothed.
+
+## E4 — Carried to `BRIEF_37`
+Every DT evaluation on SUMO uses `explore=False, update_memory=True` — the same shape as P4.3's `evaluate_point` — and the brief will say so as a contract, not leave it to a default.
+
+## E5 — On the record
+The implementer raised the harness trailer instruction as a standing conflict, out loud, in the turn, before his first commit, having verified the hook refuses one from his worktree — which is exactly what `CLAUDE.md` §4b asks. The coordinator's mechanism for the same instruction is the refusal recorded in the Decisions Log of 2026-09-15 and the hook.
+
+The packet is written against `BRIEF_36` + Amendments A–E.
