@@ -1,6 +1,6 @@
 # PROJECT MASTER PLAN — Offline Multi-Agent Decision Transformer for Traffic Signal Control
 
-**Version:** 1.34 · **Last updated:** 2026-09-15 · **Maintained in:** Master Coordination Chat
+**Version:** 1.35 · **Last updated:** 2026-09-15 · **Maintained in:** Master Coordination Chat
 **Mentor:** Paweł Gora (Quantum AI Foundation) · **Target:** arXiv → IEEE ITSC / IEEE T-ITS / TRB (Q2/Q1)
 
 ---
@@ -2041,7 +2041,8 @@ is still running"* are two claims, and the second needs its own command.
 
 ## 10. Current Status
 
-> 📄 **START HERE IF YOU ARE A FRESH SESSION: `docs/notes/HANDOFF_2026-09-12.md`** — P7.1 merged (`2bce838`), **A15 and A16 registered (`v1.5-prereg-a15` `6195cc4`, `v1.6-prereg-a16` `b340436`, 2026-09-12)**, CI ceiling 156; **P7.2a (SUMO parity draws) MERGED 2026-09-13** — 206 parity directories in the main tree, band gate 100/100 twice; **A17 (`v1.7-prereg-a17`, `cc620cc`) and A18 (`v1.8-prereg-a18`, `045e9be`, 2026-09-15 — the C3 anchor, the fine-tune budget, the seed rule) registered**; **P7.2b's pre-flight CLEAR, token written 2026-09-15 12:19, campaign in the implementer's hands**; CI ceiling **158** (P7.2a's two gated tests, `2026-09-14`); **`BRIEF_36` (P7.2b) ISSUED — next: the implementer's plan gate**; then `collect.py`'s SUMO draw wiring with P7.3's brief. The 2026-09-10 handoff below remains accurate on its date.
+> 📄 **START HERE IF YOU ARE A FRESH SESSION: `docs/notes/HANDOFF_2026-09-15.md`** — P7.2b's campaign has run (first target-domain numbers, three smoke defects, Amendment E ruled, E1 awaited), A15–A18 registered, the trailer breach and its two mechanisms, and what is stale here. **Read `CLAUDE.md` §4b before your first commit.**
+> 📄 *(prior handoff, 2026-09-12)* **`docs/notes/HANDOFF_2026-09-12.md`** — P7.1 merged (`2bce838`), **A15 and A16 registered (`v1.5-prereg-a15` `6195cc4`, `v1.6-prereg-a16` `b340436`, 2026-09-12)**, CI ceiling 156; **P7.2a (SUMO parity draws) MERGED 2026-09-13** — 206 parity directories in the main tree, band gate 100/100 twice; **A17 (`v1.7-prereg-a17`, `cc620cc`) and A18 (`v1.8-prereg-a18`, `045e9be`, 2026-09-15 — the C3 anchor, the fine-tune budget, the seed rule) registered**; **P7.2b's pre-flight CLEAR, token written 2026-09-15 12:19, campaign in the implementer's hands**; CI ceiling **158** (P7.2a's two gated tests, `2026-09-14`); **`BRIEF_36` (P7.2b) ISSUED — next: the implementer's plan gate**; then `collect.py`'s SUMO draw wiring with P7.3's brief. The 2026-09-10 handoff below remains accurate on its date.
 > 📄 *(prior handoff, 2026-09-10)* **`docs/notes/HANDOFF_2026-09-10.md`** — P5.3b merged,
 > its review, the author's fix-round decision, P7.1's entry conditions, and what in this file is
 > stale. `docs/notes/HANDOFF_2026-09-01.md` remains accurate on its own date and carries the P7
