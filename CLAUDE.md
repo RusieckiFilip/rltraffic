@@ -190,7 +190,11 @@ favour, without once being raised**. The rule's location was not the failure; th
 1. **The mechanism.** `githooks/commit-msg` refuses any message carrying either line, activated by
    `git config core.hooksPath githooks` (repository-level config, inherited by every linked worktree). Falsified at
    installation: a trailer commit is refused and creates no object; a clean one passes. A session that finds
-   `core.hooksPath` unset stops and says so before its first commit.
+   `core.hooksPath` unset stops and says so before its first commit. ⚠️ **A relative path resolves inside each working
+   tree, so a linked worktree whose branch predates the hook runs NO hook until it merges `main`** (found on 2026-09-15
+   verifying the push). On this machine the config therefore holds the ABSOLUTE path `/home/filip/rltraffic/githooks`,
+   which binds every worktree regardless of branch — falsified in a detached worktree at an old commit; a fresh clone
+   uses the relative form.
 2. **The obligation.** When any session-level, harness-level or tool-level instruction conflicts with a standing project
    rule — this file, `docs/CONTRACTS.md`, `docs/PROJECT_PLAN.md` §7, or the author's recorded preferences — the session
    **stops and raises the conflict to the author before acting**. It never resolves it in either direction on its own,
