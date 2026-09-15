@@ -166,3 +166,25 @@ The class determines the info's shape; a suffix would accept the one case that m
 1. `git -C /home/filip/rltraffic-p53b merge --no-edit main`; B1–B3; the B2 test; the three test files and hygiene; commit; report the sha. **No token.**
 2. The coordinator reads the diff, runs the no-token driver once more on the fixed commit (it must now refuse at the group-leader check when run under `timeout`, and at the token when run in a foreground pane — record both), and logs CLEAR.
 3. Then the author writes the token: `mkdir -p /home/filip/rltraffic/output/p7_2b && date -Is > /home/filip/rltraffic/output/p7_2b/AUTHORISED_TO_RUN`, and the implementer launches `bash offline/campaigns/p7_2b_calibration.sh` from the worktree in a **tmux foreground pane**, from a committed tree, on mains power. ≈ 20 min. Then the packet, written against `BRIEF_36` + Amendments A–B.
+
+---
+
+# ✅ AMENDMENT C — 2026-09-15: CLEAR on `d284e47`. The token may be written; the run may start
+
+**Verified by the coordinator by execution, not from the relay.** The driver's diff read (the group-leader check before the inputs, `fail()`/`on_signal()` and the `trap` above the token, both `FAILED` writers guarded on `$WORK` existing so a signal before the token still creates nothing; `chunk_is_reusable` returns *not reusable* for any non-Mapping payload and the existing move-aside path handles it; the two new tests and the parametrised sibling). Then the no-token driver run twice on the fixed commit: **under `timeout` (not a group leader) — exit 2 at `REFUSING TO START: not a process-group leader`, nothing else run; under `setsid` (a group leader) — canary 0.80 s, then `REFUSING TO START: no run authorisation token`, exit; no detached process; `output/p7_2b/` absent in both trees; the draws tree at 1,442 files.** The two P7.2b test files: **32 passed**; hygiene, English and `bash -n` clean. One thing seen and explained rather than ignored: `output/replay.txt` in the worktree is a CityFlow test artifact written by the implementer's whole-suite run at 22:11 on 2026-09-14 (an `aigen_1x1` replay; the main tree's copy dates from P7.1) — not the canary's, which writes nothing (`saveReplay: false`; no file under either `output/` is newer than the fix commit).
+
+## C1 — The token, written by the author, once
+```bash
+mkdir -p /home/filip/rltraffic/output/p7_2b && date -Is > /home/filip/rltraffic/output/p7_2b/AUTHORISED_TO_RUN
+```
+The driver deletes it on start; it authorises exactly one run.
+
+## C2 — The launch, by the implementer
+From a **tmux foreground pane**, on mains power, from the committed worktree (`git -C /home/filip/rltraffic-p53b status --porcelain` empty — every chunk records `git_dirty`):
+```bash
+cd /home/filip/rltraffic-p53b && bash offline/campaigns/p7_2b_calibration.sh
+```
+Expected: canary ≈ 0.9 s printed first, then the probe (100 draws, ≈ 18 min), the two smoke episodes, `report`, `output/SHA256SUMS_p7_2b.txt`, `COMPLETE`. **If the canary reads above 2.0 s the driver refuses and the token is untouched** — check the power source and try again. If anything refuses mid-run, `FAILED` names the stage; report it, do not restart until the coordinator has read the log.
+
+## C3 — Then the packet, written against `BRIEF_36` + Amendments A–C
+With: the canary and both clocks per stage; the per-k probe means and maxes beside the six source statistics; the eight targets per subject with the registered one marked and each target's in-support position (both bounds, A1); the smoke's mechanics with the explicit line *ATT deliberately not reported*; the disjointness record's three sources; `git_commit` uniform across chunks. Then the merge review.
