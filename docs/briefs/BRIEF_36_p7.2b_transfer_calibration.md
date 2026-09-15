@@ -231,3 +231,38 @@ Every DT evaluation on SUMO uses `explore=False, update_memory=True` — the sam
 The implementer raised the harness trailer instruction as a standing conflict, out loud, in the turn, before his first commit, having verified the hook refuses one from his worktree — which is exactly what `CLAUDE.md` §4b asks. The coordinator's mechanism for the same instruction is the refusal recorded in the Decisions Log of 2026-09-15 and the hook.
 
 The packet is written against `BRIEF_36` + Amendments A–E.
+
+---
+
+# ✅ AMENDMENT E — CONFIRMATION OF E1 AND TWO CORRECTIONS TO E2 (2026-09-15, later coordinator session)
+
+## E1 is CONFIRMED at `7347da4`, by mutation, in an isolated tree
+Verified in a detached throwaway worktree at `7347da4` (removed afterwards; the implementer's tree was never touched, per `PROJECT_PLAN` §7). Baseline: `tests/test_transfer_calibration.py` 34 passed + `tests/test_aligned_env.py` 5 passed = **39**, matching the implementer's count. `DTAgent.act`'s real signature was read from `agent/DTAgent.py` (`explore: bool = True, update_memory: bool = True`), so the spy's `**kwargs` fake asserts the real keyword names. Seven mutants, each restored by `git checkout` and the tree confirmed clean after every one:
+
+| mutant | change at the smoke's call site | killed by |
+|---|---|---|
+| M1 (the handoff's mandated one) | `explore=False` dropped, `update_memory=True` kept | both tests |
+| M2 | `explore=True, update_memory=True` | the spy only |
+| M3 | bare `agent.act(info)` | both tests |
+| M4 (coordinator's) | `explore=bool(actions)` — first call correct, every later call sampling, keywords present | the spy only: the every-call assertion holds |
+| M5 (coordinator's) | `explore=False, update_memory=False` | the spy only |
+| M6 | the probe's receiver renamed to `agent` on BOTH lines (the mutant parses) | the AST check, at line 394 |
+| M7 (coordinator's) | the DT call removed outright (`np.zeros(1)`) | the spy only, through its `assert calls` guard — the AST check alone would certify a smoke that never calls the DT |
+
+M4 and M7 were not in the implementer's set and both died. **Known limit, recorded for the packet, no action:** the AST check inspects `Name` receivers only — `self.agent.act(info)` or `ctx.agent.act(info)` would pass it. The module's population today is exactly two `.act(` calls (lines 394 and 899), both `Name` receivers, so coverage is 2 of 2, and the spy covers the smoke's path regardless of receiver shape.
+
+## E1.1 — REQUIRED before the re-roll: correct the call-site comment's module list (a coordinator error, copied faithfully)
+The count in the new comment is right; the list is not. Measured at `e260744` by `grep -rn "explore=False" --include=*.py offline experiments` with docstring lines excluded: **fifteen** call sites — fourteen in `offline/` and `experiments/runner.py:254`. The comment's *"across dt_gate, method_tier_grid, att_rederivation, spatial_mixing, admission_probe and collect"* accounts for **nine** of them (2 + 3 + 1 + 1 + 1 + 1); the other six are `rtg_calibration.py:728`, `rtg_ablation.py:1035`, `tier_sweep.py:2141`, `offline_baselines.py:2724` and `:2917`, and `experiments/runner.py:254`. The list was written by the coordinator in Amendment E's opening paragraph and the implementer copied it; the error is the coordinator's, and Amendment E's paragraph is corrected by this block rather than edited in place. *(Not every site passes `update_memory=True` — four pass `False` — but the comment's claim is about `explore=False` only, and that claim is true of all fifteen.)*
+
+**Required:** one comment-only edit to `offline/transfer_calibration.py` at the smoke's call site so the sentence is true — either the complete list above, or the count with its measurement basis (`fifteen at e260744, by grep over offline/ and experiments/, docstrings excluded`) and no list. **May, in the same commit:** the `_roll_one_episode` docstring at line 265 still quotes ``agent.act(info)`` for the probe whose receiver is now `policy`. No test changes; the count stays 39; report the sha. **That commit — not `7347da4` — is what run 3's provenance must record.** The coordinator verifies it is comment-only by `git diff 7347da4..<sha>` before the token is written; no second mutation round is needed for a comment.
+
+## E2 — two corrections, and the mechanics verified from the code rather than from this brief
+1. **Destination of the prior runs' artifacts: `output/p7_2b_runs/`, NOT the scratchpad.** The coordinator found run 1's only copy (`f683e1e9…`) in a previous coordinator session's `/tmp/claude-1000/…/scratchpad/p7_2b_calibration.PRE_D3_REROLL.json` — a directory WSL2 clears on reboot — and copied it to `/home/filip/rltraffic/output/p7_2b_runs/run1_f683e1e9.json` (sha256 re-verified after the copy, 2026-09-15 14:42). The implementer moves run 2 with `mv /home/filip/rltraffic-p53b/docs/data/p7_2b_calibration.json /home/filip/rltraffic/output/p7_2b_runs/run2_8b8987d8.json` and verifies `sha256sum` after the move (`8b8987d826096576260d14f52e444aa5119b43e2ab76a165411d3518fadea5b9`). Why there: `output/` is gitignored (`.gitignore:228`), so the copies are invisible to `git status --porcelain` and `git_dirty` stays honest; the directory is outside the manifest's `find p7_2b`, so the manifest ignores them; and it survives a reboot. The packet cites both paths and both shas.
+2. **Run 3's provenance is the E1.1 commit** with `git_dirty: false`. Verified: `_git_provenance` calls `offline.materialise_draws._git_commit`, which runs `git status --porcelain` with `cwd` = the imported module's directory — under the driver's `PYTHONPATH=$WORK_TREE` that is the implementer's worktree, so the untracked artifact is what made run 2 dirty and nothing else will once it has left; `report` builds the provenance while assembling the artifact (line 1123) and writes it at line 1132, so the fresh artifact cannot flag itself. A smoke is an atomic overwrite (`_write_json`, driver stage at line 1224; no reuse check, no move-aside), so removing `smoke_mappo1000.json`, `smoke_mix50.json` and `COMPLETE` first is for an unambiguous on-disk state, not for correctness — keep it, as D3.3 did.
+
+The rest of E2 stands: fresh token by the author (`mkdir -p /home/filip/rltraffic/output/p7_2b && date -Is > /home/filip/rltraffic/output/p7_2b/AUTHORISED_TO_RUN`), mains power, tmux foreground pane (the driver refuses a non-leader), `cd /home/filip/rltraffic-p53b && bash offline/campaigns/p7_2b_calibration.sh`; expected canary ≤ 2.0 s, 100 × `reused`, two smokes, `report`, manifest. **Then the three-way diff run 1 → 2 → 3 in the packet**, with nothing outside the smoke block, the canary block and the provenance differing.
+
+## Housekeeping the coordinator could not finish
+`task/p7.2b-calibration` has **no upstream** (§7's 2026-08-30 rule). The coordinator's `git push -u origin task/p7.2b-calibration` failed — `github.com` did not resolve on this machine at 14:41. It must be pushed before the merge; it is listed for the author.
+
+The packet is written against `BRIEF_36` + Amendments A–E and this confirmation block.
