@@ -179,7 +179,15 @@ def chunk_is_reusable(payload: Mapping[str, Any], *, draw_id: int) -> bool:
     The stored ``two_routes_agree`` is exactly what a hand-made or half-written chunk would lie
     about, so the two returns are compared again here.  Any exception means "not reusable": a chunk
     this function cannot read is one the campaign must re-run.
+
+    ⚠️ **A syntactically valid non-object is judged here, not left to explode later** (Amendment B2,
+    pre-flight minor 1).  ``json.loads`` accepts ``[]``, ``5`` and ``"text"`` as happily as an
+    object, and ``payload.get`` on any of them raises ``AttributeError`` -- which the ``except``
+    below does not catch, so the probe died with a traceback and left the file in place.  A chunk
+    that is not a mapping is simply not reusable, and the existing move-aside path handles it.
     """
+    if not isinstance(payload, Mapping):
+        return False
     try:
         if payload.get("format_version") != ARTIFACT_FORMAT_VERSION:
             return False
@@ -261,14 +269,7 @@ def run_sumo_probe(
     The env is the plain one, not P7.1's observer: the observer counts teleports but has no
     vehicle-type read at all, and its instrumentation costs about 60 % more per episode.
     """
-    from algorithms.max_pressure import MaxPressureAgent
-    from experiments.envs import make_env
-    from offline.collect import _build_env_spec
     from offline.materialise_draws import parity_sumocfg_path
-    from offline.rtg_calibration import episode_return_two_routes
-    from offline.sumo_att_reference import collect_style_args
-
-    import time
 
     work = Path(work_dir)
     work.mkdir(parents=True, exist_ok=True)
@@ -301,97 +302,7 @@ def run_sumo_probe(
                 "materialises the band into the MAIN tree's scenarios/draws"
             )
 
-        args = collect_style_args(
-            "sumo", "maxpressure", config_path, sentinel_out_dir="/nonexistent"
-        )
-        started = time.perf_counter()
-        env = make_env(_build_env_spec(args))
-        try:
-            intersections = list(env.intersections)
-            if len(intersections) != 1:
-                raise ValueError(
-                    f"the probe records one intersection's return and this scenario has "
-                    f"{len(intersections)}; A17(b) registers a single-intersection probe"
-                )
-            ix_id = str(intersections[0].id)
-            lanes = list(intersections[0].incoming_lanes)
-            agent = MaxPressureAgent(env)
-
-            info = env.reset(seed=int(engine_seed))
-            option = str(env._sumo.simulation.getOption("time-to-teleport"))
-            types_seen: set[str] = set()
-            teleports = 0
-            post_step: list[Mapping[str, Any]] = []
-            samples: list[float] = []
-            last_vehicle_count = 0.0
-            for _ in range(int(env.max_steps)):
-                teleports += len(env._sumo.simulation.getStartingTeleportIDList())
-                if not types_seen:
-                    # the first step on which anybody is present, so an early wrong type cannot
-                    # hide behind a horizon-only read
-                    types_seen.update(
-                        env._sumo.vehicle.getTypeID(v) for v in env._sumo.vehicle.getIDList()
-                    )
-                action = agent.act(info)
-                _reward, terminated, truncated, info = env.step(action)
-                post_step.append(info)
-                samples.append(float(info.get("average_travel_time", 0.0)))
-                last_vehicle_count = float(info.get("vehicle_count", 0.0))
-                if terminated or truncated:
-                    break
-            teleports += len(env._sumo.simulation.getStartingTeleportIDList())
-            types_seen.update(
-                env._sumo.vehicle.getTypeID(v) for v in env._sumo.vehicle.getIDList()
-            )
-            engine_seed_drawn = int(env._engine_seed)
-        finally:
-            env.close()
-        seconds = time.perf_counter() - started
-
-        from_rewards, from_lanes = episode_return_two_routes(
-            post_step, ix_id=ix_id, incoming_lanes=lanes
-        )
-
-        # A17(b)'s refusals. A single failure refuses the draw AND the run.
-        if from_rewards != from_lanes:
-            raise ValueError(
-                f"draw {draw_id}: the two return routes disagree ({from_rewards!r} against "
-                f"{from_lanes!r}); A17(b) requires equality under =="
-            )
-        if teleports != 0:
-            raise ValueError(
-                f"draw {draw_id}: {teleports} teleport(s) on a configuration that requested "
-                "time-to-teleport -1 (A15(c))"
-            )
-        if sorted(types_seen) != [PARITY_VTYPE_ID]:
-            raise ValueError(
-                f"draw {draw_id}: the engine ran vehicle type(s) {sorted(types_seen)}, not "
-                f"[{PARITY_VTYPE_ID!r}]; the parity contract is not what this episode measured"
-            )
-        if option != EXPECTED_TIME_TO_TELEPORT:
-            raise ValueError(
-                f"draw {draw_id}: SUMO reports time-to-teleport {option!r}, not "
-                f"{EXPECTED_TIME_TO_TELEPORT!r}"
-            )
-        if len(post_step) != EXPECTED_DECISIONS:
-            raise ValueError(
-                f"draw {draw_id}: {len(post_step)} decisions, not {EXPECTED_DECISIONS}"
-            )
-
-        record = ProbeRecord(
-            draw_id=draw_id,
-            local_return=from_rewards,
-            local_return_from_lanes=from_lanes,
-            att_horizon=samples[-1] if samples else 0.0,
-            horizon_vehicle_count=last_vehicle_count,
-            decisions=len(post_step),
-            engine_seed_requested=int(engine_seed),
-            engine_seed_drawn=engine_seed_drawn,
-            n_teleports=teleports,
-            vehicle_types_seen=tuple(sorted(types_seen)),
-            time_to_teleport_option=option,
-            seconds=seconds,
-        )
+        record = _roll_one_episode(draw_id, config_path, engine_seed=int(engine_seed))
         _write_json(
             chunk_path,
             {
@@ -419,6 +330,117 @@ def run_sumo_probe(
         )
         records.append(record)
     return records
+
+
+def _roll_one_episode(
+    draw_id: int, config_path: Path, *, engine_seed: int
+) -> ProbeRecord:
+    """One SUMO MaxPressure episode with A17(b)'s engine reads, or a refusal.
+
+    A named seam, not decoration: the campaign's resume path (move a bad chunk aside, roll a fresh
+    one) is testable without a simulator only if the roll can be substituted, and a resume rule
+    that is only ever exercised by a real episode is a rule nobody tests on the failure branch.
+    """
+    from algorithms.max_pressure import MaxPressureAgent
+    from experiments.envs import make_env
+    from offline.collect import _build_env_spec
+    from offline.rtg_calibration import episode_return_two_routes
+    from offline.sumo_att_reference import collect_style_args
+
+    import time
+
+    args = collect_style_args(
+        "sumo", "maxpressure", config_path, sentinel_out_dir="/nonexistent"
+    )
+    started = time.perf_counter()
+    env = make_env(_build_env_spec(args))
+    try:
+        intersections = list(env.intersections)
+        if len(intersections) != 1:
+            raise ValueError(
+                f"the probe records one intersection's return and this scenario has "
+                f"{len(intersections)}; A17(b) registers a single-intersection probe"
+            )
+        ix_id = str(intersections[0].id)
+        lanes = list(intersections[0].incoming_lanes)
+        agent = MaxPressureAgent(env)
+
+        info = env.reset(seed=int(engine_seed))
+        option = str(env._sumo.simulation.getOption("time-to-teleport"))
+        types_seen: set[str] = set()
+        teleports = 0
+        post_step: list[Mapping[str, Any]] = []
+        samples: list[float] = []
+        last_vehicle_count = 0.0
+        for _ in range(int(env.max_steps)):
+            teleports += len(env._sumo.simulation.getStartingTeleportIDList())
+            if not types_seen:
+                # the first step on which anybody is present, so an early wrong type cannot
+                # hide behind a horizon-only read
+                types_seen.update(
+                    env._sumo.vehicle.getTypeID(v) for v in env._sumo.vehicle.getIDList()
+                )
+            action = agent.act(info)
+            _reward, terminated, truncated, info = env.step(action)
+            post_step.append(info)
+            samples.append(float(info.get("average_travel_time", 0.0)))
+            last_vehicle_count = float(info.get("vehicle_count", 0.0))
+            if terminated or truncated:
+                break
+        teleports += len(env._sumo.simulation.getStartingTeleportIDList())
+        types_seen.update(
+            env._sumo.vehicle.getTypeID(v) for v in env._sumo.vehicle.getIDList()
+        )
+        engine_seed_drawn = int(env._engine_seed)
+    finally:
+        env.close()
+    seconds = time.perf_counter() - started
+
+    from_rewards, from_lanes = episode_return_two_routes(
+        post_step, ix_id=ix_id, incoming_lanes=lanes
+    )
+
+    # A17(b)'s refusals. A single failure refuses the draw AND the run.
+    if from_rewards != from_lanes:
+        raise ValueError(
+            f"draw {draw_id}: the two return routes disagree ({from_rewards!r} against "
+            f"{from_lanes!r}); A17(b) requires equality under =="
+        )
+    if teleports != 0:
+        raise ValueError(
+            f"draw {draw_id}: {teleports} teleport(s) on a configuration that requested "
+            "time-to-teleport -1 (A15(c))"
+        )
+    if sorted(types_seen) != [PARITY_VTYPE_ID]:
+        raise ValueError(
+            f"draw {draw_id}: the engine ran vehicle type(s) {sorted(types_seen)}, not "
+            f"[{PARITY_VTYPE_ID!r}]; the parity contract is not what this episode measured"
+        )
+    if option != EXPECTED_TIME_TO_TELEPORT:
+        raise ValueError(
+            f"draw {draw_id}: SUMO reports time-to-teleport {option!r}, not "
+            f"{EXPECTED_TIME_TO_TELEPORT!r}"
+        )
+    if len(post_step) != EXPECTED_DECISIONS:
+        raise ValueError(
+            f"draw {draw_id}: {len(post_step)} decisions, not {EXPECTED_DECISIONS}"
+        )
+
+    record = ProbeRecord(
+        draw_id=draw_id,
+        local_return=from_rewards,
+        local_return_from_lanes=from_lanes,
+        att_horizon=samples[-1] if samples else 0.0,
+        horizon_vehicle_count=last_vehicle_count,
+        decisions=len(post_step),
+        engine_seed_requested=int(engine_seed),
+        engine_seed_drawn=engine_seed_drawn,
+        n_teleports=teleports,
+        vehicle_types_seen=tuple(sorted(types_seen)),
+        time_to_teleport_option=option,
+        seconds=seconds,
+    )
+    return record
 
 
 def _write_json(path: str | Path, payload: Mapping[str, Any]) -> None:

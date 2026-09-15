@@ -11,9 +11,16 @@
 #    It EVALUATES NOTHING: no held-out draw, no rho, no ATT or return of any DT (BRIEF_36 §2).
 #
 # 2. ORDERING — every check that can refuse PRECEDES the token, so a refused start consumes
-#    nothing and changes nothing at all. Order: interpreter → import → lock → inputs → CANARY →
-#    token → work. The canary is inside that fence deliberately: a throttled machine must not burn
-#    the author's one-shot authorisation (BRIEF_35 Amendment D3.1 is the reason the canary exists).
+#    nothing and changes nothing at all. Order: interpreter → import → lock → GROUP LEADER →
+#    inputs → CANARY → TRAP → token → work. The canary is inside that fence deliberately: a
+#    throttled machine must not burn the author's one-shot authorisation (BRIEF_35 Amendment D3.1
+#    is the reason the canary exists).
+#    ⚠️ THE TRAP IS INSTALLED BEFORE THE TOKEN IS CONSUMED (Amendment B1, pre-flight minor 2).
+#    It used to be installed after, and a signal in that window destroyed the one-shot
+#    authorisation while leaving neither FAILED nor COMPLETE -- the operator could not tell whether
+#    the run had started. From the first destructive line onward, a signal now writes FAILED.
+#    The handler writes it only if $WORK already exists, so a signal arriving BEFORE the token
+#    check still creates nothing.
 #
 # 3. THE SKIP DECISION IS IN PYTHON, NOT IN THE SHELL.
 #    offline/transfer_calibration.py::chunk_is_reusable re-derives a chunk's verdict from its own
@@ -74,6 +81,16 @@ if [ -n "$ALIVE" ]; then
   exit 3
 fi
 
+# Amendment B3 (pre-flight minor 3): `kill -- -$$` in the signal handler is a NO-OP unless this
+# script leads its own process group, which a tmux foreground pane gives and `bash script.sh &`
+# does not. Fail closed, and turn BRIEF_34 E2's operator condition into something the driver checks.
+if [ "$(ps -o pgid= -p $$ | tr -d ' ')" != "$$" ]; then
+  echo "REFUSING TO START: not a process-group leader; run in a tmux foreground pane" >&2
+  echo "  The signal handler kills the process group, and that is a no-op from a background" >&2
+  echo "  job, so an interrupted run would leave the python child writing. Nothing consumed." >&2
+  exit 2
+fi
+
 for draw in 201 300 5; do
   cfg=$DRAWS/cityflow1x1/draw_$(printf '%04d' "$draw")/parity/noteleport.sumocfg
   if [ ! -f "$cfg" ]; then
@@ -102,6 +119,39 @@ if awk -v c="$CANARY" -v m="$CANARY_MAX_SECONDS" 'BEGIN { exit !(c > m) }'; then
   exit 2
 fi
 
+# ---------------------------------------------------------------- the trap, BEFORE the token
+# Amendment B1: installed here so that from the first destructive line onward -- and the token's
+# deletion is the first one -- a signal writes FAILED. Both writers guard on $WORK existing, so a
+# signal arriving before the token check still leaves the tree exactly as it found it.
+fail() {
+  local where=$1
+  if [ -d "$WORK" ]; then
+    echo "CAMPAIGN FAILED at $where" | tee "$WORK/FAILED"
+  else
+    echo "CAMPAIGN FAILED at $where (before any work directory existed)"
+  fi
+  exit 1
+}
+
+# The pid of the stage currently in flight. Global, so the signal handler can reach it: bash traps
+# do not see a caller's locals.
+CELL_PID=""
+
+on_signal() {
+  trap '' INT TERM
+  if [ -d "$WORK" ]; then
+    echo "CAMPAIGN INTERRUPTED by a signal" | tee "$WORK/FAILED" >&2
+  else
+    echo "CAMPAIGN INTERRUPTED by a signal (before any work directory existed)" >&2
+  fi
+  [ -z "$CELL_PID" ] || kill -TERM "$CELL_PID" 2>/dev/null || true
+  sleep 2
+  [ -z "$CELL_PID" ] || kill -KILL "$CELL_PID" 2>/dev/null || true
+  kill -- -$$ 2>/dev/null || true
+  exit 130
+}
+trap on_signal INT TERM
+
 # ---------------------------------------------------------------- the token
 TOKEN=$WORK/AUTHORISED_TO_RUN
 if [ ! -f "$TOKEN" ]; then
@@ -120,21 +170,6 @@ mkdir -p "$LOGS"
 rm -f "$WORK/FAILED" "$WORK/COMPLETE"
 
 START=$(date +%s)
-
-# ---------------------------------------------------------------- trap
-fail() { echo "CAMPAIGN FAILED at $1" | tee "$WORK/FAILED"; exit 1; }
-
-CELL_PID=""
-on_signal() {
-  trap '' INT TERM
-  echo "CAMPAIGN INTERRUPTED by a signal" | tee "$WORK/FAILED" >&2
-  [ -z "$CELL_PID" ] || kill -TERM "$CELL_PID" 2>/dev/null || true
-  sleep 2
-  [ -z "$CELL_PID" ] || kill -KILL "$CELL_PID" 2>/dev/null || true
-  kill -- -$$ 2>/dev/null || true
-  exit 130
-}
-trap on_signal INT TERM
 
 run_stage() {
   local label=$1; shift

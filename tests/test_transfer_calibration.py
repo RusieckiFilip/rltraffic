@@ -492,6 +492,60 @@ def test_report_refuses_a_chunk_that_violates_a17(
     assert not out.exists(), "a refusal must precede every write"
 
 
+def test_a_chunk_that_is_valid_json_but_not_an_object_is_moved_aside_and_re_rolled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Amendment B2 (pre-flight minor 1): ``[]`` parses, and ``payload.get`` then raises.
+
+    ``json.loads`` accepts ``[]``, ``5`` and ``"text"`` as happily as an object; ``chunk_is_reusable``
+    caught only ``(KeyError, TypeError, ValueError)``, so an ``AttributeError`` escaped and the
+    probe died with a traceback, leaving the bad file in place.  It must instead be *not reusable*,
+    which routes it through the move-aside path every other unclean chunk takes.
+
+    **No simulator**: the roll is monkeypatched at ``_roll_one_episode``, the seam the extraction
+    introduced.  The brief allows one SUMO episode here instead; the suite already spends four on
+    the paths that need a real engine, and this test is about the resume branch, not the episode.
+    """
+    work = tmp_path / "work"
+    work.mkdir()
+    chunk_path = tc.probe_chunk_path(201, work_dir=work)
+    planted = b"[]\n"
+    chunk_path.write_bytes(planted)
+
+    canned = tc.ProbeRecord(
+        draw_id=201,
+        local_return=-20000.0,
+        local_return_from_lanes=-20000.0,
+        att_horizon=210.0,
+        horizon_vehicle_count=99.0,
+        decisions=360,
+        engine_seed_requested=1000,
+        engine_seed_drawn=437485271,
+        n_teleports=0,
+        vehicle_types_seen=("cf_parity",),
+        time_to_teleport_option="-1",
+        seconds=10.8,
+    )
+    monkeypatch.setattr(
+        tc, "_roll_one_episode", lambda draw_id, config_path, *, engine_seed: canned
+    )
+
+    (record,) = tc.run_sumo_probe([201], out_root=DRAWS_ROOT, work_dir=work, canary_seconds=0.9)
+
+    assert record.draw_id == 201
+    moved = work / "failed" / chunk_path.name
+    assert moved.is_file(), "the unreadable chunk must be moved aside, not deleted or overwritten"
+    assert moved.read_bytes() == planted, "it must be moved BYTE-IDENTICALLY, as evidence"
+    fresh = json.loads(chunk_path.read_bytes())
+    assert tc.chunk_is_reusable(fresh, draw_id=201)
+
+
+@pytest.mark.parametrize("payload", [[], 5, "text", None, [{"draw_id": 201}]])
+def test_a_non_object_payload_is_simply_not_reusable(payload: Any) -> None:
+    """The unit half of B2: no exception escapes, whatever JSON shape arrives."""
+    assert tc.chunk_is_reusable(payload, draw_id=201) is False
+
+
 def test_chunk_reuse_is_judged_from_content_not_from_a_stored_verdict(tmp_path: Path) -> None:
     """The resume rule. A chunk claiming success while its own numbers disagree is not reusable."""
     good = _synthetic_chunk(201, -20000.0)
@@ -544,10 +598,26 @@ def test_the_driver_gates_on_the_canary_before_consuming_the_token() -> None:
     canary_run = text.index("canary")
     token_at = text.index("rm -f \"$TOKEN\"")
     lock_at = text.index("REFUSING TO START: cells from another run")
+    trap_at = text.index("trap on_signal INT TERM")
+    leader_at = text.index("REFUSING TO START: not a process-group leader")
     assert lock_at < token_at, "the lock must refuse before the token is consumed"
     assert canary_at < token_at and canary_run < token_at, (
         "the canary must run before the token is consumed, or a throttled machine burns the "
         "author's one-shot authorisation"
+    )
+    # Amendment B1: a signal between the token's deletion and the trap's installation consumed the
+    # one-shot authorisation and left neither FAILED nor COMPLETE.
+    assert trap_at < token_at, (
+        "the trap must be installed BEFORE the token is consumed, so that from the first "
+        "destructive line onward a signal writes FAILED"
+    )
+    # Amendment B3: `kill -- -$$` is a no-op unless the driver leads its process group.
+    assert leader_at < token_at, "the group-leader check must refuse before the token"
+    assert 'ps -o pgid= -p $$' in text
+    # ... and the handler must not CREATE the work dir just to record a failure in it.
+    assert text.count('if [ -d "$WORK" ]; then') == 2, (
+        "both FAILED writers guard on $WORK existing, so a signal before the token still leaves "
+        "the tree exactly as it found it"
     )
     # Nothing under scenarios/draws is written.
     assert "scenarios/draws" in text
