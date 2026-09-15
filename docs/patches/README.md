@@ -761,3 +761,63 @@ makes the patch self-sufficient, and the check runs on exactly the events that a
 **Known limitation, accepted knowingly.** `$CHANGED` strips the git status column, so a *renamed* test
 file arrives as `old -> new` and escapes the `^tests/` filter. Renames of test files are rare; if that
 changes, parse `git status --porcelain -z`.
+
+---
+
+## `check_english_explicit_paths.patch` (2026-09-15)
+
+**Apply with:** `git apply docs/patches/check_english_explicit_paths.patch` from the repository root.
+Derived against `scripts/check_english.sh` as of `646320f`. If that file has changed since, re-derive
+rather than force. **Verified before hand-off:** `git apply --check` exit 0, `bash -n` exit 0 on the
+patched candidate, and the nine behavioural cases below executed against both the current and the
+patched script.
+
+**Why it is a patch and not a commit.** Same reason as the entries above: `scripts/**` is denied at
+permission level, and CLAUDE.md rule 1 records why a session must not be able to unfreeze itself.
+⚠️ **This patch was produced after the permission layer refused a `cp` of the script into a scratch
+directory — correctly, because that is one of the routes CLAUDE.md names (`cp`, heredoc, `sed -i`,
+`tee`, `patch`). The refusal was not worked around.** The candidate was built by reading the file and
+writing the modified copy outside the repository, which is a read of the frozen path and a write to
+the scratchpad.
+
+**The defect it fixes — a control that reported clean on files it never opened.** Measured 2026-09-15
+while reviewing P7.2b. `check_english.sh <paths>` filtered its arguments through `git ls-files`, which
+returns **nothing** for a path git does not already track — *every new file, before `git add`* — and
+also for a tracked path under a hidden directory such as `.claude/`. The result then met
+`[ "${#FILES[@]}" -eq 0 ] && exit 0`, so **nothing to check** and **everything is clean** shared an exit
+code. The explicit-path mode is the one the PostToolUse hook and every session use, so the English rule
+has been effectively unenforced on new files. It went unnoticed because the *working* no-argument sweep
+exits 1 on four benign self-referential hits, which pushed everyone onto the broken mode.
+**Consequence for the record: a per-file `exit 0` quoted in any past Return Packet is not evidence.**
+
+**What it does.**
+1. Explicit paths are taken **as given** and filtered by shell globs (`EXCLUDE_GLOBS`, kept adjacent to
+   the git-pathspec `EXCLUDES` so the two are edited together) instead of by `git ls-files`.
+2. A requested path that does not exist is **BLOCKED, exit 1** — never a silent pass.
+3. If every given path is deliberately excluded, it exits 0 but prints a loud `NOTE`. *Argued exception
+   to PROJECT_PLAN section 7's new rule:* a deliberate exclusion is a decision recorded in the script,
+   unlike an untracked path, which is an accident — and the failure being fixed was the **silence**, not
+   the exit code. Overrule it to exit 1 if you prefer the stricter reading.
+4. Being outside a repository no longer `exit 0`s: absolute paths still work, relative ones are reported
+   as missing.
+5. The **no-argument sweep is untouched** — verified byte-identical output and exit 1.
+
+**Falsified, not asserted** (current versus patched, nine cases):
+
+| case | current | patched |
+|---|---|---|
+| tracked file under `.claude/`, contains Polish | 0 (wrong) | **1** |
+| untracked new file, contains Polish | 0 (wrong) | **1** |
+| tracked clean file | 0 | 0 |
+| path that does not exist | 0 (wrong) | **1** |
+| absolute path to a violating file | 0 (wrong) | **1** |
+| only excluded paths given | 0 silently | 0 with a loud NOTE |
+| several clean tracked files | 0 | 0 |
+| no-argument sweep | 1 | 1, output byte-identical |
+| absolute path from another directory | 0 after a git fatal | **1** |
+
+**Not fixed here, deliberately.** The four benign hits the sweep reports (three are the same comment
+about the o-acute false positive, one is illustrative quoted Polish in a frozen agent definition) still
+make the repo-wide sweep exit 1. That is the script's own TODO and a separate decision: suppressing them
+means either widening `ALLOWED_NAMES` beyond proper nouns or excluding files, and both risk masking a
+real hit. Until it is settled, **the sweep's exit code must be read together with its known lines — and this patch file itself adds one more**, because the o-acute comment falls in a hunk's CONTEXT, exactly as it does in the two `claude_guard` patches above. A diff of that region cannot avoid it. Expect the sweep to list five paths after this patch lands, not four.

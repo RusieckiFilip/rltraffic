@@ -18,7 +18,11 @@
 # en-dashes in prose. `grep -P` with \x{...} codepoints matches characters, not bytes.
 
 set -uo pipefail
-cd "$(git rev-parse --show-toplevel 2>/dev/null || echo .)" || exit 0
+# Being outside a repository is NOT "clean": this used to `exit 0`, so an invocation from any other
+# directory passed silently. Absolute paths still work with no repository; relative ones are then
+# reported as missing below.
+TOPLEVEL="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+if [ -n "$TOPLEVEL" ]; then cd "$TOPLEVEL" || exit 1; fi
 
 # TODO known false positive: ó/Ó is not Polish-specific (Spanish/Portuguese names in bibliography
 # entries will trip this) — extend ALLOWED_NAMES below when the related-work matrix starts hitting it.
@@ -32,6 +36,16 @@ ALLOWED_NAMES='Paweł|Woliński|Grudziński|Mikołaj'
 # Vendored trees are excluded wholesale: not our prose, not ours to rewrite.
 # (`grep -I` handles binaries; this list is for text we still do not own.)
 # Plus one self-exclusion, for a different reason than the vendored trees above.
+# Shell-glob twins of EXCLUDES, used by the explicit-path branch. Kept adjacent so the two lists are
+# edited together: the pathspec form is git-only and cannot filter a path git does not track.
+EXCLUDE_GLOBS=(
+  'CityFlow/*'
+  '*/node_modules/*'
+  '*/third_party/*'
+  '*/vendor/*'
+  'scripts/check_english.sh'
+)
+
 EXCLUDES=(
   ':!CityFlow/'
   ':!*/node_modules/*'
@@ -42,14 +56,56 @@ EXCLUDES=(
   ':!scripts/check_english.sh'
 )
 
+FILES=()
 if [ "$#" -gt 0 ]; then
-  # Explicit paths: keep only the ones git tracks and that survive the exclude filter.
-  mapfile -d '' FILES < <(git ls-files -z -- "$@" "${EXCLUDES[@]}")
+  # Explicit paths are taken AS GIVEN and never filtered through `git ls-files`.
+  #
+  # WHY, measured 2026-09-15: `git ls-files -z -- <path> "${EXCLUDES[@]}"` returns NOTHING for a path
+  # git does not already track -- every new file, before `git add` -- and also for a tracked path under
+  # a hidden directory such as `.claude/`. Combined with the unconditional `exit 0` that used to follow,
+  # this script reported CLEAN on files it never opened: an untracked file full of Polish exited 0, and
+  # so did `.claude/agents/master-coordinator.md`, which the no-argument sweep flags at line 158.
+  # New files are exactly what this repository produces, and the explicit-path mode is the one the
+  # PostToolUse hook and every session use.
+  #
+  # PROJECT_PLAN section 7: "nothing to check" and "everything is clean" may never share an exit code.
+  MISSING=""
+  EXCLUDED=0
+  for arg in "$@"; do
+    # An absolute path inside the repository becomes repo-relative, so the globs below still apply.
+    case "$arg" in
+      "$PWD"/*) arg="${arg#"$PWD"/}" ;;
+    esac
+    if [ ! -e "$arg" ]; then
+      MISSING+="  $arg"$'\n'
+      continue
+    fi
+    SKIP=0
+    for pattern in "${EXCLUDE_GLOBS[@]}"; do
+      # shellcheck disable=SC2254 -- the pattern is a glob on purpose.
+      case "$arg" in
+        $pattern) SKIP=1; break ;;
+      esac
+    done
+    if [ "$SKIP" -eq 1 ]; then EXCLUDED=$((EXCLUDED + 1)); else FILES+=("$arg"); fi
+  done
+
+  if [ -n "$MISSING" ]; then
+    echo "BLOCKED: asked to check paths that do not exist, so nothing was checked:" >&2
+    printf '%s' "$MISSING" >&2
+    exit 1
+  fi
+
+  if [ "${#FILES[@]}" -eq 0 ]; then
+    # A deliberate exclusion, unlike a missing path, is a decision recorded in EXCLUDE_GLOBS above, so
+    # this exits 0 -- but LOUDLY. What this change is about is the silence, not the exit code.
+    echo "NOTE: all $EXCLUDED given path(s) are excluded by EXCLUDE_GLOBS; nothing was checked." >&2
+    exit 0
+  fi
 else
   mapfile -d '' FILES < <(git ls-files -z -- . "${EXCLUDES[@]}")
+  [ "${#FILES[@]}" -eq 0 ] && exit 0
 fi
-
-[ "${#FILES[@]}" -eq 0 ] && exit 0
 
 VIOLATIONS=""
 for f in "${FILES[@]}"; do

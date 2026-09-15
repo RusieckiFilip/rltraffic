@@ -412,3 +412,71 @@ Committed **with** `docs/data/p7_2b_calibration.json` (run 4's, `92b1592d…`) i
 
 ## Then: two sequential merge reviewers, under §7's findings-file rule
 (1) code + mutations over `offline/transfer_calibration.py`, `offline/aligned_env.py`, the driver and the tests; (2) the artifact recomputed from the raw chunks — the six statistics from the 100 returns by `sum/len`, the eight targets per subject through `rule_b_target` / `rule_a_target` reused, the in-support positions against both bounds, the smoke's fence (no `fenced_do_not_report` key in the artifact), the canary block against `canary.json` and the chunks. Ruling; merge with §6's P7.2b box ticked; CI ceiling by the registered route.
+
+---
+
+# ⛔ AMENDMENT F — 2026-09-15, on the three merge reviews: FIX-FIRST, THEN MERGE. Four items, ALL TEST-SIDE. The artifact does not change and run 4 stands
+
+**The reviews are in `docs/reviews/P7.2b.md`:** fragment 2 (the artifact, recomputed from raw chunks and checkpoint
+payloads) **PASS**, no blocking findings, every number equal under `==`, the fence held, the regeneration claim confirmed
+to one differing leaf. Fragments 1 and 3 **PASS WITH FINDINGS**: six surviving mutants between them, **none of which is a
+defect in the shipped code** — all three reviewers found the code correct on every point they could falsify. What is weak
+is the test net.
+
+**Why this is a fix round and not a merge-then-fix.** Section 7's proportionate-review rule sets the bar at *the cost of
+a late fix*. Two of these items protect against a wrong number that nothing would catch — one of them in P7.3's
+25-hour SUMO campaign. **And the round is cheap precisely because it is test-side: not one byte of
+`docs/data/p7_2b_calibration.json` changes, no stage is re-run, run 4 remains the committed run.** Provenance is
+unaffected: the artifact records `ded56a0` and the fix commits sit after it, exactly as `5dfaaa2..ded56a0` already does.
+
+## F1 (BLOCKING) — the filesystem-mutation barrier at `offline/transfer_calibration.py:1258-1264`
+**This is the THIRD instance of a class `CLAUDE.md` already records as having appeared twice.** Five tests assert that a
+refusal leaves no file behind, and every one of them trips a refusal *above* chunk assembly; the assertion's own message
+(`reached the artifact`) appears in **zero** tests — verified independently by the coordinator. Moving `_write_json`
+above the fence `AssertionError` survives the whole suite.
+**Required:** a test that reaches that assertion — construct a work directory whose `report` produces a fenced key in the
+serialised artifact (crafting the smoke chunk, or monkeypatching `_SMOKE_PUBLISHED_FIELDS`, whichever is honest and
+does not weaken the allow-list in delivered code) — assert it raises, **and assert the out-dir is empty afterwards**.
+*Mutation F1-M:* move `_write_json` above the assertion; the new test must die. State which of the two the test drives.
+
+## F2 (BLOCKING) — the door's forwarding contract, and a docstring that is currently false
+`reward := 0.0` forever passes the entire door and campaign suite. `BRIEF_36` section 4's T1 requires `reward`, `step`,
+`average_travel_time` and every global scalar to be **byte-identical between raw and wrapped**, and the T1 docstring at
+`tests/test_aligned_env.py:109` claims *"raw and wrapped compared step by step"* — **that comparison does not exist.**
+**Required:** make the assertion real and the docstring true. *Preferred form, because it costs no additional SUMO
+episode and the brief caps the suite at four:* record the inner env's `step` return with a spy and assert, per step over
+the existing 20-step episode, that the wrapper returns it unchanged (`reward` under `==`, both flags, and the global
+scalars carried through `info`). A second raw episode compared in lockstep is acceptable if it stays inside the cap.
+Delete the no-op at `:137-138` rather than leave it looking like a check.
+*Mutations F2-M1 `reward + 1e-9` and F2-M2 `reward := 0.0`: both must die.*
+
+## F3 (BLOCKING) — Rule A's arithmetic is unpinned
+The only assertion touching Rule A checks the *set of rule names*. Computing `q0.9` while keeping the `q1.0` label
+survives — a silent 1344.5-unit shift on the real band (`-20809.0` against `-22153.5`), and the mutant's output exactly
+duplicates the published `q0.9` secondary cell. Rule A is an ablation, so nothing published depends on it **today**; it
+is printed beside the registered prompt and will be read as a comparison point.
+**Required:** pin `rule_a_target`'s `q = 1.0` result and the three secondary quantiles to values computed by an
+independent route in the test (not by calling the same function). *Mutation F3-M:* compute `q0.9` under the `q1.0`
+label; the test must die.
+
+## F4 (include, one line each) — the pins the driver and the door are missing
+- `set -euo pipefail` and the position of `mkdir -p "$LOGS"` relative to the token: assert both over **comment-free**
+  driver text, the technique that fixed MD2. `pipefail` is load-bearing — the coordinator established by experiment on
+  2026-09-15 that without it a *failing* canary reaches the token.
+- Tighten the double-wrap regex at `tests/test_aligned_env.py:189` to `already aligned`, so removing the dedicated
+  refusal branch dies instead of being caught by the fallback's interpolated type name.
+- `tests/test_transfer_calibration.py:1192`'s `text.index("canary")` matches a header comment. Remove it or move it to
+  comment-free text; `:1240` already carries the weight.
+
+## NOT in this round, deliberately
+Anything requiring a re-run. The **`rtg_advanced_every_decision` re-derivability gap** — the per-decision rewards are
+stored nowhere, so no reviewer can re-derive that flag; nothing published rests on it, and the fix belongs in `BRIEF_37`
+(P7.3 logs the reward series) plus a `DEFERRED` entry. The **`scripts/check_english.sh` explicit-path defect** — repo-wide,
+not P7.2b's, handled by a patch in `docs/patches/`. The four paper/packet notes in `docs/reviews/P7.2b.md` — they go into
+the packet's final revision, not into code.
+
+## Definition of Done for Amendment F
+Every test written first and red for its own reason; the four mutations above executed and pasted; the P7.2b test count
+goes up; `sha256sum docs/data/p7_2b_calibration.json` **unchanged at `92b1592d…`** and pasted as proof; the packet
+`docs/returns/P7.2b.md` gains a short section F recording the reviews, this round, and the four carried notes; report the
+tip sha. **The coordinator then re-runs the six surviving mutants itself before merging.**
