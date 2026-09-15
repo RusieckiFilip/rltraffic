@@ -136,6 +136,40 @@ def _write_canary_record(
     return path
 
 
+def _write_smoke_chunk(work_dir: Path, **overrides: Any) -> Path:
+    """One smoke chunk as ``run_smoke`` writes it, fenced block included.
+
+    Extracted from T8 unchanged so that Amendment F1's test can vary exactly one field without a
+    second copy of it drifting out of step. T8 asserts the values this produces, so a change here
+    that mattered would fail there.
+    """
+    payload: dict[str, Any] = {
+        "format_version": tc.ARTIFACT_FORMAT_VERSION,
+        "subject": "mappo1000",
+        "draw_id": 5,
+        "checkpoint": "/home/filip/rltraffic/output/p4_dt/dt_seed101.pt",
+        "target_rtg": -5762.0,
+        "decisions": 360,
+        "rtg_first": -5762.0,
+        "rtg_advanced_every_decision": True,
+        "n_decisions_in_support": 360,
+        "actions_in_range": True,
+        "vehicle_types_seen": ["cf_parity"],
+        "time_to_teleport_option": "-1",
+        "seconds": 12.0,
+        tc.FENCED_KEY: {
+            "att_horizon": 123.456,
+            "episode_reward": -7654.0,
+            "rtg_last": 1892.0,
+            "rtg_series": [-5762.0, -5700.0],
+        },
+    }
+    payload.update(overrides)
+    path = work_dir / "smoke_mappo1000.json"
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return path
+
+
 def _write_band(work_dir: Path, *, returns: dict[int, float] | None = None) -> list[tuple[int, float]]:
     """Write a full 100-draw synthetic band; returns the (draw_id, return) pairs written.
 
@@ -390,6 +424,70 @@ def test_the_budgets_are_nested_prefixes_and_the_mean_is_the_mean_of_the_first_k
         assert table[f"k{k}"]["mean"]["sumo"] == pytest.approx(sum(first_k) / len(first_k), abs=1e-9)
         assert table[f"k{k}"]["max"]["sumo"] == max(first_k)
         assert table[f"k{k}"]["draw_ids"] == [PROBE_DRAW_START, PROBE_DRAW_START + k - 1]
+
+
+def _linear_quantile(values: list[float], q: float) -> float:
+    """numpy's ``method="linear"`` quantile, written out, as the test's independent route.
+
+    Deliberately NOT ``np.quantile`` and not ``rule_a_target``: a pin computed by the function under
+    test agrees with itself whatever that function does.  The definition is the one numpy documents:
+    ``pos = q * (n - 1)`` into the sorted values, linearly interpolated between the neighbours.
+    """
+    ordered = sorted(values)
+    position = q * (len(ordered) - 1)
+    low = int(math.floor(position))
+    high = int(math.ceil(position))
+    return ordered[low] + (ordered[high] - ordered[low]) * (position - low)
+
+
+@pytest.mark.skipif(not _checkpoints_available(), reason="P4 checkpoints are not in this tree")
+def test_rule_a_computes_the_quantile_its_label_names(tmp_path: Path) -> None:
+    """Amendment F3. Rule A was pinned only by the SET OF RULE NAMES -- never by a number.
+
+    The merge reviewer computed ``q0.9`` while keeping the ``q1.0`` label and the suite stayed
+    green: on the real band that is a silent 1344.5-unit shift (``-20809.0`` against ``-22153.5``),
+    and the mutant's output *exactly duplicates the already-published q0.9 secondary cell*, so even
+    a reader comparing the two columns would see a plausible table.  Rule A is an ablation, so
+    nothing published rests on it today -- but it is printed beside the registered prompt and will
+    be read as a comparison point.
+
+    Everything here is recomputed by ``_linear_quantile`` or by ``max``, never by calling
+    ``rule_a_target``, and compared under ``==``.
+    """
+    from offline.rtg_calibration import RULE_A_QUANTILE, SECONDARY_QUANTILES, rule_a_target
+
+    # -- the definition itself, on the synthetic band --------------------------------------
+    rows = _write_band(tmp_path)
+    values = [value for _, value in rows]
+    assert rule_a_target(values, 1.0) == max(values), "q1.0 of a sample is its maximum"
+    for q in (*SECONDARY_QUANTILES, RULE_A_QUANTILE):
+        assert rule_a_target(values, q) == _linear_quantile(values, q), f"q{q} is not the q{q}"
+
+    # -- and on the REAL band, against the committed artifact's own cells -------------------
+    artifact = json.loads((REPO_DATA / "p7_2b_calibration.json").read_bytes())
+    real = [row["local_return"] for row in artifact["probe"]]
+    assert len(real) == 100
+
+    registered = [
+        row
+        for row in artifact["targets"]["mappo1000"]
+        if row["rule"] == "rule_a"
+    ]
+    assert len(registered) == 1
+    published_q1 = registered[0]["target_rtg"]
+    assert registered[0]["statistic"] == f"q{RULE_A_QUANTILE}"
+    assert published_q1 == max(real) == _linear_quantile(real, 1.0) == -20809.0
+
+    secondary = artifact["rule_a_secondary_values"]["mappo1000"]
+    for q in SECONDARY_QUANTILES:
+        assert secondary[f"q{q}"] == _linear_quantile(real, q), f"the published q{q} is not q{q}"
+    assert secondary == {"q0.5": -23163.5, "q0.75": -22617.75, "q0.9": -22153.5}
+
+    # The pairing of LABEL to VALUE is the thing under test, so the two must be distinguishable.
+    assert published_q1 != secondary["q0.9"], (
+        "q1.0 and q0.9 coincide on this band, so a mislabelled quantile would be invisible here "
+        "and this test would not be pinning what it claims to pin"
+    )
 
 
 def test_probe_returns_from_chunks_refuses_a_gap_and_a_duplicate(tmp_path: Path) -> None:
@@ -949,35 +1047,7 @@ def test_report_regenerates_byte_identically_and_carries_no_fenced_quantity(
     """
     work = tmp_path / "work"
     _write_band(work)
-    (work / "smoke_mappo1000.json").write_text(
-        json.dumps(
-            {
-                "format_version": tc.ARTIFACT_FORMAT_VERSION,
-                "subject": "mappo1000",
-                "draw_id": 5,
-                "checkpoint": "/home/filip/rltraffic/output/p4_dt/dt_seed101.pt",
-                "target_rtg": -5762.0,
-                "decisions": 360,
-                "rtg_first": -5762.0,
-                "rtg_advanced_every_decision": True,
-                "n_decisions_in_support": 360,
-                "actions_in_range": True,
-                "vehicle_types_seen": ["cf_parity"],
-                "time_to_teleport_option": "-1",
-                "seconds": 12.0,
-                tc.FENCED_KEY: {
-                    "att_horizon": 123.456,
-                    "episode_reward": -7654.0,
-                    "rtg_last": 1892.0,
-                    "rtg_series": [-5762.0, -5700.0],
-                },
-            },
-            indent=2,
-            sort_keys=True,
-        )
-        + "\n",
-        encoding="utf-8",
-    )
+    _write_smoke_chunk(work)
 
     out = tmp_path / "p7_2b_calibration.json"
     tc.report(work_dir=work, out_path=out, output_root=OUTPUT_ROOT)
@@ -1005,6 +1075,56 @@ def test_report_regenerates_byte_identically_and_carries_no_fenced_quantity(
     assert payload["canary"]["threshold_seconds"] == tc.CANARY_MAX_SECONDS == 2.0
     assert payload["canary"]["verdict"] == "at speed"
     assert "PROJECT_PLAN" in payload["canary"]["recipe"]
+
+
+@pytest.mark.skipif(not _checkpoints_available(), reason="P4 checkpoints are not in this tree")
+@pytest.mark.parametrize("route", ["allow_list", "chunk_value"])
+def test_report_refuses_to_write_when_a_fenced_name_reaches_the_serialised_artifact(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, route: str
+) -> None:
+    """Amendment F1. The LAST refusal in ``report`` -- the one no test reached until now.
+
+    ``report`` ends with a scan over the serialised bytes (``if FENCED_KEY in serialised: raise``)
+    and only then calls ``_write_json``.  Five tests assert that a refusal leaves no file behind and
+    **every one of them trips a refusal above chunk assembly**, so the scan was never executed with
+    delivered code: the merge reviewer moved ``_write_json`` above it and the whole suite stayed
+    green.  A future reorder of those two adjacent statements would publish a zero-shot number into
+    ``docs/data/`` (Amendment A3's fence) with nothing to say so.  This is the third time this
+    project has shipped a barrier no test reaches.
+
+    Two routes, because the guard makes two claims and they fail differently:
+
+    * ``allow_list`` -- the published-field allow-list is widened to carry the fenced key.  This is
+      the realistic future edit and it is the route the F1-M mutation is driven through.  The patch
+      is on the test's own view of the module attribute; **the delivered tuple is not weakened.**
+    * ``chunk_value`` -- no patching at all: a *published* field's VALUE carries the string.  Nothing
+      is wrong with the key set, so this passes any check written over key names and is caught only
+      because the guard is a scan over the serialised bytes.
+
+    Both assert on the guard's OWN message, so tripping some other refusal cannot satisfy them, and
+    both then assert the out-directory is empty -- which also catches a ``.tmp`` left by a
+    half-completed ``_write_json``.
+    """
+    work = tmp_path / "work"
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
+    _write_band(work)
+
+    if route == "allow_list":
+        _write_smoke_chunk(work)
+        monkeypatch.setattr(
+            tc, "_SMOKE_PUBLISHED_FIELDS", tc._SMOKE_PUBLISHED_FIELDS + (tc.FENCED_KEY,)
+        )
+    else:
+        _write_smoke_chunk(work, vehicle_types_seen=["cf_parity", tc.FENCED_KEY])
+
+    out = out_dir / "p7_2b_calibration.json"
+    with pytest.raises(AssertionError, match="reached the artifact"):
+        tc.report(work_dir=work, out_path=out, output_root=OUTPUT_ROOT)
+    assert list(out_dir.iterdir()) == [], (
+        "the fence refusal must precede every write; a fenced quantity in docs/data/ is a zero-shot "
+        "number published before P7.3's brief exists"
+    )
 
 
 @pytest.mark.skipif(not _checkpoints_available(), reason="P4 checkpoints are not in this tree")
@@ -1189,15 +1309,17 @@ def test_the_driver_gates_on_the_canary_before_consuming_the_token() -> None:
     assert "trap on_signal INT TERM" in text
 
     canary_at = text.index("CANARY_MAX_SECONDS")
-    canary_run = text.index("canary")
     token_at = text.index("rm -f \"$TOKEN\"")
     lock_at = text.index("REFUSING TO START: cells from another run")
     trap_at = text.index("trap on_signal INT TERM")
     leader_at = text.index("REFUSING TO START: not a process-group leader")
     assert lock_at < token_at, "the lock must refuse before the token is consumed"
-    assert canary_at < token_at and canary_run < token_at, (
-        "the canary must run before the token is consumed, or a throttled machine burns the "
-        "author's one-shot authorisation"
+    # Amendment F4.3: this used to read `and text.index("canary") < token_at`, which matched a word
+    # in the file's HEADER COMMENT and therefore held no matter where the stage ran. The assertion
+    # that carries the weight is the comment-free one below, added by E1.3.
+    assert canary_at < token_at, (
+        "the canary threshold must be set before the token is consumed, or a throttled machine "
+        "burns the author's one-shot authorisation"
     )
     # Amendment B1: a signal between the token's deletion and the trap's installation consumed the
     # one-shot authorisation and left neither FAILED nor COMPLETE.
@@ -1241,6 +1363,22 @@ def test_the_driver_gates_on_the_canary_before_consuming_the_token() -> None:
 
     # Amendment E1.4 item 1: this run's canary is parked in a manifested canary.json -- and, like
     # canary.log, only AFTER the token, so a refused start still creates nothing (Amendment B1).
+    # Amendment F4.1: two pins the driver never had, both over comment-free text.
+    # `set -euo pipefail` is LOAD-BEARING and not boilerplate: the coordinator established by
+    # experiment on 2026-09-15 that without `pipefail` a FAILING canary's non-zero exit does not
+    # propagate out of `CANARY_LINE=$(... | tee -a /dev/stderr)`, so the driver walks on and
+    # consumes the author's one-shot token on a machine whose engine just gave a wrong answer.
+    assert "set -euo pipefail" in code, (
+        "without pipefail a failing canary reaches the token; without -e a failing stage does not "
+        "stop the campaign"
+    )
+    # ... and $LOGS must not be created before the token, or a refused start leaves a directory
+    # behind and Amendment B1's "a refused start creates nothing" is no longer true.
+    assert code_token_at < code.index('mkdir -p "$LOGS"'), (
+        "mkdir -p \"$LOGS\" runs before the token is consumed, so a refused start would create the "
+        "log directory"
+    )
+
     invocation = 'record-canary --line "$CANARY_LINE"'
     assert invocation in code, (
         "the driver must hand the captured canary line to record-canary; report refuses a work "
