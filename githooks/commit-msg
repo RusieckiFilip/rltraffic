@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# commit-msg hook: refuse any commit message carrying an AI co-author or session trailer.
+#
+# Rule: this repository's commit log carries NO `Co-Authored-By: Claude ...` and NO `Claude-Session:` line.
+# Instructed by the author on 2026-07-27 and HONOURED for 665 commits over 48 days from a memory file alone.
+# Broken 25 times between 2026-09-12 and 2026-09-15, including four tagged registration commits, when a
+# session-level instruction conflicting with the rule was resolved SILENTLY in the instruction's favour and
+# never raised. The rule's location was not the failure; the silent resolution was. This hook makes the
+# silent path impossible; CLAUDE.md section 4b makes raising such a conflict an obligation. Installed
+# 2026-09-15; activated with `git config core.hooksPath githooks`, inherited by every linked worktree.
+#
+# Exit non-zero and the commit object is never created. Nothing is rewritten; history stays as it is.
+msg_file="$1"
+if grep -qiE '^[[:space:]]*(Co-Authored-By|Claude-Session)[[:space:]]*:' "$msg_file"; then
+  echo "commit-msg: REFUSED -- the message carries a Co-Authored-By / Claude-Session trailer." >&2
+  echo "  This repository's commit log carries no AI trailer (author's instruction, 2026-07-27;" >&2
+  echo "  githooks/commit-msg, CLAUDE.md section 4b). Remove the trailer lines and commit again." >&2
+  grep -niE '^[[:space:]]*(Co-Authored-By|Claude-Session)[[:space:]]*:' "$msg_file" | sed 's/^/    offending line /' >&2
+  exit 1
+fi
+exit 0
