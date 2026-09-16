@@ -154,3 +154,6 @@ Because the observer changed after P7.1's freeze (A5), **one observed MaxPressur
 `envs/sumo_env.py:196` starts traci with `numRetries=_TRACI_START_NUM_RETRIES`; two `Retrying in 1 seconds` lines appear per episode (≈ 2 s of the 37 s). It is a frozen file and a fixed cost — ≈ 2.6 h of the 49 h sequential, ≈ 0.5 h at 8 workers. Named so nobody tries to optimise it inside this task.
 
 **Then: pre-flight (with A6's pilot and A9's regeneration), the stage-1 checkpoint read by the coordinator, the token, the campaign attended in tmux.**
+
+## A11 — added 2026-09-16 ~15:00, on the author's measurement: the rate was taken on a THERMALLY CONSTRAINED machine
+The canary read 1.02 s at 14:05 and **0.81 s** shortly after, with nothing changed but time since the previous SUMO runs; the laptop's underside intake is blocked (glass table). The author will fit a cooling pad before the campaign and measure the canary on it. **Until that measurement exists, the 37.06 s cell rate, the ≈ 3× observer ratio and the ≈ 10 h schedule are measurements under thermal constraint, and every quotation of them says so.** The driver's canary at each stage start is the rate basis of that stage (§7's rule); the pre-flight pilot (A6) is re-run on the pad if the pad's canary differs from the pilot's by more than 10 %.
