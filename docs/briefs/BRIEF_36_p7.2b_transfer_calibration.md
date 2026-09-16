@@ -480,3 +480,63 @@ Every test written first and red for its own reason; the four mutations above ex
 goes up; `sha256sum docs/data/p7_2b_calibration.json` **unchanged at `92b1592d…`** and pasted as proof; the packet
 `docs/returns/P7.2b.md` gains a short section F recording the reviews, this round, and the four carried notes; report the
 tip sha. **The coordinator then re-runs the surviving mutants itself before merging — SEVEN, not six; the count in this sentence was corrected on 2026-09-15 after the implementer challenged it.**
+
+---
+
+# ⛔ AMENDMENT G — 2026-09-16, POST-MERGE: CI is red on `main` for a REAL failure, not the expected ceiling. Branch `task/p7.2b-ci-gate`
+
+**Classified from `junit.xml`, both legs of run `35023303912` (head `b2ee947`), identical element by element:
+`tests=2053 skipped=177 failures=1 errors=0`.** The failure is **not** the skip ceiling:
+
+```
+tests.test_transfer_calibration::test_a_chunk_that_is_valid_json_but_not_an_object_is_moved_aside_and_re_rolled
+FileNotFoundError: probe draw 201 has no parity configuration at
+  /home/filip/rltraffic/scenarios/draws/cityflow1x1/draw_0201/parity/noteleport.sumocfg
+```
+
+The test plants a bad chunk and expects `run_sumo_probe` to move it aside **and re-roll it**; the re-roll needs
+P7.2a's parity draws, which are gitignored and absent on CI. **The test carries no `skipif` decorator at all**,
+while its siblings at `tests/test_transfer_calibration.py:197` and `:267` carry
+`@pytest.mark.skipif(not _draws_available(), ...)`. Of P7.2b's 65 tests on CI: **45 ran and passed, 19 skipped
+correctly, 1 failed.** Nothing about the artifact, the numbers or the shipped code is implicated — `run_sumo_probe`
+raising a clear `FileNotFoundError` when the band is missing is correct behaviour.
+
+## ⭐ Why no one caught it — the finding that outranks the bug
+`tests/test_transfer_calibration.py:42-43` hardcodes
+`DRAWS_ROOT = Path("/home/filip/rltraffic/scenarios/draws")` and `OUTPUT_ROOT = Path("/home/filip/rltraffic/output")`
+— **absolute paths into the MAIN tree.** So in *any* throwaway worktree on this machine the gate predicates read the
+main tree's artifacts and return True: the coordinator's three mutation rounds, the three merge reviewers and the
+implementer all ran these files with **0 skips**, and the skipped state is **unreachable locally**. CI is the only
+environment in which these gates have ever fired. ⚠️ **Consequence beyond this bug: "the suite passes in a
+throwaway worktree" never implied "the suite passes without the artifacts", and every such claim in this task's
+history should be read that narrowly.**
+
+## G1 (BLOCKING) — the failing test
+**Preferred, because it keeps CI coverage of the half that needs no simulator:** split it. (a) A **CI-runnable**
+assertion that the bad chunk is moved into `failed/` *even when the re-roll cannot proceed* — the `FileNotFoundError`
+is the stopping point, and the move-aside is pure filesystem behaviour; assert both the raise and the moved file.
+(b) The existing full re-roll, gated. **Minimum acceptable:** the sibling decorator.
+⚠️ **If you gate rather than split, the predicate must name DRAW 201, not draw 5.** `_draws_available()` checks
+`SMOKE_DRAW = 5`; this test consumes the probe band. On CI neither exists, so the wrong predicate would work *by
+accident* — which is how this class of defect survives.
+
+## G2 (BLOCKING) — a gate must name the artifact its test consumes
+Give `_draws_available()` a draw-id parameter (or add a probe-band variant) and **audit every `skipif` in both P7.2b
+test files** for the same mismatch, reporting the audit even where it finds nothing.
+
+## G3 (the Definition of Done) — prove it in CI's condition, which this machine cannot reach by accident
+Because of the absolute roots, running in a worktree proves nothing. **Required:** run both P7.2b test files with
+`DRAWS_ROOT` and `OUTPUT_ROOT` pointed at an empty temporary directory (a one-off `conftest.py` in a scratch
+directory, a `-p` plugin, or monkeypatching before collection — your choice, state which), and paste the result:
+**0 failures**, with the expected skips. Then the next CI run confirms it. Report the tip sha; the coordinator
+re-runs G3's reproduction itself before merging.
+
+## G4 — THE CEILING IS NOT 177, AND MUST NOT BE COMMITTED YET
+Gating the failure converts it from a **failure** into a **skip**: `177 → 178`. Committing 177 now would put CI red
+again on the next push, for a number we produced. **The registered route still holds — merge, let it go red,
+classify, commit the observed value — and the observed value is the one measured AFTER G1 lands.** The classification
+of the current red is done and recorded here; the bump waits.
+
+## Not in this round
+`DEFERRED` 82 (the hardcoded absolute roots, a reproducibility problem for anyone who is not this machine) — real,
+repo-wide, and not a reason to keep CI red.
