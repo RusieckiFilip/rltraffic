@@ -204,3 +204,27 @@ A15's text is correct — `reconstruct_sumo_episode` names the quantity `e_sumo`
 ## C9 — Process: `git merge main` at the start of every implementer session. Amendments A11 and B were on `main` for an hour before they were read; nothing was harmed because they were read before anything was written, and that is the rule.
 
 **Then: code (§3.0–3.6 with B2's `--stage confirmatory` and C2's halting convention), pre-flight with the pad pilot, the stage-1 checkpoint read by the coordinator, the token.**
+
+---
+
+# ⛔ AMENDMENT D — 2026-09-16, on §3.1/§3.2 (`e380ecb`): the wiring is RIGHT and A17(f) holds under the coordinator's own recomputation — but T1 and T2 were done BY HAND, not as tests, and the logger-side alignment is UNPINNED. Fix before §3.5 is built on it
+
+**Verified from disk:** the collected `output/p7_3a_runs/collect_smoke/ep000000_seed1000_draw201.npz` — `ix0_local_reward` float32, 360 values, all integral; `sum` in float64 = **−23938.0 == `probe[201].local_return`**; `ix0_state` shape **(361, 25)**, canonical; `format_version 1.1`; manifest `backend: sumo` carrying `alignment_provenance`. The seam is as the report describes — `align_for_log` applied at `on_reset`, `on_action` and `on_step_result`, the env unwrapped for MaxPressure — and the gate checks integrality before `==` on both the float64 sum and the seed. Three coordinator mutants on the gate died (integrality dropped; seed equality dropped; and, by the implementer, the seed off by one).
+
+## D1 — The brief's §3.1 said "wrap it in `AlignedEnv`"; the implementer's correction is ACCEPTED and is now the design
+A16's door sits at the **logger boundary** for collection: the policy drives and reads the unwrapped SUMO env (MaxPressure's pressure is over SUMO lane ids — A2's fact, the same `KeyError`), and the info is aligned exactly where the logger is fed, so the corpus is in the canonical frame (A18(a)) with rewards untouched (F2). Found by running, not by reading; the `KeyError` is in the record.
+
+## D2 — REQUIRED NOW: T1 and T2 as TESTS, because the coordinator's mutant SURVIVED
+Bypassing `align_for_log` — logging the raw 32-wide info — left every test green: `grep` finds no test referencing `align_for_log`, `ix0_state`, a 25-wide assertion, `alignment_provenance`, `parity_sumocfg_sha256`, or a SUMO draw-sweep call. The three new `a17f` tests are gate tests over synthetic corpora (five tests in 1.5 s); the end-to-end run was manual. **§4 requires T1 (load-bearing, SUMO) and T2 (SUMO) as tests**, and they are required before §3.5 is built on this seam:
+- **One module-scoped fixture performs ONE real collection** — draw 201, `--backend sumo --flow-draw 201 --base-seed 1000 --episodes 1`, through `collect.main` or the same entry the driver will use — into `tmp_path`, so T1 and T2 share one SUMO episode (the suite's four-episode cap, §4).
+- **T1:** `assert_logged_corpus_matches_probe` over that corpus against `docs/data/p7_2b_calibration.json` passes, and the test ALSO asserts the two values directly — `sum(ix0_local_reward)` in float64 `== −23938.0` and `engine_seed_drawn == 437485271` read from the manifest — so the test does not merely trust the gate it exists to exercise. *Mutation:* `--base-seed 1001` → the gate refuses naming both values.
+- **T2:** `ix0_state.shape[1] == 25`; the manifest carries `backend == "sumo"`, `parity_sumocfg` and its sha256 equal to the file's, `alignment_provenance` with `scenario` and the per-intersection permutation, `engine_seed_requested == 1000`, `engine_seed_drawn`, `time_to_teleport_option == "-1"`, `vehicle_types_seen == ["cf_parity"]`. *Mutation:* `logged = info` (the alignment bypassed) → the width assertion dies. **This is the mutant that survived; it must die.**
+- Both gated with a predicate naming draw 201 (Amendment G2).
+
+## D3 — The changed contract test is ACCEPTED
+`test_collect_refuses_flow_draw_on_non_cityflow` encoded a contract §3.1 changes by design; its replacement asserts what remains refusable (an unwired backend by name; a SUMO sweep whose parity configuration is absent) and says why in its docstring. That is how a contract test is retired.
+
+## D4 — T1-M2 (`==` loosened to `abs(d) < 1.0`) survived and is EQUIVALENT GIVEN THE GUARD, accepted as recorded
+Two integral sums differ by at least 1.0, so the tolerance and `==` coincide on this domain; the only inputs that separate them are non-integral rewards, which the integrality guard refuses first — and that guard's own mutant dies. Equivalent given the guard, and only given it; the packet says so.
+
+**Then §3.5 and §3.6 as planned.**
