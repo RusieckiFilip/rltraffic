@@ -1784,6 +1784,11 @@ def build_parser() -> Any:
     cells.add_argument("--workers", type=int, default=DEFAULT_WORKERS)
     cells.add_argument("--limit", type=int, default=None)
 
+    gate = subparsers.add_parser(
+        "a17f", help="A17(f): every logged episode reproduces P7.2b's probe return bit-for-bit"
+    )
+    gate.add_argument("--corpus-dir", required=True)
+
     report_parser = subparsers.add_parser("report", help="write the committed artifact")
     report_parser.add_argument("--stage", choices=list(STAGES), default=None)
     report_parser.add_argument("--stage1-path", default=None)
@@ -1814,6 +1819,18 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "record-canary":
         print(record_canary(args.line, work_dir=work), flush=True)
+        return 0
+
+    if args.command == "a17f":
+        # The gate lives in transfer_calibration, where P7.2b's probe does; this is the CLI the
+        # P7.3a driver runs it from. It RAISES on a mismatch -- 100/100 or P7.3 stops -- so the
+        # driver's `|| fail` sees a non-zero exit and the campaign never reaches an evaluation cell.
+        from offline.transfer_calibration import assert_logged_corpus_matches_probe
+
+        record = assert_logged_corpus_matches_probe(
+            args.corpus_dir, Path(args.data_dir) / P7_2B_CALIBRATION_NAME
+        )
+        print(json.dumps(record, indent=2, sort_keys=True), flush=True)
         return 0
 
     if args.command == "cells":

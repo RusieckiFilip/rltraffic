@@ -1422,3 +1422,198 @@ def test_t5_twenty_decisions_of_dt_seed101_through_the_cell_path(tmp_path: Path)
     assert types_seen == ["cf_parity"]
     assert option == "-1"
     assert att > 0.0, "a real episode has a positive average travel time"
+
+
+# ==================================================================================
+# T9 -- the driver, asserted over COMMENT-FREE text
+# ==================================================================================
+DRIVER = Path(__file__).resolve().parents[1] / "offline" / "campaigns" / "p7_3a_zero_shot.sh"
+
+
+def _driver_code_text() -> str:
+    """The driver with every whole-line comment removed.
+
+    ⚠️ **Amendment E1.3 item 2, after the coordinator's mutant MD2 SURVIVED on P7.2b's driver.**
+    That test asserted ``"tee /dev/stderr" in text``; deleting ``tee`` from the CODE line left the
+    assertion satisfied by the COMMENT explaining what ``tee`` was there for.  A text assertion over
+    a file that documents itself will be satisfied by its own documentation.  Assertions about what
+    the driver DOES are made over this text; assertions about what it SAYS may use the whole file.
+    """
+    return "\n".join(
+        line
+        for line in DRIVER.read_text(encoding="utf-8").splitlines()
+        if not line.lstrip().startswith("#")
+    )
+
+
+def test_t9_the_driver_exists_and_is_syntactically_valid() -> None:
+    """``bash -n`` -- a driver that does not parse consumes the token and then dies."""
+    import subprocess
+
+    assert DRIVER.is_file(), f"no driver at {DRIVER}"
+    assert subprocess.run(["bash", "-n", str(DRIVER)], capture_output=True).returncode == 0
+
+
+def test_t9_the_ordering_the_token_depends_on() -> None:
+    """Every check that can refuse PRECEDES the token, and every write FOLLOWS it.
+
+    The token is a one-shot authorisation the author writes by hand: a refused start must consume
+    nothing and create nothing, and from the first destructive line onward a signal must leave
+    FAILED behind.  Asserted as ORDER, because each of these lines existing somewhere in the file
+    is exactly what the P7.2b pre-flight found insufficient (the trap was installed after the token
+    and a signal in that window destroyed the authorisation silently).
+    """
+    code = _driver_code_text()
+    token = code.index('rm -f "$TOKEN"')
+    for label, needle, before in (
+        ("the canary", "canary | tee -a /dev/stderr", True),
+        ("the trap", "trap on_signal INT TERM", True),
+        ("the group-leader check", "ps -o pgid=", True),
+        ("record-canary", "record-canary", False),
+        ("the logs directory", 'mkdir -p "$LOGS"', False),
+    ):
+        index = code.index(needle)
+        if before:
+            assert index < token, f"{label} must precede the token being consumed"
+        else:
+            assert index > token, f"{label} must follow the token being consumed"
+
+
+def test_t9_a17f_stops_the_driver_before_any_evaluation_cell_runs() -> None:
+    """Gate 3: the collection and A17(f) come before the pool, and a mismatch stops the driver.
+
+    A17(f) is the consistency gate between P7.2b and P7.3 -- *100/100 or P7.3 stops*.  It is cheap
+    (about 20 minutes) and it is where a wiring defect surfaces, so it must precede the hours of
+    evaluation rather than run beside them.
+
+    ⚠️ **The needles are the COMMAND forms, not words.**  The first version of this test searched
+    for ``" cells "`` and matched the refusal message *"cells from another run are still alive"* --
+    1,296 characters before the subcommand it meant, which made the ordering assertion fail against
+    a driver whose order was correct.  A needle that can match prose is a needle that will.
+    """
+    code = _driver_code_text()
+    collection = code.index("run_stage collect offline.collect")
+    gate = code.index("run_stage a17f offline.transfer_curve")
+    cells = code.index("cells --stage")
+
+    assert collection < gate < cells, (
+        "the order must be: collect the corpus, check A17(f), and only then evaluate"
+    )
+    # Every stage goes through run_stage, which calls `fail "$label"` when the child exits
+    # non-zero; that is what turns A17(f)'s refusal into a stopped campaign rather than a log line.
+    assert 'fail "$label"' in code, "run_stage must stop the driver when a stage exits non-zero"
+    assert code.index("run_stage()") < gate, "a17f must be run THROUGH run_stage, not beside it"
+
+
+def test_t9_the_worker_count_and_every_root_come_from_variables() -> None:
+    """§0.9: no new hardcoded absolute path, and C3's 12 workers as a variable, not a literal.
+
+    A literal worker count cannot be lowered by an operator whose machine is smaller, and a
+    hardcoded root is how ``DEFERRED`` 82 happened: the roots became untestable anywhere but this
+    machine.
+    """
+    code = _driver_code_text()
+    assert "WORKERS=" in code
+    assert '--workers "$WORKERS"' in code
+    for variable in ("MAIN=", "WORK=", "DRAWS=", "LOGS=", "CORPUS="):
+        assert variable in code, f"{variable} must be a variable with today's path as its default"
+    # every absolute path in the code is a DEFAULT assignment, never buried in a command
+    offenders = [
+        line.strip()
+        for line in code.splitlines()
+        if "/home/filip" in line and not line.strip().startswith(("MAIN=", "PY=", "export"))
+    ]
+    assert offenders == [], f"absolute paths outside the variable block: {offenders}"
+
+
+def test_t9_logs_are_appended_and_never_truncated() -> None:
+    """A restart must not destroy the first run's narrative record.
+
+    ``tee -a`` matters for the same reason and is load-bearing beyond style: plain
+    ``tee /dev/stderr`` re-opens stderr with ``O_TRUNC``, so a driver run with ``>> log 2>&1``
+    resets the file offset and destroys everything already written.  P7.2b lost run 3's capture
+    that way (Amendment E1.3 item 3).
+    """
+    code = _driver_code_text()
+    assert "tee -a /dev/stderr" in code
+    assert "tee /dev/stderr" not in code.replace("tee -a /dev/stderr", "")
+
+    truncating = [
+        line.strip()
+        for line in code.splitlines()
+        if "$LOGS/" in line and ">" in line and ">>" not in line and "tee" not in line
+    ]
+    assert truncating == [], f"these lines truncate a log instead of appending: {truncating}"
+
+
+def test_t9_the_manifest_is_written_last_and_atomically() -> None:
+    """A manifest is the record of what a run produced, so it is written whole or not at all."""
+    code = _driver_code_text()
+    assert "SHA256SUMS_p7_3a.txt.tmp" in code
+    assert code.index("SHA256SUMS_p7_3a.txt.tmp") > code.index(" report ")
+    assert "sha256sum -c" in code, "the manifest is re-verified after it is written"
+
+
+def test_t9_the_driver_declares_both_stages_and_refuses_an_unknown_one() -> None:
+    """Amendment B1's two stages, and B2's stage-1 artifact cited by the final report.
+
+    Stage 2 is UNCONDITIONAL: the driver runs it whatever stage 1 showed, which is why the stage is
+    an ARGUMENT rather than a decision the driver makes from a number.
+    """
+    code = _driver_code_text()
+    assert "confirmatory" in code and "rest" in code
+    assert "--stage1-path" in code, "the final report must cite the stage-1 artifact (B2)"
+    assert "REFUSING TO START" in code
+
+
+# ==================================================================================
+# The pool's resume path -- the half that can be tested without a simulator
+# ==================================================================================
+def test_run_stage_skips_every_cell_whose_chunk_is_already_reusable(tmp_path: Path) -> None:
+    """A restart on a complete work directory rolls NOTHING and starts no worker at all.
+
+    This is the half of the pool that a test can reach: the skip decision.  It is in Python rather
+    than in the shell because ``offline/campaigns/p5_3b.sh``'s ``[ -f ]`` guard let a bad chunk
+    survive every restart, and the verdict here is re-derived from the chunk and from the files on
+    disk.  If a cell were wrongly judged unusable this test would spawn a SUMO worker and hang --
+    which is itself the assertion that nothing was rolled.
+    """
+    roots, _ = _campaign(tmp_path)
+
+    summary = tcv.run_stage(
+        work_dir=roots.work,
+        out_root=roots.draws,
+        output_root=roots.output,
+        data_dir=roots.data,
+        cells=_DEMO_CELLS,
+        workers=1,
+    )
+
+    assert summary["n_declared"] == len(_DEMO_CELLS)
+    assert summary["n_reused"] == len(_DEMO_CELLS)
+    assert summary["n_rolled"] == 0
+    assert summary["n_failed"] == 0
+    assert not (roots.work / "failed").exists(), "nothing was unusable, so nothing was moved aside"
+
+
+def test_an_unusable_chunk_is_moved_aside_and_never_overwritten(tmp_path: Path) -> None:
+    """E3(d): a chunk that failed its own re-validation is EVIDENCE about a run.
+
+    It is moved into ``failed/`` rather than overwritten, and a second failure of the same cell
+    does not overwrite the first one either -- the suffix grows.  ``report``'s glob does not see
+    ``failed/``.
+    """
+    roots = _build_roots(tmp_path, draws=(1000,), seeds=(101,))
+    cell = _cell("anchor", "fixedtime", 1000)
+    path = tcv.write_chunk(_payload(cell, roots, n_teleports=3), work_dir=roots.work)
+
+    first = tcv.move_aside(path)
+    assert first == roots.work / "failed" / path.name
+    assert not path.exists()
+
+    tcv.write_chunk(_payload(cell, roots, n_teleports=7), work_dir=roots.work)
+    second = tcv.move_aside(path)
+
+    assert second != first, "the first failed chunk must not be overwritten by the second"
+    assert json.loads(first.read_bytes())["n_teleports"] == 3
+    assert json.loads(second.read_bytes())["n_teleports"] == 7
