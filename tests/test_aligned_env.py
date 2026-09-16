@@ -42,10 +42,17 @@ def _sumo_available() -> bool:
     return shutil.which("sumo") is not None
 
 
-def _draws_available() -> bool:
+def _draws_available(draw_id: int) -> bool:
+    """Is P7.2a's parity configuration present for **this** draw? (Amendment G2.)
+
+    The parameter is required for the reason given at length in the sibling file: a predicate that
+    takes no draw id asserts a property -- *"the draws are available"* -- that does not exist, and a
+    draw-5 check standing in for a draw-201 dependency is what put CI red.  Both tests here consume
+    ``SMOKE_DRAW`` and say so at the decorator.
+    """
     from offline.materialise_draws import parity_sumocfg_path
 
-    return parity_sumocfg_path("cityflow1x1", SMOKE_DRAW, out_root=DRAWS_ROOT).is_file()
+    return parity_sumocfg_path("cityflow1x1", int(draw_id), out_root=DRAWS_ROOT).is_file()
 
 
 class _NotASumoEnv:
@@ -103,7 +110,10 @@ def test_the_alignment_argument_must_be_a_scenario_alignment() -> None:
 # T1 -- the door translates the observation and NOTHING else
 # ----------------------------------------------------------------------------------
 @pytest.mark.skipif(not _sumo_available(), reason="SUMO/traci not available")
-@pytest.mark.skipif(not _draws_available(), reason="P7.2a's parity draws are not present")
+@pytest.mark.skipif(
+    not _draws_available(SMOKE_DRAW),
+    reason=f"P7.2a's parity configuration for draw {SMOKE_DRAW} is not present",
+)
 def test_the_wrapper_aligns_the_observation_and_leaves_every_outcome_untouched(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -231,7 +241,10 @@ def test_the_wrapper_aligns_the_observation_and_leaves_every_outcome_untouched(
 
 
 @pytest.mark.skipif(not _sumo_available(), reason="SUMO/traci not available")
-@pytest.mark.skipif(not _draws_available(), reason="P7.2a's parity draws are not present")
+@pytest.mark.skipif(
+    not _draws_available(SMOKE_DRAW),
+    reason=f"P7.2a's parity configuration for draw {SMOKE_DRAW} is not present",
+)
 def test_wrapping_an_aligned_env_is_refused_at_construction() -> None:
     """``align_info`` refuses a second application at the first ``reset`` (on the state width).
 
