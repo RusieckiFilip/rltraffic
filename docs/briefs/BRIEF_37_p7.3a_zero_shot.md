@@ -113,3 +113,94 @@ SUMO- and checkpoint-gated tests carry `skipif` predicates that **name the artif
 
 ## 8. Return Packet
 `docs/returns/TEMPLATE.md`, plus: the plan-gate rate with its date; A17(f)'s 100/100 line with the two fields compared; the four-way cell counts (arms × subjects × seeds × draws, and the anchors) against the manifest; ρ under both definitions per `(subject, arm)` with CIs and the paired-CI helper named; H3's inequalities as reported; the contrast and its registered direction; the in-support diagnostic; the canary of every run with its file and sha; where the driver ran; the amendments and blocks written against, by letter; the AI-assistance record's four lines; *what P7.3b will assume*.
+
+---
+
+# ✅ AMENDMENT A — 2026-09-16, at the plan gate: PLAN APPROVED (`docs/plans/p7.3a.md` @ `baf1ca4`), with ten rulings
+
+The five gate items are answered from the code and the transcript, and the coordinator verified each from disk: the transcript exists at the stated sha (`0133d4c8…`) with the stated numbers; the seeding line is `offline/collect.py:722`; the float32 hazard is real (`trajectory_logger.py:118`) and the integrality argument is sound; `mean_ci95` is analytic; `fixedtime` is in `collect.POLICIES` (`:191`); the anchors-through-the-door `KeyError` is in the transcript. **Proceed to code.**
+
+## A1 — Q4: CONFIRMED. "Both definitions" means ρ on `E_sumo` and ρ on `att_env`
+One formula (§3.4), two ATT definitions per A15(a)/(b), the pool-clock pair primary and the admitted pair beside it. Not two ρ formulas.
+
+## A2 — ANCHORS RUN ON THE OBSERVED, UNWRAPPED ENV. The brief's §3.5 was wrong to say "env from §3.4" for every cell
+Measured by the implementer, not reasoned: `align_info` drops outgoing lanes and re-keys to CityFlow ids, and MaxPressure's pressure is a difference over the env's own SUMO lane ids — wrapping it raises `KeyError: 'road_1_1_2_0'`. **DT arms: observed + aligned. Fixed-time, MaxPressure, random: observed, unwrapped.** T7b (an anchor cell built through `AlignedEnv` is refused) is accepted and required. A16 is unaffected: the door is the only route into a *CityFlow-trained model's* frame, and anchors have no frame to enter.
+
+## A3 — Q3: CONFIRMED. The paired CI is analytic, there is no resampling seed, and the brief presumed one
+`paired_stats → paired_comparison → dt_gate.mean_ci95`, `1.96·s/√n`, with the Wilcoxon beside it as P5.3b reported. The packet says *analytic, no resampling* in those words. The brief's phrase *and its resampling seed* was the coordinator presuming a bootstrap the repository does not have; repo wins, and the implementer was right to raise rather than invent.
+
+## A4 — Q5: RESOLVED by the coordinator. `fixedtime` is `collect.POLICIES["fixedtime"]` (`offline/collect.py:191`, `make_fixedtime`), and P7.1's `sumo__fixedtime` cells ran it on SUMO.
+
+## A5 — Q1, the observer's ×3: two candidates FALSIFIED by the coordinator, one left standing, none changes the schedule
+- **Not the scenario.** Draw 5 carries **1,836** vehicles against the nominal file's **2,021** that P7.1 timed on (held-out draws 1,787–1,821); draw 5 is *lighter*, and its departure profile is flatter. Density cannot produce a larger observer ratio.
+- **Not `libsumo`.** Default `False` on both occasions; P7.1's artifact records no such flag; the harness took `collect_style_args`' defaults.
+- **Left standing: the observer's code moved after P7.1's timing.** `offline/sumo_att_reference.py` changed at `7efafa7` (P7.1's fix round, 113 diff lines) after the freeze campaign `7cebd4f` whose timing block is the 17.3–19.3 s. So P7.1 timed an earlier observer. **Ruling A9 turns this from a cost question into a value question.**
+- **The machine is also 1.3–1.5× slower than yesterday** on an idle box on mains: canary 0.68 → 0.79 → 0.89 → 0.97 → **1.02 s** (coordinator, 14:05, load 0.65, AC online, 16 cores). Under the 2.0 s threshold, but a monotone drift over 24 h; flagged to the author (§7's second clause: power plan and thermals are invisible from inside the guest).
+- **The schedule stands on the measurement, as §5 required.** ≈ 49 h sequential, ≈ 10 h at the measured ×4.9. The residual is recorded, not explained away.
+
+## A6 — Q2: YES, measure fixed-time and random (n = 2 each, draw 5, fenced), and ADD a pool pilot at the pre-flight
+The ×4.9 was measured on **unobserved** episodes; an observed cell is ≈ 3× the Python work per step and may scale differently across 16 cores. **Pre-flight adds: 16 observed DT cells on draw 5 (fenced — no outcome printed) through the real pool at 8 workers; the effective per-cell rate from that pilot is the driver header's schedule.** If it is materially worse than ×4.9, try 12 workers in the same pilot and record both; the campaign runs at whichever measured better.
+
+## A7 — T2b (integrality before equality) and the float32 finding: ACCEPTED and carried to the packet
+The gate asserts integrality of every stored reward first; a non-integral reward is a finding with the right diagnosis, never a tolerance.
+
+## A8 — Assumption 5 (draw 5 representative, 85 %): ACCEPTED as stated
+Held-out draws carry 1,787–1,821 vehicles against draw 5's 1,836; the campaign records per-cell `seconds` and the packet reports its own rate.
+
+## A9 — NEW, REQUIRED before the campaign: the INSTRUMENT regenerates P7.1's frozen value
+Because the observer changed after P7.1's freeze (A5), **one observed MaxPressure episode on the NOMINAL teleport-free parity config, under the seed and settings P7.1's `reproduction` block records, must reproduce P7.1's committed `e_sumo` and `att_env` for that cell under `==`** (`docs/data/p7_1_metric_freeze.json:cells.sumo_noteleport__maxpressure`, per-episode values). ≈ 45 s. If it does not reproduce, the observer's change altered the registered instrument's VALUE and P7.3a stops until that is understood — a cost change is harmless, a value change is not. Add as T4b, SUMO-gated, naming the nominal config.
+
+## A10 — Recorded, no action: the traci start retry
+`envs/sumo_env.py:196` starts traci with `numRetries=_TRACI_START_NUM_RETRIES`; two `Retrying in 1 seconds` lines appear per episode (≈ 2 s of the 37 s). It is a frozen file and a fixed cost — ≈ 2.6 h of the 49 h sequential, ≈ 0.5 h at 8 workers. Named so nobody tries to optimise it inside this task.
+
+**Then: pre-flight (with A6's pilot and A9's regeneration), the stage-1 checkpoint read by the coordinator, the token, the campaign attended in tmux.**
+
+## A11 — added 2026-09-16 ~15:00, on the author's measurement: the rate was taken on a THERMALLY CONSTRAINED machine
+The canary read 1.02 s at 14:05 and **0.81 s** shortly after, with nothing changed but time since the previous SUMO runs; the laptop's underside intake is blocked (glass table). The author will fit a cooling pad before the campaign and measure the canary on it. **Until that measurement exists, the 37.06 s cell rate, the ≈ 3× observer ratio and the ≈ 10 h schedule are measurements under thermal constraint, and every quotation of them says so.** The driver's canary at each stage start is the rate basis of that stage (§7's rule); the pre-flight pilot (A6) is re-run on the pad if the pad's canary differs from the pilot's by more than 10 %.
+
+---
+
+# ✅ AMENDMENT B — 2026-09-16, on the author's ruling: the campaign runs in TWO DECLARED STAGES, so the confirmatory number exists early and there is slack if something breaks — NOT to rescue a deadline; the schedule is not tight
+
+The compute is one night and the author presents in ten days. The coordinator's first framing of this ordering as a deadline rescue was wrong on the coordinator's own arithmetic and is withdrawn; the staging is for **early existence and slack**, which is a good reason on any calendar.
+
+## B1 — The order, declared before any cell runs (A17(d))
+- **Stage 1 — confirmatory:** `b_mean_k100` × `mappo1000`, `mix50` × seeds 101/202/303/404/505 × held-out draws 1000–1099 (1,000 DT cells), plus `fixedtime` and `maxpressure` on the same draws (200) — the two anchors §3.4's ρ uses. ≈ 1,200 observed cells.
+- **Stage 2 — the rest:** `b_max_k100`, `a_q1.0`, `naive` for both subjects and all seeds (3,000) and `random` × 5 policy seeds (500), on the same draws, resumable in the same work directory under a second token; the driver re-runs the canary at its start.
+- **Stage 2 is UNCONDITIONAL.** It runs whatever stage 1 shows, exactly as P7.3b runs whatever the zero-shot number is (§7). Nothing registered moves: five seeds, 100 draws, both subjects, every declared arm on the same draws and seeds. This is a sequence, not a cut, and the packet and the paper say so.
+
+## B2 — `report --stage confirmatory` (an addition to §3.5)
+A stage flag whose declared cell set is exactly B1's stage 1; `report` refuses if any stage-1 cell is missing or any undeclared arm is present, and writes `docs/data/p7_3a_zero_shot_stage1.json` with the same block layout as the final artifact (ρ under both definitions for `b_mean_k100` only, the H3 inequalities, the in-support diagnostic, canary, provenance). The final `report` writes `docs/data/p7_3a_zero_shot.json` over all cells and **cites the stage-1 artifact's sha256**; both are committed. The stage-1 cells are byte-identical between the two artifacts (a test: every stage-1 row in the final artifact `==` its row in the stage-1 artifact).
+
+## B3 — What goes on a slide, and what does not
+**Anything aimed outside the project states what the number is and what produced it — and carries no label from this project's internal process.** *Review* here means a second Claude session checking the first; *pre-review* on a slide would read as a qualification of the result, and it is not one. The honest description is the registered one: *ρ on the pool-clock ATT (E_sumo) within SUMO; MADT trained on CityFlow (`mappo1000` / `mix50`), zero-shot on SUMO through the frozen alignment, prompted by the Rule B mean k = 100 target from a 100-episode MaxPressure probe; 100 held-out demand draws × 5 seeds; fixed-time and MaxPressure anchors on the same draws; design registered as A15–A18 before any target-domain number existed.* The internal verification steps that precede a number's use (A17(f), both canary halves, the coordinator's read from disk) are conditions on the number being used at all, not qualifiers to print beside it.
+
+---
+
+# ✅ AMENDMENT C — 2026-09-16, on the A9 / A6 / A2 measurements (`40c641b`): the instrument REPRODUCES, the ×3 was the halting cross-check, and nine rulings
+
+**Verified by the coordinator from disk, not from the report:** the tip's diff is one test file and one docs note, no production code; the transcript `a9_a6_a2.txt` at `ef551b98…`; P7.1's frozen ep0 row read by the coordinator directly from `docs/data/p7_1_metric_freeze.json` — `att_env 367.5816210045662`, `att_reference_created_population 475.4507669470559`, counts 2021 / 1752 / 0 — equals the transcript's fresh values under float64 `==`; `run_sumo_arm`'s docstring (`offline/sumo_att_reference.py:1195-1202`) and `:1292` (`env.halting_check = index < halting_episodes`) confirm the halting cross-check runs on the first episode only and costs 3.49×; the three `sumo_noteleport__*` cells carry `all_equal: null` in the freeze's reproduction block; T7b passes and its M1 (the door bypassed) dies under the coordinator's own mutation.
+
+## C1 — A9: PASS. The observer's change at `7efafa7` moved cost, not value; P7.3a proceeds
+Bit-for-bit in float64 on the nominal teleport-free MaxPressure episode at seed 1000 — stricter than P7.1's own float32 convention.
+
+## C2 — Q6, the halting cross-check: run it on a DECLARED SUBSET, as the registered instrument itself does — never on every cell, never on none
+The check is a verification of the *recorder* (its halting classification against SUMO's own, `halting_n_disagreeing_lane_seconds`), not part of the measurement; it is value-neutral by construction (reads only) and measured so (A9b, identical values, 55.96 → 16.01 s). P7.1's registered convention is `halting_episodes = 1` — the first episode of each arm. **P7.3a's convention: the check is ON for every cell on draw 1000** (every subject × arm × seed, and every anchor including all five `random` seeds — 47 cells of 4,700) **and OFF elsewhere; every chunk records `halting_checked` and, where checked, the three halting fields; `report` REFUSES any checked cell with `halting_n_disagreeing_lane_seconds ≠ 0`** — a recorder disagreement is a finding that stops the campaign, exactly as a teleport does. Declared here, before any cell runs.
+
+## C3 — Q7: 12 workers, CONFIRMED (measured 1.27× better than 8 on 16 cores).
+
+## C4 — Q8: the pool pilot is RE-RUN ON THE COOLING PAD before the token, as A11 requires (0.90 → ≤ 0.81 s is > 10 %); the driver header's schedule is the pad pilot's rate.
+
+## C5 — Q9: P7.1's teleport-free cells were never reproduced by P7.1 — recorded as a CORRECTION to the freeze artifact's standing, and closed for all three anchors here
+`p7_1_metric_freeze.json:reproduction` covers 9 of 12 cells (`n_verified: 45`); the three `sumo_noteleport__*` cells — the regime every P7.3 number uses — have `n = 0`. The artifact is not edited (it says so truthfully); the Decisions Log records it. **Required: A9 extended to `fixedtime` and `random` on the nominal teleport-free config, ep0, seed 1000, halting off (≈ 16 s each), reproducing their frozen rows under `==`** — so every anchor the campaign uses has been reproduced by today's instrument before it runs 4,700 cells. Reported in the packet as the first reproduction those three cells ever had.
+
+## C6 — `e_sumo` versus `att_reference_created_population`: two names for one quantity, recorded as a naming trap
+A15's text is correct — `reconstruct_sumo_episode` names the quantity `e_sumo` (`:352`, `:764`) — and the artifact key it is written to is `att_reference_created_population` (`:1252`). The ρ code reads the artifact key, documents the alias in one sentence, and the packet states it. A15 is not amended.
+
+## C7 — The schedule, on the measurements: stage 1 ≈ 1 h, the full campaign ≈ 3–3.5 h at 12 workers under C2's convention, on the thermally constrained machine; the pad pilot (C4) sets the header. Three figures were wrong in three directions — the costing note's, the brief's and the plan's — and each was corrected by a measurement, which is what the gate is for.
+
+## C8 — A2 / T7b: ACCEPTED. M1 killed (coordinator's run); M2 (the control deleted) is a non-mutation, correctly so recorded; the coordinator's M3 (the key-provenance assertion neutralised) survives because it weakens a diagnostic, not the claim — noted, not counted. The second half — the cell builder's explicit refusal — lands with `offline/transfer_curve.py`.
+
+## C9 — Process: `git merge main` at the start of every implementer session. Amendments A11 and B were on `main` for an hour before they were read; nothing was harmed because they were read before anything was written, and that is the rule.
+
+**Then: code (§3.0–3.6 with B2's `--stage confirmatory` and C2's halting convention), pre-flight with the pad pilot, the stage-1 checkpoint read by the coordinator, the token.**
