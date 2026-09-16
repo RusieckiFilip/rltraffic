@@ -263,7 +263,7 @@ The count in the new comment is right; the list is not. Measured at `e260744` by
 The rest of E2 stands: fresh token by the author (`mkdir -p /home/filip/rltraffic/output/p7_2b && date -Is > /home/filip/rltraffic/output/p7_2b/AUTHORISED_TO_RUN`), mains power, tmux foreground pane (the driver refuses a non-leader), `cd /home/filip/rltraffic-p53b && bash offline/campaigns/p7_2b_calibration.sh`; expected canary ≤ 2.0 s, 100 × `reused`, two smokes, `report`, manifest. **Then the three-way diff run 1 → 2 → 3 in the packet**, with nothing outside the smoke block, the canary block and the provenance differing.
 
 ## Housekeeping the coordinator could not finish
-`task/p7.2b-calibration` has **no upstream** (§7's 2026-08-30 rule). The coordinator's `git push -u origin task/p7.2b-calibration` failed — `github.com` did not resolve on this machine at 14:41. It must be pushed before the merge; it is listed for the author.
+`task/p7.2b-calibration` has **no upstream** (§7's 2026-08-30 rule). The coordinator's `git push -u origin task/p7.2b-calibration` failed — `github.com` did not resolve on this machine at 14:41. It must be pushed before the merge; it is listed for the author. ⚠️ **CORRECTED 2026-09-16: this sentence generalised ONE failed command at 14:41 into a property of the machine. The network worked; the failure was transient and was never retested. Both refs were pushed by the AUTHOR on 2026-09-15, and pushing is the coordinator's job, not his.**
 
 The packet is written against `BRIEF_36` + Amendments A–E and this confirmation block.
 
