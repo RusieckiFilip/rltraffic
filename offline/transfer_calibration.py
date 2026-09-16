@@ -78,6 +78,7 @@ __all__ = [
     "CANARY_REFERENCE_DECISIONS",
     "CANARY_REFERENCE_LOCAL_RETURN",
     "build_parser",
+    "assert_logged_corpus_matches_probe",
     "check_canary",
     "chunk_is_reusable",
     "disjointness_record",
@@ -1371,6 +1372,124 @@ def check_canary(facts: Mapping[str, Any]) -> None:
 #: ``canary <seconds:.2f> s <JSON facts>``.
 _CANARY_LINE_PREFIX = "canary "
 _CANARY_LINE_SEPARATOR = " s "
+
+
+
+def assert_logged_corpus_matches_probe(
+    corpus_dir: str | Path,
+    artifact_path: str | Path = _REPO_ROOT / "docs" / "data" / "p7_2b_calibration.json",
+    *,
+    draw_ids: Sequence[int] | None = None,
+) -> dict[str, Any]:
+    """A17(f): every logged episode reproduces P7.2b's probe return bit-for-bit.
+
+    ``PREREGISTRATION`` A17(f), executed (``BRIEF_37`` §3.2).  P7.3 collects the k-shot corpora by
+    running the same probe through the trajectory logger; per draw, the logged episode's return
+    must equal P7.2b's probe return **bit-for-bit**, and ``engine_seed_drawn`` must equal.
+    **100/100 or P7.3 stops.**
+
+    WHY THE TWO NUMBERS ARE THE SAME DEFINITION, not two that happen to agree
+    ------------------------------------------------------------------------
+    The probe appends ``float(payload["reward"])`` over the post-step infos
+    (:func:`offline.rtg_calibration.episode_return_two_routes`, ``rtg_calibration.py:345``); the
+    logger stores ``float(payload["reward"])`` from the same field of the same info
+    (``trajectory_logger.py:794``).  Same expression, same object, same order, and hz1x1 has ONE
+    intersection, so the sum of ``ix0_local_reward`` **is** ``local_return``.  Agreement confirms
+    the arithmetic; this paragraph is the claim.
+
+    INTEGRALITY IS CHECKED BEFORE EQUALITY, and that ordering is load-bearing
+    -------------------------------------------------------------------------
+    The logger stores float32 (``trajectory_logger.py:118``) and the probe sums float64, so ``==``
+    is achievable only because this reward family is a vehicle COUNT: integers are exact in float32
+    to 2**24 and an episode total is about 3e4, six orders below.  Measured over 6,480 stored values
+    of the committed ``datasets_v11`` corpus -- every one integral.  If that ever stops holding, the
+    gate must fail saying *the reward is not integral* rather than *the transfer is broken*, so the
+    check runs first and names itself.  **A non-integral reward is a finding, never a tolerance.**
+    """
+    import numpy as np
+
+    corpus = Path(corpus_dir)
+    artifact = json.loads(Path(artifact_path).read_bytes())
+    probe = {int(row["draw_id"]): row for row in artifact["probe"]}
+
+    manifest = json.loads((corpus / "manifest.json").read_bytes())
+    drawn_by_id = {
+        int(entry["draw_id"]): entry
+        for entry in manifest.get("run_metadata", {}).get("sumo_draws", [])
+    }
+
+    episodes: dict[int, Path] = {}
+    for path in sorted(corpus.glob("*.npz")):
+        with np.load(path) as payload:
+            draw = int(payload["flow_draw"])
+        if draw in episodes:
+            raise ValueError(
+                f"draw {draw} has more than one logged episode in {corpus}; A17(f) compares one "
+                "episode per draw and would otherwise silently use whichever sorted last"
+            )
+        episodes[draw] = path
+
+    wanted = sorted(episodes) if draw_ids is None else [int(d) for d in draw_ids]
+    missing = [d for d in wanted if d not in episodes]
+    if missing:
+        raise ValueError(f"the corpus has no logged episode for draw(s) {missing}")
+    unknown = [d for d in wanted if d not in probe]
+    if unknown:
+        raise ValueError(
+            f"{Path(artifact_path).name} records no probe row for draw(s) {unknown}, so there is "
+            "nothing to compare them against"
+        )
+
+    rows: list[dict[str, Any]] = []
+    for draw in wanted:
+        with np.load(episodes[draw]) as payload:
+            rewards = np.asarray(payload["ix0_local_reward"])
+        if not bool(np.all(rewards == np.rint(rewards))):
+            offending = rewards[rewards != np.rint(rewards)]
+            raise ValueError(
+                f"draw {draw}: {offending.size} of {rewards.size} stored per-step rewards are NOT "
+                f"integral (first: {float(offending[0])!r}). The corpus stores float32 and the "
+                "probe sums float64, and A17(f)'s bit-for-bit equality is achievable only because "
+                "this reward family is a vehicle count. A non-integral reward means the two are no "
+                "longer the same arithmetic -- a finding about the reward, not a tolerance to widen"
+            )
+        logged_return = float(np.sum(rewards.astype(np.float64)))
+        expected_return = float(probe[draw]["local_return"])
+        expected_seed = int(probe[draw]["engine_seed_drawn"])
+        logged_seed = int(drawn_by_id.get(draw, {}).get("engine_seed_drawn", -1))
+        matches = logged_return == expected_return and logged_seed == expected_seed
+        rows.append(
+            {
+                "draw_id": draw,
+                "matches": matches,
+                "logged_return": logged_return,
+                "probe_local_return": expected_return,
+                "difference": logged_return - expected_return,
+                "logged_engine_seed_drawn": logged_seed,
+                "probe_engine_seed_drawn": expected_seed,
+                "episode": episodes[draw].name,
+            }
+        )
+
+    bad = [row for row in rows if not row["matches"]]
+    if bad:
+        first = bad[0]
+        raise ValueError(
+            f"A17(f) FAILED on {len(bad)} of {len(rows)} draw(s); the first is draw "
+            f"{first['draw_id']}: logged return {first['logged_return']!r} against the probe's "
+            f"{first['probe_local_return']!r} (difference {first['difference']!r}), "
+            f"engine_seed_drawn {first['logged_engine_seed_drawn']} against "
+            f"{first['probe_engine_seed_drawn']}. SUMO is deterministic under a fixed seed, so "
+            "this is a wiring defect and P7.3 stops here rather than reporting a transfer number "
+            "built on an episode that is not the one the prompt was calibrated from"
+        )
+    return {
+        "n_checked": len(rows),
+        "n_matching": len(rows) - len(bad),
+        "all_match": not bad,
+        "artifact_sha256": _sha256_file(artifact_path),
+        "rows": rows,
+    }
 
 
 def format_canary_line(seconds: float, facts: Mapping[str, Any]) -> str:

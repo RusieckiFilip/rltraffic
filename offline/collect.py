@@ -192,6 +192,11 @@ POLICIES: dict[str, PolicyFactory] = {
 }
 
 
+#: P7.2a's materialised draw tree (BRIEF_37 section 0.9: a parameter with today's path as the
+#: default, never a new hardcoded absolute path buried in a call).
+DEFAULT_DRAWS_ROOT = Path("/home/filip/rltraffic/scenarios/draws")
+
+
 def _file_sha256(path: str | Path) -> str:
     digest = hashlib.sha256()
     with open(path, "rb") as handle:
@@ -251,6 +256,12 @@ def build_parser() -> argparse.ArgumentParser:
         "so without a --flow-draw* flag every episode here is the same trajectory",
     )
     parser.add_argument("--base-seed", type=int, default=0)
+    parser.add_argument(
+        "--draws-root",
+        default=str(DEFAULT_DRAWS_ROOT),
+        help="root of P7.2a's materialised draw tree, read-only; a SUMO draw sweep resolves "
+        f"each draw's parity .sumocfg under it (default: {DEFAULT_DRAWS_ROOT})",
+    )
     parser.add_argument("--out-dir", required=True)
     parser.add_argument(
         "--overwrite",
@@ -399,10 +410,14 @@ def _resolve_draw_ids(args: argparse.Namespace) -> list[int | None]:
     return [None]
 
 
-def _require_cityflow_for_draws(
-    backend: str, draw_ids: Sequence[int | None]
+def _require_wired_backend_for_draws(
+    backend: str,
+    draw_ids: Sequence[int | None],
+    *,
+    scenario_key: str = "",
+    draws_root: str | Path = "",
 ) -> None:
-    """Refuse a draw sweep on a backend this task did not wire.
+    """Refuse a draw sweep on a backend this task did not wire, or whose draws are absent.
 
     ``render_sumo`` is real and tested, but pointing a SUMO run at a drawn demand also
     needs a generated ``.sumocfg`` (its ``route-files`` and ``begin`` must agree with the
@@ -412,12 +427,37 @@ def _require_cityflow_for_draws(
     """
     if backend == "cityflow" or all(draw_id is None for draw_id in draw_ids):
         return
+    if backend == "sumo":
+        # Lazy: offline.materialise_draws imports THIS module, so a top-level import here is a
+        # cycle (measured, not guessed -- it raised on the first run).
+        from offline.materialise_draws import parity_sumocfg_path
+
+        # P7.3a (BRIEF_37 section 3.1) wired it: P7.2a already materialised a parity .sumocfg per
+        # draw, so nothing is rendered here and no --flow-source-json is needed -- the CityFlow
+        # scenario id IS the parity tree's scenario key (identity for the one admitted pair,
+        # A15(g)), so the id determines the path and no flag invents it.
+        missing = [
+            (draw_id, path)
+            for draw_id, path in (
+                (d, parity_sumocfg_path(scenario_key, int(d), out_root=draws_root))
+                for d in draw_ids
+                if d is not None
+            )
+            if not path.is_file()
+        ]
+        if missing:
+            raise SystemExit(
+                f"--backend sumo draw sweep: {len(missing)} draw(s) have no parity "
+                f"configuration under {draws_root}; the first is draw {missing[0][0]} at "
+                f"{missing[0][1]}. P7.2a materialises them "
+                "(python -m offline.materialise_draws --parity); this collector renders nothing."
+            )
+        return
     raise SystemExit(
-        f"--flow-draw/--flow-draws/--flow-draws-range is wired for backend 'cityflow' "
-        f"only, got {backend!r}. The randomiser can render SUMO route files "
-        "(FlowRandomizer.render_sumo), but collecting from them additionally needs a "
-        "generated .sumocfg and a --flow-source-json flag, which this task does not "
-        "provide."
+        f"--flow-draw/--flow-draws/--flow-draws-range is wired for backends 'cityflow' and "
+        f"'sumo' only, got {backend!r}. The randomiser can render route files, but collecting "
+        "from them additionally needs a generated config for the backend, which this task does "
+        "not provide."
     )
 
 
@@ -597,7 +637,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     spec = _build_env_spec(args)
 
     draw_ids = _resolve_draw_ids(args)
-    _require_cityflow_for_draws(spec.backend, draw_ids)
+    from offline.materialise_draws import parity_sumocfg_path
+
+    draws_root = Path(args.draws_root)
+    scenario_key = Path(args.env_config).stem if args.env_config else ""
+    _require_wired_backend_for_draws(
+        spec.backend, draw_ids, scenario_key=scenario_key, draws_root=draws_root
+    )
     randomised = any(draw_id is not None for draw_id in draw_ids)
 
     randomizer: FlowRandomizer | None = None
@@ -645,6 +691,56 @@ def main(argv: Sequence[str] | None = None) -> int:
         flow_draw_sha256=flow_draw_sha256,
     )
 
+    # ⚠️ Shared by reference on purpose. TrajectoryLogger copies run_metadata with dict(), a
+    # SHALLOW copy, so this list object is the same one the manifest serialises at finalize --
+    # which is what lets per-draw provenance discovered inside the loop reach a manifest whose
+    # metadata was assembled before it. Pinned by a test that reads the written manifest, not by
+    # this comment.
+    sumo_draw_records: list[dict[str, Any]] = metadata.setdefault("sumo_draws", [])
+
+    # ⚠️ A16's DOOR SITS AT THE LOGGER BOUNDARY, NOT AT THE ENV BOUNDARY, and that is a correction
+    # to BRIEF_37 section 3.1's wording ("wrap it in AlignedEnv"). Wrapping the env would align the
+    # info the POLICY sees too -- and the collection policy is MaxPressure (A17(b)), whose pressure
+    # is a difference over the env's OWN SUMO lane ids. `align_info` drops outgoing lanes, so a
+    # wrapped env makes MaxPressure raise `KeyError: 'road_1_1_2_0'` on its first action. Measured:
+    # the first run of this stage did exactly that, which is the same fact tests/test_aligned_env.py
+    # pins for the anchors (Amendment A2).
+    #
+    # The two consumers want different frames and both are right: the POLICY drives SUMO and reads
+    # SUMO, while the CORPUS is a CityFlow-trained model's frame (A18(a)) and must be canonical. So
+    # the env stays unwrapped and the info is aligned exactly where the logger is fed.
+    align_for_log: Any = None
+    if randomised and spec.backend == "sumo":
+        from offline.aligned_env import declared_alignment
+        from offline.backend_alignment import align_info as _align_info
+
+        _alignment = declared_alignment()
+        # A16's convention, recorded so a corpus states the frame it was written in rather than
+        # leaving a reader to infer it from a state width. The permutation and the phase-map shape
+        # ARE the alignment: two corpora with different permutations are different observations of
+        # the same road, and nothing downstream would say so.
+        metadata["alignment_provenance"] = {
+            "registered_in": "PREREGISTRATION A16",
+            "scenario": str(_alignment.scenario),
+            "phase_map_is_hangzhou_shaped": bool(_alignment.phase_map_is_hangzhou_shaped),
+            "intersections": {
+                ix_id: {
+                    "permutation": [int(v) for v in ix.permutation],
+                    "canonical_lanes": [str(v) for v in ix.canonical_lanes],
+                    "sumo_lanes": [str(v) for v in ix.sumo_lanes],
+                    "canonical_state_width": int(ix.canonical_state_width()),
+                    "sumo_state_width": int(ix.sumo_state_width()),
+                    "cityflow_num_phases": int(ix.cityflow_num_phases),
+                    "sumo_num_phases": int(ix.sumo_num_phases),
+                    "n_actions": int(ix.n_actions),
+                }
+                for ix_id, ix in _alignment.intersections.items()
+            },
+        }
+
+        def align_for_log(info: dict[str, Any]) -> dict[str, Any]:  # noqa: F811
+            return _align_info(info, _alignment)
+
     logger: TrajectoryLogger | None = None
     env: Any = None
     total_steps = 0
@@ -658,7 +754,24 @@ def main(argv: Sequence[str] | None = None) -> int:
         # nothing) and keeps the logger the single authority on what "populated" means,
         # rather than duplicating that check here.  When randomising it costs one extra
         # env construction per run, once; otherwise this *is* the run's env.
-        env = make_env(spec)
+        nominal_spec = spec
+        if randomised and spec.backend == "sumo":
+            # `spec.paths["config"]` is the CityFlow source config -- it names the scenario, and a
+            # SumoEnv cannot open it. The nominal env exists only so the logger's populated-out_dir
+            # check fires BEFORE anything is written (P1's NB2), and it is closed immediately
+            # below, so the FIRST draw's parity config is the honest stand-in: a real .sumocfg with
+            # the run's own topology, and no second artifact invented to serve a check.
+            first_draw = next(d for d in draw_ids if d is not None)
+            nominal_spec = dataclasses.replace(
+                spec,
+                paths={
+                    **spec.paths,
+                    "config": str(
+                        parity_sumocfg_path(scenario_key, int(first_draw), out_root=draws_root)
+                    ),
+                },
+            )
+        env = make_env(nominal_spec)
         logger = TrajectoryLogger(
             env,
             args.out_dir,
@@ -682,7 +795,26 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         for draw_id in draw_ids:
             draw_spec = spec
-            if draw_id is not None:
+            if draw_id is not None and spec.backend == "sumo":
+                # P7.3a (BRIEF_37 section 3.1). NOTHING IS RENDERED HERE: P7.2a already
+                # materialised a teleport-free parity .sumocfg per draw under the parity contract
+                # (A15(c)), and this collector opens it read-only. The CityFlow scenario id is the
+                # parity tree's key, so no flag names the source.
+                draw_config = parity_sumocfg_path(
+                    scenario_key, int(draw_id), out_root=draws_root
+                )
+                draw_spec = dataclasses.replace(
+                    spec, paths={**spec.paths, "config": str(draw_config)}
+                )
+                sumo_draw_records.append(
+                    {
+                        "draw_id": int(draw_id),
+                        "parity_sumocfg": str(draw_config),
+                        "parity_sumocfg_sha256": _file_sha256(draw_config),
+                    }
+                )
+                print(f"draw {draw_id}: parity {draw_config.name}", flush=True)
+            elif draw_id is not None:
                 if randomizer is None:  # pragma: no cover - unreachable by construction
                     raise RuntimeError(
                         f"draw {draw_id} requested with no randomiser built; this is a "
@@ -709,7 +841,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             if draw_id is not None:
                 # A fresh env per draw is mandatory, not a precaution: CityFlow reads
                 # its flow file once in the engine constructor and Engine::reset()
-                # never re-reads it (CityFlow/src/engine/engine.cpp:65,754).
+                # never re-reads it (CityFlow/src/engine/engine.cpp:65,754).  It is equally
+                # mandatory on SUMO, where each draw is a different .sumocfg.
                 env = make_env(draw_spec)
                 logger.rebind_env(env)
             # else: env is the nominal env built above, already bound to the logger.
@@ -721,22 +854,40 @@ def main(argv: Sequence[str] | None = None) -> int:
                 # Seeds restart per draw so the draw is the only variable across draws.
                 engine_seed = int(args.base_seed) + index
                 info = env.reset(seed=engine_seed)
-                logger.on_reset(info, engine_seed=engine_seed, flow_draw=draw_id)
+                logged = info if align_for_log is None else align_for_log(info)
+                logger.on_reset(logged, engine_seed=engine_seed, flow_draw=draw_id)
                 if episode_index == 0:
                     _require_lane_arrays(logger.lane_ids, draw_spec.backend)
 
                 episode_return = 0.0
                 steps = 0
                 for _ in range(env.max_steps):
+                    # The POLICY reads the raw SUMO info; the LOGGER records the canonical one.
                     action = policy(info)
-                    logger.on_action(info, action)
+                    logger.on_action(logged, action)
                     reward, terminated, truncated, info = env.step(action)
-                    logger.on_step_result(reward, terminated, truncated, info)
+                    logged = info if align_for_log is None else align_for_log(info)
+                    logger.on_step_result(reward, terminated, truncated, logged)
                     episode_return += float(Utils.scalar_reward(reward))
                     steps += 1
                     if terminated or truncated:
                         break
 
+                if draw_spec.backend == "sumo":
+                    # Read FROM THE RUNNING ENGINE before it closes, never from the config: A15(c)'s
+                    # regime and A17(b)'s vehicle-type set are claims about what SUMO actually did.
+                    # `env` is the AlignedEnv; `_sumo` falls through __getattr__ to the handle.
+                    record = sumo_draw_records[-1]
+                    record["engine_seed_requested"] = int(engine_seed)
+                    record["engine_seed_drawn"] = int(
+                        getattr(env, "_engine_seed", engine_seed)
+                    )
+                    record["time_to_teleport_option"] = str(
+                        env._sumo.simulation.getOption("time-to-teleport")
+                    )
+                    record["vehicle_types_seen"] = sorted(
+                        {env._sumo.vehicle.getTypeID(v) for v in env._sumo.vehicle.getIDList()}
+                    )
                 path = logger.finalize_episode()
                 total_steps += steps
                 episode_index += 1

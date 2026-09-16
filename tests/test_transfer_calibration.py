@@ -1561,3 +1561,113 @@ def test_the_default_env_factory_regenerates_a_committed_p4_slice() -> None:
         )
         assert result.episode_reward == row["episode_reward"]
         assert result.horizon_vehicle_count == row["horizon_vehicle_count"]
+
+
+# ----------------------------------------------------------------------------------
+# T1 / T2b (BRIEF_37 sections 3.2, 4) -- A17(f)'s gate between P7.2b and P7.3
+# ----------------------------------------------------------------------------------
+def _fake_corpus(tmp_path: Path, rows: dict[int, list[float]], *, seeds: dict[int, int]) -> Path:
+    """A v1.1-shaped corpus: one .npz per draw carrying ix0_local_reward, plus a manifest."""
+    import numpy as np
+
+    corpus = tmp_path / "corpus"
+    corpus.mkdir(parents=True, exist_ok=True)
+    draws = []
+    for draw_id, rewards in sorted(rows.items()):
+        name = f"ep{draw_id:06d}_seed1000_draw{draw_id}.npz"
+        np.savez_compressed(
+            corpus / name,
+            ix0_local_reward=np.asarray(rewards, dtype=np.float32),
+            engine_seed=np.int64(1000),
+            flow_draw=np.int64(draw_id),
+            format_version="1.1",
+        )
+        draws.append({"draw_id": int(draw_id), "engine_seed_drawn": int(seeds[draw_id])})
+    (corpus / "manifest.json").write_text(
+        json.dumps({"run_metadata": {"sumo_draws": draws}}, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+    return corpus
+
+
+def test_a17f_accepts_a_corpus_that_reproduces_the_probe_bit_for_bit(tmp_path: Path) -> None:
+    """T1. The logged episode's return equals ``probe[draw].local_return`` under ``==``.
+
+    The two numbers are the same DEFINITION, not two numbers that happen to agree: the probe does
+    ``rewards.append(float(payload["reward"]))`` over the post-step infos
+    (``offline/rtg_calibration.py:345``) and the logger does ``float(payload["reward"])`` on the
+    same field of the same info (``offline/trajectory_logger.py:794``), so on hz1x1's single
+    intersection the sum is an identity.  Agreement confirms the arithmetic; the identity is the
+    claim.  Measured end to end on draw 201 before this test was written: ``-23938.0 == -23938.0``.
+    """
+    artifact = json.loads((REPO_DATA / "p7_2b_calibration.json").read_bytes())
+    probe = {int(r["draw_id"]): r for r in artifact["probe"]}
+    picked = [201, 202]
+    rows = {d: _split_into_integers(probe[d]["local_return"]) for d in picked}
+    seeds = {d: int(probe[d]["engine_seed_drawn"]) for d in picked}
+
+    report = tc.assert_logged_corpus_matches_probe(
+        _fake_corpus(tmp_path, rows, seeds=seeds),
+        REPO_DATA / "p7_2b_calibration.json",
+        draw_ids=picked,
+    )
+    assert report["n_checked"] == 2
+    assert report["n_matching"] == 2
+    assert report["all_match"] is True
+
+
+def _split_into_integers(total: float) -> list[float]:
+    """360 integral per-step rewards summing EXACTLY to *total* (the reward family is a count)."""
+    value = int(total)
+    step, remainder = divmod(abs(value), 360)
+    sign = -1 if value < 0 else 1
+    rewards = [float(sign * step)] * 360
+    for i in range(remainder):
+        rewards[i] += float(sign)
+    assert sum(rewards) == float(value)
+    return rewards
+
+
+@pytest.mark.parametrize("field", ["local_return", "engine_seed_drawn"])
+def test_a17f_refuses_and_names_both_values(tmp_path: Path, field: str) -> None:
+    """A mismatch is a FINDING: the draw, both values and the difference, never a tolerance."""
+    artifact = json.loads((REPO_DATA / "p7_2b_calibration.json").read_bytes())
+    probe = {int(r["draw_id"]): r for r in artifact["probe"]}
+    rows = {201: _split_into_integers(probe[201]["local_return"])}
+    seeds = {201: int(probe[201]["engine_seed_drawn"])}
+    if field == "local_return":
+        rows[201][0] += 1.0                      # one step off by one: the sum moves by 1
+    else:
+        seeds[201] = 12345
+
+    with pytest.raises(ValueError, match="201"):
+        tc.assert_logged_corpus_matches_probe(
+            _fake_corpus(tmp_path, rows, seeds=seeds),
+            REPO_DATA / "p7_2b_calibration.json",
+            draw_ids=[201],
+        )
+
+
+def test_a17f_refuses_a_non_integral_reward_before_it_compares(tmp_path: Path) -> None:
+    """T2b. Integrality is asserted FIRST, so a float32 artefact diagnoses itself.
+
+    The logger stores ``ix{i}_local_reward`` as **float32** while the probe sums float64.  The
+    ``==`` in A17(f) is only achievable because this reward family is a vehicle COUNT: integers are
+    exact in float32 to 2**24 and an episode total is about 3e4.  Measured over 6,480 stored values
+    of ``datasets_v11``: every one integral.  If that ever stops being true the gate must fail
+    saying *the reward is not integral*, not *the transfer is broken* -- so the check is ordered
+    before the comparison and says so.
+    """
+    artifact = json.loads((REPO_DATA / "p7_2b_calibration.json").read_bytes())
+    probe = {int(r["draw_id"]): r for r in artifact["probe"]}
+    rows = {201: _split_into_integers(probe[201]["local_return"])}
+    rows[201][0] += 0.5
+    rows[201][1] -= 0.5                          # the SUM is unchanged; only integrality breaks
+    seeds = {201: int(probe[201]["engine_seed_drawn"])}
+
+    with pytest.raises(ValueError, match="integral"):
+        tc.assert_logged_corpus_matches_probe(
+            _fake_corpus(tmp_path, rows, seeds=seeds),
+            REPO_DATA / "p7_2b_calibration.json",
+            draw_ids=[201],
+        )

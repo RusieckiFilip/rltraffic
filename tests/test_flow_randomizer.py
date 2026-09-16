@@ -856,16 +856,32 @@ def test_flow_draws_range_is_half_open_in_help() -> None:
     assert "half-open" in help_text.lower() or "[start, end)" in help_text.lower()
 
 
-def test_collect_refuses_flow_draw_on_non_cityflow() -> None:
+def test_collect_refuses_flow_draw_on_an_unwired_backend(tmp_path: Path) -> None:
     """The scope fence is visible in the suite rather than silent.
 
-    SUMO collection additionally needs a generated .sumocfg and a --flow-source-json
-    flag; that is P7.3, not this task.
+    ⚠️ **THE CONTRACT CHANGED AT P7.3a AND SO DID THIS TEST.**  It used to assert that a draw sweep
+    on ``sumo`` is refused, because P7.2 had not wired one: the comment said SUMO collection needs
+    a generated ``.sumocfg`` and a ``--flow-source-json`` flag.  ``BRIEF_37`` §3.1 wired it and
+    removed the need for the flag -- P7.2a materialises a parity ``.sumocfg`` per draw, and the
+    CityFlow scenario id IS the parity tree's key, so nothing names the source.  What remains
+    refusable, and is now asserted instead, is a backend that is still unwired (``moss``) and a
+    SUMO sweep whose parity configuration is **absent**, which is the failure this guard actually
+    protects against today.
     """
-    with pytest.raises(SystemExit, match="'cityflow'"):
-        collect._require_cityflow_for_draws("sumo", [0, 1])
-    collect._require_cityflow_for_draws("cityflow", [0, 1])
-    collect._require_cityflow_for_draws("sumo", [None])
+    # Still unwired, and still refused by backend name.
+    with pytest.raises(SystemExit, match="'moss'"):
+        collect._require_wired_backend_for_draws("moss", [0, 1])
+
+    # SUMO is wired -- but only where P7.2a actually materialised the draw.
+    with pytest.raises(SystemExit, match="no parity configuration"):
+        collect._require_wired_backend_for_draws(
+            "sumo", [201], scenario_key="cityflow1x1", draws_root=tmp_path
+        )
+
+    # ... and these are not draw sweeps at all, so they pass on any backend.
+    collect._require_wired_backend_for_draws("cityflow", [0, 1])
+    collect._require_wired_backend_for_draws("sumo", [None])
+    collect._require_wired_backend_for_draws("moss", [None])
 
 
 def _patch_make_env(monkeypatch: pytest.MonkeyPatch) -> None:
