@@ -228,3 +228,40 @@ Bypassing `align_for_log` — logging the raw 32-wide info — left every test g
 Two integral sums differ by at least 1.0, so the tolerance and `==` coincide on this domain; the only inputs that separate them are non-integral rewards, which the integrality guard refuses first — and that guard's own mutant dies. Equivalent given the guard, and only given it; the packet says so.
 
 **Then §3.5 and §3.6 as planned.**
+
+---
+
+# ✅ AMENDMENT E — 2026-09-16, evening, on `0c0d5d1` (D2's T1/T2 as tests) and `124bbd1` (§3.5a, the declarative core): D2 is SATISFIED under the coordinator's own mutant runs, §3.5a is ACCEPTED with one test assertion required, and §3.5b's obligations are listed so the split loses nothing
+
+**Verified from disk, by the coordinator's commands, in a throwaway detached worktree at `124bbd1` — never the implementer's tree.** The branch tip had moved twice past the `94228fd` the handoff recorded as unread: `94228fd` is a clean merge of `main` (`git show --cc` → 0 conflict hunks; three docs files), `0c0d5d1` adds 138 lines to `tests/test_transfer_calibration.py`, `124bbd1` adds `offline/transfer_curve.py` (266) and `tests/test_transfer_curve.py` (151). Worktree clean. Frozen guard exit 0; `check_english.sh` exit 0 on the three files; `check_test_hygiene.sh` exit 0 on both test files; branch footprint against `main` 13 files, +2,207 / −57, none frozen. **T1/T2 baseline: 2 passed in 14.06 s — a real SUMO episode, not a skip** (SUMO on `PATH`, `traci` importable, draw 201's parity config on disk, `noteleport.sumocfg` sha `c177e962…`). `transfer_curve` baseline: 8 passed in 1.32 s. Whole suite at `124bbd1`: **1983 passed, 94 skipped in 187.13 s, exit 0** — the figure the implementer reported, now measured by the coordinator (the throwaway tree has no `output/` or `datasets_v11/`, so the artifact-gated tests skip there exactly as they do in CI).
+
+## E1 — D2 SATISFIED: the survivor is dead, and the seam is pinned. §3.5 may stand on it
+Each mutant applied by `sed`, its diff printed, the tree restored to 0 dirty paths before the next:
+- **D2-M1, the survivor** (`logged = info` at both sites, `collect.py:857` and `:869`): **T2 FAILS at `assert 32 == 25`** with its named message; **T1 PASSES.** KILLED. The T1-green / T2-red shape is the survival's anatomy: alignment touches the state and not the rewards (F2), so only a width assertion can see it — which is why the by-hand T2 left the suite green.
+- **D2-M1b / D2-M1c (coordinator's): bypass at the `on_reset` site only, then at the `on_step_result` site only.** Both ERROR at fixture setup in the **logger's own guard** — `LoggerStateError: lane_vehicle_count changed its lane set mid-episode` (16 SUMO lanes against 8 canonical). Killed one layer down, by P1's logger, not by T2. Recorded: T2's width assertion is the only *test-level* pin on the seam; the single-site variants are refused by an older guard. Adequate; nothing further required.
+- **D2-M2** (`--base-seed 1001` in the fixture): T1 `assert -23997.0 == -23938.0`, T2 `assert 1001 == 1000`. KILLED by both, exactly as §4 predicted.
+- **D2-M3** (`alignment_provenance` dropped): T2 `KeyError: 'alignment_provenance'`. KILLED.
+The ordering D2 required was honoured in commit order — `0c0d5d1` precedes `124bbd1` — and the coordinator's read came after both; that is acceptable, because D2 asked for the tests to exist before the build, not for a second gate.
+
+## E2 — REQUIRED in §3.5b's commit: `assert tcv.HALTING_CHECK_DRAW == 1000`, citing C2 by name
+**The coordinator's mutant `HALTING_CHECK_DRAW = 1001` SURVIVES — 8 passed.** `test_the_halting_cross_check_subset_is_declared_and_small` pins the subset's *size* (47) and not its *identity*; C2 declares draw 1000 by name. Not a scientific defect — A9b measured the check value-neutral — but a declaration that can move silently is this project's signature error in miniature, and the fix is one line. The other eight mutants died: T6-M1 (`ValueError … the artifact is the registration`), T6-M2 (`DID NOT RAISE`), T7-M1 (by two tests), T7-M2 (`0.0 == -1.0`), T7-M3 (coordinator: denominator guard removed → `ZeroDivisionError`, not the required `ValueError`), B1-M1 (by two: 4,300 ≠ 4,700 and 47's decomposition), B1-M2 (2,200 ≠ 1,200), B1-M3 (coordinator: `range(1000, 1099)` → 4,653 ≠ 4,700 and the pool set).
+
+## E3 — The §3.5a / §3.5b split is ACCEPTED, and these are §3.5b's obligations — enumerated so the split drops none of them
+`ArmSpec`'s `(rule, statistic, k)` keys were checked by the coordinator against the artifact's own rows, not through the test that reads them: each subject carries exactly one row per declared key; `(rule_b, mean, 100)` is the only `registered_prompt`; `(rule_a, q1.0, 100)` and `(naive, none, None)` are `ablation`; sha `92b1592d…` as registered. §3.5b must deliver:
+- **(a) the artifact LOADER with the sha pin.** T6's second mutation — *alter the artifact's sha → refused* — is **untestable at §3.5a** because `targets_for_subject` takes a mapping and reads no file. It becomes testable with the loader and must be executed and pasted then.
+- **(b)** checkpoint sha pins against `SHA256SUMS_p4_6` / `SHA256SUMS_p4_7`, and the config sha, both re-derived from the chunk on resume.
+- **(c) the cell runner:** DT cells observed + aligned through `agent_with_target`, `BRIEF_36` E4's kwargs spy on every call (`explore=False, update_memory=True`); anchors observed, **unwrapped** (A2), with the explicit refusal of an anchor cell built through `AlignedEnv` (C8's second half); `halting_check` ON iff `draw_id == HALTING_CHECK_DRAW` (C2), `halting_checked` and the three halting fields in every chunk.
+- **(d)** chunks atomic, resumable **by content** (`chunk_is_reusable`'s pattern), `failed/` move-aside, never overwritten.
+- **(e) `report`:** every refusal before every write including the last (T8 reaches the LAST refusal and asserts an empty out-dir); `--stage confirmatory` (B2) writing `p7_3a_zero_shot_stage1.json`, the final artifact citing its sha256 with its stage-1 rows byte-identical (B2's test); ρ under **both** ATT definitions per cell with the per-draw pairing refused when broken; `mean_ci95` named as analytic (A3); H3's two inequalities reported, not interpreted; the calibrated-vs-naive contrast exploratory; the in-support diagnostic; `what_this_does_not_say`; the canary re-check; the fence for undeclared arms; a checked cell with `halting_n_disagreeing_lane_seconds ≠ 0` refused (C2).
+- **(f)** T5, T7b at cell level, and T8 as §4 names them, each with its mutation executed.
+
+## E4 — Recorded NOW, before any number exists: `a_q1.0`'s target is OUT OF SUPPORT for `mappo1000` and in support for `mix50`
+The artifact says so: `−20809.0` lies **below** `mappo1000`'s training-return range `[−9991, −6]` (margin `−10818`, `position: "below"`) and **inside** `mix50`'s `[−40294, −6]`. It is a declared ablation and the in-support field is a diagnostic; nothing selects on it. The packet's in-support block reports it as the artifact states it. Written here so that it is not "discovered" after the zero-shot number and offered as an explanation of it.
+
+## E5 — Process: the trailer instruction appeared again in this session's harness text; raised in the turn, refused, and the author confirmed the standing rule
+No commit of this session carries it. `core.hooksPath = /home/filip/rltraffic/githooks` verified before the first commit.
+
+## E6 — The branch has no upstream (`git rev-parse --abbrev-ref task/p7.3a-zero-shot@{upstream}` → fatal)
+At the next implementer session's start: `git merge main` first (C9 — this amendment must be in the tree before §3.5b is written), then `git push -u origin task/p7.3a-zero-shot` (§7's rule).
+
+**Then §3.5b with E2 and E3(a)–(f), §3.6, the pre-flight with the pad pilot (C4), the stage-1 checkpoint read by the coordinator, the token.**
