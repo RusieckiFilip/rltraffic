@@ -46,6 +46,7 @@ __all__ = [
     "aligned_observer_env_for_draw",
     "aligned_sumo_env_for_draw",
     "declared_alignment",
+    "observer_env_for_draw",
 ]
 
 #: The one pair this task aligns: A15(g)'s ADMITTED C3 pair.  The two network paths come from
@@ -210,6 +211,58 @@ def aligned_sumo_env_for_draw(
     return AlignedEnv(make_env(_build_env_spec(args)), declared_alignment())
 
 
+def observer_env_for_draw(
+    scenario_key: str,
+    draw_id: int,
+    *,
+    out_root: str | Path,
+    halting_check: bool = False,
+    arm: str = "maxpressure",
+    sentinel_out_dir: str | Path = "/nonexistent",
+) -> Any:
+    """The OBSERVED but **UNWRAPPED** env -- what a P7.3a ANCHOR cell runs in (Amendment A2).
+
+    ``make_observer_sumo_env`` mirrors ``experiments.envs.make_env``'s SUMO branch and returns a
+    subclass carrying ``.recorder``; ``reconstruct_sumo_episode`` turns that into ``e_sumo``,
+    A13(b)'s decomposition and A15(b)'s counts.  ``make_env`` returns the frozen class and cannot
+    return a subclass, which is why the observer has its own constructor rather than a flag.
+
+    ⚠️ **Anchors do not go through A16's door, and that was measured.**  ``align_info`` drops
+    outgoing lanes and re-keys the survivors to CityFlow ids, while MaxPressure's pressure is a
+    difference over the env's own SUMO lane ids, so wrapping it raises ``KeyError`` on an outgoing
+    lane (``algorithms/max_pressure.py:142``).  A16 is untouched by that: the door is the only route
+    into a *CityFlow-trained model's* frame, and an anchor has no frame to enter.
+
+    ``halting_check`` defaults to **False** -- Amendment C2's convention read the safe way round.
+    The cross-check verifies the RECORDER, is value-neutral by construction (A9b: identical
+    ``att_env``, ``e_sumo`` and counts, at 3.5x the cost) and runs on a DECLARED SUBSET: every cell
+    on draw 1000.  The caller passes ``True`` for that subset; a default of ``True`` would silently
+    cost the campaign roughly half its clock.
+
+    ⚠️ **It is set HERE, at construction, and it cannot be set afterwards through the wrapper.**
+    :class:`AlignedEnv` forwards attribute *reads* through ``__getattr__`` and defines no
+    ``__setattr__``, so P7.1's ``env.halting_check = ...`` (``sumo_att_reference.py:1292``) would set
+    the flag on the wrapper and leave the observer untouched.
+
+    **G3: this is the ONE construction path.**  :func:`aligned_observer_env_for_draw` is this
+    function plus the wrap, so a setting added here reaches both shapes; two copies of the
+    construction would diverge the first time one of them gained a key.
+    """
+    from offline.collect import _build_env_spec
+    from offline.materialise_draws import parity_sumocfg_path
+    from offline.sumo_att_reference import collect_style_args, make_observer_sumo_env
+
+    config_path = parity_sumocfg_path(scenario_key, draw_id, out_root=out_root)
+    if not config_path.is_file():
+        raise FileNotFoundError(
+            f"draw {draw_id} has no parity configuration at {config_path}; P7.2a materialises the "
+            "band into the MAIN tree's scenarios/draws"
+        )
+    args = collect_style_args("sumo", arm, config_path, sentinel_out_dir=sentinel_out_dir)
+    settings = _build_env_spec(args).settings
+    return make_observer_sumo_env(config_path, settings, halting_check=bool(halting_check))
+
+
 def aligned_observer_env_for_draw(
     scenario_key: str,
     draw_id: int,
@@ -237,24 +290,18 @@ def aligned_observer_env_for_draw(
     untouched by that: the door is the only route into a *CityFlow-trained model's* frame, and an
     anchor has no frame to enter.  ``tests/test_aligned_env.py`` pins it.
 
-    ``halting_check`` defaults to **False**, which is Amendment C2's convention read the safe way
-    round: the cross-check is a verification of the RECORDER, value-neutral by construction and
-    measured so (A9b -- identical ``att_env``, ``e_sumo`` and counts, 3.5x the cost), and C2 runs it
-    on a DECLARED SUBSET -- every cell on draw 1000 -- rather than on every cell or on none.  The
-    caller passes ``True`` for that subset; a default of ``True`` would silently cost the campaign
-    roughly half its clock.
+    ``halting_check`` is C2's declared subset and is set at CONSTRUCTION -- see
+    :func:`observer_env_for_draw`, which this function is a wrap around (G3: one construction path,
+    not a mirror).
     """
-    from offline.materialise_draws import parity_sumocfg_path
-    from offline.collect import _build_env_spec
-    from offline.sumo_att_reference import collect_style_args, make_observer_sumo_env
-
-    config_path = parity_sumocfg_path(scenario_key, draw_id, out_root=out_root)
-    if not config_path.is_file():
-        raise FileNotFoundError(
-            f"draw {draw_id} has no parity configuration at {config_path}; P7.2a materialises the "
-            "band into the MAIN tree's scenarios/draws"
-        )
-    args = collect_style_args("sumo", arm, config_path, sentinel_out_dir=sentinel_out_dir)
-    settings = _build_env_spec(args).settings
-    inner = make_observer_sumo_env(config_path, settings, halting_check=bool(halting_check))
-    return AlignedEnv(inner, declared_alignment())
+    return AlignedEnv(
+        observer_env_for_draw(
+            scenario_key,
+            draw_id,
+            out_root=out_root,
+            halting_check=halting_check,
+            arm=arm,
+            sentinel_out_dir=sentinel_out_dir,
+        ),
+        declared_alignment(),
+    )
