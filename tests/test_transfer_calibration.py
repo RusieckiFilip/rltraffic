@@ -54,13 +54,31 @@ def _sumo_available() -> bool:
     return shutil.which("sumo") is not None
 
 
-def _draws_available() -> bool:
+def _draws_available(draw_id: int) -> bool:
+    """Is P7.2a's parity configuration present for **this** draw?
+
+    ⚠️ **The parameter is required, and that is Amendment G2's whole content.**  This predicate used
+    to take none and read as *"are the draws available"* -- there is no such property.  A test that
+    consumes the probe band was gated, when it was gated at all, by a check on ``SMOKE_DRAW = 5``;
+    on CI neither draw exists, so a wrong predicate agreed with the right one **by accident**, which
+    is how this class of defect survives.  A gate names the artifact its test consumes, or it is
+    decoration.  A default value is exactly what let the mismatch go unnoticed, so there is none.
+    """
     from offline.materialise_draws import parity_sumocfg_path
 
-    return parity_sumocfg_path("cityflow1x1", SMOKE_DRAW, out_root=DRAWS_ROOT).is_file()
+    return parity_sumocfg_path("cityflow1x1", int(draw_id), out_root=DRAWS_ROOT).is_file()
 
 
 def _checkpoints_available() -> bool:
+    """Are the two subjects' seed-101 checkpoints present?
+
+    ⚠️ **Known mismatch of the same family as G2, reported in ``docs/plans/p7.2b_amendment_g.md``
+    and deliberately NOT widened here.**  This names two files; :func:`subject_facts` reads **five
+    per subject** (``TRAINING_SEEDS``), so on a *partially* populated tree this returns True and the
+    test raises ``FileNotFoundError`` instead of skipping.  Present-or-absent as a whole -- which is
+    the case on CI and on this machine -- it behaves.  Widening it changes the skip count that
+    Amendment G4 is waiting to measure from an actual CI run, so it waits for that.
+    """
     return (OUTPUT_ROOT / "p4_dt" / "dt_seed101.pt").is_file() and (
         OUTPUT_ROOT / "p4_7" / "checkpoints" / "mix50_dt_seed101.pt"
     ).is_file()
@@ -194,7 +212,10 @@ def _write_band(work_dir: Path, *, returns: dict[int, float] | None = None) -> l
 # T2 -- the DT runs on SUMO only through the wrapper, and the target took effect
 # ----------------------------------------------------------------------------------
 @pytest.mark.skipif(not _sumo_available(), reason="SUMO/traci not available")
-@pytest.mark.skipif(not _draws_available(), reason="P7.2a's parity draws are not present")
+@pytest.mark.skipif(
+    not _draws_available(SMOKE_DRAW),
+    reason=f"P7.2a's parity configuration for draw {SMOKE_DRAW} is not present",
+)
 @pytest.mark.skipif(not _checkpoints_available(), reason="P4 checkpoints are not in this tree")
 def test_a_cityflow_trained_dt_drives_the_aligned_sumo_env_and_refuses_the_raw_one() -> None:
     """T2. A16 says the alignment is the ONLY route; this is that claim as a pair of outcomes.
@@ -264,7 +285,10 @@ def test_a_cityflow_trained_dt_drives_the_aligned_sumo_env_and_refuses_the_raw_o
 # T3 -- the probe's two routes agree and the engine reads what the file requested
 # ----------------------------------------------------------------------------------
 @pytest.mark.skipif(not _sumo_available(), reason="SUMO/traci not available")
-@pytest.mark.skipif(not _draws_available(), reason="P7.2a's parity draws are not present")
+@pytest.mark.skipif(
+    not _draws_available(SMOKE_DRAW),
+    reason=f"P7.2a's parity configuration for draw {SMOKE_DRAW} is not present",
+)
 def test_one_probe_episode_agrees_by_two_routes_and_the_engine_confirms_the_contract(
     tmp_path: Path,
 ) -> None:
@@ -1217,6 +1241,46 @@ def test_report_refuses_a_chunk_that_violates_a17(
     assert not out.exists(), "a refusal must precede every write"
 
 
+def test_an_unreadable_chunk_is_moved_aside_even_when_the_re_roll_cannot_proceed(
+    tmp_path: Path,
+) -> None:
+    """Amendment G1(a): the half of B2's claim that needs no draw on disk, so CI keeps it.
+
+    ``run_sumo_probe`` moves an unusable chunk aside at ``offline/transfer_calibration.py:351`` and
+    only *then* looks for the parity configuration at ``:353``.  So with ``out_root`` pointed at an
+    empty directory the move-aside completes and the re-roll stops with a named
+    ``FileNotFoundError`` -- and both halves are assertable without P7.2a's gitignored band.
+
+    ⚠️ **This test exists because its sibling below carried no ``skipif`` at all and put CI red.**
+    Splitting it keeps the filesystem half -- *an unclean chunk is preserved as evidence, never
+    deleted or silently overwritten* -- running in the one environment where the gates have ever
+    fired.  ``out_root`` is a parameter of ``run_sumo_probe``, so nothing here reads ``DRAWS_ROOT``.
+    """
+    work = tmp_path / "work"
+    work.mkdir()
+    empty_draws = tmp_path / "no_draws_here"
+    empty_draws.mkdir()
+    assert list(empty_draws.iterdir()) == []
+
+    chunk_path = tc.probe_chunk_path(201, work_dir=work)
+    planted = b"[]\n"
+    chunk_path.write_bytes(planted)
+
+    with pytest.raises(FileNotFoundError, match="no parity configuration"):
+        tc.run_sumo_probe([201], out_root=empty_draws, work_dir=work, canary_seconds=0.9)
+
+    moved = work / "failed" / chunk_path.name
+    assert moved.is_file(), "the unreadable chunk must be moved aside before the re-roll is tried"
+    assert moved.read_bytes() == planted, "it must be moved BYTE-IDENTICALLY, as evidence"
+    assert not chunk_path.exists(), (
+        "the bad chunk must be gone from its own path, or the next run reuses it"
+    )
+
+
+@pytest.mark.skipif(
+    not _draws_available(PROBE_DRAW_START),
+    reason=f"P7.2a's parity configuration for probe-band draw {PROBE_DRAW_START} is not present",
+)
 def test_a_chunk_that_is_valid_json_but_not_an_object_is_moved_aside_and_re_rolled(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1230,6 +1294,13 @@ def test_a_chunk_that_is_valid_json_but_not_an_object_is_moved_aside_and_re_roll
     **No simulator**: the roll is monkeypatched at ``_roll_one_episode``, the seam the extraction
     introduced.  The brief allows one SUMO episode here instead; the suite already spends four on
     the paths that need a real engine, and this test is about the resume branch, not the episode.
+
+    ⚠️ **It still needs the parity CONFIGURATION for draw 201 on disk** -- ``run_sumo_probe`` checks
+    ``config_path.is_file()`` before it reaches the monkeypatched roll -- and P7.2a's band is
+    gitignored.  This test carried no ``skipif`` at all and was the single red on `main` (Amendment
+    G).  The gate names **draw 201**, the artifact this test consumes, and not ``SMOKE_DRAW``: on CI
+    neither exists, so the wrong predicate would have worked by accident.  The half that needs no
+    band is the separate test above.
     """
     work = tmp_path / "work"
     work.mkdir()
