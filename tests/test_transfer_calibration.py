@@ -1671,3 +1671,141 @@ def test_a17f_refuses_a_non_integral_reward_before_it_compares(tmp_path: Path) -
             REPO_DATA / "p7_2b_calibration.json",
             draw_ids=[201],
         )
+
+
+# ----------------------------------------------------------------------------------
+# T1 + T2 (BRIEF_37 section 4, required by Amendment D2) -- ONE real collection, shared
+# ----------------------------------------------------------------------------------
+PROBE_DRAW = PROBE_DRAW_START  # 201: the draw this pair of tests consumes (Amendment G2)
+
+
+@pytest.fixture(scope="module")
+def logged_sumo_draw_201(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """ONE real SUMO collection on draw 201, shared by T1 and T2.
+
+    Module-scoped because it costs a real SUMO episode and the brief caps the suite at four
+    (section 4).  It runs the entry the driver will use -- ``collect.main`` with the same argv --
+    so what these tests exercise is the wiring, not a re-implementation of it.
+
+    ⚠️ **Amendment D2 required this.**  T1 and T2 were originally performed by hand and reported
+    from a transcript; the coordinator's mutant -- bypassing the logger-side alignment, so the
+    corpus is written in SUMO's 32-wide frame -- left the entire suite green.  A verification that
+    exists only in a transcript is not a test, and this is the seam section 3.5 is built on.
+    """
+    if not _sumo_available():
+        pytest.skip("SUMO/traci not available")
+    if not _draws_available(PROBE_DRAW):
+        pytest.skip(f"P7.2a's parity configuration for draw {PROBE_DRAW} is not present")
+
+    from offline import collect
+
+    out_dir = tmp_path_factory.mktemp("sumo_corpus") / "draw201"
+    code = collect.main(
+        [
+            "--backend", "sumo",
+            "--env-config", str(REPO_DATA.parent.parent / "configs" / "sim" / "cityflow1x1.json"),
+            "--policy", "maxpressure",
+            "--flow-draw", str(PROBE_DRAW),
+            "--episodes", "1",
+            "--base-seed", "1000",
+            "--global-reward-weight", "0.0",
+            "--local-reward-fn", "queue_length",
+            "--out-dir", str(out_dir),
+            "--draws-root", str(DRAWS_ROOT),
+        ]
+    )
+    assert code == 0, f"the collection stage exited {code}"
+    return out_dir
+
+
+@pytest.mark.skipif(not _sumo_available(), reason="SUMO/traci not available")
+@pytest.mark.skipif(
+    not _draws_available(PROBE_DRAW_START),
+    reason=f"P7.2a's parity configuration for draw {PROBE_DRAW_START} is not present",
+)
+def test_t1_the_logged_episode_reproduces_the_probe_return_bit_for_bit(
+    logged_sumo_draw_201: Path,
+) -> None:
+    """T1, load-bearing. A17(f) on a REAL logged episode, and the two values asserted directly.
+
+    The gate is exercised **and** the numbers are asserted independently of it: a test that only
+    called ``assert_logged_corpus_matches_probe`` would be trusting the very function it exists to
+    check, and a gate that silently compared nothing would pass it.  So the return is summed here
+    in float64 from the stored array and compared to the committed probe row, and the drawn engine
+    seed is read from the manifest.
+    """
+    import numpy as np
+
+    artifact = json.loads((REPO_DATA / "p7_2b_calibration.json").read_bytes())
+    probe = {int(r["draw_id"]): r for r in artifact["probe"]}[PROBE_DRAW]
+
+    # -- the two values, computed here, not taken from the gate ------------------------------
+    episode = next(iter(sorted(logged_sumo_draw_201.glob("*.npz"))))
+    with np.load(episode) as payload:
+        rewards = np.asarray(payload["ix0_local_reward"])
+    assert rewards.dtype == np.float32
+    assert bool(np.all(rewards == np.rint(rewards))), "the float32 == argument rests on this"
+    assert float(np.sum(rewards.astype(np.float64))) == probe["local_return"] == -23938.0
+
+    manifest = json.loads((logged_sumo_draw_201 / "manifest.json").read_bytes())
+    draws = manifest["run_metadata"]["sumo_draws"]
+    assert len(draws) == 1
+    assert draws[0]["engine_seed_drawn"] == probe["engine_seed_drawn"] == 437485271
+
+    # -- and the gate agrees -----------------------------------------------------------------
+    report = tc.assert_logged_corpus_matches_probe(
+        logged_sumo_draw_201, REPO_DATA / "p7_2b_calibration.json"
+    )
+    assert report["all_match"] is True
+    assert report["n_checked"] == report["n_matching"] == 1
+    assert report["artifact_sha256"] == tc._sha256_file(REPO_DATA / "p7_2b_calibration.json")
+
+
+@pytest.mark.skipif(not _sumo_available(), reason="SUMO/traci not available")
+@pytest.mark.skipif(
+    not _draws_available(PROBE_DRAW_START),
+    reason=f"P7.2a's parity configuration for draw {PROBE_DRAW_START} is not present",
+)
+def test_t2_the_logged_frame_is_canonical_and_the_manifest_records_the_parity_source(
+    logged_sumo_draw_201: Path,
+) -> None:
+    """T2. The corpus is in A16's canonical frame, and the manifest says where it came from.
+
+    ⚠️ **The width assertion is the one the coordinator's surviving mutant breaks.** Bypassing the
+    logger-side alignment (``logged = info``) writes SUMO's 32-wide state into a corpus labelled
+    v1.1, which a CityFlow-trained model cannot read and which nothing downstream would name. It is
+    the whole point of A18(a)'s *logged in the canonical frame*.
+    """
+    import numpy as np
+
+    episode = next(iter(sorted(logged_sumo_draw_201.glob("*.npz"))))
+    with np.load(episode) as payload:
+        state = np.asarray(payload["ix0_state"])
+        assert str(payload["format_version"]) == "1.1"
+    assert state.shape[1] == 25, (
+        f"the logged state is {state.shape[1]}-wide; SUMO's raw frame is 32 and the canonical one "
+        "is 25, so the alignment was not applied at the logger boundary"
+    )
+
+    run_metadata = json.loads((logged_sumo_draw_201 / "manifest.json").read_bytes())["run_metadata"]
+    assert run_metadata["backend"] == "sumo"
+
+    record = run_metadata["sumo_draws"][0]
+    assert record["draw_id"] == PROBE_DRAW
+    parity = Path(record["parity_sumocfg"])
+    assert parity.is_file() and parity.name == "noteleport.sumocfg"
+    assert record["parity_sumocfg_sha256"] == tc._sha256_file(parity), (
+        "the manifest's sha does not match the file it names, so the corpus cannot say which "
+        "demand produced it"
+    )
+    assert record["engine_seed_requested"] == 1000
+    assert record["engine_seed_drawn"] == 437485271
+    assert record["time_to_teleport_option"] == "-1", "A15(c)'s teleport-free regime"
+    assert record["vehicle_types_seen"] == ["cf_parity"], "A17(b)'s parity vehicle type"
+
+    provenance = run_metadata["alignment_provenance"]
+    assert provenance["registered_in"] == "PREREGISTRATION A16"
+    assert provenance["scenario"] == "hangzhou_1x1_bc-tyc"
+    ix = provenance["intersections"]["intersection_1_1"]
+    assert ix["permutation"] == [0, 1, 2, 3, 6, 7, 5, 4]
+    assert (ix["canonical_state_width"], ix["sumo_state_width"]) == (25, 32)
