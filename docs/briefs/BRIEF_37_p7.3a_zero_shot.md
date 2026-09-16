@@ -174,3 +174,33 @@ A stage flag whose declared cell set is exactly B1's stage 1; `report` refuses i
 
 ## B3 — What goes on a slide, and what does not
 **Anything aimed outside the project states what the number is and what produced it — and carries no label from this project's internal process.** *Review* here means a second Claude session checking the first; *pre-review* on a slide would read as a qualification of the result, and it is not one. The honest description is the registered one: *ρ on the pool-clock ATT (E_sumo) within SUMO; MADT trained on CityFlow (`mappo1000` / `mix50`), zero-shot on SUMO through the frozen alignment, prompted by the Rule B mean k = 100 target from a 100-episode MaxPressure probe; 100 held-out demand draws × 5 seeds; fixed-time and MaxPressure anchors on the same draws; design registered as A15–A18 before any target-domain number existed.* The internal verification steps that precede a number's use (A17(f), both canary halves, the coordinator's read from disk) are conditions on the number being used at all, not qualifiers to print beside it.
+
+---
+
+# ✅ AMENDMENT C — 2026-09-16, on the A9 / A6 / A2 measurements (`40c641b`): the instrument REPRODUCES, the ×3 was the halting cross-check, and nine rulings
+
+**Verified by the coordinator from disk, not from the report:** the tip's diff is one test file and one docs note, no production code; the transcript `a9_a6_a2.txt` at `ef551b98…`; P7.1's frozen ep0 row read by the coordinator directly from `docs/data/p7_1_metric_freeze.json` — `att_env 367.5816210045662`, `att_reference_created_population 475.4507669470559`, counts 2021 / 1752 / 0 — equals the transcript's fresh values under float64 `==`; `run_sumo_arm`'s docstring (`offline/sumo_att_reference.py:1195-1202`) and `:1292` (`env.halting_check = index < halting_episodes`) confirm the halting cross-check runs on the first episode only and costs 3.49×; the three `sumo_noteleport__*` cells carry `all_equal: null` in the freeze's reproduction block; T7b passes and its M1 (the door bypassed) dies under the coordinator's own mutation.
+
+## C1 — A9: PASS. The observer's change at `7efafa7` moved cost, not value; P7.3a proceeds
+Bit-for-bit in float64 on the nominal teleport-free MaxPressure episode at seed 1000 — stricter than P7.1's own float32 convention.
+
+## C2 — Q6, the halting cross-check: run it on a DECLARED SUBSET, as the registered instrument itself does — never on every cell, never on none
+The check is a verification of the *recorder* (its halting classification against SUMO's own, `halting_n_disagreeing_lane_seconds`), not part of the measurement; it is value-neutral by construction (reads only) and measured so (A9b, identical values, 55.96 → 16.01 s). P7.1's registered convention is `halting_episodes = 1` — the first episode of each arm. **P7.3a's convention: the check is ON for every cell on draw 1000** (every subject × arm × seed, and every anchor including all five `random` seeds — 47 cells of 4,700) **and OFF elsewhere; every chunk records `halting_checked` and, where checked, the three halting fields; `report` REFUSES any checked cell with `halting_n_disagreeing_lane_seconds ≠ 0`** — a recorder disagreement is a finding that stops the campaign, exactly as a teleport does. Declared here, before any cell runs.
+
+## C3 — Q7: 12 workers, CONFIRMED (measured 1.27× better than 8 on 16 cores).
+
+## C4 — Q8: the pool pilot is RE-RUN ON THE COOLING PAD before the token, as A11 requires (0.90 → ≤ 0.81 s is > 10 %); the driver header's schedule is the pad pilot's rate.
+
+## C5 — Q9: P7.1's teleport-free cells were never reproduced by P7.1 — recorded as a CORRECTION to the freeze artifact's standing, and closed for all three anchors here
+`p7_1_metric_freeze.json:reproduction` covers 9 of 12 cells (`n_verified: 45`); the three `sumo_noteleport__*` cells — the regime every P7.3 number uses — have `n = 0`. The artifact is not edited (it says so truthfully); the Decisions Log records it. **Required: A9 extended to `fixedtime` and `random` on the nominal teleport-free config, ep0, seed 1000, halting off (≈ 16 s each), reproducing their frozen rows under `==`** — so every anchor the campaign uses has been reproduced by today's instrument before it runs 4,700 cells. Reported in the packet as the first reproduction those three cells ever had.
+
+## C6 — `e_sumo` versus `att_reference_created_population`: two names for one quantity, recorded as a naming trap
+A15's text is correct — `reconstruct_sumo_episode` names the quantity `e_sumo` (`:352`, `:764`) — and the artifact key it is written to is `att_reference_created_population` (`:1252`). The ρ code reads the artifact key, documents the alias in one sentence, and the packet states it. A15 is not amended.
+
+## C7 — The schedule, on the measurements: stage 1 ≈ 1 h, the full campaign ≈ 3–3.5 h at 12 workers under C2's convention, on the thermally constrained machine; the pad pilot (C4) sets the header. Three figures were wrong in three directions — the costing note's, the brief's and the plan's — and each was corrected by a measurement, which is what the gate is for.
+
+## C8 — A2 / T7b: ACCEPTED. M1 killed (coordinator's run); M2 (the control deleted) is a non-mutation, correctly so recorded; the coordinator's M3 (the key-provenance assertion neutralised) survives because it weakens a diagnostic, not the claim — noted, not counted. The second half — the cell builder's explicit refusal — lands with `offline/transfer_curve.py`.
+
+## C9 — Process: `git merge main` at the start of every implementer session. Amendments A11 and B were on `main` for an hour before they were read; nothing was harmed because they were read before anything was written, and that is the rule.
+
+**Then: code (§3.0–3.6 with B2's `--stage confirmatory` and C2's halting convention), pre-flight with the pad pilot, the stage-1 checkpoint read by the coordinator, the token.**
