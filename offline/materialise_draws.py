@@ -162,7 +162,7 @@ import tempfile
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Mapping, Sequence
 
 import numpy as np
 
@@ -209,6 +209,8 @@ __all__ = [
     "parity_dir",
     "parity_sumocfg_path",
     "scenario_key_for_config",
+    "P4_HELDOUT_THRESHOLDS_ARTIFACT",
+    "verify_against_artifact",
     "verify_p4_3_probe",
 ]
 
@@ -230,6 +232,13 @@ PROVENANCE_FILENAME = "provenance.json"
 PARITY_DIRNAME = "parity"
 PARITY_ROUTES_FILENAME = "routes.rou.xml"
 PARITY_SUMOCFG_FILENAME = "noteleport.sumocfg"
+
+#: DEFERRED 80's reference: the held-out pool's CityFlow parents (``--verify-heldout-thresholds``).
+#: The SUMO held-out draws P7.3a evaluates on are rendered FROM these, so their pedigree is
+#: proved by re-running them rather than inherited from P5.3a's five survivors (``BRIEF_37`` §3.0).
+P4_HELDOUT_THRESHOLDS_ARTIFACT = (
+    Path(__file__).resolve().parent.parent / "docs" / "data" / "p4_heldout_thresholds.json"
+)
 
 #: P4.3's committed in-domain probe -- the band gate's reference (``--verify-p4-3-probe``).
 P4_3_PROBE_ARTIFACT = Path(__file__).resolve().parent.parent / "docs" / "data" / "p4_3_probe.json"
@@ -1551,6 +1560,138 @@ def materialise_parity(
     return results
 
 
+#: Which field of a :class:`offline.rtg_calibration.ProbeEpisode` carries each field an artifact may
+#: record.  Every entry is an identity of DEFINITION, not an observed agreement, except
+#: ``episode_reward`` -- see :func:`_refuse_unjustified_mappings`.
+_ARTIFACT_FIELD_SOURCES: dict[str, str] = {
+    "att_horizon": "att_horizon",
+    "horizon_vehicle_count": "horizon_vehicle_count",
+    "decisions": "decisions",
+    "local_return": "local_return",
+    "local_return_from_lanes": "local_return_from_lanes",
+    "episode_reward": "local_return",
+}
+
+
+def _refuse_unjustified_mappings(fields: Sequence[str], env_settings: Mapping[str, Any]) -> None:
+    """Refuse any comparison whose field mapping is not an identity under these settings.
+
+    ``episode_reward`` is the only conditional one.  ``horizon_rollout`` records the env's SCALAR
+    reward while ``run_probe`` records the single intersection's LOCAL return, and the two are the
+    same number only when ``global_reward_weight == 0.0`` -- then the scalar reward *is* the local
+    reward -- and only on one intersection, which ``run_probe`` enforces by raising.  Measured on
+    ``docs/data/p4_heldout_thresholds.json``: draws 1000 and 1001 reproduce ``-16428.0`` and
+    ``-19021.0`` under ``==``.  Under a non-zero weight they are different quantities, and a
+    comparison that happened to pass would be a coincidence waiting to break, so it is refused.
+    """
+    if "episode_reward" not in fields:
+        return
+    weight = env_settings.get("global_reward_weight")
+    if weight != 0.0:
+        raise ValueError(
+            f"the artifact records episode_reward under global_reward_weight {weight!r}; the probe "
+            "records the single intersection's local return, and the two are the same quantity "
+            "only at global_reward_weight 0.0, where the scalar reward IS the local reward. "
+            "Refusing to compare two different quantities and call the agreement a check"
+        )
+
+
+def verify_against_artifact(
+    artifact_path: str | Path,
+    *,
+    arm: str | None = None,
+    scenario_key: str,
+    out_root: str | Path = DEFAULT_OUT_ROOT,
+    draw_ids: Sequence[int] | None = None,
+    scenario_id: str | None = None,
+) -> list[ProbeCheck]:
+    """Re-run the probe on materialised draws and compare **every field the artifact records**.
+
+    ``BRIEF_37`` §3.0, generalising :func:`verify_p4_3_probe` off P4.3's artifact so ``DEFERRED``
+    80's gate can run against ``docs/data/p4_heldout_thresholds.json`` too: the held-out SUMO draws
+    are derived from these CityFlow parents, and their pedigree is proved here rather than
+    inherited.
+
+    **Every recorded field is compared, not a chosen subset.**  The fields come from the artifact's
+    own rows, so an artifact that records more is checked on more; a field the probe cannot produce
+    is a refusal, never a silent skip -- an unchecked field in a gate is the gate's worst failure
+    mode, because it reports 100/100 while comparing nothing that moved.
+
+    Nothing is written.  The loop is :func:`offline.rtg_calibration.run_probe` -- P4.3's own -- and
+    ``env_settings`` and ``engine_seed`` come from the artifact rather than being retyped.
+    """
+    from offline.rtg_calibration import run_probe
+
+    path = Path(artifact_path)
+    artifact = json.loads(path.read_bytes())
+    rows = list(artifact["episodes"])
+    if arm is not None:
+        rows = [row for row in rows if str(row.get("arm")) == str(arm)]
+        if not rows:
+            raise ValueError(
+                f"{path.name} records no episode with arm {arm!r}; the arms present are "
+                f"{sorted({str(r.get('arm')) for r in artifact['episodes']})}"
+            )
+    expected_by_id = {int(row["draw_id"]): row for row in rows}
+    if len(expected_by_id) != len(rows):
+        raise ValueError(
+            f"{path.name} records more than one episode per draw for arm {arm!r}; the comparison "
+            "would silently use whichever came last"
+        )
+
+    ids = _checked_draw_ids(
+        [int(d) for d in (sorted(expected_by_id) if draw_ids is None else draw_ids)]
+    )
+    unknown = [draw_id for draw_id in ids if draw_id not in expected_by_id]
+    if unknown:
+        raise ValueError(
+            f"{path.name} records no episode for draw(s) {unknown}, so there is nothing to "
+            "compare them against"
+        )
+
+    # The fields to compare are the artifact's, minus the bookkeeping columns that are not
+    # measurements. A recorded field with no probe counterpart stops the gate.
+    bookkeeping = {"draw_id", "arm", "seed"}
+    fields = [key for key in sorted(expected_by_id[ids[0]]) if key not in bookkeeping]
+    unsupported = [key for key in fields if key not in _ARTIFACT_FIELD_SOURCES]
+    if unsupported:
+        raise ValueError(
+            f"{path.name} records {unsupported}, which the probe does not produce; refusing to "
+            "report a comparison that silently skips a recorded field"
+        )
+    env_settings = artifact["env_settings"]
+    _refuse_unjustified_mappings(fields, env_settings)
+
+    episodes = run_probe(
+        draw_ids=ids,
+        config_for_draw=lambda draw_id: draw_config_path(
+            scenario_key, draw_id, out_root=out_root
+        ),
+        env_settings=env_settings,
+        scenario_id=str(scenario_id if scenario_id is not None else artifact["scenario_id"]),
+        engine_seed=int(artifact["engine_seed"]),
+    )
+
+    checks: list[ProbeCheck] = []
+    for episode in episodes:
+        recorded = expected_by_id[episode.draw_id]
+        observed = {
+            key: getattr(episode, _ARTIFACT_FIELD_SOURCES[key]) for key in fields
+        }
+        expected = {key: recorded[key] for key in fields}
+        differing = tuple(key for key in fields if observed[key] != expected[key])
+        checks.append(
+            ProbeCheck(
+                draw_id=episode.draw_id,
+                matches=not differing,
+                observed=observed,
+                expected=expected,
+                differing=differing,
+            )
+        )
+    return checks
+
+
 def verify_p4_3_probe(
     source_config: str | Path,
     draw_ids: Sequence[int] | None = None,
@@ -1565,57 +1706,21 @@ def verify_p4_3_probe(
     demand behind it still exists.  This is what turns the id back into evidence -- the probe
     P4.3 ran, on the regenerated draws, compared under ``==``.
 
-    Nothing is written: the probe reads each draw's CityFlow config and rolls MaxPressure.  The
-    loop is :func:`offline.rtg_calibration.run_probe` -- P4.3's own -- and the settings and the
-    engine seed come from the artifact rather than being retyped here.
+    Since ``BRIEF_37`` §3.0 this is a thin call to :func:`verify_against_artifact`, which does the
+    same work for any artifact; the behaviour here is unchanged and a test asserts it field for
+    field.  P4.3's artifact carries no ``arm`` column -- it is MaxPressure throughout -- and does
+    carry ``draw_ids`` and ``scenario_id``, which this reads exactly as before.
     """
-    from offline.rtg_calibration import run_probe
-
     artifact = json.loads(Path(probe_artifact).read_bytes())
-    scenario_key = scenario_key_for_config(source_config)
-    expected_by_id = {int(episode["draw_id"]): episode for episode in artifact["episodes"]}
-    ids = _checked_draw_ids(
-        [int(draw_id) for draw_id in (artifact["draw_ids"] if draw_ids is None else draw_ids)]
-    )
-    unknown = [draw_id for draw_id in ids if draw_id not in expected_by_id]
-    if unknown:
-        raise ValueError(
-            f"{Path(probe_artifact).name} records no episode for draw(s) {unknown}, so there "
-            "is nothing to compare them against"
-        )
-
-    episodes = run_probe(
-        draw_ids=ids,
-        config_for_draw=lambda draw_id: draw_config_path(
-            scenario_key, draw_id, out_root=out_root
-        ),
-        env_settings=artifact["env_settings"],
+    return verify_against_artifact(
+        probe_artifact,
+        arm=None,
+        scenario_key=scenario_key_for_config(source_config),
+        out_root=out_root,
+        draw_ids=(artifact["draw_ids"] if draw_ids is None else draw_ids),
         scenario_id=str(artifact["scenario_id"]),
-        engine_seed=int(artifact["engine_seed"]),
     )
 
-    checks: list[ProbeCheck] = []
-    for episode in episodes:
-        recorded = expected_by_id[episode.draw_id]
-        observed = {
-            "local_return": episode.local_return,
-            "local_return_from_lanes": episode.local_return_from_lanes,
-            "att_horizon": episode.att_horizon,
-            "horizon_vehicle_count": episode.horizon_vehicle_count,
-            "decisions": episode.decisions,
-        }
-        expected = {key: recorded[key] for key in observed}
-        differing = tuple(key for key in observed if observed[key] != expected[key])
-        checks.append(
-            ProbeCheck(
-                draw_id=episode.draw_id,
-                matches=not differing,
-                observed=observed,
-                expected=expected,
-                differing=differing,
-            )
-        )
-    return checks
 
 
 # -- CLI -------------------------------------------------------------------
@@ -1688,6 +1793,12 @@ def build_parser() -> argparse.ArgumentParser:
         "every recorded number against docs/data/p4_3_probe.json; writes nothing under --out-root",
     )
     parser.add_argument(
+        "--verify-heldout-thresholds",
+        action="store_true",
+        help="re-run the held-out pool's CityFlow parents (draws 1000-1099, maxpressure) against "
+        "docs/data/p4_heldout_thresholds.json and compare every recorded field; writes nothing",
+    )
+    parser.add_argument(
         "--report",
         metavar="PATH",
         help="with --verify-p4-3-probe, also write the comparison as JSON here (must be "
@@ -1751,6 +1862,42 @@ def _report_parity(args: argparse.Namespace, env_config: str, ids: Sequence[int]
         )
         return 1
     return 0
+
+
+def _report_heldout_thresholds(args: argparse.Namespace, ids: Sequence[int]) -> int:
+    """``DEFERRED`` 80's gate for the held-out band; 0 when every draw reproduces every field.
+
+    ``BRIEF_37`` §3.0: **100/100 or the task stops.** The held-out SUMO draws P7.3a evaluates on
+    are rendered from these CityFlow parents, so this is where their pedigree is established.
+    """
+    checks = verify_against_artifact(
+        P4_HELDOUT_THRESHOLDS_ARTIFACT,
+        arm="maxpressure",
+        scenario_key="cityflow1x1",
+        out_root=args.out_root,
+        draw_ids=ids or None,
+        scenario_id="cityflow1x1",
+    )
+    reproduced = [check for check in checks if check.matches]
+    fields = sorted(checks[0].observed) if checks else []
+    print(
+        f"held-out threshold reproduction: {len(reproduced)}/{len(checks)} draws reproduce "
+        f"every recorded field {fields}",
+        flush=True,
+    )
+    first_bad = next((check for check in checks if not check.matches), None)
+    if first_bad is not None:
+        print(
+            f"  FIRST DIFFERING draw {first_bad.draw_id}: "
+            + "; ".join(
+                f"{key}: observed {first_bad.observed[key]!r} against recorded "
+                f"{first_bad.expected[key]!r}"
+                for key in first_bad.differing
+            ),
+            flush=True,
+        )
+        return 1
+    return 0 if checks else 1
 
 
 def _report_probe(args: argparse.Namespace, env_config: str, ids: Sequence[int]) -> int:
@@ -1821,6 +1968,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         ids = _resolve_cli_draw_ids(args)
+        if args.verify_heldout_thresholds:
+            return _report_heldout_thresholds(args, ids)
         for env_config in args.env_config:
             if args.verify_p4_3_probe:
                 if _report_probe(args, env_config, ids) != 0:
