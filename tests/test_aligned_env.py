@@ -263,3 +263,79 @@ def test_wrapping_an_aligned_env_is_refused_at_construction() -> None:
             AlignedEnv(env, declared_alignment())
     finally:
         env.close()
+
+
+# ----------------------------------------------------------------------------------
+# T7b (BRIEF_37 Amendment A2) -- the door is for a CityFlow-trained model, not for an anchor
+# ----------------------------------------------------------------------------------
+@pytest.mark.skipif(not _sumo_available(), reason="SUMO/traci not available")
+@pytest.mark.skipif(
+    not _draws_available(SMOKE_DRAW),
+    reason=f"P7.2a's parity configuration for draw {SMOKE_DRAW} is not present",
+)
+def test_an_anchor_policy_cannot_be_driven_through_the_door() -> None:
+    """P7.3a's anchors run on the OBSERVED, UNWRAPPED env, and this is the arithmetic that says so.
+
+    ``BRIEF_37`` §3.5 originally said *"env from §3.4"* for every cell.  It was corrected by
+    Amendment A2 on a measurement, not on an argument: ``align_info`` **drops outgoing lanes** --
+    they are not part of the canonical incoming frame -- and re-keys the survivors to CityFlow ids,
+    while ``MaxPressure``'s pressure is *incoming minus outgoing* over the env's **own SUMO** lane
+    ids (``algorithms/max_pressure.py:142``).  Driving it through the wrapper therefore raises
+    ``KeyError`` on an outgoing lane.
+
+    A16 is untouched by this: the door is the only route into **a CityFlow-trained model's** frame,
+    and an anchor has no frame to enter.
+
+    Two angles on one fact, so a future change to either side is caught:
+
+    1. the aligned lane dict does not carry the SUMO lane ids MaxPressure will ask for;
+    2. driving MaxPressure through the wrapper raises, and the **unwrapped** control on the very
+       same env does not -- without that control this test would pass against an env that was
+       simply broken.
+    """
+    from algorithms.max_pressure import MaxPressureAgent
+    from experiments.envs import make_env
+    from offline.collect import _build_env_spec
+    from offline.materialise_draws import parity_sumocfg_path
+    from offline.sumo_att_reference import collect_style_args
+
+    cfg = parity_sumocfg_path("cityflow1x1", SMOKE_DRAW, out_root=DRAWS_ROOT)
+    spec = _build_env_spec(collect_style_args("sumo", "maxpressure", cfg, sentinel_out_dir="/nonexistent"))
+
+    # -- the control FIRST: MaxPressure is fine on the unwrapped env ---------------------------
+    raw = make_env(spec)
+    try:
+        raw_info = raw.reset(seed=1000)
+        sumo_lane_ids = set(raw_info["lane_vehicle_count"])
+        agent = MaxPressureAgent(raw)
+        agent.act(raw_info)  # must not raise
+    finally:
+        raw.close()
+
+    # -- and refused through the door -----------------------------------------------------------
+    wrapped = AlignedEnv(make_env(spec), declared_alignment())
+    try:
+        aligned_info = wrapped.reset(seed=1000)
+        aligned_lane_ids = set(aligned_info["lane_vehicle_count"])
+        assert aligned_lane_ids != sumo_lane_ids, (
+            "the door re-keys the lane dict; if these sets were equal there would be nothing for "
+            "this test to protect and the anchors could share the DT's env"
+        )
+        assert not (sumo_lane_ids <= aligned_lane_ids), (
+            "every SUMO lane id survived the alignment, so MaxPressure would work through the door "
+            "and Amendment A2's separation would be unnecessary"
+        )
+        wrapped_agent = MaxPressureAgent(wrapped)
+        with pytest.raises(KeyError) as excinfo:  # hygiene: allow TH006 - the key is asserted on the next lines
+            wrapped_agent.act(aligned_info)
+        missing = excinfo.value.args[0]
+        assert missing in sumo_lane_ids, (
+            f"the wrapper raised on {missing!r}, which is not even a lane of the unwrapped env; "
+            "this test would then be observing some other defect and proving nothing about the door"
+        )
+        assert missing not in aligned_lane_ids, (
+            f"{missing!r} survived the alignment, so the KeyError did not come from the door "
+            "dropping an outgoing lane"
+        )
+    finally:
+        wrapped.close()
