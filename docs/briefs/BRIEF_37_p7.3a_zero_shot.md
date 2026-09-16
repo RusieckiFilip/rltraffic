@@ -265,3 +265,22 @@ No commit of this session carries it. `core.hooksPath = /home/filip/rltraffic/gi
 At the next implementer session's start: `git merge main` first (C9 — this amendment must be in the tree before §3.5b is written), then `git push -u origin task/p7.3a-zero-shot` (§7's rule).
 
 **Then §3.5b with E2 and E3(a)–(f), §3.6, the pre-flight with the pad pilot (C4), the stage-1 checkpoint read by the coordinator, the token.**
+
+---
+
+# ✅ AMENDMENT F — 2026-09-16, evening, on the author's question about the pool pilot without the pad: the pre-flight pilot runs WHEN THE CODE EXISTS, on whatever machine state exists then — a MECHANICS check first and a rate second; C4's pad re-run before the token stands and is the header's schedule basis. Not either/or, and nothing here blocks §3.5b or §3.6
+
+**The question:** no cooling pad today, the campaign will run on one; either run the pilot now and treat its rate as a lower bound to re-measure on the pad before the token, or defer the pilot to the pad. The author left the call to the coordinator and noted, correctly, that the code can be finished either way.
+
+**What already exists, read from `docs/plans/p7.3a_amendment_a_measurements.md` §A6 on the branch:** a **harness** pilot — `a6_pool_pilot.py`, 16 observed DT cells on draw 5, `spawn`, one env per process — 8 workers halting ON **6.848 s/cell** (7.88×), **12 workers halting ON 5.393 s/cell** (7.61×), 8 workers halting OFF 2.950 s/cell (7.65×); canary **0.90 s**; every figure A11-labelled. It was a harness because §3.5 / §3.6 did not exist. It is **not** the pre-flight pilot §5.2 and A6 require, which goes through the **real** pool.
+
+## F1 — The pre-flight pilot runs as soon as §3.5b and §3.6 exist, pad or no pad
+A6's pilot at pre-flight is 16 observed DT cells on draw 5 (fenced — no outcome printed) **through the real pool**: the §3.5b runner under the §3.6 driver at 12 workers (C3). Its first purpose is the pre-flight's own — the destruction and resume paths, the no-token driver, one env per process, chunks resumable by content, both canary halves, A17(f)'s stop. Those are the findings that force rework; P7.2b's pre-flight found three; rework wants slack, and deferring the pilot to the pad would move that check to the last moment before the token, which is the worst place for it. The rate is a by-product, recorded with its own canary and labelled *measured under thermal constraint* (A11). Cost ≈ 2–4 minutes; the pad run costs the same again.
+
+## F2 — "Lower bound" is not the right word; "pessimistic expectation, labelled" is
+The canary moved 0.68 → 1.02 → 0.81 s in a day with nothing changed but time. A rate taken today is *expected* to be slower than the pad's, but nothing bounds the campaign-day machine state — a warmer room is enough. So the pre-pad rate is recorded as a labelled expectation, not as a bound, and **the only rate that governs a stage is the canary the driver runs at that stage's start** (A11's last sentence; §7's rule); the packet reports each stage's own.
+
+## F3 — C4 stands, under A11's 10 % clause: the pad re-run before the token is the header's schedule basis
+On the pad, before the token: the same 16 cells through the same pool, its canary recorded. **If the pad's canary differs from the pre-flight pilot's by more than 10 %, the re-run is required and the driver header's schedule is its rate; if within 10 %, A11 does not require it and the pre-flight rate stands, with its label.** The header names the pilot it comes from — canary, date, n — so a header never quotes a rate for a machine state the run did not have, which is the author's own point and the reason this is written down.
+
+**Nothing changes for the implementer's next commit: §3.5b with E2 and E3(a)–(f), then §3.6, then the pre-flight including F1's pilot.**
