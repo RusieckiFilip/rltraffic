@@ -1493,3 +1493,71 @@ def test_the_driver_gates_on_the_canary_before_consuming_the_token() -> None:
     # Nothing under scenarios/draws is written.
     assert "scenarios/draws" in text
     assert ">" not in text.split("scenarios/draws")[1].split("\n")[0]
+
+
+# ----------------------------------------------------------------------------------
+# T3 (BRIEF_37 section 3.3) -- the DEFAULT env factory is the original construction
+# ----------------------------------------------------------------------------------
+P4_HELDOUT = REPO_DATA / "p4_heldout_thresholds.json"
+
+
+def _cityflow_draws_available(*draw_ids: int) -> bool:
+    """Are these CityFlow draws materialised? (Amendment G2: the gate names its artifact.)"""
+    from offline.materialise_draws import draw_config_path
+
+    return all(
+        draw_config_path("cityflow1x1", int(d), out_root=DRAWS_ROOT).is_file() for d in draw_ids
+    )
+
+
+@pytest.mark.skipif(
+    not _cityflow_draws_available(1000, 1001),
+    reason="CityFlow held-out draws 1000 and 1001 are not materialised",
+)
+def test_the_default_env_factory_regenerates_a_committed_p4_slice() -> None:
+    """T3, load-bearing. ``env_for_draw=None`` must be the ORIGINAL construction, not a variant.
+
+    ``BRIEF_37`` section 3.3 adds an env factory to ``evaluate_arm`` so P7.3a can hand it SUMO envs.
+    The whole safety of that change is that the default branch is untouched: every committed P4
+    artifact has to regenerate through it.  This regenerates two rows of
+    ``docs/data/p4_heldout_thresholds.json`` -- ``maxpressure`` on held-out draws 1000 and 1001,
+    at the artifact's own ``engine_seed`` and ``env_settings`` -- and compares under ``==``.
+
+    Two episodes on CityFlow, which is fast; the brief's four-SUMO-episode cap is untouched because
+    none of these is SUMO.
+    """
+    import json
+
+    from algorithms.max_pressure import MaxPressureAgent
+    from offline.dt_gate import evaluate_arm
+    from offline.materialise_draws import draw_config_path
+
+    payload = json.loads(P4_HELDOUT.read_bytes())
+    stored = {
+        int(row["draw_id"]): row
+        for row in payload["episodes"]
+        if row["arm"] == "maxpressure" and int(row["draw_id"]) in (1000, 1001)
+    }
+    assert sorted(stored) == [1000, 1001]
+
+    results = evaluate_arm(
+        arm="maxpressure",
+        seed=None,
+        draw_ids=[1000, 1001],
+        config_for_draw=lambda d: draw_config_path("cityflow1x1", d, out_root=DRAWS_ROOT),
+        env_settings=dict(payload["env_settings"]),
+        scenario_id="cityflow1x1",
+        choose_action_factory=lambda env: (lambda _e, info: MaxPressureAgent(env).act(info)),
+        engine_seed=int(payload["engine_seed"]),
+        env_for_draw=None,
+    )
+
+    assert [r.draw_id for r in results] == [1000, 1001]
+    for result in results:
+        row = stored[result.draw_id]
+        assert result.att_horizon == row["att_horizon"], (
+            f"draw {result.draw_id}: att_horizon {result.att_horizon!r} against the committed "
+            f"{row['att_horizon']!r}; the default factory is no longer the original construction"
+        )
+        assert result.episode_reward == row["episode_reward"]
+        assert result.horizon_vehicle_count == row["horizon_vehicle_count"]
