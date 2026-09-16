@@ -821,3 +821,62 @@ about the o-acute false positive, one is illustrative quoted Polish in a frozen 
 make the repo-wide sweep exit 1. That is the script's own TODO and a separate decision: suppressing them
 means either widening `ALLOWED_NAMES` beyond proper nouns or excluding files, and both risk masking a
 real hit. Until it is settled, **the sweep's exit code must be read together with its known lines — and this patch file itself adds one more**, because the o-acute comment falls in a hunk's CONTEXT, exactly as it does in the two `claude_guard` patches above. A diff of that region cannot avoid it. Expect the sweep to list five paths after this patch lands, not four.
+
+---
+
+## `ci_gate_ceiling_178_p7_2b.patch` — the skip ceiling moves 158 → 178, and all +20 is P7.2b's own gated tests
+
+**Apply with**, from the repository root, then commit (the author's commit by role, as for every ceiling move):
+```
+git apply docs/patches/ci_gate_ceiling_178_p7_2b.patch
+.venv/bin/pytest tests/test_ci_gate.py -q        # 34 passed
+git add .github/ci/ci_baseline.json tests/test_ci_gate.py
+git commit -F - <<'MSG'
+ci(ceiling): 158 -> 178 observed after P7.2b's merge and Amendment G -- +16 checkpoint-gated, +4 on P7.2a's parity configuration; classified run 35085215720 at 164b519, the merge's own run cancelled by the plan push but its one uploaded leg identical element-by-element
+MSG
+```
+Derived against `.github/ci/ci_baseline.json` and `tests/test_ci_gate.py` as of `164b519`. If either has
+changed since, re-derive with the generator rather than force (it is deterministic:
+`output/p7_2b_runs/ci_ceiling_178_gen.py`, copied from the coordinator's scratch).
+
+**Registered protocol (`re_measure_required_at.what_to_do`):** merge, let the gate go red, classify
+`junit.xml`'s skip messages on both legs, commit the observed value with its breakdown. No pre-bump, no
+slack. **This move waited one extra round on purpose:** the first red after the merge (`b2ee947`, run
+`35023303912`, 177 skipped) carried a **real failure** — one P7.2b test with no `skipif` — not only the
+ceiling breach, and gating it converts that failure into a skip. Committing 177 would have put CI red
+again for a number we produced. Amendment G landed first (`8c83fd8`); this is the value measured after it.
+
+**Observed, both legs identical (run `35085215720`, `main` at `164b519`):** 1876 passed, **178 skipped**,
+0 failures, 0 errors, 2054 collected; 42 distinct skip messages, identical element-by-element across the
+two legs. **Substitution, recorded rather than glossed:** Amendment G's merge commit is `8c83fd8` and its
+own run `35085007974` was **cancelled** about seven minutes in by the coordinator's plan-commit push — the
+third time this shape has occurred — but its ubuntu-22.04 leg had uploaded a complete `junit.xml`
+(2054 / 178 / 0) and its multiset is identical to the classified run's; the 24.04 leg uploaded no
+artifact, checked against the API. `git diff --stat 8c83fd8 164b519` is 5 lines in two docs files.
+
+**Delta against the 158 run (`34782398552`), diffed DIRECTLY from both runs' artifacts:** 3 new
+messages carrying all 20 new skips, 0 removed, 0 count changes.
+
+| message | count | family |
+|---|---|---|
+| `P4 checkpoints are not in this tree` | 16 | `corpus_or_checkpoint` 76 → 92 |
+| `P7.2a's parity configuration for draw 5 is not present` | 3 | `campaign_output` 20 → 24 |
+| `P7.2a's parity configuration for probe-band draw 201 is not present` | 1 | `campaign_output` |
+
+`cityflow` 42, `sumo_traci` 14, `matplotlib` 2, `grid4x4_resco_candidates` 4 unchanged;
+92 + 42 + 14 + 2 + 24 + 4 = 178. The delta closes against P7.2b's own count: collected +66 = the 65 tests
+of the merge plus Amendment G's one CI-runnable test; passed +46, skipped +20 — to the number what
+Amendment G's route-A reproduction produced locally with the two hardcoded roots hidden.
+
+**Verified before hand-off, not asserted:** `git apply --check` exit 0; in a throwaway worktree with the
+patch applied, `tests/test_ci_gate.py` **34 passed**; the gate script on **both** completed legs against
+the new baseline prints `OK pytest-gate: passed=1876 skipped=178 failed=0 errors=0, skip ceiling 178
+(0 to spare)`; and as a control the same leg against the *current* 158 baseline prints `FAIL … 178 tests
+skipped against a declared ceiling of 158`, exit 1.
+
+**What else the patch does:** demotes the 158 `measured` block into the `superseded` chain with
+`why_it_was_wrong: "Not wrong -- EXPIRED AS DECLARED …"`; refreshes `ceiling_if_cityflow_were_built`
+to 136 and the prose *"42 of these 178 … 178 to 136"*; renames `re_measure_required_at.event` to P7.3's
+merge; and records, under `predicted_delta`, that the coordinator wrote 178 into the plan beforehand as
+arithmetic on an observed 177 — not a prediction from a brief, which is the thing that has been wrong
+five times — so the distinction survives.
