@@ -157,3 +157,20 @@ Because the observer changed after P7.1's freeze (A5), **one observed MaxPressur
 
 ## A11 — added 2026-09-16 ~15:00, on the author's measurement: the rate was taken on a THERMALLY CONSTRAINED machine
 The canary read 1.02 s at 14:05 and **0.81 s** shortly after, with nothing changed but time since the previous SUMO runs; the laptop's underside intake is blocked (glass table). The author will fit a cooling pad before the campaign and measure the canary on it. **Until that measurement exists, the 37.06 s cell rate, the ≈ 3× observer ratio and the ≈ 10 h schedule are measurements under thermal constraint, and every quotation of them says so.** The driver's canary at each stage start is the rate basis of that stage (§7's rule); the pre-flight pilot (A6) is re-run on the pad if the pad's canary differs from the pilot's by more than 10 %.
+
+---
+
+# ✅ AMENDMENT B — 2026-09-16, on the author's ruling: the campaign runs in TWO DECLARED STAGES, so the confirmatory number exists early and there is slack if something breaks — NOT to rescue a deadline; the schedule is not tight
+
+The compute is one night and the author presents in ten days. The coordinator's first framing of this ordering as a deadline rescue was wrong on the coordinator's own arithmetic and is withdrawn; the staging is for **early existence and slack**, which is a good reason on any calendar.
+
+## B1 — The order, declared before any cell runs (A17(d))
+- **Stage 1 — confirmatory:** `b_mean_k100` × `mappo1000`, `mix50` × seeds 101/202/303/404/505 × held-out draws 1000–1099 (1,000 DT cells), plus `fixedtime` and `maxpressure` on the same draws (200) — the two anchors §3.4's ρ uses. ≈ 1,200 observed cells.
+- **Stage 2 — the rest:** `b_max_k100`, `a_q1.0`, `naive` for both subjects and all seeds (3,000) and `random` × 5 policy seeds (500), on the same draws, resumable in the same work directory under a second token; the driver re-runs the canary at its start.
+- **Stage 2 is UNCONDITIONAL.** It runs whatever stage 1 shows, exactly as P7.3b runs whatever the zero-shot number is (§7). Nothing registered moves: five seeds, 100 draws, both subjects, every declared arm on the same draws and seeds. This is a sequence, not a cut, and the packet and the paper say so.
+
+## B2 — `report --stage confirmatory` (an addition to §3.5)
+A stage flag whose declared cell set is exactly B1's stage 1; `report` refuses if any stage-1 cell is missing or any undeclared arm is present, and writes `docs/data/p7_3a_zero_shot_stage1.json` with the same block layout as the final artifact (ρ under both definitions for `b_mean_k100` only, the H3 inequalities, the in-support diagnostic, canary, provenance). The final `report` writes `docs/data/p7_3a_zero_shot.json` over all cells and **cites the stage-1 artifact's sha256**; both are committed. The stage-1 cells are byte-identical between the two artifacts (a test: every stage-1 row in the final artifact `==` its row in the stage-1 artifact).
+
+## B3 — What goes on a slide, and what does not
+**Anything aimed outside the project states what the number is and what produced it — and carries no label from this project's internal process.** *Review* here means a second Claude session checking the first; *pre-review* on a slide would read as a qualification of the result, and it is not one. The honest description is the registered one: *ρ on the pool-clock ATT (E_sumo) within SUMO; MADT trained on CityFlow (`mappo1000` / `mix50`), zero-shot on SUMO through the frozen alignment, prompted by the Rule B mean k = 100 target from a 100-episode MaxPressure probe; 100 held-out demand draws × 5 seeds; fixed-time and MaxPressure anchors on the same draws; design registered as A15–A18 before any target-domain number existed.* The internal verification steps that precede a number's use (A17(f), both canary halves, the coordinator's read from disk) are conditions on the number being used at all, not qualifiers to print beside it.
