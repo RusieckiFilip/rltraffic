@@ -43,22 +43,29 @@
 # 5. NOTHING UNDER scenarios/draws/ IS WRITTEN. The parity configs are P7.2a's output and this
 #    campaign opens them read-only.
 #
-# 6. TIME — every figure below is MEASURED, with its n and its date, and every one of them is
-#    labelled under Amendment A11 (the machine was thermally constrained: blocked underside
-#    intake). Source: docs/plans/p7.3a_amendment_a_measurements.md section A6, 2026-09-16.
-#      canary                     0.97 s (plan gate) / 0.90 s (A6 session)  — refuses above 2.0 s
-#      12 workers, halting ON     5.393 s/cell effective   (n = 16 cells, draw 5)
-#       8 workers, halting ON     6.848 s/cell effective   (n = 16 cells, draw 5)
-#       8 workers, halting OFF    2.950 s/cell effective   (n = 16 cells, draw 5)
-#      12 workers, halting OFF    NOT MEASURED — a scaled estimate only, never quoted as measured
-#    Under Amendment C2 the halting cross-check is ON for 47 of 4,700 cells, so the campaign runs
-#    at close to the halting-OFF rate. Amendment C7's reading of these: stage 1 ≈ 1 h, the full
-#    campaign ≈ 3–3.5 h at 12 workers, on the thermally constrained machine.
-#    ⚠️ THESE ARE THE A6 **HARNESS** PILOT'S NUMBERS, NOT THE PRE-FLIGHT PILOT'S. Amendment F1
-#    requires a pilot through THIS driver and THIS runner before the token, and F3 requires it
-#    re-run on the cooling pad if the pad's canary differs by more than 10 %. When that has run,
-#    this block is replaced by its rate, naming the pilot, its canary, its date and its n — so the
-#    header never quotes a rate for a machine state the run did not have.
+# 6. TIME — from F1's PRE-FLIGHT PILOT, run through this runner at this worker count.
+#    Pilot: `python -m offline.transfer_curve … pilot --workers 12`, 16 DT cells on draw 5 (the
+#    FENCED smoke draw), both subjects, all four declared arms, seeds 101/202, halting OFF (draw 5
+#    is not Amendment C2's declared subset). Transcript: output/p7_3a_runs/preflight_pilot.txt.
+#    Date 2026-09-17. n = 2 runs x 16 cells. A11 labels every figure: measured on the thermally
+#    constrained machine, no cooling pad.
+#      run 1   canary 0.92 s   wall 32.05 s   2.003 s/cell effective   in-process mean 14.34 s
+#      run 2   canary 0.77 s   wall 32.55 s   2.035 s/cell effective   in-process mean 14.86 s
+#      speed-up 7.16x / 7.30x on 16 cores;  0 failures in 32 cells
+#    SCHEDULE, stated with what it does and does not cover:
+#      stage 1 (1,200 cells) ≈ 40 min   ·   full campaign (4,700 cells) ≈ 2.6 h
+#    ⚠️ THAT PROJECTION IS MEASURED ON **DT CELLS ONLY**. The campaign's 700 anchor cells
+#    (fixedtime 100, maxpressure 100, random 5x100) were NOT run by this pilot; A6's in-process
+#    anchor times with halting ON (fixedtime 38.65 s, maxpressure 44.66 s, random 51.24 s, n = 2
+#    each) sit ABOVE the DT cell's 31.64 s, so those 700 cells may be slower and the figures above
+#    are a lower bound for them. The 47 cells carrying C2's halting check cost about 3.5x (A9b),
+#    which adds roughly 4 min.
+#    This replaces Amendment C7's reading (stage 1 ≈ 1 h, full ≈ 3–3.5 h), which came from the A6
+#    HARNESS pilot at 5.393 s/cell with the halting check ON for every cell; under C2 it is ON for
+#    47 of 4,700, which is most of the difference.
+#    ⚠️ F3: if the cooling pad's canary differs from 0.92 s / 0.77 s by more than 10 %, the pilot is
+#    re-run on the pad before the token and this block is replaced by that run's rate — the header
+#    must never quote a rate for a machine state the run did not have.
 #
 # 7. THE WORKTREE HAS NO .venv. The interpreter is the main tree's, as P7.2b's driver does.
 
@@ -226,11 +233,17 @@ PYTHONPATH=$WORK_TREE "$PY" -P -m offline.transfer_curve \
 
 START=$(date +%s)
 
+# Amendment I3(3): when a stage has more than one path into it, the path taken is written as the
+# FIRST line of that run's entry -- so the stage-1 checkpoint reads ONE file (logs/a17f.log) and
+# still knows whether the corpus was collected by this run or accepted from a previous one.
+STAGE_NOTE=""
+
 run_stage() {
   local label=$1; shift
   local log=$LOGS/${label}.log
   echo "=== $label"
   # ⚠️ APPENDED, never truncated: a restart must not destroy the first run's narrative record.
+  if [ -n "$STAGE_NOTE" ]; then echo "$STAGE_NOTE" >> "$log"; fi
   echo "=== $label  run at $(date -Is)" >> "$log"
   PYTHONPATH=$WORK_TREE "$PY" -P -m "$@" >> "$log" 2>&1 &
   CELL_PID=$!
@@ -264,7 +277,9 @@ run_stage() {
 if [ "$STAGE" = "confirmatory" ]; then
   if [ -d "$CORPUS" ]; then
     echo "=== corpus already at $CORPUS -- not collecting again; A17(f) decides whether it stands"
-    run_stage a17f_existing offline.transfer_curve "${COMMON[@]}" a17f --corpus-dir "$CORPUS"
+    STAGE_NOTE="branch: corpus ALREADY PRESENT at $CORPUS -- collection skipped by this run"
+    run_stage a17f offline.transfer_curve "${COMMON[@]}" a17f --corpus-dir "$CORPUS"
+    STAGE_NOTE=""
   else
     run_stage collect offline.collect \
       --backend sumo \
@@ -278,7 +293,9 @@ if [ "$STAGE" = "confirmatory" ]; then
       --out-dir "$CORPUS" \
       --draws-root "$DRAWS"
 
+    STAGE_NOTE="branch: corpus COLLECTED by this run into $CORPUS"
     run_stage a17f offline.transfer_curve "${COMMON[@]}" a17f --corpus-dir "$CORPUS"
+    STAGE_NOTE=""
   fi
 fi
 

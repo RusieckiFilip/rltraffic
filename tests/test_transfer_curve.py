@@ -1627,6 +1627,31 @@ def test_h2_the_confirmatory_stage_can_be_restarted_and_never_overwrites() -> No
     assert '[ -d "$CORPUS" ]' in code, "the skip decision is on the corpus existing"
 
 
+def test_i3_both_stage_one_branches_log_to_one_file_naming_the_branch(tmp_path: Path) -> None:
+    """Amendment I3(3): ONE log name, and the branch taken is the entry's first line.
+
+    The stage-1 checkpoint is the coordinator reading A17(f)'s result from disk, so it must be one
+    file to read and one manifest entry -- not ``a17f.log`` or ``a17f_existing.log`` depending on
+    which path the run took.  The branch is written INTO that file because the two paths mean
+    different things: one collected a corpus, the other accepted one that was already there.
+    """
+    code = _driver_code_text()
+
+    assert "a17f_existing" not in code, "I3(3): one log name for both branches"
+    assert code.count("run_stage a17f ") == 2, "both branches run the stage under the same label"
+    # each branch announces itself, and the note reaches the log before the stage's header line
+    assert code.count("STAGE_NOTE=") >= 2
+    assert code.count("branch:") == 2, "each branch names itself in the entry"
+    assert '"$STAGE_NOTE"' in code and '>> "$log"' in code
+
+    # the note is written FIRST: a reader opening logs/a17f.log must see which path ran before the
+    # stage's own output, not after it
+    body = code[code.index("run_stage() {") : code.index("run_stage() {") + 700]
+    assert body.index("STAGE_NOTE") < body.index('echo "=== $label  run at'), (
+        "the branch line must precede the stage header inside the log entry"
+    )
+
+
 def test_t9_the_ordering_the_token_depends_on() -> None:
     """Every check that can refuse PRECEDES the token, and every write FOLLOWS it.
 
@@ -1663,19 +1688,28 @@ def test_t9_a17f_stops_the_driver_before_any_evaluation_cell_runs() -> None:
     for ``" cells "`` and matched the refusal message *"cells from another run are still alive"* --
     1,296 characters before the subcommand it meant, which made the ordering assertion fail against
     a driver whose order was correct.  A needle that can match prose is a needle that will.
+
+    ⚠️ **And ``index`` is not ``rindex``.**  Amendment I3(3) gave both stage-1 branches the same
+    label, so ``run_stage a17f`` now appears twice and the FIRST occurrence is the skip branch --
+    which precedes the collect branch and has no collection in it.  The invariant was never "the
+    first gate follows the first collection"; it is that the collect branch gates what it collected,
+    and that **every** gate precedes **every** evaluation cell.  Stated that way it survives the
+    branch and would still catch a gate moved after the pool.
     """
     code = _driver_code_text()
     collection = code.index("run_stage collect offline.collect")
-    gate = code.index("run_stage a17f offline.transfer_curve")
-    cells = code.index("cells --stage")
+    last_gate = code.rindex("a17f --corpus-dir")
+    first_cells = code.index("cells --stage")
 
-    assert collection < gate < cells, (
-        "the order must be: collect the corpus, check A17(f), and only then evaluate"
-    )
+    assert collection < last_gate, "the collect branch must gate the corpus it just collected"
+    assert last_gate < first_cells, "EVERY A17(f) call precedes EVERY evaluation cell"
     # Every stage goes through run_stage, which calls `fail "$label"` when the child exits
     # non-zero; that is what turns A17(f)'s refusal into a stopped campaign rather than a log line.
     assert 'fail "$label"' in code, "run_stage must stop the driver when a stage exits non-zero"
-    assert code.index("run_stage()") < gate, "a17f must be run THROUGH run_stage, not beside it"
+    assert code.index("run_stage()") < code.index("run_stage a17f"), (
+        "a17f must be run THROUGH run_stage, not beside it"
+    )
+    assert code.count("run_stage a17f") == 2, "both stage-1 branches gate through run_stage"
 
 
 def test_t9_the_worker_count_and_every_root_come_from_variables() -> None:
@@ -2106,3 +2140,133 @@ def test_h8_min6_the_canary_prints_its_line_before_it_checks_it(
     printed = capsys.readouterr().out
     assert "canary 0.91 s" in printed, "the observed line must survive a failed check"
     assert "-1.0" in printed
+
+
+# ==================================================================================
+# F1 / I5(2) -- the pre-flight pilot's declared cell set, and its fence
+# ==================================================================================
+def test_f1_the_pilot_is_sixteen_dt_cells_on_the_fenced_draw_over_both_subjects() -> None:
+    """F1's pilot, declared as a set before it runs: 16 DT cells, draw 5, both subjects.
+
+    Draw 5 is P7.2b's **fenced smoke draw** and is deliberately NOT in the held-out pool: *"a pilot
+    on the held-out pool would BE the experiment, run before the token"*
+    (``docs/plans/p7.3a_amendment_a_measurements.md`` §A6).  The composition covers both registered
+    subjects and all four declared arms at two seeds, so the pilot exercises the target lookup for
+    every arm rather than running one arm sixteen times -- the pilot's FIRST purpose is the
+    mechanics, and its rate is a by-product (F1).
+    """
+    cells = tcv.pilot_cells()
+
+    assert len(cells) == 16, "2 subjects x 4 declared arms x 2 seeds"
+    assert {c["draw_id"] for c in cells} == {tcv.PILOT_DRAW} == {5}
+    assert {c["kind"] for c in cells} == {"dt"}
+    assert {c["subject"] for c in cells} == set(tcv.SUBJECTS)
+    assert {c["arm"] for c in cells} == {spec.name for spec in tcv.DECLARED_ARMS}
+    assert {c["seed"] for c in cells} == set(tcv.PILOT_SEEDS)
+    assert len({tcv.cell_chunk_name(c) for c in cells}) == 16, "two cells would share a chunk"
+
+    # the pilot is not a stage of the campaign, and its draw is not in the registered pool
+    from offline.materialise_draws import classify_draw_pool
+
+    assert {c["stage"] for c in cells} == {tcv.PILOT_STAGE}
+    assert tcv.PILOT_STAGE not in tcv.STAGES
+    assert classify_draw_pool(tcv.PILOT_DRAW) != "held_out"
+    assert tcv.halting_check_for(tcv.PILOT_DRAW) is False, "C2's subset is draw 1000 only"
+
+
+def test_f1_report_refuses_a_pilot_work_directory(tmp_path: Path) -> None:
+    """THE FENCE, mechanical rather than promised: a pilot chunk cannot reach an artifact.
+
+    ``report`` is never called on the pilot -- that is the instruction -- but "never called" is a
+    procedure, and procedures are what this project stops trusting.  A pilot cell is not a declared
+    cell of any stage, so ``report`` refuses the directory outright; and since draw 5 is not in the
+    held-out pool, no pilot chunk can satisfy the campaign's completeness check either.
+    """
+    roots = _build_roots(tmp_path, draws=(1000,), seeds=(101,))
+    pilot_dir = tmp_path / "preflight_pilot"
+    pilot_dir.mkdir(parents=True, exist_ok=True)
+    _canary(pilot_dir)
+    # a pilot chunk needs draw 5's parity digests; the fixture builds draw 1000's, so this chunk is
+    # written with draw 5's identity and the fixture's digests -- report refuses before it reads them
+    cell = tcv.pilot_cells()[0]
+    payload = _payload({**cell, "draw_id": 1000}, roots)
+    payload.update(
+        {
+            "draw_id": tcv.PILOT_DRAW,
+            "stage": tcv.PILOT_STAGE,
+            # draw 5 is not C2's declared subset, so a real pilot chunk carries the flag off and
+            # the three halting fields absent; without this the chunk trips the C2 refusal first
+            # and the test would pass for a reason that has nothing to do with the fence
+            "halting_checked": False,
+            "halting_max_abs_difference": None,
+            "halting_n_lane_seconds": None,
+            "halting_n_disagreeing_lane_seconds": None,
+        }
+    )
+    tcv.write_chunk(payload, work_dir=pilot_dir)
+
+    with pytest.raises(ValueError, match="declared"):
+        tcv.report(
+            work_dir=pilot_dir,
+            out_path=roots.out / "p7_3a_zero_shot.json",
+            output_root=roots.output,
+            out_root=roots.draws,
+            data_dir=roots.data,
+        )
+    assert not (roots.out / "p7_3a_zero_shot.json").exists()
+
+
+def test_f1_the_pilot_summary_carries_no_outcome(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """FENCED: wall time and counts only -- no ATT, no rho, no return, for any cell.
+
+    The pilot runs on draw 5 with real checkpoints, so every chunk it writes DOES contain an
+    outcome; what must never happen is that an outcome is printed, summarised or published.  This
+    asserts the summary's own shape, which is what reaches the transcript and the packet.
+    """
+    roots = _build_roots(tmp_path, draws=(1000,), seeds=(101,))
+    monkeypatch.setattr(
+        tcv, "run_stage",
+        lambda **kwargs: {
+            "stage": "pilot", "n_declared": 16, "n_reused": 0, "n_rolled": 16, "n_failed": 0,
+            "failures": [], "seconds": [11.0] * 16, "wall_seconds": 40.0,
+        },
+        raising=True,
+    )
+    monkeypatch.setattr(
+        "offline.transfer_calibration.canary_seconds",
+        lambda: (0.9, {"decisions": 360, "local_return": tc.CANARY_REFERENCE_LOCAL_RETURN,
+                       "att_horizon": tc.CANARY_REFERENCE_ATT_HORIZON, "two_routes_agree": True}),
+        raising=True,
+    )
+
+    summary = tcv.run_pilot(
+        work_dir=tmp_path / "pilot",
+        out_root=roots.draws,
+        output_root=roots.output,
+        data_dir=roots.data,
+        transcript_path=tmp_path / "preflight_pilot.txt",
+    )
+
+    # The scan is over KEYS, not over the whole JSON: the record's prose says the words "no ATT,
+    # no rho" on purpose, and a substring scan over values would be satisfied -- or broken -- by
+    # its own documentation, which is the same trap `_driver_code_text` exists for.
+    def keys_of(node: Any) -> list[str]:
+        if isinstance(node, dict):
+            return [str(k) for k in node] + [x for v in node.values() for x in keys_of(v)]
+        if isinstance(node, list):
+            return [x for item in node for x in keys_of(item)]
+        return []
+
+    forbidden = ("att", "rho", "e_sumo", "episode_reward", "return", "horizon", "support")
+    leaked = [k for k in keys_of(summary) for w in forbidden if w in k.lower()]
+    assert leaked == [], f"the pilot summary carries an outcome field: {leaked}"
+    # ...and every number in it is a clock or a count
+    assert summary["n_cells"] == 16
+    assert summary["wall_seconds"] == 40.0
+    assert summary["effective_seconds_per_cell"] == 40.0 / 16
+
+    transcript = (tmp_path / "preflight_pilot.txt").read_text(encoding="utf-8")
+    assert "canary 0.9" in transcript, "the transcript carries the canary line (F1)"
+    assert "FENCED" in transcript
+    assert "n = 16" in transcript
+    assert "draw 5" in transcript

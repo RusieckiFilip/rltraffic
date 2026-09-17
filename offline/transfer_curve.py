@@ -81,7 +81,10 @@ __all__ = [
     "halting_check_for",
     "load_calibration",
     "main",
+    "pilot_cells",
     "report",
+    "run_pilot",
+    "run_stage",
     "reusable_chunk_at",
     "rho",
     "run_cell",
@@ -1727,6 +1730,39 @@ def _stage1_block(path: Path, rows: Sequence[Mapping[str, Any]]) -> dict[str, An
 #: Amendment C3: 12 workers, measured 1.27x better than 8 on this machine's 16 cores.
 DEFAULT_WORKERS = 12
 
+#: F1's pre-flight pilot.  **Draw 5 is P7.2b's FENCED smoke draw and is deliberately NOT in the
+#: held-out pool** -- *"a pilot on the held-out pool would BE the experiment, run before the token"*
+#: (``docs/plans/p7.3a_amendment_a_measurements.md`` §A6).  Two seeds across both subjects and all
+#: four declared arms, so the pilot exercises the target lookup for every arm rather than running
+#: one arm sixteen times: the pilot's FIRST purpose is the mechanics -- destruction and resume, one
+#: env per process, chunks resumable by content -- and its rate is a by-product (F1).
+PILOT_DRAW = 5
+PILOT_SEEDS: tuple[int, ...] = (101, 202)
+PILOT_STAGE = "pilot"
+
+
+def pilot_cells() -> list[dict[str, Any]]:
+    """F1's sixteen cells, declared as a set before any of them runs.
+
+    ``PILOT_STAGE`` is not one of :data:`STAGES`: the pilot is not part of the campaign, and a
+    pilot chunk is therefore not a declared cell of any stage, which is what makes :func:`report`
+    refuse a pilot work directory outright.  The fence is that refusal, not the instruction never
+    to call ``report`` on it.
+    """
+    return [
+        {
+            "kind": "dt",
+            "subject": subject,
+            "arm": spec.name,
+            "seed": int(seed),
+            "draw_id": PILOT_DRAW,
+            "stage": PILOT_STAGE,
+        }
+        for subject in SUBJECTS
+        for spec in DECLARED_ARMS
+        for seed in PILOT_SEEDS
+    ]
+
 
 def _worker(task: tuple[dict[str, Any], dict[str, Any]]) -> dict[str, Any]:
     """One cell in one process.  Top-level so ``spawn`` can pickle it.
@@ -1794,15 +1830,20 @@ def run_stage(
         "run": {**identity, "canary_seconds": canary_seconds},
         "work_dir": str(work),
     }
+    import time
+
     results: list[dict[str, Any]] = []
+    started = time.perf_counter()
     if todo:
         work.mkdir(parents=True, exist_ok=True)
         context = get_context("spawn")
         with context.Pool(processes=max(1, int(workers))) as pool:
             for result in pool.imap_unordered(_worker, [(cell, kwargs) for cell in todo]):
                 results.append(result)
+                # The cell's NAME and whether it stood, never a number it produced.
                 status = "ok" if result["ok"] else f"FAILED {result['error']}"
                 print(f"  {result['name']} {status}", flush=True)
+    wall_seconds = time.perf_counter() - started
 
     failures = [result for result in results if not result["ok"]]
     return {
@@ -1812,11 +1853,148 @@ def run_stage(
         "n_rolled": len(results) - len(failures),
         "n_failed": len(failures),
         "failures": failures,
+        # Wall clocks only -- the in-process seconds of each cell and the pool's own elapsed time.
+        # Nothing here is an outcome: a duration is not an ATT (F1's fence).
+        "seconds": [result["seconds"] for result in results if result["seconds"] is not None],
+        "wall_seconds": wall_seconds,
     }
 
 
+def run_pilot(
+    *,
+    work_dir: str | Path,
+    out_root: str | Path,
+    output_root: str | Path,
+    data_dir: str | Path | None = None,
+    workers: int = DEFAULT_WORKERS,
+    transcript_path: str | Path | None = None,
+) -> dict[str, Any]:
+    """F1's pre-flight pilot: :func:`pilot_cells` through the REAL pool, and nothing published.
+
+    **FENCED.**  Every chunk it writes contains an outcome -- it has to, because the thing under
+    test is the runner that produces them -- but no ATT, no rho and no return is printed,
+    summarised or returned from here, and :func:`report` is never called on the directory.  That is
+    a procedure, so the mechanical half matters more: a pilot cell is not a declared cell of any
+    stage, so ``report`` refuses this work directory if anyone ever points it at one.
+
+    The canary runs FIRST and both halves must pass: a rate measured on a throttled machine is not
+    a rate (``PROJECT_PLAN`` §7), and the transcript carries the canary line so the number can be
+    read against the machine state it was taken on (A11).
+
+    Returns wall clocks and counts only.
+    """
+    import time
+
+    from offline.transfer_calibration import canary_seconds as measure_canary
+    from offline.transfer_calibration import check_canary, format_canary_line
+
+    canary, facts = measure_canary()
+    check_canary(facts)
+    canary_line = format_canary_line(canary, facts)
+    print(canary_line, flush=True)
+
+    cells = pilot_cells()
+    started = time.perf_counter()
+    summary = run_stage(
+        work_dir=work_dir,
+        out_root=out_root,
+        output_root=output_root,
+        data_dir=data_dir,
+        cells=cells,
+        canary_seconds=canary,
+        workers=workers,
+    )
+    elapsed = time.perf_counter() - started
+
+    rolled = list(summary.get("seconds", ()))
+    # The rate basis is the POOL's wall over the cells it actually rolled, which is what A6's
+    # "wall (16 cells)" means and what F3 will compare a pad re-run against. `elapsed` is this
+    # route's own clock and additionally covers the reusability scan, so it is reported beside it
+    # rather than in place of it -- and a pilot that reused every chunk has no rate at all.
+    pool_wall = float(summary.get("wall_seconds", elapsed))
+    n_rolled = int(summary["n_rolled"])
+    record: dict[str, Any] = {
+        "what_this_is": (
+            "BRIEF_37 Amendment F1's pre-flight pilot: the section 3.5b runner through the real "
+            "pool. A MECHANICS check first and a rate second"
+        ),
+        "fenced": (
+            "no ATT, no rho and no episode outcome is printed, summarised or published here; "
+            "report is never called on this work directory, and report REFUSES it because a pilot "
+            "cell is not a declared cell of any stage"
+        ),
+        "draw_id": PILOT_DRAW,
+        "why_this_draw": (
+            "draw 5 is P7.2b's fenced smoke draw and is not in the held-out pool; a pilot on the "
+            "pool would BE the experiment, run before the token"
+        ),
+        "n_cells": len(cells),
+        "subjects": sorted({str(cell["subject"]) for cell in cells}),
+        "arms": sorted({str(cell["arm"]) for cell in cells}),
+        "seeds": sorted({int(cell["seed"]) for cell in cells}),
+        "workers": int(workers),
+        "halting_check": halting_check_for(PILOT_DRAW),
+        "canary_seconds": canary,
+        "canary_line": canary_line,
+        "n_rolled": summary["n_rolled"],
+        "n_reused": summary["n_reused"],
+        "n_failed": summary["n_failed"],
+        "failures": summary["failures"],
+        "wall_seconds": pool_wall,
+        "route_wall_seconds": elapsed,
+        "effective_seconds_per_cell": (pool_wall / n_rolled) if n_rolled else None,
+        "in_process_mean_seconds": (sum(rolled) / len(rolled)) if rolled else None,
+        "speed_up": (sum(rolled) / pool_wall) if rolled and pool_wall > 0 else None,
+        "a11": (
+            "measured under thermal constraint unless a cooling-pad canary says otherwise; the "
+            "only rate that governs a stage is the canary the driver runs at that stage's start"
+        ),
+        "date": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        **_git_provenance(),
+    }
+
+    if transcript_path is not None:
+        _write_pilot_transcript(Path(transcript_path), record)
+    return record
+
+
+def _write_pilot_transcript(path: Path, record: Mapping[str, Any]) -> None:
+    """The pilot's transcript: the canary line, the date, n and the rate -- and no outcome.
+
+    Appended, never truncated, like every log this project writes: a second pilot (F3's pad re-run)
+    must not destroy the first one's record, because the comparison between them is the point.
+    """
+    lines = [
+        "=== P7.3a pre-flight pilot (BRIEF_37 Amendment F1 / I5(2))",
+        f"date: {record['date']}",
+        f"git_commit: {record['git_commit']}  git_dirty: {record['git_dirty']}",
+        record["canary_line"],
+        f"cells: n = {record['n_cells']} DT cells on draw {record['draw_id']} "
+        f"(FENCED smoke draw), subjects {record['subjects']}, arms {record['arms']}, "
+        f"seeds {record['seeds']}",
+        f"workers: {record['workers']}   halting_check: {record['halting_check']}",
+        f"rolled: {record['n_rolled']}   reused: {record['n_reused']}   "
+        f"failed: {record['n_failed']}",
+        f"wall: {record['wall_seconds']:.2f} s",
+        f"effective s/cell: {record['effective_seconds_per_cell']:.3f}"
+        if record["effective_seconds_per_cell"] is not None
+        else "effective s/cell: n/a",
+        f"in-process mean s/cell: {record['in_process_mean_seconds']:.2f}"
+        if record["in_process_mean_seconds"] is not None
+        else "in-process mean s/cell: n/a",
+        f"speed-up: {record['speed_up']:.2f}x" if record["speed_up"] is not None else "speed-up: n/a",
+        f"A11: {record['a11']}",
+        f"FENCED: {record['fenced']}",
+    ]
+    for failure in record["failures"]:
+        lines.append(f"FAILURE {failure['name']}: {failure['error']}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write("\n".join(lines) + "\n\n")
+
+
 def build_parser() -> Any:
-    """CLI: ``cells``, ``report``, ``canary``, ``record-canary``."""
+    """CLI: ``cells``, ``pilot``, ``report``, ``canary``, ``record-canary``."""
     import argparse
 
     parser = argparse.ArgumentParser(
@@ -1838,6 +2016,15 @@ def build_parser() -> Any:
     cells.add_argument("--stage", choices=list(STAGES), default=None)
     cells.add_argument("--workers", type=int, default=DEFAULT_WORKERS)
     cells.add_argument("--limit", type=int, default=None)
+
+    pilot = subparsers.add_parser(
+        "pilot", help="F1's pre-flight pilot: 16 fenced DT cells on draw 5 through the real pool"
+    )
+    pilot.add_argument("--workers", type=int, default=DEFAULT_WORKERS)
+    pilot.add_argument(
+        "--transcript",
+        default=str(DEFAULT_OUTPUT_ROOT / "p7_3a_runs" / "preflight_pilot.txt"),
+    )
 
     gate = subparsers.add_parser(
         "a17f", help="A17(f): every logged episode reproduces P7.2b's probe return bit-for-bit"
@@ -1918,6 +2105,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"A17(f) {record['n_matching']}/{expected}", flush=True)
         print(json.dumps(record, indent=2, sort_keys=True), flush=True)
         return 0
+
+    if args.command == "pilot":
+        record = run_pilot(
+            work_dir=work,
+            out_root=args.draws_root,
+            output_root=args.output_root,
+            data_dir=args.data_dir,
+            workers=args.workers,
+            transcript_path=args.transcript,
+        )
+        # Counts and clocks only. `report` is never called on a pilot directory, and would refuse.
+        print(json.dumps(record, indent=2, sort_keys=True), flush=True)
+        return 1 if record["n_failed"] else 0
 
     if args.command == "cells":
         summary = run_stage(
