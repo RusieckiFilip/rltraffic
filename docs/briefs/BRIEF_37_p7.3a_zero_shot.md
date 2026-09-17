@@ -368,3 +368,30 @@ E2/C2, E3(a), G1 as implemented (real identities: `mix50` checked against `['p4_
 The `spawn` pool end to end; a full real episode through `run_cell`; A17(f) on a real 100-draw corpus; stage-1 versus final byte-identity on real data; the signal handler and the group-leader refusal under a real tmux pane. Until F1's pilot and the stage-1 checkpoint, every one of these is unproven and the packet says so.
 
 **Then, in order: push the three commits (the implementer, the author approving the prompt) · H1–H8 with every named test and mutation, one commit, a packet addendum · the coordinator re-runs H1's falsification and the four survivors · F1's pilot · the reviewer's pre-flight · the stage-1 token.**
+
+---
+
+# ✅ AMENDMENT I — 2026-09-17, on the Amendment H fix round at `18a70d7`: ACCEPTED. H1 is falsified under the coordinator's own hand, every survivor is dead, and the packet's three open questions are answered. Next: push, then F1's pilot, then the reviewer's pre-flight, then the stage-1 token
+
+**Verified from disk and by running, in two throwaway worktrees at `18a70d7`:** the merge `fdfcd8b` carries Amendment H (an ancestor of the fix commit); no trailer in any commit since `55498ab`; tree clean; **`origin/task/p7.3a-zero-shot` is at `fdfcd8b` — the fix commit is not pushed**, and the implementer says so. Frozen guard, English, hygiene 0/0/0. `tests/test_transfer_curve.py`: 79 passed (62 before the round), T5's real SUMO episode included. Whole suite: **2054 passed / 94 skipped, exit 0** (coordinator's run; the packet reports the same).
+
+## I1 — H1 falsified on the artifact that produced it
+The `a17f` CLI on the same one-draw smoke corpus that returned `n_checked: 1, all_match: true, exit 0` yesterday now returns `ValueError: the corpus has no logged episode for draw(s) [202, 203, …, 300]`, exit 1 — the coordinator's own run, not the packet's. The band is passed explicitly, the count is asserted, the artifact is pinned through `load_calibration`, and the line `A17(f) 100/100` is what the coordinator reads at the stage-1 checkpoint.
+
+## I2 — Ten mutants under the coordinator's hand, ten killed
+The four survivors from H — MU5 (`halting_checked` vs C2: `DID NOT RAISE`, both directions), MU6 (`att_env == att_horizon`: `DID NOT RAISE`), the reviewer's C8-ordering mutant (`the shape check must come first, got ['policy', 'reset', 'step', 'step']`), the reviewer's `pipefail` mutant (`'set -euo pipefail' in …`) — and six new: the one-shared-draw pairing fallback (`DID NOT RAISE`, the reviewer's probe as a test), **a double-counted per-decision reward, caught by T5's raw arithmetic on a real SUMO episode** (`decision 5: the RTG moved by -2.0 while the info's reward was -4.0`), the interval fact computed from the mean (`the mean is on the claimed side but the interval is not`), H1 with both guards removed, `--overwrite` added to the collect argv, and the action bound hardcoded back to 8. Each applied by `sed` or a scripted edit, the diff printed, the tree restored to 0 dirty paths before the next.
+
+## I3 — The packet's open questions
+1. **H1's count assertion, unreachable while the band is passed:** KEEP. The implementer proved the equivalence by removing both (the 99-draw test dies) rather than asserting it; that is H9's MIN-2 reasoning and it is the right one — a guard that costs nothing and would catch a future change to the gate's default is defence in depth, stated as such.
+2. **`action_space_n` as a new published chunk field:** ACCEPTED. Nothing is recorded, the format version stays `1.0`, and the field is read from the env through `Utils.infer_action_counts` — it is exactly what P7.3b would otherwise have inherited as a literal 8.
+3. **`a17f_existing` as a second stage-log name:** ONE name. Both branches of stage 1 log to `logs/a17f.log` (appended, as every log is), with the branch taken written as the first line of that run's entry, so the stage-1 checkpoint reads one file and the manifest lists one. **Folded into the pilot session's commit; no review round** — T9 covers it.
+
+## I4 — Recorded from the packet, verified where it could be
+The implementer's two equivalence proofs (H1's pair; MIN-5's pair) were done by removing both members and watching the test die — the correct method, and the same one the coordinator used for the equivalent mutants in earlier rounds. H7's first survival was a fixture defect and the packet says so. The six disclosed test changes are renames, a tightened match, a fixture widened to the whole declaration, one added test and one extraction of shared fakes; none weakens an assertion, and the coordinator read the diff of each. §14.7's list of what nobody has executed is unchanged and correct.
+
+## I5 — What comes next, in order, with the owner of each
+1. **Push `18a70d7`** — the implementer, the author approving the prompt.
+2. **F1's pilot** — the implementer's next session: a `pilot` route into `run_stage` (the `cells=` parameter exists for exactly this), **16 DT cells on draw 5, both subjects, at 12 workers, work dir `output/p7_3a_runs/preflight_pilot/`, fenced — no ATT, no ρ, no outcome printed**; the transcript with the canary line, the date and n at `output/p7_3a_runs/preflight_pilot.txt`; `report` never called on it; the I3(3) log-name change in the same commit; the driver header's schedule block replaced by the pilot's rate, naming the pilot, its canary, its date and its n (F1). This is the first execution of the `spawn` pool and of a full real episode through `run_cell`; the packet addendum says what it found.
+3. **The reviewer's pre-flight** (§5.2, ≤ 10 min, findings file): the destruction and resume paths (H2's branch executed, not read), the no-token driver, both canary halves, H1's stop — spawned by the coordinator after the pilot.
+4. **The pad** (F3), when it exists: the pilot re-run if its canary differs from the pilot's by more than 10 %.
+5. **The stage-1 token**, written by the author; stage 1 attended in tmux through `tee -a`; the coordinator reads `A17(f) 100/100` and the stage-1 artifact from disk before stage 2's token.
