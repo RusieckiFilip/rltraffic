@@ -86,8 +86,16 @@ CANARY_MAX_SECONDS=2.0
 
 export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 
+# ⚠️ INPUTS come from the run worktree's COMMITTED docs/data; OUTPUTS go to $WORK/artifacts, which
+# is inside the manifest and outside the tree (Finding 2, the author's ruling of 2026-09-17).
+# Measured by the coordinator: writing the stage-1 artifact into $WORK_TREE/docs/data -- where it is
+# NOT gitignored -- left `?? docs/data/p7_3a_zero_shot_stage1.json` in the tree, so J1(d)'s own
+# dirty-tree refusal then blocked stage 2 before its token. The artifacts are copied into the task
+# branch BY HAND afterwards (see the NEXT block), which is also when they are reviewed.
+ARTIFACTS=$WORK/artifacts
+
 COMMON=(--draws-root "$DRAWS" --output-root "$MAIN/output" --work-dir "$WORK"
-        --data-dir "$DATA" --out-dir "$DATA")
+        --data-dir "$DATA" --out-dir "$ARTIFACTS")
 
 # ---------------------------------------------------------------- preconditions
 if [ ! -x "$PY" ]; then
@@ -262,6 +270,7 @@ echo "=== token consumed and deleted; a restart needs a new one"
 
 # Only NOW may anything be created or cleared.
 mkdir -p "$LOGS"
+mkdir -p "$ARTIFACTS"
 rm -f "$WORK/FAILED" "$WORK/COMPLETE"
 
 # Amendment E1.2: the canary's observed values reach a MANIFESTED file, not only the pane.
@@ -353,7 +362,7 @@ if [ "$STAGE" = "confirmatory" ]; then
     report --stage confirmatory
 else
   run_stage report_final offline.transfer_curve "${COMMON[@]}" \
-    report --stage1-path "$DATA/p7_3a_zero_shot_stage1.json"
+    report --stage1-path "$ARTIFACTS/p7_3a_zero_shot_stage1.json"
 fi
 
 # ---------------------------------------------------------------- manifest
@@ -372,7 +381,13 @@ echo "CAMPAIGN COMPLETE ($STAGE) in ${ELAPSED}s ($((ELAPSED / 60)) min)" | tee "
 cat <<'NEXT'
 === NEXT (manual)
   1. the coordinator reads A17(f)'s 100/100 line from disk BEFORE stage 2's token is written
-  2. git add docs/data/p7_3a_zero_shot*.json && commit on the task branch
+  2. COPY THE ARTIFACTS INTO THE TASK BRANCH BY HAND, then commit them there:
+       cp $WORK/artifacts/p7_3a_zero_shot_stage1.json <task worktree>/docs/data/
+       cp $WORK/artifacts/p7_3a_zero_shot.json        <task worktree>/docs/data/
+       git -C <task worktree> add docs/data/p7_3a_zero_shot*.json && git -C <task worktree> commit
+     They are written to $WORK/artifacts and NOT into the run worktree, because an artifact
+     written there is an untracked file that the dirty-tree refusal then blocks the next stage on
+     (Finding 2). The copy is by hand and it is also when the artifact is read.
   3. the artifact REPORTS; it registers nothing, and it interprets nothing. H3's clauses are
      inequalities with values beside them; the contrast is exploratory; the gate to P7.3b is a
      property of the PIPELINE and never of the number (BRIEF_37 section 7).

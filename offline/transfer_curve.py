@@ -349,6 +349,19 @@ DECLARED_ARM_NAMES: frozenset[str] = frozenset(
 #: ``docs/data/``; the last refusal in :func:`report` scans the serialised bytes for it.
 FENCED_KEY = "fenced_do_not_report"
 
+#: The author's ruling of 2026-09-17 (``PROJECT_PLAN`` Decisions Log): this text goes in the
+#: ARTIFACT -- in the env-ATT block and on every H3 clause computed on env ATT -- and not only in
+#: the packet, **because the packet does not travel with the artifact**.  The numbers are P7.1's
+#: frozen teleport-free anchors, quoted exactly rather than rounded.
+ATT_ENV_CAVEAT = (
+    "CO-REPORTED, NOT THE REGISTERED PRIMARY (A15). On P7.1's frozen teleport-free anchors "
+    "(nominal demand, five engine seeds), fixed-time minus MaxPressure on this definition was "
+    "-1.50, +2.08, +4.92, +13.14, +18.70 s, negative at seed 1000, the engine seed every cell "
+    "here uses; on the primary pool-clock definition it was +206.5 to +252.6 s. A per-draw ratio "
+    "with a denominator this small can be dominated by a few draws and can change sign. Read "
+    "this definition's rho only with denominator_diagnostic beside it."
+)
+
 
 def _sha256_file(path: str | Path) -> str:
     import hashlib
@@ -1232,12 +1245,61 @@ def _read_canary_record(work: Path) -> dict[str, Any]:
     return {**record, "seconds": float(record["seconds"])}
 
 
-def _rho_pair(chunk: Mapping[str, Any], anchors: Mapping[str, Mapping[str, Any]]) -> dict[str, float]:
-    """rho under BOTH registered definitions, against the anchors OF THE SAME DRAW."""
+def anchor_denominator(anchors: Mapping[str, Mapping[str, Any]], key: str) -> float:
+    """``ATT_fixedtime - ATT_maxpressure`` on one definition, for one draw."""
+    return float(anchors["fixedtime"][key]) - float(anchors["maxpressure"][key])
+
+
+def denominator_diagnostic(denominators: Mapping[int, float]) -> dict[str, Any]:
+    """What rho's denominator looked like across the pool, on one ATT definition.
+
+    The author's ruling of 2026-09-17.  rho is a per-draw ratio, so a denominator near zero makes
+    that draw's ratio enormous and a denominator below zero flips its sign; on the CO-REPORTED env
+    definition P7.1's frozen anchors put the difference between -1.50 and +18.70 s, which is small
+    enough for a handful of draws to dominate the mean.  This block is what :data:`ATT_ENV_CAVEAT`
+    tells a reader to read that definition's rho beside, and it is computed from the ANCHOR chunks
+    rather than from any arm's outcome.
+    """
+    values = [float(value) for value in denominators.values()]
+    non_positive = sorted(draw for draw, value in denominators.items() if float(value) <= 0.0)
     return {
-        f"rho_{key}": rho(float(chunk[key]), float(anchors["fixedtime"][key]), float(anchors["maxpressure"][key]))
-        for key in ("e_sumo", "att_env")
+        "what_this_is": (
+            "ATT_fixedtime - ATT_maxpressure per draw, from the anchor cells of that draw; rho's "
+            "denominator. Near zero the ratio is dominated by that draw; below zero it flips sign"
+        ),
+        "n_draws": len(values),
+        "min": min(values) if values else None,
+        "max": max(values) if values else None,
+        "n_non_positive": len(non_positive),
+        "n_below_one_second": sum(1 for value in values if abs(value) < 1.0),
+        "draw_ids_non_positive": non_positive,
     }
+
+
+def _rho_pair(
+    chunk: Mapping[str, Any], anchors: Mapping[str, Mapping[str, Any]]
+) -> dict[str, float | None]:
+    """rho under BOTH registered definitions, against the anchors OF THE SAME DRAW.
+
+    ⚠️ **The two definitions differ in what an exactly-zero denominator means, and the author ruled
+    on it before any campaign number existed** (2026-09-17).  On the CO-REPORTED env definition a
+    zero is reachable -- P7.1 measured -1.50 s at seed 1000, the seed every cell here uses -- so
+    that draw's env rho is ``None``, the draw is recorded, and ``report`` carries on.  On the
+    REGISTERED PRIMARY it is not: the same anchors differ by 206.5-252.6 s there, so a zero would
+    be a finding about the instrument, and :func:`rho` keeps its refusal.
+    """
+    pair: dict[str, float | None] = {}
+    for key in ("e_sumo", "att_env"):
+        denominator = anchor_denominator(anchors, key)
+        if key == "att_env" and denominator == 0.0:
+            pair["rho_att_env"] = None
+            continue
+        pair[f"rho_{key}"] = rho(
+            float(chunk[key]),
+            float(anchors["fixedtime"][key]),
+            float(anchors["maxpressure"][key]),
+        )
+    return pair
 
 
 def report(
@@ -1408,6 +1470,29 @@ def report(
         row.update(_rho_pair(payload, anchors))
         rows.append(row)
 
+    # ---- rho's denominator, per definition, from the ANCHOR cells (2026-09-17 ruling) ---------
+    denominators: dict[str, dict[int, float]] = {
+        key: {
+            draw_id: anchor_denominator(anchors, key)
+            for draw_id, anchors in sorted(anchors_by_draw.items())
+        }
+        for key in ("e_sumo", "att_env")
+    }
+    excluded_env_draws = [
+        {
+            "draw_id": draw_id,
+            "att_fixedtime": float(anchors_by_draw[draw_id]["fixedtime"]["att_env"]),
+            "att_maxpressure": float(anchors_by_draw[draw_id]["maxpressure"]["att_env"]),
+            "why": (
+                "the two anchors have EXACTLY equal env ATT on this draw, so rho's denominator is "
+                "zero and the ratio is undefined; excluded from this definition's means, CI and "
+                "H3 clauses, and reported here"
+            ),
+        }
+        for draw_id, value in sorted(denominators["att_env"].items())
+        if value == 0.0
+    ]
+
     by_seed: list[dict[str, Any]] = []
     by_arm: list[dict[str, Any]] = []
     for subject in SUBJECTS:
@@ -1419,23 +1504,41 @@ def report(
                 seed_rows = [r for r in arm_rows if r["seed"] == seed]
                 if not seed_rows:
                     continue
-                by_seed.append(
-                    {
-                        "subject": subject,
-                        "arm": spec.name,
-                        "seed": int(seed),
-                        "n_draws": len(seed_rows),
-                        **{
-                            f"mean_rho_{key}": float(
-                                sum(r[f"rho_{key}"] for r in seed_rows) / len(seed_rows)
-                            )
-                            for key in ("e_sumo", "att_env")
-                        },
-                    }
-                )
+                # An EXCLUDED draw (rho None) is dropped from that definition's mean and from the
+                # n reported beside it -- never averaged in as a zero (2026-09-17 ruling).
+                per_seed: dict[str, Any] = {
+                    "subject": subject,
+                    "arm": spec.name,
+                    "seed": int(seed),
+                    "n_draws": len(seed_rows),
+                }
+                for key in ("e_sumo", "att_env"):
+                    usable = [r[f"rho_{key}"] for r in seed_rows if r[f"rho_{key}"] is not None]
+                    per_seed[f"mean_rho_{key}"] = (
+                        float(sum(usable) / len(usable)) if usable else None
+                    )
+                    per_seed[f"n_draws_{key}"] = len(usable)
+                by_seed.append(per_seed)
             entry: dict[str, Any] = {"subject": subject, "arm": spec.name, "role": spec.role}
             for key in ("e_sumo", "att_env"):
                 per_draw = _seed_means_by_draw(arm_rows, f"rho_{key}")
+                if not per_draw:
+                    # Every draw undefined on this definition. Reported as such and carried past:
+                    # refusing here would decide the handling of an undefined ratio after the
+                    # campaign's numbers exist, which is what the 2026-09-17 ruling closes.
+                    entry[key] = {
+                        "n_draws": 0,
+                        "mean": None,
+                        "std": None,
+                        "ci95": None,
+                        "ci95_low": None,
+                        "ci95_high": None,
+                        "why_empty": (
+                            "every draw's denominator on this definition was exactly zero; see "
+                            "denominator_diagnostic and excluded_draws"
+                        ),
+                    }
+                    continue
                 stats = mean_ci95([per_draw[d] for d in sorted(per_draw)])
                 entry[key] = {
                     "n_draws": stats.n,
@@ -1476,12 +1579,35 @@ def report(
         "rho": {
             "formula": "rho = (ATT_fixedtime - ATT_arm) / (ATT_fixedtime - ATT_maxpressure)",
             "definitions": {
-                "e_sumo": (
-                    "A15's primary: the pool-clock ATT over the all-created population, from the "
-                    "observer. P7.1's freeze writes the same quantity under the key "
-                    "att_reference_created_population (Amendment C6); one quantity, two names"
-                ),
-                "att_env": "the admitted pair beside it: the env's own metric at the horizon",
+                "e_sumo": {
+                    "what": (
+                        "A15's primary: the pool-clock ATT over the all-created population, from "
+                        "the observer. P7.1's freeze writes the same quantity under the key "
+                        "att_reference_created_population (Amendment C6); one quantity, two names"
+                    ),
+                    "role": "REGISTERED PRIMARY (A15)",
+                    "denominator_diagnostic": denominator_diagnostic(denominators["e_sumo"]),
+                    "zero_denominator_rule": (
+                        "REFUSED. On P7.1's frozen anchors this difference is +206.5 to +252.6 s, "
+                        "so a zero here is a finding about the instrument rather than a property "
+                        "of a draw, and rho() raises"
+                    ),
+                },
+                "att_env": {
+                    "what": "the admitted pair beside it: the env's own metric at the horizon",
+                    "role": "co-reported (A15)",
+                    "caveat": ATT_ENV_CAVEAT,
+                    "denominator_diagnostic": denominator_diagnostic(denominators["att_env"]),
+                    "zero_denominator_rule": (
+                        "RECORDED AND EXCLUDED, and report carries on (author's ruling, "
+                        "2026-09-17). The draw's cells keep rho_att_env: null, the draw is listed "
+                        "in excluded_draws, and it counts towards no mean, no CI and no H3 clause "
+                        "on this definition"
+                    ),
+                    "excluded_draws": excluded_env_draws,
+                    "n_draws_used": len(denominators["att_env"]) - len(excluded_env_draws),
+                    "n_draws_total": len(denominators["att_env"]),
+                },
             },
             "estimator": {
                 "method": (
@@ -1580,9 +1706,16 @@ def report(
 
 
 def _seed_means_by_draw(rows: Sequence[Mapping[str, Any]], key: str) -> dict[int, float]:
-    """The per-draw unit: the mean over training seeds, as in P4, so seed and draw stay crossed."""
+    """The per-draw unit: the mean over training seeds, as in P4, so seed and draw stay crossed.
+
+    A ``None`` rho is an EXCLUDED draw (the author's 2026-09-17 ruling on an exactly-zero env-ATT
+    denominator), not a zero: it is dropped here rather than averaged in, and the draws that
+    survive are what the reported ``n`` counts.
+    """
     buckets: dict[int, list[float]] = {}
     for row in rows:
+        if row.get(key) is None:
+            continue
         buckets.setdefault(int(row["draw_id"]), []).append(float(row[key]))
     return {draw: sum(values) / len(values) for draw, values in buckets.items()}
 
@@ -1667,11 +1800,16 @@ def _h3_block(by_arm: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
         ),
     ):
         for key in ("e_sumo", "att_env"):
+            # The caveat travels ON THE CLAUSE, not only in the definitions block and not only in
+            # the packet (author's ruling, 2026-09-17): a reader who opens the artifact and looks
+            # at one H3 clause on the co-reported definition must see it there.
+            caveat = {"caveat": ATT_ENV_CAVEAT} if key == "att_env" else {}
             clauses.append(
                 {
                     "inequality": inequality,
                     "clause": clause,
                     "definition": key,
+                    **caveat,
                     # ⚠️ Amendment H7: this used to be one boolean called `holds`, which anyone
                     # opening the artifact would read as "confirmed" -- a verdict on a point
                     # estimate, next to a registered test row that is a PAIRED comparison. Two

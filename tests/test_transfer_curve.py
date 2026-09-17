@@ -2571,3 +2571,310 @@ def test_j3_run_pilot_prints_the_canary_line_before_it_checks_it(
         )
 
     assert "canary 0.88 s" in capsys.readouterr().out
+
+
+# ==================================================================================
+# K round, Finding 1 -- the env-ATT denominator: a diagnostic, a carry-on, and a caveat
+# (author's ruling, PROJECT_PLAN Decisions Log 2026-09-17)
+# ==================================================================================
+def _zero_env_denominator_campaign(tmp_path: Path) -> tuple[_Roots, list[dict[str, Any]]]:
+    """A campaign whose third draw has an EXACTLY equal pair of env-ATT anchors.
+
+    Draw 1002's ``att_env`` is 300.0 for both anchors -- the case P7.1's frozen numbers say is
+    reachable on this definition (fixed-time minus MaxPressure was -1.50 s at seed 1000) -- while
+    its ``e_sumo`` anchors differ by 200.0, so the registered primary is unaffected and keeps its
+    own refusal for its own zero.
+    """
+    draws = (*_DEMO_DRAWS, 1002)
+    roots = _build_roots(tmp_path, draws=draws, seeds=_DEMO_SEEDS)
+    roots.work.mkdir(parents=True, exist_ok=True)
+    roots.out.mkdir(parents=True, exist_ok=True)
+    _canary(roots.work)
+
+    declared = [*_DEMO_CELLS]
+    for subject in ("mappo1000", "mix50"):
+        for seed in _DEMO_SEEDS:
+            declared.append(
+                _cell("dt", "b_mean_k100", 1002, subject=subject, seed=seed)
+            )
+    declared += [_cell("anchor", arm, 1002) for arm in ("fixedtime", "maxpressure")]
+
+    for cell in _DEMO_CELLS:
+        tcv.write_chunk(_payload(cell, roots), work_dir=roots.work)
+    # draw 1002, built by hand: equal env ATTs, different e_sumo
+    env_att = {"fixedtime": 300.0, "maxpressure": 300.0}
+    e_sumo = {"fixedtime": 500.0, "maxpressure": 300.0}
+    for cell in declared:
+        if int(cell["draw_id"]) != 1002:
+            continue
+        arm = str(cell["arm"])
+        tcv.write_chunk(
+            _payload(
+                {**cell, "draw_id": 1000},
+                roots,
+                draw_id=1002,
+                config_sha256=roots.cfg_sha[1002],
+                routes_sha256=roots.routes_sha[1002],
+                # draw 1002 is not Amendment C2's declared subset, so a real chunk there carries
+                # the flag off and the three halting fields absent
+                halting_checked=False,
+                halting_max_abs_difference=None,
+                halting_n_lane_seconds=None,
+                halting_n_disagreeing_lane_seconds=None,
+                att_env=env_att.get(arm, 320.0),
+                att_horizon=env_att.get(arm, 320.0),
+                e_sumo=e_sumo.get(arm, 400.0),
+            ),
+            work_dir=roots.work,
+        )
+    return roots, declared
+
+
+def test_k_finding1_an_exactly_zero_env_denominator_is_recorded_excluded_and_reported(
+    tmp_path: Path,
+) -> None:
+    """The author's ruling: ``report`` records it, excludes it, reports the n, and CARRIES ON.
+
+    A report-time crash would not cost the campaign's compute -- the chunks persist and ``report``
+    re-runs in minutes -- but it would mean the handling of an undefined ratio got decided AFTER
+    the numbers existed, which is the forking path the registration exists to close.  So it is
+    decided here, before any cell of the campaign runs.
+    """
+    roots, declared = _zero_env_denominator_campaign(tmp_path)
+
+    artifact = _report(roots, cells=declared)
+
+    block = artifact["rho"]["definitions"]["att_env"]
+    excluded = block["excluded_draws"]
+    assert [row["draw_id"] for row in excluded] == [1002]
+    assert excluded[0]["att_fixedtime"] == 300.0
+    assert excluded[0]["att_maxpressure"] == 300.0
+
+    # every cell on that draw carries a null rho on THIS definition and a real one on the primary
+    on_1002 = [row for row in artifact["cells"] if row["draw_id"] == 1002]
+    assert on_1002, "the draw's cells are still published"
+    assert all(row["rho_att_env"] is None for row in on_1002)
+    assert all(isinstance(row["rho_e_sumo"], float) for row in on_1002)
+
+    # ...and it is excluded from the means, the CI and the reported n
+    entry = [
+        e for e in artifact["rho"]["by_subject_arm"]
+        if e["subject"] == "mappo1000" and e["arm"] == "b_mean_k100"
+    ][0]
+    assert entry["att_env"]["n_draws"] == 2, "three draws, one undefined, two used"
+    assert entry["e_sumo"]["n_draws"] == 3, "the primary keeps every draw"
+    assert block["n_draws_used"] == 2
+    per_seed = [
+        row for row in artifact["rho"]["by_subject_arm_seed"]
+        if row["subject"] == "mappo1000" and row["seed"] == 101
+    ][0]
+    assert per_seed["n_draws_att_env"] == 2
+    assert per_seed["n_draws"] == 3
+
+
+def test_k_finding1_a_zero_denominator_on_the_registered_primary_is_still_refused(
+    tmp_path: Path,
+) -> None:
+    """``E_sumo`` keeps its refusal: on the nominal anchors it is 206.5-252.6 s.
+
+    A zero there is a finding about the instrument, not a property of a draw, so the carry-on rule
+    does not extend to it -- the coordinator's reading (i), stated so it could be corrected.
+    """
+    draws = (*_DEMO_DRAWS, 1002)
+    roots = _build_roots(tmp_path, draws=draws, seeds=_DEMO_SEEDS)
+    roots.work.mkdir(parents=True, exist_ok=True)
+    roots.out.mkdir(parents=True, exist_ok=True)
+    _canary(roots.work)
+    declared = [*_DEMO_CELLS, *[_cell("anchor", arm, 1002) for arm in ("fixedtime", "maxpressure")]]
+    declared.append(_cell("dt", "b_mean_k100", 1002, subject="mappo1000", seed=101))
+    for cell in _DEMO_CELLS:
+        tcv.write_chunk(_payload(cell, roots), work_dir=roots.work)
+    for cell in declared:
+        if int(cell["draw_id"]) != 1002:
+            continue
+        tcv.write_chunk(
+            _payload(
+                {**cell, "draw_id": 1000}, roots,
+                draw_id=1002,
+                config_sha256=roots.cfg_sha[1002],
+                routes_sha256=roots.routes_sha[1002],
+                # draw 1002 is not Amendment C2's declared subset, so a real chunk there carries
+                # the flag off and the three halting fields absent
+                halting_checked=False,
+                halting_max_abs_difference=None,
+                halting_n_lane_seconds=None,
+                halting_n_disagreeing_lane_seconds=None,
+                att_env=300.0 if str(cell["arm"]) == "fixedtime" else 200.0,
+                att_horizon=300.0 if str(cell["arm"]) == "fixedtime" else 200.0,
+                e_sumo=400.0,  # identical on BOTH anchors -> the primary's denominator is zero
+            ),
+            work_dir=roots.work,
+        )
+
+    with pytest.raises(ValueError, match="denominator is zero"):
+        _report(roots, cells=declared)
+    assert list(roots.out.iterdir()) == []
+
+
+def test_k_finding1_the_denominator_diagnostic_is_computed_for_both_definitions(
+    tmp_path: Path,
+) -> None:
+    """The diagnostic the caveat tells a reader to read rho beside, from the ANCHOR chunks.
+
+    n draws, min, max, how many denominators are non-positive, how many are smaller than a second,
+    and the draw ids of the non-positive ones -- because a per-draw ratio with a denominator this
+    small can be dominated by a few draws and can change sign.
+    """
+    roots, declared = _zero_env_denominator_campaign(tmp_path)
+
+    artifact = _report(roots, cells=declared)
+
+    env = artifact["rho"]["definitions"]["att_env"]["denominator_diagnostic"]
+    assert env["n_draws"] == 3
+    assert env["min"] == 0.0
+    assert env["max"] == 256.0
+    assert env["n_non_positive"] == 1
+    assert env["n_below_one_second"] == 1
+    assert env["draw_ids_non_positive"] == [1002]
+
+    primary = artifact["rho"]["definitions"]["e_sumo"]["denominator_diagnostic"]
+    assert primary["n_draws"] == 3
+    assert primary["n_non_positive"] == 0
+    assert primary["min"] == 200.0
+
+
+def test_k_finding1_the_caveat_is_in_the_artifact_and_on_every_env_h3_clause(
+    tmp_path: Path,
+) -> None:
+    """The caveat travels with the ARTIFACT, because the packet does not travel with it.
+
+    Verbatim in the env-ATT block and on every H3 clause computed on ``att_env`` -- a reader who
+    opens ``docs/data/p7_3a_zero_shot.json`` and looks at one clause must see it there, not in a
+    document they were never given.
+    """
+    roots, declared = _zero_env_denominator_campaign(tmp_path)
+
+    artifact = _report(roots, cells=declared)
+
+    caveat = artifact["rho"]["definitions"]["att_env"]["caveat"]
+    assert caveat == tcv.ATT_ENV_CAVEAT
+    assert "CO-REPORTED, NOT THE REGISTERED PRIMARY (A15)" in caveat
+    assert "-1.50, +2.08, +4.92, +13.14, +18.70 s" in caveat
+    assert "negative at seed 1000" in caveat
+    assert "+206.5 to +252.6 s" in caveat
+    assert "denominator_diagnostic" in caveat
+
+    env_clauses = [c for c in artifact["h3"]["clauses"] if c["definition"] == "att_env"]
+    assert len(env_clauses) == 2
+    assert all(clause["caveat"] == tcv.ATT_ENV_CAVEAT for clause in env_clauses)
+    primary_clauses = [c for c in artifact["h3"]["clauses"] if c["definition"] == "e_sumo"]
+    assert all("caveat" not in clause for clause in primary_clauses), (
+        "the registered primary carries no such caveat; attaching one would blur which is which"
+    )
+
+
+# ==================================================================================
+# K round, Finding 2 -- artifacts leave the worktree
+# ==================================================================================
+def test_k_finding2_the_driver_writes_artifacts_outside_the_worktree(tmp_path: Path) -> None:
+    """Finding 2: the driver wrote the stage-1 artifact INTO the tree J1(d) then refused.
+
+    Measured by the coordinator: with ``docs/data/p7_3a_zero_shot_stage1.json`` present and not
+    gitignored, the delivered driver refused stage 2 before its own token -- the coordinator's
+    J1(d)/(e) ruling colliding with the driver's own output path.  Artifacts now go to
+    ``$WORK/artifacts`` (inside the manifest), inputs are still READ from the run worktree's
+    committed ``docs/data``, and the two artifacts are copied into the task branch by hand.
+    """
+    code = _driver_code_text()
+
+    assert "ARTIFACTS=$WORK/artifacts" in code
+    assert '--out-dir "$ARTIFACTS"' in code
+    assert '--data-dir "$DATA"' in code, "inputs still come from the committed docs/data"
+    assert 'DATA=$WORK_TREE/docs/data' in code
+    assert '--out-dir "$DATA"' not in code, "the worktree is never the output directory"
+    assert '--stage1-path "$ARTIFACTS/p7_3a_zero_shot_stage1.json"' in code
+    assert 'mkdir -p "$ARTIFACTS"' in code
+    token = code.index('rm -f "$TOKEN"')
+    assert code.index('mkdir -p "$ARTIFACTS"') > token, "created only after the token"
+
+    # The NEXT block tells the operator to bring the artifacts into the branch by hand. Asserted as
+    # the INSTRUCTION, not as one command form: the driver writes `git -C <worktree> add ...`, and a
+    # needle demanding the literal "git add" would be a claim about spelling.
+    next_block = DRIVER.read_text(encoding="utf-8").split("=== NEXT (manual)")[1]
+    assert "docs/data" in next_block
+    assert "$WORK/artifacts" in next_block, "the operator is told where the artifacts actually are"
+    assert "commit" in next_block
+    assert "p7_3a_zero_shot_stage1.json" in next_block and "p7_3a_zero_shot.json" in next_block
+
+
+# ==================================================================================
+# K round, Finding 3 -- the dirty-tree refusal, EXECUTED
+# ==================================================================================
+MAIN_INTERPRETER = Path("/home/filip/rltraffic/.venv/bin/python")
+
+
+@pytest.mark.skipif(
+    not MAIN_INTERPRETER.is_file(),
+    reason=f"needs the main tree's interpreter at {MAIN_INTERPRETER}",
+)
+def test_k_finding3_the_delivered_driver_refuses_a_dirty_tree_when_executed(
+    tmp_path: Path,
+) -> None:
+    """Finding 3: neutralising the dirty check to ``if false`` left all 99 tests green.
+
+    T9 pins the driver's TEXT, and a text assertion cannot see a behaviour removed from the branch
+    it describes -- the failure mode this project has logged more than any other.  So this one
+    EXECUTES the delivered driver, with the roots redirected and nothing else changed, against a
+    throwaway clone that is dirty by exactly one untracked file.
+
+    ``git clone --shared`` and a scratch ``WORK`` keep it off every real path; ``setsid --wait``
+    makes it a process-group leader, which the driver requires before it reaches this check.
+    """
+    repo = Path(tcv.__file__).resolve().parents[1]
+    clone = tmp_path / "tree"
+    work = tmp_path / "work"
+    worktrees_before = subprocess.run(
+        ["git", "-C", str(repo), "worktree", "list"], capture_output=True, text=True, check=True
+    ).stdout
+
+    subprocess.run(
+        ["git", "clone", "--shared", "--no-checkout", str(repo), str(clone)],
+        capture_output=True, text=True, check=True,
+    )
+    subprocess.run(["git", "-C", str(clone), "checkout", "HEAD"], capture_output=True, check=True)
+
+    # the DELIVERED driver text, with only the roots redirected
+    delivered = DRIVER.read_text(encoding="utf-8")
+    redirected = delivered.replace("WORK=$MAIN/output/p7_3a", f"WORK={work}")
+    assert redirected != delivered, "the WORK root must actually have been redirected"
+    target = clone / "offline" / "campaigns" / "p7_3a_zero_shot.sh"
+    target.write_text(redirected, encoding="utf-8")
+
+    # commit the redirection so the clone is CLEAN, then make it dirty by exactly one file
+    subprocess.run(["git", "-C", str(clone), "add", "-A"], capture_output=True, check=True)
+    subprocess.run(
+        ["git", "-C", str(clone), "-c", "user.email=t@t", "-c", "user.name=t",
+         "-c", "core.hooksPath=/dev/null", "commit", "-m", "roots redirected"],
+        capture_output=True, check=True,
+    )
+    assert subprocess.run(
+        ["git", "-C", str(clone), "status", "--porcelain"], capture_output=True, text=True
+    ).stdout == "", "the clone must be clean before the one untracked file is added"
+    (clone / "untracked_probe.txt").write_text("one untracked file\n", encoding="utf-8")
+
+    result = subprocess.run(
+        ["setsid", "--wait", "bash", str(target), "confirmatory"],
+        capture_output=True, text=True, cwd=str(clone),
+    )
+
+    assert result.returncode == 2, (
+        f"expected the dirty-tree refusal's exit 2, got {result.returncode}:\n{result.stderr}"
+    )
+    assert "REFUSING TO START: the worktree" in result.stderr
+    assert "DIRTY" in result.stderr
+    assert "untracked_probe.txt" in result.stderr, "the refusal names the path that made it dirty"
+    assert not work.exists(), "a refused start creates nothing under WORK"
+    worktrees_after = subprocess.run(
+        ["git", "-C", str(repo), "worktree", "list"], capture_output=True, text=True, check=True
+    ).stdout
+    assert worktrees_after == worktrees_before, "the repository's worktree list must be untouched"
