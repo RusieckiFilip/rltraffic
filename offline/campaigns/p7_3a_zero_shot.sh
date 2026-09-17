@@ -43,17 +43,22 @@
 # 5. NOTHING UNDER scenarios/draws/ IS WRITTEN. The parity configs are P7.2a's output and this
 #    campaign opens them read-only.
 #
-# 6. TIME — from F1's PRE-FLIGHT PILOT, run through this runner at this worker count.
+# 6. TIME — from J5's PRE-FLIGHT PILOT, run from the DEDICATED worktree at the reviewed commit.
 #    Pilot: `python -m offline.transfer_curve … pilot --workers 12`, 16 DT cells on draw 5 (the
 #    FENCED smoke draw), both subjects, all four declared arms, seeds 101/202, halting OFF (draw 5
-#    is not Amendment C2's declared subset). Transcript: output/p7_3a_runs/preflight_pilot.txt.
-#    Date 2026-09-17. n = 2 runs x 16 cells. A11 labels every figure: measured on the thermally
+#    is not Amendment C2's declared subset).
+#    WHERE IT RAN, which is the half the earlier figures lacked: /home/filip/rltraffic-p73a-run,
+#    detached at 283276b with `git status --porcelain` EMPTY, and every one of the 16 chunks
+#    records `git_commit 283276b8…, git_dirty: false`. The figures this block replaced were
+#    measured at a0327ce PLUS UNCOMMITTED EDITS, which J1 now refuses cell by cell.
+#    Transcript: output/p7_3a_runs/preflight_pilot_fix.txt. Date 2026-09-17. n = 2 runs x 16 cells,
+#    both at 283276b from that worktree. A11 labels every figure: measured on the thermally
 #    constrained machine, no cooling pad.
-#      run 1   canary 0.92 s   wall 32.05 s   2.003 s/cell effective   in-process mean 14.34 s
-#      run 2   canary 0.77 s   wall 32.55 s   2.035 s/cell effective   in-process mean 14.86 s
-#      speed-up 7.16x / 7.30x on 16 cores;  0 failures in 32 cells
-#    SCHEDULE, stated with what it does and does not cover:
-#      stage 1 (1,200 cells) ≈ 40 min   ·   full campaign (4,700 cells) ≈ 2.6 h
+#      clean run    canary 0.72 s   wall 32.59 s   2.037 s/cell   in-process mean 14.86 s   7.30x
+#      resumed run  canary 0.83 s   wall 33.03 s   2.064 s/cell   in-process mean 14.76 s   7.15x
+#      0 failures in 32 cells
+#    SCHEDULE, from the clean run's 2.037 s/cell, stated with what it does and does not cover:
+#      stage 1 (1,200 cells) ≈ 41 min   ·   full campaign (4,700 cells) ≈ 2.7 h
 #    ⚠️ THAT PROJECTION IS MEASURED ON **DT CELLS ONLY**. The campaign's 700 anchor cells
 #    (fixedtime 100, maxpressure 100, random 5x100) were NOT run by this pilot; A6's in-process
 #    anchor times with halting ON (fixedtime 38.65 s, maxpressure 44.66 s, random 51.24 s, n = 2
@@ -63,9 +68,10 @@
 #    This replaces Amendment C7's reading (stage 1 ≈ 1 h, full ≈ 3–3.5 h), which came from the A6
 #    HARNESS pilot at 5.393 s/cell with the halting check ON for every cell; under C2 it is ON for
 #    47 of 4,700, which is most of the difference.
-#    ⚠️ F3: if the cooling pad's canary differs from 0.92 s / 0.77 s by more than 10 %, the pilot is
-#    re-run on the pad before the token and this block is replaced by that run's rate — the header
-#    must never quote a rate for a machine state the run did not have.
+#    ⚠️ F3: the comparison basis is THIS run's canary, 0.72 s (0.83 s on the resumed run). If the
+#    cooling pad's canary differs from it by more than 10 %, the pilot is re-run on the pad before
+#    the token and this block is replaced by that run's rate — the header must never quote a rate
+#    for a machine state the run did not have.
 #
 # 7. THE WORKTREE HAS NO .venv. The interpreter is the main tree's, as P7.2b's driver does.
 
