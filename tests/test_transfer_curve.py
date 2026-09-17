@@ -953,7 +953,10 @@ def test_t8_report_states_h3_as_inequalities_and_interprets_nothing(tmp_path: Pa
     assert len(h3["clauses"]) == 4
     for clause in h3["clauses"]:
         assert clause["inequality"] in ("rho_sumo(b_mean_k100) > 0", "rho_sumo(b_mean_k100) < 1")
-        assert set(clause["holds"]) <= {"mappo1000", "mix50"}
+        # Amendment H7 replaced `holds` -- a boolean on the point estimate that would be read as
+        # "confirmed" -- with the two mechanical facts asserted in
+        # test_h7_h3_reports_the_point_estimate_and_the_interval_separately.
+        assert set(clause["point_estimate_satisfies"]) <= {"mappo1000", "mix50"}
     assert artifact["contrast"]["status"] == "exploratory"
     assert "registered_direction" in artifact["contrast"]
     assert artifact["rho"]["estimator"]["resampling_seed"] is None
@@ -1033,32 +1036,36 @@ def test_t8_report_refuses_a_canary_whose_correctness_half_fails(tmp_path: Path)
     assert list(roots.out.iterdir()) == []
 
 
-def test_t8_report_refuses_a_cell_whose_anchors_come_from_another_draw(tmp_path: Path) -> None:
-    """T7: pairing is PER DRAW, and a broken pairing is refused rather than approximated.
+def test_t8_report_refuses_when_a_declared_anchor_chunk_is_missing(tmp_path: Path) -> None:
+    """The COMPLETENESS check, and this test is named for what it actually reaches.
 
-    The demand differs by draw, so a ratio built from another draw's denominator is not a
-    normalisation of anything.  Here draw 1001's anchors are deleted, which leaves its DT cells
-    with nothing legitimate to pair against.
+    ⚠️ It was called *"refuses a cell whose anchors come from another draw"* and read as the
+    pairing guard's test; the reviewer showed it is caught one step higher, by completeness, and
+    passes with the pairing guard removed (Amendment H4, H9).  The pairing guard's own test is
+    :func:`test_h4_rho_is_refused_when_only_one_draw_has_anchors`, which shares a draw so that
+    nothing above it fires.
     """
     roots, _ = _campaign(tmp_path)
     for arm in ("fixedtime", "maxpressure"):
         tcv.chunk_path(_cell("anchor", arm, 1001), work_dir=roots.work).unlink()
 
-    with pytest.raises(ValueError, match="1001|anchor|missing"):
+    with pytest.raises(ValueError, match="declared cell"):
         _report(roots)
     assert list(roots.out.iterdir()) == []
 
 
-def test_t8_report_refuses_a_draw_whose_anchors_were_never_declared(tmp_path: Path) -> None:
-    """T7's pairing guard, reached with a COMPLETE campaign so nothing above it fires first.
+def test_h4_rho_is_refused_when_only_one_draw_has_anchors(tmp_path: Path) -> None:
+    """H4. The per-draw pairing guard, reached where nothing above it can fire first.
 
-    The test that deletes draw 1001's anchors is caught by the completeness check, one step higher:
-    it proves the campaign is incomplete, not that the pairing is per draw.  Here the declaration
-    itself puts a DT cell on draw 1000 and the anchors on draw 1001, so every declared cell is
-    present and the only thing wrong is that draw 1000's rho has no denominator of its own draw.
+    ⚠️ **The reviewer's probe, made a test.**  The previous fixture declared a DT cell on draw 1000
+    and anchors on 1001 only -- ZERO shared draws -- so with the guard removed the refusal came
+    from ``paired_comparison`` ("no shared draws ... void") and the test passed for a reason that
+    has nothing to do with pairing.  This fixture puts DT cells on BOTH draws and anchors on 1001
+    only: one shared draw, so ``paired_comparison`` is content, and with the guard removed
+    ``report`` **writes an artifact in which draw 1000's rho is normalised by draw 1001's
+    anchors** -- a plausible number built from another draw's demand.
 
-    Without this guard a future edit could fall back on "some anchor" and produce a perfectly
-    plausible rho normalised by another draw's demand.
+    The match is on the guard's OWN words, so a refusal from anywhere else cannot satisfy it.
     """
     roots = _build_roots(tmp_path, draws=_DEMO_DRAWS, seeds=_DEMO_SEEDS)
     roots.work.mkdir(parents=True, exist_ok=True)
@@ -1067,13 +1074,14 @@ def test_t8_report_refuses_a_draw_whose_anchors_were_never_declared(tmp_path: Pa
 
     declared = [
         _cell("dt", "b_mean_k100", 1000, subject="mappo1000", seed=101),
+        _cell("dt", "b_mean_k100", 1001, subject="mappo1000", seed=101),
         _cell("anchor", "fixedtime", 1001),
         _cell("anchor", "maxpressure", 1001),
     ]
     for cell in declared:
         tcv.write_chunk(_payload(cell, roots), work_dir=roots.work)
 
-    with pytest.raises(ValueError, match="anchors|denominator"):
+    with pytest.raises(ValueError, match="no denominator of its own draw"):
         _report(roots, cells=declared)
     assert list(roots.out.iterdir()) == []
 
@@ -1210,21 +1218,31 @@ def test_g4_a_final_info_without_average_travel_time_is_refused_not_defaulted() 
         tcv.att_env_from_info({"vehicle_count": 12.0})
 
 
-def test_run_cell_assembles_a_chunk_whose_two_att_routes_agree(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """``run_cell``'s assembly, driven through fake seams so no simulator is needed.
+def _install_cell_seams(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    att: float = 366.5,
+    att_horizon: float | None = None,
+    num_phases: int = 8,
+    action: int = 0,
+    log: list[str] | None = None,
+) -> Any:
+    """Fake every seam ``run_cell`` reaches, and return the env class so a test can inspect it.
 
     The fake rollout drives ``env.step`` for real, so the tap that captures the final ``info`` --
-    the second of G4's two routes -- is exercised rather than bypassed.  What is asserted is what
-    the chunk must carry: the identity digests, C2's halting fields on the declared draw only, and
-    ``att_env == att_horizon`` under ``==``.
+    the second of G4's two routes -- is exercised rather than bypassed.  *att_horizon* defaults to
+    *att*, i.e. the two routes agree; passing a different value is how H6(b) reaches the refusal.
+    *log*, when given, records the order in which the shape check, the policy build, the reset and
+    the steps happen, which is H8 MIN-1's whole content.
     """
     from offline.horizon_metric import HorizonRollout
     from offline.sumo_att_reference import HaltingAgreement, SumoAtt, SumoEpisodeReconstruction
 
-    roots = _build_roots(tmp_path, draws=(1000, 1001), seeds=(101,))
-    att = 366.5
+    reported = att if att_horizon is None else att_horizon
+
+    def note(event: str) -> None:
+        if log is not None:
+            log.append(event)
 
     class _Sumo:
         class simulation:  # noqa: N801 - mirrors traci's module shape
@@ -1244,7 +1262,10 @@ def test_run_cell_assembles_a_chunk_whose_two_att_routes_agree(
     class _Env:
         # the registered horizon, because the cell COUNTS its decisions and refuses a short episode
         max_steps = 360
-        intersections = [type("Ix", (), {"id": IX})()]
+        # `num_phases` is what Utils.infer_action_counts falls back to when there is no
+        # action_space (agent/utils/utils.py:29) -- H8 MIN-3 takes the action bound from here
+        intersections = [type("Ix", (), {"id": IX, "num_phases": num_phases})()]
+        action_space = None
         _sumo = _Sumo()
         # the fresh engine seed the env RNG drew for this episode; the real SumoEnv carries it and
         # the chunk records it beside the REQUESTED seed (A17(f) compares both)
@@ -1253,9 +1274,11 @@ def test_run_cell_assembles_a_chunk_whose_two_att_routes_agree(
         closed = False
 
         def reset(self, **kwargs: Any) -> dict[str, Any]:
+            note("reset")
             return {"average_travel_time": 1.0, "intersections": {IX: {"reward": -1.0}}}
 
-        def step(self, action: Any) -> tuple[float, bool, bool, dict[str, Any]]:
+        def step(self, action_taken: Any) -> tuple[float, bool, bool, dict[str, Any]]:
+            note("step")
             return -1.0, False, False, {"average_travel_time": att, "vehicle_count": 12.0}
 
         def close(self) -> None:
@@ -1266,12 +1289,12 @@ def test_run_cell_assembles_a_chunk_whose_two_att_routes_agree(
         for _ in range(int(env.max_steps)):
             _, _, _, info = env.step(choose(env, info))
         return HorizonRollout(
-            att_horizon=att,
+            att_horizon=reported,
             att_running_mean=att - 1.0,
             episode_reward=-23938.0,
             final_vehicle_count=12.0,
             final_completed=float("nan"),
-            per_episode_horizon=(att,),
+            per_episode_horizon=(reported,),
             per_episode_running_mean=(att - 1.0,),
             episodes=1,
             seed=seed,
@@ -1307,20 +1330,42 @@ def test_run_cell_assembles_a_chunk_whose_two_att_routes_agree(
         episode that did not reach the registered horizon, so a fake that returned a bare callable
         would be testing a different function.
         """
+        note("policy")
         diagnostics: dict[str, Any] = {"rtg_series": [], "reward_series": [], "actions": []}
 
         def choose(_env: Any, info: Mapping[str, Any]) -> int:
-            diagnostics["actions"].append(0)
-            return 0
+            diagnostics["actions"].append(action)
+            return action
 
         return choose, diagnostics
 
+    real_shape_check = tcv.assert_env_matches_cell
+
+    def spying_shape_check(cell: Mapping[str, Any], env: Any) -> None:
+        note("shape-checked")
+        real_shape_check(cell, env)
+
     monkeypatch.setattr(tcv, "env_for_cell", lambda cell, **k: _Env(), raising=True)
     monkeypatch.setattr(tcv, "anchor_choose", fake_anchor_choose, raising=True)
+    monkeypatch.setattr(tcv, "assert_env_matches_cell", spying_shape_check, raising=True)
     monkeypatch.setattr("offline.horizon_metric.horizon_rollout", fake_rollout, raising=True)
     monkeypatch.setattr(
         "offline.sumo_att_reference.reconstruct_sumo_episode", fake_reconstruct, raising=True
     )
+    return _Env
+
+
+def test_run_cell_assembles_a_chunk_whose_two_att_routes_agree(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``run_cell``'s assembly, driven through fake seams so no simulator is needed.
+
+    What is asserted is what the chunk must carry: the identity digests, C2's halting fields on the
+    declared draw only, and ``att_env == att_horizon`` under ``==``.
+    """
+    roots = _build_roots(tmp_path, draws=(1000, 1001), seeds=(101,))
+    att = 366.5
+    env_cls = _install_cell_seams(monkeypatch, att=att)
 
     common = {
         "out_root": roots.draws,
@@ -1342,15 +1387,89 @@ def test_run_cell_assembles_a_chunk_whose_two_att_routes_agree(
     assert checked["halting_n_disagreeing_lane_seconds"] == 0
     assert unchecked["halting_checked"] is False
     assert unchecked["halting_n_disagreeing_lane_seconds"] is None
-    assert _Env.closed, "the env must be closed even though the caller owns it"
+    assert env_cls.closed, "the env must be closed even though the caller owns it"
     tcv.validate_cell_payload(checked, cell=_cell("anchor", "fixedtime", 1000))
 
     # The decision count is COUNTED, not taken from the declared horizon: an episode that stopped
     # early must be refused rather than reported as a full one.  Without this, `decisions` could be
     # a constant and validate_cell_payload's check would be a tautology.
-    _Env.max_steps = 2
+    env_cls.max_steps = 2
     with pytest.raises(ValueError, match="decisions"):
         tcv.run_cell(_cell("anchor", "fixedtime", 1001), **common)
+
+
+def test_h6b_a_cell_whose_two_att_routes_disagree_is_refused(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """H6(b). G4's *"two routes compared under =="* was a docstring, not a tested refusal.
+
+    ``if False:`` on this comparison left all 62 tests green.  The two routes are the final info's
+    ``average_travel_time`` (the tap, P7.1's own expression) and ``horizon_rollout``'s last sample
+    of the same key; a difference means the loop this cell ran is not the loop P7.1 measured, and
+    no comparison with the frozen anchors would be valid.
+    """
+    roots = _build_roots(tmp_path, draws=(1000,), seeds=(101,))
+    _install_cell_seams(monkeypatch, att=366.5, att_horizon=366.6)
+
+    with pytest.raises(ValueError, match="att_env|disagree"):
+        tcv.run_cell(
+            _cell("anchor", "fixedtime", 1000),
+            out_root=roots.draws,
+            output_root=roots.output,
+            data_dir=roots.data,
+            canary_seconds=0.87,
+        )
+
+
+def test_h8_min1_the_cell_shape_is_checked_before_the_simulator_does_any_work(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """H8 MIN-1. C8's refusal must come FIRST, and the order is now pinned rather than assumed.
+
+    The reviewer's mutant moved ``assert_env_matches_cell`` after the rollout and T5 stayed green:
+    the refusal still fired, but only once a SUMO process had started, an agent had been built and
+    360 decisions had been taken.  The point of refusing on the cell's shape is to refuse before
+    any of that.
+    """
+    roots = _build_roots(tmp_path, draws=(1000,), seeds=(101,))
+    log: list[str] = []
+    _install_cell_seams(monkeypatch, log=log)
+
+    tcv.run_cell(
+        _cell("anchor", "fixedtime", 1000),
+        out_root=roots.draws,
+        output_root=roots.output,
+        data_dir=roots.data,
+        canary_seconds=0.87,
+    )
+
+    assert log[0] == "shape-checked", f"the shape check must come first, got {log[:4]}"
+    assert "policy" in log and "reset" in log, "the fake seams must have run at all"
+    assert log.index("shape-checked") < log.index("policy") < log.index("reset")
+
+
+def test_h8_min3_the_action_range_comes_from_the_env_not_from_a_literal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """H8 MIN-3. ``actions_in_range`` hardcoded ``< 8``; the bound is the env's own phase count.
+
+    ``Utils.infer_action_counts`` is the repository's helper for exactly this (``CLAUDE.md`` rule
+    5) and falls back to ``ix.num_phases``.  hz1x1 happens to have 8 phases, so the literal was
+    right here and silently wrong for any other scenario -- a dimension assumption P7.3b would
+    inherit.  Here the env reports 4 phases and the policy returns action 5.
+    """
+    roots = _build_roots(tmp_path, draws=(1000,), seeds=(101,))
+    _install_cell_seams(monkeypatch, num_phases=4, action=5)
+
+    with pytest.raises(ValueError, match="action"):
+        tcv.run_cell(
+            _cell("anchor", "fixedtime", 1000),
+            out_root=roots.draws,
+            output_root=roots.output,
+            data_dir=roots.data,
+            canary_seconds=0.87,
+        )
+
 
 
 # ==================================================================================
@@ -1415,10 +1534,29 @@ def test_t5_twenty_decisions_of_dt_seed101_through_the_cell_path(tmp_path: Path)
     ), kwargs_seen
     assert len(diagnostics["actions"]) == 20
     assert all(0 <= action < 8 for action in diagnostics["actions"])
-    assert diagnostics["rtg_series"][0] == target, "rtg_first is the declared target"
-    assert tc.rtg_advanced_every_decision(
-        diagnostics["rtg_series"], diagnostics["reward_series"]
-    ), "the RTG did not advance on exactly the decisions whose driving reward was non-zero"
+
+    # ---- H5: the RTG identity, re-derived by RAW ARITHMETIC on the stored series -------------
+    # ⚠️ `rtg_advanced_every_decision` is CHANGE DETECTION -- it asks whether rtg[i] != rtg[i-1]
+    # iff reward[i-1] != 0 and never compares magnitudes, so a DOUBLE-COUNTED reward passes it.
+    # §4 T5 says *re-derived*, and this is the re-derivation: the agent's own convention is
+    #     rtg[t] = target - sum(reward[0..t-1])  with the step-0 reward forced to 0.0,
+    # so rtg[t-1] - rtg[t] == reward_series[t-1] for t >= 2, and rtg[1] == rtg[0] always
+    # (agent/DTAgent.py: current_rtg is target - reward_sum; act adds 0.0 when step == 0).
+    # Under `==`: the driving reward is a vehicle COUNT, so every term is exactly representable.
+    rtg = diagnostics["rtg_series"]
+    rewards = diagnostics["reward_series"]
+    assert rtg[0] == target, "rtg_first is the declared target"
+    assert rtg[1] - rtg[0] == 0.0, "the agent forces the step-0 reward to 0.0, so index 1 is fixed"
+    for t in range(2, len(rtg)):
+        assert rtg[t - 1] - rtg[t] == rewards[t - 1], (
+            f"decision {t}: the RTG moved by {rtg[t - 1] - rtg[t]!r} while the info's reward was "
+            f"{rewards[t - 1]!r}; the conditioning trajectory is not the reward stream's cumulative "
+            "sum, which is what the prompt means"
+        )
+    # the same identity in one line, by the cumulative sum rather than by the differences
+    assert rtg[-1] == target - float(sum(rewards[: len(rtg) - 1])), "cumsum route disagrees"
+    # and the helper agrees with the arithmetic (it is weaker, so it is asserted second)
+    assert tc.rtg_advanced_every_decision(rtg, rewards)
     assert types_seen == ["cf_parity"]
     assert option == "-1"
     assert att > 0.0, "a real episode has a positive average travel time"
@@ -1452,6 +1590,41 @@ def test_t9_the_driver_exists_and_is_syntactically_valid() -> None:
 
     assert DRIVER.is_file(), f"no driver at {DRIVER}"
     assert subprocess.run(["bash", "-n", str(DRIVER)], capture_output=True).returncode == 0
+
+
+def test_h3_the_driver_sets_euo_pipefail_exactly() -> None:
+    """H3. Reviewer MAJ-1, measured: both ``set -eu`` and the deleted line survived T9.
+
+    Without ``pipefail`` the canary's own line shape is the defect: the correctness half fails
+    inside a pipeline, the substitution yields ``CANARY_LINE=''``, the script proceeds, **the token
+    is consumed**, and only ``record-canary`` fails.  A failed canary must never burn the author's
+    one-shot authorisation -- that is the class of defect P7.2b's pre-flight found, and this is the
+    one assertion that notices it.
+    """
+    code = _driver_code_text()
+    assert "set -euo pipefail" in code
+    assert "\nset -eu\n" not in code, "'set -eu' without pipefail hides a failing pipeline"
+
+
+def test_h2_the_confirmatory_stage_can_be_restarted_and_never_overwrites() -> None:
+    """H2. ``offline.collect`` refuses a populated ``--out-dir``, so a restart used to die there.
+
+    After any failure past the collection -- the pool, the report, the manifest -- the restart hit
+    ``collect`` and stopped.  Stage 1 is now *if the corpus exists, gate it and skip the
+    collection; else collect and gate it*, and ``--overwrite`` never appears: a partial corpus is
+    refused by H1's gate with its missing draws named and is moved aside **by hand**, because
+    deleting a corpus the driver cannot prove is bad is not the driver's decision to make.
+    """
+    code = _driver_code_text()
+    assert "--overwrite" not in code, (
+        "--overwrite would let a restart silently replace a corpus A17(f) has already blessed"
+    )
+    # the gate runs on BOTH paths: the one that collected and the one that skipped
+    assert code.count("a17f --corpus-dir") == 2, "A17(f) must run whether or not we just collected"
+    assert code.index("a17f --corpus-dir") < code.index("cells --stage"), (
+        "the gate precedes every evaluation cell"
+    )
+    assert '[ -d "$CORPUS" ]' in code, "the skip decision is on the corpus existing"
 
 
 def test_t9_the_ordering_the_token_depends_on() -> None:
@@ -1561,7 +1734,10 @@ def test_t9_the_driver_declares_both_stages_and_refuses_an_unknown_one() -> None
     an ARGUMENT rather than a decision the driver makes from a number.
     """
     code = _driver_code_text()
-    assert "confirmatory" in code and "rest" in code
+    # ⚠️ `"rest" in code` is THEATRE: it matches the word "restart" in a refusal message (reviewer,
+    # handed over by H9).  The needle is the stage dispatch's own form.
+    assert "confirmatory|rest)" in code, "both stages must be accepted by the case statement"
+    assert '"$STAGE" = "rest"' in code or '"$STAGE" = "confirmatory"' in code
     assert "--stage1-path" in code, "the final report must cite the stage-1 artifact (B2)"
     assert "REFUSING TO START" in code
 
@@ -1617,3 +1793,316 @@ def test_an_unusable_chunk_is_moved_aside_and_never_overwritten(tmp_path: Path) 
     assert second != first, "the first failed chunk must not be overwritten by the second"
     assert json.loads(first.read_bytes())["n_teleports"] == 3
     assert json.loads(second.read_bytes())["n_teleports"] == 7
+
+
+# ==================================================================================
+# H1 -- A17(f) as a CLI stage: 100/100 over the DECLARED band, not over what is there
+# ==================================================================================
+def _write_corpus(
+    directory: Path, *, draws: Sequence[int], artifact: Path, mismatch: int | None = None
+) -> Path:
+    """A synthetic corpus in the shape :func:`assert_logged_corpus_matches_probe` reads.
+
+    Read out of that function's BODY, not its docstring: one ``.npz`` per draw carrying
+    ``flow_draw`` and ``ix0_local_reward``, plus a manifest whose ``run_metadata.sumo_draws``
+    records each draw's ``engine_seed_drawn``.  The rewards are integral float32 summing to the
+    probe's own ``local_return``, because the gate checks integrality before equality.
+    """
+    import numpy as np
+
+    probe = {int(row["draw_id"]): row for row in json.loads(artifact.read_bytes())["probe"]}
+    directory.mkdir(parents=True, exist_ok=True)
+    records: list[dict[str, Any]] = []
+    for draw in draws:
+        row = probe[int(draw)]
+        total = float(row["local_return"]) + (1.0 if draw == mismatch else 0.0)
+        rewards = np.zeros(360, dtype=np.float32)
+        rewards[0] = np.float32(total)
+        np.savez(
+            directory / f"ep_draw{int(draw):04d}.npz",
+            flow_draw=np.int64(int(draw)),
+            ix0_local_reward=rewards,
+        )
+        records.append(
+            {"draw_id": int(draw), "engine_seed_drawn": int(row["engine_seed_drawn"])}
+        )
+    (directory / "manifest.json").write_text(
+        json.dumps({"run_metadata": {"sumo_draws": records}}), encoding="utf-8"
+    )
+    return directory
+
+
+def _a17f(roots: _Roots, corpus: Path) -> int:
+    return tcv.main(
+        [
+            "--draws-root", str(roots.draws),
+            "--output-root", str(roots.output),
+            "--work-dir", str(roots.work),
+            "--data-dir", str(roots.data),
+            "--out-dir", str(roots.out),
+            "a17f", "--corpus-dir", str(corpus),
+        ]
+    )
+
+
+def test_h1_a17f_passes_only_on_the_full_declared_band(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """H1. *100/100 or P7.3 stops* -- over the DECLARED band, never over what happens to be there.
+
+    ``assert_logged_corpus_matches_probe`` defaults ``draw_ids=None`` to *the draws present in the
+    corpus*, and the CLI passed no draw set: the coordinator ran it on the ONE-draw smoke corpus
+    and got ``n_checked: 1, all_match: true, exit 0``.  A 99-draw corpus would have passed the
+    driver's gate and P7.3b's few-shot source would have been short a draw with nothing saying so.
+    """
+    roots = _build_roots(tmp_path, draws=(1000,), seeds=(101,))
+    corpus = _write_corpus(
+        tmp_path / "corpus",
+        draws=range(201, 301),
+        artifact=roots.data / "p7_2b_calibration.json",
+    )
+
+    assert _a17f(roots, corpus) == 0
+    printed = capsys.readouterr().out
+    assert "A17(f) 100/100" in printed, "the line the coordinator reads at the stage-1 checkpoint"
+
+
+def test_h1_a_99_draw_corpus_is_refused_naming_the_missing_draw(tmp_path: Path) -> None:
+    """The falsification the coordinator ran by hand, as a test.
+
+    *Mutation this is built against:* drop the explicit draw set so the gate checks whatever the
+    corpus contains. Then this corpus of 99 draws reports 99/99 and the campaign proceeds.
+    """
+    roots = _build_roots(tmp_path, draws=(1000,), seeds=(101,))
+    short = [d for d in range(201, 301) if d != 300]
+    corpus = _write_corpus(
+        tmp_path / "corpus", draws=short, artifact=roots.data / "p7_2b_calibration.json"
+    )
+
+    with pytest.raises(ValueError, match="300"):
+        _a17f(roots, corpus)
+
+
+def test_h1_one_mismatched_draw_is_refused_with_both_values_and_the_difference(
+    tmp_path: Path,
+) -> None:
+    """A mismatch is a finding reported with the draw, both values and the difference.
+
+    Never smoothed and never tolerated: SUMO is deterministic under a fixed seed, so a difference
+    is a wiring defect, and P7.3 stops rather than reporting a transfer number built on an episode
+    that is not the one the prompt was calibrated from.
+    """
+    roots = _build_roots(tmp_path, draws=(1000,), seeds=(101,))
+    corpus = _write_corpus(
+        tmp_path / "corpus",
+        draws=range(201, 301),
+        artifact=roots.data / "p7_2b_calibration.json",
+        mismatch=250,
+    )
+
+    with pytest.raises(ValueError, match=r"draw 250.*difference") as caught:
+        _a17f(roots, corpus)
+    message = str(caught.value)
+    assert "-23917.0" in message or "difference" in message
+    assert "1.0" in message, "the difference itself must be in the message"
+
+
+def test_h1_the_gate_stage_refuses_a_moved_calibration_artifact(tmp_path: Path) -> None:
+    """Reviewer MIN-7: the gate stage loads the artifact through ``load_calibration``.
+
+    The gate compares against P7.2b's probe rows, so it is reading the same artifact the prompts
+    come from; a stage that read it unpinned could check a corpus against a file that had moved.
+    """
+    roots = _build_roots(tmp_path, draws=(1000,), seeds=(101,))
+    corpus = _write_corpus(
+        tmp_path / "corpus",
+        draws=range(201, 301),
+        artifact=roots.data / "p7_2b_calibration.json",
+    )
+    moved = roots.data / "p7_2b_calibration.json"
+    moved.write_bytes(moved.read_bytes() + b"\n")
+
+    with pytest.raises(ValueError, match="sha256"):
+        _a17f(roots, corpus)
+
+
+# ==================================================================================
+# H6 -- two refusals that had no test at all (the coordinator's survivors MU5, MU6)
+# ==================================================================================
+@pytest.mark.parametrize(
+    ("draw", "checked"),
+    [(1000, False), (1001, True)],
+)
+def test_h6a_a_chunk_whose_halting_flag_contradicts_c2_is_refused(
+    tmp_path: Path, draw: int, checked: bool
+) -> None:
+    """H6(a). ``halting_checked`` must agree with Amendment C2's declaration, both directions.
+
+    ``if False:`` on this refusal left all 62 tests green.  A resumed chunk written by a run with
+    the flag off on draw 1000 would pass into the artifact, and C2's declared subset -- the only
+    verification the recorder gets -- would silently be empty.
+    """
+    roots = _build_roots(tmp_path, draws=(1000, 1001), seeds=(101,))
+    cell = _cell("anchor", "fixedtime", draw)
+
+    with pytest.raises(ValueError, match="halting_checked|Amendment C2"):
+        tcv.validate_cell_payload(_payload(cell, roots, halting_checked=checked), cell=cell)
+
+
+# ==================================================================================
+# H7 -- H3's block states what it measured, and never a verdict
+# ==================================================================================
+def test_h7_h3_reports_the_point_estimate_and_the_interval_separately(tmp_path: Path) -> None:
+    """H7. ``holds`` reads as *confirmed*; it was a boolean on the point estimate alone.
+
+    Two mechanical facts now sit side by side and neither is a verdict:
+    ``point_estimate_satisfies`` (the mean is on the claimed side) and ``ci95_entirely_satisfies``
+    (the WHOLE analytic interval is).  The registered test row is the paired comparison, and the
+    artifact says what it measured rather than what it concludes.
+    """
+    roots, _ = _campaign(tmp_path)
+
+    artifact = _report(roots)
+
+    clauses = artifact["h3"]["clauses"]
+    assert len(clauses) == 4
+    for clause in clauses:
+        assert "holds" not in clause, "a key named 'holds' will be read as a verdict"
+        assert set(clause["point_estimate_satisfies"]) <= {"mappo1000", "mix50"}
+        assert set(clause["ci95_entirely_satisfies"]) <= {"mappo1000", "mix50"}
+
+    # ...and the two are computed from DIFFERENT quantities: on this fixture rho is 0.5 with a
+    # non-zero interval, so "> 0" holds on the point estimate and on the whole interval, while
+    # "< 1" holds on the point estimate and the interval is checked on its own end.
+    greater = [c for c in clauses if c["inequality"].endswith("> 0") and c["definition"] == "e_sumo"][0]
+    entry = [
+        e for e in artifact["rho"]["by_subject_arm"]
+        if e["subject"] == "mappo1000" and e["arm"] == "b_mean_k100"
+    ][0]
+    assert greater["point_estimate_satisfies"]["mappo1000"] == (entry["e_sumo"]["mean"] > 0.0)
+    assert greater["ci95_entirely_satisfies"]["mappo1000"] == (entry["e_sumo"]["ci95_low"] > 0.0)
+
+
+def test_h7_the_interval_fact_is_not_the_point_estimate_fact() -> None:
+    """The two facts must DIFFER where the data makes them differ, or one of them says nothing.
+
+    ⚠️ On the campaign fixture rho is 0.5 with a narrow interval, so ``mean > 0`` and
+    ``ci95_low > 0`` are both true and a version computing the interval fact FROM THE MEAN passes
+    every assertion -- the mutant survived exactly that way.  Here the interval straddles both
+    bounds (mean 0.5, CI [-0.2, 1.2]): the point estimate satisfies both clauses and the interval
+    satisfies neither, which is the case the artifact exists to make visible.  A reader who sees
+    only a point estimate on the claimed side would read it as a result; this is why H7 refused to
+    let one boolean be called ``holds``.
+    """
+    stats = {"n_draws": 100, "mean": 0.5, "std": 1.0, "ci95": 0.7, "ci95_low": -0.2, "ci95_high": 1.2}
+    block = tcv._h3_block(
+        [{"subject": "mappo1000", "arm": "b_mean_k100", "role": "registered_prompt",
+          "e_sumo": dict(stats), "att_env": dict(stats)}]
+    )
+
+    for inequality in ("rho_sumo(b_mean_k100) > 0", "rho_sumo(b_mean_k100) < 1"):
+        clause = [
+            c for c in block["clauses"]
+            if c["inequality"] == inequality and c["definition"] == "e_sumo"
+        ][0]
+        assert clause["point_estimate_satisfies"]["mappo1000"] is True
+        assert clause["ci95_entirely_satisfies"]["mappo1000"] is False, (
+            f"{inequality}: the mean is on the claimed side but the interval is not, and the "
+            "artifact must say both"
+        )
+
+
+# ==================================================================================
+# H8 -- the four minors
+# ==================================================================================
+def test_h8_min5_the_stage_one_report_still_regenerates_once_stage_two_chunks_exist(
+    tmp_path: Path,
+) -> None:
+    """H8 MIN-5. The two stages share one work directory, so ``report --stage`` filters by NAME.
+
+    Before this, ``report --stage confirmatory`` refused as soon as stage 2 had written a chunk
+    (an "extra" cell), which made the stage-1 artifact regenerable only from a tree that no longer
+    exists after stage 2 -- and B2's byte-identity claim is checked at the recording commit.
+    Every chunk on disk is still validated, so an undeclared ARM anywhere still refuses.
+    """
+    roots, _ = _campaign(tmp_path)
+    rest_cell = _cell("dt", "naive", 1000, subject="mappo1000", seed=101, stage="rest")
+    tcv.write_chunk(_payload(rest_cell, roots), work_dir=roots.work)
+
+    artifact = _report(
+        roots,
+        out_path=roots.out / "p7_3a_zero_shot_stage1.json",
+        stage=tcv.STAGE_CONFIRMATORY,
+        cells=[*_DEMO_CELLS, rest_cell],
+    )
+
+    assert artifact["n_chunks_outside_stage"] == 1
+    assert all(row["stage"] == tcv.STAGE_CONFIRMATORY for row in artifact["cells"])
+    assert "naive" not in {row["arm"] for row in artifact["cells"]}
+
+
+def test_h8_min5_an_undeclared_arm_still_refuses_even_when_it_is_out_of_stage(
+    tmp_path: Path,
+) -> None:
+    """The fence is not weakened by MIN-5: an arm nobody declared refuses from anywhere.
+
+    B2's rule -- every chunk is validated, whatever stage it belongs to -- is what keeps the
+    filtering from becoming a way to hide a cell.
+    """
+    roots, _ = _campaign(tmp_path)
+    undeclared = _cell("dt", "b_mean_k20", 1000, subject="mappo1000", seed=101, stage="rest")
+    tcv.write_chunk(_payload(undeclared, roots), work_dir=roots.work)
+
+    with pytest.raises(ValueError, match="b_mean_k20|declared"):
+        _report(roots, stage=tcv.STAGE_CONFIRMATORY, cells=_DEMO_CELLS)
+
+
+def test_h8_min5_a_broken_chunk_of_the_OTHER_stage_is_still_refused(tmp_path: Path) -> None:
+    """MIN-5 filters which cells are REPORTED; it does not stop any chunk being validated.
+
+    ⚠️ The undeclared-arm test above is caught one step higher, by the ``extra`` check, so it does
+    not pin the validation loop: a mutant that validated only this stage's chunks survived it.
+    Here the offending chunk IS a declared cell of the other stage -- so ``extra`` is content --
+    and it carries a teleport. Under A15(c)'s teleport-free regime that is a finding about the
+    whole campaign, and a report that published stage 1 while a teleporting stage-2 cell sat beside
+    it would be reporting from a work directory it had not checked.
+    """
+    roots, _ = _campaign(tmp_path)
+    rest_cell = _cell("dt", "naive", 1000, subject="mappo1000", seed=101, stage="rest")
+    tcv.write_chunk(_payload(rest_cell, roots, n_teleports=4), work_dir=roots.work)
+
+    with pytest.raises(ValueError, match="teleport"):
+        _report(
+            roots,
+            out_path=roots.out / "p7_3a_zero_shot_stage1.json",
+            stage=tcv.STAGE_CONFIRMATORY,
+            cells=[*_DEMO_CELLS, rest_cell],
+        )
+    assert list(roots.out.iterdir()) == []
+
+
+def test_h8_min6_the_canary_prints_its_line_before_it_checks_it(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """H8 MIN-6. On a failed correctness half the OBSERVED values must still be visible.
+
+    P7.2b prints the line and then checks, so the numbers reach the pane and ``canary.log`` even
+    when the refusal follows; checking first means the refusal says only that something was wrong.
+    The driver captures this line with ``tee -a``, so "printed" is also "recorded".
+    """
+    import offline.transfer_calibration as calibration
+
+    monkeypatch.setattr(
+        calibration,
+        "canary_seconds",
+        lambda: (0.91, {"decisions": 360, "local_return": -1.0, "att_horizon": 2.0,
+                        "two_routes_agree": True}),
+        raising=True,
+    )
+
+    with pytest.raises(ValueError, match="canary"):
+        tcv.main(["canary"])
+
+    printed = capsys.readouterr().out
+    assert "canary 0.91 s" in printed, "the observed line must survive a failed check"
+    assert "-1.0" in printed

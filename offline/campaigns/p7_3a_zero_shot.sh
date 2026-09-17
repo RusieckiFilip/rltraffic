@@ -246,22 +246,40 @@ run_stage() {
 
 # ---------------------------------------------------------------- stage 1: collection + A17(f)
 # Only in the confirmatory run: the corpus is collected once and A17(f) gates the whole of P7.3.
-# The argv below is the one tests/test_transfer_calibration.py's T1/T2 fixture verified end to end
-# -- same flags, same order -- so the corpus this driver writes is the corpus those tests checked.
+#
+# ⚠️ AMENDMENT H2 — THE STAGE IS RESTARTABLE, AND THAT IS WHY IT BRANCHES.
+# `offline.collect` refuses a populated --out-dir (trajectory_logger.py:450), so after ANY failure
+# past this point -- the pool, the report, the manifest -- a restart used to die here, on the one
+# stage that had already succeeded. If the corpus is already on disk we do NOT collect again; we
+# run A17(f) over it, which is the only thing that decides whether it is usable.
+#
+# ⛔ --overwrite IS NEVER PASSED, and there is no branch below that deletes anything. A corpus
+# A17(f) refuses is named draw by draw in its own message and is moved aside BY HAND: deleting a
+# corpus the driver cannot prove is bad is not the driver's decision, and a silent re-collection
+# would replace a corpus that a previous run's gate had already blessed.
+#
+# The collect argv is the one tests/test_transfer_calibration.py's T1/T2 fixture verified end to
+# end -- same flags, same order -- so the corpus this driver writes is the corpus those tests
+# checked. --flow-draws-range is half-open: 201 301 is draws 201..300.
 if [ "$STAGE" = "confirmatory" ]; then
-  run_stage collect offline.collect \
-    --backend sumo \
-    --env-config "$WORK_TREE/configs/sim/cityflow1x1.json" \
-    --policy maxpressure \
-    --flow-draws-range 201 301 \
-    --episodes 1 \
-    --base-seed 1000 \
-    --global-reward-weight 0.0 \
-    --local-reward-fn queue_length \
-    --out-dir "$CORPUS" \
-    --draws-root "$DRAWS"
+  if [ -d "$CORPUS" ]; then
+    echo "=== corpus already at $CORPUS -- not collecting again; A17(f) decides whether it stands"
+    run_stage a17f_existing offline.transfer_curve "${COMMON[@]}" a17f --corpus-dir "$CORPUS"
+  else
+    run_stage collect offline.collect \
+      --backend sumo \
+      --env-config "$WORK_TREE/configs/sim/cityflow1x1.json" \
+      --policy maxpressure \
+      --flow-draws-range 201 301 \
+      --episodes 1 \
+      --base-seed 1000 \
+      --global-reward-weight 0.0 \
+      --local-reward-fn queue_length \
+      --out-dir "$CORPUS" \
+      --draws-root "$DRAWS"
 
-  run_stage a17f offline.transfer_curve "${COMMON[@]}" a17f --corpus-dir "$CORPUS"
+    run_stage a17f offline.transfer_curve "${COMMON[@]}" a17f --corpus-dir "$CORPUS"
+  fi
 fi
 
 # ---------------------------------------------------------------- stage 2: the evaluation pool

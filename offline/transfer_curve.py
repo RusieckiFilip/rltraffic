@@ -953,6 +953,7 @@ def run_cell(
     """
     import time
 
+    from agent.utils.utils import Utils
     from offline.horizon_metric import horizon_rollout
     from offline.rtg_calibration import in_support_counts
     from offline.sumo_att_reference import reconstruct_sumo_episode
@@ -980,7 +981,18 @@ def run_cell(
     env = env_for_cell(cell, out_root=out_root)
     diagnostics: dict[str, Any] = {"rtg_series": [], "reward_series": [], "actions": []}
     try:
+        # ⚠️ FIRST, before a policy is built or a single step is taken (reviewer MIN-1). The
+        # refusal's purpose is to refuse BEFORE a SUMO process has run an episode; a mutant that
+        # moved it after the rollout still raised, and T5 stayed green, which is why the ORDER is
+        # now pinned by a test rather than by this comment.
         assert_env_matches_cell(cell, env)
+        # The action bound is the ENV's, through the helper CLAUDE.md rule 5 requires
+        # (Utils.infer_action_counts falls back to ix.num_phases). hz1x1 has 8 phases, so the
+        # literal 8 this replaces was right here and silently wrong anywhere else -- a dimension
+        # assumption P7.3b would have inherited.
+        intersections = list(env.intersections)
+        action_counts = Utils.infer_action_counts(getattr(env, "action_space", None), intersections)
+        n_actions = int(min(action_counts))
         if kind == "dt":
             choose, diagnostics = dt_choose(
                 env, checkpoint_path=checkpoint["path"], target_rtg=target_rtg  # type: ignore[index]
@@ -1034,7 +1046,9 @@ def run_cell(
         # Counted, for both kinds: a decision count taken from the declared horizon rather than
         # from the episode would make validate_cell_payload's check a tautology.
         "decisions": len(actions),
-        "actions_in_range": bool(actions) and all(0 <= int(action) < 8 for action in actions),
+        "actions_in_range": bool(actions)
+        and all(0 <= int(action) < n_actions for action in actions),
+        "action_space_n": n_actions,
         "episode_reward": rollout.episode_reward,
         "att_horizon": rollout.att_horizon,
         "att_env": att_env,
@@ -1089,7 +1103,7 @@ def run_cell(
 #: The only chunk fields that may reach ``docs/data/``.  A whitelist, not a blacklist: a field added
 #: to the chunk later is excluded by default rather than by being remembered.
 _PUBLISHED_FIELDS: tuple[str, ...] = (
-    "kind", "subject", "arm", "seed", "policy_seed", "draw_id", "stage",
+    "kind", "subject", "arm", "seed", "policy_seed", "draw_id", "stage", "action_space_n",
     "att_env", "att_horizon", "att_running_mean", "e_sumo", "p_sumo", "w_sumo",
     "mean_depart_delay", "episode_reward", "horizon_vehicle_count", "decisions",
     "engine_seed_requested", "engine_seed_drawn",
@@ -1175,6 +1189,10 @@ def report(
     data = _data_dir(data_dir)
 
     # ---------------------------------------------------------------- 1. the cell-set guard
+    # The WHOLE declaration, and this stage's slice of it. Both are derived from the declaration
+    # and never from the chunks on disk, which is what stops the completeness check being a
+    # tautology (PROJECT_PLAN section 7).
+    all_declared = list(declared_cells(None) if cells is None else cells)
     declared = list(declared_cells(stage) if cells is None else cells)
     if cells is not None:
         if stage is not None:
@@ -1211,20 +1229,31 @@ def report(
 
     # ---------------------------------------------------------------- 5. completeness
     declared_by_name = {cell_chunk_name(cell): cell for cell in declared}
+    all_declared_names = {cell_chunk_name(cell) for cell in all_declared}
     missing = sorted(set(declared_by_name) - set(chunks))
     if missing:
         raise ValueError(
             f"{len(missing)} declared cell(s) have no chunk (first: {missing[:3]}); the campaign is "
             "incomplete and a partial artifact would report an arm on fewer draws than registered"
         )
-    extra = sorted(set(chunks) - set(declared_by_name))
+    # ⚠️ Reviewer MIN-5: the two stages SHARE one work directory (B1), so a chunk that is a
+    # declared cell of the OTHER stage is not an intruder -- it is the rest of the campaign. Before
+    # this, `report --stage confirmatory` refused as soon as stage 2 wrote its first chunk, which
+    # made the stage-1 artifact regenerable only from a tree that stops existing the moment stage 2
+    # starts -- while B2 checks its byte-identity at the recording commit. Counted, never read.
+    outside_stage = sorted(set(chunks) & set(all_declared_names) - set(declared_by_name))
+    extra = sorted(set(chunks) - set(all_declared_names))
     if extra:
         raise ValueError(
-            f"{len(extra)} chunk(s) are not declared cells (first: {extra[:3]}); an undeclared cell "
-            "reaching the artifact is an evaluation nobody registered"
+            f"{len(extra)} chunk(s) are not declared cells of ANY stage (first: {extra[:3]}); an "
+            "undeclared cell reaching the artifact is an evaluation nobody registered"
         )
+    # Every chunk on disk is validated, whatever stage it belongs to: an undeclared ARM anywhere in
+    # the work directory refuses, which is B2's rule and is what keeps the filtering above from
+    # becoming a way to hide a cell.
     for name, payload in chunks.items():
-        validate_cell_payload(payload, cell=declared_by_name[name])
+        validate_cell_payload(payload, cell=declared_by_name.get(name))
+    chunks = {name: payload for name, payload in chunks.items() if name in declared_by_name}
 
     # ---------------------------------------------------------------- 6. the digests, from disk
     demand_by_draw: dict[int, dict[str, Any]] = {}
@@ -1328,6 +1357,9 @@ def report(
         "scenario_key": SCENARIO_KEY,
         "stage": stage,
         "n_cells_declared": len(declared),
+        # Declared cells of the OTHER stage that share this work directory (B1). Counted so the
+        # artifact says what else was on disk, and never read into any number (reviewer MIN-5).
+        "n_chunks_outside_stage": len(outside_stage),
         "cell_set_source": "declared_cells()" if cells is None else "caller-supplied declaration",
         "halting_check_draw": HALTING_CHECK_DRAW,
         "cells": rows,
@@ -1510,9 +1542,19 @@ def _h3_block(by_arm: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     """
     registered = [entry for entry in by_arm if entry["arm"] == "b_mean_k100"]
     clauses: list[dict[str, Any]] = []
-    for inequality, clause, test in (
-        ("rho_sumo(b_mean_k100) > 0", "better than the within-backend fixed-time anchor", lambda m: m > 0.0),
-        ("rho_sumo(b_mean_k100) < 1", "worse than within-backend MaxPressure", lambda m: m < 1.0),
+    for inequality, clause, point_test, interval_test in (
+        (
+            "rho_sumo(b_mean_k100) > 0",
+            "better than the within-backend fixed-time anchor",
+            lambda stats: stats["mean"] > 0.0,
+            lambda stats: stats["ci95_low"] > 0.0,
+        ),
+        (
+            "rho_sumo(b_mean_k100) < 1",
+            "worse than within-backend MaxPressure",
+            lambda stats: stats["mean"] < 1.0,
+            lambda stats: stats["ci95_high"] < 1.0,
+        ),
     ):
         for key in ("e_sumo", "att_env"):
             clauses.append(
@@ -1520,7 +1562,17 @@ def _h3_block(by_arm: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
                     "inequality": inequality,
                     "clause": clause,
                     "definition": key,
-                    "holds": {str(e["subject"]): bool(test(e[key]["mean"])) for e in registered},
+                    # ⚠️ Amendment H7: this used to be one boolean called `holds`, which anyone
+                    # opening the artifact would read as "confirmed" -- a verdict on a point
+                    # estimate, next to a registered test row that is a PAIRED comparison. Two
+                    # mechanical facts now sit side by side and neither is a verdict: whether the
+                    # mean is on the claimed side, and whether the WHOLE analytic interval is.
+                    "point_estimate_satisfies": {
+                        str(e["subject"]): bool(point_test(e[key])) for e in registered
+                    },
+                    "ci95_entirely_satisfies": {
+                        str(e["subject"]): bool(interval_test(e[key])) for e in registered
+                    },
                     "mean_rho": {str(e["subject"]): e[key]["mean"] for e in registered},
                     "ci95_low": {str(e["subject"]): e[key]["ci95_low"] for e in registered},
                     "ci95_high": {str(e["subject"]): e[key]["ci95_high"] for e in registered},
@@ -1542,7 +1594,10 @@ def _h3_block(by_arm: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
             "'closes substantially by k = 100' is P7.3b's and is NOT tested by this artifact"
         ),
         "reported_not_interpreted": (
-            "the inequality and its value are reported; this artifact draws no conclusion from them"
+            "the inequality and its value are reported; this artifact draws no conclusion from "
+            "them. point_estimate_satisfies and ci95_entirely_satisfies are arithmetic on the "
+            "numbers beside them, not verdicts: the registered test row is the paired comparison, "
+            "which is reported in rho.by_subject_arm[*].paired_att"
         ),
     }
 
@@ -1813,8 +1868,12 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "canary":
         seconds, facts = measure_canary()
-        check_canary(facts)
+        # PRINT FIRST, THEN CHECK (reviewer MIN-6, matching P7.2b): on a failed correctness half the
+        # OBSERVED values must be visible in the pane and in canary.log, or the refusal says only
+        # that something was wrong. The driver captures this line with `tee -a`, so printed is also
+        # recorded -- and `set -euo pipefail` is what makes the failure still stop the run.
         print(format_canary_line(seconds, facts), flush=True)
+        check_canary(facts)
         return 0
 
     if args.command == "record-canary":
@@ -1825,11 +1884,38 @@ def main(argv: Sequence[str] | None = None) -> int:
         # The gate lives in transfer_calibration, where P7.2b's probe does; this is the CLI the
         # P7.3a driver runs it from. It RAISES on a mismatch -- 100/100 or P7.3 stops -- so the
         # driver's `|| fail` sees a non-zero exit and the campaign never reaches an evaluation cell.
-        from offline.transfer_calibration import assert_logged_corpus_matches_probe
-
-        record = assert_logged_corpus_matches_probe(
-            args.corpus_dir, Path(args.data_dir) / P7_2B_CALIBRATION_NAME
+        #
+        # ⚠️ THE BAND IS PASSED EXPLICITLY, AND THAT IS THE WHOLE OF AMENDMENT H1.
+        # `assert_logged_corpus_matches_probe` defaults `draw_ids=None` to *the draws present in
+        # the corpus*, so a gate called without a band checks the corpus against itself: the
+        # coordinator ran this CLI on the ONE-draw smoke corpus and got `n_checked: 1,
+        # all_match: true, exit 0`. A 99-draw corpus would have passed, and P7.3b's few-shot
+        # source would have been short a draw with nothing saying so. The expectation is derived
+        # from the REGISTERED band, never from the data (PROJECT_PLAN section 7).
+        from offline.transfer_calibration import (
+            PROBE_DRAW_END_DEFAULT,
+            PROBE_DRAW_START_DEFAULT,
+            assert_logged_corpus_matches_probe,
         )
+
+        artifact_path = Path(args.data_dir) / P7_2B_CALIBRATION_NAME
+        # Reviewer MIN-7: the gate reads the same artifact the prompts come from, so it is pinned
+        # here too -- a gate that checked a corpus against a file that had moved proves nothing.
+        load_calibration(artifact_path)
+
+        band = range(PROBE_DRAW_START_DEFAULT, PROBE_DRAW_END_DEFAULT)
+        expected = len(band)
+        record = assert_logged_corpus_matches_probe(
+            args.corpus_dir, artifact_path, draw_ids=band
+        )
+        if record["n_checked"] != expected or record["n_matching"] != expected:
+            raise ValueError(
+                f"A17(f) checked {record['n_checked']} draw(s) and matched {record['n_matching']} "
+                f"of the declared {expected} ({PROBE_DRAW_START_DEFAULT}-{PROBE_DRAW_END_DEFAULT - 1}); "
+                "100/100 or P7.3 stops"
+            )
+        # The one line the coordinator reads at the stage-1 checkpoint, before stage 2's token.
+        print(f"A17(f) {record['n_matching']}/{expected}", flush=True)
         print(json.dumps(record, indent=2, sort_keys=True), flush=True)
         return 0
 
