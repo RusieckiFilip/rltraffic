@@ -124,12 +124,42 @@ if [ -n "$ALIVE" ]; then
   exit 3
 fi
 
-# `kill -- -$$` in the signal handler is a NO-OP unless this script leads its own process group,
-# which a tmux foreground pane gives and `bash script.sh &` does not. Fail closed.
+# `kill -- -$$` in the signal handler is a NO-OP unless this script leads its own process group.
+# ⚠️ CORRECTED (Amendment J3, to what the reviewer MEASURED). The earlier sentence here claimed a
+# backgrounded script does not lead its group. Measured: a plain `&` from a non-interactive shell
+# DID lead its own group, and what produced a non-leader was `set +m` -- job control switched off.
+# The check below is unchanged; only the sentence explaining it was wrong.
 if [ "$(ps -o pgid= -p $$ | tr -d ' ')" != "$$" ]; then
   echo "REFUSING TO START: not a process-group leader; run in a tmux foreground pane" >&2
-  echo "  The handler kills the process group, and that is a no-op from a background job, so" >&2
-  echo "  an interrupted run would leave the worker pool writing. Nothing consumed." >&2
+  echo "  The handler kills the process group, and that is a no-op from a non-leader, so an" >&2
+  echo "  interrupted run would leave the worker pool writing. Nothing consumed." >&2
+  exit 2
+fi
+
+# Amendment J3 (reviewer min-2): a shell that STARTS with SIGINT ignored cannot trap it -- bash
+# does not let a non-interactive shell trap a signal that was ignored on entry -- so Ctrl-C would
+# do nothing at all while the pool kept writing and the token was already gone. Signal 2's bit in
+# the SigIgn mask is 0x2. Fail closed, like the group-leader check above.
+SIGIGN_MASK=$(awk '/^SigIgn:/ { print $2 }' /proc/$$/status)
+if [ -n "$SIGIGN_MASK" ] && [ $(( 0x$SIGIGN_MASK & 0x2 )) -ne 0 ]; then
+  echo "REFUSING TO START: SIGINT is IGNORED in this shell (SigIgn $SIGIGN_MASK)" >&2
+  echo "  bash cannot trap a signal that was ignored on entry, so the trap below would be a" >&2
+  echo "  no-op and Ctrl-C could not stop an interrupted run. Start the driver from a shell" >&2
+  echo "  that does not ignore SIGINT -- a tmux foreground pane does not. Nothing consumed." >&2
+  exit 2
+fi
+
+# Amendment J1(d): a multi-hour stage must not run from a tree that is being edited. ONE untracked
+# file makes every chunk rolled after it `git_dirty: true`, and validate_cell_payload then refuses
+# those cells one at a time, hours in. J1(e): the campaign runs from a dedicated worktree
+# (/home/filip/rltraffic-p73a-run) detached at the reviewed commit, which no session edits.
+WORK_TREE_DIRTY=$(git -C "$WORK_TREE" status --porcelain)
+if [ -n "$WORK_TREE_DIRTY" ]; then
+  echo "REFUSING TO START: the worktree $WORK_TREE is DIRTY" >&2
+  echo "$WORK_TREE_DIRTY" | sed 's/^/    /' >&2
+  echo "  Every cell rolled from this tree would record git_dirty: true, which report refuses" >&2
+  echo "  one cell at a time. Run the campaign from the dedicated worktree detached at the" >&2
+  echo "  reviewed commit (Amendment J1(e)). Nothing has been consumed." >&2
   exit 2
 fi
 
@@ -161,7 +191,18 @@ done
 # O_TRUNC, so when an operator runs this driver with `>> log 2>&1` the open resets the file offset
 # and destroys everything already written. P7.2b lost run 3's capture exactly that way.
 echo "=== canary (PROJECT_PLAN section 7; recipe BRIEF_36 section 3.3)"
-CANARY_LINE=$(PYTHONPATH=$WORK_TREE "$PY" -P -m offline.transfer_curve "${COMMON[@]}" canary | tee -a /dev/stderr)
+# ⚠️ Amendment J3 (reviewer min-4): the failure is CAUGHT here and gets its own refusal, because
+# `fail()` exits 1 and writes FAILED into the work directory -- an end state that says a run
+# started. A canary that refuses has consumed nothing, and says so, and exits 2 like every other
+# pre-token refusal. `set -euo pipefail` is what makes the pipeline's failure visible at all.
+if ! CANARY_LINE=$(PYTHONPATH=$WORK_TREE "$PY" -P -m offline.transfer_curve "${COMMON[@]}" canary | tee -a /dev/stderr); then
+  echo "REFUSING TO START: the canary FAILED -- its timing or its correctness half" >&2
+  echo "  The observed line is above: the canary prints before it checks, so the values are" >&2
+  echo "  visible even when the check refuses. A correctness failure means the ENGINE did not" >&2
+  echo "  reproduce draw 0, which is a finding about the engine and not a rate question." >&2
+  echo "  Nothing has been consumed." >&2
+  exit 2
+fi
 echo "$CANARY_LINE"
 CANARY=$(echo "$CANARY_LINE" | awk '{print $2}')
 if awk -v c="$CANARY" -v m="$CANARY_MAX_SECONDS" 'BEGIN { exit !(c > m) }'; then
@@ -199,7 +240,11 @@ on_signal() {
   kill -- -$$ 2>/dev/null || true
   exit 130
 }
-trap on_signal INT TERM
+# ⚠️ HUP as well as INT and TERM (Amendment J2). A closed tmux pane or a dropped SSH session sends
+# exactly SIGHUP, and it was not trapped: measured, a HUP during A17(f) exited 129 with the token
+# consumed, canary.json and the logs written, and NEITHER FAILED NOR COMPLETE -- the end state the
+# trap-before-token rule exists to prevent, reached by the one signal the trap did not name.
+trap on_signal INT TERM HUP
 
 # ---------------------------------------------------------------- the token
 TOKEN=$WORK/AUTHORISED_TO_RUN

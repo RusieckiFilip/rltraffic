@@ -13,6 +13,7 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
+import subprocess
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -20,6 +21,24 @@ import pytest
 
 from offline import transfer_calibration as tc
 from offline import transfer_curve as tcv
+
+
+def _head_sha() -> str:
+    """This tree's HEAD, so a fixture chunk carries a commit the repository actually knows.
+
+    Amendment J1(c) compares a chunk's commit with HEAD through ``git diff``; a fabricated sha
+    (the ``"0" * 40`` these fixtures used to carry) is an unknown revision, and a chunk whose
+    provenance cannot be resolved is exactly what J1 requires to be refused.
+    """
+    return subprocess.run(
+        ["git", "-C", str(Path(__file__).resolve().parents[1]), "rev-parse", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+
+
+HEAD_SHA = _head_sha()
 
 REPO_DATA = Path(__file__).resolve().parents[1] / "docs" / "data"
 P7_2B = REPO_DATA / "p7_2b_calibration.json"
@@ -735,7 +754,7 @@ def _payload(cell: Mapping[str, Any], roots: _Roots, **overrides: Any) -> dict[s
         "calibration_sha256": tcv.P7_2B_CALIBRATION_SHA256,
         "canary_seconds": 0.87,
         "seconds": 37.06,
-        "git_commit": "0" * 40,
+        "git_commit": HEAD_SHA,
         "git_dirty": False,
         "checkpoint": None,
         "checkpoint_sha256": None,
@@ -787,7 +806,7 @@ def _canary(work: Path) -> None:
                     "att_horizon": tc.CANARY_REFERENCE_ATT_HORIZON,
                     "two_routes_agree": True,
                 },
-                "git_commit": "0" * 40,
+                "git_commit": HEAD_SHA,
                 "git_dirty": False,
             }
         ),
@@ -1112,11 +1131,20 @@ def test_t8_a_test_reaches_the_LAST_refusal_before_the_write(tmp_path: Path) -> 
 
     No patching: a *published field's VALUE* carries P7.2b's fenced marker, which passes every
     key-shaped check above and is caught only because the guard reads the bytes that are about to be
-    written.  ``git_commit`` is the carrier because it is free text that reaches the artifact.
+    written.
+
+    ⚠️ **The carrier moved from ``git_commit`` to ``checkpoint``** when Amendment J1(b) began
+    refusing a non-40-hex commit: that refusal sits ABOVE the fence, so the old carrier stopped
+    reaching it and this test would have passed on the wrong refusal.  ``checkpoint`` is published,
+    is free text, and is not validated for content -- ``report`` pins the checkpoint's DIGEST, not
+    the path it was read from -- so the route still reaches the serialised bytes with delivered
+    code and no patching.
     """
     roots, _ = _campaign(tmp_path)
-    cell = _cell("anchor", "fixedtime", 1000)
-    tcv.write_chunk(_payload(cell, roots, git_commit=tc.FENCED_KEY), work_dir=roots.work)
+    cell = _cell("dt", "b_mean_k100", 1000, subject="mappo1000", seed=101)
+    tcv.write_chunk(
+        _payload(cell, roots, checkpoint=f"/weights/{tc.FENCED_KEY}.pt"), work_dir=roots.work
+    )
 
     with pytest.raises(AssertionError, match="reached the artifact"):
         _report(roots)
@@ -1344,6 +1372,17 @@ def _install_cell_seams(
     def spying_shape_check(cell: Mapping[str, Any], env: Any) -> None:
         note("shape-checked")
         real_shape_check(cell, env)
+
+    # ⚠️ Provenance is a seam of the ENVIRONMENT, like the env and the rollout above, and it is
+    # faked for the same reason: these tests assert how a chunk is ASSEMBLED, and the tree they run
+    # in is the implementer's, which is dirty while the round is being written. Amendment J1(b)
+    # refuses a dirty cell -- correctly -- so without this the assembly tests would fail on the
+    # state of my working copy rather than on the code under test. That a dirty cell IS refused is
+    # asserted separately, against the real function, in
+    # test_j1_validate_refuses_a_chunk_without_clean_provenance.
+    monkeypatch.setattr(
+        tcv, "_git_provenance", lambda: {"git_commit": HEAD_SHA, "git_dirty": False}, raising=True
+    )
 
     monkeypatch.setattr(tcv, "env_for_cell", lambda cell, **k: _Env(), raising=True)
     monkeypatch.setattr(tcv, "anchor_choose", fake_anchor_choose, raising=True)
@@ -2270,3 +2309,265 @@ def test_f1_the_pilot_summary_carries_no_outcome(tmp_path: Path, monkeypatch: py
     assert "FENCED" in transcript
     assert "n = 16" in transcript
     assert "draw 5" in transcript
+
+
+# ==================================================================================
+# J1 -- provenance is MEASURED strictly and CHECKED at every consumer
+# ==================================================================================
+def test_j1_provenance_is_measured_strictly_and_a_failing_git_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """J1(a). A failure to MEASURE the tree must raise, never read as a clean tree.
+
+    ``materialise_draws._git_commit`` returns ``dirty = False`` whenever ``git status`` cannot run,
+    so an unmeasured tree records as a clean one -- and section 7's gate, *the zero-shot artifact's
+    provenance is clean*, would then be satisfied by the absence of evidence.  P7.3a measures it
+    itself and refuses instead.
+    """
+    import subprocess as sp
+
+    provenance = tcv._git_provenance()
+    assert set(provenance) == {"git_commit", "git_dirty"}
+    assert len(provenance["git_commit"]) == 40
+    assert provenance["git_commit"] == HEAD_SHA
+    assert isinstance(provenance["git_dirty"], bool)
+
+    def failing_run(*args: Any, **kwargs: Any) -> Any:
+        return sp.CompletedProcess(args=args, returncode=128, stdout="", stderr="not a repository")
+
+    monkeypatch.setattr(tcv.subprocess, "run", failing_run, raising=True)
+    with pytest.raises(RuntimeError, match="git|provenance"):
+        tcv._git_provenance()
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "match"),
+    [
+        ("git_dirty", True, "dirty"),
+        ("git_commit", "abc123", "git_commit"),
+        ("git_commit", "z" * 40, "git_commit"),
+        ("git_commit", None, "git_commit"),
+    ],
+)
+def test_j1_validate_refuses_a_chunk_without_clean_provenance(
+    tmp_path: Path, field: str, value: Any, match: str
+) -> None:
+    """J1(b). A cell rolled on a dirty tree, or from an unidentifiable commit, is not evidence.
+
+    The pilot's 33 real chunks all recorded ``git_dirty: true`` and nothing looked at it.  Forty
+    hex characters is what a commit is; ``"z" * 40`` has the right length and is not one.
+    """
+    roots = _build_roots(tmp_path, draws=(1000,), seeds=(101,))
+    cell = _cell("anchor", "fixedtime", 1000)
+
+    with pytest.raises(ValueError, match=match):
+        tcv.validate_cell_payload(_payload(cell, roots, **{field: value}), cell=cell)
+
+
+def test_j1_code_changed_since_reads_real_git_history() -> None:
+    """The real thing, not a monkeypatched stand-in: HEAD against itself, and against the root.
+
+    A comparison of a commit with itself lists nothing; a comparison with the repository's first
+    commit lists most of the tree.  If this ever returns ``[]`` for the root commit the helper is
+    not reading history at all, and every reusability verdict built on it would be vacuous.
+    """
+    root_commit = subprocess.run(
+        ["git", "-C", str(Path(tcv.__file__).resolve().parents[1]), "rev-list",
+         "--max-parents=0", "HEAD"],
+        capture_output=True, text=True, check=True,
+    ).stdout.split()[0]
+
+    assert tcv.code_changed_since(HEAD_SHA) == []
+    assert tcv.code_changed_since(root_commit), "the root commit must differ from HEAD in code"
+    assert all(not path.startswith("docs/") for path in tcv.code_changed_since(root_commit))
+
+
+def test_j1_a_docs_only_difference_is_still_reusable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """J1(c). *Commits may differ only by documentation.*
+
+    A chunk rolled before the stage-1 artifact's own commit -- which is a docs commit -- is still
+    the same computation, so the campaign must not re-roll 1,200 cells because a packet was
+    written.  Nothing outside ``docs/`` may differ.
+    """
+    roots = _build_roots(tmp_path, draws=(1000,), seeds=(101,))
+    cell = _cell("anchor", "fixedtime", 1000)
+    keys = {"cell": cell, "out_root": roots.draws, "output_root": roots.output,
+            "data_dir": roots.data}
+
+    monkeypatch.setattr(
+        tcv, "_paths_changed_between",
+        lambda commit, other="HEAD": ["docs/returns/P7.3a-3.5b-3.6.md", "docs/data/x.json"],
+        raising=True,
+    )
+    assert tcv.chunk_is_reusable(_payload(cell, roots), **keys) is True
+
+    monkeypatch.setattr(
+        tcv, "_paths_changed_between",
+        lambda commit, other="HEAD": ["docs/x.md", "offline/transfer_curve.py"],
+        raising=True,
+    )
+    assert tcv.chunk_is_reusable(_payload(cell, roots), **keys) is False
+
+
+def test_j1_report_refuses_a_chunk_rolled_by_different_code(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """J1(c) at the artifact: a cell rolled by code that has since changed is not this code's cell.
+
+    ``report`` re-derives the verdict rather than trusting ``chunk_is_reusable`` to have run: a
+    resumed campaign can carry chunks a previous revision wrote, and the artifact claims they were
+    all produced by the commit it records.
+    """
+    roots, _ = _campaign(tmp_path)
+    monkeypatch.setattr(
+        tcv, "_paths_changed_between",
+        lambda commit, other="HEAD": ["offline/transfer_curve.py"],
+        raising=True,
+    )
+
+    with pytest.raises(ValueError, match="offline/transfer_curve.py|outside docs"):
+        _report(roots)
+    assert list(roots.out.iterdir()) == []
+
+
+def test_j1_the_artifact_records_the_chunk_commits_per_stage(tmp_path: Path) -> None:
+    """J1(c): the artifact says which commits its cells were rolled by, per stage.
+
+    The top-level ``git_commit`` is ``report``'s own, taken at write time; it says nothing about
+    the code that produced the cells, and the two are routinely different (the stage-1 artifact is
+    written by a docs commit).
+    """
+    roots, _ = _campaign(tmp_path)
+
+    artifact = _report(roots)
+
+    by_stage = artifact["chunk_commits_by_stage"]
+    assert by_stage == {tcv.STAGE_CONFIRMATORY: [HEAD_SHA]}
+    assert artifact["git_commit"] == HEAD_SHA
+
+
+# ==================================================================================
+# J2 / J3 -- the driver's signal and start-condition gaps
+# ==================================================================================
+def test_j2_the_trap_covers_hup_as_well_as_int_and_term() -> None:
+    """J2. A closed tmux pane or a dropped SSH session sends SIGHUP, and nothing trapped it.
+
+    Measured by the coordinator: SIGHUP during A17(f) exits 129 with the token consumed, the logs
+    written and **neither FAILED nor COMPLETE** -- precisely the end state the trap-before-token
+    rule exists to prevent, reached by the one signal the trap did not name.
+    """
+    code = _driver_code_text()
+    assert "trap on_signal INT TERM HUP" in code
+
+
+def test_j3_the_driver_refuses_when_sigint_is_ignored_on_entry() -> None:
+    """J3 (reviewer min-2). A shell started with SIGINT ignored CANNOT trap it.
+
+    ``bash`` does not let a non-interactive shell trap a signal that was ignored on entry, so
+    Ctrl-C would do nothing and the pool would keep writing with the token already consumed.  The
+    check is fail-closed and pre-token, like the group-leader check beside it.
+    """
+    code = _driver_code_text()
+    assert "/proc/$$/status" in code
+    assert "SigIgn" in code
+    token = code.index('rm -f "$TOKEN"')
+    assert code.index("SigIgn") < token, "the refusal must precede the token being consumed"
+    assert "REFUSING TO START" in code[code.index("SigIgn") : token]
+
+
+def test_j1d_the_driver_refuses_a_dirty_worktree_before_the_token() -> None:
+    """J1(d). A multi-hour stage must not run from a tree that is being edited.
+
+    One untracked file makes every chunk after it dirty, and J1(b) then refuses those cells one by
+    one, hours in.  The driver checks once, before the token, and names the paths.
+    """
+    code = _driver_code_text()
+    assert 'git -C "$WORK_TREE" status --porcelain' in code
+    token = code.index('rm -f "$TOKEN"')
+    assert code.index('git -C "$WORK_TREE" status --porcelain') < token
+    assert "DIRTY" in code or "dirty" in code
+
+
+def test_j3_a_failed_canary_gets_its_own_refusal_and_exit_two() -> None:
+    """J3 (min-4). A failed canary must say *nothing has been consumed* and exit 2, not 1.
+
+    ``fail()`` exits 1 and writes FAILED into the work directory -- an end state that says a run
+    started.  A canary that refuses has consumed nothing, and its exit code must be the one every
+    other pre-token refusal uses.
+    """
+    code = _driver_code_text()
+    assert "if ! CANARY_LINE=$(" in code, "the canary's failure must be caught, not left to set -e"
+    canary_block = code[code.index("if ! CANARY_LINE=$(") : code.index('rm -f "$TOKEN"')]
+    assert "exit 2" in canary_block
+    assert "REFUSING TO START" in canary_block
+    assert "fail " not in canary_block, "fail() exits 1 and writes FAILED; this is a pre-token path"
+
+
+def test_j3_the_header_states_what_was_measured_about_process_groups() -> None:
+    """J3: the header's ``bash script.sh &`` sentence was not what the reviewer measured.
+
+    A plain ``&`` from a non-interactive shell DID lead its own group; ``set +m`` is what produced
+    the non-leader.  An assertion about what the driver SAYS may read the whole file, comments
+    included -- that is the half ``_driver_code_text`` deliberately drops.
+    """
+    text = DRIVER.read_text(encoding="utf-8")
+    assert "set +m" in text, "the corrected sentence names what actually produced a non-leader"
+    assert "DID lead its own group" in text
+    # The driver may QUOTE the old claim in order to correct it -- that is how a correction reads --
+    # so what must be gone is the claim stated as fact, not the words.
+    assert "pane gives and `bash script.sh &` does not" not in text
+
+
+# ==================================================================================
+# J3 -- the two Python minors
+# ==================================================================================
+def test_j3_run_cell_loads_the_calibration_through_the_data_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """J3 (min-6). ``run_cell`` read the committed artifact from the repository, not from data_dir.
+
+    The checkpoint pins already take ``data_dir``; the targets did not, so a run pointed at a
+    different ``--data-dir`` would pin its checkpoints against one set of records and read its
+    prompts from another.
+    """
+    roots = _build_roots(tmp_path, draws=(1000,), seeds=(101,))
+    tampered = roots.data / "p7_2b_calibration.json"
+    tampered.write_bytes(tampered.read_bytes() + b"\n")
+    _install_cell_seams(monkeypatch)
+
+    with pytest.raises(ValueError, match="sha256"):
+        tcv.run_cell(
+            _cell("dt", "b_mean_k100", 1000, subject="mappo1000", seed=101),
+            out_root=roots.draws,
+            output_root=roots.output,
+            data_dir=roots.data,
+            canary_seconds=0.9,
+        )
+
+
+def test_j3_run_pilot_prints_the_canary_line_before_it_checks_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """J3 (min-7). Same rule as the ``canary`` subcommand since H8: print, then check.
+
+    The pilot's transcript is written after the run, so on a failed correctness half the pane is
+    the only place the observed values would appear -- unless the line is printed first.
+    """
+    monkeypatch.setattr(
+        "offline.transfer_calibration.canary_seconds",
+        lambda: (0.88, {"decisions": 360, "local_return": -1.0, "att_horizon": 2.0,
+                        "two_routes_agree": True}),
+        raising=True,
+    )
+
+    with pytest.raises(ValueError, match="canary"):
+        tcv.run_pilot(
+            work_dir=tmp_path / "pilot",
+            out_root=tmp_path / "draws",
+            output_root=tmp_path / "output",
+            data_dir=tmp_path / "data",
+        )
+
+    assert "canary 0.88 s" in capsys.readouterr().out

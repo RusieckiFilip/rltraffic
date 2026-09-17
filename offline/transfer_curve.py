@@ -50,6 +50,7 @@ on draw 5 stays fenced.  :func:`report` refuses any cell whose arm is not declar
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -364,11 +365,63 @@ def _write_json(path: str | Path, payload: Mapping[str, Any]) -> None:
     tmp.replace(target)
 
 
-def _git_provenance() -> dict[str, Any]:
-    from offline.materialise_draws import _git_commit
+def _git(*arguments: str) -> str:
+    """Run one git command in THIS module's tree, and RAISE if it cannot answer.
 
-    commit, dirty = _git_commit()
-    return {"git_commit": commit, "git_dirty": dirty}
+    ⚠️ **Amendment J1(a): this deliberately does NOT reuse ``materialise_draws._git_commit``.**
+    That helper returns ``dirty = False`` whenever ``git status`` cannot run, so an UNMEASURED tree
+    records as a clean one -- and ``BRIEF_37`` §7's gate, *the zero-shot artifact's provenance is
+    clean*, would then be satisfied by the absence of evidence rather than by evidence.  A
+    provenance this task cannot measure is one it refuses to guess.
+    """
+    result = subprocess.run(
+        ["git", "-C", str(_REPO_ROOT), *arguments],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"git {' '.join(arguments)} failed in {_REPO_ROOT} with exit {result.returncode}: "
+            f"{result.stderr.strip()!r}. P7.3a records provenance it has MEASURED or it records "
+            "nothing: a helper that falls back on 'clean' turns an unmeasurable tree into a clean "
+            "one, which is the reading section 7's gate must never be given"
+        )
+    return result.stdout
+
+
+def _git_provenance() -> dict[str, Any]:
+    """The commit this code is at, and whether the tree carrying it has uncommitted changes.
+
+    Measured strictly (J1(a)).  ``git_dirty`` is ``True`` for ANY entry in ``git status
+    --porcelain``, untracked files included: an untracked file in the tree a campaign runs from is
+    exactly what J1(e)'s dedicated worktree exists to prevent.
+    """
+    commit = _git("rev-parse", "HEAD").strip()
+    status = [line for line in _git("status", "--porcelain").splitlines() if line.strip()]
+    return {"git_commit": commit, "git_dirty": bool(status)}
+
+
+def _paths_changed_between(commit: str, other: str = "HEAD") -> list[str]:
+    """The paths that differ between two commits, as ``git diff --name-only`` reports them."""
+    return [
+        line.strip()
+        for line in _git("diff", "--name-only", commit, other).splitlines()
+        if line.strip()
+    ]
+
+
+def code_changed_since(commit: str, other: str = "HEAD") -> list[str]:
+    """Paths outside ``docs/`` that differ between *commit* and *other*.
+
+    Amendment J1(c): **commits may differ only by documentation.**  A chunk rolled before the
+    stage-1 artifact's own commit -- which is a docs commit -- is still the same computation, so a
+    campaign must not re-roll 1,200 cells because a packet was written; a chunk rolled by different
+    CODE is a different computation and is not reusable.  An unknown revision makes :func:`_git`
+    raise, which is the right answer for a chunk whose provenance cannot be resolved at all.
+    """
+    return [
+        path for path in _paths_changed_between(commit, other) if not path.startswith("docs/")
+    ]
 
 
 def _data_dir(data_dir: str | Path | None) -> Path:
@@ -823,6 +876,25 @@ def validate_cell_payload(
             f"{ENGINE_SEED}"
         )
 
+    # ---- J1(b): provenance, checked where it is consumed -------------------------------------
+    # Every chunk has recorded these since section 3.5b and NOTHING read them: the pilot's 33 real
+    # chunks all carry `git_dirty: true`. A cell rolled from a tree with uncommitted changes cannot
+    # be attributed to any commit, so it is not evidence about the code the artifact names.
+    if payload.get("git_dirty") is not False:
+        raise ValueError(
+            f"{label}: git_dirty is {payload.get('git_dirty')!r}, not False. This cell was rolled "
+            "from a tree with uncommitted changes, so the code that produced it is not the code "
+            "any commit names. Run the campaign from the dedicated worktree (J1(e))"
+        )
+    commit = payload.get("git_commit")
+    if not isinstance(commit, str) or len(commit) != 40 or not all(
+        character in "0123456789abcdef" for character in commit.lower()
+    ):
+        raise ValueError(
+            f"{label}: git_commit {commit!r} is not a 40-character hex commit; a cell whose "
+            "provenance cannot be resolved to a revision is not evidence about one"
+        )
+
     checked = bool(payload.get("halting_checked"))
     if checked != halting_check_for(int(payload["draw_id"])):
         raise ValueError(
@@ -906,6 +978,12 @@ def chunk_is_reusable(
         return False
     try:
         validate_cell_payload(payload, cell=cell)
+        # J1(c): rolled by THIS code, or re-rolled. A docs-only difference is not a difference in
+        # the computation. `_git` raises on an unknown revision and that exception is deliberately
+        # NOT caught below: a git that cannot answer is an environment failure, not a verdict about
+        # this chunk, and the campaign must stop rather than silently re-roll 4,700 cells.
+        if code_changed_since(str(payload["git_commit"])):
+            return False
         demand = demand_identity(int(cell["draw_id"]), out_root=out_root)
         if str(payload["config_sha256"]) != demand["config_sha256"]:
             return False
@@ -973,7 +1051,14 @@ def run_cell(
     facts = None
     if kind == "dt":
         subject = str(cell["subject"])
-        artifact = load_calibration() if calibration is None else calibration
+        # J3 (reviewer min-6): through data_dir, as the checkpoint pins already are. A run pointed
+        # at a different --data-dir would otherwise pin its checkpoints against one set of records
+        # and read its prompts from another.
+        artifact = (
+            load_calibration(_data_dir(data_dir) / P7_2B_CALIBRATION_NAME)
+            if calibration is None
+            else calibration
+        )
         target_rtg = float(targets_for_subject(subject, artifact)[arm]["target_rtg"])
         checkpoint = checkpoint_identity(
             subject, int(cell["seed"]), output_root=output_root, data_dir=data_dir
@@ -1259,6 +1344,21 @@ def report(
     chunks = {name: payload for name, payload in chunks.items() if name in declared_by_name}
 
     # ---------------------------------------------------------------- 6. the digests, from disk
+    # J1(c) at the artifact: `report` re-derives the provenance verdict rather than trusting that
+    # `chunk_is_reusable` ran. A resumed campaign can carry chunks a previous revision wrote, and
+    # the artifact claims every cell in it was produced by the code it names.
+    chunk_commits_by_stage: dict[str, set[str]] = {}
+    for name, payload in sorted(chunks.items()):
+        commit = str(payload["git_commit"])
+        chunk_commits_by_stage.setdefault(str(payload.get("stage")), set()).add(commit)
+        changed = code_changed_since(commit)
+        if changed:
+            raise ValueError(
+                f"{name}: it was rolled at {commit}, which differs from HEAD outside docs/ "
+                f"({changed[:3]}, {len(changed)} path(s)). Commits may differ only by "
+                "documentation; this cell was produced by different code and must be re-rolled"
+            )
+
     demand_by_draw: dict[int, dict[str, Any]] = {}
     identity_by_checkpoint: dict[tuple[str, int], dict[str, Any]] = {}
     for name, payload in sorted(chunks.items()):
@@ -1363,6 +1463,13 @@ def report(
         # Declared cells of the OTHER stage that share this work directory (B1). Counted so the
         # artifact says what else was on disk, and never read into any number (reviewer MIN-5).
         "n_chunks_outside_stage": len(outside_stage),
+        # J1(c): the commits the CELLS were rolled by, per stage. The top-level git_commit below is
+        # this report's own, taken at write time, and the two are routinely different -- the
+        # stage-1 artifact is written by a docs commit.
+        "chunk_commits_by_stage": {
+            stage_name: sorted(commits)
+            for stage_name, commits in sorted(chunk_commits_by_stage.items())
+        },
         "cell_set_source": "declared_cells()" if cells is None else "caller-supplied declaration",
         "halting_check_draw": HALTING_CHECK_DRAW,
         "cells": rows,
@@ -1889,9 +1996,12 @@ def run_pilot(
     from offline.transfer_calibration import check_canary, format_canary_line
 
     canary, facts = measure_canary()
-    check_canary(facts)
+    # PRINT FIRST, THEN CHECK (J3, reviewer min-7; the `canary` subcommand has done this since H8).
+    # The transcript is written after the run, so on a failed correctness half the pane is the only
+    # place the observed values would ever appear.
     canary_line = format_canary_line(canary, facts)
     print(canary_line, flush=True)
+    check_canary(facts)
 
     cells = pilot_cells()
     started = time.perf_counter()
