@@ -2364,12 +2364,48 @@ def test_j1_validate_refuses_a_chunk_without_clean_provenance(
         tcv.validate_cell_payload(_payload(cell, roots, **{field: value}), cell=cell)
 
 
+def _repository_is_shallow() -> bool:
+    """Is this checkout missing its history?  ``actions/checkout@v4`` fetches **depth 1** by default.
+
+    On a shallow clone ``git rev-list --max-parents=0 HEAD`` returns **HEAD ITSELF**: the grafted
+    boundary commit has no parent as far as this repository can see, so it answers as the root.  The
+    test below then compares HEAD with HEAD, ``code_changed_since`` correctly returns ``[]``, and its
+    second assertion fails -- for a reason that is about the CHECKOUT and not about the code.
+    Observed on CI run 35335268248 at ``09c4aac``, whose junit record shows ``09c4aac`` itself passed
+    to ``code_changed_since``.
+    """
+    return (
+        subprocess.run(
+            ["git", "-C", str(Path(tcv.__file__).resolve().parents[1]),
+             "rev-parse", "--is-shallow-repository"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        == "true"
+    )
+
+
+@pytest.mark.skipif(
+    _repository_is_shallow(),
+    reason=(
+        "the repository is SHALLOW (git rev-parse --is-shallow-repository = true): with depth-1 "
+        "history, git rev-list --max-parents=0 HEAD returns HEAD itself, so there is no root commit "
+        "to compare against and the comparison would be HEAD against HEAD. Runs on a full clone."
+    ),
+)
 def test_j1_code_changed_since_reads_real_git_history() -> None:
     """The real thing, not a monkeypatched stand-in: HEAD against itself, and against the root.
 
     A comparison of a commit with itself lists nothing; a comparison with the repository's first
     commit lists most of the tree.  If this ever returns ``[]`` for the root commit the helper is
     not reading history at all, and every reusability verdict built on it would be vacuous.
+
+    ⚠️ **Skipped on a shallow checkout, and that is an environment condition, not a weakened
+    assertion** -- see :func:`_repository_is_shallow`.  The two assertions below are unchanged and
+    still run on every full clone, which is where this test can mean anything: the alternative,
+    ``fetch-depth: 0`` in the workflow, would make every CI run clone the whole history for one
+    test.
     """
     root_commit = subprocess.run(
         ["git", "-C", str(Path(tcv.__file__).resolve().parents[1]), "rev-list",
