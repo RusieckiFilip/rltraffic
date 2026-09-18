@@ -8,6 +8,42 @@ git apply docs/patches/agents_incremental_findings.patch    # on main, from the 
 ```
 Adds one section to `.claude/agents/contract-reviewer.md` (checklist first within three tool calls; one append per finding before the next command; read only named line ranges; continue-from-file semantics) and one paragraph to `.claude/agents/master-coordinator.md` (every long spawn names a `FINDINGS.md`, splits into ≤ 15-minute mandates, and on an agent's death files the partial and re-spawns a continuation). The rule itself is in `PROJECT_PLAN` §7 (2026-09-11); this patch makes it load with the agents rather than depend on the coordinator remembering to write it into each mandate. Verified with `git apply --check` on `main` at creation. Docs-only change to two agent definitions; no code, no tests.
 
+## `ci_gate_ceiling_189_p7_3a.patch` — the skip ceiling moves 178 → 189 after P7.3a's merge, and all +11 is P7.3a's own gating
+
+**Apply with:**
+```bash
+git apply docs/patches/ci_gate_ceiling_189_p7_3a.patch    # on main
+.venv/bin/pytest tests/test_ci_gate.py -q                 # -> 34 passed
+```
+Verified with `git apply --check` against `main` at `d92947e` (clean), and **end to end**:
+`ci_gate.py pytest-gate` run against the real `junit.xml` and `pytest.txt` of the run being measured,
+with the new baseline, prints
+`OK pytest-gate: passed=1985 skipped=189 failed=0 errors=0, skip ceiling 189 (0 to spare)` and exits 0.
+
+**Two files:** `.github/ci/ci_baseline.json` and one literal in `tests/test_ci_gate.py`
+(`CEILING_CHAIN`, now 12 links deep).
+
+**Measured, not read off a summary.** Run `35338316324` on `main` at `d92947e`, both legs downloaded
+with `gh run download`, every `<skipped>` message extracted from `junit.xml` with `xml.etree`, the
+`file:line` prefix stripped, and the multisets compared **leg against leg** (identical: 2,174 tests,
+189 skipped, 0 failures, 0 errors on both) **and run against run** — the 178 run `35085215720` was
+downloaded and diffed directly. 8 message texts are new; **nothing was removed**.
+
+**The classifier was cross-checked before it was used:** applied to the 178 run's own messages it
+reproduces that baseline's declared breakdown exactly (92 / 42 / 14 / 2 / 24 / 4). The new families
+are `+7 campaign_output` (draw 5's parity ×3, draw 201's ×2, the CityFlow held-out draws, draw 1000's
+parity), `+1 corpus_or_checkpoint` (the two subjects' checkpoints), `+1 sumo_traci` (a compound
+predicate, assigned to the first condition it names, this file's convention since 156), and two NEW
+families rather than forced fits: `main_tree_interpreter` (1) and `shallow_checkout` (1). Each new
+family carries its own entry in `ceiling_is_a_consequence_of`, which the gate's own tests require.
+
+⚠️ **The red this closes was NOT only the ceiling.** The preceding run `35335268248` carried 188 skips
+**and one real failure** — `test_j1_code_changed_since_reads_real_git_history`, which assumes full git
+history while `actions/checkout@v4` checks out shallow. That was fixed on its own branch and merged
+BEFORE this ceiling was measured, so no ceiling here was ever committed over a red suite. Three prose
+figures inside the baseline that still said 178 / 76 / 14 were refreshed in the same edit — the
+staleness those notes were themselves written about.
+
 ## `ci_gate_ceiling_139_p8_4b.patch` — the skip ceiling moves 123 → 139, and all +16 is P8.4b's own tests
 
 **Apply with:**
