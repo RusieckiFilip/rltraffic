@@ -1526,6 +1526,17 @@ def report(
                     # Every draw undefined on this definition. Reported as such and carried past:
                     # refusing here would decide the handling of an undefined ratio after the
                     # campaign's numbers exist, which is what the 2026-09-17 ruling closes.
+                    #
+                    # ⚠️ CORRECTED 2026-09-18 (BRIEF_38 §2, Finding 4). Until then the sentence
+                    # above was a claim the code did not honour: the None below reached
+                    # `_h3_block`, where `stats["mean"] > 0.0` raised
+                    # `TypeError: '>' not supported between instances of 'NoneType' and 'float'`,
+                    # and `_contrast_block`, where `mean - mean` raised
+                    # `TypeError: unsupported operand type(s) for -: 'NoneType' and 'NoneType'`.
+                    # Both fired AFTER every refusal had passed -- at the point where the artifact
+                    # was about to be written -- so the excluded definition took the REGISTERED
+                    # PRIMARY down with it. Both blocks now carry the None through as None; a
+                    # verdict is not invented and a zero is not substituted.
                     entry[key] = {
                         "n_draws": 0,
                         "mean": None,
@@ -1774,6 +1785,20 @@ def _paired_block(
     }
 
 
+def _satisfies(stats: Mapping[str, Any], test: Any) -> bool | None:
+    """``test(stats)``, or ``None`` when this definition has no usable draw (Finding 4).
+
+    The empty block :func:`report` writes for an all-excluded definition sets ``mean``, ``std``,
+    ``ci95``, ``ci95_low`` and ``ci95_high`` to ``None`` **together**, so ``mean`` is a sufficient
+    test for all of them.  ``None`` here means *this definition had nothing to test*, which is not
+    the same fact as ``False`` (*it was tested and the inequality did not hold*) -- and writing
+    ``False`` there would be this code inventing a verdict about draws it excluded.
+    """
+    if stats.get("mean") is None:
+        return None
+    return bool(test(stats))
+
+
 def _h3_block(by_arm: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     """H3's first two clauses as the registered INEQUALITIES, reported and not interpreted.
 
@@ -1815,11 +1840,14 @@ def _h3_block(by_arm: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
                     # estimate, next to a registered test row that is a PAIRED comparison. Two
                     # mechanical facts now sit side by side and neither is a verdict: whether the
                     # mean is on the claimed side, and whether the WHOLE analytic interval is.
+                    # Finding 4: `_satisfies` returns None on an all-excluded definition rather
+                    # than raising TypeError on `None > 0.0`, which used to take the whole report
+                    # down -- including the REGISTERED PRIMARY, which had lost nothing.
                     "point_estimate_satisfies": {
-                        str(e["subject"]): bool(point_test(e[key])) for e in registered
+                        str(e["subject"]): _satisfies(e[key], point_test) for e in registered
                     },
                     "ci95_entirely_satisfies": {
-                        str(e["subject"]): bool(interval_test(e[key])) for e in registered
+                        str(e["subject"]): _satisfies(e[key], interval_test) for e in registered
                     },
                     "mean_rho": {str(e["subject"]): e[key]["mean"] for e in registered},
                     "ci95_low": {str(e["subject"]): e[key]["ci95_low"] for e in registered},
@@ -1862,7 +1890,13 @@ def _contrast_block(by_arm: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
             key: {
                 "calibrated_mean_rho": calibrated[0][key]["mean"],
                 "naive_mean_rho": naive[0][key]["mean"],
-                "difference": calibrated[0][key]["mean"] - naive[0][key]["mean"],
+                # Finding 4: `None - None` is a TypeError. An undefined difference is reported as
+                # None -- never as 0.0, which would read as "the two prompts agreed".
+                "difference": (
+                    None
+                    if calibrated[0][key]["mean"] is None or naive[0][key]["mean"] is None
+                    else calibrated[0][key]["mean"] - naive[0][key]["mean"]
+                ),
             }
             for key in ("e_sumo", "att_env")
         }
