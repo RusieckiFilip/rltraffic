@@ -434,3 +434,14 @@ The 16-cell rate was measured on `a0327ce` plus uncommitted edits; the pre-fligh
 A17(f) passing on a real 100-draw corpus, `cells --stage` and `report` reached through the driver, the manifest step: **the stage-1 run itself**, attended, read by the coordinator before stage 2's token. Stage-1 versus final byte-identity on real data: the final `report`.
 
 **Then, in order: push `af5f883` · J1–J4, one commit, tests and mutations executed, packet addendum · the coordinator re-runs J1's and J2's falsifications · J5 from the dedicated worktree · the coordinator reads J5's transcript and chunk provenance from disk · the stage-1 token, written by the author.**
+
+---
+
+# 📎 WHERE THE RULINGS AFTER AMENDMENT J LIVE (added 2026-09-18, at merge, on merge reviewer A's process finding)
+
+**This brief ends at Amendment J by the author's instruction, not by omission.** From 2026-09-17 the author ruled that findings before the campaign came to him as paragraphs and that he decided each one, so the rulings that followed were recorded in `docs/PROJECT_PLAN.md`'s Decisions Log rather than as amendment blocks here. A reader of this brief alone would not find them, which is what reviewer A flagged. They are, by date in that log:
+
+- **2026-09-17 ⚖️ (Findings 1–3)** — the env-ATT denominator diagnostic; the exactly-zero env-ATT denominator RECORDED AND EXCLUDED with `rho_att_env: null` and the resulting `n` reported, the primary `E_sumo` keeping its refusal; the caveat carried in the ARTIFACT, in its env-ATT block and on every H3 clause computed on env ATT; the stage artifacts written to `$WORK/artifacts` outside the run worktree; and a test that EXECUTES the driver's dirty-tree refusal. **This is where the `rho_att_env: null` path is registered.**
+- **2026-09-17 ⚖️ (Findings 4–5)** — both to the packet with no code change before the run, with the all-excluded claim corrected to what was measured and the exit-3 failure mode named.
+- **2026-09-17 🚦** — the cooling-pad canary withdrawn as a gate (F3), the driver's stage-start canary being the rate basis.
+- **2026-09-18 ⚖️** — the merge reviews' ruling: a docs-only packet round, then merge, with reviewer A's five unpinned seams opening `BRIEF_38`.
