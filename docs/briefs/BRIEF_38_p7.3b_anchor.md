@@ -93,3 +93,31 @@ Token, lock, group-leader check, the SigIgn refusal, the dirty-tree refusal, the
 
 ## 8. Return Packet
 `docs/returns/TEMPLATE.md`, plus: the plan-gate training rate with its date; the disjointness assertion's output; the five-draw re-collection comparison; both corpus digest files; the training artifact's per-seed digests; ρ per definition with CIs and the paired-CI helper named; the anchor's position beside H3's clauses, reported not interpreted; the driver capture of every run including any refused start; the amendments and rulings written against, by letter and by Decisions-Log date; the AI-assistance record's four lines; *what P7.3d will assume*.
+
+---
+
+# ✅ AMENDMENT A — 2026-09-18, at the plan gate: PLAN APPROVED (`docs/plans/p7.3b.md` @ `8250d86`), with six rulings and two corrections to this brief
+
+**Verified by the coordinator from the code, not from the plan's prose:** `build_training_dataset(dataset_dirs, context_length)` takes a sequence of directories (`dt_gate.py:571`); `DRAW_SPLITS` puts 1–999 in `train` and 1000–1099 in `heldout` (`dataset.py:177-181`), so draws 201–400 land in the training split by the table and not by a default; the naive rule is exactly the seven lines at `dt_gate.py:1381-1387`, quoted correctly; `disjointness_record` exists (`transfer_calibration.py:597`) and is stronger than the brief's `assert_probe_draws_disjoint`; `CHECKPOINT_RECORD` is keyed by subject, so an unknown subject raises; **and the collision is real — `docs/data/p7_2b_calibration.json` records `rule_a q1.0 target_rtg = −20809.0` for BOTH subjects.** **Proceed to §2's pins.**
+
+## A1 — Q1: the third declared stage is CONFIRMED, and `report`'s refusal is not relaxed
+A caller-supplied cell set may not write a committed artifact; that refusal stays exactly as it is. **Required so the change cannot disturb what is already published: `declared_cells(None)` still returns the campaign's 4,700 and its two stages still partition it element for element** — the anchor's 700 cells (500 + the two re-rolled ρ anchors × 100) are reachable only through the anchor stage by name. T14 is that test, written before the change.
+
+## A2 — Q2: write `SHA256SUMS` INSIDE each corpus directory, and turn the concern into a CHECK
+Over the `.npz` files and `manifest.json`, excluding the digest file itself. **For the 201–300 half the digests must equal the coordinator's independently recorded file** `output/p7_3a_runs/coordinator_stage1_verify/SHA256SUMS_datasets_sumo_v11_hz1x1_sumo_maxpressure.txt` (`e81cf687…`, taken before anything in this task touched the tree) — **any difference STOPS the task**, because that corpus is A17(f)-gated evidence. Then **re-run A17(f) on that half after the file exists** and paste `A17(f) 100/100`: that is what proves the gate is indifferent to it, rather than a reading of `dataset.py:521`.
+
+## A3 — Q3: `raise_to=None`, CONFIRMED. A18(a) fixes 40,000 steps outright; P4's plateau raise is not part of the registered recipe. The artifact records `declared_gradient_steps: 40000` and `raise_to: null`.
+
+## A4 — Q4: `random` is NOT re-rolled, CONFIRMED
+ρ's denominator uses fixed-time and MaxPressure only. P7.3a's 500 `random` cells stay where they are, and the anchor's artifact states that they were not re-rolled and why, so no reader infers a `random` comparison this task did not run.
+
+## A5 — Q5: the route test is the primary, and the collision goes in the PACKET
+The proof that the anchor's prompt is its own is the route (`load_calibration` monkeypatched to raise), never a value. **The packet states the collision plainly:** on the 201–300 half the naive in-domain target and A17's Rule A `q = 1.0` are the same number *by construction* — both are the maximum of the same 100 SUMO probe returns. When 301–400 exists the artifact records the 200-episode value beside it; **if it is still −20809.0, say so in those words** rather than letting a value test look load-bearing.
+
+## A6 — Q6: BOTH cross-references in this brief were WRONG, and they are the coordinator's error
+§6's *"§10's outcome rows"* means **`PREREGISTRATION` §10**, the registered outcome rows, not a section of this brief — this brief has none. §4's *"§4's cap"* means **`BRIEF_37` §4's cap of four SUMO episodes in the suite**, of which this task may add at most one. The implementer's readings were correct on both counts; the text is corrected here rather than silently, because a brief that points at itself is how a requirement goes missing.
+
+## A7 — Recorded, no action: the plan's own strengths, so they are not re-litigated later
+The 1,000-step slice is labelled an upper bound on per-step cost and compared with P4's committed 204.08 s rather than replacing it; assumption 7 (the stage addition leaves P7.3a's stages element-identical) is marked *argued, not executed* and is T14; `materialise_draws` is called unmodified and the plan STOPS if the band needs a change (§3.1); nothing outside the plan file exists yet.
+
+**Then: §2's five pins and Finding 4's fix as the first commit, which the coordinator re-runs every mutation against before §3 begins.**
