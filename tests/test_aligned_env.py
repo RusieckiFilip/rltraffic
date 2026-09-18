@@ -263,3 +263,207 @@ def test_wrapping_an_aligned_env_is_refused_at_construction() -> None:
             AlignedEnv(env, declared_alignment())
     finally:
         env.close()
+
+
+# ----------------------------------------------------------------------------------
+# T7b (BRIEF_37 Amendment A2) -- the door is for a CityFlow-trained model, not for an anchor
+# ----------------------------------------------------------------------------------
+@pytest.mark.skipif(not _sumo_available(), reason="SUMO/traci not available")
+@pytest.mark.skipif(
+    not _draws_available(SMOKE_DRAW),
+    reason=f"P7.2a's parity configuration for draw {SMOKE_DRAW} is not present",
+)
+def test_an_anchor_policy_cannot_be_driven_through_the_door() -> None:
+    """P7.3a's anchors run on the OBSERVED, UNWRAPPED env, and this is the arithmetic that says so.
+
+    ``BRIEF_37`` §3.5 originally said *"env from §3.4"* for every cell.  It was corrected by
+    Amendment A2 on a measurement, not on an argument: ``align_info`` **drops outgoing lanes** --
+    they are not part of the canonical incoming frame -- and re-keys the survivors to CityFlow ids,
+    while ``MaxPressure``'s pressure is *incoming minus outgoing* over the env's **own SUMO** lane
+    ids (``algorithms/max_pressure.py:142``).  Driving it through the wrapper therefore raises
+    ``KeyError`` on an outgoing lane.
+
+    A16 is untouched by this: the door is the only route into **a CityFlow-trained model's** frame,
+    and an anchor has no frame to enter.
+
+    Two angles on one fact, so a future change to either side is caught:
+
+    1. the aligned lane dict does not carry the SUMO lane ids MaxPressure will ask for;
+    2. driving MaxPressure through the wrapper raises, and the **unwrapped** control on the very
+       same env does not -- without that control this test would pass against an env that was
+       simply broken.
+    """
+    from algorithms.max_pressure import MaxPressureAgent
+    from experiments.envs import make_env
+    from offline.collect import _build_env_spec
+    from offline.materialise_draws import parity_sumocfg_path
+    from offline.sumo_att_reference import collect_style_args
+
+    cfg = parity_sumocfg_path("cityflow1x1", SMOKE_DRAW, out_root=DRAWS_ROOT)
+    spec = _build_env_spec(collect_style_args("sumo", "maxpressure", cfg, sentinel_out_dir="/nonexistent"))
+
+    # -- the control FIRST: MaxPressure is fine on the unwrapped env ---------------------------
+    raw = make_env(spec)
+    try:
+        raw_info = raw.reset(seed=1000)
+        sumo_lane_ids = set(raw_info["lane_vehicle_count"])
+        agent = MaxPressureAgent(raw)
+        agent.act(raw_info)  # must not raise
+    finally:
+        raw.close()
+
+    # -- and refused through the door -----------------------------------------------------------
+    wrapped = AlignedEnv(make_env(spec), declared_alignment())
+    try:
+        aligned_info = wrapped.reset(seed=1000)
+        aligned_lane_ids = set(aligned_info["lane_vehicle_count"])
+        assert aligned_lane_ids != sumo_lane_ids, (
+            "the door re-keys the lane dict; if these sets were equal there would be nothing for "
+            "this test to protect and the anchors could share the DT's env"
+        )
+        assert not (sumo_lane_ids <= aligned_lane_ids), (
+            "every SUMO lane id survived the alignment, so MaxPressure would work through the door "
+            "and Amendment A2's separation would be unnecessary"
+        )
+        wrapped_agent = MaxPressureAgent(wrapped)
+        with pytest.raises(KeyError) as excinfo:  # hygiene: allow TH006 - the key is asserted on the next lines
+            wrapped_agent.act(aligned_info)
+        missing = excinfo.value.args[0]
+        assert missing in sumo_lane_ids, (
+            f"the wrapper raised on {missing!r}, which is not even a lane of the unwrapped env; "
+            "this test would then be observing some other defect and proving nothing about the door"
+        )
+        assert missing not in aligned_lane_ids, (
+            f"{missing!r} survived the alignment, so the KeyError did not come from the door "
+            "dropping an outgoing lane"
+        )
+    finally:
+        wrapped.close()
+
+
+# ----------------------------------------------------------------------------------
+# T4 (BRIEF_37 section 3.4) -- the OBSERVED, aligned env, and the recorder through the wrapper
+# ----------------------------------------------------------------------------------
+@pytest.mark.skipif(not _sumo_available(), reason="SUMO/traci not available")
+@pytest.mark.skipif(
+    not _draws_available(SMOKE_DRAW),
+    reason=f"P7.2a's parity configuration for draw {SMOKE_DRAW} is not present",
+)
+def test_the_observed_aligned_env_exposes_its_recorder_and_forwards_the_outcome(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """T4. One P7.3a DT cell's env: an ``AlignedEnv`` over the observer subclass.
+
+    ``E_sumo`` -- the quantity A15 registers rho on -- exists ONLY through the observer's recorder,
+    so three things have to hold at once and each is asserted here rather than assumed: the wrapper
+    is over an observer (not a plain ``SumoEnv``), the recorder is reachable **through the wrapper**
+    so ``reconstruct_sumo_episode`` never has to touch ``_env``, and the F2 forwarding contract
+    still holds over the subclass -- the alignment rewrites the observation, never the outcome.
+
+    ⛔ Draw 5 is P7.2b's fenced mechanics draw. No outcome is asserted or printed: the episode is
+    two steps, and what is checked is shape and identity.
+    """
+    from offline.aligned_env import aligned_observer_env_for_draw
+    from offline.sumo_att_reference import reconstruct_sumo_episode
+
+    import numpy as np
+
+    env = aligned_observer_env_for_draw("cityflow1x1", SMOKE_DRAW, out_root=DRAWS_ROOT)
+    try:
+        assert isinstance(env, AlignedEnv)
+        # It is the OBSERVER subclass, not the frozen SumoEnv make_env returns.
+        from envs.sumo_env import SumoEnv
+
+        assert isinstance(env._env, SumoEnv)
+        assert type(env._env) is not SumoEnv, (
+            "the wrapped env is the frozen SumoEnv itself, so there is no recorder and E_sumo "
+            "cannot be computed for this cell"
+        )
+        # The recorder is reachable through the wrapper, by the explicit property.
+        assert env.recorder is env._env.recorder
+        assert type(env).recorder.fget is not None, "recorder must be a property, not __getattr__"
+
+        # The forwarding contract, over the observer subclass (F2's spy, two steps).
+        recorded: list[tuple[Any, bool, bool, dict[str, Any]]] = []
+        inner_step = env._env.step
+
+        def spy(action: Any) -> tuple[Any, bool, bool, dict[str, Any]]:
+            result = inner_step(action)
+            recorded.append(result)
+            return result
+
+        monkeypatch.setattr(env._env, "step", spy)
+        aligned = env.reset(seed=1000)
+        assert len(aligned["intersections"][IX]["state"]) == 25
+        for _ in range(2):
+            reward, terminated, truncated, aligned = env.step(np.zeros(1, dtype=np.int64))
+            raw_reward, raw_terminated, raw_truncated, raw_info = recorded[-1]
+            assert reward == raw_reward
+            assert terminated is raw_terminated and truncated is raw_truncated
+            assert aligned["average_travel_time"] == raw_info["average_travel_time"]
+            assert aligned["step"] == raw_info["step"]
+        assert len(recorded) == 2
+
+        built = reconstruct_sumo_episode(env.recorder)
+        assert int(built.n_teleports) == 0
+        # `e_sumo` is a SumoAtt(value, total, n_ids), not a float: `value` is what the artifact
+        # key `att_reference_created_population` carries (sumo_att_reference.py:1252) and `n_ids`
+        # is `n_created` (:1257) -- Amendment C6's naming alias, met here for the first time.
+        # SumoAtt carries total and n_ids so a caller can re-derive value by a second route
+        # instead of trusting it, which is what this does. The VALUE on draw 5 stays fenced: it is
+        # compared only against its own re-derivation, never printed and never anchored.
+        assert built.e_sumo.n_ids > 0
+        assert built.e_sumo.value == built.e_sumo.total / built.e_sumo.n_ids
+    finally:
+        env.close()
+
+
+@pytest.mark.skipif(not _sumo_available(), reason="SUMO/traci not available")
+@pytest.mark.skipif(
+    not _draws_available(SMOKE_DRAW),
+    reason=f"P7.2a's parity configuration for draw {SMOKE_DRAW} is not present",
+)
+def test_recorder_names_the_mistake_when_the_env_is_not_an_observer() -> None:
+    """T4's mutation target: the UNOBSERVED door must refuse ``recorder`` by name.
+
+    ``aligned_sumo_env_for_draw`` is P7.2b's door and builds a plain ``SumoEnv``.  Before the
+    explicit property, ``env.recorder`` on it fell through ``__getattr__`` to an ``AttributeError``
+    naming ``SumoEnv`` and nothing else -- after a SUMO process had started.  The message now says
+    which constructor to use instead.
+    """
+    env = aligned_sumo_env_for_draw("cityflow1x1", SMOKE_DRAW, out_root=DRAWS_ROOT)
+    try:
+        with pytest.raises(AttributeError, match="has no recorder"):
+            _ = env.recorder
+        with pytest.raises(AttributeError, match="aligned_observer_env_for_draw"):
+            _ = env.recorder
+    finally:
+        env.close()
+
+
+def test_the_observer_doors_halting_check_defaults_to_off() -> None:
+    """Amendment C2's convention, pinned at the one place a default can silently reinstate it.
+
+    The halting cross-check verifies the RECORDER (its halting classification against SUMO's own).
+    It is value-neutral -- measured, not argued: A9 and A9b reproduce P7.1's frozen ``att_env`` and
+    ``e_sumo`` bit-for-bit with it ON and with it OFF -- and it costs **3.5x**.  C2 therefore runs it
+    on a DECLARED SUBSET, every cell on draw 1000 (47 of 4,700), and off elsewhere.
+
+    ⚠️ **Found by mutation, not by review.** Flipping this default from ``False`` to ``True`` passed
+    the entire suite while roughly doubling the campaign's clock, because nothing named the default.
+    A cost-only regression is exactly the kind that survives a green suite, so it gets an assertion
+    of its own rather than a comment.
+    """
+    import inspect
+
+    from offline.aligned_env import aligned_observer_env_for_draw
+
+    parameter = inspect.signature(aligned_observer_env_for_draw).parameters["halting_check"]
+    assert parameter.default is False, (
+        "halting_check defaults to True, so every one of the campaign's 4,700 cells would pay the "
+        "3.5x recorder cross-check. Amendment C2 declares it ON for draw 1000 only; the caller "
+        "opts in, the default does not opt in for it"
+    )
+    assert parameter.kind is inspect.Parameter.KEYWORD_ONLY, (
+        "halting_check must be keyword-only, so a positional argument cannot turn it on by accident"
+    )

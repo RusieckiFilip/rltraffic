@@ -985,12 +985,23 @@ def evaluate_arm(
     scenario_id: str,
     choose_action_factory: Callable[[Any], Callable[[Any, dict[str, Any]], np.ndarray]],
     engine_seed: int,
+    env_for_draw: Callable[[int], Any] | None = None,
 ) -> list[EpisodeResult]:
     """Roll one arm over *draw_ids*, one episode per draw, through ``horizon_rollout``.
 
     ``episodes=1`` per draw is deliberate: at that setting the reader's ``final_vehicle_count``
     is that single episode's value, so P8.0 finding B2 -- a last-episode ``final_completed``
     mixed with a mean ``final_vehicle_count`` -- cannot arise.  ``final_completed`` is not read.
+
+    ``env_for_draw`` (``BRIEF_37`` §3.3) lets a caller supply the env; P7.3a passes SUMO envs from
+    :func:`offline.aligned_env.aligned_observer_env_for_draw`.  **``None`` is not a variant of the
+    new path -- it is the original construction, unchanged line for line** -- so every committed P4
+    artifact regenerates byte-identically through the default, which T3 asserts under ``==``.
+
+    The ``config_for_draw`` existence check runs in BOTH branches: a factory that silently rolled a
+    missing draw would report a number for an episode that never had demand.  The factory owns the
+    env and nothing else -- the rollout, ``episodes=1``, the seeding and ``env.close()`` are shared,
+    so a SUMO cell and a CityFlow cell differ in the env and in nothing else.
     """
     from experiments.config import EnvSpec
     from experiments.envs import make_env
@@ -1004,14 +1015,17 @@ def evaluate_arm(
                 f"draw {draw_id} has no materialised sim config at {config_path}; run "
                 "offline.materialise_draws for the held-out pool first"
             )
-        env = make_env(
-            EnvSpec(
-                id=scenario_id,
-                backend="cityflow",
-                paths={"config": str(config_path)},
-                settings=env_settings,
+        if env_for_draw is None:
+            env = make_env(
+                EnvSpec(
+                    id=scenario_id,
+                    backend="cityflow",
+                    paths={"config": str(config_path)},
+                    settings=env_settings,
+                )
             )
-        )
+        else:
+            env = env_for_draw(int(draw_id))
         try:
             rollout = horizon_rollout(
                 env, choose_action_factory(env), episodes=1, seed=int(engine_seed)

@@ -709,3 +709,191 @@ def test_cli_writes_the_requested_draws_and_dry_run_writes_nothing(
     assert written == ["draw_0001", "draw_1000", "draw_1001"]
     for draw_id in (1, 1000, 1001):
         assert draw_config_path(HZ1X1_KEY, draw_id, out_root=wet_root).is_file()
+
+
+# ----------------------------------------------------------------------------------
+# T0 (BRIEF_37 section 3.0) -- DEFERRED 80's gate, generalised to any artifact
+# ----------------------------------------------------------------------------------
+def _fake_probe_episodes(values: dict[int, dict[str, float]]):
+    """A stand-in for ``run_probe`` that returns exactly what the test dictates."""
+    from offline.rtg_calibration import ProbeEpisode
+
+    def _run(*, draw_ids, config_for_draw, env_settings, scenario_id, engine_seed):
+        return [
+            ProbeEpisode(
+                draw_id=int(d),
+                local_return=values[int(d)]["local_return"],
+                local_return_from_lanes=values[int(d)]["local_return"],
+                att_horizon=values[int(d)]["att_horizon"],
+                horizon_vehicle_count=values[int(d)]["horizon_vehicle_count"],
+                decisions=360,
+            )
+            for d in draw_ids
+        ]
+
+    return _run
+
+
+def _heldout_style_artifact(tmp_path: Path, **overrides: Any) -> Path:
+    """An artifact shaped like ``p4_heldout_thresholds.json``: rows tagged by arm, no draw_ids."""
+    rows = [
+        {"arm": "maxpressure", "draw_id": 1000, "att_horizon": 163.4, "episode_reward": -16428.0,
+         "horizon_vehicle_count": 103.0, "seed": None},
+        {"arm": "maxpressure", "draw_id": 1001, "att_horizon": 178.9, "episode_reward": -19021.0,
+         "horizon_vehicle_count": 110.0, "seed": None},
+        {"arm": "mappo1000", "draw_id": 1000, "att_horizon": 999.0, "episode_reward": -1.0,
+         "horizon_vehicle_count": 1.0, "seed": 101},
+    ]
+    for key, value in overrides.items():
+        index, field = key.split("__")
+        rows[int(index)][field] = value
+    path = tmp_path / "artifact.json"
+    path.write_text(
+        json.dumps(
+            {
+                "format_version": "test/1.0",
+                "engine_seed": 1000,
+                "env_settings": {"global_reward_weight": 0.0, "local_reward_fn": "queue_length"},
+                "episodes": rows,
+            },
+            indent=2,
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
+def test_verify_against_artifact_compares_every_recorded_field(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """T0. Every field the artifact records is compared under ``==``, not a chosen subset.
+
+    The mutation this is built against is *compare only ``att_horizon``*: it leaves a perturbed
+    ``episode_reward`` undetected, and ``episode_reward`` is the quantity the whole C3 ladder is
+    normalised on.  So the test perturbs each field **in turn** and requires each one to be caught,
+    which a single-field comparison cannot do.
+    """
+    from offline import materialise_draws as md
+
+    truth = {
+        1000: {"local_return": -16428.0, "att_horizon": 163.4, "horizon_vehicle_count": 103.0},
+        1001: {"local_return": -19021.0, "att_horizon": 178.9, "horizon_vehicle_count": 110.0},
+    }
+    monkeypatch.setattr("offline.rtg_calibration.run_probe", _fake_probe_episodes(truth))
+
+    artifact = _heldout_style_artifact(tmp_path)
+    checks = md.verify_against_artifact(
+        artifact, arm="maxpressure", scenario_key="cityflow1x1",
+        out_root=tmp_path, scenario_id="cityflow1x1",
+    )
+    assert [c.draw_id for c in checks] == [1000, 1001]
+    assert all(c.matches for c in checks), [c.differing for c in checks]
+    # The arm filter is real: the mappo1000 row shares draw 1000 and must not be compared.
+    assert len(checks) == 2
+
+    # ... and each recorded field, perturbed alone, is caught and NAMED.
+    for index, field in ((0, "att_horizon"), (0, "episode_reward"), (0, "horizon_vehicle_count")):
+        perturbed = _heldout_style_artifact(tmp_path, **{f"{index}__{field}": -12345.75})
+        checks = md.verify_against_artifact(
+            perturbed, arm="maxpressure", scenario_key="cityflow1x1",
+            out_root=tmp_path, scenario_id="cityflow1x1",
+        )
+        bad = [c for c in checks if not c.matches]
+        assert len(bad) == 1 and bad[0].draw_id == 1000, f"{field} went undetected"
+        assert bad[0].differing == (field,), (
+            f"{field} was perturbed and the check reports {bad[0].differing}"
+        )
+
+
+def test_verify_against_artifact_refuses_an_unjustified_field_mapping(tmp_path: Path) -> None:
+    """``episode_reward`` is compared against the probe's ``local_return`` ONLY under its condition.
+
+    They are the same number on hz1x1 because ``global_reward_weight`` is 0.0 -- the scalar reward
+    IS the local reward -- and because ``run_probe`` refuses a scenario with more than one
+    intersection.  Measured on the real artifact (draws 1000, 1001: -16428.0 and -19021.0 reproduce
+    under ``==``).  With a non-zero weight the two are different quantities and the comparison would
+    be a coincidence waiting to break, so it is refused rather than silently attempted.
+    """
+    from offline import materialise_draws as md
+
+    path = tmp_path / "weighted.json"
+    payload = json.loads(_heldout_style_artifact(tmp_path).read_bytes())
+    payload["env_settings"]["global_reward_weight"] = 0.5
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="global_reward_weight"):
+        md.verify_against_artifact(
+            path, arm="maxpressure", scenario_key="cityflow1x1",
+            out_root=tmp_path, scenario_id="cityflow1x1",
+        )
+
+
+def test_verify_p4_3_probe_still_compares_exactly_the_fields_it_always_did(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Section 3.0: the existing entry point delegates, and its BEHAVIOUR is unchanged.
+
+    ``verify_p4_3_probe`` is now a call to :func:`verify_against_artifact`.  The risk of that
+    refactor is not that it breaks loudly -- it is that the generalised function compares a
+    different set of fields and the gate goes on reporting 100/100 while checking less.  So this
+    asserts the field set itself, by name, against P4.3's artifact.
+    """
+    from offline import materialise_draws as md
+
+    artifact = json.loads(md.P4_3_PROBE_ARTIFACT.read_bytes())
+    truth = {
+        int(e["draw_id"]): {
+            "local_return": e["local_return"],
+            "att_horizon": e["att_horizon"],
+            "horizon_vehicle_count": e["horizon_vehicle_count"],
+        }
+        for e in artifact["episodes"]
+    }
+    monkeypatch.setattr("offline.rtg_calibration.run_probe", _fake_probe_episodes(truth))
+
+    ids = artifact["draw_ids"][:3]
+    checks = md.verify_p4_3_probe(
+        "/home/filip/rltraffic/configs/sim/cityflow1x1.json", ids, out_root=tmp_path
+    )
+    assert [c.draw_id for c in checks] == list(ids)
+    assert sorted(checks[0].observed) == [
+        "att_horizon",
+        "decisions",
+        "horizon_vehicle_count",
+        "local_return",
+        "local_return_from_lanes",
+    ], "the delegated call compares a different field set than P4.3's gate always did"
+    assert all(c.matches for c in checks)
+
+
+def test_verify_against_artifact_refuses_a_recorded_field_it_cannot_produce(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A recorded field the probe cannot compute STOPS the gate; it is never skipped.
+
+    ⚠️ **Found by mutation, not by review.** Replacing the refusal with a filter -- keeping only the
+    fields the probe happens to produce -- passed the whole file. The gate would then print
+    *100/100 draws reproduce every recorded field* while quietly not comparing the field that was
+    added, which is a gate's worst failure mode: it reports success about a quantity it never
+    looked at. The docstring claimed this behaviour before any test held it.
+    """
+    from offline import materialise_draws as md
+
+    truth = {
+        1000: {"local_return": -16428.0, "att_horizon": 163.4, "horizon_vehicle_count": 103.0},
+        1001: {"local_return": -19021.0, "att_horizon": 178.9, "horizon_vehicle_count": 110.0},
+    }
+    monkeypatch.setattr("offline.rtg_calibration.run_probe", _fake_probe_episodes(truth))
+
+    payload = json.loads(_heldout_style_artifact(tmp_path).read_bytes())
+    for row in payload["episodes"]:
+        row["mean_speed"] = 7.25          # a real quantity the probe does not record
+    path = tmp_path / "with_extra_field.json"
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="mean_speed"):
+        md.verify_against_artifact(
+            path, arm="maxpressure", scenario_key="cityflow1x1",
+            out_root=tmp_path, scenario_id="cityflow1x1",
+        )
