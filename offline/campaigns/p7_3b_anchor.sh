@@ -45,21 +45,43 @@
 #
 # 5. NOTHING UNDER scenarios/draws/ IS WRITTEN. P7.2a's parity configs are opened read-only.
 #
-# 6. TIME — ⚠️ THE FIGURE BELOW IS NOT THIS TASK'S OWN PILOT YET, AND SAYS SO.
-#    P7.3a's campaign, measured 2026-09-17/18 from the dedicated worktree: 1,200 cells in 2,907 s
-#    (2.42 s/cell effective at 12 workers) and 3,500 cells in 5,614 s (1.60 s/cell), in-process
-#    means 17.83 s and 19.12 s.
-#    A11's label on the second of those, and it travels with the number: stage 2's 19.12 s/cell was
-#    measured on a machine that had REFUSED A START at canary 6.42 s about fourteen minutes
-#    earlier. It is a rate under thermal constraint, not a clean one.
-#    Extrapolated to this stage's 700 cells: roughly 19-28 minutes. That is a projection from
-#    ANOTHER TASK'S run over a DIFFERENT cell mix (500 anchor DT cells + 200 rho anchors, against
-#    P7.3a's 4,000 DT + 700 anchors), so F3 applies:
-#      ⇒ THE PRE-FLIGHT RUNS THIS TASK'S OWN PILOT AND REPLACES THIS BLOCK BEFORE THE TOKEN:
-#           python -m offline.transfer_curve … pilot --anchor --workers 12
-#         4 fenced cells on draw 5 (the FENCED smoke draw): the anchor at seeds 101/202 and both
-#         rho anchors, which A6 measured SLOWER than a DT cell. The header must never quote a rate
-#         for a machine state the run did not have.
+# 6. TIME — THIS TASK'S OWN PILOT, measured 2026-09-18 (F3), with its canary and its n.
+#    WHERE IT RAN: /home/filip/rltraffic-p73b, `git status --porcelain` EMPTY, detached at
+#    5849d59a799400c807f8d3205084e043bf41f9f6 — and all four chunks record that commit with
+#    `git_dirty: false`, which is checked rather than asserted.
+#    WHAT IT RAN: `pilot --anchor --workers 12` — anchor_pilot_cells(), 4 FENCED cells on draw 5
+#    (P7.2b's smoke draw, NOT in the held-out pool): the anchor at seeds 101 and 202, plus both
+#    rho denominators, which A6 measured SLOWER than a DT cell. n = 2 runs x 4 cells.
+#    Transcripts: output/p7_3b_runs/preflight_pilot_anchor{,_resumed}.txt, capture
+#    preflight_pilot_capture.txt.
+#
+#      clean run     canary 0.76 s   wall 19.53 s   4.883 s/cell   in-process mean 17.02 s  3.49x
+#      resumed run   canary 0.80 s   4 of 4 REUSED, 0 rolled, 0 failed — no rate, correctly null
+#      0 failures in 4 cells; halting check OFF (draw 5 is not Amendment C2's declared subset)
+#
+#    A11's LABEL, and it travels with every figure above: measured on the thermally constrained
+#    laptop, no cooling pad, on mains, with a 0.76 s canary in the same command. Both canaries are
+#    far below the 2.0 s threshold, so this is a CLEAN-machine rate — unlike P7.3a's stage 2.
+#
+#    ⚠️ THE SCHEDULE IS **NOT** 700 x 4.883 s. Four cells cannot saturate twelve workers: the pool
+#    runs all four at once, so the wall is roughly ONE cell's time and `4.883 s/cell` is
+#    wall/4 — an OVERSTATEMENT of the per-cell cost at scale, not a rate. The honest basis is the
+#    in-process mean divided by the speed-up a FULL pool achieves, and P7.3a measured that twice
+#    on this machine at these settings: 1,200 cells at 7.36x and 3,500 cells at 11.92x.
+#      700 cells x 17.02 s / 11.92  ≈  1,000 s ≈ 17 min   (optimistic, the larger stage's scaling)
+#      700 cells x 17.02 s /  7.36  ≈  1,619 s ≈ 27 min   (conservative, the smaller stage's)
+#    ⇒ EXPECT 17–27 MINUTES. The driver prints its own wall clock and writes COMPLETE; that
+#    number, not this one, is what the packet reports.
+#
+#    ⚠️ F3: the comparison basis is THIS pilot's canary, 0.76 s. If the machine's canary at the
+#    campaign's start differs from it by more than 10 %, this block is replaced by a re-run before
+#    the token — the header must never quote a rate for a machine state the run did not have. The
+#    driver re-runs the canary at its own start and refuses above 2.0 s regardless.
+#
+#    FOUND BY RUNNING THIS PILOT, and it is why a pre-flight is not a formality: run_pilot's
+#    transcript did `int(cell["seed"])` over every cell, and an anchor cell has seed None. All
+#    four cells rolled and the SUMMARY then raised TypeError, losing the rate. F1's sixteen cells
+#    are all `dt`, so nothing had noticed. Fixed, and pinned by a test.
 #
 # 7. THE WORKTREE HAS NO .venv. The interpreter is the main tree's, as P7.2b's and P7.3a's are.
 

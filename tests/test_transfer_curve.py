@@ -4048,3 +4048,68 @@ def test_a_chunk_from_the_other_campaign_is_refused_by_stage_not_accepted_by_nam
     tcv.validate_cell_payload(chunk, cell=p7_3a_cell)          # its own declaration: fine
     with pytest.raises(ValueError, match="stage"):
         tcv.validate_cell_payload(chunk, cell=anchor_cell)     # the other campaign's: refused
+
+
+def test_the_pilot_transcript_survives_a_cell_that_has_no_training_seed() -> None:
+    """Found by RUNNING the pre-flight pilot, which is what a pre-flight is for.
+
+    ``anchor_pilot_cells`` includes rho's two denominators, and an anchor cell has ``seed: None``
+    -- fixedtime and MaxPressure have no training seed. ``run_pilot``'s transcript did
+    ``int(cell["seed"])`` over every cell, so all four cells rolled successfully and then the
+    SUMMARY raised ``TypeError``, losing the rate the pilot exists to measure. F1's sixteen cells
+    are all ``dt``, which is why nothing noticed for a whole task.
+
+    Asserted on the cell set rather than by re-running the pool: the shape is what was wrong.
+    """
+    cells = tcv.anchor_pilot_cells()
+    without = [c for c in cells if c["seed"] is None]
+    assert len(without) == 2, "rho's two denominators carry no training seed"
+    assert {c["arm"] for c in without} == {"fixedtime", "maxpressure"}
+    # the expression that used to raise, now written as the module writes it
+    assert sorted({int(c["seed"]) for c in cells if c["seed"] is not None}) == list(
+        tcv.PILOT_SEEDS
+    )
+    # The defect, stated so it cannot come back. `match=` is not decoration: a bare
+    # pytest.raises(TypeError) is satisfied by ANY TypeError, including one from a typo in the
+    # expression itself -- which is exactly what scripts/check_test_hygiene.sh TH006 refuses.
+    with pytest.raises(TypeError, match="NoneType"):
+        sorted({int(c["seed"]) for c in cells})
+
+
+def test_t14_the_anchor_declaration_is_pinned_by_size_and_by_composition() -> None:
+    """The coordinator's surviving mutation: folding the anchor stage into the campaign
+    declaration left all 134 tests green, because nothing pinned the anchor stage's SIZE or its
+    COMPOSITION on their own.
+
+    It cannot make a published number wrong -- the campaign would refuse every chunk rather than
+    report a wrong one -- but an unpinned declaration is exactly what BRIEF_38 section 2 exists to
+    prevent, so it is pinned here.
+    """
+    cells = tcv.declared_cells(tcv.STAGE_ANCHOR)
+    assert len(cells) == 700
+
+    dt = [c for c in cells if c["kind"] == "dt"]
+    denominators = [c for c in cells if c["kind"] == "anchor"]
+    assert len(dt) == 500, "5 training seeds x 100 held-out draws"
+    assert len(denominators) == 200, "fixedtime and MaxPressure, one episode per draw"
+    assert len(dt) + len(denominators) == len(cells), "there is no third kind"
+
+    # the composition, not merely the counts: the full cross product, once each
+    assert {(c["subject"], c["arm"], c["seed"], c["draw_id"]) for c in dt} == {
+        (tcv.ANCHOR_SUBJECT, tcv.ANCHOR_ARM, seed, draw)
+        for seed in tcv.TRAINING_SEEDS
+        for draw in tcv.HELD_OUT_DRAWS
+    }
+    assert {(c["arm"], c["draw_id"]) for c in denominators} == {
+        (arm, draw) for arm in ("fixedtime", "maxpressure") for draw in tcv.HELD_OUT_DRAWS
+    }
+    assert all(c["seed"] is None and c["subject"] is None for c in denominators)
+
+    # and it is NOT reachable from the campaign's declaration, by any route
+    assert tcv.declared_cells(None) == tcv.declared_cells(None)
+    campaign = tcv.declared_cells(None)
+    assert len(campaign) == 4700
+    assert not any(c["stage"] == tcv.STAGE_ANCHOR for c in campaign)
+    assert len(campaign) + len(cells) == 5400, (
+        "the two declarations are disjoint sets, not one set with a filter"
+    )

@@ -2600,8 +2600,13 @@ def run_pilot(
         ),
         "fenced": (
             "no ATT, no rho and no episode outcome is printed, summarised or published here; "
-            "report is never called on this work directory, and report REFUSES it because a pilot "
-            "cell is not a declared cell of any stage"
+            "report is never called on this work directory, and report REFUSES it. MEASURED "
+            "2026-09-18 on a copy of this directory: the refusal that actually fires is the "
+            "COMPLETENESS one -- 700 declared cells have no chunk -- because report checks "
+            "missing before extra. The undeclared-cell refusal is real and is reached only if "
+            "completeness passes, which it cannot here. The earlier wording named the second as "
+            "if it were the first; the fence holds either way, and a claim about WHICH refusal "
+            "guards a file is the kind of thing that stops being true silently"
         ),
         "draw_id": PILOT_DRAW,
         "why_this_draw": (
@@ -2611,7 +2616,13 @@ def run_pilot(
         "n_cells": len(cells),
         "subjects": sorted({str(cell["subject"]) for cell in cells}),
         "arms": sorted({str(cell["arm"]) for cell in cells}),
-        "seeds": sorted({int(cell["seed"]) for cell in cells}),
+        # ⚠️ `seed` is None on an ANCHOR cell -- fixedtime and MaxPressure have no training seed --
+        # and this used to be `int(cell["seed"])` over every cell. F1's sixteen are all `dt`, so
+        # nothing noticed until P7.3b's pilot included rho's two denominators: all four cells
+        # rolled fine and then the TRANSCRIPT raised TypeError, losing the rate the pilot exists to
+        # measure. Found by RUNNING the pilot, which is what a pre-flight is for.
+        "seeds": sorted({int(cell["seed"]) for cell in cells if cell["seed"] is not None}),
+        "n_cells_without_a_training_seed": sum(1 for cell in cells if cell["seed"] is None),
         "workers": int(workers),
         "halting_check": halting_check_for(PILOT_DRAW),
         "canary_seconds": canary,
