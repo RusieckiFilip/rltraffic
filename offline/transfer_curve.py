@@ -155,7 +155,39 @@ DECLARED_ARMS: tuple[ArmSpec, ...] = (
 #: shows, exactly as P7.3b runs whatever the zero-shot number is (§7).  This is a sequence, not a
 #: cut, and nothing registered moves between them.
 STAGE_CONFIRMATORY = "confirmatory"
-STAGES: tuple[str, ...] = (STAGE_CONFIRMATORY, "rest")
+
+#: P7.3b section 3.4's third stage.  ⚠️ **It is NOT part of ``declared_cells(None)``**, and that
+#: asymmetry is Amendment A1, required rather than tolerated: ``declared_cells(None)`` keeps
+#: returning P7.3a's 4,700 and its two stages keep partitioning that set element for element, so
+#: adding the anchor cannot disturb anything already published.  The anchor's 700 cells are
+#: reachable only through this stage BY NAME, and they live in their own work directory.
+STAGE_ANCHOR = "anchor"
+STAGES: tuple[str, ...] = (STAGE_CONFIRMATORY, "rest", STAGE_ANCHOR)
+
+#: A18(a)'s full-retrain anchor, as a SUBJECT.  Deliberately **not** added to
+#: ``transfer_calibration.SUBJECTS``: that table means *A17(c)'s two CityFlow-trained subjects*,
+#: it is what ``_h3_block``, ``_contrast_block`` and ``_in_support_block`` are written against,
+#: and ``targets_for_subject`` would raise for a subject P7.2b's artifact never registered.
+ANCHOR_SUBJECT = "anchor_k200"
+
+#: Its one arm.  A18(a)'s prompt is the naive in-domain rule over the anchor's OWN 200 episodes --
+#: the maximum episode return and the largest absolute RTG -- and NOT any row of P7.2b's
+#: calibration artifact, which registers CityFlow-trained subjects only.
+ANCHOR_ARM = "naive_in_domain"
+
+ANCHOR_ROLE = "anchor_k200_endpoint"
+
+#: The committed digest record the anchor is pinned against, and its digest.  It exists because
+#: ``CHECKPOINT_RECORD`` maps the two CityFlow subjects to ``p4_gate.json`` and
+#: ``p4_7_training.json``, and neither will ever name an anchor checkpoint (P7.3a packet section
+#: 19.14).  Same shape as :data:`P7_2B_CALIBRATION_SHA256`: a DECLARATION that these numbers came
+#: from THAT file, which moves only in a commit that also moves the file.
+P7_3B_TRAINING_NAME = "p7_3b_anchor_training.json"
+P7_3B_TRAINING_SHA256 = "edca65f96f060d77a8ef9620deaa2c4a76c4c77eae0f7a9e05c47587a06dd62a"
+
+#: Where the anchor's five checkpoints live under ``output/``.
+ANCHOR_CHECKPOINT_SUBDIR = "p7_3b_anchor/checkpoints"
+ANCHOR_CHECKPOINT_STEM = "anchor_dt_seed"
 
 
 def targets_for_subject(
@@ -223,6 +255,10 @@ def declared_cells(stage: str | None = None) -> list[dict[str, Any]]:
     """
     if stage is not None and stage not in STAGES:
         raise ValueError(f"{stage!r} is not one of {list(STAGES)}")
+    # Amendment A1: the anchor stage is a SEPARATE declaration, so everything below -- and
+    # therefore declared_cells(None) -- is exactly what it was before P7.3b existed.
+    if stage == STAGE_ANCHOR:
+        return anchor_cells()
 
     cells: list[dict[str, Any]] = []
     for spec in DECLARED_ARMS:
@@ -256,6 +292,53 @@ def declared_cells(stage: str | None = None) -> list[dict[str, Any]]:
                 )
     if stage is not None:
         cells = [cell for cell in cells if cell["stage"] == stage]
+    return cells
+
+
+def anchor_cells() -> list[dict[str, Any]]:
+    """P7.3b section 3.4's 700 cells: the anchor on the held-out pool, and rho's two denominators.
+
+    * **500** ``dt`` cells -- :data:`ANCHOR_SUBJECT` x five training seeds x the 100 held-out
+      draws, one episode per draw on a fresh env at ``reset(seed=1000)`` (A18(c));
+    * **200** anchor cells -- ``fixedtime`` and ``maxpressure`` on the same draws, **re-rolled**.
+      They are re-rolled rather than reused because P7.3a's chunks stopped being reusable at
+      ``d92947e``, and because rho's denominator must come from the same code as its numerator.
+
+    ``random`` is **not** re-rolled (Amendment A4): rho's denominator is fixed-time and MaxPressure
+    only, and P7.3a's 500 ``random`` cells stay where they are.  The artifact says so, so no reader
+    infers a ``random`` comparison this task did not run.
+
+    ``kind`` stays ``"dt"`` for the anchor's own cells, deliberately: that is what makes
+    :func:`assert_env_matches_cell` require ``AlignedEnv`` (Amendment A2 -- the anchor was TRAINED
+    in the canonical frame, so it must be evaluated in it), what keeps
+    :func:`validate_cell_payload`'s ``rtg_first == target_rtg`` refusal in force, and what routes
+    the cell through :func:`dt_choose`'s ``act(info, explore=False, update_memory=True)``
+    (``BRIEF_36`` E4).  A new ``kind`` would have walked around all three.
+    """
+    cells: list[dict[str, Any]] = [
+        {
+            "kind": "dt",
+            "subject": ANCHOR_SUBJECT,
+            "arm": ANCHOR_ARM,
+            "seed": int(seed),
+            "draw_id": int(draw),
+            "stage": STAGE_ANCHOR,
+        }
+        for seed in TRAINING_SEEDS
+        for draw in HELD_OUT_DRAWS
+    ]
+    cells.extend(
+        {
+            "kind": "anchor",
+            "subject": None,
+            "arm": arm,
+            "seed": None,
+            "draw_id": int(draw),
+            "stage": STAGE_ANCHOR,
+        }
+        for arm in ("fixedtime", "maxpressure")
+        for draw in HELD_OUT_DRAWS
+    )
     return cells
 
 
@@ -321,6 +404,10 @@ P7_2B_CALIBRATION_SHA256 = "92b1592de637cee187c56b988ce320611d89706c8f9f02c34fe7
 CHECKPOINT_RECORD: Mapping[str, str] = {
     "mappo1000": "p4_gate.json",
     "mix50": "p4_7_training.json",
+    # P7.3b section 3.3's artifact.  The anchor is the first subject in this project whose
+    # committed record was written BY the task that consumes it, which is why that file is
+    # digest-pinned here as well as hashed at consumption.
+    ANCHOR_SUBJECT: P7_3B_TRAINING_NAME,
 }
 
 #: The gitignored campaign manifest that also lists the file, where one exists.  ``None`` for
@@ -328,6 +415,8 @@ CHECKPOINT_RECORD: Mapping[str, str] = {
 LOCAL_CHECKPOINT_MANIFEST: Mapping[str, str | None] = {
     "mappo1000": None,
     "mix50": "SHA256SUMS_p4_7.txt",
+    # Written last and atomically by P7.3b's training driver, then re-verified by it.
+    ANCHOR_SUBJECT: "SHA256SUMS_p7_3b_anchor.txt",
 }
 
 #: ``p4_7_training.json`` carries four METHODS per (tier, seed) -- ``bc``, ``bc_top10``, ``iql``,
@@ -342,7 +431,7 @@ PARITY_PROVENANCE_NAME = "provenance.json"
 
 #: The declared arm names, anchors included: what ``report``'s fence admits and nothing else.
 DECLARED_ARM_NAMES: frozenset[str] = frozenset(
-    [spec.name for spec in DECLARED_ARMS] + list(ANCHOR_ARMS)
+    [spec.name for spec in DECLARED_ARMS] + list(ANCHOR_ARMS) + [ANCHOR_ARM]
 )
 
 #: P7.2b's fenced marker.  A chunk that carried it would be a fenced quantity on its way into
@@ -462,10 +551,88 @@ def load_calibration(artifact_path: str | Path | None = None) -> dict[str, Any]:
     return json.loads(path.read_bytes())
 
 
+def load_anchor_training(artifact_path: str | Path | None = None) -> dict[str, Any]:
+    """P7.3b section 3.3's training record, digest-checked BEFORE it is parsed.
+
+    The same shape as :func:`load_calibration`, for the same reason (E3(a)): the pin is a
+    DECLARATION -- *the anchor's prompt and its checkpoint digests came from THAT file* -- and the
+    file is the evidence.  A target read from an unpinned artifact can be edited between the
+    training and the campaign without leaving a trace.
+
+    ⚠️ **This is the anchor's ONLY prompt source.**  Amendment A5: the proof that it is not
+    P7.2b's calibration artifact is the ROUTE, never a value -- on the 201-300 half the naive
+    in-domain target and A17's Rule A ``q = 1.0`` were the same number by construction.  (On the
+    full 200 episodes they are not: -20625.0 against -20809.0.  That is a fact about this corpus,
+    not a guarantee, and nothing here relies on it.)
+    """
+    path = (
+        _data_dir(None) / P7_3B_TRAINING_NAME if artifact_path is None else Path(artifact_path)
+    )
+    if not path.is_file():
+        raise FileNotFoundError(
+            f"{path}: the anchor's committed training record is not here. Section 3.3 writes it "
+            "and the evaluation pins every anchor checkpoint and the prompt against it"
+        )
+    digest = _sha256_file(path)
+    if digest != P7_3B_TRAINING_SHA256:
+        raise ValueError(
+            f"{path}: sha256 {digest} is not the pinned {P7_3B_TRAINING_SHA256}. The record the "
+            "anchor's prompt and checkpoint digests come from has moved; refusing to read targets "
+            "from an artifact this code does not name"
+        )
+    return json.loads(path.read_bytes())
+
+
+def anchor_seed_record(seed: int, artifact: Mapping[str, Any]) -> Mapping[str, Any]:
+    """One seed's row in the training record, found by seed and required to be unique."""
+    matching = [row for row in artifact.get("seeds", ()) if int(row["seed"]) == int(seed)]
+    if len(matching) != 1:
+        raise ValueError(
+            f"{P7_3B_TRAINING_NAME}: {len(matching)} rows match seed {seed}; exactly one is "
+            f"required. The record declares seeds {[int(r['seed']) for r in artifact.get('seeds', ())]}"
+        )
+    return matching[0]
+
+
+def anchor_subject_facts(artifact: Mapping[str, Any]) -> Any:
+    """The anchor's :class:`~offline.transfer_calibration.SubjectFacts`, from its own record.
+
+    ``subject_facts`` reads a CityFlow subject's five checkpoints and raises for anything outside
+    A17(c)'s two; the anchor's equivalent is read from the committed training artifact, which
+    carries the same quantities.  ``support_range_over_the_split`` is the fitted ``stats.rtg``
+    range over the anchor's own 200 episodes, and ``training_set_return_min`` is ``-rtg_scale``,
+    exactly as ``subject_facts`` defines them (Amendment A1: the diagnostic never selects).
+    """
+    from offline.transfer_calibration import SubjectFacts
+
+    stats = artifact["normalisation_stats"]["rtg"]
+    pairs = [(s, i, v) for s, per_ix in stats.items() for i, v in per_ix.items()]
+    if len(pairs) != 1:
+        raise ValueError(
+            f"{P7_3B_TRAINING_NAME}: the statistics cover {len(pairs)} (scenario, intersection) "
+            "pairs; the anchor trains one intersection and has one support range"
+        )
+    summary = pairs[0][2]
+    scale = float(artifact["rtg_scale"])
+    return SubjectFacts(
+        subject=ANCHOR_SUBJECT,
+        best_source_return=float(artifact["target_rtg"]),
+        rtg_scale=scale,
+        support_range_over_the_split=(float(summary["min"]), float(summary["max"])),
+        n_rows=int(summary["count"]),
+        training_set_return_min=-scale,
+        checkpoints=tuple(str(row["checkpoint"]) for row in artifact["seeds"]),
+        state_dim=int(artifact["state_dim"]),
+        context_length=int(artifact["recipe"]["context_length"]),
+    )
+
+
 def checkpoint_path_for(subject: str, seed: int, *, output_root: str | Path) -> Path:
     """Where one subject-seed checkpoint lives, from P7.2b's own subject table."""
     from offline.transfer_calibration import SUBJECTS as SUBJECT_LAYOUT
 
+    if subject == ANCHOR_SUBJECT:
+        return Path(output_root) / ANCHOR_CHECKPOINT_SUBDIR / f"{ANCHOR_CHECKPOINT_STEM}{int(seed)}.pt"
     if subject not in SUBJECT_LAYOUT:
         raise ValueError(f"unknown subject {subject!r}; A17(c) registers {sorted(SUBJECT_LAYOUT)}")
     spec = SUBJECT_LAYOUT[subject]
@@ -482,6 +649,11 @@ def _committed_checkpoint_digest(subject: str, seed: int, *, data_dir: Path) -> 
             "(G1), and it is not here"
         )
     record = json.loads(record_path.read_bytes())
+
+    if subject == ANCHOR_SUBJECT:
+        # Digest-pinned BEFORE it is parsed, unlike the two P4 records: this file was written by
+        # the same task that consumes it, so the pin is what stops that being circular.
+        return str(anchor_seed_record(seed, load_anchor_training(record_path))["checkpoint_sha256"]), record_name
 
     if subject == "mappo1000":
         entry = record.get("checkpoints", {}).get(str(int(seed)))
@@ -843,7 +1015,15 @@ def validate_cell_payload(
             f"{ARTIFACT_FORMAT_VERSION!r}"
         )
     if cell is not None:
-        for key in ("kind", "subject", "arm", "seed", "draw_id"):
+        # ⚠️ `stage` IS part of the identity (reviewer A's minor 9, closed here because P7.3b made
+        # it load-bearing). `cell_chunk_name` derives the name from (subject, arm, seed, draw) and
+        # NOT from the stage, so P7.3a's `cell_anchor_fixedtime_seednone_draw1000.json` and the
+        # anchor stage's re-rolled denominator share a file name. They live in different work
+        # directories, so nothing collides on disk -- but without this key a P7.3a chunk offered to
+        # `report --stage anchor` would validate as one of the anchor's own, and 200 of the 700
+        # cells would be another campaign's. The name is not changed: P7.3a's chunks are on disk
+        # under it and renaming them would make its artifact unregenerable at its own commit.
+        for key in ("kind", "subject", "arm", "seed", "draw_id", "stage"):
             if payload.get(key) != cell.get(key):
                 raise ValueError(
                     f"{label}: the chunk says {key}={payload.get(key)!r} and the cell it was asked "
@@ -882,6 +1062,31 @@ def validate_cell_payload(
         raise ValueError(
             f"{label}: it records targets from calibration sha256 "
             f"{payload.get('calibration_sha256')!r}, not the pinned {P7_2B_CALIBRATION_SHA256!r}"
+        )
+    # Amendment A5, checked at consumption as well as at production: an anchor cell must name the
+    # committed training record its prompt came from, and NOTHING ELSE may name it. The second
+    # half matters as much as the first -- a CityFlow subject's cell carrying this field would be
+    # a cell whose prompt source cannot be told from the anchor's.
+    is_anchor_subject = str(payload.get("subject")) == ANCHOR_SUBJECT
+    recorded_training = payload.get("anchor_training_sha256")
+    if is_anchor_subject and recorded_training != P7_3B_TRAINING_SHA256:
+        raise ValueError(
+            f"{label}: it records anchor_training_sha256 {recorded_training!r}, not the pinned "
+            f"{P7_3B_TRAINING_SHA256!r}. The anchor's prompt and its checkpoint digest both come "
+            f"from {P7_3B_TRAINING_NAME}, and a cell that cannot name that record is not evidence "
+            "about the anchor A18(a) registers"
+        )
+    if not is_anchor_subject and recorded_training is not None:
+        raise ValueError(
+            f"{label}: subject {payload.get('subject')!r} records anchor_training_sha256 "
+            f"{recorded_training!r}. Only {ANCHOR_SUBJECT!r} is prompted from "
+            f"{P7_3B_TRAINING_NAME}"
+        )
+    if is_anchor_subject and str(payload.get("arm")) != ANCHOR_ARM:
+        raise ValueError(
+            f"{label}: {ANCHOR_SUBJECT} ran arm {payload.get('arm')!r}. A18(a) gives the anchor "
+            f"exactly one prompt, the naive in-domain rule ({ANCHOR_ARM!r}); a calibrated arm on "
+            "the anchor is an evaluation nobody registered"
         )
     if int(payload["engine_seed_requested"]) != ENGINE_SEED:
         raise ValueError(
@@ -1062,21 +1267,34 @@ def run_cell(
     checkpoint: dict[str, Any] | None = None
     target_rtg: float | None = None
     facts = None
+    anchor_training_sha256: str | None = None
     if kind == "dt":
         subject = str(cell["subject"])
-        # J3 (reviewer min-6): through data_dir, as the checkpoint pins already are. A run pointed
-        # at a different --data-dir would otherwise pin its checkpoints against one set of records
-        # and read its prompts from another.
-        artifact = (
-            load_calibration(_data_dir(data_dir) / P7_2B_CALIBRATION_NAME)
-            if calibration is None
-            else calibration
-        )
-        target_rtg = float(targets_for_subject(subject, artifact)[arm]["target_rtg"])
+        if subject == ANCHOR_SUBJECT:
+            # ⚠️ AMENDMENT A5, AND IT IS A ROUTE RATHER THAN A VALUE. The anchor's prompt is the
+            # naive in-domain rule over its OWN 200 SUMO episodes, read from section 3.3's
+            # committed record. `load_calibration` and `targets_for_subject` are NOT reached on
+            # this branch at all -- P7.2b's artifact registers CityFlow-trained subjects, and a
+            # target taken from it would be conditioning the anchor on the source domain's
+            # returns. The test monkeypatches both to raise and requires this cell to run anyway.
+            training = load_anchor_training(_data_dir(data_dir) / P7_3B_TRAINING_NAME)
+            anchor_training_sha256 = P7_3B_TRAINING_SHA256
+            target_rtg = float(training["target_rtg"])
+            facts = anchor_subject_facts(training)
+        else:
+            # J3 (reviewer min-6): through data_dir, as the checkpoint pins already are. A run
+            # pointed at a different --data-dir would otherwise pin its checkpoints against one
+            # set of records and read its prompts from another.
+            artifact = (
+                load_calibration(_data_dir(data_dir) / P7_2B_CALIBRATION_NAME)
+                if calibration is None
+                else calibration
+            )
+            target_rtg = float(targets_for_subject(subject, artifact)[arm]["target_rtg"])
+            facts = subject_facts(subject, output_root=output_root)
         checkpoint = checkpoint_identity(
             subject, int(cell["seed"]), output_root=output_root, data_dir=data_dir
         )
-        facts = subject_facts(subject, output_root=output_root)
 
     started = time.perf_counter()
     env = env_for_cell(cell, out_root=out_root)
@@ -1179,6 +1397,10 @@ def run_cell(
         "config_sha256": demand["config_sha256"],
         "routes_sha256": demand["routes_sha256"],
         "calibration_sha256": P7_2B_CALIBRATION_SHA256,
+        # None on every cell but the anchor's, and on the anchor's it is the record its prompt and
+        # its checkpoint digest BOTH came from. Recorded per cell as evidence, checked at
+        # consumption by validate_cell_payload, and published once in the artifact's `inputs`.
+        "anchor_training_sha256": anchor_training_sha256,
         "checkpoint": None if checkpoint is None else checkpoint["path"],
         "checkpoint_sha256": None if checkpoint is None else checkpoint["file_sha256"],
         "sha256_checked_against": None if checkpoint is None else checkpoint["sha256_checked_against"],
@@ -1302,6 +1524,30 @@ def _rho_pair(
     return pair
 
 
+def declarations_for(
+    stage: str | None, cells: Sequence[Mapping[str, Any]] | None
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """``(every declared cell of ANY stage, this stage's slice)`` -- the pair ``report`` checks against.
+
+    Extracted so the campaign's own path is reachable by a test.  With ``cells=None`` -- which is
+    what the driver passes and what a committed artifact requires -- nothing else in ``report``
+    exercises it, and a mutation collapsing the two branches SURVIVED the whole suite until this
+    existed.
+
+    **Amendment A1 lives here.**  ``declared_cells(None)`` is P7.3a's 4,700 and stays that way, so
+    the anchor stage needs its own "every declared cell of ANY stage" set rather than being folded
+    into the campaign's.  The two declarations are disjoint by construction and live in separate
+    work directories; the completeness check and the "undeclared cell" refusal are only as good as
+    the declaration they compare against, so getting this pair wrong is how a chunk nobody declared
+    would reach an artifact.
+    """
+    if cells is not None:
+        supplied = [dict(cell) for cell in cells]
+        return supplied, supplied
+    whole = STAGE_ANCHOR if stage == STAGE_ANCHOR else None
+    return list(declared_cells(whole)), list(declared_cells(stage))
+
+
 def report(
     *,
     work_dir: str | Path,
@@ -1342,8 +1588,7 @@ def report(
     # The WHOLE declaration, and this stage's slice of it. Both are derived from the declaration
     # and never from the chunks on disk, which is what stops the completeness check being a
     # tautology (PROJECT_PLAN section 7).
-    all_declared = list(declared_cells(None) if cells is None else cells)
-    declared = list(declared_cells(stage) if cells is None else cells)
+    all_declared, declared = declarations_for(stage, cells)
     if cells is not None:
         if stage is not None:
             declared = [cell for cell in declared if cell["stage"] == stage]
@@ -1495,78 +1740,82 @@ def report(
 
     by_seed: list[dict[str, Any]] = []
     by_arm: list[dict[str, Any]] = []
-    for subject in SUBJECTS:
-        for spec in DECLARED_ARMS:
-            arm_rows = [r for r in rows if r["subject"] == subject and r["arm"] == spec.name]
-            if not arm_rows:
+    # The anchor's (subject, arm) is APPENDED, so P7.3a's entries keep their order and its
+    # artifact is unchanged: with no anchor rows on disk the extra entry is skipped by the same
+    # `if not arm_rows: continue` that every absent arm already takes.
+    for subject, spec in [(s, spec) for s in SUBJECTS for spec in DECLARED_ARMS] + [
+        (ANCHOR_SUBJECT, ArmSpec(ANCHOR_ARM, "naive_in_domain", "none", None, ANCHOR_ROLE))
+    ]:
+        arm_rows = [r for r in rows if r["subject"] == subject and r["arm"] == spec.name]
+        if not arm_rows:
+            continue
+        for seed in TRAINING_SEEDS:
+            seed_rows = [r for r in arm_rows if r["seed"] == seed]
+            if not seed_rows:
                 continue
-            for seed in TRAINING_SEEDS:
-                seed_rows = [r for r in arm_rows if r["seed"] == seed]
-                if not seed_rows:
-                    continue
-                # An EXCLUDED draw (rho None) is dropped from that definition's mean and from the
-                # n reported beside it -- never averaged in as a zero (2026-09-17 ruling).
-                per_seed: dict[str, Any] = {
-                    "subject": subject,
-                    "arm": spec.name,
-                    "seed": int(seed),
-                    "n_draws": len(seed_rows),
-                }
-                for key in ("e_sumo", "att_env"):
-                    usable = [r[f"rho_{key}"] for r in seed_rows if r[f"rho_{key}"] is not None]
-                    per_seed[f"mean_rho_{key}"] = (
-                        float(sum(usable) / len(usable)) if usable else None
-                    )
-                    per_seed[f"n_draws_{key}"] = len(usable)
-                by_seed.append(per_seed)
-            entry: dict[str, Any] = {"subject": subject, "arm": spec.name, "role": spec.role}
-            for key in ("e_sumo", "att_env"):
-                per_draw = _seed_means_by_draw(arm_rows, f"rho_{key}")
-                if not per_draw:
-                    # Every draw undefined on this definition. Reported as such and carried past:
-                    # refusing here would decide the handling of an undefined ratio after the
-                    # campaign's numbers exist, which is what the 2026-09-17 ruling closes.
-                    #
-                    # ⚠️ CORRECTED 2026-09-18 (BRIEF_38 §2, Finding 4). Until then the sentence
-                    # above was a claim the code did not honour: the None below reached
-                    # `_h3_block`, where `stats["mean"] > 0.0` raised
-                    # `TypeError: '>' not supported between instances of 'NoneType' and 'float'`,
-                    # and `_contrast_block`, where `mean - mean` raised
-                    # `TypeError: unsupported operand type(s) for -: 'NoneType' and 'NoneType'`.
-                    # Both fired AFTER every refusal had passed -- at the point where the artifact
-                    # was about to be written -- so the excluded definition took the REGISTERED
-                    # PRIMARY down with it. Both blocks now carry the None through as None; a
-                    # verdict is not invented and a zero is not substituted.
-                    entry[key] = {
-                        "n_draws": 0,
-                        "mean": None,
-                        "std": None,
-                        "ci95": None,
-                        "ci95_low": None,
-                        "ci95_high": None,
-                        "why_empty": (
-                            "every draw's denominator on this definition was exactly zero; see "
-                            "denominator_diagnostic and excluded_draws"
-                        ),
-                    }
-                    continue
-                stats = mean_ci95([per_draw[d] for d in sorted(per_draw)])
-                entry[key] = {
-                    "n_draws": stats.n,
-                    "mean": stats.mean,
-                    "std": stats.std,
-                    "ci95": stats.ci95,
-                    "ci95_low": stats.mean - stats.ci95,
-                    "ci95_high": stats.mean + stats.ci95,
-                }
-            entry["paired_att"] = {
-                key: {
-                    anchor: _paired_block(rows, arm_rows, subject, spec.name, anchor, key)
-                    for anchor in ("fixedtime", "maxpressure")
-                }
-                for key in ("e_sumo", "att_env")
+            # An EXCLUDED draw (rho None) is dropped from that definition's mean and from the
+            # n reported beside it -- never averaged in as a zero (2026-09-17 ruling).
+            per_seed: dict[str, Any] = {
+                "subject": subject,
+                "arm": spec.name,
+                "seed": int(seed),
+                "n_draws": len(seed_rows),
             }
-            by_arm.append(entry)
+            for key in ("e_sumo", "att_env"):
+                usable = [r[f"rho_{key}"] for r in seed_rows if r[f"rho_{key}"] is not None]
+                per_seed[f"mean_rho_{key}"] = (
+                    float(sum(usable) / len(usable)) if usable else None
+                )
+                per_seed[f"n_draws_{key}"] = len(usable)
+            by_seed.append(per_seed)
+        entry: dict[str, Any] = {"subject": subject, "arm": spec.name, "role": spec.role}
+        for key in ("e_sumo", "att_env"):
+            per_draw = _seed_means_by_draw(arm_rows, f"rho_{key}")
+            if not per_draw:
+                # Every draw undefined on this definition. Reported as such and carried past:
+                # refusing here would decide the handling of an undefined ratio after the
+                # campaign's numbers exist, which is what the 2026-09-17 ruling closes.
+                #
+                # ⚠️ CORRECTED 2026-09-18 (BRIEF_38 §2, Finding 4). Until then the sentence
+                # above was a claim the code did not honour: the None below reached
+                # `_h3_block`, where `stats["mean"] > 0.0` raised
+                # `TypeError: '>' not supported between instances of 'NoneType' and 'float'`,
+                # and `_contrast_block`, where `mean - mean` raised
+                # `TypeError: unsupported operand type(s) for -: 'NoneType' and 'NoneType'`.
+                # Both fired AFTER every refusal had passed -- at the point where the artifact
+                # was about to be written -- so the excluded definition took the REGISTERED
+                # PRIMARY down with it. Both blocks now carry the None through as None; a
+                # verdict is not invented and a zero is not substituted.
+                entry[key] = {
+                    "n_draws": 0,
+                    "mean": None,
+                    "std": None,
+                    "ci95": None,
+                    "ci95_low": None,
+                    "ci95_high": None,
+                    "why_empty": (
+                        "every draw's denominator on this definition was exactly zero; see "
+                        "denominator_diagnostic and excluded_draws"
+                    ),
+                }
+                continue
+            stats = mean_ci95([per_draw[d] for d in sorted(per_draw)])
+            entry[key] = {
+                "n_draws": stats.n,
+                "mean": stats.mean,
+                "std": stats.std,
+                "ci95": stats.ci95,
+                "ci95_low": stats.mean - stats.ci95,
+                "ci95_high": stats.mean + stats.ci95,
+            }
+        entry["paired_att"] = {
+            key: {
+                anchor: _paired_block(rows, arm_rows, subject, spec.name, anchor, key)
+                for anchor in ("fixedtime", "maxpressure")
+            }
+            for key in ("e_sumo", "att_env")
+        }
+        by_arm.append(entry)
 
     artifact: dict[str, Any] = {
         "format_version": ARTIFACT_FORMAT_VERSION,
@@ -1665,13 +1914,17 @@ def report(
             ),
         },
         "what_this_does_not_say": (
-            "This is the ZERO-SHOT point only. No model was fine-tuned, no anchor corpus was "
-            "collected and no k-shot curve is reported here; the few-shot points and the anchor are "
-            "P7.3b's. rho is computed WITHIN SUMO against anchors on the same draws, so it is not a "
-            "cross-backend comparison of absolute travel times. The calibrated-vs-naive contrast is "
-            "exploratory (PREREGISTRATION §2, A17(d)) and is never promoted to a claim. The "
-            "in-support diagnostic selects nothing. H3's third clause -- that the gap closes "
-            "substantially by k = 100 -- is not tested here."
+            ANCHOR_WHAT_THIS_DOES_NOT_SAY
+            if stage == STAGE_ANCHOR
+            else (
+                "This is the ZERO-SHOT point only. No model was fine-tuned, no anchor corpus was "
+                "collected and no k-shot curve is reported here; the few-shot points and the anchor are "
+                "P7.3b's. rho is computed WITHIN SUMO against anchors on the same draws, so it is not a "
+                "cross-backend comparison of absolute travel times. The calibrated-vs-naive contrast is "
+                "exploratory (PREREGISTRATION §2, A17(d)) and is never promoted to a claim. The "
+                "in-support diagnostic selects nothing. H3's third clause -- that the gap closes "
+                "substantially by k = 100 -- is not tested here."
+            )
         ),
         "inputs": {
             "calibration_sha256": P7_2B_CALIBRATION_SHA256,
@@ -1695,6 +1948,9 @@ def report(
         **_git_provenance(),
     }
 
+    if stage == STAGE_ANCHOR:
+        artifact["anchor"] = _anchor_block(rows, data)
+
     if stage1_path is not None:
         artifact["stage1_artifact"] = _stage1_block(Path(stage1_path), rows)
 
@@ -1714,6 +1970,99 @@ def report(
         )
     _write_json(target_path, artifact)
     return artifact
+
+
+
+#: A18(a)'s own sentence about what the anchor is NOT, quoted verbatim.  It lives in the ARTIFACT
+#: because the packet does not travel with it (the author's ruling of 2026-09-17 on ATT_ENV_CAVEAT,
+#: applied to the same problem).
+ANCHOR_WHAT_IT_IS_NOT = (
+    "It is the curve's k = 200 endpoint and the paper says exactly what it is: what "
+    "target-domain probe data alone buys the same architecture -- not an upper bound on "
+    "achievable SUMO performance, and not a target-domain online policy."
+)
+
+ANCHOR_WHAT_THIS_DOES_NOT_SAY = (
+    "This is the FULL-RETRAIN ANCHOR only -- the C3 curve's k = 200 endpoint (PREREGISTRATION "
+    "A18(a)). " + ANCHOR_WHAT_IT_IS_NOT + " No few-shot point is reported here: k in {5, 20, 100} "
+    "is P7.3c, deferred by the author on 2026-09-18, and grid4x4 is P7.3d. "
+    "**A18(b): there is NO online SUMO anchor** -- no MAPPO-on-SUMO path exists, contract C8's "
+    "metric-set defect (DEFERRED 75(e)) stands, and it would need >= 1,000 on-policy episodes per "
+    "seed; it is deferred to P11 and is named as a limitation in the paper's C3 section, not in a "
+    "footnote. Nothing here is a verdict on P7.3a's zero-shot number: the anchor is a "
+    "measurement reported beside it, and H3's clauses are P7.3a's and are NOT recomputed by this "
+    "artifact. rho is computed WITHIN SUMO against anchors on the same draws, so it is not a "
+    "cross-backend comparison of absolute travel times. The `random` arm was NOT re-rolled for "
+    "this stage (Amendment A4): rho's denominator is fixed-time and MaxPressure only, so no "
+    "reader should infer a `random` comparison this stage ran. The in-support diagnostic selects "
+    "nothing."
+)
+
+
+def _anchor_block(rows: Sequence[Mapping[str, Any]], data_dir: Path) -> dict[str, Any]:
+    """P7.3b section 3.4: the anchor reported as the curve's endpoint, and interpreted nowhere.
+
+    Everything here is read from the committed training record rather than recomputed, so the
+    artifact says which file its prompt came from and a reader can check that file's digest.
+    """
+    training = load_anchor_training(data_dir / P7_3B_TRAINING_NAME)
+    facts = anchor_subject_facts(training)
+    anchor_rows = [r for r in rows if r["subject"] == ANCHOR_SUBJECT]
+    return {
+        "subject": ANCHOR_SUBJECT,
+        "arm": ANCHOR_ARM,
+        "role": ANCHOR_ROLE,
+        "registered_in": "PREREGISTRATION A18(a), tagged v1.8-prereg-a18 (045e9be)",
+        "what_it_is_not": ANCHOR_WHAT_IT_IS_NOT,
+        "no_online_anchor": (
+            "A18(b), registered before any target-domain number existed: there is no online SUMO "
+            "anchor in this paper. Deferred to P11 and named as a limitation in the C3 section"
+        ),
+        "prompt": {
+            "rule": "naive_in_domain",
+            "definition": str(training["prompt_rule_definition"]),
+            "target_rtg": float(training["target_rtg"]),
+            "rtg_scale": float(training["rtg_scale"]),
+            "source_artifact": P7_3B_TRAINING_NAME,
+            "source_sha256": P7_3B_TRAINING_SHA256,
+            "not_from": (
+                "docs/data/p7_2b_calibration.json. That artifact registers CityFlow-trained "
+                "subjects; conditioning the anchor on the SOURCE domain's returns would make it a "
+                "different experiment. Amendment A5 requires the proof to be the ROUTE rather than "
+                "a value, and the route is tested: load_calibration and targets_for_subject are "
+                "never reached on this subject's branch of run_cell"
+            ),
+        },
+        "training": {
+            "declared_gradient_steps": int(training["declared_gradient_steps"]),
+            "raise_to": training["raise_to"],
+            "recipe": dict(training["recipe"]),
+            "n_episodes": int(training["n_episodes"]),
+            "draw_band": [
+                int(training["corpus"]["draw_ids"][0]),
+                int(training["corpus"]["draw_ids"][-1]),
+            ],
+            "corpus_digest_files": dict(training["corpus"]["digest_files"]),
+            "disjoint_from_the_subjects_and_the_pool": bool(training["disjointness"]["disjoint"]),
+            "support_range_over_the_split": list(facts.support_range_over_the_split),
+            "training_set_return_min": facts.training_set_return_min,
+            "seeds": [
+                {"seed": int(r["seed"]), "checkpoint_sha256": str(r["checkpoint_sha256"]),
+                 "final_loss": float(r["final_loss"]), "seconds": float(r["seconds"])}
+                for r in training["seeds"]
+            ],
+        },
+        "n_cells": len(anchor_rows),
+        "h3_is_not_recomputed_here": (
+            "H3's clauses are about b_mean_k100 and are P7.3a's; docs/data/p7_3a_zero_shot.json "
+            "carries them. This artifact's h3 block therefore has no subject in it, which is the "
+            "honest result of running report over a work directory that holds no b_mean_k100 cell"
+        ),
+        "reported_not_interpreted": (
+            "rho is reported under both registered definitions with its CIs. This artifact draws "
+            "no conclusion about whether the anchor beats, matches or trails the zero-shot point"
+        ),
+    }
 
 
 def _seed_means_by_draw(rows: Sequence[Mapping[str, Any]], key: str) -> dict[int, float]:
@@ -2043,6 +2392,44 @@ def pilot_cells() -> list[dict[str, Any]]:
     ]
 
 
+def anchor_pilot_cells() -> list[dict[str, Any]]:
+    """The anchor's own pre-flight pilot: its cell on the FENCED smoke draw, both pilot seeds.
+
+    P7.3b's schedule may not be quoted from P7.3a's campaign -- F3: *the header must never quote a
+    rate for a machine state the run did not have* -- and the anchor runs a different checkpoint
+    per cell through a different prompt source.  This is the smallest set that exercises that path
+    end to end.
+
+    Like :func:`pilot_cells` these carry ``PILOT_STAGE``, which is deliberately not one of
+    :data:`STAGES`, so a pilot chunk is a declared cell of no stage and :func:`report` refuses the
+    directory outright.  The two rho anchors are included because they go through the same runner
+    and A6 measured them SLOWER than a DT cell, so a DT-only pilot would under-count.
+    """
+    cells: list[dict[str, Any]] = [
+        {
+            "kind": "dt",
+            "subject": ANCHOR_SUBJECT,
+            "arm": ANCHOR_ARM,
+            "seed": int(seed),
+            "draw_id": PILOT_DRAW,
+            "stage": PILOT_STAGE,
+        }
+        for seed in PILOT_SEEDS
+    ]
+    cells.extend(
+        {
+            "kind": "anchor",
+            "subject": None,
+            "arm": arm,
+            "seed": None,
+            "draw_id": PILOT_DRAW,
+            "stage": PILOT_STAGE,
+        }
+        for arm in ("fixedtime", "maxpressure")
+    )
+    return cells
+
+
 def _worker(task: tuple[dict[str, Any], dict[str, Any]]) -> dict[str, Any]:
     """One cell in one process.  Top-level so ``spawn`` can pickle it.
 
@@ -2147,6 +2534,7 @@ def run_pilot(
     data_dir: str | Path | None = None,
     workers: int = DEFAULT_WORKERS,
     transcript_path: str | Path | None = None,
+    cells: Sequence[Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """F1's pre-flight pilot: :func:`pilot_cells` through the REAL pool, and nothing published.
 
@@ -2175,7 +2563,17 @@ def run_pilot(
     print(canary_line, flush=True)
     check_canary(facts)
 
-    cells = pilot_cells()
+    # `cells` lets P7.3b hand in `anchor_pilot_cells()`; the default is F1's sixteen.
+    # Whatever is passed, every cell must carry PILOT_STAGE -- the fence is that a pilot
+    # chunk is a declared cell of no stage, so `report` refuses the directory outright.
+    cells = list(pilot_cells() if cells is None else cells)
+    off_stage = sorted({str(c.get('stage')) for c in cells if c.get('stage') != PILOT_STAGE})
+    if off_stage:
+        raise ValueError(
+            f"a pilot cell set may only carry stage {PILOT_STAGE!r}; got {off_stage}. A cell "
+            "on a campaign stage would write a chunk report would then publish, and the pilot "
+            "is fenced precisely because its outcomes are not evidence about anything"
+        )
     started = time.perf_counter()
     summary = run_stage(
         work_dir=work_dir,
@@ -2304,6 +2702,11 @@ def build_parser() -> Any:
     )
     pilot.add_argument("--workers", type=int, default=DEFAULT_WORKERS)
     pilot.add_argument(
+        "--anchor",
+        action="store_true",
+        help="P7.3b: pilot the ANCHOR's cells instead of F1's sixteen (anchor_pilot_cells)",
+    )
+    pilot.add_argument(
         "--transcript",
         default=str(DEFAULT_OUTPUT_ROOT / "p7_3a_runs" / "preflight_pilot.txt"),
     )
@@ -2396,6 +2799,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             data_dir=args.data_dir,
             workers=args.workers,
             transcript_path=args.transcript,
+            cells=anchor_pilot_cells() if getattr(args, "anchor", False) else None,
         )
         # Counts and clocks only. `report` is never called on a pilot directory, and would refuse.
         print(json.dumps(record, indent=2, sort_keys=True), flush=True)
@@ -2415,11 +2819,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps(summary, indent=2, sort_keys=True), flush=True)
         return 1 if summary["n_failed"] else 0
 
-    name = (
-        "p7_3a_zero_shot_stage1.json"
-        if args.stage == STAGE_CONFIRMATORY
-        else "p7_3a_zero_shot.json"
-    )
+    # One stage, one artifact name. The anchor's is its own file: it is a different declaration
+    # over a different work directory, and writing it under P7.3a's name would overwrite the
+    # zero-shot point with the curve's endpoint.
+    if args.stage == STAGE_ANCHOR:
+        name = "p7_3b_anchor.json"
+    elif args.stage == STAGE_CONFIRMATORY:
+        name = "p7_3a_zero_shot_stage1.json"
+    else:
+        name = "p7_3a_zero_shot.json"
     artifact = report(
         work_dir=work,
         out_path=Path(args.out_dir) / name,

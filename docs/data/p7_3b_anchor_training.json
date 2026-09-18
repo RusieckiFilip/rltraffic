@@ -1,0 +1,1979 @@
+{
+ "corpus": {
+  "dataset_dirs": [
+   "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400"
+  ],
+  "digest_file_name": "SHA256SUMS",
+  "digest_files": {
+   "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure": "def8fb30b408a66221a9fe5062f3a953b2a56c8ae53e2adbad505b0d87941fd7",
+   "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400": "93f180e08343cb735c26779bc0d71a30f8dbc4a9b56a7369c6876bc81e9debe5"
+  },
+  "draw_ids": [
+   201,
+   202,
+   203,
+   204,
+   205,
+   206,
+   207,
+   208,
+   209,
+   210,
+   211,
+   212,
+   213,
+   214,
+   215,
+   216,
+   217,
+   218,
+   219,
+   220,
+   221,
+   222,
+   223,
+   224,
+   225,
+   226,
+   227,
+   228,
+   229,
+   230,
+   231,
+   232,
+   233,
+   234,
+   235,
+   236,
+   237,
+   238,
+   239,
+   240,
+   241,
+   242,
+   243,
+   244,
+   245,
+   246,
+   247,
+   248,
+   249,
+   250,
+   251,
+   252,
+   253,
+   254,
+   255,
+   256,
+   257,
+   258,
+   259,
+   260,
+   261,
+   262,
+   263,
+   264,
+   265,
+   266,
+   267,
+   268,
+   269,
+   270,
+   271,
+   272,
+   273,
+   274,
+   275,
+   276,
+   277,
+   278,
+   279,
+   280,
+   281,
+   282,
+   283,
+   284,
+   285,
+   286,
+   287,
+   288,
+   289,
+   290,
+   291,
+   292,
+   293,
+   294,
+   295,
+   296,
+   297,
+   298,
+   299,
+   300,
+   301,
+   302,
+   303,
+   304,
+   305,
+   306,
+   307,
+   308,
+   309,
+   310,
+   311,
+   312,
+   313,
+   314,
+   315,
+   316,
+   317,
+   318,
+   319,
+   320,
+   321,
+   322,
+   323,
+   324,
+   325,
+   326,
+   327,
+   328,
+   329,
+   330,
+   331,
+   332,
+   333,
+   334,
+   335,
+   336,
+   337,
+   338,
+   339,
+   340,
+   341,
+   342,
+   343,
+   344,
+   345,
+   346,
+   347,
+   348,
+   349,
+   350,
+   351,
+   352,
+   353,
+   354,
+   355,
+   356,
+   357,
+   358,
+   359,
+   360,
+   361,
+   362,
+   363,
+   364,
+   365,
+   366,
+   367,
+   368,
+   369,
+   370,
+   371,
+   372,
+   373,
+   374,
+   375,
+   376,
+   377,
+   378,
+   379,
+   380,
+   381,
+   382,
+   383,
+   384,
+   385,
+   386,
+   387,
+   388,
+   389,
+   390,
+   391,
+   392,
+   393,
+   394,
+   395,
+   396,
+   397,
+   398,
+   399,
+   400
+  ]
+ },
+ "declared_gradient_steps": 40000,
+ "disjointness": {
+  "disjoint": true,
+  "n_files_verified": 202,
+  "n_probe_draws": 200,
+  "probe_draws": [
+   201,
+   400
+  ],
+  "sources": [
+   {
+    "n": 200,
+    "name": "mappo1000:provenance.training_draw_ids",
+    "overlap_with_probe": 0,
+    "path": "/home/filip/rltraffic/output/p4_dt/dt_seed101.pt"
+   },
+   {
+    "n": 200,
+    "name": "mix50:provenance.training_draw_ids",
+    "overlap_with_probe": 0,
+    "path": "/home/filip/rltraffic/output/p4_7/checkpoints/mix50_dt_seed101.pt"
+   },
+   {
+    "n": 152,
+    "name": "p4_7_declaration:tiers.mix50.training_draws",
+    "overlap_with_probe": 0,
+    "path": "docs/data/p4_7_declaration.json"
+   },
+   {
+    "n": 100,
+    "name": "held_out_pool",
+    "overlap_with_probe": 0,
+    "path": "PREREGISTRATION §5"
+   }
+  ],
+  "the_trap": "both checkpoints' provenance.training_draw_ids are 1..200; the mix50 field records the candidate pool, not the 152 draws of tiers.mix50.training_draws, so the assertion runs against the union of all three sources",
+  "union_size": 300
+ },
+ "episode_ids": [
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000000_seed1000_draw201.npz",
+   "episode_length": 360,
+   "flow_draw": 201
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000001_seed1000_draw202.npz",
+   "episode_length": 360,
+   "flow_draw": 202
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000002_seed1000_draw203.npz",
+   "episode_length": 360,
+   "flow_draw": 203
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000003_seed1000_draw204.npz",
+   "episode_length": 360,
+   "flow_draw": 204
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000004_seed1000_draw205.npz",
+   "episode_length": 360,
+   "flow_draw": 205
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000005_seed1000_draw206.npz",
+   "episode_length": 360,
+   "flow_draw": 206
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000006_seed1000_draw207.npz",
+   "episode_length": 360,
+   "flow_draw": 207
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000007_seed1000_draw208.npz",
+   "episode_length": 360,
+   "flow_draw": 208
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000008_seed1000_draw209.npz",
+   "episode_length": 360,
+   "flow_draw": 209
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000009_seed1000_draw210.npz",
+   "episode_length": 360,
+   "flow_draw": 210
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000010_seed1000_draw211.npz",
+   "episode_length": 360,
+   "flow_draw": 211
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000011_seed1000_draw212.npz",
+   "episode_length": 360,
+   "flow_draw": 212
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000012_seed1000_draw213.npz",
+   "episode_length": 360,
+   "flow_draw": 213
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000013_seed1000_draw214.npz",
+   "episode_length": 360,
+   "flow_draw": 214
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000014_seed1000_draw215.npz",
+   "episode_length": 360,
+   "flow_draw": 215
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000015_seed1000_draw216.npz",
+   "episode_length": 360,
+   "flow_draw": 216
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000016_seed1000_draw217.npz",
+   "episode_length": 360,
+   "flow_draw": 217
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000017_seed1000_draw218.npz",
+   "episode_length": 360,
+   "flow_draw": 218
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000018_seed1000_draw219.npz",
+   "episode_length": 360,
+   "flow_draw": 219
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000019_seed1000_draw220.npz",
+   "episode_length": 360,
+   "flow_draw": 220
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000020_seed1000_draw221.npz",
+   "episode_length": 360,
+   "flow_draw": 221
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000021_seed1000_draw222.npz",
+   "episode_length": 360,
+   "flow_draw": 222
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000022_seed1000_draw223.npz",
+   "episode_length": 360,
+   "flow_draw": 223
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000023_seed1000_draw224.npz",
+   "episode_length": 360,
+   "flow_draw": 224
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000024_seed1000_draw225.npz",
+   "episode_length": 360,
+   "flow_draw": 225
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000025_seed1000_draw226.npz",
+   "episode_length": 360,
+   "flow_draw": 226
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000026_seed1000_draw227.npz",
+   "episode_length": 360,
+   "flow_draw": 227
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000027_seed1000_draw228.npz",
+   "episode_length": 360,
+   "flow_draw": 228
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000028_seed1000_draw229.npz",
+   "episode_length": 360,
+   "flow_draw": 229
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000029_seed1000_draw230.npz",
+   "episode_length": 360,
+   "flow_draw": 230
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000030_seed1000_draw231.npz",
+   "episode_length": 360,
+   "flow_draw": 231
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000031_seed1000_draw232.npz",
+   "episode_length": 360,
+   "flow_draw": 232
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000032_seed1000_draw233.npz",
+   "episode_length": 360,
+   "flow_draw": 233
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000033_seed1000_draw234.npz",
+   "episode_length": 360,
+   "flow_draw": 234
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000034_seed1000_draw235.npz",
+   "episode_length": 360,
+   "flow_draw": 235
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000035_seed1000_draw236.npz",
+   "episode_length": 360,
+   "flow_draw": 236
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000036_seed1000_draw237.npz",
+   "episode_length": 360,
+   "flow_draw": 237
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000037_seed1000_draw238.npz",
+   "episode_length": 360,
+   "flow_draw": 238
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000038_seed1000_draw239.npz",
+   "episode_length": 360,
+   "flow_draw": 239
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000039_seed1000_draw240.npz",
+   "episode_length": 360,
+   "flow_draw": 240
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000040_seed1000_draw241.npz",
+   "episode_length": 360,
+   "flow_draw": 241
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000041_seed1000_draw242.npz",
+   "episode_length": 360,
+   "flow_draw": 242
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000042_seed1000_draw243.npz",
+   "episode_length": 360,
+   "flow_draw": 243
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000043_seed1000_draw244.npz",
+   "episode_length": 360,
+   "flow_draw": 244
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000044_seed1000_draw245.npz",
+   "episode_length": 360,
+   "flow_draw": 245
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000045_seed1000_draw246.npz",
+   "episode_length": 360,
+   "flow_draw": 246
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000046_seed1000_draw247.npz",
+   "episode_length": 360,
+   "flow_draw": 247
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000047_seed1000_draw248.npz",
+   "episode_length": 360,
+   "flow_draw": 248
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000048_seed1000_draw249.npz",
+   "episode_length": 360,
+   "flow_draw": 249
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000049_seed1000_draw250.npz",
+   "episode_length": 360,
+   "flow_draw": 250
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000050_seed1000_draw251.npz",
+   "episode_length": 360,
+   "flow_draw": 251
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000051_seed1000_draw252.npz",
+   "episode_length": 360,
+   "flow_draw": 252
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000052_seed1000_draw253.npz",
+   "episode_length": 360,
+   "flow_draw": 253
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000053_seed1000_draw254.npz",
+   "episode_length": 360,
+   "flow_draw": 254
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000054_seed1000_draw255.npz",
+   "episode_length": 360,
+   "flow_draw": 255
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000055_seed1000_draw256.npz",
+   "episode_length": 360,
+   "flow_draw": 256
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000056_seed1000_draw257.npz",
+   "episode_length": 360,
+   "flow_draw": 257
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000057_seed1000_draw258.npz",
+   "episode_length": 360,
+   "flow_draw": 258
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000058_seed1000_draw259.npz",
+   "episode_length": 360,
+   "flow_draw": 259
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000059_seed1000_draw260.npz",
+   "episode_length": 360,
+   "flow_draw": 260
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000060_seed1000_draw261.npz",
+   "episode_length": 360,
+   "flow_draw": 261
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000061_seed1000_draw262.npz",
+   "episode_length": 360,
+   "flow_draw": 262
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000062_seed1000_draw263.npz",
+   "episode_length": 360,
+   "flow_draw": 263
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000063_seed1000_draw264.npz",
+   "episode_length": 360,
+   "flow_draw": 264
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000064_seed1000_draw265.npz",
+   "episode_length": 360,
+   "flow_draw": 265
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000065_seed1000_draw266.npz",
+   "episode_length": 360,
+   "flow_draw": 266
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000066_seed1000_draw267.npz",
+   "episode_length": 360,
+   "flow_draw": 267
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000067_seed1000_draw268.npz",
+   "episode_length": 360,
+   "flow_draw": 268
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000068_seed1000_draw269.npz",
+   "episode_length": 360,
+   "flow_draw": 269
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000069_seed1000_draw270.npz",
+   "episode_length": 360,
+   "flow_draw": 270
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000070_seed1000_draw271.npz",
+   "episode_length": 360,
+   "flow_draw": 271
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000071_seed1000_draw272.npz",
+   "episode_length": 360,
+   "flow_draw": 272
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000072_seed1000_draw273.npz",
+   "episode_length": 360,
+   "flow_draw": 273
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000073_seed1000_draw274.npz",
+   "episode_length": 360,
+   "flow_draw": 274
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000074_seed1000_draw275.npz",
+   "episode_length": 360,
+   "flow_draw": 275
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000075_seed1000_draw276.npz",
+   "episode_length": 360,
+   "flow_draw": 276
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000076_seed1000_draw277.npz",
+   "episode_length": 360,
+   "flow_draw": 277
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000077_seed1000_draw278.npz",
+   "episode_length": 360,
+   "flow_draw": 278
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000078_seed1000_draw279.npz",
+   "episode_length": 360,
+   "flow_draw": 279
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000079_seed1000_draw280.npz",
+   "episode_length": 360,
+   "flow_draw": 280
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000080_seed1000_draw281.npz",
+   "episode_length": 360,
+   "flow_draw": 281
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000081_seed1000_draw282.npz",
+   "episode_length": 360,
+   "flow_draw": 282
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000082_seed1000_draw283.npz",
+   "episode_length": 360,
+   "flow_draw": 283
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000083_seed1000_draw284.npz",
+   "episode_length": 360,
+   "flow_draw": 284
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000084_seed1000_draw285.npz",
+   "episode_length": 360,
+   "flow_draw": 285
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000085_seed1000_draw286.npz",
+   "episode_length": 360,
+   "flow_draw": 286
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000086_seed1000_draw287.npz",
+   "episode_length": 360,
+   "flow_draw": 287
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000087_seed1000_draw288.npz",
+   "episode_length": 360,
+   "flow_draw": 288
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000088_seed1000_draw289.npz",
+   "episode_length": 360,
+   "flow_draw": 289
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000089_seed1000_draw290.npz",
+   "episode_length": 360,
+   "flow_draw": 290
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000090_seed1000_draw291.npz",
+   "episode_length": 360,
+   "flow_draw": 291
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000091_seed1000_draw292.npz",
+   "episode_length": 360,
+   "flow_draw": 292
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000092_seed1000_draw293.npz",
+   "episode_length": 360,
+   "flow_draw": 293
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000093_seed1000_draw294.npz",
+   "episode_length": 360,
+   "flow_draw": 294
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000094_seed1000_draw295.npz",
+   "episode_length": 360,
+   "flow_draw": 295
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000095_seed1000_draw296.npz",
+   "episode_length": 360,
+   "flow_draw": 296
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000096_seed1000_draw297.npz",
+   "episode_length": 360,
+   "flow_draw": 297
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000097_seed1000_draw298.npz",
+   "episode_length": 360,
+   "flow_draw": 298
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000098_seed1000_draw299.npz",
+   "episode_length": 360,
+   "flow_draw": 299
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "episode_file": "ep000099_seed1000_draw300.npz",
+   "episode_length": 360,
+   "flow_draw": 300
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000000_seed1000_draw301.npz",
+   "episode_length": 360,
+   "flow_draw": 301
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000001_seed1000_draw302.npz",
+   "episode_length": 360,
+   "flow_draw": 302
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000002_seed1000_draw303.npz",
+   "episode_length": 360,
+   "flow_draw": 303
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000003_seed1000_draw304.npz",
+   "episode_length": 360,
+   "flow_draw": 304
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000004_seed1000_draw305.npz",
+   "episode_length": 360,
+   "flow_draw": 305
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000005_seed1000_draw306.npz",
+   "episode_length": 360,
+   "flow_draw": 306
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000006_seed1000_draw307.npz",
+   "episode_length": 360,
+   "flow_draw": 307
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000007_seed1000_draw308.npz",
+   "episode_length": 360,
+   "flow_draw": 308
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000008_seed1000_draw309.npz",
+   "episode_length": 360,
+   "flow_draw": 309
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000009_seed1000_draw310.npz",
+   "episode_length": 360,
+   "flow_draw": 310
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000010_seed1000_draw311.npz",
+   "episode_length": 360,
+   "flow_draw": 311
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000011_seed1000_draw312.npz",
+   "episode_length": 360,
+   "flow_draw": 312
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000012_seed1000_draw313.npz",
+   "episode_length": 360,
+   "flow_draw": 313
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000013_seed1000_draw314.npz",
+   "episode_length": 360,
+   "flow_draw": 314
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000014_seed1000_draw315.npz",
+   "episode_length": 360,
+   "flow_draw": 315
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000015_seed1000_draw316.npz",
+   "episode_length": 360,
+   "flow_draw": 316
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000016_seed1000_draw317.npz",
+   "episode_length": 360,
+   "flow_draw": 317
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000017_seed1000_draw318.npz",
+   "episode_length": 360,
+   "flow_draw": 318
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000018_seed1000_draw319.npz",
+   "episode_length": 360,
+   "flow_draw": 319
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000019_seed1000_draw320.npz",
+   "episode_length": 360,
+   "flow_draw": 320
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000020_seed1000_draw321.npz",
+   "episode_length": 360,
+   "flow_draw": 321
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000021_seed1000_draw322.npz",
+   "episode_length": 360,
+   "flow_draw": 322
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000022_seed1000_draw323.npz",
+   "episode_length": 360,
+   "flow_draw": 323
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000023_seed1000_draw324.npz",
+   "episode_length": 360,
+   "flow_draw": 324
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000024_seed1000_draw325.npz",
+   "episode_length": 360,
+   "flow_draw": 325
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000025_seed1000_draw326.npz",
+   "episode_length": 360,
+   "flow_draw": 326
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000026_seed1000_draw327.npz",
+   "episode_length": 360,
+   "flow_draw": 327
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000027_seed1000_draw328.npz",
+   "episode_length": 360,
+   "flow_draw": 328
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000028_seed1000_draw329.npz",
+   "episode_length": 360,
+   "flow_draw": 329
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000029_seed1000_draw330.npz",
+   "episode_length": 360,
+   "flow_draw": 330
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000030_seed1000_draw331.npz",
+   "episode_length": 360,
+   "flow_draw": 331
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000031_seed1000_draw332.npz",
+   "episode_length": 360,
+   "flow_draw": 332
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000032_seed1000_draw333.npz",
+   "episode_length": 360,
+   "flow_draw": 333
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000033_seed1000_draw334.npz",
+   "episode_length": 360,
+   "flow_draw": 334
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000034_seed1000_draw335.npz",
+   "episode_length": 360,
+   "flow_draw": 335
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000035_seed1000_draw336.npz",
+   "episode_length": 360,
+   "flow_draw": 336
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000036_seed1000_draw337.npz",
+   "episode_length": 360,
+   "flow_draw": 337
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000037_seed1000_draw338.npz",
+   "episode_length": 360,
+   "flow_draw": 338
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000038_seed1000_draw339.npz",
+   "episode_length": 360,
+   "flow_draw": 339
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000039_seed1000_draw340.npz",
+   "episode_length": 360,
+   "flow_draw": 340
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000040_seed1000_draw341.npz",
+   "episode_length": 360,
+   "flow_draw": 341
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000041_seed1000_draw342.npz",
+   "episode_length": 360,
+   "flow_draw": 342
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000042_seed1000_draw343.npz",
+   "episode_length": 360,
+   "flow_draw": 343
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000043_seed1000_draw344.npz",
+   "episode_length": 360,
+   "flow_draw": 344
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000044_seed1000_draw345.npz",
+   "episode_length": 360,
+   "flow_draw": 345
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000045_seed1000_draw346.npz",
+   "episode_length": 360,
+   "flow_draw": 346
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000046_seed1000_draw347.npz",
+   "episode_length": 360,
+   "flow_draw": 347
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000047_seed1000_draw348.npz",
+   "episode_length": 360,
+   "flow_draw": 348
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000048_seed1000_draw349.npz",
+   "episode_length": 360,
+   "flow_draw": 349
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000049_seed1000_draw350.npz",
+   "episode_length": 360,
+   "flow_draw": 350
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000050_seed1000_draw351.npz",
+   "episode_length": 360,
+   "flow_draw": 351
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000051_seed1000_draw352.npz",
+   "episode_length": 360,
+   "flow_draw": 352
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000052_seed1000_draw353.npz",
+   "episode_length": 360,
+   "flow_draw": 353
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000053_seed1000_draw354.npz",
+   "episode_length": 360,
+   "flow_draw": 354
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000054_seed1000_draw355.npz",
+   "episode_length": 360,
+   "flow_draw": 355
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000055_seed1000_draw356.npz",
+   "episode_length": 360,
+   "flow_draw": 356
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000056_seed1000_draw357.npz",
+   "episode_length": 360,
+   "flow_draw": 357
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000057_seed1000_draw358.npz",
+   "episode_length": 360,
+   "flow_draw": 358
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000058_seed1000_draw359.npz",
+   "episode_length": 360,
+   "flow_draw": 359
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000059_seed1000_draw360.npz",
+   "episode_length": 360,
+   "flow_draw": 360
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000060_seed1000_draw361.npz",
+   "episode_length": 360,
+   "flow_draw": 361
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000061_seed1000_draw362.npz",
+   "episode_length": 360,
+   "flow_draw": 362
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000062_seed1000_draw363.npz",
+   "episode_length": 360,
+   "flow_draw": 363
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000063_seed1000_draw364.npz",
+   "episode_length": 360,
+   "flow_draw": 364
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000064_seed1000_draw365.npz",
+   "episode_length": 360,
+   "flow_draw": 365
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000065_seed1000_draw366.npz",
+   "episode_length": 360,
+   "flow_draw": 366
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000066_seed1000_draw367.npz",
+   "episode_length": 360,
+   "flow_draw": 367
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000067_seed1000_draw368.npz",
+   "episode_length": 360,
+   "flow_draw": 368
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000068_seed1000_draw369.npz",
+   "episode_length": 360,
+   "flow_draw": 369
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000069_seed1000_draw370.npz",
+   "episode_length": 360,
+   "flow_draw": 370
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000070_seed1000_draw371.npz",
+   "episode_length": 360,
+   "flow_draw": 371
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000071_seed1000_draw372.npz",
+   "episode_length": 360,
+   "flow_draw": 372
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000072_seed1000_draw373.npz",
+   "episode_length": 360,
+   "flow_draw": 373
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000073_seed1000_draw374.npz",
+   "episode_length": 360,
+   "flow_draw": 374
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000074_seed1000_draw375.npz",
+   "episode_length": 360,
+   "flow_draw": 375
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000075_seed1000_draw376.npz",
+   "episode_length": 360,
+   "flow_draw": 376
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000076_seed1000_draw377.npz",
+   "episode_length": 360,
+   "flow_draw": 377
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000077_seed1000_draw378.npz",
+   "episode_length": 360,
+   "flow_draw": 378
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000078_seed1000_draw379.npz",
+   "episode_length": 360,
+   "flow_draw": 379
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000079_seed1000_draw380.npz",
+   "episode_length": 360,
+   "flow_draw": 380
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000080_seed1000_draw381.npz",
+   "episode_length": 360,
+   "flow_draw": 381
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000081_seed1000_draw382.npz",
+   "episode_length": 360,
+   "flow_draw": 382
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000082_seed1000_draw383.npz",
+   "episode_length": 360,
+   "flow_draw": 383
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000083_seed1000_draw384.npz",
+   "episode_length": 360,
+   "flow_draw": 384
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000084_seed1000_draw385.npz",
+   "episode_length": 360,
+   "flow_draw": 385
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000085_seed1000_draw386.npz",
+   "episode_length": 360,
+   "flow_draw": 386
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000086_seed1000_draw387.npz",
+   "episode_length": 360,
+   "flow_draw": 387
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000087_seed1000_draw388.npz",
+   "episode_length": 360,
+   "flow_draw": 388
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000088_seed1000_draw389.npz",
+   "episode_length": 360,
+   "flow_draw": 389
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000089_seed1000_draw390.npz",
+   "episode_length": 360,
+   "flow_draw": 390
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000090_seed1000_draw391.npz",
+   "episode_length": 360,
+   "flow_draw": 391
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000091_seed1000_draw392.npz",
+   "episode_length": 360,
+   "flow_draw": 392
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000092_seed1000_draw393.npz",
+   "episode_length": 360,
+   "flow_draw": 393
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000093_seed1000_draw394.npz",
+   "episode_length": 360,
+   "flow_draw": 394
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000094_seed1000_draw395.npz",
+   "episode_length": 360,
+   "flow_draw": 395
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000095_seed1000_draw396.npz",
+   "episode_length": 360,
+   "flow_draw": 396
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000096_seed1000_draw397.npz",
+   "episode_length": 360,
+   "flow_draw": 397
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000097_seed1000_draw398.npz",
+   "episode_length": 360,
+   "flow_draw": 398
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000098_seed1000_draw399.npz",
+   "episode_length": 360,
+   "flow_draw": 399
+  },
+  {
+   "dataset_dir": "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400",
+   "episode_file": "ep000099_seed1000_draw400.npz",
+   "episode_length": 360,
+   "flow_draw": 400
+  }
+ ],
+ "format_version": "p7.3b-anchor-training/1.0",
+ "intersection_id": "intersection_1_1",
+ "n_actions": 8,
+ "n_episodes": 200,
+ "n_windows": 72000,
+ "normalisation_stats": {
+  "dataset_dirs": [
+   "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure",
+   "/home/filip/rltraffic/datasets_sumo_v11/hz1x1_sumo_maxpressure_301_400"
+  ],
+  "draw_ids": [
+   201,
+   202,
+   203,
+   204,
+   205,
+   206,
+   207,
+   208,
+   209,
+   210,
+   211,
+   212,
+   213,
+   214,
+   215,
+   216,
+   217,
+   218,
+   219,
+   220,
+   221,
+   222,
+   223,
+   224,
+   225,
+   226,
+   227,
+   228,
+   229,
+   230,
+   231,
+   232,
+   233,
+   234,
+   235,
+   236,
+   237,
+   238,
+   239,
+   240,
+   241,
+   242,
+   243,
+   244,
+   245,
+   246,
+   247,
+   248,
+   249,
+   250,
+   251,
+   252,
+   253,
+   254,
+   255,
+   256,
+   257,
+   258,
+   259,
+   260,
+   261,
+   262,
+   263,
+   264,
+   265,
+   266,
+   267,
+   268,
+   269,
+   270,
+   271,
+   272,
+   273,
+   274,
+   275,
+   276,
+   277,
+   278,
+   279,
+   280,
+   281,
+   282,
+   283,
+   284,
+   285,
+   286,
+   287,
+   288,
+   289,
+   290,
+   291,
+   292,
+   293,
+   294,
+   295,
+   296,
+   297,
+   298,
+   299,
+   300,
+   301,
+   302,
+   303,
+   304,
+   305,
+   306,
+   307,
+   308,
+   309,
+   310,
+   311,
+   312,
+   313,
+   314,
+   315,
+   316,
+   317,
+   318,
+   319,
+   320,
+   321,
+   322,
+   323,
+   324,
+   325,
+   326,
+   327,
+   328,
+   329,
+   330,
+   331,
+   332,
+   333,
+   334,
+   335,
+   336,
+   337,
+   338,
+   339,
+   340,
+   341,
+   342,
+   343,
+   344,
+   345,
+   346,
+   347,
+   348,
+   349,
+   350,
+   351,
+   352,
+   353,
+   354,
+   355,
+   356,
+   357,
+   358,
+   359,
+   360,
+   361,
+   362,
+   363,
+   364,
+   365,
+   366,
+   367,
+   368,
+   369,
+   370,
+   371,
+   372,
+   373,
+   374,
+   375,
+   376,
+   377,
+   378,
+   379,
+   380,
+   381,
+   382,
+   383,
+   384,
+   385,
+   386,
+   387,
+   388,
+   389,
+   390,
+   391,
+   392,
+   393,
+   394,
+   395,
+   396,
+   397,
+   398,
+   399,
+   400
+  ],
+  "row_count": {
+   "cityflow1x1": {
+    "intersection_1_1": 72000
+   }
+  },
+  "rtg": {
+   "cityflow1x1": {
+    "intersection_1_1": {
+     "count": 72000,
+     "max": -71.0,
+     "mean": -14485.721347222223,
+     "min": -25257.0,
+     "quantiles": [
+      [
+       0.1,
+       -22701.1
+      ],
+      [
+       0.25,
+       -20998.25
+      ],
+      [
+       0.5,
+       -16002.0
+      ],
+      [
+       0.75,
+       -8468.0
+      ],
+      [
+       0.9,
+       -3487.0
+      ],
+      [
+       0.95,
+       -1785.0
+      ],
+      [
+       0.99,
+       -401.0
+      ]
+     ],
+     "std": 7151.457297968861
+    }
+   }
+  },
+  "split": "train",
+  "state_mean": {
+   "cityflow1x1": {
+    "intersection_1_1": [
+     25.68169403076172,
+     9.911791801452637,
+     24.570388793945312,
+     10.960958480834961,
+     10.998055458068848,
+     20.306249618530273,
+     20.12933349609375,
+     12.351847648620605,
+     5.208458423614502,
+     7.077402591705322,
+     4.781680583953857,
+     8.071971893310547,
+     2.3579862117767334,
+     16.686832427978516,
+     17.025304794311523,
+     2.684680461883545,
+     0.0,
+     0.39093056321144104,
+     0.38147222995758057,
+     0.024250000715255737,
+     0.020722221583127975,
+     0.07213889062404633,
+     0.021319445222616196,
+     0.06761111319065094,
+     0.02155555598437786
+    ]
+   }
+  },
+  "state_std": {
+   "cityflow1x1": {
+    "intersection_1_1": [
+     7.462514877319336,
+     6.645899772644043,
+     7.997929573059082,
+     6.128659248352051,
+     7.590877056121826,
+     10.728397369384766,
+     9.592110633850098,
+     6.807142734527588,
+     5.170437335968018,
+     5.479461193084717,
+     4.75451135635376,
+     5.151969909667969,
+     2.661494731903076,
+     9.418442726135254,
+     8.621755599975586,
+     2.721933364868164,
+     0.0,
+     0.4879588782787323,
+     0.4857480525970459,
+     0.15382437407970428,
+     0.14245283603668213,
+     0.25871774554252625,
+     0.1444469690322876,
+     0.2510773837566376,
+     0.1452271044254303
+    ]
+   }
+  },
+  "stats_version": "1.0"
+ },
+ "prompt_rule": "naive_in_domain",
+ "prompt_rule_definition": "target_rtg = the maximum episode return of the training set; rtg_scale = the largest absolute RTG of the training set. Computed from the anchor's OWN 200 episodes and never from P7.2b's calibration artifact, which registers CityFlow-trained subjects",
+ "raise_to": null,
+ "raise_to_note": "null by Amendment A3: A18(a) fixes 40,000 steps outright, and P4's all-seeds plateau raise is not part of the registered anchor recipe",
+ "recipe": {
+  "batch_size": 64,
+  "context_length": 20,
+  "d_model": 128,
+  "dropout": 0.1,
+  "grad_clip": 0.25,
+  "learning_rate": 0.0001,
+  "n_head": 1,
+  "n_layer": 3,
+  "optimiser": "AdamW",
+  "source": "P4's, unchanged -- offline/dt_gate.py and agent/DTAgent.py's DTConfig",
+  "warmup_steps": 1000,
+  "weight_decay": 0.0001
+ },
+ "registered_in": "PREREGISTRATION A18(a); BRIEF_38 section 3.3; Amendment A3",
+ "role": "the C3 transfer curve's k = 200 endpoint: a DT trained from scratch on SUMO, on 200 MaxPressure probe episodes over draws 201-400 (PREREGISTRATION A18(a))",
+ "rtg_scale": 25257.0,
+ "runtime": {
+  "cuda_available": true,
+  "cuda_device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+  "git_commit": "b35216ca79737ed945b24655d0e19652708e00ab",
+  "git_dirty": false,
+  "measurement_git_commits": [],
+  "numpy_version": "2.5.1",
+  "python_version": "3.12.13",
+  "torch_cuda_version": "12.8",
+  "torch_num_threads": 16,
+  "torch_version": "2.11.0+cu128",
+  "unreachable_measurement_commits": [],
+  "written_at_git_commit": "b35216ca79737ed945b24655d0e19652708e00ab"
+ },
+ "scenario_id": "cityflow1x1",
+ "seeds": [
+  {
+   "checkpoint": "/home/filip/rltraffic/output/p7_3b_anchor/checkpoints/anchor_dt_seed101.pt",
+   "checkpoint_sha256": "7a717b99526d47a94039a6793ad22be011272ba62e5316cbfdaa7736e803bb2c",
+   "declared_gradient_steps": 40000,
+   "final_loss": 0.03604091703891754,
+   "gradient_steps": 40000,
+   "plateaued": false,
+   "seconds": 212.7677412033081,
+   "seed": 101,
+   "window_means": [
+    0.8997473489642144,
+    0.4352910867333412,
+    0.3247287652567029,
+    0.26438197392970325,
+    0.224912600107491,
+    0.1938919852524996,
+    0.17065715948492288,
+    0.14906520801782608,
+    0.1318721186518669,
+    0.1165147549547255,
+    0.10347829224914312,
+    0.09147138909995556,
+    0.08167396530508995,
+    0.07242646437883377,
+    0.06518395046703518,
+    0.05822518805973232,
+    0.052120041266083716,
+    0.046370031726546586,
+    0.042178075263276694,
+    0.03785850830003619
+   ]
+  },
+  {
+   "checkpoint": "/home/filip/rltraffic/output/p7_3b_anchor/checkpoints/anchor_dt_seed202.pt",
+   "checkpoint_sha256": "63517323b4ef02ca2d25219e68eabafa69a57286ad76993d539384c3619defac",
+   "declared_gradient_steps": 40000,
+   "final_loss": 0.035134412348270416,
+   "gradient_steps": 40000,
+   "plateaued": false,
+   "seconds": 213.32853507995605,
+   "seed": 202,
+   "window_means": [
+    0.9043999570012092,
+    0.42693654337525366,
+    0.31903867138922215,
+    0.2617402222380042,
+    0.22451300198584795,
+    0.1947225559949875,
+    0.17083580081537367,
+    0.1503531529046595,
+    0.13269084157049657,
+    0.11725721748918295,
+    0.10417153142020107,
+    0.09236617748998105,
+    0.08260316012054682,
+    0.07412218493781984,
+    0.0661585855614394,
+    0.05930794875323772,
+    0.053336109794676304,
+    0.04818851068336517,
+    0.043768747131340206,
+    0.03898245079349726
+   ]
+  },
+  {
+   "checkpoint": "/home/filip/rltraffic/output/p7_3b_anchor/checkpoints/anchor_dt_seed303.pt",
+   "checkpoint_sha256": "878152759b67a91bc03a0b0d9fb06f71e66a9f7ca1d63aa2c422f693ef8f359c",
+   "declared_gradient_steps": 40000,
+   "final_loss": 0.022929096594452858,
+   "gradient_steps": 40000,
+   "plateaued": false,
+   "seconds": 228.1741166114807,
+   "seed": 303,
+   "window_means": [
+    0.906578509658575,
+    0.43106994731724263,
+    0.32421248210966586,
+    0.26484329845756294,
+    0.22602014629542827,
+    0.19611386400461198,
+    0.1717513844743371,
+    0.15049341797828675,
+    0.13327873473986984,
+    0.11775066029280425,
+    0.10489624712988735,
+    0.09286111753433943,
+    0.08297596658393741,
+    0.07381321606226265,
+    0.06607046534121036,
+    0.05922148516681045,
+    0.052854742044582965,
+    0.04789342653285712,
+    0.04316090227197856,
+    0.038846673990134147
+   ]
+  },
+  {
+   "checkpoint": "/home/filip/rltraffic/output/p7_3b_anchor/checkpoints/anchor_dt_seed404.pt",
+   "checkpoint_sha256": "556255ade9a665532195e8d74b7805fb23afa600bcec735ab8464bb3c4673162",
+   "declared_gradient_steps": 40000,
+   "final_loss": 0.043298762291669846,
+   "gradient_steps": 40000,
+   "plateaued": false,
+   "seconds": 227.04214477539062,
+   "seed": 404,
+   "window_means": [
+    0.8971854743361473,
+    0.42885395309329033,
+    0.3192026904448867,
+    0.26216048395633695,
+    0.22275622384250163,
+    0.1929329740330577,
+    0.16842818411439658,
+    0.14768657875806093,
+    0.12959968074783682,
+    0.11498398216068745,
+    0.102056193433702,
+    0.09086981532908976,
+    0.08102669872529805,
+    0.07218852806277573,
+    0.06520007062517107,
+    0.05822623901627958,
+    0.052555531582795086,
+    0.047329717924818396,
+    0.04298924851231277,
+    0.038569046667777
+   ]
+  },
+  {
+   "checkpoint": "/home/filip/rltraffic/output/p7_3b_anchor/checkpoints/anchor_dt_seed505.pt",
+   "checkpoint_sha256": "ae39174e208514b7da1cb19ce85b4d7fc01dea6a1d239e76910bb34f216f0077",
+   "declared_gradient_steps": 40000,
+   "final_loss": 0.04229655861854553,
+   "gradient_steps": 40000,
+   "plateaued": false,
+   "seconds": 207.93522310256958,
+   "seed": 505,
+   "window_means": [
+    0.8902250784635544,
+    0.4181030163615942,
+    0.3177212824895978,
+    0.2609998889490962,
+    0.22277856892347336,
+    0.1924028327539563,
+    0.1677368489615619,
+    0.14748150242120028,
+    0.12946737233549357,
+    0.11508344867452978,
+    0.10151984133943916,
+    0.09094042090699077,
+    0.08084710978530348,
+    0.07259435699880123,
+    0.06491767437942327,
+    0.05787037503346801,
+    0.05245081500709057,
+    0.047342910354025665,
+    0.04264820079039782,
+    0.03870105121191591
+   ]
+  }
+ ],
+ "state_dim": 25,
+ "target_rtg": -20625.0,
+ "what_this_is_not": "It is the curve's k = 200 endpoint and the paper says exactly what it is: what target-domain probe data alone buys the same architecture -- NOT an upper bound on achievable SUMO performance, and NOT a target-domain online policy. A18(b) registers why there is no online SUMO anchor (no MAPPO-on-SUMO path, contract C8's metric-set defect, >= 1,000 on-policy episodes per seed); its absence is deferred to P11 and is named as a limitation in the paper's C3 section, not in a footnote."
+}
