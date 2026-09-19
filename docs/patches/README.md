@@ -1,5 +1,24 @@
 # Patches a Claude Code session cannot apply itself
 
+## `agents_relay_discipline.patch` — the coordinator relays nothing but four things; a brief goes to the implementer once, whole, with its gates in it
+
+**Apply with:**
+```bash
+git apply docs/patches/agents_relay_discipline.patch    # on main, from the repo root
+git add .claude/agents/master-coordinator.md .claude/agents/implementer.md
+git commit -m "agents: relay nothing but four things; a brief goes once, whole, with its gates (PROJECT_PLAN section 7, 2026-09-19)"
+```
+The author's process ruling of 2026-09-19 (`PROJECT_PLAN` §7, same date), after P7.3b cost him a dozen relays. Three
+hunks in `.claude/agents/master-coordinator.md`: a **Relay nothing but four things** paragraph under *How you behave*
+(the author hears from the coordinator only for a token, a registration-changing ruling, a finding that could make a
+number wrong, or a finished task); the brief format gains **the gates, in order** and the *once, whole, never section
+by section* rule with the source-file cap restated as per-commit; the workflow diagram's step 4 becomes an amendment on
+`main` the implementer reads after `git merge main`, with no relay. Two hunks in `.claude/agents/implementer.md`: the
+one merge the implementer DOES run — `git merge --no-edit main` into the branch, every session and before every gate,
+`BLOCKED` on conflict — and that a passed gate is not reported to the author. Built against the files as they stand
+after `agents_incremental_findings.patch` was applied; verified with `git apply --check` on `main` at creation
+(`+34/−8`, two files). Docs-only; no code, no tests.
+
 ## `agents_incremental_findings.patch` — subagents persist findings as they go; two 25-minute reviewers died on an API limit and returned nothing
 
 **Apply with:**
