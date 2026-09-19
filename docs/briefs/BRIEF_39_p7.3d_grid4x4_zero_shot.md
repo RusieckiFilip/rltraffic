@@ -287,7 +287,13 @@ will assume about this point; and — stated in one sentence — that no A17(f) 
 
 ## 8. Registration — A20, proposed by the coordinator to the author, tagged before any grid4x4 SUMO number exists (gate G3)
 
-The implementer treats these as declared constants; if the author's ruling changes one, the coordinator appends an
+✅ **REGISTERED 2026-09-19, approved by the author *as written*: `PREREGISTRATION.md` A20, tag `v2.0-prereg-a20` →
+`0f3526b`, both refs on the remote, the sha256 chain verified. Gate G3 is CLEARED before this task starts; the bullets
+below are now declared constants, and the registered row — not this section — is the authority if the two ever differ.**
+The immediately-before check the row records: 0 parity configurations under `scenarios/draws/cityflow_grid4x4/`, no
+`p7_3d` artifact, work directory, worktree or branch, no grid4x4 SUMO simulation ever run.
+
+The implementer treats these as declared constants; if a later ruling changes one, the coordinator appends an
 amendment naming the constant, and the change is one line.
 
 - **Subject:** `mappo1000_dt_nomix_h4`, five seeds, the five checkpoints of §0.7 by digest — P5.2's headline non-spatial DT
