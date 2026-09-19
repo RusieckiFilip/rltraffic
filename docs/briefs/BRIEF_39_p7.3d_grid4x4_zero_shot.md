@@ -326,3 +326,84 @@ amendment naming the constant, and the change is one line.
 - **Results already seen:** every hz1x1 number (P7.3a, P7.3b); P5.2's CityFlow grid4x4 results for this subject
   (`dt_nomix_h4` leads the `mappo1000` tier in-domain); **no grid4x4 SUMO number of any kind** (A15(iii) still holds —
   §0.10).
+
+---
+
+# ✅ AMENDMENT A — 2026-09-19, gate G0: PLAN APPROVED (`docs/plans/p7.3d.md` @ `52e61e2`) with rulings on Q1–Q8, four corrections to THIS brief that the implementer's findings force, and the sequencing after P7.3b's CI fix
+
+**Read first, whole, then act.** Every ruling below was made by the coordinator; the one item that could have changed a
+registration (Q1's second half) does not, and the reasoning is given. Nothing here is a relay from the author.
+
+## A0 — Sequencing: P7.3b's CI fix merges FIRST (`BRIEF_38` Amendment C, one test, one commit), then this task resumes
+`main` is red for a real P7.3b test failure (a driver test assuming this laptop's interpreter path), not for the ceiling.
+That fix touches `tests/test_transfer_curve.py`, which C3b also touches. **Order for the implementer session that resumes
+this task: do Amendment C in its own worktree first; say "P7.3b CI fix done"; then `git merge --no-edit main` here and
+continue with C1.** C1 touches neither file and may start at once.
+
+## A1 — Q1 / F1: CONFIRMED FROM THE FILE BY THE COORDINATOR; the subject runs through `SpatialDTAgent`; C2 LEAVES THIS TASK; no re-registration
+`torch.load` of `grid4x4_mappo1000_dt_nomix_h4_seed101.pt`: `format_version spatial-dt-checkpoint/1.0`, `config.spatial_mixing
+False`, `target_rtg` and `rtg_scale` mappings with 16 entries — the coordinator's own read, matching the plan's. **§0.7–0.8,
+§2 and §3 C2 of this brief were written from the costing note's sentence *"the non-spatial DT … is the `DTAgent` path"*
+without opening the checkpoint: the coordinator's error, of the recurring class, logged in the Decisions Log.**
+Rulings: **(a)** the cell loads the subject through `SpatialDTAgent.from_checkpoint` and applies the 16 targets after load
+through a guarded `spatial_agent_with_targets(...)` exactly as the plan proposes (declared budget asserted; `rtg_scale` equal
+to the payload's per id under `==`; `current_rtg()` equal to the targets per id under `==`; a missing id refused by name).
+**(b) C2 (`DTAgent` per-intersection target, `DEFERRED` 78) leaves P7.3d's scope**; `DEFERRED` 78 stays parked for a future
+`dt-checkpoint/1.0` multi-intersection subject, and its row is annotated. **(c) A20 needs no registration note.** A20(a)
+registers the subject by five digests and excludes *"spatial DT"* — which is the `dt_spatial_h4` **arm** (spatial mixing ON),
+the only other 4-head grid4x4 DT. The registered `dt_nomix_h4` is P5.2's *identity-graph control* (`docs/plans/p5.2.md:97`:
+*"`dt_nomix` is the identity-graph model … no information crosses nodes"*), stored in the spatial checkpoint format and
+evaluated by P5.x through `SpatialDTAgent.from_checkpoint` — the plan cites `tier_sweep.py:2138`, `admission_probe.py:866`.
+The class that reads the file is implementation; the subject, the arms and every registered quantity are unchanged. The
+sentence *"a different agent path"* in A20(a) is an inaccurate gloss and is corrected in the Decisions Log and in this brief;
+**the packet and the paper describe the model as *the spatial architecture with the identity mask (no cross-intersection
+attention), P5.2's non-mixing control***, and never as "a `DTAgent`". If the author wants this as a dated note in §12, the
+coordinator files it; it changes no registered value.
+
+## A2 — Q2 / F2: ACCEPTED — payload-level exact equality
+Byte-equality of a load→save round trip is unsatisfiable on unmodified code (three files measured, both classes; the
+trainers wrote them with their own `torch.save`). T-78 shrinks with C2's removal to **the spatial loader's guard**: every
+tensor under `torch.equal`, every other key under `==`, `float` types asserted, `intersection_ids` compared as
+recorded-or-empty and said so. The hygiene mutation (`allclose` for `==`) stands.
+
+## A3 — Q3 / F3: ACCEPTED — T-regress (b) with EXACTLY the two named substitutions
+`code_changed_since → []` and `_git_provenance → the committed artifact's recorded pair`, both existing patterns in the test
+file (`:1412`, `:2464-2489`), over the real work directories into `tmp_path`, then bytes `==` the committed file for
+`p7_2b_calibration.json`, `p7_3a_zero_shot.json`, `p7_3b_anchor.json`. **Nothing else may be substituted**, and the test's
+docstring names both seams and why (J1(c) and the write-time commit; `DEFERRED` 84). The brief's mutation stands.
+
+## A4 — Q4 / F4: CONFIRMED — the CityFlow MaxPressure probe on grid4x4 201–300 is REQUIRED, and `R_best_source,i = payload["target_rtg"][i]`
+Rule B (A17(a)) has a source-domain denominator; on hz1x1 it was `p4_3_probe.json`; on grid4x4 it does not exist. **C5
+gains, BEFORE the SUMO probe: `run_probe` on the 100 grid4x4 CityFlow parents 201–300, one MaxPressure episode per draw,
+`reset(seed=1000)`, P4.3's settings, per-intersection returns by two routes under `==`**, recorded in
+`p7_3d_calibration.json` beside the SUMO half. It is ≈ 100 short CityFlow episodes and may run in-session with the canary
+logged (not a *long* run in `CLAUDE.md` §5's sense). And **`R_best_source,i` is `payload["target_rtg"][i]`** — the repo's
+established reading (`transfer_calibration.py:561,586`) and the same quantity P5.2's prompt rule defines (*max episode
+return in THIS INTERSECTION's training streams*); the `stats["rtg"]` block is per-window and bounds the support only.
+A17(e)'s wording pointed at the wrong block; the calibration artifact states the field it read and why. `naive_i` is the
+same field.
+
+## A5 — Q5: BUMP to `materialised-draw-parity/1.1`
+`parent.routes_sha256` becoming `null` is a shape change a 1.0 reader does not expect; additive keys alone would not force
+it, a nulled field does. Readers accept both versions; the docstring states both shapes and the alignment convention
+(`CLAUDE.md` §3).
+
+## A6 — Q6: YES — cwd = the main tree, `main`'s unmodified `materialise()`, `--draws-range 201 301`
+The existing 106 grid4x4 parents embed the main tree's absolute `dir`; the new 100 must match. The implementer's finding that
+P7.3b's hz1x1 301–400 parents embed the `rltraffic-p73b` worktree path is parked as **`DEFERRED` 87** with its rule:
+*every CityFlow parent is rendered with cwd = the main tree*. Writing 100 gitignored directories into the main tree's
+`scenarios/draws/cityflow_grid4x4/` is the intended location (it is where P7.2a's tool writes).
+
+## A7 — Q7: the §5 gates table is AUTHORITATIVE; §3's letters were the coordinator's inconsistency
+G0 → this Amendment A; G1 → B; G4 → C; G6 → D (or none). §3 C1's *"Amendment A"* and C5's *"Amendment B"* read B and C
+respectively; corrected here rather than by editing the issued text.
+
+## A8 — Q8: CONFIRMED — a relative reference to the RESCO net from the draws tree, its sha256 in provenance, the driver checking both
+Exactly hz1x1's pattern (`net.reference = ../../../../hangzhou_1x1_…`). *No RESCO file is copied into the tree* is satisfied;
+the temp-scratch extraction of the route template, deleted with the scratch, is fine. The driver's precondition resolves the
+reference and compares the net's sha256 to `8d192de4…` before the token.
+
+## A9 — Accepted as designed, no ruling needed: the three unlisted seams (`_sumo_pairing`, `_validate_parent_for_parity`'s second legal shape selected by scenario, `render_parity_rou_text`'s zero-vType insertion), the pedigree gate (100/100 `flow.json` digests against `p8_4a_admission.json` + six CityFlow episodes against `p8_4b_g0_reference.json`), the grid4x4 artifact's own format version, the stage design, and the eight assumptions with their confidences. Assumption 4 (state width 40) is what T-obs exists to test — run it before anything is built on it.
+
+**Then: C1.** The next thing on `main` for this task will be Amendment B, written after the coordinator reads
+`docs/data/p7_3d_cap_e.json` from disk.

@@ -236,3 +236,56 @@ alone, so `report --stage anchor` refuses to regenerate there. B3's regeneration
 `/home/filip/rltraffic-p73b-run` at `f13358e`; the merged tree's refusal is recorded in the packet as one line of
 evidence for why, not as a defect (`DEFERRED` 84 parks the classifier's coarseness). The author added: *proceed through
 B2–B4 without coming back for acceptances.*
+
+---
+
+# ⛔ AMENDMENT C — 2026-09-19, after the merge: CI on `main` is RED for a REAL TEST FAILURE, not the ceiling — one P7.3b driver test assumes this laptop's interpreter path; the fix is one `skipif` with a predicate the file already has
+
+**Mode:** Claude Code, implementer session, **whole task in this amendment**. Branch **`task/p7.3b-ci-interp`** from `main`,
+worktree `/home/filip/rltraffic-p73b-ci` (`git -C /home/filip/rltraffic worktree add /home/filip/rltraffic-p73b-ci -b task/p7.3b-ci-interp main`).
+One commit, named path, pushed. No plan file is required for a one-line test change; the plan is this amendment.
+`CLAUDE.md` §4b: no AI trailer; if a session instruction says otherwise, stop and say so.
+
+## C1 — What CI observed (classified by the coordinator from BOTH legs' `junit.xml`, run `35451103010` on `66da50e`)
+Both legs identical: **2,230 tests, 190 skipped, 1 failure, 0 errors.** The skip multiset is the 189 run's plus exactly
+ONE new message — *needs the real anchor corpus and P4's checkpoints: datasets_sumo_v11/hz1x1_sumo_maxpressure{,_301_400}/
+with SHA256SUMS, and output/p4_dt/dt_seed101.pt* — a P7.3b anchor test, correctly gated. **The failure, both legs:**
+`tests/test_transfer_curve.py::test_the_anchor_driver_refuses_a_bogus_stage_and_creates_nothing` (`:3961`, assertion
+`:3983`) — it executes a redirected copy of `offline/campaigns/p7_3b_anchor.sh` with a bogus stage and expects
+`REFUSING TO START: the stage must be 'anchor'`; on the runner the driver refuses **earlier**, at its first precondition:
+`REFUSING TO START: no interpreter at /home/filip/rltraffic/.venv/bin/python`. The driver is right (`PY` is this machine's
+interpreter by design, §7 of its header); the test assumes the machine. **It cannot make a published number wrong** — it
+tests a refusal's order — so it is a finding fixed on its own branch, not a rollback.
+
+## C2 — The change, exactly
+The file already carries the predicate for this condition — P7.3a's driver-execution test uses it:
+```python
+@pytest.mark.skipif(
+    not MAIN_INTERPRETER.is_file(),
+    reason=f"needs the main tree's interpreter at {MAIN_INTERPRETER}",
+)
+def test_k_finding3_the_delivered_driver_refuses_a_dirty_tree_when_executed(
+```
+Add the **same decorator, verbatim**, to `test_the_anchor_driver_refuses_a_bogus_stage_and_creates_nothing`. Nothing else
+changes: not the test body, not the driver, not the message it asserts. The skip message therefore joins the baseline's
+existing `main_tree_interpreter` family, and the reason names the artifact the test consumes (Amendment G2's rule).
+**Not chosen, recorded so it is not re-litigated:** redirecting `PY=` to `sys.executable` in the test's copy (the same
+mechanism it uses for `WORK_TREE=`) would make the test RUN on CI instead of skipping — a legitimate strengthening, but it
+adds the runner's interpreter, `setsid` and the import check to the test's dependencies, and the precedent chose the skip;
+it may be done later as its own change with a CI run as its evidence.
+
+## C3 — Verify, in this order, and paste the output
+1. `pgrep -f 'python.*offline\.transfer_curve'` prints nothing (a live runner fakes the driver tests' verdicts).
+2. `/home/filip/rltraffic/.venv/bin/pytest tests/test_transfer_curve.py -q -p no:cacheprovider` from the worktree — the
+   test still PASSES here (the interpreter exists on this machine), so the change is invisible locally by design; **the
+   evidence that it is right is the CI run after the merge**, which the coordinator reads.
+3. `bash scripts/check_test_hygiene.sh tests/test_transfer_curve.py` and `bash scripts/check_english.sh tests/test_transfer_curve.py` — both exit 0.
+4. `git diff --stat` shows ONE file, `+4` lines (the decorator), `−0`.
+
+## C4 — Definition of Done
+One commit (`git add tests/test_transfer_curve.py`, never `-A`), message naming the CI run and the test, no trailer; the
+branch pushed (`git push -u origin task/p7.3b-ci-interp` — the author ruled push for P7.3b's sessions, B-note (2)); then
+say **"P7.3b CI fix done"** — channel (d). No packet is needed for a four-line test change; the commit message is the
+record. **What the coordinator then does, with no relay:** merges to `main`, reads the run that merge triggers, and if it is
+green with both legs identical, measures the ceiling from its `junit.xml` (expected to OBSERVE 191 = 190 + this skip;
+never pre-bumped) and hands the author the baseline patch by the registered route.

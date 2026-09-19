@@ -3958,6 +3958,10 @@ def test_the_anchor_driver_is_syntactically_valid_bash() -> None:
     assert result.returncode == 0, result.stderr
 
 
+@pytest.mark.skipif(
+    not MAIN_INTERPRETER.is_file(),
+    reason=f"needs the main tree's interpreter at {MAIN_INTERPRETER}",
+)
 def test_the_anchor_driver_refuses_a_bogus_stage_and_creates_nothing(tmp_path: Path) -> None:
     """EXECUTED, not read: the stage argument is required, so starting the wrong thing refuses.
 
