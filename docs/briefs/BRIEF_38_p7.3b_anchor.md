@@ -223,3 +223,16 @@ Commit the artifact with named paths (`git add docs/data/p7_3b_anchor.json`; nev
 suite run after the copy with the real tail; `docs/returns/P7.3b.md` written and committed; every commit on the branch
 with named paths; the branch pushed. Then say **"P7.3b packet done"** — paste nothing. The coordinator reads the packet
 from disk, spawns ONE merge review, and merges with §6 ticked.
+
+**B-note — 2026-09-19, the author's rulings at the packet's plan gate, recorded so the packet can cite them by letter.**
+(1) `git merge --no-edit main` into the branch (B1) is run by the implementer: forward-integration of `main` into a task
+branch is not the case its *never run `git merge`* rule guards against, and `.claude/settings.json` puts `git merge`
+under `ask`, which the author approves. (2) **For this task the implementer pushes the branch when done** — also under
+`ask`. *The branch pushed* above was written without a subject, which is the coordinator's error: §7's 2026-09-16 rule
+has the coordinator push task branches, and that standing rule is unchanged for later tasks (`BRIEF_39` conforms). (3) A
+*Stage B* addendum to `docs/plans/p7.3b.md`, committed after the merge, is approved. (4) **The implementer's finding is
+correct and is J1(c) working:** after B1 the merged tree differs from `f13358e` outside `docs/` by `PREREGISTRATION.md`
+alone, so `report --stage anchor` refuses to regenerate there. B3's regeneration therefore runs in
+`/home/filip/rltraffic-p73b-run` at `f13358e`; the merged tree's refusal is recorded in the packet as one line of
+evidence for why, not as a defect (`DEFERRED` 84 parks the classifier's coarseness). The author added: *proceed through
+B2–B4 without coming back for acceptances.*
