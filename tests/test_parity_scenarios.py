@@ -420,6 +420,35 @@ def test_grid4x4_parity_end_to_end_binds_every_vehicle_and_touches_no_parent_byt
     assert _tree_snapshot(tmp_path) == snapshot
 
 
+def test_the_grid4x4_config_says_whose_network_it_references_and_hz1x1s_header_is_unmoved(
+    tmp_path: Path, resco_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The generated header is hashed into every later cell's ``config_sha256``, so it must be TRUE
+    before the first cell exists: grid4x4's network is RESCO's, outside the repository -- not "the
+    SHIPPED one", which is what the hangzhou header says and must keep saying, byte for byte
+    (T-regress (a) pins that digest).  An XML comment may not contain a double hyphen, so a note
+    carrying one is refused rather than written into a file SUMO would reject."""
+    default = parity.render_parity_sumocfg_text("x.net.xml", "routes.rou.xml", time_to_teleport=-1)
+    assert "The network is the SHIPPED one, referenced rather than copied." in default
+    assert default == parity.render_parity_sumocfg_text(
+        "x.net.xml", "routes.rou.xml", time_to_teleport=-1, network_note=None
+    )
+    with pytest.raises(ValueError, match="double hyphen"):
+        parity.render_parity_sumocfg_text("x.net.xml", "r.rou.xml", network_note="a -- b")
+    with pytest.raises(ValueError, match="one line"):
+        parity.render_parity_sumocfg_text("x.net.xml", "r.rou.xml", network_note="a\nb")
+
+    monkeypatch.setenv("RLTRAFFIC_GRID4X4_RESCO", str(resco_root))
+    materialise(GRID4X4_CONFIG, [1], out_root=tmp_path)
+    materialise_parity(GRID4X4_CONFIG, [1], out_root=tmp_path)
+    text = (parity_dir(GRID4X4_KEY, 1, out_root=tmp_path) / PARITY_SUMOCFG_FILENAME).read_text(
+        encoding="utf-8"
+    )
+    assert "SHIPPED" not in text
+    assert "RESCO" in text and "CC BY-NC-SA 4.0" in text and "OUTSIDE the repository" in text
+    ET.fromstring(text)  # well-formed: the note did not break the comment
+
+
 def test_the_templated_record_is_version_1_1_and_pins_both_resco_digests(
     tmp_path: Path, resco_root: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

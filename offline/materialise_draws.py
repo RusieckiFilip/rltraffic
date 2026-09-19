@@ -1387,11 +1387,21 @@ def _build_parity(
         )
 
     net_reference = os.path.relpath(net_path, target.resolve())
-    cfg_text = parity.render_parity_sumocfg_text(
-        net_reference,
-        PARITY_ROUTES_FILENAME,
-        time_to_teleport=PARITY_TIME_TO_TELEPORT,
-    )
+    if templated:
+        cfg_text = parity.render_parity_sumocfg_text(
+            net_reference,
+            PARITY_ROUTES_FILENAME,
+            time_to_teleport=PARITY_TIME_TO_TELEPORT,
+            network_note=parity.GRID4X4_NETWORK_NOTE,
+        )
+    else:
+        # Hangzhou: the call as it was before P7.3d, so the header -- and the digest every
+        # P7.3a/P7.3b chunk pins -- does not move.
+        cfg_text = parity.render_parity_sumocfg_text(
+            net_reference,
+            PARITY_ROUTES_FILENAME,
+            time_to_teleport=PARITY_TIME_TO_TELEPORT,
+        )
 
     files: dict[str, bytes] = {
         PARITY_ROUTES_FILENAME: bound_text.encode("utf-8"),
