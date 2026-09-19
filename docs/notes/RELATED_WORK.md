@@ -62,3 +62,52 @@ adds to it and contradicts none of it.**
 
 **Action recorded so it is not rediscovered:** whoever drafts related work (P10.1) reads PromptGAT and Joint-Local GAT in full first and
 records the date above. The first paragraph carries the ADAPT-versus-MEASURE distinction.
+
+---
+
+## 2. The author's assessment after reading the related work — 2026-09-19. A JUDGEMENT, not a measurement; to be checked against the full sources when someone reads them properly
+
+*In the author's words, lightly compressed; nothing added.*
+
+I had been treating cross-engine transfer for TSC as unoccupied ground. It is not. The DaRL group has four papers on the CityFlow → SUMO
+pair and an AAAI 2024 among them. That lowers the novelty of C3 as a topic, and it changes what our introduction has to do.
+
+**What survives as ours: they adapt, we do not.** Their question is *how do we close the gap*; ours is *how much gap is really there, and
+what does it depend on*. That is a real difference but a narrower one than I assumed, and it has to be argued explicitly against PromptGAT
+rather than established by omission. A referee who knows that line will ask why we did not compare against grounded action transformation.
+*"We measure something else"* is the right answer and it belongs in the first paragraph, not in a rebuttal letter.
+
+**What still has no counterpart that I found:** the data-quality ladder with thresholds; the k = 200 anchor showing the zero-shot advantage
+comes from source-data quality rather than domain proximity; spatial mixing harming at the best-data tier; and the registration apparatus.
+Those four share one thesis — *what is in the data dominates which world it came from and what is built on top of it* — and no paper I saw
+makes that argument end to end.
+
+**Where this leaves the paper, in my estimate:** T-ITS is realistic but harder than I said before. Not because the work is weaker, but
+because we are entering an area with an active publishing group and must position against them openly. The three contributions that are
+not theirs are what carries it.
+
+**Two things I would do before the draft:** read PromptGAT and Joint-Local GAT in full, and check LibSignal's *"rankings are generally
+consistent within a simulator"* sentence against what our zero-shot number actually claims — they may be closer or further apart than they
+look from the abstracts. *(Both are OPEN items in §1.3.)*
+
+### 2.1 The coordinator's check of §2 against the project's own record (2026-09-19) — what the record confirms, and three qualifiers it adds
+
+- **Confirmed by the identifiers resolved in §1.1:** four works on the pair, one at AAAI 2024, one at RLC/RLJ 2025; the group owns the
+  converter (A14(a), `DEFERRED` 77). The ADAPT-versus-MEASURE distinction is §1's *pre-adaptation residual gap* ruling, now aimed at a name.
+- **Qualifier 1 — the ladder.** `PROJECT_PLAN` §1's claim constraint of 2026-08-12: the data-quality-ladder *concept* is 2021 prior art in
+  another domain (arXiv:2112.02845, Meng et al., StarCraft II, "the first offline MARL dataset with diverse quality levels", MADT, few- and
+  zero-shot transfer), and **the sentence *"we introduce the study of offline MARL performance as a function of data quality" must never be
+  written.*** What is ours is the **TSC instantiation** — six tiers with registered thresholds, multi-agent local rewards, dual-backend
+  paired scenarios, the method × tier grid, the selection-mechanism decomposition — and OffLight's heterogeneous behaviour policies sit
+  next to it. §2's *"no counterpart"* is true of the ladder **as executed here**, not of the idea, and the paper cites 2112.02845 where C1 is
+  introduced.
+- **Qualifier 2 — the anchor.** *"Source-data quality rather than domain proximity"* is the reading A19(c) registers, and it rests on a
+  comparison in which the only target-domain anchor is MaxPressure-quality data (A18(a)); **there is no high-quality target-domain anchor**,
+  by A18(b), so the clause is a difference in demonstration quality shown on one axis, with the missing anchor named as a limitation in the
+  C3 section — not a two-axis separation. The registration says exactly this; the paper may not say more.
+- **Qualifier 3 — spatial mixing.** *"Spatial mixing harming at the best-data tier"* is the sentence A22 (2026-09-19) makes **conditional on
+  P5.4's footprint**: if the trained models' neighbour influence is trivial, the registered alternative is *"adding the cross-intersection
+  attention path destabilises training"*. The contribution stands in either form; its wording is not yet fixed, by design.
+- **On the thesis and the venue:** the four-contribution thesis is supported on hz1x1 — one intersection — and on grid4x4 only for C1;
+  P7.3d is what makes the C3 half of it more than one network, and the paper's scope sentence for that is A21's. The T-ITS judgement is the
+  author's; the coordinator records it and does not grade it.
