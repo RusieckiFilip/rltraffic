@@ -243,6 +243,17 @@ suite (they are 2–6× hz1x1's). `scripts/check_test_hygiene.sh` on every test 
   byte-identical at the recording commit. *Mutation:* `_write_json` above the last refusal → dies.
 - **T-driver.** Comment-free text assertions: canary before token, `record-canary` after, RSS check before the trap,
   `WORKERS` from a variable set by G2's file, two stages with their own tokens, `tee -a`, `set -euo pipefail`.
+- **T-pilot (added 2026-09-19 from P7.3b's merge review, `DEFERRED` 86).** A test that **CALLS `run_pilot`** — or the
+  transcript-building function once it is factored out — on a fixture whose cells include one with `seed: None`
+  (an anchor cell), and asserts the transcript's `seeds` and `n_cells_without_a_training_seed`. P7.3b's
+  `test_the_pilot_transcript_survives_a_cell_that_has_no_training_seed` re-implements the guarded expression inside
+  its own body and pins nothing: with the guard at `transfer_curve.py:2624` removed it stays green (reviewer's M2,
+  re-run by the coordinator). **Replace that test with the real form here; do not add a second one beside it.**
+  *Mutation:* remove the `is not None` guard → this test must die. ⚠️ **Two harness traps when you run mutations on
+  driver tests, both hit by the coordinator on 2026-09-19:** a mutant worktree with an uncommitted edit is a DIRTY
+  tree, and the driver's dirty-tree refusal fires before the refusal the test expects; and a shell whose command line
+  contains the literal `offline.transfer_curve` matches the driver's liveness `pgrep` and produces exit 3. Commit the
+  mutant in the throwaway worktree, and invoke pytest from a script file whose text does not carry the pattern.
 
 ---
 
