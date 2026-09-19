@@ -452,3 +452,103 @@ table; RESCO files read in place and pinned by digest; the CAP(E) report and its
 **Process note, for the record and not for the implementer:** a stop of this kind reaches the coordinator only through the
 author, because the coordinator does not run unless spoken to. The author's part is one word (*"blocked"*) — never a
 paste — after which the coordinator reads the worktree. Written into §7's relay rule as a clarification.
+
+---
+
+# ✅ AMENDMENT B — 2026-09-19, gate G1: A15(g)'s CONDITION IS MET under the coordinator's own route; C1 ACCEPTED at `723310e`; A21's scope applied to this brief (one stage, one review, no `collect.py` door); Q2–Q4 ruled
+
+## B1 — G1 PASSED. The coordinator recomputed CAP(E) by its own route and read the artifact from disk
+Stdlib regex over the rendered route text and `json` over the parents — nothing imported from `offline/` — over **all 200
+draws** (201–300 and 1000–1099): the `(depart, route)` multiset **and order** equal on **200/200**; **265,477 vehicles, every
+one `type="cf_parity"`**; the rendered `<vType>` attributes equal A15(g)'s eight on all 200; `time-to-teleport −1` in every
+`.sumocfg`; the net reference resolves on every draw to RESCO's file at sha256 `8d192de4…`; **0 aggregate flow entries**
+(every grid4x4 entry is a single insertion — P7.2a's trap does not arise here). `docs/data/p7_3d_cap_e.json` (`949015b3…`,
+`git_commit 73bf637`, `git_dirty false`, `n_exact 200`, `condition_met true`, pedigree 100/100 against
+`p8_4a_admission.json`) says the same. Regeneration: regeneration from a clean tree at `73bf637` NOT RUN by the coordinator (the command could not be reconstructed from the capture in-session) — it is the merge reviewer's item. **A15(g)'s condition is MET: grid4x4 is admitted to C3's
+target set. The task continues.**
+
+## B2 — A21 (`v2.1-prereg-a21` → `169c467`) applied to this brief; the registered row is the authority where they differ
+- §2 / §8: arms are **`b_mean_k100` only**. `naive` and `random` are NOT evaluated on grid4x4 — A21(b)'s two scope
+  sentences are the paper's: *the calibrated-versus-naive contrast stays hz1x1-only, where it was flat (−0.0021 / −0.0179);
+  ρ_random is absent on this scenario (−1.300 / −3.604 on hz1x1)*.
+- §3 C3b: **no `collect.py` SUMO door for grid4x4** — nothing is collected in this task.
+- §3 C6 / §5: **ONE stage, `confirmatory`, 700 cells** (500 DT + 100 `fixedtime` + 100 `maxpressure`), **one token**; the
+  halting cross-check ON for the 7 cells of draw 1000. **G7 (token, stage 2) is deleted from the gates table; G9 is ONE
+  merge review** (mutations + every number recomputed by the reviewer's own route, the P7.3b shape).
+- §4: T-rho's synthetic cells and T-report's refusals cover the two arms that exist; nothing is written for arms that do not.
+
+## B3 — Q2–Q4
+- **Q2 (+11 clean-clone skips):** nothing for the implementer. The ceiling moves at P7.3d's merge by the registered route —
+  observed on the run that merge triggers, never predicted — and `re_measure_required_at` already names it.
+- **Q3 (the six-episode half of the pedigree gate):** in **C4's commit**, beside the six reference cells — same purpose
+  (A9's *the instrument regenerates*), same artifact family; `p8_4b_g0_reference.json`'s `behaviour@fixedtime` and
+  `behaviour@maxpressure` on draws 1000–1002 reproduced bit-for-bit, or the task stops and says which draw.
+- **Q4 (`run_worktree_module.sh`):** stays evidence-side. **C6's driver carries the cwd rule itself** — `cd $MAIN`,
+  `PYTHONPATH=$WORK_TREE`, the RESCO root exported with the main-tree candidates dir as default, and an assertion that the
+  worktree's module loaded — and T-driver asserts those lines. A launcher outside the repository is not a home for a rule.
+
+## B4 — Deviations ACCEPTED as recorded, with one note
+Three commits for C1 (code, fix, artifact) so every parity record carries a clean code commit; the re-render with
+`--force` **before any cell exists** (both captures kept; one config digest `c27d31e8…` on all 200); the
+`_report_heldout_thresholds` literals; the A.1 line applied exactly (the *removed* `def` is the same test re-signed for
+`monkeypatch`; +25 test functions, none deleted). **Note, not a round:** an unregistered scenario key still falls back to
+hangzhou's table inside `materialise_parity` while `scenario_for_key` and `cap_e_report` are strict; that is the
+pre-P7.3d behaviour and it is refused on disagreement, but it is a coincidence-dependent path — make it strict the next
+time that function is touched.
+
+## B5 — Mutations: 19 runs, all KILLED (implementer's transcript); two re-run by the coordinator on COMMITTED mutants in a throwaway worktree, control 3/3 first
+**M9c** (the full-table binding check dropped — a fully bound file with the wrong `tau` would pass G1): **KILLED**,
+`test_cap_e_refuses_a_fully_bound_draw_whose_vtype_carries_the_wrong_tau`. **M14** (hangzhou's header moved — every
+P7.3a/P7.3b config digest would change): **KILLED**, both named tests, the hz1x1 draw-1000 digest test among them.
+
+## B6 — A precision to A21's *"no grid4x4 SUMO simulation of any kind"*, recorded because the quantifier is the project's recurring error
+C1 started SUMO once on grid4x4: a **config load** of draw 1000 (`--end 1 --xml-validation always`), exit 0, an EMPTY
+capture — no episode, no return, no ATT, no quantity of any kind. A21's substantive claim (no target-domain grid4x4
+number existed when it was tagged) is unaffected; the row's wording was one word too wide and this paragraph is its
+correction, also in the Decisions Log.
+
+## B7 — Housekeeping before C3a
+At the time of this ruling the implementer's worktree carried uncommitted paths: ` M offline/aligned_env.py;?? tests/test_aligned_env_grid4x4.py`. Commit or remove them before
+any cell is rolled — J1(d): the driver refuses a dirty tree, one cell at a time, hours in.
+
+**Then: C3a.** The next thing on `main` for this task is Amendment C after the pre-flight (G4).
+
+---
+
+# ✅ AMENDMENT B.1 — 2026-09-19, late, on the implementer's stop at C3a: the halting cross-check covers the MONITORED INCOMING lanes — 192 on grid4x4, 8 on hz1x1 — and the brief's 240 / 16 were the coordinator's error; no registered instrument changes; C3a's first half ACCEPTED at `b9ec455`
+
+## B.1-1 — The ruling, from the artifacts
+The registered instrument (A15's `reconstruct_sumo_episode`, Amendment C2's cross-check) iterates
+`_monitored_incoming_lanes` (`offline/sumo_att_reference.py:849–851`, `:870`) — the lanes the observation reads — and the
+committed record says so: **all 47 halting-checked cells of `docs/data/p7_3a_zero_shot.json` carry
+`halting_n_lane_seconds = 28,800 = 8 × 3,600`** (re-read by the coordinator), hangzhou's eight incoming lanes, not its
+sixteen. On grid4x4 that is 16 × 12 = **192 monitored incoming lanes → 691,200 lane-seconds**, which is what T-obs measured;
+the other 48 lanes are boundary-outbound and enter no controlled intersection. **§3 C3b's *"240 × 3,600"* and §4 T-obs's
+*"hz1x1's 16"* were TOTAL lane counts copied from A15(g)'s structural audit — the coordinator's error, of the recurring class
+(a number written from a neighbouring artifact rather than from the instrument).** The implementer implemented to the repo,
+left the instrument untouched, and asserted the coverage three ways (derived from `env.intersections`, the literal
+`691_200`, and *not* `8 × 3,600`), with the mutation — the check restricted to eight incoming lanes — KILLED. **All of that
+stands. Widening the check to 240 lanes would be a NEW instrument (the territory of `DEFERRED` 83), not a correction, and
+is not wanted.** The brief's two sentences read as corrected here; the issued text is not edited.
+
+## B.1-2 — C3a's first half ACCEPTED at `b9ec455`; T-obs is the first grid4x4 SUMO episode this project has run
+Aligned state **40 wide on all 16 intersections for all 360 decisions** (plan assumption 4 holds); 0 teleports; `cf_parity`;
+`"-1"`; the halting cross-check agreeing on every one of the 691,200 lane-seconds; the five no-simulator tests and the nine
+hz1x1 aligned-env tests green. The implementer's own catch is recorded with credit: its first new assertion — by-id lane
+pairing — was wrong as a fact on 128 of 192 lanes, corrected from the network files to the identity permutation; that is
+the plan gate's assumption 4 doing its job one level down.
+
+## B.1-3 — A grid4x4 SUMO NUMBER HAS NOW BEEN SEEN, and every later "results already seen" column names it
+The first T-obs run failed on the brief's wrong count, and the failure's repr wrote `HaltingAgreement(…)` and **fixed-time
+`e_sumo` ≈ 307.26 s on draw 1000** into `output/p7_3d_runs/c3a/t_obs_first_run.txt`. It is an anchor value on one draw, not
+a subject's number, and it was seen **after** A20, A21 and A22 were tagged — their columns remain true as of their dates.
+From this line on, any amendment touching P7.3d lists it as seen. The implementer disclosed it unprompted, which is the
+behaviour the rule exists for.
+
+## B.1-4 — Housekeeping done by the coordinator, per the standing rule
+`task/p7.3d-grid4x4` had no upstream after nine commits; the coordinator pushed it with `-u` (2026-09-16 rule; remote tip
+`d24f535`). The implementer keeps not pushing.
+
+**Then: the rest of C3a** — `transfer_calibration` per scenario, the two probes recorded per intersection (CityFlow first,
+A4), the `p7_2b_calibration.json` regression through A3's two substitutions — and C3b. The next thing on `main` for this task
+is Amendment C after the pre-flight (G4).
