@@ -502,6 +502,301 @@ def _roll_one_episode(
     return record
 
 
+# ======================================================================================
+# The calibration PER INTERSECTION (P7.3d: BRIEF_39 C3a, Amendments A1, A4, B.1; A17(e), A20, A21)
+# ======================================================================================
+
+#: The draws-tree key and the registered subject of the grid4x4 point (A20(a)).
+GRID4X4_SCENARIO_KEY = "cityflow_grid4x4"
+GRID4X4_SUBJECT = "mappo1000_dt_nomix_h4"
+GRID4X4_CHECKPOINT_SUBDIR = "p5_2/checkpoints"
+GRID4X4_CHECKPOINT_STEM = "grid4x4_mappo1000_dt_nomix_h4_seed"
+
+#: A20(a)'s five checkpoints BY DIGEST.  A20 records that they were "pinned in no committed file
+#: until P7.3d's declaration artifact records them": this is that pin, re-measured 2026-09-19, and
+#: ``docs/data/p7_3d_calibration.json`` carries it as evidence.  It moves only with the artifact.
+GRID4X4_CHECKPOINT_SHA256: dict[int, str] = {
+    101: "329fb6b87fc8cf5c27530b2fe4d45212ea9c0775db3fb1e636a6bbc0a5004279",
+    202: "f541358530399cc8282d4b8af63da7a83195bc421706714df0d460ff0d132fcc",
+    303: "48076dab687da6b88ee0059b12e5edd49cea7d363deec84d30597bdc26e29906",
+    404: "4b61bc064af2984e0d2e9666f03485ca901b87337a3a30c29c77302813eb4729",
+    505: "09bd310ddc6ed337835d8a8fe9d29a16968cf2d339fabaae91927b4808e34cdc",
+}
+
+#: The checkpoint format the subject is stored in (Amendment A1: the identity-graph control of the
+#: spatial architecture, read by ``SpatialDTAgent``; never a ``dt-checkpoint/1.0``).
+SPATIAL_CHECKPOINT_FORMAT = "spatial-dt-checkpoint/1.0"
+
+#: A20(b): the registered budget, and the two that are RECORDED and never evaluated.
+REGISTERED_K = 100
+REGISTERED_STATISTIC = "mean"
+ROLE_REGISTERED = "registered_prompt"
+ROLE_RECORDED_ONLY = "recorded_not_evaluated"
+
+
+@dataclass(frozen=True)
+class SubjectFactsPerIntersection:
+    """What the subject's five checkpoints declare PER INTERSECTION, agreed across the seeds."""
+
+    subject: str
+    scenario_id: str
+    intersection_ids: tuple[str, ...]
+    best_source_return: dict[str, float]
+    rtg_scale: dict[str, float]
+    support_range: dict[str, tuple[float, float]]
+    n_rows: dict[str, int]
+    training_draw_ids: tuple[int, ...]
+    checkpoints: tuple[str, ...]
+    checkpoint_sha256: dict[int, str]
+    state_dim: int
+    context_length: int
+    n_head: int
+    gradient_steps: int
+
+
+def subject_facts_per_intersection(
+    *,
+    output_root: str | Path,
+    expected_sha256: Mapping[int, str] | None = None,
+) -> SubjectFactsPerIntersection:
+    """Read the registered grid4x4 subject's per-intersection constants from its five checkpoints.
+
+    **Which field each constant is read from, and why (Amendment A4).**  ``R_best_source,i`` is
+    ``payload["target_rtg"][i]`` -- P5.2's declared prompt, *the maximum episode return in THIS
+    intersection's training streams* -- which is the repo's established reading on hangzhou
+    (:func:`subject_facts`, ``best_source_return = payload["target_rtg"]``).  ``rtg_scale_i`` is
+    ``payload["rtg_scale"][i]`` and is never recalibrated (A17(a)).  ``payload["stats"]["rtg"]`` is
+    a PER-WINDOW summary -- its ``max`` is 0.0 on every intersection, the return-to-go at an
+    episode's last step -- and bounds the SUPPORT only; A17(e)'s wording pointed at it for
+    ``R_best`` and the payload says otherwise.
+
+    Every refusal names what it found: a checkpoint absent or at a digest other than
+    *expected_sha256* (default: A20(a)'s five, :data:`GRID4X4_CHECKPOINT_SHA256`); a payload that is
+    not the identity-graph control in the spatial format (Amendment A1) -- wrong format version,
+    ``spatial_mixing`` on, a mask that is not the identity; a gradient-step count other than the
+    declared one; an id set that differs between the prompt, the scale, the statistics and the
+    recorded order; and any seed that disagrees with seed 101 on any intersection's constant --
+    the seed varies the training RNG, never the prompt.
+    """
+    import numpy as np
+
+    pins = dict(GRID4X4_CHECKPOINT_SHA256 if expected_sha256 is None else expected_sha256)
+    root = Path(output_root)
+    paths = {
+        seed: root / GRID4X4_CHECKPOINT_SUBDIR / f"{GRID4X4_CHECKPOINT_STEM}{seed}.pt"
+        for seed in TRAINING_SEEDS
+    }
+    missing = [str(path) for path in paths.values() if not path.is_file()]
+    if missing:
+        raise FileNotFoundError(f"{GRID4X4_SUBJECT}: checkpoints absent: {missing}")
+
+    digests: dict[int, str] = {}
+    for seed, path in paths.items():
+        digests[seed] = _sha256_file(path)
+        if digests[seed] != pins.get(seed):
+            raise ValueError(
+                f"{GRID4X4_SUBJECT} seed {seed}: {path.name} hashes to {digests[seed]}, not the "
+                f"registered {pins.get(seed)}; A20(a) registers the subject BY DIGEST, and a "
+                "different file under the same name is a different subject"
+            )
+
+    per_seed: dict[int, dict[str, Any]] = {}
+    for seed, path in paths.items():
+        payload = _load_payload(path)
+        label = f"{GRID4X4_SUBJECT} seed {seed}"
+        version = str(payload.get("format_version"))
+        if version != SPATIAL_CHECKPOINT_FORMAT:
+            raise ValueError(
+                f"{label}: checkpoint format {version!r} is not {SPATIAL_CHECKPOINT_FORMAT!r}; the "
+                "registered subject is the identity-graph control stored in the spatial format"
+            )
+        config = payload["config"]
+        if bool(config.get("spatial_mixing")):
+            raise ValueError(
+                f"{label}: spatial_mixing is on; A20(a) registers the NON-mixing control "
+                "(dt_nomix_h4), and the mixing arm is out of this task's scope"
+            )
+        ids = [str(ix) for ix in payload["intersection_ids"]]
+        mask = np.asarray(payload["spatial_mask"], dtype=np.bool_)
+        if mask.shape != (len(ids), len(ids)) or not bool((mask == np.eye(len(ids), dtype=np.bool_)).all()):
+            raise ValueError(
+                f"{label}: the recorded spatial mask is not the {len(ids)} x {len(ids)} identity, "
+                "so intersections could attend to each other; that is not the registered subject"
+            )
+        steps = int(payload["provenance"]["gradient_steps"])
+        if steps != DECLARED_GRADIENT_STEPS:
+            raise ValueError(
+                f"{label}: the checkpoint records {steps} gradient steps, not the declared "
+                f"{DECLARED_GRADIENT_STEPS}"
+            )
+        scenario_id = str(payload["scenario_id"])
+        summaries = payload["stats"]["rtg"].get(scenario_id, {})
+        for name, keys in (
+            ("target_rtg", payload["target_rtg"]),
+            ("rtg_scale", payload["rtg_scale"]),
+            ("stats.rtg", summaries),
+        ):
+            absent = [ix for ix in ids if ix not in keys]
+            extra = [str(ix) for ix in keys if str(ix) not in ids]
+            if absent or extra:
+                raise ValueError(
+                    f"{label}: {name} does not cover exactly the recorded intersections "
+                    f"(missing {absent[:4]}, unexpected {extra[:4]})"
+                )
+        per_seed[seed] = {
+            "scenario_id": scenario_id,
+            "ids": ids,
+            "target_rtg": {ix: float(payload["target_rtg"][ix]) for ix in ids},
+            "rtg_scale": {ix: float(payload["rtg_scale"][ix]) for ix in ids},
+            "support": {ix: (float(summaries[ix]["min"]), float(summaries[ix]["max"])) for ix in ids},
+            "n_rows": {ix: int(summaries[ix]["count"]) for ix in ids},
+            "draw_ids": tuple(int(d) for d in payload["stats"]["draw_ids"]),
+            "state_dim": int(config["state_dim"]),
+            "context_length": int(config["context_length"]),
+            "n_head": int(config["n_head"]),
+            "gradient_steps": steps,
+        }
+
+    reference_seed = TRAINING_SEEDS[0]
+    reference = per_seed[reference_seed]
+    for seed, facts in per_seed.items():
+        for field in ("target_rtg", "rtg_scale", "support", "n_rows"):
+            for ix in reference["ids"]:
+                if facts["ids"] != reference["ids"] or facts[field][ix] != reference[field][ix]:
+                    raise ValueError(
+                        f"{GRID4X4_SUBJECT} seed {seed}: intersection {ix!r} disagrees with seed "
+                        f"{reference_seed} on {field} ({facts[field].get(ix)!r} against "
+                        f"{reference[field][ix]!r}); the seed varies the training RNG, not the prompt"
+                    )
+        for field in ("scenario_id", "draw_ids", "state_dim", "context_length", "n_head"):
+            if facts[field] != reference[field]:
+                raise ValueError(
+                    f"{GRID4X4_SUBJECT} seed {seed}: {field} {facts[field]!r} differs from seed "
+                    f"{reference_seed}'s {reference[field]!r}"
+                )
+
+    return SubjectFactsPerIntersection(
+        subject=GRID4X4_SUBJECT,
+        scenario_id=reference["scenario_id"],
+        intersection_ids=tuple(reference["ids"]),
+        best_source_return=dict(reference["target_rtg"]),
+        rtg_scale=dict(reference["rtg_scale"]),
+        support_range=dict(reference["support"]),
+        n_rows=dict(reference["n_rows"]),
+        training_draw_ids=reference["draw_ids"],
+        checkpoints=tuple(str(path) for path in paths.values()),
+        checkpoint_sha256=digests,
+        state_dim=reference["state_dim"],
+        context_length=reference["context_length"],
+        n_head=reference["n_head"],
+        gradient_steps=reference["gradient_steps"],
+    )
+
+
+def per_intersection_statistics(
+    sumo_returns: Mapping[int, Mapping[str, float]],
+    cityflow_returns: Mapping[int, Mapping[str, float]],
+    *,
+    intersection_ids: Sequence[str],
+) -> dict[str, Any]:
+    """``S = mean`` per intersection and per nested budget k, for BOTH domains, never pooled.
+
+    *sumo_returns* and *cityflow_returns* map ``draw_id -> {intersection_id: episode return}`` --
+    the two probes of A17(b) and Amendment A4.  Budgets are A17(b)'s nested prefixes in draw order,
+    ``k in PROBE_K_VALUES`` = draws ``201 .. 200+k``, the SAME draws in both domains: a ratio of two
+    statistics over different demand would not be a property of the two engines.  The statistic is
+    :func:`offline.rtg_calibration.probe_statistic`, unchanged, applied to ONE intersection's
+    returns at a time (A17(e): no pooling).
+    """
+    from offline.rtg_calibration import PROBE_K_VALUES, probe_statistic
+
+    ids = [str(ix) for ix in intersection_ids]
+    if sorted(sumo_returns) != sorted(cityflow_returns):
+        only_sumo = sorted(set(sumo_returns) - set(cityflow_returns))
+        only_cityflow = sorted(set(cityflow_returns) - set(sumo_returns))
+        raise ValueError(
+            "the two probes do not cover the same draws (only on SUMO: "
+            f"{only_sumo[:5]}; only on CityFlow: {only_cityflow[:5]}); Rule B's ratio is formed "
+            "over the SAME demand in both domains"
+        )
+    draws = sorted(int(d) for d in sumo_returns)
+    for label, returns in (("SUMO", sumo_returns), ("CityFlow", cityflow_returns)):
+        for draw in draws:
+            absent = [ix for ix in ids if ix not in returns[draw]]
+            if absent:
+                raise ValueError(
+                    f"the {label} probe of draw {draw} records no return for intersection(s) "
+                    f"{absent[:4]!r}; a statistic over the intersections that happen to be "
+                    "present would be a statistic of a different population"
+                )
+
+    table: dict[str, Any] = {}
+    for k in PROBE_K_VALUES:
+        if len(draws) < k:
+            raise ValueError(f"k={k} needs {k} probe episodes and only {len(draws)} are recorded")
+        prefix = draws[:k]
+        table[f"k{k}"] = {
+            "k": k,
+            "draw_ids": [prefix[0], prefix[-1]],
+            "statistic": REGISTERED_STATISTIC,
+            "per_intersection": {
+                ix: {
+                    "sumo": probe_statistic(
+                        [float(sumo_returns[d][ix]) for d in prefix], REGISTERED_STATISTIC
+                    ),
+                    "cityflow": probe_statistic(
+                        [float(cityflow_returns[d][ix]) for d in prefix], REGISTERED_STATISTIC
+                    ),
+                }
+                for ix in ids
+            },
+        }
+    return table
+
+
+def per_intersection_targets(
+    facts: SubjectFactsPerIntersection, statistics: Mapping[str, Any]
+) -> dict[str, Any]:
+    """A17(e)'s Rule B per intersection, at every recorded k, with its role and support position.
+
+    ``target_i(k) = R_best_source,i x (S_sumo,i(k) / S_cityflow,i(k))`` through
+    :func:`offline.rtg_calibration.rule_b_target`, whose association (the ratio formed first) is
+    pinned by a test and makes the in-domain case an exact identity.  **Only k = 100 carries the
+    registered role** (A20(b)); k = 5 and 20 are recorded and never evaluated.  The in-support
+    position is each target against THAT intersection's own training range -- a diagnostic that
+    never selects (A8).
+    """
+    from offline.rtg_calibration import rule_b_target
+
+    out: dict[str, Any] = {}
+    for ix in facts.intersection_ids:
+        low, high = facts.support_range[ix]
+        per_k: dict[str, Any] = {}
+        for key in sorted(statistics, key=lambda name: int(statistics[name]["k"])):
+            cell = statistics[key]["per_intersection"][ix]
+            k = int(statistics[key]["k"])
+            target = rule_b_target(
+                best_source_return=facts.best_source_return[ix],
+                probe_source_stat=cell["cityflow"],
+                probe_target_stat=cell["sumo"],
+            )
+            per_k[key] = {
+                "k": k,
+                "rule": "B",
+                "statistic": REGISTERED_STATISTIC,
+                "role": ROLE_REGISTERED if k == REGISTERED_K else ROLE_RECORDED_ONLY,
+                "target": target,
+                "inputs": {
+                    "best_source_return": facts.best_source_return[ix],
+                    "probe_target_stat": cell["sumo"],
+                    "probe_source_stat": cell["cityflow"],
+                },
+                "in_support": in_support_position(target, rtg_min=low, rtg_max=high),
+            }
+        out[ix] = per_k
+    return out
+
+
 def _write_json(path: str | Path, payload: Mapping[str, Any]) -> None:
     """Atomic, sorted, newline-terminated -- so a chunk is either whole or absent."""
     target = Path(path)
