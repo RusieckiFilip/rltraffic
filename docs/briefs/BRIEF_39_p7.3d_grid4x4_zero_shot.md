@@ -407,3 +407,48 @@ reference and compares the net's sha256 to `8d192de4…` before the token.
 
 **Then: C1.** The next thing on `main` for this task will be Amendment B, written after the coordinator reads
 `docs/data/p7_3d_cap_e.json` from disk.
+
+---
+
+# ✅ AMENDMENT A.1 — 2026-09-19, mid-C1, on the implementer's stop: the old grid4x4 no-pairing test gains ONE `delenv` line, assertion untouched; C1's other readings confirmed
+
+**The stop was correct.** `tests/test_materialise_parity.py::test_a_scenario_without_a_sumo_pairing_is_refused_with_its_reason`
+asserts that grid4x4 parity is refused naming `grid4x4.rou.xml`; C1 makes grid4x4 parity SUCCEED whenever
+`RLTRAFFIC_GRID4X4_RESCO` is set. Measured by the implementer: with the variable unset, 101 passed / 10 skipped / 0 failed
+across the four parity files; with it set, 110 / 0 / **1** — that test. The implementer edited nothing and asked. That is
+`CLAUDE.md` §0's rule working.
+
+## A.1-1 — Ruling: Option 1. Add `monkeypatch.delenv("RLTRAFFIC_GRID4X4_RESCO", raising=False)` to that test; change nothing else in it
+The test's contract — *a scenario without a SUMO pairing is refused, and the refusal names the missing file* — is unchanged
+and still true. What changed, by design and by registration (A15(g), A20(f)), is that grid4x4 **has** a pairing when the
+RESCO root is present. The `delenv` line states the precondition the test always had implicitly (no candidates root), the
+assertion stays byte-identical, and the new
+`test_grid4x4_parity_is_refused_naming_the_variable_when_it_is_unset` carries the same contract with the variable
+explicitly unset plus the two things the old test never checked (the refusal names the variable; nothing is written).
+**Not chosen, and why:** deleting the old test drops the count (§5 of the coordinator's doctrine: a drop is a signal);
+leaving it red whenever the variable is exported makes one environment's suite permanently noisy, which is how a real
+failure hides. **Disclose the change in full in the packet** — the `BRIEF_37` D3 precedent — with this amendment cited,
+and add one sentence to the test's docstring naming the precondition and A.1.
+
+## A.1-2 — The hz1x1 rendering path: the fix is right; the KEY of the branch is a note, not a round
+Calling `_render_bound_routes(source_text, draw_id=draw_id)` **exactly as before** on the hz1x1 path — so the existing
+test that substitutes that seam with the two-argument signature is untouched — is the correct repair. **Note for C1's
+commit, at the implementer's discretion and not a blocker:** the branch is currently keyed on
+`vtype is None or dict(vtype) == parity.parity_vtype_attributes()` — a VALUE equality. Key it on the scenario instead
+(`scenario.key` being the hz1x1 default), because a branch that depends on two tables happening to be equal is a
+coincidence-dependent seam (§7, *a pin on a function does not pin its caller*), and a future scenario whose derived table
+equalled hz1x1's would silently take the hz1x1 path. Same behaviour today; a clearer contract tomorrow.
+
+## A.1-3 — A5's reading CONFIRMED: `materialised-draw-parity/1.1` for the grid4x4-shaped record ONLY
+hz1x1 records keep writing `1.0`, byte-identical, so the 306 existing hz1x1 parity directories (the implementer's
+corrected count; 406 was a slip) still read as `kept`. Readers accept both versions; the docstring states both shapes.
+
+## A.1-4 — Everything else in the report is accepted as designed
+The three hz1x1 regression tests green before and after; the derived vType refused on disagreement with the registered
+table; RESCO files read in place and pinned by digest; the CAP(E) report and its CLI mode; 22 new tests red first.
+**Continue C1 to its commit:** the named mutations, hygiene and English, the 201–300 parents (cwd = main tree, A6), the
+200 parity renders, `docs/data/p7_3d_cap_e.json`, then the C1 commit. G1's verdict will be **Amendment B**, as §5 says.
+
+**Process note, for the record and not for the implementer:** a stop of this kind reaches the coordinator only through the
+author, because the coordinator does not run unless spoken to. The author's part is one word (*"blocked"*) — never a
+paste — after which the coordinator reads the worktree. Written into §7's relay rule as a clarification.

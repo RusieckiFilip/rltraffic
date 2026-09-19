@@ -1,5 +1,26 @@
 # Patches a Claude Code session cannot apply itself
 
+## `ci_gate_ceiling_191_p7_3b.patch` — the skip ceiling moves 189 → 191 after P7.3b's merge and its CI fix, and all of it is P7.3b's own gating
+
+**Apply with:**
+```bash
+git apply docs/patches/ci_gate_ceiling_191_p7_3b.patch && .venv/bin/pytest tests/test_ci_gate.py -q && git add .github/ci/ci_baseline.json tests/test_ci_gate.py && git commit -m "ci(ceiling): 189 -> 191 OBSERVED on run 35459798196 at 708f157 -- P7.3b's anchor-corpus gate and its driver test's interpreter skip" && git push origin main
+```
+**Measured, not read off a summary.** Run `35459798196` on `main` at `708f157` (the merge of P7.3b's CI fix `a790ad1` on top of P7.3b's merge
+`732f378`); its only failing step on both suite jobs was the ceiling gate itself (`FAIL pytest-gate: 191 tests skipped against a declared
+ceiling of 189`), which is the registered route working. Both legs downloaded with `gh run download`, every `<skipped>` message extracted
+from `junit.xml` with `xml.etree` (`output/ci_runs/skips.py`, falsified first against the 189 run: 2,174 / 189 / identical legs), the
+`file:line` prefix stripped, the multisets compared **leg against leg** (identical: 2230 tests, 191 skipped, 0 failures, 0 errors on both)
+**and run against run** against the 189 run `35338316324`. **Two message texts are new and nothing was removed:** the anchor-corpus gate of
+`tests/test_anchor_training.py` (`corpus_or_checkpoint` +1) and `test_the_anchor_driver_refuses_a_bogus_stage_and_creates_nothing`
+skipping where the main tree's interpreter is absent (`main_tree_interpreter` +1, the fix of `BRIEF_38` Amendment C). **Two earlier runs
+on the merged tree were NOT usable and are named in the entry:** `35451103010` carried 190 skips AND ONE REAL FAILURE (that same
+driver test, assuming this laptop's interpreter path), and the run on `732f378` itself was cancelled by the workflow's `cancel-in-progress`.
+Verified end to end in a scratch worktree before this file was written: `tests/test_ci_gate.py` green with the new baseline, and
+`.github/ci/ci_gate.py pytest-gate` run against BOTH legs' real `junit.xml` + `pytest.txt` under the new baseline, exit 0 on each;
+`git apply --check` clean on `main`. Two files: `.github/ci/ci_baseline.json` (the 189 entry nested as `superseded` with its
+`why_it_was_wrong`; `re_measure_required_at` re-pointed at P7.3d's merge) and one literal in `tests/test_ci_gate.py` (`CEILING_CHAIN`, now 13 links).
+
 ## `agents_relay_discipline.patch` — the coordinator relays nothing but four things; a brief goes to the implementer once, whole, with its gates in it
 
 **Apply with:**
