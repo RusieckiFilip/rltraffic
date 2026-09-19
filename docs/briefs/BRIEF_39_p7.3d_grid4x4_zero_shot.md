@@ -512,3 +512,43 @@ At the time of this ruling the implementer's worktree carried uncommitted paths:
 any cell is rolled — J1(d): the driver refuses a dirty tree, one cell at a time, hours in.
 
 **Then: C3a.** The next thing on `main` for this task is Amendment C after the pre-flight (G4).
+
+---
+
+# ✅ AMENDMENT B.1 — 2026-09-19, late, on the implementer's stop at C3a: the halting cross-check covers the MONITORED INCOMING lanes — 192 on grid4x4, 8 on hz1x1 — and the brief's 240 / 16 were the coordinator's error; no registered instrument changes; C3a's first half ACCEPTED at `b9ec455`
+
+## B.1-1 — The ruling, from the artifacts
+The registered instrument (A15's `reconstruct_sumo_episode`, Amendment C2's cross-check) iterates
+`_monitored_incoming_lanes` (`offline/sumo_att_reference.py:849–851`, `:870`) — the lanes the observation reads — and the
+committed record says so: **all 47 halting-checked cells of `docs/data/p7_3a_zero_shot.json` carry
+`halting_n_lane_seconds = 28,800 = 8 × 3,600`** (re-read by the coordinator), hangzhou's eight incoming lanes, not its
+sixteen. On grid4x4 that is 16 × 12 = **192 monitored incoming lanes → 691,200 lane-seconds**, which is what T-obs measured;
+the other 48 lanes are boundary-outbound and enter no controlled intersection. **§3 C3b's *"240 × 3,600"* and §4 T-obs's
+*"hz1x1's 16"* were TOTAL lane counts copied from A15(g)'s structural audit — the coordinator's error, of the recurring class
+(a number written from a neighbouring artifact rather than from the instrument).** The implementer implemented to the repo,
+left the instrument untouched, and asserted the coverage three ways (derived from `env.intersections`, the literal
+`691_200`, and *not* `8 × 3,600`), with the mutation — the check restricted to eight incoming lanes — KILLED. **All of that
+stands. Widening the check to 240 lanes would be a NEW instrument (the territory of `DEFERRED` 83), not a correction, and
+is not wanted.** The brief's two sentences read as corrected here; the issued text is not edited.
+
+## B.1-2 — C3a's first half ACCEPTED at `b9ec455`; T-obs is the first grid4x4 SUMO episode this project has run
+Aligned state **40 wide on all 16 intersections for all 360 decisions** (plan assumption 4 holds); 0 teleports; `cf_parity`;
+`"-1"`; the halting cross-check agreeing on every one of the 691,200 lane-seconds; the five no-simulator tests and the nine
+hz1x1 aligned-env tests green. The implementer's own catch is recorded with credit: its first new assertion — by-id lane
+pairing — was wrong as a fact on 128 of 192 lanes, corrected from the network files to the identity permutation; that is
+the plan gate's assumption 4 doing its job one level down.
+
+## B.1-3 — A grid4x4 SUMO NUMBER HAS NOW BEEN SEEN, and every later "results already seen" column names it
+The first T-obs run failed on the brief's wrong count, and the failure's repr wrote `HaltingAgreement(…)` and **fixed-time
+`e_sumo` ≈ 307.26 s on draw 1000** into `output/p7_3d_runs/c3a/t_obs_first_run.txt`. It is an anchor value on one draw, not
+a subject's number, and it was seen **after** A20, A21 and A22 were tagged — their columns remain true as of their dates.
+From this line on, any amendment touching P7.3d lists it as seen. The implementer disclosed it unprompted, which is the
+behaviour the rule exists for.
+
+## B.1-4 — Housekeeping done by the coordinator, per the standing rule
+`task/p7.3d-grid4x4` had no upstream after nine commits; the coordinator pushed it with `-u` (2026-09-16 rule; remote tip
+`d24f535`). The implementer keeps not pushing.
+
+**Then: the rest of C3a** — `transfer_calibration` per scenario, the two probes recorded per intersection (CityFlow first,
+A4), the `p7_2b_calibration.json` regression through A3's two substitutions — and C3b. The next thing on `main` for this task
+is Amendment C after the pre-flight (G4).
