@@ -768,7 +768,35 @@ def _payload(cell: Mapping[str, Any], roots: _Roots, **overrides: Any) -> dict[s
         "n_decisions_in_support": None,
         "support_range": None,
     }
-    if is_dt:
+    if is_dt and str(cell["subject"]) == tcv.ANCHOR_SUBJECT:
+        # P7.3b's anchor. A SEPARATE branch rather than an entry in tc.SUBJECTS, mirroring the
+        # module: `SUBJECTS` means A17(c)'s two CityFlow-trained subjects, and `_in_support_block`
+        # would raise on anything P7.2b's artifact never registered.
+        seed = int(cell["seed"])
+        target = -20625.0                      # the real 200-episode naive in-domain target
+        payload.update(
+            {
+                "checkpoint": str(
+                    roots.output
+                    / tcv.ANCHOR_CHECKPOINT_SUBDIR
+                    / f"{tcv.ANCHOR_CHECKPOINT_STEM}{seed}.pt"
+                ),
+                "checkpoint_sha256": roots.checkpoint_sha.get(
+                    (tcv.ANCHOR_SUBJECT, seed), _sha256(f"anchor {seed}".encode())
+                ),
+                "sha256_checked_against": [tcv.P7_3B_TRAINING_NAME],
+                "anchor_training_sha256": tcv.P7_3B_TRAINING_SHA256,
+                "target_rtg": target,
+                "rtg_first": target,
+                "rtg_last": target + 100.0,
+                "rtg_series": [target, target, target + 100.0],
+                "reward_series": [0.0, 100.0, 0.0],
+                "rtg_advanced_every_decision": True,
+                "n_decisions_in_support": 271,
+                "support_range": [-25257.0, -71.0],
+            }
+        )
+    elif is_dt:
         subject, seed = str(cell["subject"]), int(cell["seed"])
         spec = tc.SUBJECTS[subject]
         target = -7185.354721543778 if subject == "mappo1000" else -7431.0185327454665
@@ -2914,3 +2942,1174 @@ def test_k_finding3_the_delivered_driver_refuses_a_dirty_tree_when_executed(
         ["git", "-C", str(repo), "worktree", "list"], capture_output=True, text=True, check=True
     ).stdout
     assert worktrees_after == worktrees_before, "the repository's worktree list must be untouched"
+
+
+# ==================================================================================
+# BRIEF_38 §2 -- THE FIVE SEAMS MERGE REVIEWER A FOUND UNPINNED, AND FINDING 4'S FIX
+#
+# Every one of the five is CORRECT today.  Reviewer A's point is that no test would
+# notice if it changed: each mutation below left 105 or 173 tests green.  P7.3b runs a
+# different checkpoint per cell, so pins 1, 2 and 5 are the ones that bite first
+# (`docs/returns/P7.3a-3.5b-3.6.md` §19.14).
+#
+# ⚠️ These five tests are GREEN on delivery by construction -- they pin behaviour that
+# already holds.  Their evidence is the MUTATION, executed and pasted in the packet;
+# "it passes" proves nothing here.  Finding 4's test is the one that is red first.
+# ==================================================================================
+
+
+def _dt_seams(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    rtg_series: list[float],
+    facts: Any,
+    att: float = 366.5,
+) -> None:
+    """``_install_cell_seams`` plus the two seams a **dt** cell needs that an anchor does not.
+
+    Two differences from the anchor path, and both are deliberate rather than convenient:
+
+    * the env is an ``AlignedEnv`` **by class**, because Amendment C8's real refusal
+      (:func:`assert_env_matches_cell`) is left in the path -- a dt cell on a raw env must still
+      raise, and faking the check away would remove the very door A16 registers;
+    * ``dt_choose`` is replaced by one that emits *rtg_series*, so the in-support diagnostic gets a
+      conditioning trajectory whose counts are known in advance and can be asserted with ``==``.
+    """
+    from offline.aligned_env import AlignedEnv
+
+    inner_cls = _install_cell_seams(monkeypatch, att=att)
+    inner = inner_cls()
+
+    class _AlignedFake(AlignedEnv):
+        """An ``AlignedEnv`` by class with no SUMO process behind it.
+
+        ``AlignedEnv.__init__`` wraps a real ``SumoEnv``; this subclass sets the two attributes the
+        parent's properties and ``__getattr__`` read, and delegates ``reset``/``step`` RAW so
+        ``align_info`` is not applied to an already-shaped fake info.
+        """
+
+        def __init__(self, env: Any) -> None:  # noqa: D107 - see the class docstring
+            self._env = env
+            self._alignment = None
+
+        def reset(self, **kwargs: Any) -> dict[str, Any]:
+            return self._env.reset(**kwargs)
+
+        def step(self, action: Any) -> tuple[Any, bool, bool, dict[str, Any]]:
+            return self._env.step(action)
+
+    def fake_dt_choose(env: Any, **kwargs: Any) -> tuple[Any, dict[str, Any]]:
+        diagnostics: dict[str, Any] = {"rtg_series": [], "reward_series": [], "actions": []}
+        remaining = iter(rtg_series)
+
+        def choose(_env: Any, info: Mapping[str, Any]) -> int:
+            diagnostics["rtg_series"].append(float(next(remaining)))
+            diagnostics["reward_series"].append(0.0)
+            diagnostics["actions"].append(0)
+            return 0
+
+        return choose, diagnostics
+
+    monkeypatch.setattr(tcv, "env_for_cell", lambda cell, **k: _AlignedFake(inner), raising=True)
+    monkeypatch.setattr(tcv, "dt_choose", fake_dt_choose, raising=True)
+    monkeypatch.setattr(
+        "offline.transfer_calibration.subject_facts", lambda s, **k: facts, raising=True
+    )
+
+
+# ----------------------------------------------------------------------------------
+# PIN 1 -- transfer_curve.py:1104, the engine seed HANDED TO horizon_rollout
+# ----------------------------------------------------------------------------------
+def test_pin1_the_engine_seed_reaching_horizon_rollout_is_a18cs_1000(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Reviewer A major 1. ``ENGINE_SEED + 1`` at the call site left 173 tests passing.
+
+    The chunk records the CONSTANT (``"engine_seed_requested": ENGINE_SEED``) and
+    ``validate_cell_payload`` compares it with the same constant, so that check is a tautology with
+    respect to this seam: a wrong seed would publish as 1000.  The only way to pin it is to observe
+    the argument the call actually passes, which is what the spy below does.
+
+    Both directions are asserted, and that is the point: the literal **1000** is A18(c)'s registered
+    seed, so a change to ``ENGINE_SEED`` itself fails here too, not only a change to the call site.
+    """
+    roots = _build_roots(tmp_path, draws=(1000,), seeds=(101,))
+    _install_cell_seams(monkeypatch)
+
+    import offline.horizon_metric as horizon_metric
+
+    installed = horizon_metric.horizon_rollout  # the seam's own fake, already in place
+    seen: list[tuple[int, int]] = []
+
+    def spy(env: Any, choose: Any, episodes: int, seed: int) -> Any:
+        seen.append((int(episodes), int(seed)))
+        return installed(env, choose, episodes, seed)
+
+    monkeypatch.setattr("offline.horizon_metric.horizon_rollout", spy, raising=True)
+
+    chunk = tcv.run_cell(
+        _cell("anchor", "fixedtime", 1000),
+        out_root=roots.draws,
+        output_root=roots.output,
+        data_dir=roots.data,
+    )
+
+    assert seen == [(1, 1000)], (
+        "run_cell must hand horizon_rollout exactly one episode at engine seed 1000 (A18(c)); "
+        f"it handed {seen}"
+    )
+    assert seen[0][1] == tcv.ENGINE_SEED, "the call site and the constant must not drift apart"
+    # ...and the chunk's record agrees with what was actually passed, which is the claim the
+    # artifact makes about all 4,700 cells.
+    assert chunk["engine_seed_requested"] == seen[0][1]
+
+
+# ----------------------------------------------------------------------------------
+# PIN 2 -- transfer_curve.py:925, the rtg_first == target_rtg refusal
+# ----------------------------------------------------------------------------------
+def test_pin2_a_dt_chunk_whose_first_rtg_is_not_the_declared_target_is_refused(
+    tmp_path: Path,
+) -> None:
+    """Reviewer A major 2. ``if False:`` on this refusal left 105 tests passing.
+
+    It is the ONLY guard that the prompt took effect, and it is exactly what a checkpoint with its
+    own prompt changes -- P7.3b's anchor is that case.  The perturbation is ONE ULP, so the test
+    also pins that the comparison is ``==`` and not a tolerance: ``math.nextafter`` gives the
+    smallest float that is not the target, and it must still be refused.
+    """
+    import math
+
+    roots = _build_roots(tmp_path, draws=(1000,), seeds=(101,))
+    cell = _cell("dt", "b_mean_k100", 1000, subject="mappo1000", seed=101)
+
+    good = _payload(cell, roots)
+    tcv.validate_cell_payload(good, cell=cell)  # the control: unperturbed, it passes
+
+    target = float(good["target_rtg"])
+    one_ulp_away = math.nextafter(target, math.inf)
+    assert one_ulp_away != target, "the fixture must perturb the value, not restate it"
+
+    with pytest.raises(ValueError, match="the prompt did not take effect"):
+        tcv.validate_cell_payload(_payload(cell, roots, rtg_first=one_ulp_away), cell=cell)
+
+    # A missing first RTG is not a pass either: None is not the declared target.
+    with pytest.raises(ValueError, match="the prompt did not take effect"):
+        tcv.validate_cell_payload(_payload(cell, roots, rtg_first=None), cell=cell)
+
+
+# ----------------------------------------------------------------------------------
+# PIN 3 -- transfer_curve.py:1746, _paired_block's ATT key
+# ----------------------------------------------------------------------------------
+def test_pin3_the_paired_comparison_uses_the_att_definition_it_was_asked_for(
+    tmp_path: Path,
+) -> None:
+    """Reviewer A major 3. Forcing the key to ``att_env`` left 105 tests passing.
+
+    **The registered H3 test row IS this paired comparison**, so a block labelled ``e_sumo`` that
+    silently compared env ATT would misreport the confirmatory test itself.  Reached end to end
+    through ``report`` rather than by calling the private helper, so the label and the arithmetic
+    are pinned together on the object that gets committed.
+
+    The fixture puts ``e_sumo`` exactly 20.0 above ``att_env`` on EVERY cell, so the two blocks must
+    differ by exactly that -- an exact binary fraction, compared with ``==``.
+    """
+    roots, _ = _campaign(tmp_path)
+    artifact = _report(roots)
+
+    for entry in artifact["rho"]["by_subject_arm"]:
+        for anchor in ("fixedtime", "maxpressure"):
+            primary = entry["paired_att"]["e_sumo"][anchor]
+            co_reported = entry["paired_att"]["att_env"][anchor]
+
+            assert primary["att_definition"] == "e_sumo"
+            assert co_reported["att_definition"] == "att_env"
+            # Every cell's e_sumo is att_env + 20.0, so BOTH sides of the pairing shift by 20.0 and
+            # the DIFFERENCE is unchanged -- which is why the means, not the difference, are what
+            # distinguishes the two definitions here.
+            assert primary["mean_left"] == co_reported["mean_left"] + 20.0, (
+                f"{entry['subject']}/{entry['arm']} vs {anchor}: the e_sumo block reports "
+                f"{primary['mean_left']}, the att_env block {co_reported['mean_left']}"
+            )
+            assert primary["mean_right"] == co_reported["mean_right"] + 20.0
+            assert primary["mean_left"] != co_reported["mean_left"]
+
+
+# ----------------------------------------------------------------------------------
+# PIN 4 -- transfer_curve.py:1128-1130, the in-support diagnostic's bounds
+# ----------------------------------------------------------------------------------
+def test_pin4_the_in_support_bounds_are_the_declared_min_then_max_in_that_order(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Reviewer A major 4. Swapping ``rtg_min``/``rtg_max`` left 105 tests passing -- because no
+    test reached this line at all: every ``run_cell`` test in the file runs an ANCHOR cell, and the
+    in-support block is on the ``dt`` branch.
+
+    The conditioning trajectory below is built so the three counts are known before the call and
+    partition 360 exactly, so a bound that moved changes a number rather than a shape.
+    """
+    roots = _build_roots(tmp_path, draws=(1000,), seeds=(101,))
+    cell = _cell("dt", "b_mean_k100", 1000, subject="mappo1000", seed=101)
+
+    # mappo1000's b_mean_k100 target, read from the sha-pinned artifact rather than restated.
+    target = float(
+        tcv.targets_for_subject("mappo1000", tcv.load_calibration(roots.data / "p7_2b_calibration.json"))[
+            "b_mean_k100"
+        ]["target_rtg"]
+    )
+    low, high = -25257.0, -71.0
+    # 1 + 100 + 200 + 59 = 360 = EXPECTED_DECISIONS.  The first value must be the target, because
+    # PIN 2's refusal is left in the path.
+    series = [target] + [-30000.0] * 100 + [-10000.0] * 200 + [500.0] * 59
+    assert len(series) == 360
+
+    facts = tc.SubjectFacts(
+        subject="mappo1000",
+        best_source_return=-5762.0,
+        rtg_scale=9991.0,
+        support_range_over_the_split=(low, high),
+        n_rows=216000,
+        training_set_return_min=-9991.0,
+        checkpoints=("fabricated",),
+        state_dim=25,
+        context_length=20,
+    )
+    _dt_seams(monkeypatch, rtg_series=series, facts=facts)
+
+    chunk = tcv.run_cell(
+        cell, out_root=roots.draws, output_root=roots.output, data_dir=roots.data
+    )
+    counts = chunk["in_support_counts"]
+
+    assert chunk["support_range"] == [low, high], "the range is published low-then-high"
+    assert counts["support_range"] == [low, high]
+    # Recomputed here by a route that does not call in_support_counts: the interval is CLOSED at
+    # both ends and below/above are strict.
+    assert counts["n_decisions_below"] == sum(1 for v in series if v < low) == 100
+    assert counts["n_decisions_above"] == sum(1 for v in series if v > high) == 59
+    assert counts["n_decisions_in_support"] == sum(1 for v in series if low <= v <= high) == 201
+    assert (
+        counts["n_decisions_below"]
+        + counts["n_decisions_above"]
+        + counts["n_decisions_in_support"]
+        == 360
+    )
+    # The bound that is NOT the support range: -rtg_scale, the training set the target came from.
+    assert counts["training_set_return_min"] == -9991.0
+
+
+# ----------------------------------------------------------------------------------
+# PIN 5 -- transfer_curve.py:2067, run_stage's resume-by-CONTENT
+# ----------------------------------------------------------------------------------
+def test_pin5_run_stage_decides_reuse_by_content_and_never_by_the_files_existence(
+    tmp_path: Path,
+) -> None:
+    """Reviewer A major 5. Replacing the call with ``path.exists()`` -- the ``p5_3b.sh`` ``[ -f ]``
+    defect this function's own docstring cites -- left 105 tests passing.
+
+    Two chunks are on disk and BOTH exist.  One is valid; the other records a teleport, which
+    ``validate_cell_payload`` refuses, so it is not reusable.  Under ``path.exists()`` the second is
+    skipped as complete, ``failed/`` is never created, and the campaign reports a cell it did not
+    check.  Three independent observables are asserted so the mutant cannot survive any one of them.
+
+    The unusable cell names draw 1002, which has no parity directory under the fixture's draws root,
+    so re-rolling it fails in ``demand_identity`` **before an env is built** -- no simulator runs.
+    """
+    roots = _build_roots(tmp_path, draws=(1000,), seeds=(101,))
+    roots.work.mkdir(parents=True, exist_ok=True)
+
+    good = _cell("anchor", "fixedtime", 1000)
+    unusable = _cell("anchor", "fixedtime", 1002)
+
+    tcv.write_chunk(_payload(good, roots), work_dir=roots.work)
+    # draw 1002 has no fixture files, so borrow 1000's digests: the chunk must be well-formed
+    # enough that ONLY the teleport makes it unusable.
+    doomed = _payload(good, roots, draw_id=1002, n_teleports=1)
+    tcv.write_chunk(doomed, work_dir=roots.work)
+
+    both = [tcv.chunk_path(good, work_dir=roots.work), tcv.chunk_path(unusable, work_dir=roots.work)]
+    assert all(path.is_file() for path in both), "both chunks must EXIST before the call"
+
+    result = tcv.run_stage(
+        work_dir=roots.work,
+        out_root=roots.draws,
+        output_root=roots.output,
+        data_dir=roots.data,
+        cells=[good, unusable],
+        workers=1,
+    )
+
+    assert result["n_reused"] == 1, (
+        "only the chunk that re-derives its own verdict may be reused; "
+        f"got n_reused={result['n_reused']} over two files that both exist"
+    )
+    assert result["n_failed"] == 1, "the unusable cell must be RE-ROLLED, not skipped"
+    assert (roots.work / "failed" / both[1].name).is_file(), (
+        "an unusable chunk is moved into failed/ -- it is evidence about a run and is never "
+        "overwritten"
+    )
+    assert not both[1].exists(), "and it is no longer where report's glob would find it"
+
+
+# ----------------------------------------------------------------------------------
+# FINDING 4 -- the all-excluded env-ATT path must CARRY ON, as :1526 already claims
+# ----------------------------------------------------------------------------------
+def _all_env_denominators_zero(tmp_path: Path) -> _Roots:
+    """A campaign where every draw's env-ATT denominator is EXACTLY zero and e_sumo's is not.
+
+    The two anchors are given equal ``att_env`` per draw -- which P7.1 measured as reachable at
+    engine seed 1000, where fixed-time minus MaxPressure was **-1.50 s** -- while their ``e_sumo``
+    stays 256.0 apart, so the registered primary is unaffected and only the co-reported definition
+    is excluded.  That is the situation the 2026-09-17 ruling describes.
+    """
+    roots = _build_roots(tmp_path, draws=_DEMO_DRAWS, seeds=_DEMO_SEEDS)
+    roots.work.mkdir(parents=True, exist_ok=True)
+    roots.out.mkdir(parents=True, exist_ok=True)
+    _canary(roots.work)
+
+    env_att = {1000: 300.0, 1001: 310.0}
+    e_sumo = {
+        ("fixedtime", 1000): 700.0, ("maxpressure", 1000): 444.0,
+        ("fixedtime", 1001): 710.0, ("maxpressure", 1001): 454.0,
+    }
+    for cell in _DEMO_CELLS:
+        draw = int(cell["draw_id"])
+        arm = str(cell["arm"])
+        att = env_att[draw]
+        value = e_sumo.get((arm, draw), e_sumo[("maxpressure", draw)] + 64.0)
+        tcv.write_chunk(
+            _payload(cell, roots, att_env=att, att_horizon=att, e_sumo=value),
+            work_dir=roots.work,
+        )
+    return roots
+
+
+def test_finding4_report_carries_on_when_every_env_att_denominator_is_zero(
+    tmp_path: Path,
+) -> None:
+    """Finding 4. ``transfer_curve.py:1526`` says the all-excluded case is *"Reported as such and
+    carried past"*.  It was not: ``_h3_block`` evaluated ``stats["mean"] > 0.0`` on ``None`` and
+    ``_contrast_block`` subtracted two ``None``s, and both raised ``TypeError`` -- **after** every
+    refusal had passed, i.e. at the point where the artifact was about to be written.
+
+    The registered primary is untouched here, which is the whole point: a definition the author
+    ruled *recorded and excluded* must not take the other one down with it.
+    """
+    roots = _all_env_denominators_zero(tmp_path)
+
+    artifact = _report(roots)  # must not raise
+
+    definition = artifact["rho"]["definitions"]["att_env"]
+    assert definition["n_draws_used"] == 0
+    assert definition["n_draws_total"] == len(_DEMO_DRAWS)
+    assert sorted(entry["draw_id"] for entry in definition["excluded_draws"]) == list(_DEMO_DRAWS)
+
+    for entry in artifact["rho"]["by_subject_arm"]:
+        assert entry["att_env"]["mean"] is None
+        assert entry["att_env"]["n_draws"] == 0
+        assert "why_empty" in entry["att_env"]
+        # the REGISTERED PRIMARY is unaffected -- it has a denominator of 256.0 on every draw
+        assert entry["e_sumo"]["mean"] is not None
+        assert entry["e_sumo"]["n_draws"] == len(_DEMO_DRAWS)
+
+    # H3's clauses on the excluded definition report None rather than a verdict, and the clauses on
+    # the primary are unchanged.
+    by_definition: dict[str, list[dict[str, Any]]] = {}
+    for clause in artifact["h3"]["clauses"]:
+        by_definition.setdefault(str(clause["definition"]), []).append(clause)
+    for clause in by_definition["att_env"]:
+        assert set(clause["point_estimate_satisfies"].values()) == {None}
+        assert set(clause["ci95_entirely_satisfies"].values()) == {None}
+        assert set(clause["mean_rho"].values()) == {None}
+        assert clause["caveat"] == tcv.ATT_ENV_CAVEAT
+    for clause in by_definition["e_sumo"]:
+        assert set(clause["point_estimate_satisfies"].values()) <= {True, False}
+        assert None not in clause["mean_rho"].values()
+
+
+def test_finding4_the_contrast_block_carries_a_none_through_instead_of_subtracting_it() -> None:
+    """The second half of Finding 4, reached directly because ``_DEMO_CELLS`` declares only the
+    registered arm and the contrast needs ``naive`` beside it.
+
+    ``None - None`` is a ``TypeError``; the block must report the two means and say the difference
+    is undefined, without inventing a zero.
+    """
+    def entry(arm: str, mean_e: float | None, mean_env: float | None) -> dict[str, Any]:
+        return {
+            "subject": "mappo1000",
+            "arm": arm,
+            "e_sumo": {"mean": mean_e},
+            "att_env": {"mean": mean_env},
+        }
+
+    block = tcv._contrast_block(
+        [entry("b_mean_k100", 1.5, None), entry("naive", 1.25, None)]
+    )
+    primary = block["by_subject"]["mappo1000"]["e_sumo"]
+    excluded = block["by_subject"]["mappo1000"]["att_env"]
+
+    assert primary["difference"] == 0.25
+    assert excluded["calibrated_mean_rho"] is None
+    assert excluded["naive_mean_rho"] is None
+    assert excluded["difference"] is None, "an undefined difference is None, never 0.0"
+
+
+def test_finding4_the_comment_at_the_exclusion_branch_states_the_measured_behaviour() -> None:
+    """The comment is part of the fix. It asserted the case was *carried past* while the code
+    raised; a comment that describes behaviour the code does not have is how the next reader is
+    misled into trusting the path.
+
+    Pinned by the words a correction must keep, not by a line number: the file is edited often.
+    """
+    source = Path(tcv.__file__).read_text(encoding="utf-8")
+    marker = "Every draw undefined on this definition."
+    assert marker in source, "the exclusion branch's comment is gone; this test names the branch"
+    window = source[source.index(marker) : source.index(marker) + 1200]
+    assert "_h3_block" in window and "_contrast_block" in window, (
+        "the corrected comment must name the two blocks that used to raise TypeError here"
+    )
+    assert "TypeError" in window, "and it must say what the failure was"
+
+
+# ==================================================================================
+# BRIEF_38 §3.4 + §3.5 -- THE ANCHOR AS A SUBJECT, AND ITS DRIVER
+#
+# A18(a)'s full-retrain anchor is the curve's k = 200 endpoint. Everything scientific
+# about it is registered; these tests assert that what runs is what was registered,
+# that its prompt cannot come from P7.2b's calibration artifact, and -- Amendment A1 --
+# that adding it cannot disturb anything P7.3a already published.
+# ==================================================================================
+
+ANCHOR_TRAINING = REPO_DATA / "p7_3b_anchor_training.json"
+
+
+# ----------------------------------------------------------------------------------
+# T14 -- Amendment A1: the existing declaration is untouched
+# ----------------------------------------------------------------------------------
+def test_t14_declared_cells_none_is_still_p7_3as_four_thousand_seven_hundred() -> None:
+    """Amendment A1, and it is the reason the anchor is a SEPARATE declaration.
+
+    ``declared_cells(None)`` must still be P7.3a's campaign, and its two stages must still
+    partition that set ELEMENT FOR ELEMENT -- not merely add up to 4,700. The anchor's 700 cells
+    are reachable only through the anchor stage by name.
+    """
+    whole = tcv.declared_cells(None)
+    confirmatory = tcv.declared_cells(tcv.STAGE_CONFIRMATORY)
+    rest = tcv.declared_cells("rest")
+
+    assert len(whole) == 4700
+    assert len(confirmatory) == 1200
+    assert len(rest) == 3500
+
+    # element for element, in order, not merely by count
+    assert confirmatory + rest == [c for c in whole if c["stage"] == tcv.STAGE_CONFIRMATORY] + [
+        c for c in whole if c["stage"] == "rest"
+    ]
+    names = [tcv.cell_chunk_name(c) for c in whole]
+    assert sorted(names) == sorted(
+        [tcv.cell_chunk_name(c) for c in confirmatory]
+        + [tcv.cell_chunk_name(c) for c in rest]
+    )
+    assert len(set(names)) == 4700, "the campaign's cell names are unique"
+
+    # ...and not one anchor cell is reachable from the whole declaration
+    assert {str(c["stage"]) for c in whole} == {tcv.STAGE_CONFIRMATORY, "rest"}
+    assert tcv.ANCHOR_SUBJECT not in {str(c["subject"]) for c in whole}
+    assert tcv.ANCHOR_ARM not in {str(c["arm"]) for c in whole}
+
+
+def test_t14_the_anchor_stage_is_reachable_only_by_name() -> None:
+    """The other half of A1: 700 cells, and they are the ones A18(a) and Amendment A4 declare."""
+    cells = tcv.declared_cells(tcv.STAGE_ANCHOR)
+    assert len(cells) == 700
+    assert cells == tcv.anchor_cells()
+
+    dt = [c for c in cells if c["kind"] == "dt"]
+    anchors = [c for c in cells if c["kind"] == "anchor"]
+    assert len(dt) == 500 and len(anchors) == 200
+
+    assert {c["subject"] for c in dt} == {tcv.ANCHOR_SUBJECT}
+    assert {c["arm"] for c in dt} == {tcv.ANCHOR_ARM}
+    assert {c["seed"] for c in dt} == set(tcv.TRAINING_SEEDS)
+    assert sorted({c["draw_id"] for c in dt}) == list(tcv.HELD_OUT_DRAWS)
+    # Amendment A4: rho's denominator is fixed-time and MaxPressure; `random` is NOT re-rolled.
+    assert {c["arm"] for c in anchors} == {"fixedtime", "maxpressure"}
+    assert "random" not in {c["arm"] for c in cells}
+    assert {str(c["stage"]) for c in cells} == {tcv.STAGE_ANCHOR}
+    assert len({tcv.cell_chunk_name(c) for c in cells}) == 700
+
+
+def test_t14_the_anchor_subject_is_not_in_a17cs_registered_subject_table() -> None:
+    """``SUBJECTS`` means *A17(c)'s two CityFlow-trained subjects* and must keep meaning it.
+
+    ``_in_support_block`` iterates it and calls ``targets_for_subject``, which raises for any
+    subject P7.2b's artifact never registered; adding the anchor there would have made every
+    P7.3a report raise.
+    """
+    assert tcv.ANCHOR_SUBJECT not in tcv.SUBJECTS
+    assert tcv.ANCHOR_SUBJECT not in tc.SUBJECTS
+    assert tcv.SUBJECTS == ("mappo1000", "mix50")
+    with pytest.raises(ValueError, match="unknown subject"):
+        tc.subject_facts(tcv.ANCHOR_SUBJECT, output_root=OUTPUT_ROOT)
+
+
+# ----------------------------------------------------------------------------------
+# The pin source: the training artifact, and NOT the calibration artifact
+# ----------------------------------------------------------------------------------
+def test_the_anchor_training_record_is_loaded_only_at_its_pinned_digest() -> None:
+    """E3(a)'s shape, applied to the record section 3.3 wrote."""
+    loaded = tcv.load_anchor_training(ANCHOR_TRAINING)
+    assert _sha256(ANCHOR_TRAINING.read_bytes()) == tcv.P7_3B_TRAINING_SHA256
+    assert loaded["declared_gradient_steps"] == 40000
+    assert loaded["raise_to"] is None
+    assert loaded["prompt_rule"] == "naive_in_domain"
+    assert len(loaded["seeds"]) == 5
+
+
+def test_an_anchor_training_record_whose_digest_moved_is_refused(tmp_path: Path) -> None:
+    """A prompt read from an unpinned artifact can be edited between training and campaign."""
+    moved = tmp_path / tcv.P7_3B_TRAINING_NAME
+    payload = json.loads(ANCHOR_TRAINING.read_bytes())
+    payload["target_rtg"] = -1.0
+    moved.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(ValueError, match="is not the pinned"):
+        tcv.load_anchor_training(moved)
+
+
+def test_the_anchors_checkpoints_are_pinned_against_the_training_record_not_p4s(
+    tmp_path: Path,
+) -> None:
+    """G1 for a subject whose committed record was written by the task that consumes it."""
+    assert tcv.CHECKPOINT_RECORD[tcv.ANCHOR_SUBJECT] == tcv.P7_3B_TRAINING_NAME
+    assert tcv.CHECKPOINT_RECORD["mappo1000"] == "p4_gate.json"
+    assert tcv.CHECKPOINT_RECORD["mix50"] == "p4_7_training.json"
+    assert tcv.LOCAL_CHECKPOINT_MANIFEST[tcv.ANCHOR_SUBJECT] == "SHA256SUMS_p7_3b_anchor.txt"
+
+    for seed in tcv.TRAINING_SEEDS:
+        expected = (
+            tmp_path / tcv.ANCHOR_CHECKPOINT_SUBDIR / f"{tcv.ANCHOR_CHECKPOINT_STEM}{seed}.pt"
+        )
+        assert tcv.checkpoint_path_for(tcv.ANCHOR_SUBJECT, seed, output_root=tmp_path) == expected
+
+
+def test_the_anchors_facts_come_from_its_own_training_set(tmp_path: Path) -> None:
+    """``subject_facts``' quantities, for a subject ``subject_facts`` refuses to know about.
+
+    The support range is the fitted ``stats.rtg`` range over the anchor's own 200 episodes, and
+    ``training_set_return_min`` is ``-rtg_scale`` -- the same definitions, from the same kind of
+    source, so the in-support diagnostic keeps meaning what it means for the other subjects.
+    """
+    training = tcv.load_anchor_training(ANCHOR_TRAINING)
+    facts = tcv.anchor_subject_facts(training)
+
+    summary = training["normalisation_stats"]["rtg"]["cityflow1x1"]["intersection_1_1"]
+    assert facts.support_range_over_the_split == (float(summary["min"]), float(summary["max"]))
+    assert facts.training_set_return_min == -float(training["rtg_scale"])
+    assert facts.best_source_return == float(training["target_rtg"])
+    assert facts.state_dim == 25
+    assert facts.context_length == 20
+    assert facts.n_rows == int(summary["count"])
+    assert facts.subject == tcv.ANCHOR_SUBJECT
+
+
+# ----------------------------------------------------------------------------------
+# Amendment A5 -- the ROUTE: the anchor's prompt never reaches the calibration artifact
+# ----------------------------------------------------------------------------------
+def _anchor_roots(base: Path) -> _Roots:
+    """``_build_roots`` plus the anchor's five checkpoints and its committed training record."""
+    roots = _build_roots(base, draws=_DEMO_DRAWS, seeds=_DEMO_SEEDS)
+    directory = roots.output / tcv.ANCHOR_CHECKPOINT_SUBDIR
+    directory.mkdir(parents=True, exist_ok=True)
+    record = json.loads(ANCHOR_TRAINING.read_bytes())
+    rows = []
+    for seed in _DEMO_SEEDS:
+        path = directory / f"{tcv.ANCHOR_CHECKPOINT_STEM}{seed}.pt"
+        path.write_bytes(f"anchor weights {seed}".encode())
+        digest = _sha256(path.read_bytes())
+        roots.checkpoint_sha[(tcv.ANCHOR_SUBJECT, seed)] = digest
+        rows.append({**record["seeds"][0], "seed": seed, "checkpoint_sha256": digest})
+    record["seeds"] = rows
+    written = roots.data / tcv.P7_3B_TRAINING_NAME
+    written.write_text(json.dumps(record), encoding="utf-8")
+    # The module pins the REAL file's digest; a fixture cannot forge that, so the pin is relaxed
+    # for this fixture ONLY, by pointing the constant at the fixture's own digest. The pin itself
+    # is tested against the real artifact in
+    # test_the_anchor_training_record_is_loaded_only_at_its_pinned_digest.
+    roots.anchor_training_sha = _sha256(written.read_bytes())
+    return roots
+
+
+def test_a5_the_anchor_cell_runs_with_the_calibration_loader_made_to_explode(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Amendment A5. **The proof is the ROUTE, never a value.**
+
+    On the 201-300 half the naive in-domain target and A17's Rule A ``q = 1.0`` were the SAME
+    NUMBER by construction -- both the maximum of the same 100 SUMO probe returns, -20809.0 for
+    both subjects. A value comparison would have been vacuous there. (On all 200 episodes they
+    differ: -20625.0 against -20809.0. That is a fact about this corpus, not a guarantee, and
+    nothing here rests on it.)
+
+    So: make every door into P7.2b's calibration artifact explode, and require the anchor cell to
+    run anyway.
+    """
+    roots = _anchor_roots(tmp_path)
+    monkeypatch.setattr(tcv, "P7_3B_TRAINING_SHA256", roots.anchor_training_sha, raising=True)
+
+    def explode(*args: Any, **kwargs: Any) -> Any:
+        raise AssertionError(
+            "the anchor's prompt must come from its own training set, never from P7.2b's "
+            "CityFlow-trained calibration artifact"
+        )
+
+    monkeypatch.setattr(tcv, "load_calibration", explode, raising=True)
+    monkeypatch.setattr(tcv, "targets_for_subject", explode, raising=True)
+    _install_cell_seams(monkeypatch)
+    _anchor_dt_seams(monkeypatch, roots)
+
+    cell = _cell(
+        "dt", tcv.ANCHOR_ARM, 1000, subject=tcv.ANCHOR_SUBJECT, seed=101, stage=tcv.STAGE_ANCHOR
+    )
+    chunk = tcv.run_cell(
+        cell, out_root=roots.draws, output_root=roots.output, data_dir=roots.data
+    )
+
+    training = json.loads((roots.data / tcv.P7_3B_TRAINING_NAME).read_bytes())
+    assert chunk["target_rtg"] == float(training["target_rtg"])
+    assert chunk["rtg_first"] == chunk["target_rtg"], "PIN 2 stays in force on the anchor"
+    assert chunk["anchor_training_sha256"] == roots.anchor_training_sha
+    assert chunk["checkpoint_sha256"] == roots.checkpoint_sha[(tcv.ANCHOR_SUBJECT, 101)]
+    tcv.validate_cell_payload(chunk, cell=cell)
+
+
+def _anchor_dt_seams(monkeypatch: pytest.MonkeyPatch, roots: _Roots) -> None:
+    """The dt half of the seams: an ``AlignedEnv`` by class and a faked ``dt_choose``."""
+    from offline.aligned_env import AlignedEnv
+
+    inner = tcv.env_for_cell({"kind": "anchor", "arm": "fixedtime", "draw_id": 1000}, out_root="x")
+
+    class _AlignedFake(AlignedEnv):
+        def __init__(self, env: Any) -> None:
+            self._env = env
+            self._alignment = None
+
+        def reset(self, **kwargs: Any) -> dict[str, Any]:
+            return self._env.reset(**kwargs)
+
+        def step(self, action: Any) -> tuple[Any, bool, bool, dict[str, Any]]:
+            return self._env.step(action)
+
+    def fake_dt_choose(env: Any, *, target_rtg: float, **kwargs: Any) -> tuple[Any, dict[str, Any]]:
+        diagnostics: dict[str, Any] = {
+            "rtg_series": [], "reward_series": [], "actions": []
+        }
+
+        def choose(_env: Any, info: Mapping[str, Any]) -> int:
+            # the first RTG is the declared target, which is exactly what PIN 2 checks
+            diagnostics["rtg_series"].append(float(target_rtg))
+            diagnostics["reward_series"].append(0.0)
+            diagnostics["actions"].append(0)
+            return 0
+
+        return choose, diagnostics
+
+    monkeypatch.setattr(tcv, "env_for_cell", lambda cell, **k: _AlignedFake(inner), raising=True)
+    monkeypatch.setattr(tcv, "dt_choose", fake_dt_choose, raising=True)
+
+
+def test_a5_an_anchor_chunk_that_cannot_name_its_training_record_is_refused(
+    tmp_path: Path,
+) -> None:
+    """Checked at CONSUMPTION as well as at production, and in BOTH directions."""
+    roots = _build_roots(tmp_path, draws=(1000,), seeds=(101,))
+    cell = _cell(
+        "dt", tcv.ANCHOR_ARM, 1000, subject=tcv.ANCHOR_SUBJECT, seed=101, stage=tcv.STAGE_ANCHOR
+    )
+    good = _payload(cell, roots, anchor_training_sha256=tcv.P7_3B_TRAINING_SHA256)
+    tcv.validate_cell_payload(good, cell=cell)
+
+    with pytest.raises(ValueError, match="anchor_training_sha256"):
+        tcv.validate_cell_payload(_payload(cell, roots, anchor_training_sha256=None), cell=cell)
+    with pytest.raises(ValueError, match="anchor_training_sha256"):
+        tcv.validate_cell_payload(
+            _payload(cell, roots, anchor_training_sha256="0" * 64), cell=cell
+        )
+
+    # ...and the other direction: a CityFlow subject may not carry that field, or the two prompt
+    # sources could not be told apart from the chunk.
+    other = _cell("dt", "b_mean_k100", 1000, subject="mappo1000", seed=101)
+    with pytest.raises(ValueError, match="Only 'anchor_k200' is prompted"):
+        tcv.validate_cell_payload(
+            _payload(other, roots, anchor_training_sha256=tcv.P7_3B_TRAINING_SHA256), cell=other
+        )
+
+
+def test_the_anchor_has_exactly_one_registered_prompt(tmp_path: Path) -> None:
+    """A18(a) gives the anchor the naive in-domain rule and nothing else."""
+    roots = _build_roots(tmp_path, draws=(1000,), seeds=(101,))
+    cell = _cell(
+        "dt", "b_mean_k100", 1000, subject=tcv.ANCHOR_SUBJECT, seed=101, stage=tcv.STAGE_ANCHOR
+    )
+    with pytest.raises(ValueError, match="exactly one prompt"):
+        tcv.validate_cell_payload(
+            _payload(cell, roots, anchor_training_sha256=tcv.P7_3B_TRAINING_SHA256), cell=cell
+        )
+
+
+def test_a2_the_anchor_cell_runs_on_the_ALIGNED_observed_env(tmp_path: Path) -> None:
+    """Amendment A2, and the reason the anchor's ``kind`` stays ``"dt"``.
+
+    The anchor was TRAINED in A16's canonical 25-wide frame, so it must be EVALUATED in it. A raw
+    ``SumoEnv`` hands a CityFlow-frame model 32-wide info in SUMO lane order, which it consumes
+    happily and turns into a number that means nothing.
+    """
+    from offline.aligned_env import AlignedEnv
+
+    cell = _cell(
+        "dt", tcv.ANCHOR_ARM, 1000, subject=tcv.ANCHOR_SUBJECT, seed=101, stage=tcv.STAGE_ANCHOR
+    )
+    assert cell["kind"] == "dt", "the anchor is a dt cell; that is what puts it behind the door"
+
+    # the refusal itself, on the env class rather than on a name
+    with pytest.raises(TypeError, match="AlignedEnv"):
+        tcv.assert_env_matches_cell(cell, _fake_aligned_env().__class__())
+    aligned = object.__new__(AlignedEnv)
+    tcv.assert_env_matches_cell(cell, aligned)  # an AlignedEnv is accepted
+
+
+def test_the_module_never_prompts_the_anchor_from_the_calibration_artifact() -> None:
+    """The route, pinned statically as well: inside ``run_cell``'s anchor branch there is no
+    calibration name at all.
+
+    The executed route test above is the primary; this catches a future edit that adds the call
+    without any test exercising it.
+    """
+    import ast
+
+    source = Path(tcv.__file__).read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    run_cell = next(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef) and node.name == "run_cell"
+    )
+    # the branch guarded by `subject == ANCHOR_SUBJECT`
+    branches = [
+        node
+        for node in ast.walk(run_cell)
+        if isinstance(node, ast.If)
+        and isinstance(node.test, ast.Compare)
+        and any(
+            isinstance(c, ast.Name) and c.id == "ANCHOR_SUBJECT" for c in node.test.comparators
+        )
+    ]
+    assert branches, "run_cell no longer has an `if subject == ANCHOR_SUBJECT` branch"
+    names = {
+        node.id for branch in branches for node in ast.walk(ast.Module(body=branch.body, type_ignores=[]))
+        if isinstance(node, ast.Name)
+    }
+    for forbidden in ("load_calibration", "targets_for_subject", "P7_2B_CALIBRATION_NAME"):
+        assert forbidden not in names, (
+            f"{forbidden!r} is reachable inside the anchor's branch of run_cell; A18(a)'s prompt "
+            "is the naive in-domain rule over the anchor's own 200 episodes"
+        )
+
+
+# ----------------------------------------------------------------------------------
+# report over an anchor-stage work directory
+# ----------------------------------------------------------------------------------
+
+def _anchor_roots_digest_probe(base: Path) -> Path:
+    """Write the fixture's training record once, so its digest is known before chunks are built."""
+    probe = base / "_pin_probe"
+    probe.mkdir(parents=True, exist_ok=True)
+    return _anchor_roots(probe).data / tcv.P7_3B_TRAINING_NAME
+
+
+_ANCHOR_CELLS = [
+    _cell("dt", tcv.ANCHOR_ARM, draw, subject=tcv.ANCHOR_SUBJECT, seed=seed,
+          stage=tcv.STAGE_ANCHOR)
+    for seed in _DEMO_SEEDS
+    for draw in _DEMO_DRAWS
+] + [
+    _cell("anchor", arm, draw, stage=tcv.STAGE_ANCHOR)
+    for arm in ("fixedtime", "maxpressure")
+    for draw in _DEMO_DRAWS
+]
+
+
+def _anchor_campaign(tmp_path: Path, **perturb: Any) -> _Roots:
+    """A miniature anchor stage: the anchor at two seeds on two draws, plus rho's two anchors."""
+    roots = _anchor_roots(tmp_path)
+    roots.work.mkdir(parents=True, exist_ok=True)
+    roots.out.mkdir(parents=True, exist_ok=True)
+    _canary(roots.work)
+    for cell in _ANCHOR_CELLS:
+        overrides = dict(perturb) if cell is _ANCHOR_CELLS[-1] else {}
+        tcv.write_chunk(_payload(cell, roots, **overrides), work_dir=roots.work)
+    return roots
+
+
+def test_report_publishes_the_anchors_rho_under_both_definitions(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Section 3.4: ``report`` gains the anchor's rows and its rho under both definitions.
+
+    The fixture's ATT values are exact binary fractions, so every rho below is compared with
+    ``==`` and a rounding change is a failure rather than noise.
+    """
+    # ⚠️ The pin is redirected BEFORE the chunks are written: `_payload` reads the constant at
+    # call time, so patching afterwards would build chunks naming the REAL digest and then judge
+    # them against the fixture's. The pin against the real artifact is tested separately.
+    monkeypatch.setattr(
+        tcv, "P7_3B_TRAINING_SHA256",
+        _sha256((_anchor_roots_digest_probe(tmp_path)).read_bytes()), raising=True,
+    )
+    roots = _anchor_campaign(tmp_path)
+    artifact = tcv.report(
+        work_dir=roots.work,
+        out_path=roots.out / "p7_3b_anchor.json",
+        output_root=roots.output,
+        out_root=roots.draws,
+        data_dir=roots.data,
+        stage=tcv.STAGE_ANCHOR,
+        cells=_ANCHOR_CELLS,
+    )
+
+    entries = [e for e in artifact["rho"]["by_subject_arm"] if e["subject"] == tcv.ANCHOR_SUBJECT]
+    assert len(entries) == 1, "the anchor is one (subject, arm)"
+    entry = entries[0]
+    assert entry["arm"] == tcv.ANCHOR_ARM
+    assert entry["role"] == tcv.ANCHOR_ROLE
+    for key in ("e_sumo", "att_env"):
+        assert entry[key]["n_draws"] == len(_DEMO_DRAWS)
+        assert entry[key]["mean"] is not None
+        assert entry[key]["ci95_low"] <= entry[key]["mean"] <= entry[key]["ci95_high"]
+    # both definitions present, and genuinely distinct objects
+    assert set(entry["paired_att"]) == {"e_sumo", "att_env"}
+    assert set(entry["paired_att"]["e_sumo"]) == {"fixedtime", "maxpressure"}
+
+    # rho recomputed here by the registered formula, from the published cell rows, exactly
+    rows = {(r["subject"], r["arm"], r["seed"], r["draw_id"]): r for r in artifact["cells"]}
+    for (subject, arm, seed, draw), row in rows.items():
+        if subject != tcv.ANCHOR_SUBJECT:
+            continue
+        fixed = rows[(None, "fixedtime", None, draw)]
+        maxp = rows[(None, "maxpressure", None, draw)]
+        assert row["rho_e_sumo"] == tcv.rho(row["e_sumo"], fixed["e_sumo"], maxp["e_sumo"])
+        assert row["rho_att_env"] == tcv.rho(row["att_env"], fixed["att_env"], maxp["att_env"])
+
+    assert artifact["stage"] == tcv.STAGE_ANCHOR
+    assert artifact["n_cells_declared"] == len(_ANCHOR_CELLS)
+
+
+def test_the_anchor_artifact_says_what_the_anchor_is_not_and_names_a18bs_absent_anchor(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A18(a)'s sentence VERBATIM in the artifact, and A18(b) in ``what_this_does_not_say``.
+
+    In the artifact rather than only in the packet, because the packet does not travel with it --
+    the author's 2026-09-17 ruling on ``ATT_ENV_CAVEAT``, applied to the same problem.
+    """
+    # ⚠️ The pin is redirected BEFORE the chunks are written: `_payload` reads the constant at
+    # call time, so patching afterwards would build chunks naming the REAL digest and then judge
+    # them against the fixture's. The pin against the real artifact is tested separately.
+    monkeypatch.setattr(
+        tcv, "P7_3B_TRAINING_SHA256",
+        _sha256((_anchor_roots_digest_probe(tmp_path)).read_bytes()), raising=True,
+    )
+    roots = _anchor_campaign(tmp_path)
+    artifact = tcv.report(
+        work_dir=roots.work, out_path=roots.out / "a.json", output_root=roots.output,
+        out_root=roots.draws, data_dir=roots.data, stage=tcv.STAGE_ANCHOR, cells=_ANCHOR_CELLS,
+    )
+
+    block = artifact["anchor"]
+    # A18(a), verbatim
+    assert block["what_it_is_not"] == tcv.ANCHOR_WHAT_IT_IS_NOT
+    assert "not an upper bound on achievable SUMO performance" in block["what_it_is_not"]
+    assert "not a target-domain online policy" in block["what_it_is_not"]
+    assert "k = 200 endpoint" in block["what_it_is_not"]
+
+    says_not = artifact["what_this_does_not_say"]
+    assert says_not == tcv.ANCHOR_WHAT_THIS_DOES_NOT_SAY
+    assert "A18(b)" in says_not
+    assert "NO online SUMO anchor" in says_not
+    assert "P11" in says_not and "limitation" in says_not
+    assert "random" in says_not and "NOT re-rolled" in says_not
+    assert "H3's clauses are P7.3a's" in says_not
+    assert "Amendment A4" in says_not
+
+    # the prompt's source is named, with its digest, and what it is NOT is named too
+    assert block["prompt"]["source_artifact"] == tcv.P7_3B_TRAINING_NAME
+    assert block["prompt"]["source_sha256"] == tcv.P7_3B_TRAINING_SHA256
+    assert "p7_2b_calibration.json" in block["prompt"]["not_from"]
+    assert block["training"]["raise_to"] is None
+    assert block["training"]["declared_gradient_steps"] == 40000
+    assert block["training"]["disjoint_from_the_subjects_and_the_pool"] is True
+    assert len(block["training"]["seeds"]) == len(_DEMO_SEEDS)
+
+    # H3 is P7.3a's and is not recomputed here: no b_mean_k100 cell is in this work directory.
+    # Asserted on what the sentence CLAIMS, not on a phrase I happened to write.
+    note = block["h3_is_not_recomputed_here"]
+    assert "b_mean_k100" in note
+    assert "p7_3a_zero_shot.json" in note
+    assert "no subject in it" in note
+    for clause in artifact["h3"]["clauses"]:
+        assert clause["mean_rho"] == {}, "no registered-arm subject in an anchor work directory"
+
+
+def test_report_refuses_an_anchor_cell_whose_checkpoint_sha_is_not_the_declared_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """G1 at the artifact: the weights that produced the cell must be the registered ones."""
+    # ⚠️ The pin is redirected BEFORE the chunks are written: `_payload` reads the constant at
+    # call time, so patching afterwards would build chunks naming the REAL digest and then judge
+    # them against the fixture's. The pin against the real artifact is tested separately.
+    monkeypatch.setattr(
+        tcv, "P7_3B_TRAINING_SHA256",
+        _sha256((_anchor_roots_digest_probe(tmp_path)).read_bytes()), raising=True,
+    )
+    roots = _anchor_campaign(tmp_path)
+    victim = tcv.chunk_path(_ANCHOR_CELLS[0], work_dir=roots.work)
+    payload = json.loads(victim.read_bytes())
+    payload["checkpoint_sha256"] = "9" * 64
+    victim.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="not the registered ones"):
+        tcv.report(
+            work_dir=roots.work, out_path=roots.out / "a.json", output_root=roots.output,
+            out_root=roots.draws, data_dir=roots.data, stage=tcv.STAGE_ANCHOR,
+            cells=_ANCHOR_CELLS,
+        )
+    assert not (roots.out / "a.json").exists(), "every refusal precedes every write"
+
+
+def test_the_anchor_stage_writes_its_own_artifact_name() -> None:
+    """The anchor's artifact is its own file; writing it under P7.3a's name would overwrite the
+    zero-shot point with the curve's endpoint."""
+    source = Path(tcv.__file__).read_text(encoding="utf-8")
+    assert '"p7_3b_anchor.json"' in source
+    assert 'name = "p7_3b_anchor.json"' in source
+
+
+# ----------------------------------------------------------------------------------
+# §3.5 -- the driver's text (T9's shape) and its executed refusals
+# ----------------------------------------------------------------------------------
+ANCHOR_DRIVER = Path(__file__).resolve().parents[1] / "offline" / "campaigns" / "p7_3b_anchor.sh"
+
+
+def test_t9_the_anchor_driver_carries_every_invariant_the_campaign_shape_requires() -> None:
+    """T9's shape, over comment-free source so a requirement cannot be satisfied by a comment.
+
+    ⚠️ Reviewer A's minor 11 applies here as it did to P7.3a's family: this pins ONE SPELLING per
+    invariant, so a re-spelled token would survive while the literal one dies. The EXECUTED
+    refusals below are the stronger half.
+    """
+    raw = ANCHOR_DRIVER.read_text(encoding="utf-8")
+    code = "\n".join(
+        line for line in raw.splitlines() if not line.lstrip().startswith("#")
+    )
+
+    for invariant in (
+        "set -euo pipefail",
+        "AUTHORISED_TO_RUN",
+        'rm -f "$TOKEN"',
+        "pgrep -f",
+        "ps -o pgid= -p $$",
+        "SigIgn",
+        "git -C \"$WORK_TREE\" status --porcelain",
+        "canary",
+        "record-canary",
+        "tee -a",
+        "sha256sum -c",
+    ):
+        assert invariant in code, f"the driver no longer carries {invariant!r}"
+
+    # all three signals, in one trap, and the trap BEFORE the token is consumed
+    assert "trap on_signal INT TERM HUP" in code
+    assert code.index("trap on_signal") < code.index('rm -f "$TOKEN"'), (
+        "the trap must be installed before the token is consumed: a signal in that window "
+        "destroyed P7.2b's authorisation while leaving neither FAILED nor COMPLETE"
+    )
+    # the canary precedes the token too -- a throttled machine must not burn the authorisation
+    assert code.index("CANARY_MAX_SECONDS") < code.index('rm -f "$TOKEN"')
+    # Nothing WRITES into docs/data. Two references to it are legitimate and neither is a write:
+    # `--data-dir "$DATA"`, which is an INPUT, and a printed `cp ...` hint for the human who
+    # copies the artifact into the branch afterwards. The invariant is that the artifact's
+    # destination is $WORK/artifacts, which is inside the manifest and outside the worktree
+    # (P7.3a Finding 2). Asserting "docs/data" appears nowhere was testing the wrong thing.
+    assert 'ARTIFACTS=$WORK/artifacts' in code
+    assert '--out-dir "$ARTIFACTS"' in code
+    writes = [
+        line for line in code.splitlines()
+        if "docs/data" in line and not line.lstrip().startswith("echo")
+    ]
+    assert writes == ['DATA=$WORK_TREE/docs/data'], (
+        f"docs/data is referenced outside --data-dir and the printed hint: {writes}"
+    )
+    assert "--overwrite" not in code
+
+
+def test_the_anchor_driver_is_syntactically_valid_bash() -> None:
+    """``bash -n`` on the delivered file: a driver that does not parse refuses nothing."""
+    result = subprocess.run(
+        ["bash", "-n", str(ANCHOR_DRIVER)], capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_the_anchor_driver_refuses_a_bogus_stage_and_creates_nothing(tmp_path: Path) -> None:
+    """EXECUTED, not read: the stage argument is required, so starting the wrong thing refuses.
+
+    Run under ``setsid`` so the group-leader check passes and the stage check is what fires;
+    ``$WORK`` is redirected into ``tmp_path`` so a real campaign directory cannot be touched.
+    """
+    redirected = tmp_path / "driver.sh"
+    work = tmp_path / "work"
+    redirected.write_text(
+        ANCHOR_DRIVER.read_text(encoding="utf-8")
+        .replace("WORK=$MAIN/output/p7_3b_anchor", f"WORK={work}")
+        .replace(
+            'WORK_TREE=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)',
+            f"WORK_TREE={ANCHOR_DRIVER.resolve().parents[2]}",
+        ),
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        ["setsid", "--wait", "bash", str(redirected), "not-a-stage"],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 2, f"expected exit 2, got {result.returncode}: {result.stderr}"
+    assert "REFUSING TO START: the stage must be 'anchor'" in result.stderr
+    assert not work.exists(), "a refused start creates nothing under WORK"
+
+
+def test_the_campaigns_own_declaration_pair_is_right_for_every_stage() -> None:
+    """``declarations_for`` on the path the DRIVER takes: ``cells=None``.
+
+    ⚠️ **This exists because a mutation survived.** Collapsing
+    ``whole = STAGE_ANCHOR if stage == STAGE_ANCHOR else None`` to ``whole = None`` left all 132
+    tests green: every ``report`` test in this file passes an explicit ``cells=``, so the campaign
+    branch was reached by nothing. Under that mutation a real anchor run would compare its 700
+    chunks against P7.3a's 4,700 and refuse every one of them as "not a declared cell of ANY
+    stage" -- a refusal rather than a wrong number, but a campaign that cannot finish.
+    """
+    whole, sliced = tcv.declarations_for(None, None)
+    assert len(whole) == 4700 and len(sliced) == 4700
+
+    whole, sliced = tcv.declarations_for(tcv.STAGE_CONFIRMATORY, None)
+    assert len(whole) == 4700 and len(sliced) == 1200
+
+    whole, sliced = tcv.declarations_for("rest", None)
+    assert len(whole) == 4700 and len(sliced) == 3500
+
+    # the anchor's whole declaration is its OWN 700, never P7.3a's 4,700
+    whole, sliced = tcv.declarations_for(tcv.STAGE_ANCHOR, None)
+    assert len(whole) == 700 and len(sliced) == 700
+    assert {str(c["stage"]) for c in whole} == {tcv.STAGE_ANCHOR}
+    # ⚠️ The two declarations DO share 200 chunk names, and that is a fact about
+    # `cell_chunk_name`, which derives the name from (subject, arm, seed, draw) and not from the
+    # stage: P7.3a's `cell_anchor_fixedtime_seednone_draw1000.json` and the anchor stage's
+    # re-rolled denominator are the same string. They never collide on disk -- the two campaigns
+    # have separate work directories -- and the name is NOT changed, because P7.3a's chunks are on
+    # disk under it. What closes the hazard is that `stage` is part of the chunk-vs-declaration
+    # identity, so a chunk from the other campaign is refused by name AND by stage.
+    names = {tcv.cell_chunk_name(c) for c in whole}
+    campaign = {tcv.cell_chunk_name(c) for c in tcv.declared_cells(None)}
+    shared = names & campaign
+    assert len(shared) == 200, f"expected the 200 rho anchors to share names, got {len(shared)}"
+    assert all("fixedtime" in n or "maxpressure" in n for n in shared)
+
+    # a caller-supplied set is its own whole declaration, and is copied rather than aliased
+    supplied = [_cell("anchor", "fixedtime", 1000)]
+    whole, sliced = tcv.declarations_for(tcv.STAGE_ANCHOR, supplied)
+    assert whole == sliced == supplied
+    assert whole[0] is not supplied[0], "the caller's dicts must not be aliased into report"
+
+
+def test_a_chunk_from_the_other_campaign_is_refused_by_stage_not_accepted_by_name(
+    tmp_path: Path,
+) -> None:
+    """The refusal that makes the 200 shared chunk names safe (reviewer A's minor 9, closed here).
+
+    A P7.3a ``fixedtime`` chunk and an anchor-stage ``fixedtime`` cell have the SAME file name.
+    Without ``stage`` in the chunk-vs-declaration identity, offering one as the other validates,
+    and 200 of the anchor's 700 cells would silently be another campaign's.
+    """
+    roots = _build_roots(tmp_path, draws=(1000,), seeds=(101,))
+    p7_3a_cell = _cell("anchor", "fixedtime", 1000, stage=tcv.STAGE_CONFIRMATORY)
+    anchor_cell = _cell("anchor", "fixedtime", 1000, stage=tcv.STAGE_ANCHOR)
+
+    assert tcv.cell_chunk_name(p7_3a_cell) == tcv.cell_chunk_name(anchor_cell), (
+        "this test is only meaningful while the two names are equal"
+    )
+
+    chunk = _payload(p7_3a_cell, roots)
+    tcv.validate_cell_payload(chunk, cell=p7_3a_cell)          # its own declaration: fine
+    with pytest.raises(ValueError, match="stage"):
+        tcv.validate_cell_payload(chunk, cell=anchor_cell)     # the other campaign's: refused
+
+
+def test_the_pilot_transcript_survives_a_cell_that_has_no_training_seed() -> None:
+    """Found by RUNNING the pre-flight pilot, which is what a pre-flight is for.
+
+    ``anchor_pilot_cells`` includes rho's two denominators, and an anchor cell has ``seed: None``
+    -- fixedtime and MaxPressure have no training seed. ``run_pilot``'s transcript did
+    ``int(cell["seed"])`` over every cell, so all four cells rolled successfully and then the
+    SUMMARY raised ``TypeError``, losing the rate the pilot exists to measure. F1's sixteen cells
+    are all ``dt``, which is why nothing noticed for a whole task.
+
+    Asserted on the cell set rather than by re-running the pool: the shape is what was wrong.
+    """
+    cells = tcv.anchor_pilot_cells()
+    without = [c for c in cells if c["seed"] is None]
+    assert len(without) == 2, "rho's two denominators carry no training seed"
+    assert {c["arm"] for c in without} == {"fixedtime", "maxpressure"}
+    # the expression that used to raise, now written as the module writes it
+    assert sorted({int(c["seed"]) for c in cells if c["seed"] is not None}) == list(
+        tcv.PILOT_SEEDS
+    )
+    # The defect, stated so it cannot come back. `match=` is not decoration: a bare
+    # pytest.raises(TypeError) is satisfied by ANY TypeError, including one from a typo in the
+    # expression itself -- which is exactly what scripts/check_test_hygiene.sh TH006 refuses.
+    with pytest.raises(TypeError, match="NoneType"):
+        sorted({int(c["seed"]) for c in cells})
+
+
+def test_t14_the_anchor_declaration_is_pinned_by_size_and_by_composition() -> None:
+    """The coordinator's surviving mutation: folding the anchor stage into the campaign
+    declaration left all 134 tests green, because nothing pinned the anchor stage's SIZE or its
+    COMPOSITION on their own.
+
+    It cannot make a published number wrong -- the campaign would refuse every chunk rather than
+    report a wrong one -- but an unpinned declaration is exactly what BRIEF_38 section 2 exists to
+    prevent, so it is pinned here.
+    """
+    cells = tcv.declared_cells(tcv.STAGE_ANCHOR)
+    assert len(cells) == 700
+
+    dt = [c for c in cells if c["kind"] == "dt"]
+    denominators = [c for c in cells if c["kind"] == "anchor"]
+    assert len(dt) == 500, "5 training seeds x 100 held-out draws"
+    assert len(denominators) == 200, "fixedtime and MaxPressure, one episode per draw"
+    assert len(dt) + len(denominators) == len(cells), "there is no third kind"
+
+    # the composition, not merely the counts: the full cross product, once each
+    assert {(c["subject"], c["arm"], c["seed"], c["draw_id"]) for c in dt} == {
+        (tcv.ANCHOR_SUBJECT, tcv.ANCHOR_ARM, seed, draw)
+        for seed in tcv.TRAINING_SEEDS
+        for draw in tcv.HELD_OUT_DRAWS
+    }
+    assert {(c["arm"], c["draw_id"]) for c in denominators} == {
+        (arm, draw) for arm in ("fixedtime", "maxpressure") for draw in tcv.HELD_OUT_DRAWS
+    }
+    assert all(c["seed"] is None and c["subject"] is None for c in denominators)
+
+    # and it is NOT reachable from the campaign's declaration, by any route
+    assert tcv.declared_cells(None) == tcv.declared_cells(None)
+    campaign = tcv.declared_cells(None)
+    assert len(campaign) == 4700
+    assert not any(c["stage"] == tcv.STAGE_ANCHOR for c in campaign)
+    assert len(campaign) + len(cells) == 5400, (
+        "the two declarations are disjoint sets, not one set with a filter"
+    )
