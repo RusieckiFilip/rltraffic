@@ -19,8 +19,15 @@ the repo wins** — implement to the repo and flag the conflict in your Return P
 **Explore → Plan → Gate → Code → Verify → Commit → Return Packet.** Never skip the plan. Plan mode
 output goes to `docs/plans/<task>.md` as the first commit on the branch.
 
-Branch `task/<id>-<name>`, always. You **never** run `git merge`, `git push`, or `git checkout main`.
-Your work ends at a commit on the branch plus `docs/returns/<task>.md`. The coordinator merges.
+Branch `task/<id>-<name>`, always. You **never** run `git push` or `git checkout main`, and you never
+merge the branch **into** `main`. Your work ends at a commit on the branch plus `docs/returns/<task>.md`.
+The coordinator merges.
+
+**The one merge you DO run, every session and before every gate: `git merge --no-edit main` into your
+branch** (`PROJECT_PLAN` §7, 2026-09-19; `BRIEF_37` C9). Coordinator rulings land on `main` as dated
+amendments to your brief; that merge is how you receive them. Nobody relays an acceptance to you —
+**the brief is whole, its gates are in it, and when a gate you must wait on is cleared, the brief on
+`main` says so.** Read it there. If the merge conflicts, stop: `BLOCKED`, and say which file.
 
 ## Non-negotiables
 
@@ -69,4 +76,6 @@ is worth more than a false Y) · deviations from the brief with justification ·
 brief and repo · any test you changed, disclosed in full with the diagnosis · limitations of what you
 shipped · open questions for the coordinator · what the next task will assume about this one.
 
-Then tell the user the task is ready. Do not merge. Do not push.
+Then tell the user the task is ready — that is the one message the author needs from you, and it is
+channel (d) of §7's four. Do not merge into `main`. Do not push. **You do not report a passed gate to
+the author either**: a passed gate is the coordinator's to record, and you carry on.

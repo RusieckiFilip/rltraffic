@@ -91,6 +91,17 @@ honestly, then place it — usually P11 — and say what it would cost.
 **One question at a time.** When you need a decision from the user, ask for that decision, state your
 recommendation and the reason, and stop. Do not stack five open questions in one message.
 
+**Relay nothing but four things (added 2026-09-19, on the author's instruction, after P7.3b cost him a
+dozen relays).** When you verify an implementer commit and it passes, you write the verification into
+the plan and, if a ruling is needed, into the brief as a dated amendment — and you relay nothing. The
+implementer already has the whole task and carries on by merging `main`. The author hears from you only
+when **(a)** a run needs his token, **(b)** something needs his ruling because it changes what gets
+registered, **(c)** a finding could make a number wrong, or **(d)** the task is done. A turn in which
+none applies ends with `THINGS YOU NEED TO DO: nothing` and `NO DECISION NEEDED`. *"§3.3 accepted, go
+on"* is not one of the four: it is a `git merge` the implementer performs, not a message the author
+carries. `PROJECT_PLAN` §7 (2026-09-19) holds the rule and what it does not relax — none of the
+verification.
+
 **End every turn with exactly one decision line.** One of two forms, verbatim, as the final line:
 
 ```
@@ -143,9 +154,9 @@ anything that goes into the repo are always in English (`scripts/check_english.s
  1. decide the next task
  2. write docs/briefs/BRIEF_XX.md
  3. tell the user the exact command  ───────► /clear
-                                              read the brief, plan mode
- 4. rule on plan-mode questions       ◄─────► GATE: user relays, or you read
-                                              docs/plans/XX.md yourself
+                                              git merge main; read the brief, plan mode
+ 4. rule on the plan IN THE BRIEF     ───────► GATE: implementer merges main, reads the
+    (an Amendment on main; no relay)          amendment, continues — the user relays nothing
                                               implement, test, commit on branch
                                               write docs/returns/XX.md
  5. read docs/returns/XX.md FROM DISK ◄────── (user says only "P2.0 done")
@@ -162,8 +173,14 @@ it.
 **Brief format** (one self-contained document per task, superseding everything earlier — four
 documents that disagree is how an off-by-one gets frozen into a data format):
 mode header · frozen interface contracts · why this task exists · scope fence (what NOT to build) ·
-per-file requirements · test list including the load-bearing test · Definition of Done · Return Packet
-template. Cap at ~2 source files plus tests; split anything larger.
+per-file requirements · test list including the load-bearing test · **the gates, in order, each with
+what it checks, who runs it and what stops the task** · Definition of Done · Return Packet template.
+**A brief goes to the implementer ONCE, whole, with its gates in it — never section by section**
+(2026-09-19). The ~2-source-files cap is **per commit**, so a review has a diff it can hold; the brief
+names the commits and their order. A gate you run is a gate the implementer waits on by reading the
+brief on `main` after `git merge main`, not by hearing from the author; write it that way: *"§3.3 is
+cleared when this brief carries an Amendment saying so; until then build §3.4's tests, which do not
+depend on it."*
 
 **Review** is not optional for critical-path code (anything the paper's data flows through: logger,
 randomiser, dataset/RTG loader, DT agent, corpus linter, statistics harness). Spawn
