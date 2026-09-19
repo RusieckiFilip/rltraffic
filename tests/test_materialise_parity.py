@@ -697,9 +697,16 @@ def test_an_out_root_inside_a_linked_worktree_is_refused_without_the_flag(
     assert [record.action for record in records] == ["written"]
 
 
-def test_a_scenario_without_a_sumo_pairing_is_refused_with_its_reason(tmp_path: Path) -> None:
+def test_a_scenario_without_a_sumo_pairing_is_refused_with_its_reason(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """grid4x4's ``.sumocfg`` names a route file the repo does not contain, so there is nothing
-    to bind.  Skipping silently is how a transfer measurement ends up running DEFAULT_VEHTYPE."""
+    to bind.  Skipping silently is how a transfer measurement ends up running DEFAULT_VEHTYPE.
+
+    Precondition, stated since P7.3d (``BRIEF_39`` Amendment A.1): no candidates root is present --
+    ``RLTRAFFIC_GRID4X4_RESCO`` is unset -- because with it set grid4x4 HAS a pairing, by
+    registration (A15(g), A20(f)).  The assertion below is unchanged."""
+    monkeypatch.delenv("RLTRAFFIC_GRID4X4_RESCO", raising=False)
     materialise(GRID4X4_CONFIG, [1], out_root=tmp_path)
     with pytest.raises(ValueError, match="grid4x4.rou.xml"):
         materialise_parity(GRID4X4_CONFIG, [1], out_root=tmp_path)
