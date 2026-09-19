@@ -57,7 +57,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 __all__ = [
     "ARTIFACT_FORMAT_VERSION",
@@ -794,6 +794,208 @@ def per_intersection_targets(
                 "in_support": in_support_position(target, rtg_min=low, rtg_max=high),
             }
         out[ix] = per_k
+    return out
+
+
+#: Format of one per-intersection probe chunk and of ``docs/data/p7_3d_calibration.json``.
+PER_INTERSECTION_FORMAT_VERSION = "p7.3d-calibration/1.0"
+
+#: The two probe domains, and the chunk prefix each writes.
+PROBE_DOMAINS: tuple[str, ...] = ("cityflow", "sumo")
+
+
+def per_intersection_chunk_path(
+    domain: str, draw_id: int, *, work_dir: str | Path
+) -> Path:
+    """Pure path arithmetic: where one draw's per-intersection probe chunk lives."""
+    if domain not in PROBE_DOMAINS:
+        raise ValueError(f"unknown probe domain {domain!r}; the two are {list(PROBE_DOMAINS)}")
+    return Path(work_dir) / f"probe_{domain}_draw_{int(draw_id):04d}.json"
+
+
+def per_intersection_chunk_is_reusable(
+    payload: Mapping[str, Any],
+    *,
+    domain: str,
+    draw_id: int,
+    scenario_key: str,
+    intersection_ids: Sequence[str],
+    expected_decisions: int,
+) -> bool:
+    """Whether a chunk may be skipped on resume -- judged from its CONTENT, never its verdict.
+
+    :func:`chunk_is_reusable`'s rule, per intersection: the stored ``two_routes_agree`` is exactly
+    what a half-written or hand-made chunk would lie about, so the two returns are compared AGAIN
+    here, id by id, over the ids the caller expects IN ORDER -- the env's order is part of the
+    record (contract C1), and a chunk missing an id is not a chunk with fewer intersections but a
+    chunk whose returns cannot be read.  Anything unreadable is simply not reusable; the caller's
+    move-aside path handles it.
+    """
+    if not isinstance(payload, Mapping):
+        return False
+    try:
+        if payload.get("format_version") != PER_INTERSECTION_FORMAT_VERSION:
+            return False
+        if str(payload["domain"]) != str(domain):
+            return False
+        if int(payload["draw_id"]) != int(draw_id):
+            return False
+        if str(payload["scenario_key"]) != str(scenario_key):
+            return False
+        if [str(ix) for ix in payload["intersection_ids"]] != [str(ix) for ix in intersection_ids]:
+            return False
+        if int(payload["decisions"]) != int(expected_decisions):
+            return False
+        by_reward = payload["local_return"]
+        by_lanes = payload["local_return_from_lanes"]
+        for ix in intersection_ids:
+            if float(by_reward[str(ix)]) != float(by_lanes[str(ix)]):
+                return False
+    except (KeyError, TypeError, ValueError):
+        return False
+    return True
+
+
+def run_cityflow_probe_per_intersection(
+    draw_ids: Sequence[int],
+    *,
+    scenario_key: str,
+    out_root: str | Path,
+    work_dir: str | Path,
+    engine_seed: int = DEFAULT_ENGINE_SEED,
+    canary_seconds: float | None = None,
+) -> dict[int, dict[str, float]]:
+    """Amendment A4's source-domain probe: one CityFlow MaxPressure episode per draw, per id.
+
+    Rule B needs ``S(R_probe_cityflow)`` and grid4x4 has none: on hangzhou it was READ from P4.3's
+    committed artifact, which covers one intersection of another scenario.  So it is measured here,
+    on the SAME draws the SUMO probe uses (201-300), with P4.3's own env settings -- read from that
+    artifact rather than restated -- and ``reset(seed=engine_seed)`` on a fresh env per draw.
+
+    One chunk per draw, atomic, resumable **by content**: a chunk that still satisfies
+    :func:`per_intersection_chunk_is_reusable` is reused without starting an engine; one that does
+    not is moved to ``failed/`` -- evidence about a run is not overwritten -- and re-rolled.
+    CityFlow's engine seed is inert (``PREREGISTRATION`` §5) and is recorded anyway, because a
+    field that is recorded on one domain and not the other is a field a reader must guess about.
+    """
+    import time
+
+    from offline.rtg_calibration import run_probe_per_intersection
+
+    work = Path(work_dir)
+    work.mkdir(parents=True, exist_ok=True)
+    settings = _p4_3_env_settings()
+    expected_decisions = int(settings["max_steps"])
+    config_for_draw = _cityflow_config_for_draw(scenario_key, out_root)
+
+    returns: dict[int, dict[str, float]] = {}
+    for raw_draw_id in draw_ids:
+        draw_id = int(raw_draw_id)
+        chunk_path = per_intersection_chunk_path("cityflow", draw_id, work_dir=work)
+        if chunk_path.is_file():
+            try:
+                existing = json.loads(chunk_path.read_bytes())
+            except json.JSONDecodeError:
+                existing = {}
+            ids = (
+                [str(ix) for ix in existing["intersection_ids"]]
+                if isinstance(existing, Mapping) and "intersection_ids" in existing
+                else []
+            )
+            if ids and per_intersection_chunk_is_reusable(
+                existing,
+                domain="cityflow",
+                draw_id=draw_id,
+                scenario_key=scenario_key,
+                intersection_ids=ids,
+                expected_decisions=expected_decisions,
+            ):
+                returns[draw_id] = {ix: float(existing["local_return"][ix]) for ix in ids}
+                continue
+            _move_aside(chunk_path)
+
+        started = time.perf_counter()
+        (episode,) = run_probe_per_intersection(
+            draw_ids=[draw_id],
+            config_for_draw=config_for_draw,
+            env_settings=settings,
+            scenario_id=scenario_key,
+            engine_seed=int(engine_seed),
+        )
+        seconds = time.perf_counter() - started
+        config_path = Path(config_for_draw(draw_id))
+        _write_json(
+            chunk_path,
+            {
+                "format_version": PER_INTERSECTION_FORMAT_VERSION,
+                "domain": "cityflow",
+                "draw_id": episode.draw_id,
+                "scenario_key": scenario_key,
+                "intersection_ids": list(episode.local_return),
+                "local_return": dict(episode.local_return),
+                "local_return_from_lanes": dict(episode.local_return_from_lanes),
+                "two_routes_agree": True,
+                "decisions": episode.decisions,
+                "engine_seed_requested": int(engine_seed),
+                "att_horizon": episode.att_horizon,
+                "horizon_vehicle_count": episode.horizon_vehicle_count,
+                "config_path": str(config_path),
+                "config_sha256": _sha256_file(config_path),
+                "env_settings_source": "docs/data/p4_3_probe.json:env_settings",
+                "p4_3_probe_sha256": _sha256_file(P4_3_PROBE_ARTIFACT),
+                "seconds": seconds,
+                "canary_seconds": canary_seconds,
+                **_git_provenance(),
+            },
+        )
+        returns[draw_id] = dict(episode.local_return)
+    return returns
+
+
+def _p4_3_env_settings() -> dict[str, Any]:
+    """P4.3's recorded probe settings, READ from the committed artifact and never restated.
+
+    Measured 2026-09-19: they equal the grid4x4 corpus's own settings on every key but
+    ``compare_with`` (a harness key, which P4.3's artifact strips), on all five manifests -- so the
+    probe's reward stream is the stream the return-to-go advances on.  A test asserts it.
+    """
+    payload = json.loads(P4_3_PROBE_ARTIFACT.read_bytes())
+    return dict(payload["env_settings"])
+
+
+def _cityflow_config_for_draw(
+    scenario_key: str, out_root: str | Path
+) -> Callable[[int], Path]:
+    """The draw -> CityFlow sim config lookup, through the draws tree's own path arithmetic."""
+    from offline.materialise_draws import draw_config_path
+
+    def lookup(draw_id: int) -> Path:
+        return draw_config_path(scenario_key, int(draw_id), out_root=out_root)
+
+    return lookup
+
+
+def per_intersection_returns_from_chunks(
+    domain: str, *, work_dir: str | Path
+) -> dict[int, dict[str, float]]:
+    """``{draw_id: {intersection_id: return}}`` read back from one domain's chunks on disk.
+
+    The artifact is built from what the chunks SAY, re-read from disk, not from what the run that
+    wrote them returned in memory: the chunks are the evidence, and a resumed run's numbers must
+    come from the same place a fresh one's do.
+    """
+    if domain not in PROBE_DOMAINS:
+        raise ValueError(f"unknown probe domain {domain!r}; the two are {list(PROBE_DOMAINS)}")
+    out: dict[int, dict[str, float]] = {}
+    for path in sorted(Path(work_dir).glob(f"probe_{domain}_draw_*.json")):
+        payload = json.loads(path.read_bytes())
+        if str(payload.get("format_version")) != PER_INTERSECTION_FORMAT_VERSION:
+            raise ValueError(
+                f"{path}: chunk format {payload.get('format_version')!r} is not "
+                f"{PER_INTERSECTION_FORMAT_VERSION!r}"
+            )
+        ids = [str(ix) for ix in payload["intersection_ids"]]
+        out[int(payload["draw_id"])] = {ix: float(payload["local_return"][ix]) for ix in ids}
     return out
 
 

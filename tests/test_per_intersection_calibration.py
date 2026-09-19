@@ -487,3 +487,115 @@ def test_the_two_probes_must_cover_the_same_draws_and_every_intersection() -> No
         calibration.per_intersection_statistics(holed, cityflow, intersection_ids=FAKE_IDS)
     with pytest.raises(ValueError, match="'C0'"):
         calibration.per_intersection_statistics(sumo, cityflow, intersection_ids=["A0", "C0"])
+
+
+# ==================================================================================
+# The probe CHUNKS: resumable by content, one domain per prefix (Amendment A4)
+# ==================================================================================
+def _chunk(**overrides: Any) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "format_version": calibration.PER_INTERSECTION_FORMAT_VERSION,
+        "domain": "cityflow",
+        "draw_id": 201,
+        "scenario_key": GRID4X4_KEY,
+        "intersection_ids": list(FAKE_IDS),
+        "local_return": {"A0": -20.0, "B0": -12.0},
+        "local_return_from_lanes": {"A0": -20.0, "B0": -12.0},
+        "two_routes_agree": True,
+        "decisions": 4,
+        "engine_seed_requested": 1000,
+        "att_horizon": 40.0,
+        "horizon_vehicle_count": 7.0,
+        "config_sha256": "0" * 64,
+        "seconds": 1.0,
+        "git_commit": "a" * 40,
+        "git_dirty": False,
+    }
+    payload.update(overrides)
+    return payload
+
+
+def _reusable(payload: dict[str, Any], **kwargs: Any) -> bool:
+    defaults: dict[str, Any] = {
+        "domain": "cityflow", "draw_id": 201, "scenario_key": GRID4X4_KEY,
+        "intersection_ids": FAKE_IDS, "expected_decisions": 4,
+    }
+    defaults.update(kwargs)
+    return calibration.per_intersection_chunk_is_reusable(payload, **defaults)
+
+
+def test_a_chunk_is_reusable_only_when_its_own_content_still_says_so() -> None:
+    """The stored ``two_routes_agree`` is exactly what a half-written chunk would lie about, so
+    the two returns are compared AGAIN here, per intersection."""
+    assert _reusable(_chunk()) is True
+    assert _reusable(_chunk(two_routes_agree=True, local_return_from_lanes={"A0": -20.0, "B0": -11.0})) is False
+    assert _reusable(_chunk(format_version="p7.3d-calibration/0.9")) is False
+    assert _reusable(_chunk(draw_id=202)) is False
+    assert _reusable(_chunk(domain="sumo")) is False
+    assert _reusable(_chunk(scenario_key="cityflow1x1")) is False
+    assert _reusable(_chunk(decisions=3)) is False
+    assert _reusable(_chunk(local_return={"A0": -20.0})) is False, "an id missing from the returns"
+    assert _reusable(_chunk(intersection_ids=["B0", "A0"])) is False, "the env's order is part of it"
+    assert _reusable([]) is False and _reusable("text") is False  # type: ignore[arg-type]
+    assert _reusable({}) is False
+
+
+def test_the_two_domains_write_distinct_chunk_names(tmp_path: Path) -> None:
+    names = {
+        domain: calibration.per_intersection_chunk_path(domain, 201, work_dir=tmp_path).name
+        for domain in calibration.PROBE_DOMAINS
+    }
+    assert names == {"cityflow": "probe_cityflow_draw_0201.json", "sumo": "probe_sumo_draw_0201.json"}
+    with pytest.raises(ValueError, match="moss"):
+        calibration.per_intersection_chunk_path("moss", 201, work_dir=tmp_path)
+
+
+def test_the_cityflow_probe_writes_one_chunk_per_draw_and_resumes_from_content(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The run is resumable by CONTENT: a good chunk is reused without an engine, a corrupt one is
+    moved aside and re-rolled, and nothing is overwritten in place."""
+    work = tmp_path / "work"
+    rolled: list[int] = []
+
+    def fake_probe(*, draw_ids: Any, config_for_draw: Any, env_settings: Any, scenario_id: str, engine_seed: int) -> Any:
+        out = []
+        for draw_id in draw_ids:
+            rolled.append(int(draw_id))
+            returns = {"A0": -20.0 - draw_id, "B0": -12.0 - draw_id}
+            out.append(rtg.ProbeEpisodePerIntersection(
+                draw_id=int(draw_id), local_return=dict(returns),
+                local_return_from_lanes=dict(returns), att_horizon=40.0,
+                horizon_vehicle_count=7.0, decisions=360))
+        return out
+
+    monkeypatch.setattr(rtg, "run_probe_per_intersection", fake_probe, raising=True)
+    monkeypatch.setattr(
+        calibration, "_cityflow_config_for_draw",
+        lambda scenario_key, out_root: (lambda d: tmp_path / "config.json"), raising=True,
+    )
+    (tmp_path / "config.json").write_text("{}", encoding="utf-8")
+
+    first = calibration.run_cityflow_probe_per_intersection(
+        [201, 202], scenario_key=GRID4X4_KEY, out_root=tmp_path, work_dir=work)
+    assert rolled == [201, 202]
+    assert first == {201: {"A0": -221.0, "B0": -213.0}, 202: {"A0": -222.0, "B0": -214.0}}
+    chunk = calibration.per_intersection_chunk_path("cityflow", 201, work_dir=work)
+    assert chunk.is_file() and json.loads(chunk.read_text(encoding="utf-8"))["domain"] == "cityflow"
+
+    # Second run: both chunks reused, the engine never reached.
+    again = calibration.run_cityflow_probe_per_intersection(
+        [201, 202], scenario_key=GRID4X4_KEY, out_root=tmp_path, work_dir=work)
+    assert rolled == [201, 202] and again == first
+
+    # A corrupt chunk is moved aside, not overwritten, and its draw is re-rolled.
+    chunk.write_text(json.dumps(_chunk(two_routes_agree=True, decisions=1)), encoding="utf-8")
+    third = calibration.run_cityflow_probe_per_intersection(
+        [201, 202], scenario_key=GRID4X4_KEY, out_root=tmp_path, work_dir=work)
+    assert rolled == [201, 202, 201]
+    assert third == first
+    assert (work / "failed" / chunk.name).is_file(), "the bad chunk is evidence, not overwritten"
+
+    read_back = calibration.per_intersection_returns_from_chunks("cityflow", work_dir=work)
+    assert read_back == first
+    assert calibration.per_intersection_returns_from_chunks("sumo", work_dir=work) == {}
