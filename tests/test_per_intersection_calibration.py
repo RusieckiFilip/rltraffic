@@ -599,3 +599,342 @@ def test_the_cityflow_probe_writes_one_chunk_per_draw_and_resumes_from_content(
     read_back = calibration.per_intersection_returns_from_chunks("cityflow", work_dir=work)
     assert read_back == first
     assert calibration.per_intersection_returns_from_chunks("sumo", work_dir=work) == {}
+
+
+# ==================================================================================
+# C5: the SUMO probe per intersection -- A17(b)'s five refusals, per id where they apply
+# ==================================================================================
+SUMO_IDS_AND_LANES = [("A0", ["a_0", "a_1"]), ("B0", ["b_0"])]
+
+
+def _engine_reads(**overrides: Any) -> dict[str, Any]:
+    reads = {
+        "n_teleports": 0,
+        "vehicle_types_seen": ["cf_parity"],
+        "time_to_teleport_option": "-1",
+        "engine_seed_drawn": 437485271,
+    }
+    reads.update(overrides)
+    return reads
+
+
+def _fake_sumo_roll(
+    infos: list[dict[str, Any]],
+    *,
+    ids_and_lanes: Any = None,
+    **read_overrides: Any,
+) -> Any:
+    def roll(config_path: Path, *, engine_seed: int) -> Any:
+        samples = [float(info["average_travel_time"]) for info in infos]
+        return (
+            SUMO_IDS_AND_LANES if ids_and_lanes is None else ids_and_lanes,
+            infos,
+            samples,
+            float(infos[-1]["vehicle_count"]),
+            _engine_reads(**read_overrides),
+        )
+
+    return roll
+
+
+def _run_sumo(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    infos: list[dict[str, Any]],
+    *,
+    draws: Any = (201,),
+    **kwargs: Any,
+) -> Any:
+    monkeypatch.setattr(
+        calibration, "_roll_sumo_probe_episode_per_intersection",
+        _fake_sumo_roll(infos, **kwargs), raising=True,
+    )
+    monkeypatch.setattr(
+        calibration, "_sumo_config_for_draw",
+        lambda scenario_key, out_root: (lambda d: tmp_path / "noteleport.sumocfg"), raising=True,
+    )
+    monkeypatch.setattr(calibration, "EXPECTED_DECISIONS", len(infos), raising=True)
+    (tmp_path / "noteleport.sumocfg").write_text("<configuration/>", encoding="utf-8")
+    return calibration.run_sumo_probe_per_intersection(
+        list(draws), scenario_key=GRID4X4_KEY, out_root=tmp_path, work_dir=tmp_path / "work",
+    )
+
+
+def test_the_sumo_probe_records_each_intersections_return_by_two_routes(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    returns = _run_sumo(monkeypatch, tmp_path, _infos())
+    assert returns == {201: {"A0": -20.0, "B0": -12.0}}
+
+    chunk = json.loads(
+        (calibration.per_intersection_chunk_path("sumo", 201, work_dir=tmp_path / "work")
+         ).read_text(encoding="utf-8")
+    )
+    assert chunk["domain"] == "sumo" and chunk["scenario_key"] == GRID4X4_KEY
+    assert chunk["local_return"] == chunk["local_return_from_lanes"] == returns[201]
+    assert chunk["intersection_ids"] == ["A0", "B0"], "the env's order (C1)"
+    assert chunk["n_teleports"] == 0
+    assert chunk["vehicle_types_seen"] == ["cf_parity"]
+    assert chunk["time_to_teleport_option"] == "-1"
+    assert chunk["engine_seed_requested"] == 1000 and chunk["engine_seed_drawn"] == 437485271
+    assert chunk["format_version"] == calibration.PER_INTERSECTION_FORMAT_VERSION
+
+
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        ({"n_teleports": 1}, r"draw 201: 1 teleport"),
+        ({"vehicle_types_seen": ["DEFAULT_VEHTYPE"]}, r"draw 201.*DEFAULT_VEHTYPE"),
+        ({"vehicle_types_seen": ["cf_parity", "pkw"]}, r"draw 201.*pkw"),
+        ({"time_to_teleport_option": "300"}, r"draw 201.*'300'"),
+    ],
+)
+def test_each_of_a17bs_engine_refusals_stops_the_probe(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, overrides: dict[str, Any], message: str
+) -> None:
+    """A17(b): every probe episode must show 0 teleports and the effective type ``cf_parity``,
+    both READ FROM THE RUNNING ENGINE; A15(c) adds the teleport-free option.  One failure refuses
+    the draw AND the run -- a probe that silently ran DEFAULT_VEHTYPE would calibrate the prompt
+    against the +49 % confound the whole parity contract exists to remove."""
+    with pytest.raises(ValueError, match=message):
+        _run_sumo(monkeypatch, tmp_path, _infos(), **overrides)
+    assert not (tmp_path / "work").exists() or not list(
+        (tmp_path / "work").glob("probe_sumo_*.json")
+    ), "a refused draw writes no chunk"
+
+
+def test_a_two_route_disagreement_names_the_draw_and_the_intersection(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    with pytest.raises(ValueError, match=r"draw 201.*'B0'"):
+        _run_sumo(monkeypatch, tmp_path, _infos(break_lane_route_of="B0"))
+
+
+def test_a_single_intersection_scenario_is_refused_and_sent_to_the_scalar_entry_point(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    with pytest.raises(ValueError, match="run_sumo_probe"):
+        _run_sumo(monkeypatch, tmp_path, _infos(), ids_and_lanes=SUMO_IDS_AND_LANES[:1])
+
+
+def test_a_short_sumo_episode_is_refused_with_both_counts(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The decision count is the registered horizon; a truncated episode is not a shorter probe.
+
+    ⚠️ Its own fixture: ``_run_sumo`` patches ``EXPECTED_DECISIONS`` to the episode's own length,
+    so the count must be overridden AFTER it, and the intersection-count refusal (which precedes
+    this one in the code) must not be the one that fires -- an earlier version of this test
+    asserted the wrong message for exactly that reason.
+    """
+    monkeypatch.setattr(
+        calibration, "_roll_sumo_probe_episode_per_intersection",
+        _fake_sumo_roll(_infos()), raising=True,
+    )
+    monkeypatch.setattr(
+        calibration, "_sumo_config_for_draw",
+        lambda scenario_key, out_root: (lambda d: tmp_path / "noteleport.sumocfg"), raising=True,
+    )
+    (tmp_path / "noteleport.sumocfg").write_text("<configuration/>", encoding="utf-8")
+    monkeypatch.setattr(calibration, "EXPECTED_DECISIONS", 99, raising=True)
+    with pytest.raises(ValueError, match=r"draw 201: 4 decisions, not 99"):
+        calibration.run_sumo_probe_per_intersection(
+            [201], scenario_key=GRID4X4_KEY, out_root=tmp_path, work_dir=tmp_path / "work",
+        )
+
+
+def test_the_sumo_probe_resumes_by_content_and_moves_a_bad_chunk_aside(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    rolled: list[int] = []
+    infos = _infos()
+
+    def counting_roll(config_path: Path, *, engine_seed: int) -> Any:
+        rolled.append(engine_seed)
+        return _fake_sumo_roll(infos)(config_path, engine_seed=engine_seed)
+
+    monkeypatch.setattr(
+        calibration, "_sumo_config_for_draw",
+        lambda scenario_key, out_root: (lambda d: tmp_path / "noteleport.sumocfg"), raising=True,
+    )
+    monkeypatch.setattr(calibration, "EXPECTED_DECISIONS", len(infos), raising=True)
+    monkeypatch.setattr(
+        calibration, "_roll_sumo_probe_episode_per_intersection", counting_roll, raising=True
+    )
+    (tmp_path / "noteleport.sumocfg").write_text("<configuration/>", encoding="utf-8")
+    work = tmp_path / "work"
+
+    first = calibration.run_sumo_probe_per_intersection(
+        [201], scenario_key=GRID4X4_KEY, out_root=tmp_path, work_dir=work)
+    assert len(rolled) == 1
+    again = calibration.run_sumo_probe_per_intersection(
+        [201], scenario_key=GRID4X4_KEY, out_root=tmp_path, work_dir=work)
+    assert len(rolled) == 1 and again == first, "a good chunk is reused without an engine"
+
+    chunk = calibration.per_intersection_chunk_path("sumo", 201, work_dir=work)
+    payload = json.loads(chunk.read_text(encoding="utf-8"))
+    payload["n_teleports"] = 2          # the engine check the resume path must re-apply
+    chunk.write_text(json.dumps(payload), encoding="utf-8")
+    third = calibration.run_sumo_probe_per_intersection(
+        [201], scenario_key=GRID4X4_KEY, out_root=tmp_path, work_dir=work)
+    assert len(rolled) == 2, "a chunk recording a teleport must NOT be reused"
+    assert third == first
+    assert (work / "failed" / chunk.name).is_file()
+
+
+def test_a_sumo_chunk_is_not_reusable_when_its_engine_reads_are_wrong() -> None:
+    def reusable(**overrides: Any) -> bool:
+        payload = _chunk(domain="sumo", **{
+            "n_teleports": 0, "vehicle_types_seen": ["cf_parity"],
+            "time_to_teleport_option": "-1", **overrides,
+        })
+        return _reusable(payload, domain="sumo")
+
+    assert reusable() is True
+    assert reusable(n_teleports=1) is False
+    assert reusable(vehicle_types_seen=["DEFAULT_VEHTYPE"]) is False
+    assert reusable(time_to_teleport_option="300") is False
+    # A CityFlow chunk carries none of those keys and must still be reusable AS CityFlow.
+    assert _reusable(_chunk()) is True
+
+
+# ==================================================================================
+# The SHARED SUMO loop -- pinned against a committed number, and on its early type read
+# ==================================================================================
+class _FakeSumoEnv:
+    """The smallest object ``_roll_sumo_maxpressure_episode`` reads, with a CHANGING vehicle type.
+
+    Under the parity contract the effective type cannot change mid-episode; this env makes it
+    change precisely so the early read has something to catch.  A loop that sampled the type only
+    at the horizon would report ``['cf_parity']`` and the wrong early type would be invisible --
+    which is the read's whole purpose.
+    """
+
+    max_steps = 3
+
+    def __init__(self) -> None:
+        self._step = 0
+        self._engine_seed = 437485271
+        self.reset_seed: int | None = None
+        env = self
+
+        class _Vehicle:
+            @staticmethod
+            def getIDList() -> list[str]:
+                return ["v0"]
+
+            @staticmethod
+            def getTypeID(_vid: str) -> str:
+                return "DEFAULT_VEHTYPE" if env._step == 0 else "cf_parity"
+
+        class _Simulation:
+            @staticmethod
+            def getOption(_name: str) -> str:
+                return "-1"
+
+            @staticmethod
+            def getStartingTeleportIDList() -> list[str]:
+                # One INSIDE the loop (the last iteration reads at _step == 2) and one AFTER it
+                # (the post-loop read happens at _step == 3): both reads must count, and an
+                # earlier version of this fixture emitted only the first, so the assertion of 2
+                # was wrong about the fixture rather than about the code.
+                return ["v9"] if env._step in (2, 3) else []
+
+        class _Sumo:
+            vehicle = _Vehicle()
+            simulation = _Simulation()
+
+        self._sumo = _Sumo()
+
+    def reset(self, seed: int | None = None) -> dict[str, Any]:
+        self.reset_seed = seed
+        self._step = 0
+        return {"step": 0, "intersections": {}}
+
+    def step(self, _action: Any) -> tuple[float, bool, bool, dict[str, Any]]:
+        self._step += 1
+        return 0.0, False, False, {
+            "step": self._step,
+            "average_travel_time": 10.0 * self._step,
+            "vehicle_count": 5.0,
+            "intersections": {},
+        }
+
+
+class _FakePolicy:
+    def __init__(self) -> None:
+        self.seen_steps: list[int] = []
+
+    def act(self, info: Mapping[str, Any]) -> int:
+        self.seen_steps.append(int(info["step"]))
+        return 0
+
+
+def test_the_shared_sumo_loop_reads_the_type_early_and_counts_teleports_across_the_horizon() -> None:
+    """*Mutations this is built against:* the type read only at the horizon -> the early
+    ``DEFAULT_VEHTYPE`` disappears; the teleport counter dropped after the loop -> the count falls.
+    """
+    env, policy = _FakeSumoEnv(), _FakePolicy()
+
+    post_step, samples, last_count, reads = calibration._roll_sumo_maxpressure_episode(
+        env, policy, engine_seed=1000
+    )
+
+    assert env.reset_seed == 1000, "the episode must reset with the requested seed"
+    assert policy.seen_steps == [0, 1, 2], "the policy sees the PRE-step info at every decision"
+    assert [info["step"] for info in post_step] == [1, 2, 3], "post-step infos, C6's convention"
+    assert samples == [10.0, 20.0, 30.0] and last_count == 5.0
+    assert reads["vehicle_types_seen"] == ["DEFAULT_VEHTYPE", "cf_parity"], (
+        "the early type was not sampled, so a wrong type at the start would be invisible"
+    )
+    assert reads["n_teleports"] == 2, "one inside the loop at step 2, one after it"
+    assert reads["time_to_teleport_option"] == "-1"
+    assert reads["engine_seed_drawn"] == 437485271
+
+
+def test_the_shared_sumo_loop_reproduces_p7_2bs_committed_draw_201_episode() -> None:
+    """The strongest available pin on the shared loop: hz1x1's OWN registered probe episode.
+
+    ``_roll_sumo_maxpressure_episode`` was extracted so the two probe entry points share one loop;
+    an extraction is only safe if the committed numbers survive it.  This rolls draw 201 through
+    the shared loop and compares every recorded field with ``docs/data/p7_2b_calibration.json``
+    under ``==`` -- the SUMO counterpart of P4.3's CityFlow draw-201 reproduction, which is what
+    caught the same defect on that side.
+
+    *Mutation this is built against:* the loop records the PRE-step info -> the return moves.
+    """
+    import shutil
+
+    from offline.materialise_draws import parity_sumocfg_path
+
+    try:
+        import traci  # noqa: F401
+    except ImportError:
+        pytest.skip("traci is not importable, so no SUMO episode can be rolled")
+    if shutil.which("sumo") is None:
+        pytest.skip("the sumo binary is not on PATH")
+    config = parity_sumocfg_path("cityflow1x1", FIRST_PROBE_DRAW, out_root=_draws_root())
+    if not config.is_file():
+        pytest.skip(
+            f"{config} is absent: set RLTRAFFIC_DRAWS to the scenarios/draws tree holding P7.2a's "
+            f"hz1x1 parity configuration for draw {FIRST_PROBE_DRAW}"
+        )
+
+    committed = next(
+        row
+        for row in json.loads(
+            (REPO_ROOT / "docs/data/p7_2b_calibration.json").read_text(encoding="utf-8")
+        )["probe"]
+        if int(row["draw_id"]) == FIRST_PROBE_DRAW
+    )
+    record = calibration._roll_one_episode(FIRST_PROBE_DRAW, config, engine_seed=1000)
+
+    assert record.local_return == committed["local_return"] == -23938.0
+    assert record.local_return_from_lanes == committed["local_return_from_lanes"]
+    assert record.local_return == record.local_return_from_lanes, "two routes, under =="
+    assert record.att_horizon == committed["att_horizon"]
+    assert record.horizon_vehicle_count == committed["horizon_vehicle_count"]
+    assert record.decisions == committed["decisions"] == 360
+    assert record.n_teleports == committed["n_teleports"] == 0
+    assert list(record.vehicle_types_seen) == committed["vehicle_types_seen"] == ["cf_parity"]
+    assert record.engine_seed_drawn == committed["engine_seed_drawn"] == 437485271

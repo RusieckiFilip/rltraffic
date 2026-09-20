@@ -387,3 +387,19 @@ def test_the_import_check_resolves_to_the_worktree_from_a_cwd_that_shadows_it(
         "test would not have caught the missing -P"
     )
     assert "ModuleNotFoundError" in without_p.stderr
+
+
+def test_the_written_records_own_disclaimer_names_no_forbidden_field() -> None:
+    """The disclaimer says what is absent; it must not do so by NAMING the fields.
+
+    An artifact whose prose contains ``e_sumo`` matches any grep for an outcome leak, which is
+    exactly the search a reviewer runs.  Found on 2026-09-20 by the fence check in the packet,
+    after the gate had run; the record on disk from that run carries the earlier wording and the
+    packet says so.  *Mutation this is built against:* the old sentence restored -> this dies.
+    """
+    source = MODULE.read_text(encoding="utf-8")
+    block = source.split('"what_this_is": (', 1)[1].split("),", 1)[0]
+    for field in FORBIDDEN_FIELDS:
+        assert field not in block, f"{field!r} is named in the record's own disclaimer"
+    assert "no travel time" in block and "no episode return" in block, "it still says what is absent"
+

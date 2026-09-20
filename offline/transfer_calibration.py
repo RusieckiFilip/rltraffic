@@ -388,6 +388,55 @@ def run_sumo_probe(
     return records
 
 
+def _roll_sumo_maxpressure_episode(
+    env: Any, policy: Any, *, engine_seed: int
+) -> tuple[list[Mapping[str, Any]], list[float], float, dict[str, Any]]:
+    """One SUMO MaxPressure episode with A17(b)'s four engine reads: the ONE loop, shared.
+
+    Extracted from :func:`_roll_one_episode` verbatim when the multi-intersection probe (P7.3d C5)
+    needed the same episode, so that the two entry points cannot drift -- the same reason
+    ``rtg_calibration._roll_maxpressure_episode`` exists on the CityFlow side.  The duplication was
+    caught by ``test_the_module_contains_no_bare_dt_act_call``, which pins this module to exactly
+    ONE ``policy.act(...)`` call; that test was not touched.
+
+    The reads: the teleport counter is accumulated per step AND after the loop, and the effective
+    vehicle type is sampled on the first step on which anybody is present as well as at the
+    horizon, so an early wrong type cannot hide behind a horizon-only read.
+    """
+    info = env.reset(seed=int(engine_seed))
+    option = str(env._sumo.simulation.getOption("time-to-teleport"))
+    types_seen: set[str] = set()
+    teleports = 0
+    post_step: list[Mapping[str, Any]] = []
+    samples: list[float] = []
+    last_vehicle_count = 0.0
+    for _ in range(int(env.max_steps)):
+        teleports += len(env._sumo.simulation.getStartingTeleportIDList())
+        if not types_seen:
+            types_seen.update(
+                env._sumo.vehicle.getTypeID(v) for v in env._sumo.vehicle.getIDList()
+            )
+        # Named `policy`, not `agent`: MaxPressureAgent.act takes no `explore` keyword, so a bare
+        # call here is correct -- and the name keeps it distinguishable from a DT's call, which
+        # must never be bare (Amendment E1).
+        action = policy.act(info)
+        _reward, terminated, truncated, info = env.step(action)
+        post_step.append(info)
+        samples.append(float(info.get("average_travel_time", 0.0)))
+        last_vehicle_count = float(info.get("vehicle_count", 0.0))
+        if terminated or truncated:
+            break
+    teleports += len(env._sumo.simulation.getStartingTeleportIDList())
+    types_seen.update(env._sumo.vehicle.getTypeID(v) for v in env._sumo.vehicle.getIDList())
+    reads = {
+        "n_teleports": teleports,
+        "vehicle_types_seen": sorted(types_seen),
+        "time_to_teleport_option": option,
+        "engine_seed_drawn": int(env._engine_seed),
+    }
+    return post_step, samples, last_vehicle_count, reads
+
+
 def _roll_one_episode(
     draw_id: int, config_path: Path, *, engine_seed: int
 ) -> ProbeRecord:
@@ -419,38 +468,14 @@ def _roll_one_episode(
             )
         ix_id = str(intersections[0].id)
         lanes = list(intersections[0].incoming_lanes)
-        # Named `policy`, not `agent`: MaxPressureAgent.act takes no `explore` keyword, so a
-        # bare call here is correct -- and the name keeps it distinguishable from the DT's
-        # call in run_smoke, which must never be bare (Amendment E1).
         policy = MaxPressureAgent(env)
-
-        info = env.reset(seed=int(engine_seed))
-        option = str(env._sumo.simulation.getOption("time-to-teleport"))
-        types_seen: set[str] = set()
-        teleports = 0
-        post_step: list[Mapping[str, Any]] = []
-        samples: list[float] = []
-        last_vehicle_count = 0.0
-        for _ in range(int(env.max_steps)):
-            teleports += len(env._sumo.simulation.getStartingTeleportIDList())
-            if not types_seen:
-                # the first step on which anybody is present, so an early wrong type cannot
-                # hide behind a horizon-only read
-                types_seen.update(
-                    env._sumo.vehicle.getTypeID(v) for v in env._sumo.vehicle.getIDList()
-                )
-            action = policy.act(info)
-            _reward, terminated, truncated, info = env.step(action)
-            post_step.append(info)
-            samples.append(float(info.get("average_travel_time", 0.0)))
-            last_vehicle_count = float(info.get("vehicle_count", 0.0))
-            if terminated or truncated:
-                break
-        teleports += len(env._sumo.simulation.getStartingTeleportIDList())
-        types_seen.update(
-            env._sumo.vehicle.getTypeID(v) for v in env._sumo.vehicle.getIDList()
+        post_step, samples, last_vehicle_count, reads = _roll_sumo_maxpressure_episode(
+            env, policy, engine_seed=int(engine_seed)
         )
-        engine_seed_drawn = int(env._engine_seed)
+        option = str(reads["time_to_teleport_option"])
+        types_seen = set(reads["vehicle_types_seen"])
+        teleports = int(reads["n_teleports"])
+        engine_seed_drawn = int(reads["engine_seed_drawn"])
     finally:
         env.close()
     seconds = time.perf_counter() - started
@@ -851,6 +876,17 @@ def per_intersection_chunk_is_reusable(
         for ix in intersection_ids:
             if float(by_reward[str(ix)]) != float(by_lanes[str(ix)]):
                 return False
+        if str(domain) == "sumo":
+            # A17(b)'s engine reads are part of a SUMO chunk's IDENTITY, not a verdict it stores:
+            # a chunk recording a teleport, DEFAULT_VEHTYPE or the 300 s default describes an
+            # episode that did not run under the registered regime, and reusing it on a resume
+            # would put that episode's returns into the calibration hours later.
+            if int(payload["n_teleports"]) != 0:
+                return False
+            if [str(t) for t in payload["vehicle_types_seen"]] != [PARITY_VTYPE_ID]:
+                return False
+            if str(payload["time_to_teleport_option"]) != EXPECTED_TIME_TO_TELEPORT:
+                return False
     except (KeyError, TypeError, ValueError):
         return False
     return True
@@ -973,6 +1009,195 @@ def _cityflow_config_for_draw(
         return draw_config_path(scenario_key, int(draw_id), out_root=out_root)
 
     return lookup
+
+
+def _roll_sumo_probe_episode_per_intersection(
+    config_path: Path, *, engine_seed: int
+) -> tuple[list[tuple[str, list[str]]], list[Mapping[str, Any]], list[float], float, dict[str, Any]]:
+    """One SUMO MaxPressure episode on a multi-intersection scenario, with A17(b)'s engine reads.
+
+    A named seam, for :func:`_roll_one_episode`'s reason: the resume path and the five refusals
+    are testable without a simulator only if the roll can be substituted.
+
+    The env is the PLAIN one -- not the observer and not aligned.  MaxPressure's pressure is a
+    difference over the env's own SUMO lane ids, so it must not go through A16's door
+    (``BRIEF_37`` Amendment A2), and the observer's instrumentation costs about 60 % per episode
+    for a quantity this probe does not use.  The four engine reads are taken FROM THE RUNNING
+    ENGINE, and the type set is sampled on the first step on which anybody is present as well as
+    at the horizon, so an early wrong type cannot hide behind a horizon-only read.
+    """
+    from algorithms.max_pressure import MaxPressureAgent
+    from experiments.envs import make_env
+    from offline.collect import _build_env_spec
+    from offline.sumo_att_reference import collect_style_args
+
+    args = collect_style_args(
+        "sumo", "maxpressure", config_path, sentinel_out_dir="/nonexistent"
+    )
+    env = make_env(_build_env_spec(args))
+    try:
+        ids_and_lanes = [
+            (str(ix.id), [str(lane) for lane in ix.incoming_lanes]) for ix in env.intersections
+        ]
+        policy = MaxPressureAgent(env)
+        post_step, samples, last_vehicle_count, reads = _roll_sumo_maxpressure_episode(
+            env, policy, engine_seed=int(engine_seed)
+        )
+    finally:
+        env.close()
+    return ids_and_lanes, post_step, samples, last_vehicle_count, reads
+
+
+def _sumo_config_for_draw(scenario_key: str, out_root: str | Path) -> Callable[[int], Path]:
+    """The draw -> teleport-free parity ``.sumocfg`` lookup, through the draws tree's arithmetic."""
+    from offline.materialise_draws import parity_sumocfg_path
+
+    def lookup(draw_id: int) -> Path:
+        return parity_sumocfg_path(scenario_key, int(draw_id), out_root=out_root)
+
+    return lookup
+
+
+def run_sumo_probe_per_intersection(
+    draw_ids: Sequence[int],
+    *,
+    scenario_key: str,
+    out_root: str | Path,
+    work_dir: str | Path,
+    engine_seed: int = DEFAULT_ENGINE_SEED,
+    canary_seconds: float | None = None,
+) -> dict[int, dict[str, float]]:
+    """A17(b)'s probe on a multi-intersection pair: one MaxPressure episode per draw, per id.
+
+    The TARGET-domain half of Rule B's ratio, and the counterpart of
+    :func:`run_cityflow_probe_per_intersection`: the same draws, the same seed rule
+    (``reset(seed=engine_seed)`` on a fresh env per draw), the same chunk contract, the same
+    resume-by-content -- and, on this side, A17(b)'s five refusals per episode.
+
+    **All five stop the run, not just the draw.**  Four are engine reads taken while the episode
+    is running (teleports, the effective vehicle type, the ``time-to-teleport`` option) plus the
+    decision count; the fifth is the two-route return equality, applied PER INTERSECTION and
+    refusing by name.  A probe episode that silently ran ``DEFAULT_VEHTYPE`` would calibrate the
+    registered prompt against the +49 % travel-time confound the parity contract exists to
+    remove, and a teleport would remove a stuck vehicle from one engine's metric and not the
+    other's -- neither may be averaged into a statistic and discovered afterwards.
+    """
+    import time
+
+    work = Path(work_dir)
+    work.mkdir(parents=True, exist_ok=True)
+    config_for_draw = _sumo_config_for_draw(scenario_key, out_root)
+
+    returns: dict[int, dict[str, float]] = {}
+    for raw_draw_id in draw_ids:
+        draw_id = int(raw_draw_id)
+        chunk_path = per_intersection_chunk_path("sumo", draw_id, work_dir=work)
+        if chunk_path.is_file():
+            try:
+                existing = json.loads(chunk_path.read_bytes())
+            except json.JSONDecodeError:
+                existing = {}
+            ids = (
+                [str(ix) for ix in existing["intersection_ids"]]
+                if isinstance(existing, Mapping) and "intersection_ids" in existing
+                else []
+            )
+            if ids and per_intersection_chunk_is_reusable(
+                existing,
+                domain="sumo",
+                draw_id=draw_id,
+                scenario_key=scenario_key,
+                intersection_ids=ids,
+                expected_decisions=EXPECTED_DECISIONS,
+            ):
+                returns[draw_id] = {ix: float(existing["local_return"][ix]) for ix in ids}
+                continue
+            _move_aside(chunk_path)
+
+        config_path = Path(config_for_draw(draw_id))
+        if not config_path.is_file():
+            raise FileNotFoundError(
+                f"probe draw {draw_id} has no parity configuration at {config_path}; P7.3d C1 "
+                "materialises the band into the MAIN tree's scenarios/draws"
+            )
+        started = time.perf_counter()
+        ids_and_lanes, post_step, samples, last_vehicle_count, reads = (
+            _roll_sumo_probe_episode_per_intersection(config_path, engine_seed=int(engine_seed))
+        )
+        seconds = time.perf_counter() - started
+
+        if len(ids_and_lanes) < 2:
+            raise ValueError(
+                f"draw {draw_id}: this scenario has {len(ids_and_lanes)} intersection(s); "
+                "run_sumo_probe is the single-intersection entry point and its scalar record is "
+                "the registered one"
+            )
+        if len(post_step) != EXPECTED_DECISIONS:
+            raise ValueError(
+                f"draw {draw_id}: {len(post_step)} decisions, not {EXPECTED_DECISIONS}"
+            )
+        if int(reads["n_teleports"]) != 0:
+            raise ValueError(
+                f"draw {draw_id}: {reads['n_teleports']} teleport(s) on a configuration that "
+                "requested time-to-teleport -1 (A15(c))"
+            )
+        if list(reads["vehicle_types_seen"]) != [PARITY_VTYPE_ID]:
+            raise ValueError(
+                f"draw {draw_id}: the engine ran vehicle type(s) "
+                f"{list(reads['vehicle_types_seen'])}, not [{PARITY_VTYPE_ID!r}]; the parity "
+                "contract is not what this episode measured"
+            )
+        if str(reads["time_to_teleport_option"]) != EXPECTED_TIME_TO_TELEPORT:
+            raise ValueError(
+                f"draw {draw_id}: SUMO reports time-to-teleport "
+                f"{str(reads['time_to_teleport_option'])!r}, not {EXPECTED_TIME_TO_TELEPORT!r}"
+            )
+
+        from offline.rtg_calibration import episode_return_two_routes
+
+        by_reward: dict[str, float] = {}
+        by_lanes: dict[str, float] = {}
+        for ix_id, lanes in ids_and_lanes:
+            from_rewards, from_lanes = episode_return_two_routes(
+                post_step, ix_id=ix_id, incoming_lanes=lanes
+            )
+            if from_rewards != from_lanes:
+                raise ValueError(
+                    f"draw {draw_id}: the two return routes disagree on intersection {ix_id!r} "
+                    f"({from_rewards!r} from the reward stream against {from_lanes!r} from its "
+                    "lane waiting counts); A17(b) requires equality under ==, per intersection"
+                )
+            by_reward[ix_id] = from_rewards
+            by_lanes[ix_id] = from_lanes
+
+        _write_json(
+            chunk_path,
+            {
+                "format_version": PER_INTERSECTION_FORMAT_VERSION,
+                "domain": "sumo",
+                "draw_id": draw_id,
+                "scenario_key": scenario_key,
+                "intersection_ids": [ix for ix, _ in ids_and_lanes],
+                "local_return": by_reward,
+                "local_return_from_lanes": by_lanes,
+                "two_routes_agree": True,
+                "decisions": len(post_step),
+                "engine_seed_requested": int(engine_seed),
+                "engine_seed_drawn": int(reads["engine_seed_drawn"]),
+                "n_teleports": int(reads["n_teleports"]),
+                "vehicle_types_seen": list(reads["vehicle_types_seen"]),
+                "time_to_teleport_option": str(reads["time_to_teleport_option"]),
+                "att_horizon": samples[-1] if samples else 0.0,
+                "horizon_vehicle_count": last_vehicle_count,
+                "config_path": str(config_path),
+                "config_sha256": _sha256_file(config_path),
+                "seconds": seconds,
+                "canary_seconds": canary_seconds,
+                **_git_provenance(),
+            },
+        )
+        returns[draw_id] = dict(by_reward)
+    return returns
 
 
 def per_intersection_returns_from_chunks(

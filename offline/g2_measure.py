@@ -601,11 +601,14 @@ def run_g2(
     record = {
         "format_version": G2_FORMAT_VERSION,
         "gate": "G2",
+        # ⚠️ The disclaimer must not NAME the forbidden fields: a reader grepping the artifacts
+        # for an outcome leak would match this sentence (found 2026-09-20, after the gate ran --
+        # the record written that day carries the earlier wording, which named them).
         "what_this_is": (
             "A TIMING AND MEMORY measurement on the smoke draw (BRIEF_39 Amendment B.2). It "
-            "carries no travel time, no e_sumo, no return, no return-to-go and no action, from "
-            "any cell. Nothing here is an evaluation of any arm, and nothing here may be reported "
-            "as a result."
+            "carries no travel time, no reconstructed per-vehicle average, no episode return, no "
+            "conditioning series and no action, from any cell. Nothing here is an evaluation of "
+            "any arm, and nothing here may be reported as a result."
         ),
         FENCED_KEY: body,
         **_git_provenance(),
