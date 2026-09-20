@@ -938,3 +938,145 @@ def test_the_shared_sumo_loop_reproduces_p7_2bs_committed_draw_201_episode() -> 
     assert record.n_teleports == committed["n_teleports"] == 0
     assert list(record.vehicle_types_seen) == committed["vehicle_types_seen"] == ["cf_parity"]
     assert record.engine_seed_drawn == committed["engine_seed_drawn"] == 437485271
+
+
+# ==================================================================================
+# The artifact: docs/data/p7_3d_calibration.json, assembled from BOTH halves' chunks
+# ==================================================================================
+def _chunk_for(domain: str, draw: int, returns: dict[str, float], **extra: Any) -> dict[str, Any]:
+    payload = {
+        "format_version": calibration.PER_INTERSECTION_FORMAT_VERSION,
+        "domain": domain,
+        "draw_id": draw,
+        "scenario_key": GRID4X4_KEY,
+        "intersection_ids": list(returns),
+        "local_return": dict(returns),
+        "local_return_from_lanes": dict(returns),
+        "two_routes_agree": True,
+        "decisions": 360,
+        "engine_seed_requested": 1000,
+        "att_horizon": 300.0,
+        "horizon_vehicle_count": 9.0,
+        "config_sha256": "0" * 64,
+        "seconds": 1.0,
+        "git_commit": "b" * 40,
+        "git_dirty": False,
+    }
+    if domain == "sumo":
+        payload.update({
+            "engine_seed_drawn": 437485271, "n_teleports": 0,
+            "vehicle_types_seen": ["cf_parity"], "time_to_teleport_option": "-1",
+        })
+    payload.update(extra)
+    return payload
+
+
+def _populate(work: Path, *, draws: range = range(201, 301), skip: tuple[str, int] | None = None) -> None:
+    work.mkdir(parents=True, exist_ok=True)
+    sumo, cityflow = _returns(900, 400, len(draws)), _returns(300, 200, len(draws))
+    for domain, source in (("cityflow", cityflow), ("sumo", sumo)):
+        for offset, draw in enumerate(draws):
+            if skip == (domain, draw):
+                continue
+            payload = _chunk_for(domain, draw, source[201 + offset])
+            path = calibration.per_intersection_chunk_path(domain, draw, work_dir=work)
+            path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _report(tmp_path: Path, **kwargs: Any) -> Any:
+    work = tmp_path / "calibration"
+    _populate(work, **kwargs.pop("populate", {}))
+    digests = _write_fake_checkpoints(tmp_path, {seed: _fake_payload(seed) for seed in SEEDS})
+    return calibration.report_per_intersection_calibration(
+        work_dir=work, out_path=tmp_path / "p7_3d_calibration.json", output_root=tmp_path,
+        expected_sha256=digests, **kwargs,
+    )
+
+
+def test_the_artifact_carries_every_intersections_target_and_equals_exact_arithmetic(
+    tmp_path: Path,
+) -> None:
+    """The registered prompt, recomputed here by ``Fraction`` means over the CHUNKS ON DISK.
+
+    The artifact must be built from what the chunks say, re-read, so a resumed run's numbers come
+    from where a fresh one's do.  *Mutations:* the two halves swapped in the ratio; the artifact
+    built from one half's draws only.
+    """
+    artifact = _report(tmp_path)
+
+    assert artifact["format_version"] == calibration.PER_INTERSECTION_FORMAT_VERSION
+    assert artifact["scenario_key"] == GRID4X4_KEY
+    assert artifact["registered_statistic"] == "mean" and artifact["registered_k"] == 100
+    assert artifact["n_draws"] == 100 and artifact["draw_ids"] == [201, 300]
+
+    sumo, cityflow = _returns(900, 400), _returns(300, 200)
+    for ix in FAKE_IDS:
+        entry = artifact["per_intersection"][ix]
+        assert entry["best_source_return"] == {"A0": -132.0, "B0": -114.0}[ix]
+        assert entry["rtg_scale"] == {"A0": 259.0, "B0": 232.0}[ix]
+        assert entry["support_range"] == [{"A0": -259.0, "B0": -232.0}[ix], 0.0]
+        for k in (5, 20, 100):
+            mean_sumo, mean_cityflow = _exact_mean(sumo, ix, k), _exact_mean(cityflow, ix, k)
+            cell = entry["budgets"][f"k{k}"]
+            assert cell["probe_target_stat"] == mean_sumo, (ix, k)
+            assert cell["probe_source_stat"] == mean_cityflow, (ix, k)
+            assert cell["target"] == entry["best_source_return"] * (mean_sumo / mean_cityflow)
+            assert cell["role"] == ("registered_prompt" if k == 100 else "recorded_not_evaluated")
+    registered = [
+        ix for ix in artifact["per_intersection"]
+        if artifact["per_intersection"][ix]["budgets"]["k100"]["role"] == "registered_prompt"
+    ]
+    assert registered == FAKE_IDS, "every intersection carries exactly one registered prompt"
+
+
+def test_the_artifact_records_where_each_constant_was_read_from(tmp_path: Path) -> None:
+    """Amendment A4: the artifact states the FIELD each constant came from and why.
+
+    A17(e)'s wording pointed at ``stats["rtg"]`` for ``R_best_source``; the payload says otherwise
+    (that block is per-window and its ``max`` is 0.0 on every intersection), and an artifact that
+    did not say which field it read would leave a reader to re-derive the answer.
+    """
+    artifact = _report(tmp_path)
+    provenance = artifact["fields_read"]
+    assert provenance["best_source_return"].startswith('payload["target_rtg"]')
+    assert provenance["rtg_scale"].startswith('payload["rtg_scale"]')
+    assert "per-window" in provenance["support_range"]
+    assert "A4" in json.dumps(provenance)
+    assert artifact["subject"] == "mappo1000_dt_nomix_h4"
+    assert sorted(artifact["checkpoint_sha256"]) == ["101", "202", "303", "404", "505"]
+    assert artifact["disjointness"]["training_draw_ids"] == [1, 200]
+    assert artifact["disjointness"]["probe_draw_ids"] == [201, 300]
+    assert artifact["disjointness"]["held_out_draw_ids"] == [1000, 1099]
+    assert artifact["what_this_does_not_say"], "the artifact must say what it is not"
+
+
+def test_every_refusal_precedes_the_write(tmp_path: Path) -> None:
+    """A refused report creates NO file -- the filesystem-mutation barrier, at the last write."""
+    out = tmp_path / "p7_3d_calibration.json"
+    with pytest.raises(ValueError, match=r"100 cityflow chunk\(s\) against 99 sumo chunk\(s\)"):
+        _report(tmp_path, populate={"skip": ("sumo", 300)})
+    assert not out.exists(), "a refused report must not leave a partial artifact"
+
+    with pytest.raises(ValueError, match=r"k=100 needs 100"):
+        _report(tmp_path / "short", populate={"draws": range(201, 251)})
+    assert not (tmp_path / "short" / "p7_3d_calibration.json").exists()
+
+
+def test_a_probe_band_overlapping_the_training_draws_is_refused(tmp_path: Path) -> None:
+    """A17(b)'s disjointness, against the draws the CHECKPOINT says it trained on."""
+    work = tmp_path / "calibration"
+    _populate(work, draws=range(151, 251))
+    digests = _write_fake_checkpoints(tmp_path, {seed: _fake_payload(seed) for seed in SEEDS})
+    with pytest.raises(ValueError, match="not disjoint"):
+        calibration.report_per_intersection_calibration(
+            work_dir=work, out_path=tmp_path / "p7_3d_calibration.json",
+            output_root=tmp_path, expected_sha256=digests,
+        )
+
+
+def test_the_artifact_regenerates_byte_identically(tmp_path: Path) -> None:
+    out = tmp_path / "p7_3d_calibration.json"
+    _report(tmp_path)
+    first = out.read_bytes()
+    _report(tmp_path)
+    assert out.read_bytes() == first

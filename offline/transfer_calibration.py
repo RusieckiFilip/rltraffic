@@ -1224,6 +1224,158 @@ def per_intersection_returns_from_chunks(
     return out
 
 
+def report_per_intersection_calibration(
+    *,
+    work_dir: str | Path,
+    out_path: str | Path,
+    output_root: str | Path,
+    scenario_key: str = GRID4X4_SCENARIO_KEY,
+    expected_sha256: Mapping[int, str] | None = None,
+    held_out_draws: Sequence[int] = HELD_OUT_DRAWS,
+) -> dict[str, Any]:
+    """A17(e)'s calibration artifact for a multi-intersection pair, from BOTH probes' chunks.
+
+    **Format version** ``p7.3d-calibration/1.0``.  Per intersection: the two constants read from
+    the subject's checkpoints with the FIELD each came from stated (Amendment A4), both probe
+    statistics at every budget, the Rule B target at every budget with only ``k = 100`` carrying
+    the registered role (A20(b)), and the in-support position -- a diagnostic that never selects.
+
+    **Built from the chunks on disk, never from a run's memory**, so a resumed run's artifact is
+    the same as a fresh one's.  **Every refusal precedes the write**, and the write is atomic: a
+    refused report leaves no file at all.  The refusals: both halves must cover exactly the same
+    draws and every intersection; the ids must be the subject's own, in its order; the probe band
+    must be disjoint from the draws the CHECKPOINT says it trained on and from the held-out pool;
+    and every budget must have the episodes it declares.
+    """
+    from offline.rtg_calibration import assert_probe_draws_disjoint
+
+    work = Path(work_dir)
+    facts = subject_facts_per_intersection(
+        output_root=output_root, expected_sha256=expected_sha256
+    )
+    by_domain = {
+        domain: per_intersection_returns_from_chunks(domain, work_dir=work)
+        for domain in PROBE_DOMAINS
+    }
+    counts = {domain: len(rows) for domain, rows in by_domain.items()}
+    if counts["cityflow"] != counts["sumo"] or not by_domain["sumo"]:
+        raise ValueError(
+            f"the two probe halves do not cover the same draws: {counts['cityflow']} cityflow "
+            f"chunk(s) against {counts['sumo']} sumo chunk(s) in {work}. Rule B's ratio is formed "
+            "over the SAME demand in both domains, so a missing half is a refusal, not a smaller k"
+        )
+    draws = sorted(by_domain["sumo"])
+    for domain, rows in by_domain.items():
+        for draw in draws:
+            found = [str(ix) for ix in rows.get(draw, {})]
+            if found != list(facts.intersection_ids):
+                raise ValueError(
+                    f"the {domain} chunk of draw {draw} records intersections {found[:4]}, not "
+                    f"the subject's {list(facts.intersection_ids)[:4]} in its order; a statistic "
+                    "over a different population is a different statistic"
+                )
+    assert_probe_draws_disjoint(
+        draws,
+        training_draw_ids=facts.training_draw_ids,
+        held_out_draws=held_out_draws,
+    )
+
+    statistics_table = per_intersection_statistics(
+        by_domain["sumo"], by_domain["cityflow"], intersection_ids=facts.intersection_ids
+    )
+    targets = per_intersection_targets(facts, statistics_table)
+
+    per_intersection: dict[str, Any] = {}
+    for ix in facts.intersection_ids:
+        low, high = facts.support_range[ix]
+        budgets: dict[str, Any] = {}
+        for key, entry in targets[ix].items():
+            budgets[key] = {
+                "k": entry["k"],
+                "rule": entry["rule"],
+                "statistic": entry["statistic"],
+                "role": entry["role"],
+                "target": entry["target"],
+                "probe_target_stat": entry["inputs"]["probe_target_stat"],
+                "probe_source_stat": entry["inputs"]["probe_source_stat"],
+                "draw_ids": statistics_table[key]["draw_ids"],
+                "in_support": entry["in_support"],
+            }
+        per_intersection[ix] = {
+            "best_source_return": facts.best_source_return[ix],
+            "rtg_scale": facts.rtg_scale[ix],
+            "support_range": [low, high],
+            "n_training_rows": facts.n_rows[ix],
+            "budgets": budgets,
+        }
+
+    artifact: dict[str, Any] = {
+        "format_version": PER_INTERSECTION_FORMAT_VERSION,
+        "registered_in": "PREREGISTRATION A17(e), A20(b), A21(a); BRIEF_39 C3a, Amendment A4",
+        "scenario_key": scenario_key,
+        "subject": facts.subject,
+        "registered_statistic": REGISTERED_STATISTIC,
+        "registered_k": REGISTERED_K,
+        "n_draws": len(draws),
+        "draw_ids": [draws[0], draws[-1]],
+        "intersection_ids": list(facts.intersection_ids),
+        "checkpoint_sha256": {str(seed): digest for seed, digest in facts.checkpoint_sha256.items()},
+        "declared_gradient_steps": facts.gradient_steps,
+        "architecture": {
+            "state_dim": facts.state_dim,
+            "context_length": facts.context_length,
+            "n_head": facts.n_head,
+            "spatial_mixing": False,
+        },
+        "fields_read": {
+            "best_source_return": (
+                'payload["target_rtg"][i] -- P5.2\'s declared per-intersection prompt, the '
+                "maximum episode return in THAT intersection's training streams, and the repo's "
+                "established reading (transfer_calibration.subject_facts on hangzhou). Amendment "
+                "A4: A17(e)'s wording pointed at stats[\"rtg\"], which is a different quantity."
+            ),
+            "rtg_scale": 'payload["rtg_scale"][i]; never recalibrated (A17(a)), only the target moves',
+            "support_range": (
+                'payload["stats"]["rtg"][scenario][i] min/max -- a per-window summary whose max is '
+                "0.0 on every intersection (the return-to-go at an episode's last step), so it "
+                "bounds the SUPPORT and is not a source of any target (Amendment A4)"
+            ),
+            "probe_source_stat": "the mean over this intersection's 100 CityFlow probe returns",
+            "probe_target_stat": "the mean over this intersection's 100 SUMO probe returns",
+        },
+        "probe_returns": {
+            domain: {str(draw): rows[draw] for draw in draws}
+            for domain, rows in by_domain.items()
+        },
+        "disjointness": {
+            "probe_draw_ids": [draws[0], draws[-1]],
+            "training_draw_ids": [facts.training_draw_ids[0], facts.training_draw_ids[-1]],
+            "held_out_draw_ids": [int(held_out_draws[0]), int(held_out_draws[-1])],
+            "checked_by": "offline.rtg_calibration.assert_probe_draws_disjoint",
+        },
+        "per_intersection": per_intersection,
+        "what_this_does_not_say": [
+            "These are PROBE returns -- MaxPressure's, on both engines -- and a prompt computed "
+            "from them. Nothing here is an evaluation of the subject, on either backend.",
+            "The targets at k = 5 and k = 20 are RECORDED and never evaluated (A20(b)); only "
+            "k = 100 carries the registered role.",
+            "The in-support position is a diagnostic and selects nothing (A8, BRIEF_15 12.1); a "
+            "target outside its intersection's training range is reported, not adjusted.",
+            "Rule B rescales a level by a ratio of probe means and so assumes the return scale "
+            "shifts multiplicatively between backends (A17's stated limit); the in-support "
+            "diagnostic is reported precisely because that assumption can fail.",
+        ],
+        **_git_provenance(),
+    }
+
+    # ---- the last refusal, then the write ----
+    for ix in facts.intersection_ids:
+        if per_intersection[ix]["budgets"][f"k{REGISTERED_K}"]["role"] != ROLE_REGISTERED:
+            raise AssertionError(f"{ix} carries no registered prompt at k={REGISTERED_K}")
+    _write_json(out_path, artifact)
+    return artifact
+
+
 def _write_json(path: str | Path, payload: Mapping[str, Any]) -> None:
     """Atomic, sorted, newline-terminated -- so a chunk is either whole or absent."""
     target = Path(path)
