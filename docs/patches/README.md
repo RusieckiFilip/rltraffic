@@ -1,5 +1,17 @@
 # Patches a Claude Code session cannot apply itself
 
+## `master_coordinator_complete_actions.patch` — every `THINGS YOU NEED TO DO` item is complete and copy-pasteable
+
+**Apply with:**
+```bash
+cd /home/filip/rltraffic && git apply docs/patches/master_coordinator_complete_actions.patch && git add .claude/agents/master-coordinator.md && git commit -m "agents(master-coordinator): every action item complete and copy-pasteable -- the whole relay text, the whole command, from its directory; no placeholder for a command that does not exist yet (PROJECT_PLAN section 7, 2026-09-20)" && git push origin main
+```
+One hunk in `.claude/agents/master-coordinator.md`, in the *Surface every human action* paragraph. The author's correction of 2026-09-20,
+after an action item read *"the implementer's next session hands you the exact command"*: the whole text to relay, the whole command
+from its directory, no assumed path, flag, session name or phrasing; when the command does not exist yet, one sentence saying so plus
+the complete message that produces it. The rule itself is in `PROJECT_PLAN` §7 (2026-09-20). `git apply --check` clean on `main` at
+creation. Docs-only.
+
 ## `ci_gate_ceiling_191_p7_3b.patch` — the skip ceiling moves 189 → 191 after P7.3b's merge and its CI fix, and all of it is P7.3b's own gating
 
 **Apply with:**

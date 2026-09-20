@@ -82,3 +82,34 @@ both sentences are A22's — **none is a choice here**. The seed for drawing win
 - [ ] The artifact carries both sentences verbatim, the verdict, the ten digests, the seed; regenerates at its commit.
 - [ ] `docs/returns/P5.4.md` with the real pytest tail, the AI-assistance record, and — in one line — which A22(d) sentence the
       paper now writes. Then **"P5.4 done"**.
+
+---
+
+# ✅ AMENDMENT A — 2026-09-19, gate G0: PLAN APPROVED (`docs/plans/p5.4.md` @ `56f8708`); A22(b) CORRECTED by A22.1 (`v2.3-prereg-a22-1` → `1e4e960`) on the author's ruling; the two protocol questions answered
+
+## A1 — F1 is right, and it is the coordinator's error corrected by registration, not by a note
+A22(b) demanded exact zero for every non-neighbour pair — an identity for ONE spatial layer. The block repeats `n_layer` = 3
+times (`agent/SpatialDTAgent.py:282–285`), so a correct model is influenced within three hops; the implementer's random-init
+probe with the real mask showed influence on exactly the 132 pairs at two and three hops and exact zero on exactly the 60
+beyond, and the coordinator confirmed the arithmetic ({1: 48, 2: 68, 3: 64, 4: 40, 5: 16, 6: 4}). **A22.1 is the registered
+correction and is the authority:** exact zero **beyond three hops** (the 60 pairs) for spatial, every off-diagonal pair for
+nomix; two- and three-hop influence **reported descriptively per hop**, no threshold; r, 0.10, both sentences and the
+expectation unchanged. §3's support-check bullet and §4's T1 read as corrected here.
+
+## A2 — The test the stub cannot provide (A22.1(d)): T1b
+A four-node **path** graph (0—1—2—3) with a **two-layer** model: perturbing node 2 changes node 0 (two hops, reachable);
+perturbing node 3 leaves node 0 `torch.equal` (three hops, beyond reach). *Mutation:* the reach computed as one hop → T1b dies
+on the two-hop pair; the reach computed as unlimited → dies on the three-hop pair. T1 on the three-node stub stays as the
+one-layer control.
+
+## A3 — Protocol answers
+- **Full 20-step windows only** (68,200 of 72,000): YES — every swapped-in state is a real observation; the count and the
+  rule go into the artifact.
+- **Code and artifact in separate commits**: YES — the artifact records a clean tree (the P7.3d C1 shape); the brief's "one
+  commit" read as *one code commit*.
+- Declared and accepted: window seed **20260919**; the pairing rule as planned; the agent's own normalisation reused
+  (`SpatialDTAgent.act`'s path) and cross-checked against the dataset's route under `==` on one window.
+- The artifact gains a per-hop block: for each checkpoint, mean F over the pairs at hop 1, 2, 3, and the maximum absolute F
+  beyond three hops (must be exactly 0.0).
+
+## A4 — Then build. G1 is the coordinator reading the artifact and recomputing r for one seed by its own route; G2 is one short merge review.

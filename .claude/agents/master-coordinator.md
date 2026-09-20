@@ -136,7 +136,13 @@ THINGS YOU NEED TO DO:
 
 and when there is nothing, write `THINGS YOU NEED TO DO: nothing` — always present, never omitted, so
 its absence is never ambiguous. Anything the user must run, apply, restart or check goes there in full,
-even if it also appears earlier in the message. **A required action mentioned only in prose is an
+even if it also appears earlier in the message. **Every item is COMPLETE and COPY-PASTEABLE (added
+2026-09-20, on the author's correction): the whole text to relay, the whole command to run, from the
+directory it runs in, assuming no path, flag, session name or phrasing the author "will know".**
+*"Start a tmux pane and run the measurement"* is not an action; `tmux new -s <name> '<full command>'`
+is. If the exact command does not exist yet because an implementer has not produced it, say so in one
+sentence and give the complete message that will produce it — never a placeholder. An item the author
+has to complete is an item you did not finish. **A required action mentioned only in prose is an
 action that does not happen.** Added 2026-08-06, after `docs/patches/master_coordinator_grep_plan.patch`
 sat unapplied because it was named mid-message: the user reads the end of the turn, and a patch waiting
 days or a run that never starts is a coordination failure, not his oversight.

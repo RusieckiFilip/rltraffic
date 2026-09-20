@@ -552,3 +552,42 @@ behaviour the rule exists for.
 **Then: the rest of C3a** — `transfer_calibration` per scenario, the two probes recorded per intersection (CityFlow first,
 A4), the `p7_2b_calibration.json` regression through A3's two substitutions — and C3b. The next thing on `main` for this task
 is Amendment C after the pre-flight (G4).
+
+---
+
+# ✅ AMENDMENT B.2 — 2026-09-20, before G2 runs: G2's DT cell is a TIMING cell, FENCED, on a draw OUTSIDE the held-out pool; it is not an evaluation of the `naive` arm A21 excludes; and the whole suite runs at the branch tip before C5's commit
+
+## B.2-1 — The clause §3 C5 carried from before A21, caught by the author's reviewer before the run
+§3 C5 says G2's DT cell uses *"the naive prompt"* on **draw 1000**. Amendment B applied A21 to C6's stages, the review count and
+the `collect.py` door and **did not touch C5**, so the clause rode through. The engineering constraint stands: `b_mean_k100` does not
+exist at G2 time — it comes out of the SUMO probe, which runs after G2 — so the checkpoint's own in-domain prompt is the only one a
+timing cell can run under. **What changes is where it runs and how it is recorded**, so that no number under an arm A21 excludes can
+reach a capture on a held-out draw.
+
+## B.2-2 — Ruling
+1. **G2's DT cell runs on draw 5** — the smoke draw, outside the held-out pool 1000–1099 and outside the probe band 201–300 — exactly
+   as P7.3a's and P7.3b's pilots did (`PILOT_DRAW`; `run_pilot` writes every outcome under `fenced_do_not_report`). G2's fixed-time
+   cell and the W ∈ {4, 8, 12} scaling cells run on draw 5 too. **Draw 5's parity files must exist for grid4x4** — C1 rendered 201–300
+   and 1000–1099 only — so G2's script first renders draw 5's `parity/` with the same tool and records its provenance; that is one
+   more directory under the gitignored draws tree and nothing else.
+2. **The G2 script measures TIME and MEMORY and prints NO outcome:** wall and in-process seconds, peak RSS, GPU memory, the canary
+   line (both halves). It does not print, log or store ATT, return, `e_sumo`, RTG series or actions; the cell's chunk, if one is
+   written at all, goes under a `fenced_do_not_report` key in a `g2/` directory that `report` never reads. A test asserts the
+   script's text contains none of `att_`, `e_sumo`, `episode_reward` as printed fields.
+3. **The seen ledger.** Because a fenced draw-5 timing cell prints no quantity, nothing is added to the *results already seen*
+   record by G2. If, despite (2), any outcome value reaches a capture — a failure repr is the known route (B.1-3) — the implementer
+   reports it in the packet by value, draw and arm, and the coordinator adds it to the next amendment's *seen* column, as B.1-3 did
+   for `e_sumo` 307.26.
+4. **C5's SUMO probe** (100 MaxPressure episodes on 201–300, per intersection) runs after G2, in tmux, as before. It produces
+   probe returns — anchor-side quantities, not arm evaluations — and they are the Rule B inputs A20/A21 require.
+
+## B.2-3 — The suite gap, owned here
+The implementer stated twice that the whole suite has not run since `22b1b22`'s content; seven commits have landed since, including
+`aa84e39`, which extracts `run_probe`'s rollout loop into a helper shared with hz1x1's registered P4.3 path — exactly the change where
+collateral is real, and only targeted files ran after it. **Before C5's commit: the whole suite at the branch tip, from the worktree,
+with `RLTRAFFIC_GRID4X4_RESCO` set, the real tail pasted into the packet, compared against the last measured run (2,148 / 105 at
+`22b1b22`'s content) with the delta accounted for.** A failure is a finding; nothing is edited to make it pass.
+
+## B.2-4 — What B.2 does NOT change
+A21's scope; the SUMO probe; C6's single stage; the six reference cells (C4, draws 1000–1002 — those are the registered
+instrument-regeneration anchors, not timing cells, and stay where they are).
