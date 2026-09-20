@@ -111,3 +111,15 @@ look from the abstracts. *(Both are OPEN items in §1.3.)*
 - **On the thesis and the venue:** the four-contribution thesis is supported on hz1x1 — one intersection — and on grid4x4 only for C1;
   P7.3d is what makes the C3 half of it more than one network, and the paper's scope sentence for that is A21's. The T-ITS judgement is the
   author's; the coordinator records it and does not grade it.
+
+---
+
+## 3. Method-section notes — things a reimplementing reader will get wrong unless the text says them
+
+- **r (A22(c)) is the mean over NODES of the mean over each node's one-hop neighbours, divided by the mean over nodes of self-influence
+  — NOT the mean over neighbour PAIRS.** On the 4 × 4 lattice the degrees are {2: 4, 3: 8, 4: 4}, so the two aggregations differ
+  (0.06388 against 0.06216 on seed 101, 2.7 %). The coordinator, who wrote A22(c), took the pair fork on first recomputation
+  (2026-09-20, `output/p5_4_runs/coord_verify/independent_r_seed101.txt`); a reader will too. State the aggregation explicitly.
+- **F is bit-reproducible only at the recorded thread count** (8; `protocol.torch_threads`); across thread counts the maximum relative
+  difference is 4.0e-07 and the verdict is unaffected. One sentence in the reproducibility section, beside the CityFlow/SUMO
+  within-machine statements.
