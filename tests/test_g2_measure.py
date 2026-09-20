@@ -16,6 +16,7 @@ leak is still preventable.  The behavioural half -- that the record's body sits 
 from __future__ import annotations
 
 import ast
+import os
 import re
 from pathlib import Path
 
@@ -315,3 +316,74 @@ def test_ensure_draw_parity_renders_the_smoke_draw_and_reports_what_it_wrote(
     again = g2.ensure_draw_parity(g2.G2_DRAW, out_root=tmp_path, env_config=config)
     assert again["action"] == "kept"
     assert again["files"] == record["files"]
+
+
+# ==================================================================================
+# The cwd/sys.path seam -- the defect that made the first hand-over refuse (2026-09-20)
+# ==================================================================================
+def _python_invocations() -> list[str]:
+    """Every line of the driver that runs the interpreter."""
+    return [
+        line.strip()
+        for line in _driver_text_without_comments().splitlines()
+        if '"$PY"' in line and "-x" not in line
+    ]
+
+
+def test_every_python_invocation_isolates_the_cwd_from_sys_path() -> None:
+    """``-P`` on BOTH calls, because the cwd is the MAIN tree and it carries its own ``offline``.
+
+    Rule 3 puts the process cwd in the main tree so a rendered draw embeds the main tree's ``dir``
+    (Amendment A6, ``DEFERRED`` 87), while the CODE must be the worktree's.  Python prepends the
+    cwd to ``sys.path`` for both ``-c`` and ``-m``, so without ``-P`` ``offline`` resolves to the
+    main tree's package -- which has no ``g2_measure`` -- and the import fails outright.  **That is
+    not hypothetical: the first hand-over refused with ``loaded from 'nothing'``.**
+    """
+    invocations = _python_invocations()
+    assert len(invocations) == 2, invocations
+    for line in invocations:
+        assert " -P " in line, f"no -P, so the cwd would shadow the worktree: {line}"
+    assert any(" -c " in line for line in invocations)
+    assert any(" -m offline.g2_measure" in line for line in invocations)
+
+
+def test_the_import_check_resolves_to_the_worktree_from_a_cwd_that_shadows_it(
+    tmp_path: Path,
+) -> None:
+    """Executable, hermetic, and with its own negative control.
+
+    A decoy ``offline`` package is placed in the working directory -- exactly the shape the main
+    tree has -- and the driver's OWN import-check command, extracted from the script rather than
+    retyped, is run from there.  It must resolve to this worktree.  The same command with ``-P``
+    removed must NOT, which is what proves the assertion is about the flag and not about luck.
+    """
+    import re
+    import subprocess
+    import sys
+
+    decoy = tmp_path / "decoy"
+    (decoy / "offline").mkdir(parents=True)
+    (decoy / "offline" / "__init__.py").write_text("", encoding="utf-8")
+
+    line = next(line for line in _python_invocations() if " -c " in line)
+    match = re.search(r"-P -c '([^']+)'", line)
+    assert match is not None, f"the import check is not the shape this test extracts: {line}"
+    code = match.group(1)
+
+    env = {"PATH": os.environ.get("PATH", ""), "PYTHONPATH": str(REPO_ROOT)}
+    with_p = subprocess.run(
+        [sys.executable, "-P", "-c", code], cwd=decoy, env=env,
+        capture_output=True, text=True, check=False,
+    )
+    assert with_p.returncode == 0, with_p.stderr
+    assert with_p.stdout.strip() == str(MODULE), with_p.stdout
+
+    without_p = subprocess.run(
+        [sys.executable, "-c", code], cwd=decoy, env=env,
+        capture_output=True, text=True, check=False,
+    )
+    assert without_p.returncode != 0, (
+        "the negative control passed: the decoy package did not shadow the worktree, so this "
+        "test would not have caught the missing -P"
+    )
+    assert "ModuleNotFoundError" in without_p.stderr

@@ -61,7 +61,13 @@ if [ ! -x "$PY" ]; then
 fi
 
 cd "$MAIN"
-LOADED=$(PYTHONPATH=$WORK_TREE "$PY" -c 'import offline.g2_measure as m; print(m.__file__)' 2>/dev/null || true)
+# ⚠️ `-P` IS LOAD-BEARING, and its absence is what made the first hand-over refuse (2026-09-20).
+# Without it Python prepends the CWD to sys.path, and the cwd here is the MAIN tree by rule 3 --
+# which has an `offline` package WITHOUT this module, so `import offline.g2_measure` raised
+# ModuleNotFoundError, LOADED came back empty and the driver refused with "loaded from 'nothing'".
+# -P suppresses the cwd entry so PYTHONPATH decides; it does NOT change the working directory, so
+# rule 3's render rule is untouched. The p7_3b driver already carried -P; this one had omitted it.
+LOADED=$(PYTHONPATH=$WORK_TREE "$PY" -P -c 'import offline.g2_measure as m; print(m.__file__)' 2>/dev/null || true)
 case "$LOADED" in
   "$WORK_TREE"/*) ;;
   *)
@@ -142,7 +148,7 @@ echo "     contain those field names, and a test asserts it."
 echo ""
 
 # shellcheck disable=SC2086
-PYTHONPATH=$WORK_TREE "$PY" -m offline.g2_measure \
+PYTHONPATH=$WORK_TREE "$PY" -P -m offline.g2_measure \
   --draws-root "$DRAWS" \
   --output-root "$MAIN/output" \
   --work-dir "$WORK" \
