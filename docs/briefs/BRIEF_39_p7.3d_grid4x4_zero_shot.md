@@ -588,6 +588,15 @@ collateral is real, and only targeted files ran after it. **Before C5's commit: 
 with `RLTRAFFIC_GRID4X4_RESCO` set, the real tail pasted into the packet, compared against the last measured run (2,148 / 105 at
 `22b1b22`'s content) with the delta accounted for.** A failure is a finding; nothing is edited to make it pass.
 
+## B.2-3b — Draw 5's demand is comparable to the campaign's, measured, and the G2 record carries the comparison
+The author's reviewer asked whether a schedule set on draw 5 transfers to draws 1000–1099, since SUMO wall time scales with
+vehicle count. **Measured from `flow.json` (coordinator, 2026-09-20):** draw 5 has **1,335** vehicles; the held-out band's mean is
+**1,327.6** (sd 12.3, range 1,298–1,358); the probe band's 1,327.2 (sd 11.2). Draw 5 sits **+0.56 %** above the held-out mean,
+z = +0.60 — inside the band's own spread. (Draw 0, the nominal source flow, is 1,473 and is NOT representative; G2 must not use
+it.) hz1x1's draw 5 stood at +0.83 % of its band, which is what P7.3a's A8 accepted. **Required of the G2 record:** one line stating
+draw 5's vehicle count against the 1000–1099 mean and sd, so the schedule the driver header quotes carries its demand basis beside
+its canary. RSS is expected to be insensitive to a 0.6 % demand difference; the schedule estimate inherits it and says so.
+
 ## B.2-4 — What B.2 does NOT change
 A21's scope; the SUMO probe; C6's single stage; the six reference cells (C4, draws 1000–1002 — those are the registered
 instrument-regeneration anchors, not timing cells, and stay where they are).
