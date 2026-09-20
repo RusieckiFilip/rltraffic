@@ -403,3 +403,91 @@ def test_the_written_records_own_disclaimer_names_no_forbidden_field() -> None:
         assert field not in block, f"{field!r} is named in the record's own disclaimer"
     assert "no travel time" in block and "no episode return" in block, "it still says what is absent"
 
+
+
+# ==================================================================================
+# C5's probe driver: the same refusal discipline, and the rate it cites is G2's
+# ==================================================================================
+PROBE_DRIVER = REPO_ROOT / "offline" / "campaigns" / "p7_3d_probe.sh"
+
+
+def _probe_text_without_comments() -> str:
+    lines = PROBE_DRIVER.read_text(encoding="utf-8").splitlines()
+    return "\n".join(line for line in lines if not line.lstrip().startswith("#"))
+
+
+def test_the_probe_driver_refuses_before_the_first_episode_and_in_order() -> None:
+    text = _probe_text_without_comments()
+    order = [
+        "REFUSING TO START: no interpreter",
+        "REFUSING TO START: offline.transfer_calibration loaded from",
+        "REFUSING TO START: episodes from another run are still alive",
+        "REFUSING TO START: not a process-group leader",
+        "REFUSING TO START: SIGINT is IGNORED",
+        "REFUSING TO START: RLTRAFFIC_GRID4X4_RESCO=",
+        "REFUSING TO START: missing parity configuration",
+        "CityFlow probe chunks in",
+        "REFUSING TO START: the worktree",
+        "below the ${RSS_BUDGET_MIB} MiB budget",
+        "trap on_signal INT TERM HUP",
+        "run_sumo_probe_per_intersection",
+    ]
+    positions = [text.index(fragment) for fragment in order]
+    assert positions == sorted(positions), "a refusal moved after the work it prevents"
+    assert "set -euo pipefail" in text
+
+
+def test_the_probe_driver_carries_g2s_measured_numbers_not_invented_ones() -> None:
+    """``WORKERS`` and the RSS budget come from gate G2, and the budget is that measurement.
+
+    *Mutation this is built against:* the budget edited to a round number that no measurement
+    supports -> the arithmetic below stops holding -> this dies.
+    """
+    text = _probe_text_without_comments()
+    values = {
+        name: int(re.search(rf"^{name}=(\d+)$", text, flags=re.MULTILINE).group(1))
+        for name in ("WORKERS", "PEAK_TREE_RSS_MIB", "PER_WORKER_RSS_MIB", "RSS_BUDGET_MIB", "GPU_PEAK_MIB")
+    }
+    assert values["WORKERS"] == 12, "G2 measured 12 as the best throughput on these 16 cores"
+    assert values["PEAK_TREE_RSS_MIB"] == 17297, "G2's measured peak tree RSS at W = 12"
+    assert values["GPU_PEAK_MIB"] == 4595, "G2's measured peak GPU use at W = 12"
+    # The per-worker figure IS the peak divided by the workers, and the budget IS 1.4x the peak.
+    assert values["PER_WORKER_RSS_MIB"] == round(values["PEAK_TREE_RSS_MIB"] / values["WORKERS"])
+    assert values["RSS_BUDGET_MIB"] == round(values["PEAK_TREE_RSS_MIB"] * 1.4)
+    # The header cites the gate, its date, its commit and its canary.
+    header = PROBE_DRIVER.read_text(encoding="utf-8")
+    for citation in ("gate G2", "2026-09-20", "07ab267", "canary 0.76 s"):
+        assert citation in header, f"the schedule does not cite {citation!r}"
+    assert "UNEXPLAINED" in header, "the W = 8 anomaly must be carried, not smoothed away"
+
+
+def test_the_probe_driver_isolates_the_cwd_and_names_its_own_tmux_command() -> None:
+    text = _probe_text_without_comments()
+    invocations = [line for line in text.splitlines() if '"$PY"' in line and "-x" not in line]
+    assert len(invocations) == 2 and all(" -P " in line for line in invocations), invocations
+    assert 'cd "$MAIN"' in text and "PYTHONPATH=$WORK_TREE" in text
+    expected = (
+        "tmux new -s p73d_probe 'bash /home/filip/rltraffic-p73d/offline/campaigns/"
+        "p7_3d_probe.sh 2>&1 | tee -a /home/filip/rltraffic/output/p7_3d_runs/probe_capture.txt'"
+    )
+    assert expected in PROBE_DRIVER.read_text(encoding="utf-8")
+
+
+def test_the_probe_driver_checks_both_halves_and_writes_no_artifact() -> None:
+    """Rule B's ratio needs both domains over the same draws, so the CityFlow half is a
+    precondition; and the driver assembles nothing -- the artifact is built from the chunks."""
+    text = _probe_text_without_comments()
+    assert "probe_cityflow_draw_*.json" in text and "-ne 100" in text
+    for forbidden in ("--report", "token"):
+        assert forbidden not in text, f"the probe driver must not reach {forbidden!r}"
+    # ⚠️ The artifact paths are asserted as WRITE TARGETS, not as strings. The driver legitimately
+    # NAMES docs/data/p7_3d_cap_e.json in a refusal (where the band's admission is recorded) and
+    # docs/data/p7_3d_calibration.json in its closing line (what the operator does next); banning
+    # the substrings would ban two useful messages. What the contract says is that nothing is
+    # written there, so that is what is checked -- line by line, against the ways a shell writes.
+    writers = ("> ", ">>", "cp ", "mv ", "tee ", "--out", "write_text", "mkdir")
+    for line in text.splitlines():
+        if "docs/data" in line or "p7_3d_calibration.json" in line:
+            assert not any(w in line for w in writers), f"an artifact is written on: {line.strip()}"
+    # ... and the check is not vacuous: the driver does mention both paths.
+    assert "p7_3d_cap_e.json" in text and "p7_3d_calibration.json" in text
