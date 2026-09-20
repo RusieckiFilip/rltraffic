@@ -1,6 +1,6 @@
 # PROJECT MASTER PLAN — Offline Multi-Agent Decision Transformer for Traffic Signal Control
 
-**Version:** 2.08 · **Last updated:** 2026-09-19 · **Maintained in:** Master Coordination Chat
+**Version:** 2.09 · **Last updated:** 2026-09-20 · **Maintained in:** Master Coordination Chat
 **Mentor:** Paweł Gora (Quantum AI Foundation) · **Target:** arXiv → IEEE ITSC / IEEE T-ITS / TRB (Q2/Q1)
 
 ---
@@ -788,6 +788,8 @@ Candidates parked here deliberately: each is scientifically attractive but compe
 ⚠️ **What this does NOT do, stated so the compression is not read as a relaxation.** It removes **zero** verification: the coordinator still reads every commit from disk, re-runs the named mutations, reads every driver capture, and recomputes every published number by its own route — it simply stops *announcing* the result to a person who has no action to take on it. It removes **zero** gates: they move from the conversation into the brief, where a restarted session can find them. It does not lift the per-commit source-file cap (≈ 2 source files plus tests **per commit**, so a review has a diff it can hold); the *brief* may now span several such commits, and it says in what order. And it does not change who runs long jobs — collection, training and campaigns still run in a tmux session the author starts (`CLAUDE.md` §5), which is exactly channel (a).
 
 **The durable form for the agent definitions** — `.claude/agents/**` is frozen — is `docs/patches/agents_relay_discipline.patch`; until the author applies it, the rule lives here and in every brief the coordinator writes. *(Applied by the author at `4137ea8`, 2026-09-19.)*
+
+**Clarification (2026-09-20, on the author's correction, after a `THINGS YOU NEED TO DO` item read *"the implementer's next session hands you the exact command"*):** **every item in that block is COMPLETE and COPY-PASTEABLE — the whole text to relay, the whole command to run, from the directory it runs in — and it never assumes the author knows a path, a flag, a session name or a phrasing.** *"Start a tmux pane and run the measurement"* is not an action; `tmux new -s <name> '<full command>'` is. When the exact command does not exist yet because an implementer has not produced it, the block says so in one sentence and gives the complete text of the message that will produce it; it does not hand the author a placeholder. An item the author has to complete is an item the coordinator did not finish.
 
 **Clarification (2026-09-19, evening, after the first `BLOCKED` under the rule):** an implementer that stops — on a test it believes is wrong, a brief that conflicts with the repo, a frozen path — has no channel to the coordinator except the author, because the coordinator does not run unless spoken to. **The author's part is ONE WORD — *"blocked"* — never a paste**; the coordinator then reads the worktree and the plan from disk and rules on `main`. That word is not one of the four channels and does not need to be: it costs the author no reading and no decision. The first instance (P7.3d, C1, the old grid4x4 no-pairing test) was ruled as `BRIEF_39` Amendment A.1 within the hour.
 
