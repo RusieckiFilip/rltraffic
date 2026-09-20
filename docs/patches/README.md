@@ -1,5 +1,19 @@
 # Patches a Claude Code session cannot apply itself
 
+## `ci_gate_ceiling_193_p5_4.patch` — the skip ceiling moves 191 → 193 after P5.4's merge; both new skips are P5.4's own gate
+
+**Apply with:**
+```bash
+cd /home/filip/rltraffic && git apply docs/patches/ci_gate_ceiling_193_p5_4.patch && .venv/bin/pytest tests/test_ci_gate.py -q && git add .github/ci/ci_baseline.json tests/test_ci_gate.py && git commit -m "ci(ceiling): 191 -> 193 OBSERVED on run 35533841027 at a80006b -- P5.4's two checkpoint-and-corpus-gated footprint tests" && git push origin main
+```
+**Measured, not read off a summary.** Run `35533841027` on `main` at `a80006b` (P5.4's merge); its only failing step on both suite jobs was the ceiling
+gate (the registered route working). Both legs downloaded, every `<skipped>` message extracted from `junit.xml` (`output/ci_runs/skips.py`,
+previously falsified against the 189 run), multisets compared leg against leg (identical: 2252 tests, 193 skipped, 0 failures, 0 errors on both)
+and run against run against the 191 run `35459798196`: **one new message text, twice, nothing removed** — *P5.2's checkpoint … or the
+corpus … not present*, `tests/test_spatial_footprint.py`'s two real-checkpoint tests, `corpus_or_checkpoint` +2. Verified end to end in a
+scratch worktree: `tests/test_ci_gate.py` green with the new baseline; `ci_gate.py pytest-gate` on BOTH legs' real `junit.xml` + `pytest.txt`
+under the new baseline, exit 0 each; `git apply --check` clean on `main`. Two files; `re_measure_required_at` still names P7.3d's merge.
+
 ## `master_coordinator_complete_actions.patch` — every `THINGS YOU NEED TO DO` item is complete and copy-pasteable
 
 **Apply with:**
