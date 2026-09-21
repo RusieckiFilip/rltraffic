@@ -116,6 +116,11 @@ look from the abstracts. *(Both are OPEN items in §1.3.)*
 
 ## 3. Method-section notes — things a reimplementing reader will get wrong unless the text says them
 
+- **Candidate C3 sentence, NOT to be written before P7.3d's campaign numbers exist (BRIEF_39 B.3-4, 2026-09-21):** on grid4x4 under
+  full dynamics parity, the per-intersection ratio of SUMO to CityFlow MaxPressure probe returns runs −16.6 % to +4.2 %, 12 of 16 below
+  1.0, eleven more than 4 SE from 1.0 — a residual engine gap with a direction and spatially heterogeneous magnitude. The DaRL line
+  adapts the gap away and therefore cannot report its spatial structure; we measure it. An observation with standard errors, never a test.
+
 - **r (A22(c)) is the mean over NODES of the mean over each node's one-hop neighbours, divided by the mean over nodes of self-influence
   — NOT the mean over neighbour PAIRS.** On the 4 × 4 lattice the degrees are {2: 4, 3: 8, 4: 4}, so the two aggregations differ
   (0.06388 against 0.06216 on seed 101, 2.7 %). The coordinator, who wrote A22(c), took the pair fork on first recomputation

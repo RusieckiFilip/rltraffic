@@ -600,3 +600,63 @@ its canary. RSS is expected to be insensitive to a 0.6 % demand difference; the 
 ## B.2-4 — What B.2 does NOT change
 A21's scope; the SUMO probe; C6's single stage; the six reference cells (C4, draws 1000–1002 — those are the registered
 instrument-regeneration anchors, not timing cells, and stay where they are).
+
+---
+
+# ✅ AMENDMENT B.3 — 2026-09-21, BEFORE C6 is built, on the author's reviewer's four points: the driver's documented invocation must pass the driver's own guard; `-P` on every interpreter call; the schedule quoted as a RANGE; the probe-ratio finding's status
+
+## B.3-1 — Every P7.3d driver's header documents an invocation its own guard refuses — MEASURED, and C6 fixes the class
+`p7_3d_g2.sh:8` and `p7_3d_probe.sh:8` give the usage as `tmux new -s NAME 'bash <script> 2>&1 | tee -a <capture>'`; lines 90–91 / 109–110
+refuse unless the script leads its own process group. **The coordinator measured the two forms on this machine (2026-09-21):** under
+`tmux new -s NAME '<cmd>'` the pane runs the command through a non-interactive shell with job control off, and `bash <script>` reports
+`pgid ≠ pid` — **NOT a leader; the guard fires** (the G2 capture's two refusals are exactly this; the author then typed the same line at a
+pane's prompt and it ran). The dry-runs ran under `setsid`, which makes the script a leader — a THIRD invocation that satisfies the guard
+and tested neither of the documented ones. **Ruling for C6, and retroactively for the two existing headers in the same commit:**
+1. **The documented usage is the FOREGROUND form:** open a pane (`tmux new -s p73d_cells`), then at its prompt type
+   `bash <full path>/p7_3d_grid4x4.sh confirmatory 2>&1 | tee -a /home/filip/rltraffic/output/p7_3d_runs/campaign_capture.txt`.
+   The header says so in those two steps, and says WHY the one-line `tmux new -s NAME '<cmd>'` form refuses.
+2. **T-driver gains a test that EXECUTES the driver under the header's own documented form** — spawn a detached tmux session, send the
+   header's line to the prompt, and assert the driver passes the group-leader check (it may then refuse on the next precondition; the
+   assertion is that the refusal, if any, is NOT the group-leader one). A test that pins the header's text proves the hand-over equals the
+   header, not that the header works; this one proves the header works.
+3. The driver does NOT re-exec itself under `setsid`: the guard exists so that Ctrl-C reaches the pool, and a self-re-exec would silently
+   change which process the author's signal lands on. Not chosen; recorded.
+
+## B.3-2 — `-P` on EVERY interpreter call in C6's driver, stated as a requirement
+The G2 hand-over failed once because the main tree's cwd shadowed the worktree's `offline` package (`1066aff`). Both existing drivers now
+carry `"$PY" -P` on every call; C6's driver does too, and T-driver asserts it (every `"$PY"` occurrence followed by `-P`). The coordinator's
+message for C6 omitted the clause; this amendment supplies it.
+
+## B.3-3 — The campaign schedule is quoted as a RANGE, 57–113 min, until the pooled rate is understood
+G2's W = 8 pool ran SLOWER per cell than W = 12 (9.67 s against 4.88 s effective; 77.4 s wall against 58.6 s; tight within each pool) — a
+1.98× throughput gain for 1.5× workers, which two pools on one machine cannot both deliver unless something else differed. The
+implementer left it unexplained and pinned the word; correct. **What the probe settled:** a sequential MaxPressure episode at 29.9 s
+against G2's sequential DT cell at 35.5 s — consistent — so the **single-worker figure is corroborated and only the pooled rates are
+suspect.** C6's header therefore quotes **700 × 4.88 s ≈ 57 min (the W = 12 rate) to 700 × 9.67 s ≈ 113 min (the W = 8 rate)**, names the
+anomaly, and the driver prints its own wall clock; the packet reports the observed one. The coordinator's earlier *"the estimate stands on
+the right rate"* quoted the optimistic end alone and is corrected here.
+
+## B.3-4 — The per-intersection probe ratio: a FINDING by its standard errors, direction plus local variation, and it is NOT written until P7.3d's packet
+The coordinator computed, from the 100 draws on disk, the standard error of each of the 16 ratios S_sumo,i / S_cityflow,i (delta method
+over the two means). **12 of 16 ratios sit below 1.0, four above; the spread of the sixteen (sd 0.068) is 5.5× the median standard
+error (0.012); eleven intersections are more than 4 SE from 1.0 in the negative direction (A3 −15.0, B3 −14.0, D0 −14.0, D1 −13.5 …), and
+the three above 1.0 are 2.4–3.3 SE.** So the residual engine gap on grid4x4 under full parity has a **direction** (SUMO's MaxPressure
+returns are mostly less negative — less queueing — than CityFlow's on the same demand) **and spatially heterogeneous magnitude**, and the
+heterogeneity is not noise. *"Up to 17 % in either direction"* is the wrong sentence: the range is −16.6 % to +4.2 %, asymmetric.
+**Status:** an exploratory observation about anchor-side probe returns, registered by nobody; it is reported in P7.3d's packet with its
+standard errors and goes into `RELATED_WORK.md` §3 as a candidate paper sentence for the C3 section — *the DaRL line adapts the gap away
+and so cannot report its spatial structure; we measure it* — to be written only after the campaign's own numbers exist and only as an
+observation, never as a hypothesis test. Corner and boundary intersections (A3, B3, D0, D1, D3) carry the largest negative ratios; whether
+that is boundary queueing (the P5.3b mechanism) is a question for the paper, not a claim.
+
+## B.3-5 — The two 48-target checks do NOT contradict each other; the implementer's route was independent in the way that matters
+The reviewer read the implementer's *"exact rational arithmetic, ratio formed first, 0 disagreements"* against the coordinator's *"exact
+rational, 20 of 48 one ULP off"* as incompatible. **They are not:** the implementer's script (`independent_targets_check.py:29–31`) takes
+exact rational MEANS, converts each mean to float, then forms `best × (ms / mc)` in float64 — the same association `rule_b_target`
+documents as load-bearing (*ratio first, so the in-domain case is an exact identity*) — while the coordinator formed `R × S / C` entirely
+in rationals and rounded once. Both are independent of the module's code; they differ in WHERE they round. **The implementer's route is
+the stronger check for this quantity:** it tests the registered association (A17(a), pinned since P4.3) and reproduces all 48 bitwise; the
+coordinator's shows the exact value is within one ULP (2.0e-16 relative) of every target, `DEFERRED` 85's class. The packet states both
+routes and what each shows; neither is *"a check that passes while the thing it names is not tested."*
+
+**Then: C6 under B.3-1 through B.3-3; the pre-flight (G4) reviews the header's form by executing it.**
