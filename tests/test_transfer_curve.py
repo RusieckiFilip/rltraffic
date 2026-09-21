@@ -4054,30 +4054,64 @@ def test_a_chunk_from_the_other_campaign_is_refused_by_stage_not_accepted_by_nam
         tcv.validate_cell_payload(chunk, cell=anchor_cell)     # the other campaign's: refused
 
 
-def test_the_pilot_transcript_survives_a_cell_that_has_no_training_seed() -> None:
-    """Found by RUNNING the pre-flight pilot, which is what a pre-flight is for.
+def test_the_pilot_transcript_survives_a_cell_that_has_no_training_seed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``DEFERRED`` 86, replaced by the REAL form (``BRIEF_39`` §4 T-pilot, Amendment A).
 
+    Found by RUNNING the pre-flight pilot, which is what a pre-flight is for.
     ``anchor_pilot_cells`` includes rho's two denominators, and an anchor cell has ``seed: None``
     -- fixedtime and MaxPressure have no training seed. ``run_pilot``'s transcript did
     ``int(cell["seed"])`` over every cell, so all four cells rolled successfully and then the
     SUMMARY raised ``TypeError``, losing the rate the pilot exists to measure. F1's sixteen cells
     are all ``dt``, which is why nothing noticed for a whole task.
 
-    Asserted on the cell set rather than by re-running the pool: the shape is what was wrong.
+    ⚠️ **The version this replaces re-implemented the guarded expression inside its own body and
+    so pinned nothing**: with the guard at ``transfer_curve.py`` removed it stayed GREEN (the
+    P7.3b merge reviewer, confirmed by the coordinator). ``DEFERRED`` 86's class: *a test that
+    asserts on a re-implementation of the expression under test pins nothing.* This one CALLS
+    ``run_pilot`` on a cell set containing a ``seed: None`` cell and asserts the transcript it
+    returns -- so removing the guard makes ``run_pilot`` itself raise, here.
+
+    The pool is substituted, not the transcript: ``run_stage`` is replaced by a stub, because what
+    is under test is the transcript built from the cell set, and rolling four real SUMO episodes
+    to reach it would put a simulator in the way of a string.
     """
     cells = tcv.anchor_pilot_cells()
     without = [c for c in cells if c["seed"] is None]
     assert len(without) == 2, "rho's two denominators carry no training seed"
     assert {c["arm"] for c in without} == {"fixedtime", "maxpressure"}
-    # the expression that used to raise, now written as the module writes it
-    assert sorted({int(c["seed"]) for c in cells if c["seed"] is not None}) == list(
-        tcv.PILOT_SEEDS
+
+    def fake_stage(**kwargs: Any) -> dict[str, Any]:
+        rolled = list(kwargs["cells"])
+        return {
+            "stage": tcv.PILOT_STAGE, "n_declared": len(rolled), "n_reused": 0,
+            "n_rolled": len(rolled), "n_failed": 0, "failures": [],
+            "seconds": [1.0] * len(rolled), "wall_seconds": 2.0,
+        }
+
+    import offline.transfer_calibration as calibration
+
+    monkeypatch.setattr(tcv, "run_stage", fake_stage, raising=True)
+    # run_pilot imports these from transfer_calibration INSIDE the function, so the substitution
+    # has to be on that module -- patching a name on tcv would bind nothing.
+    monkeypatch.setattr(
+        calibration, "canary_seconds",
+        lambda: (0.5, {"decisions": 360, "local_return": -32648.0,
+                       "att_horizon": 247.75089149261333, "two_routes_agree": True}),
+        raising=True,
     )
-    # The defect, stated so it cannot come back. `match=` is not decoration: a bare
-    # pytest.raises(TypeError) is satisfied by ANY TypeError, including one from a typo in the
-    # expression itself -- which is exactly what scripts/check_test_hygiene.sh TH006 refuses.
-    with pytest.raises(TypeError, match="NoneType"):
-        sorted({int(c["seed"]) for c in cells})
+
+    record = tcv.run_pilot(
+        work_dir=tmp_path / "work", out_root=tmp_path / "draws",
+        output_root=tmp_path / "output", data_dir=tmp_path / "data",
+        workers=2, cells=cells,
+    )
+
+    assert record["seeds"] == sorted(tcv.PILOT_SEEDS)
+    assert record["n_cells_without_a_training_seed"] == 2
+    assert record["n_cells"] == len(cells)
+    assert sorted(record["arms"]) == sorted({str(c["arm"]) for c in cells})
 
 
 def test_t14_the_anchor_declaration_is_pinned_by_size_and_by_composition() -> None:
