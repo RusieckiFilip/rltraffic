@@ -126,6 +126,7 @@ __all__ = [
     "SECONDARY_QUANTILES",
     "SupportCounts",
     "agent_with_target",
+    "spatial_agent_with_targets",
     "assert_probe_draws_disjoint",
     "build_parser",
     "effect_size_sidecar",
@@ -798,6 +799,88 @@ def agent_with_target(
 # ----------------------------------------------------------------------
 # The campaign
 # ----------------------------------------------------------------------
+
+
+def spatial_agent_with_targets(
+    gym_env: Any,
+    checkpoint_path: str | Path,
+    *,
+    declared_gradient_steps: int,
+    targets: Mapping[str, float],
+    method: str = "dt_nomix_h4",
+    device: str | None = None,
+) -> Any:
+    """:func:`agent_with_target` for a multi-intersection SPATIAL checkpoint (Amendment A1(a)).
+
+    Load first, THEN apply the targets -- ``SpatialDTAgent.load`` overwrites ``_target_rtg`` and
+    ``_rtg_scale`` from the payload (``agent/SpatialDTAgent.py:905-906``) and ``from_checkpoint``
+    passes the payload's own prompt, so a target handed to the constructor is discarded.  That is
+    the defect :func:`agent_with_target` exists for, one level up: here it would be sixteen
+    discarded targets and a complete, plausible episode.
+
+    Three guards, all before the agent is returned: the declared budget; ``rtg_scale`` unchanged
+    from the payload **per intersection** (A17(a) recalibrates only the target); and
+    ``current_rtg()`` equal to the requested targets **per intersection** under ``==``.
+
+    ⚠️ **The mixing flag is asserted HERE and not left to the budget guard.**
+    ``offline.spatial_mixing.assert_declared_budget`` runs its ``spatial_mixing`` check only for
+    method names in ``DT_METHODS = ("dt_spatial", "dt_nomix")``; the registered subject's method
+    name is ``dt_nomix_h4``, which is not in that tuple, so for this subject the check is skipped
+    entirely -- measured 2026-09-21: a *mixing* checkpoint is accepted under the name
+    ``dt_nomix_h4``, while the same file under ``dt_nomix`` is refused.  P5.2's module is not this
+    task's to change, so this call site does its own check.  (The subject's identity is protected
+    independently by A20(a)'s five digests, pinned in
+    ``offline.transfer_calibration.GRID4X4_CHECKPOINT_SHA256``.)
+    """
+    import torch
+
+    from agent.SpatialDTAgent import SpatialDTAgent
+    from offline.spatial_mixing import assert_declared_budget
+
+    path = Path(checkpoint_path)
+    assert_declared_budget(path, int(declared_gradient_steps), str(method))
+
+    payload = torch.load(path, map_location="cpu", weights_only=False)
+    if bool(payload["config"]["spatial_mixing"]):
+        raise ValueError(
+            f"{path}: this checkpoint records spatial_mixing=True but is being loaded as "
+            f"{method!r}, a NON-mixing arm. The two arms are weight-compatible by design, and "
+            "spatial_mixing.assert_declared_budget skips its own check for method names outside "
+            "DT_METHODS, of which this is one -- so nothing else would have caught the swap"
+        )
+
+    expected_ids = [str(ix.id) for ix in gym_env.intersections]
+    requested = {str(ix): float(value) for ix, value in targets.items()}
+    missing = [ix for ix in expected_ids if ix not in requested]
+    extra = [ix for ix in requested if ix not in expected_ids]
+    if missing or extra:
+        raise ValueError(
+            f"{path}: the targets do not cover exactly this env's intersections (missing "
+            f"{missing[:4]}, unexpected {extra[:4]}). A17(e) applies the rule per intersection, "
+            "so a partial mapping would leave some of them conditioning on the checkpoint's own "
+            "in-domain prompt while the rest ran the calibrated one"
+        )
+
+    agent = SpatialDTAgent.from_checkpoint(gym_env, str(path), device=device)
+    expected_scale = {str(k): float(v) for k, v in payload["rtg_scale"].items()}
+    if agent._rtg_scale != expected_scale:
+        raise ValueError(
+            f"{path}: rtg_scale is not the checkpoint's; this task varies the TARGET only and the "
+            "normalisation divisor must come from the trained model (A17(a))"
+        )
+
+    agent._target_rtg = {ix: requested[ix] for ix in expected_ids}
+    agent.reset_context()
+
+    resting = agent.current_rtg()
+    disagreeing = sorted(ix for ix in expected_ids if resting[ix] != requested[ix])
+    if disagreeing:
+        raise ValueError(
+            f"{path}: after applying the targets, {len(disagreeing)} intersection(s) condition on "
+            f"something else (first: {[(ix, resting[ix], requested[ix]) for ix in disagreeing[:3]]}); "
+            "the override did not take effect"
+        )
+    return agent
 
 
 def grid_targets() -> dict[str, float]:

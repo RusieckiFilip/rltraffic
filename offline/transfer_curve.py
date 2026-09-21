@@ -346,7 +346,14 @@ def cell_chunk_name(cell: Mapping[str, Any]) -> str:
     """A chunk's file name; one cell, one file, and the name carries the whole identity."""
     subject = cell["subject"] or "anchor"
     seed = "none" if cell["seed"] is None else int(cell["seed"])
-    return f"cell_{subject}_{cell['arm']}_seed{seed}_draw{int(cell['draw_id']):04d}.json"
+    stem = f"cell_{subject}_{cell['arm']}_seed{seed}_draw{int(cell['draw_id']):04d}.json"
+    # P7.3b's stage-identity lesson, one level up: two campaigns that share a naming scheme will
+    # eventually share a directory.  The scenario is prefixed for every scenario EXCEPT the
+    # default -- hz1x1's 5,404 chunks on disk are keyed by the old names and may not move.
+    scenario = str(cell.get("scenario") or SCENARIO_KEY)
+    if scenario == SCENARIO_KEY:
+        return stem
+    return f"cell_{scenario}_{stem[len('cell_'):]}"
 
 
 def rho(att_arm: float, att_fixedtime: float, att_maxpressure: float) -> float:
@@ -390,6 +397,22 @@ DEFAULT_DATA_DIR = _REPO_ROOT / "docs" / "data"
 #: pin is a DECLARATION -- *these targets came from THAT file* -- and the file is the evidence; a
 #: target read from an unpinned artifact can be edited between the calibration and the campaign
 #: without leaving a trace.  It moves only in a commit that also moves the artifact.
+#: P7.3d's artifact version.  grid4x4 gets its OWN, rather than overloading P7.3a's: one string
+#: describing two artifacts is how a reader comes to believe a cell set is something it is not.
+GRID4X4_ARTIFACT_FORMAT_VERSION = "p7.3d-grid4x4/1.0"
+
+#: The grid4x4 scenario key, its registered subject (A20(a)) and its one registered arm (A21(a)).
+GRID4X4_SCENARIO_KEY = "cityflow_grid4x4"
+GRID4X4_SUBJECT = "mappo1000_dt_nomix_h4"
+GRID4X4_ARM = "b_mean_k100"
+
+#: E3(a)'s rule for grid4x4: the 16 targets are READ from P7.3d's calibration artifact, pinned by
+#: digest, and never recomputed -- a target read from an unpinned artifact can be edited between
+#: the calibration and the campaign without leaving a trace.  It moves only in a commit that also
+#: moves the artifact.
+P7_3D_CALIBRATION_NAME = "p7_3d_calibration.json"
+P7_3D_CALIBRATION_SHA256 = "3e9df8eed4af2e42c132087e711751bc4c265edcef75dd88e24e6143e82f9723"
+
 P7_2B_CALIBRATION_NAME = "p7_2b_calibration.json"
 P7_2B_CALIBRATION_SHA256 = "92b1592de637cee187c56b988ce320611d89706c8f9f02c34fe7ebbe81658d86"
 
@@ -787,6 +810,79 @@ def demand_identity(draw_id: int, *, out_root: str | Path) -> dict[str, Any]:
     return identity
 
 
+def load_grid4x4_targets(*, data_dir: str | Path | None = None) -> dict[str, float]:
+    """The 16 registered prompts, READ from the digest-pinned calibration artifact.
+
+    The target of intersection *i* at the registered budget (A20(b): ``k = 100``, and only that
+    budget carries the role).  The artifact is checked against
+    :data:`P7_3D_CALIBRATION_SHA256` before a value is taken from it, and the role is checked on
+    every intersection: a budget the registration records and never evaluates must not be able to
+    become the prompt by an edit to one field.
+    """
+    path = _data_dir(data_dir) / P7_3D_CALIBRATION_NAME
+    if not path.is_file():
+        raise FileNotFoundError(
+            f"{path} is absent; P7.3d C3a writes it from both probe halves' chunks"
+        )
+    digest = _sha256_file(path)
+    if digest != P7_3D_CALIBRATION_SHA256:
+        raise ValueError(
+            f"{path} has sha256 {digest}, not the pinned {P7_3D_CALIBRATION_SHA256}. The targets "
+            "are a registered quantity; this module reads them from THAT file and no other"
+        )
+    payload = json.loads(path.read_bytes())
+    key = f"k{int(payload['registered_k'])}"
+    targets: dict[str, float] = {}
+    for ix_id in payload["intersection_ids"]:
+        cell = payload["per_intersection"][ix_id]["budgets"][key]
+        if str(cell["role"]) != "registered_prompt":
+            raise ValueError(
+                f"{path}: intersection {ix_id!r} carries role {cell['role']!r} at {key}, not "
+                "'registered_prompt'"
+            )
+        targets[str(ix_id)] = float(cell["target"])
+    return targets
+
+
+def assert_rtg_first_matches_targets(
+    rtg_series: Mapping[str, Sequence[float]],
+    targets: Mapping[str, float],
+    *,
+    label: str,
+) -> None:
+    """``rtg_first_i == target_i`` for EVERY intersection, refusing by name (§3 C3b).
+
+    ``BRIEF_38`` §2's seam 2 on hz1x1 -- *the only guard that the prompt took effect* -- one level
+    up.  Fifteen intersections agreeing must not be able to hide the sixteenth, so every id is
+    checked and every disagreement is named with both numbers.  Compared under ``==``: both sides
+    are the same float, read back from the same mapping, and a tolerance here would accept a
+    target that was rounded on its way into the model.
+    """
+    missing = sorted(ix for ix in targets if ix not in rtg_series)
+    extra = sorted(ix for ix in rtg_series if ix not in targets)
+    if missing or extra:
+        raise ValueError(
+            f"{label}: the RTG series do not cover exactly the targeted intersections (missing "
+            f"{missing[:4]}, unexpected {extra[:4]})"
+        )
+    empty = sorted(ix for ix, series in rtg_series.items() if not list(series))
+    if empty:
+        raise ValueError(
+            f"{label}: intersection(s) {empty[:4]} recorded NO decision, so there is no rtg_first "
+            "to compare; an empty series is not a passing one"
+        )
+    disagreeing = [
+        (ix, float(list(rtg_series[ix])[0]), float(targets[ix]))
+        for ix in sorted(targets)
+        if float(list(rtg_series[ix])[0]) != float(targets[ix])
+    ]
+    if disagreeing:
+        raise ValueError(
+            f"{label}: {len(disagreeing)} intersection(s) did not condition on their own target "
+            f"(first: {disagreeing[:3]}); the prompt did not reach them"
+        )
+
+
 def halting_check_for(draw_id: int) -> bool:
     """Amendment C2: ON for every cell on :data:`HALTING_CHECK_DRAW`, OFF everywhere else."""
     return int(draw_id) == HALTING_CHECK_DRAW
@@ -858,8 +954,9 @@ def dt_choose(
     env: Any,
     *,
     checkpoint_path: str | Path,
-    target_rtg: float,
+    target_rtg: float | Mapping[str, float],
     declared_gradient_steps: int | None = None,
+    device: str | None = None,
 ) -> tuple[Any, dict[str, Any]]:
     """The DT's decision function, and the per-decision series a reviewer re-derives from.
 
@@ -879,6 +976,44 @@ def dt_choose(
     from offline.transfer_calibration import DECLARED_GRADIENT_STEPS
 
     steps = DECLARED_GRADIENT_STEPS if declared_gradient_steps is None else int(declared_gradient_steps)
+
+    if isinstance(target_rtg, Mapping):
+        # P7.3d: the multi-intersection subject, in the spatial checkpoint format (Amendment A1).
+        # Sixteen series, keyed by id in the ENV's order (contract C1), and sixteen refusals --
+        # fifteen intersections agreeing must not be able to hide the sixteenth.
+        from offline.rtg_calibration import spatial_agent_with_targets
+
+        agent = spatial_agent_with_targets(
+            env, checkpoint_path, declared_gradient_steps=steps,
+            targets=target_rtg, device=device,
+        )
+        ix_ids = [str(ix.id) for ix in env.intersections]
+        diagnostics = {
+            "agent": agent,
+            "intersections": list(ix_ids),
+            "rtg_series": {ix: [] for ix in ix_ids},
+            "reward_series": {ix: [] for ix in ix_ids},
+            "actions": [],
+        }
+
+        def choose_many(_env: Any, info: Mapping[str, Any]) -> Any:
+            # Read BEFORE the call, which is what makes Amendment D1's shift-by-one the right
+            # comparison: rtg[t] - rtg[t-1] == -reward[t-1], per intersection.
+            resting = agent.current_rtg()
+            for ix in ix_ids:
+                diagnostics["rtg_series"][ix].append(float(resting[ix]))
+                payload = info["intersections"][ix]
+                diagnostics["reward_series"][ix].append(
+                    None if "reward" not in payload else float(payload["reward"])
+                )
+            action = agent.act(info, explore=False, update_memory=True)
+            diagnostics["actions"].append(
+                [int(a) for a in np.asarray(action).reshape(-1)]
+            )
+            return action
+
+        return choose_many, diagnostics
+
     agent = agent_with_target(
         env, checkpoint_path, declared_gradient_steps=steps, target_rtg=float(target_rtg)
     )
