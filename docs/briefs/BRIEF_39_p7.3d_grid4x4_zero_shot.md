@@ -660,3 +660,36 @@ coordinator's shows the exact value is within one ULP (2.0e-16 relative) of ever
 routes and what each shows; neither is *"a check that passes while the thing it names is not tested."*
 
 **Then: C6 under B.3-1 through B.3-3; the pre-flight (G4) reviews the header's form by executing it.**
+---
+
+# ✅ AMENDMENT B.4 — 2026-09-21, 22:40: the mis-sent session's footprint in this worktree, INSPECTED by the coordinator — the reviewer's Step 0 is SUPERSEDED (no reset: the uncommitted edits are the live implementer's C3b), and the one kept finding is CONFIRMED on `main` and parked as `DEFERRED` 89
+
+## B.4-1 — What is on disk, read before anything was changed (nothing was changed)
+Another session — the P5.4 implementer, without this task's context — was given this task by mistake and worked in
+`/home/filip/rltraffic-p73d` from about 22:09 to 22:18; the author interrupted it and ruled that nothing it produced survives. The
+author's reviewer then prescribed a Step 0 ending in `git reset --hard 8e197a1`. **The coordinator inspected first, as Step 0.1 asks, and
+the state differs from the reviewer's account in the one way that matters:**
+- HEAD is **`ace6cac`, a merge of `main` at `1a1ac25`** (the commit carrying Amendment B.3) made at **22:25** — seven minutes AFTER the
+  interruption. The reviewer's reported tip `5c5d417` appears nowhere in the branch's log.
+- The tree carries **uncommitted edits**: `offline/rtg_calibration.py` (+83), `offline/transfer_curve.py` (+139 / −2) and a new
+  `tests/test_spatial_cell.py`, all with mtimes **22:32**, the test's docstring citing *Amendment A1* and *`BRIEF_38` §2's seam 2* by name
+  — **this is the legitimate P7.3d implementer's C3b, in flight**, started on the coordinator's item-2 message after the interruption.
+- No file under `output/p7_3d_runs/` was modified between 22:05 and 22:20; no throwaway worktree of that session exists in `git worktree
+  list`; the packet's mtime is 2026-09-20 23:42 (untouched).
+**Ruling: Step 0.2's `reset --hard` is NOT run** — it would have destroyed the live implementer's work — **and nothing of the wrong session
+needs quarantining, because nothing of it is on disk.** Its reported merge was either never committed or is not the merge that stands;
+its suite numbers (2,247 / 99) are not evidence for this task, and the live implementer's instruction already orders a fresh full-suite run
+at the branch tip. The live implementer's `ace6cac` merge already carries B.3, so **no further relay is needed for C6**.
+
+## B.4-2 — The kept finding HOLDS on `main`, is harmless here by the digest pin, and is `DEFERRED` 89
+`offline/spatial_mixing.py:116`: `DT_METHODS = ("dt_spatial", "dt_nomix")`; `assert_declared_budget` checks the checkpoint's recorded
+`spatial_mixing` against the arm **only** for those two names (`:1144–1152`), so under the P5.2 h4 names — `dt_spatial_h4`, `dt_nomix_h4` —
+the mixing check is skipped and a spatial checkpoint offered as `dt_nomix_h4` would pass the budget guard. `admission_probe.py:866` routes
+only the two single-head names to that guard at all, so the h4 arms never met it in P5.2's evaluation either. **No number is at risk in
+P7.3d:** the subject's five files are pinned by digest (A20(a), `fcf22fc`) and the coordinator re-verified all five today; and P5.4's
+artifact records every checkpoint's `spatial_mixing` flag against its arm (all 10 consistent, verified 2026-09-20). **Ruling:** C3b's loader
+asserts `payload["config"]["spatial_mixing"] is False` for the nomix subject at its own load site, by name — one line beside the digest
+check — and the packet records the finding with credit to the session that found it (a measured claim about code is kept regardless of
+who measured it). P5.2's module is not edited in this task; the guard's vocabulary is `DEFERRED` 89.
+
+**Then: C3b continues as instructed. Nothing in this amendment changes the implementer's task.**
