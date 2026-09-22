@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import ast
 import os
+import shutil
 import re
 from pathlib import Path
 
@@ -491,3 +492,178 @@ def test_the_probe_driver_checks_both_halves_and_writes_no_artifact() -> None:
             assert not any(w in line for w in writers), f"an artifact is written on: {line.strip()}"
     # ... and the check is not vacuous: the driver does mention both paths.
     assert "p7_3d_cap_e.json" in text and "p7_3d_calibration.json" in text
+
+
+# ==================================================================================
+# C6's campaign driver (Amendment B.3): the header's own form must PASS its own guard
+# ==================================================================================
+CAMPAIGN = REPO_ROOT / "offline" / "campaigns" / "p7_3d_grid4x4.sh"
+
+
+def _campaign_text_without_comments() -> str:
+    lines = CAMPAIGN.read_text(encoding="utf-8").splitlines()
+    return "\n".join(line for line in lines if not line.lstrip().startswith("#"))
+
+
+def test_the_campaign_driver_refuses_before_the_token_and_in_order() -> None:
+    """Every check that can refuse precedes the token, so a refused start consumes nothing --
+    and the trap is installed BEFORE the token (J2/J3)."""
+    text = _campaign_text_without_comments()
+    order = [
+        "REFUSING TO START: no interpreter",
+        "REFUSING TO START: offline.transfer_curve loaded from",
+        "REFUSING TO START: cells from another run are still alive",
+        "REFUSING TO START: not a process-group leader",
+        "REFUSING TO START: SIGINT is IGNORED",
+        "REFUSING TO START: the stage must be 'confirmatory'",
+        "REFUSING TO START: missing committed input",
+        "REFUSING TO START: missing checkpoint",
+        "REFUSING TO START: missing parity configuration",
+        "REFUSING TO START: the worktree",
+        "below the ${RSS_BUDGET_MIB} MiB budget",
+        "REFUSING TO START: the canary failed",
+        "trap on_signal INT TERM HUP",
+        "REFUSING TO START: no run token",
+        'rm -f "$TOKEN"',
+        "transfer_curve cells",
+    ]
+    positions = [text.index(fragment) for fragment in order]
+    assert positions == sorted(positions), "a refusal moved after the work it prevents"
+    assert "set -euo pipefail" in text
+
+
+def test_the_campaign_driver_carries_g2s_numbers_and_b3s_schedule_range() -> None:
+    values = {
+        name: int(re.search(rf"^{name}=(\d+)$", _campaign_text_without_comments(), flags=re.MULTILINE).group(1))
+        for name in ("WORKERS", "PEAK_TREE_RSS_MIB", "PER_WORKER_RSS_MIB", "RSS_BUDGET_MIB", "GPU_PEAK_MIB")
+    }
+    assert values["WORKERS"] == 12 and values["PEAK_TREE_RSS_MIB"] == 17297
+    assert values["PER_WORKER_RSS_MIB"] == round(values["PEAK_TREE_RSS_MIB"] / values["WORKERS"])
+    assert values["RSS_BUDGET_MIB"] == round(values["PEAK_TREE_RSS_MIB"] * 1.4)
+    # B.3-3: a RANGE, with the anomaly named, not a point estimate. Asserted on the COMMENT
+    # HEADER specifically -- an earlier version matched "113 min" inside the driver's own echo
+    # line ("57-113 min") and so survived a mutant that removed the range from the header.
+    comments = "\n".join(
+        line for line in CAMPAIGN.read_text(encoding="utf-8").splitlines()
+        if line.lstrip().startswith("#")
+    )
+    assert "RANGE" in comments and "57 min" in comments and "113 min" in comments
+    assert "UNEXPLAINED" in comments
+    header = CAMPAIGN.read_text(encoding="utf-8")
+    assert "57-113 min" in header, "and the operator sees the range in the driver's own banner"
+    # B.2-3b: the demand basis beside the schedule.
+    assert "1,335 vehicles" in header and "1,327.6" in header and "12.3" in header
+    assert "+0.56 %" in header and "z = +0.60" in header
+    for citation in ("gate G2", "2026-09-20", "07ab267", "canary 0.76 s"):
+        assert citation in header, f"the schedule does not cite {citation!r}"
+
+
+def test_the_campaign_driver_uses_dash_p_everywhere_and_one_stage() -> None:
+    """B.3-2: every interpreter call carries -P. A21: one stage, one token."""
+    text = _campaign_text_without_comments()
+    invocations = [line for line in text.splitlines() if '"$PY"' in line and "-x" not in line]
+    assert len(invocations) >= 5
+    for line in invocations:
+        assert " -P " in line, f"no -P: {line.strip()}"
+    assert text.count('rm -f "$TOKEN"') == 1, "one stage, one token"
+    assert "rest" not in text and "naive" not in text and "random" not in text, (
+        "A21(b) removed the naive arm and the random anchor from this scenario"
+    )
+
+
+def test_the_campaign_driver_documents_the_foreground_form_and_says_why(
+) -> None:
+    """B.3-1: the documented invocation must be the one that PASSES the guard."""
+    header = CAMPAIGN.read_text(encoding="utf-8")
+    # The TWO-STEP form, not merely the session name: an earlier version asserted only
+    # "tmux new -s p73d_cells" and so survived a mutant that reverted the usage to the one-liner,
+    # which contains that substring too.
+    assert "Step 1, open a pane:" in header and "Step 2, at ITS PROMPT:" in header
+    assert "tmux new -s p73d_cells\n" in header, "step 1 opens the pane and stops there"
+    assert (
+        "bash /home/filip/rltraffic-p73d/offline/campaigns/p7_3d_grid4x4.sh confirmatory 2>&1 | "
+        "tee -a /home/filip/rltraffic/output/p7_3d_runs/campaign_capture.txt"
+    ) in header
+    assert "job control OFF" in header, "the header must say WHY the one-liner refuses"
+    assert "setsid" in header, "and that self-re-exec was considered and rejected"
+
+
+@pytest.mark.skipif(shutil.which("tmux") is None, reason="tmux is not installed")
+def test_the_headers_own_documented_form_passes_the_group_leader_check(tmp_path: Path) -> None:
+    """B.3-1(2): EXECUTE the header's line through tmux and assert the guard does not fire.
+
+    A test that pins the header's text proves the hand-over equals the header; this one proves
+    the header WORKS. The driver will refuse on a later precondition (there is no token, and this
+    session's tree may be dirty) -- the assertion is that the refusal is NOT the group-leader one.
+    """
+    import subprocess
+    import time
+    import uuid
+
+    session = f"p73d_hdr_{uuid.uuid4().hex[:8]}"
+    capture = tmp_path / "capture.txt"
+    line = (
+        f"bash {CAMPAIGN} confirmatory 2>&1 | tee -a {capture}; "
+        f"echo EXIT=$? >> {capture}; tmux kill-session -t {session}"
+    )
+    subprocess.run(["tmux", "new-session", "-d", "-s", session], check=True)
+    try:
+        subprocess.run(["tmux", "send-keys", "-t", session, line, "Enter"], check=True)
+        for _ in range(120):
+            if "EXIT=" in (capture.read_text(encoding="utf-8") if capture.exists() else ""):
+                break
+            time.sleep(0.5)
+    finally:
+        subprocess.run(["tmux", "kill-session", "-t", session], check=False)
+
+    text = capture.read_text(encoding="utf-8") if capture.exists() else ""
+    assert "EXIT=" in text, f"the driver never finished under the header's own form: {text[:400]}"
+    assert "not a process-group leader" not in text, (
+        "the header documents an invocation its own guard refuses -- the defect B.3-1 names:\n"
+        + text[:600]
+    )
+
+
+def test_the_driver_maps_its_argument_to_the_modules_own_stage_name() -> None:
+    """⚠️ Found by running the driver's own documented form BEFORE it was committed.
+
+    The user-facing argument is ``confirmatory``; hz1x1 already HAS a ``confirmatory`` stage of
+    1,200 cells, so passing the bare word to ``--stage`` would have selected that declaration --
+    1,200 hangzhou cells rolled under a grid4x4 token, with a plausible artifact at the end. The
+    driver maps the two names once, and this asserts the mapped value is what reaches the module.
+    """
+    import offline.transfer_curve as tcv
+
+    text = _campaign_text_without_comments()
+    assert "STAGE_ARG=grid4x4_confirmatory" in text
+    assert tcv.STAGE_GRID4X4 == "grid4x4_confirmatory"
+    # every --stage the driver passes carries the MAPPED name, never the bare argument
+    for line in text.splitlines():
+        if "--stage" in line:
+            assert '--stage "$STAGE_ARG"' in line, line.strip()
+            assert '--stage "$STAGE"' not in line, line.strip()
+    # ... and the two declarations really are different sizes, so the swap would have been silent.
+    assert len(tcv.declared_cells(tcv.STAGE_GRID4X4)) == 700
+    assert len(tcv.declared_cells("confirmatory")) == 1200
+
+
+def test_the_grid4x4_stage_is_a21s_seven_hundred_cells() -> None:
+    """A21(a): one subject, one arm, five seeds, two anchors, 100 held-out draws."""
+    import collections
+
+    import offline.transfer_curve as tcv
+
+    cells = tcv.grid4x4_cells()
+    assert len(cells) == 700
+    assert collections.Counter((c["kind"], c["arm"]) for c in cells) == {
+        ("dt", "b_mean_k100"): 500,
+        ("anchor", "fixedtime"): 100,
+        ("anchor", "maxpressure"): 100,
+    }
+    assert {c["draw_id"] for c in cells} == set(range(1000, 1100))
+    assert all(c["scenario"] == "cityflow_grid4x4" for c in cells)
+    assert all(c["stage"] == tcv.STAGE_GRID4X4 for c in cells)
+    assert "naive" not in {c["arm"] for c in cells}, "A21(b) removed it by declaration"
+    assert "random" not in {c["arm"] for c in cells}, "A21(b) removed it by declaration"
+    # hz1x1's declaration is untouched: every count P7.3a's artifact rests on is unchanged.
+    assert len(tcv.declared_cells()) == 4700

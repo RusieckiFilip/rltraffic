@@ -63,6 +63,8 @@ __all__ = [
     "P7_2B_CALIBRATION_SHA256",
     "RANDOM_POLICY_SEEDS",
     "STAGE_CONFIRMATORY",
+    "STAGE_GRID4X4",
+    "grid4x4_cells",
     "STAGES",
     "SUBJECTS",
     "TRAINING_SEEDS",
@@ -238,6 +240,49 @@ def targets_for_subject(
     return out
 
 
+#: P7.3d's ONE stage (A21(a)): `b_mean_k100` x 5 seeds x 100 draws + the two anchors = 700 cells.
+STAGE_GRID4X4 = "grid4x4_confirmatory"
+
+
+def grid4x4_cells() -> list[dict[str, Any]]:
+    """A21(a)'s 700 cells: one subject, one arm, five seeds, the two anchors, 100 held-out draws.
+
+    A SEPARATE declaration from :func:`declared_cells`, for Amendment A1's reason on P7.3b: the
+    hangzhou declaration -- and therefore every count P7.3a's artifact rests on -- is exactly what
+    it was before this scenario existed.  `naive` and `random` are NOT here: A21(b) removed them
+    by declaration before any grid4x4 SUMO number existed, and their absence is scope, not an
+    omission (the paper says so in A21's own words).
+    """
+    cells: list[dict[str, Any]] = []
+    for seed in TRAINING_SEEDS:
+        for draw in HELD_OUT_DRAWS:
+            cells.append(
+                {
+                    "kind": "dt",
+                    "subject": GRID4X4_SUBJECT,
+                    "arm": GRID4X4_ARM,
+                    "seed": int(seed),
+                    "draw_id": int(draw),
+                    "scenario": GRID4X4_SCENARIO_KEY,
+                    "stage": STAGE_GRID4X4,
+                }
+            )
+    for arm in ("fixedtime", "maxpressure"):
+        for draw in HELD_OUT_DRAWS:
+            cells.append(
+                {
+                    "kind": "anchor",
+                    "subject": None,
+                    "arm": arm,
+                    "seed": None,
+                    "draw_id": int(draw),
+                    "scenario": GRID4X4_SCENARIO_KEY,
+                    "stage": STAGE_GRID4X4,
+                }
+            )
+    return cells
+
+
 def declared_cells(stage: str | None = None) -> list[dict[str, Any]]:
     """Every cell the campaign runs, as declared -- optionally only one stage's.
 
@@ -253,8 +298,10 @@ def declared_cells(stage: str | None = None) -> list[dict[str, Any]]:
     * **rest** -- the three ablation arms x 2 subjects x 5 seeds (3,000) and ``random`` x 5 policy
       seeds (500). 3,500 cells.
     """
+    if stage == STAGE_GRID4X4:
+        return grid4x4_cells()
     if stage is not None and stage not in STAGES:
-        raise ValueError(f"{stage!r} is not one of {list(STAGES)}")
+        raise ValueError(f"{stage!r} is not one of {list(STAGES) + [STAGE_GRID4X4]}")
     # Amendment A1: the anchor stage is a SEPARATE declaration, so everything below -- and
     # therefore declared_cells(None) -- is exactly what it was before P7.3b existed.
     if stage == STAGE_ANCHOR:
@@ -3106,7 +3153,7 @@ def build_parser() -> Any:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     cells = subparsers.add_parser("cells", help="roll every cell of a stage that is not on disk")
-    cells.add_argument("--stage", choices=list(STAGES), default=None)
+    cells.add_argument("--stage", choices=[*STAGES, STAGE_GRID4X4], default=None)
     cells.add_argument("--workers", type=int, default=DEFAULT_WORKERS)
     cells.add_argument("--limit", type=int, default=None)
 
@@ -3130,7 +3177,7 @@ def build_parser() -> Any:
     gate.add_argument("--corpus-dir", required=True)
 
     report_parser = subparsers.add_parser("report", help="write the committed artifact")
-    report_parser.add_argument("--stage", choices=list(STAGES), default=None)
+    report_parser.add_argument("--stage", choices=[*STAGES, STAGE_GRID4X4], default=None)
     report_parser.add_argument("--stage1-path", default=None)
 
     subparsers.add_parser("canary", help="the machine-health canary (PROJECT_PLAN section 7)")
