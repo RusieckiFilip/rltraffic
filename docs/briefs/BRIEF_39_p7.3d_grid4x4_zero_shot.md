@@ -693,3 +693,48 @@ check — and the packet records the finding with credit to the session that fou
 who measured it). P5.2's module is not edited in this task; the guard's vocabulary is `DEFERRED` 89.
 
 **Then: C3b continues as instructed. Nothing in this amendment changes the implementer's task.**
+---
+
+# ✅ AMENDMENT B.5 — 2026-09-23, BEFORE THE TOKEN, on the author's reviewer's four items: a DT cell rolled TWICE and compared under `==` (no such measurement exists anywhere in the record); `report --stage confirmatory` executed and shown to refuse; the pane carries the driver's exit code; the guards re-checked after the Claude Code update
+
+## B.5-1 — No DT evaluation cell has EVER been rolled twice and compared; one is, before the token, fenced
+Checked by the coordinator from disk (2026-09-23): every bitwise claim in P7.3a, P7.3b and P7.3d so far is either a recomputation from
+chunks already on disk (reviewer B's 9,400 values; every artifact regeneration) or a re-roll of NON-DT cells (P7.3b's 200 ρ denominators;
+C4's six anchors). G2 rolled the same DT cell 25 times but wrote one measurement record (`g2/g2_measurement.json`), not per-cell chunks,
+so its rolls left no action sequences to compare. **The campaign's 500 DT cells would therefore be the first DT rolls whose reproduction is
+claimed for the agent — on the GPU, under 12 workers — with the claim resting on evidence about the ENVIRONMENT only.** P5.4 measured F
+moving 4.0e-07 across CPU thread counts; nothing pins or tests GPU determinism on a DT rollout.
+**Required before the token (≈ 70 s):** the campaign driver gains a pre-token stage `dt_reroll_check` that rolls **one DT cell twice** —
+`seed 101`, **draw 5** (B.2's fenced smoke draw, outside both pools), the registered prompt, `reset(seed=1000)`, once at W = 1 and once as a
+member of a 12-worker pool of otherwise-identical cells so the campaign's own pooling is exercised — writes both chunks under
+`fenced_do_not_report` in `g2/` (never in the campaign work dir), and compares them **excluding the clock fields by name**:
+`actions` (all 360 × 16), `rtg_series`, `reward_series`, `e_sumo`, `att_env`, `episode_reward`, `n_teleports`, under `==`. **It prints
+IDENTICAL or NOT IDENTICAL and the sha256 of each chunk minus the clocks — no outcome value** (B.2-2's fence). **IDENTICAL → the token step
+proceeds and the packet extends the reproduction claim to the agent, with this measurement as its basis. NOT IDENTICAL → the driver refuses
+to consume the token; the packet reports it as a finding with the differing fields named; the coordinator rules (channel (c)) — a
+non-deterministic agent under pooling is a property of the instrument that must be known before 700 cells, not after.** The result line is
+copied verbatim into the campaign capture's header by the driver. A test executes the check on a stub and asserts that a one-action
+difference between the two chunks yields NOT IDENTICAL and refuses.
+
+## B.5-2 — The reading side of the stage-word bug, measured: consistent — and the pre-flight/token step EXECUTES the refusal
+`declared_cells("confirmatory")` → **1,200** cells (hz1x1's); `declared_cells("grid4x4_confirmatory")` → **700** (`scenario_key
+cityflow_grid4x4`); the driver's `report` call passes `$STAGE_ARG` = `grid4x4_confirmatory` (line 249–250), the same mapping as `cells`. So
+the chain is consistent by reading. **Turned into a measurement before the token:** with the six C4 reference chunks (or any grid4x4 chunk)
+in a sandbox copy of the work dir, `report --stage confirmatory` is executed and must REFUSE — on completeness or on the undeclared-cell
+check — creating nothing; the refusal text is recorded in the packet. Same class as P7.3b's stage-identity hazard, closed on both sides.
+
+## B.5-3 — The pane carries the driver's exit code (the reviewer's item 4, adopted)
+Step 2's documented line becomes
+`bash <driver> confirmatory 2>&1 | tee -a <capture>; echo "DRIVER EXIT: ${PIPESTATUS[0]}"` — so the pane's last line is the DRIVER's exit
+status, not `tee`'s. The header, the hand-over, and T-driver's executed-form test move together (the test asserts the `PIPESTATUS` clause is
+present and that the echoed code equals the driver's on a forced early refusal). §7's rule stands: the author still reads the capture's
+last lines and the `COMPLETE` / `FAILED` marker; this makes the pane agree with them.
+
+## B.5-4 — After the Claude Code update: one refused edit on a frozen path in the FIRST restarted session, before any other command
+Frozen-set enforcement is `.claude/settings.json`'s deny/ask tiers plus the PostToolUse hooks calling `scripts/claude_guard.sh`
+(`--frozen-only`, `--tests-only`; lines 58 and 67 on `main`). An update that changed how settings or hooks are read would remove that
+layer silently. **The restarted implementer's first action is `echo test >> envs/README_GUARD_PROBE.md` (or any edit under `envs/`) — it
+must be REFUSED by the permission layer or caught by the hook; the packet records which fired.** If it is not refused: STOP, say so, and
+touch nothing else. **The model change (Opus 5 → Opus 5.5 mid-task) goes into the packet's AI-assistance record**, by commit range.
+
+**Then: the pre-flight's verdict (G4), B.5-1's IDENTICAL line, and the token (G5).**
