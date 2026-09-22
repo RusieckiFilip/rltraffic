@@ -787,3 +787,27 @@ what that test forces.
 Fix-round commit → the coordinator re-runs B1/B2/B3 by the same three commands and the end-to-end test → **G4 re-review, driver path
 only** (the two questions again, ≤ 15 min) → B.5-1's IDENTICAL line → G5, the token. **The packet records the pre-flight's findings in
 full, with the reviewer's per-line evidence and this amendment; nothing is folded into "fixed".**
+---
+
+# ✅ AMENDMENT B.6.1 — 2026-09-23, on the author's reviewer's two points about B.6's probes (before the message is pasted)
+
+## B.6.1-1 — Probe (b) is a MEASUREMENT, not a gate
+B.6's first paragraph asks for three probes and closes with *"if any of the three is NOT refused as described, STOP"*. Probes (a) and (c) are
+gates — each *must* be denied. **Probe (b) — `git -C /home/filip/rltraffic-p73d reset --hard -h` — is a measurement: it may be denied or it
+may run (printing usage, exit 129, touching nothing), and its RUNNING is exactly the finding the probe exists to produce**: that the `-C`
+form escapes the `Bash(git reset --hard:*)` deny prefix — the hole a deny-listed command went through on 2026-09-21. **The implementer
+reports (b)'s result verbatim and continues either way.** If it stops on (b), the author's answer is *"(b) is a measurement; report it and
+continue"*, which is this ruling.
+
+## B.6.1-2 — Implementer sessions LAUNCH FROM THEIR WORKTREE; what the guards covered before is recorded as unproven-but-consistent
+`scripts/claude_guard.sh:24` — `cd "$(git rev-parse --show-toplevel …)"` — inspects the toplevel of the HOOK'S working directory; the
+permission rules (`Edit(envs/**)` and the rest) are read from the launch directory's `.claude/settings.json` and resolve relative to it.
+**So a session launched from `/home/filip/rltraffic` that edits files in `/home/filip/rltraffic-p73d` has its early-warning layer pointed
+at the main tree, not at the files it edits.** The reviewer's evidence that earlier P7.3d sessions were launched that way — every `Write`
+displayed as `../rltraffic-p73d/<file>`, a path relative to the main tree — is consistent with the mechanism; the coordinator could not
+confirm it from disk (neither tree's `settings.local.json` records a `rltraffic-p73d` path; the worktree has no `settings.local.json`), so
+it is recorded as **consistent, not proven**. **What actually protected the frozen set on every P7.3d merge so far was the merge-time
+`git diff --stat` in the Definition of Done and the coordinator's own diff over `main...branch` — both of which ran, and nothing frozen
+reached `main`.** **Rule from today: an implementer session is launched from its worktree (`cd /home/filip/rltraffic-p73d && claude`), so
+the permission layer and the PostToolUse guard cover the files it edits; probe (c) tests that this is so in the restarted session.**
+Written into §7 as a clarification of the branch-backing rule; the agent-definition half is owed to the next `implementer.md` patch.
