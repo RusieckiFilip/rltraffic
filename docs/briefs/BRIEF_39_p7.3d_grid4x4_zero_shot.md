@@ -738,3 +738,52 @@ must be REFUSED by the permission layer or caught by the hook; the packet record
 touch nothing else. **The model change (Opus 5 → Opus 5.5 mid-task) goes into the packet's AI-assistance record**, by commit range.
 
 **Then: the pre-flight's verdict (G4), B.5-1's IDENTICAL line, and the token (G5).**
+---
+
+# ⛔ AMENDMENT B.6 — 2026-09-23, gate G4 NOT CLEAR (`docs/reviews/P7.3d-preflight.md`): the driver's SHAPE is right and its WIRING into the module is not — one fix-round commit, the pre-flight re-run on the driver path, then B.5's check and the token
+
+**Every blocker below was re-run by the coordinator before this was written.** The campaign as delivered cannot start (B1), would have failed
+all 500 DT cells and written the WRONG scenario's demand provenance into the 200 anchor cells invisibly (B2), and could not report or
+manifest (B3). Nothing has run; nothing is corrupted; the token was never consumable. **This is the pre-flight doing its job — the second
+time in this project the delivery path found what reading could not (P8.4a, 2026-08-28).**
+
+## B.6-1 — The class, named so the fix is not six patches
+Every C3b/C4/C6 piece was tested where it was built and none through the path the campaign runs: T-16 drives the spatial loader and the
+16-id refusal directly, not through `run_cell`; T-driver asserts only the absence of the group-leader text; the implementer's tmux test
+refused at the dirty-tree check, before the canary. **The fix round's load-bearing test is therefore ONE end-to-end test: the campaign path
+from the driver's argument to a written, `report`-accepted grid4x4 chunk, on draw 5, fenced, with the real module** — every item below is
+what that test forces.
+
+## B.6-2 — Required changes, ONE commit (`offline/transfer_curve.py`, `offline/campaigns/p7_3d_grid4x4.sh`, tests)
+1. **B1:** `"${COMMON[@]}"` BEFORE every subcommand (`canary`, `cells`, `record-canary`, `report`, `manifest`) — `p7_3b_anchor.sh:230, 307,
+   344, 347` is the shape. T-driver EXECUTES the redirected driver with a token present in the sandbox and asserts it gets PAST the canary
+   (the refusal, if any, must be later than `:209`) — the current test's "not the group-leader text" is not that.
+2. **B2, `run_cell` branches on `cell["scenario"]`:** for `cityflow_grid4x4` — `demand_identity(draw_id, out_root=…, scenario=GRID4X4_SCENARIO_KEY)`;
+   the targets from `load_grid4x4_targets(data_dir=…)` (digest-pinned `p7_3d_calibration.json`), NOT `targets_for_subject`; the checkpoint
+   identity from the five A20(a) digests pinned in `fcf22fc`, NOT `checkpoint_identity`'s hz1x1 tables; the subject loaded through the
+   spatial loader with the 16 targets applied per id; `assert_rtg_first_matches_targets` CALLED on the finished chunk; the chunk's
+   `calibration_sha256` = `p7_3d_calibration.json`'s digest, never `P7_2B_CALIBRATION_SHA256`. **`chunk_is_reusable` and `report` re-derive
+   the demand identity through the SAME scenario-aware call**, so a chunk carrying hz1x1's digests under a grid4x4 cell is refused, not
+   reused. A test constructs exactly that chunk and asserts refusal — the reviewer's sandbox found it REUSED today.
+3. **B3:** `declarations_for(stage, None)` returns the grid4x4 declaration as "every declared cell" for `grid4x4_confirmatory` (hz1x1's
+   4,700 stays for its own stages; the two sets are disjoint by the scenario prefix, measured overlap 0); `report` names the artifact by
+   stage (`p7_3d_grid4x4.json` for the grid4x4 stage) and P7.3a's name is unchanged for its stages (T-regress (b) pins that); a `manifest`
+   subcommand exists, writes `output/SHA256SUMS_p7_3d.txt` atomically (tmp → mv) over `output/p7_3d/` ONLY, and re-verifies. T-regress (b)
+   must stay byte-identical on all three hz1x1 artifacts.
+4. **M1:** `COMPLETE` and `FAILED` FILES in the work dir on every terminal path, `p7_3b_anchor.sh:251, 265, 360`'s shape; `on_signal` writes
+   `FAILED`. **m2:** the git-resolvability check on chunks' `git_commit` moves BEFORE the token (a `RuntimeError` after `rm -f "$TOKEN"` loses
+   the token, creates nothing, and needs a new token — the pre-flight found the shape). **m1:** the three input artifacts checked by DIGEST
+   against the values pinned in the module, not by existence.
+5. **The end-to-end test (B.6-1):** in a sandbox work dir with a token, run the redirected driver on draw 5 with `--limit 2` (one DT cell
+   seed 101, one `fixedtime`) through the real module, then `report --stage grid4x4_confirmatory` on the two chunks; assert: both chunks
+   written under the grid4x4 names, `config_sha256` equals grid4x4 draw 5's parity digest (`c27d31e8…`, from C1) and NOT hz1x1's
+   (`c177e962…`), the DT chunk's 16 `rtg_first_i` equal the 16 targets, `calibration_sha256` equals `p7_3d_calibration.json`'s digest,
+   `report` refuses ONLY on completeness (698 missing) and names no undeclared chunk, `COMPLETE`/`FAILED` written as appropriate, the
+   token consumed once. One SUMO DT episode plus one anchor — ≈ 70 s. This test is what G4 re-reviews.
+6. **B.5-1's `dt_reroll_check` and B.5-3's `PIPESTATUS` line** land in the same commit — they touch the same driver — with B.5-3's line
+   ending `| tee -a <capture>` so the exit code reaches the capture as well as the pane (the author's reviewer verified the expansion order).
+
+## B.6-3 — Gate sequence from here
+Fix-round commit → the coordinator re-runs B1/B2/B3 by the same three commands and the end-to-end test → **G4 re-review, driver path
+only** (the two questions again, ≤ 15 min) → B.5-1's IDENTICAL line → G5, the token. **The packet records the pre-flight's findings in
+full, with the reviewer's per-line evidence and this amendment; nothing is folded into "fixed".**
