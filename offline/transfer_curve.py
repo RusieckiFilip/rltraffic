@@ -767,7 +767,9 @@ def _manifest_digests(path: Path) -> dict[str, str]:
     return digests
 
 
-def demand_identity(draw_id: int, *, out_root: str | Path) -> dict[str, Any]:
+def demand_identity(
+    draw_id: int, *, out_root: str | Path, scenario: str = SCENARIO_KEY
+) -> dict[str, Any]:
     """G2: the draw's demand, pinned by TWO digests against P7.2a's own provenance.
 
     The ``.sumocfg`` only *names* the routes file, so a regenerated ``routes.rou.xml`` leaves the
@@ -777,7 +779,7 @@ def demand_identity(draw_id: int, *, out_root: str | Path) -> dict[str, Any]:
     """
     from offline.materialise_draws import parity_sumocfg_path
 
-    config_path = parity_sumocfg_path(SCENARIO_KEY, int(draw_id), out_root=out_root)
+    config_path = parity_sumocfg_path(str(scenario), int(draw_id), out_root=out_root)
     parity_dir = config_path.parent
     routes_path = parity_dir / PARITY_ROUTES_NAME
     provenance_path = parity_dir / PARITY_PROVENANCE_NAME
@@ -883,6 +885,270 @@ def assert_rtg_first_matches_targets(
         )
 
 
+#: C4's reference cells: rho's two anchors on the first three held-out draws, frozen so the
+#: campaign's own chunks for those six cells can be checked against them (A9, *the instrument
+#: regenerates*).  P7.3a had P7.1's frozen values to check against; grid4x4 has none until this
+#: file exists.
+REFERENCE_CELL_DRAWS: tuple[int, ...] = (1000, 1001, 1002)
+REFERENCE_CELL_ARMS: tuple[str, ...] = ("fixedtime", "maxpressure")
+REFERENCE_CELLS_FORMAT_VERSION = "p7.3d-reference-cells/1.0"
+
+#: The only fields of a frozen reference row that a re-roll may differ on: WALL CLOCKS.  Measured
+#: 2026-09-22 on the first run of the pedigree check -- all 34 recorded fields of all six episodes
+#: reproduced except these two, which are ``time.perf_counter`` differences and reproduce on no
+#: machine.  They are named here rather than compared loosely, so that a field which stops
+#: reproducing has to be added to this tuple by someone who then has to justify it.  The same
+#: shape as ``_PUBLISHED_FIELDS``' exclusion of ``seconds`` in the campaign's own comparisons.
+_PEDIGREE_WALL_CLOCK_FIELDS: tuple[str, ...] = ("seconds", "seconds_rollout")
+P7_3D_REFERENCE_CELLS_NAME = "p7_3d_reference_cells.json"
+
+
+def grid4x4_reference_cells(
+    *,
+    out_root: str | Path,
+    draws: Sequence[int] = REFERENCE_CELL_DRAWS,
+    arms: Sequence[str] = REFERENCE_CELL_ARMS,
+) -> list[dict[str, Any]]:
+    """Roll rho's two anchors on the first three held-out draws and record BOTH ATT definitions.
+
+    The same construction one campaign cell uses -- ``env_for_cell``'s anchor branch, the observed
+    but UNWRAPPED env (``BRIEF_37`` A2), ``anchor_choose`` through ``collect.POLICIES``,
+    ``horizon_rollout(..., seed=ENGINE_SEED)`` -- so that a campaign chunk for one of these six
+    cells is comparable with the frozen row cell by cell rather than merely in spirit.  The
+    halting cross-check follows C2's convention (ON for draw 1000 only), because the campaign's
+    own chunks for these cells will carry it.
+    """
+    import time
+
+    from offline.horizon_metric import horizon_rollout
+    from offline.sumo_att_reference import reconstruct_sumo_episode
+
+    rows: list[dict[str, Any]] = []
+    for arm in arms:
+        for draw_id in draws:
+            cell = {
+                "kind": "anchor", "subject": None, "arm": str(arm), "seed": None,
+                "draw_id": int(draw_id), "scenario": GRID4X4_SCENARIO_KEY,
+            }
+            demand = demand_identity(int(draw_id), out_root=out_root, scenario=GRID4X4_SCENARIO_KEY)
+            started = time.perf_counter()
+            env = env_for_cell(cell, out_root=out_root)
+            try:
+                assert_env_matches_cell(cell, env)
+                choose, diagnostics = anchor_choose(
+                    env, cell=cell, config_path=demand["config_path"]
+                )
+                tap = _StepTap(env)
+                rollout = horizon_rollout(tap, choose, 1, ENGINE_SEED)
+                built = reconstruct_sumo_episode(env.recorder)
+                att_env = att_env_from_info(tap.last_info or {})
+                types_seen = sorted(
+                    {env._sumo.vehicle.getTypeID(v) for v in env._sumo.vehicle.getIDList()}
+                )
+                option = str(env._sumo.simulation.getOption("time-to-teleport"))
+                engine_seed_drawn = int(env._engine_seed)
+            finally:
+                env.close()
+            seconds = time.perf_counter() - started
+
+            if att_env != rollout.att_horizon:
+                raise ValueError(
+                    f"{arm} draw {draw_id}: att_env {att_env!r} and att_horizon "
+                    f"{rollout.att_horizon!r} disagree; they are two routes to ONE quantity (G4)"
+                )
+            rows.append(
+                {
+                    "arm": str(arm),
+                    "draw_id": int(draw_id),
+                    "scenario": GRID4X4_SCENARIO_KEY,
+                    "e_sumo": float(built.e_sumo.value),
+                    "e_sumo_total": float(built.e_sumo.total),
+                    "e_sumo_n_ids": int(built.e_sumo.n_ids),
+                    "att_env": float(att_env),
+                    "decisions": len(diagnostics["actions"]),
+                    "n_observations": int(built.n_observations),
+                    "n_teleports": int(built.n_teleports),
+                    "n_intended": int(built.n_intended),
+                    "n_departed": int(built.n_departed),
+                    "n_arrived": int(built.n_arrived),
+                    "n_never_inserted": int(built.n_never_inserted),
+                    "n_pending_at_horizon": int(built.n_pending_at_horizon),
+                    "n_vanished_without_arrival": int(built.n_vanished_without_arrival),
+                    "vehicle_types_seen": types_seen,
+                    "time_to_teleport_option": option,
+                    "engine_seed_requested": ENGINE_SEED,
+                    "engine_seed_drawn": engine_seed_drawn,
+                    "halting_checked": halting_check_for(int(draw_id)),
+                    "halting_n_lane_seconds": int(built.halting.n_lane_seconds),
+                    "halting_n_disagreeing_lane_seconds": int(
+                        built.halting.n_disagreeing_lane_seconds
+                    ),
+                    "config_sha256": demand["config_sha256"],
+                    "routes_sha256": demand["routes_sha256"],
+                    "seconds": seconds,
+                }
+            )
+    return rows
+
+
+def grid4x4_cityflow_pedigree(
+    *,
+    draws_root: str | Path,
+    output_root: str | Path,
+    corpus_root: str | Path,
+    repo_root: str | Path,
+    reference_artifact: str | Path,
+) -> dict[str, Any]:
+    """Re-run the six CityFlow reference episodes and compare EVERY field with what P8.4b froze.
+
+    Amendment B3/Q3.  The episodes are rolled by ``engine_att_reference.run_cells`` -- the SAME
+    function that produced the committed rows, not a re-implementation of it -- and every numeric
+    field of every row is compared under ``==``.  G1 already checked that the held-out draws'
+    ``flow.json`` are byte-identical to what P8.4a committed; this checks that the same demand
+    still produces the same numbers, which is the half a digest cannot answer.
+    """
+    from offline.admission_probe import ProbeRoots
+    from offline.engine_att_reference import default_work_dir, gate_cells, run_cells
+
+    committed = json.loads(Path(reference_artifact).read_bytes())
+    frozen = {
+        (str(row["arm"]).split("@")[1], int(row["draw_id"])): row
+        for row in committed["episodes"]
+        if row.get("scenario") == "grid4x4"
+        and str(row["arm"]) in ("behaviour@fixedtime", "behaviour@maxpressure")
+    }
+    if len(frozen) != 6:
+        raise ValueError(
+            f"{reference_artifact} carries {len(frozen)} grid4x4 anchor rows, not the six "
+            "P8.4b froze on draws 1000-1002"
+        )
+
+    output_root = Path(output_root)
+    roots = ProbeRoots(
+        repo_root=Path(repo_root),
+        corpus_root=Path(corpus_root),
+        draws_root=Path(draws_root),
+        output_root=output_root,
+        work_dir=default_work_dir(output_root),
+    )
+    cells = [
+        cell
+        for cell in gate_cells("grid4x4")
+        if cell.tier in REFERENCE_CELL_ARMS and int(cell.draw_id) in REFERENCE_CELL_DRAWS
+    ]
+    episodes = run_cells(cells, roots=roots, engine_seed=ENGINE_SEED, device="cpu")
+
+    rows: list[dict[str, Any]] = []
+    for episode in episodes:
+        key = (str(episode.tier), int(episode.draw_id))
+        expected = frozen[key]
+        observed = {
+            field: getattr(episode, field)
+            for field in sorted(expected)
+            if hasattr(episode, field) and field not in _PEDIGREE_WALL_CLOCK_FIELDS
+        }
+        differing = sorted(
+            field for field, value in observed.items() if value != expected[field]
+        )
+        rows.append(
+            {
+                "arm": key[0],
+                "draw_id": key[1],
+                "n_fields_compared": len(observed),
+                "fields_excluded": list(_PEDIGREE_WALL_CLOCK_FIELDS),
+                "matches": not differing,
+                "differing": differing,
+                "att_ours": float(episode.att_ours),
+                "att_engine": float(episode.att_reference_engine_population),
+            }
+        )
+
+    matching = [row for row in rows if row["matches"]]
+    return {
+        "what": (
+            "the six CityFlow reference episodes of docs/data/p8_4b_g0_reference.json, re-rolled "
+            "through engine_att_reference.run_cells -- the function that produced them -- and "
+            "compared field by field under ==, excluding the two wall clocks "
+            f"{list(_PEDIGREE_WALL_CLOCK_FIELDS)}, which are perf_counter differences"
+        ),
+        "reference_artifact": Path(reference_artifact).name,
+        "reference_artifact_sha256": _sha256_file(reference_artifact),
+        "n_checked": len(rows),
+        "n_matching": len(matching),
+        "all_match": len(matching) == len(rows) == 6,
+        "rows": rows,
+    }
+
+
+def write_reference_cells_artifact(
+    *,
+    out_path: str | Path,
+    cells: Sequence[Mapping[str, Any]],
+    pedigree: Mapping[str, Any],
+) -> dict[str, Any]:
+    """The C4 artifact: the six SUMO anchors and the CityFlow pedigree verdict, refusals first.
+
+    Every refusal precedes the write and the write is atomic, so a failed check leaves no file:
+    the six cells must all be present, each under the registered regime, and the pedigree must
+    have matched on all six.  A9's rule made into an artifact -- the campaign's own chunks for
+    these six cells are later required to reproduce them bit for bit.
+    """
+    rows = list(cells)
+    expected = {(arm, draw) for arm in REFERENCE_CELL_ARMS for draw in REFERENCE_CELL_DRAWS}
+    seen = {(str(row["arm"]), int(row["draw_id"])) for row in rows}
+    if seen != expected or len(rows) != 6:
+        raise ValueError(
+            f"the reference set must be exactly the {len(expected)} cells "
+            f"{sorted(expected)}; got {len(rows)}: {sorted(seen)}"
+        )
+    from offline.transfer_calibration import PARITY_VTYPE_ID
+
+    for row in rows:
+        label = f"{row['arm']} draw {row['draw_id']}"
+        if int(row["n_teleports"]) != 0:
+            raise ValueError(
+                f"{label}: {row['n_teleports']} teleport(s) under a configuration that requested "
+                "time-to-teleport -1 (A15(c)); a frozen reference may not carry one"
+            )
+        if list(row["vehicle_types_seen"]) != [PARITY_VTYPE_ID]:
+            raise ValueError(f"{label}: the engine ran {row['vehicle_types_seen']!r}")
+        if str(row["time_to_teleport_option"]) != "-1":
+            raise ValueError(f"{label}: time-to-teleport {row['time_to_teleport_option']!r}")
+    if not pedigree.get("all_match") or int(pedigree.get("n_matching", 0)) != 6:
+        raise ValueError(
+            f"the CityFlow pedigree did not match on all six episodes "
+            f"({pedigree.get('n_matching')} of {pedigree.get('n_checked')}); the held-out draws "
+            "no longer reproduce the numbers P8.4b froze, which stops the task"
+        )
+
+    artifact = {
+        "format_version": REFERENCE_CELLS_FORMAT_VERSION,
+        "registered_in": "BRIEF_39 C4, Amendment B3/Q3; PREREGISTRATION A9, A15(b)",
+        "scenario_key": GRID4X4_SCENARIO_KEY,
+        "what_this_is": (
+            "The two rho anchors on the first three held-out draws, under the registered regime, "
+            "with BOTH ATT definitions -- the values the campaign's own chunks for these six "
+            "cells must reproduce bit for bit (A9: the instrument regenerates). grid4x4 had no "
+            "frozen anchor until this file; P7.3a could check against P7.1's."
+        ),
+        "engine_seed": ENGINE_SEED,
+        "draws": list(REFERENCE_CELL_DRAWS),
+        "arms": list(REFERENCE_CELL_ARMS),
+        "n_cells": len(rows),
+        "cells": sorted(rows, key=lambda row: (str(row["arm"]), int(row["draw_id"]))),
+        "pedigree": dict(pedigree),
+        "what_this_does_not_say": [
+            "These are ANCHOR values -- fixed-time and MaxPressure -- not an evaluation of any "
+            "subject. rho is computed from them; they are not themselves a result.",
+            "Three draws are not the held-out pool: they are the instrument-regeneration check, "
+            "and the campaign reports rho over all 100.",
+        ],
+        **_git_provenance(),
+    }
+    _write_json(out_path, artifact)
+    return artifact
+
+
 def halting_check_for(draw_id: int) -> bool:
     """Amendment C2: ON for every cell on :data:`HALTING_CHECK_DRAW`, OFF everywhere else."""
     return int(draw_id) == HALTING_CHECK_DRAW
@@ -911,8 +1177,9 @@ def env_for_cell(
         else aligned_env.observer_env_for_draw
     )
     arm = "maxpressure" if kind == "dt" else str(cell["arm"])
+    # P7.3d: the cell's own scenario, defaulting to hz1x1 so every P7.3a/P7.3b call is unchanged.
     return factory(
-        SCENARIO_KEY,
+        str(cell.get("scenario") or SCENARIO_KEY),
         draw_id,
         out_root=out_root,
         halting_check=halting_check_for(draw_id),
