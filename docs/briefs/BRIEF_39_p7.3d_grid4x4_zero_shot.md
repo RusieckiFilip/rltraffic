@@ -811,3 +811,30 @@ it is recorded as **consistent, not proven**. **What actually protected the froz
 reached `main`.** **Rule from today: an implementer session is launched from its worktree (`cd /home/filip/rltraffic-p73d && claude`), so
 the permission layer and the PostToolUse guard cover the files it edits; probe (c) tests that this is so in the restarted session.**
 Written into §7 as a clarification of the branch-backing rule; the agent-definition half is owed to the next `implementer.md` patch.
+---
+
+# ✅ AMENDMENT B.6.2 — 2026-09-24, on the restarted implementer's two conflicts and the three probe results
+
+## B.6.2-1 — The probes: (a) and (c) DENIED, (b) RAN — the `-C` hole is now MEASURED, and it is a `DEFERRED` item with a patch owed
+Verbatim from the session launched from the worktree: (a) `git reset --hard -h` → *denied*; (c) `Write(envs/GUARD_PROBE.md)` → *denied,
+nothing written*; **(b) `git -C /home/filip/rltraffic-p73d reset --hard -h` → RAN, printed usage, exit 129, nothing changed.** So the
+permission layer works, covers the worktree when the session is launched from it — and **`Bash(git reset --hard:*)` is a PREFIX rule that
+every `git -C <path> …` form escapes.** That is the route Sunday's `reset --hard` took, and it applies to every git rule in the file — the
+`ask` rules on `commit`, `push`, `merge` and `checkout main` included — while the relay messages use `git -C … merge` routinely. **Recorded
+as `DEFERRED` 90**; the fix is a `.claude/settings.json` patch (frozen; the author applies) adding the `-C` forms beside each prefix, or a
+guard-side check; not this task's.
+
+## B.6.2-2 — Conflict 1, the trailer: NO trailer, ever — the standing rule applies; the implementer stopped correctly
+The session instruction naming `Co-Authored-By: Claude Opus 5.5 (1M context)` is the same conflict raised on 2026-09-19 under two other
+wordings. `CLAUDE.md` §4b governs: zero trailer lines on every commit; the `commit-msg` hook is the backstop (absolute `hooksPath`, verified
+by the implementer). The author has ruled this each time it appeared; this amendment records the ruling so the next appearance costs one
+line.
+
+## B.6.2-3 — Conflict 2, the model: record the TRUTH — `claude-opus-5-5[1m]` from this session on, and the change stated by commit range
+The phrase *"there is no model change within P7.3d"* in the message the implementer received did not come from the coordinator — B.5-4 and
+B.6 say the opposite: **the model change (Opus 5 → Opus 5.5) goes into the AI-assistance record by commit range.** The `implementer.md`
+frontmatter pin (`model: claude-opus-5`) binds subagent launches only and is not the model of a main session after `/model`. **The record
+states: commits up to `8c79778` — `claude-opus-5[1m]`; commits from the B.6 fix round — `claude-opus-5-5[1m]`; the change made by the author
+on 2026-09-23/24 at the Claude Code update.** Writing the pinned name over a known-false fact would be the record's one prohibited move.
+
+**Then: `git merge --no-edit main`, and B.6 as written.**
