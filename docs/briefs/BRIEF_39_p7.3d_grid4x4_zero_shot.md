@@ -660,3 +660,181 @@ coordinator's shows the exact value is within one ULP (2.0e-16 relative) of ever
 routes and what each shows; neither is *"a check that passes while the thing it names is not tested."*
 
 **Then: C6 under B.3-1 through B.3-3; the pre-flight (G4) reviews the header's form by executing it.**
+---
+
+# ✅ AMENDMENT B.4 — 2026-09-21, 22:40: the mis-sent session's footprint in this worktree, INSPECTED by the coordinator — the reviewer's Step 0 is SUPERSEDED (no reset: the uncommitted edits are the live implementer's C3b), and the one kept finding is CONFIRMED on `main` and parked as `DEFERRED` 89
+
+## B.4-1 — What is on disk, read before anything was changed (nothing was changed)
+Another session — the P5.4 implementer, without this task's context — was given this task by mistake and worked in
+`/home/filip/rltraffic-p73d` from about 22:09 to 22:18; the author interrupted it and ruled that nothing it produced survives. The
+author's reviewer then prescribed a Step 0 ending in `git reset --hard 8e197a1`. **The coordinator inspected first, as Step 0.1 asks, and
+the state differs from the reviewer's account in the one way that matters:**
+- HEAD is **`ace6cac`, a merge of `main` at `1a1ac25`** (the commit carrying Amendment B.3) made at **22:25** — seven minutes AFTER the
+  interruption. The reviewer's reported tip `5c5d417` appears nowhere in the branch's log.
+- The tree carries **uncommitted edits**: `offline/rtg_calibration.py` (+83), `offline/transfer_curve.py` (+139 / −2) and a new
+  `tests/test_spatial_cell.py`, all with mtimes **22:32**, the test's docstring citing *Amendment A1* and *`BRIEF_38` §2's seam 2* by name
+  — **this is the legitimate P7.3d implementer's C3b, in flight**, started on the coordinator's item-2 message after the interruption.
+- No file under `output/p7_3d_runs/` was modified between 22:05 and 22:20; no throwaway worktree of that session exists in `git worktree
+  list`; the packet's mtime is 2026-09-20 23:42 (untouched).
+**Ruling: Step 0.2's `reset --hard` is NOT run** — it would have destroyed the live implementer's work — **and nothing of the wrong session
+needs quarantining, because nothing of it is on disk.** Its reported merge was either never committed or is not the merge that stands;
+its suite numbers (2,247 / 99) are not evidence for this task, and the live implementer's instruction already orders a fresh full-suite run
+at the branch tip. The live implementer's `ace6cac` merge already carries B.3, so **no further relay is needed for C6**.
+
+## B.4-2 — The kept finding HOLDS on `main`, is harmless here by the digest pin, and is `DEFERRED` 89
+`offline/spatial_mixing.py:116`: `DT_METHODS = ("dt_spatial", "dt_nomix")`; `assert_declared_budget` checks the checkpoint's recorded
+`spatial_mixing` against the arm **only** for those two names (`:1144–1152`), so under the P5.2 h4 names — `dt_spatial_h4`, `dt_nomix_h4` —
+the mixing check is skipped and a spatial checkpoint offered as `dt_nomix_h4` would pass the budget guard. `admission_probe.py:866` routes
+only the two single-head names to that guard at all, so the h4 arms never met it in P5.2's evaluation either. **No number is at risk in
+P7.3d:** the subject's five files are pinned by digest (A20(a), `fcf22fc`) and the coordinator re-verified all five today; and P5.4's
+artifact records every checkpoint's `spatial_mixing` flag against its arm (all 10 consistent, verified 2026-09-20). **Ruling:** C3b's loader
+asserts `payload["config"]["spatial_mixing"] is False` for the nomix subject at its own load site, by name — one line beside the digest
+check — and the packet records the finding with credit to the session that found it (a measured claim about code is kept regardless of
+who measured it). P5.2's module is not edited in this task; the guard's vocabulary is `DEFERRED` 89.
+
+**Then: C3b continues as instructed. Nothing in this amendment changes the implementer's task.**
+---
+
+# ✅ AMENDMENT B.5 — 2026-09-23, BEFORE THE TOKEN, on the author's reviewer's four items: a DT cell rolled TWICE and compared under `==` (no such measurement exists anywhere in the record); `report --stage confirmatory` executed and shown to refuse; the pane carries the driver's exit code; the guards re-checked after the Claude Code update
+
+## B.5-1 — No DT evaluation cell has EVER been rolled twice and compared; one is, before the token, fenced
+Checked by the coordinator from disk (2026-09-23): every bitwise claim in P7.3a, P7.3b and P7.3d so far is either a recomputation from
+chunks already on disk (reviewer B's 9,400 values; every artifact regeneration) or a re-roll of NON-DT cells (P7.3b's 200 ρ denominators;
+C4's six anchors). G2 rolled the same DT cell 25 times but wrote one measurement record (`g2/g2_measurement.json`), not per-cell chunks,
+so its rolls left no action sequences to compare. **The campaign's 500 DT cells would therefore be the first DT rolls whose reproduction is
+claimed for the agent — on the GPU, under 12 workers — with the claim resting on evidence about the ENVIRONMENT only.** P5.4 measured F
+moving 4.0e-07 across CPU thread counts; nothing pins or tests GPU determinism on a DT rollout.
+**Required before the token (≈ 70 s):** the campaign driver gains a pre-token stage `dt_reroll_check` that rolls **one DT cell twice** —
+`seed 101`, **draw 5** (B.2's fenced smoke draw, outside both pools), the registered prompt, `reset(seed=1000)`, once at W = 1 and once as a
+member of a 12-worker pool of otherwise-identical cells so the campaign's own pooling is exercised — writes both chunks under
+`fenced_do_not_report` in `g2/` (never in the campaign work dir), and compares them **excluding the clock fields by name**:
+`actions` (all 360 × 16), `rtg_series`, `reward_series`, `e_sumo`, `att_env`, `episode_reward`, `n_teleports`, under `==`. **It prints
+IDENTICAL or NOT IDENTICAL and the sha256 of each chunk minus the clocks — no outcome value** (B.2-2's fence). **IDENTICAL → the token step
+proceeds and the packet extends the reproduction claim to the agent, with this measurement as its basis. NOT IDENTICAL → the driver refuses
+to consume the token; the packet reports it as a finding with the differing fields named; the coordinator rules (channel (c)) — a
+non-deterministic agent under pooling is a property of the instrument that must be known before 700 cells, not after.** The result line is
+copied verbatim into the campaign capture's header by the driver. A test executes the check on a stub and asserts that a one-action
+difference between the two chunks yields NOT IDENTICAL and refuses.
+
+## B.5-2 — The reading side of the stage-word bug, measured: consistent — and the pre-flight/token step EXECUTES the refusal
+`declared_cells("confirmatory")` → **1,200** cells (hz1x1's); `declared_cells("grid4x4_confirmatory")` → **700** (`scenario_key
+cityflow_grid4x4`); the driver's `report` call passes `$STAGE_ARG` = `grid4x4_confirmatory` (line 249–250), the same mapping as `cells`. So
+the chain is consistent by reading. **Turned into a measurement before the token:** with the six C4 reference chunks (or any grid4x4 chunk)
+in a sandbox copy of the work dir, `report --stage confirmatory` is executed and must REFUSE — on completeness or on the undeclared-cell
+check — creating nothing; the refusal text is recorded in the packet. Same class as P7.3b's stage-identity hazard, closed on both sides.
+
+## B.5-3 — The pane carries the driver's exit code (the reviewer's item 4, adopted)
+Step 2's documented line becomes
+`bash <driver> confirmatory 2>&1 | tee -a <capture>; echo "DRIVER EXIT: ${PIPESTATUS[0]}"` — so the pane's last line is the DRIVER's exit
+status, not `tee`'s. The header, the hand-over, and T-driver's executed-form test move together (the test asserts the `PIPESTATUS` clause is
+present and that the echoed code equals the driver's on a forced early refusal). §7's rule stands: the author still reads the capture's
+last lines and the `COMPLETE` / `FAILED` marker; this makes the pane agree with them.
+
+## B.5-4 — After the Claude Code update: one refused edit on a frozen path in the FIRST restarted session, before any other command
+Frozen-set enforcement is `.claude/settings.json`'s deny/ask tiers plus the PostToolUse hooks calling `scripts/claude_guard.sh`
+(`--frozen-only`, `--tests-only`; lines 58 and 67 on `main`). An update that changed how settings or hooks are read would remove that
+layer silently. **The restarted implementer's first action is `echo test >> envs/README_GUARD_PROBE.md` (or any edit under `envs/`) — it
+must be REFUSED by the permission layer or caught by the hook; the packet records which fired.** If it is not refused: STOP, say so, and
+touch nothing else. **The model change (Opus 5 → Opus 5.5 mid-task) goes into the packet's AI-assistance record**, by commit range.
+
+**Then: the pre-flight's verdict (G4), B.5-1's IDENTICAL line, and the token (G5).**
+---
+
+# ⛔ AMENDMENT B.6 — 2026-09-23, gate G4 NOT CLEAR (`docs/reviews/P7.3d-preflight.md`): the driver's SHAPE is right and its WIRING into the module is not — one fix-round commit, the pre-flight re-run on the driver path, then B.5's check and the token
+
+**Every blocker below was re-run by the coordinator before this was written.** The campaign as delivered cannot start (B1), would have failed
+all 500 DT cells and written the WRONG scenario's demand provenance into the 200 anchor cells invisibly (B2), and could not report or
+manifest (B3). Nothing has run; nothing is corrupted; the token was never consumable. **This is the pre-flight doing its job — the second
+time in this project the delivery path found what reading could not (P8.4a, 2026-08-28).**
+
+## B.6-1 — The class, named so the fix is not six patches
+Every C3b/C4/C6 piece was tested where it was built and none through the path the campaign runs: T-16 drives the spatial loader and the
+16-id refusal directly, not through `run_cell`; T-driver asserts only the absence of the group-leader text; the implementer's tmux test
+refused at the dirty-tree check, before the canary. **The fix round's load-bearing test is therefore ONE end-to-end test: the campaign path
+from the driver's argument to a written, `report`-accepted grid4x4 chunk, on draw 5, fenced, with the real module** — every item below is
+what that test forces.
+
+## B.6-2 — Required changes, ONE commit (`offline/transfer_curve.py`, `offline/campaigns/p7_3d_grid4x4.sh`, tests)
+1. **B1:** `"${COMMON[@]}"` BEFORE every subcommand (`canary`, `cells`, `record-canary`, `report`, `manifest`) — `p7_3b_anchor.sh:230, 307,
+   344, 347` is the shape. T-driver EXECUTES the redirected driver with a token present in the sandbox and asserts it gets PAST the canary
+   (the refusal, if any, must be later than `:209`) — the current test's "not the group-leader text" is not that.
+2. **B2, `run_cell` branches on `cell["scenario"]`:** for `cityflow_grid4x4` — `demand_identity(draw_id, out_root=…, scenario=GRID4X4_SCENARIO_KEY)`;
+   the targets from `load_grid4x4_targets(data_dir=…)` (digest-pinned `p7_3d_calibration.json`), NOT `targets_for_subject`; the checkpoint
+   identity from the five A20(a) digests pinned in `fcf22fc`, NOT `checkpoint_identity`'s hz1x1 tables; the subject loaded through the
+   spatial loader with the 16 targets applied per id; `assert_rtg_first_matches_targets` CALLED on the finished chunk; the chunk's
+   `calibration_sha256` = `p7_3d_calibration.json`'s digest, never `P7_2B_CALIBRATION_SHA256`. **`chunk_is_reusable` and `report` re-derive
+   the demand identity through the SAME scenario-aware call**, so a chunk carrying hz1x1's digests under a grid4x4 cell is refused, not
+   reused. A test constructs exactly that chunk and asserts refusal — the reviewer's sandbox found it REUSED today.
+3. **B3:** `declarations_for(stage, None)` returns the grid4x4 declaration as "every declared cell" for `grid4x4_confirmatory` (hz1x1's
+   4,700 stays for its own stages; the two sets are disjoint by the scenario prefix, measured overlap 0); `report` names the artifact by
+   stage (`p7_3d_grid4x4.json` for the grid4x4 stage) and P7.3a's name is unchanged for its stages (T-regress (b) pins that); a `manifest`
+   subcommand exists, writes `output/SHA256SUMS_p7_3d.txt` atomically (tmp → mv) over `output/p7_3d/` ONLY, and re-verifies. T-regress (b)
+   must stay byte-identical on all three hz1x1 artifacts.
+4. **M1:** `COMPLETE` and `FAILED` FILES in the work dir on every terminal path, `p7_3b_anchor.sh:251, 265, 360`'s shape; `on_signal` writes
+   `FAILED`. **m2:** the git-resolvability check on chunks' `git_commit` moves BEFORE the token (a `RuntimeError` after `rm -f "$TOKEN"` loses
+   the token, creates nothing, and needs a new token — the pre-flight found the shape). **m1:** the three input artifacts checked by DIGEST
+   against the values pinned in the module, not by existence.
+5. **The end-to-end test (B.6-1):** in a sandbox work dir with a token, run the redirected driver on draw 5 with `--limit 2` (one DT cell
+   seed 101, one `fixedtime`) through the real module, then `report --stage grid4x4_confirmatory` on the two chunks; assert: both chunks
+   written under the grid4x4 names, `config_sha256` equals grid4x4 draw 5's parity digest (`c27d31e8…`, from C1) and NOT hz1x1's
+   (`c177e962…`), the DT chunk's 16 `rtg_first_i` equal the 16 targets, `calibration_sha256` equals `p7_3d_calibration.json`'s digest,
+   `report` refuses ONLY on completeness (698 missing) and names no undeclared chunk, `COMPLETE`/`FAILED` written as appropriate, the
+   token consumed once. One SUMO DT episode plus one anchor — ≈ 70 s. This test is what G4 re-reviews.
+6. **B.5-1's `dt_reroll_check` and B.5-3's `PIPESTATUS` line** land in the same commit — they touch the same driver — with B.5-3's line
+   ending `| tee -a <capture>` so the exit code reaches the capture as well as the pane (the author's reviewer verified the expansion order).
+
+## B.6-3 — Gate sequence from here
+Fix-round commit → the coordinator re-runs B1/B2/B3 by the same three commands and the end-to-end test → **G4 re-review, driver path
+only** (the two questions again, ≤ 15 min) → B.5-1's IDENTICAL line → G5, the token. **The packet records the pre-flight's findings in
+full, with the reviewer's per-line evidence and this amendment; nothing is folded into "fixed".**
+---
+
+# ✅ AMENDMENT B.6.1 — 2026-09-23, on the author's reviewer's two points about B.6's probes (before the message is pasted)
+
+## B.6.1-1 — Probe (b) is a MEASUREMENT, not a gate
+B.6's first paragraph asks for three probes and closes with *"if any of the three is NOT refused as described, STOP"*. Probes (a) and (c) are
+gates — each *must* be denied. **Probe (b) — `git -C /home/filip/rltraffic-p73d reset --hard -h` — is a measurement: it may be denied or it
+may run (printing usage, exit 129, touching nothing), and its RUNNING is exactly the finding the probe exists to produce**: that the `-C`
+form escapes the `Bash(git reset --hard:*)` deny prefix — the hole a deny-listed command went through on 2026-09-21. **The implementer
+reports (b)'s result verbatim and continues either way.** If it stops on (b), the author's answer is *"(b) is a measurement; report it and
+continue"*, which is this ruling.
+
+## B.6.1-2 — Implementer sessions LAUNCH FROM THEIR WORKTREE; what the guards covered before is recorded as unproven-but-consistent
+`scripts/claude_guard.sh:24` — `cd "$(git rev-parse --show-toplevel …)"` — inspects the toplevel of the HOOK'S working directory; the
+permission rules (`Edit(envs/**)` and the rest) are read from the launch directory's `.claude/settings.json` and resolve relative to it.
+**So a session launched from `/home/filip/rltraffic` that edits files in `/home/filip/rltraffic-p73d` has its early-warning layer pointed
+at the main tree, not at the files it edits.** The reviewer's evidence that earlier P7.3d sessions were launched that way — every `Write`
+displayed as `../rltraffic-p73d/<file>`, a path relative to the main tree — is consistent with the mechanism; the coordinator could not
+confirm it from disk (neither tree's `settings.local.json` records a `rltraffic-p73d` path; the worktree has no `settings.local.json`), so
+it is recorded as **consistent, not proven**. **What actually protected the frozen set on every P7.3d merge so far was the merge-time
+`git diff --stat` in the Definition of Done and the coordinator's own diff over `main...branch` — both of which ran, and nothing frozen
+reached `main`.** **Rule from today: an implementer session is launched from its worktree (`cd /home/filip/rltraffic-p73d && claude`), so
+the permission layer and the PostToolUse guard cover the files it edits; probe (c) tests that this is so in the restarted session.**
+Written into §7 as a clarification of the branch-backing rule; the agent-definition half is owed to the next `implementer.md` patch.
+---
+
+# ✅ AMENDMENT B.6.2 — 2026-09-24, on the restarted implementer's two conflicts and the three probe results
+
+## B.6.2-1 — The probes: (a) and (c) DENIED, (b) RAN — the `-C` hole is now MEASURED, and it is a `DEFERRED` item with a patch owed
+Verbatim from the session launched from the worktree: (a) `git reset --hard -h` → *denied*; (c) `Write(envs/GUARD_PROBE.md)` → *denied,
+nothing written*; **(b) `git -C /home/filip/rltraffic-p73d reset --hard -h` → RAN, printed usage, exit 129, nothing changed.** So the
+permission layer works, covers the worktree when the session is launched from it — and **`Bash(git reset --hard:*)` is a PREFIX rule that
+every `git -C <path> …` form escapes.** That is the route Sunday's `reset --hard` took, and it applies to every git rule in the file — the
+`ask` rules on `commit`, `push`, `merge` and `checkout main` included — while the relay messages use `git -C … merge` routinely. **Recorded
+as `DEFERRED` 90**; the fix is a `.claude/settings.json` patch (frozen; the author applies) adding the `-C` forms beside each prefix, or a
+guard-side check; not this task's.
+
+## B.6.2-2 — Conflict 1, the trailer: NO trailer, ever — the standing rule applies; the implementer stopped correctly
+The session instruction naming `Co-Authored-By: Claude Opus 5.5 (1M context)` is the same conflict raised on 2026-09-19 under two other
+wordings. `CLAUDE.md` §4b governs: zero trailer lines on every commit; the `commit-msg` hook is the backstop (absolute `hooksPath`, verified
+by the implementer). The author has ruled this each time it appeared; this amendment records the ruling so the next appearance costs one
+line.
+
+## B.6.2-3 — Conflict 2, the model: record the TRUTH — `claude-opus-5-5[1m]` from this session on, and the change stated by commit range
+The phrase *"there is no model change within P7.3d"* in the message the implementer received did not come from the coordinator — B.5-4 and
+B.6 say the opposite: **the model change (Opus 5 → Opus 5.5) goes into the AI-assistance record by commit range.** The `implementer.md`
+frontmatter pin (`model: claude-opus-5`) binds subagent launches only and is not the model of a main session after `/model`. **The record
+states: commits up to `8c79778` — `claude-opus-5[1m]`; commits from the B.6 fix round — `claude-opus-5-5[1m]`; the change made by the author
+on 2026-09-23/24 at the Claude Code update.** Writing the pinned name over a known-false fact would be the record's one prohibited move.
+
+**Then: `git merge --no-edit main`, and B.6 as written.**
