@@ -885,3 +885,46 @@ of asserting the refusal. `DEFERRED` 91 carries the fixture's retrofit to P7.3a'
 ## B.7-4 — Then
 The B.7-2 commit → the coordinator re-runs the e2e-through-`report` test and re-reads the three B.6 blockers' commands → **G4 re-review of
 the driver + report path (≤ 15 min, two questions)** → the token. The packet's §24 stands as the record of the fix round; §25 records B.7.
+---
+
+# ✅ AMENDMENT B.7.1 — 2026-09-24, before B.7 is built, on the author's reviewer's three points: the campaign runs from a DETACHED RUN WORKTREE (J1(e), which this brief had dropped); per-intersection ρ is DEFINED on the per-intersection collection return and the anchor cells must record it BEFORE the token; the standard suite line carries the output root
+
+## B.7.1-1 — J1(e) applies, the driver hardcodes the wrong tree, and both are fixed in B.7's commit — the coordinator's omission
+`BRIEF_37` J1(e) is standing (*the campaign runs from a dedicated worktree, detached at the reviewed commit, that no session edits*), P7.3b ran
+from `/home/filip/rltraffic-p73b-run` on the coordinator's instruction, and **this brief never carried it**: B.3-1's two-step start names
+`/home/filip/rltraffic-p73d/…` — the implementer's tree. It matters more on grid4x4 than the untracked-file reason alone: `code_changed_since`
+(`transfer_curve.py:515`) counts every path outside `docs/` between a chunk's commit and HEAD, so ANY commit or `merge main` reaching the
+running tree — `DEFERRED` 90's `settings.json` patch, a CI-ceiling patch — invalidates every chunk already rolled (the refusal at `:1661`).
+**And the driver hardcodes `WORK_TREE=/home/filip/rltraffic-p73d` (line 110)** — copied into a run worktree it would still import the
+implementer's code; `p7_3b_anchor.sh` derives its tree from `${BASH_SOURCE[0]}`. **Ruling, into B.7's commit:** (i) `WORK_TREE=$(cd
+"$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)`, and the `-P` import check asserts the loaded module's path starts with it; (ii) the header's
+two-step start names **`/home/filip/rltraffic-p73d-run`**, created by the coordinator after B.7 is pushed: `git -C /home/filip/rltraffic
+worktree add --detach /home/filip/rltraffic-p73d-run <B.7 commit>`; (iii) T-driver's executed-form test runs a COPY of the driver from a
+sandbox tree and asserts the derived `WORK_TREE` is that tree, not the source; (iv) the driver refuses if `WORK_TREE`'s `git status
+--porcelain` is non-empty (J1(d), already present) AND if `WORK_TREE` is the implementer's worktree path — the run tree is the only legal
+home. Every chunk then records the run worktree's commit, which is the pushed one.
+
+## B.7.1-2 — Per-intersection ρ: DEFINED, and the anchor cells record what it needs — BEFORE the token, or the block is impossible
+A20(e) registers per-intersection breakdowns as exploratory; B.7-2(iv) named *"per-intersection ρ"* without a formula. **Measured from the
+cells:** a grid4x4 DT chunk records 16 `reward_series` (the per-intersection collection reward, C6 v1.1, one value per decision); **an anchor
+chunk records NO per-intersection quantity at all** (`reference_cells.json`'s row keys are the whole record: `e_sumo`, `att_env`, counts,
+halting, provenance). ρ is built on network-level ATT and a vehicle crosses several intersections, so a per-intersection ATT is not a
+standard quantity and is not defined here. **Definition, declared now:** for intersection *i* on draw *d*,
+`ρ_i,d = (R_fixedtime,i,d − R_arm,i,d) / (R_fixedtime,i,d − R_maxpressure,i,d)`, where `R_·,i,d` is the **per-intersection episode return
+under the collection reward** — the sum over the 360 decisions of intersection *i*'s reward, the same quantity the probe measures per
+intersection (A17(e)) and the DT chunk already records as `sum(reward_series[i])`; seeds averaged within a draw; reported per intersection
+as a mean over the 100 draws **with no CI promoted** (exploratory, A20(e)); a draw whose denominator is exactly 0 for intersection *i* is
+excluded for that intersection and counted. **Required in B.7's commit:** the anchor path (`anchor_choose` / the anchor branch of
+`run_cell`) records **`local_return` per intersection** — 16 values, the collection reward summed per intersection, by the same two-route
+equality the probe uses — for grid4x4 anchor cells (hz1x1's record unchanged, keyed on the scenario; T-regress (b) proves it). **After the
+token J1(c) freezes the recording; a block that needs an unrecorded anchor quantity can never be computed.** The probe-ratio observation
+(B.3-4) is later read against THIS quantity and no other.
+
+## B.7.1-3 — The standard suite line
+`RLTRAFFIC_GRID4X4_RESCO=/home/filip/rltraffic/scenarios/grid4x4_candidates RLTRAFFIC_OUTPUT_ROOT=/home/filip/rltraffic/output` — so
+T-regress (b), the test that proves hz1x1 is untouched, runs inside the whole suite instead of as a step someone must remember. Every later
+message uses this line.
+
+## B.7.1-4 — Then
+B.7 + B.7.1 in ONE commit → pushed by the coordinator → the run worktree created at that commit → the coordinator re-runs the e2e-through-
+`report` test from the RUN worktree → G4 re-review (driver + report path) → the token, with the two-step start naming the run worktree.
