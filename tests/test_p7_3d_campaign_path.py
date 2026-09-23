@@ -422,6 +422,14 @@ def test_a_grid4x4_chunk_is_refused_under_each_hz1x1_pin() -> None:
         tcv.validate_cell_payload({**_valid_dt(), "format_version": tcv.ARTIFACT_FORMAT_VERSION})
     with pytest.raises(ValueError, match="naive"):
         tcv.validate_cell_payload({**_valid_dt(), "arm": "naive"})
+    # ... and an ANCHOR under `random`, which only the arm-set check can refuse: on a DT chunk the
+    # subject/arm check refuses `naive` as well, so the line above alone let the arm-set check be
+    # deleted with every test green (mutation M18, SURVIVED on the first run; this closes it).
+    random_anchor = _grid_payload(
+        {**_grid_cell("anchor", "random", 1001), "seed": 1000}, config_sha="c" * 64, routes_sha="r" * 64
+    )
+    with pytest.raises(ValueError, match="random"):
+        tcv.validate_cell_payload(random_anchor)
     hz_cell = {k: v for k, v in cell.items() if k != "scenario"}
     with pytest.raises(ValueError, match="scenario"):
         tcv.validate_cell_payload(_valid_dt(), cell=hz_cell)
@@ -940,9 +948,16 @@ def _substitute(text: str, old: str, new: str, count: int) -> str:
 
 
 def _redirected_driver(
-    clone: Path, sandbox: Path, *, reroll: str, limit: int | None = None, shim: Path | None = None
+    clone: Path, sandbox: Path, *, reroll: str, limit: int = 0, shim: Path | None = None
 ) -> Path:
-    """The delivered driver with the roots redirected; everything else is the working copy's."""
+    """The delivered driver with the roots redirected; everything else is the working copy's.
+
+    ⚠️ ``--limit`` is ALWAYS set, to 0 unless a test asks for more.  A test of a REFUSAL must not be
+    able to run the experiment when the refusal is broken: the first mutation run of this file
+    (M16, the NOT IDENTICAL refusal turned into a no-op) consumed the sandbox token and rolled 70
+    held-out DT cells of the registered arm before the test's timeout -- deleted unread and
+    disclosed in the packet.  With ``--limit 0`` a driver that fails open rolls nothing.
+    """
     path = clone / "offline" / "campaigns" / "p7_3d_grid4x4.sh"
     text = path.read_text(encoding="utf-8")
     text = _substitute(text, "WORK_TREE=/home/filip/rltraffic-p73d\n", f"WORK_TREE={clone}\n", 1)
@@ -952,11 +967,10 @@ def _redirected_driver(
         f"TOKEN={sandbox / 'TOKEN_confirmatory'}\n", 1,
     )
     text = _substitute(text, _REROLL_CALL, reroll, 1)
-    if limit is not None:
-        text = _substitute(
-            text, 'cells --stage "$STAGE_ARG" --workers "$WORKERS" || fail "cells"',
-            f'cells --stage "$STAGE_ARG" --workers "$WORKERS" --limit {int(limit)} || fail "cells"', 1,
-        )
+    text = _substitute(
+        text, 'cells --stage "$STAGE_ARG" --workers "$WORKERS" || fail "cells"',
+        f'cells --stage "$STAGE_ARG" --workers "$WORKERS" --limit {int(limit)} || fail "cells"', 1,
+    )
     if shim is not None:
         for tail in ('\\\n  --canary-seconds "$CANARY" cells', '\\\n  report --stage'):
             text = _substitute(
