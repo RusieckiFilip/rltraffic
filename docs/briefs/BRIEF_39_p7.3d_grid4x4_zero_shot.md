@@ -960,3 +960,41 @@ equals `sum(reward_series[i])` over the same decisions — the two-route equalit
 side must be caught.
 
 **Then: B.7 + B.7.1 + B.7.2 in ONE commit, as B.7.1-4 orders.**
+---
+
+# ✅ AMENDMENT B.7.3 — 2026-09-24, on B.7's delivery (`ec5bf19`, pushed; the run worktree created at it): the three decisions RATIFIED, one of them correcting the coordinator's own B.7.2-3; the pin re-run from the RUN worktree; one packet requirement before the token
+
+## B.7.3-1 — Decision 1 RATIFIED, and B.7.2-3 corrected: the per-intersection return is the POST-STEP sum over all 360 decisions, by two routes, on BOTH cell kinds
+B.7.2-3 pinned the anchors' `local_return` to *"`sum(reward_series[i])`"*. **That was wrong by exactly D1's last step**: `reward_series[i]` is
+read before each action and omits the final decision's reward, so equating the two would have frozen a quantity short by one step on one
+side. The implementer saw it and defined ONE quantity on both kinds of cell — `per_intersection_local_returns`: intersection *i*'s reward
+summed over the 360 POST-STEP infos, equal under `==` to minus its incoming lanes' waiting counts summed over the same infos, refused by
+name on disagreement, re-checked at consumption (`validate_cell_payload`) on DT and anchor chunks alike. That is the probe's own definition
+(A17(e)) applied to evaluation cells, and it is the right one. **Ratified; B.7.2-3 reads as corrected here.** The DT chunk still carries
+`reward_series` (D1's convention, for the RTG identity); the two quantities are different by construction and the chunk names both.
+
+## B.7.3-2 — Decisions 2 and 3 RATIFIED
+(2) The published rows omit the per-decision series and the 360 × 16 action matrix — P7.3a's shape; **the CHUNKS keep them** (the reroll check
+compares actions; a reviewer recomputes from chunks). (3) The reference-cell comparison covers the 17 fields both records carry plus the
+halting rule; `episode_reward` is absent from the reference-cell record (a fact of the artifact, not a choice) and is not compared.
+
+## B.7.3-3 — Verified by the coordinator from the RUN worktree
+`/home/filip/rltraffic-p73d-run` created detached at `ec5bf19` (clean). The driver derives `WORK_TREE` from `${BASH_SOURCE[0]}` (line 123),
+refuses the implementer's path (`IMPLEMENTER_TREE`, line 124), and its header's Step 2 names the run worktree. **The pin re-run from the run
+worktree: 42 tests green** — the campaign path through the real module, the complete synthetic set through `report`, the reference-cell
+refusal, the two-route pins. `dt_reroll_check`'s earlier IDENTICAL is stale by the implementer's own statement (the code changed); the
+driver re-runs it before the token, which is the design.
+
+## B.7.3-4 — One requirement for the packet BEFORE the token: B.7's run evidence has no home under `output/`
+§25 names `mutations_b7.txt` and the complete-set run, but no `output/p7_3d_runs/` path appears in §25 and no `b7/` directory exists there —
+the evidence of a `report` that reached `COMPLETE` and wrote `p7_3d_grid4x4.json` on the synthetic set lives, if anywhere, in a pytest tmp
+directory or the scratchpad: *an output that exists in one place is not a record* (§7, 2026-09-15). **Before the token: copy every B.7
+transcript — the mutation runner and its output, the complete-set run's capture, the refusal-on-swap output, the red-first run — into
+`output/p7_3d_runs/b7/` with their sha256s listed in §25, in the same shape as `c3a2/`, `c4/` and `b6/`.** No code changes; one docs commit.
+
+## B.7.3-5 — The standard suite line, final
+`RLTRAFFIC_GRID4X4_RESCO=/home/filip/rltraffic/scenarios/grid4x4_candidates RLTRAFFIC_OUTPUT_ROOT=/home/filip/rltraffic/output
+RLTRAFFIC_DRAWS=/home/filip/rltraffic/scenarios/draws` — so T-16 runs inside the whole suite too.
+
+**Then: G4 re-review of the driver + `report` path from the run worktree → the token, with the two-step start naming
+`/home/filip/rltraffic-p73d-run`.**
