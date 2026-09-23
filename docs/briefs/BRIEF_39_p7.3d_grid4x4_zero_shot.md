@@ -998,3 +998,30 @@ RLTRAFFIC_DRAWS=/home/filip/rltraffic/scenarios/draws` — so T-16 runs inside t
 
 **Then: G4 re-review of the driver + `report` path from the run worktree → the token, with the two-step start naming
 `/home/filip/rltraffic-p73d-run`.**
+---
+
+# ✅ AMENDMENT B.7.4 — 2026-09-24, on the reviewer's two points after B.7.3: the six REFERENCE CELLS are RE-ROLLED at the run commit BEFORE the token and compared to the frozen artifact — the one check that could otherwise fail after 700 cells; the standard line's third variable; fail-instead-of-skip parked
+
+## B.7.4-1 — Right, and a gap in B.7.3: nothing has rolled a REAL anchor cell since B.7.1-2 changed the anchor branch
+B.7.1-2 made `run_cell`'s anchor branch record 16 `local_return`s. Since then the e2e test rolled two DT cells on draw 5 and the complete set
+went through `report` on STUBS — the packet says so (§25.9: *checked against stubs carrying the frozen values*), and the coordinator's own
+B.7.3-3 re-ran the same stub pin. **The only comparison of real anchor rolls against the frozen six is `report`'s, at the END of the
+campaign.** If the recording change moved anything — an extra observation, a changed step order — `report` refuses after 700 cells and the
+fix is a code change under J1(c): a full re-roll. **Required, in the driver, as a pre-token stage `reference_reroll_check` beside
+`dt_reroll_check`:** roll the six reference cells (`fixedtime`, `maxpressure` × draws 1000–1002) at the run commit into `g2/` (never the
+campaign work dir), compare each to `p7_3d_reference_cells.json` on `report`'s own 17 fields and the halting rule, and **print only MATCH or
+NO MATCH per cell** — these are C4's anchors, rolled twice and frozen on 2026-09-23, so nothing about the arm is seen; any NO MATCH refuses
+the token and names the cell and field. Six cells in a pool is a minute or two. A test on stubs asserts a one-field difference yields NO
+MATCH and refuses. **This is a driver + test change → one commit → the pin re-run from the run worktree → the run worktree re-created at
+the new commit.** The G4 re-review in flight reads `ec5bf19`; its verdict on the driver + `report` path carries over, and the coordinator
+re-runs the B.6 blockers' three commands at the new commit.
+
+## B.7.4-2 — The standard suite line: all three variables are on it as of B.7.3-5; FAIL-instead-of-SKIP is parked with its cost
+`RLTRAFFIC_GRID4X4_RESCO`, `RLTRAFFIC_OUTPUT_ROOT`, `RLTRAFFIC_DRAWS` — the line as B.7.3-5 states it, and every later message carries it
+verbatim. The reviewer's stronger idea — that a gated LOAD-BEARING test should FAIL rather than skip when its input is missing, so the next
+missing variable surfaces as red — is right in direction and changes the meaning of every `skipif` in the suite and the CI ceiling's
+classification; it is `DEFERRED` 92, not a pre-token change: a `--strict-gates` opt-in (an env var the standard line sets) under which the
+named load-bearing tests fail on a missing input, CI unchanged.
+
+**Then: the B.7.4 commit → pushed by the coordinator → the run worktree re-created there → the pin and the three B.6 commands re-run from
+it → G4's verdict applied → the token.**
