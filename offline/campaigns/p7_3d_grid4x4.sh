@@ -1,12 +1,19 @@
 #!/usr/bin/env bash
 # P7.3d — C6: the grid4x4 ZERO-SHOT CAMPAIGN, one declared stage of 700 cells (PREREGISTRATION A21).
 #
-# Shape: offline/campaigns/p7_3b_anchor.sh, with the two P7.3d drivers' corrections folded in.
+# Shape: offline/campaigns/p7_3b_anchor.sh, with the two P7.3d drivers' corrections folded in, and
+# the B.6 fix round's (BRIEF_39 Amendment B.6; docs/reviews/P7.3d-preflight.md) -- see section 8.
 #
 # 0. USAGE — the FOREGROUND form, and it is not the one-liner (BRIEF_39 Amendment B.3-1).
 #
 #      Step 1, open a pane:      tmux new -s p73d_cells
-#      Step 2, at ITS PROMPT:    bash /home/filip/rltraffic-p73d/offline/campaigns/p7_3d_grid4x4.sh confirmatory 2>&1 | tee -a /home/filip/rltraffic/output/p7_3d_runs/campaign_capture.txt
+#      Step 2, at ITS PROMPT:    bash /home/filip/rltraffic-p73d/offline/campaigns/p7_3d_grid4x4.sh confirmatory 2>&1 | tee -a /home/filip/rltraffic/output/p7_3d_runs/campaign_capture.txt; echo "DRIVER EXIT: ${PIPESTATUS[0]}" | tee -a /home/filip/rltraffic/output/p7_3d_runs/campaign_capture.txt
+#
+#    THE SECOND HALF OF STEP 2 (Amendments B.5-3 and B.6-2(6)): the pipeline's own status is
+#    tee's, so without it the pane reports 0 even when the driver refuses. `${PIPESTATUS[0]}` is
+#    expanded when the echo runs, after the first pipeline has finished, so it is the DRIVER's exit
+#    status; the echo is teed as well, so the capture's last line and the pane's agree. The author
+#    still reads the capture's last lines and the COMPLETE / FAILED file (section 1).
 #
 #    ⛔ WHY NOT `tmux new -s NAME '<cmd>'`: that form runs the command through a non-interactive
 #    shell with job control OFF, so this script does NOT lead its own process group and the guard
@@ -14,13 +21,19 @@
 #    this). The guard exists so Ctrl-C reaches the worker pool, and the driver deliberately does
 #    NOT re-exec itself under `setsid` to dodge it — that would silently change which process the
 #    author's signal lands on. T-driver EXECUTES step 2's line through tmux and asserts the
-#    group-leader check passes.
+#    group-leader check passes and the pane's last line carries this driver's exit code.
 #
 # 1. WHAT IT PRODUCES
+#      output/p7_3d/g2/dt_reroll_check_<UTC>/              BEFORE the token: B.5-1's thirteen fenced
+#                                                          rolls of one draw-5 DT cell + verdict.json
+#      output/p7_3d/cells/canary.json                      the canary line, right after the token
 #      output/p7_3d/cells/cell_cityflow_grid4x4_*.json     one chunk per cell, atomic, resumable
 #      output/p7_3d/cells/failed/                          chunks that failed their own re-check
+#      output/p7_3d/cells/COMPLETE  or  .../FAILED         the terminal marker, on EVERY path after
+#                                                          the token (a signal writes FAILED too)
 #      output/p7_3d/artifacts/p7_3d_grid4x4.json           the artifact C7 commits BY HAND
-#      output/SHA256SUMS_p7_3d.txt                         rewritten last, atomically, re-verified
+#      output/SHA256SUMS_p7_3d.txt                         over output/p7_3d/ ONLY, rewritten last,
+#                                                          atomically (tmp -> mv), re-verified
 #    ⚠️ It does NOT write docs/data/. P7.3a's Finding 2: writing into $WORK_TREE/docs/data leaves
 #    an untracked file that the dirty-tree refusal then blocks on.
 #
@@ -32,9 +45,12 @@
 #
 # 3. ORDERING — every check that can refuse PRECEDES the token, so a refused start consumes
 #    nothing: interpreter → import from the worktree → no live runner → GROUP LEADER → SigIgn →
-#    stage argument → inputs → dirty tree → RSS budget → canary (both halves) → TRAP → token →
-#    work. The trap is installed BEFORE the token is consumed (J2/J3): a signal in that window
-#    destroyed P7.2b's authorisation while leaving neither FAILED nor COMPLETE.
+#    stage argument → inputs exist → inputs BY DIGEST (m1) → dirty tree → RSS budget → every chunk's
+#    commit resolvable by git (m2) → canary, BOTH halves → dt_reroll_check (B.5-1) → TRAP → token →
+#    record-canary → cells → report → manifest → COMPLETE. The trap is installed BEFORE the token
+#    is consumed (J2/J3): a signal in that window destroyed P7.2b's authorisation while leaving
+#    neither FAILED nor COMPLETE. The ONE pre-token write is dt_reroll_check's fenced record in g2/,
+#    which B.5-1 orders; nothing under cells/ or artifacts/ exists before the token.
 #
 # 4. `-P` ON EVERY INTERPRETER CALL (Amendment B.3-2). Without it Python prepends the cwd — the
 #    MAIN tree, by rule 5 — to sys.path, `offline` resolves to the main tree's package, and the
@@ -46,9 +62,10 @@
 #    the parity configs are opened read-only.
 #
 # 6. THE SKIP DECISION IS IN PYTHON, NOT IN THE SHELL. transfer_curve.chunk_is_reusable re-derives
-#    a chunk's verdict from its own content and from the files on disk. ⛔ There are deliberately
-#    no `[ -f ]` guards over chunks; offline/campaigns/p5_3b.sh had one and a bad chunk survived
-#    every restart.
+#    a chunk's verdict from its own content and from the files on disk -- the demand, the checkpoint
+#    and the 16 prompts through the SAME scenario-aware calls run_cell makes (B.6-2(2)). ⛔ There
+#    are deliberately no `[ -f ]` guards over chunks; offline/campaigns/p5_3b.sh had one and a bad
+#    chunk survived every restart.
 #
 # 7. TIME AND MEMORY — from gate G2, measured 2026-09-20 at commit 07ab267, canary 0.76 s, on this
 #    machine (16 cores, 48,174 MiB host, RTX 5080 Laptop 16,303 MiB):
@@ -62,26 +79,47 @@
 #    W = 8 rate — plus draw 1000's 7 cells carrying the halting cross-check, which roughly doubles
 #    an episode. The driver prints its own wall clock and the packet reports the observed one.
 #    The single-worker figure is corroborated by C5's sequential MaxPressure episode at 29.9 s.
+#    BEFORE the token, dt_reroll_check adds about 95 s: one DT cell alone (G2: 35.5 s) and then
+#    twelve copies in one 12-worker pool (G2's W = 12 pool: 58.6 s wall).
 #
 #    DEMAND BASIS (Amendment B.2-3b), because SUMO wall time scales with vehicle count and the
 #    schedule above was measured on draw 5: draw 5 carries 1,335 vehicles against the held-out
 #    band's mean of 1,327.6 (sd 12.3, range 1,298-1,358) — +0.56 %, z = +0.60, inside the band's
 #    own spread. Recomputed from the flow files 2026-09-22. RSS is insensitive to a 0.6 % demand
 #    difference; the schedule inherits it and says so.
+#
+# 8. THE B.6 FIX ROUND (gate G4 NOT CLEAR). The pre-flight found the SHAPE right and the WIRING
+#    wrong, and every piece below is now executed by tests/test_p7_3d_campaign_path.py through
+#    THIS file, redirected, on a clean snapshot of the tree:
+#    B1  the roots ("${COMMON[@]}") are options of the module's PARENT parser, so they come BEFORE
+#        the subcommand; after it, argparse refused at the canary on every machine.
+#    B3  report names its artifact p7_3d_grid4x4.json, the grid4x4 stage is its own whole
+#        declaration, and the manifest is a real subcommand.
+#    M1  FAILED / COMPLETE files on every terminal path after the token (p7_3b_anchor.sh's shape).
+#    m1  the three committed inputs, the five checkpoints and RESCO's network BY DIGEST.
+#    m2  a chunk whose commit git cannot resolve refuses BEFORE the token, not inside the pool.
+#    F-B6-1  `cells` receives --canary-seconds: without it every chunk recorded canary_seconds
+#            None, and report raises on the first such chunk -- after 700 cells.
+#    F-B6-2  the canary's TIMING half (2.0 s, p7_3b_anchor.sh's) was not checked at all.
+#    B.5-1   dt_reroll_check: IDENTICAL or the token is not consumed.
+#    B.5-3   the pane carries the driver's exit code (section 0).
 
 set -euo pipefail
 
 MAIN=/home/filip/rltraffic
 WORK_TREE=/home/filip/rltraffic-p73d
 PY=$MAIN/.venv/bin/python
-WORK=$MAIN/output/p7_3d/cells
-ARTIFACTS=$MAIN/output/p7_3d/artifacts
+CAMPAIGN_DIR=$MAIN/output/p7_3d
+WORK=$CAMPAIGN_DIR/cells
+ARTIFACTS=$CAMPAIGN_DIR/artifacts
+G2_DIR=$CAMPAIGN_DIR/g2
 DRAWS=$MAIN/scenarios/draws
 DATA=$WORK_TREE/docs/data
 TOKEN=$MAIN/output/p7_3d_runs/TOKEN_confirmatory
 CALIBRATION=$DATA/p7_3d_calibration.json
 REFERENCE_CELLS=$DATA/p7_3d_reference_cells.json
 CAP_E=$DATA/p7_3d_cap_e.json
+CANARY_MAX_SECONDS=2.0
 
 # From gate G2 (§7). WORKERS is its best measured throughput; the budget is its measured peak
 # tree RSS x 1.4, and the per-worker figure is that peak divided by the workers.
@@ -95,6 +133,8 @@ GPU_PEAK_MIB=4595
 export RLTRAFFIC_GRID4X4_RESCO
 export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 
+# ⚠️ B1: these are options of the module's PARENT parser. Every call below puts them BEFORE the
+# subcommand (p7_3b_anchor.sh:230's shape); after it, argparse exits 2 with "unrecognized arguments".
 COMMON=(--draws-root "$DRAWS" --output-root "$MAIN/output" --work-dir "$WORK"
         --data-dir "$DATA" --out-dir "$ARTIFACTS")
 
@@ -188,6 +228,15 @@ if [ "$MISSING" -ne 0 ]; then
   exit 2
 fi
 
+# m1 (B.6-2(4)): existence is not identity. Each input is hashed against the pin in the module --
+# the three committed artifacts, A20(a)'s five checkpoints, and RESCO's network (Amendment A8).
+if ! PYTHONPATH=$WORK_TREE "$PY" -P -m offline.transfer_curve "${COMMON[@]}" check-inputs; then
+  echo "REFUSING TO START: an input is not at the digest the module pins (B.6-2(4), m1)" >&2
+  echo "  The error above names each one. A campaign run against moved inputs would record THEIR" >&2
+  echo "  numbers under THIS registration. Nothing has been consumed." >&2
+  exit 2
+fi
+
 WORK_TREE_DIRTY=$(git -C "$WORK_TREE" status --porcelain)
 if [ -n "$WORK_TREE_DIRTY" ]; then
   echo "REFUSING TO START: the worktree $WORK_TREE is DIRTY" >&2
@@ -206,28 +255,87 @@ if [ -n "$AVAILABLE_MIB" ] && [ "$AVAILABLE_MIB" -lt "$RSS_BUDGET_MIB" ]; then
   exit 2
 fi
 
-CANARY_LINE=$(PYTHONPATH=$WORK_TREE "$PY" -P -m offline.transfer_curve canary "${COMMON[@]}") || {
-  echo "REFUSING TO START: the canary failed. NOTHING has been consumed." >&2
+# m2 (B.6-2(4)): a chunk whose git_commit git cannot resolve makes chunk_is_reusable RAISE (J1(c),
+# deliberately). Inside the pool that happened AFTER `rm -f "$TOKEN"`; it is found here instead.
+if ! PYTHONPATH=$WORK_TREE "$PY" -P -m offline.transfer_curve "${COMMON[@]}" resume-check --stage "$STAGE_ARG"; then
+  echo "REFUSING TO START: a chunk on disk records a commit git cannot resolve (B.6-2(4), m2)" >&2
+  echo "  The line above names it. Inside the pool it would raise AFTER the token is consumed." >&2
+  echo "  Move it aside by hand, or make its commit reachable, then start again. Nothing consumed." >&2
+  exit 2
+fi
+
+# ---------------------------------------------------------------- the canary, BOTH halves
+# The correctness half runs in the module (check_canary: the ENGINE still reproduces draw 0); the
+# TIMING half is here, p7_3b_anchor.sh:239-245's shape (F-B6-2: this driver had no timing half).
+CANARY_LINE=$(PYTHONPATH=$WORK_TREE "$PY" -P -m offline.transfer_curve "${COMMON[@]}" canary) || {
+  echo "${CANARY_LINE:-the canary printed no line}"
+  echo "REFUSING TO START: the canary failed its correctness half. NOTHING has been consumed." >&2
+  echo "  The observed line is above: a correctness failure means the ENGINE did not reproduce" >&2
+  echo "  draw 0, which is a finding about the engine and not a rate question." >&2
   exit 2
 }
 echo "$CANARY_LINE"
+CANARY=$(echo "$CANARY_LINE" | awk '{print $2}')
+if awk -v c="$CANARY" -v m="$CANARY_MAX_SECONDS" 'BEGIN { exit !(c > m) }'; then
+  echo "REFUSING TO START: canary $CANARY s exceeds $CANARY_MAX_SECONDS s -- the machine is" >&2
+  echo "  throttled and no rate measured here would be a rate. Check mains power and the" >&2
+  echo "  cooling pad, then start again. Nothing has been consumed." >&2
+  exit 2
+fi
+
+# ---------------------------------------------------------------- B.5-1: the DT re-roll check
+# One fenced DT cell (seed 101, draw 5, the registered prompt, reset(seed=1000)) rolled once at
+# W = 1 and twelve times in one 12-worker pool, compared under == with the clock excluded by name.
+# It prints ONE line -- IDENTICAL or NOT IDENTICAL, field names, digests, no value -- and writes its
+# fenced record under g2/, never under cells/. Anything but IDENTICAL: the token is NOT consumed.
+if ! REROLL_LINE=$(PYTHONPATH=$WORK_TREE "$PY" -P -m offline.transfer_curve "${COMMON[@]}" --canary-seconds "$CANARY" dt-reroll-check --g2-dir "$G2_DIR" --workers "$WORKERS"); then
+  echo "${REROLL_LINE:-dt_reroll_check printed no result line}"
+  echo "REFUSING TO START: dt_reroll_check did not report IDENTICAL (Amendment B.5-1)." >&2
+  echo "  A DT cell that does not reproduce under the campaign's own pooling is a property of the" >&2
+  echo "  instrument the coordinator rules on (channel (c)) BEFORE 700 cells, not after. The" >&2
+  echo "  token has NOT been consumed; the fenced record is under $G2_DIR." >&2
+  exit 2
+fi
+echo "$REROLL_LINE"
+
+# ---------------------------------------------------------------- the trap, BEFORE the token
+fail() {
+  local where=$1
+  if [ -d "$WORK" ]; then
+    echo "CAMPAIGN FAILED at $where" | tee "$WORK/FAILED"
+  else
+    echo "CAMPAIGN FAILED at $where (before any work directory existed)"
+  fi
+  exit 1
+}
 
 on_signal() {
-  echo "" >&2
-  echo "CAMPAIGN INTERRUPTED — killing the process group. Every completed chunk is on disk and" >&2
-  echo "  re-running this script resumes from them by CONTENT (§6)." >&2
-  trap - INT TERM HUP
+  trap '' INT TERM HUP
+  if [ -d "$WORK" ]; then
+    echo "CAMPAIGN INTERRUPTED by a signal" | tee "$WORK/FAILED" >&2
+  else
+    echo "CAMPAIGN INTERRUPTED by a signal (before any work directory existed)" >&2
+  fi
+  echo "  Every completed chunk is on disk; running this script again resumes from them by" >&2
+  echo "  CONTENT (section 6). Killing the process group." >&2
   kill -- -$$ 2>/dev/null || true
   exit 130
 }
 trap on_signal INT TERM HUP
 
+# ---------------------------------------------------------------- the token
 if [ ! -f "$TOKEN" ]; then
   echo "REFUSING TO START: no run token at $TOKEN" >&2
   echo "  The author writes it (CLAUDE.md §5, channel (a)). Nothing has been consumed." >&2
   exit 2
 fi
+echo "=== authorised by the token written $(stat -c '%y' "$TOKEN" | cut -d. -f1): $(cat "$TOKEN")"
 rm -f "$TOKEN"
+echo "=== token consumed and deleted; another start needs a new one"
+
+# Only NOW may anything be created or cleared.
+mkdir -p "$WORK" "$ARTIFACTS"
+rm -f "$WORK/FAILED" "$WORK/COMPLETE"
 
 echo "P7.3d C6 — the grid4x4 zero-shot campaign (A21: ONE stage, 700 cells)"
 echo "  commit       $(git -C "$WORK_TREE" rev-parse HEAD)"
@@ -237,21 +345,29 @@ echo "  stage        $STAGE   (500 dt + 100 fixedtime + 100 maxpressure)"
 echo "  workers      $WORKERS   (gate G2's best measured throughput on 16 cores)"
 echo "  memory       ${AVAILABLE_MIB} MiB available, budget ${RSS_BUDGET_MIB} MiB"
 echo "  schedule     57-113 min (G2's W=12 and W=8 rates; the W=8 row is unexplained)"
+echo "  canary       $CANARY_LINE"
+echo "  re-roll      $REROLL_LINE"
 echo "  started      $(date -Is)"
 echo ""
 
-PYTHONPATH=$WORK_TREE "$PY" -P -m offline.transfer_curve cells \
-  "${COMMON[@]}" --stage "$STAGE_ARG" --workers "$WORKERS"
+START=$(date +%s)
 
-PYTHONPATH=$WORK_TREE "$PY" -P -m offline.transfer_curve record-canary \
-  "${COMMON[@]}" --line "$CANARY_LINE"
+# Amendment E1.4: the canary's observed values reach a MANIFESTED, machine-readable record right
+# after the token; report reads it back and re-checks it rather than trusting the chunks' copy.
+PYTHONPATH=$WORK_TREE "$PY" -P -m offline.transfer_curve "${COMMON[@]}" \
+  record-canary --line "$CANARY_LINE" || fail "record-canary"
 
-PYTHONPATH=$WORK_TREE "$PY" -P -m offline.transfer_curve report \
-  "${COMMON[@]}" --stage "$STAGE_ARG"
+PYTHONPATH=$WORK_TREE "$PY" -P -m offline.transfer_curve "${COMMON[@]}" \
+  --canary-seconds "$CANARY" cells --stage "$STAGE_ARG" --workers "$WORKERS" || fail "cells"
 
-PYTHONPATH=$WORK_TREE "$PY" -P -m offline.transfer_curve manifest "${COMMON[@]}"
+PYTHONPATH=$WORK_TREE "$PY" -P -m offline.transfer_curve "${COMMON[@]}" \
+  report --stage "$STAGE_ARG" || fail "report"
 
+PYTHONPATH=$WORK_TREE "$PY" -P -m offline.transfer_curve "${COMMON[@]}" \
+  manifest --campaign-dir "$CAMPAIGN_DIR" || fail "manifest"
+
+ELAPSED=$(( $(date +%s) - START ))
 echo ""
-echo "CAMPAIGN COMPLETE  $(date -Is)"
+echo "CAMPAIGN COMPLETE ($STAGE) in ${ELAPSED}s  $(date -Is)" | tee "$WORK/COMPLETE"
 echo "NEXT: the implementer copies $ARTIFACTS/p7_3d_grid4x4.json into the task branch BY HAND,"
 echo "      states its measured digest, and writes the packet. Nothing here is copied automatically."

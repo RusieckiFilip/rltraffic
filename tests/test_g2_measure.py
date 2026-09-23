@@ -507,7 +507,15 @@ def _campaign_text_without_comments() -> str:
 
 def test_the_campaign_driver_refuses_before_the_token_and_in_order() -> None:
     """Every check that can refuse precedes the token, so a refused start consumes nothing --
-    and the trap is installed BEFORE the token (J2/J3)."""
+    and the trap is installed BEFORE the token (J2/J3).
+
+    ⚠️ CHANGED in the B.6 fix round (disclosed in ``docs/returns/P7.3d.md``): the last marker was
+    ``"transfer_curve cells"``, the text of the invocation B1 found broken (``"${COMMON[@]}"`` AFTER
+    the subcommand); with the roots before the subcommand that text no longer exists, so the marker
+    is the ``cells`` line itself.  The list GAINED the four pre-token steps B.6 and B.5 add: the
+    inputs by digest (m1), the git-resolvability check (m2), the canary's timing half (F-B6-2) and
+    ``dt_reroll_check`` (B.5-1) -- and ``record-canary`` right after the token.
+    """
     text = _campaign_text_without_comments()
     order = [
         "REFUSING TO START: no interpreter",
@@ -519,13 +527,18 @@ def test_the_campaign_driver_refuses_before_the_token_and_in_order() -> None:
         "REFUSING TO START: missing committed input",
         "REFUSING TO START: missing checkpoint",
         "REFUSING TO START: missing parity configuration",
+        "REFUSING TO START: an input is not at the digest",
         "REFUSING TO START: the worktree",
         "below the ${RSS_BUDGET_MIB} MiB budget",
+        "REFUSING TO START: a chunk on disk records a commit",
         "REFUSING TO START: the canary failed",
+        "REFUSING TO START: canary $CANARY s exceeds",
+        "REFUSING TO START: dt_reroll_check",
         "trap on_signal INT TERM HUP",
         "REFUSING TO START: no run token",
         'rm -f "$TOKEN"',
-        "transfer_curve cells",
+        'record-canary --line "$CANARY_LINE"',
+        ' cells --stage "$STAGE_ARG"',
     ]
     positions = [text.index(fragment) for fragment in order]
     assert positions == sorted(positions), "a refusal moved after the work it prevents"
@@ -584,44 +597,24 @@ def test_the_campaign_driver_documents_the_foreground_form_and_says_why(
         "bash /home/filip/rltraffic-p73d/offline/campaigns/p7_3d_grid4x4.sh confirmatory 2>&1 | "
         "tee -a /home/filip/rltraffic/output/p7_3d_runs/campaign_capture.txt"
     ) in header
+    # B.5-3 + B.6-2(6), ADDED in the B.6 fix round: the pane's last line is the DRIVER's exit
+    # status -- `${PIPESTATUS[0]}`, not tee's -- and it is teed into the capture as well.
+    assert (
+        "bash /home/filip/rltraffic-p73d/offline/campaigns/p7_3d_grid4x4.sh confirmatory 2>&1 | "
+        "tee -a /home/filip/rltraffic/output/p7_3d_runs/campaign_capture.txt; "
+        'echo "DRIVER EXIT: ${PIPESTATUS[0]}" | '
+        "tee -a /home/filip/rltraffic/output/p7_3d_runs/campaign_capture.txt\n"
+    ) in header
     assert "job control OFF" in header, "the header must say WHY the one-liner refuses"
     assert "setsid" in header, "and that self-re-exec was considered and rejected"
 
 
-@pytest.mark.skipif(shutil.which("tmux") is None, reason="tmux is not installed")
-def test_the_headers_own_documented_form_passes_the_group_leader_check(tmp_path: Path) -> None:
-    """B.3-1(2): EXECUTE the header's line through tmux and assert the guard does not fire.
-
-    A test that pins the header's text proves the hand-over equals the header; this one proves
-    the header WORKS. The driver will refuse on a later precondition (there is no token, and this
-    session's tree may be dirty) -- the assertion is that the refusal is NOT the group-leader one.
-    """
-    import subprocess
-    import time
-    import uuid
-
-    session = f"p73d_hdr_{uuid.uuid4().hex[:8]}"
-    capture = tmp_path / "capture.txt"
-    line = (
-        f"bash {CAMPAIGN} confirmatory 2>&1 | tee -a {capture}; "
-        f"echo EXIT=$? >> {capture}; tmux kill-session -t {session}"
-    )
-    subprocess.run(["tmux", "new-session", "-d", "-s", session], check=True)
-    try:
-        subprocess.run(["tmux", "send-keys", "-t", session, line, "Enter"], check=True)
-        for _ in range(120):
-            if "EXIT=" in (capture.read_text(encoding="utf-8") if capture.exists() else ""):
-                break
-            time.sleep(0.5)
-    finally:
-        subprocess.run(["tmux", "kill-session", "-t", session], check=False)
-
-    text = capture.read_text(encoding="utf-8") if capture.exists() else ""
-    assert "EXIT=" in text, f"the driver never finished under the header's own form: {text[:400]}"
-    assert "not a process-group leader" not in text, (
-        "the header documents an invocation its own guard refuses -- the defect B.3-1 names:\n"
-        + text[:600]
-    )
+# ⚠️ B.6 fix round: `test_the_headers_own_documented_form_passes_the_group_leader_check` was here.
+# It EXECUTED the REAL driver against the REAL token path and asserted only that the group-leader
+# text was absent; with B1 fixed it would have consumed an author's token from a pytest run
+# (F-B6-4).  REPLACED, not duplicated, by
+# tests/test_p7_3d_campaign_path.py::test_the_headers_own_line_passes_the_guard_and_the_pane_carries_the_drivers_exit_code,
+# which runs a redirected clean snapshot with no token and also carries B.5-3's exit-code check.
 
 
 def test_the_driver_maps_its_argument_to_the_modules_own_stage_name() -> None:

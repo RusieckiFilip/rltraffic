@@ -45,6 +45,28 @@ P7.2b fenced ``att_horizon``, ``episode_reward``, ``rtg_last`` and the RTG serie
 *until P7.3's brief is written*.  It is written: ``BRIEF_37`` §2 lifts the fence for the four
 declared arms and the three anchors on the **held-out pool**, and for nothing else.  P7.2b's smoke
 on draw 5 stays fenced.  :func:`report` refuses any cell whose arm is not declared.
+
+P7.3d'S GRID4X4 CHUNK -- format ``p7.3d-grid4x4/1.0`` (``BRIEF_39``, B.6 fix round)
+------------------------------------------------------------------------------------
+A cell whose ``scenario`` is ``cityflow_grid4x4`` is written by :func:`run_cell` as its own format
+(:data:`GRID4X4_ARTIFACT_FORMAT_VERSION`); an hz1x1 chunk -- no ``scenario`` key -- is exactly
+what it always was.  The grid4x4 chunk carries every episode-level field of the hz1x1 chunk, plus
+``scenario``, ``intersection_ids`` (the ENV's order, contract C1) and ``actions``, and every
+per-intersection quantity as a mapping keyed by id: ``target_rtg``, ``rtg_first``, ``rtg_last``,
+``rtg_series``, ``reward_series``, ``rtg_advanced_every_decision``, ``n_decisions_in_support``,
+``support_range`` and ``in_support_counts``.  ``calibration_sha256`` is
+:data:`P7_3D_CALIBRATION_SHA256`; ``checkpoint_sha256`` is checked against A20(a)'s pin.
+
+**Alignment convention.**  ``actions[t][j]`` is the action decision ``t`` applied at
+``intersection_ids[j]``, ``t = 0 .. decisions - 1``.  ``rtg_series[i][t]`` is intersection
+``i``'s return-to-go read BEFORE the agent acts on ``info_t``, and ``reward_series[i][t]`` is the
+reward ``info_t`` carries for ``i`` -- the reset info's at ``t = 0``, the post-step info of
+decision ``t - 1`` after that.  So Amendment D1's shift-by-one holds per intersection,
+``rtg[i][t] - rtg[i][t-1] == -reward[i][t-1]`` for ``t >= 2``, while at ``t = 1`` the agent forces
+the step-0 reward to zero (``transfer_calibration.rtg_advanced_every_decision``'s rule; the reset
+info carries ``-0.0`` on every real episode).  ``rtg[i][0] == target_rtg[i]`` is the per-id
+refusal :func:`assert_rtg_first_matches_targets` applies, and ``episode_reward`` is NOT the sum of
+any reward series (it is the env's scalar, as on hz1x1).
 """
 
 from __future__ import annotations
@@ -70,30 +92,42 @@ __all__ = [
     "TRAINING_SEEDS",
     "ArmSpec",
     "anchor_choose",
+    "artifact_name_for_stage",
     "assert_env_matches_cell",
     "att_env_from_info",
     "build_parser",
     "cell_chunk_name",
+    "check_campaign_inputs",
     "checkpoint_identity",
+    "checkpoint_identity_for",
     "chunk_is_reusable",
     "chunk_path",
+    "compare_reroll_payloads",
     "declared_cells",
     "demand_identity",
+    "demand_identity_for",
     "dt_choose",
+    "dt_reroll_check_cell",
     "env_for_cell",
+    "grid4x4_checkpoint_identity",
+    "grid4x4_support_ranges",
     "halting_check_for",
     "load_calibration",
     "main",
     "pilot_cells",
     "report",
+    "run_dt_reroll_check",
     "run_pilot",
     "run_stage",
     "reusable_chunk_at",
     "rho",
     "run_cell",
+    "scenario_of",
     "targets_for_subject",
+    "unresolvable_chunk_commits",
     "validate_cell_payload",
     "write_chunk",
+    "write_manifest",
 ]
 
 ARTIFACT_FORMAT_VERSION = "p7.3a-zero-shot/1.0"
@@ -859,15 +893,8 @@ def demand_identity(
     return identity
 
 
-def load_grid4x4_targets(*, data_dir: str | Path | None = None) -> dict[str, float]:
-    """The 16 registered prompts, READ from the digest-pinned calibration artifact.
-
-    The target of intersection *i* at the registered budget (A20(b): ``k = 100``, and only that
-    budget carries the role).  The artifact is checked against
-    :data:`P7_3D_CALIBRATION_SHA256` before a value is taken from it, and the role is checked on
-    every intersection: a budget the registration records and never evaluates must not be able to
-    become the prompt by an edit to one field.
-    """
+def _load_p7_3d_calibration(data_dir: str | Path | None) -> tuple[Path, dict[str, Any]]:
+    """``p7_3d_calibration.json``, digest-checked BEFORE it is parsed (E3(a)'s rule for grid4x4)."""
     path = _data_dir(data_dir) / P7_3D_CALIBRATION_NAME
     if not path.is_file():
         raise FileNotFoundError(
@@ -879,7 +906,36 @@ def load_grid4x4_targets(*, data_dir: str | Path | None = None) -> dict[str, flo
             f"{path} has sha256 {digest}, not the pinned {P7_3D_CALIBRATION_SHA256}. The targets "
             "are a registered quantity; this module reads them from THAT file and no other"
         )
-    payload = json.loads(path.read_bytes())
+    return path, json.loads(path.read_bytes())
+
+
+def grid4x4_support_ranges(*, data_dir: str | Path | None = None) -> dict[str, tuple[float, float]]:
+    """The 16 training-support ranges, READ from the same digest-pinned artifact as the targets.
+
+    ``support_range`` per intersection is what C3a recorded from the subject's checkpoints
+    (``stats["rtg"]`` min and max, Amendment A4: it bounds the support and selects nothing).  A cell
+    counts its decisions against it per intersection; reading it here, rather than re-opening five
+    checkpoints per cell, keeps the prompt and the diagnostic on ONE pinned file.  Returned in the
+    artifact's ``intersection_ids`` order.
+    """
+    _path, payload = _load_p7_3d_calibration(data_dir)
+    ranges: dict[str, tuple[float, float]] = {}
+    for ix_id in payload["intersection_ids"]:
+        low, high = payload["per_intersection"][ix_id]["support_range"]
+        ranges[str(ix_id)] = (float(low), float(high))
+    return ranges
+
+
+def load_grid4x4_targets(*, data_dir: str | Path | None = None) -> dict[str, float]:
+    """The 16 registered prompts, READ from the digest-pinned calibration artifact.
+
+    The target of intersection *i* at the registered budget (A20(b): ``k = 100``, and only that
+    budget carries the role).  The artifact is checked against
+    :data:`P7_3D_CALIBRATION_SHA256` before a value is taken from it, and the role is checked on
+    every intersection: a budget the registration records and never evaluates must not be able to
+    become the prompt by an edit to one field.
+    """
+    path, payload = _load_p7_3d_calibration(data_dir)
     key = f"k{int(payload['registered_k'])}"
     targets: dict[str, float] = {}
     for ix_id in payload["intersection_ids"]:
@@ -932,6 +988,136 @@ def assert_rtg_first_matches_targets(
         )
 
 
+# ======================================================================================
+# The B.6 fix round: ONE scenario-aware call per identity, used by run_cell, chunk_is_reusable
+# AND report (BRIEF_39 Amendment B.6-2(2); docs/reviews/P7.3d-preflight.md, blocker B2)
+# ======================================================================================
+
+#: The scenarios a cell may name.  hz1x1 is the ABSENT default -- P7.3a's and P7.3b's 5,404
+#: chunks carry no ``scenario`` key, and their bytes may not move (T-regress).
+REGISTERED_SCENARIOS: tuple[str, ...] = (SCENARIO_KEY, GRID4X4_SCENARIO_KEY)
+
+#: The label a grid4x4 chunk's ``sha256_checked_against`` carries for A20(a)'s committed pin, and
+#: the gitignored campaign manifest that also lists the five files.
+GRID4X4_CHECKPOINT_PIN_LABEL = (
+    "A20(a): offline.transfer_calibration.GRID4X4_CHECKPOINT_SHA256 (pinned at fcf22fc)"
+)
+GRID4X4_LOCAL_MANIFEST = "SHA256SUMS_p5_2.txt"
+
+
+def scenario_of(cell: Mapping[str, Any]) -> str:
+    """The cell's scenario key, resolved STRICTLY.
+
+    Absent or ``None`` is hz1x1, which is what every P7.3a / P7.3b cell and chunk is.  Anything not
+    in :data:`REGISTERED_SCENARIOS` refuses by name: a key this module does not register must never
+    fall through to hz1x1's pins -- the coincidence-dependent seam Amendments A.1-2 and B4 warn
+    about, where a branch taken by default is a branch nobody decided.
+    """
+    value = cell.get("scenario")
+    scenario = SCENARIO_KEY if value is None else str(value)
+    if scenario not in REGISTERED_SCENARIOS:
+        raise ValueError(
+            f"scenario {scenario!r} is not one this module runs cells on ({list(REGISTERED_SCENARIOS)}); "
+            "refusing rather than resolving it to hz1x1's demand, checkpoints and calibration"
+        )
+    return scenario
+
+
+def demand_identity_for(cell: Mapping[str, Any], *, out_root: str | Path) -> dict[str, Any]:
+    """:func:`demand_identity` for THIS cell's scenario -- the one call all three sites make.
+
+    B2, the blocker that could make a number wrong: ``run_cell``, ``chunk_is_reusable`` and
+    ``report`` each called ``demand_identity(draw_id, out_root=...)`` with no scenario, so a grid4x4
+    anchor cell ran against hz1x1's configuration path and recorded hz1x1's digests, and the two
+    checks that re-derive the identity re-derived the SAME default and found it consistent.  One
+    function, called by all three, is what makes the mismatch visible instead of invisible.
+    """
+    return demand_identity(int(cell["draw_id"]), out_root=out_root, scenario=scenario_of(cell))
+
+
+def grid4x4_checkpoint_identity(seed: int, *, output_root: str | Path) -> dict[str, Any]:
+    """The registered grid4x4 subject's checkpoint, hashed at CONSUMPTION against A20(a)'s pin.
+
+    ``checkpoint_identity`` pins hz1x1's subjects against their committed training records
+    (``CHECKPOINT_RECORD``), and it refuses this subject by design.  A20(a) registers the grid4x4
+    subject BY DIGEST, and those five digests were first committed in
+    :data:`offline.transfer_calibration.GRID4X4_CHECKPOINT_SHA256` (``fcf22fc``); the file is
+    hashed here and compared with that pin, and with ``SHA256SUMS_p5_2.txt`` wherever that
+    gitignored manifest exists -- a manifest that exists and does not list the file is a gap, not a
+    pass, the rule :func:`checkpoint_identity` applies.  The returned mapping has the same keys.
+    """
+    from offline.transfer_calibration import (
+        GRID4X4_CHECKPOINT_SHA256,
+        GRID4X4_CHECKPOINT_STEM,
+        GRID4X4_CHECKPOINT_SUBDIR,
+    )
+
+    seed = int(seed)
+    if seed not in GRID4X4_CHECKPOINT_SHA256:
+        raise ValueError(
+            f"{GRID4X4_SUBJECT}: seed {seed} is not one of A20(a)'s {sorted(GRID4X4_CHECKPOINT_SHA256)}"
+        )
+    root = Path(output_root)
+    path = root / GRID4X4_CHECKPOINT_SUBDIR / f"{GRID4X4_CHECKPOINT_STEM}{seed}.pt"
+    if not path.is_file():
+        raise FileNotFoundError(f"{path}: {GRID4X4_SUBJECT} seed {seed}'s checkpoint is not on disk")
+    digest = _sha256_file(path)
+    pinned = GRID4X4_CHECKPOINT_SHA256[seed]
+    if digest != pinned:
+        raise ValueError(
+            f"{path}: file sha256 {digest} is not A20(a)'s pinned {pinned} for {GRID4X4_SUBJECT} "
+            f"seed {seed}. A20(a) registers the subject BY DIGEST; different weights under the same "
+            "filename would evaluate as the registered subject and could not be told apart"
+        )
+    checked_against = [GRID4X4_CHECKPOINT_PIN_LABEL]
+    manifest_path = root / GRID4X4_LOCAL_MANIFEST
+    if manifest_path.is_file():
+        listed = _manifest_digests(manifest_path)
+        relative = str(path.relative_to(root))
+        if relative not in listed:
+            raise ValueError(
+                f"{relative} is not listed in {GRID4X4_LOCAL_MANIFEST}, which does exist; a partial "
+                "manifest is a gap, not a pass"
+            )
+        if listed[relative] != digest:
+            raise ValueError(
+                f"{path}: file sha256 {digest} is not {GRID4X4_LOCAL_MANIFEST}'s {listed[relative]}"
+            )
+        checked_against.append(GRID4X4_LOCAL_MANIFEST)
+    return {
+        "subject": GRID4X4_SUBJECT,
+        "seed": seed,
+        "path": str(path),
+        "file_sha256": digest,
+        "sha256_checked_against": checked_against,
+        "local_manifest": GRID4X4_LOCAL_MANIFEST,
+        "deferred_56": False,
+    }
+
+
+def checkpoint_identity_for(
+    cell: Mapping[str, Any], *, output_root: str | Path, data_dir: str | Path | None = None
+) -> dict[str, Any]:
+    """The checkpoint identity for THIS cell's scenario -- again one call for all three sites.
+
+    hz1x1 goes to :func:`checkpoint_identity`, unchanged, so every P7.3a / P7.3b digest check is
+    byte-for-byte what it was; grid4x4 goes to :func:`grid4x4_checkpoint_identity`.  At ``8c79778``
+    the grid4x4 subject reached ``checkpoint_identity`` and raised ``unknown subject`` -- inside
+    ``run_cell`` for all 500 DT cells, and inside ``chunk_is_reusable``, where the exception was
+    caught and read as *not reusable*, so every restart would have re-rolled every DT chunk (M2).
+    """
+    if scenario_of(cell) == GRID4X4_SCENARIO_KEY:
+        if str(cell.get("subject")) != GRID4X4_SUBJECT:
+            raise ValueError(
+                f"{cell.get('subject')!r} is not the registered grid4x4 subject {GRID4X4_SUBJECT!r} "
+                "(A20(a))"
+            )
+        return grid4x4_checkpoint_identity(int(cell["seed"]), output_root=output_root)
+    return checkpoint_identity(
+        str(cell["subject"]), int(cell["seed"]), output_root=output_root, data_dir=data_dir
+    )
+
+
 #: C4's reference cells: rho's two anchors on the first three held-out draws, frozen so the
 #: campaign's own chunks for those six cells can be checked against them (A9, *the instrument
 #: regenerates*).  P7.3a had P7.1's frozen values to check against; grid4x4 has none until this
@@ -948,6 +1134,14 @@ REFERENCE_CELLS_FORMAT_VERSION = "p7.3d-reference-cells/1.0"
 #: shape as ``_PUBLISHED_FIELDS``' exclusion of ``seconds`` in the campaign's own comparisons.
 _PEDIGREE_WALL_CLOCK_FIELDS: tuple[str, ...] = ("seconds", "seconds_rollout")
 P7_3D_REFERENCE_CELLS_NAME = "p7_3d_reference_cells.json"
+
+#: m1 (B.6-2(4)): the campaign's two other committed inputs, pinned by digest exactly as
+#: :data:`P7_3D_CALIBRATION_SHA256` is -- a DECLARATION that the driver ran against THESE files,
+#: which moves only in a commit that also moves the file.  Measured from the committed files at
+#: ``e14d950`` (``9c4a979`` and ``d465ec3`` wrote them); a test recomputes both.
+P7_3D_REFERENCE_CELLS_SHA256 = "5265f0d5d8b1bc11b4d40fdcde6821391940139dfe9e7fc61723fa98c6121b2c"
+P7_3D_CAP_E_NAME = "p7_3d_cap_e.json"
+P7_3D_CAP_E_SHA256 = "949015b3d1be8b96272b0826fa750497f7c57a0d285f6ceb7baefe8f9da9e0cd"
 
 
 def grid4x4_reference_cells(
@@ -1383,10 +1577,17 @@ def anchor_choose(
     )
     policy = build_policy(env, args)
     diagnostics: dict[str, Any] = {"rtg_series": [], "reward_series": [], "actions": []}
+    # P7.3d (B.6 fix round, F-B6-5): on grid4x4 EVERY intersection's action is recorded, one row
+    # per decision, so `actions_in_range` checks sixteen intersections rather than the first. Keyed
+    # on the SCENARIO, not on a count (A.1-2): hz1x1 keeps its one int per decision, unchanged.
+    per_intersection = scenario_of(cell) == GRID4X4_SCENARIO_KEY
 
     def choose(_env: Any, info: Mapping[str, Any]) -> Any:
         action = policy(info)
-        diagnostics["actions"].append(int(np.asarray(action).reshape(-1)[0]))
+        flat = np.asarray(action).reshape(-1)
+        diagnostics["actions"].append(
+            [int(a) for a in flat] if per_intersection else int(flat[0])
+        )
         return action
 
     return choose, diagnostics
@@ -1458,10 +1659,15 @@ def validate_cell_payload(
     )
 
     label = cell_chunk_name(payload)
-    if payload.get("format_version") != ARTIFACT_FORMAT_VERSION:
+    # P7.3d (B.6 fix round): the scenario decides the format and the pins. A grid4x4 chunk is its
+    # own format (`p7.3d-grid4x4/1.0`, the module docstring's last section); an hz1x1 chunk is
+    # checked exactly as it always was.
+    grid = scenario_of(payload) == GRID4X4_SCENARIO_KEY
+    expected_version = GRID4X4_ARTIFACT_FORMAT_VERSION if grid else ARTIFACT_FORMAT_VERSION
+    if payload.get("format_version") != expected_version:
         raise ValueError(
             f"{label}: format_version {payload.get('format_version')!r} is not "
-            f"{ARTIFACT_FORMAT_VERSION!r}"
+            f"{expected_version!r}"
         )
     if cell is not None:
         # ⚠️ `stage` IS part of the identity (reviewer A's minor 9, closed here because P7.3b made
@@ -1472,7 +1678,10 @@ def validate_cell_payload(
         # `report --stage anchor` would validate as one of the anchor's own, and 200 of the 700
         # cells would be another campaign's. The name is not changed: P7.3a's chunks are on disk
         # under it and renaming them would make its artifact unregenerable at its own commit.
-        for key in ("kind", "subject", "arm", "seed", "draw_id", "stage"):
+        # `scenario` joined the identity in the B.6 fix round: an hz1x1 chunk offered to a grid4x4
+        # cell (or the reverse) is another campaign's evidence, whatever its name says. On hz1x1
+        # both sides lack the key, so every P7.3a / P7.3b comparison is unchanged.
+        for key in ("kind", "subject", "arm", "seed", "draw_id", "stage", "scenario"):
             if payload.get(key) != cell.get(key):
                 raise ValueError(
                     f"{label}: the chunk says {key}={payload.get(key)!r} and the cell it was asked "
@@ -1487,6 +1696,24 @@ def validate_cell_payload(
             "prompts A18(d) attaches to fine-tuned models, and a zero-shot outcome for one of them "
             "is an evaluation nobody registered"
         )
+    if grid:
+        # A21(a)/(b): the grid4x4 declaration has ONE subject with ONE arm and rho's two anchors.
+        # `naive` and `random` are in DECLARED_ARM_NAMES because hz1x1 evaluated them; on this
+        # scenario they were removed BY DECLARATION before any grid4x4 SUMO number existed.
+        grid_arms = (GRID4X4_ARM, "fixedtime", "maxpressure")
+        kind = str(payload.get("kind"))
+        if arm not in grid_arms:
+            raise ValueError(
+                f"{label}: {arm!r} is not an arm of the grid4x4 declaration {list(grid_arms)}; "
+                "A21(b) removed `naive` and `random` from this scenario by declaration"
+            )
+        if kind == "dt" and (str(payload.get("subject")) != GRID4X4_SUBJECT or arm != GRID4X4_ARM):
+            raise ValueError(
+                f"{label}: a grid4x4 DT cell is {GRID4X4_SUBJECT!r} under {GRID4X4_ARM!r} (A20(a), "
+                f"A21(a)), not {payload.get('subject')!r} under {arm!r}"
+            )
+        if kind == "anchor" and (payload.get("subject") is not None or arm == GRID4X4_ARM):
+            raise ValueError(f"{label}: an anchor cell has no subject and no prompt")
     if int(payload["n_teleports"]) != 0:
         raise ValueError(
             f"{label}: {payload['n_teleports']} teleport(s) under A15(c)'s teleport-free regime"
@@ -1507,10 +1734,31 @@ def validate_cell_payload(
         )
     if payload.get("actions_in_range") is not True:
         raise ValueError(f"{label}: an action was outside the intersection's legal range")
-    if str(payload.get("calibration_sha256")) != P7_2B_CALIBRATION_SHA256:
+    if grid:
+        # The action MATRIX a grid4x4 chunk records (F-B6-5): one row per decision, one column per
+        # intersection in `intersection_ids` order. `actions_in_range` above was computed over all
+        # of it; this checks the shape it was computed over.
+        ids = payload.get("intersection_ids")
+        actions = payload.get("actions")
+        if not isinstance(ids, list) or not ids or len(set(ids)) != len(ids):
+            raise ValueError(f"{label}: intersection_ids {ids!r} is not a list of distinct ids")
+        if (
+            not isinstance(actions, list)
+            or len(actions) != int(payload["decisions"])
+            or any(not isinstance(row, list) or len(row) != len(ids) for row in actions)
+        ):
+            raise ValueError(
+                f"{label}: the action matrix is not {payload['decisions']} decisions x "
+                f"{len(ids)} intersections"
+            )
+    # The calibration the cell's prompts came from, per scenario: P7.2b's artifact for hz1x1,
+    # P7.3d's per-intersection artifact for grid4x4 (B.6-2(2); at 8c79778 a grid4x4 chunk would have
+    # claimed hz1x1's calibration).
+    expected_calibration = P7_3D_CALIBRATION_SHA256 if grid else P7_2B_CALIBRATION_SHA256
+    if str(payload.get("calibration_sha256")) != expected_calibration:
         raise ValueError(
             f"{label}: it records targets from calibration sha256 "
-            f"{payload.get('calibration_sha256')!r}, not the pinned {P7_2B_CALIBRATION_SHA256!r}"
+            f"{payload.get('calibration_sha256')!r}, not the pinned {expected_calibration!r}"
         )
     # Amendment A5, checked at consumption as well as at production: an anchor cell must name the
     # committed training record its prompt came from, and NOTHING ELSE may name it. The second
@@ -1575,7 +1823,43 @@ def validate_cell_payload(
             "recorder disagreement is a finding that stops the campaign, exactly as a teleport is"
         )
 
-    if str(payload.get("kind")) == "dt":
+    if str(payload.get("kind")) == "dt" and grid:
+        # THE 16-ID REFUSAL, with a call site at last (B.6-2(2), the pre-flight's M3): reached from
+        # run_cell on the finished chunk, from chunk_is_reusable, and from report over every chunk.
+        targets = payload.get("target_rtg")
+        series = payload.get("rtg_series")
+        rewards = payload.get("reward_series")
+        if not all(isinstance(value, Mapping) for value in (targets, series, rewards)):
+            raise ValueError(
+                f"{label}: a grid4x4 DT chunk records target_rtg, rtg_series and reward_series PER "
+                "INTERSECTION, as mappings keyed by id"
+            )
+        if sorted(targets) != sorted(payload["intersection_ids"]):
+            raise ValueError(
+                f"{label}: the targets cover {sorted(targets)[:4]}..., not exactly the recorded "
+                "intersection_ids (A17(e) applies the rule per intersection)"
+            )
+        if payload.get("rtg_first") != targets:
+            first = payload.get("rtg_first") or {}
+            differing = sorted(ix for ix in targets if first.get(ix) != targets[ix])
+            raise ValueError(
+                f"{label}: rtg_first is not the declared target on {differing[:4]}; the prompt did "
+                "not take effect there"
+            )
+        assert_rtg_first_matches_targets(series, targets, label=label)
+        uneven = sorted(
+            ix
+            for ix in targets
+            if ix not in rewards
+            or len(series[ix]) != len(rewards[ix])
+            or len(series[ix]) != int(payload["decisions"])
+        )
+        if uneven:
+            raise ValueError(
+                f"{label}: intersection(s) {uneven[:4]} do not record one RTG and one reward per "
+                "decision (DEFERRED 81: both are stored so a reviewer re-derives D1's rule)"
+            )
+    elif str(payload.get("kind")) == "dt":
         if payload.get("rtg_first") != payload.get("target_rtg"):
             raise ValueError(
                 f"{label}: rtg_first {payload.get('rtg_first')!r} is not the declared target "
@@ -1651,19 +1935,23 @@ def chunk_is_reusable(
         # this chunk, and the campaign must stop rather than silently re-roll 4,700 cells.
         if code_changed_since(str(payload["git_commit"])):
             return False
-        demand = demand_identity(int(cell["draw_id"]), out_root=out_root)
+        # B.6-2(2): the SAME scenario-aware calls run_cell and report make. At 8c79778 this line
+        # re-derived hz1x1's demand for a grid4x4 cell and found a chunk carrying hz1x1's digests
+        # CONSISTENT -- the pre-flight's sandbox reused it.
+        demand = demand_identity_for(cell, out_root=out_root)
         if str(payload["config_sha256"]) != demand["config_sha256"]:
             return False
         if str(payload["routes_sha256"]) != demand["routes_sha256"]:
             return False
         if str(cell["kind"]) == "dt":
-            identity = checkpoint_identity(
-                str(cell["subject"]),
-                int(cell["seed"]),
-                output_root=output_root,
-                data_dir=data_dir,
-            )
+            identity = checkpoint_identity_for(cell, output_root=output_root, data_dir=data_dir)
             if str(payload["checkpoint_sha256"]) != identity["file_sha256"]:
+                return False
+            # A grid4x4 chunk's 16 prompts, re-derived from the digest-pinned artifact: a chunk
+            # conditioned on other targets is internally consistent, so validate cannot see it.
+            if scenario_of(cell) == GRID4X4_SCENARIO_KEY and dict(payload["target_rtg"]) != (
+                load_grid4x4_targets(data_dir=data_dir)
+            ):
                 return False
     except (KeyError, TypeError, ValueError, AttributeError, FileNotFoundError):
         return False
@@ -1698,6 +1986,16 @@ def run_cell(
     the untapped env, the rollout runs on the tap (G4), and the payload is validated in full before
     it is returned.  The caller writes it -- so a cell that fails leaves no chunk, no directory and
     no trace except the exception.
+
+    **It branches on ``cell["scenario"]``** (B.6 fix round, B.6-2(2)).  An hz1x1 cell -- no
+    ``scenario`` key -- takes exactly the path it always took and returns exactly the payload it
+    always returned.  A grid4x4 cell reads its demand through :func:`demand_identity_for`, its
+    checkpoint through :func:`checkpoint_identity_for` (A20(a)'s pin), its 16 prompts through
+    :func:`load_grid4x4_targets` and their support ranges through :func:`grid4x4_support_ranges` --
+    both from the ONE digest-pinned ``p7_3d_calibration.json`` -- loads the subject through
+    ``dt_choose``'s per-intersection branch (``spatial_agent_with_targets``), and returns a
+    ``p7.3d-grid4x4/1.0`` chunk (the module docstring's last section), whose 16-id refusal runs in
+    :func:`validate_cell_payload` on the finished payload before it is returned.
     """
     import time
 
@@ -1711,13 +2009,26 @@ def run_cell(
     kind = str(cell["kind"])
     draw_id = int(cell["draw_id"])
     arm = str(cell["arm"])
+    grid = scenario_of(cell) == GRID4X4_SCENARIO_KEY
 
-    demand = demand_identity(draw_id, out_root=out_root)
+    demand = demand_identity_for(cell, out_root=out_root)
     checkpoint: dict[str, Any] | None = None
-    target_rtg: float | None = None
+    target_rtg: float | dict[str, float] | None = None
     facts = None
+    grid_support: dict[str, tuple[float, float]] | None = None
     anchor_training_sha256: str | None = None
-    if kind == "dt":
+    if kind == "dt" and grid:
+        # P7.3d: the registered subject under its ONE registered arm (A20(a), A21(a)); the 16
+        # prompts and their support ranges READ from the digest-pinned artifact, never recomputed.
+        if str(cell["subject"]) != GRID4X4_SUBJECT or arm != GRID4X4_ARM:
+            raise ValueError(
+                f"a grid4x4 DT cell is {GRID4X4_SUBJECT!r} under {GRID4X4_ARM!r}, not "
+                f"{cell['subject']!r} under {arm!r}"
+            )
+        target_rtg = load_grid4x4_targets(data_dir=data_dir)
+        grid_support = grid4x4_support_ranges(data_dir=data_dir)
+        checkpoint = checkpoint_identity_for(cell, output_root=output_root, data_dir=data_dir)
+    elif kind == "dt":
         subject = str(cell["subject"])
         if subject == ANCHOR_SUBJECT:
             # ⚠️ AMENDMENT A5, AND IT IS A ROUTE RATHER THAN A VALUE. The anchor's prompt is the
@@ -1741,9 +2052,7 @@ def run_cell(
             )
             target_rtg = float(targets_for_subject(subject, artifact)[arm]["target_rtg"])
             facts = subject_facts(subject, output_root=output_root)
-        checkpoint = checkpoint_identity(
-            subject, int(cell["seed"]), output_root=output_root, data_dir=data_dir
-        )
+        checkpoint = checkpoint_identity_for(cell, output_root=output_root, data_dir=data_dir)
 
     started = time.perf_counter()
     env = env_for_cell(cell, out_root=out_root)
@@ -1784,6 +2093,26 @@ def run_cell(
             "routes to ONE quantity -- the final info's average_travel_time, and horizon_rollout's "
             "last sample of the same key (G4) -- so a difference means the loop this cell ran is "
             "not the loop P7.1 measured, and no comparison with the frozen anchors would be valid"
+        )
+
+    if grid:
+        return _grid4x4_payload(
+            cell,
+            diagnostics=diagnostics,
+            ix_ids=[str(ix.id) for ix in intersections],
+            n_actions=n_actions,
+            rollout=rollout,
+            built=built,
+            att_env=att_env,
+            types_seen=types_seen,
+            option=option,
+            engine_seed_drawn=engine_seed_drawn,
+            demand=demand,
+            checkpoint=checkpoint,
+            targets=target_rtg,  # type: ignore[arg-type]
+            support_ranges=grid_support,
+            canary_seconds=canary_seconds,
+            seconds=seconds,
         )
 
     actions = diagnostics["actions"]
@@ -1864,6 +2193,143 @@ def run_cell(
         "n_decisions_in_support": None if support is None else support["n_decisions_in_support"],
         "support_range": None if support is None else support["support_range"],
         "in_support_counts": support,
+        "canary_seconds": None if canary_seconds is None else float(canary_seconds),
+        "seconds": seconds,
+        **_git_provenance(),
+    }
+    validate_cell_payload(payload, cell=cell)
+    return payload
+
+
+def _grid4x4_payload(
+    cell: Mapping[str, Any],
+    *,
+    diagnostics: Mapping[str, Any],
+    ix_ids: Sequence[str],
+    n_actions: int,
+    rollout: Any,
+    built: Any,
+    att_env: float,
+    types_seen: Sequence[str],
+    option: str,
+    engine_seed_drawn: int,
+    demand: Mapping[str, Any],
+    checkpoint: Mapping[str, Any] | None,
+    targets: Mapping[str, float] | None,
+    support_ranges: Mapping[str, tuple[float, float]] | None,
+    canary_seconds: float | None,
+    seconds: float,
+) -> dict[str, Any]:
+    """A grid4x4 cell's chunk (``p7.3d-grid4x4/1.0``), validated before it is returned.
+
+    The episode-level fields are the hz1x1 chunk's, computed from the same objects.  What differs
+    is that every per-intersection quantity is a mapping keyed by id -- the RTG and reward series
+    (D1's shift-by-one per id), ``rtg_first`` / ``rtg_last``, the in-support counts against that
+    intersection's own range, ``rtg_advanced_every_decision`` -- and that the full action matrix is
+    recorded, one row per decision in ``intersection_ids`` order, so ``actions_in_range`` is
+    computed over all sixteen intersections and a re-roll can be compared action by action
+    (B.5-1).  ``calibration_sha256`` is P7.3d's artifact, never P7.2b's.
+    """
+    from offline.rtg_calibration import in_support_counts
+    from offline.transfer_calibration import rtg_advanced_every_decision
+
+    kind = str(cell["kind"])
+    draw_id = int(cell["draw_id"])
+    actions = [list(row) for row in diagnostics["actions"]]
+    per_ix: dict[str, Any] = {
+        "target_rtg": None,
+        "rtg_first": None,
+        "rtg_last": None,
+        "rtg_series": None,
+        "reward_series": None,
+        "rtg_advanced_every_decision": None,
+        "n_decisions_in_support": None,
+        "support_range": None,
+        "in_support_counts": None,
+    }
+    if kind == "dt":
+        if targets is None or support_ranges is None:
+            raise ValueError("a grid4x4 DT cell needs its 16 targets and their support ranges")
+        rtg_series = {ix: list(diagnostics["rtg_series"][ix]) for ix in ix_ids}
+        reward_series = {ix: list(diagnostics["reward_series"][ix]) for ix in ix_ids}
+        counts = {
+            ix: in_support_counts(
+                rtg_series[ix], rtg_min=support_ranges[ix][0], rtg_max=support_ranges[ix][1]
+            )
+            for ix in ix_ids
+        }
+        per_ix = {
+            "target_rtg": {ix: float(targets[ix]) for ix in ix_ids},
+            "rtg_first": {ix: rtg_series[ix][0] if rtg_series[ix] else None for ix in ix_ids},
+            "rtg_last": {ix: rtg_series[ix][-1] if rtg_series[ix] else None for ix in ix_ids},
+            "rtg_series": rtg_series,
+            "reward_series": reward_series,
+            "rtg_advanced_every_decision": {
+                ix: rtg_advanced_every_decision(rtg_series[ix], reward_series[ix]) for ix in ix_ids
+            },
+            "n_decisions_in_support": {ix: counts[ix].in_support for ix in ix_ids},
+            "support_range": {ix: list(support_ranges[ix]) for ix in ix_ids},
+            "in_support_counts": {
+                ix: {
+                    "in_support": counts[ix].in_support,
+                    "below": counts[ix].below,
+                    "above": counts[ix].above,
+                }
+                for ix in ix_ids
+            },
+        }
+
+    checked = halting_check_for(draw_id)
+    payload: dict[str, Any] = {
+        "format_version": GRID4X4_ARTIFACT_FORMAT_VERSION,
+        **dict(cell),
+        "policy_seed": None,
+        "engine_seed_requested": ENGINE_SEED,
+        "engine_seed_drawn": engine_seed_drawn,
+        "decisions": len(actions),
+        "intersection_ids": list(ix_ids),
+        "actions": actions,
+        "actions_in_range": bool(actions)
+        and all(
+            len(row) == len(ix_ids) and all(0 <= int(a) < n_actions for a in row) for row in actions
+        ),
+        "action_space_n": n_actions,
+        "episode_reward": rollout.episode_reward,
+        "att_horizon": rollout.att_horizon,
+        "att_env": att_env,
+        "att_running_mean": rollout.att_running_mean,
+        "horizon_vehicle_count": rollout.final_vehicle_count,
+        "e_sumo": built.e_sumo.value,
+        "p_sumo": built.p_sumo.value,
+        "w_sumo": built.w_sumo.value,
+        "mean_depart_delay": built.mean_depart_delay,
+        "n_created": built.e_sumo.n_ids,
+        "n_entered": built.n_departed,
+        "n_never_entered": built.n_never_inserted,
+        "n_pending_at_horizon": built.n_pending_at_horizon,
+        "n_teleports": built.n_teleports,
+        "n_vanished_without_arrival": built.n_vanished_without_arrival,
+        "n_arrived_never_observed_at_a_boundary": built.n_arrived_never_observed_at_a_boundary,
+        "max_abs_depart_clock_deviation": built.max_abs_depart_clock_deviation,
+        "n_observations": built.n_observations,
+        "vehicle_types_seen": list(types_seen),
+        "time_to_teleport_option": option,
+        "halting_checked": checked,
+        "halting_max_abs_difference": built.halting.max_abs_difference if checked else None,
+        "halting_n_lane_seconds": built.halting.n_lane_seconds if checked else None,
+        "halting_n_disagreeing_lane_seconds": (
+            built.halting.n_disagreeing_lane_seconds if checked else None
+        ),
+        "config_sha256": demand["config_sha256"],
+        "routes_sha256": demand["routes_sha256"],
+        "calibration_sha256": P7_3D_CALIBRATION_SHA256,
+        "anchor_training_sha256": None,
+        "checkpoint": None if checkpoint is None else checkpoint["path"],
+        "checkpoint_sha256": None if checkpoint is None else checkpoint["file_sha256"],
+        "sha256_checked_against": (
+            None if checkpoint is None else list(checkpoint["sha256_checked_against"])
+        ),
+        **per_ix,
         "canary_seconds": None if canary_seconds is None else float(canary_seconds),
         "seconds": seconds,
         **_git_provenance(),
@@ -1993,7 +2459,14 @@ def declarations_for(
     if cells is not None:
         supplied = [dict(cell) for cell in cells]
         return supplied, supplied
-    whole = STAGE_ANCHOR if stage == STAGE_ANCHOR else None
+    # B.6-2(3), the pre-flight's B3: the grid4x4 stage is its OWN whole declaration, exactly as the
+    # anchor stage is. At 8c79778 it fell through to `None` -- hz1x1's 4,700 -- so a COMPLETE grid4x4
+    # campaign would have been refused as 700 chunks "not declared cells of ANY stage" (measured
+    # overlap 0: every grid4x4 name carries the scenario prefix).
+    if stage in (STAGE_ANCHOR, STAGE_GRID4X4):
+        whole: str | None = stage
+    else:
+        whole = None
     return list(declared_cells(whole)), list(declared_cells(stage))
 
 
@@ -2117,10 +2590,13 @@ def report(
 
     demand_by_draw: dict[int, dict[str, Any]] = {}
     identity_by_checkpoint: dict[tuple[str, int], dict[str, Any]] = {}
+    grid_targets: dict[str, float] | None = None
     for name, payload in sorted(chunks.items()):
         draw_id = int(payload["draw_id"])
+        # B.6-2(2): the SAME scenario-aware call run_cell and chunk_is_reusable make. One stage is
+        # one declaration, so every chunk here shares the stage's scenario and the draw is a key.
         if draw_id not in demand_by_draw:
-            demand_by_draw[draw_id] = demand_identity(draw_id, out_root=out_root)
+            demand_by_draw[draw_id] = demand_identity_for(payload, out_root=out_root)
         demand = demand_by_draw[draw_id]
         for key in ("config_sha256", "routes_sha256"):
             if str(payload[key]) != demand[key]:
@@ -2132,9 +2608,19 @@ def report(
         if str(payload["kind"]) == "dt":
             key_pair = (str(payload["subject"]), int(payload["seed"]))
             if key_pair not in identity_by_checkpoint:
-                identity_by_checkpoint[key_pair] = checkpoint_identity(
-                    key_pair[0], key_pair[1], output_root=output_root, data_dir=data
+                identity_by_checkpoint[key_pair] = checkpoint_identity_for(
+                    payload, output_root=output_root, data_dir=data
                 )
+            if scenario_of(payload) == GRID4X4_SCENARIO_KEY:
+                # The 16 prompts, re-derived from the digest-pinned artifact: a chunk conditioned
+                # on other targets is internally consistent, so step 4 cannot see it.
+                if grid_targets is None:
+                    grid_targets = load_grid4x4_targets(data_dir=data)
+                if dict(payload["target_rtg"]) != grid_targets:
+                    raise ValueError(
+                        f"{name}: its target_rtg is not the 16 registered prompts of "
+                        f"{P7_3D_CALIBRATION_NAME}; the cell conditioned on something else"
+                    )
             declared_sha = identity_by_checkpoint[key_pair]["file_sha256"]
             if str(payload["checkpoint_sha256"]) != declared_sha:
                 raise ValueError(
@@ -3133,8 +3619,451 @@ def _write_pilot_transcript(path: Path, record: Mapping[str, Any]) -> None:
         handle.write("\n".join(lines) + "\n\n")
 
 
+# ======================================================================================
+# The B.6 fix round's driver-facing pieces: the artifact's name per stage, the manifest, the
+# inputs by digest (m1), git resolvability before the token (m2), and B.5-1's DT re-roll check
+# ======================================================================================
+
+#: B.6-2(3): the P7.3d manifest covers the directory of this name and nothing else, and sits
+#: beside it, as every campaign's ``output/SHA256SUMS_<campaign>.txt`` does.
+MANIFEST_CAMPAIGN_NAME = "p7_3d"
+MANIFEST_NAME = "SHA256SUMS_p7_3d.txt"
+
+
+def artifact_name_for_stage(stage: str | None) -> str:
+    """One stage, one artifact name (B.6-2(3)).
+
+    P7.3a's and P7.3b's names are what they were; the grid4x4 stage writes ``p7_3d_grid4x4.json``,
+    the name its driver's header promises -- at ``8c79778`` it fell through to P7.3a's
+    ``p7_3a_zero_shot.json``.  Writing one campaign's artifact under another's name is how the
+    zero-shot point would be overwritten by something else.  (The ``name = ...`` chain is the
+    spelling ``main`` used before the extraction; P7.3b's text pin reads it.)
+    """
+    if stage == STAGE_GRID4X4:
+        name = "p7_3d_grid4x4.json"
+    elif stage == STAGE_ANCHOR:
+        name = "p7_3b_anchor.json"
+    elif stage == STAGE_CONFIRMATORY:
+        name = "p7_3a_zero_shot_stage1.json"
+    else:
+        name = "p7_3a_zero_shot.json"
+    return name
+
+
+def _campaign_files(root: Path) -> list[str]:
+    """Every regular file under *root*, as sorted POSIX paths relative to it (no symlinks)."""
+    import os
+
+    found: list[str] = []
+    for directory, subdirectories, names in os.walk(root, followlinks=False):
+        subdirectories.sort()
+        for name in names:
+            path = Path(directory) / name
+            if path.is_file() and not path.is_symlink():
+                found.append(path.relative_to(root).as_posix())
+    return sorted(found)
+
+
+def write_manifest(*, campaign_dir: str | Path) -> dict[str, Any]:
+    """``output/SHA256SUMS_p7_3d.txt`` over ``output/p7_3d/`` ONLY: atomic, then re-verified.
+
+    B.6-2(3).  Refusals first -- the directory must be named ``p7_3d`` and hold at least one file --
+    then every regular file under it is hashed into ``<parent>/SHA256SUMS_p7_3d.txt.tmp`` in
+    ``sha256sum`` format (two spaces; paths relative to the parent, so ``sha256sum -c`` run from
+    ``output/`` checks it), the temporary file REPLACES the manifest in one ``os.replace``, and
+    the written manifest is read back and every listed file hashed again: the file set must not
+    have moved and every digest must still hold.  ``p7_3b_anchor.sh:353-357``'s shape, in Python so
+    a test can reach every branch.
+    """
+    import os
+
+    root = Path(campaign_dir)
+    if root.name != MANIFEST_CAMPAIGN_NAME:
+        raise ValueError(
+            f"{root}: the P7.3d manifest covers a directory named {MANIFEST_CAMPAIGN_NAME!r} and "
+            "nothing else -- another campaign's files in this manifest would be certified by a "
+            "run that did not produce them"
+        )
+    if not root.is_dir():
+        raise FileNotFoundError(f"{root} is not a directory")
+    files = _campaign_files(root)
+    if not files:
+        raise ValueError(f"{root} holds no file; an empty manifest certifies nothing")
+
+    lines = [f"{_sha256_file(root / relative)}  {root.name}/{relative}" for relative in files]
+    target = root.parent / MANIFEST_NAME
+    temporary = target.with_name(target.name + ".tmp")
+    temporary.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    os.replace(temporary, target)
+
+    listed = _manifest_digests(target)
+    now = sorted(f"{root.name}/{relative}" for relative in _campaign_files(root))
+    if sorted(listed) != now:
+        raise ValueError(
+            f"{target}: the file set moved while the manifest was written (listed "
+            f"{len(listed)}, on disk {len(now)}); re-run the manifest from a quiet directory"
+        )
+    moved = sorted(name for name, digest in listed.items() if _sha256_file(root.parent / name) != digest)
+    if moved:
+        raise ValueError(
+            f"{target}: re-verification failed on {moved[:4]} -- a file changed after it was hashed"
+        )
+    return {"path": str(target), "n_files": len(lines), "sha256": _sha256_file(target)}
+
+
+def check_campaign_inputs(
+    *, data_dir: str | Path, output_root: str | Path, draws_root: str | Path
+) -> list[str]:
+    """m1 (B.6-2(4)): the campaign's inputs BY DIGEST, before the token.  Raises naming each miss.
+
+    The driver checked ``p7_3d_calibration.json``, ``p7_3d_reference_cells.json`` and
+    ``p7_3d_cap_e.json`` by EXISTENCE only; here each is hashed and compared with the pin this
+    module carries.  With them, and for the same reason: the five checkpoints against A20(a)
+    (``BRIEF_39`` §3 C6 lists them *at their digests*), and RESCO's network through the relative
+    reference draw 1000's parity provenance records (Amendment A8) -- the one input a parity
+    config's digest does not cover, because the config only NAMES the net.  Returns one line per
+    input, every digest printed, so the capture records what the run started from.
+    """
+    from offline.materialise_draws import parity_sumocfg_path
+    from offline.parity import GRID4X4_SCENARIO
+    from offline.transfer_calibration import (
+        GRID4X4_CHECKPOINT_SHA256,
+        GRID4X4_CHECKPOINT_STEM,
+        GRID4X4_CHECKPOINT_SUBDIR,
+    )
+
+    data = Path(data_dir)
+    checks: list[tuple[str, Path, str]] = [
+        (name, data / name, pin)
+        for name, pin in (
+            (P7_3D_CALIBRATION_NAME, P7_3D_CALIBRATION_SHA256),
+            (P7_3D_REFERENCE_CELLS_NAME, P7_3D_REFERENCE_CELLS_SHA256),
+            (P7_3D_CAP_E_NAME, P7_3D_CAP_E_SHA256),
+        )
+    ]
+    for seed, pin in sorted(GRID4X4_CHECKPOINT_SHA256.items()):
+        checks.append(
+            (
+                f"{GRID4X4_SUBJECT} seed{seed}",
+                Path(output_root) / GRID4X4_CHECKPOINT_SUBDIR / f"{GRID4X4_CHECKPOINT_STEM}{seed}.pt",
+                pin,
+            )
+        )
+    problems: list[str] = []
+    parity_dir = parity_sumocfg_path(
+        GRID4X4_SCENARIO_KEY, HALTING_CHECK_DRAW, out_root=draws_root
+    ).parent
+    provenance_path = parity_dir / PARITY_PROVENANCE_NAME
+    net_pin = GRID4X4_SCENARIO.external.net_sha256  # type: ignore[union-attr]
+    if provenance_path.is_file():
+        net = json.loads(provenance_path.read_bytes())["net"]
+        if str(net["sha256"]) != net_pin:
+            problems.append(
+                f"{provenance_path} records the network at sha256 {net['sha256']}, not {net_pin}"
+            )
+        checks.append(
+            ("the RESCO network grid4x4.net.xml (A8)", parity_dir / str(net["reference"]), net_pin)
+        )
+    else:
+        problems.append(f"{provenance_path} is absent, so the network reference cannot be resolved")
+
+    lines: list[str] = []
+    for label, path, pin in checks:
+        if not path.is_file():
+            problems.append(f"{label}: {path} is absent")
+            continue
+        digest = _sha256_file(path)
+        if digest != pin:
+            problems.append(f"{label}: {path} has sha256 {digest}, not the pinned {pin}")
+        else:
+            lines.append(f"input {label}: sha256 {digest} (the pin)")
+    if problems:
+        raise ValueError(
+            f"{len(problems)} input(s) are not what the module pins: " + "; ".join(problems)
+        )
+    return lines
+
+
+def unresolvable_chunk_commits(*, work_dir: str | Path, stage: str) -> list[dict[str, str]]:
+    """m2 (B.6-2(4)): the chunks whose ``git_commit`` git cannot resolve -- found BEFORE the token.
+
+    :func:`chunk_is_reusable` lets ``_git``'s ``RuntimeError`` propagate on an unknown revision, on
+    purpose (J1(c): a git that cannot answer is an environment failure, not a verdict).  Inside
+    ``run_stage`` that raise came AFTER ``rm -f "$TOKEN"``: the token lost, nothing created, a new
+    token needed (the pre-flight's m2).  This walks the SAME path up to that call -- every declared
+    chunk on disk that parses and validates against its cell -- and resolves each distinct commit
+    now.  A chunk that fails validation is moved aside by ``run_stage`` and never reaches git, so it
+    is not reported.  Reads only; creates nothing.
+    """
+    work = Path(work_dir)
+    verdicts: dict[str, str | None] = {}
+    problems: list[dict[str, str]] = []
+    for cell in declared_cells(stage):
+        path = chunk_path(cell, work_dir=work)
+        if not path.is_file():
+            continue
+        try:
+            payload = json.loads(path.read_bytes())
+        except (ValueError, OSError):
+            continue
+        if not isinstance(payload, Mapping):
+            continue
+        try:
+            validate_cell_payload(payload, cell=cell)
+        except (KeyError, TypeError, ValueError, AttributeError, FileNotFoundError):
+            continue
+        commit = str(payload["git_commit"])
+        if commit not in verdicts:
+            try:
+                code_changed_since(commit)
+                verdicts[commit] = None
+            except RuntimeError as error:
+                verdicts[commit] = str(error)
+        if verdicts[commit] is not None:
+            problems.append({"chunk": path.name, "git_commit": commit, "error": str(verdicts[commit])})
+    return problems
+
+
+#: B.5-1: the format of each record the re-roll check writes, the ONE clock field a chunk carries
+#: (``run_cell``'s ``time.perf_counter`` difference; ``canary_seconds`` is the value the caller
+#: passes, identical by construction), and the fields B.5-1 names -- each must be PRESENT in every
+#: roll, or the comparison refuses: a comparison over absent fields is not a comparison.
+REROLL_FORMAT_VERSION = "p7.3d-dt-reroll-check/1.0"
+REROLL_CLOCK_FIELDS: tuple[str, ...] = ("seconds",)
+REROLL_COMPARED_FIELDS: tuple[str, ...] = (
+    "actions", "rtg_series", "reward_series", "e_sumo", "att_env", "episode_reward", "n_teleports",
+)
+REROLL_SEED = 101
+
+
+def dt_reroll_check_cell() -> dict[str, Any]:
+    """B.5-1's ONE cell: the registered subject, seed 101, the registered prompt, draw 5.
+
+    Draw 5 is the fenced smoke draw -- outside the held-out pool and the probe band (Amendment
+    B.2-2) -- and the stage is :data:`PILOT_STAGE`, a stage no declaration contains, so a stray
+    re-roll chunk is a declared cell of nothing and ``report`` would refuse it.
+    """
+    return {
+        "kind": "dt",
+        "subject": GRID4X4_SUBJECT,
+        "arm": GRID4X4_ARM,
+        "seed": REROLL_SEED,
+        "draw_id": PILOT_DRAW,
+        "scenario": GRID4X4_SCENARIO_KEY,
+        "stage": PILOT_STAGE,
+    }
+
+
+def _canonical_bytes(value: Any) -> bytes:
+    """The bytes :func:`_write_json` writes for *value* -- what a chunk IS on disk."""
+    return (json.dumps(value, indent=2, sort_keys=True) + "\n").encode("utf-8")
+
+
+def compare_reroll_payloads(payloads: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """Every roll against the FIRST, field by field, under ``==`` -- clocks excluded BY NAME.
+
+    Each field is compared as the bytes it is written as (:func:`_canonical_bytes`), which is
+    ``==`` on the evidence itself: it is exact for every finite float (``repr`` round-trips), it
+    tells ``-0.0`` from ``0.0``, and it does not call two bit-identical ``NaN`` values different.
+    The sha256 of each whole roll minus the clocks is the SECOND route to the same verdict -- all
+    digests equal if and only if no field differs -- and a disagreement between the two routes
+    raises rather than choosing one.  Returns names and digests only, never a value.
+    """
+    rolls = [dict(payload) for payload in payloads]
+    if len(rolls) < 2:
+        raise ValueError("the re-roll check needs at least two rolls of the cell to compare")
+    for index, roll in enumerate(rolls):
+        missing = [name for name in REROLL_COMPARED_FIELDS if name not in roll]
+        if missing:
+            raise ValueError(
+                f"roll {index} carries no {missing}; B.5-1 compares these fields and a comparison "
+                "over absent fields is not a comparison"
+            )
+    stripped = [
+        {key: value for key, value in roll.items() if key not in REROLL_CLOCK_FIELDS}
+        for roll in rolls
+    ]
+    import hashlib
+
+    digests = [hashlib.sha256(_canonical_bytes(roll)).hexdigest() for roll in stripped]
+    reference = stripped[0]
+    differing: set[str] = set()
+    for other in stripped[1:]:
+        for key in set(reference) | set(other):
+            if key not in reference or key not in other:
+                differing.add(key)
+            elif _canonical_bytes(reference[key]) != _canonical_bytes(other[key]):
+                differing.add(key)
+    if (not differing) != (len(set(digests)) == 1):
+        raise AssertionError(
+            "the field-by-field comparison and the whole-roll digests disagree; refusing to choose"
+        )
+    return {
+        "verdict": "IDENTICAL" if not differing else "NOT IDENTICAL",
+        "differing_fields": sorted(differing),
+        "sha256_minus_clocks": digests,
+        "n_rolls": len(rolls),
+        "n_fields_compared": len(reference),
+        "clock_fields_excluded": list(REROLL_CLOCK_FIELDS),
+    }
+
+
+def _reroll_worker(task: tuple[dict[str, Any], dict[str, Any], str]) -> dict[str, Any]:
+    """One roll of the re-roll cell in one spawned process, through :func:`run_cell` itself.
+
+    A failure is RETURNED, as :func:`_worker` returns it; the caller decides.  Top-level so
+    ``spawn`` can pickle it.
+    """
+    cell, kwargs, role = task
+    try:
+        return {"role": role, "ok": True, "payload": run_cell(cell, **kwargs), "error": None}
+    except Exception as error:  # noqa: BLE001 - reported to the caller, not swallowed
+        return {"role": role, "ok": False, "payload": None, "error": f"{type(error).__name__}: {error}"}
+
+
+def run_dt_reroll_check(
+    *,
+    g2_dir: str | Path,
+    out_root: str | Path,
+    output_root: str | Path,
+    data_dir: str | Path | None = None,
+    canary_seconds: float | None = None,
+    workers: int = DEFAULT_WORKERS,
+    worker: Any = None,
+) -> dict[str, Any]:
+    """B.5-1: ONE DT cell rolled at W = 1 and inside a *workers*-wide pool, compared under ``==``.
+
+    No DT evaluation cell had ever been rolled twice and compared (B.5-1, checked from disk by the
+    coordinator): every bitwise claim so far was a recomputation or a non-DT re-roll.  The cell
+    (:func:`dt_reroll_check_cell`) is rolled through :func:`run_cell` -- the campaign's own code
+    path, device choice included -- once in a spawn pool of ONE worker, then *workers* times in ONE
+    spawn pool of that width, so the campaign's pooling (twelve concurrent processes on one GPU) is
+    exercised; the pool is G2's ``measure_pool`` shape, twelve copies of the same cell, and EVERY
+    pooled roll is compared with the W = 1 roll (:func:`compare_reroll_payloads`).
+
+    Nothing is written until every roll has returned and been compared.  Then one record per roll
+    goes to ``<g2_dir>/dt_reroll_check_<UTC>/<role>.json`` with the whole chunk under
+    :data:`FENCED_KEY` (``report`` never globs ``g2/``), plus ``verdict.json``; an existing run
+    directory refuses, so no record is ever overwritten.  A roll that FAILED is not a verdict: the
+    check raises naming the exception types only -- a failure message can carry an outcome value
+    (B.2-2(3)'s known route) -- and parks the messages under the fence in ``failures.json``.
+
+    The returned ``line`` is what the driver prints and copies into the campaign capture's header:
+    IDENTICAL or NOT IDENTICAL, the differing field NAMES, the sha256 of each roll minus the
+    clocks, and no value.
+    """
+    import time
+    from multiprocessing import get_context
+
+    cell = dt_reroll_check_cell()
+    width = int(workers)
+    if width < 1:
+        raise ValueError(f"the pool needs at least one worker, got {workers}")
+    run_dir = Path(g2_dir) / f"dt_reroll_check_{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}"
+    if run_dir.exists():
+        raise FileExistsError(f"{run_dir} exists; a re-roll record is never overwritten")
+    kwargs = {
+        "out_root": str(out_root),
+        "output_root": str(output_root),
+        "data_dir": None if data_dir is None else str(data_dir),
+        "canary_seconds": canary_seconds,
+    }
+    roll = _reroll_worker if worker is None else worker
+    roles = [f"pool_{index:02d}" for index in range(width)]
+    context = get_context("spawn")
+    with context.Pool(processes=1) as pool:
+        single = pool.apply(roll, ((cell, kwargs, "w1"),))
+    with context.Pool(processes=width) as pool:
+        pooled = list(pool.imap_unordered(roll, [(cell, kwargs, role) for role in roles]))
+    results = [single, *sorted(pooled, key=lambda result: str(result["role"]))]
+
+    failures = [result for result in results if not result["ok"]]
+    if failures:
+        _write_json(
+            run_dir / "failures.json",
+            {
+                "format_version": REROLL_FORMAT_VERSION,
+                FENCED_KEY: {
+                    "cell": cell,
+                    "failures": [{"role": r["role"], "error": r["error"]} for r in failures],
+                },
+                **_git_provenance(),
+            },
+        )
+        kinds = sorted({str(result["error"]).split(":", 1)[0] for result in failures})
+        raise RuntimeError(
+            f"dt_reroll_check could not run: {len(failures)} of {len(results)} roll(s) failed "
+            f"({kinds}); no verdict is invented. The messages are FENCED in "
+            f"{run_dir / 'failures.json'} because a failure message can carry an outcome value"
+        )
+
+    comparison = compare_reroll_payloads([result["payload"] for result in results])
+    name = cell_chunk_name(cell)
+    by_role = dict(zip([str(r["role"]) for r in results], comparison["sha256_minus_clocks"]))
+    if comparison["verdict"] == "IDENTICAL":
+        line = (
+            f"dt_reroll_check IDENTICAL: {len(results)} rolls of {name} (1 at W=1, {width} in one "
+            f"{width}-worker pool) agree under == on all {comparison['n_fields_compared']} fields "
+            f"but the clock {list(REROLL_CLOCK_FIELDS)}; sha256 minus clocks "
+            f"{comparison['sha256_minus_clocks'][0]} on all {len(results)}"
+        )
+    else:
+        line = (
+            f"dt_reroll_check NOT IDENTICAL: {len(results)} rolls of {name} (1 at W=1, {width} in "
+            f"one {width}-worker pool) differ on {comparison['differing_fields']}; sha256 minus "
+            "clocks by roll: " + ", ".join(f"{role} {digest}" for role, digest in by_role.items())
+        )
+
+    for result in results:
+        _write_json(
+            run_dir / f"{result['role']}.json",
+            {
+                "format_version": REROLL_FORMAT_VERSION,
+                "role": result["role"],
+                "sha256_minus_clocks": by_role[str(result["role"])],
+                "clock_fields_excluded": list(REROLL_CLOCK_FIELDS),
+                FENCED_KEY: result["payload"],
+            },
+        )
+    record = {
+        "format_version": REROLL_FORMAT_VERSION,
+        "what_this_is": (
+            "BRIEF_39 Amendment B.5-1: one DT cell on the fenced smoke draw rolled once at W = 1 and "
+            f"{width} times in one {width}-worker pool, every pooled roll compared with the W = 1 "
+            "roll under == with the clock excluded by name. Measurement of the instrument; no "
+            "outcome value is recorded outside the fenced per-roll files"
+        ),
+        "line": line,
+        "verdict": comparison["verdict"],
+        "differing_fields": comparison["differing_fields"],
+        "sha256_minus_clocks": by_role,
+        "clock_fields_excluded": list(REROLL_CLOCK_FIELDS),
+        "compared_fields_required": list(REROLL_COMPARED_FIELDS),
+        "n_fields_compared": comparison["n_fields_compared"],
+        "cell": cell,
+        "workers": width,
+        "canary_seconds": canary_seconds,
+        **_git_provenance(),
+    }
+    _write_json(run_dir / "verdict.json", record)
+    return {
+        "verdict": comparison["verdict"],
+        "line": line,
+        "differing_fields": comparison["differing_fields"],
+        "sha256_minus_clocks": by_role,
+        "run_dir": str(run_dir),
+        "n_rolls": len(results),
+    }
+
+
 def build_parser() -> Any:
-    """CLI: ``cells``, ``pilot``, ``report``, ``canary``, ``record-canary``."""
+    """CLI: ``cells``, ``pilot``, ``report``, ``canary``, ``record-canary``, and P7.3d's
+    ``check-inputs``, ``resume-check``, ``dt-reroll-check`` and ``manifest`` (B.6 fix round).
+
+    ⚠️ The roots are options of the PARENT parser, so they come BEFORE the subcommand:
+    ``python -m offline.transfer_curve --draws-root D ... cells --stage S``.  P7.3d's driver put
+    them after it and refused at its own canary on every machine (the pre-flight's B1).
+    """
     import argparse
 
     parser = argparse.ArgumentParser(
@@ -3183,6 +4112,24 @@ def build_parser() -> Any:
     subparsers.add_parser("canary", help="the machine-health canary (PROJECT_PLAN section 7)")
     record = subparsers.add_parser("record-canary", help="park the canary line in the work directory")
     record.add_argument("--line", required=True)
+
+    subparsers.add_parser(
+        "check-inputs", help="P7.3d m1: the campaign's inputs by DIGEST against the module's pins"
+    )
+    resume = subparsers.add_parser(
+        "resume-check", help="P7.3d m2: refuse if a chunk on disk records a commit git cannot resolve"
+    )
+    resume.add_argument("--stage", choices=[*STAGES, STAGE_GRID4X4], required=True)
+    reroll = subparsers.add_parser(
+        "dt-reroll-check",
+        help="B.5-1: one fenced DT cell rolled at W=1 and in one pool, compared under ==",
+    )
+    reroll.add_argument("--g2-dir", required=True)
+    reroll.add_argument("--workers", type=int, default=DEFAULT_WORKERS)
+    manifest = subparsers.add_parser(
+        "manifest", help="P7.3d: output/SHA256SUMS_p7_3d.txt over output/p7_3d/ only, re-verified"
+    )
+    manifest.add_argument("--campaign-dir", required=True)
     return parser
 
 
@@ -3279,15 +4226,52 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps(summary, indent=2, sort_keys=True), flush=True)
         return 1 if summary["n_failed"] else 0
 
+    if args.command == "check-inputs":
+        for line in check_campaign_inputs(
+            data_dir=args.data_dir, output_root=args.output_root, draws_root=args.draws_root
+        ):
+            print(line, flush=True)
+        return 0
+
+    if args.command == "resume-check":
+        problems = unresolvable_chunk_commits(work_dir=work, stage=args.stage)
+        if problems:
+            import sys
+
+            for problem in problems:
+                print(
+                    f"resume-check: {problem['chunk']} records git_commit {problem['git_commit']}, "
+                    f"which git cannot resolve: {problem['error']}",
+                    file=sys.stderr,
+                    flush=True,
+                )
+            return 2
+        print("resume-check: every chunk on disk that reaches git records a resolvable commit", flush=True)
+        return 0
+
+    if args.command == "dt-reroll-check":
+        result = run_dt_reroll_check(
+            g2_dir=args.g2_dir,
+            out_root=args.draws_root,
+            output_root=args.output_root,
+            data_dir=args.data_dir,
+            canary_seconds=args.canary_seconds,
+            workers=args.workers,
+        )
+        # The ONE line the driver copies into the capture's header: a verdict, field names and
+        # digests -- never a value (B.5-1, B.2-2's fence).
+        print(result["line"], flush=True)
+        return 0 if result["verdict"] == "IDENTICAL" else 2
+
+    if args.command == "manifest":
+        record = write_manifest(campaign_dir=args.campaign_dir)
+        print(f"manifest {record['path']}: {record['n_files']} files, re-verified", flush=True)
+        return 0
+
     # One stage, one artifact name. The anchor's is its own file: it is a different declaration
     # over a different work directory, and writing it under P7.3a's name would overwrite the
     # zero-shot point with the curve's endpoint.
-    if args.stage == STAGE_ANCHOR:
-        name = "p7_3b_anchor.json"
-    elif args.stage == STAGE_CONFIRMATORY:
-        name = "p7_3a_zero_shot_stage1.json"
-    else:
-        name = "p7_3a_zero_shot.json"
+    name = artifact_name_for_stage(args.stage)
     artifact = report(
         work_dir=work,
         out_path=Path(args.out_dir) / name,
