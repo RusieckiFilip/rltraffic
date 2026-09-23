@@ -838,3 +838,50 @@ states: commits up to `8c79778` — `claude-opus-5[1m]`; commits from the B.6 fi
 on 2026-09-23/24 at the Claude Code update.** Writing the pinned name over a known-false fact would be the record's one prohibited move.
 
 **Then: `git merge --no-edit main`, and B.6 as written.**
+---
+
+# ✅ AMENDMENT B.7 — 2026-09-24, on the B.6 fix round (`e047d27`, pushed): the wiring is FIXED and verified; `report` has NO grid4x4 BODY, which blocks the token (the implementer's F-B6-3, confirmed); ONE more commit; the mutant incident ruled — fence intact, and a rule
+
+## B.7-1 — B.6 delivered and confirmed from disk
+`dt_reroll_check IDENTICAL` — 13 rolls of the seed-101 DT cell on draw 5 (1 at W = 1, 12 in one 12-worker pool), one hash `81d176ce…` on all
+13, re-derived by a stdlib-only route — **the reproduction claim now extends to the agent under the campaign's own pooling.** The e2e
+test drives the delivered driver through the real module on draw 5 and asserts grid4x4's config digest (`c27d31e8…`, not hz1x1's
+`c177e962…`), the 16 `rtg_first_i`, and a completeness-only refusal; 22/22 mutants killed on the final code; suite 2,294 / 107 / 0;
+T-regress (b) byte-identical on all three hz1x1 artifacts. Two commits instead of one (`969de3c` code, `cd1d09f` tests after the first
+mutation run) — accepted; **no squash** (history is not rewritten here). Two fixes beyond the pre-flight, accepted with credit:
+`--canary-seconds` was never passed to `cells` (report would have failed after 700 cells); grid4x4 chunks now carry the 360 × 16 actions.
+
+## B.7-2 — F-B6-3 CONFIRMED: `report` still has hz1x1's body, and the token waits for it
+`_in_support_block` iterates `SUBJECTS` (hz1x1's two) and calls `targets_for_subject(subject, calibration)` against P7.2b's artifact —
+on a grid4x4 work dir it raises, and with that step stubbed it would write `scenario_key cityflow1x1`, P7.2b's calibration digest and an
+H3 block with no subject; `report` never reads `p7_3d_reference_cells.json`, so the six regeneration anchors (C4) are never checked.
+Under J1(c) any later change to `transfer_curve.py` invalidates every rolled chunk, so **the body exists before the token, not after 700
+cells.** **ONE commit:** for the grid4x4 stage `report` (i) builds the in-support block from `p7_3d_calibration.json`'s 16 per-intersection
+ranges and the chunks' per-id counts; (ii) writes `scenario_key cityflow_grid4x4`, `calibration_sha256` = `P7_3D_CALIBRATION_SHA256`,
+the subject `mappo1000_dt_nomix_h4`, A21's arm set; (iii) **refuses unless the six reference cells reproduce bit-for-bit** (`e_sumo`,
+`att_env`, `episode_reward`, `n_teleports` on fixedtime/maxpressure × draws 1000–1002) against `p7_3d_reference_cells.json` — A9's *the
+instrument regenerates*, now with a call site; (iv) carries the H3 block as A20(e) registers it — clause 1 as the inequality
+`ρ_sumo(b_mean_k100) > 0` **on this scenario**, clause 2 as an inequality reported not scored, clause 3 void (A19), the A21 scope sentences
+verbatim under `what_this_does_not_say`, the paired ATT against both anchors, the denominator diagnostic, per-seed and per-draw ρ, and
+**per-intersection ρ as a descriptive block** (A20(e): exploratory). **The pin:** the e2e test extended to a COMPLETE synthetic set — the
+700 declared cells as `_grid_payload` stubs plus the six real reference cells' values — through `report` to a written
+`p7_3d_grid4x4.json`, asserting (i)–(iv) by field; a mutation swapping one reference-cell value → refused. T-regress (b) stays
+byte-identical (hz1x1's `report` path must not move).
+
+## B.7-3 — The mutant incident: the fence HELD, the design fault is real, and it is a rule
+Run 1's mutant M16 (the NOT IDENTICAL refusal made a no-op) consumed a sandbox token and, with no `--limit`, rolled **70 held-out DT cells**
+(`b_mean_k100`, seed 101, draws 1000–1069) into a pytest temp directory before the 300 s timeout. The implementer listed them by name only,
+recorded the count and range, **deleted them unread**, swept every retained pytest directory, and made every executed driver test carry
+`--limit 0`. **Coordinator's verification, without opening any file:** the incident directory `pytest-1624` is gone; the 17 grid4x4-named
+chunks that survive under `/tmp/pytest-of-filip` are 5 legitimate draw-5 e2e chunks and 12 **synthetic** payloads written by
+`test_p7_3d_campaign_path.py`'s refusal and resume tests (`_grid_payload(...)` + `write_chunk`, `:322–`; byte-identical across two pytest
+runs, differing from every real chunk; two are 11-byte stubs) — no held-out roll exists anywhere. **Ruling: nothing was seen; the *results
+already seen* record is unchanged.** The 70 values were computed by unmutated `run_cell` under a sandbox clone's commit and the campaign
+re-rolls them deterministically (B.7-1), so their existence-then-deletion changes no number. **Rule, into §7 and this brief:** *a test of a
+refusal must not be able to run the experiment when the refusal breaks* — every executed driver test takes its roots, its token and
+`--limit 0` from ONE fixture by construction (not a per-test flag), and asserts that the experiment did NOT start (no chunk written) as part
+of asserting the refusal. `DEFERRED` 91 carries the fixture's retrofit to P7.3a's and P7.3b's driver tests, which have the same shape.
+
+## B.7-4 — Then
+The B.7-2 commit → the coordinator re-runs the e2e-through-`report` test and re-reads the three B.6 blockers' commands → **G4 re-review of
+the driver + report path (≤ 15 min, two questions)** → the token. The packet's §24 stands as the record of the fix round; §25 records B.7.
