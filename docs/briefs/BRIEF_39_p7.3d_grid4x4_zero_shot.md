@@ -838,3 +838,93 @@ states: commits up to `8c79778` — `claude-opus-5[1m]`; commits from the B.6 fi
 on 2026-09-23/24 at the Claude Code update.** Writing the pinned name over a known-false fact would be the record's one prohibited move.
 
 **Then: `git merge --no-edit main`, and B.6 as written.**
+---
+
+# ✅ AMENDMENT B.7 — 2026-09-24, on the B.6 fix round (`e047d27`, pushed): the wiring is FIXED and verified; `report` has NO grid4x4 BODY, which blocks the token (the implementer's F-B6-3, confirmed); ONE more commit; the mutant incident ruled — fence intact, and a rule
+
+## B.7-1 — B.6 delivered and confirmed from disk
+`dt_reroll_check IDENTICAL` — 13 rolls of the seed-101 DT cell on draw 5 (1 at W = 1, 12 in one 12-worker pool), one hash `81d176ce…` on all
+13, re-derived by a stdlib-only route — **the reproduction claim now extends to the agent under the campaign's own pooling.** The e2e
+test drives the delivered driver through the real module on draw 5 and asserts grid4x4's config digest (`c27d31e8…`, not hz1x1's
+`c177e962…`), the 16 `rtg_first_i`, and a completeness-only refusal; 22/22 mutants killed on the final code; suite 2,294 / 107 / 0;
+T-regress (b) byte-identical on all three hz1x1 artifacts. Two commits instead of one (`969de3c` code, `cd1d09f` tests after the first
+mutation run) — accepted; **no squash** (history is not rewritten here). Two fixes beyond the pre-flight, accepted with credit:
+`--canary-seconds` was never passed to `cells` (report would have failed after 700 cells); grid4x4 chunks now carry the 360 × 16 actions.
+
+## B.7-2 — F-B6-3 CONFIRMED: `report` still has hz1x1's body, and the token waits for it
+`_in_support_block` iterates `SUBJECTS` (hz1x1's two) and calls `targets_for_subject(subject, calibration)` against P7.2b's artifact —
+on a grid4x4 work dir it raises, and with that step stubbed it would write `scenario_key cityflow1x1`, P7.2b's calibration digest and an
+H3 block with no subject; `report` never reads `p7_3d_reference_cells.json`, so the six regeneration anchors (C4) are never checked.
+Under J1(c) any later change to `transfer_curve.py` invalidates every rolled chunk, so **the body exists before the token, not after 700
+cells.** **ONE commit:** for the grid4x4 stage `report` (i) builds the in-support block from `p7_3d_calibration.json`'s 16 per-intersection
+ranges and the chunks' per-id counts; (ii) writes `scenario_key cityflow_grid4x4`, `calibration_sha256` = `P7_3D_CALIBRATION_SHA256`,
+the subject `mappo1000_dt_nomix_h4`, A21's arm set; (iii) **refuses unless the six reference cells reproduce bit-for-bit** (`e_sumo`,
+`att_env`, `episode_reward`, `n_teleports` on fixedtime/maxpressure × draws 1000–1002) against `p7_3d_reference_cells.json` — A9's *the
+instrument regenerates*, now with a call site; (iv) carries the H3 block as A20(e) registers it — clause 1 as the inequality
+`ρ_sumo(b_mean_k100) > 0` **on this scenario**, clause 2 as an inequality reported not scored, clause 3 void (A19), the A21 scope sentences
+verbatim under `what_this_does_not_say`, the paired ATT against both anchors, the denominator diagnostic, per-seed and per-draw ρ, and
+**per-intersection ρ as a descriptive block** (A20(e): exploratory). **The pin:** the e2e test extended to a COMPLETE synthetic set — the
+700 declared cells as `_grid_payload` stubs plus the six real reference cells' values — through `report` to a written
+`p7_3d_grid4x4.json`, asserting (i)–(iv) by field; a mutation swapping one reference-cell value → refused. T-regress (b) stays
+byte-identical (hz1x1's `report` path must not move).
+
+## B.7-3 — The mutant incident: the fence HELD, the design fault is real, and it is a rule
+Run 1's mutant M16 (the NOT IDENTICAL refusal made a no-op) consumed a sandbox token and, with no `--limit`, rolled **70 held-out DT cells**
+(`b_mean_k100`, seed 101, draws 1000–1069) into a pytest temp directory before the 300 s timeout. The implementer listed them by name only,
+recorded the count and range, **deleted them unread**, swept every retained pytest directory, and made every executed driver test carry
+`--limit 0`. **Coordinator's verification, without opening any file:** the incident directory `pytest-1624` is gone; the 17 grid4x4-named
+chunks that survive under `/tmp/pytest-of-filip` are 5 legitimate draw-5 e2e chunks and 12 **synthetic** payloads written by
+`test_p7_3d_campaign_path.py`'s refusal and resume tests (`_grid_payload(...)` + `write_chunk`, `:322–`; byte-identical across two pytest
+runs, differing from every real chunk; two are 11-byte stubs) — no held-out roll exists anywhere. **Ruling: nothing was seen; the *results
+already seen* record is unchanged.** The 70 values were computed by unmutated `run_cell` under a sandbox clone's commit and the campaign
+re-rolls them deterministically (B.7-1), so their existence-then-deletion changes no number. **Rule, into §7 and this brief:** *a test of a
+refusal must not be able to run the experiment when the refusal breaks* — every executed driver test takes its roots, its token and
+`--limit 0` from ONE fixture by construction (not a per-test flag), and asserts that the experiment did NOT start (no chunk written) as part
+of asserting the refusal. `DEFERRED` 91 carries the fixture's retrofit to P7.3a's and P7.3b's driver tests, which have the same shape.
+
+## B.7-4 — Then
+The B.7-2 commit → the coordinator re-runs the e2e-through-`report` test and re-reads the three B.6 blockers' commands → **G4 re-review of
+the driver + report path (≤ 15 min, two questions)** → the token. The packet's §24 stands as the record of the fix round; §25 records B.7.
+---
+
+# ✅ AMENDMENT B.7.1 — 2026-09-24, before B.7 is built, on the author's reviewer's three points: the campaign runs from a DETACHED RUN WORKTREE (J1(e), which this brief had dropped); per-intersection ρ is DEFINED on the per-intersection collection return and the anchor cells must record it BEFORE the token; the standard suite line carries the output root
+
+## B.7.1-1 — J1(e) applies, the driver hardcodes the wrong tree, and both are fixed in B.7's commit — the coordinator's omission
+`BRIEF_37` J1(e) is standing (*the campaign runs from a dedicated worktree, detached at the reviewed commit, that no session edits*), P7.3b ran
+from `/home/filip/rltraffic-p73b-run` on the coordinator's instruction, and **this brief never carried it**: B.3-1's two-step start names
+`/home/filip/rltraffic-p73d/…` — the implementer's tree. It matters more on grid4x4 than the untracked-file reason alone: `code_changed_since`
+(`transfer_curve.py:515`) counts every path outside `docs/` between a chunk's commit and HEAD, so ANY commit or `merge main` reaching the
+running tree — `DEFERRED` 90's `settings.json` patch, a CI-ceiling patch — invalidates every chunk already rolled (the refusal at `:1661`).
+**And the driver hardcodes `WORK_TREE=/home/filip/rltraffic-p73d` (line 110)** — copied into a run worktree it would still import the
+implementer's code; `p7_3b_anchor.sh` derives its tree from `${BASH_SOURCE[0]}`. **Ruling, into B.7's commit:** (i) `WORK_TREE=$(cd
+"$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)`, and the `-P` import check asserts the loaded module's path starts with it; (ii) the header's
+two-step start names **`/home/filip/rltraffic-p73d-run`**, created by the coordinator after B.7 is pushed: `git -C /home/filip/rltraffic
+worktree add --detach /home/filip/rltraffic-p73d-run <B.7 commit>`; (iii) T-driver's executed-form test runs a COPY of the driver from a
+sandbox tree and asserts the derived `WORK_TREE` is that tree, not the source; (iv) the driver refuses if `WORK_TREE`'s `git status
+--porcelain` is non-empty (J1(d), already present) AND if `WORK_TREE` is the implementer's worktree path — the run tree is the only legal
+home. Every chunk then records the run worktree's commit, which is the pushed one.
+
+## B.7.1-2 — Per-intersection ρ: DEFINED, and the anchor cells record what it needs — BEFORE the token, or the block is impossible
+A20(e) registers per-intersection breakdowns as exploratory; B.7-2(iv) named *"per-intersection ρ"* without a formula. **Measured from the
+cells:** a grid4x4 DT chunk records 16 `reward_series` (the per-intersection collection reward, C6 v1.1, one value per decision); **an anchor
+chunk records NO per-intersection quantity at all** (`reference_cells.json`'s row keys are the whole record: `e_sumo`, `att_env`, counts,
+halting, provenance). ρ is built on network-level ATT and a vehicle crosses several intersections, so a per-intersection ATT is not a
+standard quantity and is not defined here. **Definition, declared now:** for intersection *i* on draw *d*,
+`ρ_i,d = (R_fixedtime,i,d − R_arm,i,d) / (R_fixedtime,i,d − R_maxpressure,i,d)`, where `R_·,i,d` is the **per-intersection episode return
+under the collection reward** — the sum over the 360 decisions of intersection *i*'s reward, the same quantity the probe measures per
+intersection (A17(e)) and the DT chunk already records as `sum(reward_series[i])`; seeds averaged within a draw; reported per intersection
+as a mean over the 100 draws **with no CI promoted** (exploratory, A20(e)); a draw whose denominator is exactly 0 for intersection *i* is
+excluded for that intersection and counted. **Required in B.7's commit:** the anchor path (`anchor_choose` / the anchor branch of
+`run_cell`) records **`local_return` per intersection** — 16 values, the collection reward summed per intersection, by the same two-route
+equality the probe uses — for grid4x4 anchor cells (hz1x1's record unchanged, keyed on the scenario; T-regress (b) proves it). **After the
+token J1(c) freezes the recording; a block that needs an unrecorded anchor quantity can never be computed.** The probe-ratio observation
+(B.3-4) is later read against THIS quantity and no other.
+
+## B.7.1-3 — The standard suite line
+`RLTRAFFIC_GRID4X4_RESCO=/home/filip/rltraffic/scenarios/grid4x4_candidates RLTRAFFIC_OUTPUT_ROOT=/home/filip/rltraffic/output` — so
+T-regress (b), the test that proves hz1x1 is untouched, runs inside the whole suite instead of as a step someone must remember. Every later
+message uses this line.
+
+## B.7.1-4 — Then
+B.7 + B.7.1 in ONE commit → pushed by the coordinator → the run worktree created at that commit → the coordinator re-runs the e2e-through-
+`report` test from the RUN worktree → G4 re-review (driver + report path) → the token, with the two-step start naming the run worktree.
