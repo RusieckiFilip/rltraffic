@@ -56,6 +56,11 @@ per-intersection quantity as a mapping keyed by id: ``target_rtg``, ``rtg_first`
 ``rtg_series``, ``reward_series``, ``rtg_advanced_every_decision``, ``n_decisions_in_support``,
 ``support_range`` and ``in_support_counts``.  ``calibration_sha256`` is
 :data:`P7_3D_CALIBRATION_SHA256`; ``checkpoint_sha256`` is checked against A20(a)'s pin.
+Every grid4x4 chunk -- anchor and DT alike (B.7.1-2) -- also records ``local_return`` and
+``local_return_from_lanes``: intersection *i*'s episode return under the collection reward, the sum
+over the 360 POST-STEP infos of its reward, by the probe's two routes and equal under ``==``.  It
+is the quantity per-intersection rho is defined on, and it is NOT ``sum(reward_series[i])``, which
+lacks the last decision's reward (the series is read before each act, below).
 
 **Alignment convention.**  ``actions[t][j]`` is the action decision ``t`` applied at
 ``intersection_ids[j]``, ``t = 0 .. decisions - 1``.  ``rtg_series[i][t]`` is intersection
@@ -486,6 +491,22 @@ GRID4X4_ARTIFACT_FORMAT_VERSION = "p7.3d-grid4x4/1.0"
 GRID4X4_SCENARIO_KEY = "cityflow_grid4x4"
 GRID4X4_SUBJECT = "mappo1000_dt_nomix_h4"
 GRID4X4_ARM = "b_mean_k100"
+
+#: A21(b)'s two scope items, VERBATIM from ``PREREGISTRATION.md`` (the enumerators ``(i)`` and
+#: ``(ii)`` omitted): the paper states both as SCOPE, in these words, and the grid4x4 artifact carries
+#: them first under ``what_this_does_not_say``.  The non-ASCII characters (the minus sign U+2212, rho
+#: U+03C1, the em dash U+2014) are escaped so this source stays ASCII; a test extracts both items
+#: from the registration and compares them character for character.
+A21_SCOPE_SENTENCES: tuple[str, str] = (
+    "The `naive` arm is not evaluated on grid4x4, so the calibrated-versus-naive contrast (A17(a); "
+    "P7.3a's exploratory contrast) stays hz1x1-only, where it was flat: −0.0021 and −0.0179 "
+    "on `E_sumo` for the two subjects. The paper reports that contrast as a single-intersection "
+    "result and says grid4x4 did not test it.",
+    "The `random` anchor is not evaluated on grid4x4, so ρ_random — the C1 ladder's "
+    "normaliser, −1.300 / −3.604 on hz1x1 SUMO — is ABSENT on this scenario. ρ "
+    "itself does not depend on it: its anchors are fixed-time and MaxPressure. The paper says the "
+    "random-normalised number is not reported for grid4x4 SUMO and why.",
+)
 
 #: E3(a)'s rule for grid4x4: the 16 targets are READ from P7.3d's calibration artifact, pinned by
 #: digest, and never recomputed -- a target read from an unpinned artifact can be edited between
@@ -1144,6 +1165,150 @@ P7_3D_CAP_E_NAME = "p7_3d_cap_e.json"
 P7_3D_CAP_E_SHA256 = "949015b3d1be8b96272b0826fa750497f7c57a0d285f6ceb7baefe8f9da9e0cd"
 
 
+#: B.7-2(iii): the fields a campaign chunk must reproduce, bit for bit, against its frozen C4 row --
+#: every field BOTH records, as ``(frozen row key, chunk key)``, the aliases being the same
+#: quantity under ``run_cell``'s names (``n_created`` is ``e_sumo.n_ids``, ``n_entered`` is
+#: ``n_departed``, ``n_never_entered`` is ``n_never_inserted``).  ⚠️ ``episode_reward``, which the
+#: amendment names, is NOT in the frozen record (its row keys, read from disk), so it cannot be
+#: compared; ``e_sumo_total``, ``n_intended`` and ``n_arrived`` are in the frozen record and not in
+#: a chunk; ``seconds`` is a clock.
+REFERENCE_CELL_COMPARED_FIELDS: tuple[tuple[str, str], ...] = (
+    ("e_sumo", "e_sumo"),
+    ("att_env", "att_env"),
+    ("n_teleports", "n_teleports"),
+    ("decisions", "decisions"),
+    ("n_observations", "n_observations"),
+    ("engine_seed_requested", "engine_seed_requested"),
+    ("engine_seed_drawn", "engine_seed_drawn"),
+    ("e_sumo_n_ids", "n_created"),
+    ("n_departed", "n_entered"),
+    ("n_never_inserted", "n_never_entered"),
+    ("n_pending_at_horizon", "n_pending_at_horizon"),
+    ("n_vanished_without_arrival", "n_vanished_without_arrival"),
+    ("vehicle_types_seen", "vehicle_types_seen"),
+    ("time_to_teleport_option", "time_to_teleport_option"),
+    ("config_sha256", "config_sha256"),
+    ("routes_sha256", "routes_sha256"),
+    ("halting_checked", "halting_checked"),
+)
+#: Compared only where the frozen run CHECKED halting: the frozen row records the recorder's 0 on an
+#: unchecked draw, a chunk records ``None`` (measured on the committed artifact's draws 1001-1002).
+REFERENCE_CELL_HALTING_COUNTS: tuple[str, ...] = (
+    "halting_n_lane_seconds",
+    "halting_n_disagreeing_lane_seconds",
+)
+REFERENCE_CELL_NOT_COMPARED: tuple[str, ...] = ("e_sumo_total", "n_intended", "n_arrived", "seconds")
+
+
+def load_reference_cells(*, data_dir: str | Path | None = None) -> dict[str, Any]:
+    """C4's six frozen anchors, digest-checked BEFORE they are parsed, and refused unless whole.
+
+    The same shape as :func:`load_grid4x4_targets`: :data:`P7_3D_REFERENCE_CELLS_SHA256` is a
+    DECLARATION that the campaign's regeneration check reads THAT file.  Every row must carry every
+    field :func:`reference_cell_differences` compares -- a key missing from the frozen row would
+    compare ``None`` with ``None`` and pass, which is the one way this check could say nothing.
+    """
+    path = _data_dir(data_dir) / P7_3D_REFERENCE_CELLS_NAME
+    if not path.is_file():
+        raise FileNotFoundError(f"{path} is absent; P7.3d C4 writes it")
+    digest = _sha256_file(path)
+    if digest != P7_3D_REFERENCE_CELLS_SHA256:
+        raise ValueError(
+            f"{path} has sha256 {digest}, not the pinned {P7_3D_REFERENCE_CELLS_SHA256}; the "
+            "regeneration anchors are read from THAT file and no other"
+        )
+    payload = json.loads(path.read_bytes())
+    rows = {(str(row["arm"]), int(row["draw_id"])): row for row in payload["cells"]}
+    expected = {(arm, draw) for arm in REFERENCE_CELL_ARMS for draw in REFERENCE_CELL_DRAWS}
+    if set(rows) != expected or len(payload["cells"]) != len(expected):
+        raise ValueError(f"{path} does not hold exactly the six cells {sorted(expected)}")
+    needed = [key for key, _ in REFERENCE_CELL_COMPARED_FIELDS] + list(REFERENCE_CELL_HALTING_COUNTS)
+    for key, row in sorted(rows.items()):
+        absent = [name for name in needed if name not in row]
+        if absent:
+            raise ValueError(f"{path}: the frozen row {key} records no {absent}")
+    return payload
+
+
+def reference_cell_differences(chunk: Mapping[str, Any], frozen: Mapping[str, Any]) -> list[str]:
+    """The CHUNK's names of every compared field on which it is not the frozen row, under ``==``.
+
+    Bit-for-bit: ``==`` on the values as recorded, the aliases of :data:`REFERENCE_CELL_COMPARED_FIELDS`
+    applied, and the two halting counts compared only where the frozen run checked halting.
+    """
+    differing: list[str] = []
+    for frozen_key, chunk_key in REFERENCE_CELL_COMPARED_FIELDS:
+        if frozen_key not in frozen:
+            raise ValueError(f"the frozen row records no {frozen_key!r}; nothing can be compared")
+        if chunk.get(chunk_key) != frozen[frozen_key]:
+            differing.append(chunk_key)
+    if frozen.get("halting_checked") is True:
+        differing.extend(key for key in REFERENCE_CELL_HALTING_COUNTS if chunk.get(key) != frozen.get(key))
+    return differing
+
+
+def grid4x4_return_lanes(intersections: Sequence[Any], info: Mapping[str, Any]) -> dict[str, list[str]]:
+    """Each intersection's incoming lanes, in the frame *info* keys its lane counts in.
+
+    The SUMO probe read the second return route off the PLAIN env's info with each intersection's
+    own SUMO incoming lanes (``transfer_calibration._roll_sumo_probe_episode_per_intersection``); an
+    anchor cell's observed-but-unwrapped info is keyed the same way.  A DT cell's info is ALIGNED:
+    ``align_info`` re-keys the lane counts to canonical ids and records ``lane_id_translation``
+    (canonical -> SUMO), so the SAME SUMO lanes are read here through its inverse.  A SUMO lane
+    without a canonical partner refuses -- dropping it would shorten the second route silently.
+    """
+    translation = info.get("lane_id_translation")
+    lanes: dict[str, list[str]] = {}
+    if translation is None:
+        for ix in intersections:
+            lanes[str(ix.id)] = [str(lane) for lane in ix.incoming_lanes]
+        return lanes
+    inverse: dict[str, str] = {}
+    for canonical, sumo in translation.items():
+        if str(sumo) in inverse:
+            raise ValueError(f"the lane translation maps two canonical lanes onto {sumo!r}")
+        inverse[str(sumo)] = str(canonical)
+    for ix in intersections:
+        missing = [str(lane) for lane in ix.incoming_lanes if str(lane) not in inverse]
+        if missing:
+            raise ValueError(
+                f"intersection {ix.id!r}: SUMO incoming lane(s) {missing[:3]} have no canonical "
+                "partner in the aligned info's lane_id_translation, so the lane route cannot be read"
+            )
+        lanes[str(ix.id)] = [inverse[str(lane)] for lane in ix.incoming_lanes]
+    return lanes
+
+
+def per_intersection_local_returns(
+    post_step: Sequence[Mapping[str, Any]], lanes_by_ix: Mapping[str, Sequence[str]]
+) -> tuple[dict[str, float], dict[str, float]]:
+    """B.7.1-2's ``R_i``: each intersection's episode return under the collection reward, two routes.
+
+    The sum over the POST-STEP infos -- one per decision, 360 on the horizon -- of the intersection's
+    reward, by :func:`offline.rtg_calibration.episode_return_two_routes`, the probe's own function,
+    and refused per intersection unless the reward route and the lane route agree under ``==``.
+    ⚠️ This is NOT ``sum(reward_series[i])``: that series is read BEFORE each ``act`` (D1), so it
+    carries the reset info's reward and not the last decision's.
+    """
+    from offline.rtg_calibration import episode_return_two_routes
+
+    by_reward: dict[str, float] = {}
+    by_lanes: dict[str, float] = {}
+    for ix_id, lanes in lanes_by_ix.items():
+        from_rewards, from_lanes = episode_return_two_routes(
+            post_step, ix_id=str(ix_id), incoming_lanes=list(lanes)
+        )
+        if from_rewards != from_lanes:
+            raise ValueError(
+                f"the two return routes disagree on intersection {str(ix_id)!r} ({from_rewards!r} "
+                f"from the reward stream against {from_lanes!r} from its lanes' waiting counts); "
+                "A17(b)'s equality holds under == per intersection or the return is not recorded"
+            )
+        by_reward[str(ix_id)] = from_rewards
+        by_lanes[str(ix_id)] = from_lanes
+    return by_reward, by_lanes
+
+
 def grid4x4_reference_cells(
     *,
     out_root: str | Path,
@@ -1622,9 +1787,14 @@ class _StepTap:
     construction or MaxPressure's roadnet introspection passes through this object.
     """
 
-    def __init__(self, env: Any) -> None:
+    def __init__(self, env: Any, *, collect_post_step: bool = False) -> None:
         self._env = env
         self.last_info: dict[str, Any] | None = None
+        # B.7.1-2: on a grid4x4 cell the tap also keeps every POST-STEP info, the input of the
+        # per-intersection return (the reset info is not among them: no reward precedes the first
+        # action). Off by default, so an hz1x1 cell runs exactly as it always did.
+        self._collect = bool(collect_post_step)
+        self.post_step: list[dict[str, Any]] = []
 
     def reset(self, **kwargs: Any) -> dict[str, Any]:
         info = self._env.reset(**kwargs)
@@ -1634,10 +1804,12 @@ class _StepTap:
     def step(self, action: Any) -> tuple[Any, bool, bool, dict[str, Any]]:
         reward, terminated, truncated, info = self._env.step(action)
         self.last_info = info
+        if self._collect:
+            self.post_step.append(info)
         return reward, terminated, truncated, info
 
     def __getattr__(self, name: str) -> Any:
-        if name in {"_env", "last_info"}:
+        if name in {"_env", "last_info", "_collect", "post_step"}:
             raise AttributeError(name)
         return getattr(self._env, name)
 
@@ -1750,6 +1922,28 @@ def validate_cell_payload(
             raise ValueError(
                 f"{label}: the action matrix is not {payload['decisions']} decisions x "
                 f"{len(ids)} intersections"
+            )
+        # B.7.1-2: the per-intersection episode return, by the probe's two routes, on EVERY grid4x4
+        # chunk -- the anchors' as well as the DT's -- re-checked here at consumption.
+        for key in ("local_return", "local_return_from_lanes"):
+            value = payload.get(key)
+            if not isinstance(value, Mapping):
+                raise ValueError(
+                    f"{label}: a grid4x4 chunk records local_return and local_return_from_lanes per "
+                    f"intersection (B.7.1-2); {key} is {type(value).__name__}"
+                )
+            if sorted(value) != sorted(ids):
+                raise ValueError(
+                    f"{label}: {key} covers {sorted(value)[:4]}..., not exactly the recorded "
+                    "intersection_ids"
+                )
+        split = sorted(
+            ix for ix in ids if payload["local_return"][ix] != payload["local_return_from_lanes"][ix]
+        )
+        if split:
+            raise ValueError(
+                f"{label}: the two per-intersection return routes disagree on {split[:4]}; the "
+                "return is recorded only where both routes agree under =="
             )
     # The calibration the cell's prompts came from, per scenario: P7.2b's artifact for hz1x1,
     # P7.3d's per-intersection artifact for grid4x4 (B.6-2(2); at 8c79778 a grid4x4 chunk would have
@@ -2076,13 +2270,18 @@ def run_cell(
             )
         else:
             choose, diagnostics = anchor_choose(env, cell=cell, config_path=demand["config_path"])
-        tap = _StepTap(env)
+        # B.7.1-2: a grid4x4 cell also keeps its POST-STEP infos (hz1x1: off, unchanged).
+        tap = _StepTap(env, collect_post_step=grid)
         rollout = horizon_rollout(tap, choose, 1, ENGINE_SEED)
         built = reconstruct_sumo_episode(env.recorder)
         att_env = att_env_from_info(tap.last_info or {})
         types_seen = sorted({env._sumo.vehicle.getTypeID(v) for v in env._sumo.vehicle.getIDList()})
         option = str(env._sumo.simulation.getOption("time-to-teleport"))
         engine_seed_drawn = int(env._engine_seed)
+        # The second route's lanes, read while the env is open, in the frame the infos use.
+        return_lanes = (
+            grid4x4_return_lanes(intersections, tap.post_step[0]) if grid and tap.post_step else None
+        )
     finally:
         env.close()
     seconds = time.perf_counter() - started
@@ -2096,6 +2295,12 @@ def run_cell(
         )
 
     if grid:
+        if return_lanes is None or len(tap.post_step) != len(diagnostics["actions"]):
+            raise ValueError(
+                f"{cell_chunk_name(cell)}: {len(tap.post_step)} post-step info(s) for "
+                f"{len(diagnostics['actions'])} decision(s); the per-intersection return is the sum "
+                "over one post-step info per decision (B.7.1-2)"
+            )
         return _grid4x4_payload(
             cell,
             diagnostics=diagnostics,
@@ -2111,6 +2316,7 @@ def run_cell(
             checkpoint=checkpoint,
             targets=target_rtg,  # type: ignore[arg-type]
             support_ranges=grid_support,
+            local_returns=per_intersection_local_returns(tap.post_step, return_lanes),
             canary_seconds=canary_seconds,
             seconds=seconds,
         )
@@ -2217,10 +2423,15 @@ def _grid4x4_payload(
     checkpoint: Mapping[str, Any] | None,
     targets: Mapping[str, float] | None,
     support_ranges: Mapping[str, tuple[float, float]] | None,
+    local_returns: tuple[Mapping[str, float], Mapping[str, float]],
     canary_seconds: float | None,
     seconds: float,
 ) -> dict[str, Any]:
     """A grid4x4 cell's chunk (``p7.3d-grid4x4/1.0``), validated before it is returned.
+
+    ``local_returns`` is :func:`per_intersection_local_returns`' pair over this episode's post-step
+    infos -- recorded on the anchor cells AND the DT cells (B.7.1-2), because per-intersection rho
+    divides one by the other and both sides must be the same 360-decision sum.
 
     The episode-level fields are the hz1x1 chunk's, computed from the same objects.  What differs
     is that every per-intersection quantity is a mapping keyed by id -- the RTG and reward series
@@ -2330,6 +2541,8 @@ def _grid4x4_payload(
             None if checkpoint is None else list(checkpoint["sha256_checked_against"])
         ),
         **per_ix,
+        "local_return": {ix: float(local_returns[0][ix]) for ix in ix_ids},
+        "local_return_from_lanes": {ix: float(local_returns[1][ix]) for ix in ix_ids},
         "canary_seconds": None if canary_seconds is None else float(canary_seconds),
         "seconds": seconds,
         **_git_provenance(),
@@ -2497,6 +2710,13 @@ def report(
 
     Step 9 exists because step 4 can be widened by a future edit and a reordered write would publish
     before anything checked it.  ``tests/test_transfer_curve.py`` reaches it with delivered code.
+
+    **The declaration's scenario selects the body** (``BRIEF_39`` Amendment B.7-2).  A grid4x4
+    declaration reads P7.3d's calibration at step 2, refuses at step 6 a DT chunk whose support
+    ranges are not the pinned ones, and after the pairing REFUSES unless C4's six reference cells
+    reproduce bit for bit (:func:`_grid4x4_reference_check`); it then writes the
+    ``p7.3d-grid4x4/1.0`` artifact (:func:`_grid4x4_artifact`) through the same step 9
+    (:func:`_publish_artifact`).  An hz1x1 declaration runs exactly the code it always ran.
     """
     from offline.dt_gate import EpisodeResult, mean_ci95
     from offline.offline_baselines import paired_comparison
@@ -2524,9 +2744,25 @@ def report(
             )
     if not declared:
         raise ValueError(f"the declared cell set for stage {stage!r} is empty")
+    # B.7-2: the SCENARIO of the declaration selects the artifact's body, so the driver's
+    # `grid4x4_confirmatory` stage and a caller-supplied grid4x4 set take the same one, and hz1x1's
+    # path is the code it always was. One artifact describes one scenario.
+    declared_scenarios = sorted({scenario_of(cell) for cell in declared})
+    if len(declared_scenarios) != 1:
+        raise ValueError(
+            f"the declared cells span the scenarios {declared_scenarios}; one artifact describes "
+            "one scenario"
+        )
+    grid = declared_scenarios == [GRID4X4_SCENARIO_KEY]
 
     # ---------------------------------------------------------------- 2. the calibration pin
-    calibration = load_calibration(data / P7_2B_CALIBRATION_NAME)
+    # hz1x1: P7.2b's artifact. grid4x4 (B.7-2(ii)): P7.3d's per-intersection artifact, never P7.2b's.
+    grid_calibration: dict[str, Any] | None = None
+    if grid:
+        calibration = None
+        _calibration_path, grid_calibration = _load_p7_3d_calibration(data)
+    else:
+        calibration = load_calibration(data / P7_2B_CALIBRATION_NAME)
 
     # ---------------------------------------------------------------- 3. this run's canary
     canary_record = _read_canary_record(work)
@@ -2591,6 +2827,7 @@ def report(
     demand_by_draw: dict[int, dict[str, Any]] = {}
     identity_by_checkpoint: dict[tuple[str, int], dict[str, Any]] = {}
     grid_targets: dict[str, float] | None = None
+    pinned_ranges: dict[str, tuple[float, float]] | None = None
     for name, payload in sorted(chunks.items()):
         draw_id = int(payload["draw_id"])
         # B.6-2(2): the SAME scenario-aware call run_cell and chunk_is_reusable make. One stage is
@@ -2621,6 +2858,20 @@ def report(
                         f"{name}: its target_rtg is not the 16 registered prompts of "
                         f"{P7_3D_CALIBRATION_NAME}; the cell conditioned on something else"
                     )
+                # B.7-2(i): the in-support block sums the chunks' per-id counts against the
+                # pinned ranges, so a chunk counted against another range is refused here.
+                if pinned_ranges is None:
+                    pinned_ranges = grid4x4_support_ranges(data_dir=data)
+                recorded = {
+                    str(ix): [float(v) for v in value]
+                    for ix, value in dict(payload["support_range"]).items()
+                }
+                if recorded != {ix: [low, high] for ix, (low, high) in pinned_ranges.items()}:
+                    raise ValueError(
+                        f"{name}: its support_range is not {P7_3D_CALIBRATION_NAME}'s "
+                        "per-intersection range, so its in-support counts were taken against "
+                        "another range"
+                    )
             declared_sha = identity_by_checkpoint[key_pair]["file_sha256"]
             if str(payload["checkpoint_sha256"]) != declared_sha:
                 raise ValueError(
@@ -2646,9 +2897,31 @@ def report(
                 "denominator of its own draw. Pairing is PER DRAW because the demand differs by "
                 "draw, and a ratio built from another draw's anchors normalises nothing"
             )
-        row = {field: payload.get(field) for field in _PUBLISHED_FIELDS}
+        published = _GRID4X4_PUBLISHED_FIELDS if grid else _PUBLISHED_FIELDS
+        row = {field: payload.get(field) for field in published}
         row.update(_rho_pair(payload, anchors))
         rows.append(row)
+
+    if grid:
+        # B.7-2: grid4x4's body. (iii) first -- the six reference cells, bit for bit, a REFUSAL
+        # that precedes every aggregate and the write -- then (i), (ii) and (iv).
+        reference_record = _grid4x4_reference_check(chunks, data_dir=data)
+        artifact = _grid4x4_artifact(
+            rows=rows,
+            chunks=chunks,
+            stage=stage,
+            n_declared=len(declared),
+            outside_stage=outside_stage,
+            chunk_commits_by_stage=chunk_commits_by_stage,
+            cells_supplied=cells is not None,
+            anchors_by_draw=anchors_by_draw,
+            canary_record=canary_record,
+            calibration_payload=grid_calibration or {},
+            reference_record=reference_record,
+            identity_by_checkpoint=identity_by_checkpoint,
+            demand_by_draw=demand_by_draw,
+        )
+        return _publish_artifact(artifact, target_path)
 
     # ---- rho's denominator, per definition, from the ANCHOR cells (2026-09-17 ruling) ---------
     denominators: dict[str, dict[int, float]] = {
@@ -2890,6 +3163,13 @@ def report(
         artifact["stage1_artifact"] = _stage1_block(Path(stage1_path), rows)
 
     # ---------------------------------------------------------------- 9. the LAST refusal
+    return _publish_artifact(artifact, target_path)
+
+
+def _publish_artifact(artifact: dict[str, Any], target_path: Path) -> dict[str, Any]:
+    """Step 9 of :func:`report`, for BOTH bodies: the last refusals over the SERIALISED bytes, then
+    the ONE write.  Extracted unchanged in the B.7 round so the grid4x4 body cannot publish by a
+    different route than hz1x1's."""
     serialised = json.dumps(artifact, indent=2, sort_keys=True)
     if FENCED_KEY in serialised:
         raise AssertionError(
@@ -3283,6 +3563,499 @@ def _stage1_block(path: Path, rows: Sequence[Mapping[str, Any]]) -> dict[str, An
         "sha256": _sha256_file(path),
         "n_cells": len(stage1["cells"]),
         "rows_identical": True,
+    }
+
+
+# ======================================================================================
+# B.7-2: report's grid4x4 BODY -- the artifact `p7.3d-grid4x4/1.0`
+# ======================================================================================
+
+#: The grid4x4 artifact's published row.  hz1x1's scalar fields, plus the grid4x4 chunk's
+#: per-intersection SUMMARIES (the 16 returns, the 16 first/last RTGs, the 16 in-support counts) --
+#: and deliberately NOT the per-decision RTG / reward series or the 360 x 16 action matrix: on sixteen
+#: intersections they would make the committed file about 130 MB (hz1x1's, with one intersection's
+#: series, is 64.8 MB), and every one of them stays in the chunks, which the manifest covers.  A
+#: whitelist, as ``_PUBLISHED_FIELDS`` is: a field added to the chunk later is excluded by default.
+_GRID4X4_PUBLISHED_FIELDS: tuple[str, ...] = (
+    "kind", "subject", "arm", "seed", "policy_seed", "draw_id", "stage", "scenario",
+    "action_space_n", "att_env", "att_horizon", "att_running_mean", "e_sumo", "p_sumo", "w_sumo",
+    "mean_depart_delay", "episode_reward", "horizon_vehicle_count", "decisions",
+    "engine_seed_requested", "engine_seed_drawn",
+    "n_created", "n_entered", "n_never_entered", "n_pending_at_horizon", "n_teleports",
+    "n_vanished_without_arrival", "n_arrived_never_observed_at_a_boundary",
+    "max_abs_depart_clock_deviation", "vehicle_types_seen", "time_to_teleport_option",
+    "halting_checked", "halting_max_abs_difference", "halting_n_lane_seconds",
+    "halting_n_disagreeing_lane_seconds",
+    "intersection_ids", "local_return", "target_rtg", "rtg_first", "rtg_last",
+    "rtg_advanced_every_decision", "n_decisions_in_support", "support_range", "in_support_counts",
+    "checkpoint", "checkpoint_sha256", "sha256_checked_against",
+    "config_sha256", "routes_sha256", "calibration_sha256",
+    "canary_seconds", "seconds", "git_commit", "git_dirty",
+)
+
+#: The co-reported definition's caveat for THIS scenario.  hz1x1's :data:`ATT_ENV_CAVEAT` quotes
+#: P7.1's frozen hangzhou anchors; no grid4x4 value is quoted here, because none existed when the
+#: text was written -- the denominator diagnostic beside it is where grid4x4's numbers are.
+GRID4X4_ATT_ENV_CAVEAT = (
+    "CO-REPORTED, NOT THE REGISTERED PRIMARY (A15). rho on this definition is a per-draw ratio whose "
+    "denominator -- ATT_fixedtime - ATT_maxpressure on the env's own metric -- can be small or "
+    "negative on a draw, and such a draw can dominate the mean or flip its sign (on hz1x1 it did). "
+    "Read this definition's rho only with denominator_diagnostic beside it."
+)
+
+#: Everything else the grid4x4 artifact does NOT say, after A21(b)'s two items.
+GRID4X4_WHAT_THIS_DOES_NOT_SAY: tuple[str, ...] = (
+    "This is the ZERO-SHOT point on grid4x4 only: no model was fine-tuned and no anchor was trained "
+    "on this scenario, so H3's third clause is void here (A19), and nothing here is a curve.",
+    "rho is computed WITHIN SUMO against anchors on the same draws; it is not a cross-backend "
+    "comparison of absolute travel times.",
+    "Every per-intersection breakdown -- per-intersection rho and the in-support block -- is "
+    "exploratory (A20(e)): no CI is promoted, and nothing selects on it.",
+    "The per-decision RTG and reward series and the 360 x 16 action matrices are not republished "
+    "here; they are in the chunks under output/p7_3d/cells/, covered by output/SHA256SUMS_p7_3d.txt.",
+)
+
+
+def _grid4x4_reference_check(
+    chunks: Mapping[str, Mapping[str, Any]], *, data_dir: Path
+) -> dict[str, Any]:
+    """B.7-2(iii), A9's *the instrument regenerates*: the six reference cells, bit for bit, or REFUSE.
+
+    Every refusal is collected first and raised together, naming each cell and each field, so a
+    reader sees the whole disagreement at once.  A reference cell with no chunk refuses as well.
+    """
+    frozen = load_reference_cells(data_dir=data_dir)
+    rows = {(str(row["arm"]), int(row["draw_id"])): row for row in frozen["cells"]}
+    problems: list[str] = []
+    record_cells: list[dict[str, Any]] = []
+    for arm in REFERENCE_CELL_ARMS:
+        for draw in REFERENCE_CELL_DRAWS:
+            name = cell_chunk_name(
+                {"subject": None, "arm": arm, "seed": None, "draw_id": draw,
+                 "scenario": GRID4X4_SCENARIO_KEY}
+            )
+            chunk = chunks.get(name)
+            if chunk is None:
+                problems.append(f"{arm} draw {draw} has no chunk")
+                continue
+            differing = reference_cell_differences(chunk, rows[(arm, draw)])
+            if differing:
+                problems.append(f"{arm} draw {draw} differs on {differing}")
+            record_cells.append({"arm": arm, "draw_id": draw, "reproduces": not differing})
+    if problems:
+        raise ValueError(
+            f"the reference cell(s) do not reproduce {P7_3D_REFERENCE_CELLS_NAME} bit-for-bit "
+            "(A9; BRIEF_39 C4, B.7-2(iii)): " + "; ".join(problems) + ". The instrument that "
+            "produced this campaign is not the instrument that froze the anchors"
+        )
+    return {
+        "what": (
+            "A9's check that the instrument regenerates: the campaign's six anchor chunks on draws "
+            "1000-1002 against the values C4 froze, under == on every field both records"
+        ),
+        "artifact": P7_3D_REFERENCE_CELLS_NAME,
+        "artifact_sha256": P7_3D_REFERENCE_CELLS_SHA256,
+        "n_checked": len(record_cells),
+        "all_reproduce": all(cell["reproduces"] for cell in record_cells),
+        "compared_fields": [list(pair) for pair in REFERENCE_CELL_COMPARED_FIELDS],
+        "halting_counts_compared_where_the_frozen_run_checked": list(REFERENCE_CELL_HALTING_COUNTS),
+        "not_compared": {
+            "fields": list(REFERENCE_CELL_NOT_COMPARED),
+            "why": (
+                "e_sumo_total, n_intended and n_arrived are recorded by the frozen artifact and not "
+                "by a chunk; seconds is a clock. episode_reward, which BRIEF_39 B.7-2(iii) names, "
+                "is not recorded by the frozen artifact, so it cannot be compared"
+            ),
+        },
+        "cells": record_cells,
+    }
+
+
+def _definition_stats(per_draw: Mapping[int, float]) -> dict[str, Any]:
+    """The per-draw values' mean and analytic 95 % CI (``dt_gate.mean_ci95``), or the empty form."""
+    from offline.dt_gate import mean_ci95
+
+    if not per_draw:
+        return {
+            "n_draws": 0, "mean": None, "std": None, "ci95": None, "ci95_low": None,
+            "ci95_high": None,
+            "why_empty": "every draw's denominator on this definition was exactly zero",
+        }
+    stats = mean_ci95([per_draw[draw] for draw in sorted(per_draw)])
+    return {
+        "n_draws": stats.n,
+        "mean": stats.mean,
+        "std": stats.std,
+        "ci95": stats.ci95,
+        "ci95_low": stats.mean - stats.ci95,
+        "ci95_high": stats.mean + stats.ci95,
+    }
+
+
+def _grid4x4_per_intersection_rho(
+    rows: Sequence[Mapping[str, Any]], ix_ids: Sequence[str]
+) -> dict[str, Any]:
+    """B.7.1-2's DESCRIPTIVE block: rho per intersection on the per-intersection collection return.
+
+    ``rho_i,d = (R_ft,i,d - R_arm,i,d) / (R_ft,i,d - R_mp,i,d)`` through :func:`rho` -- the one
+    registered formula, applied to ``local_return[i]`` -- per cell, then averaged over seeds within
+    a draw, then over the usable draws.  A draw whose two anchors tie exactly on intersection *i* is
+    excluded for that intersection and listed.  No CI is computed: A20(e) makes every
+    per-intersection breakdown exploratory.
+    """
+    anchors: dict[int, dict[str, Mapping[str, Any]]] = {}
+    for row in rows:
+        if row["arm"] in ("fixedtime", "maxpressure"):
+            anchors.setdefault(int(row["draw_id"]), {})[str(row["arm"])] = row["local_return"]
+    dt_rows = [row for row in rows if row["kind"] == "dt"]
+    per_intersection: dict[str, Any] = {}
+    for ix in ix_ids:
+        excluded = sorted(
+            draw
+            for draw, pair in anchors.items()
+            if float(pair["fixedtime"][ix]) - float(pair["maxpressure"][ix]) == 0.0
+        )
+        buckets: dict[int, list[float]] = {}
+        for row in dt_rows:
+            draw = int(row["draw_id"])
+            if draw in excluded:
+                continue
+            pair = anchors[draw]
+            buckets.setdefault(draw, []).append(
+                rho(
+                    float(row["local_return"][ix]),
+                    float(pair["fixedtime"][ix]),
+                    float(pair["maxpressure"][ix]),
+                )
+            )
+        per_draw = {draw: sum(values) / len(values) for draw, values in buckets.items()}
+        ordered = [per_draw[draw] for draw in sorted(per_draw)]
+        per_intersection[str(ix)] = {
+            "mean_rho": (sum(ordered) / len(ordered)) if ordered else None,
+            "n_draws_used": len(ordered),
+            "n_draws_excluded": len(excluded),
+            "draw_ids_excluded": excluded,
+        }
+    return {
+        "status": "exploratory and descriptive (A20(e)); no CI is computed, none is promoted",
+        "definition": (
+            "rho_i,d = (R_fixedtime,i,d - R_arm,i,d) / (R_fixedtime,i,d - R_maxpressure,i,d) "
+            "(BRIEF_39 Amendment B.7.1-2), where R is local_return[i]: intersection i's episode "
+            "return under the collection reward, the sum over the 360 POST-STEP infos of its reward, "
+            "recorded on every cell by the probe's two routes (reward stream == minus lane waiting "
+            "counts); seeds averaged within a draw; the mean over the draws whose denominator is "
+            "not exactly zero for that intersection, the others excluded and listed"
+        ),
+        "not_the_reward_series": (
+            "B.7.1-2 names the DT's value as sum(reward_series[i]); that series is read BEFORE each "
+            "act (D1), so it carries the reset info's reward and not the last decision's, and would "
+            "divide a 359-decision sum by 360-decision anchors. Every arm uses local_return instead"
+        ),
+        "per_intersection": per_intersection,
+    }
+
+
+def _grid4x4_in_support_block(
+    dt_rows: Sequence[Mapping[str, Any]], calibration_payload: Mapping[str, Any]
+) -> dict[str, Any]:
+    """B.7-2(i): per intersection, the pinned range, the target's position, the chunks' counts.
+
+    The ranges and the registered targets' positions are READ from ``p7_3d_calibration.json`` (the
+    chunks' ranges were refused at step 6 unless equal to them); the counts are summed from the
+    chunks' own per-id counts and refused unless they add up to the decisions recorded.
+    """
+    key = f"k{int(calibration_payload['registered_k'])}"
+    per_intersection: dict[str, Any] = {}
+    for ix in calibration_payload["intersection_ids"]:
+        entry = calibration_payload["per_intersection"][ix]
+        budget = entry["budgets"][key]
+        counts = [row["in_support_counts"][ix] for row in dt_rows]
+        n_decisions = sum(int(row["decisions"]) for row in dt_rows)
+        inside = sum(int(count["in_support"]) for count in counts)
+        below = sum(int(count["below"]) for count in counts)
+        above = sum(int(count["above"]) for count in counts)
+        if inside + below + above != n_decisions:
+            raise ValueError(
+                f"intersection {ix!r}: the in-support counts ({inside} + {below} + {above}) do not "
+                f"add up to the {n_decisions} decisions the cells recorded"
+            )
+        per_intersection[str(ix)] = {
+            "support_range": [float(value) for value in entry["support_range"]],
+            "registered_target": float(budget["target"]),
+            "target_position": str(budget["in_support"]["position"]),
+            "n_cells": len(dt_rows),
+            "n_decisions": n_decisions,
+            "decisions_in_support": inside,
+            "decisions_below": below,
+            "decisions_above": above,
+        }
+    return {
+        "what_this_is": (
+            "a reliability diagnostic, withdrawn as a selection criterion on 2026-08-13 (BRIEF_15 "
+            "§12.1): per intersection, how many of the registered subject's decisions conditioned "
+            "on a return-to-go inside that intersection's training support. Nothing selects on it"
+        ),
+        "ranges_from": P7_3D_CALIBRATION_NAME,
+        "ranges_sha256": P7_3D_CALIBRATION_SHA256,
+        "per_intersection": per_intersection,
+    }
+
+
+def _grid4x4_h3_block(registered: Mapping[str, Any]) -> dict[str, Any]:
+    """H3 on this scenario as A20(e) registers it: clause 1 CONFIRMATORY, clause 2 reported and NOT
+    scored, clause 3 void (A19).  Arithmetic beside the inequalities, never a verdict word."""
+    clauses: list[dict[str, Any]] = []
+    for clause, inequality, meaning, status, scored in (
+        (
+            1, "rho_sumo(b_mean_k100) > 0", "better than the within-backend fixed-time anchor",
+            "CONFIRMATORY on this scenario (A20(e); H3's test row is per paired scenario)", True,
+        ),
+        (
+            2, "rho_sumo(b_mean_k100) < 1", "worse than within-backend MaxPressure",
+            "reported as the inequality it is (A20(e)); not scored", False,
+        ),
+    ):
+        for key in ("e_sumo", "att_env"):
+            stats = registered[key]
+            entry: dict[str, Any] = {
+                "clause": clause,
+                "inequality": inequality,
+                "meaning": meaning,
+                "status": status,
+                "definition": key,
+                "subject": GRID4X4_SUBJECT,
+                "n_draws": stats["n_draws"],
+                "mean_rho": stats["mean"],
+                "ci95_low": stats["ci95_low"],
+                "ci95_high": stats["ci95_high"],
+            }
+            if key == "att_env":
+                entry["caveat"] = GRID4X4_ATT_ENV_CAVEAT
+            if scored:
+                entry["point_estimate_satisfies"] = _satisfies(stats, lambda s: s["mean"] > 0.0)
+                entry["ci95_entirely_satisfies"] = _satisfies(stats, lambda s: s["ci95_low"] > 0.0)
+            clauses.append(entry)
+    return {
+        "hypothesis": (
+            "Zero-shot transfer is positive but incomplete -- better than fixed-time, worse than "
+            "within-backend MaxPressure -- and closes substantially by k = 100"
+        ),
+        "scenario_key": GRID4X4_SCENARIO_KEY,
+        "subject": GRID4X4_SUBJECT,
+        "registered_arm": GRID4X4_ARM,
+        "primary_definition": "e_sumo",
+        "test_row": (
+            "MADT zero-shot in SUMO vs the within-backend fixed-time anchor, per paired scenario; "
+            "unit: paired evaluation draw (rho.registered_arm.paired_att)"
+        ),
+        "clauses": clauses,
+        "clause_3": (
+            "void (A19): 'closes substantially by k = 100' is not tested on grid4x4 -- no few-shot "
+            "point and no anchor exist on this scenario"
+        ),
+        "reported_not_interpreted": (
+            "the inequalities and their values are reported; this artifact draws no conclusion. "
+            "point_estimate_satisfies and ci95_entirely_satisfies on clause 1 are arithmetic on the "
+            "numbers beside them, not verdicts"
+        ),
+    }
+
+
+def _grid4x4_artifact(
+    *,
+    rows: Sequence[Mapping[str, Any]],
+    chunks: Mapping[str, Mapping[str, Any]],
+    stage: str | None,
+    n_declared: int,
+    outside_stage: Sequence[str],
+    chunk_commits_by_stage: Mapping[str, set[str]],
+    cells_supplied: bool,
+    anchors_by_draw: Mapping[int, Mapping[str, Mapping[str, Any]]],
+    canary_record: Mapping[str, Any],
+    calibration_payload: Mapping[str, Any],
+    reference_record: Mapping[str, Any],
+    identity_by_checkpoint: Mapping[tuple[str, int], Mapping[str, Any]],
+    demand_by_draw: Mapping[int, Mapping[str, Any]],
+) -> dict[str, Any]:
+    """The ``p7.3d-grid4x4/1.0`` artifact: B.7-2 (i)-(iv) and B.7.1-2's per-intersection block."""
+    from offline.transfer_calibration import CANARY_MAX_SECONDS, CANARY_RECORD_NAME
+
+    dt_rows = [row for row in rows if row["kind"] == "dt"]
+
+    by_seed: list[dict[str, Any]] = []
+    for seed in TRAINING_SEEDS:
+        seed_rows = [row for row in dt_rows if row["seed"] == seed]
+        if not seed_rows:
+            continue
+        entry: dict[str, Any] = {"seed": int(seed), "n_draws": len(seed_rows)}
+        for key in ("e_sumo", "att_env"):
+            usable = [row[f"rho_{key}"] for row in seed_rows if row[f"rho_{key}"] is not None]
+            entry[f"mean_rho_{key}"] = float(sum(usable) / len(usable)) if usable else None
+            entry[f"n_draws_{key}"] = len(usable)
+        by_seed.append(entry)
+
+    per_draw = {key: _seed_means_by_draw(dt_rows, f"rho_{key}") for key in ("e_sumo", "att_env")}
+    seeds_by_draw: dict[int, int] = {}
+    for row in dt_rows:
+        seeds_by_draw[int(row["draw_id"])] = seeds_by_draw.get(int(row["draw_id"]), 0) + 1
+    by_draw = {
+        str(draw): {
+            "e_sumo": per_draw["e_sumo"].get(draw),
+            "att_env": per_draw["att_env"].get(draw),
+            "n_seeds": count,
+        }
+        for draw, count in sorted(seeds_by_draw.items())
+    }
+
+    registered: dict[str, Any] = {
+        "subject": GRID4X4_SUBJECT,
+        "arm": GRID4X4_ARM,
+        "role": "registered_prompt (A20(b), A21(a))",
+        "e_sumo": _definition_stats(per_draw["e_sumo"]),
+        "att_env": _definition_stats(per_draw["att_env"]),
+    }
+    registered["paired_att"] = {
+        key: {
+            anchor: _paired_block(rows, dt_rows, GRID4X4_SUBJECT, GRID4X4_ARM, anchor, key)
+            for anchor in ("fixedtime", "maxpressure")
+        }
+        for key in ("e_sumo", "att_env")
+    }
+
+    denominators: dict[str, dict[int, float]] = {
+        key: {
+            draw: anchor_denominator(anchors, key) for draw, anchors in sorted(anchors_by_draw.items())
+        }
+        for key in ("e_sumo", "att_env")
+    }
+    excluded_env_draws = [
+        {
+            "draw_id": draw,
+            "att_fixedtime": float(anchors_by_draw[draw]["fixedtime"]["att_env"]),
+            "att_maxpressure": float(anchors_by_draw[draw]["maxpressure"]["att_env"]),
+            "why": (
+                "the two anchors have EXACTLY equal env ATT on this draw, so rho's denominator is "
+                "zero and the ratio is undefined; excluded from this definition's means, CI and "
+                "H3 clauses, and reported here"
+            ),
+        }
+        for draw, value in sorted(denominators["att_env"].items())
+        if value == 0.0
+    ]
+    ix_ids = [str(ix) for ix in calibration_payload["intersection_ids"]]
+
+    return {
+        "format_version": GRID4X4_ARTIFACT_FORMAT_VERSION,
+        "registered_in": (
+            "PREREGISTRATION H3, §3.4, A15, A16, A17(e), A18(c), A20, A21; BRIEF_39 Amendments B.7 "
+            "and B.7.1"
+        ),
+        "scenario_key": GRID4X4_SCENARIO_KEY,
+        "subject": GRID4X4_SUBJECT,
+        "arms": {
+            "evaluated": {"registered": [GRID4X4_ARM], "anchors": ["fixedtime", "maxpressure"]},
+            "not_evaluated": {
+                "naive": "A21(b)(i): removed by declaration before any grid4x4 SUMO number existed",
+                "random": "A21(b)(ii): removed by declaration before any grid4x4 SUMO number existed",
+                "b_max_k100": "A20(b): not evaluated on grid4x4 (it tracked b_mean within 0.01 on hz1x1)",
+                "a_q1.0": "A20(b): not evaluated on grid4x4 (out of support for mappo1000 on hz1x1)",
+            },
+        },
+        "stage": stage,
+        "n_cells_declared": n_declared,
+        "n_chunks_outside_stage": len(outside_stage),
+        "chunk_commits_by_stage": {
+            stage_name: sorted(commits)
+            for stage_name, commits in sorted(chunk_commits_by_stage.items())
+        },
+        "cell_set_source": "caller-supplied declaration" if cells_supplied else "declared_cells()",
+        "halting_check_draw": HALTING_CHECK_DRAW,
+        "intersection_ids": ix_ids,
+        "cells": [dict(row) for row in rows],
+        "series_location": (
+            "the per-decision RTG and reward series and the action matrices of every cell are in "
+            "its chunk under output/p7_3d/cells/, covered by output/SHA256SUMS_p7_3d.txt; they are "
+            "not republished here (about 130 MB on sixteen intersections)"
+        ),
+        "reference_cells": dict(reference_record),
+        "rho": {
+            "formula": "rho = (ATT_fixedtime - ATT_arm) / (ATT_fixedtime - ATT_maxpressure)",
+            "definitions": {
+                "e_sumo": {
+                    "what": (
+                        "A15's primary: the pool-clock ATT over the all-created population, from "
+                        "the observer (P7.1's key att_reference_created_population; one quantity)"
+                    ),
+                    "role": "REGISTERED PRIMARY (A15)",
+                    "denominator_diagnostic": denominator_diagnostic(denominators["e_sumo"]),
+                    "zero_denominator_rule": (
+                        "REFUSED: on the registered primary a zero denominator is a finding about "
+                        "the instrument, and rho() raises (the author's ruling of 2026-09-17)"
+                    ),
+                },
+                "att_env": {
+                    "what": "the admitted pair beside it: the env's own metric at the horizon",
+                    "role": "co-reported (A15)",
+                    "caveat": GRID4X4_ATT_ENV_CAVEAT,
+                    "denominator_diagnostic": denominator_diagnostic(denominators["att_env"]),
+                    "zero_denominator_rule": (
+                        "RECORDED AND EXCLUDED (the author's ruling of 2026-09-17): the draw's cells "
+                        "keep rho_att_env null, the draw is listed in excluded_draws, and it counts "
+                        "towards no mean, no CI and no H3 clause on this definition"
+                    ),
+                    "excluded_draws": excluded_env_draws,
+                    "n_draws_used": len(denominators["att_env"]) - len(excluded_env_draws),
+                    "n_draws_total": len(denominators["att_env"]),
+                },
+            },
+            "estimator": {
+                "method": (
+                    "analytic normal approximation, 1.96*s/sqrt(n) over the per-draw seed means "
+                    "(offline.dt_gate.mean_ci95), as on hz1x1"
+                ),
+                "resampling_seed": None,
+                "unit": "one paired evaluation draw; seeds averaged within a draw, as in P4",
+            },
+            "not_clipped": (
+                "PREREGISTRATION §3.4: values may exceed 1 or fall below 0 and are not clipped. "
+                "fixed-time is 0 and MaxPressure is 1 by construction"
+            ),
+            "by_seed": by_seed,
+            "by_draw": by_draw,
+            "registered_arm": registered,
+        },
+        "per_intersection_rho": _grid4x4_per_intersection_rho(rows, ix_ids),
+        "h3": _grid4x4_h3_block(registered),
+        "in_support": _grid4x4_in_support_block(dt_rows, calibration_payload),
+        "canary": {
+            "seconds": canary_record["seconds"],
+            "threshold_seconds": CANARY_MAX_SECONDS,
+            "verdict": "at speed" if canary_record["seconds"] <= CANARY_MAX_SECONDS else "throttled",
+            "observed": dict(canary_record["facts"]),
+            "source": (
+                f"{CANARY_RECORD_NAME} in the work directory, written by the driver from the canary "
+                "line right after the token; report re-ran check_canary on these facts"
+            ),
+            "git_commit": canary_record.get("git_commit"),
+            "git_dirty": canary_record.get("git_dirty"),
+            "chunk_canaries_by_stage": _canaries_by_stage(chunks),
+        },
+        "what_this_does_not_say": [*A21_SCOPE_SENTENCES, *GRID4X4_WHAT_THIS_DOES_NOT_SAY],
+        "inputs": {
+            "calibration_artifact": P7_3D_CALIBRATION_NAME,
+            "calibration_sha256": P7_3D_CALIBRATION_SHA256,
+            "reference_cells_artifact": P7_3D_REFERENCE_CELLS_NAME,
+            "reference_cells_sha256": P7_3D_REFERENCE_CELLS_SHA256,
+            "checkpoints": sorted(
+                (dict(identity) for identity in identity_by_checkpoint.values()),
+                key=lambda entry: (entry["subject"], entry["seed"]),
+            ),
+            "demand_by_draw": {
+                str(draw): {k: v for k, v in demand.items() if k != "config_path"}
+                for draw, demand in sorted(demand_by_draw.items())
+            },
+        },
+        **_git_provenance(),
     }
 
 

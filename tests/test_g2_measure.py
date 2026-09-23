@@ -519,6 +519,9 @@ def test_the_campaign_driver_refuses_before_the_token_and_in_order() -> None:
     text = _campaign_text_without_comments()
     order = [
         "REFUSING TO START: no interpreter",
+        # B.7.1-1(iv), ADDED in the B.7 round: J1(e) -- the copy in the implementer's worktree is not
+        # a legal home for the campaign, and it refuses before anything else is measured.
+        "REFUSING TO START: this copy of the driver is in the implementer's worktree",
         "REFUSING TO START: offline.transfer_curve loaded from",
         "REFUSING TO START: cells from another run are still alive",
         "REFUSING TO START: not a process-group leader",
@@ -593,18 +596,22 @@ def test_the_campaign_driver_documents_the_foreground_form_and_says_why(
     # which contains that substring too.
     assert "Step 1, open a pane:" in header and "Step 2, at ITS PROMPT:" in header
     assert "tmux new -s p73d_cells\n" in header, "step 1 opens the pane and stops there"
+    # ⚠️ CHANGED in the B.7 round (BRIEF_39 Amendment B.7.1-1(ii), disclosed in the packet): the
+    # documented start names the RUN worktree /home/filip/rltraffic-p73d-run, never the
+    # implementer's /home/filip/rltraffic-p73d (J1(e)); the rest of both lines is unchanged.
     assert (
-        "bash /home/filip/rltraffic-p73d/offline/campaigns/p7_3d_grid4x4.sh confirmatory 2>&1 | "
+        "bash /home/filip/rltraffic-p73d-run/offline/campaigns/p7_3d_grid4x4.sh confirmatory 2>&1 | "
         "tee -a /home/filip/rltraffic/output/p7_3d_runs/campaign_capture.txt"
     ) in header
     # B.5-3 + B.6-2(6), ADDED in the B.6 fix round: the pane's last line is the DRIVER's exit
     # status -- `${PIPESTATUS[0]}`, not tee's -- and it is teed into the capture as well.
     assert (
-        "bash /home/filip/rltraffic-p73d/offline/campaigns/p7_3d_grid4x4.sh confirmatory 2>&1 | "
+        "bash /home/filip/rltraffic-p73d-run/offline/campaigns/p7_3d_grid4x4.sh confirmatory 2>&1 | "
         "tee -a /home/filip/rltraffic/output/p7_3d_runs/campaign_capture.txt; "
         'echo "DRIVER EXIT: ${PIPESTATUS[0]}" | '
         "tee -a /home/filip/rltraffic/output/p7_3d_runs/campaign_capture.txt\n"
     ) in header
+    assert "bash /home/filip/rltraffic-p73d/offline" not in header, "never the implementer's tree"
     assert "job control OFF" in header, "the header must say WHY the one-liner refuses"
     assert "setsid" in header, "and that self-re-exec was considered and rejected"
 

@@ -4,10 +4,20 @@
 # Shape: offline/campaigns/p7_3b_anchor.sh, with the two P7.3d drivers' corrections folded in, and
 # the B.6 fix round's (BRIEF_39 Amendment B.6; docs/reviews/P7.3d-preflight.md) -- see section 8.
 #
-# 0. USAGE — the FOREGROUND form, and it is not the one-liner (BRIEF_39 Amendment B.3-1).
+# 0. USAGE — the FOREGROUND form, and it is not the one-liner (BRIEF_39 Amendment B.3-1), from the
+#    DETACHED RUN WORKTREE (J1(e), Amendment B.7.1-1), which the coordinator creates at the reviewed,
+#    pushed commit before the token:
+#        git -C /home/filip/rltraffic worktree add --detach /home/filip/rltraffic-p73d-run <commit>
 #
 #      Step 1, open a pane:      tmux new -s p73d_cells
-#      Step 2, at ITS PROMPT:    bash /home/filip/rltraffic-p73d/offline/campaigns/p7_3d_grid4x4.sh confirmatory 2>&1 | tee -a /home/filip/rltraffic/output/p7_3d_runs/campaign_capture.txt; echo "DRIVER EXIT: ${PIPESTATUS[0]}" | tee -a /home/filip/rltraffic/output/p7_3d_runs/campaign_capture.txt
+#      Step 2, at ITS PROMPT:    bash /home/filip/rltraffic-p73d-run/offline/campaigns/p7_3d_grid4x4.sh confirmatory 2>&1 | tee -a /home/filip/rltraffic/output/p7_3d_runs/campaign_capture.txt; echo "DRIVER EXIT: ${PIPESTATUS[0]}" | tee -a /home/filip/rltraffic/output/p7_3d_runs/campaign_capture.txt
+#
+#    WHY A RUN WORKTREE: J1(c) makes a chunk reusable, and reportable, only if no path outside docs/
+#    has changed between the commit that rolled it and HEAD. The implementer's tree takes commits
+#    and merges of main; one of them landing in the running tree would make every chunk already
+#    rolled "rolled by different code". The driver DERIVES its tree from its own location and
+#    REFUSES to run from the implementer's (/home/filip/rltraffic-p73d) -- its code, its docs/data and
+#    the commit every chunk records are the run worktree's.
 #
 #    THE SECOND HALF OF STEP 2 (Amendments B.5-3 and B.6-2(6)): the pipeline's own status is
 #    tee's, so without it the pane reports 0 even when the driver refuses. `${PIPESTATUS[0]}` is
@@ -57,8 +67,8 @@
 #    import fails. That is what made G2's first hand-over refuse (1066aff).
 #
 # 5. THE CWD RULE (Amendment B3/Q4): cd to the MAIN tree so any render embeds the main tree's
-#    absolute `dir` (Amendment A6, DEFERRED 87), with PYTHONPATH pointing at the task worktree and
-#    an assertion of WHICH file loaded. Nothing under scenarios/draws/ is written by this driver;
+#    absolute `dir` (Amendment A6, DEFERRED 87), with PYTHONPATH pointing at the worktree this script
+#    lives in (the run worktree, §0) and an assertion of WHICH file loaded. Nothing under scenarios/draws/ is written by this driver;
 #    the parity configs are opened read-only.
 #
 # 6. THE SKIP DECISION IS IN PYTHON, NOT IN THE SHELL. transfer_curve.chunk_is_reusable re-derives
@@ -103,11 +113,16 @@
 #    F-B6-2  the canary's TIMING half (2.0 s, p7_3b_anchor.sh's) was not checked at all.
 #    B.5-1   dt_reroll_check: IDENTICAL or the token is not consumed.
 #    B.5-3   the pane carries the driver's exit code (section 0).
+#    B.7.1-1 WORK_TREE derived from ${BASH_SOURCE[0]} (`pwd -P`: a symlinked path cannot hide the
+#            implementer's tree from the check), and a refusal when it IS the implementer's tree.
 
 set -euo pipefail
 
 MAIN=/home/filip/rltraffic
-WORK_TREE=/home/filip/rltraffic-p73d
+# J1(e) / Amendment B.7.1-1: the tree this copy of the script lives in, never a hardcoded one.
+WORK_TREE=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)
+IMPLEMENTER_TREE=/home/filip/rltraffic-p73d
+RUN_TREE=/home/filip/rltraffic-p73d-run
 PY=$MAIN/.venv/bin/python
 CAMPAIGN_DIR=$MAIN/output/p7_3d
 WORK=$CAMPAIGN_DIR/cells
@@ -138,10 +153,21 @@ export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 COMMON=(--draws-root "$DRAWS" --output-root "$MAIN/output" --work-dir "$WORK"
         --data-dir "$DATA" --out-dir "$ARTIFACTS")
 
+echo "=== P7.3d campaign driver: WORK_TREE $WORK_TREE (derived from this script's own location)"
+
 # ---------------------------------------------------------------- preconditions
 if [ ! -x "$PY" ]; then
   echo "REFUSING TO START: no interpreter at $PY" >&2
   echo "  The worktree has no .venv of its own; the main tree's is the one to use." >&2
+  exit 2
+fi
+
+if [ "$WORK_TREE" = "$IMPLEMENTER_TREE" ]; then
+  echo "REFUSING TO START: this copy of the driver is in the implementer's worktree $WORK_TREE" >&2
+  echo "  J1(e) (BRIEF_39 Amendment B.7.1-1): the campaign runs from the DETACHED run worktree" >&2
+  echo "  $RUN_TREE, created at the reviewed commit and edited by no session. A commit or a" >&2
+  echo "  merge reaching the running tree would make every chunk already rolled one rolled by" >&2
+  echo "  different code (J1(c)). Nothing has been consumed." >&2
   exit 2
 fi
 
