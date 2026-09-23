@@ -1025,3 +1025,44 @@ named load-bearing tests fail on a missing input, CI unchanged.
 
 **Then: the B.7.4 commit → pushed by the coordinator → the run worktree re-created there → the pin and the three B.6 commands re-run from
 it → G4's verdict applied → the token.**
+---
+
+# ⛔→✅ AMENDMENT B.7.5 — 2026-09-24, on the implementer's stop at B.7.4's plan gate: B.7.2-1 and B.7.2-2 were NEVER BUILT and the coordinator's B.7.3 ratified `report`'s body on a pin that could not tell the two definitions apart; both go into B.7.4's ONE commit; Q-a/Q-b/Q-c ruled
+
+## B.7.5-1 — The finding, confirmed twice
+`_grid4x4_per_intersection_rho` (`offline/transfer_curve.py:3695–3755` at `ec5bf19`) computes **a mean of per-draw ratios** (B.7.1-2's definition,
+superseded by B.7.2-1 the same day), and **no per-intersection `denominator_diagnostic` exists** (B.7.2-2). The implementer found it at B.7.4's
+plan gate; the G4 re-reviewer, working independently on the run worktree, recomputed one ρ_i by hand and wrote the same two sentences at
+22:34. **Cause, two halves:** B.7.2 reached `main` 21 minutes after the implementer's B.7 merge and was not merged again before the commit
+(§7's *merge `main` before every gate* — the implementer's miss, disclosed); and **the coordinator's B.7.3 ratified the body on the stub pin,
+whose synthetic denominators are CONSTANT across draws, so a mean of ratios and a ratio of means coincide on it** — a pin that cannot
+discriminate the two definitions is not a pin on the definition (§7's *a test anchored to a fixture cannot detect what the fixture cannot
+express*). The coordinator's miss, recorded. **Frozen at the token, this would have contradicted the registration in `report`'s body, and the
+fix would have been a code change under J1(c) — all 700 cells again.**
+
+## B.7.5-2 — Q-a: YES, B.7.2-1 and B.7.2-2 go into B.7.4's ONE commit — the last code commit before the token
+The commit therefore touches `report`'s grid4x4 body. **The in-flight G4 re-review's verdict carries over on every item it covers EXCEPT its
+item 4 (the report body), which the coordinator re-checks by hand on the new commit** — the complete-set artifact's `per_intersection_rho`
+recomputed as a ratio of means from the synthetic rows, with the synthetic denominators made NON-constant across draws in the test so the two
+definitions are distinguishable there (the pin must be able to fail). The complete-set test's per-intersection assertions are rewritten first
+and the change disclosed in full in the packet, as the implementer proposes.
+
+## B.7.5-3 — Q-b: NO — `local_return_convention` is moot after B.7.3-1
+B.7.3-1 made the two quantities distinct and both named in the chunk: `local_return` (the post-step 360-sum, two routes) and `reward_series`
+(D1's pre-act read, for the RTG identity). Neither is ambiguous; the field is not added.
+
+## B.7.5-4 — Q-c: YES — a zero mean denominator records `ρ_i = None` with the reason, and the diagnostic is still written
+`report` refuses on things that make a number WRONG; an intersection whose two anchors tie on average is a fact about that intersection, not a
+defect, and refusing after 700 cells for a descriptive block would be the wrong failure. `ρ_i: null`, `reason: "denominator exactly zero"`,
+the per-intersection diagnostic (`n_draws_mp_not_better`, `mean_gap`, its SE, `denominator`) written regardless; the count of such
+intersections in the block's header. The network-level ρ's refusal on an exactly-zero denominator (P7.3a) is unchanged.
+
+## B.7.5-5 — From the re-review's interim findings, ruled now because they bear on this commit
+(i) `_git` runs in the module's own tree (`:604–605`), so every chunk records the RUN worktree's HEAD and `code_changed_since` compares
+against it even though the driver `cd`s to `main` — **correct by design** (J1(c) compares against the code that ran); recorded as verified.
+(ii) `write_manifest` hashes every regular file under the campaign dir, which already holds `calibration/` and `g2/` — cosmetic; the manifest
+lists them; not a number. (iii) Four tests failed under the reviewer's own concurrent load on the canary's 2.0 s timing half (2.01–2.09 s
+against 0.71 s standalone) — contention, not code; **the same will happen to the campaign's canary if anything else runs on the machine at
+the start: the author starts the campaign on an otherwise idle machine, on mains.**
+
+## B.7.5-6 — The rest of B.7.4 is unchanged: `reference_reroll_check`, B.7's evidence (already copied: 15 files in `output/p7_3d_runs/b7/`, 13 byte-identical, the swap refusal regenerated and labelled), the three-variable suite line; then pushed by the coordinator, the run worktree re-created at the commit, the pin and the three B.6 commands re-run from it, the report body re-checked by hand, the token.
