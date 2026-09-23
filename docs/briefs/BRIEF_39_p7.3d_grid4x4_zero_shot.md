@@ -928,3 +928,35 @@ message uses this line.
 ## B.7.1-4 — Then
 B.7 + B.7.1 in ONE commit → pushed by the coordinator → the run worktree created at that commit → the coordinator re-runs the e2e-through-
 `report` test from the RUN worktree → G4 re-review (driver + report path) → the token, with the two-step start naming the run worktree.
+---
+
+# ✅ AMENDMENT B.7.2 — 2026-09-24, on the reviewer's point about B.7.1-2, while per-intersection ρ is still text: a RATIO OF MEANS, a per-intersection DENOMINATOR DIAGNOSTIC, and the SAME-QUANTITY pin between the anchors' `local_return` and the DT's summed `reward_series`
+
+## B.7.2-1 — ρ_i is a ratio of means, not a mean of per-draw ratios
+B.7.1-2 defined ρ_i per draw. At network level the denominator is safe because MaxPressure reliably beats fixed-time; **per intersection and
+per draw it is not** — at a quiet intersection the two anchors can return almost the same, and on some draws MaxPressure can do worse than
+fixed-time at one intersection, so a per-draw ρ_i explodes or inverts and a mean over draws is dominated by exactly those draws.
+**Corrected definition:** for intersection *i*, `R̄_·,i` = the mean over the 100 held-out draws of the per-intersection collection return
+(DT: seeds averaged within a draw first, then over draws; anchors: one episode per draw), and
+`ρ_i = (R̄_ft,i − R̄_arm,i) / (R̄_ft,i − R̄_mp,i)` — **one ratio per intersection**, formed from means. Descriptive, no CI, exploratory (A20(e));
+the sixteen ρ_i are reported with B.7.2-2's diagnostic beside them or not at all.
+
+## B.7.2-2 — A per-intersection denominator diagnostic, REQUIRED beside every ρ_i
+For each intersection *i*: `n_draws_mp_not_better` = the number of draws on which `R_mp,i,d ≤ R_ft,i,d`; `mean_gap` = the mean over draws of
+`R_mp,i,d − R_ft,i,d`; its standard error; and `denominator` = `R̄_ft,i − R̄_mp,i` itself. **A reader must be able to tell a real per-intersection
+difference from a near-zero denominator** — this is the block where the 0.834–1.042 probe-ratio heterogeneity (B.3-4) will later be read, and
+without the diagnostic the two are indistinguishable. Written into the artifact as `per_intersection_rho.denominator_diagnostic`, in the
+shape of the network-level `denominator_diagnostic` already in `report`.
+
+## B.7.2-3 — The same-quantity pin: the anchors' 16 `local_return`s and the DT's `sum(reward_series[i])` are ONE quantity by ONE convention
+D1's shift-by-one: on a DT chunk, `reward_series[i][t]` is the reward in the `info` read BEFORE the agent acts at decision *t*, so
+`reward_series[i][0]` is `-0.0` and **`sum(reward_series[i])` omits the final step's reward** — the coordinator's own 500/500 error of 2026-09-19
+came from assuming otherwise. The anchor path's `local_return` must be the SAME sum by the SAME convention, or ρ_i compares two
+definitions. **Required test, on one real grid4x4 episode (draw 5, fenced):** roll it once through the anchor path and once through a DT-style
+recorder on the same policy (or record both routes in one rollout), and assert per intersection under `==` that the anchor's `local_return[i]`
+equals `sum(reward_series[i])` over the same decisions — the two-route equality the CityFlow probe already performs per intersection
+(`episode_return_two_routes`), applied across the anchor/DT boundary. The chunk records which convention `local_return` follows (a
+`local_return_convention` field naming D1) so no later reader has to rediscover it. A mutation that includes the final step's reward on one
+side must be caught.
+
+**Then: B.7 + B.7.1 + B.7.2 in ONE commit, as B.7.1-4 orders.**
