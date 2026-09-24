@@ -1141,3 +1141,37 @@ Nothing here changes a registered quantity. **The token is next: channel (a), th
 `/home/filip/rltraffic-p73d-run`, exactly as the driver header's Step 1 and Step 2 read at `4383699`.** G6 then follows
 `HANDOFF_2026-09-23.md` §2.5, capture first, item by item; the coordinator's own pre-token records under `output/p7_3d_runs/coordinator_*`
 are evidence for THIS amendment and are not the campaign's — the driver writes its own under `output/p7_3d/g2/`, and those are what G6 reads.
+---
+
+# ⛔ AMENDMENT B.7.7 — 2026-09-24, evening: CAMPAIGN ATTEMPT 1 FAILED AT `cells` (698 / 700; two cells refused for one SUMO COLLISION-teleport each); read and diagnosed by the coordinator, the 698 checked BLIND; the task WAITS for a registration — A23, proposed — and the implementer builds NOTHING until Amendment B.8 appears here
+
+## B.7.7-1 — What happened
+The campaign started at 14:21 from the run worktree at `4383699` exactly as B.7.6 issued it: no refusal before the start, canary 0.80 s,
+`dt_reroll_check IDENTICAL`, six `reference_reroll_check MATCH`, the token consumed once. `cells` rolled **698 of 700 in 2,923 s** and
+refused two, each *"1 teleport(s) under A15(c)'s teleport-free regime"*: **fixed-time on draw 1020** and **`b_mean_k100` seed 303 on draw
+1042**. The driver ended `CAMPAIGN FAILED at cells`, `DRIVER EXIT: 1`; nothing was destroyed. **Diagnosis, from SUMO's own output** (both
+cells re-rolled by the coordinator with collision output enabled): each is a **collision at a merge onto an exit lane**, which SUMO resolves
+by its DEFAULT `collision.action = teleport` whatever `time-to-teleport` says; the collider, on its final edge, is counted as arrived. Both
+reproduce exactly. **G6's instrument checks on the 698, run blind, all pass — the two refusals are attempt 1's only defect.** In full:
+`docs/notes/P7.3d_ATTEMPT1_READ_2026-09-24.md`, with the evidence under `output/p7_3d_runs/attempt1_{diag,g6_blind,manifest}/`.
+
+## B.7.7-2 — Results already seen, added to this task's record (B.1-3's rule)
+The two refusal lines (cell names, *1 teleport*); the collision facts (times 2,298 s and 2,627 s, exit lanes `D0right0_0` and `A0left0_0`,
+vehicle ids, two impact speeds); SUMO's warning lines; the stage summary's per-cell wall clocks; the pass counts of the blind checks; and
+**one inference**: on at least 373 of the 499 DT cells, some intersection's RTG crossed zero after about decision 180 (the note's §4
+explains how the coordinator's own diagnostic leaked it). **No `e_sumo`, `att_env`, per-intersection return, reward or RTG value, or ρ, of any
+campaign cell has been read.**
+
+## B.7.7-3 — The registration, and why it is not a ruling
+A15(c) registers the CONFIGURATION (`<time-to-teleport value="-1"/>`), which all 700 cells carried; the refusal of ANY teleport is the
+instrument's check, built on the premise that `-1` makes SUMO teleport-free — false for collisions. §8 of the registration decides the rest:
+*"failed and pathological episodes are included, never dropped … excluded only for infrastructure failure"*. Keeping the two episodes,
+recording every collision, refusing only jam teleports and adding a sensitivity analysis changes how cells are judged and what is reported,
+so it is **registered before any outcome is read** (A23, proposed in the note's §5 for the author's approval as written) rather than ruled
+here.
+
+## B.7.7-4 — For the implementer, and for anyone touching `output/p7_3d/`
+**Nothing to build until B.8.** B.8 will carry ONE commit — the collision record (a TraCI read that must not change dynamics), the
+jam-only refusal, `report`'s `collisions` block and sensitivity ρ, T-regress (b) byte-identical, the named mutations — with its gates.
+**Do not delete, move or open anything under `output/p7_3d/`:** attempt 1's 698 chunks are digest-pinned and will be compared, blind and
+under `==`, with attempt 2's (A23(f)); the coordinator moves the directory aside after B.8 is verified.
