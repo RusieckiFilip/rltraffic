@@ -1065,4 +1065,194 @@ lists them; not a number. (iii) Four tests failed under the reviewer's own concu
 against 0.71 s standalone) — contention, not code; **the same will happen to the campaign's canary if anything else runs on the machine at
 the start: the author starts the campaign on an otherwise idle machine, on mains.**
 
-## B.7.5-6 — The rest of B.7.4 is unchanged: `reference_reroll_check`, B.7's evidence (already copied: 15 files in `output/p7_3d_runs/b7/`, 13 byte-identical, the swap refusal regenerated and labelled), the three-variable suite line; then pushed by the coordinator, the run worktree re-created at the commit, the pin and the three B.6 commands re-run from it, the report body re-checked by hand, the token.
+## B.7.5-6 — The rest of B.7.4 is unchanged: `reference_reroll_check`, B.7's evidence (already copied: 15 files in `output/p7_3d_runs/b7/`, 13 byte-identical, the swap refusal regenerated and labelled), the three-variable suite line; then pushed by the coordinator, the run worktree re-created at the commit, the pin and the three B.6 commands re-run from it, the report body re-checked by hand, the token.---
+
+# ✅ AMENDMENT B.7.6 — 2026-09-24, on B.7.4's delivery (`bd4d457` the code, `4383699` the packet's §26; pushed by the coordinator; the run worktree re-created there): VERIFIED from the RUN worktree by execution, the per-intersection block re-checked by an INDEPENDENT route, BOTH pre-token stages executed for real — B.7.4 ACCEPTED and the TOKEN is next
+
+## B.7.6-1 — What the coordinator ran from the run worktree at `4383699` (detached, clean, identical to `bd4d457` outside `docs/`)
+- **The three B.6 commands** (cwd = the main tree, `PYTHONPATH` = the run worktree, `-P`, `COMMON` first): `canary` parsed and ran (1.11 s on the
+  first, cold call; 0.82 s and 0.67–0.78 s on every later one); `manifest --help` exit 0; `declared_cells` **700 / 1,200**,
+  `declarations_for("grid4x4_confirmatory", None)` → (700, 700), name overlap against hz1x1's whole set **0**, artifact name
+  `p7_3d_grid4x4.json`, arms 500 `b_mean_k100` + 100 `fixedtime` + 100 `maxpressure`.
+- **The pin** — `tests/test_p7_3d_campaign_path.py -k "campaign_path or complete or report or reference or two_routes or local_return"` with
+  B.7.3-5's three-variable line — **51 passed in 106.8 s, 0 failed**; the executed tests' captures carry canary lines of 0.67–0.78 s; the real
+  `output/p7_3d/` untouched (cells 0, no token); the run worktree clean afterwards.
+- **B.7.5-2's hand re-check of `report`'s per-intersection block, by an independent route:** a stdlib-only script (nothing imported from
+  `offline/`) over the **700 synthetic chunks the complete-set test wrote at this commit** and the artifact `report` wrote from them —
+  ρ_i as a ratio of means (the DT's seeds averaged within a draw first, in seed order; the draws in draw order; `sum()/len()`) and the
+  diagnostic worked by hand (ddof-1 SE over √n) — **equal under `==` on all 16 intersections, entry AND diagnostic; the null set is
+  `['C3']` on both sides; and on all 15 non-null intersections the superseded mean of per-draw ratios differs from the artifact's value by
+  more than 1e-3** (B2: 0.5395 against 0.5278), so the pin at this commit can fail. The artifact's header: `p7.3d-grid4x4/1.0`,
+  `cityflow_grid4x4`, `mappo1000_dt_nomix_h4`, A21's arm set, `inputs.calibration_sha256` = `3e9df8ee…`, `reference_cells n_checked 6 /
+  all_reproduce true`.
+- **Two committed mutants re-run by the coordinator** in a throwaway worktree at `4383699`, control 3/3 green first: **M01b** (the mean of
+  per-draw ratios restored; the complete-set pin ALONE) → **1 failed**, on `A0: 0.28125 == 0.2875` — the two definitions, told apart;
+  **R02** (the driver ignoring the module's non-zero exit — run 1's survivor) → **2 failed**, the first on *a non-zero exit refuses by
+  itself, before the count*. Both KILLED; the worktree removed.
+- Evidence, outside `/tmp`: `output/p7_3d_runs/coordinator_b7_4/` (11 files: the B.6 console, the pin's full output, the recomputation
+  script and its output, the control and both mutant transcripts, the runner, the synthetic artifact at this commit), digests in the plan's
+  §8 row of this date.
+
+## B.7.6-2 — The pre-token stage `reference_reroll_check`: HAND-CHECKED by reading, then EXECUTED FOR REAL (it had never run; the author's advisory chat asked for exactly this)
+**By reading:** the driver calls it at line 343 with `--g2-dir "$G2_DIR"` (`$MAIN/output/p7_3d/g2`, line 138) after `dt_reroll_check`
+(325) and **before the trap (386) and `rm -f "$TOKEN"` (395)**; the module loads the frozen rows first (digest before parse), rolls the six
+through `run_cell` in one spawn pool, compares each by `report`'s own `reference_cell_differences`, and **writes nothing until every roll has
+returned and been compared** — then one record per cell plus `verdict.json` under `<g2-dir>/reference_reroll_check_<UTC>/`, the payloads under
+the fence key; `run_cell` has no write site of its own; both refusal routes (`exit 2` on the module's non-zero exit, `exit 2` unless exactly
+six `MATCH` lines) fire before the trap, so a refusal leaves the token in place and `cells/` non-existent. **By execution,** from the run
+worktree exactly as the driver invokes the module (cwd = the main tree, `-P`, `COMMON` first, 6 workers, canary 0.82 s, an idle machine):
+**6 / 6 MATCH, module exit 0, 143 s wall.** Seven records under `output/p7_3d_runs/coordinator_reference_reroll/reference_reroll_check_20260924T113020Z/`
+(verdict `MATCH`, `git_commit 4383699`, `git_dirty false`, 17 compared fields, the halting counts where the frozen run checked, reference
+sha `5265f0d5…`; each cell record's top-level keys are `cell`, `format_version` and the fence key only); the sandbox `--work-dir`/`--out-dir`
+stayed empty; `output/p7_3d/` untouched. **So the anchor branch at the run commit regenerates C4's six frozen cells bit-for-bit BEFORE the
+token, and the campaign's own `report` will find the same after 700 cells.** Two observations for the packet, neither a defect:
+(i) **143 s is a MEASUREMENT** and replaces the header's *"a minute or two"* estimate — the pre-token chain is canary + `dt_reroll_check`
+(≈ 95 s) + `reference_reroll_check` (≈ 143 s), **≈ 4–5 min before the banner**; (ii) twelve ` Retrying in 1 seconds` lines — TraCI's
+connect retry under six concurrent SUMO launches — precede the six result lines on stdout, and stderr carries six copies of
+`utils/sumo_utils.py:56`'s deprecation `UserWarning`; neither carries a value, the driver's `grep -E '^reference_reroll_check (MATCH|NO MATCH) '`
+count sees exactly six result lines, and all of it reaches the capture verbatim. Recorded so that G6 does not read those lines as a finding.
+
+## B.7.6-3 — `dt_reroll_check` at the run commit, executed for real by the coordinator: IDENTICAL
+Run the same way (cwd = the main tree, `-P`, `COMMON` first, 12 workers, canary 1.23 s under the previous pool's residual load — still under
+the 2.0 s bar, and the reason the campaign starts idle): **`dt_reroll_check IDENTICAL: 13 rolls` of the seed-101 draw-5 cell (1 at W = 1, 12
+in one 12-worker pool) agree under `==` on all 61 fields but the clock; sha256 minus clocks `90d212d6…` on all 13; module exit 0; 114 s
+wall.** 61 fields against §24.10's 59 are B.7.1-2's two `local_return` fields; the hash differs from `81d176ce…` because the chunk format
+changed — both expected, and the reproduction claim for the AGENT under the campaign's pooling (B.5-1) now stands at the run commit. The
+fourteen fenced records are under `output/p7_3d_runs/coordinator_dt_reroll/dt_reroll_check_20260924T113353Z/`; the sandbox stayed empty and
+`output/p7_3d/` untouched. Twenty-four ` Retrying in 1 seconds` lines preceded the verdict line on stdout, the same TraCI chatter as
+B.7.6-2(ii); the driver captures the verdict through `$(...)` and echoes the whole, so the capture's `re-roll` banner line may be preceded
+by them — G6 reads the `dt_reroll_check IDENTICAL` line, not the line count. **The driver still re-runs both checks itself before the token;
+these two runs are the coordinator's falsification of the stages, not a substitute for them.**
+
+## B.7.6-4 — Minors for C7's packet; no round
+(i) §26.6-3 quotes B2's `denominator` as `-60.800000000000004`; the artifact at this commit carries **`-60.80000000000001`** (the coordinator's
+independent route equals it under `==`). The sentence is off in its last digits, the number is not; C7 corrects the sentence — a
+description-versus-artifact slip of the project's signature class, in a disclosure paragraph. (ii) **The coordinator's own trip of the
+driver's liveness guard, logged as the class it is:** a Bash tool call's whole command text is the argv of the harness's wrapper shell, so a
+call that both WRITES a script naming the module AND RUNS it carries `transfer_curve` in a live process for the run's whole life — the
+driver's `pgrep -f` matched it and eight executed tests refused with exit 3 (fails safe; nothing consumed, nothing rolled). The pin re-run
+from a script written in a SEPARATE call passed 51/51. The brief's §4 trap, one level up; the fix is two calls, and every driver-running
+script of this session was written and run that way afterwards.
+
+## B.7.6-5 — Ruling
+**B.7.4 is ACCEPTED at `4383699`.** The G4 re-review's CLEAR-WITH-CONDITIONS carries to this commit (its item 4 re-checked in B.7.6-1 by an
+independent route, as B.7.5-2 required); its condition — **an IDLE machine, on mains, at the start** — goes into the token block verbatim.
+Nothing here changes a registered quantity. **The token is next: channel (a), the two-step start of B.3-1 / B.5-3 naming
+`/home/filip/rltraffic-p73d-run`, exactly as the driver header's Step 1 and Step 2 read at `4383699`.** G6 then follows
+`HANDOFF_2026-09-23.md` §2.5, capture first, item by item; the coordinator's own pre-token records under `output/p7_3d_runs/coordinator_*`
+are evidence for THIS amendment and are not the campaign's — the driver writes its own under `output/p7_3d/g2/`, and those are what G6 reads.
+---
+
+# ⛔ AMENDMENT B.7.7 — 2026-09-24, evening: CAMPAIGN ATTEMPT 1 FAILED AT `cells` (698 / 700; two cells refused for one SUMO COLLISION-teleport each); read and diagnosed by the coordinator, the 698 checked BLIND; the task WAITS for a registration — A23, proposed — and the implementer builds NOTHING until Amendment B.8 appears here
+
+## B.7.7-1 — What happened
+The campaign started at 14:21 from the run worktree at `4383699` exactly as B.7.6 issued it: no refusal before the start, canary 0.80 s,
+`dt_reroll_check IDENTICAL`, six `reference_reroll_check MATCH`, the token consumed once. `cells` rolled **698 of 700 in 2,923 s** and
+refused two, each *"1 teleport(s) under A15(c)'s teleport-free regime"*: **fixed-time on draw 1020** and **`b_mean_k100` seed 303 on draw
+1042**. The driver ended `CAMPAIGN FAILED at cells`, `DRIVER EXIT: 1`; nothing was destroyed. **Diagnosis, from SUMO's own output** (both
+cells re-rolled by the coordinator with collision output enabled): each is a **collision at a merge onto an exit lane**, which SUMO resolves
+by its DEFAULT `collision.action = teleport` whatever `time-to-teleport` says; the collider, on its final edge, is counted as arrived. Both
+reproduce exactly. **G6's instrument checks on the 698, run blind, all pass — the two refusals are attempt 1's only defect.** In full:
+`docs/notes/P7.3d_ATTEMPT1_READ_2026-09-24.md`, with the evidence under `output/p7_3d_runs/attempt1_{diag,g6_blind,manifest}/`.
+
+## B.7.7-2 — Results already seen, added to this task's record (B.1-3's rule)
+The two refusal lines (cell names, *1 teleport*); the collision facts (times 2,298 s and 2,627 s, exit lanes `D0right0_0` and `A0left0_0`,
+vehicle ids, two impact speeds); SUMO's warning lines; the stage summary's per-cell wall clocks; the pass counts of the blind checks; and
+**one inference**: on at least 373 of the 499 DT cells, some intersection's RTG crossed zero after about decision 180 (the note's §4
+explains how the coordinator's own diagnostic leaked it). **No `e_sumo`, `att_env`, per-intersection return, reward or RTG value, or ρ, of any
+campaign cell has been read.**
+
+## B.7.7-3 — The registration, and why it is not a ruling
+A15(c) registers the CONFIGURATION (`<time-to-teleport value="-1"/>`), which all 700 cells carried; the refusal of ANY teleport is the
+instrument's check, built on the premise that `-1` makes SUMO teleport-free — false for collisions. §8 of the registration decides the rest:
+*"failed and pathological episodes are included, never dropped … excluded only for infrastructure failure"*. Keeping the two episodes,
+recording every collision, refusing only jam teleports and adding a sensitivity analysis changes how cells are judged and what is reported,
+so it is **registered before any outcome is read** (A23, proposed in the note's §5 for the author's approval as written) rather than ruled
+here.
+
+## B.7.7-4 — For the implementer, and for anyone touching `output/p7_3d/`
+**Nothing to build until B.8.** B.8 will carry ONE commit — the collision record (a TraCI read that must not change dynamics), the
+jam-only refusal, `report`'s `collisions` block and sensitivity ρ, T-regress (b) byte-identical, the named mutations — with its gates.
+**Do not delete, move or open anything under `output/p7_3d/`:** attempt 1's 698 chunks are digest-pinned and will be compared, blind and
+under `==`, with attempt 2's (A23(f)); the coordinator moves the directory aside after B.8 is verified.
+
+## B.7.7-5 — After the A23 review (same day): corrections to B.7.7, and the probe re-verified
+(1) B.7.7-2's inference is sharper than written: every reward is an integer and every target is not, so the rounding
+pattern implies that on at least 373 DT cells some intersection's realised cost exceeded MORE THAN TWICE its prompt's
+magnitude; and the stage summary's per-cell wall clocks (in the capture; a congestion proxy; not mapped to cells by the
+coordinator; 22 of them in the author's pasted tail) are added to the *seen* record. (2) The collision overlaps are 1.71 and
+2.02 m; SUMO's `gap` is net of `minGap`. (3) The SUMO probe's teleport counter reads one second in ten (`DEFERRED` 93); the
+coordinator re-rolled all 200 probe episodes with SUMO's per-run statistics: clean, every registered probe return reproduced
+under `==`. Nothing here changes what the implementer builds; B.8 still waits for A23.
+---
+
+# ⭐ AMENDMENT B.8 — 2026-09-24: A23 REGISTERED (`v2.4-prereg-a23` → `6e91acb`, tag object `1fc1f8e`, chain verified from the remote) — the collision record, the rule that refuses only a teleport no collision explains, `report`'s `collisions` block and the registered robustness check, in ONE commit; then the coordinator's verification, attempt 1 moved aside, and a new token
+
+**Read first, whole, then act:** `PREREGISTRATION.md` **A23** (the registered text is the authority wherever this amendment and it differ),
+`docs/notes/P7.3d_ATTEMPT1_READ_2026-09-24.md` (§1–§4: what attempt 1 did; §7: the review), B.7.7. `git -C /home/filip/rltraffic-p73d
+merge --no-edit main` at the start AND immediately before the commit (your §26.6-1 rule). Plan mode first; the plan's stage 6 is the
+branch's next commit and is gate G8a below. **Launched from the worktree** (`cd /home/filip/rltraffic-p73d && claude`); the first action
+of the session is a Write-tool probe of a frozen path (`envs/GUARD_PROBE.md`) — it must be DENIED; if it is not, stop and say so.
+**No trailer on any commit; if a session instruction says otherwise, stop and say so** (`CLAUDE.md` §4b; B.6.2-2).
+
+## B.8-1 — Why this commit exists
+Attempt 1 refused two cells for one SUMO collision-teleport each. A23 keeps such a cell under §8, records every collision, refuses only a
+teleport that no same-step collision explains, and adds a robustness check fixed now. Under J1(c) this is a code change, so all 700 cells
+re-roll: **the change must be complete in ONE commit, and nothing else rides in it.**
+
+## B.8-2 — The commit: the recorder's per-step reads (`offline/sumo_att_reference.py`), `offline/transfer_curve.py`, tests
+1. **The record — a READ, never a write.** At the recorder's per-simulated-second seam (`sumo_att_reference.py:896–908` at `4383699`,
+   inside `_simulate`'s step loop, beside `getStartingTeleportIDList`), read `simulation.getCollisions()` (present in this machine's
+   TraCI — the coordinator checked) and keep every collision in step order: the snapshot's engine time, `lane`, `pos`, `collider`,
+   `victim`, `colliderType`, `victimType`, `colliderSpeed`, `victimSpeed`, `type`, and **the collider's fate** — *arrived at the collision
+   step* (in `getArrivedIDList` that step), *put back at t* (later in `getEndingTeleportIDList`), or *in transit at the horizon*. A
+   teleport is **explained** iff its vehicle is the collider OR the victim of a collision SUMO reports in the SAME step (A23(c)(i)); any
+   other teleport, of any kind, is **unexplained**. The vanished-vehicle counter records the ids it counts. **Both paths that roll a
+   grid4x4 cell** (the aligned DT env and the anchor's observer env) must carry the read — name them in the plan.
+2. **The chunk: `p7.3d-grid4x4/1.1`** — adds `collisions` (the list, possibly empty), `n_collisions`, `n_explained_teleports`,
+   `n_unexplained_teleports`, and the vanished ids; the module docstring states the version, the same-step convention and the fate
+   values (`CLAUDE.md` §3). **hz1x1 records are unchanged** (keyed on the scenario; T-regress (b) byte-identical).
+3. **`validate_cell_payload` (grid4x4 1.1), A23(c):** refuses `n_unexplained_teleports != 0`; refuses `n_teleports !=
+   n_explained_teleports + n_unexplained_teleports`; refuses a vanished vehicle that is not party to a recorded collision; requires the
+   record. **`report` accepts ONLY 1.1 for the grid4x4 stage**, so no attempt-1 chunk can reach an artifact.
+4. **`report` (grid4x4), A23(d) and (f):** (a) a `collisions` block — per arm, the number of cells with a collision and every event
+   (instrument facts only); (b) `robustness_without_draws_1020_1042` — **the SAME functions that build the primary blocks** (the H3 block,
+   per-draw and per-seed ρ with their means and CIs, the paired ATT comparisons against both anchors with their Wilcoxon p-values, the
+   denominator diagnostic), run on the 98 draws that remain when draws **1020 and 1042** are removed WHOLE (all 14 of their cells) — no new
+   statistic; the constant set is A23's and is written into the block with A23 cited; (c) the primary untouched, and A23(d)'s sentences
+   carried verbatim (*that primary alone decides clause 1*; *a robustness check, not an estimate*); (d) **`report` REFUSES — before any
+   aggregate and any write — unless the chunks record exactly two collision events, one in the `fixedtime` cell of draw 1020 and one in
+   the `b_mean_k100` seed-303 cell of draw 1042** (A23(f): *no other cell may record any*; the coordinator stops if this refusal fires).
+5. **Tests FIRST, each red for its own reason:** a 1.1 payload with one explained teleport accepted; with an unexplained teleport refused;
+   with a teleport whose collision is in ANOTHER step refused; with an unexplained vanished vehicle refused; the recorder on a stubbed
+   simulation (collision and teleport in the same step → explained; the fate read from the arrived / ending-teleport lists); `report` on
+   the complete synthetic set carrying exactly A23's two collision events → the `collisions` block and the 98-draw robustness block, whose
+   values the test derives from its own stubs, and the primary byte-identical to the same set without collisions; the same set with a
+   third collision event → refused, nothing written; T-regress (b) byte-identical on all three hz1x1 artifacts; T-16 and the e2e green
+   (the e2e now exercises the new read on a real draw-5 episode: an empty record).
+6. **The packet records attempt 1 in full** — the capture from its first line, `FAILED at cells`, the two refusals, the coordinator's
+   diagnosis by reference to the note and `output/p7_3d_runs/attempt1_*`, A23 — so the paper's methods can say that a first attempt was
+   stopped by the instrument, why, and what was registered before anything re-ran. A failed run left out of the record is the look §8
+   forbids.
+7. **Named mutations, executed before the commit, each KILLED:** the unexplained-teleport check removed; `getCollisions` ignored (the
+   record empty); the same-step match loosened to any step; the victim dropped from the match; the robustness set built from DT cells
+   only; the robustness set removing the cell instead of the draw; the two-event refusal removed; the hz1x1 path given the new fields
+   (T-regress dies).
+
+## B.8-3 — A23(f)'s field list, fixed HERE before the token
+The coordinator's blind comparison of attempt 1's 698 valid chunks with attempt 2's same cells runs over **every field both carry EXCEPT
+exactly: `git_commit`, `format_version`, `seconds`, `canary_seconds`.** Fields only 1.1 carries are not shared and are not compared. If your
+change makes any OTHER shared field differ by design, name it in the plan at G8a; the coordinator adds it here by a dated amendment before
+the token, or the design changes. **Never after the token.**
+
+## B.8-4 — Gates, in order — you learn each by `git merge main`
+| # | Gate | Runs it | Checks | Stops the task if |
+|---|---|---|---|---|
+| G8a | Plan (stage 6) | coordinator, from the branch | the two seams, the same-step match, the fate read, the 1.1 shape, the tests, any by-design field difference | a load-bearing assumption is wrong |
+| G8b | The commit + packet §27 | you → *"P7.3d B.8 done"* | B.8-2 in full; red-first and mutation transcripts under `output/p7_3d_runs/b8/` | — |
+| G8c | Verification, from the RUN worktree re-created at the commit | coordinator | the pin; the two known collision cells rolled once each, FENCED, printing only the counts and whether validation keeps them, their events against the attempt-1 diagnosis; both pre-token checks for real; the draw-5 DT cell's shared fields `==` the attempt-1-era record (names only) | any of it fails |
+| G8d | Attempt 1 moved aside | coordinator | `output/p7_3d/cells` renamed to `output/p7_3d_runs/attempt1_cells/` (nothing deleted); its manifest re-verified at the new path | the manifest fails |
+| G8e | Token, attempt 2 | **author — channel (a)** | `tmux kill-session -t p73d_cells` first (attempt 1's pane still holds the name), then B.3-1's two steps | — |
+| G6 | Read | coordinator | **(0) the blind comparison of B.8-3 FIRST, and exactly A23's two collision events**; then the handoff's §2.5 (a)–(f) | (0) differs → stop; a further amendment decides (A23(f)) |
+
+**Do not touch anything under `output/p7_3d/`.** Attempt 1's chunks are digest-pinned evidence and the coordinator moves them at G8d.

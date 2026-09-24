@@ -125,6 +125,8 @@ Two items are *adjacent* to P3 but do not block it:
 
 ---
 
+| 93 | **The SUMO probe's teleport counter reads one simulated second in ten.** `offline/transfer_calibration.py`'s `_roll_sumo_maxpressure_episode` (`:414, :429` at `4383699`; the same at P7.2b's `b63d56b`) calls `getStartingTeleportIDList()` once per DECISION; the list covers only the last simulated step, and the env steps SUMO once per second (`envs/sumo_env.py:229-231`). A17(b)'s registered `n_teleports = 0` was therefore verified sparsely for P7.2b's and P7.3d's probes. Found by the A23 review (2026-09-24); the coordinator re-rolled all 200 probe episodes with SUMO's per-run statistics the same day: clean (`docs/notes/P7.3d_ATTEMPT1_READ_2026-09-24.md` §2). | No registered number is affected (measured), and no probe runs in P7.3d; the fix is a code change in a module every future SUMO probe uses. | Read the counter every simulated second (the env's `on_sim_step` hook, or SUMO's own `--statistic-output` totals, which also split jam from collision teleports); one commit, a test that fails on a teleport in the 9 unread seconds, a mutation. | Any future SUMO probe (P7.3c, if run). |
+
 ## Superseded tables to rebuild after `datasets_att/` lands
 
 Both were computed on the **untuned** fixed-time controller and on `datasets/`:
