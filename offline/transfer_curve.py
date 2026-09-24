@@ -46,8 +46,8 @@ P7.2b fenced ``att_horizon``, ``episode_reward``, ``rtg_last`` and the RTG serie
 declared arms and the three anchors on the **held-out pool**, and for nothing else.  P7.2b's smoke
 on draw 5 stays fenced.  :func:`report` refuses any cell whose arm is not declared.
 
-P7.3d'S GRID4X4 CHUNK -- format ``p7.3d-grid4x4/1.0`` (``BRIEF_39``, B.6 fix round)
-------------------------------------------------------------------------------------
+P7.3d'S GRID4X4 CHUNK -- format ``p7.3d-grid4x4/1.1`` (``BRIEF_39``, B.6 fix round; 1.1 since B.8)
+--------------------------------------------------------------------------------------------------
 A cell whose ``scenario`` is ``cityflow_grid4x4`` is written by :func:`run_cell` as its own format
 (:data:`GRID4X4_ARTIFACT_FORMAT_VERSION`); an hz1x1 chunk -- no ``scenario`` key -- is exactly
 what it always was.  The grid4x4 chunk carries every episode-level field of the hz1x1 chunk, plus
@@ -61,6 +61,24 @@ Every grid4x4 chunk -- anchor and DT alike (B.7.1-2) -- also records ``local_ret
 over the 360 POST-STEP infos of its reward, by the probe's two routes and equal under ``==``.  It
 is the quantity per-intersection rho is defined on, and it is NOT ``sum(reward_series[i])``, which
 lacks the last decision's reward (the series is read before each act, below).
+
+**1.1, PREREGISTRATION A23 (``BRIEF_39`` B.8).**  A15(c)'s ``time-to-teleport -1`` does not disable
+SUMO's COLLISION teleport.  So every grid4x4 chunk also records the recorder's
+:data:`GRID4X4_COLLISION_RECORD_FIELDS`:
+- ``collisions``: every collision in step order -- the snapshot's time, TraCI's own fields, and the
+  collider's fate, one of ``sumo_att_reference.COLLIDER_FATES``: ``arrived_at_collision_step``,
+  ``put_back`` (with ``collider_fate_time``) or ``in_transit_at_horizon``;
+- ``n_collisions``;
+- ``teleports``: every teleport start as ``{time, vehicle}``;
+- ``n_explained_teleports`` and ``n_unexplained_teleports``;
+- ``vanished_ids``.
+
+**The same-step convention:** a teleport is explained iff its vehicle is the collider or the victim of
+a collision recorded at the SAME snapshot time.  ``validate_cell_payload`` re-derives that from the two
+lists, and it refuses an unexplained teleport, an unregistered fate (a stop for a ruling) and a
+vanished vehicle that is party to no collision.  ``time`` is the snapshot's ``getTime()`` after the
+step, one step after SUMO's own collision stamp.  hz1x1 chunks are unchanged, and a teleport still
+refuses them.
 
 **Alignment convention.**  ``actions[t][j]`` is the action decision ``t`` applied at
 ``intersection_ids[j]``, ``t = 0 .. decisions - 1``.  ``rtg_series[i][t]`` is intersection
@@ -487,12 +505,52 @@ DEFAULT_DATA_DIR = _REPO_ROOT / "docs" / "data"
 #: without leaving a trace.  It moves only in a commit that also moves the artifact.
 #: P7.3d's artifact version.  grid4x4 gets its OWN, rather than overloading P7.3a's: one string
 #: describing two artifacts is how a reader comes to believe a cell set is something it is not.
-GRID4X4_ARTIFACT_FORMAT_VERSION = "p7.3d-grid4x4/1.0"
+#: ONE constant for the grid4x4 chunk AND its artifact.  ``1.1`` (``BRIEF_39`` B.8-2(2), B.8.1-2 D1):
+#: the chunk gains A23's collision record, the artifact its ``collisions`` and robustness blocks, and
+#: ``validate_cell_payload`` accepts ONLY 1.1 for grid4x4 -- no attempt-1 (1.0) chunk reaches an
+#: artifact.
+GRID4X4_ARTIFACT_FORMAT_VERSION = "p7.3d-grid4x4/1.1"
 
 #: The grid4x4 scenario key, its registered subject (A20(a)) and its one registered arm (A21(a)).
 GRID4X4_SCENARIO_KEY = "cityflow_grid4x4"
 GRID4X4_SUBJECT = "mappo1000_dt_nomix_h4"
 GRID4X4_ARM = "b_mean_k100"
+
+#: PREREGISTRATION A23(f), ``BRIEF_39`` B.8-2(4)(d): the ONLY two cells that may record a collision
+#: event -- ``(arm, seed, draw)`` of attempt 1's two refused cells.  ``report`` refuses unless the
+#: stage's chunks record exactly one event in each and none anywhere else.
+A23_COLLISION_CELLS: tuple[tuple[str, int | None, int], ...] = (
+    ("fixedtime", None, 1020),
+    (GRID4X4_ARM, 303, 1042),
+)
+#: B.8-2(2): the six fields A23's collision record adds to a ``p7.3d-grid4x4/1.1`` chunk, in the
+#: recorder's own names (``sumo_att_reference.SumoObservationRecorder.collision_record``).
+GRID4X4_COLLISION_RECORD_FIELDS: tuple[str, ...] = (
+    "collisions", "n_collisions", "teleports", "n_explained_teleports", "n_unexplained_teleports",
+    "vanished_ids",
+)
+#: A23(d)'s robustness check removes these draws WHOLE (all 14 of their cells; 98 draws remain).
+A23_ROBUSTNESS_DRAWS_REMOVED: tuple[int, ...] = (1020, 1042)
+#: A23(d), VERBATIM from ``PREREGISTRATION.md`` -- the clause's body without its header, the
+#: registration's ``**`` emphasis removed; the section sign U+00A7 (``\xa7``), rho U+03C1 and the en
+#: dash U+2013 escaped so this source stays ASCII.  A test extracts it from the registration and
+#: compares, under ``==``.
+A23_D_VERBATIM = (
+    "The artifact carries, per arm, the number of cells with a collision and every event. \u03c1 and "
+    "H3's clause 1 are computed on ALL 100 held-out draws, as registered; that primary alone decides "
+    "clause 1 (A20(e); \xa78's test and multiplicity correction unchanged). Beside it, a SECONDARY "
+    "robustness check, fixed now: every estimator the primary reports, on `E_sumo` and `att_env`, "
+    "recomputed without draws 1020 and 1042 (all 14 of their cells; 98 draws remain). If it differs "
+    "from the primary on the sign of mean \u03c1, on whether the 95 % CI excludes 0, or on \xa78's "
+    "Wilcoxon\u2013Holm decision, the paper says so in the sentence that states clause 1's verdict. "
+    "It conditions on an event caused by the policy and is a robustness check, not an estimate."
+)
+#: B.8.1-2 (D5): what the robustness block does NOT recompute, in one sentence.
+A23_ROBUSTNESS_NOT_RECOMPUTED = (
+    "The per-intersection rho block (on each intersection's collection-reward return) and the "
+    "in-support block are not recomputed here: A23(d) recomputes every estimator the primary reports "
+    "on E_sumo and att_env, and these two are on neither (BRIEF_39 B.8.1-2, D5)."
+)
 
 #: A21(b)'s two scope items, VERBATIM from ``PREREGISTRATION.md`` (the enumerators ``(i)`` and
 #: ``(ii)`` omitted): the paper states both as SCOPE, in these words, and the grid4x4 artifact carries
@@ -1816,6 +1874,132 @@ class _StepTap:
         return getattr(self._env, name)
 
 
+def _a23_collision_cell_names() -> list[str]:
+    """The chunk names of :data:`A23_COLLISION_CELLS`, the only cells that may record a collision."""
+    return sorted(
+        cell_chunk_name(
+            {"subject": None if seed is None else GRID4X4_SUBJECT, "arm": arm, "seed": seed,
+             "draw_id": draw, "scenario": GRID4X4_SCENARIO_KEY}
+        )
+        for arm, seed, draw in A23_COLLISION_CELLS
+    )
+
+
+def _assert_a23_collision_cells(
+    chunks: Mapping[str, Mapping[str, Any]], declared_names: Sequence[str]
+) -> None:
+    """PREREGISTRATION A23(f), ``BRIEF_39`` B.8-2(4)(d): EXACTLY one collision event in each of A23's two
+    cells -- fixed-time on draw 1020 and the DT's seed 303 on draw 1042 -- and none anywhere else.
+
+    Otherwise REFUSE, naming every offending cell, before any aggregate and any write.  A23(f): *the
+    coordinator stops, no outcome of either attempt is read, and a further amendment decides*.
+    Applied to the DECLARED set: the campaign's declaration holds all 700 cells, both of A23's among
+    them, so there this is exactly B.8-2(4)(d); a caller-supplied partial set cannot be required to
+    record an event in a cell it does not declare, and any event it records elsewhere still refuses.
+    """
+    expected = [name for name in _a23_collision_cell_names() if name in set(declared_names)]
+    events = {name: len(payload["collisions"]) for name, payload in chunks.items() if payload["collisions"]}
+    problems = [f"{name} records {count}" for name, count in sorted(events.items()) if name not in expected]
+    problems += [f"{name} records {events.get(name, 0)}" for name in expected if events.get(name, 0) != 1]
+    if problems:
+        raise ValueError(
+            "A23(f): the stage's chunks do not record exactly A23's collision events -- one in each of "
+            f"{expected} and none elsewhere: " + "; ".join(problems) + ". The coordinator stops, no "
+            "outcome of either attempt is read, and a further amendment decides"
+        )
+
+
+def _validate_collision_record(payload: Mapping[str, Any], *, label: str) -> None:
+    """PREREGISTRATION A23(c) on a ``p7.3d-grid4x4/1.1`` chunk (``BRIEF_39`` B.8-2(3)).
+
+    The record is REQUIRED and well-formed.  Its counts agree with its lists.  The same-step match
+    is RE-DERIVED from the chunk's own ``teleports`` and ``collisions`` (a teleport at ``t`` is
+    explained iff its vehicle is the collider or the victim of a collision recorded at that same
+    ``t``) and compared with the recorded split: the recorder's count, checked by a second route
+    (B.8.1-2, D2).  Then, each a REFUSAL:
+    - an unexplained teleport, of any kind (A23(c)(i));
+    - a collider fate outside A23(c)(iii)'s three -- a STOP for a ruling, never an exclusion
+      (B.8.1-2, D4);
+    - a vanished vehicle that is party to no recorded collision (A23(c)(i); new in 1.1: the
+      transfer-curve instrument never refused one before).
+    """
+    from offline.sumo_att_reference import COLLIDER_FATES, COLLISION_FACT_KEYS
+
+    missing = [key for key in GRID4X4_COLLISION_RECORD_FIELDS if key not in payload]
+    if missing:
+        raise ValueError(
+            f"{label}: a {GRID4X4_ARTIFACT_FORMAT_VERSION} chunk records A23's collision record; it "
+            f"carries no {missing}"
+        )
+    collisions, teleports, vanished = payload["collisions"], payload["teleports"], payload["vanished_ids"]
+    if not all(isinstance(value, list) for value in (collisions, teleports, vanished)):
+        raise ValueError(f"{label}: collisions, teleports and vanished_ids must each be a list")
+    for entry in collisions:
+        absent = [
+            key for key in ("time", *COLLISION_FACT_KEYS, "collider_fate", "collider_fate_time")
+            if key not in entry
+        ]
+        if absent:
+            raise ValueError(f"{label}: a recorded collision carries no {absent}")
+    for event in teleports:
+        if not isinstance(event, Mapping) or set(event) != {"time", "vehicle"}:
+            raise ValueError(f"{label}: a recorded teleport is {{time, vehicle}}, not {event!r}")
+    if int(payload["n_collisions"]) != len(collisions):
+        raise ValueError(
+            f"{label}: n_collisions {payload['n_collisions']} but {len(collisions)} collision(s) recorded"
+        )
+    if len(teleports) != int(payload["n_teleports"]):
+        raise ValueError(
+            f"{label}: n_teleports {payload['n_teleports']} but {len(teleports)} teleport start(s) "
+            "recorded in teleports"
+        )
+    explained = int(payload["n_explained_teleports"])
+    unexplained = int(payload["n_unexplained_teleports"])
+    if explained + unexplained != int(payload["n_teleports"]):
+        raise ValueError(
+            f"{label}: n_explained_teleports {explained} + n_unexplained_teleports {unexplained} is not "
+            f"n_teleports {payload['n_teleports']}"
+        )
+    parties_at: dict[float, set[str]] = {}
+    for entry in collisions:
+        parties_at.setdefault(float(entry["time"]), set()).update({str(entry["collider"]), str(entry["victim"])})
+    derived = sum(
+        1 for event in teleports if str(event["vehicle"]) in parties_at.get(float(event["time"]), set())
+    )
+    if derived != explained or len(teleports) - derived != unexplained:
+        raise ValueError(
+            f"{label}: its teleports and collisions give {derived} teleport(s) explained by a collision "
+            f"in the same step, not the {explained} it records (A23(c)(i))"
+        )
+    if unexplained != 0:
+        raise ValueError(
+            f"{label}: {unexplained} unexplained teleport(s) -- a teleport no collision reported in the "
+            "same step explains, of any kind, still refuses the cell (PREREGISTRATION A23(c)(i))"
+        )
+    unregistered = [entry for entry in collisions if entry["collider_fate"] not in COLLIDER_FATES]
+    if unregistered:
+        first = unregistered[0]
+        raise ValueError(
+            f"{label}: the collider of the collision at t={first['time']!r} ({first['collider']!r} into "
+            f"{first['victim']!r}) has fate {first['collider_fate']!r}, none of A23(c)(iii)'s "
+            f"{list(COLLIDER_FATES)}: SUMO did something PREREGISTRATION A23 does not describe, and the "
+            "campaign stops for a ruling (A23(f): a further amendment decides). Nothing is excluded"
+        )
+    if len(vanished) != int(payload["n_vanished_without_arrival"]):
+        raise ValueError(
+            f"{label}: n_vanished_without_arrival {payload['n_vanished_without_arrival']} but "
+            f"{len(vanished)} vanished id(s) recorded"
+        )
+    parties = {str(entry["collider"]) for entry in collisions} | {str(entry["victim"]) for entry in collisions}
+    stray = sorted(str(vid) for vid in vanished if str(vid) not in parties)
+    if stray:
+        raise ValueError(
+            f"{label}: vanished vehicle(s) {stray[:5]} departed, never arrived and were absent at the "
+            "horizon without being party to a recorded collision; that still refuses the cell "
+            "(PREREGISTRATION A23(c)(i))"
+        )
+
+
 def validate_cell_payload(
     payload: Mapping[str, Any], *, cell: Mapping[str, Any] | None = None
 ) -> None:
@@ -1834,7 +2018,7 @@ def validate_cell_payload(
 
     label = cell_chunk_name(payload)
     # P7.3d (B.6 fix round): the scenario decides the format and the pins. A grid4x4 chunk is its
-    # own format (`p7.3d-grid4x4/1.0`, the module docstring's last section); an hz1x1 chunk is
+    # own format (`p7.3d-grid4x4/1.1`, the module docstring's last section); an hz1x1 chunk is
     # checked exactly as it always was.
     grid = scenario_of(payload) == GRID4X4_SCENARIO_KEY
     expected_version = GRID4X4_ARTIFACT_FORMAT_VERSION if grid else ARTIFACT_FORMAT_VERSION
@@ -1888,7 +2072,12 @@ def validate_cell_payload(
             )
         if kind == "anchor" and (payload.get("subject") is not None or arm == GRID4X4_ARM):
             raise ValueError(f"{label}: an anchor cell has no subject and no prompt")
-    if int(payload["n_teleports"]) != 0:
+    if grid:
+        # A23 (B.8-2(3)): on a grid4x4 1.1 chunk a COLLISION teleport is recorded and the cell KEPT;
+        # only a teleport no same-step collision explains, or an unexplained vanished vehicle, refuses.
+        _validate_collision_record(payload, label=label)
+    elif int(payload["n_teleports"]) != 0:
+        # hz1x1, unchanged: its records predate A23, and every one of them carries 0.
         raise ValueError(
             f"{label}: {payload['n_teleports']} teleport(s) under A15(c)'s teleport-free regime"
         )
@@ -2190,7 +2379,7 @@ def run_cell(
     :func:`load_grid4x4_targets` and their support ranges through :func:`grid4x4_support_ranges` --
     both from the ONE digest-pinned ``p7_3d_calibration.json`` -- loads the subject through
     ``dt_choose``'s per-intersection branch (``spatial_agent_with_targets``), and returns a
-    ``p7.3d-grid4x4/1.0`` chunk (the module docstring's last section), whose 16-id refusal runs in
+    ``p7.3d-grid4x4/1.1`` chunk (the module docstring's last section), whose 16-id refusal runs in
     :func:`validate_cell_payload` on the finished payload before it is returned.
     """
     import time
@@ -2276,6 +2465,10 @@ def run_cell(
         tap = _StepTap(env, collect_post_step=grid)
         rollout = horizon_rollout(tap, choose, 1, ENGINE_SEED)
         built = reconstruct_sumo_episode(env.recorder)
+        # A23 / B.8-2(1): the collision record, read from the SAME recorder at the episode's end -- on
+        # grid4x4 only; hz1x1's branch never reads it (plan section 27). Both env paths reach it -- an
+        # anchor's observer directly, a DT's through AlignedEnv.recorder.
+        collision_record = env.recorder.collision_record() if grid else None
         att_env = att_env_from_info(tap.last_info or {})
         types_seen = sorted({env._sumo.vehicle.getTypeID(v) for v in env._sumo.vehicle.getIDList()})
         option = str(env._sumo.simulation.getOption("time-to-teleport"))
@@ -2319,6 +2512,7 @@ def run_cell(
             targets=target_rtg,  # type: ignore[arg-type]
             support_ranges=grid_support,
             local_returns=per_intersection_local_returns(tap.post_step, return_lanes),
+            collision_record=collision_record,
             canary_seconds=canary_seconds,
             seconds=seconds,
         )
@@ -2426,14 +2620,17 @@ def _grid4x4_payload(
     targets: Mapping[str, float] | None,
     support_ranges: Mapping[str, tuple[float, float]] | None,
     local_returns: tuple[Mapping[str, float], Mapping[str, float]],
+    collision_record: Mapping[str, Any],
     canary_seconds: float | None,
     seconds: float,
 ) -> dict[str, Any]:
-    """A grid4x4 cell's chunk (``p7.3d-grid4x4/1.0``), validated before it is returned.
+    """A grid4x4 cell's chunk (``p7.3d-grid4x4/1.1``), validated before it is returned.
 
     ``local_returns`` is :func:`per_intersection_local_returns`' pair over this episode's post-step
     infos -- recorded on the anchor cells AND the DT cells (B.7.1-2), because per-intersection rho is
     one ratio of their means (B.7.2-1) and both sides must be the same 360-decision sum.
+    ``collision_record`` is the recorder's :meth:`collision_record` (A23, B.8-2(1)): its six fields are
+    the chunk's, verbatim.
 
     The episode-level fields are the hz1x1 chunk's, computed from the same objects.  What differs
     is that every per-intersection quantity is a mapping keyed by id -- the RTG and reward series
@@ -2545,6 +2742,8 @@ def _grid4x4_payload(
         **per_ix,
         "local_return": {ix: float(local_returns[0][ix]) for ix in ix_ids},
         "local_return_from_lanes": {ix: float(local_returns[1][ix]) for ix in ix_ids},
+        # A23 / B.8-2(2): the collision record -- every field the recorder returns, under its name.
+        **{key: collision_record[key] for key in GRID4X4_COLLISION_RECORD_FIELDS},
         "canary_seconds": None if canary_seconds is None else float(canary_seconds),
         "seconds": seconds,
         **_git_provenance(),
@@ -2717,7 +2916,7 @@ def report(
     declaration reads P7.3d's calibration at step 2, refuses at step 6 a DT chunk whose support
     ranges are not the pinned ones, and after the pairing REFUSES unless C4's six reference cells
     reproduce bit for bit (:func:`_grid4x4_reference_check`); it then writes the
-    ``p7.3d-grid4x4/1.0`` artifact (:func:`_grid4x4_artifact`) through the same step 9
+    ``p7.3d-grid4x4/1.1`` artifact (:func:`_grid4x4_artifact`) through the same step 9
     (:func:`_publish_artifact`).  An hz1x1 declaration runs exactly the code it always ran.
     """
     from offline.dt_gate import EpisodeResult, mean_ci95
@@ -2809,6 +3008,11 @@ def report(
     for name, payload in chunks.items():
         validate_cell_payload(payload, cell=declared_by_name.get(name))
     chunks = {name: payload for name, payload in chunks.items() if name in declared_by_name}
+
+    # ---------------------------------------------------------------- 5b. A23(f): exactly two events
+    # grid4x4 only (B.8-2(4)(d)): before the digests, any aggregate and any write.
+    if grid:
+        _assert_a23_collision_cells(chunks, list(declared_by_name))
 
     # ---------------------------------------------------------------- 6. the digests, from disk
     # J1(c) at the artifact: `report` re-derives the provenance verdict rather than trusting that
@@ -3569,7 +3773,7 @@ def _stage1_block(path: Path, rows: Sequence[Mapping[str, Any]]) -> dict[str, An
 
 
 # ======================================================================================
-# B.7-2: report's grid4x4 BODY -- the artifact `p7.3d-grid4x4/1.0`
+# B.7-2: report's grid4x4 BODY -- the artifact `p7.3d-grid4x4/1.1` (B.8: A23's two blocks)
 # ======================================================================================
 
 #: The grid4x4 artifact's published row.  hz1x1's scalar fields, plus the grid4x4 chunk's
@@ -3939,26 +4143,19 @@ def _grid4x4_h3_block(registered: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-def _grid4x4_artifact(
-    *,
+def _grid4x4_estimates(
     rows: Sequence[Mapping[str, Any]],
-    chunks: Mapping[str, Mapping[str, Any]],
-    stage: str | None,
-    n_declared: int,
-    outside_stage: Sequence[str],
-    chunk_commits_by_stage: Mapping[str, set[str]],
-    cells_supplied: bool,
     anchors_by_draw: Mapping[int, Mapping[str, Mapping[str, Any]]],
-    canary_record: Mapping[str, Any],
-    calibration_payload: Mapping[str, Any],
-    reference_record: Mapping[str, Any],
-    identity_by_checkpoint: Mapping[tuple[str, int], Mapping[str, Any]],
-    demand_by_draw: Mapping[int, Mapping[str, Any]],
 ) -> dict[str, Any]:
-    """The ``p7.3d-grid4x4/1.0`` artifact: B.7-2 (i)-(iv) and the per-intersection block -- B.7.1-2's
-    return, B.7.2-1's ratio of means, B.7.2-2's denominator diagnostic, B.7.5-4's null rule."""
-    from offline.transfer_calibration import CANARY_MAX_SECONDS, CANARY_RECORD_NAME
+    """The primary estimators' blocks -- ``rho`` and ``h3`` -- from *rows* and their draws' anchors.
 
+    Extracted VERBATIM from :func:`_grid4x4_artifact` (``BRIEF_39`` B.8-2(4)(b), B.8.1-2 D7): per-seed and
+    per-draw rho with their means and CIs, the registered arm's paired ATT against both anchors with
+    their Wilcoxon p-values, the denominator diagnostic and the env-ATT exclusions, and the H3 block.
+    The primary calls it on every row; A23(d)'s robustness check calls THE SAME function on the rows
+    and anchors of the 98 draws left without 1020 and 1042 -- no new statistic.  Per-cell rho is
+    computed per draw BEFORE it (``report``'s step 7-8), so removing whole draws is a recomputation.
+    """
     dt_rows = [row for row in rows if row["kind"] == "dt"]
 
     by_seed: list[dict[str, Any]] = []
@@ -4021,42 +4218,7 @@ def _grid4x4_artifact(
         for draw, value in sorted(denominators["att_env"].items())
         if value == 0.0
     ]
-    ix_ids = [str(ix) for ix in calibration_payload["intersection_ids"]]
-
     return {
-        "format_version": GRID4X4_ARTIFACT_FORMAT_VERSION,
-        "registered_in": (
-            "PREREGISTRATION H3, §3.4, A15, A16, A17(e), A18(c), A20, A21; BRIEF_39 Amendments B.7 "
-            "and B.7.1"
-        ),
-        "scenario_key": GRID4X4_SCENARIO_KEY,
-        "subject": GRID4X4_SUBJECT,
-        "arms": {
-            "evaluated": {"registered": [GRID4X4_ARM], "anchors": ["fixedtime", "maxpressure"]},
-            "not_evaluated": {
-                "naive": "A21(b)(i): removed by declaration before any grid4x4 SUMO number existed",
-                "random": "A21(b)(ii): removed by declaration before any grid4x4 SUMO number existed",
-                "b_max_k100": "A20(b): not evaluated on grid4x4 (it tracked b_mean within 0.01 on hz1x1)",
-                "a_q1.0": "A20(b): not evaluated on grid4x4 (out of support for mappo1000 on hz1x1)",
-            },
-        },
-        "stage": stage,
-        "n_cells_declared": n_declared,
-        "n_chunks_outside_stage": len(outside_stage),
-        "chunk_commits_by_stage": {
-            stage_name: sorted(commits)
-            for stage_name, commits in sorted(chunk_commits_by_stage.items())
-        },
-        "cell_set_source": "caller-supplied declaration" if cells_supplied else "declared_cells()",
-        "halting_check_draw": HALTING_CHECK_DRAW,
-        "intersection_ids": ix_ids,
-        "cells": [dict(row) for row in rows],
-        "series_location": (
-            "the per-decision RTG and reward series and the action matrices of every cell are in "
-            "its chunk under output/p7_3d/cells/, covered by output/SHA256SUMS_p7_3d.txt; they are "
-            "not republished here (about 130 MB on sixteen intersections)"
-        ),
-        "reference_cells": dict(reference_record),
         "rho": {
             "formula": "rho = (ATT_fixedtime - ATT_arm) / (ATT_fixedtime - ATT_maxpressure)",
             "definitions": {
@@ -4103,8 +4265,134 @@ def _grid4x4_artifact(
             "by_draw": by_draw,
             "registered_arm": registered,
         },
-        "per_intersection_rho": _grid4x4_per_intersection_rho(rows, ix_ids),
         "h3": _grid4x4_h3_block(registered),
+    }
+
+
+def _grid4x4_collisions_block(chunks: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
+    """A23(d), ``BRIEF_39`` B.8-2(4)(a): per arm, the cells with a collision and every event.
+
+    Instrument facts only -- each event as its chunk recorded it (A23(c)(ii): recorded, the cell KEPT),
+    with the cell's identity beside it.  ``report`` has already refused any stage whose events are not
+    exactly A23(f)'s two.
+    """
+    per_arm: dict[str, Any] = {}
+    for arm in (GRID4X4_ARM, "fixedtime", "maxpressure"):
+        arm_chunks = sorted((name, payload) for name, payload in chunks.items() if payload["arm"] == arm)
+        events = [
+            {"cell": name, "arm": arm, "seed": payload["seed"], "draw_id": int(payload["draw_id"]), **event}
+            for name, payload in arm_chunks
+            for event in payload["collisions"]
+        ]
+        per_arm[arm] = {
+            "n_cells": len(arm_chunks),
+            "n_cells_with_collision": sum(1 for _name, payload in arm_chunks if payload["collisions"]),
+            "events": events,
+        }
+    return {
+        "registered_in": "PREREGISTRATION A23(c)(ii) and (d); BRIEF_39 Amendment B.8-2(4)(a)",
+        "what": (
+            "every collision SUMO reported in this stage's cells, RECORDED with each cell KEPT (A23(c)(ii)); "
+            "instrument facts only. time is the recorder's snapshot label, simulation.getTime() AFTER "
+            "the step -- one step after SUMO's own collision stamp; collider_fate is one of "
+            "A23(c)(iii)'s three"
+        ),
+        "n_events": sum(len(entry["events"]) for entry in per_arm.values()),
+        "n_cells_with_collision": sum(entry["n_cells_with_collision"] for entry in per_arm.values()),
+        "per_arm": per_arm,
+    }
+
+
+def _grid4x4_robustness_block(
+    rows: Sequence[Mapping[str, Any]],
+    anchors_by_draw: Mapping[int, Mapping[str, Mapping[str, Any]]],
+) -> dict[str, Any]:
+    """A23(d)'s SECONDARY robustness check (``BRIEF_39`` B.8-2(4)(b)): THE SAME estimators
+    (:func:`_grid4x4_estimates`) on the draws left when :data:`A23_ROBUSTNESS_DRAWS_REMOVED` are removed
+    WHOLE -- every one of their cells, and their anchors.  No new statistic.  The primary alone decides
+    clause 1; A23(d) is carried verbatim beside the numbers.
+    """
+    removed = set(A23_ROBUSTNESS_DRAWS_REMOVED)
+    kept_rows = [row for row in rows if int(row["draw_id"]) not in removed]
+    kept_anchors = {draw: anchors for draw, anchors in anchors_by_draw.items() if int(draw) not in removed}
+    estimates = _grid4x4_estimates(kept_rows, kept_anchors)
+    return {
+        "registered_in": "PREREGISTRATION A23(d); BRIEF_39 Amendment B.8-2(4)(b)",
+        "a23_d": A23_D_VERBATIM,
+        "draws_removed": list(A23_ROBUSTNESS_DRAWS_REMOVED),
+        "n_cells_removed": len(rows) - len(kept_rows),
+        "n_draws": len({int(row["draw_id"]) for row in kept_rows}),
+        "not_recomputed": A23_ROBUSTNESS_NOT_RECOMPUTED,
+        "rho": estimates["rho"],
+        "h3": estimates["h3"],
+    }
+
+
+def _grid4x4_artifact(
+    *,
+    rows: Sequence[Mapping[str, Any]],
+    chunks: Mapping[str, Mapping[str, Any]],
+    stage: str | None,
+    n_declared: int,
+    outside_stage: Sequence[str],
+    chunk_commits_by_stage: Mapping[str, set[str]],
+    cells_supplied: bool,
+    anchors_by_draw: Mapping[int, Mapping[str, Mapping[str, Any]]],
+    canary_record: Mapping[str, Any],
+    calibration_payload: Mapping[str, Any],
+    reference_record: Mapping[str, Any],
+    identity_by_checkpoint: Mapping[tuple[str, int], Mapping[str, Any]],
+    demand_by_draw: Mapping[int, Mapping[str, Any]],
+) -> dict[str, Any]:
+    """The ``p7.3d-grid4x4/1.1`` artifact: B.7-2 (i)-(iv) and the per-intersection block -- B.7.1-2's
+    return, B.7.2-1's ratio of means, B.7.2-2's denominator diagnostic, B.7.5-4's null rule -- and
+    A23's two blocks (B.8-2(4)): ``collisions`` and ``robustness_without_draws_1020_1042``."""
+    from offline.transfer_calibration import CANARY_MAX_SECONDS, CANARY_RECORD_NAME
+
+    dt_rows = [row for row in rows if row["kind"] == "dt"]
+    # B.8.1-2 (D7): the primary, through the ONE helper A23(d)'s robustness check calls too.
+    estimates = _grid4x4_estimates(rows, anchors_by_draw)
+    ix_ids = [str(ix) for ix in calibration_payload["intersection_ids"]]
+
+    return {
+        "format_version": GRID4X4_ARTIFACT_FORMAT_VERSION,
+        "registered_in": (
+            "PREREGISTRATION H3, §3.4, A15, A16, A17(e), A18(c), A20, A21, A23; BRIEF_39 Amendments B.7, "
+            "B.7.1 and B.8"
+        ),
+        "scenario_key": GRID4X4_SCENARIO_KEY,
+        "subject": GRID4X4_SUBJECT,
+        "arms": {
+            "evaluated": {"registered": [GRID4X4_ARM], "anchors": ["fixedtime", "maxpressure"]},
+            "not_evaluated": {
+                "naive": "A21(b)(i): removed by declaration before any grid4x4 SUMO number existed",
+                "random": "A21(b)(ii): removed by declaration before any grid4x4 SUMO number existed",
+                "b_max_k100": "A20(b): not evaluated on grid4x4 (it tracked b_mean within 0.01 on hz1x1)",
+                "a_q1.0": "A20(b): not evaluated on grid4x4 (out of support for mappo1000 on hz1x1)",
+            },
+        },
+        "stage": stage,
+        "n_cells_declared": n_declared,
+        "n_chunks_outside_stage": len(outside_stage),
+        "chunk_commits_by_stage": {
+            stage_name: sorted(commits)
+            for stage_name, commits in sorted(chunk_commits_by_stage.items())
+        },
+        "cell_set_source": "caller-supplied declaration" if cells_supplied else "declared_cells()",
+        "halting_check_draw": HALTING_CHECK_DRAW,
+        "intersection_ids": ix_ids,
+        "cells": [dict(row) for row in rows],
+        "series_location": (
+            "the per-decision RTG and reward series and the action matrices of every cell are in "
+            "its chunk under output/p7_3d/cells/, covered by output/SHA256SUMS_p7_3d.txt; they are "
+            "not republished here (about 130 MB on sixteen intersections)"
+        ),
+        "reference_cells": dict(reference_record),
+        "rho": estimates["rho"],
+        "per_intersection_rho": _grid4x4_per_intersection_rho(rows, ix_ids),
+        "h3": estimates["h3"],
+        "collisions": _grid4x4_collisions_block(chunks),
+        "robustness_without_draws_1020_1042": _grid4x4_robustness_block(rows, anchors_by_draw),
         "in_support": _grid4x4_in_support_block(dt_rows, calibration_payload),
         "canary": {
             "seconds": canary_record["seconds"],

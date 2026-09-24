@@ -67,6 +67,31 @@ of step).  ``W_sumo`` therefore uses exactly that pair, which is what makes it c
 start-of-step slot.  Recomputing either on a single convention would produce a tidier number that
 no longer twins the quantity under test.
 
+THE COLLISION RECORD (P7.3d, PREREGISTRATION A23; ``BRIEF_39`` B.8 and B.8.1)
+------------------------------------------------------------------------------
+A15(c)'s ``time-to-teleport -1`` disables SUMO's waiting-time ("jam") teleport only.  A COLLISION is
+still teleported, by SUMO's defaults ``collision.action = teleport``, ``collision.stoptime = 0``.  So the
+same per-step snapshot also reads ``simulation.getCollisions()`` (each collision recorded under TraCI's
+own attribute names, :data:`COLLISION_FACT_KEYS`) and ``simulation.getEndingTeleportIDList()``.  Both
+are GETs: nothing is sent to the simulation.  The rules:
+
+* **The same-step match (A23(c)(i)).**  A teleport start in the snapshot labelled ``t`` is EXPLAINED
+  iff its vehicle is the collider or the victim of a collision in that SAME snapshot; every other
+  teleport, of any kind, is UNEXPLAINED.  The two counts split ``n_teleport_events`` exactly.
+* **The collider's fate (A23(c)(iii)), one of :data:`COLLIDER_FATES`:**
+  ``arrived_at_collision_step`` -- the collider is in that snapshot's ``getArrivedIDList`` (a collider
+  on its last edge, teleported beyond its arrival edge: both of P7.3d attempt 1's events);
+  ``put_back`` at ``t'`` -- the collider teleported at ``t`` and is in ``getEndingTeleportIDList`` at
+  the first ``t' >= t``; ``in_transit_at_horizon`` -- still teleporting at the last snapshot.  Anything
+  else is :data:`UNREGISTERED_FATE`: recorded, and refused where the record is consumed.
+* **The label.**  A collision in the step ``(t - dt, t]`` carries ``t``, the snapshot's own
+  ``getTime()``.  SUMO's own collision messages stamp the step's START, ``t - dt`` -- on the toy network
+  of ``BRIEF_39`` B.8.1-2's D8, SUMO wrote ``time=12.00`` for the event this record labels ``13.0``.
+* **Measured on SUMO 1.27.1** (D8; ``tests/test_p7_3d_collisions.py``).  A collider with room on a
+  later edge is put back WITHIN its collision step.  One with no room teleports across snapshots,
+  and is absent from ``vehicle.getIDList()`` throughout, so a collider still teleporting at the
+  horizon is one of :attr:`SumoObservationRecorder.vanished_ids`.
+
 FOUR RECONSTRUCTIONS, NAMED TO READ ACROSS TO GATE 0's
 -------------------------------------------------------
 With ``T`` the horizon and ``arrival(v)`` the second ``v`` appeared in ``getArrivedIDList``:
@@ -179,11 +204,15 @@ __all__ = [
     "SumoObservationRecorder",
     "assert_campaign_complete",
     "assert_metric_freeze_writable",
+    "COLLIDER_FATES",
+    "COLLISION_FACT_KEYS",
+    "UNREGISTERED_FATE",
     "build_parser",
     "build_policy",
     "chunk_is_reusable",
     "chunk_name",
     "collect_style_args",
+    "collision_facts",
     "failed_chunk_destination",
     "freeze_artifact",
     "main",
@@ -226,6 +255,20 @@ CLOCK_ORIGIN_TOLERANCE = 1e-9
 #: so the cross-check is independent (see the module docstring's import-fence section).  A test
 #: asserts it equals ``metrics.sumo.HALT_SPEED_THRESHOLD``.
 HALT_SPEED_THRESHOLD = 0.1
+
+#: PREREGISTRATION A23 / ``BRIEF_39`` B.8 (P7.3d): the collider's fate after a collision SUMO
+#: reports, one of exactly the three values A23(c)(iii) registers (see THE COLLISION RECORD in
+#: the module docstring).
+COLLIDER_FATES: tuple[str, ...] = ("arrived_at_collision_step", "put_back", "in_transit_at_horizon")
+#: Any other fate -- SUMO did something A23 does not describe.  Recorded, never dropped, and refused
+#: where the record is consumed, so the campaign stops for a ruling (``BRIEF_39`` B.8.1-2, D4).
+UNREGISTERED_FATE = "unregistered"
+#: TraCI's own attribute names on ``traci._simulation.Collision`` (1.27.1), recorded under exactly
+#: those names so no mapping can mislabel one (B.8.1-2, D3).
+COLLISION_FACT_KEYS: tuple[str, ...] = (
+    "collider", "victim", "colliderType", "victimType", "colliderSpeed", "victimSpeed", "type",
+    "lane", "pos",
+)
 
 #: P7.0's three anchors, in the order ``transfer_gate.CELLS`` declares them per backend.
 ANCHOR_ARMS: tuple[str, ...] = ("fixedtime", "maxpressure", "random")
@@ -281,6 +324,7 @@ RECONSTRUCTION_SURFACE: tuple[str, ...] = (
     "read_intended_departures",
     "route_files_of",
     "reconstruct_sumo_episode",
+    "collision_facts",
 )
 
 
@@ -490,6 +534,12 @@ class SumoObservationRecorder:
         self._arrived_never_at_boundary: set[str] = set()
         self._teleport_ids: set[str] = set()
         self._n_teleport_events = 0
+        # A23 / BRIEF_39 B.8: every collision in step order, every teleport start, and the split of the
+        # teleport starts into those a SAME-step collision explains and the rest.
+        self._collisions: list[dict[str, Any]] = []
+        self._teleport_events: list[dict[str, Any]] = []
+        self._n_explained_teleports = 0
+        self._n_unexplained_teleports = 0
         self._max_depart_clock_deviation = 0.0
         self._halting_seconds = 0
         self._halting_lane_seconds = 0
@@ -508,6 +558,8 @@ class SumoObservationRecorder:
         teleport_start_ids: Sequence[str] = (),
         departure_facts: Mapping[str, tuple[float, float]] | None = None,
         halting: Mapping[str, tuple[int, int, int]] | None = None,
+        collisions: Sequence[Mapping[str, Any]] = (),
+        ending_teleport_ids: Sequence[str] = (),
     ) -> None:
         """Record one snapshot, taken immediately after a ``simulationStep()``.
 
@@ -609,13 +661,49 @@ class SumoObservationRecorder:
             )
         self._pending_last = pending
 
-        # 5. Presence, the decision boundaries and the teleport counter.
+        # 5. Presence, the decision boundaries and the teleport counter -- each teleport start matched
+        #    against THIS step's collisions (A23(c)(i)): explained iff its vehicle is the collider or
+        #    the victim of a collision SUMO reports in the same step.
         self._present_last = frozenset(present_ids)
         if now % self.delta_time == 0.0:
             self._seen_at_boundary.update(self._present_last)
-        for vid in teleport_start_ids:
+        step_collisions = [dict(collision) for collision in collisions]
+        parties = {str(c["collider"]) for c in step_collisions} | {str(c["victim"]) for c in step_collisions}
+        starting = [str(vid) for vid in teleport_start_ids]
+        for vid in starting:
             self._teleport_ids.add(vid)
             self._n_teleport_events += 1
+            self._teleport_events.append({"time": now, "vehicle": vid})
+            if vid in parties:
+                self._n_explained_teleports += 1
+            else:
+                self._n_unexplained_teleports += 1
+
+        # 5b. The collider's fate (A23(c)(iii)), from this step's arrived and ending-teleport lists.
+        #     First the colliders of EARLIER steps still teleporting: put back now, or -- arrived
+        #     without having been put back -- a fate A23 does not register.  Then this step's.
+        arrived_now = {str(vid) for vid in arrived_ids}
+        ending_now = {str(vid) for vid in ending_teleport_ids}
+        for entry in self._collisions:
+            if entry["collider_fate"] is not None:
+                continue
+            if entry["collider"] in ending_now:
+                entry["collider_fate"], entry["collider_fate_time"] = COLLIDER_FATES[1], now
+            elif entry["collider"] in arrived_now:
+                entry["collider_fate"] = UNREGISTERED_FATE
+        for collision in step_collisions:
+            entry = {"time": now, **{key: collision[key] for key in COLLISION_FACT_KEYS}}
+            entry["collider_fate"], entry["collider_fate_time"] = None, None
+            collider = str(collision["collider"])
+            if collider in arrived_now:
+                entry["collider_fate"] = COLLIDER_FATES[0]
+            elif collider not in starting:
+                # Neither arrived nor teleported at the collision step: SUMO did something A23(c)(iii)
+                # does not describe (for example it teleported the victim instead).
+                entry["collider_fate"] = UNREGISTERED_FATE
+            elif collider in ending_now:
+                entry["collider_fate"], entry["collider_fate_time"] = COLLIDER_FATES[1], now
+            self._collisions.append(entry)
 
         # 6. The halting cross-check, when the caller sampled it this second.
         if halting is not None:
@@ -709,6 +797,51 @@ class SumoObservationRecorder:
         return len(
             set(self._departed_at) - set(self._arrived_at) - set(self._present_last)
         )
+
+    @property
+    def vanished_ids(self) -> tuple[str, ...]:
+        """The ids :attr:`n_vanished_without_arrival` counts, sorted (A23, ``BRIEF_39`` B.8-2(1)).
+
+        The same set, by the same expression: departed, never reported arrived, absent from the last
+        snapshot.  A vehicle still TELEPORTING at the horizon is absent from ``vehicle.getIDList()``
+        (measured on SUMO 1.27.1, ``BRIEF_39`` B.8.1-2's D8), so it is one of these.
+        """
+        return tuple(sorted(set(self._departed_at) - set(self._arrived_at) - set(self._present_last)))
+
+    def collision_record(self) -> dict[str, Any]:
+        """A23's collision record of the episode, read at its END (``BRIEF_39`` B.8-2(1)).
+
+        ``collisions``: every collision in step order -- the snapshot's time, TraCI's own fields, and
+        the collider's fate: ``arrived_at_collision_step``, ``put_back`` (with ``collider_fate_time``,
+        the step it was put back), ``in_transit_at_horizon`` (still teleporting at the last snapshot),
+        or ``unregistered``.  ``teleports``: every teleport start, ``{time, vehicle}``, so a reader can
+        re-derive the same-step match.  The two counts split ``n_teleport_events`` exactly.
+        """
+        collisions = [
+            {**entry, "collider_fate": COLLIDER_FATES[2] if entry["collider_fate"] is None else entry["collider_fate"]}
+            for entry in self._collisions
+        ]
+        return {
+            "collisions": collisions,
+            "teleports": [dict(event) for event in self._teleport_events],
+            "n_collisions": len(collisions),
+            "n_explained_teleports": self._n_explained_teleports,
+            "n_unexplained_teleports": self._n_unexplained_teleports,
+            "vanished_ids": list(self.vanished_ids),
+        }
+
+
+def collision_facts(collision: Any) -> dict[str, Any]:
+    """One TraCI ``Collision`` as a mapping under TraCI's own attribute names (B.8.1-2, D3).
+
+    Strings stay strings and the two speeds and ``pos`` are floats, in :data:`COLLISION_FACT_KEYS`
+    order.  A read of an object TraCI already returned: nothing is sent to SUMO.
+    """
+    numeric = {"colliderSpeed", "victimSpeed", "pos"}
+    return {
+        key: float(getattr(collision, key)) if key in numeric else str(getattr(collision, key))
+        for key in COLLISION_FACT_KEYS
+    }
 
 
 def reconstruct_sumo_episode(
@@ -914,6 +1047,11 @@ def sumo_observer_env_class() -> type[Any]:
                         for vid in departed
                     },
                     halting=self._halting_snapshot() if self.halting_check else None,
+                    # A23 / BRIEF_39 B.8: two more READS of this same step -- never a write, so the
+                    # simulation is not touched.  The collision a teleport start is matched against
+                    # must come from THIS step's list (A23(c)(i)).
+                    collisions=tuple(collision_facts(c) for c in simulation.getCollisions()),
+                    ending_teleport_ids=tuple(simulation.getEndingTeleportIDList()),
                 )
 
     _OBSERVER_ENV_CLASS = PerSecondSumoObserver

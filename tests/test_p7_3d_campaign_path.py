@@ -43,6 +43,14 @@ B.7 AND B.7.1 (the second round)
   test derives from its own stubs, and one swapped reference-cell value refused.
 * **Per-intersection returns on every grid4x4 chunk** (B.7.1-2), by the probe's two routes.
 
+B.8 (A23, the fourth round)
+---------------------------
+* **The grid4x4 chunk and artifact are ``p7.3d-grid4x4/1.1``**: every stub carries A23's collision record
+  (empty by default), the complete set carries EXACTLY A23's two events -- fixed-time on draw 1020 and
+  the DT's seed 303 on draw 1042 -- and ``report`` writes the ``collisions`` block and the 98-draw
+  robustness block; a third event, a moved one and none are each refused.  The recorder, the seam and
+  the payload rules are in ``tests/test_p7_3d_collisions.py``.
+
 B.7.4 AND B.7.5 (the third round)
 ---------------------------------
 * **Per-intersection rho is ONE RATIO OF MEANS per intersection** (B.7.2-1), with B.7.2-2's
@@ -158,11 +166,13 @@ def _grid_payload(
 ) -> dict[str, Any]:
     """A complete, valid grid4x4 chunk for *cell*, from which a test perturbs exactly one thing.
 
-    The shape ``run_cell`` writes for a grid4x4 cell (format ``p7.3d-grid4x4/1.0``): every
-    per-intersection quantity is a mapping keyed by id, ``actions`` is the decisions x 16 matrix in
+    The shape ``run_cell`` writes for a grid4x4 cell (format ``p7.3d-grid4x4/1.1`` -- ⚠️ CHANGED from
+    ``/1.0`` in the B.8 round, BRIEF_39 B.8-2(2) and B.8.1-2 D1; disclosed): every per-intersection
+    quantity is a mapping keyed by id, ``actions`` is the decisions x 16 matrix in
     ``intersection_ids`` order, and the RTG obeys D1's shift-by-one (a constant series under zero
     rewards, which is D1-consistent).  ``local_return`` / ``local_return_from_lanes`` are the 16
     per-intersection episode returns by the probe's two routes (B.7.1-2), on BOTH kinds of cell.
+    B.8 (A23): the collision record, EMPTY here -- no collision, no teleport, nothing vanished.
     """
     draw = int(cell["draw_id"])
     checked = draw == tcv.HALTING_CHECK_DRAW
@@ -220,6 +230,13 @@ def _grid_payload(
         "in_support_counts": None,
         "local_return": dict(returns),
         "local_return_from_lanes": dict(returns),
+        # B.8-2(2): A23's collision record (1.1), added in the B.8 round -- empty by default.
+        "collisions": [],
+        "n_collisions": 0,
+        "teleports": [],
+        "n_explained_teleports": 0,
+        "n_unexplained_teleports": 0,
+        "vanished_ids": [],
         "canary_seconds": 0.8,
         "seconds": 31.0,
         "git_commit": HEAD_SHA,
@@ -1642,6 +1659,12 @@ def test_the_campaign_path_from_the_drivers_argument_to_a_written_grid4x4_chunk(
         assert all(0 <= a < N_ACTIONS for row in chunk["actions"] for a in row)
         assert chunk["vehicle_types_seen"] == ["cf_parity"] and chunk["time_to_teleport_option"] == "-1"
         assert chunk["halting_checked"] is False
+        # B.8 (A23), ADDED in the B.8 round: the collision record reached BOTH env paths through the one
+        # per-second loop, and on the fenced draw-5 episode it is empty (B.8-2(5)).
+        assert chunk["format_version"] == "p7.3d-grid4x4/1.1"
+        assert chunk["collisions"] == [] and chunk["n_collisions"] == 0
+        assert chunk["teleports"] == [] and chunk["vanished_ids"] == []
+        assert chunk["n_explained_teleports"] == 0 and chunk["n_unexplained_teleports"] == 0
         # B.7.1-2: sixteen per-intersection returns over the 360 POST-STEP infos, two routes equal,
         # on the anchor as on the DT cell -- the quantity per-intersection rho is defined on.
         assert sorted(chunk["local_return"]) == sorted(IDS)
@@ -1845,6 +1868,32 @@ MP_NOT_BETTER_ID = "B2"
 ZERO_MEAN_ID = "C3"
 
 
+#: B.8 (A23(a)), ADDED in the B.8 round: attempt 1's two collision events, as the note's §2 records them
+#: (collider, victim, exit lane), in the test's OWN words -- the only cells that may record one (A23(f)).
+#: ``time`` is the recorder's label, the snapshot's ``getTime()`` AFTER the step: one second after SUMO's
+#: own collision stamp (the note's 2,298 s and 2,627 s), the module's ``(t - dt, t]`` convention (D8
+#: measured it: SUMO stamped 12.00, the snapshot read 13.0).  Speeds and positions are synthetic.
+A23_EVENTS: dict[tuple[str, int | None, int], dict[str, Any]] = {
+    ("fixedtime", None, 1020): {"time": 2299.0, "collider": "628", "victim": "969", "lane": "D0right0_0"},
+    ("b_mean_k100", 303, 1042): {"time": 2628.0, "collider": "1126", "victim": "1098", "lane": "A0left0_0"},
+}
+
+
+def _a23_record(key: tuple[str, int | None, int]) -> dict[str, Any]:
+    """The chunk fields one A23 event makes: one explained teleport, the collider arrived at once."""
+    spec = A23_EVENTS[key]
+    event = {
+        "time": spec["time"], "collider": spec["collider"], "victim": spec["victim"],
+        "colliderType": "cf_parity", "victimType": "cf_parity", "colliderSpeed": 6.25, "victimSpeed": 0.0,
+        "type": "collision", "lane": spec["lane"], "pos": 3.5,
+        "collider_fate": "arrived_at_collision_step", "collider_fate_time": None,
+    }
+    return {
+        "n_teleports": 1, "teleports": [{"time": spec["time"], "vehicle": spec["collider"]}],
+        "collisions": [event], "n_collisions": 1, "n_explained_teleports": 1, "n_unexplained_teleports": 0,
+    }
+
+
 def _per_ix_gap(ix: str, k: int) -> float:
     """``R_mp,i,d - R_ft,i,d`` on draw ``1000 + k``: dyadic, varying across draws (B.7.5-2)."""
     if ix == ZERO_MEAN_ID:
@@ -1880,6 +1929,16 @@ def _a21_items() -> list[str]:
     text = (REPO_ROOT / "PREREGISTRATION.md").read_text(encoding="utf-8")
     row = next(line for line in text.splitlines() if line.startswith("| 2026-09-19 | **A21"))
     return [body for _tag, body in re.findall(r"\*\((i|ii)\) (.+?)\*", row)]
+
+
+def _a23_d() -> str:
+    """A23(d)'s body, read from the registration by THIS file's route: the clause between its header
+    and (e)'s, with the ``**`` emphasis removed (B.8.1-2, D6)."""
+    text = (REPO_ROOT / "PREREGISTRATION.md").read_text(encoding="utf-8")
+    row = next(line for line in text.splitlines() if line.startswith("| 2026-09-24 | **A23"))
+    match = re.search(r"\*\*\(d\) REPORTING\.\*\* (.+?) \*\*\(e\) NOT CHOSEN", row)
+    assert match, "A23's (d) clause was not found in PREREGISTRATION.md"
+    return match.group(1).replace("**", "")
 
 
 def _complete_set(*, git_commit: str) -> tuple[list[dict[str, Any]], dict[str, Any]]:
@@ -1924,6 +1983,8 @@ def _complete_set(*, git_commit: str) -> tuple[list[dict[str, Any]], dict[str, A
                 overrides.update({chunk: row[key] for key, chunk in FROZEN_TO_CHUNK.items()})
                 if row["halting_checked"]:
                     overrides.update({key: row[key] for key in HALTING_COUNTS})
+            if (arm, None, draw) in A23_EVENTS:
+                overrides.update(_a23_record((arm, None, draw)))
             payloads.append(
                 _grid_payload(cell, config_sha=config, routes_sha=routes, git_commit=git_commit, **overrides)
             )
@@ -1949,6 +2010,7 @@ def _complete_set(*, git_commit: str) -> tuple[list[dict[str, Any]], dict[str, A
                 r_dt[ix] = r_ft[ix] + _per_ix_gap(ix, k) * target_i
                 per_ix_returns[ix][draw]["dt"][seed] = r_dt[ix]
             in_support = {ix: DECISIONS - (j % 3) for j, ix in enumerate(IDS)}
+            event = _a23_record((tcv.GRID4X4_ARM, seed, draw)) if (tcv.GRID4X4_ARM, seed, draw) in A23_EVENTS else {}
             payloads.append(
                 _grid_payload(
                     cell, config_sha=config, routes_sha=routes, git_commit=git_commit,
@@ -1959,6 +2021,7 @@ def _complete_set(*, git_commit: str) -> tuple[list[dict[str, Any]], dict[str, A
                         ix: {"in_support": in_support[ix], "below": DECISIONS - in_support[ix], "above": 0}
                         for ix in IDS
                     },
+                    **event,
                 )
             )
     expected = {"rho": rho, "anchors": anchors, "arm_values": arm_values, "per_ix_returns": per_ix_returns}
@@ -2021,7 +2084,8 @@ def test_report_writes_the_grid4x4_artifact_through_the_driver_from_a_complete_s
     artifact = json.loads((sb.artifacts / "p7_3d_grid4x4.json").read_text(encoding="utf-8"))
 
     # ---- (ii) the scenario, the digest, the subject, A21's arm set
-    assert artifact["format_version"] == "p7.3d-grid4x4/1.0"
+    # ⚠️ CHANGED in the B.8 round (B.8-2(2), B.8.1-2 D1; disclosed): the artifact is 1.1 with its chunks.
+    assert artifact["format_version"] == "p7.3d-grid4x4/1.1"
     assert artifact["scenario_key"] == GRID and artifact["subject"] == tcv.GRID4X4_SUBJECT
     assert artifact["inputs"]["calibration_sha256"] == _sha256_path(DATA / "p7_3d_calibration.json")
     assert artifact["inputs"]["calibration_sha256"] != tcv.P7_2B_CALIBRATION_SHA256
@@ -2187,6 +2251,82 @@ def test_report_writes_the_grid4x4_artifact_through_the_driver_from_a_complete_s
         assert support[ix]["decisions_in_support"] == 500 * (DECISIONS - (j % 3))
         assert support[ix]["decisions_below"] == 500 * (j % 3) and support[ix]["decisions_above"] == 0
 
+    # ---- B.8 (A23(d), B.8-2(4)(a)), ADDED in the B.8 round: the collisions block -- per arm, the cells
+    # with a collision and every event: exactly A23's two, from OUR statement of them
+    collisions = artifact["collisions"]
+    assert collisions["n_events"] == 2 and collisions["n_cells_with_collision"] == 2
+    expected_events: dict[str, list[dict[str, Any]]] = {"fixedtime": [], "maxpressure": [], tcv.GRID4X4_ARM: []}
+    for arm, seed, draw in A23_EVENTS:
+        cell = _grid_cell("anchor" if seed is None else "dt", arm, draw, seed=seed)
+        [event] = _a23_record((arm, seed, draw))["collisions"]
+        expected_events[arm].append(
+            {"cell": tcv.cell_chunk_name(cell), "arm": arm, "seed": seed, "draw_id": draw, **event}
+        )
+    for arm, n_cells in (("fixedtime", 100), ("maxpressure", 100), (tcv.GRID4X4_ARM, 500)):
+        entry = collisions["per_arm"][arm]
+        assert entry["n_cells"] == n_cells, arm
+        assert entry["n_cells_with_collision"] == len(expected_events[arm]), arm
+        assert entry["events"] == expected_events[arm], arm
+
+    # ---- B.8 (A23(d), B.8-2(4)(b)): the robustness check -- the SAME estimators on the 98 draws left when
+    # draws 1020 and 1042 are removed WHOLE (14 cells), against OUR per-draw values
+    robust = artifact["robustness_without_draws_1020_1042"]
+    kept = [d for d in tcv.HELD_OUT_DRAWS if d not in (1020, 1042)]
+    assert robust["draws_removed"] == [1020, 1042] and robust["n_cells_removed"] == 14 and robust["n_draws"] == 98
+    assert robust["a23_d"] == _a23_d() and "A23" in robust["registered_in"]
+    assert "per-intersection" in robust["not_recomputed"] and "in-support" in robust["not_recomputed"]
+    assert sorted(robust["rho"]["by_draw"], key=int) == [str(d) for d in kept]
+    per_draw_98: dict[str, list[float]] = {"e_sumo": [], "att_env": []}
+    for draw in kept:
+        for key in ("e_sumo", "att_env"):
+            seeds = [expected["rho"][key][draw][s] for s in tc.TRAINING_SEEDS]
+            want = None if seeds[0] is None else sum(seeds) / len(seeds)
+            assert robust["rho"]["by_draw"][str(draw)][key] == want, (draw, key)
+            if want is not None:
+                per_draw_98[key].append(want)
+    for clause in robust["h3"]["clauses"]:
+        mean, low, high = _stats(per_draw_98[clause["definition"]])
+        assert clause["mean_rho"] == mean and clause["ci95_low"] == low and clause["ci95_high"] == high
+        assert clause["n_draws"] == len(per_draw_98[clause["definition"]])
+    for entry in robust["rho"]["by_seed"]:
+        assert entry["n_draws"] == 98
+        for key in ("e_sumo", "att_env"):
+            usable = [expected["rho"][key][d][entry["seed"]] for d in kept]
+            usable = [v for v in usable if v is not None]
+            assert entry[f"mean_rho_{key}"] == sum(usable) / len(usable), (entry["seed"], key)
+    for key in ("e_sumo", "att_env"):
+        left = [float(np.mean([expected["arm_values"][key][d][s] for s in tc.TRAINING_SEEDS])) for d in kept]
+        for index, anchor in enumerate(("fixedtime", "maxpressure")):
+            right = [expected["anchors"][key][d][index] for d in kept]
+            paired = robust["rho"]["registered_arm"]["paired_att"][key][anchor]
+            assert paired["n_shared_draws"] == 98
+            assert paired["mean_left"] == float(np.mean(left)) and paired["mean_right"] == float(np.mean(right))
+            assert paired["mean_difference"] == _stats([a - b for a, b in zip(left, right)])[0]
+            assert isinstance(paired["wilcoxon_p"], float)
+        denominators = [expected["anchors"][key][d][0] - expected["anchors"][key][d][1] for d in kept]
+        diagnostic = robust["rho"]["definitions"][key]["denominator_diagnostic"]
+        assert diagnostic["n_draws"] == 98
+        assert diagnostic["min"] == min(denominators) and diagnostic["max"] == max(denominators)
+    assert [row["draw_id"] for row in robust["rho"]["definitions"]["att_env"]["excluded_draws"]] == [ENV_ZERO_DRAW]
+    assert robust["rho"]["definitions"]["att_env"]["n_draws_total"] == 98
+
+    # ---- B.8.1-2 (D7): the primary IS the one helper's output, and byte-identical with and without the
+    # two events (whose only trace in the published rows is n_teleports)
+    cells = artifact["cells"]
+
+    def _anchors(rows: list[dict[str, Any]]) -> dict[int, dict[str, Any]]:
+        by_draw: dict[int, dict[str, Any]] = {}
+        for row in rows:
+            if row["kind"] == "anchor":
+                by_draw.setdefault(int(row["draw_id"]), {})[str(row["arm"])] = row
+        return by_draw
+
+    primary = json.dumps({"rho": artifact["rho"], "h3": artifact["h3"]}, sort_keys=True)
+    assert json.dumps(tcv._grid4x4_estimates(cells, _anchors(cells)), sort_keys=True) == primary
+    without = [dict(row, n_teleports=0) for row in cells]
+    assert sum(row["n_teleports"] for row in cells) == 2 and sum(row["n_teleports"] for row in without) == 0
+    assert json.dumps(tcv._grid4x4_estimates(without, _anchors(without)), sort_keys=True) == primary
+
     # ---- ONE reference value swapped -> report REFUSES, naming the cell, writing nothing (in-process,
     # so the stubs carry THIS repository's HEAD, which J1(c) resolves)
     work = tmp_path_factory.mktemp("swapped") / "work"
@@ -2201,3 +2341,38 @@ def test_report_writes_the_grid4x4_artifact_through_the_driver_from_a_complete_s
         tcv.report(work_dir=work, out_path=out, output_root=OUTPUT_ROOT, out_root=DRAWS_ROOT,
                    data_dir=DATA, stage=tcv.STAGE_GRID4X4)
     assert not out.parent.exists(), "every refusal precedes every write"
+
+    # ---- A23(f), B.8-2(4)(d), ADDED in the B.8 round: report REFUSES unless the stage records EXACTLY A23's
+    # two events -- a third one, one moved to another cell, and none -- before any aggregate and any write
+    def _is(payload: dict[str, Any], kind: str, arm: str, draw: int, seed: int | None = None) -> bool:
+        return payload["kind"] == kind and payload["arm"] == arm and payload["draw_id"] == draw and payload["seed"] == seed
+
+    empty = {"n_teleports": 0, "teleports": [], "collisions": [], "n_collisions": 0,
+             "n_explained_teleports": 0, "n_unexplained_teleports": 0}
+    third = {**_a23_record(("fixedtime", None, 1020)), "teleports": [{"time": 1500.0, "vehicle": "77"}]}
+    third["collisions"] = [dict(third["collisions"][0], time=1500.0, collider="77", victim="78")]
+    variants = {
+        "a_third_event": [
+            dict(p, **third) if _is(p, "anchor", "maxpressure", ENV_ZERO_DRAW) else dict(p) for p in payloads
+        ],
+        "an_event_moved_to_another_seed": [
+            dict(p, **empty) if _is(p, "dt", tcv.GRID4X4_ARM, 1042, 303)
+            else dict(p, **_a23_record((tcv.GRID4X4_ARM, 303, 1042))) if _is(p, "dt", tcv.GRID4X4_ARM, 1042, 202)
+            else dict(p)
+            for p in payloads
+        ],
+        "no_event": [
+            dict(p, **empty) if (_is(p, "anchor", "fixedtime", 1020) or _is(p, "dt", tcv.GRID4X4_ARM, 1042, 303))
+            else dict(p)
+            for p in payloads
+        ],
+    }
+    for label, variant in variants.items():
+        variant_work = tmp_path_factory.mktemp(label) / "work"
+        _write_stubs([dict(p, git_commit=HEAD_SHA) for p in variant], variant_work)
+        _canary_record(variant_work)
+        variant_out = variant_work.parent / "out" / "p7_3d_grid4x4.json"
+        with pytest.raises(ValueError, match=r"A23\(f\)"):
+            tcv.report(work_dir=variant_work, out_path=variant_out, output_root=OUTPUT_ROOT, out_root=DRAWS_ROOT,
+                       data_dir=DATA, stage=tcv.STAGE_GRID4X4)
+        assert not variant_out.parent.exists(), f"{label}: the refusal precedes every write"

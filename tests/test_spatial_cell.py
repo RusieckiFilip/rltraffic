@@ -287,7 +287,9 @@ def test_the_chunk_name_gains_the_scenario_for_non_default_scenarios_only() -> N
 def test_the_grid4x4_artifact_has_its_own_format_version() -> None:
     """Overloading P7.3a's version would make one string describe two artifacts."""
     assert tcv.ARTIFACT_FORMAT_VERSION == "p7.3a-zero-shot/1.0"
-    assert tcv.GRID4X4_ARTIFACT_FORMAT_VERSION == "p7.3d-grid4x4/1.0"
+    # ⚠️ CHANGED in P7.3d's B.8 round (BRIEF_39 B.8-2(2), B.8.1-2 D1; disclosed in the packet's §27):
+    # the grid4x4 chunk and artifact moved to 1.1 with A23's collision record.
+    assert tcv.GRID4X4_ARTIFACT_FORMAT_VERSION == "p7.3d-grid4x4/1.1"
     assert tcv.GRID4X4_ARTIFACT_FORMAT_VERSION != tcv.ARTIFACT_FORMAT_VERSION
 
 
