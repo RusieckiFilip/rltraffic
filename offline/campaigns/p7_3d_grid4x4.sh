@@ -36,6 +36,8 @@
 # 1. WHAT IT PRODUCES
 #      output/p7_3d/g2/dt_reroll_check_<UTC>/              BEFORE the token: B.5-1's thirteen fenced
 #                                                          rolls of one draw-5 DT cell + verdict.json
+#      output/p7_3d/g2/reference_reroll_check_<UTC>/       BEFORE the token: B.7.4-1's six reference
+#                                                          cells re-rolled (fenced) + verdict.json
 #      output/p7_3d/cells/canary.json                      the canary line, right after the token
 #      output/p7_3d/cells/cell_cityflow_grid4x4_*.json     one chunk per cell, atomic, resumable
 #      output/p7_3d/cells/failed/                          chunks that failed their own re-check
@@ -56,11 +58,12 @@
 # 3. ORDERING — every check that can refuse PRECEDES the token, so a refused start consumes
 #    nothing: interpreter → import from the worktree → no live runner → GROUP LEADER → SigIgn →
 #    stage argument → inputs exist → inputs BY DIGEST (m1) → dirty tree → RSS budget → every chunk's
-#    commit resolvable by git (m2) → canary, BOTH halves → dt_reroll_check (B.5-1) → TRAP → token →
-#    record-canary → cells → report → manifest → COMPLETE. The trap is installed BEFORE the token
-#    is consumed (J2/J3): a signal in that window destroyed P7.2b's authorisation while leaving
-#    neither FAILED nor COMPLETE. The ONE pre-token write is dt_reroll_check's fenced record in g2/,
-#    which B.5-1 orders; nothing under cells/ or artifacts/ exists before the token.
+#    commit resolvable by git (m2) → canary, BOTH halves → dt_reroll_check (B.5-1) →
+#    reference_reroll_check (B.7.4-1) → TRAP → token → record-canary → cells → report → manifest →
+#    COMPLETE. The trap is installed BEFORE the token is consumed (J2/J3): a signal in that window
+#    destroyed P7.2b's authorisation while leaving neither FAILED nor COMPLETE. The TWO pre-token
+#    writes are the two re-roll checks' fenced records in g2/, which B.5-1 and B.7.4-1 order; nothing
+#    under cells/ or artifacts/ exists before the token.
 #
 # 4. `-P` ON EVERY INTERPRETER CALL (Amendment B.3-2). Without it Python prepends the cwd — the
 #    MAIN tree, by rule 5 — to sys.path, `offline` resolves to the main tree's package, and the
@@ -90,7 +93,9 @@
 #    an episode. The driver prints its own wall clock and the packet reports the observed one.
 #    The single-worker figure is corroborated by C5's sequential MaxPressure episode at 29.9 s.
 #    BEFORE the token, dt_reroll_check adds about 95 s: one DT cell alone (G2: 35.5 s) and then
-#    twelve copies in one 12-worker pool (G2's W = 12 pool: 58.6 s wall).
+#    twelve copies in one 12-worker pool (G2's W = 12 pool: 58.6 s wall). reference_reroll_check
+#    then adds a minute or two -- six anchor cells in one 6-worker pool, the two on draw 1000 with the
+#    halting cross-check -- an ESTIMATE from the same rates, not measured on this commit.
 #
 #    DEMAND BASIS (Amendment B.2-3b), because SUMO wall time scales with vehicle count and the
 #    schedule above was measured on draw 5: draw 5 carries 1,335 vehicles against the held-out
@@ -115,6 +120,9 @@
 #    B.5-3   the pane carries the driver's exit code (section 0).
 #    B.7.1-1 WORK_TREE derived from ${BASH_SOURCE[0]} (`pwd -P`: a symlinked path cannot hide the
 #            implementer's tree from the check), and a refusal when it IS the implementer's tree.
+#    B.7.4-1 reference_reroll_check: C4's six reference cells rolled at this commit and compared by
+#            report's own comparison; six MATCH lines (the module's exit AND the driver's own
+#            count) or the token is not consumed. The six lines go into the capture header.
 
 set -euo pipefail
 
@@ -324,6 +332,34 @@ if ! REROLL_LINE=$(PYTHONPATH=$WORK_TREE "$PY" -P -m offline.transfer_curve "${C
 fi
 echo "$REROLL_LINE"
 
+# ---------------------------------------------------------------- B.7.4-1: the six reference cells
+# C4's six frozen anchors -- fixedtime and maxpressure on draws 1000-1002, the campaign's OWN cells --
+# rolled again at THIS commit and compared with docs/data/p7_3d_reference_cells.json by report's own
+# comparison (17 fields and the halting rule). Since B.7.1-2 changed the anchor branch no real anchor
+# cell had been rolled; without this stage the one comparison would be report's, after 700 cells.
+# One line per cell -- MATCH, or NO MATCH and the differing field NAMES, never a value -- and a
+# fenced record under g2/, never under cells/. The module exits 2 on any NO MATCH; the driver then
+# counts six MATCH lines ITSELF (the second route). Anything else: the token is NOT consumed.
+if ! REFERENCE_LINES=$(PYTHONPATH=$WORK_TREE "$PY" -P -m offline.transfer_curve "${COMMON[@]}" --canary-seconds "$CANARY" reference-reroll-check --g2-dir "$G2_DIR" --workers "$WORKERS"); then
+  echo "${REFERENCE_LINES:-reference_reroll_check printed no result line}"
+  echo "REFUSING TO START: reference_reroll_check did not pass (Amendment B.7.4-1): the module's exit" >&2
+  echo "  alone refuses. A NO MATCH line above names the cell and the field: the frozen anchors did" >&2
+  echo "  not regenerate at this commit, so report would refuse after 700 cells, and the fix is a code" >&2
+  echo "  change BEFORE the token (J1(c)). No line means a roll failed to run; its exception type is" >&2
+  echo "  above. The token has NOT been consumed; the fenced record is under $G2_DIR." >&2
+  exit 2
+fi
+echo "$REFERENCE_LINES"
+REFERENCE_RESULTS=$(grep -E '^reference_reroll_check (MATCH|NO MATCH) ' <<< "$REFERENCE_LINES" || true)
+N_REFERENCE_RESULTS=$(grep -cE '^reference_reroll_check (MATCH|NO MATCH) ' <<< "$REFERENCE_LINES" || true)
+N_REFERENCE_MATCH=$(grep -c '^reference_reroll_check MATCH ' <<< "$REFERENCE_LINES" || true)
+if [ "$N_REFERENCE_RESULTS" -ne 6 ] || [ "$N_REFERENCE_MATCH" -ne 6 ]; then
+  echo "REFUSING TO START: reference_reroll_check printed $N_REFERENCE_RESULTS result line(s), $N_REFERENCE_MATCH of them MATCH;" >&2
+  echo "  six MATCH lines, one per reference cell, are required (Amendment B.7.4-1). Nothing has" >&2
+  echo "  been consumed." >&2
+  exit 2
+fi
+
 # ---------------------------------------------------------------- the trap, BEFORE the token
 fail() {
   local where=$1
@@ -373,6 +409,9 @@ echo "  memory       ${AVAILABLE_MIB} MiB available, budget ${RSS_BUDGET_MIB} Mi
 echo "  schedule     57-113 min (G2's W=12 and W=8 rates; the W=8 row is unexplained)"
 echo "  canary       $CANARY_LINE"
 echo "  re-roll      $REROLL_LINE"
+while IFS= read -r REFERENCE_LINE; do
+  echo "  reference    $REFERENCE_LINE"
+done <<< "$REFERENCE_RESULTS"
 echo "  started      $(date -Is)"
 echo ""
 

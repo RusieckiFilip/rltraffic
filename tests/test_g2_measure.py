@@ -537,6 +537,10 @@ def test_the_campaign_driver_refuses_before_the_token_and_in_order() -> None:
         "REFUSING TO START: the canary failed",
         "REFUSING TO START: canary $CANARY s exceeds",
         "REFUSING TO START: dt_reroll_check",
+        # B.7.4-1, ADDED in the B.7.4 round: the six reference cells re-rolled at the run commit --
+        # a module exit other than 0, then the driver's own count of six MATCH lines.
+        "REFUSING TO START: reference_reroll_check did not pass",
+        "REFUSING TO START: reference_reroll_check printed",
         "trap on_signal INT TERM HUP",
         "REFUSING TO START: no run token",
         'rm -f "$TOKEN"',

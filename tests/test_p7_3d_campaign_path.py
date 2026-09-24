@@ -43,6 +43,16 @@ B.7 AND B.7.1 (the second round)
   test derives from its own stubs, and one swapped reference-cell value refused.
 * **Per-intersection returns on every grid4x4 chunk** (B.7.1-2), by the probe's two routes.
 
+B.7.4 AND B.7.5 (the third round)
+---------------------------------
+* **Per-intersection rho is ONE RATIO OF MEANS per intersection** (B.7.2-1), with B.7.2-2's
+  denominator diagnostic beside it and a null rho on an exactly-zero mean denominator (B.7.5-4).
+  The complete-set fixture's per-intersection denominators now VARY across draws: with constant ones
+  a mean of ratios and a ratio of means coincide, and the pin could not fail (B.7.5-1).
+* **The six reference cells are re-rolled before the token** (B.7.4-1): through the REAL runner on
+  stubs here, and stubbed in every executed driver -- the real check is the driver's, never the
+  suite's.
+
 GATES, each naming what it consumes
 -----------------------------------
 The main tree's interpreter, draws tree and ``output/`` (the driver hardcodes ``MAIN``, so these do
@@ -793,7 +803,10 @@ def test_the_comparison_excludes_the_clock_by_name_and_nothing_else() -> None:
     assert result["verdict"] == "NOT IDENTICAL" and result["differing_fields"] == ["actions"]
     assert len(set(result["sha256_minus_clocks"])) == 2
 
-    for field in ("rtg_series", "reward_series", "e_sumo", "att_env", "episode_reward", "n_teleports"):
+    # ⚠️ "actions" ADDED in the B.7.4 round: the G4 re-review's mutation 8(a) (dropping it from
+    # REROLL_COMPARED_FIELDS) survived because this loop did not name it (docs/reviews/
+    # P7.3d-preflight-2.md, the coordinator's ruling, item 4). Disclosed in the packet.
+    for field in ("actions", "rtg_series", "reward_series", "e_sumo", "att_env", "episode_reward", "n_teleports"):
         assert field in tcv.REROLL_COMPARED_FIELDS
         with pytest.raises(ValueError, match=field):
             tcv.compare_reroll_payloads([base, {k: v for k, v in base.items() if k != field}])
@@ -866,6 +879,162 @@ def test_the_reroll_subcommand_exits_two_on_not_identical(
 
 
 # ==================================================================================
+# B.7.4-1 -- the six REFERENCE cells re-rolled before the token, on stubs (never for real here)
+# ==================================================================================
+#: The six cells in the order the check reports them: REFERENCE_CELL_ARMS x REFERENCE_CELL_DRAWS.
+_REFERENCE_KEYS: list[tuple[str, int]] = [
+    (arm, draw) for arm in ("fixedtime", "maxpressure") for draw in (1000, 1001, 1002)
+]
+
+
+def _reference_names() -> list[str]:
+    """The six chunk names, by the test's own cell shape (``_grid_cell``)."""
+    return [tcv.cell_chunk_name(_grid_cell("anchor", arm, draw)) for arm, draw in _REFERENCE_KEYS]
+
+
+def _stub_reference_worker(task: tuple[dict[str, Any], dict[str, Any], str]) -> dict[str, Any]:
+    """A stand-in for ``run_cell`` in a spawned worker: the cell's FROZEN values under the chunk's names.
+
+    The MODE travels in ``out_root`` -- a root no demand resolves from, so a worker that failed to
+    be injected reaches the real ``run_cell`` and refuses before any simulator starts: this test
+    cannot roll a reference cell (``DEFERRED`` 91).
+    """
+    cell, kwargs, role = task
+    mode = str(kwargs["out_root"])
+    key = (str(cell["arm"]), int(cell["draw_id"]))
+    frozen = _frozen_rows()[key]
+    payload = _grid_payload(cell, config_sha=str(frozen["config_sha256"]),
+                            routes_sha=str(frozen["routes_sha256"]))
+    payload.update({chunk: frozen[name] for name, chunk in FROZEN_TO_CHUNK.items()})
+    if frozen["halting_checked"]:
+        payload.update({name: frozen[name] for name in HALTING_COUNTS})
+    if mode == "stub:one_field" and key == ("maxpressure", 1001):
+        payload["e_sumo"] = float(payload["e_sumo"]) + 0.5
+    if mode == "stub:halting_1000" and key == ("fixedtime", 1000):
+        payload["halting_n_disagreeing_lane_seconds"] = int(payload["halting_n_disagreeing_lane_seconds"]) + 1
+    if mode == "stub:halting_1001" and key == ("fixedtime", 1001):
+        payload["halting_n_disagreeing_lane_seconds"] = 7
+    if mode == "stub:fails" and key == ("fixedtime", 1002):
+        return {"role": role, "ok": False, "payload": None, "error": "ValueError: e_sumo 123.456"}
+    return {"role": role, "ok": True, "payload": payload, "error": None}
+
+
+def test_the_reference_reroll_rolls_the_campaigns_own_six_anchor_cells() -> None:
+    """B.7.4-1: the six cells ARE the campaign's -- ``grid4x4_cells()``'s own anchor dicts on draws
+    1000-1002, stage and scenario included, so the check rolls exactly what the campaign will; the
+    halting cross-check rule applies to them unchanged (ON for draw 1000 only).
+    *Mutation:* the cells hand-built with a stage that is not the campaign's -> this dies."""
+    cells = tcv.reference_reroll_cells()
+    declared = {(c["arm"], c["draw_id"]): c for c in tcv.grid4x4_cells() if c["kind"] == "anchor"}
+    assert cells == [declared[key] for key in _REFERENCE_KEYS]
+    assert cells == [_grid_cell("anchor", arm, draw) for arm, draw in _REFERENCE_KEYS]
+    assert [tcv.cell_chunk_name(cell) for cell in cells] == _reference_names()
+    assert [tcv.halting_check_for(cell["draw_id"]) for cell in cells] == [True, False, False] * 2
+    cells[0]["arm"] = "mutated"
+    assert tcv.reference_reroll_cells()[0]["arm"] == "fixedtime", "a caller cannot edit the declaration"
+
+
+def test_a_one_field_difference_in_one_reference_cell_is_no_match_and_prints_no_value(
+    tmp_path: Path,
+) -> None:
+    """B.7.4-1's named test: on stubs, one field of one reference cell differs -> that cell is
+    ``NO MATCH`` naming the field, the five others ``MATCH``, the verdict refuses, and no value is
+    printed.  Through the REAL runner (a spawn pool of three); every roll's payload under the fence
+    key, and no record named like a campaign chunk.  *Mutations:* the comparison skipped, a value in
+    the line, a write before the comparison -> this dies."""
+    g2 = tmp_path / "g2"
+    result = tcv.run_reference_reroll_check(
+        g2_dir=g2, out_root="stub:one_field", output_root=tmp_path, data_dir=DATA,
+        canary_seconds=0.8, workers=3, worker=_stub_reference_worker,
+    )
+    names = _reference_names()
+    target = tcv.cell_chunk_name(_grid_cell("anchor", "maxpressure", 1001))
+    assert result["verdict"] == "NO MATCH"
+    assert result["lines"] == [
+        f"reference_reroll_check NO MATCH {name} e_sumo" if name == target
+        else f"reference_reroll_check MATCH {name}"
+        for name in names
+    ]
+    frozen = float(_frozen_rows()[("maxpressure", 1001)]["e_sumo"])
+    for value in (repr(frozen), repr(frozen + 0.5), f"{frozen:.2f}", f"{frozen + 0.5:.2f}"):
+        assert all(value not in line for line in result["lines"]), f"a value reached a line: {value}"
+    run_dir = Path(result["run_dir"])
+    assert run_dir.parent == g2 and run_dir.name.startswith("reference_reroll_check_")
+    records = sorted(path.name for path in run_dir.iterdir())
+    assert records == sorted([f"{arm}_draw{draw:04d}.json" for arm, draw in _REFERENCE_KEYS] + ["verdict.json"])
+    for arm, draw in _REFERENCE_KEYS:
+        record = json.loads((run_dir / f"{arm}_draw{draw:04d}.json").read_text(encoding="utf-8"))
+        assert set(record) >= {"format_version", tcv.FENCED_KEY}
+        assert "e_sumo" not in record, "the outcome sits under the fence key only"
+    verdict = json.loads((run_dir / "verdict.json").read_text(encoding="utf-8"))
+    assert verdict["verdict"] == "NO MATCH" and verdict["lines"] == result["lines"]
+    assert not list(g2.rglob("cell_*.json")), "no record is named like a campaign chunk"
+
+    same = tcv.run_reference_reroll_check(
+        g2_dir=tmp_path / "g2b", out_root="stub:same", output_root=tmp_path, data_dir=DATA,
+        canary_seconds=0.8, workers=3, worker=_stub_reference_worker,
+    )
+    assert same["verdict"] == "MATCH"
+    assert same["lines"] == [f"reference_reroll_check MATCH {name}" for name in names]
+
+
+def test_the_reference_reroll_keeps_the_halting_rule_and_a_failed_roll_is_not_a_verdict(
+    tmp_path: Path,
+) -> None:
+    """The halting counts are compared exactly where the frozen run checked them (draw 1000) and not
+    elsewhere -- ``report``'s own rule, because it is ``report``'s own function.  A roll that failed
+    is not a verdict: the check raises naming the exception TYPE, the message parked under the fence."""
+    checked = tcv.run_reference_reroll_check(
+        g2_dir=tmp_path / "g2a", out_root="stub:halting_1000", output_root=tmp_path, data_dir=DATA,
+        canary_seconds=0.8, workers=2, worker=_stub_reference_worker,
+    )
+    name_1000 = tcv.cell_chunk_name(_grid_cell("anchor", "fixedtime", 1000))
+    assert checked["verdict"] == "NO MATCH"
+    assert f"reference_reroll_check NO MATCH {name_1000} halting_n_disagreeing_lane_seconds" in checked["lines"]
+    unchecked = tcv.run_reference_reroll_check(
+        g2_dir=tmp_path / "g2b", out_root="stub:halting_1001", output_root=tmp_path, data_dir=DATA,
+        canary_seconds=0.8, workers=2, worker=_stub_reference_worker,
+    )
+    assert unchecked["verdict"] == "MATCH", "draw 1001's frozen run did not check halting"
+
+    with pytest.raises(RuntimeError, match="ValueError") as raised:
+        tcv.run_reference_reroll_check(
+            g2_dir=tmp_path / "g2c", out_root="stub:fails", output_root=tmp_path, data_dir=DATA,
+            canary_seconds=0.8, workers=2, worker=_stub_reference_worker,
+        )
+    assert "123.456" not in str(raised.value), "a failure message may carry an outcome; it stays fenced"
+    parked = list((tmp_path / "g2c").glob("reference_reroll_check_*/failures.json"))
+    assert len(parked) == 1
+    # nothing but the failure record: no roll is written before every roll returned and compared
+    assert sorted(path.name for path in parked[0].parent.iterdir()) == ["failures.json"]
+    record = json.loads(parked[0].read_text(encoding="utf-8"))
+    assert "123.456" in json.dumps(record[tcv.FENCED_KEY])
+    assert "123.456" not in json.dumps({k: v for k, v in record.items() if k != tcv.FENCED_KEY})
+
+
+def test_the_reference_reroll_subcommand_prints_the_lines_and_exits_two_unless_all_match(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The CLI the driver calls: the six lines on stdout and nothing else, exit 0 only on six MATCH.
+    *Mutation:* exit 0 on NO MATCH -> this dies."""
+    names = _reference_names()
+    match = [f"reference_reroll_check MATCH {name}" for name in names]
+    no_match = match[:5] + [f"reference_reroll_check NO MATCH {names[5]} e_sumo"]
+    for verdict, lines, code in (("NO MATCH", no_match, 2), ("MATCH", match, 0)):
+        seen: dict[str, Any] = {}
+
+        def fake(**kwargs: Any) -> dict[str, Any]:
+            seen.update(kwargs)
+            return {"verdict": verdict, "lines": list(lines)}  # noqa: B023 - consumed in-loop
+
+        monkeypatch.setattr(tcv, "run_reference_reroll_check", fake, raising=True)
+        argv = ["--canary-seconds", "0.8", "reference-reroll-check", "--g2-dir", str(tmp_path), "--workers", "3"]
+        assert tcv.main(argv) == code
+        assert capsys.readouterr().out.strip().splitlines() == lines
+        assert seen["g2_dir"] == str(tmp_path) and seen["workers"] == 3 and seen["canary_seconds"] == 0.8
+
+
+# ==================================================================================
 # B.7.1-2 -- the per-intersection return on EVERY grid4x4 chunk, by the probe's two routes
 # ==================================================================================
 class _Ix:
@@ -933,6 +1102,92 @@ def test_a_grid4x4_chunk_whose_return_routes_disagree_or_are_absent_is_refused()
     tcv.validate_cell_payload(anchor)
     with pytest.raises(ValueError, match="local_return"):
         tcv.validate_cell_payload({**anchor, "local_return": {"A0": -1.0}, "local_return_from_lanes": {"A0": -1.0}})
+
+
+# ==================================================================================
+# B.7.2-1 / B.7.2-2 / B.7.5 -- per-intersection rho: a RATIO OF MEANS, with its diagnostic
+# ==================================================================================
+#: Four draws, three intersections, returns in whole numbers (every sum exact).  P: denominators
+#: that VARY across draws, so a mean of per-draw ratios (0.375) and the ratio of means (7/20) are
+#: different numbers; draw 1003 has THREE seeds, so "seeds within a draw first" is a different
+#: number from a grand mean over cells.  Q: MaxPressure ties on 1001 and is worse on 1002.  Z: the
+#: MEAN denominator is exactly zero.
+_IX_DRAWS = (1000, 1001, 1002, 1003)
+_IX_FT = {"P": (-100.0, -101.0, -102.0, -103.0), "Q": (-60.0, -61.0, -62.0, -63.0),
+          "Z": (-50.0, -51.0, -52.0, -53.0)}
+_IX_GAP = {"P": (8.0, 16.0, 24.0, 32.0), "Q": (16.0, 0.0, -8.0, 24.0), "Z": (8.0, -8.0, 24.0, -24.0)}
+_IX_TBAR = {"P": (0.5, 0.25, 0.5, 0.25), "Q": (0.5, 0.5, 0.5, 0.5), "Z": (0.5, 0.5, 0.5, 0.5)}
+
+
+def _ix_rows() -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for k, draw in enumerate(_IX_DRAWS):
+        ft = {ix: _IX_FT[ix][k] for ix in _IX_FT}
+        mp = {ix: ft[ix] + _IX_GAP[ix][k] for ix in _IX_FT}
+        rows.append({"kind": "anchor", "arm": "fixedtime", "seed": None, "draw_id": draw, "local_return": ft})
+        rows.append({"kind": "anchor", "arm": "maxpressure", "seed": None, "draw_id": draw, "local_return": mp})
+        offsets = {101: -0.125, 202: 0.125} if draw != 1003 else {101: -0.125, 202: 0.0, 303: 0.125}
+        for seed, offset in offsets.items():
+            rows.append({
+                "kind": "dt", "arm": tcv.GRID4X4_ARM, "seed": seed, "draw_id": draw,
+                "local_return": {ix: ft[ix] + _IX_GAP[ix][k] * (_IX_TBAR[ix][k] + offset) for ix in _IX_FT},
+            })
+    return rows
+
+
+def test_per_intersection_rho_is_one_ratio_of_means_with_its_denominator_diagnostic() -> None:
+    """B.7.2-1: ``rho_i = (Rbar_ft,i - Rbar_arm,i) / (Rbar_ft,i - Rbar_mp,i)``, each ``Rbar`` a mean over
+    draws (the DT's seeds averaged within a draw FIRST), no CI.  B.7.2-2: beside it the draws on
+    which MaxPressure did not beat fixed-time, the mean gap with its standard error, and the
+    denominator.  B.7.5-4: a zero MEAN denominator -> ``rho: None`` with the reason, the diagnostic
+    still written, the count in the header.  Every expectation below is worked by hand from
+    :data:`_IX_GAP` and friends.  *Mutations:* a mean of per-draw ratios; a grand mean over cells; the
+    SE with ddof 0; the gap's sign flipped; the null rule turned into a refusal -> this dies."""
+    import math
+
+    block = tcv._grid4x4_per_intersection_rho(_ix_rows(), ["P", "Q", "Z"])
+    assert "no CI" in block["status"] and "exploratory" in block["status"]
+    p = block["per_intersection"]["P"]
+    # Rbar_ft = -406/4, Rbar_mp = -326/4; the DT's per-draw seed means -96, -97, -90, -95 -> -378/4
+    assert p["mean_return"] == {tcv.GRID4X4_ARM: -94.5, "fixedtime": -101.5, "maxpressure": -81.5}
+    assert p["rho"] == 7.0 / 20.0 and p["reason"] is None
+    assert p["rho"] != 0.375, "0.375 is the superseded mean of per-draw ratios"
+    assert p["n_draws"] == 4
+    assert not {"ci95", "ci95_low", "ci95_high", "mean_rho"} & set(p)
+    assert block["per_intersection"]["Q"]["rho"] == 0.5
+
+    z = block["per_intersection"]["Z"]
+    assert z["rho"] is None and z["reason"] == "denominator exactly zero"
+    assert z["mean_return"]["fixedtime"] == z["mean_return"]["maxpressure"] == -51.5
+    assert block["n_intersections_rho_null"] == 1 and block["intersection_ids_rho_null"] == ["Z"]
+
+    diagnostic = block["denominator_diagnostic"]["per_intersection"]
+    assert set(diagnostic) == {"P", "Q", "Z"}
+    assert diagnostic["P"] == {
+        "n_draws": 4, "n_draws_mp_not_better": 0, "draw_ids_mp_not_better": [],
+        "mean_gap": 20.0, "mean_gap_se": math.sqrt(320.0 / 3.0) / 2.0, "denominator": -20.0,
+        "min_gap": 8.0, "max_gap": 32.0,
+    }
+    assert diagnostic["Q"] == {
+        "n_draws": 4, "n_draws_mp_not_better": 2, "draw_ids_mp_not_better": [1001, 1002],
+        "mean_gap": 8.0, "mean_gap_se": math.sqrt(640.0 / 3.0) / 2.0, "denominator": -8.0,
+        "min_gap": -8.0, "max_gap": 24.0,
+    }
+    assert diagnostic["Z"] == {
+        "n_draws": 4, "n_draws_mp_not_better": 2, "draw_ids_mp_not_better": [1001, 1003],
+        "mean_gap": 0.0, "mean_gap_se": math.sqrt(1280.0 / 3.0) / 2.0, "denominator": 0.0,
+        "min_gap": -24.0, "max_gap": 24.0,
+    }
+    assert "what_this_is" in block["denominator_diagnostic"]
+
+
+def test_per_intersection_rho_refuses_a_draw_without_both_anchors() -> None:
+    """Every draw that carries DT cells carries both anchors, or the means are over different draws
+    and the ratio compares nothing; ``report``'s completeness check makes this unreachable there,
+    and the block refuses rather than trusting it."""
+    rows = [row for row in _ix_rows() if not (row["draw_id"] == 1002 and row["arm"] == "maxpressure")]
+    with pytest.raises(ValueError, match="1002"):
+        tcv._grid4x4_per_intersection_rho(rows, ["P", "Q", "Z"])
 
 
 # ==================================================================================
@@ -1012,10 +1267,14 @@ def test_every_module_call_puts_common_before_the_subcommand() -> None:
     every machine (``p7_3b_anchor.sh:230`` is the shape)."""
     code = _driver_code()
     calls = code.count("-m offline.transfer_curve")
-    assert calls >= 8, "check-inputs, resume-check, canary, dt-reroll-check, record-canary, cells, report, manifest"
+    # ⚠️ EXTENDED in the B.7.4 round (disclosed): B.7.4-1's reference-reroll-check is the ninth call.
+    assert calls >= 9, (
+        "check-inputs, resume-check, canary, dt-reroll-check, reference-reroll-check, record-canary, "
+        "cells, report, manifest"
+    )
     assert code.count('-m offline.transfer_curve "${COMMON[@]}"') == calls
     for subcommand in ("check-inputs", "resume-check", "canary", "dt-reroll-check",
-                       "record-canary", "cells", "report", "manifest"):
+                       "reference-reroll-check", "record-canary", "cells", "report", "manifest"):
         assert re.search(rf'"\$\{{COMMON\[@\]\}}"[^\n]*(\\\n[^\n]*)?\b{re.escape(subcommand)}\b', code), subcommand
 
 
@@ -1111,6 +1370,28 @@ _IDENTICAL_STUB = "echo 'dt_reroll_check IDENTICAL (stubbed by tests/test_p7_3d_
 _NOT_IDENTICAL_STUB = (
     "sh -c 'echo \"dt_reroll_check NOT IDENTICAL: differing fields [actions] (stub)\"; exit 2'"
 )
+
+#: The ``reference-reroll-check`` invocation (B.7.4-1), replaced by a stub in every executed test:
+#: the real check rolls six SUMO episodes on held-out draws and is run by the DRIVER before the
+#: token, never by the suite.
+_REFERENCE_CALL = (
+    'PYTHONPATH=$WORK_TREE "$PY" -P -m offline.transfer_curve "${COMMON[@]}" --canary-seconds '
+    '"$CANARY" reference-reroll-check --g2-dir "$G2_DIR" --workers "$WORKERS"'
+)
+
+
+def _reference_stub(lines: list[str], *, exit_code: int = 0) -> str:
+    """A shell command printing *lines*, one per line, then exiting *exit_code*: the check's stand-in."""
+    assert all("'" not in line for line in lines)
+    command = "printf '%s\\n' " + " ".join(f"'{line}'" for line in lines)
+    return command if exit_code == 0 else f"{command}; exit {exit_code}"
+
+
+def _six_match_stub() -> str:
+    return _reference_stub(
+        [f"reference_reroll_check MATCH {name} (stubbed by tests/test_p7_3d_campaign_path.py)"
+         for name in _reference_names()]
+    )
 
 #: The draw-5 shim: the REAL module with ONE function replaced -- the grid4x4 declaration, draw
 #: 1000's seven cells moved to draw 5 and put FIRST (the dt-seed-101 and fixedtime pair leading), so
@@ -1220,6 +1501,7 @@ def driver_sandbox(tmp_path: Path) -> Any:
     def build(
         *,
         reroll: str = _IDENTICAL_STUB,
+        reference: str | None = None,
         fenced_cells: int = 0,
         implementer_tree_here: bool = False,
         populate: Any = None,
@@ -1237,6 +1519,9 @@ def driver_sandbox(tmp_path: Path) -> Any:
             f"TOKEN={sandbox / 'TOKEN_confirmatory'}\n", 1,
         )
         text = _substitute(text, _REROLL_CALL, reroll, 1)
+        # B.7.4-1: the reference re-roll is ALWAYS a stub here -- six MATCH lines unless a test asks
+        # for another -- so no executed test can roll a reference cell, whatever breaks.
+        text = _substitute(text, _REFERENCE_CALL, _six_match_stub() if reference is None else reference, 1)
         text = _substitute(
             text, 'cells --stage "$STAGE_ARG" --workers "$WORKERS" || fail "cells"',
             f'cells --stage "$STAGE_ARG" --workers "$WORKERS" --limit {int(fenced_cells)} || fail "cells"', 1,
@@ -1277,6 +1562,9 @@ def test_the_fixture_builds_every_driver_with_sandbox_roots_and_limit_zero(drive
     assert f"TOKEN={sb.sandbox / 'TOKEN_confirmatory'}\n" in text
     assert 'cells --stage "$STAGE_ARG" --workers "$WORKERS" --limit 0 || fail "cells"' in text
     assert "$MAIN/output/p7_3d" not in text and "p7_3d_runs/TOKEN" not in text
+    # ADDED in the B.7.4 round: both pre-token re-roll checks are stubs in every executed driver, so
+    # neither can roll a SUMO episode from the suite.
+    assert "dt-reroll-check" not in text and "reference-reroll-check" not in text
     with pytest.raises(ValueError, match="fenced_cells"):
         driver_sandbox(fenced_cells=MAX_FENCED_CELLS + 1)
 
@@ -1315,6 +1603,15 @@ def test_the_campaign_path_from_the_drivers_argument_to_a_written_grid4x4_chunk(
     # ---- report refused ONLY on completeness, and named no undeclared chunk
     assert "698 declared cell(s) have no chunk" in output
     assert "not declared cells of ANY stage" not in output
+
+    # ---- B.7.4-1: the six reference lines, printed before the token and copied into the capture
+    # header (the banner after the token), in order, under the dt re-roll's line
+    stdout = result.stdout
+    token_at = stdout.index("token consumed and deleted")
+    banner = stdout[token_at:]
+    at = [banner.index(f"  reference    reference_reroll_check MATCH {name} ") for name in _reference_names()]
+    assert at == sorted(at) and banner.index("  re-roll      dt_reroll_check") < at[0]
+    assert all(stdout.index(f"reference_reroll_check MATCH {name} ") < token_at for name in _reference_names())
 
     # ---- the two chunks, under the grid4x4 names
     dt_cell = _grid_cell("dt", tcv.GRID4X4_ARM, FENCED_DRAW, seed=101)
@@ -1442,6 +1739,47 @@ def test_a_not_identical_reroll_refuses_the_token(driver_sandbox: Any) -> None:
     sb.assert_no_experiment_started()
 
 
+@pytest.mark.parametrize(
+    "case", ["one_no_match_exit_2", "six_match_lines_exit_2", "five_match_lines_exit_0"]
+)
+def test_a_reference_reroll_without_six_match_lines_refuses_the_token(driver_sandbox: Any, case: str) -> None:
+    """B.7.4-1, executed: any NO MATCH refuses the token (the module exits 2); the module's non-zero
+    exit refuses ALONE, even over six MATCH lines, before the count is reached; and a check that
+    printed fewer than six MATCH lines while exiting 0 is refused by the driver's own count (the
+    second route).  The token stays, nothing is created, nothing is rolled.  *Mutations:* the exit
+    check removed (R02 -- it SURVIVED the first mutation run, when only the first and third cases
+    existed: the count caught the NO MATCH line, so the case six_match_lines_exit_2 and the absence
+    of the count's message were added); the count removed -> this dies."""
+    names = _reference_names()
+    match = [f"reference_reroll_check MATCH {name}" for name in names]
+    by_exit = "REFUSING TO START: reference_reroll_check did not pass"
+    by_count = "REFUSING TO START: reference_reroll_check printed"
+    if case == "one_no_match_exit_2":
+        printed = match[:5] + [f"reference_reroll_check NO MATCH {names[5]} e_sumo"]
+        stub, refusal = _reference_stub(printed, exit_code=2), by_exit
+    elif case == "six_match_lines_exit_2":
+        printed = list(match)
+        stub, refusal = _reference_stub(printed, exit_code=2), by_exit
+    else:
+        printed = match[:5]
+        stub, refusal = _reference_stub(printed, exit_code=0), f"{by_count} 5 result line(s), 5 of them MATCH"
+    sb = driver_sandbox(reference=stub)
+    sb.write_token()
+    result = sb.run(timeout=300.0)
+    shutil.rmtree(sb.clone, ignore_errors=True)
+    assert result.returncode == 2, (result.stdout + result.stderr)[-2000:]
+    assert refusal in result.stderr, result.stderr[-2000:]
+    if refusal == by_exit:
+        assert by_count not in result.stderr, "a non-zero exit refuses by itself, before the count"
+    for line in printed:
+        assert line in result.stdout, "the result lines reach the capture"
+    assert "dt_reroll_check IDENTICAL" in result.stdout, "it runs AFTER dt_reroll_check"
+    assert sb.token.is_file(), "the token must not be consumed"
+    assert "token consumed" not in result.stdout
+    assert not sb.campaign.exists()
+    sb.assert_no_experiment_started()
+
+
 def test_an_unresolvable_chunk_commit_refuses_before_the_token(driver_sandbox: Any) -> None:
     """m2, executed: the chunk that made ``run_stage`` raise AFTER ``rm -f "$TOKEN"`` refuses the
     start, the token intact, the chunk where it was, and nothing else written.  *Mutation:* the check
@@ -1494,12 +1832,28 @@ REFERENCE_DRAWS = (1000, 1001, 1002)
 SEED_DELTA = {101: -0.25, 202: -0.125, 303: 0.0, 404: 0.125, 505: 0.25}
 #: The draw on which the co-reported env-ATT anchors tie EXACTLY (the 2026-09-17 exclusion rule).
 ENV_ZERO_DRAW = 1050
-#: The (intersection, draw) pairs on which the per-intersection anchors tie exactly (B.7.1-2).
-PER_IX_ZERO_ID = "B2"
+#: ⚠️ CHANGED in the B.7.4 round (BRIEF_39 Amendments B.7.2-1, B.7.5; disclosed in the packet): the
+#: per-intersection returns' denominators VARY across draws, so the superseded mean of per-draw
+#: ratios and B.7.2-1's ratio of means are DIFFERENT numbers on this fixture -- with the constant
+#: denominators it had before, the two coincided and the pin could not fail.
+#:
+#: The intersection on which MaxPressure does NOT beat fixed-time on 20 draws: a tie on every draw
+#: with ``k % 10 == 7`` and 32 worse on every draw with ``k % 10 == 2`` (B.7.2-2's count).
+MP_NOT_BETTER_ID = "B2"
+#: The intersection whose MEAN denominator is exactly zero: MaxPressure 32 better on even ``k`` and
+#: 32 worse on odd ``k`` -> rho_i is null, with the reason, and its diagnostic is still written (B.7.5-4).
+ZERO_MEAN_ID = "C3"
 
 
-def _per_ix_zero(ix: str, draw: int) -> bool:
-    return ix == PER_IX_ZERO_ID and (draw - 1000) % 10 == 7
+def _per_ix_gap(ix: str, k: int) -> float:
+    """``R_mp,i,d - R_ft,i,d`` on draw ``1000 + k``: dyadic, varying across draws (B.7.5-2)."""
+    if ix == ZERO_MEAN_ID:
+        return 32.0 if k % 2 == 0 else -32.0
+    if ix == MP_NOT_BETTER_ID and k % 10 == 7:
+        return 0.0
+    if ix == MP_NOT_BETTER_ID and k % 10 == 2:
+        return -32.0
+    return 32.0 + 32.0 * (k % 4)
 
 
 #: The test's OWN statement of the reference-cell mapping (frozen row key -> chunk key).
@@ -1540,7 +1894,8 @@ def _complete_set(*, git_commit: str) -> tuple[list[dict[str, Any]], dict[str, A
     rho: dict[str, dict[int, dict[int, float | None]]] = {"e_sumo": {}, "att_env": {}}
     anchors: dict[str, dict[int, tuple[float, float]]] = {"e_sumo": {}, "att_env": {}}
     arm_values: dict[str, dict[int, dict[int, float]]] = {"e_sumo": {}, "att_env": {}}
-    per_ix_rho: dict[str, dict[int, dict[int, float]]] = {ix: {} for ix in IDS}
+    #: per intersection, per draw: the fixed-time and MaxPressure returns and the DT's by seed
+    per_ix_returns: dict[str, dict[int, dict[str, Any]]] = {ix: {} for ix in IDS}
     for draw in tcv.HELD_OUT_DRAWS:
         k = draw - 1000
         config, routes = _grid_digests(draw)
@@ -1552,7 +1907,9 @@ def _complete_set(*, git_commit: str) -> tuple[list[dict[str, Any]], dict[str, A
             m = {"e_sumo": f["e_sumo"] - 256.0,
                  "att_env": f["att_env"] - (0.0 if draw == ENV_ZERO_DRAW else 128.0)}
         r_ft = {ix: -(200.0 + 8.0 * j + float(k % 5)) for j, ix in enumerate(IDS)}
-        r_mp = {ix: r_ft[ix] if _per_ix_zero(ix, draw) else r_ft[ix] + 64.0 for ix in IDS}
+        r_mp = {ix: r_ft[ix] + _per_ix_gap(ix, k) for ix in IDS}
+        for ix in IDS:
+            per_ix_returns[ix][draw] = {"ft": r_ft[ix], "mp": r_mp[ix], "dt": {}}
         for key in ("e_sumo", "att_env"):
             anchors[key][draw] = (f[key], m[key])
         for arm, values, returns in (("fixedtime", f, r_ft), ("maxpressure", m, r_mp)):
@@ -1589,9 +1946,8 @@ def _complete_set(*, git_commit: str) -> tuple[list[dict[str, Any]], dict[str, A
             r_dt: dict[str, float] = {}
             for j, ix in enumerate(IDS):
                 target_i = 0.25 + (j % 4) * 0.125 + (k % 2) * 0.0625 + SEED_DELTA[seed] / 2.0
-                r_dt[ix] = r_ft[ix] + 64.0 * target_i
-                if not _per_ix_zero(ix, draw):
-                    per_ix_rho[ix].setdefault(draw, {})[seed] = target_i
+                r_dt[ix] = r_ft[ix] + _per_ix_gap(ix, k) * target_i
+                per_ix_returns[ix][draw]["dt"][seed] = r_dt[ix]
             in_support = {ix: DECISIONS - (j % 3) for j, ix in enumerate(IDS)}
             payloads.append(
                 _grid_payload(
@@ -1605,7 +1961,7 @@ def _complete_set(*, git_commit: str) -> tuple[list[dict[str, Any]], dict[str, A
                     },
                 )
             )
-    expected = {"rho": rho, "anchors": anchors, "arm_values": arm_values, "per_ix_rho": per_ix_rho}
+    expected = {"rho": rho, "anchors": anchors, "arm_values": arm_values, "per_ix_returns": per_ix_returns}
     return payloads, expected
 
 
@@ -1754,18 +2110,72 @@ def test_report_writes_the_grid4x4_artifact_through_the_driver_from_a_complete_s
     assert [row["draw_id"] for row in artifact["rho"]["definitions"]["att_env"]["excluded_draws"]] == tied
     assert len(per_draw["att_env"]) == 100 - len(tied)
 
-    # ---- (iv) per-intersection rho: descriptive, seeds within a draw, zero denominators excluded
+    # ---- (iv) per-intersection rho -- ⚠️ REWRITTEN in the B.7.4 round (BRIEF_39 B.7.2-1, B.7.2-2,
+    # B.7.5; disclosed in full in the packet). It asserted B.7.1-2's superseded MEAN OF PER-DRAW
+    # RATIOS with zero-tie draws excluded; it now asserts ONE RATIO OF MEANS per intersection (DT:
+    # seeds averaged within a draw first, then over the 100 draws; anchors: over the draws), no CI;
+    # B.7.2-2's denominator diagnostic beside every rho_i; and a zero MEAN denominator -> rho_i null
+    # with the reason, the diagnostic still written, the count in the block's header (B.7.5-4).
+    # Expectations from the fixture's OWN per-draw returns, never from the module.
+    import math
+
     block = artifact["per_intersection_rho"]
     assert "no CI" in block["status"] and "exploratory" in block["status"]
+    returns = expected["per_ix_returns"]
+    null_ids: list[str] = []
+    separated: list[str] = []
     for ix in IDS:
-        per_draw_i = [sum(s.values()) / len(s) for _d, s in sorted(expected["per_ix_rho"][ix].items())]
+        draws = sorted(returns[ix])
+        assert draws == list(tcv.HELD_OUT_DRAWS)
+        ft = [returns[ix][d]["ft"] for d in draws]
+        mp = [returns[ix][d]["mp"] for d in draws]
+        dt = [
+            sum(returns[ix][d]["dt"][s] for s in sorted(returns[ix][d]["dt"])) / len(returns[ix][d]["dt"])
+            for d in draws
+        ]
+        mean_ft, mean_mp, mean_arm = sum(ft) / len(ft), sum(mp) / len(mp), sum(dt) / len(dt)
+        denominator = mean_ft - mean_mp
         entry = block["per_intersection"][ix]
-        assert entry["mean_rho"] == sum(per_draw_i) / len(per_draw_i), ix
-        assert entry["n_draws_used"] == len(per_draw_i)
-        excluded = [d for d in tcv.HELD_OUT_DRAWS if _per_ix_zero(ix, d)]
-        assert entry["draw_ids_excluded"] == excluded and entry["n_draws_excluded"] == len(excluded)
+        assert entry["mean_return"] == {
+            tcv.GRID4X4_ARM: mean_arm, "fixedtime": mean_ft, "maxpressure": mean_mp
+        }, ix
+        assert entry["n_draws"] == 100
         assert not {"ci95", "ci95_low", "ci95_high"} & set(entry)
-    assert block["per_intersection"][PER_IX_ZERO_ID]["n_draws_excluded"] == 10
+        if denominator == 0.0:
+            null_ids.append(ix)
+            assert entry["rho"] is None and entry["reason"] == "denominator exactly zero", ix
+        else:
+            want = (mean_ft - mean_arm) / denominator
+            assert entry["rho"] == want and entry["reason"] is None, ix
+            # The pin CAN fail: the superseded mean of per-draw ratios is ANOTHER number here, by
+            # far more than rounding (B.7.5-2: the fixture must tell the two definitions apart).
+            per_draw = [(f - a) / (f - m) for f, m, a in zip(ft, mp, dt) if f - m != 0.0]
+            if abs(sum(per_draw) / len(per_draw) - want) > 1e-3:
+                separated.append(ix)
+        gaps = [m - f for f, m in zip(ft, mp)]
+        data = np.asarray(gaps, dtype=np.float64)
+        assert block["denominator_diagnostic"]["per_intersection"][ix] == {
+            "n_draws": 100,
+            "n_draws_mp_not_better": sum(1 for gap in gaps if gap <= 0.0),
+            "draw_ids_mp_not_better": [d for d, gap in zip(draws, gaps) if gap <= 0.0],
+            "mean_gap": float(data.mean()),
+            "mean_gap_se": float(data.std(ddof=1)) / math.sqrt(int(data.size)),
+            "denominator": denominator,
+            "min_gap": min(gaps),
+            "max_gap": max(gaps),
+        }, ix
+    assert null_ids == [ZERO_MEAN_ID]
+    assert block["n_intersections_rho_null"] == 1 and block["intersection_ids_rho_null"] == [ZERO_MEAN_ID]
+    assert separated == [ix for ix in IDS if ix != ZERO_MEAN_ID], (
+        "on this fixture every non-null intersection must separate the two definitions"
+    )
+    diagnostics = block["denominator_diagnostic"]["per_intersection"]
+    assert diagnostics[MP_NOT_BETTER_ID]["n_draws_mp_not_better"] == 20
+    assert diagnostics[ZERO_MEAN_ID]["n_draws_mp_not_better"] == 50
+    assert diagnostics[ZERO_MEAN_ID]["denominator"] == 0.0 and diagnostics[ZERO_MEAN_ID]["mean_gap"] == 0.0
+    assert all(diagnostics[ix]["denominator"] < 0.0 for ix in IDS if ix != ZERO_MEAN_ID), (
+        "a return is higher-is-better, so MaxPressure doing better makes the denominator NEGATIVE"
+    )
 
     # ---- (i) the in-support block, from the pinned ranges and the chunks' per-id counts
     support = artifact["in_support"]["per_intersection"]

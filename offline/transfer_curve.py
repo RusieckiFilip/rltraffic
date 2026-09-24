@@ -120,8 +120,10 @@ __all__ = [
     "load_calibration",
     "main",
     "pilot_cells",
+    "reference_reroll_cells",
     "report",
     "run_dt_reroll_check",
+    "run_reference_reroll_check",
     "run_pilot",
     "run_stage",
     "reusable_chunk_at",
@@ -2430,8 +2432,8 @@ def _grid4x4_payload(
     """A grid4x4 cell's chunk (``p7.3d-grid4x4/1.0``), validated before it is returned.
 
     ``local_returns`` is :func:`per_intersection_local_returns`' pair over this episode's post-step
-    infos -- recorded on the anchor cells AND the DT cells (B.7.1-2), because per-intersection rho
-    divides one by the other and both sides must be the same 360-decision sum.
+    infos -- recorded on the anchor cells AND the DT cells (B.7.1-2), because per-intersection rho is
+    one ratio of their means (B.7.2-1) and both sides must be the same 360-decision sum.
 
     The episode-level fields are the hz1x1 chunk's, computed from the same objects.  What differs
     is that every per-intersection quantity is a mapping keyed by id -- the RTG and reward series
@@ -3695,63 +3697,139 @@ def _definition_stats(per_draw: Mapping[int, float]) -> dict[str, Any]:
 def _grid4x4_per_intersection_rho(
     rows: Sequence[Mapping[str, Any]], ix_ids: Sequence[str]
 ) -> dict[str, Any]:
-    """B.7.1-2's DESCRIPTIVE block: rho per intersection on the per-intersection collection return.
+    """B.7.2-1, B.7.2-2 and B.7.5: rho per intersection as ONE RATIO OF MEANS, with its diagnostic.
 
-    ``rho_i,d = (R_ft,i,d - R_arm,i,d) / (R_ft,i,d - R_mp,i,d)`` through :func:`rho` -- the one
-    registered formula, applied to ``local_return[i]`` -- per cell, then averaged over seeds within
-    a draw, then over the usable draws.  A draw whose two anchors tie exactly on intersection *i* is
-    excluded for that intersection and listed.  No CI is computed: A20(e) makes every
-    per-intersection breakdown exploratory.
+    For intersection *i*, ``R`` is ``local_return[i]`` -- the episode return under the collection
+    reward, the sum over the 360 POST-STEP infos, recorded on every cell by the probe's two routes
+    (B.7.3-1).  ``Rbar_arm,i`` is the mean over the draws of the DT's per-draw seed mean (the seeds
+    averaged WITHIN a draw first, in seed order); ``Rbar_ft,i`` and ``Rbar_mp,i`` are the anchors'
+    means over the same draws, in draw order; and ``rho_i = rho(Rbar_arm,i, Rbar_ft,i, Rbar_mp,i)`` --
+    the one registered formula, ONE ratio per intersection.  B.7.2-1 replaced B.7.1-2's mean of
+    per-draw ratios: per intersection and per draw the denominator can sit near zero or flip sign,
+    and a mean over draws is then dominated by exactly those draws.
+
+    Beside every rho_i, B.7.2-2's ``denominator_diagnostic`` (the network block's shape): the
+    per-draw gaps ``R_mp,i,d - R_ft,i,d``, the count and ids of the draws on which MaxPressure did NOT
+    do better (gap <= 0), the mean gap with its standard error (``dt_gate.mean_ci95``'s sample SD
+    over sqrt(n)), the extremes, and the denominator itself.  A return is higher-is-better, so the
+    normal-case denominator is NEGATIVE here; rho_i's orientation is the registered one (0 at
+    fixed-time, 1 at MaxPressure).
+
+    B.7.5-4: a mean denominator of EXACTLY zero records ``rho: None`` and the reason, the diagnostic
+    still written and the count in the block's header -- a fact about that intersection, not a
+    defect (the network-level rho keeps its refusal).  Descriptive and exploratory (A20(e)): no CI.
+    A draw carrying DT cells without both anchors, or anchors without DT cells, REFUSES: the three
+    means would be over different draws and the ratio would compare nothing.
     """
+    import math
+
+    from offline.dt_gate import mean_ci95
+
     anchors: dict[int, dict[str, Mapping[str, Any]]] = {}
+    by_draw: dict[int, dict[int, Mapping[str, Any]]] = {}
     for row in rows:
-        if row["arm"] in ("fixedtime", "maxpressure"):
-            anchors.setdefault(int(row["draw_id"]), {})[str(row["arm"])] = row["local_return"]
-    dt_rows = [row for row in rows if row["kind"] == "dt"]
-    per_intersection: dict[str, Any] = {}
-    for ix in ix_ids:
-        excluded = sorted(
-            draw
-            for draw, pair in anchors.items()
-            if float(pair["fixedtime"][ix]) - float(pair["maxpressure"][ix]) == 0.0
+        draw = int(row["draw_id"])
+        if row["kind"] == "dt":
+            if str(row["arm"]) != GRID4X4_ARM:
+                raise ValueError(f"a DT row of arm {row['arm']!r}; this block reads {GRID4X4_ARM!r} only")
+            seeds = by_draw.setdefault(draw, {})
+            if int(row["seed"]) in seeds:
+                raise ValueError(f"draw {draw} carries DT seed {row['seed']} twice")
+            seeds[int(row["seed"])] = row["local_return"]
+        elif str(row["arm"]) in ("fixedtime", "maxpressure"):
+            pair = anchors.setdefault(draw, {})
+            if str(row["arm"]) in pair:
+                raise ValueError(f"draw {draw} carries the {row['arm']} anchor twice")
+            pair[str(row["arm"])] = row["local_return"]
+    draws = sorted(by_draw)
+    unpaired = sorted(
+        {draw for draw in by_draw if set(anchors.get(draw, {})) != {"fixedtime", "maxpressure"}}
+        | {draw for draw in anchors if draw not in by_draw}
+    )
+    if unpaired or not draws:
+        raise ValueError(
+            "per-intersection rho needs every draw to carry DT cells AND both anchors; draws "
+            f"{unpaired} do not (or no draw does), so the three means would be over different draws"
         )
-        buckets: dict[int, list[float]] = {}
-        for row in dt_rows:
-            draw = int(row["draw_id"])
-            if draw in excluded:
-                continue
-            pair = anchors[draw]
-            buckets.setdefault(draw, []).append(
-                rho(
-                    float(row["local_return"][ix]),
-                    float(pair["fixedtime"][ix]),
-                    float(pair["maxpressure"][ix]),
-                )
-            )
-        per_draw = {draw: sum(values) / len(values) for draw, values in buckets.items()}
-        ordered = [per_draw[draw] for draw in sorted(per_draw)]
+
+    per_intersection: dict[str, Any] = {}
+    diagnostics: dict[str, Any] = {}
+    null_ids: list[str] = []
+    for ix in ix_ids:
+        seed_means: list[float] = []
+        for draw in draws:
+            seeds = by_draw[draw]
+            values = [float(seeds[seed][ix]) for seed in sorted(seeds)]
+            seed_means.append(sum(values) / len(values))
+        fixedtime = [float(anchors[draw]["fixedtime"][ix]) for draw in draws]
+        maxpressure = [float(anchors[draw]["maxpressure"][ix]) for draw in draws]
+        mean_arm = sum(seed_means) / len(seed_means)
+        mean_ft = sum(fixedtime) / len(fixedtime)
+        mean_mp = sum(maxpressure) / len(maxpressure)
+        denominator = mean_ft - mean_mp
+        value: float | None
+        reason: str | None
+        if denominator == 0.0:
+            value, reason = None, "denominator exactly zero"
+            null_ids.append(str(ix))
+        else:
+            value, reason = rho(mean_arm, mean_ft, mean_mp), None
+        gaps = [mp - ft for ft, mp in zip(fixedtime, maxpressure)]
+        stats = mean_ci95(gaps)
+        not_better = [draw for draw, gap in zip(draws, gaps) if gap <= 0.0]
         per_intersection[str(ix)] = {
-            "mean_rho": (sum(ordered) / len(ordered)) if ordered else None,
-            "n_draws_used": len(ordered),
-            "n_draws_excluded": len(excluded),
-            "draw_ids_excluded": excluded,
+            "rho": value,
+            "reason": reason,
+            "mean_return": {GRID4X4_ARM: mean_arm, "fixedtime": mean_ft, "maxpressure": mean_mp},
+            "n_draws": len(draws),
+        }
+        diagnostics[str(ix)] = {
+            "n_draws": len(draws),
+            "n_draws_mp_not_better": len(not_better),
+            "draw_ids_mp_not_better": not_better,
+            "mean_gap": stats.mean,
+            "mean_gap_se": (stats.std / math.sqrt(stats.n)) if stats.n >= 2 else None,
+            "denominator": denominator,
+            "min_gap": min(gaps),
+            "max_gap": max(gaps),
         }
     return {
         "status": "exploratory and descriptive (A20(e)); no CI is computed, none is promoted",
         "definition": (
-            "rho_i,d = (R_fixedtime,i,d - R_arm,i,d) / (R_fixedtime,i,d - R_maxpressure,i,d) "
-            "(BRIEF_39 Amendment B.7.1-2), where R is local_return[i]: intersection i's episode "
+            "rho_i = (Rbar_fixedtime,i - Rbar_arm,i) / (Rbar_fixedtime,i - Rbar_maxpressure,i): ONE "
+            "ratio per intersection, formed from means (BRIEF_39 Amendment B.7.2-1, superseding "
+            "B.7.1-2's mean of per-draw ratios). R is local_return[i]: intersection i's episode "
             "return under the collection reward, the sum over the 360 POST-STEP infos of its reward, "
             "recorded on every cell by the probe's two routes (reward stream == minus lane waiting "
-            "counts); seeds averaged within a draw; the mean over the draws whose denominator is "
-            "not exactly zero for that intersection, the others excluded and listed"
+            "counts). Rbar_arm,i is the mean over the draws of the DT's per-draw seed mean (seeds "
+            "averaged within a draw first); Rbar_fixedtime,i and Rbar_maxpressure,i are the anchors' "
+            "means over the same draws. A return is higher-is-better, so the denominator is NEGATIVE "
+            "when MaxPressure does better on average; rho_i is 0 at fixed-time and 1 at MaxPressure. "
+            "A mean denominator of exactly zero records rho null with the reason (B.7.5-4). Read "
+            "every rho_i beside its denominator_diagnostic"
         ),
         "not_the_reward_series": (
-            "B.7.1-2 names the DT's value as sum(reward_series[i]); that series is read BEFORE each "
+            "B.7.1-2 named the DT's value as sum(reward_series[i]); that series is read BEFORE each "
             "act (D1), so it carries the reset info's reward and not the last decision's, and would "
-            "divide a 359-decision sum by 360-decision anchors. Every arm uses local_return instead"
+            "divide a 359-decision sum by 360-decision anchors. Every arm uses local_return instead "
+            "(B.7.3-1)"
         ),
+        "n_intersections": len(ix_ids),
+        "n_intersections_rho_null": len(null_ids),
+        "intersection_ids_rho_null": null_ids,
         "per_intersection": per_intersection,
+        "denominator_diagnostic": {
+            "what_this_is": (
+                "BRIEF_39 Amendment B.7.2-2, per intersection i over the draws: the gap "
+                "R_maxpressure,i,d - R_fixedtime,i,d (positive when MaxPressure did better on that "
+                "draw); n_draws_mp_not_better and draw_ids_mp_not_better, the draws with a gap <= 0; "
+                "mean_gap and mean_gap_se (the sample standard deviation, ddof 1, over sqrt(n_draws)); "
+                "min_gap and max_gap; and denominator, rho_i's own Rbar_fixedtime,i - "
+                "Rbar_maxpressure,i. A denominator near zero makes rho_i large and unstable: this "
+                "block is what tells a real per-intersection difference from a near-zero denominator"
+            ),
+            "per_intersection": diagnostics,
+        },
     }
 
 
@@ -3877,7 +3955,8 @@ def _grid4x4_artifact(
     identity_by_checkpoint: Mapping[tuple[str, int], Mapping[str, Any]],
     demand_by_draw: Mapping[int, Mapping[str, Any]],
 ) -> dict[str, Any]:
-    """The ``p7.3d-grid4x4/1.0`` artifact: B.7-2 (i)-(iv) and B.7.1-2's per-intersection block."""
+    """The ``p7.3d-grid4x4/1.0`` artifact: B.7-2 (i)-(iv) and the per-intersection block -- B.7.1-2's
+    return, B.7.2-1's ratio of means, B.7.2-2's denominator diagnostic, B.7.5-4's null rule."""
     from offline.transfer_calibration import CANARY_MAX_SECONDS, CANARY_RECORD_NAME
 
     dt_rows = [row for row in rows if row["kind"] == "dt"]
@@ -4829,9 +4908,178 @@ def run_dt_reroll_check(
     }
 
 
+#: B.7.4-1: the format of each record the reference re-roll check writes under ``g2/``.
+REFERENCE_REROLL_FORMAT_VERSION = "p7.3d-reference-reroll-check/1.0"
+
+
+def reference_reroll_cells() -> list[dict[str, Any]]:
+    """B.7.4-1's six cells: the campaign's OWN anchor cells on the three reference draws.
+
+    Taken from :func:`grid4x4_cells` -- the declaration the campaign rolls -- rather than built here,
+    so the check rolls exactly the dicts the campaign will (kind, stage and scenario included;
+    :func:`run_cell` copies the stage into the chunk and never branches on it), in
+    :data:`REFERENCE_CELL_ARMS` x :data:`REFERENCE_CELL_DRAWS` order.  The halting cross-check
+    follows from the draw exactly as in the campaign (ON for draw 1000).  Fresh copies: a caller
+    cannot edit the declaration through them.
+    """
+    declared = {
+        (str(cell["arm"]), int(cell["draw_id"])): cell
+        for cell in grid4x4_cells()
+        if cell["kind"] == "anchor"
+    }
+    wanted = [(arm, draw) for arm in REFERENCE_CELL_ARMS for draw in REFERENCE_CELL_DRAWS]
+    missing = [key for key in wanted if key not in declared]
+    if missing:
+        raise ValueError(
+            f"the grid4x4 declaration holds no anchor cell for {missing}; B.7.4-1 re-rolls the "
+            "campaign's OWN six reference cells and builds none of its own"
+        )
+    return [dict(declared[key]) for key in wanted]
+
+
+def _reference_reroll_line(name: str, differing: Sequence[str]) -> str:
+    """One cell's line: ``MATCH``, or ``NO MATCH`` and the differing field NAMES -- never a value."""
+    if not differing:
+        return f"reference_reroll_check MATCH {name}"
+    return f"reference_reroll_check NO MATCH {name} " + " ".join(str(field) for field in differing)
+
+
+def run_reference_reroll_check(
+    *,
+    g2_dir: str | Path,
+    out_root: str | Path,
+    output_root: str | Path,
+    data_dir: str | Path | None = None,
+    canary_seconds: float | None = None,
+    workers: int = DEFAULT_WORKERS,
+    worker: Any = None,
+) -> dict[str, Any]:
+    """B.7.4-1: C4's six reference cells rolled at THIS commit and compared with the frozen record.
+
+    Since B.7.1-2 changed ``run_cell``'s anchor branch (16 ``local_return`` values recorded), no real
+    anchor cell had been rolled: the pin ran on stubs, and the only comparison of real anchors with
+    ``p7_3d_reference_cells.json`` was ``report``'s -- after 700 cells, where a failure is a code
+    change under J1(c) and a full re-roll.  This is that comparison, BEFORE the token.
+
+    The frozen rows are loaded FIRST (:func:`load_reference_cells`: the digest before the parse, the
+    six rows whole).  The six cells (:func:`reference_reroll_cells`) are rolled through
+    :func:`run_cell` -- the campaign's own code path -- in ONE spawn pool of ``min(workers, 6)``, a
+    failure returned rather than raised (:func:`_reroll_worker`), and each roll is compared by
+    :func:`reference_cell_differences`: ``report``'s OWN function, its 17 fields and its halting rule,
+    so the pre-token check and the end-of-campaign check cannot drift apart.
+
+    Nothing is written until every roll has returned and been compared.  Then one record per cell
+    goes to ``<g2_dir>/reference_reroll_check_<UTC>/<arm>_draw<NNNN>.json`` with the chunk under
+    :data:`FENCED_KEY` (never named like a campaign chunk; ``report`` never globs ``g2/``), plus
+    ``verdict.json``; an existing run directory refuses.  A roll that FAILED is not a verdict: the
+    check raises naming the exception TYPES only and parks the messages under the fence in
+    ``failures.json``.
+
+    The returned ``lines`` -- one per cell, MATCH or NO MATCH with the differing field NAMES, never a
+    value -- are what the driver prints, counts and copies into the campaign capture's header.  The
+    six are frozen anchors (C4, rolled twice), so nothing about the evaluated arm is seen.
+    """
+    import time
+    from multiprocessing import get_context
+
+    frozen = load_reference_cells(data_dir=data_dir)
+    rows = {(str(row["arm"]), int(row["draw_id"])): row for row in frozen["cells"]}
+    cells = reference_reroll_cells()
+    if int(workers) < 1:
+        raise ValueError(f"the pool needs at least one worker, got {workers}")
+    width = min(int(workers), len(cells))
+    run_dir = Path(g2_dir) / f"reference_reroll_check_{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}"
+    if run_dir.exists():
+        raise FileExistsError(f"{run_dir} exists; a re-roll record is never overwritten")
+    kwargs = {
+        "out_root": str(out_root),
+        "output_root": str(output_root),
+        "data_dir": None if data_dir is None else str(data_dir),
+        "canary_seconds": canary_seconds,
+    }
+    roll = _reroll_worker if worker is None else worker
+    names = [cell_chunk_name(cell) for cell in cells]
+    context = get_context("spawn")
+    with context.Pool(processes=width) as pool:
+        results = list(pool.imap(roll, [(cell, kwargs, name) for cell, name in zip(cells, names)]))
+    if [str(result["role"]) for result in results] != names:
+        raise AssertionError("the rolls came back paired with other cells; refusing to compare them")
+
+    failures = [result for result in results if not result["ok"]]
+    if failures:
+        _write_json(
+            run_dir / "failures.json",
+            {
+                "format_version": REFERENCE_REROLL_FORMAT_VERSION,
+                FENCED_KEY: {
+                    "failures": [{"cell": r["role"], "error": r["error"]} for r in failures],
+                },
+                **_git_provenance(),
+            },
+        )
+        kinds = sorted({str(result["error"]).split(":", 1)[0] for result in failures})
+        raise RuntimeError(
+            f"reference_reroll_check could not run: {len(failures)} of {len(results)} roll(s) "
+            f"failed ({kinds}); no verdict is invented. The messages are FENCED in "
+            f"{run_dir / 'failures.json'} because a failure message can carry an outcome value"
+        )
+
+    verdicts: list[dict[str, Any]] = []
+    for cell, name, result in zip(cells, names, results):
+        differing = reference_cell_differences(
+            result["payload"], rows[(str(cell["arm"]), int(cell["draw_id"]))]
+        )
+        verdicts.append(
+            {
+                "cell": name,
+                "arm": str(cell["arm"]),
+                "draw_id": int(cell["draw_id"]),
+                "match": not differing,
+                "differing_fields": list(differing),
+                "line": _reference_reroll_line(name, differing),
+            }
+        )
+    lines = [item["line"] for item in verdicts]
+    verdict = "MATCH" if all(item["match"] for item in verdicts) else "NO MATCH"
+
+    for cell, name, result in zip(cells, names, results):
+        _write_json(
+            run_dir / f"{cell['arm']}_draw{int(cell['draw_id']):04d}.json",
+            {
+                "format_version": REFERENCE_REROLL_FORMAT_VERSION,
+                "cell": name,
+                FENCED_KEY: result["payload"],
+            },
+        )
+    _write_json(
+        run_dir / "verdict.json",
+        {
+            "format_version": REFERENCE_REROLL_FORMAT_VERSION,
+            "what_this_is": (
+                "BRIEF_39 Amendment B.7.4-1: C4's six reference cells (fixedtime and maxpressure on "
+                "draws 1000-1002, the campaign's own cells) rolled at this commit and compared with "
+                "p7_3d_reference_cells.json by report's own comparison, before the token. Field "
+                "names only; each roll's values sit under the fence key in its own record"
+            ),
+            "verdict": verdict,
+            "lines": lines,
+            "cells": [{k: v for k, v in item.items() if k != "line"} for item in verdicts],
+            "reference_cells_artifact": P7_3D_REFERENCE_CELLS_NAME,
+            "reference_cells_sha256": P7_3D_REFERENCE_CELLS_SHA256,
+            "compared_fields": [list(pair) for pair in REFERENCE_CELL_COMPARED_FIELDS],
+            "halting_counts_compared_where_the_frozen_run_checked": list(REFERENCE_CELL_HALTING_COUNTS),
+            "workers": width,
+            "canary_seconds": canary_seconds,
+            **_git_provenance(),
+        },
+    )
+    return {"verdict": verdict, "lines": lines, "run_dir": str(run_dir), "n_cells": len(cells)}
+
+
 def build_parser() -> Any:
     """CLI: ``cells``, ``pilot``, ``report``, ``canary``, ``record-canary``, and P7.3d's
-    ``check-inputs``, ``resume-check``, ``dt-reroll-check`` and ``manifest`` (B.6 fix round).
+    ``check-inputs``, ``resume-check``, ``dt-reroll-check`` and ``manifest`` (B.6 fix round), and
+    ``reference-reroll-check`` (B.7.4-1).
 
     ⚠️ The roots are options of the PARENT parser, so they come BEFORE the subcommand:
     ``python -m offline.transfer_curve --draws-root D ... cells --stage S``.  P7.3d's driver put
@@ -4899,6 +5147,12 @@ def build_parser() -> Any:
     )
     reroll.add_argument("--g2-dir", required=True)
     reroll.add_argument("--workers", type=int, default=DEFAULT_WORKERS)
+    reference = subparsers.add_parser(
+        "reference-reroll-check",
+        help="B.7.4-1: the six C4 reference cells re-rolled at this commit, MATCH / NO MATCH per cell",
+    )
+    reference.add_argument("--g2-dir", required=True)
+    reference.add_argument("--workers", type=int, default=DEFAULT_WORKERS)
     manifest = subparsers.add_parser(
         "manifest", help="P7.3d: output/SHA256SUMS_p7_3d.txt over output/p7_3d/ only, re-verified"
     )
@@ -5035,6 +5289,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         # digests -- never a value (B.5-1, B.2-2's fence).
         print(result["line"], flush=True)
         return 0 if result["verdict"] == "IDENTICAL" else 2
+
+    if args.command == "reference-reroll-check":
+        result = run_reference_reroll_check(
+            g2_dir=args.g2_dir,
+            out_root=args.draws_root,
+            output_root=args.output_root,
+            data_dir=args.data_dir,
+            canary_seconds=args.canary_seconds,
+            workers=args.workers,
+        )
+        # ONE line per reference cell -- MATCH, or NO MATCH and the differing field NAMES, never a
+        # value (B.7.4-1). The driver counts the MATCH lines itself and copies them into the header.
+        for line in result["lines"]:
+            print(line, flush=True)
+        return 0 if result["verdict"] == "MATCH" else 2
 
     if args.command == "manifest":
         record = write_manifest(campaign_dir=args.campaign_dir)
