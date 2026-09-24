@@ -1256,3 +1256,50 @@ the token, or the design changes. **Never after the token.**
 | G6 | Read | coordinator | **(0) the blind comparison of B.8-3 FIRST, and exactly A23's two collision events**; then the handoff's §2.5 (a)–(f) | (0) differs → stop; a further amendment decides (A23(f)) |
 
 **Do not touch anything under `output/p7_3d/`.** Attempt 1's chunks are digest-pinned evidence and the coordinator moves them at G8d.
+---
+
+# ✅ AMENDMENT B.8.1 — 2026-09-24: gate G8a PASSED — stage 6 of the plan APPROVED at `62aab7c`, with rulings on D1–D8, the two findings and the open question; build B.8's commit
+
+## B.8.1-1 — Verified from the code by the coordinator, not from the plan's descriptions
+The seams are where stage 6 says: `PerSecondSumoObserver`, a `SumoEnv` subclass built on first use (`sumo_att_reference.py:822`), with
+`_simulate` at `:887`; `SumoObservationRecorder.observe` at `:500`; the vanished counter `departed − arrived − present_last` at `:707–711`;
+`run_cell`'s `reconstruct_sumo_episode(env.recorder)` inside the `try` (`transfer_curve.py:2278`); the old teleport refusal at `:1891`;
+`env_for_cell` at `:1565`; `AlignedEnv.recorder` at `aligned_env.py:149`; TraCI 1.27.1's `getEndingTeleportIDList` (`_simulation.py:502`)
+and `getCollisions` (`:509`), whose `Collision` carries `collider`, `victim`, `colliderType`, `victimType`, `colliderSpeed`, `victimSpeed`,
+`type`, `lane`, `pos`; the primary estimators inline in `_grid4x4_artifact`, per-cell ρ computed per draw BEFORE them — so the same code on
+the rows without draws 1020 and 1042 is a true recomputation; and ONE `GRID4X4_ARTIFACT_FORMAT_VERSION` serving chunk validation
+(`:1840`), the chunk (`:2497`) and the artifact (`:4027`).
+
+## B.8.1-2 — Rulings on the eight decisions
+- **D1 ACCEPTED** — one constant, chunk and artifact both to `1.1`. **Correction to the disclosure list:** the literal `p7.3d-grid4x4/1.0`
+  is pinned in THREE test places at `d922caa` — `test_spatial_cell.py:290`, `test_p7_3d_campaign_path.py:2024` (the artifact's format),
+  and the `_grid_payload` docstring (`:161`) — plus the stubs' format field; every one moves with D1 and every one is disclosed in §27.
+- **D2, D3 ACCEPTED** — the `teleports` list as the second route; TraCI's own attribute names.
+- **D4 ACCEPTED AS A STOP, NEVER AN EXCLUSION.** A collider fate outside A23(c)(iii)'s three means SUMO did something the registered
+  description does not cover. The refusal message names A23 and says the campaign stops for a ruling (A23(f): *a further amendment
+  decides*). Nothing is silently dropped.
+- **D5 ACCEPTED** — A23(d) reads *"on `E_sumo` and `att_env`"*: per-intersection ρ (the collection reward) and the in-support block are not
+  recomputed, and the robustness block says so in one sentence.
+- **D6, D7 ACCEPTED.** D7 is the refactor's pin: the existing stub-derived expectations of the complete-set test hold UNCHANGED through the
+  extraction of `_grid4x4_estimates`, and the primary is byte-identical with and without the two events.
+- **D8 ACCEPTED, and EXTENDED by one measurement.** In the put-back case, record whether the vehicle appears in `vehicle.getIDList()`
+  WHILE it is teleporting — that settles the second finding before the commit. Constraints: `skipif` naming the missing binary (`sumo`,
+  `netconvert`); a fixed seed; everything in `tmp_path`; no scenario file touched; the toy configuration carries `time-to-teleport -1` and
+  NO `collision.*` option — the registered regime; a toy network, so outside §4's six-episode grid4x4 ceiling.
+
+## B.8.1-3 — The two findings and the open question
+- **Finding 1 (the vanished refusal is new in 1.1) — ACCEPTED** as B.8-2(3) intends; the packet says so. The coordinator's blind count found
+  0 vanished on all 698 attempt-1 cells, so it changes nothing there.
+- **Finding 2 (A23(c)(iii)'s in-transit collider "counted in `n_vanished_without_arrival`") — D8's added measurement settles it.** If SUMO
+  lists a teleporting vehicle as present, that sentence is a factual error about a case A23(f) keeps out of P7.3d's numbers (any collision
+  other than the two known ones stops the campaign): the coordinator records it as a correction of fact in the Decisions Log and the note,
+  and any FUTURE campaign that could meet the case registers the correction first. Report the measurement in §27; do not change a counter
+  for it.
+- **The open question (G8d before the token) — CONFIRMED.** The coordinator renames attempt 1's `cells/` before writing the token block.
+  Without a token the driver refuses before `cells`, and every pre-token stage is read-only on `cells/`, so no driver guard is added.
+
+## B.8.1-4 — Then
+Build B.8's ONE commit exactly as stage 6 plans it, with these rulings: `offline/sumo_att_reference.py`, `offline/transfer_curve.py`, tests;
+the named mutations before the commit, each KILLED; T-regress (b) byte-identical; the whole suite at the tip with B.7.3-5's three-variable
+line; the packet's §27, with the AI-assistance record's four lines. Merge `main` immediately before the commit. Then say exactly
+*"P7.3d B.8 done"*.
