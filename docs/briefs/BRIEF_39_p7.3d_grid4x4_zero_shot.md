@@ -1175,3 +1175,12 @@ here.
 jam-only refusal, `report`'s `collisions` block and sensitivity ρ, T-regress (b) byte-identical, the named mutations — with its gates.
 **Do not delete, move or open anything under `output/p7_3d/`:** attempt 1's 698 chunks are digest-pinned and will be compared, blind and
 under `==`, with attempt 2's (A23(f)); the coordinator moves the directory aside after B.8 is verified.
+
+## B.7.7-5 — After the A23 review (same day): corrections to B.7.7, and the probe re-verified
+(1) B.7.7-2's inference is sharper than written: every reward is an integer and every target is not, so the rounding
+pattern implies that on at least 373 DT cells some intersection's realised cost exceeded MORE THAN TWICE its prompt's
+magnitude; and the stage summary's per-cell wall clocks (in the capture; a congestion proxy; not mapped to cells by the
+coordinator; 22 of them in the author's pasted tail) are added to the *seen* record. (2) The collision overlaps are 1.71 and
+2.02 m; SUMO's `gap` is net of `minGap`. (3) The SUMO probe's teleport counter reads one second in ten (`DEFERRED` 93); the
+coordinator re-rolled all 200 probe episodes with SUMO's per-run statistics: clean, every registered probe return reproduced
+under `==`. Nothing here changes what the implementer builds; B.8 still waits for A23.
