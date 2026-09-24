@@ -1303,3 +1303,58 @@ Build B.8's ONE commit exactly as stage 6 plans it, with these rulings: `offline
 the named mutations before the commit, each KILLED; T-regress (b) byte-identical; the whole suite at the tip with B.7.3-5's three-variable
 line; the packet's §27, with the AI-assistance record's four lines. Merge `main` immediately before the commit. Then say exactly
 *"P7.3d B.8 done"*.
+---
+
+# ✅ AMENDMENT B.8.2 — 2026-09-24: gate G8c PASSED — B.8 (`75ff1ac`, packet §27 at `10d8fe8`, pushed) VERIFIED from the RUN worktree re-created at `10d8fe8`; G8d DONE (attempt 1 moved aside, re-verified); the one deviation RULED; the token is next
+
+## B.8.2-1 — Read, not taken from the packet
+- **The source diff, read whole** (`offline/sumo_att_reference.py` +142, `offline/transfer_curve.py` +412): the recorder's same-step match
+  and fate logic traced by hand against D8's four measured cases; `_validate_collision_record`'s refusals (an unregistered fate refuses
+  with a STOP message — *"Nothing is excluded"* — as B.8.1-2 D4 requires); `report`'s step 5b before the digests, any aggregate and any
+  write; `_grid4x4_estimates` extracted and called by both the primary and the robustness block; `run_cell` reading the record on
+  grid4x4 only. **No frozen path; no trailer; `claude_guard.sh --frozen-only` exit 0.**
+- **The complete-set test derives every robustness expectation from its own stubs** (per draw and per seed, means and CIs by its own
+  `numpy` route); only D7's byte-identity check calls the module's helper, which is its purpose.
+- **D8 pins A23(c)(iii)'s in-transit sentence on real SUMO** — a teleporting vehicle is absent from `vehicle.getIDList()` at every
+  snapshot, and a cut-short episode records `in_transit_at_horizon` with the vehicle in `vanished_ids`. **Finding 2 settled as
+  registered; no correction of fact is needed.**
+
+## B.8.2-2 — Executed by the coordinator (from the run worktree at `10d8fe8`, cwd the main tree, `-P`)
+- **The pin: 87 passed, 0 failed, 0 skipped, in 122 s** — `tests/test_p7_3d_campaign_path.py` whole, `tests/test_p7_3d_collisions.py`
+  whole (D8's three real-SUMO toy tests among them), T-regress (b) byte-identical on all three hz1x1 artifacts, and
+  `tests/test_spatial_cell.py` with T-16; the run worktree clean afterwards; test hygiene and the English check exit 0 on every file B.8
+  touched.
+- **The two known collision cells, rolled ONCE each through B.8's code, fenced** (instrument facts printed, no outcome): both KEPT —
+  `run_cell` returned a validated `1.1` payload — each with `n_teleports 1`, `n_collisions 1`, 1 explained, 0 unexplained, 0 vanished;
+  the events equal attempt 1's diagnosis with the record's +1 s label: fixed-time draw 1020 at 2,299 s on `D0right0_0`, `628` into `969`;
+  seed 303 draw 1042 at 2,628 s on `A0left0_0`, `1126` into `1098`; both fates `arrived_at_collision_step`.
+- **The robustness and collisions blocks on the complete synthetic set, by an independent stdlib route:** per draw under `==` first —
+  the robustness block's per-draw ρ equals the primary's with draws 1020 and 1042 removed, on both definitions — then its means equal
+  `sum()/len()` of those; 98 draws, 14 cells removed, paired comparisons on 98 shared draws with their Wilcoxon p-values; its `a23_d`
+  equals the registration's clause (d) extracted by the coordinator's own regex; the collisions block holds exactly A23's two cells.
+- **`reference_reroll_check` at `10d8fe8`: 6 / 6 MATCH, exit 0, 140 s** (canary 0.82 s).
+- **`dt_reroll_check` at `10d8fe8`: IDENTICAL** — 13 rolls of the draw-5 DT cell (1 at W = 1, 12 in one pool) agree on all 67 fields but
+  the clock, hash `11e324d1…`, 86 s (canary 0.85 s). The hash moved from attempt 1's because the chunk gained the six record fields.
+- **B.8's two reads do not change the simulation (stage 6's A3), MEASURED before the token:** the coordinator's records at `10d8fe8`
+  against its own attempt-1-era records at `4383699` — all 13 draw-5 DT rolls and all six reference anchors — agree on every one of
+  the 58 shared fields, B.8-3's four excepted; the fields only 1.1 carries are exactly the six record fields.
+- **Two committed mutants re-run by the coordinator** in a throwaway worktree at `10d8fe8`, control 22 / 22 first: **B01** (the
+  unexplained-teleport refusal removed) → `test_an_unexplained_teleport_refuses_the_cell` *DID NOT RAISE*; **B07** (`report`'s A23(f)
+  refusal removed) → the complete-set test *DID NOT RAISE*. Both KILLED; the worktree removed.
+
+## B.8.2-3 — The deviation (§27.7-1): A23(f) applied to the DECLARED set — ACCEPTED
+The campaign's declaration is all 700 cells, both of A23's among them, so on the campaign path the rule is exactly B.8-2(4)(d) and the
+complete set's three variants pin it; a caller-supplied partial declaration (three existing `report` tests) cannot be required to record
+an event in a cell it does not declare, and any event it records elsewhere still refuses. The driver's `report --stage
+grid4x4_confirmatory` always passes the full declaration.
+
+## B.8.2-4 — G8d DONE
+`output/p7_3d/cells` RENAMED to `output/p7_3d_runs/attempt1_cells/` — nothing copied, nothing deleted — after the script checked the
+source against the manifest and refused on a token; the manifest re-verified at the new path: **700 / 700 byte-identical**. `output/p7_3d/`
+now holds `artifacts/` (EMPTY — made by attempt 1's driver at its start, `mkdir -p`; attempt 2's does the same), `calibration/` and `g2/`.
+This gate's evidence: `output/p7_3d_runs/coordinator_g8c/` (every script and output) and the re-roll records under
+`output/p7_3d_runs/coordinator_g8c_{reference,dt}_reroll/`. **G6 step (0)'s script is ready there** (`g6_step0_blind_compare.py`): attempt 1's
+698 against attempt 2 on every shared field but B.8-3's four, booleans only, and exactly A23's two events — exit 0 or the coordinator
+stops (A23(f)).
+
+## B.8.2-5 — Then: the token (G8e), channel (a), in the coordinator's turn that made this commit; G6 with the blind comparison FIRST.
