@@ -1065,4 +1065,79 @@ lists them; not a number. (iii) Four tests failed under the reviewer's own concu
 against 0.71 s standalone) — contention, not code; **the same will happen to the campaign's canary if anything else runs on the machine at
 the start: the author starts the campaign on an otherwise idle machine, on mains.**
 
-## B.7.5-6 — The rest of B.7.4 is unchanged: `reference_reroll_check`, B.7's evidence (already copied: 15 files in `output/p7_3d_runs/b7/`, 13 byte-identical, the swap refusal regenerated and labelled), the three-variable suite line; then pushed by the coordinator, the run worktree re-created at the commit, the pin and the three B.6 commands re-run from it, the report body re-checked by hand, the token.
+## B.7.5-6 — The rest of B.7.4 is unchanged: `reference_reroll_check`, B.7's evidence (already copied: 15 files in `output/p7_3d_runs/b7/`, 13 byte-identical, the swap refusal regenerated and labelled), the three-variable suite line; then pushed by the coordinator, the run worktree re-created at the commit, the pin and the three B.6 commands re-run from it, the report body re-checked by hand, the token.---
+
+# ✅ AMENDMENT B.7.6 — 2026-09-24, on B.7.4's delivery (`bd4d457` the code, `4383699` the packet's §26; pushed by the coordinator; the run worktree re-created there): VERIFIED from the RUN worktree by execution, the per-intersection block re-checked by an INDEPENDENT route, BOTH pre-token stages executed for real — B.7.4 ACCEPTED and the TOKEN is next
+
+## B.7.6-1 — What the coordinator ran from the run worktree at `4383699` (detached, clean, identical to `bd4d457` outside `docs/`)
+- **The three B.6 commands** (cwd = the main tree, `PYTHONPATH` = the run worktree, `-P`, `COMMON` first): `canary` parsed and ran (1.11 s on the
+  first, cold call; 0.82 s and 0.67–0.78 s on every later one); `manifest --help` exit 0; `declared_cells` **700 / 1,200**,
+  `declarations_for("grid4x4_confirmatory", None)` → (700, 700), name overlap against hz1x1's whole set **0**, artifact name
+  `p7_3d_grid4x4.json`, arms 500 `b_mean_k100` + 100 `fixedtime` + 100 `maxpressure`.
+- **The pin** — `tests/test_p7_3d_campaign_path.py -k "campaign_path or complete or report or reference or two_routes or local_return"` with
+  B.7.3-5's three-variable line — **51 passed in 106.8 s, 0 failed**; the executed tests' captures carry canary lines of 0.67–0.78 s; the real
+  `output/p7_3d/` untouched (cells 0, no token); the run worktree clean afterwards.
+- **B.7.5-2's hand re-check of `report`'s per-intersection block, by an independent route:** a stdlib-only script (nothing imported from
+  `offline/`) over the **700 synthetic chunks the complete-set test wrote at this commit** and the artifact `report` wrote from them —
+  ρ_i as a ratio of means (the DT's seeds averaged within a draw first, in seed order; the draws in draw order; `sum()/len()`) and the
+  diagnostic worked by hand (ddof-1 SE over √n) — **equal under `==` on all 16 intersections, entry AND diagnostic; the null set is
+  `['C3']` on both sides; and on all 15 non-null intersections the superseded mean of per-draw ratios differs from the artifact's value by
+  more than 1e-3** (B2: 0.5395 against 0.5278), so the pin at this commit can fail. The artifact's header: `p7.3d-grid4x4/1.0`,
+  `cityflow_grid4x4`, `mappo1000_dt_nomix_h4`, A21's arm set, `inputs.calibration_sha256` = `3e9df8ee…`, `reference_cells n_checked 6 /
+  all_reproduce true`.
+- **Two committed mutants re-run by the coordinator** in a throwaway worktree at `4383699`, control 3/3 green first: **M01b** (the mean of
+  per-draw ratios restored; the complete-set pin ALONE) → **1 failed**, on `A0: 0.28125 == 0.2875` — the two definitions, told apart;
+  **R02** (the driver ignoring the module's non-zero exit — run 1's survivor) → **2 failed**, the first on *a non-zero exit refuses by
+  itself, before the count*. Both KILLED; the worktree removed.
+- Evidence, outside `/tmp`: `output/p7_3d_runs/coordinator_b7_4/` (11 files: the B.6 console, the pin's full output, the recomputation
+  script and its output, the control and both mutant transcripts, the runner, the synthetic artifact at this commit), digests in the plan's
+  §8 row of this date.
+
+## B.7.6-2 — The pre-token stage `reference_reroll_check`: HAND-CHECKED by reading, then EXECUTED FOR REAL (it had never run; the author's advisory chat asked for exactly this)
+**By reading:** the driver calls it at line 343 with `--g2-dir "$G2_DIR"` (`$MAIN/output/p7_3d/g2`, line 138) after `dt_reroll_check`
+(325) and **before the trap (386) and `rm -f "$TOKEN"` (395)**; the module loads the frozen rows first (digest before parse), rolls the six
+through `run_cell` in one spawn pool, compares each by `report`'s own `reference_cell_differences`, and **writes nothing until every roll has
+returned and been compared** — then one record per cell plus `verdict.json` under `<g2-dir>/reference_reroll_check_<UTC>/`, the payloads under
+the fence key; `run_cell` has no write site of its own; both refusal routes (`exit 2` on the module's non-zero exit, `exit 2` unless exactly
+six `MATCH` lines) fire before the trap, so a refusal leaves the token in place and `cells/` non-existent. **By execution,** from the run
+worktree exactly as the driver invokes the module (cwd = the main tree, `-P`, `COMMON` first, 6 workers, canary 0.82 s, an idle machine):
+**6 / 6 MATCH, module exit 0, 143 s wall.** Seven records under `output/p7_3d_runs/coordinator_reference_reroll/reference_reroll_check_20260924T113020Z/`
+(verdict `MATCH`, `git_commit 4383699`, `git_dirty false`, 17 compared fields, the halting counts where the frozen run checked, reference
+sha `5265f0d5…`; each cell record's top-level keys are `cell`, `format_version` and the fence key only); the sandbox `--work-dir`/`--out-dir`
+stayed empty; `output/p7_3d/` untouched. **So the anchor branch at the run commit regenerates C4's six frozen cells bit-for-bit BEFORE the
+token, and the campaign's own `report` will find the same after 700 cells.** Two observations for the packet, neither a defect:
+(i) **143 s is a MEASUREMENT** and replaces the header's *"a minute or two"* estimate — the pre-token chain is canary + `dt_reroll_check`
+(≈ 95 s) + `reference_reroll_check` (≈ 143 s), **≈ 4–5 min before the banner**; (ii) twelve ` Retrying in 1 seconds` lines — TraCI's
+connect retry under six concurrent SUMO launches — precede the six result lines on stdout, and stderr carries six copies of
+`utils/sumo_utils.py:56`'s deprecation `UserWarning`; neither carries a value, the driver's `grep -E '^reference_reroll_check (MATCH|NO MATCH) '`
+count sees exactly six result lines, and all of it reaches the capture verbatim. Recorded so that G6 does not read those lines as a finding.
+
+## B.7.6-3 — `dt_reroll_check` at the run commit, executed for real by the coordinator: IDENTICAL
+Run the same way (cwd = the main tree, `-P`, `COMMON` first, 12 workers, canary 1.23 s under the previous pool's residual load — still under
+the 2.0 s bar, and the reason the campaign starts idle): **`dt_reroll_check IDENTICAL: 13 rolls` of the seed-101 draw-5 cell (1 at W = 1, 12
+in one 12-worker pool) agree under `==` on all 61 fields but the clock; sha256 minus clocks `90d212d6…` on all 13; module exit 0; 114 s
+wall.** 61 fields against §24.10's 59 are B.7.1-2's two `local_return` fields; the hash differs from `81d176ce…` because the chunk format
+changed — both expected, and the reproduction claim for the AGENT under the campaign's pooling (B.5-1) now stands at the run commit. The
+fourteen fenced records are under `output/p7_3d_runs/coordinator_dt_reroll/dt_reroll_check_20260924T113353Z/`; the sandbox stayed empty and
+`output/p7_3d/` untouched. Twenty-four ` Retrying in 1 seconds` lines preceded the verdict line on stdout, the same TraCI chatter as
+B.7.6-2(ii); the driver captures the verdict through `$(...)` and echoes the whole, so the capture's `re-roll` banner line may be preceded
+by them — G6 reads the `dt_reroll_check IDENTICAL` line, not the line count. **The driver still re-runs both checks itself before the token;
+these two runs are the coordinator's falsification of the stages, not a substitute for them.**
+
+## B.7.6-4 — Minors for C7's packet; no round
+(i) §26.6-3 quotes B2's `denominator` as `-60.800000000000004`; the artifact at this commit carries **`-60.80000000000001`** (the coordinator's
+independent route equals it under `==`). The sentence is off in its last digits, the number is not; C7 corrects the sentence — a
+description-versus-artifact slip of the project's signature class, in a disclosure paragraph. (ii) **The coordinator's own trip of the
+driver's liveness guard, logged as the class it is:** a Bash tool call's whole command text is the argv of the harness's wrapper shell, so a
+call that both WRITES a script naming the module AND RUNS it carries `transfer_curve` in a live process for the run's whole life — the
+driver's `pgrep -f` matched it and eight executed tests refused with exit 3 (fails safe; nothing consumed, nothing rolled). The pin re-run
+from a script written in a SEPARATE call passed 51/51. The brief's §4 trap, one level up; the fix is two calls, and every driver-running
+script of this session was written and run that way afterwards.
+
+## B.7.6-5 — Ruling
+**B.7.4 is ACCEPTED at `4383699`.** The G4 re-review's CLEAR-WITH-CONDITIONS carries to this commit (its item 4 re-checked in B.7.6-1 by an
+independent route, as B.7.5-2 required); its condition — **an IDLE machine, on mains, at the start** — goes into the token block verbatim.
+Nothing here changes a registered quantity. **The token is next: channel (a), the two-step start of B.3-1 / B.5-3 naming
+`/home/filip/rltraffic-p73d-run`, exactly as the driver header's Step 1 and Step 2 read at `4383699`.** G6 then follows
+`HANDOFF_2026-09-23.md` §2.5, capture first, item by item; the coordinator's own pre-token records under `output/p7_3d_runs/coordinator_*`
+are evidence for THIS amendment and are not the campaign's — the driver writes its own under `output/p7_3d/g2/`, and those are what G6 reads.
