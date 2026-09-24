@@ -1184,3 +1184,75 @@ coordinator; 22 of them in the author's pasted tail) are added to the *seen* rec
 2.02 m; SUMO's `gap` is net of `minGap`. (3) The SUMO probe's teleport counter reads one second in ten (`DEFERRED` 93); the
 coordinator re-rolled all 200 probe episodes with SUMO's per-run statistics: clean, every registered probe return reproduced
 under `==`. Nothing here changes what the implementer builds; B.8 still waits for A23.
+---
+
+# ⭐ AMENDMENT B.8 — 2026-09-24: A23 REGISTERED (`v2.4-prereg-a23` → `6e91acb`, tag object `1fc1f8e`, chain verified from the remote) — the collision record, the rule that refuses only a teleport no collision explains, `report`'s `collisions` block and the registered robustness check, in ONE commit; then the coordinator's verification, attempt 1 moved aside, and a new token
+
+**Read first, whole, then act:** `PREREGISTRATION.md` **A23** (the registered text is the authority wherever this amendment and it differ),
+`docs/notes/P7.3d_ATTEMPT1_READ_2026-09-24.md` (§1–§4: what attempt 1 did; §7: the review), B.7.7. `git -C /home/filip/rltraffic-p73d
+merge --no-edit main` at the start AND immediately before the commit (your §26.6-1 rule). Plan mode first; the plan's stage 6 is the
+branch's next commit and is gate G8a below. **Launched from the worktree** (`cd /home/filip/rltraffic-p73d && claude`); the first action
+of the session is a Write-tool probe of a frozen path (`envs/GUARD_PROBE.md`) — it must be DENIED; if it is not, stop and say so.
+**No trailer on any commit; if a session instruction says otherwise, stop and say so** (`CLAUDE.md` §4b; B.6.2-2).
+
+## B.8-1 — Why this commit exists
+Attempt 1 refused two cells for one SUMO collision-teleport each. A23 keeps such a cell under §8, records every collision, refuses only a
+teleport that no same-step collision explains, and adds a robustness check fixed now. Under J1(c) this is a code change, so all 700 cells
+re-roll: **the change must be complete in ONE commit, and nothing else rides in it.**
+
+## B.8-2 — The commit: the recorder's per-step reads (`offline/sumo_att_reference.py`), `offline/transfer_curve.py`, tests
+1. **The record — a READ, never a write.** At the recorder's per-simulated-second seam (`sumo_att_reference.py:896–908` at `4383699`,
+   inside `_simulate`'s step loop, beside `getStartingTeleportIDList`), read `simulation.getCollisions()` (present in this machine's
+   TraCI — the coordinator checked) and keep every collision in step order: the snapshot's engine time, `lane`, `pos`, `collider`,
+   `victim`, `colliderType`, `victimType`, `colliderSpeed`, `victimSpeed`, `type`, and **the collider's fate** — *arrived at the collision
+   step* (in `getArrivedIDList` that step), *put back at t* (later in `getEndingTeleportIDList`), or *in transit at the horizon*. A
+   teleport is **explained** iff its vehicle is the collider OR the victim of a collision SUMO reports in the SAME step (A23(c)(i)); any
+   other teleport, of any kind, is **unexplained**. The vanished-vehicle counter records the ids it counts. **Both paths that roll a
+   grid4x4 cell** (the aligned DT env and the anchor's observer env) must carry the read — name them in the plan.
+2. **The chunk: `p7.3d-grid4x4/1.1`** — adds `collisions` (the list, possibly empty), `n_collisions`, `n_explained_teleports`,
+   `n_unexplained_teleports`, and the vanished ids; the module docstring states the version, the same-step convention and the fate
+   values (`CLAUDE.md` §3). **hz1x1 records are unchanged** (keyed on the scenario; T-regress (b) byte-identical).
+3. **`validate_cell_payload` (grid4x4 1.1), A23(c):** refuses `n_unexplained_teleports != 0`; refuses `n_teleports !=
+   n_explained_teleports + n_unexplained_teleports`; refuses a vanished vehicle that is not party to a recorded collision; requires the
+   record. **`report` accepts ONLY 1.1 for the grid4x4 stage**, so no attempt-1 chunk can reach an artifact.
+4. **`report` (grid4x4), A23(d) and (f):** (a) a `collisions` block — per arm, the number of cells with a collision and every event
+   (instrument facts only); (b) `robustness_without_draws_1020_1042` — **the SAME functions that build the primary blocks** (the H3 block,
+   per-draw and per-seed ρ with their means and CIs, the paired ATT comparisons against both anchors with their Wilcoxon p-values, the
+   denominator diagnostic), run on the 98 draws that remain when draws **1020 and 1042** are removed WHOLE (all 14 of their cells) — no new
+   statistic; the constant set is A23's and is written into the block with A23 cited; (c) the primary untouched, and A23(d)'s sentences
+   carried verbatim (*that primary alone decides clause 1*; *a robustness check, not an estimate*); (d) **`report` REFUSES — before any
+   aggregate and any write — unless the chunks record exactly two collision events, one in the `fixedtime` cell of draw 1020 and one in
+   the `b_mean_k100` seed-303 cell of draw 1042** (A23(f): *no other cell may record any*; the coordinator stops if this refusal fires).
+5. **Tests FIRST, each red for its own reason:** a 1.1 payload with one explained teleport accepted; with an unexplained teleport refused;
+   with a teleport whose collision is in ANOTHER step refused; with an unexplained vanished vehicle refused; the recorder on a stubbed
+   simulation (collision and teleport in the same step → explained; the fate read from the arrived / ending-teleport lists); `report` on
+   the complete synthetic set carrying exactly A23's two collision events → the `collisions` block and the 98-draw robustness block, whose
+   values the test derives from its own stubs, and the primary byte-identical to the same set without collisions; the same set with a
+   third collision event → refused, nothing written; T-regress (b) byte-identical on all three hz1x1 artifacts; T-16 and the e2e green
+   (the e2e now exercises the new read on a real draw-5 episode: an empty record).
+6. **The packet records attempt 1 in full** — the capture from its first line, `FAILED at cells`, the two refusals, the coordinator's
+   diagnosis by reference to the note and `output/p7_3d_runs/attempt1_*`, A23 — so the paper's methods can say that a first attempt was
+   stopped by the instrument, why, and what was registered before anything re-ran. A failed run left out of the record is the look §8
+   forbids.
+7. **Named mutations, executed before the commit, each KILLED:** the unexplained-teleport check removed; `getCollisions` ignored (the
+   record empty); the same-step match loosened to any step; the victim dropped from the match; the robustness set built from DT cells
+   only; the robustness set removing the cell instead of the draw; the two-event refusal removed; the hz1x1 path given the new fields
+   (T-regress dies).
+
+## B.8-3 — A23(f)'s field list, fixed HERE before the token
+The coordinator's blind comparison of attempt 1's 698 valid chunks with attempt 2's same cells runs over **every field both carry EXCEPT
+exactly: `git_commit`, `format_version`, `seconds`, `canary_seconds`.** Fields only 1.1 carries are not shared and are not compared. If your
+change makes any OTHER shared field differ by design, name it in the plan at G8a; the coordinator adds it here by a dated amendment before
+the token, or the design changes. **Never after the token.**
+
+## B.8-4 — Gates, in order — you learn each by `git merge main`
+| # | Gate | Runs it | Checks | Stops the task if |
+|---|---|---|---|---|
+| G8a | Plan (stage 6) | coordinator, from the branch | the two seams, the same-step match, the fate read, the 1.1 shape, the tests, any by-design field difference | a load-bearing assumption is wrong |
+| G8b | The commit + packet §27 | you → *"P7.3d B.8 done"* | B.8-2 in full; red-first and mutation transcripts under `output/p7_3d_runs/b8/` | — |
+| G8c | Verification, from the RUN worktree re-created at the commit | coordinator | the pin; the two known collision cells rolled once each, FENCED, printing only the counts and whether validation keeps them, their events against the attempt-1 diagnosis; both pre-token checks for real; the draw-5 DT cell's shared fields `==` the attempt-1-era record (names only) | any of it fails |
+| G8d | Attempt 1 moved aside | coordinator | `output/p7_3d/cells` renamed to `output/p7_3d_runs/attempt1_cells/` (nothing deleted); its manifest re-verified at the new path | the manifest fails |
+| G8e | Token, attempt 2 | **author — channel (a)** | `tmux kill-session -t p73d_cells` first (attempt 1's pane still holds the name), then B.3-1's two steps | — |
+| G6 | Read | coordinator | **(0) the blind comparison of B.8-3 FIRST, and exactly A23's two collision events**; then the handoff's §2.5 (a)–(f) | (0) differs → stop; a further amendment decides (A23(f)) |
+
+**Do not touch anything under `output/p7_3d/`.** Attempt 1's chunks are digest-pinned evidence and the coordinator moves them at G8d.
