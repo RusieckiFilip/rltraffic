@@ -329,3 +329,65 @@ the fine-tune corpus's (diagnostic, never selecting); the
 driver captures of every run including any refused start; where each run ran and at what commit; the amendments written
 against, by letter; the AI-assistance record's four lines; and one paragraph on what the paper's C3 section will assume
 about this curve.
+
+---
+
+# ✅ AMENDMENT A — 2026-09-25, gate G0: PLAN APPROVED (`docs/plans/p7.3c.md` @ `b8b058d`) — every proposal ACCEPTED, two additions, four corrections to THIS brief
+
+## A0 — Verdict
+The plan is approved as written. It re-verified every seam at `3882344` instead of copying the surveys, it found two real
+conflicts between this brief and the repository (F1, F2) and resolved both without touching a frozen file or the
+registration, and it turned every open choice into a question with a proposed answer. The coordinator read it whole from the
+committed blob and checked, by running commands, the facts the rulings below rest on (A3). **Build C1 (tests first) and C2;
+stop at G1.**
+
+## A1 — Corrections to THIS brief: the plan is right, the brief was wrong
+1. **C3's payload keeps the top-level `format_version: "spatial-dt-checkpoint/1.0"`** and carries the few-shot identity in
+   `provenance["few_shot"]["format_version"] = "few-shot-checkpoint/1.0"` (F1, Q1). `SpatialDTAgent.load` refuses every other
+   top-level version (`agent/SpatialDTAgent.py:857-862`) and every DT cell reaches it; the brief's new top-level version would
+   have made every trained cell unevaluable. A24 registers no format version, so nothing registered moves.
+2. **§0.6 miscounted:** the committed record carries **56** fields, not *"eight named and 50 more"* (58). Fifty is the number
+   COMPARED — 56 minus the six bookkeeping fields. The coordinator's error (F3); nothing depended on it.
+3. **C5's budget branch sits at the call site in `offline/transfer_curve.py`**; `offline/spatial_mixing.py` is untouched (F4, Q3).
+4. **Stage B starts at G1, not after G3:** C3–C4 are built while the corpus runs, on synthetic corpora; G4 reviews them;
+   nothing trains before G6's token (F8, Q7).
+
+## A2 — Rulings on Q0–Q22: every proposal ACCEPTED; the additions are marked
+- **Q0, Q1, Q3, Q4, Q6, Q6b, Q7, Q8, Q13, Q18, Q19, Q20, Q21:** yes, as proposed.
+- **Q2 — yes, with ONE ADDITION (ordering).** Extracting `report`'s row code into the helper the stage-1 gate shares is a change
+  to P7.3d's report path, so **`DEFERRED` 95's T-regress lands in C5, WITH that extraction** — the first commit that touches the
+  path — and not in C6: `docs/data/p7_3d_grid4x4.json` byte-identical through `report` with A3's two substitutions, its mutant
+  (one aggregate of `_grid4x4_estimates` perturbed) executed there. C6 keeps `DEFERRED` 94's variant.
+- **Q5 — yes.** `docs/notes/DEFERRED.md` row 93 is rescoped in this commit: C1 closes it for `collect.py`'s door; the probe loop
+  stays as it is and is the row's whole scope after C1 merges.
+- **Q9 — yes.** At G7 the coordinator verifies `output/p7_3c_training/p7_3c_finetune.json` and commits it on `main` as
+  `docs/data/p7_3c_finetune.json` — A24(b)'s *"committed on `main` before the evaluation token"*. C5 may be written before G7:
+  its pin `P7_3C_FINETUNE_SHA256` is set in the first commit after G7, and **until it is set every trained-subject identity
+  lookup REFUSES** (a test pins that refusal).
+- **Q10 — yes.** `RLTRAFFIC_SUMO_CORPORA` joins the standard suite line; unset → skip, naming it.
+- **Q11 — yes: ONE process.** G1's reviewer mandate includes C2's pre-flight checklist (destruction and resume paths, the barrier,
+  the token, both canary halves); G4's includes the trainings' (run-once, resume, attempt markers).
+- **Q12 — yes, and the contingency is ruled NOW so it costs no round trip.** If the fenced build-only timing of the k = 100
+  windows exceeds 5 min, the driver may run one process per k that builds the windows once and trains that k's seeds in the
+  order 101, 202, 303, 404, 505 — **provided it asserts at runtime, bitwise, that the five sources' `stats`, `rtg_scale`,
+  `intersection_ids`, `config` and `spatial_mask` are identical.** The coordinator found them identical on 2026-09-25 (A3); the
+  assertion keeps the code from depending on that finding. Each run's seeding, sampler and payload are unchanged.
+- **Q14 — yes, with ONE ADDITION.** Each of the 100 episodes' `engine_seed_drawn` must equal **437485271**, the value every one of
+  P7.3d's 700 committed cells records (A3). The gate reads it from the committed artifact (`c63c371f…`, pinned), not from the
+  gitignored probe chunks.
+- **Q22 — yes.** The implementer starts G5's tmux pane itself: minutes long, fenced, an unregistered configuration (B = 400),
+  and P7.3d's G2 is the precedent. The author is told the numbers, not asked.
+
+## A3 — What the coordinator verified for these rulings (2026-09-25, by running commands)
+- The plan, read whole from `git show b8b058d:docs/plans/p7.3c.md` (617 lines), against A24's registered text clause by clause.
+- `engine_seed_drawn`: **437485271 on 700 of 700** committed cells of `docs/data/p7_3d_grid4x4.json`; `engine_seed_requested`
+  1000 on all 700.
+- The five sources (`output/p5_2/checkpoints/grid4x4_mappo1000_dt_nomix_h4_seed{101…505}.pt`, loaded weights-only with one
+  allowlisted class): `stats`, `rtg_scale`, `intersection_ids` and `config` identical across the five (canonical JSON), and
+  `spatial_mask` identical (tensor equality).
+- The record's 56 fields in ONE keyset over all 700 cells, the six bookkeeping fields present in every one.
+
+## A4 — Next
+C1 with its tests first, then C2 — committed on the branch, NOT pushed (the coordinator pushes, §7). Then say **"P7.3c C1–C2
+done"** (channel (d)). The coordinator spawns G1's review, re-runs its mutants and writes Amendment B. Build C3–C4 while G1 and
+the corpus proceed (Q7).

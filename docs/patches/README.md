@@ -1,5 +1,27 @@
 # Patches a Claude Code session cannot apply itself
 
+## `ci_gate_ceiling_242_p7_3d.patch` — the skip ceiling moves 193 → 242 after P7.3d's merge and its CI fix; every new skip is P7.3d's own gating — and the 193 and 191 entries' narrative is CORRECTED
+
+**Apply with:**
+```bash
+cd /home/filip/rltraffic && git apply docs/patches/ci_gate_ceiling_242_p7_3d.patch && .venv/bin/pytest tests/test_ci_gate.py -q && git add .github/ci/ci_baseline.json tests/test_ci_gate.py && git commit -m "ci(ceiling): 193 -> 242 OBSERVED on run 36170411512 at 019ad68 -- P7.3d's gated tests after its CI fix; the 193 and 191 entries' narrative corrected" && git push origin main
+```
+**Measured, not read off a summary.** Run `36170411512` on `main` at `019ad68` (the merge of P7.3d's CI fix, `BRIEF_39` Amendment E,
+on top of P7.3d's merge `cdec88e`); its only failing step on both suite jobs was the ceiling gate. The run on P7.3d's merge itself
+(`36131232681`) was NOT usable — one real failure on both legs, a negative control that depended on the machine's editable install —
+and was fixed before this ceiling was measured. Both legs downloaded, every `<skipped>` message extracted from `junit.xml`
+(`output/ci_runs/skips.py`, OLD run first), multisets compared leg against leg (identical: 2,442 tests, 2,200 passed, 242 skipped,
+0 failures, 0 errors, 67 distinct texts on both) and run against run against the 193 run `35533841027`: **49 new skips in 17 texts,
+nothing removed** — +13 `corpus_or_checkpoint`, +8 `campaign_output`, +13 `grid4x4_resco_candidates`, +10 `main_tree_interpreter`,
++1 `cityflow`, +4 `sumo_traci` — each text classified BY INSPECTION in `output/ci_runs/classification_p73d.json`, the builder
+refusing a text matched by zero or two prefixes. Verified end to end in a scratch worktree: `tests/test_ci_gate.py` green (34) with
+the new baseline; `ci_gate.py pytest-gate` on BOTH legs' real `junit.xml` + `pytest.txt` under it, exit 0 each; `git apply --check`
+clean on `main`. `re_measure_required_at` now names P7.3c's merge. **The patch also CORRECTS the entries it supersedes:** the 193
+entry's condition, tree, one sentence of its result and one of its breakdown, and the 191 entry's `why_it_was_wrong`, were written on
+2026-09-20/21 by a copy of the builder whose narrative was hardcoded for P7.3b's ceiling — run `35533841027` is on `a80006b`, P5.4's
+merge, not P7.3b's CI fix; `35451103010` carried 190 skips, not 192; the 48-text count was the 189 entry's. The numbers were computed
+and stand; each corrected entry carries a dated `corrected` field saying what it said before. Two files.
+
 ## `ci_gate_ceiling_193_p5_4.patch` — the skip ceiling moves 191 → 193 after P5.4's merge; both new skips are P5.4's own gate
 
 **Apply with:**
