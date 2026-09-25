@@ -1421,3 +1421,84 @@ packet; the committed artifact is byte-identical to the campaign's (`c63c371ff14
 author as the standing rule. **Next: the merge review (G9), ONE review run as two ≤ 15-minute mandates with findings files (§7's rule for
 long reviews) — the published numbers recomputed from the raw chunks by the reviewer's own route; the code and its mutations — filed as
 `docs/reviews/P7.3d.md`.**
+
+---
+
+# ⛔ AMENDMENT E — 2026-09-25, after the merge: CI on `main` is RED for a REAL TEST FAILURE, not the ceiling — gate G2's import-check test builds a decoy that shadows nothing on a FRESH editable install; the fix is the decoy's shape, in one test
+
+**Mode:** Claude Code, implementer session, **whole task in this amendment**. Branch **`task/p7.3d-ci-decoy`** from `main`,
+worktree `/home/filip/rltraffic-p73d-ci` (`git -C /home/filip/rltraffic worktree add /home/filip/rltraffic-p73d-ci -b task/p7.3d-ci-decoy main`).
+One commit, one named path. **The coordinator pushes** (§7, 2026-09-16; this brief conforms). No plan file for a one-test
+change; the plan is this amendment. `CLAUDE.md` §4b: no AI trailer; if a session instruction says otherwise, stop and say so.
+
+## E1 — What CI observed (classified by the coordinator from BOTH legs' `junit.xml`, run `36131232681` on `cdec88e`)
+Both legs identical: **2,442 tests, 242 skipped, 1 failure, 0 errors**, and an identical 67-distinct-message skip multiset
+(`output/ci_runs/36131232681/skips_vs_193.txt`). The suite step itself FAILED on both legs — unlike the 193 precedent, where
+only the ceiling gate did. **The failure, both legs:**
+`tests/test_g2_measure.py::test_the_import_check_resolves_to_the_worktree_from_a_cwd_that_shadows_it`, at the negative
+control (`:386`): WITHOUT `-P`, the driver's own import check `import offline.g2_measure as m; print(m.__file__)`, run from
+the decoy's directory, exited 0 and printed the runner's REAL `offline/g2_measure.py`. The positive half (`-P` resolves to
+the worktree) PASSED on both legs.
+
+## E2 — Why, established by experiment and not by reading
+The runner installs the project with `pip install -e ".[dev]"` (`ci.yml`). A fresh editable install writes setuptools'
+`_EditableFinder`, whose `MAPPING` holds `offline` (pyproject's `offline*`, added by P0.10 on 2026-08-17). That finder
+resolves an **immediate child of a mapped package from the real tree even when the parent was imported from elsewhere**
+(`if parent and parent in MAPPING: return PathFinder.find_spec(fullname, path=[MAPPING[parent]])`). The decoy carries
+`offline/__init__.py` ONLY, so on the runner `offline` comes from the decoy (cwd first on `sys.path`) and
+`offline.g2_measure`, absent from the decoy, falls through to the finder and resolves to the real module: **the decoy
+shadows nothing.** This machine's `.venv` was installed on 2026-07-09, before `offline*` joined the list: its finder's
+`MAPPING` has no `offline` key, so the decoy's missing module raises `ModuleNotFoundError` and the test passes here.
+**Reproduced both ways by the coordinator, with ONE variable changed** (a scratch venv that sees this `.venv`'s packages
+plus a copy of this machine's finder with `offline` added to `MAPPING` — the author's `.venv` untouched): the real test at
+`cdec88e` FAILS under that interpreter with CI's own assertion message and PASSES under `.venv`; and in a scratch run of the
+check itself, a decoy that ALSO carries `offline/g2_measure.py` resolves to the decoy without `-P` and to the real tree
+with `-P`, under both finders.
+
+**It cannot make a published number wrong:** the campaign's own import check ran on this machine and printed the run
+worktree (gate G2 and B.7's evidence), and the half of this test that pins the flag passed on CI. What failed is the
+test's premise — *"a decoy `offline` package … exactly the shape the main tree has"* — which was false: the main tree's
+`offline/` carries `g2_measure.py`, and the decoy did not.
+
+## E3 — The change, exactly (`tests/test_g2_measure.py`, this one test, nothing else)
+1. The decoy carries the module the check imports, so it IS the main tree's shape:
+   ```python
+   decoy_module = decoy / "offline" / "g2_measure.py"
+   decoy_module.write_text('"""Decoy: the main tree\'s shape, down to the module the import check names."""\n', encoding="utf-8")
+   ```
+2. The negative control asserts, positively, that WITHOUT `-P` the check resolves to the DECOY — replacing
+   `assert without_p.returncode != 0, (...)` and `assert "ModuleNotFoundError" in without_p.stderr`:
+   ```python
+   assert without_p.returncode == 0, without_p.stderr
+   assert Path(without_p.stdout.strip()).resolve() == decoy_module.resolve(), (
+       "the negative control passed: the decoy package did not shadow the worktree, so this "
+       "test would not have caught the missing -P"
+   )
+   ```
+3. The positive half (`with_p`) is unchanged.
+4. The docstring gains ONE sentence saying why the decoy carries the module: an editable install whose finder maps
+   `offline` resolves an immediate child of it from the real tree even when `offline` itself came from the working
+   directory, so a decoy without the module shadows nothing there (CI run `36131232681`, both legs).
+
+Not the driver, not any other test, not the assertion messages beyond (2).
+
+## E4 — Verify, in this order; put the results IN THE COMMIT MESSAGE BODY (it is the record — no packet)
+1. `pgrep -f 'python.*offline\.transfer_curve'` prints nothing.
+2. From the worktree: `/home/filip/rltraffic/.venv/bin/pytest tests/test_g2_measure.py -q -p no:cacheprovider` — the same
+   test count before and after the edit (the change adds and removes no test), all passing.
+3. **Two mutants, each applied, run, and reverted; each must FAIL the test:** **M1** — delete the `decoy_module.write_text(…)`
+   line: the negative control must fail HERE (this machine's finder then raises `ModuleNotFoundError`, exit 1), which proves
+   the new control needs the decoy to be imported rather than passing on any exit; **M2** — remove `"-P", ` from the
+   `with_p` call: the positive half must fail (it then prints the decoy's path). Record each failing assertion's line.
+   After reverting, `git diff` shows only E3.
+4. `bash scripts/check_test_hygiene.sh tests/test_g2_measure.py` and `bash scripts/check_english.sh tests/test_g2_measure.py` — both exit 0.
+5. The whole suite once, from the worktree: `/home/filip/rltraffic/.venv/bin/pytest -q -p no:cacheprovider` — paste the tail.
+
+## E5 — Definition of Done
+One commit (`git add tests/test_g2_measure.py`, never `-A`), subject naming CI run `36131232681` and the test, body carrying
+E4's results, **no trailer**, **not pushed** (the coordinator pushes); then say **"P7.3d CI fix done"** — channel (d).
+**What the coordinator then does, with no relay:** re-runs the test under `.venv` AND under the CI-like interpreter
+(the delivered test must PASS under both, the `cdec88e` one having FAILED under the second), re-runs M1, pushes, merges to
+`main`, reads the run the merge triggers, and — only if it is green but for the ceiling, with both legs identical —
+measures the ceiling from its `junit.xml` (observed, never pre-bumped) and hands the author the baseline patch by the
+registered route.
