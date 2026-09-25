@@ -1395,3 +1395,29 @@ three criteria. Per-intersection ρ_i (exploratory): fourteen in 0.90–1.05; A0
 ONE merge review (A21): the code and its mutations, and every published number recomputed by the reviewer's own route from the raw chunks;
 the merge with §6's box ticked, both refs pushed; the CI skip ceiling by the registered route — observed on the merge's run, never
 predicted.
+---
+
+# ✅ AMENDMENT D.1 — 2026-09-25, on C7's delivery (`4b0c4f0`, packet §28): C7 ACCEPTED as delivered; two counts in the coordinator's text CORRECTED, both found by the implementer and both re-derived by the coordinator; the merge review (G9) is next
+
+## D.1-1 — B.3-4's count: TEN intersections lie more than 4 SE below a probe ratio of 1.0, not eleven
+B.3-4 (2026-09-21) wrote *"eleven intersections are more than 4 SE from 1.0 in the negative direction"*. Re-derived by the coordinator from
+`p7_3d_calibration.json`'s probe returns: the delta method over the two means WITH the paired draws' covariance reproduces every other
+figure B.3-4 gives (A3 −15.0, B3 −14.0, D0 −14.0, D1 −13.5; sd of the sixteen 0.068; median SE 0.012) and counts **ten** — A3, B3, D0, D1,
+D3, C3, B0, C0, D2, A0 (the last two at −4.2); without the covariance term, nine. B.3-4 reads *"ten"*. The candidate paper sentence in
+`docs/notes/RELATED_WORK.md` §3 and the plan's row of 2026-09-21 are corrected in place, marked. A coordinator count, of the project's
+recurring class; no number in any artifact or registration moves.
+
+## D.1-2 — D-1's band: THIRTEEN per-intersection ρ_i lie in [0.90, 1.05], not fourteen
+D-1 (2026-09-24) and the G6 note wrote *"fourteen in 0.90–1.05"*. B0's ρ_i is 0.8989 — *"0.90"* only after rounding. **Thirteen** lie in
+[0.90, 1.05]; B0 0.899, C0 0.555, A0 0.087. The coordinator counted the fourteen intersections that were not A0 or C0 without checking each
+against the band: a claim about a population made from its description. D-1 reads *"thirteen"*; the note and the plan's G6 row are corrected
+in place, marked. No number in any artifact moves.
+
+## D.1-3 — C7 ACCEPTED
+Verified from disk: the merge `eed1e34` has two parents (`10d8fe8`, `be8c47d`); `4b0c4f0` touches only `docs/data/p7_3d_grid4x4.json` and the
+packet; the committed artifact is byte-identical to the campaign's (`c63c371ff14d208d16b9fbfa6d3daa31975679c90b20b5a4b44fbed60760b0b7`,
+4,564,660 bytes, the manifest's line 1); no trailer on the branch; no frozen path; the manifest re-verifies 960 / 960. The packet's §28 carries
+§7's list and D-2(3)'s, H3 reported and not interpreted, both attempts, and the third trailer occurrence raised before the merge — ruled by the
+author as the standing rule. **Next: the merge review (G9), ONE review run as two ≤ 15-minute mandates with findings files (§7's rule for
+long reviews) — the published numbers recomputed from the raw chunks by the reviewer's own route; the code and its mutations — filed as
+`docs/reviews/P7.3d.md`.**

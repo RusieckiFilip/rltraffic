@@ -118,7 +118,8 @@ look from the abstracts. *(Both are OPEN items in §1.3.)*
 
 - **Candidate C3 sentence, NOT to be written before P7.3d's campaign numbers exist (BRIEF_39 B.3-4, 2026-09-21):** on grid4x4 under
   full dynamics parity, the per-intersection ratio of SUMO to CityFlow MaxPressure probe returns runs −16.6 % to +4.2 %, 12 of 16 below
-  1.0, eleven more than 4 SE from 1.0 — a residual engine gap with a direction and spatially heterogeneous magnitude. The DaRL line
+  1.0, ten more than 4 SE below 1.0 (A3, B3, D0, D1, D3, C3, B0, C0, D2, A0; the delta method with the paired draws' covariance —
+  nine without it) *(corrected 2026-09-25 from "eleven", `BRIEF_39` D.1-1)* — a residual engine gap with a direction and spatially heterogeneous magnitude. The DaRL line
   adapts the gap away and therefore cannot report its spatial structure; we measure it. An observation with standard errors, never a test.
 
 - **r (A22(c)) is the mean over NODES of the mean over each node's one-hop neighbours, divided by the mean over nodes of self-influence
