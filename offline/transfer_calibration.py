@@ -2171,7 +2171,39 @@ def build_parser() -> argparse.ArgumentParser:
         "record-canary", help="park the canary line in the work directory (Amendment E1.4)"
     )
     record.add_argument("--line", required=True)
+
+    # P7.3c (BRIEF_41 C1-C2): the grid4x4 corpus run's three module calls, in the driver's order.
+    corpus_defaults = [GRID4X4_CORPUS_DRAWS[0], GRID4X4_CORPUS_DRAWS[-1] + 1]
+    preflight = subparsers.add_parser(
+        "corpus-preflight",
+        help="P7.3c: the corpus run's pre-token checks -- inputs by digest, disjointness (writes nothing)",
+    )
+    preflight.add_argument("--draws-range", type=int, nargs=2, metavar=("START", "END"), default=corpus_defaults)
+    preflight.add_argument("--data-dir", default=str(_REPO_ROOT / "docs" / "data"))
+    collect_corpus = subparsers.add_parser(
+        "collect-corpus", help="P7.3c: the probe replayed through the logger, one episode per draw"
+    )
+    collect_corpus.add_argument("--corpus-dir", required=True)
+    collect_corpus.add_argument("--scenario-key", default=GRID4X4_SCENARIO_KEY)
+    collect_corpus.add_argument(
+        "--draws-range", type=int, nargs=2, metavar=("START", "END"), default=corpus_defaults
+    )
+    gate = subparsers.add_parser(
+        "corpus-gate", help="P7.3c: A17(f)'s gate per intersection; writes its record only if it passes"
+    )
+    gate.add_argument("--corpus-dir", required=True)
+    gate.add_argument("--draws-range", type=int, nargs=2, metavar=("START", "END"), default=corpus_defaults)
+    gate.add_argument("--data-dir", default=str(_REPO_ROOT / "docs" / "data"))
+    gate.add_argument("--record", required=True)
     return parser
+
+
+def _draws_range(values: Sequence[int]) -> range:
+    """A half-open ``--draws-range START END``, refused when it selects nothing."""
+    start, end = (int(value) for value in values)
+    if end <= start:
+        raise ValueError(f"--draws-range is half-open [START, END); [{start}, {end}) selects no draw")
+    return range(start, end)
 
 
 def canary_seconds() -> tuple[float, dict[str, Any]]:
@@ -2366,6 +2398,471 @@ def assert_logged_corpus_matches_probe(
     }
 
 
+# ======================================================================================
+# P7.3c (BRIEF_41 C1, Amendment A): the grid4x4 SUMO corpus -- the door's argv, the pre-token record,
+# and A17(f)'s gate PER INTERSECTION, keyed by id
+# ======================================================================================
+
+#: P7.3d's committed zero-shot artifact.  Here it is the source of the ONE engine seed every corpus episode
+#: must record (Amendment A, Q14: 437485271 on all 700 of its cells), read at this pin and never from the
+#: gitignored probe chunks.  It moves only in a commit that also moves the artifact.
+P7_3D_ZERO_SHOT_ARTIFACT_NAME = "p7_3d_grid4x4.json"
+P7_3D_ZERO_SHOT_ARTIFACT_SHA256 = "c63c371ff14d208d16b9fbfa6d3daa31975679c90b20b5a4b44fbed60760b0b7"
+#: A17(b)'s probe band, which the corpus replays: draws 201-300 (the calibration artifact's
+#: ``disjointness.probe_draw_ids``; a test compares the two).
+GRID4X4_CORPUS_DRAWS: tuple[int, ...] = tuple(range(201, 301))
+#: The gate's record, written by the corpus driver only after the gate passes.
+CORPUS_GATE_FORMAT_VERSION = "p7.3c-corpus-gate/1.0"
+#: The corpus run's pre-token record.
+CORPUS_PREFLIGHT_FORMAT_VERSION = "p7.3c-corpus-preflight/1.0"
+_P7_3D_CALIBRATION_NAME = "p7_3d_calibration.json"
+
+
+def _p7_3d_calibration_pin() -> str:
+    """The calibration artifact's ONE pin, ``transfer_curve.P7_3D_CALIBRATION_SHA256`` -- imported, never retyped.
+
+    Imported at call time: ``offline.transfer_curve`` imports this module.
+    """
+    from offline.transfer_curve import P7_3D_CALIBRATION_SHA256
+
+    return P7_3D_CALIBRATION_SHA256
+
+
+def _pinned_json(path: Path, pin: str) -> dict[str, Any]:
+    """A committed artifact, digest-checked BEFORE it is parsed."""
+    if not path.is_file():
+        raise FileNotFoundError(f"{path} is absent; it is a committed artifact under docs/data/")
+    digest = _sha256_file(path)
+    if digest != pin:
+        raise ValueError(
+            f"{path}: sha256 {digest} is not the pinned {pin}. The corpus gate reads registered values from "
+            "THAT file and no other; an edited copy could change a reference without leaving a trace"
+        )
+    return json.loads(path.read_bytes())
+
+
+def registered_engine_seed_drawn(data_dir: str | Path = _REPO_ROOT / "docs" / "data") -> int:
+    """The engine seed every committed zero-shot cell records -- the value each corpus episode must record.
+
+    Amendment A (Q14): read from ``p7_3d_grid4x4.json`` at :data:`P7_3D_ZERO_SHOT_ARTIFACT_SHA256`.  A18(c)'s
+    rule makes it one number (the env RNG's first draw under ``reset(seed=1000)``), so the 700 cells must agree
+    on ONE value and on the requested 1000, or the artifact is not the one A24 read.
+    """
+    artifact = _pinned_json(Path(data_dir) / P7_3D_ZERO_SHOT_ARTIFACT_NAME, P7_3D_ZERO_SHOT_ARTIFACT_SHA256)
+    drawn = sorted({int(cell["engine_seed_drawn"]) for cell in artifact["cells"]})
+    requested = sorted({int(cell["engine_seed_requested"]) for cell in artifact["cells"]})
+    if len(drawn) != 1 or requested != [DEFAULT_ENGINE_SEED]:
+        raise ValueError(
+            f"{P7_3D_ZERO_SHOT_ARTIFACT_NAME}: its cells record engine seeds drawn {drawn[:4]} for requested "
+            f"{requested[:4]}; A18(c) makes that ONE seed drawn from requested {DEFAULT_ENGINE_SEED}"
+        )
+    return drawn[0]
+
+
+def logged_corpus_argv(
+    scenario_key: str,
+    draw_ids: Sequence[int],
+    *,
+    out_dir: str | Path,
+    draws_root: str | Path,
+    engine_seed: int = DEFAULT_ENGINE_SEED,
+) -> list[str]:
+    """``offline.collect``'s argv for A17(f)'s corpus: the PROBE replayed through the logger.
+
+    The env settings are :data:`offline.transfer_gate.COLLECT_SETTINGS` -- the object the probe's own
+    ``collect_style_args`` parses (``offline/sumo_att_reference.py:1232-1270``) -- appended whole, so the corpus
+    runs the probe's env by construction rather than by a retyped list.  One episode per draw at
+    ``--base-seed`` 1000: episode 0 of every draw gets ``reset(seed=1000)`` (A18(c)), and the flow randomiser
+    behind ``flow_draw_sha256`` uses the draws tree's own base seed.  The sim config is the CityFlow one, whose
+    stem is the scenario key the corpus is logged under (A24(b)).  ``--overwrite`` is never passed: an
+    existing corpus is refused by the logger, never replaced.
+    """
+    from offline.transfer_gate import COLLECT_SETTINGS
+
+    config = _REPO_ROOT / "configs" / "sim" / f"{scenario_key}.json"
+    if not config.is_file():
+        raise FileNotFoundError(
+            f"{config} is absent: the scenario key IS the CityFlow sim config's stem, and the corpus is "
+            "logged under it"
+        )
+    draws = [int(draw) for draw in draw_ids]
+    if not draws:
+        raise ValueError("no draws: a corpus is one episode per declared draw, and none was declared")
+    return [
+        "--backend", "sumo",
+        "--env-config", str(config),
+        "--policy", "maxpressure",
+        "--flow-draws", *[str(draw) for draw in draws],
+        "--episodes", "1",
+        "--base-seed", str(int(engine_seed)),
+        "--out-dir", str(out_dir),
+        "--draws-root", str(draws_root),
+        *COLLECT_SETTINGS,
+    ]
+
+
+def collect_logged_probe_corpus(
+    scenario_key: str,
+    draw_ids: Sequence[int],
+    *,
+    out_dir: str | Path,
+    draws_root: str | Path,
+    engine_seed: int = DEFAULT_ENGINE_SEED,
+) -> list[str]:
+    """Collect A17(f)'s corpus through ``offline.collect.main`` -- the door, not a copy of it.
+
+    ``collect.main`` builds each draw's OBSERVED env, logs the aligned view, counts teleports and collisions
+    on every simulated second, and refuses an episode with either before writing it (``BRIEF_41`` C1).
+    Returns the argv, for the caller's provenance; a non-zero exit raises.
+    """
+    from offline import collect
+
+    argv = logged_corpus_argv(
+        scenario_key, draw_ids, out_dir=out_dir, draws_root=draws_root, engine_seed=engine_seed
+    )
+    code = collect.main(argv)
+    if code != 0:
+        raise RuntimeError(f"offline.collect exited {code} on the corpus argv; nothing was verified")
+    return argv
+
+
+def grid4x4_corpus_disjointness_record(
+    draw_ids: Sequence[int],
+    *,
+    output_root: str | Path,
+    expected_sha256: Mapping[int, str] | None = None,
+) -> dict[str, Any]:
+    """``BRIEF_41`` C1(v): the corpus band against the draws the subject TRAINED on and the held-out pool.
+
+    The training draws are read from A20(a)'s five checkpoints (``stats.draw_ids``, through
+    :func:`subject_facts_per_intersection`, which digest-checks every file first) -- the set the corpus of the
+    subject actually used, never the registered 1-999 pool.  Run by the corpus driver before its token, i.e.
+    before the first episode, and again, from the calibration artifact's own record, by the gate.
+    """
+    from offline.rtg_calibration import assert_probe_draws_disjoint
+
+    requested = sorted({int(draw) for draw in draw_ids})
+    if not requested:
+        raise ValueError("the corpus draw set is empty; there is nothing to check")
+    facts = subject_facts_per_intersection(output_root=output_root, expected_sha256=expected_sha256)
+    assert_probe_draws_disjoint(
+        requested, training_draw_ids=facts.training_draw_ids, held_out_draws=HELD_OUT_DRAWS
+    )
+    training = sorted(int(draw) for draw in facts.training_draw_ids)
+    return {
+        "disjoint": True,
+        "checked_by": "offline.rtg_calibration.assert_probe_draws_disjoint",
+        "subject": facts.subject,
+        "checkpoint_sha256": {str(seed): digest for seed, digest in sorted(facts.checkpoint_sha256.items())},
+        "probe_draws": [requested[0], requested[-1]],
+        "n_probe_draws": len(requested),
+        "training_draw_ids": [training[0], training[-1]],
+        "n_training_draws": len(training),
+        "training_draws_source": "stats.draw_ids of A20(a)'s five checkpoints, digest-checked",
+        "held_out_draws": [min(HELD_OUT_DRAWS), max(HELD_OUT_DRAWS)],
+    }
+
+
+def corpus_preflight_record(
+    draw_ids: Sequence[int],
+    *,
+    output_root: str | Path,
+    data_dir: str | Path = _REPO_ROOT / "docs" / "data",
+) -> dict[str, Any]:
+    """Every pre-token check of the corpus run that needs Python, in one record (format
+    ``p7.3c-corpus-preflight/1.0``).
+
+    In order: the calibration artifact and the zero-shot artifact at their pins (the gate's two references);
+    grid4x4's alignment resolved -- which locates RESCO's network and verifies its pinned digests -- and its
+    ids equal to the artifact's; the band disjoint from the subject's training draws and the held-out pool
+    (:func:`grid4x4_corpus_disjointness_record`); and every draw of the band carrying a recorded probe return.
+    Nothing is written here; the driver decides whether the record is kept.
+    """
+    from offline.aligned_env import alignment_for_scenario_key
+
+    data = Path(data_dir)
+    calibration = _pinned_json(data / _P7_3D_CALIBRATION_NAME, _p7_3d_calibration_pin())
+    engine_seed_drawn = registered_engine_seed_drawn(data)
+    scenario_key = str(calibration["scenario_key"])
+    ids = [str(ix) for ix in calibration["intersection_ids"]]
+    alignment = alignment_for_scenario_key(scenario_key)
+    if sorted(str(ix) for ix in alignment.intersections) != sorted(ids):
+        raise ValueError(
+            f"{scenario_key}'s alignment covers {sorted(alignment.intersections)[:4]}..., not the artifact's "
+            f"{sorted(ids)[:4]}...; the corpus would be logged under ids the gate cannot key"
+        )
+    disjointness = grid4x4_corpus_disjointness_record(draw_ids, output_root=output_root)
+    probe = calibration["probe_returns"]["sumo"]
+    unrecorded = sorted(int(draw) for draw in draw_ids if str(int(draw)) not in probe)
+    if unrecorded:
+        raise ValueError(
+            f"{_P7_3D_CALIBRATION_NAME} records no SUMO probe return for draw(s) {unrecorded[:5]}; A17(f) "
+            "compares the corpus with the probe, so the corpus band must be the probe band"
+        )
+    return {
+        "format_version": CORPUS_PREFLIGHT_FORMAT_VERSION,
+        "registered_in": "PREREGISTRATION A17(f), A24(b); BRIEF_41 C1(v), C2, Amendment A (Q14, Q21)",
+        "scenario_key": scenario_key,
+        "inputs": {
+            "calibration_artifact": _P7_3D_CALIBRATION_NAME,
+            "calibration_sha256": _p7_3d_calibration_pin(),
+            "zero_shot_artifact": P7_3D_ZERO_SHOT_ARTIFACT_NAME,
+            "zero_shot_artifact_sha256": P7_3D_ZERO_SHOT_ARTIFACT_SHA256,
+            "alignment_scenario": str(alignment.scenario),
+            "n_intersections": len(ids),
+        },
+        "engine_seed_requested": DEFAULT_ENGINE_SEED,
+        "engine_seed_drawn": engine_seed_drawn,
+        "disjointness": disjointness,
+    }
+
+
+def assert_logged_corpus_matches_probe_per_intersection(
+    corpus_dir: str | Path,
+    *,
+    data_dir: str | Path = _REPO_ROOT / "docs" / "data",
+    draw_ids: Sequence[int] = GRID4X4_CORPUS_DRAWS,
+) -> dict[str, Any]:
+    """A17(f) on a multi-intersection pair: every logged episode reproduces P7.3d's probe, per intersection.
+
+    ``PREREGISTRATION`` A24(b) applied to grid4x4 (``BRIEF_41`` C1(iv)): every episode's per-intersection
+    return must equal ``p7_3d_calibration.json:probe_returns.sumo[draw][ix]`` BIT FOR BIT, on every requested
+    draw and all sixteen intersections, and every episode must record zero teleports and zero collisions
+    counted on EVERY simulated second.  **Any mismatch or event refuses the corpus and P7.3c stops before any
+    training runs.**  Returns the record the driver writes (format ``p7.3c-corpus-gate/1.0``).
+
+    THE RETURN, AND ITS ALIGNMENT CONVENTION (C6)
+    ---------------------------------------------
+    Intersection *i*'s return is the sum of its ``T`` outcome rows, ``ix{k}_local_reward`` -- the reward read
+    from the ``info`` returned by each step -- which is the probe's ``episode_return_two_routes`` route 1 over
+    the same post-step infos, the same ``float(payload["reward"])`` of the same field.  The logger stores
+    float32 and the probe summed float64, so ``==`` is achievable only because this reward family is a
+    vehicle count: integrality is checked FIRST, per intersection, and a non-integral reward is a finding,
+    never a tolerance (the hz1x1 gate's argument, :func:`assert_logged_corpus_matches_probe`, unchanged).
+
+    KEYED BY ID, NEVER BY POSITION
+    ------------------------------
+    The logger names its arrays by POSITION in the env's order (``ix{k}_*``) and records that order in the
+    episode's own ``ix_ids``.  Each intersection is located through THAT array, in THAT episode, so a corpus
+    logged in any order compares each id with its own probe return.
+
+    THE REFUSALS, IN ORDER, each naming what it found
+    ------------------------------------------------
+    the two committed artifacts at their pins, before either is parsed; the manifest in the logger's
+    format and under the artifact's scenario key; the draws disjoint from the subject's training draws and
+    the held-out pool (re-asserted from the calibration artifact's own record, its ``[1, 200]`` read as the
+    whole range -- which can only refuse more); one episode per draw, listed in the manifest, exactly the
+    requested set; each draw's door record -- counted every simulated second, zero teleports and collisions,
+    ``cf_parity`` only, ``time-to-teleport -1``, and the engine seed every committed zero-shot cell records;
+    per episode the registered horizon, the artifact's id set and seed 1000; then integrality and ``==``.
+    """
+    import numpy as np
+
+    from offline.collect import ENGINE_EVENT_GRAIN
+    from offline.rtg_calibration import assert_probe_draws_disjoint
+    from offline.trajectory_logger import FORMAT_VERSION as LOGGED_FORMAT_VERSION
+
+    corpus = Path(corpus_dir)
+    data = Path(data_dir)
+    requested = sorted({int(draw) for draw in draw_ids})
+    if not requested:
+        raise ValueError("no draws were requested, so nothing would be compared")
+
+    # 1. The two committed references, each at its pin BEFORE it is parsed.
+    calibration = _pinned_json(data / _P7_3D_CALIBRATION_NAME, _p7_3d_calibration_pin())
+    engine_seed_drawn = registered_engine_seed_drawn(data)
+    ids = [str(ix) for ix in calibration["intersection_ids"]]
+    scenario_key = str(calibration["scenario_key"])
+    probe = calibration["probe_returns"]["sumo"]
+
+    # 2. The manifest: the logger's format, logged under the CityFlow scenario key (A24(b)).
+    manifest = json.loads((corpus / "manifest.json").read_bytes())
+    if str(manifest.get("format_version")) != LOGGED_FORMAT_VERSION:
+        raise ValueError(
+            f"{corpus}: manifest format {manifest.get('format_version')!r}, not the logger's "
+            f"{LOGGED_FORMAT_VERSION!r}"
+        )
+    metadata = manifest.get("run_metadata") or {}
+    if str(metadata.get("scenario_id")) != scenario_key:
+        raise ValueError(
+            f"{corpus}: scenario_id {metadata.get('scenario_id')!r}, not {scenario_key!r}. A24(b) logs the corpus "
+            "under the CityFlow scenario key, the key the subject's statistics are stored under"
+        )
+
+    # 3. Disjointness, re-asserted from the pinned artifact's own record.
+    record = calibration["disjointness"]
+    low, high = (int(value) for value in record["training_draw_ids"])
+    held_out = [int(value) for value in record["held_out_draw_ids"]]
+    if held_out != [min(HELD_OUT_DRAWS), max(HELD_OUT_DRAWS)]:
+        raise ValueError(
+            f"{_P7_3D_CALIBRATION_NAME} records the held-out pool as {held_out}, not "
+            f"{[min(HELD_OUT_DRAWS), max(HELD_OUT_DRAWS)]}"
+        )
+    assert_probe_draws_disjoint(
+        requested, training_draw_ids=range(low, high + 1), held_out_draws=HELD_OUT_DRAWS
+    )
+
+    # 4. The episodes: listed in the manifest, one per draw, exactly the requested set.
+    listed = {str(entry["filename"]): int(entry["flow_draw"]) for entry in manifest.get("episodes", [])}
+    on_disk = sorted(path.name for path in corpus.glob("*.npz"))
+    if sorted(listed) != on_disk:
+        raise ValueError(
+            f"{corpus}: the manifest lists {len(listed)} episode(s) and {len(on_disk)} are on disk "
+            f"(unlisted {sorted(set(on_disk) - set(listed))[:3]}, absent {sorted(set(listed) - set(on_disk))[:3]})"
+        )
+    episodes: dict[int, Path] = {}
+    for name in on_disk:
+        with np.load(corpus / name) as payload:
+            draw = int(payload["flow_draw"])
+        if draw != listed[name]:
+            raise ValueError(f"{name}: the episode's flow_draw {draw} disagrees with the manifest's {listed[name]}")
+        if draw in episodes:
+            raise ValueError(
+                f"draw {draw} has more than one logged episode in {corpus}; A17(f) compares one episode per draw"
+            )
+        episodes[draw] = corpus / name
+    missing = [draw for draw in requested if draw not in episodes]
+    if missing:
+        raise ValueError(f"the corpus has no logged episode for draw(s) {missing[:10]}")
+    extra = sorted(set(episodes) - set(requested))
+    if extra:
+        raise ValueError(
+            f"{corpus} holds draw(s) {extra[:10]} that were not requested; a corpus is exactly its declared draws"
+        )
+    unrecorded = [draw for draw in requested if str(draw) not in probe]
+    if unrecorded:
+        raise ValueError(
+            f"{_P7_3D_CALIBRATION_NAME} records no SUMO probe return for draw(s) {unrecorded[:10]}, so there "
+            "is nothing to compare them against"
+        )
+
+    # 5. Each draw's door record: dense counts, zero events, the regime, the one engine seed.
+    door = {int(entry["draw_id"]): entry for entry in metadata.get("sumo_draws") or []}
+    n_teleports = n_collisions = 0
+    for draw in requested:
+        entry = door.get(draw)
+        if entry is None:
+            raise ValueError(f"draw {draw}: the manifest carries no sumo_draws record for it")
+        if (
+            "n_teleports" not in entry
+            or "n_collisions" not in entry
+            or entry.get("engine_events_counted") != ENGINE_EVENT_GRAIN
+        ):
+            raise ValueError(
+                f"draw {draw}: the corpus records no engine-event count taken on every simulated second "
+                f"({ENGINE_EVENT_GRAIN}); it was collected through a door without DEFERRED 93's counter"
+            )
+        if int(entry["n_teleports"]) or int(entry["n_collisions"]):
+            raise ValueError(
+                f"draw {draw}: {int(entry['n_teleports'])} teleport(s) and {int(entry['n_collisions'])} "
+                "collision(s) counted every simulated second; A24(b) requires zero of each"
+            )
+        types = list(entry.get("vehicle_types_seen") or [])
+        if types != [PARITY_VTYPE_ID]:
+            raise ValueError(f"draw {draw}: vehicle types {types!r}, not {[PARITY_VTYPE_ID]!r}")
+        option = str(entry.get("time_to_teleport_option"))
+        if option != EXPECTED_TIME_TO_TELEPORT:
+            raise ValueError(f"draw {draw}: time-to-teleport {option!r}, not {EXPECTED_TIME_TO_TELEPORT!r}")
+        if int(entry.get("engine_seed_requested", -1)) != DEFAULT_ENGINE_SEED:
+            raise ValueError(
+                f"draw {draw}: engine_seed_requested {entry.get('engine_seed_requested')!r}, not A18(c)'s "
+                f"{DEFAULT_ENGINE_SEED}"
+            )
+        if int(entry.get("engine_seed_drawn", -1)) != engine_seed_drawn:
+            raise ValueError(
+                f"draw {draw}: engine_seed_drawn {entry.get('engine_seed_drawn')!r}, not {engine_seed_drawn} -- "
+                f"the seed all of {P7_3D_ZERO_SHOT_ARTIFACT_NAME}'s cells record (Amendment A, Q14)"
+            )
+        n_teleports += int(entry["n_teleports"])
+        n_collisions += int(entry["n_collisions"])
+
+    # 6. Per episode, per intersection BY ID: integrality first, then ==.
+    rows: list[dict[str, Any]] = []
+    mismatches: list[tuple[int, str, float, float]] = []
+    for draw in requested:
+        returns: dict[str, float] = {}
+        with np.load(episodes[draw]) as payload:
+            decisions = int(payload["episode_length"])
+            if decisions != EXPECTED_DECISIONS:
+                raise ValueError(
+                    f"draw {draw}: {decisions} decision(s), not {EXPECTED_DECISIONS}; the episode did not run to "
+                    "the registered horizon"
+                )
+            logged_ids = [str(value) for value in payload["ix_ids"].tolist()]
+            if sorted(logged_ids) != sorted(ids):
+                raise ValueError(
+                    f"draw {draw}: the episode's intersections differ from the artifact's (missing "
+                    f"{sorted(set(ids) - set(logged_ids))}, unknown {sorted(set(logged_ids) - set(ids))}); "
+                    "A24(b) logs the corpus under the CityFlow intersection ids"
+                )
+            if int(payload["engine_seed"]) != DEFAULT_ENGINE_SEED:
+                raise ValueError(
+                    f"draw {draw}: the episode was reset with seed {int(payload['engine_seed'])}, not "
+                    f"{DEFAULT_ENGINE_SEED} (A18(c))"
+                )
+            for ix in ids:
+                position = logged_ids.index(ix)
+                rewards = np.asarray(payload[f"ix{position}_local_reward"])
+                off = rewards != np.rint(rewards)
+                if bool(off.any()):
+                    raise ValueError(
+                        f"draw {draw}, intersection {ix!r}: {int(off.sum())} of {rewards.size} stored per-step "
+                        f"rewards are NOT integral (first: {float(rewards[off][0])!r}). The corpus stores float32 "
+                        "and the probe summed float64; bit-for-bit equality holds only because this reward is a "
+                        "vehicle count -- a finding about the reward, never a tolerance to widen"
+                    )
+                returns[ix] = float(np.sum(rewards.astype(np.float64)))
+        matching = 0
+        for ix in ids:
+            expected = float(probe[str(draw)][ix])
+            if returns[ix] == expected:
+                matching += 1
+            else:
+                mismatches.append((draw, ix, returns[ix], expected))
+        rows.append(
+            {
+                "draw_id": draw,
+                "episode": episodes[draw].name,
+                "n_intersections": len(ids),
+                "n_matching": matching,
+                "all_match": matching == len(ids),
+            }
+        )
+    if mismatches:
+        draw, ix, logged, expected = mismatches[0]
+        raise ValueError(
+            f"A17(f) FAILED on {len(mismatches)} of {len(requested) * len(ids)} (draw, intersection) pair(s); "
+            f"the first is draw {draw}, intersection {ix!r}: logged return {logged!r} against the probe's "
+            f"{expected!r} (difference {logged - expected!r}). SUMO is deterministic under a fixed seed, so this "
+            "is a wiring defect, and P7.3c stops here, before any training (A24(b))"
+        )
+    n_checked = len(requested) * len(ids)
+    return {
+        "format_version": CORPUS_GATE_FORMAT_VERSION,
+        "registered_in": "PREREGISTRATION A17(f), A24(b); BRIEF_41 C1(iv), Amendment A (Q14)",
+        "scenario_key": scenario_key,
+        "corpus_dir": str(corpus),
+        "calibration_artifact": _P7_3D_CALIBRATION_NAME,
+        "calibration_sha256": _p7_3d_calibration_pin(),
+        "zero_shot_artifact": P7_3D_ZERO_SHOT_ARTIFACT_NAME,
+        "zero_shot_artifact_sha256": P7_3D_ZERO_SHOT_ARTIFACT_SHA256,
+        "engine_seed_requested": DEFAULT_ENGINE_SEED,
+        "engine_seed_drawn": engine_seed_drawn,
+        "engine_events": {"grain": ENGINE_EVENT_GRAIN, "n_teleports": n_teleports, "n_collisions": n_collisions},
+        "disjointness": {
+            "training_draw_ids": [low, high],
+            "held_out_draw_ids": held_out,
+            "source": f"{_P7_3D_CALIBRATION_NAME}:disjointness, [low, high] read as the whole range",
+        },
+        "n_draws": len(requested),
+        "n_intersections": len(ids),
+        "n_checked": n_checked,
+        "n_matching": n_checked,
+        "all_match": True,
+        "rows": rows,
+    }
+
+
 def format_canary_line(seconds: float, facts: Mapping[str, Any]) -> str:
     """``canary <seconds> s <JSON facts>`` -- the one line the driver captures and parses back.
 
@@ -2499,6 +2996,50 @@ def main(argv: Sequence[str] | None = None) -> int:
                 work_dir=args.work_dir, out_path=out_path, output_root=args.output_root
             )
             print(f"wrote {out_path}: {len(artifact['probe'])} probe rows", flush=True)
+            return 0
+        if args.stage == "corpus-preflight":
+            checked = corpus_preflight_record(
+                _draws_range(args.draws_range), output_root=args.output_root, data_dir=args.data_dir
+            )
+            disjoint = checked["disjointness"]
+            inputs = checked["inputs"]
+            print(
+                f"corpus_preflight PASSED: draws {disjoint['probe_draws'][0]}-{disjoint['probe_draws'][1]} "
+                f"({disjoint['n_probe_draws']}) disjoint from the subject's {disjoint['n_training_draws']} "
+                f"training draws and the held-out pool; calibration {inputs['calibration_sha256'][:8]}, "
+                f"zero-shot artifact {inputs['zero_shot_artifact_sha256'][:8]}, "
+                f"{inputs['n_intersections']} intersections aligned; engine_seed_drawn "
+                f"{checked['engine_seed_drawn']}",
+                flush=True,
+            )
+            return 0
+        if args.stage == "collect-corpus":
+            draws = _draws_range(args.draws_range)
+            collect_logged_probe_corpus(
+                args.scenario_key,
+                draws,
+                out_dir=args.corpus_dir,
+                draws_root=args.draws_root,
+                engine_seed=args.engine_seed,
+            )
+            print(
+                f"collect_corpus DONE: draws {draws[0]}-{draws[-1]} logged into {args.corpus_dir}",
+                flush=True,
+            )
+            return 0
+        if args.stage == "corpus-gate":
+            verdict = assert_logged_corpus_matches_probe_per_intersection(
+                args.corpus_dir, data_dir=args.data_dir, draw_ids=_draws_range(args.draws_range)
+            )
+            # The record is a WRITE, so it follows every refusal: a refused corpus leaves no record.
+            _write_json(args.record, verdict)
+            events = verdict["engine_events"]
+            print(
+                f"A17(f) {verdict['n_matching']}/{verdict['n_checked']} MATCH on {verdict['n_draws']} draw(s) "
+                f"x {verdict['n_intersections']} intersections; {events['n_teleports']} teleport(s) and "
+                f"{events['n_collisions']} collision(s) counted every simulated second",
+                flush=True,
+            )
             return 0
     except (ValueError, FileNotFoundError, AssertionError) as exc:
         print(f"transfer_calibration: {exc}", flush=True)

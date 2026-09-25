@@ -38,6 +38,17 @@ always populated.  With draws, each one
 gets a fresh env (mandatory, per the above), one :class:`TrajectoryLogger` serves the
 whole run via ``rebind_env``, and the materialised demand is kept under
 ``<out-dir>/flows/`` so any episode can be traced to the exact vehicle list behind it.
+
+SUMO DRAW SWEEPS (P7.3a; P7.3c, ``BRIEF_41`` C1)
+------------------------------------------------
+A SUMO draw opens P7.2a's parity ``.sumocfg`` read-only.  The POLICY reads the raw SUMO ``info``; the
+LOGGER is fed that ``info`` aligned into the CityFlow-trained model's canonical frame (A16), with the
+alignment chosen BY SCENARIO -- hz1x1's key resolves to ``declared_alignment()`` itself, grid4x4's to its
+own 16-id identity alignment.  Each draw's env is the OBSERVER (``PerSecondSumoObserver``), which reads
+the teleport starts and the collisions after every simulated second; the counts are recorded in the draw's
+``run_metadata["sumo_draws"]`` entry (``n_teleports``, ``n_collisions``, ``engine_events_counted``), and an
+episode with either is REFUSED before it is written (``DEFERRED`` 93; A24(b)).  The episode layout is C6
+v1.1, unchanged: these are fields of the caller's ``run_metadata``, not of the format.
 """
 
 from __future__ import annotations
@@ -49,7 +60,7 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Any, Callable, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 import numpy as np
 
@@ -629,6 +640,119 @@ def _run_metadata(
     }
 
 
+# ----------------------------------------------------------------------
+# SUMO draw sweeps (P7.3a; P7.3c, BRIEF_41 C1): the door's alignment, its env, and its per-second counter
+# ----------------------------------------------------------------------
+
+#: The grain of the engine-event counts a SUMO draw's record carries (``BRIEF_41`` C1(iii), ``DEFERRED`` 93):
+#: the observer's per-second snapshots, never one read of TraCI's per-step lists at a decision boundary.
+ENGINE_EVENT_GRAIN = "every simulated second (offline.sumo_att_reference.PerSecondSumoObserver)"
+
+
+def _alignment_for_door(scenario_key: str) -> Any:
+    """The alignment the logger's door applies: A16's canonical frame, chosen BY SCENARIO (``BRIEF_41`` C1(i)).
+
+    ``offline.aligned_env.alignment_for_scenario_key`` returns ``declared_alignment()`` itself for hangzhou's
+    key -- the same call on the same two network files -- so every hz1x1 corpus is logged in exactly the frame
+    it always was.  grid4x4 gets its own 16-id identity alignment; hangzhou's would make ``align_info`` refuse
+    the first grid4x4 info as carrying intersections it does not know.
+    """
+    from offline.aligned_env import alignment_for_scenario_key
+
+    return alignment_for_scenario_key(scenario_key)
+
+
+def _make_counting_sumo_env(draw_spec: EnvSpec) -> Any:
+    """The env a SUMO draw's episode runs in: the OBSERVER, built exactly as ``make_env`` builds a ``SumoEnv``.
+
+    ``offline.sumo_att_reference.make_observer_sumo_env`` mirrors ``experiments.envs.make_env``'s SUMO branch
+    -- the same seven common keys, the same ``metrics`` / ``obs_norm`` handling, the same flags -- and returns
+    ``PerSecondSumoObserver``, whose ``_simulate`` reads the teleport starts and the collisions after EVERY
+    ``simulationStep()``, keeping ``metrics.on_sim_step()`` where the frozen env puts it.  Those are reads:
+    the simulation is not touched, which ``BRIEF_39`` B.8.2-2 measured on the evaluation path and T-regress
+    (a) measures for this door (an hz1x1 draw's arrays ``==`` the corpus P7.3a logged on the PLAIN env).  The
+    halting cross-check is off: it verifies the recorder's classification, not the corpus.
+    """
+    from offline.sumo_att_reference import make_observer_sumo_env
+
+    return make_observer_sumo_env(draw_spec.paths["config"], draw_spec.settings, halting_check=False)
+
+
+def dense_engine_events(env: Any) -> dict[str, Any]:
+    """The episode's teleports and collisions, counted on EVERY simulated second (``DEFERRED`` 93's fix).
+
+    Read from the observer's recorder -- one snapshot per ``simulationStep()`` -- and never from TraCI's
+    per-step lists at a decision boundary: those describe the LAST simulated second only, so a read once per
+    decision misses an event on any of the other nine.  An env without a recorder was not counted densely,
+    and that is refused rather than reported as zero.
+    """
+    recorder = getattr(env, "recorder", None)
+    if recorder is None:
+        raise ValueError(
+            f"{type(env).__name__} has no per-second recorder, so its teleports and collisions were not "
+            "counted on every simulated second; a SUMO draw sweep runs on the observer "
+            "(offline.collect._make_counting_sumo_env), never on the plain env"
+        )
+    record = recorder.collision_record()
+    return {
+        "n_teleports": int(recorder.n_teleport_events),
+        "n_collisions": int(record["n_collisions"]),
+        "teleports": list(record["teleports"]),
+        "collisions": list(record["collisions"]),
+        "grain": ENGINE_EVENT_GRAIN,
+    }
+
+
+def refuse_episode_with_engine_events(draw_id: int, events: Mapping[str, Any]) -> None:
+    """Refuse an episode with ANY teleport or collision: A24(b) requires zero of each in every corpus episode.
+
+    Stricter than A23's rule for evaluation cells, on purpose: the corpus is A17(b)'s probe replayed through
+    the logger, and A17(b)'s probe condition is zero teleports.  The caller raises this BEFORE the episode is
+    written, so a refused episode leaves nothing on disk and the run stops -- a finding, not a retry.
+    """
+    n_teleports = int(events["n_teleports"])
+    n_collisions = int(events["n_collisions"])
+    if n_teleports == 0 and n_collisions == 0:
+        return
+    times = [float(entry["time"]) for entry in (*events.get("teleports", ()), *events.get("collisions", ()))]
+    first = min(times) if times else None
+    raise ValueError(
+        f"draw {draw_id}: {n_teleports} teleport(s) and {n_collisions} collision(s) counted every simulated "
+        f"second (the first at t = {first!r}). A24(b) requires zero of each in every corpus episode, so this "
+        "episode is refused BEFORE it is written and the run stops; A17(b)'s probe condition does not hold for "
+        "this draw, which is a finding for the coordinator, not a reason to re-roll"
+    )
+
+
+def finish_sumo_draw_episode(
+    env: Any,
+    logger: TrajectoryLogger,
+    *,
+    record: dict[str, Any],
+    draw_id: int,
+    engine_seed: int,
+) -> Path:
+    """Close one SUMO draw's episode: the engine reads, the dense counts, the REFUSAL, and only then the write.
+
+    Every fact is read FROM THE RUNNING ENGINE before it closes, never from the config: A15(c)'s regime and
+    A17(b)'s vehicle-type set are claims about what SUMO actually did.  *record* is the draw's entry in
+    ``run_metadata["sumo_draws"]``, which the logger holds by reference, so these facts reach the manifest that
+    ``finalize_episode`` rewrites -- and an episode refused here rewrites nothing: no ``.npz``, no manifest.
+    """
+    record["engine_seed_requested"] = int(engine_seed)
+    record["engine_seed_drawn"] = int(getattr(env, "_engine_seed", engine_seed))
+    record["time_to_teleport_option"] = str(env._sumo.simulation.getOption("time-to-teleport"))
+    record["vehicle_types_seen"] = sorted(
+        {env._sumo.vehicle.getTypeID(v) for v in env._sumo.vehicle.getIDList()}
+    )
+    events = dense_engine_events(env)
+    record["n_teleports"] = events["n_teleports"]
+    record["n_collisions"] = events["n_collisions"]
+    record["engine_events_counted"] = events["grain"]
+    refuse_episode_with_engine_events(draw_id, events)
+    return logger.finalize_episode()
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Run one collection run; returns a process exit code."""
     args = build_parser().parse_args(argv)
@@ -711,10 +835,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     # the env stays unwrapped and the info is aligned exactly where the logger is fed.
     align_for_log: Any = None
     if randomised and spec.backend == "sumo":
-        from offline.aligned_env import declared_alignment
         from offline.backend_alignment import align_info as _align_info
 
-        _alignment = declared_alignment()
+        # P7.3c (BRIEF_41 C1(i)): chosen BY SCENARIO. hz1x1's key resolves to declared_alignment()
+        # itself, so every hangzhou corpus is logged in the frame it always was (T-regress (a)).
+        _alignment = _alignment_for_door(scenario_key)
         # A16's convention, recorded so a corpus states the frame it was written in rather than
         # leaving a reader to infer it from a state width. The permutation and the phase-map shape
         # ARE the alignment: two corpora with different permutations are different observations of
@@ -843,7 +968,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                 # its flow file once in the engine constructor and Engine::reset()
                 # never re-reads it (CityFlow/src/engine/engine.cpp:65,754).  It is equally
                 # mandatory on SUMO, where each draw is a different .sumocfg.
-                env = make_env(draw_spec)
+                # P7.3c (BRIEF_41 C1(iii), DEFERRED 93): on SUMO it is the OBSERVED env, so the
+                # episode's teleports and collisions are counted on every simulated second.
+                env = (
+                    _make_counting_sumo_env(draw_spec)
+                    if draw_spec.backend == "sumo"
+                    else make_env(draw_spec)
+                )
                 logger.rebind_env(env)
             # else: env is the nominal env built above, already bound to the logger.
 
@@ -874,21 +1005,18 @@ def main(argv: Sequence[str] | None = None) -> int:
                         break
 
                 if draw_spec.backend == "sumo":
-                    # Read FROM THE RUNNING ENGINE before it closes, never from the config: A15(c)'s
-                    # regime and A17(b)'s vehicle-type set are claims about what SUMO actually did.
-                    # `env` is the AlignedEnv; `_sumo` falls through __getattr__ to the handle.
-                    record = sumo_draw_records[-1]
-                    record["engine_seed_requested"] = int(engine_seed)
-                    record["engine_seed_drawn"] = int(
-                        getattr(env, "_engine_seed", engine_seed)
+                    # The engine reads, the per-second counts and the refusal, all BEFORE the write
+                    # (BRIEF_41 C1(iii)). `env` is the UNWRAPPED observer: the policy reads raw SUMO
+                    # info, and only the logger's input is aligned.
+                    path = finish_sumo_draw_episode(
+                        env,
+                        logger,
+                        record=sumo_draw_records[-1],
+                        draw_id=draw_id,
+                        engine_seed=engine_seed,
                     )
-                    record["time_to_teleport_option"] = str(
-                        env._sumo.simulation.getOption("time-to-teleport")
-                    )
-                    record["vehicle_types_seen"] = sorted(
-                        {env._sumo.vehicle.getTypeID(v) for v in env._sumo.vehicle.getIDList()}
-                    )
-                path = logger.finalize_episode()
+                else:
+                    path = logger.finalize_episode()
                 total_steps += steps
                 episode_index += 1
                 returns.append(episode_return)
