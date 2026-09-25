@@ -357,6 +357,11 @@ def test_the_import_check_resolves_to_the_worktree_from_a_cwd_that_shadows_it(
     tree has -- and the driver's OWN import-check command, extracted from the script rather than
     retyped, is run from there.  It must resolve to this worktree.  The same command with ``-P``
     removed must NOT, which is what proves the assertion is about the flag and not about luck.
+
+    The decoy carries ``g2_measure.py`` itself because an editable install whose finder maps
+    ``offline`` resolves an immediate child of it from the real tree even when ``offline`` itself
+    came from the working directory, so a decoy without the module shadows nothing there (CI run
+    ``36131232681``, both legs).
     """
     import re
     import subprocess
@@ -365,6 +370,8 @@ def test_the_import_check_resolves_to_the_worktree_from_a_cwd_that_shadows_it(
     decoy = tmp_path / "decoy"
     (decoy / "offline").mkdir(parents=True)
     (decoy / "offline" / "__init__.py").write_text("", encoding="utf-8")
+    decoy_module = decoy / "offline" / "g2_measure.py"
+    decoy_module.write_text('"""Decoy: the main tree\'s shape, down to the module the import check names."""\n', encoding="utf-8")
 
     line = next(line for line in _python_invocations() if " -c " in line)
     match = re.search(r"-P -c '([^']+)'", line)
@@ -383,11 +390,11 @@ def test_the_import_check_resolves_to_the_worktree_from_a_cwd_that_shadows_it(
         [sys.executable, "-c", code], cwd=decoy, env=env,
         capture_output=True, text=True, check=False,
     )
-    assert without_p.returncode != 0, (
+    assert without_p.returncode == 0, without_p.stderr
+    assert Path(without_p.stdout.strip()).resolve() == decoy_module.resolve(), (
         "the negative control passed: the decoy package did not shadow the worktree, so this "
         "test would not have caught the missing -P"
     )
-    assert "ModuleNotFoundError" in without_p.stderr
 
 
 def test_the_written_records_own_disclaimer_names_no_forbidden_field() -> None:
