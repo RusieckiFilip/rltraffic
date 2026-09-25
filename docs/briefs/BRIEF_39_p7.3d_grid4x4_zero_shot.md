@@ -1358,3 +1358,40 @@ This gate's evidence: `output/p7_3d_runs/coordinator_g8c/` (every script and out
 stops (A23(f)).
 
 ## B.8.2-5 — Then: the token (G8e), channel (a), in the coordinator's turn that made this commit; G6 with the blind comparison FIRST.
+---
+
+# ✅ AMENDMENT D — 2026-09-24, gate G6: the campaign READ from disk and PASSED — 700 / 700, attempt 1 reproduced bit for bit, the artifact regenerating byte-identically, every number recomputed by an independent route; H3's clause 1 HOLDS on grid4x4; C7 is next
+
+## D-1 — The read
+In full in `docs/notes/P7.3d_CAMPAIGN_READ_2026-09-24.md`, evidence under `output/p7_3d_runs/coordinator_g6/`. In order: **(0)** the blind
+comparison FIRST — attempt 1's 698 valid chunks equal attempt 2's on all 58 shared fields, and exactly A23's two collision events exist;
+**(a)** the capture clean (no refusal, canary 0.82 s, IDENTICAL, six MATCH, the token once, `COMPLETE`, `DRIVER EXIT: 0`); **(b)–(d)** every
+instrument field on 700 chunks, the prompts and the RTG identity on 500, C4's six MATCH; **(e)** the artifact byte-identical on
+regeneration (`c63c371f…`, 4,564,660 bytes, the manifest's line), and ρ recomputed from the raw chunks per cell under `==` first — every
+cell, draw, seed, statistic, paired comparison, Wilcoxon p and the robustness block equal; the per-intersection block equal but for two
+`mean_gap_se` values one ULP from the coordinator's stdlib route (and equal to the registered numpy route).
+
+**The registered numbers (A20(e), A23(d)):** ρ_sumo(`b_mean_k100`) on `E_sumo` **+0.8855 [+0.8736, +0.8973]**, n = 100 draws (`att_env`
++0.8855, same CI to four decimals); **clause 1 (`> 0`, CONFIRMATORY) holds**, point and CI; **clause 2 (`< 1`, reported, not scored) holds**,
+point and CI; clause 3 void (A19). At the registered unit the DT beats fixed-time on 100 / 100 draws and MaxPressure beats the DT on 100 / 100
+(Wilcoxon p = 3.96e-18 each, the test's floor at n = 100). A23(d)'s robustness check (98 draws) +0.8854 [+0.8733, +0.8975] agrees on all
+three criteria. Per-intersection ρ_i (exploratory): fourteen in 0.90–1.05; A0 0.087, C0 0.555.
+
+## D-2 — C7, for the implementer: the packet and the artifact — nothing here interprets
+1. **The artifact, BY HAND:** `cp -p /home/filip/rltraffic/output/p7_3d/artifacts/p7_3d_grid4x4.json docs/data/p7_3d_grid4x4.json` in
+   your worktree; measure and state its sha256 — it must be `c63c371ff14d208d…` (the manifest's line; print the full digest). Nothing under
+   `output/` is edited, moved or deleted.
+2. **The whole suite after the copy**, B.7.3-5's three-variable line, the real tail in the packet; T-regress (b) byte-identical.
+3. **The packet's last section** — `BRIEF_39` §7's list, with the A23 items: G1's verdict; G2's measurements with their canary and date;
+   the 16 + 16 targets and scales with their in-support positions; ρ under both definitions with CIs and per-seed means, the paired ATT
+   against both anchors; **H3's clause 1 as the registered inequality, reported not interpreted; clause 2 as an inequality; clause 3
+   void**; A23(d)'s robustness check beside the primary and A23's collision record; the per-intersection block and B.3-4's probe-ratio
+   observation read against it — **descriptive, as registered**; attempt 1 (§27.2) and attempt 2's capture, both runs' timing (the note's
+   §3); where the driver ran and at what commit; the amendments written against, by letter; the AI-assistance record's four lines; what the
+   paper's C3 section will assume; and the one sentence that no A17(f) corpus gate applies here and why.
+4. Then say exactly *"P7.3d done"* — channel (d).
+
+## D-3 — Then (G9)
+ONE merge review (A21): the code and its mutations, and every published number recomputed by the reviewer's own route from the raw chunks;
+the merge with §6's box ticked, both refs pushed; the CI skip ceiling by the registered route — observed on the merge's run, never
+predicted.
