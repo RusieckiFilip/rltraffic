@@ -391,3 +391,69 @@ stop at G1.**
 C1 with its tests first, then C2 — committed on the branch, NOT pushed (the coordinator pushes, §7). Then say **"P7.3c C1–C2
 done"** (channel (d)). The coordinator spawns G1's review, re-runs its mutants and writes Amendment B. Build C3–C4 while G1 and
 the corpus proceed (Q7).
+
+---
+
+# ✅ AMENDMENT B — 2026-09-25, gate G1: PASSED (C1 `268fd8e`, C2 `8c12b78`, branch at `1bba206`, pushed) — the corpus run is authorised to start; one MAJOR ruled a stated exception; the MINORs are a fix list due before the merge
+
+## B1 — What was checked, by whom
+- **The reviewer** (`contract-reviewer`, one mandate that was also the corpus run's pre-flight, Amendment A Q11): **PASS-WITH-NOTES, no
+  BLOCKING**. Filed with this amendment's plan row; findings file kept by the coordinator. Verified by code reading:
+  - hz1x1 takes the same `declared_alignment()` call as before, and T-regress (a) compares every array of a COMMITTED episode with a
+    fresh run, so it is not a tautology;
+  - the policy reads raw info while the logger records the aligned view, and every SUMO draw runs on the per-second observer, which has
+    no step call site that escapes the recorder;
+  - a refusal happens before `finalize_episode`, and the second-7 fixture kills a once-per-decision read;
+  - the gate checks the digest before parsing, looks each id up in that episode's own `ix_ids`, checks integrality before `==`, and reads
+    the engine seed from the pinned artifact;
+  - disjointness is run before the first episode;
+  - every refusal precedes the token; the only `rm` and `mv` are the token and the atomic sums file; `-P` is on all six interpreter calls;
+  - death at episode 57 is safe: no resume path exists, so two runs can never mix into one manifest.
+- **The coordinator, by running commands** (throwaway worktree at `1bba206`):
+  - both P7.3c test files under the standard line plus `RLTRAFFIC_SUMO_CORPORA=/home/filip/rltraffic/datasets_sumo_v11`: **40 passed, 0
+    skipped**, including the two real SUMO episodes (hz1x1 draw 201 array for array; grid4x4 draw 201 on all sixteen, by id);
+  - **four COMMITTED mutants, all KILLED** after a clean control (6 passed):
+    - M1, the gate reading by the reference's order instead of each episode's own `ix_ids`;
+    - M2, collisions read once per decision;
+    - M3, every scenario given hz1x1's alignment;
+    - M4, the driver's non-empty barrier disabled;
+  - the real corpus directory, run directory, token and capture paths confirmed ABSENT after the driver tests ran — the sandbox did
+    not reach them (the one item the reviewer could not verify).
+
+## B2 — The MAJOR: return values in the capture — a STATED EXCEPTION for this stage, no code change tonight
+The capture will carry `collect`'s per-episode global return and its mean, the canary's fixed `local_return`, and — only on a gate
+failure — the mismatching probe returns. **Ruled an exception, for the corpus stage only:** every one of these is MaxPressure's own
+behaviour on the probe band 201–300, whose per-intersection returns A24 lists as SEEN (Cell 4), or a fixed correctness reference.
+None is an outcome of an evaluated arm, and none bears on any registered comparison (A24's comparisons are DT arms on draws
+1000–1099); the hz1x1 door printed the same (P7.3a). **The rule is unchanged for every stage that rolls a DT or a trained
+checkpoint: the campaign driver prints NO outcome of any cell (C7).**
+
+## B3 — The MINORs: a fix list, due in a commit BEFORE the merge; none affects tonight's run
+1. The driver enforces `WORK_TREE == RUN_TREE` and refuses unless the run tree's HEAD equals a commit passed to it; tonight the
+   coordinator checks the corpus manifest's `git_hash` against `1bba206` at G3.
+2. `corpus-gate` pins the band itself (`requested == GRID4X4_CORPUS_DRAWS`); tonight the coordinator's own G3 route checks the band.
+3. `collect-corpus` runs the disjointness record itself, not only the driver's preflight.
+4. FAILED on every path after the token: an `EXIT` trap keyed on a success flag, and FAILED written with `printf … >` before any echo.
+   The header's start line becomes `tee -i -a`, so an interrupt reaches the capture.
+5. The gate's mismatch and integrality messages drop their values, keeping draw, id and counts.
+6. The two weak mutants are either strengthened or so marked: M7 is killed only on its message, D5 only by a text count of `rm`.
+7. The packet notes the shared door's new refusal of an unregistered scenario key.
+8. The packet notes the observer's per-second invariants as an operational risk: a raise on some draw fails LOUDLY, forcing the manual
+   move-aside, and never writes silently.
+
+## B4 — Process notes, recorded
+- **C2's driver was drafted before its tests;** the implementer then showed the tests FAIL against a stub driver and restored the real one
+  byte for byte. Accepted this once; tests first, strictly, from C3 on.
+- Two findings of the implementer's are parked: **`DEFERRED` 96** (a nominal SUMO collection crashes after its episode — reproduced at
+  the base commit, predating C1) and **`DEFERRED` 97** (the hygiene script exits 0 on a path outside `tests/`).
+
+## B5 — Running C3–C4 alongside the corpus (Amendment A, Q7)
+Build C3–C4 now, tests first, on synthetic corpora. **While the corpus run is live, do NOT run any test that EXECUTES a campaign driver
+or starts a process whose command line matches the drivers' liveness pattern.** The running collector makes those tests refuse, and a
+test of yours can make a STARTING driver refuse with exit 3. Run them after the corpus completes. Keep CPU-heavy work off the machine for
+the minute the author starts the run: the canary refuses above 2.0 s.
+
+## B6 — Next
+The coordinator creates the run worktree `/home/filip/rltraffic-p73c-run` detached at `1bba206`, and hands the author the token block
+(gate G2, channel (a)). G3 follows the run: the coordinator's own route over all 100 episodes and 1,600 returns, the manifest's
+`git_hash`, the digests and the dense counts.
