@@ -66,7 +66,7 @@ written with its strict and non-strict bounds), F24 (G_att fixed: 0.114539969717
 **The reviewer's UNCHECKED items** (A-2's text, J1(c)'s wording, `DEFERRED` 93, A21/A22/A15(g) in full, Cell 4's on-disk
 claim, P5.2's packet figure, the corpus's scenario key) are either the coordinator's own reading this session (A-2, J1(c),
 `DEFERRED` 93, the packet's D-2 at `docs/returns/P5.2.md:257–262`), a search re-run at registration time (Cell 4), or a gate of
-`BRIEF_40` (the corpus key, refused otherwise).
+`BRIEF_41` (the corpus key, refused otherwise). *(Corrected 2026-09-25 at registration: this read `BRIEF_40`, which is P5.4's; see the plan's row of that date.)*
 
 **Cost of the adopted design, measured bases:** 30 trainings ≈ 5.6 h of GPU sequentially (≈ 8.1 min per 4,000 steps at P5.2's
 122 ms/step); 4,700 cells ≈ 12.8 h at P7.3d's 119 s per DT cell and 54 s per anchor cell over 11.9× parallelism — stage 1
