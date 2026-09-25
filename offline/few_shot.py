@@ -1,4 +1,8 @@
-"""P7.3c (``BRIEF_41`` C3): the warm-start fine-tune of the grid4x4 joint model -- A18(d) as A24(b) reads it.
+"""P7.3c (``BRIEF_41`` C3-C4): the warm-start fine-tune of the grid4x4 joint model -- A18(d) as A24(b) reads it.
+
+C3 is the fine-tune itself (everything down to ``write_run_record``); C4 is the training driver's Python half -- the
+resume decision, the attempt markers, the manifest, the record, G5's fenced timing and the input check -- which
+``offline/campaigns/p7_3c_finetune.sh`` calls, deciding nothing that matters in bash.
 
 Checkpoint format.  The top-level ``format_version`` of every payload written here is the SOURCE's,
 ``spatial-dt-checkpoint/1.0`` (``agent/SpatialDTAgent.py``), because ``SpatialDTAgent.load`` refuses every other value
@@ -82,8 +86,12 @@ __all__ = [
     "TrainingOutcome",
     "Windows",
     "assert_fence",
+    "attempts_of",
     "build_model",
+    "build_record",
     "build_windows",
+    "check_inputs",
+    "choose_concurrency",
     "draw_rows",
     "fine_tune",
     "joint_batch",
@@ -91,17 +99,24 @@ __all__ = [
     "load_source",
     "main",
     "make_optimiser",
+    "next_attempt",
     "payload_for",
     "prepare_fine_tune",
     "registered_destination",
     "registered_runs",
     "registered_source_path",
+    "resume_decision",
     "run_by_name",
     "run_record_path",
     "select_prefix",
+    "summarize_timing",
+    "timing_destination",
     "timing_spec",
     "train_prepared",
+    "validate_checkpoint",
+    "write_manifest",
     "write_payload_exclusive",
+    "write_record",
     "write_run_record",
 ]
 
@@ -1063,6 +1078,483 @@ def write_run_record(spec: RunSpec, result: FineTuneResult, *, output_root: str 
 
 
 # ======================================================================================================================
+# C4 -- the training driver's Python half: resume, attempts, manifest, record, G5's timing, the inputs
+# ======================================================================================================================
+#
+# ``offline/campaigns/p7_3c_finetune.sh`` decides nothing in bash that could train a checkpoint twice, overwrite one or
+# let a fenced one through: every such decision is made here (plan section 8).
+
+#: The training record the coordinator commits on ``main`` at G7 as ``docs/data/p7_3c_finetune.json`` (Amendment A Q9).
+RECORD_FORMAT_VERSION = "p7.3c-finetune-record/1.0"
+RECORD_NAME = "p7_3c_finetune.json"
+#: The manifest of the thirty checkpoints, under the output root, in ``sha256sum``'s format (``BRIEF_41`` C4).
+MANIFEST_FILENAME = "SHA256SUMS_p7_3c_finetune.txt"
+ATTEMPTS_DIRNAME = "attempts"
+#: G5's records: one per timed run (slot), one for the k = 100 build, and the summary the driver reads C from.
+TIMING_FORMAT_VERSION = "p7.3c-finetune-timing/1.0"
+TIMING_SLOT_FORMAT_VERSION = "p7.3c-finetune-timing-slot/1.0"
+TIMING_BUILD_FORMAT_VERSION = "p7.3c-finetune-timing-build/1.0"
+TIMING_RECORD_NAME = "timing.json"
+#: G5's phases, fixed before any measurement (plan section 8): alone, two at once, three at once, then ONE same-seed
+#: repeat of the single run, alone.  The concurrency C of a phase is its number of slots.
+TIMING_PHASES: dict[str, tuple[str, ...]] = {
+    "alone": ("alone",),
+    "pair": ("pair1", "pair2"),
+    "triple": ("triple1", "triple2", "triple3"),
+}
+TIMING_SLOTS: tuple[str, ...] = ("alone", "pair1", "pair2", "triple1", "triple2", "triple3", "repeat")
+#: The device and the rule's cap: C in {1, 2, 3} with the largest aggregate throughput whose measured device peak is
+#: <= 80 % of 16,303 MiB (this machine's RTX 5080 Laptop GPU); a tie goes to the smaller C.
+DEVICE_MIB = 16303.0
+DEVICE_FRACTION = 0.8
+#: Amendment A, Q12: a k = 100 window build over five minutes permits one process per k.
+Q12_BUILD_SECONDS = 300.0
+#: G3's gate record, as ``offline.transfer_calibration``'s corpus-gate writes it.
+GATE_FORMAT_VERSION = "p7.3c-corpus-gate/1.0"
+_STAMP = re.compile(r"\d{8}T\d{6}Z")
+
+
+def _pin_for(seed: int, pins: Mapping[int, str] | None) -> str:
+    """A20(a)'s pin for *seed* (``offline.transfer_calibration``), or the caller's -- the tests' synthetic sources."""
+    from offline.transfer_calibration import GRID4X4_CHECKPOINT_SHA256
+
+    table = GRID4X4_CHECKPOINT_SHA256 if pins is None else pins
+    if int(seed) not in table:
+        raise ValueError(f"no pinned source digest for seed {seed}")
+    return str(table[int(seed)])
+
+
+def _read_json_record(path: Path, version: str, what: str) -> dict[str, Any]:
+    if not path.is_file():
+        raise ValueError(f"{path} is absent: {what}")
+    record = json.loads(path.read_text(encoding="utf-8"))
+    if record.get("format_version") != version:
+        raise ValueError(f"{path}: format {record.get('format_version')!r}, not {version!r}")
+    return record
+
+
+def validate_checkpoint(
+    spec: RunSpec, *, output_root: str | Path, pins: Mapping[int, str] | None = None,
+    data_dir: str | Path | None = None,
+) -> dict[str, bool]:
+    """Every check a written checkpoint of *spec* must pass, as booleans: the record carries them, resume refuses on any.
+
+    The frozen parts are compared with the SOURCE at its pin, read again here (never with a copy the payload carries);
+    the budget, k, the draw ids, the switch, the seed and the source's digest with *spec*; the targets with the pinned
+    calibration artifact's ``k{k}``; the recipe with the constants the trainer imports.  An unreadable file is refused.
+    """
+    from offline.spatial_mixing import GRAD_CLIP, JOINT_BATCH_SIZE, LEARNING_RATE, WEIGHT_DECAY
+    from offline.tier_sweep import warmup_for
+
+    path = assert_fence(registered_destination(output_root, spec), timing=False)
+    pin = _pin_for(spec.seed, pins)
+    source = load_source(registered_source_path(output_root, spec.seed), expected_sha256=pin)
+    try:
+        payload = _load_weights_only(path)
+    except Exception as exc:  # any failure to read is the same finding: the file is not a checkpoint of this run
+        raise ValueError(
+            f"{path} exists but cannot be read ({type(exc).__name__}); it is never overwritten -- a person moves it "
+            "aside"
+        ) from exc
+    targets = load_k_targets(spec.k, source=source, data_dir=data_dir).targets
+    provenance = dict(payload.get("provenance") or {})
+    block = dict(provenance.get("few_shot") or {})
+    recipe = (
+        provenance.get("learning_rate"), provenance.get("weight_decay"), provenance.get("grad_clip"),
+        provenance.get("batch_size"), provenance.get("warmup_steps"),
+    )
+    return {
+        "format_version": payload.get("format_version") == SPATIAL_FORMAT_VERSION,
+        "few_shot_format": block.get("format_version") == FEW_SHOT_FORMAT_VERSION,
+        "config": payload.get("config") == source["config"],
+        "stats": payload.get("stats") == source["stats"],
+        "rtg_scale": payload.get("rtg_scale") == source["rtg_scale"],
+        "intersection_ids": payload.get("intersection_ids") == source["intersection_ids"],
+        "spatial_mask": payload.get("spatial_mask") == source["spatial_mask"],
+        "normalise": payload.get("normalise") == source["normalise"],
+        "scenario_id": payload.get("scenario_id") == source["scenario_id"],
+        "source_sha256": block.get("source_sha256") == pin,
+        "source_seed": block.get("source_seed") == spec.seed and provenance.get("seed") == spec.seed,
+        "budget": provenance.get("gradient_steps") == spec.budget,
+        "k": block.get("k") == spec.k,
+        "draw_ids": block.get("draw_ids") == list(range(FIRST_DRAW, FIRST_DRAW + spec.k)),
+        "init": block.get("init") == spec.init,
+        "targets": payload.get("target_rtg") == targets,
+        "recipe": recipe == (LEARNING_RATE, WEIGHT_DECAY, GRAD_CLIP, JOINT_BATCH_SIZE, warmup_for(spec.budget)),
+    }
+
+
+def resume_decision(
+    spec: RunSpec, *, output_root: str | Path, pins: Mapping[int, str] | None = None,
+    data_dir: str | Path | None = None,
+) -> str:
+    """``"train"`` if *spec*'s checkpoint is absent, ``"skip"`` if it exists AND validates; refused otherwise.
+
+    Decided here, never by a ``[ -f ]`` in the driver (plan section 8): a checkpoint that exists and does not validate
+    is never overwritten and never re-trained -- A24(b) allows a re-run only when the checkpoint was never written.
+    """
+    path = registered_destination(output_root, spec)
+    if not path.exists() and not path.is_symlink():
+        return "train"
+    checks = validate_checkpoint(spec, output_root=output_root, pins=pins, data_dir=data_dir)
+    failed = [name for name, passed in checks.items() if not passed]
+    if failed:
+        raise ValueError(
+            f"{path} exists but does not validate (failed: {failed}); it is never overwritten -- a person moves it "
+            "aside, and a run is re-trained only if its checkpoint was never written (A24(b))"
+        )
+    return "skip"
+
+
+def attempts_of(spec: RunSpec, *, output_root: str | Path) -> tuple[int, ...]:
+    """The attempt numbers recorded on disk for *spec* (``attempts/<name>.<n>``), in order."""
+    directory = training_root(output_root) / ATTEMPTS_DIRNAME
+    if not directory.is_dir():
+        return ()
+    prefix = f"{spec.name}."
+    numbers = [
+        int(path.name[len(prefix):])
+        for path in directory.iterdir()
+        if path.name.startswith(prefix) and path.name[len(prefix):].isdigit()
+    ]
+    return tuple(sorted(numbers))
+
+
+def next_attempt(spec: RunSpec, *, output_root: str | Path) -> int:
+    """Write the next attempt marker for *spec*, exclusively, BEFORE its training starts; return its number.
+
+    A marker with no checkpoint after it is a re-run of an infrastructure failure, counted on disk (plan section 8).
+    """
+    directory = training_root(output_root) / ATTEMPTS_DIRNAME
+    if not directory.is_dir():
+        raise ValueError(f"{directory} does not exist; the driver creates it after the token")
+    done = attempts_of(spec, output_root=output_root)
+    number = (done[-1] if done else 0) + 1
+    text = f"attempt {number} of {spec.name}, started {_utc_now()}, code {_code_commit()}\n"
+    _link_exclusive(text.encode("utf-8"), directory / f"{spec.name}.{number}")
+    return number
+
+
+def _declared(runs: Sequence[RunSpec] | None) -> list[RunSpec]:
+    return list(registered_runs() if runs is None else runs)
+
+
+def _manifest_entries(path: Path) -> dict[str, str]:
+    entries: dict[str, str] = {}
+    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        match = re.fullmatch(r"([0-9a-f]{64})  (\S+)", line)
+        if match is None or match.group(2) in entries:
+            raise ValueError(f"{path}:{number}: not one sha256sum line: {line!r}")
+        entries[match.group(2)] = match.group(1)
+    return entries
+
+
+def write_manifest(output_root: str | Path, *, runs: Sequence[RunSpec] | None = None) -> Path:
+    """``SHA256SUMS_p7_3c_finetune.txt``: every declared checkpoint by digest, written once, then re-verified.
+
+    Refuses a stray entry in the checkpoints directory, a missing checkpoint, and an existing manifest with other
+    content; the same content again is a no-op, so a restarted driver can reach the record.
+    """
+    root = Path(output_root)
+    declared = _declared(runs)
+    checkpoints = training_root(root) / CHECKPOINTS_DIRNAME
+    wanted = {f"{spec.name}.pt" for spec in declared}
+    if checkpoints.is_dir():
+        stray = sorted(path.name for path in checkpoints.iterdir() if path.name not in wanted)
+        if stray:
+            raise ValueError(
+                f"{checkpoints / stray[0]} is not one of the declared runs ({len(stray)} such entr"
+                f"{'y' if len(stray) == 1 else 'ies'}); the manifest lists exactly the declared checkpoints"
+            )
+    lines: list[tuple[str, str]] = []
+    for spec in declared:
+        path = registered_destination(root, spec)
+        if not path.is_file():
+            raise ValueError(f"{path} is absent: every declared run needs its checkpoint before the manifest")
+        lines.append((str(path.relative_to(root)), _sha256_file(path)))
+    text = "".join(f"{digest}  {relative}\n" for relative, digest in sorted(lines))
+    manifest = root / MANIFEST_FILENAME
+    if manifest.exists():
+        if manifest.read_text(encoding="utf-8") != text:
+            raise ValueError(
+                f"{manifest} already exists and differs from what the checkpoints give; it is never rewritten -- a "
+                "person moves it aside"
+            )
+    else:
+        _link_exclusive(text.encode("utf-8"), manifest)
+    for relative, digest in _manifest_entries(manifest).items():
+        if _sha256_file(root / relative) != digest:
+            raise ValueError(f"{root / relative} does not match {manifest}")
+    return manifest
+
+
+def build_record(
+    output_root: str | Path, *, corpus_dir: str | Path, timing_path: str | Path,
+    runs: Sequence[RunSpec] | None = None, pins: Mapping[int, str] | None = None,
+    data_dir: str | Path | None = None,
+) -> dict[str, Any]:
+    """The training record: per run its digests, frozen-part checks, steps, seconds, loss and attempts; the corpus,
+    calibration and manifest digests; G5's timing record.  Refuses rather than record an invalid or partial set."""
+    from offline.tier_sweep import canonical_state_dict_digest
+    from offline.transfer_curve import P7_3D_CALIBRATION_SHA256
+
+    root = Path(output_root)
+    declared = _declared(runs)
+    manifest = root / MANIFEST_FILENAME
+    if not manifest.is_file():
+        raise ValueError(f"{manifest} is absent: the manifest is written first, and the record repeats its digests")
+    listed = _manifest_entries(manifest)
+    timing = Path(timing_path)
+    timing_record = _read_json_record(timing, TIMING_FORMAT_VERSION, "G5's timing record")
+    _entries, corpus_sums = _verified_entries(Path(corpus_dir))
+    calibration = (Path(data_dir) if data_dir is not None else _DATA_DIR) / CALIBRATION_NAME
+    calibration_digest = _sha256_file(calibration)
+    if calibration_digest != P7_3D_CALIBRATION_SHA256:
+        raise ValueError(f"{calibration}: sha256 {calibration_digest} is not the pinned {P7_3D_CALIBRATION_SHA256}")
+
+    entries: dict[str, Any] = {}
+    for spec in declared:
+        path = registered_destination(root, spec)
+        relative = str(path.relative_to(root))
+        digest = _sha256_file(path)
+        if listed.get(relative) != digest:
+            raise ValueError(f"{relative} is not in {manifest.name} at its current digest {digest}")
+        checks = validate_checkpoint(spec, output_root=root, pins=pins, data_dir=data_dir)
+        failed = [name for name, passed in checks.items() if not passed]
+        if failed:
+            raise ValueError(
+                f"{spec.name} does not validate (failed: {failed}); the record is never written for a set whose frozen "
+                "parts, budget, targets or switch differ from what A24(b) registers"
+            )
+        payload = _load_weights_only(path)
+        block = payload["provenance"]["few_shot"]
+        if block["corpus_sha256sums_sha256"] != corpus_sums:
+            raise ValueError(f"{spec.name} was trained on a corpus whose SHA256SUMS is not {corpus_dir}'s")
+        run_record = _read_json_record(
+            run_record_path(root, spec), RUN_RECORD_FORMAT_VERSION,
+            "the checkpoint exists without its run record (the process died between the two writes); the "
+            "coordinator decides",
+        )
+        if run_record.get("checkpoint_sha256") != digest:
+            raise ValueError(f"{run_record_path(root, spec)} records another checkpoint digest")
+        attempts = attempts_of(spec, output_root=root)
+        entries[spec.name] = {
+            "subject": spec.subject,
+            "init": spec.init,
+            "k": int(spec.k),
+            "budget": int(spec.budget),
+            "seed": int(spec.seed),
+            "checkpoint": relative,
+            "checkpoint_sha256": digest,
+            "weights_sha256": canonical_state_dict_digest(path),
+            "source_sha256": block["source_sha256"],
+            "frozen_checks": checks,
+            "steps": int(payload["provenance"]["gradient_steps"]),
+            "warmup_steps": int(payload["provenance"]["warmup_steps"]),
+            "loop_seconds": run_record["loop_seconds"],
+            "final_loss": run_record["final_loss"],
+            "attempts": len(attempts),
+            "reruns": max(0, len(attempts) - 1),
+            "git_commit": payload["provenance"]["git_commit"],
+        }
+    return {
+        "format_version": RECORD_FORMAT_VERSION,
+        "registered_in": "PREREGISTRATION A24(b); BRIEF_41 C3-C4, Amendment A (Q9)",
+        "n_runs": len(declared),
+        "runs": entries,
+        "corpus_dir": str(Path(corpus_dir).resolve()),
+        "corpus_sha256sums_sha256": corpus_sums,
+        "calibration_sha256": calibration_digest,
+        "manifest": MANIFEST_FILENAME,
+        "manifest_sha256": _sha256_file(manifest),
+        "timing": {"path": str(timing), "sha256": _sha256_file(timing), "record": timing_record},
+        "reruns_rule": "a re-run is an attempt marker with no checkpoint after it: an infrastructure failure (A24(b))",
+    }
+
+
+def write_record(output_root: str | Path, record: Mapping[str, Any]) -> Path:
+    """``p7_3c_training/p7_3c_finetune.json``, written once; the same content again is a no-op, other content refused."""
+    path = training_root(output_root) / RECORD_NAME
+    text = json.dumps(record, indent=2, sort_keys=True) + "\n"
+    if path.exists():
+        if path.read_text(encoding="utf-8") != text:
+            raise ValueError(f"{path} already exists and differs; it is never rewritten -- a person moves it aside")
+        return path
+    _link_exclusive(text.encode("utf-8"), path)
+    return path
+
+
+def choose_concurrency(
+    measurements: Mapping[int, Mapping[str, float]], *, device_mib: float = DEVICE_MIB, fraction: float = DEVICE_FRACTION
+) -> int:
+    """The rule fixed before G5 measured anything: the C with the largest aggregate throughput (C / ms-per-step at C)
+    among those whose measured device peak is <= *fraction* of *device_mib*; a tie goes to the smaller C.  A device
+    that cannot hold ONE run within the cap is refused -- ``BRIEF_41`` G5: BLOCKED, with the numbers."""
+    cap = device_mib * fraction
+    eligible = [
+        (int(c) / float(m["ms_per_step"]), int(c))
+        for c, m in sorted(measurements.items())
+        if float(m["device_peak_mib"]) <= cap
+    ]
+    if not eligible or eligible[0][1] != 1:
+        raise ValueError(
+            f"the GPU cannot hold one run within {fraction:.0%} of {device_mib:.0f} MiB (measured "
+            f"{ {int(c): float(m['device_peak_mib']) for c, m in measurements.items()} } MiB): BLOCKED, with the numbers"
+        )
+    best = max(throughput for throughput, _c in eligible)
+    return min(c for throughput, c in eligible if throughput == best)
+
+
+def timing_destination(output_root: str | Path, stamp: str, slot: str) -> Path:
+    """A fenced timing checkpoint: ``p7_3c_training/fenced_timing/<stamp>/<slot>.pt``."""
+    if _STAMP.fullmatch(str(stamp)) is None:
+        raise ValueError(f"timing stamp {stamp!r} is not a UTC stamp like 20260925T230000Z")
+    if slot not in TIMING_SLOTS:
+        raise ValueError(f"timing slot {slot!r} is not one of {list(TIMING_SLOTS)}")
+    return training_root(output_root) / FENCED_TIMING_DIRNAME / str(stamp) / f"{slot}.pt"
+
+
+def _slot_ms(record: Mapping[str, Any]) -> float:
+    return float(record["loop_seconds"]) / int(record["steps"]) * 1000
+
+
+def summarize_timing(stamp_dir: str | Path) -> dict[str, Any]:
+    """G5's summary: ms/step per phase (the mean of its slots), the slowdown against ALONE, the device peak (the
+    largest ``nvidia-smi`` sample of the phase), the repeat's verdict by TWO routes (file sha256, weights-only
+    digest), the concurrency by :func:`choose_concurrency`, and the k = 100 build (Amendment A, Q12)."""
+    stamp = Path(stamp_dir)
+    assert_fence(stamp / "timing.pt", timing=True)
+    slots = {
+        name: _read_json_record(stamp / f"{name}.json", TIMING_SLOT_FORMAT_VERSION, f"timing slot {name}")
+        for name in TIMING_SLOTS
+    }
+    phases: dict[str, dict[str, Any]] = {}
+    for phase, members in TIMING_PHASES.items():
+        per_slot = [_slot_ms(slots[name]) for name in members]
+        samples_path = stamp / f"nvidia_smi_{phase}.csv"
+        if not samples_path.is_file():
+            raise ValueError(f"{samples_path} is absent: the driver samples the device during every phase")
+        samples = [float(value) for value in samples_path.read_text(encoding="utf-8").split()]
+        if not samples:
+            raise ValueError(f"{samples_path} holds no sample")
+        phases[phase] = {
+            "concurrency": len(members),
+            "slots": list(members),
+            "per_slot_ms_per_step": per_slot,
+            "ms_per_step": sum(per_slot) / len(per_slot),
+            "device_peak_mib": max(samples),
+            "peak_allocated_mib": max(float(slots[name]["peak_allocated_mib"]) for name in members),
+        }
+    alone = phases["alone"]["ms_per_step"]
+    for phase in phases.values():
+        phase["slowdown"] = phase["ms_per_step"] / alone
+    table = {phase["concurrency"]: phase for phase in phases.values()}
+    build = _read_json_record(stamp / "build_k100.json", TIMING_BUILD_FORMAT_VERSION, "the k = 100 build timing")
+    return {
+        "format_version": TIMING_FORMAT_VERSION,
+        "stamp": stamp.name,
+        "phases": phases,
+        "repeat": {
+            "file_sha256_equal": slots["repeat"]["checkpoint_sha256"] == slots["alone"]["checkpoint_sha256"],
+            "weights_sha256_equal": slots["repeat"]["weights_sha256"] == slots["alone"]["weights_sha256"],
+        },
+        "concurrency": choose_concurrency(table),
+        "rule": (
+            f"C in {{1, 2, 3}} with the largest aggregate throughput (C / ms-per-step) whose device peak is <= "
+            f"{DEVICE_FRACTION:.0%} of {DEVICE_MIB:.0f} MiB; a tie goes to the smaller C (plan section 8)"
+        ),
+        "build_k100": build,
+        "q12_one_process_per_k": float(build["seconds"]) > Q12_BUILD_SECONDS,
+    }
+
+
+def check_inputs(
+    *, output_root: str | Path, corpus_dir: str | Path, gate_record: str | Path,
+    pins: Mapping[int, str] | None = None, data_dir: str | Path | None = None,
+    timing_path: str | Path | None = None,
+) -> dict[str, Any]:
+    """Every input by digest, before the canary and the token: the calibration artifact at its pin, A20(a)'s five
+    sources at theirs, the corpus's sums entry by entry over the whole band, G3's gate record for THIS corpus (100
+    draws, 1,600 returns, zero events), CUDA -- and, for the trainings, G5's record: its concurrency re-derived by the
+    rule and enough free device memory for it."""
+    from offline.transfer_curve import P7_3D_CALIBRATION_SHA256
+
+    root = Path(output_root)
+    calibration = (Path(data_dir) if data_dir is not None else _DATA_DIR) / CALIBRATION_NAME
+    if not calibration.is_file():
+        raise ValueError(f"{calibration} is absent")
+    calibration_digest = _sha256_file(calibration)
+    if calibration_digest != P7_3D_CALIBRATION_SHA256:
+        raise ValueError(f"{calibration}: sha256 {calibration_digest} is not the pinned {P7_3D_CALIBRATION_SHA256}")
+    sources: dict[int, str] = {}
+    for seed in TRAINING_SEEDS:
+        path = registered_source_path(root, seed)
+        if not path.is_file():
+            raise ValueError(f"{path} is absent: A20(a)'s five checkpoints are read from the output tree")
+        pin = _pin_for(seed, pins)
+        digest = _sha256_file(path)
+        if digest != pin:
+            raise ValueError(f"seed {seed}: {path} has sha256 {digest}, which is not the pinned {pin}")
+        sources[seed] = digest
+    prefix = select_prefix(corpus_dir, max(REGISTERED_KS), scenario_id=SCENARIO_ID)
+
+    gate = Path(gate_record)
+    record = _read_json_record(
+        gate, GATE_FORMAT_VERSION, "G3's gate record, which the corpus driver writes only when A17(f)'s gate passes"
+    )
+    recorded_corpus = Path(str(record.get("corpus_dir"))).resolve()
+    if recorded_corpus != Path(corpus_dir).resolve():
+        raise ValueError(f"the gate record is for {recorded_corpus}, not {Path(corpus_dir).resolve()}")
+    if record.get("all_match") is not True:
+        raise ValueError(f"the gate record says all_match {record.get('all_match')!r}")
+    for field, expected, noun in (
+        ("n_draws", 100, "draws"), ("n_intersections", 16, "intersections"),
+        ("n_checked", 1600, "returns"), ("n_matching", 1600, "matching returns"),
+    ):
+        if record.get(field) != expected:
+            verb = "checked" if field == "n_checked" else "records"
+            raise ValueError(f"the gate record {verb} {record.get(field)} {noun}, not {expected}")
+    events = dict(record.get("engine_events") or {})
+    if events.get("n_teleports") != 0 or events.get("n_collisions") != 0:
+        raise ValueError(
+            f"the gate record counts {events.get('n_teleports')} teleport(s) and {events.get('n_collisions')} "
+            "collision(s); A24(b) requires zero of each"
+        )
+
+    if not torch.cuda.is_available():
+        raise ValueError("CUDA is not available; the registered runs and G5's timing train on cuda only")
+    free_bytes, _total = torch.cuda.mem_get_info()
+    free_mib = free_bytes / 2**20
+    facts: dict[str, Any] = {
+        "calibration_sha256": calibration_digest,
+        "source_sha256": sources,
+        "corpus_sha256sums_sha256": prefix.sums_sha256,
+        "gate_record_sha256": _sha256_file(gate),
+        "cuda_free_mib": free_mib,
+    }
+    if timing_path is not None:
+        concurrency, needed = _timing_concurrency(Path(timing_path))
+        if free_mib < needed:
+            raise ValueError(
+                f"{free_mib:.0f} MiB free on the device, below the {needed:.0f} MiB G5 measured at concurrency "
+                f"{concurrency}"
+            )
+        facts["concurrency"] = concurrency
+        facts["timing_sha256"] = _sha256_file(Path(timing_path))
+    return facts
+
+
+def _timing_concurrency(path: Path) -> tuple[int, float]:
+    """G5's recorded concurrency, RE-DERIVED by the rule from the record's own phases; and that phase's device peak."""
+    timing = _read_json_record(path, TIMING_FORMAT_VERSION, "G5's timing record (the fenced timing run writes it)")
+    by_c = {len(TIMING_PHASES[name]): timing["phases"][name] for name in TIMING_PHASES}
+    concurrency = choose_concurrency(by_c)
+    if concurrency != int(timing["concurrency"]):
+        raise ValueError(f"{path} records concurrency {timing['concurrency']}, but the rule gives {concurrency}")
+    return concurrency, float(by_c[concurrency]["device_peak_mib"])
+
+
+# ======================================================================================================================
 # The command line
 # ======================================================================================================================
 
@@ -1115,17 +1607,228 @@ def _cmd_train(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_runs(args: argparse.Namespace) -> int:
+    """The thirty registered run names, one per line, in the registered order."""
+    for spec in registered_runs():
+        print(spec.name)
+    return 0
+
+
+def _cmd_resume(args: argparse.Namespace) -> int:
+    """One run's decision, or -- ``--all``, the driver's pre-token scan -- every run's, with no stray checkpoint."""
+    root = Path(args.output_root)
+    if args.all:
+        checkpoints = training_root(root) / CHECKPOINTS_DIRNAME
+        wanted = {f"{spec.name}.pt" for spec in registered_runs()}
+        if checkpoints.is_dir():
+            stray = sorted(path.name for path in checkpoints.iterdir() if path.name not in wanted)
+            if stray:
+                raise ValueError(
+                    f"{checkpoints / stray[0]} is not one of the 30 registered runs; a person moves it aside before "
+                    "the trainings start"
+                )
+        counts = Counter(resume_decision(spec, output_root=root, data_dir=args.data_dir) for spec in registered_runs())
+        print(f"resume_decision: {counts['train']} to train, {counts['skip']} to skip", flush=True)
+        return 0
+    if args.run is None:
+        raise ValueError("resume-decision needs --run NAME or --all")
+    print(resume_decision(run_by_name(args.run), output_root=root, data_dir=args.data_dir), flush=True)
+    return 0
+
+
+def _cmd_attempt(args: argparse.Namespace) -> int:
+    print(next_attempt(run_by_name(args.run), output_root=Path(args.output_root)), flush=True)
+    return 0
+
+
+def _cmd_manifest(args: argparse.Namespace) -> int:
+    path = write_manifest(Path(args.output_root))
+    print(f"manifest: {path} lists the {len(registered_runs())} checkpoints and was re-verified", flush=True)
+    return 0
+
+
+def _cmd_record(args: argparse.Namespace) -> int:
+    record = build_record(
+        Path(args.output_root), corpus_dir=Path(args.corpus_dir), timing_path=Path(args.timing),
+        data_dir=args.data_dir,
+    )
+    path = write_record(Path(args.output_root), record)
+    print(f"record: {path} ({record['n_runs']} runs; the coordinator verifies it at G7)", flush=True)
+    return 0
+
+
+def _cmd_check_inputs(args: argparse.Namespace) -> int:
+    facts = check_inputs(
+        output_root=Path(args.output_root), corpus_dir=Path(args.corpus_dir), gate_record=Path(args.gate_record),
+        data_dir=args.data_dir, timing_path=None if args.timing is None else Path(args.timing),
+    )
+    tail = "" if "concurrency" not in facts else f", concurrency {facts['concurrency']} from G5's record"
+    print(
+        f"check_inputs PASSED: calibration {facts['calibration_sha256'][:12]}, sources 5/5 at A20(a)'s pins, corpus "
+        f"SHA256SUMS {facts['corpus_sha256sums_sha256'][:12]} (the band 201-300 verified entry by entry), gate record "
+        f"{facts['gate_record_sha256'][:12]} (1600/1600, zero events), CUDA {facts['cuda_free_mib']:.0f} MiB free{tail}",
+        flush=True,
+    )
+    return 0
+
+
+def _cmd_timing(args: argparse.Namespace) -> int:
+    """G5's fenced timing: one run, the k = 100 build, the summary, or the concurrency a summary gives."""
+    from offline.tier_sweep import canonical_state_dict_digest
+    from offline.transfer_calibration import GRID4X4_CHECKPOINT_SHA256
+
+    root = Path(args.output_root)
+    if args.action == "concurrency":
+        concurrency, _needed = _timing_concurrency(Path(args.timing))
+        print(concurrency, flush=True)
+        return 0
+    stamp_dir = training_root(root) / FENCED_TIMING_DIRNAME / str(args.stamp)
+    if _STAMP.fullmatch(str(args.stamp)) is None or not stamp_dir.is_dir():
+        raise ValueError(f"{stamp_dir} is not an existing fenced timing directory; the driver creates it")
+    if args.action == "summarize":
+        summary = summarize_timing(stamp_dir)
+        out = stamp_dir / TIMING_RECORD_NAME
+        _link_exclusive((json.dumps(summary, indent=2, sort_keys=True) + "\n").encode("utf-8"), out)
+        for name, phase in summary["phases"].items():
+            print(
+                f"timing {name}: {phase['ms_per_step']:.1f} ms/step (x{phase['slowdown']:.2f} alone), device peak "
+                f"{phase['device_peak_mib']:.0f} MiB, allocated peak {phase['peak_allocated_mib']:.0f} MiB per process",
+                flush=True,
+            )
+        print(
+            f"timing repeat: file sha256 {'EQUAL' if summary['repeat']['file_sha256_equal'] else 'DIFFERS'}, weights "
+            f"{'EQUAL' if summary['repeat']['weights_sha256_equal'] else 'DIFFER'}; k = 100 build "
+            f"{summary['build_k100']['seconds']:.1f} s; concurrency {summary['concurrency']}; wrote {out}",
+            flush=True,
+        )
+        return 0
+    if not torch.cuda.is_available():
+        raise ValueError("CUDA is not available; G5 times the registered regime")
+    spec = timing_spec()
+    if args.action == "build":
+        import resource
+
+        out = stamp_dir / f"build_k{int(args.k)}.json"
+        if out.exists():
+            raise ValueError(f"{out} already exists; a timing record is written once")
+        started = time.perf_counter()
+        source = load_source(registered_source_path(root, spec.seed), expected_sha256=GRID4X4_CHECKPOINT_SHA256[spec.seed])
+        prefix = select_prefix(Path(args.corpus_dir), int(args.k), scenario_id=SCENARIO_ID)
+        windows = build_windows(Path(args.corpus_dir), prefix.draw_ids, source)
+        seconds = time.perf_counter() - started
+        record = {
+            "format_version": TIMING_BUILD_FORMAT_VERSION,
+            "k": int(args.k),
+            "seconds": float(seconds),
+            "peak_rss_mib": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0,
+            "n_joint_windows": int(windows.index.n_windows),
+            "git_commit": _code_commit(),
+            "written_utc": _utc_now(),
+        }
+        _link_exclusive((json.dumps(record, indent=2, sort_keys=True) + "\n").encode("utf-8"), out)
+        print(f"timing build k {args.k}: {seconds:.1f} s, peak RSS {record['peak_rss_mib']:.0f} MiB", flush=True)
+        return 0
+    destination = assert_fence(timing_destination(root, str(args.stamp), str(args.slot)), timing=True)
+    out = destination.with_suffix(".json")
+    if out.exists():
+        raise ValueError(f"{out} already exists; a timing record is written once")
+    torch.cuda.reset_peak_memory_stats()
+    result = fine_tune(
+        source_path=registered_source_path(root, spec.seed),
+        source_sha256=GRID4X4_CHECKPOINT_SHA256[spec.seed],
+        corpus_dir=Path(args.corpus_dir),
+        k=spec.k,
+        budget=spec.budget,
+        seed=spec.seed,
+        init=spec.init,
+        device="cuda",
+        destination=destination,
+        data_dir=args.data_dir,
+        log_every=100,
+    )
+    record = {
+        "format_version": TIMING_SLOT_FORMAT_VERSION,
+        "slot": str(args.slot),
+        "run": spec.name,
+        "steps": int(result.steps),
+        "loop_seconds": float(result.seconds),
+        "ms_per_step": float(result.seconds) / int(result.steps) * 1000.0,
+        "peak_allocated_mib": torch.cuda.max_memory_allocated() / 2**20,
+        "checkpoint_sha256": result.sha256,
+        "weights_sha256": canonical_state_dict_digest(destination),
+        "device_name": torch.cuda.get_device_name(0),
+        "git_commit": _code_commit(),
+        "written_utc": _utc_now(),
+    }
+    _link_exclusive((json.dumps(record, indent=2, sort_keys=True) + "\n").encode("utf-8"), out)
+    print(
+        f"timing {args.slot}: {record['ms_per_step']:.1f} ms/step over {result.steps} steps, peak "
+        f"{record['peak_allocated_mib']:.0f} MiB allocated",
+        flush=True,
+    )
+    return 0
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m offline.few_shot", description=__doc__.splitlines()[0])
     commands = parser.add_subparsers(dest="command", required=True)
-    train = commands.add_parser("train", help="one registered fine-tune on CUDA, written once")
+
+    def command(name: str, help_text: str, handler: Any, *, corpus: bool = False) -> argparse.ArgumentParser:
+        sub = commands.add_parser(name, help=help_text)
+        sub.add_argument("--output-root", required=True, help="the output tree holding p5_2/ and p7_3c_training/")
+        sub.add_argument("--data-dir", default=None, help="the directory holding p7_3d_calibration.json")
+        if corpus:
+            sub.add_argument("--corpus-dir", required=True, help="the verified grid4x4 SUMO corpus")
+        sub.set_defaults(handler=handler)
+        return sub
+
+    train = command("train", "one registered fine-tune on CUDA, written once", _cmd_train, corpus=True)
     train.add_argument("--run", required=True, help="a registered run name, e.g. ft_k100_seed101")
     train.add_argument("--device", default="cuda")
-    train.add_argument("--output-root", required=True, help="the output tree holding p5_2/ and p7_3c_training/")
-    train.add_argument("--corpus-dir", required=True, help="the verified grid4x4 SUMO corpus")
-    train.add_argument("--data-dir", default=None, help="the directory holding p7_3d_calibration.json")
     train.add_argument("--log-every", type=int, default=500)
-    train.set_defaults(handler=_cmd_train)
+
+    runs = commands.add_parser("runs", help="the thirty registered run names, in order")
+    runs.set_defaults(handler=_cmd_runs)
+
+    resume = command("resume-decision", "skip / train for one run, or the pre-token scan of all", _cmd_resume)
+    which = resume.add_mutually_exclusive_group(required=True)
+    which.add_argument("--run", default=None)
+    which.add_argument("--all", action="store_true")
+
+    attempt = command("attempt", "write the next attempt marker of a run; print its number", _cmd_attempt)
+    attempt.add_argument("--run", required=True)
+
+    command("manifest", "write and re-verify SHA256SUMS_p7_3c_finetune.txt", _cmd_manifest)
+
+    record = command("record", "write p7_3c_training/p7_3c_finetune.json", _cmd_record, corpus=True)
+    record.add_argument("--timing", required=True, help="G5's timing.json")
+
+    inputs = command("check-inputs", "every input by digest, before the canary", _cmd_check_inputs, corpus=True)
+    inputs.add_argument("--gate-record", required=True, help="G3's a17f_gate.json")
+    inputs.add_argument("--timing", default=None, help="G5's timing.json (train mode)")
+
+    timing = commands.add_parser("timing", help="G5's fenced timing")
+    actions = timing.add_subparsers(dest="action", required=True)
+    for action, help_text in (
+        ("run", "one fenced run: k 5, B 400, seed 101"),
+        ("build", "the k windows built, no step"),
+        ("summarize", "the phases, the repeat, the concurrency"),
+        ("concurrency", "the concurrency a summary gives, re-derived by the rule"),
+    ):
+        sub = actions.add_parser(action, help=help_text)
+        sub.add_argument("--output-root", required=True)
+        sub.add_argument("--data-dir", default=None)
+        if action in ("run", "build"):
+            sub.add_argument("--corpus-dir", required=True)
+        if action != "concurrency":
+            sub.add_argument("--stamp", required=True)
+        if action == "run":
+            sub.add_argument("--slot", required=True, choices=TIMING_SLOTS)
+        if action == "build":
+            sub.add_argument("--k", type=int, default=100)
+        if action == "concurrency":
+            sub.add_argument("--timing", required=True)
+        sub.set_defaults(handler=_cmd_timing)
     return parser
 
 
