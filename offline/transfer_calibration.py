@@ -57,7 +57,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 __all__ = [
     "ARTIFACT_FORMAT_VERSION",
@@ -388,6 +388,55 @@ def run_sumo_probe(
     return records
 
 
+def _roll_sumo_maxpressure_episode(
+    env: Any, policy: Any, *, engine_seed: int
+) -> tuple[list[Mapping[str, Any]], list[float], float, dict[str, Any]]:
+    """One SUMO MaxPressure episode with A17(b)'s four engine reads: the ONE loop, shared.
+
+    Extracted from :func:`_roll_one_episode` verbatim when the multi-intersection probe (P7.3d C5)
+    needed the same episode, so that the two entry points cannot drift -- the same reason
+    ``rtg_calibration._roll_maxpressure_episode`` exists on the CityFlow side.  The duplication was
+    caught by ``test_the_module_contains_no_bare_dt_act_call``, which pins this module to exactly
+    ONE ``policy.act(...)`` call; that test was not touched.
+
+    The reads: the teleport counter is accumulated per step AND after the loop, and the effective
+    vehicle type is sampled on the first step on which anybody is present as well as at the
+    horizon, so an early wrong type cannot hide behind a horizon-only read.
+    """
+    info = env.reset(seed=int(engine_seed))
+    option = str(env._sumo.simulation.getOption("time-to-teleport"))
+    types_seen: set[str] = set()
+    teleports = 0
+    post_step: list[Mapping[str, Any]] = []
+    samples: list[float] = []
+    last_vehicle_count = 0.0
+    for _ in range(int(env.max_steps)):
+        teleports += len(env._sumo.simulation.getStartingTeleportIDList())
+        if not types_seen:
+            types_seen.update(
+                env._sumo.vehicle.getTypeID(v) for v in env._sumo.vehicle.getIDList()
+            )
+        # Named `policy`, not `agent`: MaxPressureAgent.act takes no `explore` keyword, so a bare
+        # call here is correct -- and the name keeps it distinguishable from a DT's call, which
+        # must never be bare (Amendment E1).
+        action = policy.act(info)
+        _reward, terminated, truncated, info = env.step(action)
+        post_step.append(info)
+        samples.append(float(info.get("average_travel_time", 0.0)))
+        last_vehicle_count = float(info.get("vehicle_count", 0.0))
+        if terminated or truncated:
+            break
+    teleports += len(env._sumo.simulation.getStartingTeleportIDList())
+    types_seen.update(env._sumo.vehicle.getTypeID(v) for v in env._sumo.vehicle.getIDList())
+    reads = {
+        "n_teleports": teleports,
+        "vehicle_types_seen": sorted(types_seen),
+        "time_to_teleport_option": option,
+        "engine_seed_drawn": int(env._engine_seed),
+    }
+    return post_step, samples, last_vehicle_count, reads
+
+
 def _roll_one_episode(
     draw_id: int, config_path: Path, *, engine_seed: int
 ) -> ProbeRecord:
@@ -419,38 +468,14 @@ def _roll_one_episode(
             )
         ix_id = str(intersections[0].id)
         lanes = list(intersections[0].incoming_lanes)
-        # Named `policy`, not `agent`: MaxPressureAgent.act takes no `explore` keyword, so a
-        # bare call here is correct -- and the name keeps it distinguishable from the DT's
-        # call in run_smoke, which must never be bare (Amendment E1).
         policy = MaxPressureAgent(env)
-
-        info = env.reset(seed=int(engine_seed))
-        option = str(env._sumo.simulation.getOption("time-to-teleport"))
-        types_seen: set[str] = set()
-        teleports = 0
-        post_step: list[Mapping[str, Any]] = []
-        samples: list[float] = []
-        last_vehicle_count = 0.0
-        for _ in range(int(env.max_steps)):
-            teleports += len(env._sumo.simulation.getStartingTeleportIDList())
-            if not types_seen:
-                # the first step on which anybody is present, so an early wrong type cannot
-                # hide behind a horizon-only read
-                types_seen.update(
-                    env._sumo.vehicle.getTypeID(v) for v in env._sumo.vehicle.getIDList()
-                )
-            action = policy.act(info)
-            _reward, terminated, truncated, info = env.step(action)
-            post_step.append(info)
-            samples.append(float(info.get("average_travel_time", 0.0)))
-            last_vehicle_count = float(info.get("vehicle_count", 0.0))
-            if terminated or truncated:
-                break
-        teleports += len(env._sumo.simulation.getStartingTeleportIDList())
-        types_seen.update(
-            env._sumo.vehicle.getTypeID(v) for v in env._sumo.vehicle.getIDList()
+        post_step, samples, last_vehicle_count, reads = _roll_sumo_maxpressure_episode(
+            env, policy, engine_seed=int(engine_seed)
         )
-        engine_seed_drawn = int(env._engine_seed)
+        option = str(reads["time_to_teleport_option"])
+        types_seen = set(reads["vehicle_types_seen"])
+        teleports = int(reads["n_teleports"])
+        engine_seed_drawn = int(reads["engine_seed_drawn"])
     finally:
         env.close()
     seconds = time.perf_counter() - started
@@ -500,6 +525,855 @@ def _roll_one_episode(
         seconds=seconds,
     )
     return record
+
+
+# ======================================================================================
+# The calibration PER INTERSECTION (P7.3d: BRIEF_39 C3a, Amendments A1, A4, B.1; A17(e), A20, A21)
+# ======================================================================================
+
+#: The draws-tree key and the registered subject of the grid4x4 point (A20(a)).
+GRID4X4_SCENARIO_KEY = "cityflow_grid4x4"
+GRID4X4_SUBJECT = "mappo1000_dt_nomix_h4"
+GRID4X4_CHECKPOINT_SUBDIR = "p5_2/checkpoints"
+GRID4X4_CHECKPOINT_STEM = "grid4x4_mappo1000_dt_nomix_h4_seed"
+
+#: A20(a)'s five checkpoints BY DIGEST.  A20 records that they were "pinned in no committed file
+#: until P7.3d's declaration artifact records them": this is that pin, re-measured 2026-09-19, and
+#: ``docs/data/p7_3d_calibration.json`` carries it as evidence.  It moves only with the artifact.
+GRID4X4_CHECKPOINT_SHA256: dict[int, str] = {
+    101: "329fb6b87fc8cf5c27530b2fe4d45212ea9c0775db3fb1e636a6bbc0a5004279",
+    202: "f541358530399cc8282d4b8af63da7a83195bc421706714df0d460ff0d132fcc",
+    303: "48076dab687da6b88ee0059b12e5edd49cea7d363deec84d30597bdc26e29906",
+    404: "4b61bc064af2984e0d2e9666f03485ca901b87337a3a30c29c77302813eb4729",
+    505: "09bd310ddc6ed337835d8a8fe9d29a16968cf2d339fabaae91927b4808e34cdc",
+}
+
+#: The checkpoint format the subject is stored in (Amendment A1: the identity-graph control of the
+#: spatial architecture, read by ``SpatialDTAgent``; never a ``dt-checkpoint/1.0``).
+SPATIAL_CHECKPOINT_FORMAT = "spatial-dt-checkpoint/1.0"
+
+#: A20(b): the registered budget, and the two that are RECORDED and never evaluated.
+REGISTERED_K = 100
+REGISTERED_STATISTIC = "mean"
+ROLE_REGISTERED = "registered_prompt"
+ROLE_RECORDED_ONLY = "recorded_not_evaluated"
+
+
+@dataclass(frozen=True)
+class SubjectFactsPerIntersection:
+    """What the subject's five checkpoints declare PER INTERSECTION, agreed across the seeds."""
+
+    subject: str
+    scenario_id: str
+    intersection_ids: tuple[str, ...]
+    best_source_return: dict[str, float]
+    rtg_scale: dict[str, float]
+    support_range: dict[str, tuple[float, float]]
+    n_rows: dict[str, int]
+    training_draw_ids: tuple[int, ...]
+    checkpoints: tuple[str, ...]
+    checkpoint_sha256: dict[int, str]
+    state_dim: int
+    context_length: int
+    n_head: int
+    gradient_steps: int
+
+
+def subject_facts_per_intersection(
+    *,
+    output_root: str | Path,
+    expected_sha256: Mapping[int, str] | None = None,
+) -> SubjectFactsPerIntersection:
+    """Read the registered grid4x4 subject's per-intersection constants from its five checkpoints.
+
+    **Which field each constant is read from, and why (Amendment A4).**  ``R_best_source,i`` is
+    ``payload["target_rtg"][i]`` -- P5.2's declared prompt, *the maximum episode return in THIS
+    intersection's training streams* -- which is the repo's established reading on hangzhou
+    (:func:`subject_facts`, ``best_source_return = payload["target_rtg"]``).  ``rtg_scale_i`` is
+    ``payload["rtg_scale"][i]`` and is never recalibrated (A17(a)).  ``payload["stats"]["rtg"]`` is
+    a PER-WINDOW summary -- its ``max`` is 0.0 on every intersection, the return-to-go at an
+    episode's last step -- and bounds the SUPPORT only; A17(e)'s wording pointed at it for
+    ``R_best`` and the payload says otherwise.
+
+    Every refusal names what it found: a checkpoint absent or at a digest other than
+    *expected_sha256* (default: A20(a)'s five, :data:`GRID4X4_CHECKPOINT_SHA256`); a payload that is
+    not the identity-graph control in the spatial format (Amendment A1) -- wrong format version,
+    ``spatial_mixing`` on, a mask that is not the identity; a gradient-step count other than the
+    declared one; an id set that differs between the prompt, the scale, the statistics and the
+    recorded order; and any seed that disagrees with seed 101 on any intersection's constant --
+    the seed varies the training RNG, never the prompt.
+    """
+    import numpy as np
+
+    pins = dict(GRID4X4_CHECKPOINT_SHA256 if expected_sha256 is None else expected_sha256)
+    root = Path(output_root)
+    paths = {
+        seed: root / GRID4X4_CHECKPOINT_SUBDIR / f"{GRID4X4_CHECKPOINT_STEM}{seed}.pt"
+        for seed in TRAINING_SEEDS
+    }
+    missing = [str(path) for path in paths.values() if not path.is_file()]
+    if missing:
+        raise FileNotFoundError(f"{GRID4X4_SUBJECT}: checkpoints absent: {missing}")
+
+    digests: dict[int, str] = {}
+    for seed, path in paths.items():
+        digests[seed] = _sha256_file(path)
+        if digests[seed] != pins.get(seed):
+            raise ValueError(
+                f"{GRID4X4_SUBJECT} seed {seed}: {path.name} hashes to {digests[seed]}, not the "
+                f"registered {pins.get(seed)}; A20(a) registers the subject BY DIGEST, and a "
+                "different file under the same name is a different subject"
+            )
+
+    per_seed: dict[int, dict[str, Any]] = {}
+    for seed, path in paths.items():
+        payload = _load_payload(path)
+        label = f"{GRID4X4_SUBJECT} seed {seed}"
+        version = str(payload.get("format_version"))
+        if version != SPATIAL_CHECKPOINT_FORMAT:
+            raise ValueError(
+                f"{label}: checkpoint format {version!r} is not {SPATIAL_CHECKPOINT_FORMAT!r}; the "
+                "registered subject is the identity-graph control stored in the spatial format"
+            )
+        config = payload["config"]
+        if bool(config.get("spatial_mixing")):
+            raise ValueError(
+                f"{label}: spatial_mixing is on; A20(a) registers the NON-mixing control "
+                "(dt_nomix_h4), and the mixing arm is out of this task's scope"
+            )
+        ids = [str(ix) for ix in payload["intersection_ids"]]
+        mask = np.asarray(payload["spatial_mask"], dtype=np.bool_)
+        if mask.shape != (len(ids), len(ids)) or not bool((mask == np.eye(len(ids), dtype=np.bool_)).all()):
+            raise ValueError(
+                f"{label}: the recorded spatial mask is not the {len(ids)} x {len(ids)} identity, "
+                "so intersections could attend to each other; that is not the registered subject"
+            )
+        steps = int(payload["provenance"]["gradient_steps"])
+        if steps != DECLARED_GRADIENT_STEPS:
+            raise ValueError(
+                f"{label}: the checkpoint records {steps} gradient steps, not the declared "
+                f"{DECLARED_GRADIENT_STEPS}"
+            )
+        scenario_id = str(payload["scenario_id"])
+        summaries = payload["stats"]["rtg"].get(scenario_id, {})
+        for name, keys in (
+            ("target_rtg", payload["target_rtg"]),
+            ("rtg_scale", payload["rtg_scale"]),
+            ("stats.rtg", summaries),
+        ):
+            absent = [ix for ix in ids if ix not in keys]
+            extra = [str(ix) for ix in keys if str(ix) not in ids]
+            if absent or extra:
+                raise ValueError(
+                    f"{label}: {name} does not cover exactly the recorded intersections "
+                    f"(missing {absent[:4]}, unexpected {extra[:4]})"
+                )
+        per_seed[seed] = {
+            "scenario_id": scenario_id,
+            "ids": ids,
+            "target_rtg": {ix: float(payload["target_rtg"][ix]) for ix in ids},
+            "rtg_scale": {ix: float(payload["rtg_scale"][ix]) for ix in ids},
+            "support": {ix: (float(summaries[ix]["min"]), float(summaries[ix]["max"])) for ix in ids},
+            "n_rows": {ix: int(summaries[ix]["count"]) for ix in ids},
+            "draw_ids": tuple(int(d) for d in payload["stats"]["draw_ids"]),
+            "state_dim": int(config["state_dim"]),
+            "context_length": int(config["context_length"]),
+            "n_head": int(config["n_head"]),
+            "gradient_steps": steps,
+        }
+
+    reference_seed = TRAINING_SEEDS[0]
+    reference = per_seed[reference_seed]
+    for seed, facts in per_seed.items():
+        for field in ("target_rtg", "rtg_scale", "support", "n_rows"):
+            for ix in reference["ids"]:
+                if facts["ids"] != reference["ids"] or facts[field][ix] != reference[field][ix]:
+                    raise ValueError(
+                        f"{GRID4X4_SUBJECT} seed {seed}: intersection {ix!r} disagrees with seed "
+                        f"{reference_seed} on {field} ({facts[field].get(ix)!r} against "
+                        f"{reference[field][ix]!r}); the seed varies the training RNG, not the prompt"
+                    )
+        for field in ("scenario_id", "draw_ids", "state_dim", "context_length", "n_head"):
+            if facts[field] != reference[field]:
+                raise ValueError(
+                    f"{GRID4X4_SUBJECT} seed {seed}: {field} {facts[field]!r} differs from seed "
+                    f"{reference_seed}'s {reference[field]!r}"
+                )
+
+    return SubjectFactsPerIntersection(
+        subject=GRID4X4_SUBJECT,
+        scenario_id=reference["scenario_id"],
+        intersection_ids=tuple(reference["ids"]),
+        best_source_return=dict(reference["target_rtg"]),
+        rtg_scale=dict(reference["rtg_scale"]),
+        support_range=dict(reference["support"]),
+        n_rows=dict(reference["n_rows"]),
+        training_draw_ids=reference["draw_ids"],
+        checkpoints=tuple(str(path) for path in paths.values()),
+        checkpoint_sha256=digests,
+        state_dim=reference["state_dim"],
+        context_length=reference["context_length"],
+        n_head=reference["n_head"],
+        gradient_steps=reference["gradient_steps"],
+    )
+
+
+def per_intersection_statistics(
+    sumo_returns: Mapping[int, Mapping[str, float]],
+    cityflow_returns: Mapping[int, Mapping[str, float]],
+    *,
+    intersection_ids: Sequence[str],
+) -> dict[str, Any]:
+    """``S = mean`` per intersection and per nested budget k, for BOTH domains, never pooled.
+
+    *sumo_returns* and *cityflow_returns* map ``draw_id -> {intersection_id: episode return}`` --
+    the two probes of A17(b) and Amendment A4.  Budgets are A17(b)'s nested prefixes in draw order,
+    ``k in PROBE_K_VALUES`` = draws ``201 .. 200+k``, the SAME draws in both domains: a ratio of two
+    statistics over different demand would not be a property of the two engines.  The statistic is
+    :func:`offline.rtg_calibration.probe_statistic`, unchanged, applied to ONE intersection's
+    returns at a time (A17(e): no pooling).
+    """
+    from offline.rtg_calibration import PROBE_K_VALUES, probe_statistic
+
+    ids = [str(ix) for ix in intersection_ids]
+    if sorted(sumo_returns) != sorted(cityflow_returns):
+        only_sumo = sorted(set(sumo_returns) - set(cityflow_returns))
+        only_cityflow = sorted(set(cityflow_returns) - set(sumo_returns))
+        raise ValueError(
+            "the two probes do not cover the same draws (only on SUMO: "
+            f"{only_sumo[:5]}; only on CityFlow: {only_cityflow[:5]}); Rule B's ratio is formed "
+            "over the SAME demand in both domains"
+        )
+    draws = sorted(int(d) for d in sumo_returns)
+    for label, returns in (("SUMO", sumo_returns), ("CityFlow", cityflow_returns)):
+        for draw in draws:
+            absent = [ix for ix in ids if ix not in returns[draw]]
+            if absent:
+                raise ValueError(
+                    f"the {label} probe of draw {draw} records no return for intersection(s) "
+                    f"{absent[:4]!r}; a statistic over the intersections that happen to be "
+                    "present would be a statistic of a different population"
+                )
+
+    table: dict[str, Any] = {}
+    for k in PROBE_K_VALUES:
+        if len(draws) < k:
+            raise ValueError(f"k={k} needs {k} probe episodes and only {len(draws)} are recorded")
+        prefix = draws[:k]
+        table[f"k{k}"] = {
+            "k": k,
+            "draw_ids": [prefix[0], prefix[-1]],
+            "statistic": REGISTERED_STATISTIC,
+            "per_intersection": {
+                ix: {
+                    "sumo": probe_statistic(
+                        [float(sumo_returns[d][ix]) for d in prefix], REGISTERED_STATISTIC
+                    ),
+                    "cityflow": probe_statistic(
+                        [float(cityflow_returns[d][ix]) for d in prefix], REGISTERED_STATISTIC
+                    ),
+                }
+                for ix in ids
+            },
+        }
+    return table
+
+
+def per_intersection_targets(
+    facts: SubjectFactsPerIntersection, statistics: Mapping[str, Any]
+) -> dict[str, Any]:
+    """A17(e)'s Rule B per intersection, at every recorded k, with its role and support position.
+
+    ``target_i(k) = R_best_source,i x (S_sumo,i(k) / S_cityflow,i(k))`` through
+    :func:`offline.rtg_calibration.rule_b_target`, whose association (the ratio formed first) is
+    pinned by a test and makes the in-domain case an exact identity.  **Only k = 100 carries the
+    registered role** (A20(b)); k = 5 and 20 are recorded and never evaluated.  The in-support
+    position is each target against THAT intersection's own training range -- a diagnostic that
+    never selects (A8).
+    """
+    from offline.rtg_calibration import rule_b_target
+
+    out: dict[str, Any] = {}
+    for ix in facts.intersection_ids:
+        low, high = facts.support_range[ix]
+        per_k: dict[str, Any] = {}
+        for key in sorted(statistics, key=lambda name: int(statistics[name]["k"])):
+            cell = statistics[key]["per_intersection"][ix]
+            k = int(statistics[key]["k"])
+            target = rule_b_target(
+                best_source_return=facts.best_source_return[ix],
+                probe_source_stat=cell["cityflow"],
+                probe_target_stat=cell["sumo"],
+            )
+            per_k[key] = {
+                "k": k,
+                "rule": "B",
+                "statistic": REGISTERED_STATISTIC,
+                "role": ROLE_REGISTERED if k == REGISTERED_K else ROLE_RECORDED_ONLY,
+                "target": target,
+                "inputs": {
+                    "best_source_return": facts.best_source_return[ix],
+                    "probe_target_stat": cell["sumo"],
+                    "probe_source_stat": cell["cityflow"],
+                },
+                "in_support": in_support_position(target, rtg_min=low, rtg_max=high),
+            }
+        out[ix] = per_k
+    return out
+
+
+#: Format of one per-intersection probe chunk and of ``docs/data/p7_3d_calibration.json``.
+PER_INTERSECTION_FORMAT_VERSION = "p7.3d-calibration/1.0"
+
+#: The two probe domains, and the chunk prefix each writes.
+PROBE_DOMAINS: tuple[str, ...] = ("cityflow", "sumo")
+
+
+def per_intersection_chunk_path(
+    domain: str, draw_id: int, *, work_dir: str | Path
+) -> Path:
+    """Pure path arithmetic: where one draw's per-intersection probe chunk lives."""
+    if domain not in PROBE_DOMAINS:
+        raise ValueError(f"unknown probe domain {domain!r}; the two are {list(PROBE_DOMAINS)}")
+    return Path(work_dir) / f"probe_{domain}_draw_{int(draw_id):04d}.json"
+
+
+def per_intersection_chunk_is_reusable(
+    payload: Mapping[str, Any],
+    *,
+    domain: str,
+    draw_id: int,
+    scenario_key: str,
+    intersection_ids: Sequence[str],
+    expected_decisions: int,
+) -> bool:
+    """Whether a chunk may be skipped on resume -- judged from its CONTENT, never its verdict.
+
+    :func:`chunk_is_reusable`'s rule, per intersection: the stored ``two_routes_agree`` is exactly
+    what a half-written or hand-made chunk would lie about, so the two returns are compared AGAIN
+    here, id by id, over the ids the caller expects IN ORDER -- the env's order is part of the
+    record (contract C1), and a chunk missing an id is not a chunk with fewer intersections but a
+    chunk whose returns cannot be read.  Anything unreadable is simply not reusable; the caller's
+    move-aside path handles it.
+    """
+    if not isinstance(payload, Mapping):
+        return False
+    try:
+        if payload.get("format_version") != PER_INTERSECTION_FORMAT_VERSION:
+            return False
+        if str(payload["domain"]) != str(domain):
+            return False
+        if int(payload["draw_id"]) != int(draw_id):
+            return False
+        if str(payload["scenario_key"]) != str(scenario_key):
+            return False
+        if [str(ix) for ix in payload["intersection_ids"]] != [str(ix) for ix in intersection_ids]:
+            return False
+        if int(payload["decisions"]) != int(expected_decisions):
+            return False
+        by_reward = payload["local_return"]
+        by_lanes = payload["local_return_from_lanes"]
+        for ix in intersection_ids:
+            if float(by_reward[str(ix)]) != float(by_lanes[str(ix)]):
+                return False
+        if str(domain) == "sumo":
+            # A17(b)'s engine reads are part of a SUMO chunk's IDENTITY, not a verdict it stores:
+            # a chunk recording a teleport, DEFAULT_VEHTYPE or the 300 s default describes an
+            # episode that did not run under the registered regime, and reusing it on a resume
+            # would put that episode's returns into the calibration hours later.
+            if int(payload["n_teleports"]) != 0:
+                return False
+            if [str(t) for t in payload["vehicle_types_seen"]] != [PARITY_VTYPE_ID]:
+                return False
+            if str(payload["time_to_teleport_option"]) != EXPECTED_TIME_TO_TELEPORT:
+                return False
+    except (KeyError, TypeError, ValueError):
+        return False
+    return True
+
+
+def run_cityflow_probe_per_intersection(
+    draw_ids: Sequence[int],
+    *,
+    scenario_key: str,
+    out_root: str | Path,
+    work_dir: str | Path,
+    engine_seed: int = DEFAULT_ENGINE_SEED,
+    canary_seconds: float | None = None,
+) -> dict[int, dict[str, float]]:
+    """Amendment A4's source-domain probe: one CityFlow MaxPressure episode per draw, per id.
+
+    Rule B needs ``S(R_probe_cityflow)`` and grid4x4 has none: on hangzhou it was READ from P4.3's
+    committed artifact, which covers one intersection of another scenario.  So it is measured here,
+    on the SAME draws the SUMO probe uses (201-300), with P4.3's own env settings -- read from that
+    artifact rather than restated -- and ``reset(seed=engine_seed)`` on a fresh env per draw.
+
+    One chunk per draw, atomic, resumable **by content**: a chunk that still satisfies
+    :func:`per_intersection_chunk_is_reusable` is reused without starting an engine; one that does
+    not is moved to ``failed/`` -- evidence about a run is not overwritten -- and re-rolled.
+    CityFlow's engine seed is inert (``PREREGISTRATION`` §5) and is recorded anyway, because a
+    field that is recorded on one domain and not the other is a field a reader must guess about.
+    """
+    import time
+
+    from offline.rtg_calibration import run_probe_per_intersection
+
+    work = Path(work_dir)
+    work.mkdir(parents=True, exist_ok=True)
+    settings = _p4_3_env_settings()
+    expected_decisions = int(settings["max_steps"])
+    config_for_draw = _cityflow_config_for_draw(scenario_key, out_root)
+
+    returns: dict[int, dict[str, float]] = {}
+    for raw_draw_id in draw_ids:
+        draw_id = int(raw_draw_id)
+        chunk_path = per_intersection_chunk_path("cityflow", draw_id, work_dir=work)
+        if chunk_path.is_file():
+            try:
+                existing = json.loads(chunk_path.read_bytes())
+            except json.JSONDecodeError:
+                existing = {}
+            ids = (
+                [str(ix) for ix in existing["intersection_ids"]]
+                if isinstance(existing, Mapping) and "intersection_ids" in existing
+                else []
+            )
+            if ids and per_intersection_chunk_is_reusable(
+                existing,
+                domain="cityflow",
+                draw_id=draw_id,
+                scenario_key=scenario_key,
+                intersection_ids=ids,
+                expected_decisions=expected_decisions,
+            ):
+                returns[draw_id] = {ix: float(existing["local_return"][ix]) for ix in ids}
+                continue
+            _move_aside(chunk_path)
+
+        started = time.perf_counter()
+        (episode,) = run_probe_per_intersection(
+            draw_ids=[draw_id],
+            config_for_draw=config_for_draw,
+            env_settings=settings,
+            scenario_id=scenario_key,
+            engine_seed=int(engine_seed),
+        )
+        seconds = time.perf_counter() - started
+        config_path = Path(config_for_draw(draw_id))
+        _write_json(
+            chunk_path,
+            {
+                "format_version": PER_INTERSECTION_FORMAT_VERSION,
+                "domain": "cityflow",
+                "draw_id": episode.draw_id,
+                "scenario_key": scenario_key,
+                "intersection_ids": list(episode.local_return),
+                "local_return": dict(episode.local_return),
+                "local_return_from_lanes": dict(episode.local_return_from_lanes),
+                "two_routes_agree": True,
+                "decisions": episode.decisions,
+                "engine_seed_requested": int(engine_seed),
+                "att_horizon": episode.att_horizon,
+                "horizon_vehicle_count": episode.horizon_vehicle_count,
+                "config_path": str(config_path),
+                "config_sha256": _sha256_file(config_path),
+                "env_settings_source": "docs/data/p4_3_probe.json:env_settings",
+                "p4_3_probe_sha256": _sha256_file(P4_3_PROBE_ARTIFACT),
+                "seconds": seconds,
+                "canary_seconds": canary_seconds,
+                **_git_provenance(),
+            },
+        )
+        returns[draw_id] = dict(episode.local_return)
+    return returns
+
+
+def _p4_3_env_settings() -> dict[str, Any]:
+    """P4.3's recorded probe settings, READ from the committed artifact and never restated.
+
+    Measured 2026-09-19: they equal the grid4x4 corpus's own settings on every key but
+    ``compare_with`` (a harness key, which P4.3's artifact strips), on all five manifests -- so the
+    probe's reward stream is the stream the return-to-go advances on.  A test asserts it.
+    """
+    payload = json.loads(P4_3_PROBE_ARTIFACT.read_bytes())
+    return dict(payload["env_settings"])
+
+
+def _cityflow_config_for_draw(
+    scenario_key: str, out_root: str | Path
+) -> Callable[[int], Path]:
+    """The draw -> CityFlow sim config lookup, through the draws tree's own path arithmetic."""
+    from offline.materialise_draws import draw_config_path
+
+    def lookup(draw_id: int) -> Path:
+        return draw_config_path(scenario_key, int(draw_id), out_root=out_root)
+
+    return lookup
+
+
+def _roll_sumo_probe_episode_per_intersection(
+    config_path: Path, *, engine_seed: int
+) -> tuple[list[tuple[str, list[str]]], list[Mapping[str, Any]], list[float], float, dict[str, Any]]:
+    """One SUMO MaxPressure episode on a multi-intersection scenario, with A17(b)'s engine reads.
+
+    A named seam, for :func:`_roll_one_episode`'s reason: the resume path and the five refusals
+    are testable without a simulator only if the roll can be substituted.
+
+    The env is the PLAIN one -- not the observer and not aligned.  MaxPressure's pressure is a
+    difference over the env's own SUMO lane ids, so it must not go through A16's door
+    (``BRIEF_37`` Amendment A2), and the observer's instrumentation costs about 60 % per episode
+    for a quantity this probe does not use.  The four engine reads are taken FROM THE RUNNING
+    ENGINE, and the type set is sampled on the first step on which anybody is present as well as
+    at the horizon, so an early wrong type cannot hide behind a horizon-only read.
+    """
+    from algorithms.max_pressure import MaxPressureAgent
+    from experiments.envs import make_env
+    from offline.collect import _build_env_spec
+    from offline.sumo_att_reference import collect_style_args
+
+    args = collect_style_args(
+        "sumo", "maxpressure", config_path, sentinel_out_dir="/nonexistent"
+    )
+    env = make_env(_build_env_spec(args))
+    try:
+        ids_and_lanes = [
+            (str(ix.id), [str(lane) for lane in ix.incoming_lanes]) for ix in env.intersections
+        ]
+        policy = MaxPressureAgent(env)
+        post_step, samples, last_vehicle_count, reads = _roll_sumo_maxpressure_episode(
+            env, policy, engine_seed=int(engine_seed)
+        )
+    finally:
+        env.close()
+    return ids_and_lanes, post_step, samples, last_vehicle_count, reads
+
+
+def _sumo_config_for_draw(scenario_key: str, out_root: str | Path) -> Callable[[int], Path]:
+    """The draw -> teleport-free parity ``.sumocfg`` lookup, through the draws tree's arithmetic."""
+    from offline.materialise_draws import parity_sumocfg_path
+
+    def lookup(draw_id: int) -> Path:
+        return parity_sumocfg_path(scenario_key, int(draw_id), out_root=out_root)
+
+    return lookup
+
+
+def run_sumo_probe_per_intersection(
+    draw_ids: Sequence[int],
+    *,
+    scenario_key: str,
+    out_root: str | Path,
+    work_dir: str | Path,
+    engine_seed: int = DEFAULT_ENGINE_SEED,
+    canary_seconds: float | None = None,
+) -> dict[int, dict[str, float]]:
+    """A17(b)'s probe on a multi-intersection pair: one MaxPressure episode per draw, per id.
+
+    The TARGET-domain half of Rule B's ratio, and the counterpart of
+    :func:`run_cityflow_probe_per_intersection`: the same draws, the same seed rule
+    (``reset(seed=engine_seed)`` on a fresh env per draw), the same chunk contract, the same
+    resume-by-content -- and, on this side, A17(b)'s five refusals per episode.
+
+    **All five stop the run, not just the draw.**  Four are engine reads taken while the episode
+    is running (teleports, the effective vehicle type, the ``time-to-teleport`` option) plus the
+    decision count; the fifth is the two-route return equality, applied PER INTERSECTION and
+    refusing by name.  A probe episode that silently ran ``DEFAULT_VEHTYPE`` would calibrate the
+    registered prompt against the +49 % travel-time confound the parity contract exists to
+    remove, and a teleport would remove a stuck vehicle from one engine's metric and not the
+    other's -- neither may be averaged into a statistic and discovered afterwards.
+    """
+    import time
+
+    work = Path(work_dir)
+    work.mkdir(parents=True, exist_ok=True)
+    config_for_draw = _sumo_config_for_draw(scenario_key, out_root)
+
+    returns: dict[int, dict[str, float]] = {}
+    for raw_draw_id in draw_ids:
+        draw_id = int(raw_draw_id)
+        chunk_path = per_intersection_chunk_path("sumo", draw_id, work_dir=work)
+        if chunk_path.is_file():
+            try:
+                existing = json.loads(chunk_path.read_bytes())
+            except json.JSONDecodeError:
+                existing = {}
+            ids = (
+                [str(ix) for ix in existing["intersection_ids"]]
+                if isinstance(existing, Mapping) and "intersection_ids" in existing
+                else []
+            )
+            if ids and per_intersection_chunk_is_reusable(
+                existing,
+                domain="sumo",
+                draw_id=draw_id,
+                scenario_key=scenario_key,
+                intersection_ids=ids,
+                expected_decisions=EXPECTED_DECISIONS,
+            ):
+                returns[draw_id] = {ix: float(existing["local_return"][ix]) for ix in ids}
+                continue
+            _move_aside(chunk_path)
+
+        config_path = Path(config_for_draw(draw_id))
+        if not config_path.is_file():
+            raise FileNotFoundError(
+                f"probe draw {draw_id} has no parity configuration at {config_path}; P7.3d C1 "
+                "materialises the band into the MAIN tree's scenarios/draws"
+            )
+        started = time.perf_counter()
+        ids_and_lanes, post_step, samples, last_vehicle_count, reads = (
+            _roll_sumo_probe_episode_per_intersection(config_path, engine_seed=int(engine_seed))
+        )
+        seconds = time.perf_counter() - started
+
+        if len(ids_and_lanes) < 2:
+            raise ValueError(
+                f"draw {draw_id}: this scenario has {len(ids_and_lanes)} intersection(s); "
+                "run_sumo_probe is the single-intersection entry point and its scalar record is "
+                "the registered one"
+            )
+        if len(post_step) != EXPECTED_DECISIONS:
+            raise ValueError(
+                f"draw {draw_id}: {len(post_step)} decisions, not {EXPECTED_DECISIONS}"
+            )
+        if int(reads["n_teleports"]) != 0:
+            raise ValueError(
+                f"draw {draw_id}: {reads['n_teleports']} teleport(s) on a configuration that "
+                "requested time-to-teleport -1 (A15(c))"
+            )
+        if list(reads["vehicle_types_seen"]) != [PARITY_VTYPE_ID]:
+            raise ValueError(
+                f"draw {draw_id}: the engine ran vehicle type(s) "
+                f"{list(reads['vehicle_types_seen'])}, not [{PARITY_VTYPE_ID!r}]; the parity "
+                "contract is not what this episode measured"
+            )
+        if str(reads["time_to_teleport_option"]) != EXPECTED_TIME_TO_TELEPORT:
+            raise ValueError(
+                f"draw {draw_id}: SUMO reports time-to-teleport "
+                f"{str(reads['time_to_teleport_option'])!r}, not {EXPECTED_TIME_TO_TELEPORT!r}"
+            )
+
+        from offline.rtg_calibration import episode_return_two_routes
+
+        by_reward: dict[str, float] = {}
+        by_lanes: dict[str, float] = {}
+        for ix_id, lanes in ids_and_lanes:
+            from_rewards, from_lanes = episode_return_two_routes(
+                post_step, ix_id=ix_id, incoming_lanes=lanes
+            )
+            if from_rewards != from_lanes:
+                raise ValueError(
+                    f"draw {draw_id}: the two return routes disagree on intersection {ix_id!r} "
+                    f"({from_rewards!r} from the reward stream against {from_lanes!r} from its "
+                    "lane waiting counts); A17(b) requires equality under ==, per intersection"
+                )
+            by_reward[ix_id] = from_rewards
+            by_lanes[ix_id] = from_lanes
+
+        _write_json(
+            chunk_path,
+            {
+                "format_version": PER_INTERSECTION_FORMAT_VERSION,
+                "domain": "sumo",
+                "draw_id": draw_id,
+                "scenario_key": scenario_key,
+                "intersection_ids": [ix for ix, _ in ids_and_lanes],
+                "local_return": by_reward,
+                "local_return_from_lanes": by_lanes,
+                "two_routes_agree": True,
+                "decisions": len(post_step),
+                "engine_seed_requested": int(engine_seed),
+                "engine_seed_drawn": int(reads["engine_seed_drawn"]),
+                "n_teleports": int(reads["n_teleports"]),
+                "vehicle_types_seen": list(reads["vehicle_types_seen"]),
+                "time_to_teleport_option": str(reads["time_to_teleport_option"]),
+                "att_horizon": samples[-1] if samples else 0.0,
+                "horizon_vehicle_count": last_vehicle_count,
+                "config_path": str(config_path),
+                "config_sha256": _sha256_file(config_path),
+                "seconds": seconds,
+                "canary_seconds": canary_seconds,
+                **_git_provenance(),
+            },
+        )
+        returns[draw_id] = dict(by_reward)
+    return returns
+
+
+def per_intersection_returns_from_chunks(
+    domain: str, *, work_dir: str | Path
+) -> dict[int, dict[str, float]]:
+    """``{draw_id: {intersection_id: return}}`` read back from one domain's chunks on disk.
+
+    The artifact is built from what the chunks SAY, re-read from disk, not from what the run that
+    wrote them returned in memory: the chunks are the evidence, and a resumed run's numbers must
+    come from the same place a fresh one's do.
+    """
+    if domain not in PROBE_DOMAINS:
+        raise ValueError(f"unknown probe domain {domain!r}; the two are {list(PROBE_DOMAINS)}")
+    out: dict[int, dict[str, float]] = {}
+    for path in sorted(Path(work_dir).glob(f"probe_{domain}_draw_*.json")):
+        payload = json.loads(path.read_bytes())
+        if str(payload.get("format_version")) != PER_INTERSECTION_FORMAT_VERSION:
+            raise ValueError(
+                f"{path}: chunk format {payload.get('format_version')!r} is not "
+                f"{PER_INTERSECTION_FORMAT_VERSION!r}"
+            )
+        ids = [str(ix) for ix in payload["intersection_ids"]]
+        out[int(payload["draw_id"])] = {ix: float(payload["local_return"][ix]) for ix in ids}
+    return out
+
+
+def report_per_intersection_calibration(
+    *,
+    work_dir: str | Path,
+    out_path: str | Path,
+    output_root: str | Path,
+    scenario_key: str = GRID4X4_SCENARIO_KEY,
+    expected_sha256: Mapping[int, str] | None = None,
+    held_out_draws: Sequence[int] = HELD_OUT_DRAWS,
+) -> dict[str, Any]:
+    """A17(e)'s calibration artifact for a multi-intersection pair, from BOTH probes' chunks.
+
+    **Format version** ``p7.3d-calibration/1.0``.  Per intersection: the two constants read from
+    the subject's checkpoints with the FIELD each came from stated (Amendment A4), both probe
+    statistics at every budget, the Rule B target at every budget with only ``k = 100`` carrying
+    the registered role (A20(b)), and the in-support position -- a diagnostic that never selects.
+
+    **Built from the chunks on disk, never from a run's memory**, so a resumed run's artifact is
+    the same as a fresh one's.  **Every refusal precedes the write**, and the write is atomic: a
+    refused report leaves no file at all.  The refusals: both halves must cover exactly the same
+    draws and every intersection; the ids must be the subject's own, in its order; the probe band
+    must be disjoint from the draws the CHECKPOINT says it trained on and from the held-out pool;
+    and every budget must have the episodes it declares.
+    """
+    from offline.rtg_calibration import assert_probe_draws_disjoint
+
+    work = Path(work_dir)
+    facts = subject_facts_per_intersection(
+        output_root=output_root, expected_sha256=expected_sha256
+    )
+    by_domain = {
+        domain: per_intersection_returns_from_chunks(domain, work_dir=work)
+        for domain in PROBE_DOMAINS
+    }
+    counts = {domain: len(rows) for domain, rows in by_domain.items()}
+    if counts["cityflow"] != counts["sumo"] or not by_domain["sumo"]:
+        raise ValueError(
+            f"the two probe halves do not cover the same draws: {counts['cityflow']} cityflow "
+            f"chunk(s) against {counts['sumo']} sumo chunk(s) in {work}. Rule B's ratio is formed "
+            "over the SAME demand in both domains, so a missing half is a refusal, not a smaller k"
+        )
+    draws = sorted(by_domain["sumo"])
+    for domain, rows in by_domain.items():
+        for draw in draws:
+            found = [str(ix) for ix in rows.get(draw, {})]
+            if found != list(facts.intersection_ids):
+                raise ValueError(
+                    f"the {domain} chunk of draw {draw} records intersections {found[:4]}, not "
+                    f"the subject's {list(facts.intersection_ids)[:4]} in its order; a statistic "
+                    "over a different population is a different statistic"
+                )
+    assert_probe_draws_disjoint(
+        draws,
+        training_draw_ids=facts.training_draw_ids,
+        held_out_draws=held_out_draws,
+    )
+
+    statistics_table = per_intersection_statistics(
+        by_domain["sumo"], by_domain["cityflow"], intersection_ids=facts.intersection_ids
+    )
+    targets = per_intersection_targets(facts, statistics_table)
+
+    per_intersection: dict[str, Any] = {}
+    for ix in facts.intersection_ids:
+        low, high = facts.support_range[ix]
+        budgets: dict[str, Any] = {}
+        for key, entry in targets[ix].items():
+            budgets[key] = {
+                "k": entry["k"],
+                "rule": entry["rule"],
+                "statistic": entry["statistic"],
+                "role": entry["role"],
+                "target": entry["target"],
+                "probe_target_stat": entry["inputs"]["probe_target_stat"],
+                "probe_source_stat": entry["inputs"]["probe_source_stat"],
+                "draw_ids": statistics_table[key]["draw_ids"],
+                "in_support": entry["in_support"],
+            }
+        per_intersection[ix] = {
+            "best_source_return": facts.best_source_return[ix],
+            "rtg_scale": facts.rtg_scale[ix],
+            "support_range": [low, high],
+            "n_training_rows": facts.n_rows[ix],
+            "budgets": budgets,
+        }
+
+    artifact: dict[str, Any] = {
+        "format_version": PER_INTERSECTION_FORMAT_VERSION,
+        "registered_in": "PREREGISTRATION A17(e), A20(b), A21(a); BRIEF_39 C3a, Amendment A4",
+        "scenario_key": scenario_key,
+        "subject": facts.subject,
+        "registered_statistic": REGISTERED_STATISTIC,
+        "registered_k": REGISTERED_K,
+        "n_draws": len(draws),
+        "draw_ids": [draws[0], draws[-1]],
+        "intersection_ids": list(facts.intersection_ids),
+        "checkpoint_sha256": {str(seed): digest for seed, digest in facts.checkpoint_sha256.items()},
+        "declared_gradient_steps": facts.gradient_steps,
+        "architecture": {
+            "state_dim": facts.state_dim,
+            "context_length": facts.context_length,
+            "n_head": facts.n_head,
+            "spatial_mixing": False,
+        },
+        "fields_read": {
+            "best_source_return": (
+                'payload["target_rtg"][i] -- P5.2\'s declared per-intersection prompt, the '
+                "maximum episode return in THAT intersection's training streams, and the repo's "
+                "established reading (transfer_calibration.subject_facts on hangzhou). Amendment "
+                "A4: A17(e)'s wording pointed at stats[\"rtg\"], which is a different quantity."
+            ),
+            "rtg_scale": 'payload["rtg_scale"][i]; never recalibrated (A17(a)), only the target moves',
+            "support_range": (
+                'payload["stats"]["rtg"][scenario][i] min/max -- a per-window summary whose max is '
+                "0.0 on every intersection (the return-to-go at an episode's last step), so it "
+                "bounds the SUPPORT and is not a source of any target (Amendment A4)"
+            ),
+            "probe_source_stat": "the mean over this intersection's 100 CityFlow probe returns",
+            "probe_target_stat": "the mean over this intersection's 100 SUMO probe returns",
+        },
+        "probe_returns": {
+            domain: {str(draw): rows[draw] for draw in draws}
+            for domain, rows in by_domain.items()
+        },
+        "disjointness": {
+            "probe_draw_ids": [draws[0], draws[-1]],
+            "training_draw_ids": [facts.training_draw_ids[0], facts.training_draw_ids[-1]],
+            "held_out_draw_ids": [int(held_out_draws[0]), int(held_out_draws[-1])],
+            "checked_by": "offline.rtg_calibration.assert_probe_draws_disjoint",
+        },
+        "per_intersection": per_intersection,
+        "what_this_does_not_say": [
+            "These are PROBE returns -- MaxPressure's, on both engines -- and a prompt computed "
+            "from them. Nothing here is an evaluation of the subject, on either backend.",
+            "The targets at k = 5 and k = 20 are RECORDED and never evaluated (A20(b)); only "
+            "k = 100 carries the registered role.",
+            "The in-support position is a diagnostic and selects nothing (A8, BRIEF_15 12.1); a "
+            "target outside its intersection's training range is reported, not adjusted.",
+            "Rule B rescales a level by a ratio of probe means and so assumes the return scale "
+            "shifts multiplicatively between backends (A17's stated limit); the in-support "
+            "diagnostic is reported precisely because that assumption can fail.",
+        ],
+        **_git_provenance(),
+    }
+
+    # ---- the last refusal, then the write ----
+    for ix in facts.intersection_ids:
+        if per_intersection[ix]["budgets"][f"k{REGISTERED_K}"]["role"] != ROLE_REGISTERED:
+            raise AssertionError(f"{ix} carries no registered prompt at k={REGISTERED_K}")
+    _write_json(out_path, artifact)
+    return artifact
 
 
 def _write_json(path: str | Path, payload: Mapping[str, Any]) -> None:

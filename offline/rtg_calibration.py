@@ -118,12 +118,15 @@ __all__ = [
     "PROBE_STATISTICS",
     "PointRun",
     "ProbeEpisode",
+    "ProbeEpisodePerIntersection",
+    "run_probe_per_intersection",
     "RULE_A_K",
     "RULE_A_POINT_KEY",
     "RULE_A_QUANTILE",
     "SECONDARY_QUANTILES",
     "SupportCounts",
     "agent_with_target",
+    "spatial_agent_with_targets",
     "assert_probe_draws_disjoint",
     "build_parser",
     "effect_size_sidecar",
@@ -354,6 +357,31 @@ def episode_return_two_routes(
     return math.fsum(rewards), -math.fsum(waiting)
 
 
+def _roll_maxpressure_episode(
+    env: Any, agent: Any, *, engine_seed: int
+) -> tuple[list[Mapping[str, Any]], list[float], float]:
+    """One MaxPressure episode: ``(post-step infos, ATT samples, last vehicle count)``.
+
+    The loop :func:`run_probe` has always run, extracted VERBATIM so that the per-intersection
+    probe (P7.3d) shares it instead of carrying a second copy that could drift: same reset
+    seeding, same ``max_steps`` bound, same break on terminate/truncate, same ``.get(..., 0.0)``
+    defaults.  The reset info is not among the returned infos: no reward precedes the first action.
+    """
+    info = env.reset(seed=int(engine_seed))
+    post_step: list[Mapping[str, Any]] = []
+    samples: list[float] = []
+    last_vehicle_count = 0.0
+    for _ in range(int(env.max_steps)):
+        action = agent.act(info)
+        _reward, terminated, truncated, info = env.step(action)
+        post_step.append(info)
+        samples.append(float(info.get("average_travel_time", 0.0)))
+        last_vehicle_count = float(info.get("vehicle_count", 0.0))
+        if terminated or truncated:
+            break
+    return post_step, samples, last_vehicle_count
+
+
 def run_probe(
     *,
     draw_ids: Sequence[int],
@@ -402,19 +430,9 @@ def run_probe(
             ix_id = str(intersections[0].id)
             lanes = list(intersections[0].incoming_lanes)
             agent = MaxPressureAgent(env)
-
-            info = env.reset(seed=int(engine_seed))
-            post_step: list[Mapping[str, Any]] = []
-            samples: list[float] = []
-            last_vehicle_count = 0.0
-            for _ in range(int(env.max_steps)):
-                action = agent.act(info)
-                _reward, terminated, truncated, info = env.step(action)
-                post_step.append(info)
-                samples.append(float(info.get("average_travel_time", 0.0)))
-                last_vehicle_count = float(info.get("vehicle_count", 0.0))
-                if terminated or truncated:
-                    break
+            post_step, samples, last_vehicle_count = _roll_maxpressure_episode(
+                env, agent, engine_seed=int(engine_seed)
+            )
         finally:
             env.close()
 
@@ -424,6 +442,147 @@ def run_probe(
         episodes.append(
             ProbeEpisode(
                 draw_id=int(draw_id),
+                local_return=from_rewards,
+                local_return_from_lanes=from_lanes,
+                att_horizon=samples[-1] if samples else 0.0,
+                horizon_vehicle_count=last_vehicle_count,
+                decisions=len(post_step),
+            )
+        )
+    return episodes
+
+
+# ----------------------------------------------------------------------
+# The probe PER INTERSECTION (P7.3d, BRIEF_39 C3a + Amendment A4)
+# ----------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class ProbeEpisodePerIntersection:
+    """One MaxPressure probe episode on a multi-intersection scenario: a return PER intersection.
+
+    ``local_return`` and ``local_return_from_lanes`` are keyed by intersection id, in the env's own
+    order (contract C1), and are the two independent routes of :func:`episode_return_two_routes`
+    applied to each intersection separately -- A17(e): *no pooling*.
+    """
+
+    draw_id: int
+    local_return: dict[str, float]
+    local_return_from_lanes: dict[str, float]
+    att_horizon: float
+    horizon_vehicle_count: float
+    decisions: int
+
+
+def _roll_cityflow_probe_episode(
+    config_path: Path,
+    *,
+    env_settings: Mapping[str, Any],
+    scenario_id: str,
+    engine_seed: int,
+) -> tuple[list[tuple[str, list[str]]], list[Mapping[str, Any]], list[float], float]:
+    """One CityFlow MaxPressure episode: ``(ids with their incoming lanes, post-step infos, ATT
+    samples, last vehicle count)``.  A named seam, so the per-intersection refusals are testable
+    without an engine.
+
+    The env is built exactly as :func:`run_probe` builds it and rolled by the same
+    :func:`_roll_maxpressure_episode`; the ids come back in the env's own order (contract C1).
+    """
+    from algorithms.max_pressure import MaxPressureAgent
+    from experiments.config import EnvSpec
+    from experiments.envs import make_env
+
+    env = make_env(
+        EnvSpec(
+            id=scenario_id,
+            backend="cityflow",
+            paths={"config": str(config_path)},
+            settings=dict(env_settings),
+        )
+    )
+    try:
+        ids_and_lanes = [
+            (str(ix.id), [str(lane) for lane in ix.incoming_lanes]) for ix in env.intersections
+        ]
+        post_step, samples, last_vehicle_count = _roll_maxpressure_episode(
+            env, MaxPressureAgent(env), engine_seed=int(engine_seed)
+        )
+    finally:
+        env.close()
+    return ids_and_lanes, post_step, samples, last_vehicle_count
+
+
+def run_probe_per_intersection(
+    *,
+    draw_ids: Sequence[int],
+    config_for_draw: Callable[[int], Path],
+    env_settings: Mapping[str, Any],
+    scenario_id: str,
+    engine_seed: int,
+) -> list[ProbeEpisodePerIntersection]:
+    """:func:`run_probe` for a scenario with MORE than one intersection (A17(e), Amendment A4).
+
+    One MaxPressure episode per draw on CityFlow, ``reset(seed=engine_seed)`` on a fresh env, and
+    for EVERY intersection its own episode return by the two independent routes of
+    :func:`episode_return_two_routes` -- the reward stream the return-to-go advances on, and the
+    lane waiting counts over that intersection's own incoming lanes.  Nothing is pooled across
+    intersections: A17(e) registers the rule per intersection.
+
+    Unlike :func:`run_probe`, which records both routes and leaves the comparison to its caller,
+    the two routes are COMPARED here, per intersection, under ``==``: one intersection disagreeing
+    refuses the episode, naming the draw and the intersection -- fifteen agreeing must not be able
+    to hide the sixteenth.  The decision count is checked against ``env_settings["max_steps"]``.
+
+    A single-intersection scenario is refused: its probe is :func:`run_probe`, whose scalar records
+    P4.3's committed artifact is made of, and a second shape for one registered quantity is how two
+    code paths come to disagree about it.
+    """
+    expected_decisions = int(env_settings["max_steps"])
+    episodes: list[ProbeEpisodePerIntersection] = []
+    for raw_draw_id in draw_ids:
+        draw_id = int(raw_draw_id)
+        config_path = Path(config_for_draw(draw_id))
+        if not config_path.is_file():
+            raise FileNotFoundError(
+                f"probe draw {draw_id} has no materialised sim config at {config_path}; run "
+                "offline.materialise_draws for the probe band first"
+            )
+        ids_and_lanes, post_step, samples, last_vehicle_count = _roll_cityflow_probe_episode(
+            config_path,
+            env_settings=env_settings,
+            scenario_id=scenario_id,
+            engine_seed=int(engine_seed),
+        )
+        if len(ids_and_lanes) < 2:
+            raise ValueError(
+                f"draw {draw_id}: this scenario has {len(ids_and_lanes)} intersection(s); the "
+                "per-intersection probe is for a multi-intersection pair, and a single-"
+                "intersection scenario's probe is run_probe, whose scalar record is the "
+                "registered one"
+            )
+        if len(post_step) != expected_decisions:
+            raise ValueError(
+                f"draw {draw_id}: {len(post_step)} decisions, not {expected_decisions}"
+            )
+
+        from_rewards: dict[str, float] = {}
+        from_lanes: dict[str, float] = {}
+        for ix_id, lanes in ids_and_lanes:
+            by_reward, by_lanes = episode_return_two_routes(
+                post_step, ix_id=ix_id, incoming_lanes=lanes
+            )
+            if by_reward != by_lanes:
+                raise ValueError(
+                    f"draw {draw_id}: the two return routes disagree on intersection {ix_id!r} "
+                    f"({by_reward!r} from the reward stream against {by_lanes!r} from its lane "
+                    "waiting counts); A17(b) requires equality under ==, per intersection"
+                )
+            from_rewards[ix_id] = by_reward
+            from_lanes[ix_id] = by_lanes
+
+        episodes.append(
+            ProbeEpisodePerIntersection(
+                draw_id=draw_id,
                 local_return=from_rewards,
                 local_return_from_lanes=from_lanes,
                 att_horizon=samples[-1] if samples else 0.0,
@@ -640,6 +799,88 @@ def agent_with_target(
 # ----------------------------------------------------------------------
 # The campaign
 # ----------------------------------------------------------------------
+
+
+def spatial_agent_with_targets(
+    gym_env: Any,
+    checkpoint_path: str | Path,
+    *,
+    declared_gradient_steps: int,
+    targets: Mapping[str, float],
+    method: str = "dt_nomix_h4",
+    device: str | None = None,
+) -> Any:
+    """:func:`agent_with_target` for a multi-intersection SPATIAL checkpoint (Amendment A1(a)).
+
+    Load first, THEN apply the targets -- ``SpatialDTAgent.load`` overwrites ``_target_rtg`` and
+    ``_rtg_scale`` from the payload (``agent/SpatialDTAgent.py:905-906``) and ``from_checkpoint``
+    passes the payload's own prompt, so a target handed to the constructor is discarded.  That is
+    the defect :func:`agent_with_target` exists for, one level up: here it would be sixteen
+    discarded targets and a complete, plausible episode.
+
+    Three guards, all before the agent is returned: the declared budget; ``rtg_scale`` unchanged
+    from the payload **per intersection** (A17(a) recalibrates only the target); and
+    ``current_rtg()`` equal to the requested targets **per intersection** under ``==``.
+
+    ⚠️ **The mixing flag is asserted HERE and not left to the budget guard.**
+    ``offline.spatial_mixing.assert_declared_budget`` runs its ``spatial_mixing`` check only for
+    method names in ``DT_METHODS = ("dt_spatial", "dt_nomix")``; the registered subject's method
+    name is ``dt_nomix_h4``, which is not in that tuple, so for this subject the check is skipped
+    entirely -- measured 2026-09-21: a *mixing* checkpoint is accepted under the name
+    ``dt_nomix_h4``, while the same file under ``dt_nomix`` is refused.  P5.2's module is not this
+    task's to change, so this call site does its own check.  (The subject's identity is protected
+    independently by A20(a)'s five digests, pinned in
+    ``offline.transfer_calibration.GRID4X4_CHECKPOINT_SHA256``.)
+    """
+    import torch
+
+    from agent.SpatialDTAgent import SpatialDTAgent
+    from offline.spatial_mixing import assert_declared_budget
+
+    path = Path(checkpoint_path)
+    assert_declared_budget(path, int(declared_gradient_steps), str(method))
+
+    payload = torch.load(path, map_location="cpu", weights_only=False)
+    if bool(payload["config"]["spatial_mixing"]):
+        raise ValueError(
+            f"{path}: this checkpoint records spatial_mixing=True but is being loaded as "
+            f"{method!r}, a NON-mixing arm. The two arms are weight-compatible by design, and "
+            "spatial_mixing.assert_declared_budget skips its own check for method names outside "
+            "DT_METHODS, of which this is one -- so nothing else would have caught the swap"
+        )
+
+    expected_ids = [str(ix.id) for ix in gym_env.intersections]
+    requested = {str(ix): float(value) for ix, value in targets.items()}
+    missing = [ix for ix in expected_ids if ix not in requested]
+    extra = [ix for ix in requested if ix not in expected_ids]
+    if missing or extra:
+        raise ValueError(
+            f"{path}: the targets do not cover exactly this env's intersections (missing "
+            f"{missing[:4]}, unexpected {extra[:4]}). A17(e) applies the rule per intersection, "
+            "so a partial mapping would leave some of them conditioning on the checkpoint's own "
+            "in-domain prompt while the rest ran the calibrated one"
+        )
+
+    agent = SpatialDTAgent.from_checkpoint(gym_env, str(path), device=device)
+    expected_scale = {str(k): float(v) for k, v in payload["rtg_scale"].items()}
+    if agent._rtg_scale != expected_scale:
+        raise ValueError(
+            f"{path}: rtg_scale is not the checkpoint's; this task varies the TARGET only and the "
+            "normalisation divisor must come from the trained model (A17(a))"
+        )
+
+    agent._target_rtg = {ix: requested[ix] for ix in expected_ids}
+    agent.reset_context()
+
+    resting = agent.current_rtg()
+    disagreeing = sorted(ix for ix in expected_ids if resting[ix] != requested[ix])
+    if disagreeing:
+        raise ValueError(
+            f"{path}: after applying the targets, {len(disagreeing)} intersection(s) condition on "
+            f"something else (first: {[(ix, resting[ix], requested[ix]) for ix in disagreeing[:3]]}); "
+            "the override did not take effect"
+        )
+    return agent
 
 
 def grid_targets() -> dict[str, float]:

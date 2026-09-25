@@ -1,0 +1,293 @@
+{
+  "arms": [
+    "fixedtime",
+    "maxpressure"
+  ],
+  "cells": [
+    {
+      "arm": "fixedtime",
+      "att_env": 307.19879062736203,
+      "config_sha256": "c27d31e831e1dc1b4b4c90c73e4d64ed4684990b45c075f47312081afbf9a2cd",
+      "decisions": 360,
+      "draw_id": 1000,
+      "e_sumo": 307.25925925925924,
+      "e_sumo_n_ids": 1323,
+      "e_sumo_total": 406504.0,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "halting_checked": true,
+      "halting_n_disagreeing_lane_seconds": 0,
+      "halting_n_lane_seconds": 691200,
+      "n_arrived": 1283,
+      "n_departed": 1323,
+      "n_intended": 1323,
+      "n_never_inserted": 0,
+      "n_observations": 3600,
+      "n_pending_at_horizon": 0,
+      "n_teleports": 0,
+      "n_vanished_without_arrival": 0,
+      "routes_sha256": "6ab4d6d749635be77d74548f2a78fb3d87ca9a014d536c30412019663d7166cc",
+      "scenario": "cityflow_grid4x4",
+      "seconds": 107.31898430502042,
+      "time_to_teleport_option": "-1",
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "arm": "fixedtime",
+      "att_env": 307.1667907669397,
+      "config_sha256": "c27d31e831e1dc1b4b4c90c73e4d64ed4684990b45c075f47312081afbf9a2cd",
+      "decisions": 360,
+      "draw_id": 1001,
+      "e_sumo": 307.2524199553239,
+      "e_sumo_n_ids": 1343,
+      "e_sumo_total": 412640.0,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "halting_checked": false,
+      "halting_n_disagreeing_lane_seconds": 0,
+      "halting_n_lane_seconds": 0,
+      "n_arrived": 1300,
+      "n_departed": 1343,
+      "n_intended": 1343,
+      "n_never_inserted": 0,
+      "n_observations": 3600,
+      "n_pending_at_horizon": 0,
+      "n_teleports": 0,
+      "n_vanished_without_arrival": 0,
+      "routes_sha256": "f3c85944e93784a7d997e0b3012b8662b5c9b5a9439a7990f82ac0ea953ae91e",
+      "scenario": "cityflow_grid4x4",
+      "seconds": 32.89104728307575,
+      "time_to_teleport_option": "-1",
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "arm": "fixedtime",
+      "att_env": 301.73723723723725,
+      "config_sha256": "c27d31e831e1dc1b4b4c90c73e4d64ed4684990b45c075f47312081afbf9a2cd",
+      "decisions": 360,
+      "draw_id": 1002,
+      "e_sumo": 301.7972972972973,
+      "e_sumo_n_ids": 1332,
+      "e_sumo_total": 401994.0,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "halting_checked": false,
+      "halting_n_disagreeing_lane_seconds": 0,
+      "halting_n_lane_seconds": 0,
+      "n_arrived": 1283,
+      "n_departed": 1332,
+      "n_intended": 1332,
+      "n_never_inserted": 0,
+      "n_observations": 3600,
+      "n_pending_at_horizon": 0,
+      "n_teleports": 0,
+      "n_vanished_without_arrival": 0,
+      "routes_sha256": "732d0692142d1235e3101a440f61184ace9cb83c25ea23d16790fd3a300bbc16",
+      "scenario": "cityflow_grid4x4",
+      "seconds": 31.913047403097153,
+      "time_to_teleport_option": "-1",
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "arm": "maxpressure",
+      "att_env": 168.6130007558579,
+      "config_sha256": "c27d31e831e1dc1b4b4c90c73e4d64ed4684990b45c075f47312081afbf9a2cd",
+      "decisions": 360,
+      "draw_id": 1000,
+      "e_sumo": 168.67422524565382,
+      "e_sumo_n_ids": 1323,
+      "e_sumo_total": 223156.0,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "halting_checked": true,
+      "halting_n_disagreeing_lane_seconds": 0,
+      "halting_n_lane_seconds": 691200,
+      "n_arrived": 1309,
+      "n_departed": 1323,
+      "n_intended": 1323,
+      "n_never_inserted": 0,
+      "n_observations": 3600,
+      "n_pending_at_horizon": 0,
+      "n_teleports": 0,
+      "n_vanished_without_arrival": 0,
+      "routes_sha256": "6ab4d6d749635be77d74548f2a78fb3d87ca9a014d536c30412019663d7166cc",
+      "scenario": "cityflow_grid4x4",
+      "seconds": 97.56303912703879,
+      "time_to_teleport_option": "-1",
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "arm": "maxpressure",
+      "att_env": 167.85331347728965,
+      "config_sha256": "c27d31e831e1dc1b4b4c90c73e4d64ed4684990b45c075f47312081afbf9a2cd",
+      "decisions": 360,
+      "draw_id": 1001,
+      "e_sumo": 167.94489947877886,
+      "e_sumo_n_ids": 1343,
+      "e_sumo_total": 225550.0,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "halting_checked": false,
+      "halting_n_disagreeing_lane_seconds": 0,
+      "halting_n_lane_seconds": 0,
+      "n_arrived": 1327,
+      "n_departed": 1343,
+      "n_intended": 1343,
+      "n_never_inserted": 0,
+      "n_observations": 3600,
+      "n_pending_at_horizon": 0,
+      "n_teleports": 0,
+      "n_vanished_without_arrival": 0,
+      "routes_sha256": "f3c85944e93784a7d997e0b3012b8662b5c9b5a9439a7990f82ac0ea953ae91e",
+      "scenario": "cityflow_grid4x4",
+      "seconds": 32.21845451905392,
+      "time_to_teleport_option": "-1",
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    },
+    {
+      "arm": "maxpressure",
+      "att_env": 168.12312312312312,
+      "config_sha256": "c27d31e831e1dc1b4b4c90c73e4d64ed4684990b45c075f47312081afbf9a2cd",
+      "decisions": 360,
+      "draw_id": 1002,
+      "e_sumo": 168.18093093093094,
+      "e_sumo_n_ids": 1332,
+      "e_sumo_total": 224017.0,
+      "engine_seed_drawn": 437485271,
+      "engine_seed_requested": 1000,
+      "halting_checked": false,
+      "halting_n_disagreeing_lane_seconds": 0,
+      "halting_n_lane_seconds": 0,
+      "n_arrived": 1312,
+      "n_departed": 1332,
+      "n_intended": 1332,
+      "n_never_inserted": 0,
+      "n_observations": 3600,
+      "n_pending_at_horizon": 0,
+      "n_teleports": 0,
+      "n_vanished_without_arrival": 0,
+      "routes_sha256": "732d0692142d1235e3101a440f61184ace9cb83c25ea23d16790fd3a300bbc16",
+      "scenario": "cityflow_grid4x4",
+      "seconds": 30.702810714952648,
+      "time_to_teleport_option": "-1",
+      "vehicle_types_seen": [
+        "cf_parity"
+      ]
+    }
+  ],
+  "draws": [
+    1000,
+    1001,
+    1002
+  ],
+  "engine_seed": 1000,
+  "format_version": "p7.3d-reference-cells/1.0",
+  "git_commit": "747cb2527b702159900e611d66dee3abf571fb52",
+  "git_dirty": false,
+  "n_cells": 6,
+  "pedigree": {
+    "all_match": true,
+    "n_checked": 6,
+    "n_matching": 6,
+    "reference_artifact": "p8_4b_g0_reference.json",
+    "reference_artifact_sha256": "103bd71bdff17c611aac92b0c9f029304218189bd613be9c9fb5cdc6dbea1694",
+    "rows": [
+      {
+        "arm": "fixedtime",
+        "att_engine": 201.80650037792896,
+        "att_ours": 209.26303854875283,
+        "differing": [],
+        "draw_id": 1000,
+        "fields_excluded": [
+          "seconds",
+          "seconds_rollout"
+        ],
+        "matches": true,
+        "n_fields_compared": 32
+      },
+      {
+        "arm": "fixedtime",
+        "att_engine": 201.14594192107222,
+        "att_ours": 208.48473566641846,
+        "differing": [],
+        "draw_id": 1001,
+        "fields_excluded": [
+          "seconds",
+          "seconds_rollout"
+        ],
+        "matches": true,
+        "n_fields_compared": 32
+      },
+      {
+        "arm": "fixedtime",
+        "att_engine": 197.83783783783784,
+        "att_ours": 205.21021021021022,
+        "differing": [],
+        "draw_id": 1002,
+        "fields_excluded": [
+          "seconds",
+          "seconds_rollout"
+        ],
+        "matches": true,
+        "n_fields_compared": 32
+      },
+      {
+        "arm": "maxpressure",
+        "att_engine": 159.91156462585033,
+        "att_ours": 166.79138321995464,
+        "differing": [],
+        "draw_id": 1000,
+        "fields_excluded": [
+          "seconds",
+          "seconds_rollout"
+        ],
+        "matches": true,
+        "n_fields_compared": 32
+      },
+      {
+        "arm": "maxpressure",
+        "att_engine": 160.90171258376768,
+        "att_ours": 167.59121370067015,
+        "differing": [],
+        "draw_id": 1001,
+        "fields_excluded": [
+          "seconds",
+          "seconds_rollout"
+        ],
+        "matches": true,
+        "n_fields_compared": 32
+      },
+      {
+        "arm": "maxpressure",
+        "att_engine": 161.07057057057057,
+        "att_ours": 167.84534534534535,
+        "differing": [],
+        "draw_id": 1002,
+        "fields_excluded": [
+          "seconds",
+          "seconds_rollout"
+        ],
+        "matches": true,
+        "n_fields_compared": 32
+      }
+    ],
+    "what": "the six CityFlow reference episodes of docs/data/p8_4b_g0_reference.json, re-rolled through engine_att_reference.run_cells -- the function that produced them -- and compared field by field under ==, excluding the two wall clocks ['seconds', 'seconds_rollout'], which are perf_counter differences"
+  },
+  "registered_in": "BRIEF_39 C4, Amendment B3/Q3; PREREGISTRATION A9, A15(b)",
+  "scenario_key": "cityflow_grid4x4",
+  "what_this_does_not_say": [
+    "These are ANCHOR values -- fixed-time and MaxPressure -- not an evaluation of any subject. rho is computed from them; they are not themselves a result.",
+    "Three draws are not the held-out pool: they are the instrument-regeneration check, and the campaign reports rho over all 100."
+  ],
+  "what_this_is": "The two rho anchors on the first three held-out draws, under the registered regime, with BOTH ATT definitions -- the values the campaign's own chunks for these six cells must reproduce bit for bit (A9: the instrument regenerates). grid4x4 had no frozen anchor until this file; P7.3a could check against P7.1's."
+}

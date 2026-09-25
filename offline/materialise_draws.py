@@ -147,6 +147,39 @@ The subdirectory is invisible to :func:`_existing_conflict`, which compares **fi
 the parity phase cannot make a later ``materialise()`` refuse; a file placed beside the parent's
 four would.  ``<time-to-teleport value="-1"/>`` is A15(c), binding on every SUMO measurement
 recorded after 2026-09-12 and on every ``.sumocfg`` generated for drawn demand.
+
+THE TEMPLATED SHAPE (P7.3d, ``BRIEF_39`` C1 + Amendments A5 and A.1-3)
+---------------------------------------------------------------------
+**Format version** ``materialised-draw-parity/1.1``, written ONLY for a scenario whose SUMO side
+lives outside the repository (grid4x4: RESCO's net and route archive, CC BY-NC-SA 4.0, located
+through ``RLTRAFFIC_GRID4X4_RESCO``, read in place, pinned by sha256).  Its parent holds three
+files and ``"sumo": null`` -- the repo ships no route template for it -- so there is no parent
+rendering to bind and none may be added beside the parent's files.  The bound routes are
+therefore rendered INSIDE ``parity/``: the parent's ``flow.json`` entries go through the same
+:meth:`offline.flow_randomizer.FlowRandomizer.render_sumo`, with the external route file as the
+template and its ``.sumocfg``'s ``<begin>`` as the depart offset, and the parity ``<vType>`` is
+INSERTED (the template declares none) rather than replaced.  **The alignment convention is the
+one above, unchanged:** ids ``0..n-1`` in ``startTime`` order, ``depart = startTime + <begin>`` at
+two decimals, and CAP(E) per draw recorded in the provenance.
+
+What differs in the 1.1 record, and why it is a version and not an added key:
+``parent.routes_sha256`` is ``null`` -- a field a 1.0 reader expects to be a digest -- with
+``parent.routes_absent_reason`` beside it; a ``route_template`` block records the archive member,
+its sha256, the external ``.sumocfg``'s sha256 and the licence; ``net.resolved`` is written
+relative to the candidates root (``<candidates>/...``), never absolutely, while ``net.reference``
+stays a path relative to the parity directory, exactly as in 1.0.  **The hangzhou shape still
+writes 1.0, byte for byte**, so every parity directory written before P7.3d classifies as
+``kept``; :func:`load_parity_provenance` reads both and refuses anything else.
+
+The parity ``<vType>`` is PER SCENARIO (:class:`offline.parity.ParityScenario`) and DERIVED from
+the scenario's CityFlow flow block; a block that disagrees with the registered table is refused.
+
+GATE G1's ARTIFACT (``--report-cap-e``)
+---------------------------------------
+**Format version** ``p7.3d-cap-e/1.0`` (:func:`cap_e_report`): A15(g)'s condition re-run on the
+RENDERED parity files -- per draw, CAP(E) on the key ``(depart, route)``, unshifted, as a
+multiset and index-aligned through :func:`offline.conversion_audit.audit_pair`, plus the vType
+binding read back from the rendered file.  Read-only under ``--out-root``.
 """
 
 from __future__ import annotations
@@ -188,8 +221,11 @@ __all__ = [
     "HELD_OUT_POOL",
     "MaterialisedDraw",
     "P4_3_PROBE_ARTIFACT",
+    "CAP_E_FORMAT_VERSION",
     "PARITY_DIRNAME",
     "PARITY_FORMAT_VERSION",
+    "PARITY_FORMAT_VERSION_TEMPLATED",
+    "READABLE_PARITY_FORMAT_VERSIONS",
     "PARITY_ROUTES_FILENAME",
     "PARITY_SUMOCFG_FILENAME",
     "PROVENANCE_FILENAME",
@@ -197,7 +233,9 @@ __all__ = [
     "ProbeCheck",
     "SUMO_ROUTES_FILENAME",
     "TRAINING_POOL",
+    "assert_cap_e_exact",
     "build_parser",
+    "cap_e_report",
     "classify_draw_pool",
     "draw_config_path",
     "draw_dir",
@@ -219,6 +257,23 @@ FORMAT_VERSION = "materialised-draw/1.0"
 #: Format version of the additive parity subdirectory (P7.2a, ``BRIEF_35``).  Bumped by any
 #: change to that layout or to the meaning of a field in its ``provenance.json``.
 PARITY_FORMAT_VERSION = "materialised-draw-parity/1.0"
+
+#: The TEMPLATED shape (P7.3d, ``BRIEF_39`` Amendment A5): a scenario whose parent draw carries NO
+#: SUMO rendering, so the bound routes are rendered inside ``parity/`` from the parent's
+#: ``flow.json`` and an external route template.  ``parent.routes_sha256`` is ``null`` there -- a
+#: field a 1.0 reader expects to be a digest -- and THAT is what forces the bump; added keys alone
+#: would not.  The hangzhou shape keeps writing 1.0 byte-for-byte, so every parity directory
+#: written before P7.3d still classifies as ``kept``.
+PARITY_FORMAT_VERSION_TEMPLATED = "materialised-draw-parity/1.1"
+
+#: What :func:`load_parity_provenance` accepts.  An unknown version is refused, never guessed at.
+READABLE_PARITY_FORMAT_VERSIONS: tuple[str, ...] = (
+    PARITY_FORMAT_VERSION,
+    PARITY_FORMAT_VERSION_TEMPLATED,
+)
+
+#: Format of ``docs/data/p7_3d_cap_e.json`` -- gate G1's artifact (A15(g)'s condition).
+CAP_E_FORMAT_VERSION = "p7.3d-cap-e/1.0"
 
 DEFAULT_OUT_ROOT = Path("scenarios/draws")
 
@@ -516,9 +571,22 @@ def parity_sumocfg_path(
 def load_parity_provenance(
     scenario_key: str, draw_id: int, *, out_root: str | Path = DEFAULT_OUT_ROOT
 ) -> dict[str, Any]:
-    """Return the provenance record of one draw's parity subdirectory."""
+    """Return the provenance record of one draw's parity subdirectory.
+
+    Both shapes are readable (:data:`READABLE_PARITY_FORMAT_VERSIONS`): ``1.0``, whose
+    ``parent.routes_sha256`` is a digest, and the templated ``1.1``, where it is ``null`` and a
+    ``route_template`` block says what the routes were rendered from.  Any other version is refused
+    rather than read as if it were one of them.
+    """
     path = parity_dir(scenario_key, draw_id, out_root=out_root) / PROVENANCE_FILENAME
-    return json.loads(path.read_bytes())
+    record = json.loads(path.read_bytes())
+    version = record.get("format_version")
+    if version not in READABLE_PARITY_FORMAT_VERSIONS:
+        raise ValueError(
+            f"{path}: parity provenance format {version!r} is not readable by this build "
+            f"(readable: {list(READABLE_PARITY_FORMAT_VERSIONS)})"
+        )
+    return record
 
 
 def load_provenance(
@@ -1060,15 +1128,21 @@ def _checked_parity_target(target: str | Path, out_root: str | Path) -> Path:
     return checked
 
 
-def _render_bound_routes(text: str, *, draw_id: int) -> str:
+def _render_bound_routes(
+    text: str,
+    *,
+    draw_id: int,
+    vtype: Mapping[str, str] | None = None,
+    insert_when_absent: bool = False,
+) -> str:
     """Bind the parity ``<vType>`` onto a drawn rendering, naming the draw on failure.
 
     A thin seam over :func:`offline.parity.render_parity_rou_text` -- which refuses anything
-    that is not exactly one unbound ``<vType>`` and re-parses its own output -- so that a
-    failure says *which* draw failed in a 206-draw run.
+    that does not match its binding mode and re-parses its own output -- so that a failure says
+    *which* draw failed in a 206-draw run.  The defaults are hangzhou's: one ``<vType>`` replaced.
     """
     try:
-        return parity.render_parity_rou_text(text)
+        return parity.render_parity_rou_text(text, vtype, insert_when_absent=insert_when_absent)
     except ValueError as exc:
         raise ValueError(f"draw {draw_id}: {exc}") from exc
 
@@ -1121,24 +1195,36 @@ def _parity_demand_audit(
     }
 
 
-def _validate_parent_for_parity(target: Path, draw_id: int) -> dict[str, Any]:
+def _validate_parent_for_parity(
+    target: Path, draw_id: int, scenario: parity.ParityScenario | None = None
+) -> dict[str, Any]:
     """Everything the parent must satisfy to be a legal input. Read-only; never repairs.
 
     Returns the parent's provenance record.  A parent that fails any check is refused, because
     the parity artifacts are a *derivation* of it: binding a rendering whose demand no longer
     matches its own record would produce a file that looks authoritative and is not.
+
+    Two legal shapes, selected by the SCENARIO and never guessed from the directory.  The
+    hangzhou shape (``scenario`` is ``None`` or has no external source) holds four files and a
+    ``sumo`` record whose rendering is unbound.  The TEMPLATED shape (the scenario's SUMO side is
+    external -- grid4x4) holds three files, ``"sumo": null`` and a ``sumo_skipped_reason``: there
+    is no parent rendering to bind, and none may be added beside the parent's files.
     """
+    templated = scenario is not None and scenario.external is not None
     if not target.is_dir():
         raise FileNotFoundError(f"draw {draw_id}: {target} does not exist")
 
     entries = sorted(target.iterdir())
     files = {path.name for path in entries if path.is_file()}
-    expected = {
-        FLOW_FILENAME,
-        CITYFLOW_CONFIG_FILENAME,
-        SUMO_ROUTES_FILENAME,
-        PROVENANCE_FILENAME,
-    }
+    expected = {FLOW_FILENAME, CITYFLOW_CONFIG_FILENAME, PROVENANCE_FILENAME}
+    if not templated:
+        expected.add(SUMO_ROUTES_FILENAME)
+    if files != expected and templated:
+        raise ValueError(
+            f"draw {draw_id}: {target} holds {sorted(files)}, not the three files a materialised "
+            f"draw of {scenario.key} holds ({sorted(expected)}): this scenario's parent carries "  # type: ignore[union-attr]
+            "no SUMO rendering, and its bound routes are rendered inside parity/"
+        )
     if files != expected:
         raise ValueError(
             f"draw {draw_id}: {target} holds {sorted(files)}, not the four files a "
@@ -1168,6 +1254,20 @@ def _validate_parent_for_parity(target: Path, draw_id: int) -> dict[str, Any]:
             )
 
     sumo = record.get("sumo")
+    if templated:
+        if sumo is not None or not record.get("sumo_skipped_reason"):
+            raise ValueError(
+                f"draw {draw_id}: the parent's provenance records sumo={sumo!r} and "
+                f"sumo_skipped_reason={record.get('sumo_skipped_reason')!r}; a parent of "
+                f"{scenario.key} records NO SUMO rendering and the reason it has none"  # type: ignore[union-attr]
+            )
+        disagreements = parity.flow_json_disagreements(target / FLOW_FILENAME, scenario)
+        if disagreements:
+            raise ValueError(
+                f"draw {draw_id}: the registered parity table disagrees with the drawn "
+                f"{FLOW_FILENAME}: " + "; ".join(disagreements)
+            )
+        return record
     if not sumo:
         raise ValueError(
             f"draw {draw_id}: the parent carries no SUMO rendering "
@@ -1204,6 +1304,9 @@ def _build_parity(
     target: Path,
     depart_offset: float,
     scratch: Path,
+    vtype: Mapping[str, str] | None = None,
+    template: Mapping[str, Any] | None = None,
+    scenario: parity.ParityScenario | None = None,
 ) -> _BuiltParity:
     """Render one draw's parity artifacts entirely in memory.
 
@@ -1211,15 +1314,57 @@ def _build_parity(
     that :func:`offline.parity.vtype_binding_report` and the demand extractors read paths.  That
     write goes to an OS temp directory: nothing under ``out_root`` is touched while the run can
     still fail.
+
+    ``template`` selects the TEMPLATED shape (``materialised-draw-parity/1.1``).  The parent then
+    carries no SUMO rendering, so the unbound rendering is produced HERE, in scratch, by the same
+    :meth:`offline.flow_randomizer.FlowRandomizer.render_sumo` the hangzhou parents were rendered
+    with -- from the parent's own ``flow.json`` entries, so vehicle ids stay ``0..n-1`` in
+    ``startTime`` order and ``depart`` stays ``startTime + <begin>`` at two decimals, the alignment
+    convention of the module docstring -- and the parity type is INSERTED rather than replaced.
     """
-    source_text = (parent_dir / SUMO_ROUTES_FILENAME).read_text(encoding="utf-8")
-    bound_text = _render_bound_routes(source_text, draw_id=draw_id)
+    templated = template is not None
+    if template is not None:
+        entries = json.loads((parent_dir / FLOW_FILENAME).read_bytes())
+        unbound = scratch / f"draw_{draw_id:04d}_unbound_{SUMO_ROUTES_FILENAME}"
+        template["randomizer"].render_sumo(
+            entries,
+            unbound,
+            template_rou_path=template["path"],
+            depart_offset=depart_offset,
+        )
+        source_text = unbound.read_text(encoding="utf-8")
+    else:
+        source_text = (parent_dir / SUMO_ROUTES_FILENAME).read_text(encoding="utf-8")
+    # The branch is keyed on the SCENARIO, never on two tables happening to be equal (BRIEF_39
+    # Amendment A.1-2): a future scenario whose derived table equalled hangzhou's must not
+    # silently take hangzhou's path.
+    hangzhou = scenario is None or scenario.key == parity.HZ1X1_SCENARIO.key
+    if hangzhou:
+        if templated:
+            raise ValueError(
+                f"draw {draw_id}: the hangzhou scenario binds its parent's own rendering; a route "
+                "template was supplied for it, which is the templated shape of another scenario"
+            )
+        if vtype is not None and dict(vtype) != parity.parity_vtype_attributes():
+            raise ValueError(
+                f"draw {draw_id}: the table derived from the hangzhou flow block ({dict(vtype)}) "
+                "is not byte-equal to the registered one; emitting it would move every hangzhou "
+                "parity file, so PARITY_CONTRACT_VERSION would have to move with it"
+            )
+        # The hangzhou call, LITERALLY as it was before P7.3d: same seam, same two arguments, so
+        # the per-scenario code changes nothing a caller, or a test substituting this seam
+        # (tests/test_materialise_parity.py), could observe.
+        bound_text = _render_bound_routes(source_text, draw_id=draw_id)
+    else:
+        bound_text = _render_bound_routes(
+            source_text, draw_id=draw_id, vtype=vtype, insert_when_absent=templated
+        )
 
     staged_routes = scratch / f"draw_{draw_id:04d}_{PARITY_ROUTES_FILENAME}"
     staged_routes.write_text(bound_text, encoding="utf-8")
 
     report = parity.vtype_binding_report(staged_routes)
-    if not parity.binding_is_complete(report):
+    if not parity.binding_is_complete(report, vtype):
         raise ValueError(
             f"draw {draw_id}: the bound rendering does not satisfy the parity contract "
             f"({report.vehicles_with_type} of {report.vehicle_count} vehicles typed, "
@@ -1242,29 +1387,46 @@ def _build_parity(
         )
 
     net_reference = os.path.relpath(net_path, target.resolve())
-    cfg_text = parity.render_parity_sumocfg_text(
-        net_reference,
-        PARITY_ROUTES_FILENAME,
-        time_to_teleport=PARITY_TIME_TO_TELEPORT,
-    )
+    if templated:
+        cfg_text = parity.render_parity_sumocfg_text(
+            net_reference,
+            PARITY_ROUTES_FILENAME,
+            time_to_teleport=PARITY_TIME_TO_TELEPORT,
+            network_note=parity.GRID4X4_NETWORK_NOTE,
+        )
+    else:
+        # Hangzhou: the call as it was before P7.3d, so the header -- and the digest every
+        # P7.3a/P7.3b chunk pins -- does not move.
+        cfg_text = parity.render_parity_sumocfg_text(
+            net_reference,
+            PARITY_ROUTES_FILENAME,
+            time_to_teleport=PARITY_TIME_TO_TELEPORT,
+        )
 
     files: dict[str, bytes] = {
         PARITY_ROUTES_FILENAME: bound_text.encode("utf-8"),
         PARITY_SUMOCFG_FILENAME: cfg_text.encode("utf-8"),
     }
+    attributes = parity.parity_vtype_attributes() if vtype is None else dict(vtype)
+    parent_block: dict[str, Any] = {
+        "flow_sha256": _sha256_file(parent_dir / FLOW_FILENAME),
+        "routes_sha256": (
+            None if templated else _sha256_file(parent_dir / SUMO_ROUTES_FILENAME)
+        ),
+        "provenance_sha256": _sha256_file(parent_dir / PROVENANCE_FILENAME),
+    }
+    if templated:
+        # 1.1: the field a 1.0 reader expects to be a digest is null, and the reason is beside it.
+        parent_block["routes_absent_reason"] = str(parent_record["sumo_skipped_reason"])
     record: dict[str, Any] = {
-        "format_version": PARITY_FORMAT_VERSION,
+        "format_version": PARITY_FORMAT_VERSION_TEMPLATED if templated else PARITY_FORMAT_VERSION,
         "scenario_key": parent_record["scenario_key"],
         "draw_id": parent_record["draw_id"],
         "pool": parent_record["pool"],
-        "parent": {
-            "flow_sha256": _sha256_file(parent_dir / FLOW_FILENAME),
-            "routes_sha256": _sha256_file(parent_dir / SUMO_ROUTES_FILENAME),
-            "provenance_sha256": _sha256_file(parent_dir / PROVENANCE_FILENAME),
-        },
+        "parent": parent_block,
         "parity_contract_version": parity.PARITY_CONTRACT_VERSION,
-        "vtype_id": parity.PARITY_VTYPE_ID,
-        "vtype_attributes": parity.parity_vtype_attributes(),
+        "vtype_id": attributes["id"],
+        "vtype_attributes": attributes,
         "files": {name: _sha256(data) for name, data in sorted(files.items())},
         "net": {
             "reference": net_reference,
@@ -1280,6 +1442,8 @@ def _build_parity(
         "n_vehicles": report.vehicle_count,
         "n_bound": report.vehicles_with_type,
     }
+    if template is not None:
+        record["route_template"] = dict(template["record"])
     commit, dirty = _git_commit()
     record["git_commit"] = commit
     record["git_dirty"] = dirty
@@ -1429,27 +1593,74 @@ def materialise_parity(
             "tree. Pass allow_worktree=True / --allow-worktree if you mean it."
         )
 
+    # The parity table is PER SCENARIO (P7.3d).  A key with no registered scenario falls back to
+    # the hangzhou table, which is what every scenario was checked against before P7.3d -- and a
+    # flow block that disagrees with it is refused below, exactly as before.
+    scenario = parity.PARITY_SCENARIOS.get(scenario_key, parity.HZ1X1_SCENARIO)
     sumo, sumo_skipped_reason = _sumo_pairing(source)
-    if sumo is None:
-        raise ValueError(
-            f"{source} has no usable SUMO pairing, so there is nothing to bind: "
-            f"{sumo_skipped_reason}"
-        )
+    resolved_external: parity.ResolvedExternalSource | None = None
+    if scenario.external is None:
+        if sumo is None:
+            raise ValueError(
+                f"{source} has no usable SUMO pairing, so there is nothing to bind: "
+                f"{sumo_skipped_reason}"
+            )
+    else:
+        if sumo is not None:
+            raise ValueError(
+                f"{source} pairs with {sumo['template_rou']} inside the repository, but "
+                f"{scenario.key}'s registered SUMO side is external ({scenario.external.env_var}); "
+                "two SUMO sides for one scenario is an ambiguity this tool does not resolve"
+            )
+        try:
+            resolved_external = parity.resolve_external_source(scenario)
+        except (ValueError, FileNotFoundError) as exc:
+            raise ValueError(
+                f"{source} has no usable SUMO pairing inside the repository "
+                f"({sumo_skipped_reason}), and its registered external SUMO side is "
+                f"unavailable: {exc}"
+            ) from exc
 
     source_flow = _cityflow_flow_source(source)
-    disagreements = parity.flow_json_disagreements(source_flow)
+    disagreements = parity.flow_json_disagreements(source_flow, scenario)
     if disagreements:
         raise ValueError(
             f"the declared parity table disagrees with {source_flow}: "
             + "; ".join(disagreements)
         )
+    # DERIVED from the flow block (BRIEF_39 C1); for hangzhou the strings are byte-equal to the
+    # registered table, which is what keeps every pre-P7.3d parity directory `kept`.
+    vtype = parity.derived_vtype_attributes(scenario, source_flow)
 
-    net_path = _scenario_net_file(sumo["sumocfg"])
-    if not net_path.is_file():
-        raise FileNotFoundError(
-            f"{sumo['sumocfg']} names a network that does not exist: {net_path}"
-        )
-    net_resolved = os.path.relpath(net_path, _scenario_dir(source).parent.parent)
+    if resolved_external is None:
+        assert sumo is not None
+        net_path = _scenario_net_file(sumo["sumocfg"])
+        if not net_path.is_file():
+            raise FileNotFoundError(
+                f"{sumo['sumocfg']} names a network that does not exist: {net_path}"
+            )
+        net_resolved = os.path.relpath(net_path, _scenario_dir(source).parent.parent)
+        depart_offset = float(sumo["depart_offset"])
+        template_record: dict[str, Any] | None = None
+    else:
+        external = scenario.external
+        assert external is not None
+        net_path = resolved_external.net
+        # Recorded relative to the candidates ROOT, never absolutely: the artifact must read the
+        # same on a machine that keeps the clone elsewhere (the convention of
+        # docs/data/p7_1_conversion_audit.json).
+        net_resolved = f"<candidates>/{external.relative_dir}/{external.net_name}"
+        depart_offset = float(sumo_begin_from_sumocfg(resolved_external.sumocfg))
+        template_record = {
+            "archive": f"<candidates>/{external.relative_dir}/{external.routes_archive}",
+            "member": external.routes_member,
+            "member_sha256": resolved_external.routes_member_sha256,
+            "declares_vtype": scenario.template_declares_vtype,
+            "sumocfg": f"<candidates>/{external.relative_dir}/{external.sumocfg_name}",
+            "sumocfg_sha256": _sha256_file(resolved_external.sumocfg),
+            "depart_offset": depart_offset,
+            "licence": external.licence,
+        }
 
     targets = {draw_id: parity_dir(scenario_key, draw_id, out_root=root) for draw_id in ids}
     for target in targets.values():
@@ -1463,7 +1674,7 @@ def materialise_parity(
     }
     parents: dict[int, dict[str, Any]] = {
         draw_id: _validate_parent_for_parity(
-            draw_dir(scenario_key, draw_id, out_root=root), draw_id
+            draw_dir(scenario_key, draw_id, out_root=root), draw_id, scenario
         )
         for draw_id in ids
         if draw_id in existed
@@ -1480,12 +1691,27 @@ def materialise_parity(
         target_parent = draw_dir(scenario_key, draw_id, out_root=root)
         if dry_run and not target_parent.is_dir():
             continue  # a dry run wrote nothing, so there is nothing to validate yet
-        parents[draw_id] = _validate_parent_for_parity(target_parent, draw_id)
+        parents[draw_id] = _validate_parent_for_parity(target_parent, draw_id, scenario)
 
     # ---- phase 3: build every byte in memory ----------------------------
     built_by_id: dict[int, _BuiltParity] = {}
     with tempfile.TemporaryDirectory(prefix="materialise-parity-") as scratch_name:
         scratch = Path(scratch_name)
+        template: dict[str, Any] | None = None
+        if resolved_external is not None and template_record is not None:
+            # The route template is read IN PLACE from the archive and handed to render_sumo --
+            # which reads a path -- through this OS temp directory.  It is outside every tree and
+            # is removed with the scratch directory; no RESCO file is copied into the repository
+            # or the draws tree (BRIEF_39 section 2, Amendment A8).
+            template_path = scratch / f"template_{resolved_external.routes_member}"
+            template_path.write_text(
+                parity.read_route_template_text(resolved_external), encoding="utf-8"
+            )
+            template = {
+                "path": template_path,
+                "randomizer": FlowRandomizer(source_flow),
+                "record": template_record,
+            }
         for draw_id in ids:
             if draw_id not in parents:
                 continue
@@ -1496,8 +1722,11 @@ def materialise_parity(
                 net_path=net_path,
                 net_resolved=net_resolved,
                 target=targets[draw_id],
-                depart_offset=float(sumo["depart_offset"]),
+                depart_offset=depart_offset,
                 scratch=scratch,
+                vtype=vtype,
+                template=template,
+                scenario=scenario,
             )
 
     # ---- phase 4: classify, and refuse before writing -------------------
@@ -1726,6 +1955,346 @@ def verify_p4_3_probe(
 # -- CLI -------------------------------------------------------------------
 
 
+# -- gate G1: CAP(E) re-run on the rendered parity files (P7.3d, BRIEF_39 C1) ----
+
+
+#: The E fields an artifact row carries.  ``audit_pair`` also returns the two file paths and the
+#: route file's vType facts; the paths are machine-local and the binding is reported separately,
+#: from :func:`offline.parity.vtype_binding_report`, so neither is copied.
+_CAP_E_FIELDS: tuple[str, ...] = (
+    "n_cityflow",
+    "n_sumo",
+    "counts_equal",
+    "multiset_equal",
+    "n_index_aligned_equal",
+    "order_matches",
+    "n_only_in_cityflow",
+    "n_only_in_sumo",
+    "depart_range_cityflow",
+    "depart_range_sumo",
+)
+
+
+def _git_provenance_strict() -> tuple[str, bool]:
+    """``(commit, dirty)`` measured from this module's tree; a failure of either RAISES.
+
+    :func:`_git_commit` fails OPEN -- it reports a clean tree whenever ``git status`` cannot run
+    (``BRIEF_37`` Amendment J1).  Every parity record keeps that helper so records written before
+    P7.3d stay comparable, but gate G1's artifact is a verdict a registration rests on, and an
+    unmeasured tree must not read as a clean one there.
+    """
+    cwd = str(Path(__file__).resolve().parent)
+    outputs = []
+    for arguments in (["rev-parse", "HEAD"], ["status", "--porcelain"]):
+        result = subprocess.run(
+            ["git", *arguments], cwd=cwd, capture_output=True, text=True, timeout=30, check=False
+        )
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"git {' '.join(arguments)} failed in {cwd} ({result.stderr.strip()!r}); the "
+                "provenance of the CAP(E) artifact cannot be measured, and it is not guessed"
+            )
+        outputs.append(result.stdout)
+    return outputs[0].strip(), bool(outputs[1].strip())
+
+
+def _pedigree_digests(
+    pedigree_artifact: str | Path, scenario_key: str
+) -> tuple[dict[str, Any], dict[str, str]]:
+    """The committed per-draw ``flow.json`` digests for *scenario_key*, and the artifact's identity.
+
+    Read from ``draw_restoration`` of P8.4a's admission artifact, which recorded the sha256 of all
+    100 held-out parents before any SUMO work existed -- so "the draws on disk are the draws every
+    merged held-out number was computed on" is a digest comparison, not a re-collection.
+    """
+    path = Path(pedigree_artifact)
+    data = json.loads(path.read_bytes())
+    blocks = [
+        block
+        for block in data.get("draw_restoration", {}).values()
+        if isinstance(block, dict) and block.get("scenario_key") == scenario_key
+    ]
+    if len(blocks) != 1:
+        raise ValueError(
+            f"{path} carries {len(blocks)} draw_restoration blocks for {scenario_key!r}; the "
+            "pedigree check needs exactly one"
+        )
+    digests = {str(draw): str(digest) for draw, digest in blocks[0]["flow_sha256"].items()}
+    identity = {"artifact": path.name, "artifact_sha256": _sha256_file(path)}
+    return identity, digests
+
+
+def cap_e_report(
+    source_config: str | Path,
+    draw_ids: Sequence[int],
+    *,
+    out_root: str | Path = DEFAULT_OUT_ROOT,
+    pedigree_artifact: str | Path | None = None,
+) -> dict[str, Any]:
+    """A15(g)'s condition as an artifact: CAP(E) and the vType binding on every requested draw.
+
+    **Format version** ``p7.3d-cap-e/1.0``.  **Alignment convention:** E compares, per draw, the
+    parent's CityFlow ``flow.json`` against the rendered ``parity/routes.rou.xml`` on the key
+    ``(depart, route)`` -- CityFlow's ``startTime`` against SUMO's ``depart`` UNSHIFTED, which is
+    why a scenario whose ``<begin>`` is not 0 is refused rather than mis-audited -- as a MULTISET
+    and index-aligned, through :func:`offline.conversion_audit.audit_pair` (the function A15(g)'s
+    verdict was produced with), never through this module's own extractor.
+
+    Read-only: nothing under ``out_root`` is written.  A draw with no parity directory RAISES --
+    there is nothing to audit, which is not the same as a draw that fails.  A draw that fails is a
+    ROW with ``exact: false`` and its reasons, because G1 is decided by the artifact and a failed
+    condition is a registered outcome (``PREREGISTRATION`` A15(g), A20(f)).
+
+    Per draw, ``exact`` requires ALL of: both rendered files hash to what their provenance
+    records, and the parent's ``flow.json`` to what the parity record says it was derived from;
+    E exact in count, multiset and order; every vehicle bound to the parity type, whose attributes
+    -- read from the rendered file -- equal the ones derived from the scenario's flow block; the
+    teleport-free regime and an ``end`` above the env horizon; and, where a pedigree artifact
+    covers the draw, the parent's digest equal to the committed one.
+    """
+    from offline.conversion_audit import audit_pair
+
+    source = Path(source_config)
+    if not source.is_file():
+        raise FileNotFoundError(f"source sim config not found: {source}")
+    ids = _checked_draw_ids(draw_ids)
+    scenario_key = scenario_key_for_config(source)
+    scenario = parity.scenario_for_key(scenario_key)
+    root = Path(out_root)
+
+    cfg = json.loads(source.read_bytes())
+    roadnet = _scenario_dir(source) / cfg["roadnetFile"]
+    if not roadnet.is_file():
+        raise FileNotFoundError(f"the roadnet {source} points at does not exist: {roadnet}")
+    registered = parity.parity_vtype_attributes(scenario)
+    derived = parity.derived_vtype_attributes(scenario, _cityflow_flow_source(source))
+
+    resco: dict[str, str] | None = None
+    if scenario.external is not None:
+        resolved = parity.resolve_external_source(scenario)
+        net_path = resolved.net
+        resco = {
+            "net_sha256": resolved.net_sha256,
+            "route_member_sha256": resolved.routes_member_sha256,
+        }
+    else:
+        sumo, reason = _sumo_pairing(source)
+        if sumo is None:
+            raise ValueError(f"{source} has no usable SUMO pairing: {reason}")
+        net_path = _scenario_net_file(sumo["sumocfg"])
+
+    pedigree_identity: dict[str, Any] | None = None
+    committed: dict[str, str] = {}
+    if pedigree_artifact is not None:
+        pedigree_identity, committed = _pedigree_digests(pedigree_artifact, scenario_key)
+
+    # ---- every refusal that means "there is nothing to audit", before any row is built ----
+    for draw_id in ids:
+        parent = draw_dir(scenario_key, draw_id, out_root=root)
+        target = parity_dir(scenario_key, draw_id, out_root=root)
+        for path in (
+            parent / FLOW_FILENAME,
+            target / PARITY_ROUTES_FILENAME,
+            target / PARITY_SUMOCFG_FILENAME,
+            target / PROVENANCE_FILENAME,
+        ):
+            if not path.is_file():
+                raise FileNotFoundError(
+                    f"draw {draw_id}: {path} is absent, so there is nothing to audit; render the "
+                    "parity directory first (--parity)"
+                )
+
+    rows: list[dict[str, Any]] = []
+    structure: dict[str, Any] | None = None
+    pedigree_rows: dict[str, dict[str, Any]] = {}
+    not_covered: list[int] = []
+    for draw_id in ids:
+        parent = draw_dir(scenario_key, draw_id, out_root=root)
+        target = parity_dir(scenario_key, draw_id, out_root=root)
+        record = load_parity_provenance(scenario_key, draw_id, out_root=root)
+        reasons: list[str] = []
+
+        offset = float(record["demand_audit"]["depart_offset"])
+        if offset != 0.0:
+            raise ValueError(
+                f"draw {draw_id}: the rendering shifts departures by {offset} s; audit_pair "
+                "compares UNSHIFTED (depart, route) keys, so this report would mis-audit it"
+            )
+
+        flow_sha256 = _sha256_file(parent / FLOW_FILENAME)
+        files = {
+            PARITY_ROUTES_FILENAME: _sha256_file(target / PARITY_ROUTES_FILENAME),
+            PARITY_SUMOCFG_FILENAME: _sha256_file(target / PARITY_SUMOCFG_FILENAME),
+        }
+        for name, digest in sorted(files.items()):
+            recorded = record.get("files", {}).get(name)
+            if recorded != digest:
+                reasons.append(
+                    f"{name} digest {digest[:12]}... is not the {str(recorded)[:12]}... its "
+                    "provenance records"
+                )
+        if record["parent"]["flow_sha256"] != flow_sha256:
+            reasons.append(
+                f"the parent flow.json digest {flow_sha256[:12]}... is not the one the parity "
+                "record was derived from"
+            )
+
+        pair = audit_pair(
+            f"{scenario_key}/draw_{draw_id:04d}",
+            cityflow_roadnet=roadnet,
+            sumo_net=net_path,
+            cityflow_flow=parent / FLOW_FILENAME,
+            sumo_routes=target / PARITY_ROUTES_FILENAME,
+            direction="CAP(E) re-run on the rendered parity files (P7.3d, gate G1)",
+        )
+        demand = {field: pair["E_demand"][field] for field in _CAP_E_FIELDS}
+        if not demand["counts_equal"]:
+            reasons.append(
+                f"E: {demand['n_cityflow']} CityFlow entries against {demand['n_sumo']} SUMO vehicles"
+            )
+        if not demand["multiset_equal"]:
+            reasons.append(
+                f"E: the (depart, route) multiset differs ({demand['n_only_in_cityflow']} only in "
+                f"CityFlow, {demand['n_only_in_sumo']} only in SUMO)"
+            )
+        if not demand["order_matches"]:
+            reasons.append(
+                f"E: record order differs ({demand['n_index_aligned_equal']} of "
+                f"{demand['n_cityflow']} index-aligned)"
+            )
+        if structure is None:
+            bijection = pair["A_bijection"]
+            structure = {
+                "intersection_ids_equal": bijection["intersection_ids_equal"],
+                "road_ids_equal": bijection["road_ids_equal"],
+                "n_cityflow_lanes": bijection["n_cityflow_lanes"],
+                "n_sumo_lanes": bijection["n_sumo_lanes"],
+                "lane_links_equal": pair["C_connections"]["lane_link_equality"]["sets_equal"],
+                "n_phases_compared": pair["D_signals"]["n_phases_compared"],
+                "n_phases_matching_as_sets": pair["D_signals"]["n_phases_matching_as_sets"],
+            }
+
+        binding_report = parity.vtype_binding_report(target / PARITY_ROUTES_FILENAME)
+        binding = {
+            "n_vehicles": binding_report.vehicle_count,
+            "n_bound": binding_report.vehicles_with_type,
+            "distinct_type_values": list(binding_report.distinct_type_values),
+            "vtype_ids": list(binding_report.vtype_ids),
+            "vtype_attributes_in_file": dict(binding_report.vtype_attributes),
+        }
+        if binding_report.vehicles_with_type != binding_report.vehicle_count:
+            reasons.append(
+                f"binding: {binding_report.vehicles_with_type} of {binding_report.vehicle_count} "
+                "vehicles are bound to a type"
+            )
+        elif not parity.binding_is_complete(binding_report, derived):
+            reasons.append(
+                "binding: every vehicle is bound, but not to exactly the parity <vType> derived "
+                f"from the flow block (file declares {dict(binding_report.vtype_attributes)})"
+            )
+
+        sumocfg = ET.parse(target / PARITY_SUMOCFG_FILENAME).getroot()
+        teleport = sumocfg.find(".//time-to-teleport")
+        end = sumocfg.find(".//end")
+        regime = {
+            "time_to_teleport": None if teleport is None else teleport.get("value"),
+            "end": None if end is None else end.get("value"),
+        }
+        if regime["time_to_teleport"] != str(PARITY_TIME_TO_TELEPORT):
+            reasons.append(
+                f"regime: time-to-teleport is {regime['time_to_teleport']!r}, not "
+                f"{str(PARITY_TIME_TO_TELEPORT)!r} (A15(c))"
+            )
+        if regime["end"] is None or float(regime["end"]) <= parity.ENV_HORIZON_SECONDS:
+            reasons.append(
+                f"regime: end is {regime['end']!r}, not above the env horizon of "
+                f"{parity.ENV_HORIZON_SECONDS} s"
+            )
+
+        if pedigree_identity is not None:
+            if str(draw_id) in committed:
+                matches = committed[str(draw_id)] == flow_sha256
+                pedigree_rows[str(draw_id)] = {"flow_sha256": flow_sha256, "matches": matches}
+                if not matches:
+                    reasons.append(
+                        f"pedigree: flow.json digest {flow_sha256[:12]}... is not the "
+                        f"{committed[str(draw_id)][:12]}... {pedigree_identity['artifact']} committed"
+                    )
+            else:
+                not_covered.append(draw_id)
+
+        rows.append(
+            {
+                "draw_id": draw_id,
+                "pool": classify_draw_pool(draw_id),
+                "exact": not reasons,
+                "reasons": reasons,
+                "parity_format_version": record["format_version"],
+                "flow_sha256": flow_sha256,
+                "files": files,
+                "e_demand": demand,
+                "binding": binding,
+                "regime": regime,
+            }
+        )
+
+    n_exact = sum(1 for row in rows if row["exact"])
+    commit, dirty = _git_provenance_strict()
+    pedigree: dict[str, Any] | None = None
+    if pedigree_identity is not None:
+        pedigree = {
+            **pedigree_identity,
+            "what": "sha256 of each parent's flow.json against the digest committed by P8.4a",
+            "n_checked": len(pedigree_rows),
+            "n_matching": sum(1 for row in pedigree_rows.values() if row["matches"]),
+            "draws": pedigree_rows,
+            "not_covered": not_covered,
+        }
+    return {
+        "format_version": CAP_E_FORMAT_VERSION,
+        "registered_in": "PREREGISTRATION A14(b)(E), A15(g), A20(f); BRIEF_39 gate G1",
+        "scenario_key": scenario_key,
+        "n_draws": len(rows),
+        "n_exact": n_exact,
+        "condition_met": bool(rows) and n_exact == len(rows),
+        "e_key": "(depart, route), unshifted; multiset AND index-aligned (offline.conversion_audit)",
+        "parity_contract_version": parity.PARITY_CONTRACT_VERSION,
+        "vtype_attributes_registered": registered,
+        "vtype_attributes_derived_from_the_flow_block": derived,
+        "resco": resco,
+        "structure_reconfirmed": structure,
+        "pedigree": pedigree,
+        "draws": rows,
+        "what_this_does_not_say": [
+            "CAP is structure-only: no simulation ran to produce this file, and it says nothing "
+            "about dynamics, travel times or any policy.",
+            "structure_reconfirmed repeats A15(g)'s A, C and D counts from the same two network "
+            "files as a consistency record; it is not part of the condition and gates nothing.",
+            "An exact E says the SUMO demand equals the CityFlow demand per vehicle; it does not "
+            "say the two engines insert or route those vehicles identically.",
+        ],
+        "git_commit": commit,
+        "git_dirty": dirty,
+    }
+
+
+def assert_cap_e_exact(report: Mapping[str, Any]) -> None:
+    """Raise, naming the first draw and the reason, unless every draw of *report* is exact."""
+    failing = [row for row in report["draws"] if not row["exact"]]
+    if not failing and report["condition_met"] and report["n_exact"] == report["n_draws"]:
+        return
+    if not failing:
+        raise ValueError(
+            f"the report claims {report['n_exact']} of {report['n_draws']} exact and "
+            f"condition_met={report['condition_met']!r} while no row fails; it is inconsistent"
+        )
+    first = failing[0]
+    raise ValueError(
+        f"CAP(E) is not exact on {len(failing)} of {report['n_draws']} draws; first: draw "
+        f"{first['draw_id']}: " + "; ".join(first["reasons"])
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Return the CLI parser."""
     parser = argparse.ArgumentParser(
@@ -1799,6 +2368,19 @@ def build_parser() -> argparse.ArgumentParser:
         "docs/data/p4_heldout_thresholds.json and compare every recorded field; writes nothing",
     )
     parser.add_argument(
+        "--report-cap-e",
+        metavar="PATH",
+        help="gate G1 (P7.3d): re-run CAP(E) and the vType binding report on the requested "
+        "draws' parity directories and write the artifact here (must be outside --out-root); "
+        "exit 0 only when every draw is exact; writes nothing under --out-root",
+    )
+    parser.add_argument(
+        "--pedigree-artifact",
+        metavar="PATH",
+        help="with --report-cap-e: also compare each parent's flow.json digest against the "
+        "per-draw digests this committed artifact records (docs/data/p8_4a_admission.json)",
+    )
+    parser.add_argument(
         "--report",
         metavar="PATH",
         help="with --verify-p4-3-probe, also write the comparison as JSON here (must be "
@@ -1864,6 +2446,55 @@ def _report_parity(args: argparse.Namespace, env_config: str, ids: Sequence[int]
     return 0
 
 
+def _report_cap_e(args: argparse.Namespace, ids: Sequence[int]) -> int:
+    """Gate G1's artifact for one scenario; 0 only when every draw is exact.
+
+    Every refusal precedes the write, and the write is atomic.  A verdict that is NOT met is still
+    written -- the gate is decided by the artifact -- and the exit code carries it.
+    """
+    if len(args.env_config) != 1:
+        raise ValueError("--report-cap-e audits one scenario; pass exactly one --env-config")
+    out_path = Path(args.report_cap_e).resolve()
+    root = Path(args.out_root).resolve()
+    if out_path == root or out_path.is_relative_to(root):
+        raise ValueError(
+            f"--report-cap-e {out_path} is inside --out-root {root}; this mode writes nothing "
+            "under the draws tree"
+        )
+    report = cap_e_report(
+        args.env_config[0],
+        ids,
+        out_root=args.out_root,
+        pedigree_artifact=args.pedigree_artifact,
+    )
+    payload = json.dumps(report, indent=2, sort_keys=True) + "\n"
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    staged = out_path.with_name(out_path.name + ".tmp")
+    staged.write_text(payload, encoding="utf-8")
+    os.replace(staged, out_path)
+
+    print(
+        f"CAP(E) on the rendered parity files: {report['n_exact']}/{report['n_draws']} draws "
+        f"exact -> condition_met={report['condition_met']}",
+        flush=True,
+    )
+    pedigree = report["pedigree"]
+    if pedigree is not None:
+        print(
+            f"  pedigree against {pedigree['artifact']}: {pedigree['n_matching']}/"
+            f"{pedigree['n_checked']} parent digests match "
+            f"({len(pedigree['not_covered'])} draws not covered by it)",
+            flush=True,
+        )
+    for row in report["draws"]:
+        if not row["exact"]:
+            print(f"  FIRST FAILING draw {row['draw_id']}: " + "; ".join(row["reasons"]), flush=True)
+            break
+    print(f"wrote {out_path}", flush=True)
+    return 0 if report["condition_met"] else 1
+
+
 def _report_heldout_thresholds(args: argparse.Namespace, ids: Sequence[int]) -> int:
     """``DEFERRED`` 80's gate for the held-out band; 0 when every draw reproduces every field.
 
@@ -1873,10 +2504,12 @@ def _report_heldout_thresholds(args: argparse.Namespace, ids: Sequence[int]) -> 
     checks = verify_against_artifact(
         P4_HELDOUT_THRESHOLDS_ARTIFACT,
         arm="maxpressure",
-        scenario_key="cityflow1x1",
+        # The artifact is hangzhou's (docs/data/p4_heldout_thresholds.json), so the key is the
+        # hangzhou scenario's -- read from the parity registry rather than retyped as a literal.
+        scenario_key=parity.HZ1X1_SCENARIO.key,
         out_root=args.out_root,
         draw_ids=ids or None,
-        scenario_id="cityflow1x1",
+        scenario_id=parity.HZ1X1_SCENARIO.key,
     )
     reproduced = [check for check in checks if check.matches]
     fields = sorted(checks[0].observed) if checks else []
@@ -1970,6 +2603,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         ids = _resolve_cli_draw_ids(args)
         if args.verify_heldout_thresholds:
             return _report_heldout_thresholds(args, ids)
+        if args.report_cap_e:
+            return _report_cap_e(args, ids)
         for env_config in args.env_config:
             if args.verify_p4_3_probe:
                 if _report_probe(args, env_config, ids) != 0:

@@ -29,6 +29,18 @@ constructor (reached through ``rtg_calibration.agent_with_target`` ->
 ``.action_space``.  Naming them makes the whole surface the DT path touches legible without tracing
 ``__getattr__``.  Everything else -- ``_sumo``, ``_engine_seed``, the metric hooks -- falls through
 ``__getattr__``, which is what lets an engine read work on a wrapped env as well as an unwrapped one.
+
+THE ALIGNMENT IS THE SCENARIO'S (P7.3d, ``BRIEF_39`` C3a)
+---------------------------------------------------------
+The three env builders always took a ``scenario_key`` for the parity configuration and then aligned
+with the hangzhou pair regardless.  They now align with :func:`alignment_for_scenario_key`: for
+``cityflow1x1`` that IS :func:`declared_alignment`, unchanged, so every P7.2b / P7.3a / P7.3b env is
+built exactly as before; for ``cityflow_grid4x4`` it is built from the repo's CityFlow roadnet and
+RESCO's net (``RLTRAFFIC_GRID4X4_RESCO``, no default).  On grid4x4 the phase map is the identity
+(16 <-> 16), the aligned state is ``2 * 12 + 16 = 40`` wide, and the lane INDEX is reversed between
+the two files exactly as on hangzhou -- so the movement key still does real work there even though
+the resulting per-intersection permutation happens to be the identity
+(``tests/test_aligned_env_grid4x4.py``, measured 2026-09-19).
 """
 
 from __future__ import annotations
@@ -45,6 +57,7 @@ __all__ = [
     "AlignedEnv",
     "aligned_observer_env_for_draw",
     "aligned_sumo_env_for_draw",
+    "alignment_for_scenario_key",
     "declared_alignment",
     "observer_env_for_draw",
 ]
@@ -180,6 +193,51 @@ def declared_alignment(metric_keys: tuple[str, ...] = ()) -> ScenarioAlignment:
     )
 
 
+def alignment_for_scenario_key(
+    scenario_key: str, metric_keys: tuple[str, ...] = ()
+) -> ScenarioAlignment:
+    """The alignment for a draws-tree scenario key, built from the two network FILES (A16(b)).
+
+    The key is the one the env builders below already take -- the sim-config stem, which is also
+    the scenario directory of the draws tree -- and it must be a scenario the parity contract is
+    registered for (:func:`offline.parity.scenario_for_key` refuses anything else by name): an
+    aligned SUMO env exists only to run a parity configuration.
+
+    **Hangzhou is** :func:`declared_alignment`, **unchanged** -- the same call, the same two
+    constants -- so every P7.2b / P7.3a / P7.3b cell builds exactly the env it built before this
+    function existed.  A scenario whose SUMO side is external (grid4x4) takes its CityFlow roadnet
+    from its own sim config, ``configs/sim/<key>.json``, resolved against the REPOSITORY root and
+    never the process cwd, and its SUMO net from :func:`offline.parity.resolve_external_source`
+    (``RLTRAFFIC_GRID4X4_RESCO``, no default, digest-verified).  The phase map is whatever
+    :func:`alignment_for_scenario` derives from the two files: the identity on grid4x4 (16 <-> 16).
+    """
+    import json
+
+    from offline import parity
+
+    scenario = parity.scenario_for_key(scenario_key)
+    if scenario.external is None:
+        return declared_alignment(metric_keys)
+
+    sim_config = parity.REPO_ROOT / "configs" / "sim" / f"{scenario.key}.json"
+    if not sim_config.is_file():
+        raise FileNotFoundError(
+            f"{scenario.key} has no sim config at {sim_config}, so its CityFlow roadnet cannot be "
+            "located; the scenario key IS the sim-config stem"
+        )
+    cfg = json.loads(sim_config.read_bytes())
+    roadnet = (parity.REPO_ROOT / str(cfg["dir"]) / str(cfg["roadnetFile"])).resolve()
+    if not roadnet.is_file():
+        raise FileNotFoundError(f"{sim_config} names a roadnet that does not exist: {roadnet}")
+    resolved = parity.resolve_external_source(scenario)
+    return alignment_for_scenario(
+        scenario.stem,
+        cityflow_roadnet=roadnet,
+        sumo_net=resolved.net,
+        metric_keys=metric_keys,
+    )
+
+
 def aligned_sumo_env_for_draw(
     scenario_key: str,
     draw_id: int,
@@ -208,7 +266,7 @@ def aligned_sumo_env_for_draw(
     args = collect_style_args(
         "sumo", arm, config_path, sentinel_out_dir=sentinel_out_dir
     )
-    return AlignedEnv(make_env(_build_env_spec(args)), declared_alignment())
+    return AlignedEnv(make_env(_build_env_spec(args)), alignment_for_scenario_key(scenario_key))
 
 
 def observer_env_for_draw(
@@ -303,5 +361,5 @@ def aligned_observer_env_for_draw(
             arm=arm,
             sentinel_out_dir=sentinel_out_dir,
         ),
-        declared_alignment(),
+        alignment_for_scenario_key(scenario_key),
     )
