@@ -741,3 +741,52 @@ def test_the_record_refuses_a_run_record_that_names_another_checkpoint(tmp_path:
     few_shot.write_manifest(root, runs=[SPEC])
     with pytest.raises(ValueError, match=r"runs/ft_k5_seed101\.json records another checkpoint digest"):
         few_shot.build_record(root, corpus_dir=corpus, timing_path=_timing(tmp_path), runs=[SPEC], pins=pins)
+
+
+# ----------------------------------------------------------------------------------------------
+# Amendment C (C2, C3.2): the corpus pinned by the digest of its SHA256SUMS, read by check-inputs (BRIEF_41 C5)
+# ----------------------------------------------------------------------------------------------
+
+
+def test_check_inputs_refuses_a_corpus_whose_sums_file_is_not_the_pinned_digest(
+    tmp_path: Path, corpus: Path, cuda_free: Callable[[float], None]
+) -> None:
+    """The sums file's OWN digest, against the pin the caller passes: a corpus re-collected, or its manifest regenerated,
+    verifies entry by entry against itself -- only the pin can say it is not G3's corpus."""
+    root, pins = _root(tmp_path, seeds=(101, 202, 303, 404, 505))
+    cuda_free(15000.0)
+    gate = _gate_record(tmp_path, corpus)
+    with pytest.raises(ValueError, match=r"SHA256SUMS has sha256 [0-9a-f]{64}, not the pinned 0{64}"):
+        few_shot.check_inputs(
+            output_root=root, corpus_dir=corpus, gate_record=gate, pins=pins, corpus_sums_sha256="0" * 64
+        )
+    own = sha256_file(corpus / "SHA256SUMS")
+    facts = few_shot.check_inputs(
+        output_root=root, corpus_dir=corpus, gate_record=gate, pins=pins, corpus_sums_sha256=own
+    )
+    assert facts["corpus_sha256sums_sha256"] == own
+
+
+def test_the_check_inputs_command_passes_amendment_cs_corpus_pin(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from offline import transfer_curve
+
+    assert transfer_curve.P7_3C_CORPUS_SUMS_SHA256 == "5d08b57ce4799cb65f321d62cd755aaa5a39a59f6ab157871dd956799d6205e1"
+    seen: dict[str, Any] = {}
+
+    def stand_in(**kwargs: Any) -> dict[str, Any]:
+        seen.update(kwargs)
+        return {
+            "calibration_sha256": "a" * 64, "corpus_sha256sums_sha256": "b" * 64, "gate_record_sha256": "c" * 64,
+            "cuda_free_mib": 1.0,
+        }
+
+    monkeypatch.setattr(few_shot, "check_inputs", stand_in)
+    argv = [
+        "check-inputs", "--output-root", str(tmp_path), "--corpus-dir", str(tmp_path / "corpus"),
+        "--gate-record", str(tmp_path / "a17f_gate.json"),
+    ]
+    assert few_shot.main(argv) == 0
+    assert seen["corpus_sums_sha256"] == transfer_curve.P7_3C_CORPUS_SUMS_SHA256
+    assert "check_inputs PASSED" in capsys.readouterr().out

@@ -1571,13 +1571,17 @@ def _assert_corpus_shape(corpus_dir: Path, shapes: Sequence[Mapping[str, Any]], 
 def check_inputs(
     *, output_root: str | Path, corpus_dir: str | Path, gate_record: str | Path,
     pins: Mapping[int, str] | None = None, data_dir: str | Path | None = None,
-    timing_path: str | Path | None = None,
+    timing_path: str | Path | None = None, corpus_sums_sha256: str | None = None,
 ) -> dict[str, Any]:
     """Every input by digest, before the canary and the token: the calibration artifact at its pin, A20(a)'s five
     sources at theirs, the corpus's sums entry by entry over the whole band, the corpus's SHAPE against each source
     (Amendment D, D2.11: the ids, the widths, ``max_ep_len``, the statistics), G3's gate record for THIS corpus (100
     draws, 1,600 returns, zero events), CUDA -- and, for the trainings, G5's record: its concurrency re-derived by the
-    rule and enough free device memory for it."""
+    rule and enough free device memory for it.
+
+    With *corpus_sums_sha256* the corpus's ``SHA256SUMS`` file must hash to it (Amendment C, C2 and C3.2): a corpus
+    whose manifest was regenerated verifies entry by entry against ITSELF, and only the pin says it is G3's corpus.
+    The ``check-inputs`` command passes ``offline.transfer_curve.P7_3C_CORPUS_SUMS_SHA256``."""
     from offline.transfer_curve import P7_3D_CALIBRATION_SHA256
 
     root = Path(output_root)
@@ -1598,6 +1602,11 @@ def check_inputs(
             raise ValueError(f"seed {seed}: {path} has sha256 {digest}, which is not the pinned {pin}")
         sources[seed] = digest
     prefix = select_prefix(corpus_dir, max(REGISTERED_KS), scenario_id=SCENARIO_ID)
+    if corpus_sums_sha256 is not None and prefix.sums_sha256 != corpus_sums_sha256:
+        raise ValueError(
+            f"{Path(corpus_dir) / SUMS_NAME} has sha256 {prefix.sums_sha256}, not the pinned {corpus_sums_sha256}: G3 "
+            "verified ONE corpus (Amendment C), and a corpus whose manifest moved verifies entry by entry against itself"
+        )
     shapes = _corpus_episodes_shape(Path(corpus_dir))
     for seed in TRAINING_SEEDS:
         source = load_source(registered_source_path(root, seed), expected_sha256=sources[seed])
@@ -1785,9 +1794,12 @@ def _cmd_record(args: argparse.Namespace) -> int:
 
 
 def _cmd_check_inputs(args: argparse.Namespace) -> int:
+    from offline.transfer_curve import P7_3C_CORPUS_SUMS_SHA256
+
     facts = check_inputs(
         output_root=Path(args.output_root), corpus_dir=Path(args.corpus_dir), gate_record=Path(args.gate_record),
         data_dir=args.data_dir, timing_path=None if args.timing is None else Path(args.timing),
+        corpus_sums_sha256=P7_3C_CORPUS_SUMS_SHA256,
     )
     tail = "" if "concurrency" not in facts else f", concurrency {facts['concurrency']} from G5's record"
     print(
