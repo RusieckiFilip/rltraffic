@@ -550,3 +550,44 @@ by both routes — go into the driver header, the plan file and the packet with 
 **"P7.3c G5 done"** with the stamp. The coordinator reads the timing record from disk and, with it, the author's token for the
 thirty trainings (G6) is the next relay. **The B3 fix round (items 1–11) is built AFTER G5's numbers are recorded and BEFORE C5,
 as its own commit, tests first.** C5's tests may be started meanwhile.
+
+---
+
+# ✅ AMENDMENT E — 2026-09-26, gate G5: THE FENCED TIMING IS READ FROM DISK AND ACCEPTED — concurrency 1, 103.9 ms/step alone; the thirty trainings (G6) are authorised from the run worktree at `4211955`; B3's fix round runs DURING them
+
+## E1 — What the coordinator read (stamp `20260926T130659Z`, `timing.json` sha256 `07603718…`, capture 53 lines)
+- The capture: `check_inputs PASSED` — the calibration artifact, 5/5 sources at A20(a)'s pins, **the corpus `SHA256SUMS` at
+  `5d08b57c…` (Amendment C's digest) verified entry by entry**, G3's gate record 1,600/1,600; canary 0.75 s with both correctness
+  halves the header's; the commit `42119554…`; `TIMING COMPLETE in 437s`; `DRIVER EXIT: 0`. No refusal, no traceback.
+- The record, and the registered rule RECOMPUTED by the coordinator from the recorded measurements: alone 103.9 ms/step at a device
+  peak of 3,793 MiB; two at once 305.5 ms/step (×2.94) at 6,804; three 474.4 (×4.57) at 9,818 — all under the 13,042 MiB cap (80% of
+  16,303); throughput per ms 0.00962 / 0.00655 / 0.00632 → **C = 1**, the record's own choice. The GPU is the bottleneck: two runs
+  cost more than twice one.
+- **The same-seed repeat DIFFERS by both routes** (file sha256 and weights digest; 400 steps each). A24(b) reserved this measurement
+  for the fenced runs; the answer is that the registered regime is NOT bit-reproducible on this GPU, as A24 anticipated. Every
+  registered training therefore runs ONCE and is pinned by digest; a re-run would be a fresh sample.
+- The k = 100 window build: 20.3 s at a peak of 7,089 MiB RSS — far under Q12's five-minute line, so **the one-process-per-k contingency
+  is NOT taken**; each run builds its own windows.
+- The branch commit `1d8ec06` (pushed) changes the driver's COMMENTS only (no non-comment line in its diff), the plan file and the
+  packet. **The run worktree stays at `4211955`**: the code that trains is the code G4 reviewed, and the driver's HEAD check passes
+  without a move.
+
+## E2 — The schedule, on measured bases (the trainings are launched one at a time, C = 1)
+Twenty runs at B = 4,000 (`ft_k5`, `ft_k20`, `ft_k100`, `scratch_k100` × five seeds), five at B = 1,000 and five at B = 16,000
+(`ft_k100` × five seeds each, A24(c)(iii)): 20 × 4,000 + 5 × 1,000 + 5 × 16,000 = 165,000 steps ≈ 4.8 h at 103.9 ms/step, plus
+≈ 30 × (start + window build ≤ 45 s) ≈ 20 min: **≈ 5.1 h**, unattended, on mains power.
+The registered table is `few_shot.registered_runs()`'s thirty; the driver refuses any other.
+
+## E3 — B3's fix round (items 1–11) runs DURING the trainings, not before them — a change to D4
+The trainings read `offline/few_shot.py` and the driver from the RUN tree at `4211955`; the fix round edits the implementer's
+worktree, tests first, on the corpus door, the gate, the corpus driver and the two minors of D2 — none of which the trainings
+execute. **B5's rule holds for the whole ≈ 5 h: no test that EXECUTES a campaign driver, and no process whose command line carries a
+driver's liveness pattern, until `finetune_capture.txt` ends in `DRIVER EXIT`.** The CPU-side tests of the fix round are fine (the GPU
+is the bottleneck, not the CPU). After the fix round, C5's tests (stubs and the committed artifacts; no trained checkpoint needed).
+
+## E4 — Gate G6: the author's token, then G7
+The token: `output/p7_3c_runs/TOKEN_finetune`. The start line is the driver's own `train` form with the 40-hex commit and G5's
+stamp (D4's shape). When the capture ends in `DRIVER EXIT: 0`, the coordinator reads the thirty checkpoints from disk (G7): the
+manifest re-verified, every payload's frozen parts bitwise equal to its source's, `target_rtg` the k targets, `gradient_steps` the
+run's B, `init` the switch, attempts and re-runs counted; then commits `docs/data/p7_3c_finetune.json` on `main` (A24(b): the
+digests pinned BEFORE the evaluation token) and writes Amendment F.
