@@ -591,3 +591,38 @@ stamp (D4's shape). When the capture ends in `DRIVER EXIT: 0`, the coordinator r
 manifest re-verified, every payload's frozen parts bitwise equal to its source's, `target_rtg` the k targets, `gradient_steps` the
 run's B, `init` the switch, attempts and re-runs counted; then commits `docs/data/p7_3c_finetune.json` on `main` (A24(b): the
 digests pinned BEFORE the evaluation token) and writes Amendment F.
+
+---
+
+# ✅ AMENDMENT F — 2026-09-26, gate G7: THE THIRTY TRAININGS ARE VERIFIED AND PINNED ON `main` (`docs/data/p7_3c_finetune.json` at `c616900`, sha256 `adb59377edc23270ad479a542ed7d120f4b57c784f6e1f109c54624231ae79bf`) — set C5's pin, then build C6–C7
+
+## F1 — The run (gate G6, the author's token of 16:04, run 16:04–21:34, 19,758 s, `DRIVER EXIT: 0`)
+Capture (`output/p7_3c_runs/finetune_capture.txt`, 442 lines, read first): `check_inputs PASSED` (the calibration artifact, 5/5
+sources at A20(a)'s pins, the corpus sums at `5d08b57c…`, G3's gate record), `resume_decision: 30 to train, 0 to skip`, canary 0.85 s
+with both halves the header's, the token consumed, the commit `42119554…`, thirty `wrote` lines, no refusal, no traceback,
+**every run attempt 1, zero re-runs** (thirty attempt markers, thirty run records). Loop time per run: ≈ 431 s at B = 4,000 (the
+fine-tunes), ≈ 403 s (`scratch_k100`), ≈ 105 s at B = 1,000, ≈ 1,984 s at B = 16,000 — 103–124 ms/step, G5's rate.
+
+## F2 — G7, the coordinator's OWN route (`output/coordinator_tools/verify_p73c_finetune.py`; evidence `output/p7_3c_runs/g7/`)
+Every checkpoint loaded weights-only with one allowlisted class and compared with ITS source (the five A20(a) checkpoints,
+re-digested first): **30/30 — file digest = the record's; `format_version` `spatial-dt-checkpoint/1.0`; `config`, `stats`,
+`rtg_scale`, `intersection_ids`, `scenario_id`, `normalise` canonically equal and `spatial_mask` tensor-equal to the source's;
+`target_rtg` = the calibration artifact's `budgets.k{k}.target` on all sixteen intersections for the run's k; `gradient_steps` =
+the run's B in the payload AND the record; the `few_shot` block's `init` and `k` the run's, `draw_ids` 201…200+k; `git_commit`
+`4211955` on all thirty; `device cuda`, `deterministic False`; the weights DIFFERENT from the source on all thirty (a fine-tune
+that did nothing would have been a finding).** The manifest `SHA256SUMS_p7_3c_finetune.txt` 30/30 under `sha256sum -c` and its
+digest (`7ac35bdd…`) equal to the record's; the record's corpus and calibration digests `5d08b57c…` and `3e9df8ee…`. The thirty
+loss traces all move and none is flat — a sanity check on the loop, not an outcome; training loss is not a registered quantity
+and no cell has been evaluated. **The record's `checkpoint` paths are RELATIVE to `output/`** (`p7_3c_training/checkpoints/…`):
+C5 resolves them against `--output-root`, never against the cwd.
+
+## F3 — The pin, and what follows
+1. **Next commit, tests first:** `P7_3C_FINETUNE_SHA256 = "adb59377edc23270ad479a542ed7d120f4b57c784f6e1f109c54624231ae79bf"`
+   in `offline/transfer_curve.py`; a test that `docs/data/p7_3c_finetune.json` hashes to it, that every trained-subject identity
+   resolves through it, and that the refusal of the unset pin is still exercised (a monkeypatched `None`). `git merge --no-edit
+   main` first: the record is on `main` at `c616900`.
+2. **Then C6 (the report body) and C7 (the campaign driver)**, tests first, as §3 says — with C7's `check-inputs` verifying the thirty
+   against the pinned record AND the manifest, and refusing any path under `fenced_timing/`.
+3. **G8** reviews B3's round, C5, C6 and C7 together (one mandate, also the campaign's pre-flight); the coordinator re-runs the
+   load-bearing mutants; Amendment G rules; the run worktree moves to the reviewed commit; then the author's campaign token (G9).
+4. Say **"P7.3c C6–C7 done"** when both are committed (not pushed; the coordinator pushes).
