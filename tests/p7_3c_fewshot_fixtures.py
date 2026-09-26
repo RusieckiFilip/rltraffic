@@ -236,13 +236,15 @@ def write_training_corpus(
     run_metadata: Mapping[str, Any] | None = None,
     rewards_for: Callable[[int, str, int], Sequence[float]] = training_rewards,
     sha256sums: bool = True,
+    state_dim: int = STATE_DIM,
 ) -> Path:
     """One episode per draw through the REAL logger, *ids* in the logged (env) order; then ``SHA256SUMS``.
 
-    *decisions_for* gives an episode length per draw (default: *decisions* for every draw).
+    *decisions_for* gives an episode length per draw (default: *decisions* for every draw); *state_dim* the width of
+    every observation (default: the subject's 40).
     """
     order = [str(ix) for ix in (ids if ids is not None else calibration_ids())]
-    env = ScriptedCorpusEnv(order)
+    env = ScriptedCorpusEnv(order, state_dim=int(state_dim))
     metadata = dict(grid_run_metadata(list(draws)) if run_metadata is None else run_metadata)
     logger = TrajectoryLogger(env, Path(out_dir), run_metadata=metadata)
     for draw in draws:

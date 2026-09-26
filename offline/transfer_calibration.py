@@ -2807,9 +2807,9 @@ def assert_logged_corpus_matches_probe_per_intersection(
                 if bool(off.any()):
                     raise ValueError(
                         f"draw {draw}, intersection {ix!r}: {int(off.sum())} of {rewards.size} stored per-step "
-                        f"rewards are NOT integral (first: {float(rewards[off][0])!r}). The corpus stores float32 "
-                        "and the probe summed float64; bit-for-bit equality holds only because this reward is a "
-                        "vehicle count -- a finding about the reward, never a tolerance to widen"
+                        "rewards are NOT integral. The corpus stores float32 and the probe summed float64; bit-for-bit "
+                        "equality holds only because this reward is a vehicle count -- a finding about the reward, "
+                        "never a tolerance to widen (no value is printed: the capture is a public record, B3.5)"
                     )
                 returns[ix] = float(np.sum(rewards.astype(np.float64)))
         matching = 0
@@ -2829,12 +2829,12 @@ def assert_logged_corpus_matches_probe_per_intersection(
             }
         )
     if mismatches:
-        draw, ix, logged, expected = mismatches[0]
+        draw, ix, _logged, _expected = mismatches[0]
         raise ValueError(
             f"A17(f) FAILED on {len(mismatches)} of {len(requested) * len(ids)} (draw, intersection) pair(s); "
-            f"the first is draw {draw}, intersection {ix!r}: logged return {logged!r} against the probe's "
-            f"{expected!r} (difference {logged - expected!r}). SUMO is deterministic under a fixed seed, so this "
-            "is a wiring defect, and P7.3c stops here, before any training (A24(b))"
+            f"the first is draw {draw}, intersection {ix!r}. SUMO is deterministic under a fixed seed, so this is a "
+            "wiring defect, and P7.3c stops here, before any training (A24(b)). No return is printed (the capture is "
+            "a public record, Amendment B, B3.5); the coordinator reads them from the corpus"
         )
     n_checked = len(requested) * len(ids)
     return {
@@ -3015,6 +3015,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
         if args.stage == "collect-corpus":
             draws = _draws_range(args.draws_range)
+            # Amendment B, B3.3: the stage checks the band ITSELF, not only through the driver's preflight -- a
+            # hand-run collection must not skip it.  The check is about grid4x4's subject, so the key is grid4x4's.
+            if args.scenario_key != GRID4X4_SCENARIO_KEY:
+                raise ValueError(
+                    f"collect-corpus collects A24(b)'s {GRID4X4_SCENARIO_KEY} corpus, not {args.scenario_key!r}'s; "
+                    "its disjointness check is about that corpus's subject"
+                )
+            grid4x4_corpus_disjointness_record(draws, output_root=args.output_root)
             collect_logged_probe_corpus(
                 args.scenario_key,
                 draws,
@@ -3028,8 +3036,15 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             return 0
         if args.stage == "corpus-gate":
+            requested = _draws_range(args.draws_range)
+            # Amendment B, B3.2: the gate pins A24(b)'s band itself; a record of another band cannot pass for G3's.
+            if tuple(requested) != GRID4X4_CORPUS_DRAWS:
+                raise ValueError(
+                    f"corpus-gate checks A24(b)'s band {GRID4X4_CORPUS_DRAWS[0]}-{GRID4X4_CORPUS_DRAWS[-1]} and no "
+                    f"other; --draws-range {requested.start} {requested.stop} selects {len(requested)} draw(s)"
+                )
             verdict = assert_logged_corpus_matches_probe_per_intersection(
-                args.corpus_dir, data_dir=args.data_dir, draw_ids=_draws_range(args.draws_range)
+                args.corpus_dir, data_dir=args.data_dir, draw_ids=requested
             )
             # The record is a WRITE, so it follows every refusal: a refused corpus leaves no record.
             _write_json(args.record, verdict)

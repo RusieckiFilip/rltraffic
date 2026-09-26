@@ -587,17 +587,78 @@ def test_the_corpus_argv_is_the_probes_own_settings_and_never_overwrites(tmp_pat
         assert getattr(parsed, key) == getattr(probe, key), key
 
 
-def test_the_gate_subcommand_writes_its_record_only_after_the_gate_passes(tmp_path: Path) -> None:
-    """The gate record is a WRITE, so it follows every check: a refused corpus leaves no record and no directory."""
-    good = write_scripted_corpus(tmp_path / "good", ids=list(reversed(IDS)), draws=[DRAW], rewards_for=probe_rewards)
+def test_the_gate_subcommand_checks_a24s_band_only_and_writes_its_record_only_after_the_gate_passes(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Amendment B, B3.2: ``corpus-gate`` pins A24(b)'s band ITSELF -- a ``--draws-range`` other than 201-300 is refused
+    even over a corpus that would pass on it -- and its record is a WRITE, so it follows every check: a refused gate
+    leaves no record and no directory.  The whole band, in reversed id order, passes 1,600 of 1,600."""
+    one = write_scripted_corpus(tmp_path / "one", ids=list(IDS), draws=[DRAW], rewards_for=probe_rewards)
+    narrow = tmp_path / "narrow" / "a17f_gate.json"
+    gate = ["--work-dir", str(tmp_path / "run"), "corpus-gate"]
+    assert tc.main([*gate, "--draws-range", str(DRAW), str(DRAW + 1), "--corpus-dir", str(one), "--record", str(narrow)]) == 1
+    assert "corpus-gate checks A24(b)'s band 201-300 and no other" in capsys.readouterr().out
+    assert not narrow.parent.exists(), "a refused gate created its record's directory"
+
+    band = [str(tc.GRID4X4_CORPUS_DRAWS[0]), str(tc.GRID4X4_CORPUS_DRAWS[-1] + 1)]
+    draws = list(tc.GRID4X4_CORPUS_DRAWS)
+    good = write_scripted_corpus(
+        tmp_path / "good", ids=list(reversed(IDS)), draws=draws, rewards_for=probe_rewards,
+        run_metadata=grid_run_metadata(draws),
+    )
     record = tmp_path / "run" / "a17f_gate.json"
-    common = ["--work-dir", str(tmp_path / "run"), "corpus-gate", "--draws-range", str(DRAW), str(DRAW + 1)]
-    assert tc.main([*common, "--corpus-dir", str(good), "--record", str(record)]) == 0
+    assert tc.main([*gate, "--draws-range", *band, "--corpus-dir", str(good), "--record", str(record)]) == 0
     written = json.loads(record.read_text(encoding="utf-8"))
     assert written["format_version"] == tc.CORPUS_GATE_FORMAT_VERSION
-    assert written["n_checked"] == 16 and written["n_matching"] == 16 and written["all_match"] is True
+    assert (written["n_draws"], written["n_checked"], written["n_matching"], written["all_match"]) == (100, 1600, 1600, True)
 
-    bad = write_scripted_corpus(tmp_path / "bad", ids=list(IDS), draws=[DRAW], rewards_for=_half_reward)
     refused = tmp_path / "refused" / "a17f_gate.json"
-    assert tc.main([*common, "--corpus-dir", str(bad), "--record", str(refused)]) == 1
+    tampered = _data_copy(tmp_path, tamper="p7_3d_calibration.json")
+    assert tc.main(
+        [*gate, "--draws-range", *band, "--data-dir", str(tampered), "--corpus-dir", str(good), "--record", str(refused)]
+    ) == 1
     assert not refused.parent.exists(), "a refused gate created its record's directory"
+
+
+def test_collect_corpus_checks_disjointness_itself_before_collecting_anything(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Amendment B, B3.3: the stage runs the disjointness record ITSELF, not only through the driver's preflight -- a
+    band touching the subject's training draws is refused before any episode, and so is any scenario but grid4x4's,
+    whose subject the check is about.  The draws root here is empty, so nothing could be collected anyway."""
+    root = _output_root_with_subject()
+    corpus = tmp_path / "corpus"
+    common = ["--draws-root", str(tmp_path / "no_draws"), "--output-root", str(root), "--work-dir", str(tmp_path / "run")]
+    assert tc.main([*common, "collect-corpus", "--corpus-dir", str(corpus), "--draws-range", "200", "202"]) == 1
+    assert "not disjoint" in capsys.readouterr().out
+    assert tc.main([*common, "collect-corpus", "--corpus-dir", str(corpus), "--scenario-key", HZ1X1]) == 1
+    assert f"collect-corpus collects A24(b)'s {GRID} corpus, not {HZ1X1!r}'s" in capsys.readouterr().out
+    assert not corpus.exists() and not (tmp_path / "run").exists()
+
+
+def test_the_gates_refusals_name_the_draw_the_id_and_the_counts_but_no_value(tmp_path: Path) -> None:
+    """Amendment B, B3.5: the driver tees every refusal into the capture, so a refusal names the draw, the intersection
+    and the counts -- never a logged return, a probe return, their difference or a stored reward."""
+    victim = IDS[5]
+
+    def shifted(draw: int, ix: str, decisions: int) -> list[float]:
+        values = probe_rewards(draw, ix, decisions)
+        if ix == victim:
+            values[0] -= 1.0
+        return values
+
+    off = write_scripted_corpus(tmp_path / "off", ids=list(IDS), draws=[DRAW], rewards_for=shifted)
+    with pytest.raises(ValueError, match=re.escape(f"the first is draw {DRAW}, intersection {victim!r}")) as caught:
+        tc.assert_logged_corpus_matches_probe_per_intersection(off, draw_ids=[DRAW])
+    message = str(caught.value)
+    assert "1 of 16 (draw, intersection) pair(s)" in message
+    expected = probe_return(DRAW, victim)
+    assert [value for value in (expected, expected - 1.0, -1.0) if repr(float(value)) in message] == []
+
+    half = write_scripted_corpus(tmp_path / "half", ids=list(IDS), draws=[DRAW], rewards_for=_half_reward)
+    with pytest.raises(ValueError, match=re.escape(f"2 of {DECISIONS} stored per-step rewards are NOT integral")) as caught:
+        tc.assert_logged_corpus_matches_probe_per_intersection(half, draw_ids=[DRAW])
+    message = str(caught.value)
+    assert "first:" not in message
+    first = probe_return(DRAW, IDS[0]) - 0.5
+    assert [value for value in (first, 0.5) if repr(float(value)) in message] == []

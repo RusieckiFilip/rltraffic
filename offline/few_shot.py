@@ -302,17 +302,33 @@ def _sha256_file(path: str | Path) -> str:
 
 
 def _git(*args: str) -> subprocess.CompletedProcess[str]:
-    """``git`` run in THIS module's directory, never the process cwd: the driver's cwd is the MAIN tree."""
-    return subprocess.run(
-        ["git", *args], cwd=str(Path(__file__).resolve().parent), capture_output=True, text=True, timeout=30,
-        check=False,
-    )
+    """``git`` run in THIS module's directory, never the process cwd: the driver's cwd is the MAIN tree.  A git that
+    cannot run at all is reported as a failed call, which its callers treat as "could not say"."""
+    try:
+        return subprocess.run(
+            ["git", *args], cwd=str(Path(__file__).resolve().parent), capture_output=True, text=True, timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        return subprocess.CompletedProcess(args=["git", *args], returncode=127, stdout="", stderr=str(exc))
 
 
-def _code_commit() -> str:
-    """The commit of the tree this module was loaded from (``offline.dt_gate.runtime_provenance`` asks the cwd)."""
+def _code_commit(*, required: bool = False) -> str:
+    """The commit of the tree this module was loaded from (``offline.dt_gate.runtime_provenance`` asks the cwd).
+
+    ``unknown`` when git cannot name it -- REFUSED instead when *required*, as in the registered regime (Amendment D,
+    D2.10): a checkpoint that cannot say which code wrote it is not provenance.
+    """
     result = _git("rev-parse", "HEAD")
-    return result.stdout.strip() if result.returncode == 0 else "unknown"
+    commit = result.stdout.strip() if result.returncode == 0 else ""
+    if commit:
+        return commit
+    if required:
+        raise ValueError(
+            f"git could not name the code's commit (exit {result.returncode}: {result.stderr.strip()[:120]!r}); in the "
+            "registered regime a checkpoint without the commit that wrote it is not provenance, so nothing is trained"
+        )
+    return "unknown"
 
 
 def _code_tree_dirty() -> bool | None:
@@ -360,8 +376,8 @@ def load_source(path: str | Path, *, expected_sha256: str) -> dict[str, Any]:
     recipe -- steps, batch, learning rate, weight decay, clip, warm-up, method, heads -- other than the one this module
     imports (A24(b): "the recipe unchanged where P5.2 has one").
     """
-    from offline.spatial_mixing import GRAD_CLIP, JOINT_BATCH_SIZE, LEARNING_RATE, WEIGHT_DECAY
-    from offline.tier_sweep import warmup_for
+    from offline.spatial_mixing import GRAD_CLIP, LEARNING_RATE, WEIGHT_DECAY
+    from offline.tier_sweep import JOINT_BATCH_SIZE, warmup_for
 
     source_path = Path(path)
     if not source_path.is_file():
@@ -872,7 +888,8 @@ def prepare_fine_tune(
 def train_prepared(prepared: PreparedRun, *, log_every: int = 0) -> TrainingOutcome:
     """Step 7: exactly B steps of ``train_tier_dt``'s loop on the prepared model; the steps are COUNTED."""
     from agent.DTAgent import action_loss
-    from offline.spatial_mixing import GRAD_CLIP, JOINT_BATCH_SIZE
+    from offline.spatial_mixing import GRAD_CLIP
+    from offline.tier_sweep import JOINT_BATCH_SIZE
 
     model = prepared.model
     optimiser, schedule, warmup = make_optimiser(model.parameters(), prepared.budget)
@@ -912,10 +929,17 @@ def train_prepared(prepared: PreparedRun, *, log_every: int = 0) -> TrainingOutc
     )
 
 
-def payload_for(prepared: PreparedRun, outcome: TrainingOutcome) -> dict[str, Any]:
-    """Step 8's payload: the SOURCE's frozen parts, the same objects read from it; the new weights, targets, provenance."""
-    from offline.spatial_mixing import GRAD_CLIP, JOINT_BATCH_SIZE, LEARNING_RATE, WEIGHT_DECAY
+def payload_for(prepared: PreparedRun, outcome: TrainingOutcome, *, require_commit: bool = False) -> dict[str, Any]:
+    """Step 8's payload: the SOURCE's frozen parts, the same objects read from it; the new weights, targets, provenance.
 
+    With *require_commit* -- the registered commands' setting (Amendment D, D2.10) -- a commit git cannot name refuses
+    the payload: without its commit it is not provenance.  Without it (a test, or a tree exported by ``git archive``)
+    the payload records ``unknown``.
+    """
+    from offline.spatial_mixing import GRAD_CLIP, LEARNING_RATE, WEIGHT_DECAY
+    from offline.tier_sweep import JOINT_BATCH_SIZE
+
+    commit = _code_commit(required=require_commit)
     source = prepared.source
     ids = [str(ix) for ix in source["intersection_ids"]]
     source_provenance = source["provenance"]
@@ -934,7 +958,7 @@ def payload_for(prepared: PreparedRun, outcome: TrainingOutcome) -> dict[str, An
         "spatial_mixing": False,
         "device": str(prepared.device),
         "deterministic": False,
-        "git_commit": _code_commit(),
+        "git_commit": commit,
         "runtime": _runtime(prepared.device),
         "few_shot": {
             "format_version": FEW_SHOT_FORMAT_VERSION,
@@ -1020,6 +1044,7 @@ def fine_tune(
     destination: str | Path,
     data_dir: str | Path | None = None,
     log_every: int = 0,
+    require_commit: bool = False,
 ) -> FineTuneResult:
     """The whole route: prepare, exactly B steps (counted, then asserted), then ONE exclusive write."""
     prepared = prepare_fine_tune(
@@ -1039,7 +1064,9 @@ def fine_tune(
         raise RuntimeError(
             f"the loop ran {outcome.steps} optimizer steps, not the declared {prepared.budget}; nothing is written"
         )
-    digest = write_payload_exclusive(payload_for(prepared, outcome), prepared.destination)
+    digest = write_payload_exclusive(
+        payload_for(prepared, outcome, require_commit=require_commit), prepared.destination
+    )
     return FineTuneResult(
         destination=prepared.destination,
         sha256=digest,
@@ -1143,8 +1170,8 @@ def validate_checkpoint(
     the budget, k, the draw ids, the switch, the seed and the source's digest with *spec*; the targets with the pinned
     calibration artifact's ``k{k}``; the recipe with the constants the trainer imports.  An unreadable file is refused.
     """
-    from offline.spatial_mixing import GRAD_CLIP, JOINT_BATCH_SIZE, LEARNING_RATE, WEIGHT_DECAY
-    from offline.tier_sweep import warmup_for
+    from offline.spatial_mixing import GRAD_CLIP, LEARNING_RATE, WEIGHT_DECAY
+    from offline.tier_sweep import JOINT_BATCH_SIZE, warmup_for
 
     path = assert_fence(registered_destination(output_root, spec), timing=False)
     pin = _pin_for(spec.seed, pins)
@@ -1468,13 +1495,87 @@ def summarize_timing(stamp_dir: str | Path) -> dict[str, Any]:
     }
 
 
+def _corpus_episodes_shape(corpus_dir: Path) -> list[dict[str, Any]]:
+    """Per episode of the corpus, in draw order: its file, id set, last step and the widths of every intersection."""
+    from offline.trajectory_logger import load_episode
+
+    manifest = json.loads((corpus_dir / MANIFEST_NAME).read_text(encoding="utf-8"))
+    shapes: list[dict[str, Any]] = []
+    for entry in sorted(manifest["episodes"], key=lambda item: int(item["flow_draw"])):
+        episode = load_episode(corpus_dir / str(entry["filename"]))
+        shapes.append(
+            {
+                "file": str(entry["filename"]),
+                "draw": int(entry["flow_draw"]),
+                "ids": [str(ix) for ix in episode.ix_ids],
+                "last_step": int(episode.episode_length) - 1,
+                "widths": {
+                    str(ix): (int(arrays.state.shape[1]), int(arrays.avail_mask.shape[1]))
+                    for ix, arrays in episode.intersections.items()
+                },
+            }
+        )
+    return shapes
+
+
+def _assert_corpus_shape(corpus_dir: Path, shapes: Sequence[Mapping[str, Any]], source: Mapping[str, Any]) -> None:
+    """``build_windows``' corpus-shape refusals, made BEFORE the token over the whole band (Amendment D, D2.11).
+
+    Each episode must carry exactly the source's ids, the source's state and action widths, and a last step inside
+    the source's ``max_ep_len``; and the loader must adopt the source's statistics and normalise one window of every
+    intersection with them -- one draw is built for that, so a statistics set that lacks an id refuses here.
+    ``build_windows`` keeps its own copies of these checks, inside ``train``, as the second line.
+    """
+    from offline.dataset import NormalizationStats, TrajectoryWindowDataset
+
+    config = dict(source["config"])
+    ids = {str(ix) for ix in source["intersection_ids"]}
+    for shape in shapes:
+        present = set(shape["ids"])
+        missing, unknown = sorted(ids - present), sorted(present - ids)
+        if missing or unknown:
+            raise ValueError(
+                f"{shape['file']}: the episode's intersections differ from the checkpoint's (missing {missing}, unknown "
+                f"{unknown}); the trainings key every window by the checkpoint's ids, so this corpus is refused BEFORE "
+                "the token"
+            )
+        if shape["last_step"] >= int(config["max_ep_len"]):
+            raise ValueError(
+                f"{shape['file']}: the corpus reaches step {shape['last_step']}, beyond the source's max_ep_len "
+                f"{config['max_ep_len']}"
+            )
+        for ix, (width, actions) in sorted(shape["widths"].items()):
+            if width != int(config["state_dim"]):
+                raise ValueError(
+                    f"{shape['file']}: intersection {ix!r} has state width {width}, not the source's {config['state_dim']}"
+                )
+            if actions != int(config["n_actions"]):
+                raise ValueError(
+                    f"{shape['file']}: intersection {ix!r} has {actions} actions, not the source's {config['n_actions']}"
+                )
+    stats = NormalizationStats.from_json_obj(source["stats"])
+    dataset = TrajectoryWindowDataset(
+        [corpus_dir], context_length=int(config["context_length"]), split="train",
+        draw_ids=[int(shapes[0]["draw"])], stats=stats, normalize=True,
+    )
+    if dataset.stats is not stats:
+        raise RuntimeError("the window dataset did not adopt the source's statistics; it would have fitted its own")
+    seen: set[str] = set()
+    for item in range(len(dataset)):
+        meta = dataset.item_meta(item)
+        if meta.ix_id not in seen:
+            dataset[item]
+            seen.add(meta.ix_id)
+
+
 def check_inputs(
     *, output_root: str | Path, corpus_dir: str | Path, gate_record: str | Path,
     pins: Mapping[int, str] | None = None, data_dir: str | Path | None = None,
     timing_path: str | Path | None = None,
 ) -> dict[str, Any]:
     """Every input by digest, before the canary and the token: the calibration artifact at its pin, A20(a)'s five
-    sources at theirs, the corpus's sums entry by entry over the whole band, G3's gate record for THIS corpus (100
+    sources at theirs, the corpus's sums entry by entry over the whole band, the corpus's SHAPE against each source
+    (Amendment D, D2.11: the ids, the widths, ``max_ep_len``, the statistics), G3's gate record for THIS corpus (100
     draws, 1,600 returns, zero events), CUDA -- and, for the trainings, G5's record: its concurrency re-derived by the
     rule and enough free device memory for it."""
     from offline.transfer_curve import P7_3D_CALIBRATION_SHA256
@@ -1497,6 +1598,10 @@ def check_inputs(
             raise ValueError(f"seed {seed}: {path} has sha256 {digest}, which is not the pinned {pin}")
         sources[seed] = digest
     prefix = select_prefix(corpus_dir, max(REGISTERED_KS), scenario_id=SCENARIO_ID)
+    shapes = _corpus_episodes_shape(Path(corpus_dir))
+    for seed in TRAINING_SEEDS:
+        source = load_source(registered_source_path(root, seed), expected_sha256=sources[seed])
+        _assert_corpus_shape(Path(corpus_dir), shapes, source)
 
     gate = Path(gate_record)
     record = _read_json_record(
@@ -1564,7 +1669,10 @@ def _enter_registered_regime() -> None:
     P5.2's)".  ``offline/campaigns/p5_2.sh`` exports OMP and MKL at one thread, UNSETS ``CUBLAS_WORKSPACE_CONFIG`` outside
     its deterministic regime (lines 98-117: the variable constrains cuBLAS's workspace and so its GEMM selection), and
     trains with ``--torch-threads 1``.  A set variable is REFUSED here, not unset: the driver unsets it before any
-    interpreter starts, and a process that finds it set was not started the registered way."""
+    interpreter starts, and a process that finds it set was not started the registered way.
+
+    And the code's commit must be nameable BEFORE anything trains (Amendment D, D2.10): a registered checkpoint records
+    it, so a start that could not is refused rather than trained and then refused at the write."""
     from offline.tier_sweep import configure_determinism
 
     configured = os.environ.get("CUBLAS_WORKSPACE_CONFIG")
@@ -1573,6 +1681,7 @@ def _enter_registered_regime() -> None:
             f"CUBLAS_WORKSPACE_CONFIG is set ({configured!r}); the registered regime is P5.2's non-deterministic one, "
             "which unsets it (offline/campaigns/p5_2.sh lines 101-117) -- start through the driver, which does"
         )
+    _code_commit(required=True)
     configure_determinism(False)
     torch.set_num_threads(1)
 
@@ -1614,6 +1723,7 @@ def _cmd_train(args: argparse.Namespace) -> int:
         destination=destination,
         data_dir=args.data_dir,
         log_every=int(args.log_every),
+        require_commit=True,
     )
     written = write_run_record(spec, result, output_root=output_root, device="cuda")
     print(
@@ -1763,6 +1873,7 @@ def _cmd_timing(args: argparse.Namespace) -> int:
         destination=destination,
         data_dir=args.data_dir,
         log_every=100,
+        require_commit=True,
     )
     record = {
         "format_version": TIMING_SLOT_FORMAT_VERSION,

@@ -64,6 +64,13 @@ def _main_tree(text: str) -> Path:
     return Path(match.group(1))
 
 
+def _function(code: str, name: str) -> str:
+    """The body of the shell function *name* (from its ``name() {`` line to the first ``}`` at column 0)."""
+    match = re.search(rf"^{name}\(\) \{{\n(.*?)^\}}$", code, flags=re.MULTILINE | re.DOTALL)
+    assert match, f"the driver defines no function {name}()"
+    return match.group(1)
+
+
 # ----------------------------------------------------------------------------------------------
 # The text, comments stripped
 # ----------------------------------------------------------------------------------------------
@@ -133,20 +140,47 @@ def test_the_driver_derives_its_tree_refuses_the_implementers_and_guards_livenes
     assert "offline\\.(collect|transfer_calibration|" in liveness.group(1)
 
 
+def test_the_run_tree_and_its_commit_are_enforced_b3_1() -> None:
+    """Amendment B, B3.1: the driver runs from the run worktree and from no other tree, and only at the full 40-hex
+    commit it is given -- the one the corpus manifest will record."""
+    code = _code(_text())
+    assert '[[ "$EXPECTED_COMMIT" =~ ^[0-9a-f]{40}$ ]]' in code
+    assert 'if [ "$WORK_TREE" != "$RUN_TREE" ]; then' in code
+    assert 'HEAD_COMMIT=$(git -C "$WORK_TREE" rev-parse HEAD)' in code
+    assert 'if [ "$HEAD_COMMIT" != "$EXPECTED_COMMIT" ]; then' in code
+    assert code.index('if [ "$HEAD_COMMIT" != "$EXPECTED_COMMIT" ]; then') < code.index('rm -f "$TOKEN"')
+
+
+def test_failed_is_written_on_every_path_after_the_token_b3_4() -> None:
+    """Amendment B, B3.4: an ``EXIT`` trap keyed on a success flag, installed before the token; ``FAILED`` written with
+    ``printf ... >`` before any echo, in ``fail`` and in the signal handler alike."""
+    code = _code(_text())
+    on_exit = _function(code, "on_exit")
+    assert 'if [ "$SUCCESS" -ne 1 ]' in on_exit and "printf" in on_exit and '> "$RUN_DIR/FAILED"' in on_exit
+    for name in ("fail", "on_signal"):
+        body = _function(code, name)
+        assert body.index("printf") < body.index("echo"), f"{name}: FAILED is on disk before anything reaches a pipe"
+    assert code.count("trap on_exit EXIT") == 1
+    assert code.index("trap on_exit EXIT") < code.index('if [ ! -f "$TOKEN" ]; then')
+    assert code.index("SUCCESS=1") < code.index('"$RUN_DIR/COMPLETE"')
+
+
 def _header_line(text: str) -> tuple[str, str, str]:
     """The header's Step-2 line, and the driver path and capture path it names -- read, never restated."""
     match = re.search(r"^#\s+Step 2, at ITS PROMPT:\s+(bash .+)$", text, flags=re.MULTILINE)
     assert match, "the header has no Step-2 line"
     line = match.group(1)
-    parts = re.match(r"bash (\S+p7_3c_corpus\.sh) 2>&1 \| tee -a (\S+); ", line)
+    parts = re.match(r"bash (\S+p7_3c_corpus\.sh) <commit> 2>&1 \| tee -i -a (\S+); ", line)
     assert parts, f"the Step-2 line is not the foreground form: {line}"
     return line, parts.group(1), parts.group(2)
 
 
 def test_the_header_documents_the_foreground_form_from_the_run_tree() -> None:
+    """B.5-3's exit status, J1(e)'s run tree, B3.1's commit argument, and B3.4's ``tee -i`` (an interrupt reaches the
+    capture instead of killing tee first)."""
     line, driver_path, capture_path = _header_line(_text())
     assert "${PIPESTATUS[0]}" in line, "B.5-3: the pane carries the DRIVER's exit status"
-    assert line.count(f"tee -a {capture_path}") == 2
+    assert line.count(f"tee -i -a {capture_path}") == 2
     assert "/rltraffic-p73c-run/" in driver_path, "J1(e): the documented tree is the RUN worktree"
 
 
@@ -188,13 +222,18 @@ class CorpusSandbox:
         self.run_dir = sandbox / "run"
         self.token = sandbox / "TOKEN_corpus"
 
+    @property
+    def head(self) -> str:
+        """The clone's commit -- the argument B3.1 requires."""
+        return _git("rev-parse", "HEAD", cwd=self.clone).strip()
+
     def write_token(self) -> None:
         self.token.write_text("authorised by tests/test_p7_3c_corpus_driver.py\n", encoding="utf-8")
 
-    def run(self, timeout: float = 600.0) -> subprocess.CompletedProcess[str]:
+    def run(self, *args: str, timeout: float = 600.0) -> subprocess.CompletedProcess[str]:
         """``setsid --wait`` makes the driver a process-group leader, which it requires."""
         result = subprocess.run(
-            ["setsid", "--wait", "bash", str(self.driver)],
+            ["setsid", "--wait", "bash", str(self.driver), *args],
             capture_output=True, text=True, cwd=str(self.clone), timeout=timeout,
         )
         (self.base / "driver_capture.txt").write_text(result.stdout + result.stderr, encoding="utf-8")
@@ -209,12 +248,16 @@ def corpus_sandbox(tmp_path: Path) -> Callable[..., CorpusSandbox]:
     """B.7-3's rule: the ONE place an executed corpus driver is built -- roots redirected, collection stubbed."""
     _needs_the_driver_environment()
 
-    def build(*, populate: Callable[[CorpusSandbox], None] | None = None) -> CorpusSandbox:
+    def build(
+        *, register_run_tree: bool = True, populate: Callable[[CorpusSandbox], None] | None = None
+    ) -> CorpusSandbox:
         sandbox = tmp_path / "sandbox"
         sandbox.mkdir()
         clone = _snapshot_clone(tmp_path)
         path = clone / "offline" / "campaigns" / "p7_3c_corpus.sh"
         text = path.read_text(encoding="utf-8")
+        if register_run_tree:
+            text = _substitute(text, "RUN_TREE=/home/filip/rltraffic-p73c-run\n", f"RUN_TREE={clone}\n", 1)
         text = _substitute(
             text, "CORPUS=$MAIN/datasets_sumo_v11/grid4x4_sumo_maxpressure\n", f"CORPUS={sandbox / 'corpus'}\n", 1
         )
@@ -239,6 +282,7 @@ def test_the_fixture_redirects_every_writable_root_and_stubs_the_collection(corp
     sb = corpus_sandbox()
     code = _code(sb.driver.read_text(encoding="utf-8"))
     assert f"CORPUS={sb.corpus}\n" in code and f"RUN_DIR={sb.run_dir}\n" in code and f"TOKEN={sb.token}\n" in code
+    assert f"RUN_TREE={sb.clone}\n" in code
     # The EXECUTABLE lines only: the header's comments name the real token path for the author, and a comment runs
     # nothing.
     assert "datasets_sumo_v11" not in code and "p7_3c_runs/TOKEN" not in code
@@ -265,7 +309,7 @@ def test_a_non_empty_corpus_or_run_directory_is_refused_before_anything_is_consu
     untouched, nothing written or removed.  *Mutation:* the barrier's refusal removed -> this dies."""
     sb = corpus_sandbox(populate=_with_file(leftover))
     before = sb.contents()
-    result = sb.run()
+    result = sb.run(sb.head)
     output = result.stdout + result.stderr
     assert result.returncode == 2, output[-2000:]
     directory = sb.sandbox / Path(leftover).parts[0]
@@ -278,7 +322,7 @@ def test_a_non_empty_corpus_or_run_directory_is_refused_before_anything_is_consu
 def test_without_a_token_every_check_runs_and_nothing_is_created(corpus_sandbox: Any) -> None:
     """No token: corpus-preflight and the canary run for real, then the refusal -- and still nothing exists."""
     sb = corpus_sandbox()
-    result = sb.run()
+    result = sb.run(sb.head)
     output = result.stdout + result.stderr
     assert result.returncode == 2, output[-2000:]
     assert "not a process-group leader" not in output
@@ -295,7 +339,7 @@ def test_with_a_token_it_is_consumed_the_canary_recorded_and_the_stubbed_collect
     no ``COMPLETE``, no gate record, no corpus."""
     sb = corpus_sandbox()
     sb.write_token()
-    result = sb.run()
+    result = sb.run(sb.head)
     output = result.stdout + result.stderr
     assert result.returncode == 1, output[-2000:]
     assert not sb.token.exists()
@@ -304,6 +348,50 @@ def test_with_a_token_it_is_consumed_the_canary_recorded_and_the_stubbed_collect
     assert (sb.run_dir / "FAILED").read_text(encoding="utf-8").strip() == "CORPUS RUN FAILED at collect-corpus"
     assert not (sb.run_dir / "COMPLETE").exists() and not (sb.run_dir / "a17f_gate.json").exists()
     assert not sb.corpus.exists()
+
+
+def test_a_copy_outside_the_run_worktree_is_refused_before_anything_is_consumed(corpus_sandbox: Any) -> None:
+    """Amendment B, B3.1, EXECUTED: the sandbox copy NOT registered as the run tree is refused, token untouched."""
+    sb = corpus_sandbox(register_run_tree=False)
+    sb.write_token()
+    before = sb.contents()
+    result = sb.run(sb.head)
+    output = result.stdout + result.stderr
+    assert result.returncode == 2, output[-2000:]
+    assert f"this copy is in {sb.clone}, not the run worktree /home/filip/rltraffic-p73c-run" in output
+    assert sb.token.is_file() and sb.contents() == before
+
+
+def test_a_run_tree_at_another_commit_is_refused_before_anything_is_consumed(corpus_sandbox: Any) -> None:
+    """Amendment B, B3.1, EXECUTED: the run tree at a commit other than the one named is refused, token untouched."""
+    sb = corpus_sandbox()
+    sb.write_token()
+    before = sb.contents()
+    result = sb.run("0" * 40)
+    output = result.stdout + result.stderr
+    assert result.returncode == 2, output[-2000:]
+    assert f"the run worktree is at {sb.head}, not {'0' * 40}" in output
+    assert sb.token.is_file() and sb.contents() == before
+
+
+#: A step after the token and after the run directory, turned into a failure no ``|| fail`` guards.
+INJECTED_AFTER_TOKEN = 'echo "  started      $(date -Is)"'
+
+
+def test_an_unguarded_failure_after_the_token_still_leaves_failed_through_the_exit_trap(corpus_sandbox: Any) -> None:
+    """Amendment B, B3.4, EXECUTED: ``set -e`` aborts on a failure no ``fail`` call names, and the ``EXIT`` trap still
+    writes ``FAILED``.  *Mutation:* ``trap on_exit EXIT`` removed -> no ``FAILED`` -> this dies."""
+    sb = corpus_sandbox()
+    text = _substitute(sb.driver.read_text(encoding="utf-8"), INJECTED_AFTER_TOKEN, "false", 1)
+    sb.driver.write_text(text, encoding="utf-8")
+    _commit_clone(sb.clone, "an unguarded failure injected after the token")
+    sb.write_token()
+    result = sb.run(sb.head)
+    output = result.stdout + result.stderr
+    assert result.returncode == 1, output[-2000:]
+    assert not sb.token.exists()
+    assert (sb.run_dir / "FAILED").read_text(encoding="utf-8").strip() == "CORPUS RUN FAILED (exit 1)"
+    assert not (sb.run_dir / "COMPLETE").exists()
 
 
 @pytest.mark.skipif(shutil.which("tmux") is None, reason="tmux is not installed")
@@ -318,6 +406,7 @@ def test_the_headers_own_line_passes_the_guard_and_the_pane_carries_the_drivers_
     capture = sb.base / "pane_capture.txt"
     line = _substitute(line, driver_path, str(sb.driver), 1)
     line = _substitute(line, capture_path, str(capture), 2)
+    line = _substitute(line, "<commit>", sb.head, 1)
 
     session = f"p73c_hdr_{uuid.uuid4().hex[:8]}"
     subprocess.run(["tmux", "new-session", "-d", "-s", session], check=True)
@@ -334,4 +423,4 @@ def test_the_headers_own_line_passes_the_guard_and_the_pane_carries_the_drivers_
     assert "not a process-group leader" not in text
     assert "REFUSING TO START: no run token" in text
     assert text.rstrip().splitlines()[-1] == "DRIVER EXIT: 2"
-    assert sb.run().returncode == 2
+    assert sb.run(sb.head).returncode == 2

@@ -11,7 +11,11 @@
 #        git -C /home/filip/rltraffic worktree add --detach /home/filip/rltraffic-p73c-run <commit>
 #
 #      Step 1, open a pane:      tmux new -s p73c_corpus
-#      Step 2, at ITS PROMPT:    bash /home/filip/rltraffic-p73c-run/offline/campaigns/p7_3c_corpus.sh 2>&1 | tee -a /home/filip/rltraffic/output/p7_3c_runs/corpus_capture.txt; echo "DRIVER EXIT: ${PIPESTATUS[0]}" | tee -a /home/filip/rltraffic/output/p7_3c_runs/corpus_capture.txt
+#      Step 2, at ITS PROMPT:    bash /home/filip/rltraffic-p73c-run/offline/campaigns/p7_3c_corpus.sh <commit> 2>&1 | tee -i -a /home/filip/rltraffic/output/p7_3c_runs/corpus_capture.txt; echo "DRIVER EXIT: ${PIPESTATUS[0]}" | tee -i -a /home/filip/rltraffic/output/p7_3c_runs/corpus_capture.txt
+#
+#    <commit> is the full 40-hex commit the run worktree is at (Amendment B, B3.1): the driver refuses any other
+#    tree and any other HEAD, so the corpus manifest's git_hash is the reviewed commit by construction.  `tee -i`
+#    ignores the interrupt, so Ctrl-C's lines still reach the capture (B3.4).
 #
 #    The token is the author's (gate G2, channel (a)): /home/filip/rltraffic/output/p7_3c_runs/TOKEN_corpus.
 #    Start on an idle machine, on mains power (PROJECT_PLAN §7's canary rule): the canary's timing half refuses
@@ -45,8 +49,11 @@
 #    tree → no live runner → GROUP LEADER → SigIgn → RESCO's network → the 100 parity configs → dirty tree →
 #    THE BARRIER → free memory → corpus-preflight (the two committed artifacts at their pins, grid4x4's alignment
 #    and RESCO's digests, the band disjoint from the subject's training draws and the held-out pool) → canary,
-#    BOTH halves → TRAP → token → record-canary → collect-corpus → SHA256SUMS (atomic, re-verified, 101 lines) →
-#    corpus-gate, LAST → COMPLETE.  The trap is installed BEFORE the token is consumed (BRIEF_37 J2/J3).
+#    BOTH halves → TRAPS → token → record-canary → collect-corpus → SHA256SUMS (atomic, re-verified, 101 lines) →
+#    corpus-gate, LAST → COMPLETE.  The traps are installed BEFORE the token is consumed (BRIEF_37 J2/J3); an EXIT
+#    trap keyed on a success flag writes FAILED on EVERY path after the token, and FAILED is written with printf
+#    before anything is echoed into a pipe (Amendment B, B3.4).  Before all of it: the commit argument, the run tree
+#    and its HEAD (B3.1).
 #
 # 4. -P ON EVERY INTERPRETER CALL (BRIEF_39 B.3-2): without it Python prepends the cwd — the MAIN tree — to sys.path
 #    and `offline` resolves to the main tree's package.  PYTHONPATH names the tree this copy lives in, and the
@@ -72,6 +79,8 @@
 
 set -euo pipefail
 
+EXPECTED_COMMIT=${1:-}
+
 MAIN=/home/filip/rltraffic
 # J1(e) / BRIEF_39 Amendment B.7.1-1: the tree this copy of the script lives in, never a hardcoded one.
 WORK_TREE=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)
@@ -90,6 +99,7 @@ CANARY_MAX_SECONDS=2.0
 WORKERS=1
 EXPECTED_SUMS_LINES=101
 MIN_AVAILABLE_MIB=4096
+SUCCESS=0
 
 : "${RLTRAFFIC_GRID4X4_RESCO:=$MAIN/scenarios/grid4x4_candidates}"
 export RLTRAFFIC_GRID4X4_RESCO
@@ -101,6 +111,12 @@ COMMON=(--draws-root "$DRAWS" --output-root "$MAIN/output" --work-dir "$RUN_DIR"
 echo "=== P7.3c corpus driver: WORK_TREE $WORK_TREE (derived from this script's own location)"
 
 # ---------------------------------------------------------------- preconditions
+if ! [[ "$EXPECTED_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "REFUSING TO START: the first argument must be the full 40-hex commit the run worktree is at, not '$EXPECTED_COMMIT'" >&2
+  echo "  Amendment B, B3.1: the corpus manifest records that commit, so it is named at the start. Nothing consumed." >&2
+  exit 2
+fi
+
 if [ ! -x "$PY" ]; then
   echo "REFUSING TO START: no interpreter at $PY" >&2
   echo "  The worktree has no .venv of its own; the main tree's is the one to use." >&2
@@ -111,6 +127,19 @@ if [ "$WORK_TREE" = "$IMPLEMENTER_TREE" ]; then
   echo "REFUSING TO START: this copy of the driver is in the implementer's worktree $WORK_TREE" >&2
   echo "  J1(e): the corpus is collected from the DETACHED run worktree $RUN_TREE, created at the" >&2
   echo "  reviewed commit and edited by no session. Nothing has been consumed." >&2
+  exit 2
+fi
+
+if [ "$WORK_TREE" != "$RUN_TREE" ]; then
+  echo "REFUSING TO START: this copy is in $WORK_TREE, not the run worktree $RUN_TREE" >&2
+  echo "  Amendment B, B3.1: the driver runs from the one tree the coordinator created for it. Nothing consumed." >&2
+  exit 2
+fi
+
+HEAD_COMMIT=$(git -C "$WORK_TREE" rev-parse HEAD)
+if [ "$HEAD_COMMIT" != "$EXPECTED_COMMIT" ]; then
+  echo "REFUSING TO START: the run worktree is at $HEAD_COMMIT, not $EXPECTED_COMMIT" >&2
+  echo "  Amendment B, B3.1: the commit named at the start is the one the manifest will record. Nothing consumed." >&2
   exit 2
 fi
 
@@ -231,29 +260,37 @@ if awk -v c="$CANARY" -v m="$CANARY_MAX_SECONDS" 'BEGIN { exit !(c > m) }'; then
   exit 2
 fi
 
-# ---------------------------------------------------------------- the trap, BEFORE the token
+# ---------------------------------------------------------------- the traps, BEFORE the token
+# Amendment B, B3.4: FAILED is written with printf BEFORE anything is echoed into a pipe that a signal may have
+# closed; the EXIT trap writes it on every path after the token that fail() does not name.
+on_exit() {
+  local status=$?
+  if [ "$SUCCESS" -ne 1 ] && [ -d "$RUN_DIR" ] && [ ! -e "$RUN_DIR/FAILED" ]; then
+    printf 'CORPUS RUN FAILED (exit %s)\n' "$status" > "$RUN_DIR/FAILED"
+  fi
+}
+
 fail() {
   local where=$1
   if [ -d "$RUN_DIR" ]; then
-    echo "CORPUS RUN FAILED at $where" | tee "$RUN_DIR/FAILED"
-  else
-    echo "CORPUS RUN FAILED at $where (before the run directory existed)"
+    printf 'CORPUS RUN FAILED at %s\n' "$where" > "$RUN_DIR/FAILED"
   fi
+  echo "CORPUS RUN FAILED at $where"
   exit 1
 }
 
 on_signal() {
   trap '' INT TERM HUP
   if [ -d "$RUN_DIR" ]; then
-    echo "CORPUS RUN INTERRUPTED by a signal" | tee "$RUN_DIR/FAILED" >&2
-  else
-    echo "CORPUS RUN INTERRUPTED by a signal (before the run directory existed)" >&2
+    printf 'CORPUS RUN INTERRUPTED by a signal\n' > "$RUN_DIR/FAILED"
   fi
+  echo "CORPUS RUN INTERRUPTED by a signal" >&2
   echo "  The partial corpus stays where it is; a new start is refused until both directories are moved" >&2
   echo "  aside (section 2). Killing the process group." >&2
   kill -- -$$ 2>/dev/null || true
   exit 130
 }
+trap on_exit EXIT
 trap on_signal INT TERM HUP
 
 # ---------------------------------------------------------------- the token
@@ -263,14 +300,13 @@ if [ ! -f "$TOKEN" ]; then
   exit 2
 fi
 echo "=== authorised by the token written $(stat -c '%y' "$TOKEN" | cut -d. -f1): $(cat "$TOKEN")"
+# Only NOW may anything be created -- and FAILED's directory first: from the token's deletion to it, nothing else runs.
 rm -f "$TOKEN"
+mkdir -p "$RUN_DIR"
 echo "=== token consumed and deleted; another start needs a new one"
 
-# Only NOW may anything be created.
-mkdir -p "$RUN_DIR"
-
 echo "P7.3c C2 — the grid4x4 SUMO corpus (A24(b): the probe band, one episode per draw, logged)"
-echo "  commit       $(git -C "$WORK_TREE" rev-parse HEAD)"
+echo "  commit       $HEAD_COMMIT"
 echo "  code         $(echo "$LOADED" | tr '\n' ' ')"
 echo "  cwd          $(pwd)   (the MAIN tree, section 5)"
 echo "  draws        ${DRAWS_RANGE[0]}-$(( DRAWS_RANGE[1] - 1 )) ($N_DRAWS), reset(seed=1000) on a fresh env per draw (A18(c))"
@@ -310,6 +346,7 @@ GATE_LINE=$(PYTHONPATH=$WORK_TREE "$PY" -P -m offline.transfer_calibration "${CO
 echo "$GATE_LINE"
 
 ELAPSED=$(( $(date +%s) - START ))
+SUCCESS=1
 echo ""
 echo "CORPUS RUN COMPLETE in ${ELAPSED}s  $(date -Is)" | tee "$RUN_DIR/COMPLETE"
 echo "NEXT: the coordinator verifies the corpus from disk (gate G3): 100/100, A17(f) 1,600/1,600, zero events."

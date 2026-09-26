@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 from typing import Any, Callable
 
@@ -39,7 +40,7 @@ from tests.p7_3c_fewshot_fixtures import (
     write_source,
     write_training_corpus,
 )
-from tests.p7_3c_fixtures import GRID
+from tests.p7_3c_fixtures import GRID, calibration_ids
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DATA = REPO_ROOT / "docs" / "data"
@@ -615,3 +616,128 @@ def test_the_resume_decision_command_prints_the_decision_and_refuses_with_exit_2
     assert "does not validate" in capsys.readouterr().out
     assert few_shot.main(["resume-decision", "--run", "ft_k20_seed999", "--output-root", str(tmp_path)]) == 2
     assert "is not one of the 30 registered runs" in capsys.readouterr().out
+
+
+# ----------------------------------------------------------------------------------------------
+# Amendment B's B3 round: Amendment D's items 9-11, and Amendment C's C3.5
+# ----------------------------------------------------------------------------------------------
+
+
+def test_the_batch_size_is_the_one_train_tier_dt_is_handed_not_spatial_mixings_copy(
+    tmp_path: Path, corpus: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """D2.9: ``offline.tier_sweep`` defines ``JOINT_BATCH_SIZE`` and its CLI hands it to ``train_tier_dt``;
+    ``offline.spatial_mixing`` keeps an equal copy.  The fine-tune reads tier_sweep's -- in the source's recipe check,
+    in the sampler and in the payload -- so moving spatial_mixing's copy changes nothing, and moving tier_sweep's
+    changes what the source must record."""
+    import offline.spatial_mixing as spatial_mixing
+    import offline.tier_sweep as tier_sweep
+
+    root, pins = _root(tmp_path)
+    monkeypatch.setattr(spatial_mixing, "JOINT_BATCH_SIZE", 32)
+    drawn: list[int] = []
+    real_rows = few_shot.draw_rows
+
+    def rows(generator: Any, count: int, batch_size: int) -> torch.Tensor:
+        drawn.append(int(batch_size))
+        return real_rows(generator, count, batch_size)
+
+    monkeypatch.setattr(few_shot, "draw_rows", rows)
+    one_step = few_shot.RunSpec(subject="ft_k5", init="source", k=5, budget=1, seed=101)
+    result = _train(root, pins, corpus, one_step)
+    assert drawn == [64]
+    assert load_payload(result.destination)["provenance"]["batch_size"] == 64
+
+    monkeypatch.setattr(tier_sweep, "JOINT_BATCH_SIZE", 32)
+    with pytest.raises(ValueError, match=r"provenance batch_size is 64, not 32"):
+        few_shot.load_source(few_shot.registered_source_path(root, 101), expected_sha256=pins[101])
+
+
+def _git_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    failed = subprocess.CompletedProcess(args=["git"], returncode=128, stdout="", stderr="fatal: not a git repository")
+    monkeypatch.setattr(few_shot, "_git", lambda *args: failed)
+
+
+def test_the_registered_commands_refuse_before_training_when_git_cannot_name_the_commit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """D2.10: a payload without its commit is not provenance, so the registered regime refuses to START without one."""
+    _git_fails(monkeypatch)
+    started: list[dict[str, Any]] = []
+    monkeypatch.setattr(few_shot, "fine_tune", lambda **kwargs: started.append(kwargs))
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
+    monkeypatch.delenv("CUBLAS_WORKSPACE_CONFIG", raising=False)
+    for sub in ("checkpoints", "runs"):
+        (tmp_path / "p7_3c_training" / sub).mkdir(parents=True)
+    threads = torch.get_num_threads()
+    try:
+        code = few_shot.main(
+            ["train", "--run", "ft_k5_seed101", "--device", "cuda", "--output-root", str(tmp_path),
+             "--corpus-dir", str(tmp_path / "corpus")]
+        )
+    finally:
+        torch.set_num_threads(threads)
+    assert code == 2 and started == []
+    assert "git could not name the code's commit" in capsys.readouterr().out
+
+
+def test_a_registered_payload_is_never_written_without_its_commit_and_a_plain_one_still_is(
+    tmp_path: Path, corpus: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """D2.10, the payload itself: with ``require_commit`` (the registered commands' setting) an unknown commit refuses
+    the write; without it -- a test, or a ``git archive`` export such as G4's reviewer ran -- the payload is written and
+    records ``unknown``, as before."""
+    root, pins = _root(tmp_path)
+    _git_fails(monkeypatch)
+    destination = few_shot.registered_destination(root, SPEC)
+    request: dict[str, Any] = {
+        "source_path": few_shot.registered_source_path(root, 101), "source_sha256": pins[101], "corpus_dir": corpus,
+        "k": SPEC.k, "budget": SPEC.budget, "seed": SPEC.seed, "init": SPEC.init, "device": "cpu",
+        "destination": destination,
+    }
+    with pytest.raises(ValueError, match=r"git could not name the code's commit"):
+        few_shot.fine_tune(**request, require_commit=True)
+    assert not destination.exists()
+    result = few_shot.fine_tune(**request)
+    assert load_payload(result.destination)["provenance"]["git_commit"] == "unknown"
+
+
+@pytest.mark.parametrize(
+    ("case", "message"),
+    [
+        ("an intersection missing", r"the episode's intersections differ from the checkpoint's \(missing \['D3'\]"),
+        ("an episode past max_ep_len", r"reaches step 360, beyond the source's max_ep_len 360"),
+        ("another state width", r"state width 39, not the source's 40"),
+    ],
+)
+def test_check_inputs_refuses_a_corpus_whose_shape_is_not_the_sources_before_the_token(
+    tmp_path: Path, cuda_free: Callable[[float], None], case: str, message: str
+) -> None:
+    """D2.11: the corpus-shape refusals that ``build_windows`` makes inside ``train`` -- AFTER the token -- are made by
+    ``check-inputs`` too, over the whole band, against every source, BEFORE the canary and the token."""
+    root, pins = _root(tmp_path, seeds=(101, 202, 303, 404, 505))
+    cuda_free(15000.0)
+    if case == "an intersection missing":
+        corpus = write_training_corpus(tmp_path / "corpus", ids=calibration_ids()[:-1], decisions=3)
+    elif case == "an episode past max_ep_len":
+        corpus = write_training_corpus(tmp_path / "corpus", decisions_for=lambda draw: 361 if draw == 250 else 3)
+    else:
+        corpus = write_training_corpus(tmp_path / "corpus", decisions=3, state_dim=39)
+    with pytest.raises(ValueError, match=message):
+        few_shot.check_inputs(
+            output_root=root, corpus_dir=corpus, gate_record=_gate_record(tmp_path, corpus), pins=pins
+        )
+
+
+def test_the_record_refuses_a_run_record_that_names_another_checkpoint(tmp_path: Path, corpus: Path) -> None:
+    """Amendment C, C3.5: ``build_record``'s cross-check of each run record against its checkpoint, pinned by its
+    message -- D07 showed it fires; nothing pinned it until now."""
+    root, pins = _root(tmp_path)
+    result = _train(root, pins, corpus, SPEC)
+    path = few_shot.write_run_record(SPEC, result, output_root=root, device="cpu")
+    stored = json.loads(path.read_text(encoding="utf-8"))
+    stored["checkpoint_sha256"] = "0" * 64
+    path.write_text(json.dumps(stored), encoding="utf-8")
+    few_shot.write_manifest(root, runs=[SPEC])
+    with pytest.raises(ValueError, match=r"runs/ft_k5_seed101\.json records another checkpoint digest"):
+        few_shot.build_record(root, corpus_dir=corpus, timing_path=_timing(tmp_path), runs=[SPEC], pins=pins)
