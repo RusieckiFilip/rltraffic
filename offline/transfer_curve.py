@@ -636,11 +636,12 @@ STAGE1_BOOKKEEPING_FIELDS: tuple[str, ...] = (
 )
 
 #: The thirty trainings' committed record (A24(b): *committed on main before the evaluation token*;
-#: Amendment A, Q9).  ``None`` until the first commit after G7 sets it -- and until then EVERY
-#: trained-subject identity lookup refuses, so no trained cell can be evaluated against an unpinned
-#: record.
+#: Amendment A, Q9).  Set in the first commit after G7 (Amendment F, F3.1): ``docs/data/p7_3c_finetune.json``
+#: as committed on ``main`` at ``c616900``, verified by the coordinator's own route.  Were it ``None``,
+#: EVERY trained-subject identity lookup would refuse, so no trained cell can be evaluated against an
+#: unpinned record (a test keeps that refusal exercised).
 P7_3C_FINETUNE_NAME = "p7_3c_finetune.json"
-P7_3C_FINETUNE_SHA256: str | None = None
+P7_3C_FINETUNE_SHA256: str | None = "adb59377edc23270ad479a542ed7d120f4b57c784f6e1f109c54624231ae79bf"
 P7_3C_FINETUNE_PIN_LABEL = (
     "A24(b): docs/data/p7_3c_finetune.json at offline.transfer_curve.P7_3C_FINETUNE_SHA256 (G7)"
 )

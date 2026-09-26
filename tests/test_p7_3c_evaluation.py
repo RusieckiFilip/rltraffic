@@ -30,6 +30,7 @@ import copy
 import hashlib
 import json
 import math
+import os
 import shutil
 from contextlib import contextmanager
 from pathlib import Path
@@ -1055,6 +1056,45 @@ def test_the_cli_takes_p7_3cs_stages_where_each_command_runs_them() -> None:
     for stage in (REPRODUCE, PRIMARY, CONTROLS):
         with pytest.raises(SystemExit, match="2"):
             parser.parse_args(["report", "--stage", stage])
+
+
+# ==================================================================================================================
+# G7's pin (Amendment F, F3.1): the committed training record, and every trained identity through it
+# ==================================================================================================================
+
+FINETUNE_RECORD = DATA / "p7_3c_finetune.json"
+
+
+def test_the_trainings_record_is_pinned_at_g7s_digest() -> None:
+    """F3.1: ``docs/data/p7_3c_finetune.json`` (committed at ``c616900``) hashes to the pin, and names the thirty."""
+    assert tcv.P7_3C_FINETUNE_SHA256 == "adb59377edc23270ad479a542ed7d120f4b57c784f6e1f109c54624231ae79bf"
+    assert _sha(FINETUNE_RECORD) == tcv.P7_3C_FINETUNE_SHA256
+    record = json.loads(FINETUNE_RECORD.read_text(encoding="utf-8"))
+    assert record["format_version"] == few_shot.RECORD_FORMAT_VERSION and record["n_runs"] == 30
+    assert sorted(record["runs"]) == sorted(spec.name for spec in few_shot.registered_runs())
+
+
+def test_every_trained_subject_identity_resolves_through_the_pinned_record() -> None:
+    """F3.1: all thirty, through the REAL record at its pin and the REAL checkpoints, F4's guard included; the digests
+    compared with the record read by THIS file's route and with the files hashed here."""
+    root = Path(os.environ.get("RLTRAFFIC_OUTPUT_ROOT", str(REPO_ROOT / "output")))
+    checkpoints = root / "p7_3c_training" / "checkpoints"
+    if len(list(checkpoints.glob("*.pt"))) != 30:
+        pytest.skip(f"{checkpoints} does not hold the thirty trained checkpoints (gitignored, main tree only)")
+    record = json.loads(FINETUNE_RECORD.read_text(encoding="utf-8"))
+    manifest = (root / few_shot.MANIFEST_FILENAME).is_file()
+    stage_arm = {row.subject: (row.stage, row.prompt_arm) for row in tcv.P7_3C_ARMS if row.trained}
+    for spec in few_shot.registered_runs():
+        entry = record["runs"][spec.name]
+        path = root / entry["checkpoint"]
+        identity = tcv.p7_3c_trained_checkpoint_identity(spec.subject, spec.seed, output_root=root, data_dir=DATA)
+        assert identity["path"] == str(path)
+        assert identity["file_sha256"] == entry["checkpoint_sha256"] == _sha(path)
+        expected = [tcv.P7_3C_FINETUNE_PIN_LABEL, *([few_shot.MANIFEST_FILENAME] if manifest else [])]
+        assert identity["sha256_checked_against"] == expected
+        stage, arm = stage_arm[spec.subject]
+        cell = _cell(stage, spec.subject, arm, seed=spec.seed)
+        assert tcv.checkpoint_identity_for(cell, output_root=root, data_dir=DATA) == identity
 
 
 def test_report_refuses_p7_3cs_declaration_until_c6_builds_its_body(tmp_path: Path) -> None:
