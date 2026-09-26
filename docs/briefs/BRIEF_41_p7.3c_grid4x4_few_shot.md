@@ -501,3 +501,52 @@ G4's reviewer is running on C3–C4 (`fc9a383`, `7a35ff6`, `58cfaef`, `0749b96`)
 mutants; Amendment D rules. **Until D: nothing trains, and the run worktree stays at `1bba206`.** The implementer may start C5's
 tests (they need no trained checkpoint: stubs and the committed artifacts), keeping every driver-executing test off the machine
 while G5's timing runs later.
+
+---
+
+# ✅ AMENDMENT D — 2026-09-26, gate G4: PASSED (C3 `fc9a383`, C4 `7a35ff6` + `58cfaef` + `0749b96`, branch at `4211955`, pushed) — the run worktree MOVED to `4211955`; G5's fenced timing is the implementer's to start NOW; two MINORs and the pre-flight note join B3's list
+
+## D1 — What was checked, by whom
+- **The reviewer** (`docs/reviews/P7.3c-G4.md`, also the trainings' pre-flight): **PASS-WITH-NOTES, 0 blocking, 0 major, 2 minor.**
+  Verified in code against A24(b) clause by clause: the model rebuilt from the CHECKPOINT's config with `max_ep_len` 360 and loaded
+  strictly; `seed_everything` before build and load, the sampler `default_rng(seed)`, `train_tier_dt`'s order; the mask the
+  checkpoint's, refused if not the identity; the windows through the subject's own path with the checkpoint's statistics handed in
+  and identity-asserted (a refit is refused at `few_shot.py:642`), the RTG divided per node by the frozen scale; the recipe's four
+  constants imported and asserted `==` the source's provenance, `warmup_for` and `lr_multiplier` unchanged, a fresh AdamW, the loop
+  order `train_tier_dt`'s; the prefix from the manifest with the sums re-verified entry by entry before any read; the k targets at
+  the pinned calibration digest; the payload's top-level version unchanged (Amendment A, Q1) with the few-shot identity in
+  `provenance.few_shot`, the frozen parts the same objects, no wall clock, one exclusive write, serialised in memory; the scratch
+  arm one branch with T-scratch comparing the batches tensor by tensor; the driver's refusals all before the token, B3.1 and B3.4
+  built in, P5.2's regime (`CUBLAS_WORKSPACE_CONFIG` unset, one torch thread, OMP/MKL 1); the registered table exactly A24's thirty
+  plus the fenced timing run outside it. The pure C3 tests: 96 passed on CPU from a `git archive` export.
+- **The coordinator, by running commands** (throwaway worktree at `4211955`): **all 114 C3–C4 tests green** under the standard line,
+  the driver tests and the real-subject T-warm included; **six COMMITTED mutants, all KILLED** after a clean control (11 passed):
+  M1 the warm start skipped (2 tests die); M2 statistics refit, `stats=None`; M3 `max_ep_len` derived from the data; M4 B − 1 steps;
+  M5 k = 100's targets written for every k (2 die); M6 the scratch switch a no-op. `choose_concurrency` (the rule of the plan's §8,
+  one run must fit or BLOCKED), `summarize_timing` (the repeat's verdict by file sha256 AND weights digest) and `write_manifest`
+  (stray, missing and differing entries refused; never rewritten) read in full.
+
+## D2 — The two MINORs and the pre-flight note → B3's list (items 9–11), due before the merge
+9. `JOINT_BATCH_SIZE` is imported from `offline/spatial_mixing.py` while `tier_sweep.py:152` defines its own copy (equal today, 64):
+   import it from where `train_tier_dt` takes it, or assert the two equal at import.
+10. `_code_commit` returns `"unknown"` silently when `git` fails; in the registered regime it must refuse — a payload without its
+    commit is not provenance.
+11. `build_windows`'s corpus-shape refusals (`max_ep_len`, the id set, the statistics' adoption) run inside `train`, AFTER the token.
+    Verified on the real corpus today that all pass; move them into `check-inputs` so a bad corpus is refused before the token.
+
+## D3 — The run worktree is at `4211955` (moved by the coordinator, 2026-09-26 14:3x; clean; the driver file byte-equal to the
+commit's). The training driver refuses any other HEAD (B3.1). It stays there through G5 and G6 unless a fix round lands first,
+in which case the coordinator moves it again and says so in the amendment that closes that round.
+
+## D4 — G5 NOW: the implementer starts the fenced timing (Amendment A, Q22 — no token; an unregistered configuration, k 5, seed 101,
+B 400, everything under `fenced_timing/<stamp>/`, never evaluated). The exact two-step start, from the driver's own header:
+```
+tmux new -s p73c_finetune
+bash /home/filip/rltraffic-p73c-run/offline/campaigns/p7_3c_finetune.sh timing 42119554ba696f37022752d499acca90c22017cb 2>&1 | tee -i -a /home/filip/rltraffic/output/p7_3c_runs/finetune_timing_capture.txt; echo "DRIVER EXIT: ${PIPESTATUS[0]}" | tee -i -a /home/filip/rltraffic/output/p7_3c_runs/finetune_timing_capture.txt
+```
+Nothing else runs on the machine meanwhile (the canary, and the timing itself, are what is being measured). Then the numbers —
+ms/step alone and at 2 and 3 concurrent, the device peaks, the chosen C, the k = 100 build time, and the same-seed repeat's verdict
+by both routes — go into the driver header, the plan file and the packet with their canary and date, and the implementer says
+**"P7.3c G5 done"** with the stamp. The coordinator reads the timing record from disk and, with it, the author's token for the
+thirty trainings (G6) is the next relay. **The B3 fix round (items 1–11) is built AFTER G5's numbers are recorded and BEFORE C5,
+as its own commit, tests first.** C5's tests may be started meanwhile.
