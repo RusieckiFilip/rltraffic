@@ -392,6 +392,52 @@ def test_with_a_token_it_is_consumed_the_attempt_counted_and_the_stubbed_trainin
     assert not (start / "COMPLETE").exists()
 
 
+def _file_where_a_directory_belongs(sb: FinetuneSandbox) -> None:
+    target = sb.training / "checkpoints"
+    target.write_text("a file where the checkpoints directory belongs\n", encoding="utf-8")
+    sb.write_token()
+
+
+def test_a_file_where_a_training_directory_belongs_is_refused_before_the_canary_and_the_token(
+    finetune_sandbox: Any,
+) -> None:
+    """The barrier covers the layout too: a non-directory at ``checkpoints/`` is refused before anything is consumed.
+    Without this refusal the start consumes the token and dies at its first ``mkdir``."""
+    sb = finetune_sandbox(populate=_file_where_a_directory_belongs)
+    before = sb.contents()
+    result = sb.run("train", sb.head, TIMING_STAMP)
+    output = result.stdout + result.stderr
+    assert result.returncode == 2, output[-3000:]
+    assert f"REFUSING TO START: {sb.training / 'checkpoints'} exists and is not a directory" in output
+    assert not re.search(r"^canary ", result.stdout, flags=re.MULTILINE)
+    assert sb.token.is_file()
+    assert sb.contents() == before
+
+
+#: A step after the token and after the start directory, turned into a failure no ``|| fail`` guards.
+INJECTED_AFTER_TOKEN = 'echo "  start dir    $START_DIR"'
+
+
+def test_an_unguarded_failure_after_the_token_still_leaves_failed_through_the_exit_trap(
+    finetune_sandbox: Any,
+) -> None:
+    """B3.4, EXECUTED: ``set -e`` aborts on a failure no ``fail`` call names, and the ``EXIT`` trap still writes
+    ``FAILED``.  *Mutation:* ``trap on_exit EXIT`` removed -> no ``FAILED`` -> this dies (the text test alone saw it
+    before this test existed)."""
+    sb = finetune_sandbox()
+    text = _substitute(sb.driver.read_text(encoding="utf-8"), INJECTED_AFTER_TOKEN, "false", 1)
+    sb.driver.write_text(text, encoding="utf-8")
+    _commit_clone(sb.clone, "an unguarded failure injected after the token")
+    sb.write_token()
+    result = sb.run("train", sb.head, TIMING_STAMP)
+    output = result.stdout + result.stderr
+    assert result.returncode == 1, output[-3000:]
+    assert not sb.token.exists()
+    (start,) = list((sb.training / "starts").iterdir())
+    assert (start / "FAILED").read_text(encoding="utf-8").strip() == "FINETUNE train FAILED (exit 1)"
+    assert not (start / "COMPLETE").exists()
+
+
 def test_a_copy_outside_the_run_worktree_is_refused(finetune_sandbox: Any) -> None:
     sb = finetune_sandbox(register_run_tree=False)
     sb.write_token()

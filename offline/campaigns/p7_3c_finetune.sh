@@ -166,6 +166,17 @@ if [ -n "$WORK_TREE_DIRTY" ]; then
 fi
 
 # ---------------------------------------------------------------- shared stages
+# The layout half of the barrier: every directory this driver would create or write into is absent or a directory.
+# A file in its place would let a start consume the token and then die at its first mkdir.
+refuse_non_directories() {
+  local target
+  for target in "$@"; do
+    if [ -e "$target" ] && [ ! -d "$target" ]; then
+      refuse "$target exists and is not a directory. Nothing has been consumed."
+    fi
+  done
+}
+
 canary_both_halves() {
   CANARY_LINE=$(PYTHONPATH=$WORK_TREE "$PY" -P -m offline.transfer_calibration --draws-root "$DRAWS" --output-root "$OUTPUT" --work-dir "$TRAINING" canary) || {
     echo "${CANARY_LINE:-the canary printed no line}"
@@ -245,6 +256,7 @@ run_slots() {
 run_timing() {
   STAMP=$(date -u +%Y%m%dT%H%M%SZ)
   STAMP_DIR=$FENCED/$STAMP
+  refuse_non_directories "$TRAINING" "$FENCED"
   if ! command -v nvidia-smi >/dev/null 2>&1; then
     refuse "nvidia-smi is not installed: G5 samples the device's memory with it"
   fi
@@ -303,6 +315,7 @@ drain() {
 
 run_train() {
   TIMING=$FENCED/$TIMING_STAMP/timing.json
+  refuse_non_directories "$TRAINING" "$TRAINING/starts" "$TRAINING/checkpoints" "$TRAINING/runs" "$TRAINING/attempts"
   INPUTS_LINE=$(PYTHONPATH=$WORK_TREE "$PY" -P -m offline.few_shot check-inputs --output-root "$OUTPUT" --corpus-dir "$CORPUS" --gate-record "$GATE_RECORD" --data-dir "$DATA" --timing "$TIMING") || {
     echo "${INPUTS_LINE:-check-inputs printed no result line}"
     refuse "check-inputs did not pass; the line above names the input. Nothing has been consumed."
@@ -324,11 +337,13 @@ run_train() {
     refuse "no run token at $TOKEN" "The author writes it (gate G6, channel (a)). Nothing has been consumed."
   fi
   echo "=== authorised by the token written $(stat -c '%y' "$TOKEN" | cut -d. -f1): $(cat "$TOKEN")"
-  rm -f "$TOKEN"
-  echo "=== token consumed and deleted; another start needs a new one"
   START_DIR=$TRAINING/starts/$(date -u +%Y%m%dT%H%M%SZ)
-  mkdir -p "$START_DIR" "$TRAINING/checkpoints" "$TRAINING/runs" "$TRAINING/attempts"
+  # From the token's deletion to FAILED's directory there is nothing that can fail but the mkdir itself (B3.4).
+  rm -f "$TOKEN"
+  mkdir -p "$START_DIR"
   MARKER_DIR=$START_DIR
+  echo "=== token consumed and deleted; another start needs a new one"
+  mkdir -p "$TRAINING/checkpoints" "$TRAINING/runs" "$TRAINING/attempts"
 
   echo "P7.3c C4 — the thirty fine-tunes (A24(b)): each written once, at concurrency $CONCURRENCY from G5"
   echo "  commit       $HEAD_COMMIT"
