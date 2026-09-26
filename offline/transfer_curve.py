@@ -1508,7 +1508,6 @@ def p7_3c_trained_checkpoint_identity(
         FENCED_TIMING_DIRNAME,
         FEW_SHOT_FORMAT_VERSION,
         MANIFEST_FILENAME,
-        RECORD_FORMAT_VERSION,
         _load_weights_only,
     )
     from offline.transfer_calibration import DECLARED_GRADIENT_STEPS, GRID4X4_CHECKPOINT_SHA256
@@ -1521,26 +1520,7 @@ def p7_3c_trained_checkpoint_identity(
         )
     row = rows[0]
     name = f"{row.subject}_seed{seed}"
-    pin = P7_3C_FINETUNE_SHA256
-    if pin is None:
-        raise ValueError(
-            f"{name}: P7_3C_FINETUNE_SHA256 is not set. The thirty trainings' record is pinned in the first "
-            "commit after G7 (Amendment A, Q9), and until then no trained-subject identity resolves"
-        )
-    record_path = _data_dir(data_dir) / P7_3C_FINETUNE_NAME
-    if not record_path.is_file():
-        raise FileNotFoundError(f"{record_path} is absent; the coordinator commits it at G7 (Amendment A, Q9)")
-    digest = _sha256_file(record_path)
-    if digest != pin:
-        raise ValueError(
-            f"{record_path} has sha256 {digest}, not the pinned {pin}; the trained subjects' digests are "
-            "read from THAT record and no other"
-        )
-    record = json.loads(record_path.read_bytes())
-    if record.get("format_version") != RECORD_FORMAT_VERSION:
-        raise ValueError(
-            f"{record_path}: format {record.get('format_version')!r}, not {RECORD_FORMAT_VERSION!r}"
-        )
+    record_path, record = _load_p7_3c_finetune_record(data_dir)
     entry = dict(record.get("runs") or {}).get(name)
     if not isinstance(entry, Mapping):
         raise ValueError(f"{record_path} records no run {name!r}")
@@ -3404,18 +3384,8 @@ def stage1_reproduction_check(
     in declared order and its field names -- never a value.  The CLI prints the line and exits 0 or 2.
     """
     work = Path(work_dir)
-    artifact_path = _data_dir(data_dir) / P7_3D_GRID4X4_NAME
-    if not artifact_path.is_file():
-        raise FileNotFoundError(
-            f"{artifact_path} is absent; stage 1 is checked against P7.3d's committed artifact and no other"
-        )
-    digest = _sha256_file(artifact_path)
-    if digest != P7_3D_GRID4X4_SHA256:
-        raise ValueError(
-            f"{artifact_path} has sha256 {digest}, not the pinned {P7_3D_GRID4X4_SHA256}; A24(c) verifies the "
-            "record stage 1 must reproduce before it is used"
-        )
-    artifact = json.loads(artifact_path.read_bytes())
+    artifact_path, artifact = _load_p7_3d_grid4x4(data_dir)
+    digest = P7_3D_GRID4X4_SHA256
     records: dict[tuple[Any, ...], Mapping[str, Any]] = {}
     for record in artifact["cells"]:
         key = _record_key(record)
@@ -3537,18 +3507,19 @@ def report(
     # and never from the chunks on disk, which is what stops the completeness check being a
     # tautology (PROJECT_PLAN section 7).
     all_declared, declared = declarations_for(stage, cells)
-    # BRIEF_41 C5 -> C6: P7.3c's declaration exists from C5 on, and its report body is C6's. Until C6
-    # lands, the whole of P7.3c's declaration is refused HERE, before any read and any write -- falling
-    # through would write P7.3d's grid4x4 body under P7.3c's name.
-    if stage == STAGE_P7_3C or stage in P7_3C_STAGES or any(
-        str(cell.get("stage")) in P7_3C_STAGES for cell in declared
-    ):
+    # BRIEF_41 C6: P7.3c's three stages are ONE declaration with ONE artifact. A single stage is refused
+    # before anything is read -- an artifact over it would be an estimator on a partial set (A24(c)).
+    if stage in P7_3C_STAGES:
         raise ValueError(
-            f"stage {stage!r}: P7.3c's report body is BRIEF_41 C6's, and this commit does not have it; "
-            "refusing rather than writing P7.3d's grid4x4 body under P7.3c's declaration"
+            f"{stage!r} is one stage of P7.3c -- one declaration, one artifact: report --stage {STAGE_P7_3C} "
+            "reads all three"
         )
+    p7_3c = stage == STAGE_P7_3C or any(str(cell.get("stage")) in P7_3C_STAGES for cell in declared)
+    if cells is not None and p7_3c:
+        # A caller-supplied P7.3c set: its cells of P7.3c's stages are the slice (the selector names no stage).
+        declared = [cell for cell in declared if str(cell.get("stage")) in P7_3C_STAGES]
     if cells is not None:
-        if stage is not None:
+        if stage is not None and not p7_3c:
             declared = [cell for cell in declared if cell["stage"] == stage]
         committed_dir = (_REPO_ROOT / "docs" / "data").resolve()
         if target_path.resolve().parent == committed_dir:
@@ -3570,6 +3541,13 @@ def report(
             "one scenario"
         )
     grid = declared_scenarios == [GRID4X4_SCENARIO_KEY]
+    if p7_3c:
+        # BRIEF_41 C6: P7.3c's declaration takes its OWN body -- its own refusals in plan section 10's
+        # order and its own artifact -- and never P7.3d's grid4x4 body below.
+        return _p7_3c_report(
+            work=work, target_path=target_path, output_root=output_root, out_root=out_root, data=data,
+            stage=stage, declared=declared, all_declared=all_declared, cells_supplied=cells is not None,
+        )
 
     # ---------------------------------------------------------------- 2. the calibration pin
     # hz1x1: P7.2b's artifact. grid4x4 (B.7-2(ii)): P7.3d's per-intersection artifact, never P7.2b's.
@@ -3985,10 +3963,13 @@ def report(
     return _publish_artifact(artifact, target_path)
 
 
-def _publish_artifact(artifact: dict[str, Any], target_path: Path) -> dict[str, Any]:
-    """Step 9 of :func:`report`, for BOTH bodies: the last refusals over the SERIALISED bytes, then
+def _publish_artifact(
+    artifact: dict[str, Any], target_path: Path, *, published_arms: frozenset[str] = DECLARED_ARM_NAMES
+) -> dict[str, Any]:
+    """Step 9 of :func:`report`, for EVERY body: the last refusals over the SERIALISED bytes, then
     the ONE write.  Extracted unchanged in the B.7 round so the grid4x4 body cannot publish by a
-    different route than hz1x1's."""
+    different route than hz1x1's.  *published_arms* is the fence the rows are held to -- the declared
+    arms for hz1x1 and P7.3d, exactly P7.3c's own five for P7.3c (``BRIEF_41`` C6)."""
     serialised = json.dumps(artifact, indent=2, sort_keys=True)
     if FENCED_KEY in serialised:
         raise AssertionError(
@@ -3996,10 +3977,10 @@ def _publish_artifact(artifact: dict[str, Any], target_path: Path) -> dict[str, 
             "into docs/data/. The scan is over the serialised bytes because a key-shaped check "
             "cannot see a fenced name carried in a VALUE"
         )
-    published_arms = {str(row["arm"]) for row in json.loads(serialised)["cells"]}
-    if not published_arms <= DECLARED_ARM_NAMES:
+    arms_in_rows = {str(row["arm"]) for row in json.loads(serialised)["cells"]}
+    if not arms_in_rows <= published_arms:
         raise AssertionError(
-            f"undeclared arm(s) {sorted(published_arms - DECLARED_ARM_NAMES)} reached the "
+            f"undeclared arm(s) {sorted(arms_in_rows - published_arms)} reached the "
             "artifact; BRIEF_37 §2 lifted the fence for the declared arms and for nothing else"
         )
     _write_json(target_path, artifact)
@@ -5037,6 +5018,769 @@ def _grid4x4_artifact(
         },
         **_git_provenance(),
     }
+
+
+# ======================================================================================
+# BRIEF_41 C6: P7.3c's report body -- the artifact `p7.3c-grid4x4/1.0` (PREREGISTRATION A24(c)-(h))
+# ======================================================================================
+
+#: P7.3c's artifact version: its own, never P7.3d's (one string describing two artifacts is how a
+#: reader comes to believe a cell set is something it is not).  The CHUNKS stay ``p7.3d-grid4x4/1.1``.
+P7_3C_ARTIFACT_FORMAT_VERSION = "p7.3c-grid4x4/1.0"
+
+#: A24(d)'s two constants, fixed from the committed zero-shot artifact's registered arm (rho0 =
+#: 0.8854642679270011 on E_sumo and 0.8854600302820783 on att_env) and NEVER recomputed -- in every
+#: computation of this row, the robustness check included.  G / 2 is exact in float64.
+P7_3C_G = 0.11453573207299894
+P7_3C_G_ATT = 0.11453996971792169
+
+#: A24(d)'s four sentences, VERBATIM from ``PREREGISTRATION.md`` (the italics removed; the em dash
+#: U+2014 and the ellipsis U+2026 escaped so this source stays ASCII).  ``X% [CI]`` is filled from the
+#: closure fraction; the registration's ellipsis is kept, not completed by this code.
+P7_3C_VERDICT_SENTENCES: Mapping[str, str] = {
+    "(i)": (
+        "Exploratory (A24): on grid4x4, fine-tuning on 100 target-domain MaxPressure episodes closes X% [CI] "
+        "of the zero-shot gap to MaxPressure — clause 3's registered criterion is met"
+    ),
+    "(ii)": (
+        "Exploratory (A24): … narrows the gap by X% [CI], short of the registered half — clause 3's "
+        "criterion is not met"
+    ),
+    "(iii)": "Exploratory (A24): … no measurable closure by k = 100 — clause 3's criterion is not met",
+    "(iv)": (
+        "Exploratory (A24): … widens the gap: fine-tuning on target-domain MaxPressure demonstrations "
+        "degrades the transferred model on grid4x4, clause 3's criterion is not met, and the curve is reported "
+        "as interference"
+    ),
+}
+
+#: A24(e)'s reading of the five adjacent steps, VERBATIM.
+P7_3C_ADJACENT_STEPS_READING: tuple[str, str] = (
+    "Five steps, each at 95% without correction, read jointly, and the paper says so.",
+    "A refutation is one of this row's expectations, never folded into (d)'s verdict.",
+)
+
+#: What the P7.3c artifact does NOT say: A24(f), A24(g)'s three scope items and A24(h), VERBATIM (the
+#: emphasis and the enumerators removed; the en dash U+2013, the approximately-equal sign U+2248 and
+#: the em dash U+2014 escaped).  A test extracts each from the registration.
+P7_3C_WHAT_THIS_DOES_NOT_SAY: tuple[str, ...] = (
+    "This row promotes nothing: clause 3's test on grid4x4 is EXPLORATORY, reported with its effect size, its "
+    "CI and (d)'s verdict, every sentence labelled, and no p-value is presented as inferential.",
+    "On grid4x4 the paper states clause 1 as confirmatory (holds, P7.3d), clause 2 as the inequality it is "
+    "(holds, P7.3d), and clause 3 by (d)'s sentence — and writes NO whole-H3 verdict, which would fuse a "
+    "confirmatory clause with an exploratory one.",
+    "The k = 200 full-retrain anchor (A18(a)) stays hz1x1-only. On grid4x4 it would need draws 301–400 "
+    "rendered, 100 more corpus episodes, five 40,000-step trainings (≈ 6.8 h of GPU) and 500 cells. Clause "
+    "3 does not need it, because its gap is to MaxPressure; and (c)'s `scratch_k100` answers the attribution "
+    "question at the fine-tune's own budget, which the anchor would not.",
+    "The `naive` arm, the `random` anchor, `b_max` and Rule A, as A20(b) and A21(b).",
+    "A second subject, as A20(a).",
+    "hz1x1's few-shot curve (A18(d), A19(b)) is NOT part of this task: it stays registered, deferred and not "
+    "cancelled, and the paper says whether it ran.",
+)
+
+
+#: The arms a P7.3c artifact may publish: its three prompts and rho's two anchors -- the fence
+#: ``_publish_artifact`` re-checks on the serialised bytes, P7.3c's own and no wider.
+P7_3C_PUBLISHED_ARMS: frozenset[str] = frozenset(
+    {row.prompt_arm for row in P7_3C_ARMS} | set(P7_3C_ANCHOR_ARMS)
+)
+
+
+def p7_3c_verdict(delta: float, lo: float, hi: float, *, gap: float = P7_3C_G) -> str:
+    """A24(d)'s partition of Delta_100 and its 95 % CI [lo, hi] into (i)-(iv), in float64 without rounding.
+
+    (i) ``lo > 0`` AND ``delta >= gap / 2`` -- the criterion is MET; (ii) ``lo > 0`` and ``delta < gap /
+    2``; (iii) ``lo <= 0 <= hi``; (iv) ``hi < 0``.  The four are a partition, because ``lo <= hi``.
+    *gap* is :data:`P7_3C_G`, never recomputed -- or, for the co-reported definition,
+    :data:`P7_3C_G_ATT`.
+    """
+    if lo > 0.0:
+        return "(i)" if delta >= gap / 2 else "(ii)"
+    if hi < 0.0:
+        return "(iv)"
+    return "(iii)"
+
+
+def _draw_stats(per_draw: Mapping[int, float]) -> dict[str, Any]:
+    """``mean_ci95`` over the per-draw values in DRAW-ID order: the mean, its analytic CI and the bounds."""
+    from offline.dt_gate import mean_ci95
+
+    stats = mean_ci95([per_draw[draw] for draw in sorted(per_draw)])
+    return {
+        "n_draws": stats.n,
+        "delta": stats.mean,
+        "std": stats.std,
+        "ci95": stats.ci95,
+        "lo": stats.mean - stats.ci95,
+        "hi": stats.mean + stats.ci95,
+    }
+
+
+def _differences(
+    left: Mapping[int, float], right: Mapping[int, float], *, label: str
+) -> dict[int, float]:
+    """``left(d) - right(d)`` for every draw, paired BY DRAW ID; a draw in one series only refuses."""
+    only = sorted(set(left) ^ set(right))
+    if only:
+        raise ValueError(
+            f"{label}: draw(s) {only[:5]} are in one series only; A24(d) pairs BY DRAW ID, and a draw "
+            "without its partner has no difference"
+        )
+    return {int(draw): float(left[draw]) - float(right[draw]) for draw in sorted(left)}
+
+
+def paired_by_draw(
+    left: Mapping[int, float], right: Mapping[int, float], *, label: str
+) -> dict[str, Any]:
+    """A24(d)'s paired contrast: the per-draw differences BY DRAW ID, then ``mean_ci95`` over them.
+
+    Never by position: the two series are mappings keyed by draw id, their order is irrelevant, and a
+    draw present in one and absent in the other is refused rather than dropped.
+    """
+    return _draw_stats(_differences(left, right, label=label))
+
+
+def _p7_3c_sentence(label: str, delta: float, lo: float, hi: float, gap: float) -> str:
+    """A24(d)'s registered sentence for *label*, ``X% [CI]`` filled from the closure fraction, one decimal."""
+    closure = f"{100.0 * delta / gap:.1f}% [{100.0 * lo / gap:.1f}%, {100.0 * hi / gap:.1f}%]"
+    return P7_3C_VERDICT_SENTENCES[label].replace("X% [CI]", closure)
+
+
+def p7_3c_estimates(
+    rows: Sequence[Mapping[str, Any]],
+    rho0_by_draw: Mapping[str, Mapping[str, Any]],
+    zero_shot_records: Sequence[Mapping[str, Any]],
+    *,
+    draws: Sequence[int] | None = None,
+) -> dict[str, Any]:
+    """A24(d)-(e)'s estimators from P7.3c's rows -- the primary AND A23(d)'s robustness call THIS function.
+
+    *rows* are ``report``'s rows (each DT row identified by THE predicate); *rho0_by_draw* is the zero-shot
+    artifact's ``rho.by_draw`` -- rho0(d) is READ from it, never from the chunks (plan section 10) -- and
+    *zero_shot_records* its DT cell records, the per-seed zero-shot series of Q6b.  *draws*, when given,
+    restricts every series to those draws (the robustness check).
+
+    Per arm, rho-bar is the mean over draws of each draw's five-seed mean, CI 1.96 s / sqrt(n), ddof 1
+    (``mean_ci95``); every contrast is paired BY DRAW (:func:`paired_by_draw`).  Clause 3: Delta_100 =
+    rho-bar(ft_k100) - rho-bar0, partitioned by :func:`p7_3c_verdict` against the constant G; beside it,
+    never deciding it, the closure fraction, the same on ``att_env`` with G_att, and the five per-seed
+    Delta_100 (seed paired with seed).  A24(e): the total and adaptation effects, Delta_transfer, the
+    five adjacent steps (refuted iff hi < 0), and the budget secondary.  An arm short of five seeds on
+    any draw refuses: no estimator is computed on a partial set (A24(c)).
+    """
+    from offline.dt_gate import mean_ci95
+
+    kept = None if draws is None else {int(draw) for draw in draws}
+
+    def keep(draw: Any) -> bool:
+        return kept is None or int(draw) in kept
+
+    by_arm: dict[str, list[Mapping[str, Any]]] = {row.name: [] for row in P7_3C_ARMS}
+    for payload in rows:
+        if str(payload.get("kind")) != "dt" or not keep(payload["draw_id"]):
+            continue
+        arm_row = p7_3c_admitted(payload)
+        if arm_row is None:  # pragma: no cover - p7_3c_admitted returns a row for every DT cell
+            raise ValueError(f"{cell_chunk_name(payload)}: a DT row the predicate did not map to an arm")
+        by_arm[arm_row.name].append(payload)
+    for name, arm_rows in by_arm.items():
+        seeds_by_draw: dict[int, set[int]] = {}
+        for payload in arm_rows:
+            seeds_by_draw.setdefault(int(payload["draw_id"]), set()).add(int(payload["seed"]))
+        for draw, seeds in sorted(seeds_by_draw.items()):
+            if seeds != set(TRAINING_SEEDS):
+                raise ValueError(
+                    f"{name} has {len(seeds)} seed(s) on draw {draw}, not the five of A24(c); no estimator "
+                    "is computed on a partial set"
+                )
+
+    rho0 = {
+        key: {
+            int(draw): float(entry[key])
+            for draw, entry in rho0_by_draw.items()
+            if keep(draw) and entry.get(key) is not None
+        }
+        for key in ("e_sumo", "att_env")
+    }
+    series = {
+        key: {name: _seed_means_by_draw(arm_rows, f"rho_{key}") for name, arm_rows in by_arm.items()}
+        for key in ("e_sumo", "att_env")
+    }
+    e = series["e_sumo"]
+
+    delta = paired_by_draw(e["ft_k100"], rho0["e_sumo"], label="Delta_100 = ft_k100 - rho0")
+    verdict = p7_3c_verdict(delta["delta"], delta["lo"], delta["hi"])
+    delta_att = paired_by_draw(
+        series["att_env"]["ft_k100"], rho0["att_env"], label="Delta_100 on att_env = ft_k100 - rho0"
+    )
+    verdict_att = p7_3c_verdict(delta_att["delta"], delta_att["lo"], delta_att["hi"], gap=P7_3C_G_ATT)
+
+    records = [
+        record for record in zero_shot_records if str(record.get("kind")) == "dt" and keep(record["draw_id"])
+    ]
+    seeds_block: list[dict[str, Any]] = []
+    for seed in TRAINING_SEEDS:
+        fine_tuned = {
+            int(payload["draw_id"]): float(payload["rho_e_sumo"])
+            for payload in by_arm["ft_k100"]
+            if int(payload["seed"]) == seed
+        }
+        zero = {
+            int(record["draw_id"]): float(record["rho_e_sumo"]) for record in records if int(record["seed"]) == seed
+        }
+        seeds_block.append(
+            {"seed": seed, **paired_by_draw(fine_tuned, zero, label=f"Delta_100 of seed {seed} (Q6b)")}
+        )
+    half_gap = P7_3C_G / 2
+
+    clause_3 = {
+        "status": "EXPLORATORY (A24(f)); clause 1 is the only confirmatory H3 analysis",
+        "criterion": (
+            "(i) lo > 0 AND Delta_100 >= G/2 -- the criterion is MET; (ii) lo > 0 and Delta_100 < G/2; (iii) "
+            "lo <= 0 <= hi; (iv) hi < 0 -- lo and hi the bounds of Delta_100's 95 % CI, float64, no rounding "
+            "(A24(d))"
+        ),
+        "G": P7_3C_G,
+        "G_att": P7_3C_G_ATT,
+        "half_gap": half_gap,
+        "delta_100": delta,
+        "verdict": verdict,
+        "sentence": _p7_3c_sentence(verdict, delta["delta"], delta["lo"], delta["hi"], P7_3C_G),
+        "closure_fraction": {
+            "value": delta["delta"] / P7_3C_G,
+            "ci95_low": delta["lo"] / P7_3C_G,
+            "ci95_high": delta["hi"] / P7_3C_G,
+        },
+        "att_env": {
+            "rule": "the same computation with G_att, reported beside the primary and never deciding it (A24(d))",
+            "delta_100": delta_att,
+            "closure_fraction": {
+                "value": delta_att["delta"] / P7_3C_G_ATT,
+                "ci95_low": delta_att["lo"] / P7_3C_G_ATT,
+                "ci95_high": delta_att["hi"] / P7_3C_G_ATT,
+            },
+            "verdict": verdict_att,
+            "agrees_with_primary": verdict_att == verdict,
+        },
+        "per_seed": {
+            "rule": (
+                "per seed s, the mean over draws of rho(ft_k100, s, d) - rho(zs_k100, s, d), the zero-shot side "
+                "read from the artifact's records -- seed paired with seed (Q6b); SD ddof 1"
+            ),
+            "seeds": seeds_block,
+            "between_seed_sd": mean_ci95([entry["delta"] for entry in seeds_block]).std,
+            "n_lo_above_zero": sum(1 for entry in seeds_block if entry["lo"] > 0.0),
+            "n_at_least_half_gap": sum(1 for entry in seeds_block if entry["delta"] >= half_gap),
+        },
+    }
+
+    total = {
+        f"k{k}": paired_by_draw(e[f"ft_k{k}"], rho0["e_sumo"], label=f"total effect k = {k}") for k in (5, 20, 100)
+    }
+    adaptation: dict[str, Any] = {
+        "k5": paired_by_draw(e["ft_k5"], e["zs_k5"], label="adaptation effect k = 5"),
+        "k20": paired_by_draw(e["ft_k20"], e["zs_k20"], label="adaptation effect k = 20"),
+        "k100": {
+            "is": "clause_3.delta_100",
+            "why": (
+                "at k = 100 the zero-shot model under k = 100's prompt is stage 1's arm, so ft_k100 - zs_k100 IS "
+                "Delta_100 (A24(e)); it is computed once"
+            ),
+        },
+    }
+    a5 = _differences(e["ft_k5"], e["zs_k5"], label="adaptation k = 5")
+    a20 = _differences(e["ft_k20"], e["zs_k20"], label="adaptation k = 20")
+    a100 = _differences(e["ft_k100"], rho0["e_sumo"], label="adaptation k = 100")
+    steps: list[dict[str, Any]] = []
+    for name, effect, first, last, per_draw in (
+        ("total 0->5", "total", 0, 5, _differences(e["ft_k5"], rho0["e_sumo"], label="total 0->5")),
+        ("total 5->20", "total", 5, 20, _differences(e["ft_k20"], e["ft_k5"], label="total 5->20")),
+        ("total 20->100", "total", 20, 100, _differences(e["ft_k100"], e["ft_k20"], label="total 20->100")),
+        ("adaptation 5->20", "adaptation", 5, 20, _differences(a20, a5, label="adaptation 5->20")),
+        ("adaptation 20->100", "adaptation", 20, 100, _differences(a100, a20, label="adaptation 20->100")),
+    ):
+        stats = _draw_stats(per_draw)
+        steps.append(
+            {"name": name, "effect": effect, "from_k": first, "to_k": last, **stats, "refuted": bool(stats["hi"] < 0.0)}
+        )
+
+    budget: dict[str, Any] = {
+        "label": "A24(c)(iii): A18(d)'s budget secondary AS REGISTERED -- exploratory, apart from clause 3",
+    }
+    for label, name in (("B1000", "ft_k100_b1000"), ("B16000", "ft_k100_b16000")):
+        budget[label] = {
+            "arm": name,
+            "delta_vs_rho0": paired_by_draw(e[name], rho0["e_sumo"], label=f"{name} - rho0"),
+            "vs_B4000": paired_by_draw(e[name], e["ft_k100"], label=f"{name} - ft_k100"),
+        }
+
+    arms = {
+        row.name: {
+            "stage": row.stage,
+            "subject": row.subject,
+            "prompt_arm": row.prompt_arm,
+            "k": row.k,
+            "budget": row.budget,
+            "init": row.init,
+            "n_cells": len(by_arm[row.name]),
+            "e_sumo": _definition_stats(e[row.name]),
+            "att_env": _definition_stats(series["att_env"][row.name]),
+        }
+        for row in P7_3C_ARMS
+    }
+    return {
+        "arms": arms,
+        "rho0": {key: _definition_stats(rho0[key]) for key in ("e_sumo", "att_env")},
+        "clause_3": clause_3,
+        "total_effect": total,
+        "adaptation_effect": adaptation,
+        "transfer": paired_by_draw(e["ft_k100"], e["scratch_k100"], label="Delta_transfer = ft_k100 - scratch_k100"),
+        "adjacent_steps": {"steps": steps, "reading": list(P7_3C_ADJACENT_STEPS_READING)},
+        "budget_secondary": budget,
+    }
+
+
+def _position(target: float, low: float, high: float) -> str:
+    """Where *target* sits against the range ``[low, high]``: ``below``, ``inside`` or ``above``."""
+    if target < low:
+        return "below"
+    if target > high:
+        return "above"
+    return "inside"
+
+
+def _p7_3c_in_support_block(
+    chunks: Mapping[str, Mapping[str, Any]], calibration_payload: Mapping[str, Any]
+) -> dict[str, Any]:
+    """A24(e)'s in-support diagnostic: each k's targets against BOTH ranges; and each DT arm's decisions.
+
+    Per k and intersection, the Rule B target's position against (1) the source checkpoint's training
+    range (``support_range``, A17(d)'s) and (2) the fine-tune corpus's per-intersection episode-return
+    range over draws 201...200+k, read from the calibration's ``probe_returns.sumo`` (Q13: A17(f)'s gate
+    proved them equal to the corpus on all 1,600).  Both reported; neither selects (A8).  Per DT arm, the
+    chunks' own per-decision counts against the source range, summed and refused unless they add up.
+    """
+    ids = [str(ix) for ix in calibration_payload["intersection_ids"]]
+    probe = calibration_payload["probe_returns"]["sumo"]
+    by_k: dict[str, Any] = {}
+    for k in sorted({row.k for row in P7_3C_ARMS}):
+        key = f"k{k}"
+        per_ix: dict[str, Any] = {}
+        for ix in ids:
+            entry = calibration_payload["per_intersection"][ix]
+            budget = entry["budgets"][key]
+            target = float(budget["target"])
+            low, high = (float(value) for value in entry["support_range"])
+            first, last = (int(value) for value in budget["draw_ids"])
+            returns = [float(probe[str(draw)][ix]) for draw in range(first, last + 1)]
+            corpus = [min(returns), max(returns)]
+            per_ix[ix] = {
+                "target": target,
+                "source_range": [low, high],
+                "source_position": _position(target, low, high),
+                "source_position_recorded": str(budget["in_support"]["position"]),
+                "corpus_draws": [first, last],
+                "corpus_range": corpus,
+                "corpus_position": _position(target, corpus[0], corpus[1]),
+                "above_corpus_best_by": target - corpus[1],
+            }
+        by_k[key] = per_ix
+    grouped: dict[str, list[Mapping[str, Any]]] = {row.name: [] for row in P7_3C_ARMS}
+    for payload in chunks.values():
+        if str(payload["kind"]) == "dt":
+            grouped[_p7_3c_arm_label(payload)].append(payload)
+    decisions: dict[str, Any] = {}
+    for row in P7_3C_ARMS:
+        arm_chunks = grouped[row.name]
+        per_ix = {}
+        for ix in ids:
+            counts = [payload["in_support_counts"][ix] for payload in arm_chunks]
+            n_decisions = sum(int(payload["decisions"]) for payload in arm_chunks)
+            inside = sum(int(count["in_support"]) for count in counts)
+            below = sum(int(count["below"]) for count in counts)
+            above = sum(int(count["above"]) for count in counts)
+            if inside + below + above != n_decisions:
+                raise ValueError(
+                    f"{row.name}, intersection {ix!r}: the in-support counts ({inside} + {below} + {above}) do "
+                    f"not add up to the {n_decisions} decisions its cells recorded"
+                )
+            per_ix[ix] = {"n_decisions": n_decisions, "in_support": inside, "below": below, "above": above}
+        decisions[row.name] = per_ix
+    return {
+        "what_this_is": (
+            "A24(e)'s in-support diagnostic: each k's targets against (1) the source checkpoint's per-intersection "
+            "training range AND (2) the fine-tune corpus's per-intersection episode-return range; both reported, "
+            "neither selects (A8). Per DT arm, how many decisions conditioned on a return-to-go inside the "
+            "source's range, from the chunks' own counts"
+        ),
+        "ranges_from": {
+            "source": f"{P7_3D_CALIBRATION_NAME}: per_intersection.support_range",
+            "corpus": (
+                f"{P7_3D_CALIBRATION_NAME}: probe_returns.sumo over each budget's draw_ids (Q13; A17(f)'s gate "
+                "proved them equal to the corpus on all 1,600)"
+            ),
+            "sha256": P7_3D_CALIBRATION_SHA256,
+        },
+        "by_k": by_k,
+        "decisions_by_arm": decisions,
+    }
+
+
+def _p7_3c_arm_label(payload: Mapping[str, Any]) -> str:
+    """A24's arm name for a DT chunk (through THE predicate); an anchor's own arm name."""
+    if str(payload.get("kind")) == "dt":
+        row = p7_3c_admitted(payload)
+        if row is not None:
+            return row.name
+    return str(payload["arm"])
+
+
+def _p7_3c_collisions_block(chunks: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
+    """A23(c)(ii) and (d) on P7.3c: per arm, the cells with a collision and every event, each cell KEPT."""
+    labels = [row.name for row in P7_3C_ARMS] + list(P7_3C_ANCHOR_ARMS)
+    per_arm: dict[str, Any] = {label: {"n_cells": 0, "n_cells_with_collision": 0, "events": []} for label in labels}
+    for name, payload in sorted(chunks.items()):
+        entry = per_arm[_p7_3c_arm_label(payload)]
+        entry["n_cells"] += 1
+        if payload["collisions"]:
+            entry["n_cells_with_collision"] += 1
+            entry["events"].extend(
+                {"cell": name, "seed": payload["seed"], "draw_id": int(payload["draw_id"]), **event}
+                for event in payload["collisions"]
+            )
+    return {
+        "registered_in": "PREREGISTRATION A23(c)(ii) and (d), A24(c): A23 governs every cell",
+        "what": (
+            "every collision SUMO reported in P7.3c's cells, RECORDED with each cell KEPT; instrument facts only. "
+            "Stage 1 records exactly A23's two events (refused otherwise, before any aggregate)"
+        ),
+        "n_events": sum(len(entry["events"]) for entry in per_arm.values()),
+        "n_cells_with_collision": sum(entry["n_cells_with_collision"] for entry in per_arm.values()),
+        "per_arm": per_arm,
+    }
+
+
+def _p7_3c_robustness_draws(chunks: Mapping[str, Mapping[str, Any]]) -> list[int]:
+    """A24(d) / A23(d): every draw on which ANY cell entering Delta_100 records a collision.
+
+    DERIVED from the chunks (Q4), never taken from A23's constant: the cells entering Delta_100 are
+    ``ft_k100``'s and stage 1's -- the zero-shot arm under ``b_mean_k100`` and both anchors, rho's
+    denominator.
+    """
+    draws: set[int] = set()
+    for payload in chunks.values():
+        entering = str(payload.get("stage")) == STAGE_P7_3C_REPRODUCE or (
+            str(payload.get("kind")) == "dt" and _p7_3c_arm_label(payload) == "ft_k100"
+        )
+        if entering and payload["collisions"]:
+            draws.add(int(payload["draw_id"]))
+    return sorted(draws)
+
+
+def _load_p7_3d_grid4x4(data_dir: str | Path | None) -> tuple[Path, dict[str, Any]]:
+    """``p7_3d_grid4x4.json``, digest-checked BEFORE it is parsed (A24(c): *its sha256 verified before use*)."""
+    path = _data_dir(data_dir) / P7_3D_GRID4X4_NAME
+    if not path.is_file():
+        raise FileNotFoundError(
+            f"{path} is absent; stage 1 is checked against P7.3d's committed artifact and no other"
+        )
+    digest = _sha256_file(path)
+    if digest != P7_3D_GRID4X4_SHA256:
+        raise ValueError(
+            f"{path} has sha256 {digest}, not the pinned {P7_3D_GRID4X4_SHA256}; A24(c) verifies the record "
+            "stage 1 must reproduce before it is used"
+        )
+    return path, json.loads(path.read_bytes())
+
+
+def _load_p7_3c_finetune_record(data_dir: str | Path | None) -> tuple[Path, dict[str, Any]]:
+    """``p7_3c_finetune.json`` at :data:`P7_3C_FINETUNE_SHA256`, digest-checked BEFORE it is parsed (Q9).
+
+    Refuses while the pin is unset, so no trained cell is ever resolved against an unpinned record.
+    """
+    from offline.few_shot import RECORD_FORMAT_VERSION
+
+    pin = P7_3C_FINETUNE_SHA256
+    if pin is None:
+        raise ValueError(
+            "P7_3C_FINETUNE_SHA256 is not set. The thirty trainings' record is pinned in the first commit after "
+            "G7 (Amendment A, Q9), and until then no trained-subject identity resolves"
+        )
+    path = _data_dir(data_dir) / P7_3C_FINETUNE_NAME
+    if not path.is_file():
+        raise FileNotFoundError(f"{path} is absent; the coordinator commits it at G7 (Amendment A, Q9)")
+    digest = _sha256_file(path)
+    if digest != pin:
+        raise ValueError(
+            f"{path} has sha256 {digest}, not the pinned {pin}; the trained subjects' digests are read from "
+            "THAT record and no other"
+        )
+    record = json.loads(path.read_bytes())
+    if record.get("format_version") != RECORD_FORMAT_VERSION:
+        raise ValueError(f"{path}: format {record.get('format_version')!r}, not {RECORD_FORMAT_VERSION!r}")
+    return path, record
+
+
+def _p7_3c_report(
+    *,
+    work: Path,
+    target_path: Path,
+    output_root: str | Path,
+    out_root: str | Path,
+    data: Path,
+    stage: str | None,
+    declared: Sequence[Mapping[str, Any]],
+    all_declared: Sequence[Mapping[str, Any]],
+    cells_supplied: bool,
+) -> dict[str, Any]:
+    """``BRIEF_41`` C6: P7.3c's body, ``p7.3c-grid4x4/1.0``.  EVERY refusal precedes the one write.
+
+    Plan section 10's order, each step a refusal before any write:
+
+    2. the zero-shot artifact at :data:`P7_3D_GRID4X4_SHA256` FIRST, then the calibration pin, then the
+       training record's (G7);
+    3. this run's ``canary.json``, re-checked;
+    4. every chunk named as its content says, a declared cell of P7.3c's declaration, and validated
+       AGAINST that cell -- so a chunk whose stage is P7.3d's is refused by the cell identity -- then
+       completeness: A24(c), no estimator on a partial set;
+    5. all 700 stage-1 chunks reproduce the committed records (:func:`stage1_reproduction_check`, the
+       driver's gate itself);
+    6. stage 1 records exactly A23's two events (F5; stages 2 and 3 record and keep, A23(c));
+    7. the digests from disk: each chunk's commit (J1(c)), the demand per draw, the checkpoint per
+       ``(subject, seed)`` through the one identity function -- a trained chunk whose digest is not the
+       record's refuses -- the targets per the arm's k, the support ranges;
+    8. rho per cell against stage 1's anchors of the SAME draw (:func:`_published_row`).
+
+    Then :func:`p7_3c_estimates` on every row, A23(d)'s robustness by the SAME function on the draws
+    left, the in-support and collisions blocks, and :func:`_publish_artifact`.  The chunks are held
+    SLIM -- the whitelisted fields and the collision list -- because 4,700 full chunks would not fit.
+    """
+    from offline.transfer_calibration import CANARY_MAX_SECONDS, CANARY_RECORD_NAME
+
+    # ------------------------------------------------------------ 2. the pins, the zero-shot artifact FIRST
+    _zero_shot_path, zero_shot = _load_p7_3d_grid4x4(data)
+    _calibration_path, calibration_payload = _load_p7_3d_calibration(data)
+    _record_path, _record = _load_p7_3c_finetune_record(data)
+
+    # ------------------------------------------------------------ 3. this run's canary
+    canary_record = _read_canary_record(work)
+
+    # ------------------------------------------------------------ 4. every chunk, against its cell; completeness
+    declared_by_name = {cell_chunk_name(cell): cell for cell in declared}
+    all_by_name = {cell_chunk_name(cell): cell for cell in all_declared}
+    kept_fields = (*_GRID4X4_PUBLISHED_FIELDS, "collisions")
+    slim: dict[str, dict[str, Any]] = {}
+    for path in sorted(work.glob("cell_*.json")):
+        payload = json.loads(path.read_bytes())
+        name = cell_chunk_name(payload)
+        if name != path.name:
+            raise ValueError(
+                f"{path.name}: its content names the cell {name}; a chunk under another cell's filename was "
+                "skipped as complete on every restart once already (BRIEF_33 C1.2)"
+            )
+        cell = all_by_name.get(name)
+        if cell is None:
+            raise ValueError(
+                f"{name} is not a declared cell of P7.3c's declaration; an undeclared cell reaching the artifact "
+                "is an evaluation nobody registered"
+            )
+        validate_cell_payload(payload, cell=cell)
+        slim[name] = {field: payload[field] for field in kept_fields if field in payload}
+    missing = sorted(set(declared_by_name) - set(slim))
+    if missing:
+        raise ValueError(
+            f"{len(missing)} declared cell(s) have no chunk (first: {missing[:3]}); A24(c): no estimator is ever "
+            "computed on a partial set"
+        )
+    outside_stage = sorted(set(slim) - set(declared_by_name))
+    chunks = {name: slim[name] for name in sorted(declared_by_name)}
+
+    # ------------------------------------------------------------ 5. stage 1 reproduces P7.3d's records
+    stage1 = stage1_reproduction_check(work, data_dir=data)
+    if stage1["verdict"] != "REPRODUCED":
+        raise ValueError(
+            f"stage 1 did not reproduce {P7_3D_GRID4X4_NAME}: {stage1['line']}. A24(c): the campaign stops, and "
+            "whatever replaces rho0 is decided by a further amendment"
+        )
+
+    # ------------------------------------------------------------ 6. A23(f): exactly two events, in stage 1
+    stage1_names = [cell_chunk_name(cell) for cell in declared_cells(STAGE_P7_3C_REPRODUCE)]
+    _assert_a23_collision_cells({name: slim[name] for name in stage1_names}, stage1_names)
+
+    # ------------------------------------------------------------ 7. the digests, from disk
+    commits_by_stage: dict[str, set[str]] = {}
+    verdicts: dict[str, list[str]] = {}
+    for name, payload in chunks.items():
+        commit = str(payload["git_commit"])
+        commits_by_stage.setdefault(str(payload["stage"]), set()).add(commit)
+        if commit not in verdicts:
+            verdicts[commit] = code_changed_since(commit)
+        if verdicts[commit]:
+            changed = verdicts[commit]
+            raise ValueError(
+                f"{name}: it was rolled at {commit}, which differs from HEAD outside docs/ ({changed[:3]}, "
+                f"{len(changed)} path(s)). Commits may differ only by documentation; this cell was produced by "
+                "different code and must be re-rolled"
+            )
+    demand_by_draw: dict[int, dict[str, Any]] = {}
+    identity_by_checkpoint: dict[tuple[str, int], dict[str, Any]] = {}
+    targets_by_arm: dict[tuple[str, str, str], dict[str, float]] = {}
+    pinned_ranges = {ix: [low, high] for ix, (low, high) in grid4x4_support_ranges(data_dir=data).items()}
+    for name, payload in chunks.items():
+        draw_id = int(payload["draw_id"])
+        if draw_id not in demand_by_draw:
+            demand_by_draw[draw_id] = demand_identity_for(payload, out_root=out_root)
+        demand = demand_by_draw[draw_id]
+        for key in ("config_sha256", "routes_sha256"):
+            if str(payload[key]) != demand[key]:
+                raise ValueError(
+                    f"{name}: {key} {payload[key]!r} is not draw {draw_id}'s {demand[key]!r}. The cell ran on "
+                    "demand that is not what is on disk now, so it cannot be paired with the anchors of this draw"
+                )
+        if str(payload["kind"]) != "dt":
+            continue
+        key_pair = (str(payload["subject"]), int(payload["seed"]))
+        if key_pair not in identity_by_checkpoint:
+            identity_by_checkpoint[key_pair] = checkpoint_identity_for(payload, output_root=output_root, data_dir=data)
+        declared_sha = identity_by_checkpoint[key_pair]["file_sha256"]
+        if str(payload["checkpoint_sha256"]) != declared_sha:
+            raise ValueError(
+                f"{name}: it records checkpoint sha256 {payload['checkpoint_sha256']!r}, not the {declared_sha!r} "
+                f"that {key_pair[0]} seed {key_pair[1]}'s committed record pins today; the weights that produced "
+                "this cell are not the registered ones"
+            )
+        arm_key = (str(payload["subject"]), str(payload["arm"]), str(payload["stage"]))
+        if arm_key not in targets_by_arm:
+            targets_by_arm[arm_key] = grid4x4_targets_for_cell(payload, data_dir=data)
+        if dict(payload["target_rtg"]) != targets_by_arm[arm_key]:
+            raise ValueError(
+                f"{name}: its target_rtg is not {payload['arm']}'s 16 targets in {P7_3D_CALIBRATION_NAME}; the cell "
+                "conditioned on something else"
+            )
+        recorded = {str(ix): [float(v) for v in value] for ix, value in dict(payload["support_range"]).items()}
+        if recorded != pinned_ranges:
+            raise ValueError(
+                f"{name}: its support_range is not {P7_3D_CALIBRATION_NAME}'s per-intersection range, so its "
+                "in-support counts were taken against another range"
+            )
+
+    # ------------------------------------------------------------ 8. rho per cell, against its own draw's anchors
+    anchors_by_draw: dict[int, dict[str, Mapping[str, Any]]] = {}
+    for payload in chunks.values():
+        if str(payload["kind"]) == "anchor":
+            anchors_by_draw.setdefault(int(payload["draw_id"]), {})[str(payload["arm"])] = payload
+    rows: list[dict[str, Any]] = []
+    for name, payload in chunks.items():
+        anchors = anchors_by_draw.get(int(payload["draw_id"]), {})
+        if set(anchors) != set(P7_3C_ANCHOR_ARMS):
+            raise ValueError(
+                f"{name}: draw {payload['draw_id']} carries anchors {sorted(anchors)}, so rho has no denominator of "
+                "its own draw; stages 2 and 3 take rho against stage 1's anchors of the same draw"
+            )
+        rows.append(_published_row(payload, anchors, grid=True))
+
+    # ------------------------------------------------------------ the estimators, then A23(d)'s robustness
+    rho0_by_draw = zero_shot["rho"]["by_draw"]
+    zero_shot_records = [record for record in zero_shot["cells"] if str(record["kind"]) == "dt"]
+    estimates = p7_3c_estimates(rows, rho0_by_draw, zero_shot_records)
+    removed = _p7_3c_robustness_draws(chunks)
+    kept = sorted({int(row["draw_id"]) for row in rows} - set(removed))
+    robust = p7_3c_estimates(rows, rho0_by_draw, zero_shot_records, draws=kept)["clause_3"]
+    estimates["clause_3"]["robustness"] = {
+        "registered_in": "PREREGISTRATION A23(d), A24(d)",
+        "what": (
+            "Delta_100, its CI and the verdict recomputed by the SAME function without every draw on which any "
+            "cell entering Delta_100 records a collision -- ft_k100's, stage 1's zero-shot arm and both anchors -- "
+            "each such draw removed WHOLE. The set is derived from the chunks. The primary decides; a different "
+            "outcome is said in the sentence stating the verdict"
+        ),
+        "a23_d": A23_D_VERBATIM,
+        "draws_removed": removed,
+        "n_draws": len(kept),
+        "delta_100": robust["delta_100"],
+        "closure_fraction": robust["closure_fraction"],
+        "verdict": robust["verdict"],
+        "sentence": robust["sentence"],
+        "outcome_differs": robust["verdict"] != estimates["clause_3"]["verdict"],
+    }
+
+    ix_ids = [str(ix) for ix in calibration_payload["intersection_ids"]]
+    artifact = {
+        "format_version": P7_3C_ARTIFACT_FORMAT_VERSION,
+        "registered_in": (
+            "PREREGISTRATION A24 (with section 3.4, A15, A17(e), A18(c), A20, A21, A23); BRIEF_41 C5-C6, Amendments "
+            "A-F"
+        ),
+        "scenario_key": GRID4X4_SCENARIO_KEY,
+        "stage": stage,
+        "n_cells_declared": len(declared),
+        "n_chunks_outside_stage": len(outside_stage),
+        "cell_set_source": "caller-supplied declaration" if cells_supplied else f"declared_cells({STAGE_P7_3C!r})",
+        "chunk_commits_by_stage": {
+            stage_name: sorted(commits) for stage_name, commits in sorted(commits_by_stage.items())
+        },
+        "halting_check_draw": HALTING_CHECK_DRAW,
+        "intersection_ids": ix_ids,
+        "arm_table": [
+            {
+                "name": row.name, "stage": row.stage, "subject": row.subject, "prompt_arm": row.prompt_arm,
+                "k": row.k, "budget": row.budget, "init": row.init,
+            }
+            for row in P7_3C_ARMS
+        ],
+        "stage1_reproduction": {
+            "line": stage1["line"],
+            "n_checked": stage1["n_checked"],
+            "artifact": P7_3D_GRID4X4_NAME,
+            "artifact_sha256": stage1["artifact_sha256"],
+            "bookkeeping_fields": list(STAGE1_BOOKKEEPING_FIELDS),
+        },
+        "rho0_source": (
+            f"{P7_3D_GRID4X4_NAME}: rho.by_draw (the per-draw five-seed means) and its DT cell records (per seed); "
+            "stage 1 reproduced both, so rho0 IS the artifact's series (A24(c))"
+        ),
+        **estimates,
+        "in_support": _p7_3c_in_support_block(chunks, calibration_payload),
+        "collisions": _p7_3c_collisions_block(chunks),
+        "cells": rows,
+        "series_location": (
+            "the per-decision RTG and reward series and the action matrices of every cell are in its chunk under "
+            "output/p7_3c/cells/, covered by the campaign's manifest; they are not republished here"
+        ),
+        "canary": {
+            "seconds": canary_record["seconds"],
+            "threshold_seconds": CANARY_MAX_SECONDS,
+            "verdict": "at speed" if canary_record["seconds"] <= CANARY_MAX_SECONDS else "throttled",
+            "observed": dict(canary_record["facts"]),
+            "source": (
+                f"{CANARY_RECORD_NAME} in the work directory, written by the driver from the canary line right "
+                "after the token; report re-ran check_canary on these facts"
+            ),
+            "git_commit": canary_record.get("git_commit"),
+            "git_dirty": canary_record.get("git_dirty"),
+            "chunk_canaries_by_stage": _canaries_by_stage(chunks),
+        },
+        "what_this_does_not_say": list(P7_3C_WHAT_THIS_DOES_NOT_SAY),
+        "inputs": {
+            "zero_shot_artifact": P7_3D_GRID4X4_NAME,
+            "zero_shot_artifact_sha256": P7_3D_GRID4X4_SHA256,
+            "calibration_artifact": P7_3D_CALIBRATION_NAME,
+            "calibration_sha256": P7_3D_CALIBRATION_SHA256,
+            "finetune_record": P7_3C_FINETUNE_NAME,
+            "finetune_record_sha256": P7_3C_FINETUNE_SHA256,
+            "checkpoints": sorted(
+                (dict(identity) for identity in identity_by_checkpoint.values()),
+                key=lambda entry: (entry["subject"], entry["seed"]),
+            ),
+            "demand_by_draw": {
+                str(draw): {key: value for key, value in demand.items() if key != "config_path"}
+                for draw, demand in sorted(demand_by_draw.items())
+            },
+        },
+        **_git_provenance(),
+    }
+    return _publish_artifact(artifact, target_path, published_arms=P7_3C_PUBLISHED_ARMS)
 
 
 # ======================================================================================

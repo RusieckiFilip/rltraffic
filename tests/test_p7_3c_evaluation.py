@@ -1097,12 +1097,3 @@ def test_every_trained_subject_identity_resolves_through_the_pinned_record() -> 
         assert tcv.checkpoint_identity_for(cell, output_root=root, data_dir=DATA) == identity
 
 
-def test_report_refuses_p7_3cs_declaration_until_c6_builds_its_body(tmp_path: Path) -> None:
-    out = tmp_path / "p7_3c_grid4x4.json"
-    for stage in (tcv.STAGE_P7_3C, REPRODUCE):
-        with pytest.raises(ValueError, match="BRIEF_41 C6"):
-            tcv.report(
-                work_dir=tmp_path / "missing", out_path=out, output_root=tmp_path, out_root=tmp_path, data_dir=DATA,
-                stage=stage,
-            )
-    assert not out.exists() and not (tmp_path / "missing").exists()
