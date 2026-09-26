@@ -321,6 +321,22 @@ def test_the_effects_the_five_adjacent_steps_and_the_budget_secondary_are_each_p
         assert estimates["arms"][name]["e_sumo"]["mean"] == mean_ci95([arm[name][d] for d in sorted(arm[name])]).mean
 
 
+def test_a_step_whose_ci_straddles_zero_is_not_refuted() -> None:
+    """A24(e): an adjacent step is refuted iff its CI lies ENTIRELY below zero (hi < 0) -- one straddling zero is not.
+
+    Added after mutant A01 ("refuted iff lo < 0") SURVIVED the test above, none of whose steps straddled zero (disclosed
+    in the packet).  Here ft_k20 sits 0.01 above ft_k5 on even draws and 0.01 below on odd ones, cell for cell."""
+    rows, rho0, records = _synthetic()
+    five = {(r["seed"], r["draw_id"]): r["rho_e_sumo"] for r in rows if r["subject"] == "ft_k5"}
+    for row in rows:
+        if row["subject"] == "ft_k20":
+            row["rho_e_sumo"] = five[(row["seed"], row["draw_id"])] + (0.01 if row["draw_id"] % 2 == 0 else -0.01)
+    steps = {step["name"]: step for step in tcv.p7_3c_estimates(rows, rho0, records)["adjacent_steps"]["steps"]}
+    straddling = steps["total 5->20"]
+    assert straddling["lo"] < 0.0 < straddling["hi"]
+    assert straddling["refuted"] is False
+
+
 def test_restricting_the_draws_recomputes_by_the_same_function_and_a_partial_arm_is_refused() -> None:
     rows, rho0, records = _synthetic()
     kept = [draw for draw in SYN_DRAWS if draw not in (1003, 1011)]
