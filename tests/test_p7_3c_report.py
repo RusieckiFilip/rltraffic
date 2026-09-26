@@ -394,14 +394,16 @@ def _event(time: float) -> dict[str, Any]:
     }
 
 
-def _stage1_chunk(record: Mapping[str, Any], events: list[dict[str, Any]]) -> dict[str, Any]:
-    """A stage-1 chunk carrying ITS committed record's values (bookkeeping moved; the commit this tree's HEAD)."""
+def _stage1_chunk(
+    record: Mapping[str, Any], events: list[dict[str, Any]], *, git_commit: str = HEAD_SHA
+) -> dict[str, Any]:
+    """A stage-1 chunk carrying ITS committed record's values (bookkeeping moved; the commit *git_commit*)."""
     decisions = int(record["decisions"])
     chunk = {key: value for key, value in record.items() if key not in ("rho_e_sumo", "rho_att_env")}
     teleports = [{"time": e["time"], "vehicle": e["victim"]} for e in events][: int(record["n_teleports"])]
     chunk.update(
         {
-            "format_version": tcv.GRID4X4_ARTIFACT_FORMAT_VERSION, "stage": REPRODUCE, "git_commit": HEAD_SHA,
+            "format_version": tcv.GRID4X4_ARTIFACT_FORMAT_VERSION, "stage": REPRODUCE, "git_commit": git_commit,
             "canary_seconds": 0.8, "actions": [[0] * 16 for _ in range(decisions)], "actions_in_range": True,
             "local_return_from_lanes": dict(record["local_return"]), "n_observations": 3600,
             "collisions": [dict(e) for e in events], "n_collisions": len(events), "teleports": teleports,
@@ -427,6 +429,13 @@ class ReportSet:
 @pytest.fixture(scope="module")
 def report_set(tmp_path_factory: pytest.TempPathFactory) -> ReportSet:
     _needs_the_real_inputs()
+    return build_report_set(tmp_path_factory.mktemp("p7_3c") / "cells")
+
+
+def build_report_set(work: Path, *, git_commit: str = HEAD_SHA) -> ReportSet:
+    """The COMPLETE 4,700-chunk set in *work* (created here), every chunk recording *git_commit* -- the commit the
+    code that reads it is at, so J1(c) finds nothing changed.  ``tests/test_p7_3c_campaign.py`` builds it at its
+    sandbox clone's commit, and drives it through the real campaign driver."""
     committed = _committed()
     events: dict[str, list[dict[str, Any]]] = {}
     for block in committed["collisions"]["per_arm"].values():
@@ -436,13 +445,12 @@ def report_set(tmp_path_factory: pytest.TempPathFactory) -> ReportSet:
             )
     record = json.loads((DATA / "p7_3c_finetune.json").read_text(encoding="utf-8"))
     trained = {name: str(entry["checkpoint_sha256"]) for name, entry in record["runs"].items()}
-    work = tmp_path_factory.mktemp("p7_3c") / "cells"
-    work.mkdir()
+    work.mkdir(parents=True)
     _canary_record(work)
     stage1: dict[tuple[str, int | None, int], dict[str, Any]] = {}
     anchors: dict[int, dict[str, dict[str, float]]] = {}
     for rec in committed["cells"]:
-        chunk = _stage1_chunk(rec, events.get(tcv.cell_chunk_name(rec), []))
+        chunk = _stage1_chunk(rec, events.get(tcv.cell_chunk_name(rec), []), git_commit=git_commit)
         (work / tcv.cell_chunk_name(chunk)).write_text(json.dumps(chunk), encoding="utf-8")
         stage1[(str(rec["arm"]), rec["seed"], int(rec["draw_id"]))] = chunk
         if rec["kind"] == "anchor":

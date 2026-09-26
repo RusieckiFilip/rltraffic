@@ -6125,6 +6125,9 @@ def _write_pilot_transcript(path: Path, record: Mapping[str, Any]) -> None:
 #: beside it, as every campaign's ``output/SHA256SUMS_<campaign>.txt`` does.
 MANIFEST_CAMPAIGN_NAME = "p7_3d"
 MANIFEST_NAME = "SHA256SUMS_p7_3d.txt"
+#: The campaign directories a manifest may cover, each with ITS manifest beside it under ``output/``
+#: (``BRIEF_41`` C7: P7.3c's is ``output/SHA256SUMS_p7_3c.txt`` over ``output/p7_3c/`` only).
+MANIFEST_NAMES: Mapping[str, str] = {MANIFEST_CAMPAIGN_NAME: MANIFEST_NAME, "p7_3c": "SHA256SUMS_p7_3c.txt"}
 
 
 def artifact_name_for_stage(stage: str | None) -> str:
@@ -6173,9 +6176,10 @@ def _campaign_files(root: Path) -> list[str]:
 
 
 def write_manifest(*, campaign_dir: str | Path) -> dict[str, Any]:
-    """``output/SHA256SUMS_p7_3d.txt`` over ``output/p7_3d/`` ONLY: atomic, then re-verified.
+    """``output/SHA256SUMS_p7_3d.txt`` over ``output/p7_3d/`` ONLY -- or P7.3c's ``output/SHA256SUMS_p7_3c.txt``
+    over ``output/p7_3c/`` ONLY (``BRIEF_41`` C7) -- atomic, then re-verified.
 
-    B.6-2(3).  Refusals first -- the directory must be named ``p7_3d`` and hold at least one file --
+    B.6-2(3).  Refusals first -- the directory must be named ``p7_3d`` (or ``p7_3c``) and hold at least one file --
     then every regular file under it is hashed into ``<parent>/SHA256SUMS_p7_3d.txt.tmp`` in
     ``sha256sum`` format (two spaces; paths relative to the parent, so ``sha256sum -c`` run from
     ``output/`` checks it), the temporary file REPLACES the manifest in one ``os.replace``, and
@@ -6186,11 +6190,13 @@ def write_manifest(*, campaign_dir: str | Path) -> dict[str, Any]:
     import os
 
     root = Path(campaign_dir)
-    if root.name != MANIFEST_CAMPAIGN_NAME:
+    # BRIEF_41 C7: P7.3c's campaign directory takes ITS manifest (MANIFEST_NAMES); every other name is refused.
+    manifest_name = MANIFEST_NAMES.get(root.name)
+    if manifest_name is None:
         raise ValueError(
-            f"{root}: the P7.3d manifest covers a directory named {MANIFEST_CAMPAIGN_NAME!r} and "
-            "nothing else -- another campaign's files in this manifest would be certified by a "
-            "run that did not produce them"
+            f"{root}: a campaign manifest covers a directory named one of {sorted(MANIFEST_NAMES)} "
+            f"({MANIFEST_CAMPAIGN_NAME!r} for P7.3d) and nothing else -- another campaign's files in this "
+            "manifest would be certified by a run that did not produce them"
         )
     if not root.is_dir():
         raise FileNotFoundError(f"{root} is not a directory")
@@ -6199,7 +6205,7 @@ def write_manifest(*, campaign_dir: str | Path) -> dict[str, Any]:
         raise ValueError(f"{root} holds no file; an empty manifest certifies nothing")
 
     lines = [f"{_sha256_file(root / relative)}  {root.name}/{relative}" for relative in files]
-    target = root.parent / MANIFEST_NAME
+    target = root.parent / manifest_name
     temporary = target.with_name(target.name + ".tmp")
     temporary.write_text("\n".join(lines) + "\n", encoding="utf-8")
     os.replace(temporary, target)
@@ -6289,6 +6295,59 @@ def check_campaign_inputs(
         raise ValueError(
             f"{len(problems)} input(s) are not what the module pins: " + "; ".join(problems)
         )
+    return lines
+
+
+def check_p7_3c_campaign_inputs(
+    *, data_dir: str | Path, output_root: str | Path, draws_root: str | Path
+) -> list[str]:
+    """``BRIEF_41`` C7 / Amendment F, F3.2: P7.3c's campaign inputs BY DIGEST, before the token.  Raises on a miss.
+
+    P7.3d's inputs first (:func:`check_campaign_inputs`: the calibration, the reference cells, cap_e, A20(a)'s five and
+    RESCO's network), then the zero-shot artifact and the training record at their pins, then the training manifest
+    ``SHA256SUMS_p7_3c_finetune.txt`` -- required, at the digest the pinned record names, listing exactly the record's
+    thirty checkpoints at the record's digests -- and then each of the thirty: resolved through the pinned record
+    (:func:`p7_3c_trained_checkpoint_identity`: the fence, the digests, F4's guard) AND validated against its source
+    (``offline.few_shot.validate_checkpoint``: every frozen part, the budget, k, the switch, the targets and the recipe),
+    so a campaign cannot start on a checkpoint whose frozen parts left its source's.  One line per input.
+    """
+    from offline import few_shot
+
+    lines = check_campaign_inputs(data_dir=data_dir, output_root=output_root, draws_root=draws_root)
+    _load_p7_3d_grid4x4(data_dir)
+    lines.append(f"input {P7_3D_GRID4X4_NAME}: sha256 {P7_3D_GRID4X4_SHA256} (the pin)")
+    _record_path, record = _load_p7_3c_finetune_record(data_dir)
+    lines.append(f"input {P7_3C_FINETUNE_NAME}: sha256 {P7_3C_FINETUNE_SHA256} (the pin, G7)")
+
+    root = Path(output_root)
+    manifest = root / few_shot.MANIFEST_FILENAME
+    if not manifest.is_file():
+        raise ValueError(
+            f"{manifest} is absent; the thirty are checked against the pinned record AND this manifest (F3.2)"
+        )
+    digest = _sha256_file(manifest)
+    if digest != str(record["manifest_sha256"]):
+        raise ValueError(
+            f"{manifest} has sha256 {digest}, not the {record['manifest_sha256']} the pinned record names"
+        )
+    expected = {str(entry["checkpoint"]): str(entry["checkpoint_sha256"]) for entry in record["runs"].values()}
+    if _manifest_digests(manifest) != expected:
+        raise ValueError(f"{manifest} does not list exactly the pinned record's thirty checkpoints at its digests")
+    lines.append(f"input {few_shot.MANIFEST_FILENAME}: sha256 {digest} (the record's)")
+
+    for spec in few_shot.registered_runs():
+        p7_3c_trained_checkpoint_identity(spec.subject, spec.seed, output_root=root, data_dir=data_dir)
+        checks = few_shot.validate_checkpoint(spec, output_root=root, data_dir=data_dir)
+        failed = [name for name, passed in checks.items() if not passed]
+        if failed:
+            raise ValueError(
+                f"{spec.name} does not validate against its source (failed: {failed}); the campaign evaluates the "
+                "checkpoints G7 verified, and a frozen part that left its source's is not one of them"
+            )
+    lines.append(
+        f"input the thirty trained checkpoints: {len(few_shot.registered_runs())}/30 at the pinned record's digests "
+        f"and in {few_shot.MANIFEST_FILENAME}, none under {few_shot.FENCED_TIMING_DIRNAME}/, frozen parts their sources'"
+    )
     return lines
 
 
@@ -6793,8 +6852,12 @@ def build_parser() -> Any:
     record = subparsers.add_parser("record-canary", help="park the canary line in the work directory")
     record.add_argument("--line", required=True)
 
-    subparsers.add_parser(
+    inputs = subparsers.add_parser(
         "check-inputs", help="P7.3d m1: the campaign's inputs by DIGEST against the module's pins"
+    )
+    inputs.add_argument(
+        "--campaign", choices=["p7_3d", "p7_3c"], default="p7_3d",
+        help="p7_3c adds the zero-shot artifact, the training record and the thirty checkpoints (BRIEF_41 C7)",
     )
     resume = subparsers.add_parser(
         "resume-check", help="P7.3d m2: refuse if a chunk on disk records a commit git cannot resolve"
@@ -6919,9 +6982,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 1 if summary["n_failed"] else 0
 
     if args.command == "check-inputs":
-        for line in check_campaign_inputs(
-            data_dir=args.data_dir, output_root=args.output_root, draws_root=args.draws_root
-        ):
+        # BRIEF_41 C7: --campaign p7_3c adds P7.3c's inputs; the default is P7.3d's, as its driver calls it.
+        checker = check_p7_3c_campaign_inputs if args.campaign == "p7_3c" else check_campaign_inputs
+        for line in checker(data_dir=args.data_dir, output_root=args.output_root, draws_root=args.draws_root):
             print(line, flush=True)
         return 0
 
