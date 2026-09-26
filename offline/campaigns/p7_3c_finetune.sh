@@ -56,8 +56,20 @@
 #
 # 5. CONCURRENCY — MEASURED, NOT ASSUMED (G5): the C in {1, 2, 3} with the largest aggregate throughput whose device
 #    peak is <= 80 % of 16,303 MiB, a tie to the smaller C, fixed before any measurement (plan section 8) and applied
-#    in offline.few_shot.choose_concurrency.  NOT YET MEASURED at this commit: G5's numbers go here, into the plan
-#    and into the packet, each with its canary and date.
+#    in offline.few_shot.choose_concurrency.  MEASURED 2026-09-26 13:07-13:14 UTC (stamp 20260926T130659Z) by this
+#    driver's timing mode from the run worktree at 42119554ba69, on the RTX 5080 Laptop GPU; canary 0.75 s, both
+#    correctness halves -32648.0 / 247.75089149261333; k 5, seed 101, B 400:
+#      alone        103.9 ms/step            device peak 3,793 MiB    allocated peak 2,390 MiB per process
+#      two at once  305.5 ms/step (x2.94)    device peak 6,804 MiB
+#      three        474.4 ms/step (x4.57)    device peak 9,818 MiB
+#    => aggregate throughput 1/103.9 > 2/305.5 > 3/474.4 per ms, all three under the 13,042 MiB cap: CONCURRENCY 1.
+#    The same-seed repeat, alone: 112.3 ms/step; file sha256 DIFFERS and weights DIFFER, as the registered regime
+#    (CUDA, non-deterministic) leads one to expect.  The k = 100 windows built with no step: 20.3 s, peak RSS 7,089
+#    MiB (36,000 joint instants), under Q12's five minutes, so no one-process-per-k contingency.  Before the start the
+#    device carried the Windows host's ~800 MiB and 8-30 % utilisation (no WSL compute process).  The record:
+#    output/p7_3c_training/fenced_timing/20260926T130659Z/timing.json (sha256 07603718...).  By arithmetic, not a
+#    measurement: the thirty trainings' 165,000 steps take 4.8-5.1 h of loop at 103.9-112.3 ms/step at C = 1, plus
+#    each run's start and window build.
 
 set -euo pipefail
 
