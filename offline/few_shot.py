@@ -1559,9 +1559,26 @@ def _timing_concurrency(path: Path) -> tuple[int, float]:
 # ======================================================================================================================
 
 
+def _enter_registered_regime() -> None:
+    """P5.2's numerical regime for the CUDA commands -- A24(b): "in the subject's regime (CUDA, non-deterministic, as
+    P5.2's)".  ``offline/campaigns/p5_2.sh`` exports OMP and MKL at one thread, UNSETS ``CUBLAS_WORKSPACE_CONFIG`` outside
+    its deterministic regime (lines 98-117: the variable constrains cuBLAS's workspace and so its GEMM selection), and
+    trains with ``--torch-threads 1``.  A set variable is REFUSED here, not unset: the driver unsets it before any
+    interpreter starts, and a process that finds it set was not started the registered way."""
+    from offline.tier_sweep import configure_determinism
+
+    configured = os.environ.get("CUBLAS_WORKSPACE_CONFIG")
+    if configured is not None:
+        raise ValueError(
+            f"CUBLAS_WORKSPACE_CONFIG is set ({configured!r}); the registered regime is P5.2's non-deterministic one, "
+            "which unsets it (offline/campaigns/p5_2.sh lines 101-117) -- start through the driver, which does"
+        )
+    configure_determinism(False)
+    torch.set_num_threads(1)
+
+
 def _cmd_train(args: argparse.Namespace) -> int:
     """One REGISTERED run on CUDA: the source at A20(a)'s pin, the registered destination, then its run record."""
-    from offline.tier_sweep import configure_determinism
     from offline.transfer_calibration import GRID4X4_CHECKPOINT_SHA256
 
     spec = run_by_name(args.run)
@@ -1579,7 +1596,7 @@ def _cmd_train(args: argparse.Namespace) -> int:
         raise ValueError(f"{record.parent} does not exist; the driver creates it after the token")
     if record.exists():
         raise ValueError(f"{record} already exists; a run record is written once, with its checkpoint")
-    configure_determinism(False)
+    _enter_registered_regime()
     print(
         f"few_shot train {spec.name}: init {spec.init}, k {spec.k}, B {spec.budget}, seed {spec.seed}, "
         f"source {registered_source_path(output_root, spec.seed).name}, device cuda",
@@ -1704,6 +1721,7 @@ def _cmd_timing(args: argparse.Namespace) -> int:
         return 0
     if not torch.cuda.is_available():
         raise ValueError("CUDA is not available; G5 times the registered regime")
+    _enter_registered_regime()
     spec = timing_spec()
     if args.action == "build":
         import resource

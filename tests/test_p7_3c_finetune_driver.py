@@ -154,6 +154,18 @@ def test_every_interpreter_call_carries_minus_P() -> None:
     assert [line for line in calls if re.search(r'"\$PY"(?! -P)', line)] == []
 
 
+def test_the_numerical_regime_is_p5_2s_one_thread_and_no_cublas_workspace_config() -> None:
+    """A24(b) trains "in the subject's regime ... as P5.2's": ``offline/campaigns/p5_2.sh`` exports OMP and MKL at one
+    thread and UNSETS ``CUBLAS_WORKSPACE_CONFIG`` outside its deterministic regime (its lines 98-117: a launch shell
+    carrying it would change cuBLAS's GEMM selection, silently).  Both before the first interpreter call."""
+    code = _code(_text())
+    first_call = code.index('"$PY" -P')
+    for line in ("export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1", "unset CUBLAS_WORKSPACE_CONFIG"):
+        match = re.search(rf"^{re.escape(line)}$", code, flags=re.MULTILINE)
+        assert match, f"the driver lacks the top-level line {line!r}"
+        assert match.start() < first_call, f"{line!r} comes after the first interpreter call"
+
+
 def test_strict_mode_nothing_deleted_but_the_token_and_no_overwrite() -> None:
     code = _code(_text())
     assert re.search(r"^set -euo pipefail$", code, flags=re.MULTILINE)

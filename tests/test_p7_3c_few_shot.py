@@ -68,6 +68,15 @@ SEEDING = "Utils.seed_everything(seed, seed_python_random=False)"
 # ----------------------------------------------------------------------------------------------
 
 
+@pytest.fixture(autouse=True)
+def _restore_torch_threads() -> Any:
+    """The CUDA commands pin ONE torch thread for the process (P5.2's ``--torch-threads 1``); a test that reaches them
+    must not leave the rest of the suite single-threaded."""
+    threads = torch.get_num_threads()
+    yield
+    torch.set_num_threads(threads)
+
+
 @pytest.fixture(scope="module")
 def source(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, str]:
     return write_source(tmp_path_factory.mktemp("source") / "source.pt")
@@ -789,6 +798,8 @@ def test_the_train_command_wires_a_registered_run_to_its_source_pin_target_k_and
 
     monkeypatch.setattr(few_shot, "fine_tune", fake_fine_tune)
     monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
+    # The registered regime refuses a set CUBLAS_WORKSPACE_CONFIG (P5.2's); the wiring is checked in that regime.
+    monkeypatch.delenv("CUBLAS_WORKSPACE_CONFIG", raising=False)
     for sub in ("checkpoints", "runs"):
         (tmp_path / "p7_3c_training" / sub).mkdir(parents=True)
     with pytest.raises(RuntimeError, match=r"stop after the wiring is recorded"):

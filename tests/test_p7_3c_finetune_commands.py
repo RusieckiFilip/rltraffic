@@ -550,6 +550,49 @@ def test_check_inputs_with_a_timing_record_refuses_too_little_free_device_memory
 # ----------------------------------------------------------------------------------------------
 
 
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["train", "--run", "ft_k5_seed101", "--device", "cuda"],
+        ["timing", "run", "--stamp", "20260925T230000Z", "--slot", "alone"],
+    ],
+    ids=["train", "timing-run"],
+)
+def test_the_cuda_commands_run_in_p5_2s_regime_one_torch_thread_and_no_cublas_workspace_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], argv: list[str]
+) -> None:
+    """``offline/campaigns/p5_2.sh``: one torch thread (``--torch-threads 1``) and ``CUBLAS_WORKSPACE_CONFIG`` UNSET in the
+    non-deterministic regime.  Set -> refused before anything is read; unset -> the fine-tune sees ONE thread."""
+    stamp = tmp_path / "p7_3c_training" / "fenced_timing" / "20260925T230000Z"
+    stamp.mkdir(parents=True)
+    for sub in ("checkpoints", "runs"):
+        (tmp_path / "p7_3c_training" / sub).mkdir()
+    seen: list[int] = []
+
+    def fake_fine_tune(**kwargs: Any) -> Any:
+        seen.append(torch.get_num_threads())
+        raise RuntimeError("stop after the regime is recorded")
+
+    monkeypatch.setattr(few_shot, "fine_tune", fake_fine_tune)
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
+    monkeypatch.setattr(torch.cuda, "reset_peak_memory_stats", lambda *a, **k: None)
+    full = [*argv, "--output-root", str(tmp_path), "--corpus-dir", str(tmp_path / "corpus")]
+
+    monkeypatch.setenv("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+    assert few_shot.main(full) == 2
+    assert "CUBLAS_WORKSPACE_CONFIG is set" in capsys.readouterr().out
+    assert seen == []
+
+    monkeypatch.delenv("CUBLAS_WORKSPACE_CONFIG")
+    threads = torch.get_num_threads()
+    try:
+        with pytest.raises(RuntimeError, match=r"stop after the regime is recorded"):
+            few_shot.main(full)
+    finally:
+        torch.set_num_threads(threads)
+    assert seen == [1]
+
+
 def test_the_resume_decision_command_prints_the_decision_and_refuses_with_exit_2(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

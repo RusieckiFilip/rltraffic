@@ -50,7 +50,9 @@
 #    record-canary → the runs → manifest (re-verified, 30 lines) → record, LAST → COMPLETE.
 #
 # 4. -P ON EVERY INTERPRETER CALL; the cwd is the MAIN tree, PYTHONPATH the tree this copy lives in, and the import
-#    check asserts WHICH files loaded.  OMP/MKL threads are 1, as P5.2's trainings recorded (torch_num_threads 1).
+#    check asserts WHICH files loaded.  THE REGIME IS P5.2's (A24(b)): OMP and MKL at one thread and
+#    CUBLAS_WORKSPACE_CONFIG UNSET, exactly as offline/campaigns/p5_2.sh lines 98-117 do outside their deterministic
+#    regime; the CUDA commands refuse the variable set and pin one torch thread (P5.2's --torch-threads 1).
 #
 # 5. CONCURRENCY — MEASURED, NOT ASSUMED (G5): the C in {1, 2, 3} with the largest aggregate throughput whose device
 #    peak is <= 80 % of 16,303 MiB, a tie to the smaller C, fixed before any measurement (plan section 8) and applied
@@ -82,6 +84,9 @@ SAMPLE_MS=250
 EXPECTED_MANIFEST_LINES=30
 
 export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
+# P5.2's non-deterministic regime UNSETS this rather than merely not setting it (offline/campaigns/p5_2.sh lines
+# 101-117): it constrains cuBLAS's workspace and so its GEMM selection, and the launch shell may carry it.
+unset CUBLAS_WORKSPACE_CONFIG
 
 SUCCESS=0
 MARKER_DIR=""
