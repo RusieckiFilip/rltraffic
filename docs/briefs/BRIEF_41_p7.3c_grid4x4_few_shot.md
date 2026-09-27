@@ -659,3 +659,12 @@ considered and REFUSED: the pin exists so that no configuration can point the dr
 after the fix; the coordinator's own mutants on the verdict partition, the pairing, the stage-1 comparator and the driver's
 stage-1 gate; Amendment H rules; the run worktree moves to the reviewed commit; then the author's campaign token (G9).
 Say **"P7.3c fix done"** when the commit exists (not pushed).
+
+## G.1 — 2026-09-27, before the fix is built: G2.2 CORRECTED — the post-condition re-verifies the corpus ENTRY BY ENTRY (found by the author's advisory chat; the coordinator's overstatement)
+G2.2 as ruled — the `SHA256SUMS` file's own hash plus the file count — does NOT see an in-place overwrite of a corpus file: both
+stay the same. And *"a driver that ever wrote there would fail the suite rather than corrupt the data"* was false as written: a
+post-condition DETECTS a write after it happened; only the sandbox's redirection of every writable root PREVENTS one. **G2.2 now
+reads:** after every executed test the fixture asserts `few_shot._verified_entries(<the real corpus>)[1] ==
+transfer_curve.P7_3C_CORPUS_SUMS_SHA256` — the function the driver itself runs at `check-inputs`: every listed file re-hashed,
+an unlisted or absent file refused, and the sums file's digest returned and pinned (verified by the coordinator from the
+function's body at the branch tip). The file-count clause is subsumed and dropped. Cost: 101 files, ≈ 9.4 MB, per executed test.
