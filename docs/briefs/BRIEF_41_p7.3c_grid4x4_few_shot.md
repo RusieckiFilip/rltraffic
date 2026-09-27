@@ -713,3 +713,42 @@ clean and its driver byte-equal; runs the pre-token checklist — `output/p7_3c/
 its own); `free -m` and `df /tmp` recorded in the capture; nothing else scheduled on the machine for ≈ 13 h; the two reroll
 checks pass before the token — and hands the author the token block (G9). **A whole-suite pytest run during the campaign is
 forbidden** (B5, and R6: it would cross the memory budget mid-run).
+
+---
+
+# ✅ AMENDMENT I — 2026-09-27, the G8 fix VERIFIED (`eb42a59`; branch at `bddcb2c`, pushed), the run worktree at `bddcb2c`, the driver's own pre-token path PASSED on the real machine — the campaign token (gate G9) goes to the author
+
+## I1 — The fix, verified by the coordinator
+`eb42a59` touches `offline/transfer_curve.py`, `offline/campaigns/p7_3c_grid4x4.sh` and their two test files; no trailer on any commit
+of the branch; no frozen path; the implementer's tree clean; its two stale mutant worktrees removed. **All nine `tests/test_p7_3c_*.py`
+at `bddcb2c` under the standard line plus `RLTRAFFIC_SUMO_CORPORA`: 332 passed, 0 skipped, 0 failed** (the coordinator's run, 443 s).
+**H3's three mutants re-run by the coordinator on COMMITTED mutants after a clean control (159 passed): all KILLED** — the `att_env`
+robustness entry dropped (1 test dies); the FAILED fallback beside the token removed (6 executed campaign tests die); the pre-token
+refusal of an undeclared chunk removed (2 die). Evidence: `output/p7_3c_runs/g8/`.
+
+## I2 — The run worktree and the pre-token checklist (Amendment H4), every item done by the coordinator on 2026-09-27
+- `/home/filip/rltraffic-p73c-run` detached at **`bddcb2c303518c536832caa268c8dfac1d7bd06c`**, `git status --porcelain` empty, the
+  campaign driver and `transfer_curve.py` byte-equal to the commit's.
+- `output/p7_3c/` held nothing before the dry run; after it, only the driver's two fenced `g2/` records. No `TOKEN_campaign` on disk.
+- `/tmp` (the 24 GB RAM tmpfs) at 4.3 GB, no pytest scratch (the coordinator's 9.5 GB and the implementer's cleared); `MemAvailable`
+  ≈ 41 GB against the 24,216 MiB budget; no live `offline.*` process.
+- **The driver's own pre-token path, run WITHOUT a token from the run worktree** (`output/p7_3c_runs/g8/campaign_dryrun_20260927T2036.txt`):
+  every input at its pin — `p7_3d_calibration.json`, `p7_3d_reference_cells.json`, `p7_3d_cap_e.json`, the five A20(a) checkpoints,
+  the RESCO net, `p7_3d_grid4x4.json` `c63c371f…`, **`p7_3c_finetune.json` `adb59377…` (G7), `SHA256SUMS_p7_3c_finetune.txt`
+  `7ac35bdd…`, the thirty trained checkpoints 30/30 at the record's digests, none under `fenced_timing/`, frozen parts their
+  sources'**; `resume-check` clean; canary 1.18 s with both halves the header's; `dt_reroll_check IDENTICAL` (13 rolls, 1 alone and
+  12 in one pool, all 67 fields but the clock); `reference_reroll_check MATCH` on all six anchor cells; then
+  `REFUSING TO START: no run token … Nothing has been consumed`, exit 2.
+
+## I3 — Gate G9: the token and the start (the author, channel (a))
+Token: `output/p7_3c_runs/TOKEN_campaign`. Start: the driver's documented two-step foreground form with the 40-hex commit above, on an
+idle machine on mains power. ≈ 12.8 h on P7.3d's measured rates (stage 1 ≈ 1.6 h, stage 2 ≈ 4.2 h, stage 3 ≈ 6.9 h) at 12 workers.
+**For the whole run: no pytest, no training, no SUMO job, nothing that writes into `/tmp` at scale, on this machine** (B5, H4).
+The driver prints no outcome of any cell; `stage1-check` prints a verdict, a cell name and field NAMES only.
+
+## I4 — Gate G10, when the capture ends in `DRIVER EXIT`
+The coordinator reads in A24's order: the capture first; the stage-1 reproduction (700/700 under the six-field rule, by the
+coordinator's own route against `docs/data/p7_3d_grid4x4.json`, not only the driver's line); A23's rule on every cell; then the
+verdict recomputed by an independent route from the raw chunks (ρ per cell from the same draw's anchors, per-draw five-seed means,
+Δ₁₀₀ paired by draw id against the artifact's `rho.by_draw`, the partition against the registered G) BEFORE the artifact's own
+number is read; then the controls. Amendment J rules; C8 (the packet, the two `docs/data/` artifacts) follows; then one merge review.
