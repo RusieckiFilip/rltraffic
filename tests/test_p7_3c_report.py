@@ -563,6 +563,37 @@ def test_report_writes_the_p7_3c_artifact_from_a_complete_set(report_set: Report
     assert artifact["what_this_does_not_say"] == list(tcv.P7_3C_WHAT_THIS_DOES_NOT_SAY)
 
 
+def test_the_robustness_block_publishes_att_env_beside_e_sumo(report_set: ReportSet, tmp_path: Path) -> None:
+    """Amendment H, H3.1 (the G8 reviewer's R4-m1): A23(d) recomputes every estimator the primary reports *on E_sumo and
+    att_env*, so the robustness block carries att_env's Delta_100, closure fraction, verdict under G_att and whether it
+    differs -- rebuilt here from the chunks' own ATTs on the draws left.  *Mutant:* the att_env entry dropped -> this dies."""
+    artifact = _report(report_set.work, tmp_path / "p7_3c_grid4x4.json")
+    rows = _rows_from_disk(report_set.work)
+    removed = (1020, 1042, 1077)
+    rho0_att = {int(d): float(v["att_env"]) for d, v in _committed()["rho"]["by_draw"].items()}
+    ft100: dict[int, float] = {}
+    for draw in tcv.HELD_OUT_DRAWS:
+        if draw in removed:
+            continue
+        values = [r["rho_att_env"] for r in rows if (r["subject"], r["draw_id"], r["stage"]) == ("ft_k100", draw, PRIMARY)]
+        assert len(values) == 5
+        ft100[draw] = sum(values) / 5
+    expected = _stats(_minus(ft100, {draw: rho0_att[draw] for draw in ft100}))
+    robustness = artifact["clause_3"]["robustness"]
+    block = robustness["att_env"]
+    assert {key: block["delta_100"][key] for key in ("delta", "ci95", "lo", "hi")} == expected
+    assert block["delta_100"]["n_draws"] == 97
+    assert block["closure_fraction"] == {
+        "value": expected["delta"] / tcv.P7_3C_G_ATT,
+        "ci95_low": expected["lo"] / tcv.P7_3C_G_ATT,
+        "ci95_high": expected["hi"] / tcv.P7_3C_G_ATT,
+    }
+    assert block["verdict"] == tcv.p7_3c_verdict(expected["delta"], expected["lo"], expected["hi"], gap=tcv.P7_3C_G_ATT)
+    assert block["outcome_differs"] is (block["verdict"] != artifact["clause_3"]["att_env"]["verdict"])
+    # E_sumo's robustness entries -- and the primary, which decides -- are what they were
+    assert robustness["draws_removed"] == [1020, 1042, 1077] and robustness["verdict"] == artifact["clause_3"]["verdict"]
+
+
 @contextmanager
 def _moved(path: Path, edit: Callable[[dict[str, Any]], None] | None) -> Iterator[None]:
     """One chunk edited -- or, with ``edit=None``, removed -- for the block's duration; its bytes restored after."""

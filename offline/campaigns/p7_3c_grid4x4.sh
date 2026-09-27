@@ -24,6 +24,8 @@
 #      output/p7_3c/cells/cell_cityflow_grid4x4_*.json   one chunk per cell of all three stages, atomic, resumable
 #      output/p7_3c/cells/failed/                        chunks that failed their own re-check
 #      output/p7_3c/cells/COMPLETE  or  .../FAILED       the terminal marker, on EVERY path after the token
+#      output/p7_3c_runs/FAILED_campaign                 the marker instead, if the token was consumed and the work
+#                                                        directory could not be made (Amendment H, H3.2)
 #      output/p7_3c/artifacts/p7_3c_grid4x4.json         the artifact C8 commits BY HAND
 #      output/SHA256SUMS_p7_3c.txt                       over output/p7_3c/ ONLY, atomic, re-verified
 #    It does NOT write docs/data/.
@@ -45,7 +47,8 @@
 #    it -> no live runner -> GROUP LEADER -> SigIgn -> the committed inputs exist -> the inputs BY DIGEST
 #    (`check-inputs --campaign p7_3c`: P7.3d's, the zero-shot artifact, the training record, its manifest and the
 #    thirty, frozen parts included and nothing under fenced_timing/) -> the dirty tree -> the RSS budget -> the layout
-#    -> every chunk's commit resolvable (`resume-check`) -> the canary, BOTH halves -> dt_reroll_check ->
+#    -> every chunk's commit resolvable and every chunk file a declared cell's (`resume-check`; the second is Amendment
+#    H, H3.3) -> the canary, BOTH halves -> dt_reroll_check ->
 #    reference_reroll_check -> the TRAPS -> the token -> record-canary -> the three stages and the gate -> report ->
 #    manifest -> COMPLETE.  The two pre-token writes are the two re-roll checks' fenced records under g2/.
 #
@@ -94,6 +97,10 @@ COMMON=(--draws-root "$DRAWS" --output-root "$MAIN/output" --work-dir "$WORK"
 
 SUCCESS=0
 MARKER_DIR=""
+# Amendment H, H3.2: the token is consumed BEFORE the work directory exists, so a failure in between -- a mkdir that
+# fails -- leaves FAILED beside the token instead of nowhere. Before the token nothing is written, on any path.
+TOKEN_CONSUMED=0
+FAILED_FALLBACK=$(dirname "$TOKEN")/FAILED_campaign
 
 echo "=== P7.3c campaign driver: WORK_TREE $WORK_TREE (derived from this script's own location)"
 
@@ -207,10 +214,12 @@ refuse_non_directories() {
 }
 refuse_non_directories "$CAMPAIGN_DIR" "$WORK" "$ARTIFACTS" "$G2_DIR"
 
-# A chunk whose git_commit git cannot resolve would make the pool raise AFTER the token; it is found here instead.
+# Two things report or the pool would otherwise meet only AFTER the token are found here instead: a chunk whose
+# git_commit git cannot resolve, and a chunk file no declared cell names (Amendment H, H3.3).
 if ! PYTHONPATH=$WORK_TREE "$PY" -P -m offline.transfer_curve "${COMMON[@]}" resume-check --stage p7_3c; then
-  refuse "a chunk on disk records a commit git cannot resolve" \
-    "The line above names it. Move it aside by hand, or make its commit reachable. Nothing has been consumed."
+  refuse "resume-check found a chunk that would stop the campaign after the token" \
+    "The lines above name it: an undeclared chunk file, or a commit git cannot resolve. Move it aside by hand, or make its" \
+    "commit reachable. Nothing has been consumed."
 fi
 
 # ---------------------------------------------------------------- the canary, BOTH halves
@@ -249,16 +258,30 @@ if [ "$N_REFERENCE_RESULTS" -ne 6 ] || [ "$N_REFERENCE_MATCH" -ne 6 ]; then
 fi
 
 # ---------------------------------------------------------------- the traps, BEFORE the token
+# Where FAILED goes: the work directory once it exists; before that, and only once the token is consumed, beside the
+# token (H3.2); before the token, nowhere -- a refusal consumes and writes nothing.
+failed_marker() {
+  if [ -n "$MARKER_DIR" ] && [ -d "$MARKER_DIR" ]; then
+    echo "$MARKER_DIR/FAILED"
+  elif [ "$TOKEN_CONSUMED" -eq 1 ]; then
+    echo "$FAILED_FALLBACK"
+  fi
+}
+
 on_exit() {
   local status=$?
-  if [ "$SUCCESS" -ne 1 ] && [ -n "$MARKER_DIR" ] && [ -d "$MARKER_DIR" ] && [ ! -e "$MARKER_DIR/FAILED" ]; then
-    printf 'CAMPAIGN FAILED (exit %s)\n' "$status" > "$MARKER_DIR/FAILED"
+  local marker
+  marker=$(failed_marker)
+  if [ "$SUCCESS" -ne 1 ] && [ -n "$marker" ] && [ ! -e "$marker" ]; then
+    printf 'CAMPAIGN FAILED (exit %s)\n' "$status" > "$marker"
   fi
 }
 
 fail() {
-  if [ -n "$MARKER_DIR" ] && [ -d "$MARKER_DIR" ]; then
-    printf 'CAMPAIGN FAILED at %s\n' "$1" > "$MARKER_DIR/FAILED"
+  local marker
+  marker=$(failed_marker)
+  if [ -n "$marker" ]; then
+    printf 'CAMPAIGN FAILED at %s\n' "$1" > "$marker"
   fi
   echo "CAMPAIGN FAILED at $1"
   exit 1
@@ -266,8 +289,10 @@ fail() {
 
 on_signal() {
   trap '' INT TERM HUP
-  if [ -n "$MARKER_DIR" ] && [ -d "$MARKER_DIR" ]; then
-    printf 'CAMPAIGN INTERRUPTED by a signal\n' > "$MARKER_DIR/FAILED"
+  local marker
+  marker=$(failed_marker)
+  if [ -n "$marker" ]; then
+    printf 'CAMPAIGN INTERRUPTED by a signal\n' > "$marker"
   fi
   echo "CAMPAIGN INTERRUPTED by a signal: every completed chunk is on disk, and running again resumes from them by" >&2
   echo "  CONTENT. Killing the process group." >&2
@@ -284,6 +309,7 @@ if [ ! -f "$TOKEN" ]; then
 fi
 echo "=== authorised by the token written $(stat -c '%y' "$TOKEN" | cut -d. -f1): $(< "$TOKEN")"
 rm -f "$TOKEN"
+TOKEN_CONSUMED=1
 echo "=== token consumed and deleted; another start needs a new one"
 
 # Only NOW may anything be created or cleared.

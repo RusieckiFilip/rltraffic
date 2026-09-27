@@ -142,6 +142,7 @@ __all__ = [
     "p7_3c_cells",
     "p7_3c_trained_checkpoint_identity",
     "stage1_reproduction_check",
+    "undeclared_chunk_names",
     "STAGES",
     "SUBJECTS",
     "TRAINING_SEEDS",
@@ -5703,6 +5704,15 @@ def _p7_3c_report(
         "verdict": robust["verdict"],
         "sentence": robust["sentence"],
         "outcome_differs": robust["verdict"] != estimates["clause_3"]["verdict"],
+        # Amendment H, H3.1: A23(d) recomputes every estimator the primary reports "on E_sumo and att_env" -- att_env's
+        # recomputation is published beside E_sumo's, the same computation with G_att, never deciding.
+        "att_env": {
+            "rule": "the same recomputation on att_env with G_att, reported beside E_sumo's; the primary decides (A23(d))",
+            "delta_100": robust["att_env"]["delta_100"],
+            "closure_fraction": robust["att_env"]["closure_fraction"],
+            "verdict": robust["att_env"]["verdict"],
+            "outcome_differs": robust["att_env"]["verdict"] != estimates["clause_3"]["att_env"]["verdict"],
+        },
     }
 
     ix_ids = [str(ix) for ix in calibration_payload["intersection_ids"]]
@@ -6351,6 +6361,23 @@ def check_p7_3c_campaign_inputs(
     return lines
 
 
+def undeclared_chunk_names(*, work_dir: str | Path, stage: str) -> list[str]:
+    """Amendment H, H3.3: the chunk files in *work_dir* that no cell of *stage*'s WHOLE declaration names -- found
+    BEFORE the token.
+
+    ``report`` refuses such a file (*an undeclared cell reaching the artifact is an evaluation nobody registered*), and
+    before this check it did so only at the end, after every stage had rolled.  Only the NAMES are read, and only the
+    ``cell_*.json`` files at the top of the work directory, as ``report`` globs them (``failed/`` holds the chunks moved
+    aside).  Reads only; creates nothing.
+    """
+    work = Path(work_dir)
+    if not work.is_dir():
+        return []
+    whole, _slice = declarations_for(stage, None)
+    names = {cell_chunk_name(cell) for cell in whole}
+    return sorted(path.name for path in work.glob("cell_*.json") if path.name not in names)
+
+
 def unresolvable_chunk_commits(*, work_dir: str | Path, stage: str) -> list[dict[str, str]]:
     """m2 (B.6-2(4)): the chunks whose ``git_commit`` git cannot resolve -- found BEFORE the token.
 
@@ -6989,10 +7016,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.command == "resume-check":
+        # Amendment H, H3.3: on P7.3c's declaration a chunk file no declared cell names is refused HERE, before the
+        # token, rather than by report after the campaign. P7.3d's stage keeps the check it always had.
+        p7_3c_stage = args.stage == STAGE_P7_3C or args.stage in P7_3C_STAGES
+        stray = undeclared_chunk_names(work_dir=work, stage=args.stage) if p7_3c_stage else []
         problems = unresolvable_chunk_commits(work_dir=work, stage=args.stage)
-        if problems:
+        if stray or problems:
             import sys
 
+            for name in stray:
+                print(
+                    f"resume-check: {name} is not a declared cell of P7.3c's declaration; report would refuse it "
+                    "after the campaign -- move it aside by hand",
+                    file=sys.stderr,
+                    flush=True,
+                )
             for problem in problems:
                 print(
                     f"resume-check: {problem['chunk']} records git_commit {problem['git_commit']}, "

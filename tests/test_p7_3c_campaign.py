@@ -429,6 +429,72 @@ def test_a_run_tree_at_another_commit_is_refused_before_anything_is_consumed(cam
     assert sb.contents() == before
 
 
+def test_a_work_root_that_cannot_be_made_after_the_token_still_leaves_failed_beside_the_token(
+    campaign_sandbox: Any,
+) -> None:
+    """Amendment H, H3.2 (the G8 reviewer's R5-m3): the token is consumed BEFORE the work directory exists, so a failed
+    ``mkdir`` would leave no FAILED marker.  The EXIT trap falls back to ``FAILED_campaign`` beside the token.
+    *Mutant:* the fallback removed -> this dies."""
+
+    def unwritable(sb: CampaignSandbox) -> None:
+        sb.campaign.mkdir(parents=True)
+        sb.campaign.chmod(0o555)
+        sb.write_token()
+
+    sb = campaign_sandbox(populate=unwritable)
+    try:
+        result = sb.run()
+    finally:
+        sb.campaign.chmod(0o755)
+    assert result.returncode == 1, (result.stdout + result.stderr)[-3000:]
+    assert not sb.token.exists() and not sb.work.exists()
+    assert (sb.sandbox / "FAILED_campaign").read_text(encoding="utf-8").strip() == "CAMPAIGN FAILED (exit 1)"
+
+
+def _stray_chunk(work: Path) -> Path:
+    """A chunk file no cell of P7.3c's declaration names (k = 50 is not registered)."""
+    stray = work / "cell_cityflow_grid4x4_ft_k50_b_mean_k100_seed101_draw1000.json"
+    work.mkdir(parents=True, exist_ok=True)
+    stray.write_text("{}\n", encoding="utf-8")
+    return stray
+
+
+def test_resume_check_refuses_an_undeclared_chunk_name_and_leaves_p7_3ds_stage_as_it_was(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Amendment H, H3.3 (the G8 reviewer's R5-m2): a chunk file no declared cell names is refused BEFORE the token, not by
+    ``report`` after the campaign.  *Mutant:* the refusal removed -> this dies."""
+    work = tmp_path / "cells"
+    stray = _stray_chunk(work)
+    declared = work / tcv.cell_chunk_name(tcv.declared_cells(tcv.STAGE_P7_3C_PRIMARY)[0])
+    declared.write_text("{}\n", encoding="utf-8")  # a declared NAME is not a stray, whatever its content
+    for stage in (tcv.STAGE_P7_3C, tcv.STAGE_P7_3C_REPRODUCE):
+        assert tcv.main(["--work-dir", str(work), "resume-check", "--stage", stage]) == 2
+        err = capsys.readouterr().err
+        assert f"resume-check: {stray.name} is not a declared cell of P7.3c's declaration" in err
+        assert declared.name not in err
+    stray.unlink()
+    assert tcv.main(["--work-dir", str(work), "resume-check", "--stage", tcv.STAGE_P7_3C]) == 0
+    capsys.readouterr()
+    # P7.3d's stage is untouched by the new refusal
+    _stray_chunk(work)
+    assert tcv.main(["--work-dir", str(work), "resume-check", "--stage", tcv.STAGE_GRID4X4]) == 0
+
+
+def test_an_undeclared_chunk_name_refuses_the_driver_before_the_token(campaign_sandbox: Any) -> None:
+    def populate(sb: CampaignSandbox) -> None:
+        _stray_chunk(sb.work)
+        sb.write_token()
+
+    sb = campaign_sandbox(populate=populate)
+    before = sb.contents()
+    result = sb.run()
+    output = result.stdout + result.stderr
+    assert result.returncode == 2, output[-3000:]
+    assert "is not a declared cell of P7.3c's declaration" in output
+    assert sb.token.is_file() and sb.contents() == before
+
+
 #: A step after the token and after the work directory exists, turned into a failure no ``fail`` guards.
 INJECTED_AFTER_TOKEN = 'echo "  started      $(date -Is)"'
 
