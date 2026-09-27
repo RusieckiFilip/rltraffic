@@ -11,9 +11,17 @@ T-driver for C4 (``BRIEF_41`` §4, plan section 8, Amendment B's B3 fix list app
   with ``printf`` before any echo (B3.4).
 * **The header's documented lines** -- the foreground form with ``tee -i -a`` (B3.4) and ``${PIPESTATUS[0]}``.
 * **The driver EXECUTED** on a sandbox copy: a committed snapshot clone registered as the run tree, every writable
-  root in ``tmp_path``, A20(a)'s five checkpoints LINKED read-only into the sandbox's output tree, a synthetic
-  corpus with its gate record, and the training and timing calls replaced by stubs that train nothing -- so no test
-  can train, whatever breaks.
+  root in ``tmp_path``, A20(a)'s five checkpoints LINKED read-only into the sandbox's output tree, G3's REAL corpus
+  LINKED read-only as the sandbox's ``CORPUS`` with a gate record naming it, and the training and timing calls
+  replaced by stubs that train nothing -- so no test can train, whatever breaks.
+
+  ⚠️ ``BRIEF_41`` Amendments G and G.1 (2026-09-27): the corpus is the REAL one because Amendment C's pin makes
+  ``check-inputs`` refuse every other corpus, and no synthetic corpus can carry G3's digest; a pin override was
+  refused.  It is found through ``RLTRAFFIC_SUMO_CORPORA`` (Amendment A, Q10), and the sandbox LINKS it rather than
+  naming its path, exactly as it links A20(a)'s five.  The real corpus is READ and never written: the sandbox redirects
+  every WRITABLE root, which PREVENTS a write, and after every executed test the fixture re-verifies the corpus entry by
+  entry -- ``few_shot._verified_entries``, the function the driver itself runs at ``check-inputs`` -- and asserts its
+  ``SHA256SUMS`` digest is still the pin, which DETECTS one.
 
 ⚠️ ``BRIEF_41`` Amendment B, B5: the EXECUTED tests start the driver, whose liveness guard refuses while another run is
 live, and whose own children match that guard's pattern.  They are run only when no corpus or campaign run is live.
@@ -21,25 +29,27 @@ The two harness traps of §4 hold: a mutant is COMMITTED (the driver refuses a d
 a command whose text does not carry the liveness pattern.
 
 GATES -- each ``skip`` names what it consumes: the main tree's interpreter, ``setsid``, A20(a)'s five checkpoints
-under the main tree's ``output/``, CUDA (``check-inputs`` refuses without it), ``nvidia-smi`` for the timing mode, and
-``tmux`` for the header test.
+under the main tree's ``output/``, G3's corpus under ``RLTRAFFIC_SUMO_CORPORA`` (``check-inputs`` reads it), CUDA
+(``check-inputs`` refuses without it), ``nvidia-smi`` for the timing mode, and ``tmux`` for the header test.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import subprocess
 import time
 import uuid
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Iterator
 
 import pytest
 
+import offline.few_shot as few_shot
 import offline.transfer_calibration as tc
-from tests.p7_3c_fewshot_fixtures import write_training_corpus
+import offline.transfer_curve as tcv
 from tests.test_p7_3d_campaign_path import _commit_clone, _git, _snapshot_clone, _substitute
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -291,10 +301,34 @@ def _timing_record() -> dict[str, Any]:
     }
 
 
+def _real_corpus() -> Path:
+    """G3's corpus through ``RLTRAFFIC_SUMO_CORPORA`` (Amendment A, Q10; Amendment G, G2.1) -- or a skip naming both."""
+    root = os.environ.get("RLTRAFFIC_SUMO_CORPORA")
+    if not root:
+        pytest.skip(
+            "RLTRAFFIC_SUMO_CORPORA is unset: the executed driver's check-inputs reads G3's corpus at "
+            "$RLTRAFFIC_SUMO_CORPORA/grid4x4_sumo_maxpressure (gitignored, main tree only)"
+        )
+    corpus = Path(root) / "grid4x4_sumo_maxpressure"
+    if not corpus.is_dir():
+        pytest.skip(
+            f"{corpus} is absent (RLTRAFFIC_SUMO_CORPORA={root}): the executed driver's check-inputs reads G3's "
+            "corpus there"
+        )
+    return corpus
+
+
 @pytest.fixture
-def finetune_sandbox(tmp_path: Path) -> Callable[..., FinetuneSandbox]:
-    """B.7-3's rule: the ONE place an executed training driver is built -- roots redirected, training stubbed."""
+def finetune_sandbox(tmp_path: Path) -> Iterator[Callable[..., FinetuneSandbox]]:
+    """B.7-3's rule: the ONE place an executed training driver is built -- roots redirected, training stubbed.
+
+    Amendments G and G.1: the sandbox's ``CORPUS`` is G3's REAL corpus, LINKED read-only (as A20(a)'s five are), and
+    the fake gate record names that directory.  After the test, whatever it did, the corpus is re-verified entry by
+    entry by the driver's own function and its ``SHA256SUMS`` digest must still be the pin: the redirection of every
+    writable root PREVENTS a write, this post-condition DETECTS one.
+    """
     main = _needs_the_driver_environment()
+    corpus = _real_corpus()
 
     def build(*, register_run_tree: bool = True, populate: Callable[[FinetuneSandbox], None] | None = None) -> FinetuneSandbox:
         sandbox = tmp_path / "sandbox"
@@ -303,7 +337,8 @@ def finetune_sandbox(tmp_path: Path) -> Callable[..., FinetuneSandbox]:
         for seed in tc.TRAINING_SEEDS:
             name = f"{tc.GRID4X4_CHECKPOINT_STEM}{seed}.pt"
             (sources / name).symlink_to(main / "output" / tc.GRID4X4_CHECKPOINT_SUBDIR / name)
-        corpus = write_training_corpus(sandbox / "corpus", decisions=3)
+        linked = sandbox / "corpus"
+        linked.symlink_to(corpus, target_is_directory=True)
         gate = sandbox / "output" / "p7_3c_corpus" / "a17f_gate.json"
         gate.parent.mkdir(parents=True)
         gate.write_text(
@@ -328,7 +363,7 @@ def finetune_sandbox(tmp_path: Path) -> Callable[..., FinetuneSandbox]:
             text = _substitute(text, "RUN_TREE=/home/filip/rltraffic-p73c-run\n", f"RUN_TREE={clone}\n", 1)
         text = _substitute(text, "OUTPUT=$MAIN/output\n", f"OUTPUT={sandbox / 'output'}\n", 1)
         text = _substitute(
-            text, "CORPUS=$MAIN/datasets_sumo_v11/grid4x4_sumo_maxpressure\n", f"CORPUS={corpus}\n", 1
+            text, "CORPUS=$MAIN/datasets_sumo_v11/grid4x4_sumo_maxpressure\n", f"CORPUS={linked}\n", 1
         )
         text = _substitute(text, "TOKEN=$OUTPUT/p7_3c_runs/TOKEN_finetune\n", f"TOKEN={sandbox / 'TOKEN_finetune'}\n", 1)
         text = _substitute(text, TRAIN_CALL, TRAIN_STUB, 1)
@@ -340,7 +375,10 @@ def finetune_sandbox(tmp_path: Path) -> Callable[..., FinetuneSandbox]:
             populate(built)
         return built
 
-    return build
+    yield build
+    # G2.2 as CORRECTED by G.1: the real corpus is READ, never written -- re-verified entry by entry by the function the
+    # driver itself runs at check-inputs, its SHA256SUMS digest returned and pinned.
+    assert few_shot._verified_entries(corpus)[1] == tcv.P7_3C_CORPUS_SUMS_SHA256
 
 
 def test_the_fixture_redirects_every_writable_root_and_stubs_both_training_calls(finetune_sandbox: Any) -> None:
