@@ -626,3 +626,36 @@ C5 resolves them against `--output-root`, never against the cwd.
 3. **G8** reviews B3's round, C5, C6 and C7 together (one mandate, also the campaign's pre-flight); the coordinator re-runs the
    load-bearing mutants; Amendment G rules; the run worktree moves to the reviewed commit; then the author's campaign token (G9).
 4. Say **"P7.3c C6–C7 done"** when both are committed (not pushed; the coordinator pushes).
+
+---
+
+# ⚖️ AMENDMENT G — 2026-09-27, on C6–C7's delivery (`d9a20fd` the pin, `4de0358` + `b77e4c5` C6, `3cd6382` C7, `8868142` the packet; pushed): the six red training-driver tests RULED — the sandbox uses the REAL corpus, read-only, gated; one fix commit, then gate G8
+
+## G1 — The six failures, verified by the coordinator from a throwaway worktree at `8868142`
+Under the standard line, `tests/test_p7_3c_finetune_driver.py` fails exactly the six executed tests the packet names, and every one
+fails the SAME way: `few_shot check-inputs: REFUSED: …/sandbox/corpus/SHA256SUMS has sha256 8134d575…, not the pinned 5d08b57c…`,
+before the token, so the assertion each test exists for (no token, an invalid checkpoint, the token consumed, the exit trap, the
+fenced stamp, the header's own line) is never reached. **The pin is doing what Amendment C ruled** — the training driver refuses any
+corpus but G3's — and it has its own test (`test_p7_3c_finetune_commands.py:759–775`: a wrong digest refused, the constant equal
+to `5d08b57c…`, `check-inputs` passing it through). The fixture predates the pin: it built a synthetic corpus so it could run
+without SUMO, and no synthetic corpus can carry G3's digest.
+
+## G2 — The ruling: the sandbox's `CORPUS` is the real G3 corpus; no assertion changes; the implementer's proposal ACCEPTED with two additions
+1. The fixture substitutes `CORPUS=` with the real directory found through **`RLTRAFFIC_SUMO_CORPORA`** (Amendment A, Q10;
+   `<it>/grid4x4_sumo_maxpressure`), and the six tests **skip when it is unset or the directory is absent, naming both** — as
+   T-regress (a) does. On CI they skip (+6 to the ceiling at the merge, the coordinator's route).
+2. **The real corpus is READ, never written:** the fixture asserts, after every executed test, that the corpus's `SHA256SUMS` still
+   hashes to `P7_3C_CORPUS_SUMS_SHA256` and that the directory's file count is unchanged — a post-condition, so a driver that
+   ever wrote there would fail the suite rather than corrupt the data. The sandbox keeps redirecting every WRITABLE root.
+3. The fake gate record the fixture writes names the real corpus directory (its `corpus_dir` must equal `check-inputs`' `--corpus-dir`).
+4. Nothing else in the six tests changes; the test count stays 18. One commit, tests first is moot (the tests exist and are red for
+   the ruled reason; they go green by the fixture change alone — say so in the commit body), then the WHOLE suite under the
+   standard line plus `RLTRAFFIC_SUMO_CORPORA`: it must be entirely green, and the tail is pasted in the packet.
+Why this is right and not a loosening: the fixture already links A20(a)'s five REAL checkpoints into its sandbox; using the real
+corpus is the same choice for the same reason. A pin override in production code (an environment variable, a test-only digest) was
+considered and REFUSED: the pin exists so that no configuration can point the driver at another corpus.
+
+## G3 — Then gate G8: ONE review of B3's round, the pin, C5, C6 and C7 together (also the campaign's pre-flight), on the branch tip
+after the fix; the coordinator's own mutants on the verdict partition, the pairing, the stage-1 comparator and the driver's
+stage-1 gate; Amendment H rules; the run worktree moves to the reviewed commit; then the author's campaign token (G9).
+Say **"P7.3c fix done"** when the commit exists (not pushed).
