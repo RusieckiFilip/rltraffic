@@ -668,3 +668,48 @@ reads:** after every executed test the fixture asserts `few_shot._verified_entri
 transfer_curve.P7_3C_CORPUS_SUMS_SHA256` — the function the driver itself runs at `check-inputs`: every listed file re-hashed,
 an unlisted or absent file refused, and the sums file's digest returned and pinned (verified by the coordinator from the
 function's body at the branch tip). The file-count clause is subsumed and dropped. Cost: 101 files, ≈ 9.4 MB, per executed test.
+
+---
+
+# ✅ AMENDMENT H — 2026-09-27, gate G8: PASSED-WITH-NOTES (`docs/reviews/P7.3c-G8.md`, 0 blocking) — ONE small commit before the token (three items, tests first), then the run worktree moves and the campaign token follows
+
+## H1 — What was checked
+- **The reviewer:** the declaration exactly A24(c)'s 4,700 (700 + 8 × 5 × 100; no `naive`, `random`, `b_max`, Rule A or k = 200
+  anywhere; the admission predicate at all four sites; P7.3d's path unchanged); the trained identity only through the pinned record,
+  relative to `--output-root`, `fenced_timing/` refused, the full provenance guard; the stage-1 gate pin-first, keyed by
+  `(kind, subject, arm, seed, draw_id)`, every record key but the six compared under `==`, names only, run by the driver between
+  stages 1 and 2 with no human step; the report's refusal order, ρ₀ from the artifact's `rho.by_draw`, G and G_att literal, pairing
+  by draw id, the per-seed route, the five steps, the in-support diagnostic against both ranges, publish last; the driver's every
+  refusal before the token, every `rm` quoted (the token; the two marker files), no `mv`, no write under `/tmp`; the test fix as
+  ruled (the real corpus through a link, `_verified_entries == P7_3C_CORPUS_SUMS_SHA256` after every executed test, ten skips
+  naming `RLTRAFFIC_SUMO_CORPORA`). No theatre found. Frozen files untouched.
+- **The coordinator:** 270/270 P7.3c tests at `b704edd`; seven committed mutants killed (G2's list); the two findings below confirmed
+  from the code at the tip.
+
+## H2 — The two readings of G2.1: both ACCEPTED
+1. The sandbox reaches the real corpus through a LINK, because the fixture's own test asserts the literal path is absent from the
+   driver copy. Accepted: the post-condition runs `_verified_entries` on the corpus the driver read, and a link resolves to the same
+   files, so an overwrite is seen either way. 2. Ten executed tests skip without the corpus, not six: all ten share the fixture.
+   Accepted; the ceiling at the merge is the coordinator's route.
+
+## H3 — The fix commit, ONE, tests first, each item with its mutant executed and pasted (the reviewer's R4-m1, R5-m3, R5-m2)
+1. **The robustness block publishes `att_env` beside `E_sumo`** (`transfer_curve.py` ≈ 5684–5708): today it re-runs the estimator
+   on the kept draws and keeps only `["clause_3"]`; A23(d)'s pattern — *the same on `att_env`* — reports both, the primary deciding.
+   Publish the `att_env` recomputation (its Δ₁₀₀, closure fraction, verdict under G_att, and whether it differs) in the same
+   `robustness` dict. *Mutant:* the `att_env` entry dropped → a test on a fixture dies. The E_sumo verdict is untouched.
+2. **FAILED on every path after the token, literally:** the token is consumed at :286 and the work directory created at :290; a
+   failed `mkdir` leaves `MARKER_DIR` empty and the EXIT trap writes nothing. The trap falls back to
+   `output/p7_3c_runs/FAILED_campaign` when `MARKER_DIR` is unset. *Mutant:* the fallback removed → the executed test with an
+   unwritable work root dies.
+3. **An undeclared chunk name in the work directory is refused BEFORE the token** (in `resume-check --stage p7_3c`), not by
+   `report` after ≈ 13 h. *Mutant:* the refusal removed → the test with one stray file dies.
+Then the whole P7.3c test set under the standard line, entirely green; say **"P7.3c G8 fix done"**. Also: remove your two stale
+mutant worktrees (`/home/filip/rltraffic-p73c-mut4`, `-mut5`; both clean, detached) with `git worktree remove`.
+
+## H4 — What the coordinator then does, with no relay
+Re-runs the P7.3c test files at the fix commit; re-runs the three mutants; pushes; moves the run worktree to that commit, shows it
+clean and its driver byte-equal; runs the pre-token checklist — `output/p7_3c/` absent; `/tmp` clear of pytest scratch (it is a
+24 GB RAM tmpfs: 12 GB of scratch is 12 GB the twelve workers do not have; cleared by the coordinator on 2026-09-27, 9.5 GB of
+its own); `free -m` and `df /tmp` recorded in the capture; nothing else scheduled on the machine for ≈ 13 h; the two reroll
+checks pass before the token — and hands the author the token block (G9). **A whole-suite pytest run during the campaign is
+forbidden** (B5, and R6: it would cross the memory budget mid-run).
