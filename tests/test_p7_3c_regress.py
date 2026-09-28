@@ -6,14 +6,20 @@
   extracts ``report``'s row code into the helper the stage-1 gate shares -- the first commit that touches the grid4x4
   report path (Amendment A, Q2's addition) -- and it is written BEFORE that extraction, so the pin cannot merely agree
   with it.
+* **T-regress for P7.3c's own artifact (Amendment J2.2), beside ``DEFERRED`` 95's.**  ``docs/data/p7_3c_grid4x4.json``
+  regenerates BYTE-IDENTICALLY through ``report --stage p7_3c`` over ``output/p7_3c/cells`` into ``tmp_path``, with the
+  same two substitutions and nothing else, and the committed copy is the campaign's own file at the digest gate G10
+  measured (Amendment J1) -- so neither a moved number nor a re-generated copy can stand in for the published one.
 * **The stage-1 gate on the REAL chunks.**  P7.3d's own 700 chunks, re-labelled into P7.3c's stage 1 and with their
   bookkeeping fields moved, reproduce the committed artifact 700/700: the gate's row, built from a chunk as ``report``
   builds it, IS the committed record.
 * **The corpus pin.**  G3's verified corpus ``SHA256SUMS`` hashes to ``P7_3C_CORPUS_SUMS_SHA256`` (Amendment C, C2).
 
-GATES, each naming what it consumes: ``RLTRAFFIC_OUTPUT_ROOT`` holding ``p7_3d/cells/canary.json`` (gitignored), with
-the main tree's draws and A20(a)'s checkpoints beside it (``report`` re-derives both digests); ``RLTRAFFIC_SUMO_CORPORA``
-holding ``grid4x4_sumo_maxpressure/SHA256SUMS``.  Nothing here executes a campaign driver or starts a process.
+GATES, each naming what it consumes: ``RLTRAFFIC_OUTPUT_ROOT`` holding ``p7_3d/cells/canary.json`` or
+``p7_3c/cells/canary.json`` (both gitignored), with the main tree's draws, A20(a)'s checkpoints and -- for P7.3c -- the
+thirty trained checkpoints under ``p7_3c_training/`` beside them (``report`` re-derives every digest);
+``RLTRAFFIC_SUMO_CORPORA`` holding ``grid4x4_sumo_maxpressure/SHA256SUMS``.  Nothing here executes a campaign driver or
+starts a process.
 """
 
 from __future__ import annotations
@@ -31,6 +37,10 @@ from tests.test_t_regress_artifacts import _regenerates, _work_dir_or_skip
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DATA = REPO_ROOT / "docs" / "data"
 
+#: ``BRIEF_41`` Amendment J1: the campaign's artifact ``output/p7_3c/artifacts/p7_3c_grid4x4.json`` as gate G10 measured
+#: it (35,936,510 bytes).  J2.1: the committed copy must BE that file, not merely a file ``report`` agrees with today.
+P7_3C_GRID4X4_MEASURED_SHA256 = "1bcea367d86fa1943d45c747634b7ed2e49cb3c174f44a532c7e8ba13ca66e1d"
+
 
 def test_p7_3d_grid4x4_regenerates_byte_identically(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``DEFERRED`` 95.  *Mutation:* one aggregate of ``_grid4x4_estimates`` perturbed -> the bytes move -> this dies."""
@@ -38,6 +48,20 @@ def test_p7_3d_grid4x4_regenerates_byte_identically(tmp_path: Path, monkeypatch:
         monkeypatch, tmp_path, work_name="p7_3d/cells", artifact_name="p7_3d_grid4x4.json",
         stage=tcv.STAGE_GRID4X4,
     )
+
+
+def test_p7_3c_grid4x4_regenerates_byte_identically(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Amendment J2.2: ``docs/data/p7_3c_grid4x4.json`` regenerates through ``report --stage p7_3c`` byte for byte.
+
+    Over the REAL ``output/p7_3c/cells`` (4,700 chunks), into ``tmp_path``, with A3's two substitutions and nothing else
+    (``_regenerates``, the helper ``DEFERRED`` 95 and the three hz1x1 T-regress tests share).  Then the committed copy's
+    own digest is the one G10 measured on the campaign's file.  *Mutation:* one aggregate of the P7.3c body perturbed --
+    the closure fraction moved by ONE ulp in ``p7_3c_estimates`` -> the bytes move -> this dies.
+    """
+    _regenerates(
+        monkeypatch, tmp_path, work_name="p7_3c/cells", artifact_name="p7_3c_grid4x4.json", stage=tcv.STAGE_P7_3C,
+    )
+    assert hashlib.sha256((DATA / "p7_3c_grid4x4.json").read_bytes()).hexdigest() == P7_3C_GRID4X4_MEASURED_SHA256
 
 
 def test_the_stage1_gate_reproduces_p7_3ds_own_700_chunks_relabelled(tmp_path: Path) -> None:
