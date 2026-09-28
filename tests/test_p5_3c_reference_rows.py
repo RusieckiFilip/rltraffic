@@ -291,3 +291,97 @@ def test_the_command_refuses_a_dirty_code_tree_and_writes_nothing(
     assert status == 2
     assert "dirty" in capsys.readouterr().out
     assert _snapshot(tmp_path) == before
+
+
+# ======================================================================================================================
+# C1b -- the COMMITTED file (docs/data/p4_k20_att_engine_rows.json), produced by the committed command on a clean tree
+# ======================================================================================================================
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+COMMITTED = REPO_ROOT / "docs" / "data" / "p4_k20_att_engine_rows.json"
+
+
+def _committed() -> dict[str, Any]:
+    return json.loads(COMMITTED.read_text(encoding="utf-8"))
+
+
+def test_the_committed_rows_have_the_registered_shape() -> None:
+    """Ungated: 500 rows, each (seed, draw) of 5 seeds x 100 held-out draws exactly once, sorted, both definitions."""
+    payload = _committed()
+    assert payload["format_version"] == "p5.3c-reference-rows/1.0"
+    rows = payload["rows"]
+    assert payload["n_rows"] == len(rows) == 500
+    assert [(row["seed"], row["draw_id"]) for row in rows] == [
+        (seed, draw) for seed in (101, 202, 303, 404, 505) for draw in range(1000, 1100)
+    ]
+    for row in rows:
+        assert sorted(row) == ["att_engine", "att_ours", "draw_id", "seed", "source", "source_sha256"]
+        for definition in ("att_engine", "att_ours"):
+            assert isinstance(row[definition], float) and math.isfinite(row[definition]), row
+        assert row["source"] == reference_cell_name(row["seed"], row["draw_id"])
+        assert len(row["source_sha256"]) == 64 and int(row["source_sha256"], 16) >= 0
+    assert payload["definitions"] == ["att_engine", "att_ours"]
+    assert payload["primary_definition"] == "att_engine"
+    assert payload["seeds"] == [101, 202, 303, 404, 505]
+    assert payload["draw_ids"] == list(range(1000, 1100))
+    assert payload["engine_seed"] == 1000
+    assert payload["subject"] == {
+        "tier": "mappo1000", "arm": "dt@mappo1000", "method": "dt", "scenario": "hz1x1",
+        "scenario_id": "cityflow1x1", "context_length": 20,
+    }
+
+
+def test_the_committed_rows_were_extracted_by_committed_code_on_a_clean_tree() -> None:
+    """F8 / Amendment A Q8: the file records a clean tree, and the commit it names is in this branch's history."""
+    import subprocess
+
+    extraction = _committed()["extraction"]
+    assert extraction["code_dirty"] is False
+    commit = extraction["code_commit"]
+    assert len(commit) == 40
+    result = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", commit, "HEAD"], cwd=str(REPO_ROOT), capture_output=True, check=False
+    )
+    assert result.returncode == 0, f"the recorded extraction commit {commit} is not an ancestor of HEAD"
+
+
+def test_the_committed_checkpoint_digests_are_p4_gates() -> None:
+    gate = json.loads((REPO_ROOT / "docs" / "data" / "p4_gate.json").read_text(encoding="utf-8"))
+    checkpoints = _committed()["checkpoints"]
+    assert sorted(checkpoints) == ["101", "202", "303", "404", "505"]
+    for seed, entry in checkpoints.items():
+        assert entry["sha256"] == gate["checkpoints"][seed]["sha256"], seed
+        assert entry["path"] == gate["checkpoints"][seed]["path"], seed
+
+
+def _output_root_or_skip() -> Path:
+    import os
+
+    root = Path(os.environ.get("RLTRAFFIC_OUTPUT_ROOT", str(REPO_ROOT / "output")))
+    cells = root / "p8_4b_rederivation"
+    if not (cells / "campaign_manifest.json").is_file():
+        pytest.skip(
+            f"{cells} holds no campaign_manifest.json: set RLTRAFFIC_OUTPUT_ROOT to the output tree carrying P8.4b's "
+            "gitignored cells (and P4's p4_dt/) to compare the committed rows with them"
+        )
+    return root
+
+
+def test_the_committed_rows_equal_the_gitignored_cells_under_equality() -> None:
+    """Gated on P8.4b's cells: every committed value `==` the cell it names, read by this test's own route; then the
+    whole extraction re-run, every check included, reproduces the committed rows, checkpoints and source digests."""
+    root = _output_root_or_skip()
+    payload = _committed()
+    cells = root / "p8_4b_rederivation"
+    for row in payload["rows"]:
+        path = cells / row["source"]
+        raw = path.read_bytes()
+        cell = json.loads(raw)
+        assert (cell["seed"], cell["draw_id"]) == (row["seed"], row["draw_id"]), row["source"]
+        assert cell["att_engine"] == row["att_engine"], row["source"]
+        assert cell["att_ours"] == row["att_ours"], row["source"]
+        assert hashlib.sha256(raw).hexdigest() == row["source_sha256"], row["source"]
+
+    again = cs.reference_rows_payload(output_root=root, data_dir=REPO_ROOT / "docs" / "data")
+    for key in ("rows", "checkpoints", "source", "engine_seed", "seeds", "draw_ids", "subject"):
+        assert again[key] == payload[key], key

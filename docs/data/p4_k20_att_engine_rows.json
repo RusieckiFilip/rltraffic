@@ -1,0 +1,4188 @@
+{
+  "checkpoints": {
+    "101": {
+      "checked_against": "docs/data/p4_gate.json checkpoints.101.sha256",
+      "path": "output/p4_dt/dt_seed101.pt",
+      "sha256": "dc6fc97cf1cb3f5c61d270f611e4d3d935a1fcbbb9ca546ee0ffa281799531b6"
+    },
+    "202": {
+      "checked_against": "docs/data/p4_gate.json checkpoints.202.sha256",
+      "path": "output/p4_dt/dt_seed202.pt",
+      "sha256": "990036d4855749fe328d0c3343f7bca503955d50b21b4a248d4dc0ae5e4a353f"
+    },
+    "303": {
+      "checked_against": "docs/data/p4_gate.json checkpoints.303.sha256",
+      "path": "output/p4_dt/dt_seed303.pt",
+      "sha256": "6def842e93a8f15b446468fdcf68ba05c9e633ab5878fb09cb5ea60f914ef3db"
+    },
+    "404": {
+      "checked_against": "docs/data/p4_gate.json checkpoints.404.sha256",
+      "path": "output/p4_dt/dt_seed404.pt",
+      "sha256": "56c2ef972f3818f1809f5a7c65c03939955b70a162566f2ae08bd285c7dd114b"
+    },
+    "505": {
+      "checked_against": "docs/data/p4_gate.json checkpoints.505.sha256",
+      "path": "output/p4_dt/dt_seed505.pt",
+      "sha256": "8a7d3581b33e96afd3dee7b07216a9a63a52293add23b8889e92f542119134b7"
+    }
+  },
+  "definition_note": "att_engine is the engine's pool-clock average over every vehicle the demand created (A11 Rule R, A15: primary on hz1x1); att_ours is P4's att_horizon, co-reported",
+  "definitions": [
+    "att_engine",
+    "att_ours"
+  ],
+  "draw_ids": [
+    1000,
+    1001,
+    1002,
+    1003,
+    1004,
+    1005,
+    1006,
+    1007,
+    1008,
+    1009,
+    1010,
+    1011,
+    1012,
+    1013,
+    1014,
+    1015,
+    1016,
+    1017,
+    1018,
+    1019,
+    1020,
+    1021,
+    1022,
+    1023,
+    1024,
+    1025,
+    1026,
+    1027,
+    1028,
+    1029,
+    1030,
+    1031,
+    1032,
+    1033,
+    1034,
+    1035,
+    1036,
+    1037,
+    1038,
+    1039,
+    1040,
+    1041,
+    1042,
+    1043,
+    1044,
+    1045,
+    1046,
+    1047,
+    1048,
+    1049,
+    1050,
+    1051,
+    1052,
+    1053,
+    1054,
+    1055,
+    1056,
+    1057,
+    1058,
+    1059,
+    1060,
+    1061,
+    1062,
+    1063,
+    1064,
+    1065,
+    1066,
+    1067,
+    1068,
+    1069,
+    1070,
+    1071,
+    1072,
+    1073,
+    1074,
+    1075,
+    1076,
+    1077,
+    1078,
+    1079,
+    1080,
+    1081,
+    1082,
+    1083,
+    1084,
+    1085,
+    1086,
+    1087,
+    1088,
+    1089,
+    1090,
+    1091,
+    1092,
+    1093,
+    1094,
+    1095,
+    1096,
+    1097,
+    1098,
+    1099
+  ],
+  "engine_seed": 1000,
+  "extraction": {
+    "code_commit": "c507721348e71b9689aa224290f307fd25a9b32f",
+    "code_dirty": false,
+    "command": "python -P -m offline.context_sweep extract-reference-rows",
+    "module": "offline/context_sweep.py"
+  },
+  "format_version": "p5.3c-reference-rows/1.0",
+  "n_rows": 500,
+  "primary_definition": "att_engine",
+  "registered_in": "PREREGISTRATION A26(c) as corrected by A26.1; BRIEF_42 C1 and Amendment A (Q8)",
+  "role": "A26(c)'s precondition: the per-draw att_engine (and att_ours) of P4's five K = 20 checkpoints on the 100 held-out draws, the reference the campaign's gate compares its re-evaluation of the same checkpoints against under ==. Committed before any training (BRIEF_42 C1).",
+  "rows": [
+    {
+      "att_engine": 102.08328736900165,
+      "att_ours": 106.4561500275786,
+      "draw_id": 1000,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1000.json",
+      "source_sha256": "a65912d159b4dca4b2d92309407c1789b4b8fcf554e74c3ff9ea83b878591590"
+    },
+    {
+      "att_engine": 100.59175824175824,
+      "att_ours": 104.71978021978022,
+      "draw_id": 1001,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1001.json",
+      "source_sha256": "6ffea31dc7be93acc56623be2e143d218d6a94b0d3fb13df4125762c2e00e2e0"
+    },
+    {
+      "att_engine": 99.5639889196676,
+      "att_ours": 103.81440443213296,
+      "draw_id": 1002,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1002.json",
+      "source_sha256": "6db1664f6d23b9007b7796d378c5d8b1d4fa2457679c372c4fd6799ecbe0e5df"
+    },
+    {
+      "att_engine": 98.10976948408343,
+      "att_ours": 102.32162458836443,
+      "draw_id": 1003,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1003.json",
+      "source_sha256": "ce34ec06f549ab14f8cb469f9cbc66194d216e2a5d1b0e936e93dc75868f84fa"
+    },
+    {
+      "att_engine": 98.69196919691969,
+      "att_ours": 102.997799779978,
+      "draw_id": 1004,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1004.json",
+      "source_sha256": "7194b68c7b3cf3f1ea0af58cd6e52450a59127378656ef1c4227e09dd5345783"
+    },
+    {
+      "att_engine": 99.65547605943864,
+      "att_ours": 103.9873417721519,
+      "draw_id": 1005,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1005.json",
+      "source_sha256": "bdf9ddce7eaa878ecf2882ed688fea5ed971c5879a968de2896940cfd8b0394a"
+    },
+    {
+      "att_engine": 100.87370713119216,
+      "att_ours": 105.06532389765923,
+      "draw_id": 1006,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1006.json",
+      "source_sha256": "192e7d305d09840a7cba67cf67e6ef8e3271f5332525f60403bbdd16ec902e92"
+    },
+    {
+      "att_engine": 96.58514796203238,
+      "att_ours": 100.76214405360135,
+      "draw_id": 1007,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1007.json",
+      "source_sha256": "566786c5a15a3c4d1e5fbac81cd54acd0356a108b4c6961baef9c1443a17c920"
+    },
+    {
+      "att_engine": 98.80022136137244,
+      "att_ours": 103.07969009407859,
+      "draw_id": 1008,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1008.json",
+      "source_sha256": "2b68d2c534e2685c51ecdcda46ab49159e83ef3cbf10316e1ca0b1d4e56c867e"
+    },
+    {
+      "att_engine": 101.41140642303434,
+      "att_ours": 105.74750830564784,
+      "draw_id": 1009,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1009.json",
+      "source_sha256": "ee85c17024336760e0ceae09f14ff3e9e11f4be8361c1634ba730f27bb35a9ab"
+    },
+    {
+      "att_engine": 106.99389567147614,
+      "att_ours": 111.41509433962264,
+      "draw_id": 1010,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1010.json",
+      "source_sha256": "554c5dc7501d94d7e36c4ec16a02b10f27b13b56f1a849d64e43876aa779699f"
+    },
+    {
+      "att_engine": 103.41859185918592,
+      "att_ours": 107.6952695269527,
+      "draw_id": 1011,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1011.json",
+      "source_sha256": "8b1397968687494031e8f3484f852c13357047a62cf8cec4382ce77c4060264e"
+    },
+    {
+      "att_engine": 103.59063360881542,
+      "att_ours": 107.88154269972452,
+      "draw_id": 1012,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1012.json",
+      "source_sha256": "95deb1d102a9bee256b1dce78a8c9c2e1938dee13b42bdc795aa6cc3725cb7da"
+    },
+    {
+      "att_engine": 103.00331308669243,
+      "att_ours": 107.21424627277747,
+      "draw_id": 1013,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1013.json",
+      "source_sha256": "c540108f7884198906a2e12406c1373d356ca7a3e2d3624a4a5c0e488d432bd5"
+    },
+    {
+      "att_engine": 105.01300108342362,
+      "att_ours": 109.0899241603467,
+      "draw_id": 1014,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1014.json",
+      "source_sha256": "4727721a737722383f97ea03bc5e91d41b208af5aeaed601e57f5a309f50b9a3"
+    },
+    {
+      "att_engine": 101.33533588203167,
+      "att_ours": 105.64445658110323,
+      "draw_id": 1015,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1015.json",
+      "source_sha256": "eaeaf04a5a25b33acbe7c552bdc1c46fdd5601284585de4d70dcdcfc88a51c1f"
+    },
+    {
+      "att_engine": 99.1667577911427,
+      "att_ours": 103.332422088573,
+      "draw_id": 1016,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1016.json",
+      "source_sha256": "c91d505f11fccbf08003743d52b7941b8ca9729abfc61f5f976a628f5866f577"
+    },
+    {
+      "att_engine": 101.00935608145295,
+      "att_ours": 105.25316455696202,
+      "draw_id": 1017,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1017.json",
+      "source_sha256": "8431414da3c001680a13a21e2e251343d5cb61beb0dc2fcea64b78139c113705"
+    },
+    {
+      "att_engine": 102.13633864760858,
+      "att_ours": 106.44035184167124,
+      "draw_id": 1018,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1018.json",
+      "source_sha256": "0466b4c7a2d4eb81bcf96e39bba148a05008a5f129f29fceafcda7b0bbdbdc33"
+    },
+    {
+      "att_engine": 101.28524410312671,
+      "att_ours": 105.28524410312671,
+      "draw_id": 1019,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1019.json",
+      "source_sha256": "f6517150eb23875651e8cd81fad9a599bf7da18fe57e06bfbcff7ff90e21f5ca"
+    },
+    {
+      "att_engine": 100.09508015478164,
+      "att_ours": 104.40298507462687,
+      "draw_id": 1020,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1020.json",
+      "source_sha256": "2c688d22922ee830ed7d27f8186fc46f8ea9011737acbc9c349240bfb27869a3"
+    },
+    {
+      "att_engine": 101.01487603305785,
+      "att_ours": 105.3801652892562,
+      "draw_id": 1021,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1021.json",
+      "source_sha256": "04ec98c243f97ed017a41f903149dc7ff050843fde13045424f77bfbfc133c0d"
+    },
+    {
+      "att_engine": 100.61585365853658,
+      "att_ours": 104.90576496674058,
+      "draw_id": 1022,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1022.json",
+      "source_sha256": "38f81a28e639305e186b41dff4394a125012f8a03fdd6ae7442bf69e54c6e75a"
+    },
+    {
+      "att_engine": 102.40099833610648,
+      "att_ours": 106.59179145867998,
+      "draw_id": 1023,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1023.json",
+      "source_sha256": "00f5f1f49424cc7d5ab5b12cb55ba194c39c4696b17e7154f470613dbcd97245"
+    },
+    {
+      "att_engine": 104.98303229337712,
+      "att_ours": 109.24740010946907,
+      "draw_id": 1024,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1024.json",
+      "source_sha256": "4561a250b0d4d366b71b6ad83de98ddb5951ddce621c408b2ea0e259cb919e3b"
+    },
+    {
+      "att_engine": 100.2645125958379,
+      "att_ours": 104.49069003285871,
+      "draw_id": 1025,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1025.json",
+      "source_sha256": "a9175e4cd53d97e0f52bfa4d6512d3b7239fcff826428649810ae91c3bfa7e65"
+    },
+    {
+      "att_engine": 103.71255506607929,
+      "att_ours": 107.87995594713657,
+      "draw_id": 1026,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1026.json",
+      "source_sha256": "517b54ca32e07fe20c61824e51925abace106a5180378aad9546616a563849f0"
+    },
+    {
+      "att_engine": 102.56167400881057,
+      "att_ours": 106.79515418502203,
+      "draw_id": 1027,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1027.json",
+      "source_sha256": "5748d2762446ddbdb034ffb27caf59499856b463f73835fa79bbf0d0535df437"
+    },
+    {
+      "att_engine": 105.10054945054945,
+      "att_ours": 109.31318681318682,
+      "draw_id": 1028,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1028.json",
+      "source_sha256": "25b78e9d65b13cd6b36a56ad9ce789c9bf403610b20ef3c2dd927449f3ae12b2"
+    },
+    {
+      "att_engine": 105.71747627024008,
+      "att_ours": 109.80737018425461,
+      "draw_id": 1029,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1029.json",
+      "source_sha256": "a475221e494ed36fda33c7fd2586d3abd63dbe8a5eb088a7f89c6e3874d6a18b"
+    },
+    {
+      "att_engine": 104.47652838427948,
+      "att_ours": 108.76091703056768,
+      "draw_id": 1030,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1030.json",
+      "source_sha256": "cf1fbd2e7dde1aed58af0a888572e05c9666a8917722c4def0c00a3f9174d03d"
+    },
+    {
+      "att_engine": 99.65985643290999,
+      "att_ours": 104.03314917127072,
+      "draw_id": 1031,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1031.json",
+      "source_sha256": "37199a3ae0108955b3980e9e94abdce314df6c180e49386d0aad919dba2b98aa"
+    },
+    {
+      "att_engine": 103.44211686879824,
+      "att_ours": 107.73980154355017,
+      "draw_id": 1032,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1032.json",
+      "source_sha256": "31dea6c0feab6ef4146f28a019b764e4a53343bd2a78c3728fc370bf88c31d39"
+    },
+    {
+      "att_engine": 100.5900109769484,
+      "att_ours": 105.0274574409665,
+      "draw_id": 1033,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1033.json",
+      "source_sha256": "cd86c3893b14c06ecb46d5d2bc135de2410419c18d1b35b0d1afc3b986a0060b"
+    },
+    {
+      "att_engine": 102.46968869470234,
+      "att_ours": 106.66575641725832,
+      "draw_id": 1034,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1034.json",
+      "source_sha256": "6d9fca4fc88710c41cd2872b33fb16265a0fe1e496ef58755c946b82f63f373c"
+    },
+    {
+      "att_engine": 101.65580110497237,
+      "att_ours": 105.97790055248619,
+      "draw_id": 1035,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1035.json",
+      "source_sha256": "c6f3e1aa37d0799e3c709752ba62f7f54954dd7dd16e02b106204447b4ffc1aa"
+    },
+    {
+      "att_engine": 100.15824175824176,
+      "att_ours": 104.35678944474986,
+      "draw_id": 1036,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1036.json",
+      "source_sha256": "9321f31bee6e3719fe0ebef0e8bbf39a39da8e3f31ebc75e6851c24b009deabb"
+    },
+    {
+      "att_engine": 101.7201309328969,
+      "att_ours": 105.9165302782324,
+      "draw_id": 1037,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1037.json",
+      "source_sha256": "38ac7081a936e36befbdbe6e32a30c5192c31cd41f884d4731f9fc6baf1ca62f"
+    },
+    {
+      "att_engine": 104.41694169416942,
+      "att_ours": 108.58085808580859,
+      "draw_id": 1038,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1038.json",
+      "source_sha256": "0d7ff5b8110170d4c85048ec686c633cfa18d14d4d4c5d73aea20d8f5ff6e27c"
+    },
+    {
+      "att_engine": 100.02575342465754,
+      "att_ours": 104.42465753424658,
+      "draw_id": 1039,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1039.json",
+      "source_sha256": "84498567a67c7716b1c0ff5737a6c53533f059efe1029bbce60de013040d9f3f"
+    },
+    {
+      "att_engine": 101.18435448577681,
+      "att_ours": 105.36652078774617,
+      "draw_id": 1040,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1040.json",
+      "source_sha256": "3a151b98b0a8adae004d627d07b770e66b0560511c2a3216d5b240be47ca9089"
+    },
+    {
+      "att_engine": 100.49483414899402,
+      "att_ours": 104.73355084284937,
+      "draw_id": 1041,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1041.json",
+      "source_sha256": "02e9618fa4a9e8c560256015a29b3564a4bc01c966165747450b92f8656169c0"
+    },
+    {
+      "att_engine": 104.83252032520325,
+      "att_ours": 109.05420054200542,
+      "draw_id": 1042,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1042.json",
+      "source_sha256": "8b8c6b09eab3f008fc30430d7eb96fedc85b68126c6b1804515b812f22bd48f4"
+    },
+    {
+      "att_engine": 100.44518642181413,
+      "att_ours": 104.70489977728285,
+      "draw_id": 1043,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1043.json",
+      "source_sha256": "d3e440d64bdc7a95e8ca32ec6acaf6c4f1141dec259a1c685749eca55ed840c5"
+    },
+    {
+      "att_engine": 106.26017601760176,
+      "att_ours": 110.29152915291529,
+      "draw_id": 1044,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1044.json",
+      "source_sha256": "0267b30d9810fa088d032fd54eab070a67e8d7eca7b5340f01138c3b33daf3b6"
+    },
+    {
+      "att_engine": 102.55909840571742,
+      "att_ours": 107.04507971412865,
+      "draw_id": 1045,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1045.json",
+      "source_sha256": "939c72377a2a7cc1fe2f95682003a67ee6b588af9ccd606b4851993da1e0e900"
+    },
+    {
+      "att_engine": 100.10686164229472,
+      "att_ours": 104.31383577052868,
+      "draw_id": 1046,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1046.json",
+      "source_sha256": "6950cf54c9bc3a571fc185d6a60097d64ae017dcad64bf386495c61b8f48f1aa"
+    },
+    {
+      "att_engine": 98.82613510520487,
+      "att_ours": 103.06094182825485,
+      "draw_id": 1047,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1047.json",
+      "source_sha256": "f73358a5de6bc77029e4c5b4c4180f06b216588e201391450652382547fa6ee1"
+    },
+    {
+      "att_engine": 100.69100817438692,
+      "att_ours": 104.9182561307902,
+      "draw_id": 1048,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1048.json",
+      "source_sha256": "02b076f34f1678a1f5b2935782f92e9de674837ffe1e113df59dbd4e5e010ec8"
+    },
+    {
+      "att_engine": 101.67276760953966,
+      "att_ours": 105.75984470327232,
+      "draw_id": 1049,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1049.json",
+      "source_sha256": "ecd33da589a7b749fe3e016052f7373449024272ebdc6b4f71d6a3a3db121e54"
+    },
+    {
+      "att_engine": 103.2978126752664,
+      "att_ours": 107.41727425687044,
+      "draw_id": 1050,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1050.json",
+      "source_sha256": "295dedeed6118ed75d34a1071040ebfa8961f0393f37b303b8f5713f9c0cd2bf"
+    },
+    {
+      "att_engine": 99.23263506063947,
+      "att_ours": 103.3186328555678,
+      "draw_id": 1051,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1051.json",
+      "source_sha256": "aa3fb0aded188ae9d2294b89eee9e2c0488b21d35e47c90e7aed5dccc61b16f1"
+    },
+    {
+      "att_engine": 99.61068281938326,
+      "att_ours": 103.88766519823788,
+      "draw_id": 1052,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1052.json",
+      "source_sha256": "2484e74b3d5b0df0ff676c7e17312c349427bcbcf4b181351e7164d482a848d9"
+    },
+    {
+      "att_engine": 101.15342163355409,
+      "att_ours": 105.19315673289184,
+      "draw_id": 1053,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1053.json",
+      "source_sha256": "12946a132d7e87bfa7661acd6cbfb148638e341c019563f32ce9400742868a77"
+    },
+    {
+      "att_engine": 100.42528735632185,
+      "att_ours": 104.7591680350301,
+      "draw_id": 1054,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1054.json",
+      "source_sha256": "8a7a3a999cf04608ad178d4e31abfce4a5e92e376559aae9dff7aaacce37c55b"
+    },
+    {
+      "att_engine": 107.88303769401331,
+      "att_ours": 112.12701053799223,
+      "draw_id": 1055,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1055.json",
+      "source_sha256": "b9dc95be94d7da0438eac242e9e51490dc5a46be252486eaabbe54411e9e9f13"
+    },
+    {
+      "att_engine": 101.61141602634467,
+      "att_ours": 105.99341383095499,
+      "draw_id": 1056,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1056.json",
+      "source_sha256": "84465452b0fbac732f532ebabc64a08f8d5b1f22ab1c2466361b709b7be2ae56"
+    },
+    {
+      "att_engine": 99.93974571586512,
+      "att_ours": 104.26478717523494,
+      "draw_id": 1057,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1057.json",
+      "source_sha256": "3e5f4c9877f37b0a2721aa9952b3b4e7e01becaeb579d531e1ffbc20e946a175"
+    },
+    {
+      "att_engine": 101.79627601314348,
+      "att_ours": 106.01861993428258,
+      "draw_id": 1058,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1058.json",
+      "source_sha256": "b071759465cba9f7b1f4b89a6679fc944d05995c966f8203cf3f45d0a5925871"
+    },
+    {
+      "att_engine": 100.60186710598572,
+      "att_ours": 104.8407468423943,
+      "draw_id": 1059,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1059.json",
+      "source_sha256": "9a3a5833b906b90aac411f64aa85573cc5bb3239a58f26016025d511cc2059d0"
+    },
+    {
+      "att_engine": 98.57432803071859,
+      "att_ours": 102.80581459133296,
+      "draw_id": 1060,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1060.json",
+      "source_sha256": "91d5fa11d7b7a5ea73b27cc17858c77159827314bdd524a15bb8256728cc2c00"
+    },
+    {
+      "att_engine": 100.2981298129813,
+      "att_ours": 104.64796479647964,
+      "draw_id": 1061,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1061.json",
+      "source_sha256": "7613088df7b3d7675774845b5924f20dd51d39323f903fed0dc4c260424a31ca"
+    },
+    {
+      "att_engine": 99.02924634420697,
+      "att_ours": 103.37457817772778,
+      "draw_id": 1062,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1062.json",
+      "source_sha256": "b1590adaa25b8db94d7bffd8714b8a54fcb3723f7d8e3c12a8a4f77182bcd0d0"
+    },
+    {
+      "att_engine": 101.31901840490798,
+      "att_ours": 105.60791968767428,
+      "draw_id": 1063,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1063.json",
+      "source_sha256": "5d4802834d555d0205d208f7d5248cdd1cc1ddcac7bc16453b4bf83054ce78ea"
+    },
+    {
+      "att_engine": 99.86810154525386,
+      "att_ours": 104.24351187189399,
+      "draw_id": 1064,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1064.json",
+      "source_sha256": "696f416f94c77f3cdfc1cd194521bf11f7e652bbcb462444239a17762b70ed5a"
+    },
+    {
+      "att_engine": 100.15612974161627,
+      "att_ours": 104.38977460142935,
+      "draw_id": 1065,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1065.json",
+      "source_sha256": "5fd59e4d115b93082c6893ec7343d0fa683db45b5677d4fee5bfd5f4d99bdd2e"
+    },
+    {
+      "att_engine": 97.92680242157402,
+      "att_ours": 102.09251101321586,
+      "draw_id": 1066,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1066.json",
+      "source_sha256": "56c11d9b2d97285fc807ad14ed5b5489880a680cdf28576eb905e59a0846075e"
+    },
+    {
+      "att_engine": 99.48054794520547,
+      "att_ours": 103.71232876712328,
+      "draw_id": 1067,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1067.json",
+      "source_sha256": "a03e30c809551de2b6f062a255ec4b43660ddf3565c8dee370c73e6430bdc0fb"
+    },
+    {
+      "att_engine": 97.58810572687224,
+      "att_ours": 101.80066079295155,
+      "draw_id": 1068,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1068.json",
+      "source_sha256": "18b0d11a22cba583d1f9c82649ebd801550d0f47913ae14cf873f607be5e4b8e"
+    },
+    {
+      "att_engine": 101.01835372636262,
+      "att_ours": 105.15016685205784,
+      "draw_id": 1069,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1069.json",
+      "source_sha256": "1a1f6632da124bc39f36cd939ea62d87069e0a72f7cc1acd3341399a0b456cec"
+    },
+    {
+      "att_engine": 100.76473829201102,
+      "att_ours": 105.03305785123968,
+      "draw_id": 1070,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1070.json",
+      "source_sha256": "ecef2e82823f8b5311bd54beecc6faca711869ef573de5270c1d698b567bfcf4"
+    },
+    {
+      "att_engine": 102.96290234588108,
+      "att_ours": 107.37445414847161,
+      "draw_id": 1071,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1071.json",
+      "source_sha256": "be310cc93cbfb2baac2acdbc68a5d1cd52ae103921b4f3733d97dabfee76e27d"
+    },
+    {
+      "att_engine": 101.50849315068493,
+      "att_ours": 105.69041095890411,
+      "draw_id": 1072,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1072.json",
+      "source_sha256": "e9fb1379b2caf002a173756d3d2aee82c000c032db64125fe00251ea43321419"
+    },
+    {
+      "att_engine": 100.0205898720089,
+      "att_ours": 104.28770172509738,
+      "draw_id": 1073,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1073.json",
+      "source_sha256": "2385a39446019b79c743851e8f9d6fa428cbd44695eb33e8b6a894e70919a2f7"
+    },
+    {
+      "att_engine": 98.50583657587549,
+      "att_ours": 102.82657031684269,
+      "draw_id": 1074,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1074.json",
+      "source_sha256": "cb59c0ae12a1f059284cf6d5fd43dac239a72fcf688e897733b8cf7481aa1c20"
+    },
+    {
+      "att_engine": 103.17155506364139,
+      "att_ours": 107.54012174875484,
+      "draw_id": 1075,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1075.json",
+      "source_sha256": "d1c3a74e17388ca5bb3a881d36bccfda77f6987677c9e19580929b071d4890bb"
+    },
+    {
+      "att_engine": 102.67017738359202,
+      "att_ours": 106.95676274944567,
+      "draw_id": 1076,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1076.json",
+      "source_sha256": "b81466f2b738038ea784364bcbb1fe939e0c4905d5d8e13fa274f02275963664"
+    },
+    {
+      "att_engine": 98.39989059080963,
+      "att_ours": 102.81181619256017,
+      "draw_id": 1077,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1077.json",
+      "source_sha256": "b82d83205f07477320a996fb451ff074d01e45d4f2e83299e4be37f9091fef07"
+    },
+    {
+      "att_engine": 102.3461117196057,
+      "att_ours": 106.70317634173055,
+      "draw_id": 1078,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1078.json",
+      "source_sha256": "40822d0eb34befdae7a0ccb66aadfa13f7c7ebfc2658258d6bea0be37f853955"
+    },
+    {
+      "att_engine": 99.95256480970767,
+      "att_ours": 104.12851627137341,
+      "draw_id": 1079,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1079.json",
+      "source_sha256": "02ffe7d3073f32723b97e04123ed61405d300693c4dbe751114aa58d6e91677f"
+    },
+    {
+      "att_engine": 100.93864013266999,
+      "att_ours": 105.23770038695412,
+      "draw_id": 1080,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1080.json",
+      "source_sha256": "758b2a52ce50bb0fa0b8273a4cbca4953254d9eee242609c6476e9953f617f07"
+    },
+    {
+      "att_engine": 93.86869806094182,
+      "att_ours": 98.09695290858726,
+      "draw_id": 1081,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1081.json",
+      "source_sha256": "113d12ec9c97a4df28dbe303739e0293ab6218d449d2df736be0843247eb3162"
+    },
+    {
+      "att_engine": 102.47915508615898,
+      "att_ours": 106.77320733740967,
+      "draw_id": 1082,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1082.json",
+      "source_sha256": "2a610961bb0060cb9b7e7c8099e172572e1e4686e21d634e4be3e062eb96bdb9"
+    },
+    {
+      "att_engine": 98.65948037589828,
+      "att_ours": 102.96019900497512,
+      "draw_id": 1083,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1083.json",
+      "source_sha256": "65e72f63d23881a5dd0bd022c5098c20c2b2556dbf7b141c7be736ee0469e889"
+    },
+    {
+      "att_engine": 99.8673245614035,
+      "att_ours": 104.16620954470653,
+      "draw_id": 1084,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1084.json",
+      "source_sha256": "58e98bd0377cb3b3db98a8b95f8b096b57f35bceed1ece0eeeb8414a52f99b5f"
+    },
+    {
+      "att_engine": 103.2696132596685,
+      "att_ours": 107.61325966850829,
+      "draw_id": 1085,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1085.json",
+      "source_sha256": "ea90b1cac4231974b5d36c3c47abd2b709d797b083be65715c031a8a52d991a5"
+    },
+    {
+      "att_engine": 102.29346622369879,
+      "att_ours": 106.56699889258029,
+      "draw_id": 1086,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1086.json",
+      "source_sha256": "6b7f368c5e735a69b61291188831471a00653f4a4faf4747ec21d464f72e5d03"
+    },
+    {
+      "att_engine": 101.66151297625622,
+      "att_ours": 105.85035891772502,
+      "draw_id": 1087,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1087.json",
+      "source_sha256": "dbc7b07da2323dbeb96250bbda99da51e4da44f52d237d848b17702a9e1d500f"
+    },
+    {
+      "att_engine": 100.27688913403199,
+      "att_ours": 104.45394373965803,
+      "draw_id": 1088,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1088.json",
+      "source_sha256": "d7e94fe3afee0117f69a593ed485099d1776a86763f16f1853f1a400f1e9efb1"
+    },
+    {
+      "att_engine": 99.43662758235622,
+      "att_ours": 103.65996649916248,
+      "draw_id": 1089,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1089.json",
+      "source_sha256": "cbef9ebbc984fef60d4f4c3f84e86ea6041c51d970c42450d7ba970774b98e6b"
+    },
+    {
+      "att_engine": 104.52768729641694,
+      "att_ours": 108.52334419109664,
+      "draw_id": 1090,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1090.json",
+      "source_sha256": "0b492e8309b248045cbd593032b8fd8230a6e437673ecc95f703897ba2cb099c"
+    },
+    {
+      "att_engine": 102.8524861878453,
+      "att_ours": 107.19337016574586,
+      "draw_id": 1091,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1091.json",
+      "source_sha256": "c2d729c3ab273c2790c82983292c34e79c3ed8005461f2f770e6b459f3929f2e"
+    },
+    {
+      "att_engine": 101.21937639198218,
+      "att_ours": 105.48997772828508,
+      "draw_id": 1092,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1092.json",
+      "source_sha256": "d17947ded8085a5b7ea18ee9e7f30fc7c277ae41721f489f4996830ff61dcb65"
+    },
+    {
+      "att_engine": 96.45930880713489,
+      "att_ours": 100.67447045707915,
+      "draw_id": 1093,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1093.json",
+      "source_sha256": "691e8b2ccce943668eb66658c958813ea5726f12ceb46650d766268232614b44"
+    },
+    {
+      "att_engine": 100.21897407611694,
+      "att_ours": 104.47049089906233,
+      "draw_id": 1094,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1094.json",
+      "source_sha256": "a4433a05bbdedf132e41d959c921ede0872dcab187854db23e0f0c2cace40fcc"
+    },
+    {
+      "att_engine": 104.8025095471904,
+      "att_ours": 108.91162029459902,
+      "draw_id": 1095,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1095.json",
+      "source_sha256": "0991b3e9391147c15b0b4c3f53d17860475d585bbb2c30ed6fbdf5c6b4f28e8e"
+    },
+    {
+      "att_engine": 96.32247377139701,
+      "att_ours": 100.56353591160222,
+      "draw_id": 1096,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1096.json",
+      "source_sha256": "e0349217aea096c6c889d035fa9e82c73cf6b62fc8d3b503e11122e094ba14a7"
+    },
+    {
+      "att_engine": 100.48666666666666,
+      "att_ours": 104.77222222222223,
+      "draw_id": 1097,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1097.json",
+      "source_sha256": "6638ff2f1543d5446028abaae6ebe9a104daf7e680ec8fde2562f7bde44dc29d"
+    },
+    {
+      "att_engine": 99.25981205085682,
+      "att_ours": 103.43007186290768,
+      "draw_id": 1098,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1098.json",
+      "source_sha256": "14041505021eb29761c470c9f0eb362138350890a57f523455d886dc4548271c"
+    },
+    {
+      "att_engine": 100.50551876379691,
+      "att_ours": 104.75165562913908,
+      "draw_id": 1099,
+      "seed": 101,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed101_draw1099.json",
+      "source_sha256": "932782246a43cac636a431d0c0f971d7ed5a81ca524eb232b6d5b9a55238afbd"
+    },
+    {
+      "att_engine": 100.20132377275235,
+      "att_ours": 104.61941533370104,
+      "draw_id": 1000,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1000.json",
+      "source_sha256": "4b7dec9f4c2cb2556e2f904a779fbe303bc8e0e788a09c94327b0730f9412f03"
+    },
+    {
+      "att_engine": 100.10219780219781,
+      "att_ours": 104.23076923076923,
+      "draw_id": 1001,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1001.json",
+      "source_sha256": "f4c792e806ce922bce1e0a2592babc37a8bc9e7a7c7345a29ce82ec691878f65"
+    },
+    {
+      "att_engine": 99.42049861495845,
+      "att_ours": 103.7590027700831,
+      "draw_id": 1002,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1002.json",
+      "source_sha256": "cfaa2ce634503785399e930b1e4461914650dee33cce701fac63ff61f3ed0f37"
+    },
+    {
+      "att_engine": 103.97145993413831,
+      "att_ours": 108.06256860592755,
+      "draw_id": 1003,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1003.json",
+      "source_sha256": "c93172ade6e17d38d2333fdbb34c01b67123d9236ce64992b9780804a6db6ac0"
+    },
+    {
+      "att_engine": 102.008800880088,
+      "att_ours": 106.2871287128713,
+      "draw_id": 1004,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1004.json",
+      "source_sha256": "db99628184e15540314fd6360032f80336b238f3522540572ceae92be670e815"
+    },
+    {
+      "att_engine": 100.28893780957623,
+      "att_ours": 104.57622454595487,
+      "draw_id": 1005,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1005.json",
+      "source_sha256": "7780fe4381538262fe00502af438b6ebf0cd8e8bc653396c8d95a2d14e5db4f4"
+    },
+    {
+      "att_engine": 99.21937942297224,
+      "att_ours": 103.42678279804028,
+      "draw_id": 1006,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1006.json",
+      "source_sha256": "da66af1b8bdbd958b5fee42fbc19e985583c7e48fd62f34a80b9b0d7cd9aaabe"
+    },
+    {
+      "att_engine": 96.88274706867672,
+      "att_ours": 101.05248464544947,
+      "draw_id": 1007,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1007.json",
+      "source_sha256": "9dea222de81fa3dbd5fb9d7571bb29cfefb11f512647a69f9b369a4484513fb1"
+    },
+    {
+      "att_engine": 97.92805755395683,
+      "att_ours": 102.3049252905368,
+      "draw_id": 1008,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1008.json",
+      "source_sha256": "08ad2faebc8727d001a79c106d8d60d6a92a5effce81ebaf72c1b9dba3b2d289"
+    },
+    {
+      "att_engine": 102.59745293466224,
+      "att_ours": 106.93244739756368,
+      "draw_id": 1009,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1009.json",
+      "source_sha256": "b8cd3198d82d2748f374f83d1c91d8ce73969c344dcc7e1c755a200645dd9155"
+    },
+    {
+      "att_engine": 97.41009988901222,
+      "att_ours": 101.83684794672585,
+      "draw_id": 1010,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1010.json",
+      "source_sha256": "9865566a96eb0fb08fa3ecc566a834fb8c62bd07dbcb83d2e05387477df96de8"
+    },
+    {
+      "att_engine": 98.17601760176018,
+      "att_ours": 102.41474147414742,
+      "draw_id": 1011,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1011.json",
+      "source_sha256": "9087b2f275a2336fefda8aac41780ccb5f540612481c284bf3eedb398efb2534"
+    },
+    {
+      "att_engine": 100.18732782369146,
+      "att_ours": 104.53168044077135,
+      "draw_id": 1012,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1012.json",
+      "source_sha256": "a8631820a59490889bca324f2ff482eb3183b4bede10cef062a023410f928429"
+    },
+    {
+      "att_engine": 102.24019878520154,
+      "att_ours": 106.57371617890668,
+      "draw_id": 1013,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1013.json",
+      "source_sha256": "3dbe77327932da4a08c9f70691bdb74c6839192aa1e7ea29656ac088344c8884"
+    },
+    {
+      "att_engine": 105.60292524377031,
+      "att_ours": 109.73997833152762,
+      "draw_id": 1014,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1014.json",
+      "source_sha256": "4e6878f718a5698fd5986532393b52ac35ab19a9e4c4845ca5e931a773e1164b"
+    },
+    {
+      "att_engine": 103.77389404696886,
+      "att_ours": 108.10212998361551,
+      "draw_id": 1015,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1015.json",
+      "source_sha256": "146de1d1ef1c97e8c97591634f8c97a14d955c2775c96696d3c5a88daeb615e5"
+    },
+    {
+      "att_engine": 101.38764352104975,
+      "att_ours": 105.63422635319847,
+      "draw_id": 1016,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1016.json",
+      "source_sha256": "0db5123b29a3c657a4c68fe1aaeda1a2a2de9d3c09641e341a7ac719e5f0424c"
+    },
+    {
+      "att_engine": 103.4925701706109,
+      "att_ours": 107.70225646670336,
+      "draw_id": 1017,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1017.json",
+      "source_sha256": "82fbe0cd9832932c22cc126cd0d80d2474dabcfe9c6b0af12655125c6da52bdc"
+    },
+    {
+      "att_engine": 100.4326553051127,
+      "att_ours": 104.79109400769654,
+      "draw_id": 1018,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1018.json",
+      "source_sha256": "3e5e49e3cdccc2c95dde57a1130cbc6f708c44c7354ef4d0b8ac96bd8b38e88b"
+    },
+    {
+      "att_engine": 99.69500822819528,
+      "att_ours": 103.7657707076248,
+      "draw_id": 1019,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1019.json",
+      "source_sha256": "826a9aabfe1136a87b538889b1d84844dca367c0d5959ea05cc0941aec5650af"
+    },
+    {
+      "att_engine": 99.69983416252073,
+      "att_ours": 103.9828634604754,
+      "draw_id": 1020,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1020.json",
+      "source_sha256": "2cd77df0346fd8fe491bb9ce506ad91365884a69be2db322eb360107958c0cff"
+    },
+    {
+      "att_engine": 101.5443526170799,
+      "att_ours": 105.86501377410468,
+      "draw_id": 1021,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1021.json",
+      "source_sha256": "7f8c395200cc683002e6c988622923a2f37c24c283b4e0a4809e16f58242be20"
+    },
+    {
+      "att_engine": 102.51219512195122,
+      "att_ours": 106.7960088691796,
+      "draw_id": 1022,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1022.json",
+      "source_sha256": "50d3579dbe1a3cd273a81586148378a969941d8b3879d86116ab77f221cdd830"
+    },
+    {
+      "att_engine": 97.90737659456461,
+      "att_ours": 102.09373266777592,
+      "draw_id": 1023,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1023.json",
+      "source_sha256": "ab84c6fac94d0e07a13a82cc71f4ae4c0d9f51c9fc9e16c90d71480fa032a1da"
+    },
+    {
+      "att_engine": 100.66995073891626,
+      "att_ours": 104.9288451012589,
+      "draw_id": 1024,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1024.json",
+      "source_sha256": "8fc08b210b34b078777d06c876346f854b5c78ab2cc4945b40bec3a6c900574f"
+    },
+    {
+      "att_engine": 103.84884994523549,
+      "att_ours": 107.90251916757941,
+      "draw_id": 1025,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1025.json",
+      "source_sha256": "81d3fd1803dde9576616291e0c3a1b5c1aa1a1076f653d7030dc4e27c2476adb"
+    },
+    {
+      "att_engine": 100.41685022026432,
+      "att_ours": 104.55396475770925,
+      "draw_id": 1026,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1026.json",
+      "source_sha256": "81ae52bbeea06325a80083941cbed90b187306162aeed6d1897d1c48171eec7a"
+    },
+    {
+      "att_engine": 104.29570484581498,
+      "att_ours": 108.57929515418502,
+      "draw_id": 1027,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1027.json",
+      "source_sha256": "1a117edef596b0285536e99cfe3a512c71410a449e6702e8626ce6c3af7b0f64"
+    },
+    {
+      "att_engine": 100.61208791208792,
+      "att_ours": 104.76923076923077,
+      "draw_id": 1028,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1028.json",
+      "source_sha256": "0545e91aebd5ed35bfdcebd13ceae65654abe81f3297f618bf0ad77a8db8f81d"
+    },
+    {
+      "att_engine": 99.89335566722501,
+      "att_ours": 104.05080960357343,
+      "draw_id": 1029,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1029.json",
+      "source_sha256": "ca4c2282c15a7bb55216cc78baa529771ee749382fe67df166bbaa4d92fa1ae1"
+    },
+    {
+      "att_engine": 104.42849344978166,
+      "att_ours": 108.72270742358079,
+      "draw_id": 1030,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1030.json",
+      "source_sha256": "901226150d723d66beb6243fcfeaec85861a85e69756c732c2af7634325f2c0a"
+    },
+    {
+      "att_engine": 97.47432357813362,
+      "att_ours": 101.87292817679558,
+      "draw_id": 1031,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1031.json",
+      "source_sha256": "bb244b1ed2816b03b2420b9680920e4ea064acaec991568f4aaade221775cb4d"
+    },
+    {
+      "att_engine": 102.58213891951489,
+      "att_ours": 106.92943770672547,
+      "draw_id": 1032,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1032.json",
+      "source_sha256": "f97f5c23bc1eeb331b0175c6c6f0fd66229b43de7d8a83cf5bf9a4d50ac61fde"
+    },
+    {
+      "att_engine": 101.61306256860593,
+      "att_ours": 106.08731466227347,
+      "draw_id": 1033,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1033.json",
+      "source_sha256": "1607117bb0c01d1eae571a454be5b4ea5b43d6f0c36b5d996049bdd41c32ca7a"
+    },
+    {
+      "att_engine": 106.65756417258329,
+      "att_ours": 110.80557072637903,
+      "draw_id": 1034,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1034.json",
+      "source_sha256": "ea3a096ce8a172e9179f5c945819dbd518fce061c38b05ec37dc5c29ed1a9d93"
+    },
+    {
+      "att_engine": 102.83867403314918,
+      "att_ours": 107.1988950276243,
+      "draw_id": 1035,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1035.json",
+      "source_sha256": "04d39a031d90bb4fcb23ed2cfe37c8a808a55cb05e18799e2d43622f5cd27275"
+    },
+    {
+      "att_engine": 101.35384615384615,
+      "att_ours": 105.5167674546454,
+      "draw_id": 1036,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1036.json",
+      "source_sha256": "d01635002e28c8f0122249f582001c4315ebf1c167831d32eb240eadf33aad01"
+    },
+    {
+      "att_engine": 101.30060010911075,
+      "att_ours": 105.45280960174577,
+      "draw_id": 1037,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1037.json",
+      "source_sha256": "ae43ca63bf86a0a6931d6514e0e6a4df12a4d1913a64e9a33fb7282854113a23"
+    },
+    {
+      "att_engine": 98.31738173817382,
+      "att_ours": 102.51375137513752,
+      "draw_id": 1038,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1038.json",
+      "source_sha256": "c6291df29e1f45d0dc2569f28ca762159fdbc00996f856206a4ff403c3181024"
+    },
+    {
+      "att_engine": 101.60712328767123,
+      "att_ours": 105.96438356164384,
+      "draw_id": 1039,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1039.json",
+      "source_sha256": "e81d0b043a0efb0c619d48f9451c6db5db5b28234544c77269005f0d971ffc47"
+    },
+    {
+      "att_engine": 102.2445295404814,
+      "att_ours": 106.48249452954047,
+      "draw_id": 1040,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1040.json",
+      "source_sha256": "f46287b3f99944a16a5f654d516e2659a56f612490e421fd0387a44cb4211a20"
+    },
+    {
+      "att_engine": 97.74333877107124,
+      "att_ours": 102.04187058183796,
+      "draw_id": 1041,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1041.json",
+      "source_sha256": "187f405901c7b33f11cf1c4c512667f519a2a3b74685e0616a68239c16039e99"
+    },
+    {
+      "att_engine": 101.4888888888889,
+      "att_ours": 105.65040650406505,
+      "draw_id": 1042,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1042.json",
+      "source_sha256": "50af7dccbede55c52fbe446a87c5c4bdb5b1213a76174aa275e33e2d184f04b6"
+    },
+    {
+      "att_engine": 100.54479688369504,
+      "att_ours": 104.8162583518931,
+      "draw_id": 1043,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1043.json",
+      "source_sha256": "fbe7d6f0fb0638cc1386058b3b0c8240d2d5aae6c1320173acdb93f189288902"
+    },
+    {
+      "att_engine": 101.76732673267327,
+      "att_ours": 106.13311331133113,
+      "draw_id": 1044,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1044.json",
+      "source_sha256": "868ebedd0ffd1de3a5fce1509cb5df9f28801a064a1e6b40ec37cfe788869a82"
+    },
+    {
+      "att_engine": 100.81143485431556,
+      "att_ours": 105.31335898845519,
+      "draw_id": 1045,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1045.json",
+      "source_sha256": "b5a15c3a459a9b3d1f617cebe082a527b8c33e353ca0a96e87a088e7531e88aa"
+    },
+    {
+      "att_engine": 100.12035995500563,
+      "att_ours": 104.3363329583802,
+      "draw_id": 1046,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1046.json",
+      "source_sha256": "205f59653dfb991118ab2f1b9c2131722d0ac0bc7ca9b6853108b890e3bf8f9d"
+    },
+    {
+      "att_engine": 99.0,
+      "att_ours": 103.20498614958449,
+      "draw_id": 1047,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1047.json",
+      "source_sha256": "0fb1e25826cdfd2aaefd63f51d8207710d9065f9cb3b9b6a4952c3f7796eb072"
+    },
+    {
+      "att_engine": 102.83923705722071,
+      "att_ours": 107.0,
+      "draw_id": 1048,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1048.json",
+      "source_sha256": "c5494c4ec879aff51e46389192c17427b3251173ab66a96beea86cd0c0ffeb84"
+    },
+    {
+      "att_engine": 102.89184692179701,
+      "att_ours": 107.02440377149196,
+      "draw_id": 1049,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1049.json",
+      "source_sha256": "49d3fc19bc52ab39816c7e707f47ae49c9c3b39922a0e7c4e36f6cded0438701"
+    },
+    {
+      "att_engine": 104.62422882781829,
+      "att_ours": 108.80818844643859,
+      "draw_id": 1050,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1050.json",
+      "source_sha256": "bc644253fffae59811de01167220518f65bc68d1a68e5ece779d9aaf239bff1f"
+    },
+    {
+      "att_engine": 98.24641675854465,
+      "att_ours": 102.34288864388093,
+      "draw_id": 1051,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1051.json",
+      "source_sha256": "584e8d9e831915899a5756640ef83c926ad3bfac799967ecef7fd5b6c8d8294e"
+    },
+    {
+      "att_engine": 100.48072687224669,
+      "att_ours": 104.73568281938326,
+      "draw_id": 1052,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1052.json",
+      "source_sha256": "6df86be626ea9e60fa74da53b67238a40283b56fe570010d33e5219e2c993588"
+    },
+    {
+      "att_engine": 101.01490066225166,
+      "att_ours": 105.13245033112582,
+      "draw_id": 1053,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1053.json",
+      "source_sha256": "0ae8ac42f0828062033f67b3ff54b5e850df715bc0caa59b5fc3a616eceb0241"
+    },
+    {
+      "att_engine": 100.91899288451013,
+      "att_ours": 105.22988505747126,
+      "draw_id": 1054,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1054.json",
+      "source_sha256": "b1da880483fd6e499b28cc1670bfc461d27e8ca639b9f6eab99342a55917b6a6"
+    },
+    {
+      "att_engine": 102.64190687361419,
+      "att_ours": 106.89683860232945,
+      "draw_id": 1055,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1055.json",
+      "source_sha256": "d0fe3398c22b66b8a621f31bd2e4051e914eab3383bacd9aedc61f2cb409b284"
+    },
+    {
+      "att_engine": 103.18057080131723,
+      "att_ours": 107.54665203073546,
+      "draw_id": 1056,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1056.json",
+      "source_sha256": "74803040ce85ef47f23f4acad3ec5164bcfca8753f2c02878da3dcd3011bc253"
+    },
+    {
+      "att_engine": 100.76395798783858,
+      "att_ours": 105.03316749585406,
+      "draw_id": 1057,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1057.json",
+      "source_sha256": "cfac3cc53f2822e61030ef2dff0bf877f65496bbe4fe24d849b2d4974a328fbd"
+    },
+    {
+      "att_engine": 99.76889375684556,
+      "att_ours": 103.99780941949616,
+      "draw_id": 1058,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1058.json",
+      "source_sha256": "f7dec31eef73a6b7b813c4199386e920d82568f5280e03e183e9c1567bb77e8f"
+    },
+    {
+      "att_engine": 97.25919824272378,
+      "att_ours": 101.44700713893465,
+      "draw_id": 1059,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1059.json",
+      "source_sha256": "2cbf73da986c5dc87f52068abe62eb183d1cd02f0cac049e93039658bca0e978"
+    },
+    {
+      "att_engine": 102.72737246297312,
+      "att_ours": 106.95282501371366,
+      "draw_id": 1060,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1060.json",
+      "source_sha256": "5017f3891402139402a2b3a4d835eb194c87e300a747c3e64cf1ab03c62b821f"
+    },
+    {
+      "att_engine": 101.95379537953795,
+      "att_ours": 106.25412541254126,
+      "draw_id": 1061,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1061.json",
+      "source_sha256": "7eae87eda57b0d126bc7f51b5034027de7066e67a06b3978815099503bda7829"
+    },
+    {
+      "att_engine": 99.51799775028121,
+      "att_ours": 103.87514060742407,
+      "draw_id": 1062,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1062.json",
+      "source_sha256": "41e097416d386c9c876aa187b3b70613708ef9bad604f4ac59f209f885ce7887"
+    },
+    {
+      "att_engine": 100.60011154489682,
+      "att_ours": 104.83268265476855,
+      "draw_id": 1063,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1063.json",
+      "source_sha256": "d576ac444b9a5e3d87633b86576b5095ec1a41b39318c382e6feede402e54eb6"
+    },
+    {
+      "att_engine": 99.25827814569537,
+      "att_ours": 103.69133075648813,
+      "draw_id": 1064,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1064.json",
+      "source_sha256": "9057220e1d28fe7b8da98c266c1b96011a8e83df1159f17227ff19ffc529fc16"
+    },
+    {
+      "att_engine": 98.36613523914238,
+      "att_ours": 102.58658603628368,
+      "draw_id": 1065,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1065.json",
+      "source_sha256": "a2d30ab8135cbe87f76bb4c583321d446470b3db168efc54d24c651bd93e373c"
+    },
+    {
+      "att_engine": 98.01100715465053,
+      "att_ours": 102.22466960352423,
+      "draw_id": 1066,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1066.json",
+      "source_sha256": "2dbd744feb3cd8ab2520a83816af1adb380fbbd73f094e5eca8e82ade9c08d88"
+    },
+    {
+      "att_engine": 103.4558904109589,
+      "att_ours": 107.72328767123288,
+      "draw_id": 1067,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1067.json",
+      "source_sha256": "2927fd8e15c767d654ab187652fc42f357a3bc257270995bb1be4e781478d27c"
+    },
+    {
+      "att_engine": 100.57874449339207,
+      "att_ours": 104.79074889867842,
+      "draw_id": 1068,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1068.json",
+      "source_sha256": "c0ebed046ff583794ee6c55c36fa6178123a7ba5ba0d89847ca83106c0fd35c9"
+    },
+    {
+      "att_engine": 98.03003337041157,
+      "att_ours": 102.1023359288098,
+      "draw_id": 1069,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1069.json",
+      "source_sha256": "21d16de0f5bb7fa1210fb436abd23d91a7b54b498afa177ebf7117730a0e5da5"
+    },
+    {
+      "att_engine": 100.08650137741047,
+      "att_ours": 104.33884297520662,
+      "draw_id": 1070,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1070.json",
+      "source_sha256": "0880f5b9cf9e7345fa4c42969e4b7f052dec35ff7f046fff8c5c43341275f0e7"
+    },
+    {
+      "att_engine": 100.50027277686853,
+      "att_ours": 104.99454148471615,
+      "draw_id": 1071,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1071.json",
+      "source_sha256": "c4053b7476dc3c162fc55da651225d858e4552ffdf153a83f933679eb80d96f5"
+    },
+    {
+      "att_engine": 100.54356164383562,
+      "att_ours": 104.74794520547945,
+      "draw_id": 1072,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1072.json",
+      "source_sha256": "9e2c28837364a59afd903c6c9b54bc592b7612c113085ae720eca595e6d55e61"
+    },
+    {
+      "att_engine": 98.84307178631052,
+      "att_ours": 103.06900389538119,
+      "draw_id": 1073,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1073.json",
+      "source_sha256": "eb6754a1bc21518d52f5da5ab219ec3dfa3cc2cd754edc54bf34547345d3b106"
+    },
+    {
+      "att_engine": 98.1750972762646,
+      "att_ours": 102.54863813229572,
+      "draw_id": 1074,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1074.json",
+      "source_sha256": "a31438be17b3c997058e16f84a546fbea52e5ff4ef1447f55e5b92a59c9f5e65"
+    },
+    {
+      "att_engine": 101.29773104593248,
+      "att_ours": 105.57553956834532,
+      "draw_id": 1075,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1075.json",
+      "source_sha256": "20582c56de02f889eadf05f13d600aeee93e8267bcdc27703efe95fb63a36129"
+    },
+    {
+      "att_engine": 97.17184035476718,
+      "att_ours": 101.48004434589801,
+      "draw_id": 1076,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1076.json",
+      "source_sha256": "83d48598cb32b27575ba951118549cedc1f5b7dcd41269d6785698219f7767c1"
+    },
+    {
+      "att_engine": 100.23796498905908,
+      "att_ours": 104.63894967177242,
+      "draw_id": 1077,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1077.json",
+      "source_sha256": "4677cd5d0fa6bda806ff7ac631dce9b44edb9f842a3365328a7bba2f86e118aa"
+    },
+    {
+      "att_engine": 101.69112814895948,
+      "att_ours": 106.00219058050384,
+      "draw_id": 1078,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1078.json",
+      "source_sha256": "bf523154f84f18f3c6aaa42696065495ba9a558f99c9414f3935546ea3c742ca"
+    },
+    {
+      "att_engine": 103.10479867622725,
+      "att_ours": 107.26144511858797,
+      "draw_id": 1079,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1079.json",
+      "source_sha256": "c292e5c761e60851c6134a9b80c9dbfc9f8cb9295e7a3ecc9e46df21ea483dbb"
+    },
+    {
+      "att_engine": 97.277501381979,
+      "att_ours": 101.58927584300719,
+      "draw_id": 1080,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1080.json",
+      "source_sha256": "fcd97cdfb64fc31e7fc6f376fe6a0e4c670c1f4d48c98fa15b4a69210b21211e"
+    },
+    {
+      "att_engine": 97.55069252077563,
+      "att_ours": 101.73684210526316,
+      "draw_id": 1081,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1081.json",
+      "source_sha256": "215ed2219d964d698061317a41e7ba872a1d7f15762851e7f582a9963b50ea7d"
+    },
+    {
+      "att_engine": 101.65036131183992,
+      "att_ours": 105.96720400222345,
+      "draw_id": 1082,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1082.json",
+      "source_sha256": "cff497adad30f3389cdccad7f1ff2b8311a2927a299dfe27e536a83f40269fa9"
+    },
+    {
+      "att_engine": 101.1558872305141,
+      "att_ours": 105.43117744610282,
+      "draw_id": 1083,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1083.json",
+      "source_sha256": "2a7584de24bf092fdc148b82778c4e5c32bf73a84972881b2d185f5da8576037"
+    },
+    {
+      "att_engine": 101.7390350877193,
+      "att_ours": 106.10257816785519,
+      "draw_id": 1084,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1084.json",
+      "source_sha256": "2bd868a1dd7fdda70d5871341227e5c7b815d74b6326f136b3819a57271b58db"
+    },
+    {
+      "att_engine": 100.85524861878453,
+      "att_ours": 105.17127071823204,
+      "draw_id": 1085,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1085.json",
+      "source_sha256": "befc2ed53bf91f2f5c5001d1908ab95f557c539999a4c6e96857487d74f1548f"
+    },
+    {
+      "att_engine": 96.50830564784053,
+      "att_ours": 100.89147286821705,
+      "draw_id": 1086,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1086.json",
+      "source_sha256": "fe74644a8797b75fd91d77c5bcf82d7c027f9722e3cb01109a2361a111ee53a0"
+    },
+    {
+      "att_engine": 99.15240198785202,
+      "att_ours": 103.39867476532302,
+      "draw_id": 1087,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1087.json",
+      "source_sha256": "df22c20e2d5637f1354b6412cadb99c06f7a780ba2a783ceb196146910ee8b43"
+    },
+    {
+      "att_engine": 101.75068946497518,
+      "att_ours": 105.9707666850524,
+      "draw_id": 1088,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1088.json",
+      "source_sha256": "4607477122ef57eeb033b9201c8447fe47ab245da53a3e8d5c3343833e830b62"
+    },
+    {
+      "att_engine": 99.7610273590173,
+      "att_ours": 103.96705750977108,
+      "draw_id": 1089,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1089.json",
+      "source_sha256": "603e06ddbe531f3e5c196a966a8c6548ecc3404fdf87e8551fdaac61da8c357c"
+    },
+    {
+      "att_engine": 105.12757871878394,
+      "att_ours": 109.2128121606949,
+      "draw_id": 1090,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1090.json",
+      "source_sha256": "133585d842330f5ff231c39866c5dd4e17709694774823a849cbd2bc77a20165"
+    },
+    {
+      "att_engine": 101.81104972375691,
+      "att_ours": 106.04419889502762,
+      "draw_id": 1091,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1091.json",
+      "source_sha256": "422cd3f65b89f0d0848dc780891c94591312cd98477bce90fff918959fc3cf00"
+    },
+    {
+      "att_engine": 100.10467706013362,
+      "att_ours": 104.43207126948775,
+      "draw_id": 1092,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1092.json",
+      "source_sha256": "90b42a1d82cd5d7b85f44e4a3ab9257869cb5c8758f19deb1f7b5e997b11bac4"
+    },
+    {
+      "att_engine": 96.96098104793757,
+      "att_ours": 101.10925306577481,
+      "draw_id": 1093,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1093.json",
+      "source_sha256": "9ebda173b0647a1bab51e7a643802ac985a1e2f1f5d8a35ad7dfde69b7bf8d99"
+    },
+    {
+      "att_engine": 103.06177606177606,
+      "att_ours": 107.34969663541092,
+      "draw_id": 1094,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1094.json",
+      "source_sha256": "1c30fe4ed5458985c471fe67696440f03c549a9da14f9a1c14c0137b42fbbb12"
+    },
+    {
+      "att_engine": 102.78668848881615,
+      "att_ours": 106.92580469176214,
+      "draw_id": 1095,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1095.json",
+      "source_sha256": "11a7c70b38e66642b10245d5129dbe2f6a0981da3b97b533ba28effba1140d2f"
+    },
+    {
+      "att_engine": 98.85422418553286,
+      "att_ours": 103.0828729281768,
+      "draw_id": 1096,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1096.json",
+      "source_sha256": "c3d9b2bbbc956fa8fad2fe3ff510ad63b7e032855bfb31a4b02b04bea4b6d7df"
+    },
+    {
+      "att_engine": 101.7611111111111,
+      "att_ours": 106.03888888888889,
+      "draw_id": 1097,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1097.json",
+      "source_sha256": "af6b156038df6f9abd8e923c049d578de929a53f930ab3cafedb8e2798f22eb0"
+    },
+    {
+      "att_engine": 100.59314538419017,
+      "att_ours": 104.66832504145937,
+      "draw_id": 1098,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1098.json",
+      "source_sha256": "2693ab1b97c1a45583bb1cffb6d7622fcb87521329553055499afb7458864c08"
+    },
+    {
+      "att_engine": 98.19701986754967,
+      "att_ours": 102.40066225165563,
+      "draw_id": 1099,
+      "seed": 202,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed202_draw1099.json",
+      "source_sha256": "0dc6c385aef60a49ba8a108552b5470e7f4d95a92c18b830e16f6efc7ecc2546"
+    },
+    {
+      "att_engine": 100.5223386651958,
+      "att_ours": 104.88968560397132,
+      "draw_id": 1000,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1000.json",
+      "source_sha256": "b544069666073bb90e2ad4703d905ad9d1cdeda3a775e7a466824cd8f78c110f"
+    },
+    {
+      "att_engine": 101.20604395604396,
+      "att_ours": 105.34065934065934,
+      "draw_id": 1001,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1001.json",
+      "source_sha256": "ffb25dca674ae7d12d4e2d2f5f36e107cbecdafe62512198b29983e8ce1c0108"
+    },
+    {
+      "att_engine": 99.85152354570637,
+      "att_ours": 104.13019390581718,
+      "draw_id": 1002,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1002.json",
+      "source_sha256": "f7636d09fde85fea6a9f4ea564b241be0247ba30f51403bec2f17f7265d3967c"
+    },
+    {
+      "att_engine": 96.76399560922064,
+      "att_ours": 100.98243688254665,
+      "draw_id": 1003,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1003.json",
+      "source_sha256": "06f9fa4bb364ff62fb2377e49ab0315c2d59e131fedecaf4da66f0faf3bb02ef"
+    },
+    {
+      "att_engine": 98.8003300330033,
+      "att_ours": 103.09130913091309,
+      "draw_id": 1004,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1004.json",
+      "source_sha256": "46d6d3388c6d26a0d658203ac119585d7db5b2c2ce391c1eafbd0673470f4ba5"
+    },
+    {
+      "att_engine": 101.98183819482664,
+      "att_ours": 106.30434782608695,
+      "draw_id": 1005,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1005.json",
+      "source_sha256": "3a711a71b64a5a323e42a89471b653c2a26d4122d69b3b66ef4e9ba55067ae76"
+    },
+    {
+      "att_engine": 100.53347849755035,
+      "att_ours": 104.76047904191617,
+      "draw_id": 1006,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1006.json",
+      "source_sha256": "53c059a61dc11f9980e2ff79a38f2959c408392b3392ff64a06b6652cb1ed136"
+    },
+    {
+      "att_engine": 96.59128978224456,
+      "att_ours": 100.85147962032384,
+      "draw_id": 1007,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1007.json",
+      "source_sha256": "68c3d152d10b3e60991903c7864e39c7094fa178127543ea3b36b64307096c76"
+    },
+    {
+      "att_engine": 98.86496956281128,
+      "att_ours": 103.16270060874378,
+      "draw_id": 1008,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1008.json",
+      "source_sha256": "43c7b72ce5f9f84aa78d256dbc331f82f29ed05968379b20dae4e75020a1f95c"
+    },
+    {
+      "att_engine": 102.53322259136213,
+      "att_ours": 106.86600221483943,
+      "draw_id": 1009,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1009.json",
+      "source_sha256": "9e87bf430ec7b257b76e5a67ade10ff0b62047b3e7c6b834914860f152b0fcbe"
+    },
+    {
+      "att_engine": 100.9694783573807,
+      "att_ours": 105.35516093229745,
+      "draw_id": 1010,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1010.json",
+      "source_sha256": "e5d77fa365ff06dc47138f29a05725e20a8a6680e51fc85958fade683d036eec"
+    },
+    {
+      "att_engine": 96.73157315731574,
+      "att_ours": 100.98459845984598,
+      "draw_id": 1011,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1011.json",
+      "source_sha256": "a9fee0699933977f919237fb76cd4a499f901a88d7658863b85b4413c7fc129e"
+    },
+    {
+      "att_engine": 101.64407713498622,
+      "att_ours": 105.95867768595042,
+      "draw_id": 1012,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1012.json",
+      "source_sha256": "81624d9ac0bdba25c708af38826dd4d86363eea16095473aa2574b6c12148f00"
+    },
+    {
+      "att_engine": 104.2650469353948,
+      "att_ours": 108.38487023743788,
+      "draw_id": 1013,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1013.json",
+      "source_sha256": "cdb9a2df6778f55208a0300a582a707772e407edea828e59dc7c0da29c744ee5"
+    },
+    {
+      "att_engine": 103.42632719393283,
+      "att_ours": 107.54604550379199,
+      "draw_id": 1014,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1014.json",
+      "source_sha256": "a8ab341c573493980eeb12dcb6b3cdcba159ca01f53d372d442c3f6d4597d78e"
+    },
+    {
+      "att_engine": 99.85199344620426,
+      "att_ours": 104.20808301474604,
+      "draw_id": 1015,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1015.json",
+      "source_sha256": "9d08af5bca00cbbfffb8442b45d8fe62ccea4e98c3ad584414ed32b24a43965a"
+    },
+    {
+      "att_engine": 98.90541279387644,
+      "att_ours": 103.14106068890104,
+      "draw_id": 1016,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1016.json",
+      "source_sha256": "46834c1341a0d17f02b9ec94dd5b511581c8ef1ac22b722e3275bc52ad4426cb"
+    },
+    {
+      "att_engine": 100.83764446890478,
+      "att_ours": 105.09906439185471,
+      "draw_id": 1017,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1017.json",
+      "source_sha256": "890419a246134f9627f7a4265bbee91fb2a7ce9231e11930ee6b2d3d32ad0d95"
+    },
+    {
+      "att_engine": 98.00989554700385,
+      "att_ours": 102.3996701484332,
+      "draw_id": 1018,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1018.json",
+      "source_sha256": "070d0ab0dbbb8dd3ea2bc4b971864422e70331e6e0f9cd44125a2cfbc4c8d473"
+    },
+    {
+      "att_engine": 103.9983543609435,
+      "att_ours": 108.00603400987383,
+      "draw_id": 1019,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1019.json",
+      "source_sha256": "b45f3f81d9dd7e04ca69042be2e9420a39389c13d24105449f2d368e93b27506"
+    },
+    {
+      "att_engine": 100.72360420121615,
+      "att_ours": 104.99447208402432,
+      "draw_id": 1020,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1020.json",
+      "source_sha256": "8b8b2a5d7ae714b1b04761018f56a70acf23f34841013c2792c28bc1cd1d4f1f"
+    },
+    {
+      "att_engine": 98.88980716253444,
+      "att_ours": 103.22589531680441,
+      "draw_id": 1021,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1021.json",
+      "source_sha256": "a95e518711f18adbcacd5aed959661d51f34a796c1532583a7a40e965407d9fe"
+    },
+    {
+      "att_engine": 103.10033259423503,
+      "att_ours": 107.41130820399113,
+      "draw_id": 1022,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1022.json",
+      "source_sha256": "dc17cb77ae2976633770b0dec8e9dc8c823c7812bef2963eeaa0f170aa645d70"
+    },
+    {
+      "att_engine": 100.21353300055463,
+      "att_ours": 104.39545202440377,
+      "draw_id": 1023,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1023.json",
+      "source_sha256": "44f01d7c9bd5ddfbcfdc7e763f724c98efe7fcbbe0b5388a0e7453ba802a8914"
+    },
+    {
+      "att_engine": 100.9896004378763,
+      "att_ours": 105.21893814997263,
+      "draw_id": 1024,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1024.json",
+      "source_sha256": "981f9acff1cd760d532a59608bc5a1bd2fc5ef92c2cab39299e6645c29ef441a"
+    },
+    {
+      "att_engine": 100.97152245345016,
+      "att_ours": 105.19167579408543,
+      "draw_id": 1025,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1025.json",
+      "source_sha256": "021cff946b35d4b7d794033e29971a8101e6ee54d1aa1d8aa924acffc14d868f"
+    },
+    {
+      "att_engine": 99.84746696035242,
+      "att_ours": 103.98127753303964,
+      "draw_id": 1026,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1026.json",
+      "source_sha256": "e19bf4571895b547317ded1414ab17e9f2e361957f95ff92120dcffa8463b0fa"
+    },
+    {
+      "att_engine": 99.74504405286343,
+      "att_ours": 104.05286343612335,
+      "draw_id": 1027,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1027.json",
+      "source_sha256": "a15c47c44ceac1f9a9b6d1314e517cda70c7d7563b106c67207f9101ca50511b"
+    },
+    {
+      "att_engine": 100.9021978021978,
+      "att_ours": 105.16483516483517,
+      "draw_id": 1028,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1028.json",
+      "source_sha256": "2420f1d062d722c02bcd2ffdef9438627fd02161b3785c04074e70e81b9440e3"
+    },
+    {
+      "att_engine": 98.61362367392518,
+      "att_ours": 102.74427694025684,
+      "draw_id": 1029,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1029.json",
+      "source_sha256": "46d87dd70a61a4432ee1f821cd1129a76e4a0457a03a745c8f8a5ab34ddfa610"
+    },
+    {
+      "att_engine": 99.56495633187772,
+      "att_ours": 103.91921397379913,
+      "draw_id": 1030,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1030.json",
+      "source_sha256": "db8e8e938677499822455b262d27b6756d67fcb46f208ee4e61bfadd31d7514b"
+    },
+    {
+      "att_engine": 101.7078961899503,
+      "att_ours": 106.02762430939227,
+      "draw_id": 1031,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1031.json",
+      "source_sha256": "324d0e3da8163960f1722e91983f797a3363eb57aeaba9dc3c91c235f0e06ce5"
+    },
+    {
+      "att_engine": 98.58048511576627,
+      "att_ours": 102.88864388092613,
+      "draw_id": 1032,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1032.json",
+      "source_sha256": "4ef3f07d1a4c53170330474d18c3f530236e735aac7771108472b5821a8c8cf3"
+    },
+    {
+      "att_engine": 100.9522502744237,
+      "att_ours": 105.37342119714442,
+      "draw_id": 1033,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1033.json",
+      "source_sha256": "3400453dda437c475075b332163afaa2cc0387f20afd201b548f66c9af762d44"
+    },
+    {
+      "att_engine": 104.0999453850355,
+      "att_ours": 108.32605133806663,
+      "draw_id": 1034,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1034.json",
+      "source_sha256": "e382b183f058e144d21e206b60d633a74dad9988fb040e59776067edb1cdcb6a"
+    },
+    {
+      "att_engine": 102.50497237569061,
+      "att_ours": 106.86740331491713,
+      "draw_id": 1035,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1035.json",
+      "source_sha256": "dd4d35799b7e9c7029b063711b6c0847e7f131545dc6016781b7de885a2fdce0"
+    },
+    {
+      "att_engine": 103.13846153846154,
+      "att_ours": 107.3309510720176,
+      "draw_id": 1036,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1036.json",
+      "source_sha256": "7c07235dedac905f8c0b550e7b1af1ebe6901ce4e50baaaf2eb92fa3eab684f1"
+    },
+    {
+      "att_engine": 98.2847790507365,
+      "att_ours": 102.51227495908347,
+      "draw_id": 1037,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1037.json",
+      "source_sha256": "d13bcb1b46daf68663385e54286b24e089df2099ce424f77e6be905cdee91b70"
+    },
+    {
+      "att_engine": 102.88448844884489,
+      "att_ours": 107.04620462046205,
+      "draw_id": 1038,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1038.json",
+      "source_sha256": "9caedde9398f8e1fdce953edf354b6e57882016efa9427034aa833f765cf30b3"
+    },
+    {
+      "att_engine": 100.51287671232876,
+      "att_ours": 104.9013698630137,
+      "draw_id": 1039,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1039.json",
+      "source_sha256": "e0bb27d3cca6423ff8a17da0264d06c202546ed284100781f51f1e43ef41aa9e"
+    },
+    {
+      "att_engine": 102.722647702407,
+      "att_ours": 106.89277899343544,
+      "draw_id": 1040,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1040.json",
+      "source_sha256": "603edabf116d9f74491a28795f426af083072f0d3bcbe1bc863a7643b3a22fa0"
+    },
+    {
+      "att_engine": 95.97716150081565,
+      "att_ours": 100.21479064709081,
+      "draw_id": 1041,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1041.json",
+      "source_sha256": "d4f4d5795565348a939ac5de53f649f937ec7f8edd98b474c213aeb9551b1622"
+    },
+    {
+      "att_engine": 105.04336043360433,
+      "att_ours": 109.22222222222223,
+      "draw_id": 1042,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1042.json",
+      "source_sha256": "8d30bd9e1170c6954ab6a8b611ff968ffff11cd1a449870ee70fcece9232634a"
+    },
+    {
+      "att_engine": 101.3939899833055,
+      "att_ours": 105.72939866369711,
+      "draw_id": 1043,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1043.json",
+      "source_sha256": "25947b8f2ddd2ee701c35b4ed1b055b85544af376af505a20eed087a84853250"
+    },
+    {
+      "att_engine": 102.37623762376238,
+      "att_ours": 106.74917491749174,
+      "draw_id": 1044,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1044.json",
+      "source_sha256": "be4cf8810104aa2f326f5ec5014f30fb00c4ffadc318f50f15a087d7bc273461"
+    },
+    {
+      "att_engine": 101.07256734469489,
+      "att_ours": 105.59923034634414,
+      "draw_id": 1045,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1045.json",
+      "source_sha256": "9d5e75054ae11ea3ab5662837eccb43829af393aee21a019bc642b1465c106b9"
+    },
+    {
+      "att_engine": 95.65466816647918,
+      "att_ours": 99.82564679415073,
+      "draw_id": 1046,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1046.json",
+      "source_sha256": "c0e8a6a9be8605e67cd96a52461e05e9bc75570514e801f87e53ed437fc51ed9"
+    },
+    {
+      "att_engine": 97.25249169435216,
+      "att_ours": 101.48753462603878,
+      "draw_id": 1047,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1047.json",
+      "source_sha256": "10ce365e54b2a69b6835b8e4e5afad1ef75e5d2eee7a9d96d0c3840f66cfbf66"
+    },
+    {
+      "att_engine": 102.69536784741145,
+      "att_ours": 106.9291553133515,
+      "draw_id": 1048,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1048.json",
+      "source_sha256": "8c9addba88607920090048ac64aba2b0cff82c26b2e1ff00d41d0fda2d285ac4"
+    },
+    {
+      "att_engine": 105.00831946755407,
+      "att_ours": 109.14864115363284,
+      "draw_id": 1049,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1049.json",
+      "source_sha256": "c9e14943d46668d08054ee2bf8fbba9ee902e2cf77687614ef5c1ff3db95f7ab"
+    },
+    {
+      "att_engine": 102.52383623107123,
+      "att_ours": 106.66012338754908,
+      "draw_id": 1050,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1050.json",
+      "source_sha256": "2e21194d2656139beca9b48d1ba72c8c4d1143cee0984670f16b319454a659a4"
+    },
+    {
+      "att_engine": 101.57386990077177,
+      "att_ours": 105.67805953693495,
+      "draw_id": 1051,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1051.json",
+      "source_sha256": "1c98ecb3c4b71f20097bd11f6d76f5a2546889c50741da3490fe3c2a210c13f4"
+    },
+    {
+      "att_engine": 97.85352422907489,
+      "att_ours": 102.12004405286343,
+      "draw_id": 1052,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1052.json",
+      "source_sha256": "316611ebddbd791ee8d50a658a1c67e684dad75834928d2db27c1333db9450d8"
+    },
+    {
+      "att_engine": 104.21578366445917,
+      "att_ours": 108.24503311258277,
+      "draw_id": 1053,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1053.json",
+      "source_sha256": "f08cee2d6259173612a5e8770e08ac86f0d49f7a75bcd2ad64f476624dd932b7"
+    },
+    {
+      "att_engine": 99.44225506294472,
+      "att_ours": 103.73015873015873,
+      "draw_id": 1054,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1054.json",
+      "source_sha256": "9748d778b14908044daad799d4501258fedfca8abffaccdc204fe74cbdb5d555"
+    },
+    {
+      "att_engine": 101.14745011086474,
+      "att_ours": 105.36605657237936,
+      "draw_id": 1055,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1055.json",
+      "source_sha256": "a0a9fce5a0f164acba519d4d967aefa6344cbd900c8f7e45cfb69a2786cb38b3"
+    },
+    {
+      "att_engine": 98.74204171240395,
+      "att_ours": 103.10647639956092,
+      "draw_id": 1056,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1056.json",
+      "source_sha256": "bf3ee9ec8f5c51df9036b3854b0e835459478db71555de9a92098d4f818a188d"
+    },
+    {
+      "att_engine": 100.19955776672195,
+      "att_ours": 104.41404090657822,
+      "draw_id": 1057,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1057.json",
+      "source_sha256": "9674a87bd04d673fc1ceff5cf17282090d622d2dd0e0813849bd82cb4aac9a2d"
+    },
+    {
+      "att_engine": 101.48795180722891,
+      "att_ours": 105.77217962760132,
+      "draw_id": 1058,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1058.json",
+      "source_sha256": "f1e3f783d09cea1f7827a2211c09e22508d6aa5cf84b072d86045f8223c135b3"
+    },
+    {
+      "att_engine": 109.18121911037892,
+      "att_ours": 113.15485996705107,
+      "draw_id": 1059,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1059.json",
+      "source_sha256": "9be32c88788bf61e8abe6554a11a01867b2e8c87c5a54a3d77947dc9e038bf1a"
+    },
+    {
+      "att_engine": 101.02907295666483,
+      "att_ours": 105.25781678551837,
+      "draw_id": 1060,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1060.json",
+      "source_sha256": "2608ad9b531fa8630668444dcaca7b66e237704723c8692197681a84b85baed9"
+    },
+    {
+      "att_engine": 100.75247524752476,
+      "att_ours": 105.1100110011001,
+      "draw_id": 1061,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1061.json",
+      "source_sha256": "29209801f59f40fff997d6e756916378631a789cd1976fd4ba23e5ab8fbec155"
+    },
+    {
+      "att_engine": 97.31946006749156,
+      "att_ours": 101.64229471316085,
+      "draw_id": 1062,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1062.json",
+      "source_sha256": "e6f4ac17b7f8538bbdc7298e939cad160ba0f0e8a40df60be15ad41f8e69c926"
+    },
+    {
+      "att_engine": 99.39208031232572,
+      "att_ours": 103.56664807585052,
+      "draw_id": 1063,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1063.json",
+      "source_sha256": "f6603f42a2880158c78d5a90a14c5a7ce7a3ef0be357e88b78149a2dafaba7a9"
+    },
+    {
+      "att_engine": 102.69646799116998,
+      "att_ours": 107.05411374930978,
+      "draw_id": 1064,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1064.json",
+      "source_sha256": "337e5e34f32b0c9d023d602d73880f100fae04516b543da21eba4713ecd5ed88"
+    },
+    {
+      "att_engine": 103.57504123144585,
+      "att_ours": 107.78724573941726,
+      "draw_id": 1065,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1065.json",
+      "source_sha256": "e18dd3d609027ad13c5633d00c0a767f04c4a02d73a78833c0efc33ac81ccc40"
+    },
+    {
+      "att_engine": 99.6609796367639,
+      "att_ours": 103.88215859030836,
+      "draw_id": 1066,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1066.json",
+      "source_sha256": "b331cd5da26a53bc59a6f245fc4799b4037bc0d9ae60008512426b32882e642b"
+    },
+    {
+      "att_engine": 100.83342465753425,
+      "att_ours": 105.15342465753425,
+      "draw_id": 1067,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1067.json",
+      "source_sha256": "24ad3db20c0ffd9c86b543c3bc845cb5c4696279c91e78682605364cd54479ce"
+    },
+    {
+      "att_engine": 97.14812775330397,
+      "att_ours": 101.3546255506608,
+      "draw_id": 1068,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1068.json",
+      "source_sha256": "0e3902e29847387c8a86ecf1e79140105075b3e43288f1cf56ac094b1c46847f"
+    },
+    {
+      "att_engine": 96.98220244716352,
+      "att_ours": 101.16796440489432,
+      "draw_id": 1069,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1069.json",
+      "source_sha256": "185efe7116f387dc7a29c10df53d7f86b320addeb316af85a53eb2d450d36cbb"
+    },
+    {
+      "att_engine": 101.87493112947658,
+      "att_ours": 106.10743801652893,
+      "draw_id": 1070,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1070.json",
+      "source_sha256": "e086b4417ed6d0feb56dfb35f4646f6c789c656d24082741e7c208a5a874584e"
+    },
+    {
+      "att_engine": 101.68794326241135,
+      "att_ours": 106.20087336244542,
+      "draw_id": 1071,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1071.json",
+      "source_sha256": "dcb0abce4c4eea837c7def7c44a8f2cd1fcdbd79eaf0c4940f36fd8b17e4b94d"
+    },
+    {
+      "att_engine": 101.68602739726028,
+      "att_ours": 105.93698630136986,
+      "draw_id": 1072,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1072.json",
+      "source_sha256": "9cff5fa27f987481aad7f52f414dd5ea6c98ef8df062e550c8aca864be5f6c5f"
+    },
+    {
+      "att_engine": 98.24151363383417,
+      "att_ours": 102.49026154702281,
+      "draw_id": 1073,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1073.json",
+      "source_sha256": "888c925bb35ef662fa396f8d3098fee6c85fb6f14949288038a2adc32a42ed82"
+    },
+    {
+      "att_engine": 100.27404113396331,
+      "att_ours": 104.633129516398,
+      "draw_id": 1074,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1074.json",
+      "source_sha256": "029e608a529204a7c84274879f4ac0bc33cd72df9b7ed443c648272c5f5999aa"
+    },
+    {
+      "att_engine": 100.6032097399004,
+      "att_ours": 104.95572772551189,
+      "draw_id": 1075,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1075.json",
+      "source_sha256": "ff8c2d3cfc4675a8f1647bf2fe323198605f8a989ee3a454907aa8d0a647b69f"
+    },
+    {
+      "att_engine": 97.62749445676275,
+      "att_ours": 101.86807095343681,
+      "draw_id": 1076,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1076.json",
+      "source_sha256": "81adaed847c4f5e2966538a3a1ab167336d55e0a9b9330d5ebd0b12213fabc0e"
+    },
+    {
+      "att_engine": 102.5711159737418,
+      "att_ours": 106.90919037199124,
+      "draw_id": 1077,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1077.json",
+      "source_sha256": "78cf0c1876e77633052421562575f30adb2a162c85a8dc2f5900828218c0a4ad"
+    },
+    {
+      "att_engine": 103.72946330777656,
+      "att_ours": 108.08324205914568,
+      "draw_id": 1078,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1078.json",
+      "source_sha256": "3a9b23db992a3b04b152fe32ffbd3e18f4a764e8cfbf3efc2c4330c3bfdd3bc7"
+    },
+    {
+      "att_engine": 101.3061224489796,
+      "att_ours": 105.51296194153338,
+      "draw_id": 1079,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1079.json",
+      "source_sha256": "9782773da7f2e8b78ec827cf63334f5c18409007c48b1f6e4f2074507c1ca2ed"
+    },
+    {
+      "att_engine": 105.1404090657822,
+      "att_ours": 109.3559977888336,
+      "draw_id": 1080,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1080.json",
+      "source_sha256": "182b575fd213e563037b5d02161e2841bdd24b3a946aa5fc53888747c3302b7f"
+    },
+    {
+      "att_engine": 97.57506925207757,
+      "att_ours": 101.80332409972299,
+      "draw_id": 1081,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1081.json",
+      "source_sha256": "5c5d8095aa4a283cba3f6eb97639638f6078c96e44f37cb6588698459e869f9d"
+    },
+    {
+      "att_engine": 99.06892718176765,
+      "att_ours": 103.38243468593663,
+      "draw_id": 1082,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1082.json",
+      "source_sha256": "d52b434406ee11c93a54cfa9dec97c7e92c2f6cd5cf901cdd06c66d3703e362f"
+    },
+    {
+      "att_engine": 99.83084577114428,
+      "att_ours": 104.13764510779436,
+      "draw_id": 1083,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1083.json",
+      "source_sha256": "aaa23bb39145dec2ab083983faf5cd7c0f4f57612836392570ddfc79f7acf81f"
+    },
+    {
+      "att_engine": 105.04660087719299,
+      "att_ours": 109.37739989029073,
+      "draw_id": 1084,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1084.json",
+      "source_sha256": "cd40c103c5dea77dbbf914a6ed98dd8f937c78d6988f7761c8a5771717282339"
+    },
+    {
+      "att_engine": 100.27513812154696,
+      "att_ours": 104.5524861878453,
+      "draw_id": 1085,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1085.json",
+      "source_sha256": "9dcb89ff67542629f5a261d86ef222bffe5fa9b2b2feae240dbb33292f90038e"
+    },
+    {
+      "att_engine": 99.05426356589147,
+      "att_ours": 103.34440753045405,
+      "draw_id": 1086,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1086.json",
+      "source_sha256": "da752431ed684d1a2f89dcf596793f2af9f4cb67580c560cec5b17cba11b4c8e"
+    },
+    {
+      "att_engine": 98.39922694643843,
+      "att_ours": 102.52070679182772,
+      "draw_id": 1087,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1087.json",
+      "source_sha256": "54e2d30a30f667953de1c1ec3ed16294775059a24e9a6468080922257e4626f3"
+    },
+    {
+      "att_engine": 98.06674020959736,
+      "att_ours": 102.28626585769443,
+      "draw_id": 1088,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1088.json",
+      "source_sha256": "2bc312b1d1cc2ee01d7d1621b48db58bc804786c57d31c78d60a6714e38687d8"
+    },
+    {
+      "att_engine": 100.36125069793411,
+      "att_ours": 104.65940815187047,
+      "draw_id": 1089,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1089.json",
+      "source_sha256": "313372f81914501100451fab9f418b2bc5715ea5eeadd8685703ee0bcdfdf28e"
+    },
+    {
+      "att_engine": 100.98534201954398,
+      "att_ours": 105.10314875135722,
+      "draw_id": 1090,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1090.json",
+      "source_sha256": "1e2cef4b9095a9e3f4c870d5050465ce55d86301298a631b8a50f290604f4d19"
+    },
+    {
+      "att_engine": 100.18066298342542,
+      "att_ours": 104.4696132596685,
+      "draw_id": 1091,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1091.json",
+      "source_sha256": "9fb0dddd2d9509fefeb29164f25644cf25b0fde84fa1a6eb49d7891a76f3d768"
+    },
+    {
+      "att_engine": 100.43318485523385,
+      "att_ours": 104.76614699331849,
+      "draw_id": 1092,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1092.json",
+      "source_sha256": "0872b5473b2d5aa0d683af74eeb79415887da01c212faaab88a95bfedfd59cf0"
+    },
+    {
+      "att_engine": 98.35785953177258,
+      "att_ours": 102.51950947603122,
+      "draw_id": 1093,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1093.json",
+      "source_sha256": "48ef8bb900593921497c4d09917bf0ae0b1f310723189f356a70a67b79be0720"
+    },
+    {
+      "att_engine": 99.25317153888582,
+      "att_ours": 103.5438499724214,
+      "draw_id": 1094,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1094.json",
+      "source_sha256": "5f92c7c4d09bca1fb3d865f298b919701e9cf44310dbd4ad01824e85560264d1"
+    },
+    {
+      "att_engine": 103.31260229132569,
+      "att_ours": 107.53136933987997,
+      "draw_id": 1095,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1095.json",
+      "source_sha256": "1ac76a238057b4869cbe87470ee115375e2f5c6c5dd1207164478f6326f15f4e"
+    },
+    {
+      "att_engine": 98.7448923246825,
+      "att_ours": 102.97237569060773,
+      "draw_id": 1096,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1096.json",
+      "source_sha256": "e1c2916664ff18dfd96f454187218a7fb8c7ec37c303bbe0da73cf4b056fb44e"
+    },
+    {
+      "att_engine": 101.74444444444444,
+      "att_ours": 106.03888888888889,
+      "draw_id": 1097,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1097.json",
+      "source_sha256": "f5a1d46a308eeba4155c3df2e8bd307e4a2d71e7bbcc0ac6ec8cf7507d839629"
+    },
+    {
+      "att_engine": 100.45992260917635,
+      "att_ours": 104.65726920950802,
+      "draw_id": 1098,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1098.json",
+      "source_sha256": "e43ebea0b3ec079e7f763efdff0ba2daa673b25b994ccc14233e3fd0dd11106f"
+    },
+    {
+      "att_engine": 101.27207505518764,
+      "att_ours": 105.45805739514348,
+      "draw_id": 1099,
+      "seed": 303,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed303_draw1099.json",
+      "source_sha256": "4cccc1ca9e589ab93300f4c6febd36326829d8b2c872e672dd8a160cfa553f43"
+    },
+    {
+      "att_engine": 99.94043022614451,
+      "att_ours": 104.29950358521788,
+      "draw_id": 1000,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1000.json",
+      "source_sha256": "0961611e5e5fa479b2c911528b846929866d51eaa36d3756c5836775422de54b"
+    },
+    {
+      "att_engine": 99.17252747252748,
+      "att_ours": 103.26923076923077,
+      "draw_id": 1001,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1001.json",
+      "source_sha256": "3a0f677ac26264885b7d065c0b2bd45285cd38a65993f4eb06b1c9ee75171142"
+    },
+    {
+      "att_engine": 97.50969529085873,
+      "att_ours": 101.81994459833795,
+      "draw_id": 1002,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1002.json",
+      "source_sha256": "6c80be280ad014bedad7524758357cfa058512b80039fc1a6577035aeffed47e"
+    },
+    {
+      "att_engine": 98.45115257958288,
+      "att_ours": 102.7113062568606,
+      "draw_id": 1003,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1003.json",
+      "source_sha256": "b0d72726dfac1b8bfa9e42646ab5dbdce02611e93c826d02f3088cf904da3309"
+    },
+    {
+      "att_engine": 99.29207920792079,
+      "att_ours": 103.46534653465346,
+      "draw_id": 1004,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1004.json",
+      "source_sha256": "6be4642208e02cdb3d5e1edc068ff391f0a378cc65459a6308e1cd52b78e2b43"
+    },
+    {
+      "att_engine": 100.32856356631811,
+      "att_ours": 104.66978536048431,
+      "draw_id": 1005,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1005.json",
+      "source_sha256": "abed60981b3badf455dd569f2cbab8ea04e917a6e63b080dd5040a015ccb5e84"
+    },
+    {
+      "att_engine": 100.1235710397387,
+      "att_ours": 104.36309199782254,
+      "draw_id": 1006,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1006.json",
+      "source_sha256": "4acc3160abae507cb69987d310dda16011c27d90fdcf3a8c949fe167c0c953b8"
+    },
+    {
+      "att_engine": 99.0608598548297,
+      "att_ours": 103.21328866554997,
+      "draw_id": 1007,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1007.json",
+      "source_sha256": "6ff74b76e0db5a8ec1dd98503fc110e7453e01d33f41476e69f7bf6860ac9f1c"
+    },
+    {
+      "att_engine": 100.64692861095739,
+      "att_ours": 104.95572772551189,
+      "draw_id": 1008,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1008.json",
+      "source_sha256": "9d4ccd2243615a63964d3d778576aa4ea5fb2117dfac3f81612d5355f32025e5"
+    },
+    {
+      "att_engine": 97.56533776301218,
+      "att_ours": 101.89368770764119,
+      "draw_id": 1009,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1009.json",
+      "source_sha256": "34fbed66bde59d00908dcdbb280cff76430e1fb5ad88d4232ab1b97e927816c9"
+    },
+    {
+      "att_engine": 99.3684794672586,
+      "att_ours": 103.7180910099889,
+      "draw_id": 1010,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1010.json",
+      "source_sha256": "fbb3863da03bef172a1870854920909bd68e28133c28b9041dbbba45a1634cfb"
+    },
+    {
+      "att_engine": 98.44719471947195,
+      "att_ours": 102.72277227722772,
+      "draw_id": 1011,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1011.json",
+      "source_sha256": "9f2e76f3a3ba2f33d70bd5a1213e9a3bc43b0e54d514502ac64c28b0c1658be4"
+    },
+    {
+      "att_engine": 98.92727272727272,
+      "att_ours": 103.21487603305785,
+      "draw_id": 1012,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1012.json",
+      "source_sha256": "dd8a9f4ffa0cc858f669d1aa4db1d96dca75cceda563cc727df19e11db8df538"
+    },
+    {
+      "att_engine": 101.75869685256764,
+      "att_ours": 105.93870789618995,
+      "draw_id": 1013,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1013.json",
+      "source_sha256": "ec44752b7c5b1a3095a742ffa6b41cf1e8ca28c59544182a65910051f930711b"
+    },
+    {
+      "att_engine": 103.2578548212351,
+      "att_ours": 107.34019501625136,
+      "draw_id": 1014,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1014.json",
+      "source_sha256": "73f928b621789dff725e3fd1b01bf52d360830f1e4d2139e2199387e145f8bf4"
+    },
+    {
+      "att_engine": 100.94811578372475,
+      "att_ours": 105.29492080830147,
+      "draw_id": 1015,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1015.json",
+      "source_sha256": "68bb5c1b7c056149a904a67de637394c6d5c885350c26f3d12368b1bed16a5d2"
+    },
+    {
+      "att_engine": 97.38873701476217,
+      "att_ours": 101.61016949152543,
+      "draw_id": 1016,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1016.json",
+      "source_sha256": "f209c962d82fdeb8c8943cdd17e7051cca601691c251256c9764f01fff975a17"
+    },
+    {
+      "att_engine": 100.21739130434783,
+      "att_ours": 104.41111722619702,
+      "draw_id": 1017,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1017.json",
+      "source_sha256": "235c329670a8fec87dc64b46e1cdb9df5903041e003840025916caf6ccc1dc2f"
+    },
+    {
+      "att_engine": 101.0263881253436,
+      "att_ours": 105.40131940626718,
+      "draw_id": 1018,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1018.json",
+      "source_sha256": "97112567deaa3f8772c5cd4c23185253a3e12b30fb4631b70cfe571931cff0e3"
+    },
+    {
+      "att_engine": 100.6566099835436,
+      "att_ours": 104.71475589687329,
+      "draw_id": 1019,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1019.json",
+      "source_sha256": "a80d2e142a5708e264ea2d0f665b2d4151adb1fab58a26846f54840e04d48d12"
+    },
+    {
+      "att_engine": 99.93090105030403,
+      "att_ours": 104.1763405196241,
+      "draw_id": 1020,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1020.json",
+      "source_sha256": "3c99b68a8d0b25b2dbd74485cef17db42582ec6030a22894d06943e6a7ebfff7"
+    },
+    {
+      "att_engine": 98.91019283746556,
+      "att_ours": 103.24242424242425,
+      "draw_id": 1021,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1021.json",
+      "source_sha256": "c93af65c7188ed7aa29391ababf1e47f5c5443c09f201fd961794c43c3e5141c"
+    },
+    {
+      "att_engine": 103.17793791574279,
+      "att_ours": 107.5,
+      "draw_id": 1022,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1022.json",
+      "source_sha256": "246d0caadde5fe7d121b0f5c5181051a51915c5ce1002e5e2def2e52a71103c8"
+    },
+    {
+      "att_engine": 101.38935108153078,
+      "att_ours": 105.61564059900167,
+      "draw_id": 1023,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1023.json",
+      "source_sha256": "5bf50495f24397ea800d2a1dd8c8321d32be6dcc05db40e17f660b3d761c71ca"
+    },
+    {
+      "att_engine": 100.27531472359058,
+      "att_ours": 104.51833607006022,
+      "draw_id": 1024,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1024.json",
+      "source_sha256": "4d0c6f364e96e08207e71cad9bab22d85c09c8176d87cdf8911e95a1a9cfb002"
+    },
+    {
+      "att_engine": 105.10569550930997,
+      "att_ours": 109.38663745892661,
+      "draw_id": 1025,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1025.json",
+      "source_sha256": "1f1735b03b380f7e6f8f585bebd075ab364bc9b938f63eeaee0e47477015575f"
+    },
+    {
+      "att_engine": 101.0512114537445,
+      "att_ours": 105.24229074889868,
+      "draw_id": 1026,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1026.json",
+      "source_sha256": "4cc1b5dc88194a78822da92db85bae02dba5cb92543eebcfbd81ca78282f80d3"
+    },
+    {
+      "att_engine": 98.90088105726872,
+      "att_ours": 103.07268722466961,
+      "draw_id": 1027,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1027.json",
+      "source_sha256": "0100e0ff000b03d006170ebb05bbd8200886b5709a7cc12f172d4381d4a92a89"
+    },
+    {
+      "att_engine": 102.25494505494505,
+      "att_ours": 106.38461538461539,
+      "draw_id": 1028,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1028.json",
+      "source_sha256": "4864c32ace3847fe7829bd7dc78f0eeecac8f833d94b7530bd23ff5f4c0d3fb3"
+    },
+    {
+      "att_engine": 98.79396984924622,
+      "att_ours": 102.94528196538246,
+      "draw_id": 1029,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1029.json",
+      "source_sha256": "b211dc443d841845422fea62aa883d0e59bf8050f01bf0e060f2ea3fa789b74c"
+    },
+    {
+      "att_engine": 102.29093886462883,
+      "att_ours": 106.61572052401746,
+      "draw_id": 1030,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1030.json",
+      "source_sha256": "5109dbdde722e87fcbabd3025f10585eff0b310d5aabea5a5c349a9d8c53240e"
+    },
+    {
+      "att_engine": 98.00496963003866,
+      "att_ours": 102.31491712707182,
+      "draw_id": 1031,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1031.json",
+      "source_sha256": "1c15432749ea11441785aa4a34b1120192ea8d8044be2dec1a58ffc36e669b1b"
+    },
+    {
+      "att_engine": 102.89305402425579,
+      "att_ours": 107.22160970231532,
+      "draw_id": 1032,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1032.json",
+      "source_sha256": "7dc54536dcbd59a7ec5ed12d1489062af3690aa6c9620559e37187fd329b254b"
+    },
+    {
+      "att_engine": 101.3847420417124,
+      "att_ours": 105.85118066996156,
+      "draw_id": 1033,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1033.json",
+      "source_sha256": "a81be52116c9a7f66d26c1528cb66f5ad5e9addb2a5ddce20c0a57e7349c50af"
+    },
+    {
+      "att_engine": 100.27416712179136,
+      "att_ours": 104.47569634079738,
+      "draw_id": 1034,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1034.json",
+      "source_sha256": "cafa2e41373618e6e1882e7878cb7b18132dc92aac97ba550e9436c99c6891a4"
+    },
+    {
+      "att_engine": 100.26574585635359,
+      "att_ours": 104.62983425414365,
+      "draw_id": 1035,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1035.json",
+      "source_sha256": "226d1a22933184c09b7bbb482ec5fe99f5f12dccaffdbf45088141556bca66ba"
+    },
+    {
+      "att_engine": 102.33956043956044,
+      "att_ours": 106.56129741616273,
+      "draw_id": 1036,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1036.json",
+      "source_sha256": "96f09721609c6b7e13bc212150563a5ed544558552a30229bd0d1de193e1bf34"
+    },
+    {
+      "att_engine": 101.90234588106928,
+      "att_ours": 106.10201854882706,
+      "draw_id": 1037,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1037.json",
+      "source_sha256": "a78a775a38de4a4389b889b3ebd225f3db336c16949b975df4ee13eadc6e0c14"
+    },
+    {
+      "att_engine": 96.06270627062706,
+      "att_ours": 100.26952695269527,
+      "draw_id": 1038,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1038.json",
+      "source_sha256": "577121ebd60a392f7091fa7553505de5756340d2cf98322256c950af64a0aff0"
+    },
+    {
+      "att_engine": 99.8476712328767,
+      "att_ours": 104.20547945205479,
+      "draw_id": 1039,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1039.json",
+      "source_sha256": "59d9771d40afb5236e7f832efa4f9ecf9dd52b6f558aef02592293ac59a28b2b"
+    },
+    {
+      "att_engine": 100.36980306345733,
+      "att_ours": 104.58971553610503,
+      "draw_id": 1040,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1040.json",
+      "source_sha256": "e481bc7494aae31e3694adb7268de66613934c1eb8f0741bac2d2b8192806f57"
+    },
+    {
+      "att_engine": 97.6721044045677,
+      "att_ours": 101.92767808591626,
+      "draw_id": 1041,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1041.json",
+      "source_sha256": "945463c029206691287d0fe621b30e806b18be96585106073fcd59459fc27179"
+    },
+    {
+      "att_engine": 103.72791327913279,
+      "att_ours": 107.89430894308943,
+      "draw_id": 1042,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1042.json",
+      "source_sha256": "92999db110e14e02be55816515aea666adaeb1cde809a3385b86104aa41169db"
+    },
+    {
+      "att_engine": 98.32387312186978,
+      "att_ours": 102.62249443207126,
+      "draw_id": 1043,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1043.json",
+      "source_sha256": "9f74a5b37764fab520023676d6cdda8e088cf2115e684cf020a4e7746b378c58"
+    },
+    {
+      "att_engine": 101.11881188118812,
+      "att_ours": 105.44004400440043,
+      "draw_id": 1044,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1044.json",
+      "source_sha256": "dd2a4c34455436af6aef484968e7a09abee7dbc7e721c2507cd8d17a69d0903e"
+    },
+    {
+      "att_engine": 106.90599230346344,
+      "att_ours": 111.3331500824629,
+      "draw_id": 1045,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1045.json",
+      "source_sha256": "330fb096ef089a1d12385f5149e02b60c30bfab80d1a38ca2c17d50a2670468f"
+    },
+    {
+      "att_engine": 99.16760404949382,
+      "att_ours": 103.35770528683915,
+      "draw_id": 1046,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1046.json",
+      "source_sha256": "1be12c49694cf1c868b642c26b8a74a157b7761894c3804cc218d3b4afb34ce7"
+    },
+    {
+      "att_engine": 98.83997785160575,
+      "att_ours": 103.10526315789474,
+      "draw_id": 1047,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1047.json",
+      "source_sha256": "14a3be3a4fa010df923219990a99b95f3c560b1201cc82a95913e45646559830"
+    },
+    {
+      "att_engine": 98.81035422343324,
+      "att_ours": 102.99455040871935,
+      "draw_id": 1048,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1048.json",
+      "source_sha256": "5b79d18f5e62cdb0fb304b60a0bcacf2e370b303c9bd12fd9c17a9917e208e8b"
+    },
+    {
+      "att_engine": 101.35773710482529,
+      "att_ours": 105.51026067665003,
+      "draw_id": 1049,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1049.json",
+      "source_sha256": "8ca7611074c66be485f81646e454c3dec93a87eb9f97949a33709471aa5e799e"
+    },
+    {
+      "att_engine": 102.96130117779025,
+      "att_ours": 107.09758833426808,
+      "draw_id": 1050,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1050.json",
+      "source_sha256": "78ecc3f42b65bb5d900a16a0e5e73bd9cebf545c5ab59456354fe5b18670a1e7"
+    },
+    {
+      "att_engine": 100.88092613009923,
+      "att_ours": 104.95038588754134,
+      "draw_id": 1051,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1051.json",
+      "source_sha256": "0b31b33c6cf4313d28952e1a555a6d7225fa78b61943d9436f4e3aac695d3330"
+    },
+    {
+      "att_engine": 99.4262114537445,
+      "att_ours": 103.7114537444934,
+      "draw_id": 1052,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1052.json",
+      "source_sha256": "a5fa62fc19e9100f87082592e8f8944eb8b54f174d9eac0493ef0ed8c395e764"
+    },
+    {
+      "att_engine": 98.2439293598234,
+      "att_ours": 102.33443708609272,
+      "draw_id": 1053,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1053.json",
+      "source_sha256": "52cd8e46bb6c2dc99a3977716fb5645dc22500dcc194bb2670088925bb591181"
+    },
+    {
+      "att_engine": 102.8248494800219,
+      "att_ours": 107.16748768472907,
+      "draw_id": 1054,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1054.json",
+      "source_sha256": "025546356215cd3a4b99c11f677a36f0394c64c316a737b412bffad4f8566c7e"
+    },
+    {
+      "att_engine": 100.51053215077606,
+      "att_ours": 104.76150859678314,
+      "draw_id": 1055,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1055.json",
+      "source_sha256": "a3322a1ce5113d3f42e6de90c5845c189c31c065c54560c13157a3cc1d6ff5b3"
+    },
+    {
+      "att_engine": 101.97200878155873,
+      "att_ours": 106.33369923161361,
+      "draw_id": 1056,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1056.json",
+      "source_sha256": "d8911c2b3948f822ee1182a7fa73d90215522fbba4e7f4a7a59ce13122b44a01"
+    },
+    {
+      "att_engine": 99.80597014925372,
+      "att_ours": 104.09894969596462,
+      "draw_id": 1057,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1057.json",
+      "source_sha256": "07e6c27139a90d7ab8b43f97b45260f84232888dbb3570b43b2cbae7821adc94"
+    },
+    {
+      "att_engine": 100.84501642935378,
+      "att_ours": 105.13143483023,
+      "draw_id": 1058,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1058.json",
+      "source_sha256": "2b02ddbf452fece534aee68a23f5e16efeb67bd7f00a2db23435eb74909fde82"
+    },
+    {
+      "att_engine": 102.63097199341021,
+      "att_ours": 106.87808896210873,
+      "draw_id": 1059,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1059.json",
+      "source_sha256": "277a93c4958bb06571962a919e999510564188a5b72834385641fd0216ad150a"
+    },
+    {
+      "att_engine": 98.50850246845859,
+      "att_ours": 102.7674163466813,
+      "draw_id": 1060,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1060.json",
+      "source_sha256": "8538e836fbbf7a8b29f77f7083125bbe91554581cd62e53ce49df47b7ec94172"
+    },
+    {
+      "att_engine": 100.43014301430144,
+      "att_ours": 104.78547854785478,
+      "draw_id": 1061,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1061.json",
+      "source_sha256": "fa00eedf678eb593a3572016e7e91c85559f404c86e71557cf4b8fbecb16412e"
+    },
+    {
+      "att_engine": 95.86389201349832,
+      "att_ours": 100.19685039370079,
+      "draw_id": 1062,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1062.json",
+      "source_sha256": "a27fff8bd66a81530d72623a41029be97403f134f93776a0a24db76c4c5cdea0"
+    },
+    {
+      "att_engine": 99.49804796430563,
+      "att_ours": 103.80646960401562,
+      "draw_id": 1063,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1063.json",
+      "source_sha256": "8239f51113e1f317c01bad2f51f35c293c71e80c4cff0b4c3df5b8a22a0b6827"
+    },
+    {
+      "att_engine": 102.24116997792494,
+      "att_ours": 106.57923799006073,
+      "draw_id": 1064,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1064.json",
+      "source_sha256": "444bf6addd59b2373a8198f44d38edb7a3eb70d072e2b12e277193c22ba5147a"
+    },
+    {
+      "att_engine": 98.52776250687191,
+      "att_ours": 102.80098955470038,
+      "draw_id": 1065,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1065.json",
+      "source_sha256": "49e43629ee2a094190cb38298d87bf7ecde0d4b147bf7dd8177411839c96e283"
+    },
+    {
+      "att_engine": 97.26472206934507,
+      "att_ours": 101.50881057268722,
+      "draw_id": 1066,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1066.json",
+      "source_sha256": "bab4efe2a542b617d31c7c7e3f28a20731c54ceb423f54d79d08ede9e97b6cb0"
+    },
+    {
+      "att_engine": 98.38356164383562,
+      "att_ours": 102.67123287671232,
+      "draw_id": 1067,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1067.json",
+      "source_sha256": "94e625bbc2191661c67be589a990f8adad817f979f8feb7ddd2082db18c5e531"
+    },
+    {
+      "att_engine": 98.73623348017621,
+      "att_ours": 102.91299559471365,
+      "draw_id": 1068,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1068.json",
+      "source_sha256": "0885f1c714e132851b123e1276db1f803a6375f76ef24bd89edb1c10ab46b629"
+    },
+    {
+      "att_engine": 98.23915461624027,
+      "att_ours": 102.41379310344827,
+      "draw_id": 1069,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1069.json",
+      "source_sha256": "0652270251af9382df2977a0687057f53925397fd3ef6fbb7ef2912da8857ab8"
+    },
+    {
+      "att_engine": 100.11845730027548,
+      "att_ours": 104.40495867768595,
+      "draw_id": 1070,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1070.json",
+      "source_sha256": "84dc9a5d5d2d32e12080ab9be7e14900b6ced69b854e141eef83a24e37ca487e"
+    },
+    {
+      "att_engine": 101.69012547735952,
+      "att_ours": 106.18995633187772,
+      "draw_id": 1071,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1071.json",
+      "source_sha256": "b255b9bf7ccebca3f88fcdf403824a56bbd2b13f54a961c15e867c5aa3354521"
+    },
+    {
+      "att_engine": 99.4454794520548,
+      "att_ours": 103.64109589041095,
+      "draw_id": 1072,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1072.json",
+      "source_sha256": "05ac4ad12257266ae9a5327bfeb70c4a93af0a77dc21c6e2d8dc31188bd13efa"
+    },
+    {
+      "att_engine": 100.52698942682248,
+      "att_ours": 104.72732331663885,
+      "draw_id": 1073,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1073.json",
+      "source_sha256": "e8744f6eb5e5cd406a8a26f36619fc1b23d62a1a42ce7767a079dc0bc3cee82a"
+    },
+    {
+      "att_engine": 99.22345747637577,
+      "att_ours": 103.56031128404669,
+      "draw_id": 1074,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1074.json",
+      "source_sha256": "9427d9a4dd8d99ed945015f9f8a64a84cd714a25be551f47c9bfd1a16304a60e"
+    },
+    {
+      "att_engine": 101.54288876591035,
+      "att_ours": 105.87991145545102,
+      "draw_id": 1075,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1075.json",
+      "source_sha256": "90b3115836233b12a46f5d26571ba7b6d80f6443a4c86eb1c9db1ac91bd2f6cc"
+    },
+    {
+      "att_engine": 97.49556541019956,
+      "att_ours": 101.79046563192905,
+      "draw_id": 1076,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1076.json",
+      "source_sha256": "2fa34a0c9f6809e86c9f15dcfe4feb920cbdf42b6639e7fa6cfccd78883c950e"
+    },
+    {
+      "att_engine": 97.85393873085339,
+      "att_ours": 102.29212253829321,
+      "draw_id": 1077,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1077.json",
+      "source_sha256": "e31c56f33f426ad1a48c0f2882a16cf7d1aab4161a89c58aa3732d6ce7b6d27e"
+    },
+    {
+      "att_engine": 101.90470974808325,
+      "att_ours": 106.23767798466594,
+      "draw_id": 1078,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1078.json",
+      "source_sha256": "0dbd7f5f927212e1cc3255649085cf89c747b9072608a468748d66b54cc930d9"
+    },
+    {
+      "att_engine": 101.86541643684501,
+      "att_ours": 106.05901820187535,
+      "draw_id": 1079,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1079.json",
+      "source_sha256": "9f7902e29631234d9d9bb4a278ac1750f3a9cec9fef932fdf34b11a4c61b421f"
+    },
+    {
+      "att_engine": 105.28579325594251,
+      "att_ours": 109.61580983969044,
+      "draw_id": 1080,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1080.json",
+      "source_sha256": "41e9ad7e79c321951ce8014982534a207ab830776f6b91665fa435ea3c0bfebe"
+    },
+    {
+      "att_engine": 95.67479224376731,
+      "att_ours": 99.94182825484765,
+      "draw_id": 1081,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1081.json",
+      "source_sha256": "d6c60e971d6bafaaf2c2e31862f2575ece83ea82e2dc95e53b8674f9e4a32657"
+    },
+    {
+      "att_engine": 99.22568093385215,
+      "att_ours": 103.56031128404669,
+      "draw_id": 1082,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1082.json",
+      "source_sha256": "f3d40933922e505dac5c70b311eede53ee788d3d47dbabc4281a50f4cac4290a"
+    },
+    {
+      "att_engine": 97.89275843007186,
+      "att_ours": 102.2139303482587,
+      "draw_id": 1083,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1083.json",
+      "source_sha256": "71ef17c384e1379c32bc999064ff444e46d1034122f99db50f6272913ad2adc4"
+    },
+    {
+      "att_engine": 100.29769736842105,
+      "att_ours": 104.61601755348327,
+      "draw_id": 1084,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1084.json",
+      "source_sha256": "868a3b0e144d2b3f2eb36e51a72daf46134a084c0d4d1d606ba1e9a802aebd0d"
+    },
+    {
+      "att_engine": 100.80220994475138,
+      "att_ours": 105.0939226519337,
+      "draw_id": 1085,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1085.json",
+      "source_sha256": "5b6fc39f132a7cd7dd49f52fb922f7fc77bc7714ff962d92b2baf02d58689416"
+    },
+    {
+      "att_engine": 99.97619047619048,
+      "att_ours": 104.34662236987819,
+      "draw_id": 1086,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1086.json",
+      "source_sha256": "8c5d99e5f98debd399b77e995455f1c4061430585870c39ad579e0d27f29f2fa"
+    },
+    {
+      "att_engine": 98.85311982330204,
+      "att_ours": 102.96797349530647,
+      "draw_id": 1087,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1087.json",
+      "source_sha256": "f8fd08c1d69c9e241262173f9e569a4e71047077bd8cd1e2501dc7d7c8f68ac0"
+    },
+    {
+      "att_engine": 97.52399338113624,
+      "att_ours": 101.70159955874242,
+      "draw_id": 1088,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1088.json",
+      "source_sha256": "89aa02fd4b39a6c27da380822bb592b3f98a01f7d236bf08ec7a16bad8ee0fde"
+    },
+    {
+      "att_engine": 95.46845337800112,
+      "att_ours": 99.71245114461195,
+      "draw_id": 1089,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1089.json",
+      "source_sha256": "3849bbeac232edb08701f22c81dd56b907c175c3b57768c1e9c717b0c13c303e"
+    },
+    {
+      "att_engine": 103.00108577633007,
+      "att_ours": 107.10640608034745,
+      "draw_id": 1090,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1090.json",
+      "source_sha256": "b54fa53bf2db5a0ea4380810e03c9d6559e690995048a016ba1c7d5bf48e1774"
+    },
+    {
+      "att_engine": 100.11381215469613,
+      "att_ours": 104.39779005524862,
+      "draw_id": 1091,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1091.json",
+      "source_sha256": "0ad6da4427ded530e9d1a15a6de899d1678143ebf2a7e42ec9910e4abc59f9e9"
+    },
+    {
+      "att_engine": 101.69933184855233,
+      "att_ours": 105.94097995545657,
+      "draw_id": 1092,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1092.json",
+      "source_sha256": "f2f7dc45f61cb6eb55eecd83d9bdcfd85825ac954a175e135a89a8bbab3bc4d7"
+    },
+    {
+      "att_engine": 99.09810479375697,
+      "att_ours": 103.28874024526199,
+      "draw_id": 1093,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1093.json",
+      "source_sha256": "7b9e85a4c4c6bef3bff514c78793114ffbb19f3a7dc6a51cea6f67371af756bc"
+    },
+    {
+      "att_engine": 107.60893546607832,
+      "att_ours": 111.4258135686707,
+      "draw_id": 1094,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1094.json",
+      "source_sha256": "5b3c62932bc4a1cb1510ba0d6242ffcde8b0bc21ed8e71b66752569ceca401eb"
+    },
+    {
+      "att_engine": 104.0163666121113,
+      "att_ours": 108.20240043644299,
+      "draw_id": 1095,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1095.json",
+      "source_sha256": "802045bf56d6e3f7c32fc9c5d0b50222dbef578fde33501f496023fce1570a56"
+    },
+    {
+      "att_engine": 99.58972943125345,
+      "att_ours": 103.8121546961326,
+      "draw_id": 1096,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1096.json",
+      "source_sha256": "7c2c541d959a24f61fb9a2844d2223bed9a10fd73d6a4054bceaf03789340b9e"
+    },
+    {
+      "att_engine": 99.32555555555555,
+      "att_ours": 103.64444444444445,
+      "draw_id": 1097,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1097.json",
+      "source_sha256": "fe46fc5df1cffafe625bfb7aaac8ba78004def21f383ea194c884f4ce1691f11"
+    },
+    {
+      "att_engine": 100.79049198452184,
+      "att_ours": 104.91708126036484,
+      "draw_id": 1098,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1098.json",
+      "source_sha256": "b1fc0b6b0c7c6610c77cf7b1d175ffc25a41967a1e83bacd573fa56da9e25196"
+    },
+    {
+      "att_engine": 98.43487858719647,
+      "att_ours": 102.66004415011038,
+      "draw_id": 1099,
+      "seed": 404,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed404_draw1099.json",
+      "source_sha256": "f58e076f47a69fd996eeca8bc850b91ad67355b3d68c641acd41017c22c61588"
+    },
+    {
+      "att_engine": 100.48979591836735,
+      "att_ours": 104.80143408714838,
+      "draw_id": 1000,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1000.json",
+      "source_sha256": "eaf8a7585077fbcfa10fe164f9c58184eed77496ac91c5c4e9bb919b7f09f3d2"
+    },
+    {
+      "att_engine": 98.08901098901099,
+      "att_ours": 102.18681318681318,
+      "draw_id": 1001,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1001.json",
+      "source_sha256": "eb1300993544fc6808d5581925e659bbb61cc123c02174a3a3961b948fe68f44"
+    },
+    {
+      "att_engine": 96.94459833795014,
+      "att_ours": 101.25484764542936,
+      "draw_id": 1002,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1002.json",
+      "source_sha256": "77ab715eeda1e51ea17bbaf7b3f6883e422694d79d699fa4b412c1f3048ac4a5"
+    },
+    {
+      "att_engine": 109.88968166849615,
+      "att_ours": 113.64434687156971,
+      "draw_id": 1003,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1003.json",
+      "source_sha256": "4780fe4c4a5dcb65ccd0e6a3da8e622d2278e44cf06078d1bc441c1690cb0ff3"
+    },
+    {
+      "att_engine": 100.36413641364136,
+      "att_ours": 104.58195819581958,
+      "draw_id": 1004,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1004.json",
+      "source_sha256": "98e1ae28bb61e099d1acff39e031a063d77163c0ec883a941a95c165ecfeaffc"
+    },
+    {
+      "att_engine": 101.66648321408915,
+      "att_ours": 105.97413318657127,
+      "draw_id": 1005,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1005.json",
+      "source_sha256": "6c1d71ef38f83f2cc96dc4d2033ff59ae22e35f4248ecf82cfe127411df03449"
+    },
+    {
+      "att_engine": 100.86989657049537,
+      "att_ours": 105.06532389765923,
+      "draw_id": 1006,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1006.json",
+      "source_sha256": "ca3b6403c5e7ed8f232a7858748ee35939c2f2dc01cb7c83d9042ecc6bd56d4f"
+    },
+    {
+      "att_engine": 98.21496370742602,
+      "att_ours": 102.41485203796762,
+      "draw_id": 1007,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1007.json",
+      "source_sha256": "6f9ee7f23f8ddab223f6f74ad989ca5fa506dfc778ad04fbaba10ca05ed5ce81"
+    },
+    {
+      "att_engine": 97.59988931931377,
+      "att_ours": 101.93967902600996,
+      "draw_id": 1008,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1008.json",
+      "source_sha256": "a22bebae7010a74eada8ce67fb6d425c2bc15ed605a7dac8f868754dc4a62f4e"
+    },
+    {
+      "att_engine": 99.0282392026578,
+      "att_ours": 103.39977851605758,
+      "draw_id": 1009,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1009.json",
+      "source_sha256": "44498ec232bf2131bff95777b9eab5a02767b2a07ed9012201087414f2da2f5d"
+    },
+    {
+      "att_engine": 100.75693673695893,
+      "att_ours": 105.16093229744727,
+      "draw_id": 1010,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1010.json",
+      "source_sha256": "210c4bd1be18b9480d04a3d76c68be69d377a9d7e3ca409fe4724f2ab7a78387"
+    },
+    {
+      "att_engine": 99.49009900990099,
+      "att_ours": 103.75137513751375,
+      "draw_id": 1011,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1011.json",
+      "source_sha256": "3287a38fbec5efc08913da459d8d0f7ee5bf2b4dd008e7a67495204405b5dc51"
+    },
+    {
+      "att_engine": 98.665564738292,
+      "att_ours": 102.97796143250689,
+      "draw_id": 1012,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1012.json",
+      "source_sha256": "dd0264368e96fe505aab19f59e354a0b3d750dca6f013d8df3f0db2db6fa2842"
+    },
+    {
+      "att_engine": 100.10933186085036,
+      "att_ours": 104.39260077305356,
+      "draw_id": 1013,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1013.json",
+      "source_sha256": "d39fcfdfabd2bba7ef181c1ebf88b16aec1462caa685ef8b8679eae1d0bc39f0"
+    },
+    {
+      "att_engine": 103.85536294691224,
+      "att_ours": 108.01733477789816,
+      "draw_id": 1014,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1014.json",
+      "source_sha256": "2bc77c75661ea50ad66ed962a990e56540fbd8a680c7f68ab814bfb97f80550a"
+    },
+    {
+      "att_engine": 98.91480065537958,
+      "att_ours": 103.29601310759148,
+      "draw_id": 1015,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1015.json",
+      "source_sha256": "b2648710c33b3f38a33952f65acb0a4877989d3caffbd395f6933909c60394d8"
+    },
+    {
+      "att_engine": 100.12903225806451,
+      "att_ours": 104.33843630399126,
+      "draw_id": 1016,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1016.json",
+      "source_sha256": "e0e676f9c7b3386ae07e25a18faa5c337d2b8289473508e43648d1ff91a95395"
+    },
+    {
+      "att_engine": 101.12713263621355,
+      "att_ours": 105.35222894881673,
+      "draw_id": 1017,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1017.json",
+      "source_sha256": "877b1775f45885957d9c32be244695cc0514039d13763d9b35d2de00ec1fb87f"
+    },
+    {
+      "att_engine": 99.63056624518967,
+      "att_ours": 103.97196261682242,
+      "draw_id": 1018,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1018.json",
+      "source_sha256": "478e58700bb90e7f5ead6c4c1255a6f34b65dfe1e8a27445d7b54104e8cec88f"
+    },
+    {
+      "att_engine": 97.29511793746572,
+      "att_ours": 101.33571036752606,
+      "draw_id": 1019,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1019.json",
+      "source_sha256": "68867454e483312f6ffd96ee6592fc3fdaa3ee6bcdb03e8c27efe04dd6965946"
+    },
+    {
+      "att_engine": 101.94527363184079,
+      "att_ours": 106.16639027086788,
+      "draw_id": 1020,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1020.json",
+      "source_sha256": "c451ac6b28e1661f6dcbae2ae3d1d99a991fa5a2c0889e2cde6147c1ba0146c5"
+    },
+    {
+      "att_engine": 99.81046831955923,
+      "att_ours": 104.18457300275482,
+      "draw_id": 1021,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1021.json",
+      "source_sha256": "789ce7254c986cc7936c0e1a972440f591550c40f06e01037e9ae98a717c5e1c"
+    },
+    {
+      "att_engine": 104.63192904656319,
+      "att_ours": 108.93569844789357,
+      "draw_id": 1022,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1022.json",
+      "source_sha256": "e027c7564b80802bb5362b949ae956d23bb312a9b9aaa1a3a37444f9a4f4952e"
+    },
+    {
+      "att_engine": 98.16583471991126,
+      "att_ours": 102.37104825291182,
+      "draw_id": 1023,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1023.json",
+      "source_sha256": "603e5cb7f0b259cefbfa68cbff50f6d28e4ef34cf7c4c9dbc3675fcadf91c518"
+    },
+    {
+      "att_engine": 99.28790366721401,
+      "att_ours": 103.51122058018609,
+      "draw_id": 1024,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1024.json",
+      "source_sha256": "cb8431a012c798525c379c794cff1b2393d27a9d2f3b2506e0895e4024677940"
+    },
+    {
+      "att_engine": 102.62705366922235,
+      "att_ours": 106.92771084337349,
+      "draw_id": 1025,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1025.json",
+      "source_sha256": "f2080fb794847b9266d8dc76b2d6f58d778da6fd9b8c4a0da39eb6cd3fed1077"
+    },
+    {
+      "att_engine": 100.1431718061674,
+      "att_ours": 104.28414096916299,
+      "draw_id": 1026,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1026.json",
+      "source_sha256": "f2b4a79e9c4fb3b3ca5f91a79fb4055ee89fda7a34ffd6046ded9e24739ddcbb"
+    },
+    {
+      "att_engine": 103.73017621145374,
+      "att_ours": 107.95704845814979,
+      "draw_id": 1027,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1027.json",
+      "source_sha256": "9d6d9bac468627208f5f515d06e5a2d120021dbdb10a88f28b5e1fe9f0bd2518"
+    },
+    {
+      "att_engine": 108.9489010989011,
+      "att_ours": 112.60989010989012,
+      "draw_id": 1028,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1028.json",
+      "source_sha256": "10084533b9ac71acde149eca5e6be879a37cb445e381df1e7689835352cc5bf9"
+    },
+    {
+      "att_engine": 99.64042434394193,
+      "att_ours": 103.7716359575656,
+      "draw_id": 1029,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1029.json",
+      "source_sha256": "c510ec1d089342837a0f0da33b532af8cf9814d50aeb2daf4bfc54bd9117a5a2"
+    },
+    {
+      "att_engine": 101.71288209606988,
+      "att_ours": 105.99890829694323,
+      "draw_id": 1030,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1030.json",
+      "source_sha256": "17d516ffc0c68f62eed0a8074873f80a3f8ece4a282801ef6e941480ca1c793e"
+    },
+    {
+      "att_engine": 97.74157923799007,
+      "att_ours": 102.0939226519337,
+      "draw_id": 1031,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1031.json",
+      "source_sha256": "d841f0c585fbdb6800eb73e386c761e81bc9209fc4600600651649bb5aeb585b"
+    },
+    {
+      "att_engine": 101.9470782800441,
+      "att_ours": 106.19625137816979,
+      "draw_id": 1032,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1032.json",
+      "source_sha256": "7519def5ac39bf34c7b405f766645c8672c2a0e5e7a15c1ccc481fa88fd7099f"
+    },
+    {
+      "att_engine": 100.28265642151482,
+      "att_ours": 104.71993410214168,
+      "draw_id": 1033,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1033.json",
+      "source_sha256": "201d91c3adfdc570786720a8ae8b94d6124e996452aa011678a86405fdb7e0b3"
+    },
+    {
+      "att_engine": 102.77662479519388,
+      "att_ours": 107.00436919716002,
+      "draw_id": 1034,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1034.json",
+      "source_sha256": "712cd628dd11bacbe339fae4de983000c6fe9108c615342e43d8998136c5e217"
+    },
+    {
+      "att_engine": 99.41160220994475,
+      "att_ours": 103.80662983425414,
+      "draw_id": 1035,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1035.json",
+      "source_sha256": "adbd4d63a103dffdf31f07166e905b5876ed7eb72792b557f29b7ec180b5fd68"
+    },
+    {
+      "att_engine": 101.1532967032967,
+      "att_ours": 105.35733919736118,
+      "draw_id": 1036,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1036.json",
+      "source_sha256": "229896982f896f57610e7c5e2e2ed61beb288b50ba8a142ec10c17b16298a028"
+    },
+    {
+      "att_engine": 99.19858156028369,
+      "att_ours": 103.40152755046373,
+      "draw_id": 1037,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1037.json",
+      "source_sha256": "42e6d63afe79a1c9631a16cf2ea370d5abd7e8f91b5506a8f36dfb59c72acca2"
+    },
+    {
+      "att_engine": 100.6963696369637,
+      "att_ours": 104.77997799779978,
+      "draw_id": 1038,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1038.json",
+      "source_sha256": "b59381d40daa329617589175a3fddb4bf0a8e706608a44948cfe6e0c248a7de6"
+    },
+    {
+      "att_engine": 98.95506849315069,
+      "att_ours": 103.35616438356165,
+      "draw_id": 1039,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1039.json",
+      "source_sha256": "7208643f9df4d517266cb91d415deedc7e3fb57c2efa656389acb8c06c28a5c1"
+    },
+    {
+      "att_engine": 99.7035010940919,
+      "att_ours": 103.92778993435448,
+      "draw_id": 1040,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1040.json",
+      "source_sha256": "2678487a286473e220a172bd4c1dde778cd9eada318eeb96f24c9d87e1ca74c3"
+    },
+    {
+      "att_engine": 103.67156063077759,
+      "att_ours": 107.97444263186514,
+      "draw_id": 1041,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1041.json",
+      "source_sha256": "0510f79859731cd8da6c20950032b15381b585f9e96be4144990c2859188a844"
+    },
+    {
+      "att_engine": 106.330081300813,
+      "att_ours": 110.59891598915989,
+      "draw_id": 1042,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1042.json",
+      "source_sha256": "8c99b8e7409d2a912944de81a590a4d93625473e58449f1951180d9557256c37"
+    },
+    {
+      "att_engine": 99.64830272676683,
+      "att_ours": 103.95879732739421,
+      "draw_id": 1043,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1043.json",
+      "source_sha256": "eebea6162ef50e781709f818bfa07798b6ff695a6db292183fda5dbdd5d48236"
+    },
+    {
+      "att_engine": 108.33718371837183,
+      "att_ours": 112.50825082508251,
+      "draw_id": 1044,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1044.json",
+      "source_sha256": "f01f571c6809472d91768bb97b89668c2be03089a0af17b1899592df663f2407"
+    },
+    {
+      "att_engine": 104.45134689389775,
+      "att_ours": 108.94722374931281,
+      "draw_id": 1045,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1045.json",
+      "source_sha256": "64f6472a9298fb3fc74460b2d008a4c4118d905eae9a458c46d16f39b233405e"
+    },
+    {
+      "att_engine": 100.45669291338582,
+      "att_ours": 104.64566929133858,
+      "draw_id": 1046,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1046.json",
+      "source_sha256": "5a8e6f4be7f1b36cadb3e3bc48fa7362a8cc1e85e9aa41ffef45e8cda35dad5f"
+    },
+    {
+      "att_engine": 101.67109634551495,
+      "att_ours": 105.85872576177286,
+      "draw_id": 1047,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1047.json",
+      "source_sha256": "3e21e90cdb6b67db53c32d873ca6454a217d4e140e33dffd6ea612449517d995"
+    },
+    {
+      "att_engine": 106.73678474114442,
+      "att_ours": 110.88010899182561,
+      "draw_id": 1048,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1048.json",
+      "source_sha256": "e80f2c7b03c9c4a5367c221c629c44e6d6b711e37d68c2f86b35dcc56f4a42bc"
+    },
+    {
+      "att_engine": 100.58069883527455,
+      "att_ours": 104.73932334997227,
+      "draw_id": 1049,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1049.json",
+      "source_sha256": "a120a73a11b05bcd92412f92b6323c74245fbcb3ff493526a485db75f9c171a8"
+    },
+    {
+      "att_engine": 101.279865395401,
+      "att_ours": 105.42624789680315,
+      "draw_id": 1050,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1050.json",
+      "source_sha256": "e33be30e90cbc5c98f20136410f94cc5552675eb82e138de74aeb1240dcba1f5"
+    },
+    {
+      "att_engine": 97.3561190738699,
+      "att_ours": 101.43880926130099,
+      "draw_id": 1051,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1051.json",
+      "source_sha256": "8a68f4b81c83ba3bc5a7a4d59039feac18c9776d2e9d1305276c0a493babea99"
+    },
+    {
+      "att_engine": 98.49174008810573,
+      "att_ours": 102.74229074889868,
+      "draw_id": 1052,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1052.json",
+      "source_sha256": "112db22d248a4c51ac5eb80975cec8143f0c255251c0e24298dc86bba0c5b4fb"
+    },
+    {
+      "att_engine": 99.82836644591612,
+      "att_ours": 103.90176600441501,
+      "draw_id": 1053,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1053.json",
+      "source_sha256": "4a19e0756a1efc1e23e420b5f8faf13be4edb16bfe1636de589504648a179721"
+    },
+    {
+      "att_engine": 100.50574712643679,
+      "att_ours": 104.87411056376574,
+      "draw_id": 1054,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1054.json",
+      "source_sha256": "3ea1dd8f8af8bf696c8ad0ef1a52128c4cb294a2dc1a22d8770c0f6e5dc026d2"
+    },
+    {
+      "att_engine": 100.71452328159646,
+      "att_ours": 104.91680532445923,
+      "draw_id": 1055,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1055.json",
+      "source_sha256": "dac9ab4654c9fc6bde8a9371ede2a0c463a17c551f349a837935866a77eebc85"
+    },
+    {
+      "att_engine": 101.69484083424808,
+      "att_ours": 106.0098792535675,
+      "draw_id": 1056,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1056.json",
+      "source_sha256": "fb74afccb9a1119461f5cf3b79e9bc75492935c4a2a5c82595aba123bdc27102"
+    },
+    {
+      "att_engine": 99.73852957435047,
+      "att_ours": 104.01050304035378,
+      "draw_id": 1057,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1057.json",
+      "source_sha256": "3767d4970737a6167581ca9b6050104d5eecc045d81b0490a95ece7d8737b1fc"
+    },
+    {
+      "att_engine": 101.76944140197152,
+      "att_ours": 106.04052573932093,
+      "draw_id": 1058,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1058.json",
+      "source_sha256": "aded51bd3d47a1c9c5858e52b595c66772f58112c8f5ae5ae25f8e7d136144fd"
+    },
+    {
+      "att_engine": 103.18725974739154,
+      "att_ours": 107.41076331685886,
+      "draw_id": 1059,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1059.json",
+      "source_sha256": "29732fff81eccc46b79973c6ae20f0b67b0749c520801e72732e7e39bf471a4b"
+    },
+    {
+      "att_engine": 101.83104772353263,
+      "att_ours": 106.09709270433352,
+      "draw_id": 1060,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1060.json",
+      "source_sha256": "0d567da2b2b721bdd48b3553cd09f02e7328edb8b3d145c57777445ac51ce4d0"
+    },
+    {
+      "att_engine": 100.73487348734874,
+      "att_ours": 105.07700770077008,
+      "draw_id": 1061,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1061.json",
+      "source_sha256": "f04ded69aaa491a103b324c205a4d12c4d88d50d3d1d3024346ef2fbc22129ca"
+    },
+    {
+      "att_engine": 97.71878515185603,
+      "att_ours": 102.10911136107987,
+      "draw_id": 1062,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1062.json",
+      "source_sha256": "1dc8080b3f6ce5b7b4090a6d453713c5602ae6cb0855233925f4785d12880eaa"
+    },
+    {
+      "att_engine": 100.90574456218629,
+      "att_ours": 105.20078081427775,
+      "draw_id": 1063,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1063.json",
+      "source_sha256": "8bbe98a721e47f6ee6390b2c84f6e2a0cd8508da5017f7c713743754c9c9c156"
+    },
+    {
+      "att_engine": 102.03421633554083,
+      "att_ours": 106.43014908890116,
+      "draw_id": 1064,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1064.json",
+      "source_sha256": "65b5b8f22f8c9ddde0976dc810471d5013169ad83547c3e2c6777bdd93f61380"
+    },
+    {
+      "att_engine": 99.26113249037932,
+      "att_ours": 103.54865310610225,
+      "draw_id": 1065,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1065.json",
+      "source_sha256": "bb96d4320a12e8265408396f6cf9b92e8e39eb3d26e3da1cf9cb94e4f34ae6a9"
+    },
+    {
+      "att_engine": 97.08255365987893,
+      "att_ours": 101.24449339207048,
+      "draw_id": 1066,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1066.json",
+      "source_sha256": "139f77700b70eb56c05a773c5cb3884275820a3ef1fc9e2daeb1d6eb295fb219"
+    },
+    {
+      "att_engine": 98.41753424657534,
+      "att_ours": 102.66575342465754,
+      "draw_id": 1067,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1067.json",
+      "source_sha256": "3abf5516b2e7b2fede94692e6962c64c283b1f6a5c66fa71758119b1ff267c96"
+    },
+    {
+      "att_engine": 100.36068281938326,
+      "att_ours": 104.55396475770925,
+      "draw_id": 1068,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1068.json",
+      "source_sha256": "a56de561dacbedf00ea372f6fb8f2eb4dc855701c423fa248e1a5faa9c8cecd4"
+    },
+    {
+      "att_engine": 100.82424916573972,
+      "att_ours": 104.91101223581758,
+      "draw_id": 1069,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1069.json",
+      "source_sha256": "db5311b3239c507306b99b8c1018630fd8d9e220b24a7793ebef090e9caa9b83"
+    },
+    {
+      "att_engine": 103.25454545454545,
+      "att_ours": 107.56198347107438,
+      "draw_id": 1070,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1070.json",
+      "source_sha256": "19541c9f383e252714b1a16ecde1c3f0e0c9926c946b5f8549ac964a0463cf69"
+    },
+    {
+      "att_engine": 101.70540098199673,
+      "att_ours": 106.24454148471615,
+      "draw_id": 1071,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1071.json",
+      "source_sha256": "a2bdbd18a268a5f48e65a82543146f88092a5c20bd76dc52aef8dcc639942bdd"
+    },
+    {
+      "att_engine": 100.14794520547945,
+      "att_ours": 104.35890410958905,
+      "draw_id": 1072,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1072.json",
+      "source_sha256": "1cbbde9645c1f25ce710e1df97067f32ee26638360961eec771844a39ba74b8b"
+    },
+    {
+      "att_engine": 98.47801892042293,
+      "att_ours": 102.71285475792989,
+      "draw_id": 1073,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1073.json",
+      "source_sha256": "b31ecd84e16ef4b7a1d046bc664f3bf7ed7193d2296f7f795f5da494444786b0"
+    },
+    {
+      "att_engine": 98.09949972206782,
+      "att_ours": 102.46525847693162,
+      "draw_id": 1074,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1074.json",
+      "source_sha256": "be6ed175fd54f1b30742bb118e92e46332fdb02f42fd99b91062a5c14cb9d799"
+    },
+    {
+      "att_engine": 99.33591588267848,
+      "att_ours": 103.66629773104593,
+      "draw_id": 1075,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1075.json",
+      "source_sha256": "0baebe5c9089b0424b637ce512440d6334f42dd4317deac72433d50013bc665c"
+    },
+    {
+      "att_engine": 99.40188470066519,
+      "att_ours": 103.74168514412416,
+      "draw_id": 1076,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1076.json",
+      "source_sha256": "aafc13bc99a3457d02086f8f5a13ce449d1bf0d533481d82047c4515aa9e598e"
+    },
+    {
+      "att_engine": 99.19584245076587,
+      "att_ours": 103.57768052516411,
+      "draw_id": 1077,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1077.json",
+      "source_sha256": "9398ce076738ac45304b88100fe893a70adc53e4722c8cf7c6feba6958431d38"
+    },
+    {
+      "att_engine": 102.8828039430449,
+      "att_ours": 107.26725082146768,
+      "draw_id": 1078,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1078.json",
+      "source_sha256": "577dd45506fd7c3e0cca6349be0f5c546c6f4916a971df1eef02c0279e828cc0"
+    },
+    {
+      "att_engine": 103.9988968560397,
+      "att_ours": 108.08880308880309,
+      "draw_id": 1079,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1079.json",
+      "source_sha256": "9e5ddff0e76ff9c2d3585799c92da36de220c556132daaec03c462abc59972f0"
+    },
+    {
+      "att_engine": 103.57158651188502,
+      "att_ours": 107.84687672747374,
+      "draw_id": 1080,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1080.json",
+      "source_sha256": "b4266220af50ff05d8ef62d83fc1d2fc1b0a743b5daf3f0a1f1e906e6ce59d20"
+    },
+    {
+      "att_engine": 97.6437673130194,
+      "att_ours": 101.87534626038781,
+      "draw_id": 1081,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1081.json",
+      "source_sha256": "71ea4546244139344aca4e2709f78eb564e8fe7ba8efd685eeaa97e3fba9b4f7"
+    },
+    {
+      "att_engine": 99.44691495275153,
+      "att_ours": 103.84936075597554,
+      "draw_id": 1082,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1082.json",
+      "source_sha256": "3efdc0383e4123530df7e2be824aade04552c5ccee7cdb91d0a2614959d86736"
+    },
+    {
+      "att_engine": 97.11608623548922,
+      "att_ours": 101.39579878385848,
+      "draw_id": 1083,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1083.json",
+      "source_sha256": "c1e5af51a94fa82b299ac97c605dc0ebe57e3fd96a7ee9058c798e6ef5905443"
+    },
+    {
+      "att_engine": 102.7702850877193,
+      "att_ours": 107.18869994514536,
+      "draw_id": 1084,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1084.json",
+      "source_sha256": "0001bc2fd54b6412f4585f2cb0691ad24122a9dab551bfdab4d37e775f5e1c7e"
+    },
+    {
+      "att_engine": 101.16685082872928,
+      "att_ours": 105.48618784530387,
+      "draw_id": 1085,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1085.json",
+      "source_sha256": "ada34673813b7707159f99e731a07d20ff25990eb8388767c0dfb88088093c7e"
+    },
+    {
+      "att_engine": 97.24473975636766,
+      "att_ours": 101.60575858250277,
+      "draw_id": 1086,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1086.json",
+      "source_sha256": "d35da567a077e158251f71dac2549cb9d7c2b12ac23eb13d2ecbfc4a0ac41038"
+    },
+    {
+      "att_engine": 99.61512976256212,
+      "att_ours": 103.81281060187742,
+      "draw_id": 1087,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1087.json",
+      "source_sha256": "4e4474006a708d86abd4e4180d8fc7985a01c5bb6105cc66690e0682a0634541"
+    },
+    {
+      "att_engine": 100.14285714285714,
+      "att_ours": 104.3546607832322,
+      "draw_id": 1088,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1088.json",
+      "source_sha256": "5f056ee263a39f51f71c38314472ff0e936a73b736865fa60b869c1d6786e574"
+    },
+    {
+      "att_engine": 103.39810161920715,
+      "att_ours": 107.5460636515913,
+      "draw_id": 1089,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1089.json",
+      "source_sha256": "4fcc30a791ff54b0388bc5b59781683aa9af898525a1af3070be604b928a9866"
+    },
+    {
+      "att_engine": 100.15255157437568,
+      "att_ours": 104.27252985884908,
+      "draw_id": 1090,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1090.json",
+      "source_sha256": "2e0720eadf1518c515c29b45d1684c50e1c870de0242fdd6861c608ecaf51b02"
+    },
+    {
+      "att_engine": 101.38508287292818,
+      "att_ours": 105.68508287292818,
+      "draw_id": 1091,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1091.json",
+      "source_sha256": "36cf491623b7f5d907bd7935f5c3c1598760912ad129d14ece03d9098b8f8bb4"
+    },
+    {
+      "att_engine": 100.31180400890868,
+      "att_ours": 104.56013363028953,
+      "draw_id": 1092,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1092.json",
+      "source_sha256": "b0cf5281b08af22254f862b24d6470387043e065ee4abf203a0426b55b2ecd50"
+    },
+    {
+      "att_engine": 101.10423634336678,
+      "att_ours": 105.23411371237458,
+      "draw_id": 1093,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1093.json",
+      "source_sha256": "1c4bcc76cd33078532b7402e9f016484d0e96a829d840d60c351e289642b0398"
+    },
+    {
+      "att_engine": 101.90568119139547,
+      "att_ours": 106.1472697186983,
+      "draw_id": 1094,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1094.json",
+      "source_sha256": "991eb1a5cc3155d7e47e4ba0243e9bc1b21ec5a21c713285bb0a8d9732ac25e0"
+    },
+    {
+      "att_engine": 104.05782869612656,
+      "att_ours": 108.1860338243317,
+      "draw_id": 1095,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1095.json",
+      "source_sha256": "1fa761fb4d7569cd4adf07fb1f38b5f85789cb8049b483d07759b5e9d88d7066"
+    },
+    {
+      "att_engine": 97.3296521258973,
+      "att_ours": 101.58011049723757,
+      "draw_id": 1096,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1096.json",
+      "source_sha256": "46edb5fea89177071aebab3b75fbfcc8df936a5acef3ecccf22e18eb133188e5"
+    },
+    {
+      "att_engine": 99.28888888888889,
+      "att_ours": 103.62222222222222,
+      "draw_id": 1097,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1097.json",
+      "source_sha256": "1675629ebf41119e52fa4ec8ef6b5843a02ddd146a6ac40dbf29a5fe4b6e1301"
+    },
+    {
+      "att_engine": 101.42620232172472,
+      "att_ours": 105.55279159756772,
+      "draw_id": 1098,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1098.json",
+      "source_sha256": "4ac4a70b0ef304032979849657c4bf5f216caf8da19e9d48f63bfbbcdeb66369"
+    },
+    {
+      "att_engine": 100.79304635761589,
+      "att_ours": 105.02759381898454,
+      "draw_id": 1099,
+      "seed": 505,
+      "source": "cell_hz1x1_dt_at_mappo1000_seed505_draw1099.json",
+      "source_sha256": "c57cbb37efcf1ed37b1cd7780ab2f230fb09f9d8c3ab7aea2f95accc5187b186"
+    }
+  ],
+  "seeds": [
+    101,
+    202,
+    303,
+    404,
+    505
+  ],
+  "source": {
+    "campaign_manifest": "output/p8_4b_rederivation/campaign_manifest.json",
+    "campaign_manifest_sha256": "9a618ec2c2d9b3326e149f52c5e2835cdf7522937bebecf109175448b8387d5a",
+    "campaign_provenance": {
+      "artifact": "docs/data/p8_4b_rederivation.json",
+      "artifact_sha256": "d92321d422acc06a35bde7a499cef41232846ced33ceea594c4ef199792c96d9",
+      "code_dirty": true,
+      "git_commit": "3f8d0490f8808940d82673c91755365ba978bcf0",
+      "note": "the cells themselves record no commit; this is the commit P8.4b's committed artifact records for the code that wrote its report"
+    },
+    "declared_cells_sha256": "1f29b469dfb523ee3edf67acad341770ab18d1842427bcc6583e84f7b2cb8f4e",
+    "directory": "output/p8_4b_rederivation",
+    "evaluation_device": {
+      "note": "P8.4b's runner left --device unset (offline/att_rederivation.py:725), which the platform resolves to CUDA when available (agent/utils/utils.py:32-35); A26.1(b) registers the sweep's evaluation on CUDA for that reason",
+      "recorded_by_the_cells": false
+    },
+    "file_name_rule": "offline.att_rederivation.cell_file_name",
+    "policy_source": {
+      "detail": "method_tier_grid._dt_factory with the declared target_rtg -5762.0",
+      "kind": "checkpoint"
+    },
+    "producer": "python -m offline.att_rederivation run (P8.4b)"
+  },
+  "subject": {
+    "arm": "dt@mappo1000",
+    "context_length": 20,
+    "method": "dt",
+    "scenario": "hz1x1",
+    "scenario_id": "cityflow1x1",
+    "tier": "mappo1000"
+  }
+}
