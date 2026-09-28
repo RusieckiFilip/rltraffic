@@ -332,3 +332,113 @@ def build_reference_tree(root: Path) -> ReferenceTree:
         encoding="utf-8",
     )
     return tree
+
+
+# ======================================================================================================================
+# C2 -- a synthetic training subject, and a fake tree for the K = 20 reproduction measurement
+# ======================================================================================================================
+
+
+def episode_return(episode: int, *, t_decisions: int = T_DECISIONS) -> float:
+    """An episode's total return, from the fixture's OWN generator (never through the loader under test)."""
+    return float(sum(float(r) for r in local_rewards(episode, t_decisions=t_decisions)))
+
+
+def synthetic_subject(root: Path, subject: str, *, layout: Sequence[tuple[str, Sequence[int], int]]) -> Any:
+    """Write the directories of *layout* -- ``(name, draws, first_episode)`` each -- under *root* and return the
+    ``method_tier_grid.TierSpec`` of a one-intersection subject over them, labelled *subject*.
+
+    Its declared prompt and scale are the naive rule's values COMPUTED HERE from the fixture's reward generator (the
+    largest episode return, and the largest absolute one), so the route under test must re-derive the same numbers from
+    the corpus or refuse.
+    """
+    from offline.method_tier_grid import TierSpec
+
+    returns: list[float] = []
+    for name, draws, first in layout:
+        write_single_ix_corpus(root, name, draws=draws, first_episode=first)
+        returns.extend(episode_return(first + offset) for offset in range(len(draws)))
+    return TierSpec(
+        tier=subject,
+        dirs=tuple(name for name, _draws, _first in layout),
+        phase=1,
+        target_rtg=max(returns),
+        rtg_scale=max(abs(min(returns)), abs(max(returns))),
+        stream_count=len(returns),
+        subsample="none",
+    )
+
+
+#: The committed digests the fake K = 20 tree names, keyed by (subject, seed), filled in by :func:`build_k20_tree`.
+K20_SUBJECT_FILES: dict[str, str] = {
+    "mappo1000": "p4_dt/dt_seed{seed}.pt",
+    "mix50": "p4_7/checkpoints/mix50_dt_seed{seed}.pt",
+}
+
+
+def tiny_model(seed: int) -> dict[str, Any]:
+    """A small, seed-dependent state dict: enough tensors to name one that differs."""
+    import torch
+
+    generator = torch.Generator().manual_seed(int(seed))
+    return {
+        "embed.weight": torch.randn(4, 3, generator=generator),
+        "embed.bias": torch.randn(4, generator=generator),
+        "head.weight": torch.randn(2, 4, generator=generator),
+        "step": torch.tensor([int(seed)], dtype=torch.int64),
+    }
+
+
+def build_k20_tree(root: Path, *, differ: dict[tuple[str, int], tuple[str, tuple[int, ...], float]] | None = None) -> tuple[Path, Path]:
+    """A fake output tree and docs/data directory for the K = 20 reproduction measurement.
+
+    For both subjects and the five seeds: the PUBLISHED checkpoint at its registered path, named by digest where the
+    real ones are (``p4_gate.json`` for P4's; ``SHA256SUMS_p4_7.txt`` and ``p4_7_training.json``'s canonical digests for
+    P4.7's); the sweep's K = 20 checkpoint at its registered destination with its run record.  The sweep's weights equal
+    the published ones except where *differ* says ``(subject, seed) -> (parameter, index, added)``.
+    """
+    from offline.few_shot import write_payload_exclusive
+    from offline.method_tier_grid import canonical_digest_of
+
+    output_root = Path(root) / "output"
+    data_dir = Path(root) / "docs_data"
+    data_dir.mkdir(parents=True)
+    gate: dict[str, dict[str, str]] = {}
+    sums: list[str] = []
+    runs: list[dict[str, Any]] = []
+    for subject, template in K20_SUBJECT_FILES.items():
+        for seed in REFERENCE_SEEDS:
+            published = tiny_model(seed + (0 if subject == "mappo1000" else 7))
+            relative = template.format(seed=seed)
+            path = output_root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            digest = write_payload_exclusive({"format_version": "dt-checkpoint/1.0", "model": published}, path)
+            if subject == "mappo1000":
+                gate[str(seed)] = {"path": f"output/{relative}", "sha256": digest}
+            else:
+                sums.append(f"{digest}  {relative}")
+                runs.append(
+                    {
+                        "tier": "mix50", "method": "dt", "seed": seed, "file_sha256": digest,
+                        "canonical_digest": canonical_digest_of(path),
+                    }
+                )
+            model = {key: value.clone() for key, value in published.items()}
+            change = (differ or {}).get((subject, seed))
+            if change is not None:
+                name, index, added = change
+                model[name][index] += added
+            name = f"{subject}_k20_b64_seed{seed}"
+            destination = output_root / "p5_3c_training" / "checkpoints" / f"{name}.pt"
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            sha = write_payload_exclusive({"format_version": "dt-checkpoint/1.0", "model": model}, destination)
+            record = output_root / "p5_3c_training" / "runs" / f"{name}.json"
+            record.parent.mkdir(parents=True, exist_ok=True)
+            record.write_text(
+                json.dumps({"format_version": "p5.3c-train-run/1.0", "run": name, "checkpoint_sha256": sha}) + "\n",
+                encoding="utf-8",
+            )
+    (data_dir / "p4_gate.json").write_text(json.dumps({"checkpoints": gate}) + "\n", encoding="utf-8")
+    (output_root / "SHA256SUMS_p4_7.txt").write_text("".join(f"{line}\n" for line in sorted(sums)), encoding="utf-8")
+    (data_dir / "p4_7_training.json").write_text(json.dumps({"runs": runs}) + "\n", encoding="utf-8")
+    return output_root, data_dir
