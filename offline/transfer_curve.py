@@ -90,12 +90,27 @@ the step-0 reward to zero (``transfer_calibration.rtg_advanced_every_decision``'
 info carries ``-0.0`` on every real episode).  ``rtg[i][0] == target_rtg[i]`` is the per-id
 refusal :func:`assert_rtg_first_matches_targets` applies, and ``episode_reward`` is NOT the sum of
 any reward series (it is the env's scalar, as on hz1x1).
+
+P7.3c'S THREE STAGES (``BRIEF_41`` C5; PREREGISTRATION A24(c))
+---------------------------------------------------------------
+A24(c)'s 4,700 cells, declared BESIDE P7.3d's and never inside it: stage 1
+(:data:`STAGE_P7_3C_REPRODUCE`, 700) is P7.3d's whole declared set re-rolled under its own stage
+label; stage 2 (:data:`STAGE_P7_3C_PRIMARY`, 1,500) the three fine-tuned subjects; stage 3
+(:data:`STAGE_P7_3C_CONTROLS`, 2,500) the prompt, attribution and budget controls.  Every cell is a
+``cityflow_grid4x4`` cell, and its chunk is the ``p7.3d-grid4x4/1.1`` format above, UNCHANGED -- the
+record shape is identical and the ``stage`` separates the campaigns (Amendment A, Q8); the alignment
+convention above holds for it as written.  Stages 2 and 3 declare no anchor: rho there is taken
+against stage 1's anchors of the same draw.  ONE admission predicate (:func:`p7_3c_admitted`)
+decides every P7.3c cell at every site that admits one, and all 700 stage-1 chunks must reproduce
+``docs/data/p7_3d_grid4x4.json``'s records before stage 2's first cell
+(:func:`stage1_reproduction_check`).
 """
 
 from __future__ import annotations
 
 import json
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -106,10 +121,28 @@ __all__ = [
     "HALTING_CHECK_DRAW",
     "HELD_OUT_DRAWS",
     "P7_2B_CALIBRATION_SHA256",
+    "P7_3CArm",
+    "P7_3C_ARMS",
+    "P7_3C_CORPUS_SUMS_SHA256",
+    "P7_3C_FINETUNE_SHA256",
+    "P7_3C_STAGES",
+    "P7_3D_GRID4X4_SHA256",
     "RANDOM_POLICY_SEEDS",
+    "STAGE1_BOOKKEEPING_FIELDS",
     "STAGE_CONFIRMATORY",
     "STAGE_GRID4X4",
+    "STAGE_P7_3C",
+    "STAGE_P7_3C_CONTROLS",
+    "STAGE_P7_3C_PRIMARY",
+    "STAGE_P7_3C_REPRODUCE",
     "grid4x4_cells",
+    "grid4x4_targets_for_cell",
+    "load_grid4x4_targets_for",
+    "p7_3c_admitted",
+    "p7_3c_cells",
+    "p7_3c_trained_checkpoint_identity",
+    "stage1_reproduction_check",
+    "undeclared_chunk_names",
     "STAGES",
     "SUBJECTS",
     "TRAINING_SEEDS",
@@ -342,6 +375,17 @@ def grid4x4_cells() -> list[dict[str, Any]]:
     return cells
 
 
+#: P7.3c's three stages (``BRIEF_41`` C5; PREREGISTRATION A24(c)), run in this order, and the report
+#: selector that names the WHOLE declaration.  A separate declaration from P7.3d's, exactly as P7.3d's
+#: is from hz1x1's: ``declared_cells(STAGE_GRID4X4)`` stays A21(a)'s 700 whatever is added here.  The
+#: arm table and the declaration itself follow the grid4x4 constants they are written in.
+STAGE_P7_3C_REPRODUCE = "p7_3c_reproduce"
+STAGE_P7_3C_PRIMARY = "p7_3c_primary"
+STAGE_P7_3C_CONTROLS = "p7_3c_controls"
+P7_3C_STAGES: tuple[str, ...] = (STAGE_P7_3C_REPRODUCE, STAGE_P7_3C_PRIMARY, STAGE_P7_3C_CONTROLS)
+STAGE_P7_3C = "p7_3c"
+
+
 def declared_cells(stage: str | None = None) -> list[dict[str, Any]]:
     """Every cell the campaign runs, as declared -- optionally only one stage's.
 
@@ -359,8 +403,12 @@ def declared_cells(stage: str | None = None) -> list[dict[str, Any]]:
     """
     if stage == STAGE_GRID4X4:
         return grid4x4_cells()
+    if stage == STAGE_P7_3C or stage in P7_3C_STAGES:
+        return p7_3c_cells(stage)
     if stage is not None and stage not in STAGES:
-        raise ValueError(f"{stage!r} is not one of {list(STAGES) + [STAGE_GRID4X4]}")
+        raise ValueError(
+            f"{stage!r} is not one of {list(STAGES) + [STAGE_GRID4X4, *P7_3C_STAGES, STAGE_P7_3C]}"
+        )
     # Amendment A1: the anchor stage is a SEPARATE declaration, so everything below -- and
     # therefore declared_cells(None) -- is exactly what it was before P7.3b existed.
     if stage == STAGE_ANCHOR:
@@ -577,6 +625,173 @@ P7_3D_CALIBRATION_SHA256 = "3e9df8eed4af2e42c132087e711751bc4c265edcef75dd88e24e
 
 P7_2B_CALIBRATION_NAME = "p7_2b_calibration.json"
 P7_2B_CALIBRATION_SHA256 = "92b1592de637cee187c56b988ce320611d89706c8f9f02c34fe7ebbe81658d86"
+
+#: P7.3d's committed zero-shot artifact, the record P7.3c's stage 1 must reproduce (A24(c)).  Checked
+#: BEFORE it is parsed, as every pin in this module is.
+P7_3D_GRID4X4_NAME = "p7_3d_grid4x4.json"
+P7_3D_GRID4X4_SHA256 = "c63c371ff14d208d16b9fbfa6d3daa31975679c90b20b5a4b44fbed60760b0b7"
+
+#: A24(c)'s six bookkeeping fields: the ONLY fields of a stage-1 record a re-rolled chunk may differ on.
+STAGE1_BOOKKEEPING_FIELDS: tuple[str, ...] = (
+    "git_commit", "stage", "seconds", "canary_seconds", "checkpoint", "sha256_checked_against",
+)
+
+#: The thirty trainings' committed record (A24(b): *committed on main before the evaluation token*;
+#: Amendment A, Q9).  Set in the first commit after G7 (Amendment F, F3.1): ``docs/data/p7_3c_finetune.json``
+#: as committed on ``main`` at ``c616900``, verified by the coordinator's own route.  Were it ``None``,
+#: EVERY trained-subject identity lookup would refuse, so no trained cell can be evaluated against an
+#: unpinned record (a test keeps that refusal exercised).
+P7_3C_FINETUNE_NAME = "p7_3c_finetune.json"
+P7_3C_FINETUNE_SHA256: str | None = "adb59377edc23270ad479a542ed7d120f4b57c784f6e1f109c54624231ae79bf"
+P7_3C_FINETUNE_PIN_LABEL = (
+    "A24(b): docs/data/p7_3c_finetune.json at offline.transfer_curve.P7_3C_FINETUNE_SHA256 (G7)"
+)
+
+#: The grid4x4 fine-tune corpus, by the digest of its ``SHA256SUMS`` (Amendment C, C2 and C3.2: G3's
+#: verified corpus).  ``offline.few_shot``'s ``check-inputs`` refuses any other before the token.
+P7_3C_CORPUS_SUMS_SHA256 = "5d08b57ce4799cb65f321d62cd755aaa5a39a59f6ab157871dd956799d6205e1"
+
+#: P7.3c's ONE artifact: its three stages are one declaration (BRIEF_41 C6 writes it).
+P7_3C_ARTIFACT_NAME = "p7_3c_grid4x4.json"
+
+#: The two anchors rho is defined against; on P7.3c they are declared in stage 1 only.
+P7_3C_ANCHOR_ARMS: tuple[str, ...] = ("fixedtime", "maxpressure")
+
+
+@dataclass(frozen=True)
+class P7_3CArm:
+    """One DT row of A24's arm table: the cell's subject and prompt arm, and what its checkpoint must be.
+
+    ``init`` is ``None`` for the zero-shot subject -- A20(a)'s five checkpoints at their pins, trained
+    for 40,000 steps -- and ``"source"`` or ``"scratch"`` for a trained subject, the two switches of
+    ``offline.few_shot``.  ``budget`` is the gradient-step count the checkpoint must record, and
+    ``prompt_arm`` names the calibration budget ``k{k}`` its targets are read from.
+    """
+
+    name: str
+    stage: str
+    subject: str
+    prompt_arm: str
+    k: int
+    budget: int
+    init: str | None
+
+    @property
+    def trained(self) -> bool:
+        """``True`` for the six subjects ``offline.few_shot`` trains (A24(b))."""
+        return self.init is not None
+
+
+#: A24's arm table (plan section 9; Amendment A, Q8), in stage order.  Its subjects are the cells'
+#: ``subject``: the zero-shot subject keeps its registered name under three prompts, and each trained
+#: subject is ``offline.few_shot``'s run subject, so a cell names the training run it evaluates.
+P7_3C_ARMS: tuple[P7_3CArm, ...] = (
+    P7_3CArm("zs_k100", STAGE_P7_3C_REPRODUCE, GRID4X4_SUBJECT, "b_mean_k100", 100, 40_000, None),
+    P7_3CArm("ft_k5", STAGE_P7_3C_PRIMARY, "ft_k5", "b_mean_k5", 5, 4_000, "source"),
+    P7_3CArm("ft_k20", STAGE_P7_3C_PRIMARY, "ft_k20", "b_mean_k20", 20, 4_000, "source"),
+    P7_3CArm("ft_k100", STAGE_P7_3C_PRIMARY, "ft_k100", "b_mean_k100", 100, 4_000, "source"),
+    P7_3CArm("zs_k5", STAGE_P7_3C_CONTROLS, GRID4X4_SUBJECT, "b_mean_k5", 5, 40_000, None),
+    P7_3CArm("zs_k20", STAGE_P7_3C_CONTROLS, GRID4X4_SUBJECT, "b_mean_k20", 20, 40_000, None),
+    P7_3CArm("scratch_k100", STAGE_P7_3C_CONTROLS, "scratch_k100", "b_mean_k100", 100, 4_000, "scratch"),
+    P7_3CArm("ft_k100_b1000", STAGE_P7_3C_CONTROLS, "ft_k100_b1000", "b_mean_k100", 100, 1_000, "source"),
+    P7_3CArm("ft_k100_b16000", STAGE_P7_3C_CONTROLS, "ft_k100_b16000", "b_mean_k100", 100, 16_000, "source"),
+)
+
+
+#: The six subjects ``offline.few_shot`` trains; their checkpoints resolve through the committed training record.
+P7_3C_TRAINED_SUBJECTS: frozenset[str] = frozenset(row.subject for row in P7_3C_ARMS if row.trained)
+
+
+def p7_3c_cells(stage: str | None = None) -> list[dict[str, Any]]:
+    """A24(c)'s 4,700 cells in stage order -- or one stage's slice -- enumerated from :data:`P7_3C_ARMS`.
+
+    Stage 1 is :func:`grid4x4_cells` re-labelled, cell for cell and in its order, so the re-roll rolls
+    exactly P7.3d's declared set (500 DT cells and the 200 anchors).  Stages 2 and 3 are the table's
+    rows in order, each x the five training seeds x the 100 held-out draws, and declare no anchor.
+    ``None`` and :data:`STAGE_P7_3C` both name the whole declaration.
+    """
+    if stage not in (None, STAGE_P7_3C, *P7_3C_STAGES):
+        raise ValueError(f"{stage!r} is not one of P7.3c's stages {[*P7_3C_STAGES, STAGE_P7_3C]}")
+    stage1_rows = [(row.subject, row.prompt_arm) for row in P7_3C_ARMS if row.stage == STAGE_P7_3C_REPRODUCE]
+    if stage1_rows != [(GRID4X4_SUBJECT, GRID4X4_ARM)]:
+        raise ValueError(
+            f"stage 1's DT rows are {stage1_rows}, not P7.3d's declared ({GRID4X4_SUBJECT!r}, "
+            f"{GRID4X4_ARM!r}); stage 1 re-rolls P7.3d's set and nothing else (A24(c))"
+        )
+    cells: list[dict[str, Any]] = [{**cell, "stage": STAGE_P7_3C_REPRODUCE} for cell in grid4x4_cells()]
+    for row in P7_3C_ARMS:
+        if row.stage == STAGE_P7_3C_REPRODUCE:
+            continue
+        for seed in TRAINING_SEEDS:
+            for draw in HELD_OUT_DRAWS:
+                cells.append(
+                    {
+                        "kind": "dt",
+                        "subject": row.subject,
+                        "arm": row.prompt_arm,
+                        "seed": int(seed),
+                        "draw_id": int(draw),
+                        "scenario": GRID4X4_SCENARIO_KEY,
+                        "stage": row.stage,
+                    }
+                )
+    if stage in P7_3C_STAGES:
+        cells = [cell for cell in cells if cell["stage"] == stage]
+    return cells
+
+
+def p7_3c_admitted(cell: Mapping[str, Any]) -> P7_3CArm | None:
+    """THE admission predicate for a cell on one of P7.3c's stages: its DT row, ``None`` for an admitted anchor.
+
+    Plan section 9: ONE predicate, called wherever a P7.3c cell is admitted -- by
+    :func:`validate_cell_payload` on every chunk (so at production, at resume and in ``report``) and by
+    :func:`run_cell` before any input is resolved -- so no site can admit what another refuses.  It
+    refuses unless:
+
+    * the stage is one of :data:`P7_3C_STAGES` and the scenario ``cityflow_grid4x4``;
+    * a DT cell's ``(subject, arm)`` is a row of :data:`P7_3C_ARMS` FOR THAT STAGE.  That admits
+      ``b_mean_k5`` and ``b_mean_k20`` for exactly A24(a)'s four pairs -- ``(ft_k5, b_mean_k5)``,
+      ``(ft_k20, b_mean_k20)`` and the zero-shot subject under each -- on P7.3c's stages and nowhere
+      else: A20(b) as A24(a) amends it;
+    * an anchor is ``fixedtime`` or ``maxpressure``, with no subject and no seed, in stage 1 only --
+      stages 2 and 3 take rho against stage 1's anchors of the same draw.
+    """
+    stage = str(cell.get("stage"))
+    if stage not in P7_3C_STAGES:
+        raise ValueError(
+            f"{stage!r} is not a P7.3c stage ({list(P7_3C_STAGES)}); this predicate admits P7.3c's cells "
+            "and no other campaign's"
+        )
+    scenario = cell.get("scenario")
+    if scenario != GRID4X4_SCENARIO_KEY:
+        raise ValueError(
+            f"P7.3c's stages are {GRID4X4_SCENARIO_KEY} cells (A24(c)); this cell's scenario is {scenario!r}"
+        )
+    kind = str(cell.get("kind"))
+    arm = str(cell.get("arm"))
+    if kind == "anchor":
+        if stage != STAGE_P7_3C_REPRODUCE:
+            raise ValueError(
+                f"{arm!r} on {stage!r}: anchors appear only in stage 1 ({STAGE_P7_3C_REPRODUCE}); rho in "
+                "stages 2 and 3 is taken against stage 1's anchors of the same draw"
+            )
+        if cell.get("subject") is not None or cell.get("seed") is not None or arm not in P7_3C_ANCHOR_ARMS:
+            raise ValueError(
+                f"an anchor cell of stage 1 is one of {list(P7_3C_ANCHOR_ARMS)} with no subject and no "
+                f"seed, not subject {cell.get('subject')!r}, arm {arm!r}, seed {cell.get('seed')!r}"
+            )
+        return None
+    if kind != "dt":
+        raise ValueError(f"kind {kind!r} is neither 'dt' nor 'anchor'")
+    subject = str(cell.get("subject"))
+    rows = [row for row in P7_3C_ARMS if row.stage == stage and row.subject == subject and row.prompt_arm == arm]
+    if len(rows) != 1:
+        admitted = [(row.subject, row.prompt_arm) for row in P7_3C_ARMS if row.stage == stage]
+        raise ValueError(
+            f"({subject!r}, {arm!r}) is not an arm of stage {stage!r}: A24(c) admits {admitted} there, and "
+            "b_mean_k5 / b_mean_k20 only for A24(a)'s four pairs"
+        )
+    return rows[0]
 
 #: G1 -- the checkpoint pins, and why they are these files.
 #:
@@ -1030,6 +1245,61 @@ def load_grid4x4_targets(*, data_dir: str | Path | None = None) -> dict[str, flo
     return targets
 
 
+def load_grid4x4_targets_for(
+    prompt_arm: str, *, subject: str, stage: str, data_dir: str | Path | None = None
+) -> dict[str, float]:
+    """The 16 targets of one P7.3c DT arm, READ from the digest-pinned calibration artifact (plan section 9).
+
+    The arm is admitted first, by THE predicate (:func:`p7_3c_admitted`), so ``b_mean_k5`` and
+    ``b_mean_k20`` are read for A24(a)'s four pairs on P7.3c's stages and for nothing else.  Its
+    budget ``k{k}`` is then read from :data:`P7_3D_CALIBRATION_NAME`, checked against its pin before a
+    value is taken, with the ROLE checked on every intersection -- ``registered_prompt`` at the
+    registered k (100), ``recorded_not_evaluated`` at k = 5 and 20, the role A20(b) recorded and
+    A24(a) evaluates on these stages only -- and the rule checked as Rule B's mean, which the arm's
+    name says it is.  :func:`load_grid4x4_targets` is unchanged; at k = 100 this returns exactly what
+    it returns.  Returned in the artifact's ``intersection_ids`` order.
+    """
+    row = p7_3c_admitted(
+        {"kind": "dt", "subject": subject, "arm": prompt_arm, "stage": stage, "scenario": GRID4X4_SCENARIO_KEY}
+    )
+    if row is None:
+        raise ValueError(f"({subject!r}, {prompt_arm!r}) on {stage!r} is not a DT arm")
+    path, payload = _load_p7_3d_calibration(data_dir)
+    key = f"k{row.k}"
+    expected_role = "registered_prompt" if row.k == int(payload["registered_k"]) else "recorded_not_evaluated"
+    targets: dict[str, float] = {}
+    for ix_id in payload["intersection_ids"]:
+        budget = payload["per_intersection"][ix_id]["budgets"][key]
+        if str(budget["role"]) != expected_role:
+            raise ValueError(
+                f"{path}: intersection {ix_id!r} carries role {budget['role']!r} at {key}, not {expected_role!r}"
+            )
+        if (str(budget["rule"]), str(budget["statistic"]), int(budget["k"])) != ("B", "mean", row.k):
+            raise ValueError(
+                f"{path}: intersection {ix_id!r}'s {key} budget is rule {budget['rule']!r}, statistic "
+                f"{budget['statistic']!r}, k {budget['k']!r} -- not Rule B's mean at k = {row.k}, which "
+                f"{row.prompt_arm} names"
+            )
+        targets[str(ix_id)] = float(budget["target"])
+    return targets
+
+
+def grid4x4_targets_for_cell(
+    cell: Mapping[str, Any], *, data_dir: str | Path | None = None
+) -> dict[str, float]:
+    """The targets a grid4x4 DT cell must condition on: ONE call for ``run_cell`` and ``chunk_is_reusable``.
+
+    A P7.3c cell's are its own arm's (:func:`load_grid4x4_targets_for`); every other grid4x4 cell's are
+    the registered prompt, through exactly the call those sites made before P7.3c existed
+    (:func:`load_grid4x4_targets`).
+    """
+    if str(cell.get("stage")) in P7_3C_STAGES:
+        return load_grid4x4_targets_for(
+            str(cell["arm"]), subject=str(cell["subject"]), stage=str(cell["stage"]), data_dir=data_dir
+        )
+    return load_grid4x4_targets(data_dir=data_dir)
+
+
 def assert_rtg_first_matches_targets(
     rtg_series: Mapping[str, Sequence[float]],
     targets: Mapping[str, float],
@@ -1188,6 +1458,12 @@ def checkpoint_identity_for(
     caught and read as *not reusable*, so every restart would have re-rolled every DT chunk (M2).
     """
     if scenario_of(cell) == GRID4X4_SCENARIO_KEY:
+        # BRIEF_41 C5: a subject P7.3c trained resolves through the committed training record; the
+        # zero-shot subject keeps A20(a)'s pins on every stage, P7.3c's included.
+        if str(cell.get("subject")) in P7_3C_TRAINED_SUBJECTS:
+            return p7_3c_trained_checkpoint_identity(
+                str(cell["subject"]), int(cell["seed"]), output_root=output_root, data_dir=data_dir
+            )
         if str(cell.get("subject")) != GRID4X4_SUBJECT:
             raise ValueError(
                 f"{cell.get('subject')!r} is not the registered grid4x4 subject {GRID4X4_SUBJECT!r} "
@@ -1197,6 +1473,148 @@ def checkpoint_identity_for(
     return checkpoint_identity(
         str(cell["subject"]), int(cell["seed"]), output_root=output_root, data_dir=data_dir
     )
+
+
+def p7_3c_trained_checkpoint_identity(
+    subject: str, seed: int, *, output_root: str | Path, data_dir: str | Path | None = None
+) -> dict[str, Any]:
+    """A trained subject's checkpoint: from the COMMITTED record, hashed at consumption, its provenance checked.
+
+    Plan section 9 and F4 (Amendment A, Q3).  In order, each a refusal:
+
+    1. *subject* is one of A24's trained rows (:data:`P7_3C_ARMS`);
+    2. :data:`P7_3C_FINETUNE_SHA256` is set -- Amendment A, Q9: until the first commit after G7 sets
+       it, EVERY trained-subject lookup refuses;
+    3. ``p7_3c_finetune.json`` in *data_dir* hashes to that pin BEFORE it is parsed, and is
+       ``offline.few_shot``'s record format;
+    4. it records the run ``<subject>_seed<seed>`` as exactly that row: subject, switch, k, B, seed;
+    5. the checkpoint's path comes from the record and ONLY from it, relative to *output_root* and
+       never under ``fenced_timing/``: G5's timing checkpoints are an unregistered configuration and
+       are never evaluated (``BRIEF_41`` §2);
+    6. the file's sha256 is the record's, and wherever the gitignored ``SHA256SUMS_p7_3c_finetune.txt``
+       exists it lists the file at that digest -- a manifest that exists and omits it is a gap, not a
+       pass (the rule :func:`checkpoint_identity` applies);
+    7. F4's provenance guard, on a weights-only load: the ``few_shot`` block at its format version;
+       ``init`` the row's switch; ``source_sha256`` A20(a)'s pin for THIS seed -- for the from-scratch
+       control too, whose frozen statistics, ``rtg_scale`` and prompt came from that source (A24(c)(ii))
+       -- and ``source_gradient_steps`` that source's 40,000; ``provenance.gradient_steps`` the row's
+       declared B; ``few_shot.k`` the row's k; ``target_rtg`` the arm's 16 targets
+       (:func:`load_grid4x4_targets_for`).
+
+    ``run_cell`` then hands ``dt_choose`` the row's B, so ``spatial_agent_with_targets`` checks the
+    budget once more on the file it loads.  The returned mapping has :func:`grid4x4_checkpoint_identity`'s
+    keys.
+    """
+    from offline.few_shot import (
+        FENCED_TIMING_DIRNAME,
+        FEW_SHOT_FORMAT_VERSION,
+        MANIFEST_FILENAME,
+        _load_weights_only,
+    )
+    from offline.transfer_calibration import DECLARED_GRADIENT_STEPS, GRID4X4_CHECKPOINT_SHA256
+
+    seed = int(seed)
+    rows = [row for row in P7_3C_ARMS if row.trained and row.subject == str(subject)]
+    if len(rows) != 1:
+        raise ValueError(
+            f"{subject!r} is not a trained subject of A24's table ({sorted(P7_3C_TRAINED_SUBJECTS)})"
+        )
+    row = rows[0]
+    name = f"{row.subject}_seed{seed}"
+    record_path, record = _load_p7_3c_finetune_record(data_dir)
+    entry = dict(record.get("runs") or {}).get(name)
+    if not isinstance(entry, Mapping):
+        raise ValueError(f"{record_path} records no run {name!r}")
+    recorded = (entry.get("subject"), entry.get("init"), entry.get("k"), entry.get("budget"), entry.get("seed"))
+    expected = (row.subject, row.init, row.k, row.budget, seed)
+    if recorded != expected:
+        raise ValueError(
+            f"{record_path}: run {name!r} is recorded as (subject, init, k, B, seed) {recorded}, not A24's "
+            f"{expected}"
+        )
+    relative = Path(str(entry["checkpoint"]))
+    if relative.is_absolute():
+        raise ValueError(f"{record_path}: {name}'s checkpoint {relative} is not relative to the output root")
+    if FENCED_TIMING_DIRNAME in relative.parts:
+        raise ValueError(
+            f"{relative} lies under {FENCED_TIMING_DIRNAME}/: G5's timing runs are an unregistered "
+            "configuration, and nothing there is ever evaluated (BRIEF_41 section 2)"
+        )
+    root = Path(output_root)
+    path = root / relative
+    if not path.is_file():
+        raise FileNotFoundError(f"{path}: {name}'s checkpoint is not on disk")
+    file_digest = _sha256_file(path)
+    if file_digest != str(entry["checkpoint_sha256"]):
+        raise ValueError(
+            f"{path}: file sha256 {file_digest} is not the committed record's {entry['checkpoint_sha256']}; "
+            f"different weights under this name would evaluate as {name}"
+        )
+    checked_against = [P7_3C_FINETUNE_PIN_LABEL]
+    manifest_path = root / MANIFEST_FILENAME
+    if manifest_path.is_file():
+        listed = _manifest_digests(manifest_path)
+        key = relative.as_posix()
+        if key not in listed:
+            raise ValueError(
+                f"{key} is not listed in {MANIFEST_FILENAME}, which does exist; a partial manifest is a gap, "
+                "not a pass"
+            )
+        if listed[key] != file_digest:
+            raise ValueError(f"{path}: file sha256 {file_digest} is not {MANIFEST_FILENAME}'s {listed[key]}")
+        checked_against.append(MANIFEST_FILENAME)
+
+    payload = _load_weights_only(path)
+    provenance = dict(payload.get("provenance") or {})
+    block = provenance.get("few_shot")
+    if not isinstance(block, Mapping):
+        raise ValueError(
+            f"{path}: its provenance records no few_shot block; every trained subject's checkpoint carries "
+            "one (Amendment A1.1)"
+        )
+    if block.get("format_version") != FEW_SHOT_FORMAT_VERSION:
+        raise ValueError(
+            f"{path}: provenance.few_shot.format_version {block.get('format_version')!r} is not "
+            f"{FEW_SHOT_FORMAT_VERSION!r}"
+        )
+    if block.get("init") != row.init:
+        raise ValueError(
+            f"{path}: provenance.few_shot.init {block.get('init')!r} is not {row.init!r}, the switch "
+            f"{row.name} is registered with"
+        )
+    source_pin = GRID4X4_CHECKPOINT_SHA256.get(seed)
+    if block.get("source_sha256") != source_pin:
+        raise ValueError(
+            f"{path}: provenance.few_shot.source_sha256 {block.get('source_sha256')} is not A20(a)'s pin "
+            f"{source_pin} for seed {seed}"
+        )
+    if block.get("source_gradient_steps") != DECLARED_GRADIENT_STEPS:
+        raise ValueError(
+            f"{path}: provenance.few_shot.source_gradient_steps {block.get('source_gradient_steps')} is not "
+            f"the pinned source's {DECLARED_GRADIENT_STEPS}"
+        )
+    if provenance.get("gradient_steps") != row.budget:
+        raise ValueError(
+            f"{path}: provenance.gradient_steps {provenance.get('gradient_steps')} is not the declared B "
+            f"{row.budget} of {row.name}; PREREGISTRATION section 6 forbids evaluating a checkpoint chosen "
+            "by anything but the declared budget"
+        )
+    if block.get("k") != row.k:
+        raise ValueError(f"{path}: provenance.few_shot.k {block.get('k')} is not {row.k}")
+    targets = load_grid4x4_targets_for(row.prompt_arm, subject=row.subject, stage=row.stage, data_dir=data_dir)
+    if dict(payload.get("target_rtg") or {}) != targets:
+        raise ValueError(
+            f"{path}: its target_rtg is not {row.prompt_arm}'s 16 targets in {P7_3D_CALIBRATION_NAME}"
+        )
+    return {
+        "subject": row.subject,
+        "seed": seed,
+        "path": str(path),
+        "file_sha256": file_digest,
+        "sha256_checked_against": checked_against,
+        "local_manifest": MANIFEST_FILENAME,
+        "deferred_56": False,
+    }
 
 
 #: C4's reference cells: rho's two anchors on the first three held-out draws, frozen so the
@@ -2047,14 +2465,20 @@ def validate_cell_payload(
                     "evidence about this one"
                 )
     arm = str(payload.get("arm"))
-    if arm not in DECLARED_ARM_NAMES:
+    # BRIEF_41 C5: a chunk on one of P7.3c's stages is admitted by THE predicate and by nothing else --
+    # the table of A24(c) for its stage, A24(a)'s four k = 5 / k = 20 pairs among them. Every other
+    # chunk, P7.3d's and hz1x1's, takes exactly the checks below, unchanged.
+    p7_3c = str(payload.get("stage")) in P7_3C_STAGES
+    if p7_3c:
+        p7_3c_admitted(payload)
+    elif arm not in DECLARED_ARM_NAMES:
         raise ValueError(
             f"{label}: {arm!r} is not a declared arm. BRIEF_37 §2 closed the set before any cell "
             f"ran ({sorted(DECLARED_ARM_NAMES)}); Rule B at k = 5 and k = 20 are the few-shot "
             "prompts A18(d) attaches to fine-tuned models, and a zero-shot outcome for one of them "
             "is an evaluation nobody registered"
         )
-    if grid:
+    if grid and not p7_3c:
         # A21(a)/(b): the grid4x4 declaration has ONE subject with ONE arm and rho's two anchors.
         # `naive` and `random` are in DECLARED_ARM_NAMES because hz1x1 evaluated them; on this
         # scenario they were removed BY DECLARATION before any grid4x4 SUMO number existed.
@@ -2334,8 +2758,10 @@ def chunk_is_reusable(
                 return False
             # A grid4x4 chunk's 16 prompts, re-derived from the digest-pinned artifact: a chunk
             # conditioned on other targets is internally consistent, so validate cannot see it.
+            # BRIEF_41 C5: the targets of the cell's OWN arm -- k = 5, 20 or 100 -- through the one call
+            # run_cell makes.
             if scenario_of(cell) == GRID4X4_SCENARIO_KEY and dict(payload["target_rtg"]) != (
-                load_grid4x4_targets(data_dir=data_dir)
+                grid4x4_targets_for_cell(cell, data_dir=data_dir)
             ):
                 return False
     except (KeyError, TypeError, ValueError, AttributeError, FileNotFoundError):
@@ -2395,6 +2821,10 @@ def run_cell(
     draw_id = int(cell["draw_id"])
     arm = str(cell["arm"])
     grid = scenario_of(cell) == GRID4X4_SCENARIO_KEY
+    # BRIEF_41 C5: a P7.3c cell is admitted by THE predicate before any input is resolved -- an anchor
+    # in stage 2 or a pair outside its stage's table never reaches a demand, a checkpoint or a simulator.
+    p7_3c = str(cell.get("stage")) in P7_3C_STAGES
+    p7_3c_row = p7_3c_admitted(cell) if p7_3c else None
 
     demand = demand_identity_for(cell, out_root=out_root)
     checkpoint: dict[str, Any] | None = None
@@ -2402,15 +2832,22 @@ def run_cell(
     facts = None
     grid_support: dict[str, tuple[float, float]] | None = None
     anchor_training_sha256: str | None = None
+    # F4 (Amendment A, Q3): a TRAINED subject's cell hands the loader its run's declared B; every other
+    # DT cell -- the zero-shot subject on any stage -- keeps the call P7.3d made, and its 40,000 default.
+    declared_steps: int | None = None
     if kind == "dt" and grid:
-        # P7.3d: the registered subject under its ONE registered arm (A20(a), A21(a)); the 16
-        # prompts and their support ranges READ from the digest-pinned artifact, never recomputed.
-        if str(cell["subject"]) != GRID4X4_SUBJECT or arm != GRID4X4_ARM:
+        # P7.3d: the registered subject under its ONE registered arm (A20(a), A21(a)); P7.3c: the row the
+        # predicate admitted. The 16 targets and their support ranges READ from the digest-pinned
+        # artifact, never recomputed (the support range is the source's on every stage, plan section 9).
+        if p7_3c:
+            if p7_3c_row is not None and p7_3c_row.trained:
+                declared_steps = p7_3c_row.budget
+        elif str(cell["subject"]) != GRID4X4_SUBJECT or arm != GRID4X4_ARM:
             raise ValueError(
                 f"a grid4x4 DT cell is {GRID4X4_SUBJECT!r} under {GRID4X4_ARM!r}, not "
                 f"{cell['subject']!r} under {arm!r}"
             )
-        target_rtg = load_grid4x4_targets(data_dir=data_dir)
+        target_rtg = grid4x4_targets_for_cell(cell, data_dir=data_dir)
         grid_support = grid4x4_support_ranges(data_dir=data_dir)
         checkpoint = checkpoint_identity_for(cell, output_root=output_root, data_dir=data_dir)
     elif kind == "dt":
@@ -2455,9 +2892,16 @@ def run_cell(
         intersections = list(env.intersections)
         action_counts = Utils.infer_action_counts(getattr(env, "action_space", None), intersections)
         n_actions = int(min(action_counts))
-        if kind == "dt":
+        if kind == "dt" and declared_steps is None:
             choose, diagnostics = dt_choose(
                 env, checkpoint_path=checkpoint["path"], target_rtg=target_rtg  # type: ignore[index]
+            )
+        elif kind == "dt":
+            choose, diagnostics = dt_choose(
+                env,
+                checkpoint_path=checkpoint["path"],  # type: ignore[index]
+                target_rtg=target_rtg,  # type: ignore[arg-type]
+                declared_gradient_steps=declared_steps,
             )
         else:
             choose, diagnostics = anchor_choose(env, cell=cell, config_path=demand["config_path"])
@@ -2877,11 +3321,143 @@ def declarations_for(
     # anchor stage is. At 8c79778 it fell through to `None` -- hz1x1's 4,700 -- so a COMPLETE grid4x4
     # campaign would have been refused as 700 chunks "not declared cells of ANY stage" (measured
     # overlap 0: every grid4x4 name carries the scenario prefix).
+    # BRIEF_41 C5: P7.3c's three stages are ONE declaration of 4,700, the whole every one of them is
+    # checked against -- the stages share one work directory, as P7.3a's two did.
     if stage in (STAGE_ANCHOR, STAGE_GRID4X4):
         whole: str | None = stage
+    elif stage == STAGE_P7_3C or stage in P7_3C_STAGES:
+        whole = STAGE_P7_3C
     else:
         whole = None
     return list(declared_cells(whole)), list(declared_cells(stage))
+
+
+def _published_row(
+    payload: Mapping[str, Any], anchors: Mapping[str, Mapping[str, Any]], *, grid: bool
+) -> dict[str, Any]:
+    """One chunk's published ROW -- ``report``'s own row code, extracted so the stage-1 gate builds the SAME row.
+
+    Amendment A, Q2: the whitelist (:data:`_GRID4X4_PUBLISHED_FIELDS`, or hz1x1's
+    :data:`_PUBLISHED_FIELDS`), each field read with ``payload.get`` exactly as ``report`` always read
+    it, then rho under both definitions against *anchors*, the SAME draw's (:func:`_rho_pair`).
+    ``tests/test_p7_3c_regress.py`` pins that ``docs/data/p7_3d_grid4x4.json`` regenerates
+    byte-identically through it.
+    """
+    published = _GRID4X4_PUBLISHED_FIELDS if grid else _PUBLISHED_FIELDS
+    row = {field: payload.get(field) for field in published}
+    row.update(_rho_pair(payload, anchors))
+    return row
+
+
+def _record_key(cell: Mapping[str, Any]) -> tuple[Any, ...]:
+    """A committed record's key, and a cell's: ``(kind, subject, arm, seed, draw_id)`` (plan section 9)."""
+    seed = cell.get("seed")
+    return (
+        str(cell["kind"]), cell.get("subject"), str(cell["arm"]), None if seed is None else int(seed),
+        int(cell["draw_id"]),
+    )
+
+
+def stage1_reproduction_check(
+    work_dir: str | Path, data_dir: str | Path | None = None
+) -> dict[str, Any]:
+    """A24(c)'s stage-1 gate: EVERY one of the 700 re-rolled chunks against P7.3d's committed records.
+
+    *"Every one of the 700 must reproduce the committed artifact's record on every field that record
+    carries except the six bookkeeping fields"* -- and any mismatch stops the campaign before stage 2's
+    first cell.  In order, each a refusal before any comparison:
+
+    1. ``p7_3d_grid4x4.json`` in *data_dir* hashes to :data:`P7_3D_GRID4X4_SHA256` -- FIRST, before it
+       is parsed and before any chunk is read;
+    2. its records are keyed by ``(kind, subject, arm, seed, draw_id)``, one record per key, and the keys
+       are exactly stage 1's declared cells;
+    3. every declared stage-1 cell has its chunk in *work_dir*, validated against its cell
+       (:func:`validate_cell_payload` -- the stage is part of the identity, so P7.3d's own chunk is
+       refused) and named as its content says.
+
+    Then each chunk's ROW is built by ``report``'s own code (:func:`_published_row`), rho taken against
+    stage 1's re-rolled anchors of the same draw, and compared with its record on EVERY key of the
+    RECORD except :data:`STAGE1_BOOKKEEPING_FIELDS`, under ``==``.  A record key the row does not
+    carry, or a whitelisted field the chunk does not carry, is MISSING -- never a pass.
+
+    Returns the verdict, every non-reproducing cell with its field NAMES, and one line: ``stage1_check
+    REPRODUCED 700/700``, or ``stage1_check NOT REPRODUCED n/700`` with the first non-reproducing cell
+    in declared order and its field names -- never a value.  The CLI prints the line and exits 0 or 2.
+    """
+    work = Path(work_dir)
+    artifact_path, artifact = _load_p7_3d_grid4x4(data_dir)
+    digest = P7_3D_GRID4X4_SHA256
+    records: dict[tuple[Any, ...], Mapping[str, Any]] = {}
+    for record in artifact["cells"]:
+        key = _record_key(record)
+        if key in records:
+            raise ValueError(f"{artifact_path} carries two records for {key}")
+        records[key] = record
+    declared = declared_cells(STAGE_P7_3C_REPRODUCE)
+    if set(records) != {_record_key(cell) for cell in declared}:
+        raise ValueError(
+            f"{artifact_path}'s {len(records)} records are not stage 1's {len(declared)} declared cells"
+        )
+
+    paths = [(cell, chunk_path(cell, work_dir=work)) for cell in declared]
+    absent = [path.name for _cell, path in paths if not path.is_file()]
+    if absent:
+        raise ValueError(
+            f"{len(absent)} of the {len(declared)} stage-1 cell(s) have no chunk (first: {absent[:3]}); the "
+            "gate compares every one of them or none"
+        )
+    # Only the whitelisted fields are kept: they are all a row reads, and the per-decision series and
+    # action matrices of 700 chunks need not be held at once.
+    slim: dict[str, dict[str, Any]] = {}
+    anchors_by_draw: dict[int, dict[str, Mapping[str, Any]]] = {}
+    for cell, path in paths:
+        payload = json.loads(path.read_bytes())
+        validate_cell_payload(payload, cell=cell)
+        if cell_chunk_name(payload) != path.name:
+            raise ValueError(f"{path.name}: its content names the cell {cell_chunk_name(payload)}")
+        kept = {field: payload[field] for field in _GRID4X4_PUBLISHED_FIELDS if field in payload}
+        slim[path.name] = kept
+        if cell["kind"] == "anchor":
+            anchors_by_draw.setdefault(int(cell["draw_id"]), {})[str(cell["arm"])] = kept
+
+    not_reproduced: dict[str, dict[str, list[str]]] = {}
+    for cell, path in paths:
+        kept = slim[path.name]
+        anchors = anchors_by_draw.get(int(cell["draw_id"]), {})
+        if set(anchors) != set(P7_3C_ANCHOR_ARMS):
+            raise ValueError(f"draw {cell['draw_id']} carries anchors {sorted(anchors)}, so rho has no denominator")
+        row = _published_row(kept, anchors, grid=True)
+        differing: list[str] = []
+        missing: list[str] = []
+        for field, value in records[_record_key(cell)].items():
+            if field in STAGE1_BOOKKEEPING_FIELDS:
+                continue
+            if field not in row or (field in _GRID4X4_PUBLISHED_FIELDS and field not in kept):
+                missing.append(field)
+            elif row[field] != value:
+                differing.append(field)
+        if differing or missing:
+            not_reproduced[path.name] = {"differing": sorted(differing), "missing": sorted(missing)}
+
+    total = len(declared)
+    if not not_reproduced:
+        line = f"stage1_check REPRODUCED {total}/{total}"
+    else:
+        first = next(path.name for _cell, path in paths if path.name in not_reproduced)
+        entry = not_reproduced[first]
+        parts = [f"differs on {entry['differing']}"] if entry["differing"] else []
+        parts += [f"lacks {entry['missing']}"] if entry["missing"] else []
+        line = f"stage1_check NOT REPRODUCED {len(not_reproduced)}/{total}: first {first}: " + " and ".join(parts)
+    return {
+        "verdict": "NOT REPRODUCED" if not_reproduced else "REPRODUCED",
+        "n_checked": total,
+        "n_not_reproduced": len(not_reproduced),
+        "cells": not_reproduced,
+        "artifact": P7_3D_GRID4X4_NAME,
+        "artifact_sha256": digest,
+        "bookkeeping_fields": list(STAGE1_BOOKKEEPING_FIELDS),
+        "line": line,
+    }
 
 
 def report(
@@ -2932,8 +3508,19 @@ def report(
     # and never from the chunks on disk, which is what stops the completeness check being a
     # tautology (PROJECT_PLAN section 7).
     all_declared, declared = declarations_for(stage, cells)
+    # BRIEF_41 C6: P7.3c's three stages are ONE declaration with ONE artifact. A single stage is refused
+    # before anything is read -- an artifact over it would be an estimator on a partial set (A24(c)).
+    if stage in P7_3C_STAGES:
+        raise ValueError(
+            f"{stage!r} is one stage of P7.3c -- one declaration, one artifact: report --stage {STAGE_P7_3C} "
+            "reads all three"
+        )
+    p7_3c = stage == STAGE_P7_3C or any(str(cell.get("stage")) in P7_3C_STAGES for cell in declared)
+    if cells is not None and p7_3c:
+        # A caller-supplied P7.3c set: its cells of P7.3c's stages are the slice (the selector names no stage).
+        declared = [cell for cell in declared if str(cell.get("stage")) in P7_3C_STAGES]
     if cells is not None:
-        if stage is not None:
+        if stage is not None and not p7_3c:
             declared = [cell for cell in declared if cell["stage"] == stage]
         committed_dir = (_REPO_ROOT / "docs" / "data").resolve()
         if target_path.resolve().parent == committed_dir:
@@ -2955,6 +3542,13 @@ def report(
             "one scenario"
         )
     grid = declared_scenarios == [GRID4X4_SCENARIO_KEY]
+    if p7_3c:
+        # BRIEF_41 C6: P7.3c's declaration takes its OWN body -- its own refusals in plan section 10's
+        # order and its own artifact -- and never P7.3d's grid4x4 body below.
+        return _p7_3c_report(
+            work=work, target_path=target_path, output_root=output_root, out_root=out_root, data=data,
+            stage=stage, declared=declared, all_declared=all_declared, cells_supplied=cells is not None,
+        )
 
     # ---------------------------------------------------------------- 2. the calibration pin
     # hz1x1: P7.2b's artifact. grid4x4 (B.7-2(ii)): P7.3d's per-intersection artifact, never P7.2b's.
@@ -3103,10 +3697,8 @@ def report(
                 "denominator of its own draw. Pairing is PER DRAW because the demand differs by "
                 "draw, and a ratio built from another draw's anchors normalises nothing"
             )
-        published = _GRID4X4_PUBLISHED_FIELDS if grid else _PUBLISHED_FIELDS
-        row = {field: payload.get(field) for field in published}
-        row.update(_rho_pair(payload, anchors))
-        rows.append(row)
+        # Amendment A, Q2: the row code the stage-1 gate shares, extracted and not copied.
+        rows.append(_published_row(payload, anchors, grid=grid))
 
     if grid:
         # B.7-2: grid4x4's body. (iii) first -- the six reference cells, bit for bit, a REFUSAL
@@ -3372,10 +3964,13 @@ def report(
     return _publish_artifact(artifact, target_path)
 
 
-def _publish_artifact(artifact: dict[str, Any], target_path: Path) -> dict[str, Any]:
-    """Step 9 of :func:`report`, for BOTH bodies: the last refusals over the SERIALISED bytes, then
+def _publish_artifact(
+    artifact: dict[str, Any], target_path: Path, *, published_arms: frozenset[str] = DECLARED_ARM_NAMES
+) -> dict[str, Any]:
+    """Step 9 of :func:`report`, for EVERY body: the last refusals over the SERIALISED bytes, then
     the ONE write.  Extracted unchanged in the B.7 round so the grid4x4 body cannot publish by a
-    different route than hz1x1's."""
+    different route than hz1x1's.  *published_arms* is the fence the rows are held to -- the declared
+    arms for hz1x1 and P7.3d, exactly P7.3c's own five for P7.3c (``BRIEF_41`` C6)."""
     serialised = json.dumps(artifact, indent=2, sort_keys=True)
     if FENCED_KEY in serialised:
         raise AssertionError(
@@ -3383,10 +3978,10 @@ def _publish_artifact(artifact: dict[str, Any], target_path: Path) -> dict[str, 
             "into docs/data/. The scan is over the serialised bytes because a key-shaped check "
             "cannot see a fenced name carried in a VALUE"
         )
-    published_arms = {str(row["arm"]) for row in json.loads(serialised)["cells"]}
-    if not published_arms <= DECLARED_ARM_NAMES:
+    arms_in_rows = {str(row["arm"]) for row in json.loads(serialised)["cells"]}
+    if not arms_in_rows <= published_arms:
         raise AssertionError(
-            f"undeclared arm(s) {sorted(published_arms - DECLARED_ARM_NAMES)} reached the "
+            f"undeclared arm(s) {sorted(arms_in_rows - published_arms)} reached the "
             "artifact; BRIEF_37 §2 lifted the fence for the declared arms and for nothing else"
         )
     _write_json(target_path, artifact)
@@ -4427,6 +5022,778 @@ def _grid4x4_artifact(
 
 
 # ======================================================================================
+# BRIEF_41 C6: P7.3c's report body -- the artifact `p7.3c-grid4x4/1.0` (PREREGISTRATION A24(c)-(h))
+# ======================================================================================
+
+#: P7.3c's artifact version: its own, never P7.3d's (one string describing two artifacts is how a
+#: reader comes to believe a cell set is something it is not).  The CHUNKS stay ``p7.3d-grid4x4/1.1``.
+P7_3C_ARTIFACT_FORMAT_VERSION = "p7.3c-grid4x4/1.0"
+
+#: A24(d)'s two constants, fixed from the committed zero-shot artifact's registered arm (rho0 =
+#: 0.8854642679270011 on E_sumo and 0.8854600302820783 on att_env) and NEVER recomputed -- in every
+#: computation of this row, the robustness check included.  G / 2 is exact in float64.
+P7_3C_G = 0.11453573207299894
+P7_3C_G_ATT = 0.11453996971792169
+
+#: A24(d)'s four sentences, VERBATIM from ``PREREGISTRATION.md`` (the italics removed; the em dash
+#: U+2014 and the ellipsis U+2026 escaped so this source stays ASCII).  ``X% [CI]`` is filled from the
+#: closure fraction; the registration's ellipsis is kept, not completed by this code.
+P7_3C_VERDICT_SENTENCES: Mapping[str, str] = {
+    "(i)": (
+        "Exploratory (A24): on grid4x4, fine-tuning on 100 target-domain MaxPressure episodes closes X% [CI] "
+        "of the zero-shot gap to MaxPressure — clause 3's registered criterion is met"
+    ),
+    "(ii)": (
+        "Exploratory (A24): … narrows the gap by X% [CI], short of the registered half — clause 3's "
+        "criterion is not met"
+    ),
+    "(iii)": "Exploratory (A24): … no measurable closure by k = 100 — clause 3's criterion is not met",
+    "(iv)": (
+        "Exploratory (A24): … widens the gap: fine-tuning on target-domain MaxPressure demonstrations "
+        "degrades the transferred model on grid4x4, clause 3's criterion is not met, and the curve is reported "
+        "as interference"
+    ),
+}
+
+#: A24(e)'s reading of the five adjacent steps, VERBATIM.
+P7_3C_ADJACENT_STEPS_READING: tuple[str, str] = (
+    "Five steps, each at 95% without correction, read jointly, and the paper says so.",
+    "A refutation is one of this row's expectations, never folded into (d)'s verdict.",
+)
+
+#: What the P7.3c artifact does NOT say: A24(f), A24(g)'s three scope items and A24(h), VERBATIM (the
+#: emphasis and the enumerators removed; the en dash U+2013, the approximately-equal sign U+2248 and
+#: the em dash U+2014 escaped).  A test extracts each from the registration.
+P7_3C_WHAT_THIS_DOES_NOT_SAY: tuple[str, ...] = (
+    "This row promotes nothing: clause 3's test on grid4x4 is EXPLORATORY, reported with its effect size, its "
+    "CI and (d)'s verdict, every sentence labelled, and no p-value is presented as inferential.",
+    "On grid4x4 the paper states clause 1 as confirmatory (holds, P7.3d), clause 2 as the inequality it is "
+    "(holds, P7.3d), and clause 3 by (d)'s sentence — and writes NO whole-H3 verdict, which would fuse a "
+    "confirmatory clause with an exploratory one.",
+    "The k = 200 full-retrain anchor (A18(a)) stays hz1x1-only. On grid4x4 it would need draws 301–400 "
+    "rendered, 100 more corpus episodes, five 40,000-step trainings (≈ 6.8 h of GPU) and 500 cells. Clause "
+    "3 does not need it, because its gap is to MaxPressure; and (c)'s `scratch_k100` answers the attribution "
+    "question at the fine-tune's own budget, which the anchor would not.",
+    "The `naive` arm, the `random` anchor, `b_max` and Rule A, as A20(b) and A21(b).",
+    "A second subject, as A20(a).",
+    "hz1x1's few-shot curve (A18(d), A19(b)) is NOT part of this task: it stays registered, deferred and not "
+    "cancelled, and the paper says whether it ran.",
+)
+
+
+#: The arms a P7.3c artifact may publish: its three prompts and rho's two anchors -- the fence
+#: ``_publish_artifact`` re-checks on the serialised bytes, P7.3c's own and no wider.
+P7_3C_PUBLISHED_ARMS: frozenset[str] = frozenset(
+    {row.prompt_arm for row in P7_3C_ARMS} | set(P7_3C_ANCHOR_ARMS)
+)
+
+
+def p7_3c_verdict(delta: float, lo: float, hi: float, *, gap: float = P7_3C_G) -> str:
+    """A24(d)'s partition of Delta_100 and its 95 % CI [lo, hi] into (i)-(iv), in float64 without rounding.
+
+    (i) ``lo > 0`` AND ``delta >= gap / 2`` -- the criterion is MET; (ii) ``lo > 0`` and ``delta < gap /
+    2``; (iii) ``lo <= 0 <= hi``; (iv) ``hi < 0``.  The four are a partition, because ``lo <= hi``.
+    *gap* is :data:`P7_3C_G`, never recomputed -- or, for the co-reported definition,
+    :data:`P7_3C_G_ATT`.
+    """
+    if lo > 0.0:
+        return "(i)" if delta >= gap / 2 else "(ii)"
+    if hi < 0.0:
+        return "(iv)"
+    return "(iii)"
+
+
+def _draw_stats(per_draw: Mapping[int, float]) -> dict[str, Any]:
+    """``mean_ci95`` over the per-draw values in DRAW-ID order: the mean, its analytic CI and the bounds."""
+    from offline.dt_gate import mean_ci95
+
+    stats = mean_ci95([per_draw[draw] for draw in sorted(per_draw)])
+    return {
+        "n_draws": stats.n,
+        "delta": stats.mean,
+        "std": stats.std,
+        "ci95": stats.ci95,
+        "lo": stats.mean - stats.ci95,
+        "hi": stats.mean + stats.ci95,
+    }
+
+
+def _differences(
+    left: Mapping[int, float], right: Mapping[int, float], *, label: str
+) -> dict[int, float]:
+    """``left(d) - right(d)`` for every draw, paired BY DRAW ID; a draw in one series only refuses."""
+    only = sorted(set(left) ^ set(right))
+    if only:
+        raise ValueError(
+            f"{label}: draw(s) {only[:5]} are in one series only; A24(d) pairs BY DRAW ID, and a draw "
+            "without its partner has no difference"
+        )
+    return {int(draw): float(left[draw]) - float(right[draw]) for draw in sorted(left)}
+
+
+def paired_by_draw(
+    left: Mapping[int, float], right: Mapping[int, float], *, label: str
+) -> dict[str, Any]:
+    """A24(d)'s paired contrast: the per-draw differences BY DRAW ID, then ``mean_ci95`` over them.
+
+    Never by position: the two series are mappings keyed by draw id, their order is irrelevant, and a
+    draw present in one and absent in the other is refused rather than dropped.
+    """
+    return _draw_stats(_differences(left, right, label=label))
+
+
+def _p7_3c_sentence(label: str, delta: float, lo: float, hi: float, gap: float) -> str:
+    """A24(d)'s registered sentence for *label*, ``X% [CI]`` filled from the closure fraction, one decimal."""
+    closure = f"{100.0 * delta / gap:.1f}% [{100.0 * lo / gap:.1f}%, {100.0 * hi / gap:.1f}%]"
+    return P7_3C_VERDICT_SENTENCES[label].replace("X% [CI]", closure)
+
+
+def p7_3c_estimates(
+    rows: Sequence[Mapping[str, Any]],
+    rho0_by_draw: Mapping[str, Mapping[str, Any]],
+    zero_shot_records: Sequence[Mapping[str, Any]],
+    *,
+    draws: Sequence[int] | None = None,
+) -> dict[str, Any]:
+    """A24(d)-(e)'s estimators from P7.3c's rows -- the primary AND A23(d)'s robustness call THIS function.
+
+    *rows* are ``report``'s rows (each DT row identified by THE predicate); *rho0_by_draw* is the zero-shot
+    artifact's ``rho.by_draw`` -- rho0(d) is READ from it, never from the chunks (plan section 10) -- and
+    *zero_shot_records* its DT cell records, the per-seed zero-shot series of Q6b.  *draws*, when given,
+    restricts every series to those draws (the robustness check).
+
+    Per arm, rho-bar is the mean over draws of each draw's five-seed mean, CI 1.96 s / sqrt(n), ddof 1
+    (``mean_ci95``); every contrast is paired BY DRAW (:func:`paired_by_draw`).  Clause 3: Delta_100 =
+    rho-bar(ft_k100) - rho-bar0, partitioned by :func:`p7_3c_verdict` against the constant G; beside it,
+    never deciding it, the closure fraction, the same on ``att_env`` with G_att, and the five per-seed
+    Delta_100 (seed paired with seed).  A24(e): the total and adaptation effects, Delta_transfer, the
+    five adjacent steps (refuted iff hi < 0), and the budget secondary.  An arm short of five seeds on
+    any draw refuses: no estimator is computed on a partial set (A24(c)).
+    """
+    from offline.dt_gate import mean_ci95
+
+    kept = None if draws is None else {int(draw) for draw in draws}
+
+    def keep(draw: Any) -> bool:
+        return kept is None or int(draw) in kept
+
+    by_arm: dict[str, list[Mapping[str, Any]]] = {row.name: [] for row in P7_3C_ARMS}
+    for payload in rows:
+        if str(payload.get("kind")) != "dt" or not keep(payload["draw_id"]):
+            continue
+        arm_row = p7_3c_admitted(payload)
+        if arm_row is None:  # pragma: no cover - p7_3c_admitted returns a row for every DT cell
+            raise ValueError(f"{cell_chunk_name(payload)}: a DT row the predicate did not map to an arm")
+        by_arm[arm_row.name].append(payload)
+    for name, arm_rows in by_arm.items():
+        seeds_by_draw: dict[int, set[int]] = {}
+        for payload in arm_rows:
+            seeds_by_draw.setdefault(int(payload["draw_id"]), set()).add(int(payload["seed"]))
+        for draw, seeds in sorted(seeds_by_draw.items()):
+            if seeds != set(TRAINING_SEEDS):
+                raise ValueError(
+                    f"{name} has {len(seeds)} seed(s) on draw {draw}, not the five of A24(c); no estimator "
+                    "is computed on a partial set"
+                )
+
+    rho0 = {
+        key: {
+            int(draw): float(entry[key])
+            for draw, entry in rho0_by_draw.items()
+            if keep(draw) and entry.get(key) is not None
+        }
+        for key in ("e_sumo", "att_env")
+    }
+    series = {
+        key: {name: _seed_means_by_draw(arm_rows, f"rho_{key}") for name, arm_rows in by_arm.items()}
+        for key in ("e_sumo", "att_env")
+    }
+    e = series["e_sumo"]
+
+    delta = paired_by_draw(e["ft_k100"], rho0["e_sumo"], label="Delta_100 = ft_k100 - rho0")
+    verdict = p7_3c_verdict(delta["delta"], delta["lo"], delta["hi"])
+    delta_att = paired_by_draw(
+        series["att_env"]["ft_k100"], rho0["att_env"], label="Delta_100 on att_env = ft_k100 - rho0"
+    )
+    verdict_att = p7_3c_verdict(delta_att["delta"], delta_att["lo"], delta_att["hi"], gap=P7_3C_G_ATT)
+
+    records = [
+        record for record in zero_shot_records if str(record.get("kind")) == "dt" and keep(record["draw_id"])
+    ]
+    seeds_block: list[dict[str, Any]] = []
+    for seed in TRAINING_SEEDS:
+        fine_tuned = {
+            int(payload["draw_id"]): float(payload["rho_e_sumo"])
+            for payload in by_arm["ft_k100"]
+            if int(payload["seed"]) == seed
+        }
+        zero = {
+            int(record["draw_id"]): float(record["rho_e_sumo"]) for record in records if int(record["seed"]) == seed
+        }
+        seeds_block.append(
+            {"seed": seed, **paired_by_draw(fine_tuned, zero, label=f"Delta_100 of seed {seed} (Q6b)")}
+        )
+    half_gap = P7_3C_G / 2
+
+    clause_3 = {
+        "status": "EXPLORATORY (A24(f)); clause 1 is the only confirmatory H3 analysis",
+        "criterion": (
+            "(i) lo > 0 AND Delta_100 >= G/2 -- the criterion is MET; (ii) lo > 0 and Delta_100 < G/2; (iii) "
+            "lo <= 0 <= hi; (iv) hi < 0 -- lo and hi the bounds of Delta_100's 95 % CI, float64, no rounding "
+            "(A24(d))"
+        ),
+        "G": P7_3C_G,
+        "G_att": P7_3C_G_ATT,
+        "half_gap": half_gap,
+        "delta_100": delta,
+        "verdict": verdict,
+        "sentence": _p7_3c_sentence(verdict, delta["delta"], delta["lo"], delta["hi"], P7_3C_G),
+        "closure_fraction": {
+            "value": delta["delta"] / P7_3C_G,
+            "ci95_low": delta["lo"] / P7_3C_G,
+            "ci95_high": delta["hi"] / P7_3C_G,
+        },
+        "att_env": {
+            "rule": "the same computation with G_att, reported beside the primary and never deciding it (A24(d))",
+            "delta_100": delta_att,
+            "closure_fraction": {
+                "value": delta_att["delta"] / P7_3C_G_ATT,
+                "ci95_low": delta_att["lo"] / P7_3C_G_ATT,
+                "ci95_high": delta_att["hi"] / P7_3C_G_ATT,
+            },
+            "verdict": verdict_att,
+            "agrees_with_primary": verdict_att == verdict,
+        },
+        "per_seed": {
+            "rule": (
+                "per seed s, the mean over draws of rho(ft_k100, s, d) - rho(zs_k100, s, d), the zero-shot side "
+                "read from the artifact's records -- seed paired with seed (Q6b); SD ddof 1"
+            ),
+            "seeds": seeds_block,
+            "between_seed_sd": mean_ci95([entry["delta"] for entry in seeds_block]).std,
+            "n_lo_above_zero": sum(1 for entry in seeds_block if entry["lo"] > 0.0),
+            "n_at_least_half_gap": sum(1 for entry in seeds_block if entry["delta"] >= half_gap),
+        },
+    }
+
+    total = {
+        f"k{k}": paired_by_draw(e[f"ft_k{k}"], rho0["e_sumo"], label=f"total effect k = {k}") for k in (5, 20, 100)
+    }
+    adaptation: dict[str, Any] = {
+        "k5": paired_by_draw(e["ft_k5"], e["zs_k5"], label="adaptation effect k = 5"),
+        "k20": paired_by_draw(e["ft_k20"], e["zs_k20"], label="adaptation effect k = 20"),
+        "k100": {
+            "is": "clause_3.delta_100",
+            "why": (
+                "at k = 100 the zero-shot model under k = 100's prompt is stage 1's arm, so ft_k100 - zs_k100 IS "
+                "Delta_100 (A24(e)); it is computed once"
+            ),
+        },
+    }
+    a5 = _differences(e["ft_k5"], e["zs_k5"], label="adaptation k = 5")
+    a20 = _differences(e["ft_k20"], e["zs_k20"], label="adaptation k = 20")
+    a100 = _differences(e["ft_k100"], rho0["e_sumo"], label="adaptation k = 100")
+    steps: list[dict[str, Any]] = []
+    for name, effect, first, last, per_draw in (
+        ("total 0->5", "total", 0, 5, _differences(e["ft_k5"], rho0["e_sumo"], label="total 0->5")),
+        ("total 5->20", "total", 5, 20, _differences(e["ft_k20"], e["ft_k5"], label="total 5->20")),
+        ("total 20->100", "total", 20, 100, _differences(e["ft_k100"], e["ft_k20"], label="total 20->100")),
+        ("adaptation 5->20", "adaptation", 5, 20, _differences(a20, a5, label="adaptation 5->20")),
+        ("adaptation 20->100", "adaptation", 20, 100, _differences(a100, a20, label="adaptation 20->100")),
+    ):
+        stats = _draw_stats(per_draw)
+        steps.append(
+            {"name": name, "effect": effect, "from_k": first, "to_k": last, **stats, "refuted": bool(stats["hi"] < 0.0)}
+        )
+
+    budget: dict[str, Any] = {
+        "label": "A24(c)(iii): A18(d)'s budget secondary AS REGISTERED -- exploratory, apart from clause 3",
+    }
+    for label, name in (("B1000", "ft_k100_b1000"), ("B16000", "ft_k100_b16000")):
+        budget[label] = {
+            "arm": name,
+            "delta_vs_rho0": paired_by_draw(e[name], rho0["e_sumo"], label=f"{name} - rho0"),
+            "vs_B4000": paired_by_draw(e[name], e["ft_k100"], label=f"{name} - ft_k100"),
+        }
+
+    arms = {
+        row.name: {
+            "stage": row.stage,
+            "subject": row.subject,
+            "prompt_arm": row.prompt_arm,
+            "k": row.k,
+            "budget": row.budget,
+            "init": row.init,
+            "n_cells": len(by_arm[row.name]),
+            "e_sumo": _definition_stats(e[row.name]),
+            "att_env": _definition_stats(series["att_env"][row.name]),
+        }
+        for row in P7_3C_ARMS
+    }
+    return {
+        "arms": arms,
+        "rho0": {key: _definition_stats(rho0[key]) for key in ("e_sumo", "att_env")},
+        "clause_3": clause_3,
+        "total_effect": total,
+        "adaptation_effect": adaptation,
+        "transfer": paired_by_draw(e["ft_k100"], e["scratch_k100"], label="Delta_transfer = ft_k100 - scratch_k100"),
+        "adjacent_steps": {"steps": steps, "reading": list(P7_3C_ADJACENT_STEPS_READING)},
+        "budget_secondary": budget,
+    }
+
+
+def _position(target: float, low: float, high: float) -> str:
+    """Where *target* sits against the range ``[low, high]``: ``below``, ``inside`` or ``above``."""
+    if target < low:
+        return "below"
+    if target > high:
+        return "above"
+    return "inside"
+
+
+def _p7_3c_in_support_block(
+    chunks: Mapping[str, Mapping[str, Any]], calibration_payload: Mapping[str, Any]
+) -> dict[str, Any]:
+    """A24(e)'s in-support diagnostic: each k's targets against BOTH ranges; and each DT arm's decisions.
+
+    Per k and intersection, the Rule B target's position against (1) the source checkpoint's training
+    range (``support_range``, A17(d)'s) and (2) the fine-tune corpus's per-intersection episode-return
+    range over draws 201...200+k, read from the calibration's ``probe_returns.sumo`` (Q13: A17(f)'s gate
+    proved them equal to the corpus on all 1,600).  Both reported; neither selects (A8).  Per DT arm, the
+    chunks' own per-decision counts against the source range, summed and refused unless they add up.
+    """
+    ids = [str(ix) for ix in calibration_payload["intersection_ids"]]
+    probe = calibration_payload["probe_returns"]["sumo"]
+    by_k: dict[str, Any] = {}
+    for k in sorted({row.k for row in P7_3C_ARMS}):
+        key = f"k{k}"
+        per_ix: dict[str, Any] = {}
+        for ix in ids:
+            entry = calibration_payload["per_intersection"][ix]
+            budget = entry["budgets"][key]
+            target = float(budget["target"])
+            low, high = (float(value) for value in entry["support_range"])
+            first, last = (int(value) for value in budget["draw_ids"])
+            returns = [float(probe[str(draw)][ix]) for draw in range(first, last + 1)]
+            corpus = [min(returns), max(returns)]
+            per_ix[ix] = {
+                "target": target,
+                "source_range": [low, high],
+                "source_position": _position(target, low, high),
+                "source_position_recorded": str(budget["in_support"]["position"]),
+                "corpus_draws": [first, last],
+                "corpus_range": corpus,
+                "corpus_position": _position(target, corpus[0], corpus[1]),
+                "above_corpus_best_by": target - corpus[1],
+            }
+        by_k[key] = per_ix
+    grouped: dict[str, list[Mapping[str, Any]]] = {row.name: [] for row in P7_3C_ARMS}
+    for payload in chunks.values():
+        if str(payload["kind"]) == "dt":
+            grouped[_p7_3c_arm_label(payload)].append(payload)
+    decisions: dict[str, Any] = {}
+    for row in P7_3C_ARMS:
+        arm_chunks = grouped[row.name]
+        per_ix = {}
+        for ix in ids:
+            counts = [payload["in_support_counts"][ix] for payload in arm_chunks]
+            n_decisions = sum(int(payload["decisions"]) for payload in arm_chunks)
+            inside = sum(int(count["in_support"]) for count in counts)
+            below = sum(int(count["below"]) for count in counts)
+            above = sum(int(count["above"]) for count in counts)
+            if inside + below + above != n_decisions:
+                raise ValueError(
+                    f"{row.name}, intersection {ix!r}: the in-support counts ({inside} + {below} + {above}) do "
+                    f"not add up to the {n_decisions} decisions its cells recorded"
+                )
+            per_ix[ix] = {"n_decisions": n_decisions, "in_support": inside, "below": below, "above": above}
+        decisions[row.name] = per_ix
+    return {
+        "what_this_is": (
+            "A24(e)'s in-support diagnostic: each k's targets against (1) the source checkpoint's per-intersection "
+            "training range AND (2) the fine-tune corpus's per-intersection episode-return range; both reported, "
+            "neither selects (A8). Per DT arm, how many decisions conditioned on a return-to-go inside the "
+            "source's range, from the chunks' own counts"
+        ),
+        "ranges_from": {
+            "source": f"{P7_3D_CALIBRATION_NAME}: per_intersection.support_range",
+            "corpus": (
+                f"{P7_3D_CALIBRATION_NAME}: probe_returns.sumo over each budget's draw_ids (Q13; A17(f)'s gate "
+                "proved them equal to the corpus on all 1,600)"
+            ),
+            "sha256": P7_3D_CALIBRATION_SHA256,
+        },
+        "by_k": by_k,
+        "decisions_by_arm": decisions,
+    }
+
+
+def _p7_3c_arm_label(payload: Mapping[str, Any]) -> str:
+    """A24's arm name for a DT chunk (through THE predicate); an anchor's own arm name."""
+    if str(payload.get("kind")) == "dt":
+        row = p7_3c_admitted(payload)
+        if row is not None:
+            return row.name
+    return str(payload["arm"])
+
+
+def _p7_3c_collisions_block(chunks: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
+    """A23(c)(ii) and (d) on P7.3c: per arm, the cells with a collision and every event, each cell KEPT."""
+    labels = [row.name for row in P7_3C_ARMS] + list(P7_3C_ANCHOR_ARMS)
+    per_arm: dict[str, Any] = {label: {"n_cells": 0, "n_cells_with_collision": 0, "events": []} for label in labels}
+    for name, payload in sorted(chunks.items()):
+        entry = per_arm[_p7_3c_arm_label(payload)]
+        entry["n_cells"] += 1
+        if payload["collisions"]:
+            entry["n_cells_with_collision"] += 1
+            entry["events"].extend(
+                {"cell": name, "seed": payload["seed"], "draw_id": int(payload["draw_id"]), **event}
+                for event in payload["collisions"]
+            )
+    return {
+        "registered_in": "PREREGISTRATION A23(c)(ii) and (d), A24(c): A23 governs every cell",
+        "what": (
+            "every collision SUMO reported in P7.3c's cells, RECORDED with each cell KEPT; instrument facts only. "
+            "Stage 1 records exactly A23's two events (refused otherwise, before any aggregate)"
+        ),
+        "n_events": sum(len(entry["events"]) for entry in per_arm.values()),
+        "n_cells_with_collision": sum(entry["n_cells_with_collision"] for entry in per_arm.values()),
+        "per_arm": per_arm,
+    }
+
+
+def _p7_3c_robustness_draws(chunks: Mapping[str, Mapping[str, Any]]) -> list[int]:
+    """A24(d) / A23(d): every draw on which ANY cell entering Delta_100 records a collision.
+
+    DERIVED from the chunks (Q4), never taken from A23's constant: the cells entering Delta_100 are
+    ``ft_k100``'s and stage 1's -- the zero-shot arm under ``b_mean_k100`` and both anchors, rho's
+    denominator.
+    """
+    draws: set[int] = set()
+    for payload in chunks.values():
+        entering = str(payload.get("stage")) == STAGE_P7_3C_REPRODUCE or (
+            str(payload.get("kind")) == "dt" and _p7_3c_arm_label(payload) == "ft_k100"
+        )
+        if entering and payload["collisions"]:
+            draws.add(int(payload["draw_id"]))
+    return sorted(draws)
+
+
+def _load_p7_3d_grid4x4(data_dir: str | Path | None) -> tuple[Path, dict[str, Any]]:
+    """``p7_3d_grid4x4.json``, digest-checked BEFORE it is parsed (A24(c): *its sha256 verified before use*)."""
+    path = _data_dir(data_dir) / P7_3D_GRID4X4_NAME
+    if not path.is_file():
+        raise FileNotFoundError(
+            f"{path} is absent; stage 1 is checked against P7.3d's committed artifact and no other"
+        )
+    digest = _sha256_file(path)
+    if digest != P7_3D_GRID4X4_SHA256:
+        raise ValueError(
+            f"{path} has sha256 {digest}, not the pinned {P7_3D_GRID4X4_SHA256}; A24(c) verifies the record "
+            "stage 1 must reproduce before it is used"
+        )
+    return path, json.loads(path.read_bytes())
+
+
+def _load_p7_3c_finetune_record(data_dir: str | Path | None) -> tuple[Path, dict[str, Any]]:
+    """``p7_3c_finetune.json`` at :data:`P7_3C_FINETUNE_SHA256`, digest-checked BEFORE it is parsed (Q9).
+
+    Refuses while the pin is unset, so no trained cell is ever resolved against an unpinned record.
+    """
+    from offline.few_shot import RECORD_FORMAT_VERSION
+
+    pin = P7_3C_FINETUNE_SHA256
+    if pin is None:
+        raise ValueError(
+            "P7_3C_FINETUNE_SHA256 is not set. The thirty trainings' record is pinned in the first commit after "
+            "G7 (Amendment A, Q9), and until then no trained-subject identity resolves"
+        )
+    path = _data_dir(data_dir) / P7_3C_FINETUNE_NAME
+    if not path.is_file():
+        raise FileNotFoundError(f"{path} is absent; the coordinator commits it at G7 (Amendment A, Q9)")
+    digest = _sha256_file(path)
+    if digest != pin:
+        raise ValueError(
+            f"{path} has sha256 {digest}, not the pinned {pin}; the trained subjects' digests are read from "
+            "THAT record and no other"
+        )
+    record = json.loads(path.read_bytes())
+    if record.get("format_version") != RECORD_FORMAT_VERSION:
+        raise ValueError(f"{path}: format {record.get('format_version')!r}, not {RECORD_FORMAT_VERSION!r}")
+    return path, record
+
+
+def _p7_3c_report(
+    *,
+    work: Path,
+    target_path: Path,
+    output_root: str | Path,
+    out_root: str | Path,
+    data: Path,
+    stage: str | None,
+    declared: Sequence[Mapping[str, Any]],
+    all_declared: Sequence[Mapping[str, Any]],
+    cells_supplied: bool,
+) -> dict[str, Any]:
+    """``BRIEF_41`` C6: P7.3c's body, ``p7.3c-grid4x4/1.0``.  EVERY refusal precedes the one write.
+
+    Plan section 10's order, each step a refusal before any write:
+
+    2. the zero-shot artifact at :data:`P7_3D_GRID4X4_SHA256` FIRST, then the calibration pin, then the
+       training record's (G7);
+    3. this run's ``canary.json``, re-checked;
+    4. every chunk named as its content says, a declared cell of P7.3c's declaration, and validated
+       AGAINST that cell -- so a chunk whose stage is P7.3d's is refused by the cell identity -- then
+       completeness: A24(c), no estimator on a partial set;
+    5. all 700 stage-1 chunks reproduce the committed records (:func:`stage1_reproduction_check`, the
+       driver's gate itself);
+    6. stage 1 records exactly A23's two events (F5; stages 2 and 3 record and keep, A23(c));
+    7. the digests from disk: each chunk's commit (J1(c)), the demand per draw, the checkpoint per
+       ``(subject, seed)`` through the one identity function -- a trained chunk whose digest is not the
+       record's refuses -- the targets per the arm's k, the support ranges;
+    8. rho per cell against stage 1's anchors of the SAME draw (:func:`_published_row`).
+
+    Then :func:`p7_3c_estimates` on every row, A23(d)'s robustness by the SAME function on the draws
+    left, the in-support and collisions blocks, and :func:`_publish_artifact`.  The chunks are held
+    SLIM -- the whitelisted fields and the collision list -- because 4,700 full chunks would not fit.
+    """
+    from offline.transfer_calibration import CANARY_MAX_SECONDS, CANARY_RECORD_NAME
+
+    # ------------------------------------------------------------ 2. the pins, the zero-shot artifact FIRST
+    _zero_shot_path, zero_shot = _load_p7_3d_grid4x4(data)
+    _calibration_path, calibration_payload = _load_p7_3d_calibration(data)
+    _record_path, _record = _load_p7_3c_finetune_record(data)
+
+    # ------------------------------------------------------------ 3. this run's canary
+    canary_record = _read_canary_record(work)
+
+    # ------------------------------------------------------------ 4. every chunk, against its cell; completeness
+    declared_by_name = {cell_chunk_name(cell): cell for cell in declared}
+    all_by_name = {cell_chunk_name(cell): cell for cell in all_declared}
+    kept_fields = (*_GRID4X4_PUBLISHED_FIELDS, "collisions")
+    slim: dict[str, dict[str, Any]] = {}
+    for path in sorted(work.glob("cell_*.json")):
+        payload = json.loads(path.read_bytes())
+        name = cell_chunk_name(payload)
+        if name != path.name:
+            raise ValueError(
+                f"{path.name}: its content names the cell {name}; a chunk under another cell's filename was "
+                "skipped as complete on every restart once already (BRIEF_33 C1.2)"
+            )
+        cell = all_by_name.get(name)
+        if cell is None:
+            raise ValueError(
+                f"{name} is not a declared cell of P7.3c's declaration; an undeclared cell reaching the artifact "
+                "is an evaluation nobody registered"
+            )
+        validate_cell_payload(payload, cell=cell)
+        slim[name] = {field: payload[field] for field in kept_fields if field in payload}
+    missing = sorted(set(declared_by_name) - set(slim))
+    if missing:
+        raise ValueError(
+            f"{len(missing)} declared cell(s) have no chunk (first: {missing[:3]}); A24(c): no estimator is ever "
+            "computed on a partial set"
+        )
+    outside_stage = sorted(set(slim) - set(declared_by_name))
+    chunks = {name: slim[name] for name in sorted(declared_by_name)}
+
+    # ------------------------------------------------------------ 5. stage 1 reproduces P7.3d's records
+    stage1 = stage1_reproduction_check(work, data_dir=data)
+    if stage1["verdict"] != "REPRODUCED":
+        raise ValueError(
+            f"stage 1 did not reproduce {P7_3D_GRID4X4_NAME}: {stage1['line']}. A24(c): the campaign stops, and "
+            "whatever replaces rho0 is decided by a further amendment"
+        )
+
+    # ------------------------------------------------------------ 6. A23(f): exactly two events, in stage 1
+    stage1_names = [cell_chunk_name(cell) for cell in declared_cells(STAGE_P7_3C_REPRODUCE)]
+    _assert_a23_collision_cells({name: slim[name] for name in stage1_names}, stage1_names)
+
+    # ------------------------------------------------------------ 7. the digests, from disk
+    commits_by_stage: dict[str, set[str]] = {}
+    verdicts: dict[str, list[str]] = {}
+    for name, payload in chunks.items():
+        commit = str(payload["git_commit"])
+        commits_by_stage.setdefault(str(payload["stage"]), set()).add(commit)
+        if commit not in verdicts:
+            verdicts[commit] = code_changed_since(commit)
+        if verdicts[commit]:
+            changed = verdicts[commit]
+            raise ValueError(
+                f"{name}: it was rolled at {commit}, which differs from HEAD outside docs/ ({changed[:3]}, "
+                f"{len(changed)} path(s)). Commits may differ only by documentation; this cell was produced by "
+                "different code and must be re-rolled"
+            )
+    demand_by_draw: dict[int, dict[str, Any]] = {}
+    identity_by_checkpoint: dict[tuple[str, int], dict[str, Any]] = {}
+    targets_by_arm: dict[tuple[str, str, str], dict[str, float]] = {}
+    pinned_ranges = {ix: [low, high] for ix, (low, high) in grid4x4_support_ranges(data_dir=data).items()}
+    for name, payload in chunks.items():
+        draw_id = int(payload["draw_id"])
+        if draw_id not in demand_by_draw:
+            demand_by_draw[draw_id] = demand_identity_for(payload, out_root=out_root)
+        demand = demand_by_draw[draw_id]
+        for key in ("config_sha256", "routes_sha256"):
+            if str(payload[key]) != demand[key]:
+                raise ValueError(
+                    f"{name}: {key} {payload[key]!r} is not draw {draw_id}'s {demand[key]!r}. The cell ran on "
+                    "demand that is not what is on disk now, so it cannot be paired with the anchors of this draw"
+                )
+        if str(payload["kind"]) != "dt":
+            continue
+        key_pair = (str(payload["subject"]), int(payload["seed"]))
+        if key_pair not in identity_by_checkpoint:
+            identity_by_checkpoint[key_pair] = checkpoint_identity_for(payload, output_root=output_root, data_dir=data)
+        declared_sha = identity_by_checkpoint[key_pair]["file_sha256"]
+        if str(payload["checkpoint_sha256"]) != declared_sha:
+            raise ValueError(
+                f"{name}: it records checkpoint sha256 {payload['checkpoint_sha256']!r}, not the {declared_sha!r} "
+                f"that {key_pair[0]} seed {key_pair[1]}'s committed record pins today; the weights that produced "
+                "this cell are not the registered ones"
+            )
+        arm_key = (str(payload["subject"]), str(payload["arm"]), str(payload["stage"]))
+        if arm_key not in targets_by_arm:
+            targets_by_arm[arm_key] = grid4x4_targets_for_cell(payload, data_dir=data)
+        if dict(payload["target_rtg"]) != targets_by_arm[arm_key]:
+            raise ValueError(
+                f"{name}: its target_rtg is not {payload['arm']}'s 16 targets in {P7_3D_CALIBRATION_NAME}; the cell "
+                "conditioned on something else"
+            )
+        recorded = {str(ix): [float(v) for v in value] for ix, value in dict(payload["support_range"]).items()}
+        if recorded != pinned_ranges:
+            raise ValueError(
+                f"{name}: its support_range is not {P7_3D_CALIBRATION_NAME}'s per-intersection range, so its "
+                "in-support counts were taken against another range"
+            )
+
+    # ------------------------------------------------------------ 8. rho per cell, against its own draw's anchors
+    anchors_by_draw: dict[int, dict[str, Mapping[str, Any]]] = {}
+    for payload in chunks.values():
+        if str(payload["kind"]) == "anchor":
+            anchors_by_draw.setdefault(int(payload["draw_id"]), {})[str(payload["arm"])] = payload
+    rows: list[dict[str, Any]] = []
+    for name, payload in chunks.items():
+        anchors = anchors_by_draw.get(int(payload["draw_id"]), {})
+        if set(anchors) != set(P7_3C_ANCHOR_ARMS):
+            raise ValueError(
+                f"{name}: draw {payload['draw_id']} carries anchors {sorted(anchors)}, so rho has no denominator of "
+                "its own draw; stages 2 and 3 take rho against stage 1's anchors of the same draw"
+            )
+        rows.append(_published_row(payload, anchors, grid=True))
+
+    # ------------------------------------------------------------ the estimators, then A23(d)'s robustness
+    rho0_by_draw = zero_shot["rho"]["by_draw"]
+    zero_shot_records = [record for record in zero_shot["cells"] if str(record["kind"]) == "dt"]
+    estimates = p7_3c_estimates(rows, rho0_by_draw, zero_shot_records)
+    removed = _p7_3c_robustness_draws(chunks)
+    kept = sorted({int(row["draw_id"]) for row in rows} - set(removed))
+    robust = p7_3c_estimates(rows, rho0_by_draw, zero_shot_records, draws=kept)["clause_3"]
+    estimates["clause_3"]["robustness"] = {
+        "registered_in": "PREREGISTRATION A23(d), A24(d)",
+        "what": (
+            "Delta_100, its CI and the verdict recomputed by the SAME function without every draw on which any "
+            "cell entering Delta_100 records a collision -- ft_k100's, stage 1's zero-shot arm and both anchors -- "
+            "each such draw removed WHOLE. The set is derived from the chunks. The primary decides; a different "
+            "outcome is said in the sentence stating the verdict"
+        ),
+        "a23_d": A23_D_VERBATIM,
+        "draws_removed": removed,
+        "n_draws": len(kept),
+        "delta_100": robust["delta_100"],
+        "closure_fraction": robust["closure_fraction"],
+        "verdict": robust["verdict"],
+        "sentence": robust["sentence"],
+        "outcome_differs": robust["verdict"] != estimates["clause_3"]["verdict"],
+        # Amendment H, H3.1: A23(d) recomputes every estimator the primary reports "on E_sumo and att_env" -- att_env's
+        # recomputation is published beside E_sumo's, the same computation with G_att, never deciding.
+        "att_env": {
+            "rule": "the same recomputation on att_env with G_att, reported beside E_sumo's; the primary decides (A23(d))",
+            "delta_100": robust["att_env"]["delta_100"],
+            "closure_fraction": robust["att_env"]["closure_fraction"],
+            "verdict": robust["att_env"]["verdict"],
+            "outcome_differs": robust["att_env"]["verdict"] != estimates["clause_3"]["att_env"]["verdict"],
+        },
+    }
+
+    ix_ids = [str(ix) for ix in calibration_payload["intersection_ids"]]
+    artifact = {
+        "format_version": P7_3C_ARTIFACT_FORMAT_VERSION,
+        "registered_in": (
+            "PREREGISTRATION A24 (with section 3.4, A15, A17(e), A18(c), A20, A21, A23); BRIEF_41 C5-C6, Amendments "
+            "A-F"
+        ),
+        "scenario_key": GRID4X4_SCENARIO_KEY,
+        "stage": stage,
+        "n_cells_declared": len(declared),
+        "n_chunks_outside_stage": len(outside_stage),
+        "cell_set_source": "caller-supplied declaration" if cells_supplied else f"declared_cells({STAGE_P7_3C!r})",
+        "chunk_commits_by_stage": {
+            stage_name: sorted(commits) for stage_name, commits in sorted(commits_by_stage.items())
+        },
+        "halting_check_draw": HALTING_CHECK_DRAW,
+        "intersection_ids": ix_ids,
+        "arm_table": [
+            {
+                "name": row.name, "stage": row.stage, "subject": row.subject, "prompt_arm": row.prompt_arm,
+                "k": row.k, "budget": row.budget, "init": row.init,
+            }
+            for row in P7_3C_ARMS
+        ],
+        "stage1_reproduction": {
+            "line": stage1["line"],
+            "n_checked": stage1["n_checked"],
+            "artifact": P7_3D_GRID4X4_NAME,
+            "artifact_sha256": stage1["artifact_sha256"],
+            "bookkeeping_fields": list(STAGE1_BOOKKEEPING_FIELDS),
+        },
+        "rho0_source": (
+            f"{P7_3D_GRID4X4_NAME}: rho.by_draw (the per-draw five-seed means) and its DT cell records (per seed); "
+            "stage 1 reproduced both, so rho0 IS the artifact's series (A24(c))"
+        ),
+        **estimates,
+        "in_support": _p7_3c_in_support_block(chunks, calibration_payload),
+        "collisions": _p7_3c_collisions_block(chunks),
+        "cells": rows,
+        "series_location": (
+            "the per-decision RTG and reward series and the action matrices of every cell are in its chunk under "
+            "output/p7_3c/cells/, covered by the campaign's manifest; they are not republished here"
+        ),
+        "canary": {
+            "seconds": canary_record["seconds"],
+            "threshold_seconds": CANARY_MAX_SECONDS,
+            "verdict": "at speed" if canary_record["seconds"] <= CANARY_MAX_SECONDS else "throttled",
+            "observed": dict(canary_record["facts"]),
+            "source": (
+                f"{CANARY_RECORD_NAME} in the work directory, written by the driver from the canary line right "
+                "after the token; report re-ran check_canary on these facts"
+            ),
+            "git_commit": canary_record.get("git_commit"),
+            "git_dirty": canary_record.get("git_dirty"),
+            "chunk_canaries_by_stage": _canaries_by_stage(chunks),
+        },
+        "what_this_does_not_say": list(P7_3C_WHAT_THIS_DOES_NOT_SAY),
+        "inputs": {
+            "zero_shot_artifact": P7_3D_GRID4X4_NAME,
+            "zero_shot_artifact_sha256": P7_3D_GRID4X4_SHA256,
+            "calibration_artifact": P7_3D_CALIBRATION_NAME,
+            "calibration_sha256": P7_3D_CALIBRATION_SHA256,
+            "finetune_record": P7_3C_FINETUNE_NAME,
+            "finetune_record_sha256": P7_3C_FINETUNE_SHA256,
+            "checkpoints": sorted(
+                (dict(identity) for identity in identity_by_checkpoint.values()),
+                key=lambda entry: (entry["subject"], entry["seed"]),
+            ),
+            "demand_by_draw": {
+                str(draw): {key: value for key, value in demand.items() if key != "config_path"}
+                for draw, demand in sorted(demand_by_draw.items())
+            },
+        },
+        **_git_provenance(),
+    }
+    return _publish_artifact(artifact, target_path, published_arms=P7_3C_PUBLISHED_ARMS)
+
+
+# ======================================================================================
 # The pool: one process per worker, one env per cell, resume by content
 # ======================================================================================
 
@@ -4768,6 +6135,9 @@ def _write_pilot_transcript(path: Path, record: Mapping[str, Any]) -> None:
 #: beside it, as every campaign's ``output/SHA256SUMS_<campaign>.txt`` does.
 MANIFEST_CAMPAIGN_NAME = "p7_3d"
 MANIFEST_NAME = "SHA256SUMS_p7_3d.txt"
+#: The campaign directories a manifest may cover, each with ITS manifest beside it under ``output/``
+#: (``BRIEF_41`` C7: P7.3c's is ``output/SHA256SUMS_p7_3c.txt`` over ``output/p7_3c/`` only).
+MANIFEST_NAMES: Mapping[str, str] = {MANIFEST_CAMPAIGN_NAME: MANIFEST_NAME, "p7_3c": "SHA256SUMS_p7_3c.txt"}
 
 
 def artifact_name_for_stage(stage: str | None) -> str:
@@ -4778,8 +6148,19 @@ def artifact_name_for_stage(stage: str | None) -> str:
     ``p7_3a_zero_shot.json``.  Writing one campaign's artifact under another's name is how the
     zero-shot point would be overwritten by something else.  (The ``name = ...`` chain is the
     spelling ``main`` used before the extraction; P7.3b's text pin reads it.)
+
+    P7.3c (``BRIEF_41`` C5): its three stages are ONE declaration with ONE artifact, named by the report
+    selector :data:`STAGE_P7_3C`; a single P7.3c stage names none, because an artifact over one stage
+    would publish an estimator on a partial set (A24(c)).
     """
-    if stage == STAGE_GRID4X4:
+    if stage in P7_3C_STAGES:
+        raise ValueError(
+            f"{stage!r} is one stage of P7.3c -- one declaration, one artifact: report --stage "
+            f"{STAGE_P7_3C} writes {P7_3C_ARTIFACT_NAME}"
+        )
+    if stage == STAGE_P7_3C:
+        name = P7_3C_ARTIFACT_NAME
+    elif stage == STAGE_GRID4X4:
         name = "p7_3d_grid4x4.json"
     elif stage == STAGE_ANCHOR:
         name = "p7_3b_anchor.json"
@@ -4805,9 +6186,10 @@ def _campaign_files(root: Path) -> list[str]:
 
 
 def write_manifest(*, campaign_dir: str | Path) -> dict[str, Any]:
-    """``output/SHA256SUMS_p7_3d.txt`` over ``output/p7_3d/`` ONLY: atomic, then re-verified.
+    """``output/SHA256SUMS_p7_3d.txt`` over ``output/p7_3d/`` ONLY -- or P7.3c's ``output/SHA256SUMS_p7_3c.txt``
+    over ``output/p7_3c/`` ONLY (``BRIEF_41`` C7) -- atomic, then re-verified.
 
-    B.6-2(3).  Refusals first -- the directory must be named ``p7_3d`` and hold at least one file --
+    B.6-2(3).  Refusals first -- the directory must be named ``p7_3d`` (or ``p7_3c``) and hold at least one file --
     then every regular file under it is hashed into ``<parent>/SHA256SUMS_p7_3d.txt.tmp`` in
     ``sha256sum`` format (two spaces; paths relative to the parent, so ``sha256sum -c`` run from
     ``output/`` checks it), the temporary file REPLACES the manifest in one ``os.replace``, and
@@ -4818,11 +6200,13 @@ def write_manifest(*, campaign_dir: str | Path) -> dict[str, Any]:
     import os
 
     root = Path(campaign_dir)
-    if root.name != MANIFEST_CAMPAIGN_NAME:
+    # BRIEF_41 C7: P7.3c's campaign directory takes ITS manifest (MANIFEST_NAMES); every other name is refused.
+    manifest_name = MANIFEST_NAMES.get(root.name)
+    if manifest_name is None:
         raise ValueError(
-            f"{root}: the P7.3d manifest covers a directory named {MANIFEST_CAMPAIGN_NAME!r} and "
-            "nothing else -- another campaign's files in this manifest would be certified by a "
-            "run that did not produce them"
+            f"{root}: a campaign manifest covers a directory named one of {sorted(MANIFEST_NAMES)} "
+            f"({MANIFEST_CAMPAIGN_NAME!r} for P7.3d) and nothing else -- another campaign's files in this "
+            "manifest would be certified by a run that did not produce them"
         )
     if not root.is_dir():
         raise FileNotFoundError(f"{root} is not a directory")
@@ -4831,7 +6215,7 @@ def write_manifest(*, campaign_dir: str | Path) -> dict[str, Any]:
         raise ValueError(f"{root} holds no file; an empty manifest certifies nothing")
 
     lines = [f"{_sha256_file(root / relative)}  {root.name}/{relative}" for relative in files]
-    target = root.parent / MANIFEST_NAME
+    target = root.parent / manifest_name
     temporary = target.with_name(target.name + ".tmp")
     temporary.write_text("\n".join(lines) + "\n", encoding="utf-8")
     os.replace(temporary, target)
@@ -4922,6 +6306,76 @@ def check_campaign_inputs(
             f"{len(problems)} input(s) are not what the module pins: " + "; ".join(problems)
         )
     return lines
+
+
+def check_p7_3c_campaign_inputs(
+    *, data_dir: str | Path, output_root: str | Path, draws_root: str | Path
+) -> list[str]:
+    """``BRIEF_41`` C7 / Amendment F, F3.2: P7.3c's campaign inputs BY DIGEST, before the token.  Raises on a miss.
+
+    P7.3d's inputs first (:func:`check_campaign_inputs`: the calibration, the reference cells, cap_e, A20(a)'s five and
+    RESCO's network), then the zero-shot artifact and the training record at their pins, then the training manifest
+    ``SHA256SUMS_p7_3c_finetune.txt`` -- required, at the digest the pinned record names, listing exactly the record's
+    thirty checkpoints at the record's digests -- and then each of the thirty: resolved through the pinned record
+    (:func:`p7_3c_trained_checkpoint_identity`: the fence, the digests, F4's guard) AND validated against its source
+    (``offline.few_shot.validate_checkpoint``: every frozen part, the budget, k, the switch, the targets and the recipe),
+    so a campaign cannot start on a checkpoint whose frozen parts left its source's.  One line per input.
+    """
+    from offline import few_shot
+
+    lines = check_campaign_inputs(data_dir=data_dir, output_root=output_root, draws_root=draws_root)
+    _load_p7_3d_grid4x4(data_dir)
+    lines.append(f"input {P7_3D_GRID4X4_NAME}: sha256 {P7_3D_GRID4X4_SHA256} (the pin)")
+    _record_path, record = _load_p7_3c_finetune_record(data_dir)
+    lines.append(f"input {P7_3C_FINETUNE_NAME}: sha256 {P7_3C_FINETUNE_SHA256} (the pin, G7)")
+
+    root = Path(output_root)
+    manifest = root / few_shot.MANIFEST_FILENAME
+    if not manifest.is_file():
+        raise ValueError(
+            f"{manifest} is absent; the thirty are checked against the pinned record AND this manifest (F3.2)"
+        )
+    digest = _sha256_file(manifest)
+    if digest != str(record["manifest_sha256"]):
+        raise ValueError(
+            f"{manifest} has sha256 {digest}, not the {record['manifest_sha256']} the pinned record names"
+        )
+    expected = {str(entry["checkpoint"]): str(entry["checkpoint_sha256"]) for entry in record["runs"].values()}
+    if _manifest_digests(manifest) != expected:
+        raise ValueError(f"{manifest} does not list exactly the pinned record's thirty checkpoints at its digests")
+    lines.append(f"input {few_shot.MANIFEST_FILENAME}: sha256 {digest} (the record's)")
+
+    for spec in few_shot.registered_runs():
+        p7_3c_trained_checkpoint_identity(spec.subject, spec.seed, output_root=root, data_dir=data_dir)
+        checks = few_shot.validate_checkpoint(spec, output_root=root, data_dir=data_dir)
+        failed = [name for name, passed in checks.items() if not passed]
+        if failed:
+            raise ValueError(
+                f"{spec.name} does not validate against its source (failed: {failed}); the campaign evaluates the "
+                "checkpoints G7 verified, and a frozen part that left its source's is not one of them"
+            )
+    lines.append(
+        f"input the thirty trained checkpoints: {len(few_shot.registered_runs())}/30 at the pinned record's digests "
+        f"and in {few_shot.MANIFEST_FILENAME}, none under {few_shot.FENCED_TIMING_DIRNAME}/, frozen parts their sources'"
+    )
+    return lines
+
+
+def undeclared_chunk_names(*, work_dir: str | Path, stage: str) -> list[str]:
+    """Amendment H, H3.3: the chunk files in *work_dir* that no cell of *stage*'s WHOLE declaration names -- found
+    BEFORE the token.
+
+    ``report`` refuses such a file (*an undeclared cell reaching the artifact is an evaluation nobody registered*), and
+    before this check it did so only at the end, after every stage had rolled.  Only the NAMES are read, and only the
+    ``cell_*.json`` files at the top of the work directory, as ``report`` globs them (``failed/`` holds the chunks moved
+    aside).  Reads only; creates nothing.
+    """
+    work = Path(work_dir)
+    if not work.is_dir():
+        return []
+    whole, _slice = declarations_for(stage, None)
+    names = {cell_chunk_name(cell) for cell in whole}
+    return sorted(path.name for path in work.glob("cell_*.json") if path.name not in names)
 
 
 def unresolvable_chunk_commits(*, work_dir: str | Path, stage: str) -> list[dict[str, str]]:
@@ -5390,8 +6844,11 @@ def build_parser() -> Any:
     parser.add_argument("--canary-seconds", type=float, default=None)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
+    # BRIEF_41 C5: `cells` and `resume-check` take P7.3c's three stages -- never the whole declaration in
+    # one pool, which would skip the stage-1 gate between stage 1 and stage 2 -- and `report` takes the
+    # whole declaration only (one declaration, one artifact).
     cells = subparsers.add_parser("cells", help="roll every cell of a stage that is not on disk")
-    cells.add_argument("--stage", choices=[*STAGES, STAGE_GRID4X4], default=None)
+    cells.add_argument("--stage", choices=[*STAGES, STAGE_GRID4X4, *P7_3C_STAGES], default=None)
     cells.add_argument("--workers", type=int, default=DEFAULT_WORKERS)
     cells.add_argument("--limit", type=int, default=None)
 
@@ -5415,20 +6872,30 @@ def build_parser() -> Any:
     gate.add_argument("--corpus-dir", required=True)
 
     report_parser = subparsers.add_parser("report", help="write the committed artifact")
-    report_parser.add_argument("--stage", choices=[*STAGES, STAGE_GRID4X4], default=None)
+    report_parser.add_argument("--stage", choices=[*STAGES, STAGE_GRID4X4, STAGE_P7_3C], default=None)
     report_parser.add_argument("--stage1-path", default=None)
 
     subparsers.add_parser("canary", help="the machine-health canary (PROJECT_PLAN section 7)")
     record = subparsers.add_parser("record-canary", help="park the canary line in the work directory")
     record.add_argument("--line", required=True)
 
-    subparsers.add_parser(
+    inputs = subparsers.add_parser(
         "check-inputs", help="P7.3d m1: the campaign's inputs by DIGEST against the module's pins"
+    )
+    inputs.add_argument(
+        "--campaign", choices=["p7_3d", "p7_3c"], default="p7_3d",
+        help="p7_3c adds the zero-shot artifact, the training record and the thirty checkpoints (BRIEF_41 C7)",
     )
     resume = subparsers.add_parser(
         "resume-check", help="P7.3d m2: refuse if a chunk on disk records a commit git cannot resolve"
     )
-    resume.add_argument("--stage", choices=[*STAGES, STAGE_GRID4X4], required=True)
+    resume.add_argument(
+        "--stage", choices=[*STAGES, STAGE_GRID4X4, *P7_3C_STAGES, STAGE_P7_3C], required=True
+    )
+    subparsers.add_parser(
+        "stage1-check",
+        help="A24(c): P7.3c's 700 stage-1 chunks against p7_3d_grid4x4.json's records; one line, exit 0 or 2",
+    )
     reroll = subparsers.add_parser(
         "dt-reroll-check",
         help="B.5-1: one fenced DT cell rolled at W=1 and in one pool, compared under ==",
@@ -5542,17 +7009,28 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 1 if summary["n_failed"] else 0
 
     if args.command == "check-inputs":
-        for line in check_campaign_inputs(
-            data_dir=args.data_dir, output_root=args.output_root, draws_root=args.draws_root
-        ):
+        # BRIEF_41 C7: --campaign p7_3c adds P7.3c's inputs; the default is P7.3d's, as its driver calls it.
+        checker = check_p7_3c_campaign_inputs if args.campaign == "p7_3c" else check_campaign_inputs
+        for line in checker(data_dir=args.data_dir, output_root=args.output_root, draws_root=args.draws_root):
             print(line, flush=True)
         return 0
 
     if args.command == "resume-check":
+        # Amendment H, H3.3: on P7.3c's declaration a chunk file no declared cell names is refused HERE, before the
+        # token, rather than by report after the campaign. P7.3d's stage keeps the check it always had.
+        p7_3c_stage = args.stage == STAGE_P7_3C or args.stage in P7_3C_STAGES
+        stray = undeclared_chunk_names(work_dir=work, stage=args.stage) if p7_3c_stage else []
         problems = unresolvable_chunk_commits(work_dir=work, stage=args.stage)
-        if problems:
+        if stray or problems:
             import sys
 
+            for name in stray:
+                print(
+                    f"resume-check: {name} is not a declared cell of P7.3c's declaration; report would refuse it "
+                    "after the campaign -- move it aside by hand",
+                    file=sys.stderr,
+                    flush=True,
+                )
             for problem in problems:
                 print(
                     f"resume-check: {problem['chunk']} records git_commit {problem['git_commit']}, "
@@ -5597,6 +7075,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         record = write_manifest(campaign_dir=args.campaign_dir)
         print(f"manifest {record['path']}: {record['n_files']} files, re-verified", flush=True)
         return 0
+
+    if args.command == "stage1-check":
+        # BRIEF_41 C5 / A24(c): ONE line -- a verdict, a cell name and field NAMES, never a value. The
+        # campaign driver writes FAILED on anything but exit 0, before stage 2's first cell (C7).
+        result = stage1_reproduction_check(work, data_dir=args.data_dir)
+        print(result["line"], flush=True)
+        return 0 if result["verdict"] == "REPRODUCED" else 2
 
     # One stage, one artifact name. The anchor's is its own file: it is a different declaration
     # over a different work directory, and writing it under P7.3a's name would overwrite the
