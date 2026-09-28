@@ -227,3 +227,12 @@ C1a (the extraction command and its tests, the characterisation tests disclosed 
 commit), C2 (the sixty-run table, the run-once training route, the driver, the fenced timing run started by the implementer) —
 committed on the branch, NOT pushed; then **"P5.3c C1–C2 done"** (channel (d)). A26.1 is tagged before G2's token; nothing
 trains before both exist.
+
+## A.1 — 2026-09-28, before C1 is built: the EVALUATION DEVICE is CUDA (A26.1(b), the author's addition) — Amendment A's Q2 ruling amended
+A26(a)'s `cpu` rested on P4's `env_settings` record, whose `device` never reached a DT (the plan's V7); the reference rows were
+produced with the DT on CUDA (P8.4b's runner, `--device` unset → CUDA). **A26.1 corrects the registration: the DT is evaluated on
+CUDA, this GPU, for every sweep arm and both reference arms; the fenced pre-token re-roll of fifteen reference cells (Q2) runs on
+CUDA; the two gated real-CityFlow tests (Q17) run on CUDA and skip naming it when unavailable.** C3's cell agent is built with
+`device="cuda"`; the campaign's twelve workers each hold the model on the GPU as P7.3c's did (the driver checks free device memory
+before the token and records the peak). The plan's assumption A5 dissolves; the registered gate's `==` now tests the evaluation
+path alone. Training was already CUDA (A26(b)). Nothing else in Amendment A changes.
