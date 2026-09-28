@@ -1,6 +1,6 @@
 # A25 — DRAFT registration of the paper's scope after P7.3c: H2 is NOT TESTED, P7.4 is a limitation, and no experiment beyond H4 and P8.2 is run
 
-**Status: DRAFT, NOT REGISTERED.** Written 2026-09-28 by the coordinator on the author's ruling of the same day (*"C2's 2×2 (P6.1–P6.3)
+**Status: DRAFT, NOT REGISTERED — REVISION 2** after one review round (`docs/reviews/A25-A26-proposal.md`, F2 adopted). Written 2026-09-28 by the coordinator on the author's ruling of the same day (*"C2's 2×2 (P6.1–P6.3)
 and P7.4 are out of this paper: H2 is reported as registered and not tested, with the reason, and P7.4 goes to the limitations. P8.2's
 compute and latency table follows H4. After that, no new experiments; the paper is written from what is on main."*). It becomes a row of
 `PREREGISTRATION.md` §12 with A26 (H4's design) in one commit and one tag, after one review round and the author's written approval,
@@ -12,19 +12,26 @@ BEFORE any H4 number exists. The four cells follow.
 control) IS NOT RUN AND BECOMES A NAMED LIMITATION; AFTER H4 (A26) AND THE COMPUTE-AND-LATENCY TABLE, NO NEW EXPERIMENT IS RUN — declared
 before any datum of any of them exists.** **(a) H2.** §1's RQ2/H2, §2's confirmatory test (*the interaction contrast in the 2×2 on the
 primary perturbation family*), §4's C2 design ({nominal, shift-augmented} × {MADT, domain-randomised MAPPO} under perturbations) and
-§10's two H2 outcome rows are NOT withdrawn and NOT edited: they stand as registered. **They are not tested in this paper.** The paper
+§10's two H2 outcome rows are NOT edited. **H2 is WITHDRAWN FROM THIS PAPER'S CONFIRMATORY SET, with the reason below, and its rows
+are RETAINED AS THE SPECIFICATION of the test that was not run** — the state §2 permits (*moving one from confirmatory to exploratory
+is permitted only with an amendment row stating the reason*; here it moves to *not tested*, which is less). The paper
 reports, in the words of this row: *"H2 was registered with a confirmatory 2×2 design and was not tested: the perturbation tools, the
 domain-randomised MAPPO arm and the 2×2 campaign (P6.1–P6.3) were not built, by the author's decision of 2026-09-28 to close the
 experimental programme after the C3 curve and H4. No number bearing on H2 exists in this repository."* C2 is named as future work, with
 §4's design as its specification. Nothing about C2 is inferred from C3's scenario-variant draws: P7.0's demand draws are the nominal
 demand distribution every campaign shares, not a perturbation family. **(b) P7.4.** The alternative-state-encoding ablation (§10's
-*interface control*, the evidence named for the case *H3 fails*) is not run. Its registered role does not arise: H3's clause 1 held on
-both scenarios (P7.3a, P7.3d). The paper names, in the limitations, that the transfer gap has not been separated from an
-interface-mismatch component by that control, and that A16's frozen feature set, canonical order and phase map are the only
-alignment tested. **(c) WHAT IS STILL RUN, and nothing else:** H4's context-length sweep exactly as §1–§2 register it, under A26; and
+*interface control*, the evidence named for the case *H3 fails / gap indistinguishable from the interface control*) is not run.
+§10's row has two triggers: the first (*H3 fails*) did not arise — clause 1 held on both scenarios (P7.3a, P7.3d); the second (*the gap
+indistinguishable from the interface control*) is UNDECIDED, because only P7.4 could decide it, and the row's fallback (*the paper
+stands on C1 + C2*) is unavailable under (a). **Consequences the paper accepts:** the zero-shot gap is reported as *the measured
+gap between backends under A16's alignment* and is NOT called a dynamics gap without that qualifier; the limitations say that an
+interface-mismatch component has not been separated from it, and that A16's frozen feature set, canonical order and phase map are
+the only alignment tested. **(c) WHAT IS STILL RUN, and nothing else:** H4's context-length sweep exactly as §1–§2 register it, under A26; and
 P8.2's compute-and-latency table (training time, inference ms per decision, parameter counts — measurements of existing artifacts,
 no new evaluation of any hypothesis). **After those, the paper is written from what is on `main`; any further experiment is a new
-registration row.** **(d) UNCHANGED:** every other row of this file; the multiplicity rule of §8 applies within the families that
+registration row.** **(d) THE PAPER'S CLAIMS ARE C1 AND C3 ONLY** — the dataset-quality ladder and the dynamics-shift curve with its controls — plus H4's
+registered test under A26; the title, abstract and introduction promise no robustness to scenario shift and no result on C2.
+**(e) UNCHANGED:** every other row of this file; the multiplicity rule of §8 applies within the families that
 are tested (H1, H3, H4); H2's family is empty and no correction is spent on it.
 
 ## Cell 3 — Reason
@@ -35,8 +42,8 @@ rather than weeks (H4) and answers the framing controversy the paper opens with;
 perturbation suite, a domain-randomised MAPPO, a 2×2 campaign), and P7.4's control is evidence for a case that did not occur.
 **Declared now rather than discovered by a referee:** a hypothesis dropped after its data existed would be selection; dropped before
 any datum exists, it is scope, and the registration is what makes the difference checkable. **Stated limits:** the paper's title and
-claims must not promise robustness to scenario shift (C2's claim), and the introduction's framing of *three* claims becomes two claims
-plus a registered, untested third named as such.
+claims must not promise robustness to scenario shift (C2's claim); the introduction's framing of *three* claims becomes two claims
+plus a registered, untested third named as such; and the zero-shot gap carries the interface qualifier of (b) wherever it is named.
 
 ## Cell 4 — Results already seen?
 
