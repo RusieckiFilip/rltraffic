@@ -179,3 +179,51 @@ the registered sentence, filled, reported not interpreted**; every pairwise cont
 equal-supervision contrasts and the loss per target; the whole design on `mix50`, labelled exploratory; A26(e)'s expectations as held
 or refuted; every driver capture; where each run ran and at what commit; the amendments written against, by letter; the
 AI-assistance record's four lines; one paragraph on what the paper's H4 section will assume.
+
+---
+
+# ✅ AMENDMENT A — 2026-09-28, gate G0: PLAN APPROVED (`docs/plans/p5.3c.md` @ `c26123a`) — every proposal accepted, two rulings that add a check, two corrections to THIS brief and one to A26 itself (A26.1, registered before any training)
+
+## A0 — Verdict
+Approved as written. The plan re-verified every seam at `1c05737`, demonstrated three load-bearing facts by running them (what a
+K = 1 model sees; the batch-index stream's K-invariance through `train_dt` itself; the one-sided Wilcoxon against an independent
+second route), found two errors in the coordinator's texts and one in the registration, and turned every open choice into a
+question with a proposed answer. **The coordinator re-ran the plan's Appendix A.2 and A.4 demonstrations from their verbatim
+scripts: both reproduce the pasted outputs exactly** (rows and window ids identical at K = 1, 2, 20 over 1,600 draws with a
+different-seed control; 800/800 one-sided tests agreeing under `==` between the two routes, the direction fixture at p = 1.0).
+**Build C1a, C1b and C2, in that order; stop at G1.**
+
+## A1 — Corrections
+1. **To A26 (F3): A26(b)'s sentence *"Equality has never been demonstrated on `output/p4_dt`"* is FALSE.** P4 retrained seed 505
+   from scratch at its own commit and found all 48 tensors identical (`docs/returns/P4.md` §6.4; `PROJECT_PLAN` §8, 2026-08-11),
+   and P4's double-train proof passed on CUDA. The coordinator took the pre-registration review's finding F5 on trust instead of
+   opening P4's packet. **A26.1** (a correction row, the A22.1 shape) registers the fact before any K ≠ 20 model exists; the
+   measurement and its path on a difference are UNCHANGED. The packet cites A26.1.
+2. **To this brief (F5): §4's Holm example was wrong.** Under the step-down, 0.01 ≤ 0.05/3 rejects, 0.03 > 0.05/2 does not and
+   STOPS, so the second and third both fail to reject. T-holm asserts (reject, not, not); the named mutation still dies.
+3. **To this brief (F4):** *loss per supervised target* IS the per-step loss `train_dt` records (mean cross-entropy over non-PAD
+   positions); the record carries `final_loss`, the 20 window means and `supervised_targets_per_step` replayed from the seed's
+   index stream, as the plan proposes.
+
+## A2 — Rulings on Q1–Q18: every proposal ACCEPTED; the additions are marked
+- **Q1, Q4, Q5, Q6, Q7, Q8, Q9, Q10, Q11, Q13, Q14, Q15, Q16, Q17, Q18:** yes, as proposed.
+- **Q2 (F2, the device) — yes, `cpu` as registered, WITH ONE ADDITION:** a FENCED pre-token re-roll (the `reference_reroll_check`
+  shape of `BRIEF_41`'s campaign driver) of a DECLARED sample of P4's reference cells — the five seeds on draws 1000, 1001 and
+  1002, 15 cells — on `cpu` at the campaign's commit, compared with the committed rows under `==`; a divergence REFUSES the start
+  without consuming the token and is a finding for a registration decision (channel (b)), never a silent switch of device. The
+  registered gate on all 500 remains the detector after the token. Alternative (c) is not taken.
+- **Q3 (F3):** the correction is A26.1, not only the packet (A1.1).
+- **Q12 — the (ii) sentence's extra clause is REGISTERED TEXT and goes into A26.1 with the plan's words:** *"K = k falls short of
+  the K = 20 plateau by more than the registered margin δ = 0.6263 s of ATT."*
+
+## A3 — What the coordinator verified for these rulings (2026-09-28, by running commands)
+- `c26123a`: one commit on `main` (`1c05737`), `docs/plans/p5.3c.md` only (910 lines), no trailer; the amended-away `a7f42c7`
+  differs by one removed sentence (the plan's own disclosure); the worktree clean.
+- The plan's Appendix A.2 and A.4 scripts re-run from the scratchpad: outputs identical to the plan's §6 and §7.
+- P4's record of seed 505 (`docs/returns/P4.md:317-327`; `PROJECT_PLAN` line 2059): all 48 tensors identical on a retrain.
+
+## A4 — Next
+C1a (the extraction command and its tests, the characterisation tests disclosed as not red-first), C1b (the rows at C1a's clean
+commit), C2 (the sixty-run table, the run-once training route, the driver, the fenced timing run started by the implementer) —
+committed on the branch, NOT pushed; then **"P5.3c C1–C2 done"** (channel (d)). A26.1 is tagged before G2's token; nothing
+trains before both exist.
