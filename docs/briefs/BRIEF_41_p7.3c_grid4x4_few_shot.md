@@ -786,3 +786,30 @@ sha256 `1bcea367d86fa1943d45c747634b7ed2e49cb3c174f44a532c7e8ba13ca66e1d`, 35,93
 4. Say **"P7.3c done"** (channel (d)); not pushed. Then ONE merge review (two mandates: the code and mutations; every number
    recomputed from the raw chunks by the reviewer's own route), Amendment K, the merge with §6's box ticked, the ceiling by the
    registered route.
+
+---
+
+# ✅ AMENDMENT K — 2026-09-28: C8 ACCEPTED at `1f05ef7` and the MERGE REVIEW PASSED (`docs/reviews/P7.3c.md`, two mandates, 0 blocking) — P7.3c merges; two test gaps parked; C8's questions ruled
+
+## K1 — C8, verified by the coordinator
+`docs/data/p7_3c_grid4x4.json` on the branch hashes to `1bcea367…`, equal to the campaign's artifact; the new T-regress and the four
+older ones pass in the coordinator's own run (7 passed); 36 commits over `main`, no trailer on any, no frozen path; the implementer's
+tree clean. **Mandate A** recomputed every published aggregate from the 4,700 raw chunks by a route importing nothing from
+`offline/`: all bitwise equal; the packet's tables consistent; the labels present; no whole-H3 verdict. **Mandate B** killed seven of
+nine committed mutants; the two survivors are MISSING TESTS, not wrong code, and no published number depends on either: **`DEFERRED`
+98** (ρ₀'s source is not distinguished by any fixture — the two sources are identical on the real campaign, as the coordinator's G10
+read and mandate A found independently) and **`DEFERRED` 99** (the campaign driver's `check-inputs` refusal is never executed by a
+test — the real capture shows it passing with every pin). Both are due before any re-run of the report or the driver.
+
+## K2 — C8's three open questions
+1. The artifact's digest as a module constant: **yes**, `P7_3C_GRID4X4_SHA256`, in `DEFERRED` 98's commit (the test already pins it).
+2. The shared T-regress helper's message (*the hz1x1 path has moved*) for a grid4x4 artifact: a wording fix in the same commit.
+3. The +1 CI skip (the new test needs the output tree): the ceiling by the registered route after the merge.
+Also: the packet's line 1455 tags the `att_env` recomputation *"(H3.1)"* — an amendment reference no reader will follow; a docs-only
+wording fix may accompany `DEFERRED` 98's commit. The implementer's merge of `main` before a ruling on the harness conflicts is moot:
+the author ruled on 2026-09-28 that a session never stops for the trailer instruction (`CLAUDE.md` §4b, `08cb3bf`).
+
+## K3 — The merge
+`git merge --no-ff` of `task/p7.3c-grid4x4-fewshot` at `1f05ef7`, §6's box ticked in the merge commit, the plan's row and banner;
+then the CI skip ceiling from the run the merge triggers, by the registered route. The run worktree `/home/filip/rltraffic-p73c-run`
+and the implementer's worktree are removed after the merge; the evidence under `output/p7_3c_runs/` stays.
