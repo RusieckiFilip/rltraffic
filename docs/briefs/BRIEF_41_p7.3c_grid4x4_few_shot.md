@@ -752,3 +752,37 @@ coordinator's own route against `docs/data/p7_3d_grid4x4.json`, not only the dri
 verdict recomputed by an independent route from the raw chunks (ρ per cell from the same draw's anchors, per-draw five-seed means,
 Δ₁₀₀ paired by draw id against the artifact's `rho.by_draw`, the partition against the registered G) BEFORE the artifact's own
 number is read; then the controls. Amendment J rules; C8 (the packet, the two `docs/data/` artifacts) follows; then one merge review.
+
+---
+
+# ✅ AMENDMENT J — 2026-09-28, gate G10: THE CAMPAIGN IS COMPLETE AND READ — 4,700/4,700; stage 1 reproduces P7.3d bit for bit; clause 3's registered criterion is MET: Δ₁₀₀ = 0.0709 [0.0576, 0.0842] against G/2 = 0.0573, closure 61.9% [50.3%, 73.5%] — C8 next, then the merge review
+
+## J1 — The read (`docs/notes/P7.3c_CAMPAIGN_READ_2026-09-28.md`; evidence `output/p7_3c_runs/g10/`)
+In I4's order: the capture clean (token 10:59:15, `stage1_check REPRODUCED 700/700`, COMPLETE in 20,055 s, exit 0; the manifest
+4,744/4,744); the declaration exactly A24(c)'s, every chunk at `bddcb2c` and clean; `n_unexplained_teleports` 0 on 4,700; six
+collision cells (stage 1 exactly A23's two; three in stage 2; one in stage 3), all kept under A23(c); **stage 1 equal to the
+committed P7.3d records on every field but the six bookkeeping ones on 700/700, and ρ from its own anchors equal to the records'
+on 500/500** — by the coordinator's route; **the verdict recomputed from the raw chunks before the artifact was opened: (i), the
+criterion MET**, on both definitions and without the two collision draws; then, with the artifact's own arithmetic on the
+coordinator's per-cell values, every aggregate bitwise equal to the artifact's (Δ₁₀₀ and bounds, both definitions; the
+robustness; the five per-seed values; all nine arm means). The controls: the prompt alone does nothing (`zs_k5`, `zs_k20` within
+±0.004 of ρ₀); fine-tuning on FIVE episodes degrades (−0.107) — A24(e)'s total-effect expectation REFUTED at 0 → 5, the other four
+steps held; Δ_transfer = +0.509 (the from-scratch control at 0.45 against 0.96); the budget secondary monotone (B = 16,000 +0.023
+above B = 4,000); 4 of 5 seeds meet the criterion (seed 101 +0.012). **The artifact:** `output/p7_3c/artifacts/p7_3c_grid4x4.json`,
+sha256 `1bcea367d86fa1943d45c747634b7ed2e49cb3c174f44a532c7e8ba13ca66e1d`, 35,936,510 bytes.
+
+## J2 — C8, the implementer (tests first where a test is named)
+1. **`docs/data/p7_3c_grid4x4.json`: the artifact copied BY HAND** from the path above; the packet states its measured sha256 and it
+   must equal `1bcea367…`. `docs/data/p7_3c_finetune.json` is already on `main` (`c616900`); nothing else under `docs/data/`.
+2. **A T-regress for the new artifact** beside `DEFERRED` 95's: `docs/data/p7_3c_grid4x4.json` regenerates byte-identically through
+   `report --stage p7_3c` over `output/p7_3c/cells` into `tmp_path`, with A3's two substitutions, gated on `RLTRAFFIC_OUTPUT_ROOT`;
+   its mutant (one aggregate of the P7.3c body perturbed) executed. The three hz1x1 T-regress tests and `DEFERRED` 95's stay green.
+3. **The packet `docs/returns/P7.3c.md` completed per §7:** G3, G5, G7 and G10 as read; the seventeen — thirty — checkpoints' digests
+   and every re-run (none); stage 1's 700/700; **A24(d)'s numbers in its words** — the arm table, Δ₁₀₀ with its CI, **the verdict as
+   the labelled sentence, reported, not interpreted**, the closure fraction, `att_env` beside it, the five per-seed Δ₁₀₀ and their
+   SD, the robustness; A24(e)'s adaptation effects, Δ_transfer and the five steps as held or refuted; the budget secondary apart; the
+   in-support diagnostic against both ranges; every driver capture; where each run ran and at what commit; the amendments written
+   against, by letter; the AI-assistance record's four lines; one paragraph on what the paper's C3 section will assume.
+4. Say **"P7.3c done"** (channel (d)); not pushed. Then ONE merge review (two mandates: the code and mutations; every number
+   recomputed from the raw chunks by the reviewer's own route), Amendment K, the merge with §6's box ticked, the ceiling by the
+   registered route.
