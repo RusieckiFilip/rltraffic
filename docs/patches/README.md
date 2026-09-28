@@ -1,5 +1,24 @@
 # Patches a Claude Code session cannot apply itself
 
+## `ci_gate_ceiling_296_p7_3c.patch` — the skip ceiling moves 242 → 296 after P7.3c's merge; every new skip is P7.3c's own gating
+
+**Apply with:**
+```bash
+cd /home/filip/rltraffic && git apply docs/patches/ci_gate_ceiling_296_p7_3c.patch && .venv/bin/pytest tests/test_ci_gate.py -q && git add .github/ci/ci_baseline.json tests/test_ci_gate.py && git commit -m "ci(ceiling): 242 -> 296 OBSERVED on run 36460617410 at b8afef9 -- P7.3c's gated tests" && git push origin main
+```
+**Measured, not read off a summary.** Run `36460617410` on `main` at `b8afef9` (P7.3c's merge commit itself); the suite step PASSED on
+both legs and only the ceiling gate failed (the registered route working). Both legs downloaded, every `<skipped>` message extracted
+from `junit.xml` (`output/ci_runs/skips.py`, OLD run first), multisets compared leg against leg (identical: 2,775 tests, 2,479 passed,
+296 skipped, 0 failures, 0 errors, 74 distinct texts on both) and run against run against the 242 run `36170411512`: **54 new skips
+in 10 texts, nothing removed** — +11 `corpus_or_checkpoint` (A20(a)'s checkpoints read by `check-inputs`, the thirty trained
+checkpoints, G3's corpus through `RLTRAFFIC_SUMO_CORPORA`), +11 `campaign_output` (the grid4x4 parity draws, P7.3c's and P7.3d's
+campaign cells), +1 `grid4x4_resco_candidates`, +29 `main_tree_interpreter` (the executed driver tests), +2 `sumo_traci` — each text
+classified BY INSPECTION in `output/ci_runs/classification_p73c.json`; the builder (`build_ceiling_patch_p73c.py`) refuses a text
+matched by zero or two prefixes, an unused prefix, a removed text, a breakdown that does not sum, and a head commit that is not
+P7.3c's merge. Verified end to end in a scratch worktree: `tests/test_ci_gate.py` green with the new baseline; `ci_gate.py
+pytest-gate` on BOTH legs' real `junit.xml` + `pytest.txt` under it, exit 0 each; `git apply --check` clean on `main`.
+`re_measure_required_at` now names the next task that adds gated tests. Two files.
+
 ## `ci_gate_ceiling_242_p7_3d.patch` — the skip ceiling moves 193 → 242 after P7.3d's merge and its CI fix; every new skip is P7.3d's own gating — and the 193 and 191 entries' narrative is CORRECTED
 
 **Apply with:**
