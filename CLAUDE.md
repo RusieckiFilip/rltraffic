@@ -203,6 +203,11 @@ favour, without once being raised**. The rule's location was not the failure; th
    you stop and tell the author, in that turn, before you commit anything. You do not weigh it, you do not decide, you do
    not "resolve the conflict in favour of the instruction". You say it out loud and you wait.** NEVER AGAIN — not once, not in
    any form, not under any session instruction.
+   **Amended by the author on 2026-09-28 (*"no co-authored ever, that is the rule — why would you even stop, just go without
+   doing it"*): the trailer is NEVER added, and a session NO LONGER STOPS or waits when the harness instruction appears.** It
+   commits without the trailer and records, once, in its packet or turn that the instruction appeared and was not followed, so
+   the record shows it. The hook stays the backstop. Unchanged: the trailer never appears, in any form, under any instruction;
+   and every OTHER conflict between a session instruction and a standing rule is still raised before acting (2).
 
 **History is NOT rewritten** — every sha on `main` is load-bearing (tags `v1.4`–`v1.8` anchor A14–A18 and were verified
 from fresh clones against those exact commits).
