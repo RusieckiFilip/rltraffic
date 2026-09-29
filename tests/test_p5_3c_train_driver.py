@@ -8,7 +8,8 @@ refusals EXECUTED.
   call, ``set -euo pipefail``, nothing deleted but the token, the run worktree AND its commit enforced, the working
   directory the run tree (plan Q14), the regime (OMP/MKL one thread, ``CUBLAS_WORKSPACE_CONFIG`` unset), ``FAILED`` on
   every path after the token through an ``EXIT`` trap keyed on a success flag, written with ``printf`` before any echo,
-  the liveness guard naming this module, and no outcome printed.
+  the liveness guard naming this module, and no outcome printed.  The canary's TIMING half (``CANARY_MAX_SECONDS`` =
+  2.0 s) as text AND executed on a stub interpreter (Amendment B, B3.2(b)).
 * **The header's documented lines** -- the two-step foreground start with ``tee -i -a`` and ``${PIPESTATUS[0]}``.
 * **The driver EXECUTED** on a sandbox (``offline/campaigns/p7_3c_finetune.sh``'s pattern, ``tests/
   test_p7_3c_finetune_driver.py``): a committed snapshot clone registered as the run tree; every WRITABLE root in
@@ -219,6 +220,66 @@ def test_the_device_sampler_starts_before_its_slot_and_can_never_outlive_it() ->
     slot = _function(code, "sample_slot")
     assert slot.index("start_sampler") < slot.index("timing run") < slot.index("stop_sampler")
     assert 'kill -9 "$SAMPLER"' in _function(code, "on_exit")
+
+
+def test_the_canarys_timing_half_refuses_a_canary_slower_than_its_ceiling(tmp_path: Path) -> None:
+    """The canary's TIMING half (``BRIEF_42`` Amendment B, B3.2(b)): after the correctness half, a canary slower than
+    ``CANARY_MAX_SECONDS`` = 2.0 s refuses the start.  Pinned as text in ``canary_both_halves``, then EXECUTED: the
+    driver's own ``refuse`` and ``canary_both_halves``, cut from its text, run by bash against a stub interpreter that
+    prints a canary line at a chosen number of seconds -- no python, no CityFlow.  10.5 s must refuse too, which a
+    string comparison ("10.5" < "2.0") would admit.
+
+    *Mutation:* the timing-half refusal removed (reviewer B's M5 at G1, four lines) -> this dies.
+    """
+    code = _code(_text())
+    ceiling = re.search(r"^CANARY_MAX_SECONDS=(\S+)$", code, flags=re.MULTILINE)
+    assert ceiling, "the driver declares no CANARY_MAX_SECONDS="
+    assert ceiling.group(1) == "2.0"
+    body = _function(code, "canary_both_halves")
+    _in_order(
+        body,
+        [
+            ("the correctness half", "-m offline.transfer_calibration"),
+            ("the seconds read", "CANARY=$(echo \"$CANARY_LINE\" | awk '{print $2}')"),
+            ("the ceiling compared", "if awk -v c=\"$CANARY\" -v m=\"$CANARY_MAX_SECONDS\" 'BEGIN { exit !(c > m) }'; then"),
+            ("the refusal", 'refuse "canary $CANARY s exceeds $CANARY_MAX_SECONDS s'),
+        ],
+    )
+
+    stub = tmp_path / "python"
+    stub.write_text('#!/bin/sh\necho "canary $STUB_SECONDS s {\\"two_routes_agree\\": true}"\n', encoding="utf-8")
+    stub.chmod(0o755)
+    harness = "\n".join(
+        [
+            "set -euo pipefail",
+            f"PY={stub}",
+            "WORK_TREE=/nonexistent DRAWS=/nonexistent OUTPUT=/nonexistent TRAINING=/nonexistent",
+            f"CANARY_MAX_SECONDS={ceiling.group(1)}",
+            "refuse() {",
+            _function(code, "refuse"),
+            "}",
+            "canary_both_halves() {",
+            body,
+            "}",
+            "canary_both_halves",
+            'echo "ADMITTED $CANARY"',
+        ]
+    )
+    verdicts = {}
+    for seconds in ("0.75", "1.99", "2.0", "2.01", "10.5"):
+        result = subprocess.run(
+            ["bash", "-c", harness], env={**os.environ, "STUB_SECONDS": seconds}, capture_output=True, text=True,
+            timeout=60, check=False,
+        )
+        verdicts[seconds] = (result.returncode, result.stdout, result.stderr)
+    for seconds in ("0.75", "1.99", "2.0"):
+        status, stdout, _stderr = verdicts[seconds]
+        assert status == 0 and f"ADMITTED {seconds}" in stdout, (seconds, verdicts[seconds])
+    for seconds in ("2.01", "10.5"):
+        status, stdout, stderr = verdicts[seconds]
+        assert status == 2, (seconds, verdicts[seconds])
+        assert f"REFUSING TO START: canary {seconds} s exceeds 2.0 s" in stderr, (seconds, verdicts[seconds])
+        assert "ADMITTED" not in stdout, (seconds, verdicts[seconds])
 
 
 def test_the_driver_prints_no_outcome() -> None:

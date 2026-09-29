@@ -15,7 +15,10 @@ What this file pins, and the named mutations it is built against (``BRIEF_42`` Â
   -> dies.
 * **T-once** -- an absent checkpoint trains, a valid one is skipped, an invalid one is refused and never overwritten;
   an existing destination is refused BEFORE ``train_dt`` runs; two same-seed CPU runs at B = 20 are byte-identical
-  under two different file names (the in-memory serialisation).
+  under two different file names (the in-memory serialisation); a checkpoint at another budget or another warm-up --
+  the fenced timing run's shape under the registered name it shares -- fails exactly ``budget`` or ``recipe``
+  (Amendment B, B3.2(b)).  *Mutations:* ``budget`` made self-consistent, ``recipe``'s warm-up read from the payload
+  -> die.
 * **T-k20** -- identical tensors compare equal; one changed element is named with its largest absolute difference;
   the record is written whatever the comparison finds and the command exits 0.  *Mutation:* the comparison made a
   refusal -> dies.
@@ -23,7 +26,8 @@ What this file pins, and the named mutations it is built against (``BRIEF_42`` Â
   red first, unlike C1's characterisation tests.
 
 No test here trains on CUDA, reads the registered corpus ungated, or writes outside ``tmp_path``.  The registered
-regime's refusals are exercised with injected state (the environment variable, the code tree's git state).
+regime's refusals are exercised with injected state (the environment variable, the code tree's git state), and its
+one torch thread is asserted from a start at three (Amendment B, B3.2(b); *mutation:* the pin removed -> dies).
 """
 
 from __future__ import annotations
@@ -437,6 +441,49 @@ def test_an_absent_checkpoint_trains_a_valid_one_is_skipped_an_invalid_one_is_re
     assert garbage.read_bytes() == b"not a checkpoint"
 
 
+@pytest.mark.parametrize(
+    ("overrides", "failing"),
+    [
+        ({"gradient_steps": 400, "declared_gradient_steps": 400}, {"budget"}),
+        ({"warmup_steps": 200}, {"recipe"}),
+        ({"gradient_steps": 400, "declared_gradient_steps": 400, "warmup_steps": 200}, {"budget", "recipe"}),
+    ],
+    ids=["another-budget-self-consistent", "another-warm-up", "the-fenced-timing-runs-shape"],
+)
+def test_a_checkpoint_at_another_budget_or_warm_up_fails_exactly_budget_or_recipe(
+    tmp_path: Path, overrides: dict[str, int], failing: set[str]
+) -> None:
+    """``BRIEF_42`` Amendment B, B3.2(b): ``checks["budget"]`` compares BOTH step counts with the registered 40,000, not
+    with each other, and ``checks["recipe"]`` compares the warm-up with ``train_dt``'s 1,000 at 40,000 steps, not with
+    the payload's own.  They are the two checks that tell the fenced timing checkpoint (400 steps, warm-up 200) from a
+    registered one under the name the two share, ``mappo1000_k5_b64_seed101`` -- so each payload here differs from a
+    VALID one (the control) in those provenance fields alone, and the failing set is asserted exactly.
+
+    *Mutations:* ``budget`` made self-consistent (reviewer A's MB at G1); ``recipe``'s warm-up compared with the
+    payload's own (MC) -> this dies.
+    """
+    spec = _subject(tmp_path)
+    facts = cs.subject_facts(cs.training_inputs(spec, 1, _corpus(tmp_path)))
+    run = cs.TIMING_RUN
+    assert run in cs.registered_runs() and run.name == "mappo1000_k5_b64_seed101"
+
+    control_root = tmp_path / "control"
+    valid = _load_weights_only(_fabricate_registered(tmp_path, control_root, run, spec))
+    control = cs.validate_checkpoint(run, output_root=control_root, facts=facts)
+    assert all(control.values()), control
+
+    output_root = tmp_path / "output"
+    destination = cs.registered_destination(output_root, run)
+    destination.parent.mkdir(parents=True)
+    write_payload_exclusive({**valid, "provenance": {**valid["provenance"], **overrides}}, destination)
+    checks = cs.validate_checkpoint(run, output_root=output_root, facts=facts)
+    assert {name for name, passed in checks.items() if not passed} == failing, checks
+    before = destination.read_bytes()
+    with pytest.raises(ValueError, match=r"does not validate \(failed: "):
+        cs.resume_decision(run, output_root=output_root, facts=facts)
+    assert destination.read_bytes() == before
+
+
 def test_an_existing_destination_is_refused_before_train_dt_runs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     spec = _subject(tmp_path)
     inputs = cs.training_inputs(spec, 5, _corpus(tmp_path))
@@ -731,6 +778,30 @@ def test_the_registered_regime_refuses_a_working_directory_at_another_commit(mon
     monkeypatch.setattr(cs, "_cwd_commit", lambda: "e" * 40, raising=True)
     with pytest.raises(ValueError, match="working directory"):
         cs.enter_registered_regime()
+
+
+def test_the_registered_regime_pins_exactly_one_torch_thread(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``BRIEF_42`` Amendment B, B3.2(b): ``enter_registered_regime()`` PINS one torch thread (P5.2's and P7.3c's
+    regime) whatever the process started with, and records it.  The start here is three threads, so the test cannot
+    pass by inheriting one; the code tree, the working directory's commit and CUDA are injected, so it runs anywhere.
+
+    *Mutation:* ``torch.set_num_threads(1)`` removed (reviewer A's MD at G1) -> this dies.
+    """
+    monkeypatch.delenv("CUBLAS_WORKSPACE_CONFIG", raising=False)
+    monkeypatch.setattr(cs, "_code_provenance", lambda: dict(FIXED_CODE), raising=True)
+    monkeypatch.setattr(cs, "_cwd_commit", lambda: FIXED_CODE["code_commit"], raising=True)
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: True, raising=True)
+    assert not torch.are_deterministic_algorithms_enabled()
+    started_with = torch.get_num_threads()
+    try:
+        torch.set_num_threads(3)
+        assert torch.get_num_threads() == 3
+        entered = cs.enter_registered_regime()
+        assert torch.get_num_threads() == 1
+        assert entered["regime"]["torch_num_threads"] == 1
+        assert entered["code"] == FIXED_CODE
+    finally:
+        torch.set_num_threads(started_with)
 
 
 # ======================================================================================================================

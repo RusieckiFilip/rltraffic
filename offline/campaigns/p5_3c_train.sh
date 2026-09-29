@@ -59,7 +59,28 @@
 #    one torch thread.  The corpus root is P4's absolute one, because the statistics record their directories.
 #
 # 5. TIME -- MEASURED BY THE TIMING MODE BEFORE THE TOKEN; its numbers are written here from its record, with its canary.
-#    Not yet measured at this commit.
+#    Stamp 20260929T112505Z (2026-09-29, 11:25 UTC), the run tree at 8327128c41a3, the machine quiet (load 0.00) and on
+#    mains power; canary 1.03 s, both correctness halves the reference's (-32648.0, 247.75089149261333, 360 decisions);
+#    "TIMING COMPLETE in 17s", "DRIVER EXIT: 0".  Record output/p5_3c_training/fenced_timing/20260929T112505Z/
+#    timing.json (sha256 46fbccaba701...); capture output/p5_3c_runs/train_timing_capture.txt.
+#    ONE configuration -- mappo1000_k5_b64_seed101, 400 steps (train_dt's warm-up 200), alone, the registered regime:
+#                ms/step   input build   device peak (nvidia-smi, whole GPU)   allocated peak (torch, this process)
+#      alone      8.25       2.16 s        1,540 MiB                             97.8 MiB
+#      repeat     7.01       2.23 s        1,516 MiB                             97.8 MiB
+#    The GPU held 1,125 / 1,136 MiB before each slot (the Windows host's baseline): one run adds 415 / 380 MiB.
+#    The same-seed repeat by two routes: file sha256 EQUAL (f796315069cf...), weights sha256 EQUAL (bf8a146f80be...).
+#    An observation at this one configuration, NOT a property of the regime (deterministic algorithms are OFF, and
+#    P7.3c's repeat differed); nothing relies on it -- the K = 20 reproduction is a measurement, never a stop.
+#    Measured at K = 5, batch 64, 400 steps; the sixty's total is an EXTRAPOLATION across K in {1, 2, 10, 20}, the two
+#    equal-supervision arms and sixty input builds, not a measurement: 60 x 40,000 steps at the measured 7.01-8.25
+#    ms/step is 4.7-5.5 h of steps (280-330 s a run), plus sixty builds of about 2.2 s.  Not measured: ms/step at the
+#    other K (20 of the 60 runs are K >= 10) and at 3,840 tokens a step (K = 20's and both equal-supervision arms', 20
+#    runs; the measured point is 960), the builds at other K, the per-run process starts and calls, thermal drift.
+#    RECORDED, not measured here: train_dt's own loop seconds for the DT at K = 20, batch 64, 40,000 steps on this GPU
+#    were 193.4-205.0 s (4.84-5.12 ms/step) in P4.7's fifteen runs (docs/data/p4_7_training.json) and 202.3-204.1 s
+#    in three of P4's five (docs/data/p4_training.json; the other two 356.2 s and 14,018.0 s) -- below this 400-step
+#    rate, whose short loop amortises less of the process's first CUDA steps (their share is not measured).  At that
+#    recorded rate the sixty's steps take 3.2-3.4 h: an extrapolation too.
 
 set -euo pipefail
 
