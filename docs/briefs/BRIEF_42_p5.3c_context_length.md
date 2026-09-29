@@ -354,3 +354,76 @@ NOTHING is consumed — and start again.** A second occurrence is a finding for 
 timing run (B4) → C2.1 (B3.2) → the coordinator verifies, pushes, re-creates the run worktree at C2.1 → **the author's token G2**
 (`output/p5_3c_runs/TOKEN_train`; the train mode takes the timing's stamp as its third argument) → the sixty (≈ hours, one at a
 time) → G3 (the coordinator verifies the sixty from disk and pins `docs/data/p5_3c_train.json` on `main`) → C3.
+
+---
+
+# ✅ AMENDMENT B.1 — 2026-09-29, ≈ 16:00: the fenced timing run READ and C2.1 ACCEPTED at `5779a1d` (packet `1f446f2`); the branch pushed; the run worktree RE-CREATED at `1f446f2`; the training token G2 handed to the author; one correction to Amendment B; the packet's four questions ruled
+
+## B.1.0 — Verdict
+**C2.1 ACCEPTED as committed; the fenced timing run READ from disk; nothing changes before the token.** The letter C stays
+reserved for gate G3 (§5's table); this is B's addendum.
+
+## B.1.1 — What the coordinator verified (2026-09-29, by running commands)
+- **The branch:** `6a62100` = merge of `main` `0d15681` (two parents), `5779a1d` C2.1, `1f446f2` the packet; **0** trailers;
+  C2.1 touches `offline/campaigns/p5_3c_train.sh` (the header §5, +22/−1) and the two test files only; **`offline/context_sweep.py`
+  is byte-unchanged since `8327128`** (`git diff --stat 8327128 HEAD -- offline/context_sweep.py` empty).
+- **The timing run:** ran at `8327128` from `/home/filip/rltraffic-p53c-run` (the capture's `WORK_TREE` and `commit` lines);
+  `check_inputs PASSED`; canary **1.03 s**, both correctness values the reference's; `TIMING COMPLETE in 17s`; `DRIVER EXIT: 0`;
+  `output/p5_3c_training/` holds `fenced_timing/20260929T112505Z/` and NOTHING else; no `SHA256SUMS_p5_3c_train.txt`; the
+  capture at `output/p5_3c_runs/train_timing_capture.txt`. **By the coordinator's own route** (`hashlib`, `torch.load`
+  weights-only with the `TorchVersion` allowlist, the CSVs): `alone.pt` and `repeat.pt` share sha256 `f796315069cf…`, equal to
+  `alone.json`'s, `repeat.json`'s and `timing.json`'s; **48 / 48 model tensors equal (647,176 elements)**; ms/step
+  `loop_seconds / steps × 1000` = **8.2535 / 7.0098**, the record's; device peaks = the CSV maxima **1,540 / 1,516 MiB** (32 / 30
+  samples, baselines 1,125 / 1,136); the payload: K 5, batch 64, seed 101, 400 = 400 steps, `raise_to None`, warm-up 200, cuda,
+  `deterministic False`, `code_commit 8327128…`, `code_dirty False`, `sweep_format p5.3c-sweep-provenance/1.0`, config the
+  registered one with `context_length 5`, prompt −5762.0 / 9991.0; the regime recorded (`CUBLAS_WORKSPACE_CONFIG` None,
+  deterministic algorithms off, OMP/MKL "1", one torch thread).
+- **The header §5** carries the measured numbers and the extrapolation LABEL in the ruling's words ("∈" as "in": the file is
+  ASCII), the run counts right (**20 of 60 at K ≥ 10**), and five flagged RECORDED lines (P4's / P4.7's own K = 20 loop seconds on
+  this GPU, 193–205 s per run, hence 3.2–3.4 h — the source of the plan's ≈ 3.4 h) — **kept**: labelled, sourced, and the author
+  plans his evening by them.
+- **Tests at `1f446f2` in a fresh throwaway worktree, both data gates open, one thread:** the three module files **75 passed in
+  37.71 s**; the driver file alone **20 passed in 95.54 s** (the real `check-inputs` and one real CityFlow canary executed).
+- **The four named mutants, COMMITTED in that worktree from the packet's appendix, the tree reset after each:** M5 (the canary's
+  timing-half refusal removed) → KILLED, 1 failed / 19 passed; MB (`checks["budget"]` self-consistent) → KILLED, 2 failed; MC
+  (`checks["recipe"]` warm-up from the payload) → KILLED, 2 failed; MD (`set_num_threads(1)` removed) → KILLED, 1 failed — exactly
+  the new tests, every count the packet's.
+- **The packet's disclosure** (a needle of the new canary test occurred twice in the correct driver, so three "kills" of the first
+  mutant run were red-on-correct; found by reading the failure REASONS before any green run, fixed, all seven re-run): the right
+  discipline, recorded in §8 as an implementer catch of the project's signature class.
+
+## B.1.2 — Correction to Amendment B, B2 (the coordinator's error)
+B2's note *"30 of 60 runs are K ≥ 10"* is WRONG: `registered_runs()` gives **20** at K ≥ 10 (K = 20 and K = 10, five seeds, two
+subjects); 30 is the count at K ≥ 5. The number was adopted from reviewer B's report without recomputing it — a number taken from
+a description. Nothing depends on it; the header §5 has the right count. Logged in `PROJECT_PLAN` §8.
+
+## B.1.3 — The packet's four questions, ruled
+1. **`docs/plans/p5.3c.md`:** NOT edited. The timing's numbers live in the header §5, the packet and `PROJECT_PLAN` §8's row of
+   this date; the plan file is the record of gate G0 and stays as approved.
+2. **`checks["recipe"]`'s other members** (learning rate, weight decay, clip): three more parametrised cases of
+   `test_a_checkpoint_at_another_budget_or_warm_up_fails_exactly_budget_or_recipe`, each mutant pasted — **in C3's commit**, not
+   before the token (the code is right by reading and by MC's kill on the same tuple; a commit before the token would mean a third
+   run worktree for no change in what trains).
+3. **B5's operational rule into the header §0** — **in C3's commit**, in both drivers' headers (the training driver's §0 and the
+   campaign driver's), for any future start; for G2 the author has the rule in the token block below.
+4. **The P7.3d host-RAM guard vs the suite's tmpfs scratch:** `DEFERRED` 102. Diagnosed by the packet's four runs: `/tmp` is
+   tmpfs; a whole-suite run's `basetemp` grows to 13 G and drives `MemAvailable` below `p7_3d_grid4x4.sh`'s 24,216 MiB budget by
+   the time `test_p7_3d_campaign_path.py` runs; `-o tmp_path_retention_policy=failed` keeps the scratch at ≈ 0.7 G and the suite
+   passes 2722 / 0. Remedy: that option as a line in `pyproject.toml`'s `[tool.pytest.ini_options]` (not frozen; no dependency) in
+   **C4**, with the seven tests unchanged; until then every local whole-suite run passes the option on the command line. Not this
+   task's code; nothing about C2.1.
+
+## B.1.4 — Gate G2: the token, and what runs meanwhile
+- The run worktree is RE-CREATED, detached, at **`1f446f2363092673dc5cf6d3ad95c59ed678276d`** (the pushed branch tip: C2.1 plus the
+  packet), clean; the driver's second argument is that commit, the third the timing stamp **`20260929T112505Z`**.
+- The author starts the TRAIN mode per the header §0 (Step 1 the pane, Step 2 at its prompt), the token written in the same line,
+  on mains power, the machine otherwise QUIET; expected 3.2–5.5 h by the two rates in §5. `check-inputs --timing` needs ≥ 1,540 MiB
+  free on the device (14,971 free at 15:55). If nothing prints for a minute after `resume_decision: 60 to train, 0 to skip`, the
+  canary is hung (B5): Ctrl-C consumes nothing; start again.
+- **While the sixty train:** the implementer may WRITE C3 (the evaluation, the statistic, the report, the campaign driver and their
+  tests) and run its FIXTURE-level tests pinned to one thread (`OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`, `--basetemp` in its
+  scratchpad, `tmp_path_retention_policy=failed`); it runs NO whole suite, NO executed driver, NO gated CityFlow / CUDA test and
+  nothing that touches the GPU until the capture says `TRAINING RUN COMPLETE`. The coordinator runs nothing.
+- **After `TRAINING RUN COMPLETE` and `DRIVER EXIT: 0`:** the author pastes the capture's last lines here; gate G3 (the coordinator
+  verifies the sixty from disk — checkpoints, manifest, provenance, steps, the K = 20 comparison record, attempts — and commits
+  `docs/data/p5_3c_train.json` on `main`), Amendment C; then C3's review (G4).
