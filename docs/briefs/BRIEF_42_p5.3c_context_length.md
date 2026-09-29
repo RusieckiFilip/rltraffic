@@ -236,3 +236,121 @@ CUDA; the two gated real-CityFlow tests (Q17) run on CUDA and skip naming it whe
 `device="cuda"`; the campaign's twelve workers each hold the model on the GPU as P7.3c's did (the driver checks free device memory
 before the token and records the peak). The plan's assumption A5 dissolves; the registered gate's `==` now tests the evaluation
 path alone. Training was already CUDA (A26(b)). Nothing else in Amendment A changes.
+
+---
+
+# ✅ AMENDMENT B — 2026-09-29, gate G1: C1a / C1b / C2 ACCEPTED at `8327128` (C1a `c507721`, C1b `1d1f67f`, C2 `150fd35`, the interim packet `docs/returns/P5.3c-C1C2.md`); the branch pushed; the run worktree created; the fenced timing run next, then ONE small commit C2.1 (tests and the header's numbers) before the training token
+
+## B0 — Verdict
+**PASSED.** Nothing found that can change a checkpoint, a row or a registered number. Five MINOR findings, all test gaps or wording,
+are absorbed into C2.1 below. The trainings' pre-flight found no path on which a legitimate, complete set of sixty is refused.
+
+## B1 — What the coordinator verified (2026-09-29, by running commands; every number from this session)
+- **The branch:** four commits above the merge `7a8dbf6` of `main` `9a7f17b`; **0** AI trailers (`git log --format=%B | grep -ci`); ten
+  files, ALL new, under `docs/`, `offline/`, `tests/` only; `agent/DTAgent.py` and `offline/dataset.py` untouched; no frozen path.
+- **The reference rows, by an independent script** (`scratchpad/g1_rows_check.py`, not the task's test): file sha256
+  `b36b8c7790f4740b65c158bba91ebc82a08a6acc9e45f8465a63710e078ed45b`; 500 rows, 500 distinct (seed, draw), exactly {101, 202, 303,
+  404, 505} × {1000 … 1099}, sorted; every row `==` its cell on `att_engine`, `att_ours` (and `committed_att_ours`), `seed`, `draw_id`,
+  `arm dt@mappo1000`, `scenario hz1x1`, `method dt`, `tier mappo1000`, `format_version p8.4b-rederivation/1.0`,
+  `reproduces_committed true`; every cell's sha256 equal to the row's `source_sha256`; the 500 files of the pattern on disk are
+  exactly the 500 sources; the five checkpoints' sha256 equal to the files under `output/p4_dt/` AND to `docs/data/p4_gate.json`;
+  the campaign manifest's sha256 equal. Sanity anchor: per-seed mean `att_engine` 101.16 / 100.74 / 100.65 / 100.20 / 100.78,
+  grand mean **100.7032** (`att_ours` ≈ 104.4–105.4), the P8.4b numbers for `dt@mappo1000` on hz1x1.
+- **Tests, in a throwaway worktree `/home/filip/rltraffic-p53c-run`'s sibling `/home/filip/rltraffic-p53c-g1` at `8327128`, both
+  data gates open** (`RLTRAFFIC_OUTPUT_ROOT`, `RLTRAFFIC_CORPUS_V11`): the three module files **71 passed in 34.63 s**; the driver
+  file, run alone after them, **19 passed in 99.49 s** (the executed tests ran the real `check-inputs` and one real CityFlow canary);
+  the worktree clean before and after; scratch 3.0 G, removed.
+- **Hygiene and English, each falsified first:** a probe `assert value or True` under `tests/` → exit 1 `[TH001]`; the five test files →
+  exit 0. A probe with Polish diacritics → exit 1; every file of the branch, the rows file and the plan included → exit 0.
+- **P4's and P4.7's recipe, read from the PUBLISHED checkpoints** (`output/p4_dt/dt_seed{101,505}.pt`, `output/p4_7/checkpoints/
+  mix50_dt_seed101.pt`, weights-only): `gradient_steps 40000 == declared 40000`, `batch_size 64`, `learning_rate 1e-4`,
+  `weight_decay 1e-4`, `grad_clip 0.25`, `warmup_steps 1000`, `device cuda`, config `n_layer 3, n_head 1, d_model 128, dropout 0.1,
+  max_ep_len 360` (= `DTConfig`'s defaults), prompts −5762.0 / 9991.0 and −5959.0 / 40223.0, `statistics_digest 9022a15d…` for
+  `mix50`. P4's payloads record `raise_to 40000` (P4.7's `None`): `train_dt` records `raise_to` and never acts on it
+  (`offline/dt_gate.py:769`), so the sweep's `raise_to None` at 40,000 steps is the same training. `train_dt`'s warm-up is
+  `min(1000, steps // 2)` (`dt_gate.py:822`) — 1,000 at 40,000, which is what `validate_checkpoint`'s `WARMUP_AT_BUDGET` requires.
+  P4's older payloads lack `rtg_mode` and `deterministic`; the new ones carry both. **The K = 20 reproduction compares the MODEL
+  tensors only**, so that provenance difference never enters it.
+- **The twelve named mutants, each COMMITTED in the throwaway worktree from the packet's own appendix specs, the tree reset to
+  `8327128` after each, pinned to one thread:** M1 rollout window at K + 1 → KILLED (2 failed); M2 sampler seeded with K → KILLED
+  (1); M3 duplicate (seed, draw) check removed → KILLED (1); D1 one committed `att_engine` off by 1 ULP → KILLED (1); T1 K = 3
+  admitted → KILLED (2); T2 / T3 a raise applied → KILLED (11 / 11); T4 batch 64 for `k1_b1280` → KILLED (3); T5 an existing
+  destination not refused → KILLED (1); T6 published by path instead of in memory → KILLED (1); T7 the K = 20 comparison made a
+  refusal → KILLED (1); DR1 the token check skipped → KILLED (1, the executed no-token test). **Every count equals the packet's.**
+  Two coordinator tooling errors on the way, neither reaching a verdict: the first runner handed pytest a `--basetemp` whose parent
+  did not exist (every `tmp_path` test errored at setup and the runner printed SURVIVED for what never ran — caught by reading the
+  output, not the verdict line); the second ran torch unpinned under a load of 30–47 and was stopped. ⚠️ **DR1's first attempt hung
+  in the CANARY, before the token clause: the canary's python single-threaded in `futex_do_wait` for six minutes at load 0.11**;
+  killed; the re-run killed the mutant in 25 s. `DEFERRED` 101 records it with the operational rule (B5).
+- **The module and the driver read whole** (`offline/context_sweep.py` 1,951 lines; `offline/campaigns/p5_3c_train.sh` 385 lines);
+  the window tests read whole. No finding of the coordinator's own beyond the reviewers'.
+
+## B2 — The two reviewers (≤ 15 min each, own detached worktrees `-revA` / `-revB`, findings files `G1_REVIEW_{A,B}_FINDINGS.md`)
+**A — the module and the pre-flight: PASS**, no BLOCKER / MAJOR. Verified by execution: `registered_runs()` = 60, five per arm,
+every unregistered (subject, K, batch, seed) refused; `subject_facts` at K = 1 `==` at K = 20 for BOTH subjects on the real corpus
+(stats, digest, `max_ep_len` 360, prompts, 72,000 windows, stream keys) — so the record's facts, built at K = 1, cannot refuse a
+checkpoint trained at any K; the provenance merge keeps the caller's keys; no overwrite / truncate / partial-publish path; the
+K = 20 comparison never raises on a difference and exits 0; nothing over-refuses a legitimate CUDA start; no absolute path;
+`p4_dt` / `p4_7` only read; its own mutant MA (mix50 compared against mappo1000's reference) KILLED. **MINOR:** MB (`checks["budget"]`
+made self-consistent) and MC (`checks["recipe"]` compared to the payload's own warm-up) SURVIVE — no test fabricates a checkpoint at
+another budget or warm-up; it matters because the timing run's name `mappo1000_k5_b64_seed101` is a registered run's, and those two
+checks are what tells a fenced timing file from a registered one if a person ever moves it; MD (`torch.set_num_threads(1)` removed)
+SURVIVES — the thread count is recorded in every provenance, not asserted. NOTES: the free-memory bar is the K = 5 timing's peak,
+not the largest arm's (immaterial on 16 GB with a 3-layer d128 model); a SIGKILL leaves `.partial` / `.staging.pt` files that the
+manifest and the resume scan refuse loudly.
+**B — the driver, the window tests, the extraction: PASS**, no BLOCKER / MAJOR. The order traced line by line against the header
+§3 and C2; every post-token `fail` writes FAILED; 15 interpreter calls, all `PYTHONPATH=$WORK_TREE "$PY" -P`; `set -euo pipefail`
+propagates a failed slot through the `| sed -u` pipelines (shell experiment; `set -eu` would not — its mutant M3 KILLED by
+`test_strict_mode`); the timing mode's sampler bounded; T-k1/T-k2 assert, THROUGH the attention mask and `torch.equal` with the
+loader's window at the same (episode, t), that the model is fed exactly K steps read from the checkpoint's config (M1: mask
+admitting K − 1 → KILLED); T-index compares window ids through `train_dt` itself with the count asserted K-invariant and a
+seed-202 control; the sandbox substitutes six lines of a committed clone's copy (`RUN_TREE`, `OUTPUT`, `TOKEN`, the train and
+timing-slot calls, the canary) with a one-occurrence assertion. **MINOR:** the canary's timing-half threshold (`> 2.0 s` →
+refuse) has no test (M5 SURVIVES); the extraction checks the cells' policy source by PATH suffix — the cells carry no checkpoint
+digest, so this is the strongest check the cells permit; the committed `checkpoints` block is the extraction-time digest verified
+against `p4_gate.json`, and A26(c)'s gate on all 500 rows is the registered detector of a swap. NOTE for the estimate: the timing
+measures ONE point (K = 5, batch 64, 400 steps, warm-up 200); not measured: ms/step at K ∈ {1, 2, 10, 20} (30 of 60 runs are K ≥ 10),
+the equal-supervision arms (3,840 tokens per step, K = 20's), `build_seconds` at other K paid sixty times, the per-run calls,
+thermal drift over hours.
+
+## B3 — Rulings
+1. **C1a, C1b, C2 are ACCEPTED as committed. Nothing in `offline/context_sweep.py` changes before the trainings.**
+2. **C2.1 — ONE commit, AFTER the fenced timing run, BEFORE the training token; tests and the header only, no module change:**
+   (a) the driver's header §5 with the timing's measured numbers (ms/step, build seconds, device and allocated peaks, the repeat by
+   two routes) and this LABEL, in these words or closer ones: *"measured at K = 5, batch 64, 400 steps; the sixty's total is an
+   EXTRAPOLATION across K ∈ {1, 2, 10, 20}, the two equal-supervision arms and sixty input builds, not a measurement"*;
+   (b) three tests, red first on a mutant, then green: the canary's timing-half threshold as a text clause of
+   `canary_both_halves` (B's M5 dies); `validate_checkpoint`'s `checks["budget"]` and `checks["recipe"]` False on a fabricated
+   payload at another budget and another warm-up, both asserted (A's MB and MC die); one torch thread after
+   `enter_registered_regime()` (A's MD dies) — each mutant pasted;
+   (c) nothing else. The commit named in the packet; then **"P5.3c C2.1 done"**. The coordinator re-runs the three mutants and the
+   files, pushes, and RE-CREATES the run worktree at C2.1 before the token (J1(c): the header change is a non-docs change).
+3. **The provenance wording (B's second MINOR)** goes into the FINAL packet (C4), not into the committed rows file: *"the cells record
+   no checkpoint digest; the committed `checkpoints` block is the digest of the files P8.4b's runner loaded by path, verified at
+   extraction against `docs/data/p4_gate.json`; A26(c)'s gate is the detector of a swap."* The rows file is NOT re-extracted.
+4. **The packet's open questions:** (2) a staging or `.partial` leftover after a kill is LEFT as evidence and named in the packet —
+   nothing deletes it; the resume scan and the manifest refuse it loudly, and a person moves it aside (the driver's §2). (3) accepted:
+   no two executed drivers overlap; the coordinator's re-runs never overlap a suite run.
+5. **`offline/campaigns/p7_3c_finetune.sh`'s sampler pattern** (the implementer's observation): `DEFERRED` 100; P7.3c's slots ran for
+   minutes, it never met the race, and P7.3c is merged and read. Not changed.
+6. **Line 137's discarded import stderr** (B's note): accepted as is — the refusal precedes the token; diagnosability only.
+
+## B4 — The fenced timing run (Amendment A Q13; the implementer starts it, as for `BRIEF_41`'s G5)
+The branch is pushed (`origin/task/p5.3c-context-length` at `8327128`) and the DETACHED run worktree exists:
+`/home/filip/rltraffic-p53c-run` at `8327128c41a36518f1cbebe167454974eeb19feb`. Run the TIMING mode from it exactly as the driver's
+header §0 says (Step 1's `mkdir -p` and a tmux foreground pane, or `setsid --wait`; the full commit as the second argument), with the
+machine otherwise QUIET (no suite, no other pytest, no reviewer — plan §8, 2026-09-10). Report **"P5.3c timing done: stamp
+<stamp>"** with the driver's `timing alone` / `timing repeat` / `timing repeat: file sha256 …` lines and `TIMING COMPLETE`. Then
+C2.1 (B3.2).
+
+## B5 — The canary hang (`DEFERRED` 101) — an operational rule for every start of this driver
+Observed once, in the coordinator's executed DR1 test under a machine load of 30–47: the canary's python (one CityFlow episode)
+single-threaded in `futex_do_wait` for six minutes at zero load; not reproduced; the same canary has passed in every P7.3c / P7.3d
+capture and in this session's other runs. Rule: **the machine is quiet at every start; if the driver prints nothing for a minute
+after `resume_decision:` (train) or `check_inputs PASSED` (timing), the canary is hung: Ctrl-C — the canary precedes the token, so
+NOTHING is consumed — and start again.** A second occurrence is a finding for the plan, not a rate question.
+
+## B6 — Next, in order
+timing run (B4) → C2.1 (B3.2) → the coordinator verifies, pushes, re-creates the run worktree at C2.1 → **the author's token G2**
+(`output/p5_3c_runs/TOKEN_train`; the train mode takes the timing's stamp as its third argument) → the sixty (≈ hours, one at a
+time) → G3 (the coordinator verifies the sixty from disk and pins `docs/data/p5_3c_train.json` on `main`) → C3.
