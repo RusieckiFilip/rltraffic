@@ -427,3 +427,89 @@ a description. Nothing depends on it; the header §5 has the right count. Logged
 - **After `TRAINING RUN COMPLETE` and `DRIVER EXIT: 0`:** the author pastes the capture's last lines here; gate G3 (the coordinator
   verifies the sixty from disk — checkpoints, manifest, provenance, steps, the K = 20 comparison record, attempts — and commits
   `docs/data/p5_3c_train.json` on `main`), Amendment C; then C3's review (G4).
+
+---
+
+# ✅ AMENDMENT C — 2026-09-29, ≈ 21:00, gate G3: THE SIXTY VERIFIED FROM DISK AND PINNED — `docs/data/p5_3c_train.json` committed on `main` at `c55693a` (sha256 `017808a5e84fada469d6b2d302889ad171b8e429b1612b8ac06c900ef3c6321a`); the K = 20 reproduction is EQUAL, 48/48 tensors, all ten pairs
+
+## C0 — Verdict
+**PASSED.** Every one of the sixty checkpoints is at its manifest digest with the registered recipe; the driver wrote each once, in one
+attempt, at `1f446f2`, under the author's token; the record is pinned byte-identically. **A26(b)'s measurement is answered: the sweep's
+K = 20 checkpoints are P4's and P4.7's published ones, bit for bit** (`torch.equal` on every tensor, both subjects, all five seeds, by the
+driver's `compare-k20` AND by the coordinator's own load). No payload wrong; channel (c) not needed.
+
+## C1 — What the coordinator verified (2026-09-29, by running commands; the scripts `scratchpad/g3_verify.py` and the capture greps)
+- **The capture** `output/p5_3c_runs/train_capture.txt` (683 lines, sha256 `ca280f358ee9…`): `WORK_TREE /home/filip/rltraffic-p53c-run`,
+  `commit 1f446f2363092673dc5cf6d3ad95c59ed678276d`, `check_inputs PASSED … timing record` (the stamp's `timing.json`),
+  `resume_decision: 60 to train, 0 to skip`, `canary 0.70 s` on the reference values, the token line (written 15:49:34 local, the
+  author's text), `token consumed and deleted`, `start dir …/starts/20260929T134954Z`; **60** `train, attempt 1` lines, **0** attempts
+  > 1, **60** `wrote` lines, **0** skips, **0** FAILED / INTERRUPTED / REFUSING; `compare-k20 … 5/5 mappo1000 and 5/5 mix50`;
+  `manifest … 60 … re-verified`; `record … 60 runs`; `TRAINING RUN COMPLETE in 16958s`; `DRIVER EXIT: 0`.
+- **The directory:** `checkpoints/` 60 `.pt`, no hidden or stray entry; `runs/` 60; `attempts/` 60, all `.1`; `staging/` empty;
+  `starts/20260929T134954Z/{canary.json, COMPLETE}`; `k20_reproduction.json`; `p5_3c_train.json`; `fenced_timing/` untouched; the token
+  gone. `output/SHA256SUMS_p5_3c_train.txt`: 60 lines, `sha256sum -c` ALL OK.
+- **Every checkpoint, by the coordinator's own route** (`hashlib`; `torch.load` weights-only with the `TorchVersion` allowlist; the
+  sixty names constructed independently from A26's table): **60 / 60 pass 27 checks each** — sha256 equal across the file, the manifest
+  line, the run record and the training record; run-record format `p5.3c-train-run/1.0` with 40,000 losses whose last is
+  `final_loss`; 20 window means; `gradient_steps 40000 == declared`; `raise_to None`; `warmup_steps 1000`; lr 1e-4 / wd 1e-4 / clip
+  0.25 / the arm's batch; `context_length` = K in the config, the provenance and `registered_context_length`; the config
+  `{25, 8, K, 3, 1, 128, 0.1, 360, conditioned}`; `run` / `arm` / `subject` / `seed` the registered ones; `device cuda`;
+  `deterministic False`; `code_commit 1f446f2…`, `code_dirty False`; `sweep_format p5.3c-sweep-provenance/1.0`; `dt-checkpoint/1.0`;
+  the subject's prompt (−5762 / 9991; −5959 / 40223); `normalise True`; `scenario_id cityflow1x1`; `attempts 1`, `reruns 0`; the
+  record's own `checks` all True; `supervised_targets_per_step` at 40,000 steps and the arm's batch; **`stats` equal to the published
+  checkpoint's of that seed** (one distinct `stats` object per subject across its thirty / thirty-five runs); the regime recorded
+  (`CUBLAS_WORKSPACE_CONFIG` None, one torch thread, deterministic algorithms off).
+- **The record** `p5_3c_train.json` (`p5.3c-train-record/1.0`, `n_runs 60`): the names are exactly the registered sixty; the manifest's,
+  the timing's and the K = 20 record's sha256 match the files; the embedded K = 20 and timing records are identical to the files; the
+  subjects block: `mappo1000` −5762 / 9991, statistics `38a53a0c17ed…`, 200 streams, 72,000 windows, `max_ep_len` 360; `mix50` −5959 /
+  40223, statistics `9022a15d22eb…`, 200 streams, 72,000 windows; four `what_this_does_not_say` sentences.
+- **The K = 20 reproduction, redone by the coordinator:** for each of the ten (subject, seed) pairs, `torch.equal` on every one of the
+  48 tensors between `checkpoints/<subject>_k20_b64_seed<s>.pt` and `output/p4_dt/dt_seed<s>.pt` / `output/p4_7/checkpoints/
+  mix50_dt_seed<s>.pt` → **48 / 48, keys equal, all ten**; the driver's record agrees (`all_equal true`, `n_parameters_differing 0`,
+  `largest_abs_difference 0.0`, `weights_digests_equal true`, the references at `p4_gate.json`'s / `SHA256SUMS_p4_7.txt`'s digests).
+
+## C2 — The per-arm record (loop seconds are WALL TIME on a machine that was not always quiet; the trainings are step-based)
+| arm | loop s mean (min–max) | ms/step | final loss per target, mean (min–max) | targets / step | first-window loss |
+|---|---|---|---|---|---|
+| mappo1000_k20_b64 | 222.3 (206.7–237.9) | 5.56 | 0.0177 (0.0132–0.0244) | 1,246.2 | 0.614 |
+| mappo1000_k10_b64 | 235.6 (220.6–267.0) | 5.89 | 0.0338 (0.0265–0.0393) | 632.0 | 0.644 |
+| mappo1000_k5_b64 | 238.4 (216.0–251.4) | 5.96 | 0.0811 (0.0443–0.1303) | 318.2 | 0.677 |
+| mappo1000_k2_b64 | 256.8 (235.3–265.0) | 6.42 | 0.1603 (0.0957–0.2371) | 127.8 | 0.732 |
+| mappo1000_k1_b64 | 247.9 (220.0–264.7) | 6.20 | 0.2532 (0.1435–0.3485) | 64.0 | 0.771 |
+| mappo1000_k1_b1280 | 343.9 (328.4–362.3) | 8.60 | 0.0113 (0.0056–0.0168) | 1,280.0 | 0.620 |
+| mappo1000_k2_b640 | 274.3 (260.8–296.2) | 6.86 | 0.0114 (0.0069–0.0165) | 1,278.2 | 0.623 |
+| mix50_k20_b64 | 215.7 (208.0–230.3) | 5.39 | 0.0085 (0.0032–0.0161) | 1,246.2 | 0.715 |
+| mix50_k10_b64 | 230.5 (220.7–250.6) | 5.76 | 0.0131 (0.0050–0.0219) | 632.0 | 0.786 |
+| mix50_k5_b64 | 331.2 (223.0–695.6) | 8.28 | 0.0315 (0.0166–0.0422) | 318.2 | 0.880 |
+| mix50_k2_b64 | 484.5 (172.0–1,718.4) | 12.11 | 0.0864 (0.0504–0.1040) | 127.8 | 1.035 |
+| mix50_k1_b64 | 179.4 (169.6–187.1) | 4.49 | 0.1129 (0.0814–0.1406) | 64.0 | 1.151 |
+Sum of loop seconds 16,303 s (4.53 h) of 16,958 s wall. **Two stalls, wall time only:** `mix50_k5_b64_seed505` 695.6 s (written
+17:34 UTC) and `mix50_k2_b64_seed101` 1,718.4 s (18:03 UTC) — 3–7× their arms' other runs; the machine was in use then (the
+implementer's C3 work). The `k1_b1280` arm is legitimately slower (a 1,280-window batch). **P8.2's compute table uses per-arm
+MEDIANS or minima and names the stalls; never these means.** The losses are training losses per supervised target and say nothing about
+held-out performance (the record's own limits); the observation that they fall with K on both subjects, and that the two
+equal-supervision arms reach 0.011 — below K = 20's 0.018 — goes into the packet as an observation, not a finding. H4 is decided by
+T1–T3 on the held-out draws and by nothing here.
+
+## C3 — What the EQUAL result means for C3 and the paper (a ruling on wording, not on a number)
+A26(b) registered the K = 20 reproduction as a measurement whose difference would be reported; the difference is zero on every tensor.
+Consequences the report and the packet state in these terms: (i) **the sweep's K = 20 arm is P4's model** (and `mix50`'s is P4.7's), so
+H4's K = 20 point is P4's checkpoint re-evaluated, and the equal-supervision and K < 20 arms differ from P4 by K (and batch) alone,
+trained by the same code path that reproduced P4 bit for bit; (ii) A26(c)'s reference gate — P4's five checkpoints re-evaluated `==`
+the committed rows — now also pins the sweep's own K = 20 cells: any difference between the K = 20 arm's cells and the reference rows
+would be an evaluation-path difference, never a model difference, and the report says so in its `k20_reproduction` section;
+(iii) the observation from the timing run (the same-seed repeat equal) and this one together are a property of THIS GPU, driver and
+torch build under the registered regime, stated as such, not as determinism of the method.
+
+## C4 — Rulings for C3 (in force with B.1.3)
+1. C3's `check-inputs` reads the pinned `docs/data/p5_3c_train.json` at sha256 `017808a5…` from the run tree's `docs/data/` (the branch
+   merges `main` at or after `c55693a`), verifies the sixty files at its digests, and refuses a chunk whose checkpoint digest is not in
+   it (§3 C3 as issued). The reference arms use the published files by `p4_gate.json` and `SHA256SUMS_p4_7.txt`, as issued.
+2. The report carries C2's table (from the pinned record, not retyped) beside the training-loss observation, and C3's wording.
+3. Nothing under `output/p5_3c_training/` is written to again; the campaign's outputs go under `output/p5_3c/` and
+   `output/p5_3c_runs/` as §3 C3 says.
+
+## C5 — Next
+The implementer merges `main` (the pinned record), finishes C3 with B.1.3's items 2 and 3, and says **"P5.3c C3 done"** → gate G4
+(the coordinator's mutants + one reviewer on the evaluation, the statistic, the report and the campaign driver) → Amendment D → the
+author's evaluation token G5 → the campaign (the reference arms, the gate, 7,000 cells at twelve workers) → G6 → C4 → G8, the merge.
