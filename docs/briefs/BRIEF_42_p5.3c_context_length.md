@@ -628,3 +628,54 @@ lines, `CAMPAIGN COMPLETE`, `DRIVER EXIT: 0`), then recomputes A_d(K), s_d, T1�
 an independent route BEFORE opening the artifact's `confirmatory` section**; only then the artifact, compared under `==`; the
 reference gate 500 / 500 and the sweep's K = 20 cells beside the published (C3(ii)); then Amendment E. Expected wall time 1–1.5 h;
 the driver prints its own clock.
+
+---
+
+# ✅ AMENDMENT D.1 — 2026-09-30, ≈ 19:20: C3.1 VERIFIED and ACCEPTED at `aeb5804` (packet `3871db9`); the branch pushed; the run worktree RE-CREATED at `3871db910e363f4b83bbf46574cf39de63435b61`; gate G5 — the evaluation token — handed to the author
+
+## D.1.0 — Verdict
+**C3.1 ACCEPTED as committed.** The diff is exactly D4's list: the driver writes `COMPLETE` before `SUCCESS=1`, its header §2 ends with
+the two RESUME remedies (each with "a new token" where one was consumed — the implementer's clause, kept) and its pre-token comment
+now matches §1; `per_draw_means` accepts exactly `TRAINING_SEEDS`; `_ARTIFACT_LIMITS` carries A26(f) in the row's own words, read by
+its test from `PREREGISTRATION.md`; the confirmatory block records `arms` (K ascending) and `k20_arm` from the same helper that feeds
+the family. Seven tests, none removed; 0 trailers; no frozen path. **The evaluation token may be written.**
+
+## D.1.1 — What the coordinator verified (2026-09-30, 19:07–19:14, by running commands)
+- **The branch:** `5c3697f` = merge of `main` `9b310f8` (two parents); `aeb5804` C3.1 (+227 / −7 in five files); `3871db9` the packet
+  (docs only after C3.1: 1 file, +167); **0** trailers; no frozen path.
+- **Tests at `3871db9` in a fresh throwaway worktree, both data gates open, CUDA visible, one thread, the machine quiet (load 0.11):**
+  the five module files **186 passed in 205.88 s** (the two real CityFlow cells on CUDA included), the training driver **21 passed in
+  81.68 s**, the campaign driver **16 passed in 23.43 s** — 223, none skipped; the worktree clean after.
+- **The thirteen C3.1 mutants, COMMITTED in that worktree from the packet's appendix, the tree reset after each — 13 / 13 KILLED, each
+  by exactly the test written for it:** M1 `n_failed` zeroed; M7 the production worker reporting a failed cell as ok; M3 the pool at one
+  process; DS1 `SUCCESS=1` before `COMPLETE` restored; DS2 / DS3 each remedy deleted; DS4 the false pre-token sentence restored; PD1
+  `per_draw_means` back to the shared-set rule; AF1 / AF2 the A26(f) entry deleted / reworded; CA1 `k20_arm` naming the reference arm;
+  CA2 the arms in reverse order; CA3 the K = 20 level fed from the reference arm with the recorded arms unchanged.
+- **The packet's notes ruled:** the real-canary tests fail under a busy GPU (seen twice today, both times the author's game) — the
+  limitation stands and is why G5 starts on a quiet machine; `registered_in` and the driver's line 3 still list Amendments A–C — **C4**
+  adds D and D.1 (with the T-regress written against that string); the fenced re-roll's pool size `min(workers, 15)` is unpinned — its
+  fifteen verdicts do not depend on it; noted, not ruled.
+- **The machine at 19:15:** `MemAvailable` 36,793 MiB (budget 24,216); GPU 14,673 MiB free (budget 6,972), P5, 6 %; load 0.45;
+  `output/p5_3c/` absent; no `TOKEN_campaign`; no `p53c_campaign` session.
+
+## D.1.2 — Gate G5: the token
+- `origin/task/p5.3c-context-length` is at **`3871db910e363f4b83bbf46574cf39de63435b61`**; the detached run worktree
+  `/home/filip/rltraffic-p53c-run` is RE-CREATED at that commit, clean. The driver's one argument is that commit; every chunk records it.
+- The author starts the campaign per the driver's header §0 — Step 1 the pane, Step 2 at its prompt with the token written in the same
+  line — **on a quiet machine for the whole run** (no game, no suite, no other pytest: twelve CUDA contexts share the GPU, and the
+  canary's 2.0 s ceiling is checked once, at the start), on mains power. Expected 1–1.5 h; the driver prints its own clock.
+- **What the capture shows, in order:** the pre-token lines (`campaign-inputs PASSED …`, `resume_check PASSED …`, `canary … s {…}`,
+  fifteen `reference_reroll_check MATCH …` lines), `=== authorised by the token …`, `=== token consumed and deleted`, the header block,
+  the reference stage's 1,000 cell lines (`ok` each), **the gate's ONE verdict line**, the sweep's 6,000 cell lines, `device peak …`, the
+  report's line, the manifest's line, `CAMPAIGN COMPLETE in <s>`, `DRIVER EXIT: 0`.
+- **If the gate FAILS** the driver prints `CAMPAIGN FAILED at reference-gate` and stops before any sweep cell: that is channel (c) —
+  the author pastes the last lines here and nothing else is started; the fenced re-roll before the token is the same fifteen cells, so
+  a divergence is most likely to show there first, as `reference_reroll_check NO MATCH …` and `REFUSING TO START`, consuming nothing.
+- **If nothing prints for a minute after `resume_check PASSED`** the canary is hung (B5): Ctrl-C consumes nothing; run Step 2 again.
+- **After `DRIVER EXIT: 0`** the author pastes the capture's last ~12 lines here; gate G6 follows Amendment D §D5 — the capture read
+  first, T1–T3 recomputed from the raw chunks by an independent route BEFORE the artifact's `confirmatory` section is opened.
+
+## D.1.3 — The implementer, meanwhile
+Nothing runs: no test, no suite, nothing on the GPU, until the capture ends. It may WRITE C4's pieces that need no artifact — the
+T-regress test's shape against the fixture artifact, `pyproject.toml`'s `tmp_path_retention_policy = "failed"` line (`DEFERRED` 102),
+the `registered_in` update with its test, `DEFERRED` 103's check if cheap — and commits nothing until Amendment E.
