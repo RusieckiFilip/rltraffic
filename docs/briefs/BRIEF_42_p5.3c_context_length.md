@@ -734,3 +734,44 @@ The author pastes the pane's last five lines here.
 `finished`. 104: the engine's fix (an atomic flag checked before the destructor's barrier walk, or a join protocol that tolerates an
 exited controller) belongs to the platform's maintainers; `CityFlow/` is frozen and not patched here. B5's rule stands for the
 canary (the same race at its single episode's end); the stage no longer needs it.
+
+---
+
+# ✅ AMENDMENT D.3 — 2026-09-30, ≈ 23:10: C3.2 VERIFIED and ACCEPTED at `7b6f63d` (packet `9c4603c`); the branch pushed; the run worktree RE-CREATED at `9c4603ca960e7338da9b8c5c2a3677a1b0185524`; gate G5 again — a NEW evaluation token — handed to the author
+
+## D.3.0 — Verdict
+**C3.2 ACCEPTED as committed.** The diff is D.2.2's list: `_roll_round` (a fresh spawn pool per round, `next(timeout=
+STAGE_RESULT_TIMEOUT_S)`, the pool terminated and joined on a silence), the round loop (a killed worker's `.tmp` moved aside, the
+hung set printed and re-rolled, `STAGE_HANG_ROUNDS = 3` with the first pool as round 1, a cell hung every round a failure,
+`n_hung` / `hang_rounds` returned), the fenced re-roll pairing results by name with a hung cell as a failed roll (exit 2), the
+driver's header §2 and §5 lines; `_campaign_worker`, the cell's path, the gate and the report untouched. Five tests, none removed;
+the C3.1 pool-size fake taught `next(timeout)` with its assertion unchanged (M3 still dies). 0 trailers; no frozen path.
+
+## D.3.1 — What the coordinator verified (2026-09-30, 22:48–23:01, by running commands)
+- `66c889a` = merge of `main` `e8535f1` (two parents); `7b6f63d` C3.2 (+327 / −13 in four files); `9c4603c` the packet (docs only).
+- **Tests at `9c4603c` in a fresh throwaway worktree, both data gates open, CUDA visible, one thread, the machine quiet:** the five
+  module files **190 passed in 279 s**, the training driver **21 passed in 110 s**, the campaign driver **17 passed in 27 s** — 228,
+  none skipped; the worktree clean after.
+- **The ten mutants, COMMITTED from the packet's appendix, the tree reset after each — 10 / 10 KILLED:** T1 the stage's timeout
+  removed (3 tests die, after waiting out the fakes' 30 s); R1 the re-roll pool not re-created (3); H1 a cell hung in every round
+  counted as ok (1); P1 the `.tmp` not moved (1); RT1 the fenced re-roll's timeout removed (1); HD1 / HD2 the header sentences (1
+  each); M1, M7, M3 of C3.1 re-run at their new places (1 each).
+- **The packet's four readings, ruled:** three tries per cell (the first pool is round 1) — accepted; the re-roll check pairing
+  results by name (a timeout no longer blames the cells queued behind the hung one) — accepted, an improvement; the tests' 5 s
+  timeout — accepted; `n_hung` not in the `cells` summary line — accepted, the `HUNG` lines are in the capture and the packet counts
+  them. **The interrupted run's state, read from disk:** 999 chunks, `FAILED` = `CAMPAIGN INTERRUPTED by a signal`, `canary.json`,
+  no `.tmp`, no `failed/`, no gate record, one fenced re-roll under `g2/`, no token, no process left, `DRIVER EXIT: 130`. A moved-aside
+  chunk can never be read as stray: `failed` is one of `CELLS_DIR_NON_CHUNKS` and the stray scan is top-level only.
+
+## D.3.2 — Gate G5, the second token
+- `origin/task/p5.3c-context-length` at **`9c4603ca960e7338da9b8c5c2a3677a1b0185524`**; the detached run worktree re-created there,
+  clean. The driver's one argument is that commit.
+- **What the restart does, in order:** the pre-token checks as before (`resume_check PASSED` accepts the 999 chunks, whose commit
+  `3871db9` resolves, and the two markers); the canary; the fifteen fenced re-rolls (a hung one is now a failed roll: `REFUSING TO
+  START`, nothing consumed, start again); the token; `FAILED` removed; **the reference stage moves the 999 chunks to `cells/failed/`
+  silently — they were rolled at `3871db9`, and J1(c) reuses only chunks rolled by code that differs from HEAD by `docs/` alone — and
+  rolls all 1,000 again (≈ 8 min)**; the gate; the sweep (6,000); the report; the manifest (it lists the 999 moved-aside files too,
+  harmlessly); `CAMPAIGN COMPLETE`. A `<name> HUNG (round n): re-rolled` line is the stage handling DEFERRED 104's race by itself;
+  it costs 180 s plus a re-roll and is not a failure.
+- The rules stand: a quiet machine for the whole run (no game), mains power; `CAMPAIGN FAILED at reference-gate` is channel (c) — stop
+  and paste; after `DRIVER EXIT: 0` paste the last ~12 lines; G6 follows Amendment D §D5.
