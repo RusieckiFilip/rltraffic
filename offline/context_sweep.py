@@ -3054,16 +3054,22 @@ def outcome_sentence(outcome: str, *, family: Mapping[str, Any]) -> str:
 
 
 def per_draw_means(values: Mapping[tuple[int, int], float]) -> dict[int, float]:
-    """``A_d``: per draw, the mean over the seeds, the values in ascending seed order, ``np.mean`` in float64.
+    """``A_d``: per draw, the mean over the five training seeds, the values in ascending seed order, ``np.mean`` in
+    float64.
 
-    Refuses draws whose seeds differ: a per-draw mean over different seed sets is not the registered unit (§2, §8).
+    Refuses any draw whose seeds are not EXACTLY :data:`TRAINING_SEEDS`, and an empty input: a per-draw mean over
+    another seed set -- shared by every draw or not -- is not the registered unit (§2, §8; Amendment D, D4.3(a)).
     """
     by_draw: dict[int, dict[int, float]] = {}
     for (seed, draw), value in values.items():
         by_draw.setdefault(int(draw), {})[int(seed)] = float(value)
+    expected = tuple(sorted(int(seed) for seed in TRAINING_SEEDS))
     seed_sets = {tuple(sorted(seeds)) for seeds in by_draw.values()}
-    if len(seed_sets) != 1:
-        raise ValueError(f"the draws do not share one seed set ({sorted(seed_sets)}); the per-draw unit is undefined")
+    if seed_sets != {expected}:
+        raise ValueError(
+            f"the per-draw unit is the mean over exactly the seeds {list(expected)}; these draws carry "
+            f"{sorted(seed_sets)}"
+        )
     return {
         draw: float(np.mean(np.asarray([seeds[s] for s in sorted(seeds)], dtype=np.float64)))
         for draw, seeds in sorted(by_draw.items())
@@ -3305,6 +3311,9 @@ _ARTIFACT_LIMITS: tuple[str, ...] = (
     "A26(a): mix50 is an exploratory subject; its results, its partition included, decide nothing about H4.",
     "A26's stated limits: one scenario; the confirmatory decision on one corpus, the registered one; a fixed budget, its "
     "sensitivity checked at K in {1, 2} only.",
+    'A26(f), in its own words: "UNCHANGED: §3.1\'s primary metric and A11/A13/A15\'s pair, §5\'s seed rule, §6\'s '
+    "leakage rules (no training touches a held-out draw), §8's estimator and multiplicity; A6's δ keeps its value and "
+    'gains this second, superiority use; A25 (the scope) as registered beside this row."',
     "A26.1(b): the DT is evaluated on CUDA, on this GPU, as every published DT number in this repository is.",
     "A25: after H4 and the compute-and-latency table no new experiment is run; H2 was registered and not tested, and "
     "nothing here bears on it.",
@@ -3414,8 +3423,12 @@ def build_context_sweep_artifact(
             )
         return means_cache[key]
 
+    def level_arms(subject: str) -> dict[int, str]:
+        """The arms a subject's five levels are read from, K ascending: the sweep's own batch-64 arms."""
+        return {k: f"{subject}_k{k}_b{BASE_BATCH}" for k in CONTEXT_LENGTHS}
+
     def levels(subject: str, definition: str) -> dict[int, dict[int, float]]:
-        return {k: a_d(f"{subject}_k{k}_b{BASE_BATCH}", definition) for k in CONTEXT_LENGTHS}
+        return {k: a_d(arm, definition) for k, arm in level_arms(subject).items()}
 
     def paired(left: dict[int, float], right: dict[int, float]) -> dict[str, Any]:
         left_values = [left[draw] for draw in draws]
@@ -3593,6 +3606,9 @@ def build_context_sweep_artifact(
             "registered_in": "PREREGISTRATION A26(d) as corrected by A26.1(c)",
             "subject": "mappo1000",
             "definition": PRIMARY_ATT,
+            # Amendment D, D4.3(c): the arms the family was fed, in K order, and the K = 20 level's -- the sweep's own.
+            "arms": list(level_arms("mappo1000").values()),
+            "k20_arm": level_arms("mappo1000")[REFERENCE_K],
             "family": family,
             "outcome": family["outcome"],
             "sentence": outcome_sentence(family["outcome"], family=family),

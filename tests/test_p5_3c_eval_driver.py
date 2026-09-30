@@ -251,6 +251,33 @@ def test_the_driver_reads_the_pinned_record_from_the_run_tree_and_never_names_th
     assert "p5_3c_training" not in code
 
 
+def test_complete_precedes_success_and_the_header_carries_the_two_restart_remedies() -> None:
+    """``BRIEF_42`` Amendment D, D4.1: ``COMPLETE`` is written BEFORE ``SUCCESS=1``, so a failed final write still reaches
+    ``on_exit``'s FAILED marker; header section 2 carries the two restart remedies (a stale gate record, a ``.tmp``
+    after Ctrl-C); the comment on the pre-token writes says what section 1 says (the fenced re-roll, nothing else).
+
+    *Mutation:* the two lines swapped back -> this dies.
+    """
+    text = _text()
+    tail = _code(text)[_code(text).index("ELAPSED=$(( $(date +%s) - START ))"):]
+    _in_order(tail, [("COMPLETE written", '> "$WORK/COMPLETE"'), ("then SUCCESS", "SUCCESS=1")])
+    section_2 = text[text.index("# 2. THE STAGES AND THE GATE"):text.index("# 3. ORDERING")]
+    prose = " ".join(line.lstrip("#").strip() for line in section_2.splitlines())
+    for phrase in (
+        "RESUME -- two leftovers of a stopped run need a hand",
+        "a restart that re-rolled a reference chunk finds the gate record stale -- `reference-gate` refuses "
+        '"already exists and differs" after the token; move output/p5_3c/reference_gate.json aside by hand and start '
+        "again",
+        "after a Ctrl-C a worker's .cell_<...>.json.<pid>.tmp may remain in cells/ -- `resume-check` names it before "
+        "the token; move it aside by hand",
+    ):
+        assert phrase in prose, phrase
+    comments = " ".join(line.lstrip("#").strip() for line in text.splitlines() if line.lstrip().startswith("#"))
+    assert "Before the token nothing is written, on any path" not in comments
+    assert ("Before the token nothing is written but the fenced re-roll's records under output/p5_3c/g2/ (section 1)"
+            in comments)
+
+
 # ----------------------------------------------------------------------------------------------------------------------
 # The driver EXECUTED on a sandbox
 # ----------------------------------------------------------------------------------------------------------------------

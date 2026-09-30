@@ -597,6 +597,125 @@ def test_a_stage_rolls_only_the_cells_not_reusable_and_moves_a_bad_chunk_aside(c
         cs.validate_chunk(_read(cs.chunk_path(campaign.output_root, cell)), cell)
 
 
+#: The one cell :func:`_fake_stage_worker_one_fails` fails, as the production worker reports a failure.
+FAILING_DRAW = 1098
+FAILURE = {"ok": False, "seconds": None, "error": "RuntimeError: the fixture's failing cell"}
+
+
+def _fake_stage_worker_one_fails(task: tuple[Any, dict[str, Any]]) -> dict[str, Any]:
+    """The fixture's worker, except that the cell of draw 1098 FAILS -- top-level, so ``spawn`` can pickle it."""
+    cell, _kwargs = task
+    if cell.draw_id == FAILING_DRAW:
+        return {"name": cell.name, **FAILURE}
+    return _fake_stage_worker(task)
+
+
+def test_a_failed_cell_is_counted_and_named_and_the_cells_command_exits_1(
+    campaign: CampaignTree, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Amendment D, D4.2(a): the REAL stage and the REAL ``cells`` command, a worker failing one cell.
+
+    *Mutation (reviewer D's M1):* ``n_failed`` zeroed in ``run_campaign_stage`` -> this dies.
+    """
+    missing = [_cell("reference", "mix50", 20, 64, 505, draw) for draw in (1097, FAILING_DRAW, 1099)]
+    for cell in missing:
+        cs.chunk_path(campaign.output_root, cell).unlink()
+    kwargs = {"output_root": campaign.output_root, "corpus_root": campaign.corpus_root,
+              "draws_root": campaign.draws_root, "data_dir": campaign.data_dir}
+    result = cs.run_campaign_stage(stage="reference", canary_seconds=0.75, workers=2,
+                                   worker=_fake_stage_worker_one_fails, **kwargs)
+    assert (result["n_declared"], result["n_reused"], result["n_rolled"], result["n_failed"]) == (1000, 997, 2, 1)
+    assert result["failures"] == [{"name": missing[1].name, **FAILURE}]
+    assert not cs.chunk_path(campaign.output_root, missing[1]).exists()
+    for cell in (missing[0], missing[2]):
+        cs.validate_chunk(_read(cs.chunk_path(campaign.output_root, cell)), cell)
+    capsys.readouterr()
+
+    # The command takes the production worker by its module name at call time; ``spawn`` pickles the fake by its own.
+    monkeypatch.setattr(cs, "_campaign_worker", _fake_stage_worker_one_fails, raising=True)
+    argv = ["cells", *[item for name, root in kwargs.items() for item in (f"--{name.replace('_', '-')}", str(root))],
+            "--stage", "reference", "--canary-seconds", "0.75", "--workers", "2"]
+    assert cs.main(argv) == 1
+    out = capsys.readouterr().out
+    assert f"{missing[1].name} FAILED {FAILURE['error']}" in out
+    assert "cells reference: 1000 declared, 999 reused, 0 rolled, 1 failed" in out
+
+
+def test_the_production_worker_returns_a_failure_and_writes_a_good_chunk(
+    campaign: CampaignTree, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Amendment D, D4.2(b): ``_campaign_worker`` itself -- ``run_campaign_cell`` raising gives ``ok False`` with the
+    error's type and text and NO file in ``cells/``; returning a payload gives the chunk ``write_chunk`` wrote.
+
+    *Mutation (reviewer D's M7):* ``ok True`` on the exception -> this dies.
+    """
+    cell = _cell("reference", "mix50", 20, 64, 505, 1099)
+    path = cs.chunk_path(campaign.output_root, cell)
+    path.unlink()
+    cells = cs.cells_dir(campaign.output_root)
+    before = sorted(p.name for p in cells.iterdir())
+    kwargs = {"output_root": str(campaign.output_root), "corpus_root": str(campaign.corpus_root),
+              "draws_root": str(campaign.draws_root), "data_dir": str(campaign.data_dir), "canary_seconds": 0.75}
+
+    def raising(cell_: cs.CampaignCell, **_kwargs: Any) -> dict[str, Any]:
+        raise RuntimeError("the episode stopped")
+
+    monkeypatch.setattr(cs, "run_campaign_cell", raising, raising=True)
+    assert cs._campaign_worker((cell, kwargs)) == {
+        "name": cell.name, "ok": False, "seconds": None, "error": "RuntimeError: the episode stopped",
+    }
+    assert sorted(p.name for p in cells.iterdir()) == before
+
+    identity = cs.checkpoint_for_cell(cell, output_root=campaign.output_root, data_dir=campaign.data_dir)
+    payload = fixture_chunk("reference", "mix50", 20, 64, 505, 1099, checkpoint=identity,
+                            demand=demand_of(campaign.draws_root, 1099), commit=head_commit())
+    monkeypatch.setattr(cs, "run_campaign_cell", lambda cell_, **_kwargs: payload, raising=True)
+    assert cs._campaign_worker((cell, kwargs)) == {
+        "name": cell.name, "ok": True, "seconds": payload["episode"]["seconds"], "error": None,
+    }
+    assert _read(path) == payload
+    assert sorted(p.name for p in cells.iterdir()) == sorted([*before, cell.name])
+
+
+def test_the_stage_pool_has_as_many_processes_as_workers(campaign: CampaignTree, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Amendment D, D4.2(c): the stage's ``spawn`` pool is created with ``processes == workers`` and the one-thread
+    initializer -- through a recording context that runs the tasks in this process.
+
+    *Mutation (reviewer D's M3):* the pool at one process whatever ``--workers`` says -> this dies.
+    """
+    import multiprocessing
+
+    created: list[tuple[str, int, Any]] = []
+
+    class _InlinePool:
+        def __enter__(self) -> _InlinePool:
+            return self
+
+        def __exit__(self, *exc: Any) -> None:
+            return None
+
+        def imap_unordered(self, function: Any, tasks: Any) -> Any:
+            return map(function, tasks)
+
+    class _Context:
+        def __init__(self, method: str) -> None:
+            self.method = method
+
+        def Pool(self, processes: int, initializer: Any) -> _InlinePool:  # noqa: N802 - multiprocessing's name
+            created.append((self.method, processes, initializer))
+            return _InlinePool()
+
+    monkeypatch.setattr(multiprocessing, "get_context", _Context, raising=True)
+    cs.chunk_path(campaign.output_root, _cell("reference", "mix50", 20, 64, 303, 1010)).unlink()
+    result = cs.run_campaign_stage(
+        stage="reference", output_root=campaign.output_root, corpus_root=campaign.corpus_root,
+        draws_root=campaign.draws_root, data_dir=campaign.data_dir, canary_seconds=0.75, workers=3,
+        worker=_fake_stage_worker,
+    )
+    assert created == [("spawn", 3, cs._pin_one_thread)]
+    assert (result["n_rolled"], result["n_failed"]) == (1, 0)
+
+
 def test_an_input_that_cannot_be_verified_refuses_the_stage_and_moves_no_chunk_aside(campaign: CampaignTree) -> None:
     """A checkpoint at another digest is the INPUT's fault: the stage refuses before touching a chunk, and none of the
     500 chunks rolled against that checkpoint is moved aside as if it were bad.
@@ -1079,6 +1198,29 @@ def test_the_report_carries_c2s_table_and_c3s_reading_of_the_pinned_record(built
     assert artifact["registered_in"] == ("PREREGISTRATION A26 as corrected by A26.1; BRIEF_42 C3 and Amendments A, A.1, "
                                          "B, B.1, C")
     assert reading["source"] == "BRIEF_42 Amendment C, C3 (a ruling on wording, not on a number)"
+
+
+def test_the_confirmatory_block_records_the_five_arms_it_was_fed_and_the_sweeps_own_k20_arm(
+    built: CampaignTree, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Amendment D, D4.3(c): G6's independent route reads the arms from the artifact, not from the code -- the five
+    batch-64 ``mappo1000`` arms in K order, and the K = 20 level the sweep's OWN arm, never the reference arm; the
+    family is the one those arms' chunks give."""
+    _pin(monkeypatch, built)
+    confirmatory = _build(built)["confirmatory"]
+    arms = ["mappo1000_k1_b64", "mappo1000_k2_b64", "mappo1000_k5_b64", "mappo1000_k10_b64", "mappo1000_k20_b64"]
+    assert confirmatory["arms"] == arms
+    assert confirmatory["k20_arm"] == "mappo1000_k20_b64"
+    raw: dict[tuple[str, int, int], float] = {}
+    for path in cs.cells_dir(built.output_root).glob("cell_mappo1000_k*_b64_*.json"):
+        chunk = json.loads(path.read_bytes())
+        raw[(chunk["arm"], chunk["seed"], chunk["draw_id"])] = chunk["episode"]["att_engine"]
+    levels = {
+        k: {draw: float(np.mean(np.asarray([raw[(arm, seed, draw)] for seed in SEEDS], dtype=np.float64)))
+            for draw in DRAWS}
+        for k, arm in zip((1, 2, 5, 10, 20), arms)
+    }
+    assert confirmatory["family"] == cs.confirmatory_family(levels)
 
 
 def test_the_artifact_regenerates_byte_for_byte_and_is_written_once(campaign: CampaignTree,

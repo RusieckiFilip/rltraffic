@@ -50,6 +50,12 @@
 #      report, then the manifest, then COMPLETE.
 #    It prints NO outcome: `cells` prints each cell's name and whether it stood, the gate a verdict and cell and field
 #    NAMES, `report` the artifact's path and its cell count.  G6 recomputes T1-T3 from the raw chunks first.
+#    RESUME -- two leftovers of a stopped run need a hand, each named when it bites (Amendment D, D4.1(b)):
+#      a restart that re-rolled a reference chunk finds the gate record stale -- `reference-gate` refuses "already
+#      exists and differs" after the token; move output/p5_3c/reference_gate.json aside by hand and start again (with
+#      a new token: this refusal comes after one was consumed);
+#      after a Ctrl-C a worker's .cell_<...>.json.<pid>.tmp may remain in cells/ -- `resume-check` names it before
+#      the token; move it aside by hand.
 #
 # 3. ORDERING -- every check that can refuse PRECEDES the token, so a refused start consumes nothing: the commit argument
 #    -> the interpreter -> not the implementer's tree -> the run tree and its commit -> the cwd -> the modules from the
@@ -109,7 +115,8 @@ SUCCESS=0
 MARKER_DIR=""
 SAMPLER=""
 # The token is consumed BEFORE the work directory exists, so a failure in between -- a mkdir that fails -- leaves FAILED
-# beside the token instead of nowhere. Before the token nothing is written, on any path.
+# beside the token instead of nowhere. Before the token nothing is written but the fenced re-roll's records under
+# output/p5_3c/g2/ (section 1).
 TOKEN_CONSUMED=0
 FAILED_FALLBACK=$(dirname "$TOKEN")/FAILED_campaign
 
@@ -386,8 +393,9 @@ PYTHONPATH=$WORK_TREE "$PY" -P -m offline.context_sweep campaign-manifest --outp
 ( cd "$OUTPUT" && sha256sum -c --quiet SHA256SUMS_p5_3c.txt ) || fail "manifest verify"
 
 ELAPSED=$(( $(date +%s) - START ))
-SUCCESS=1
+# COMPLETE first, THEN success: a final write that fails still leaves on_exit's FAILED marker (Amendment D, D4.1(a)).
 printf 'CAMPAIGN COMPLETE in %ss  %s\n' "$ELAPSED" "$(date -Is)" > "$WORK/COMPLETE"
+SUCCESS=1
 echo ""
 echo "CAMPAIGN COMPLETE in ${ELAPSED}s  $(date -Is)"
 echo "NEXT: the coordinator reads the capture, then recomputes T1-T3 from the raw chunks BEFORE opening the artifact (G6)."

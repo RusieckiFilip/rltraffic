@@ -143,6 +143,21 @@ def test_the_per_draw_mean_is_over_the_seeds_in_ascending_seed_order_by_np_mean(
         cs.per_draw_means({(101, 1000): 1.0, (202, 1000): 2.0, (101, 1001): 1.0})
 
 
+def test_the_per_draw_mean_refuses_any_seed_set_but_exactly_the_five_training_seeds() -> None:
+    """Amendment D, D4.3(a): ``A_d`` is the mean over EXACTLY the five training seeds on every draw -- a shared set of
+    four, six or another five is refused like an unshared one, and so is no draw at all."""
+    five = (101, 202, 303, 404, 505)
+    assert tuple(cs.TRAINING_SEEDS) == five
+    good = {(seed, d): float(seed) + d / 7.0 for seed in five for d in DRAWS[:3]}
+    assert sorted(cs.per_draw_means(good)) == list(DRAWS[:3])
+    for seeds in ((101, 202, 303, 404), (101, 202, 303, 404, 505, 606), (101, 202, 303, 404, 606)):
+        values = {(seed, d): 1.0 for seed in seeds for d in DRAWS[:3]}
+        with pytest.raises(ValueError, match=r"exactly the seeds \[101, 202, 303, 404, 505\]"):
+            cs.per_draw_means(values)
+    with pytest.raises(ValueError, match=r"exactly the seeds \[101, 202, 303, 404, 505\]"):
+        cs.per_draw_means({})
+
+
 # ----------------------------------------------------------------------------------------------------------------------
 # The one-sided Wilcoxon against the second route
 # ----------------------------------------------------------------------------------------------------------------------
@@ -307,6 +322,18 @@ def test_the_sentence_templates_are_the_registered_text_of_a26_and_a26_1() -> No
         assert re.search(_as_pattern(template), a26), outcome
     assert re.search(_as_pattern(cs.SHORTFALL_CLAUSE_TEMPLATE), a26_1)
     assert cs.SHORTFALL_CLAUSE_TEMPLATE.startswith("K = {k} falls short of the K = 20 plateau")
+
+
+def test_the_artifacts_limits_carry_a26f_in_a26s_own_words() -> None:
+    """Amendment D, D4.3(b): one ``what_this_does_not_say`` entry labelled A26(f), quoting the registered clause (f) --
+    read here from ``PREREGISTRATION.md``'s A26 row, up to the row's next cell."""
+    a26 = _registration_row("A26")
+    start = a26.index("**(f) UNCHANGED:**")
+    clause = a26[start:a26.index(" | ", start)].replace("**", "").removeprefix("(f) ")
+    assert clause.startswith("UNCHANGED: §3.1's primary metric") and clause.endswith("as registered beside this row.")
+    assert "A6's δ keeps its value and gains this second, superiority use; A25 (the scope)" in clause
+    entries = [entry for entry in cs._ARTIFACT_LIMITS if entry.startswith("A26(f)")]
+    assert entries == [f'A26(f), in its own words: "{clause}"']
 
 
 def _family(t1: bool, t2: bool, t3: bool) -> dict:
