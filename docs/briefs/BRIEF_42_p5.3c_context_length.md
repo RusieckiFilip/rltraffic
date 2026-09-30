@@ -628,3 +628,109 @@ lines, `CAMPAIGN COMPLETE`, `DRIVER EXIT: 0`), then recomputes A_d(K), s_d, T1�
 an independent route BEFORE opening the artifact's `confirmatory` section**; only then the artifact, compared under `==`; the
 reference gate 500 / 500 and the sweep's K = 20 cells beside the published (C3(ii)); then Amendment E. Expected wall time 1–1.5 h;
 the driver prints its own clock.
+
+---
+
+# ✅ AMENDMENT D.1 — 2026-09-30, ≈ 19:20: C3.1 VERIFIED and ACCEPTED at `aeb5804` (packet `3871db9`); the branch pushed; the run worktree RE-CREATED at `3871db910e363f4b83bbf46574cf39de63435b61`; gate G5 — the evaluation token — handed to the author
+
+## D.1.0 — Verdict
+**C3.1 ACCEPTED as committed.** The diff is exactly D4's list: the driver writes `COMPLETE` before `SUCCESS=1`, its header §2 ends with
+the two RESUME remedies (each with "a new token" where one was consumed — the implementer's clause, kept) and its pre-token comment
+now matches §1; `per_draw_means` accepts exactly `TRAINING_SEEDS`; `_ARTIFACT_LIMITS` carries A26(f) in the row's own words, read by
+its test from `PREREGISTRATION.md`; the confirmatory block records `arms` (K ascending) and `k20_arm` from the same helper that feeds
+the family. Seven tests, none removed; 0 trailers; no frozen path. **The evaluation token may be written.**
+
+## D.1.1 — What the coordinator verified (2026-09-30, 19:07–19:14, by running commands)
+- **The branch:** `5c3697f` = merge of `main` `9b310f8` (two parents); `aeb5804` C3.1 (+227 / −7 in five files); `3871db9` the packet
+  (docs only after C3.1: 1 file, +167); **0** trailers; no frozen path.
+- **Tests at `3871db9` in a fresh throwaway worktree, both data gates open, CUDA visible, one thread, the machine quiet (load 0.11):**
+  the five module files **186 passed in 205.88 s** (the two real CityFlow cells on CUDA included), the training driver **21 passed in
+  81.68 s**, the campaign driver **16 passed in 23.43 s** — 223, none skipped; the worktree clean after.
+- **The thirteen C3.1 mutants, COMMITTED in that worktree from the packet's appendix, the tree reset after each — 13 / 13 KILLED, each
+  by exactly the test written for it:** M1 `n_failed` zeroed; M7 the production worker reporting a failed cell as ok; M3 the pool at one
+  process; DS1 `SUCCESS=1` before `COMPLETE` restored; DS2 / DS3 each remedy deleted; DS4 the false pre-token sentence restored; PD1
+  `per_draw_means` back to the shared-set rule; AF1 / AF2 the A26(f) entry deleted / reworded; CA1 `k20_arm` naming the reference arm;
+  CA2 the arms in reverse order; CA3 the K = 20 level fed from the reference arm with the recorded arms unchanged.
+- **The packet's notes ruled:** the real-canary tests fail under a busy GPU (seen twice today, both times the author's game) — the
+  limitation stands and is why G5 starts on a quiet machine; `registered_in` and the driver's line 3 still list Amendments A–C — **C4**
+  adds D and D.1 (with the T-regress written against that string); the fenced re-roll's pool size `min(workers, 15)` is unpinned — its
+  fifteen verdicts do not depend on it; noted, not ruled.
+- **The machine at 19:15:** `MemAvailable` 36,793 MiB (budget 24,216); GPU 14,673 MiB free (budget 6,972), P5, 6 %; load 0.45;
+  `output/p5_3c/` absent; no `TOKEN_campaign`; no `p53c_campaign` session.
+
+## D.1.2 — Gate G5: the token
+- `origin/task/p5.3c-context-length` is at **`3871db910e363f4b83bbf46574cf39de63435b61`**; the detached run worktree
+  `/home/filip/rltraffic-p53c-run` is RE-CREATED at that commit, clean. The driver's one argument is that commit; every chunk records it.
+- The author starts the campaign per the driver's header §0 — Step 1 the pane, Step 2 at its prompt with the token written in the same
+  line — **on a quiet machine for the whole run** (no game, no suite, no other pytest: twelve CUDA contexts share the GPU, and the
+  canary's 2.0 s ceiling is checked once, at the start), on mains power. Expected 1–1.5 h; the driver prints its own clock.
+- **What the capture shows, in order:** the pre-token lines (`campaign-inputs PASSED …`, `resume_check PASSED …`, `canary … s {…}`,
+  fifteen `reference_reroll_check MATCH …` lines), `=== authorised by the token …`, `=== token consumed and deleted`, the header block,
+  the reference stage's 1,000 cell lines (`ok` each), **the gate's ONE verdict line**, the sweep's 6,000 cell lines, `device peak …`, the
+  report's line, the manifest's line, `CAMPAIGN COMPLETE in <s>`, `DRIVER EXIT: 0`.
+- **If the gate FAILS** the driver prints `CAMPAIGN FAILED at reference-gate` and stops before any sweep cell: that is channel (c) —
+  the author pastes the last lines here and nothing else is started; the fenced re-roll before the token is the same fifteen cells, so
+  a divergence is most likely to show there first, as `reference_reroll_check NO MATCH …` and `REFUSING TO START`, consuming nothing.
+- **If nothing prints for a minute after `resume_check PASSED`** the canary is hung (B5): Ctrl-C consumes nothing; run Step 2 again.
+- **After `DRIVER EXIT: 0`** the author pastes the capture's last ~12 lines here; gate G6 follows Amendment D §D5 — the capture read
+  first, T1–T3 recomputed from the raw chunks by an independent route BEFORE the artifact's `confirmatory` section is opened.
+
+## D.1.3 — The implementer, meanwhile
+Nothing runs: no test, no suite, nothing on the GPU, until the capture ends. It may WRITE C4's pieces that need no artifact — the
+T-regress test's shape against the fixture artifact, `pyproject.toml`'s `tmp_path_retention_policy = "failed"` line (`DEFERRED` 102),
+the `registered_in` update with its test, `DEFERRED` 103's check if cheap — and commits nothing until Amendment E.
+
+---
+
+# ⚠️ AMENDMENT D.2 — 2026-09-30, ≈ 20:30: THE CAMPAIGN STALLED after its reference stage (999 / 1,000 chunks; one pool worker hung inside CityFlow's engine destructor); diagnosed with stacks before anything was killed; the author interrupts it; C3.2 — the stage's own hang handling — BEFORE a new token; `DEFERRED` 101 resolved into a cause, `DEFERRED` 104 filed
+
+## D.2.0 — The finding (the whole record: `docs/notes/P5.3c_HANG_2026-09-30.md`)
+Worker 2575679 of the reference stage hung at ≈ 19:31 on `cell_ref_mappo1000_k20_seed202_draw1016`; its `sudo py-spy dump --native`
+shows the main thread in `pthread_cond_wait` inside `cityflow….so`, entered from the cell's episode, with NO engine thread alive; the
+eleven other workers idle; the parent waiting in `imap_unordered.next()`. The vendored engine's `~Engine()` sets a plain `bool
+finished` and then walks its two-party barriers, assuming the controller thread will run one more iteration; if the controller
+reads `finished == true` at its loop head first, it exits and the destructor waits forever. The same race explains the
+single-threaded canary hang of 2026-09-29 (`DEFERRED` 101). **The hang is at the END of an episode, after every number of the
+cell exists and before its atomic write: a re-roll reproduces the cell exactly (the engine is seeded), and nothing about H4's
+numbers is touched.** Two occurrences in ≈ 1,200 episodes on this machine today, both under load.
+
+## D.2.1 — The interruption (the author, now)
+Ctrl-C ONCE in the `p53c_campaign` pane. The driver's signal trap writes `CAMPAIGN INTERRUPTED by a signal` to
+`output/p5_3c/cells/FAILED`, kills its process group (the hung worker with it) and exits 130; the pane's last line is `DRIVER EXIT:
+130`. The 999 chunks and the fenced re-roll stay on disk as they are; the token was consumed; NOTHING else is done to `output/p5_3c/`.
+The author pastes the pane's last five lines here.
+
+## D.2.2 — C3.2: the stage's own hang handling; tests first; ONE commit; nothing else
+1. **`offline/context_sweep.py`, `run_campaign_stage`:** the pool's results are consumed through `imap_unordered(...).next(timeout=
+   STAGE_RESULT_TIMEOUT_S)` with `STAGE_RESULT_TIMEOUT_S = 180.0` (a module constant, documented as ≈ 30 × a cell's wall time under
+   twelve workers; results normally arrive every ≈ 0.5 s, so a silence of 180 s means only hung tasks remain). On
+   `multiprocessing.TimeoutError`: the pool is terminated and joined (the hung worker dies on SIGTERM); every `.cell_*.json.<pid>.tmp`
+   left in `cells/` by a killed worker is moved to `cells/failed/` by `move_aside` (a partial write of a killed process, never a
+   chunk); the cells of the stage that have neither a result nor a chunk are the HUNG set; each is printed as
+   `  <name> HUNG (round n): re-rolled`; the hung set is re-rolled in a NEW pool of the same size and initializer; up to
+   `STAGE_HANG_ROUNDS = 3` rounds; a cell still without a result after the third round is a failure with the error `hung 3 times`
+   (counted in `n_failed`, so `cells` exits 1 and the driver writes FAILED as today). The return value gains `n_hung` (cells that hung
+   at least once) and `hang_rounds` (rounds run). A cell that returned `ok False` is a failure as today, never re-rolled.
+2. **`run_reference_reroll_check`:** the same `next(timeout=STAGE_RESULT_TIMEOUT_S)`; a hung re-roll cell is a FAILED ROLL (its
+   message behind the fence, exit 2, nothing consumed) — no retry there: the driver's start is cheap and the author restarts.
+3. **Tests, red first, each mutant pasted:** (a) a fake worker that never returns for ONE declared cell (it blocks on an
+   `Event` that is never set) with the timeout monkeypatched to ≈ 2 s → the stage terminates the pool, re-rolls the cell with a fake
+   worker that succeeds, writes its chunk, reports `n_hung 1`, `hang_rounds 1`, `n_failed 0`, every other chunk untouched, and
+   `cells` exits 0; (b) a cell that hangs in every round → `n_failed 1` with `hung 3 times`, exit 1, no chunk for it; (c) a killed
+   worker's `.tmp` moved to `failed/` and not left in `cells/`; (d) the re-roll check with one hung cell → a failed roll, exit 2,
+   the fence intact. **Mutants:** the timeout removed (the fake worker sleeps 30 s instead of forever so the mutant's run ends and
+   the assertions on `n_hung` fail); the re-roll pool not re-created (the hung cell stays hung); a hung cell counted as ok; the
+   `.tmp` not moved.
+4. **`offline/campaigns/p5_3c_eval.sh`, header only:** §5 (TIME) gains: a hung cell costs `STAGE_RESULT_TIMEOUT_S` plus a re-roll,
+   detected when the stage's other results have all arrived; §2's RESUME paragraph gains: `HUNG (round n)` lines are the stage's own
+   re-rolls, and a restart after C3.2 re-rolls every chunk rolled by the earlier code (J1(c)). A text test pins both.
+5. **NOT changed:** `_campaign_worker`, `run_campaign_cell` (P8.4b's path), the gate, the report, the artifact.
+6. The short packet `docs/returns/P5.3c-C3.2.md`; then **"P5.3c C3.2 done"**. The coordinator re-runs the tests and the mutants,
+   pushes, RE-CREATES the run worktree at C3.2, and hands the author a NEW token as **Amendment D.3**. On that restart J1(c) moves the
+   999 chunks (rolled at `3871db9`) to `failed/` and re-rolls the reference stage (≈ 8 min), then the gate, then the sweep.
+
+## D.2.3 — `DEFERRED` 101 → a cause; `DEFERRED` 104 filed
+101's "hypothesis, not established" is now established by the stacks and the source: CityFlow's `Engine::~Engine()` races on
+`finished`. 104: the engine's fix (an atomic flag checked before the destructor's barrier walk, or a join protocol that tolerates an
+exited controller) belongs to the platform's maintainers; `CityFlow/` is frozen and not patched here. B5's rule stands for the
+canary (the same race at its single episode's end); the stage no longer needs it.
