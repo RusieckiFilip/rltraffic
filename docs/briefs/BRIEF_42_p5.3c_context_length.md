@@ -679,3 +679,58 @@ the family. Seven tests, none removed; 0 trailers; no frozen path. **The evaluat
 Nothing runs: no test, no suite, nothing on the GPU, until the capture ends. It may WRITE C4's pieces that need no artifact — the
 T-regress test's shape against the fixture artifact, `pyproject.toml`'s `tmp_path_retention_policy = "failed"` line (`DEFERRED` 102),
 the `registered_in` update with its test, `DEFERRED` 103's check if cheap — and commits nothing until Amendment E.
+
+---
+
+# ⚠️ AMENDMENT D.2 — 2026-09-30, ≈ 20:30: THE CAMPAIGN STALLED after its reference stage (999 / 1,000 chunks; one pool worker hung inside CityFlow's engine destructor); diagnosed with stacks before anything was killed; the author interrupts it; C3.2 — the stage's own hang handling — BEFORE a new token; `DEFERRED` 101 resolved into a cause, `DEFERRED` 104 filed
+
+## D.2.0 — The finding (the whole record: `docs/notes/P5.3c_HANG_2026-09-30.md`)
+Worker 2575679 of the reference stage hung at ≈ 19:31 on `cell_ref_mappo1000_k20_seed202_draw1016`; its `sudo py-spy dump --native`
+shows the main thread in `pthread_cond_wait` inside `cityflow….so`, entered from the cell's episode, with NO engine thread alive; the
+eleven other workers idle; the parent waiting in `imap_unordered.next()`. The vendored engine's `~Engine()` sets a plain `bool
+finished` and then walks its two-party barriers, assuming the controller thread will run one more iteration; if the controller
+reads `finished == true` at its loop head first, it exits and the destructor waits forever. The same race explains the
+single-threaded canary hang of 2026-09-29 (`DEFERRED` 101). **The hang is at the END of an episode, after every number of the
+cell exists and before its atomic write: a re-roll reproduces the cell exactly (the engine is seeded), and nothing about H4's
+numbers is touched.** Two occurrences in ≈ 1,200 episodes on this machine today, both under load.
+
+## D.2.1 — The interruption (the author, now)
+Ctrl-C ONCE in the `p53c_campaign` pane. The driver's signal trap writes `CAMPAIGN INTERRUPTED by a signal` to
+`output/p5_3c/cells/FAILED`, kills its process group (the hung worker with it) and exits 130; the pane's last line is `DRIVER EXIT:
+130`. The 999 chunks and the fenced re-roll stay on disk as they are; the token was consumed; NOTHING else is done to `output/p5_3c/`.
+The author pastes the pane's last five lines here.
+
+## D.2.2 — C3.2: the stage's own hang handling; tests first; ONE commit; nothing else
+1. **`offline/context_sweep.py`, `run_campaign_stage`:** the pool's results are consumed through `imap_unordered(...).next(timeout=
+   STAGE_RESULT_TIMEOUT_S)` with `STAGE_RESULT_TIMEOUT_S = 180.0` (a module constant, documented as ≈ 30 × a cell's wall time under
+   twelve workers; results normally arrive every ≈ 0.5 s, so a silence of 180 s means only hung tasks remain). On
+   `multiprocessing.TimeoutError`: the pool is terminated and joined (the hung worker dies on SIGTERM); every `.cell_*.json.<pid>.tmp`
+   left in `cells/` by a killed worker is moved to `cells/failed/` by `move_aside` (a partial write of a killed process, never a
+   chunk); the cells of the stage that have neither a result nor a chunk are the HUNG set; each is printed as
+   `  <name> HUNG (round n): re-rolled`; the hung set is re-rolled in a NEW pool of the same size and initializer; up to
+   `STAGE_HANG_ROUNDS = 3` rounds; a cell still without a result after the third round is a failure with the error `hung 3 times`
+   (counted in `n_failed`, so `cells` exits 1 and the driver writes FAILED as today). The return value gains `n_hung` (cells that hung
+   at least once) and `hang_rounds` (rounds run). A cell that returned `ok False` is a failure as today, never re-rolled.
+2. **`run_reference_reroll_check`:** the same `next(timeout=STAGE_RESULT_TIMEOUT_S)`; a hung re-roll cell is a FAILED ROLL (its
+   message behind the fence, exit 2, nothing consumed) — no retry there: the driver's start is cheap and the author restarts.
+3. **Tests, red first, each mutant pasted:** (a) a fake worker that never returns for ONE declared cell (it blocks on an
+   `Event` that is never set) with the timeout monkeypatched to ≈ 2 s → the stage terminates the pool, re-rolls the cell with a fake
+   worker that succeeds, writes its chunk, reports `n_hung 1`, `hang_rounds 1`, `n_failed 0`, every other chunk untouched, and
+   `cells` exits 0; (b) a cell that hangs in every round → `n_failed 1` with `hung 3 times`, exit 1, no chunk for it; (c) a killed
+   worker's `.tmp` moved to `failed/` and not left in `cells/`; (d) the re-roll check with one hung cell → a failed roll, exit 2,
+   the fence intact. **Mutants:** the timeout removed (the fake worker sleeps 30 s instead of forever so the mutant's run ends and
+   the assertions on `n_hung` fail); the re-roll pool not re-created (the hung cell stays hung); a hung cell counted as ok; the
+   `.tmp` not moved.
+4. **`offline/campaigns/p5_3c_eval.sh`, header only:** §5 (TIME) gains: a hung cell costs `STAGE_RESULT_TIMEOUT_S` plus a re-roll,
+   detected when the stage's other results have all arrived; §2's RESUME paragraph gains: `HUNG (round n)` lines are the stage's own
+   re-rolls, and a restart after C3.2 re-rolls every chunk rolled by the earlier code (J1(c)). A text test pins both.
+5. **NOT changed:** `_campaign_worker`, `run_campaign_cell` (P8.4b's path), the gate, the report, the artifact.
+6. The short packet `docs/returns/P5.3c-C3.2.md`; then **"P5.3c C3.2 done"**. The coordinator re-runs the tests and the mutants,
+   pushes, RE-CREATES the run worktree at C3.2, and hands the author a NEW token as **Amendment D.3**. On that restart J1(c) moves the
+   999 chunks (rolled at `3871db9`) to `failed/` and re-rolls the reference stage (≈ 8 min), then the gate, then the sweep.
+
+## D.2.3 — `DEFERRED` 101 → a cause; `DEFERRED` 104 filed
+101's "hypothesis, not established" is now established by the stacks and the source: CityFlow's `Engine::~Engine()` races on
+`finished`. 104: the engine's fix (an atomic flag checked before the destructor's barrier walk, or a join protocol that tolerates an
+exited controller) belongs to the platform's maintainers; `CityFlow/` is frozen and not patched here. B5's rule stands for the
+canary (the same race at its single episode's end); the stage no longer needs it.
