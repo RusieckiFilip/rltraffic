@@ -775,3 +775,15 @@ the C3.1 pool-size fake taught `next(timeout)` with its assertion unchanged (M3 
   it costs 180 s plus a re-roll and is not a failure.
 - The rules stand: a quiet machine for the whole run (no game), mains power; `CAMPAIGN FAILED at reference-gate` is channel (c) — stop
   and paste; after `DRIVER EXIT: 0` paste the last ~12 lines; G6 follows Amendment D §D5.
+
+## D.3.3 — 2026-09-30, 23:35: the second start REFUSED before the token on a hung fenced re-roll — as designed; the author starts again; the rule for a repeat
+`reference_reroll_check` rolled its fifteen cells; `cell_ref_mappo1000_k20_seed202_draw1001` never returned (DEFERRED 104's race, the
+third occurrence today: ≈ 3 in 1,050 episodes); after the 180 s silence the pool was terminated and the roll recorded as
+`HungRoll` in `g2/reference_reroll_check_20260930T212428085372Z/failures.json` — no verdict invented, `REFUSING TO START`, the
+token NOT consumed (its file, written 23:24, still on disk), nothing under `cells/` changed (999 chunks, no `.tmp`, no `failed/`).
+**The author pastes Step 2 again** (the token line rewrites the unconsumed token). **If a start is refused on a `HungRoll` a second
+time, C3.3 is ruled without further evidence:** the fenced re-roll re-rolls its hung cells in fresh pools like the stage (up to the
+same number of rounds; a NO MATCH stays a refusal), and `STAGE_HANG_ROUNDS` rises from 3 to 6 — at the worst rate seen today
+(1 in 15) a cell then fails with probability (1/15)⁶ ≈ 9 × 10⁻⁸ against (1/15)³ ≈ 3 × 10⁻⁴, which over 7,000 cells is the
+difference between a certain and an unlikely restart; the tests' round counts follow. A failed campaign stage remains cheap to
+resume: the chunks on disk are reused by content and only the missing cells are rolled.
