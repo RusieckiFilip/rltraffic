@@ -36,6 +36,7 @@ import json
 import math
 import os
 import shutil
+import time
 from pathlib import Path
 from typing import Any
 
@@ -687,6 +688,15 @@ def test_the_stage_pool_has_as_many_processes_as_workers(campaign: CampaignTree,
 
     created: list[tuple[str, int, Any]] = []
 
+    class _InlineResults:
+        """``IMapIterator``'s one method the stage reads results with (C3.2, Amendment D.2: ``next(timeout=...)``)."""
+
+        def __init__(self, results: Any) -> None:
+            self._results = results
+
+        def next(self, timeout: float | None = None) -> Any:
+            return next(self._results)
+
     class _InlinePool:
         def __enter__(self) -> _InlinePool:
             return self
@@ -694,8 +704,8 @@ def test_the_stage_pool_has_as_many_processes_as_workers(campaign: CampaignTree,
         def __exit__(self, *exc: Any) -> None:
             return None
 
-        def imap_unordered(self, function: Any, tasks: Any) -> Any:
-            return map(function, tasks)
+        def imap_unordered(self, function: Any, tasks: Any) -> _InlineResults:
+            return _InlineResults(map(function, tasks))
 
     class _Context:
         def __init__(self, method: str) -> None:
@@ -714,6 +724,167 @@ def test_the_stage_pool_has_as_many_processes_as_workers(campaign: CampaignTree,
     )
     assert created == [("spawn", 3, cs._pin_one_thread)]
     assert (result["n_rolled"], result["n_failed"]) == (1, 0)
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# A hung cell (Amendment D.2, D.2.2: CityFlow's Engine::~Engine() race, DEFERRED 104) -- the stage's own handling
+# ----------------------------------------------------------------------------------------------------------------------
+
+#: The hang tests' result timeout (the module's is 180 s): five times a fresh two-worker spawn pool's first result here
+#: (0.84-0.93 s, its workers importing torch and this module; measured 2026-09-30), far below the fake hang's 30 s.
+HANG_TEST_TIMEOUT_S = 5.0
+#: A fake hang blocks on an Event nobody sets for this long -- not forever, so a mutant without the timeout ENDS (then
+#: behaves as a cell that finished late) and its assertions on the hang fail (D.2.2(3)).
+HANG_SECONDS = 30.0
+HANGING_DRAW = 1099
+
+
+def _hang() -> None:
+    import threading
+
+    threading.Event().wait(HANG_SECONDS)
+
+
+def _hang_once(task: tuple[Any, dict[str, Any]]) -> bool:
+    """True the FIRST time the draw-1099 cell is rolled (a marker beside the output tree remembers across pools)."""
+    cell, kwargs = task
+    if cell.draw_id != HANGING_DRAW:
+        return False
+    marker = Path(kwargs["output_root"]).parent / "hung_once" / cell.name
+    if marker.exists():
+        return False
+    marker.parent.mkdir(parents=True, exist_ok=True)
+    marker.write_text("hung\n", encoding="utf-8")
+    return True
+
+
+def _fake_stage_worker_hangs_once(task: tuple[Any, dict[str, Any]]) -> dict[str, Any]:
+    """The fixture's worker; the draw-1099 cell hangs the first time it is rolled and succeeds when re-rolled."""
+    if _hang_once(task):
+        _hang()
+    return _fake_stage_worker(task)
+
+
+def _fake_stage_worker_always_hangs(task: tuple[Any, dict[str, Any]]) -> dict[str, Any]:
+    """The fixture's worker; the draw-1099 cell hangs every time it is rolled."""
+    if task[0].draw_id == HANGING_DRAW:
+        _hang()
+    return _fake_stage_worker(task)
+
+
+def _fake_stage_worker_killed_mid_write(task: tuple[Any, dict[str, Any]]) -> dict[str, Any]:
+    """The fixture's worker; the first time the draw-1099 cell is rolled it leaves the ``.tmp`` of an unfinished chunk
+    write (``write_chunk``'s own name for it) and hangs there, so the terminated pool kills it mid-write."""
+    if _hang_once(task):
+        import offline.context_sweep as sweep
+
+        cell, kwargs = task
+        destination = sweep.chunk_path(kwargs["output_root"], cell)
+        destination.with_name(f".{destination.name}.{os.getpid()}.tmp").write_text("{ half a chunk", encoding="utf-8")
+        _hang()
+    return _fake_stage_worker(task)
+
+
+def _record_stage(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
+    """The REAL stage, its return value kept: ``cells`` calls ``run_campaign_stage`` by its module name."""
+    recorded: list[dict[str, Any]] = []
+    real = cs.run_campaign_stage
+
+    def recording(**kwargs: Any) -> dict[str, Any]:
+        recorded.append(real(**kwargs))
+        return recorded[-1]
+
+    monkeypatch.setattr(cs, "run_campaign_stage", recording, raising=True)
+    return recorded
+
+
+def _cells_argv(campaign: CampaignTree) -> list[str]:
+    return ["cells", "--output-root", str(campaign.output_root), "--corpus-root", str(campaign.corpus_root),
+            "--data-dir", str(campaign.data_dir), "--draws-root", str(campaign.draws_root), "--stage", "reference",
+            "--canary-seconds", "0.75", "--workers", "2"]
+
+
+def test_a_hung_cell_is_re_rolled_in_a_fresh_pool_and_the_cells_command_exits_0(
+    campaign: CampaignTree, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Amendment D.2, D.2.2(3)(a): one cell never returns in the first pool; the stage times out, terminates the pool,
+    re-rolls the cell in a fresh one and writes its chunk; every other chunk untouched; ``cells`` exits 0.
+
+    *Mutations:* the timeout removed (the fake's 30 s then ends the run with no hang seen); the re-roll pool not
+    re-created (the cell stays hung) -> this dies.
+    """
+    monkeypatch.setattr(cs, "STAGE_RESULT_TIMEOUT_S", HANG_TEST_TIMEOUT_S, raising=True)
+    cells = cs.cells_dir(campaign.output_root)
+    rolled = [_cell("reference", "mix50", 20, 64, 505, draw) for draw in (1097, 1098, HANGING_DRAW)]
+    for cell in rolled:
+        cs.chunk_path(campaign.output_root, cell).unlink()
+    before = {path.name: path.read_bytes() for path in cells.glob("cell_*.json")}
+    recorded = _record_stage(monkeypatch)
+    monkeypatch.setattr(cs, "_campaign_worker", _fake_stage_worker_hangs_once, raising=True)
+    assert cs.main(_cells_argv(campaign)) == 0
+    [result] = recorded
+    assert (result["n_declared"], result["n_reused"], result["n_rolled"], result["n_failed"]) == (1000, 997, 3, 0)
+    assert (result["n_hung"], result["hang_rounds"]) == (1, 1)
+    assert result["wall_seconds"] < HANG_SECONDS, "the hung worker was waited out, not terminated"
+    out = capsys.readouterr().out
+    assert out.count(" HUNG (round ") == 1 and f"  {rolled[2].name} HUNG (round 1): re-rolled\n" in out
+    for cell in rolled:
+        cs.validate_chunk(_read(cs.chunk_path(campaign.output_root, cell)), cell)
+    after = {path.name: path.read_bytes() for path in cells.glob("cell_*.json")}
+    assert {name: data for name, data in after.items() if name not in {cell.name for cell in rolled}} == before
+    assert not (cells / "failed").exists()
+
+
+def test_a_cell_hung_in_every_round_is_a_failure_and_the_cells_command_exits_1(
+    campaign: CampaignTree, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Amendment D.2, D.2.2(3)(b): a cell that hangs in all ``STAGE_HANG_ROUNDS`` rounds is a failure, ``hung 3
+    times``, with no chunk; ``cells`` exits 1.
+
+    *Mutation:* a hung cell counted as ok -> this dies.
+    """
+    monkeypatch.setattr(cs, "STAGE_RESULT_TIMEOUT_S", HANG_TEST_TIMEOUT_S, raising=True)
+    cell = _cell("reference", "mix50", 20, 64, 505, HANGING_DRAW)
+    cs.chunk_path(campaign.output_root, cell).unlink()
+    recorded = _record_stage(monkeypatch)
+    monkeypatch.setattr(cs, "_campaign_worker", _fake_stage_worker_always_hangs, raising=True)
+    assert cs.main(_cells_argv(campaign)) == 1
+    [result] = recorded
+    assert cs.STAGE_HANG_ROUNDS == 3
+    assert (result["n_rolled"], result["n_failed"], result["n_hung"], result["hang_rounds"]) == (0, 1, 1, 3)
+    assert result["failures"] == [{"name": cell.name, "ok": False, "seconds": None, "error": "hung 3 times"}]
+    out = capsys.readouterr().out
+    assert [line.strip() for line in out.splitlines() if cell.name in line] == [
+        f"{cell.name} HUNG (round 1): re-rolled", f"{cell.name} HUNG (round 2): re-rolled",
+        f"{cell.name} FAILED hung 3 times",
+    ]
+    assert "cells reference: 1000 declared, 999 reused, 0 rolled, 1 failed" in out
+    assert not cs.chunk_path(campaign.output_root, cell).exists()
+
+
+def test_a_killed_workers_tmp_is_moved_to_failed_and_not_left_in_cells(
+    campaign: CampaignTree, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Amendment D.2, D.2.2(3)(c): the ``.tmp`` a worker killed mid-write leaves is moved to ``cells/failed/`` by
+    ``move_aside`` -- a partial write, never a chunk -- and the cell is re-rolled whole.
+
+    *Mutation:* the ``.tmp`` not moved -> this dies.
+    """
+    monkeypatch.setattr(cs, "STAGE_RESULT_TIMEOUT_S", HANG_TEST_TIMEOUT_S, raising=True)
+    cells = cs.cells_dir(campaign.output_root)
+    cell = _cell("reference", "mix50", 20, 64, 505, HANGING_DRAW)
+    cs.chunk_path(campaign.output_root, cell).unlink()
+    result = cs.run_campaign_stage(
+        stage="reference", output_root=campaign.output_root, corpus_root=campaign.corpus_root,
+        draws_root=campaign.draws_root, data_dir=campaign.data_dir, canary_seconds=0.75, workers=2,
+        worker=_fake_stage_worker_killed_mid_write,
+    )
+    assert (result["n_rolled"], result["n_failed"], result["n_hung"], result["hang_rounds"]) == (1, 0, 1, 1)
+    assert sorted(path.name for path in cells.iterdir() if path.name.endswith(".tmp")) == []
+    [moved] = sorted((cells / "failed").iterdir())
+    assert moved.name.startswith(f".{cell.name}.") and moved.name.endswith(".tmp")
+    assert moved.read_text(encoding="utf-8") == "{ half a chunk"
+    cs.validate_chunk(_read(cs.chunk_path(campaign.output_root, cell)), cell)
 
 
 def test_an_input_that_cannot_be_verified_refuses_the_stage_and_moves_no_chunk_aside(campaign: CampaignTree) -> None:
@@ -898,6 +1069,43 @@ def test_a_failed_roll_is_never_a_verdict_and_its_message_stays_behind_the_fence
     [run_dir] = [p for p in cs.g2_dir(campaign.output_root).iterdir()]
     assert sorted(p.name for p in run_dir.iterdir()) == ["failures.json"]
     assert "17.3" in (run_dir / "failures.json").read_text(encoding="utf-8")
+
+
+def _reroll_worker_one_hangs(task: tuple[Any, dict[str, Any]]) -> dict[str, Any]:
+    """The matching re-roll worker, except that seed 202's draw-1001 cell hangs (then, 30 s on, would match)."""
+    if (task[0].seed, task[0].draw_id) == (202, 1001):
+        _hang()
+    return _reroll_worker_matching(task)
+
+
+def test_a_hung_re_roll_is_a_failed_roll_the_command_exits_2_and_the_fence_holds(
+    campaign: CampaignTree, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Amendment D.2, D.2.2(3)(d): the fenced re-roll under the same result timeout -- a hung cell is a FAILED ROLL, never
+    retried there: ``failures.json`` alone under the fence, naming exactly that cell; exit 2; nothing else written.
+
+    *Mutation:* the re-roll check's timeout removed (the hung roll then matches, 30 s late) -> this dies.
+    """
+    monkeypatch.setattr(cs, "STAGE_RESULT_TIMEOUT_S", HANG_TEST_TIMEOUT_S, raising=True)
+    monkeypatch.setattr(cs, "_reroll_worker", _reroll_worker_one_hangs, raising=True)
+    before = sorted(path.name for path in cs.cells_dir(campaign.output_root).iterdir())
+    argv = ["reference-reroll-check", "--output-root", str(campaign.output_root), "--corpus-root",
+            str(campaign.corpus_root), "--data-dir", str(campaign.data_dir), "--draws-root", str(campaign.draws_root),
+            "--canary-seconds", "0.75", "--workers", "3"]
+    started = time.perf_counter()
+    assert cs.main(argv) == 2
+    assert time.perf_counter() - started < HANG_SECONDS, "the hung roll was waited out, not terminated"
+    out = capsys.readouterr().out
+    assert "REFUSED: reference_reroll_check could not run: 1 of 15 roll(s) failed (['HungRoll'])" in out
+    assert "MATCH" not in out
+    [run_dir] = [p for p in cs.g2_dir(campaign.output_root).iterdir()]
+    assert sorted(p.name for p in run_dir.iterdir()) == ["failures.json"]
+    fenced = json.loads((run_dir / "failures.json").read_text(encoding="utf-8"))["fenced"]
+    assert fenced == {"failures": [{
+        "cell": "cell_ref_mappo1000_k20_seed202_draw1001.json",
+        "error": "HungRoll: no result within 5 s; the pool was terminated (DEFERRED 104)",
+    }]}
+    assert sorted(path.name for path in cs.cells_dir(campaign.output_root).iterdir()) == before
 
 
 # ======================================================================================================================

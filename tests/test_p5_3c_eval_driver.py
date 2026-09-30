@@ -278,6 +278,29 @@ def test_complete_precedes_success_and_the_header_carries_the_two_restart_remedi
             in comments)
 
 
+def test_the_header_documents_the_stages_hang_handling_in_sections_2_and_5() -> None:
+    """``BRIEF_42`` Amendment D.2, D.2.2(4): section 5 (TIME) says what a hung cell costs and when it is seen; section 2's
+    RESUME paragraph says what a ``HUNG (round n)`` line is and that a restart after C3.2 re-rolls the earlier chunks.
+
+    *Mutation:* either sentence deleted -> this dies.
+    """
+    text = _text()
+
+    def prose(start: str, end: str) -> str:
+        section = text[text.index(start):text.index(end)]
+        return " ".join(line.lstrip("#").strip() for line in section.splitlines())
+
+    section_2 = prose("# 2. THE STAGES AND THE GATE", "# 3. ORDERING")
+    for phrase in (
+        "`<name> HUNG (round n): re-rolled` lines are the stage's own re-rolls of a hung cell",
+        "a restart after C3.2 re-rolls every chunk rolled by the earlier code (J1(c))",
+    ):
+        assert phrase in section_2, phrase
+    section_5 = prose("# 5. TIME AND MEMORY", "set -euo pipefail")
+    assert ("A hung cell costs STAGE_RESULT_TIMEOUT_S (180 s) plus a re-roll, detected when the stage's other results "
+            "have all arrived" in section_5)
+
+
 # ----------------------------------------------------------------------------------------------------------------------
 # The driver EXECUTED on a sandbox
 # ----------------------------------------------------------------------------------------------------------------------

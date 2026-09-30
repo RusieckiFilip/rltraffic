@@ -1754,6 +1754,14 @@ EVAL_SCENARIO = "hz1x1"
 EVAL_SCENARIO_KEY = "cityflow1x1"
 ENGINE_SEED = 1000
 CAMPAIGN_WORKERS = 12
+#: Amendment D.2, D.2.2(1): the longest silence a stage (and the fenced re-roll) waits for its pool's NEXT result --
+#: about 30 times a cell's wall time under twelve workers (results arrived every ~0.5 s, ~6 s a cell per worker, on
+#: 2026-09-30), so a silence this long means only hung tasks remain: CityFlow's Engine::~Engine() race at an episode's
+#: end (DEFERRED 104; docs/notes/P5.3c_HANG_2026-09-30.md).
+STAGE_RESULT_TIMEOUT_S = 180.0
+#: The rounds a cell is rolled in before a hang is its failure: a round is one pool over the cells still without a
+#: result, the first pool being round 1; a cell that hung in every round fails as "hung 3 times".
+STAGE_HANG_ROUNDS = 3
 #: Amendment A, Q2 (with A.1): the fenced pre-token re-roll -- P4's five seeds on these three draws, fifteen cells.
 REROLL_DRAWS: tuple[int, ...] = (1000, 1001, 1002)
 
@@ -2449,9 +2457,15 @@ def run_campaign_stage(
     they are on disk (:func:`verify_gate_record`) -- the second line of the gate's stop.  The skip decision is Python's
     (:func:`chunk_is_reusable`); a chunk that exists and is not reusable is moved aside, never overwritten.  ``spawn``,
     each worker pinned to one torch thread; it prints each cell's NAME and whether it stood, never a number.
-    """
-    from multiprocessing import get_context
 
+    A HUNG cell (Amendment D.2: CityFlow's destructor race at an episode's end, DEFERRED 104): the results are read with
+    ``next(timeout=STAGE_RESULT_TIMEOUT_S)``; a silence that long terminates and joins the pool, moves every
+    ``.cell_*.json.<pid>.tmp`` a killed worker left to ``cells/failed/``, prints each cell with neither a result nor a
+    chunk as ``HUNG (round n): re-rolled`` and rolls those cells in a NEW pool of the same size and initializer.  A cell
+    that hung in all :data:`STAGE_HANG_ROUNDS` rounds is a failure, ``hung 3 times``.  A cell that returned ``ok False``
+    is a failure, never re-rolled.  ``n_hung`` counts the cells that hung at least once, ``hang_rounds`` the rounds that
+    ended in a timeout.
+    """
     if stage not in STAGES:
         raise ValueError(f"stage {stage!r} is not one of {list(STAGES)}")
     if isinstance(workers, bool) or int(workers) < 1:
@@ -2496,14 +2510,33 @@ def run_campaign_stage(
         "canary_seconds": canary_seconds,
     }
     results: list[dict[str, Any]] = []
+    hung_ever: set[str] = set()
+    hang_rounds = 0
     started = time.perf_counter()
-    if todo:
-        context = get_context("spawn")
-        with context.Pool(processes=int(workers), initializer=_pin_one_thread) as pool:
-            for result in pool.imap_unordered(worker or _campaign_worker, [(cell, kwargs) for cell in todo]):
-                results.append(result)
-                status = "ok" if result["ok"] else f"FAILED {result['error']}"
-                print(f"  {result['name']} {status}", flush=True)
+    pending = list(todo)
+    for round_number in range(1, STAGE_HANG_ROUNDS + 1):
+        if not pending:
+            break
+        round_results, timed_out = _roll_round(pending, worker or _campaign_worker, kwargs, workers=int(workers))
+        results.extend(round_results)
+        if not timed_out:
+            break
+        hang_rounds += 1
+        # The pool is terminated and joined: a worker killed mid-write leaves a partial write, never a chunk.
+        for leftover in sorted(directory.glob(".cell_*.json.*.tmp")):
+            move_aside(leftover)
+        answered = {str(result["name"]) for result in round_results}
+        hung = [cell for cell in pending if cell.name not in answered and not chunk_path(root, cell).exists()]
+        hung_ever.update(cell.name for cell in hung)
+        if round_number < STAGE_HANG_ROUNDS:
+            for cell in hung:
+                print(f"  {cell.name} HUNG (round {round_number}): re-rolled", flush=True)
+            pending = hung
+            continue
+        for cell in hung:
+            failure = {"name": cell.name, "ok": False, "seconds": None, "error": f"hung {STAGE_HANG_ROUNDS} times"}
+            results.append(failure)
+            print(f"  {cell.name} FAILED {failure['error']}", flush=True)
     failures = [result for result in results if not result["ok"]]
     return {
         "stage": stage,
@@ -2511,9 +2544,37 @@ def run_campaign_stage(
         "n_reused": reused,
         "n_rolled": len(results) - len(failures),
         "n_failed": len(failures),
+        "n_hung": len(hung_ever),
+        "hang_rounds": hang_rounds,
         "failures": failures,
         "wall_seconds": time.perf_counter() - started,
     }
+
+
+def _roll_round(
+    cells: Sequence[CampaignCell], worker: Any, kwargs: Mapping[str, Any], *, workers: int
+) -> tuple[list[dict[str, Any]], bool]:
+    """One round of a stage: *cells* in a NEW spawn pool, each worker pinned to one torch thread; every result printed
+    as it arrives.  Returns the results and whether the round ended in a silence of ``STAGE_RESULT_TIMEOUT_S`` -- in
+    which case the pool has been terminated and joined, its hung workers killed (Amendment D.2, D.2.2(1))."""
+    from multiprocessing import TimeoutError as PoolTimeout
+    from multiprocessing import get_context
+
+    results: list[dict[str, Any]] = []
+    context = get_context("spawn")
+    with context.Pool(processes=int(workers), initializer=_pin_one_thread) as pool:
+        arriving = pool.imap_unordered(worker, [(cell, dict(kwargs)) for cell in cells])
+        for _cell in cells:
+            try:
+                result = arriving.next(timeout=STAGE_RESULT_TIMEOUT_S)
+            except PoolTimeout:
+                pool.terminate()
+                pool.join()
+                return results, True
+            results.append(result)
+            status = "ok" if result["ok"] else f"FAILED {result['error']}"
+            print(f"  {result['name']} {status}", flush=True)
+    return results, False
 
 
 def load_reference_rows(data_dir: str | Path) -> dict[str, Any]:
@@ -2687,7 +2748,12 @@ def run_reference_reroll_check(
     key ``fenced``, never named or placed like a campaign chunk: ``g2/`` is never read by the gate or the report) and
     ``verdict.json``.  The returned lines -- MATCH, or NO MATCH and the differing field NAMES -- are what the driver
     prints and counts; never a value.
+
+    A HUNG roll (Amendment D.2, D.2.2(2)): the results are read with ``next(timeout=STAGE_RESULT_TIMEOUT_S)``, as they
+    arrive, and paired with their cells by NAME; a silence that long terminates and joins the pool, and every cell
+    without a result is a FAILED roll (``HungRoll``) -- never retried here: the start is cheap and the author restarts.
     """
+    from multiprocessing import TimeoutError as PoolTimeout
     from multiprocessing import get_context
 
     rows = load_reference_rows(data_dir)
@@ -2709,10 +2775,23 @@ def run_reference_reroll_check(
         "canary_seconds": canary_seconds,
     }
     context = get_context("spawn")
+    arrived: list[dict[str, Any]] = []
     with context.Pool(processes=min(int(workers), len(cells)), initializer=_pin_one_thread) as pool:
-        results = list(pool.imap(worker or _reroll_worker, [(cell, kwargs) for cell in cells]))
-    if [str(result["name"]) for result in results] != [cell.name for cell in cells]:
+        arriving = pool.imap_unordered(worker or _reroll_worker, [(cell, kwargs) for cell in cells])
+        for _cell in cells:
+            try:
+                arrived.append(arriving.next(timeout=STAGE_RESULT_TIMEOUT_S))
+            except PoolTimeout:
+                pool.terminate()
+                pool.join()
+                break
+    by_name = {str(result["name"]): result for result in arrived}
+    if len(by_name) != len(arrived) or not set(by_name) <= {cell.name for cell in cells}:
         raise AssertionError("the rolls came back paired with other cells; refusing to compare them")
+    hung_roll = {"ok": False, "payload": None,
+                 "error": f"HungRoll: no result within {STAGE_RESULT_TIMEOUT_S:.0f} s; the pool was terminated "
+                          "(DEFERRED 104)"}
+    results = [by_name.get(cell.name) or {"name": cell.name, **hung_roll} for cell in cells]
     failures = [result for result in results if not result["ok"]]
     if failures:
         run_dir.mkdir(parents=True)

@@ -56,6 +56,8 @@
 #      a new token: this refusal comes after one was consumed);
 #      after a Ctrl-C a worker's .cell_<...>.json.<pid>.tmp may remain in cells/ -- `resume-check` names it before
 #      the token; move it aside by hand.
+#    `<name> HUNG (round n): re-rolled` lines are the stage's own re-rolls of a hung cell (Amendment D.2), not a
+#    failure; a restart after C3.2 re-rolls every chunk rolled by the earlier code (J1(c)).
 #
 # 3. ORDERING -- every check that can refuse PRECEDES the token, so a refused start consumes nothing: the commit argument
 #    -> the interpreter -> not the implementer's tree -> the run tree and its commit -> the cwd -> the modules from the
@@ -77,6 +79,8 @@
 #    campaign-inputs requires free (an evaluation process holds less).  Host: P7.3d's G2 measured a 17,297 MiB tree at 12
 #    workers (1,441 MiB per torch-and-CUDA process); its x 1.4, 24,216 MiB, is borrowed as this driver's budget -- an
 #    upper bound (hz1x1's CityFlow env is smaller than grid4x4's SUMO), not a measurement of this campaign.
+#    A hung cell costs STAGE_RESULT_TIMEOUT_S (180 s) plus a re-roll, detected when the stage's other results have all
+#    arrived (Amendment D.2: CityFlow's destructor race at an episode's end, DEFERRED 104).
 
 set -euo pipefail
 
