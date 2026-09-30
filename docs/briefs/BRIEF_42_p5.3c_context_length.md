@@ -513,3 +513,118 @@ torch build under the registered regime, stated as such, not as determinism of t
 The implementer merges `main` (the pinned record), finishes C3 with B.1.3's items 2 and 3, and says **"P5.3c C3 done"** → gate G4
 (the coordinator's mutants + one reviewer on the evaluation, the statistic, the report and the campaign driver) → Amendment D → the
 author's evaluation token G5 → the campaign (the reference arms, the gate, 7,000 cells at twelve workers) → G6 → C4 → G8, the merge.
+
+---
+
+# ✅ AMENDMENT D — 2026-09-30, gate G4: C3 (`cf97e31`, packet `cdae1b0`) PASSES on the numbers path — no defect that can change a cell, the gate's verdict or H4's statistic; ONE small fix commit C3.1 (the run's own protection: a marker ordering, two test gaps, two documented restart remedies, three report tightenings) BEFORE the evaluation token; a correction to Amendment C's stall attribution
+
+## D0 — Verdict
+**PASSED for everything that decides a number.** The cells take P8.4b's path on CUDA with the registered prompt; the gate compares
+500 cells under `==` on both definitions and stops the campaign before any sweep cell; the confirmatory family is fed exactly the
+sweep's `mappo1000_k{K}_b64` arms on `att_engine`, per-draw means over the five seeds, the K = 20 level the sweep's own arm; T1–T3,
+Holm, the partition and the sentences are the registered ones; every refusal precedes every write. **C3.1 (D4) is required before the
+token** because three findings concern what protects THIS run from losing a token or hours; none of them can reach a number.
+
+## D1 — What the coordinator verified (2026-09-30, by running commands and reading)
+- **The branch:** `363a1a8` and `2f0ab38` merges of `main` (two parents each); `cf97e31` C3 (+5,139 / −4 across nine files: the
+  module +2,152 lines with C1's and C2's code untouched, the campaign driver new, two fixtures/tests new, B.1.3's items 2 and 3);
+  `cdae1b0` the packet; **0** trailers; no frozen path, `agent/DTAgent.py` / `offline/dataset.py` / `offline/att_rederivation.py` /
+  `offline/admission_probe.py` / `offline/rtg_calibration.py` untouched.
+- **Tests at `cdae1b0` in a fresh throwaway worktree, both data gates open, CUDA visible, one thread:** the five module files
+  **180 passed in 219 s** (the two gated real-CityFlow cells on CUDA included), the training driver **21 passed in 105 s**, the
+  campaign driver **15 passed in 27 s** — 216, none skipped; the worktree clean after.
+- **Read whole by the coordinator:** the statistic (2884–3160), the gate and the re-roll (2519–2680), the cell factory and payload
+  (2070–2152), `validate_chunk` / `run_campaign_cell` / `write_chunk` (2164–2332), the stage runner (2332–2520), the artifact builder
+  and the writers (3292–3690), the campaign driver (393 lines), `tests/test_p5_3c_statistic.py` (361 lines), the packet (732 lines).
+- **The named mutants, COMMITTED in the throwaway worktree from the packet's appendix, the tree reset after each — eighteen, every one
+  KILLED with the packet's failing-test counts:** S1 the contrast on log K (3), S2 the boundary moved (5), S3 a two-sided p (5),
+  S4 Holm unadjusted (1), S6 the A26.1(c) clause dropped (1), S8 the partition without T1 (4), C1 the cell on cpu (3), C3 mappo1000's
+  prompt for every subject (1), C10 the rollout window at K + 1 through the campaign's factory (2), K1–K3 the commands' exit codes
+  (1 each), G1 the gate skipped (2), G2 the sweep without the gate record (3), R6 the report without the gate check (1), C4 a chunk
+  reused on existence (2), C7 a dirty-tree chunk accepted (2), D1 the driver's gate stop removed (1, the text test; the packet's
+  executed test also killed it).
+- **The declared campaign, by the coordinator's own tally** (`scratchpad/g4_declared.py`): 7,000 cells, 7,000 distinct names,
+  reference 1,000 / sweep 6,000, 14 arms × 500 (`ref_mappo1000_k20`, `ref_mix50_k20`, the twelve registered arms), draws 1000–1099,
+  seeds 101 … 505, 500 gated cells, 15 re-roll cells (five seeds × draws 1000–1002); `EVAL_DEVICE_BUDGET_MIB` 6,972 (415 × 12 × 1.4).
+- **The machine at 15:30 local:** `MemAvailable` 37,167 MiB (the driver's budget 24,216); GPU 14,928 MiB free (budget 6,972); load
+  0.9; `output/p5_3c/` absent; no `p53c_campaign` tmux session; the run worktree at `1f446f2`, clean (to be re-created at C3.1).
+
+## D2 — The two reviewers (≤ 15 min each, own detached worktrees `-revS` / `-revD`, findings files `G4_REVIEW_{S,D}_FINDINGS.md`)
+**S — the statistic and the report: PASS**, no BLOCKER / MAJOR. In its own words, what feeds `confirmatory`: the five sweep arms
+`mappo1000_k1_b64 … mappo1000_k20_b64`, `att_engine`, the five seeds ascending, draws 1000–1099; the reference arm reaches only
+`k20_reproduction.sweep_k20_beside_the_published`; the equal-supervision arms only `equal_supervision`; mix50 only
+`exploratory_mix50` (no sentence). Independent arithmetic: its own ranks / ties / continuity / erfc-Φ Wilcoxon agrees with the
+module's on the fixture's 100 draws with |Δp| = 0.0 on T1–T3; Holm by hand agrees on seven triples. Seven own mutants, **7 / 7
+KILLED** (the K = 1 level from the batch-1,280 arm; the K = 20 level from the reference arm; the mean over four seeds; `att_ours`
+fed in; the T2/T3 subtraction reversed; outcome (i) on one shortfall; `tests_not_rejected` inverted). MINOR: `per_draw_means` refuses
+only a NON-SHARED seed set (a uniform four-seed set passes the function; unreachable at the builder, whose completeness refusal and
+`TRAINING_SEEDS` loop make it moot, and killed there); `what_this_does_not_say` carries no entry labelled A26(f). NOTES: the
+confirmatory block does not record the five arm strings it was fed; the campaign fixture's three p-values are all 1.98e−18 (outcome
+(i) at a degenerate point — the statistic file is the load-bearing killer for Holm and the partition, the campaign test for the arm
+selection and the arithmetic); mix50's A26(e) refuter is operationalised as "T3 does not reject" (plan Q10, a ruling).
+**D — the cells, the gate, the re-roll, the driver, the pre-flight: PASS**, no BLOCKER / MAJOR. The cell path equals P8.4b's
+(`agent_with_target` with 40,000 declared steps and the subject's `TierSpec` prompt, `act(info, explore=False,
+update_memory=True)`, `probe_episode`'s arguments, engine seed 1000, `resolve_device(None) == resolve_device("cuda")` on this GPU;
+the env settings by another route but enforced `==` P8.4b's before the token); every `validate_chunk` refusal satisfied by a real cell
+(the 20 `EPISODE_KEYS` are `as_record()`'s exactly; the first decision's reward `None` allowed; the commit read from the MODULE tree,
+the run worktree, never the cwd); inputs verified before any chunk is touched; reuse by content; no duplicate write possible; the gate
+and the re-roll as specified; every `rm` in the driver listed (the token; the two markers); every path after the token reaches a
+marker but one (below). Seven own mutants: **four KILLED** (reuse ignoring the demand digest; the gate under a 1e−6 tolerance; the
+driver's sweep stop removed; the engine seed from the draw) and **three SURVIVED**: `n_failed` zeroed in `run_campaign_stage`;
+`_campaign_worker` returning ok on an exception — **the production worker is exercised by no non-gated test and first runs under the
+token**; the pool at one process regardless of `--workers`. MINOR: the driver sets `SUCCESS=1` before `printf … > COMPLETE`
+(:389–390); `check_campaign_inputs` reads P8.4b's 500 mix50 cells for existence only (their digest compared with nothing; they feed
+the reported, never deciding, mix50 comparison); a restart that re-rolls a reference chunk changes the gate verdict's chunk digests
+and `_write_campaign_text_once` refuses the stale record AFTER the second token (remedy: move it aside; a third token); a Ctrl-C mid-
+write leaves `.cell_….tmp` that the next start's `resume-check` refuses before the token (remedy: move it aside). NOTES: an
+OOM-killed worker's task never returns (a silent hang; B5's rule is the detector); the header's line 112 contradicts line 30 (the
+fenced g2 write precedes the token); the estimate: ≈ 3.4 s per cell (P5.3b's 2.9 s plus ≈ 0.3–0.6 s of per-cell re-derivation),
+ideal 33 min at twelve workers, **realistically 1–1.5 h** with twelve CityFlow processes and twelve CUDA contexts on one GPU.
+
+## D3 — Rulings, and a correction
+1. **Amendment C, C2's attribution of the two training stalls to "the implementer's C3 work" was WRONG and is withdrawn** — the
+   coordinator's error, written without evidence. The implementer's timestamped record shows its session ran no test and no Python
+   between 15:52 and 18:42 UTC; the author has stated the cause: **≈ 8.5 GB of GPU memory in the P4 clock state was his game on the
+   Windows host** during 17:22–18:04 UTC. Wall time only; nothing in a checkpoint depends on it. P8.2's compute table cites the
+   pinned record with per-arm medians and names the two stalls with that cause (the packet's Q1). Logged in `PROJECT_PLAN` §8.
+2. The packet's readings and questions: the **borrowed host budget** (24,216 MiB, P7.3d's × 1.4) is accepted as an upper bound — the
+   machine has 37 GiB available and the driver refuses, never guesses (Q2); the **(ii) clause's placement** after the registered
+   parenthesis and the verb agreement stand as implemented (Q3); **`DEFERRED` 102's remedy stays in C4** (Q4); the **"NOT made" branch**
+   of C3's reading stays as written — an honest sentence on a branch only a fixture reaches, better than a refusal over wording
+   (Q5); **mix50's reference comparison** by both routes (P8.4b's per-draw cells under `==`, P5.3b's committed means recomputed), never
+   gating, stands — A26(c)'s "P5.3b's per-draw rows" names data P5.3b read, not data it committed, and the report says so (§10.1);
+   the brief's §3 C3 text (`cpu`, `evaluate_arm`) is superseded by A.1 and plan A7 as accepted at G0 (§11.2).
+3. **The mix50 cells' digests** (D's first MINOR): `DEFERRED` 103 — a check against P8.4b's campaign manifest where it declares them,
+   in C4 if cheap; exploratory, never deciding; not before the token.
+4. **The OOM-hang note** (D): `DEFERRED` 101's rule covers it; the campaign driver's header already carries B5.
+
+## D4 — C3.1: ONE commit, tests first, nothing beyond this list; then "P5.3c C3.1 done"
+1. **The driver `offline/campaigns/p5_3c_eval.sh`:** (a) write `COMPLETE` BEFORE `SUCCESS=1` (lines 389–390 swapped), so a failed
+   final write still reaches `on_exit`'s marker — pinned by the existing text test's order list or a new clause; (b) header §2
+   (RESUME) gains the two remedies: *a restart that re-rolled a reference chunk finds the gate record stale — `reference-gate` refuses
+   "already exists and differs" after the token; move `output/p5_3c/reference_gate.json` aside by hand and start again*, and *after a
+   Ctrl-C a worker's `.cell_<…>.json.<pid>.tmp` may remain in `cells/` — `resume-check` names it before the token; move it aside by
+   hand*; (c) line 112's sentence corrected to say what line 30 says (the fenced g2 re-roll is written before the token, nothing
+   else). A text test pins (a) and the two remedies' presence.
+2. **Tests for the two surviving mutants of the run's protection** (reviewer D's M1 and M7; specs in
+   `scratchpad/revD_mutants.py`): (a) `run_campaign_stage` driven with a fake worker that returns `ok False` for one cell → `n_failed`
+   1, that cell in `failures`, `n_rolled` the rest, and `_cmd_cells` exiting 1; (b) `_campaign_worker` itself with `run_campaign_cell`
+   monkeypatched to raise → `ok False` and the error's type and text in `error`, no chunk written; and with it returning a payload →
+   the chunk written by `write_chunk` and `ok True`. Each red first on its mutant (M1: `n_failed` zeroed; M7: `ok True` on the
+   exception), pasted. (c) If cheap: the pool created with `processes == workers` (D's M3), otherwise say so.
+3. **Three tightenings in `offline/context_sweep.py`** (reviewer S), each with a test and its mutant: (a) `per_draw_means` refuses
+   any seed set other than exactly `TRAINING_SEEDS` (the docstring's claim made true); (b) `_ARTIFACT_LIMITS` gains one entry
+   labelled **A26(f)** in A26's own words (δ keeps A6's value and gains a superiority use; A25 sits beside); (c) the artifact's
+   `confirmatory` block records `arms`: the five arm strings it was fed, in K order, and `k20_arm` naming the sweep's own — so G6's
+   independent route reads them from the artifact, not from the code.
+4. **Nothing else.** The packet `docs/returns/P5.3c-C3.1.md` (short: the diff, red/green, the mutants, the suite tail with
+   `-o tmp_path_retention_policy=failed`). The coordinator then re-runs the new mutants and the changed files, pushes, re-creates
+   the run worktree at C3.1, and hands the author the evaluation token block as **Amendment D.1** — the token is NOT written before
+   that.
+
+## D5 — What the campaign will be read against (G6, for the record now)
+The coordinator reads the capture first (the pre-token lines, the re-roll's 15 MATCH lines, the gate's verdict line, the stage
+lines, `CAMPAIGN COMPLETE`, `DRIVER EXIT: 0`), then recomputes A_d(K), s_d, T1–T3, Holm and the partition **from the raw chunks by
+an independent route BEFORE opening the artifact's `confirmatory` section**; only then the artifact, compared under `==`; the
+reference gate 500 / 500 and the sweep's K = 20 cells beside the published (C3(ii)); then Amendment E. Expected wall time 1–1.5 h;
+the driver prints its own clock.
