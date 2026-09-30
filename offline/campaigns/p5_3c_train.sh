@@ -21,6 +21,11 @@
 #    (gate G2), and takes the timing's stamp: check-inputs requires free device memory for its measured peak.
 #    Start on an idle machine, on mains power: the canary's timing half refuses above 2.0 s.
 #
+#    THE CANARY HANG (DEFERRED 101; BRIEF_42 Amendment B, B5), a rule for every start: the machine is quiet at every
+#    start; if the driver prints nothing for a minute after `resume_decision:` (train) or `check_inputs PASSED` (timing),
+#    the canary is hung: Ctrl-C -- the canary precedes the token, so NOTHING is consumed -- and start again. A second
+#    occurrence is a finding for the plan, not a rate question.
+#
 #    Step 1's mkdir exists so the capture file can be created before the driver's first line.  The second half of step
 #    2: `${PIPESTATUS[0]}` is the DRIVER's status, so the pane and the capture's last line agree; tee's -i ignores the
 #    interrupt, so Ctrl-C's lines reach the capture.

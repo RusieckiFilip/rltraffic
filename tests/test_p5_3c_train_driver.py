@@ -307,6 +307,24 @@ def test_the_header_documents_both_foreground_forms_from_the_run_tree_with_tee_i
     assert "NOT `tmux new -s NAME '<cmd>'`" in text
 
 
+def test_the_header_carries_b5s_canary_hang_rule_in_section_0() -> None:
+    """``BRIEF_42`` Amendment B.1, B.1.3(3): B5's operational rule for every start, in the header's section 0 -- where the
+    person starting the driver reads -- naming the two lines after which a minute of silence means a hung canary.
+
+    *Mutation:* the rule's paragraph deleted -> this dies.
+    """
+    text = _text()
+    section_0 = text[text.index("# 0. USAGE"):text.index("# 1. WHAT IT PRODUCES")]
+    prose = " ".join(line.lstrip("#").strip() for line in section_0.splitlines())
+    for phrase in (
+        "DEFERRED 101",
+        "if the driver prints nothing for a minute after `resume_decision:` (train) or `check_inputs PASSED` (timing)",
+        "the canary is hung: Ctrl-C -- the canary precedes the token, so NOTHING is consumed -- and start again",
+        "A second occurrence is a finding for the plan, not a rate question",
+    ):
+        assert phrase in prose, phrase
+
+
 # ----------------------------------------------------------------------------------------------------------------------
 # The driver EXECUTED on a sandbox
 # ----------------------------------------------------------------------------------------------------------------------

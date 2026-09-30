@@ -447,20 +447,27 @@ def test_an_absent_checkpoint_trains_a_valid_one_is_skipped_an_invalid_one_is_re
         ({"gradient_steps": 400, "declared_gradient_steps": 400}, {"budget"}),
         ({"warmup_steps": 200}, {"recipe"}),
         ({"gradient_steps": 400, "declared_gradient_steps": 400, "warmup_steps": 200}, {"budget", "recipe"}),
+        ({"learning_rate": 2e-4}, {"recipe"}),
+        ({"weight_decay": 1e-3}, {"recipe"}),
+        ({"grad_clip": 1.0}, {"recipe"}),
     ],
-    ids=["another-budget-self-consistent", "another-warm-up", "the-fenced-timing-runs-shape"],
+    ids=[
+        "another-budget-self-consistent", "another-warm-up", "the-fenced-timing-runs-shape", "another-learning-rate",
+        "another-weight-decay", "another-clip",
+    ],
 )
 def test_a_checkpoint_at_another_budget_or_warm_up_fails_exactly_budget_or_recipe(
-    tmp_path: Path, overrides: dict[str, int], failing: set[str]
+    tmp_path: Path, overrides: dict[str, float], failing: set[str]
 ) -> None:
     """``BRIEF_42`` Amendment B, B3.2(b): ``checks["budget"]`` compares BOTH step counts with the registered 40,000, not
     with each other, and ``checks["recipe"]`` compares the warm-up with ``train_dt``'s 1,000 at 40,000 steps, not with
     the payload's own.  They are the two checks that tell the fenced timing checkpoint (400 steps, warm-up 200) from a
     registered one under the name the two share, ``mappo1000_k5_b64_seed101`` -- so each payload here differs from a
-    VALID one (the control) in those provenance fields alone, and the failing set is asserted exactly.
+    VALID one (the control) in those provenance fields alone, and the failing set is asserted exactly.  Amendment B.1,
+    B.1.3(2): the recipe's other three members -- the learning rate, the weight decay, the clip -- each alone.
 
     *Mutations:* ``budget`` made self-consistent (reviewer A's MB at G1); ``recipe``'s warm-up compared with the
-    payload's own (MC) -> this dies.
+    payload's own (MC); ``recipe`` without its learning rate, its weight decay or its clip (MR1-MR3) -> this dies.
     """
     spec = _subject(tmp_path)
     facts = cs.subject_facts(cs.training_inputs(spec, 1, _corpus(tmp_path)))
