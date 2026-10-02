@@ -920,3 +920,42 @@ The first whole-suite run's 26 extra failures were the implementer's own harness
 SIGQUIT ignored — `SigIgn 0x6` — and every executed driver refuses an ignored SIGINT by design); the foreground re-run passed them all.
 The packet states it as it happened. The C4 suite run without the command-line option: scratch peaked at 721 MiB (13 G at C2.1),
 so `pyproject.toml`'s line does what `DEFERRED` 102 asked; 102 is closed at the merge.
+
+---
+
+# ⚠️ AMENDMENT E.2 — 2026-10-02: two corrections of the coordinator's OWN text in Amendment E, before the merge — E1's paper wording was false against the numbers; E3's stated regeneration mechanism was wrong; and E4's guidance for the paper's H4 section replaced by a wording that survives the seed-level view
+
+## E.2.1 — E1's wording (caught by the implementer, packet §12.1)
+E1 told the paper to say *"the sweep found no trend at all (iii)"*. **That is false.** S = 1.2762 [0.6927, 1.8597] is a trend whose
+draw-level CI excludes zero — in the direction of ATT RISING with K, which the one-sided T1 does not test. The registered sentence
+is right ("an improvement with context length is not detected"); the coordinator's paraphrase was not. **Replaced, for the paper:**
+*the registered refuter of A26(e) did not fire; the expected outcome (ii) was not observed; the registered test detected no improvement
+with context length (outcome (iii)), and the trend contrast's estimate lies on the side of ATT rising with K.* The phrase "no trend at
+all" appears nowhere else on `main` (grep); the packet quotes it only to flag it.
+
+## E.2.2 — E3's regeneration mechanism (caught by the author, packet §6 and §11.2)
+E3's heading justified leaving `offline/` untouched by J1(c) ("the artifact regenerates from chunks rolled at `9c4603c` only at a HEAD
+that differs from it by `docs/` alone"). But C4's own `tests/` and `pyproject.toml` already make every later HEAD differ outside
+`docs/`, so plain `python -m offline.context_sweep report` refuses on J1(c) at `80a70cb` and after. **The artifact regenerates through
+the T-regress (with the plan's two A3 substitutions) at any HEAD, or with the plain command at `9c4603c` itself.** The ruling stands
+for the right reason, the packet's: `registered_in` and every other field the module writes are in the artifact's bytes, so a module
+change would change what the T-regress regenerates. The paper's reproducibility statement uses this wording.
+
+## E.2.3 — E4 replaced: what the paper's H4 section may say, checked against the training-seed level
+The registered unit is the draw (A_d = the five seeds' mean per draw; the Wilcoxon over 100 draws). Draw-level intervals capture the
+demand's variability, not the training seeds'. Computed by the coordinator from the committed `per_seed` block and from the chunks
+(2026-10-02): the per-seed contrast s = 3.92, 1.73, −0.80, 0.69, 0.83 — 4 of 5 positive, seed-level 95% t-interval [−0.88, 3.43];
+the per-seed G₁ = −1.34, −0.57, +0.17, −0.15, −0.19 (4 of 5 below K = 20; [−1.13, 0.30]); G₂ = −0.86, −0.55, +0.10, +0.28, −0.21 (3
+of 5; [−0.83, 0.33]); G₁₀ = +0.39, +0.03, −0.36, +0.67, +0.24.
+1. **The confirmatory statement is the registered sentence, verbatim, with S and its CI.** It needs no qualification.
+2. **What is robust beyond it, and is the registered claim T2/T3 tested:** DataLight's K = 1 and K = 2 are not short of the K = 20
+   plateau by more than δ — **in every one of the five training seeds** the gap is below δ (the largest, +0.17 s and +0.28 s, against
+   δ = 0.63 s).
+3. **What the paper may add, labelled descriptive and with both views:** across draws, longer context is slightly WORSE (S's CI
+   excludes zero; K = 10 the worst arm; K = 1 and K = 2 below K = 20 by 0.41 and 0.25 s with draw-level CIs excluding zero); **across
+   the five training seeds the direction is not established** (4 of 5 seeds; the seed-level intervals include zero). The paper says
+   "the estimate points toward slightly worse performance with longer context", never "longer context is worse".
+4. Unchanged from E4: K = 1 — a one-step return-conditioned policy, not pure behaviour cloning — is the best arm by point estimate,
+   consistent with P4.4 (BC within δ of K = 20) and P5.3b (the prompt inert); the equal-supervision arms (exploratory) do not help the
+   short arms; nothing about DataLight's prompt or multi-agent data, nothing beyond this scenario and corpus, no causal explanation of
+   the direction. One scenario, one corpus, five seeds, 100 draws, every number from the committed artifact.
