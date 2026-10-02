@@ -787,3 +787,76 @@ same number of rounds; a NO MATCH stays a refusal), and `STAGE_HANG_ROUNDS` rise
 (1 in 15) a cell then fails with probability (1/15)⁶ ≈ 9 × 10⁻⁸ against (1/15)³ ≈ 3 × 10⁻⁴, which over 7,000 cells is the
 difference between a certain and an unlikely restart; the tests' round counts follow. A failed campaign stage remains cheap to
 resume: the chunks on disk are reused by content and only the missing cells are rolled.
+
+---
+
+# ⭐ AMENDMENT E — 2026-10-01, ≈ 01:20, gate G6: THE CAMPAIGN READ — the gate 500 / 500; T1–T3 recomputed from the raw chunks by an independent route BEFORE the artifact was opened and EQUAL to it on every registered quantity; **outcome (iii)**; C4 ruled (docs, tests and config only — no module change)
+
+## E0 — Verdict
+**PASSED.** The whole record is `docs/notes/P5.3c_CAMPAIGN_READ_2026-10-01.md`. The third start ran clean under the second token at
+`9c4603c`: 15 / 15 fenced re-rolls MATCH, `reference_gate PASSED: 500 / 500`, 7,000 cells (six hung and re-rolled by the stage, C3.2
+doing its work), the artifact and the manifest written, `CAMPAIGN COMPLETE in 4086s`, `DRIVER EXIT: 0`. By the coordinator's own
+route: the gate holds on both definitions; mix50's reference arm equals P8.4b's cells 500 / 500; the sweep's K = 20 cells equal
+the reference cells 500 / 500 for both subjects. **The registered statistic, recomputed first from the chunks, gives outcome
+(iii), and the artifact agrees on S, G1, G2, W+, E, the variance, the three p-values, every Holm decision, the outcome, the
+sentence and the arms** (1-ulp differences in a few descriptive CI bounds only, numpy against `statistics`).
+
+## E1 — A26(d)'s numbers in its words (`mappo1000`, `att_engine`, 100 held-out draws, five seeds per arm)
+- Per-arm mean of A_d: K = 1 **100.288**, K = 2 100.452, K = 5 100.374, K = 10 100.899, K = 20 100.703 s of ATT.
+- **S = 1.2762 [0.6927, 1.8597]** (the mean per-draw rank contrast; positive = ATT rises with K). T1 (s < 0): W+ = 3813 against
+  E = 2525, p = 0.99999 → NOT rejected.
+- **G1 = −0.4149 [−0.6617, −0.1681]**, **G2 = −0.2511 [−0.4686, −0.0337]** (K = 1 and K = 2 BELOW the K = 20 plateau, i.e. better).
+  T2, T3 (gap − δ > 0): p = 1.0 → NOT rejected. Holm within {T1, T2, T3}: nothing rejected.
+- **Outcome (iii). The registered sentence:** *Confirmatory (A26): on the P4 scenario, an improvement with context length is not
+  detected — the registered trend contrast is 1.2762 [0.6927, 1.8597] — so this sweep gives no support, on this corpus, to context
+  length as the explanation of DataLight's negative result.*
+- Beside it, never deciding: the same on `att_ours` (S = 1.2352 [0.6665, 1.8039]; outcome (iii)); mix50 exploratory (K = 1 101.5 …
+  K = 20 105.6; S = 9.12 [−2.94, 21.18]; outcome label (iii); its A26(e) expectation refuted); every pairwise contrast (K = 1 − K =
+  10 = −0.610 [−0.865, −0.355], two-sided p 5 × 10⁻⁶; K = 1 − K = 20 = −0.415, p 1.6 × 10⁻⁴; K = 10 − K = 20 = +0.195 [−0.018,
+  +0.409], p 0.07); per-seed s 3.92 / 1.73 / −0.80 / 0.69 / 0.83; the plateau (point estimate: K = 1; CI within ±δ: K = 2); the
+  equal-supervision arms worse than their batch-64 counterparts by 0.29 and 0.25 s (p 0.045, 0.029) and equal to K = 20; the K = 20
+  reproduction equal on every tensor and the sweep's K = 20 cells equal to the published 500 / 500 (C3's reading made).
+- **A26(e):** its registered refuter on `mappo1000` — *"T2 and T3 both rejecting after Holm"* — did NOT fire, so the artifact
+  records `verdict held` with `observed_outcome iii` beside it, exactly as the plan's Q10 proposed and Amendment A accepted. **The
+  expected outcome (ii) did not occur: T1 did not reject.** The paper reports both, in this order and these words: *the registered
+  refuter did not fire; the expected outcome (ii) was not observed; the sweep found no trend at all (iii).* No field of the
+  artifact is wrong; the registration chose a narrow refuter, and the record says so.
+
+## E2 — What the coordinator verified (2026-10-01, by running commands; the scripts are committed under `docs/notes/p5_3c_g6/` and quoted in the note)
+The capture's three starts and every line class counted (1,000 + 6,000 `ok`, 6 `HUNG`, 0 FAILED, the gate's line, the end);
+the directory (7,000 chunks at `9c4603c`, CUDA, one thread, 360 decisions, no `.tmp`, 999 moved aside, the gate record, 8,037
+manifest lines verified, the token gone, the training area untouched and its record still the pin); the gate and the reproduction
+by an independent script; the statistic by an independent implementation BEFORE the artifact; the artifact's every section read. The three scripts live in `docs/notes/p5_3c_g6/` (recreated there and re-run after the machine's restart of 2026-10-02, with the same result; `/tmp` had been cleared).
+The hang rate over the day: 9 in ≈ 8,100 episodes (≈ 0.11 %), all at an episode's end; the stage's three rounds never needed a
+second round.
+
+## E3 — C4, ruled: docs, tests and configuration ONLY — `offline/` is NOT touched (J1(c): the artifact regenerates from chunks rolled at `9c4603c` only at a HEAD that differs from it by `docs/` alone)
+1. **`docs/data/p5_3c_context_sweep.json`:** the artifact committed BY HAND, byte-identical to
+   `output/p5_3c/artifacts/p5_3c_context_sweep.json` (sha256 `bcdca7eabad82d7a99feed7eed9f2ed9bdc37f3950bbf55811dcf94b76c7abed`,
+   239,536 bytes), with its `report_code` block as generated.
+2. **T-regress (gated on the chunks):** `build_context_sweep_artifact` on the real chunks at HEAD equals the committed file
+   byte-for-byte through `json.dumps(…, sort_keys=True)` after the plan's A3 substitutions (the regeneration's `report_code`
+   commit and dirty flag for the committed ones); its mutant (one committed number changed) killed; an ungated shape test on the
+   committed file (format, 7,000 cells, the outcome `iii`, the sentence equal to `outcome_sentence` on the committed family, the
+   arms, the limits).
+3. **`pyproject.toml`:** `tmp_path_retention_policy = "failed"` under `[tool.pytest.ini_options]` (`DEFERRED` 102), with the suite
+   run once on the commit to show 2,849 + the new tests pass without the command-line option.
+4. **NOT done, and why:** `registered_in`'s string (A–C) and the `cells` summary line stay — a module change would make the
+   committed artifact unregenerable from these chunks; `DEFERRED` 103 (the mix50 cells' digests) stays deferred for the same reason;
+   both are stated in the packet.
+5. **`docs/returns/P5.3c.md` per §7:** the gate 500 / 500; the K = 20 record and cells; **A26(d)'s numbers in its words and the
+   registered sentence, reported not interpreted**; A26(e) as E1 words it; every pairwise contrast; the per-seed s; the plateau's two
+   readings; the equal-supervision contrasts and the loss per target; mix50 labelled exploratory; the three driver captures (the
+   stall, the refusal, the completion) and where each ran; the amendments by letter; the AI-assistance record's four lines; one
+   paragraph on what the paper's H4 section will assume (E4). Then **"P5.3c done"** → gate G8.
+
+## E4 — What the paper's H4 section will assume (for the record, before any prose is written)
+H4 as registered is answered **negatively**: on the P4 scenario, with P4's recipe and corpus, context length K ∈ {1, 2, 5, 10, 20}
+does not improve the Decision Transformer's ATT; the trend runs the other way (longer context slightly worse, K = 10 worst), and
+DataLight's K ∈ {1, 2} are not short of the K = 20 plateau — they are 0.4 and 0.25 s better. The direct reply to DataLight is
+therefore: *their choice of context length does not explain their negative result on this corpus.* What the paper may say beside
+it, labelled: K = 1 — a one-step return-conditioned policy, not pure behaviour cloning — is the best arm, consistent with P4.4's
+finding that a state-only BC policy sits within δ of the K = 20 model and with P5.3b's inert prompt; giving the short arms the
+long arm's supervision per step does not help them. What it may not say: anything about DataLight's prompt or multi-agent data,
+anything beyond this scenario and corpus, or any causal explanation of the slight worsening with K. One scenario, one corpus,
+five seeds, 100 draws, every number from the committed artifact.
