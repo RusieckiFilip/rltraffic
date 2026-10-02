@@ -959,3 +959,14 @@ of 5; [−0.83, 0.33]); G₁₀ = +0.39, +0.03, −0.36, +0.67, +0.24.
    consistent with P4.4 (BC within δ of K = 20) and P5.3b (the prompt inert); the equal-supervision arms (exploratory) do not help the
    short arms; nothing about DataLight's prompt or multi-agent data, nothing beyond this scenario and corpus, no causal explanation of
    the direction. One scenario, one corpus, five seeds, 100 draws, every number from the committed artifact.
+
+## E.2.4 — 2026-10-02, at gate G8: two refinements of E.2.3, found by the merge reviewer (mandate N) and verified by the coordinator from the chunks
+1. **"K = 1 … is the best arm by point estimate" holds for the POOLED estimate only.** Per seed (mean ATT over the 100 draws, from
+   the chunks): K = 1 is the best arm in seeds 101, 202 and 404; second in 505 (best K = 2, 100.563 against 100.588); and the WORST
+   arm in 303 (100.817 against K = 5's 100.103). The paper says *"K = 1 has the lowest pooled ATT"*, never *"K = 1 is the best context
+   length"*.
+2. **E.2.3(2)'s attribution corrected.** The statement *"K = 1 and K = 2 are not short of the K = 20 plateau by more than δ"* is
+   supported by the paired gaps' CIs lying entirely below δ — indeed below zero (upper bounds −0.168 and −0.034) — and by every seed's
+   gap being below δ (largest +0.17 and +0.28 s). It is NOT supported by T2's and T3's non-rejection, which says only that a shortfall
+   of more than δ is not shown — the registered sentence's own wording. The paper keeps the two apart: the registered sentence is the
+   confirmatory statement; the CIs and the per-seed gaps are its descriptive support.
