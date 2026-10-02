@@ -42,6 +42,11 @@ viz = [
 # Keep collection out of the vendored CityFlow/ tree (its pybind11 test
 # suite fails to collect without its own build environment).
 testpaths = ["tests"]
+# DEFERRED 102 (BRIEF_42 Amendment B.1, B.1.3(4); Amendment E, E3.3): a passed test's tmp_path is deleted as
+# the test ends. /tmp is tmpfs on the development machine; a whole-suite run that kept every test's scratch
+# grew it to ~13 G and drove MemAvailable below P7.3d's driver budget, failing seven of that driver's executed
+# tests for the machine's reason, not the code's.
+tmp_path_retention_policy = "failed"
 
 [tool.setuptools]
 py-modules = ["rewards"]

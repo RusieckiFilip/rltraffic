@@ -183,6 +183,40 @@ def _erfc_continued_fraction(x: float, precision: int = 80) -> float:
 PI_REFERENCE_PREFIX = _pi_reference_prefix()
 
 
+def _expected_p_value(z: float, alternative: str | None) -> float:
+    """What a committed ``(z, p_value)`` pair must reproduce under ``==`` (``BRIEF_42`` Amendment E.1, E.1.2(2)).
+
+    A pair without an ``alternative`` key keeps the two-sided ``min(1, 2 * Phi(z))`` every pair before P5.3c carries,
+    unchanged; ``"less"`` -> ``Phi(z)`` and ``"greater"`` -> ``Phi(-z)``, the registered one-sided tests (A26(d)); any
+    other value raises.
+    """
+    if alternative is None:
+        return min(1.0, 2.0 * _normal_cdf(z))
+    if alternative == "less":
+        return _normal_cdf(z)
+    if alternative == "greater":
+        return _normal_cdf(-z)
+    raise ValueError(f"alternative {alternative!r} is neither absent, 'less' nor 'greater'")
+
+
+#: ``BRIEF_42`` Amendment E.1, E.1.2(4): the pairs carrying an ``alternative`` key, by the guard's own paths, with their
+#: alternatives -- exactly P5.3c's twelve registered one-sided tests, sorted.
+ONE_SIDED_PAIRS: list[tuple[str, str]] = [
+    ("p5_3c_context_sweep.json.att_ours.family.tests.T1", "less"),
+    ("p5_3c_context_sweep.json.att_ours.family.tests.T2", "greater"),
+    ("p5_3c_context_sweep.json.att_ours.family.tests.T3", "greater"),
+    ("p5_3c_context_sweep.json.confirmatory.family.tests.T1", "less"),
+    ("p5_3c_context_sweep.json.confirmatory.family.tests.T2", "greater"),
+    ("p5_3c_context_sweep.json.confirmatory.family.tests.T3", "greater"),
+    ("p5_3c_context_sweep.json.exploratory_mix50.att_ours.family.tests.T1", "less"),
+    ("p5_3c_context_sweep.json.exploratory_mix50.att_ours.family.tests.T2", "greater"),
+    ("p5_3c_context_sweep.json.exploratory_mix50.att_ours.family.tests.T3", "greater"),
+    ("p5_3c_context_sweep.json.exploratory_mix50.family.tests.T1", "less"),
+    ("p5_3c_context_sweep.json.exploratory_mix50.family.tests.T2", "greater"),
+    ("p5_3c_context_sweep.json.exploratory_mix50.family.tests.T3", "greater"),
+]
+
+
 @pytest.mark.parametrize("x", [1.0, 1.5, 2.0, 2.5, 3.0, 3.5216841843933384, 4.0, 5.0, 6.0, 8.0])
 def test_is_correctly_rounded_against_an_independent_continued_fraction(x: float) -> None:
     """The real correctness oracle, and it depends on no platform library.
@@ -237,7 +271,7 @@ def test_it_returns_the_correctly_rounded_value_where_two_libms_disagree() -> No
 
 
 def test_the_committed_p_values_all_still_reproduce_exactly() -> None:
-    """THE LOAD-BEARING TEST: 330 published p-values, none of which may move.
+    """THE LOAD-BEARING TEST: 351 published p-values (322 -> 330 -> 339 -> 351), none of which may move.
 
     Recomputed from each artifact's own recorded ``z`` through the replacement routine and
     compared with ``==``.  A tolerance here would defeat the purpose: the question is
@@ -262,12 +296,12 @@ def test_the_committed_p_values_all_still_reproduce_exactly() -> None:
     which compares every copied field against the row it came from.  Without that pointer the eight
     extra pairs would be exposure rather than protection.
     """
-    pairs: list[tuple[str, float, float]] = []
+    pairs: list[tuple[str, float, float, str | None]] = []
 
     def walk(node: object, path: str) -> None:
         if isinstance(node, dict):
             if "z" in node and "p_value" in node and isinstance(node.get("z"), (int, float)):
-                pairs.append((path, float(node["z"]), float(node["p_value"])))
+                pairs.append((path, float(node["z"]), float(node["p_value"]), node.get("alternative")))
             for key, value in node.items():
                 walk(value, f"{path}.{key}")
         elif isinstance(node, list):
@@ -289,19 +323,54 @@ def test_the_committed_p_values_all_still_reproduce_exactly() -> None:
     # The three top-level pairs DUPLICATE the att_engine ones by construction: BRIEF_30 D2 puts the
     # primary definition at the top level so no reader can mistake which definition a bare `paired`
     # block carries. Only the literal changed; all 339 still reproduce through _normal_cdf.
-    assert len(pairs) == 339, (
-        f"expected the 339 committed (z, p_value) pairs -- 322 measured on 2026-08-17, plus the 8 "
+    #
+    # 339 -> 351 on 2026-10-02, AUTHORISED IN WRITING (BRIEF_42 Amendment E.1, E.1.1), quoted verbatim:
+    # "test_erfc_determinism 339 -> 351 AUTHORISED (BRIEF_42 Amendment E.1, 2026-10-02), same footing as BRIEF_29
+    # section 1 B and the 2026-09-10 authorisation. The twelve are P5.3c's registered one-sided tests, enumerated by
+    # the guard's own paths: the T1 of confirmatory, att_ours, exploratory_mix50 and exploratory_mix50.att_ours with
+    # alternative less, and their T2 and T3 with alternative greater, all in p5_3c_context_sweep.json. A pair carrying
+    # alternative less is recomputed as _normal_cdf(z), one carrying greater as _normal_cdf(-z); a pair without the
+    # key keeps the two-sided check unchanged; any other value of the key fails the test; and the set of pairs
+    # carrying the key is pinned to exactly these twelve paths."
+    # The twelve, enumerated by path (ONE_SIDED_PAIRS pins them, alternatives included):
+    #   p5_3c_context_sweep.json.{confirmatory,att_ours}.family.tests.T1                                less     2
+    #   p5_3c_context_sweep.json.exploratory_mix50{,.att_ours}.family.tests.T1                          less     2
+    #   p5_3c_context_sweep.json.{confirmatory,att_ours}.family.tests.{T2,T3}                           greater  4
+    #   p5_3c_context_sweep.json.exploratory_mix50{,.att_ours}.family.tests.{T2,T3}                     greater  4
+    # They are the repository's first ONE-SIDED p-values (A26(d)): each reproduces under == through _normal_cdf
+    # with its registered formula, none with the two-sided one -- so the per-pair check dispatches on the committed
+    # key (_expected_p_value) rather than assuming every published p-value is two-sided.
+    assert len(pairs) == 351, (
+        f"expected the 351 committed (z, p_value) pairs -- 322 measured on 2026-08-17, plus the 8 "
         f"P5.3a copies out of p4_6_grid.json / p4_7_grid.json (BRIEF_29 section 1 B), plus the 9 "
-        f"P5.3b wilcoxon blocks in p5_3b_nortg.json (authorised 2026-09-10) -- found "
+        f"P5.3b wilcoxon blocks in p5_3b_nortg.json (authorised 2026-09-10), plus the 12 P5.3c one-sided "
+        f"tests in p5_3c_context_sweep.json (BRIEF_42 Amendment E.1, authorised 2026-10-02) -- found "
         f"{len(pairs)}; if artifacts were added, re-measure and update this count deliberately"
     )
 
+    # E.1.2(4): path AND alternative compared, so a key added to an existing two-sided pair, or a test relabelled,
+    # fails the guard even when the count does not move.
+    one_sided = sorted((path, alternative) for path, _z, _committed, alternative in pairs if alternative is not None)
+    assert one_sided == ONE_SIDED_PAIRS, f"the pairs carrying an alternative are not exactly P5.3c's twelve: {one_sided}"
+
     moved = [
-        (path, z, committed, min(1.0, 2.0 * _normal_cdf(z)))
-        for path, z, committed in pairs
-        if min(1.0, 2.0 * _normal_cdf(z)) != committed
+        (path, z, committed, _expected_p_value(z, alternative))
+        for path, z, committed, alternative in pairs
+        if _expected_p_value(z, alternative) != committed
     ]
     assert moved == [], f"{len(moved)} published p-value(s) would change: {moved[:5]}"
+
+
+def test_the_expected_p_value_dispatches_on_the_committed_alternative() -> None:
+    """``BRIEF_42`` Amendment E.1, E.1.2(6): each of the three branches on a fixed ``z``, by value and exactly against
+    ``_normal_cdf``; and an alternative that is neither absent, ``"less"`` nor ``"greater"`` raising."""
+    z = -1.959963984540054
+    assert _expected_p_value(z, None) == min(1.0, 2.0 * _normal_cdf(z)) == pytest.approx(0.05, abs=1e-9)
+    assert _expected_p_value(z, "less") == _normal_cdf(z) == pytest.approx(0.025, abs=1e-9)
+    assert _expected_p_value(z, "greater") == _normal_cdf(-z) == pytest.approx(0.975, abs=1e-9)
+    for alternative in ("two-sided", "lower", ""):
+        with pytest.raises(ValueError, match="alternative"):
+            _expected_p_value(z, alternative)
 
 
 def test_the_p_value_path_does_not_call_the_platform_libm_at_all(
