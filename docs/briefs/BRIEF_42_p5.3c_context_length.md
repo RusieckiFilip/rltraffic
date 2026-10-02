@@ -860,3 +860,63 @@ finding that a state-only BC policy sits within δ of the K = 20 model and with 
 long arm's supervision per step does not help them. What it may not say: anything about DataLight's prompt or multi-agent data,
 anything beyond this scenario and corpus, or any causal explanation of the slight worsening with K. One scenario, one corpus,
 five seeds, 100 draws, every number from the committed artifact.
+
+---
+
+# ✅ AMENDMENT E.1 — 2026-10-02: WRITTEN AUTHORISATION to extend `tests/test_erfc_determinism.py`'s published-p-value guard to the first ONE-SIDED pairs in `docs/data` (339 → 351), on the footing of `BRIEF_29` §1 B and the 2026-09-10 authorisation; everything else in C4 stands
+
+## E.1.0 — Why the guard fired, verified by the coordinator (2026-10-02, by running commands)
+C4 (`80a70cb`) commits `docs/data/p5_3c_context_sweep.json` (sha256 `bcdca7ea…`, byte-identical to the campaign's output). It
+carries twelve `(z, p_value)` pairs — T1, T2, T3 of four families — and they are the repository's FIRST one-sided p-values, as A26(d)
+registers them. The guard `test_the_committed_p_values_all_still_reproduce_exactly` pins 339 pairs and recomputes each as
+two-sided, `min(1, 2·Φ(z))`. Verified independently: a dict walk over `docs/data/**.json` finds **351** pairs (192 `p4_7_grid`, 90
+`p4_6_grid`, 17 `p4_3_rtg`, **12 `p5_3c_context_sweep`**, 10 `p4_5_baselines`, 9 `p5_3b_nortg`, 8 `p5_3a_rtg_probe`, 7
+`p4_4_baselines`, 3 `p4_3_p4_gate_effect_sizes`, 3 `p4_gate`); the only `alternative` keys in `docs/data` are the twelve's (4 `less`,
+8 `greater`); **each of the twelve reproduces under `==` through the repository's `_normal_cdf` with its registered one-sided
+formula — `less`: Φ(z), `greater`: Φ(−z) — and none with the two-sided one.** No published number moves; the guard's formula does
+not yet know that a registered one-sided test exists. This is a spec change, not a test weakened to pass.
+
+## E.1.1 — THE AUTHORISATION, to be quoted verbatim in the test and in the packet
+*"test_erfc_determinism 339 -> 351 AUTHORISED (BRIEF_42 Amendment E.1, 2026-10-02), same footing as BRIEF_29 section 1 B and the
+2026-09-10 authorisation. The twelve are P5.3c's registered one-sided tests, enumerated by the guard's own paths: the T1 of
+confirmatory, att_ours, exploratory_mix50 and exploratory_mix50.att_ours with alternative less, and their T2 and T3 with alternative
+greater, all in p5_3c_context_sweep.json. A pair carrying alternative less is recomputed as _normal_cdf(z), one carrying greater as
+_normal_cdf(-z); a pair without the key keeps the two-sided check unchanged; any other value of the key fails the test; and the set
+of pairs carrying the key is pinned to exactly these twelve paths."*
+
+## E.1.2 — What changes in `tests/test_erfc_determinism.py`, and nothing else
+1. The walk records each pair's `alternative` (absent → `None`).
+2. A module-level helper `_expected_p_value(z, alternative)`: `None` → `min(1.0, 2.0 * _normal_cdf(z))` (the existing formula,
+   unchanged); `"less"` → `_normal_cdf(z)`; `"greater"` → `_normal_cdf(-z)`; any other value → `ValueError`.
+3. The count literal 339 → **351**, the assertion message and the docstring's first line updated with the history (322 → 330 → 339
+   → 351), and a comment quoting E.1.1 verbatim with the enumeration below.
+4. **The one-sided set pinned:** the sorted paths of the pairs whose `alternative` is not `None` equal exactly:
+   ```
+   p5_3c_context_sweep.json.att_ours.family.tests.T1                    less
+   p5_3c_context_sweep.json.att_ours.family.tests.T2                    greater
+   p5_3c_context_sweep.json.att_ours.family.tests.T3                    greater
+   p5_3c_context_sweep.json.confirmatory.family.tests.T1                less
+   p5_3c_context_sweep.json.confirmatory.family.tests.T2                greater
+   p5_3c_context_sweep.json.confirmatory.family.tests.T3                greater
+   p5_3c_context_sweep.json.exploratory_mix50.att_ours.family.tests.T1  less
+   p5_3c_context_sweep.json.exploratory_mix50.att_ours.family.tests.T2  greater
+   p5_3c_context_sweep.json.exploratory_mix50.att_ours.family.tests.T3  greater
+   p5_3c_context_sweep.json.exploratory_mix50.family.tests.T1           less
+   p5_3c_context_sweep.json.exploratory_mix50.family.tests.T2           greater
+   p5_3c_context_sweep.json.exploratory_mix50.family.tests.T3           greater
+   ```
+   (path AND alternative compared), so a key added to an existing two-sided pair, or a test relabelled, fails the guard even when the
+   count does not move.
+5. `moved` computed through `_expected_p_value`; `moved == []` unchanged.
+6. One new small test of the helper: each of the three branches on a fixed `z`, and `"two-sided"` / `"lower"` / `""` raising.
+**Mutants, each COMMITTED and pasted with its failing test:** the one-sided branch removed (every pair two-sided) → the twelve move;
+`less` and `greater` swapped → the twelve move; the count left at 339 → dies; an unknown alternative silently treated as two-sided →
+the helper test dies; the pin of the one-sided set removed AND one confirmatory T2 relabelled `less` in a throwaway copy of the
+artifact read through a monkeypatched `DATA_DIR` → dies on the moved value (and, with the pin restored, on the pin). Then the whole
+suite on the commit, the packet `docs/returns/P5.3c.md` per E3.5 quoting E.1.1, and **"P5.3c done"**.
+
+## E.1.3 — Noted, not ruled
+The first whole-suite run's 26 extra failures were the implementer's own harness (pytest backgrounded with `&` inherits SIGINT and
+SIGQUIT ignored — `SigIgn 0x6` — and every executed driver refuses an ignored SIGINT by design); the foreground re-run passed them all.
+The packet states it as it happened. The C4 suite run without the command-line option: scratch peaked at 721 MiB (13 G at C2.1),
+so `pyproject.toml`'s line does what `DEFERRED` 102 asked; 102 is closed at the merge.
