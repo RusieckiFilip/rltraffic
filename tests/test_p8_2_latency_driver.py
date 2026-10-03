@@ -105,6 +105,15 @@ def test_the_preflight_derives_the_timeouts_and_the_expected_duration_from_its_m
     }
 
 
+def test_the_canary_timeout_is_three_times_the_slower_canary_process_with_a_floor() -> None:
+    assert cl.canary_timeout_from([2.2, 2.4]) == 120.0
+    assert cl.canary_timeout_from([50.2, 10.0]) == 151.0  # ceil(3 x 50.2) = 151; at 2x it would be 121
+    assert cl.canary_timeout_from([40.0]) == 120.0
+    assert cl.canary_timeout_from([40.1]) == 121.0
+    with pytest.raises(ValueError, match="canary"):
+        cl.canary_timeout_from([])
+
+
 def test_a_throttled_canary_fails_the_preflight_and_its_record_yields_no_timeouts(tmp_path: Path) -> None:
     code, path = _preflight(tmp_path, open_seconds=2.6)
     assert code == 1
@@ -168,6 +177,10 @@ def test_every_refusal_of_the_run_precedes_the_token_and_run_all_follows_it() ->
     consumed = _first(lines, 'rm -- "$TOKEN"')
     refusals = [i for i, line in enumerate(lines) if "refuse " in line and "refuse()" not in line]
     assert refusals and max(refusals) < consumed
+    # Strengthened after mutant D1 survived (C3 mutation run): EVERY line that removes the token, however spelt, comes
+    # after every refusal -- not only the one spelt `rm -- "$TOKEN"`.
+    removals = [i for i, line in enumerate(lines) if re.search(r"\brm\b", line) and "TOKEN" in line]
+    assert removals == [consumed], [lines[i] for i in removals]
     assert _first(lines, "run-all") > consumed
     assert _first(lines, '[ -f "$TOKEN" ]') < consumed
     assert _first(lines, '[ ! -e "$MANIFEST" ]') < consumed
@@ -186,6 +199,12 @@ def test_the_run_reads_its_timeouts_from_a_preflight_record_pinned_by_path_and_d
     assert _first(lines, '[ "$PREFLIGHT_SHA256" != UNSET ]') < _first(lines, "sha256sum")
     assert _first(lines, "sha256sum") < _first(lines, "timeouts --preflight-record")
     assert not re.search(r"--timeout-(hz1x1|grid4x4) [0-9]", text), "a timeout typed into the driver"
+
+
+def test_the_liveness_check_matches_an_interpreter_running_the_module_not_any_mention_of_it() -> None:
+    lines = [line for line in _code() if "pgrep" in line]
+    assert len(lines) == 1
+    assert "pgrep -f '^[^ ]*python[^ ]* -P -m offline[.]compute_latency'" in lines[0]
 
 
 def test_the_driver_prints_no_outcome() -> None:
@@ -265,6 +284,47 @@ def test_the_run_refuses_a_tree_that_is_not_at_the_named_commit(sandbox: tuple[P
     assert completed.returncode == 2, completed.stderr
     assert "is not at" in completed.stderr
     assert list(main.iterdir()) == []
+
+
+def _holder(argv0: str) -> subprocess.Popen[bytes]:
+    """A sleeping process whose command line starts with *argv0* (``exec -a``), returned once the exec has happened."""
+    import time
+
+    process = subprocess.Popen(["bash", "-c", f'exec -a "{argv0}" sleep 60'], start_new_session=True)
+    cmdline = Path(f"/proc/{process.pid}/cmdline")
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        if cmdline.read_bytes().startswith(argv0.encode()):
+            return process
+        time.sleep(0.02)
+    process.kill()
+    raise AssertionError(f"the holder never took the command line {argv0!r}")
+
+
+def test_a_live_interpreter_running_the_module_is_refused(sandbox: tuple[Path, Path]) -> None:
+    clone, main = sandbox
+    holder = _holder("/opt/x/bin/python3.12 -P -m offline.compute_latency run-row --row held")
+    try:
+        completed = _run(clone, "--preflight")
+    finally:
+        holder.kill()
+        holder.wait()
+    assert completed.returncode == 2, completed.stderr
+    assert "another offline.compute_latency process is running" in completed.stderr
+    assert list(main.iterdir()) == []
+
+
+def test_a_shell_that_merely_mentions_the_module_is_not_mistaken_for_a_live_run(sandbox: tuple[Path, Path]) -> None:
+    clone, main = sandbox
+    _pin(clone, "UNSET", "UNSET")
+    holder = _holder("bash -c echo -P -m offline.compute_latency in a heredoc")
+    try:
+        completed = _run(clone, _git("rev-parse", "HEAD", cwd=clone).strip())
+    finally:
+        holder.kill()
+        holder.wait()
+    assert completed.returncode == 2, completed.stderr
+    assert "PREFLIGHT" in completed.stderr, "the run must reach its own refusal, not the liveness one"
 
 
 def test_the_preflight_refuses_a_tree_with_uncommitted_changes(sandbox: tuple[Path, Path]) -> None:

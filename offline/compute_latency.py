@@ -1349,6 +1349,12 @@ def run_preflight(
     return 0 if status == "COMPLETE" else 1
 
 
+def canary_timeout_from(canary_process_seconds: Sequence[float], *, factor: float = 3.0,
+                        floor_s: float = 120.0) -> float:
+    """The canary processes' timeout: ``max(floor_s, ceil(factor x`` the slower canary process``))``."""
+    raise NotImplementedError
+
+
 def timeouts_from_preflight(record_path: Path) -> dict[str, float]:
     """The timing run's timeouts, read from a COMPLETE pre-flight record: ``hz1x1``, ``grid4x4`` and ``canary``
     seconds. Refuses a record that is not a COMPLETE ``p8.2-preflight/1.0`` or that lacks any of the three."""
