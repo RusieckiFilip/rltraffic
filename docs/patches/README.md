@@ -1,5 +1,27 @@
 # Patches a Claude Code session cannot apply itself
 
+## `ci_gate_ceiling_321_p5_3c.patch` — the skip ceiling moves 296 → 321 after P5.3c's merge and its CI fix; every new skip is P5.3c's own gating
+
+**Apply with:**
+```bash
+cd /home/filip/rltraffic && git apply docs/patches/ci_gate_ceiling_321_p5_3c.patch && .venv/bin/pytest tests/test_ci_gate.py -q && git add .github/ci/ci_baseline.json tests/test_ci_gate.py && git commit -m "ci(ceiling): 296 -> 321 OBSERVED on run 37122899980 at 75e4490 -- P5.3c's gated tests and its three shallow-checkout skips" && git push origin main
+```
+**Measured, not read off a summary.** Run `37122899980` on `main` at `75e4490` (the merge of P5.3c's CI fix, `BRIEF_42` Amendment F,
+on top of P5.3c's merge `93f57b8`); the suite step PASSED on both legs and only the ceiling gate failed (the registered route working).
+The run on P5.3c's merge itself (`37065147706`) was NOT usable — three real failures on both legs, test items that read C1a's historical
+commit `c507721`, absent from `actions/checkout`'s depth-1 history — and was fixed first (Amendment F: those three items skip only on a
+shallow checkout, naming it). Both legs downloaded, every `<skipped>` message extracted from `junit.xml` (`output/ci_runs/skips.py`,
+OLD run first), multisets compared leg against leg (identical: 3,009 tests, 321 skipped, 0 failures, 0 errors, 82 distinct texts on
+both) and run against run against the 296 run `36460617410`: **25 new skips in 9 texts, nothing removed** — +7 `corpus_or_checkpoint`
+(the `datasets_v11` corpus's manifests, the corpus with P4's and P4.7's checkpoints, `p4_dt` / `p4_7` / P8.4b's cells with the corpus,
+the sixty trained checkpoints), +2 `campaign_output` (P8.4b's gitignored cells; the campaign's 7,000 chunks and `canary.json`, the
+T-regress), +13 `main_tree_interpreter` (the two drivers' executed tests), +3 `shallow_checkout` (Amendment F's three history items)
+— each text classified BY INSPECTION in `output/ci_runs/classification_p53c.json`; the builder (`build_ceiling_patch_p53c.py`) refuses a
+text matched by zero or two prefixes, an unused prefix, a removed text, a breakdown that does not sum, and a head commit whose subject is
+not the CI fix's merge. Verified end to end in a scratch worktree: `tests/test_ci_gate.py` green with the new baseline (34 passed);
+`ci_gate.py pytest-gate` on BOTH legs' real `junit.xml` + `pytest.txt` under it, exit 0 each; `git apply --check` clean on `main`.
+`re_measure_required_at` now names the next task that adds gated tests (`DEFERRED` 105's commit included if it does). Two files.
+
 ## `ci_gate_ceiling_296_p7_3c.patch` — the skip ceiling moves 242 → 296 after P7.3c's merge; every new skip is P7.3c's own gating
 
 **Apply with:**
