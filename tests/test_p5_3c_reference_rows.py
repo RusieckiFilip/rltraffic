@@ -18,6 +18,8 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import re
+import subprocess
 from pathlib import Path
 from typing import Any, Callable
 
@@ -32,6 +34,7 @@ from tests.p5_3c_fixtures import (
     reference_cell,
     reference_cell_name,
     reference_values,
+    repository_is_shallow,
 )
 
 FIXED_CODE = {"code_commit": "c" * 40, "code_dirty": False}
@@ -332,17 +335,60 @@ def test_the_committed_rows_have_the_registered_shape() -> None:
 
 
 def test_the_committed_rows_were_extracted_by_committed_code_on_a_clean_tree() -> None:
-    """F8 / Amendment A Q8: the file records a clean tree, and the commit it names is in this branch's history."""
-    import subprocess
-
+    """F8 / Amendment A Q8: the file records a clean tree and a 40-hex commit.  History-free, so it runs on every
+    checkout; that the commit is in this branch's history is the next test's (``BRIEF_42`` Amendment F, F1.2)."""
     extraction = _committed()["extraction"]
     assert extraction["code_dirty"] is False
     commit = extraction["code_commit"]
     assert len(commit) == 40
+    assert re.fullmatch(r"[0-9a-f]{40}", commit), f"the recorded extraction commit {commit!r} is not 40 hex digits"
+
+
+@pytest.mark.skipif(
+    repository_is_shallow(REPO_ROOT),
+    reason=(
+        "the repository is SHALLOW (git rev-parse --is-shallow-repository = true): the extraction commit the file "
+        "records, C1a's c507721, is not in a depth-1 checkout, so git cannot say whether it is an ancestor of HEAD. "
+        "Runs on a full clone."
+    ),
+)
+def test_the_committed_rows_extraction_commit_is_an_ancestor_of_head() -> None:
+    """F8 / Amendment A Q8: the commit the file names is in this branch's history -- the ancestry half of the test
+    above, split out by ``BRIEF_42`` Amendment F, F1.2, because it needs history that a depth-1 checkout lacks.
+
+    Skipped on a shallow checkout, and that is an environment condition, not a weakened assertion: the assertion is
+    unchanged and runs on every full clone (:func:`tests.p5_3c_fixtures.repository_is_shallow`)."""
+    commit = _committed()["extraction"]["code_commit"]
     result = subprocess.run(
         ["git", "merge-base", "--is-ancestor", commit, "HEAD"], cwd=str(REPO_ROOT), capture_output=True, check=False
     )
     assert result.returncode == 0, f"the recorded extraction commit {commit} is not an ancestor of HEAD"
+
+
+def test_repository_is_shallow_tells_a_full_history_from_a_depth_1_clone(tmp_path: Path) -> None:
+    """``BRIEF_42`` Amendment F, F1.1: the helper on two throwaway repositories -- ``git init`` with two commits is NOT
+    shallow, and a ``git clone --depth 1 file://...`` of it IS.  ``file://`` because a plain-path clone ignores
+    ``--depth`` and takes the whole history (Amendment F.1); the commit counts are read by a second route, so a clone
+    that silently took the whole history fails on the fixture's premise instead of being called shallow."""
+    full = tmp_path / "full"
+    full.mkdir()
+    git = ["git", "-c", "user.email=t@t", "-c", "user.name=t", "-c", "core.hooksPath=/dev/null", "-C", str(full)]
+    subprocess.run([*git, "init", "-q"], capture_output=True, check=True)
+    for number in (1, 2):
+        (full / "file.txt").write_text(f"commit {number}\n", encoding="utf-8")
+        subprocess.run([*git, "add", "file.txt"], capture_output=True, check=True)
+        subprocess.run([*git, "commit", "-q", "-m", f"commit {number}"], capture_output=True, check=True)
+    shallow = tmp_path / "shallow"
+    subprocess.run(["git", "clone", "-q", "--depth", "1", full.as_uri(), str(shallow)], capture_output=True, check=True)
+
+    def commits(path: Path) -> str:
+        return subprocess.run(
+            ["git", "-C", str(path), "rev-list", "--count", "HEAD"], capture_output=True, text=True, check=True
+        ).stdout.strip()
+
+    assert (commits(full), commits(shallow)) == ("2", "1"), "the fixture: two commits, and a depth-1 clone holding one"
+    assert repository_is_shallow(full) is False
+    assert repository_is_shallow(shallow) is True
 
 
 def test_the_committed_checkpoint_digests_are_p4_gates() -> None:

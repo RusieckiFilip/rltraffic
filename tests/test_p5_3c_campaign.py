@@ -67,12 +67,26 @@ from tests.p5_3c_campaign_fixtures import (
     head_commit,
     registered_table,
 )
-from tests.p5_3c_fixtures import IX_ID, N_ACTIONS, STATE_DIM, T_DECISIONS, StubEnv, info_at, write_single_ix_corpus
+from tests.p5_3c_fixtures import (
+    IX_ID,
+    N_ACTIONS,
+    STATE_DIM,
+    T_DECISIONS,
+    StubEnv,
+    info_at,
+    repository_is_shallow,
+    write_single_ix_corpus,
+)
 from tests.test_p5_3c_statistic import holm_by_hand, route_b
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DATA = REPO_ROOT / "docs" / "data"
 C1A_COMMIT = "c507721348e71b9689aa224290f307fd25a9b32f"
+#: ``BRIEF_42`` Amendment F, F1.3-F1.5: why the two items that ask git about ``C1A_COMMIT`` skip on a depth-1 checkout.
+SHALLOW_REASON = (
+    "the repository is SHALLOW (git rev-parse --is-shallow-repository = true): C1A_COMMIT, C1a's c507721, is not in a "
+    "depth-1 checkout, so git cannot diff it against HEAD (fatal: bad object). Runs on a full clone."
+)
 #: Amendment C, C0: the sixty trainings' record as the coordinator committed it on main at ``c55693a`` (gate G3).
 G3_RECORD_SHA256 = "017808a5e84fada469d6b2d302889ad171b8e429b1612b8ac06c900ef3c6321a"
 
@@ -534,7 +548,6 @@ def test_a_chunk_is_reusable_only_on_evidence_rederived_from_disk(campaign: Camp
               "data_dir": campaign.data_dir}
     chunk = _read(path)
     assert cs.chunk_is_reusable(chunk, **kwargs) is True
-    assert cs.chunk_is_reusable({**chunk, "code_commit": C1A_COMMIT}, **kwargs) is False
     assert cs.chunk_is_reusable({**chunk, "code_dirty": True}, **kwargs) is False
     assert cs.chunk_is_reusable({**chunk, "checkpoint": {**chunk["checkpoint"], "sha256": "d" * 64}}, **kwargs) is False
     assert cs.chunk_is_reusable({**chunk, "demand": {**chunk["demand"], "flow_sha256": "d" * 64}}, **kwargs) is False
@@ -545,6 +558,22 @@ def test_a_chunk_is_reusable_only_on_evidence_rederived_from_disk(campaign: Camp
     assert cs.chunk_is_reusable(chunk, **kwargs) is False
     with pytest.raises(RuntimeError, match="git"):
         cs.chunk_is_reusable({**chunk, "code_commit": "0" * 40}, **kwargs)
+
+
+@pytest.mark.skipif(repository_is_shallow(REPO_ROOT), reason=SHALLOW_REASON)
+def test_a_chunk_rolled_at_c1as_commit_is_not_reusable(campaign: CampaignTree) -> None:
+    """J1(c): a chunk recording ``C1A_COMMIT`` -- code that differs from HEAD outside ``docs/`` -- is not reusable.  The
+    one assertion of the test above that asks git about C1a's commit, split out by ``BRIEF_42`` Amendment F, F1.3; the
+    same chunk is shown reusable first, so the refusal is the commit's and nothing else's.
+
+    Skipped on a shallow checkout, and that is an environment condition, not a weakened assertion: both assertions are
+    unchanged and run on every full clone (:func:`tests.p5_3c_fixtures.repository_is_shallow`)."""
+    cell = _cell("sweep", "mappo1000", 5, 64, 101, 1000)
+    kwargs = {"cell": cell, "output_root": campaign.output_root, "draws_root": campaign.draws_root,
+              "data_dir": campaign.data_dir}
+    chunk = _read(cs.chunk_path(campaign.output_root, cell))
+    assert cs.chunk_is_reusable(chunk, **kwargs) is True
+    assert cs.chunk_is_reusable({**chunk, "code_commit": C1A_COMMIT}, **kwargs) is False
 
 
 def test_move_aside_never_overwrites(tmp_path: Path) -> None:
@@ -1183,7 +1212,16 @@ REPORT_REFUSALS: dict[str, str] = {
 }
 
 
-@pytest.mark.parametrize("case", sorted(REPORT_REFUSALS))
+@pytest.mark.parametrize(
+    "case",
+    [
+        # BRIEF_42 Amendment F, F1.4: only this case asks git about C1A_COMMIT; the other nine are unchanged.
+        pytest.param(case, marks=pytest.mark.skipif(repository_is_shallow(REPO_ROOT), reason=SHALLOW_REASON))
+        if case == "a-chunk-rolled-by-other-code"
+        else case
+        for case in sorted(REPORT_REFUSALS)
+    ],
+)
 def test_every_refusal_of_the_report_precedes_every_write(
     campaign: CampaignTree, monkeypatch: pytest.MonkeyPatch, case: str
 ) -> None:
