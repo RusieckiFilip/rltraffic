@@ -970,3 +970,52 @@ of 5; [−0.83, 0.33]); G₁₀ = +0.39, +0.03, −0.36, +0.67, +0.24.
    gap being below δ (largest +0.17 and +0.28 s). It is NOT supported by T2's and T3's non-rejection, which says only that a shortfall
    of more than δ is not shown — the registered sentence's own wording. The paper keeps the two apart: the registered sentence is the
    confirmatory statement; the CIs and the per-seed gaps are its descriptive support.
+
+---
+
+# ⛔ AMENDMENT F — 2026-10-03: `main` is RED after the P5.3c merge — three tests read a HISTORICAL commit that a depth-1 CI checkout does not have; the fix (tests only, on `task/p5.3c-ci-shallow`) follows the repository's own shallow-checkout precedent
+
+## F0 — What happened, verified by the coordinator
+CI run `37065147706` on the merge `93f57b8`: the step *"Run the pinned test suite"* FAILED on both legs (3,006 tests, **3 failures**,
+0 errors, 318 skipped), so the ceiling gate failed too. The three:
+`tests/test_p5_3c_reference_rows.py::test_the_committed_rows_were_extracted_by_committed_code_on_a_clean_tree`,
+`tests/test_p5_3c_campaign.py::test_a_chunk_is_reusable_only_on_evidence_rederived_from_disk`,
+`tests/test_p5_3c_campaign.py::test_every_refusal_of_the_report_precedes_every_write[a-chunk-rolled-by-other-code]` — each on
+`fatal: bad object c507721348e71b9689aa224290f307fd25a9b32f`: `actions/checkout@v4` fetches depth 1, and the tests ask git about C1a's
+commit (`git merge-base --is-ancestor`; `code_changed_since` → `git diff --name-only <commit> HEAD`). **Reproduced by the coordinator in
+a `git clone --depth 1` of `main`: the same three fail with the same message; in the full clone the same twelve test items pass.** No
+number, artifact or module is involved; every gate before the merge ran in a full clone, which is why it surfaced only on CI.
+
+## F1 — The fix: a NEW branch `task/p5.3c-ci-shallow` from `main`; tests only; nothing under `offline/`, no workflow change
+The precedent is `tests/test_transfer_curve.py:2395` (`_repository_is_shallow()`, `git rev-parse --is-shallow-repository`, a NARROW
+`skipif` whose reason names the shallow checkout, and the stated reason for not setting `fetch-depth: 0`). Same mechanism:
+1. **A helper `repository_is_shallow(path) -> bool`** in `tests/p5_3c_fixtures.py` (the precedent's command, `check=True`), and its own
+   test on two throwaway repositories made in `tmp_path`: `git init` with two commits → `False`; `git clone --depth 1 file://…` of it →
+   `True`.
+2. **`test_the_committed_rows_were_extracted_by_committed_code_on_a_clean_tree` SPLIT:** the history-free assertions (`code_dirty` false,
+   a 40-hex commit) stay in a test that always runs; the ancestry check moves to its own test with
+   `@pytest.mark.skipif(repository_is_shallow(REPO_ROOT), reason="the repository is SHALLOW (git rev-parse --is-shallow-repository =
+   true): …")`.
+3. **`test_a_chunk_is_reusable_only_on_evidence_rederived_from_disk`:** the one assertion that rolls a chunk at `C1A_COMMIT` (line 537)
+   moves into its own test with the same `skipif`; every other assertion stays where it is and keeps running everywhere.
+4. **`test_every_refusal_of_the_report_precedes_every_write[a-chunk-rolled-by-other-code]`:** that one parameter gets
+   `pytest.param(…, marks=pytest.mark.skipif(repository_is_shallow(REPO_ROOT), reason=…))`; the other nine cases unchanged.
+5. **Every new skip reason begins "the repository is SHALLOW"**, so the ceiling classifies it under the existing `shallow_checkout`
+   category; on a full clone nothing is skipped and every assertion runs as before. No assertion is weakened or removed.
+6. **Nothing else.** Not the workflow (the precedent's reason: a full-history clone on every CI run for a handful of tests), not
+   `offline/`, not the artifact.
+
+## F2 — Gates and evidence (the packet `docs/returns/P5.3c-ci.md`, short)
+- Red first: the helper's test on the missing helper; then the three items run in a `git clone --depth 1` of the branch BEFORE the
+  `skipif`s — the three failures reproduced, pasted.
+- Green: the two files and the new helper test in the FULL clone — every item passes, **none skipped** (paste `-rs`); the same in a
+  depth-1 clone of the branch — exactly the three history items SKIPPED with their reason, everything else passing (paste `-rs`).
+- Mutants, committed and pasted: the helper returning `not shallow` → its test dies; one `skipif` removed → the depth-1 run fails as CI
+  did; one `skipif` condition `True` → the full-clone run shows a skip (the run's `-rs` line is the evidence; say so).
+- The whole suite on the commit in the full clone (pytest in the foreground), then **"P5.3c CI fix done"**.
+
+## F3 — After it
+The coordinator re-runs both clones' evidence, merges with `--no-ff`, pushes; that merge's CI must pass every step but the ceiling;
+the ceiling is then measured from THAT run by the registered route (`output/ci_runs/build_ceiling_patch_p53c.py`, prepared) and handed
+to the author as one command. **Standing check from now on:** at every merge review the coordinator runs the branch's new or changed
+test files once in a `git clone --depth 1` of the branch, because CI is the first full-suite run in a shallow checkout.
