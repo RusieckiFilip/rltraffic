@@ -1036,7 +1036,8 @@ def count_loaded_parameters(family: str, path: Path, *, declared_gradient_steps:
 
     ids = [str(ix) for ix in payload.get("intersection_ids") or []]
     if not ids:
-        # The hz1x1 trainers saved without an env (intersection_ids == []); the checkpoint's own normalisation
+        # Every hz1x1 DT and baseline checkpoint and the grid4x4 baselines were saved with intersection_ids == []
+        # (21 of the 36 representatives; the spatial DTs record their ids); the checkpoint's own normalisation
         # statistics are keyed by intersection id, so the node order comes from the checkpoint either way.
         stats = payload.get("stats") or {}
         ids = [str(ix) for ix in (stats.get("state_mean") or {}).get(str(payload.get("scenario_id")), {})]
