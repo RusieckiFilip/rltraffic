@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -442,3 +443,16 @@ def build_k20_tree(root: Path, *, differ: dict[tuple[str, int], tuple[str, tuple
     (output_root / "SHA256SUMS_p4_7.txt").write_text("".join(f"{line}\n" for line in sorted(sums)), encoding="utf-8")
     (data_dir / "p4_7_training.json").write_text(json.dumps({"runs": runs}) + "\n", encoding="utf-8")
     return output_root, data_dir
+
+
+def repository_is_shallow(path: Path) -> bool:
+    """Is the checkout at *path* missing its history?  ``actions/checkout@v4`` fetches **depth 1** (``BRIEF_42``
+    Amendment F, F1.1).
+
+    The repository's own shallow-checkout precedent, ``tests/test_transfer_curve.py``'s ``_repository_is_shallow``, and
+    its command: ``git rev-parse --is-shallow-repository`` with ``check=True``, so a path that is not a git checkout
+    raises instead of answering ``False``.  Three P5.3c test items ask git about C1a's commit ``c507721``, which a
+    depth-1 checkout does not contain (``fatal: bad object``); they skip on this condition, naming it, and run unchanged
+    on every full clone.
+    """
+    raise NotImplementedError("BRIEF_42 Amendment F, F1.1: tests first")

@@ -534,7 +534,6 @@ def test_a_chunk_is_reusable_only_on_evidence_rederived_from_disk(campaign: Camp
               "data_dir": campaign.data_dir}
     chunk = _read(path)
     assert cs.chunk_is_reusable(chunk, **kwargs) is True
-    assert cs.chunk_is_reusable({**chunk, "code_commit": C1A_COMMIT}, **kwargs) is False
     assert cs.chunk_is_reusable({**chunk, "code_dirty": True}, **kwargs) is False
     assert cs.chunk_is_reusable({**chunk, "checkpoint": {**chunk["checkpoint"], "sha256": "d" * 64}}, **kwargs) is False
     assert cs.chunk_is_reusable({**chunk, "demand": {**chunk["demand"], "flow_sha256": "d" * 64}}, **kwargs) is False
@@ -545,6 +544,18 @@ def test_a_chunk_is_reusable_only_on_evidence_rederived_from_disk(campaign: Camp
     assert cs.chunk_is_reusable(chunk, **kwargs) is False
     with pytest.raises(RuntimeError, match="git"):
         cs.chunk_is_reusable({**chunk, "code_commit": "0" * 40}, **kwargs)
+
+
+def test_a_chunk_rolled_at_c1as_commit_is_not_reusable(campaign: CampaignTree) -> None:
+    """J1(c): a chunk recording ``C1A_COMMIT`` -- code that differs from HEAD outside ``docs/`` -- is not reusable.  The
+    one assertion of the test above that asks git about C1a's commit, split out by ``BRIEF_42`` Amendment F, F1.3; the
+    same chunk is shown reusable first, so the refusal is the commit's and nothing else's."""
+    cell = _cell("sweep", "mappo1000", 5, 64, 101, 1000)
+    kwargs = {"cell": cell, "output_root": campaign.output_root, "draws_root": campaign.draws_root,
+              "data_dir": campaign.data_dir}
+    chunk = _read(cs.chunk_path(campaign.output_root, cell))
+    assert cs.chunk_is_reusable(chunk, **kwargs) is True
+    assert cs.chunk_is_reusable({**chunk, "code_commit": C1A_COMMIT}, **kwargs) is False
 
 
 def test_move_aside_never_overwrites(tmp_path: Path) -> None:
