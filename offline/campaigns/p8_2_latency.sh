@@ -49,8 +49,12 @@ TOKEN=$RUNS/TOKEN_latency
 MANIFEST=$OUTPUT/SHA256SUMS_p8_2.txt
 
 # The G1 pre-flight whose timeouts the run uses, relative to $OUTPUT, and its sha256 (UNSET refuses the run).
-PREFLIGHT_RECORD=UNSET
-PREFLIGHT_SHA256=UNSET
+# Pinned at C3c: the pre-flight of 2026-10-03 16:58 UTC at d33254a (COMPLETE; canaries 0.64 / 0.76 s at speed,
+# reproduced; process wall times 5.4 / 7.9 s hz1x1 cpu / cuda, 34.3 / 12.6 s grid4x4 cpu / cuda) gives 120 s for
+# hz1x1, grid4x4 and the canary (the floor; 3 x 34.3 s = 103 s) and an expected run of at most 19.0 min. Its
+# directory and capture are listed in output/p8_2_runs/SHA256SUMS_preflight_20261003T165853Z.txt.
+PREFLIGHT_RECORD=p8_2_runs/preflight_20261003T165853Z/preflight.json
+PREFLIGHT_SHA256=1abf1120fbc1dcba846a4e31de4a1526812fe058381fca76a05b321232e27868
 
 WORK_TREE=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 DATA=$WORK_TREE/docs/data
