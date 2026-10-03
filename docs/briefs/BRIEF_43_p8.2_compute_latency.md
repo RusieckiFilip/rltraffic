@@ -117,3 +117,55 @@ throwaway worktree; **the new test files also run once in a depth-1 clone made b
 `docs/returns/TEMPLATE.md`, plus: the row inventory and why each row is in the paper; the table itself (rendered) with every number's
 source; the hardware block; the timing capture; the regime of every recorded training time; what the table does not say; the
 AI-assistance record's four lines; one paragraph on what the paper's compute section will assume.
+
+---
+
+# ✅ AMENDMENT A — 2026-10-03, gate G0: PLAN APPROVED (`docs/plans/p8.2.md` @ `a7c43e1`, 507 lines) — three errors in THIS brief corrected, every question ruled as proposed, two requirements added
+
+## A0 — Verdict
+Approved. The plan inventories every C1, C3 and H4 row with its committed evidence, hashed **465 / 465** candidate checkpoints against
+the digests their sources name (0 mismatches), and found three errors in this brief, each with evidence. **Verified by the coordinator
+(2026-10-03, by running commands):** the DT's parameter count is **647,176** at K = 20 (P4), K = 1 and K = 10 (P5.3c) and for P7.3b's
+anchor; the anchor's checkpoint and record say `cityflow1x1` / `intersection_1_1` / `state_dim 25`; MAPPO@1000's checkpoints hold
+`steps_done 360000` with actors 20,872 + critic 20,353 (hz1x1) and 364,672 + 101,008 (grid4x4); `MAPPOAgent.act` calls
+`self.estimate_values(joint_state)` after the action loop on the deterministic path too (`agent/MAPPOAgent.py:247`); `p4_gate.json`'s
+cells are `madt, mappo1000, mappo500, maxpressure`; `output/p5_1/training_baselines.json`'s runs carry no seconds.
+
+## A1 — Corrections to this brief (the coordinator's errors, logged in `PROJECT_PLAN` §8)
+1. **The MAPPO rows.** §3 named "the MAPPO teachers 060 and 1000"; the paper REPORTS MAPPO@1000 (both scenarios) and **MAPPO@500
+   (hz1x1, the P4 gate's second online baseline)**; MAPPO@060 appears only as a corpus-ladder tier. Rows per Q1.
+2. **P7.3b's anchor is an hz1x1 model.** §3 filed `p7_3b_anchor_training.json` under `cf_grid4x4`; it belongs to hz1x1's C3 rows. The
+   grid4x4 C3 model is **P5.2's `dt_nomix_h4`** at `mappo1000` and its SUMO fine-tunes are P7.3c's.
+3. **K does not change the DT's size.** §1 (and the plan row of 2026-10-03) implied K = 1 is smaller; the parameter count is identical
+   at every K (the K window enters only tensor shapes, `agent/DTAgent.py:319`). K = 1 is cheaper PER DECISION, not smaller. Q15's
+   sentence goes into `what_this_does_not_say`.
+
+## A2 — Rulings: Q1–Q15 ALL ACCEPTED AS PROPOSED
+Q1 (MAPPO@1000 both scenarios, MAPPO@500 hz1x1, MAPPO@060 both as the labelled ladder-tier, low-interaction point; 200 and grid4x4@500
+out) · Q2 (rows (a)–(g) in) · Q3 (one row per arm, tiers inside, an `architecture` key) · Q4 (the three `results.json` digests pinned in
+the builder as of 2026-10-03, with the plan's three corroborations stated in the artifact) · Q5 ("not recorded", with the reason, never a
+reconstruction) · Q6 (the random-tier DT seconds from the manifest-pinned logs, labelled) · Q7 (`trained`, `deployed`, `stored`,
+`executed_per_decision`) · Q8 (draws 1000–1002: no outcome is recorded, T-no-outcome guarantees it, and the held-out draws are the
+deployment distribution; the reason stated in the artifact) · Q9 (canaries before and after; a closing canary above 2.0 s refuses the
+run) · Q10 (the lean driver, run from a detached worktree at the reviewed commit, the author's token `output/p8_2_runs/TOKEN_latency`) ·
+Q11 (nearest-rank p95) · Q12 (heuristics on CUDA "not applicable") · Q13 (seed 101 timed; parameters counted on all five, equal within
+a row) · Q14 (the C3 rows timed on CityFlow, the deployment domain stated) · Q15 (the size sentence).
+
+## A3 — Two requirements ADDED
+1. **CityFlow's destructor race (`DEFERRED` 104) inside the timing run.** Each (row, device) process rolls three real episodes, ≈ 240
+   in all; at the rate observed on 2026-09-30 (≈ 0.11 % of episodes, every one at an episode's end) a hang is likely enough to plan for.
+   Required: the row process writes its latency record (exclusively) as soon as the last timed decision of its third episode is taken,
+   BEFORE any env is torn down; the driver runs each row process under a timeout (the plan proposes it from the G1 pre-flight) with at
+   most THREE attempts; an attempt that times out is killed and recorded as `hung` in the run record; a record already written by a
+   process that then hangs is kept (the exclusive write refuses a second); no record is ever written from a partial attempt. Tests,
+   red first: a fake row process that hangs AFTER writing → killed, record kept, no re-run; one that hangs BEFORE writing → killed and
+   re-run, at most three attempts, then the run FAILS naming the row.
+2. **MAPPO on CUDA.** MAPPO was trained on CPU (`results.json` `device cpu`). If its existing factory cannot place the agent on CUDA
+   without a change to frozen code, its CUDA cell is *"not applicable: the deployed path is CPU-only"* with the code line; if it can, it
+   is timed like every other row. Confirmed in C2 by reading the code, and stated.
+
+## A4 — Next
+C1 (tests and signature-only skeletons, red for their own reasons, A3's two driver tests included) · C2 (the implementation, green,
+the mutations committed and pasted) · C3 (the driver and the G1 pre-flight: two rows with the canary, the per-row timeout and the run's
+expected duration derived from it) — committed on the branch, NOT pushed; the new test files once in a depth-1 clone (F.1's command);
+then **"P8.2 C1–C3 done"** → gate G1.
