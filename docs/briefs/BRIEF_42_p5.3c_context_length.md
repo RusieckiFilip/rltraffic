@@ -1019,3 +1019,15 @@ The coordinator re-runs both clones' evidence, merges with `--no-ff`, pushes; th
 the ceiling is then measured from THAT run by the registered route (`output/ci_runs/build_ceiling_patch_p53c.py`, prepared) and handed
 to the author as one command. **Standing check from now on:** at every merge review the coordinator runs the branch's new or changed
 test files once in a `git clone --depth 1` of the branch, because CI is the first full-suite run in a shallow checkout.
+
+## F.1 — 2026-10-03: the depth-1 evidence's EXACT command (found by the implementer before starting, on a note relayed by the author; verified on this repository, git 2.53.0)
+`git clone --depth 1 /home/filip/rltraffic <dir>` — a PLAIN PATH — **ignores `--depth`** (it prints *"warning: --depth is ignored in local
+clones; use file:// instead."*, exits 0, and clones all 1,112 commits, `c507721` included): a "depth-1 green" run in such a clone proves
+nothing. `file://` and `--no-local` give a real depth-1 clone. The coordinator's reproduction in F0 used `file://` (its output:
+`shallow: true … c507721 present: no`), so F0 stands; F2's evidence and F3's standing check are made exact here:
+1. **The clone:** `git clone --depth 1 --branch task/p5.3c-ci-shallow file:///home/filip/rltraffic <scratch>/shallow` — `--branch`
+   because a depth-1 clone fetches ONE branch (by default the one the source has checked out, `main`), and the clone sees COMMITTED
+   work only: the red run and the green run each clone AFTER their commit is on the branch.
+2. **Two checks pasted with every depth-1 run, before pytest:** `git -C <clone> rev-parse --is-shallow-repository` prints `true`, AND
+   `git -C <clone> cat-file -t c507721348e71b9689aa224290f307fd25a9b32f` FAILS (the exact object the three tests need is absent).
+3. **F3's standing check uses this command and these two checks** (`--branch <the task branch>`). The implementer may begin F1 now.
