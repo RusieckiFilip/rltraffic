@@ -382,6 +382,36 @@ def test_training_block_refuses_a_field_with_no_source(synthetic: Any) -> None:
         ct.training_block(row, entry, roots)
 
 
+def _with_slow_seed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    runs = [dict(run) for run in SYNTHETIC_RUNS]
+    runs[4]["seconds"] = 100.0  # about 9x the median of ~13 s
+    path = tmp_path / "docs" / "data" / "synthetic_training.json"
+    path.write_text(json.dumps({**json.loads(path.read_text()), "runs": runs}))
+    monkeypatch.setitem(ct.PINNED_RECORDS, "synthetic",
+                        dataclasses.replace(ct.PINNED_RECORDS["synthetic"],
+                                            sha256=hashlib.sha256(path.read_bytes()).hexdigest()))
+
+
+def test_training_block_refuses_a_wall_time_outlier_that_is_not_declared(
+    synthetic: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    roots, row, entry = synthetic
+    _with_slow_seed(tmp_path, monkeypatch)
+    with pytest.raises(ValueError, match="505"):
+        ct.training_block(row, entry, roots)
+
+
+def test_training_block_lists_a_declared_wall_time_outlier_with_its_note(
+    synthetic: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    roots, row, entry = synthetic
+    _with_slow_seed(tmp_path, monkeypatch)
+    block = ct.training_block(row, {**entry, "outliers": {505: "a stall with a named cause"}}, roots)
+    assert block["seconds"]["outliers"] == [{"seed": 505, "value": 100.0, "note": "a stall with a named cause"}]
+    assert block["seconds"]["max"] == 100.0 and block["seconds"]["median"] == statistics.median(
+        [run["seconds"] for run in SYNTHETIC_RUNS[:4]] + [100.0])
+
+
 def test_training_block_writes_a_declared_absence_as_null_with_its_reason(
     synthetic: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:
