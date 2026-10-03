@@ -455,4 +455,12 @@ def repository_is_shallow(path: Path) -> bool:
     depth-1 checkout does not contain (``fatal: bad object``); they skip on this condition, naming it, and run unchanged
     on every full clone.
     """
-    raise NotImplementedError("BRIEF_42 Amendment F, F1.1: tests first")
+    return (
+        subprocess.run(
+            ["git", "-C", str(path), "rev-parse", "--is-shallow-repository"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        == "true"
+    )

@@ -344,9 +344,20 @@ def test_the_committed_rows_were_extracted_by_committed_code_on_a_clean_tree() -
     assert re.fullmatch(r"[0-9a-f]{40}", commit), f"the recorded extraction commit {commit!r} is not 40 hex digits"
 
 
+@pytest.mark.skipif(
+    repository_is_shallow(REPO_ROOT),
+    reason=(
+        "the repository is SHALLOW (git rev-parse --is-shallow-repository = true): the extraction commit the file "
+        "records, C1a's c507721, is not in a depth-1 checkout, so git cannot say whether it is an ancestor of HEAD. "
+        "Runs on a full clone."
+    ),
+)
 def test_the_committed_rows_extraction_commit_is_an_ancestor_of_head() -> None:
     """F8 / Amendment A Q8: the commit the file names is in this branch's history -- the ancestry half of the test
-    above, split out by ``BRIEF_42`` Amendment F, F1.2, because it needs history that a depth-1 checkout lacks."""
+    above, split out by ``BRIEF_42`` Amendment F, F1.2, because it needs history that a depth-1 checkout lacks.
+
+    Skipped on a shallow checkout, and that is an environment condition, not a weakened assertion: the assertion is
+    unchanged and runs on every full clone (:func:`tests.p5_3c_fixtures.repository_is_shallow`)."""
     commit = _committed()["extraction"]["code_commit"]
     result = subprocess.run(
         ["git", "merge-base", "--is-ancestor", commit, "HEAD"], cwd=str(REPO_ROOT), capture_output=True, check=False
