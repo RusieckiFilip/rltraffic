@@ -76,7 +76,9 @@ unset CUBLAS_WORKSPACE_CONFIG
 
 [ -x "$PY" ] || refuse "no interpreter at $PY"
 [ -z "$(git -C "$WORK_TREE" status --porcelain --untracked-files=no)" ] || refuse "$WORK_TREE has uncommitted changes"
-if pgrep -f "offline[.]compute_latency" >/dev/null; then
+# An INTERPRETER running the module (`<python> -P -m offline.compute_latency ...`, how every child starts), anchored
+# at the command line's start, so a shell or an editor that merely mentions the module is not taken for a live run.
+if pgrep -f '^[^ ]*python[^ ]* -P -m offline[.]compute_latency' >/dev/null; then
   refuse "another offline.compute_latency process is running"
 fi
 LOADED=$(PYTHONPATH=$WORK_TREE "$PY" -P -c 'import offline.compute_latency as m; print(m.__file__)')

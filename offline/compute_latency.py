@@ -98,6 +98,7 @@ __all__ = [
     "derive_timeouts",
     "expected_duration",
     "run_preflight",
+    "canary_timeout_from",
     "timeouts_from_preflight",
     "build_parser",
     "main",
@@ -1339,7 +1340,7 @@ def run_preflight(
     }
     if status == "COMPLETE":
         payload["timeouts_s"] = derive_timeouts(measured)
-        payload["canary_timeout_s"] = float(max(120, math.ceil(3 * max(canary_wall))))
+        payload["canary_timeout_s"] = canary_timeout_from(canary_wall)
         payload["expected_duration"] = expected_duration(measured, max(canary_wall))
     write_once(run_dir / "preflight.json", payload)
     print(f"preflight {stamp}: {status}" + ("" if reason is None else f" -- {reason}"), flush=True)
@@ -1352,7 +1353,10 @@ def run_preflight(
 def canary_timeout_from(canary_process_seconds: Sequence[float], *, factor: float = 3.0,
                         floor_s: float = 120.0) -> float:
     """The canary processes' timeout: ``max(floor_s, ceil(factor x`` the slower canary process``))``."""
-    raise NotImplementedError
+    seconds = [float(value) for value in canary_process_seconds]
+    if not seconds:
+        raise ValueError("no canary process was measured, so no canary timeout can be derived")
+    return float(max(floor_s, math.ceil(factor * max(seconds))))
 
 
 def timeouts_from_preflight(record_path: Path) -> dict[str, float]:
