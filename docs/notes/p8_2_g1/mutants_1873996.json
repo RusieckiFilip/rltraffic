@@ -1,0 +1,163 @@
+[
+ {
+  "id": "CM1",
+  "name": "a CUDA DT row timed on CPU (the device argument replaced by 'cpu' in the DT factory call)",
+  "changes": [
+   {
+    "file": "offline/compute_latency.py",
+    "old": "float(row.target_rtg or 0.0), device),",
+    "new": "float(row.target_rtg or 0.0), \"cpu\"),"
+   }
+  ],
+  "tests": "tests/test_compute_latency.py tests/test_p8_2_latency_driver.py tests/test_compute_table.py"
+ },
+ {
+  "id": "CM2",
+  "name": "the baseline factory given device=None (resolve_device's default: CUDA when available, so CPU rows run on CUDA)",
+  "changes": [
+   {
+    "file": "offline/compute_latency.py",
+    "old": "int(row.declared_gradient_steps or 0), device),",
+    "new": "int(row.declared_gradient_steps or 0), None),"
+   }
+  ],
+  "tests": "tests/test_compute_latency.py tests/test_p8_2_latency_driver.py tests/test_compute_table.py"
+ },
+ {
+  "id": "CM3",
+  "name": "the warm-up excluded once from the pooled decisions, not per episode",
+  "changes": [
+   {
+    "file": "offline/compute_latency.py",
+    "old": "timed = [int(value) for episode in per_episode_ns for value in list(episode)[int(warmup):]]",
+    "new": "timed = [int(value) for value in [v for episode in per_episode_ns for v in episode][int(warmup):]]"
+   }
+  ],
+  "tests": "tests/test_compute_latency.py tests/test_p8_2_latency_driver.py tests/test_compute_table.py"
+ },
+ {
+  "id": "CM4",
+  "name": "the builder reports the median in microseconds labelled ms (record median_ns / 1e3)",
+  "changes": [
+   {
+    "file": "offline/compute_table.py",
+    "old": "\"median_ms\": {\"value\": record[\"median_ms\"], \"source\": measured},",
+    "new": "\"median_ms\": {\"value\": record[\"median_ns\"] / 1e3, \"source\": measured},"
+   }
+  ],
+  "tests": "tests/test_compute_latency.py tests/test_p8_2_latency_driver.py tests/test_compute_table.py"
+ },
+ {
+  "id": "CM5",
+  "name": "the row process times a checkpoint at ANOTHER digest without refusing (_verified_checkpoint's check off)",
+  "changes": [
+   {
+    "file": "offline/compute_latency.py",
+    "old": "if digest != row.sha256:",
+    "new": "if False:"
+   }
+  ],
+  "tests": "tests/test_compute_latency.py tests/test_p8_2_latency_driver.py tests/test_compute_table.py"
+ },
+ {
+  "id": "CM6",
+  "name": "the children started without -P (cwd = the main tree would shadow the reviewed tree's modules)",
+  "changes": [
+   {
+    "file": "offline/compute_latency.py",
+    "old": "base = [str(args.python), \"-P\", \"-m\", \"offline.compute_latency\"]",
+    "new": "base = [str(args.python), \"-m\", \"offline.compute_latency\"]"
+   }
+  ],
+  "tests": "tests/test_compute_latency.py tests/test_p8_2_latency_driver.py tests/test_compute_table.py"
+ },
+ {
+  "id": "CM7",
+  "name": "CUDA: the synchronize before the CLOSING clock reading removed",
+  "changes": [
+   {
+    "file": "offline/compute_latency.py",
+    "old": "        action = choose(env, info)\n        if sync is not None:\n            sync()\n        decision_ns.append",
+    "new": "        action = choose(env, info)\n        decision_ns.append"
+   }
+  ],
+  "tests": "tests/test_compute_latency.py tests/test_p8_2_latency_driver.py tests/test_compute_table.py"
+ },
+ {
+  "id": "CM8",
+  "name": "the training seconds' median replaced by the mean",
+  "changes": [
+   {
+    "file": "offline/compute_table.py",
+    "old": "median = statistics.median(values)",
+    "new": "median = statistics.mean(values)"
+   }
+  ],
+  "tests": "tests/test_compute_latency.py tests/test_p8_2_latency_driver.py tests/test_compute_table.py"
+ },
+ {
+  "id": "CM9",
+  "name": "MAPPO's per-intersection decisions reported as the joint count (x intersections dropped)",
+  "changes": [
+   {
+    "file": "offline/compute_table.py",
+    "old": "\"value\": joint * intersections,",
+    "new": "\"value\": joint,"
+   }
+  ],
+  "tests": "tests/test_compute_latency.py tests/test_p8_2_latency_driver.py tests/test_compute_table.py"
+ },
+ {
+  "id": "CM10",
+  "name": "IQL's deployed count = trained (Q and V counted as deployed), consistently in BOTH routes",
+  "changes": [
+   {
+    "file": "offline/compute_table.py",
+    "old": "return {\"trained\": trained, \"deployed\": counts[\"policy\"], \"stored\": trained + counts[\"q_target\"]}",
+    "new": "return {\"trained\": trained, \"deployed\": trained, \"stored\": trained + counts[\"q_target\"]}"
+   },
+   {
+    "file": "offline/compute_table.py",
+    "old": "return {\"trained\": trained, \"deployed\": _module_count(agent.policy),",
+    "new": "return {\"trained\": trained, \"deployed\": trained,"
+   }
+  ],
+  "tests": "tests/test_compute_latency.py tests/test_p8_2_latency_driver.py tests/test_compute_table.py"
+ },
+ {
+  "id": "CM11",
+  "name": "the builder accepts a latency record of a checkpoint other than the registered one",
+  "changes": [
+   {
+    "file": "offline/compute_table.py",
+    "old": "if row.checkpoint is not None and (record.get(\"checkpoint\") or {}).get(\"sha256\") != row.sha256:",
+    "new": "if False:"
+   }
+  ],
+  "tests": "tests/test_compute_latency.py tests/test_p8_2_latency_driver.py tests/test_compute_table.py"
+ },
+ {
+  "id": "CM12",
+  "name": "the builder accepts a canary whose engine did not reproduce",
+  "changes": [
+   {
+    "file": "offline/compute_table.py",
+    "old": "if canary.get(\"reproduced\") is not True:",
+    "new": "if False:"
+   }
+  ],
+  "tests": "tests/test_compute_latency.py tests/test_p8_2_latency_driver.py tests/test_compute_table.py"
+ },
+ {
+  "id": "CM13",
+  "name": "the real row process never synchronizes on CUDA (run_row's sync wiring set to None)",
+  "changes": [
+   {
+    "file": "offline/compute_latency.py",
+    "old": "sync = _cuda_sync if device == \"cuda\" else None",
+    "new": "sync = None"
+   }
+  ],
+  "tests": "tests/test_compute_latency.py tests/test_p8_2_latency_driver.py tests/test_compute_table.py"
+ }
+]

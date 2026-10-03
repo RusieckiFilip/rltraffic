@@ -169,3 +169,121 @@ C1 (tests and signature-only skeletons, red for their own reasons, A3's two driv
 the mutations committed and pasted) · C3 (the driver and the G1 pre-flight: two rows with the canary, the per-row timeout and the run's
 expected duration derived from it) — committed on the branch, NOT pushed; the new test files once in a depth-1 clone (F.1's command);
 then **"P8.2 C1–C3 done"** → gate G1.
+
+---
+
+# ⚠️ AMENDMENT B — 2026-10-03, gate G1: FIX FIRST (C4–C5), then gate G1.1, then the token — no number found wrong at `1873996`, seven load-bearing properties untested, and the machine in Windows' battery-favouring power mode
+
+## B0 — Verdict and what was verified (by the coordinator, by running commands; the record: `docs/reviews/P8.2-G1.md`)
+**FIX FIRST.** Nothing the table would publish was found wrong at `1873996`, and the pre-flight stands. But seven of the coordinator's
+thirteen mutants SURVIVED — each a property a number in the table rests on that no test holds — and the timing run would have measured in
+the power mode that favours the battery. Verified:
+1. **The pre-flight**, from disk: 14 / 14 manifest lines `OK`; `preflight.json` at the pinned `1abf1120…`; its timeouts (120 s ×3) and
+   its expected duration (1,138.49 s) recomputed independently and equal.
+2. **The 78-cell smoke** (`docs/notes/p8_2_g1/`): every (row, device) cell of the registry built through `_evaluation_inputs`,
+   `_row_factory` and `_make_env` exactly as `run_row` builds it, ONE episode each, no record, no timing kept. **All 78 exited 0 with 360
+   decisions; every torch cell's parameters on the requested device, no CPU cell initialised CUDA, every CUDA cell allocated memory;
+   every DT at its checkpoint's own context length** (H4 1/2/5/10/20, `k1_b1280` 1, `k2_b640` 2, all other DTs 20); parameter totals as
+   G0. Slowest one-episode cell, start and load included, on a loaded machine: 23 s (16 s on grid4x4) — far inside 120 s.
+3. **Three read-only reviewers** (≤ 15 min each, findings files verbatim in the review record): R1 the harness and driver, R2 the
+   builder's mechanics, R3 the row specs against the records — all PASS-WITH-NOTES, no blocker. R3: 72 / 72 pins at their digests,
+   every training value the right seed's and field, all seven declared absences real, the five outliers the only seeds above 2×.
+4. **Thirteen coordinator mutants**, committed at `1873996` in a throwaway worktree (specs `docs/notes/p8_2_g1/mutants_1873996.json`):
+   **KILLED 6** (CM3 warm-up once not per episode; CM7 the closing synchronize; CM8 median → mean; CM9 MAPPO's ×16; CM10 IQL's
+   deployed = trained in both routes; CM12 a non-reproducing canary) · **SURVIVED 7**: **CM1** a CUDA DT row timed on CPU; **CM2** CPU
+   baseline rows placed on CUDA; **CM4** the builder publishing µs as ms; **CM5** the row process timing a checkpoint at another
+   digest; **CM6** the children started without `-P`; **CM11** the builder accepting a record of another checkpoint; **CM13** the real
+   row process never synchronising on CUDA (R1's MAJOR 10a, falsified here rather than taken on its word).
+
+## B1 — The power regime (the author's reviewer asked for it; it is a finding, not a formality)
+**Verified 2026-10-03, read-only:** `/sys/class/power_supply/AC1` is `type Mains`, `online 1` — **the power source IS visible from WSL2**
+(the interim packet's *"not visible from WSL2"* is wrong; a claim of impossibility made without the check); Windows agrees
+(`PowerLineStatus Online`, `Win32_Battery.BatteryStatus 2`). The power plan is Balanced (`381b4222-…`), and **the AC power-mode overlay
+is `961cc777-2547-4f9d-8174-7d86181b8a7a` — "Better Battery", which Windows 11 labels "Best power efficiency"** (`reg.exe query
+HKLM\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes`, `ActiveOverlayAcPowerScheme`). Microsoft's documentation of the slider
+(*Customize the Windows performance power slider*, learn.microsoft.com) gives the overlays — `961cc777-…` Better Battery, `3af9b8d9-7c97-
+431d-ad78-34a8bfea439f` Better Performance (the out-of-box default), `ded574b5-45a0-4f42-8737-46345c09c238` Best Performance — and says
+the overlay sets the CPU's processor power management and that **power throttling is engaged in every mode but Best Performance**. The
+driver's header already asks for "mains power and a performance plan"; nothing checked it. Required, tests red first with injected
+readers (a fake `power_supply` root, a fake `reg.exe` output):
+1. **Every latency record's machine block** gains `kernel_release` (`platform.release()`, what `uname -r` prints) and a `power` block:
+   each supply under `/sys/class/power_supply` (type, online), the Windows active scheme GUID and the AC and DC overlay GUIDs as read,
+   the overlay's name from the documented table above (anything else `unknown`), and how each was read. No key may contain a
+   `FORBIDDEN_KEY_TOKENS` token.
+2. **The run REFUSES before the token** unless a `Mains` supply is online AND the AC overlay is `ded574b5-…` (Best Performance) — a
+   subcommand the driver calls among its pre-token checks; a source that cannot be read refuses.
+3. **`run_all` re-checks at the opening canary and at the closing one**; a regime that is not mains + Best Performance at the close makes
+   the run FAILED. **The builder refuses a record** whose `power` block is not mains + Best Performance.
+4. **The pre-flight stays pinned and is NOT re-run:** its only products are the timeouts (at the 120 s floor, 3.5× its slowest process)
+   and an estimate, both conservative under a faster mode; B0.2's smoke is the independent bound.
+
+## B2 — Where the model ran: evidence in the record (CM1, CM2)
+The record's `device` is the CLI argument; nothing observed confirms it. Required: right after the last episode — **before**
+`_machine_block()` or anything else touches CUDA — the row process records `cuda_initialized` (`torch.cuda.is_initialized()`) and, when
+initialised, `cuda_max_memory_allocated`; **a CPU row refuses if CUDA was initialised; a CUDA row refuses unless memory was allocated.**
+The killing tests run the REAL path: the existing gated `hz1x1.bc` CPU row test (CM2 dies there) and a new gated real-row test of
+`hz1x1.dt_k20` on CUDA that skips naming CUDA when none is present (CM1 dies there: with the synchronize wired, CUDA initialises and
+allocates nothing).
+
+## B3 — The CUDA synchronize on the real path (CM13; R1 MAJOR 10a)
+A test drives `run_row(..., "cuda", env_builder=…, factory_builder=…)` with `configure_regime` and `_cuda_sync` monkeypatched (no GPU
+needed) and asserts the spy fires immediately before both clock readings of every decision. CM13 must die.
+
+## B4 — The builder's latency verification (CM4, CM11; R2 MAJOR-1…4 and its minors)
+1. **An independent route:** the builder recomputes `n_timed`, the median and the nearest-rank p95 from each record's nanoseconds by
+   its OWN code (sorted values; rank `ceil(0.95 n)`; the even-count median as the mean of the two middle values), never through
+   `compute_latency.latency_stats`; and it derives **every published millisecond figure from those verified nanoseconds** — `median_ms`,
+   `p95_ms` and both per-intersection figures (÷ the scenario's intersection count from the registry) — never from the record's own ms
+   fields (or it verifies each of them equal). CM4 must die.
+2. **Refuse, never skip,** with one test each, red first: a record of another format version (select records by the registry's expected
+   file names, not by the `*_c*.json` glob that also matches `canary_close.json`); a missing (row, device) cell of the registry; an
+   unknown row id; a row or device that disagrees with the file name; a checkpoint other than the registered one (CM11 must die);
+   `warmup` ≠ 20, `draws` ≠ (1000, 1001, 1002), episodes ≠ 3, `engine_seed` ≠ 1000; a record whose `git.commit` is not the run's or
+   whose tree was dirty; a record outside B1's power regime.
+3. **Join the registry to the table row** (R2 MAJOR-4): the latency row's checkpoint path and sha256 must equal the table row's seed-101
+   checkpoint of its representative tier as `row_checkpoints` verifies it, and route A hashes the file it loads. Test: a registry whose
+   `h4.k1` names the K = 20 file refuses (K does not change the size, so route A = route B cannot catch it).
+4. `_hardware` reports BOTH devices' regimes; `write_artifact` is atomic as well as exclusive; a JSON `null` present in a record is a
+   value only where `DECLARED_ABSENCES` declares it (steps, batch, data, regime alike); a non-heuristic row without training entries
+   refuses; an outlier note must be non-empty; the docstring's "every number is `{value, source}`" is made true or corrected to what is
+   true (derived statistics sit beside the sourced per-seed values they come from).
+
+## B5 — The row process (CM5, CM6; R1 MINOR 4a)
+1. A test that `_verified_checkpoint` refuses a file at another digest (CM5 must die).
+2. A test that every child command line the run builds carries `-P` (`_commands`) (CM6 must die).
+3. **The measured process refuses an active tracer or profiler** — `sys.gettrace()`, `sys.getprofile()`, any `sys.monitoring` tool in
+   use, `tracemalloc.is_tracing()`, `sys.flags.dev_mode` — and the driver refuses before the token if any of `COVERAGE_PROCESS_START`,
+   `COVERAGE_PROCESS_CONFIG`, `PYTHONTRACEMALLOC`, `PYTHONDEVMODE`, `PYTHONMALLOC`, `PYTHONPROFILEIMPORTTIME` is set (the venv's
+   coverage hook would otherwise trace every child and inflate every median, and the 2.0 s canary would not see a 2× slowdown).
+
+## B6 — Text the table would print (R3; every number in a note is a number of the table)
+1. `_P4_SUSPEND` says "202.4"; the record's minimum is **202.3** (`docs/data/p4_training.json $.seeds[2].seconds` = 202.348…). Fix it, and
+   re-read EVERY number quoted in a declared note from its record — the packet lists each with its JSON path.
+2. **MAPPO's worker count is an inference, not a measurement:** `kind` `inferred`, value 6, with its basis (the training run's file
+   mtimes, plan V7, at the plan's stated confidence) and "not recorded by the manifest"; "16 logical CPUs" removed unless a record of the
+   2026-08-06 run holds it.
+3. `hz1x1.random` gains its C3 claim (P7.3a's zero-shot arm `random`, plan p8.2.md:173).
+4. Units that cannot be misread: grid4x4 BC and IQL data as **per-intersection** windows / transitions beside the DT's joint windows (no
+   reader may conclude BC saw 16× the data); MAPPO's batch labelled the PPO `minibatch_size`.
+5. The module docstring's "every record of plan §4" states what is pinned, what is not, and why; `expected_duration`'s "upper bound"
+   becomes "an estimate" with its premise, and names the pre-flight row as `dt_nomix_h4` (R1 MINOR 9a).
+6. Optional (R3 NOTEs, not required): claims that point at a file-level key (`$.format_version`, `$.h3`) point at the row's own result
+   where one exists.
+
+## B7 — `what_this_does_not_say` gains
+*"The CPU is a hybrid-core laptop part (Intel Core Ultra 9 275HX) running Linux under WSL2: the Windows host schedules the guest's
+virtual CPUs onto performance or efficiency cores and the guest cannot pin them, so the single-thread figure is this machine's in the
+recorded regime (mains, Windows power mode Best Performance), not a property of one core type."*
+
+## B8 — Accepted as proposed
+Q-G1-1 (the pre-flight and its 120 s timeouts; the pinned record stays) · Q-G1-2 (the outlier rule — it is what makes the stalls
+checkable; R3 confirmed the five and that they are the only seeds above 2×) · Q-G1-3 (the five added sources; R3 confirmed each reason)
+· Q-G1-4 superseded by B1 (the power source is visible and is now checked) · the plan's dated erratum (36 representatives, not 40).
+
+## B9 — Next
+**C4** (the tests for B1–B6, red for their own reasons — the seven survivors' killing tests among them) · **C5** (the fixes, green) — at
+most two source files per commit, the commits named in the packet · the whole suite · the three test files once in a depth-1 clone (F.1's
+command) · the seven survivors re-run against the new code (CM1, CM2, CM4, CM5, CM6, CM11, CM13; same semantics, their target lines
+adapted), each committed in a throwaway worktree and pasted KILLED, plus a mutant per new refusal of B1, B4.2 and B5.3 · the interim
+packet updated → **"P8.2 C4–C5 done"** → **gate G1.1**: the coordinator re-runs all thirteen and checks B1–B7, then Amendment B.1 names
+the run worktree's commit, and only then does the author set Best Performance on mains and create the token.
