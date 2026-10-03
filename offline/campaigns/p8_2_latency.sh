@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+# P8.2 -- the TIMING RUN (gate G2) and its PRE-FLIGHT (gate G1): every latency row of offline/compute_latency.py timed
+# alone in real CityFlow episodes, sequentially, one process per (row, device), under ONE token (BRIEF_43 §4 and
+# Amendment A: Q8-Q14, A3.1, A3.2). No outcome of any episode is recorded or printed.
+#
+# 0. USAGE
+#    The PRE-FLIGHT (G1, the implementer), from a committed, clean task worktree; no token:
+#        mkdir -p /home/filip/rltraffic/output/p8_2_runs
+#        bash offline/campaigns/p8_2_latency.sh --preflight 2>&1 | tee -i -a /home/filip/rltraffic/output/p8_2_runs/preflight_capture.txt
+#    It times hz1x1.dt_k20 and grid4x4.dt_nomix_h4 (the most expensive row of each scenario) on both devices between
+#    two canaries and writes output/p8_2_runs/preflight_<UTC>/preflight.json with the per-scenario timeouts, the canary
+#    timeout and the run's expected duration. The record G1 accepts is then pinned below (PREFLIGHT_RECORD and
+#    PREFLIGHT_SHA256): the run reads its timeouts from it and refuses while it is UNSET or at another digest.
+#
+#    The TIMING RUN (G2, the author), the FOREGROUND form, from the DETACHED RUN WORKTREE the coordinator creates at the
+#    reviewed, pushed commit (a tree at any other commit, on a branch or with uncommitted changes is refused):
+#        git -C /home/filip/rltraffic worktree add --detach /home/filip/rltraffic-p82-run <commit>
+#      Step 1, open a pane:      mkdir -p /home/filip/rltraffic/output/p8_2_runs && tmux new -s p82_latency
+#      Step 2, at ITS PROMPT:    bash /home/filip/rltraffic-p82-run/offline/campaigns/p8_2_latency.sh <commit> 2>&1 | tee -i -a /home/filip/rltraffic/output/p8_2_runs/latency_capture.txt; echo "DRIVER EXIT ${PIPESTATUS[0]}"
+#    The token is output/p8_2_runs/TOKEN_latency, created by the author after Amendment B (touch it). Start on a quiet
+#    machine, on mains power and a performance plan (PROJECT_PLAN §7's canary rule): the canary's timing half refuses
+#    above 2.0 s at the start, and a closing canary above 2.0 s makes the run FAILED. ${PIPESTATUS[0]} is the driver's
+#    status; tee's -i ignores the interrupt, so Ctrl-C's lines reach the capture.
+#
+# 1. WHAT IT PRODUCES (the run)
+#      output/p8_2/latency/<UTC>/<row>_<device>.json   one p8.2-latency/1.0 record per (row, device), written once
+#      output/p8_2/latency/<UTC>/canary_{open,close}.json, run.json, logs/, partial/, and COMPLETE or FAILED
+#      output/SHA256SUMS_p8_2.txt                       over output/p8_2/latency/, written once on COMPLETE, re-verified
+#    Nothing under docs/, the corpus, the draws, another campaign's directory or any worktree.
+#
+# 2. HANGS (DEFERRED 104, Amendment A3.1): CityFlow's engine destructor can hang forever at an env's close. Each row
+#    process keeps its three envs open until its record is written; the run supervises every process (rows and canaries)
+#    under the pre-flight's timeout, kills a hung attempt's process group and re-runs it, at most three attempts; a record
+#    written before a hang is kept; a process that exits without its record FAILS the run, naming the row. Nothing to do
+#    by hand: a hang costs one timeout.
+#
+# 3. RESTART: a FAILED run leaves its directory as it is (it is a record); start again with a new token. A COMPLETE run
+#    is final: the manifest exists and the driver refuses.
+
+set -euo pipefail
+
+MAIN=/home/filip/rltraffic
+PY=$MAIN/.venv/bin/python
+OUTPUT=$MAIN/output
+CORPUS=$MAIN/datasets_v11
+DRAWS=$MAIN/scenarios/draws
+RUNS=$OUTPUT/p8_2_runs
+TOKEN=$RUNS/TOKEN_latency
+MANIFEST=$OUTPUT/SHA256SUMS_p8_2.txt
+
+# The G1 pre-flight whose timeouts the run uses, relative to $OUTPUT, and its sha256 (UNSET refuses the run).
+PREFLIGHT_RECORD=UNSET
+PREFLIGHT_SHA256=UNSET
+
+WORK_TREE=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+DATA=$WORK_TREE/docs/data
+
+refuse() {
+  printf 'REFUSED: %s\n' "$*" >&2
+  exit 2
+}
+
+MODE=run
+if [ "${1:-}" = "--preflight" ]; then
+  MODE=preflight
+fi
+
+# The regime, before any interpreter starts: one thread for OMP and MKL, no cuBLAS workspace setting.
+export OMP_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+unset CUBLAS_WORKSPACE_CONFIG
+
+[ -x "$PY" ] || refuse "no interpreter at $PY"
+[ -z "$(git -C "$WORK_TREE" status --porcelain --untracked-files=no)" ] || refuse "$WORK_TREE has uncommitted changes"
+if pgrep -f "offline[.]compute_latency" >/dev/null; then
+  refuse "another offline.compute_latency process is running"
+fi
+LOADED=$(PYTHONPATH=$WORK_TREE "$PY" -P -c 'import offline.compute_latency as m; print(m.__file__)')
+[ "$LOADED" = "$WORK_TREE/offline/compute_latency.py" ] || refuse "the module loads from $LOADED, not from $WORK_TREE"
+
+cd "$MAIN"
+STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+
+if [ "$MODE" = preflight ]; then
+  mkdir -p "$RUNS"
+  echo "preflight $STAMP from $WORK_TREE at $(git -C "$WORK_TREE" rev-parse HEAD)"
+  PYTHONPATH=$WORK_TREE "$PY" -P -m offline.compute_latency preflight --stamp "$STAMP" --python "$PY" --work-tree "$WORK_TREE" --output-root "$OUTPUT" --corpus-root "$CORPUS" --draws-root "$DRAWS" --data-dir "$DATA"
+  exit $?
+fi
+
+# The run: every refusal below precedes the token.
+COMMIT=${1:?usage: p8_2_latency.sh <commit> | --preflight}
+[ "$(git -C "$WORK_TREE" rev-parse HEAD)" = "$(git -C "$WORK_TREE" rev-parse --verify --quiet "$COMMIT^{commit}" || true)" ] || refuse "$WORK_TREE is not at $COMMIT"
+if git -C "$WORK_TREE" symbolic-ref -q HEAD >/dev/null; then
+  refuse "$WORK_TREE is on a branch; the run tree is a DETACHED worktree at the reviewed commit"
+fi
+[ "$PREFLIGHT_SHA256" != UNSET ] || refuse "no G1 pre-flight is pinned (PREFLIGHT_SHA256 is UNSET)"
+[ "$(sha256sum "$OUTPUT/$PREFLIGHT_RECORD" 2>/dev/null | cut -d' ' -f1)" = "$PREFLIGHT_SHA256" ] || refuse "$OUTPUT/$PREFLIGHT_RECORD is absent or not at its pinned digest $PREFLIGHT_SHA256"
+TIMEOUTS=$(PYTHONPATH=$WORK_TREE "$PY" -P -m offline.compute_latency timeouts --preflight-record "$OUTPUT/$PREFLIGHT_RECORD") || refuse "the pinned pre-flight record yields no timeouts"
+read -r T_HZ T_GRID T_CANARY <<<"$TIMEOUTS"
+[ ! -e "$MANIFEST" ] || refuse "$MANIFEST exists: a completed timing run is final"
+[ -f "$TOKEN" ] || refuse "no token at $TOKEN (the author's, after Amendment B)"
+
+rm -- "$TOKEN"
+echo "token consumed; run $STAMP from $WORK_TREE at $COMMIT; timeouts hz1x1 ${T_HZ} s, grid4x4 ${T_GRID} s, canary ${T_CANARY} s"
+set +e
+PYTHONPATH=$WORK_TREE "$PY" -P -m offline.compute_latency run-all --stamp "$STAMP" --python "$PY" --work-tree "$WORK_TREE" --output-root "$OUTPUT" --corpus-root "$CORPUS" --draws-root "$DRAWS" --data-dir "$DATA" --timeout-hz1x1 "$T_HZ" --timeout-grid4x4 "$T_GRID" --canary-timeout "$T_CANARY"
+CODE=$?
+set -e
+echo "run $STAMP: driver exit $CODE"
+exit "$CODE"

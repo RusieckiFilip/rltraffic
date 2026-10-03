@@ -97,6 +97,8 @@ __all__ = [
     "run_all",
     "derive_timeouts",
     "expected_duration",
+    "run_preflight",
+    "timeouts_from_preflight",
     "build_parser",
     "main",
 ]
@@ -1337,6 +1339,7 @@ def run_preflight(
     }
     if status == "COMPLETE":
         payload["timeouts_s"] = derive_timeouts(measured)
+        payload["canary_timeout_s"] = float(max(120, math.ceil(3 * max(canary_wall))))
         payload["expected_duration"] = expected_duration(measured, max(canary_wall))
     write_once(run_dir / "preflight.json", payload)
     print(f"preflight {stamp}: {status}" + ("" if reason is None else f" -- {reason}"), flush=True)
@@ -1349,7 +1352,17 @@ def run_preflight(
 def timeouts_from_preflight(record_path: Path) -> dict[str, float]:
     """The timing run's timeouts, read from a COMPLETE pre-flight record: ``hz1x1``, ``grid4x4`` and ``canary``
     seconds. Refuses a record that is not a COMPLETE ``p8.2-preflight/1.0`` or that lacks any of the three."""
-    raise NotImplementedError
+    record = _read_json(Path(record_path))
+    if record.get("format_version") != PREFLIGHT_FORMAT_VERSION or record.get("status") != "COMPLETE":
+        raise ValueError(f"{record_path}: not a COMPLETE {PREFLIGHT_FORMAT_VERSION} record; it yields no timeout")
+    timeouts = record.get("timeouts_s") or {}
+    missing = [name for name in ("hz1x1", "grid4x4") if name not in timeouts]
+    if "canary_timeout_s" not in record:
+        missing.append("canary")
+    if missing:
+        raise ValueError(f"{record_path}: the pre-flight record holds no timeout for {missing}")
+    return {"hz1x1": float(timeouts["hz1x1"]), "grid4x4": float(timeouts["grid4x4"]),
+            "canary": float(record["canary_timeout_s"])}
 
 
 # ----------------------------------------------------------------------
@@ -1358,7 +1371,7 @@ def timeouts_from_preflight(record_path: Path) -> dict[str, float]:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """The CLI: ``run-row``, ``canary``, ``run-all``, ``preflight``."""
+    """The CLI: ``run-row``, ``canary``, ``timeouts``, ``run-all``, ``preflight``."""
     parser = argparse.ArgumentParser(prog="python -m offline.compute_latency", description=__doc__.split("\n\n")[0])
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -1373,6 +1386,9 @@ def build_parser() -> argparse.ArgumentParser:
     row.add_argument("--device", required=True, choices=("cpu", "cuda"))
     row.add_argument("--out-dir", type=Path, required=True)
     roots(row)
+
+    timeouts = sub.add_parser("timeouts", help="print the hz1x1, grid4x4 and canary timeouts of a pre-flight record")
+    timeouts.add_argument("--preflight-record", type=Path, required=True)
 
     canary = sub.add_parser("canary", help="the machine-health canary, recorded without its values")
     canary.add_argument("--phase", required=True, choices=("open", "close"))
@@ -1424,6 +1440,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "canary":
         configure_regime("cpu")
         run_canary(args.phase, args.out_dir)
+        return 0
+    if args.command == "timeouts":
+        values = timeouts_from_preflight(args.preflight_record)
+        print(f"{values['hz1x1']:g} {values['grid4x4']:g} {values['canary']:g}")
         return 0
     command_for, canary_command_for = _commands(args)
     env = _child_env(args.work_tree)
