@@ -1,0 +1,248 @@
+{
+ "counts": {
+  "code": 71,
+  "latency": 156,
+  "latency_derived": 156,
+  "measurement_deployed": 44,
+  "measurement_trained": 44,
+  "json_path": 1734,
+  "derived_stats": 75,
+  "measurement_stored": 2,
+  "measurement_intersections": 5,
+  "measurement_executed_per_decision": 5,
+  "inferred": 5,
+  "measurement_intersection_decisions_per_seed": 6,
+  "measurement_joint_decisions_per_seed": 6,
+  "line": 10
+ },
+ "failures": [],
+ "inferred": [
+  [
+   "$.rows[17].training[0].regime.concurrency",
+   6,
+   "6, inferred from the training run's own file mtimes: output/checkpoints.pre_c8_migration/ "
+  ],
+  [
+   "$.rows[18].training[0].regime.concurrency",
+   6,
+   "6, inferred from the training run's own file mtimes: output/checkpoints.pre_c8_migration/ "
+  ],
+  [
+   "$.rows[19].training[0].regime.concurrency",
+   6,
+   "6, inferred from the training run's own file mtimes: output/checkpoints.pre_c8_migration/ "
+  ],
+  [
+   "$.rows[37].training[0].regime.concurrency",
+   6,
+   "6, inferred from the training run's own file mtimes: output/checkpoints.pre_c8_migration/ "
+  ],
+  [
+   "$.rows[38].training[0].regime.concurrency",
+   6,
+   "6, inferred from the training run's own file mtimes: output/checkpoints.pre_c8_migration/ "
+  ]
+ ],
+ "parameters": {
+  "hz1x1.dt_k20": {
+   "deployed": 647176,
+   "trained": 647176
+  },
+  "hz1x1.bc": {
+   "deployed": 400520,
+   "trained": 400520
+  },
+  "hz1x1.bc_top10": {
+   "deployed": 400520,
+   "trained": 400520
+  },
+  "hz1x1.iql": {
+   "deployed": 400520,
+   "stored": 1601177,
+   "trained": 1200657
+  },
+  "hz1x1.bc_best2_20": {
+   "deployed": 400520,
+   "trained": 400520
+  },
+  "hz1x1.bc_any_20": {
+   "deployed": 400520,
+   "trained": 400520
+  },
+  "hz1x1.bc_worst2_20": {
+   "deployed": 400520,
+   "trained": 400520
+  },
+  "hz1x1.bc_best2_all": {
+   "deployed": 400520,
+   "trained": 400520
+  },
+  "hz1x1.dt_nortg": {
+   "deployed": 647176,
+   "trained": 647176
+  },
+  "hz1x1.h4.k1": {
+   "deployed": 647176,
+   "trained": 647176
+  },
+  "hz1x1.h4.k2": {
+   "deployed": 647176,
+   "trained": 647176
+  },
+  "hz1x1.h4.k5": {
+   "deployed": 647176,
+   "trained": 647176
+  },
+  "hz1x1.h4.k10": {
+   "deployed": 647176,
+   "trained": 647176
+  },
+  "hz1x1.h4.k20": {
+   "deployed": 647176,
+   "trained": 647176
+  },
+  "hz1x1.h4.k1_b1280": {
+   "deployed": 647176,
+   "trained": 647176
+  },
+  "hz1x1.h4.k2_b640": {
+   "deployed": 647176,
+   "trained": 647176
+  },
+  "hz1x1.c3.anchor_k200": {
+   "deployed": 647176,
+   "trained": 647176
+  },
+  "hz1x1.mappo1000": {
+   "intersections": 1,
+   "deployed": 20872,
+   "executed_per_decision": 41225,
+   "trained": 41225
+  },
+  "hz1x1.mappo500": {
+   "intersections": 1,
+   "deployed": 20872,
+   "executed_per_decision": 41225,
+   "trained": 41225
+  },
+  "hz1x1.mappo060": {
+   "intersections": 1,
+   "deployed": 20872,
+   "executed_per_decision": 41225,
+   "trained": 41225
+  },
+  "hz1x1.maxpressure": {
+   "intersection_decisions_per_seed": 0,
+   "joint_decisions_per_seed": 0,
+   "deployed": 0,
+   "trained": 0
+  },
+  "hz1x1.fixedtime": {
+   "intersection_decisions_per_seed": 0,
+   "joint_decisions_per_seed": 0,
+   "deployed": 0,
+   "trained": 0
+  },
+  "hz1x1.random": {
+   "intersection_decisions_per_seed": 0,
+   "joint_decisions_per_seed": 0,
+   "deployed": 0,
+   "trained": 0
+  },
+  "grid4x4.dt_spatial": {
+   "deployed": 848008,
+   "trained": 848008
+  },
+  "grid4x4.dt_nomix": {
+   "deployed": 848008,
+   "trained": 848008
+  },
+  "grid4x4.dt_spatial_h4": {
+   "deployed": 848008,
+   "trained": 848008
+  },
+  "grid4x4.dt_nomix_h4": {
+   "deployed": 848008,
+   "trained": 848008
+  },
+  "grid4x4.bc": {
+   "deployed": 402440,
+   "trained": 402440
+  },
+  "grid4x4.bc_top10": {
+   "deployed": 402440,
+   "trained": 402440
+  },
+  "grid4x4.bc_top10_perix": {
+   "deployed": 402440,
+   "trained": 402440
+  },
+  "grid4x4.iql": {
+   "deployed": 402440,
+   "stored": 1608857,
+   "trained": 1206417
+  },
+  "grid4x4.c3.ft_k5": {
+   "deployed": 848008,
+   "trained": 848008
+  },
+  "grid4x4.c3.ft_k20": {
+   "deployed": 848008,
+   "trained": 848008
+  },
+  "grid4x4.c3.ft_k100": {
+   "deployed": 848008,
+   "trained": 848008
+  },
+  "grid4x4.c3.ft_k100_b1000": {
+   "deployed": 848008,
+   "trained": 848008
+  },
+  "grid4x4.c3.ft_k100_b16000": {
+   "deployed": 848008,
+   "trained": 848008
+  },
+  "grid4x4.c3.scratch_k100": {
+   "deployed": 848008,
+   "trained": 848008
+  },
+  "grid4x4.mappo1000": {
+   "intersections": 16,
+   "deployed": 364672,
+   "executed_per_decision": 465680,
+   "trained": 465680
+  },
+  "grid4x4.mappo060": {
+   "intersections": 16,
+   "deployed": 364672,
+   "executed_per_decision": 465680,
+   "trained": 465680
+  },
+  "grid4x4.maxpressure": {
+   "intersection_decisions_per_seed": 0,
+   "joint_decisions_per_seed": 0,
+   "deployed": 0,
+   "trained": 0
+  },
+  "grid4x4.fixedtime": {
+   "intersection_decisions_per_seed": 0,
+   "joint_decisions_per_seed": 0,
+   "deployed": 0,
+   "trained": 0
+  },
+  "grid4x4.random": {
+   "intersection_decisions_per_seed": 0,
+   "joint_decisions_per_seed": 0,
+   "deployed": 0,
+   "trained": 0
+  },
+  "hz1x1.c3.zero_shot_mappo1000": {
+   "deployed": 647176,
+   "trained": 647176
+  },
+  "hz1x1.c3.zero_shot_mix50": {
+   "deployed": 647176,
+   "trained": 647176
+  }
+ }
+}

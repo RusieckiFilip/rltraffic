@@ -287,3 +287,131 @@ command) · the seven survivors re-run against the new code (CM1, CM2, CM4, CM5,
 adapted), each committed in a throwaway worktree and pasted KILLED, plus a mutant per new refusal of B1, B4.2 and B5.3 · the interim
 packet updated → **"P8.2 C4–C5 done"** → **gate G1.1**: the coordinator re-runs all thirteen and checks B1–B7, then Amendment B.1 names
 the run worktree's commit, and only then does the author set Best Performance on mains and create the token.
+
+---
+
+# ✅ AMENDMENT B.1 — 2026-10-04, gate G1.1 PASSED: the timing run is CLEARED at `5c8a33a` — the author's token, after the Windows power mode is set to Best Performance
+
+## B.1.0 — Verdict and what was verified (by the coordinator, by running commands, 2026-10-04)
+1. **The thirteen G1 mutants re-run at `5c8a33a`** — eleven at their unchanged lines, CM4 and CM11 re-targeted by the coordinator at
+   the builder's new code (`inference_block`'s derivation of the published median; `_verified_record`'s checkpoint check) — each
+   COMMITTED in a throwaway worktree, the three test files run with the data gates open (unmutated baseline `178 passed`): **13 / 13
+   KILLED.** CM1 dies on *"hz1x1.dt_k20 on cuda: no CUDA memory was allocated … (Amendment B, B2)"*, CM2 on *"hz1x1.bc on cpu: CUDA
+   was initialised during the timing … (B2)"* (both re-run on their mutant commits to read the reason, not inferred from a truncated
+   line); CM3 is now ALSO caught by the builder's own route (*"the recorded n_timed 1060 does not recompute (1020)"*) — B4.1 doing what
+   it was required for.
+2. **The new row process, end to end, on all 78 cells:** the REAL `run_row` at `5c8a33a` from a clean detached worktree, the driver's
+   environment, three episodes per cell, the record built and validated by `build_record` and then DISCARDED by an injected writer
+   that kept no timing (`docs/notes/p8_2_g1/g11_cells.jsonl`). **All 78 exited 0; 1,020 timed decisions each (3 × 360 − 3 × 20);
+   format `p8.2-latency/1.1`; B2's evidence consistent in every cell (no CPU cell initialised CUDA, every CUDA cell allocated memory);
+   no tracer; one torch thread; no outcome key; the registered checkpoint; commit `5c8a33a`, clean; `kernel_release`
+   `6.18.33.1-microsoft-standard-WSL2`; the power block read in every process** — and reporting Better Battery, as it should, so the
+   builder would refuse every one of these records. Process wall time 716 s in all (on a machine also running the mutants, in Better
+   Battery), the slowest 31.6 s against the 120 s timeout: **G2 should take about 12–15 minutes.**
+3. **B1.2 on the real machine:** the harness's `power-check` refuses (exit 2) naming *"Better Battery (961cc777-…), not Best
+   Performance (ded574b5-…)"*; the driver run from the run worktree WITHOUT a token passes every check before the power check (detached
+   at the commit, clean, the pinned pre-flight digest, its timeouts, no manifest) and refuses there, exit 2, creating nothing.
+4. **B1–B7 read in the code:** the supply and registry readers and the regime test; the evidence read right after the last episode
+   and before `_machine_block`; the tracer refusal before anything is built; each canary re-checking the regime before it times
+   anything; the driver's variable loop before any interpreter and `power-check` before the token; the builder's own route
+   (nearest rank `ceil(0.95 n)`, the even-count median) with every published millisecond derived from verified nanoseconds; each
+   B4.2 refusal; the registry joined to the table row; B6's text (202.3; MAPPO's six workers `inferred` with their basis;
+   per-intersection units; the PPO `minibatch_size` label; `UNPINNED_PLAN_RECORDS`; "an estimate").
+
+## B.1.1 — Rulings on the packet's eight decisions and its open questions
+All eight ACCEPTED as proposed: (1) B1.3 through the canary processes, exit 3, `run_all` naming the regime; (2) the CUDA state read at
+the row's start as well; (3) records selected by the cells `run.json` declares, coverage a separate refusal; (4) formats `1.1`, the
+builder reading only `1.1`, the pre-flight's `1.0` records fenced; (5) the DC overlay recorded, not required; (6) B6.6 done for the two
+hz1x1 heuristic C3 claims, the two `$.format_version` pointers carried to the final packet; (7) no device-evidence re-check in the
+builder — at G3 the coordinator reads all 78 records' evidence independently; (8) the power check after the manifest check and before
+the token, the variable check in both modes. **The reviewers' notes outside B1–B7 go to the final packet's open list; none is needed
+before G2.**
+
+## B.1.2 — The author's addition to `what_this_does_not_say`, recorded
+Given by the author to the implementer directly and implemented in C5b; recorded here so the brief holds every decision: *"The training
+wall times are the training runs' own clocks: the Windows power mode in force during those runs was not recorded (the mode found on
+2026-10-03 was Best power efficiency), so they are not a controlled benchmark and are not comparable to the latency regime."*
+Accepted. One harmonisation for G4, proposed to the author there: the artifact names that mode by both labels once — Windows 11's
+"Best power efficiency" and the documentation's "Better Battery" (`961cc777-…`), which is what every record's `ac_overlay_name` says.
+
+## B.1.3 — G2, the timing run (the author)
+- **The run worktree** (created by the coordinator; the branch pushed): `/home/filip/rltraffic-p82-run`, detached at
+  `5c8a33ab7ed6dd081adebfe982795e044df1d30f`, clean.
+- **Before the token:** Windows Settings → System → Power & battery → Power mode → **Best performance**, the charger plugged in, the lid
+  open; a quiet machine — no game, nothing heavy, the implementer's and the coordinator's sessions idle for the run's duration.
+- **The token:** `touch /home/filip/rltraffic/output/p8_2_runs/TOKEN_latency`.
+- **The command** (the driver's header, section 0): a tmux pane `tmux new -s p82_latency`, and at its prompt
+  `bash /home/filip/rltraffic-p82-run/offline/campaigns/p8_2_latency.sh 5c8a33ab7ed6dd081adebfe982795e044df1d30f 2>&1 | tee -i -a /home/filip/rltraffic/output/p8_2_runs/latency_capture.txt; echo "DRIVER EXIT ${PIPESTATUS[0]}"`.
+- **Expected:** about 12–15 minutes, ending `run <stamp>: COMPLETE`, the manifest line, and `DRIVER EXIT 0`. A refusal before the token
+  costs nothing (set what it names, start again); a hang costs one timeout and is re-run by the driver; a FAILED run keeps its directory
+  and needs a new token.
+
+## B.1.4 — Next
+G2 → **"P8.2 timing run done"** → G3: the coordinator reads the run from disk — the capture, `run.json` and both canaries first, then all
+78 records: each one's power block and device evidence, each median and p95 recomputed from its nanoseconds by a third route, then the
+builder's artifact traced number by number → Amendment C.
+
+---
+
+# ✅ AMENDMENT C — 2026-10-04, gate G3 PASSED: the timing run read from disk, every number of the table traced — and four additions the artifact needs before it is committed (no re-run)
+
+## C0 — Verdict and what was verified (by the coordinator, by running commands; evidence in `docs/notes/p8_2_g3/`)
+1. **The run `20261004T194421Z`** (the author's, 19:44–19:58 UTC, from the run worktree at `5c8a33a`): the capture holds one refusal
+   before the token on the power mode — it cost nothing — then *"Mains online (AC1); Windows AC power mode Best Performance"* and the
+   token consumed; `run.json` COMPLETE, all 80 processes `ok` at their FIRST attempt, no hang; canaries 0.717 s and 0.683 s, at speed,
+   reproduced, mains + Best Performance at both; `SHA256SUMS_p8_2.txt` 162 / 162 `OK` under `sha256sum -c` (its sha256 `3122bfe8…`); the
+   run directory 162 files, `partial/` empty.
+2. **The 78 records, by a third route that imports nothing from the project** (`g3_records.py`): format, row and device, the protocol
+   (draws 1000–1002, warm-up 20, engine seed 1000, 3 × 360), positive integer nanoseconds, no outcome key, commit `5c8a33a` clean, the
+   regime (one thread, OMP / MKL 1, no cuBLAS setting, no tracer), the power block (mains + Best Performance in EVERY record), the
+   device evidence (no CPU cell touched CUDA, every CUDA cell allocated memory), the 36 checkpoint files re-hashed to their digests;
+   `n_timed`, the median (`statistics.median`) and the p95 (by its definition, cumulative counting) recomputed — **every recorded figure
+   and every derived millisecond and per-intersection figure equal, exactly.** Machine: Intel Core Ultra 9 275HX, RTX 5080 Laptop GPU,
+   driver 610.74, torch 2.11.0+cu128, kernel `6.18.33.1-microsoft-standard-WSL2`.
+3. **The builder's artifact**, built by the reviewed code (the run worktree) into the coordinator's scratchpad — 44 rows, sha256
+   `611aaa3b…`, its build passing every verification and refusal on the real run — **with EVERY number traced** (`g3_trace.py`,
+   nothing imported from the project): 1,734 JSON-path values re-resolved in their files at their digests; 10 log-line values found in
+   their lines; 312 latency figures equal to the third route; 75 derived training statistics recomputed; 71 code-sourced zeros; the 5
+   inferred worker counts listed; all 44 rows' parameter counts equal to the coordinator's own G0 / G1 counts; MAPPO's interactions by
+   two routes (`train_episodes × max_steps`; `steps_done` in every checkpoint): 360,000 / 180,000 / 21,600 joint decisions per seed,
+   5,760,000 / 345,600 per intersection on grid4x4. **0 failures.** *(The coordinator's tracer first checked the parameter counts over
+   ZERO rows — a per-row copy of its context discarded them; its own printed count exposed it before any claim was made; fixed with a
+   guard and re-run: 44 / 44.)*
+
+## C1 — Two findings that bound what the table may say (`g3_analysis.py` / `.json`)
+1. **The registered window is not past the machine's start-of-episode transient:** in 45 of 78 cells decisions 20–39 run up to 2×
+   slower than decisions 120–359. **The median is robust** — starting the window at decision 120 moves it by at most 9.5 % (the 14 H4
+   cells by at most 1.3 %); **the p95 is not** — it moves by up to 24.6 %, by more than 10 % in 6 cells. The registered figures stay
+   the primary ones (the protocol was fixed before the run); the median is the table's headline and the p95 a conservative upper tail.
+2. **Rows that run the same computation differ by up to 6.6 % on hz1x1 and up to 35.9 % on grid4x4** (MAPPO on CPU; the spatial DTs up
+   to 15.5 %, the BC networks up to 22.7 %), and one row's three episode medians by up to 76.5 % (grid4x4 BC on CPU). Hence: **the H4
+   trend on one CPU thread — K = 1 0.763 ms to K = 20 1.429 ms median, × 1.87, every K = 1 episode faster than every K = 20 episode —
+   stands far above hz1x1's floor and may be stated; on the GPU the cost is nearly flat (× 1.10).** On grid4x4 the table supports
+   comparisons BETWEEN families (spatial DT ≈ 18–21 ms on one CPU thread, ≈ 3.1–3.7 ms on the GPU; MLP baselines ≈ 0.6–1.0 ms;
+   MAPPO ≈ 2.0–2.8 ms; MaxPressure ≈ 0.25 ms), never a ranking within one (one head against four on the spatial DT is inside the floor).
+
+## C2 — Two code-path facts the table must state (read in the frozen code)
+1. **MAPPO on CUDA is ≈ 6× slower than on CPU on grid4x4** (12.5 vs 2.0 ms) because its decision call loops over its actors one
+   intersection at a time, each with two host-to-device copies and two `.item()` synchronisations (`agent/MAPPOAgent.py:225–245`): its
+   CUDA figure measures that loop's transfers and synchronisations, not its networks' arithmetic.
+2. **IQL's decision call, shared with BC** (`agent/OfflineBaselines.py:360–405`), sets eval mode on every network the agent holds and
+   restores it after, around a forward pass of the policy alone; IQL holds four (`:594–597`), BC one (`:541–543`) — so IQL's latency
+   above BC's (≈ +45 % on both scenarios, the same deployed network) is that bookkeeping, not arithmetic.
+
+## C3 — Required before the artifact is committed (the builder only; the records are final, no re-run)
+1. **`latency_sensitivity`** per cell: the median and the nearest-rank p95 over decisions 120–359, by the builder's own route from the
+   verified nanoseconds, beside the registered figures with the relative change; a summary; a sentence in `what_this_does_not_say`
+   GENERATED from the summary (no typed number): the median is robust, the p95 a conservative upper tail.
+2. **`latency_variability`**: per cell the three episode medians; the same-computation groups — the nine of C1.2 (the same scenario,
+   network, context length and deployed parameters, on one device), derived by the builder from its rows, a test pinning them to these
+   nine — with their spreads; a summary; a generated sentence: a difference between rows below the floor is not interpretable.
+3. **C2's two facts** in `what_this_does_not_say`, each with its code lines.
+4. **The power labels (B.1.2), additive — the author's sentence unchanged:** the hardware block names `961cc777-…` by both labels,
+   "Better Battery" (Microsoft's documentation; every record's `ac_overlay_name`) and "Best power efficiency" (Windows 11's Settings).
+5. Tests first, red for their own reasons; one mutant per new computation (the window start, the group membership, the spread),
+   committed and killed; the whole suite; the three test files once in a depth-1 clone (F.1's command).
+6. **Then the artifact:** built at the branch tip from `output/p8_2/latency/20261004T194421Z` and `output/SHA256SUMS_p8_2.txt`, committed
+   by hand as `docs/data/p8_2_compute.json`, byte-identical to the builder's output, with a T-regress that regenerates it; at G5 the
+   coordinator compares every row's numbers with its own G3 build.
+7. **The final packet `docs/returns/P8.2.md`** per §9 — the rendered table with C1's two bounds in its caption, the hardware block, the
+   capture, the regime of every training time, what the table does not say, the AI-assistance record — then **"P8.2 done"** → G5.
