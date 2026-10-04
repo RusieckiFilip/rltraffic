@@ -92,6 +92,13 @@ __all__ = [
     "check_registry_coverage",
     "join_registry_row",
     "inference_block",
+    "SENSITIVITY_START",
+    "P95_NOTABLE_CHANGE",
+    "latency_sensitivity",
+    "same_computation_groups",
+    "latency_variability",
+    "sensitivity_sentence",
+    "variability_sentence",
     "build_artifact",
     "write_artifact",
     "build_parser",
@@ -1648,6 +1655,43 @@ def inference_block(row: TableRow, run: Mapping[str, Any]) -> dict[str, Any]:
             "factory": record["factory"],
         }
     return out
+
+
+# ----------------------------------------------------------------------
+# What the latency figures can bear (Amendment C, C3.1 and C3.2)
+# ----------------------------------------------------------------------
+
+#: C3.1: the late window's first decision -- the median and the p95 over decisions 120..359 beside the registered ones.
+SENSITIVITY_START = 120
+
+#: C3.1: a p95 that moves by more than this fraction when the window starts late is counted in the summary.
+P95_NOTABLE_CHANGE = 0.10
+
+
+def latency_sensitivity(run: Mapping[str, Any]) -> dict[str, Any]:
+    """C3.1: per cell the median and the nearest-rank p95 over decisions 120..359 beside the registered figures."""
+    raise NotImplementedError("Amendment C, C3.1: latency_sensitivity")
+
+
+def same_computation_groups(rows: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """C3.2: the rows that run the same computation -- the same scenario, family, network, heads, context length and
+    deployed parameters -- in groups of two or more."""
+    raise NotImplementedError("Amendment C, C3.2: the same-computation groups")
+
+
+def latency_variability(run: Mapping[str, Any], rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """C3.2: per cell the three episode medians; per same-computation group and device the spread of the medians."""
+    raise NotImplementedError("Amendment C, C3.2: latency_variability")
+
+
+def sensitivity_sentence(summary: Mapping[str, Any]) -> str:
+    """C3.1: the sentence ``what_this_does_not_say`` gains, generated from the sensitivity summary."""
+    raise NotImplementedError("Amendment C, C3.1: the generated sensitivity sentence")
+
+
+def variability_sentence(summary: Mapping[str, Any]) -> str:
+    """C3.2: the sentence ``what_this_does_not_say`` gains, generated from the variability summary."""
+    raise NotImplementedError("Amendment C, C3.2: the generated variability sentence")
 
 
 # ----------------------------------------------------------------------

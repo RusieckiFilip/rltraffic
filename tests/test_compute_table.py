@@ -451,7 +451,8 @@ _MAINS_BEST: dict[str, Any] = {
 
 
 def _write_run(tmp_path: Path, *, rows: tuple[cl.LatencyRow, ...] | None = None, close_seconds: float = 0.8,
-               reproduced: bool = True, complete: bool = True) -> tuple[Path, Path]:
+               reproduced: bool = True, complete: bool = True,
+               ns_for: Callable[[cl.LatencyRow, str], list[list[int]]] | None = None) -> tuple[Path, Path]:
     rows = cl.ROWS if rows is None else rows
     latency_root = tmp_path / "latency"
     run_dir = latency_root / "20261003T000000Z"
@@ -463,7 +464,8 @@ def _write_run(tmp_path: Path, *, rows: tuple[cl.LatencyRow, ...] | None = None,
     outcomes = [{"label": "canary_open", "status": "ok", "attempts": []}]
     for row in rows:
         for device in row.devices:
-            record = cl.build_record(row, device, _ns(), draws=cl.TIMING_DRAWS, prompt=None, factory="synthetic",
+            ns = _ns() if ns_for is None else ns_for(row, device)  # ns_for: added for Amendment C's tests (C6)
+            record = cl.build_record(row, device, ns, draws=cl.TIMING_DRAWS, prompt=None, factory="synthetic",
                                      regime=regime, machine=machine, load_before=[0.0, 0.0, 0.0],
                                      load_after=[0.0, 0.0, 0.0], git=git)
             cl.write_once(run_dir / f"{row.row_id}_{device}.json", record)
@@ -1167,3 +1169,256 @@ def test_b6_each_note_cites_the_lines_that_hold_what_it_quotes() -> None:
         cited = "\n".join((REPO_ROOT / document).read_text(encoding="utf-8").splitlines()[first - 1:last])
         for phrase in phrases:
             assert phrase in cited, (constant, phrase, f"{document}:{first}-{last}")
+
+
+# ======================================================================
+# Amendment C (gate G3), written red first in C6: C3.1 latency_sensitivity, C3.2 latency_variability and the nine
+# same-computation groups, C3.3 the two code-path facts, C3.4 the power mode's two labels.
+# ======================================================================
+
+#: C3.1's late window, typed here rather than read from the builder, so a builder that moves it is caught.
+_LATE = 120
+
+
+def _transient_ns(row: cl.LatencyRow, device: str) -> list[list[int]]:
+    """Decisions 0..119 slower than the rest (a start-of-episode transient); rows and episodes offset so that their
+    medians differ."""
+    offset = (sum(map(ord, row.row_id)) % 97) * 1_000 + (50_000 if device == "cuda" else 0)
+    return [[(3_000_000 if k < _LATE else 1_000_000) + 1_000 * k + 7_000 * episode + offset
+             for k in range(cl.DECISIONS_PER_EPISODE)] for episode in range(len(cl.TIMING_DRAWS))]
+
+
+def _independent(values: list[int]) -> tuple[float, int]:
+    """This test's own median (the mean of the two middle values for an even count) and nearest-rank p95."""
+    ordered = sorted(values)
+    n = len(ordered)
+    median = ordered[n // 2] if n % 2 else (ordered[n // 2 - 1] + ordered[n // 2]) / 2
+    return median, ordered[(95 * n + 99) // 100 - 1]
+
+
+def test_c3_latency_sensitivity_recomputes_every_cell_over_decisions_120_to_359(tmp_path: Path) -> None:
+    rows = (cl.row_by_id("hz1x1.bc"), cl.row_by_id("hz1x1.maxpressure"))
+    run_dir, manifest = _write_run(tmp_path, rows=rows, ns_for=_transient_ns)
+    sensitivity = ct.latency_sensitivity(ct.verify_latency_run(run_dir, manifest))
+    assert set(sensitivity["cells"]) == {"hz1x1.bc_cpu", "hz1x1.bc_cuda", "hz1x1.maxpressure_cpu"}
+    worst_median = worst_p95 = 0.0
+    above = 0
+    for label, cell in sensitivity["cells"].items():
+        episodes = [e["decision_ns"] for e in json.loads((run_dir / f"{label}.json").read_text())["episodes"]]
+        registered = _independent([v for e in episodes for v in e[cl.WARMUP:]])
+        late = _independent([v for e in episodes for v in e[_LATE:]])
+        assert (cell["registered"]["median_ms"], cell["registered"]["p95_ms"]) == (registered[0] / 1e6, registered[1] / 1e6)
+        assert (cell["late"]["median_ms"], cell["late"]["p95_ms"]) == (late[0] / 1e6, late[1] / 1e6), label
+        assert cell["late"]["n_timed"] == 3 * (cl.DECISIONS_PER_EPISODE - _LATE)
+        assert cell["median_change"] == (late[0] / 1e6) / (registered[0] / 1e6) - 1
+        assert cell["p95_change"] == (late[1] / 1e6) / (registered[1] / 1e6) - 1
+        assert cell["p95_change"] < -0.10, "the fixture's transient must move the p95"
+        worst_median = max(worst_median, abs(cell["median_change"]))
+        worst_p95 = max(worst_p95, abs(cell["p95_change"]))
+        above += abs(cell["p95_change"]) > 0.10
+    summary = sensitivity["summary"]
+    assert summary["window"] == "decisions 120-359" and summary["cells"] == 3
+    assert (summary["median_change_max_abs"], summary["p95_change_max_abs"]) == (worst_median, worst_p95)
+    assert summary["cells_p95_change_above"] == {"threshold": 0.10, "count": above}
+
+
+def test_c3_the_sensitivity_sentence_is_generated_from_its_summary() -> None:
+    def summary(median: float, p95: float, count: int) -> dict[str, Any]:
+        return {"window": "decisions 120-359", "cells": 78, "median_change_max_abs": median, "p95_change_max_abs": p95,
+                "cells_p95_change_above": {"threshold": 0.10, "count": count}}
+
+    one = ct.sensitivity_sentence(summary(0.0951, 0.2458, 6))
+    two = ct.sensitivity_sentence(summary(0.02, 0.05, 0))
+    assert "9.5%" in one and "24.6%" in one and "6 of 78" in one
+    assert "2.0%" in two and "5.0%" in two and "0 of 78" in two
+    for text in (one, two):
+        assert "robust" in text and "conservative upper tail" in text and "10%" in text
+
+
+def _entry(row_id: str, scenario: str, family: str, architecture: str, deployed: int, n_head: int | None = None,
+           context: int | None = None) -> dict[str, Any]:
+    def sourced(value: int | None) -> dict[str, Any]:
+        return ({"value": value, "source": {"measurement": "synthetic"}} if value is not None
+                else {"value": None, "reason": "not an attention model"})
+
+    return {"id": row_id, "scenario": scenario,
+            "computation": {"family": family, "architecture": architecture, "deployed_parameters": deployed,
+                            "n_head": sourced(n_head), "context_length": sourced(context)}}
+
+
+def test_c3_same_computation_groups_split_by_scenario_family_network_heads_context_and_size() -> None:
+    entries = [
+        _entry("a.dt_k20", "a", "dt", "dt.x", 100, 1, 20), _entry("a.dt_k20_bis", "a", "dt", "dt.x", 100, 1, 20),
+        _entry("a.dt_k1", "a", "dt", "dt.x", 100, 1, 1), _entry("a.dt_k1_bis", "a", "dt", "dt.x", 100, 1, 1),
+        _entry("a.dt_h4", "a", "dt", "dt.x", 100, 4, 20),  # another head count: alone
+        _entry("a.bc", "a", "bc", "mlp.x", 50), _entry("a.bc_bis", "a", "bc", "mlp.x", 50),
+        _entry("a.iql", "a", "iql", "mlp.x", 50),  # the same deployed network, another decision call: alone
+        _entry("b.bc", "b", "bc", "mlp.x", 50),  # another scenario: alone
+        _entry("a.bc_big", "a", "bc", "mlp.x", 60),  # another size: alone
+        _entry("a.mp", "a", "heuristic", "heuristic.maxpressure", 0),
+        _entry("a.ft", "a", "heuristic", "heuristic.fixedtime", 0),
+    ]
+    groups = ct.same_computation_groups(entries)
+    assert sorted(sorted(group["rows"]) for group in groups) == [
+        ["a.bc", "a.bc_bis"], ["a.dt_k1", "a.dt_k1_bis"], ["a.dt_k20", "a.dt_k20_bis"]]
+    assert len({group["name"] for group in groups}) == 3
+
+
+def test_c3_latency_variability_takes_each_cells_episode_medians_and_each_groups_spread(tmp_path: Path) -> None:
+    rows = (cl.row_by_id("hz1x1.bc"), cl.row_by_id("hz1x1.bc_top10"), cl.row_by_id("hz1x1.iql"))
+    run_dir, manifest = _write_run(tmp_path, rows=rows, ns_for=_transient_ns)
+    run = ct.verify_latency_run(run_dir, manifest)
+    table = [_entry("hz1x1.bc", "hz1x1", "bc", "mlp.x", 50), _entry("hz1x1.bc_top10", "hz1x1", "bc", "mlp.x", 50),
+             _entry("hz1x1.iql", "hz1x1", "iql", "mlp.x", 50)]
+    variability = ct.latency_variability(run, table)
+    assert set(variability["cells"]) == {f"{row.row_id}_{device}" for row in rows for device in ("cpu", "cuda")}
+    for label, cell in variability["cells"].items():
+        episodes = [e["decision_ns"] for e in json.loads((run_dir / f"{label}.json").read_text())["episodes"]]
+        medians = [_independent(episode[cl.WARMUP:])[0] / 1e6 for episode in episodes]
+        assert cell["episode_medians_ms"] == medians, label
+        assert cell["episode_spread"] == max(medians) / min(medians) - 1
+    groups = variability["groups"]
+    assert [(group["device"], sorted(group["rows"])) for group in groups] == [
+        ("cpu", ["hz1x1.bc", "hz1x1.bc_top10"]), ("cuda", ["hz1x1.bc", "hz1x1.bc_top10"])]
+    for group in groups:
+        medians = []
+        for row_id in group["rows"]:
+            record = json.loads((run_dir / f"{row_id}_{group['device']}.json").read_text())
+            medians.append(_independent([v for e in record["episodes"] for v in e["decision_ns"][cl.WARMUP:]])[0] / 1e6)
+        assert group["medians_ms"] == medians and (group["min_ms"], group["max_ms"]) == (min(medians), max(medians))
+        assert group["spread"] == max(medians) / min(medians) - 1 and group["spread"] > 0
+    summary = variability["summary"]
+    assert summary["episode_spread_max"] == max(cell["episode_spread"] for cell in variability["cells"].values())
+    assert summary["same_computation_spread_max"] == {"hz1x1": max(group["spread"] for group in groups)}
+    assert summary["groups"] == 1
+
+
+def test_c3_the_variability_sentence_is_generated_from_its_summary() -> None:
+    one = ct.variability_sentence({"episode_spread_max": 0.7645, "groups": 9,
+                                   "same_computation_spread_max": {"hz1x1": 0.0658, "grid4x4": 0.3589}})
+    two = ct.variability_sentence({"episode_spread_max": 0.1, "groups": 9,
+                                   "same_computation_spread_max": {"hz1x1": 0.01, "grid4x4": 0.02}})
+    assert "6.6%" in one and "35.9%" in one and "76.5%" in one
+    assert "1.0%" in two and "2.0%" in two and "10.0%" in two
+    for text in (one, two):
+        assert "not interpretable" in text
+
+
+_C2_MAPPO = (
+    "MAPPO's decision call loops over its actors one intersection at a time, each with two host-to-device copies and "
+    "two .item() synchronisations (agent/MAPPOAgent.py:225-245): its CUDA figure measures that loop's transfers and "
+    "synchronisations, not its networks' arithmetic."
+)
+_C2_IQL = (
+    "IQL's decision call, shared with BC (agent/OfflineBaselines.py:360-405), sets eval mode on every network the agent "
+    "holds and restores it afterwards, around a forward pass of the policy alone; IQL holds four networks "
+    "(agent/OfflineBaselines.py:594-597), BC one (agent/OfflineBaselines.py:541-543), so the part of IQL's latency above "
+    "BC's, with the same deployed network, is that bookkeeping, not arithmetic."
+)
+
+
+def test_c3_what_this_does_not_say_states_the_two_code_path_facts_and_their_lines_hold_them() -> None:
+    assert _C2_MAPPO in ct.WHAT_THIS_DOES_NOT_SAY and _C2_IQL in ct.WHAT_THIS_DOES_NOT_SAY
+
+    def lines(path: str, first: int, last: int) -> str:
+        return "\n".join((REPO_ROOT / path).read_text(encoding="utf-8").splitlines()[first - 1:last])
+
+    mappo = lines("agent/MAPPOAgent.py", 225, 245)
+    assert "for i, actor in enumerate(self.actors)" in mappo
+    assert mappo.count("torch.as_tensor(") == 2 and mappo.count(".item()") == 2
+    act = lines("agent/OfflineBaselines.py", 360, 405)
+    assert "module.eval()" in act and "module.train(mode)" in act and "self.policy_logits(state)" in act
+    assert "return [self.policy, self.q, self.v, self.q_target]" in lines("agent/OfflineBaselines.py", 594, 597)
+    assert "return [self.model]" in lines("agent/OfflineBaselines.py", 541, 543)
+
+
+def test_c3_the_hardware_block_names_the_better_battery_overlay_by_both_labels() -> None:
+    machine = {"cpu_model": "synthetic", "power": _MAINS_BEST}
+    regime = {"torch_num_threads": 1, "device": "cpu", "synchronize": None}
+    run: dict[str, Any] = {"records": {("a", "cpu"): {"record": {"machine": machine, "regime": regime}}}}
+    labels = ct._hardware(run)["power_mode_labels"]["961cc777-2547-4f9d-8174-7d86181b8a7a"]
+    assert labels["documentation"] == "Better Battery" == cl.POWER_OVERLAYS["961cc777-2547-4f9d-8174-7d86181b8a7a"]
+    assert labels["windows_11_settings"] == "Best power efficiency"
+    assert _B7_TRAINING_CLOCKS in ct.WHAT_THIS_DOES_NOT_SAY  # the author's sentence, unchanged
+
+
+def test_c3_the_artifact_carries_sensitivity_variability_and_their_generated_sentences(built_artifact: Any) -> None:
+    artifact, _ = built_artifact
+    sensitivity, variability = artifact["latency_sensitivity"], artifact["latency_variability"]
+    assert len(sensitivity["cells"]) == len(variability["cells"]) == 78
+    assert ct.sensitivity_sentence(sensitivity["summary"]) in artifact["what_this_does_not_say"]
+    assert ct.variability_sentence(variability["summary"]) in artifact["what_this_does_not_say"]
+    for out in artifact["rows"]:
+        assert (out["computation"]["family"], out["computation"]["architecture"]) == (out["family"], out["architecture"])
+
+
+# ----------------------------------------------------------------------
+# Gated: the REAL timing run of G2 (output/p8_2/latency/20261004T194421Z)
+# ----------------------------------------------------------------------
+
+REAL_RUN = "20261004T194421Z"
+
+#: C1.2's nine same-computation groups (the same scenario, network, context length and deployed parameters).
+_NINE = {frozenset(rows) for rows in (
+    ("hz1x1.dt_k20", "hz1x1.dt_nortg", "hz1x1.h4.k20", "hz1x1.c3.anchor_k200"),
+    ("hz1x1.h4.k1", "hz1x1.h4.k1_b1280"),
+    ("hz1x1.h4.k2", "hz1x1.h4.k2_b640"),
+    ("hz1x1.bc", "hz1x1.bc_top10", "hz1x1.bc_best2_20", "hz1x1.bc_any_20", "hz1x1.bc_worst2_20", "hz1x1.bc_best2_all"),
+    ("hz1x1.mappo1000", "hz1x1.mappo500", "hz1x1.mappo060"),
+    ("grid4x4.dt_spatial", "grid4x4.dt_nomix"),
+    ("grid4x4.dt_spatial_h4", "grid4x4.dt_nomix_h4", "grid4x4.c3.ft_k5", "grid4x4.c3.ft_k20", "grid4x4.c3.ft_k100",
+     "grid4x4.c3.ft_k100_b1000", "grid4x4.c3.ft_k100_b16000", "grid4x4.c3.scratch_k100"),
+    ("grid4x4.bc", "grid4x4.bc_top10", "grid4x4.bc_top10_perix"),
+    ("grid4x4.mappo1000", "grid4x4.mappo060"),
+)}
+
+
+@pytest.fixture(scope="module")
+def real_artifact() -> dict[str, Any]:
+    output_root = _output_root()
+    corpus_root = _corpus_root()
+    run_dir = output_root / "p8_2" / "latency" / REAL_RUN
+    if not (run_dir / "COMPLETE").is_file():
+        pytest.skip(f"{run_dir} not found: G2's timing run is in the main tree's output (gitignored)")
+    committed = DATA / "p8_2_compute.json"
+    git = json.loads(committed.read_text())["git"] if committed.is_file() else {}
+    roots = ct.Roots(repo_root=REPO_ROOT, output_root=output_root, corpus_root=corpus_root, latency_dir=run_dir,
+                     manifest_path=output_root / "SHA256SUMS_p8_2.txt")
+    return ct.build_artifact(roots, git=git)
+
+
+def test_c3_the_same_computation_groups_are_the_nine_of_amendment_c(real_artifact: dict[str, Any]) -> None:
+    groups = real_artifact["latency_variability"]["groups"]
+    assert {frozenset(group["rows"]) for group in groups} == _NINE
+    assert sorted(group["device"] for group in groups) == ["cpu"] * 9 + ["cuda"] * 9
+
+
+def test_c3_sensitivity_and_variability_equal_the_coordinators_third_route(real_artifact: dict[str, Any]) -> None:
+    g3 = json.loads((REPO_ROOT / "docs" / "notes" / "p8_2_g3" / "g3_analysis.json").read_text())
+    sensitivity, variability = real_artifact["latency_sensitivity"], real_artifact["latency_variability"]
+    assert set(sensitivity["cells"]) == set(variability["cells"]) == set(g3["cells"])
+    for label, cell in sensitivity["cells"].items():
+        theirs = g3["cells"][label]
+        assert (cell["registered"]["median_ms"], cell["registered"]["p95_ms"]) == (theirs["median_ms_20_359"],
+                                                                                   theirs["p95_ms_20_359"]), label
+        assert (cell["late"]["median_ms"], cell["late"]["p95_ms"]) == (theirs["median_ms_120_359"],
+                                                                       theirs["p95_ms_120_359"]), label
+        assert (cell["median_change"], cell["p95_change"]) == (theirs["median_change_if_120"],
+                                                               theirs["p95_change_if_120"]), label
+    for label, cell in variability["cells"].items():
+        theirs = g3["cells"][label]
+        assert (cell["episode_medians_ms"], cell["episode_spread"]) == (theirs["episode_medians_ms"],
+                                                                        theirs["episode_spread"]), label
+    for group in variability["groups"]:
+        theirs = [g for key, g in g3["groups"].items()
+                  if key.endswith(f"/ {group['device']}") and frozenset(g["rows"]) == frozenset(group["rows"])]
+        assert len(theirs) == 1, group["name"]
+        assert (group["min_ms"], group["max_ms"], group["spread"]) == (theirs[0]["min_ms"], theirs[0]["max_ms"],
+                                                                       theirs[0]["spread"]), group["name"]
+    summary = g3["summary"]
+    assert sensitivity["summary"]["median_change_max_abs"] == summary["median_change_if_120_max_abs"]
+    assert sensitivity["summary"]["p95_change_max_abs"] == summary["p95_change_if_120_max_abs"]
+    assert sensitivity["summary"]["cells_p95_change_above"]["count"] == summary["cells_p95_change_above_10pct"]
+    assert variability["summary"]["episode_spread_max"] == summary["episode_spread_max"]
+    assert variability["summary"]["same_computation_spread_max"] == {
+        "hz1x1": summary["same_computation_spread_max_hz1x1"], "grid4x4": summary["same_computation_spread_max_grid4x4"]}
