@@ -287,3 +287,66 @@ command) · the seven survivors re-run against the new code (CM1, CM2, CM4, CM5,
 adapted), each committed in a throwaway worktree and pasted KILLED, plus a mutant per new refusal of B1, B4.2 and B5.3 · the interim
 packet updated → **"P8.2 C4–C5 done"** → **gate G1.1**: the coordinator re-runs all thirteen and checks B1–B7, then Amendment B.1 names
 the run worktree's commit, and only then does the author set Best Performance on mains and create the token.
+
+---
+
+# ✅ AMENDMENT B.1 — 2026-10-04, gate G1.1 PASSED: the timing run is CLEARED at `5c8a33a` — the author's token, after the Windows power mode is set to Best Performance
+
+## B.1.0 — Verdict and what was verified (by the coordinator, by running commands, 2026-10-04)
+1. **The thirteen G1 mutants re-run at `5c8a33a`** — eleven at their unchanged lines, CM4 and CM11 re-targeted by the coordinator at
+   the builder's new code (`inference_block`'s derivation of the published median; `_verified_record`'s checkpoint check) — each
+   COMMITTED in a throwaway worktree, the three test files run with the data gates open (unmutated baseline `178 passed`): **13 / 13
+   KILLED.** CM1 dies on *"hz1x1.dt_k20 on cuda: no CUDA memory was allocated … (Amendment B, B2)"*, CM2 on *"hz1x1.bc on cpu: CUDA
+   was initialised during the timing … (B2)"* (both re-run on their mutant commits to read the reason, not inferred from a truncated
+   line); CM3 is now ALSO caught by the builder's own route (*"the recorded n_timed 1060 does not recompute (1020)"*) — B4.1 doing what
+   it was required for.
+2. **The new row process, end to end, on all 78 cells:** the REAL `run_row` at `5c8a33a` from a clean detached worktree, the driver's
+   environment, three episodes per cell, the record built and validated by `build_record` and then DISCARDED by an injected writer
+   that kept no timing (`docs/notes/p8_2_g1/g11_cells.jsonl`). **All 78 exited 0; 1,020 timed decisions each (3 × 360 − 3 × 20);
+   format `p8.2-latency/1.1`; B2's evidence consistent in every cell (no CPU cell initialised CUDA, every CUDA cell allocated memory);
+   no tracer; one torch thread; no outcome key; the registered checkpoint; commit `5c8a33a`, clean; `kernel_release`
+   `6.18.33.1-microsoft-standard-WSL2`; the power block read in every process** — and reporting Better Battery, as it should, so the
+   builder would refuse every one of these records. Process wall time 716 s in all (on a machine also running the mutants, in Better
+   Battery), the slowest 31.6 s against the 120 s timeout: **G2 should take about 12–15 minutes.**
+3. **B1.2 on the real machine:** the harness's `power-check` refuses (exit 2) naming *"Better Battery (961cc777-…), not Best
+   Performance (ded574b5-…)"*; the driver run from the run worktree WITHOUT a token passes every check before the power check (detached
+   at the commit, clean, the pinned pre-flight digest, its timeouts, no manifest) and refuses there, exit 2, creating nothing.
+4. **B1–B7 read in the code:** the supply and registry readers and the regime test; the evidence read right after the last episode
+   and before `_machine_block`; the tracer refusal before anything is built; each canary re-checking the regime before it times
+   anything; the driver's variable loop before any interpreter and `power-check` before the token; the builder's own route
+   (nearest rank `ceil(0.95 n)`, the even-count median) with every published millisecond derived from verified nanoseconds; each
+   B4.2 refusal; the registry joined to the table row; B6's text (202.3; MAPPO's six workers `inferred` with their basis;
+   per-intersection units; the PPO `minibatch_size` label; `UNPINNED_PLAN_RECORDS`; "an estimate").
+
+## B.1.1 — Rulings on the packet's eight decisions and its open questions
+All eight ACCEPTED as proposed: (1) B1.3 through the canary processes, exit 3, `run_all` naming the regime; (2) the CUDA state read at
+the row's start as well; (3) records selected by the cells `run.json` declares, coverage a separate refusal; (4) formats `1.1`, the
+builder reading only `1.1`, the pre-flight's `1.0` records fenced; (5) the DC overlay recorded, not required; (6) B6.6 done for the two
+hz1x1 heuristic C3 claims, the two `$.format_version` pointers carried to the final packet; (7) no device-evidence re-check in the
+builder — at G3 the coordinator reads all 78 records' evidence independently; (8) the power check after the manifest check and before
+the token, the variable check in both modes. **The reviewers' notes outside B1–B7 go to the final packet's open list; none is needed
+before G2.**
+
+## B.1.2 — The author's addition to `what_this_does_not_say`, recorded
+Given by the author to the implementer directly and implemented in C5b; recorded here so the brief holds every decision: *"The training
+wall times are the training runs' own clocks: the Windows power mode in force during those runs was not recorded (the mode found on
+2026-10-03 was Best power efficiency), so they are not a controlled benchmark and are not comparable to the latency regime."*
+Accepted. One harmonisation for G4, proposed to the author there: the artifact names that mode by both labels once — Windows 11's
+"Best power efficiency" and the documentation's "Better Battery" (`961cc777-…`), which is what every record's `ac_overlay_name` says.
+
+## B.1.3 — G2, the timing run (the author)
+- **The run worktree** (created by the coordinator; the branch pushed): `/home/filip/rltraffic-p82-run`, detached at
+  `5c8a33ab7ed6dd081adebfe982795e044df1d30f`, clean.
+- **Before the token:** Windows Settings → System → Power & battery → Power mode → **Best performance**, the charger plugged in, the lid
+  open; a quiet machine — no game, nothing heavy, the implementer's and the coordinator's sessions idle for the run's duration.
+- **The token:** `touch /home/filip/rltraffic/output/p8_2_runs/TOKEN_latency`.
+- **The command** (the driver's header, section 0): a tmux pane `tmux new -s p82_latency`, and at its prompt
+  `bash /home/filip/rltraffic-p82-run/offline/campaigns/p8_2_latency.sh 5c8a33ab7ed6dd081adebfe982795e044df1d30f 2>&1 | tee -i -a /home/filip/rltraffic/output/p8_2_runs/latency_capture.txt; echo "DRIVER EXIT ${PIPESTATUS[0]}"`.
+- **Expected:** about 12–15 minutes, ending `run <stamp>: COMPLETE`, the manifest line, and `DRIVER EXIT 0`. A refusal before the token
+  costs nothing (set what it names, start again); a hang costs one timeout and is re-run by the driver; a FAILED run keeps its directory
+  and needs a new token.
+
+## B.1.4 — Next
+G2 → **"P8.2 timing run done"** → G3: the coordinator reads the run from disk — the capture, `run.json` and both canaries first, then all
+78 records: each one's power block and device evidence, each median and p95 recomputed from its nanoseconds by a third route, then the
+builder's artifact traced number by number → Amendment C.
