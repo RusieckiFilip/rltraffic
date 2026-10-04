@@ -1,9 +1,10 @@
 """P8.2: the compute-and-latency table -- parameters, training cost and decision latency, every number with its source.
 
-Written against ``docs/briefs/BRIEF_43_p8.2_compute_latency.md`` §5 and its **Amendment A** (Q3: one row per arm with
+Written against ``docs/briefs/BRIEF_43_p8.2_compute_latency.md`` §5, its **Amendment A** (Q3: one row per arm with
 its tiers inside and an ``architecture`` key; Q4: MAPPO's ``results.json`` digests pinned here as of 2026-10-03;
 Q5/Q6: absences declared, never reconstructed; Q7: ``trained`` / ``deployed`` / ``stored`` /
-``executed_per_decision``; Q13: parameters counted on all five seeds), on the plan ``docs/plans/p8.2.md`` @ ``a7c43e1``.
+``executed_per_decision``; Q13: parameters counted on all five seeds) and its **Amendment B** (gate G1: B4 the
+latency verification, B6 the text the table prints, B7), on the plan ``docs/plans/p8.2.md`` @ ``a7c43e1``.
 
 On-disk format
 --------------
@@ -12,11 +13,21 @@ Its ``rows`` carry, per row: the claims it serves with the committed result each
 seed, path, digest and the record that names it); the parameter counts (route A, the method's own loader, equal to
 route B, the payload's parameter tensors, on every checkpoint); the training cost per (record, tier) -- median
 [min-max] over seeds, never pooled across records, each with its regime and with what its wall time covers; the
-environment interactions; the inference latency from the ``p8.2-latency/1.0`` records. **Every number is
-``{value, source}``**, a source being ``{file, sha256, json_path}``, ``{file, sha256, line}``, ``{code, file, sha256}``
-or ``{measurement}``; a declared absence is ``{value: null, reason}``. Files are named relative to this checkout
-(``docs/...``) or to the main tree (``output/...``, ``datasets_v11/...``). Alignment convention: not applicable -- the
-artifact records no trajectory.
+environment interactions; the inference latency from the ``p8.2-latency/1.1`` records. Every number read from a record,
+a checkpoint, the code or a measurement is ``{value, source}``, a source being ``{file, sha256, json_path}``, ``{file,
+sha256, line}``, ``{code, file, sha256}``, ``{measurement}`` or ``{inferred, confidence, recorded}``; a declared
+absence is ``{value: null, reason}``. The derived statistics -- a median with its minimum and maximum, a count of timed
+decisions, the per-intersection figure, a product of two sourced factors -- carry no source of their own: each sits
+beside the sourced per-seed values (or factors) it is derived from, so a reader recomputes it there. Files are named
+relative to this checkout (``docs/...``) or to the main tree (``output/...``, ``datasets_v11/...``). Alignment
+convention: not applicable -- the artifact records no trajectory.
+
+What is pinned
+--------------
+:data:`PINNED_RECORDS` holds, each at its digest of 2026-10-03: every record of plan §4 the builder reads; the five
+:data:`SOURCES_ADDED_AFTER_PLAN`, each with its reason; and the 25 corpus manifests plan §3 names as the MAPPO
+checkpoints' digest source. The three plan §4 records the builder does not read are :data:`UNPINNED_PLAN_RECORDS`, each
+with why no number depends on it.
 
 The row-spec vocabulary
 -----------------------
@@ -33,17 +44,21 @@ adds ``unit``. Further locators: ``value_dict`` (the seed's value IS the number)
 ValueRefs: ``pinned`` (another pinned record), ``code`` and ``measurement``.
 
 Refusals, all before the artifact is written: a record that is absent or at a digest other than the pinned one; a
-row with no source for a column; a value missing from its record that is not a declared absence; a latency run
-without ``COMPLETE``, with a throttled or non-reproducing canary, with a record outside its manifest or whose
-statistics do not recompute from its own nanoseconds; route A and route B disagreeing; a row whose checkpoints differ
-in size.
+row with no source for a column; a value missing from its record that is not a declared absence, or a null that no
+declared absence names; a row with a trained model and no training entry; an empty outlier note; a latency run
+without ``COMPLETE``, with a throttled or non-reproducing canary, with a file outside its manifest, that does not
+cover every (row, device) cell of the registry, or with a record that fails any refusal of :func:`verify_latency_run`;
+a latency registry row that does not time its table row's seed-101 representative; route A and route B disagreeing; a
+row whose checkpoints differ in size.
 """
 
 from __future__ import annotations
 
 import argparse
 import hashlib
+import io
 import json
+import os
 import re
 import statistics
 import warnings
@@ -57,6 +72,7 @@ __all__ = [
     "PinnedRecord",
     "PINNED_RECORDS",
     "SOURCES_ADDED_AFTER_PLAN",
+    "UNPINNED_PLAN_RECORDS",
     "Roots",
     "TableRow",
     "TABLE_ROWS",
@@ -258,8 +274,23 @@ _ADDED: dict[str, str] = {
 #: Committed records read beyond the plan's §4, each with the reason (disclosed in the Return Packet).
 SOURCES_ADDED_AFTER_PLAN: dict[str, str] = dict(_ADDED)
 
-#: Every record of ``docs/plans/p8.2.md`` §4, at the digest computed on 2026-10-03.
+#: Every record the builder reads, at its digest computed on 2026-10-03 -- see the module docstring's "What is pinned".
 PINNED_RECORDS: dict[str, PinnedRecord] = _pins()
+
+#: The plan §4 records the builder does NOT pin, and why no number of the table depends on them (B6.5).
+UNPINNED_PLAN_RECORDS: dict[str, str] = {
+    "docs/data/p5_3b_decomposition.json": (
+        "plan §4 names it for the no-RTG checkpoints' digests; the builder reads the same digests from "
+        "output/SHA256SUMS_p5_3b.txt (pinned), which the plan says holds them too"
+    ),
+    "docs/data/p7_2b_calibration.json": (
+        "plan §4 lists it as context only (the hz1x1 zero-shot prompts); no number of the table is read from it"
+    ),
+    "docs/data/p4_6_grid.json": (
+        "plan §4 names it as the P4.6 tiers' evidence; the claims cite p4_7_grid.json (pinned), which holds every P4.6 "
+        "arm (verified by reviewer R3 at gate G1)"
+    ),
+}
 
 
 @dataclass(frozen=True)
@@ -322,7 +353,7 @@ _CONCURRENCY_ABSENT = {"kind": "absent", "key": "concurrency.not_recorded"}
 #: note in the entry's ``outliers`` -- an undeclared one refuses, so no stall reaches the table unexplained.
 OUTLIER_FACTOR = 2.0
 
-_P4_SUSPEND = ("14,018.0 s against 202.4-356.2 s for the other four: the wall clock ran 10:19 -> 14:12, almost certainly a "
+_P4_SUSPEND = ("14,018.0 s against 202.3-356.2 s for the other four: the wall clock ran 10:19 -> 14:12, almost certainly a "
                "laptop suspend; a from-scratch retrain took 361 s with tensor-identical weights (docs/returns/P4.md:322-325)")
 _HOST_GAME = ("a wall-time stall: about 8.5 GB of GPU memory was taken by a game on the Windows host, 17:22-18:04 UTC "
               "(BRIEF_42 Amendment D, D3.1); nothing in the checkpoint depends on it")
@@ -339,7 +370,8 @@ _LOOP_COVERS = "loop_seconds: the gradient loop only (perf_counter around it)"
 _MAPPO_COVERS = (
     "train_sec: time.perf_counter() around experiments.runner._train_agent -- env construction, train_episodes "
     "simulated episodes, action selection and every PPO update; not the checkpoint save or the evaluation "
-    "(experiments/runner.py:353-355). Measured with six worker processes on 16 logical CPUs"
+    "(experiments/runner.py:353-355). The worker processes it shared the machine with are an inference: see the "
+    "regime's concurrency"
 )
 
 
@@ -527,7 +559,8 @@ def _mappo_row(scenario: str, budget: str, checkpoint_dir: str, env_index: int, 
             "seeds": {"kind": "mappo", "env_id": env_id},
             "seconds": _seed("timings.mappo.train_sec"),
             "steps": {"kind": "absent", "key": "mappo.gradient_steps"},
-            "batch": _rec("$.agents[0].params.minibatch_size"),
+            "batch": {**_rec("$.agents[0].params.minibatch_size"),
+                      "label": "PPO minibatch_size: one PPO minibatch, not an offline training batch"},
             "data": {"kind": "absent", "key": "mappo.data", "unit": None},
             "covers": _MAPPO_COVERS,
             "regime": _regime(
@@ -535,10 +568,12 @@ def _mappo_row(scenario: str, budget: str, checkpoint_dir: str, env_index: int, 
                 {"kind": "absent", "key": "mappo.torch_version"},
                 {"kind": "code", "value": 1, "file": "experiments/runner.py",
                  "code": "run_cell pins every cell to one torch thread (limit_torch_threads, CELL_TORCH_THREADS = 1)"},
-                {"kind": "measurement", "value": 6,
-                 "measurement": ("six worker processes, found from output/checkpoints.pre_c8_migration/ file mtimes "
-                                 "minus each cell's train_sec: exactly six overlapping training intervals at every "
-                                 "budget (docs/plans/p8.2.md V7); RUNSPEC_01 §8's command for 060/200/500")},
+                {"kind": "inferred", "value": 6,
+                 "basis": ("6, inferred from the training run's own file mtimes: output/checkpoints.pre_c8_migration/ "
+                           "mtimes minus each cell's train_sec give exactly six overlapping training intervals at every "
+                           "budget (docs/plans/p8.2.md V7); RUNSPEC_01 §8's command states six for 060, 200 and 500"),
+                 "confidence": "95 % for budget 1000 (docs/plans/p8.2.md, assumption A2)",
+                 "recorded": "not recorded by the manifest: results.json holds no worker count"},
             ),
             "env_index": env_index,
         },),
@@ -636,7 +671,8 @@ def _grid_baseline_row(method: str) -> TableRow:
         groups.append(_group(tier, f"output/{folder}/checkpoints/grid4x4_{tier}_{method}_seed{{seed}}.pt",
                              {"kind": "sums", "record": manifest,
                               "entry": f"{folder}/checkpoints/grid4x4_{tier}_{method}_seed{{seed}}.pt"}))
-        unit = "transitions" if method == "iql" else "windows"
+        unit = ("per-intersection transitions" if method == "iql" else "per-intersection windows") + (
+            " (16 per joint window, the unit of the DT rows' joint windows)")
         if from_p51:
             training.append({
                 "record": "p5_1_training_baselines", "tier": tier, "label": "P5.1",
@@ -764,10 +800,12 @@ def _rows() -> tuple[TableRow, ...]:
                    (_claim("ladder", "att_ladder_v11", "$.cells[15]", expect={"scenario": "cf_hz1x1", "tier": "mappo060"}),),
                    note="a ladder-tier teacher: its only result is the corpus ladder on training draws 1-200 (Q1)"),
         _heuristic_row("hz1x1", "maxpressure", (_claim("C1", "p4_gate", "$.cells.maxpressure"),
-                                                _claim("C3", "p7_3a_zero_shot", "$.h3"))),
+                                                _claim("C3", "p7_3a_zero_shot", "$.cells[100]",
+                                                       expect={"arm": "maxpressure"}))),
         _heuristic_row("hz1x1", "fixedtime", (_claim("C1", "p4_7_grid", "$.cells['behaviour@fixedtime']"),
-                                              _claim("C3", "p7_3a_zero_shot", "$.h3"))),
-        _heuristic_row("hz1x1", "random", (_claim("C1", "p4_7_grid", "$.cells['behaviour@random']"),)),
+                                              _claim("C3", "p7_3a_zero_shot", "$.cells[0]", expect={"arm": "fixedtime"}))),
+        _heuristic_row("hz1x1", "random", (_claim("C1", "p4_7_grid", "$.cells['behaviour@random']"),
+                                           _claim("C3", "p7_3a_zero_shot", "$.cells[200]", expect={"arm": "random"}))),
         _grid_dt_row("dt_spatial"),
         _grid_dt_row("dt_nomix"),
         _grid_h4_row("dt_spatial_h4"),
@@ -1020,11 +1058,14 @@ def count_loaded_parameters(family: str, path: Path, *, declared_gradient_steps:
                             method: str | None = None, expected_sha256: str | None = None) -> dict[str, int]:
     """Route A: load *path* through the method's own loader on a node-order stub env and sum ``numel()`` over the
     loaded model's ``parameters()``; the same keys as :func:`count_payload_parameters`."""
-    if expected_sha256 is not None:
-        raise NotImplementedError("Amendment B, B4.3: route A hashes the file it loads")
+    raw = Path(path).read_bytes()
+    if expected_sha256 is not None:  # B4.3: route A hashes the file it loads, before it loads it
+        digest = hashlib.sha256(raw).hexdigest()
+        if digest != expected_sha256:
+            raise ValueError(f"{path}: sha256 {digest} is not the {expected_sha256} route A was asked to load")
     import torch
 
-    payload = torch.load(Path(path), map_location="cpu", weights_only=False)
+    payload = torch.load(io.BytesIO(raw), map_location="cpu", weights_only=False)
     if family == "mappo":
         from agent.MAPPOAgent import MAPPOAgent
 
@@ -1235,6 +1276,21 @@ def _absent(ref: Mapping[str, Any], row: TableRow, entry: Mapping[str, Any]) -> 
     return {"value": None, "reason": DECLARED_ABSENCES[key]}
 
 
+def _sourced(value: Any, source: Mapping[str, Any], ref: Mapping[str, Any], row: TableRow,
+             entry: Mapping[str, Any]) -> dict[str, Any]:
+    """``{value, source}``; a JSON null read from a record is refused unless the ValueRef's ``null_means`` names a
+    declared absence, whose reason it then carries (B4.4)."""
+    if value is not None:
+        return {"value": value, "source": dict(source)}
+    key = ref.get("null_means")
+    if key is None:
+        raise ValueError(f"{row.row_id} / {entry.get('tier')}: {source.get('file')} holds null at "
+                         f"{source.get('json_path', source.get('line'))}, and no declared absence names it")
+    if key not in DECLARED_ABSENCES:
+        raise ValueError(f"{row.row_id} / {entry.get('tier')}: the absence {key!r} is not declared")
+    return {"value": None, "reason": DECLARED_ABSENCES[key], "source": dict(source)}
+
+
 def _per_seed_values(ref: Mapping[str, Any], row: TableRow, entry: Mapping[str, Any], seeds: list, document: Any,
                      source: Mapping[str, str] | None, roots: Roots, cache: dict[str, Any]) -> list[dict[str, Any]]:
     kind = ref["kind"]
@@ -1249,7 +1305,7 @@ def _per_seed_values(ref: Mapping[str, Any], row: TableRow, entry: Mapping[str, 
             except (KeyError, IndexError) as exc:
                 raise ValueError(f"{row.row_id} / {entry['tier']}: {source['file']} has no {path}, and it is not a "
                                  f"declared absence ({exc})") from exc
-            items.append({"seed": seed, "value": value, "source": {**source, "json_path": path}})
+            items.append({"seed": seed, **_sourced(value, {**source, "json_path": path}, ref, row, entry)})
         elif kind == "checkpoint":
             checkpoint, checkpoint_source = _checkpoint_for(row, entry["tier"], seed, roots, cache)
             try:
@@ -1257,10 +1313,11 @@ def _per_seed_values(ref: Mapping[str, Any], row: TableRow, entry: Mapping[str, 
             except (KeyError, IndexError) as exc:
                 raise ValueError(f"{row.row_id} / {entry['tier']}: {checkpoint} has no {ref['path']}, and it is not "
                                  f"a declared absence ({exc})") from exc
-            items.append({"seed": seed, "value": value, "source": {**checkpoint_source, "json_path": ref["path"]}})
+            items.append({"seed": seed, **_sourced(value, {**checkpoint_source, "json_path": ref["path"]}, ref, row,
+                                                   entry)})
         elif kind == "log":
             number, value = extra
-            items.append({"seed": seed, "value": value, "source": {**source, "line": number}})
+            items.append({"seed": seed, **_sourced(value, {**source, "line": number}, ref, row, entry)})
         else:
             raise ValueError(f"{row.row_id} / {entry['tier']}: a per-seed value cannot be of kind {kind!r}")
     return items
@@ -1276,24 +1333,28 @@ def _value(ref: Mapping[str, Any] | None, name: str, row: TableRow, entry: Mappi
         return _absent(ref, row, entry)
     if kind == "record":
         try:
-            return {"value": json_get(document, ref["path"]), "source": {**source, "json_path": ref["path"]}}
+            value = json_get(document, ref["path"])
         except (KeyError, IndexError) as exc:
             raise ValueError(f"{row.row_id} / {entry['tier']}: {source['file']} has no {ref['path']}, and it is not "
                              f"a declared absence ({exc})") from exc
+        return _sourced(value, {**source, "json_path": ref["path"]}, ref, row, entry)
     if kind == "pinned":
         other, other_source = read_pinned(ref["record"], roots, cache)
-        return {"value": json_get(other, ref["path"]), "source": {**other_source, "json_path": ref["path"]}}
+        return _sourced(json_get(other, ref["path"]), {**other_source, "json_path": ref["path"]}, ref, row, entry)
     if kind == "code":
         code_file = _MODULE_ROOT / ref["file"]
         return {"value": ref["value"], "source": {"code": ref["code"], "file": ref["file"],
                                                    "sha256": sha256_file(code_file)}}
     if kind == "measurement":
         return {"value": ref["value"], "source": {"measurement": ref["measurement"]}}
+    if kind == "inferred":  # B6.2: a number no record holds, stated as an inference with its basis
+        return {"value": ref["value"], "source": {"inferred": ref["basis"], "confidence": ref["confidence"],
+                                                  "recorded": ref["recorded"]}}
     items = _per_seed_values(ref, row, entry, seeds, document, source, roots, cache)
     values = {json.dumps(item["value"], sort_keys=True) for item in items}
     if len(values) != 1:
         raise ValueError(f"{row.row_id} / {entry['tier']}: {name} differs across seeds: {sorted(values)}")
-    return {"value": items[0]["value"], "source": items[0]["source"]}
+    return {key: value for key, value in items[0].items() if key != "seed"}
 
 
 def training_block(row: TableRow, entry: Mapping[str, Any], roots: Roots,
@@ -1315,11 +1376,17 @@ def training_block(row: TableRow, entry: Mapping[str, Any], roots: Roots,
         items = _per_seed_values(ref, row, entry, seeds, document, source, roots, cache)
         block: dict[str, Any] = {"per_seed": items}
         if reduce:
+            if any(item["value"] is None for item in items):
+                raise ValueError(f"{row.row_id} / {entry['tier']}: a null cannot enter a median")
             values = [float(item["value"]) for item in items]
             median = statistics.median(values)
             block.update({"median": median, "min": min(values), "max": max(values)})
             flagged = {int(item["seed"]) for item in items if float(item["value"]) > OUTLIER_FACTOR * median}
             declared = {int(seed): note for seed, note in (entry.get("outliers") or {}).items()}
+            empty = sorted(seed for seed, note in declared.items() if not str(note).strip())
+            if empty:
+                raise ValueError(f"{row.row_id} / {entry['tier']}: the outlier note of seed(s) {empty} is empty; a note "
+                                 "names the cause, or says that no committed record names one")
             if flagged != set(declared):
                 raise ValueError(
                     f"{row.row_id} / {entry['tier']}: the seeds above {OUTLIER_FACTOR} x the median are "
@@ -1336,6 +1403,9 @@ def training_block(row: TableRow, entry: Mapping[str, Any], roots: Roots,
         data["unit"] = data_ref.get("unit")
     regime = {name: _value(entry["regime"].get(name), f"regime.{name}", row, entry, seeds, document, source, roots,
                            cache) for name in ("device", "gpu", "torch", "threads", "concurrency")}
+    batch = _value(entry["batch"], "batch", row, entry, seeds, document, source, roots, cache)
+    if entry["batch"].get("label"):
+        batch["label"] = entry["batch"]["label"]
     return {
         "record": source,
         "record_note": entry.get("record_note"),
@@ -1343,7 +1413,7 @@ def training_block(row: TableRow, entry: Mapping[str, Any], roots: Roots,
         "label": entry["label"],
         "seconds": per_seed(entry["seconds"], reduce=True),
         "gradient_steps": per_seed(entry["steps"], reduce=False),
-        "batch": _value(entry["batch"], "batch", row, entry, seeds, document, source, roots, cache),
+        "batch": batch,
         "data": data,
         "covers": entry["covers"],
         "regime": regime,
@@ -1357,27 +1427,133 @@ def training_block(row: TableRow, entry: Mapping[str, Any], roots: Roots,
 
 def training_blocks(row: TableRow, roots: Roots, cache: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     """Every training entry of *row*; a row with a trained model and no training entry refuses (B4.4)."""
-    raise NotImplementedError("Amendment B, B4.4: a model row without training entries")
+    if row.family != "heuristic" and not row.training:
+        raise ValueError(f"{row.row_id}: a row with a trained model has no training entry, so its cost would be "
+                         "missing without a reason")
+    return [training_block(row, entry, roots, cache) for entry in row.training]
 
 
 def latency_figures(per_episode_ns: Sequence[Sequence[int]], *, warmup: int) -> dict[str, Any]:
-    """The builder's OWN route (B4.1): ``n_timed``, the median and the nearest-rank p95 of the timed decisions."""
-    raise NotImplementedError("Amendment B, B4.1: the builder's own statistics")
+    """The builder's OWN route (B4.1), never ``compute_latency.latency_stats``: the first *warmup* decisions of each
+    episode excluded, the rest pooled and sorted; ``median_ns`` the middle value (the mean of the two middle values for
+    an even count); ``p95_ns`` the nearest rank, the ``ceil(0.95 n)``-th smallest value."""
+    timed = sorted(int(value) for episode in per_episode_ns for value in list(episode)[int(warmup):])
+    n = len(timed)
+    if n == 0:
+        raise ValueError("no decision is left once the warm-up is excluded")
+    median = timed[n // 2] if n % 2 else (timed[n // 2 - 1] + timed[n // 2]) / 2
+    return {"n_timed": n, "median_ns": median, "p95_ns": timed[(95 * n + 99) // 100 - 1]}
 
 
 def check_registry_coverage(run: Mapping[str, Any]) -> None:
     """Refuse a latency run whose records do not cover every (row, device) cell of the registry (B4.2)."""
-    raise NotImplementedError("Amendment B, B4.2: the registry's coverage")
+    from offline import compute_latency as cl
+
+    cells = {(row.row_id, device) for row in cl.ROWS for device in row.devices}
+    missing = sorted(cells - set(run["records"]))
+    if missing:
+        raise ValueError(f"the latency run lacks {len(missing)} of the registry's {len(cells)} (row, device) cells "
+                         f"(first: {missing[:3]}); the table reports every cell or none")
 
 
 def join_registry_row(row: TableRow, checkpoints: Sequence[Mapping[str, Any]], latency_row: Any) -> dict[str, Any]:
-    """The table row's representative checkpoint, refused unless the latency row times exactly it (B4.3)."""
-    raise NotImplementedError("Amendment B, B4.3: the registry joined to the table row")
+    """The table row's representative checkpoint -- seed 101 of its first (headline) tier, as :func:`row_checkpoints`
+    verified it -- refused unless the latency registry times exactly that file at that digest (B4.3)."""
+    tier = row.groups[0]["tier"]
+    found = [c for c in checkpoints if c["tier"] == tier and c["seed"] == 101]
+    if len(found) != 1:
+        raise ValueError(f"{row.row_id}: {len(found)} verified seed-101 checkpoints of tier {tier!r}, not one")
+    representative = dict(found[0])
+    if (latency_row.checkpoint, latency_row.sha256) != (representative["path"], representative["sha256"]):
+        raise ValueError(f"{row.row_id}: the latency registry times {latency_row.checkpoint} ({latency_row.sha256}), not "
+                         f"the row's seed-101 {tier} checkpoint {representative['path']} ({representative['sha256']})")
+    return representative
+
+
+_RUN_FILES = frozenset({"run.json", "canary_open.json", "canary_close.json"})
+
+
+def _declared_cells(run: Mapping[str, Any]) -> list[tuple[str, str]]:
+    from offline import compute_latency as cl
+
+    cells: list[tuple[str, str]] = []
+    for label in run.get("row_order") or []:
+        row_id, _, device = str(label).rpartition("_")
+        try:
+            row = cl.row_by_id(row_id)
+        except KeyError:
+            raise ValueError(f"run.json declares {label}, and {row_id!r} is not a registry row") from None
+        if device not in row.devices:
+            raise ValueError(f"run.json declares {label}, but {row_id} is timed on {row.devices}")
+        cells.append((row_id, device))
+    if not cells:
+        raise ValueError("run.json declares no (row, device) cell")
+    return cells
+
+
+def _verified_record(name: str, record: Mapping[str, Any], row: Any, device: str, run_commit: str) -> dict[str, Any]:
+    """Every refusal of B4.2 for one record, then its statistics by the builder's own route (B4.1)."""
+    from offline import compute_latency as cl
+
+    if record.get("format_version") != cl.FORMAT_VERSION:
+        raise ValueError(f"{name}: format {record.get('format_version')!r} is not {cl.FORMAT_VERSION}; a record of "
+                         "another format is refused, never skipped")
+    if record.get("row") != row.row_id or record.get("device") != device:
+        raise ValueError(f"{name} records {record.get('row')} on {record.get('device')}: its row or device disagrees "
+                         "with its file name")
+    timed = record.get("checkpoint")
+    registered = None if row.checkpoint is None else (row.checkpoint, row.sha256)
+    if (None if timed is None else (timed.get("path"), timed.get("sha256"))) != registered:
+        raise ValueError(f"{name}: the timed checkpoint {timed} is not the registered {registered}")
+    if cl.find_outcome_keys(record):
+        raise ValueError(f"{name} names an episode quantity: {cl.find_outcome_keys(record)}")
+    episodes = record.get("episodes") or []
+    if len(episodes) != len(cl.TIMING_DRAWS):
+        raise ValueError(f"{name}: {len(episodes)} episodes, not the registered {len(cl.TIMING_DRAWS)}")
+    draws = [episode.get("draw") for episode in episodes]
+    if list(record.get("draws") or []) != list(cl.TIMING_DRAWS) or draws != list(cl.TIMING_DRAWS):
+        raise ValueError(f"{name}: draws {record.get('draws')} (episodes on {draws}) are not the registered "
+                         f"{list(cl.TIMING_DRAWS)}")
+    if record.get("warmup") != cl.WARMUP:
+        raise ValueError(f"{name}: warmup {record.get('warmup')} is not the registered {cl.WARMUP}")
+    if record.get("engine_seed") != cl.ENGINE_SEED:
+        raise ValueError(f"{name}: engine_seed {record.get('engine_seed')} is not the registered {cl.ENGINE_SEED}")
+    if any(len(episode.get("decision_ns") or []) != cl.DECISIONS_PER_EPISODE for episode in episodes):
+        raise ValueError(f"{name}: an episode does not hold {cl.DECISIONS_PER_EPISODE} decisions")
+    git = record.get("git") or {}
+    if git.get("commit") != run_commit:
+        raise ValueError(f"{name}: written at commit {git.get('commit')}, not the run's {run_commit}")
+    if git.get("dirty") is not False:
+        raise ValueError(f"{name}: written from a dirty tree (dirty: {git.get('dirty')})")
+    problems = cl.power_regime_problems((record.get("machine") or {}).get("power") or {})
+    if problems:
+        raise ValueError(f"{name}: written outside the power regime (Amendment B, B1): {'; '.join(problems)}")
+    figures = latency_figures([episode["decision_ns"] for episode in episodes], warmup=cl.WARMUP)
+    for key in ("n_timed", "median_ns", "p95_ns"):
+        if figures[key] != record.get(key):
+            raise ValueError(f"{name}: the recorded {key} {record.get(key)} does not recompute ({figures[key]}) from its "
+                             "own nanoseconds")
+    if figures["n_timed"] < cl.MIN_TIMED:
+        raise ValueError(f"{name}: {figures['n_timed']} timed decisions, fewer than {cl.MIN_TIMED}")
+    n_ix = cl.SCENARIOS[row.scenario].n_intersections
+    if record.get("n_intersections") != n_ix:
+        raise ValueError(f"{name}: n_intersections {record.get('n_intersections')} is not {row.scenario}'s {n_ix}")
+    median_ms, p95_ms = figures["median_ns"] / 1e6, figures["p95_ns"] / 1e6
+    per_intersection = record.get("per_intersection") or {}
+    for field, recorded, derived in (("median_ms", record.get("median_ms"), median_ms),
+                                     ("p95_ms", record.get("p95_ms"), p95_ms),
+                                     ("per_intersection.median_ms", per_intersection.get("median_ms"), median_ms / n_ix),
+                                     ("per_intersection.p95_ms", per_intersection.get("p95_ms"), p95_ms / n_ix)):
+        if recorded != derived:
+            raise ValueError(f"{name}: the recorded {field} {recorded} is not {derived}, derived from its nanoseconds")
+    return {**figures, "n_intersections": n_ix}
 
 
 def verify_latency_run(latency_dir: Path, manifest_path: Path) -> dict[str, Any]:
     """Refuse unless the run is ``COMPLETE``, both canaries are at speed and reproduced, every file is in the manifest
-    at its digest, and every record's statistics recompute from its own nanoseconds; return the run's summary."""
+    at its digest, and every (row, device) cell ``run.json`` declares has its record and passes every refusal of
+    B4.2; return the run's summary, each record with the nanosecond statistics the builder recomputed itself (B4.1).
+    A JSON file of the run directory that is no declared cell's record, no canary and not ``run.json`` refuses."""
     from offline import compute_latency as cl
 
     run_dir = Path(latency_dir)
@@ -1403,6 +1579,9 @@ def verify_latency_run(latency_dir: Path, manifest_path: Path) -> dict[str, Any]
     run = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
     if run.get("format_version") != cl.RUN_FORMAT_VERSION or run.get("status") != "COMPLETE":
         raise ValueError(f"{run_dir}/run.json is not a COMPLETE {cl.RUN_FORMAT_VERSION} record")
+    run_commit = (run.get("git") or {}).get("commit")
+    if not (isinstance(run_commit, str) and re.fullmatch(r"[0-9a-f]{40}", run_commit)):
+        raise ValueError(f"{run_dir}/run.json names no commit ({run_commit!r}); no record can be matched to it")
     canaries: dict[str, Any] = {}
     for phase in ("open", "close"):
         canary = json.loads((run_dir / f"canary_{phase}.json").read_text(encoding="utf-8"))
@@ -1413,38 +1592,30 @@ def verify_latency_run(latency_dir: Path, manifest_path: Path) -> dict[str, Any]
         if canary.get("verdict") != "at speed" or float(canary.get("seconds", 1e9)) > cl.CANARY_MAX_SECONDS:
             raise ValueError(f"canary_{phase}: throttled ({canary.get('seconds')} s); no rate of this run is quoted")
         canaries[phase] = {**canary, "file": f"{stamp}/canary_{phase}.json", "sha256": listed[f"{stamp}/canary_{phase}.json"]}
+    cells = _declared_cells(run)
+    expected = {f"{row_id}_{device}.json" for row_id, device in cells}
+    for path in sorted(run_dir.glob("*.json")):
+        if path.name not in _RUN_FILES and path.name not in expected:
+            raise ValueError(f"{path.name}: a record file for no cell run.json declares; a run reports its cells, "
+                             "nothing else")
     records: dict[tuple[str, str], dict[str, Any]] = {}
-    for path in sorted(run_dir.glob("*_c*.json")):
-        record = json.loads(path.read_text(encoding="utf-8"))
-        if record.get("format_version") != cl.FORMAT_VERSION:
-            continue
-        name = path.name
-        row = cl.row_by_id(record["row"])
-        if name != f"{row.row_id}_{record['device']}.json":
-            raise ValueError(f"{name} records {record['row']} on {record['device']}")
-        if row.checkpoint is not None and (record.get("checkpoint") or {}).get("sha256") != row.sha256:
-            raise ValueError(f"{name}: the timed checkpoint is not the registered {row.sha256}")
-        if cl.find_outcome_keys(record):
-            raise ValueError(f"{name} names an episode quantity: {cl.find_outcome_keys(record)}")
-        episodes = [episode["decision_ns"] for episode in record["episodes"]]
-        if any(len(episode) != cl.DECISIONS_PER_EPISODE for episode in episodes):
-            raise ValueError(f"{name}: an episode does not hold {cl.DECISIONS_PER_EPISODE} decisions")
-        stats = cl.latency_stats(episodes, warmup=int(record["warmup"]))
-        for key in ("n_timed", "median_ns", "p95_ns"):
-            if stats[key] != record[key]:
-                raise ValueError(f"{name}: the recorded {key} {record[key]} does not recompute ({stats[key]}) from its "
-                                 "own nanoseconds")
-        if stats["n_timed"] < cl.MIN_TIMED:
-            raise ValueError(f"{name}: {stats['n_timed']} timed decisions, fewer than {cl.MIN_TIMED}")
-        records[(row.row_id, record["device"])] = {"record": record, "file": f"{stamp}/{name}",
-                                                   "sha256": listed[f"{stamp}/{name}"]}
+    for row_id, device in cells:
+        name = f"{row_id}_{device}.json"
+        if not (run_dir / name).is_file():
+            raise ValueError(f"run.json declares {row_id}_{device}, but the run directory holds no {name}")
+        record = json.loads((run_dir / name).read_text(encoding="utf-8"))
+        verified = _verified_record(name, record, cl.row_by_id(row_id), device, run_commit)
+        records[(row_id, device)] = {"record": record, "verified": verified, "file": f"{stamp}/{name}",
+                                     "sha256": listed[f"{stamp}/{name}"]}
     return {"run_dir": str(run_dir), "stamp": stamp, "run": run, "canaries": canaries, "records": records,
             "manifest": {"file": manifest_path.name, "sha256": sha256_file(manifest_path)}}
 
 
 def inference_block(row: TableRow, run: Mapping[str, Any]) -> dict[str, Any]:
     """The inference column of *row*: per device the median and p95 in ms per decision and per intersection, the
-    timed count and the record's ``{file, sha256}``; "not applicable" where the row has no tensor computation."""
+    timed count and the record's ``{file, sha256}``; "not applicable" where the row has no tensor computation. Every
+    millisecond figure is the builder's own nanosecond statistic divided by 10**6 here (and by the scenario's
+    intersection count from the registry), never the record's own ms field (B4.1)."""
     from offline import compute_latency as cl
 
     if row.latency_row is None:
@@ -1459,16 +1630,21 @@ def inference_block(row: TableRow, run: Mapping[str, Any]) -> dict[str, Any]:
         if found is None:
             raise ValueError(f"{row.row_id}: the latency run holds no {latency_row.row_id} record on {device}")
         record = found["record"]
+        verified = found["verified"]
+        n_ix = cl.SCENARIOS[latency_row.scenario].n_intersections
+        median_ms, p95_ms = verified["median_ns"] / 1e6, verified["p95_ns"] / 1e6
         measured = {"file": f"output/p8_2/latency/{found['file']}", "sha256": found["sha256"],
-                    "measurement": f"{record['n_timed']} timed decisions, decisions {record['warmup']}..359 of draws "
-                                   f"{record['draws']}"}
+                    "measurement": f"{verified['n_timed']} timed decisions, decisions {cl.WARMUP}..359 of draws "
+                                   f"{list(cl.TIMING_DRAWS)}; median and nearest-rank p95 recomputed by the builder"}
+        derived = {**measured, "derived": f"the whole-decision figure divided by {latency_row.scenario}'s {n_ix} "
+                                          "intersection(s); not a separate timing"}
         out[device] = {
-            "median_ms": {"value": record["median_ms"], "source": measured},
-            "p95_ms": {"value": record["p95_ms"], "source": measured},
-            "n_timed": record["n_timed"],
-            "per_intersection_median_ms": {"value": record["per_intersection"]["median_ms"], "source": measured},
-            "per_intersection_p95_ms": {"value": record["per_intersection"]["p95_ms"], "source": measured},
-            "n_intersections": record["n_intersections"],
+            "median_ms": {"value": median_ms, "source": measured},
+            "p95_ms": {"value": p95_ms, "source": measured},
+            "n_timed": verified["n_timed"],
+            "per_intersection_median_ms": {"value": median_ms / n_ix, "source": derived},
+            "per_intersection_p95_ms": {"value": p95_ms / n_ix, "source": derived},
+            "n_intersections": n_ix,
             "factory": record["factory"],
         }
     return out
@@ -1494,7 +1670,15 @@ WHAT_THIS_DOES_NOT_SAY: tuple[str, ...] = (
     "regimes (threads, devices, concurrency); each is reported with its own regime and no two records' seconds are "
     "pooled.",
     "The offline methods' seconds cover their gradient loops only; MAPPO's train_sec covers simulation, action "
-    "selection and learning, under six concurrent worker processes.",
+    "selection and learning, and the six concurrent worker processes it ran with are inferred from the run's file "
+    "times, not recorded.",
+    "The CPU is a hybrid-core laptop part (Intel Core Ultra 9 275HX) running Linux under WSL2: the Windows host "
+    "schedules the guest's virtual CPUs onto performance or efficiency cores and the guest cannot pin them, so the "
+    "single-thread figure is this machine's in the recorded regime (mains, Windows power mode Best Performance), not a "
+    "property of one core type.",
+    "The training wall times are the training runs' own clocks: the Windows power mode in force during those runs was "
+    "not recorded (the mode found on 2026-10-03 was Best power efficiency), so they are not a controlled benchmark and "
+    "are not comparable to the latency regime.",
     "The latency is the policy's decision call alone, not the controller's end-to-end loop: the simulator's step, the "
     "env's construction of the observation and any I/O are outside the timer.",
     "No number here evaluates any hypothesis (PREREGISTRATION A25(c)); the timing episodes' outcomes were never "
@@ -1527,14 +1711,16 @@ def _parameters(row: TableRow, checkpoints: list[dict[str, Any]], roots: Roots, 
 
     if row.latency_row is not None:
         latency_row = cl.row_by_id(row.latency_row)
-        representative = main_root / str(latency_row.checkpoint)
+        chosen = join_registry_row(row, checkpoints, latency_row)
         method = latency_row.method
         declared = latency_row.declared_gradient_steps
     else:
         tier = _REPRESENTATIVE_TIER.get(row.row_id, "mappo1000")
-        first = next(c for c in checkpoints if c["tier"] == tier and c["seed"] == 101)
-        representative, method, declared = main_root / first["path"], None, 40000
-    route_a = count_loaded_parameters(row.family, representative, declared_gradient_steps=declared, method=method)
+        chosen = next(c for c in checkpoints if c["tier"] == tier and c["seed"] == 101)
+        method, declared = None, 40000
+    representative = main_root / chosen["path"]
+    route_a = count_loaded_parameters(row.family, representative, declared_gradient_steps=declared, method=method,
+                                      expected_sha256=chosen["sha256"])
     if route_a != route_b:
         raise ValueError(f"{row.row_id}: route A {route_a} != route B {route_b}")
     loader = {"dt": "offline.dt_gate.load_gate_checkpoint", "spatial_dt": "agent.SpatialDTAgent.from_checkpoint",
@@ -1664,11 +1850,17 @@ def _architecture(row: TableRow, roots: Roots, checkpoints: list[dict[str, Any]]
 
 
 def _hardware(run: Mapping[str, Any]) -> dict[str, Any]:
+    """The one machine every record was taken on, and the regime of EACH device (B4.4); refuses records of one device
+    that disagree on their regime."""
     blocks = {json.dumps(found["record"]["machine"], sort_keys=True) for found in run["records"].values()}
     if len(blocks) != 1:
         raise ValueError(f"the latency records were taken on {len(blocks)} different machine descriptions")
-    return {"machine": json.loads(blocks.pop()),
-            "regime": next(iter(run["records"].values()))["record"]["regime"] | {"device": "per record"}}
+    regimes: dict[str, str] = {}
+    for (row_id, device), found in sorted(run["records"].items()):
+        text = json.dumps(found["record"]["regime"], sort_keys=True)
+        if regimes.setdefault(device, text) != text:
+            raise ValueError(f"the {device} records were taken under different regimes ({row_id} differs)")
+    return {"machine": json.loads(blocks.pop()), "regime": {device: json.loads(text) for device, text in regimes.items()}}
 
 
 def build_artifact(roots: Roots, *, git: Mapping[str, Any] | None = None) -> dict[str, Any]:
@@ -1676,12 +1868,19 @@ def build_artifact(roots: Roots, *, git: Mapping[str, Any] | None = None) -> dic
     if roots.latency_dir is None or roots.manifest_path is None:
         raise ValueError("the artifact needs the latency run and its manifest")
     run = verify_latency_run(roots.latency_dir, roots.manifest_path)
+    check_registry_coverage(run)
+    from offline import compute_latency as cl
+
     cache: dict[str, Any] = {}
     rows_out: list[dict[str, Any]] = []
     for row in TABLE_ROWS:
         checkpoints = row_checkpoints(row, roots, cache)
-        training = [training_block(row, entry, roots, cache) for entry in row.training]
+        training = training_blocks(row, roots, cache)
         parameters = _parameters(row, checkpoints, roots, cache)
+        inference = inference_block(row, run)
+        if row.latency_row is not None and row.family != "heuristic":
+            timed = join_registry_row(row, checkpoints, cl.row_by_id(row.latency_row))
+            inference["timed_checkpoint"] = {"path": timed["path"], "sha256": timed["sha256"]}
         if row.family != "heuristic":
             parameters["record_cross_checks"] = _record_cross_checks(row, roots, cache, parameters["trained"]["value"],
                                                                      checkpoints)
@@ -1697,18 +1896,16 @@ def build_artifact(roots: Roots, *, git: Mapping[str, Any] | None = None) -> dic
             "parameters": parameters,
             "training": training,
             "environment_interactions": _interactions(row, roots, cache, checkpoints),
-            "inference": inference_block(row, run),
+            "inference": inference,
             "notes": list(row.notes),
         })
     mappo_files = []
     for key in ("mappo_results_1000", "mappo_results_500", "mappo_results_060"):
         _, source = read_pinned(key, roots, cache)
         mappo_files.append(source)
-    from offline import compute_latency as cl
-
     return {
         "format_version": FORMAT_VERSION,
-        "registered_in": "PREREGISTRATION A25(c); docs/briefs/BRIEF_43_p8.2_compute_latency.md and its Amendment A",
+        "registered_in": "PREREGISTRATION A25(c); docs/briefs/BRIEF_43_p8.2_compute_latency.md and its Amendments A and B",
         "git": dict(git or {}),
         "latency_run": {"stamp": run["stamp"], "manifest": run["manifest"],
                         "canaries": {phase: {"seconds": c["seconds"], "verdict": c["verdict"],
@@ -1738,14 +1935,25 @@ def build_artifact(roots: Roots, *, git: Mapping[str, Any] | None = None) -> dic
 
 
 def write_artifact(path: Path, artifact: Mapping[str, Any]) -> None:
-    """Write the artifact once (an existing file refuses), canonical JSON."""
+    """Write the artifact once and atomically (B4.4): canonical JSON (no NaN) to a temporary file beside it, synced,
+    then hard-linked to *path* -- an existing file refuses, and a failure at any step leaves no file at *path*."""
     path = Path(path)
-    text = json.dumps(artifact, indent=2, sort_keys=True) + "\n"
+    text = json.dumps(artifact, indent=2, sort_keys=True, allow_nan=False) + "\n"
     if path.exists():
         raise FileExistsError(f"{path} exists: the artifact is written once")
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "x", encoding="utf-8") as handle:
-        handle.write(text)
+    temporary = path.parent / f".{path.name}.{os.getpid()}.tmp"
+    try:
+        with open(temporary, "x", encoding="utf-8") as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        try:
+            os.link(temporary, path)
+        except FileExistsError:
+            raise FileExistsError(f"{path} appeared while the artifact was being written: it is written once") from None
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def build_parser() -> argparse.ArgumentParser:
