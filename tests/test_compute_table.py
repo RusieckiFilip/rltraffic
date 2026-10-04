@@ -1138,3 +1138,21 @@ def test_t_sources_mappos_concurrency_is_an_inference_and_its_batch_the_ppo_mini
         concurrency = out["training"][0]["regime"]["concurrency"]
         assert concurrency["value"] == 6 and "inferred" in concurrency["source"], out["id"]
         assert "PPO minibatch_size" in out["training"][0]["batch"]["label"], out["id"]
+
+
+#: Each declared note that cites document lines, and the phrases it quotes from them, as the document writes them.
+_NOTE_CITATIONS = {
+    "_P4_SUSPEND": ("docs/returns/P4.md", ("14018 s", "202–356 s", "10:19", "14:12", "361 s")),
+    "_CLOCK_JUMP": ("docs/returns/P5.2.md", ("2 h 10 m",)),
+}
+
+
+def test_b6_each_note_cites_the_lines_that_hold_what_it_quotes() -> None:
+    for constant, (document, phrases) in _NOTE_CITATIONS.items():
+        note = getattr(ct, constant)
+        match = re.search(re.escape(document) + r":(\d+)-(\d+)", note)
+        assert match, (constant, note)
+        first, last = int(match.group(1)), int(match.group(2))
+        cited = "\n".join((REPO_ROOT / document).read_text(encoding="utf-8").splitlines()[first - 1:last])
+        for phrase in phrases:
+            assert phrase in cited, (constant, phrase, f"{document}:{first}-{last}")
