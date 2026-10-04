@@ -70,7 +70,11 @@ __all__ = [
     "count_loaded_parameters",
     "row_checkpoints",
     "training_block",
+    "training_blocks",
+    "latency_figures",
     "verify_latency_run",
+    "check_registry_coverage",
+    "join_registry_row",
     "inference_block",
     "build_artifact",
     "write_artifact",
@@ -1013,9 +1017,11 @@ def _module_count(*modules: Any) -> int:
 
 
 def count_loaded_parameters(family: str, path: Path, *, declared_gradient_steps: int | None,
-                            method: str | None = None) -> dict[str, int]:
+                            method: str | None = None, expected_sha256: str | None = None) -> dict[str, int]:
     """Route A: load *path* through the method's own loader on a node-order stub env and sum ``numel()`` over the
     loaded model's ``parameters()``; the same keys as :func:`count_payload_parameters`."""
+    if expected_sha256 is not None:
+        raise NotImplementedError("Amendment B, B4.3: route A hashes the file it loads")
     import torch
 
     payload = torch.load(Path(path), map_location="cpu", weights_only=False)
@@ -1347,6 +1353,26 @@ def training_block(row: TableRow, entry: Mapping[str, Any], roots: Roots,
 # ----------------------------------------------------------------------
 # The latency run
 # ----------------------------------------------------------------------
+
+
+def training_blocks(row: TableRow, roots: Roots, cache: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    """Every training entry of *row*; a row with a trained model and no training entry refuses (B4.4)."""
+    raise NotImplementedError("Amendment B, B4.4: a model row without training entries")
+
+
+def latency_figures(per_episode_ns: Sequence[Sequence[int]], *, warmup: int) -> dict[str, Any]:
+    """The builder's OWN route (B4.1): ``n_timed``, the median and the nearest-rank p95 of the timed decisions."""
+    raise NotImplementedError("Amendment B, B4.1: the builder's own statistics")
+
+
+def check_registry_coverage(run: Mapping[str, Any]) -> None:
+    """Refuse a latency run whose records do not cover every (row, device) cell of the registry (B4.2)."""
+    raise NotImplementedError("Amendment B, B4.2: the registry's coverage")
+
+
+def join_registry_row(row: TableRow, checkpoints: Sequence[Mapping[str, Any]], latency_row: Any) -> dict[str, Any]:
+    """The table row's representative checkpoint, refused unless the latency row times exactly it (B4.3)."""
+    raise NotImplementedError("Amendment B, B4.3: the registry joined to the table row")
 
 
 def verify_latency_run(latency_dir: Path, manifest_path: Path) -> dict[str, Any]:

@@ -11,6 +11,11 @@
   source refuses; a declared absence is written as ``null`` with its reason.
 * **The latency run's refusals:** no ``COMPLETE``, a throttled or non-reproducing canary, a file outside the manifest
   or at another digest, statistics that do not recompute from the record's own nanoseconds.
+* **Amendment B** (written red first in C4): B4.1 the builder's OWN statistics and every published millisecond
+  derived from the verified nanoseconds (CM4); B4.2 one refusal each, never a skip (CM11 among them); B4.3 the registry
+  joined to the table row, route A hashing what it loads; B4.4 both devices' regimes, an atomic artifact, a null only
+  where an absence declares it, no model row without training, no empty outlier note, a true docstring; B6 the text
+  the table would print; B7 what it does not say.
 
 GATES: the real-record tests skip naming ``RLTRAFFIC_OUTPUT_ROOT`` / ``RLTRAFFIC_CORPUS_V11`` (gitignored, main tree).
 """
@@ -21,10 +26,11 @@ import dataclasses
 import hashlib
 import json
 import os
+import random
 import re
 import statistics
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any, Callable, Iterator
 
 import pytest
 import torch
@@ -430,6 +436,20 @@ def _ns(offset: int = 0) -> list[list[int]]:
     return [[1_000_000 + 1_000 * k + offset for k in range(cl.DECISIONS_PER_EPISODE)] for _ in cl.TIMING_DRAWS]
 
 
+#: A power block of the shape ``offline.compute_latency.power_block`` writes, reading mains + Best Performance
+#: (Amendment B, B1). Added to the synthetic run's machine block in C4: B4.2 makes the builder refuse a record outside
+#: this regime, so a synthetic run must carry one to stand for a run the builder accepts.
+_MAINS_BEST: dict[str, Any] = {
+    "supplies": {"read_with": "/sys/class/power_supply/<name>/{type,online}", "error": None,
+                 "items": [{"name": "AC1", "type": "Mains", "online": 1},
+                           {"name": "BAT1", "type": "Battery", "online": None}]},
+    "windows": {"read_with": r"reg.exe query HKLM\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes",
+                "error": None, "active_scheme": "381b4222-f694-41f0-9685-ff5bb260df2e",
+                "ac_overlay": "ded574b5-45a0-4f42-8737-46345c09c238", "ac_overlay_name": "Best Performance",
+                "dc_overlay": "961cc777-2547-4f9d-8174-7d86181b8a7a", "dc_overlay_name": "Better Battery"},
+}
+
+
 def _write_run(tmp_path: Path, *, rows: tuple[cl.LatencyRow, ...] | None = None, close_seconds: float = 0.8,
                reproduced: bool = True, complete: bool = True) -> tuple[Path, Path]:
     rows = cl.ROWS if rows is None else rows
@@ -438,7 +458,8 @@ def _write_run(tmp_path: Path, *, rows: tuple[cl.LatencyRow, ...] | None = None,
     run_dir.mkdir(parents=True)
     git = {"commit": "0" * 40, "dirty": False}
     regime = {"torch_num_threads": 1, "OMP_NUM_THREADS": "1", "MKL_NUM_THREADS": "1", "CUBLAS_WORKSPACE_CONFIG": None}
-    machine = {"cpu_model": "synthetic", "logical_cpus": 16, "gpu": "synthetic", "driver": "0"}
+    machine = {"cpu_model": "synthetic", "logical_cpus": 16, "gpu": "synthetic", "driver": "0",
+               "kernel_release": "synthetic", "power": _MAINS_BEST}
     outcomes = [{"label": "canary_open", "status": "ok", "attempts": []}]
     for row in rows:
         for device in row.devices:
@@ -656,3 +677,464 @@ def test_t_sources_the_artifact_says_what_it_does_not_say(built_artifact: Any) -
     assert "context length" in text and "not the model's size" in text
     assert artifact["format_version"] == ct.FORMAT_VERSION
     assert artifact["mappo_results_pin"]["pinned_on"] == ct.MAPPO_RESULTS_PINNED_ON
+
+
+# ======================================================================
+# Amendment B (gate G1, FIX FIRST), written red first in C4: B4 the builder's latency verification, B6 the text the
+# table would print, B7 what it does not say.
+# ======================================================================
+
+
+def _relist(run_dir: Path, manifest: Path) -> None:
+    """Rewrite a synthetic run's manifest over what its directory now holds."""
+    manifest.unlink()
+    cl.write_manifest(run_dir.parent, manifest)
+
+
+def _tamper(run_dir: Path, manifest: Path, name: str, change: Callable[[dict[str, Any]], Any]) -> None:
+    """Rewrite one record of a synthetic run, and its manifest, as a run that wrote it so would have."""
+    path = run_dir / name
+    record = json.loads(path.read_text())
+    change(record)
+    path.unlink()
+    path.write_text(json.dumps(record))
+    _relist(run_dir, manifest)
+
+
+def _bc_run(tmp_path: Path) -> tuple[Path, Path]:
+    return _write_run(tmp_path, rows=(cl.row_by_id("hz1x1.bc"),))
+
+
+# ----------------------------------------------------------------------
+# B4.1: the builder's own route, and the published milliseconds (CM4)
+# ----------------------------------------------------------------------
+
+
+def test_b4_the_builders_own_route_takes_the_median_and_the_nearest_rank_p95_from_sorted_values() -> None:
+    generator = random.Random(20261004)
+    episodes = [[generator.randrange(500_000, 5_000_000) for _ in range(cl.DECISIONS_PER_EPISODE)] for _ in range(3)]
+    figures = ct.latency_figures(episodes, warmup=cl.WARMUP)
+    timed = sorted(value for episode in episodes for value in episode[cl.WARMUP:])
+    n = len(timed)
+    assert figures["n_timed"] == n == 1020
+    assert figures["median_ns"] == (timed[n // 2 - 1] + timed[n // 2]) / 2
+    assert figures["p95_ns"] == timed[(95 * n + 99) // 100 - 1]
+    harness = cl.latency_stats(episodes, warmup=cl.WARMUP)  # numpy's route, written once in the harness
+    assert (figures["median_ns"], figures["p95_ns"]) == (harness["median_ns"], harness["p95_ns"])
+    odd = ct.latency_figures([[5, 1, 9, 3, 7]], warmup=0)
+    assert (odd["n_timed"], odd["median_ns"], odd["p95_ns"]) == (5, 5, 9)
+
+
+def test_b4_verify_latency_run_never_calls_the_harness_statistics(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    run_dir, manifest = _bc_run(tmp_path)
+
+    def forbidden(*_args: Any, **_kwargs: Any) -> None:
+        raise AssertionError("the builder recomputed through offline.compute_latency.latency_stats")
+
+    monkeypatch.setattr(cl, "latency_stats", forbidden)
+    summary = ct.verify_latency_run(run_dir, manifest)
+    assert set(summary["records"]) == {("hz1x1.bc", "cpu"), ("hz1x1.bc", "cuda")}
+
+
+def test_b4_the_published_milliseconds_are_the_verified_nanoseconds_divided_here(tmp_path: Path) -> None:
+    rows = (cl.row_by_id("hz1x1.bc"), cl.row_by_id("grid4x4.bc"))
+    run_dir, manifest = _write_run(tmp_path, rows=rows)
+    run = ct.verify_latency_run(run_dir, manifest)
+    table = {row.row_id: row for row in ct.TABLE_ROWS}
+    checked = 0
+    for latency_row in rows:
+        out = ct.inference_block(table[latency_row.row_id], run)
+        n_ix = 16 if latency_row.scenario == "grid4x4" else 1
+        for device in ("cpu", "cuda"):
+            record = json.loads((run_dir / f"{latency_row.row_id}_{device}.json").read_text())
+            timed = sorted(v for episode in record["episodes"] for v in episode["decision_ns"][cl.WARMUP:])
+            n = len(timed)
+            median_ms = ((timed[n // 2 - 1] + timed[n // 2]) / 2) / 1e6
+            p95_ms = timed[(95 * n + 99) // 100 - 1] / 1e6
+            cell = out[device]
+            assert cell["median_ms"]["value"] == median_ms, (latency_row.row_id, device)
+            assert cell["p95_ms"]["value"] == p95_ms, (latency_row.row_id, device)
+            assert cell["per_intersection_median_ms"]["value"] == median_ms / n_ix
+            assert cell["per_intersection_p95_ms"]["value"] == p95_ms / n_ix
+            assert cell["n_timed"] == n == 1020
+            checked += 1
+    assert checked == 4
+
+
+_PUBLISHED_FIELDS: dict[str, Callable[[dict[str, Any]], Any]] = {
+    "median_ms": lambda r: r.__setitem__("median_ms", r["median_ms"] + 1e-6),
+    "p95_ms": lambda r: r.__setitem__("p95_ms", r["p95_ms"] * 1000),
+    "per_intersection.median_ms": lambda r: r["per_intersection"].__setitem__("median_ms", 0.5),
+    "per_intersection.p95_ms": lambda r: r["per_intersection"].__setitem__("p95_ms", 0.5),
+    "n_intersections": lambda r: r.__setitem__("n_intersections", 16),
+}
+
+
+@pytest.mark.parametrize("field", sorted(_PUBLISHED_FIELDS))
+def test_b4_a_record_whose_published_figures_disagree_with_its_nanoseconds_is_refused(tmp_path: Path, field: str) -> None:
+    run_dir, manifest = _bc_run(tmp_path)
+    _tamper(run_dir, manifest, "hz1x1.bc_cpu.json", _PUBLISHED_FIELDS[field])
+    with pytest.raises(ValueError, match=re.escape(field)):
+        ct.verify_latency_run(run_dir, manifest)
+
+
+# ----------------------------------------------------------------------
+# B4.2: refuse, never skip -- one test each
+# ----------------------------------------------------------------------
+
+
+def test_b4_a_record_of_another_format_version_is_refused_not_skipped(tmp_path: Path) -> None:
+    run_dir, manifest = _bc_run(tmp_path)
+    _tamper(run_dir, manifest, "hz1x1.bc_cpu.json", lambda r: r.__setitem__("format_version", "p8.2-latency/0.9"))
+    with pytest.raises(ValueError, match="p8.2-latency/0.9"):
+        ct.verify_latency_run(run_dir, manifest)
+
+
+def test_b4_a_cell_the_run_declares_without_its_record_is_refused(tmp_path: Path) -> None:
+    run_dir, manifest = _bc_run(tmp_path)
+    (run_dir / "hz1x1.bc_cuda.json").unlink()
+    _relist(run_dir, manifest)
+    with pytest.raises(ValueError, match="hz1x1.bc_cuda"):
+        ct.verify_latency_run(run_dir, manifest)
+
+
+def test_b4_a_run_that_does_not_cover_every_cell_of_the_registry_is_refused(tmp_path: Path) -> None:
+    run_dir, manifest = _bc_run(tmp_path)
+    with pytest.raises(ValueError, match="76 of the registry's 78"):
+        ct.check_registry_coverage(ct.verify_latency_run(run_dir, manifest))
+    full_dir, full_manifest = _write_run(tmp_path / "full")
+    ct.check_registry_coverage(ct.verify_latency_run(full_dir, full_manifest))
+
+
+def test_b4_a_record_file_for_no_registry_row_is_refused(tmp_path: Path) -> None:
+    run_dir, manifest = _bc_run(tmp_path)
+    record = json.loads((run_dir / "hz1x1.bc_cpu.json").read_text())
+    record["row"] = "hz1x1.no_such_row"
+    (run_dir / "hz1x1.no_such_row_cpu.json").write_text(json.dumps(record))
+    _relist(run_dir, manifest)
+    with pytest.raises(ValueError, match="hz1x1.no_such_row"):
+        ct.verify_latency_run(run_dir, manifest)
+
+
+@pytest.mark.parametrize("field,value", [("row", "hz1x1.iql"), ("device", "cuda")])
+def test_b4_a_record_whose_row_or_device_disagrees_with_its_file_name_is_refused(
+    tmp_path: Path, field: str, value: str
+) -> None:
+    run_dir, manifest = _bc_run(tmp_path)
+    _tamper(run_dir, manifest, "hz1x1.bc_cpu.json", lambda r: r.__setitem__(field, value))
+    with pytest.raises(ValueError, match="hz1x1.bc_cpu.json"):
+        ct.verify_latency_run(run_dir, manifest)
+
+
+@pytest.mark.parametrize("field", ["sha256", "path"])
+def test_b4_a_record_of_a_checkpoint_other_than_the_registered_one_is_refused(tmp_path: Path, field: str) -> None:
+    run_dir, manifest = _bc_run(tmp_path)
+    other = {"sha256": "0" * 64, "path": "output/p4_4/checkpoints/bc_seed202.pt"}[field]
+    _tamper(run_dir, manifest, "hz1x1.bc_cpu.json", lambda r: r["checkpoint"].__setitem__(field, other))
+    with pytest.raises(ValueError, match="registered"):
+        ct.verify_latency_run(run_dir, manifest)
+
+
+_PROTOCOL: dict[str, Callable[[dict[str, Any]], Any]] = {
+    "warmup": lambda r: r.__setitem__("warmup", 0),
+    "draws": lambda r: (r["draws"].__setitem__(2, 1003), r["episodes"][2].__setitem__("draw", 1003)),
+    "episodes": lambda r: (r["draws"].pop(), r["episodes"].pop()),
+    "engine_seed": lambda r: r.__setitem__("engine_seed", 999),
+}
+
+
+@pytest.mark.parametrize("field", sorted(_PROTOCOL))
+def test_b4_a_record_outside_the_registered_protocol_is_refused(tmp_path: Path, field: str) -> None:
+    run_dir, manifest = _bc_run(tmp_path)
+    _tamper(run_dir, manifest, "hz1x1.bc_cpu.json", _PROTOCOL[field])
+    with pytest.raises(ValueError, match=field):
+        ct.verify_latency_run(run_dir, manifest)
+
+
+@pytest.mark.parametrize("case", ["another commit", "a dirty tree"])
+def test_b4_a_record_of_another_commit_or_a_dirty_tree_is_refused(tmp_path: Path, case: str) -> None:
+    run_dir, manifest = _bc_run(tmp_path)
+    key, value, named = ("commit", "1" * 40, "commit") if case == "another commit" else ("dirty", True, "dirty")
+    _tamper(run_dir, manifest, "hz1x1.bc_cpu.json", lambda r: r["git"].__setitem__(key, value))
+    with pytest.raises(ValueError, match=named):
+        ct.verify_latency_run(run_dir, manifest)
+
+
+@pytest.mark.parametrize("case", ["better battery", "on battery"])
+def test_b4_a_record_outside_the_power_regime_is_refused(tmp_path: Path, case: str) -> None:
+    run_dir, manifest = _bc_run(tmp_path)
+
+    def change(record: dict[str, Any]) -> None:
+        power = record["machine"]["power"]
+        if case == "better battery":
+            power["windows"].update(ac_overlay="961cc777-2547-4f9d-8174-7d86181b8a7a", ac_overlay_name="Better Battery")
+        else:
+            power["supplies"]["items"][0]["online"] = 0
+
+    _tamper(run_dir, manifest, "hz1x1.bc_cpu.json", change)
+    with pytest.raises(ValueError, match="power regime"):
+        ct.verify_latency_run(run_dir, manifest)
+
+
+# ----------------------------------------------------------------------
+# B4.3: the registry joined to the table row; route A hashes what it loads
+# ----------------------------------------------------------------------
+
+
+def test_b4_a_registry_whose_h4_k1_names_the_k20_file_refuses() -> None:
+    row = {r.row_id: r for r in ct.TABLE_ROWS}["hz1x1.h4.k1"]
+    k1, k20 = cl.row_by_id("hz1x1.h4.k1"), cl.row_by_id("hz1x1.h4.k20")
+    checkpoints = [{"tier": group["tier"], "seed": seed, "path": group["path"].format(seed=seed),
+                    "sha256": f"{group['tier']}-{seed}"} for group in row.groups for seed in (101, 202, 303, 404, 505)]
+    representative = next(c for c in checkpoints if c["tier"] == "mappo1000" and c["seed"] == 101)
+    representative["sha256"] = k1.sha256
+    assert representative["path"] == k1.checkpoint
+    assert ct.join_registry_row(row, checkpoints, k1) == representative
+    for swapped in (dataclasses.replace(k1, checkpoint=k20.checkpoint, sha256=k20.sha256),
+                    dataclasses.replace(k1, sha256=k20.sha256),
+                    dataclasses.replace(k1, checkpoint=k20.checkpoint)):
+        with pytest.raises(ValueError, match="hz1x1.h4.k1"):
+            ct.join_registry_row(row, checkpoints, swapped)
+
+
+def test_b4_route_a_hashes_the_file_it_loads_before_loading_it(tmp_path: Path) -> None:
+    path = tmp_path / "model.pt"
+    path.write_bytes(b"not the registered checkpoint")
+    with pytest.raises(ValueError, match="sha256"):
+        ct.count_loaded_parameters("bc", path, declared_gradient_steps=40000, expected_sha256="0" * 64)
+
+
+# ----------------------------------------------------------------------
+# B4.4: both regimes, an atomic artifact, nulls, model rows without training, outlier notes, the docstring
+# ----------------------------------------------------------------------
+
+
+def test_b4_the_hardware_block_reports_both_devices_regimes() -> None:
+    machine = {"cpu_model": "synthetic", "power": _MAINS_BEST}
+    cpu = {"torch_num_threads": 1, "device": "cpu", "synchronize": None}
+    cuda = {"torch_num_threads": 1, "device": "cuda", "synchronize": "torch.cuda.synchronize() before both clock readings"}
+    run: dict[str, Any] = {"records": {("a", "cpu"): {"record": {"machine": machine, "regime": cpu}},
+                                       ("a", "cuda"): {"record": {"machine": machine, "regime": cuda}},
+                                       ("b", "cpu"): {"record": {"machine": machine, "regime": cpu}}}}
+    hardware = ct._hardware(run)
+    assert hardware["machine"] == machine
+    assert hardware["regime"] == {"cpu": cpu, "cuda": cuda}
+    run["records"][("b", "cpu")] = {"record": {"machine": machine, "regime": {**cpu, "torch_num_threads": 2}}}
+    with pytest.raises(ValueError, match="cpu"):
+        ct._hardware(run)
+
+
+def test_b4_write_artifact_is_exclusive_and_atomic(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    path = tmp_path / "artifacts" / "p8_2_compute.json"
+
+    def refuse_link(*_args: Any, **_kwargs: Any) -> None:
+        raise OSError("the link was refused (simulated)")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(os, "link", refuse_link)
+        with pytest.raises(OSError, match="simulated"):
+            ct.write_artifact(path, {"format_version": ct.FORMAT_VERSION})
+    assert not path.exists()
+    assert not path.parent.exists() or list(path.parent.iterdir()) == []
+    ct.write_artifact(path, {"format_version": ct.FORMAT_VERSION, "n": 1})
+    before = path.read_bytes()
+    with pytest.raises(FileExistsError):
+        ct.write_artifact(path, {"n": 2})
+    assert path.read_bytes() == before
+
+
+def _rewrite_synthetic(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, document: dict[str, Any]) -> None:
+    path = tmp_path / "docs" / "data" / "synthetic_training.json"
+    path.write_text(json.dumps(document))
+    monkeypatch.setitem(ct.PINNED_RECORDS, "synthetic",
+                        dataclasses.replace(ct.PINNED_RECORDS["synthetic"],
+                                            sha256=hashlib.sha256(path.read_bytes()).hexdigest()))
+
+
+def _synthetic_document(tmp_path: Path) -> dict[str, Any]:
+    return json.loads((tmp_path / "docs" / "data" / "synthetic_training.json").read_text())
+
+
+@pytest.mark.parametrize("field", ["batch", "steps", "data", "regime.device"])
+def test_b4_a_null_read_from_a_record_is_refused_unless_an_absence_declares_it(
+    synthetic: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, field: str
+) -> None:
+    roots, row, entry = synthetic
+    document = _synthetic_document(tmp_path)
+    if field == "steps":
+        document["runs"][3]["gradient_steps"] = None
+    else:
+        document[{"batch": "batch", "data": "rows", "regime.device": "device"}[field]] = None
+    _rewrite_synthetic(tmp_path, monkeypatch, document)
+    with pytest.raises(ValueError, match="null"):
+        ct.training_block(row, entry, roots)
+
+
+def test_b4_a_null_that_an_absence_declares_carries_its_reason(
+    synthetic: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    roots, row, entry = synthetic
+    document = _synthetic_document(tmp_path)
+    document["batch"] = None
+    _rewrite_synthetic(tmp_path, monkeypatch, document)
+    monkeypatch.setitem(ct.DECLARED_ABSENCES, "synthetic.batch", "the synthetic record holds null for its batch")
+    declared = {**entry, "batch": {"kind": "record", "path": "$.batch", "null_means": "synthetic.batch"}}
+    batch = ct.training_block(row, declared, roots)["batch"]
+    assert batch["value"] is None and batch["reason"] == "the synthetic record holds null for its batch"
+    assert batch["source"]["json_path"] == "$.batch"
+
+
+def test_b4_a_model_row_without_training_entries_refuses(synthetic: Any) -> None:
+    roots, row, _entry = synthetic  # family "bc", no training entry
+    with pytest.raises(ValueError, match="no training entry"):
+        ct.training_blocks(row, roots)
+    assert ct.training_blocks(dataclasses.replace(row, family="heuristic"), roots) == []
+
+
+@pytest.mark.parametrize("note", ["", "   "])
+def test_b4_an_outlier_note_must_say_something(
+    synthetic: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, note: str
+) -> None:
+    roots, row, entry = synthetic
+    _with_slow_seed(tmp_path, monkeypatch)
+    with pytest.raises(ValueError, match="note"):
+        ct.training_block(row, {**entry, "outliers": {505: note}}, roots)
+
+
+def test_b4_the_docstring_says_which_numbers_are_derived_and_sit_beside_their_sources() -> None:
+    doc = ct.__doc__
+    assert "**Every number is ``{value, source}``**" not in doc
+    assert "derived" in doc and "beside the sourced per-seed values" in doc
+
+
+# ----------------------------------------------------------------------
+# B6: the text the table would print
+# ----------------------------------------------------------------------
+
+
+def test_b6_the_p4_suspend_note_quotes_its_record() -> None:
+    seeds = {int(s["seed"]): float(s["seconds"]) for s in json.loads((DATA / "p4_training.json").read_text())["seeds"]}
+    others = [value for seed, value in seeds.items() if seed != 505]
+    assert f"{seeds[505]:,.1f} s" in ct._P4_SUSPEND
+    assert f"{min(others):.1f}-{max(others):.1f} s" in ct._P4_SUSPEND  # 202.3-356.2: the record's own minimum
+
+
+def test_b6_every_number_a_note_takes_from_a_document_is_in_that_document() -> None:
+    p4 = "\n".join((REPO_ROOT / "docs" / "returns" / "P4.md").read_text(encoding="utf-8").splitlines()[321:325])
+    for quoted in ("10:19", "14:12", "361 s"):
+        assert quoted in ct._P4_SUSPEND and quoted in p4, quoted
+    brief = (REPO_ROOT / "docs" / "briefs" / "BRIEF_42_p5.3c_context_length.md").read_text(encoding="utf-8")
+    d3 = brief.split("## D3 — Rulings, and a correction", 1)[1][:1500]
+    assert "8.5 GB" in ct._HOST_GAME and "8.5 GB" in d3
+    assert "17:22-18:04" in ct._HOST_GAME and "17:22–18:04" in d3
+    p52 = "\n".join((REPO_ROOT / "docs" / "returns" / "P5.2.md").read_text(encoding="utf-8").splitlines()[254:263])
+    assert "2 h 10 min" in ct._CLOCK_JUMP and "2 h 10 m" in p52
+
+
+def test_b6_the_clock_jump_note_quotes_its_record() -> None:
+    runs = json.loads((_output_root() / "p5_2" / "training_mappo1000_dt_nomix_h4.json").read_text())["runs"]
+    by_seed = {int(run["seed"]): run for run in runs}
+    assert f"{float(by_seed[505]['seconds']):,.1f} s" in ct._CLOCK_JUMP
+    rates = [1000 * float(run["seconds"]) / int(run["gradient_steps"]) for seed, run in by_seed.items() if seed != 505]
+    assert round(statistics.median(rates)) == 122 and "about 122 ms per step" in ct._CLOCK_JUMP
+
+
+def test_b6_mappos_worker_count_is_an_inference_with_its_basis_never_a_measurement() -> None:
+    mappo = [row for row in ct.TABLE_ROWS if row.family == "mappo"]
+    assert len(mappo) == 5
+    for row in mappo:
+        concurrency = row.training[0]["regime"]["concurrency"]
+        assert concurrency["kind"] == "inferred" and concurrency["value"] == 6, row.row_id
+        assert "mtime" in concurrency["basis"] and "V7" in concurrency["basis"], row.row_id
+        assert "95 %" in concurrency["confidence"], row.row_id
+        assert "not recorded by the manifest" in concurrency["recorded"], row.row_id
+        text = json.dumps(row.training, default=str)
+        assert "16 logical CPUs" not in text and "Measured with six" not in text, row.row_id
+
+
+def test_b6_the_hz1x1_heuristics_point_their_c3_claims_at_their_own_cells() -> None:
+    rows = {row.row_id: row for row in ct.TABLE_ROWS}
+    zero_shot = json.loads((DATA / "p7_3a_zero_shot.json").read_text())
+    for row_id, path in (("hz1x1.random", "$.cells[200]"), ("hz1x1.maxpressure", "$.cells[100]"),
+                         ("hz1x1.fixedtime", "$.cells[0]")):
+        arm = row_id.split(".", 1)[1]
+        c3 = [claim for claim in rows[row_id].claims if claim["claim"] == "C3"]
+        assert c3 == [{"claim": "C3", "record": "p7_3a_zero_shot", "json_path": path, "expect": {"arm": arm}}], row_id
+        assert _resolve(zero_shot, path)["arm"] == arm, row_id
+
+
+def test_b6_units_that_cannot_be_misread() -> None:
+    rows = {row.row_id: row for row in ct.TABLE_ROWS}
+    for row_id in ("grid4x4.bc", "grid4x4.bc_top10", "grid4x4.bc_top10_perix", "grid4x4.iql"):
+        for entry in rows[row_id].training:
+            unit = entry["data"]["unit"]
+            assert unit.startswith("per-intersection") and "joint window" in unit, (row_id, unit)
+    for row_id in ("grid4x4.dt_spatial", "grid4x4.dt_nomix"):
+        assert "joint windows" in rows[row_id].training[0]["data"]["unit"], row_id
+    for row in (r for r in ct.TABLE_ROWS if r.family == "mappo"):
+        batch = row.training[0]["batch"]
+        assert batch["path"] == "$.agents[0].params.minibatch_size" and "PPO minibatch_size" in batch["label"]
+
+
+def test_b6_the_builder_states_which_plan_records_it_pins_and_which_it_does_not() -> None:
+    unpinned = ct.UNPINNED_PLAN_RECORDS
+    assert set(unpinned) == {"docs/data/p5_3b_decomposition.json", "docs/data/p7_2b_calibration.json",
+                             "docs/data/p4_6_grid.json"}
+    pinned = {record.relpath for record in ct.PINNED_RECORDS.values()}
+    for path, reason in unpinned.items():
+        assert (REPO_ROOT / path).is_file() and path not in pinned and len(reason) > 20, path
+    assert "UNPINNED_PLAN_RECORDS" in ct.__doc__ and "25 corpus manifests" in ct.__doc__
+
+
+# ----------------------------------------------------------------------
+# B7: what the table does not say
+# ----------------------------------------------------------------------
+
+_B7_HYBRID_CORES = (
+    "The CPU is a hybrid-core laptop part (Intel Core Ultra 9 275HX) running Linux under WSL2: the Windows host "
+    "schedules the guest's virtual CPUs onto performance or efficiency cores and the guest cannot pin them, so the "
+    "single-thread figure is this machine's in the recorded regime (mains, Windows power mode Best Performance), not a "
+    "property of one core type."
+)
+_B7_TRAINING_CLOCKS = (
+    "The training wall times are the training runs' own clocks: the Windows power mode in force during those runs was "
+    "not recorded (the mode found on 2026-10-03 was Best power efficiency), so they are not a controlled benchmark and "
+    "are not comparable to the latency regime."
+)
+
+
+def test_b7_what_this_does_not_say_carries_the_hybrid_core_and_the_training_clock_sentences() -> None:
+    assert _B7_HYBRID_CORES in ct.WHAT_THIS_DOES_NOT_SAY
+    assert _B7_TRAINING_CLOCKS in ct.WHAT_THIS_DOES_NOT_SAY
+
+
+# ----------------------------------------------------------------------
+# Gated: the built artifact against Amendment B
+# ----------------------------------------------------------------------
+
+
+def test_t_sources_every_timed_checkpoint_is_its_rows_representative(built_artifact: Any) -> None:
+    artifact, _ = built_artifact
+    rows = {row.row_id: row for row in ct.TABLE_ROWS}
+    joined = 0
+    for out in artifact["rows"]:
+        row = rows[out["id"]]
+        if row.latency_row is None or row.family == "heuristic":
+            continue
+        representative = next(c for c in out["checkpoints"] if c["tier"] == row.groups[0]["tier"] and c["seed"] == 101)
+        latency_row = cl.row_by_id(row.latency_row)
+        assert (latency_row.checkpoint, latency_row.sha256) == (representative["path"], representative["sha256"])
+        assert out["inference"]["timed_checkpoint"] == {"path": representative["path"],
+                                                        "sha256": representative["sha256"]}, out["id"]
+        joined += 1
+    assert joined == 36
+
+
+def test_t_sources_mappos_concurrency_is_an_inference_and_its_batch_the_ppo_minibatch(built_artifact: Any) -> None:
+    artifact, _ = built_artifact
+    mappo = [out for out in artifact["rows"] if out["family"] == "mappo"]
+    assert len(mappo) == 5
+    for out in mappo:
+        concurrency = out["training"][0]["regime"]["concurrency"]
+        assert concurrency["value"] == 6 and "inferred" in concurrency["source"], out["id"]
+        assert "PPO minibatch_size" in out["training"][0]["batch"]["label"], out["id"]
