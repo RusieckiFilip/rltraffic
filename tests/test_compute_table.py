@@ -938,7 +938,7 @@ def test_b4_write_artifact_is_exclusive_and_atomic(tmp_path: Path, monkeypatch: 
     assert not path.parent.exists() or list(path.parent.iterdir()) == []
     ct.write_artifact(path, {"format_version": ct.FORMAT_VERSION, "n": 1})
     before = path.read_bytes()
-    with pytest.raises(FileExistsError):
+    with pytest.raises(FileExistsError, match="written once"):
         ct.write_artifact(path, {"n": 2})
     assert path.read_bytes() == before
 
