@@ -12,14 +12,20 @@ the G1 pre-flight it runs.
   rule.
 * **Executed on a snapshot clone** (no data is needed): the run refuses while no pre-flight is pinned and creates
   nothing; a tree at another commit is refused; the pre-flight refuses a tree with uncommitted changes.
+* **Amendment B** (written red first in C4): the run calls ``power-check`` among its pre-token checks and refuses
+  before the token when it fails, the token left in place (executed with the check made to fail, so the test does not
+  depend on this machine's power mode); a tracer, profiler or debug-allocator variable is refused before any
+  interpreter starts (B5.3).
 
 GATES: the executed tests need the main tree's interpreter (``/home/filip/rltraffic/.venv``) and skip naming it.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
+import os
 import re
 import subprocess
 import sys
@@ -335,3 +341,73 @@ def test_the_preflight_refuses_a_tree_with_uncommitted_changes(sandbox: tuple[Pa
     assert completed.returncode == 2, completed.stderr
     assert "uncommitted" in completed.stderr
     assert list(main.iterdir()) == []
+
+
+# ======================================================================
+# Amendment B (gate G1, FIX FIRST), written red first in C4: B1.2 the power check before the token, B5.3 the tracer
+# and profiler variables.
+# ======================================================================
+
+#: B5.3: the variables under which a measured interpreter would run traced, profiled or on a debug allocator.
+_TRACER_VARIABLES = ("COVERAGE_PROCESS_START", "COVERAGE_PROCESS_CONFIG", "PYTHONTRACEMALLOC", "PYTHONDEVMODE",
+                     "PYTHONMALLOC", "PYTHONPROFILEIMPORTTIME")
+
+
+def _preflight_branch_end(lines: list[str]) -> int:
+    start = _first(lines, 'if [ "$MODE" = preflight ]')
+    return start + next(i for i, line in enumerate(lines[start:]) if line.strip() == "fi")
+
+
+def test_the_run_calls_the_power_check_among_its_pre_token_checks() -> None:
+    lines = _code()
+    calls = [i for i, line in enumerate(lines) if "power-check" in line]
+    assert len(calls) == 1, [lines[i] for i in calls]
+    assert '"$PY" -P -m offline.compute_latency power-check || refuse ' in lines[calls[0]], lines[calls[0]]
+    assert _preflight_branch_end(lines) < calls[0] < _first(lines, 'rm -- "$TOKEN"')
+
+
+def test_the_header_names_the_power_mode_the_run_requires() -> None:
+    header = "\n".join(line for line in _text().splitlines() if line.startswith("#"))
+    for needle in ("Best Performance", "power-check"):
+        assert needle in header, needle
+
+
+def test_every_tracer_or_profiler_variable_is_checked_before_any_interpreter_starts() -> None:
+    lines = _code()
+    first_call = _first(lines, '"$PY" -P')
+    for variable in _TRACER_VARIABLES:
+        assert _first(lines, variable) < first_call, variable
+
+
+@pytest.mark.parametrize("variable", ["COVERAGE_PROCESS_START", "PYTHONDEVMODE"])
+def test_a_set_tracer_variable_is_refused_and_nothing_is_created(sandbox: tuple[Path, Path], variable: str) -> None:
+    clone, main = sandbox
+    completed = subprocess.run(["bash", str(clone / "offline" / "campaigns" / "p8_2_latency.sh"), "--preflight"],
+                               env={**os.environ, variable: "1"}, capture_output=True, text=True, timeout=300,
+                               check=False)
+    assert completed.returncode == 2, completed.stderr[-1500:]
+    assert variable in completed.stderr
+    assert list(main.iterdir()) == []
+
+
+def test_the_run_refuses_before_the_token_when_the_power_check_fails(sandbox: tuple[Path, Path]) -> None:
+    clone, main = sandbox
+    runs = main / "output" / "p8_2_runs"
+    record = runs / "preflight_20261004T000000Z" / "preflight.json"
+    record.parent.mkdir(parents=True)
+    record.write_text(json.dumps({"format_version": cl.PREFLIGHT_FORMAT_VERSION, "status": "COMPLETE",
+                                  "timeouts_s": {"hz1x1": 120.0, "grid4x4": 120.0}, "canary_timeout_s": 120.0}))
+    token = runs / "TOKEN_latency"
+    token.write_text("")
+    before = sorted(path.relative_to(main).as_posix() for path in main.rglob("*"))
+    driver = clone / "offline" / "campaigns" / "p8_2_latency.sh"
+    driver.write_text(_substitute(driver.read_text(encoding="utf-8"), "-m offline.compute_latency power-check",
+                                  "-c 'import sys; sys.exit(\"power regime: the sandbox refuses (simulated)\")'", 1),
+                      encoding="utf-8")
+    _pin(clone, "p8_2_runs/preflight_20261004T000000Z/preflight.json", hashlib.sha256(record.read_bytes()).hexdigest())
+    _git("checkout", "--quiet", "--detach", cwd=clone)
+    completed = _run(clone, _git("rev-parse", "HEAD", cwd=clone).strip())
+    assert completed.returncode == 2, completed.stderr[-1500:]
+    assert "power regime" in completed.stderr
+    assert token.is_file(), "the token was consumed although the power check refused"
+    assert sorted(path.relative_to(main).as_posix() for path in main.rglob("*")) == before
