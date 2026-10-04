@@ -843,11 +843,22 @@ _PROTOCOL: dict[str, Callable[[dict[str, Any]], Any]] = {
 }
 
 
+#: Each protocol refusal's OWN message. Strengthened after mutant NB42h (the episode-count check removed) survived the
+#: first form of this test, whose match was the bare field name: the draws refusal's message also says "episodes",
+#: so the record was still refused, under the wrong cause.
+_PROTOCOL_REFUSALS: dict[str, str] = {
+    "warmup": "warmup 0 is not the registered 20",
+    "draws": r"draws \[1000, 1001, 1003\]",
+    "episodes": "2 episodes, not the registered 3",
+    "engine_seed": "engine_seed 999 is not the registered 1000",
+}
+
+
 @pytest.mark.parametrize("field", sorted(_PROTOCOL))
 def test_b4_a_record_outside_the_registered_protocol_is_refused(tmp_path: Path, field: str) -> None:
     run_dir, manifest = _bc_run(tmp_path)
     _tamper(run_dir, manifest, "hz1x1.bc_cpu.json", _PROTOCOL[field])
-    with pytest.raises(ValueError, match=field):
+    with pytest.raises(ValueError, match=_PROTOCOL_REFUSALS[field]):
         ct.verify_latency_run(run_dir, manifest)
 
 
