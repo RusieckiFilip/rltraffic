@@ -86,6 +86,14 @@ __all__ = [
     "find_outcome_keys",
     "assert_cpu_regime",
     "configure_regime",
+    "POWER_SUPPLY_ROOT",
+    "POWER_REFUSED_EXIT",
+    "read_power_supplies",
+    "read_windows_power",
+    "power_block",
+    "power_regime_problems",
+    "assert_power_regime",
+    "assert_no_tracer",
     "write_once",
     "build_record",
     "build_canary_record",
@@ -503,6 +511,52 @@ def configure_regime(device: str) -> dict[str, Any]:
     return block
 
 
+# ----------------------------------------------------------------------
+# The power regime (Amendment B, B1), the device evidence (B2), the tracer refusal (B5.3)
+# ----------------------------------------------------------------------
+
+#: B1: where the guest kernel lists the machine's power supplies (``type``, ``online``); visible from WSL2.
+POWER_SUPPLY_ROOT = Path("/sys/class/power_supply")
+
+#: B1.3: the exit code of a canary process that refuses because the power regime is not mains + Best Performance.
+POWER_REFUSED_EXIT = 3
+
+
+def read_power_supplies(root: Path = POWER_SUPPLY_ROOT) -> dict[str, Any]:
+    """Every supply under *root* with its ``type`` and ``online``, how they were read, and the error if none could be."""
+    raise NotImplementedError("Amendment B, B1.1: the power supplies")
+
+
+def read_windows_power(query: Callable[[], str] | None = None) -> dict[str, Any]:
+    """The Windows active power scheme and the AC / DC power-mode overlays, read with ``reg.exe query``."""
+    raise NotImplementedError("Amendment B, B1.1: the Windows power mode")
+
+
+def power_block(*, supply_root: Path = POWER_SUPPLY_ROOT, reg_query: Callable[[], str] | None = None) -> dict[str, Any]:
+    """The record's ``power`` block: the supplies and the Windows power mode, each with how it was read."""
+    raise NotImplementedError("Amendment B, B1.1: the power block")
+
+
+def power_regime_problems(block: Mapping[str, Any]) -> list[str]:
+    """Why *block* is not mains + Best Performance (empty when it is); a source that could not be read is a problem."""
+    raise NotImplementedError("Amendment B, B1.2: the power regime")
+
+
+def assert_power_regime(block: Mapping[str, Any]) -> None:
+    """Refuse unless *block* is mains + Best Performance."""
+    raise NotImplementedError("Amendment B, B1.2: the power regime")
+
+
+def _cuda_state() -> dict[str, Any]:
+    """``torch.cuda.is_initialized()`` and, when initialised, ``torch.cuda.max_memory_allocated()``."""
+    raise NotImplementedError("Amendment B, B2: the device evidence")
+
+
+def assert_no_tracer() -> str:
+    """Refuse an active tracer or profiler in the measured process; return what was checked."""
+    raise NotImplementedError("Amendment B, B5.3: the tracer refusal")
+
+
 def _load_average() -> list[float]:
     try:
         return [float(value) for value in Path("/proc/loadavg").read_text().split()[:3]]
@@ -609,9 +663,12 @@ def build_record(
     load_after: Sequence[float],
     git: Mapping[str, Any],
     warmup: int = WARMUP,
+    device_evidence: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """The ``p8.2-latency/1.0`` record; refuses an episode whose decision count is not 360, fewer than
     :data:`MIN_TIMED` timed decisions, or any key that names an episode quantity."""
+    if device_evidence is not None:
+        raise NotImplementedError("Amendment B, B2: the record's device evidence")
     if device not in row.devices:
         raise ValueError(f"{row.row_id} is timed on {row.devices}, not on {device!r}")
     if len(per_episode_ns) != len(draws):
@@ -677,9 +734,12 @@ def build_record(
     return record
 
 
-def build_canary_record(phase: str, seconds: float, *, reproduced: bool, git: Mapping[str, Any]) -> dict[str, Any]:
+def build_canary_record(phase: str, seconds: float, *, reproduced: bool, git: Mapping[str, Any],
+                        power: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """The ``p8.2-canary/1.0`` record: seconds, the 2.0 s threshold, the verdict and ``reproduced`` -- no value of
     the canary episode itself."""
+    if power is not None:
+        raise NotImplementedError("Amendment B, B1.3: the canary record's power block")
     if phase not in ("open", "close"):
         raise ValueError(f"the canary phase is 'open' or 'close', not {phase!r}")
     record = {
@@ -1397,6 +1457,8 @@ def build_parser() -> argparse.ArgumentParser:
     row.add_argument("--out-dir", type=Path, required=True)
     roots(row)
 
+    sub.add_parser("power-check", help="exit 0 on mains + Windows power mode Best Performance, 2 otherwise (B1.2)")
+
     timeouts = sub.add_parser("timeouts", help="print the hz1x1, grid4x4 and canary timeouts of a pre-flight record")
     timeouts.add_argument("--preflight-record", type=Path, required=True)
 
@@ -1451,6 +1513,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         configure_regime("cpu")
         run_canary(args.phase, args.out_dir)
         return 0
+    if args.command == "power-check":
+        raise NotImplementedError("Amendment B, B1.2: the power-check subcommand")
     if args.command == "timeouts":
         values = timeouts_from_preflight(args.preflight_record)
         print(f"{values['hz1x1']:g} {values['grid4x4']:g} {values['canary']:g}")
