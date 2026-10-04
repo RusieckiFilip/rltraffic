@@ -1,15 +1,19 @@
 """P8.2: the policy's decision latency, timed alone in real CityFlow episodes -- and no outcome whatsoever.
 
-Written against ``docs/briefs/BRIEF_43_p8.2_compute_latency.md`` §4 and its **Amendment A** (A2's rulings Q8–Q14, A3's
-two added requirements), on the plan ``docs/plans/p8.2.md`` approved at ``a7c43e1``.
+Written against ``docs/briefs/BRIEF_43_p8.2_compute_latency.md`` §4, its **Amendment A** (A2's rulings Q8–Q14, A3's
+two added requirements) and its **Amendment B** (gate G1: B1 the power regime, B2 where the model ran, B3 the CUDA
+synchronize on the real path, B5 the row process, B6.5 the estimate's wording), on the plan ``docs/plans/p8.2.md``
+approved at ``a7c43e1``.
 
 On-disk formats
 ---------------
-* ``p8.2-latency/1.0`` -- one JSON record per (row, device), ``<run dir>/<row>_<device>.json``, written ONCE (atomic,
+* ``p8.2-latency/1.1`` -- one JSON record per (row, device), ``<run dir>/<row>_<device>.json``, written ONCE (atomic,
   exclusive). It carries the per-decision nanoseconds of three episodes, the statistics over the timed decisions,
-  the regime, the machine and the checkpoint's digest.
-* ``p8.2-canary/1.0`` -- ``canary_open.json`` / ``canary_close.json``: the machine-health canary's seconds, its
-  verdict and whether the engine reproduced draw 0 -- as a boolean, never the observed values.
+  the regime (with the tracer check), the machine (with ``kernel_release`` and the ``power`` block, B1.1), the
+  device evidence (B2) and the checkpoint's digest. 1.1 added the last three to 1.0 (the G1 pre-flight's records).
+* ``p8.2-canary/1.1`` -- ``canary_open.json`` / ``canary_close.json``: the machine-health canary's seconds, its
+  verdict, whether the engine reproduced draw 0 -- as a boolean, never the observed values -- and the power block it
+  ran under (1.1 added it).
 * ``p8.2-latency-run/1.0`` -- ``run.json``: the row order, every attempt of every supervised process and the run's
   terminal status, beside the markers ``COMPLETE`` / ``FAILED``.
 * ``p8.2-preflight/1.0`` -- the G1 pre-flight's record: the measured process wall times, the per-scenario timeouts
@@ -34,6 +38,22 @@ record atomically and exclusively, and only then closes them. The driver supervi
 an attempt that hangs before its record exists is killed and re-run (at most ``MAX_ATTEMPTS``); a record written by
 a process that then hangs is kept; a process that EXITS without a record fails the run at once.
 
+The power regime (Amendment B, B1)
+----------------------------------
+A timed number is this machine's under ONE regime: mains, and the Windows power mode Best Performance (the AC overlay
+``ded574b5-…``; power throttling is engaged in every other mode). The guest reads the supplies from
+``/sys/class/power_supply`` and the mode with ``reg.exe query`` through WSL interop. The driver refuses before the token
+unless ``power-check`` passes; each canary process re-checks before it times anything and refuses with
+:data:`POWER_REFUSED_EXIT` (so a regime lost by the close makes the run FAILED); every record carries the block it was
+written under, and the builder refuses one outside the regime. A source that cannot be read refuses.
+
+Where the model ran (B2) and what may watch it (B5.3)
+-----------------------------------------------------
+The row process reads ``torch.cuda.is_initialized()`` (and, when initialised, ``max_memory_allocated()``) at its start
+and right after its last timed episode, before the machine block touches the GPU: a CPU row refuses when CUDA was
+initialised during it, a CUDA row unless CUDA memory was allocated. It refuses an active trace or profile function, a
+``sys.monitoring`` tool, ``tracemalloc`` and dev mode before it builds anything.
+
 MAPPO on CUDA (Amendment A3.2)
 ------------------------------
 ``offline.dt_gate._mappo_factory(path, "cuda")`` places the agent on CUDA without any change to frozen code:
@@ -55,6 +75,7 @@ import json
 import math
 import os
 import platform
+import re
 import signal
 import subprocess
 import sys
@@ -87,6 +108,9 @@ __all__ = [
     "assert_cpu_regime",
     "configure_regime",
     "POWER_SUPPLY_ROOT",
+    "POWER_SCHEMES_KEY",
+    "POWER_OVERLAYS",
+    "BEST_PERFORMANCE_OVERLAY",
     "POWER_REFUSED_EXIT",
     "read_power_supplies",
     "read_windows_power",
@@ -112,8 +136,8 @@ __all__ = [
     "main",
 ]
 
-FORMAT_VERSION = "p8.2-latency/1.0"
-CANARY_FORMAT_VERSION = "p8.2-canary/1.0"
+FORMAT_VERSION = "p8.2-latency/1.1"
+CANARY_FORMAT_VERSION = "p8.2-canary/1.1"
 RUN_FORMAT_VERSION = "p8.2-latency-run/1.0"
 PREFLIGHT_FORMAT_VERSION = "p8.2-preflight/1.0"
 
@@ -518,43 +542,181 @@ def configure_regime(device: str) -> dict[str, Any]:
 #: B1: where the guest kernel lists the machine's power supplies (``type``, ``online``); visible from WSL2.
 POWER_SUPPLY_ROOT = Path("/sys/class/power_supply")
 
+#: B1: the registry key whose values name the Windows active power scheme and the AC / DC power-mode overlays.
+POWER_SCHEMES_KEY = r"HKLM\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes"
+
+#: B1: the power-mode overlays as Amendment B lists them from Microsoft's documentation of the slider ("Customize the
+#: Windows performance power slider"); power throttling is engaged in every mode but Best Performance. Any other GUID
+#: is named "unknown".
+POWER_OVERLAYS: Mapping[str, str] = {
+    "961cc777-2547-4f9d-8174-7d86181b8a7a": "Better Battery",
+    "3af9b8d9-7c97-431d-ad78-34a8bfea439f": "Better Performance",
+    "ded574b5-45a0-4f42-8737-46345c09c238": "Best Performance",
+}
+BEST_PERFORMANCE_OVERLAY = "ded574b5-45a0-4f42-8737-46345c09c238"
+
 #: B1.3: the exit code of a canary process that refuses because the power regime is not mains + Best Performance.
 POWER_REFUSED_EXIT = 3
+
+_GUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+_REG_VALUES = {"ActivePowerScheme": "active_scheme", "ActiveOverlayAcPowerScheme": "ac_overlay",
+               "ActiveOverlayDcPowerScheme": "dc_overlay"}
 
 
 def read_power_supplies(root: Path = POWER_SUPPLY_ROOT) -> dict[str, Any]:
     """Every supply under *root* with its ``type`` and ``online``, how they were read, and the error if none could be."""
-    raise NotImplementedError("Amendment B, B1.1: the power supplies")
+    root = Path(root)
+    block: dict[str, Any] = {"read_with": f"{root}/<name>/type and {root}/<name>/online (a battery has no online file)",
+                             "error": None, "items": []}
+    try:
+        names = sorted(entry.name for entry in root.iterdir())
+    except OSError as exc:
+        block["error"] = f"{type(exc).__name__}: {exc}"
+        return block
+    if not names:
+        block["error"] = f"{root} lists no power supply"
+        return block
+
+    def read(name: str, file: str) -> str | None:
+        try:
+            return (root / name / file).read_text(encoding="utf-8").strip()
+        except OSError:
+            return None
+
+    for name in names:
+        online = read(name, "online")
+        block["items"].append({"name": name, "type": read(name, "type"),
+                               "online": None if online is None else (int(online) if online.isdigit() else online)})
+    return block
+
+
+def _reg_query() -> str:
+    completed = subprocess.run(["reg.exe", "query", POWER_SCHEMES_KEY], capture_output=True, text=True, timeout=30,
+                               check=False)
+    if completed.returncode != 0:
+        raise OSError(f"reg.exe query exited with code {completed.returncode}: {completed.stderr.strip()[:200]}")
+    return completed.stdout
 
 
 def read_windows_power(query: Callable[[], str] | None = None) -> dict[str, Any]:
-    """The Windows active power scheme and the AC / DC power-mode overlays, read with ``reg.exe query``."""
-    raise NotImplementedError("Amendment B, B1.1: the Windows power mode")
+    """The Windows active power scheme and the AC / DC power-mode overlays, read with ``reg.exe query``; the overlays
+    named from :data:`POWER_OVERLAYS`. An AC overlay or active scheme that cannot be read is the block's ``error``."""
+    block: dict[str, Any] = {
+        "read_with": f"reg.exe query {POWER_SCHEMES_KEY} ({', '.join(_REG_VALUES)})",
+        "error": None, "active_scheme": None, "ac_overlay": None, "ac_overlay_name": None, "dc_overlay": None,
+        "dc_overlay_name": None,
+    }
+    try:
+        text = (_reg_query if query is None else query)()
+    except (OSError, subprocess.SubprocessError) as exc:
+        block["error"] = f"{type(exc).__name__}: {exc}"
+        return block
+    values: dict[str, str] = {}
+    for line in text.splitlines():
+        parts = line.split()
+        if len(parts) == 3 and parts[1] == "REG_SZ" and parts[0] in _REG_VALUES:
+            values[_REG_VALUES[parts[0]]] = parts[2].lower()
+    unread = [name for name, key in _REG_VALUES.items()
+              if key != "dc_overlay" and not _GUID.match(values.get(key, ""))]
+    if unread:
+        block["error"] = f"reg.exe printed no GUID for {unread}"
+        return block
+    for key in ("active_scheme", "ac_overlay", "dc_overlay"):
+        block[key] = values.get(key) if _GUID.match(values.get(key, "")) else None
+    block["ac_overlay_name"] = POWER_OVERLAYS.get(block["ac_overlay"], "unknown")
+    block["dc_overlay_name"] = None if block["dc_overlay"] is None else POWER_OVERLAYS.get(block["dc_overlay"], "unknown")
+    return block
 
 
 def power_block(*, supply_root: Path = POWER_SUPPLY_ROOT, reg_query: Callable[[], str] | None = None) -> dict[str, Any]:
     """The record's ``power`` block: the supplies and the Windows power mode, each with how it was read."""
-    raise NotImplementedError("Amendment B, B1.1: the power block")
+    return {"supplies": read_power_supplies(supply_root), "windows": read_windows_power(reg_query)}
 
 
 def power_regime_problems(block: Mapping[str, Any]) -> list[str]:
     """Why *block* is not mains + Best Performance (empty when it is); a source that could not be read is a problem."""
-    raise NotImplementedError("Amendment B, B1.2: the power regime")
+    problems: list[str] = []
+    supplies = (block or {}).get("supplies") or {}
+    if supplies.get("error") or not supplies.get("items"):
+        problems.append(f"the power supplies could not be read ({supplies.get('error') or 'none listed'})")
+    elif not any(item.get("type") == "Mains" and item.get("online") == 1 for item in supplies["items"]):
+        problems.append("no Mains supply is online: the machine runs on its battery")
+    windows = (block or {}).get("windows") or {}
+    if windows.get("error") or not windows.get("ac_overlay"):
+        problems.append(f"the Windows power mode could not be read ({windows.get('error') or 'no AC overlay'})")
+    elif windows["ac_overlay"] != BEST_PERFORMANCE_OVERLAY:
+        problems.append(f"the AC power mode is {windows.get('ac_overlay_name')} ({windows['ac_overlay']}), not Best "
+                        f"Performance ({BEST_PERFORMANCE_OVERLAY})")
+    return problems
 
 
 def assert_power_regime(block: Mapping[str, Any]) -> None:
     """Refuse unless *block* is mains + Best Performance."""
-    raise NotImplementedError("Amendment B, B1.2: the power regime")
+    problems = power_regime_problems(block)
+    if problems:
+        raise ValueError("the power regime is not mains + Windows power mode Best Performance: " + "; ".join(problems))
+
+
+def _power_summary(block: Mapping[str, Any]) -> str:
+    mains = [item["name"] for item in block["supplies"]["items"] if item.get("type") == "Mains" and item.get("online") == 1]
+    windows = block["windows"]
+    return f"power: Mains online ({', '.join(mains)}); Windows AC power mode {windows['ac_overlay_name']} ({windows['ac_overlay']})"
 
 
 def _cuda_state() -> dict[str, Any]:
-    """``torch.cuda.is_initialized()`` and, when initialised, ``torch.cuda.max_memory_allocated()``."""
-    raise NotImplementedError("Amendment B, B2: the device evidence")
+    """``torch.cuda.is_initialized()`` and, when initialised, ``torch.cuda.max_memory_allocated()`` -- read without
+    initialising CUDA."""
+    import torch
+
+    initialized = bool(torch.cuda.is_initialized())
+    return {"initialized": initialized,
+            "max_memory_allocated": int(torch.cuda.max_memory_allocated()) if initialized else None}
+
+
+def _device_evidence(row: LatencyRow, device: str, start: Mapping[str, Any], after: Mapping[str, Any]) -> dict[str, Any]:
+    """B2: what CUDA's own counters say about where the model ran; refuses a CPU row that initialised CUDA and a CUDA
+    row that allocated no CUDA memory."""
+    evidence = {
+        "cuda_initialized_at_start": bool(start["initialized"]),
+        "cuda_initialized": bool(after["initialized"]),
+        "cuda_max_memory_allocated": after["max_memory_allocated"],
+        "read_with": ("torch.cuda.is_initialized() and, when initialised, torch.cuda.max_memory_allocated(): once at the "
+                      "row process's start and once right after its last timed episode, before the machine block "
+                      "touches the GPU"),
+    }
+    if device == "cpu" and evidence["cuda_initialized"] and not evidence["cuda_initialized_at_start"]:
+        raise ValueError(f"{row.row_id} on cpu: CUDA was initialised during the timing, so the model did not run on the "
+                         "CPU alone (Amendment B, B2)")
+    if device == "cuda" and not (evidence["cuda_initialized"] and (evidence["cuda_max_memory_allocated"] or 0) > 0):
+        raise ValueError(f"{row.row_id} on cuda: no CUDA memory was allocated (initialised: {evidence['cuda_initialized']}, "
+                         f"max_memory_allocated: {evidence['cuda_max_memory_allocated']}), so the model did not run on "
+                         "the GPU (Amendment B, B2)")
+    return evidence
 
 
 def assert_no_tracer() -> str:
-    """Refuse an active tracer or profiler in the measured process; return what was checked."""
-    raise NotImplementedError("Amendment B, B5.3: the tracer refusal")
+    """Refuse an active tracer or profiler in the measured process (B5.3): ``sys.gettrace()``, ``sys.getprofile()``,
+    any ``sys.monitoring`` tool in use, ``tracemalloc`` tracing, dev mode. Returns what was checked."""
+    import tracemalloc
+
+    problems: list[str] = []
+    if sys.gettrace() is not None:
+        problems.append("a trace function is set (sys.gettrace())")
+    if sys.getprofile() is not None:
+        problems.append("a profile function is set (sys.getprofile())")
+    monitoring = getattr(sys, "monitoring", None)
+    if monitoring is not None:
+        used = {tool: monitoring.get_tool(tool) for tool in range(6) if monitoring.get_tool(tool) is not None}
+        if used:
+            problems.append(f"sys.monitoring tools are in use {used}")
+    if tracemalloc.is_tracing():
+        problems.append("tracemalloc is tracing")
+    if sys.flags.dev_mode:
+        problems.append("the interpreter runs in dev mode (-X dev or PYTHONDEVMODE)")
+    if problems:
+        raise ValueError("the measured process refuses an active tracer or profiler (Amendment B, B5.3): "
+                         + "; ".join(problems))
+    return "none: sys.gettrace(), sys.getprofile(), sys.monitoring tools 0-5, tracemalloc and dev mode checked"
 
 
 def _load_average() -> list[float]:
@@ -598,6 +760,8 @@ def _machine_block() -> dict[str, Any]:
         "numpy_version": numpy.__version__,
         "python_version": platform.python_version(),
         "platform": platform.platform(),
+        "kernel_release": platform.release(),
+        "power": power_block(),
     }
 
 
@@ -665,10 +829,8 @@ def build_record(
     warmup: int = WARMUP,
     device_evidence: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """The ``p8.2-latency/1.0`` record; refuses an episode whose decision count is not 360, fewer than
+    """The ``p8.2-latency/1.1`` record; refuses an episode whose decision count is not 360, fewer than
     :data:`MIN_TIMED` timed decisions, or any key that names an episode quantity."""
-    if device_evidence is not None:
-        raise NotImplementedError("Amendment B, B2: the record's device evidence")
     if device not in row.devices:
         raise ValueError(f"{row.row_id} is timed on {row.devices}, not on {device!r}")
     if len(per_episode_ns) != len(draws):
@@ -725,6 +887,7 @@ def build_record(
         "machine": dict(machine),
         "load_before": [float(value) for value in load_before],
         "load_after": [float(value) for value in load_after],
+        "device_evidence": None if device_evidence is None else dict(device_evidence),
         "git": dict(git),
         "written_utc": _utc_now(),
     }
@@ -736,10 +899,8 @@ def build_record(
 
 def build_canary_record(phase: str, seconds: float, *, reproduced: bool, git: Mapping[str, Any],
                         power: Mapping[str, Any] | None = None) -> dict[str, Any]:
-    """The ``p8.2-canary/1.0`` record: seconds, the 2.0 s threshold, the verdict and ``reproduced`` -- no value of
-    the canary episode itself."""
-    if power is not None:
-        raise NotImplementedError("Amendment B, B1.3: the canary record's power block")
+    """The ``p8.2-canary/1.1`` record: seconds, the 2.0 s threshold, the verdict, ``reproduced`` and the power block
+    the canary ran under -- no value of the canary episode itself."""
     if phase not in ("open", "close"):
         raise ValueError(f"the canary phase is 'open' or 'close', not {phase!r}")
     record = {
@@ -754,6 +915,7 @@ def build_canary_record(phase: str, seconds: float, *, reproduced: bool, git: Ma
             "docs/data/p4_3_probe.json's settings; 'reproduced' is offline.transfer_calibration.check_canary under ==. "
             "The episode's own values are compared and discarded, never written"
         ),
+        "power": None if power is None else dict(power),
         "git": dict(git),
         "written_utc": _utc_now(),
     }
@@ -961,7 +1123,10 @@ def run_row(
     record_path = Path(out_dir) / f"{row.row_id}_{device}.json"
     if record_path.exists():
         raise FileExistsError(f"{record_path} exists: a record is written once")
-    regime = configure_regime(device)
+    tracers = assert_no_tracer()  # B5.3: before anything is built or timed
+    cuda_at_start = _cuda_state()  # B2: before anything in this process can touch CUDA
+    regime = dict(configure_regime(device))
+    regime["tracers"] = tracers
     load_before = _load_average()
 
     prompt: dict[str, Any] | None = None
@@ -987,9 +1152,12 @@ def run_row(
             envs.append(env)
             choose = factory(env)
             per_episode.append(time_episode(env, choose, engine_seed=ENGINE_SEED, sync=sync))
+        # B2: read right after the last episode, before the machine block (or anything else) touches CUDA.
+        evidence = _device_evidence(row, device, cuda_at_start, _cuda_state())
         record = build_record(
             row, device, per_episode, draws=TIMING_DRAWS, prompt=prompt, factory=factory_name, regime=regime,
             machine=_machine_block(), load_before=load_before, load_after=_load_average(), git=_git_provenance(),
+            device_evidence=evidence,
         )
         (write_once if writer is None else writer)(record_path, record)
         print(f"{row.row_id} {device}: record written, {record['n_timed']} timed decisions", flush=True)
@@ -1000,8 +1168,9 @@ def run_row(
     return record_path
 
 
-def run_canary(phase: str, out_dir: Path) -> Path:
-    """The canary process: time ``canary_seconds()``, check the engine's answers under ``==``, write the record."""
+def run_canary(phase: str, out_dir: Path, *, power: Mapping[str, Any] | None = None) -> Path:
+    """The canary process: time ``canary_seconds()``, check the engine's answers under ``==``, write the record with
+    the power block the caller checked (B1.3)."""
     from offline.transfer_calibration import CANARY_MAX_SECONDS as reference_ceiling
     from offline.transfer_calibration import canary_seconds, check_canary
 
@@ -1017,7 +1186,7 @@ def run_canary(phase: str, out_dir: Path) -> Path:
     except ValueError:
         reproduced = False  # the message carries the observed values, so it is not printed
     del facts
-    record = build_canary_record(phase, seconds, reproduced=reproduced, git=_git_provenance())
+    record = build_canary_record(phase, seconds, reproduced=reproduced, git=_git_provenance(), power=power)
     write_once(record_path, record)
     print(f"canary {phase}: {seconds:.2f} s, {record['verdict']}, reproduced={reproduced}", flush=True)
     return record_path
@@ -1257,6 +1426,10 @@ def run_all(
                             kill_grace_s=kill_grace_s)
         outcomes.append(outcome)
         if outcome["status"] == "failed":
+            last = outcome["attempts"][-1]
+            if last.get("returncode") == POWER_REFUSED_EXIT:
+                return (f"{label}: the power regime is not mains + Windows power mode Best Performance (the canary "
+                        f"process refused with exit {POWER_REFUSED_EXIT}; see logs/{label}.attempt{last['attempt']}.log)")
             return outcome["reason"]
         record = _read_json(record_path)
         if record.get("reproduced") is not True:
@@ -1301,8 +1474,8 @@ def derive_timeouts(measured_seconds: Mapping[tuple[str, str], float], *, factor
 
 def expected_duration(measured_seconds: Mapping[tuple[str, str], float], canary_seconds: float,
                       rows: Sequence[LatencyRow] | None = None) -> dict[str, Any]:
-    """An UPPER-BOUND estimate of the run: every (row, device) process costed at its scenario's measured process
-    on that device (the pre-flight measures the most expensive row of each scenario), plus two canaries."""
+    """An ESTIMATE of the run (Amendment B, B6.5): every (row, device) process costed at its scenario's measured
+    process on that device, plus two canaries. Its premise is stated in ``basis``; it is not a bound."""
     per_cell: dict[tuple[str, str], float] = {}
     for (row_id, device), seconds in measured_seconds.items():
         key = (row_id.split(".", 1)[0], device)
@@ -1320,9 +1493,12 @@ def expected_duration(measured_seconds: Mapping[tuple[str, str], float], canary_
         "canaries": 2,
         "per_scenario_device_s": {f"{scenario}/{device}": value for (scenario, device), value in sorted(per_cell.items())},
         "basis": (
-            "an upper bound: every (row, device) process costed at the slowest measured process of its scenario on "
-            "that device, and the pre-flight measures the most expensive row of each scenario (the K = 20 DT on "
-            "hz1x1, the four-head spatial DT on grid4x4); plus the two canary processes"
+            "an estimate: every (row, device) process costed at the slowest measured process of its scenario on that "
+            "device, plus the two canary processes. Its premise: the pre-flight timed the row whose network does the "
+            "most work per decision in each scenario (the K = 20 DT on hz1x1, dt_nomix_h4 on grid4x4, the most "
+            "expensive by architecture); a process's wall time also holds the interpreter's start, the model's load "
+            "and three CityFlow episodes whose step cost depends on the traffic the policy leaves in the network, so "
+            "another row may take longer"
         ),
     }
 
@@ -1405,8 +1581,8 @@ def run_preflight(
     write_once(run_dir / "preflight.json", payload)
     print(f"preflight {stamp}: {status}" + ("" if reason is None else f" -- {reason}"), flush=True)
     if status == "COMPLETE":
-        print(f"  timeouts {payload['timeouts_s']}; expected run duration <= "
-              f"{payload['expected_duration']['seconds'] / 60:.1f} min", flush=True)
+        print(f"  timeouts {payload['timeouts_s']}; estimated run duration about "
+              f"{payload['expected_duration']['seconds'] / 60:.1f} min (an estimate: see its basis)", flush=True)
     return 0 if status == "COMPLETE" else 1
 
 
@@ -1510,11 +1686,24 @@ def main(argv: Sequence[str] | None = None) -> int:
                 corpus_root=args.corpus_root, draws_root=args.draws_root, data_dir=args.data_dir)
         return 0
     if args.command == "canary":
+        power = power_block()
+        problems = power_regime_problems(power)
+        if problems:  # B1.3: the run re-checks at each canary, before the canary times anything
+            print(f"REFUSED: canary_{args.phase}: the power regime is not mains + Windows power mode Best Performance: "
+                  + "; ".join(problems), file=sys.stderr, flush=True)
+            return POWER_REFUSED_EXIT
         configure_regime("cpu")
-        run_canary(args.phase, args.out_dir)
+        run_canary(args.phase, args.out_dir, power=power)
         return 0
     if args.command == "power-check":
-        raise NotImplementedError("Amendment B, B1.2: the power-check subcommand")
+        power = power_block()
+        problems = power_regime_problems(power)
+        if problems:
+            print("REFUSED: the power regime is not mains + Windows power mode Best Performance: " + "; ".join(problems),
+                  file=sys.stderr, flush=True)
+            return 2
+        print(_power_summary(power), flush=True)
+        return 0
     if args.command == "timeouts":
         values = timeouts_from_preflight(args.preflight_record)
         print(f"{values['hz1x1']:g} {values['grid4x4']:g} {values['canary']:g}")
