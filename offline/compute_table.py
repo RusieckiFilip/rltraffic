@@ -357,7 +357,7 @@ _P4_SUSPEND = ("14,018.0 s against 202.3-356.2 s for the other four: the wall cl
                "laptop suspend; a from-scratch retrain took 361 s with tensor-identical weights (docs/returns/P4.md:322-325)")
 _HOST_GAME = ("a wall-time stall: about 8.5 GB of GPU memory was taken by a game on the Windows host, 17:22-18:04 UTC "
               "(BRIEF_42 Amendment D, D3.1); nothing in the checkpoint depends on it")
-_CLOCK_JUMP = ("12,322.6 s spans a forward clock jump of about 2 h 10 min (docs/returns/P5.2.md:257-262, D-2); the "
+_CLOCK_JUMP = ("12,322.6 s spans a forward clock jump of about 2 h 10 min (docs/returns/P5.2.md:256-262, D-2); the "
                "measured rate of its siblings is about 122 ms per step")
 _NO_CAUSE = "no committed record names a cause"
 _DT_COVERS = "the gradient loop only (time.time() around it in offline.dt_gate.train_dt, dt_gate.py:831-857)"
