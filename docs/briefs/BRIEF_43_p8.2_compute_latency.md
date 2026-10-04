@@ -350,3 +350,68 @@ Accepted. One harmonisation for G4, proposed to the author there: the artifact n
 G2 → **"P8.2 timing run done"** → G3: the coordinator reads the run from disk — the capture, `run.json` and both canaries first, then all
 78 records: each one's power block and device evidence, each median and p95 recomputed from its nanoseconds by a third route, then the
 builder's artifact traced number by number → Amendment C.
+
+---
+
+# ✅ AMENDMENT C — 2026-10-04, gate G3 PASSED: the timing run read from disk, every number of the table traced — and four additions the artifact needs before it is committed (no re-run)
+
+## C0 — Verdict and what was verified (by the coordinator, by running commands; evidence in `docs/notes/p8_2_g3/`)
+1. **The run `20261004T194421Z`** (the author's, 19:44–19:58 UTC, from the run worktree at `5c8a33a`): the capture holds one refusal
+   before the token on the power mode — it cost nothing — then *"Mains online (AC1); Windows AC power mode Best Performance"* and the
+   token consumed; `run.json` COMPLETE, all 80 processes `ok` at their FIRST attempt, no hang; canaries 0.717 s and 0.683 s, at speed,
+   reproduced, mains + Best Performance at both; `SHA256SUMS_p8_2.txt` 162 / 162 `OK` under `sha256sum -c` (its sha256 `3122bfe8…`); the
+   run directory 162 files, `partial/` empty.
+2. **The 78 records, by a third route that imports nothing from the project** (`g3_records.py`): format, row and device, the protocol
+   (draws 1000–1002, warm-up 20, engine seed 1000, 3 × 360), positive integer nanoseconds, no outcome key, commit `5c8a33a` clean, the
+   regime (one thread, OMP / MKL 1, no cuBLAS setting, no tracer), the power block (mains + Best Performance in EVERY record), the
+   device evidence (no CPU cell touched CUDA, every CUDA cell allocated memory), the 36 checkpoint files re-hashed to their digests;
+   `n_timed`, the median (`statistics.median`) and the p95 (by its definition, cumulative counting) recomputed — **every recorded figure
+   and every derived millisecond and per-intersection figure equal, exactly.** Machine: Intel Core Ultra 9 275HX, RTX 5080 Laptop GPU,
+   driver 610.74, torch 2.11.0+cu128, kernel `6.18.33.1-microsoft-standard-WSL2`.
+3. **The builder's artifact**, built by the reviewed code (the run worktree) into the coordinator's scratchpad — 44 rows, sha256
+   `611aaa3b…`, its build passing every verification and refusal on the real run — **with EVERY number traced** (`g3_trace.py`,
+   nothing imported from the project): 1,734 JSON-path values re-resolved in their files at their digests; 10 log-line values found in
+   their lines; 312 latency figures equal to the third route; 75 derived training statistics recomputed; 71 code-sourced zeros; the 5
+   inferred worker counts listed; all 44 rows' parameter counts equal to the coordinator's own G0 / G1 counts; MAPPO's interactions by
+   two routes (`train_episodes × max_steps`; `steps_done` in every checkpoint): 360,000 / 180,000 / 21,600 joint decisions per seed,
+   5,760,000 / 345,600 per intersection on grid4x4. **0 failures.** *(The coordinator's tracer first checked the parameter counts over
+   ZERO rows — a per-row copy of its context discarded them; its own printed count exposed it before any claim was made; fixed with a
+   guard and re-run: 44 / 44.)*
+
+## C1 — Two findings that bound what the table may say (`g3_analysis.py` / `.json`)
+1. **The registered window is not past the machine's start-of-episode transient:** in 45 of 78 cells decisions 20–39 run up to 2×
+   slower than decisions 120–359. **The median is robust** — starting the window at decision 120 moves it by at most 9.5 % (the 14 H4
+   cells by at most 1.3 %); **the p95 is not** — it moves by up to 24.6 %, by more than 10 % in 6 cells. The registered figures stay
+   the primary ones (the protocol was fixed before the run); the median is the table's headline and the p95 a conservative upper tail.
+2. **Rows that run the same computation differ by up to 6.6 % on hz1x1 and up to 35.9 % on grid4x4** (MAPPO on CPU; the spatial DTs up
+   to 15.5 %, the BC networks up to 22.7 %), and one row's three episode medians by up to 76.5 % (grid4x4 BC on CPU). Hence: **the H4
+   trend on one CPU thread — K = 1 0.763 ms to K = 20 1.429 ms median, × 1.87, every K = 1 episode faster than every K = 20 episode —
+   stands far above hz1x1's floor and may be stated; on the GPU the cost is nearly flat (× 1.10).** On grid4x4 the table supports
+   comparisons BETWEEN families (spatial DT ≈ 18–21 ms on one CPU thread, ≈ 3.1–3.7 ms on the GPU; MLP baselines ≈ 0.6–1.0 ms;
+   MAPPO ≈ 2.0–2.8 ms; MaxPressure ≈ 0.25 ms), never a ranking within one (one head against four on the spatial DT is inside the floor).
+
+## C2 — Two code-path facts the table must state (read in the frozen code)
+1. **MAPPO on CUDA is ≈ 6× slower than on CPU on grid4x4** (12.5 vs 2.0 ms) because its decision call loops over its actors one
+   intersection at a time, each with two host-to-device copies and two `.item()` synchronisations (`agent/MAPPOAgent.py:225–245`): its
+   CUDA figure measures that loop's transfers and synchronisations, not its networks' arithmetic.
+2. **IQL's decision call, shared with BC** (`agent/OfflineBaselines.py:360–405`), sets eval mode on every network the agent holds and
+   restores it after, around a forward pass of the policy alone; IQL holds four (`:594–597`), BC one (`:541–543`) — so IQL's latency
+   above BC's (≈ +45 % on both scenarios, the same deployed network) is that bookkeeping, not arithmetic.
+
+## C3 — Required before the artifact is committed (the builder only; the records are final, no re-run)
+1. **`latency_sensitivity`** per cell: the median and the nearest-rank p95 over decisions 120–359, by the builder's own route from the
+   verified nanoseconds, beside the registered figures with the relative change; a summary; a sentence in `what_this_does_not_say`
+   GENERATED from the summary (no typed number): the median is robust, the p95 a conservative upper tail.
+2. **`latency_variability`**: per cell the three episode medians; the same-computation groups — the nine of C1.2 (the same scenario,
+   network, context length and deployed parameters, on one device), derived by the builder from its rows, a test pinning them to these
+   nine — with their spreads; a summary; a generated sentence: a difference between rows below the floor is not interpretable.
+3. **C2's two facts** in `what_this_does_not_say`, each with its code lines.
+4. **The power labels (B.1.2), additive — the author's sentence unchanged:** the hardware block names `961cc777-…` by both labels,
+   "Better Battery" (Microsoft's documentation; every record's `ac_overlay_name`) and "Best power efficiency" (Windows 11's Settings).
+5. Tests first, red for their own reasons; one mutant per new computation (the window start, the group membership, the spread),
+   committed and killed; the whole suite; the three test files once in a depth-1 clone (F.1's command).
+6. **Then the artifact:** built at the branch tip from `output/p8_2/latency/20261004T194421Z` and `output/SHA256SUMS_p8_2.txt`, committed
+   by hand as `docs/data/p8_2_compute.json`, byte-identical to the builder's output, with a T-regress that regenerates it; at G5 the
+   coordinator compares every row's numbers with its own G3 build.
+7. **The final packet `docs/returns/P8.2.md`** per §9 — the rendered table with C1's two bounds in its caption, the hardware block, the
+   capture, the regime of every training time, what the table does not say, the AI-assistance record — then **"P8.2 done"** → G5.

@@ -1,0 +1,2971 @@
+{
+ "run": "20261004T194421Z",
+ "cells": [
+  {
+   "row": "hz1x1.dt_k20",
+   "device": "cpu",
+   "median_ms": 1.3975205,
+   "p95_ms": 1.981495,
+   "n_timed": 1020,
+   "max_ms": 3.371705,
+   "min_ms": 1.258257,
+   "first_decision_ms": [
+    42.883802,
+    2.122967,
+    1.856545
+   ],
+   "warmup_median_ms": 1.56671,
+   "per_episode_median_ms": [
+    1.3929005,
+    1.390736,
+    1.407868
+   ],
+   "load_before": [
+    0.42,
+    0.16,
+    0.11
+   ],
+   "load_after": [
+    0.42,
+    0.16,
+    0.11
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.method_tier_grid._dt_factory -> offline.rtg_calibration.agent_with_target; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.dt_k20",
+   "device": "cuda",
+   "median_ms": 1.7803855,
+   "p95_ms": 3.277821,
+   "n_timed": 1020,
+   "max_ms": 6.074442,
+   "min_ms": 1.499163,
+   "first_decision_ms": [
+    824.063526,
+    2.766835,
+    2.096057
+   ],
+   "warmup_median_ms": 2.0345665,
+   "per_episode_median_ms": [
+    1.9043945,
+    1.7198815,
+    1.786102
+   ],
+   "load_before": [
+    0.47,
+    0.17,
+    0.12
+   ],
+   "load_after": [
+    0.51,
+    0.19,
+    0.12
+   ],
+   "cuda_mib": 19.001953125,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.method_tier_grid._dt_factory -> offline.rtg_calibration.agent_with_target; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.bc",
+   "device": "cpu",
+   "median_ms": 0.3255655,
+   "p95_ms": 0.510535,
+   "n_timed": 1020,
+   "max_ms": 8.241324,
+   "min_ms": 0.27865,
+   "first_decision_ms": [
+    2.240521,
+    0.420556,
+    0.347815
+   ],
+   "warmup_median_ms": 0.355614,
+   "per_episode_median_ms": [
+    0.326305,
+    0.3141935,
+    0.3330675
+   ],
+   "load_before": [
+    0.51,
+    0.19,
+    0.12
+   ],
+   "load_after": [
+    0.63,
+    0.22,
+    0.13
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.offline_baselines._baseline_factory('bc'); act(info, explore=False, update_memory=False)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.bc",
+   "device": "cuda",
+   "median_ms": 0.6387015,
+   "p95_ms": 1.26991,
+   "n_timed": 1020,
+   "max_ms": 4.920926,
+   "min_ms": 0.537692,
+   "first_decision_ms": [
+    531.697496,
+    0.972014,
+    0.77803
+   ],
+   "warmup_median_ms": 0.778307,
+   "per_episode_median_ms": [
+    0.6638805,
+    0.629225,
+    0.632032
+   ],
+   "load_before": [
+    0.63,
+    0.22,
+    0.13
+   ],
+   "load_after": [
+    0.66,
+    0.23,
+    0.14
+   ],
+   "cuda_mib": 15.23828125,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.offline_baselines._baseline_factory('bc'); act(info, explore=False, update_memory=False)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.bc_top10",
+   "device": "cpu",
+   "median_ms": 0.3320495,
+   "p95_ms": 0.522834,
+   "n_timed": 1020,
+   "max_ms": 1.080611,
+   "min_ms": 0.286368,
+   "first_decision_ms": [
+    1.692052,
+    0.378872,
+    0.756697
+   ],
+   "warmup_median_ms": 0.3977905,
+   "per_episode_median_ms": [
+    0.3559875,
+    0.3320205,
+    0.3190145
+   ],
+   "load_before": [
+    0.66,
+    0.23,
+    0.14
+   ],
+   "load_after": [
+    0.77,
+    0.26,
+    0.15
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.offline_baselines._baseline_factory('bc_top10'); act(info, explore=False, update_memory=False)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.bc_top10",
+   "device": "cuda",
+   "median_ms": 0.6551825,
+   "p95_ms": 1.432726,
+   "n_timed": 1020,
+   "max_ms": 2.737621,
+   "min_ms": 0.543559,
+   "first_decision_ms": [
+    445.762009,
+    1.496042,
+    0.788212
+   ],
+   "warmup_median_ms": 0.756119,
+   "per_episode_median_ms": [
+    0.701206,
+    0.622765,
+    0.6538815
+   ],
+   "load_before": [
+    0.77,
+    0.26,
+    0.15
+   ],
+   "load_after": [
+    0.79,
+    0.27,
+    0.15
+   ],
+   "cuda_mib": 15.23828125,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.offline_baselines._baseline_factory('bc_top10'); act(info, explore=False, update_memory=False)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.iql",
+   "device": "cpu",
+   "median_ms": 0.467626,
+   "p95_ms": 0.686449,
+   "n_timed": 1020,
+   "max_ms": 1.078819,
+   "min_ms": 0.415759,
+   "first_decision_ms": [
+    1.40907,
+    0.686486,
+    0.807151
+   ],
+   "warmup_median_ms": 0.471392,
+   "per_episode_median_ms": [
+    0.4894335,
+    0.4621375,
+    0.4581675
+   ],
+   "load_before": [
+    0.79,
+    0.27,
+    0.15
+   ],
+   "load_after": [
+    0.88,
+    0.3,
+    0.16
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.offline_baselines._baseline_factory('iql'); act(info, explore=False, update_memory=False)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.iql",
+   "device": "cuda",
+   "median_ms": 0.7707915,
+   "p95_ms": 1.442594,
+   "n_timed": 1020,
+   "max_ms": 3.773246,
+   "min_ms": 0.666682,
+   "first_decision_ms": [
+    452.021471,
+    1.340907,
+    0.884947
+   ],
+   "warmup_median_ms": 0.826282,
+   "per_episode_median_ms": [
+    0.7832195,
+    0.764078,
+    0.758864
+   ],
+   "load_before": [
+    0.88,
+    0.3,
+    0.16
+   ],
+   "load_after": [
+    0.97,
+    0.33,
+    0.17
+   ],
+   "cuda_mib": 28.98291015625,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.offline_baselines._baseline_factory('iql'); act(info, explore=False, update_memory=False)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.bc_best2_20",
+   "device": "cpu",
+   "median_ms": 0.321749,
+   "p95_ms": 0.516137,
+   "n_timed": 1020,
+   "max_ms": 0.954287,
+   "min_ms": 0.270952,
+   "first_decision_ms": [
+    1.08202,
+    0.425426,
+    0.464909
+   ],
+   "warmup_median_ms": 0.3347645,
+   "per_episode_median_ms": [
+    0.3145315,
+    0.3218665,
+    0.326697
+   ],
+   "load_before": [
+    0.97,
+    0.33,
+    0.17
+   ],
+   "load_after": [
+    0.98,
+    0.34,
+    0.18
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.offline_baselines._baseline_factory('bc_best2_20'); act(info, explore=False, update_memory=False)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.bc_best2_20",
+   "device": "cuda",
+   "median_ms": 0.617262,
+   "p95_ms": 1.411048,
+   "n_timed": 1020,
+   "max_ms": 3.158932,
+   "min_ms": 0.52031,
+   "first_decision_ms": [
+    453.518531,
+    0.790022,
+    1.752215
+   ],
+   "warmup_median_ms": 0.6433355,
+   "per_episode_median_ms": [
+    0.621314,
+    0.624456,
+    0.6059745
+   ],
+   "load_before": [
+    0.98,
+    0.34,
+    0.18
+   ],
+   "load_after": [
+    0.98,
+    0.35,
+    0.18
+   ],
+   "cuda_mib": 15.23828125,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.offline_baselines._baseline_factory('bc_best2_20'); act(info, explore=False, update_memory=False)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.bc_any_20",
+   "device": "cpu",
+   "median_ms": 0.323316,
+   "p95_ms": 0.513846,
+   "n_timed": 1020,
+   "max_ms": 1.176725,
+   "min_ms": 0.273666,
+   "first_decision_ms": [
+    2.165092,
+    0.473854,
+    0.431906
+   ],
+   "warmup_median_ms": 0.369932,
+   "per_episode_median_ms": [
+    0.3225625,
+    0.3180965,
+    0.3317535
+   ],
+   "load_before": [
+    0.98,
+    0.35,
+    0.18
+   ],
+   "load_after": [
+    0.98,
+    0.35,
+    0.18
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.offline_baselines._baseline_factory('bc_any_20'); act(info, explore=False, update_memory=False)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.bc_any_20",
+   "device": "cuda",
+   "median_ms": 0.641566,
+   "p95_ms": 1.375871,
+   "n_timed": 1020,
+   "max_ms": 2.88152,
+   "min_ms": 0.541752,
+   "first_decision_ms": [
+    510.494336,
+    0.595843,
+    0.890244
+   ],
+   "warmup_median_ms": 0.770254,
+   "per_episode_median_ms": [
+    0.644285,
+    0.639076,
+    0.6420085
+   ],
+   "load_before": [
+    0.9,
+    0.35,
+    0.18
+   ],
+   "load_after": [
+    0.91,
+    0.36,
+    0.19
+   ],
+   "cuda_mib": 15.23828125,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.offline_baselines._baseline_factory('bc_any_20'); act(info, explore=False, update_memory=False)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.bc_worst2_20",
+   "device": "cpu",
+   "median_ms": 0.3352515,
+   "p95_ms": 0.585431,
+   "n_timed": 1020,
+   "max_ms": 1.281673,
+   "min_ms": 0.268223,
+   "first_decision_ms": [
+    1.703049,
+    0.485728,
+    0.442756
+   ],
+   "warmup_median_ms": 0.3670065,
+   "per_episode_median_ms": [
+    0.3561805,
+    0.325694,
+    0.3235965
+   ],
+   "load_before": [
+    0.91,
+    0.36,
+    0.19
+   ],
+   "load_after": [
+    0.91,
+    0.36,
+    0.19
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.offline_baselines._baseline_factory('bc_worst2_20'); act(info, explore=False, update_memory=False)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.bc_worst2_20",
+   "device": "cuda",
+   "median_ms": 0.625214,
+   "p95_ms": 1.397032,
+   "n_timed": 1020,
+   "max_ms": 2.923238,
+   "min_ms": 0.526753,
+   "first_decision_ms": [
+    377.34178,
+    0.771378,
+    0.727106
+   ],
+   "warmup_median_ms": 0.6116765,
+   "per_episode_median_ms": [
+    0.632775,
+    0.605264,
+    0.6445795
+   ],
+   "load_before": [
+    0.92,
+    0.37,
+    0.19
+   ],
+   "load_after": [
+    0.92,
+    0.38,
+    0.19
+   ],
+   "cuda_mib": 15.23828125,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.offline_baselines._baseline_factory('bc_worst2_20'); act(info, explore=False, update_memory=False)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.bc_best2_all",
+   "device": "cpu",
+   "median_ms": 0.342936,
+   "p95_ms": 0.535966,
+   "n_timed": 1020,
+   "max_ms": 1.171323,
+   "min_ms": 0.291341,
+   "first_decision_ms": [
+    1.012063,
+    0.466841,
+    0.518926
+   ],
+   "warmup_median_ms": 0.3538635,
+   "per_episode_median_ms": [
+    0.3481455,
+    0.340558,
+    0.3414545
+   ],
+   "load_before": [
+    0.92,
+    0.38,
+    0.19
+   ],
+   "load_after": [
+    0.92,
+    0.38,
+    0.19
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.offline_baselines._baseline_factory('bc_best2_all'); act(info, explore=False, update_memory=False)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.bc_best2_all",
+   "device": "cuda",
+   "median_ms": 0.645227,
+   "p95_ms": 1.367941,
+   "n_timed": 1020,
+   "max_ms": 2.771865,
+   "min_ms": 0.53554,
+   "first_decision_ms": [
+    510.720498,
+    0.605663,
+    0.70952
+   ],
+   "warmup_median_ms": 0.656939,
+   "per_episode_median_ms": [
+    0.645843,
+    0.622768,
+    0.6686555
+   ],
+   "load_before": [
+    0.93,
+    0.39,
+    0.2
+   ],
+   "load_after": [
+    0.93,
+    0.4,
+    0.2
+   ],
+   "cuda_mib": 15.23828125,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.offline_baselines._baseline_factory('bc_best2_all'); act(info, explore=False, update_memory=False)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.dt_nortg",
+   "device": "cpu",
+   "median_ms": 1.42505,
+   "p95_ms": 2.118373,
+   "n_timed": 1020,
+   "max_ms": 3.706791,
+   "min_ms": 1.285898,
+   "first_decision_ms": [
+    5.733027,
+    1.717103,
+    1.991691
+   ],
+   "warmup_median_ms": 1.5451585,
+   "per_episode_median_ms": [
+    1.437068,
+    1.4026795,
+    1.4396545
+   ],
+   "load_before": [
+    0.93,
+    0.4,
+    0.2
+   ],
+   "load_after": [
+    0.94,
+    0.41,
+    0.21
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.method_tier_grid._dt_factory -> offline.rtg_calibration.agent_with_target; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.dt_nortg",
+   "device": "cuda",
+   "median_ms": 1.8066255,
+   "p95_ms": 3.181629,
+   "n_timed": 1020,
+   "max_ms": 6.051311,
+   "min_ms": 1.556367,
+   "first_decision_ms": [
+    661.561469,
+    2.112793,
+    2.274662
+   ],
+   "warmup_median_ms": 2.1200085,
+   "per_episode_median_ms": [
+    1.8102,
+    1.8006595,
+    1.809429
+   ],
+   "load_before": [
+    0.94,
+    0.41,
+    0.21
+   ],
+   "load_after": [
+    0.94,
+    0.42,
+    0.21
+   ],
+   "cuda_mib": 19.001953125,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.method_tier_grid._dt_factory -> offline.rtg_calibration.agent_with_target; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.h4.k1",
+   "device": "cpu",
+   "median_ms": 0.763316,
+   "p95_ms": 1.296631,
+   "n_timed": 1020,
+   "max_ms": 2.210043,
+   "min_ms": 0.626608,
+   "first_decision_ms": [
+    3.221084,
+    0.948681,
+    1.025089
+   ],
+   "warmup_median_ms": 0.854794,
+   "per_episode_median_ms": [
+    0.890015,
+    0.7470025,
+    0.7228945
+   ],
+   "load_before": [
+    0.94,
+    0.42,
+    0.21
+   ],
+   "load_after": [
+    0.95,
+    0.43,
+    0.22
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.method_tier_grid._dt_factory -> offline.rtg_calibration.agent_with_target; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.h4.k1",
+   "device": "cuda",
+   "median_ms": 1.6328105,
+   "p95_ms": 3.005171,
+   "n_timed": 1020,
+   "max_ms": 5.00892,
+   "min_ms": 1.402433,
+   "first_decision_ms": [
+    516.223823,
+    1.879241,
+    2.022873
+   ],
+   "warmup_median_ms": 1.6723115,
+   "per_episode_median_ms": [
+    1.6490935,
+    1.642296,
+    1.6106245
+   ],
+   "load_before": [
+    0.95,
+    0.43,
+    0.22
+   ],
+   "load_after": [
+    0.95,
+    0.44,
+    0.22
+   ],
+   "cuda_mib": 19.001953125,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.method_tier_grid._dt_factory -> offline.rtg_calibration.agent_with_target; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.h4.k2",
+   "device": "cpu",
+   "median_ms": 0.76798,
+   "p95_ms": 1.299532,
+   "n_timed": 1020,
+   "max_ms": 2.731342,
+   "min_ms": 0.674266,
+   "first_decision_ms": [
+    3.274969,
+    1.498106,
+    1.039593
+   ],
+   "warmup_median_ms": 0.8947385,
+   "per_episode_median_ms": [
+    0.78789,
+    0.768991,
+    0.752167
+   ],
+   "load_before": [
+    0.96,
+    0.45,
+    0.22
+   ],
+   "load_after": [
+    0.96,
+    0.45,
+    0.22
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.method_tier_grid._dt_factory -> offline.rtg_calibration.agent_with_target; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.h4.k2",
+   "device": "cuda",
+   "median_ms": 1.7353295,
+   "p95_ms": 2.995425,
+   "n_timed": 1020,
+   "max_ms": 4.80597,
+   "min_ms": 1.497545,
+   "first_decision_ms": [
+    658.335445,
+    2.136054,
+    2.120517
+   ],
+   "warmup_median_ms": 2.088097,
+   "per_episode_median_ms": [
+    1.7473205,
+    1.6920525,
+    1.76923
+   ],
+   "load_before": [
+    0.96,
+    0.46,
+    0.23
+   ],
+   "load_after": [
+    0.96,
+    0.47,
+    0.23
+   ],
+   "cuda_mib": 19.001953125,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.method_tier_grid._dt_factory -> offline.rtg_calibration.agent_with_target; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.h4.k5",
+   "device": "cpu",
+   "median_ms": 0.886901,
+   "p95_ms": 1.483961,
+   "n_timed": 1020,
+   "max_ms": 5.192702,
+   "min_ms": 0.767206,
+   "first_decision_ms": [
+    3.561385,
+    1.131176,
+    1.213967
+   ],
+   "warmup_median_ms": 0.988139,
+   "per_episode_median_ms": [
+    0.9653705,
+    0.8611215,
+    0.8718925
+   ],
+   "load_before": [
+    0.96,
+    0.47,
+    0.23
+   ],
+   "load_after": [
+    0.97,
+    0.48,
+    0.24
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.method_tier_grid._dt_factory -> offline.rtg_calibration.agent_with_target; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.h4.k5",
+   "device": "cuda",
+   "median_ms": 1.7078275,
+   "p95_ms": 2.874367,
+   "n_timed": 1020,
+   "max_ms": 7.937862,
+   "min_ms": 1.446957,
+   "first_decision_ms": [
+    520.645464,
+    2.393569,
+    2.041114
+   ],
+   "warmup_median_ms": 1.754478,
+   "per_episode_median_ms": [
+    1.7994675,
+    1.646473,
+    1.6461975
+   ],
+   "load_before": [
+    0.97,
+    0.48,
+    0.24
+   ],
+   "load_after": [
+    0.97,
+    0.49,
+    0.24
+   ],
+   "cuda_mib": 19.001953125,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.method_tier_grid._dt_factory -> offline.rtg_calibration.agent_with_target; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.h4.k10",
+   "device": "cpu",
+   "median_ms": 1.0343235,
+   "p95_ms": 1.487619,
+   "n_timed": 1020,
+   "max_ms": 3.38897,
+   "min_ms": 0.92103,
+   "first_decision_ms": [
+    3.140822,
+    1.234693,
+    1.518369
+   ],
+   "warmup_median_ms": 1.1538825,
+   "per_episode_median_ms": [
+    1.045566,
+    1.0252645,
+    1.035683
+   ],
+   "load_before": [
+    0.97,
+    0.5,
+    0.25
+   ],
+   "load_after": [
+    0.97,
+    0.5,
+    0.25
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.method_tier_grid._dt_factory -> offline.rtg_calibration.agent_with_target; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.h4.k10",
+   "device": "cuda",
+   "median_ms": 1.7725815,
+   "p95_ms": 3.02067,
+   "n_timed": 1020,
+   "max_ms": 5.317971,
+   "min_ms": 1.564782,
+   "first_decision_ms": [
+    520.456871,
+    2.109714,
+    2.053594
+   ],
+   "warmup_median_ms": 1.8296015,
+   "per_episode_median_ms": [
+    1.771789,
+    1.7311785,
+    1.8190065
+   ],
+   "load_before": [
+    0.98,
+    0.5,
+    0.25
+   ],
+   "load_after": [
+    0.98,
+    0.51,
+    0.26
+   ],
+   "cuda_mib": 19.001953125,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.method_tier_grid._dt_factory -> offline.rtg_calibration.agent_with_target; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.h4.k20",
+   "device": "cpu",
+   "median_ms": 1.428957,
+   "p95_ms": 2.207127,
+   "n_timed": 1020,
+   "max_ms": 4.859065,
+   "min_ms": 1.268084,
+   "first_decision_ms": [
+    4.436739,
+    1.724961,
+    1.629273
+   ],
+   "warmup_median_ms": 1.507674,
+   "per_episode_median_ms": [
+    1.4211825,
+    1.450243,
+    1.4238075
+   ],
+   "load_before": [
+    0.98,
+    0.51,
+    0.26
+   ],
+   "load_after": [
+    0.98,
+    0.52,
+    0.26
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.method_tier_grid._dt_factory -> offline.rtg_calibration.agent_with_target; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.h4.k20",
+   "device": "cuda",
+   "median_ms": 1.8038325,
+   "p95_ms": 2.775461,
+   "n_timed": 1020,
+   "max_ms": 4.831416,
+   "min_ms": 1.522075,
+   "first_decision_ms": [
+    623.322916,
+    2.71815,
+    1.996451
+   ],
+   "warmup_median_ms": 1.9320185,
+   "per_episode_median_ms": [
+    1.820727,
+    1.8305425,
+    1.7677335
+   ],
+   "load_before": [
+    0.98,
+    0.52,
+    0.26
+   ],
+   "load_after": [
+    0.98,
+    0.53,
+    0.26
+   ],
+   "cuda_mib": 19.001953125,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.method_tier_grid._dt_factory -> offline.rtg_calibration.agent_with_target; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.h4.k1_b1280",
+   "device": "cpu",
+   "median_ms": 0.717502,
+   "p95_ms": 1.233367,
+   "n_timed": 1020,
+   "max_ms": 4.040637,
+   "min_ms": 0.630415,
+   "first_decision_ms": [
+    3.219313,
+    0.886646,
+    0.923236
+   ],
+   "warmup_median_ms": 0.890781,
+   "per_episode_median_ms": [
+    0.724351,
+    0.7222805,
+    0.706838
+   ],
+   "load_before": [
+    1.06,
+    0.55,
+    0.27
+   ],
+   "load_after": [
+    1.06,
+    0.55,
+    0.27
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.method_tier_grid._dt_factory -> offline.rtg_calibration.agent_with_target; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.h4.k1_b1280",
+   "device": "cuda",
+   "median_ms": 1.6246095,
+   "p95_ms": 2.728636,
+   "n_timed": 1020,
+   "max_ms": 4.833356,
+   "min_ms": 1.411361,
+   "first_decision_ms": [
+    600.59365,
+    2.113863,
+    2.636529
+   ],
+   "warmup_median_ms": 1.7248115,
+   "per_episode_median_ms": [
+    1.6484405,
+    1.6195535,
+    1.6041375
+   ],
+   "load_before": [
+    1.06,
+    0.56,
+    0.28
+   ],
+   "load_after": [
+    1.05,
+    0.57,
+    0.28
+   ],
+   "cuda_mib": 19.001953125,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.method_tier_grid._dt_factory -> offline.rtg_calibration.agent_with_target; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.h4.k2_b640",
+   "device": "cpu",
+   "median_ms": 0.79603,
+   "p95_ms": 1.235341,
+   "n_timed": 1020,
+   "max_ms": 7.013365,
+   "min_ms": 0.692047,
+   "first_decision_ms": [
+    5.73743,
+    1.123337,
+    1.212978
+   ],
+   "warmup_median_ms": 1.066963,
+   "per_episode_median_ms": [
+    0.7963045,
+    0.784394,
+    0.820685
+   ],
+   "load_before": [
+    1.05,
+    0.57,
+    0.28
+   ],
+   "load_after": [
+    1.05,
+    0.58,
+    0.29
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.method_tier_grid._dt_factory -> offline.rtg_calibration.agent_with_target; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.h4.k2_b640",
+   "device": "cuda",
+   "median_ms": 1.691684,
+   "p95_ms": 2.956094,
+   "n_timed": 1020,
+   "max_ms": 7.812148,
+   "min_ms": 1.439182,
+   "first_decision_ms": [
+    691.797762,
+    3.223219,
+    2.060964
+   ],
+   "warmup_median_ms": 2.1418795,
+   "per_episode_median_ms": [
+    1.6984205,
+    1.655869,
+    1.7222585
+   ],
+   "load_before": [
+    1.05,
+    0.58,
+    0.29
+   ],
+   "load_after": [
+    1.04,
+    0.58,
+    0.29
+   ],
+   "cuda_mib": 19.001953125,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.method_tier_grid._dt_factory -> offline.rtg_calibration.agent_with_target; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.c3.anchor_k200",
+   "device": "cpu",
+   "median_ms": 1.4337395,
+   "p95_ms": 1.983458,
+   "n_timed": 1020,
+   "max_ms": 3.998756,
+   "min_ms": 1.277304,
+   "first_decision_ms": [
+    3.397288,
+    1.914713,
+    1.666566
+   ],
+   "warmup_median_ms": 1.501789,
+   "per_episode_median_ms": [
+    1.4379675,
+    1.435465,
+    1.4171175
+   ],
+   "load_before": [
+    1.04,
+    0.58,
+    0.29
+   ],
+   "load_after": [
+    1.04,
+    0.59,
+    0.29
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.method_tier_grid._dt_factory -> offline.rtg_calibration.agent_with_target; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.c3.anchor_k200",
+   "device": "cuda",
+   "median_ms": 1.794495,
+   "p95_ms": 3.333324,
+   "n_timed": 1020,
+   "max_ms": 6.235848,
+   "min_ms": 1.500394,
+   "first_decision_ms": [
+    661.929081,
+    2.148586,
+    2.115967
+   ],
+   "warmup_median_ms": 2.0899125,
+   "per_episode_median_ms": [
+    1.8124145,
+    1.775814,
+    1.8095455
+   ],
+   "load_before": [
+    1.04,
+    0.59,
+    0.29
+   ],
+   "load_after": [
+    1.03,
+    0.6,
+    0.3
+   ],
+   "cuda_mib": 19.001953125,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.method_tier_grid._dt_factory -> offline.rtg_calibration.agent_with_target; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.mappo1000",
+   "device": "cpu",
+   "median_ms": 0.278676,
+   "p95_ms": 0.411197,
+   "n_timed": 1020,
+   "max_ms": 4.514672,
+   "min_ms": 0.239997,
+   "first_decision_ms": [
+    5.557219,
+    0.453379,
+    0.42064
+   ],
+   "warmup_median_ms": 0.305966,
+   "per_episode_median_ms": [
+    0.2825145,
+    0.2758515,
+    0.278231
+   ],
+   "load_before": [
+    1.03,
+    0.6,
+    0.3
+   ],
+   "load_after": [
+    1.03,
+    0.61,
+    0.31
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.dt_gate._mappo_factory; act(info, explore=False, update_memory=False)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.mappo1000",
+   "device": "cuda",
+   "median_ms": 1.091694,
+   "p95_ms": 2.148452,
+   "n_timed": 1020,
+   "max_ms": 4.393353,
+   "min_ms": 0.92313,
+   "first_decision_ms": [
+    736.734851,
+    1.708434,
+    1.32514
+   ],
+   "warmup_median_ms": 1.3062825,
+   "per_episode_median_ms": [
+    1.082774,
+    1.1266705,
+    1.0780405
+   ],
+   "load_before": [
+    1.03,
+    0.61,
+    0.31
+   ],
+   "load_after": [
+    1.11,
+    0.64,
+    0.31
+   ],
+   "cuda_mib": 10.25,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.dt_gate._mappo_factory; act(info, explore=False, update_memory=False)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.mappo500",
+   "device": "cpu",
+   "median_ms": 0.284042,
+   "p95_ms": 0.509083,
+   "n_timed": 1020,
+   "max_ms": 1.079009,
+   "min_ms": 0.237239,
+   "first_decision_ms": [
+    2.031341,
+    0.481866,
+    0.272692
+   ],
+   "warmup_median_ms": 0.316496,
+   "per_episode_median_ms": [
+    0.304767,
+    0.2726245,
+    0.28093
+   ],
+   "load_before": [
+    1.1,
+    0.64,
+    0.32
+   ],
+   "load_after": [
+    1.1,
+    0.64,
+    0.32
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.dt_gate._mappo_factory; act(info, explore=False, update_memory=False)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.mappo500",
+   "device": "cuda",
+   "median_ms": 1.0865745,
+   "p95_ms": 1.984747,
+   "n_timed": 1020,
+   "max_ms": 4.310908,
+   "min_ms": 0.909983,
+   "first_decision_ms": [
+    659.451377,
+    1.417934,
+    1.465177
+   ],
+   "warmup_median_ms": 1.123122,
+   "per_episode_median_ms": [
+    1.1193745,
+    1.0540825,
+    1.0736905
+   ],
+   "load_before": [
+    1.09,
+    0.65,
+    0.32
+   ],
+   "load_after": [
+    1.08,
+    0.65,
+    0.33
+   ],
+   "cuda_mib": 10.25,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.dt_gate._mappo_factory; act(info, explore=False, update_memory=False)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.mappo060",
+   "device": "cpu",
+   "median_ms": 0.2903375,
+   "p95_ms": 0.521497,
+   "n_timed": 1020,
+   "max_ms": 1.115139,
+   "min_ms": 0.235594,
+   "first_decision_ms": [
+    1.797433,
+    0.276761,
+    0.282348
+   ],
+   "warmup_median_ms": 0.3098865,
+   "per_episode_median_ms": [
+    0.3208055,
+    0.280622,
+    0.2873045
+   ],
+   "load_before": [
+    1.08,
+    0.65,
+    0.33
+   ],
+   "load_after": [
+    1.08,
+    0.66,
+    0.33
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.dt_gate._mappo_factory; act(info, explore=False, update_memory=False)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.mappo060",
+   "device": "cuda",
+   "median_ms": 1.1214505,
+   "p95_ms": 2.121302,
+   "n_timed": 1020,
+   "max_ms": 4.596551,
+   "min_ms": 0.904617,
+   "first_decision_ms": [
+    624.052338,
+    1.156297,
+    1.300511
+   ],
+   "warmup_median_ms": 1.146568,
+   "per_episode_median_ms": [
+    1.157088,
+    1.1195735,
+    1.0698045
+   ],
+   "load_before": [
+    1.08,
+    0.66,
+    0.33
+   ],
+   "load_after": [
+    1.07,
+    0.67,
+    0.33
+   ],
+   "cuda_mib": 10.25,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.dt_gate._mappo_factory; act(info, explore=False, update_memory=False)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.maxpressure",
+   "device": "cpu",
+   "median_ms": 0.012302,
+   "p95_ms": 0.020407,
+   "n_timed": 1020,
+   "max_ms": 0.623405,
+   "min_ms": 0.009552,
+   "first_decision_ms": [
+    0.030297,
+    0.012378,
+    0.013386
+   ],
+   "warmup_median_ms": 0.012662,
+   "per_episode_median_ms": [
+    0.0129095,
+    0.0125635,
+    0.0114785
+   ],
+   "load_before": [
+    1.06,
+    0.67,
+    0.34
+   ],
+   "load_after": [
+    1.06,
+    0.67,
+    0.34
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.dt_gate._maxpressure_factory",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.fixedtime",
+   "device": "cpu",
+   "median_ms": 0.0034185,
+   "p95_ms": 0.004601,
+   "n_timed": 1020,
+   "max_ms": 0.029536,
+   "min_ms": 0.00219,
+   "first_decision_ms": [
+    0.007018,
+    0.002836,
+    0.003413
+   ],
+   "warmup_median_ms": 0.0034745,
+   "per_episode_median_ms": [
+    0.003629,
+    0.003177,
+    0.003412
+   ],
+   "load_before": [
+    1.06,
+    0.67,
+    0.34
+   ],
+   "load_after": [
+    1.14,
+    0.69,
+    0.35
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.method_tier_grid._fixedtime_factory (plan hash asserted against the corpus manifest)",
+   "problems": []
+  },
+  {
+   "row": "hz1x1.random",
+   "device": "cpu",
+   "median_ms": 0.012626,
+   "p95_ms": 0.016771,
+   "n_timed": 1020,
+   "max_ms": 0.585731,
+   "min_ms": 0.007421,
+   "first_decision_ms": [
+    0.01277,
+    0.007768,
+    0.009476
+   ],
+   "warmup_median_ms": 0.01092,
+   "per_episode_median_ms": [
+    0.0125935,
+    0.01236,
+    0.0129315
+   ],
+   "load_before": [
+    1.14,
+    0.69,
+    0.35
+   ],
+   "load_after": [
+    1.13,
+    0.7,
+    0.35
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.method_tier_grid._random_factory(101)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.dt_spatial",
+   "device": "cpu",
+   "median_ms": 17.9474965,
+   "p95_ms": 29.796365,
+   "n_timed": 1020,
+   "max_ms": 36.885584,
+   "min_ms": 15.685947,
+   "first_decision_ms": [
+    22.112413,
+    16.659959,
+    24.894431
+   ],
+   "warmup_median_ms": 19.946223,
+   "per_episode_median_ms": [
+    17.207679,
+    18.149371,
+    19.8454545
+   ],
+   "load_before": [
+    1.13,
+    0.7,
+    0.35
+   ],
+   "load_after": [
+    1.08,
+    0.72,
+    0.37
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "agent.SpatialDTAgent.from_checkpoint after offline.spatial_mixing.assert_declared_budget, as offline.admission_probe._method_factory; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.dt_spatial",
+   "device": "cuda",
+   "median_ms": 3.329137,
+   "p95_ms": 4.579092,
+   "n_timed": 1020,
+   "max_ms": 6.475515,
+   "min_ms": 2.587905,
+   "first_decision_ms": [
+    497.56899,
+    3.62601,
+    2.99603
+   ],
+   "warmup_median_ms": 2.987767,
+   "per_episode_median_ms": [
+    3.295133,
+    3.2661115,
+    3.4410035
+   ],
+   "load_before": [
+    1.08,
+    0.73,
+    0.37
+   ],
+   "load_after": [
+    1.15,
+    0.75,
+    0.38
+   ],
+   "cuda_mib": 22.06640625,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "agent.SpatialDTAgent.from_checkpoint after offline.spatial_mixing.assert_declared_budget, as offline.admission_probe._method_factory; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.dt_nomix",
+   "device": "cpu",
+   "median_ms": 18.903644,
+   "p95_ms": 33.344139,
+   "n_timed": 1020,
+   "max_ms": 37.868359,
+   "min_ms": 15.912486,
+   "first_decision_ms": [
+    39.596313,
+    17.683318,
+    18.417161
+   ],
+   "warmup_median_ms": 17.5620755,
+   "per_episode_median_ms": [
+    18.252722,
+    19.529366,
+    22.15277
+   ],
+   "load_before": [
+    1.14,
+    0.76,
+    0.39
+   ],
+   "load_after": [
+    1.08,
+    0.78,
+    0.41
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "agent.SpatialDTAgent.from_checkpoint after offline.spatial_mixing.assert_declared_budget, as offline.admission_probe._method_factory; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.dt_nomix",
+   "device": "cuda",
+   "median_ms": 3.6862345,
+   "p95_ms": 6.3182,
+   "n_timed": 1020,
+   "max_ms": 12.878803,
+   "min_ms": 2.549419,
+   "first_decision_ms": [
+    757.613773,
+    2.920075,
+    3.969832
+   ],
+   "warmup_median_ms": 4.0015015,
+   "per_episode_median_ms": [
+    3.2211095,
+    3.6117125,
+    4.2354675
+   ],
+   "load_before": [
+    1.08,
+    0.78,
+    0.41
+   ],
+   "load_after": [
+    1.07,
+    0.79,
+    0.41
+   ],
+   "cuda_mib": 22.06640625,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "agent.SpatialDTAgent.from_checkpoint after offline.spatial_mixing.assert_declared_budget, as offline.admission_probe._method_factory; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.dt_spatial_h4",
+   "device": "cpu",
+   "median_ms": 21.0029425,
+   "p95_ms": 34.633325,
+   "n_timed": 1020,
+   "max_ms": 43.25673,
+   "min_ms": 16.627038,
+   "first_decision_ms": [
+    27.716679,
+    17.657858,
+    34.996704
+   ],
+   "warmup_median_ms": 22.933087,
+   "per_episode_median_ms": [
+    22.313957,
+    20.092112,
+    19.9147065
+   ],
+   "load_before": [
+    1.07,
+    0.79,
+    0.41
+   ],
+   "load_after": [
+    1.04,
+    0.81,
+    0.43
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "agent.SpatialDTAgent.from_checkpoint after offline.spatial_mixing.assert_declared_budget, as offline.admission_probe._method_factory; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.dt_spatial_h4",
+   "device": "cuda",
+   "median_ms": 3.2690275,
+   "p95_ms": 5.23317,
+   "n_timed": 1020,
+   "max_ms": 9.4214,
+   "min_ms": 2.503269,
+   "first_decision_ms": [
+    733.273055,
+    3.509303,
+    4.621707
+   ],
+   "warmup_median_ms": 3.723329,
+   "per_episode_median_ms": [
+    3.172789,
+    3.233099,
+    3.456614
+   ],
+   "load_before": [
+    1.04,
+    0.81,
+    0.44
+   ],
+   "load_after": [
+    1.03,
+    0.82,
+    0.44
+   ],
+   "cuda_mib": 22.06640625,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "agent.SpatialDTAgent.from_checkpoint after offline.spatial_mixing.assert_declared_budget, as offline.admission_probe._method_factory; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.dt_nomix_h4",
+   "device": "cpu",
+   "median_ms": 20.6424185,
+   "p95_ms": 34.705577,
+   "n_timed": 1020,
+   "max_ms": 43.829911,
+   "min_ms": 16.530625,
+   "first_decision_ms": [
+    40.93865,
+    18.44548,
+    19.843647
+   ],
+   "warmup_median_ms": 21.8039795,
+   "per_episode_median_ms": [
+    18.9279065,
+    22.2577335,
+    24.5400305
+   ],
+   "load_before": [
+    1.03,
+    0.82,
+    0.44
+   ],
+   "load_after": [
+    0.94,
+    0.82,
+    0.46
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "agent.SpatialDTAgent.from_checkpoint after offline.spatial_mixing.assert_declared_budget, as offline.admission_probe._method_factory; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.dt_nomix_h4",
+   "device": "cuda",
+   "median_ms": 3.2471645,
+   "p95_ms": 5.446589,
+   "n_timed": 1020,
+   "max_ms": 11.167147,
+   "min_ms": 2.427997,
+   "first_decision_ms": [
+    556.563243,
+    3.556025,
+    3.159056
+   ],
+   "warmup_median_ms": 3.3328395,
+   "per_episode_median_ms": [
+    3.1821745,
+    3.2517765,
+    3.3314405
+   ],
+   "load_before": [
+    0.94,
+    0.82,
+    0.46
+   ],
+   "load_after": [
+    1.39,
+    0.93,
+    0.5
+   ],
+   "cuda_mib": 22.06640625,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "agent.SpatialDTAgent.from_checkpoint after offline.spatial_mixing.assert_declared_budget, as offline.admission_probe._method_factory; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.bc",
+   "device": "cpu",
+   "median_ms": 0.6993055,
+   "p95_ms": 1.308021,
+   "n_timed": 1020,
+   "max_ms": 2.163579,
+   "min_ms": 0.515472,
+   "first_decision_ms": [
+    2.21494,
+    0.711918,
+    0.759276
+   ],
+   "warmup_median_ms": 0.7098855,
+   "per_episode_median_ms": [
+    1.0525625,
+    0.59652,
+    0.6541955
+   ],
+   "load_before": [
+    1.36,
+    0.93,
+    0.5
+   ],
+   "load_after": [
+    1.41,
+    0.94,
+    0.51
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.offline_baselines._baseline_factory('bc'); act(info, explore=False, update_memory=False)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.bc",
+   "device": "cuda",
+   "median_ms": 0.8946145,
+   "p95_ms": 1.645651,
+   "n_timed": 1020,
+   "max_ms": 3.182056,
+   "min_ms": 0.675728,
+   "first_decision_ms": [
+    411.601093,
+    1.030954,
+    0.938073
+   ],
+   "warmup_median_ms": 0.9543995,
+   "per_episode_median_ms": [
+    1.0052495,
+    0.8464055,
+    0.809771
+   ],
+   "load_before": [
+    1.41,
+    0.94,
+    0.51
+   ],
+   "load_after": [
+    1.46,
+    0.96,
+    0.51
+   ],
+   "cuda_mib": 15.267578125,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.offline_baselines._baseline_factory('bc'); act(info, explore=False, update_memory=False)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.bc_top10",
+   "device": "cpu",
+   "median_ms": 0.763784,
+   "p95_ms": 1.207329,
+   "n_timed": 1020,
+   "max_ms": 2.013862,
+   "min_ms": 0.52163,
+   "first_decision_ms": [
+    2.241681,
+    0.924184,
+    1.062739
+   ],
+   "warmup_median_ms": 1.016269,
+   "per_episode_median_ms": [
+    0.725942,
+    0.7380255,
+    0.8204765
+   ],
+   "load_before": [
+    1.5,
+    0.98,
+    0.52
+   ],
+   "load_after": [
+    1.46,
+    0.98,
+    0.53
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.offline_baselines._baseline_factory('bc_top10'); act(info, explore=False, update_memory=False)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.bc_top10",
+   "device": "cuda",
+   "median_ms": 1.0895155,
+   "p95_ms": 1.799789,
+   "n_timed": 1020,
+   "max_ms": 6.296955,
+   "min_ms": 0.688434,
+   "first_decision_ms": [
+    466.755672,
+    1.440333,
+    2.024561
+   ],
+   "warmup_median_ms": 1.163533,
+   "per_episode_median_ms": [
+    1.2198415,
+    1.128027,
+    0.8641505
+   ],
+   "load_before": [
+    1.46,
+    0.98,
+    0.53
+   ],
+   "load_after": [
+    1.5,
+    1.0,
+    0.53
+   ],
+   "cuda_mib": 15.267578125,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.offline_baselines._baseline_factory('bc_top10'); act(info, explore=False, update_memory=False)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.bc_top10_perix",
+   "device": "cpu",
+   "median_ms": 0.6343935,
+   "p95_ms": 0.995838,
+   "n_timed": 1020,
+   "max_ms": 1.661565,
+   "min_ms": 0.50824,
+   "first_decision_ms": [
+    2.268911,
+    0.715292,
+    0.890666
+   ],
+   "warmup_median_ms": 0.7294675,
+   "per_episode_median_ms": [
+    0.614462,
+    0.5961215,
+    0.747495
+   ],
+   "load_before": [
+    1.46,
+    1.0,
+    0.54
+   ],
+   "load_after": [
+    1.43,
+    1.0,
+    0.54
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.offline_baselines._baseline_factory('bc_top10_perix'); act(info, explore=False, update_memory=False)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.bc_top10_perix",
+   "device": "cuda",
+   "median_ms": 0.888297,
+   "p95_ms": 1.741299,
+   "n_timed": 1020,
+   "max_ms": 4.676285,
+   "min_ms": 0.684196,
+   "first_decision_ms": [
+    472.118738,
+    1.108294,
+    0.944315
+   ],
+   "warmup_median_ms": 1.3236365,
+   "per_episode_median_ms": [
+    0.947261,
+    0.8904645,
+    0.850968
+   ],
+   "load_before": [
+    1.43,
+    1.0,
+    0.54
+   ],
+   "load_after": [
+    1.39,
+    1.0,
+    0.54
+   ],
+   "cuda_mib": 15.267578125,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.offline_baselines._baseline_factory('bc_top10_perix'); act(info, explore=False, update_memory=False)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.iql",
+   "device": "cpu",
+   "median_ms": 1.025467,
+   "p95_ms": 1.683317,
+   "n_timed": 1020,
+   "max_ms": 2.579072,
+   "min_ms": 0.636396,
+   "first_decision_ms": [
+    2.592708,
+    1.054329,
+    1.783465
+   ],
+   "warmup_median_ms": 1.074961,
+   "per_episode_median_ms": [
+    0.801296,
+    0.961551,
+    1.3804975
+   ],
+   "load_before": [
+    1.36,
+    1.0,
+    0.55
+   ],
+   "load_after": [
+    1.33,
+    1.0,
+    0.55
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.offline_baselines._baseline_factory('iql'); act(info, explore=False, update_memory=False)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.iql",
+   "device": "cuda",
+   "median_ms": 1.281799,
+   "p95_ms": 2.207126,
+   "n_timed": 1020,
+   "max_ms": 3.923022,
+   "min_ms": 0.788646,
+   "first_decision_ms": [
+    431.27505,
+    1.085626,
+    1.891649
+   ],
+   "warmup_median_ms": 1.207199,
+   "per_episode_median_ms": [
+    1.1003815,
+    1.25808,
+    1.473492
+   ],
+   "load_before": [
+    1.33,
+    1.0,
+    0.55
+   ],
+   "load_after": [
+    1.28,
+    1.0,
+    0.55
+   ],
+   "cuda_mib": 29.078125,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.offline_baselines._baseline_factory('iql'); act(info, explore=False, update_memory=False)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.c3.ft_k5",
+   "device": "cpu",
+   "median_ms": 20.752856,
+   "p95_ms": 34.523707,
+   "n_timed": 1020,
+   "max_ms": 41.556546,
+   "min_ms": 16.612047,
+   "first_decision_ms": [
+    41.445334,
+    18.290972,
+    23.695582
+   ],
+   "warmup_median_ms": 18.6493605,
+   "per_episode_median_ms": [
+    22.0496595,
+    20.7759955,
+    19.7520005
+   ],
+   "load_before": [
+    1.28,
+    1.0,
+    0.55
+   ],
+   "load_after": [
+    1.25,
+    1.02,
+    0.57
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.rtg_calibration.spatial_agent_with_targets; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.c3.ft_k5",
+   "device": "cuda",
+   "median_ms": 3.264326,
+   "p95_ms": 5.12574,
+   "n_timed": 1020,
+   "max_ms": 8.887558,
+   "min_ms": 2.577381,
+   "first_decision_ms": [
+    643.101748,
+    3.518718,
+    5.599574
+   ],
+   "warmup_median_ms": 3.241165,
+   "per_episode_median_ms": [
+    3.212836,
+    3.4266795,
+    3.179164
+   ],
+   "load_before": [
+    1.31,
+    1.03,
+    0.58
+   ],
+   "load_after": [
+    1.21,
+    1.02,
+    0.58
+   ],
+   "cuda_mib": 22.06640625,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.rtg_calibration.spatial_agent_with_targets; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.c3.ft_k20",
+   "device": "cpu",
+   "median_ms": 18.686334,
+   "p95_ms": 34.541239,
+   "n_timed": 1020,
+   "max_ms": 39.655658,
+   "min_ms": 16.589818,
+   "first_decision_ms": [
+    36.623356,
+    33.850151,
+    18.638437
+   ],
+   "warmup_median_ms": 18.5384045,
+   "per_episode_median_ms": [
+    18.497506,
+    19.101538,
+    18.6815655
+   ],
+   "load_before": [
+    1.19,
+    1.02,
+    0.58
+   ],
+   "load_after": [
+    1.12,
+    1.01,
+    0.59
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.rtg_calibration.spatial_agent_with_targets; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.c3.ft_k20",
+   "device": "cuda",
+   "median_ms": 3.539992,
+   "p95_ms": 5.997389,
+   "n_timed": 1020,
+   "max_ms": 12.269008,
+   "min_ms": 2.57164,
+   "first_decision_ms": [
+    631.437015,
+    4.048383,
+    3.345325
+   ],
+   "warmup_median_ms": 4.749461,
+   "per_episode_median_ms": [
+    3.4757945,
+    3.2229625,
+    3.8235845
+   ],
+   "load_before": [
+    1.11,
+    1.01,
+    0.59
+   ],
+   "load_after": [
+    1.02,
+    1.0,
+    0.59
+   ],
+   "cuda_mib": 22.06640625,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.rtg_calibration.spatial_agent_with_targets; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.c3.ft_k100",
+   "device": "cpu",
+   "median_ms": 20.1018205,
+   "p95_ms": 34.590482,
+   "n_timed": 1020,
+   "max_ms": 50.475471,
+   "min_ms": 16.482721,
+   "first_decision_ms": [
+    37.509706,
+    19.874817,
+    16.816943
+   ],
+   "warmup_median_ms": 19.5544225,
+   "per_episode_median_ms": [
+    20.5439715,
+    20.758129,
+    19.1924675
+   ],
+   "load_before": [
+    1.02,
+    1.0,
+    0.59
+   ],
+   "load_after": [
+    1.01,
+    1.0,
+    0.61
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.rtg_calibration.spatial_agent_with_targets; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.c3.ft_k100",
+   "device": "cuda",
+   "median_ms": 3.1156735,
+   "p95_ms": 5.686648,
+   "n_timed": 1020,
+   "max_ms": 10.704174,
+   "min_ms": 2.457768,
+   "first_decision_ms": [
+    438.126973,
+    4.652315,
+    3.029693
+   ],
+   "warmup_median_ms": 3.1233785,
+   "per_episode_median_ms": [
+    2.957223,
+    3.2048755,
+    3.280683
+   ],
+   "load_before": [
+    1.01,
+    1.0,
+    0.61
+   ],
+   "load_after": [
+    1.01,
+    1.0,
+    0.61
+   ],
+   "cuda_mib": 22.06640625,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.rtg_calibration.spatial_agent_with_targets; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.c3.ft_k100_b1000",
+   "device": "cpu",
+   "median_ms": 19.7725515,
+   "p95_ms": 35.745136,
+   "n_timed": 1020,
+   "max_ms": 45.872089,
+   "min_ms": 16.489513,
+   "first_decision_ms": [
+    30.770231,
+    20.132299,
+    16.706053
+   ],
+   "warmup_median_ms": 20.992304,
+   "per_episode_median_ms": [
+    25.618599,
+    19.3358575,
+    18.576057
+   ],
+   "load_before": [
+    1.01,
+    1.0,
+    0.61
+   ],
+   "load_after": [
+    1.0,
+    1.0,
+    0.63
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.rtg_calibration.spatial_agent_with_targets; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.c3.ft_k100_b1000",
+   "device": "cuda",
+   "median_ms": 3.3079375,
+   "p95_ms": 5.976519,
+   "n_timed": 1020,
+   "max_ms": 11.427755,
+   "min_ms": 2.469323,
+   "first_decision_ms": [
+    537.486918,
+    4.014123,
+    4.255974
+   ],
+   "warmup_median_ms": 4.0228955,
+   "per_episode_median_ms": [
+    3.104618,
+    3.724154,
+    3.352455
+   ],
+   "load_before": [
+    1.0,
+    1.0,
+    0.63
+   ],
+   "load_after": [
+    1.0,
+    1.0,
+    0.63
+   ],
+   "cuda_mib": 22.06640625,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.rtg_calibration.spatial_agent_with_targets; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.c3.ft_k100_b16000",
+   "device": "cpu",
+   "median_ms": 20.5630795,
+   "p95_ms": 34.494756,
+   "n_timed": 1020,
+   "max_ms": 38.182369,
+   "min_ms": 16.378891,
+   "first_decision_ms": [
+    21.39547,
+    38.584765,
+    34.736855
+   ],
+   "warmup_median_ms": 22.0204795,
+   "per_episode_median_ms": [
+    19.571128,
+    20.975754,
+    23.2333895
+   ],
+   "load_before": [
+    0.92,
+    0.98,
+    0.63
+   ],
+   "load_after": [
+    0.95,
+    0.99,
+    0.64
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.rtg_calibration.spatial_agent_with_targets; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.c3.ft_k100_b16000",
+   "device": "cuda",
+   "median_ms": 3.065916,
+   "p95_ms": 4.789619,
+   "n_timed": 1020,
+   "max_ms": 7.390941,
+   "min_ms": 2.427652,
+   "first_decision_ms": [
+    681.938367,
+    3.287178,
+    3.320477
+   ],
+   "warmup_median_ms": 3.1775885,
+   "per_episode_median_ms": [
+    2.921578,
+    2.9160265,
+    3.2704995
+   ],
+   "load_before": [
+    0.95,
+    0.99,
+    0.64
+   ],
+   "load_after": [
+    0.88,
+    0.97,
+    0.64
+   ],
+   "cuda_mib": 22.06640625,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.rtg_calibration.spatial_agent_with_targets; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.c3.scratch_k100",
+   "device": "cpu",
+   "median_ms": 20.498851,
+   "p95_ms": 34.941292,
+   "n_timed": 1020,
+   "max_ms": 38.712807,
+   "min_ms": 16.533548,
+   "first_decision_ms": [
+    25.112252,
+    19.235576,
+    35.532864
+   ],
+   "warmup_median_ms": 20.772338,
+   "per_episode_median_ms": [
+    23.743321,
+    19.8625615,
+    19.5164045
+   ],
+   "load_before": [
+    0.88,
+    0.97,
+    0.64
+   ],
+   "load_after": [
+    0.93,
+    0.97,
+    0.65
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.rtg_calibration.spatial_agent_with_targets; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.c3.scratch_k100",
+   "device": "cuda",
+   "median_ms": 3.2512045,
+   "p95_ms": 5.576489,
+   "n_timed": 1020,
+   "max_ms": 11.689089,
+   "min_ms": 2.482786,
+   "first_decision_ms": [
+    655.059095,
+    3.25,
+    3.60368
+   ],
+   "warmup_median_ms": 3.3152035,
+   "per_episode_median_ms": [
+    3.16713,
+    3.0222125,
+    3.8168275
+   ],
+   "load_before": [
+    0.93,
+    0.97,
+    0.65
+   ],
+   "load_after": [
+    1.09,
+    1.01,
+    0.67
+   ],
+   "cuda_mib": 22.06640625,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.rtg_calibration.spatial_agent_with_targets; act(info, explore=False, update_memory=True)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.mappo1000",
+   "device": "cpu",
+   "median_ms": 2.0288595,
+   "p95_ms": 3.19969,
+   "n_timed": 1020,
+   "max_ms": 5.025901,
+   "min_ms": 1.283811,
+   "first_decision_ms": [
+    4.165989,
+    3.419416,
+    3.870578
+   ],
+   "warmup_median_ms": 2.270418,
+   "per_episode_median_ms": [
+    2.079727,
+    1.913333,
+    2.1831475
+   ],
+   "load_before": [
+    1.09,
+    1.01,
+    0.67
+   ],
+   "load_after": [
+    1.08,
+    1.01,
+    0.67
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.dt_gate._mappo_factory; act(info, explore=False, update_memory=False)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.mappo1000",
+   "device": "cuda",
+   "median_ms": 12.5323675,
+   "p95_ms": 16.520715,
+   "n_timed": 1020,
+   "max_ms": 24.054194,
+   "min_ms": 9.586229,
+   "first_decision_ms": [
+    757.347759,
+    11.109478,
+    15.957599
+   ],
+   "warmup_median_ms": 12.669519,
+   "per_episode_median_ms": [
+    12.0169025,
+    12.79575,
+    12.729664
+   ],
+   "load_before": [
+    1.08,
+    1.01,
+    0.67
+   ],
+   "load_after": [
+    1.06,
+    1.0,
+    0.68
+   ],
+   "cuda_mib": 21.734375,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.dt_gate._mappo_factory; act(info, explore=False, update_memory=False)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.mappo060",
+   "device": "cpu",
+   "median_ms": 2.75696,
+   "p95_ms": 3.984104,
+   "n_timed": 1020,
+   "max_ms": 24.207419,
+   "min_ms": 1.681788,
+   "first_decision_ms": [
+    4.417392,
+    2.434253,
+    3.045798
+   ],
+   "warmup_median_ms": 2.7541315,
+   "per_episode_median_ms": [
+    2.6895785,
+    2.4350925,
+    3.1153305
+   ],
+   "load_before": [
+    1.05,
+    1.0,
+    0.68
+   ],
+   "load_after": [
+    0.96,
+    0.99,
+    0.68
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.dt_gate._mappo_factory; act(info, explore=False, update_memory=False)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.mappo060",
+   "device": "cuda",
+   "median_ms": 12.7459455,
+   "p95_ms": 17.625944,
+   "n_timed": 1020,
+   "max_ms": 46.493413,
+   "min_ms": 9.426646,
+   "first_decision_ms": [
+    782.214241,
+    15.374136,
+    11.714073
+   ],
+   "warmup_median_ms": 14.143416,
+   "per_episode_median_ms": [
+    11.896398,
+    13.3770705,
+    13.3031215
+   ],
+   "load_before": [
+    0.96,
+    0.99,
+    0.68
+   ],
+   "load_after": [
+    1.06,
+    1.01,
+    0.7
+   ],
+   "cuda_mib": 21.734375,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.dt_gate._mappo_factory; act(info, explore=False, update_memory=False)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.maxpressure",
+   "device": "cpu",
+   "median_ms": 0.248279,
+   "p95_ms": 0.303747,
+   "n_timed": 1020,
+   "max_ms": 0.780097,
+   "min_ms": 0.232211,
+   "first_decision_ms": [
+    0.43664,
+    0.244336,
+    0.296785
+   ],
+   "warmup_median_ms": 0.272858,
+   "per_episode_median_ms": [
+    0.2524205,
+    0.245508,
+    0.2485285
+   ],
+   "load_before": [
+    1.06,
+    1.01,
+    0.7
+   ],
+   "load_after": [
+    1.05,
+    1.0,
+    0.7
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.dt_gate._maxpressure_factory",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.fixedtime",
+   "device": "cpu",
+   "median_ms": 0.008736,
+   "p95_ms": 0.012491,
+   "n_timed": 1020,
+   "max_ms": 0.080878,
+   "min_ms": 0.007161,
+   "first_decision_ms": [
+    0.019842,
+    0.008182,
+    0.00919
+   ],
+   "warmup_median_ms": 0.009287,
+   "per_episode_median_ms": [
+    0.008963,
+    0.0085205,
+    0.008878
+   ],
+   "load_before": [
+    1.05,
+    1.0,
+    0.7
+   ],
+   "load_after": [
+    1.05,
+    1.0,
+    0.7
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.method_tier_grid._fixedtime_factory (plan hash asserted against the corpus manifest)",
+   "problems": []
+  },
+  {
+   "row": "grid4x4.random",
+   "device": "cpu",
+   "median_ms": 0.036638,
+   "p95_ms": 0.053629,
+   "n_timed": 1020,
+   "max_ms": 0.152635,
+   "min_ms": 0.029711,
+   "first_decision_ms": [
+    0.046752,
+    0.033912,
+    0.038294
+   ],
+   "warmup_median_ms": 0.039164,
+   "per_episode_median_ms": [
+    0.0386975,
+    0.0358555,
+    0.0364755
+   ],
+   "load_before": [
+    1.05,
+    1.0,
+    0.7
+   ],
+   "load_after": [
+    1.04,
+    1.0,
+    0.7
+   ],
+   "cuda_mib": 0.0,
+   "kernel": "6.18.33.1-microsoft-standard-WSL2",
+   "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+   "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+   "driver": "610.74",
+   "torch": "2.11.0+cu128",
+   "factory": "offline.method_tier_grid._random_factory(101)",
+   "problems": []
+  }
+ ],
+ "problems": [],
+ "checkpoints_rehashed": 36
+}
