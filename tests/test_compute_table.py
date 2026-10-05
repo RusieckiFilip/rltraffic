@@ -1294,8 +1294,11 @@ def test_c3_latency_variability_takes_each_cells_episode_medians_and_each_groups
 
 
 def test_c3_the_variability_sentence_is_generated_from_its_summary() -> None:
-    one = ct.variability_sentence({"episode_spread_max": 0.7645, "groups": 9,
-                                   "same_computation_spread_max": {"hz1x1": 0.0658, "grid4x4": 0.3589}})
+    # The coordinator's recorded values (docs/notes/p8_2_g3/g3_analysis.json $.summary). C6 typed 0.7645 here, which a
+    # binary float holds as 0.76449999... and formats as 76.4%: corrected in C6-fix, the expected strings unchanged.
+    one = ct.variability_sentence({"episode_spread_max": 0.7645049621135922, "groups": 9,
+                                   "same_computation_spread_max": {"hz1x1": 0.06584946650960855,
+                                                                   "grid4x4": 0.35887181936452484}})
     two = ct.variability_sentence({"episode_spread_max": 0.1, "groups": 9,
                                    "same_computation_spread_max": {"hz1x1": 0.01, "grid4x4": 0.02}})
     assert "6.6%" in one and "35.9%" in one and "76.5%" in one
