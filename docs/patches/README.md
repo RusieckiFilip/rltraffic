@@ -1,5 +1,28 @@
 # Patches a Claude Code session cannot apply itself
 
+## `ci_gate_ceiling_351_p8_2.patch` — the skip ceiling moves 321 → 351 after P8.2's merge; every new skip is P8.2's own gating
+
+**Apply with:**
+```bash
+cd /home/filip/rltraffic && git apply docs/patches/ci_gate_ceiling_351_p8_2.patch && .venv/bin/pytest tests/test_ci_gate.py -q && git add .github/ci/ci_baseline.json tests/test_ci_gate.py && git commit -m "ci(ceiling): 321 -> 351 OBSERVED on run 37328002677 at 7d005d8 -- P8.2's gated tests" && git push origin main
+```
+**Measured, not read off a summary.** Run `37328002677` on `main` at `7d005d8` (the merge of the author's README revisions
+`2455a5e` / `b9e7739` — `README.md` only — on top of P8.2's merge `5e7fe78`); the suite step PASSED on both legs, the three guards
+passed, and only the ceiling gate failed (the registered route working). Both legs downloaded, every `<skipped>` message extracted
+from `junit.xml` (`output/ci_runs/skips.py`, OLD run first), multisets compared leg against leg (identical: 3,199 tests, 351 skipped,
+0 failures, 0 errors, 83 distinct texts on both) and run against run against the last green run on `main`, `37316553482` at
+`b9e7739` (3,009 tests, 321 skipped — the current ceiling): **30 new skips in 2 texts, nothing removed** — +21 `corpus_or_checkpoint`
+(each probes the gitignored output tree through `output/p4_dt/dt_seed101.pt`: in `tests/test_compute_latency.py` the real CPU row
+process, the real CUDA row and the 36 checkpoint digests; in `tests/test_compute_table.py` 18 — T-params on real checkpoints, the
+T-sources cases, the built artifact's C3 checks and its T-regress), +9 `main_tree_interpreter` (the nine executed tests of
+`tests/test_p8_2_latency_driver.py`, an existing text whose count rose) — every test name read from `junit.xml` — each text classified BY
+INSPECTION in `output/ci_runs/classification_p82.json`; the builder (`build_ceiling_patch_p82.py`) refuses a text matched by zero or
+two prefixes, an unused prefix, a removed text, a breakdown that does not sum, and a head commit whose subject is not the README
+merge or whose first parent is not P8.2's merge. Verified end to end in a scratch worktree: `tests/test_ci_gate.py` green with the
+new baseline (34 passed); `ci_gate.py pytest-gate` on BOTH legs' real `junit.xml` + `pytest.txt` under it, exit 0 each; `git apply
+--check` clean on `main`. `re_measure_required_at` names the next task that adds gated tests (`DEFERRED` 105's, 106's and 107's
+commits included if they do). Two files.
+
 ## `ci_gate_ceiling_321_p5_3c.patch` — the skip ceiling moves 296 → 321 after P5.3c's merge and its CI fix; every new skip is P5.3c's own gating
 
 **Apply with:**
