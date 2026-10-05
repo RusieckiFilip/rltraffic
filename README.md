@@ -1,9 +1,14 @@
-# rltraffic — an offline multi-agent Decision Transformer for traffic signal control
+# rltraffic — offline reinforcement learning for traffic signal control
 
-A pre-registered study of offline reinforcement learning for traffic signal control.
-It asks three questions about an offline multi-agent Decision Transformer (DT):
+A pre-registered study of offline reinforcement learning for traffic signal control. Its main
+subject is the Decision Transformer (DT), evaluated against behaviour cloning, return-filtered
+behaviour cloning and IQL trained on the same data. The DT is an existing method class, not a
+model proposed here: multi-agent Decision Transformers were introduced by Meng et al.
+([arXiv:2112.02845](https://arxiv.org/abs/2112.02845)) and applied to traffic signal control by
+Su, Sun & Deng ([arXiv:2602.02903](https://arxiv.org/abs/2602.02903)). The contribution of this
+repository is the measurements. It asks three questions:
 
-- **C1 — data.** How does its performance depend on the quality of the data it learns from,
+- **C1 — data.** How does the DT's performance depend on the quality of the data it learns from,
   and does it beat simpler offline methods trained on the same data?
 - **C3 — transfer.** How does a model trained in CityFlow perform in SUMO, from zero-shot
   through few-shot fine-tuning to retraining on the target simulator?
@@ -144,7 +149,7 @@ Built on top of that platform by **Filip Rusiecki**, supervised by Paweł Gora:
 |---|---|
 | `offline/` | Trajectory logging, the corpus loader, offline training and evaluation, statistical gates, CityFlow → SUMO alignment and transfer, the context-length sweep, the compute-and-latency harness |
 | `offline/campaigns/` | Drivers for the long runs; the later ones refuse to start without the author's run token |
-| `agent/DTAgent.py`, `agent/SpatialDTAgent.py`, `agent/OfflineBaselines.py` | The Decision Transformer, its spatial (cross-intersection attention) variant, and the BC, filtered-BC and IQL baselines |
+| `agent/DTAgent.py`, `agent/SpatialDTAgent.py`, `agent/OfflineBaselines.py` | This project's implementations of the Decision Transformer, its spatial (cross-intersection attention) variant, and the BC, filtered-BC and IQL baselines |
 | `calibration/` | External calibration of the IQL implementation on D4RL (P8.3) |
 | `PREREGISTRATION.md` | Registered hypotheses, metrics, decision rules and dated amendments |
 | `docs/data/` | The committed result artifacts (JSON) behind the reported numbers |
