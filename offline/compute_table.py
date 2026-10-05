@@ -3,8 +3,10 @@
 Written against ``docs/briefs/BRIEF_43_p8.2_compute_latency.md`` §5, its **Amendment A** (Q3: one row per arm with
 its tiers inside and an ``architecture`` key; Q4: MAPPO's ``results.json`` digests pinned here as of 2026-10-03;
 Q5/Q6: absences declared, never reconstructed; Q7: ``trained`` / ``deployed`` / ``stored`` /
-``executed_per_decision``; Q13: parameters counted on all five seeds) and its **Amendment B** (gate G1: B4 the
-latency verification, B6 the text the table prints, B7), on the plan ``docs/plans/p8.2.md`` @ ``a7c43e1``.
+``executed_per_decision``; Q13: parameters counted on all five seeds), its **Amendment B** (gate G1: B4 the
+latency verification, B6 the text the table prints, B7) and its **Amendment C** (gate G3: C3.1 ``latency_sensitivity``,
+C3.2 ``latency_variability`` and the same-computation groups, C3.3 two code-path facts, C3.4 the power mode's two
+labels), on the plan ``docs/plans/p8.2.md`` @ ``a7c43e1``.
 
 On-disk format
 --------------
@@ -1669,29 +1671,130 @@ P95_NOTABLE_CHANGE = 0.10
 
 
 def latency_sensitivity(run: Mapping[str, Any]) -> dict[str, Any]:
-    """C3.1: per cell the median and the nearest-rank p95 over decisions 120..359 beside the registered figures."""
-    raise NotImplementedError("Amendment C, C3.1: latency_sensitivity")
+    """C3.1: per cell the median and the nearest-rank p95 over decisions ``SENSITIVITY_START``..359 of each episode,
+    pooled, by the builder's own route (:func:`latency_figures`) from the verified nanoseconds, beside the registered
+    figures (decisions ``WARMUP``..359) with the relative change ``late / registered - 1``; and a summary."""
+    from offline import compute_latency as cl
+
+    last = cl.DECISIONS_PER_EPISODE - 1
+    cells: dict[str, Any] = {}
+    for (row_id, device), found in sorted(run["records"].items()):
+        verified = found["verified"]
+        late = latency_figures([episode["decision_ns"] for episode in found["record"]["episodes"]],
+                               warmup=SENSITIVITY_START)
+        registered_median, registered_p95 = verified["median_ns"] / 1e6, verified["p95_ns"] / 1e6
+        late_median, late_p95 = late["median_ns"] / 1e6, late["p95_ns"] / 1e6
+        cells[f"{row_id}_{device}"] = {
+            "registered": {"window": f"decisions {cl.WARMUP}-{last}", "median_ms": registered_median,
+                           "p95_ms": registered_p95, "n_timed": verified["n_timed"]},
+            "late": {"window": f"decisions {SENSITIVITY_START}-{last}", "median_ms": late_median, "p95_ms": late_p95,
+                     "n_timed": late["n_timed"]},
+            "median_change": late_median / registered_median - 1,
+            "p95_change": late_p95 / registered_p95 - 1,
+        }
+    h4 = [abs(cell["median_change"]) for label, cell in cells.items() if label.startswith("hz1x1.h4.")]
+    summary = {
+        "window": f"decisions {SENSITIVITY_START}-{last}",
+        "cells": len(cells),
+        "median_change_max_abs": max(abs(cell["median_change"]) for cell in cells.values()),
+        "p95_change_max_abs": max(abs(cell["p95_change"]) for cell in cells.values()),
+        "cells_p95_change_above": {"threshold": P95_NOTABLE_CHANGE,
+                                   "count": sum(abs(cell["p95_change"]) > P95_NOTABLE_CHANGE for cell in cells.values())},
+        "h4_cells": len(h4),
+        "h4_median_change_max_abs": max(h4) if h4 else None,
+    }
+    definition = (f"the median and the nearest-rank p95 of decisions {SENSITIVITY_START}-{last} of each episode, pooled, "
+                  "recomputed by the builder from the verified nanoseconds, beside the registered figures of decisions "
+                  f"{cl.WARMUP}-{last}; change = late / registered - 1. The registered figures stay the table's (the "
+                  "protocol was fixed before the run, BRIEF_43 Amendment C, C1.1)")
+    return {"definition": definition, "cells": cells, "summary": summary}
+
+
+def _computation_key(row: Mapping[str, Any]) -> tuple[Any, ...]:
+    computation = row["computation"]
+    return (row["scenario"], computation["family"], computation["architecture"], computation["n_head"]["value"],
+            computation["context_length"]["value"], computation["deployed_parameters"])
 
 
 def same_computation_groups(rows: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
-    """C3.2: the rows that run the same computation -- the same scenario, family, network, heads, context length and
-    deployed parameters -- in groups of two or more."""
-    raise NotImplementedError("Amendment C, C3.2: the same-computation groups")
+    """C3.2: the rows that run the same computation -- the same scenario, family (so the same decision call),
+    network, heads, context length and deployed parameters -- in groups of two or more, the rows in their given
+    order, the groups by name."""
+    buckets: dict[tuple[Any, ...], list[str]] = {}
+    for row in rows:
+        buckets.setdefault(_computation_key(row), []).append(str(row["id"]))
+    groups: list[dict[str, Any]] = []
+    for (scenario, family, architecture, n_head, context, deployed), members in buckets.items():
+        if len(members) < 2:
+            continue
+        name = (f"{scenario} {family} {architecture}" + ("" if n_head is None else f" heads {n_head}")
+                + ("" if context is None else f" K {context}") + f" ({deployed:,} deployed parameters)")
+        groups.append({"name": name, "scenario": scenario, "rows": members})
+    return sorted(groups, key=lambda group: group["name"])
 
 
 def latency_variability(run: Mapping[str, Any], rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
-    """C3.2: per cell the three episode medians; per same-computation group and device the spread of the medians."""
-    raise NotImplementedError("Amendment C, C3.2: latency_variability")
+    """C3.2: per cell the three episode medians (decisions ``WARMUP``..359 of each) and their spread; per
+    same-computation group and device the spread ``max / min - 1`` of the rows' registered medians; and a summary."""
+    from offline import compute_latency as cl
+
+    cells: dict[str, Any] = {}
+    for (row_id, device), found in sorted(run["records"].items()):
+        medians = [latency_figures([episode["decision_ns"]], warmup=cl.WARMUP)["median_ns"] / 1e6
+                   for episode in found["record"]["episodes"]]
+        cells[f"{row_id}_{device}"] = {"episode_medians_ms": medians, "episode_spread": max(medians) / min(medians) - 1}
+    timed = [row for row in rows if any((row["id"], device) in run["records"] for device in ("cpu", "cuda"))]
+    found_groups = same_computation_groups(timed)
+    groups: list[dict[str, Any]] = []
+    for group in found_groups:
+        for device in ("cpu", "cuda"):
+            if not all((row_id, device) in run["records"] for row_id in group["rows"]):
+                continue
+            medians = [run["records"][(row_id, device)]["verified"]["median_ns"] / 1e6 for row_id in group["rows"]]
+            groups.append({"name": group["name"], "scenario": group["scenario"], "device": device,
+                           "rows": list(group["rows"]), "medians_ms": medians, "min_ms": min(medians),
+                           "max_ms": max(medians), "spread": max(medians) / min(medians) - 1})
+    worst = max(cells, key=lambda label: cells[label]["episode_spread"])
+    scenarios = [name for name in cl.SCENARIOS if any(group["scenario"] == name for group in groups)]
+    summary = {
+        "cells": len(cells),
+        "groups": len(found_groups),
+        "episode_spread_max": cells[worst]["episode_spread"],
+        "episode_spread_max_cell": worst,
+        "same_computation_spread_max": {name: max(group["spread"] for group in groups if group["scenario"] == name)
+                                        for name in scenarios},
+    }
+    definition = (f"per cell the median of decisions {cl.WARMUP}-{cl.DECISIONS_PER_EPISODE - 1} of each episode and "
+                  "their spread max / min - 1; per group of rows that run the same computation (the same scenario, "
+                  "family, network, heads, context length and deployed parameters, derived from the rows) and device, "
+                  "the spread max / min - 1 of the rows' registered medians: the floor below which two rows' difference "
+                  "is not interpretable (BRIEF_43 Amendment C, C1.2)")
+    return {"definition": definition, "cells": cells, "groups": groups, "summary": summary}
 
 
 def sensitivity_sentence(summary: Mapping[str, Any]) -> str:
-    """C3.1: the sentence ``what_this_does_not_say`` gains, generated from the sensitivity summary."""
-    raise NotImplementedError("Amendment C, C3.1: the generated sensitivity sentence")
+    """C3.1: the sentence ``what_this_does_not_say`` gains, every number in it formatted from *summary* or the
+    registered protocol -- none typed."""
+    from offline import compute_latency as cl
+
+    above = summary["cells_p95_change_above"]
+    return (f"The latency figures pool decisions {cl.WARMUP}-{cl.DECISIONS_PER_EPISODE - 1} of each episode, as "
+            f"registered; over {summary['window']} instead, a cell's median moves by at most "
+            f"{summary['median_change_max_abs']:.1%} but its p95 by up to {summary['p95_change_max_abs']:.1%} "
+            f"({above['count']} of {summary['cells']} cells by more than {above['threshold']:.0%}): the median is the "
+            "table's robust figure, the p95 a conservative upper tail (latency_sensitivity).")
 
 
 def variability_sentence(summary: Mapping[str, Any]) -> str:
-    """C3.2: the sentence ``what_this_does_not_say`` gains, generated from the variability summary."""
-    raise NotImplementedError("Amendment C, C3.2: the generated variability sentence")
+    """C3.2: the sentence ``what_this_does_not_say`` gains, every number in it formatted from *summary* -- none typed."""
+    from offline import compute_latency as cl
+
+    spreads = summary["same_computation_spread_max"]
+    order = [name for name in cl.SCENARIOS if name in spreads] + sorted(set(spreads) - set(cl.SCENARIOS))
+    floor = " and ".join(f"{spreads[name]:.1%} on {name}" for name in order)
+    return (f"Rows that run the same computation on the same device differ in median by up to {floor}, and one cell's "
+            f"three episode medians by up to {summary['episode_spread_max']:.1%} (latency_variability): a difference "
+            "between two rows smaller than that floor is not interpretable.")
 
 
 # ----------------------------------------------------------------------
@@ -1735,6 +1838,13 @@ WHAT_THIS_DOES_NOT_SAY: tuple[str, ...] = (
     "are the actors'.",
     "MAPPO's results.json digests were pinned on 2026-10-03 because no committed artifact or manifest named them "
     "(Q4); the corroborations are in mappo_results_pin.",
+    "MAPPO's decision call loops over its actors one intersection at a time, each with two host-to-device copies and "
+    "two .item() synchronisations (agent/MAPPOAgent.py:225-245): its CUDA figure measures that loop's transfers and "
+    "synchronisations, not its networks' arithmetic.",
+    "IQL's decision call, shared with BC (agent/OfflineBaselines.py:360-405), sets eval mode on every network the agent "
+    "holds and restores it afterwards, around a forward pass of the policy alone; IQL holds four networks "
+    "(agent/OfflineBaselines.py:594-597), BC one (agent/OfflineBaselines.py:541-543), so the part of IQL's latency above "
+    "BC's, with the same deployed network, is that bookkeeping, not arithmetic.",
 )
 
 
@@ -1893,6 +2003,40 @@ def _architecture(row: TableRow, roots: Roots, checkpoints: list[dict[str, Any]]
     return f"mlp_trunk.s{config['state_dim']}.a{config['n_actions']}.d{config['d_model']}.l{config['n_layer']}"
 
 
+#: C3.4 (B.1.2): the overlay the training-clock sentence speaks of, by both its labels.
+_BETTER_BATTERY = "961cc777-2547-4f9d-8174-7d86181b8a7a"
+_WINDOWS_11_LABELS = {_BETTER_BATTERY: "Best power efficiency"}
+
+
+def _power_mode_labels() -> dict[str, Any]:
+    from offline import compute_latency as cl
+
+    return {guid: {"documentation": cl.POWER_OVERLAYS[guid], "windows_11_settings": label,
+                   "sources": ("the documentation's label: Microsoft's 'Customize the Windows performance power slider' as "
+                               "BRIEF_43 Amendment B (B1) lists it -- every record's ac_overlay_name uses it "
+                               "(offline.compute_latency.POWER_OVERLAYS); Windows 11's Settings label: Amendment B.1 "
+                               "(B.1.2) and Amendment C (C3.4)"),
+                   "found": "the mode found on 2026-10-03, before the timing run; the run itself ran in Best Performance"}
+            for guid, label in _WINDOWS_11_LABELS.items()}
+
+
+def _computation(row: TableRow, roots: Roots, checkpoints: list[dict[str, Any]], parameters: Mapping[str, Any],
+                 cache: dict[str, Any]) -> dict[str, Any]:
+    """What a row computes per decision (C3.2's grouping key): its family, network, heads, context length (both read
+    from its first checkpoint's configuration, with their source) and deployed parameters."""
+    def field(name: str) -> dict[str, Any]:
+        if row.family not in ("dt", "spatial_dt"):
+            return {"value": None, "reason": "not an attention model: no heads, no context window"}
+        first = checkpoints[0]
+        config = _payload(roots.output_root.parent / first["path"], cache)["config"]
+        return {"value": config[name], "source": {"file": first["path"], "sha256": first["sha256"],
+                                                  "json_path": f"$.config.{name}"}}
+
+    return {"family": row.family, "architecture": _architecture(row, roots, checkpoints, cache),
+            "deployed_parameters": parameters["deployed"]["value"], "n_head": field("n_head"),
+            "context_length": field("context_length")}
+
+
 def _hardware(run: Mapping[str, Any]) -> dict[str, Any]:
     """The one machine every record was taken on, and the regime of EACH device (B4.4); refuses records of one device
     that disagree on their regime."""
@@ -1904,7 +2048,8 @@ def _hardware(run: Mapping[str, Any]) -> dict[str, Any]:
         text = json.dumps(found["record"]["regime"], sort_keys=True)
         if regimes.setdefault(device, text) != text:
             raise ValueError(f"the {device} records were taken under different regimes ({row_id} differs)")
-    return {"machine": json.loads(blocks.pop()), "regime": {device: json.loads(text) for device, text in regimes.items()}}
+    return {"machine": json.loads(blocks.pop()), "regime": {device: json.loads(text) for device, text in regimes.items()},
+            "power_mode_labels": _power_mode_labels()}
 
 
 def build_artifact(roots: Roots, *, git: Mapping[str, Any] | None = None) -> dict[str, Any]:
@@ -1934,6 +2079,7 @@ def build_artifact(roots: Roots, *, git: Mapping[str, Any] | None = None) -> dic
             "method": row.method,
             "configuration": row.configuration,
             "architecture": _architecture(row, roots, checkpoints, cache),
+            "computation": _computation(row, roots, checkpoints, parameters, cache),
             "family": row.family,
             "claims": _claims_block(row, roots, cache),
             "checkpoints": checkpoints,
@@ -1947,9 +2093,11 @@ def build_artifact(roots: Roots, *, git: Mapping[str, Any] | None = None) -> dic
     for key in ("mappo_results_1000", "mappo_results_500", "mappo_results_060"):
         _, source = read_pinned(key, roots, cache)
         mappo_files.append(source)
+    sensitivity = latency_sensitivity(run)
+    variability = latency_variability(run, rows_out)
     return {
         "format_version": FORMAT_VERSION,
-        "registered_in": "PREREGISTRATION A25(c); docs/briefs/BRIEF_43_p8.2_compute_latency.md and its Amendments A and B",
+        "registered_in": "PREREGISTRATION A25(c); docs/briefs/BRIEF_43_p8.2_compute_latency.md and its Amendments A, B and C",
         "git": dict(git or {}),
         "latency_run": {"stamp": run["stamp"], "manifest": run["manifest"],
                         "canaries": {phase: {"seconds": c["seconds"], "verdict": c["verdict"],
@@ -1962,6 +2110,8 @@ def build_artifact(roots: Roots, *, git: Mapping[str, Any] | None = None) -> dic
                                                       "deployment distribution"),
                                      "p95": "nearest rank (numpy inverted_cdf)", "median": "numpy.median"}},
         "hardware": _hardware(run),
+        "latency_sensitivity": sensitivity,
+        "latency_variability": variability,
         "rows": rows_out,
         "mappo_results_pin": {
             "pinned_on": MAPPO_RESULTS_PINNED_ON,
@@ -1974,7 +2124,8 @@ def build_artifact(roots: Roots, *, git: Mapping[str, Any] | None = None) -> dic
             ],
         },
         "sources_added_after_plan": dict(SOURCES_ADDED_AFTER_PLAN),
-        "what_this_does_not_say": list(WHAT_THIS_DOES_NOT_SAY),
+        "what_this_does_not_say": list(WHAT_THIS_DOES_NOT_SAY) + [sensitivity_sentence(sensitivity["summary"]),
+                                                                  variability_sentence(variability["summary"])],
     }
 
 
