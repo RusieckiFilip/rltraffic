@@ -3,7 +3,7 @@
 A pre-registered study of offline reinforcement learning for traffic signal control. Its main
 subject is the Decision Transformer (DT), evaluated against behaviour cloning, return-filtered
 behaviour cloning and IQL trained on the same data. The DT is an existing method class, not a
-model proposed here: multi-agent Decision Transformers were introduced by Meng et al.
+model proposed here: the multi-agent Decision Transformer was proposed by Meng et al.
 ([arXiv:2112.02845](https://arxiv.org/abs/2112.02845)) and applied to traffic signal control by
 Su, Sun & Deng ([arXiv:2602.02903](https://arxiv.org/abs/2602.02903)). The contribution of this
 repository is the measurements. It asks three questions:
@@ -17,13 +17,17 @@ repository is the measurements. It asks three questions:
 
 Every policy is trained from logged trajectories only. The simulator collects the data and
 evaluates the policies; it never trains them. Hypotheses, metrics, decision rules and
-equivalence margins were registered and tagged before the measurements that test them.
+equivalence margins were registered and tagged in advance. Every later amendment is dated and
+tagged and states which results had already been seen when it was written (`PREREGISTRATION.md`
+§12); several, among them A13, A15 and A19, were written after related results existed and are
+reported as such.
 
-> **Status (October 2026):** every experiment for the first paper is complete and merged:
-> C1, C3, H4 and the compute-and-latency table. One registered hypothesis, H2
-> (robustness under scenario shift), was **not tested** and is reported as such
-> (`PREREGISTRATION.md`, amendment A25). The paper is in preparation. Nothing here is a
-> settled finding until the paper states it.
+> **Status (October 2026):** the experiments for the first paper — C1, C3, H4 and the
+> compute-and-latency table — are merged. One correction run is open: the IQL cell at the 4×4
+> grid's random tier trained on twice its declared data and is being re-run (P5.2b;
+> `docs/notes/DEFERRED.md`, row 106). One registered hypothesis, H2 (robustness under scenario
+> shift), was **not tested** and is reported as such (`PREREGISTRATION.md`, amendment A25). The
+> paper is in preparation. Nothing here is a settled finding until the paper states it.
 
 ---
 
@@ -34,19 +38,36 @@ statements, their scope and their caveats; each line points to the artifact or t
 
 ### C1 — performance along a data-quality ladder
 
-- **Single intersection (CityFlow, Hangzhou 1×1).** The DT does not lead on any of the eight
-  data tiers we measured. This is a descriptive count, not an inferential claim. On the best tier
-  (data from a converged MAPPO teacher), plain behaviour cloning matches the DT within the
-  registered equivalence margin (δ = 0.6263 s), while return-filtered BC and IQL beat it. The
-  filtered-BC advantage is checkpoint selection, and it is a dose-response (P4.4, P4.5).
-- **Sixteen intersections (CityFlow, synthetic 4×4 grid).** The leading method changes along the
-  data-quality axis: the non-spatial DT at the MAPPO tier, BC at the MaxPressure tier, and IQL at
-  the fixed-time and random tiers. The DT arms are the only arms that never collapse (P5.2).
-- **Cross-intersection attention.** The harm from adding a spatial attention path is confined to
-  the best-data tier. In the trained spatial models, neighbour influence is small:
-  r = 0.064 against the registered threshold of 0.10 (P5.1, P5.2, P5.4).
-- **The return prompt.** Conditioning on the target return matters on multi-modal data and not on
-  expert data (P5.3b).
+Travel times below are the registered primary metric on both scenarios, `att_engine`
+(amendment A11's Rule R), which counts every vehicle the demand created; every statement also
+holds under the earlier definition unless it says otherwise.
+
+- **Single intersection (CityFlow, Hangzhou 1×1).** The DT leads none of the eight
+  single-intersection data tiers we measured — a descriptive count, not an inferential claim.
+  On the best tier (data from a converged MAPPO teacher), plain behaviour cloning matches the DT
+  within the registered equivalence margin (δ = 0.6263 s), while return-filtered BC and IQL beat
+  it beyond that margin (their whole 95 % CI lies past δ). About three quarters of the
+  filtered-BC advantage is checkpoint selection — keeping the episodes of the best teacher
+  checkpoints — and the rest is return ranking within them; performance falls monotonically as
+  the source checkpoints get worse, a dose-response (P4.4, P4.5).
+- **Sixteen intersections (CityFlow, synthetic 4×4 grid).** No method leads everywhere. By mean
+  travel time the non-spatial DT leads on the MAPPO-teacher tier, BC on the MaxPressure tier (by
+  0.9 s, a lead whose paired 95 % CI includes zero under the primary metric but not under the
+  earlier one), and IQL on the fixed-time tier. IQL also leads on the random tier, but that cell trained
+  on twice its declared data and is being re-run (P5.2b). The DT arms are the only arms that never
+  collapse below the random-policy anchor (P5.2).
+- **Cross-intersection attention.** Adding the cross-intersection attention path destabilises
+  training: on the best-data tier the spatial model's travel time varies across training seeds
+  about twenty times more than the non-spatial model's, and the trained spatial models barely
+  use their neighbours (median r = 0.064 against the registered threshold of 0.10; amendment
+  A22, P5.4). The spatial model's penalty is large only on that tier (+40 s); it is +0.7 s on
+  MaxPressure data, exactly zero on fixed-time data, and reversed on random data (−0.7 s)
+  (P5.1, P5.2).
+- **The return prompt.** Removing the return token raises travel time by 409 s on a corpus that
+  mixes expert and random episodes (95 % CI 394–424 s; 194 s under the earlier definition, the
+  difference being mostly time that vehicles spent waiting to enter the network); on expert data no difference is
+  detected (0.12 s, a 95 % CI that includes zero — a failure to reject, not a demonstrated
+  equivalence) (P5.3b).
 
 ### C3 — CityFlow → SUMO transfer
 
@@ -54,14 +75,18 @@ Transfer is scored within SUMO as ρ = (ATT_fixed-time − ATT_policy) / (ATT_fi
 so fixed-time = 0 and SUMO's own MaxPressure = 1. Raw travel times are never compared across
 simulators.
 
-- **Zero-shot, no SUMO data.** On the single intersection the CityFlow-trained DT reaches
-  ρ = +1.89 [+1.86, +1.92], better than SUMO's MaxPressure. On the 4×4 grid it reaches
+- **Zero-shot, no SUMO data.** On the single intersection the CityFlow-trained DT (MAPPO-teacher
+  data) reaches ρ = +1.89 [+1.86, +1.92], better than SUMO's MaxPressure; trained on mixed data it
+  reaches +1.73 [+1.69, +1.77]. On the 4×4 grid the non-spatial DT reaches
   ρ = +0.89 [+0.87, +0.90] (P7.3a, P7.3d).
-- **Full-retrain anchor.** A DT trained from scratch on 200 SUMO MaxPressure episodes copies its
-  demonstrator: ρ = +0.98 [+0.97, +1.00], far below the zero-shot start (P7.3b).
-- **Few-shot, 4×4 grid.** Fine-tuning on 100 SUMO MaxPressure episodes closes 61.9 %
-  [50.3 %, 73.5 %] of the zero-shot gap to MaxPressure (exploratory). Fine-tuning on five episodes
-  makes the model worse (P7.3c).
+- **Full-retrain anchor (single intersection).** A DT trained from scratch on 200 SUMO
+  MaxPressure episodes reproduces its demonstrator, ρ = +0.98 [+0.97, +1.00], below the zero-shot
+  +1.89. Behaviour cloning on MaxPressure demonstrations is pinned near ρ = 1 by construction, so
+  the gap reflects demonstration quality, not harm from target-domain data (P7.3b, amendment
+  A19(c)).
+- **Few-shot, 4×4 grid (exploratory).** Fine-tuning on 100 SUMO MaxPressure episodes closes
+  61.9 % [50.3 %, 73.5 %] of the zero-shot gap to MaxPressure. Fine-tuning on five episodes makes
+  the model worse: ρ = +0.77 [+0.76, +0.79] against the zero-shot +0.89 (P7.3c).
 - **Scope.** The gap is measured under one frozen feature alignment between the simulators
   (amendment A16). An interface-mismatch component has not been separated from it, so the paper
   does not call it a dynamics gap without that qualifier (A25).
@@ -71,10 +96,11 @@ simulators.
 On the single-intersection scenario (MAPPO-teacher data, 100 held-out demand draws, five
 training seeds per arm), an improvement with context length K ∈ {1, 2, 5, 10, 20} is **not
 detected**. The registered trend contrast is +1.2762 [+0.6927, +1.8597]; a positive value means
-travel time rises with K. In every training seed, K = 1 and K = 2 fall short of K = 20 by less
-than the registered margin δ. The data point toward longer context being slightly worse, but that
-direction is not established across seeds. On this corpus, context length does not explain
-DataLight's negative result (P5.3c, outcome (iii)).
+travel time rises with K. Descriptively, in no training seed is K = 1 or K = 2 worse than K = 20
+by the registered margin δ = 0.63 s, and pooled over seeds both are slightly better than K = 20.
+The data point toward longer context being slightly worse, but that direction is not established
+across seeds. This sweep therefore gives no support, on this corpus, to context length as the
+explanation of DataLight's negative result (P5.3c, outcome (iii)).
 
 ### Compute and latency
 
@@ -82,16 +108,16 @@ Median time per decision, measured inside real episodes:
 
 | | one CPU thread | GPU |
 |---|---|---|
-| DT, K = 20 (1×1) | 1.43 ms | 1.80 ms |
+| DT, K = 20 (1×1, the H4 sweep's model) | 1.43 ms | 1.80 ms |
 | DT, K = 1 (1×1) | 0.76 ms | 1.63 ms |
 | BC / IQL (1×1) | 0.33 / 0.47 ms | 0.64 / 0.77 ms |
 | MAPPO (1×1) | 0.28 ms | 1.09 ms |
-| Spatial DT, all 16 intersections (4×4) | 18–21 ms | 3.1–3.7 ms |
+| DT, all 16 intersections (4×4; spatial and non-spatial variants) | 18–21 ms | 3.1–3.7 ms |
 | MaxPressure (1×1 / 4×4) | 0.01 / 0.25 ms | — |
 
 Every controller decides far faster than the 10-second action interval used throughout. The
-numbers come from one laptop (Intel Core Ultra 9 275HX, RTX 5080, Linux under WSL2, mains power,
-Windows "Best performance" mode). `docs/data/p8_2_compute.json` holds the full table with training
+numbers come from one laptop (Intel Core Ultra 9 275HX, RTX 5080 Laptop GPU, Linux under WSL2,
+mains power, Windows "Best performance" mode); P4's own K = 20 DT times at 1.40 / 1.78 ms. `docs/data/p8_2_compute.json` holds the full table with training
 cost and parameter counts, and it carries the caveats the numbers need: p95 sensitivity, the
 noise floor between identical computations, and MAPPO's per-intersection GPU transfers (P8.2).
 
@@ -119,24 +145,26 @@ thesis at the Faculty of Mathematics, Informatics and Mechanics, University of W
 > Supervisor: mgr Grzegorz Grudziński
 
 Their contribution is the simulator-agnostic framework itself. It abstracts the simulator layer so
-that agents, rewards, metrics and experiments run unchanged against CityFlow, SUMO or MOSS, and it
-removes the performance bottlenecks of the earlier SUMO-only RESCO TensorCell environment.
+that agents, rewards, metrics and experiments run unchanged against CityFlow, SUMO or MOSS, and,
+according to the thesis, it trains about three times faster than the RESCO TensorCell environment it
+replaces (in-process libsumo and metric caching).
 
 | Path | What it is |
 |---|---|
 | `envs/` | The three simulator backends behind one Gymnasium-style API |
-| `agent/` (except the three files listed under the research part) | IDQN, IPPO and MAPPO agents, MaxPressure and fixed-time baselines |
-| `algorithms/`, `states/`, `metrics/`, `rewards.py` | Learning algorithms, observation features, the metrics pipeline, reward functions |
+| `agent/` (except the three files listed under the research part) | IDQN (including a RESCO-parity PFRL variant), IPPO and MAPPO agents |
+| `algorithms/`, `states/`, `metrics/`, `rewards.py` | The MaxPressure baseline, observation features, the metrics pipeline, reward functions |
 | `experiments/` | The config-driven `agents × environments × seeds` framework |
 | `CityFlow/` | Vendored CityFlow, patched to build on Python 3.12+ |
 | `docs/architecture.md` and the other platform docs | Documentation of all of the above |
 
-That work is described in [`docs/README.md`](docs/README.md) and summarised under
-[Simulation platform](#simulation-platform) below.
+Experiments compare against random and MaxPressure baselines. That work is described in
+[`docs/README.md`](docs/README.md) and summarised under [Simulation platform](#simulation-platform)
+below.
 
 It builds on work by others: the [RESCO benchmark](https://github.com/Pi-Star-Lab/RESCO)
-(Ault & Sharon, NeurIPS Datasets & Benchmarks 2021), whose evaluation protocol, configurable state
-and reward formulations, phase-transition semantics and several scenarios it retains; the
+(Ault & Sharon, NeurIPS Datasets & Benchmarks 2021), whose configurable state and reward
+formulations, phase-transition semantics and several scenarios it retains; the
 TensorCell research group's RESCO fork; and the
 [CityFlow](https://github.com/cityflow-project/CityFlow), [SUMO](https://eclipse.dev/sumo/) and
 [MOSS](https://github.com/tsinghua-fib-lab/moss) simulators.
@@ -147,7 +175,7 @@ Built on top of that platform by **Filip Rusiecki**, supervised by Paweł Gora:
 
 | Path | What it is |
 |---|---|
-| `offline/` | Trajectory logging, the corpus loader, offline training and evaluation, statistical gates, CityFlow → SUMO alignment and transfer, the context-length sweep, the compute-and-latency harness |
+| `offline/` | Trajectory logging, the corpus loader, offline training and evaluation, the fixed-time controller (`offline/policies/fixed_time.py`), statistical gates, CityFlow → SUMO alignment and transfer, the context-length sweep, the compute-and-latency harness |
 | `offline/campaigns/` | Drivers for the long runs; the later ones refuse to start without the author's run token |
 | `agent/DTAgent.py`, `agent/SpatialDTAgent.py`, `agent/OfflineBaselines.py` | This project's implementations of the Decision Transformer, its spatial (cross-intersection attention) variant, and the BC, filtered-BC and IQL baselines |
 | `calibration/` | External calibration of the IQL implementation on D4RL (P8.3) |
@@ -170,19 +198,23 @@ research changes it only where the change is documented as a contract.
 Every number in the repository depends on this protocol.
 
 - **Pre-registration before measurement.** Decision thresholds, primary metrics and equivalence
-  margins are committed and git-tagged (`v*-prereg-*`) before the run that tests them. The original
-  registration is deposited on Zenodo (record DOI
-  [10.5281/zenodo.21968773](https://zenodo.org/records/21968773)). Amendments are dated and state
-  whether results had been seen; registered text is never edited.
+  margins are committed and git-tagged (`v*-prereg-*`) before the run that tests them. The
+  registration as amended through A9 (tag `v1.0-prereg-a9`) is deposited on Zenodo (record DOI
+  [10.5281/zenodo.21968773](https://zenodo.org/records/21968773)). Later amendments are dated,
+  tagged and state whether results had been seen; registered wording is never altered (two
+  registered lines carry dated in-place qualifications from 2026-08-07).
 - **Held-out evaluation.** A registered split reserves demand draws 1000–1099, which no training run
   may see; the loader enforces it.
-- **Paired statistics.** Every arm is evaluated on the identical draw set, compared with paired
-  non-parametric tests, and reported with confidence intervals and effect sizes. The primary metric
-  is average travel time counted over every vehicle the demand created, including vehicles still
-  waiting to enter, so a policy cannot score well by keeping vehicles out.
-- **Independent review before merge.** Each task is reviewed by a session that did not write it,
-  using mutation testing: a test that survives the mutation it claims to catch counts as no
-  coverage. New test files are also run once in a depth-1 clone, the way CI checks the
+- **Paired comparisons.** Every arm is evaluated on the identical held-out draw set, and arms are
+  compared paired over draws, with 95 % confidence intervals. The primary metric (`att_engine`,
+  amendment A11's Rule R) is average travel time counted over every vehicle the demand created,
+  including vehicles still waiting to enter, so a policy cannot score well by keeping vehicles
+  out.
+- **Independent review before merge.** Critical-path tasks are reviewed before merge by a session
+  that did not write them, using mutation testing: a test that survives the mutation it claims to
+  catch counts as no coverage. Two merges (P7.0, P8.3) carried no independent review, and their
+  numbers are kept out of the paper until one exists. Since October 2026, new and changed test
+  files are also run once in a depth-1 clone at every merge review, the way CI checks the
   repository out.
 - **Verify the artifact, not its description.** Claims are checked against the committed data,
   recomputed by an independent route, never against the report that summarises them.
@@ -236,8 +268,9 @@ The [`CityFlow/`](CityFlow/) directory is a vendored copy of the upstream
 [CityFlow simulator](https://github.com/cityflow-project/CityFlow), patched so it builds and runs
 on Python 3.12+ (upstream does not). Install it from this repository, not from PyPI or upstream.
 
-SUMO and MOSS are optional; install them only for those backends (`eclipse-sumo` /
-`python-moss`). The C3 transfer results need SUMO.
+The SUMO and MOSS engines are optional; install them only for those backends (`eclipse-sumo` /
+`python-moss`; MOSS needs Linux and CUDA). SUMO's Python client (`traci`) is installed with the
+package. The C3 transfer results need SUMO.
 
 ## Quick start
 
@@ -272,8 +305,9 @@ pytest
 
 Backend-specific tests skip when an engine is not installed. Tests that need local data skip
 unless their environment variables point at it: the output tree (`RLTRAFFIC_OUTPUT_ROOT`), the
-corpora (`RLTRAFFIC_CORPUS_V11`, `RLTRAFFIC_SUMO_CORPORA`), the scenario draws (`RLTRAFFIC_DRAWS`)
-and the RESCO grid (`RLTRAFFIC_GRID4X4_RESCO`). With the data present, the gated regression tests
+corpora (`RLTRAFFIC_CORPUS_V11`, `RLTRAFFIC_CORPUS`, `RLTRAFFIC_SUMO_CORPORA`), P4's checkpoints
+(`RLTRAFFIC_P4_DT_CHECKPOINTS`), the scenario draws (`RLTRAFFIC_DRAWS`) and the RESCO grid
+(`RLTRAFFIC_GRID4X4_RESCO`). With the data present, the gated regression tests
 regenerate committed artifacts from the raw outputs and compare them byte for byte. CI runs the
 rest, and `.github/ci/ci_baseline.json` pins how many tests may skip there.
 
