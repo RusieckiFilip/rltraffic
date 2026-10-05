@@ -1425,3 +1425,33 @@ def test_c3_sensitivity_and_variability_equal_the_coordinators_third_route(real_
     assert variability["summary"]["episode_spread_max"] == summary["episode_spread_max"]
     assert variability["summary"]["same_computation_spread_max"] == {
         "hz1x1": summary["same_computation_spread_max_hz1x1"], "grid4x4": summary["same_computation_spread_max_grid4x4"]}
+
+
+# ----------------------------------------------------------------------
+# T-regress: the committed artifact docs/data/p8_2_compute.json (BRIEF_43 §8, Amendment C, C3.6)
+# ----------------------------------------------------------------------
+
+
+def test_t_regress_the_committed_artifact_regenerates_byte_identically(real_artifact: dict[str, Any],
+                                                                       tmp_path: Path) -> None:
+    """Gated: the builder at this commit, on G2's run and the pinned records, regenerates the committed bytes -- the git
+    block it was built at being the one input a later commit cannot regenerate, so it is read from the committed file."""
+    committed = DATA / "p8_2_compute.json"
+    assert committed.is_file(), f"{committed} is not committed"
+    regenerated = tmp_path / "p8_2_compute.json"
+    ct.write_artifact(regenerated, real_artifact)
+    assert hashlib.sha256(regenerated.read_bytes()).hexdigest() == hashlib.sha256(committed.read_bytes()).hexdigest()
+    assert regenerated.read_bytes() == committed.read_bytes()
+
+
+def test_the_committed_artifact_is_consistent_with_its_own_summaries_and_c12s_nine_groups() -> None:
+    """Ungated (CI): the committed artifact's groups are C1.2's nine, and its two generated sentences are the ones its
+    own summaries generate."""
+    artifact = json.loads((DATA / "p8_2_compute.json").read_text())
+    assert artifact["format_version"] == ct.FORMAT_VERSION and len(artifact["rows"]) == 44
+    assert artifact["git"]["dirty"] is False and artifact["latency_run"]["stamp"] == REAL_RUN
+    assert {frozenset(group["rows"]) for group in artifact["latency_variability"]["groups"]} == _NINE
+    said = artifact["what_this_does_not_say"]
+    assert said[:len(ct.WHAT_THIS_DOES_NOT_SAY)] == list(ct.WHAT_THIS_DOES_NOT_SAY)
+    assert said[len(ct.WHAT_THIS_DOES_NOT_SAY):] == [ct.sensitivity_sentence(artifact["latency_sensitivity"]["summary"]),
+                                                     ct.variability_sentence(artifact["latency_variability"]["summary"])]
