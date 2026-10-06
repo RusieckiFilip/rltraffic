@@ -1759,8 +1759,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"artifact: {report_stage(roots)}", flush=True)
         elif args.command == "preflight":
             record = preflight(roots, stamp=args.stamp, steps=args.steps, draws=PREFLIGHT_DRAWS)
+            path = Path(roots.out_root) / "preflight.json"
             print(f"pre-flight {args.stamp}: {record['status']}" + (f" ({'; '.join(record['reasons'])})"
                                                                    if record["reasons"] else ""), flush=True)
+            print(f"record {path} sha256 {_sha256_file(path)}", flush=True)
             return 0 if record["status"] == "COMPLETE" else 1
     except (ValueError, PermissionError, FileExistsError, FileNotFoundError, RuntimeError) as exc:
         print(f"REFUSED: {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
