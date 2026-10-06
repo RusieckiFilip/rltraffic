@@ -608,7 +608,8 @@ RECORD_SHAPED = {"dt_spatial": 254.6, "dt_nomix": 255.3, "bc": 289.4, "bc_top10"
                  "iql": 191.0}
 
 
-@pytest.mark.parametrize("case", ["record_shaped", "iql_corrected_late", "a_dt_arm_leads", "exact_tie"])
+@pytest.mark.parametrize("case", ["record_shaped", "iql_corrected_late", "a_dt_arm_leads", "exact_tie",
+                                  "nomix_strictly_lowest", "q3c_not_resolved"])
 def test_t_statements_every_statement_equals_this_files_own_computation(case: str) -> None:
     levels = dict(RECORD_SHAPED)
     ties: tuple[str, ...] = ()
@@ -618,6 +619,10 @@ def test_t_statements_every_statement_equals_this_files_own_computation(case: st
         levels.update({"dt_spatial": 180.0, "iql": 200.0})
     elif case == "exact_tie":
         ties = ("bc_top10_perix",)
+    elif case == "nomix_strictly_lowest":
+        levels["dt_nomix"] = 150.0
+    elif case == "q3c_not_resolved":
+        levels["iql"] = levels["dt_nomix"]
     cells = _cells(levels, ties=ties)
     got = ic.random_tier_statements(cells, with_hard_subset=True)
     measured = {m: _mean(cells[(m, "random")]) for m in ts.METHODS}
@@ -654,6 +659,11 @@ def test_t_statements_every_statement_equals_this_files_own_computation(case: st
     assert got["q1"]["iql_random"] == entry
     assert (got["q1"]["n_held"], got["q1"]["threshold"], got["q1"]["outcome"]) == (q1["n_held"], q1["threshold"],
                                                                                    q1["outcome"])
+    if case == "nomix_strictly_lowest":  # Amendment B.1, item 2: the HELD branches of Q2a and Q3a (M1, M2)
+        assert (got["q2a"]["outcome"], got["q3a"]["outcome"], got["q3c"]["reading"]) == (
+            "HELD", "HELD", "resolves for the DT")
+    if case == "q3c_not_resolved":  # Amendment B.1, item 2: Q3c's CI straddles zero (M3)
+        assert (got["q3c"]["best_non_dt"], got["q3c"]["reading"]) == ("iql", "NOT RESOLVED")
 
 
 def test_t_statements_a_tie_for_first_is_not_a_held_first_place() -> None:
@@ -969,6 +979,7 @@ def test_t_reproduce_c_the_recomputation_fed_the_original_files_reproduces_every
     assert f"{entry['measured']:.2f}" == COMMITTED["q1_iql_random_measured_2dp"]
     assert entry["predicted"] == COMMITTED["q1_iql_random_predicted"] and entry["held"] is False
     assert (got["q1"]["n_held"], got["q1"]["threshold"], got["q1"]["outcome"]) == (15, 14, "HELD")
+    assert got["q1"]["n_cells"] == 19, "Q1 is scored over P5.2's 19 out-of-sample cells (Amendment B, B1.7(a))"
     assert got["ranking"]["order"] == COMMITTED["ranking"]
     assert (got["q2a"]["measured_first"], got["q2a"]["outcome"]) == (COMMITTED["q2a_first"], "FAILED")
     assert (got["q2b"]["n_concordant"], got["q2b"]["outcome"]) == (COMMITTED["q2b_concordant"], "FAILED")
@@ -1007,6 +1018,27 @@ def test_t_reproduce_c_the_att_engine_half_equals_this_files_own_recomputation_a
     episodes = {(m, "random"): [EpisodeResult(f"{m}@random", s, d, raw[(m, "random")][(s, d)], 0.0, 0.0)
                                 for (s, d) in sorted(raw[(m, "random")])] for m in ts.METHODS}
     assert (got["q3c"]["mean"], got["q3c"]["ci95_low"], got["q3c"]["ci95_high"]) == _my_q3c(episodes, best)
+    # Amendment B, B1.7(b): Q1, Q2a, Q3a, IQL's five pairs and Q3c's reading, each against this test's own route.
+    mine = {cell: float(np.asarray([values[key] for key in sorted(values)], dtype=np.float64).mean())
+            for cell, values in raw.items()}
+    q1 = ts.score_level(mine)
+    assert got["q1"]["iql_random"] == next(c for c in q1["cells"] if c["cell"] == ["iql", "random"])
+    assert (got["q1"]["n_held"], got["q1"]["n_cells"], got["q1"]["outcome"]) == (q1["n_held"], 19, q1["outcome"])
+    own = {m: mine[(m, "random")] for m in ts.METHODS}
+    firsts = [m for m in ts.METHODS if own[m] == min(own.values())]
+    assert (got["q2a"]["measured_first"], got["q2a"]["outcome"]) == (
+        sorted(ts.METHODS, key=lambda m: own[m])[0], "HELD" if firsts == ["dt_nomix"] else "FAILED")
+    lower = sum(own[m] < own["dt_nomix"] for m in ts.METHODS if m != "dt_nomix")
+    assert (got["q3a"]["rank"], got["q3a"]["outcome"]) == (1 + lower, "HELD" if all(
+        own[m] > own["dt_nomix"] for m in ts.METHODS if m != "dt_nomix") else "FAILED")
+    predicted = list(ts.predicted_order("random"))
+    pairs = {pair: own[pair[0]] != own[pair[1]] and (
+        (predicted.index(pair[0]) < predicted.index(pair[1])) == (own[pair[0]] < own[pair[1]]))
+             for pair in itertools.combinations(sorted(ts.METHODS), 2) if "iql" in pair}
+    assert {tuple(p["pair"]): p["concordant"] for p in got["q2b"]["iql_pairs"]} == pairs
+    _, low, high = _my_q3c(episodes, best)
+    assert got["q3c"]["reading"] == ("resolves against the DT" if low > 0 else
+                                     "resolves for the DT" if high < 0 else "NOT RESOLVED")
 
 
 # ======================================================================
@@ -1281,3 +1313,617 @@ def test_assert_training_inputs_refuses_inputs_that_are_not_the_declared_data(tm
         original["stats"] = {**original["stats"], "split": "heldout"}
     with pytest.raises(ValueError, match=message):
         ic.assert_training_inputs(inputs, declared, original)
+
+
+# ======================================================================
+# BRIEF_44 Amendment B and B.1 (gate G1, FIX FIRST).  Each test names its item; the tests of a guard that already existed
+# (B1.2, B1.6(c), B.1 item 2's guards) are green on the code they guard and proven by their mutants, not by a red run.
+# ======================================================================
+
+
+_HYPERPARAMETERS = ("batch_size", "learning_rate", "weight_decay", "grad_clip", "tau", "beta", "gamma", "polyak",
+                    "weight_clip", "gradient_steps", "training_streams", "reward_scale", "torch_num_threads")
+
+
+def _p8_4b_cell(record: Any, arm: str, seed: int, draw: int) -> Path:
+    from offline.att_rederivation import CellKey, cell_file_name
+
+    return record.roots.output_root / "p8_4b_rederivation" / cell_file_name(CellKey("grid4x4", arm, seed, draw))
+
+
+def _rewrite(path: Path, change: Any) -> None:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    change(payload)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+# ---------------------------------------------------------------- B1.1: A1.4's third anchor, enforced
+
+
+@pytest.mark.parametrize("definition", ["att_engine", "att_ours"])
+def test_b1_1_a_p8_4b_value_off_the_c1_notes_mean_is_refused_naming_the_arm(tmp_path: Path, monkeypatch: Any,
+                                                                            definition: str) -> None:
+    """One ``bc@random`` cell of P8.4b moved by 1/64 under *definition*: its arm's ``statistics.mean`` no longer equals
+    the C1 note's, and the report -- and the pre-token check, which runs the same input verification -- refuse,
+    naming the arm and the definition, before any P8.4b value is read."""
+    record = fx.write_synthetic_record(tmp_path)
+    fx.install_synthetic_protocol(monkeypatch, record)
+    fx.write_synthetic_run(record)
+    ic.write_run_manifest(record.roots, ic.protected_roots(record.roots))
+    ic.build_report(record.roots, git=_git(), pins=record.pins)
+
+    def nudge(payload: dict[str, Any]) -> None:
+        payload[definition] += 1.0 / 64.0
+
+    _rewrite(_p8_4b_cell(record, "bc@random", record.seeds[0], record.draws[0]), nudge)
+    with pytest.raises(ValueError, match=f"bc@random.*{definition}"):
+        ic.build_report(record.roots, git=_git(), pins=record.pins)
+    with pytest.raises(ValueError, match=f"bc@random.*{definition}"):
+        ic.check(record.roots, pins=record.pins, require_cuda=False)
+
+
+def test_b1_1_the_note_check_reads_each_cell_by_its_key(tmp_path: Path) -> None:
+    """The anchor reads the 500 (here 6) cells of each arm from the verified campaign list by P8.4b's own file names,
+    and a file that is not the cell its name says is refused, whatever its values."""
+    record = fx.write_synthetic_record(tmp_path)
+    output = record.roots.output_root
+    campaign = ic.assert_p8_4b_campaign(output, pins=record.pins)
+    note = json.loads((record.roots.repo_root / ic.C1_NOTE_RELPATH).read_text(encoding="utf-8"))
+    checked = ic.assert_c1_note_means(output, campaign["cells"], note)
+    assert checked["arms"] == sorted(ts.METHODS) and checked["definitions"] == list(ic.DEFINITIONS)
+    assert checked["cells_per_arm"] == {m: len(record.seeds) * len(record.draws) for m in ts.METHODS}
+
+    def elsewhere(payload: dict[str, Any]) -> None:
+        payload["draw_id"] = record.draws[-1] + 1
+
+    _rewrite(_p8_4b_cell(record, "dt_nomix@random", record.seeds[0], record.draws[0]), elsewhere)
+    with pytest.raises(ValueError, match="not the cell its name"):
+        ic.assert_c1_note_means(output, campaign["cells"], note)
+
+
+# ---------------------------------------------------------------- B1.2: A1.4's second anchor, tested (PM4)
+
+
+def test_b1_2_a_p8_4b_cell_whose_att_ours_is_not_p5_2s_att_horizon_is_refused(tmp_path: Path) -> None:
+    record = fx.write_synthetic_record(tmp_path)
+    output = record.roots.output_root
+    reference = ic.p5_2_cells(output, ic.p5_2_sums(output, pins=record.pins))
+    assert len(ic._p8_4b_rows(output, "iql", "random", reference[("iql", "random")])) == len(record.seeds) * len(
+        record.draws)
+
+    def off(payload: dict[str, Any]) -> None:
+        payload["att_ours"] += 0.5
+
+    cell = _p8_4b_cell(record, "iql@random", record.seeds[-1], record.draws[-1])
+    kept = cell.read_bytes()
+    _rewrite(cell, off)
+    assert json.loads(cell.read_text())["reproduces_committed"] is True
+    with pytest.raises(ValueError, match="does not reproduce P5.2's committed att_horizon"):
+        ic._p8_4b_rows(output, "iql", "random", reference[("iql", "random")])
+    cell.write_bytes(kept)
+    _rewrite(_p8_4b_cell(record, "bc@maxpressure", record.seeds[0], record.draws[0]), off)
+    with pytest.raises(ValueError, match="does not reproduce P5.2's committed att_horizon"):
+        ic.p8_4b_cells(output, reference, definition="att_engine", pins=record.pins)
+
+
+# ---------------------------------------------------------------- B1.3: no second realisation
+
+
+def test_b1_3_a_complete_training_whose_closing_canary_is_missing_is_never_trained_again(
+    tmp_path: Path, monkeypatch: Any, keep_torch_threads: Any
+) -> None:
+    """The closing canary failed after a complete training (no file).  The restart accepts the state, refuses to train
+    and trains nothing; ``close-late`` writes the training record's addendum before the late canary; the report says
+    the seconds are bracketed by the opening canary only, with the training's end and the closing canary's time."""
+    record, iql = _synthetic_run_setup(tmp_path, monkeypatch)
+    roots, pins, out = record.roots, record.pins, record.roots.out_root
+    _write_canary(out, "open")
+    ic.train_stage(roots, pins=pins)
+    trained = len(iql.calls)
+    assert trained == len(record.seeds)
+    state = ic.status(roots, pins=pins)
+    assert (state["training"], state["canaries"]) == ("complete", "closing_pending")
+    assert ic.check(roots, pins=pins, require_cuda=False)["state"] == "resumable"
+    with pytest.raises(ValueError, match="training stage is complete"):
+        ic.train_stage(roots, pins=pins)
+    assert len(iql.calls) == trained
+
+    training_path = out / "training_random_iql.json"
+    training = json.loads(training_path.read_text(encoding="utf-8"))
+    assert training["finished_utc"] and set(training["hyperparameters"]) == set(_HYPERPARAMETERS)
+    mark = ic.close_late_stage(roots, pins=pins)
+    assert mark == out / "training_random_iql.late_close.json"
+    written = json.loads(mark.read_text(encoding="utf-8"))
+    assert written["format_version"] == "p5.2b-late-close/1.0"
+    assert written["training_record"]["sha256"] == _sha256(training_path)
+    assert written["training_finished_utc"] == training["finished_utc"] and written["marked_utc"]
+    assert "opening canary only" in written["bracket"]
+    kept = mark.read_bytes()
+    assert ic.close_late_stage(roots, pins=pins) == mark and mark.read_bytes() == kept, "re-entered, it writes nothing"
+    _write_canary(out, "close", seconds=0.75)
+    assert ic.status(roots, pins=pins)["canaries"] == "complete"
+    with pytest.raises(ValueError, match="taken late only after a complete training"):
+        ic.close_late_stage(roots, pins=pins)
+
+    ic.evaluate_p5_2_stage(roots, pins=pins)
+    ic.evaluate_p8_4b_stage(roots, pins=pins)
+    ic.manifest_stage(roots, pins=pins)
+    artifact = json.loads(ic.report_stage(roots, pins=pins).read_text(encoding="utf-8"))
+    seconds = artifact["training"]["seconds"]
+    assert "opening canary only" in seconds["bracketed_by"] and "after a restart" in seconds["bracketed_by"]
+    assert seconds["training_finished_utc"] == training["finished_utc"]
+    assert seconds["closing_canary_utc"] == json.loads((out / "canary_close.json").read_text())["written_utc"]
+    assert seconds["late_close"]["sha256"] == _sha256(mark)
+    assert "after a restart" in artifact["what_this_does_not_say"][-1]
+    listed = (record.roots.output_root / "SHA256SUMS_p5_2b.txt").read_text(encoding="utf-8")
+    assert f"{_sha256(mark)}  p5_2b/training_random_iql.late_close.json" in listed.splitlines()
+    assert len(iql.calls) == trained, "the restart trained nothing"
+
+
+def test_b1_3_a_closing_canary_taken_in_its_run_brackets_the_seconds_with_both_canaries(tmp_path: Path,
+                                                                                       monkeypatch: Any) -> None:
+    record = fx.write_synthetic_record(tmp_path)
+    fx.install_synthetic_protocol(monkeypatch, record)
+    fx.write_synthetic_run(record)
+    ic.write_run_manifest(record.roots, ic.protected_roots(record.roots))
+    artifact = ic.build_report(record.roots, git=_git(), pins=record.pins)
+    seconds = artifact["training"]["seconds"]
+    assert seconds["bracketed_by"].startswith("the opening and the closing canary") and seconds["late_close"] is None
+    out = record.roots.out_root
+    assert seconds["closing_canary_utc"] == json.loads((out / "canary_close.json").read_text())["written_utc"]
+    assert artifact["what_this_does_not_say"][-1].endswith("measured between two machine-health canaries.")
+
+
+@pytest.mark.parametrize("state", ["no_training", "both_canaries", "no_canary", "foreign_mark"])
+def test_b1_3_close_late_refuses_unless_a_complete_training_misses_only_its_closing_canary(
+    tmp_path: Path, monkeypatch: Any, state: str
+) -> None:
+    record = fx.write_synthetic_record(tmp_path)
+    fx.install_synthetic_protocol(monkeypatch, record)
+    out = record.roots.out_root
+    message = "taken late only after a complete training"
+    if state == "no_training":
+        _write_canary(out, "open")
+    elif state == "both_canaries":
+        fx.write_synthetic_run(record, stages=("training", "canaries"))
+    elif state == "no_canary":
+        fx.write_synthetic_run(record, stages=("training",))
+    else:
+        fx.write_synthetic_run(record, stages=("training",))
+        _write_canary(out, "open")
+        (out / "training_random_iql.late_close.json").write_text(json.dumps({
+            "format_version": "p5.2b-late-close/1.0", "training_record": {"sha256": "0" * 64}}), encoding="utf-8")
+        message = "does not name this training record"
+    before = _tree_digest(out)
+    with pytest.raises(ValueError, match=message):
+        ic.close_late_stage(record.roots, pins=record.pins)
+    assert _tree_digest(out) == before
+
+
+def test_b1_3_the_report_refuses_a_late_close_mark_that_names_another_training_record(tmp_path: Path,
+                                                                                      monkeypatch: Any) -> None:
+    record = fx.write_synthetic_record(tmp_path)
+    fx.install_synthetic_protocol(monkeypatch, record)
+    fx.write_synthetic_run(record)
+    (record.roots.out_root / "training_random_iql.late_close.json").write_text(json.dumps({
+        "format_version": "p5.2b-late-close/1.0", "training_record": {"sha256": "0" * 64}}), encoding="utf-8")
+    ic.write_run_manifest(record.roots, ic.protected_roots(record.roots))
+    with pytest.raises(ValueError, match="does not name this run's training record"):
+        ic.build_report(record.roots, git=_git(), pins=record.pins)
+
+
+# ---------------------------------------------------------------- B1.6(a): the output root is P5.2's, never nested
+
+
+def test_b1_6a_an_output_root_without_p5_2s_manifest_is_refused(tmp_path: Path) -> None:
+    bare = tmp_path / "bare"
+    bare.mkdir()
+    with pytest.raises(PermissionError, match="holds no SHA256SUMS_p5_2"):
+        ic.assert_out_root(bare / "p5_2b", bare)
+    assert list(bare.iterdir()) == []
+
+
+def test_b1_6a_no_output_root_nested_in_an_output_tree_is_ever_accepted(tmp_path: Path) -> None:
+    """RA1's two unexpected cases: ``output/p5_2`` given as the output root was accepted by the barrier, and a file
+    was written under it.  Each barrier function now refuses it, nothing is created, and a copy of P5.2's manifest
+    placed inside ``output/p5_2`` does not make it an output root either."""
+    roots = _fake_roots(tmp_path)
+    output = roots.output_root
+    nested = ic.Roots(**{**roots.__dict__, "output_root": output / "p5_2", "out_root": output / "p5_2" / "p5_2b"})
+    before = _listing(output)
+    for message in ("holds no SHA256SUMS_p5_2", "lies inside"):
+        with pytest.raises(PermissionError, match=message):
+            ic.assert_out_root(nested.out_root, nested.output_root)
+        with pytest.raises(PermissionError, match=message):
+            ic.protected_roots(nested)
+        with pytest.raises(PermissionError, match=message):
+            ic.assert_target(nested.out_root / "x.json", nested, ())
+        with pytest.raises(PermissionError, match=message):
+            ic.write_once_json(nested.out_root / "x.json", {"a": 1}, nested, ())
+        assert _listing(output) == before
+        (output / "p5_2" / "SHA256SUMS_p5_2.txt").write_text("x\n", encoding="utf-8")
+        before = _listing(output)
+
+
+def test_b1_6a_with_pins_the_output_roots_manifest_must_be_at_the_pinned_digest(tmp_path: Path,
+                                                                                 monkeypatch: Any) -> None:
+    import dataclasses
+
+    record = fx.write_synthetic_record(tmp_path)
+    fx.install_synthetic_protocol(monkeypatch, record)
+    output = record.roots.output_root
+    assert ic.assert_out_root(output / "p5_2b", output, pins=record.pins) == (output / "p5_2b").resolve()
+    wrong = dataclasses.replace(record.pins, p5_2_sums_sha256="0" * 64)
+    with pytest.raises(PermissionError, match="not the pinned"):
+        ic.assert_out_root(output / "p5_2b", output, pins=wrong)
+    with pytest.raises(PermissionError, match="not the pinned"):
+        ic.check(record.roots, pins=wrong, require_cuda=False)
+
+
+# ---------------------------------------------------------------- B1.6(b): the thirteen hyperparameters, enforced
+
+
+def test_b1_6b_the_planned_hyperparameters_are_what_a_real_train_iql_records(tmp_path: Path, monkeypatch: Any,
+                                                                             keep_torch_threads: Any) -> None:
+    """The planned values against what offline_baselines.train_iql ITSELF writes into a checkpoint -- a real two-step
+    training on CPU on the synthetic tier, read back through the fields the original checkpoints are read by."""
+    import offline.offline_baselines as ob
+
+    corpus = tmp_path / "corpus"
+    fx.write_synthetic_tier(corpus)
+    fx.install_synthetic_tier(monkeypatch)
+    inputs = ic.training_inputs(corpus)
+    torch.set_num_threads(1)
+    planned = ic.planned_hyperparameters(inputs, gradient_steps=2)
+    assert set(planned) == set(_HYPERPARAMETERS)
+    path = tmp_path / "real.pt"
+    ob.train_iql(inputs.table, state_dim=inputs.group[0], n_actions=inputs.group[1], seed=101, declared_gradient_steps=2,
+                 batch_size=ob.IQL_BATCH_TRANSITIONS, device=torch.device("cpu"), checkpoint_path=path,
+                 stats=inputs.parts["dataset"].stats, scenario_id=ts.SCENARIO_ID, provenance=dict(inputs.provenance))
+    provenance = torch.load(path, map_location="cpu", weights_only=False)["provenance"]
+    recorded = {"batch_size": provenance["batch_size"], "learning_rate": provenance["learning_rate"],
+                "weight_decay": provenance["weight_decay"], "grad_clip": provenance["grad_clip"],
+                "gradient_steps": provenance["gradient_steps"], "training_streams": provenance["training_streams"],
+                "torch_num_threads": provenance["runtime"]["torch_num_threads"],
+                **{name: provenance["diagnostics"][name] for name in ("tau", "beta", "gamma", "polyak", "weight_clip",
+                                                                      "reward_scale")}}
+    assert planned == recorded
+
+
+@pytest.mark.parametrize("name", _HYPERPARAMETERS)
+def test_b1_6b_each_of_the_thirteen_off_the_originals_record_is_refused_naming_it(name: str) -> None:
+    planned = {"batch_size": 1280, "learning_rate": 1e-4, "weight_decay": 1e-4, "grad_clip": 0.25, "tau": 0.7,
+               "beta": 3.0, "gamma": 0.99, "polyak": 0.005, "weight_clip": 100.0, "gradient_steps": 40000,
+               "training_streams": 3200, "reward_scale": 0.7429420505200595, "torch_num_threads": 1}
+    original = {**planned, "declared_gradient_steps": 40000, "tier": "random", "device": "cuda",
+                "training_rows": 2_304_000, "git_commit": "9460800"}
+    assert ic.assert_hyperparameters(planned, original) == planned
+    drifted = {**planned, name: planned[name] * 2}
+    with pytest.raises(ValueError, match=name):
+        ic.assert_hyperparameters(drifted, original)
+    if name == "gradient_steps":
+        with pytest.raises(ValueError, match="declared_gradient_steps"):
+            ic.assert_hyperparameters(planned, {**original, "declared_gradient_steps": 20000})
+
+
+def test_b1_6b_the_training_stage_refuses_a_drifted_hyperparameter_before_training_anything(
+    tmp_path: Path, monkeypatch: Any, keep_torch_threads: Any
+) -> None:
+    import offline.offline_baselines as ob
+
+    record, iql = _synthetic_run_setup(tmp_path, monkeypatch)
+    out = record.roots.out_root
+    _write_canary(out, "open")
+    monkeypatch.setattr(ob, "IQL_TAU", 0.8)
+    with pytest.raises(ValueError, match="tau"):
+        ic.train_stage(record.roots, pins=record.pins)
+    assert iql.calls == [] and not (out / "p5_2").exists() and not (out / "training_random_iql.json").exists()
+
+
+# ---------------------------------------------------------------- B1.6(c): path (ii)'s three refusals
+
+
+def _through_the_p5_2_path(tmp_path: Path, monkeypatch: Any) -> tuple[Any, Any]:
+    record, iql = _synthetic_run_setup(tmp_path, monkeypatch)
+    out = record.roots.out_root
+    _write_canary(out, "open")
+    ic.train_stage(record.roots, pins=record.pins)
+    _write_canary(out, "close")
+    ic.evaluate_p5_2_stage(record.roots, pins=record.pins)
+    return record, iql
+
+
+def test_b1_6c_ii_refuses_when_p8_4bs_resolver_finds_another_checkpoint(tmp_path: Path, monkeypatch: Any,
+                                                                         keep_torch_threads: Any) -> None:
+    import offline.att_rederivation as ar
+
+    record, _ = _through_the_p5_2_path(tmp_path, monkeypatch)
+    originals = record.roots.output_root / "p5_2" / "checkpoints"
+    monkeypatch.setattr(ar, "rederivation_checkpoint", lambda scenario, tier, method, seed, roots: (
+        originals / f"grid4x4_{tier}_{method}_seed{seed}.pt"))
+    with pytest.raises(ValueError, match="P8.4b's resolver finds"):
+        ic.evaluate_p8_4b_stage(record.roots, pins=record.pins)
+    assert not (record.roots.out_root / "rederivation").exists()
+
+
+def test_b1_6c_ii_refuses_a_campaign_that_refused_a_cell(tmp_path: Path, monkeypatch: Any,
+                                                         keep_torch_threads: Any) -> None:
+    import dataclasses
+
+    import offline.admission_probe as ap
+
+    record, _ = _through_the_p5_2_path(tmp_path, monkeypatch)
+    honest = ap.probe_episode
+    first = (record.seeds[0], record.draws[0])
+
+    def one_off(**kwargs: Any) -> Any:
+        episode = honest(**kwargs)
+        if (int(kwargs["seed"]), int(kwargs["draw_id"])) == first:
+            return dataclasses.replace(episode, att_ours=episode.att_ours + 0.5)
+        return episode
+
+    monkeypatch.setattr(ap, "probe_episode", one_off)
+    with pytest.raises(RuntimeError, match=r"\(ii\) refused 1 cell"):
+        ic.evaluate_p8_4b_stage(record.roots, pins=record.pins)
+
+
+def test_b1_6c_ii_refuses_a_stale_cell_that_does_not_reproduce_i(tmp_path: Path, monkeypatch: Any,
+                                                                  keep_torch_threads: Any) -> None:
+    """A cell file left by an earlier attempt is skipped by P8.4b's resume, so only the stage's own re-check after the
+    campaign can see that it does not carry (i)'s value."""
+    from offline.att_rederivation import CellKey, cell_file_name
+
+    record, _ = _through_the_p5_2_path(tmp_path, monkeypatch)
+    out = record.roots.out_root
+    seed, draw = record.seeds[0], record.draws[0]
+    value = _engine_att(seed, draw) + 1.0
+    stale = fx._cell_row("iql", "random", seed, draw, value, value - 6.5,
+                         str(out / "p5_2" / "checkpoints" / f"grid4x4_random_iql_seed{seed}.pt"))
+    path = out / "rederivation" / cell_file_name(CellKey("grid4x4", "iql@random", seed, draw))
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps(stale), encoding="utf-8")
+    with pytest.raises(ValueError, match=r"does not reproduce \(i\)'s att_horizon"):
+        ic.evaluate_p8_4b_stage(record.roots, pins=record.pins)
+
+
+# ---------------------------------------------------------------- B1.6(e): the corpus manifest, pinned
+
+
+def test_b1_6e_the_corpus_manifest_is_read_at_its_pinned_digest(tmp_path: Path, monkeypatch: Any) -> None:
+    record = fx.write_synthetic_record(tmp_path)
+    fx.install_synthetic_protocol(monkeypatch, record)
+    roots = record.roots
+    ic.declared_selection(roots.repo_root, roots.corpus_root, pins=record.pins)
+    manifest = roots.corpus_root / "cf_grid4x4__random" / "manifest.json"
+    manifest.write_text(manifest.read_text(encoding="utf-8") + " ", encoding="utf-8")
+    with pytest.raises(ValueError, match="corpus manifest"):
+        ic.declared_selection(roots.repo_root, roots.corpus_root, pins=record.pins)
+    with pytest.raises(ValueError, match="corpus manifest"):
+        ic.check(roots, pins=record.pins, require_cuda=False)
+
+
+# ---------------------------------------------------------------- B1.7: the report's precision
+
+
+def test_b1_7c_the_corrected_cells_level_must_equal_its_own_cell_mean(tmp_path: Path, monkeypatch: Any) -> None:
+    record = fx.write_synthetic_record(tmp_path)
+    fx.install_synthetic_protocol(monkeypatch, record)
+    fx.write_synthetic_run(record)
+
+    def moved(payload: dict[str, Any]) -> None:
+        payload["cell"]["att_horizon_mean"] += 1.0
+
+    _rewrite(record.roots.out_root / "eval_random_iql.json", moved)
+    ic.write_run_manifest(record.roots, ic.protected_roots(record.roots))
+    with pytest.raises(ValueError, match="not the file's own cell mean"):
+        ic.build_report(record.roots, git=_git(), pins=record.pins)
+
+
+def test_b1_7_the_report_flags_q1s_predictions_names_the_corrected_sources_and_the_notes_use(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    record = fx.write_synthetic_record(tmp_path)
+    fx.install_synthetic_protocol(monkeypatch, record)
+    fx.write_synthetic_run(record, iql_shift=60.0)
+    ic.write_run_manifest(record.roots, ic.protected_roots(record.roots))
+    artifact = ic.build_report(record.roots, git=_git(), pins=record.pins)
+    for when in ("before", "after"):
+        engine = artifact["statements"]["att_engine"][when]["q1"]["predictions_registered_on"]
+        ours = artifact["statements"]["att_ours"][when]["q1"]["predictions_registered_on"]
+        assert "att_horizon" in engine and "att_engine" in engine, engine
+        assert "att_horizon" in ours and "att_engine" not in ours, ours
+    pattern = "output/p5_2b/rederivation/cell_grid4x4_iql_at_random_*"
+    assert artifact["cells"]["corrected"]["sources"] == {
+        "att_ours": "output/p5_2b/eval_random_iql.json", "att_ours_p8_4b_path": pattern, "att_engine": pattern,
+        "admission": pattern}
+    used = artifact["inputs"]["c1_note"]["used_for"]
+    assert "statistics.mean" in used and "att_engine" in used and "att_ours" in used
+    assert "c1_rule_r.json" in artifact["inputs"]["p8_4b_campaign"]["anchor"]
+
+
+@pytest.mark.parametrize("digest", ["canonical_digest", "state_dict_sha256"])
+def test_b1_7f_a_corrected_run_carrying_an_original_weight_digest_is_refused(tmp_path: Path, monkeypatch: Any,
+                                                                            digest: str) -> None:
+    record = fx.write_synthetic_record(tmp_path)
+    fx.install_synthetic_protocol(monkeypatch, record)
+    fx.write_synthetic_run(record)
+    out = record.roots.out_root
+    original = record.roots.output_root / "p5_2" / "checkpoints" / f"grid4x4_random_iql_seed{record.seeds[0]}.pt"
+    if digest == "canonical_digest":
+        value = torch.load(original, map_location="cpu", weights_only=False)["canonical_digest"]
+    else:
+        value = ts.canonical_state_dict_digest(original)
+
+    def same(payload: dict[str, Any]) -> None:
+        payload["runs"][-1][digest] = value
+
+    _rewrite(out / "training_random_iql.json", same)
+    if digest == "state_dict_sha256":
+        def vouched(payload: dict[str, Any]) -> None:
+            payload["model_provenance"][str(record.seeds[-1])]["state_dict_sha256"] = value
+
+        _rewrite(out / "eval_random_iql.json", vouched)
+    ic.write_run_manifest(record.roots, ic.protected_roots(record.roots))
+    with pytest.raises(ValueError, match="an original's"):
+        ic.build_report(record.roots, git=_git(), pins=record.pins)
+
+
+# ---------------------------------------------------------------- B.1, item 1: P5.2's per-seed rule for Q2 (D9)
+
+
+def _seed_levels(cells: dict[tuple[str, str], list[EpisodeResult]], seed: int) -> dict[str, float]:
+    return {m: float(np.asarray([e.att_horizon for e in cells[(m, "random")] if e.seed == seed],
+                                dtype=np.float64).mean()) for m in ts.METHODS}
+
+
+def test_b_1_1_a_first_place_that_reverses_on_one_seed_is_named_as_reversing() -> None:
+    levels = dict(RECORD_SHAPED)
+    levels.update({"dt_spatial": 150.0, "dt_nomix": 151.0, "iql": 320.0})
+    cells = _cells(levels)
+    cells[("dt_spatial", "random")] = [
+        EpisodeResult(e.arm, e.seed, e.draw_id, e.att_horizon + (3.0 if e.seed == 202 else 0.0), 0.0, 0.0)
+        for e in cells[("dt_spatial", "random")]]
+    got = ic.random_tier_statements(cells, with_hard_subset=False)
+    predicted = list(ts.predicted_order("random"))
+    mine = {}
+    for seed in (101, 202, 303, 404, 505):
+        own = _seed_levels(cells, seed)
+        mine[str(seed)] = sorted(ts.METHODS, key=lambda m: own[m])
+        block = got["per_seed"]["seeds"][str(seed)]
+        assert block["levels"] == own and block["order"] == mine[str(seed)] and block["first"] == mine[str(seed)][0]
+        assert got["q2b"]["per_seed_n_concordant"][str(seed)] == _my_concordance(predicted, own, list(ts.METHODS))[0]
+    assert set(got["per_seed"]["seeds"]) == set(mine)
+    assert got["q2a"]["measured_first"] == "dt_spatial" and mine["202"][0] == "dt_nomix"
+    assert all(mine[s][0] == "dt_spatial" for s in mine if s != "202")
+    assert got["q2a"]["reverses_on_seeds"] == [202] and "202" in got["q2a"]["reversal"]
+    unreversed = ic.random_tier_statements(_cells(dict(RECORD_SHAPED)), with_hard_subset=False)
+    assert unreversed["q2a"]["reverses_on_seeds"] == [] and unreversed["q2a"]["reversal"] is None
+
+
+def test_b_1_1_the_per_seed_block_refuses_arms_that_do_not_cover_the_same_seeds() -> None:
+    cells = _cells(dict(RECORD_SHAPED))
+    cells[("bc", "random")] = [e for e in cells[("bc", "random")] if e.seed != 505]
+    with pytest.raises(ValueError, match="same seeds"):
+        ic.random_tier_statements(cells, with_hard_subset=False)
+
+
+def test_t_reproduce_c_the_per_seed_orderings_of_the_original_files_equal_this_files_own() -> None:
+    """B.1, item 1, on the real record (gated): the BEFORE per-seed orderings under both definitions equal this test's
+    own -- P5.2's eval files and P8.4b's cell files read here with json, means by numpy in draw order -- and, among
+    the five arms other than IQL, dt_spatial is first on four seeds and dt_nomix on seed 202 (RA2's measurement: the
+    AFTER first place reverses on that seed if the corrected IQL is no longer first)."""
+    output = _p8_4b_cells()
+    reference = ic.p5_2_cells(output, ic.p5_2_sums(output))
+    raw_ours: dict[tuple[str, str], dict[tuple[int, int], float]] = {}
+    for method in ts.METHODS:
+        payload = json.loads((output / "p5_2" / f"eval_random_{method}.json").read_text())
+        raw_ours[(method, "random")] = {(int(e["seed"]), int(e["draw_id"])): float(e["att_horizon"])
+                                        for e in payload["episodes"]}
+    sources = {"att_ours": raw_ours, "att_engine": _raw_cells(output, "att_engine")}
+    for definition, raw in sources.items():
+        cells = reference if definition == "att_ours" else ic.p8_4b_cells(output, reference, definition=definition)
+        got = ic.random_tier_statements(cells, with_hard_subset=False)
+        reversing = []
+        for seed in (101, 202, 303, 404, 505):
+            own = {m: float(np.asarray([v for (s, d), v in sorted(raw[(m, "random")].items()) if s == seed],
+                                       dtype=np.float64).mean()) for m in ts.METHODS}
+            order = sorted(ts.METHODS, key=lambda m: own[m])
+            assert got["per_seed"]["seeds"][str(seed)]["levels"] == own, (definition, seed)
+            assert got["per_seed"]["seeds"][str(seed)]["order"] == order, (definition, seed)
+            if order[0] != got["q2a"]["measured_first"]:
+                reversing.append(seed)
+            without_iql = [m for m in order if m != "iql"]
+            assert without_iql[0] == ("dt_nomix" if seed == 202 else "dt_spatial"), (definition, seed, without_iql)
+        assert got["q2a"]["reverses_on_seeds"] == reversing, definition
+
+
+# ---------------------------------------------------------------- B.1, item 2: every guard of the report, exercised
+
+
+@pytest.mark.parametrize("damage, message", [("policy_source", "was rolled from"),
+                                             ("committed_att_ours", r"does not reproduce \(i\)'s att_horizon")])
+def test_b_1_2_a_corrected_cell_not_rolled_from_the_corrected_checkpoint_or_not_vouched_is_refused(
+    tmp_path: Path, monkeypatch: Any, damage: str, message: str
+) -> None:
+    record = fx.write_synthetic_record(tmp_path)
+    fx.install_synthetic_protocol(monkeypatch, record)
+    fx.write_synthetic_run(record)
+    original = record.roots.output_root / "p5_2" / "checkpoints" / f"grid4x4_random_iql_seed{record.seeds[0]}.pt"
+
+    def damaged(payload: dict[str, Any]) -> None:
+        if damage == "policy_source":
+            payload["policy_source"]["checkpoint"] = str(original)
+        else:
+            payload["committed_att_ours"] += 0.5
+
+    _rewrite(sorted((record.roots.out_root / "rederivation").glob("cell_*.json"))[0], damaged)
+    with pytest.raises(ValueError, match=message):
+        ic.build_report(record.roots, git=_git(), pins=record.pins)
+
+
+def test_b_1_2_a_run_file_changed_after_the_run_manifest_is_refused_by_the_report(tmp_path: Path,
+                                                                                  monkeypatch: Any) -> None:
+    record = fx.write_synthetic_record(tmp_path)
+    fx.install_synthetic_protocol(monkeypatch, record)
+    fx.write_synthetic_run(record)
+    ic.write_run_manifest(record.roots, ic.protected_roots(record.roots))
+    canary = record.roots.out_root / "canary_close.json"
+    canary.write_text(canary.read_text(encoding="utf-8") + " ", encoding="utf-8")
+    with pytest.raises(ValueError, match="does not match its line in .*SHA256SUMS_p5_2b"):
+        ic.build_report(record.roots, git=_git(), pins=record.pins)
+
+
+def test_b_1_2_check_refuses_two_canaries_without_a_complete_training(tmp_path: Path, monkeypatch: Any) -> None:
+    record = fx.write_synthetic_record(tmp_path)
+    fx.install_synthetic_protocol(monkeypatch, record)
+    _write_canary(record.roots.out_root, "open")
+    _write_canary(record.roots.out_root, "close")
+    state = ic.status(record.roots, pins=record.pins)
+    assert (state["training"], state["canaries"]) == ("absent", "complete")
+    with pytest.raises(ValueError, match="canaries"):
+        ic.check(record.roots, pins=record.pins, require_cuda=False)
+
+
+def test_b_1_2_a_training_record_with_another_row_count_is_not_complete(tmp_path: Path, monkeypatch: Any) -> None:
+    """The completeness predicate's rows clause: a record whose runs trained on the whole tier's rows (the defect's
+    count) is not a complete corrected training, whatever else it gets right."""
+    record = fx.write_synthetic_record(tmp_path)
+    fx.install_synthetic_protocol(monkeypatch, record)
+    fx.write_synthetic_run(record, stages=("training", "canaries"))
+    assert ic.status(record.roots, pins=record.pins)["training"] == "complete"
+
+    def whole_tier(payload: dict[str, Any]) -> None:
+        for run in payload["runs"]:
+            run["training_rows"] = len(fx.CORPUS_EPISODES) * len(fx.IDS) * fx.EPISODE_LENGTH
+
+    _rewrite(record.roots.out_root / "training_random_iql.json", whole_tier)
+    assert ic.status(record.roots, pins=record.pins)["training"] == "partial"
+
+
+def test_b_1_2_the_manifest_stage_refuses_a_partial_run_and_freezes_nothing(tmp_path: Path, monkeypatch: Any) -> None:
+    record = fx.write_synthetic_record(tmp_path)
+    fx.install_synthetic_protocol(monkeypatch, record)
+    manifest = record.roots.output_root / "SHA256SUMS_p5_2b.txt"
+    fx.write_synthetic_run(record, stages=("training", "canaries", "p5_2_eval"))
+    with pytest.raises(ValueError, match="not complete"):
+        ic.manifest_stage(record.roots, pins=record.pins)
+    assert not manifest.exists()
+    fx.write_synthetic_run(record, stages=("rederivation",))
+    lines = ic.manifest_stage(record.roots, pins=record.pins)
+    assert manifest.read_text(encoding="utf-8").splitlines() == lines and lines
+
+
+def test_b_1_2_the_clis_manifest_command_is_the_gated_stage(tmp_path: Path, monkeypatch: Any, capsys: Any) -> None:
+    record = fx.write_synthetic_record(tmp_path)
+    fx.install_synthetic_protocol(monkeypatch, record)
+    monkeypatch.setattr(ic, "PINS", record.pins)
+    fx.write_synthetic_run(record, stages=("training", "canaries"))
+    roots = record.roots
+    code = ic.main(["manifest", "--output-root", str(roots.output_root), "--corpus-root", str(roots.corpus_root),
+                    "--draws-root", str(roots.draws_root), "--repo-root", str(roots.repo_root)])
+    assert code == 2 and "not complete" in capsys.readouterr().err
+    assert not (roots.output_root / "SHA256SUMS_p5_2b.txt").exists()
