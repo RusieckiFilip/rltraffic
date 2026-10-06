@@ -239,3 +239,18 @@ B1.1–B1.7 (B1.8 at the implementer's call), tests first, at most two source fi
 one-device maximum re-run and KILLED, plus one mutant per new refusal; hygiene and English; the whole suite (expect `DEFERRED` 110's
 one failure in a worktree, named); the new and changed test files once in a depth-1 clone (F.1's command); the pre-flight pinned in
 the driver → **"P5.2b C8 done"** → gate G1.1 (the coordinator re-runs PM1–PM5 and checks B1).
+
+## B.1 — Added the same evening, after reviewer RA2's final report (two items its findings file did not yet carry)
+1. **P5.2's registered per-seed rule for Q2 (D9) — the coordinator's G0 error.** `docs/plans/p5.2.md:633-634`: *"Both are reported
+   with the per-seed ordering beside the pooled one (D9): a first place that reverses on a seed is reported as reversing."* The plan
+   (§6) and Amendment A (A2, Q3) accepted a statement set without it. Required: Q2a and Q2b at the random tier reported with each
+   training seed's ordering beside the pooled one — under both definitions, before and after — and a first place that reverses on a
+   seed named as reversing. RA2 measured, from the raw P8.4b cells, that among the five arms other than IQL `dt_spatial` is first on
+   seeds 101 / 303 / 404 / 505 and `dt_nomix` on seed 202 (by ≈ 0.69 under both definitions): if the corrected IQL is no longer
+   first, the AFTER first place reverses on seed 202, and the artifact must say so. Tests: a synthetic case with a first place that
+   reverses on one seed; the real BEFORE per-seed orderings against the test's own recomputation.
+2. **Every refusal and branch the report can take, exercised (RA2 MINORs; its mutants M1–M4, M8, M9, M12 survived):** a
+   T-statements case whose Q3c CI straddles zero (NOT RESOLVED) and one where `dt_nomix` is strictly lowest (Q2a, Q3a HELD); a test for
+   each untested guard — `_corrected_rows`' `policy_source` check, the run manifest's per-file re-check, `check`'s refusal of canaries
+   without a complete training, the completeness check's `training_rows` clause; and `write_run_manifest` REFUSES unless every stage
+   is complete (a manual `manifest` call on a partial run must not freeze it as final). Each surviving mutant re-run and KILLED.
