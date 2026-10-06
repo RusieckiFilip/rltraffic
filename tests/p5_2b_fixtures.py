@@ -261,7 +261,8 @@ def _write_cells(work_dir: Path, rows: list[dict[str, Any]]) -> str:
 
 
 def _iql_checkpoint(path: Path, *, seed: int, rows: int, fill: float, stats: dict[str, Any],
-                    gradient_steps: int = 40000) -> None:
+                    gradient_steps: int = 40000, reward_scale: float = 0.7429420505200595,
+                    training_streams: int = 32) -> None:
     """A tiny file in the IQL checkpoint's shape: the provenance fields the module reads, two weight tensors."""
     import torch
 
@@ -273,13 +274,14 @@ def _iql_checkpoint(path: Path, *, seed: int, rows: int, fill: float, stats: dic
         "canonical_digest": canonical_state_dict_digest(model), "normalise": True, "scenario_id": "cityflow_grid4x4",
         "stats": stats, "intersection_ids": [],
         "provenance": {
-            "tier": "random", "dataset_dirs": ["synthetic"], "scenario_id": "cityflow_grid4x4", "training_streams": 32,
+            "tier": "random", "dataset_dirs": ["synthetic"], "scenario_id": "cityflow_grid4x4",
+            "training_streams": training_streams,
             "independent_per_intersection": True, "method": "iql", "seed": seed, "gradient_steps": gradient_steps,
             "declared_gradient_steps": gradient_steps, "batch_size": 1280, "learning_rate": 0.0001,
             "weight_decay": 0.0001, "grad_clip": 0.25, "device": "cuda",
             "runtime": {"torch_num_threads": 1, "git_commit": "9460800" + "0" * 33, "torch_version": "2.11.0+cu128",
                         "cuda_device_name": "synthetic GPU"},
-            "diagnostics": {"training_rows": rows, "reward_scale": 0.7429420505200595, "tau": 0.7, "beta": 3.0,
+            "diagnostics": {"training_rows": rows, "reward_scale": reward_scale, "tau": 0.7, "beta": 3.0,
                             "gamma": 0.99, "polyak": 0.005, "weight_clip": 100.0},
         },
     }
@@ -290,16 +292,43 @@ def _iql_checkpoint(path: Path, *, seed: int, rows: int, fill: float, stats: dic
 SYNTHETIC_STATS: dict[str, Any] = {"stats_version": "1.0", "split": "train", "draw_ids": [1, 2]}
 
 
-def write_synthetic_record(root: Path, *, seeds: Sequence[int] = SEEDS, draws: Sequence[int] = HELD_OUT) -> SyntheticRecord:
+def _tier_declaration(tier_corpus: Path) -> dict[str, Any]:
+    """The declaration a synthetic TIER implies, read through ``tier_sweep``'s own loader (the caller has installed the
+    synthetic spec): its selection, node order, stream count, reward scale, statistics and whole-tier rows."""
+    import offline.tier_sweep as ts
+    from offline.offline_baselines import iql_reward_scale
+
+    parts = ts.tier_parts("random", tier_corpus)
+    episodes = manifest_episodes(Path(tier_corpus) / RANDOM_DIR)
+    return {
+        "selected": [{"dataset_dir": e.dataset_dir, "episode_file": e.episode_file, "episode_index": e.episode_index,
+                      "flow_draw": e.flow_draw} for e in parts["episodes"]],
+        "node_order": list(parts["node_ids"]),
+        "episodes_available": len(episodes),
+        "training_streams": len(parts["streams"]),
+        "reward_scale": iql_reward_scale([s.total_return for s in parts["streams"]]),
+        "stats": parts["dataset"].stats.to_json_obj(),
+        "whole_rows": sum(int(e["episode_length"]) for e in episodes) * len(parts["node_ids"]),
+    }
+
+
+def write_synthetic_record(root: Path, *, seeds: Sequence[int] = SEEDS, draws: Sequence[int] = HELD_OUT,
+                           tier_corpus: Path | None = None) -> SyntheticRecord:
     """Everything the module reads, in miniature: P5.2's 19 Q1 cells and its manifest, the original IQL checkpoints,
-    P8.4b's campaign for the same cells, the random tier's declaration and corpus manifest, and the README note."""
+    P8.4b's campaign for the same cells, the random tier's declaration and corpus manifest, and the README note.
+
+    With *tier_corpus* (a synthetic tier written by :func:`write_synthetic_tier`, its spec installed), the declaration,
+    the corpus and the original checkpoints' scale, statistics and row count are that tier's, so the module's training
+    path runs on it end to end."""
     import offline.iql_correction as ic
     import offline.tier_sweep as ts
 
     root = Path(root)
-    output, repo, corpus, draws_root = root / "output", root / "repo", root / "corpus", root / "draws"
+    output, repo, draws_root = root / "output", root / "repo", root / "draws"
+    corpus = Path(tier_corpus) if tier_corpus is not None else root / "corpus"
     for directory in (output, repo, corpus, draws_root):
         directory.mkdir(parents=True, exist_ok=True)
+    implied = _tier_declaration(corpus) if tier_corpus is not None else None
     ours: dict[tuple[str, str], dict[tuple[int, int], float]] = {}
     engine: dict[tuple[str, str], dict[tuple[int, int], float]] = {}
     for method, tier in ts.OUT_OF_SAMPLE_CELLS:
@@ -308,10 +337,13 @@ def write_synthetic_record(root: Path, *, seeds: Sequence[int] = SEEDS, draws: S
         engine[(method, tier)] = {key: value - ENGINE_GAP - (key[1] % 3) / 8.0
                                   for key, value in ours[(method, tier)].items()}
         _write_json(output / "p5_2" / f"eval_{tier}_{method}.json", _eval_payload(method, tier, ours[(method, tier)]))
-    whole_rows = len(CORPUS_EPISODES) * len(IDS) * EPISODE_LENGTH
+    whole_rows = len(CORPUS_EPISODES) * len(IDS) * EPISODE_LENGTH if implied is None else implied["whole_rows"]
     for index, seed in enumerate(seeds):
         _iql_checkpoint(output / "p5_2" / "checkpoints" / f"grid4x4_random_iql_seed{seed}.pt", seed=seed,
-                        rows=whole_rows, fill=0.5 + index, stats=SYNTHETIC_STATS)
+                        rows=whole_rows, fill=0.5 + index,
+                        stats=SYNTHETIC_STATS if implied is None else implied["stats"],
+                        reward_scale=0.7429420505200595 if implied is None else implied["reward_scale"],
+                        training_streams=32 if implied is None else implied["training_streams"])
     lines = [f"{_sha256_file(path)}  {path.relative_to(output).as_posix()}"
              for path in sorted((output / "p5_2").rglob("*")) if path.is_file()]
     (output / "SHA256SUMS_p5_2.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -324,20 +356,28 @@ def write_synthetic_record(root: Path, *, seeds: Sequence[int] = SEEDS, draws: S
     declared_cells = _write_cells(output / "p8_4b_rederivation", rows)
 
     tier_dir = corpus / RANDOM_TIER_DIR
-    _write_json(tier_dir / "manifest.json", {
-        "format_version": "1.1",
-        "episodes": [{"filename": name, "episode_length": EPISODE_LENGTH, "flow_draw": draw}
-                     for name, draw in CORPUS_EPISODES],
-        "run_metadata": {"scenario_id": "cityflow_grid4x4"},
-    })
     declaration = repo / "docs" / "data" / "p5_2_declaration_random.json"
-    _write_json(declaration, {
-        "format_version": "p5.2-declaration/1.0", "tier": "random", "episodes_available": len(CORPUS_EPISODES),
-        "episodes_selected": len(SELECTED), "training_streams": len(SELECTED) * len(IDS), "node_order": list(IDS),
-        "selected_episodes": [{"dataset_dir": str(tier_dir), "episode_file": name, "episode_index": index,
-                               "flow_draw": dict(CORPUS_EPISODES)[name]}
-                              for index, name in enumerate(SELECTED)],
-    })
+    if implied is None:
+        _write_json(tier_dir / "manifest.json", {
+            "format_version": "1.1",
+            "episodes": [{"filename": name, "episode_length": EPISODE_LENGTH, "flow_draw": draw}
+                         for name, draw in CORPUS_EPISODES],
+            "run_metadata": {"scenario_id": "cityflow_grid4x4"},
+        })
+        _write_json(declaration, {
+            "format_version": "p5.2-declaration/1.0", "tier": "random", "episodes_available": len(CORPUS_EPISODES),
+            "episodes_selected": len(SELECTED), "training_streams": len(SELECTED) * len(IDS), "node_order": list(IDS),
+            "selected_episodes": [{"dataset_dir": str(tier_dir), "episode_file": name, "episode_index": index,
+                                   "flow_draw": dict(CORPUS_EPISODES)[name]}
+                                  for index, name in enumerate(SELECTED)],
+        })
+    else:
+        _write_json(declaration, {
+            "format_version": "p5.2-declaration/1.0", "tier": "random",
+            "episodes_available": implied["episodes_available"], "episodes_selected": len(implied["selected"]),
+            "training_streams": implied["training_streams"], "node_order": implied["node_order"],
+            "selected_episodes": implied["selected"],
+        })
     import statistics
 
     note = repo / "docs" / "notes" / "readme_2026-10-05" / "c1_rule_r.json"

@@ -1007,3 +1007,199 @@ def test_t_reproduce_c_the_att_engine_half_equals_this_files_own_recomputation_a
     episodes = {(m, "random"): [EpisodeResult(f"{m}@random", s, d, raw[(m, "random")][(s, d)], 0.0, 0.0)
                                 for (s, d) in sorted(raw[(m, "random")])] for m in ts.METHODS}
     assert (got["q3c"]["mean"], got["q3c"]["ci95_low"], got["q3c"]["ci95_high"]) == _my_q3c(episodes, best)
+
+
+# ======================================================================
+# The run's stages end to end, on a synthetic record built FROM a synthetic tier: the real stage functions, the real
+# loader, the fix and P5.2's evaluate subcommand and P8.4b's runner, with spies only where the GPU trainer and the
+# CityFlow engine would run.  Added after the stages were written (C6), and proven by mutation, not by being red first.
+# ======================================================================
+
+
+def _engine_att(seed: int, draw: int) -> float:
+    """One episode's value for both stand-in engines, exact in binary."""
+    return 200.0 + seed / 64.0 + (draw % 7) / 8.0
+
+
+def _install_engine(monkeypatch: Any) -> None:
+    import offline.admission_probe as ap
+    import offline.att_rederivation as ar
+    import offline.dt_gate as dt_gate
+
+    def evaluate_arm(**kwargs: Any) -> list[EpisodeResult]:
+        return [EpisodeResult(kwargs["arm"], kwargs["seed"], int(draw), _engine_att(int(kwargs["seed"]), int(draw)),
+                              20.0, -4000.0) for draw in kwargs["draw_ids"]]
+
+    def probe_episode(**kwargs: Any) -> Any:
+        att = _engine_att(int(kwargs["seed"]), int(kwargs["draw_id"]))
+        created = int(kwargs["created"])
+        return ap.AdmissionEpisode(
+            scenario=kwargs["scenario"], tier=kwargs["tier"], method=kwargs["method"], arm=kwargs["arm"],
+            seed=kwargs["seed"], draw_id=int(kwargs["draw_id"]), created=created, entered=created - 1, never_entered=1,
+            entered_fraction=(created - 1) / created, completed_at_horizon=created - 21, running_at_horizon=20,
+            waiting_at_horizon=0, att_ours=att, att_engine=att - 6.5, horizon_vehicle_count=20.0,
+            episode_reward=-4000.0, seconds=0.01, seconds_rollout=0.01)
+
+    monkeypatch.setattr(dt_gate, "evaluate_arm", evaluate_arm)
+    monkeypatch.setattr(dt_gate, "env_settings_from_manifest", lambda path: {"max_steps": 360, "delta_time": 10})
+    monkeypatch.setattr(ap, "probe_episode", probe_episode)
+    monkeypatch.setattr(ap, "created_from_flow", lambda path, *, horizon_seconds: 1300)
+    monkeypatch.setattr(ar, "rederivation_env_settings", lambda scenario, tier, roots: {"max_steps": 360,
+                                                                                       "delta_time": 10})
+
+
+def _write_canary(out: Path, phase: str, seconds: float = 0.7) -> None:
+    from offline import compute_latency as cl
+
+    out.mkdir(parents=True, exist_ok=True)
+    record = cl.build_canary_record(phase, seconds, reproduced=True, git={"commit": "0" * 40, "dirty": False},
+                                    power=fx.POWER)
+    (out / f"canary_{phase}.json").write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _synthetic_run_setup(tmp_path: Path, monkeypatch: Any) -> tuple[Any, Any]:
+    corpus = tmp_path / "corpus"
+    fx.write_synthetic_tier(corpus)
+    fx.install_synthetic_tier(monkeypatch)
+    record = fx.write_synthetic_record(tmp_path, tier_corpus=corpus)
+    fx.install_synthetic_protocol(monkeypatch, record)
+    iql, _ = fx.install_train_spies(monkeypatch)
+    _install_engine(monkeypatch)
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
+    monkeypatch.setattr(torch.cuda, "get_device_name", lambda index=0: "synthetic GPU")
+    monkeypatch.setenv("OMP_NUM_THREADS", "1")
+    monkeypatch.setenv("MKL_NUM_THREADS", "1")
+    monkeypatch.delenv("CUBLAS_WORKSPACE_CONFIG", raising=False)
+    return record, iql
+
+
+def test_the_whole_run_on_a_synthetic_record_through_every_stage(tmp_path: Path, monkeypatch: Any,
+                                                                 keep_torch_threads: Any) -> None:
+    record, iql = _synthetic_run_setup(tmp_path, monkeypatch)
+    roots, pins, output, out = record.roots, record.pins, record.roots.output_root, record.roots.out_root
+    before = {name: _tree_digest(output / name) for name in ("p5_2", "p8_4b_rederivation")}
+    assert ic.check(roots, pins=pins, require_cuda=False)["state"] == "fresh"
+    with pytest.raises(ValueError, match="needs the complete training"):
+        ic.evaluate_p5_2_stage(roots, pins=pins)
+    _write_canary(out, "open")
+    ic.train_stage(roots, pins=pins)
+    _write_canary(out, "close")
+    assert ic.evaluate_p5_2_stage(roots, pins=pins) == out / "eval_random_iql.json"
+    assert ic.evaluate_p8_4b_stage(roots, pins=pins) == out / "rederivation"
+    state = ic.status(roots, pins=pins)
+    assert {state[stage] for stage in ("training", "canaries", "p5_2_eval", "rederivation")} == {"complete"}
+    assert ic.check(roots, pins=pins, require_cuda=False)["state"] == "resumable"
+    ic.write_run_manifest(roots, ic.protected_roots(roots))
+    artifact = json.loads(ic.report_stage(roots, pins=pins).read_text(encoding="utf-8"))
+
+    declared_rows = len(fx.DRAWS) * len(fx.IDS) * fx.DECISIONS
+    training = json.loads((out / "training_random_iql.json").read_text(encoding="utf-8"))
+    assert training["table"]["rows"] == declared_rows and [run["seed"] for run in training["runs"]] == list(record.seeds)
+    assert [run["seconds"] for run in training["runs"]] == [10.0 + seed / 100.0 for seed in record.seeds]
+    assert len(iql.calls) == len(record.seeds) and all(len(call["batch"]) == declared_rows for call in iql.calls)
+    assert training["concurrency"]["value"] == 1 and training["regime"]["cublas_workspace_config"] is None
+    values = [_engine_att(seed, draw) for seed in record.seeds for draw in record.draws]
+    corrected = artifact["cells"]["corrected"]
+    assert corrected["att_ours"]["mean"] == float(np.mean(values))
+    assert corrected["att_engine"]["mean"] == float(np.mean([value - 6.5 for value in values]))
+    assert corrected["paths_agree"] == {"episodes": len(values), "equal": len(values)}
+    assert artifact["defect"]["original"]["training_rows"] == 2 * declared_rows
+    assert artifact["defect"]["declared"]["rows"] == declared_rows
+    assert artifact["statements"]["att_ours"]["after"]["ranking"]["levels"]["iql"] == float(np.mean(values))
+    assert artifact["evaluation"]["p8_4b_path"]["n_cells"] == len(values)
+    assert {name: _tree_digest(output / name) for name in before} == before
+    with pytest.raises(ValueError, match="training stage is complete"):
+        ic.train_stage(roots, pins=pins)
+
+
+@pytest.mark.parametrize("damage, error, message", [
+    ("no_canary", FileNotFoundError, "opening canary"),
+    ("throttled", ValueError, "not at reference"),
+    ("no_cuda", RuntimeError, "CUDA"),
+    ("cublas", RuntimeError, "regime"),
+])
+def test_the_training_stage_refuses_to_start_where_it_cannot_vouch_for_its_seconds(
+    tmp_path: Path, monkeypatch: Any, keep_torch_threads: Any, damage: str, error: type, message: str
+) -> None:
+    record, iql = _synthetic_run_setup(tmp_path, monkeypatch)
+    out = record.roots.out_root
+    if damage != "no_canary":
+        _write_canary(out, "open", seconds=2.5 if damage == "throttled" else 0.7)
+    if damage == "no_cuda":
+        monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
+    if damage == "cublas":
+        monkeypatch.setenv("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+    with pytest.raises(error, match=message):
+        ic.train_stage(record.roots, pins=record.pins)
+    assert iql.calls == [] and not (out / "p5_2").exists() and not (out / "training_random_iql.json").exists()
+
+
+def test_the_cli_reads_the_real_pins_and_refuses_a_record_at_any_other(tmp_path: Path, monkeypatch: Any,
+                                                                      capsys: Any) -> None:
+    record = fx.write_synthetic_record(tmp_path)
+    fx.install_synthetic_protocol(monkeypatch, record)
+    roots = record.roots
+    code = ic.main(["status", "--output-root", str(roots.output_root), "--corpus-root", str(roots.corpus_root),
+                    "--draws-root", str(roots.draws_root), "--repo-root", str(roots.repo_root)])
+    assert code == 2 and "pinned" in capsys.readouterr().err
+    path = tmp_path / "preflight.json"
+    path.write_text(json.dumps({"format_version": "p5.2b-preflight/1.0", "status": "COMPLETE",
+                                "reproduce": {"p5_2_path": {"reproduced": True}, "p8_4b_path": {"reproduced": True}},
+                                "estimate": {"timeouts": {"train": 9000.5, "evaluate_p5_2": 4000.0,
+                                                          "evaluate_p8_4b": 4500.0}}}))
+    assert ic.main(["timeouts", "--preflight-record", str(path)]) == 0
+    assert capsys.readouterr().out.split() == ["9000.5", "4000", "4500"]
+
+
+@pytest.mark.parametrize("perturb", [None, "p5_2_path", "p8_4b_path"])
+def test_the_preflight_records_t_reproduce_beside_its_timings_and_a_failure_yields_no_timeouts(
+    tmp_path: Path, monkeypatch: Any, keep_torch_threads: Any, perturb: str | None
+) -> None:
+    """Amendment A, A3.1: the pre-flight RUNS T-reproduce (a) and (b) on the original checkpoint and records their
+    outcomes beside its timings; a T-reproduce failure makes it FAILED, and a FAILED record yields no timeouts."""
+    import offline.admission_probe as ap
+    import offline.dt_gate as dt_gate
+    from offline.att_rederivation import CellKey, cell_file_name
+
+    record, iql = _synthetic_run_setup(tmp_path, monkeypatch)
+    output = record.roots.output_root
+    committed = record.ours[("iql", "random")]
+
+    def evaluate_arm(**kwargs: Any) -> list[EpisodeResult]:
+        shift = 0.5 if perturb == "p5_2_path" else 0.0
+        return [EpisodeResult(kwargs["arm"], kwargs["seed"], int(d), committed[(int(kwargs["seed"]), int(d))] + shift,
+                              float(int(kwargs["seed"]) % 7 + int(d) % 5), -float(d)) for d in kwargs["draw_ids"]]
+
+    def probe_episode(**kwargs: Any) -> Any:
+        cell = CellKey("grid4x4", kwargs["arm"], kwargs["seed"], int(kwargs["draw_id"]))
+        row = json.loads((output / "p8_4b_rederivation" / cell_file_name(cell)).read_text())
+        fields = {name: row[name] for name in ("scenario", "tier", "method", "arm", "seed", "draw_id", "created",
+                                               "entered", "never_entered", "entered_fraction", "completed_at_horizon",
+                                               "running_at_horizon", "waiting_at_horizon", "att_ours", "att_engine",
+                                               "horizon_vehicle_count", "episode_reward")}
+        if perturb == "p8_4b_path":
+            fields["att_engine"] += 0.25
+        return ap.AdmissionEpisode(**fields, seconds=0.02, seconds_rollout=0.01)
+
+    monkeypatch.setattr(dt_gate, "evaluate_arm", evaluate_arm)
+    monkeypatch.setattr(ap, "probe_episode", probe_episode)
+    roots = ic.Roots(**{**record.roots.__dict__, "out_root": output / "p5_2b_runs" / "preflight_20261006T000000Z"})
+    _write_canary(roots.out_root, "open")
+    draws = record.draws[:2]
+    result = ic.preflight(roots, stamp="20261006T000000Z", steps=20, draws=draws, pins=record.pins)
+    written = json.loads((roots.out_root / "preflight.json").read_text())
+    assert written == json.loads(json.dumps(result))
+    assert written["rehearsal"]["steps"] == 20 and written["rehearsal"]["seconds"] == 10.0 + 101 / 100.0
+    assert [call["declared_gradient_steps"] for call in iql.calls] == [20]
+    a, b = written["reproduce"]["p5_2_path"], written["reproduce"]["p8_4b_path"]
+    assert (a["reproduced"], b["reproduced"]) == (perturb != "p5_2_path", perturb != "p8_4b_path")
+    assert a["episodes"] == len(draws) and b["cells"] == len(draws) and a["seconds"] >= 0 and b["seconds"] >= 0
+    assert written["status"] == ("COMPLETE" if perturb is None else "FAILED")
+    assert set(written["estimate"]["timeouts"]) == {"train", "evaluate_p5_2", "evaluate_p8_4b"}
+    if perturb is None:
+        assert ic.timeouts_from_preflight(roots.out_root / "preflight.json") == written["estimate"]["timeouts"]
+    else:
+        assert written["reasons"] and (a["differences"] or b["differences"])
+        with pytest.raises(ValueError, match="COMPLETE"):
+            ic.timeouts_from_preflight(roots.out_root / "preflight.json")
+    assert not (output / "p5_2b").exists(), "the pre-flight never writes into the run's directory"
