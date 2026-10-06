@@ -31,6 +31,7 @@
 # 1. WHAT IT PRODUCES (the run)
 #      output/p5_2b/p5_2/checkpoints/grid4x4_random_iql_seed<s>.pt   the corrected checkpoints (Amendment A, A1.1)
 #      output/p5_2b/training_random_iql.json, canary_open.json, canary_close.json
+#      output/p5_2b/training_random_iql.late_close.json            only if the closing canary was taken late (see 3.)
 #      output/p5_2b/eval_random_iql.json                         (i), P5.2's evaluate subcommand
 #      output/p5_2b/rederivation/                                (ii), P8.4b's cell runner
 #      output/p5_2b/logs/<stage>.attempt<n>.log
@@ -43,9 +44,13 @@
 #    end), (ii) resumes per cell. timeout -k kills a hung attempt.
 #
 # 3. RESTART: a FAILED run leaves output/p5_2b/ as it is (it is a record). Start again with a new token: a stage already
-#    complete on disk is skipped and (ii) resumes per cell. A PARTIAL training -- a checkpoint or a .partial without the
-#    full record, or a canary without its training -- is refused before the token: move output/p5_2b aside by hand first
-#    (mv output/p5_2b output/p5_2b.failed_<UTC>); nothing in this run deletes. A run whose file list is written is final.
+#    complete on disk is skipped and (ii) resumes per cell. A training complete on disk is never trained again (one
+#    realisation: Amendment A, Q12; BRIEF_44 Amendment B, B1.3): if its closing canary failed, or the run stopped before
+#    it, the restart runs close-late -- the training record's write-once addendum saying its seconds are bracketed by the
+#    opening canary only -- and then takes the closing canary alone, late. A PARTIAL training -- a checkpoint or a
+#    .partial without the full record, or a canary without its complete training -- is refused before the token:
+#    move output/p5_2b aside by hand first (mv output/p5_2b output/p5_2b.failed_<UTC>); nothing in this run deletes. The
+#    file list is written only when every stage is complete, and a run whose file list is written is final.
 
 set -euo pipefail
 
@@ -61,9 +66,10 @@ MANIFEST=$OUTPUT/SHA256SUMS_p5_2b.txt
 CANARY_TIMEOUT=120
 MAX_ATTEMPTS=3
 
-# The G1 pre-flight whose timeouts the run uses, relative to $OUTPUT, and its sha256 (UNSET refuses the run).
-PREFLIGHT_RECORD=UNSET
-PREFLIGHT_SHA256=UNSET
+# The G1 pre-flight whose timeouts the run uses, relative to $OUTPUT, and its sha256 (UNSET refuses the run): the record
+# gate G1 read from disk and kept pinned (BRIEF_44 Amendment B, B0 and B2).
+PREFLIGHT_RECORD=p5_2b_runs/preflight_20261006T195405Z/preflight.json
+PREFLIGHT_SHA256=a280452734494479f6d2941b09ff12c16825155080404ee7ce84b95752c4bb4b
 
 WORK_TREE=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 
@@ -161,9 +167,13 @@ attempt() {
 if [ "$(ic status "${ROOTS[@]}" --out-root "$RUN" --stage training)" != complete ]; then
   attempt canary_open "$CANARY_TIMEOUT" 1 env PYTHONPATH="$WORK_TREE" "$PY" -P -m offline.compute_latency canary --phase open --out-dir "$RUN" || fail "the opening canary refused or failed: nothing was trained"
   attempt training "$T_TRAIN" 1 env PYTHONPATH="$WORK_TREE" "$PY" -P -m offline.iql_correction train "${ROOTS[@]}" --out-root "$RUN" || fail "the training stage failed: its partial files are a record, move output/p5_2b aside by hand"
-  attempt canary_close "$CANARY_TIMEOUT" 1 env PYTHONPATH="$WORK_TREE" "$PY" -P -m offline.compute_latency canary --phase close --out-dir "$RUN" || fail "the closing canary failed after a complete training"
+  attempt canary_close "$CANARY_TIMEOUT" 1 env PYTHONPATH="$WORK_TREE" "$PY" -P -m offline.compute_latency canary --phase close --out-dir "$RUN" || fail "the closing canary failed after a complete training: start again with a new token; the closing canary is then taken alone, late, and nothing is trained again"
+elif [ "$(ic status "${ROOTS[@]}" --out-root "$RUN" --stage canaries)" = closing_pending ]; then
+  echo "the training is complete on disk and its closing canary is missing: it is taken now, alone and late; nothing is trained again"
+  ic close-late "${ROOTS[@]}" --out-root "$RUN" || fail "the late closing canary's mark was not written"
+  attempt canary_close_late "$CANARY_TIMEOUT" 1 env PYTHONPATH="$WORK_TREE" "$PY" -P -m offline.compute_latency canary --phase close --out-dir "$RUN" || fail "the late closing canary failed: start again with a new token; nothing is trained again"
 else
-  echo "SKIP: the training stage is complete on disk"
+  echo "SKIP: the training stage and its two canaries are complete on disk"
 fi
 attempt evaluate_p5_2 "$T_EVAL_I" "$MAX_ATTEMPTS" env PYTHONPATH="$WORK_TREE" "$PY" -P -m offline.iql_correction evaluate-p5-2 "${ROOTS[@]}" --out-root "$RUN" || fail "(i) failed on every attempt"
 attempt evaluate_p8_4b "$T_EVAL_II" "$MAX_ATTEMPTS" env PYTHONPATH="$WORK_TREE" "$PY" -P -m offline.iql_correction evaluate-p8-4b "${ROOTS[@]}" --out-root "$RUN" || fail "(ii) failed on every attempt"
