@@ -1455,3 +1455,178 @@ def test_the_committed_artifact_is_consistent_with_its_own_summaries_and_c12s_ni
     assert said[:len(ct.WHAT_THIS_DOES_NOT_SAY)] == list(ct.WHAT_THIS_DOES_NOT_SAY)
     assert said[len(ct.WHAT_THIS_DOES_NOT_SAY):] == [ct.sensitivity_sentence(artifact["latency_sensitivity"]["summary"]),
                                                      ct.variability_sentence(artifact["latency_variability"]["summary"])]
+
+
+# ======================================================================
+# DEFERRED 107 (docs/reviews/P8.2.md §4, mandate M2): the test gaps that guard FUTURE rebuilds of the committed artifact,
+# closed before the next builder change (BRIEF_44 §3.4 and Amendment A). Each test below is green on the builder and the
+# artifact as merged, and red against the surviving mutant it names (M2-2a, M2-2b, M2-3e, M2-3f, M2-6c, and M2-7a's
+# note) -- the mutants re-run, committed, in a throwaway worktree, their red runs pasted in docs/returns/P5.2b.md.
+# ======================================================================
+
+_SENSITIVITY_CLAUSES = re.compile(
+    r"a cell's median moves by at most (?P<median>\d+\.\d)% but its p95 by up to (?P<p95>\d+\.\d)% "
+    r"\((?P<count>\d+) of (?P<cells>\d+) cells by more than (?P<threshold>\d+)%\)"
+)
+_VARIABILITY_CLAUSES = re.compile(
+    r"differ in median by up to (?P<hz1x1>\d+\.\d)% on hz1x1 and (?P<grid4x4>\d+\.\d)% on grid4x4, and one cell's "
+    r"three episode medians by up to (?P<episodes>\d+\.\d)%"
+)
+_C2_REFERENCE = re.compile(r"(agent/[A-Za-z_]+\.py):(\d+)-(\d+)")
+
+
+def _percent(fraction: float) -> str:
+    """This file's own rendering of a fraction as a percent at one decimal: what a clause must carry."""
+    return f"{100.0 * fraction:.1f}"
+
+
+def _committed_artifact() -> dict[str, Any]:
+    return json.loads((DATA / "p8_2_compute.json").read_text(encoding="utf-8"))
+
+
+@pytest.mark.parametrize("median, p95, count", [(0.0951, 0.2458, 6), (0.3012, 0.0517, 0)])
+def test_d107_the_sensitivity_sentence_puts_each_number_in_its_own_clause(median: float, p95: float,
+                                                                           count: int) -> None:
+    """M2-3f: the median clause carries the median's change and the p95 clause the p95's, read by POSITION -- in both
+    orders of magnitude, so a builder that swaps the two clauses, or orders them by size, cannot pass."""
+    summary = {"window": "decisions 120-359", "cells": 78, "median_change_max_abs": median, "p95_change_max_abs": p95,
+               "cells_p95_change_above": {"threshold": 0.10, "count": count}}
+    found = _SENSITIVITY_CLAUSES.search(ct.sensitivity_sentence(summary))
+    assert found is not None, "the sensitivity sentence no longer has its median, p95 and count clauses"
+    assert (found["median"], found["p95"]) == (_percent(median), _percent(p95))
+    assert (int(found["count"]), int(found["cells"]), int(found["threshold"])) == (count, 78, 10)
+
+
+@pytest.mark.parametrize("spreads", [
+    {"hz1x1": 0.06584946650960855, "grid4x4": 0.35887181936452484},
+    {"grid4x4": 0.0217, "hz1x1": 0.4108},
+])
+def test_d107_the_variability_sentence_attributes_each_floor_to_its_own_scenario(spreads: dict[str, float]) -> None:
+    """M2-3e: each scenario's floor is printed beside THAT scenario's name, in both orders of magnitude and of the
+    mapping's insertion, so a builder that pairs a floor with the other scenario cannot pass."""
+    summary = {"episode_spread_max": 0.1234, "groups": 9, "same_computation_spread_max": dict(spreads)}
+    found = _VARIABILITY_CLAUSES.search(ct.variability_sentence(summary))
+    assert found is not None, "the variability sentence no longer has its two floor clauses and its episode clause"
+    assert (found["hz1x1"], found["grid4x4"], found["episodes"]) == (
+        _percent(spreads["hz1x1"]), _percent(spreads["grid4x4"]), _percent(0.1234))
+
+
+def test_d107_the_committed_sentences_carry_their_own_summaries_numbers_in_their_places() -> None:
+    """M2-3e / M2-3f after a rebuild and a recommit: the COMMITTED sentences, read by position, against the COMMITTED
+    summaries -- independent of the generator, which a recommitted mutant would have changed too."""
+    artifact = _committed_artifact()
+    said = artifact["what_this_does_not_say"]
+    sensitivity = artifact["latency_sensitivity"]["summary"]
+    variability = artifact["latency_variability"]["summary"]
+    found = [match for match in map(_SENSITIVITY_CLAUSES.search, said) if match]
+    assert len(found) == 1, "exactly one committed sentence states the sensitivity"
+    assert (found[0]["median"], found[0]["p95"]) == (_percent(sensitivity["median_change_max_abs"]),
+                                                     _percent(sensitivity["p95_change_max_abs"]))
+    assert (int(found[0]["count"]), int(found[0]["cells"])) == (sensitivity["cells_p95_change_above"]["count"],
+                                                                sensitivity["cells"])
+    found = [match for match in map(_VARIABILITY_CLAUSES.search, said) if match]
+    assert len(found) == 1, "exactly one committed sentence states the variability"
+    floors = variability["same_computation_spread_max"]
+    assert (found[0]["hz1x1"], found[0]["grid4x4"], found[0]["episodes"]) == (
+        _percent(floors["hz1x1"]), _percent(floors["grid4x4"]), _percent(variability["episode_spread_max"]))
+
+
+def test_d107_every_committed_summary_recomputes_from_the_artifacts_own_cells_and_groups() -> None:
+    """M2-2a (ungated, CI): each summary of the committed artifact recomputed HERE from the cells and groups the same
+    artifact carries, so a coherent hand-edit of a published floor and its sentence no longer passes."""
+    artifact = _committed_artifact()
+    sensitivity, variability = artifact["latency_sensitivity"], artifact["latency_variability"]
+    cells = sensitivity["cells"]
+    for label, cell in cells.items():
+        assert cell["median_change"] == cell["late"]["median_ms"] / cell["registered"]["median_ms"] - 1, label
+        assert cell["p95_change"] == cell["late"]["p95_ms"] / cell["registered"]["p95_ms"] - 1, label
+    summary = sensitivity["summary"]
+    threshold = summary["cells_p95_change_above"]["threshold"]
+    assert summary["cells"] == len(cells) == 78
+    assert summary["median_change_max_abs"] == max(abs(cell["median_change"]) for cell in cells.values())
+    assert summary["p95_change_max_abs"] == max(abs(cell["p95_change"]) for cell in cells.values())
+    assert summary["cells_p95_change_above"]["count"] == sum(abs(cell["p95_change"]) > threshold
+                                                             for cell in cells.values())
+    h4 = [abs(cell["median_change"]) for label, cell in cells.items() if label.startswith("hz1x1.h4.")]
+    assert (summary["h4_cells"], summary["h4_median_change_max_abs"]) == (len(h4), max(h4))
+    spread_cells = variability["cells"]
+    for label, cell in spread_cells.items():
+        assert cell["episode_spread"] == max(cell["episode_medians_ms"]) / min(cell["episode_medians_ms"]) - 1, label
+    groups = variability["groups"]
+    for group in groups:
+        medians = group["medians_ms"]
+        assert (group["min_ms"], group["max_ms"]) == (min(medians), max(medians)), group["name"]
+        assert group["spread"] == max(medians) / min(medians) - 1, group["name"]
+    summary = variability["summary"]
+    worst = max(spread_cells, key=lambda label: spread_cells[label]["episode_spread"])
+    assert summary["cells"] == len(spread_cells)
+    assert (summary["episode_spread_max"], summary["episode_spread_max_cell"]) == (
+        spread_cells[worst]["episode_spread"], worst)
+    assert summary["groups"] == len({group["name"] for group in groups})
+    assert summary["same_computation_spread_max"] == {
+        scenario: max(group["spread"] for group in groups if group["scenario"] == scenario)
+        for scenario in {group["scenario"] for group in groups}}
+
+
+def test_d107_the_committed_groups_are_the_nine_on_each_device() -> None:
+    """M2-2b (ungated, CI): the committed artifact holds 9 cpu and 9 cuda group entries, the nine of C1.2 on each
+    device -- a dropped (or duplicated) device entry no longer passes."""
+    groups = _committed_artifact()["latency_variability"]["groups"]
+    assert sorted(group["device"] for group in groups) == ["cpu"] * 9 + ["cuda"] * 9
+    for device in ("cpu", "cuda"):
+        assert {frozenset(group["rows"]) for group in groups if group["device"] == device} == _NINE, device
+
+
+def test_d107_the_h4_summary_equals_the_coordinators_third_route() -> None:
+    """M2-6c after a rebuild and a recommit (ungated): ``h4_cells`` and ``h4_median_change_max_abs`` of the committed
+    artifact against the coordinator's G3 analysis (docs/notes/p8_2_g3/g3_analysis.json), which holds every cell's
+    change by its own route and no H4 summary of its own."""
+    g3 = json.loads((REPO_ROOT / "docs" / "notes" / "p8_2_g3" / "g3_analysis.json").read_text(encoding="utf-8"))
+    theirs = [abs(cell["median_change_if_120"]) for label, cell in g3["cells"].items() if label.startswith("hz1x1.h4.")]
+    summary = _committed_artifact()["latency_sensitivity"]["summary"]
+    assert len(theirs) == 14, "the G3 analysis holds the seven H4 rows on both devices"
+    assert (summary["h4_cells"], summary["h4_median_change_max_abs"]) == (len(theirs), max(theirs))
+
+
+def test_d107_latency_sensitivity_counts_every_h4_cell_on_both_devices(tmp_path: Path) -> None:
+    """M2-6c (ungated): the builder's H4 summary covers every ``hz1x1.h4.*`` cell on both devices and nothing else,
+    each change recomputed HERE from the records' own nanoseconds."""
+    rows = tuple(cl.row_by_id(row_id) for row_id in ("hz1x1.h4.k1", "hz1x1.h4.k20", "hz1x1.bc"))
+    run_dir, manifest = _write_run(tmp_path, rows=rows, ns_for=_transient_ns)
+    sensitivity = ct.latency_sensitivity(ct.verify_latency_run(run_dir, manifest))
+    labels = sorted(label for label in sensitivity["cells"] if label.startswith("hz1x1.h4."))
+    assert labels == ["hz1x1.h4.k1_cpu", "hz1x1.h4.k1_cuda", "hz1x1.h4.k20_cpu", "hz1x1.h4.k20_cuda"]
+    changes = []
+    for label in labels:
+        episodes = [e["decision_ns"] for e in json.loads((run_dir / f"{label}.json").read_text())["episodes"]]
+        registered = _independent([v for e in episodes for v in e[cl.WARMUP:]])[0] / 1e6
+        late = _independent([v for e in episodes for v in e[_LATE:]])[0] / 1e6
+        changes.append(abs(late / registered - 1))
+    assert len(set(changes)) == len(changes), "the fixture must give each H4 cell its own change"
+    summary = sensitivity["summary"]
+    assert (summary["h4_cells"], summary["h4_median_change_max_abs"]) == (4, max(changes))
+
+
+def test_d107_the_c2_line_ranges_are_read_from_the_sentences_and_their_lines_hold_what_they_state() -> None:
+    """M2-7a's note: the two code-path sentences' line ranges are PARSED from the sentences themselves, not typed beside
+    them, and each range is read back from the file it names -- so moving a sentence's range and a typed copy together
+    no longer passes."""
+    mappo = [text for text in ct.WHAT_THIS_DOES_NOT_SAY if text.startswith("MAPPO's decision call loops over its actors")]
+    iql = [text for text in ct.WHAT_THIS_DOES_NOT_SAY if text.startswith("IQL's decision call, shared with BC")]
+    assert len(mappo) == len(iql) == 1
+
+    def lines(path: str, first: str, last: str) -> str:
+        text = (REPO_ROOT / path).read_text(encoding="utf-8").splitlines()
+        return "\n".join(text[int(first) - 1:int(last)])
+
+    references = _C2_REFERENCE.findall(mappo[0])
+    assert [reference[0] for reference in references] == ["agent/MAPPOAgent.py"]
+    loop = lines(*references[0])
+    assert "for i, actor in enumerate(self.actors)" in loop
+    assert loop.count("torch.as_tensor(") == 2 and loop.count(".item()") == 2
+    references = _C2_REFERENCE.findall(iql[0])
+    assert [reference[0] for reference in references] == ["agent/OfflineBaselines.py"] * 3
+    act, iql_networks, bc_networks = (lines(*reference) for reference in references)
+    assert "module.eval()" in act and "module.train(mode)" in act and "self.policy_logits(state)" in act
+    assert "return [self.policy, self.q, self.v, self.q_target]" in iql_networks
+    assert "return [self.model]" in bc_networks
