@@ -403,6 +403,9 @@ def write_synthetic_run(record: SyntheticRecord, *, iql_shift: float = 60.0, sta
             "table": {"rows": declared_rows, "streams": len(SELECTED) * len(IDS), "episodes": len(SELECTED)},
             "runs": runs,
         })
+    elif (out / "training_random_iql.json").is_file():
+        # The evaluation stages of a later call read the runs the training stage of an earlier one recorded.
+        runs = json.loads((out / "training_random_iql.json").read_text(encoding="utf-8"))["runs"]
     if "canaries" in stages:
         git = {"commit": "0" * 40, "dirty": False}
         _write_json(out / "canary_open.json", cl.build_canary_record("open", 0.7, reproduced=True, git=git, power=POWER))
