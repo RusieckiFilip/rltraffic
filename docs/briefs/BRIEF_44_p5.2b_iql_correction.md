@@ -124,3 +124,64 @@ test files once in a depth-1 clone made by `git clone --depth 1 --branch <branch
 definitions for the corrected one); every random-tier statement before and after; the training record's seconds; the capture; what
 the correction does not say; the AI-assistance record's four lines; one paragraph on what the paper's grid4x4 random-tier sentences
 will assume.
+
+---
+
+# ✅ AMENDMENT A — 2026-10-06, gate G0: PLAN APPROVED (`docs/plans/p5.2b.md` @ `b40bc3f`, 448 lines) — four corrections to this brief, Q1–Q13 ruled, one existing test's change AUTHORISED in writing
+
+## A0 — Verdict and what the coordinator verified (by running commands)
+Approved. The plan read the code instead of the brief's description of it and found four places where the brief was wrong (A1).
+Verified independently: **V11** — `admission_probe._method_checkpoint` resolves every grid4x4 tier but `mappo1000` to
+`<roots.output_root>/p5_2/checkpoints/grid4x4_<tier>_<method>_seed<s>.pt` (`admission_probe.py:819-842`); **the test F6(c) names**
+asserts null seconds for every entry of `grid4x4.bc`, `grid4x4.bc_top10`, `grid4x4.bc_top10_perix` and `grid4x4.iql`
+(`tests/test_compute_table.py:664-673`); **F2's premise** — `119cc48` changed documentation only (`docs/PROJECT_PLAN.md` AND
+`docs/briefs/BRIEF_27_p5.2_tier_sweep.md`: two files, not the plan's "only `docs/PROJECT_PLAN.md`"; the substance holds, no code
+scored Q2a, Q3 or the ranking); **F11** — P5.2's own `concordance` on the committed eval files gives Q2b = 11 / 7 / 8 of 15 at
+maxpressure / fixedtime / random with the tie rule declared on 2026-08-24, and 11 / **8** / 8 without it; the fixed-time tier
+carries two exact ties (`dt_spatial` = `dt_nomix`, `bc` = `bc_top10_perix`), so the packet's 8 (`docs/returns/P5.2.md:27`) is the
+count WITHOUT the declared rule — the verdict (FAILED, threshold 12) is unchanged (`DEFERRED` 108).
+
+## A1 — Corrections to this brief
+1. **§3.1 — the corrected checkpoints live at `output/p5_2b/p5_2/checkpoints/grid4x4_random_iql_seed<s>.pt`** (F1, option B): one
+   physical copy that P5.2's `evaluate` subcommand (`--checkpoint-dir`), P8.4b's runner (`ProbeRoots(output_root=output/p5_2b)`)
+   and P8.2's builder all read; no link, no change to an existing module.
+2. **§3.3 — "P5.2's OWN report code" exists for Q1 (`score_level`) and Q2b (`concordance`, `predicted_order`) only;** Q2a, Q3a,
+   Q3c and the ranking were scored by hand at `119cc48`. They are composed in the new module from P5.2's registered definitions
+   (`docs/plans/p5.2.md` §4) and primitives (`dt_gate._per_draw_means`, `dt_gate.mean_ci95`, sorted levels), and T-reproduce (c)
+   proves every composed value against the committed one (F2).
+3. **§0 / §4 — TWO existing modules change, each for one purpose:** `offline/tier_sweep.py` (§4.1 — one new function
+   `iql_transition_table`, its call at `:2078`, its `__all__` entry, nothing else, F5) and `offline/compute_table.py` (§4.4, for
+   §3.4 only). §0's "ONE" was the coordinator's slip; §4.4 always named the second.
+4. **§2 — P8.4b's cells have no per-file digest manifest;** "READ, at their manifests' digests" becomes F3's anchors: the campaign
+   manifest's `declared_cells_sha256` recomputed from its own cell list and equal to `CAMPAIGN_COMPLETE`'s; every cell read has
+   `reproduces_committed` true and an `att_ours` equal to P5.2's digest-pinned `att_horizon` for its key; the six random-tier
+   means equal `docs/notes/readme_2026-10-05/c1_rule_r.json`'s under its own route. The artifact states that the `att_engine`
+   values are pinned by the campaign's completeness and these cross-checks, not by a digest.
+
+## A2 — Rulings: Q1–Q13
+**All accepted as proposed**, with these specifics:
+- **Q3 — the statement set:** accepted (Q1 entry and aggregate, the ranking, Q2a, Q2b with IQL's five pairs, Q3a, Q3c, each under
+  both definitions, before and after; Q2b-hard under `att_ours` as an asserted invariance; Q3b, Q4, Q5, Q6 listed as not
+  recomputed). Q2b-hard and the IQL-free statements under `att_engine` stay OUT of this task: they are the Rule-R recomputation of
+  P5.2's statements, recorded as `DEFERRED` 109 and scheduled with the paper's C1 section.
+- **Q8(c) — AUTHORISATION, written and dated 2026-10-06, to be quoted in the packet:** the test
+  `test_t_sources_the_declared_absences_carry_their_reasons` (`tests/test_compute_table.py:664`) MAY change so that exactly one
+  entry — `(grid4x4.iql, random)` — is excepted
+  from its null-seconds loop, on these conditions: (i) the loop still asserts null seconds with a P5.2 / P5.1 reason for every
+  other entry of the four rows (15 of 16), and asserts that exactly ONE entry is excepted; (ii) a NEW test asserts that the
+  excepted entry's five seconds are sourced `{file: docs/data/p5_2b_iql_correction.json, sha256, json_path}` and equal that file's
+  values read with `json`; (iii) the change is its own commit, after the builder change that makes it necessary, and nothing else
+  in the test changes. Any other edit to a committed test still needs its own authorisation.
+- **Q12 — the regime:** P5.2's default CUDA regime, one realisation, disclosed in the artifact; no second realisation.
+- **Q13 — F11:** the coordinator's (`DEFERRED` 108); not this task's.
+
+## A3 — Requirements added
+1. **G1 runs, not describes, T-reproduce (a) and (b)** on this machine from the committed task tree, and the pre-flight's record
+   carries their outcome beside the timings; a T-reproduce failure stops the task before any token.
+2. **The packet states the plan's one precision slip** (A0, `119cc48`'s two files) where the plan quoted it.
+
+## A4 — Next
+The plan's §10 commits (2)–(7) in its order — `DEFERRED` 107's tests red against their mutants first; the skeletons and the red
+tests with T-tier_sweep RED on the defect; §4.1; the module; the driver — then the mutations, `check_test_hygiene.sh` and
+`check_english.sh` falsified first and run, the whole suite, the new and changed test files once in a depth-1 clone (F.1's
+command), and the G1 pre-flight (`--preflight`, A3.1) — committed on the branch, NOT pushed; then **"P5.2b C2–C7 done"** → gate G1.
