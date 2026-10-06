@@ -185,3 +185,57 @@ The plan's §10 commits (2)–(7) in its order — `DEFERRED` 107's tests red ag
 tests with T-tier_sweep RED on the defect; §4.1; the module; the driver — then the mutations, `check_test_hygiene.sh` and
 `check_english.sh` falsified first and run, the whole suite, the new and changed test files once in a depth-1 clone (F.1's
 command), and the G1 pre-flight (`--preflight`, A3.1) — committed on the branch, NOT pushed; then **"P5.2b C2–C7 done"** → gate G1.
+
+---
+
+# ⚠️ AMENDMENT B — 2026-10-06, gate G1: FIX FIRST (small) — no blocker; A1.4's anchors made real, no second realisation possible, the test gaps closed; the pre-flight STAYS PINNED
+
+## B0 — Verdict and what was verified (the record: `docs/reviews/P5.2b-G1.md`)
+Three reviewers (≤ 15 min each, findings files verbatim in the record): RA1 (inputs, isolation, training, the two evaluation paths),
+RA2 (the recomputation and the report — its own route, no numpy and no project import, reproduced every committed att_ours value and
+agreed with the module under att_engine), RB (the `tier_sweep.py` fix — exactly A1.3's change —, the driver, `DEFERRED` 107's tests:
+all five named mutants killed for the right reason). All PASS-WITH-NOTES, 0 blocking. **The coordinator's five mutants, committed at
+`8c9f988`, every data gate open: 4 KILLED, 1 SURVIVED (PM4).** **The pre-flight `preflight_20261006T195405Z`, read from disk:**
+COMPLETE at `a71a72c`, 13 / 13 manifest lines `OK`, canaries 0.76 / 0.77 s at speed and reproduced, T-reproduce (a) and (b)
+reproduced with 0 differences each, 0.00832 s per training step, 1.93 s per episode, an estimate of ≈ 3,628 s.
+
+## B1 — Required before G2, tests red first for their own reasons
+1. **A1.4's third anchor, ENFORCED by the module (RA1 MAJOR, RA2):** before the report reads any P8.4b value, the module recomputes
+   the six random-tier means under BOTH definitions by `docs/notes/readme_2026-10-05/c1_rule_r.json`'s own route
+   (`statistics.mean` over each arm's cell files) and REFUSES unless each equals the note's value; the artifact says what the note
+   was used for. Test: a synthetic P8.4b tree with one `att_engine` value altered → refusal naming the arm.
+2. **A1.4's second anchor, TESTED (PM4 survived):** a test feeding `_p8_4b_rows` a cell whose `att_ours` differs from P5.2's
+   committed `att_horizon` → refusal. PM4 must die.
+3. **No second realisation, ever (RB MINOR-2, A2 Q12):** a COMPLETE training whose closing canary failed must not be re-trained. On
+   restart the closing canary alone is taken (late), and the training record marks its seconds as bracketed by the opening canary
+   only, the closing one taken after a restart (with both times); P8.2's table then quotes those seconds with that note. Tests: the
+   restart after a failed closing canary runs no training and refuses to; the record carries the mark.
+4. **The identity refusal tested (RB MINOR-1, MT2 survived):** a filter that swaps one declared stream for an undeclared stream of
+   the same length → `iql_transition_table` refuses on identity. MT2 must die.
+5. **The H4 maximum over both devices (RB MINOR-3):** the fixture's largest H4 change on a `cuda` cell, so a one-device maximum dies.
+6. **The module's guards (RA1 MINORs):** (a) `assert_out_root` refuses an output root that does not hold the pinned
+   `SHA256SUMS_p5_2.txt` (no root under `output/p5_2` is ever accepted); (b) the thirteen original hyperparameters (batch, learning
+   rate, weight decay, gradient clip, τ, β, γ, Polyak, weight clip, steps, streams, scale, threads) ENFORCED equal to the original
+   checkpoints' records, refusing on drift; (c) a test triggering each of path (ii)'s three refusals; (d) the module docstring's
+   "every write goes through `assert_target`" corrected to what is true; (e) the corpus manifest the second route reads pinned by
+   its sha256 and checked.
+7. **The report's precision (RA2 MINORs):** (a) T-reproduce (c) asserts Q1's `n_cells == 19`; (b) its `att_engine` half also checks
+   Q1 (`n_held`, the IQL entry, the outcome), Q2a, Q3a, IQL's five pairs and Q3c's reading against the test's own recomputation;
+   (c) the corrected (i) file's level asserted equal to its own `cell.att_horizon_mean`; (d) the `q1` block under `att_engine` itself
+   carries the flag that the predictions are the registered `att_horizon`-era values; (e) `cells.corrected` carries its `sources`;
+   (f) the corrected weight digests asserted to differ from the originals'.
+8. **Optional (NOTEs, the implementer's call, stated in the packet):** the report stage without the 100 materialised draws (so
+   T-regress needs fewer gates); the two theatre tests renamed to what they check or strengthened.
+
+## B2 — Rulings
+- **The pre-flight `preflight_20261006T195405Z` stays PINNED** (record sha256 `a2804527…`): B1's changes add checks and tests and
+  touch neither the training nor either evaluation path, which the pre-flight timed and reproduced. If a B1 change touches a timed
+  path after all, the pre-flight is re-run and the packet says why.
+- `docs/notes/` is the coordinator's: the untracked `docs/notes/p5_2b_g1/` in the task tree (the implementer's mutant specs, results
+  and log — worth keeping) is committed as `docs/returns/P5.2b_evidence/` instead, and the packet points to it.
+
+## B3 — Next
+B1.1–B1.7 (B1.8 at the implementer's call), tests first, at most two source files per commit; the mutants PM4, MT2 and the
+one-device maximum re-run and KILLED, plus one mutant per new refusal; hygiene and English; the whole suite (expect `DEFERRED` 110's
+one failure in a worktree, named); the new and changed test files once in a depth-1 clone (F.1's command); the pre-flight pinned in
+the driver → **"P5.2b C8 done"** → gate G1.1 (the coordinator re-runs PM1–PM5 and checks B1).
