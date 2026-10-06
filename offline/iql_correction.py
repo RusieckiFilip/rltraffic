@@ -6,8 +6,8 @@ hand as ``docs/data/p5_2b_iql_correction.json``); the training record ``p5.2b-tr
 table IQL trains on is ``offline_baselines.build_transitions``' (C6: the transition of decision ``t`` pairs observation
 row ``t`` with row ``t + 1``, the final one bootstrapping from row ``T``), restricted to the declared streams.
 
-Written against ``docs/briefs/BRIEF_44_p5.2b_iql_correction.md`` and its Amendment A, on the plan
-``docs/plans/p5.2b.md`` @ ``b40bc3f`` (approved at gate G0).
+Written against ``docs/briefs/BRIEF_44_p5.2b_iql_correction.md`` and its Amendments A, B and B.1, on the plan
+``docs/plans/p5.2b.md`` @ ``b40bc3f`` (approved at gate G0) and its section 14 (gate G1's fixes).
 
 THE DEFECT (``DEFERRED`` 106)
 ---------------------------
@@ -35,7 +35,9 @@ WHAT THIS MODULE DOES, AND THROUGH WHOSE CODE
 4. **Recompute** P5.2's random-tier statements that involve IQL -- Q1's ``iql@random`` entry and its aggregate (P5.2's
    ``score_level``), the ranking, Q2a, Q2b with IQL's five pairs (P5.2's ``concordance`` and ``predicted_order``), Q3a
    and Q3c -- under ``att_ours`` and ``att_engine``, before and after, with Q2b's hard subset under ``att_ours`` as an
-   asserted invariance (Amendment A, A2: the IQL-free statements under ``att_engine`` are ``DEFERRED`` 109).  Q2a, Q3a,
+   asserted invariance (Amendment A, A2: the IQL-free statements under ``att_engine`` are ``DEFERRED`` 109), and Q2a
+   and Q2b with each training seed's ordering beside the pooled one, a first place that reverses on a seed named as
+   reversing (P5.2's D9 rule, ``docs/plans/p5.2.md`` section 4; Amendment B.1, item 1).  Q2a, Q3a,
    Q3c and the ranking have no scorer in ``tier_sweep.py`` (P5.2's coordinator scored them by hand at ``119cc48``), so
    they are composed here from P5.2's registered definitions (``docs/plans/p5.2.md`` §4) and its primitives
    (``dt_gate._per_draw_means``, ``dt_gate.mean_ci95``, sorted levels); T-reproduce (c) proves each composed value equal
@@ -59,10 +61,22 @@ differs in the last bit for ``bc_top10@random``; no comparison here crosses the 
 THE BARRIER
 -----------
 ``output/p5_2/`` and ``output/p8_4b_rederivation/`` are the record of the defect and of the other arms; nothing here
-writes, moves or deletes anything under them.  Every write goes through :func:`assert_target`: an allow-list (under the
-out-root, which must resolve to ``output/p5_2b`` or under ``output/p5_2b_runs/``; or exactly
-``output/SHA256SUMS_p5_2b.txt`` for the run) and then ``tier_sweep.assert_writable`` against every other child of the
-real ``output/`` and the corpus.  Refusals happen before anything is created.
+writes, moves or deletes anything under them.  The out-root must resolve to ``output/p5_2b`` or under
+``output/p5_2b_runs/`` (:func:`assert_out_root`), where ``output`` is the directory holding ``SHA256SUMS_p5_2.txt`` --
+at its pinned digest, for every stage -- and nested in no directory that holds one (Amendment B, B1.6(a)).  Two kinds
+of write follow, and only the first goes through :func:`assert_target`:
+
+* **this module's own records** -- the training record, the late-close mark, the pre-flight record, the run's
+  manifest and the artifact -- through :func:`write_once_json`, :func:`write_run_manifest` and :func:`write_report`,
+  i.e. :func:`assert_target`'s allow-list (under the out-root; or exactly ``output/SHA256SUMS_p5_2b.txt`` for the
+  run) and then ``tier_sweep.assert_writable`` against every other child of the real ``output/`` and the corpus;
+* **the files other code writes** -- the checkpoints (:func:`train_seeds`), (i)'s ``eval_random_iql.json``
+  (``tier_sweep``'s own writer, whose barrier is ``--reuse-root output/p5_2``), and (ii)'s campaign manifest, cells and
+  marker (P8.4b's writer and :func:`run_rederivation`) -- through ``tier_sweep.assert_writable`` alone, at paths built
+  from the validated out-root.  :func:`check` runs :func:`assert_target` on one path of each kind before the token, so a
+  symlink planted inside the out-root is refused before anything is written.
+
+Refusals happen before anything is created.
 """
 
 from __future__ import annotations
@@ -86,6 +100,8 @@ __all__ = [
     "ARTIFACT_FORMAT_VERSION",
     "CHECKPOINT_SUBDIR",
     "DEFINITIONS",
+    "HYPERPARAMETERS",
+    "LATE_CLOSE_FORMAT_VERSION",
     "METHOD",
     "NON_DT_METHODS",
     "PINS",
@@ -191,6 +207,10 @@ DECLARATION_RELPATH = "docs/data/p5_2_declaration_random.json"
 C1_NOTE_RELPATH = "docs/notes/readme_2026-10-05/c1_rule_r.json"
 RANDOM_TIER_DIR = "cf_grid4x4__random"
 
+#: Amendment B, B1.6(b): the thirteen hyperparameters enforced equal to what the original checkpoints record.
+HYPERPARAMETERS: tuple[str, ...] = ("batch_size", "learning_rate", "weight_decay", "grad_clip", "tau", "beta", "gamma",
+                                    "polyak", "weight_clip", "gradient_steps", "training_streams", "reward_scale",
+                                    "torch_num_threads")
 #: Q3c's set (``docs/plans/p5.2.md`` §4 Q3c): the best non-DT arm is the lowest of these, measured on the tier.
 NON_DT_METHODS: tuple[str, ...] = ("bc", "bc_top10", "bc_top10_perix", "iql")
 #: A11(b)'s two ATT definitions, in the order every block reports them.
@@ -280,6 +300,11 @@ def _read_json(path: str | Path) -> Any:
     return json.loads(Path(path).read_bytes())
 
 
+def _utc_now() -> str:
+    """``compute_latency``'s format: the canaries' ``written_utc`` and this module's times compare as strings."""
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
 # ----------------------------------------------------------------------
 # The barrier
 # ----------------------------------------------------------------------
@@ -307,8 +332,32 @@ def checkpoint_dir(out_root: str | Path) -> Path:
 
 def assert_out_root(out_root: str | Path, output_root: str | Path, *, pins: Pins | None = None) -> Path:
     """The resolved out-root, or a refusal unless it resolves to ``<output>/p5_2b`` or strictly under
-    ``<output>/p5_2b_runs`` -- compared against the un-resolved names, so a symlink at either cannot pass."""
+    ``<output>/p5_2b_runs`` -- compared against the un-resolved names, so a symlink at either cannot pass.
+
+    The output root itself (Amendment B, B1.6(a)): it must hold ``SHA256SUMS_p5_2.txt`` and no directory above it may,
+    so no root nested in an output tree -- ``output/p5_2`` included -- is ever accepted, whatever the caller passes;
+    with *pins* (every stage passes its own), the manifest must also be at its pinned digest.  The barrier's helpers
+    call this without pins and keep both structural checks."""
     output = Path(output_root).resolve()
+    sums = output / P5_2_SUMS_NAME
+    if not sums.is_file():
+        raise PermissionError(
+            f"{output_root} holds no {P5_2_SUMS_NAME}: the output root is the directory that holds P5.2's manifest, "
+            "and no other directory is one (BRIEF_44 Amendment B, B1.6(a))"
+        )
+    above = next((parent for parent in output.parents if (parent / P5_2_SUMS_NAME).is_file()), None)
+    if above is not None:
+        raise PermissionError(
+            f"{output_root} lies inside {above}, which holds {P5_2_SUMS_NAME}: an output root is never nested in an "
+            "output tree, so no directory under output/p5_2/ is ever one (BRIEF_44 Amendment B, B1.6(a))"
+        )
+    if pins is not None:
+        digest = _sha256_file(sums)
+        if digest != pins.p5_2_sums_sha256:
+            raise PermissionError(
+                f"{sums} is at sha256 {digest}, not the pinned {pins.p5_2_sums_sha256}: the output root is the one "
+                "holding P5.2's pinned manifest (BRIEF_44 Amendment B, B1.6(a))"
+            )
     resolved = Path(out_root).resolve()
     if resolved == output / RUN_DIR or (output / RUNS_DIR) in resolved.parents:
         return resolved
@@ -480,6 +529,8 @@ def original_training(output_root: str | Path, sums: Mapping[str, str]) -> dict[
     every value but their seed's own."""
     import torch
 
+    from offline.tier_sweep import canonical_state_dict_digest
+
     output = Path(output_root)
     seeds = sorted(int(match.group(1)) for name in sums if (match := _CHECKPOINT_PATTERN.match(name)))
     if not seeds:
@@ -506,7 +557,9 @@ def original_training(output_root: str | Path, sums: Mapping[str, str]) -> dict[
             different = sorted(name for name in values if values[name] != common[name])
             raise ValueError(f"the original checkpoints disagree ({different or ['stats']}) at seed {seed}")
         per_seed[str(seed)] = {"checkpoint": f"output/{relative}", "sha256": digest,
-                               "canonical_digest": payload["canonical_digest"], "training_rows": values["training_rows"]}
+                               "canonical_digest": payload["canonical_digest"],
+                               "state_dict_sha256": canonical_state_dict_digest(path),
+                               "training_rows": values["training_rows"]}
     return {"seeds": seeds, "common": dict(common or {}), "stats": stats, "per_seed": per_seed}
 
 
@@ -520,7 +573,14 @@ def declared_selection(repo_root: str | Path, corpus_root: str | Path, *, pins: 
         raise ValueError(f"{path} is at sha256 {digest}, not the pinned {pins.declaration_sha256}")
     declaration = json.loads(data)
     manifest_file = Path(corpus_root) / RANDOM_TIER_DIR / "manifest.json"
-    manifest = _read_json(manifest_file)
+    manifest_bytes = manifest_file.read_bytes()
+    manifest_digest = hashlib.sha256(manifest_bytes).hexdigest()
+    if manifest_digest != pins.corpus_manifest_sha256:
+        raise ValueError(
+            f"{manifest_file} is at sha256 {manifest_digest}, not the pinned {pins.corpus_manifest_sha256}: the corpus "
+            "manifest the second route reads its episode lengths from is pinned (BRIEF_44 Amendment B, B1.6(e))"
+        )
+    manifest = json.loads(manifest_bytes)
     length = {str(entry["filename"]): int(entry["episode_length"]) for entry in manifest["episodes"]}
     selected = list(declaration["selected_episodes"])
     nodes = [str(ix) for ix in declaration["node_order"]]
@@ -535,8 +595,7 @@ def declared_selection(repo_root: str | Path, corpus_root: str | Path, *, pins: 
         "rows": sum(length[str(entry["episode_file"])] for entry in selected) * len(nodes),
         "whole_tier_rows": sum(length.values()) * len(nodes),
         "declaration": {"file": DECLARATION_RELPATH, "sha256": digest},
-        "corpus_manifest": {"file": f"datasets_v11/{RANDOM_TIER_DIR}/manifest.json",
-                            "sha256": _sha256_file(manifest_file)},
+        "corpus_manifest": {"file": f"datasets_v11/{RANDOM_TIER_DIR}/manifest.json", "sha256": manifest_digest},
         "keys": keys,
     }
 
@@ -569,9 +628,48 @@ def assert_p8_4b_campaign(output_root: str | Path, *, pins: Pins = PINS) -> dict
 
 
 def assert_c1_note_means(output_root: str | Path, cells: Sequence[str], note: Mapping[str, Any]) -> dict[str, Any]:
-    """A1.4's third anchor (Amendment B, B1.1): the six random-tier means under both definitions, recomputed by the
-    note's own route, equal to the note's."""
-    raise NotImplementedError
+    """A1.4's third anchor, ENFORCED (Amendment B, B1.1): the six random-tier means under both definitions, recomputed
+    by ``docs/notes/readme_2026-10-05/c1_rule_r.json``'s own route and refused unless each equals the note's.
+
+    The route is the note's script's: ``statistics.mean`` over each arm's cell files.  It sums exact fractions, so
+    the order the files are read in cannot move the result, and no comparison here crosses to ``mean_ci95``'s route.
+    The cells are the random tier's keys of *cells* (the campaign list :func:`assert_p8_4b_campaign` verified), each
+    read by P8.4b's own file name and refused unless it is the cell its name says.  Without this, an edited
+    ``att_engine`` in any P8.4b cell passed every other check (G1 review, RA1's MAJOR)."""
+    import offline.tier_sweep as ts
+    from offline.att_rederivation import CellKey, cell_file_name
+
+    work = Path(output_root) / P8_4B_DIR
+    block = note["tiers"][f"{SCENARIO}/{TIER}"]
+    arms = {f"{method}@{TIER}": method for method in ts.METHODS}
+    values: dict[str, dict[str, list[float]]] = {method: {name: [] for name in DEFINITIONS} for method in ts.METHODS}
+    for key in cells:
+        scenario, arm, seed, draw = str(key).split("|")
+        if scenario != SCENARIO or arm not in arms:
+            continue
+        method = arms[arm]
+        name = cell_file_name(CellKey(scenario=scenario, arm=arm, seed=int(seed), draw_id=int(draw)))
+        row = _read_json(work / name)
+        identity = (str(row["scenario"]), str(row["tier"]), str(row["method"]), str(row["arm"]), int(row["seed"]),
+                    int(row["draw_id"]))
+        if identity != (scenario, TIER, method, arm, int(seed), int(draw)):
+            raise ValueError(f"P8.4b's {name} is not the cell its name says ({key}): it holds {identity}")
+        for definition in DEFINITIONS:
+            values[method][definition].append(float(row[definition]))
+    for method in ts.METHODS:
+        for definition in DEFINITIONS:
+            if not values[method][definition]:
+                raise ValueError(f"P8.4b's campaign lists no cell of {method}@{TIER}")
+            mine = statistics.mean(values[method][definition])
+            theirs = block[definition]["means"][method]
+            if mine != theirs:
+                raise ValueError(
+                    f"{method}@{TIER} under {definition}: the mean of P8.4b's {len(values[method][definition])} cells "
+                    f"by the note's own route (statistics.mean) is {mine!r}, and {C1_NOTE_RELPATH} says {theirs!r}: "
+                    "A1.4's third anchor does not hold, so no P8.4b value is read (BRIEF_44 Amendment B, B1.1)"
+                )
+    return {"arms": sorted(ts.METHODS), "definitions": list(DEFINITIONS), "route": "statistics.mean",
+            "cells_per_arm": {method: len(values[method][DEFINITIONS[0]]) for method in ts.METHODS}}
 
 
 def _verified_note(repo_root: str | Path, pins: Pins) -> dict[str, Any]:
@@ -611,12 +709,14 @@ def _verify_inputs(roots: Roots, pins: Pins) -> dict[str, Any]:
             f"{ARM} cells at engine seed {campaign['engine_seed']}"
         )
     note = _verified_note(roots.repo_root, pins)
+    c1 = assert_c1_note_means(output, campaign["cells"], note["payload"])
     missing = [draw for draw in protocol.draw_ids
                if not Path(draw_config_path("cityflow_grid4x4", draw, out_root=roots.draws_root)).is_file()]
     if missing:
         raise FileNotFoundError(f"{len(missing)} held-out draws are not materialised under {roots.draws_root}: {missing[:5]}")
     return {"sums": sums, "p5_2_sums_sha256": pins.p5_2_sums_sha256, "original_payload": original_payload,
-            "protocol": protocol, "original": original, "declared": declared, "campaign": campaign, "note": note}
+            "protocol": protocol, "original": original, "declared": declared, "campaign": campaign, "note": note,
+            "c1": c1}
 
 
 # ----------------------------------------------------------------------
@@ -666,13 +766,41 @@ def assert_training_inputs(inputs: TrainingInputs, declared: Mapping[str, Any],
 
 
 def planned_hyperparameters(inputs: TrainingInputs, *, gradient_steps: int) -> dict[str, Any]:
-    """The thirteen values ``train_iql`` will train with (Amendment B, B1.6(b))."""
-    raise NotImplementedError
+    """The thirteen values ``train_iql`` will train with (Amendment B, B1.6(b)): the eight it reads from
+    ``offline_baselines``' module globals at call time (``LEARNING_RATE``, ``WEIGHT_DECAY``, ``GRAD_CLIP`` and the five
+    ``IQL_*``), the batch this module passes, the steps, the streams and the reward scale of the table, and the torch
+    thread count ``runtime_provenance`` will record.  Read at the moment of the call, after the thread pin."""
+    import torch
+
+    import offline.offline_baselines as ob
+
+    return {
+        "batch_size": int(ob.IQL_BATCH_TRANSITIONS), "learning_rate": ob.LEARNING_RATE,
+        "weight_decay": ob.WEIGHT_DECAY, "grad_clip": ob.GRAD_CLIP, "tau": ob.IQL_TAU, "beta": ob.IQL_BETA,
+        "gamma": ob.IQL_GAMMA, "polyak": ob.IQL_POLYAK, "weight_clip": ob.IQL_WEIGHT_CLIP,
+        "gradient_steps": int(gradient_steps), "training_streams": len(inputs.streams),
+        "reward_scale": float(inputs.scale), "torch_num_threads": int(torch.get_num_threads()),
+    }
 
 
 def assert_hyperparameters(planned: Mapping[str, Any], original: Mapping[str, Any]) -> dict[str, Any]:
-    """Refuse unless each of the thirteen equals what the original checkpoints record (Amendment B, B1.6(b))."""
-    raise NotImplementedError
+    """Refuse unless each of the thirteen equals what the original checkpoints record (Amendment B, B1.6(b)) -- the
+    steps against both ``gradient_steps`` and ``declared_gradient_steps``.  Before this, the module copied them into
+    the artifact and compared none, so a constant changed before the run would have moved P5.2's ``train_iql`` and
+    this module's alike and refused nothing (G1 review, RA1)."""
+    if set(planned) != set(HYPERPARAMETERS):
+        raise ValueError(f"the planned hyperparameters are {sorted(planned)}, not the thirteen {sorted(HYPERPARAMETERS)}")
+    drift = [f"{name}: {planned[name]!r} planned, {original.get(name)!r} recorded" for name in HYPERPARAMETERS
+             if name not in original or planned[name] != original[name]]
+    if planned["gradient_steps"] != original.get("declared_gradient_steps"):
+        drift.append(f"declared_gradient_steps: {planned['gradient_steps']!r} planned, "
+                     f"{original.get('declared_gradient_steps')!r} recorded")
+    if drift:
+        raise ValueError(
+            f"the planned training is not P5.2's: {'; '.join(drift)} (BRIEF_44 Amendment B, B1.6(b): the thirteen "
+            "hyperparameters the original checkpoints record are enforced, not copied)"
+        )
+    return {name: planned[name] for name in HYPERPARAMETERS}
 
 
 def correction_block(declared: Mapping[str, Any], original: Mapping[str, Any]) -> dict[str, Any]:
@@ -1023,6 +1151,23 @@ def random_tier_statements(cells: Mapping[tuple[str, str], Sequence[Any]], *,
     if with_hard_subset:
         statements["q2b_hard"] = {**ts.concordance(predicted, order, subset=ts.HARD_SUBSET, measured_levels=measured),
                                   "rule": "the same, on tier_sweep.HARD_SUBSET; no threshold is registered"}
+    per_seed = _per_seed_orderings(cells, predicted)
+    reversing = [int(seed) for seed, block in per_seed.items() if block["firsts"] != [order[0]]]
+    statements["per_seed"] = {
+        "seeds": {seed: {key: value for key, value in block.items() if key != "firsts"} for seed, block in per_seed.items()},
+        "rule": ("docs/plans/p5.2.md section 4 Q2 (D9): each training seed's ordering beside the pooled one; a seed's "
+                 "level is the mean of its episodes by dt_gate.mean_ci95 in draw order, its order and first place as "
+                 "the pooled ones, its concordance by tier_sweep.concordance with the declared tie rule"),
+    }
+    statements["q2a"]["reverses_on_seeds"] = reversing
+    statements["q2a"]["reversal"] = None if not reversing else (
+        f"the pooled first place, {order[0]}, reverses on seed{'s' if len(reversing) > 1 else ''} "
+        + ", ".join(str(seed) for seed in reversing) + ": "
+        + "; ".join(f"{' and '.join(per_seed[str(seed)]['firsts'])} "
+                    f"{'tie for' if len(per_seed[str(seed)]['firsts']) > 1 else 'is'} first on seed {seed}"
+                    for seed in reversing)
+        + " (docs/plans/p5.2.md section 4 Q2, D9: a first place that reverses on a seed is reported as reversing)")
+    statements["q2b"]["per_seed_n_concordant"] = {seed: block["n_concordant"] for seed, block in per_seed.items()}
     others = [method for method in ts.METHODS if method != "dt_nomix"]
     statements["q3a"] = {
         "rank": 1 + sum(measured[method] < measured["dt_nomix"] for method in others), "of": len(ts.METHODS),
@@ -1047,6 +1192,31 @@ def random_tier_statements(cells: Mapping[tuple[str, str], Sequence[Any]], *,
                 "over per-draw means of the five seeds (dt_gate._per_draw_means), the 95 % CI by dt_gate.mean_ci95",
     }
     return statements
+
+
+def _per_seed_orderings(cells: Mapping[tuple[str, str], Sequence[Any]], predicted: Sequence[str]) -> dict[str, Any]:
+    """Each training seed's levels, order, first place and concordance at the random tier (B.1, item 1), refused
+    unless the six arms cover the same seeds.  A seed's episodes are taken in the cell's own (seed, draw) order."""
+    import offline.tier_sweep as ts
+    from offline.dt_gate import mean_ci95
+
+    covered = {method: sorted({int(episode.seed) for episode in cells[(method, TIER)]}) for method in ts.METHODS}
+    seeds = covered[METHOD]
+    if any(value != seeds for value in covered.values()):
+        raise ValueError(f"the six arms at {TIER} do not cover the same seeds {covered}: a per-seed ordering compares "
+                         "like with like")
+    out: dict[str, Any] = {}
+    for seed in seeds:
+        levels = {method: float(mean_ci95([episode.att_horizon for episode in cells[(method, TIER)]
+                                           if int(episode.seed) == seed]).mean) for method in ts.METHODS}
+        order = sorted(ts.METHODS, key=lambda method: levels[method])
+        lowest = min(levels.values())
+        firsts = [method for method in ts.METHODS if levels[method] == lowest]
+        concordance = ts.concordance(list(predicted), order, measured_levels=levels)
+        out[str(seed)] = {"levels": levels, "order": order, "first": order[0],
+                          "tied_for_first": firsts if len(firsts) > 1 else [], "firsts": firsts,
+                          "n_concordant": concordance["n_concordant"], "n_tied": concordance["n_tied"]}
+    return out
 
 
 # ----------------------------------------------------------------------
@@ -1157,7 +1327,7 @@ def load_report_inputs(roots: Roots, *, pins: Pins = PINS) -> dict[str, Any]:
     from offline.tier_sweep import cell_is_complete
 
     output = Path(roots.output_root)
-    out = assert_out_root(roots.out_root, output)
+    out = assert_out_root(roots.out_root, output, pins=pins)
     verified = _verify_inputs(roots, pins)
     protocol: Protocol = verified["protocol"]
     original_ours = p5_2_cells(output, verified["sums"])
@@ -1166,7 +1336,26 @@ def load_report_inputs(roots: Roots, *, pins: Pins = PINS) -> dict[str, Any]:
     state, record = _training_complete(out, protocol, verified["declared"]["rows"])
     if state != "complete" or record is None:
         raise ValueError(f"the training stage is {state}: the report needs the five corrected checkpoints and their record")
+    originals = verified["original"]["per_seed"]
+    for run in record["runs"]:
+        for digest in ("canonical_digest", "state_dict_sha256"):
+            same = sorted(seed for seed, entry in originals.items() if entry[digest] == run[digest])
+            if same:
+                raise ValueError(
+                    f"the corrected seed {run['seed']}'s {digest} {run[digest]} is an original's (seed {same[0]}): the "
+                    "corrected weights must differ from the originals' (BRIEF_44 Amendment B, B1.7(f))"
+                )
     canaries = {"open": _canary(out, CANARY_NAMES[0]), "close": _canary(out, CANARY_NAMES[1])}
+    late: dict[str, Any] | None = None
+    if (out / LATE_CLOSE_NAME).is_file():
+        mark = _read_json(out / LATE_CLOSE_NAME)
+        training_sha = _sha256_file(out / TRAINING_RECORD_NAME)
+        if mark.get("format_version") != LATE_CLOSE_FORMAT_VERSION or (
+                mark.get("training_record") or {}).get("sha256") != training_sha:
+            raise ValueError(f"{out / LATE_CLOSE_NAME} does not name this run's training record (sha256 "
+                             f"{training_sha}): the bracket of the training's seconds cannot be read from it")
+        late = {"file": f"output/{RUN_DIR}/{LATE_CLOSE_NAME}", "sha256": _sha256_file(out / LATE_CLOSE_NAME),
+                "marked_utc": mark.get("marked_utc"), "training_finished_utc": mark.get("training_finished_utc")}
     eval_path = out / EVAL_NAME
     if not eval_path.is_file():
         raise FileNotFoundError(f"{eval_path} is missing: (i) has not run")
@@ -1176,11 +1365,15 @@ def load_report_inputs(roots: Roots, *, pins: Pins = PINS) -> dict[str, Any]:
         raise ValueError(f"{eval_path} is not a complete cell of the protocol")
     assert_evaluated_models(corrected_payload, record)
     corrected_ours = episodes_from_rows(corrected_payload["episodes"], value_key="att_horizon")
+    level = levels_of({(METHOD, TIER): corrected_ours})[(METHOD, TIER)]
+    if level != float(corrected_payload["cell"]["att_horizon_mean"]):
+        raise ValueError(f"{eval_path}: the level {level!r} by mean_ci95 in (seed, draw) order is not the file's own "
+                         f"cell mean {corrected_payload['cell']['att_horizon_mean']!r} (BRIEF_44 Amendment B, B1.7(c))")
     corrected_rows = _corrected_rows(out, protocol, corrected_ours, record)
     rederivation = _campaign_anchor(out / REDERIVATION_SUBDIR)
     manifest = _verify_run_manifest(roots)
     return {
-        "verified": verified, "protocol": protocol, "record": record, "canaries": canaries,
+        "verified": verified, "protocol": protocol, "record": record, "canaries": canaries, "late_close": late,
         "original_ours": original_ours, "original_engine": original_engine, "original_rows": original_rows,
         "corrected_payload": corrected_payload, "corrected_ours": corrected_ours, "corrected_rows": corrected_rows,
         "rederivation": rederivation, "manifest": manifest,
@@ -1206,9 +1399,16 @@ WHAT_THIS_DOES_NOT_SAY: tuple[str, ...] = (
     "P5.2's statements, DEFERRED 109.",
     "P8.4b's att_engine values are pinned by its campaign's completeness and the cross-checks named in inputs, not by "
     "a digest manifest, which P8.4b never wrote (Amendment A, A1.4).",
-    "The training seconds cover each seed's gradient loop only (offline_baselines.train_iql's time.time()), measured "
-    "between two machine-health canaries.",
 )
+
+
+def _seconds_sentence(late: bool) -> str:
+    """The closing sentence of ``what_this_does_not_say``: what bracketed the training's seconds (Amendment B, B1.3)."""
+    covers = "The training seconds cover each seed's gradient loop only (offline_baselines.train_iql's time.time())"
+    if not late:
+        return covers + ", measured between two machine-health canaries."
+    return (covers + ", measured after an opening machine-health canary; the closing canary was taken after a restart, "
+            "late, so no canary closes the measurement (training.seconds.bracketed_by).")
 
 
 def report_from_inputs(inputs: Mapping[str, Any], *, git: Mapping[str, Any]) -> dict[str, Any]:
@@ -1227,7 +1427,29 @@ def report_from_inputs(inputs: Mapping[str, Any], *, git: Mapping[str, Any]) -> 
     after_engine = {**before_engine, (METHOD, TIER): corrected_engine}
     seconds = [float(run["seconds"]) for run in record["runs"]]
     header = {key: record[key] for key in ("format_version", "seeds", "declared_gradient_steps", "batch_size",
-                                           "regime", "concurrency", "table") if key in record}
+                                           "regime", "concurrency", "table", "hyperparameters", "finished_utc")
+              if key in record}
+    late = inputs.get("late_close")
+    bracket = {
+        "bracketed_by": ("the opening and the closing canary of the run that trained, the closing one taken right "
+                         "after the training" if late is None else
+                         "the opening canary only: the closing canary was not taken after the training in its run, and "
+                         "was taken after a restart, late (BRIEF_44 Amendment B, B1.3)"),
+        "training_finished_utc": record.get("finished_utc"),
+        "closing_canary_utc": inputs["canaries"]["close"]["written_utc"],
+        "late_close": late,
+    }
+    pattern = f"output/{RUN_DIR}/{REDERIVATION_SUBDIR}/cell_grid4x4_iql_at_random_*"
+
+    def flagged(statements: dict[str, Any], definition: str) -> dict[str, Any]:
+        statements["q1"]["predictions_registered_on"] = (
+            "att_horizon (att_ours): P5.2 registered Q1's predictions on the definition measured here "
+            "(docs/plans/p5.2.md section 4)" if definition == "att_ours" else
+            "att_horizon (att_ours), not att_engine: these are P5.2's registered att_horizon-era predictions, compared "
+            "here with att_engine measurements; no prediction was registered under att_engine (BRIEF_44 Amendment B, "
+            "B1.7(d))")
+        return statements
+
     return {
         "format_version": ARTIFACT_FORMAT_VERSION,
         "role": ("P5.2b: P5.2's IQL cell at grid4x4's random tier, re-trained on the declared 200 episodes (DEFERRED "
@@ -1256,7 +1478,8 @@ def report_from_inputs(inputs: Mapping[str, Any], *, git: Mapping[str, Any]) -> 
             "seconds": {"per_seed": [{"seed": int(run["seed"]), "seconds": float(run["seconds"])}
                                      for run in record["runs"]],
                         "median": statistics.median(seconds), "min": min(seconds), "max": max(seconds),
-                        "covers": "each seed's gradient loop (offline_baselines.train_iql, time.time() around it)"},
+                        "covers": "each seed's gradient loop (offline_baselines.train_iql, time.time() around it)",
+                        **bracket},
             "canaries": inputs["canaries"],
             "hyperparameters_of_the_originals": original["common"],
         },
@@ -1281,13 +1504,15 @@ def report_from_inputs(inputs: Mapping[str, Any], *, git: Mapping[str, Any]) -> 
                           "att_ours_p8_4b_path": cell_summary(corrected_ours_ii),
                           "att_engine": cell_summary(corrected_engine),
                           "admission": admission_summary(inputs["corrected_rows"]),
-                          "paths_agree": {"episodes": len(corrected_ours_ii), "equal": int(equal)}},
+                          "paths_agree": {"episodes": len(corrected_ours_ii), "equal": int(equal)},
+                          "sources": {"att_ours": f"output/{RUN_DIR}/{EVAL_NAME}", "att_ours_p8_4b_path": pattern,
+                                      "att_engine": pattern, "admission": pattern}},
         },
         "statements": {
-            "att_ours": {"before": random_tier_statements(before_ours, with_hard_subset=True),
-                         "after": random_tier_statements(after_ours, with_hard_subset=True)},
-            "att_engine": {"before": random_tier_statements(before_engine, with_hard_subset=False),
-                           "after": random_tier_statements(after_engine, with_hard_subset=False)},
+            "att_ours": {"before": flagged(random_tier_statements(before_ours, with_hard_subset=True), "att_ours"),
+                         "after": flagged(random_tier_statements(after_ours, with_hard_subset=True), "att_ours")},
+            "att_engine": {"before": flagged(random_tier_statements(before_engine, with_hard_subset=False), "att_engine"),
+                           "after": flagged(random_tier_statements(after_engine, with_hard_subset=False), "att_engine")},
         },
         "not_recomputed": [
             {"statements": "Q3b, Q4, Q5, Q6 at the random tier", "reason": "no IQL arm: the correction cannot move them"},
@@ -1297,15 +1522,22 @@ def report_from_inputs(inputs: Mapping[str, Any], *, git: Mapping[str, Any]) -> 
         "inputs": {
             "p5_2_manifest": {"file": f"output/{P5_2_SUMS_NAME}", "sha256": verified["p5_2_sums_sha256"]},
             "declaration": declared["declaration"], "corpus_manifest": declared["corpus_manifest"],
-            "c1_note": {"file": verified["note"]["file"], "sha256": verified["note"]["sha256"]},
+            "c1_note": {"file": verified["note"]["file"], "sha256": verified["note"]["sha256"],
+                        "used_for": ("A1.4's third anchor, enforced (BRIEF_44 Amendment B, B1.1): before any P8.4b value "
+                                     "is read, the six random-tier means under att_ours and att_engine are recomputed by "
+                                     "the note's own route (statistics.mean over each arm's P8.4b cell files) and "
+                                     "refused unless each equals the note's"),
+                        "checked": verified["c1"]},
             "p8_4b_campaign": {"declared_cells_sha256": verified["campaign"]["declared_cells_sha256"],
                                "n_cells": verified["campaign"]["n_cells"],
                                "anchor": ("the digest recomputed by att_rederivation.campaign_manifest from the "
                                           "manifest's own cell list, equal to CAMPAIGN_COMPLETE's and to the pin; "
-                                          "every cell read reproduces P5.2's committed att_horizon")},
+                                          "every cell read reproduces P5.2's committed att_horizon; the random tier's "
+                                          "six means under both definitions equal "
+                                          "docs/notes/readme_2026-10-05/c1_rule_r.json's by its own route")},
             "run_manifest": inputs["manifest"],
         },
-        "what_this_does_not_say": list(WHAT_THIS_DOES_NOT_SAY),
+        "what_this_does_not_say": [*WHAT_THIS_DOES_NOT_SAY, _seconds_sentence(late is not None)],
     }
 
 
@@ -1367,10 +1599,14 @@ def status(roots: Roots, *, pins: Pins = PINS) -> dict[str, str]:
     declared = declared_selection(roots.repo_root, roots.corpus_root, pins=pins)
     training, record = _training_complete(out, protocol, declared["rows"])
     canaries = [(out / name).is_file() for name in CANARY_NAMES]
-    state: dict[str, str] = {
-        "training": training,
-        "canaries": "complete" if all(canaries) else ("partial" if any(canaries) else "absent"),
-    }
+    if all(canaries):
+        canary_state = "complete"
+    elif training == "complete" and canaries == [True, False]:
+        # Amendment B, B1.3: the closing canary of a complete training is taken late, alone -- never by training again.
+        canary_state = "closing_pending"
+    else:
+        canary_state = "partial" if any(canaries) else "absent"
+    state: dict[str, str] = {"training": training, "canaries": canary_state}
     eval_path = out / EVAL_NAME
     payload: Mapping[str, Any] | None = None
     if not eval_path.is_file():
@@ -1395,7 +1631,7 @@ def status(roots: Roots, *, pins: Pins = PINS) -> dict[str, str]:
 def check(roots: Roots, *, pins: Pins = PINS, require_cuda: bool = True) -> dict[str, Any]:
     """Every pre-token refusal the module owns (plan §8); writes nothing.  ``require_cuda`` is false only in tests."""
     output = Path(roots.output_root)
-    out = assert_out_root(roots.out_root, output)
+    out = assert_out_root(roots.out_root, output, pins=pins)
     if out != output.resolve() / RUN_DIR:
         raise PermissionError(f"check is the run's: its out-root is {output / RUN_DIR}, not {out}")
     verified = _verify_inputs(roots, pins)
@@ -1460,7 +1696,7 @@ def train_stage(roots: Roots, *, pins: Pins = PINS) -> Path:
     from offline.tier_sweep import configure_determinism
 
     output = Path(roots.output_root)
-    out = assert_out_root(roots.out_root, output)
+    out = assert_out_root(roots.out_root, output, pins=pins)
     verified = _verify_inputs(roots, pins)
     state = status(roots, pins=pins)
     if state["training"] != "absent" or (out / CANARY_NAMES[1]).exists():
@@ -1478,9 +1714,12 @@ def train_stage(roots: Roots, *, pins: Pins = PINS) -> Path:
     table_seconds = time.perf_counter() - started
     checked = assert_training_inputs(inputs, verified["declared"], verified["original"])
     protocol: Protocol = verified["protocol"]
+    hyperparameters = assert_hyperparameters(
+        planned_hyperparameters(inputs, gradient_steps=protocol.declared_gradient_steps), verified["original"]["common"])
     runs = train_seeds(inputs, seeds=protocol.seeds, gradient_steps=protocol.declared_gradient_steps,
                        device=torch.device("cuda"), checkpoint_dir=checkpoint_dir(out), protected=protected,
                        correction=correction_block(verified["declared"], verified["original"]), log_every=0)
+    finished = _utc_now()
     record = {
         "format_version": TRAINING_FORMAT_VERSION, "tier": TIER, "method": METHOD, "seeds": list(protocol.seeds),
         "declared_gradient_steps": protocol.declared_gradient_steps, "batch_size": IQL_BATCH_TRANSITIONS,
@@ -1489,7 +1728,9 @@ def train_stage(roots: Roots, *, pins: Pins = PINS) -> Path:
                                               "refuses a second offline.iql_correction interpreter"},
         "table": {**checked, "episodes": verified["declared"]["episodes_selected"], "build_seconds": table_seconds,
                   "filter": "offline.tier_sweep.iql_transition_table"},
+        "hyperparameters": hyperparameters,
         "stage_seconds": time.perf_counter() - started,
+        "finished_utc": finished,
         "canary_open": _canary(out, CANARY_NAMES[0]),
         "git": _git_provenance(),
         "runs": runs,
@@ -1498,8 +1739,44 @@ def train_stage(roots: Roots, *, pins: Pins = PINS) -> Path:
 
 
 def close_late_stage(roots: Roots, *, pins: Pins = PINS) -> Path:
-    """Amendment B, B1.3: mark a complete training whose closing canary is missing, before the late canary."""
-    raise NotImplementedError
+    """Amendment B, B1.3 -- no second realisation, ever: a COMPLETE training whose closing canary is missing (it failed,
+    or the run stopped before it) is never trained again.  Before the driver takes the closing canary alone, late,
+    this writes the training record's write-once addendum: the training's seconds are bracketed by the opening canary
+    only.  The training record cannot say so itself -- it is written once, before the closing canary exists.  Re-entered
+    after a late canary that failed again, it finds its own mark and writes nothing."""
+    output = Path(roots.output_root)
+    out = assert_out_root(roots.out_root, output, pins=pins)
+    if out != output.resolve() / RUN_DIR:
+        raise PermissionError(f"close-late is the run's: its out-root is {output / RUN_DIR}, not {out}")
+    state = status(roots, pins=pins)
+    if state["training"] != "complete" or state["canaries"] != "closing_pending":
+        raise ValueError(
+            "the closing canary is taken late only after a complete training whose closing canary is missing; the "
+            f"training is {state['training']} and the canaries are {state['canaries']} (BRIEF_44 Amendment B, B1.3)"
+        )
+    record_path = out / TRAINING_RECORD_NAME
+    training_sha = _sha256_file(record_path)
+    path = out / LATE_CLOSE_NAME
+    if path.exists():
+        mark = _read_json(path)
+        if mark.get("format_version") != LATE_CLOSE_FORMAT_VERSION or (
+                mark.get("training_record") or {}).get("sha256") != training_sha:
+            raise ValueError(f"{path} exists and does not name this training record (sha256 {training_sha}): move "
+                             "output/p5_2b aside by hand")
+        print(f"SKIP close-late: {path} already marks this training", flush=True)
+        return path
+    opening = _canary(out, CANARY_NAMES[0])
+    payload = {
+        "format_version": LATE_CLOSE_FORMAT_VERSION,
+        "training_record": {"file": f"output/{RUN_DIR}/{TRAINING_RECORD_NAME}", "sha256": training_sha},
+        "training_finished_utc": _read_json(record_path).get("finished_utc"),
+        "canary_open": {key: opening[key] for key in ("file", "sha256", "seconds", "verdict", "written_utc")},
+        "marked_utc": _utc_now(),
+        "bracket": ("the training's seconds are bracketed by the opening canary only: its closing canary was not taken "
+                    "after the training in its run, and is taken after this restart, late; the training is never run "
+                    "again (BRIEF_44 Amendment B, B1.3; Amendment A, Q12)"),
+    }
+    return write_once_json(path, payload, roots, protected_roots(roots))
 
 
 def evaluate_p5_2_stage(roots: Roots, *, pins: Pins = PINS) -> Path:
@@ -1507,7 +1784,7 @@ def evaluate_p5_2_stage(roots: Roots, *, pins: Pins = PINS) -> Path:
     from offline.tier_sweep import cell_is_complete
 
     output = Path(roots.output_root)
-    out = assert_out_root(roots.out_root, output)
+    out = assert_out_root(roots.out_root, output, pins=pins)
     verified = _verify_inputs(roots, pins)
     protocol: Protocol = verified["protocol"]
     state = status(roots, pins=pins)
@@ -1534,7 +1811,7 @@ def evaluate_p5_2_stage(roots: Roots, *, pins: Pins = PINS) -> Path:
 def evaluate_p8_4b_stage(roots: Roots, *, pins: Pins = PINS) -> Path:
     """(ii): P8.4b's runner on the corrected checkpoints, resumable per cell."""
     output = Path(roots.output_root)
-    out = assert_out_root(roots.out_root, output)
+    out = assert_out_root(roots.out_root, output, pins=pins)
     verified = _verify_inputs(roots, pins)
     protocol: Protocol = verified["protocol"]
     state = status(roots, pins=pins)
@@ -1589,8 +1866,21 @@ def write_run_manifest(roots: Roots, protected: Sequence[Path]) -> list[str]:
 
 
 def manifest_stage(roots: Roots, *, pins: Pins = PINS) -> list[str]:
-    """Amendment B.1, item 2: the run's manifest, refused unless every stage is complete."""
-    raise NotImplementedError
+    """The run's manifest, REFUSED unless the training, its two canaries, (i) and (ii) are all complete (Amendment
+    B.1, item 2): a manual ``manifest`` on a partial run must not freeze it as final.  The CLI's ``manifest`` -- the
+    driver's call and the only manual one -- runs this; :func:`write_run_manifest` keeps its own contract (the
+    listing, written once, never for a pre-flight), on which seven existing tests rest (plan section 14.3)."""
+    output = Path(roots.output_root)
+    out = assert_out_root(roots.out_root, output, pins=pins)
+    if out != output.resolve() / RUN_DIR:
+        raise PermissionError(f"only the run writes {MANIFEST_NAME}; {out} is a pre-flight")
+    state = status(roots, pins=pins)
+    incomplete = {stage: state[stage] for stage in ("training", "canaries", "p5_2_eval", "rederivation")
+                  if state[stage] != "complete"}
+    if incomplete:
+        raise ValueError(f"the run is not complete ({incomplete}): its manifest would freeze a partial run as final "
+                         "(BRIEF_44 Amendment B.1, item 2); finish the stages first")
+    return write_run_manifest(roots, protected_roots(roots))
 
 
 def report_stage(roots: Roots, *, pins: Pins = PINS) -> Path:
@@ -1646,7 +1936,7 @@ def preflight(roots: Roots, *, stamp: str, steps: int, draws: Sequence[int], pin
     from offline.tier_sweep import configure_determinism
 
     output = Path(roots.output_root)
-    out = assert_out_root(roots.out_root, output)
+    out = assert_out_root(roots.out_root, output, pins=pins)
     if out == output.resolve() / RUN_DIR:
         raise PermissionError("the pre-flight never writes into the run's directory; its out-root is under p5_2b_runs/")
     protected = protected_roots(roots)
@@ -1744,8 +2034,8 @@ def preflight(roots: Roots, *, stamp: str, steps: int, draws: Sequence[int], pin
 
 
 def build_parser() -> Any:
-    """``check``, ``status``, ``train``, ``evaluate-p5-2``, ``evaluate-p8-4b``, ``manifest``, ``report``,
-    ``preflight``, ``timeouts``."""
+    """``check``, ``status``, ``train``, ``close-late``, ``evaluate-p5-2``, ``evaluate-p8-4b``, ``manifest``,
+    ``report``, ``preflight``, ``timeouts``."""
     parser = argparse.ArgumentParser(prog="python -m offline.iql_correction", allow_abbrev=False,
                                      description="P5.2b: the IQL random-tier correction run (BRIEF_44)")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -1769,8 +2059,10 @@ def build_parser() -> Any:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Run one subcommand; returns the process exit code."""
+    """Run one subcommand; returns the process exit code.  ``PINS`` is read here, at call time, and handed to every
+    stage, so a test can point the CLI at a synthetic record by replacing the module's ``PINS``."""
     args = build_parser().parse_args(argv)
+    pins = PINS
     try:
         if args.command == "timeouts":
             values = timeouts_from_preflight(args.preflight_record)
@@ -1779,25 +2071,25 @@ def main(argv: Sequence[str] | None = None) -> int:
         roots = Roots(repo_root=args.repo_root, output_root=args.output_root, corpus_root=args.corpus_root,
                       draws_root=args.draws_root, out_root=args.out_root or run_root(args.output_root))
         if args.command == "check":
-            print(json.dumps(check(roots), indent=2, sort_keys=True), flush=True)
+            print(json.dumps(check(roots, pins=pins), indent=2, sort_keys=True), flush=True)
         elif args.command == "status":
-            state = status(roots)
+            state = status(roots, pins=pins)
             print(state[args.stage] if args.stage else json.dumps(state, indent=2, sort_keys=True), flush=True)
         elif args.command == "train":
-            print(f"training record: {train_stage(roots)}", flush=True)
+            print(f"training record: {train_stage(roots, pins=pins)}", flush=True)
         elif args.command == "close-late":
-            print(f"late closing canary marked: {close_late_stage(roots)}", flush=True)
+            print(f"late closing canary marked: {close_late_stage(roots, pins=pins)}", flush=True)
         elif args.command == "evaluate-p5-2":
-            print(f"(i): {evaluate_p5_2_stage(roots)}", flush=True)
+            print(f"(i): {evaluate_p5_2_stage(roots, pins=pins)}", flush=True)
         elif args.command == "evaluate-p8-4b":
-            print(f"(ii): {evaluate_p8_4b_stage(roots)}", flush=True)
+            print(f"(ii): {evaluate_p8_4b_stage(roots, pins=pins)}", flush=True)
         elif args.command == "manifest":
-            lines = write_run_manifest(roots, protected_roots(roots))
+            lines = manifest_stage(roots, pins=pins)
             print(f"{manifest_path(roots.output_root)}: {len(lines)} files", flush=True)
         elif args.command == "report":
-            print(f"artifact: {report_stage(roots)}", flush=True)
+            print(f"artifact: {report_stage(roots, pins=pins)}", flush=True)
         elif args.command == "preflight":
-            record = preflight(roots, stamp=args.stamp, steps=args.steps, draws=PREFLIGHT_DRAWS)
+            record = preflight(roots, stamp=args.stamp, steps=args.steps, draws=PREFLIGHT_DRAWS, pins=pins)
             path = Path(roots.out_root) / "preflight.json"
             print(f"pre-flight {args.stamp}: {record['status']}" + (f" ({'; '.join(record['reasons'])})"
                                                                    if record["reasons"] else ""), flush=True)

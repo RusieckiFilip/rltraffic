@@ -1927,3 +1927,36 @@ def test_b_1_2_the_clis_manifest_command_is_the_gated_stage(tmp_path: Path, monk
                     "--draws-root", str(roots.draws_root), "--repo-root", str(roots.repo_root)])
     assert code == 2 and "not complete" in capsys.readouterr().err
     assert not (roots.output_root / "SHA256SUMS_p5_2b.txt").exists()
+
+
+# ---------------------------------------------------------------- Amendment B on the real record (gated)
+# Written WITH the implementation (C8f), not before it: they check that the new pins and anchors hold on the real
+# record, and are proven by the mutants that change a pin, not by a red run.
+
+
+def test_b1_the_new_pins_and_the_c1_anchor_hold_on_the_real_record() -> None:
+    """B1.6(e)'s pin is the real corpus manifest's digest; B1.1's anchor holds on P8.4b's 3,000 random-tier cells (500
+    per arm, both definitions); B1.6(a)'s barrier accepts the real output root at the real pins."""
+    output = _p8_4b_cells()
+    declared = ic.declared_selection(REPO_ROOT, _corpus_root())
+    assert declared["corpus_manifest"]["sha256"] == ic.PINS.corpus_manifest_sha256
+    assert (declared["rows"], declared["streams"], declared["whole_tier_rows"]) == (1_152_000, 3200, 2_304_000)
+    campaign = ic.assert_p8_4b_campaign(output)
+    note = json.loads((REPO_ROOT / ic.C1_NOTE_RELPATH).read_text(encoding="utf-8"))
+    checked = ic.assert_c1_note_means(output, campaign["cells"], note)
+    assert checked["cells_per_arm"] == {m: 500 for m in ts.METHODS}
+    assert ic.assert_out_root(output / "p5_2b", output, pins=ic.PINS) == (output / "p5_2b").resolve()
+
+
+def test_b1_6b_the_thirteen_planned_for_the_real_table_are_the_originals(real_training_inputs: Any,
+                                                                          keep_torch_threads: Any) -> None:
+    """RA1's 13 of 13, as a test: the values the run will train with, on the real corrected table and one torch thread,
+    equal what the five original checkpoints record."""
+    output = _output_root()
+    original = ic.original_training(output, ic.p5_2_sums(output))
+    torch.set_num_threads(1)
+    planned = ic.planned_hyperparameters(real_training_inputs, gradient_steps=40000)
+    assert ic.assert_hyperparameters(planned, original["common"]) == planned
+    assert (planned["batch_size"], planned["learning_rate"], planned["tau"], planned["beta"], planned["gamma"]) == (
+        1280, 1e-4, 0.7, 3.0, 0.99)
+    assert (planned["training_streams"], planned["reward_scale"]) == (3200, 0.7429420505200595)
