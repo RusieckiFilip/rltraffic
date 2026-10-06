@@ -97,7 +97,9 @@ __all__ = [
     "TIER",
     "TRAINING_FORMAT_VERSION",
     "TrainingInputs",
+    "assert_c1_note_means",
     "assert_evaluated_models",
+    "assert_hyperparameters",
     "assert_out_root",
     "assert_p8_4b_campaign",
     "assert_protocol",
@@ -108,6 +110,7 @@ __all__ = [
     "cell_summary",
     "check",
     "checkpoint_dir",
+    "close_late_stage",
     "committed_from_eval",
     "correction_block",
     "declared_selection",
@@ -117,11 +120,13 @@ __all__ = [
     "load_report_inputs",
     "main",
     "manifest_path",
+    "manifest_stage",
     "narrowed_held_out_draws",
     "original_protocol",
     "original_training",
     "p5_2_evaluation_argv",
     "p5_2_sums",
+    "planned_hyperparameters",
     "preflight",
     "preflight_estimate",
     "protected_roots",
@@ -152,6 +157,7 @@ __all__ = [
 ARTIFACT_FORMAT_VERSION = "p5.2b-correction/1.0"
 TRAINING_FORMAT_VERSION = "p5.2b-training/1.0"
 PREFLIGHT_FORMAT_VERSION = "p5.2b-preflight/1.0"
+LATE_CLOSE_FORMAT_VERSION = "p5.2b-late-close/1.0"
 
 #: P8.4b's scenario name for grid4x4 (its cell keys and file names carry it).
 SCENARIO = "grid4x4"
@@ -170,6 +176,8 @@ REDERIVATION_SUBDIR = "rederivation"
 ARTIFACTS_SUBDIR = "artifacts"
 ARTIFACT_NAME = "p5_2b_correction.json"
 TRAINING_RECORD_NAME = "training_random_iql.json"
+#: Amendment B, B1.3: the training record's write-once addendum when its closing canary was taken after a restart.
+LATE_CLOSE_NAME = "training_random_iql.late_close.json"
 #: P5.2's evaluate subcommand names the cell itself (``eval_<tier>_<method>.json`` without ``--seeds``).
 EVAL_NAME = "eval_random_iql.json"
 CANARY_NAMES: tuple[str, str] = ("canary_open.json", "canary_close.json")
@@ -205,6 +213,8 @@ class Pins:
     declaration_sha256: str
     c1_note_sha256: str
     p8_4b_declared_cells_sha256: str
+    #: Amendment B, B1.6(e): the corpus manifest the second route reads (computed 2026-10-06; plan section 14.1).
+    corpus_manifest_sha256: str
 
 
 #: The real pins.  Tests pass their own for synthetic trees; the run and the pre-flight use these.
@@ -213,6 +223,7 @@ PINS = Pins(
     declaration_sha256="c8b8a35a2dd034434aef4b0c32de73627de7f35a8f7eb55b0bbf752631eadfe4",
     c1_note_sha256="643b73bca4de953c43b6adf1ac8d0485383de7b0afc1ae1ab738778327537e19",
     p8_4b_declared_cells_sha256="1f29b469dfb523ee3edf67acad341770ab18d1842427bcc6583e84f7b2cb8f4e",
+    corpus_manifest_sha256="ebb36187868dd6ff0768d3f2828a9366d3e20a62d1b18011f5c7dc6fd6e189ee",
 )
 
 
@@ -294,7 +305,7 @@ def checkpoint_dir(out_root: str | Path) -> Path:
     return Path(out_root) / CHECKPOINT_SUBDIR
 
 
-def assert_out_root(out_root: str | Path, output_root: str | Path) -> Path:
+def assert_out_root(out_root: str | Path, output_root: str | Path, *, pins: Pins | None = None) -> Path:
     """The resolved out-root, or a refusal unless it resolves to ``<output>/p5_2b`` or strictly under
     ``<output>/p5_2b_runs`` -- compared against the un-resolved names, so a symlink at either cannot pass."""
     output = Path(output_root).resolve()
@@ -557,6 +568,12 @@ def assert_p8_4b_campaign(output_root: str | Path, *, pins: Pins = PINS) -> dict
             "cells": [str(key) for key in recorded["cells"]]}
 
 
+def assert_c1_note_means(output_root: str | Path, cells: Sequence[str], note: Mapping[str, Any]) -> dict[str, Any]:
+    """A1.4's third anchor (Amendment B, B1.1): the six random-tier means under both definitions, recomputed by the
+    note's own route, equal to the note's."""
+    raise NotImplementedError
+
+
 def _verified_note(repo_root: str | Path, pins: Pins) -> dict[str, Any]:
     path = Path(repo_root) / C1_NOTE_RELPATH
     data = path.read_bytes()
@@ -646,6 +663,16 @@ def assert_training_inputs(inputs: TrainingInputs, declared: Mapping[str, Any],
     if inputs.parts["dataset"].stats.to_json_obj() != original["stats"]:
         raise ValueError("the normalisation statistics are not the ones the original checkpoints record")
     return {"rows": rows, "streams": len(streams), "reward_scale": inputs.scale, "statistics_equal_the_originals": True}
+
+
+def planned_hyperparameters(inputs: TrainingInputs, *, gradient_steps: int) -> dict[str, Any]:
+    """The thirteen values ``train_iql`` will train with (Amendment B, B1.6(b))."""
+    raise NotImplementedError
+
+
+def assert_hyperparameters(planned: Mapping[str, Any], original: Mapping[str, Any]) -> dict[str, Any]:
+    """Refuse unless each of the thirteen equals what the original checkpoints record (Amendment B, B1.6(b))."""
+    raise NotImplementedError
 
 
 def correction_block(declared: Mapping[str, Any], original: Mapping[str, Any]) -> dict[str, Any]:
@@ -1470,6 +1497,11 @@ def train_stage(roots: Roots, *, pins: Pins = PINS) -> Path:
     return write_once_json(out / TRAINING_RECORD_NAME, record, roots, protected)
 
 
+def close_late_stage(roots: Roots, *, pins: Pins = PINS) -> Path:
+    """Amendment B, B1.3: mark a complete training whose closing canary is missing, before the late canary."""
+    raise NotImplementedError
+
+
 def evaluate_p5_2_stage(roots: Roots, *, pins: Pins = PINS) -> Path:
     """(i): P5.2's evaluate subcommand on the corrected checkpoints."""
     from offline.tier_sweep import cell_is_complete
@@ -1554,6 +1586,11 @@ def write_run_manifest(roots: Roots, protected: Sequence[Path]) -> list[str]:
         if _sha256_file(output / name) != digest:
             raise ValueError(f"{target}: {name} no longer matches its line")
     return lines
+
+
+def manifest_stage(roots: Roots, *, pins: Pins = PINS) -> list[str]:
+    """Amendment B.1, item 2: the run's manifest, refused unless every stage is complete."""
+    raise NotImplementedError
 
 
 def report_stage(roots: Roots, *, pins: Pins = PINS) -> Path:
@@ -1721,7 +1758,7 @@ def build_parser() -> Any:
         command.add_argument("--out-root", type=Path, default=None, help="default <output-root>/p5_2b")
         return command
 
-    for name in ("check", "train", "evaluate-p5-2", "evaluate-p8-4b", "manifest", "report"):
+    for name in ("check", "train", "close-late", "evaluate-p5-2", "evaluate-p8-4b", "manifest", "report"):
         roots(sub.add_parser(name, allow_abbrev=False))
     roots(sub.add_parser("status", allow_abbrev=False)).add_argument("--stage", default=None)
     flight = roots(sub.add_parser("preflight", allow_abbrev=False))
@@ -1748,6 +1785,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(state[args.stage] if args.stage else json.dumps(state, indent=2, sort_keys=True), flush=True)
         elif args.command == "train":
             print(f"training record: {train_stage(roots)}", flush=True)
+        elif args.command == "close-late":
+            print(f"late closing canary marked: {close_late_stage(roots)}", flush=True)
         elif args.command == "evaluate-p5-2":
             print(f"(i): {evaluate_p5_2_stage(roots)}", flush=True)
         elif args.command == "evaluate-p8-4b":

@@ -395,7 +395,8 @@ def write_synthetic_record(root: Path, *, seeds: Sequence[int] = SEEDS, draws: S
         _write_json(config, {"dir": "synthetic", "flowFile": "flow.json"})
     pins = ic.Pins(p5_2_sums_sha256=_sha256_file(output / "SHA256SUMS_p5_2.txt"),
                    declaration_sha256=_sha256_file(declaration), c1_note_sha256=_sha256_file(note),
-                   p8_4b_declared_cells_sha256=declared_cells)
+                   p8_4b_declared_cells_sha256=declared_cells,
+                   corpus_manifest_sha256=_sha256_file(tier_dir / "manifest.json"))
     roots = ic.Roots(repo_root=repo, output_root=output, corpus_root=corpus, draws_root=draws_root,
                      out_root=output / "p5_2b")
     return SyntheticRecord(roots=roots, pins=pins, seeds=tuple(seeds), draws=tuple(draws), ours=ours, engine=engine)
