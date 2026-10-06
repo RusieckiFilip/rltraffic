@@ -5,6 +5,10 @@ session's scratchpad (`/tmp` is tmpfs on this machine: `PROJECT_PLAN` §7, *an o
 record*). Every number below was produced by a command run in this session; the files beside this one are its raw
 records. Branch `task/p5.2b-iql-correction`.
 
+**Moved** from `docs/notes/p5_2b_g1/` (committed at `d83d861`) to `docs/returns/P5.2b_evidence/` on 2026-10-06, as
+`BRIEF_44` Amendment B, B2 rules (`docs/notes/` is the coordinator's). The files are unchanged but for this paragraph;
+C8's evidence is added beside them under `c8/`.
+
 ## 1. The G1 pre-flight (Amendment A, A3.1) — RUN, COMPLETE
 
 Command (the driver's documented form), from the committed, clean task worktree at `a71a72c` (`main` merged), with the
