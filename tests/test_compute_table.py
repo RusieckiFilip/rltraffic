@@ -1630,3 +1630,34 @@ def test_d107_the_c2_line_ranges_are_read_from_the_sentences_and_their_lines_hol
     assert "module.eval()" in act and "module.train(mode)" in act and "self.policy_logits(state)" in act
     assert "return [self.policy, self.q, self.v, self.q_target]" in iql_networks
     assert "return [self.model]" in bc_networks
+
+
+def _cuda_heavy_ns(row: cl.LatencyRow, device: str) -> list[list[int]]:
+    """As :func:`_transient_ns`, but a ``cuda`` cell's decisions spread three times as wide, so its change between the
+    two windows is the largest: the fixture's maximum sits on a ``cuda`` cell where ``_transient_ns``' sits on ``cpu``."""
+    offset = (sum(map(ord, row.row_id)) % 97) * 1_000 + (50_000 if device == "cuda" else 0)
+    step = 3_000 if device == "cuda" else 1_000
+    return [[(3_000_000 if k < _LATE else 1_000_000) + step * k + 7_000 * episode + offset
+             for k in range(cl.DECISIONS_PER_EPISODE)] for episode in range(len(cl.TIMING_DRAWS))]
+
+
+def test_d107_the_h4_maximum_is_taken_over_both_devices_when_the_largest_change_is_on_cuda(tmp_path: Path) -> None:
+    """BRIEF_44 Amendment B, B1.5 (RB's one-device maximum survived): with the largest H4 change on a ``cuda`` cell, a
+    builder taking the maximum over the ``cpu`` cells alone reports a smaller one.  The test above keeps its ``cpu``
+    maximum, so a maximum over either device alone dies against one of the two."""
+    rows = tuple(cl.row_by_id(row_id) for row_id in ("hz1x1.h4.k1", "hz1x1.h4.k20", "hz1x1.bc"))
+    run_dir, manifest = _write_run(tmp_path, rows=rows, ns_for=_cuda_heavy_ns)
+    sensitivity = ct.latency_sensitivity(ct.verify_latency_run(run_dir, manifest))
+    labels = sorted(label for label in sensitivity["cells"] if label.startswith("hz1x1.h4."))
+    assert labels == ["hz1x1.h4.k1_cpu", "hz1x1.h4.k1_cuda", "hz1x1.h4.k20_cpu", "hz1x1.h4.k20_cuda"]
+    changes = {}
+    for label in labels:
+        episodes = [e["decision_ns"] for e in json.loads((run_dir / f"{label}.json").read_text())["episodes"]]
+        registered = _independent([v for e in episodes for v in e[cl.WARMUP:]])[0] / 1e6
+        late = _independent([v for e in episodes for v in e[_LATE:]])[0] / 1e6
+        changes[label] = abs(late / registered - 1)
+    largest = max(changes, key=changes.get)
+    assert largest.endswith("_cuda"), f"the fixture must put the largest change on a cuda cell, not {largest}"
+    assert max(v for k, v in changes.items() if k.endswith("_cpu")) < changes[largest]
+    summary = sensitivity["summary"]
+    assert (summary["h4_cells"], summary["h4_median_change_max_abs"]) == (4, changes[largest])

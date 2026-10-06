@@ -2304,3 +2304,42 @@ def test_p5_2b_iql_transition_table_refuses_a_table_that_is_not_exactly_the_decl
     monkeypatch.setattr(mtg, "filter_transitions_to_streams", wrong)
     with pytest.raises(ValueError, match="declared streams"):
         ts.iql_transition_table(dataset, group=next(iter(dataset.groups)), reward_scale=1.0, streams=parts["streams"])
+
+
+def test_p5_2b_iql_transition_table_refuses_a_swapped_stream_of_the_same_length_on_identity(tmp_path: Path,
+                                                                                         monkeypatch: Any) -> None:
+    """BRIEF_44 Amendment B, B1.4 (MT2 survived the three filters above, which all change the row COUNT): a filter that
+    swaps one declared stream for an undeclared stream of the same length keeps the count, so only the identity check
+    (a) can refuse it -- and must, naming one undeclared stream present and one declared stream missing."""
+    import torch
+
+    import offline.method_tier_grid as mtg
+    from offline.offline_baselines import build_transitions
+    from tests import p5_2b_fixtures as fx
+
+    corpus = tmp_path / "corpus"
+    fx.write_synthetic_tier(corpus)
+    fx.install_synthetic_tier(monkeypatch)
+    parts = ts.tier_parts("random", corpus)
+    dataset, streams = parts["dataset"], parts["streams"]
+    group = next(iter(dataset.groups))
+    real = mtg.filter_transitions_to_streams
+
+    def swapped(table: Any, keys: Any, wanted: Any) -> Any:
+        declared = {stream.key for stream in wanted}
+        inside = [i for i, key in enumerate(keys) if key in declared]
+        outside = [i for i, key in enumerate(keys) if key not in declared]
+        dropped = inside[0]
+        rows = int((table.stream_index == dropped).sum())
+        added = next(i for i in outside if int((table.stream_index == i).sum()) == rows)
+        lookup = torch.as_tensor([i for i in inside if i != dropped] + [added], dtype=torch.int64)
+        return table.select(torch.nonzero(torch.isin(table.stream_index, lookup), as_tuple=True)[0])
+
+    full = build_transitions(dataset, group=group, reward_scale=1.0)
+    keys = mtg.transition_stream_keys(dataset, group)
+    honest, broken = real(full, keys, streams), swapped(full, keys, streams)
+    assert len(broken) == len(honest), "the swap must keep the row count, so that only identity can refuse it"
+    assert fx.stream_keys_of_table(broken, keys) != fx.stream_keys_of_table(honest, keys)
+    monkeypatch.setattr(mtg, "filter_transitions_to_streams", swapped)
+    with pytest.raises(ValueError, match=r"1 undeclared stream\(s\) present, 1 missing"):
+        ts.iql_transition_table(dataset, group=group, reward_scale=1.0, streams=streams)
