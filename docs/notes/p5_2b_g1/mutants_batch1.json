@@ -1,0 +1,499 @@
+[
+ {
+  "id": "M41-filter-keeps-all",
+  "what": "iql_transition_table: the filter removed (the whole table), the refusal kept",
+  "edits": [
+   [
+    "offline/tier_sweep.py",
+    "    table = filter_transitions_to_streams(full, keys, streams)\n",
+    "    table = full\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_tier_sweep.py",
+   "-k",
+   "p5_2b"
+  ]
+ },
+ {
+  "id": "M41-filter-and-refusal",
+  "what": "iql_transition_table: the filter AND the refusal removed",
+  "edits": [
+   [
+    "offline/tier_sweep.py",
+    "    table = filter_transitions_to_streams(full, keys, streams)\n",
+    "    table = full\n"
+   ],
+   [
+    "offline/tier_sweep.py",
+    "    if present != wanted or len(table) != expected:\n",
+    "    if False:\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_tier_sweep.py",
+   "-k",
+   "p5_2b"
+  ]
+ },
+ {
+  "id": "M41-refusal-removed",
+  "what": "iql_transition_table: the refusal removed, the filter kept",
+  "edits": [
+   [
+    "offline/tier_sweep.py",
+    "    if present != wanted or len(table) != expected:\n",
+    "    if False:\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_tier_sweep.py",
+   "-k",
+   "p5_2b"
+  ]
+ },
+ {
+  "id": "M-argv-engine-seed",
+  "what": "the evaluation argv's engine seed off by one",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "\"--engine-seed\", str(protocol.engine_seed),",
+    "\"--engine-seed\", str(protocol.engine_seed + 1),"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "argv"
+  ]
+ },
+ {
+  "id": "M-argv-deterministic",
+  "what": "the evaluation argv adds --deterministic",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "\"--torch-threads\", \"1\", \"--tier\", TIER,",
+    "\"--torch-threads\", \"1\", \"--deterministic\", \"--tier\", TIER,"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "argv"
+  ]
+ },
+ {
+  "id": "M-argv-steps",
+  "what": "the evaluation argv declares 20,000 steps",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "\"--gradient-steps\", str(protocol.declared_gradient_steps),",
+    "\"--gradient-steps\", \"20000\","
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "argv"
+  ]
+ },
+ {
+  "id": "M-cells-draw",
+  "what": "the rederivation cells' last draw shifted by one",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "for seed in sorted(int(s) for s in seeds) for draw in sorted(int(d) for d in draws)]",
+    "for seed in sorted(int(s) for s in seeds) for draw in sorted(int(d) + (d == draws[-1]) for d in draws)]"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "keyed_as_p8_4b"
+  ]
+ },
+ {
+  "id": "M-resolver-real-output",
+  "what": "resolved_checkpoints resolves under the real output root, not the resolver root",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "probe = _probe_roots(roots, resolver_root=resolver_root, work_dir=Path(resolver_root) / REDERIVATION_SUBDIR)",
+    "probe = _probe_roots(roots, resolver_root=roots.output_root, work_dir=Path(resolver_root) / REDERIVATION_SUBDIR)"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "t_route"
+  ]
+ },
+ {
+  "id": "M-batch-1024",
+  "what": "train_seeds trains with batch 1,024, not IQL_BATCH_TRANSITIONS",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "declared_gradient_steps=int(gradient_steps), batch_size=ob.IQL_BATCH_TRANSITIONS, device=device,",
+    "declared_gradient_steps=int(gradient_steps), batch_size=1024, device=device,"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "t_train_args"
+  ]
+ },
+ {
+  "id": "M-scale-all-streams",
+  "what": "training_inputs takes the reward scale from every stream, not the selected ones",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    scale = iql_reward_scale([stream.total_return for stream in streams])\n",
+    "    scale = iql_reward_scale([stream.total_return for stream in parts[\"streams_all\"]])\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "t_train_args"
+  ]
+ },
+ {
+  "id": "M-kwarg-dropped",
+  "what": "train_seeds no longer passes log_every",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "            log_every=int(log_every),\n        )\n        ts.replace_guarded(partial, final, protected)",
+    "        )\n        ts.replace_guarded(partial, final, protected)"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "t_train_args"
+  ]
+ },
+ {
+  "id": "M-protected-no-p5_2",
+  "what": "protected_roots leaves output/p5_2 unprotected",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "            if child.is_dir() and child.name != top:\n",
+    "            if child.is_dir() and child.name not in (top, \"p5_2\"):\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "t_isolation"
+  ]
+ },
+ {
+  "id": "M-out-root-runs-itself",
+  "what": "assert_out_root accepts output/p5_2b_runs itself",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    if resolved == output / RUN_DIR or (output / RUNS_DIR) in resolved.parents:\n",
+    "    if resolved == output / RUN_DIR or resolved == output / RUNS_DIR or (output / RUNS_DIR) in resolved.parents:\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "t_isolation"
+  ]
+ },
+ {
+  "id": "M-ties-ignored",
+  "what": "Q2b's concordance called without the measured levels (no tie rule)",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    concordance = ts.concordance(predicted, order, measured_levels=measured)\n",
+    "    concordance = ts.concordance(predicted, order)\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "t_statements"
+  ]
+ },
+ {
+  "id": "M-best-over-all-six",
+  "what": "Q3c's best arm taken over all six methods, DT arms included",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    best = min(NON_DT_METHODS, key=lambda method: measured[method])\n",
+    "    best = min(ts.METHODS, key=lambda method: measured[method])\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "t_statements"
+  ]
+ },
+ {
+  "id": "M-q2a-ignores-ties",
+  "what": "Q2a HELD when the stable order's first equals the prediction, ties ignored",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "\"outcome\": \"HELD\" if firsts == [predicted[0]] else \"FAILED\",",
+    "\"outcome\": \"HELD\" if order[0] == predicted[0] else \"FAILED\","
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "t_statements"
+  ]
+ },
+ {
+  "id": "M-q3a-non-strict",
+  "what": "Q3a HELD when no arm is strictly lower (a tie for lowest passes)",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "\"outcome\": \"HELD\" if all(measured[method] > measured[\"dt_nomix\"] for method in others) else \"FAILED\",",
+    "\"outcome\": \"HELD\" if all(measured[method] >= measured[\"dt_nomix\"] for method in others) else \"FAILED\","
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "t_statements"
+  ]
+ },
+ {
+  "id": "M-iql-pairs-inverted",
+  "what": "Q2b's IQL pairs marked concordant when discordant",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "\"concordant\": tuple(pair) not in discordant}",
+    "\"concordant\": tuple(pair) in discordant}"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "t_statements"
+  ]
+ },
+ {
+  "id": "M-after-not-replaced",
+  "what": "the report's att_ours AFTER keeps the original IQL cell",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    after_ours = {**before_ours, (METHOD, TIER): list(inputs[\"corrected_ours\"])}\n",
+    "    after_ours = dict(before_ours)\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "report"
+  ]
+ },
+ {
+  "id": "M-hard-under-engine",
+  "what": "the report computes Q2b's hard subset under att_engine too",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "\"att_engine\": {\"before\": random_tier_statements(before_engine, with_hard_subset=False),",
+    "\"att_engine\": {\"before\": random_tier_statements(before_engine, with_hard_subset=True),"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "report"
+  ]
+ },
+ {
+  "id": "M-manifest-lists-artifacts",
+  "what": "the run's file list includes artifacts/",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    return sorted(path for path in out.rglob(\"*\") if path.is_file()\n                  and path.relative_to(out).parts[0] != ARTIFACTS_SUBDIR)",
+    "    return sorted(path for path in out.rglob(\"*\") if path.is_file())"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "t_manifest"
+  ]
+ },
+ {
+  "id": "M-write-once-overwrites",
+  "what": "write_once_json overwrites an existing record",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    if target.exists():\n        raise FileExistsError(f\"{target} already exists: every record of this run is written once\")\n",
+    "    pass\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "t_isolation"
+  ]
+ },
+ {
+  "id": "M-model-guard-no-digest",
+  "what": "assert_evaluated_models skips the weight digest",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "        if entry.get(\"state_dict_sha256\") != run[\"state_dict_sha256\"]:\n",
+    "        if False:\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "t_route"
+  ]
+ },
+ {
+  "id": "M-train-record-no-runs",
+  "what": "train_stage writes its record without the runs",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "        \"runs\": runs,\n    }\n    return write_once_json(out / TRAINING_RECORD_NAME, record, roots, protected)",
+    "        \"runs\": [],\n    }\n    return write_once_json(out / TRAINING_RECORD_NAME, record, roots, protected)"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "whole_run"
+  ]
+ },
+ {
+  "id": "M-train-no-canary",
+  "what": "train_stage starts without the opening canary",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    _canary_at_speed(out / CANARY_NAMES[0])\n    if not torch.cuda.is_available():\n        raise RuntimeError(\"no CUDA device: P5.2 trained this cell on CUDA\")\n",
+    "    if not torch.cuda.is_available():\n        raise RuntimeError(\"no CUDA device: P5.2 trained this cell on CUDA\")\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "training_stage_refuses"
+  ]
+ },
+ {
+  "id": "M-eval-stage-no-model-guard",
+  "what": "evaluate_p5_2_stage no longer checks the models (i) evaluated",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    assert_evaluated_models(payload, record)\n    return path\n",
+    "    return path\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "M-corrected-rows-no-reproduce",
+  "what": "the corrected cells are not checked against (i)'s att_horizon",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "                or float(row[\"att_ours\"]) != reference[key] or float(row[\"committed_att_ours\"]) != reference[key]):",
+    "                or float(row[\"committed_att_ours\"]) != reference[key]):"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "report or t_status"
+  ]
+ },
+ {
+  "id": "M-p8_4b-no-recompute",
+  "what": "P8.4b's anchor no longer recomputes the declared digest",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    if not (recomputed == recorded[\"declared_cells_sha256\"] == marker == pins.p8_4b_declared_cells_sha256):",
+    "    if not (recorded[\"declared_cells_sha256\"] == marker == pins.p8_4b_declared_cells_sha256):"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "check_refuses"
+  ]
+ },
+ {
+  "id": "M-preflight-always-complete",
+  "what": "the pre-flight record is COMPLETE whatever T-reproduce says",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "\"status\": \"FAILED\" if reasons else \"COMPLETE\",",
+    "\"status\": \"COMPLETE\","
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "preflight"
+  ]
+ },
+ {
+  "id": "M-timeouts-no-reproduce",
+  "what": "timeouts_from_preflight ignores the T-reproduce outcomes",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "        if record.get(\"reproduce\", {}).get(name, {}).get(\"reproduced\") is not True:\n",
+    "        if False:\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "timeouts"
+  ]
+ },
+ {
+  "id": "M-declared-rows-unchecked",
+  "what": "assert_training_inputs no longer compares the rows with the second route",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    if rows != declared[\"rows\"]:\n",
+    "    if False:\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ }
+]

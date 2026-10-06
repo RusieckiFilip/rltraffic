@@ -1,0 +1,77 @@
+[
+ {
+  "id": "D-token-before-power",
+  "what": "the token consumed before the power check",
+  "edits": [
+   [
+    "offline/campaigns/p5_2b_correction.sh",
+    "rm -- \"$TOKEN\"\necho \"token consumed; run $STAMP from $WORK_TREE at $COMMIT\"",
+    "echo \"token consumed; run $STAMP from $WORK_TREE at $COMMIT\""
+   ],
+   [
+    "offline/campaigns/p5_2b_correction.sh",
+    "PYTHONPATH=$WORK_TREE \"$PY\" -P -m offline.compute_latency power-check || refuse",
+    "rm -- \"$TOKEN\"\nPYTHONPATH=$WORK_TREE \"$PY\" -P -m offline.compute_latency power-check || refuse"
+   ]
+  ],
+  "tests": [
+   "tests/test_p5_2b_correction_driver.py"
+  ]
+ },
+ {
+  "id": "D-power-check-without-P",
+  "what": "the power check's interpreter without -P",
+  "edits": [
+   [
+    "offline/campaigns/p5_2b_correction.sh",
+    "\"$PY\" -P -m offline.compute_latency power-check",
+    "\"$PY\" -m offline.compute_latency power-check"
+   ]
+  ],
+  "tests": [
+   "tests/test_p5_2b_correction_driver.py"
+  ]
+ },
+ {
+  "id": "D-one-try-for-i",
+  "what": "(i) runs under one try instead of MAX_ATTEMPTS",
+  "edits": [
+   [
+    "offline/campaigns/p5_2b_correction.sh",
+    "attempt evaluate_p5_2 \"$T_EVAL_I\" \"$MAX_ATTEMPTS\"",
+    "attempt evaluate_p5_2 \"$T_EVAL_I\" 1"
+   ]
+  ],
+  "tests": [
+   "tests/test_p5_2b_correction_driver.py"
+  ]
+ },
+ {
+  "id": "D-typed-timeouts",
+  "what": "the stage timeouts typed into the driver instead of read from the pinned record",
+  "edits": [
+   [
+    "offline/campaigns/p5_2b_correction.sh",
+    "read -r T_TRAIN T_EVAL_I T_EVAL_II <<<\"$TIMEOUTS\"",
+    "T_TRAIN=9000; T_EVAL_I=4000; T_EVAL_II=4500"
+   ]
+  ],
+  "tests": [
+   "tests/test_p5_2b_correction_driver.py"
+  ]
+ },
+ {
+  "id": "D-preflight-needs-token",
+  "what": "the pre-flight branch made to need the token",
+  "edits": [
+   [
+    "offline/campaigns/p5_2b_correction.sh",
+    "  PRE=$RUNS/preflight_$STAMP\n",
+    "  [ -f \"$TOKEN\" ] || refuse \"no token\"\n  PRE=$RUNS/preflight_$STAMP\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_p5_2b_correction_driver.py"
+  ]
+ }
+]

@@ -1,0 +1,58 @@
+[
+ {
+  "id": "M-scale-all-streams@new",
+  "what": "training_inputs takes the reward scale from every stream, not the selected ones",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    scale = iql_reward_scale([stream.total_return for stream in streams])\n",
+    "    scale = iql_reward_scale([stream.total_return for stream in parts[\"streams_all\"]])\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "M-q2a-ignores-ties@new",
+  "what": "Q2a HELD when the stable order's first equals the prediction, ties ignored",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "\"outcome\": \"HELD\" if firsts == [predicted[0]] else \"FAILED\",",
+    "\"outcome\": \"HELD\" if order[0] == predicted[0] else \"FAILED\","
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "M-eval-stage-no-model-guard@new",
+  "what": "evaluate_p5_2_stage no longer checks the models (i) evaluated",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    assert_evaluated_models(payload, record)\n    return path\n",
+    "    return path\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "M-declared-rows-unchecked@new",
+  "what": "assert_training_inputs no longer compares the rows with the second route",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    if rows != declared[\"rows\"]:\n",
+    "    if False:\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ }
+]
