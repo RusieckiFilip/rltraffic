@@ -263,3 +263,107 @@ def test_the_run_refuses_before_the_token_when_the_power_check_fails(sandbox: tu
     assert "power regime" in completed.stderr
     assert token.is_file(), "the token was consumed although the power check refused"
     assert _listing(main) == before
+
+
+# ----------------------------------------------------------------------
+# BRIEF_44 Amendment B: B1.3 (no second realisation) and B2 (the pre-flight G1 accepted, pinned)
+# ----------------------------------------------------------------------
+
+#: The pre-flight gate G1 read from disk and kept pinned (Amendment B, B0 and B2).
+G1_PREFLIGHT_RECORD = "p5_2b_runs/preflight_20261006T195405Z/preflight.json"
+G1_PREFLIGHT_SHA256 = "a280452734494479f6d2941b09ff12c16825155080404ee7ce84b95752c4bb4b"
+
+#: A stand-in for the interpreter: it logs every call and answers the three queries the driver reads from stdout.
+_STAND_IN = """#!/usr/bin/env bash
+printf '%s\\n' "$*" >> "$FAKE_LOG"
+case " $* " in
+  *" -c "*) printf '%s\\n' "$PYTHONPATH/offline/iql_correction.py" ;;
+  *" offline.iql_correction timeouts "*) echo "5000 3000 3000" ;;
+  *" --stage training "*) echo "$FAKE_TRAINING" ;;
+  *" --stage canaries "*) echo "$FAKE_CANARIES" ;;
+esac
+exit 0
+"""
+
+
+def _stages(log: Path) -> list[str]:
+    """The stages the driver started, in order, read from the stand-in's log."""
+    out = []
+    for line in log.read_text(encoding="utf-8").splitlines():
+        tokens = line.split()
+        if "-m" not in tokens:
+            continue
+        module, command = tokens[tokens.index("-m") + 1], tokens[tokens.index("-m") + 2]
+        if module == "offline.compute_latency" and command == "canary":
+            out.append(f"canary {tokens[tokens.index('--phase') + 1]}")
+        elif module == "offline.iql_correction" and command == "status":
+            out.append(f"status {tokens[tokens.index('--stage') + 1]}")
+        else:
+            out.append(command)
+    return out
+
+
+@pytest.mark.parametrize("training, canaries", [("complete", "closing_pending"), ("absent", "absent"),
+                                                ("complete", "complete")])
+def test_b1_3_the_restart_after_a_missing_closing_canary_takes_it_alone_and_trains_nothing(
+    sandbox: tuple[Path, Path], tmp_path: Path, training: str, canaries: str
+) -> None:
+    """Executed, with every interpreter call answered by a stand-in that logs it: a training complete on disk whose
+    closing canary is missing gets ``close-late`` and then the closing canary alone -- no opening canary, no ``train``
+    -- before (i), (ii), the manifest and the report; a fresh run still takes canary, train, canary; a run whose
+    training and both canaries are complete takes none of them."""
+    clone, main = sandbox
+    stand_in = tmp_path / "bin" / "stand_in"
+    stand_in.parent.mkdir()
+    stand_in.write_text(_STAND_IN, encoding="utf-8")
+    stand_in.chmod(0o755)
+    driver = clone / "offline" / "campaigns" / "p5_2b_correction.sh"
+    driver.write_text(_substitute(driver.read_text(encoding="utf-8"), f"PY={MAIN_INTERPRETER}\n", f"PY={stand_in}\n", 1),
+                      encoding="utf-8")
+    runs = main / "output" / "p5_2b_runs"
+    record = runs / "preflight_20261006T000000Z" / "preflight.json"
+    record.parent.mkdir(parents=True)
+    record.write_text("{}\n", encoding="utf-8")
+    (runs / "TOKEN_correction").write_text("", encoding="utf-8")
+    _pin(clone, "p5_2b_runs/preflight_20261006T000000Z/preflight.json", hashlib.sha256(record.read_bytes()).hexdigest())
+    _git("checkout", "--quiet", "--detach", cwd=clone)
+    log = tmp_path / "calls.log"
+    completed = _run(clone, _git("rev-parse", "HEAD", cwd=clone).strip(),
+                     env={**os.environ, "FAKE_LOG": str(log), "FAKE_TRAINING": training, "FAKE_CANARIES": canaries})
+    assert completed.returncode == 0, completed.stderr[-2000:]
+    assert "COMPLETE" in completed.stdout
+    stages = _stages(log)
+    tail = ["evaluate-p5-2", "evaluate-p8-4b", "manifest", "report"]
+    assert [stage for stage in stages if stage in tail] == tail, stages
+    if (training, canaries) == ("complete", "closing_pending"):
+        assert "train" not in stages and "canary open" not in stages, stages
+        assert stages.count("close-late") == 1 and stages.count("canary close") == 1, stages
+        assert stages.index("close-late") < stages.index("canary close") < stages.index("evaluate-p5-2"), stages
+        assert (main / "output" / "p5_2b" / "logs" / "canary_close_late.attempt1.log").is_file()
+    elif training == "absent":
+        assert stages.index("canary open") < stages.index("train") < stages.index("canary close") < stages.index(
+            "evaluate-p5-2"), stages
+        assert "close-late" not in stages, stages
+    else:
+        assert not {"canary open", "train", "close-late", "canary close"} & set(stages), stages
+
+
+def test_b1_3_the_late_branch_reads_the_canaries_state_and_marks_before_it_canaries() -> None:
+    lines = _code()
+    late = _first(lines, "closing_pending")
+    assert "--stage canaries" in lines[late] and lines[late].lstrip().startswith("elif"), lines[late]
+    mark = _first(lines, "close-late")
+    assert late < mark < _first(lines[mark:], "canary --phase close") + mark < _first(lines, "evaluate-p5-2")
+    assert "|| fail" in lines[mark]
+
+
+def test_b1_3_the_header_documents_that_a_complete_training_is_never_trained_again() -> None:
+    header = "\n".join(line for line in _text().splitlines() if line.startswith("#"))
+    for needle in ("close-late", "closing canary", "late", "never trained again", "Amendment B"):
+        assert needle in header, needle
+
+
+def test_b2_the_driver_pins_the_preflight_g1_accepted() -> None:
+    text = _text()
+    assert re.search(rf"^PREFLIGHT_RECORD={re.escape(G1_PREFLIGHT_RECORD)}$", text, flags=re.M)
+    assert re.search(rf"^PREFLIGHT_SHA256={G1_PREFLIGHT_SHA256}$", text, flags=re.M)
