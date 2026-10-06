@@ -217,8 +217,11 @@ def test_t_isolation_a_refused_write_creates_nothing_and_a_written_file_is_never
     assert json.loads(path.read_text()) == {"a": 1}
 
 
-def test_t_isolation_a_whole_synthetic_run_leaves_p5_2_and_p8_4b_byte_identical(tmp_path: Path,
-                                                                                monkeypatch: Any) -> None:
+def test_t_isolation_the_manifest_and_the_report_leave_p5_2_and_p8_4b_byte_identical(tmp_path: Path,
+                                                                                     monkeypatch: Any) -> None:
+    """Renamed under Amendment B, B1.8 (RA1: the old name claimed a whole run): the run's files here are the fixture's,
+    so the module's writers exercised are the manifest's and the report's; the stages' own writes are held to the same
+    property by the whole-run test's tree digests."""
     record = fx.write_synthetic_record(tmp_path)
     fx.install_synthetic_protocol(monkeypatch, record)
     output = record.roots.output_root
@@ -444,7 +447,10 @@ def test_t_record_train_seeds_refuses_a_checkpoint_already_in_place(tmp_path: Pa
 # ======================================================================
 
 
-def test_t_route_p8_4bs_resolver_and_p5_2s_checkpoint_dir_read_one_physical_copy(tmp_path: Path) -> None:
+def test_t_route_p8_4bs_resolver_under_an_out_root_is_that_out_roots_checkpoint_dir(tmp_path: Path) -> None:
+    """Renamed under Amendment B, B1.8 (RA1: the old name claimed the stage's choice of root): this checks A1.1's
+    premise -- P8.4b's resolver under a root reads that root's checkpoint directory; the stage's choice of root is held
+    by B1.6(c)'s resolver test and the whole-run test."""
     roots = _fake_roots(tmp_path)
     resolved = ic.resolved_checkpoints(roots, resolver_root=roots.out_root, seeds=(101, 202))
     for seed, path in resolved.items():
@@ -1960,3 +1966,22 @@ def test_b1_6b_the_thirteen_planned_for_the_real_table_are_the_originals(real_tr
     assert (planned["batch_size"], planned["learning_rate"], planned["tau"], planned["beta"], planned["gamma"]) == (
         1280, 1e-4, 0.7, 3.0, 0.99)
     assert (planned["training_streams"], planned["reward_scale"]) == (3200, 0.7429420505200595)
+
+
+# ---------------------------------------------------------------- B1.8 (the implementer's call, taken)
+
+
+def test_b1_8_the_report_needs_no_materialised_draw_and_the_stages_before_it_do(tmp_path: Path,
+                                                                                monkeypatch: Any) -> None:
+    """The report reads no draw, so T-regress needs no draws gate; every stage that rolls or checks before the token
+    still refuses without the 100 held-out draws."""
+    import shutil
+
+    record = fx.write_synthetic_record(tmp_path)
+    fx.install_synthetic_protocol(monkeypatch, record)
+    fx.write_synthetic_run(record)
+    ic.write_run_manifest(record.roots, ic.protected_roots(record.roots))
+    shutil.rmtree(record.roots.draws_root / "cityflow_grid4x4")
+    assert ic.build_report(record.roots, git=_git(), pins=record.pins)["format_version"] == "p5.2b-correction/1.0"
+    with pytest.raises(FileNotFoundError, match="held-out draws"):
+        ic.check(record.roots, pins=record.pins, require_cuda=False)
