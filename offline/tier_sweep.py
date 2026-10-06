@@ -95,6 +95,7 @@ __all__ = [
     "concordance",
     "episode_key_set",
     "episodes_in",
+    "iql_transition_table",
     "lr_multiplier",
     "parse_sha256sums",
     "per_intersection_top_streams",
@@ -1790,6 +1791,16 @@ def baseline_stream_selections(
         "bc_top10": tuple(s for s in top_return_streams(dataset) if s in kept),
         "bc_top10_perix": per_intersection_top_streams(streams),
     }
+
+
+def iql_transition_table(
+    dataset: Any, *, group: tuple[int, int], reward_scale: float, streams: Sequence[Any]
+) -> Any:
+    """IQL's transition table on the size-matched streams ONLY -- ``DEFERRED`` 106's fix (``BRIEF_44`` §4.1).
+
+    Skeleton (P5.2b C3): the tests reach this signature first and are red for its reason.
+    """
+    raise NotImplementedError("BRIEF_44 §4.1: iql_transition_table is implemented in the next commit")
 
 
 def paired_d1_block(
