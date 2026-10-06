@@ -681,8 +681,9 @@ def _verified_note(repo_root: str | Path, pins: Pins) -> dict[str, Any]:
     return {"file": C1_NOTE_RELPATH, "sha256": digest, "payload": json.loads(data)}
 
 
-def _verify_inputs(roots: Roots, pins: Pins) -> dict[str, Any]:
-    """Every input the run reads, each at its anchor, before anything is written."""
+def _verify_inputs(roots: Roots, pins: Pins, *, draws: bool = True) -> dict[str, Any]:
+    """Every input the run reads, each at its anchor, before anything is written.  *draws* is false for the report
+    alone, which reads no draw (Amendment B, B1.8), so the artifact's regeneration needs no materialised draw."""
     from offline.materialise_draws import draw_config_path
 
     output = Path(roots.output_root)
@@ -710,8 +711,8 @@ def _verify_inputs(roots: Roots, pins: Pins) -> dict[str, Any]:
         )
     note = _verified_note(roots.repo_root, pins)
     c1 = assert_c1_note_means(output, campaign["cells"], note["payload"])
-    missing = [draw for draw in protocol.draw_ids
-               if not Path(draw_config_path("cityflow_grid4x4", draw, out_root=roots.draws_root)).is_file()]
+    missing = [draw for draw in protocol.draw_ids if draws
+               and not Path(draw_config_path("cityflow_grid4x4", draw, out_root=roots.draws_root)).is_file()]
     if missing:
         raise FileNotFoundError(f"{len(missing)} held-out draws are not materialised under {roots.draws_root}: {missing[:5]}")
     return {"sums": sums, "p5_2_sums_sha256": pins.p5_2_sums_sha256, "original_payload": original_payload,
@@ -1328,7 +1329,7 @@ def load_report_inputs(roots: Roots, *, pins: Pins = PINS) -> dict[str, Any]:
 
     output = Path(roots.output_root)
     out = assert_out_root(roots.out_root, output, pins=pins)
-    verified = _verify_inputs(roots, pins)
+    verified = _verify_inputs(roots, pins, draws=False)
     protocol: Protocol = verified["protocol"]
     original_ours = p5_2_cells(output, verified["sums"])
     original_engine = p8_4b_cells(output, original_ours, definition="att_engine", pins=pins)
