@@ -1203,3 +1203,81 @@ def test_the_preflight_records_t_reproduce_beside_its_timings_and_a_failure_yiel
         with pytest.raises(ValueError, match="COMPLETE"):
             ic.timeouts_from_preflight(roots.out_root / "preflight.json")
     assert not (output / "p5_2b").exists(), "the pre-flight never writes into the run's directory"
+
+
+# ======================================================================
+# Added after the mutation run of 2026-10-06, each closing one surviving mutant (named in its docstring).
+# ======================================================================
+
+
+def test_t_train_args_the_reward_scale_comes_from_the_selected_streams_only(tmp_path: Path, monkeypatch: Any) -> None:
+    """M-scale-all-streams survived T-train-args when every stream had the selected ones' return span; the fixture's
+    unselected episodes now widen it, and this test pins the scale to the selected streams by its own computation."""
+    from offline.offline_baselines import iql_reward_scale
+
+    corpus = tmp_path / "corpus"
+    fx.write_synthetic_tier(corpus)
+    fx.install_synthetic_tier(monkeypatch)
+    inputs = ic.training_inputs(corpus)
+    parts = ts.tier_parts("random", corpus)
+    selected = iql_reward_scale([s.total_return for s in parts["streams"]])
+    every = iql_reward_scale([s.total_return for s in parts["streams_all"]])
+    assert selected != every, "the fixture must tell the selected streams' scale from every stream's"
+    assert inputs.scale == selected
+
+
+def test_t_statements_a_tie_for_first_with_the_predicted_arm_is_not_a_held_first_place() -> None:
+    """M-q2a-ignores-ties survived when the tie put another arm first in the stable order: here ``dt_nomix`` -- the
+    predicted first -- ties ``iql``, which follows it in ``METHODS``, so the stable order puts ``dt_nomix`` first."""
+    levels = dict(RECORD_SHAPED)
+    levels.update({"dt_nomix": 150.0, "iql": 150.0})
+    cells = _cells(levels)
+    cells[("iql", "random")] = [EpisodeResult("iql@random", e.seed, e.draw_id, e.att_horizon, 0.0, 0.0)
+                                for e in cells[("dt_nomix", "random")]]
+    got = ic.random_tier_statements(cells, with_hard_subset=False)
+    assert got["q2a"]["measured_first"] == "dt_nomix" == got["q2a"]["predicted_first"]
+    assert sorted(got["q2a"]["tied_for_first"]) == ["dt_nomix", "iql"]
+    assert got["q2a"]["outcome"] == "FAILED"
+
+
+def test_the_p5_2_stage_refuses_an_evaluation_of_a_model_that_is_not_the_records(tmp_path: Path, monkeypatch: Any,
+                                                                                 keep_torch_threads: Any) -> None:
+    """M-eval-stage-no-model-guard survived the happy path: here the training record names another weight digest for
+    one seed, so (i) evaluated a model the record does not vouch for, and the stage must refuse."""
+    record, _ = _synthetic_run_setup(tmp_path, monkeypatch)
+    roots, pins, out = record.roots, record.pins, record.roots.out_root
+    _write_canary(out, "open")
+    ic.train_stage(roots, pins=pins)
+    _write_canary(out, "close")
+    path = out / "training_random_iql.json"
+    training = json.loads(path.read_text(encoding="utf-8"))
+    training["runs"][0]["state_dict_sha256"] = "0" * 64
+    path.write_text(json.dumps(training), encoding="utf-8")
+    assert ic.status(roots, pins=pins)["training"] == "complete"
+    with pytest.raises(ValueError, match="model_provenance"):
+        ic.evaluate_p5_2_stage(roots, pins=pins)
+
+
+@pytest.mark.parametrize("damage, message", [("rows", "second route"), ("streams", "selected streams"),
+                                             ("scale", "reward scale"), ("stats", "normalisation statistics")])
+def test_assert_training_inputs_refuses_inputs_that_are_not_the_declared_data(tmp_path: Path, monkeypatch: Any,
+                                                                              damage: str, message: str) -> None:
+    """M-declared-rows-unchecked survived: each of ``assert_training_inputs``' four refusals, on the synthetic tier."""
+    corpus = tmp_path / "corpus"
+    fx.write_synthetic_tier(corpus)
+    fx.install_synthetic_tier(monkeypatch)
+    inputs = ic.training_inputs(corpus)
+    keys = frozenset((Path(str(s.dataset_dir)).name, str(s.episode_file), str(s.ix_id)) for s in inputs.streams)
+    declared = {"rows": len(inputs.table), "keys": keys}
+    original = {"common": {"reward_scale": inputs.scale}, "stats": inputs.parts["dataset"].stats.to_json_obj()}
+    assert ic.assert_training_inputs(inputs, declared, original)["rows"] == len(inputs.table)
+    if damage == "rows":
+        declared["rows"] += 1
+    elif damage == "streams":
+        declared["keys"] = frozenset(sorted(keys)[1:])
+    elif damage == "scale":
+        original["common"]["reward_scale"] = inputs.scale * 2
+    else:
+        original["stats"] = {**original["stats"], "split": "heldout"}
+    with pytest.raises(ValueError, match=message):
+        ic.assert_training_inputs(inputs, declared, original)

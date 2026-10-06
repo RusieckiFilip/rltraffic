@@ -56,8 +56,12 @@ def write_synthetic_tier(corpus_root: Path, *, draws: Sequence[int] = DRAWS, epi
             episode = counter
 
             def rewards_for(draw_id: int, ix: str, count: int, episode: int = episode) -> list[float]:
+                # A draw's second episode is three times as costly, so the unselected streams widen the return span
+                # and a reward scale taken over every stream differs from the selected streams' (mutation M-scale).
                 position = IDS.index(ix)
-                return [-float(1 + (draw_id * 7 + position * 3 + episode * 11 + step) % 17) for step in range(count)]
+                weight = 3.0 if episode % EPISODES_PER_DRAW else 1.0
+                return [-weight * float(1 + (draw_id * 7 + position * 3 + episode * 11 + step) % 17)
+                        for step in range(count)]
 
             log_episode(logger, env, draw=int(draw), decisions=int(decisions), rewards_for=rewards_for)
             logger.finalize_episode()
