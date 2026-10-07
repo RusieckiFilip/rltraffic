@@ -1890,3 +1890,61 @@ def test_p5_2b_every_other_row_and_block_of_the_committed_artifact_is_p8_2s_as_c
     assert {name: _digest(artifact[name]) for name in _P8_2_BLOCKS} == _P8_2_BLOCKS
     assert sorted(artifact["sources_added_after_plan"]) == sorted(_P8_2_SOURCES_ADDED + ["p5_2b_iql_correction"])
     assert "BRIEF_44" in artifact["registered_in"] and "BRIEF_43" in artifact["registered_in"]
+
+
+@pytest.mark.parametrize("damage, error, message", [
+    (None, None, None),
+    ("digest", ValueError, "superseded .* has sha256"),
+    ("size", ValueError, "differs across seeds"),
+    ("missing", FileNotFoundError, "does not exist"),
+])
+def test_p5_2b_training_block_quotes_and_supersedes_on_a_synthetic_record(
+    synthetic: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, damage: str | None, error: Any, message: str | None
+) -> None:
+    """BRIEF_44 §3.4's two optional keys on the synthetic record (written after the builder change, proven by its
+    mutants): ``quotes`` reads each value with its JSON path; ``superseded`` names each earlier checkpoint at the digest
+    its source holds, reads the data size from every one of them, carries the seconds' declared absence -- and refuses
+    a checkpoint at another digest, a size that differs across seeds, and a checkpoint that is not there."""
+    roots, row, entry = synthetic
+    digests = {}
+    for seed in (101, 202, 303, 404, 505):
+        path = tmp_path / "output" / "earlier" / f"model_seed{seed}.pt"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        rows = 9 if (damage == "size" and seed == 303) else 8
+        torch.save({"provenance": {"diagnostics": {"training_rows": rows}}, "seed": seed}, path)
+        digests[str(seed)] = hashlib.sha256(path.read_bytes()).hexdigest()
+    record = tmp_path / "docs" / "data" / "synthetic_training.json"
+    record.write_text(json.dumps({**json.loads(record.read_text()), "earlier": digests}))
+    monkeypatch.setitem(ct.PINNED_RECORDS, "synthetic", dataclasses.replace(
+        ct.PINNED_RECORDS["synthetic"], sha256=hashlib.sha256(record.read_bytes()).hexdigest()))
+    if damage == "digest":
+        target = tmp_path / "output" / "earlier" / "model_seed404.pt"
+        target.write_bytes(target.read_bytes() + b"\0")
+    elif damage == "missing":
+        (tmp_path / "output" / "earlier" / "model_seed505.pt").unlink()
+    monkeypatch.setitem(ct.DECLARED_ABSENCES, "synthetic.earlier.seconds", "the earlier record holds no seconds")
+    entry = {**entry,
+             "quotes": {"batch_again": {"kind": "record", "path": "$.batch"}},
+             "superseded": {"label": "the earlier cell", "note": "kept as the record",
+                            "path": "output/earlier/model_seed{seed}.pt",
+                            "digest": {"kind": "json", "record": "synthetic", "path": "$.earlier['{seed}']"},
+                            "data": {"path": "$.provenance.diagnostics.training_rows", "unit": "rows"},
+                            "seconds": {"kind": "absent", "key": "synthetic.earlier.seconds"}}}
+    if damage is not None:
+        with pytest.raises(error, match=message):
+            ct.training_block(row, entry, roots)
+        return
+    block = ct.training_block(row, entry, roots)
+    assert block["quotes"] == {"batch_again": {"value": 64, "source": {
+        "file": "docs/data/synthetic_training.json", "sha256": ct.PINNED_RECORDS["synthetic"].sha256,
+        "json_path": "$.batch"}}}
+    superseded = block["superseded"]
+    assert (superseded["label"], superseded["note"]) == ("the earlier cell", "kept as the record")
+    assert superseded["data"] == {"value": 8, "unit": "rows", "source": {
+        "file": "output/earlier/model_seed101.pt", "sha256": digests["101"],
+        "json_path": "$.provenance.diagnostics.training_rows"}}
+    assert [(c["seed"], c["path"], c["sha256"]) for c in superseded["checkpoints"]] == [
+        (seed, f"output/earlier/model_seed{seed}.pt", digests[str(seed)]) for seed in (101, 202, 303, 404, 505)]
+    assert superseded["seconds"] == {"value": None, "reason": "the earlier record holds no seconds"}
+    plain = ct.training_block(row, {k: v for k, v in entry.items() if k not in ("quotes", "superseded")}, roots)
+    assert "quotes" not in plain and "superseded" not in plain, "an entry without them gains no key"
