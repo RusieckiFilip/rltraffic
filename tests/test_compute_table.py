@@ -1661,3 +1661,226 @@ def test_d107_the_h4_maximum_is_taken_over_both_devices_when_the_largest_change_
     assert max(v for k, v in changes.items() if k.endswith("_cpu")) < changes[largest]
     summary = sensitivity["summary"]
     assert (summary["h4_cells"], summary["h4_median_change_max_abs"]) == (4, changes[largest])
+
+
+# ======================================================================
+# P5.2b (BRIEF_44 §3.4; Amendment A, A2 Q8; Amendment C, C2.2): grid4x4.iql's random-tier entry is the corrected cell's
+# (DEFERRED 106), read from the committed correction artifact, with the original entry's values under ``superseded``;
+# every other row is P8.2's as committed.
+# ======================================================================
+
+CORRECTION = DATA / "p5_2b_iql_correction.json"
+_CORRECTED = "output/p5_2b/p5_2/checkpoints/grid4x4_random_iql_seed{seed}.pt"
+_ORIGINAL = "output/p5_2/checkpoints/grid4x4_random_iql_seed{seed}.pt"
+
+#: Every row of docs/data/p8_2_compute.json as P8.2 committed it (sha256 48bafa6c..., e637e81) but grid4x4.iql, as
+#: sha256 of json.dumps(row, sort_keys=True); and the top-level blocks P5.2b must not move.
+_P8_2_ROWS = {
+    "hz1x1.dt_k20": "e22eed585ce632ca42f2e4fbd40cf66709834c6e97869c3807424d662d70f210",
+    "hz1x1.bc": "6c246bfb5b770ee05107ed9975a780c37abb320e17b8008c5106802f7b0cb117",
+    "hz1x1.bc_top10": "d9d01f080cb3830b65d5c41181bb1ac1780e23a1fc7d9324a6e764ca0adb871b",
+    "hz1x1.iql": "6e7b8fac8d34c8e0b55f7f949f4bf004abc484e1defb3f2de85682be64e49bec",
+    "hz1x1.bc_best2_20": "6cdf4708e0a2acdefa262b6838c8f13084cbe2cc246cf70d7e87c77d1fe8fa8e",
+    "hz1x1.bc_any_20": "2de679f0a889635cee50295ba660cdf941fca0c68fc3193c9567ce4f610a35c8",
+    "hz1x1.bc_worst2_20": "5104dd05c6a1419f56d926c7f73ccc6e344d1e88dea1be0d54d557b878188896",
+    "hz1x1.bc_best2_all": "9e6bb78a1cdb43e4acc39e83cc4623eff022decb4776ed808ab4d5d81e7070fe",
+    "hz1x1.dt_nortg": "c655f44384fc1ed44302c06cdf15010f998f91dd1eb2895911e529fb52dd006c",
+    "hz1x1.h4.k1": "b7a6fcea70c44c31cd0a8224bdfcb033b51d9d4b40101af9395fba48f2642e3f",
+    "hz1x1.h4.k2": "cef009ab3cf4b1043fca5fa74c4804594e0dd8bccc79a48ab377fc67ab4b1a33",
+    "hz1x1.h4.k5": "ad56ddbaf28ef276dfe6704018847e4b39b9ec095c583532fa8841d1beb71e63",
+    "hz1x1.h4.k10": "b8ae8ac4aee70b0d68e5e73c3987925e384f77378d889aa2052b0f453a2c7c28",
+    "hz1x1.h4.k20": "a73ab07d9b121e650c388c0fb011c48b41f8b266759d08c0ba81c293f55d88b0",
+    "hz1x1.h4.k1_b1280": "6c0c8d8d9f2c15d5e1d1d0781770728b12ae58b271e4097a41976c4a2a613b03",
+    "hz1x1.h4.k2_b640": "7929e3a26d619e769135b4fa6cbed79bc3769797f92e9a6f6887044e93c6b232",
+    "hz1x1.c3.anchor_k200": "899ac963082697c36eb929c85a9888ce551fc2f35be04e10e41ec0217762f6d3",
+    "hz1x1.mappo1000": "53567858593e02e5ac8478c1e99c184182ed449c740597fb06f352750d0df3b1",
+    "hz1x1.mappo500": "d31711e88ec2adabeecbb9643915730d4fa737d840d2ad57d5e4e1344be36901",
+    "hz1x1.mappo060": "e4195d66b435a3899b820e06b56a20f56ca4b3aa663fda344da0115c61940682",
+    "hz1x1.maxpressure": "e55942fb6f13aa53cfaaa7433b4643169706f7959425f7fcefa812a6170570c0",
+    "hz1x1.fixedtime": "8b9c7b585182b4f9f9b3e78f54ef3ff1802a5a9138e30bd07f426e56ae8b878e",
+    "hz1x1.random": "cf37801d8b6590c3fa6ee3b4d8b26ec221d956ae9bb96d4766ec874dbcdd44ae",
+    "grid4x4.dt_spatial": "2a232934c907635ca88d84993e55870766bccdd3fb658b508669915ef3d010c5",
+    "grid4x4.dt_nomix": "cf7a9665ac8bae279c74ec171cf1dc81f3da9ce9eb1e34544b528b830118ac5e",
+    "grid4x4.dt_spatial_h4": "a819f78921d99891e9325ed0495ad81b46e07f71d476bc109d70bc1ed63c3a39",
+    "grid4x4.dt_nomix_h4": "7446d32b974434b48667aef4534e5613d74dec075918ce64a71bae98e371092b",
+    "grid4x4.bc": "d159c81c6695b0dee88e48b7a3f1c7e0bd20dfdf44de1436ecce43825694c724",
+    "grid4x4.bc_top10": "3e7d6f76dfd8d8e20f1a09d6091df0a2091fb7da692c385242cfa1752dd17602",
+    "grid4x4.bc_top10_perix": "2dc905c12893e4003dc85813f2bc9211da19a48b657314d105ba57adabc0d745",
+    "grid4x4.c3.ft_k5": "5c5999a2a6da8df92e3b6908a99a18f66cb0edd890ec73f9fdf9f16578bfd53c",
+    "grid4x4.c3.ft_k20": "304ef9ea400c3bff5b7cab62cd76b7f569fc4d575bceef799da00d48558d7941",
+    "grid4x4.c3.ft_k100": "444e207888a83ca3bdf2ae73c514deb6a73a23382330b4ba81bd566360ea42cd",
+    "grid4x4.c3.ft_k100_b1000": "80349021a577264f77abbc2b0bbdad136865b1a7d5839179711b66f4ac88e7ec",
+    "grid4x4.c3.ft_k100_b16000": "b9305ff0dc1adfda6692aa73d8b2904301d82565b294e6d90b2e8f24318a7094",
+    "grid4x4.c3.scratch_k100": "c8a66b5ab51756ec27a459fddd60867f29ad7377d0ba40feee476da5805f3d67",
+    "grid4x4.mappo1000": "ac48e751c93d0d6d4c2f382e48761e37c5e85ce1fc62ea08e849be58406428f6",
+    "grid4x4.mappo060": "5387b0168ed2f0b1f76c1c545aed7ac086fafebc6170c9c56e1347bdcb26935e",
+    "grid4x4.maxpressure": "e11866a38eb8e04a75a7abdeb15b2352116242971f1c50b38b3111ed6e39520f",
+    "grid4x4.fixedtime": "5ccdc9cefafd17e53e6ac54dcefbb854ca9a93aee5baca1475b07d202e83c0d7",
+    "grid4x4.random": "badcd412e6c2b701a90d536722ae332801ce07b820e90c5e860dc8c70fdc5281",
+    "hz1x1.c3.zero_shot_mappo1000": "581912c512e0ab0a656a25092c128f2ea6d1841213f0a2ca1526b0be55f0d592",
+    "hz1x1.c3.zero_shot_mix50": "d46a178a3b6d979cb59a3a457424161a61468f85a171cd9007793cac3c5504b7",
+}
+_P8_2_IQL_PARTS = {
+    "architecture": "f38b55f25b8df171e4f1eba03dd4358876267603a4b0ae23f362c701fa6b32ff",
+    "computation": "2bb1b97e13e405345ea1609d88cf125fb29b9f0aa49e8021610c9c1b4ade221a",
+    "configuration": "b94d1190ebf5fb3b7431c84a8221e113be01fe7e10830e1d29bf95cdeb31f3a5",
+    "environment_interactions": "7a71d7f762a7d7ec2b3ebf99d9a84bc67e655c80b7bcce0b627d58d884ad424b",
+    "inference": "4503ac2c2e4de143098f0a37eeb77378c5400df7bea0225560224add65072c92",
+    "notes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "training mappo1000": "07d64b26fda1639f870bcb3230f860e96270d10b9b63b669995016b79485e1b0",
+    "training maxpressure": "5a21892582f54cfab42e95c5ac0f9a7dfa0e0aa1b7c8ddd2b5218f19cb68f103",
+    "training fixedtime": "0810e4b2f0d7cf27c61103ca46753606692b6fbe17ef88a0cd3876b0d6f96b2d",
+    "checkpoints of the other tiers": "61b0335d56e8a89e3abf45d08a0af48dc63c006d929592c98ff9d46ba3e1df84",
+    "claims": "bf38964961106eeffbfdb62fe78e2f31290c9f77ee504f52fcc0f25dfad3a290",
+    "parameters but the cross-checks": "69988997a6072efba591c9f28e349ebd13e162a4db20b4b2c21e0af8e0008c08",
+    "cross-checks of the other tiers": "6235461ecdc440e1f28c2156383c1adef8d1ffd4b2dcf257884285d33642568a",
+}
+_P8_2_BLOCKS = {
+    "latency_run": "b5cad090379822eca9b4cb6d1dfccd3c7d0d458b4077ebd67acd46740c2bfe0a",
+    "hardware": "88250f31b63105682a145f91d667db393ce3a9a0a58b0fce9b88d6bc2059aee7",
+    "latency_sensitivity": "e6bd89ff1405dfbc708250ebc297fd6c03ac47a5f4ad5f0989983f2be26dafe8",
+    "latency_variability": "4cadefad18eed0d5179db162f7336d75c70aaeaad1693bb9a40837c557133b0c",
+    "mappo_results_pin": "4bc18d44b1716bb347fe3d585c2b555cb1bd9a3e37870f2f6214839e19a944ad",
+}
+_P8_2_SOURCES_ADDED = ["p5_1_declaration", "p5_2_declaration_fixedtime", "p5_2_declaration_mappo1000",
+                       "p5_2_declaration_maxpressure", "p5_2_declaration_random"]
+
+
+def _digest(node: Any) -> str:
+    return hashlib.sha256(json.dumps(node, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def _iql_random(rows: Any) -> Any:
+    row = next(r for r in rows if (r.row_id if hasattr(r, "row_id") else r["id"]) == "grid4x4.iql")
+    training = row.training if hasattr(row, "training") else row["training"]
+    entries = [entry for entry in training if entry["tier"] == "random"]
+    assert len(entries) == 1
+    return row, entries[0]
+
+
+def test_p5_2b_the_random_tier_of_grid4x4_iql_is_specified_on_the_corrected_cell() -> None:
+    """Ungated: the row spec reads the corrected checkpoints and the committed correction artifact, pinned at the
+    committed file's own digest and declared as an addition with its reason; the original stays under ``superseded``."""
+    row, entry = _iql_random(ct.TABLE_ROWS)
+    groups = {group["tier"]: group for group in row.groups}
+    assert groups["random"]["path"] == _CORRECTED
+    assert groups["random"]["digest"] == {"kind": "json_list", "record": "p5_2b_iql_correction",
+                                          "list": "$.training.runs", "match": {}, "field": "file_sha256"}
+    assert [groups[tier]["path"] for tier in ("mappo1000", "maxpressure", "fixedtime")] == [
+        "output/p5_1/checkpoints/grid4x4_mappo1000_iql_seed{seed}.pt",
+        "output/p5_2/checkpoints/grid4x4_maxpressure_iql_seed{seed}.pt",
+        "output/p5_2/checkpoints/grid4x4_fixedtime_iql_seed{seed}.pt"]
+    pinned = ct.PINNED_RECORDS["p5_2b_iql_correction"]
+    assert (pinned.root, pinned.relpath) == ("repo", "docs/data/p5_2b_iql_correction.json")
+    assert pinned.sha256 == hashlib.sha256(CORRECTION.read_bytes()).hexdigest()
+    assert "DEFERRED 106" in ct.SOURCES_ADDED_AFTER_PLAN["p5_2b_iql_correction"]
+    assert entry["record"] == "p5_2b_iql_correction"
+    assert entry["seeds"] == {"kind": "list", "path": "$.training.runs", "match": {}}
+    for needle in ("DEFERRED 106", "tier_sweep.py:1820", ":2078", "BRIEF_44"):
+        assert needle in entry["record_note"], needle
+    assert "superseded" in entry and "quotes" in entry
+    assert {"claim": "C1", "record": "p5_2b_iql_correction", "json_path": "$.cells.corrected"} in row.claims
+    assert {"claim": "C1", "record": "sums_p5_2", "entry": "p5_2/eval_random_iql.json"} in row.claims
+    for other in ("grid4x4.bc", "grid4x4.bc_top10", "grid4x4.bc_top10_perix"):
+        spec = next(r for r in ct.TABLE_ROWS if r.row_id == other)
+        kept = [e for e in spec.training if e["tier"] == "random"]
+        assert len(kept) == 1 and kept[0]["record"] is None, other
+        assert kept[0]["seconds"] == {"kind": "absent", "key": "p5_2.baselines.seconds"}, other
+    exception = [text for text in ct.WHAT_THIS_DOES_NOT_SAY if "grid4x4.iql" in text]
+    assert len(exception) == 1 and "Best Performance" in exception[0] and "canar" in exception[0]
+
+
+def test_p5_2b_the_corrected_entry_is_the_correction_artifacts_read_here(built_artifact: Any) -> None:
+    """Gated: every value of the corrected entry against ``docs/data/p5_2b_iql_correction.json`` read HERE with json,
+    the data size against the five corrected checkpoints loaded here, and ``superseded`` against the original
+    checkpoints and P5.2's manifest -- two routes to each original digest (the manifest, the correction's record of
+    the defect)."""
+    artifact, roots = built_artifact
+    correction = json.loads(CORRECTION.read_text(encoding="utf-8"))
+    digest = hashlib.sha256(CORRECTION.read_bytes()).hexdigest()
+    runs = {int(run["seed"]): run for run in correction["training"]["runs"]}
+    row, entry = _iql_random(artifact["rows"])
+    assert entry["record"] == {"file": "docs/data/p5_2b_iql_correction.json", "sha256": digest}
+    seconds = [item["value"] for item in entry["seconds"]["per_seed"]]
+    assert seconds == [runs[seed]["seconds"] for seed in (101, 202, 303, 404, 505)]
+    assert entry["seconds"]["median"] == statistics.median(seconds) == correction["training"]["seconds"]["median"]
+    assert [item["value"] for item in entry["gradient_steps"]["per_seed"]] == [40000] * 5
+    assert entry["batch"]["value"] == correction["training"]["header"]["batch_size"] == 1280
+    main = roots.output_root.parent
+    rows = {torch.load(main / _CORRECTED.format(seed=s), map_location="cpu", weights_only=False)["provenance"][
+        "diagnostics"]["training_rows"] for s in (101, 202, 303, 404, 505)}
+    assert rows == {1_152_000} and entry["data"]["value"] == 1_152_000
+    assert entry["data"]["source"]["file"] == _CORRECTED.format(seed=101)
+    regime = {name: entry["regime"][name]["value"] for name in ("device", "gpu", "torch", "threads", "concurrency")}
+    header = correction["training"]["header"]
+    assert regime == {"device": "cuda", "gpu": header["regime"]["cuda_device_name"],
+                      "torch": header["regime"]["torch_version"], "threads": 1, "concurrency": 1}
+    assert entry["quotes"]["bracketed_by"]["value"] == correction["training"]["seconds"]["bracketed_by"]
+    for phase in ("open", "close"):
+        assert entry["quotes"][f"canary_{phase}_seconds"]["value"] == correction["training"]["canaries"][phase]["seconds"]
+    random_checkpoints = [c for c in row["checkpoints"] if c["tier"] == "random"]
+    assert [(c["path"], c["sha256"]) for c in random_checkpoints] == [
+        (_CORRECTED.format(seed=s), runs[s]["file_sha256"]) for s in (101, 202, 303, 404, 505)]
+    superseded = entry["superseded"]
+    assert superseded["data"]["value"] == 2_304_000 == correction["defect"]["original"]["training_rows"]
+    assert superseded["data"]["source"]["file"] == _ORIGINAL.format(seed=101)
+    sums = {line.split()[1]: line.split()[0] for line in (roots.output_root / "SHA256SUMS_p5_2.txt").read_text(
+        encoding="utf-8").splitlines() if line.strip()}
+    for item in superseded["checkpoints"]:
+        relative = _ORIGINAL.format(seed=item["seed"])
+        assert item["path"] == relative
+        assert item["sha256"] == sums[relative.removeprefix("output/")] == correction["defect"]["original"]["per_seed"][
+            str(item["seed"])]["sha256"]
+    assert [item["seed"] for item in superseded["checkpoints"]] == [101, 202, 303, 404, 505]
+    assert superseded["seconds"]["value"] is None and "P5.2" in superseded["seconds"]["reason"]
+    assert {"claim": "C1", "file": "docs/data/p5_2b_iql_correction.json", "sha256": digest,
+            "json_path": "$.cells.corrected"} in row["claims"]
+
+
+def test_p5_2b_the_excepted_entrys_five_seconds_are_sourced_from_the_correction_artifact(built_artifact: Any) -> None:
+    """Amendment A, A2 Q8(c)(ii): the one entry excepted from the null-seconds loop of
+    ``test_t_sources_the_declared_absences_carry_their_reasons`` -- ``(grid4x4.iql, random)`` -- has five seconds, each
+    sourced ``{file: docs/data/p5_2b_iql_correction.json, sha256, json_path}``, each equal to that file's value read here
+    with json."""
+    artifact, _ = built_artifact
+    document = json.loads(CORRECTION.read_text(encoding="utf-8"))
+    digest = hashlib.sha256(CORRECTION.read_bytes()).hexdigest()
+    _, entry = _iql_random(artifact["rows"])
+    items = entry["seconds"]["per_seed"]
+    assert [item["seed"] for item in items] == [101, 202, 303, 404, 505]
+    for item in items:
+        source = item["source"]
+        assert set(source) == {"file", "sha256", "json_path"}, source
+        assert (source["file"], source["sha256"]) == ("docs/data/p5_2b_iql_correction.json", digest)
+        assert item["value"] == _resolve(document, source["json_path"]), item
+        run = _resolve(document, source["json_path"].rsplit(".", 1)[0])
+        assert int(run["seed"]) == item["seed"] and run["seconds"] == item["value"]
+
+
+def test_p5_2b_every_other_row_and_block_of_the_committed_artifact_is_p8_2s_as_committed() -> None:
+    """Ungated (CI): the committed P8.2 artifact after P5.2b's rebuild -- every row but grid4x4.iql, every part of
+    grid4x4.iql but its random tier, and the top-level blocks, equal P8.2's committed ones (digests above); the random
+    tier is the corrected cell's; the additions are the one source, the one sentence and BRIEF_44 in registered_in."""
+    artifact = _committed_artifact()
+    rows = {row["id"]: row for row in artifact["rows"]}
+    assert set(rows) == set(_P8_2_ROWS) | {"grid4x4.iql"} and len(artifact["rows"]) == 44
+    for row_id, digest in _P8_2_ROWS.items():
+        assert _digest(rows[row_id]) == digest, row_id
+    iql = rows["grid4x4.iql"]
+    parameters = dict(iql["parameters"])
+    checks = parameters.pop("record_cross_checks")
+    parts = {name: iql[name] for name in ("architecture", "computation", "configuration", "environment_interactions",
+                                          "inference", "notes")}
+    parts.update({f"training {e['tier']}": e for e in iql["training"] if e["tier"] != "random"})
+    parts["checkpoints of the other tiers"] = [c for c in iql["checkpoints"] if c["tier"] != "random"]
+    parts["claims"] = [c for c in iql["claims"] if c.get("file") != "docs/data/p5_2b_iql_correction.json"]
+    parts["parameters but the cross-checks"] = parameters
+    parts["cross-checks of the other tiers"] = [c for c in checks if c["tier"] != "random"]
+    assert {name: _digest(node) for name, node in parts.items()} == _P8_2_IQL_PARTS
+    _, entry = _iql_random(artifact["rows"])
+    assert entry["record"]["file"] == "docs/data/p5_2b_iql_correction.json" and entry["seconds"]["median"] > 0
+    assert [c["source"]["file"] for c in checks if c["tier"] == "random"] == [
+        _CORRECTED.format(seed=s) for s in (101, 202, 303, 404, 505)]
+    assert {name: _digest(artifact[name]) for name in _P8_2_BLOCKS} == _P8_2_BLOCKS
+    assert sorted(artifact["sources_added_after_plan"]) == sorted(_P8_2_SOURCES_ADDED + ["p5_2b_iql_correction"])
+    assert "BRIEF_44" in artifact["registered_in"] and "BRIEF_43" in artifact["registered_in"]
