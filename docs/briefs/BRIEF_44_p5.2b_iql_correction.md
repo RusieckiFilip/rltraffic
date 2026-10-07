@@ -254,3 +254,54 @@ the driver → **"P5.2b C8 done"** → gate G1.1 (the coordinator re-runs PM1–
    each untested guard — `_corrected_rows`' `policy_source` check, the run manifest's per-file re-check, `check`'s refusal of canaries
    without a complete training, the completeness check's `training_rows` clause; and `write_run_manifest` REFUSES unless every stage
    is complete (a manual `manifest` call on a partial run must not freeze it as final). Each surviving mutant re-run and KILLED.
+
+---
+
+# ✅ AMENDMENT B.2 — 2026-10-07, gate G1.1 PASSED: the correction run is CLEARED at `4e849fa` — the author's token
+
+## B.2.0 — Verified by the coordinator (by running commands; `docs/reviews/P5.2b-G1.md` §6)
+1. **The five G1 mutants re-run at `4e849fa`**, committed in a throwaway worktree, every data gate open (unmutated baseline
+   `120 passed`): **5 / 5 KILLED** — PM4, the G1 survivor, by the new test
+   `test_b1_2_a_p8_4b_cell_whose_att_ours_is_not_p5_2s_att_horizon_is_refused`.
+2. **The other three test files** with the gates open: `285 passed, 1 skipped` (the known `tests/test_tier_sweep.py:1447`).
+3. **The pre-flight stays pinned, on the coordinator's own comparison:** of the thirteen functions the pre-flight timed or
+   drove, eleven are byte-identical between its commit `a71a72c` and `4e849fa` (`ast` source segments); `train_stage` differs by
+   the hyperparameter check placed BEFORE the training and two recorded fields (`hyperparameters`, `finished_utc`), `preflight`
+   by the `pins` argument to the barrier. The driver pins `p5_2b_runs/preflight_20261006T195405Z/preflight.json` at
+   `a280452734494479f6d2941b09ff12c16825155080404ee7ce84b95752c4bb4b`, which equals the file's digest on disk.
+4. **B1–B1.7 and B.1 read in the code:** `assert_c1_note_means` compares all twelve random-tier means (six arms × two
+   definitions) with the note under exact equality, reading each cell by P8.4b's own file name and refusing a cell that is not
+   the one its name says, inside `_verify_inputs` — so `check` refuses before the token; `_per_seed_orderings` implements D9
+   (each seed's levels by the pooled route, order, first and ties, P5.2's concordance with its tie rule; a pooled first that is
+   not a seed's unique first is named as reversing); `close_late_stage` is write-once, refuses unless the training is complete
+   and only its closing canary is missing, and re-entry with its own mark writes nothing.
+
+## B.2.1 — Rulings on the packet's deviations
+1. **The manifest gate stays in `manifest_stage`; it is NOT moved into `write_run_manifest`, and the seven test changes are NOT
+   authorised.** The gate sits on the only production path — the driver's `ic manifest` runs the CLI, the CLI runs
+   `manifest_stage`, and `write_run_manifest` has no other caller in the module — and the implementer's mutant of the CLI
+   bypassing it was killed. Moving the gate would buy seven edits to committed tests and nothing else.
+2. **B1.3's addendum accepted:** the training record is written once, before the closing canary exists, so the write-once
+   `training_random_iql.late_close.json` is the honest form of "the record marks its seconds"; the report folds it into
+   `training.seconds`, and P8.2's table quotes that block.
+3. **B1.6(a) as built** (the two structural checks always; the digest where pins are passed) accepted.
+4. **B1.8 as taken** (the report without the materialised draws; the two theatre tests renamed) accepted.
+
+## B.2.2 — G2, the correction run (the author)
+- **The run worktree** (the coordinator's, the branch pushed): `/home/filip/rltraffic-p52b-run`, detached at
+  `4e849fa4` (the branch tip; the full sha is in the command below), clean.
+- **Before the token:** mains power, the Windows power mode on **Best performance** (the run refuses before the token
+  otherwise), a quiet machine, the implementer's and the coordinator's sessions idle for about an hour.
+- **The token:** `touch /home/filip/rltraffic/output/p5_2b_runs/TOKEN_correction`.
+- **The command**, in a tmux pane: `bash /home/filip/rltraffic-p52b-run/offline/campaigns/p5_2b_correction.sh <commit> 2>&1 |
+  tee -i -a /home/filip/rltraffic/output/p5_2b_runs/correction_capture.txt; echo "DRIVER EXIT ${PIPESTATUS[0]}"`.
+- **Expected:** about an hour (training ≈ 28 min, each evaluation path ≈ 16 min, the canaries, the manifest and the report),
+  ending `DRIVER EXIT 0`. A refusal before the token costs nothing (set what it names, start again). A hang costs one timeout
+  and is re-run by the driver, at most three attempts per evaluation stage. A FAILED run keeps `output/p5_2b/` and restarts
+  where it stopped with a new token; the training is never run twice.
+
+## B.2.3 — Next
+G2 → **"P5.2b correction run done"** → G3: the coordinator reads the run from disk — the capture, the training record with its
+canaries and hyperparameters, the five checkpoints re-hashed and their rows, the corrected cell's 500 episodes under both
+definitions recomputed by a third route, the per-seed orderings, every statement before and after — then Amendment C; then C9
+(the artifact by hand with its T-regress; `DEFERRED` 107's tests are already in; P8.2's table) and the packet → G5.
