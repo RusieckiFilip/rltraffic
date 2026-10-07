@@ -254,3 +254,104 @@ the driver → **"P5.2b C8 done"** → gate G1.1 (the coordinator re-runs PM1–
    each untested guard — `_corrected_rows`' `policy_source` check, the run manifest's per-file re-check, `check`'s refusal of canaries
    without a complete training, the completeness check's `training_rows` clause; and `write_run_manifest` REFUSES unless every stage
    is complete (a manual `manifest` call on a partial run must not freeze it as final). Each surviving mutant re-run and KILLED.
+
+---
+
+# ✅ AMENDMENT B.2 — 2026-10-07, gate G1.1 PASSED: the correction run is CLEARED at `4e849fa` — the author's token
+
+## B.2.0 — Verified by the coordinator (by running commands; `docs/reviews/P5.2b-G1.md` §6)
+1. **The five G1 mutants re-run at `4e849fa`**, committed in a throwaway worktree, every data gate open (unmutated baseline
+   `120 passed`): **5 / 5 KILLED** — PM4, the G1 survivor, by the new test
+   `test_b1_2_a_p8_4b_cell_whose_att_ours_is_not_p5_2s_att_horizon_is_refused`.
+2. **The other three test files** with the gates open: `285 passed, 1 skipped` (the known `tests/test_tier_sweep.py:1447`).
+3. **The pre-flight stays pinned, on the coordinator's own comparison:** of the thirteen functions the pre-flight timed or
+   drove, eleven are byte-identical between its commit `a71a72c` and `4e849fa` (`ast` source segments); `train_stage` differs by
+   the hyperparameter check placed BEFORE the training and two recorded fields (`hyperparameters`, `finished_utc`), `preflight`
+   by the `pins` argument to the barrier. The driver pins `p5_2b_runs/preflight_20261006T195405Z/preflight.json` at
+   `a280452734494479f6d2941b09ff12c16825155080404ee7ce84b95752c4bb4b`, which equals the file's digest on disk.
+4. **B1–B1.7 and B.1 read in the code:** `assert_c1_note_means` compares all twelve random-tier means (six arms × two
+   definitions) with the note under exact equality, reading each cell by P8.4b's own file name and refusing a cell that is not
+   the one its name says, inside `_verify_inputs` — so `check` refuses before the token; `_per_seed_orderings` implements D9
+   (each seed's levels by the pooled route, order, first and ties, P5.2's concordance with its tie rule; a pooled first that is
+   not a seed's unique first is named as reversing); `close_late_stage` is write-once, refuses unless the training is complete
+   and only its closing canary is missing, and re-entry with its own mark writes nothing.
+
+## B.2.1 — Rulings on the packet's deviations
+1. **The manifest gate stays in `manifest_stage`; it is NOT moved into `write_run_manifest`, and the seven test changes are NOT
+   authorised.** The gate sits on the only production path — the driver's `ic manifest` runs the CLI, the CLI runs
+   `manifest_stage`, and `write_run_manifest` has no other caller in the module — and the implementer's mutant of the CLI
+   bypassing it was killed. Moving the gate would buy seven edits to committed tests and nothing else.
+2. **B1.3's addendum accepted:** the training record is written once, before the closing canary exists, so the write-once
+   `training_random_iql.late_close.json` is the honest form of "the record marks its seconds"; the report folds it into
+   `training.seconds`, and P8.2's table quotes that block.
+3. **B1.6(a) as built** (the two structural checks always; the digest where pins are passed) accepted.
+4. **B1.8 as taken** (the report without the materialised draws; the two theatre tests renamed) accepted.
+
+## B.2.2 — G2, the correction run (the author)
+- **The run worktree** (the coordinator's, the branch pushed): `/home/filip/rltraffic-p52b-run`, detached at
+  `4e849fa4` (the branch tip; the full sha is in the command below), clean.
+- **Before the token:** mains power, the Windows power mode on **Best performance** (the run refuses before the token
+  otherwise), a quiet machine, the implementer's and the coordinator's sessions idle for about an hour.
+- **The token:** `touch /home/filip/rltraffic/output/p5_2b_runs/TOKEN_correction`.
+- **The command**, in a tmux pane: `bash /home/filip/rltraffic-p52b-run/offline/campaigns/p5_2b_correction.sh <commit> 2>&1 |
+  tee -i -a /home/filip/rltraffic/output/p5_2b_runs/correction_capture.txt; echo "DRIVER EXIT ${PIPESTATUS[0]}"`.
+- **Expected:** about an hour (training ≈ 28 min, each evaluation path ≈ 16 min, the canaries, the manifest and the report),
+  ending `DRIVER EXIT 0`. A refusal before the token costs nothing (set what it names, start again). A hang costs one timeout
+  and is re-run by the driver, at most three attempts per evaluation stage. A FAILED run keeps `output/p5_2b/` and restarts
+  where it stopped with a new token; the training is never run twice.
+
+## B.2.3 — Next
+G2 → **"P5.2b correction run done"** → G3: the coordinator reads the run from disk — the capture, the training record with its
+canaries and hyperparameters, the five checkpoints re-hashed and their rows, the corrected cell's 500 episodes under both
+definitions recomputed by a third route, the per-seed orderings, every statement before and after — then Amendment C; then C9
+(the artifact by hand with its T-regress; `DEFERRED` 107's tests are already in; P8.2's table) and the packet → G5.
+
+---
+
+# ✅ AMENDMENT C — 2026-10-07, gate G3 PASSED: the correction run read from disk, every statement recomputed by a third route — THE DEFECT CHANGES NUMBERS, NOT VERDICTS
+
+## C0 — What the coordinator verified (by running commands; `docs/notes/p5_2b_g3/`)
+1. **The run `20261007T152900Z`** (the author's, 15:29–16:28 UTC, from the run worktree at `4e849fa`): no refusal; every stage at
+   its first attempt (training 1,543 s, (i) ≈ 17 min, (ii) ≈ 17 min); `output/SHA256SUMS_p5_2b.txt` 516 / 516 `OK`; canaries
+   0.733 s and 0.698 s, at speed, reproduced, mains + Best Performance at both; no late close (`training_random_iql.late_close.json`
+   absent, as it should be).
+2. **The training:** five seeds, 40,000 steps each on **1,152,000 rows** (3,200 streams; the declared 200 episodes), reward scale
+   0.7429420505200595, the thirteen hyperparameters equal to the originals' records, the normalisation statistics identical to the
+   original checkpoints', CUDA, one thread; the gradient loops 307.3 / 324.4 / 297.3 / 295.7 / 297.8 s (median 297.8 [295.7–324.4]);
+   the five checkpoints re-hashed to the record's digests (5 / 5), each differing from its original, each carrying the `correction`
+   provenance block.
+3. **The two evaluations:** (i) 500 episodes on P5.2's protocol, its `model_provenance` digests the record's; (ii) 500 cells, each
+   naming the corrected checkpoint, reproducing (i)'s `att_horizon` on 500 / 500.
+4. **The third route** (`g3_recompute.py`, imports nothing from the project; the predicted order read as a literal from
+   `tier_sweep.py`'s registered table): 24 levels, 64 statement checks, 8 corrected-cell checks, 500 episode equalities — **0
+   problems.** One fact for the paper: the project's `dt_gate.mean_ci95` uses z = 1.96 (`dt_gate.py:218`); with the exact normal
+   quantile the CI endpoints differ in the fifth significant figure and nothing else does. Every CI of this project is 1.96 × SE.
+5. **The pinned inputs** (the P5.2 manifest, the declaration, the corpus manifest, the C1 note, the run manifest) at their digests,
+   5 / 5; the caveat blocks complete.
+
+## C1 — The result, under both definitions (`att_ours` = P5.2's registered metric; `att_engine` = the paper's primary, Rule R)
+| | original cell (2× the declared data) | corrected cell (the declared data) |
+|---|---|---|
+| `att_ours`, mean [95 % CI], n = 500 | 190.96 [188.76, 193.17] | **198.48 [195.84, 201.12]** |
+| `att_engine` | 183.83 [181.60, 186.05] | **191.39 [188.73, 194.06]** |
+| per-seed means, `att_engine` (101 / 202 / 303 / 404 / 505) | 180.5 / 180.9 / 201.7 / 178.0 / 178.0 | 191.3 / 190.2 / 186.5 / 207.4 / 181.6 |
+
+**The corrected IQL is ≈ 7.5 s slower under both definitions, and every registered statement's OUTCOME is unchanged:** Q1 15 / 19
+HELD with IQL's entry still a miss (relative error 0.52 against the registered 414.99, was 0.54); the ranking `iql < dt_spatial <
+dt_nomix < bc < bc_top10_perix < bc_top10` under both; Q2a FAILED (IQL first, `dt_nomix` predicted) — **IQL first on every training
+seed, no reversal** (D9); Q2b 8 / 15 FAILED, IQL's pairs 1 of 5 concordant; Q3a rank 3 FAILED; Q3c `dt_nomix − iql` **+56.84
+[+53.98, +59.71]** (`att_ours`) / **+56.78 [+53.90, +59.67]** (`att_engine`), was +64.36 / +64.35 — still resolves against the DT.
+
+**For the paper:** the sentence that IQL leads the random tier stands, with the correction disclosed (the cell was first trained on
+twice its declared data and re-trained on the declared 200 episodes; the registered tally rests on the registered condition); the
+DT's shortfall to IQL at that tier is ≈ 57 s, not ≈ 64. `README.md`'s grid4x4 sentence is the coordinator's at the merge.
+
+## C2 — Next: C9 (the implementer)
+1. `docs/data/p5_2b_iql_correction.json` committed by hand, byte-identical to `output/p5_2b/artifacts/p5_2b_correction.json`, with
+   the T-regress (the report stage, B1.8: no materialised draw needed).
+2. P8.2's table per the plan's §9 — `DEFERRED` 107's tests are already in: the random-tier group of `grid4x4.iql` on the corrected
+   checkpoints, the entry from the committed correction artifact with its `record_note` and `superseded` block, the authorised change
+   to `test_t_sources_the_declared_absences_carry_their_reasons` under A2 Q8(c)'s three conditions, the rebuilt
+   `docs/data/p8_2_compute.json` with every other row asserted equal.
+3. The whole suite (`DEFERRED` 110's one failure in a worktree, named); the new and changed test files once in a depth-1 clone (F.1's
+   command); `docs/returns/P5.2b.md` per §8, quoting A2 Q8(c) and this amendment → **"P5.2b done"** → G5.
