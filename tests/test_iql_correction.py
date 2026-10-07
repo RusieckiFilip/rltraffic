@@ -1867,6 +1867,7 @@ def test_b_1_2_a_corrected_cell_not_rolled_from_the_corrected_checkpoint_or_not_
             payload["committed_att_ours"] += 0.5
 
     _rewrite(sorted((record.roots.out_root / "rederivation").glob("cell_*.json"))[0], damaged)
+    ic.write_run_manifest(record.roots, ic.protected_roots(record.roots))
     with pytest.raises(ValueError, match=message):
         ic.build_report(record.roots, git=_git(), pins=record.pins)
 
@@ -1980,8 +1981,8 @@ def test_b1_8_the_report_needs_no_materialised_draw_and_the_stages_before_it_do(
     record = fx.write_synthetic_record(tmp_path)
     fx.install_synthetic_protocol(monkeypatch, record)
     fx.write_synthetic_run(record)
-    ic.write_run_manifest(record.roots, ic.protected_roots(record.roots))
     shutil.rmtree(record.roots.draws_root / "cityflow_grid4x4")
-    assert ic.build_report(record.roots, git=_git(), pins=record.pins)["format_version"] == "p5.2b-correction/1.0"
     with pytest.raises(FileNotFoundError, match="held-out draws"):
         ic.check(record.roots, pins=record.pins, require_cuda=False)
+    ic.write_run_manifest(record.roots, ic.protected_roots(record.roots))
+    assert ic.build_report(record.roots, git=_git(), pins=record.pins)["format_version"] == "p5.2b-correction/1.0"
