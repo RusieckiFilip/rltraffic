@@ -664,11 +664,17 @@ def test_t_sources_the_parameter_counts_are_the_plans_and_the_interactions_are_m
 def test_t_sources_the_declared_absences_carry_their_reasons(built_artifact: Any) -> None:
     artifact, _ = built_artifact
     rows = {row["id"]: row for row in artifact["rows"]}
+    excepted, checked = [], 0
     for row_id in ("grid4x4.bc", "grid4x4.bc_top10", "grid4x4.bc_top10_perix", "grid4x4.iql"):
         assert len(rows[row_id]["training"]) == 4, row_id  # four grid4x4 tiers each
         for entry in rows[row_id]["training"]:
+            if (row_id, entry["tier"]) == ("grid4x4.iql", "random"):  # BRIEF_44 Amendment A, A2 Q8(c): P5.2b's cell
+                excepted.append((row_id, entry["tier"]))
+                continue
             assert entry["seconds"]["value"] is None, (row_id, entry["tier"])
             assert "P5.2" in entry["seconds"]["reason"] or "P5.1" in entry["seconds"]["reason"]
+            checked += 1
+    assert excepted == [("grid4x4.iql", "random")] and checked == 15, (excepted, checked)
     random_tier = [e for e in rows["grid4x4.dt_nomix"]["training"] if e["tier"] == "random"]
     assert len(random_tier) == 1 and all("line" in item["source"] for item in random_tier[0]["seconds"]["per_seed"])
 
