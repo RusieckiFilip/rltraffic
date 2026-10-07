@@ -1986,3 +1986,58 @@ def test_b1_8_the_report_needs_no_materialised_draw_and_the_stages_before_it_do(
         ic.check(record.roots, pins=record.pins, require_cuda=False)
     ic.write_run_manifest(record.roots, ic.protected_roots(record.roots))
     assert ic.build_report(record.roots, git=_git(), pins=record.pins)["format_version"] == "p5.2b-correction/1.0"
+
+
+# ---------------------------------------------------------------- C9 (Amendment C, C2.1): the committed artifact
+
+COMMITTED_ARTIFACT = REPO_ROOT / "docs" / "data" / "p5_2b_iql_correction.json"
+G3_RECOMPUTE = REPO_ROOT / "docs" / "notes" / "p5_2b_g3" / "g3_recompute.json"
+
+
+def test_t_regress_the_committed_correction_artifact_regenerates_byte_for_byte_from_output() -> None:
+    """T-regress (BRIEF_44 §3.3; Amendment C, C2.1): ``docs/data/p5_2b_iql_correction.json`` is the run's artifact byte
+    for byte, and the report stage regenerates it from ``output/`` -- every input verified at its anchor, the run's
+    manifest re-checked file by file -- byte for byte, given the run's own git block (the one value the regeneration
+    cannot derive: it names the run tree).  Gated on the output and the corpus (the corpus manifest is pinned), not on
+    the materialised draws, which the report never reads (Amendment B, B1.8)."""
+    output = _output_root()
+    run_artifact = output / "p5_2b" / "artifacts" / "p5_2b_correction.json"
+    if not run_artifact.is_file():
+        pytest.skip(f"{run_artifact} not found: the correction run's output (set RLTRAFFIC_OUTPUT_ROOT)")
+    committed = COMMITTED_ARTIFACT.read_bytes()
+    assert committed == run_artifact.read_bytes(), "the committed artifact is not the run's, byte for byte"
+    roots = ic.Roots(repo_root=REPO_ROOT, output_root=output, corpus_root=_corpus_root(),
+                     draws_root=REPO_ROOT / "no_draws_are_read", out_root=output / "p5_2b")
+    artifact = ic.report_from_inputs(ic.load_report_inputs(roots), git=json.loads(committed)["git"])
+    regenerated = (json.dumps(artifact, indent=2, sort_keys=True, allow_nan=False) + "\n").encode("utf-8")
+    assert hashlib.sha256(regenerated).hexdigest() == hashlib.sha256(committed).hexdigest()
+    assert regenerated == committed
+
+
+def test_the_committed_correction_artifact_states_what_the_coordinators_third_route_computed() -> None:
+    """Ungated (CI): every random-tier statement of the committed artifact, before and after under both definitions,
+    equals ``docs/notes/p5_2b_g3/g3_recompute.json`` -- the G3 recomputation that imports nothing from the project --
+    exactly where the two routes cannot differ (orders, outcomes, counts, best arms, per-seed firsts, reversals) and at
+    the published precision where they can (the cell means and CIs to two decimals, Q3c to four: G3 averages with
+    ``statistics``, the module with numpy, which may differ in the last bit)."""
+    artifact = json.loads(COMMITTED_ARTIFACT.read_text(encoding="utf-8"))
+    g3 = json.loads(G3_RECOMPUTE.read_text(encoding="utf-8"))
+    assert artifact["format_version"] == "p5.2b-correction/1.0" and g3["problems"] == []
+    for definition in ("att_ours", "att_engine"):
+        for when in ("before", "after"):
+            got, theirs = artifact["statements"][definition][when], g3["statements"][f"{definition}/{when}"]
+            assert got["ranking"]["order"] == theirs["order"], (definition, when)
+            assert (got["q2a"]["measured_first"], got["q2b"]["n_concordant"], got["q3a"]["rank"]) == (
+                theirs["q2a_first"], theirs["q2b"], theirs["q3a_rank"]), (definition, when)
+            assert {seed: block["first"] for seed, block in got["per_seed"]["seeds"].items()} == theirs[
+                "per_seed_firsts"], (definition, when)
+            assert got["q2a"]["reverses_on_seeds"] == theirs["reverses"], (definition, when)
+            q3c = got["q3c"]
+            assert (q3c["best_non_dt"], q3c["n_draws"]) == (theirs["q3c"]["best"], theirs["q3c"]["n"]), (definition, when)
+            assert [f"{q3c[k]:+.4f}" for k in ("mean", "ci95_low", "ci95_high")] == [
+                f"{theirs['q3c'][k]:+.4f}" for k in ("mean", "low", "high")], (definition, when)
+        cell = {"before": artifact["cells"]["original"][definition], "after": artifact["cells"]["corrected"][definition]}
+        for when, summary in cell.items():
+            theirs = g3["statements"][f"{definition}/{when}"]["iql_cell"]
+            assert [f"{summary[k]:.2f}" for k in ("mean", "ci95_low", "ci95_high")] == [
+                f"{theirs[k]:.2f}" for k in ("mean", "low", "high")], (definition, when)
