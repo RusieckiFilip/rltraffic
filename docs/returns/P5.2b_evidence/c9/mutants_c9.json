@@ -1,0 +1,186 @@
+[
+ {
+  "id": "A-last-digit",
+  "gates": true,
+  "what": "the committed correction artifact: the att_engine AFTER Q3c mean changed in its last digit",
+  "edits": [
+   [
+    "docs/data/p5_2b_iql_correction.json",
+    "\"mean\": 56.78339234933096",
+    "\"mean\": 56.78339234933097"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "t_regress or third_route"
+  ]
+ },
+ {
+  "id": "A-fourth-decimal",
+  "gates": false,
+  "what": "the committed correction artifact: the att_engine AFTER Q3c mean changed in its fourth decimal",
+  "edits": [
+   [
+    "docs/data/p5_2b_iql_correction.json",
+    "\"mean\": 56.78339234933096",
+    "\"mean\": 56.78349234933096"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "t_regress or third_route"
+  ]
+ },
+ {
+  "id": "B-random-left-original",
+  "gates": true,
+  "what": "the plan's named mutation: grid4x4.iql's random tier left at P5.2's original checkpoints",
+  "edits": [
+   [
+    "offline/compute_table.py",
+    "        if method == \"iql\" and tier == \"random\":\n",
+    "        if False:\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_compute_table.py"
+  ]
+ },
+ {
+  "id": "B-corrected-spec-leaks",
+  "gates": true,
+  "what": "the corrected spec applied to every baseline row's random tier (bc's random entry would carry seconds)",
+  "edits": [
+   [
+    "offline/compute_table.py",
+    "        if method == \"iql\" and tier == \"random\":\n",
+    "        if tier == \"random\":\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_compute_table.py"
+  ]
+ },
+ {
+  "id": "B-quotes-dropped",
+  "gates": true,
+  "what": "training_block drops the quotes",
+  "edits": [
+   [
+    "offline/compute_table.py",
+    "    if \"quotes\" in entry:\n",
+    "    if False:\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_compute_table.py"
+  ]
+ },
+ {
+  "id": "B-superseded-dropped",
+  "gates": true,
+  "what": "training_block drops the superseded block",
+  "edits": [
+   [
+    "offline/compute_table.py",
+    "    if \"superseded\" in entry:\n",
+    "    if False:\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_compute_table.py"
+  ]
+ },
+ {
+  "id": "B-superseded-digest",
+  "gates": false,
+  "what": "_superseded accepts a checkpoint at another digest",
+  "edits": [
+   [
+    "offline/compute_table.py",
+    "        if actual != expected:\n            raise ValueError(f\"{row.row_id} / {entry['tier']}: the superseded",
+    "        if False:\n            raise ValueError(f\"{row.row_id} / {entry['tier']}: the superseded"
+   ]
+  ],
+  "tests": [
+   "tests/test_compute_table.py"
+  ]
+ },
+ {
+  "id": "B-superseded-size",
+  "gates": false,
+  "what": "_superseded accepts a data size that differs across seeds",
+  "edits": [
+   [
+    "offline/compute_table.py",
+    "    if len({json.dumps(value, sort_keys=True) for value, _ in sizes}) != 1:\n",
+    "    if False:\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_compute_table.py"
+  ]
+ },
+ {
+  "id": "B-superseded-missing",
+  "gates": false,
+  "what": "_superseded's own refusal of a missing checkpoint removed",
+  "edits": [
+   [
+    "offline/compute_table.py",
+    "        if not path.is_file():\n            raise FileNotFoundError(f\"{row.row_id} / {entry['tier']}: the superseded",
+    "        if False:\n            raise FileNotFoundError(f\"{row.row_id} / {entry['tier']}: the superseded"
+   ]
+  ],
+  "tests": [
+   "tests/test_compute_table.py"
+  ]
+ },
+ {
+  "id": "B-claim-dropped",
+  "gates": true,
+  "what": "the corrected cell's C1 claim dropped",
+  "edits": [
+   [
+    "offline/compute_table.py",
+    "        claims.append(_claim(\"C1\", _P5_2B_RECORD, \"$.cells.corrected\"))\n",
+    "        pass\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_compute_table.py"
+  ]
+ },
+ {
+  "id": "B-sentence-dropped",
+  "gates": false,
+  "what": "the exception sentence dropped from WHAT_THIS_DOES_NOT_SAY",
+  "edits": [
+   [
+    "offline/compute_table.py",
+    "    \"One training entry is the exception: grid4x4.iql's random tier, re-trained by P5.2b (BRIEF_44), was trained on mains \"\n",
+    "    \"One training entry is not named: \"\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_compute_table.py"
+  ]
+ },
+ {
+  "id": "B-another-row-moved",
+  "gates": true,
+  "what": "the builder changes the label of every lost-record P5.2 baseline entry (other rows move)",
+  "edits": [
+   [
+    "offline/compute_table.py",
+    "                \"record\": None, \"tier\": tier, \"label\": \"P5.2\",\n",
+    "                \"record\": None, \"tier\": tier, \"label\": \"P5.2 (lost record)\",\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_compute_table.py"
+  ]
+ }
+]
