@@ -1,0 +1,12 @@
+# depth-1 clone at b4a19f3, gates open, 2026-10-07T12:54:21Z
+......................s................................................. [ 70%]
+........................................................................ [ 88%]
+..............................................                           [100%]
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_tier_sweep.py:1447: the campaign output is not present on this machine
+405 passed, 1 skipped in 104.08s (0:01:44)
+# the depth-1 clone's two checks (BRIEF_42 F.1), 2026-10-07T12:56:38Z
+git clone --depth 1 --branch task/p5.2b-iql-correction file:///home/filip/rltraffic <scratch>/shallow_c8
+rev-parse --is-shallow-repository: true
+cat-file -t c507721348e71b9689aa224290f307fd25a9b32f: exit 128
+commits in the clone: 1; HEAD b4a19f369b36f972f815229b00d92d4ca95bf9f9

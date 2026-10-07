@@ -1,0 +1,44 @@
+[
+ {
+  "id": "M4",
+  "what": "_corrected_rows' policy_source guard disabled (RA2's M4)",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "        if source != checkpoints[cell.seed]:\n",
+    "        if False:\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "M10",
+  "what": "_corrected_rows' committed_att_ours clause removed (RA2's M10, a NOTE)",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    " or float(row[\"committed_att_ours\"]) != reference[key]):",
+    "):"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "N-draws-nowhere",
+  "what": "B1.8: no stage checks the materialised draws",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    missing = [draw for draw in protocol.draw_ids if draws\n",
+    "    missing = [draw for draw in protocol.draw_ids if False\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ }
+]

@@ -1,0 +1,56 @@
+# whole suite at b4a19f3 with G1's exact environment (OMP/MKL 1; RLTRAFFIC_OUTPUT_ROOT, RLTRAFFIC_CORPUS_V11, RLTRAFFIC_CORPUS, RLTRAFFIC_DRAWS), started 2026-10-07T13:16:21Z
+E   FileNotFoundError: [Errno 2] No such file or directory: 'output/p4_dt/dt_seed101.pt'
+FAILED tests/test_rtg_ablation.py::test_the_spread_table_uses_the_whole_declared_training_set_not_the_probe_subsample
+SKIPPED [1] tests/test_aligned_env_grid4x4.py:129: RLTRAFFIC_GRID4X4_RESCO is unset (or RESCO's grid4x4.net.xml is not under it): point it at the read-only, gitignored candidates root to build grid4x4's alignment
+SKIPPED [1] tests/test_aligned_env_grid4x4.py:173: RLTRAFFIC_GRID4X4_RESCO is unset (or RESCO's grid4x4.net.xml is not under it): point it at the read-only, gitignored candidates root to build grid4x4's alignment
+SKIPPED [1] tests/test_backend_alignment.py:661: set RLTRAFFIC_GRID4X4_RESCO to the read-only candidates root to run the grid4x4 half
+SKIPPED [1] tests/test_conversion_audit.py:61: RLTRAFFIC_GRID4X4_RESCO is unset: point it at the read-only, gitignored candidates root (the directory holding resco/ and libsignal/) to run the grid4x4 half of the audit. It is CC BY-NC-SA and is never copied into the tree.
+SKIPPED [1] tests/test_conversion_audit.py:221: RLTRAFFIC_GRID4X4_RESCO is unset: point it at the read-only, gitignored candidates root (the directory holding resco/ and libsignal/) to run the grid4x4 half of the audit. It is CC BY-NC-SA and is never copied into the tree.
+SKIPPED [1] tests/test_conversion_audit.py:520: RLTRAFFIC_GRID4X4_RESCO is unset: point it at the read-only, gitignored candidates root (the directory holding resco/ and libsignal/) to run the grid4x4 half of the audit. It is CC BY-NC-SA and is never copied into the tree.
+SKIPPED [1] tests/test_corpus_format_check.py:140: datasets/ is not present in this working tree; nothing to lint
+SKIPPED [1] tests/test_g2_measure.py:298: RLTRAFFIC_GRID4X4_RESCO is unset (or holds no grid4x4 net): grid4x4's parity render needs the read-only candidates root
+SKIPPED [3] tests/test_p7_3c_corpus_door.py:89: RLTRAFFIC_GRID4X4_RESCO is unset: grid4x4's alignment reads RESCO's SUMO network
+SKIPPED [1] tests/test_p7_3c_corpus_door.py:98: RLTRAFFIC_SUMO_CORPORA is unset: T-regress (a) compares with the committed hz1x1 SUMO corpus (datasets_sumo_v11/, gitignored)
+SKIPPED [1] tests/test_p7_3c_finetune_driver.py:384: RLTRAFFIC_SUMO_CORPORA is unset: the executed driver's check-inputs reads G3's corpus at $RLTRAFFIC_SUMO_CORPORA/grid4x4_sumo_maxpressure (gitignored, main tree only)
+SKIPPED [1] tests/test_p7_3c_finetune_driver.py:394: RLTRAFFIC_SUMO_CORPORA is unset: the executed driver's check-inputs reads G3's corpus at $RLTRAFFIC_SUMO_CORPORA/grid4x4_sumo_maxpressure (gitignored, main tree only)
+SKIPPED [1] tests/test_p7_3c_finetune_driver.py:414: RLTRAFFIC_SUMO_CORPORA is unset: the executed driver's check-inputs reads G3's corpus at $RLTRAFFIC_SUMO_CORPORA/grid4x4_sumo_maxpressure (gitignored, main tree only)
+SKIPPED [1] tests/test_p7_3c_finetune_driver.py:426: RLTRAFFIC_SUMO_CORPORA is unset: the executed driver's check-inputs reads G3's corpus at $RLTRAFFIC_SUMO_CORPORA/grid4x4_sumo_maxpressure (gitignored, main tree only)
+SKIPPED [1] tests/test_p7_3c_finetune_driver.py:451: RLTRAFFIC_SUMO_CORPORA is unset: the executed driver's check-inputs reads G3's corpus at $RLTRAFFIC_SUMO_CORPORA/grid4x4_sumo_maxpressure (gitignored, main tree only)
+SKIPPED [1] tests/test_p7_3c_finetune_driver.py:471: RLTRAFFIC_SUMO_CORPORA is unset: the executed driver's check-inputs reads G3's corpus at $RLTRAFFIC_SUMO_CORPORA/grid4x4_sumo_maxpressure (gitignored, main tree only)
+SKIPPED [1] tests/test_p7_3c_finetune_driver.py:491: RLTRAFFIC_SUMO_CORPORA is unset: the executed driver's check-inputs reads G3's corpus at $RLTRAFFIC_SUMO_CORPORA/grid4x4_sumo_maxpressure (gitignored, main tree only)
+SKIPPED [1] tests/test_p7_3c_finetune_driver.py:501: RLTRAFFIC_SUMO_CORPORA is unset: the executed driver's check-inputs reads G3's corpus at $RLTRAFFIC_SUMO_CORPORA/grid4x4_sumo_maxpressure (gitignored, main tree only)
+SKIPPED [1] tests/test_p7_3c_finetune_driver.py:511: RLTRAFFIC_SUMO_CORPORA is unset: the executed driver's check-inputs reads G3's corpus at $RLTRAFFIC_SUMO_CORPORA/grid4x4_sumo_maxpressure (gitignored, main tree only)
+SKIPPED [1] tests/test_p7_3c_finetune_driver.py:529: RLTRAFFIC_SUMO_CORPORA is unset: the executed driver's check-inputs reads G3's corpus at $RLTRAFFIC_SUMO_CORPORA/grid4x4_sumo_maxpressure (gitignored, main tree only)
+SKIPPED [1] tests/test_p7_3c_regress.py:88: RLTRAFFIC_SUMO_CORPORA is unset: G3's grid4x4 SUMO corpus is gitignored, main tree only
+SKIPPED [1] tests/test_p7_3d_campaign_path.py:1602: RLTRAFFIC_GRID4X4_RESCO is unset: this test runs two grid4x4 SUMO episodes
+SKIPPED [1] tests/test_parity_scenarios.py:351: RLTRAFFIC_GRID4X4_RESCO is unset: point it at the read-only, gitignored candidates root (the directory holding resco/) to run the grid4x4 half of P7.3d C1. RESCO's grid4x4 files are CC BY-NC-SA 4.0 and are never copied into the tree
+SKIPPED [1] tests/test_parity_scenarios.py:382: RLTRAFFIC_GRID4X4_RESCO is unset: point it at the read-only, gitignored candidates root (the directory holding resco/) to run the grid4x4 half of P7.3d C1. RESCO's grid4x4 files are CC BY-NC-SA 4.0 and are never copied into the tree
+SKIPPED [1] tests/test_parity_scenarios.py:423: RLTRAFFIC_GRID4X4_RESCO is unset: point it at the read-only, gitignored candidates root (the directory holding resco/) to run the grid4x4 half of P7.3d C1. RESCO's grid4x4 files are CC BY-NC-SA 4.0 and are never copied into the tree
+SKIPPED [1] tests/test_parity_scenarios.py:452: RLTRAFFIC_GRID4X4_RESCO is unset: point it at the read-only, gitignored candidates root (the directory holding resco/) to run the grid4x4 half of P7.3d C1. RESCO's grid4x4 files are CC BY-NC-SA 4.0 and are never copied into the tree
+SKIPPED [1] tests/test_parity_scenarios.py:486: RLTRAFFIC_GRID4X4_RESCO is unset: point it at the read-only, gitignored candidates root (the directory holding resco/) to run the grid4x4 half of P7.3d C1. RESCO's grid4x4 files are CC BY-NC-SA 4.0 and are never copied into the tree
+SKIPPED [1] tests/test_parity_scenarios.py:526: RLTRAFFIC_GRID4X4_RESCO is unset: point it at the read-only, gitignored candidates root (the directory holding resco/) to run the grid4x4 half of P7.3d C1. RESCO's grid4x4 files are CC BY-NC-SA 4.0 and are never copied into the tree
+SKIPPED [1] tests/test_parity_scenarios.py:560: RLTRAFFIC_GRID4X4_RESCO is unset: point it at the read-only, gitignored candidates root (the directory holding resco/) to run the grid4x4 half of P7.3d C1. RESCO's grid4x4 files are CC BY-NC-SA 4.0 and are never copied into the tree
+SKIPPED [1] tests/test_parity_scenarios.py:597: RLTRAFFIC_GRID4X4_RESCO is unset: point it at the read-only, gitignored candidates root (the directory holding resco/) to run the grid4x4 half of P7.3d C1. RESCO's grid4x4 files are CC BY-NC-SA 4.0 and are never copied into the tree
+SKIPPED [1] tests/test_parity_scenarios.py:630: RLTRAFFIC_GRID4X4_RESCO is unset: point it at the read-only, gitignored candidates root (the directory holding resco/) to run the grid4x4 half of P7.3d C1. RESCO's grid4x4 files are CC BY-NC-SA 4.0 and are never copied into the tree
+SKIPPED [1] tests/test_parity_scenarios.py:664: RLTRAFFIC_GRID4X4_RESCO is unset: point it at the read-only, gitignored candidates root (the directory holding resco/) to run the grid4x4 half of P7.3d C1. RESCO's grid4x4 files are CC BY-NC-SA 4.0 and are never copied into the tree
+SKIPPED [1] tests/test_parity_scenarios.py:679: RLTRAFFIC_GRID4X4_RESCO is unset: point it at the read-only, gitignored candidates root (the directory holding resco/) to run the grid4x4 half of P7.3d C1. RESCO's grid4x4 files are CC BY-NC-SA 4.0 and are never copied into the tree
+SKIPPED [2] tests/test_rtg_ablation.py:168: checkpoint not present in this tree: /home/filip/rltraffic-p52b/output/p4_dt/dt_seed101.pt
+SKIPPED [1] tests/test_rtg_ablation.py:168: checkpoint not present in this tree: /home/filip/rltraffic-p52b/output/p4_6/checkpoints/random_dt_seed101.pt
+SKIPPED [1] tests/test_rtg_ablation.py:168: checkpoint not present in this tree: /home/filip/rltraffic-p52b/output/p4_7/checkpoints/mix33_dt_seed101.pt
+SKIPPED [1] tests/test_rtg_calibration.py:237: RLTRAFFIC_P4_DT_CHECKPOINTS is not set; the committed P4 checkpoints are not in tree
+SKIPPED [1] tests/test_rtg_calibration.py:615: probe draw 201 is not materialised in this worktree
+SKIPPED [1] tests/test_rtg_mode_identity.py:213: surviving draw 1000 is absent from /home/filip/rltraffic-p52b/scenarios/draws
+SKIPPED [2] tests/test_rtg_mode_identity.py:104: checkpoint not present in this tree: /home/filip/rltraffic-p52b/output/p4_dt/dt_seed101.pt
+SKIPPED [2] tests/test_rtg_mode_identity.py:104: checkpoint not present in this tree: /home/filip/rltraffic-p52b/output/p4_6/checkpoints/random_dt_seed101.pt
+SKIPPED [1] tests/test_rtg_mode_identity.py:311: no integrity manifests in this tree
+SKIPPED [1] tests/test_rtg_mode_identity.py:367: checkpoint not present in this tree: /home/filip/rltraffic-p52b/output/p4_6/checkpoints/fixedtime_dt_seed101.pt
+SKIPPED [1] tests/test_rtg_probe_second_route.py:293: checkpoint not present in this tree: /home/filip/rltraffic-p52b/output/p4_dt/dt_seed101.pt
+SKIPPED [1] tests/test_rtg_probe_second_route.py:332: checkpoint not present in this tree: /home/filip/rltraffic-p52b/output/p4_dt/dt_seed101.pt
+SKIPPED [1] tests/test_rtg_probe_second_route.py:348: checkpoint not present in this tree: /home/filip/rltraffic-p52b/output/p4_dt/dt_seed101.pt
+SKIPPED [1] tests/test_spatial_cell.py:337: RLTRAFFIC_GRID4X4_RESCO is unset
+SKIPPED [1] tests/test_tier_sweep.py:1447: the campaign output is not present on this machine
+SKIPPED [1] tests/test_train_dt_rtg_mode.py:327: checkpoint not present in this tree: /home/filip/rltraffic-p52b/output/p4_6/checkpoints/mappo500_dt_seed101.pt
+SKIPPED [1] tests/test_train_dt_rtg_mode.py:335: checkpoint not present in this tree: /home/filip/rltraffic-p52b/output/p4_6/checkpoints/mappo500_dt_seed101.pt
+SKIPPED [1] tests/test_train_dt_rtg_mode.py:368: checkpoint not present in this tree: /home/filip/rltraffic-p52b/output/p4_6/checkpoints/mappo500_dt_seed101.pt
+1 failed, 3304 passed, 56 skipped, 33 warnings in 1099.59s (0:18:19)
+# finished 2026-10-07T13:34:43Z

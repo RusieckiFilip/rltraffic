@@ -89,3 +89,9 @@ happy path cannot see the guard), `M-declared-rows-unchecked` (`assert_training_
   strength rests on the mutants of §2 (`M-train-record-no-runs`, `M-train-no-canary`, `M-p8_4b-no-recompute`,
   `M-preflight-always-complete`, `M-timeouts-no-reproduce`, the four re-runs), not on a red run.
 - `implementer_log.md` is the session's working log, verbatim.
+
+## 5. After G1: C8
+
+Gate G1 returned FIX FIRST (`BRIEF_44` Amendment B and B.1, the review record `docs/reviews/P5.2b-G1.md`). C8's evidence —
+the commits, the red runs, 47 committed mutant runs, the checks, the suite, the depth-1 run, the proof that no timed
+path changed (so this pre-flight stays pinned) — is in `c8/`, with its own README.
