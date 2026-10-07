@@ -305,3 +305,53 @@ G2 → **"P5.2b correction run done"** → G3: the coordinator reads the run fro
 canaries and hyperparameters, the five checkpoints re-hashed and their rows, the corrected cell's 500 episodes under both
 definitions recomputed by a third route, the per-seed orderings, every statement before and after — then Amendment C; then C9
 (the artifact by hand with its T-regress; `DEFERRED` 107's tests are already in; P8.2's table) and the packet → G5.
+
+---
+
+# ✅ AMENDMENT C — 2026-10-07, gate G3 PASSED: the correction run read from disk, every statement recomputed by a third route — THE DEFECT CHANGES NUMBERS, NOT VERDICTS
+
+## C0 — What the coordinator verified (by running commands; `docs/notes/p5_2b_g3/`)
+1. **The run `20261007T152900Z`** (the author's, 15:29–16:28 UTC, from the run worktree at `4e849fa`): no refusal; every stage at
+   its first attempt (training 1,543 s, (i) ≈ 17 min, (ii) ≈ 17 min); `output/SHA256SUMS_p5_2b.txt` 516 / 516 `OK`; canaries
+   0.733 s and 0.698 s, at speed, reproduced, mains + Best Performance at both; no late close (`training_random_iql.late_close.json`
+   absent, as it should be).
+2. **The training:** five seeds, 40,000 steps each on **1,152,000 rows** (3,200 streams; the declared 200 episodes), reward scale
+   0.7429420505200595, the thirteen hyperparameters equal to the originals' records, the normalisation statistics identical to the
+   original checkpoints', CUDA, one thread; the gradient loops 307.3 / 324.4 / 297.3 / 295.7 / 297.8 s (median 297.8 [295.7–324.4]);
+   the five checkpoints re-hashed to the record's digests (5 / 5), each differing from its original, each carrying the `correction`
+   provenance block.
+3. **The two evaluations:** (i) 500 episodes on P5.2's protocol, its `model_provenance` digests the record's; (ii) 500 cells, each
+   naming the corrected checkpoint, reproducing (i)'s `att_horizon` on 500 / 500.
+4. **The third route** (`g3_recompute.py`, imports nothing from the project; the predicted order read as a literal from
+   `tier_sweep.py`'s registered table): 24 levels, 64 statement checks, 8 corrected-cell checks, 500 episode equalities — **0
+   problems.** One fact for the paper: the project's `dt_gate.mean_ci95` uses z = 1.96 (`dt_gate.py:218`); with the exact normal
+   quantile the CI endpoints differ in the fifth significant figure and nothing else does. Every CI of this project is 1.96 × SE.
+5. **The pinned inputs** (the P5.2 manifest, the declaration, the corpus manifest, the C1 note, the run manifest) at their digests,
+   5 / 5; the caveat blocks complete.
+
+## C1 — The result, under both definitions (`att_ours` = P5.2's registered metric; `att_engine` = the paper's primary, Rule R)
+| | original cell (2× the declared data) | corrected cell (the declared data) |
+|---|---|---|
+| `att_ours`, mean [95 % CI], n = 500 | 190.96 [188.76, 193.17] | **198.48 [195.84, 201.12]** |
+| `att_engine` | 183.83 [181.60, 186.05] | **191.39 [188.73, 194.06]** |
+| per-seed means, `att_engine` (101 / 202 / 303 / 404 / 505) | 180.5 / 180.9 / 201.7 / 178.0 / 178.0 | 191.3 / 190.2 / 186.5 / 207.4 / 181.6 |
+
+**The corrected IQL is ≈ 7.5 s slower under both definitions, and every registered statement's OUTCOME is unchanged:** Q1 15 / 19
+HELD with IQL's entry still a miss (relative error 0.52 against the registered 414.99, was 0.54); the ranking `iql < dt_spatial <
+dt_nomix < bc < bc_top10_perix < bc_top10` under both; Q2a FAILED (IQL first, `dt_nomix` predicted) — **IQL first on every training
+seed, no reversal** (D9); Q2b 8 / 15 FAILED, IQL's pairs 1 of 5 concordant; Q3a rank 3 FAILED; Q3c `dt_nomix − iql` **+56.84
+[+53.98, +59.71]** (`att_ours`) / **+56.78 [+53.90, +59.67]** (`att_engine`), was +64.36 / +64.35 — still resolves against the DT.
+
+**For the paper:** the sentence that IQL leads the random tier stands, with the correction disclosed (the cell was first trained on
+twice its declared data and re-trained on the declared 200 episodes; the registered tally rests on the registered condition); the
+DT's shortfall to IQL at that tier is ≈ 57 s, not ≈ 64. `README.md`'s grid4x4 sentence is the coordinator's at the merge.
+
+## C2 — Next: C9 (the implementer)
+1. `docs/data/p5_2b_iql_correction.json` committed by hand, byte-identical to `output/p5_2b/artifacts/p5_2b_correction.json`, with
+   the T-regress (the report stage, B1.8: no materialised draw needed).
+2. P8.2's table per the plan's §9 — `DEFERRED` 107's tests are already in: the random-tier group of `grid4x4.iql` on the corrected
+   checkpoints, the entry from the committed correction artifact with its `record_note` and `superseded` block, the authorised change
+   to `test_t_sources_the_declared_absences_carry_their_reasons` under A2 Q8(c)'s three conditions, the rebuilt
+   `docs/data/p8_2_compute.json` with every other row asserted equal.
+3. The whole suite (`DEFERRED` 110's one failure in a worktree, named); the new and changed test files once in a depth-1 clone (F.1's
+   command); `docs/returns/P5.2b.md` per §8, quoting A2 Q8(c) and this amendment → **"P5.2b done"** → G5.
