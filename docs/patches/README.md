@@ -1,5 +1,47 @@
 # Patches a Claude Code session cannot apply itself
 
+## `ci_gate_ceiling_375_p5_2b.patch` — the skip ceiling moves 351 → 375 after P5.2b's merge; every new skip is P5.2b's own gating — and the ceiling's explanation list is rewritten without counts
+
+**Apply with:**
+```bash
+cd /home/filip/rltraffic && git apply docs/patches/ci_gate_ceiling_375_p5_2b.patch && .venv/bin/pytest tests/test_ci_gate.py -q && git add .github/ci/ci_baseline.json tests/test_ci_gate.py && git commit -m "ci(ceiling): 351 -> 375 OBSERVED on run 37751854982 at 76a88a5 -- P5.2b's gated tests; the explanation list rewritten count-free" && git push origin main
+```
+**Measured, not read off a summary.** Run `37751854982` on `main` at `76a88a5` (the commit completing P5.2b's merge `7db5c38`);
+the suite step PASSED on both legs, the three guards and the wheel gate passed, and only the ceiling gate failed (the registered
+route working). Both legs downloaded, every `<skipped>` message extracted from `junit.xml` (`output/ci_runs/skips.py`, OLD run
+first), multisets compared leg against leg (identical: 3,371 tests, 375 skipped, 0 failures, 0 errors, 86 distinct texts on both)
+and run against run against the last green run on `main`, `37654323359` at `aa65edc` (3,199 tests, 351 skipped — the current
+ceiling; P5.2b's merge and its docs-only completing commit are the only changes between the two, and the merge's 172 new tests
+are the whole difference in collected tests):
+**24 new skips in 5 texts, nothing removed** — +5 `corpus_or_checkpoint` (2 in `tests/test_compute_table.py`, its two P5.2b tests,
+through `output/p4_dt/dt_seed101.pt`, an existing text whose count rose; 3 in `tests/test_iql_correction.py` through the corpus
+manifest `datasets_v11/cf_grid4x4__random/manifest.json`), +7 `campaign_output` (seven `tests/test_iql_correction.py` tests
+through `output/p5_2/eval_random_iql.json`, P5.2's evaluation output, filed with P5.2's other output as the explanation list already
+filed it: "output/p5_2 (P5.2's cells and its committed Q0)"), +2 `cityflow` (T-reproduce (a) and (b), which check the engine first), +10 `main_tree_interpreter` (the ten tests
+of `tests/test_p5_2b_correction_driver.py` that execute the driver; its other 14 run) — every test name read from `junit.xml` —
+each text classified BY INSPECTION in `output/ci_runs/classification_p52b.json`; the builder (`build_ceiling_patch_p52b.py`)
+refuses a text matched by zero or two prefixes, an unused prefix, a removed text, a breakdown that does not sum, an explanation
+list other than the one it was written against, and a head commit whose subject is not the merge-completing commit or whose first
+parent is not P5.2b's merge.
+
+**The explanation list (`ceiling_is_a_consequence_of`, printed as a `NOTE` into every job summary) is rewritten, and this is a
+correction, not a refresh.** All eight entries carried a count and seven were stale — the CityFlow entry still read "42 of these
+189 … from 189 to 147" six ceiling generations later, and the interpreter entry read "It is one test and it is the only one of its
+kind" against 63. The coordinator's ceiling patches since 2026-09-12 updated `skip_breakdown` and never this list. Each entry now
+names its `skip_breakdown` key and carries **no count**, so it cannot go stale on one; the counts live where
+`tests/test_ci_gate.py` checks them as arithmetic. Every fact kept was re-read on 2026-10-08 (the workflow's checkout and its
+`.[dev]` install, `pyproject.toml`'s extras and its `traci==1.27.1` pin, `.gitignore`'s three trees, all ten `_sumo_available()`
+helpers, the drivers whose tests carry the interpreter skip). One claim is **corrected, not reworded**: `ceiling_if_cityflow_were_built`
+is the ceiling minus the CityFlow-gated count — a LOWER BOUND on what a CityFlow-building workflow would carry, not the prediction
+the old sentence made of it, because a test that needs the engine and gitignored data skips on the data once the engine exists (P5.2b's
+two T-reproduce tests do exactly that, `tests/test_iql_correction.py:917-960`). The field and its arithmetic are unchanged.
+
+Verified end to end in a scratch worktree: `tests/test_ci_gate.py` green with the new baseline (34 passed); `ci_gate.py
+pytest-gate` on BOTH legs' real `junit.xml` + `pytest.txt` under it, exit 0 each (`skip ceiling 375 (0 to spare)`); four mutants
+of the patched baseline — the breakdown off by one, one explanation dropped, the alternative off by one, the chain's newest link
+wrong — each fail exactly one test of `tests/test_ci_gate.py`; `git apply --check` clean on `main`. `re_measure_required_at` names
+the next task that adds gated tests (`DEFERRED` 105's, 109's, 110's and 111's commits included if they do). Two files.
+
 ## `ci_gate_ceiling_351_p8_2.patch` — the skip ceiling moves 321 → 351 after P8.2's merge; every new skip is P8.2's own gating
 
 **Apply with:**
