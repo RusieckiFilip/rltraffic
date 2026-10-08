@@ -1,8 +1,8 @@
 {
   "format_version": "p8.2-compute/1.0",
   "git": {
-    "code_root": "/home/filip/rltraffic-p53c",
-    "commit": "f2119b0b6885bb3ec1acebb18eb4b53bcca0b571",
+    "code_root": "/home/filip/rltraffic-p52b",
+    "commit": "1e26bb7c42f914e4286af915e2984c574f6faf18",
     "dirty": false
   },
   "hardware": {
@@ -2386,7 +2386,7 @@
     ],
     "pinned_on": "2026-10-03"
   },
-  "registered_in": "PREREGISTRATION A25(c); docs/briefs/BRIEF_43_p8.2_compute_latency.md and its Amendments A, B and C",
+  "registered_in": "PREREGISTRATION A25(c); docs/briefs/BRIEF_43_p8.2_compute_latency.md and its Amendments A, B and C; docs/briefs/BRIEF_44_p5.2b_iql_correction.md \u00a73.4 (grid4x4.iql's random-tier entry)",
   "rows": [
     {
       "architecture": "dt.s25.a8.d128.l3",
@@ -27388,57 +27388,57 @@
         },
         {
           "named_by": {
-            "entry": "p5_2/checkpoints/grid4x4_random_iql_seed101.pt",
-            "file": "output/SHA256SUMS_p5_2.txt",
-            "sha256": "fde8309b4958231f8a7e3a33cb26674f645e1c295ad688900ac8e839a19ac19b"
+            "file": "docs/data/p5_2b_iql_correction.json",
+            "json_path": "$.training.runs[0].file_sha256",
+            "sha256": "216b9f24243c317d22b13a3cdcd346471bf9cfe9832e5a5495b8158f04eea1f8"
           },
-          "path": "output/p5_2/checkpoints/grid4x4_random_iql_seed101.pt",
+          "path": "output/p5_2b/p5_2/checkpoints/grid4x4_random_iql_seed101.pt",
           "seed": 101,
-          "sha256": "b4a0d3aeb5e7247a0e18c57b55d4fbbe5416b7e05ebb7247be7c94951b3fb5c6",
+          "sha256": "8fe121d8258e9f82c3aed7a0cf41af3349bbb82cd989a4915ada7363900a7a7b",
           "tier": "random"
         },
         {
           "named_by": {
-            "entry": "p5_2/checkpoints/grid4x4_random_iql_seed202.pt",
-            "file": "output/SHA256SUMS_p5_2.txt",
-            "sha256": "fde8309b4958231f8a7e3a33cb26674f645e1c295ad688900ac8e839a19ac19b"
+            "file": "docs/data/p5_2b_iql_correction.json",
+            "json_path": "$.training.runs[1].file_sha256",
+            "sha256": "216b9f24243c317d22b13a3cdcd346471bf9cfe9832e5a5495b8158f04eea1f8"
           },
-          "path": "output/p5_2/checkpoints/grid4x4_random_iql_seed202.pt",
+          "path": "output/p5_2b/p5_2/checkpoints/grid4x4_random_iql_seed202.pt",
           "seed": 202,
-          "sha256": "b8a7a01f2c1ccffa1ce7811c6c730566dd6a36d3ef935f6b199562c1f26b2378",
+          "sha256": "8c6f23e2db14ed501415c0e4c97ea0bdc7f18eac1686ba05a319470526c5b9f7",
           "tier": "random"
         },
         {
           "named_by": {
-            "entry": "p5_2/checkpoints/grid4x4_random_iql_seed303.pt",
-            "file": "output/SHA256SUMS_p5_2.txt",
-            "sha256": "fde8309b4958231f8a7e3a33cb26674f645e1c295ad688900ac8e839a19ac19b"
+            "file": "docs/data/p5_2b_iql_correction.json",
+            "json_path": "$.training.runs[2].file_sha256",
+            "sha256": "216b9f24243c317d22b13a3cdcd346471bf9cfe9832e5a5495b8158f04eea1f8"
           },
-          "path": "output/p5_2/checkpoints/grid4x4_random_iql_seed303.pt",
+          "path": "output/p5_2b/p5_2/checkpoints/grid4x4_random_iql_seed303.pt",
           "seed": 303,
-          "sha256": "e22e71c2a0f9f65f828615856cf983b3f2a6c859bcfb5c8dd8da37ddaecbdfe1",
+          "sha256": "42c521124b9f6eebedcc9964bfb58d10548146d7d16e032a1482a4b3a2931765",
           "tier": "random"
         },
         {
           "named_by": {
-            "entry": "p5_2/checkpoints/grid4x4_random_iql_seed404.pt",
-            "file": "output/SHA256SUMS_p5_2.txt",
-            "sha256": "fde8309b4958231f8a7e3a33cb26674f645e1c295ad688900ac8e839a19ac19b"
+            "file": "docs/data/p5_2b_iql_correction.json",
+            "json_path": "$.training.runs[3].file_sha256",
+            "sha256": "216b9f24243c317d22b13a3cdcd346471bf9cfe9832e5a5495b8158f04eea1f8"
           },
-          "path": "output/p5_2/checkpoints/grid4x4_random_iql_seed404.pt",
+          "path": "output/p5_2b/p5_2/checkpoints/grid4x4_random_iql_seed404.pt",
           "seed": 404,
-          "sha256": "1bdd9be17360d993b68adb5a9cc8c1708d02e82e3e0270915be56b8f8fdc60ea",
+          "sha256": "15709235a74d654771116ddf948c668c735a22b6471f8c8901c82155947fbfce",
           "tier": "random"
         },
         {
           "named_by": {
-            "entry": "p5_2/checkpoints/grid4x4_random_iql_seed505.pt",
-            "file": "output/SHA256SUMS_p5_2.txt",
-            "sha256": "fde8309b4958231f8a7e3a33cb26674f645e1c295ad688900ac8e839a19ac19b"
+            "file": "docs/data/p5_2b_iql_correction.json",
+            "json_path": "$.training.runs[4].file_sha256",
+            "sha256": "216b9f24243c317d22b13a3cdcd346471bf9cfe9832e5a5495b8158f04eea1f8"
           },
-          "path": "output/p5_2/checkpoints/grid4x4_random_iql_seed505.pt",
+          "path": "output/p5_2b/p5_2/checkpoints/grid4x4_random_iql_seed505.pt",
           "seed": 505,
-          "sha256": "bed7b447a53728abb991a87838a3fee671d89a4c7fd431c27c1d396561551fbb",
+          "sha256": "477283d3e6a37d64e29214700c77b999bd334b4d81024367952c10fec8382bce",
           "tier": "random"
         }
       ],
@@ -27469,6 +27469,12 @@
           "entry_sha256": "a9984f32f510a66bc6027acc6f38e484b4d81769ca0b526a1e3b974445134a93",
           "file": "output/SHA256SUMS_p5_2.txt",
           "sha256": "fde8309b4958231f8a7e3a33cb26674f645e1c295ad688900ac8e839a19ac19b"
+        },
+        {
+          "claim": "C1",
+          "file": "docs/data/p5_2b_iql_correction.json",
+          "json_path": "$.cells.corrected",
+          "sha256": "216b9f24243c317d22b13a3cdcd346471bf9cfe9832e5a5495b8158f04eea1f8"
         }
       ],
       "computation": {
@@ -27748,9 +27754,9 @@
           {
             "seed": 101,
             "source": {
-              "file": "output/p5_2/checkpoints/grid4x4_random_iql_seed101.pt",
+              "file": "output/p5_2b/p5_2/checkpoints/grid4x4_random_iql_seed101.pt",
               "json_path": "$.provenance.diagnostics.parameter_count",
-              "sha256": "b4a0d3aeb5e7247a0e18c57b55d4fbbe5416b7e05ebb7247be7c94951b3fb5c6"
+              "sha256": "8fe121d8258e9f82c3aed7a0cf41af3349bbb82cd989a4915ada7363900a7a7b"
             },
             "tier": "random",
             "value": 1206417
@@ -27758,9 +27764,9 @@
           {
             "seed": 202,
             "source": {
-              "file": "output/p5_2/checkpoints/grid4x4_random_iql_seed202.pt",
+              "file": "output/p5_2b/p5_2/checkpoints/grid4x4_random_iql_seed202.pt",
               "json_path": "$.provenance.diagnostics.parameter_count",
-              "sha256": "b8a7a01f2c1ccffa1ce7811c6c730566dd6a36d3ef935f6b199562c1f26b2378"
+              "sha256": "8c6f23e2db14ed501415c0e4c97ea0bdc7f18eac1686ba05a319470526c5b9f7"
             },
             "tier": "random",
             "value": 1206417
@@ -27768,9 +27774,9 @@
           {
             "seed": 303,
             "source": {
-              "file": "output/p5_2/checkpoints/grid4x4_random_iql_seed303.pt",
+              "file": "output/p5_2b/p5_2/checkpoints/grid4x4_random_iql_seed303.pt",
               "json_path": "$.provenance.diagnostics.parameter_count",
-              "sha256": "e22e71c2a0f9f65f828615856cf983b3f2a6c859bcfb5c8dd8da37ddaecbdfe1"
+              "sha256": "42c521124b9f6eebedcc9964bfb58d10548146d7d16e032a1482a4b3a2931765"
             },
             "tier": "random",
             "value": 1206417
@@ -27778,9 +27784,9 @@
           {
             "seed": 404,
             "source": {
-              "file": "output/p5_2/checkpoints/grid4x4_random_iql_seed404.pt",
+              "file": "output/p5_2b/p5_2/checkpoints/grid4x4_random_iql_seed404.pt",
               "json_path": "$.provenance.diagnostics.parameter_count",
-              "sha256": "1bdd9be17360d993b68adb5a9cc8c1708d02e82e3e0270915be56b8f8fdc60ea"
+              "sha256": "15709235a74d654771116ddf948c668c735a22b6471f8c8901c82155947fbfce"
             },
             "tier": "random",
             "value": 1206417
@@ -27788,9 +27794,9 @@
           {
             "seed": 505,
             "source": {
-              "file": "output/p5_2/checkpoints/grid4x4_random_iql_seed505.pt",
+              "file": "output/p5_2b/p5_2/checkpoints/grid4x4_random_iql_seed505.pt",
               "json_path": "$.provenance.diagnostics.parameter_count",
-              "sha256": "bed7b447a53728abb991a87838a3fee671d89a4c7fd431c27c1d396561551fbb"
+              "sha256": "477283d3e6a37d64e29214700c77b999bd334b4d81024367952c10fec8382bce"
             },
             "tier": "random",
             "value": 1206417
@@ -28162,115 +28168,298 @@
         {
           "batch": {
             "source": {
-              "file": "output/p5_2/checkpoints/grid4x4_random_iql_seed101.pt",
-              "json_path": "$.provenance.batch_size",
-              "sha256": "b4a0d3aeb5e7247a0e18c57b55d4fbbe5416b7e05ebb7247be7c94951b3fb5c6"
+              "file": "docs/data/p5_2b_iql_correction.json",
+              "json_path": "$.training.header.batch_size",
+              "sha256": "216b9f24243c317d22b13a3cdcd346471bf9cfe9832e5a5495b8158f04eea1f8"
             },
             "value": 1280
           },
           "covers": "the gradient loop only (time.time() around it in offline.offline_baselines.train_bc / train_iql, offline_baselines.py:1813-1835 / 1982-2047)",
           "data": {
             "source": {
-              "file": "output/p5_2/checkpoints/grid4x4_random_iql_seed101.pt",
+              "file": "output/p5_2b/p5_2/checkpoints/grid4x4_random_iql_seed101.pt",
               "json_path": "$.provenance.diagnostics.training_rows",
-              "sha256": "b4a0d3aeb5e7247a0e18c57b55d4fbbe5416b7e05ebb7247be7c94951b3fb5c6"
+              "sha256": "8fe121d8258e9f82c3aed7a0cf41af3349bbb82cd989a4915ada7363900a7a7b"
             },
             "unit": "per-intersection transitions (16 per joint window, the unit of the DT rows' joint windows)",
-            "value": 2304000
+            "value": 1152000
           },
           "gradient_steps": {
             "per_seed": [
               {
                 "seed": 101,
                 "source": {
-                  "file": "output/p5_2/checkpoints/grid4x4_random_iql_seed101.pt",
-                  "json_path": "$.provenance.gradient_steps",
-                  "sha256": "b4a0d3aeb5e7247a0e18c57b55d4fbbe5416b7e05ebb7247be7c94951b3fb5c6"
+                  "file": "docs/data/p5_2b_iql_correction.json",
+                  "json_path": "$.training.runs[0].gradient_steps",
+                  "sha256": "216b9f24243c317d22b13a3cdcd346471bf9cfe9832e5a5495b8158f04eea1f8"
                 },
                 "value": 40000
               },
               {
                 "seed": 202,
                 "source": {
-                  "file": "output/p5_2/checkpoints/grid4x4_random_iql_seed202.pt",
-                  "json_path": "$.provenance.gradient_steps",
-                  "sha256": "b8a7a01f2c1ccffa1ce7811c6c730566dd6a36d3ef935f6b199562c1f26b2378"
+                  "file": "docs/data/p5_2b_iql_correction.json",
+                  "json_path": "$.training.runs[1].gradient_steps",
+                  "sha256": "216b9f24243c317d22b13a3cdcd346471bf9cfe9832e5a5495b8158f04eea1f8"
                 },
                 "value": 40000
               },
               {
                 "seed": 303,
                 "source": {
-                  "file": "output/p5_2/checkpoints/grid4x4_random_iql_seed303.pt",
-                  "json_path": "$.provenance.gradient_steps",
-                  "sha256": "e22e71c2a0f9f65f828615856cf983b3f2a6c859bcfb5c8dd8da37ddaecbdfe1"
+                  "file": "docs/data/p5_2b_iql_correction.json",
+                  "json_path": "$.training.runs[2].gradient_steps",
+                  "sha256": "216b9f24243c317d22b13a3cdcd346471bf9cfe9832e5a5495b8158f04eea1f8"
                 },
                 "value": 40000
               },
               {
                 "seed": 404,
                 "source": {
-                  "file": "output/p5_2/checkpoints/grid4x4_random_iql_seed404.pt",
-                  "json_path": "$.provenance.gradient_steps",
-                  "sha256": "1bdd9be17360d993b68adb5a9cc8c1708d02e82e3e0270915be56b8f8fdc60ea"
+                  "file": "docs/data/p5_2b_iql_correction.json",
+                  "json_path": "$.training.runs[3].gradient_steps",
+                  "sha256": "216b9f24243c317d22b13a3cdcd346471bf9cfe9832e5a5495b8158f04eea1f8"
                 },
                 "value": 40000
               },
               {
                 "seed": 505,
                 "source": {
-                  "file": "output/p5_2/checkpoints/grid4x4_random_iql_seed505.pt",
-                  "json_path": "$.provenance.gradient_steps",
-                  "sha256": "bed7b447a53728abb991a87838a3fee671d89a4c7fd431c27c1d396561551fbb"
+                  "file": "docs/data/p5_2b_iql_correction.json",
+                  "json_path": "$.training.runs[4].gradient_steps",
+                  "sha256": "216b9f24243c317d22b13a3cdcd346471bf9cfe9832e5a5495b8158f04eea1f8"
                 },
                 "value": 40000
               }
             ]
           },
-          "label": "P5.2",
-          "record": null,
-          "record_note": "P5.2's training record for this tier was lost (docs/returns/P5.2.md \u00a76a): every value below is read from the checkpoints",
+          "label": "P5.2b (the corrected cell; BRIEF_44)",
+          "quotes": {
+            "bracketed_by": {
+              "source": {
+                "file": "docs/data/p5_2b_iql_correction.json",
+                "json_path": "$.training.seconds.bracketed_by",
+                "sha256": "216b9f24243c317d22b13a3cdcd346471bf9cfe9832e5a5495b8158f04eea1f8"
+              },
+              "value": "the opening and the closing canary of the run that trained, the closing one taken right after the training"
+            },
+            "canary_close_power_mode": {
+              "source": {
+                "file": "docs/data/p5_2b_iql_correction.json",
+                "json_path": "$.training.canaries.close.power.windows.ac_overlay_name",
+                "sha256": "216b9f24243c317d22b13a3cdcd346471bf9cfe9832e5a5495b8158f04eea1f8"
+              },
+              "value": "Best Performance"
+            },
+            "canary_close_seconds": {
+              "source": {
+                "file": "docs/data/p5_2b_iql_correction.json",
+                "json_path": "$.training.canaries.close.seconds",
+                "sha256": "216b9f24243c317d22b13a3cdcd346471bf9cfe9832e5a5495b8158f04eea1f8"
+              },
+              "value": 0.6975650890090037
+            },
+            "canary_close_verdict": {
+              "source": {
+                "file": "docs/data/p5_2b_iql_correction.json",
+                "json_path": "$.training.canaries.close.verdict",
+                "sha256": "216b9f24243c317d22b13a3cdcd346471bf9cfe9832e5a5495b8158f04eea1f8"
+              },
+              "value": "at speed"
+            },
+            "canary_open_power_mode": {
+              "source": {
+                "file": "docs/data/p5_2b_iql_correction.json",
+                "json_path": "$.training.canaries.open.power.windows.ac_overlay_name",
+                "sha256": "216b9f24243c317d22b13a3cdcd346471bf9cfe9832e5a5495b8158f04eea1f8"
+              },
+              "value": "Best Performance"
+            },
+            "canary_open_seconds": {
+              "source": {
+                "file": "docs/data/p5_2b_iql_correction.json",
+                "json_path": "$.training.canaries.open.seconds",
+                "sha256": "216b9f24243c317d22b13a3cdcd346471bf9cfe9832e5a5495b8158f04eea1f8"
+              },
+              "value": 0.7332902069902048
+            },
+            "canary_open_verdict": {
+              "source": {
+                "file": "docs/data/p5_2b_iql_correction.json",
+                "json_path": "$.training.canaries.open.verdict",
+                "sha256": "216b9f24243c317d22b13a3cdcd346471bf9cfe9832e5a5495b8158f04eea1f8"
+              },
+              "value": "at speed"
+            }
+          },
+          "record": {
+            "file": "docs/data/p5_2b_iql_correction.json",
+            "sha256": "216b9f24243c317d22b13a3cdcd346471bf9cfe9832e5a5495b8158f04eea1f8"
+          },
+          "record_note": "P5.2 trained IQL at this tier on the whole tier, 400 episodes, where every other arm trained on the declared 200 (DEFERRED 106: _run_train_baselines built IQL's transition table from every episode, offline/tier_sweep.py:1820 at 9460800, :2078 at f077875). BRIEF_44 (P5.2b) re-trained it on the declared 200 episodes under P5.2's thirteen hyperparameters; this entry is the corrected cell's, read from its committed artifact docs/data/p5_2b_iql_correction.json. The original entry's values are under superseded, and the original checkpoints stay at output/p5_2/ as the record of the defect.",
           "regime": {
             "concurrency": {
-              "reason": "the record does not state how many trainings shared the machine while it ran",
-              "value": null
+              "source": {
+                "file": "docs/data/p5_2b_iql_correction.json",
+                "json_path": "$.training.header.concurrency.value",
+                "sha256": "216b9f24243c317d22b13a3cdcd346471bf9cfe9832e5a5495b8158f04eea1f8"
+              },
+              "value": 1
             },
             "device": {
               "source": {
-                "file": "output/p5_2/checkpoints/grid4x4_random_iql_seed101.pt",
+                "file": "output/p5_2b/p5_2/checkpoints/grid4x4_random_iql_seed101.pt",
                 "json_path": "$.provenance.device",
-                "sha256": "b4a0d3aeb5e7247a0e18c57b55d4fbbe5416b7e05ebb7247be7c94951b3fb5c6"
+                "sha256": "8fe121d8258e9f82c3aed7a0cf41af3349bbb82cd989a4915ada7363900a7a7b"
               },
               "value": "cuda"
             },
             "gpu": {
               "source": {
-                "file": "output/p5_2/checkpoints/grid4x4_random_iql_seed101.pt",
-                "json_path": "$.provenance.runtime.cuda_device_name",
-                "sha256": "b4a0d3aeb5e7247a0e18c57b55d4fbbe5416b7e05ebb7247be7c94951b3fb5c6"
+                "file": "docs/data/p5_2b_iql_correction.json",
+                "json_path": "$.training.header.regime.cuda_device_name",
+                "sha256": "216b9f24243c317d22b13a3cdcd346471bf9cfe9832e5a5495b8158f04eea1f8"
               },
               "value": "NVIDIA GeForce RTX 5080 Laptop GPU"
             },
             "threads": {
               "source": {
-                "file": "output/p5_2/checkpoints/grid4x4_random_iql_seed101.pt",
-                "json_path": "$.provenance.runtime.torch_num_threads",
-                "sha256": "b4a0d3aeb5e7247a0e18c57b55d4fbbe5416b7e05ebb7247be7c94951b3fb5c6"
+                "file": "docs/data/p5_2b_iql_correction.json",
+                "json_path": "$.training.header.regime.torch_num_threads",
+                "sha256": "216b9f24243c317d22b13a3cdcd346471bf9cfe9832e5a5495b8158f04eea1f8"
               },
               "value": 1
             },
             "torch": {
               "source": {
-                "file": "output/p5_2/checkpoints/grid4x4_random_iql_seed101.pt",
-                "json_path": "$.provenance.runtime.torch_version",
-                "sha256": "b4a0d3aeb5e7247a0e18c57b55d4fbbe5416b7e05ebb7247be7c94951b3fb5c6"
+                "file": "docs/data/p5_2b_iql_correction.json",
+                "json_path": "$.training.header.regime.torch_version",
+                "sha256": "216b9f24243c317d22b13a3cdcd346471bf9cfe9832e5a5495b8158f04eea1f8"
               },
               "value": "2.11.0+cu128"
             }
           },
           "seconds": {
-            "reason": "not recorded: P5.2's baseline training records were overwritten by a resume (docs/returns/P5.2.md \u00a76a, 'the six files cannot be recovered') and their logs hold only the resume's SKIP lines",
-            "value": null
+            "max": 324.3666615486145,
+            "median": 297.75666403770447,
+            "min": 295.6783299446106,
+            "outliers": [],
+            "per_seed": [
+              {
+                "seed": 101,
+                "source": {
+                  "file": "docs/data/p5_2b_iql_correction.json",
+                  "json_path": "$.training.runs[0].seconds",
+                  "sha256": "216b9f24243c317d22b13a3cdcd346471bf9cfe9832e5a5495b8158f04eea1f8"
+                },
+                "value": 307.26769948005676
+              },
+              {
+                "seed": 202,
+                "source": {
+                  "file": "docs/data/p5_2b_iql_correction.json",
+                  "json_path": "$.training.runs[1].seconds",
+                  "sha256": "216b9f24243c317d22b13a3cdcd346471bf9cfe9832e5a5495b8158f04eea1f8"
+                },
+                "value": 324.3666615486145
+              },
+              {
+                "seed": 303,
+                "source": {
+                  "file": "docs/data/p5_2b_iql_correction.json",
+                  "json_path": "$.training.runs[2].seconds",
+                  "sha256": "216b9f24243c317d22b13a3cdcd346471bf9cfe9832e5a5495b8158f04eea1f8"
+                },
+                "value": 297.328120470047
+              },
+              {
+                "seed": 404,
+                "source": {
+                  "file": "docs/data/p5_2b_iql_correction.json",
+                  "json_path": "$.training.runs[3].seconds",
+                  "sha256": "216b9f24243c317d22b13a3cdcd346471bf9cfe9832e5a5495b8158f04eea1f8"
+                },
+                "value": 295.6783299446106
+              },
+              {
+                "seed": 505,
+                "source": {
+                  "file": "docs/data/p5_2b_iql_correction.json",
+                  "json_path": "$.training.runs[4].seconds",
+                  "sha256": "216b9f24243c317d22b13a3cdcd346471bf9cfe9832e5a5495b8158f04eea1f8"
+                },
+                "value": 297.75666403770447
+              }
+            ]
+          },
+          "superseded": {
+            "checkpoints": [
+              {
+                "named_by": {
+                  "entry": "p5_2/checkpoints/grid4x4_random_iql_seed101.pt",
+                  "file": "output/SHA256SUMS_p5_2.txt",
+                  "sha256": "fde8309b4958231f8a7e3a33cb26674f645e1c295ad688900ac8e839a19ac19b"
+                },
+                "path": "output/p5_2/checkpoints/grid4x4_random_iql_seed101.pt",
+                "seed": 101,
+                "sha256": "b4a0d3aeb5e7247a0e18c57b55d4fbbe5416b7e05ebb7247be7c94951b3fb5c6"
+              },
+              {
+                "named_by": {
+                  "entry": "p5_2/checkpoints/grid4x4_random_iql_seed202.pt",
+                  "file": "output/SHA256SUMS_p5_2.txt",
+                  "sha256": "fde8309b4958231f8a7e3a33cb26674f645e1c295ad688900ac8e839a19ac19b"
+                },
+                "path": "output/p5_2/checkpoints/grid4x4_random_iql_seed202.pt",
+                "seed": 202,
+                "sha256": "b8a7a01f2c1ccffa1ce7811c6c730566dd6a36d3ef935f6b199562c1f26b2378"
+              },
+              {
+                "named_by": {
+                  "entry": "p5_2/checkpoints/grid4x4_random_iql_seed303.pt",
+                  "file": "output/SHA256SUMS_p5_2.txt",
+                  "sha256": "fde8309b4958231f8a7e3a33cb26674f645e1c295ad688900ac8e839a19ac19b"
+                },
+                "path": "output/p5_2/checkpoints/grid4x4_random_iql_seed303.pt",
+                "seed": 303,
+                "sha256": "e22e71c2a0f9f65f828615856cf983b3f2a6c859bcfb5c8dd8da37ddaecbdfe1"
+              },
+              {
+                "named_by": {
+                  "entry": "p5_2/checkpoints/grid4x4_random_iql_seed404.pt",
+                  "file": "output/SHA256SUMS_p5_2.txt",
+                  "sha256": "fde8309b4958231f8a7e3a33cb26674f645e1c295ad688900ac8e839a19ac19b"
+                },
+                "path": "output/p5_2/checkpoints/grid4x4_random_iql_seed404.pt",
+                "seed": 404,
+                "sha256": "1bdd9be17360d993b68adb5a9cc8c1708d02e82e3e0270915be56b8f8fdc60ea"
+              },
+              {
+                "named_by": {
+                  "entry": "p5_2/checkpoints/grid4x4_random_iql_seed505.pt",
+                  "file": "output/SHA256SUMS_p5_2.txt",
+                  "sha256": "fde8309b4958231f8a7e3a33cb26674f645e1c295ad688900ac8e839a19ac19b"
+                },
+                "path": "output/p5_2/checkpoints/grid4x4_random_iql_seed505.pt",
+                "seed": 505,
+                "sha256": "bed7b447a53728abb991a87838a3fee671d89a4c7fd431c27c1d396561551fbb"
+              }
+            ],
+            "data": {
+              "source": {
+                "file": "output/p5_2/checkpoints/grid4x4_random_iql_seed101.pt",
+                "json_path": "$.provenance.diagnostics.training_rows",
+                "sha256": "b4a0d3aeb5e7247a0e18c57b55d4fbbe5416b7e05ebb7247be7c94951b3fb5c6"
+              },
+              "unit": "per-intersection transitions (16 per joint window, the unit of the DT rows' joint windows)",
+              "value": 2304000
+            },
+            "label": "P5.2's original IQL cell at this tier, trained on all 400 episodes (DEFERRED 106)",
+            "note": "the entry P8.2's table carried before BRIEF_44, its values read as P8.2 read them: the data size from the original checkpoints, their digests from P5.2's manifest; the checkpoints stay at output/p5_2/",
+            "seconds": {
+              "reason": "not recorded: P5.2's baseline training records were overwritten by a resume (docs/returns/P5.2.md \u00a76a, 'the six files cannot be recovered') and their logs hold only the resume's SKIP lines",
+              "value": null
+            }
           },
           "tier": "random"
         }
@@ -32298,13 +32487,15 @@
     "p5_2_declaration_fixedtime": "grid4x4 P5.2 DT rows at fixedtime: the training-set size (episodes_selected)",
     "p5_2_declaration_mappo1000": "grid4x4 head-count-4 DT rows at mappo1000: the training-set size (episodes_selected)",
     "p5_2_declaration_maxpressure": "grid4x4 P5.2 DT rows at maxpressure: the training-set size (episodes_selected)",
-    "p5_2_declaration_random": "grid4x4 P5.2 DT rows at random: the training-set size (episodes_selected)"
+    "p5_2_declaration_random": "grid4x4 P5.2 DT rows at random: the training-set size (episodes_selected)",
+    "p5_2b_iql_correction": "grid4x4.iql's random-tier entry (BRIEF_44 \u00a73.4, DEFERRED 106): P5.2b's committed correction artifact holds the corrected cell's training record -- seconds, steps, batch, regime, the checkpoints' digests -- beside its record of the original cell"
   },
   "what_this_does_not_say": [
     "Wall times are indicative: they were measured on a shared laptop, in different sessions and under different regimes (threads, devices, concurrency); each is reported with its own regime and no two records' seconds are pooled.",
     "The offline methods' seconds cover their gradient loops only; MAPPO's train_sec covers simulation, action selection and learning, and the six concurrent worker processes it ran with are inferred from the run's file times, not recorded.",
     "The CPU is a hybrid-core laptop part (Intel Core Ultra 9 275HX) running Linux under WSL2: the Windows host schedules the guest's virtual CPUs onto performance or efficiency cores and the guest cannot pin them, so the single-thread figure is this machine's in the recorded regime (mains, Windows power mode Best Performance), not a property of one core type.",
     "The training wall times are the training runs' own clocks: the Windows power mode in force during those runs was not recorded (the mode found on 2026-10-03 was Best power efficiency), so they are not a controlled benchmark and are not comparable to the latency regime.",
+    "One training entry is the exception: grid4x4.iql's random tier, re-trained by P5.2b (BRIEF_44), was trained on mains with the Windows power mode Best Performance between two machine-health canaries, both at speed, which the entry quotes beside its seconds; its seconds are still its own run's clock, not a benchmark.",
     "The latency is the policy's decision call alone, not the controller's end-to-end loop: the simulator's step, the env's construction of the observation and any I/O are outside the timer.",
     "No number here evaluates any hypothesis (PREREGISTRATION A25(c)); the timing episodes' outcomes were never recorded.",
     "The DT's parameter count is identical at every context length; K changes the computation per decision, not the model's size.",

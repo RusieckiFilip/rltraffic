@@ -1,0 +1,8 @@
+BLOCKED: non-English text found. CLAUDE.md §3 requires every on-disk artifact in English:
+.claude/agents/master-coordinator.md:175
+docs/patches/claude_guard_g1.patch:32
+docs/patches/claude_guard_hygiene.patch:4
+scripts/claude_guard.sh:47
+
+Translate the prose. If a hit is a proper noun, add it to ALLOWED_NAMES in
+scripts/check_english.sh instead of removing the diacritics from someone's name.

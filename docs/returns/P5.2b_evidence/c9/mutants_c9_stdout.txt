@@ -1,0 +1,13 @@
+A-last-digit                 2bc9c60 KILLED   1 failed, 120 deselected in 1.33s | E       AssertionError: the committed artifact is not the run's, byte for byte
+A-fourth-decimal             7ae45e1 KILLED   1 failed, 1 skipped, 120 deselected in 1.43s | E               AssertionError: ('att_engine', 'after')
+B-random-left-original       afa6b30 KILLED   1 failed, 96 passed in 20.01s | E       AssertionError: assert '7540d49b45f1...748368a265f08' == '38a7f87d7044...20ad54c5e6cd9'
+B-corrected-spec-leaks       9652304 KILLED   33 passed, 1 error in 9.10s | E               ValueError: bc: the payload carries networks this family does not build: ['q.blocks.0.ln.bias', 'q.block
+B-quotes-dropped             e4c825f KILLED   1 failed, 96 passed in 20.57s | E       AssertionError: assert 'b96e5d72783a...7b9891d517bc9' == '38a7f87d7044...20ad54c5e6cd9'
+B-superseded-dropped         d3c78e8 KILLED   1 failed, 96 passed in 19.86s | E       AssertionError: assert '0fee70c57e1e...77453466cd786' == '38a7f87d7044...20ad54c5e6cd9'
+B-superseded-digest          8dcb596 KILLED   1 failed, 94 passed, 20 skipped in 3.30s | E           Failed: DID NOT RAISE ValueError
+B-superseded-size            021602c KILLED   1 failed, 95 passed, 20 skipped in 3.14s | E           Failed: DID NOT RAISE ValueError
+B-superseded-missing         f3dd64e KILLED   1 failed, 96 passed, 20 skipped in 2.82s | E           AssertionError: Regex pattern did not match.
+B-claim-dropped              2dee8d2 KILLED   1 failed, 96 passed in 19.25s | E       AssertionError: assert '0791f2f8d3eb...55b8bcc09d434' == '38a7f87d7044...20ad54c5e6cd9'
+B-sentence-dropped           f2b855a KILLED   1 failed, 79 passed, 18 skipped in 3.25s | E       assert ['Wall times ... timer.', ...] == ['Wall times ... timer.', ...]
+B-another-row-moved          8d5d730 KILLED   1 failed, 96 passed in 18.34s | E       AssertionError: assert 'e0dd76b4e339...04765ccfeef71' == '38a7f87d7044...20ad54c5e6cd9'
+runner exit=0

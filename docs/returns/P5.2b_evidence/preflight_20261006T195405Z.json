@@ -1,0 +1,113 @@
+{
+  "canary_open": {
+    "file": "output/p5_2b/canary_open.json",
+    "power": {
+      "supplies": {
+        "error": null,
+        "items": [
+          {
+            "name": "AC1",
+            "online": 1,
+            "type": "Mains"
+          },
+          {
+            "name": "BAT1",
+            "online": null,
+            "type": "Battery"
+          }
+        ],
+        "read_with": "/sys/class/power_supply/<name>/type and /sys/class/power_supply/<name>/online (a battery has no online file)"
+      },
+      "windows": {
+        "ac_overlay": "ded574b5-45a0-4f42-8737-46345c09c238",
+        "ac_overlay_name": "Best Performance",
+        "active_scheme": "381b4222-f694-41f0-9685-ff5bb260df2e",
+        "dc_overlay": "961cc777-2547-4f9d-8174-7d86181b8a7a",
+        "dc_overlay_name": "Better Battery",
+        "error": null,
+        "read_with": "reg.exe query HKLM\\SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes (ActivePowerScheme, ActiveOverlayAcPowerScheme, ActiveOverlayDcPowerScheme)"
+      }
+    },
+    "reproduced": true,
+    "seconds": 0.7607271509768907,
+    "sha256": "1899866b67de67e3a20ac5d0518029319ef7548ee4beadc4e1f99977ce081fc2",
+    "threshold_seconds": 2.0,
+    "verdict": "at speed",
+    "written_utc": "2026-10-06T19:54:07Z"
+  },
+  "estimate": {
+    "evaluate_p5_2_seconds": 980.5621127976337,
+    "evaluate_p8_4b_seconds": 963.7804533995222,
+    "note": "an estimate, not a bound: the training from 2000 rehearsal steps of one seed plus the table's build, each evaluation from five episodes on its path; each timeout is 3 x its estimate, never below 600 s",
+    "seconds_per_step": 0.00832380223274231,
+    "timeouts": {
+      "evaluate_p5_2": 2941.6863383929012,
+      "evaluate_p8_4b": 2891.3413601985667,
+      "train": 5050.679719879408
+    },
+    "total_seconds": 3627.9024728236254,
+    "training_seconds": 1683.5599066264695
+  },
+  "format_version": "p5.2b-preflight/1.0",
+  "git": {
+    "code_root": "/home/filip/rltraffic-p52b",
+    "commit": "a71a72cf76b3b1397e7b201889393aafbee56549",
+    "dirty": false
+  },
+  "reasons": [],
+  "regime": {
+    "cublas_workspace_config": null,
+    "cuda_device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "deterministic_algorithms": false,
+    "device": "cuda",
+    "mkl_num_threads": "1",
+    "omp_num_threads": "1",
+    "torch_num_threads": 1,
+    "torch_version": "2.11.0+cu128"
+  },
+  "rehearsal": {
+    "seconds": 16.64760446548462,
+    "seed": 101,
+    "steps": 2000,
+    "table": {
+      "reward_scale": 0.7429420505200595,
+      "rows": 1152000,
+      "statistics_equal_the_originals": true,
+      "streams": 3200
+    },
+    "table_seconds": 18.79946007800754
+  },
+  "reproduce": {
+    "p5_2_path": {
+      "checkpoint": "output/p5_2/checkpoints/grid4x4_random_iql_seed101.pt",
+      "differences": [],
+      "draws": [
+        1000,
+        1001,
+        1002,
+        1003,
+        1004
+      ],
+      "episodes": 5,
+      "exit_code": 0,
+      "reproduced": true,
+      "seconds": 9.805621127976337
+    },
+    "p8_4b_path": {
+      "cells": 5,
+      "differences": [],
+      "draws": [
+        1000,
+        1001,
+        1002,
+        1003,
+        1004
+      ],
+      "refused": 0,
+      "reproduced": true,
+      "seconds": 9.637804533995222
+    }
+  },
+  "stamp": "20261006T195405Z",
+  "status": "COMPLETE"
+}

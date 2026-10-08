@@ -1,0 +1,45 @@
+PM4                          73b9ab7 KILLED   1 failed, 65 passed, 8 skipped in 6.97s | E       Failed: DID NOT RAISE ValueError
+MT2                          415eb0e KILLED   1 failed, 6 passed, 146 deselected in 2.75s | E       Failed: DID NOT RAISE ValueError
+H4-cpu-only-max              a96a78f KILLED   1 failed, 11 passed, 97 deselected in 1.46s | E       assert (4, 0.037864445285876625) == (4, 0.07694280584765323)
+H4-cuda-only-max             2d67f03 KILLED   1 failed, 9 passed, 97 deselected in 1.33s | E       assert (4, 0.03648303538854436) == (4, 0.037864445285876625)
+M1                           16b6dbd KILLED   1 failed, 34 passed in 3.13s | E       AssertionError: assert 'FAILED' == 'HELD'
+M2                           851aa2c KILLED   1 failed, 34 passed in 3.19s | E       AssertionError: assert 'FAILED' == 'HELD'
+M3                           7e09d50 KILLED   1 failed, 35 passed in 2.03s | E       AssertionError: assert 'resolves for the DT' == 'NOT RESOLVED'
+M4                           d0faa07 KILLED   1 failed, 101 passed, 9 skipped in 9.71s | E           FileNotFoundError: /tmp/pytest-of-filip/pytest-174/test_b_1_2_a_corrected_cell_no0/output/SHA256SUMS_p5_2b.t
+M8                           ccdb8c1 KILLED   1 failed, 103 passed, 9 skipped in 8.07s | E       Failed: DID NOT RAISE ValueError
+M9                           db4e62b KILLED   1 failed, 104 passed, 9 skipped in 9.35s | E       Failed: DID NOT RAISE ValueError
+M10                          e3d288e KILLED   1 failed, 102 passed, 9 skipped in 9.67s | E           FileNotFoundError: /tmp/pytest-of-filip/pytest-177/test_b_1_2_a_corrected_cell_no0/output/SHA256SUMS_p5_2b.t
+M12                          9b1a5f2 KILLED   1 failed, 105 passed, 9 skipped in 9.81s | E       AssertionError: assert 'complete' == 'partial'
+ii-1-resolver                eab685a KILLED   1 failed, 91 passed, 8 skipped in 9.17s | E       AssertionError: Regex pattern did not match.
+ii-2-refused                 ec1e02c KILLED   1 failed, 92 passed, 8 skipped in 9.32s | E               FileNotFoundError: /tmp/pytest-of-filip/pytest-180/test_b1_6c_ii_refuses_a_campai0/output/p5_2b/rederiva
+ii-3-recheck                 bf5ba5f KILLED   1 failed, 93 passed, 8 skipped in 8.92s | E       Failed: DID NOT RAISE ValueError
+N-c1-compare                 e6d46bb KILLED   1 failed, 62 passed, 8 skipped in 6.11s | E       Failed: DID NOT RAISE ValueError
+N-c1-identity                1980626 KILLED   1 failed, 64 passed, 8 skipped in 5.65s | E       Failed: DID NOT RAISE ValueError
+N-c1-not-called              b7de48b KILLED   1 failed, 62 passed, 8 skipped in 6.04s | E       Failed: DID NOT RAISE ValueError
+N-out-exists                 fc518d8 KILLED   1 failed, 73 passed, 8 skipped in 6.44s | E       Failed: DID NOT RAISE PermissionError
+N-out-nested                 64fa8c3 KILLED   1 failed, 74 passed, 8 skipped in 5.35s | E           Failed: DID NOT RAISE PermissionError
+N-out-digest                 8b27c95 KILLED   1 failed, 75 passed, 8 skipped in 7.00s | E       Failed: DID NOT RAISE PermissionError
+N-out-check-no-pins          39244f1 KILLED   1 failed, 75 passed, 8 skipped in 5.17s | E           ValueError: /tmp/pytest-of-filip/pytest-188/test_b1_6a_with_pins_the_outpu0/output/SHA256SUMS_p5_2.txt is at
+N-hyper-compare              2a08947 KILLED   1 failed, 77 passed, 8 skipped in 8.52s | E       Failed: DID NOT RAISE ValueError
+N-hyper-not-called           b39a50a KILLED   1 failed, 90 passed, 8 skipped in 7.90s | E       Failed: DID NOT RAISE ValueError
+N-corpus-pin                 3b4a80e KILLED   1 failed, 94 passed, 8 skipped in 9.66s | E       Failed: DID NOT RAISE ValueError
+N-level-cell-mean            33b31ee KILLED   1 failed, 95 passed, 8 skipped in 9.60s | E       Failed: DID NOT RAISE ValueError
+N-original-digest            ab12786 KILLED   1 failed, 97 passed, 8 skipped in 9.47s | E       Failed: DID NOT RAISE ValueError
+N-q1-flag                    e2e6902 KILLED   1 failed, 96 passed, 8 skipped in 8.02s | E           AssertionError: att_horizon (att_ours): P5.2 registered Q1's predictions on the definition measured here (do
+N-sources                    70efc69 KILLED   1 failed, 96 passed, 8 skipped in 8.80s | E       KeyError: 'sources'
+N-close-late-state           69ed0f4 KILLED   1 failed, 66 passed, 8 skipped in 5.87s | E       Failed: DID NOT RAISE ValueError
+N-close-late-foreign         e4ef0c7 KILLED   1 failed, 71 passed, 8 skipped in 6.55s | E       Failed: DID NOT RAISE ValueError
+N-closing-pending            0fe6b11 KILLED   1 failed, 66 passed, 8 skipped in 5.14s | E       AssertionError: assert ('complete', 'partial') == ('complete', ...sing_pending')
+N-report-mark                a38b659 KILLED   1 failed, 72 passed, 8 skipped in 5.87s | E       Failed: DID NOT RAISE ValueError
+N-bracket-ignores-late       e09c0d4 KILLED   1 failed, 66 passed, 8 skipped in 5.58s | E       AssertionError: assert ('opening canary only' in 'the opening and the closing canary of the run that trained, th
+N-manifest-gate              e651883 KILLED   1 failed, 106 passed, 9 skipped in 9.22s | E       Failed: DID NOT RAISE ValueError
+N-cli-bypass                 3158a17 KILLED   1 failed, 107 passed, 9 skipped in 8.37s | E       assert (0 == 2)
+N-per-seed-seeds             6714b14 KILLED   1 failed, 100 passed, 8 skipped in 8.72s | E       AssertionError: Regex pattern did not match.
+N-reversal-ignored           ffb07e4 KILLED   1 failed, 99 passed, 8 skipped in 6.90s | E       assert ([] == [202]
+N-draws-nowhere              b802387 KILLED   1 failed, 108 passed, 11 skipped in 9.16s | E           FileExistsError: /tmp/pytest-of-filip/pytest-205/test_b1_8_the_report_needs_no_0/output/SHA256SUMS_p5_2b.txt
+N-draws-report               30054bf KILLED   1 failed, 108 passed, 11 skipped in 7.48s | E           FileNotFoundError: 3 held-out draws are not materialised under /tmp/pytest-of-filip/pytest-206/test_b1_8_the
+D-late-branch-removed        079babf KILLED   1 failed, 18 passed in 13.20s | E           AssertionError: ['timeouts', 'power-check', 'check', 'status training', 'evaluate-p5-2', 'evaluate-p8-4b', .
+D-late-trains                949e56e KILLED   1 failed, 18 passed in 13.93s | E           AssertionError: ['timeouts', 'power-check', 'check', 'status training', 'status canaries', 'train', ...]
+D-mark-after-canary          a5212a7 KILLED   1 failed, 18 passed in 13.21s | E           AssertionError: ['timeouts', 'power-check', 'check', 'status training', 'status canaries', 'canary close', .
+D-pin-unset                  145d54e KILLED   1 failed, 23 passed in 17.56s | E       assert None
+runner exit=0

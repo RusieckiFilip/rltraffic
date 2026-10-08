@@ -1,0 +1,78 @@
+# C8e red run at 364c91d, gates open, 2026-10-06T22:01:56Z
+E   Failed: DID NOT RAISE ValueError
+E   AssertionError: Regex pattern did not match.
+E   NotImplementedError
+E   AssertionError: assert ('complete', 'partial') == ('complete', ...sing_pending')
+E   KeyError: 'bracketed_by'
+E   NotImplementedError
+E   NotImplementedError
+E   NotImplementedError
+E   NotImplementedError
+E   Failed: DID NOT RAISE ValueError
+E   Failed: DID NOT RAISE PermissionError
+E   Failed: DID NOT RAISE PermissionError
+E   Failed: DID NOT RAISE PermissionError
+E   NotImplementedError
+E   NotImplementedError
+E   NotImplementedError
+E   NotImplementedError
+E   NotImplementedError
+E   NotImplementedError
+E   NotImplementedError
+E   NotImplementedError
+E   NotImplementedError
+E   NotImplementedError
+E   NotImplementedError
+E   NotImplementedError
+E   NotImplementedError
+E   NotImplementedError
+E   Failed: DID NOT RAISE ValueError
+E   Failed: DID NOT RAISE ValueError
+E   Failed: DID NOT RAISE ValueError
+E   KeyError: 'predictions_registered_on'
+E   Failed: DID NOT RAISE ValueError
+E   Failed: DID NOT RAISE ValueError
+E   KeyError: 'per_seed'
+E   Failed: DID NOT RAISE ValueError
+E   KeyError: 'per_seed'
+E   NotImplementedError
+E   assert (0 == 2)
+FAILED tests/test_iql_correction.py::test_b1_1_a_p8_4b_value_off_the_c1_notes_mean_is_refused_naming_the_arm[att_engine]
+FAILED tests/test_iql_correction.py::test_b1_1_a_p8_4b_value_off_the_c1_notes_mean_is_refused_naming_the_arm[att_ours]
+FAILED tests/test_iql_correction.py::test_b1_1_the_note_check_reads_each_cell_by_its_key
+FAILED tests/test_iql_correction.py::test_b1_3_a_complete_training_whose_closing_canary_is_missing_is_never_trained_again
+FAILED tests/test_iql_correction.py::test_b1_3_a_closing_canary_taken_in_its_run_brackets_the_seconds_with_both_canaries
+FAILED tests/test_iql_correction.py::test_b1_3_close_late_refuses_unless_a_complete_training_misses_only_its_closing_canary[no_training]
+FAILED tests/test_iql_correction.py::test_b1_3_close_late_refuses_unless_a_complete_training_misses_only_its_closing_canary[both_canaries]
+FAILED tests/test_iql_correction.py::test_b1_3_close_late_refuses_unless_a_complete_training_misses_only_its_closing_canary[no_canary]
+FAILED tests/test_iql_correction.py::test_b1_3_close_late_refuses_unless_a_complete_training_misses_only_its_closing_canary[foreign_mark]
+FAILED tests/test_iql_correction.py::test_b1_3_the_report_refuses_a_late_close_mark_that_names_another_training_record
+FAILED tests/test_iql_correction.py::test_b1_6a_an_output_root_without_p5_2s_manifest_is_refused
+FAILED tests/test_iql_correction.py::test_b1_6a_no_output_root_nested_in_an_output_tree_is_ever_accepted
+FAILED tests/test_iql_correction.py::test_b1_6a_with_pins_the_output_roots_manifest_must_be_at_the_pinned_digest
+FAILED tests/test_iql_correction.py::test_b1_6b_the_planned_hyperparameters_are_what_a_real_train_iql_records
+FAILED tests/test_iql_correction.py::test_b1_6b_each_of_the_thirteen_off_the_originals_record_is_refused_naming_it[batch_size]
+FAILED tests/test_iql_correction.py::test_b1_6b_each_of_the_thirteen_off_the_originals_record_is_refused_naming_it[learning_rate]
+FAILED tests/test_iql_correction.py::test_b1_6b_each_of_the_thirteen_off_the_originals_record_is_refused_naming_it[weight_decay]
+FAILED tests/test_iql_correction.py::test_b1_6b_each_of_the_thirteen_off_the_originals_record_is_refused_naming_it[grad_clip]
+FAILED tests/test_iql_correction.py::test_b1_6b_each_of_the_thirteen_off_the_originals_record_is_refused_naming_it[tau]
+FAILED tests/test_iql_correction.py::test_b1_6b_each_of_the_thirteen_off_the_originals_record_is_refused_naming_it[beta]
+FAILED tests/test_iql_correction.py::test_b1_6b_each_of_the_thirteen_off_the_originals_record_is_refused_naming_it[gamma]
+FAILED tests/test_iql_correction.py::test_b1_6b_each_of_the_thirteen_off_the_originals_record_is_refused_naming_it[polyak]
+FAILED tests/test_iql_correction.py::test_b1_6b_each_of_the_thirteen_off_the_originals_record_is_refused_naming_it[weight_clip]
+FAILED tests/test_iql_correction.py::test_b1_6b_each_of_the_thirteen_off_the_originals_record_is_refused_naming_it[gradient_steps]
+FAILED tests/test_iql_correction.py::test_b1_6b_each_of_the_thirteen_off_the_originals_record_is_refused_naming_it[training_streams]
+FAILED tests/test_iql_correction.py::test_b1_6b_each_of_the_thirteen_off_the_originals_record_is_refused_naming_it[reward_scale]
+FAILED tests/test_iql_correction.py::test_b1_6b_each_of_the_thirteen_off_the_originals_record_is_refused_naming_it[torch_num_threads]
+FAILED tests/test_iql_correction.py::test_b1_6b_the_training_stage_refuses_a_drifted_hyperparameter_before_training_anything
+FAILED tests/test_iql_correction.py::test_b1_6e_the_corpus_manifest_is_read_at_its_pinned_digest
+FAILED tests/test_iql_correction.py::test_b1_7c_the_corrected_cells_level_must_equal_its_own_cell_mean
+FAILED tests/test_iql_correction.py::test_b1_7_the_report_flags_q1s_predictions_names_the_corrected_sources_and_the_notes_use
+FAILED tests/test_iql_correction.py::test_b1_7f_a_corrected_run_carrying_an_original_weight_digest_is_refused[canonical_digest]
+FAILED tests/test_iql_correction.py::test_b1_7f_a_corrected_run_carrying_an_original_weight_digest_is_refused[state_dict_sha256]
+FAILED tests/test_iql_correction.py::test_b_1_1_a_first_place_that_reverses_on_one_seed_is_named_as_reversing
+FAILED tests/test_iql_correction.py::test_b_1_1_the_per_seed_block_refuses_arms_that_do_not_cover_the_same_seeds
+FAILED tests/test_iql_correction.py::test_t_reproduce_c_the_per_seed_orderings_of_the_original_files_equal_this_files_own
+FAILED tests/test_iql_correction.py::test_b_1_2_the_manifest_stage_refuses_a_partial_run_and_freezes_nothing
+FAILED tests/test_iql_correction.py::test_b_1_2_the_clis_manifest_command_is_the_gated_stage
+38 failed, 79 passed in 57.50s

@@ -664,11 +664,17 @@ def test_t_sources_the_parameter_counts_are_the_plans_and_the_interactions_are_m
 def test_t_sources_the_declared_absences_carry_their_reasons(built_artifact: Any) -> None:
     artifact, _ = built_artifact
     rows = {row["id"]: row for row in artifact["rows"]}
+    excepted, checked = [], 0
     for row_id in ("grid4x4.bc", "grid4x4.bc_top10", "grid4x4.bc_top10_perix", "grid4x4.iql"):
         assert len(rows[row_id]["training"]) == 4, row_id  # four grid4x4 tiers each
         for entry in rows[row_id]["training"]:
+            if (row_id, entry["tier"]) == ("grid4x4.iql", "random"):  # BRIEF_44 Amendment A, A2 Q8(c): P5.2b's cell
+                excepted.append((row_id, entry["tier"]))
+                continue
             assert entry["seconds"]["value"] is None, (row_id, entry["tier"])
             assert "P5.2" in entry["seconds"]["reason"] or "P5.1" in entry["seconds"]["reason"]
+            checked += 1
+    assert excepted == [("grid4x4.iql", "random")] and checked == 15, (excepted, checked)
     random_tier = [e for e in rows["grid4x4.dt_nomix"]["training"] if e["tier"] == "random"]
     assert len(random_tier) == 1 and all("line" in item["source"] for item in random_tier[0]["seconds"]["per_seed"])
 
@@ -1455,3 +1461,490 @@ def test_the_committed_artifact_is_consistent_with_its_own_summaries_and_c12s_ni
     assert said[:len(ct.WHAT_THIS_DOES_NOT_SAY)] == list(ct.WHAT_THIS_DOES_NOT_SAY)
     assert said[len(ct.WHAT_THIS_DOES_NOT_SAY):] == [ct.sensitivity_sentence(artifact["latency_sensitivity"]["summary"]),
                                                      ct.variability_sentence(artifact["latency_variability"]["summary"])]
+
+
+# ======================================================================
+# DEFERRED 107 (docs/reviews/P8.2.md §4, mandate M2): the test gaps that guard FUTURE rebuilds of the committed artifact,
+# closed before the next builder change (BRIEF_44 §3.4 and Amendment A). Each test below is green on the builder and the
+# artifact as merged, and red against the surviving mutant it names (M2-2a, M2-2b, M2-3e, M2-3f, M2-6c, and M2-7a's
+# note) -- the mutants re-run, committed, in a throwaway worktree, their red runs pasted in docs/returns/P5.2b.md.
+# ======================================================================
+
+_SENSITIVITY_CLAUSES = re.compile(
+    r"a cell's median moves by at most (?P<median>\d+\.\d)% but its p95 by up to (?P<p95>\d+\.\d)% "
+    r"\((?P<count>\d+) of (?P<cells>\d+) cells by more than (?P<threshold>\d+)%\)"
+)
+_VARIABILITY_CLAUSES = re.compile(
+    r"differ in median by up to (?P<hz1x1>\d+\.\d)% on hz1x1 and (?P<grid4x4>\d+\.\d)% on grid4x4, and one cell's "
+    r"three episode medians by up to (?P<episodes>\d+\.\d)%"
+)
+_C2_REFERENCE = re.compile(r"(agent/[A-Za-z_]+\.py):(\d+)-(\d+)")
+
+
+def _percent(fraction: float) -> str:
+    """This file's own rendering of a fraction as a percent at one decimal: what a clause must carry."""
+    return f"{100.0 * fraction:.1f}"
+
+
+def _committed_artifact() -> dict[str, Any]:
+    return json.loads((DATA / "p8_2_compute.json").read_text(encoding="utf-8"))
+
+
+@pytest.mark.parametrize("median, p95, count", [(0.0951, 0.2458, 6), (0.3012, 0.0517, 0)])
+def test_d107_the_sensitivity_sentence_puts_each_number_in_its_own_clause(median: float, p95: float,
+                                                                           count: int) -> None:
+    """M2-3f: the median clause carries the median's change and the p95 clause the p95's, read by POSITION -- in both
+    orders of magnitude, so a builder that swaps the two clauses, or orders them by size, cannot pass."""
+    summary = {"window": "decisions 120-359", "cells": 78, "median_change_max_abs": median, "p95_change_max_abs": p95,
+               "cells_p95_change_above": {"threshold": 0.10, "count": count}}
+    found = _SENSITIVITY_CLAUSES.search(ct.sensitivity_sentence(summary))
+    assert found is not None, "the sensitivity sentence no longer has its median, p95 and count clauses"
+    assert (found["median"], found["p95"]) == (_percent(median), _percent(p95))
+    assert (int(found["count"]), int(found["cells"]), int(found["threshold"])) == (count, 78, 10)
+
+
+@pytest.mark.parametrize("spreads", [
+    {"hz1x1": 0.06584946650960855, "grid4x4": 0.35887181936452484},
+    {"grid4x4": 0.0217, "hz1x1": 0.4108},
+])
+def test_d107_the_variability_sentence_attributes_each_floor_to_its_own_scenario(spreads: dict[str, float]) -> None:
+    """M2-3e: each scenario's floor is printed beside THAT scenario's name, in both orders of magnitude and of the
+    mapping's insertion, so a builder that pairs a floor with the other scenario cannot pass."""
+    summary = {"episode_spread_max": 0.1234, "groups": 9, "same_computation_spread_max": dict(spreads)}
+    found = _VARIABILITY_CLAUSES.search(ct.variability_sentence(summary))
+    assert found is not None, "the variability sentence no longer has its two floor clauses and its episode clause"
+    assert (found["hz1x1"], found["grid4x4"], found["episodes"]) == (
+        _percent(spreads["hz1x1"]), _percent(spreads["grid4x4"]), _percent(0.1234))
+
+
+def test_d107_the_committed_sentences_carry_their_own_summaries_numbers_in_their_places() -> None:
+    """M2-3e / M2-3f after a rebuild and a recommit: the COMMITTED sentences, read by position, against the COMMITTED
+    summaries -- independent of the generator, which a recommitted mutant would have changed too."""
+    artifact = _committed_artifact()
+    said = artifact["what_this_does_not_say"]
+    sensitivity = artifact["latency_sensitivity"]["summary"]
+    variability = artifact["latency_variability"]["summary"]
+    found = [match for match in map(_SENSITIVITY_CLAUSES.search, said) if match]
+    assert len(found) == 1, "exactly one committed sentence states the sensitivity"
+    assert (found[0]["median"], found[0]["p95"]) == (_percent(sensitivity["median_change_max_abs"]),
+                                                     _percent(sensitivity["p95_change_max_abs"]))
+    assert (int(found[0]["count"]), int(found[0]["cells"])) == (sensitivity["cells_p95_change_above"]["count"],
+                                                                sensitivity["cells"])
+    found = [match for match in map(_VARIABILITY_CLAUSES.search, said) if match]
+    assert len(found) == 1, "exactly one committed sentence states the variability"
+    floors = variability["same_computation_spread_max"]
+    assert (found[0]["hz1x1"], found[0]["grid4x4"], found[0]["episodes"]) == (
+        _percent(floors["hz1x1"]), _percent(floors["grid4x4"]), _percent(variability["episode_spread_max"]))
+
+
+def test_d107_every_committed_summary_recomputes_from_the_artifacts_own_cells_and_groups() -> None:
+    """M2-2a (ungated, CI): each summary of the committed artifact recomputed HERE from the cells and groups the same
+    artifact carries, so a coherent hand-edit of a published floor and its sentence no longer passes."""
+    artifact = _committed_artifact()
+    sensitivity, variability = artifact["latency_sensitivity"], artifact["latency_variability"]
+    cells = sensitivity["cells"]
+    for label, cell in cells.items():
+        assert cell["median_change"] == cell["late"]["median_ms"] / cell["registered"]["median_ms"] - 1, label
+        assert cell["p95_change"] == cell["late"]["p95_ms"] / cell["registered"]["p95_ms"] - 1, label
+    summary = sensitivity["summary"]
+    threshold = summary["cells_p95_change_above"]["threshold"]
+    assert summary["cells"] == len(cells) == 78
+    assert summary["median_change_max_abs"] == max(abs(cell["median_change"]) for cell in cells.values())
+    assert summary["p95_change_max_abs"] == max(abs(cell["p95_change"]) for cell in cells.values())
+    assert summary["cells_p95_change_above"]["count"] == sum(abs(cell["p95_change"]) > threshold
+                                                             for cell in cells.values())
+    h4 = [abs(cell["median_change"]) for label, cell in cells.items() if label.startswith("hz1x1.h4.")]
+    assert (summary["h4_cells"], summary["h4_median_change_max_abs"]) == (len(h4), max(h4))
+    spread_cells = variability["cells"]
+    for label, cell in spread_cells.items():
+        assert cell["episode_spread"] == max(cell["episode_medians_ms"]) / min(cell["episode_medians_ms"]) - 1, label
+    groups = variability["groups"]
+    for group in groups:
+        medians = group["medians_ms"]
+        assert (group["min_ms"], group["max_ms"]) == (min(medians), max(medians)), group["name"]
+        assert group["spread"] == max(medians) / min(medians) - 1, group["name"]
+    summary = variability["summary"]
+    worst = max(spread_cells, key=lambda label: spread_cells[label]["episode_spread"])
+    assert summary["cells"] == len(spread_cells)
+    assert (summary["episode_spread_max"], summary["episode_spread_max_cell"]) == (
+        spread_cells[worst]["episode_spread"], worst)
+    assert summary["groups"] == len({group["name"] for group in groups})
+    assert summary["same_computation_spread_max"] == {
+        scenario: max(group["spread"] for group in groups if group["scenario"] == scenario)
+        for scenario in {group["scenario"] for group in groups}}
+
+
+def test_d107_the_committed_groups_are_the_nine_on_each_device() -> None:
+    """M2-2b (ungated, CI): the committed artifact holds 9 cpu and 9 cuda group entries, the nine of C1.2 on each
+    device -- a dropped (or duplicated) device entry no longer passes."""
+    groups = _committed_artifact()["latency_variability"]["groups"]
+    assert sorted(group["device"] for group in groups) == ["cpu"] * 9 + ["cuda"] * 9
+    for device in ("cpu", "cuda"):
+        assert {frozenset(group["rows"]) for group in groups if group["device"] == device} == _NINE, device
+
+
+def test_d107_the_h4_summary_equals_the_coordinators_third_route() -> None:
+    """M2-6c after a rebuild and a recommit (ungated): ``h4_cells`` and ``h4_median_change_max_abs`` of the committed
+    artifact against the coordinator's G3 analysis (docs/notes/p8_2_g3/g3_analysis.json), which holds every cell's
+    change by its own route and no H4 summary of its own."""
+    g3 = json.loads((REPO_ROOT / "docs" / "notes" / "p8_2_g3" / "g3_analysis.json").read_text(encoding="utf-8"))
+    theirs = [abs(cell["median_change_if_120"]) for label, cell in g3["cells"].items() if label.startswith("hz1x1.h4.")]
+    summary = _committed_artifact()["latency_sensitivity"]["summary"]
+    assert len(theirs) == 14, "the G3 analysis holds the seven H4 rows on both devices"
+    assert (summary["h4_cells"], summary["h4_median_change_max_abs"]) == (len(theirs), max(theirs))
+
+
+def test_d107_latency_sensitivity_counts_every_h4_cell_on_both_devices(tmp_path: Path) -> None:
+    """M2-6c (ungated): the builder's H4 summary covers every ``hz1x1.h4.*`` cell on both devices and nothing else,
+    each change recomputed HERE from the records' own nanoseconds."""
+    rows = tuple(cl.row_by_id(row_id) for row_id in ("hz1x1.h4.k1", "hz1x1.h4.k20", "hz1x1.bc"))
+    run_dir, manifest = _write_run(tmp_path, rows=rows, ns_for=_transient_ns)
+    sensitivity = ct.latency_sensitivity(ct.verify_latency_run(run_dir, manifest))
+    labels = sorted(label for label in sensitivity["cells"] if label.startswith("hz1x1.h4."))
+    assert labels == ["hz1x1.h4.k1_cpu", "hz1x1.h4.k1_cuda", "hz1x1.h4.k20_cpu", "hz1x1.h4.k20_cuda"]
+    changes = []
+    for label in labels:
+        episodes = [e["decision_ns"] for e in json.loads((run_dir / f"{label}.json").read_text())["episodes"]]
+        registered = _independent([v for e in episodes for v in e[cl.WARMUP:]])[0] / 1e6
+        late = _independent([v for e in episodes for v in e[_LATE:]])[0] / 1e6
+        changes.append(abs(late / registered - 1))
+    assert len(set(changes)) == len(changes), "the fixture must give each H4 cell its own change"
+    summary = sensitivity["summary"]
+    assert (summary["h4_cells"], summary["h4_median_change_max_abs"]) == (4, max(changes))
+
+
+def test_d107_the_c2_line_ranges_are_read_from_the_sentences_and_their_lines_hold_what_they_state() -> None:
+    """M2-7a's note: the two code-path sentences' line ranges are PARSED from the sentences themselves, not typed beside
+    them, and each range is read back from the file it names -- so moving a sentence's range and a typed copy together
+    no longer passes."""
+    mappo = [text for text in ct.WHAT_THIS_DOES_NOT_SAY if text.startswith("MAPPO's decision call loops over its actors")]
+    iql = [text for text in ct.WHAT_THIS_DOES_NOT_SAY if text.startswith("IQL's decision call, shared with BC")]
+    assert len(mappo) == len(iql) == 1
+
+    def lines(path: str, first: str, last: str) -> str:
+        text = (REPO_ROOT / path).read_text(encoding="utf-8").splitlines()
+        return "\n".join(text[int(first) - 1:int(last)])
+
+    references = _C2_REFERENCE.findall(mappo[0])
+    assert [reference[0] for reference in references] == ["agent/MAPPOAgent.py"]
+    loop = lines(*references[0])
+    assert "for i, actor in enumerate(self.actors)" in loop
+    assert loop.count("torch.as_tensor(") == 2 and loop.count(".item()") == 2
+    references = _C2_REFERENCE.findall(iql[0])
+    assert [reference[0] for reference in references] == ["agent/OfflineBaselines.py"] * 3
+    act, iql_networks, bc_networks = (lines(*reference) for reference in references)
+    assert "module.eval()" in act and "module.train(mode)" in act and "self.policy_logits(state)" in act
+    assert "return [self.policy, self.q, self.v, self.q_target]" in iql_networks
+    assert "return [self.model]" in bc_networks
+
+
+def _cuda_heavy_ns(row: cl.LatencyRow, device: str) -> list[list[int]]:
+    """As :func:`_transient_ns`, but a ``cuda`` cell's decisions spread three times as wide, so its change between the
+    two windows is the largest: the fixture's maximum sits on a ``cuda`` cell where ``_transient_ns``' sits on ``cpu``."""
+    offset = (sum(map(ord, row.row_id)) % 97) * 1_000 + (50_000 if device == "cuda" else 0)
+    step = 3_000 if device == "cuda" else 1_000
+    return [[(3_000_000 if k < _LATE else 1_000_000) + step * k + 7_000 * episode + offset
+             for k in range(cl.DECISIONS_PER_EPISODE)] for episode in range(len(cl.TIMING_DRAWS))]
+
+
+def test_d107_the_h4_maximum_is_taken_over_both_devices_when_the_largest_change_is_on_cuda(tmp_path: Path) -> None:
+    """BRIEF_44 Amendment B, B1.5 (RB's one-device maximum survived): with the largest H4 change on a ``cuda`` cell, a
+    builder taking the maximum over the ``cpu`` cells alone reports a smaller one.  The test above keeps its ``cpu``
+    maximum, so a maximum over either device alone dies against one of the two."""
+    rows = tuple(cl.row_by_id(row_id) for row_id in ("hz1x1.h4.k1", "hz1x1.h4.k20", "hz1x1.bc"))
+    run_dir, manifest = _write_run(tmp_path, rows=rows, ns_for=_cuda_heavy_ns)
+    sensitivity = ct.latency_sensitivity(ct.verify_latency_run(run_dir, manifest))
+    labels = sorted(label for label in sensitivity["cells"] if label.startswith("hz1x1.h4."))
+    assert labels == ["hz1x1.h4.k1_cpu", "hz1x1.h4.k1_cuda", "hz1x1.h4.k20_cpu", "hz1x1.h4.k20_cuda"]
+    changes = {}
+    for label in labels:
+        episodes = [e["decision_ns"] for e in json.loads((run_dir / f"{label}.json").read_text())["episodes"]]
+        registered = _independent([v for e in episodes for v in e[cl.WARMUP:]])[0] / 1e6
+        late = _independent([v for e in episodes for v in e[_LATE:]])[0] / 1e6
+        changes[label] = abs(late / registered - 1)
+    largest = max(changes, key=changes.get)
+    assert largest.endswith("_cuda"), f"the fixture must put the largest change on a cuda cell, not {largest}"
+    assert max(v for k, v in changes.items() if k.endswith("_cpu")) < changes[largest]
+    summary = sensitivity["summary"]
+    assert (summary["h4_cells"], summary["h4_median_change_max_abs"]) == (4, changes[largest])
+
+
+# ======================================================================
+# P5.2b (BRIEF_44 §3.4; Amendment A, A2 Q8; Amendment C, C2.2): grid4x4.iql's random-tier entry is the corrected cell's
+# (DEFERRED 106), read from the committed correction artifact, with the original entry's values under ``superseded``;
+# every other row is P8.2's as committed.
+# ======================================================================
+
+CORRECTION = DATA / "p5_2b_iql_correction.json"
+_CORRECTED = "output/p5_2b/p5_2/checkpoints/grid4x4_random_iql_seed{seed}.pt"
+_ORIGINAL = "output/p5_2/checkpoints/grid4x4_random_iql_seed{seed}.pt"
+
+#: Every row of docs/data/p8_2_compute.json as P8.2 committed it (sha256 48bafa6c..., e637e81) but grid4x4.iql, as
+#: sha256 of json.dumps(row, sort_keys=True); and the top-level blocks P5.2b must not move.
+_P8_2_ROWS = {
+    "hz1x1.dt_k20": "e22eed585ce632ca42f2e4fbd40cf66709834c6e97869c3807424d662d70f210",
+    "hz1x1.bc": "6c246bfb5b770ee05107ed9975a780c37abb320e17b8008c5106802f7b0cb117",
+    "hz1x1.bc_top10": "d9d01f080cb3830b65d5c41181bb1ac1780e23a1fc7d9324a6e764ca0adb871b",
+    "hz1x1.iql": "6e7b8fac8d34c8e0b55f7f949f4bf004abc484e1defb3f2de85682be64e49bec",
+    "hz1x1.bc_best2_20": "6cdf4708e0a2acdefa262b6838c8f13084cbe2cc246cf70d7e87c77d1fe8fa8e",
+    "hz1x1.bc_any_20": "2de679f0a889635cee50295ba660cdf941fca0c68fc3193c9567ce4f610a35c8",
+    "hz1x1.bc_worst2_20": "5104dd05c6a1419f56d926c7f73ccc6e344d1e88dea1be0d54d557b878188896",
+    "hz1x1.bc_best2_all": "9e6bb78a1cdb43e4acc39e83cc4623eff022decb4776ed808ab4d5d81e7070fe",
+    "hz1x1.dt_nortg": "c655f44384fc1ed44302c06cdf15010f998f91dd1eb2895911e529fb52dd006c",
+    "hz1x1.h4.k1": "b7a6fcea70c44c31cd0a8224bdfcb033b51d9d4b40101af9395fba48f2642e3f",
+    "hz1x1.h4.k2": "cef009ab3cf4b1043fca5fa74c4804594e0dd8bccc79a48ab377fc67ab4b1a33",
+    "hz1x1.h4.k5": "ad56ddbaf28ef276dfe6704018847e4b39b9ec095c583532fa8841d1beb71e63",
+    "hz1x1.h4.k10": "b8ae8ac4aee70b0d68e5e73c3987925e384f77378d889aa2052b0f453a2c7c28",
+    "hz1x1.h4.k20": "a73ab07d9b121e650c388c0fb011c48b41f8b266759d08c0ba81c293f55d88b0",
+    "hz1x1.h4.k1_b1280": "6c0c8d8d9f2c15d5e1d1d0781770728b12ae58b271e4097a41976c4a2a613b03",
+    "hz1x1.h4.k2_b640": "7929e3a26d619e769135b4fa6cbed79bc3769797f92e9a6f6887044e93c6b232",
+    "hz1x1.c3.anchor_k200": "899ac963082697c36eb929c85a9888ce551fc2f35be04e10e41ec0217762f6d3",
+    "hz1x1.mappo1000": "53567858593e02e5ac8478c1e99c184182ed449c740597fb06f352750d0df3b1",
+    "hz1x1.mappo500": "d31711e88ec2adabeecbb9643915730d4fa737d840d2ad57d5e4e1344be36901",
+    "hz1x1.mappo060": "e4195d66b435a3899b820e06b56a20f56ca4b3aa663fda344da0115c61940682",
+    "hz1x1.maxpressure": "e55942fb6f13aa53cfaaa7433b4643169706f7959425f7fcefa812a6170570c0",
+    "hz1x1.fixedtime": "8b9c7b585182b4f9f9b3e78f54ef3ff1802a5a9138e30bd07f426e56ae8b878e",
+    "hz1x1.random": "cf37801d8b6590c3fa6ee3b4d8b26ec221d956ae9bb96d4766ec874dbcdd44ae",
+    "grid4x4.dt_spatial": "2a232934c907635ca88d84993e55870766bccdd3fb658b508669915ef3d010c5",
+    "grid4x4.dt_nomix": "cf7a9665ac8bae279c74ec171cf1dc81f3da9ce9eb1e34544b528b830118ac5e",
+    "grid4x4.dt_spatial_h4": "a819f78921d99891e9325ed0495ad81b46e07f71d476bc109d70bc1ed63c3a39",
+    "grid4x4.dt_nomix_h4": "7446d32b974434b48667aef4534e5613d74dec075918ce64a71bae98e371092b",
+    "grid4x4.bc": "d159c81c6695b0dee88e48b7a3f1c7e0bd20dfdf44de1436ecce43825694c724",
+    "grid4x4.bc_top10": "3e7d6f76dfd8d8e20f1a09d6091df0a2091fb7da692c385242cfa1752dd17602",
+    "grid4x4.bc_top10_perix": "2dc905c12893e4003dc85813f2bc9211da19a48b657314d105ba57adabc0d745",
+    "grid4x4.c3.ft_k5": "5c5999a2a6da8df92e3b6908a99a18f66cb0edd890ec73f9fdf9f16578bfd53c",
+    "grid4x4.c3.ft_k20": "304ef9ea400c3bff5b7cab62cd76b7f569fc4d575bceef799da00d48558d7941",
+    "grid4x4.c3.ft_k100": "444e207888a83ca3bdf2ae73c514deb6a73a23382330b4ba81bd566360ea42cd",
+    "grid4x4.c3.ft_k100_b1000": "80349021a577264f77abbc2b0bbdad136865b1a7d5839179711b66f4ac88e7ec",
+    "grid4x4.c3.ft_k100_b16000": "b9305ff0dc1adfda6692aa73d8b2904301d82565b294e6d90b2e8f24318a7094",
+    "grid4x4.c3.scratch_k100": "c8a66b5ab51756ec27a459fddd60867f29ad7377d0ba40feee476da5805f3d67",
+    "grid4x4.mappo1000": "ac48e751c93d0d6d4c2f382e48761e37c5e85ce1fc62ea08e849be58406428f6",
+    "grid4x4.mappo060": "5387b0168ed2f0b1f76c1c545aed7ac086fafebc6170c9c56e1347bdcb26935e",
+    "grid4x4.maxpressure": "e11866a38eb8e04a75a7abdeb15b2352116242971f1c50b38b3111ed6e39520f",
+    "grid4x4.fixedtime": "5ccdc9cefafd17e53e6ac54dcefbb854ca9a93aee5baca1475b07d202e83c0d7",
+    "grid4x4.random": "badcd412e6c2b701a90d536722ae332801ce07b820e90c5e860dc8c70fdc5281",
+    "hz1x1.c3.zero_shot_mappo1000": "581912c512e0ab0a656a25092c128f2ea6d1841213f0a2ca1526b0be55f0d592",
+    "hz1x1.c3.zero_shot_mix50": "d46a178a3b6d979cb59a3a457424161a61468f85a171cd9007793cac3c5504b7",
+}
+_P8_2_IQL_PARTS = {
+    "architecture": "f38b55f25b8df171e4f1eba03dd4358876267603a4b0ae23f362c701fa6b32ff",
+    "computation": "2bb1b97e13e405345ea1609d88cf125fb29b9f0aa49e8021610c9c1b4ade221a",
+    "configuration": "b94d1190ebf5fb3b7431c84a8221e113be01fe7e10830e1d29bf95cdeb31f3a5",
+    "environment_interactions": "7a71d7f762a7d7ec2b3ebf99d9a84bc67e655c80b7bcce0b627d58d884ad424b",
+    "inference": "4503ac2c2e4de143098f0a37eeb77378c5400df7bea0225560224add65072c92",
+    "notes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "training mappo1000": "07d64b26fda1639f870bcb3230f860e96270d10b9b63b669995016b79485e1b0",
+    "training maxpressure": "5a21892582f54cfab42e95c5ac0f9a7dfa0e0aa1b7c8ddd2b5218f19cb68f103",
+    "training fixedtime": "0810e4b2f0d7cf27c61103ca46753606692b6fbe17ef88a0cd3876b0d6f96b2d",
+    "checkpoints of the other tiers": "61b0335d56e8a89e3abf45d08a0af48dc63c006d929592c98ff9d46ba3e1df84",
+    "claims": "bf38964961106eeffbfdb62fe78e2f31290c9f77ee504f52fcc0f25dfad3a290",
+    "parameters but the cross-checks": "69988997a6072efba591c9f28e349ebd13e162a4db20b4b2c21e0af8e0008c08",
+    "cross-checks of the other tiers": "6235461ecdc440e1f28c2156383c1adef8d1ffd4b2dcf257884285d33642568a",
+}
+_P8_2_BLOCKS = {
+    "latency_run": "b5cad090379822eca9b4cb6d1dfccd3c7d0d458b4077ebd67acd46740c2bfe0a",
+    "hardware": "88250f31b63105682a145f91d667db393ce3a9a0a58b0fce9b88d6bc2059aee7",
+    "latency_sensitivity": "e6bd89ff1405dfbc708250ebc297fd6c03ac47a5f4ad5f0989983f2be26dafe8",
+    "latency_variability": "4cadefad18eed0d5179db162f7336d75c70aaeaad1693bb9a40837c557133b0c",
+    "mappo_results_pin": "4bc18d44b1716bb347fe3d585c2b555cb1bd9a3e37870f2f6214839e19a944ad",
+}
+_P8_2_SOURCES_ADDED = ["p5_1_declaration", "p5_2_declaration_fixedtime", "p5_2_declaration_mappo1000",
+                       "p5_2_declaration_maxpressure", "p5_2_declaration_random"]
+
+
+def _digest(node: Any) -> str:
+    return hashlib.sha256(json.dumps(node, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def _iql_random(rows: Any) -> Any:
+    row = next(r for r in rows if (r.row_id if hasattr(r, "row_id") else r["id"]) == "grid4x4.iql")
+    training = row.training if hasattr(row, "training") else row["training"]
+    entries = [entry for entry in training if entry["tier"] == "random"]
+    assert len(entries) == 1
+    return row, entries[0]
+
+
+def test_p5_2b_the_random_tier_of_grid4x4_iql_is_specified_on_the_corrected_cell() -> None:
+    """Ungated: the row spec reads the corrected checkpoints and the committed correction artifact, pinned at the
+    committed file's own digest and declared as an addition with its reason; the original stays under ``superseded``."""
+    row, entry = _iql_random(ct.TABLE_ROWS)
+    groups = {group["tier"]: group for group in row.groups}
+    assert groups["random"]["path"] == _CORRECTED
+    assert groups["random"]["digest"] == {"kind": "json_list", "record": "p5_2b_iql_correction",
+                                          "list": "$.training.runs", "match": {}, "field": "file_sha256"}
+    assert [groups[tier]["path"] for tier in ("mappo1000", "maxpressure", "fixedtime")] == [
+        "output/p5_1/checkpoints/grid4x4_mappo1000_iql_seed{seed}.pt",
+        "output/p5_2/checkpoints/grid4x4_maxpressure_iql_seed{seed}.pt",
+        "output/p5_2/checkpoints/grid4x4_fixedtime_iql_seed{seed}.pt"]
+    pinned = ct.PINNED_RECORDS["p5_2b_iql_correction"]
+    assert (pinned.root, pinned.relpath) == ("repo", "docs/data/p5_2b_iql_correction.json")
+    assert pinned.sha256 == hashlib.sha256(CORRECTION.read_bytes()).hexdigest()
+    assert "DEFERRED 106" in ct.SOURCES_ADDED_AFTER_PLAN["p5_2b_iql_correction"]
+    assert entry["record"] == "p5_2b_iql_correction"
+    assert entry["seeds"] == {"kind": "list", "path": "$.training.runs", "match": {}}
+    for needle in ("DEFERRED 106", "tier_sweep.py:1820", ":2078", "BRIEF_44"):
+        assert needle in entry["record_note"], needle
+    assert "superseded" in entry and "quotes" in entry
+    assert {"claim": "C1", "record": "p5_2b_iql_correction", "json_path": "$.cells.corrected"} in row.claims
+    assert {"claim": "C1", "record": "sums_p5_2", "entry": "p5_2/eval_random_iql.json"} in row.claims
+    for other in ("grid4x4.bc", "grid4x4.bc_top10", "grid4x4.bc_top10_perix"):
+        spec = next(r for r in ct.TABLE_ROWS if r.row_id == other)
+        kept = [e for e in spec.training if e["tier"] == "random"]
+        assert len(kept) == 1 and kept[0]["record"] is None, other
+        assert kept[0]["seconds"] == {"kind": "absent", "key": "p5_2.baselines.seconds"}, other
+    exception = [text for text in ct.WHAT_THIS_DOES_NOT_SAY if "grid4x4.iql" in text]
+    assert len(exception) == 1 and "Best Performance" in exception[0] and "canar" in exception[0]
+
+
+def test_p5_2b_the_corrected_entry_is_the_correction_artifacts_read_here(built_artifact: Any) -> None:
+    """Gated: every value of the corrected entry against ``docs/data/p5_2b_iql_correction.json`` read HERE with json,
+    the data size against the five corrected checkpoints loaded here, and ``superseded`` against the original
+    checkpoints and P5.2's manifest -- two routes to each original digest (the manifest, the correction's record of
+    the defect)."""
+    artifact, roots = built_artifact
+    correction = json.loads(CORRECTION.read_text(encoding="utf-8"))
+    digest = hashlib.sha256(CORRECTION.read_bytes()).hexdigest()
+    runs = {int(run["seed"]): run for run in correction["training"]["runs"]}
+    row, entry = _iql_random(artifact["rows"])
+    assert entry["record"] == {"file": "docs/data/p5_2b_iql_correction.json", "sha256": digest}
+    seconds = [item["value"] for item in entry["seconds"]["per_seed"]]
+    assert seconds == [runs[seed]["seconds"] for seed in (101, 202, 303, 404, 505)]
+    assert entry["seconds"]["median"] == statistics.median(seconds) == correction["training"]["seconds"]["median"]
+    assert [item["value"] for item in entry["gradient_steps"]["per_seed"]] == [40000] * 5
+    assert entry["batch"]["value"] == correction["training"]["header"]["batch_size"] == 1280
+    main = roots.output_root.parent
+    rows = {torch.load(main / _CORRECTED.format(seed=s), map_location="cpu", weights_only=False)["provenance"][
+        "diagnostics"]["training_rows"] for s in (101, 202, 303, 404, 505)}
+    assert rows == {1_152_000} and entry["data"]["value"] == 1_152_000
+    assert entry["data"]["source"]["file"] == _CORRECTED.format(seed=101)
+    regime = {name: entry["regime"][name]["value"] for name in ("device", "gpu", "torch", "threads", "concurrency")}
+    header = correction["training"]["header"]
+    assert regime == {"device": "cuda", "gpu": header["regime"]["cuda_device_name"],
+                      "torch": header["regime"]["torch_version"], "threads": 1, "concurrency": 1}
+    assert entry["quotes"]["bracketed_by"]["value"] == correction["training"]["seconds"]["bracketed_by"]
+    for phase in ("open", "close"):
+        assert entry["quotes"][f"canary_{phase}_seconds"]["value"] == correction["training"]["canaries"][phase]["seconds"]
+    random_checkpoints = [c for c in row["checkpoints"] if c["tier"] == "random"]
+    assert [(c["path"], c["sha256"]) for c in random_checkpoints] == [
+        (_CORRECTED.format(seed=s), runs[s]["file_sha256"]) for s in (101, 202, 303, 404, 505)]
+    superseded = entry["superseded"]
+    assert superseded["data"]["value"] == 2_304_000 == correction["defect"]["original"]["training_rows"]
+    assert superseded["data"]["source"]["file"] == _ORIGINAL.format(seed=101)
+    sums = {line.split()[1]: line.split()[0] for line in (roots.output_root / "SHA256SUMS_p5_2.txt").read_text(
+        encoding="utf-8").splitlines() if line.strip()}
+    for item in superseded["checkpoints"]:
+        relative = _ORIGINAL.format(seed=item["seed"])
+        assert item["path"] == relative
+        assert item["sha256"] == sums[relative.removeprefix("output/")] == correction["defect"]["original"]["per_seed"][
+            str(item["seed"])]["sha256"]
+    assert [item["seed"] for item in superseded["checkpoints"]] == [101, 202, 303, 404, 505]
+    assert superseded["seconds"]["value"] is None and "P5.2" in superseded["seconds"]["reason"]
+    assert {"claim": "C1", "file": "docs/data/p5_2b_iql_correction.json", "sha256": digest,
+            "json_path": "$.cells.corrected"} in row["claims"]
+
+
+def test_p5_2b_the_excepted_entrys_five_seconds_are_sourced_from_the_correction_artifact(built_artifact: Any) -> None:
+    """Amendment A, A2 Q8(c)(ii): the one entry excepted from the null-seconds loop of
+    ``test_t_sources_the_declared_absences_carry_their_reasons`` -- ``(grid4x4.iql, random)`` -- has five seconds, each
+    sourced ``{file: docs/data/p5_2b_iql_correction.json, sha256, json_path}``, each equal to that file's value read here
+    with json."""
+    artifact, _ = built_artifact
+    document = json.loads(CORRECTION.read_text(encoding="utf-8"))
+    digest = hashlib.sha256(CORRECTION.read_bytes()).hexdigest()
+    _, entry = _iql_random(artifact["rows"])
+    items = entry["seconds"]["per_seed"]
+    assert [item["seed"] for item in items] == [101, 202, 303, 404, 505]
+    for item in items:
+        source = item["source"]
+        assert set(source) == {"file", "sha256", "json_path"}, source
+        assert (source["file"], source["sha256"]) == ("docs/data/p5_2b_iql_correction.json", digest)
+        assert item["value"] == _resolve(document, source["json_path"]), item
+        run = _resolve(document, source["json_path"].rsplit(".", 1)[0])
+        assert int(run["seed"]) == item["seed"] and run["seconds"] == item["value"]
+
+
+def test_p5_2b_every_other_row_and_block_of_the_committed_artifact_is_p8_2s_as_committed() -> None:
+    """Ungated (CI): the committed P8.2 artifact after P5.2b's rebuild -- every row but grid4x4.iql, every part of
+    grid4x4.iql but its random tier, and the top-level blocks, equal P8.2's committed ones (digests above); the random
+    tier is the corrected cell's; the additions are the one source, the one sentence and BRIEF_44 in registered_in."""
+    artifact = _committed_artifact()
+    rows = {row["id"]: row for row in artifact["rows"]}
+    assert set(rows) == set(_P8_2_ROWS) | {"grid4x4.iql"} and len(artifact["rows"]) == 44
+    for row_id, digest in _P8_2_ROWS.items():
+        assert _digest(rows[row_id]) == digest, row_id
+    iql = rows["grid4x4.iql"]
+    parameters = dict(iql["parameters"])
+    checks = parameters.pop("record_cross_checks")
+    parts = {name: iql[name] for name in ("architecture", "computation", "configuration", "environment_interactions",
+                                          "inference", "notes")}
+    parts.update({f"training {e['tier']}": e for e in iql["training"] if e["tier"] != "random"})
+    parts["checkpoints of the other tiers"] = [c for c in iql["checkpoints"] if c["tier"] != "random"]
+    parts["claims"] = [c for c in iql["claims"] if c.get("file") != "docs/data/p5_2b_iql_correction.json"]
+    parts["parameters but the cross-checks"] = parameters
+    parts["cross-checks of the other tiers"] = [c for c in checks if c["tier"] != "random"]
+    assert {name: _digest(node) for name, node in parts.items()} == _P8_2_IQL_PARTS
+    _, entry = _iql_random(artifact["rows"])
+    assert entry["record"]["file"] == "docs/data/p5_2b_iql_correction.json" and entry["seconds"]["median"] > 0
+    assert [c["source"]["file"] for c in checks if c["tier"] == "random"] == [
+        _CORRECTED.format(seed=s) for s in (101, 202, 303, 404, 505)]
+    assert {name: _digest(artifact[name]) for name in _P8_2_BLOCKS} == _P8_2_BLOCKS
+    assert sorted(artifact["sources_added_after_plan"]) == sorted(_P8_2_SOURCES_ADDED + ["p5_2b_iql_correction"])
+    assert "BRIEF_44" in artifact["registered_in"] and "BRIEF_43" in artifact["registered_in"]
+
+
+@pytest.mark.parametrize("damage, error, message", [
+    (None, None, None),
+    ("digest", ValueError, "superseded .* has sha256"),
+    ("size", ValueError, "differs across seeds"),
+    ("missing", FileNotFoundError, "does not exist"),
+])
+def test_p5_2b_training_block_quotes_and_supersedes_on_a_synthetic_record(
+    synthetic: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, damage: str | None, error: Any, message: str | None
+) -> None:
+    """BRIEF_44 §3.4's two optional keys on the synthetic record (written after the builder change, proven by its
+    mutants): ``quotes`` reads each value with its JSON path; ``superseded`` names each earlier checkpoint at the digest
+    its source holds, reads the data size from every one of them, carries the seconds' declared absence -- and refuses
+    a checkpoint at another digest, a size that differs across seeds, and a checkpoint that is not there."""
+    roots, row, entry = synthetic
+    digests = {}
+    for seed in (101, 202, 303, 404, 505):
+        path = tmp_path / "output" / "earlier" / f"model_seed{seed}.pt"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        rows = 9 if (damage == "size" and seed == 303) else 8
+        torch.save({"provenance": {"diagnostics": {"training_rows": rows}}, "seed": seed}, path)
+        digests[str(seed)] = hashlib.sha256(path.read_bytes()).hexdigest()
+    record = tmp_path / "docs" / "data" / "synthetic_training.json"
+    record.write_text(json.dumps({**json.loads(record.read_text()), "earlier": digests}))
+    monkeypatch.setitem(ct.PINNED_RECORDS, "synthetic", dataclasses.replace(
+        ct.PINNED_RECORDS["synthetic"], sha256=hashlib.sha256(record.read_bytes()).hexdigest()))
+    if damage == "digest":
+        target = tmp_path / "output" / "earlier" / "model_seed404.pt"
+        target.write_bytes(target.read_bytes() + b"\0")
+    elif damage == "missing":
+        (tmp_path / "output" / "earlier" / "model_seed505.pt").unlink()
+    monkeypatch.setitem(ct.DECLARED_ABSENCES, "synthetic.earlier.seconds", "the earlier record holds no seconds")
+    entry = {**entry,
+             "quotes": {"batch_again": {"kind": "record", "path": "$.batch"}},
+             "superseded": {"label": "the earlier cell", "note": "kept as the record",
+                            "path": "output/earlier/model_seed{seed}.pt",
+                            "digest": {"kind": "json", "record": "synthetic", "path": "$.earlier['{seed}']"},
+                            "data": {"path": "$.provenance.diagnostics.training_rows", "unit": "rows"},
+                            "seconds": {"kind": "absent", "key": "synthetic.earlier.seconds"}}}
+    if damage is not None:
+        with pytest.raises(error, match=message):
+            ct.training_block(row, entry, roots)
+        return
+    block = ct.training_block(row, entry, roots)
+    assert block["quotes"] == {"batch_again": {"value": 64, "source": {
+        "file": "docs/data/synthetic_training.json", "sha256": ct.PINNED_RECORDS["synthetic"].sha256,
+        "json_path": "$.batch"}}}
+    superseded = block["superseded"]
+    assert (superseded["label"], superseded["note"]) == ("the earlier cell", "kept as the record")
+    assert superseded["data"] == {"value": 8, "unit": "rows", "source": {
+        "file": "output/earlier/model_seed101.pt", "sha256": digests["101"],
+        "json_path": "$.provenance.diagnostics.training_rows"}}
+    assert [(c["seed"], c["path"], c["sha256"]) for c in superseded["checkpoints"]] == [
+        (seed, f"output/earlier/model_seed{seed}.pt", digests[str(seed)]) for seed in (101, 202, 303, 404, 505)]
+    assert superseded["seconds"] == {"value": None, "reason": "the earlier record holds no seconds"}
+    plain = ct.training_block(row, {k: v for k, v in entry.items() if k not in ("quotes", "superseded")}, roots)
+    assert "quotes" not in plain and "superseded" not in plain, "an entry without them gains no key"

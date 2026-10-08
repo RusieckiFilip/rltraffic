@@ -1,0 +1,5 @@
+BLOCKED: non-English text found. CLAUDE.md §3 requires every on-disk artifact in English:
+/tmp/claude-1000/-home-filip-rltraffic-p52b/b8df8e4b-1a97-4037-a120-8bdcf37bc8b4/scratchpad/iql_correction_polish.py:2108
+
+Translate the prose. If a hit is a proper noun, add it to ALLOWED_NAMES in
+scripts/check_english.sh instead of removing the diacritics from someone's name.

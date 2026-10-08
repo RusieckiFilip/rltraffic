@@ -1,0 +1,42 @@
+# whole suite at b4a19f3, gates open, started 2026-10-07T00:36:51Z
+........................................................................ [ 74%]
+.......................................sF..sss..s.....s................. [ 77%]
+......................................sssssss..............sss.......... [ 79%]
+...s.................................................................... [ 81%]
+........................................................................ [ 83%]
+........................................................................ [ 85%]
+........................................................................ [ 87%]
+................................................s....................... [ 89%]
+..........................................sss........................... [ 92%]
+........................................................................ [ 94%]
+........................................................................ [ 96%]
+........................................................................ [ 98%]
+.................................................                        [100%]
+=================================== FAILURES ===================================
+E   FileNotFoundError: [Errno 2] No such file or directory: 'output/p4_dt/dt_seed101.pt'
+/home/filip/rltraffic/.venv/lib/python3.12/site-packages/torch/serialization.py:776: FileNotFoundError: [Errno 2] No such file or directory: 'output/p4_dt/dt_seed101.pt'
+=============================== warnings summary ===============================
+tests/test_aligned_env.py: 6 warnings
+tests/test_backend_alignment.py: 2 warnings
+tests/test_dqn_queue_length_reward.py: 1 warning
+tests/test_materialise_parity.py: 1 warning
+tests/test_per_intersection_calibration.py: 1 warning
+tests/test_sumo_att_reference.py: 2 warnings
+tests/test_sumo_env_phase_constraints.py: 8 warnings
+tests/test_transfer_calibration.py: 5 warnings
+tests/test_transfer_curve.py: 1 warning
+tests/test_transfer_gate.py: 3 warnings
+  /home/filip/rltraffic-p52b/utils/sumo_utils.py:56: UserWarning: Call to deprecated function getAllProgramLogics, use getCompleteRedYellowGreenDefinition instead.
+    definitions = sumo.trafficlight.getCompleteRedYellowGreenDefinition(tl_id)
+
+tests/test_runner_threading.py::test_worker_process_runs_single_threaded
+tests/test_runner_threading.py::test_worker_process_runs_single_threaded
+tests/test_runner_threading.py::test_pool_path_pins_every_worker
+  /usr/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=2504771) is multi-threaded, use of fork() may lead to deadlocks in the child.
+    self.pid = os.fork()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_rtg_ablation.py::test_the_spread_table_uses_the_whole_declared_training_set_not_the_probe_subsample
+1 failed, 3297 passed, 63 skipped, 33 warnings in 1329.03s (0:22:09)
+# finished 2026-10-07T00:59:02Z

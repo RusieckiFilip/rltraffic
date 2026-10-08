@@ -1,0 +1,12 @@
+tests/test_zz_c8_hygiene_falsification.py:5: [TH001] 'or True' / 'or 1' makes this assertion impossible to fail
+    assert 1 == 2 or True
+tests/test_zz_c8_hygiene_falsification.py:6: [TH006] pytest.raises without match=: any error of that class satisfies it
+    with pytest.raises(ValueError):
+
+Test-hygiene check failed (scripts/check_test_hygiene.sh).
+These patterns make a test unable to fail, which is worse than no test:
+a green suite then certifies nothing. Fix the test, or -- if the property
+genuinely does not hold -- delete the assertion and say so in the Return
+Packet rather than neutralising it (CLAUDE.md section 0).
+
+To waive one line, append: # hygiene: allow TH00N - <reason, 10+ chars>

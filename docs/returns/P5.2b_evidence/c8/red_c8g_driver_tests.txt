@@ -1,0 +1,10 @@
+# C8g red run at 1ad8f79 + the uncommitted driver tests, 2026-10-06T22:40:22Z
+E   AssertionError: ['timeouts', 'power-check', 'check', 'status training', 'evaluate-p5-2', 'evaluate-p8-4b', ...]
+E   AssertionError: the driver has no line with 'closing_pending'
+E   AssertionError: close-late
+E   assert None
+FAILED tests/test_p5_2b_correction_driver.py::test_b1_3_the_restart_after_a_missing_closing_canary_takes_it_alone_and_trains_nothing[complete-closing_pending]
+FAILED tests/test_p5_2b_correction_driver.py::test_b1_3_the_late_branch_reads_the_canaries_state_and_marks_before_it_canaries
+FAILED tests/test_p5_2b_correction_driver.py::test_b1_3_the_header_documents_that_a_complete_training_is_never_trained_again
+FAILED tests/test_p5_2b_correction_driver.py::test_b2_the_driver_pins_the_preflight_g1_accepted
+4 failed, 20 passed in 16.09s

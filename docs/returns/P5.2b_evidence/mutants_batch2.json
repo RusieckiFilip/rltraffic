@@ -1,0 +1,148 @@
+[
+ {
+  "id": "G-argv-engine-seed",
+  "gates": true,
+  "what": "the evaluation argv's engine seed off by one, against T-protocol on the real record",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "\"--engine-seed\", str(protocol.engine_seed),",
+    "\"--engine-seed\", str(protocol.engine_seed + 1),"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "t_protocol_the_evaluation"
+  ]
+ },
+ {
+  "id": "G-heldout-draw-refused",
+  "gates": true,
+  "what": "dt_gate.HELD_OUT_DRAWS with draw 1050 replaced by 1100 (the module's protocol refusal kept)",
+  "edits": [
+   [
+    "offline/dt_gate.py",
+    "    range(DRAW_SPLITS[\"heldout\"][0], DRAW_SPLITS[\"heldout\"][1] + 1)\n)",
+    "    d if d != 1050 else 1100 for d in range(DRAW_SPLITS[\"heldout\"][0], DRAW_SPLITS[\"heldout\"][1] + 1)\n)"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "t_protocol_the_evaluation"
+  ]
+ },
+ {
+  "id": "G-heldout-draw-unrefused",
+  "gates": true,
+  "what": "dt_gate.HELD_OUT_DRAWS with draw 1050 replaced by 1100 AND the module's draw refusal removed",
+  "edits": [
+   [
+    "offline/dt_gate.py",
+    "    range(DRAW_SPLITS[\"heldout\"][0], DRAW_SPLITS[\"heldout\"][1] + 1)\n)",
+    "    d if d != 1050 else 1100 for d in range(DRAW_SPLITS[\"heldout\"][0], DRAW_SPLITS[\"heldout\"][1] + 1)\n)"
+   ],
+   [
+    "offline/iql_correction.py",
+    "    if held_out != protocol.draw_ids:\n",
+    "    if False:\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "t_protocol_the_evaluation"
+  ]
+ },
+ {
+  "id": "G-cells-draw",
+  "gates": true,
+  "what": "the rederivation cells' last draw shifted by one, against T-protocol (ii) on P8.4b's manifest",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "for seed in sorted(int(s) for s in seeds) for draw in sorted(int(d) for d in draws)]",
+    "for seed in sorted(int(s) for s in seeds) for draw in sorted(int(d) + (d == draws[-1]) for d in draws)]"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "t_protocol_the_rederivation"
+  ]
+ },
+ {
+  "id": "G-mean-route",
+  "gates": true,
+  "what": "levels_of by statistics.mean instead of dt_gate.mean_ci95",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    return {cell: float(mean_ci95([episode.att_horizon for episode in episodes]).mean)\n",
+    "    import statistics as _s\n    return {cell: float(_s.mean([episode.att_horizon for episode in episodes]))\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "t_reproduce_c_the_recomputation"
+  ]
+ },
+ {
+  "id": "G-rows-filter-and-refusal",
+  "gates": true,
+  "what": "iql_transition_table: the filter AND the refusal removed, against T-rows on the real tier",
+  "edits": [
+   [
+    "offline/tier_sweep.py",
+    "    table = filter_transitions_to_streams(full, keys, streams)\n",
+    "    table = full\n"
+   ],
+   [
+    "offline/tier_sweep.py",
+    "    if present != wanted or len(table) != expected:\n",
+    "    if False:\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "t_rows"
+  ]
+ },
+ {
+  "id": "G-rows-filter-only",
+  "gates": true,
+  "what": "iql_transition_table: the filter removed, the refusal kept, against T-rows on the real tier",
+  "edits": [
+   [
+    "offline/tier_sweep.py",
+    "    table = filter_transitions_to_streams(full, keys, streams)\n",
+    "    table = full\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "t_rows"
+  ]
+ },
+ {
+  "id": "G-scale-all-streams",
+  "gates": true,
+  "what": "training_inputs takes the reward scale from every stream, against T-scale on the real tier",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    scale = iql_reward_scale([stream.total_return for stream in streams])\n",
+    "    scale = iql_reward_scale([stream.total_return for stream in parts[\"streams_all\"]])\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py",
+   "-k",
+   "t_scale"
+  ]
+ }
+]

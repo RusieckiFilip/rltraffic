@@ -95,6 +95,7 @@ __all__ = [
     "concordance",
     "episode_key_set",
     "episodes_in",
+    "iql_transition_table",
     "lr_multiplier",
     "parse_sha256sums",
     "per_intersection_top_streams",
@@ -1792,6 +1793,55 @@ def baseline_stream_selections(
     }
 
 
+def iql_transition_table(
+    dataset: Any, *, group: tuple[int, int], reward_scale: float, streams: Sequence[Any]
+) -> Any:
+    """IQL's transition table on the size-matched streams ONLY -- ``DEFERRED`` 106's fix (``BRIEF_44`` §4.1).
+
+    🚨 **Why this exists, and it is a defect P5.2 shipped.**  ``offline_baselines.build_transitions`` reads EVERY
+    ``dataset.episode_records`` entry, and ``_run_train_baselines`` used to hand IQL that whole table while BC's and
+    both %BC's batches were filtered to ``streams``.  On the ``random`` tier -- 400 episodes available, 200 selected
+    -- P5.2's IQL therefore trained on 2,304,000 transitions against every other arm's 1,152,000, and the provenance's
+    ``training_streams`` (the selected 3,200) hid it.  The table is now ``method_tier_grid``'s two helpers composed,
+    exactly as P4.6/P4.7 build theirs (``method_tier_grid.py:2487-2490``).
+
+    🔒 **It REFUSES unless the table holds exactly the declared streams' transitions**, by two checks that do not
+    trust the filter they guard: (a) identity -- the streams with a row in the table are the declared streams, none
+    missing and none extra; (b) count -- the row count is the sum of the declared streams' episode lengths, read from
+    the loader's own ``episode_records`` rather than from the table, so a stream whose rows were repeated or cut is
+    refused too.  On a tier whose episodes are all selected the filter keeps every row in its order, so the table is
+    the whole table and no other tier's IQL can change.
+    """
+    import torch
+
+    from offline.method_tier_grid import filter_transitions_to_streams, transition_stream_keys
+    from offline.offline_baselines import build_transitions
+
+    full = build_transitions(dataset, group=group, reward_scale=reward_scale)
+    keys = transition_stream_keys(dataset, group)
+    if len(keys) != int(full.stream_index.max()) + 1:
+        raise ValueError(
+            f"the stream key map holds {len(keys)} streams but the whole table indexes "
+            f"{int(full.stream_index.max()) + 1}; the two no longer describe the same data"
+        )
+    table = filter_transitions_to_streams(full, keys, streams)
+    wanted = {tuple(stream.key) for stream in streams}
+    present = {tuple(keys[int(index)]) for index in torch.unique(table.stream_index).tolist()}
+    lengths = {
+        (str(record.dataset_dir), str(record.episode_file)): int(record.episode_length)
+        for record in dataset.episode_records
+    }
+    expected = sum(lengths[(str(stream.dataset_dir), str(stream.episode_file))] for stream in streams)
+    if present != wanted or len(table) != expected:
+        raise ValueError(
+            f"the IQL table holds {len(table)} transitions over {len(present)} streams, but the declared streams "
+            f"are {len(wanted)} with {expected} transitions ({len(present - wanted)} undeclared stream(s) present, "
+            f"{len(wanted - present)} missing): IQL must train on exactly the declared streams' transitions "
+            "(BRIEF_44 §4.1, DEFERRED 106)"
+        )
+    return table
+
+
 def paired_d1_block(
     spatial_left: Mapping[str, Any],
     nomix_left: Mapping[str, Any],
@@ -2075,7 +2125,9 @@ def _run_train_baselines(args: Any) -> int:
             print(f"TRAIN {tier}/{method} seed {seed} -> {path}", flush=True)
             if method == "iql":
                 if table is None:
-                    table = build_transitions(dataset, group=group, reward_scale=scale)
+                    table = iql_transition_table(
+                        dataset, group=group, reward_scale=scale, streams=streams
+                    )
                     print(f"  transitions {len(table)}", flush=True)
                 train_iql(
                     table, state_dim=group[0], n_actions=group[1], seed=int(seed),

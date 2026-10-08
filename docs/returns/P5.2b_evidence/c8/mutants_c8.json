@@ -1,0 +1,624 @@
+[
+ {
+  "id": "PM4",
+  "what": "P8.4b's cells read without the att_ours == P5.2 att_horizon check (the coordinator's PM4)",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "                or float(row[\"att_ours\"]) != episode.att_horizon):\n",
+    "                ):\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "MT2",
+  "what": "iql_transition_table's identity check (a) deleted, the count check kept (RB's MT2)",
+  "edits": [
+   [
+    "offline/tier_sweep.py",
+    "    if present != wanted or len(table) != expected:\n",
+    "    if len(table) != expected:\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_tier_sweep.py",
+   "-k",
+   "p5_2b"
+  ]
+ },
+ {
+  "id": "H4-cpu-only-max",
+  "what": "the H4 maximum taken over the cpu cells only (RB's one-device maximum)",
+  "edits": [
+   [
+    "offline/compute_table.py",
+    "        \"h4_median_change_max_abs\": max(h4) if h4 else None,\n",
+    "        \"h4_median_change_max_abs\": max(abs(cell[\"median_change\"]) for label, cell in cells.items() if label.startswith(\"hz1x1.h4.\") and label.endswith(\"_cpu\")) if h4 else None,\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_compute_table.py",
+   "-k",
+   "d107 or h4"
+  ]
+ },
+ {
+  "id": "H4-cuda-only-max",
+  "what": "the H4 maximum taken over the cuda cells only (the other device)",
+  "edits": [
+   [
+    "offline/compute_table.py",
+    "        \"h4_median_change_max_abs\": max(h4) if h4 else None,\n",
+    "        \"h4_median_change_max_abs\": max(abs(cell[\"median_change\"]) for label, cell in cells.items() if label.startswith(\"hz1x1.h4.\") and label.endswith(\"_cuda\")) if h4 else None,\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_compute_table.py",
+   "-k",
+   "d107 or h4"
+  ]
+ },
+ {
+  "id": "M1",
+  "what": "Q2a's outcome forced FAILED (RA2's M1)",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "\"outcome\": \"HELD\" if firsts == [predicted[0]] else \"FAILED\",",
+    "\"outcome\": \"FAILED\","
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "M2",
+  "what": "Q3a's outcome forced FAILED (RA2's M2)",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "\"outcome\": \"HELD\" if all(measured[method] > measured[\"dt_nomix\"] for method in others) else \"FAILED\",",
+    "\"outcome\": \"FAILED\","
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "M3",
+  "what": "Q3c's NOT RESOLVED branch reads 'resolves for the DT' (RA2's M3)",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "(\"resolves for the DT\" if high < 0 else \"NOT RESOLVED\")",
+    "(\"resolves for the DT\" if high < 0 else \"resolves for the DT\")"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "M4",
+  "what": "_corrected_rows' policy_source guard disabled (RA2's M4)",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "        if source != checkpoints[cell.seed]:\n",
+    "        if False:\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "M8",
+  "what": "_verify_run_manifest's per-file re-check disabled (RA2's M8)",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "        if _sha256_file(output / name) != digest:\n            raise ValueError(f\"{output / name} does not match its line in {path}\")",
+    "        if False:\n            raise ValueError(f\"{output / name} does not match its line in {path}\")"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "M9",
+  "what": "check's refusal of canaries without a complete training removed (RA2's M9)",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    if state[\"training\"] != \"complete\" and state[\"canaries\"] != \"absent\":\n        partial.append(\"canaries\")\n",
+    "    if False:\n        partial.append(\"canaries\")\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "M10",
+  "what": "_corrected_rows' committed_att_ours clause removed (RA2's M10, a NOTE)",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    " or float(row[\"committed_att_ours\"]) != reference[key]):",
+    "):"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "M12",
+  "what": "the completeness predicate's training_rows clause removed (RA2's M12)",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "                or int(run[\"training_rows\"]) != int(declared_rows)\n",
+    ""
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "ii-1-resolver",
+  "what": "evaluate_p8_4b_stage's pre-run resolver and file digest check removed",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "        if path.resolve() != Path(run[\"checkpoint_path\"]).resolve() or _sha256_file(path) != run[\"file_sha256\"]:\n",
+    "        if False:\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "ii-2-refused",
+  "what": "evaluate_p8_4b_stage accepts a campaign with refused cells",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    if result[\"outcome\"][\"n_refused\"] or not result[\"status\"][\"complete\"]:\n",
+    "    if False:\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "ii-3-recheck",
+  "what": "evaluate_p8_4b_stage's final re-check of every row against (i) removed",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    _corrected_rows(out, protocol, episodes_from_rows(payload[\"episodes\"], value_key=\"att_horizon\"), record)\n    return work\n",
+    "    return work\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "N-c1-compare",
+  "what": "B1.1: the C1 note's means not compared",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "            if mine != theirs:\n",
+    "            if False:\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "N-c1-identity",
+  "what": "B1.1: a P8.4b file that is not the cell its name says accepted",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "        if identity != (scenario, TIER, method, arm, int(seed), int(draw)):\n",
+    "        if False:\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "N-c1-not-called",
+  "what": "B1.1: _verify_inputs no longer runs the C1 anchor",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    c1 = assert_c1_note_means(output, campaign[\"cells\"], note[\"payload\"])\n",
+    "    c1 = {}\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "N-out-exists",
+  "what": "B1.6(a): an output root without SHA256SUMS_p5_2.txt accepted",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    if not sums.is_file():\n",
+    "    if False:\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "N-out-nested",
+  "what": "B1.6(a): an output root nested in an output tree accepted",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    if above is not None:\n",
+    "    if False:\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "N-out-digest",
+  "what": "B1.6(a): the output root's manifest not compared with the pin",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "        if digest != pins.p5_2_sums_sha256:\n            raise PermissionError(",
+    "        if False:\n            raise PermissionError("
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "N-out-check-no-pins",
+  "what": "B1.6(a): check calls the barrier without its pins",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    out = assert_out_root(roots.out_root, output, pins=pins)\n    if out != output.resolve() / RUN_DIR:\n        raise PermissionError(f\"check is the run",
+    "    out = assert_out_root(roots.out_root, output)\n    if out != output.resolve() / RUN_DIR:\n        raise PermissionError(f\"check is the run"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "N-hyper-compare",
+  "what": "B1.6(b): a drifted hyperparameter not refused",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    if drift:\n        raise ValueError(\n            f\"the planned training is not P5.2's",
+    "    if False:\n        raise ValueError(\n            f\"the planned training is not P5.2's"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "N-hyper-not-called",
+  "what": "B1.6(b): train_stage records the planned values without comparing them",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    hyperparameters = assert_hyperparameters(\n        planned_hyperparameters(inputs, gradient_steps=protocol.declared_gradient_steps), verified[\"original\"][\"common\"])\n",
+    "    hyperparameters = planned_hyperparameters(inputs, gradient_steps=protocol.declared_gradient_steps)\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "N-corpus-pin",
+  "what": "B1.6(e): the corpus manifest's digest not compared with the pin",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    if manifest_digest != pins.corpus_manifest_sha256:\n",
+    "    if False:\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "N-level-cell-mean",
+  "what": "B1.7(c): the corrected level not compared with its own cell mean",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    if level != float(corrected_payload[\"cell\"][\"att_horizon_mean\"]):\n",
+    "    if False:\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "N-original-digest",
+  "what": "B1.7(f): a corrected run carrying an original's weight digest accepted",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "            if same:\n                raise ValueError(\n                    f\"the corrected seed",
+    "            if False:\n                raise ValueError(\n                    f\"the corrected seed"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "N-q1-flag",
+  "what": "B1.7(d): Q1 under att_engine carries the att_ours text, no flag",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "\"(docs/plans/p5.2.md section 4)\" if definition == \"att_ours\" else",
+    "\"(docs/plans/p5.2.md section 4)\" if True else"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "N-sources",
+  "what": "B1.7(e): cells.corrected without its sources",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "                          \"sources\": {\"att_ours\": f\"output/{RUN_DIR}/{EVAL_NAME}\", \"att_ours_p8_4b_path\": pattern,\n                                      \"att_engine\": pattern, \"admission\": pattern}},",
+    "                          },"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "N-close-late-state",
+  "what": "B1.3: close-late writes a mark in any state",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    if state[\"training\"] != \"complete\" or state[\"canaries\"] != \"closing_pending\":\n",
+    "    if False:\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "N-close-late-foreign",
+  "what": "B1.3: close-late accepts a mark naming another training record",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "            raise ValueError(f\"{path} exists and does not name this training record (sha256 {training_sha}): move \"\n                             \"output/p5_2b aside by hand\")\n",
+    "            pass\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "N-closing-pending",
+  "what": "B1.3: status never says closing_pending (the state is partial, as before)",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    elif training == \"complete\" and canaries == [True, False]:\n",
+    "    elif False:\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "N-report-mark",
+  "what": "B1.3: the report reads a late-close mark naming another training record",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "            raise ValueError(f\"{out / LATE_CLOSE_NAME} does not name this run's training record (sha256 \"\n                             f\"{training_sha}): the bracket of the training's seconds cannot be read from it\")\n",
+    "            pass\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "N-bracket-ignores-late",
+  "what": "B1.3: the report says both canaries bracket the seconds, late or not",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "\"after the training\" if late is None else",
+    "\"after the training\" if True else"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "N-manifest-gate",
+  "what": "B.1 item 2: manifest_stage writes on a partial run",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    if incomplete:\n",
+    "    if False:\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "N-cli-bypass",
+  "what": "B.1 item 2: the CLI's manifest calls write_run_manifest directly",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "            lines = manifest_stage(roots, pins=pins)\n",
+    "            lines = write_run_manifest(roots, protected_roots(roots))\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "N-per-seed-seeds",
+  "what": "B.1 item 1: arms covering different seeds accepted",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    if any(value != seeds for value in covered.values()):\n",
+    "    if False:\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "N-reversal-ignored",
+  "what": "B.1 item 1: no seed is ever reported as reversing",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    reversing = [int(seed) for seed, block in per_seed.items() if block[\"firsts\"] != [order[0]]]\n",
+    "    reversing: list[int] = []\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "N-draws-nowhere",
+  "what": "B1.8: no stage checks the materialised draws",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    missing = [draw for draw in protocol.draw_ids if draws\n",
+    "    missing = [draw for draw in protocol.draw_ids if False\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "N-draws-report",
+  "what": "B1.8 reverted: the report requires the draws again",
+  "edits": [
+   [
+    "offline/iql_correction.py",
+    "    verified = _verify_inputs(roots, pins, draws=False)\n",
+    "    verified = _verify_inputs(roots, pins)\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_iql_correction.py"
+  ]
+ },
+ {
+  "id": "D-late-branch-removed",
+  "what": "B1.3: the driver has no late branch (the restart skips the closing canary)",
+  "edits": [
+   [
+    "offline/campaigns/p5_2b_correction.sh",
+    "elif [ \"$(ic status \"${ROOTS[@]}\" --out-root \"$RUN\" --stage canaries)\" = closing_pending ]; then\n",
+    "elif false; then\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_p5_2b_correction_driver.py"
+  ]
+ },
+ {
+  "id": "D-late-trains",
+  "what": "B1.3: the late branch trains again (a second realisation) instead of close-late",
+  "edits": [
+   [
+    "offline/campaigns/p5_2b_correction.sh",
+    "  ic close-late \"${ROOTS[@]}\" --out-root \"$RUN\" || fail \"the late closing canary's mark was not written\"\n",
+    "  attempt training \"$T_TRAIN\" 1 env PYTHONPATH=\"$WORK_TREE\" \"$PY\" -P -m offline.iql_correction train \"${ROOTS[@]}\" --out-root \"$RUN\" || fail \"x\"\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_p5_2b_correction_driver.py"
+  ]
+ },
+ {
+  "id": "D-mark-after-canary",
+  "what": "B1.3: close-late runs after the late canary",
+  "edits": [
+   [
+    "offline/campaigns/p5_2b_correction.sh",
+    "  ic close-late \"${ROOTS[@]}\" --out-root \"$RUN\" || fail \"the late closing canary's mark was not written\"\n  attempt canary_close_late \"$CANARY_TIMEOUT\" 1 env PYTHONPATH=\"$WORK_TREE\" \"$PY\" -P -m offline.compute_latency canary --phase close --out-dir \"$RUN\" || fail \"the late closing canary failed: start again with a new token; nothing is trained again\"\n",
+    "  attempt canary_close_late \"$CANARY_TIMEOUT\" 1 env PYTHONPATH=\"$WORK_TREE\" \"$PY\" -P -m offline.compute_latency canary --phase close --out-dir \"$RUN\" || fail \"the late closing canary failed: start again with a new token; nothing is trained again\"\n  ic close-late \"${ROOTS[@]}\" --out-root \"$RUN\" || fail \"the late closing canary's mark was not written\"\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_p5_2b_correction_driver.py"
+  ]
+ },
+ {
+  "id": "D-pin-unset",
+  "what": "B2: the pre-flight pin removed",
+  "edits": [
+   [
+    "offline/campaigns/p5_2b_correction.sh",
+    "PREFLIGHT_RECORD=p5_2b_runs/preflight_20261006T195405Z/preflight.json\nPREFLIGHT_SHA256=a280452734494479f6d2941b09ff12c16825155080404ee7ce84b95752c4bb4b\n",
+    "PREFLIGHT_RECORD=UNSET\nPREFLIGHT_SHA256=UNSET\n"
+   ]
+  ],
+  "tests": [
+   "tests/test_p5_2b_correction_driver.py"
+  ]
+ }
+]

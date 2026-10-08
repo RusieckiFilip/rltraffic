@@ -1,0 +1,1822 @@
+{
+  "cells": {
+    "corrected": {
+      "admission": {
+        "created_mean": 1327.57,
+        "entered_fraction_mean": 1.0,
+        "entered_mean": 1327.57,
+        "episodes_with_never_entered": 0,
+        "n": 500,
+        "never_entered_mean": 0.0
+      },
+      "att_engine": {
+        "ci95": 2.6613510488233345,
+        "ci95_high": 194.05513794715216,
+        "ci95_low": 188.73243584950552,
+        "mean": 191.39378689832884,
+        "n": 500,
+        "per_seed_means": {
+          "101": 191.27820794101677,
+          "202": 190.1709795515929,
+          "303": 186.47978409098297,
+          "404": 207.42859149078788,
+          "505": 181.61137141726357
+        },
+        "std": 30.362050291629274
+      },
+      "att_ours": {
+        "ci95": 2.6421072122236966,
+        "ci95_high": 201.12306442903233,
+        "ci95_low": 195.83885000458494,
+        "mean": 198.48095721680863,
+        "n": 500,
+        "per_seed_means": {
+          "101": 198.37046214487063,
+          "202": 197.27436891688,
+          "303": 193.6045529922521,
+          "404": 214.41884365920905,
+          "505": 188.73655837083152
+        },
+        "std": 30.142506787625763
+      },
+      "att_ours_p8_4b_path": {
+        "ci95": 2.6421072122236966,
+        "ci95_high": 201.12306442903233,
+        "ci95_low": 195.83885000458494,
+        "mean": 198.48095721680863,
+        "n": 500,
+        "per_seed_means": {
+          "101": 198.37046214487063,
+          "202": 197.27436891688,
+          "303": 193.6045529922521,
+          "404": 214.41884365920905,
+          "505": 188.73655837083152
+        },
+        "std": 30.142506787625763
+      },
+      "paths_agree": {
+        "episodes": 500,
+        "equal": 500
+      },
+      "sources": {
+        "admission": "output/p5_2b/rederivation/cell_grid4x4_iql_at_random_*",
+        "att_engine": "output/p5_2b/rederivation/cell_grid4x4_iql_at_random_*",
+        "att_ours": "output/p5_2b/eval_random_iql.json",
+        "att_ours_p8_4b_path": "output/p5_2b/rederivation/cell_grid4x4_iql_at_random_*"
+      }
+    },
+    "original": {
+      "admission": {
+        "created_mean": 1327.57,
+        "entered_fraction_mean": 1.0,
+        "entered_mean": 1327.57,
+        "episodes_with_never_entered": 0,
+        "n": 500,
+        "never_entered_mean": 0.0
+      },
+      "att_engine": {
+        "ci95": 2.2262813040369576,
+        "ci95_high": 186.05441627658865,
+        "ci95_low": 181.60185366851476,
+        "mean": 183.8281349725517,
+        "n": 500,
+        "per_seed_means": {
+          "101": 180.52104385913665,
+          "202": 180.86397847693,
+          "303": 201.74775009777997,
+          "404": 177.9636706246586,
+          "505": 178.04423180425337
+        },
+        "std": 25.398552718691402
+      },
+      "att_ours": {
+        "ci95": 2.2080572828448304,
+        "ci95_high": 193.17187646844584,
+        "ci95_low": 188.75576190275618,
+        "mean": 190.963819185601,
+        "n": 500,
+        "per_seed_means": {
+          "101": 187.6634269544382,
+          "202": 187.99799431156242,
+          "303": 208.74653091669342,
+          "404": 185.13185738956847,
+          "505": 185.27928635574267
+        },
+        "std": 25.19064378905368
+      },
+      "sources": {
+        "att_engine": "output/p8_4b_rederivation/cell_grid4x4_iql_at_random_*",
+        "att_ours": "output/p5_2/eval_random_iql.json"
+      }
+    }
+  },
+  "defect": {
+    "declared": {
+      "corpus_manifest": {
+        "file": "datasets_v11/cf_grid4x4__random/manifest.json",
+        "sha256": "ebb36187868dd6ff0768d3f2828a9366d3e20a62d1b18011f5c7dc6fd6e189ee"
+      },
+      "declaration": {
+        "file": "docs/data/p5_2_declaration_random.json",
+        "sha256": "c8b8a35a2dd034434aef4b0c32de73627de7f35a8f7eb55b0bbf752631eadfe4"
+      },
+      "episodes_selected": 200,
+      "nodes": 16,
+      "rows": 1152000,
+      "streams": 3200,
+      "whole_tier_rows": 2304000
+    },
+    "deferred": 106,
+    "file_line": {
+      "at_main_before_the_fix": "offline/tier_sweep.py:2078 at f077875",
+      "at_the_training_commit": "offline/tier_sweep.py:1820 at 9460800, the commit every original checkpoint records"
+    },
+    "fixed_by": "offline.tier_sweep.iql_transition_table (BRIEF_44 section 4.1)",
+    "mechanism": "_run_train_baselines filtered BC's and %BC's batches to the declared streams but built IQL's transition table from the whole dataset (offline_baselines.build_transitions reads every episode record), so IQL at the random tier trained on every available episode",
+    "original": {
+      "episodes_available": 400,
+      "per_seed": {
+        "101": {
+          "canonical_digest": "c27e879217404e239faf667e4dd589d1970ec47f25486ca99eb509a391af8eaf",
+          "checkpoint": "output/p5_2/checkpoints/grid4x4_random_iql_seed101.pt",
+          "sha256": "b4a0d3aeb5e7247a0e18c57b55d4fbbe5416b7e05ebb7247be7c94951b3fb5c6",
+          "state_dict_sha256": "29307d4d44ed3059a4a2a76164837213d8993a542d4de6a82af97204d2647252",
+          "training_rows": 2304000
+        },
+        "202": {
+          "canonical_digest": "c30e04998be7ed56f8d4c7bc81bbebd9eae946b614ec269566e91be04f690ad9",
+          "checkpoint": "output/p5_2/checkpoints/grid4x4_random_iql_seed202.pt",
+          "sha256": "b8a7a01f2c1ccffa1ce7811c6c730566dd6a36d3ef935f6b199562c1f26b2378",
+          "state_dict_sha256": "01e7554f6c840a88166750631c14cac34536b3605eae6af25e9e64047212fed9",
+          "training_rows": 2304000
+        },
+        "303": {
+          "canonical_digest": "9102307c8f9920f4997d4c80d13ebba5a56e1202696ca8cf0e906bd8d26fb79e",
+          "checkpoint": "output/p5_2/checkpoints/grid4x4_random_iql_seed303.pt",
+          "sha256": "e22e71c2a0f9f65f828615856cf983b3f2a6c859bcfb5c8dd8da37ddaecbdfe1",
+          "state_dict_sha256": "10cef58e4fd252033d50969931be4c4a4a18b5f0284f700511de69c1e30b2bc5",
+          "training_rows": 2304000
+        },
+        "404": {
+          "canonical_digest": "0cb9af8e8bb842dcbb9c423aef0c0af262528748722869d9dc46c0b823748f6a",
+          "checkpoint": "output/p5_2/checkpoints/grid4x4_random_iql_seed404.pt",
+          "sha256": "1bdd9be17360d993b68adb5a9cc8c1708d02e82e3e0270915be56b8f8fdc60ea",
+          "state_dict_sha256": "4813d40109ef0b00d9a008cd9c364bdf099fc0bc9aaa8e6776ec6905520e0869",
+          "training_rows": 2304000
+        },
+        "505": {
+          "canonical_digest": "36e3c94c79b1572664e862b3d3d1b2bf4df9320f3849277b31dc4f055096ac47",
+          "checkpoint": "output/p5_2/checkpoints/grid4x4_random_iql_seed505.pt",
+          "sha256": "bed7b447a53728abb991a87838a3fee671d89a4c7fd431c27c1d396561551fbb",
+          "state_dict_sha256": "9182606da7245c1587b033672c26d1b7c96f503829dc93c0514c6de46d8f1b28",
+          "training_rows": 2304000
+        }
+      },
+      "training_rows": 2304000,
+      "training_streams_recorded": 3200
+    }
+  },
+  "evaluation": {
+    "p5_2_path": {
+      "code": "offline.tier_sweep.main evaluate (in-process)",
+      "file": "output/p5_2b/eval_random_iql.json",
+      "sha256": "7de859dbf3d786d1ec8f13b98d17344bb747430eedb3b4fa2f7675ed376763cf"
+    },
+    "p8_4b_path": {
+      "code": "offline.att_rederivation.run_campaign, its committed map (i)'s output",
+      "declared_cells_sha256": "09568e28296e7cf8fa292d0db32e3cf1532990ec66c3af4108cf420b3b778c9e",
+      "n_cells": 500,
+      "work_dir": "output/p5_2b/rederivation"
+    },
+    "protocol": {
+      "declared_gradient_steps": 40000,
+      "deterministic": false,
+      "draw_ids": [
+        1000,
+        1001,
+        1002,
+        1003,
+        1004,
+        1005,
+        1006,
+        1007,
+        1008,
+        1009,
+        1010,
+        1011,
+        1012,
+        1013,
+        1014,
+        1015,
+        1016,
+        1017,
+        1018,
+        1019,
+        1020,
+        1021,
+        1022,
+        1023,
+        1024,
+        1025,
+        1026,
+        1027,
+        1028,
+        1029,
+        1030,
+        1031,
+        1032,
+        1033,
+        1034,
+        1035,
+        1036,
+        1037,
+        1038,
+        1039,
+        1040,
+        1041,
+        1042,
+        1043,
+        1044,
+        1045,
+        1046,
+        1047,
+        1048,
+        1049,
+        1050,
+        1051,
+        1052,
+        1053,
+        1054,
+        1055,
+        1056,
+        1057,
+        1058,
+        1059,
+        1060,
+        1061,
+        1062,
+        1063,
+        1064,
+        1065,
+        1066,
+        1067,
+        1068,
+        1069,
+        1070,
+        1071,
+        1072,
+        1073,
+        1074,
+        1075,
+        1076,
+        1077,
+        1078,
+        1079,
+        1080,
+        1081,
+        1082,
+        1083,
+        1084,
+        1085,
+        1086,
+        1087,
+        1088,
+        1089,
+        1090,
+        1091,
+        1092,
+        1093,
+        1094,
+        1095,
+        1096,
+        1097,
+        1098,
+        1099
+      ],
+      "engine_seed": 1000,
+      "read_from": "output/p5_2/eval_random_iql.json",
+      "seeds": [
+        101,
+        202,
+        303,
+        404,
+        505
+      ]
+    }
+  },
+  "format_version": "p5.2b-correction/1.0",
+  "git": {
+    "code_root": "/home/filip/rltraffic-p52b-run",
+    "commit": "4e849fa47825e551c86fa7769497abe44a1554a0",
+    "dirty": false
+  },
+  "inputs": {
+    "c1_note": {
+      "checked": {
+        "arms": [
+          "bc",
+          "bc_top10",
+          "bc_top10_perix",
+          "dt_nomix",
+          "dt_spatial",
+          "iql"
+        ],
+        "cells_per_arm": {
+          "bc": 500,
+          "bc_top10": 500,
+          "bc_top10_perix": 500,
+          "dt_nomix": 500,
+          "dt_spatial": 500,
+          "iql": 500
+        },
+        "definitions": [
+          "att_ours",
+          "att_engine"
+        ],
+        "route": "statistics.mean"
+      },
+      "file": "docs/notes/readme_2026-10-05/c1_rule_r.json",
+      "sha256": "643b73bca4de953c43b6adf1ac8d0485383de7b0afc1ae1ab738778327537e19",
+      "used_for": "A1.4's third anchor, enforced (BRIEF_44 Amendment B, B1.1): before any P8.4b value is read, the six random-tier means under att_ours and att_engine are recomputed by the note's own route (statistics.mean over each arm's P8.4b cell files) and refused unless each equals the note's"
+    },
+    "corpus_manifest": {
+      "file": "datasets_v11/cf_grid4x4__random/manifest.json",
+      "sha256": "ebb36187868dd6ff0768d3f2828a9366d3e20a62d1b18011f5c7dc6fd6e189ee"
+    },
+    "declaration": {
+      "file": "docs/data/p5_2_declaration_random.json",
+      "sha256": "c8b8a35a2dd034434aef4b0c32de73627de7f35a8f7eb55b0bbf752631eadfe4"
+    },
+    "p5_2_manifest": {
+      "file": "output/SHA256SUMS_p5_2.txt",
+      "sha256": "fde8309b4958231f8a7e3a33cb26674f645e1c295ad688900ac8e839a19ac19b"
+    },
+    "p8_4b_campaign": {
+      "anchor": "the digest recomputed by att_rederivation.campaign_manifest from the manifest's own cell list, equal to CAMPAIGN_COMPLETE's and to the pin; every cell read reproduces P5.2's committed att_horizon; the random tier's six means under both definitions equal docs/notes/readme_2026-10-05/c1_rule_r.json's by its own route",
+      "declared_cells_sha256": "1f29b469dfb523ee3edf67acad341770ab18d1842427bcc6583e84f7b2cb8f4e",
+      "n_cells": 38500
+    },
+    "run_manifest": {
+      "file": "output/SHA256SUMS_p5_2b.txt",
+      "files": 516,
+      "sha256": "f3e1994c575f923f42f9a1bc7dae9fbaf25b418cff4c4ff8b1e208e4d41f10ed"
+    }
+  },
+  "not_recomputed": [
+    {
+      "reason": "no IQL arm: the correction cannot move them",
+      "statements": "Q3b, Q4, Q5, Q6 at the random tier"
+    },
+    {
+      "reason": "the Rule-R recomputation of P5.2's statements, DEFERRED 109 (Amendment A, A2)",
+      "statements": "Q2b's hard subset under att_engine, and every IQL-free statement under att_engine"
+    }
+  ],
+  "registered_in": "docs/briefs/BRIEF_44_p5.2b_iql_correction.md and its Amendment A; the author's ruling A of 2026-10-05 (PROJECT_PLAN section 8), a narrow exception to A25",
+  "role": "P5.2b: P5.2's IQL cell at grid4x4's random tier, re-trained on the declared 200 episodes (DEFERRED 106), evaluated by P5.2's own path and by P8.4b's cell runner on the same episodes, and P5.2's random-tier statements that involve IQL recomputed before and after under both ATT definitions",
+  "statements": {
+    "att_engine": {
+      "after": {
+        "per_seed": {
+          "rule": "docs/plans/p5.2.md section 4 Q2 (D9): each training seed's ordering beside the pooled one; a seed's level is the mean of its episodes by dt_gate.mean_ci95 in draw order, its order and first place as the pooled ones, its concordance by tier_sweep.concordance with the declared tie rule",
+          "seeds": {
+            "101": {
+              "first": "iql",
+              "levels": {
+                "bc": 277.36081079313755,
+                "bc_top10": 365.14021599495777,
+                "bc_top10_perix": 294.55177062425565,
+                "dt_nomix": 248.0704487456993,
+                "dt_spatial": 245.76732486525762,
+                "iql": 191.27820794101677
+              },
+              "n_concordant": 8,
+              "n_tied": 0,
+              "order": [
+                "iql",
+                "dt_spatial",
+                "dt_nomix",
+                "bc",
+                "bc_top10_perix",
+                "bc_top10"
+              ],
+              "tied_for_first": []
+            },
+            "202": {
+              "first": "iql",
+              "levels": {
+                "bc": 289.5313935796996,
+                "bc_top10": 330.09271277647485,
+                "bc_top10_perix": 298.70603429174497,
+                "dt_nomix": 247.68156965608864,
+                "dt_spatial": 248.37313286322188,
+                "iql": 190.1709795515929
+              },
+              "n_concordant": 9,
+              "n_tied": 0,
+              "order": [
+                "iql",
+                "dt_nomix",
+                "dt_spatial",
+                "bc",
+                "bc_top10_perix",
+                "bc_top10"
+              ],
+              "tied_for_first": []
+            },
+            "303": {
+              "first": "iql",
+              "levels": {
+                "bc": 285.8761348507604,
+                "bc_top10": 345.4549364188401,
+                "bc_top10_perix": 278.6539629889579,
+                "dt_nomix": 248.03040541956958,
+                "dt_spatial": 247.74162318232132,
+                "iql": 186.47978409098297
+              },
+              "n_concordant": 7,
+              "n_tied": 0,
+              "order": [
+                "iql",
+                "dt_spatial",
+                "dt_nomix",
+                "bc_top10_perix",
+                "bc",
+                "bc_top10"
+              ],
+              "tied_for_first": []
+            },
+            "404": {
+              "first": "iql",
+              "levels": {
+                "bc": 281.820635538611,
+                "bc_top10": 348.5454589209254,
+                "bc_top10_perix": 324.4858458902522,
+                "dt_nomix": 248.65034593622914,
+                "dt_spatial": 248.5371541531314,
+                "iql": 207.42859149078788
+              },
+              "n_concordant": 8,
+              "n_tied": 0,
+              "order": [
+                "iql",
+                "dt_spatial",
+                "dt_nomix",
+                "bc",
+                "bc_top10_perix",
+                "bc_top10"
+              ],
+              "tied_for_first": []
+            },
+            "505": {
+              "first": "iql",
+              "levels": {
+                "bc": 277.78862496784666,
+                "bc_top10": 330.6235305102579,
+                "bc_top10_perix": 275.9109478125256,
+                "dt_nomix": 248.45312648071223,
+                "dt_spatial": 246.9175068504018,
+                "iql": 181.61137141726357
+              },
+              "n_concordant": 7,
+              "n_tied": 0,
+              "order": [
+                "iql",
+                "dt_spatial",
+                "dt_nomix",
+                "bc_top10_perix",
+                "bc",
+                "bc_top10"
+              ],
+              "tied_for_first": []
+            }
+          }
+        },
+        "q1": {
+          "band": 0.3,
+          "iql_random": {
+            "cell": [
+              "iql",
+              "random"
+            ],
+            "held": false,
+            "measured": 191.39378689832884,
+            "predicted": 414.993,
+            "relative_error": 0.5388023728151347
+          },
+          "n_cells": 19,
+          "n_held": 15,
+          "outcome": "HELD",
+          "predictions_registered_on": "att_horizon (att_ours), not att_engine: these are P5.2's registered att_horizon-era predictions, compared here with att_engine measurements; no prediction was registered under att_engine (BRIEF_44 Amendment B, B1.7(d))",
+          "rule": "tier_sweep.score_level: |measured - predicted| / predicted <= band per cell; k of N",
+          "threshold": 14
+        },
+        "q2a": {
+          "measured_first": "iql",
+          "outcome": "FAILED",
+          "predicted_first": "dt_nomix",
+          "reversal": null,
+          "reverses_on_seeds": [],
+          "rule": "docs/plans/p5.2.md section 4 Q2a: HELD iff the predicted first-place arm is the measured one; an exact tie for first is no unique first place",
+          "tied_for_first": []
+        },
+        "q2b": {
+          "arms": [
+            "dt_nomix",
+            "bc",
+            "bc_top10_perix",
+            "dt_spatial",
+            "iql",
+            "bc_top10"
+          ],
+          "discordant": [
+            [
+              "bc",
+              "dt_spatial"
+            ],
+            [
+              "bc",
+              "iql"
+            ],
+            [
+              "bc_top10_perix",
+              "dt_spatial"
+            ],
+            [
+              "bc_top10_perix",
+              "iql"
+            ],
+            [
+              "dt_nomix",
+              "dt_spatial"
+            ],
+            [
+              "dt_nomix",
+              "iql"
+            ],
+            [
+              "dt_spatial",
+              "iql"
+            ]
+          ],
+          "iql_pairs": [
+            {
+              "concordant": false,
+              "pair": [
+                "bc",
+                "iql"
+              ]
+            },
+            {
+              "concordant": true,
+              "pair": [
+                "bc_top10",
+                "iql"
+              ]
+            },
+            {
+              "concordant": false,
+              "pair": [
+                "bc_top10_perix",
+                "iql"
+              ]
+            },
+            {
+              "concordant": false,
+              "pair": [
+                "dt_nomix",
+                "iql"
+              ]
+            },
+            {
+              "concordant": false,
+              "pair": [
+                "dt_spatial",
+                "iql"
+              ]
+            }
+          ],
+          "n_concordant": 8,
+          "n_pairs": 15,
+          "n_tied": 0,
+          "outcome": "FAILED",
+          "per_seed_n_concordant": {
+            "101": 8,
+            "202": 9,
+            "303": 7,
+            "404": 8,
+            "505": 7
+          },
+          "rule": "tier_sweep.concordance and predicted_order, P5.2's own, with its declared tie rule",
+          "threshold": 12,
+          "tie_rule": "a pair whose MEASURED levels are exactly equal is scored DISCORDANT for both orders: neither arm is placed ahead of the other, so no predicted ordering between them can be credited (docs/plans/p5.2.md, declared 2026-08-24)",
+          "tied_pairs": []
+        },
+        "q3a": {
+          "of": 6,
+          "outcome": "FAILED",
+          "rank": 3,
+          "rule": "docs/plans/p5.2.md section 4 Q3a: dt_nomix has the lowest level of the six; rank counts the arms strictly lower"
+        },
+        "q3c": {
+          "best_non_dt": "iql",
+          "ci95_high": 59.667247116016824,
+          "ci95_low": 53.899537582645095,
+          "ci95_width": 5.767709533371729,
+          "mean": 56.78339234933096,
+          "n_draws": 100,
+          "reading": "resolves against the DT",
+          "rule": "docs/plans/p5.2.md section 4 Q3c and its common scoring: mean[ATT(dt_nomix) - ATT(best non-DT arm)] over per-draw means of the five seeds (dt_gate._per_draw_means), the 95 % CI by dt_gate.mean_ci95",
+          "std": 14.713544727989104,
+          "tied_best_non_dt": []
+        },
+        "ranking": {
+          "levels": {
+            "bc": 282.47551994601105,
+            "bc_top10": 343.9713709242912,
+            "bc_top10_perix": 294.4617123215473,
+            "dt_nomix": 248.1771792476598,
+            "dt_spatial": 247.46734838286676,
+            "iql": 191.39378689832884
+          },
+          "order": [
+            "iql",
+            "dt_spatial",
+            "dt_nomix",
+            "bc",
+            "bc_top10_perix",
+            "bc_top10"
+          ],
+          "rule": "the six methods by level, lowest first (P5.2's measured ordering)"
+        }
+      },
+      "before": {
+        "per_seed": {
+          "rule": "docs/plans/p5.2.md section 4 Q2 (D9): each training seed's ordering beside the pooled one; a seed's level is the mean of its episodes by dt_gate.mean_ci95 in draw order, its order and first place as the pooled ones, its concordance by tier_sweep.concordance with the declared tie rule",
+          "seeds": {
+            "101": {
+              "first": "iql",
+              "levels": {
+                "bc": 277.36081079313755,
+                "bc_top10": 365.14021599495777,
+                "bc_top10_perix": 294.55177062425565,
+                "dt_nomix": 248.0704487456993,
+                "dt_spatial": 245.76732486525762,
+                "iql": 180.52104385913665
+              },
+              "n_concordant": 8,
+              "n_tied": 0,
+              "order": [
+                "iql",
+                "dt_spatial",
+                "dt_nomix",
+                "bc",
+                "bc_top10_perix",
+                "bc_top10"
+              ],
+              "tied_for_first": []
+            },
+            "202": {
+              "first": "iql",
+              "levels": {
+                "bc": 289.5313935796996,
+                "bc_top10": 330.09271277647485,
+                "bc_top10_perix": 298.70603429174497,
+                "dt_nomix": 247.68156965608864,
+                "dt_spatial": 248.37313286322188,
+                "iql": 180.86397847693
+              },
+              "n_concordant": 9,
+              "n_tied": 0,
+              "order": [
+                "iql",
+                "dt_nomix",
+                "dt_spatial",
+                "bc",
+                "bc_top10_perix",
+                "bc_top10"
+              ],
+              "tied_for_first": []
+            },
+            "303": {
+              "first": "iql",
+              "levels": {
+                "bc": 285.8761348507604,
+                "bc_top10": 345.4549364188401,
+                "bc_top10_perix": 278.6539629889579,
+                "dt_nomix": 248.03040541956958,
+                "dt_spatial": 247.74162318232132,
+                "iql": 201.74775009777997
+              },
+              "n_concordant": 7,
+              "n_tied": 0,
+              "order": [
+                "iql",
+                "dt_spatial",
+                "dt_nomix",
+                "bc_top10_perix",
+                "bc",
+                "bc_top10"
+              ],
+              "tied_for_first": []
+            },
+            "404": {
+              "first": "iql",
+              "levels": {
+                "bc": 281.820635538611,
+                "bc_top10": 348.5454589209254,
+                "bc_top10_perix": 324.4858458902522,
+                "dt_nomix": 248.65034593622914,
+                "dt_spatial": 248.5371541531314,
+                "iql": 177.9636706246586
+              },
+              "n_concordant": 8,
+              "n_tied": 0,
+              "order": [
+                "iql",
+                "dt_spatial",
+                "dt_nomix",
+                "bc",
+                "bc_top10_perix",
+                "bc_top10"
+              ],
+              "tied_for_first": []
+            },
+            "505": {
+              "first": "iql",
+              "levels": {
+                "bc": 277.78862496784666,
+                "bc_top10": 330.6235305102579,
+                "bc_top10_perix": 275.9109478125256,
+                "dt_nomix": 248.45312648071223,
+                "dt_spatial": 246.9175068504018,
+                "iql": 178.04423180425337
+              },
+              "n_concordant": 7,
+              "n_tied": 0,
+              "order": [
+                "iql",
+                "dt_spatial",
+                "dt_nomix",
+                "bc_top10_perix",
+                "bc",
+                "bc_top10"
+              ],
+              "tied_for_first": []
+            }
+          }
+        },
+        "q1": {
+          "band": 0.3,
+          "iql_random": {
+            "cell": [
+              "iql",
+              "random"
+            ],
+            "held": false,
+            "measured": 183.8281349725517,
+            "predicted": 414.993,
+            "relative_error": 0.5570331668906422
+          },
+          "n_cells": 19,
+          "n_held": 15,
+          "outcome": "HELD",
+          "predictions_registered_on": "att_horizon (att_ours), not att_engine: these are P5.2's registered att_horizon-era predictions, compared here with att_engine measurements; no prediction was registered under att_engine (BRIEF_44 Amendment B, B1.7(d))",
+          "rule": "tier_sweep.score_level: |measured - predicted| / predicted <= band per cell; k of N",
+          "threshold": 14
+        },
+        "q2a": {
+          "measured_first": "iql",
+          "outcome": "FAILED",
+          "predicted_first": "dt_nomix",
+          "reversal": null,
+          "reverses_on_seeds": [],
+          "rule": "docs/plans/p5.2.md section 4 Q2a: HELD iff the predicted first-place arm is the measured one; an exact tie for first is no unique first place",
+          "tied_for_first": []
+        },
+        "q2b": {
+          "arms": [
+            "dt_nomix",
+            "bc",
+            "bc_top10_perix",
+            "dt_spatial",
+            "iql",
+            "bc_top10"
+          ],
+          "discordant": [
+            [
+              "bc",
+              "dt_spatial"
+            ],
+            [
+              "bc",
+              "iql"
+            ],
+            [
+              "bc_top10_perix",
+              "dt_spatial"
+            ],
+            [
+              "bc_top10_perix",
+              "iql"
+            ],
+            [
+              "dt_nomix",
+              "dt_spatial"
+            ],
+            [
+              "dt_nomix",
+              "iql"
+            ],
+            [
+              "dt_spatial",
+              "iql"
+            ]
+          ],
+          "iql_pairs": [
+            {
+              "concordant": false,
+              "pair": [
+                "bc",
+                "iql"
+              ]
+            },
+            {
+              "concordant": true,
+              "pair": [
+                "bc_top10",
+                "iql"
+              ]
+            },
+            {
+              "concordant": false,
+              "pair": [
+                "bc_top10_perix",
+                "iql"
+              ]
+            },
+            {
+              "concordant": false,
+              "pair": [
+                "dt_nomix",
+                "iql"
+              ]
+            },
+            {
+              "concordant": false,
+              "pair": [
+                "dt_spatial",
+                "iql"
+              ]
+            }
+          ],
+          "n_concordant": 8,
+          "n_pairs": 15,
+          "n_tied": 0,
+          "outcome": "FAILED",
+          "per_seed_n_concordant": {
+            "101": 8,
+            "202": 9,
+            "303": 7,
+            "404": 8,
+            "505": 7
+          },
+          "rule": "tier_sweep.concordance and predicted_order, P5.2's own, with its declared tie rule",
+          "threshold": 12,
+          "tie_rule": "a pair whose MEASURED levels are exactly equal is scored DISCORDANT for both orders: neither arm is placed ahead of the other, so no predicted ordering between them can be credited (docs/plans/p5.2.md, declared 2026-08-24)",
+          "tied_pairs": []
+        },
+        "q3a": {
+          "of": 6,
+          "outcome": "FAILED",
+          "rank": 3,
+          "rule": "docs/plans/p5.2.md section 4 Q3a: dt_nomix has the lowest level of the six; rank counts the arms strictly lower"
+        },
+        "q3c": {
+          "best_non_dt": "iql",
+          "ci95_high": 66.6216003132769,
+          "ci95_low": 62.07648823693927,
+          "ci95_width": 4.545112076337631,
+          "mean": 64.34904427510808,
+          "n_draws": 100,
+          "reading": "resolves against the DT",
+          "rule": "docs/plans/p5.2.md section 4 Q3c and its common scoring: mean[ATT(dt_nomix) - ATT(best non-DT arm)] over per-draw means of the five seeds (dt_gate._per_draw_means), the 95 % CI by dt_gate.mean_ci95",
+          "std": 11.594673664126601,
+          "tied_best_non_dt": []
+        },
+        "ranking": {
+          "levels": {
+            "bc": 282.47551994601105,
+            "bc_top10": 343.9713709242912,
+            "bc_top10_perix": 294.4617123215473,
+            "dt_nomix": 248.1771792476598,
+            "dt_spatial": 247.46734838286676,
+            "iql": 183.8281349725517
+          },
+          "order": [
+            "iql",
+            "dt_spatial",
+            "dt_nomix",
+            "bc",
+            "bc_top10_perix",
+            "bc_top10"
+          ],
+          "rule": "the six methods by level, lowest first (P5.2's measured ordering)"
+        }
+      }
+    },
+    "att_ours": {
+      "after": {
+        "per_seed": {
+          "rule": "docs/plans/p5.2.md section 4 Q2 (D9): each training seed's ordering beside the pooled one; a seed's level is the mean of its episodes by dt_gate.mean_ci95 in draw order, its order and first place as the pooled ones, its concordance by tier_sweep.concordance with the declared tie rule",
+          "seeds": {
+            "101": {
+              "first": "iql",
+              "levels": {
+                "bc": 284.23617070519424,
+                "bc_top10": 371.3198204173051,
+                "bc_top10_perix": 301.2549293028985,
+                "dt_nomix": 255.22229052630988,
+                "dt_spatial": 252.90675507801473,
+                "iql": 198.37046214487063
+              },
+              "n_concordant": 8,
+              "n_tied": 0,
+              "order": [
+                "iql",
+                "dt_spatial",
+                "dt_nomix",
+                "bc",
+                "bc_top10_perix",
+                "bc_top10"
+              ],
+              "tied_for_first": []
+            },
+            "202": {
+              "first": "iql",
+              "levels": {
+                "bc": 296.35978849103265,
+                "bc_top10": 336.5415660797282,
+                "bc_top10_perix": 305.3998361581712,
+                "dt_nomix": 254.82374021726133,
+                "dt_spatial": 255.51636202592778,
+                "iql": 197.27436891688
+              },
+              "n_concordant": 9,
+              "n_tied": 0,
+              "order": [
+                "iql",
+                "dt_nomix",
+                "dt_spatial",
+                "bc",
+                "bc_top10_perix",
+                "bc_top10"
+              ],
+              "tied_for_first": []
+            },
+            "303": {
+              "first": "iql",
+              "levels": {
+                "bc": 292.742064929305,
+                "bc_top10": 351.8110464028146,
+                "bc_top10_perix": 285.49173574645874,
+                "dt_nomix": 255.17655708906855,
+                "dt_spatial": 254.90008841214825,
+                "iql": 193.6045529922521
+              },
+              "n_concordant": 7,
+              "n_tied": 0,
+              "order": [
+                "iql",
+                "dt_spatial",
+                "dt_nomix",
+                "bc_top10_perix",
+                "bc",
+                "bc_top10"
+              ],
+              "tied_for_first": []
+            },
+            "404": {
+              "first": "iql",
+              "levels": {
+                "bc": 288.7092165402664,
+                "bc_top10": 354.96043238601146,
+                "bc_top10_perix": 330.9720786188266,
+                "dt_nomix": 255.7954249763316,
+                "dt_spatial": 255.69477532350749,
+                "iql": 214.41884365920905
+              },
+              "n_concordant": 8,
+              "n_tied": 0,
+              "order": [
+                "iql",
+                "dt_spatial",
+                "dt_nomix",
+                "bc",
+                "bc_top10_perix",
+                "bc_top10"
+              ],
+              "tied_for_first": []
+            },
+            "505": {
+              "first": "iql",
+              "levels": {
+                "bc": 284.7092836238134,
+                "bc_top10": 337.0661598309812,
+                "bc_top10_perix": 282.7999126920099,
+                "dt_nomix": 255.60267034977815,
+                "dt_spatial": 254.07143164431753,
+                "iql": 188.73655837083152
+              },
+              "n_concordant": 7,
+              "n_tied": 0,
+              "order": [
+                "iql",
+                "dt_spatial",
+                "dt_nomix",
+                "bc_top10_perix",
+                "bc",
+                "bc_top10"
+              ],
+              "tied_for_first": []
+            }
+          }
+        },
+        "q1": {
+          "band": 0.3,
+          "iql_random": {
+            "cell": [
+              "iql",
+              "random"
+            ],
+            "held": false,
+            "measured": 198.48095721680863,
+            "predicted": 414.993,
+            "relative_error": 0.5217245659160308
+          },
+          "n_cells": 19,
+          "n_held": 15,
+          "outcome": "HELD",
+          "predictions_registered_on": "att_horizon (att_ours): P5.2 registered Q1's predictions on the definition measured here (docs/plans/p5.2.md section 4)",
+          "rule": "tier_sweep.score_level: |measured - predicted| / predicted <= band per cell; k of N",
+          "threshold": 14
+        },
+        "q2a": {
+          "measured_first": "iql",
+          "outcome": "FAILED",
+          "predicted_first": "dt_nomix",
+          "reversal": null,
+          "reverses_on_seeds": [],
+          "rule": "docs/plans/p5.2.md section 4 Q2a: HELD iff the predicted first-place arm is the measured one; an exact tie for first is no unique first place",
+          "tied_for_first": []
+        },
+        "q2b": {
+          "arms": [
+            "dt_nomix",
+            "bc",
+            "bc_top10_perix",
+            "dt_spatial",
+            "iql",
+            "bc_top10"
+          ],
+          "discordant": [
+            [
+              "bc",
+              "dt_spatial"
+            ],
+            [
+              "bc",
+              "iql"
+            ],
+            [
+              "bc_top10_perix",
+              "dt_spatial"
+            ],
+            [
+              "bc_top10_perix",
+              "iql"
+            ],
+            [
+              "dt_nomix",
+              "dt_spatial"
+            ],
+            [
+              "dt_nomix",
+              "iql"
+            ],
+            [
+              "dt_spatial",
+              "iql"
+            ]
+          ],
+          "iql_pairs": [
+            {
+              "concordant": false,
+              "pair": [
+                "bc",
+                "iql"
+              ]
+            },
+            {
+              "concordant": true,
+              "pair": [
+                "bc_top10",
+                "iql"
+              ]
+            },
+            {
+              "concordant": false,
+              "pair": [
+                "bc_top10_perix",
+                "iql"
+              ]
+            },
+            {
+              "concordant": false,
+              "pair": [
+                "dt_nomix",
+                "iql"
+              ]
+            },
+            {
+              "concordant": false,
+              "pair": [
+                "dt_spatial",
+                "iql"
+              ]
+            }
+          ],
+          "n_concordant": 8,
+          "n_pairs": 15,
+          "n_tied": 0,
+          "outcome": "FAILED",
+          "per_seed_n_concordant": {
+            "101": 8,
+            "202": 9,
+            "303": 7,
+            "404": 8,
+            "505": 7
+          },
+          "rule": "tier_sweep.concordance and predicted_order, P5.2's own, with its declared tie rule",
+          "threshold": 12,
+          "tie_rule": "a pair whose MEASURED levels are exactly equal is scored DISCORDANT for both orders: neither arm is placed ahead of the other, so no predicted ordering between them can be credited (docs/plans/p5.2.md, declared 2026-08-24)",
+          "tied_pairs": []
+        },
+        "q2b_hard": {
+          "arms": [
+            "dt_nomix",
+            "bc",
+            "bc_top10_perix",
+            "dt_spatial"
+          ],
+          "discordant": [
+            [
+              "bc",
+              "dt_spatial"
+            ],
+            [
+              "bc_top10_perix",
+              "dt_spatial"
+            ],
+            [
+              "dt_nomix",
+              "dt_spatial"
+            ]
+          ],
+          "n_concordant": 3,
+          "n_pairs": 6,
+          "n_tied": 0,
+          "rule": "the same, on tier_sweep.HARD_SUBSET; no threshold is registered",
+          "tie_rule": "a pair whose MEASURED levels are exactly equal is scored DISCORDANT for both orders: neither arm is placed ahead of the other, so no predicted ordering between them can be credited (docs/plans/p5.2.md, declared 2026-08-24)",
+          "tied_pairs": []
+        },
+        "q3a": {
+          "of": 6,
+          "outcome": "FAILED",
+          "rank": 3,
+          "rule": "docs/plans/p5.2.md section 4 Q3a: dt_nomix has the lowest level of the six; rank counts the arms strictly lower"
+        },
+        "q3c": {
+          "best_non_dt": "iql",
+          "ci95_high": 59.706913112257276,
+          "ci95_low": 53.97944571762526,
+          "ci95_width": 5.727467394632015,
+          "mean": 56.84317941494127,
+          "n_draws": 100,
+          "reading": "resolves against the DT",
+          "rule": "docs/plans/p5.2.md section 4 Q3c and its common scoring: mean[ATT(dt_nomix) - ATT(best non-DT arm)] over per-draw means of the five seeds (dt_gate._per_draw_means), the 95 % CI by dt_gate.mean_ci95",
+          "std": 14.61088621079597,
+          "tied_best_non_dt": []
+        },
+        "ranking": {
+          "levels": {
+            "bc": 289.35130485792234,
+            "bc_top10": 350.3398050233681,
+            "bc_top10_perix": 301.183698503673,
+            "dt_nomix": 255.32413663174992,
+            "dt_spatial": 254.61788249678315,
+            "iql": 198.48095721680863
+          },
+          "order": [
+            "iql",
+            "dt_spatial",
+            "dt_nomix",
+            "bc",
+            "bc_top10_perix",
+            "bc_top10"
+          ],
+          "rule": "the six methods by level, lowest first (P5.2's measured ordering)"
+        }
+      },
+      "before": {
+        "per_seed": {
+          "rule": "docs/plans/p5.2.md section 4 Q2 (D9): each training seed's ordering beside the pooled one; a seed's level is the mean of its episodes by dt_gate.mean_ci95 in draw order, its order and first place as the pooled ones, its concordance by tier_sweep.concordance with the declared tie rule",
+          "seeds": {
+            "101": {
+              "first": "iql",
+              "levels": {
+                "bc": 284.23617070519424,
+                "bc_top10": 371.3198204173051,
+                "bc_top10_perix": 301.2549293028985,
+                "dt_nomix": 255.22229052630988,
+                "dt_spatial": 252.90675507801473,
+                "iql": 187.6634269544382
+              },
+              "n_concordant": 8,
+              "n_tied": 0,
+              "order": [
+                "iql",
+                "dt_spatial",
+                "dt_nomix",
+                "bc",
+                "bc_top10_perix",
+                "bc_top10"
+              ],
+              "tied_for_first": []
+            },
+            "202": {
+              "first": "iql",
+              "levels": {
+                "bc": 296.35978849103265,
+                "bc_top10": 336.5415660797282,
+                "bc_top10_perix": 305.3998361581712,
+                "dt_nomix": 254.82374021726133,
+                "dt_spatial": 255.51636202592778,
+                "iql": 187.99799431156242
+              },
+              "n_concordant": 9,
+              "n_tied": 0,
+              "order": [
+                "iql",
+                "dt_nomix",
+                "dt_spatial",
+                "bc",
+                "bc_top10_perix",
+                "bc_top10"
+              ],
+              "tied_for_first": []
+            },
+            "303": {
+              "first": "iql",
+              "levels": {
+                "bc": 292.742064929305,
+                "bc_top10": 351.8110464028146,
+                "bc_top10_perix": 285.49173574645874,
+                "dt_nomix": 255.17655708906855,
+                "dt_spatial": 254.90008841214825,
+                "iql": 208.74653091669342
+              },
+              "n_concordant": 7,
+              "n_tied": 0,
+              "order": [
+                "iql",
+                "dt_spatial",
+                "dt_nomix",
+                "bc_top10_perix",
+                "bc",
+                "bc_top10"
+              ],
+              "tied_for_first": []
+            },
+            "404": {
+              "first": "iql",
+              "levels": {
+                "bc": 288.7092165402664,
+                "bc_top10": 354.96043238601146,
+                "bc_top10_perix": 330.9720786188266,
+                "dt_nomix": 255.7954249763316,
+                "dt_spatial": 255.69477532350749,
+                "iql": 185.13185738956847
+              },
+              "n_concordant": 8,
+              "n_tied": 0,
+              "order": [
+                "iql",
+                "dt_spatial",
+                "dt_nomix",
+                "bc",
+                "bc_top10_perix",
+                "bc_top10"
+              ],
+              "tied_for_first": []
+            },
+            "505": {
+              "first": "iql",
+              "levels": {
+                "bc": 284.7092836238134,
+                "bc_top10": 337.0661598309812,
+                "bc_top10_perix": 282.7999126920099,
+                "dt_nomix": 255.60267034977815,
+                "dt_spatial": 254.07143164431753,
+                "iql": 185.27928635574267
+              },
+              "n_concordant": 7,
+              "n_tied": 0,
+              "order": [
+                "iql",
+                "dt_spatial",
+                "dt_nomix",
+                "bc_top10_perix",
+                "bc",
+                "bc_top10"
+              ],
+              "tied_for_first": []
+            }
+          }
+        },
+        "q1": {
+          "band": 0.3,
+          "iql_random": {
+            "cell": [
+              "iql",
+              "random"
+            ],
+            "held": false,
+            "measured": 190.963819185601,
+            "predicted": 414.993,
+            "relative_error": 0.539838457068912
+          },
+          "n_cells": 19,
+          "n_held": 15,
+          "outcome": "HELD",
+          "predictions_registered_on": "att_horizon (att_ours): P5.2 registered Q1's predictions on the definition measured here (docs/plans/p5.2.md section 4)",
+          "rule": "tier_sweep.score_level: |measured - predicted| / predicted <= band per cell; k of N",
+          "threshold": 14
+        },
+        "q2a": {
+          "measured_first": "iql",
+          "outcome": "FAILED",
+          "predicted_first": "dt_nomix",
+          "reversal": null,
+          "reverses_on_seeds": [],
+          "rule": "docs/plans/p5.2.md section 4 Q2a: HELD iff the predicted first-place arm is the measured one; an exact tie for first is no unique first place",
+          "tied_for_first": []
+        },
+        "q2b": {
+          "arms": [
+            "dt_nomix",
+            "bc",
+            "bc_top10_perix",
+            "dt_spatial",
+            "iql",
+            "bc_top10"
+          ],
+          "discordant": [
+            [
+              "bc",
+              "dt_spatial"
+            ],
+            [
+              "bc",
+              "iql"
+            ],
+            [
+              "bc_top10_perix",
+              "dt_spatial"
+            ],
+            [
+              "bc_top10_perix",
+              "iql"
+            ],
+            [
+              "dt_nomix",
+              "dt_spatial"
+            ],
+            [
+              "dt_nomix",
+              "iql"
+            ],
+            [
+              "dt_spatial",
+              "iql"
+            ]
+          ],
+          "iql_pairs": [
+            {
+              "concordant": false,
+              "pair": [
+                "bc",
+                "iql"
+              ]
+            },
+            {
+              "concordant": true,
+              "pair": [
+                "bc_top10",
+                "iql"
+              ]
+            },
+            {
+              "concordant": false,
+              "pair": [
+                "bc_top10_perix",
+                "iql"
+              ]
+            },
+            {
+              "concordant": false,
+              "pair": [
+                "dt_nomix",
+                "iql"
+              ]
+            },
+            {
+              "concordant": false,
+              "pair": [
+                "dt_spatial",
+                "iql"
+              ]
+            }
+          ],
+          "n_concordant": 8,
+          "n_pairs": 15,
+          "n_tied": 0,
+          "outcome": "FAILED",
+          "per_seed_n_concordant": {
+            "101": 8,
+            "202": 9,
+            "303": 7,
+            "404": 8,
+            "505": 7
+          },
+          "rule": "tier_sweep.concordance and predicted_order, P5.2's own, with its declared tie rule",
+          "threshold": 12,
+          "tie_rule": "a pair whose MEASURED levels are exactly equal is scored DISCORDANT for both orders: neither arm is placed ahead of the other, so no predicted ordering between them can be credited (docs/plans/p5.2.md, declared 2026-08-24)",
+          "tied_pairs": []
+        },
+        "q2b_hard": {
+          "arms": [
+            "dt_nomix",
+            "bc",
+            "bc_top10_perix",
+            "dt_spatial"
+          ],
+          "discordant": [
+            [
+              "bc",
+              "dt_spatial"
+            ],
+            [
+              "bc_top10_perix",
+              "dt_spatial"
+            ],
+            [
+              "dt_nomix",
+              "dt_spatial"
+            ]
+          ],
+          "n_concordant": 3,
+          "n_pairs": 6,
+          "n_tied": 0,
+          "rule": "the same, on tier_sweep.HARD_SUBSET; no threshold is registered",
+          "tie_rule": "a pair whose MEASURED levels are exactly equal is scored DISCORDANT for both orders: neither arm is placed ahead of the other, so no predicted ordering between them can be credited (docs/plans/p5.2.md, declared 2026-08-24)",
+          "tied_pairs": []
+        },
+        "q3a": {
+          "of": 6,
+          "outcome": "FAILED",
+          "rank": 3,
+          "rule": "docs/plans/p5.2.md section 4 Q3a: dt_nomix has the lowest level of the six; rank counts the arms strictly lower"
+        },
+        "q3c": {
+          "best_non_dt": "iql",
+          "ci95_high": 66.61604541318644,
+          "ci95_low": 62.10458947911136,
+          "ci95_width": 4.51145593407508,
+          "mean": 64.3603174461489,
+          "n_draws": 100,
+          "reading": "resolves against the DT",
+          "rule": "docs/plans/p5.2.md section 4 Q3c and its common scoring: mean[ATT(dt_nomix) - ATT(best non-DT arm)] over per-draw means of the five seeds (dt_gate._per_draw_means), the 95 % CI by dt_gate.mean_ci95",
+          "std": 11.508816158354788,
+          "tied_best_non_dt": []
+        },
+        "ranking": {
+          "levels": {
+            "bc": 289.35130485792234,
+            "bc_top10": 350.3398050233681,
+            "bc_top10_perix": 301.183698503673,
+            "dt_nomix": 255.32413663174992,
+            "dt_spatial": 254.61788249678315,
+            "iql": 190.963819185601
+          },
+          "order": [
+            "iql",
+            "dt_spatial",
+            "dt_nomix",
+            "bc",
+            "bc_top10_perix",
+            "bc_top10"
+          ],
+          "rule": "the six methods by level, lowest first (P5.2's measured ordering)"
+        }
+      }
+    }
+  },
+  "training": {
+    "canaries": {
+      "close": {
+        "file": "output/p5_2b/canary_close.json",
+        "power": {
+          "supplies": {
+            "error": null,
+            "items": [
+              {
+                "name": "AC1",
+                "online": 1,
+                "type": "Mains"
+              },
+              {
+                "name": "BAT1",
+                "online": null,
+                "type": "Battery"
+              }
+            ],
+            "read_with": "/sys/class/power_supply/<name>/type and /sys/class/power_supply/<name>/online (a battery has no online file)"
+          },
+          "windows": {
+            "ac_overlay": "ded574b5-45a0-4f42-8737-46345c09c238",
+            "ac_overlay_name": "Best Performance",
+            "active_scheme": "381b4222-f694-41f0-9685-ff5bb260df2e",
+            "dc_overlay": "961cc777-2547-4f9d-8174-7d86181b8a7a",
+            "dc_overlay_name": "Better Battery",
+            "error": null,
+            "read_with": "reg.exe query HKLM\\SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes (ActivePowerScheme, ActiveOverlayAcPowerScheme, ActiveOverlayDcPowerScheme)"
+          }
+        },
+        "reproduced": true,
+        "seconds": 0.6975650890090037,
+        "sha256": "7772ab7a2324f5e5f27ce7c9097b4425e49a132f30ac3b92fb887d63fa8225b9",
+        "threshold_seconds": 2.0,
+        "verdict": "at speed",
+        "written_utc": "2026-10-07T15:54:55Z"
+      },
+      "open": {
+        "file": "output/p5_2b/canary_open.json",
+        "power": {
+          "supplies": {
+            "error": null,
+            "items": [
+              {
+                "name": "AC1",
+                "online": 1,
+                "type": "Mains"
+              },
+              {
+                "name": "BAT1",
+                "online": null,
+                "type": "Battery"
+              }
+            ],
+            "read_with": "/sys/class/power_supply/<name>/type and /sys/class/power_supply/<name>/online (a battery has no online file)"
+          },
+          "windows": {
+            "ac_overlay": "ded574b5-45a0-4f42-8737-46345c09c238",
+            "ac_overlay_name": "Best Performance",
+            "active_scheme": "381b4222-f694-41f0-9685-ff5bb260df2e",
+            "dc_overlay": "961cc777-2547-4f9d-8174-7d86181b8a7a",
+            "dc_overlay_name": "Better Battery",
+            "error": null,
+            "read_with": "reg.exe query HKLM\\SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes (ActivePowerScheme, ActiveOverlayAcPowerScheme, ActiveOverlayDcPowerScheme)"
+          }
+        },
+        "reproduced": true,
+        "seconds": 0.7332902069902048,
+        "sha256": "c727d33f3a5fe54bae04be8a9c4dc0c5fdf9499451ea5189ad4bf1382a95d106",
+        "threshold_seconds": 2.0,
+        "verdict": "at speed",
+        "written_utc": "2026-10-07T15:29:07Z"
+      }
+    },
+    "header": {
+      "batch_size": 1280,
+      "concurrency": {
+        "basis": "the five seeds train in sequence in one process, and the driver refuses a second offline.iql_correction interpreter",
+        "value": 1
+      },
+      "declared_gradient_steps": 40000,
+      "finished_utc": "2026-10-07T15:54:52Z",
+      "format_version": "p5.2b-training/1.0",
+      "hyperparameters": {
+        "batch_size": 1280,
+        "beta": 3.0,
+        "gamma": 0.99,
+        "grad_clip": 0.25,
+        "gradient_steps": 40000,
+        "learning_rate": 0.0001,
+        "polyak": 0.005,
+        "reward_scale": 0.7429420505200595,
+        "tau": 0.7,
+        "torch_num_threads": 1,
+        "training_streams": 3200,
+        "weight_clip": 100.0,
+        "weight_decay": 0.0001
+      },
+      "regime": {
+        "cublas_workspace_config": null,
+        "cuda_device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "deterministic_algorithms": false,
+        "device": "cuda",
+        "mkl_num_threads": "1",
+        "omp_num_threads": "1",
+        "torch_num_threads": 1,
+        "torch_version": "2.11.0+cu128"
+      },
+      "seeds": [
+        101,
+        202,
+        303,
+        404,
+        505
+      ],
+      "table": {
+        "build_seconds": 18.455949445982696,
+        "episodes": 200,
+        "filter": "offline.tier_sweep.iql_transition_table",
+        "reward_scale": 0.7429420505200595,
+        "rows": 1152000,
+        "statistics_equal_the_originals": true,
+        "streams": 3200
+      }
+    },
+    "hyperparameters_of_the_originals": {
+      "batch_size": 1280,
+      "beta": 3.0,
+      "cuda_device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+      "declared_gradient_steps": 40000,
+      "device": "cuda",
+      "gamma": 0.99,
+      "git_commit": "9460800ac138e83ed79dd81aceff2ef17a9e491f",
+      "grad_clip": 0.25,
+      "gradient_steps": 40000,
+      "learning_rate": 0.0001,
+      "polyak": 0.005,
+      "reward_scale": 0.7429420505200595,
+      "tau": 0.7,
+      "tier": "random",
+      "torch_num_threads": 1,
+      "torch_version": "2.11.0+cu128",
+      "training_rows": 2304000,
+      "training_streams": 3200,
+      "weight_clip": 100.0,
+      "weight_decay": 0.0001
+    },
+    "record": {
+      "file": "output/p5_2b/training_random_iql.json",
+      "sha256": "d58d24b131804ee8e0b3c60c1a3249be972042b184c85407e121cc2a6dda3ef7"
+    },
+    "runs": [
+      {
+        "canonical_digest": "7ff23c9eabc455a3b00b90d16cb2edefded3d1304be3e9365ce1742b7e9daadd",
+        "checkpoint_path": "/home/filip/rltraffic/output/p5_2b/p5_2/checkpoints/grid4x4_random_iql_seed101.pt",
+        "declared_gradient_steps": 40000,
+        "file_sha256": "8fe121d8258e9f82c3aed7a0cf41af3349bbb82cd989a4915ada7363900a7a7b",
+        "final_loss": 19.671049118041992,
+        "final_policy_loss": 19.671049118041992,
+        "final_q_loss": 17.53173828125,
+        "final_v_loss": 6.237716197967529,
+        "gradient_steps": 40000,
+        "method": "iql",
+        "plateaued": true,
+        "seconds": 307.26769948005676,
+        "seed": 101,
+        "state_dict_sha256": "935d9c193d70af572bd2a1d398db723196c2be4bab78f46af608927e90215294",
+        "tier": "random",
+        "training_rows": 1152000
+      },
+      {
+        "canonical_digest": "d3b7ae913e17bd2de885fe0bba0477c1b6dacd2d966851792a1da97e9ce52859",
+        "checkpoint_path": "/home/filip/rltraffic/output/p5_2b/p5_2/checkpoints/grid4x4_random_iql_seed202.pt",
+        "declared_gradient_steps": 40000,
+        "file_sha256": "8c6f23e2db14ed501415c0e4c97ea0bdc7f18eac1686ba05a319470526c5b9f7",
+        "final_loss": 17.56464958190918,
+        "final_policy_loss": 17.56464958190918,
+        "final_q_loss": 22.24186134338379,
+        "final_v_loss": 7.025063991546631,
+        "gradient_steps": 40000,
+        "method": "iql",
+        "plateaued": true,
+        "seconds": 324.3666615486145,
+        "seed": 202,
+        "state_dict_sha256": "b77057f4e49e45de27ac3670f1bd9b9b12d5e11e076481c556b056ed1ffbfc47",
+        "tier": "random",
+        "training_rows": 1152000
+      },
+      {
+        "canonical_digest": "74f6cae32c2a1bb84022b8359d51fd9f9b089447120322fe93eff68efe5772e8",
+        "checkpoint_path": "/home/filip/rltraffic/output/p5_2b/p5_2/checkpoints/grid4x4_random_iql_seed303.pt",
+        "declared_gradient_steps": 40000,
+        "file_sha256": "42c521124b9f6eebedcc9964bfb58d10548146d7d16e032a1482a4b3a2931765",
+        "final_loss": 16.251882553100586,
+        "final_policy_loss": 16.251882553100586,
+        "final_q_loss": 18.65335464477539,
+        "final_v_loss": 6.505382537841797,
+        "gradient_steps": 40000,
+        "method": "iql",
+        "plateaued": true,
+        "seconds": 297.328120470047,
+        "seed": 303,
+        "state_dict_sha256": "95c16a5b711d6485172b1d7a12bd141f95d10fcccca90a4a574faf411dc9eb95",
+        "tier": "random",
+        "training_rows": 1152000
+      },
+      {
+        "canonical_digest": "afc271121512c85bcf062f3456e14546cdf91c741d3cc356ebde165ddf2315bb",
+        "checkpoint_path": "/home/filip/rltraffic/output/p5_2b/p5_2/checkpoints/grid4x4_random_iql_seed404.pt",
+        "declared_gradient_steps": 40000,
+        "file_sha256": "15709235a74d654771116ddf948c668c735a22b6471f8c8901c82155947fbfce",
+        "final_loss": 16.265018463134766,
+        "final_policy_loss": 16.265018463134766,
+        "final_q_loss": 23.202756881713867,
+        "final_v_loss": 7.8951096534729,
+        "gradient_steps": 40000,
+        "method": "iql",
+        "plateaued": true,
+        "seconds": 295.6783299446106,
+        "seed": 404,
+        "state_dict_sha256": "6faa24d670402d4c139c25422ca5c7394076e0a3fb2ab10b6d299474f26d8f12",
+        "tier": "random",
+        "training_rows": 1152000
+      },
+      {
+        "canonical_digest": "f0d594f705de7fd03596bc99b71f3b4ddcc5ef7dc41c4609e468fd916a624dfd",
+        "checkpoint_path": "/home/filip/rltraffic/output/p5_2b/p5_2/checkpoints/grid4x4_random_iql_seed505.pt",
+        "declared_gradient_steps": 40000,
+        "file_sha256": "477283d3e6a37d64e29214700c77b999bd334b4d81024367952c10fec8382bce",
+        "final_loss": 16.453699111938477,
+        "final_policy_loss": 16.453699111938477,
+        "final_q_loss": 19.780126571655273,
+        "final_v_loss": 6.189586639404297,
+        "gradient_steps": 40000,
+        "method": "iql",
+        "plateaued": true,
+        "seconds": 297.75666403770447,
+        "seed": 505,
+        "state_dict_sha256": "e4a867b918929deb66fabe6862089bb5d3221659a0b8151062f6a7891985092c",
+        "tier": "random",
+        "training_rows": 1152000
+      }
+    ],
+    "seconds": {
+      "bracketed_by": "the opening and the closing canary of the run that trained, the closing one taken right after the training",
+      "closing_canary_utc": "2026-10-07T15:54:55Z",
+      "covers": "each seed's gradient loop (offline_baselines.train_iql, time.time() around it)",
+      "late_close": null,
+      "max": 324.3666615486145,
+      "median": 297.75666403770447,
+      "min": 295.6783299446106,
+      "per_seed": [
+        {
+          "seconds": 307.26769948005676,
+          "seed": 101
+        },
+        {
+          "seconds": 324.3666615486145,
+          "seed": 202
+        },
+        {
+          "seconds": 297.328120470047,
+          "seed": 303
+        },
+        {
+          "seconds": 295.6783299446106,
+          "seed": 404
+        },
+        {
+          "seconds": 297.75666403770447,
+          "seed": 505
+        }
+      ],
+      "training_finished_utc": "2026-10-07T15:54:52Z"
+    }
+  },
+  "what_this_does_not_say": [
+    "The original cell is kept, unchanged, as the record of the defect: nothing under output/p5_2/ was written, moved or deleted, and P5.2's committed statements stand as written, with this artifact beside them.",
+    "The other arms were not re-run: their att_ours is P5.2's committed evaluation and their att_engine P8.4b's committed campaign, each read at the anchors named in inputs.",
+    "No other tier, method, scenario or seed was touched and no hypothesis is new (BRIEF_44: the author's ruling A of 2026-10-05, a narrow exception to A25).",
+    "The corrected weights are one realisation of P5.2's default CUDA regime, which does not reproduce bit for bit from run to run; no second realisation was trained (Amendment A, Q12).",
+    "Q1's predictions were registered on att_horizon (att_ours); under att_engine they are compared with measurements of the other definition.",
+    "The statements without an IQL arm (Q2b's hard subset under att_engine; Q3b, Q4, Q5 and Q6) are not recomputed: the correction cannot move them under att_ours, and their att_engine reading is the Rule-R recomputation of P5.2's statements, DEFERRED 109.",
+    "P8.4b's att_engine values are pinned by its campaign's completeness and the cross-checks named in inputs, not by a digest manifest, which P8.4b never wrote (Amendment A, A1.4).",
+    "The training seconds cover each seed's gradient loop only (offline_baselines.train_iql's time.time()), measured between two machine-health canaries."
+  ]
+}

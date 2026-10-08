@@ -1,0 +1,42 @@
+# at b4a19f3
+offline/iql_correction.py:training_inputs            unchanged
+offline/iql_correction.py:train_seeds                unchanged
+offline/iql_correction.py:p5_2_evaluation_argv       unchanged
+offline/iql_correction.py:narrowed_held_out_draws    unchanged
+offline/iql_correction.py:run_p5_2_evaluation        unchanged
+offline/iql_correction.py:rederivation_cells         unchanged
+offline/iql_correction.py:committed_from_eval        unchanged
+offline/iql_correction.py:_probe_roots               unchanged
+offline/iql_correction.py:resolved_checkpoints       unchanged
+offline/iql_correction.py:run_rederivation           unchanged
+offline/iql_correction.py:preflight_estimate         unchanged
+offline/iql_correction.py:timeouts_from_preflight    unchanged
+offline/iql_correction.py:_compare                   unchanged
+offline/iql_correction.py:_regime                    unchanged
+offline/iql_correction.py:_canary_at_speed           unchanged
+offline/iql_correction.py:_canary                    unchanged
+offline/tier_sweep.py:iql_transition_table       unchanged
+offline/tier_sweep.py:_run_train_baselines       unchanged
+offline/tier_sweep.py:_run_evaluate              unchanged
+offline/tier_sweep.py:main                       unchanged
+--- a71a72c preflight
++++ HEAD preflight
+@@ -11 +11 @@
+-    out = assert_out_root(roots.out_root, output)
++    out = assert_out_root(roots.out_root, output, pins=pins)
+
+--- a71a72c train_stage
++++ HEAD train_stage
+@@ -10 +10 @@
+-    out = assert_out_root(roots.out_root, output)
++    out = assert_out_root(roots.out_root, output, pins=pins)
+@@ -27,0 +28,2 @@
++    hyperparameters = assert_hyperparameters(
++        planned_hyperparameters(inputs, gradient_steps=protocol.declared_gradient_steps), verified["original"]["common"])
+@@ -30,0 +33 @@
++    finished = _utc_now()
+@@ -38,0 +42 @@
++        "hyperparameters": hyperparameters,
+@@ -39,0 +44 @@
++        "finished_utc": finished,
+

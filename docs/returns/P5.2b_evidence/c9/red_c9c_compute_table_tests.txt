@@ -1,0 +1,10 @@
+# C9c red run, gates open (output, corpus), 2026-10-07T20:56:33Z
+E   AssertionError: assert 'output/p5_2/...seed{seed}.pt' == 'output/p5_2b...seed{seed}.pt'
+E   AssertionError: assert None == {'file': 'docs/data/p5_2b_iql_correction.json', 'sha256': '216b9f24243c317d22b13a3cdcd346471bf9cfe9832e5a5495b8158f04eea1f8'}
+E   KeyError: 'per_seed'
+E   TypeError: 'NoneType' object is not subscriptable
+FAILED tests/test_compute_table.py::test_p5_2b_the_random_tier_of_grid4x4_iql_is_specified_on_the_corrected_cell
+FAILED tests/test_compute_table.py::test_p5_2b_the_corrected_entry_is_the_correction_artifacts_read_here
+FAILED tests/test_compute_table.py::test_p5_2b_the_excepted_entrys_five_seconds_are_sourced_from_the_correction_artifact
+FAILED tests/test_compute_table.py::test_p5_2b_every_other_row_and_block_of_the_committed_artifact_is_p8_2s_as_committed
+4 failed, 109 deselected in 8.22s

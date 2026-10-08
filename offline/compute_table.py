@@ -6,7 +6,9 @@ Q5/Q6: absences declared, never reconstructed; Q7: ``trained`` / ``deployed`` / 
 ``executed_per_decision``; Q13: parameters counted on all five seeds), its **Amendment B** (gate G1: B4 the
 latency verification, B6 the text the table prints, B7) and its **Amendment C** (gate G3: C3.1 ``latency_sensitivity``,
 C3.2 ``latency_variability`` and the same-computation groups, C3.3 two code-path facts, C3.4 the power mode's two
-labels), on the plan ``docs/plans/p8.2.md`` @ ``a7c43e1``.
+labels), on the plan ``docs/plans/p8.2.md`` @ ``a7c43e1``; and against ``docs/briefs/BRIEF_44_p5.2b_iql_correction.md`` §3.4
+(P5.2b, ``DEFERRED`` 106: ``grid4x4.iql``'s random-tier entry is the corrected cell's, with the original entry's values under
+``superseded``; the plan ``docs/plans/p5.2b.md`` §9).
 
 On-disk format
 --------------
@@ -26,8 +28,9 @@ convention: not applicable -- the artifact records no trajectory.
 
 What is pinned
 --------------
-:data:`PINNED_RECORDS` holds, each at its digest of 2026-10-03: every record of plan §4 the builder reads; the five
-:data:`SOURCES_ADDED_AFTER_PLAN`, each with its reason; and the 25 corpus manifests plan §3 names as the MAPPO
+:data:`PINNED_RECORDS` holds, each at its digest of 2026-10-03: every record of plan §4 the builder reads; the six
+:data:`SOURCES_ADDED_AFTER_PLAN`, each with its reason (the sixth, P5.2b's committed correction artifact, pinned on 2026-10-07);
+and the 25 corpus manifests plan §3 names as the MAPPO
 checkpoints' digest source. The three plan §4 records the builder does not read are :data:`UNPINNED_PLAN_RECORDS`, each
 with why no number depends on it.
 
@@ -43,7 +46,10 @@ seed's object>}`` (one value per seed), ``{"kind": "record", "path": <JSON path>
 "log", ...}`` (a manifest-pinned log's lines) or ``{"kind": "absent", "key": <a DECLARED_ABSENCES key>}``; ``data``
 adds ``unit``. Further locators: ``value_dict`` (the seed's value IS the number), ``log``, ``mappo`` (a
 ``results.json`` cell) and ``checkpoints`` (the record is lost and every value comes from the checkpoints); further
-ValueRefs: ``pinned`` (another pinned record), ``code`` and ``measurement``.
+ValueRefs: ``pinned`` (another pinned record), ``code`` and ``measurement``.  Two optional keys (BRIEF_44 §3.4): ``quotes``
+(name -> ValueRef: values the entry quotes beside its seconds, as P5.2b's canaries) and ``superseded`` (the entry an
+earlier record of the same cell gave, kept beside the one that replaced it: its checkpoints' paths and digest route, the
+data size read from them, the seconds' absence).
 
 Refusals, all before the artifact is written: a record that is absent or at a digest other than the pinned one; a
 row with no source for a column; a value missing from its record that is not a declared absence, or a null that no
@@ -173,6 +179,8 @@ def _pins() -> dict[str, PinnedRecord]:
                                     "c8b8a35a2dd034434aef4b0c32de73627de7f35a8f7eb55b0bbf752631eadfe4"),
         "p5_2_declaration_mappo1000": ("p5_2_declaration_mappo1000.json",
                                        "5bf5624cb49b9b7f051f709253469d1d8cacbd1ed066565e1d475c6ad569e4b8"),
+        "p5_2b_iql_correction": ("p5_2b_iql_correction.json",
+                                 "216b9f24243c317d22b13a3cdcd346471bf9cfe9832e5a5495b8158f04eea1f8"),
     }
     output = {
         "mappo_results_1000": ("experiments/p2_1_mappo_nominal_1000/results.json",
@@ -278,6 +286,11 @@ _ADDED: dict[str, str] = {
     "p5_2_declaration_fixedtime": "grid4x4 P5.2 DT rows at fixedtime: the training-set size (episodes_selected)",
     "p5_2_declaration_random": "grid4x4 P5.2 DT rows at random: the training-set size (episodes_selected)",
     "p5_2_declaration_mappo1000": "grid4x4 head-count-4 DT rows at mappo1000: the training-set size (episodes_selected)",
+    "p5_2b_iql_correction": (
+        "grid4x4.iql's random-tier entry (BRIEF_44 §3.4, DEFERRED 106): P5.2b's committed correction artifact holds the "
+        "corrected cell's training record -- seconds, steps, batch, regime, the checkpoints' digests -- beside its record of "
+        "the original cell"
+    ),
 }
 
 #: Committed records read beyond the plan's §4, each with the reason (disclosed in the Return Packet).
@@ -669,19 +682,72 @@ def _grid_h4_row(method: str) -> TableRow:
     )
 
 
+_P5_2B_RECORD = "p5_2b_iql_correction"
+_P5_2B_NOTE = (
+    "P5.2 trained IQL at this tier on the whole tier, 400 episodes, where every other arm trained on the declared 200 "
+    "(DEFERRED 106: _run_train_baselines built IQL's transition table from every episode, offline/tier_sweep.py:1820 at "
+    "9460800, :2078 at f077875). BRIEF_44 (P5.2b) re-trained it on the declared 200 episodes under P5.2's thirteen "
+    "hyperparameters; this entry is the corrected cell's, read from its committed artifact "
+    "docs/data/p5_2b_iql_correction.json. The original entry's values are under superseded, and the original checkpoints "
+    "stay at output/p5_2/ as the record of the defect."
+)
+
+
+def _corrected_iql_random(unit: str) -> tuple[dict[str, Any], dict[str, Any]]:
+    """BRIEF_44 §3.4: ``grid4x4.iql``'s random-tier group and training entry on the corrected cell -- the checkpoints
+    under ``output/p5_2b/p5_2/checkpoints/`` at the digests the correction's training record holds, the values from that
+    record, the canaries it was trained between quoted beside its seconds, the original entry under ``superseded``."""
+    group = _group("random", "output/p5_2b/p5_2/checkpoints/grid4x4_random_iql_seed{seed}.pt",
+                   _json_list_digest(_P5_2B_RECORD, {}, list_path="$.training.runs", field_name="file_sha256"))
+    entry = {
+        "record": _P5_2B_RECORD, "tier": "random", "label": "P5.2b (the corrected cell; BRIEF_44)",
+        "record_note": _P5_2B_NOTE,
+        "seeds": {"kind": "list", "path": "$.training.runs", "match": {}},
+        "seconds": _seed("seconds"), "steps": _seed("gradient_steps"), "batch": _rec("$.training.header.batch_size"),
+        "data": {**_ckpt("$.provenance.diagnostics.training_rows"), "unit": unit},
+        "covers": _BASELINE_COVERS,
+        "regime": _regime(_ckpt("$.provenance.device"), _rec("$.training.header.regime.cuda_device_name"),
+                          _rec("$.training.header.regime.torch_version"),
+                          _rec("$.training.header.regime.torch_num_threads"), _rec("$.training.header.concurrency.value")),
+        "quotes": {
+            "bracketed_by": _rec("$.training.seconds.bracketed_by"),
+            **{f"canary_{phase}_{name}": _rec(f"$.training.canaries.{phase}.{path}")
+               for phase in ("open", "close")
+               for name, path in (("seconds", "seconds"), ("verdict", "verdict"),
+                                  ("power_mode", "power.windows.ac_overlay_name"))},
+        },
+        "superseded": {
+            "label": "P5.2's original IQL cell at this tier, trained on all 400 episodes (DEFERRED 106)",
+            "note": ("the entry P8.2's table carried before BRIEF_44, its values read as P8.2 read them: the data size from "
+                     "the original checkpoints, their digests from P5.2's manifest; the checkpoints stay at output/p5_2/"),
+            "path": "output/p5_2/checkpoints/grid4x4_random_iql_seed{seed}.pt",
+            "digest": {"kind": "sums", "record": "sums_p5_2",
+                       "entry": "p5_2/checkpoints/grid4x4_random_iql_seed{seed}.pt"},
+            "data": {"path": "$.provenance.diagnostics.training_rows", "unit": unit},
+            "seconds": {"kind": "absent", "key": "p5_2.baselines.seconds"},
+        },
+    }
+    return group, entry
+
+
 def _grid_baseline_row(method: str) -> TableRow:
     groups = []
     training = []
     tiers = ("mappo1000",) + _GRID_P52_TIERS
     for tier in tiers:
+        unit = ("per-intersection transitions" if method == "iql" else "per-intersection windows") + (
+            " (16 per joint window, the unit of the DT rows' joint windows)")
+        if method == "iql" and tier == "random":
+            group, entry = _corrected_iql_random(unit)
+            groups.append(group)
+            training.append(entry)
+            continue
         from_p51 = tier == "mappo1000" and method != "bc_top10_perix"
         manifest = "sums_p5_1" if from_p51 else "sums_p5_2"
         folder = "p5_1" if from_p51 else "p5_2"
         groups.append(_group(tier, f"output/{folder}/checkpoints/grid4x4_{tier}_{method}_seed{{seed}}.pt",
                              {"kind": "sums", "record": manifest,
                               "entry": f"{folder}/checkpoints/grid4x4_{tier}_{method}_seed{{seed}}.pt"}))
-        unit = ("per-intersection transitions" if method == "iql" else "per-intersection windows") + (
-            " (16 per joint window, the unit of the DT rows' joint windows)")
         if from_p51:
             training.append({
                 "record": "p5_1_training_baselines", "tier": tier, "label": "P5.1",
@@ -706,6 +772,8 @@ def _grid_baseline_row(method: str) -> TableRow:
                                     for tier in (tiers if method == "bc_top10_perix" else _GRID_P52_TIERS)]
     if method != "bc_top10_perix":
         claims.insert(0, _claim("C1", "p5_1_grid", f"$.cells.{method}"))
+    if method == "iql":  # BRIEF_44 §3.4: the corrected cell beside the original
+        claims.append(_claim("C1", _P5_2B_RECORD, "$.cells.corrected"))
     names = {"bc": "BC", "bc_top10": "%BC (global top decile)", "bc_top10_perix": "%BC (per-intersection top decile)",
              "iql": "IQL (policy, Q, V, target Q)"}
     return TableRow(
@@ -1415,7 +1483,7 @@ def training_block(row: TableRow, entry: Mapping[str, Any], roots: Roots,
     batch = _value(entry["batch"], "batch", row, entry, seeds, document, source, roots, cache)
     if entry["batch"].get("label"):
         batch["label"] = entry["batch"]["label"]
-    return {
+    block = {
         "record": source,
         "record_note": entry.get("record_note"),
         "tier": entry["tier"],
@@ -1427,6 +1495,39 @@ def training_block(row: TableRow, entry: Mapping[str, Any], roots: Roots,
         "covers": entry["covers"],
         "regime": regime,
     }
+    if "quotes" in entry:
+        block["quotes"] = {name: _value(ref, f"quotes.{name}", row, entry, seeds, document, source, roots, cache)
+                           for name, ref in entry["quotes"].items()}
+    if "superseded" in entry:
+        block["superseded"] = _superseded(row, entry, roots, cache)
+    return block
+
+
+def _superseded(row: TableRow, entry: Mapping[str, Any], roots: Roots, cache: dict[str, Any]) -> dict[str, Any]:
+    """The entry an earlier record of the same cell gave (BRIEF_44 §3.4): each checkpoint at the digest its named source
+    holds -- refused otherwise -- and the data size read from every one of them, equal across seeds."""
+    spec = entry["superseded"]
+    main_root = roots.output_root.parent
+    checkpoints: list[dict[str, Any]] = []
+    sizes: list[tuple[Any, dict[str, str]]] = []
+    for seed in _SEEDS:
+        relative = str(spec["path"]).format(seed=seed)
+        expected, named_by = _named_digest(spec["digest"], entry["tier"], seed, roots, cache)
+        path = main_root / relative
+        if not path.is_file():
+            raise FileNotFoundError(f"{row.row_id} / {entry['tier']}: the superseded {path} does not exist")
+        actual = sha256_file(path)
+        if actual != expected:
+            raise ValueError(f"{row.row_id} / {entry['tier']}: the superseded {relative} has sha256 {actual}, not the "
+                             f"{expected} its source names")
+        checkpoints.append({"seed": seed, "path": relative, "sha256": actual, "named_by": named_by})
+        value = json_get(_payload(path, cache), spec["data"]["path"])
+        sizes.append((value, {"file": relative, "sha256": actual, "json_path": spec["data"]["path"]}))
+    if len({json.dumps(value, sort_keys=True) for value, _ in sizes}) != 1:
+        raise ValueError(f"{row.row_id} / {entry['tier']}: the superseded {spec['data']['path']} differs across seeds")
+    return {"label": spec["label"], "note": spec["note"], "seconds": _absent(spec["seconds"], row, entry),
+            "data": {"value": sizes[0][0], "source": sizes[0][1], "unit": spec["data"]["unit"]},
+            "checkpoints": checkpoints}
 
 
 # ----------------------------------------------------------------------
@@ -1826,6 +1927,9 @@ WHAT_THIS_DOES_NOT_SAY: tuple[str, ...] = (
     "The training wall times are the training runs' own clocks: the Windows power mode in force during those runs was "
     "not recorded (the mode found on 2026-10-03 was Best power efficiency), so they are not a controlled benchmark and "
     "are not comparable to the latency regime.",
+    "One training entry is the exception: grid4x4.iql's random tier, re-trained by P5.2b (BRIEF_44), was trained on mains "
+    "with the Windows power mode Best Performance between two machine-health canaries, both at speed, which the entry "
+    "quotes beside its seconds; its seconds are still its own run's clock, not a benchmark.",
     "The latency is the policy's decision call alone, not the controller's end-to-end loop: the simulator's step, the "
     "env's construction of the observation and any I/O are outside the timer.",
     "No number here evaluates any hypothesis (PREREGISTRATION A25(c)); the timing episodes' outcomes were never "
@@ -2097,7 +2201,8 @@ def build_artifact(roots: Roots, *, git: Mapping[str, Any] | None = None) -> dic
     variability = latency_variability(run, rows_out)
     return {
         "format_version": FORMAT_VERSION,
-        "registered_in": "PREREGISTRATION A25(c); docs/briefs/BRIEF_43_p8.2_compute_latency.md and its Amendments A, B and C",
+        "registered_in": ("PREREGISTRATION A25(c); docs/briefs/BRIEF_43_p8.2_compute_latency.md and its Amendments A, B and "
+                          "C; docs/briefs/BRIEF_44_p5.2b_iql_correction.md §3.4 (grid4x4.iql's random-tier entry)"),
         "git": dict(git or {}),
         "latency_run": {"stamp": run["stamp"], "manifest": run["manifest"],
                         "canaries": {phase: {"seconds": c["seconds"], "verdict": c["verdict"],

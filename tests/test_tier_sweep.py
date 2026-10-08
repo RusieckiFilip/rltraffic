@@ -2178,3 +2178,168 @@ def test_fixedtime_joined_the_running_order_without_replacing_maxpressure() -> N
     assert "fixedtime" in ts.TIER_ORDER
     assert "maxpressure" in ts.TIER_ORDER
     assert len(ts.TIER_ORDER) == 4
+
+
+# ======================================================================
+# P5.2b (BRIEF_44 §4.1, DEFERRED 106): IQL's transition table on the size-matched streams ONLY.  On a tier with more
+# episodes available than selected, the table P5.2 built for IQL came from the whole dataset while BC's batch was
+# filtered; these tests are red on that code and green after the fix.  The synthetic tier (tests/p5_2b_fixtures.py) has
+# six episodes on three draws, written by the real logger, of which the size match selects three.
+# ======================================================================
+
+
+def _p5_2b_train_baselines_args(tmp_path: Path, corpus: Path) -> Any:
+    return ts.build_parser().parse_args([
+        "--corpus-root", str(corpus), "--work-dir", str(tmp_path / "work"),
+        "--checkpoint-dir", str(tmp_path / "checkpoints"), "--reuse-root", str(tmp_path / "protected"),
+        "--device", "cpu", "--seeds", "101", "--gradient-steps", "2", "--tier", "random", "train-baselines",
+    ])
+
+
+def test_p5_2b_train_baselines_hands_iql_only_the_size_matched_streams(tmp_path: Path, monkeypatch: Any) -> None:
+    """T-tier_sweep: the table ``_run_train_baselines`` hands ``train_iql`` holds the selected streams' transitions and
+    nothing else -- RED on the code P5.2 ran (the defect, demonstrated: all six episodes), green after §4.1."""
+    from offline.method_tier_grid import transition_stream_keys
+    from tests import p5_2b_fixtures as fx
+
+    corpus = tmp_path / "corpus"
+    tier_dir = fx.write_synthetic_tier(corpus)
+    fx.install_synthetic_tier(monkeypatch)
+    iql, bc = fx.install_train_spies(monkeypatch)
+    assert ts._run_train_baselines(_p5_2b_train_baselines_args(tmp_path, corpus)) == 0
+    assert len(bc.calls) == 3 and len(iql.calls) == 1, "bc, bc_top10 and bc_top10_perix once each, then iql"
+
+    parts = ts.tier_parts("random", corpus)
+    selected = {episode.episode_file for episode in parts["episodes"]}
+    episodes = fx.manifest_episodes(tier_dir)
+    assert len(episodes) == len(fx.DRAWS) * fx.EPISODES_PER_DRAW and len(selected) == len(fx.DRAWS)
+    # The expected size by this test's own route: the manifest's episode lengths of the selected episodes, x 16 nodes.
+    expected_rows = sum(int(e["episode_length"]) for e in episodes if e["filename"] in selected) * len(fx.IDS)
+    assert expected_rows == len(fx.DRAWS) * len(fx.IDS) * fx.DECISIONS
+
+    table = iql.calls[0]["batch"]
+    assert len(table) == expected_rows, (
+        f"IQL's table holds {len(table)} transitions against the selected streams' {expected_rows}: "
+        "it was built from every episode the tier carries, not from the size-matched set")
+    keys = transition_stream_keys(parts["dataset"], next(iter(parts["dataset"].groups)))
+    assert fx.stream_keys_of_table(table, keys) == {stream.key for stream in parts["streams"]}
+
+
+def test_p5_2b_iql_transition_table_is_the_filter_of_the_whole_table_in_its_order(tmp_path: Path,
+                                                                                   monkeypatch: Any) -> None:
+    """The fix is ``method_tier_grid``'s helpers composed, nothing more: on the selection, the table equals the whole
+    table filtered to the selected streams, tensor for tensor and in the whole table's order."""
+    import torch
+
+    from offline.method_tier_grid import filter_transitions_to_streams, transition_stream_keys
+    from offline.offline_baselines import build_transitions
+    from tests import p5_2b_fixtures as fx
+
+    corpus = tmp_path / "corpus"
+    fx.write_synthetic_tier(corpus)
+    fx.install_synthetic_tier(monkeypatch)
+    parts = ts.tier_parts("random", corpus)
+    dataset, streams = parts["dataset"], parts["streams"]
+    group = next(iter(dataset.groups))
+    table = ts.iql_transition_table(dataset, group=group, reward_scale=0.5, streams=streams)
+    full = build_transitions(dataset, group=group, reward_scale=0.5)
+    expected = filter_transitions_to_streams(full, transition_stream_keys(dataset, group), streams)
+    assert len(table) == len(fx.DRAWS) * len(fx.IDS) * fx.DECISIONS < len(full)
+    for name in ("state", "next_state", "action", "reward", "stream_index", "t"):
+        assert torch.equal(getattr(table, name), getattr(expected, name)), name
+    assert table.reward_scale == 0.5
+    assert bool(torch.all(table.stream_index[1:] >= table.stream_index[:-1])), "the whole table's order is kept"
+
+
+def test_p5_2b_iql_transition_table_is_the_whole_table_when_every_episode_is_selected(tmp_path: Path,
+                                                                                      monkeypatch: Any) -> None:
+    """On a tier whose episodes are all selected (mappo1000, maxpressure, fixedtime) the fix changes nothing: the table
+    equals ``build_transitions``' tensor for tensor, so no re-run of those tiers can train IQL on other data."""
+    import torch
+
+    from offline.offline_baselines import build_transitions
+    from tests import p5_2b_fixtures as fx
+
+    corpus = tmp_path / "corpus"
+    fx.write_synthetic_tier(corpus)
+    fx.install_synthetic_tier(monkeypatch, subsample="none")
+    parts = ts.tier_parts("random", corpus)
+    assert len(parts["episodes"]) == len(fx.DRAWS) * fx.EPISODES_PER_DRAW
+    dataset = parts["dataset"]
+    group = next(iter(dataset.groups))
+    table = ts.iql_transition_table(dataset, group=group, reward_scale=2.0, streams=parts["streams"])
+    full = build_transitions(dataset, group=group, reward_scale=2.0)
+    for name in ("state", "next_state", "action", "reward", "stream_index", "t"):
+        assert torch.equal(getattr(table, name), getattr(full, name)), name
+
+
+@pytest.mark.parametrize("broken", ["keeps_every_row", "drops_one_stream", "duplicates_one_stream"])
+def test_p5_2b_iql_transition_table_refuses_a_table_that_is_not_exactly_the_declared_streams(
+    tmp_path: Path, monkeypatch: Any, broken: str
+) -> None:
+    """§4.1's refusal, tested apart from the filter it guards: a filter that keeps every row, one that loses a stream
+    and one that repeats a stream's rows are each refused -- identity AND count, before any training."""
+    import torch
+
+    import offline.method_tier_grid as mtg
+    from tests import p5_2b_fixtures as fx
+
+    corpus = tmp_path / "corpus"
+    fx.write_synthetic_tier(corpus)
+    fx.install_synthetic_tier(monkeypatch)
+    parts = ts.tier_parts("random", corpus)
+    dataset = parts["dataset"]
+    real = mtg.filter_transitions_to_streams
+
+    def wrong(table: Any, keys: Any, wanted: Any) -> Any:
+        if broken == "keeps_every_row":
+            return table
+        kept = real(table, keys, wanted)
+        first = kept.stream_index[0]
+        if broken == "drops_one_stream":
+            return kept.select(torch.nonzero(kept.stream_index != first, as_tuple=True)[0])
+        repeated = torch.nonzero(kept.stream_index == first, as_tuple=True)[0]
+        return kept.select(torch.cat([torch.arange(len(kept)), repeated]))
+
+    monkeypatch.setattr(mtg, "filter_transitions_to_streams", wrong)
+    with pytest.raises(ValueError, match="declared streams"):
+        ts.iql_transition_table(dataset, group=next(iter(dataset.groups)), reward_scale=1.0, streams=parts["streams"])
+
+
+def test_p5_2b_iql_transition_table_refuses_a_swapped_stream_of_the_same_length_on_identity(tmp_path: Path,
+                                                                                         monkeypatch: Any) -> None:
+    """BRIEF_44 Amendment B, B1.4 (MT2 survived the three filters above, which all change the row COUNT): a filter that
+    swaps one declared stream for an undeclared stream of the same length keeps the count, so only the identity check
+    (a) can refuse it -- and must, naming one undeclared stream present and one declared stream missing."""
+    import torch
+
+    import offline.method_tier_grid as mtg
+    from offline.offline_baselines import build_transitions
+    from tests import p5_2b_fixtures as fx
+
+    corpus = tmp_path / "corpus"
+    fx.write_synthetic_tier(corpus)
+    fx.install_synthetic_tier(monkeypatch)
+    parts = ts.tier_parts("random", corpus)
+    dataset, streams = parts["dataset"], parts["streams"]
+    group = next(iter(dataset.groups))
+    real = mtg.filter_transitions_to_streams
+
+    def swapped(table: Any, keys: Any, wanted: Any) -> Any:
+        declared = {stream.key for stream in wanted}
+        inside = [i for i, key in enumerate(keys) if key in declared]
+        outside = [i for i, key in enumerate(keys) if key not in declared]
+        dropped = inside[0]
+        rows = int((table.stream_index == dropped).sum())
+        added = next(i for i in outside if int((table.stream_index == i).sum()) == rows)
+        lookup = torch.as_tensor([i for i in inside if i != dropped] + [added], dtype=torch.int64)
+        return table.select(torch.nonzero(torch.isin(table.stream_index, lookup), as_tuple=True)[0])
+
+    full = build_transitions(dataset, group=group, reward_scale=1.0)
+    keys = mtg.transition_stream_keys(dataset, group)
+    honest, broken = real(full, keys, streams), swapped(full, keys, streams)
+    assert len(broken) == len(honest), "the swap must keep the row count, so that only identity can refuse it"
+    assert fx.stream_keys_of_table(broken, keys) != fx.stream_keys_of_table(honest, keys)
+    monkeypatch.setattr(mtg, "filter_transitions_to_streams", swapped)
+    with pytest.raises(ValueError, match=r"1 undeclared stream\(s\) present, 1 missing"):
+        ts.iql_transition_table(dataset, group=group, reward_scale=1.0, streams=streams)
