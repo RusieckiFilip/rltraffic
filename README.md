@@ -23,9 +23,10 @@ tagged and states which results had already been seen when it was written (`PRER
 reported as such.
 
 > **Status (October 2026):** the experiments for the first paper — C1, C3, H4 and the
-> compute-and-latency table — are merged. One correction run is open: the IQL cell at the 4×4
-> grid's random tier trained on twice its declared data and is being re-run (P5.2b;
-> `docs/notes/DEFERRED.md`, row 106). One registered hypothesis, H2 (robustness under scenario
+> compute-and-latency table — are merged. One C1 cell (IQL at the 4×4 grid's random tier) was
+> found to have trained on twice its declared data and was re-trained on the declared data: it is
+> about 7.5 s slower and every registered verdict stands (P5.2b,
+> `docs/data/p5_2b_iql_correction.json`). One registered hypothesis, H2 (robustness under scenario
 > shift), was **not tested** and is reported as such (`PREREGISTRATION.md`, amendment A25). The
 > paper is in preparation. Nothing here is a settled finding until the paper states it.
 
@@ -53,8 +54,10 @@ holds under the earlier definition unless it says otherwise.
 - **Sixteen intersections (CityFlow, synthetic 4×4 grid).** No method leads everywhere. By mean
   travel time the non-spatial DT leads on the MAPPO-teacher tier, BC on the MaxPressure tier (by
   0.9 s, a lead whose paired 95 % CI includes zero under the primary metric but not under the
-  earlier one), and IQL on the fixed-time tier. IQL also leads on the random tier, but that cell trained
-  on twice its declared data and is being re-run (P5.2b). The DT arms are the only arms that never
+  earlier one), and IQL on the fixed-time and random tiers. The random-tier IQL cell was first
+  trained on twice its declared data and was re-trained on the declared 200 episodes (P5.2b): it is
+  7.5 s slower under P5.2's metric and 7.6 s under the primary one, still leads on every training
+  seed, and no registered verdict changed. The DT arms are the only arms that never
   collapse below the random-policy anchor (P5.2).
 - **Cross-intersection attention.** Adding the cross-intersection attention path destabilises
   training: on the best-data tier the spatial model's travel time varies across training seeds
