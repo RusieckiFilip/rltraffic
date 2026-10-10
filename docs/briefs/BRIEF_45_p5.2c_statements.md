@@ -193,3 +193,152 @@ executed and committed.
 `docs/returns/P5.2c.md` from `docs/returns/TEMPLATE.md`, with: the statement table (statement × tier × definition, verdicts, the
 primary marked), the first-time scores, the comparison with the record, the ties, what the correction and Rule R change, what the
 artifact does not say, the commands that rebuild it, and CLAUDE.md §8's AI-assistance record.
+
+---
+
+# ✅ AMENDMENT A — 2026-10-10, gate G0: PLAN APPROVED (`docs/plans/p5.2c.md` @ `1267715`, 557 lines) — F1–F15 and Q1–Q12 ruled, one premise of the plan refuted (F9/F11: the rank-biserial is IN), three corrections to this brief, four requirements added, and Q5's record found wrong
+
+## A0 — Verdict and what the coordinator verified (by running commands, not from the plan's text)
+**Approved. Build C1–C5 in the plan's order (A5).** Verified independently on 2026-10-10:
+1. **F4, and it is wider than F4 says.** `python -P -c "import offline"` raises `ModuleNotFoundError` from the worktree **and from
+   the main tree**: the venv's editable install maps no `offline`, so §4's command could not run from ANY tree. With
+   `PYTHONPATH=<tree>` it imports `offline` and `agent` from `<tree>`, which is P5.2b's form
+   (`offline/campaigns/p5_2b_correction.sh:116`). The brief's error (A1.1).
+2. **F1's premise.** Python 3.12.13's built-in `sum` over floats is compensated (`sum([0.1]*10) == 1.0` is `True`). The two
+   committed values of one quantity are on disk: `docs/data/p8_4b_rederivation.json` V4 `att_ours` `mean_difference`
+   `39.564858203026375`; `docs/data/p5_1_grid.json` P1 `39.56485820302637`.
+3. **F6, by a route that imports nothing from `offline/`** (json + `statistics`; per draw the mean over the five seeds; the CI
+   `1.96·sd/√100`, `ddof=1`; every P8.4b `att_ours` read asserted equal to its eval file's `att_horizon`):
+   - Q5a `bc_top10 − bc`, predicted > 0: `maxpressure` +514.4262 [+508.0807, +520.7716]; `fixedtime` **+0.2816 [−0.1093,
+     +0.6725]**; `random` +60.9885 [+55.0077, +66.9693] → **NOT RESOLVED**.
+   - Q5b `bc_top10_perix − bc_top10`, predicted < 0: `mappo1000` −557.3594 [−565.4166, −549.3021]; `maxpressure` −469.6936
+     [−477.8062, −461.5809]; `fixedtime` **−0.2816 [−0.6725, +0.1093]**; `random` −49.1561 [−55.2578, −43.0544] → **NOT RESOLVED**.
+   - Q5c `bc_top10_perix − bc`, predicted −, −, +, +: `mappo1000` **+23.2396 [+19.1155, +27.3637]** and `maxpressure` **+44.7326
+     [+40.1822, +49.2831]**, both resolved against the predicted sign; `fixedtime` exactly zero; `random` +11.8324 [+6.7711,
+     +16.8937] → **FAILED**.
+   - Under `att_engine` the same three verdicts (Q5a `fixedtime` +0.2839 [−0.1103, +0.6781]; Q5b `mappo1000` −561.7580
+     [−569.7300, −553.7860], `fixedtime` −0.2839 [−0.6781, +0.1103]; Q5c +23.3168 [+19.1606, +27.4730] and +44.8459 [+40.2609,
+     +49.4309]).
+   - **The registration did not predict a null at `fixedtime`.** `tier_sweep.PREDICTED_LEVELS` holds `bc` 222.1050, `bc_top10`
+     1042.7531 and `bc_top10_perix` 230.5996 there, i.e. Q5a +820.65, Q5b −812.15, Q5c +8.49 — the values
+     `docs/plans/p5.2.md:683-689` registers.
+4. **Q0, same route:** `d4` +27.1004 [+23.8150, +30.3858] | `att_engine` +27.4534 [+24.1365, +30.7702]; `I` −12.4645 [−16.3575,
+   −8.5714] | −12.5676 [−16.4943, −8.6409]; Q0a HELD, Q0b FAILED (negative), stop rule CONTINUE, `I < 0` on 70 of 100 draws,
+   under both. These are the plan's §5 values.
+5. **F12, same route:** both DT arms lie below the anchor with the CI excluding 0 on all four tiers under both definitions.
+   Every non-DT arm lies above it with the CI excluding 0 on at least one tier: `bc` at `random`; `bc_top10` at `mappo1000`,
+   `maxpressure` and `random`; `bc_top10_perix` at `random`; `iql` at `mappo1000` and `maxpressure`. This used P5.2's original
+   IQL cell at `random`; the corrected one was not checked here.
+6. **F9's and F11's shared premise is false.** `offline_baselines.paired_comparison` (`:2199`) pairs through `dt_gate._paired`
+   → `dt_gate._per_draw_means` (`dt_gate.py:1199-1219`) and takes its interval from `mean_ci95(differences)`. **It IS the
+   registered route, not a third one.** It is the function behind P5.1's committed P1 and P3 (`spatial_mixing._paired_block`,
+   `:600`; `collapse_criterion`, `:747`). Those are the records the plan's V11 reproduces under `==` by the registered route,
+   which is consistent only because the two routes are one.
+7. **F14 and F15** are as the plan states: `docs/notes/A11_DRAFT.md:3`; `PROJECT_PLAN` §7, *"Filesystem-mutation barrier (added
+   2026-07-31 …)"*; `offline/tier_sweep.py:6-8`.
+
+**The plan's disclosure is accepted.** It says every statement was computed in scratch before the plan was written. No
+convention ruled here moves a registered verdict: items 3–5 were recomputed independently, and F8–F10's verdicts agree under
+both readings on these data. The packet's AI-assistance record states that order. G3 recomputes every statement by a route
+that imports nothing from the module.
+
+## A1 — Corrections to this brief
+1. **§4's CLI is the plan's §6.4 form.** On `main` after the merge, from any directory:
+   `PYTHONPATH=/home/filip/rltraffic /home/filip/rltraffic/.venv/bin/python -P -m offline.tier_statements build --repo-root
+   /home/filip/rltraffic --output-root /home/filip/rltraffic/output --out docs/data/p5_2_statements.json`, and `check` with the
+   same roots. The brief's `-P` without `PYTHONPATH` imported nothing (A0.1).
+2. **§1.1:** Rule R's registration is `PREREGISTRATION.md` §12 (`:397`, A11(c) and (d)); `docs/notes/A11_DRAFT.md` is its
+   drafting record. **§0:** the barrier rule is `PROJECT_PLAN` §7, not §5.
+3. A1.1 and A1.2 are the coordinator's errors, logged in `PROJECT_PLAN` §8.
+
+## A2 — Rulings: F1–F15 and Q1–Q12
+- **Q1 / F1 — APPROVED.** One route everywhere, the registered one. T-reproduce-P8.4b takes its four-part exact form. No
+  tolerance anywhere.
+- **Q2 / F2 — APPROVED.** The tier-generic composer must be proven equal to `iql_correction.random_tier_statements` at `random`,
+  field by field, for both `with_hard_subset` values, on synthetic and on real cells. It may add fields; it may never change one.
+- **Q3 — APPROVED.** The local manifest reader, proven equal to `read_p5_2_json` and refusing the same tampering.
+- **Q4 / F3 — APPROVED.**
+- **Q5 — APPROVED.** `definition_dependent` is computed on the reading for Q3c and the leaders, and labelled as a reading.
+- **Q6 / F5, F7 — APPROVED.** A3 adds Q5's records.
+- **Q7 / F8, F10 — APPROVED.** F10's aggregate is labelled *both cells hold*, and its two sources are named: the bullet's
+  registered tier (`maxpressure`, `p5.2.md:576-578`) and the table's second marking (`fixedtime`, `:497`).
+- **Q7 / F9 — APPROVED WITH A CHANGE.** P5.1's three-valued outcome comes from `spatial_mixing.collapse_criterion` **imported
+  unchanged** (A0.6). The module refuses unless that call's `mean_difference`, `ci95_low` and `ci95_high` equal its own under
+  `==`. The two-valued verdict is primary, as the brief ruled.
+- **Q8 / F11 — RULED DIFFERENTLY: THE RANK-BISERIAL IS IN.**
+  - **Why.** D8 (`p5.2.md:315`) registers a rank-biserial for every pair. P5.1 reported one on every comparison
+    (`docs/data/p5_1_grid.json`). P5.2's record omitted it, and the plan's reason for leaving it out rested on A0.6's false
+    premise.
+  - **What every two-arm contrast carries.** From `offline_baselines.paired_comparison(left, right)`, as the function returns
+    them: `rank_biserial`, `median_difference`, `wins`, `losses`, `ties` and the `wilcoxon` block. The p-value is reported but
+    never read by a verdict. The module refuses unless that call's `mean_difference`, `ci95_low` and `ci95_high` equal its own
+    under `==`, which checks for free that the route is one route.
+  - **Exact zeros.** Where `wilcoxon.n_used == 0`, the artifact says the rank-biserial is undefined and that the function
+    returns 0.0.
+  - **`I`** is a difference of two differences, not a pair of arms. It carries no rank-biserial, and the artifact says so.
+  - **D15 is IN, as proposed.** Median and IQR per cell and definition over the cell's 500 episodes (`numpy.percentile`,
+    `method="linear"`, named), and A5's `horizon_vehicle_count` mean, asserted equal to each eval file's `cell` block. D15's
+    *"visibly not unimodal"* clause is a visual judgement this artifact does not make; `what_this_does_not_say` says so.
+- **Q9 / F12 — IN,** as `descriptive_collapse_audit`, labelled *not registered*. It applies Q6's rule verbatim to `bc`,
+  `bc_top10`, `bc_top10_perix` and `iql` on all four tiers, under both definitions, with both IQL cells at `random`. It quotes
+  the README sentence it backs as text, without a line number (A4.2).
+- **Q10 / F13 — APPROVED,** with A4.3.
+- **Q11 and Q12 — APPROVED.**
+- **F14 — accepted** (A1.2). **F15 — outside the fence.** Recorded as `DEFERRED` 112; the packet names it.
+
+## A3 — Q5 in `comparison_with_the_record`, named in these terms
+The block gets one row for each of three records:
+- the packet's Q5 row (`docs/returns/P5.2.md:30`, *"CONFIRMED twice, with a predicted null on `fixedtime`"*);
+- the packet's finding (`:572-573`, *"The load sorter is confirmed across tiers … a *predicted* null on `fixedtime`"*);
+- GATE 2's G5 (`BRIEF_27`:1274-1281).
+
+Each row carries:
+- the registered verdicts of Q5a, Q5b and Q5c;
+- the registered `fixedtime` predictions beside the measured values: +820.65, −812.15 and +8.49 (`p5.2.md:683-689`, equal to
+  the differences of `PREDICTED_LEVELS`);
+- one statement: the record scored Q5b on two of its four registered tiers, scored neither Q5a nor Q5c, and called predicted a
+  null the registration did not predict.
+
+The descriptive reading the record was after stays reportable per tier from Q5b's resolved tiers, labelled descriptive: the
+global return filter collapses where the per-intersection one does not. GATE 2 is a coordinator ruling, so the error is the
+coordinator's; it is logged in `PROJECT_PLAN` §8.
+
+## A4 — Requirements added by the coordinator
+1. **The code that runs must be the code the git block names.**
+   - `build` and `check` refuse unless `offline.tier_statements` and every `offline` module it imports resolve
+     (`Path(module.__file__).resolve()`) under the resolved `--repo-root`.
+   - `provenance` records each module's path relative to the root, and its sha256.
+   - Why: A0.1. With one tree on `PYTHONPATH` and another as `--repo-root`, the artifact would record a commit the code did not
+     come from.
+   - Test: a module outside the root is refused. Mutant M19: the check removed.
+2. **No line-pinned quotation from a living document.**
+   - `file:line` citations (in the module, the artifact and T-quotes) point only into files that are history:
+     `docs/plans/p5.2.md`, `docs/plans/p5.1.md`, `docs/briefs/BRIEF_27_p5.2_tier_sweep.md`,
+     `docs/briefs/BRIEF_44_p5.2b_iql_correction.md`, `docs/returns/P5.2.md`, and `PREREGISTRATION.md` (its amendments are
+     appended at its end).
+   - `docs/PROJECT_PLAN.md`, `README.md`, `docs/notes/DEFERRED.md`, `CLAUDE.md` and this brief are cited by section and dated
+     heading only. T-quotes does not read them.
+   - Why: the coordinator edits the plan at every merge, and the author will edit the README while writing. An ungated test
+     that turns CI red because a living document gained a line certifies nothing. (The plan's V15 and V16 cite
+     `PROJECT_PLAN` by line.)
+3. **The artifact must pin what it read.**
+   - `provenance` carries one sha256 over the sorted (path relative to `--output-root`, file sha256) pairs of every P8.4b row
+     read, and one over P5.2b's corrected rows.
+   - P8.4b has no per-file manifest, so this is the only content record of the `att_engine` values the paper quotes.
+   - T-inputs-real recomputes both.
+4. **Mutations.** M1–M18 as planned, plus:
+   - M19: A4.1's check removed;
+   - M20: the `paired_comparison` equality refusal removed, killed by a test that perturbs that call's `mean_difference` by one
+     ulp.
+
+   Each is executed, committed with its output, and KILLED.
+
+## A5 — Next
+The implementer builds, in the plan's order:
+1. C1–C5 (tests first, the red run pasted).
+2. The whole suite with `RLTRAFFIC_OUTPUT_ROOT=/home/filip/rltraffic/output`.
+3. `scripts/check_test_hygiene.sh` and `scripts/check_english.sh` on the new files.
+4. The mutation script's log and results.
+
+All of it is committed on the branch and NOT pushed: the coordinator reads it from the shared repository. Then stop and say
+**"P5.2c G1 ready"** — gate G1, Amendment B. **No artifact is built (C7) before Amendment B exists on `main`.**
