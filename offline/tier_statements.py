@@ -2023,11 +2023,238 @@ WHAT_THIS_DOES_NOT_SAY: tuple[str, ...] = (
 )
 
 
+def _find(statements: Sequence[Mapping[str, Any]], statement_id: str, tier: str | None, definition: str,
+          version: str, arm: str | None = None) -> Mapping[str, Any]:
+    """The one statement entry of *statement_id* at *tier* under *definition* in *version* (or stored once, ``both``)."""
+    found = [s for s in statements if s["id"] == statement_id and s["tier"] == tier and s["arm"] == arm
+             and s["definition"] == definition and s["version"] in (version, "both")]
+    if len(found) != 1:
+        raise ValueError(f"{len(found)} statement entries match {statement_id} at {tier} ({arm}) under {definition} in "
+                         f"{version}; exactly one must")
+    return found[0]
+
+
+def _f4(value: float) -> str:
+    """Four decimals with a sign, and an exact zero as P5.2's record writes it."""
+    return "0.0000" if value == 0 else f"{value:+.4f}"
+
+
+def _ci4(low: float, high: float) -> str:
+    return f"[{_f4(low)}, {_f4(high)}]"
+
+
+_NUMBER_WORDS: tuple[str, ...] = ("No", "One", "Two", "Three", "Four", "Five", "Six")
+
+
 def record_values(statements: Sequence[Mapping[str, Any]], audit: Mapping[str, Any],
-                  ties: Sequence[Mapping[str, Any]]) -> dict[str, str]:
+                  ties: Sequence[Mapping[str, Any]], books: Mapping[str, Mapping[tuple[str, str], Cell]]
+                  ) -> dict[str, str]:
     """Every :data:`RECORD` value key, formatted at the record's precision from the ``as_committed`` ``att_ours``
     statements (the basis P5.2 scored on)."""
-    raise NotImplementedError("P5.2c C1 skeleton: record_values")
+    def st(statement_id: str, tier: str | None, arm: str | None = None) -> Mapping[str, Any]:
+        return _find(statements, statement_id, tier, "att_ours", "as_committed", arm)
+
+    tiers = OUT_OF_SAMPLE_TIERS
+    v: dict[str, str] = {}
+    v["q0.stop_rule"] = "did not fire" if st("Q0.stop_rule", "mappo1000")["verdict"] == "CONTINUE" else "fired"
+    q1 = st("Q1", None)
+    v["q1.outcome"] = f"{q1['verdict']}, {q1['numbers']['n_held']} of {q1['numbers']['n_cells']}"
+    v["q1.threshold"] = f"(threshold {q1['numbers']['threshold']})"
+    relative = {t: st("Q1b", t)["numbers"]["relative_error"] for t in ("maxpressure", "fixedtime")}
+    v["q1b.relative_errors"] = f"{100 * relative['maxpressure']:.2f} % / {100 * relative['fixedtime']:.2f} %"
+    for entry in q1["numbers"]["cells"]:
+        name = f"{entry['cell'][0]}@{entry['cell'][1]}"
+        v[f"q1.measured.{name}"] = f"{entry['measured']:.2f}"
+        v[f"q1.predicted.{name}"] = f"{entry['predicted']:.2f}"
+        v[f"q1.relative_error.{name}"] = f"{100 * entry['relative_error']:.1f} %"
+        v[f"q1.relative_error.{name}.parenthesised"] = f"({100 * entry['relative_error']:.1f} %)"
+    q2a = [st("Q2a", t) for t in tiers]
+    v["q2a.failed"] = f"FAILED {sum(e['verdict'] == 'FAILED' for e in q2a)}/{len(tiers)}"
+    v["q2a.predicted"] = "/".join(f"`{e['numbers']['predicted_first']}`" for e in q2a)
+    v["q2a.observed"] = "/".join(f"`{e['numbers']['measured_first']}`" for e in q2a)
+    q2b = [st("Q2b", t) for t in tiers]
+    v["q2b.failed"] = f"FAILED {sum(e['verdict'] == 'FAILED' for e in q2b)}/{len(tiers)}"
+    v["q2b.counts"] = " · ".join(str(e["numbers"]["n_concordant"]) for e in q2b)
+    v["q2b.overall"] = f"{sum(e['numbers']['n_concordant'] for e in q2b)}/{15 * len(tiers)}"
+    v["q2b.fixedtime_max"] = f"(max {st('Q2b', 'fixedtime')['numbers']['range'][1]} < {ts.CONCORDANCE_THRESHOLD})"
+    hard = [st("Q2b_hard", t)["numbers"] for t in tiers]
+    v["q2b_hard.counts"] = " · ".join(f"{h['n_concordant']}/6" for h in hard)
+    v["q2b_hard.total"] = f"{sum(h['n_concordant'] for h in hard)} of 18"
+    v["q2b_hard.counts_total"] = f"{v['q2b_hard.counts']} = {v['q2b_hard.total']}"
+    v["q2b_hard.ranges"] = " · ".join(f"`{t}` {h['range'][0]}..{h['range'][1]}" for t, h in zip(tiers, hard))
+    total = f"{sum(h['range'][0] for h in hard)}..{sum(h['range'][1] for h in hard)}"
+    v["q2b_hard.ranges_packet"] = f"{v['q2b_hard.ranges']}, i.e. {total} of 18"
+    v["q2b_hard.ranges_gate2"] = f"{v['q2b_hard.ranges']}, giving a total range of {total}"
+    v["q2b_hard.total_range"] = f"the true range is {total}"
+    q3a = [st("Q3a", t) for t in tiers]
+    v["q3a.failed"] = f"FAILED {sum(e['verdict'] == 'FAILED' for e in q3a)}/{len(tiers)}"
+    v["q3a.ranks"] = " · ".join(f"{e['numbers']['rank']}/{e['numbers']['of']}" for e in q3a)
+    v["q3a.rank_floor"] = f"(rank ≥ {min(e['numbers']['rank_range'][0] for e in q3a)} always)"
+    against = all(st("Q3c", t)["reading"] == "resolves against the DT" for t in tiers)
+    v["q3c.all_against"] = ("every paired difference against the best non-DT arm resolves against the DT" if against
+                            else "not every paired difference against the best non-DT arm resolves against the DT")
+    for tier in tiers:
+        n = st("Q3b", tier)["numbers"]
+        v[f"q3b.{tier}.mean"] = _f4(n["mean_difference"])
+        v[f"q3b.{tier}.ci_prefixed"] = f"CI {_ci4(n['ci95_low'], n['ci95_high'])}"
+    v["q3b.maxpressure.gate2"] = f"`{v['q3b.maxpressure.mean']}`, {v['q3b.maxpressure.ci_prefixed']}"
+    exact = st("Q3b", "fixedtime")["numbers"]["exactly_zero"]
+    v["q3b.fixedtime.exact"] = f"{'equals' if exact else 'does not equal'} it exactly on `fixedtime`"
+    v["q3b.fixedtime.exact_upper"] = f"{'equals' if exact else 'does not equal'} it EXACTLY on `fixedtime`"
+    d = {t: st("Q4.d", t)["numbers"] for t in TIERS}
+    for tier, n in d.items():
+        v[f"q4.{tier}.mean"] = _f4(n["mean_difference"]) if not n["exactly_zero"] else "0.0000"
+        v[f"q4.{tier}.ci"] = "exact" if n["exactly_zero"] else _ci4(n["ci95_low"], n["ci95_high"])
+        seeds = n["per_seed"]["n_seeds"]
+        v[f"q4.{tier}.seeds"] = ("n/a" if n["exactly_zero"] else
+                                 f"{seeds - n['per_seed']['reverses_against_pooled_sign']}/{seeds}")
+    best, worst = d["mappo1000"]["mean_difference"], d["random"]["mean_difference"]
+    v["q4.endpoints"] = f"{best:.2f} at the best tier against {worst:.2f} at the worst"
+    v["q4.endpoints_packet"] = f"`{_f4(best)}` at the best tier, `{_f4(worst)}` at the"
+    reverses = d["random"]["ci95_high"] < 0.0 < d["mappo1000"]["ci95_low"]
+    v["q4.random_reverses"] = ("on `random` the sign REVERSES with the CI excluding zero" if reverses else
+                               "on `random` the sign does not reverse with the CI excluding zero")
+    v["q4b.reading"] = "INVERTED" if st("Q4b", None)["numbers"]["strictly_decreasing"] else "NOT INVERTED"
+    for tier in tiers:
+        n = st("Q5b", tier)["numbers"]
+        v[f"q5b.{tier}.mean"] = f"{n['mean_difference']:+.2f}"
+        v[f"q5b.{tier}.ci"] = f"[{n['ci95_low']:+.2f}, {n['ci95_high']:+.2f}]"
+    v["q5b.fixedtime.ci_unresolved"] = (f"{v['q5b.fixedtime.ci']} " +
+                                        ("unresolved" if st("Q5b", "fixedtime")["verdict"] == "NOT RESOLVED"
+                                         else "resolved"))
+    levels = st("ranking", "maxpressure")["numbers"]["levels"]
+    v["level.bc_top10@maxpressure"] = f"{levels['bc_top10']:.2f} on `maxpressure`"
+    v["level.bc_top10_perix@maxpressure"] = f"({levels['bc_top10_perix']:.2f})"
+    v["level.bc_top10_perix@maxpressure.bare"] = f"{levels['bc_top10_perix']:.2f}"
+    collapsed = [s for s in statements if s["id"] == "Q6" and s["definition"] == "att_ours"
+                 and s["verdict"] == "COLLAPSED"]
+    v["q6.none"] = ("no DT arm collapsed on any tier" if not collapsed else
+                    f"{len(collapsed)} DT arm-tier cells collapsed")
+    holds = next(h for h in audit["sentence_holds"] if h["definition"] == "att_ours" and h["version"] == "as_committed")
+    v["audit.only_dt"] = ("the DT arms are the only arms that never collapse" if holds["holds"] else
+                          "the DT arms are not the only arms that never collapse")
+    v["audit.only_dt_upper"] = ("the DT arms are the ONLY arms that never collapse" if holds["holds"] else
+                                "the DT arms are NOT the ONLY arms that never collapse")
+    book = books["as_committed"]
+
+    def rows(method: str) -> tuple[Mapping[str, Any], ...]:
+        return book[(method, "fixedtime")].rows
+
+    triple = list(zip(rows("dt_spatial"), rows("dt_nomix"), rows("behaviour"), strict=True))
+    differing = sum(1 for a, b, c in triple if not a["att_ours"] == b["att_ours"] == c["att_ours"])
+    v["fixedtime.three_identical"] = f"{differing} of {len(triple)} episodes differ between all three"
+    perix = all(a["att_ours"] == b["att_ours"] for a, b in zip(rows("bc_top10_perix"), rows("bc"), strict=True))
+    v["fixedtime.perix_identical"] = ("`bc_top10_perix` is likewise identical to `bc`" if perix else
+                                      "`bc_top10_perix` is not identical to `bc`")
+    pairs = list(zip(rows("bc"), rows("behaviour"), strict=True))
+    v["fixedtime.bc_vs_behaviour"] = (f"`bc` differs from `behaviour` on "
+                                      f"{sum(1 for a, b in pairs if a['att_ours'] != b['att_ours'])} of {len(pairs)}")
+    zeros = sum(1 for statement_id in ("Q3b", "Q4.d", "Q5a", "Q5b", "Q5c")
+                if st(statement_id, "fixedtime")["numbers"]["exactly_zero"])
+    v["fixedtime.zero_contrasts"] = f"{_NUMBER_WORDS[zeros]} contrasts are exactly `0.0000` at that tier"
+    fixed = st("ranking", "fixedtime")["numbers"]["levels"]
+    if fixed["dt_spatial"] == fixed["dt_nomix"] and fixed["bc"] == fixed["bc_top10_perix"]:
+        v["fixedtime.tied_levels"] = (f"`dt_spatial` = `dt_nomix` = {fixed['dt_spatial']!r} and `bc` = "
+                                      f"`bc_top10_perix` = {fixed['bc']!r}")
+    else:
+        v["fixedtime.tied_levels"] = "the two fixedtime ties do not hold"
+    d1 = st("Q0.d1", "mappo1000")["numbers"]
+    d4 = st("Q0a", "mappo1000")["numbers"]
+    i = st("Q0b", "mappo1000")["numbers"]
+    v["q0.d1.mean"], v["q0.d1.ci"] = _f4(d1["mean_difference"]), _ci4(d1["ci95_low"], d1["ci95_high"])
+    v["q0.d1.plan"] = f"measured: {v['q0.d1.mean']}, CI {v['q0.d1.ci']}"
+    v["q0.d4.mean"], v["q0.d4.ci"] = _f4(d4["mean_difference"]), _ci4(d4["ci95_low"], d4["ci95_high"])
+    v["q0.i.mean"], v["q0.i.ci"] = _f4(i["mean_difference"]), _ci4(i["ci95_low"], i["ci95_high"])
+    v["q0.i.negative_draws"] = f"`I < 0` on {i['draws_negative']} of {i['n_draws']} draws"
+    share = 100 * abs(i["mean_difference"]) / d1["mean_difference"]
+    v["q0.i.reduction"] = f"The {share:.1f} % {'reduction' if i['mean_difference'] < 0 else 'increase'}"
+    v["q0.i.attributable"] = f"{share:.1f} % of it is attributable"
+    return v
+
+
+def _differences(expected: Any, actual: Any, path: str = "") -> list[str]:
+    """Every field of *expected* missing from *actual* or not equal to it (dicts may gain keys; lists must be equal);
+    a bool is equal only to a bool."""
+    if isinstance(expected, dict):
+        if not isinstance(actual, dict):
+            return [f"{path}: expected a dict"]
+        out: list[str] = []
+        for key, value in expected.items():
+            out.extend([f"{path}.{key}: missing"] if key not in actual else _differences(value, actual[key],
+                                                                                           f"{path}.{key}"))
+        return out
+    if isinstance(expected, list):
+        if not isinstance(actual, list) or len(actual) != len(expected):
+            return [f"{path}: {expected!r} != {actual!r}"]
+        return [problem for i, (e, a) in enumerate(zip(expected, actual)) for problem in _differences(e, a, f"{path}[{i}]")]
+    if isinstance(expected, bool) or isinstance(actual, bool):
+        return [] if expected is actual else [f"{path}: {expected!r} != {actual!r}"]
+    return [] if expected == actual else [f"{path}: {expected!r} != {actual!r}"]
+
+
+def _leaves(node: Any) -> int:
+    if isinstance(node, dict):
+        return sum(_leaves(value) for value in node.values())
+    if isinstance(node, list):
+        return sum(_leaves(value) for value in node) if node else 1
+    return 1
+
+
+def _source(file: str, lines: Sequence[int]) -> str:
+    return f"{file}:{lines[0]}" + (f"-{lines[1]}" if lines[1] != lines[0] else "")
+
+
+def _verify_exception(row: RecordRow, statements: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """A declared exception holds only if the recorded integer is reachable by some tie-break order and the declared
+    rule gives another; otherwise the build is refused (the explanation would be false)."""
+    import re
+
+    def st(statement_id: str, tier: str) -> Mapping[str, Any]:
+        return _find(statements, statement_id, tier, "att_ours", "as_committed")
+
+    if row.exception == "deferred_108":
+        entries = [st("Q2b", t)["numbers"] for t in OUT_OF_SAMPLE_TIERS]
+        rule = [e["n_concordant"] for e in entries]
+        ranges = [e["range"] for e in entries]
+        recorded = [int(x) for x in re.findall(r"\d+", row.recorded)]
+        if row.value == "q2b.counts":
+            ok = len(recorded) == 3 and all(lo <= r <= hi for r, (lo, hi) in zip(recorded, ranges)) and recorded != rule
+        elif row.value == "q2b.overall":
+            low, high = sum(r[0] for r in ranges), sum(r[1] for r in ranges)
+            ok = low <= recorded[0] <= high and recorded[0] != sum(rule)
+            rule, ranges = [sum(rule)], [[low, high]]
+            recorded = recorded[:1]
+        else:
+            ok = False
+    elif row.exception == "q3a_fixedtime":
+        entries = [st("Q3a", t)["numbers"] for t in OUT_OF_SAMPLE_TIERS]
+        rule = [e["rank"] for e in entries]
+        ranges = [e["rank_range"] for e in entries]
+        recorded = [int(x) for x in re.findall(r"(\d+)/6", row.recorded)]
+        ok = len(recorded) == 3 and all(lo <= r <= hi for r, (lo, hi) in zip(recorded, ranges)) and recorded != rule
+    else:
+        raise ValueError(f"{row.exception!r} is not a declared exception")
+    if not ok:
+        raise ValueError(f"{_source(row.file, row.lines)}: the declared exception {row.exception} does not verify "
+                         f"(recorded {row.recorded!r}, rule {rule}, ranges {ranges})")
+    return {"recorded_integers": recorded, "under_the_rule": rule, "ranges": ranges,
+            "check": "the recorded integers lie in their ranges over every tie-break order, and the rule's differ"}
+
+
+#: Why P8.4b's V4 and V5 under att_ours sit a unit in the last place from this artifact's values (plan F1, V10-V11).
+P8_4B_ROUTE_EXPLANATION = (
+    "P8.4b averaged each draw's five seeds with Python's built-in sum (att_rederivation._per_draw_means), which is "
+    "compensated on Python 3.12; this artifact uses the registered route, dt_gate._per_draw_means (numpy.mean, a plain "
+    "left-to-right sum over five seeds; docs/plans/p5.2.md:407-412). The record's own route over the same rows "
+    "reproduces the recorded values exactly (record_route_reproduces), so the inputs are V4's and V5's and the "
+    "difference is the arithmetic route's alone (BRIEF_45 Amendment A, A2 Q1)")
+
+
+STOP_RULE_ROUTE_EXPLANATION = (
+    "P5.2's stop-rule record was written by tier_sweep.score_stop_rule, which averages each draw's seeds with Python's "
+    "built-in sum (compensated on Python 3.12); this artifact's d4 is the registered route's (dt_gate._per_draw_means). "
+    "score_stop_rule over the same evaluation records reproduces the record exactly (record_route_reproduces); the "
+    "verdict is the same")
 
 
 def comparison_with_the_record(statements: Sequence[Mapping[str, Any]], audit: Mapping[str, Any],
@@ -2037,12 +2264,209 @@ def comparison_with_the_record(statements: Sequence[Mapping[str, Any]], audit: M
     exception does not verify.  Also: P5.2b's statements field by field, P8.4b's V4 and V5, P5.1's P1 and P3, P5.2's
     stop-rule record (each recomputed by its own route where the routes differ), Q5's three records (A3) and the
     never-scored list."""
-    raise NotImplementedError("P5.2c C1 skeleton: comparison_with_the_record")
+    books = make_books(inputs.cells)
+    values = record_values(statements, audit, ties, books)
+    literal = []
+    for row in record:
+        if row.value not in values:
+            raise ValueError(f"{_source(row.file, row.lines)} names the value {row.value!r}, which this artifact does "
+                             "not compute")
+        mine = values[row.value]
+        equal = normalise(mine) == normalise(row.recorded)
+        where = _source(row.file, row.lines)
+        if equal and row.exception is not None:
+            raise ValueError(f"{where} is declared exception {row.exception}, but the record and this artifact agree "
+                             f"({mine!r}): the declared explanation would be false")
+        if not equal and row.exception is None:
+            raise ValueError(f"{where} records {row.recorded!r} and this artifact gives {mine!r}: neither equal nor "
+                             "explained")
+        literal.append({"source": where, "recorded": row.recorded, "this_artifact": mine, "equal": equal,
+                        "value": row.value, "exception": None if equal else row.exception,
+                        "explanation": None if equal else RECORD_EXCEPTIONS[row.exception],
+                        "verified": None if equal else _verify_exception(row, statements)})
+
+    committed = inputs.records["p5_2b_artifact"]["statements"]
+    compared = []
+    for definition in DEFINITIONS:
+        for when, version in (("before", "as_committed"), ("after", "corrected")):
+            oos = {cell: episodes_of(books[version][cell], definition) for cell in ts.OUT_OF_SAMPLE_CELLS}
+            mine = json.loads(json.dumps(tier_composer(oos, tier="random", with_hard_subset=True)))
+            theirs = json.loads(json.dumps(committed[definition][when]))
+            theirs["q1"].pop("predictions_registered_on", None)
+            problems = _differences(theirs, mine)
+            if problems:
+                raise ValueError(f"{P5_2B_ARTIFACT}'s statements.{definition}.{when} are not reproduced field by field "
+                                 f"at random: {problems[:4]}")
+            compared.append({"statements": f"{definition}.{when}", "version": version,
+                             "fields_compared": _leaves(theirs)})
+    p5_2b = {"file": P5_2B_ARTIFACT, "equal": True, "compared": compared,
+             "excluded": "q1.predictions_registered_on, the one field P5.2b's report adds after its composer",
+             "route": ("tier_composer at random over this artifact's cells, every committed field present and equal "
+                       "(added fields allowed; BRIEF_45 Amendment A, A2 Q2); cells.corrected and cells.original are "
+                       "refused at load unless equal to this artifact's (load_inputs)")}
+
+    grid = inputs.records["p5_1_grid"]["predictions"]
+    d1 = _find(statements, "Q0.d1", "mappo1000", "att_ours", "as_committed")["numbers"]
+
+    def pairs_of(mine: Mapping[str, Any], theirs: Mapping[str, Any], outcome: tuple[Any, Any] | None
+                 ) -> dict[str, dict[str, Any]]:
+        out = {key: {"recorded": theirs[key], "this_artifact": mine[key]}
+               for key in ("mean_difference", "ci95_low", "ci95_high")}
+        for key in ("rank_biserial", "median_difference", "wins", "losses", "ties"):
+            out[key] = {"recorded": theirs[key], "this_artifact": mine["paired_comparison"][key]}
+        out["p_value"] = {"recorded": theirs["p_value"], "this_artifact": mine["paired_comparison"]["wilcoxon"]["p_value"]}
+        if outcome is not None:
+            out["outcome"] = {"recorded": outcome[0], "this_artifact": outcome[1]}
+        return out
+
+    p1 = pairs_of(d1, grid["P1"], None)
+    p3 = {}
+    for arm in DT_ARMS:
+        q6 = _find(statements, "Q6", "mappo1000", "att_ours", "as_committed", arm)["numbers"]
+        p3[arm] = pairs_of(q6, grid["P3"][arm], (grid["P3"][arm]["outcome"], q6["p5_1_outcome"]))
+    unequal = [f"P1.{k}" for k, pair in p1.items() if pair["recorded"] != pair["this_artifact"]] + [
+        f"P3.{arm}.{k}" for arm, block in p3.items() for k, pair in block.items()
+        if pair["recorded"] != pair["this_artifact"]]
+    if unequal:
+        raise ValueError(f"{P5_1_GRID}'s committed {unequal[:4]} are not reproduced under ==: P5.1's route is the "
+                         "registered one, so they must be")
+    p5_1 = {"file": P5_1_GRID, "equal": True, "P1": p1, "P3": p3,
+            "route": "d1 (Q0) is P5.1's P1 and Q6 at mappo1000 is its P3, both on the registered route"}
+
+    contrasts = {c["contrast_id"]: c for c in inputs.records["p8_4b_artifact"]["contrasts"]}
+    p8 = []
+    for contrast_id, (left_id, right_id), statement_id, verdict_of in (
+            ("V4", ("p5_1:dt_spatial@grid4x4_mappo1000", "p5_1:dt_nomix@grid4x4_mappo1000"), "Q0.d1",
+             sm._outcome_from_interval),
+            ("V5", H4_CELLS, "Q0a", ts.stop_rule_verdict)):
+        for definition in DEFINITIONS:
+            recorded = contrasts[contrast_id]["by_definition"][definition]
+            left, right = inputs.cells[left_id], inputs.cells[right_id]
+            block = {c.spec.arm: {(r["seed"], r["draw_id"]): {definition: r[definition]} for r in c.rows}
+                     for c in (left, right)}
+            differences = ar._paired_differences(block, left.spec.arm, right.spec.arm, definition)
+            stats = mean_ci95(differences)
+            route = (stats.mean, stats.mean - stats.ci95, stats.mean + stats.ci95)
+            keys = ("mean_difference", "ci95_low", "ci95_high")
+            if route != tuple(recorded[k] for k in keys) or len(differences) != recorded["n_paired"]:
+                raise ValueError(f"P8.4b's own route (att_rederivation._paired_differences + mean_ci95) over the rows "
+                                 f"read does not reproduce {contrast_id} under {definition}: {route} against "
+                                 f"{[recorded[k] for k in keys]}")
+            mine = _find(statements, statement_id, "mappo1000", definition, "as_committed")["numbers"]
+            outcome = verdict_of(mine["ci95_low"], mine["ci95_high"])
+            if outcome != recorded["outcome"]:
+                raise ValueError(f"{contrast_id} under {definition}: this artifact's interval gives {outcome}, P8.4b "
+                                 f"recorded {recorded['outcome']}")
+            equal = all(mine[k] == recorded[k] for k in keys)
+            p8.append({"contrast_id": contrast_id, "definition": definition, "statement": statement_id,
+                       "recorded": {**{k: recorded[k] for k in keys}, "n_paired": recorded["n_paired"],
+                                    "outcome": recorded["outcome"]},
+                       "this_artifact": {**{k: mine[k] for k in keys}, "n_paired": mine["n_draws"], "outcome": outcome},
+                       "equal": equal, "outcome_equal": True,
+                       "difference": {k: mine[k] - recorded[k] for k in keys},
+                       "difference_in_ulps_of_the_record": {k: (mine[k] - recorded[k]) / math.ulp(recorded[k])
+                                                            for k in keys},
+                       "record_route_reproduces": True,
+                       "explanation": None if equal else P8_4B_ROUTE_EXPLANATION})
+
+    stop_record = inputs.records["stop_rule_record"]
+    spatial, nomix = (inputs.records["h4_payloads"][cell_id] for cell_id in H4_CELLS)
+    route = ts.score_stop_rule(spatial, nomix, list(dt_gate.TRAINING_SEEDS))
+    keys = ("mean_difference", "ci95_low", "ci95_high", "verdict")
+    if tuple(route[k] for k in keys) != tuple(stop_record[k] for k in keys):
+        raise ValueError(f"tier_sweep.score_stop_rule over the two 4-head records does not reproduce "
+                         f"output/{P5_2_STOP_RULE_RECORD}")
+    d4 = _find(statements, "Q0a", "mappo1000", "att_ours", "as_committed")["numbers"]
+    verdict = _find(statements, "Q0.stop_rule", "mappo1000", "att_ours", "as_committed")["verdict"]
+    if verdict != stop_record["verdict"]:
+        raise ValueError(f"the stop rule's verdict is {verdict} here and {stop_record['verdict']} in P5.2's record")
+    equal = all(d4[k] == stop_record[k] for k in keys[:3])
+    stop = {"file": f"output/{P5_2_STOP_RULE_RECORD}",
+            "recorded": {k: stop_record[k] for k in keys}, "this_artifact": {**{k: d4[k] for k in keys[:3]},
+                                                                              "verdict": verdict},
+            "equal": equal, "difference": {k: d4[k] - stop_record[k] for k in keys[:3]},
+            "record_route_reproduces": True, "explanation": None if equal else STOP_RULE_ROUTE_EXPLANATION}
+
+    pairs = {"Q5a": ("bc_top10", "bc"), "Q5b": ("bc_top10_perix", "bc_top10"), "Q5c": ("bc_top10_perix", "bc")}
+    fixedtime = {}
+    for statement_id, (left_method, right_method) in pairs.items():
+        from_levels = ts.PREDICTED_LEVELS[left_method]["fixedtime"] - ts.PREDICTED_LEVELS[right_method]["fixedtime"]
+        quoted = REGISTERED_VALUES[statement_id]["fixedtime"]
+        if round(from_levels, 2) != quoted:
+            raise ValueError(f"{statement_id}'s registered fixedtime value {quoted} is not the difference of "
+                             f"tier_sweep.PREDICTED_LEVELS ({from_levels!r})")
+        fixedtime[statement_id] = {
+            "registered": quoted, "registered_from_predicted_levels": from_levels,
+            "measured": {d: {**{k: _find(statements, statement_id, "fixedtime", d, "as_committed")["numbers"][k]
+                                for k in ("mean_difference", "ci95_low", "ci95_high", "exactly_zero")},
+                             "verdict": _find(statements, statement_id, "fixedtime", d, "as_committed")["verdict"]}
+                         for d in DEFINITIONS}}
+    verdicts = {d: {s: _find(statements, f"{s}.aggregate", None, d, "as_committed")["verdict"] for s in pairs}
+                for d in DEFINITIONS}
+    per_tier = {d: {s: _find(statements, f"{s}.aggregate", None, d, "as_committed")["numbers"]["tiers"] for s in pairs}
+                for d in DEFINITIONS}
+    descriptive = {d: {"reading": "the global return filter collapses where the per-intersection one does not",
+                       "tiers_where_q5b_resolves": [t for t, verdict in per_tier[d]["Q5b"].items() if verdict == "HELD"],
+                       "label": "descriptive, not a registered verdict (BRIEF_45 Amendment A, A3)"} for d in DEFINITIONS}
+    q5 = [{"record": {"source": _source(quote.file, quote.lines), "text": quote.text},
+           "registered_verdicts": verdicts, "primary": verdicts[PRIMARY_DEFINITION], "per_tier": per_tier,
+           "fixedtime_registered_beside_measured": fixedtime, "statement": Q5_STATEMENT,
+           "statement_detail": ("the record reported Q5b's values on three tiers (maxpressure, fixedtime, random), "
+                                "counted the two that resolved as confirmations, gave no value at mappo1000, where Q5b "
+                                "is also registered, and read fixedtime's unresolved interval as a predicted null; the "
+                                "registration predicted +820.65 (Q5a), -812.15 (Q5b) and +8.49 (Q5c) there"),
+           "descriptive_reading": descriptive,
+           "whose_error": ("BRIEF_27's GATE 2 is a coordinator ruling, so the error is the coordinator's; it is logged "
+                           "in PROJECT_PLAN section 8 (dated 2026-10-10)")} for quote in Q5_RECORDS]
+
+    never = []
+    for statement_id, tier in NEVER_SCORED:
+        if statement_id in ("Q5a", "Q5c"):
+            entries = [s for s in statements if s["id"] in (statement_id, f"{statement_id}.aggregate")]
+        elif statement_id == "Q6":
+            entries = [s for s in statements if s["id"] == "Q6"]
+        else:
+            entries = [s for s in statements if s["id"] == statement_id and s["tier"] == tier]
+        never.append({"statement": statement_id, "tier": tier,
+                      "recorded": "never scored in any committed record, under either definition (BRIEF_45 section 1.3)",
+                      "this_artifact": [{key: entry.get(key) for key in ("id", "tier", "arm", "definition", "version",
+                                                                          "verdict", "reading")}
+                                        | {key: entry["numbers"].get(key) for key in ("mean_difference", "ci95_low",
+                                                                                     "ci95_high")}
+                                        for entry in entries]})
+    return {
+        "basis": ("the record scored P5.2's original cells under att_ours (P5.2's att_horizon), so every literal row "
+                  "compares this artifact's as_committed att_ours value at the record's precision"),
+        "literal_records": literal, "exceptions": dict(RECORD_EXCEPTIONS), "q5": q5, "never_scored": never,
+        "p5_2b_artifact": p5_2b, "p5_1_grid": p5_1, "p8_4b": p8, "p5_2_stop_rule_record": stop,
+    }
 
 
 def changes_block(statements: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
     """Per statement and tier: as committed ``att_ours`` -> corrected ``att_ours`` -> corrected ``att_engine``."""
-    raise NotImplementedError("P5.2c C1 skeleton: changes_block")
+    def summary(entry: Mapping[str, Any]) -> dict[str, Any]:
+        numbers = entry["numbers"]
+        out = {"verdict": entry["verdict"], "reading": entry["reading"]}
+        for key in ("mean_difference", "ci95_low", "ci95_high", "n_concordant", "rank", "n_held"):
+            if key in numbers:
+                out[key] = numbers[key]
+        return out
+
+    keys: list[tuple[str, str | None, str | None]] = []
+    for entry in statements:
+        key = (entry["id"], entry["tier"], entry["arm"])
+        if key not in keys:
+            keys.append(key)
+    out = []
+    for statement_id, tier, arm in keys:
+        steps = [summary(_find(statements, statement_id, tier, definition, version, arm))
+                 for definition, version in (("att_ours", "as_committed"), ("att_ours", "corrected"),
+                                             ("att_engine", "corrected"))]
+        outcome = [(step["verdict"], step["reading"]) for step in steps]
+        out.append({"id": statement_id, "tier": tier, "arm": arm, "as_committed_att_ours": steps[0],
+                    "corrected_att_ours": steps[1], "corrected_att_engine": steps[2],
+                    "changed_by_the_correction": outcome[0] != outcome[1], "changed_by_rule_r": outcome[1] != outcome[2]})
+    return out
 
 
 # ----------------------------------------------------------------------
@@ -2050,37 +2474,206 @@ def changes_block(statements: Sequence[Mapping[str, Any]]) -> list[dict[str, Any
 # ----------------------------------------------------------------------
 
 
+def definitions_block() -> dict[str, Any]:
+    """Rule R, the two definitions, the paired unit, the interval, the arithmetic route and the vocabularies."""
+    return {
+        "rule_r": {"quotes": _quotes("rule_r"), "primary": PRIMARY_DEFINITION, "beside": "att_ours",
+                   "fired": ("on grid4x4, by P8.4b's gate (docs/data/p8_4b_g0_reference.json); recorded in PROJECT_PLAN "
+                             "section 10 under its dated heading of 2026-08-31"),
+                   "reporting": ("every statement under both definitions; primary marks att_engine's entry; "
+                                 "definition_dependent marks where the two verdicts (or readings) differ")},
+        "att_ours": ("P5.2's att_horizon: the platform's average travel time at the horizon, read from the evaluation "
+                     "records (P5.1's, P5.2's and P5.2b's)"),
+        "att_engine": ("the engine's average travel time of the same episodes, re-derived by deterministic replay "
+                       "(P8.4b's campaign; P5.2b's re-derivation for the corrected cell)"),
+        "common_scoring": _quotes("common"),
+        "paired_unit": ("per draw, the mean over the five training seeds (dt_gate._per_draw_means), over the identical "
+                        "(seed, draw) grid of two complete cells; differences per draw in ascending draw order"),
+        "interval": ("dt_gate.mean_ci95 over the per-draw differences: ddof=1, half-width 1.96 * sd / sqrt(n); low = "
+                     "mean - half-width, high = mean + half-width, width = high - low"),
+        "arithmetic_route": ("one route everywhere, the registered one: numpy.mean per draw (a plain left-to-right sum "
+                             "over five seeds) and mean_ci95 over the draws.  P8.4b's att_rederivation._per_draw_means "
+                             "and tier_sweep.score_stop_rule use Python's built-in sum (compensated on Python 3.12), "
+                             "which can differ in the last place; comparison_with_the_record names each such "
+                             "difference and reproduces the record by its own route (BRIEF_45 Amendment A, A2 Q1)"),
+        "outcomes": {"interval": ("HELD / FAILED / NOT RESOLVED by the side of zero the CI lies on relative to the "
+                                  "predicted sign (spatial_mixing._outcome_from_interval); a CI touching zero is NOT "
+                                  "RESOLVED"),
+                     "conjunction": ("a statement registered on all three or four tiers is HELD iff every tier is "
+                                     "HELD, FAILED iff any tier is FAILED, NOT RESOLVED otherwise (BRIEF_45 section "
+                                     "3.3)"),
+                     "q6": ("COLLAPSED iff the arm is worse than the shared anchor with the paired CI excluding 0, "
+                            "else NOT COLLAPSED; P5.1's three-valued outcome beside it (collapse_criterion)"),
+                     "q0_stop_rule": "STOP iff the CI of mean(d4) lies entirely below zero (tier_sweep.stop_rule_verdict)",
+                     "q3c": "no verdict: a value per tier and P5.2b's reading (for / against the DT, NOT RESOLVED)"},
+        "exact_zero": ("a difference identically zero on every draw has CI [0, 0]: NOT RESOLVED for an interval rule, "
+                       "sign zero, and reported as exactly zero (identical episodes) -- never folded into a "
+                       "neighbouring outcome"),
+        "ties": {"quotes": _quotes("tie_rule"),
+                 "rule": ("exactly equal levels are not an ordering; Q3a's rank is 1 + the arms strictly lower; every "
+                          "tie-dependent integer carries its range over all tie-break orders")},
+        "versions": {"corrected": "the random tier's IQL cell is P5.2b's (the paper's)",
+                     "as_committed": "the random tier's IQL cell is P5.2's original (DEFERRED 106)",
+                     "both": ("the statement reads no random-tier IQL cell; computed in both versions, asserted "
+                              "identical, stored once")},
+        "per_seed": ("every two-arm contrast carries tier_sweep.per_seed_block (P5.1's per_seed_advantages and "
+                     "seed_reversal_qualifier); for the behaviour and random-anchor cells a seed label is an "
+                     "evaluation label, not a training seed"),
+        "d8": {"quotes": _quotes("D8"),
+               "carried": ("rank_biserial, median_difference, wins, losses, ties and the Wilcoxon block from "
+                           "offline_baselines.paired_comparison, unchanged; the p-value is never read by a verdict")},
+        "d15": {"quotes": _quotes("D15"),
+                "carried": ("each cell's median and IQR per definition (numpy.percentile, method='linear') and A5's "
+                            "horizon vehicle count, asserted equal to each evaluation record's own cell block")},
+        "not_registered": _quotes("not_registered"),
+    }
+
+
+ROLE = (
+    "P5.2c: P5.2's registered statements (docs/plans/p5.2.md section 4, Q0-Q6) scored by committed code on every tier "
+    "as registered, under both ATT definitions (Rule R makes att_engine primary on grid4x4) and both random-tier IQL "
+    "cells (P5.2b's corrected cell, the paper's, and P5.2's original); every tie-dependent integer with its range; every "
+    "value P5.2's record states beside this artifact's, equal or explained. Computed from committed records read at "
+    "their digests; no episode was rolled.")
+
+
+REGISTERED_IN = (
+    "docs/briefs/BRIEF_45_p5.2c_statements.md and its Amendment A (gate G0; the plan docs/plans/p5.2c.md at 1267715); "
+    "the author's ruling of 2026-10-08 (PROJECT_PLAN section 8)")
+
+
 def build_artifact(inputs: Inputs, *, git: Mapping[str, Any], code: Sequence[Mapping[str, Any]],
                    record: Sequence[RecordRow] = RECORD) -> dict[str, Any]:
     """The ``p5.2-statements/1.0`` artifact from verified inputs; pure."""
-    raise NotImplementedError("P5.2c C1 skeleton: build_artifact")
+    books = make_books(inputs.cells)
+    statements = all_statements(books)
+    ties = ties_block(books)
+    audit = collapse_audit(books)
+    comparison = comparison_with_the_record(statements, audit, ties, inputs, record=record)
+    return {
+        "format_version": ARTIFACT_FORMAT_VERSION,
+        "role": ROLE,
+        "registered_in": REGISTERED_IN,
+        "git": dict(git),
+        "provenance": {**inputs.provenance, "code": [dict(entry) for entry in code]},
+        "definitions": definitions_block(),
+        "cells": cells_block(inputs.cells),
+        "statements": statements,
+        "ties": ties,
+        "leaders": leaders_block(books),
+        "descriptive_collapse_audit": audit,
+        "comparison_with_the_record": comparison,
+        "changes": changes_block(statements),
+        "what_this_does_not_say": list(WHAT_THIS_DOES_NOT_SAY),
+    }
 
 
 def serialize(artifact: Mapping[str, Any]) -> bytes:
     """The canonical bytes: sorted keys, two-space indent, no NaN, one trailing newline."""
-    raise NotImplementedError("P5.2c C1 skeleton: serialize")
+    return (json.dumps(artifact, indent=2, sort_keys=True, allow_nan=False) + "\n").encode("utf-8")
 
 
 def assert_out_path(path: str | Path, roots: Roots, inputs: Inputs) -> Path:
     """The barrier (``PROJECT_PLAN`` section 7): refuse an out path under ``--output-root``, under any tree holding
     ``SHA256SUMS_p5_2.txt``, equal to an input, not ``.json``, whose parent does not exist, or that already exists."""
-    raise NotImplementedError("P5.2c C1 skeleton: assert_out_path")
+    repo = Path(roots.repo_root).resolve()
+    candidate = Path(path)
+    resolved = (candidate if candidate.is_absolute() else repo / candidate).resolve()
+    if resolved.suffix != ".json":
+        raise ValueError(f"{resolved}: the artifact must be a .json file")
+    ts.assert_writable(resolved, ts.protected_roots_from([roots.output_root]))
+    for ancestor in resolved.parents:
+        if (ancestor / P5_2_SUMS_NAME).is_file():
+            raise PermissionError(f"{resolved} lies under {ancestor}, which holds {P5_2_SUMS_NAME}: a real output tree "
+                                  "is read-only to this task whatever --output-root says")
+    inputs_read = {(Path(roots.output_root) / entry["file"].removeprefix("output/")).resolve()
+                   if entry["file"].startswith("output/") else (repo / entry["file"]).resolve()
+                   for entry in inputs.provenance["inputs"]}
+    if resolved in inputs_read:
+        raise ValueError(f"{resolved} is an input of this artifact")
+    if not resolved.parent.is_dir():
+        raise FileNotFoundError(f"the out path's parent directory {resolved.parent} does not exist; nothing is created")
+    if resolved.exists() or resolved.is_symlink():
+        raise FileExistsError(f"{resolved} already exists: the artifact is written once (remove it deliberately to "
+                              "rebuild)")
+    return resolved
 
 
 def write_artifact(path: Path, data: bytes) -> Path:
     """Write *data* once: a dot-temporary in the same directory, then ``os.link`` onto *path* (refusing an existing
     file); the temporary is removed whatever happens."""
-    raise NotImplementedError("P5.2c C1 skeleton: write_artifact")
+    target = Path(path)
+    temporary = target.parent / f".{target.name}.{os.getpid()}.tmp"
+    try:
+        with open(temporary, "xb") as handle:
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.link(temporary, target)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return target
 
 
 def build_parser() -> argparse.ArgumentParser:
     """``build`` and ``check``, each with ``--repo-root`` and ``--output-root`` (required) and ``--out``."""
-    raise NotImplementedError("P5.2c C1 skeleton: build_parser")
+    parser = argparse.ArgumentParser(
+        prog="python -P -m offline.tier_statements",
+        description=("P5.2c: P5.2's registered statements scored under both ATT definitions. Run with PYTHONPATH set to "
+                     "the tree whose code runs, and --repo-root naming the same tree (BRIEF_45 Amendment A, A1.1)."))
+    commands = parser.add_subparsers(dest="command", required=True)
+    for name, text in (("build", "verify every input, then write the artifact once at --out"),
+                       ("check", "verify every input and print what build would read; write nothing")):
+        command = commands.add_parser(name, help=text)
+        command.add_argument("--repo-root", required=True, help="the checkout whose docs/ is read and whose code runs")
+        command.add_argument("--output-root", required=True, help="the main tree's output/ (read only)")
+        command.add_argument("--out", help="the artifact's path (build); with check, whether build would accept it")
+    return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     """Exit 0 accepted; 2 refused, with ``REFUSED: <type>: <reason>`` on stderr."""
-    raise NotImplementedError("P5.2c C1 skeleton: main")
+    args = build_parser().parse_args(argv)
+    try:
+        repo_root = Path(args.repo_root).resolve()
+        code = assert_code_under_root(repo_root)
+        git = git_block()
+        roots = Roots(repo_root=repo_root, output_root=Path(args.output_root).resolve())
+        if args.command == "build":
+            if not args.out:
+                raise ValueError("build needs --out, the artifact's path (docs/data/p5_2_statements.json)")
+            if git.get("dirty") is not False:
+                raise ValueError(f"the tree is dirty or unreadable (git dirty = {git.get('dirty')!r}): the artifact "
+                                 "records a commit, and a dirty tree's commit is not the code that ran")
+        inputs = load_inputs(roots, pins=PINS)
+        if args.command == "check":
+            files = inputs.provenance["inputs"]
+            print(f"check: every input verified at its anchor ({len(files)} files, and the rows below)")
+            for entry in files:
+                print(f"  {entry['sha256']}  {entry['file']}  [{entry['anchor']}]")
+            campaign = inputs.provenance["p8_4b_campaign"]
+            print(f"P8.4b campaign: declared_cells_sha256 {campaign['declared_cells_sha256']}, {campaign['n_cells']} "
+                  f"cells, engine seed {campaign['engine_seed']}")
+            for name in ("p8_4b_rows", "p5_2b_corrected_rows"):
+                block = inputs.provenance[name]
+                print(f"{name}: {block['n']} files read, digest {block['sha256']}")
+            print(f"git: commit {git.get('commit')}, dirty {git.get('dirty')}"
+                  + ("" if git.get("dirty") is False else "  (build would refuse a dirty tree)"))
+            for entry in code:
+                print(f"code: {entry['sha256']}  {entry['path']}")
+            if args.out:
+                print(f"build would write {assert_out_path(args.out, roots, inputs)}")
+            return 0
+        out = assert_out_path(args.out, roots, inputs)
+        data = serialize(build_artifact(inputs, git=git, code=code, record=RECORD))
+        if assert_code_under_root(repo_root) != code:
+            raise ValueError("the code under --repo-root changed while the artifact was built")
+        write_artifact(out, data)
+        print(f"wrote {out}: {len(data)} bytes, sha256 {hashlib.sha256(data).hexdigest()}")
+        return 0
+    except (ValueError, KeyError, OSError) as error:
+        print(f"REFUSED: {type(error).__name__}: {error}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":
