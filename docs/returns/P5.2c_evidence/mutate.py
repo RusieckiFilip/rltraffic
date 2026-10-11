@@ -14,11 +14,12 @@ Exit 0 iff the control passes and every mutant is KILLED.
 from __future__ import annotations
 
 import argparse
+import hashlib
+import io
 import json
 import os
 import subprocess
 import sys
-import io
 import tarfile
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -152,8 +153,12 @@ MUTANTS: tuple[Mutant, ...] = (
              "            if False and (\n", 1),),
            (t("test_t_q6_refuses_when_collapse_criterion_disagrees_with_the_registered_route"),),
            source="added at C5"),
-    Mutant("M22", "the record comparison accepting a row neither equal nor explained",
-           ((MODULE, "        if not equal and row.exception is None:\n", "        if False:\n", 1),),
+    Mutant("M22", "the record comparison accepting a row neither equal nor explained (and carrying it quietly)",
+           ((MODULE, "        if not equal and row.exception is None:\n", "        if False:\n", 1),
+            (MODULE, '"explanation": None if equal else RECORD_EXCEPTIONS[row.exception],',
+             '"explanation": None if equal else RECORD_EXCEPTIONS.get(row.exception),', 1),
+            (MODULE, '"verified": None if equal else _verify_exception(row, statements)})',
+             '"verified": None if equal or row.exception is None else _verify_exception(row, statements)})', 1)),
            (t("test_a_record_row_neither_equal_nor_explained_refuses_the_build"),), source="added at C5"),
     Mutant("M23", "a declared exception trusted instead of verified",
            ((MODULE, "    if not ok:\n        raise ValueError(f\"{_source(row.file, row.lines)}: the declared exception",
@@ -185,6 +190,23 @@ MUTANTS: tuple[Mutant, ...] = (
              "    if False and not ts.cell_is_complete(payload, seeds=seeds, draws=draws, "
              "declared_steps=ts.DECLARED_GRADIENT_STEPS,\n", 1),),
            (t("test_t_inputs_refuses_an_incomplete_cell"),), source="added at C5"),
+    Mutant("M30", "M11 and M20 together: the compensated-sum route with the paired_comparison refusal also removed, so "
+                  "only the route pin's value assertion stands",
+           ((MODULE, "    left_means, right_means = _per_draw_means(a), _per_draw_means(b)\n",
+             "    left_means = {d: sum(e.att_horizon for e in a if e.draw_id == d) / sum(1 for e in a if e.draw_id == d)"
+             " for d in {e.draw_id for e in a}}\n"
+             "    right_means = {d: sum(e.att_horizon for e in b if e.draw_id == d) / sum(1 for e in b if e.draw_id == d)"
+             " for d in {e.draw_id for e in b}}\n", 1),
+            (MODULE, "    if (comparison.mean_difference, comparison.ci95_low, comparison.ci95_high) != (stats.mean, low, "
+                     "high):\n", "    if False:\n", 1)),
+           (t("test_t_contrast_route_pin_is_numpy_per_draw_and_not_the_compensated_sum"),), source="added at C5"),
+    Mutant("M31", "M2 and M20 together: episode-level pairing with the paired_comparison refusal also removed",
+           ((MODULE, "    left_means, right_means = _per_draw_means(a), _per_draw_means(b)\n",
+             "    left_means = {(e.seed, e.draw_id): e.att_horizon for e in a}\n"
+             "    right_means = {(e.seed, e.draw_id): e.att_horizon for e in b}\n", 1),
+            (MODULE, "    if (comparison.mean_difference, comparison.ci95_low, comparison.ci95_high) != (stats.mean, low, "
+                     "high):\n", "    if False:\n", 1)),
+           (t("test_t_contrast_episode_level_pairing_would_change_n_and_the_interval"),), source="added at C5"),
 )
 
 
@@ -232,6 +254,7 @@ def main() -> int:
 
     say(f"# P5.2c mutation run on an exported copy of {commit} at {tree}")
     say(f"# interpreter {sys.executable}; RLTRAFFIC_OUTPUT_ROOT={args.output_root}")
+    say(f"# this script: {Path(__file__).name} at sha256 {hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}")
     control_tests = tuple(sorted({test for mutant in MUTANTS for test in mutant.tests}))
     code, output = run_tests(tree, control_tests, Path(args.output_root))
     say(f"\n## control (no mutation): {len(control_tests)} killing tests, pytest exit {code}")
