@@ -342,3 +342,131 @@ The implementer builds, in the plan's order:
 
 All of it is committed on the branch and NOT pushed: the coordinator reads it from the shared repository. Then stop and say
 **"P5.2c G1 ready"** — gate G1, Amendment B. **No artifact is built (C7) before Amendment B exists on `main`.**
+
+---
+
+# ⚠️ AMENDMENT B — 2026-10-11, gate G1: FIX FIRST (commit C6) — the code scores every statement correctly on the real data, but its tests do not hold where no committed record anchors a number: ten of the coordinator's seventeen mutants survive, and A4.1's guard has a hole
+
+The review record is `docs/reviews/P5.2c_G1.md`: both findings files verbatim, and the coordinator's mutant harness
+`docs/reviews/P5.2c_G1/coord_mutants.py` with its log and results. Every mutant string below is in that harness.
+
+## B0 — Verdict, and what was checked by running it
+1. **The new test file on a clean `git archive` export of `719d753`**, run by the coordinator: 114 passed, 1 skipped
+   (T-regress, before G2), in 12.6 s.
+2. **R1 (the scorers against the registered text): PASS-WITH-NOTES** — 0 blockers, 1 MAJOR (F-14), 4 MINOR (F-3, F-4, F-10,
+   F-11). Its real-data probes match the plan's §5 and Amendment A0.3–A0.5 on every verdict.
+3. **R2 (inputs, the record, the artifact, the barrier, the CLI, test strength, `mutate.py`): PASS-WITH-NOTES** — 0
+   blockers, 1 MAJOR (F3.1), 7 MINOR (F6.2, F6.3, F6.4, F7.2, F8.1, F11.1, F11.2). It also verified:
+   - all nine pins, recomputed;
+   - both A4.3 row digests, by the artifact's own shell construction;
+   - the in-memory artifact, byte-identical across five processes and hash seeds;
+   - `check` on the real inputs: exit 0, nothing written;
+   - the implementer's 31 mutants, sound, spot-checked against their log.
+4. **The coordinator's 17 mutants: 7 KILLED, 10 SURVIVED.**
+   - Killed: CM2, CM3, CM5, CM6, CM11, CM13, CM15. CM2 and CM13 fell to the build's own comparison with the record
+     (Note N's interval; the packet's *"Three contrasts are exactly `0.0000`"*), which is a genuine kill.
+   - **A surviving load-bearing mutant stops the task (§6), so: FIX FIRST.**
+   - The pattern is the finding. The tests are strong wherever a committed record anchors the value. They are weak exactly
+     where the paper's new numbers live: the first-time aggregates, the D9 per-seed blocks under `att_engine`, the leaders,
+     and the collapse audit.
+5. **No reported number or verdict is wrong.** The code read correctly to both reviewers and to the coordinator. What this
+   round fixes is whether the tests would notice if it were not.
+
+## B1 — The ten survivors: each gets a test that kills it, with the expected answer computed by the test's own route
+Each test computes its expected answer from the arrays: raw `numpy` / `statistics`, the registered rule written out in the
+test. It never calls the scorer or a helper of the module. Where real data discriminate, a gated assertion goes beside the
+synthetic one.
+
+| mutant | what survives today | the test required |
+|---|---|---|
+| CM17 | Q3b's aggregate ignoring `fixedtime`: a **registered verdict flips NOT RESOLVED → HELD** unnoticed | synthetic HELD / NOT RESOLVED / HELD → aggregate NOT RESOLVED by the test's own conjunction; gated: Q3b.aggregate NOT RESOLVED on the real data, both definitions |
+| CM9 | every D9 per-seed block computed on `att_ours` whatever the definition | a synthetic contrast whose per-seed values differ between definitions, each seed's value by the test's own means; gated: one real `att_engine` per-seed block against the raw rows |
+| CM7 | the leaders' per-seed first places read on `att_ours` under `att_engine` | gated: at `maxpressure` under `att_engine`, seed 303's first place is `dt_nomix` and `bc` on the other four; under `att_ours`, `bc` on all five — by the test's own per-seed means |
+| CM16 | the leader's lead called resolved when the CI's LOW end is below zero | synthetic straddling lead → "does not resolve"; gated: `maxpressure`'s lead resolves under `att_ours` and not under `att_engine` (the README's sentence), by the test's own CI |
+| CM8 | the collapse audit's `holds` true if ANY non-DT arm collapses somewhere | a synthetic book in which one non-DT arm never collapses → `holds` false |
+| CM10 | Q6 COLLAPSED iff the CI's HIGH end is above zero | a synthetic DT arm whose CI against the anchor straddles zero → NOT COLLAPSED, the CI by the test's own route |
+| CM12 | Q2a crediting a predicted first place that is TIED for first | a synthetic tier where the predicted first ties for first → Q2a FAILED |
+| CM4 | Q1b scored with `LEVEL_BAND` (±30 %) instead of `ANCHOR_BAND` (±10 %) | a synthetic behaviour cell 20 % off its predicted level → FAILED by the test's own `abs(m − p) / p` |
+| CM14 | Q4b's chain scored non-strictly | a chain with two equal rungs → FAILED, not inverted |
+| CM1 | Q0b's exact-zero branch is untested (R1 F-14) | after B2.1, the reversed mutant (an exactly-zero I scored NOT RESOLVED) must be KILLED by a synthetic exactly-zero I |
+
+**All seventeen coordinator mutants join `mutate.py`** (CM1 reversed per B2.1) beside M1–M31 and the new mutants of B2. Every
+one must be KILLED in the run of record.
+
+## B2 — Rulings
+1. **Q0b on an exactly-zero I (R1 F-4; the implementer's deviation 3): the registered text wins.**
+   - Q0b is HELD iff the CI of `mean(I)` includes zero (`docs/plans/p5.2.md:523-524`). A CI of [0, 0] includes zero, so an
+     exactly-zero I is HELD, with *"exactly zero (identical episodes)"* beside it.
+   - §3.3's exact-zero sentence (*"NOT RESOLVED for an interval rule"*) was written for predicted-sign rules, where the
+     registered text itself yields NOT RESOLVED because [0, 0] lies on neither side. It does not override an inclusion rule.
+     The sentence was the coordinator's, and too broad.
+   - **The principle, now explicit: the registered rule decides the verdict; an exact zero is always labelled, and is never
+     offered as evidence for a predicted sign.**
+   - **Q3b's sub-prediction (R1 F-11):** `matched` stays as the registered rule gives it. The block gains `exactly_zero` and a
+     reading saying that at `fixedtime` the match comes from identical episodes.
+2. **The composite per-seed block (R1 F-3).**
+   - Compute it with the imported worker (`tier_sweep.per_seed_block` → `spatial_mixing.per_seed_advantages`) over composite
+     rows: per `(seed, draw)`, `dt_spatial_h4 − dt_nomix_h4` on the left and `dt_spatial − dt_nomix` on the right. The
+     block then carries P5.1's full schema.
+   - The brief's formula is the same quantity by linearity; the test computes it by its own loop.
+   - If composite rows cannot pass the worker's checks unchanged, keep the restatement, add the two missing fields
+     (`n_seeds_favouring_left`, `reverses_on_n_seeds`) by P5.1's definitions, and prove them equal to the worker on ordinary
+     cells.
+3. **A pooled tie for first place (R1 F-10).** Add `measured_first_under_rule` (null when the pooled first place is tied) and
+   a reversal list computed against the pooled SET of first places. Both go beside P5.2b's fields, which stay so the
+   random-tier field-by-field equality still holds. Test: a synthetic pooled tie for first.
+4. **A4.1 (R2 F3.1, MAJOR).**
+   - `assert_code_under_root` also requires the running code to resolve under `<root>/offline`: `__main__`'s `__file__` when
+     the module runs as a script, and the defining module's own `__file__`.
+   - `provenance.code` hashes the file that RUNS for `offline.tier_statements`.
+   - Test: a subprocess runs the file by path from a copy of the tree, with `--repo-root` naming another tree, and is refused.
+   - Mutant: the new check removed, KILLED.
+5. **The "arithmetic route alone" explanation (R2 F6.2) is verified, not asserted.** The build refuses unless each difference
+   between this artifact's value and P8.4b's V4/V5 or the stop-rule record is at most `4 * math.ulp(max(|a|, |b|))`. Test: a
+   synthetic record 5 ulps away is refused.
+6. **A3's GATE 2 row (R2 F6.3)** cites `BRIEF_27`:1274-1281, and quotes the sentence that is the error: *"the `fixedtime` null
+   is *predicted* by the mechanism"*. T-quotes holds it.
+7. **Q6 in `never_scored` (R2 F6.4)** is labelled *"Q6's numbers: never scored; the verdict was recorded
+   (`docs/returns/P5.2.md:31`)"*.
+8. **`git.code_root` (R2 F7.2)** stays as `compute_latency._git_provenance` returns it: absolute, which is P5.2b's committed
+   precedent. T-canonical's exemption gets a comment saying why, and the packet discloses it.
+9. **The out path (R2 F8.1, F11.1).**
+   - Refuse when the UNRESOLVED candidate is a symlink, dangling or not, or exists; test it with a dangling symlink.
+   - The input-equality guard gets a test that reaches it, asserting its own message (it runs before the exists check). If
+     no input can reach it without existing, remove it as redundant and say why.
+   - `os.link` in place of the plan's `os.replace` (R2 F8.2) is ACCEPTED: it also refuses a file created between the check
+     and the write. The packet discloses it.
+10. **The constant clause (R2 F11.2):** `7 <= 8 <= 9` becomes the recorded 8, parsed from its record row, asserted inside the
+    range.
+11. **T-quotes (R2 F4.1).** Assert that every `Q5_RECORDS` quote's file is in `CITABLE_FILES`. Widen the scan to catch
+    `` `file`:N `` and extension-less upper-case names such as `PROJECT_PLAN:N`.
+12. **The tests R1 called theatre.**
+    - `test_t_q0` recomputes I's sd and CI with `statistics.stdev` and `1.96 · sd / √n` under `==`, and derives Q0a, Q0b
+      and the stop rule from those.
+    - Q6's expected verdict comes from the test's own CI (`:643`).
+    - Q4a's aggregate comes from the test's own per-tier intervals (`:581-583`).
+    - The IQL levels come from the test's own mean (`:707-712`).
+13. **`definition_dependent` compares verdicts (R1 F-12).** No change. `what_this_does_not_say` gains one sentence: Q0b's
+    sign and Q4b's chain shape are reported per definition beside the flag, and the flag does not compare them.
+14. **The implementer's G1 notes.**
+    - P8.4b's `campaign_manifest.json` and `CAMPAIGN_COMPLETE` are listed in `provenance.inputs` with their sha256. YES.
+    - T-regress's skip message says "the plan's C7".
+    - Deviations 1, 2 and 5 are ACCEPTED. Deviation 3 is overruled by B2.1, and deviation 4 is superseded by B2.2.
+    - The tests-first lapse (deviation 6, shown sound by M22–M27) and the amended local commit message (deviation 7) are
+      accepted. The packet discloses both, and the first whole-suite run's 36 failures.
+
+## B3 — Commits, and the next gate
+- **C6 is a series of commits of ≤ ~2 source files each:**
+  1. **Tests first.** The tests whose behaviour B2 changes (B2.1, B2.3, B2.4, B2.5, B2.6, B2.7, B2.9, and B2.11's
+     assertion) are run red on `719d753` and the red run is pasted. B1's survivor-killing tests are green on arrival; their
+     strength is their mutants.
+  2. **The module's fixes.**
+  3. **`mutate.py` extended:**
+     - every mutant of B1 and B2;
+     - the run of record on an export of the code commit, with every mutant KILLED;
+     - the whole suite with `RLTRAFFIC_OUTPUT_ROOT=/home/filip/rltraffic/output`;
+     - `check_test_hygiene.sh`, `check_english.sh` and the frozen-file guard.
+- **Committed on the branch, NOT pushed.** Then stop and say **"P5.2c G1.1 ready"**.
+- **Gate G1.1:** the coordinator re-runs his seventeen mutants with his own harness on the new commit and reads the diff.
+  The result is Amendment B.1.
+- **No artifact is built before Amendment B.1 exists on `main`.**

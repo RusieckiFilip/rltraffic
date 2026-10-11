@@ -1,0 +1,19 @@
+CONTROL exit=0 114 passed, 1 skipped in 12.75s
+CM1 SURVIVED: Q0b: an exactly-zero I scored HELD instead of NOT RESOLVED (F-14: untested branch) | 114 passed, 1 skipped in 12.05s
+CM2 KILLED: composite I: CI half-width doubled, mean unchanged | ERROR tests/test_tier_statements.py::test_t_reproduce_record_every_value_p5_2s_record_states_at_its_precision
+CM3 KILLED: Q3b sub-prediction: random no longer predicted to resolve | FAILED tests/test_tier_statements.py::test_q3b_reads_the_shared_anchor_as_behaviour_at_random_and_reports_the_sub_prediction
+CM4 SURVIVED: Q1b scored with LEVEL_BAND (0.30) instead of ANCHOR_BAND (0.10) | 114 passed, 1 skipped in 12.75s
+CM5 KILLED: Q4a scored on four tiers (mappo1000 added) | FAILED tests/test_tier_statements.py::test_every_registered_statement_is_present_under_both_definitions
+CM6 KILLED: Q5a scored on four tiers (mappo1000 added) | FAILED tests/test_tier_statements.py::test_t_q5b_a_failed_mappo1000_tier_makes_the_aggregate_failed
+CM7 SURVIVED: leaders: per-seed first places read att_ours whatever the definition | 114 passed, 1 skipped in 12.78s
+CM8 SURVIVED: collapse audit: the sentence holds if ANY non-DT arm collapses somewhere | 114 passed, 1 skipped in 11.87s
+CM9 SURVIVED: contrast: D9 per-seed block always on att_ours | 114 passed, 1 skipped in 12.43s
+CM10 SURVIVED: Q6: COLLAPSED iff the CI's HIGH end is above zero | 114 passed, 1 skipped in 12.88s
+CM11 KILLED: Q5c: random's predicted sign flipped to negative | FAILED tests/test_tier_statements.py::test_t_q5_each_tier_by_its_registered_sign
+CM12 SURVIVED: Q2a: a tie for first counted as the predicted unique first place | 114 passed, 1 skipped in 12.73s
+CM13 KILLED: contrast: exactly_zero if ANY per-draw difference is zero | ERROR tests/test_tier_statements.py::test_t_reproduce_record_every_value_p5_2s_record_states_at_its_precision
+CM14 SURVIVED: Q4b: the chain scored non-strictly (<=) | 114 passed, 1 skipped in 14.21s
+CM15 KILLED: composite I: per-seed values computed as d1 - d4 (sign flipped) | FAILED tests/test_tier_statements.py::test_t_q0_the_interaction_its_per_seed_values_and_the_three_verdicts
+CM16 SURVIVED: leaders: the lead 'resolves' when the CI's LOW end is below zero | 114 passed, 1 skipped in 13.55s
+CM17 SURVIVED: Q3b: the aggregate ignores fixedtime (two tiers only) | 114 passed, 1 skipped in 13.25s
+exit=0
