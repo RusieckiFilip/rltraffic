@@ -45,6 +45,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
+import numpy as np
+
 import offline.att_rederivation as ar
 import offline.compute_latency as cl
 import offline.dt_gate as dt_gate
@@ -102,18 +104,23 @@ CITABLE_FILES: tuple[str, ...] = (
     "PREREGISTRATION.md",
 )
 
-#: The modules this one imports by name (Amendment A, A4.1).  ``build`` and ``check`` refuse unless each, and every other
-#: loaded ``offline`` module, resolves under ``--repo-root``; ``provenance.code`` records each with its sha256.
+#: Every ``offline`` module a fresh interpreter loads to import this one (Amendment A, A4.1; the list is asserted by a
+#: test that imports the module in a subprocess).  ``build`` and ``check`` refuse unless each, and every other loaded
+#: ``offline`` module, resolves under ``<--repo-root>/offline``; ``provenance.code`` records each with its sha256.
 CODE_MODULES: tuple[str, ...] = (
     "offline",
-    "offline.tier_statements",
     "offline.att_rederivation",
     "offline.compute_latency",
+    "offline.dataset",
     "offline.dt_gate",
     "offline.iql_correction",
+    "offline.joint_windows",
     "offline.offline_baselines",
+    "offline.roadnet_graph",
     "offline.spatial_mixing",
+    "offline.tier_statements",
     "offline.tier_sweep",
+    "offline.trajectory_logger",
 )
 
 
@@ -211,8 +218,16 @@ CELL_SPECS: tuple[CellSpec, ...] = (
 
 CORRECTED_IQL = "p5_2b:iql@random"
 ORIGINAL_IQL = "p5_2:iql@random"
+ORIGINAL_IQL_EVAL = "p5_2/eval_random_iql.json"
 ANCHOR_CELL = "p5_1:random@grid4x4_mappo1000"
 REROLLED_ANCHOR_CELL = "p5_2:random@mappo1000"
+H4_CELLS: tuple[str, str] = ("p5_2:dt_spatial_h4@mappo1000", "p5_2:dt_nomix_h4@mappo1000")
+
+#: How A4.3's two digests are formed, stated in the artifact beside each.
+ROWS_DIGEST_CONSTRUCTION = (
+    "sha256 over the text '<file sha256>  <path relative to --output-root>\\n' for every file read, in path order -- "
+    "the sha256sum line format, so `sha256sum <files> | LC_ALL=C sort -k2 | sha256sum`, run in --output-root over the "
+    "same files, recomputes it")
 
 
 @dataclass(frozen=True)
@@ -229,12 +244,24 @@ def make_books(cells: Mapping[str, Cell]) -> dict[str, dict[tuple[str, str], Cel
     """The two versions' books: logical ``(method, tier)`` -> cell.  Identical but at ``("iql", "random")``, which is
     :data:`CORRECTED_IQL` under ``corrected`` and :data:`ORIGINAL_IQL` under ``as_committed``.  ``("behaviour",
     "random")`` and :data:`ANCHOR` are both P5.1's random cell (D12)."""
-    raise NotImplementedError("P5.2c C1 skeleton: make_books")
+    missing = sorted({spec.cell_id for spec in CELL_SPECS} - set(cells))
+    if missing:
+        raise ValueError(f"the cells {missing[:4]} are not loaded; every statement's inputs must exist")
+    common: dict[tuple[str, str], Cell] = {}
+    for spec in CELL_SPECS:
+        if spec.cell_id in (CORRECTED_IQL, ORIGINAL_IQL, REROLLED_ANCHOR_CELL):
+            continue
+        common[(spec.method, spec.tier)] = cells[spec.cell_id]
+    common[("behaviour", "random")] = cells[ANCHOR_CELL]
+    return {"corrected": {**common, ("iql", "random"): cells[CORRECTED_IQL]},
+            "as_committed": {**common, ("iql", "random"): cells[ORIGINAL_IQL]}}
 
 
 def episodes_of(cell: Cell, definition: str) -> list[EpisodeResult]:
     """The cell's episodes under *definition*, by ``iql_correction.episodes_from_rows`` (refuses a duplicate key)."""
-    raise NotImplementedError("P5.2c C1 skeleton: episodes_of")
+    if definition not in DEFINITIONS:
+        raise ValueError(f"{definition!r} is not one of {DEFINITIONS}")
+    return ic.episodes_from_rows(cell.rows, value_key=definition)
 
 
 # ----------------------------------------------------------------------
@@ -244,19 +271,39 @@ def episodes_of(cell: Cell, definition: str) -> list[EpisodeResult]:
 
 def read_manifest(output_root: str | Path, name: str, pin: str) -> dict[str, str]:
     """``output/<name>`` parsed by ``tier_sweep.parse_sha256sums``, refused unless the file is at *pin*."""
-    raise NotImplementedError("P5.2c C1 skeleton: read_manifest")
+    path = Path(output_root) / name
+    data = path.read_bytes()
+    digest = hashlib.sha256(data).hexdigest()
+    if digest != pin:
+        raise ValueError(f"{path} is at sha256 {digest}, not the pinned {pin}: a manifest is the anchor of every file it "
+                         "lists, so a changed manifest anchors nothing")
+    return ts.parse_sha256sums(data.decode("utf-8"))
 
 
 def read_listed_json(output_root: str | Path, relative: str, sums: Mapping[str, str], *, manifest_name: str
                      ) -> dict[str, Any]:
     """A JSON record (``relative`` to ``output/``), refused unless its sha256 is its line in *manifest_name*.
     ``iql_correction.read_p5_2_json`` restated for any manifest (Amendment A, A2 Q3)."""
-    raise NotImplementedError("P5.2c C1 skeleton: read_listed_json")
+    expected = sums.get(relative)
+    if expected is None:
+        raise ValueError(f"{relative} has no line in {manifest_name}; an unlisted file cannot be shown to be the record's")
+    path = Path(output_root) / relative
+    data = path.read_bytes()
+    digest = hashlib.sha256(data).hexdigest()
+    if digest != expected:
+        raise ValueError(f"{path} is at sha256 {digest}, which does not match its line in {manifest_name} ({expected}); "
+                         "its bytes changed after the record was written")
+    return json.loads(data)
 
 
 def read_pinned_json(repo_root: str | Path, relative: str, pin: str) -> dict[str, Any]:
     """A committed document under ``repo_root``, refused unless its blob sha256 is *pin*."""
-    raise NotImplementedError("P5.2c C1 skeleton: read_pinned_json")
+    path = Path(repo_root) / relative
+    data = path.read_bytes()
+    digest = hashlib.sha256(data).hexdigest()
+    if digest != pin:
+        raise ValueError(f"{path} is at sha256 {digest}, not the pinned {pin}")
+    return json.loads(data)
 
 
 def assert_note_means(output_root: str | Path, campaign_cells: Sequence[str], note: Mapping[str, Any], *, tier: str,
@@ -264,33 +311,107 @@ def assert_note_means(output_root: str | Path, campaign_cells: Sequence[str], no
     """``iql_correction.assert_c1_note_means`` restated for any tier (plan F13): the six means under both definitions,
     by the note's own route (``statistics.mean`` over each arm's P8.4b cell files listed in *campaign_cells*), refused
     unless each equals ``note["tiers"]["grid4x4/<tier>"]``'s.  *arms* maps each method to its P8.4b arm string."""
-    raise NotImplementedError("P5.2c C1 skeleton: assert_note_means")
+    work = Path(output_root) / P8_4B_DIR
+    block = note["tiers"][f"{SCENARIO}/{tier}"]
+    methods = {arm: method for method, arm in arms.items()}
+    values: dict[str, dict[str, list[float]]] = {method: {name: [] for name in DEFINITIONS} for method in ts.METHODS}
+    for key in campaign_cells:
+        scenario, arm, seed, draw = str(key).split("|")
+        if scenario != SCENARIO or arm not in methods:
+            continue
+        method = methods[arm]
+        name = ar.cell_file_name(ar.CellKey(scenario=scenario, arm=arm, seed=int(seed), draw_id=int(draw)))
+        row = json.loads((work / name).read_bytes())
+        identity = (str(row["scenario"]), str(row["tier"]), str(row["method"]), str(row["arm"]), int(row["seed"]),
+                    int(row["draw_id"]))
+        if identity != (scenario, tier, method, arm, int(seed), int(draw)):
+            raise ValueError(f"P8.4b's {name} is not the cell its name says ({key}): it holds {identity}")
+        for definition in DEFINITIONS:
+            values[method][definition].append(float(row[definition]))
+    for method in ts.METHODS:
+        for definition in DEFINITIONS:
+            if not values[method][definition]:
+                raise ValueError(f"P8.4b's campaign lists no cell of {arms[method]}")
+            mine = statistics.mean(values[method][definition])
+            theirs = block[definition]["means"][method]
+            if mine != theirs:
+                raise ValueError(
+                    f"{arms[method]} under {definition}: the mean of P8.4b's {len(values[method][definition])} cells by "
+                    f"the note's own route (statistics.mean) is {mine!r}, and {C1_NOTE} says {theirs!r}: the note's anchor "
+                    f"does not hold on the {tier} tier, so no P8.4b value is read (plan F13)")
+    return {"arms": sorted(ts.METHODS), "definitions": list(DEFINITIONS), "route": "statistics.mean",
+            "cells_per_arm": {method: len(values[method][DEFINITIONS[0]]) for method in ts.METHODS}}
 
 
 def assert_anchor_identity(p5_1: Mapping[str, Any], p5_2: Mapping[str, Any], p5_1_rows: Sequence[Mapping[str, Any]],
                            p5_2_rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     """D12's shared anchor: refused unless P5.2's re-rolled random cell is episode-identical to P5.1's
-    (``tier_sweep.assert_cells_identical``, 500 episodes) and P8.4b's rows of the two arms agree on ``att_ours``,
-    ``att_engine`` and every companion."""
-    raise NotImplementedError("P5.2c C1 skeleton: assert_anchor_identity")
+    (``tier_sweep.assert_cells_identical``, every episode of the protocol) and P8.4b's rows of the two arms agree on
+    ``att_ours``, ``att_engine`` and every companion."""
+    expected_n = len(tuple(dt_gate.TRAINING_SEEDS)) * len(tuple(dt_gate.HELD_OUT_DRAWS))
+    identity = ts.assert_cells_identical(p5_1, p5_2, expected_n=expected_n)
+    left = {(int(r["seed"]), int(r["draw_id"])): r for r in p5_1_rows}
+    right = {(int(r["seed"]), int(r["draw_id"])): r for r in p5_2_rows}
+    if set(left) != set(right) or len(left) != expected_n:
+        raise ValueError(f"P8.4b's rows of the two anchor arms cover {len(left)} and {len(right)} episodes, not the same "
+                         f"{expected_n}")
+    fields = ("att_ours", "att_engine", *COMPANIONS)
+    differences = [f"{key} {field}" for key in sorted(left) for field in fields if left[key][field] != right[key][field]]
+    if differences:
+        raise ValueError(f"P8.4b's rows of the two anchor arms differ on {len(differences)} value(s), the first "
+                         f"{differences[:5]}: D12's one anchor is not one cell")
+    return {**identity, "p8_4b_fields": list(fields), "p8_4b_rows_compared": expected_n}
 
 
 def rows_digest(pairs: Iterable[tuple[str, str]]) -> str:
     """Amendment A, A4.3: one sha256 over sorted ``(path relative to --output-root, file sha256)`` pairs, taken over the
     text ``"<file sha256>  <path>\\n"`` per pair in path order -- the ``sha256sum`` line format."""
-    raise NotImplementedError("P5.2c C1 skeleton: rows_digest")
+    text = "".join(f"{digest}  {path}\n" for path, digest in sorted(pairs))
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 def assert_code_under_root(repo_root: str | Path) -> list[dict[str, Any]]:
     """Amendment A, A4.1: refuse unless every module of :data:`CODE_MODULES` and every loaded ``offline`` module
     resolves to ``<repo_root>/offline/...``; return each :data:`CODE_MODULES` entry's path relative to the root and its
     sha256."""
-    raise NotImplementedError("P5.2c C1 skeleton: assert_code_under_root")
+    import importlib
+
+    root = Path(repo_root).resolve()
+    package = root / "offline"
+
+    def located(name: str) -> list[Path]:
+        module = sys.modules.get(name) or importlib.import_module(name)
+        file = getattr(module, "__file__", None)
+        if file:
+            return [Path(file).resolve()]
+        paths = [Path(entry).resolve() for entry in getattr(module, "__path__", [])]
+        if not paths:
+            raise ValueError(f"{name} names no file, so it cannot be shown to come from {root}")
+        return paths
+
+    loaded = {name for name in list(sys.modules) if name == "offline" or name.startswith("offline.")}
+    for name in sorted(loaded | set(CODE_MODULES)):
+        for path in located(name):
+            inside = path == package or package in path.parents
+            if not inside:
+                raise ValueError(
+                    f"{name} is loaded from {path}, which does not resolve under {package}: the artifact would record "
+                    f"{root}'s git commit for code that did not come from it (BRIEF_45 Amendment A, A4.1)")
+    offline_package = sys.modules["offline"]
+    if [Path(entry).resolve() for entry in getattr(offline_package, "__path__", [])] != [package]:
+        raise ValueError(f"the offline package searches {list(getattr(offline_package, '__path__', []))}, not exactly "
+                         f"{package}: a later import could come from another tree (BRIEF_45 Amendment A, A4.1)")
+    entries = []
+    for name in CODE_MODULES:
+        path = located(name)[0]
+        entries.append({"module": name, "path": path.relative_to(root).as_posix(),
+                        "sha256": hashlib.sha256(path.read_bytes()).hexdigest()})
+    return entries
 
 
 def git_block() -> dict[str, Any]:
     """``compute_latency._git_provenance()``: the commit, the dirty flag (tracked files) and the code root."""
-    raise NotImplementedError("P5.2c C1 skeleton: git_block")
+    return dict(cl._git_provenance())
 
 
 @dataclass(frozen=True)
@@ -303,9 +424,260 @@ class Inputs:
     records: Mapping[str, Any]
 
 
+def _ic_pins(pins: Pins) -> ic.Pins:
+    """The ``iql_correction.Pins`` its readers take.  ``declaration_sha256`` and ``corpus_manifest_sha256`` are read by
+    no function this module calls (they anchor P5.2b's training inputs) and are copied from ``iql_correction.PINS``."""
+    return ic.Pins(p5_2_sums_sha256=pins.p5_2_sums_sha256, declaration_sha256=ic.PINS.declaration_sha256,
+                   c1_note_sha256=pins.c1_note_sha256, p8_4b_declared_cells_sha256=pins.p8_4b_declared_cells_sha256,
+                   corpus_manifest_sha256=ic.PINS.corpus_manifest_sha256)
+
+
+def _arm_tier(arm: str) -> str:
+    """The tier label inside an arm string: ``grid4x4_mappo1000`` for P5.1's, the tier for P5.2's."""
+    return str(arm).partition("@")[2]
+
+
+def _assert_eval_payload(spec: CellSpec, payload: Mapping[str, Any], seeds: Sequence[int], draws: Sequence[int]
+                         ) -> list[EpisodeResult]:
+    """One evaluation record: the cell its spec says, complete (``tier_sweep.cell_is_complete``), its level and A5's
+    vehicle count equal to its own ``cell`` block.  Returns its episodes in ``(seed, draw)`` order (``att_horizon``)."""
+    where = f"output/{spec.eval_file}"
+    if (payload.get("arm"), payload.get("method"), payload.get("tier")) != (spec.arm, spec.method, _arm_tier(spec.arm)):
+        raise ValueError(f"{where} is the record of {payload.get('arm')!r} ({payload.get('method')!r} at "
+                         f"{payload.get('tier')!r}), not of {spec.arm}")
+    if any(str(episode.get("arm")) != spec.arm for episode in payload["episodes"]):
+        raise ValueError(f"{where} carries episodes of an arm other than {spec.arm}")
+    if not ts.cell_is_complete(payload, seeds=seeds, draws=draws, declared_steps=ts.DECLARED_GRADIENT_STEPS,
+                               method=spec.method):
+        raise ValueError(f"{where} is not a complete cell: {len(payload['episodes'])} episodes against the protocol's "
+                         f"{len(seeds)} seeds x {len(draws)} draws, each once, at {ts.DECLARED_GRADIENT_STEPS} declared "
+                         "steps")
+    episodes = ic.episodes_from_rows(payload["episodes"], value_key="att_horizon")
+    level = ic.levels_of({(spec.method, spec.tier): episodes})[(spec.method, spec.tier)]
+    if level != float(payload["cell"]["att_horizon_mean"]):
+        raise ValueError(f"{where}: the level {level!r} by mean_ci95 in (seed, draw) order is not the record's own cell "
+                         f"mean {payload['cell']['att_horizon_mean']!r}")
+    vehicles = float(mean_ci95([episode.horizon_vehicle_count for episode in episodes]).mean)
+    if vehicles != float(payload["cell"]["horizon_vehicle_count_mean"]):
+        raise ValueError(f"{where}: A5's horizon vehicle count {vehicles!r} by mean_ci95 is not the record's own "
+                         f"{payload['cell']['horizon_vehicle_count_mean']!r}")
+    return episodes
+
+
+def _merged_rows(spec: CellSpec, episodes: Sequence[EpisodeResult], rows: Sequence[Mapping[str, Any]]
+                 ) -> tuple[dict[str, Any], ...]:
+    """The cell's rows: ``att_ours`` and A5's companions from the evaluation record, ``att_engine`` and A11(b)'s
+    companions from the re-derivation row of the same ``(seed, draw)``."""
+    out = []
+    for episode, row in zip(episodes, rows, strict=True):
+        if (int(row["seed"]), int(row["draw_id"])) != (episode.seed, episode.draw_id):
+            raise ValueError(f"{spec.cell_id}: the evaluation and re-derivation rows are not aligned at "
+                             f"{(episode.seed, episode.draw_id)}")
+        out.append({"arm": spec.arm, "seed": int(episode.seed), "draw_id": int(episode.draw_id),
+                    "att_ours": float(episode.att_horizon), "att_engine": float(row["att_engine"]),
+                    "entered": int(row["entered"]), "created": int(row["created"]),
+                    "never_entered": int(row["never_entered"]), "entered_fraction": float(row["entered_fraction"]),
+                    "horizon_vehicle_count": float(episode.horizon_vehicle_count),
+                    "episode_reward": float(episode.episode_reward)})
+    return tuple(out)
+
+
+def _read_rows_digested(output: Path, directory: str, spec: CellSpec, episodes: Sequence[EpisodeResult],
+                        rows: Sequence[Mapping[str, Any]], pairs: list[tuple[str, str]],
+                        listed: Mapping[str, str] | None = None) -> None:
+    """A4.3: each re-derivation row's file read once more, hashed, and refused unless its bytes parse to the row just
+    checked (and, given *listed*, unless the hash is its manifest line); ``(path, sha256)`` appended to *pairs*."""
+    for episode, row in zip(episodes, rows, strict=True):
+        name = ar.cell_file_name(ar.CellKey(scenario=SCENARIO, arm=spec.arm, seed=episode.seed,
+                                            draw_id=episode.draw_id))
+        relative = f"{directory}/{name}"
+        data = (output / relative).read_bytes()
+        if json.loads(data) != row:
+            raise ValueError(f"output/{relative} changed while it was being read")
+        digest = hashlib.sha256(data).hexdigest()
+        if listed is not None and listed.get(relative) != digest:
+            raise ValueError(f"output/{relative} is at sha256 {digest}, which does not match its line in "
+                             f"{P5_2B_SUMS_NAME} ({listed.get(relative)})")
+        pairs.append((relative, digest))
+
+
+def _assert_d17(output: Path, sums: Mapping[str, str], payloads: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
+    """``BRIEF_45`` section 3.2, Q0: D17's deterministic 1-head pair was never trained, verified on disk -- P5.2's
+    manifest lists no complete 1-head ``mappo1000`` DT cell, its 1-head ``mappo1000`` DT training records hold only
+    default-regime runs, and every P5.2 evaluation read is default-regime -- so ``d1`` is P5.1's pair."""
+    listed = [f"p5_2/{ts.cell_filename('mappo1000', method)}" for method in DT_ARMS]
+    present = [name for name in listed if name in sums]
+    if present:
+        raise ValueError(f"P5.2's manifest lists {present}: a complete 1-head mappo1000 DT cell from P5.2 would make "
+                         "d1 ambiguous between it and P5.1's pair (D17)")
+    records = {}
+    for method in DT_ARMS:
+        relative = f"p5_2/{ts.training_record_name('mappo1000', method)}"
+        record = ic.read_p5_2_json(output, relative, sums)
+        runs = [{"seed": int(run["seed"]), "deterministic": run.get("deterministic")} for run in record.get("runs", [])]
+        if record.get("deterministic") is not False or any(run["deterministic"] is not False for run in runs):
+            raise ValueError(f"output/{relative} records a deterministic run ({runs}): D17's deterministic 1-head pair "
+                             "would exist, and d1 would not be P5.1's default-regime pair")
+        records[f"output/{relative}"] = runs
+    regimes = sorted({str(payload.get("deterministic")) for cell_id, payload in payloads.items()
+                      if cell_id.startswith("p5_2:")})
+    if regimes != ["False"]:
+        raise ValueError(f"P5.2's evaluation records state deterministic = {regimes}, not only False (D17)")
+    return {"complete_1_head_mappo1000_dt_cells_in_p5_2": present, "training_records": records,
+            "p5_2_evaluations_deterministic": False,
+            "reading": "D17's deterministic 1-head pair was never trained; d1 is P5.1's default-regime pair"}
+
+
+def _book_arm(method: str, tier: str) -> str:
+    """The P8.4b arm string of a method's cell on a tier, as the books read it (P5.1's at ``mappo1000`` but for
+    ``bc_top10_perix``, which only P5.2 ran there)."""
+    if tier == "mappo1000" and method != "bc_top10_perix":
+        return f"{method}@grid4x4_mappo1000"
+    return f"{method}@{tier}"
+
+
 def load_inputs(roots: Roots, *, pins: Pins = PINS) -> Inputs:
-    """Every input at its anchor (plan section 6.2), refusing before anything is written."""
-    raise NotImplementedError("P5.2c C1 skeleton: load_inputs")
+    """Every input at its anchor (plan section 6.2), refusing before anything is written.  The order is the order of
+    trust: manifests, committed documents, evaluation records, P8.4b's campaign and every row read, the shared anchor,
+    the note's means on every tier, P5.2b's corrected cell and its committed blocks."""
+    output, repo = Path(roots.output_root), Path(roots.repo_root)
+    seeds, draws = tuple(int(s) for s in dt_gate.TRAINING_SEEDS), tuple(int(d) for d in dt_gate.HELD_OUT_DRAWS)
+    files: list[dict[str, Any]] = []
+    sums = {P5_1_SUMS_NAME: read_manifest(output, P5_1_SUMS_NAME, pins.p5_1_sums_sha256),
+            P5_2_SUMS_NAME: ic.p5_2_sums(output, pins=_ic_pins(pins)),
+            P5_2B_SUMS_NAME: read_manifest(output, P5_2B_SUMS_NAME, pins.p5_2b_sums_sha256)}
+    for name, pin in ((P5_1_SUMS_NAME, pins.p5_1_sums_sha256), (P5_2_SUMS_NAME, pins.p5_2_sums_sha256),
+                      (P5_2B_SUMS_NAME, pins.p5_2b_sums_sha256)):
+        files.append({"file": f"output/{name}", "sha256": pin, "anchor": "pinned", "lines": len(sums[name])})
+    documents = {}
+    for relative, pin in ((P5_2B_ARTIFACT, pins.p5_2b_artifact_sha256), (P8_4B_ARTIFACT, pins.p8_4b_artifact_sha256),
+                          (P5_1_GRID, pins.p5_1_grid_sha256)):
+        documents[relative] = read_pinned_json(repo, relative, pin)
+        files.append({"file": relative, "sha256": pin, "anchor": "pinned"})
+    note = ic._verified_note(repo, _ic_pins(pins))
+    files.append({"file": note["file"], "sha256": note["sha256"], "anchor": "pinned"})
+
+    payloads: dict[str, dict[str, Any]] = {}
+    episodes: dict[str, list[EpisodeResult]] = {}
+    for spec in CELL_SPECS:
+        if spec.manifest == P5_2_SUMS_NAME:
+            payload = ic.read_p5_2_json(output, spec.eval_file, sums[P5_2_SUMS_NAME])
+        else:
+            payload = read_listed_json(output, spec.eval_file, sums[spec.manifest], manifest_name=spec.manifest)
+        episodes[spec.cell_id] = _assert_eval_payload(spec, payload, seeds, draws)
+        payloads[spec.cell_id] = payload
+        files.append({"file": f"output/{spec.eval_file}", "sha256": sums[spec.manifest][spec.eval_file],
+                      "anchor": f"its line in output/{spec.manifest}"})
+    stop_record = ic.read_p5_2_json(output, P5_2_STOP_RULE_RECORD, sums[P5_2_SUMS_NAME])
+    files.append({"file": f"output/{P5_2_STOP_RULE_RECORD}", "sha256": sums[P5_2_SUMS_NAME][P5_2_STOP_RULE_RECORD],
+                  "anchor": f"its line in output/{P5_2_SUMS_NAME}"})
+    d17 = _assert_d17(output, sums[P5_2_SUMS_NAME], payloads)
+    for relative in d17["training_records"]:
+        files.append({"file": relative, "sha256": sums[P5_2_SUMS_NAME][relative.removeprefix("output/")],
+                      "anchor": f"its line in output/{P5_2_SUMS_NAME}"})
+
+    campaign = ic.assert_p8_4b_campaign(output, pins=_ic_pins(pins))
+    declared: dict[str, set[tuple[int, int]]] = {}
+    for key in campaign["cells"]:
+        scenario, arm, seed, draw = str(key).split("|")
+        if scenario == SCENARIO and seed != "None":
+            declared.setdefault(arm, set()).add((int(seed), int(draw)))
+    cells: dict[str, Cell] = {}
+    p8_pairs: list[tuple[str, str]] = []
+    for spec in CELL_SPECS:
+        if spec.source == "p5_2b":
+            continue
+        reference = episodes[spec.cell_id]
+        keys = {(episode.seed, episode.draw_id) for episode in reference}
+        if declared.get(spec.arm, set()) != keys:
+            raise ValueError(f"P8.4b's campaign declares {len(declared.get(spec.arm, set()))} cells of {spec.arm}, not "
+                             f"the {len(keys)} episodes of output/{spec.eval_file}")
+        method, tier = spec.arm.split("@")
+        rows = ic._p8_4b_rows(output, method, tier, reference)
+        _read_rows_digested(output, P8_4B_DIR, spec, reference, rows, p8_pairs)
+        cells[spec.cell_id] = Cell(spec=spec, rows=_merged_rows(spec, reference, rows))
+
+    anchor = assert_anchor_identity(payloads[ANCHOR_CELL], payloads[REROLLED_ANCHOR_CELL], cells[ANCHOR_CELL].rows,
+                                    cells[REROLLED_ANCHOR_CELL].rows)
+    note_checks = {"random": ic.assert_c1_note_means(output, campaign["cells"], note["payload"])}
+    for tier in ("mappo1000", "maxpressure", "fixedtime"):
+        arms = {method: _book_arm(method, tier) for method in ts.METHODS}
+        note_checks[tier] = assert_note_means(output, campaign["cells"], note["payload"], tier=tier, arms=arms)
+
+    protocol = ic.original_protocol(payloads[ORIGINAL_IQL])
+    ic.assert_protocol(protocol)
+    record = read_listed_json(output, P5_2B_TRAINING_RECORD, sums[P5_2B_SUMS_NAME], manifest_name=P5_2B_SUMS_NAME)
+    files.append({"file": f"output/{P5_2B_TRAINING_RECORD}", "sha256": sums[P5_2B_SUMS_NAME][P5_2B_TRAINING_RECORD],
+                  "anchor": f"its line in output/{P5_2B_SUMS_NAME}"})
+    corrected_spec = next(spec for spec in CELL_SPECS if spec.cell_id == CORRECTED_IQL)
+    ic.assert_evaluated_models(payloads[CORRECTED_IQL], record)
+    corrected_ours = episodes[CORRECTED_IQL]
+    corrected_rows = ic._corrected_rows(output / P5_2B_RUN_DIR, protocol, corrected_ours, record)
+    corrected_pairs: list[tuple[str, str]] = []
+    _read_rows_digested(output, P5_2B_REDERIVATION_DIR, corrected_spec, corrected_ours, corrected_rows,
+                        corrected_pairs, listed=sums[P5_2B_SUMS_NAME])
+    rederivation = ic._campaign_anchor(output / P5_2B_REDERIVATION_DIR)
+    if rederivation["declared_cells_sha256"] != pins.p5_2b_rederivation_declared_cells_sha256:
+        raise ValueError(f"P5.2b's re-derivation campaign declares {rederivation['declared_cells_sha256']}, not the "
+                         f"pinned {pins.p5_2b_rederivation_declared_cells_sha256}")
+    for name in (ar.MANIFEST_NAME, ar.COMPLETE_MARKER):
+        relative = f"{P5_2B_REDERIVATION_DIR}/{name}"
+        digest = hashlib.sha256((output / relative).read_bytes()).hexdigest()
+        if sums[P5_2B_SUMS_NAME].get(relative) != digest:
+            raise ValueError(f"output/{relative} is at sha256 {digest}, which does not match its line in "
+                             f"{P5_2B_SUMS_NAME}")
+        files.append({"file": f"output/{relative}", "sha256": digest, "anchor": f"its line in output/{P5_2B_SUMS_NAME}"})
+    cells[CORRECTED_IQL] = Cell(spec=corrected_spec, rows=_merged_rows(corrected_spec, corrected_ours, corrected_rows))
+
+    committed = documents[P5_2B_ARTIFACT]
+    for which, cell_id in (("corrected", CORRECTED_IQL), ("original", ORIGINAL_IQL)):
+        cell = cells[cell_id]
+        mine = {"att_ours": ic.cell_summary(episodes_of(cell, "att_ours")),
+                "att_engine": ic.cell_summary(episodes_of(cell, "att_engine")),
+                "admission": ic.admission_summary(cell.rows)}
+        for key, value in mine.items():
+            if committed["cells"][which][key] != value:
+                raise ValueError(f"{cell_id}'s {key} block is not P5.2b's committed cells.{which}.{key} "
+                                 f"({P5_2B_ARTIFACT}): the cell read is not the cell P5.2b reported")
+    if committed["inputs"]["run_manifest"]["sha256"] != pins.p5_2b_sums_sha256:
+        raise ValueError(f"{P5_2B_ARTIFACT} names its run manifest at {committed['inputs']['run_manifest']['sha256']}, "
+                         f"not the pinned {pins.p5_2b_sums_sha256}")
+
+    provenance = {
+        "inputs": sorted(files, key=lambda entry: entry["file"]),
+        "protocol": {"seeds": list(seeds), "draws": {"first": draws[0], "last": draws[-1], "n": len(draws)},
+                     "source": "dt_gate.TRAINING_SEEDS and dt_gate.HELD_OUT_DRAWS; every cell asserted complete on "
+                               "this grid (tier_sweep.cell_is_complete)"},
+        "p8_4b_campaign": {"declared_cells_sha256": campaign["declared_cells_sha256"], "n_cells": campaign["n_cells"],
+                           "engine_seed": campaign["engine_seed"],
+                           "anchor": "iql_correction.assert_p8_4b_campaign: the digest recomputed from the manifest's "
+                                     "own cell list equals CAMPAIGN_COMPLETE's and the pin, and the campaign is "
+                                     "complete; each arm's declared cells are its evaluation record's episodes"},
+        "p8_4b_rows": {"n": len(p8_pairs), "sha256": rows_digest(p8_pairs),
+                       "checks": "iql_correction._p8_4b_rows per row (reproduces_committed, identity, att_ours equal "
+                                 "to the evaluation record's att_horizon); the README note's six means on every tier",
+                       "construction": ROWS_DIGEST_CONSTRUCTION},
+        "p5_2b_rederivation": {**rederivation, "anchor": "iql_correction._campaign_anchor, equal to the pin"},
+        "p5_2b_corrected_rows": {"n": len(corrected_pairs), "sha256": rows_digest(corrected_pairs),
+                                 "checks": "iql_correction._corrected_rows (identity, att_ours equal to "
+                                           "output/p5_2b/eval_random_iql.json, the corrected checkpoint); each file at "
+                                           "its line in output/SHA256SUMS_p5_2b.txt",
+                                 "construction": ROWS_DIGEST_CONSTRUCTION},
+        "p5_2b_run_manifest": {"file": f"output/{P5_2B_SUMS_NAME}", "sha256": pins.p5_2b_sums_sha256,
+                               "lines": len(sums[P5_2B_SUMS_NAME])},
+        "note_means": note_checks,
+        "random_anchor_identity": {**anchor, "cells": [ANCHOR_CELL, REROLLED_ANCHOR_CELL]},
+        "d17": d17,
+        "protocol_of_the_corrected_cell": {"seeds": list(protocol.seeds), "n_draws": len(protocol.draw_ids),
+                                           "engine_seed": protocol.engine_seed,
+                                           "deterministic": protocol.deterministic,
+                                           "declared_gradient_steps": protocol.declared_gradient_steps,
+                                           "read_from": f"output/{ORIGINAL_IQL_EVAL}"},
+    }
+    records = {"p5_2b_artifact": committed, "p8_4b_artifact": documents[P8_4B_ARTIFACT],
+               "p5_1_grid": documents[P5_1_GRID], "stop_rule_record": stop_record, "note": note["payload"],
+               "h4_payloads": {cell_id: payloads[cell_id] for cell_id in H4_CELLS}}
+    return Inputs(cells=cells, provenance=provenance, records=records)
 
 
 # ----------------------------------------------------------------------
@@ -317,17 +689,50 @@ def interval_outcome(low: float, high: float, *, predicted: str) -> str:
     """HELD / FAILED / NOT RESOLVED for a quantity predicted ``negative`` or ``positive``, by
     ``spatial_mixing._outcome_from_interval`` (on ``(-high, -low)`` for a positive one).  A CI touching zero, and an
     exact zero (CI [0, 0]), is NOT RESOLVED."""
-    raise NotImplementedError("P5.2c C1 skeleton: interval_outcome")
+    if predicted == "negative":
+        return sm._outcome_from_interval(float(low), float(high))
+    if predicted == "positive":
+        return sm._outcome_from_interval(-float(high), -float(low))
+    raise ValueError(f"predicted must be 'negative' or 'positive', got {predicted!r}")
 
 
 def conjunction(outcomes: Sequence[str]) -> str:
     """``BRIEF_45`` section 3.3: HELD iff every tier is HELD, FAILED iff any tier is FAILED, NOT RESOLVED otherwise."""
-    raise NotImplementedError("P5.2c C1 skeleton: conjunction")
+    values = list(outcomes)
+    if not values or any(value not in ("HELD", "FAILED", "NOT RESOLVED") for value in values):
+        raise ValueError(f"a conjunction needs one or more HELD / FAILED / NOT RESOLVED outcomes, got {values}")
+    if "FAILED" in values:
+        return "FAILED"
+    if all(value == "HELD" for value in values):
+        return "HELD"
+    return "NOT RESOLVED"
 
 
 def sign_of(value: float) -> str:
     """``negative`` / ``zero`` / ``positive`` of a point estimate."""
-    raise NotImplementedError("P5.2c C1 skeleton: sign_of")
+    if value < 0.0:
+        return "negative"
+    if value > 0.0:
+        return "positive"
+    return "zero"
+
+
+def _grid_of(cell: Cell, episodes: Sequence[EpisodeResult]) -> set[tuple[int, int]]:
+    keys = {(int(episode.seed), int(episode.draw_id)) for episode in episodes}
+    if not keys:
+        raise ValueError(f"{cell.spec.cell_id} holds no episode")
+    return keys
+
+
+def _interval_reading(low: float, high: float, exactly_zero: bool, identical: bool) -> str:
+    if exactly_zero:
+        return ("exactly zero (identical episodes)" if identical
+                else "exactly zero on every draw, from episodes that are not identical")
+    if high < 0.0:
+        return "resolves: the CI lies entirely below zero"
+    if low > 0.0:
+        return "resolves: the CI lies entirely above zero"
+    return "does not resolve: the CI includes zero"
 
 
 def contrast(left: Cell, right: Cell, *, definition: str, tier: str) -> dict[str, Any]:
@@ -336,7 +741,61 @@ def contrast(left: Cell, right: Cell, *, definition: str, tier: str) -> dict[str
     ``tier_sweep.per_seed_block`` (D9), ``att_rederivation.contrast_discriminability`` and D8's rank-biserial block from
     ``offline_baselines.paired_comparison`` -- refused unless that call's ``mean_difference``, ``ci95_low`` and
     ``ci95_high`` equal this block's under ``==`` (Amendment A, A2 Q8)."""
-    raise NotImplementedError("P5.2c C1 skeleton: contrast")
+    a, b = episodes_of(left, definition), episodes_of(right, definition)
+    if _grid_of(left, a) != _grid_of(right, b):
+        raise ValueError(f"{left.spec.cell_id} and {right.spec.cell_id} do not cover the same (seed, draw) grid "
+                         f"({len(a)} and {len(b)} episodes): a paired contrast is formed on identical grids only")
+    left_means, right_means = _per_draw_means(a), _per_draw_means(b)
+    draws = sorted(left_means)
+    differences = [left_means[draw] - right_means[draw] for draw in draws]
+    stats = mean_ci95(differences)
+    low, high = stats.mean - stats.ci95, stats.mean + stats.ci95
+    exactly_zero = all(value == 0.0 for value in differences)
+    comparison = paired_comparison(a, b)
+    if (comparison.mean_difference, comparison.ci95_low, comparison.ci95_high) != (stats.mean, low, high):
+        raise ValueError(
+            f"offline_baselines.paired_comparison gives {comparison.mean_difference!r} "
+            f"[{comparison.ci95_low!r}, {comparison.ci95_high!r}] for {left.spec.cell_id} - {right.spec.cell_id} under "
+            f"{definition}, and this module {stats.mean!r} [{low!r}, {high!r}]: the registered route is one route, so "
+            "the two must be equal under == (BRIEF_45 Amendment A, A2 Q8)")
+    per_seed = ts.per_seed_block(left.rows, right.rows, left_name=left.spec.arm, right_name=right.spec.arm,
+                                 metric=definition)
+    discriminability = ar.contrast_discriminability(
+        {(episode.seed, episode.draw_id): episode.att_horizon for episode in a},
+        {(episode.seed, episode.draw_id): episode.att_horizon for episode in b},
+        tier=tier, left=left.spec.arm, right=right.spec.arm)
+    wilcoxon = comparison.wilcoxon
+    defined = int(wilcoxon.n_used) > 0
+    return {
+        "left": left.spec.cell_id, "right": right.spec.cell_id, "left_arm": left.spec.arm, "right_arm": right.spec.arm,
+        "definition": definition, "tier": tier,
+        "n_draws": len(draws), "n_seeds": len({episode.seed for episode in a}),
+        "mean_difference": float(stats.mean), "std": float(stats.std), "ci95_half_width": float(stats.ci95),
+        "ci95_low": float(low), "ci95_high": float(high), "ci95_width": float(high - low),
+        "exactly_zero": exactly_zero, "sign": sign_of(stats.mean),
+        "reading": _interval_reading(low, high, exactly_zero, discriminability.identical),
+        "per_seed": per_seed["per_seed"], "seed_reversal_qualifier": per_seed["seed_reversal_qualifier"],
+        "discriminability": {"status": discriminability.status, "identical": discriminability.identical,
+                             "n_paired": discriminability.n_paired, "n_differing": discriminability.n_differing,
+                             "max_abs_difference": discriminability.max_abs_difference,
+                             "statement": discriminability.statement},
+        "paired_comparison": {
+            "rank_biserial": float(comparison.rank_biserial), "rank_biserial_defined": defined,
+            "rank_biserial_note": (
+                "(W+ - W-) / (W+ + W-) over the per-draw differences; positive means the left arm's ATT is higher "
+                "(worse) more often and by larger ranks" if defined else
+                "undefined: every per-draw difference is exactly zero (wilcoxon n_used = 0), and "
+                "offline_baselines.rank_biserial returns 0.0 by convention; that 0.0 is not an effect size"),
+            "median_difference": float(comparison.median_difference), "wins": int(comparison.wins),
+            "losses": int(comparison.losses), "ties": int(comparison.ties),
+            "wilcoxon": {"w_plus": float(wilcoxon.w_plus), "w_minus": float(wilcoxon.w_minus),
+                         "statistic": float(wilcoxon.statistic), "n_used": int(wilcoxon.n_used),
+                         "n_zero": int(wilcoxon.n_zero), "z": float(wilcoxon.z), "p_value": float(wilcoxon.p_value)},
+            "source": ("offline_baselines.paired_comparison, unchanged (D8); its mean_difference, ci95_low and "
+                       "ci95_high equal this block's under =="),
+            "p_value_read_by_a_verdict": False,
+        },
+    }
 
 
 def composite_contrast(left: tuple[Cell, Cell], right: tuple[Cell, Cell], *, definition: str, tier: str
@@ -345,7 +804,50 @@ def composite_contrast(left: tuple[Cell, Cell], right: tuple[Cell, Cell], *, def
     ``mean_ci95``, the counts of draws where it is negative / zero / positive, and the per-seed values
     ``(mean_s(left[0]) - mean_s(left[1])) - (mean_s(right[0]) - mean_s(right[1]))`` (``BRIEF_45`` section 3.3).  A
     difference of two differences, so no rank-biserial, and the block says so."""
-    raise NotImplementedError("P5.2c C1 skeleton: composite_contrast")
+    cells = (*left, *right)
+    episodes = [episodes_of(cell, definition) for cell in cells]
+    grids = [_grid_of(cell, eps) for cell, eps in zip(cells, episodes)]
+    if any(grid != grids[0] for grid in grids):
+        raise ValueError(f"{[cell.spec.cell_id for cell in cells]} do not cover the same (seed, draw) grid: I is formed "
+                         "on identical grids only")
+    means = [_per_draw_means(eps) for eps in episodes]
+    draws = sorted(means[0])
+    values = [(means[0][d] - means[1][d]) - (means[2][d] - means[3][d]) for d in draws]
+    stats = mean_ci95(values)
+    low, high = stats.mean - stats.ci95, stats.mean + stats.ci95
+    seeds = sorted({int(episode.seed) for episode in episodes[0]})
+
+    def seed_mean(eps: Sequence[EpisodeResult], seed: int) -> float:
+        return float(np.mean([episode.att_horizon for episode in eps if int(episode.seed) == seed]))
+
+    by_seed = {str(seed): (seed_mean(episodes[0], seed) - seed_mean(episodes[1], seed))
+               - (seed_mean(episodes[2], seed) - seed_mean(episodes[3], seed)) for seed in seeds}
+    seed_values = np.asarray(list(by_seed.values()), dtype=np.float64)
+    pooled = float(seed_values.mean())
+    against = int(sum(1 for value in by_seed.values() if (value < 0) != (pooled < 0) and value != 0.0))
+    per_seed = {"by_seed": by_seed, "n_seeds": len(seeds), "mean": pooled,
+                "between_seed_sd": float(seed_values.std(ddof=1)) if len(seeds) > 1 else 0.0,
+                "min": float(seed_values.min()), "max": float(seed_values.max()),
+                "n_seeds_negative": int((seed_values < 0).sum()), "reverses_against_pooled_sign": against,
+                "definition": ("per training seed, (mean over draws of left[0] - of left[1]) - (mean over draws of "
+                               "right[0] - of right[1]); the pooled sign is the mean of the per-seed values, as "
+                               "spatial_mixing.per_seed_advantages takes it")}
+    exactly_zero = all(value == 0.0 for value in values)
+    return {
+        "inputs": [cell.spec.cell_id for cell in cells], "definition": definition, "tier": tier,
+        "n_draws": len(draws), "n_seeds": len(seeds),
+        "mean_difference": float(stats.mean), "std": float(stats.std), "ci95_half_width": float(stats.ci95),
+        "ci95_low": float(low), "ci95_high": float(high), "ci95_width": float(high - low),
+        "exactly_zero": exactly_zero, "sign": sign_of(stats.mean),
+        "draws_negative": sum(1 for value in values if value < 0.0),
+        "draws_zero": sum(1 for value in values if value == 0.0),
+        "draws_positive": sum(1 for value in values if value > 0.0),
+        "per_seed": per_seed,
+        "seed_reversal_qualifier": sm.seed_reversal_qualifier(per_seed, "d4", "d1"),
+        "rank_biserial": None,
+        "rank_biserial_note": ("none: I is a difference of two differences, not a pair of arms, so D8's rank-biserial "
+                               "does not apply (BRIEF_45 Amendment A, A2 Q8)"),
+    }
 
 
 # ----------------------------------------------------------------------
@@ -443,7 +945,29 @@ def collapse_audit(books: Mapping[str, Mapping[tuple[str, str], Cell]]) -> dict[
 def cells_block(cells: Mapping[str, Cell]) -> dict[str, Any]:
     """Per cell: n, level, CI, per-seed means, median and IQR under each definition; A11(b)'s companions; A5's vehicle
     count; its sources."""
-    raise NotImplementedError("P5.2c C1 skeleton: cells_block")
+    out: dict[str, Any] = {}
+    for cell_id, cell in cells.items():
+        spec = cell.spec
+        entry: dict[str, Any] = {"method": spec.method, "tier": spec.tier, "source": spec.source, "arm": spec.arm,
+                                 "n": len(cell.rows)}
+        for definition in DEFINITIONS:
+            episodes = episodes_of(cell, definition)
+            summary = ic.cell_summary(episodes)
+            values = np.asarray([episode.att_horizon for episode in episodes], dtype=np.float64)
+            q25, q50, q75 = (float(x) for x in np.percentile(values, [25, 50, 75], method="linear"))
+            entry[definition] = {**summary, "ci95_width": float(summary["ci95_high"] - summary["ci95_low"]),
+                                 "median": q50, "iqr": [q25, q75], "iqr_width": q75 - q25}
+        entry["companions"] = ic.admission_summary(cell.rows)
+        entry["horizon_vehicle_count_mean"] = float(mean_ci95([float(r["horizon_vehicle_count"])
+                                                               for r in cell.rows]).mean)
+        rows_from = (f"output/{P5_2B_REDERIVATION_DIR}/cell_grid4x4_iql_at_random_*" if spec.source == "p5_2b" else
+                     f"output/{P8_4B_DIR}/" + ar.cell_file_name(ar.CellKey(scenario=SCENARIO, arm=spec.arm, seed=0,
+                                                                           draw_id=0)).replace("seed0_draw0", "*"))
+        entry["sources"] = {"att_ours": f"output/{spec.eval_file}", "horizon_vehicle_count": f"output/{spec.eval_file}",
+                            "att_engine": rows_from, "companions": rows_from}
+        entry["quantiles"] = "numpy.percentile(method='linear') over the cell's episodes"
+        out[cell_id] = entry
+    return out
 
 
 # ----------------------------------------------------------------------
@@ -464,7 +988,14 @@ class Quote:
 def normalise(text: str) -> str:
     """The comparison form of a quotation: blockquote markers and ``**`` removed, ``\\*`` unescaped, U+2212 read as
     ``-``, whitespace collapsed."""
-    raise NotImplementedError("P5.2c C1 skeleton: normalise")
+    kept = []
+    for line in str(text).split("\n"):
+        stripped = line.strip()
+        while stripped.startswith(">"):
+            stripped = stripped[1:].strip()
+        kept.append(stripped)
+    joined = " ".join(kept).replace("**", "").replace("\\*", "*").replace("−", "-")
+    return " ".join(joined.split())
 
 
 #: The registered text each statement implements, quoted from the files (``BRIEF_45`` section 3.2; plan section 3).

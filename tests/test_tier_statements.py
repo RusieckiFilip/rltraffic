@@ -1048,6 +1048,26 @@ def test_t_inputs_refuses_a_rerolled_anchor_that_differs_from_p5_1s(tree: fx.Syn
         tst.load_inputs(tree.roots, pins=tree.pins)
 
 
+def test_t_inputs_d17_a_deterministic_mappo1000_dt_run_is_refused(tree: fx.SyntheticTree) -> None:
+    """``BRIEF_45`` section 3.2, Q0: E1 measured zero, so D17's deterministic 1-head pair was never trained -- verified on
+    disk, so ``d1`` is P5.1's default-regime pair."""
+    _rewrite(tree.roots.output_root / "p5_2" / "training_mappo1000_dt_nomix.json",
+             lambda p: p["runs"][0].__setitem__("deterministic", True))
+    tree = _resum(tree, tst.P5_2_SUMS_NAME, "p5_2", "p5_2_sums_sha256")
+    with pytest.raises(ValueError, match="D17"):
+        tst.load_inputs(tree.roots, pins=tree.pins)
+
+
+def test_t_inputs_d17_a_complete_one_head_mappo1000_cell_in_p5_2_is_refused(tree: fx.SyntheticTree) -> None:
+    import shutil
+
+    output = tree.roots.output_root
+    shutil.copy(output / "p5_1" / "eval_dt_spatial.json", output / "p5_2" / "eval_mappo1000_dt_spatial.json")
+    tree = _resum(tree, tst.P5_2_SUMS_NAME, "p5_2", "p5_2_sums_sha256")
+    with pytest.raises(ValueError, match="D17"):
+        tst.load_inputs(tree.roots, pins=tree.pins)
+
+
 def test_t_inputs_refuses_an_altered_note(tree: fx.SyntheticTree) -> None:
     note = tree.roots.repo_root / tst.C1_NOTE
     note.write_bytes(note.read_bytes() + b"\n")
@@ -1309,6 +1329,18 @@ def test_t_code_root_a_loaded_offline_module_from_another_tree_is_refused(tmp_pa
     monkeypatch.setitem(sys.modules, "offline._p5_2c_stray", stray)
     with pytest.raises(ValueError, match="does not resolve under"):
         tst.assert_code_under_root(REPO_ROOT)
+
+
+def test_t_code_root_the_declared_modules_are_exactly_the_offline_modules_an_import_loads() -> None:
+    """``CODE_MODULES`` is what ``provenance.code`` hashes; a fresh interpreter importing the module loads exactly these
+    ``offline`` modules, so no module whose code runs is left out of the record."""
+    import subprocess
+
+    probe = ("import sys, offline.tier_statements; "
+             "print(sorted(n for n in sys.modules if n == 'offline' or n.startswith('offline.')))")
+    completed = subprocess.run([sys.executable, "-P", "-c", probe], capture_output=True, text=True, timeout=300,
+                               env={**os.environ, "PYTHONPATH": str(REPO_ROOT)}, check=True)
+    assert json.loads(completed.stdout.strip().replace("'", '"')) == sorted(tst.CODE_MODULES)
 
 
 def test_m19_main_refuses_a_repo_root_the_running_code_is_not_under(tmp_path: Path,

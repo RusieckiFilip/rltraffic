@@ -276,6 +276,11 @@ def write_synthetic_tree(root: Path, *, seeds: Sequence[int] = SEEDS, draws: Seq
     write_json(output / tst.P5_2_STOP_RULE_RECORD, {"format_version": "p5.2-tier-sweep/1.0",
                                                     "measurement": "Q0 stop rule",
                                                     **{k: v for k, v in stop.items() if k != "per_seed"}})
+    # D17: the 1-head mappo1000 pair P5.2 trained is E1's seed-202 replicate, in the default regime.
+    for method in tst.DT_ARMS:
+        write_json(output / "p5_2" / ts.training_record_name("mappo1000", method), {
+            "format_version": "p5.2-tier-sweep/1.0", "tier": "mappo1000", "method": method, "deterministic": False,
+            "runs": [{"seed": 202, "deterministic": False}]})
     write_sums(output, tst.P5_1_SUMS_NAME, "p5_1")
     write_sums(output, tst.P5_2_SUMS_NAME, "p5_2")
 
