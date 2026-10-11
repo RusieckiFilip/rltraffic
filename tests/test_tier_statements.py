@@ -1144,6 +1144,81 @@ def test_a_record_row_neither_equal_nor_explained_refuses_the_build(tree: fx.Syn
         tst.build_artifact(inputs, git=SYNTHETIC_GIT, code=SYNTHETIC_CODE, record=wrong)
 
 
+def _repin_document(tree: fx.SyntheticTree, relative: str, field: str, edit: Any) -> fx.SyntheticTree:
+    """Edit a committed synthetic document and re-pin it, so only the comparison under test can refuse."""
+    import dataclasses
+
+    _rewrite(tree.roots.repo_root / relative, edit)
+    pins = dataclasses.replace(tree.pins, **{field: fx.sha256_file(tree.roots.repo_root / relative)})
+    return dataclasses.replace(tree, pins=pins)
+
+
+def test_the_build_refuses_a_p5_2b_statement_it_does_not_reproduce_field_by_field(tree: fx.SyntheticTree) -> None:
+    def edit(payload: dict[str, Any]) -> None:
+        payload["statements"]["att_ours"]["before"]["q2b"]["n_concordant"] += 1
+
+    tree = _repin_document(tree, tst.P5_2B_ARTIFACT, "p5_2b_artifact_sha256", edit)
+    inputs = tst.load_inputs(tree.roots, pins=tree.pins)
+    with pytest.raises(ValueError, match="not reproduced field by field"):
+        tst.build_artifact(inputs, git=SYNTHETIC_GIT, code=SYNTHETIC_CODE, record=())
+
+
+def test_the_build_refuses_a_p8_4b_record_its_own_route_does_not_reproduce(tree: fx.SyntheticTree) -> None:
+    def edit(payload: dict[str, Any]) -> None:
+        block = payload["contrasts"][0]["by_definition"]["att_engine"]
+        block["mean_difference"] = block["mean_difference"] + 2 ** -30
+
+    tree = _repin_document(tree, tst.P8_4B_ARTIFACT, "p8_4b_artifact_sha256", edit)
+    inputs = tst.load_inputs(tree.roots, pins=tree.pins)
+    with pytest.raises(ValueError, match="does not reproduce V4"):
+        tst.build_artifact(inputs, git=SYNTHETIC_GIT, code=SYNTHETIC_CODE, record=())
+
+
+def test_the_build_refuses_a_p5_1_record_it_does_not_reproduce_under_equality(tree: fx.SyntheticTree) -> None:
+    def edit(payload: dict[str, Any]) -> None:
+        payload["predictions"]["P3"]["dt_nomix"]["ci95_high"] += 2 ** -30
+
+    tree = _repin_document(tree, tst.P5_1_GRID, "p5_1_grid_sha256", edit)
+    inputs = tst.load_inputs(tree.roots, pins=tree.pins)
+    with pytest.raises(ValueError, match="are not reproduced under =="):
+        tst.build_artifact(inputs, git=SYNTHETIC_GIT, code=SYNTHETIC_CODE, record=())
+
+
+def test_the_build_refuses_a_stop_rule_record_its_own_route_does_not_reproduce(tree: fx.SyntheticTree) -> None:
+    _rewrite(tree.roots.output_root / tst.P5_2_STOP_RULE_RECORD,
+             lambda p: p.__setitem__("ci95_low", p["ci95_low"] - 2 ** -30))
+    tree = _resum(tree, tst.P5_2_SUMS_NAME, "p5_2", "p5_2_sums_sha256")
+    inputs = tst.load_inputs(tree.roots, pins=tree.pins)
+    with pytest.raises(ValueError, match="score_stop_rule over the two 4-head records does not reproduce"):
+        tst.build_artifact(inputs, git=SYNTHETIC_GIT, code=SYNTHETIC_CODE, record=())
+
+
+def test_a_declared_exception_is_verified_not_trusted(tree: fx.SyntheticTree) -> None:
+    """``BRIEF_45`` section 1.4: an exception holds only if the recorded integer is reachable by a tie-break order and
+    the rule gives another; a false explanation refuses the build, and so does one declared where the two agree."""
+    inputs = tst.load_inputs(tree.roots, pins=tree.pins)
+    statements = tst.all_statements(tst.make_books(inputs.cells))
+    q2b = [pick(statements, "Q2b", tier=t, definition="att_ours", version="as_committed")["numbers"]
+           for t in tst.OUT_OF_SAMPLE_TIERS]
+    rule = [e["n_concordant"] for e in q2b]
+    reachable = [e["range"][1] if e["range"][1] != e["n_concordant"] else e["n_concordant"] for e in q2b]
+    assert reachable != rule, "the synthetic tree no longer has a tie-dependent Q2b count"
+    good = (tst.RecordRow("docs/returns/P5.2.md", (27, 27), " · ".join(map(str, reachable)), "q2b.counts",
+                          "deferred_108"),)
+    artifact = tst.build_artifact(inputs, git=SYNTHETIC_GIT, code=SYNTHETIC_CODE, record=good)
+    row = artifact["comparison_with_the_record"]["literal_records"][0]
+    assert row["equal"] is False and row["exception"] == "deferred_108"
+    unreachable = [r + 20 for r in rule]
+    bad = (tst.RecordRow("docs/returns/P5.2.md", (27, 27), " · ".join(map(str, unreachable)), "q2b.counts",
+                         "deferred_108"),)
+    with pytest.raises(ValueError, match="does not verify"):
+        tst.build_artifact(inputs, git=SYNTHETIC_GIT, code=SYNTHETIC_CODE, record=bad)
+    agreeing = (tst.RecordRow("docs/returns/P5.2.md", (27, 27), " · ".join(map(str, rule)), "q2b.counts",
+                              "deferred_108"),)
+    with pytest.raises(ValueError, match="would be false"):
+        tst.build_artifact(inputs, git=SYNTHETIC_GIT, code=SYNTHETIC_CODE, record=agreeing)
+
+
 # ----------------------------------------------------------------------
 # T-barrier, T-canonical, T-cli, T-code-root
 # ----------------------------------------------------------------------
