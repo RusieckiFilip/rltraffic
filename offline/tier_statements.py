@@ -855,23 +855,148 @@ def composite_contrast(left: tuple[Cell, Cell], right: tuple[Cell, Cell], *, def
 # ----------------------------------------------------------------------
 
 
+def _tier_per_seed_orderings(cells: Mapping[tuple[str, str], Sequence[EpisodeResult]], predicted: Sequence[str],
+                             tier: str) -> dict[str, Any]:
+    """``iql_correction._per_seed_orderings`` restated for any tier: each training seed's levels, order, first place and
+    concordance, refused unless the six arms cover the same seeds.  A seed's episodes are taken in the cell's own
+    (seed, draw) order."""
+    covered = {method: sorted({int(episode.seed) for episode in cells[(method, tier)]}) for method in ts.METHODS}
+    seeds = covered["iql"]
+    if any(value != seeds for value in covered.values()):
+        raise ValueError(f"the six arms at {tier} do not cover the same seeds {covered}: a per-seed ordering compares "
+                         "like with like")
+    out: dict[str, Any] = {}
+    for seed in seeds:
+        levels = {method: float(mean_ci95([episode.att_horizon for episode in cells[(method, tier)]
+                                           if int(episode.seed) == seed]).mean) for method in ts.METHODS}
+        order = sorted(ts.METHODS, key=lambda method: levels[method])
+        lowest = min(levels.values())
+        firsts = [method for method in ts.METHODS if levels[method] == lowest]
+        concordance = ts.concordance(list(predicted), order, measured_levels=levels)
+        out[str(seed)] = {"levels": levels, "order": order, "first": order[0],
+                          "tied_for_first": firsts if len(firsts) > 1 else [], "firsts": firsts,
+                          "n_concordant": concordance["n_concordant"], "n_tied": concordance["n_tied"]}
+    return out
+
+
 def tier_composer(cells: Mapping[tuple[str, str], Sequence[EpisodeResult]], *, tier: str, with_hard_subset: bool
                   ) -> dict[str, Any]:
     """``iql_correction.random_tier_statements`` restated for any out-of-sample tier (plan F2, Amendment A, A2 Q2): at
-    ``tier="random"`` it returns every field that function returns, equal, and may add fields."""
-    raise NotImplementedError("P5.2c C1 skeleton: tier_composer")
+    ``tier="random"`` it returns every field that function returns, equal, and may add fields.  The restatement is
+    line for line, with the function's ``TIER`` and ``METHOD`` constants made the parameter *tier* and ``"iql"``; the
+    one key that carries the tier's name is the q1 entry's, ``iql_<tier>`` (``iql_random`` at the random tier)."""
+    if tier not in OUT_OF_SAMPLE_TIERS:
+        raise ValueError(f"{tier!r} is not an out-of-sample tier {OUT_OF_SAMPLE_TIERS}: Q2 and Q3 are scored there only")
+    method_name = "iql"
+    levels = ic.levels_of(cells)
+    q1 = ts.score_level(levels)
+    entry = next(cell for cell in q1["cells"] if cell["cell"] == [method_name, tier])
+    measured = {method: levels[(method, tier)] for method in ts.METHODS}
+    order = sorted(ts.METHODS, key=lambda method: measured[method])
+    predicted = list(ts.predicted_order(tier))
+    lowest = min(measured.values())
+    firsts = [method for method in ts.METHODS if measured[method] == lowest]
+    statements: dict[str, Any] = {
+        "q1": {f"{method_name}_{tier}": entry, "n_held": q1["n_held"], "n_cells": q1["n_cells"],
+               "threshold": q1["threshold"], "band": q1["band"], "outcome": q1["outcome"],
+               "rule": "tier_sweep.score_level: |measured - predicted| / predicted <= band per cell; k of N"},
+        "ranking": {"order": order, "levels": measured,
+                    "rule": "the six methods by level, lowest first (P5.2's measured ordering)"},
+        "q2a": {"predicted_first": predicted[0], "measured_first": order[0],
+                "tied_for_first": firsts if len(firsts) > 1 else [],
+                "outcome": "HELD" if firsts == [predicted[0]] else "FAILED",
+                "rule": "docs/plans/p5.2.md section 4 Q2a: HELD iff the predicted first-place arm is the measured "
+                        "one; an exact tie for first is no unique first place"},
+    }
+    concordance = ts.concordance(predicted, order, measured_levels=measured)
+    discordant = {tuple(pair) for pair in concordance["discordant"]}
+    statements["q2b"] = {
+        **concordance, "threshold": ts.CONCORDANCE_THRESHOLD,
+        "outcome": "HELD" if concordance["n_concordant"] >= ts.CONCORDANCE_THRESHOLD else "FAILED",
+        "iql_pairs": [{"pair": list(pair), "concordant": tuple(pair) not in discordant}
+                      for pair in itertools.combinations(sorted(ts.METHODS), 2) if method_name in pair],
+        "rule": "tier_sweep.concordance and predicted_order, P5.2's own, with its declared tie rule",
+    }
+    if with_hard_subset:
+        statements["q2b_hard"] = {**ts.concordance(predicted, order, subset=ts.HARD_SUBSET, measured_levels=measured),
+                                  "rule": "the same, on tier_sweep.HARD_SUBSET; no threshold is registered"}
+    per_seed = _tier_per_seed_orderings(cells, predicted, tier)
+    reversing = [int(seed) for seed, block in per_seed.items() if block["firsts"] != [order[0]]]
+    statements["per_seed"] = {
+        "seeds": {seed: {key: value for key, value in block.items() if key != "firsts"} for seed, block in per_seed.items()},
+        "rule": ("docs/plans/p5.2.md section 4 Q2 (D9): each training seed's ordering beside the pooled one; a seed's "
+                 "level is the mean of its episodes by dt_gate.mean_ci95 in draw order, its order and first place as "
+                 "the pooled ones, its concordance by tier_sweep.concordance with the declared tie rule"),
+    }
+    statements["q2a"]["reverses_on_seeds"] = reversing
+    statements["q2a"]["reversal"] = None if not reversing else (
+        f"the pooled first place, {order[0]}, reverses on seed{'s' if len(reversing) > 1 else ''} "
+        + ", ".join(str(seed) for seed in reversing) + ": "
+        + "; ".join(f"{' and '.join(per_seed[str(seed)]['firsts'])} "
+                    f"{'tie for' if len(per_seed[str(seed)]['firsts']) > 1 else 'is'} first on seed {seed}"
+                    for seed in reversing)
+        + " (docs/plans/p5.2.md section 4 Q2, D9: a first place that reverses on a seed is reported as reversing)")
+    statements["q2b"]["per_seed_n_concordant"] = {seed: block["n_concordant"] for seed, block in per_seed.items()}
+    others = [method for method in ts.METHODS if method != "dt_nomix"]
+    statements["q3a"] = {
+        "rank": 1 + sum(measured[method] < measured["dt_nomix"] for method in others), "of": len(ts.METHODS),
+        "outcome": "HELD" if all(measured[method] > measured["dt_nomix"] for method in others) else "FAILED",
+        "rule": "docs/plans/p5.2.md section 4 Q3a: dt_nomix has the lowest level of the six; rank counts the arms "
+                "strictly lower",
+    }
+    best = min(NON_DT_METHODS, key=lambda method: measured[method])
+    left = _per_draw_means(list(cells[("dt_nomix", tier)]))
+    right = _per_draw_means(list(cells[(best, tier)]))
+    if set(left) != set(right):
+        raise ValueError(f"dt_nomix and {best} at {tier} do not cover the same draws")
+    shared = sorted(left)
+    stats = mean_ci95([left[draw] - right[draw] for draw in shared])
+    low, high = stats.mean - stats.ci95, stats.mean + stats.ci95
+    statements["q3c"] = {
+        "best_non_dt": best, "tied_best_non_dt": [m for m in NON_DT_METHODS if measured[m] == measured[best]][1:],
+        "mean": float(stats.mean), "std": float(stats.std), "ci95_low": float(low), "ci95_high": float(high),
+        "ci95_width": float(high - low), "n_draws": len(shared),
+        "reading": "resolves against the DT" if low > 0 else ("resolves for the DT" if high < 0 else "NOT RESOLVED"),
+        "rule": "docs/plans/p5.2.md section 4 Q3c and its common scoring: mean[ATT(dt_nomix) - ATT(best non-DT arm)] "
+                "over per-draw means of the five seeds (dt_gate._per_draw_means), the 95 % CI by dt_gate.mean_ci95",
+    }
+    return statements
 
 
 def level_groups(levels: Mapping[str, float]) -> list[list[str]]:
     """Arms grouped by EXACTLY equal level, groups in ascending level, arms within a group in the input's order."""
-    raise NotImplementedError("P5.2c C1 skeleton: level_groups")
+    return [[arm for arm in levels if levels[arm] == value] for value in sorted(set(levels.values()))]
 
 
 def tie_audit(levels: Mapping[str, float], predicted: Sequence[str], *, subject: str = "dt_nomix") -> dict[str, Any]:
     """Every tie-dependent integer of one ordering: Q2b's and Q2b-hard's concordance under the declared tie rule and its
     range over every order consistent with *levels*, the possible first places, and *subject*'s rank (1 + the arms
     strictly lower) with its range; with the number of orders enumerated."""
-    raise NotImplementedError("P5.2c C1 skeleton: tie_audit")
+    groups = level_groups(levels)
+    orders = [[arm for group in arrangement for arm in group]
+              for arrangement in itertools.product(*(itertools.permutations(group) for group in groups))]
+    measured = [arm for group in groups for arm in group]
+    counts = [ts.concordance(predicted, order)["n_concordant"] for order in orders]
+    hard = [ts.concordance(predicted, order, subset=ts.HARD_SUBSET)["n_concordant"] for order in orders]
+    ranks = [order.index(subject) + 1 for order in orders]
+    return {
+        "groups": groups, "tied_groups": [group for group in groups if len(group) > 1],
+        "orders_enumerated": len(orders),
+        "q2b": {"under_rule": ts.concordance(predicted, measured, measured_levels=levels)["n_concordant"],
+                "range": [min(counts), max(counts)]},
+        "q2b_hard": {"under_rule": ts.concordance(predicted, measured, subset=ts.HARD_SUBSET,
+                                                  measured_levels=levels)["n_concordant"],
+                     "range": [min(hard), max(hard)]},
+        "first_place": {"under_rule": groups[0][0] if len(groups[0]) == 1 else None,
+                        "possible": sorted({order[0] for order in orders})},
+        "rank": {"under_rule": 1 + sum(1 for arm in levels if arm != subject and levels[arm] < levels[subject]),
+                 "range": [min(ranks), max(ranks)],
+                 "tied_with": [arm for arm in levels if arm != subject and levels[arm] == levels[subject]]},
+        "rule": ("an order is consistent with the levels iff it never places a higher level ahead of a lower one; "
+                 "every such order is enumerated (the product of the permutations within each group of exactly equal "
+                 "levels), and each integer's range is its minimum and maximum over them; under_rule is the declared "
+                 "rule's value (a tie is discordant for both orders; rank counts the arms strictly lower)"),
+    }
 
 
 # ----------------------------------------------------------------------
@@ -879,67 +1004,619 @@ def tie_audit(levels: Mapping[str, float], predicted: Sequence[str], *, subject:
 # ----------------------------------------------------------------------
 
 
+def _quotes(*keys: str) -> list[dict[str, Any]]:
+    """The registered text a statement implements, as quoted in :data:`RULES`."""
+    return [{"rule": key, "file": quote.file, "lines": list(quote.lines), "text": quote.text}
+            for key in keys for quote in RULES[key]]
+
+
+def _entry(statement_id: str, tier: str | None, *, definition: str, kind: str, numbers: Mapping[str, Any],
+           inputs: Sequence[Cell], rules: Sequence[str], verdict: str | None = None, reading: str | None = None,
+           arm: str | None = None) -> dict[str, Any]:
+    """One statement entry.  ``version`` and ``definition_dependent`` are set by :func:`all_statements`."""
+    ids: list[str] = []
+    for cell in inputs:
+        if cell.spec.cell_id not in ids:
+            ids.append(cell.spec.cell_id)
+    return {"id": statement_id, "tier": tier, "arm": arm, "definition": definition,
+            "primary": definition == PRIMARY_DEFINITION, "kind": kind, "verdict": verdict, "reading": reading,
+            "numbers": dict(numbers), "inputs": ids, "rule": _quotes(*rules)}
+
+
+def _registered_on(definition: str) -> str:
+    """``BRIEF_45`` section 2 and ``BRIEF_44`` Amendment B, B1.7(d): what the predictions were registered on."""
+    if definition == "att_ours":
+        return ("att_horizon (att_ours): P5.2 registered these predictions on the definition measured here "
+                "(docs/plans/p5.2.md:407-412)")
+    return ("att_horizon (att_ours), not att_engine: these are P5.2's registered att_horizon-era predictions, compared "
+            "here with att_engine measurements; no prediction was registered under att_engine (BRIEF_45 section 2; "
+            "BRIEF_44 Amendment B, B1.7(d))")
+
+
+def _level(cell: Cell, definition: str) -> float:
+    """A cell's level: ``mean_ci95`` over its episodes in ``(seed, draw)`` order (``iql_correction.levels_of``)."""
+    key = (cell.spec.method, cell.spec.tier)
+    return ic.levels_of({key: episodes_of(cell, definition)})[key]
+
+
+def _seed_levels(book: Mapping[tuple[str, str], Cell], tier: str, definition: str, methods: Sequence[str]
+                 ) -> dict[str, dict[str, float]]:
+    """Per training seed, each method's level on *tier*: ``mean_ci95`` over the seed's episodes in draw order."""
+    out: dict[str, dict[str, float]] = {}
+    for method in methods:
+        episodes = episodes_of(book[(method, tier)], definition)
+        for seed in sorted({int(episode.seed) for episode in episodes}):
+            out.setdefault(str(seed), {})[method] = float(
+                mean_ci95([episode.att_horizon for episode in episodes if int(episode.seed) == seed]).mean)
+    return out
+
+
+def _q3c_reading(low: float, high: float) -> str:
+    """P5.2b's reading of Q3c (``iql_correction.random_tier_statements``)."""
+    return "resolves against the DT" if low > 0 else ("resolves for the DT" if high < 0 else "NOT RESOLVED")
+
+
+#: The values the registration states per tier, quoted (``docs/plans/p5.2.md:651-689``).
+REGISTERED_VALUES: Mapping[str, Mapping[str, float]] = {
+    "Q3b": {"maxpressure": -0.9655, "fixedtime": -1.9906, "random": -10.1702},
+    "Q3c": {"maxpressure": 0.4326, "fixedtime": -17.1639, "random": -21.9354},
+    "Q4": {"mappo1000": 39.5649, "maxpressure": 41.7402, "fixedtime": 51.3689, "random": 62.7106},
+    "Q5a": {"maxpressure": 575.34, "fixedtime": 820.65, "random": 970.57},
+    "Q5b": {"mappo1000": -583.81, "maxpressure": -584.97, "fixedtime": -812.15, "random": -967.88},
+    "Q5c": {"mappo1000": -3.21, "maxpressure": -9.63, "fixedtime": 8.49, "random": 2.69},
+}
+
+
 def score_q0(book: Mapping[tuple[str, str], Cell], *, definition: str) -> list[dict[str, Any]]:
     """Q0's ``d1`` (context), Q0a, Q0b and the stop rule at ``mappo1000``."""
-    raise NotImplementedError("P5.2c C1 skeleton: score_q0")
+    tier = "mappo1000"
+    s1, n1 = book[("dt_spatial", tier)], book[("dt_nomix", tier)]
+    s4, n4 = book[("dt_spatial_h4", tier)], book[("dt_nomix_h4", tier)]
+    d1 = contrast(s1, n1, definition=definition, tier=tier)
+    d4 = contrast(s4, n4, definition=definition, tier=tier)
+    interaction = composite_contrast((s4, n4), (s1, n1), definition=definition, tier=tier)
+    q0a = interval_outcome(d4["ci95_low"], d4["ci95_high"], predicted="positive")
+    if interaction["exactly_zero"]:
+        q0b, q0b_reading = "NOT RESOLVED", "exactly zero (identical episodes): never folded into a neighbouring outcome"
+    elif interaction["ci95_low"] <= 0.0 <= interaction["ci95_high"]:
+        q0b, q0b_reading = "HELD", "the CI of mean(I) includes zero"
+    else:
+        q0b, q0b_reading = "FAILED", f"the CI of mean(I) excludes zero; its sign is {interaction['sign']}"
+    stop = ts.stop_rule_verdict(d4["ci95_low"], d4["ci95_high"])
+    d1_numbers = {**d1, "role": "d1, the 1-head contrast: P5.1's pair, reused (D17 verified on disk)",
+                  "registered_value": REGISTERED_VALUES["Q4"]["mappo1000"]}
+    return [
+        _entry("Q0.d1", tier, definition=definition, kind="quantity", numbers=d1_numbers, inputs=(s1, n1),
+               rules=("Q0", "common"), reading=d1["reading"]),
+        _entry("Q0a", tier, definition=definition, kind="verdict", verdict=q0a, reading=d4["reading"],
+               numbers={**d4, "role": "d4, the 4-head contrast", "predicted_sign": "positive"}, inputs=(s4, n4),
+               rules=("Q0", "Q0a", "common")),
+        _entry("Q0b", tier, definition=definition, kind="verdict", verdict=q0b, reading=q0b_reading,
+               numbers={**interaction, "role": "I = d4 - d1, per shared draw"}, inputs=(s4, n4, s1, n1),
+               rules=("Q0", "Q0b", "common")),
+        _entry("Q0.stop_rule", tier, definition=definition, kind="verdict", verdict=stop,
+               reading=("STOP: the CI of mean(d4) lies entirely below zero" if stop == "STOP" else
+                        "CONTINUE: the CI of mean(d4) does not lie entirely below zero"),
+               numbers={"quantity": "d4", "mean_difference": d4["mean_difference"], "ci95_low": d4["ci95_low"],
+                        "ci95_high": d4["ci95_high"], "ci95_width": d4["ci95_width"],
+                        "verdict_function": "tier_sweep.stop_rule_verdict"},
+               inputs=(s4, n4), rules=("Q0.stop_rule",)),
+    ]
 
 
 def score_q1(book: Mapping[tuple[str, str], Cell], *, definition: str) -> list[dict[str, Any]]:
     """Q1 (19 cells, ``tier_sweep.score_level``), Q1b per tier and Q1b's two-cell aggregate."""
-    raise NotImplementedError("P5.2c C1 skeleton: score_q1")
+    cells = [book[cell] for cell in ts.OUT_OF_SAMPLE_CELLS]
+    levels = {cell: _level(book[cell], definition) for cell in ts.OUT_OF_SAMPLE_CELLS}
+    q1 = {**ts.score_level(levels), "predictions_registered_on": _registered_on(definition)}
+    rules_q1 = ("Q1",) if definition == "att_ours" else ("Q1", "att_engine_label")
+    entries = [_entry("Q1", None, definition=definition, kind="verdict", verdict=q1["outcome"], numbers=q1,
+                      inputs=cells, rules=rules_q1, reading=f"{q1['n_held']} of {q1['n_cells']} cells hold")]
+    held = {}
+    for tier in ("maxpressure", "fixedtime"):
+        cell = ("behaviour", tier)
+        scored = ts.score_level({cell: _level(book[cell], definition)}, cells=(cell,), band=ts.ANCHOR_BAND, threshold=1)
+        per_cell = scored["cells"][0]
+        held[tier] = "HELD" if per_cell["held"] else "FAILED"
+        entries.append(_entry("Q1b", tier, definition=definition, kind="verdict", verdict=held[tier],
+                              numbers={**per_cell, "band": scored["band"],
+                                       "predictions_registered_on": _registered_on(definition)},
+                              inputs=(book[cell],), rules=("Q1b",) if definition == "att_ours" else
+                              ("Q1b", "att_engine_label")))
+    both = "HELD" if all(value == "HELD" for value in held.values()) else "FAILED"
+    entries.append(_entry(
+        "Q1b.both", None, definition=definition, kind="verdict", verdict=both,
+        reading="both cells hold" if both == "HELD" else "not both cells hold",
+        numbers={"tiers": held, "label": "both cells hold (BRIEF_45 Amendment A, A2 Q7)",
+                 "sources": {"maxpressure": "the registered bullet's tier (docs/plans/p5.2.md:576-578)",
+                             "fixedtime": "the level table's second (Q1b) marking (docs/plans/p5.2.md:497)"},
+                 "rule": "HELD iff both cells hold, each within tier_sweep.ANCHOR_BAND of its predicted level"},
+        inputs=[book[("behaviour", tier)] for tier in held], rules=("Q1b",)))
+    return entries
 
 
 def score_q2_q3(book: Mapping[tuple[str, str], Cell], *, definition: str) -> list[dict[str, Any]]:
     """Per out-of-sample tier: the ranking, Q2a, Q2b, Q2b-hard, D9, Q3a and Q3c (from :func:`tier_composer`, with the tie
     audit added); Q2b's aggregate; and ``mappo1000``'s Q3a and Q3c as context."""
-    raise NotImplementedError("P5.2c C1 skeleton: score_q2_q3")
+    oos = {cell: episodes_of(book[cell], definition) for cell in ts.OUT_OF_SAMPLE_CELLS}
+    entries: list[dict[str, Any]] = []
+    q2b_outcomes: dict[str, str] = {}
+    q2b_counts: dict[str, int] = {}
+    q2b_ranges: dict[str, list[int]] = {}
+    aggregate_inputs: list[Cell] = []
+    for tier in OUT_OF_SAMPLE_TIERS:
+        composed = tier_composer(oos, tier=tier, with_hard_subset=True)
+        levels = composed["ranking"]["levels"]
+        predicted = list(ts.predicted_order(tier))
+        audit = tie_audit(levels, predicted)
+        six = [book[(method, tier)] for method in ts.METHODS]
+        aggregate_inputs.extend(six)
+        seed_audits = {seed: tie_audit(block["levels"], predicted) for seed, block in composed["per_seed"]["seeds"].items()}
+        entries.append(_entry("ranking", tier, definition=definition, kind="context",
+                              reading=" < ".join(" = ".join(group) for group in audit["groups"]),
+                              numbers={**composed["ranking"], "groups": audit["groups"]}, inputs=six,
+                              rules=("Q2a", "tie_rule")))
+        entries.append(_entry("Q2a", tier, definition=definition, kind="verdict", verdict=composed["q2a"]["outcome"],
+                              reading=(f"measured first {composed['q2a']['measured_first']}" if not
+                                       composed["q2a"]["tied_for_first"] else
+                                       "no unique first place: " + " = ".join(composed["q2a"]["tied_for_first"])),
+                              numbers={**composed["q2a"], "first_place_under_rule": audit["first_place"]["under_rule"],
+                                       "possible_firsts": audit["first_place"]["possible"],
+                                       "orders_enumerated": audit["orders_enumerated"]},
+                              inputs=six, rules=("Q2a", "tie_rule", "D9")))
+        entries.append(_entry("Q2b", tier, definition=definition, kind="verdict", verdict=composed["q2b"]["outcome"],
+                              reading=f"{composed['q2b']['n_concordant']} of 15 (range {audit['q2b']['range'][0]}.."
+                                      f"{audit['q2b']['range'][1]})",
+                              numbers={**composed["q2b"], "range": audit["q2b"]["range"],
+                                       "orders_enumerated": audit["orders_enumerated"],
+                                       "per_seed_range": {seed: a["q2b"]["range"] for seed, a in seed_audits.items()}},
+                              inputs=six, rules=("Q2b", "tie_rule", "D9")))
+        hard = composed["q2b_hard"]
+        entries.append(_entry("Q2b_hard", tier, definition=definition, kind="count",
+                              reading=f"{hard['n_concordant']} of 6 (range {audit['q2b_hard']['range'][0]}.."
+                                      f"{audit['q2b_hard']['range'][1]}); no threshold is registered",
+                              numbers={**hard, "range": audit["q2b_hard"]["range"],
+                                       "orders_enumerated": audit["orders_enumerated"],
+                                       "per_seed": {seed: a["q2b_hard"]["under_rule"] for seed, a in seed_audits.items()},
+                                       "per_seed_range": {seed: a["q2b_hard"]["range"] for seed, a in
+                                                          seed_audits.items()}},
+                              inputs=[book[(method, tier)] for method in ts.HARD_SUBSET],
+                              rules=("Q2b_hard", "tie_rule")))
+        seeds_block = {}
+        for seed, block in composed["per_seed"]["seeds"].items():
+            a = seed_audits[seed]
+            seeds_block[seed] = {**block, "n_concordant_range": a["q2b"]["range"],
+                                 "hard_n_concordant": a["q2b_hard"]["under_rule"],
+                                 "hard_n_concordant_range": a["q2b_hard"]["range"],
+                                 "first_place_possible": a["first_place"]["possible"],
+                                 "dt_nomix_rank": a["rank"]["under_rule"], "dt_nomix_rank_range": a["rank"]["range"],
+                                 "orders_enumerated": a["orders_enumerated"]}
+        entries.append(_entry("D9", tier, definition=definition, kind="context",
+                              reading="; ".join(f"seed {seed}: " + (" = ".join(block["tied_for_first"])
+                                                                    if block["tied_for_first"] else block["first"])
+                                                + " first" for seed, block in seeds_block.items()),
+                              numbers={**composed["per_seed"], "seeds": seeds_block}, inputs=six, rules=("D9",)))
+        entries.append(_entry("Q3a", tier, definition=definition, kind="verdict", verdict=composed["q3a"]["outcome"],
+                              reading=f"rank {composed['q3a']['rank']} of 6 (range {audit['rank']['range'][0]}.."
+                                      f"{audit['rank']['range'][1]})",
+                              numbers={**composed["q3a"], "tied_with": audit["rank"]["tied_with"],
+                                       "rank_range": audit["rank"]["range"], "levels": levels,
+                                       "per_seed": {seed: {"rank": a["rank"]["under_rule"], "range": a["rank"]["range"]}
+                                                    for seed, a in seed_audits.items()}},
+                              inputs=six, rules=("Q3", "Q3a", "tie_rule")))
+        q3c = composed["q3c"]
+        best = q3c["best_non_dt"]
+        block = contrast(book[("dt_nomix", tier)], book[(best, tier)], definition=definition, tier=tier)
+        if (block["mean_difference"], block["ci95_low"], block["ci95_high"]) != (q3c["mean"], q3c["ci95_low"],
+                                                                                 q3c["ci95_high"]):
+            raise ValueError(f"Q3c at {tier}: the composer's interval and the contrast's differ; one route only")
+        entries.append(_entry("Q3c", tier, definition=definition, kind="reading", reading=q3c["reading"],
+                              numbers={**q3c, "registered_value": REGISTERED_VALUES["Q3c"][tier], "contrast": block,
+                                       "no_verdict": ("Q3c registers a value per tier and no outcome rule "
+                                                      "(docs/plans/p5.2.md:655-659): it is reported with P5.2b's "
+                                                      "reading and no verdict")},
+                              inputs=[book[("dt_nomix", tier)], *(book[(m, tier)] for m in NON_DT_METHODS)],
+                              rules=("Q3", "Q3c", "common")))
+        q2b_outcomes[tier] = composed["q2b"]["outcome"]
+        q2b_counts[tier] = composed["q2b"]["n_concordant"]
+        q2b_ranges[tier] = audit["q2b"]["range"]
+    entries.append(_entry(
+        "Q2b.aggregate", None, definition=definition, kind="verdict", verdict=conjunction(list(q2b_outcomes.values())),
+        numbers={"tiers": q2b_outcomes, "threshold": ts.CONCORDANCE_THRESHOLD,
+                 "rule": "HELD iff >= 12 of 15 on each out-of-sample tier (BRIEF_45 section 3.3's conjunction)",
+                 "overall": {"n_concordant": sum(q2b_counts.values()), "of": 15 * len(q2b_counts),
+                             "range": [sum(r[0] for r in q2b_ranges.values()), sum(r[1] for r in q2b_ranges.values())],
+                             "scored": False,
+                             "why_not_scored": ("the registered parenthetical (>= 24 of 30 overall) was written for two "
+                                                "out-of-sample tiers; against three it is stale and is not scored "
+                                                "(BRIEF_27 GATE 2, G2)")}},
+        inputs=aggregate_inputs, rules=("Q2b",)))
+    tier = "mappo1000"
+    six = [book[(method, tier)] for method in ts.METHODS]
+    measured = {method: _level(book[(method, tier)], definition) for method in ts.METHODS}
+    audit = tie_audit(measured, list(ts.predicted_order(tier)))
+    rank = audit["rank"]["under_rule"]
+    context = "mappo1000 is the seen cell: reported as context, never scored (docs/plans/p5.2.md:645-646)"
+    entries.append(_entry("Q3a", tier, definition=definition, kind="context",
+                          reading=f"rank {rank} of 6 (range {audit['rank']['range'][0]}..{audit['rank']['range'][1]}); "
+                                  "context, not scored",
+                          numbers={"rank": rank, "of": len(ts.METHODS), "tied_with": audit["rank"]["tied_with"],
+                                   "rank_range": audit["rank"]["range"], "levels": measured, "groups": audit["groups"],
+                                   "context": context},
+                          inputs=six, rules=("Q3", "Q3a")))
+    best = min(NON_DT_METHODS, key=lambda method: measured[method])
+    block = contrast(book[("dt_nomix", tier)], book[(best, tier)], definition=definition, tier=tier)
+    entries.append(_entry("Q3c", tier, definition=definition, kind="context",
+                          reading=_q3c_reading(block["ci95_low"], block["ci95_high"]),
+                          numbers={"best_non_dt": best,
+                                   "tied_best_non_dt": [m for m in NON_DT_METHODS if measured[m] == measured[best]][1:],
+                                   "contrast": block, "context": context},
+                          inputs=[book[("dt_nomix", tier)], *(book[(m, tier)] for m in NON_DT_METHODS)],
+                          rules=("Q3", "Q3c")))
+    return entries
 
 
 def score_q3b(book: Mapping[tuple[str, str], Cell], *, definition: str) -> list[dict[str, Any]]:
     """Q3b per out-of-sample tier (interval rule, predicted negative; the sub-prediction matched or not), its aggregate,
     and ``mappo1000`` as context."""
-    raise NotImplementedError("P5.2c C1 skeleton: score_q3b")
+    predicted_to_resolve = {"maxpressure": False, "fixedtime": False, "random": True}
+    entries = []
+    outcomes = {}
+    for tier in OUT_OF_SAMPLE_TIERS:
+        left, right = book[("dt_nomix", tier)], book[("behaviour", tier)]
+        block = contrast(left, right, definition=definition, tier=tier)
+        outcome = interval_outcome(block["ci95_low"], block["ci95_high"], predicted="negative")
+        resolved = block["ci95_low"] > 0.0 or block["ci95_high"] < 0.0
+        numbers = {**block, "predicted_sign": "negative", "registered_value": REGISTERED_VALUES["Q3b"][tier],
+                   "sub_prediction": {"predicted_to_resolve": predicted_to_resolve[tier], "resolved": resolved,
+                                      "matched": resolved == predicted_to_resolve[tier]},
+                   "sign_reading": f"the point estimate is {block['sign']}"}
+        if tier == "random":
+            numbers["behaviour_cell"] = "the shared random anchor, P5.1's cell, which is the random tier's behaviour " \
+                                        "policy (D12)"
+        entries.append(_entry("Q3b", tier, definition=definition, kind="verdict", verdict=outcome,
+                              reading=block["reading"], numbers=numbers, inputs=(left, right),
+                              rules=("Q3b", "common")))
+        outcomes[tier] = outcome
+    entries.append(_entry("Q3b.aggregate", None, definition=definition, kind="verdict",
+                          verdict=conjunction(list(outcomes.values())),
+                          numbers={"tiers": outcomes, "rule": "sign negative on all three, by the interval rule per "
+                                                              "tier and BRIEF_45 section 3.3's conjunction"},
+                          inputs=[c for t in OUT_OF_SAMPLE_TIERS for c in (book[("dt_nomix", t)],
+                                                                          book[("behaviour", t)])],
+                          rules=("Q3b",)))
+    left, right = book[("dt_nomix", "mappo1000")], book[("behaviour", "mappo1000")]
+    block = contrast(left, right, definition=definition, tier="mappo1000")
+    would_be = interval_outcome(block["ci95_low"], block["ci95_high"], predicted="negative")
+    entries.append(_entry("Q3b", "mappo1000", definition=definition, kind="context",
+                          reading=f"{would_be} by the interval rule; context, not scored",
+                          numbers={**block, "context": "mappo1000 is the seen cell: reported as context, never scored "
+                                                       "(docs/plans/p5.2.md:645-646)"},
+                          inputs=(left, right), rules=("Q3", "Q3b")))
+    return entries
+
+
+def _chain(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    values = [row["mean_difference"] for row in rows]
+    increasing = all(a < b for a, b in zip(values, values[1:]))
+    decreasing = all(a > b for a, b in zip(values, values[1:]))
+    return {"chain": list(rows), "strictly_increasing": increasing, "strictly_decreasing": decreasing,
+            "verdict": "HELD" if increasing else "FAILED",
+            "reading": ("d increases strictly along the chain" if increasing else
+                        "inverted: d decreases strictly along the chain" if decreasing else
+                        "d is not monotone along the chain")}
 
 
 def score_q4(book: Mapping[tuple[str, str], Cell], *, definition: str) -> list[dict[str, Any]]:
     """``d(t)`` on four tiers, Q4a per out-of-sample tier and its aggregate, Q4b on the four-rung chain and the bullet's
     three-rung form."""
-    raise NotImplementedError("P5.2c C1 skeleton: score_q4")
+    entries = []
+    blocks = {}
+    for tier in TIERS:
+        left, right = book[("dt_spatial", tier)], book[("dt_nomix", tier)]
+        blocks[tier] = contrast(left, right, definition=definition, tier=tier)
+        entries.append(_entry("Q4.d", tier, definition=definition, kind="quantity", reading=blocks[tier]["reading"],
+                              numbers={**blocks[tier], "registered_value": REGISTERED_VALUES["Q4"][tier]},
+                              inputs=(left, right), rules=("Q4", "common")))
+    outcomes = {}
+    for tier in OUT_OF_SAMPLE_TIERS:
+        outcomes[tier] = interval_outcome(blocks[tier]["ci95_low"], blocks[tier]["ci95_high"], predicted="positive")
+        entries.append(_entry("Q4a", tier, definition=definition, kind="verdict", verdict=outcomes[tier],
+                              reading=blocks[tier]["reading"], numbers={**blocks[tier], "predicted_sign": "positive"},
+                              inputs=(book[("dt_spatial", tier)], book[("dt_nomix", tier)]), rules=("Q4", "Q4a")))
+    entries.append(_entry("Q4a.aggregate", None, definition=definition, kind="verdict",
+                          verdict=conjunction(list(outcomes.values())),
+                          numbers={"tiers": outcomes, "rule": "d(t) > 0 with the CI excluding 0 on all three "
+                                                              "out-of-sample tiers (BRIEF_45 section 3.3's conjunction)"},
+                          inputs=[c for t in OUT_OF_SAMPLE_TIERS for c in (book[("dt_spatial", t)],
+                                                                          book[("dt_nomix", t)])],
+                          rules=("Q4a",)))
+    for statement_id, tiers in (("Q4b", TIERS), ("Q4b.three_rung", ("mappo1000", "maxpressure", "random"))):
+        rows = [{"tier": tier, "mean_difference": blocks[tier]["mean_difference"],
+                 "ci95_low": blocks[tier]["ci95_low"], "ci95_high": blocks[tier]["ci95_high"],
+                 "exactly_zero": blocks[tier]["exactly_zero"],
+                 "per_seed_min": blocks[tier]["per_seed"]["min"], "per_seed_max": blocks[tier]["per_seed"]["max"],
+                 "registered_value": REGISTERED_VALUES["Q4"][tier]} for tier in tiers]
+        chain = _chain(rows)
+        form = ("the four-rung chain d(mappo1000) < d(maxpressure) < d(fixedtime) < d(random) (BRIEF_45 section 3.2; "
+                "docs/plans/p5.2.md:674-675)" if statement_id == "Q4b" else
+                "the registered bullet's three-rung form d(mappo1000) < d(maxpressure) < d(random) "
+                "(docs/plans/p5.2.md:670-672), reported beside the four-rung one")
+        entries.append(_entry(statement_id, None, definition=definition, kind="verdict", verdict=chain["verdict"],
+                              reading=chain["reading"],
+                              numbers={key: value for key, value in chain.items() if key != "verdict"} | {
+                                  "form": form, "scored_on": "the point estimates, strictly"},
+                              inputs=[c for t in tiers for c in (book[("dt_spatial", t)], book[("dt_nomix", t)])],
+                              rules=("Q4b",)))
+    return entries
 
 
 def score_q5(book: Mapping[tuple[str, str], Cell], *, definition: str) -> list[dict[str, Any]]:
     """Q5a (three tiers), Q5b and Q5c (four tiers), each per tier and aggregated by :func:`conjunction`."""
-    raise NotImplementedError("P5.2c C1 skeleton: score_q5")
+    patterns = (
+        ("Q5a", ("bc_top10", "bc"), {tier: "positive" for tier in OUT_OF_SAMPLE_TIERS}),
+        ("Q5b", ("bc_top10_perix", "bc_top10"), {tier: "negative" for tier in TIERS}),
+        ("Q5c", ("bc_top10_perix", "bc"), {"mappo1000": "negative", "maxpressure": "negative",
+                                           "fixedtime": "positive", "random": "positive"}),
+    )
+    entries = []
+    for statement_id, (left_method, right_method), signs in patterns:
+        outcomes = {}
+        inputs: list[Cell] = []
+        for tier, sign in signs.items():
+            left, right = book[(left_method, tier)], book[(right_method, tier)]
+            block = contrast(left, right, definition=definition, tier=tier)
+            outcomes[tier] = interval_outcome(block["ci95_low"], block["ci95_high"], predicted=sign)
+            predicted_from_levels = (ts.PREDICTED_LEVELS[left_method][tier] - ts.PREDICTED_LEVELS[right_method][tier])
+            entries.append(_entry(statement_id, tier, definition=definition, kind="verdict", verdict=outcomes[tier],
+                                  reading=block["reading"],
+                                  numbers={**block, "predicted_sign": sign,
+                                           "registered_value": REGISTERED_VALUES[statement_id][tier],
+                                           "registered_value_from_predicted_levels": predicted_from_levels},
+                                  inputs=(left, right), rules=(statement_id, "common")))
+            inputs.extend((left, right))
+        entries.append(_entry(f"{statement_id}.aggregate", None, definition=definition, kind="verdict",
+                              verdict=conjunction(list(outcomes.values())),
+                              numbers={"tiers": outcomes, "rule": f"{statement_id} on all its registered tiers, by the "
+                                                                  "interval rule per tier and BRIEF_45 section 3.3's "
+                                                                  "conjunction"},
+                              inputs=inputs, rules=(statement_id,)))
+    return entries
 
 
 def score_q6(book: Mapping[tuple[str, str], Cell], *, definition: str) -> list[dict[str, Any]]:
     """Q6 for ``dt_spatial`` and ``dt_nomix`` on four tiers against the shared anchor; P5.1's three-valued outcome
     beside it from ``spatial_mixing.collapse_criterion``, refused unless that call's interval equals this one's."""
-    raise NotImplementedError("P5.2c C1 skeleton: score_q6")
+    anchor = book[ANCHOR]
+    entries = []
+    for tier in TIERS:
+        for arm in DT_ARMS:
+            cell = book[(arm, tier)]
+            block = contrast(cell, anchor, definition=definition, tier=tier)
+            p5_1 = collapse_criterion(episodes_of(cell, definition), episodes_of(anchor, definition))
+            if (p5_1["mean_difference"], p5_1["ci95_low"], p5_1["ci95_high"]) != (
+                    block["mean_difference"], block["ci95_low"], block["ci95_high"]):
+                raise ValueError(f"spatial_mixing.collapse_criterion gives {p5_1['mean_difference']!r} "
+                                 f"[{p5_1['ci95_low']!r}, {p5_1['ci95_high']!r}] for {cell.spec.cell_id} - anchor and "
+                                 f"this module {block['mean_difference']!r} [{block['ci95_low']!r}, "
+                                 f"{block['ci95_high']!r}]: one route, so they must be equal under == (BRIEF_45 "
+                                 "Amendment A, A2 Q7)")
+            verdict = "COLLAPSED" if block["ci95_low"] > 0.0 else "NOT COLLAPSED"
+            entries.append(_entry("Q6", tier, arm=arm, definition=definition, kind="verdict", verdict=verdict,
+                                  reading=block["reading"],
+                                  numbers={**block, "p5_1_outcome": p5_1["outcome"], "seen": tier == "mappo1000",
+                                           "registered_expectation": ("COLLAPSED" if (arm, tier) == ("dt_spatial",
+                                                                                                    "random")
+                                                                      else "NOT COLLAPSED"),
+                                           "rule_two_valued": ("COLLAPSED iff the arm is worse than the anchor with "
+                                                               "the paired CI excluding 0, else NOT COLLAPSED (the "
+                                                               "primary vocabulary, BRIEF_45 section 3.3)"),
+                                           "rule_three_valued": p5_1["rule"]},
+                                  inputs=(cell, anchor), rules=("Q6", "Q6.expectation")))
+    return entries
+
+
+#: The order statements are listed in (``BRIEF_45`` section 3.4: statement, then tier, definition and version).
+STATEMENT_ORDER: tuple[str, ...] = (
+    "Q0.d1", "Q0a", "Q0b", "Q0.stop_rule", "Q1", "Q1b", "Q1b.both", "ranking", "Q2a", "Q2b", "Q2b.aggregate",
+    "Q2b_hard", "D9", "Q3a", "Q3b", "Q3b.aggregate", "Q3c", "Q4.d", "Q4a", "Q4a.aggregate", "Q4b", "Q4b.three_rung",
+    "Q5a", "Q5a.aggregate", "Q5b", "Q5b.aggregate", "Q5c", "Q5c.aggregate", "Q6",
+)
 
 
 def all_statements(books: Mapping[str, Mapping[tuple[str, str], Cell]]) -> list[dict[str, Any]]:
     """Every statement under both definitions; version-dependent ones in both versions, every other one computed in
     both, refused unless identical, and stored once with ``version: "both"``; ``definition_dependent`` set."""
-    raise NotImplementedError("P5.2c C1 skeleton: all_statements")
+    scorers = (score_q0, score_q1, score_q2_q3, score_q3b, score_q4, score_q5, score_q6)
+    computed: dict[str, dict[tuple[Any, ...], dict[str, Any]]] = {}
+    for version in VERSIONS:
+        entries: dict[tuple[Any, ...], dict[str, Any]] = {}
+        for definition in DEFINITIONS:
+            for scorer in scorers:
+                for entry in scorer(books[version], definition=definition):
+                    key = (entry["id"], entry["tier"], entry["arm"], entry["definition"])
+                    if key in entries:
+                        raise ValueError(f"two statements share the key {key}")
+                    entries[key] = entry
+        computed[version] = entries
+    if set(computed["corrected"]) != set(computed["as_committed"]):
+        raise ValueError("the two versions do not score the same statements")
+    out: list[dict[str, Any]] = []
+    for key, corrected in computed["corrected"].items():
+        original = computed["as_committed"][key]
+        if CORRECTED_IQL in corrected["inputs"] or ORIGINAL_IQL in original["inputs"]:
+            out.append({**corrected, "version": "corrected"})
+            out.append({**original, "version": "as_committed"})
+            continue
+        if json.dumps(corrected, sort_keys=True) != json.dumps(original, sort_keys=True):
+            raise ValueError(f"{key} differs between versions although it reads no random-tier IQL cell: the two "
+                             "versions may differ only through that cell (BRIEF_45 section 3.3)")
+        out.append({**corrected, "version": "both"})
+    index = {(e["id"], e["tier"], e["arm"], e["definition"], e["version"]): e for e in out}
+    for entry in out:
+        other_definition = "att_engine" if entry["definition"] == "att_ours" else "att_ours"
+        other = index[(entry["id"], entry["tier"], entry["arm"], other_definition, entry["version"])]
+        if entry["kind"] == "verdict":
+            entry["definition_dependent"] = entry["verdict"] != other["verdict"]
+            entry["definition_dependent_on"] = "verdict"
+        elif entry["reading"] is not None:
+            entry["definition_dependent"] = entry["reading"] != other["reading"]
+            entry["definition_dependent_on"] = "reading"
+        else:
+            entry["definition_dependent"] = None
+            entry["definition_dependent_on"] = None
+    tier_rank = {tier: i for i, tier in enumerate(TIERS)}
+    return sorted(out, key=lambda e: (STATEMENT_ORDER.index(e["id"]), tier_rank.get(e["tier"], len(TIERS)),
+                                      DT_ARMS.index(e["arm"]) if e["arm"] in DT_ARMS else -1,
+                                      DEFINITIONS.index(e["definition"]),
+                                      ("both", *VERSIONS).index(e["version"])))
+
+
+def _versions_of(tier: str) -> tuple[str, ...]:
+    """The versions a tier-level block is computed in: the random tier holds the IQL cell, every other tier one."""
+    return VERSIONS if tier == "random" else ("both",)
 
 
 def leaders_block(books: Mapping[str, Mapping[tuple[str, str], Cell]]) -> list[dict[str, Any]]:
     """Descriptive, not registered: per tier, definition and (at ``random``) version, the level order with ties, the
     leader(s), the runner(s)-up, leader - runner-up as a contrast, and the per-seed first places."""
-    raise NotImplementedError("P5.2c C1 skeleton: leaders_block")
+    blocks = []
+    for tier in TIERS:
+        for definition in DEFINITIONS:
+            for version in _versions_of(tier):
+                book = books["corrected" if version == "both" else version]
+                levels = {method: _level(book[(method, tier)], definition) for method in ts.METHODS}
+                groups = level_groups(levels)
+                leaders, runners = groups[0], (groups[1] if len(groups) > 1 else [])
+                contrasts = []
+                if len(leaders) == 1:
+                    contrasts = [contrast(book[(leaders[0], tier)], book[(runner, tier)], definition=definition,
+                                          tier=tier) for runner in runners]
+                    resolved = [block["ci95_high"] < 0.0 for block in contrasts]
+                    lead = ("the lead resolves (the CI lies entirely below zero)" if all(resolved) else
+                            "the lead does not resolve (the CI includes zero)" if not any(resolved) else
+                            "the lead resolves over some of the tied runners-up only")
+                    reading = f"{leaders[0]} leads {' = '.join(runners)}; {lead}"
+                else:
+                    reading = f"{' = '.join(leaders)} tie exactly for the lead"
+                seed_levels = _seed_levels(book, tier, definition, ts.METHODS)
+                firsts = {seed: level_groups(values)[0] for seed, values in seed_levels.items()}
+                blocks.append({
+                    "tier": tier, "definition": definition, "primary": definition == PRIMARY_DEFINITION,
+                    "version": version, "registered": False, "order": groups, "levels": levels, "leaders": leaders,
+                    "runners_up": runners, "leader_minus_runner_up": contrasts, "reading": reading,
+                    "per_seed_first_places": firsts, "per_seed_levels": seed_levels,
+                    "pooled_leaders_lose_first_place_on_seeds": [seed for seed, first in firsts.items()
+                                                                 if first != leaders],
+                    "inputs": [book[(method, tier)].spec.cell_id for method in ts.METHODS],
+                })
+    for block in blocks:
+        other = next(b for b in blocks if b["tier"] == block["tier"] and b["version"] == block["version"]
+                     and b["definition"] != block["definition"])
+        block["definition_dependent"] = block["reading"] != other["reading"]
+        block["definition_dependent_on"] = "reading"
+        block["per_seed_first_places_definition_dependent"] = block["per_seed_first_places"] != other[
+            "per_seed_first_places"]
+    return blocks
+
+
+#: The per-episode fields whose identity the ties block reports, pair by pair.
+IDENTITY_FIELDS: tuple[str, ...] = ("att_ours", "att_engine", *COMPANIONS, "horizon_vehicle_count", "episode_reward")
 
 
 def ties_block(books: Mapping[str, Mapping[tuple[str, str], Cell]]) -> list[dict[str, Any]]:
     """Per tier, definition and (at ``random``) version: exactly-equal levels, identical-episode pairs with the fields
     they share, and every tie-dependent integer with its value under the rule and its range, pooled and per seed."""
-    raise NotImplementedError("P5.2c C1 skeleton: ties_block")
+    blocks = []
+    arms = (*ts.METHODS, "behaviour")
+    for tier in TIERS:
+        for definition in DEFINITIONS:
+            for version in _versions_of(tier):
+                book = books["corrected" if version == "both" else version]
+                levels = {arm: _level(book[(arm, tier)], definition) for arm in arms}
+                groups = [group for group in level_groups(levels) if len(group) > 1]
+                identical, partial = [], []
+                for a, b in itertools.combinations(arms, 2):
+                    rows_a, rows_b = book[(a, tier)].rows, book[(b, tier)].rows
+                    pairs = list(zip(rows_a, rows_b, strict=True))
+                    if any((x["seed"], x["draw_id"]) != (y["seed"], y["draw_id"]) for x, y in pairs):
+                        raise ValueError(f"{a} and {b} at {tier} are not aligned by (seed, draw)")
+                    equal = sum(1 for x, y in pairs if x[definition] == y[definition])
+                    if equal == len(pairs):
+                        identical.append({"pair": [a, b], "n_episodes": len(pairs),
+                                          "identical_fields": [f for f in IDENTITY_FIELDS
+                                                               if all(x[f] == y[f] for x, y in pairs)]})
+                    if equal:
+                        partial.append({"pair": [a, b], "n_equal": equal, "n": len(pairs)})
+                six = {method: levels[method] for method in ts.METHODS}
+                predicted = list(ts.predicted_order(tier))
+                integers = []
+                scopes = [("pooled", six)] + [(f"seed {seed}", values) for seed, values in
+                                               _seed_levels(book, tier, definition, ts.METHODS).items()]
+                for scope, values in scopes:
+                    audit = tie_audit(values, predicted)
+                    n = audit["orders_enumerated"]
+                    if tier != "mappo1000":
+                        for name in ("q2b", "q2b_hard"):
+                            integers.append({"name": "Q2b" if name == "q2b" else "Q2b_hard", "scope": scope,
+                                             "under_rule": audit[name]["under_rule"], "range": audit[name]["range"],
+                                             "orders_enumerated": n})
+                    integers.append({"name": "Q3a", "scope": scope, "under_rule": audit["rank"]["under_rule"],
+                                     "range": audit["rank"]["range"], "tied_with": audit["rank"]["tied_with"],
+                                     "orders_enumerated": n})
+                    integers.append({"name": "first_place", "scope": scope,
+                                     "under_rule": audit["first_place"]["under_rule"],
+                                     "possible": audit["first_place"]["possible"], "orders_enumerated": n})
+                blocks.append({
+                    "tier": tier, "definition": definition, "version": version,
+                    "cells": {arm: book[(arm, tier)].spec.cell_id for arm in arms},
+                    "equal_level_groups": groups,
+                    "equal_level_pairs": [list(pair) for group in groups for pair in itertools.combinations(group, 2)],
+                    "identical_episode_pairs": identical, "pairs_with_equal_episodes": partial,
+                    "integers": integers,
+                    "rule": ("exactly equal levels are not an ordering: a tie is discordant for both orders "
+                             "(docs/plans/p5.2.md:606-609); Q3a's rank is 1 + the arms strictly lower; every integer "
+                             "carries its range over all tie-break orders (tie_audit)"),
+                    "note": None if tier != "mappo1000" else "Q2b and Q2b-hard are not registered at mappo1000",
+                })
+    return blocks
 
 
 def collapse_audit(books: Mapping[str, Mapping[tuple[str, str], Cell]]) -> dict[str, Any]:
     """``descriptive_collapse_audit`` (Amendment A, A2 Q9), not registered: Q6's rule applied verbatim to the non-DT
     arms on four tiers, both definitions, both random-tier IQL cells; whether the README's sentence holds."""
-    raise NotImplementedError("P5.2c C1 skeleton: collapse_audit")
+    rows = []
+    for definition in DEFINITIONS:
+        for arm in (*DT_ARMS, *NON_DT_METHODS):
+            for tier in TIERS:
+                versions = VERSIONS if (arm, tier) == ("iql", "random") else ("both",)
+                for version in versions:
+                    book = books["corrected" if version == "both" else version]
+                    block = contrast(book[(arm, tier)], book[ANCHOR], definition=definition, tier=tier)
+                    rows.append({"arm": arm, "tier": tier, "definition": definition, "version": version,
+                                 "dt_arm": arm in DT_ARMS,
+                                 "verdict": "COLLAPSED" if block["ci95_low"] > 0.0 else "NOT COLLAPSED",
+                                 "contrast": block})
+    holds = []
+    for definition in DEFINITIONS:
+        for version in VERSIONS:
+            mine = [r for r in rows if r["definition"] == definition and r["version"] in ("both", version)]
+            dt_never = all(r["verdict"] == "NOT COLLAPSED" for r in mine if r["dt_arm"])
+            collapsing = {arm: [r["tier"] for r in mine if r["arm"] == arm and r["verdict"] == "COLLAPSED"]
+                          for arm in NON_DT_METHODS}
+            holds.append({"definition": definition, "version": version, "primary": definition == PRIMARY_DEFINITION,
+                          "dt_arms_never_collapse": dt_never, "non_dt_arms_collapse_on": collapsing,
+                          "holds": dt_never and all(collapsing.values())})
+    return {
+        "registered": False,
+        "label": "descriptive, not registered (BRIEF_45 Amendment A, A2 Q9)",
+        "rule": ("Q6's rule verbatim (docs/plans/p5.2.md:699-701): COLLAPSED iff the arm's mean is worse than the shared "
+                 "random anchor's with the paired CI excluding 0, else NOT COLLAPSED"),
+        "readme_sentence": README_COLLAPSE_SENTENCE,
+        "rows": [r for r in rows if not r["dt_arm"]],
+        "dt_rows": [r for r in rows if r["dt_arm"]],
+        "sentence_holds": holds,
+    }
 
 
 def cells_block(cells: Mapping[str, Cell]) -> dict[str, Any]:
