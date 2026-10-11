@@ -371,13 +371,24 @@ def rows_digest(pairs: Iterable[tuple[str, str]]) -> str:
 
 
 def assert_code_under_root(repo_root: str | Path) -> list[dict[str, Any]]:
-    """Amendment A, A4.1: refuse unless every module of :data:`CODE_MODULES` and every loaded ``offline`` module
-    resolves to ``<repo_root>/offline/...``; return each :data:`CODE_MODULES` entry's path relative to the root and its
-    sha256."""
+    """Amendment A, A4.1: refuse unless the code that RUNS -- this module's own file and, when it runs as a script,
+    ``__main__``'s -- and every module of :data:`CODE_MODULES` and every loaded ``offline`` module resolves to
+    ``<repo_root>/offline/...`` (Amendment B, B2.4); return each :data:`CODE_MODULES` entry's path relative to the root
+    and its sha256, the entry for ``offline.tier_statements`` being the file that runs."""
     import importlib
 
     root = Path(repo_root).resolve()
     package = root / "offline"
+    running = {"this module's own file": Path(__file__).resolve()}
+    main_file = getattr(sys.modules.get("__main__"), "__file__", None)
+    if __name__ == "__main__" and main_file:
+        running["__main__"] = Path(main_file).resolve()
+    for what, path in running.items():
+        if package not in path.parents:
+            raise ValueError(
+                f"the running file ({what}) is {path}, which does not resolve under {package}: the artifact would "
+                f"record {root}'s git commit for code that did not come from it (BRIEF_45 Amendment B, B2.4; "
+                "Amendment A, A4.1)")
 
     def located(name: str) -> list[Path]:
         module = sys.modules.get(name) or importlib.import_module(name)
@@ -403,7 +414,7 @@ def assert_code_under_root(repo_root: str | Path) -> list[dict[str, Any]]:
                          f"{package}: a later import could come from another tree (BRIEF_45 Amendment A, A4.1)")
     entries = []
     for name in CODE_MODULES:
-        path = located(name)[0]
+        path = running["this module's own file"] if name == "offline.tier_statements" else located(name)[0]
         entries.append({"module": name, "path": path.relative_to(root).as_posix(),
                         "sha256": hashlib.sha256(path.read_bytes()).hexdigest()})
     return entries
@@ -577,6 +588,15 @@ def load_inputs(roots: Roots, *, pins: Pins = PINS) -> Inputs:
                       "anchor": f"its line in output/{P5_2_SUMS_NAME}"})
 
     campaign = ic.assert_p8_4b_campaign(output, pins=_ic_pins(pins))
+    for name in (ar.MANIFEST_NAME, ar.COMPLETE_MARKER):  # BRIEF_45 Amendment B, B2.14: listed with their sha256
+        relative = f"{P8_4B_DIR}/{name}"
+        data = (output / relative).read_bytes()
+        if json.loads(data)["declared_cells_sha256"] != campaign["declared_cells_sha256"]:
+            raise ValueError(f"output/{relative} does not hold the declared_cells_sha256 just verified: it changed "
+                             "while it was read")
+        files.append({"file": f"output/{relative}", "sha256": hashlib.sha256(data).hexdigest(),
+                      "anchor": ("iql_correction.assert_p8_4b_campaign: the declared-cells digest recomputed from the "
+                                 "manifest's own cell list equals CAMPAIGN_COMPLETE's and the pin")})
     declared: dict[str, set[tuple[int, int]]] = {}
     for key in campaign["cells"]:
         scenario, arm, seed, draw = str(key).split("|")
@@ -801,9 +821,11 @@ def contrast(left: Cell, right: Cell, *, definition: str, tier: str) -> dict[str
 def composite_contrast(left: tuple[Cell, Cell], right: tuple[Cell, Cell], *, definition: str, tier: str
                        ) -> dict[str, Any]:
     """``I = (left[0] - left[1]) - (right[0] - right[1])`` per draw from the four cells' per-draw means, its CI by
-    ``mean_ci95``, the counts of draws where it is negative / zero / positive, and the per-seed values
-    ``(mean_s(left[0]) - mean_s(left[1])) - (mean_s(right[0]) - mean_s(right[1]))`` (``BRIEF_45`` section 3.3).  A
-    difference of two differences, so no rank-biserial, and the block says so."""
+    ``mean_ci95``, the counts of draws where it is negative / zero / positive, and the per-seed block by the imported
+    worker (``tier_sweep.per_seed_block`` -> ``spatial_mixing.per_seed_advantages``) over composite rows: per
+    ``(seed, draw)``, ``left[0] - left[1]`` against ``right[0] - right[1]`` (``BRIEF_45`` Amendment B, B2.2), so the
+    block carries P5.1's full schema.  By linearity its values are section 3.3's ``(mean_s(left[0]) - mean_s(left[1]))
+    - (mean_s(right[0]) - mean_s(right[1]))``.  A difference of two differences, so no rank-biserial, and it says so."""
     cells = (*left, *right)
     episodes = [episodes_of(cell, definition) for cell in cells]
     grids = [_grid_of(cell, eps) for cell, eps in zip(cells, episodes)]
@@ -816,22 +838,13 @@ def composite_contrast(left: tuple[Cell, Cell], right: tuple[Cell, Cell], *, def
     stats = mean_ci95(values)
     low, high = stats.mean - stats.ci95, stats.mean + stats.ci95
     seeds = sorted({int(episode.seed) for episode in episodes[0]})
-
-    def seed_mean(eps: Sequence[EpisodeResult], seed: int) -> float:
-        return float(np.mean([episode.att_horizon for episode in eps if int(episode.seed) == seed]))
-
-    by_seed = {str(seed): (seed_mean(episodes[0], seed) - seed_mean(episodes[1], seed))
-               - (seed_mean(episodes[2], seed) - seed_mean(episodes[3], seed)) for seed in seeds}
-    seed_values = np.asarray(list(by_seed.values()), dtype=np.float64)
-    pooled = float(seed_values.mean())
-    against = int(sum(1 for value in by_seed.values() if (value < 0) != (pooled < 0) and value != 0.0))
-    per_seed = {"by_seed": by_seed, "n_seeds": len(seeds), "mean": pooled,
-                "between_seed_sd": float(seed_values.std(ddof=1)) if len(seeds) > 1 else 0.0,
-                "min": float(seed_values.min()), "max": float(seed_values.max()),
-                "n_seeds_negative": int((seed_values < 0).sum()), "reverses_against_pooled_sign": against,
-                "definition": ("per training seed, (mean over draws of left[0] - of left[1]) - (mean over draws of "
-                               "right[0] - of right[1]); the pooled sign is the mean of the per-seed values, as "
-                               "spatial_mixing.per_seed_advantages takes it")}
+    by_key = [{(int(episode.seed), int(episode.draw_id)): episode.att_horizon for episode in eps} for eps in episodes]
+    keys = sorted(by_key[0])
+    left_rows = [{"seed": seed, "draw_id": draw, definition: by_key[0][(seed, draw)] - by_key[1][(seed, draw)]}
+                 for seed, draw in keys]
+    right_rows = [{"seed": seed, "draw_id": draw, definition: by_key[2][(seed, draw)] - by_key[3][(seed, draw)]}
+                  for seed, draw in keys]
+    worker = ts.per_seed_block(left_rows, right_rows, left_name="d4", right_name="d1", metric=definition)
     exactly_zero = all(value == 0.0 for value in values)
     return {
         "inputs": [cell.spec.cell_id for cell in cells], "definition": definition, "tier": tier,
@@ -842,8 +855,11 @@ def composite_contrast(left: tuple[Cell, Cell], right: tuple[Cell, Cell], *, def
         "draws_negative": sum(1 for value in values if value < 0.0),
         "draws_zero": sum(1 for value in values if value == 0.0),
         "draws_positive": sum(1 for value in values if value > 0.0),
-        "per_seed": per_seed,
-        "seed_reversal_qualifier": sm.seed_reversal_qualifier(per_seed, "d4", "d1"),
+        "per_seed": worker["per_seed"],
+        "seed_reversal_qualifier": worker["seed_reversal_qualifier"],
+        "per_seed_route": ("tier_sweep.per_seed_block over composite rows: per (seed, draw), left[0] - left[1] (d4's "
+                           "pair) on the left and right[0] - right[1] (d1's pair) on the right, so each seed's value "
+                           "is the mean of the first minus the mean of the second (BRIEF_45 Amendment B, B2.2)"),
         "rank_biserial": None,
         "rank_biserial_note": ("none: I is a difference of two differences, not a pair of arms, so D8's rank-biserial "
                                "does not apply (BRIEF_45 Amendment A, A2 Q8)"),
@@ -936,6 +952,13 @@ def tier_composer(cells: Mapping[tuple[str, str], Sequence[EpisodeResult]], *, t
                     f"{'tie for' if len(per_seed[str(seed)]['firsts']) > 1 else 'is'} first on seed {seed}"
                     for seed in reversing)
         + " (docs/plans/p5.2.md section 4 Q2, D9: a first place that reverses on a seed is reported as reversing)")
+    # BRIEF_45 Amendment B, B2.3: beside P5.2b's two fields above (kept, so the random tier stays equal to P5.2b's field
+    # by field), the first place under the tie rule -- null when the pooled first place is itself tied -- and the
+    # seeds whose SET of first places differs from the pooled set.  With a unique pooled first the list is
+    # reverses_on_seeds.
+    statements["q2a"]["measured_first_under_rule"] = order[0] if len(firsts) == 1 else None
+    statements["q2a"]["reverses_on_seeds_against_pooled_firsts"] = [
+        int(seed) for seed, block in per_seed.items() if set(block["firsts"]) != set(firsts)]
     statements["q2b"]["per_seed_n_concordant"] = {seed: block["n_concordant"] for seed, block in per_seed.items()}
     others = [method for method in ts.METHODS if method != "dt_nomix"]
     statements["q3a"] = {
@@ -1077,7 +1100,9 @@ def score_q0(book: Mapping[tuple[str, str], Cell], *, definition: str) -> list[d
     interaction = composite_contrast((s4, n4), (s1, n1), definition=definition, tier=tier)
     q0a = interval_outcome(d4["ci95_low"], d4["ci95_high"], predicted="positive")
     if interaction["exactly_zero"]:
-        q0b, q0b_reading = "NOT RESOLVED", "exactly zero (identical episodes): never folded into a neighbouring outcome"
+        q0b, q0b_reading = "HELD", "exactly zero (identical episodes): the CI [0, 0] includes zero, so the registered " \
+                                   "inclusion rule gives HELD (docs/plans/p5.2.md:523-524); the exact zero is labelled " \
+                                   "and is evidence for no sign (BRIEF_45 Amendment B, B2.1)"
     elif interaction["ci95_low"] <= 0.0 <= interaction["ci95_high"]:
         q0b, q0b_reading = "HELD", "the CI of mean(I) includes zero"
     else:
@@ -1267,9 +1292,20 @@ def score_q3b(book: Mapping[tuple[str, str], Cell], *, definition: str) -> list[
         block = contrast(left, right, definition=definition, tier=tier)
         outcome = interval_outcome(block["ci95_low"], block["ci95_high"], predicted="negative")
         resolved = block["ci95_low"] > 0.0 or block["ci95_high"] < 0.0
+        matched = resolved == predicted_to_resolve[tier]
+        sub_reading = (f"{'matched' if matched else 'not matched'}: predicted "
+                       f"{'to resolve' if predicted_to_resolve[tier] else 'not to resolve'}, and the CI "
+                       f"{'resolves' if resolved else 'does not resolve'}")
+        if block["exactly_zero"]:
+            source = ("identical episodes" if block["discriminability"]["identical"] else
+                      "an exact zero from episodes that are not identical")
+            sub_reading += (f"; the difference is {block['reading']}, so the {'match' if matched else 'miss'} comes "
+                            f"from {source}, not from a measured difference that failed to resolve (BRIEF_45 "
+                            "Amendment B, B2.1)")
         numbers = {**block, "predicted_sign": "negative", "registered_value": REGISTERED_VALUES["Q3b"][tier],
                    "sub_prediction": {"predicted_to_resolve": predicted_to_resolve[tier], "resolved": resolved,
-                                      "matched": resolved == predicted_to_resolve[tier]},
+                                      "matched": matched, "exactly_zero": block["exactly_zero"],
+                                      "reading": sub_reading},
                    "sign_reading": f"the point estimate is {block['sign']}"}
         if tier == "random":
             numbers["behaviour_cell"] = "the shared random anchor, P5.1's cell, which is the random tier's behaviour " \
@@ -1977,13 +2013,21 @@ RECORD_EXCEPTIONS: Mapping[str, str] = {
         "one tie-break order's rank, the range is 2..3"),
 }
 
-#: The three records of Q5's verdict (Amendment A, A3), each with the coordinator's statement, verbatim.
+#: The three records of Q5's verdict (Amendment A, A3), each with the coordinator's statement, verbatim.  GATE 2's is
+#: quoted from its heading's claim through the sentence that is the error, "the `fixedtime` null is *predicted* by the
+#: mechanism" (Amendment B, B2.6).
 Q5_RECORDS: tuple[Quote, ...] = (
     Quote(_PACKET, (30, 30), "CONFIRMED twice, with a predicted null on `fixedtime`"),
     Quote(_PACKET, (572, 573),
           "The load sorter is confirmed across tiers, and `bc_top10_perix` is the repair — with a *predicted* null on "
           "`fixedtime` that the mechanism explains."),
-    Quote(_BRIEF_27, (1274, 1274), "THE LOAD-SORTER MECHANISM IS CONFIRMED, decisively and twice"),
+    Quote(_BRIEF_27, (1274, 1281),
+          "THE LOAD-SORTER MECHANISM IS CONFIRMED, decisively and twice\n\n`bc_top10_perix − bc_top10`: −469.69 "
+          "[−477.81, −461.58] on `maxpressure`, −49.16 [−55.26, −43.05] on `random`, −0.28 [−0.67, +0.11] unresolved "
+          "on `fixedtime`. ⭐ The global return quantile collapses (679.96 on `maxpressure`) exactly where the "
+          "per-intersection filter does not (210.27). §1b's R2/R6 scope condition is no longer a one-tier observation "
+          "— and the `fixedtime` null is *predicted* by the mechanism, because a state-independent controller makes "
+          "every stream equivalent so both filters select the same thing."),
 )
 Q5_STATEMENT = (
     "the record scored Q5b on two of its four registered tiers, scored neither Q5a nor Q5c, and called predicted a null "
@@ -2020,6 +2064,8 @@ WHAT_THIS_DOES_NOT_SAY: tuple[str, ...] = (
     "every tier and provenance.p8_4b_rows.sha256 -- not by a manifest P8.4b wrote, which does not exist.",
     "Rule R makes att_engine the primary metric on grid4x4; the att_ours verdict is reported beside every one and "
     "definition_dependent marks where they differ.",
+    "definition_dependent compares verdicts (readings where an entry has no verdict): Q0b's sign and Q4b's chain shape "
+    "are reported per definition beside the flag, and the flag does not compare them (BRIEF_45 Amendment B, B2.13).",
 )
 
 
@@ -2241,20 +2287,36 @@ def _verify_exception(row: RecordRow, statements: Sequence[Mapping[str, Any]]) -
             "check": "the recorded integers lie in their ranges over every tie-break order, and the rule's differ"}
 
 
+#: The most a value of this artifact may differ from P8.4b's V4/V5 or P5.2's stop-rule record, in units in the last
+#: place of the larger magnitude, before the build refuses (``BRIEF_45`` Amendment B, B2.5).
+ULP_BOUND = 4
+
+
+def assert_within_ulps(mine: float, recorded: float, *, what: str) -> None:
+    """Refuse unless ``|mine - recorded| <= ULP_BOUND * math.ulp(max(|mine|, |recorded|))``: the route explanation
+    below covers a few units in the last place and nothing more, so it is verified, not asserted (Amendment B, B2.5)."""
+    if abs(mine - recorded) > ULP_BOUND * math.ulp(max(abs(mine), abs(recorded))):
+        raise ValueError(
+            f"{what}: this artifact's {mine!r} and the record's {recorded!r} differ by more than {ULP_BOUND} ulps "
+            f"({mine - recorded!r}), so the arithmetic route cannot explain the difference (BRIEF_45 Amendment B, B2.5)")
+
+
 #: Why P8.4b's V4 and V5 under att_ours sit a unit in the last place from this artifact's values (plan F1, V10-V11).
 P8_4B_ROUTE_EXPLANATION = (
     "P8.4b averaged each draw's five seeds with Python's built-in sum (att_rederivation._per_draw_means), which is "
     "compensated on Python 3.12; this artifact uses the registered route, dt_gate._per_draw_means (numpy.mean, a plain "
     "left-to-right sum over five seeds; docs/plans/p5.2.md:407-412). The record's own route over the same rows "
     "reproduces the recorded values exactly (record_route_reproduces), so the inputs are V4's and V5's and the "
-    "difference is the arithmetic route's alone (BRIEF_45 Amendment A, A2 Q1)")
+    "difference is the arithmetic route's alone (BRIEF_45 Amendment A, A2 Q1); the build refuses any difference "
+    "larger than 4 ulps of the larger magnitude (Amendment B, B2.5)")
 
 
 STOP_RULE_ROUTE_EXPLANATION = (
     "P5.2's stop-rule record was written by tier_sweep.score_stop_rule, which averages each draw's seeds with Python's "
     "built-in sum (compensated on Python 3.12); this artifact's d4 is the registered route's (dt_gate._per_draw_means). "
     "score_stop_rule over the same evaluation records reproduces the record exactly (record_route_reproduces); the "
-    "verdict is the same")
+    "verdict is the same, and the build refuses any difference larger than 4 ulps of the larger magnitude (BRIEF_45 "
+    "Amendment B, B2.5)")
 
 
 def comparison_with_the_record(statements: Sequence[Mapping[str, Any]], audit: Mapping[str, Any],
@@ -2357,6 +2419,8 @@ def comparison_with_the_record(statements: Sequence[Mapping[str, Any]], audit: M
             if outcome != recorded["outcome"]:
                 raise ValueError(f"{contrast_id} under {definition}: this artifact's interval gives {outcome}, P8.4b "
                                  f"recorded {recorded['outcome']}")
+            for k in keys:
+                assert_within_ulps(mine[k], recorded[k], what=f"P8.4b's {contrast_id} under {definition}, {k}")
             equal = all(mine[k] == recorded[k] for k in keys)
             p8.append({"contrast_id": contrast_id, "definition": definition, "statement": statement_id,
                        "recorded": {**{k: recorded[k] for k in keys}, "n_paired": recorded["n_paired"],
@@ -2366,6 +2430,7 @@ def comparison_with_the_record(statements: Sequence[Mapping[str, Any]], audit: M
                        "difference": {k: mine[k] - recorded[k] for k in keys},
                        "difference_in_ulps_of_the_record": {k: (mine[k] - recorded[k]) / math.ulp(recorded[k])
                                                             for k in keys},
+                       "within_ulp_bound": {"bound": f"{ULP_BOUND} * math.ulp(max(|a|, |b|)) per value", "holds": True},
                        "record_route_reproduces": True,
                        "explanation": None if equal else P8_4B_ROUTE_EXPLANATION})
 
@@ -2380,11 +2445,14 @@ def comparison_with_the_record(statements: Sequence[Mapping[str, Any]], audit: M
     verdict = _find(statements, "Q0.stop_rule", "mappo1000", "att_ours", "as_committed")["verdict"]
     if verdict != stop_record["verdict"]:
         raise ValueError(f"the stop rule's verdict is {verdict} here and {stop_record['verdict']} in P5.2's record")
+    for k in keys[:3]:
+        assert_within_ulps(d4[k], stop_record[k], what=f"P5.2's stop-rule record, {k}")
     equal = all(d4[k] == stop_record[k] for k in keys[:3])
     stop = {"file": f"output/{P5_2_STOP_RULE_RECORD}",
             "recorded": {k: stop_record[k] for k in keys}, "this_artifact": {**{k: d4[k] for k in keys[:3]},
                                                                               "verdict": verdict},
             "equal": equal, "difference": {k: d4[k] - stop_record[k] for k in keys[:3]},
+            "within_ulp_bound": {"bound": f"{ULP_BOUND} * math.ulp(max(|a|, |b|)) per value", "holds": True},
             "record_route_reproduces": True, "explanation": None if equal else STOP_RULE_ROUTE_EXPLANATION}
 
     pairs = {"Q5a": ("bc_top10", "bc"), "Q5b": ("bc_top10_perix", "bc_top10"), "Q5c": ("bc_top10_perix", "bc")}
@@ -2428,7 +2496,10 @@ def comparison_with_the_record(statements: Sequence[Mapping[str, Any]], audit: M
         else:
             entries = [s for s in statements if s["id"] == statement_id and s["tier"] == tier]
         never.append({"statement": statement_id, "tier": tier,
-                      "recorded": "never scored in any committed record, under either definition (BRIEF_45 section 1.3)",
+                      "recorded": ("Q6's numbers: never scored; the verdict was recorded (`docs/returns/P5.2.md:31`)"
+                                   if statement_id == "Q6" else
+                                   "never scored in any committed record, under either definition (BRIEF_45 section "
+                                   "1.3)"),
                       "this_artifact": [{key: entry.get(key) for key in ("id", "tier", "arm", "definition", "version",
                                                                           "verdict", "reading")}
                                         | {key: entry["numbers"].get(key) for key in ("mean_difference", "ci95_low",
@@ -2495,7 +2566,8 @@ def definitions_block() -> dict[str, Any]:
                              "over five seeds) and mean_ci95 over the draws.  P8.4b's att_rederivation._per_draw_means "
                              "and tier_sweep.score_stop_rule use Python's built-in sum (compensated on Python 3.12), "
                              "which can differ in the last place; comparison_with_the_record names each such "
-                             "difference and reproduces the record by its own route (BRIEF_45 Amendment A, A2 Q1)"),
+                             "difference, reproduces the record by its own route (BRIEF_45 Amendment A, A2 Q1) and "
+                             "refuses a difference larger than 4 ulps of the larger magnitude (Amendment B, B2.5)"),
         "outcomes": {"interval": ("HELD / FAILED / NOT RESOLVED by the side of zero the CI lies on relative to the "
                                   "predicted sign (spatial_mixing._outcome_from_interval); a CI touching zero is NOT "
                                   "RESOLVED"),
@@ -2506,9 +2578,11 @@ def definitions_block() -> dict[str, Any]:
                             "else NOT COLLAPSED; P5.1's three-valued outcome beside it (collapse_criterion)"),
                      "q0_stop_rule": "STOP iff the CI of mean(d4) lies entirely below zero (tier_sweep.stop_rule_verdict)",
                      "q3c": "no verdict: a value per tier and P5.2b's reading (for / against the DT, NOT RESOLVED)"},
-        "exact_zero": ("a difference identically zero on every draw has CI [0, 0]: NOT RESOLVED for an interval rule, "
-                       "sign zero, and reported as exactly zero (identical episodes) -- never folded into a "
-                       "neighbouring outcome"),
+        "exact_zero": ("a difference identically zero on every draw has CI [0, 0] and sign zero, and the registered rule "
+                       "decides the verdict (BRIEF_45 Amendment B, B2.1): NOT RESOLVED for a predicted-sign interval "
+                       "rule, where [0, 0] lies on neither side of zero; HELD for Q0b's inclusion rule, where [0, 0] "
+                       "includes zero. An exact zero is always labelled exactly zero (identical episodes, or not "
+                       "identical where the episodes differ) and is never offered as evidence for a predicted sign"),
         "ties": {"quotes": _quotes("tie_rule"),
                  "rule": ("exactly equal levels are not an ordering; Q3a's rank is 1 + the arms strictly lower; every "
                           "tie-dependent integer carries its range over all tie-break orders")},
@@ -2517,7 +2591,8 @@ def definitions_block() -> dict[str, Any]:
                      "both": ("the statement reads no random-tier IQL cell; computed in both versions, asserted "
                               "identical, stored once")},
         "per_seed": ("every two-arm contrast carries tier_sweep.per_seed_block (P5.1's per_seed_advantages and "
-                     "seed_reversal_qualifier); for the behaviour and random-anchor cells a seed label is an "
+                     "seed_reversal_qualifier), and I carries the same worker over composite rows (BRIEF_45 "
+                     "Amendment B, B2.2); for the behaviour and random-anchor cells a seed label is an "
                      "evaluation label, not a training seed"),
         "d8": {"quotes": _quotes("D8"),
                "carried": ("rank_biserial, median_difference, wins, losses, ties and the Wilcoxon block from "
@@ -2538,8 +2613,8 @@ ROLE = (
 
 
 REGISTERED_IN = (
-    "docs/briefs/BRIEF_45_p5.2c_statements.md and its Amendment A (gate G0; the plan docs/plans/p5.2c.md at 1267715); "
-    "the author's ruling of 2026-10-08 (PROJECT_PLAN section 8)")
+    "docs/briefs/BRIEF_45_p5.2c_statements.md, its Amendment A (gate G0; the plan docs/plans/p5.2c.md at 1267715) "
+    "and its Amendment B (gate G1); the author's ruling of 2026-10-08 (PROJECT_PLAN section 8)")
 
 
 def build_artifact(inputs: Inputs, *, git: Mapping[str, Any], code: Sequence[Mapping[str, Any]],
@@ -2575,10 +2650,13 @@ def serialize(artifact: Mapping[str, Any]) -> bytes:
 
 def assert_out_path(path: str | Path, roots: Roots, inputs: Inputs) -> Path:
     """The barrier (``PROJECT_PLAN`` section 7): refuse an out path under ``--output-root``, under any tree holding
-    ``SHA256SUMS_p5_2.txt``, equal to an input, not ``.json``, whose parent does not exist, or that already exists."""
+    ``SHA256SUMS_p5_2.txt``, equal to an input, not ``.json``, whose parent does not exist, that already exists, or
+    that is a symlink, dangling or not -- the UNRESOLVED path is examined, so the artifact lands at the path the command
+    line names (``BRIEF_45`` Amendment B, B2.9)."""
     repo = Path(roots.repo_root).resolve()
     candidate = Path(path)
-    resolved = (candidate if candidate.is_absolute() else repo / candidate).resolve()
+    unresolved = candidate if candidate.is_absolute() else repo / candidate
+    resolved = unresolved.resolve()
     if resolved.suffix != ".json":
         raise ValueError(f"{resolved}: the artifact must be a .json file")
     ts.assert_writable(resolved, ts.protected_roots_from([roots.output_root]))
@@ -2593,9 +2671,10 @@ def assert_out_path(path: str | Path, roots: Roots, inputs: Inputs) -> Path:
         raise ValueError(f"{resolved} is an input of this artifact")
     if not resolved.parent.is_dir():
         raise FileNotFoundError(f"the out path's parent directory {resolved.parent} does not exist; nothing is created")
-    if resolved.exists() or resolved.is_symlink():
-        raise FileExistsError(f"{resolved} already exists: the artifact is written once (remove it deliberately to "
-                              "rebuild)")
+    if unresolved.is_symlink() or unresolved.exists():
+        what = "is a symlink" if unresolved.is_symlink() else "already exists"
+        raise FileExistsError(f"{unresolved} {what}: the artifact is written once, at the path named (remove it "
+                              "deliberately to rebuild)")
     return resolved
 
 
