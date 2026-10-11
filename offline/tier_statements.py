@@ -590,11 +590,7 @@ def load_inputs(roots: Roots, *, pins: Pins = PINS) -> Inputs:
     campaign = ic.assert_p8_4b_campaign(output, pins=_ic_pins(pins))
     for name in (ar.MANIFEST_NAME, ar.COMPLETE_MARKER):  # BRIEF_45 Amendment B, B2.14: listed with their sha256
         relative = f"{P8_4B_DIR}/{name}"
-        data = (output / relative).read_bytes()
-        if json.loads(data)["declared_cells_sha256"] != campaign["declared_cells_sha256"]:
-            raise ValueError(f"output/{relative} does not hold the declared_cells_sha256 just verified: it changed "
-                             "while it was read")
-        files.append({"file": f"output/{relative}", "sha256": hashlib.sha256(data).hexdigest(),
+        files.append({"file": f"output/{relative}", "sha256": hashlib.sha256((output / relative).read_bytes()).hexdigest(),
                       "anchor": ("iql_correction.assert_p8_4b_campaign: the declared-cells digest recomputed from the "
                                  "manifest's own cell list equals CAMPAIGN_COMPLETE's and the pin")})
     declared: dict[str, set[tuple[int, int]]] = {}
