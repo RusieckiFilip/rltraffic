@@ -1,0 +1,373 @@
+# P5.2c C6 (1/3) -- the red run (BRIEF_45 Amendment B, B3.1)
+#
+# The new and changed tests in tests/test_tier_statements.py, run against the module UNCHANGED since 719d753:
+#   offline/tier_statements.py sha256 at 719d753:        2dd7d21a454e7d963ef4a2cefec0109d476817b9373928cf26ff0b57f4165353
+#   offline/tier_statements.py sha256 in the work tree:  2dd7d21a454e7d963ef4a2cefec0109d476817b9373928cf26ff0b57f4165353
+# (HEAD was 37dd9a0, the merge of main at d64e651; the merge brought docs only.)
+#
+#   RLTRAFFIC_OUTPUT_ROOT=/home/filip/rltraffic/output PYTHONDONTWRITEBYTECODE=1 \
+#       /home/filip/rltraffic/.venv/bin/pytest -q -p no:cacheprovider -rfEs tests/test_tier_statements.py
+#
+# Result: 14 failed, 125 passed, 1 skipped (T-regress, before G2). Each red test and its reason:
+#   B2.2  test_t_q0_...                     the composite per-seed block lacks P5.1's schema (n_seeds_favouring_left, ...)
+#   B2.1  test_q3b_..._sub_prediction       KeyError 'exactly_zero': the sub-prediction block has no exact-zero flag
+#   B2.1  test_b1_cm1_...                   Q0b on an exactly-zero I is 'NOT RESOLVED', the registered rule gives 'HELD'
+#   B2.3  test_b2_3_...                     KeyError 'measured_first_under_rule'
+#   B2.4  test_b2_4_..._run_by_path_...     the copy run by path passes A4.1 and stops at FileNotFoundError instead
+#   B2.4  test_b2_4_provenance_...          provenance.code hashes offline/tier_sweep.py (sys.modules' entry), not the running file
+#   B2.5  test_b2_5_..._p8_4bs_record_...   DID NOT RAISE: a value 5 ulps from V4 is accepted
+#   B2.5  test_b2_5_..._stop_rule_...       DID NOT RAISE: a stop-rule record 5 ulps away is accepted (4 ulps passed first)
+#   B2.6  test_b2_6_...                     the GATE 2 record cites (1274, 1274), not (1274, 1281)
+#   B2.7  test_b2_7_...                     Q6 is labelled 'never scored in any committed record ...'
+#   B2.9  test_b2_9_...                     exit 0: a dangling symlink at --out is accepted and written through
+#   B2.13 test_b2_13_...                    the sentence on what definition_dependent does not compare is absent
+#   B2.14 test_b2_14_... (synthetic, real)  KeyError: P8.4b's campaign_manifest.json is not in provenance.inputs
+#
+# Green on arrival, as B3.1 expects: B1's survivor-killing tests (their strength is their mutants; a scratch
+# pre-check applied each coordinator mutant CM4, CM7, CM8, CM9, CM10, CM12, CM14, CM16, CM17 to this unfixed
+# module and every one of their tests, synthetic and gated, failed on its own assertion); B2.9's input-equality
+# message; B2.10's parsed record value; B2.11's T-quotes assertions (the module holds no backticked or
+# extension-less line citation, so the widened scan finds nothing to refuse); B2.12's own-route expectations.
+
+.....................................F................F................. [ 51%]
+..........................................FFFFFFFFFFF.........s....F     [100%]
+=================================== FAILURES ===================================
+_____ test_t_q0_the_interaction_its_per_seed_values_and_the_three_verdicts _____
+
+books = {'corrected': {('dt_spatial', 'mappo1000'): Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', method='dt...': 1302, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 5.0, 'episode_reward': -1003.0})), ...}}
+
+    def test_t_q0_the_interaction_its_per_seed_values_and_the_three_verdicts(books: Any) -> None:
+        """``BRIEF_45`` Amendment B, B2.12 and B2.2: I's sd and CI by ``statistics.stdev`` and ``1.96 * sd / sqrt(n)`` under
+        ``==``, d4's interval the same way, and Q0a, Q0b and the stop rule derived from THIS test's intervals.  On these
+        values (``att_ours``) the two routes agree exactly -- measured; were they ever to differ, this fails visibly.  I's
+        per-seed block is P5.1's worker over composite rows, and its values are computed here by a loop: per seed, the mean
+        over draws of ``dt_spatial_h4 - dt_nomix_h4`` minus that of ``dt_spatial - dt_nomix``."""
+        book = books["corrected"]
+        entries = {e["id"]: e for e in tst.score_q0(book, definition="att_ours")}
+        s4, n4 = book[("dt_spatial_h4", "mappo1000")], book[("dt_nomix_h4", "mappo1000")]
+        s1, n1 = book[("dt_spatial", "mappo1000")], book[("dt_nomix", "mappo1000")]
+        d4 = [seq_mean(a) - seq_mean(b) for a, b in zip(by_draw(s4.rows, "att_ours").values(),
+                                                         by_draw(n4.rows, "att_ours").values())]
+        d1 = [seq_mean(a) - seq_mean(b) for a, b in zip(by_draw(s1.rows, "att_ours").values(),
+                                                         by_draw(n1.rows, "att_ours").values())]
+        interaction = [a - b for a, b in zip(d4, d1)]
+        assert entries["Q0a"]["numbers"]["mean_difference"] == seq_mean(d4)
+        assert entries["Q0.d1"]["numbers"]["mean_difference"] == seq_mean(d1)
+        q0b = entries["Q0b"]["numbers"]
+        assert q0b["mean_difference"] == seq_mean(interaction)
+        assert (q0b["draws_negative"], q0b["draws_zero"], q0b["draws_positive"]) == (
+            sum(x < 0 for x in interaction), sum(x == 0 for x in interaction), sum(x > 0 for x in interaction))
+        mean_i, sd_i, low_i, high_i = own_interval(interaction)
+        assert (q0b["mean_difference"], q0b["std"], q0b["ci95_half_width"], q0b["ci95_low"], q0b["ci95_high"]) == (
+            mean_i, sd_i, 1.96 * sd_i / math.sqrt(len(interaction)), low_i, high_i)
+        mean_4, sd_4, low4, high4 = own_interval(d4)
+        q0a = entries["Q0a"]["numbers"]
+        assert (q0a["mean_difference"], q0a["std"], q0a["ci95_low"], q0a["ci95_high"]) == (mean_4, sd_4, low4, high4)
+        assert entries["Q0a"]["verdict"] == own_outcome(low4, high4, "positive")
+        assert entries["Q0b"]["verdict"] == ("HELD" if low_i <= 0.0 <= high_i else "FAILED")
+        assert entries["Q0.stop_rule"]["verdict"] == ("STOP" if high4 < 0.0 else "CONTINUE")
+        ours = {name: by_seed(c.rows, "att_ours") for name, c in (("s4", s4), ("n4", n4), ("s1", s1), ("n1", n1))}
+        per_seed = {s: seq_mean([a - b for a, b in zip(ours["s4"][s], ours["n4"][s])])
+                    - seq_mean([a - b for a, b in zip(ours["s1"][s], ours["n1"][s])]) for s in fx.SEEDS}
+        block = q0b["per_seed"]
+>       assert set(block) == P5_1_PER_SEED_KEYS
+E       AssertionError: assert {'between_see...', 'min', ...} == {'between_see...', 'min', ...}
+E         
+E         Extra items in the left set:
+E         'definition'
+E         'n_seeds_negative'
+E         Extra items in the right set:
+E         'n_seeds_favouring_left'
+E         'definitions'...
+E         
+E         ...Full output truncated (3 lines hidden), use '-vv' to show
+
+tests/test_tier_statements.py:548: AssertionError
+_ test_q3b_reads_the_shared_anchor_as_behaviour_at_random_and_reports_the_sub_prediction _
+
+books = {'corrected': {('dt_spatial', 'mappo1000'): Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', method='dt...': 1302, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 5.0, 'episode_reward': -1003.0})), ...}}
+
+    def test_q3b_reads_the_shared_anchor_as_behaviour_at_random_and_reports_the_sub_prediction(books: Any) -> None:
+        """``BRIEF_45`` Amendment B, B2.1: ``matched`` stays as the registered rule gives it; the block gains
+        ``exactly_zero`` and a reading, which at ``fixedtime`` says the match comes from identical episodes."""
+        book = books["corrected"]
+        entries = {(e["id"], e["tier"]): e for e in tst.score_q3b(book, definition="att_ours")}
+        assert entries[("Q3b", "random")]["inputs"][1] == tst.ANCHOR_CELL
+        for tier, predicted_to_resolve in (("maxpressure", False), ("fixedtime", False), ("random", True)):
+            differences = own_paired(book[("dt_nomix", tier)], book[("behaviour", tier)], "att_ours")
+            _, _, low, high = own_interval(differences)
+            resolved = low > 0.0 or high < 0.0
+            sub = entries[("Q3b", tier)]["numbers"]["sub_prediction"]
+>           assert {k: sub[k] for k in ("predicted_to_resolve", "resolved", "matched", "exactly_zero")} == {
+                       ^^^^^^
+                "predicted_to_resolve": predicted_to_resolve, "resolved": resolved,
+                "matched": resolved == predicted_to_resolve, "exactly_zero": all(x == 0.0 for x in differences)}
+E           KeyError: 'exactly_zero'
+
+tests/test_tier_statements.py:876: KeyError
+_ test_b1_cm1_an_exactly_zero_interaction_is_held_by_the_registered_inclusion_rule _
+
+books = {'corrected': {('dt_spatial', 'mappo1000'): Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', method='dt...': 1302, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 5.0, 'episode_reward': -1003.0})), ...}}
+
+    def test_b1_cm1_an_exactly_zero_interaction_is_held_by_the_registered_inclusion_rule(books: Any) -> None:
+        """CM1 reversed (``BRIEF_45`` Amendment B, B2.1): Q0b is HELD iff the CI of mean(I) includes 0
+        (``docs/plans/p5.2.md:523-524``); an exactly-zero I has CI [0, 0], which includes 0, so it is HELD and labelled.  Both
+        pairs are made identical here, so d4 = d1 = 0 on every draw.  Q0a, a predicted-sign rule, stays NOT RESOLVED."""
+        book = _as(books["corrected"], ("dt_spatial_h4", "mappo1000"), ("dt_nomix_h4", "mappo1000"))
+        book = _as(book, ("dt_spatial", "mappo1000"), ("dt_nomix", "mappo1000"))
+        s4, n4 = book[("dt_spatial_h4", "mappo1000")], book[("dt_nomix_h4", "mappo1000")]
+        s1, n1 = book[("dt_spatial", "mappo1000")], book[("dt_nomix", "mappo1000")]
+        interaction = [a - b for a, b in zip(own_paired(s4, n4, "att_ours"), own_paired(s1, n1, "att_ours"))]
+        assert interaction and all(x == 0.0 for x in interaction)
+        _, _, low, high = own_interval(interaction)
+        entries = {e["id"]: e for e in tst.score_q0(book, definition="att_ours")}
+>       assert entries["Q0b"]["verdict"] == ("HELD" if low <= 0.0 <= high else "FAILED")
+E       AssertionError: assert 'NOT RESOLVED' == 'HELD'
+E         
+E         - HELD
+E         + NOT RESOLVED
+
+tests/test_tier_statements.py:1771: AssertionError
+_ test_b2_3_a_pooled_tie_for_first_has_no_first_under_the_rule_and_reversals_against_the_pooled_set _
+
+    def test_b2_3_a_pooled_tie_for_first_has_no_first_under_the_rule_and_reversals_against_the_pooled_set() -> None:
+        """``BRIEF_45`` Amendment B, B2.3: beside P5.2b's fields, ``measured_first_under_rule`` (null when the pooled first is
+        tied) and the seeds whose set of first places differs from the pooled SET -- by ``statistics.mean`` here."""
+        expected = {"unique": ("iql", []), "tied": (None, []), "broken": (None, [101, 202])}
+        for name, cells in (("unique", fx.synthetic_cells()), ("tied", _tied_cells()), ("broken", _broken_tie_cells())):
+            book = {(m, "random"): cells[f"p5_2:{m}@random"] for m in ts.METHODS}
+            pooled = {m: own_level(book[(m, "random")], "att_ours") for m in ts.METHODS}
+            firsts = {m for m in ts.METHODS if pooled[m] == min(pooled.values())}
+            reversing = [int(s) for s, f in _own_seed_firsts(book, "random", "att_ours").items() if set(f) != firsts]
+            q2a = tst.tier_composer(_oos_episodes(cells, "att_ours"), tier="random", with_hard_subset=True)["q2a"]
+>           assert q2a["measured_first_under_rule"] == (next(iter(firsts)) if len(firsts) == 1 else None), name
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           KeyError: 'measured_first_under_rule'
+
+tests/test_tier_statements.py:1799: KeyError
+_________ test_b2_4_the_file_run_by_path_from_another_tree_is_refused __________
+
+tmp_path = PosixPath('/tmp/pytest-of-filip/pytest-278/test_b2_4_the_file_run_by_path0')
+
+    def test_b2_4_the_file_run_by_path_from_another_tree_is_refused(tmp_path: Path) -> None:
+        """``BRIEF_45`` Amendment B, B2.4 (R2 F3.1): the running file itself must lie under ``<--repo-root>/offline``.  A copy
+        of ``offline/`` run by path, importing every other module from this tree, is refused before any input is read; the
+        same command on this tree's own file passes the check and stops at the empty output root instead."""
+        import shutil
+        import subprocess
+    
+        copy = tmp_path / "copy"
+        shutil.copytree(REPO_ROOT / "offline", copy / "offline", ignore=shutil.ignore_patterns("__pycache__"))
+        output = tmp_path / "empty_output"
+        output.mkdir()
+        env = {**os.environ, "PYTHONPATH": str(REPO_ROOT), "PYTHONDONTWRITEBYTECODE": "1"}
+    
+        def run(script: Path) -> subprocess.CompletedProcess[str]:
+            return subprocess.run([sys.executable, "-P", str(script), "check", "--repo-root", str(REPO_ROOT),
+                                   "--output-root", str(output)], capture_output=True, text=True, timeout=600, env=env,
+                                  cwd=tmp_path)
+    
+        script = (copy / "offline" / "tier_statements.py").resolve()
+        refused = run(script)
+        assert refused.returncode == 2, refused.stderr
+>       assert "REFUSED: ValueError" in refused.stderr and str(script) in refused.stderr, refused.stderr
+E       AssertionError: REFUSED: FileNotFoundError: [Errno 2] No such file or directory: '/tmp/pytest-of-filip/pytest-278/test_b2_4_the_file_run_by_path0/empty_output/SHA256SUMS_p5_1.txt'
+E         
+E       assert ('REFUSED: ValueError' in "REFUSED: FileNotFoundError: [Errno 2] No such file or directory: '/tmp/pytest-of-filip/pytest-278/test_b2_4_the_file_run_by_path0/empty_output/SHA256SUMS_p5_1.txt'\n")
+E        +  where "REFUSED: FileNotFoundError: [Errno 2] No such file or directory: '/tmp/pytest-of-filip/pytest-278/test_b2_4_the_file_run_by_path0/empty_output/SHA256SUMS_p5_1.txt'\n" = CompletedProcess(args=['/home/filip/rltraffic/.venv/bin/python', '-P', '/tmp/pytest-of-filip/pytest-278/test_b2_4_the_...le or directory: '/tmp/pytest-of-filip/pytest-278/test_b2_4_the_file_run_by_path0/empty_output/SHA256SUMS_p5_1.txt'\n").stderr
+
+tests/test_tier_statements.py:1827: AssertionError
+_____________ test_b2_4_provenance_code_hashes_the_file_that_runs ______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7981ed5ee840>
+
+    def test_b2_4_provenance_code_hashes_the_file_that_runs(monkeypatch: pytest.MonkeyPatch) -> None:
+        """``BRIEF_45`` Amendment B, B2.4: ``provenance.code`` records, for ``offline.tier_statements``, the file whose code is
+        running -- even when ``sys.modules`` holds another module under that name (here one whose file is another module
+        of this tree, so the location check itself passes)."""
+        stand_in = types.ModuleType("offline.tier_statements")
+        stand_in.__file__ = str(REPO_ROOT / "offline" / "tier_sweep.py")
+        monkeypatch.setitem(sys.modules, "offline.tier_statements", stand_in)
+        entries = {e["module"]: e for e in tst.assert_code_under_root(REPO_ROOT)}
+        running = Path(tst.__file__).resolve()
+>       assert entries["offline.tier_statements"]["path"] == running.relative_to(REPO_ROOT).as_posix()
+E       AssertionError: assert 'offline/tier_sweep.py' == 'offline/tier_statements.py'
+E         
+E         - offline/tier_statements.py
+E         ?               ^^^ - ^^^
+E         + offline/tier_sweep.py
+E         ?               ^  ^
+
+tests/test_tier_statements.py:1843: AssertionError
+_ test_b2_5_a_value_five_ulps_from_p8_4bs_record_is_refused_and_four_are_accepted _
+
+tree = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-278/test_b2_5_a_value_five_ulps_fr0/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+
+    def test_b2_5_a_value_five_ulps_from_p8_4bs_record_is_refused_and_four_are_accepted(tree: fx.SyntheticTree) -> None:
+        """``BRIEF_45`` Amendment B, B2.5: the route explanation is verified, not asserted -- each difference from P8.4b's V4
+        and V5 is at most ``4 * math.ulp(max(|a|, |b|))``.  Here this artifact's ``d1`` under ``att_engine`` is moved 4 and
+        5 ulps from V4's recorded mean (P8.4b's own route still reproduces the record)."""
+        import copy
+    
+        inputs, statements, audit, ties = _components(tree)
+    
+        def moved(n: int) -> list[dict[str, Any]]:
+            out = copy.deepcopy(statements)
+            entry = next(s for s in out if s["id"] == "Q0.d1" and s["definition"] == "att_engine")
+            entry["numbers"]["mean_difference"] = _ulps_away(entry["numbers"]["mean_difference"], n)
+            return out
+    
+        accepted = tst.comparison_with_the_record(moved(4), audit, ties, inputs, record=())
+        row = next(r for r in accepted["p8_4b"] if (r["contrast_id"], r["definition"]) == ("V4", "att_engine"))
+        assert row["equal"] is False and row["record_route_reproduces"] is True
+>       with pytest.raises(ValueError, match="more than 4 ulps"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/test_tier_statements.py:1876: Failed
+_ test_b2_5_a_stop_rule_record_five_ulps_away_is_refused_and_four_are_accepted _
+
+tree = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-278/test_b2_5_a_stop_rule_record_f0/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7981edd61040>
+
+    def test_b2_5_a_stop_rule_record_five_ulps_away_is_refused_and_four_are_accepted(tree: fx.SyntheticTree,
+                                                                                     monkeypatch: pytest.MonkeyPatch
+                                                                                     ) -> None:
+        """``BRIEF_45`` Amendment B, B2.5, for P5.2's stop-rule record: the record's mean moved 4 and 5 ulps (re-listed in its
+        manifest), with ``tier_sweep.score_stop_rule`` standing in to reproduce the moved record, so the bound alone decides."""
+        path = tree.roots.output_root / tst.P5_2_STOP_RULE_RECORD
+        original = json.loads(path.read_bytes())["mean_difference"]
+        monkeypatch.setattr(ts, "score_stop_rule", lambda *args: json.loads(path.read_bytes()))
+    
+        def build(n: int) -> dict[str, Any]:
+            _rewrite(path, lambda p: p.__setitem__("mean_difference", _ulps_away(original, n)))
+            moved = _resum(tree, tst.P5_2_SUMS_NAME, "p5_2", "p5_2_sums_sha256")
+            inputs = tst.load_inputs(moved.roots, pins=moved.pins)
+            return tst.build_artifact(inputs, git=SYNTHETIC_GIT, code=SYNTHETIC_CODE, record=())
+    
+        assert build(4)["comparison_with_the_record"]["p5_2_stop_rule_record"]["equal"] is False
+>       with pytest.raises(ValueError, match="more than 4 ulps"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/test_tier_statements.py:1896: Failed
+_ test_b2_6_the_gate_2_record_cites_1274_to_1281_and_quotes_the_sentence_that_is_the_error _
+
+tree = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-278/test_b2_6_the_gate_2_record_ci0/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+
+    def test_b2_6_the_gate_2_record_cites_1274_to_1281_and_quotes_the_sentence_that_is_the_error(
+            tree: fx.SyntheticTree) -> None:
+        """``BRIEF_45`` Amendment B, B2.6: A3's GATE 2 row cites ``BRIEF_27``:1274-1281 and quotes the sentence that is the
+        error, beside the heading's claim; T-quotes holds the text at those lines."""
+        gate2 = [q for q in tst.Q5_RECORDS if q.file == "docs/briefs/BRIEF_27_p5.2_tier_sweep.md"]
+>       assert len(gate2) == 1 and gate2[0].lines == (1274, 1281)
+E       AssertionError: assert (1 == 1 and (1274, 1274) == (1274, 1281)
+E        +  where 1 = len([Quote(file='docs/briefs/BRIEF_27_p5.2_tier_sweep.md', lines=(1274, 1274), text='THE LOAD-SORTER MECHANISM IS CONFIRMED, decisively and twice')])
+E         
+E         At index 1 diff: 1274 != 1281
+E         Use -v to get more diff)
+
+tests/test_tier_statements.py:1905: AssertionError
+___ test_b2_7_q6_in_never_scored_names_its_numbers_and_the_recorded_verdict ____
+
+tree = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-278/test_b2_7_q6_in_never_scored_n0/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+
+    def test_b2_7_q6_in_never_scored_names_its_numbers_and_the_recorded_verdict(tree: fx.SyntheticTree) -> None:
+        """``BRIEF_45`` Amendment B, B2.7: Q6's verdict was recorded (``docs/returns/P5.2.md:31``); its numbers were not."""
+        inputs = tst.load_inputs(tree.roots, pins=tree.pins)
+        never = tst.build_artifact(inputs, git=SYNTHETIC_GIT, code=SYNTHETIC_CODE, record=())[
+            "comparison_with_the_record"]["never_scored"]
+        for entry in never:
+            if entry["statement"] == "Q6":
+>               assert entry["recorded"] == ("Q6's numbers: never scored; the verdict was recorded "
+                                             "(`docs/returns/P5.2.md:31`)")
+E               assert 'never scored... section 1.3)' == "Q6's numbers.../P5.2.md:31`)"
+E                 
+E                 - Q6's numbers: never scored; the verdict was recorded (`docs/returns/P5.2.md:31`)
+E                 + never scored in any committed record, under either definition (BRIEF_45 section 1.3)
+
+tests/test_tier_statements.py:1923: AssertionError
+_ test_b2_9_a_dangling_symlink_at_the_out_path_is_refused_and_nothing_is_written _
+
+cli = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-278/test_b2_9_a_dangling_symlink_a0/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+tmp_path = PosixPath('/tmp/pytest-of-filip/pytest-278/test_b2_9_a_dangling_symlink_a0')
+capsys = <_pytest.capture.CaptureFixture object at 0x7981edd85a00>
+
+    def test_b2_9_a_dangling_symlink_at_the_out_path_is_refused_and_nothing_is_written(
+            cli: fx.SyntheticTree, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        """``BRIEF_45`` Amendment B, B2.9 (R2 F8.1): the UNRESOLVED out path is examined, so a symlink there -- dangling or
+        not -- is refused; nothing is written at its target and the link is left as it was."""
+        elsewhere = tmp_path / "elsewhere"
+        elsewhere.mkdir()
+        target = elsewhere / "target.json"
+        out = cli.roots.repo_root / "docs" / "data" / "p5_2_statements.json"
+        out.symlink_to(target)
+        assert out.is_symlink() and not out.exists()
+>       assert tst.main(_argv("build", cli, out)) == 2
+E       AssertionError: assert 0 == 2
+E        +  where 0 = <function main at 0x7981edfb9d00>(['build', '--repo-root', '/tmp/pytest-of-filip/pytest-278/test_b2_9_a_dangling_symlink_a0/repo', '--output-root', '/tmp/pytest-of-filip/pytest-278/test_b2_9_a_dangling_symlink_a0/output', '--out', ...])
+E        +    where <function main at 0x7981edfb9d00> = tst.main
+E        +    and   ['build', '--repo-root', '/tmp/pytest-of-filip/pytest-278/test_b2_9_a_dangling_symlink_a0/repo', '--output-root', '/tmp/pytest-of-filip/pytest-278/test_b2_9_a_dangling_symlink_a0/output', '--out', ...] = _argv('build', SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-278/test_b2_9_a_dangling_symlink_a0/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003)), PosixPath('/tmp/pytest-of-filip/pytest-278/test_b2_9_a_dangling_symlink_a0/repo/docs/data/p5_2_statements.json'))
+
+tests/test_tier_statements.py:1942: AssertionError
+----------------------------- Captured stdout call -----------------------------
+wrote /tmp/pytest-of-filip/pytest-278/test_b2_9_a_dangling_symlink_a0/elsewhere/target.json: 1072360 bytes, sha256 ae246f0e4302ff6244b00e0e69cf0ffce9b05f28d198597d8d1d552eca58caa3
+_ test_b2_13_what_this_does_not_say_states_what_definition_dependent_does_not_compare _
+
+    def test_b2_13_what_this_does_not_say_states_what_definition_dependent_does_not_compare() -> None:
+        """``BRIEF_45`` Amendment B, B2.13 (R1 F-12)."""
+>       assert ("Q0b's sign and Q4b's chain shape are reported per definition beside the flag, and the flag does not "
+                "compare them") in " ".join(tst.WHAT_THIS_DOES_NOT_SAY)
+E       assert "Q0b's sign and Q4b's chain shape are reported per definition beside the flag, and the flag does not compare them" in "No new prediction: Q1's, Q1b's and Q2's predictions exist on att_horizon (att_ours) only; under att_engine they are c...metric on grid4x4; the att_ours verdict is reported beside every one and definition_dependent marks where they differ."
+E        +  where "No new prediction: Q1's, Q1b's and Q2's predictions exist on att_horizon (att_ours) only; under att_engine they are c...metric on grid4x4; the att_ours verdict is reported beside every one and definition_dependent marks where they differ." = <built-in method join of str object at 0xb23b20>(("No new prediction: Q1's, Q1b's and Q2's predictions exist on att_horizon (att_ours) only; under att_engine they are ...l judgement this artifact does not make: it reports each cell's median and IQR and no distributional comparison.", ...))
+E        +    where <built-in method join of str object at 0xb23b20> = ' '.join
+E        +    and   ("No new prediction: Q1's, Q1b's and Q2's predictions exist on att_horizon (att_ours) only; under att_engine they are ...l judgement this artifact does not make: it reports each cell's median and IQR and no distributional comparison.", ...) = tst.WHAT_THIS_DOES_NOT_SAY
+
+tests/test_tier_statements.py:1949: AssertionError
+_ test_b2_14_p8_4bs_campaign_manifest_and_marker_are_listed_with_their_sha256 __
+
+tree = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-278/test_b2_14_p8_4bs_campaign_man0/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+
+    def test_b2_14_p8_4bs_campaign_manifest_and_marker_are_listed_with_their_sha256(tree: fx.SyntheticTree) -> None:
+        """``BRIEF_45`` Amendment B, B2.14: P8.4b's ``campaign_manifest.json`` and ``CAMPAIGN_COMPLETE`` in
+        ``provenance.inputs``, each with the sha256 this test computes from the file."""
+        inputs = tst.load_inputs(tree.roots, pins=tree.pins)
+        listed = {entry["file"]: entry["sha256"] for entry in inputs.provenance["inputs"]}
+        for name in ("campaign_manifest.json", "CAMPAIGN_COMPLETE"):
+            path = tree.roots.output_root / tst.P8_4B_DIR / name
+>           assert listed[f"output/{tst.P8_4B_DIR}/{name}"] == hashlib.sha256(path.read_bytes()).hexdigest()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           KeyError: 'output/p8_4b_rederivation/campaign_manifest.json'
+
+tests/test_tier_statements.py:1960: KeyError
+_ test_b2_14_real_p8_4bs_campaign_manifest_and_marker_are_listed_with_their_sha256 _
+
+real_inputs = Inputs(cells={'p5_1:dt_spatial@grid4x4_mappo1000': Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', met..._count': 14.0, 'seed': 505}], 'format_version': 'p5.2-tier-sweep/1.0', 'method': 'dt_nomix_h4', 'tier': 'mappo1000'}}})
+
+    def test_b2_14_real_p8_4bs_campaign_manifest_and_marker_are_listed_with_their_sha256(real_inputs: tst.Inputs) -> None:
+        output = _output_root()
+        listed = {entry["file"]: entry["sha256"] for entry in real_inputs.provenance["inputs"]}
+        for name in ("campaign_manifest.json", "CAMPAIGN_COMPLETE"):
+            digest = hashlib.sha256((output / tst.P8_4B_DIR / name).read_bytes()).hexdigest()
+>           assert listed[f"output/{tst.P8_4B_DIR}/{name}"] == digest
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           KeyError: 'output/p8_4b_rederivation/campaign_manifest.json'
+
+tests/test_tier_statements.py:2392: KeyError
+=========================== short test summary info ============================
+FAILED tests/test_tier_statements.py::test_t_q0_the_interaction_its_per_seed_values_and_the_three_verdicts
+FAILED tests/test_tier_statements.py::test_q3b_reads_the_shared_anchor_as_behaviour_at_random_and_reports_the_sub_prediction
+FAILED tests/test_tier_statements.py::test_b1_cm1_an_exactly_zero_interaction_is_held_by_the_registered_inclusion_rule
+FAILED tests/test_tier_statements.py::test_b2_3_a_pooled_tie_for_first_has_no_first_under_the_rule_and_reversals_against_the_pooled_set
+FAILED tests/test_tier_statements.py::test_b2_4_the_file_run_by_path_from_another_tree_is_refused
+FAILED tests/test_tier_statements.py::test_b2_4_provenance_code_hashes_the_file_that_runs
+FAILED tests/test_tier_statements.py::test_b2_5_a_value_five_ulps_from_p8_4bs_record_is_refused_and_four_are_accepted
+FAILED tests/test_tier_statements.py::test_b2_5_a_stop_rule_record_five_ulps_away_is_refused_and_four_are_accepted
+FAILED tests/test_tier_statements.py::test_b2_6_the_gate_2_record_cites_1274_to_1281_and_quotes_the_sentence_that_is_the_error
+FAILED tests/test_tier_statements.py::test_b2_7_q6_in_never_scored_names_its_numbers_and_the_recorded_verdict
+FAILED tests/test_tier_statements.py::test_b2_9_a_dangling_symlink_at_the_out_path_is_refused_and_nothing_is_written
+FAILED tests/test_tier_statements.py::test_b2_13_what_this_does_not_say_states_what_definition_dependent_does_not_compare
+FAILED tests/test_tier_statements.py::test_b2_14_p8_4bs_campaign_manifest_and_marker_are_listed_with_their_sha256
+FAILED tests/test_tier_statements.py::test_b2_14_real_p8_4bs_campaign_manifest_and_marker_are_listed_with_their_sha256
+SKIPPED [1] tests/test_tier_statements.py:2311: /home/filip/rltraffic-p52c/docs/data/p5_2_statements.json not found: the artifact is built and committed at gate G2 (the plan's C7)
+14 failed, 125 passed, 1 skipped in 14.12s

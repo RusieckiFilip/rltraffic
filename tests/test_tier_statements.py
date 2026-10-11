@@ -91,6 +91,18 @@ def own_paired(left: tst.Cell, right: tst.Cell, definition: str) -> list[float]:
     return [statistics.mean(a[d]) - statistics.mean(b[d]) for d in sorted(a)]
 
 
+def own_contrast_outcome(left: tst.Cell, right: tst.Cell, definition: str, predicted: str) -> str:
+    """The registered interval rule on THIS file's interval: an exact zero has CI [0, 0] and resolves to neither side."""
+    _, _, low, high = own_interval(own_paired(left, right, definition))
+    return own_outcome(low, high, predicted)
+
+
+def own_conjunction(outcomes: Sequence[str]) -> str:
+    """``BRIEF_45`` section 3.3's conjunction, written out: FAILED if any, HELD if all, NOT RESOLVED otherwise."""
+    values = list(outcomes)
+    return "FAILED" if "FAILED" in values else ("HELD" if all(v == "HELD" for v in values) else "NOT RESOLVED")
+
+
 def seq_contrast(left: tst.Cell, right: tst.Cell, definition: str) -> float:
     """The registered route's mean, by plain loops: exact for fewer than eight seeds and eight draws (``numpy`` sums
     such short vectors left to right)."""
@@ -494,7 +506,17 @@ def test_t_composer_on_maxpressure_matches_this_files_own_ordering() -> None:
 # ----------------------------------------------------------------------
 
 
+#: ``spatial_mixing.per_seed_advantages``' keys: P5.1's per-seed schema, which every per-seed block carries.
+P5_1_PER_SEED_KEYS = {"by_seed", "n_seeds", "mean", "between_seed_sd", "min", "max", "n_seeds_favouring_left",
+                      "reverses_on_n_seeds", "reverses_against_pooled_sign", "definitions", "note"}
+
+
 def test_t_q0_the_interaction_its_per_seed_values_and_the_three_verdicts(books: Any) -> None:
+    """``BRIEF_45`` Amendment B, B2.12 and B2.2: I's sd and CI by ``statistics.stdev`` and ``1.96 * sd / sqrt(n)`` under
+    ``==``, d4's interval the same way, and Q0a, Q0b and the stop rule derived from THIS test's intervals.  On these
+    values (``att_ours``) the two routes agree exactly -- measured; were they ever to differ, this fails visibly.  I's
+    per-seed block is P5.1's worker over composite rows, and its values are computed here by a loop: per seed, the mean
+    over draws of ``dt_spatial_h4 - dt_nomix_h4`` minus that of ``dt_spatial - dt_nomix``."""
     book = books["corrected"]
     entries = {e["id"]: e for e in tst.score_q0(book, definition="att_ours")}
     s4, n4 = book[("dt_spatial_h4", "mappo1000")], book[("dt_nomix_h4", "mappo1000")]
@@ -510,16 +532,28 @@ def test_t_q0_the_interaction_its_per_seed_values_and_the_three_verdicts(books: 
     assert q0b["mean_difference"] == seq_mean(interaction)
     assert (q0b["draws_negative"], q0b["draws_zero"], q0b["draws_positive"]) == (
         sum(x < 0 for x in interaction), sum(x == 0 for x in interaction), sum(x > 0 for x in interaction))
-    per_seed = {s: (seq_mean(by_seed(s4.rows, "att_ours")[s]) - seq_mean(by_seed(n4.rows, "att_ours")[s]))
-                - (seq_mean(by_seed(s1.rows, "att_ours")[s]) - seq_mean(by_seed(n1.rows, "att_ours")[s]))
-                for s in fx.SEEDS}
-    assert q0b["per_seed"]["by_seed"] == {str(s): v for s, v in per_seed.items()}
-    assert q0b["rank_biserial"] is None and "difference of two differences" in q0b["rank_biserial_note"]
-    low4, high4 = entries["Q0a"]["numbers"]["ci95_low"], entries["Q0a"]["numbers"]["ci95_high"]
+    mean_i, sd_i, low_i, high_i = own_interval(interaction)
+    assert (q0b["mean_difference"], q0b["std"], q0b["ci95_half_width"], q0b["ci95_low"], q0b["ci95_high"]) == (
+        mean_i, sd_i, 1.96 * sd_i / math.sqrt(len(interaction)), low_i, high_i)
+    mean_4, sd_4, low4, high4 = own_interval(d4)
+    q0a = entries["Q0a"]["numbers"]
+    assert (q0a["mean_difference"], q0a["std"], q0a["ci95_low"], q0a["ci95_high"]) == (mean_4, sd_4, low4, high4)
     assert entries["Q0a"]["verdict"] == own_outcome(low4, high4, "positive")
-    expected_q0b = "HELD" if q0b["ci95_low"] <= 0.0 <= q0b["ci95_high"] else "FAILED"
-    assert entries["Q0b"]["verdict"] == expected_q0b
+    assert entries["Q0b"]["verdict"] == ("HELD" if low_i <= 0.0 <= high_i else "FAILED")
     assert entries["Q0.stop_rule"]["verdict"] == ("STOP" if high4 < 0.0 else "CONTINUE")
+    ours = {name: by_seed(c.rows, "att_ours") for name, c in (("s4", s4), ("n4", n4), ("s1", s1), ("n1", n1))}
+    per_seed = {s: seq_mean([a - b for a, b in zip(ours["s4"][s], ours["n4"][s])])
+                - seq_mean([a - b for a, b in zip(ours["s1"][s], ours["n1"][s])]) for s in fx.SEEDS}
+    block = q0b["per_seed"]
+    assert set(block) == P5_1_PER_SEED_KEYS
+    assert block["by_seed"] == {str(s): v for s, v in per_seed.items()}
+    favouring = sum(1 for v in per_seed.values() if v < 0)
+    assert block["n_seeds_favouring_left"] == favouring
+    assert block["reverses_on_n_seeds"] == min(favouring, len(per_seed) - favouring)
+    pooled = seq_mean(list(per_seed.values()))
+    assert block["reverses_against_pooled_sign"] == sum(1 for v in per_seed.values()
+                                                        if (v < 0) != (pooled < 0) and v != 0.0)
+    assert q0b["rank_biserial"] is None and "difference of two differences" in q0b["rank_biserial_note"]
     assert entries["Q0.d1"]["verdict"] is None and entries["Q0.d1"]["kind"] == "quantity"
 
 
@@ -575,12 +609,15 @@ def test_t_q4b_an_inverted_chain_is_named_and_a_non_monotone_one_is_not(books: A
 
 
 def test_t_q4a_the_exact_zero_at_fixedtime_is_not_resolved_and_the_aggregate_follows(books: Any) -> None:
-    entries = {(e["id"], e["tier"]): e for e in tst.score_q4(books["corrected"], definition="att_ours")}
+    """``BRIEF_45`` Amendment B, B2.12: each tier's outcome from THIS test's interval, and the aggregate from those."""
+    book = books["corrected"]
+    entries = {(e["id"], e["tier"]): e for e in tst.score_q4(book, definition="att_ours")}
     fixedtime = entries[("Q4a", "fixedtime")]
     assert fixedtime["numbers"]["exactly_zero"] is True and fixedtime["verdict"] == "NOT RESOLVED"
-    verdicts = [entries[("Q4a", t)]["verdict"] for t in tst.OUT_OF_SAMPLE_TIERS]
-    expected = "FAILED" if "FAILED" in verdicts else ("HELD" if set(verdicts) == {"HELD"} else "NOT RESOLVED")
-    assert entries[("Q4a.aggregate", None)]["verdict"] == expected
+    own = {t: own_contrast_outcome(book[("dt_spatial", t)], book[("dt_nomix", t)], "att_ours", "positive")
+           for t in tst.OUT_OF_SAMPLE_TIERS}
+    assert {t: entries[("Q4a", t)]["verdict"] for t in tst.OUT_OF_SAMPLE_TIERS} == own
+    assert entries[("Q4a.aggregate", None)]["verdict"] == own_conjunction(list(own.values()))
 
 
 # ----------------------------------------------------------------------
@@ -640,8 +677,8 @@ def test_t_q6_reads_the_shared_anchor_not_the_behaviour_cell(books: Any) -> None
         assert entry["numbers"]["mean_difference"] != seq_contrast(book[(arm, tier)], book[("behaviour", "mappo1000")],
                                                                    "att_ours")
         assert entry["inputs"][1] == tst.ANCHOR_CELL
-        expected = "COLLAPSED" if entry["numbers"]["ci95_low"] > 0.0 else "NOT COLLAPSED"
-        assert entry["verdict"] == expected
+        _, _, low, _ = own_interval(own_paired(book[(arm, tier)], anchor, "att_ours"))  # Amendment B, B2.12
+        assert entry["verdict"] == ("COLLAPSED" if low > 0.0 else "NOT COLLAPSED")
         assert entry["numbers"]["p5_1_outcome"] in ("COLLAPSED", "NOT COLLAPSED", "NOT RESOLVED")
         assert entry["numbers"]["seen"] is (tier == "mappo1000")
 
@@ -704,12 +741,9 @@ def test_t_versions_the_iql_free_statements_are_stored_once_and_the_iql_ones_twi
     iql = {v: next(c for c in q1[v]["numbers"]["cells"] if c["cell"] == ["iql", "random"])["measured"] for v in q1}
     corrected = fx.synthetic_cells()[tst.CORRECTED_IQL]
     original = fx.synthetic_cells()[tst.ORIGINAL_IQL]
-    assert iql["corrected"] == ic.levels_of({("iql", "random"): ic.episodes_from_rows(corrected.rows,
-                                                                                         value_key="att_ours")})[
-        ("iql", "random")]
-    assert iql["as_committed"] == ic.levels_of({("iql", "random"): ic.episodes_from_rows(original.rows,
-                                                                                            value_key="att_ours")})[
-        ("iql", "random")]
+    # Amendment B, B2.12: the levels by THIS file's mean (statistics.mean), not the module's route.
+    assert iql["corrected"] == own_level(corrected, "att_ours")
+    assert iql["as_committed"] == own_level(original, "att_ours")
     assert iql["corrected"] != iql["as_committed"]
     for statement_id in ("Q2a", "Q2b", "D9", "Q3a", "Q3c", "ranking"):
         versions = {s["version"] for s in statements if s["id"] == statement_id and s["tier"] == "random"}
@@ -829,16 +863,26 @@ def test_q1b_both_cells_and_its_two_sources(books: Any) -> None:
 
 
 def test_q3b_reads_the_shared_anchor_as_behaviour_at_random_and_reports_the_sub_prediction(books: Any) -> None:
+    """``BRIEF_45`` Amendment B, B2.1: ``matched`` stays as the registered rule gives it; the block gains
+    ``exactly_zero`` and a reading, which at ``fixedtime`` says the match comes from identical episodes."""
     book = books["corrected"]
     entries = {(e["id"], e["tier"]): e for e in tst.score_q3b(book, definition="att_ours")}
     assert entries[("Q3b", "random")]["inputs"][1] == tst.ANCHOR_CELL
     for tier, predicted_to_resolve in (("maxpressure", False), ("fixedtime", False), ("random", True)):
-        numbers = entries[("Q3b", tier)]["numbers"]
-        resolved = numbers["ci95_low"] > 0.0 or numbers["ci95_high"] < 0.0
-        assert numbers["sub_prediction"] == {"predicted_to_resolve": predicted_to_resolve, "resolved": resolved,
-                                             "matched": resolved == predicted_to_resolve}
-    assert entries[("Q3b", "fixedtime")]["numbers"]["exactly_zero"] is True
-    assert entries[("Q3b", "fixedtime")]["verdict"] == "NOT RESOLVED"
+        differences = own_paired(book[("dt_nomix", tier)], book[("behaviour", tier)], "att_ours")
+        _, _, low, high = own_interval(differences)
+        resolved = low > 0.0 or high < 0.0
+        sub = entries[("Q3b", tier)]["numbers"]["sub_prediction"]
+        assert {k: sub[k] for k in ("predicted_to_resolve", "resolved", "matched", "exactly_zero")} == {
+            "predicted_to_resolve": predicted_to_resolve, "resolved": resolved,
+            "matched": resolved == predicted_to_resolve, "exactly_zero": all(x == 0.0 for x in differences)}
+        assert sub["reading"].startswith("matched" if resolved == predicted_to_resolve else "not matched")
+    fixedtime = entries[("Q3b", "fixedtime")]
+    assert fixedtime["numbers"]["exactly_zero"] is True and fixedtime["verdict"] == "NOT RESOLVED"
+    assert fixedtime["numbers"]["sub_prediction"]["exactly_zero"] is True
+    assert "the match comes from identical episodes" in fixedtime["numbers"]["sub_prediction"]["reading"]
+    for tier in ("maxpressure", "random"):
+        assert "identical episodes" not in entries[("Q3b", tier)]["numbers"]["sub_prediction"]["reading"]
 
 
 # ----------------------------------------------------------------------
@@ -882,6 +926,21 @@ def test_the_ties_block_lists_the_identities_and_every_tie_dependent_integer(boo
     assert {i["scope"] for i in fixedtime["integers"]} >= {"pooled", *(f"seed {s}" for s in fx.SEEDS)}
 
 
+def own_collapses(book: Mapping[tuple[str, str], tst.Cell], arm: str, tier: str, definition: str) -> bool:
+    """Q6's rule on THIS file's interval: COLLAPSED iff the arm is worse than the shared anchor with the CI excluding 0."""
+    _, _, low, _ = own_interval(own_paired(book[(arm, tier)], book[tst.ANCHOR], definition))
+    return low > 0.0
+
+
+def own_sentence_holds(books: Mapping[str, Mapping[tuple[str, str], tst.Cell]], definition: str, version: str) -> bool:
+    """The README sentence in its own words: no DT arm collapses on any tier, and every non-DT arm on at least one."""
+    book, tiers = books[version], ("mappo1000", "maxpressure", "fixedtime", "random")
+    dt_never = not any(own_collapses(book, arm, t, definition) for arm in ("dt_spatial", "dt_nomix") for t in tiers)
+    every_other = all(any(own_collapses(book, arm, t, definition) for t in tiers)
+                      for arm in ("bc", "bc_top10", "bc_top10_perix", "iql"))
+    return dt_never and every_other
+
+
 def test_the_descriptive_collapse_audit_applies_q6s_rule_to_every_non_dt_arm(books: Any) -> None:
     audit = tst.collapse_audit(books)
     assert audit["registered"] is False
@@ -901,7 +960,7 @@ def test_the_descriptive_collapse_audit_applies_q6s_rule_to_every_non_dt_arm(boo
         _, _, low, _ = own_interval(differences) if any(differences) else (0, 0, 0.0, 0)
         assert r["verdict"] == ("COLLAPSED" if low > 0 else "NOT COLLAPSED")
     for verdict in audit["sentence_holds"]:
-        assert verdict["holds"] in (True, False)
+        assert verdict["holds"] is own_sentence_holds(books, verdict["definition"], verdict["version"])
 
 
 # ----------------------------------------------------------------------
@@ -1277,11 +1336,13 @@ def test_t_barrier_refuses_a_tree_holding_p5_2s_manifest_whatever_the_output_roo
 
 
 def test_t_barrier_refuses_an_input_as_the_out_path(cli: fx.SyntheticTree, capsys: pytest.CaptureFixture[str]) -> None:
+    """``BRIEF_45`` Amendment B, B2.9: the input-equality guard runs before the exists check, so its own message is the
+    one an input as the out path receives."""
     target = cli.roots.repo_root / tst.P8_4B_ARTIFACT
     before = target.read_bytes()
     assert tst.main(_argv("build", cli, target)) == 2
     err = capsys.readouterr().err
-    assert "is an input" in err or "already exists" in err
+    assert "is an input of this artifact" in err and "already exists" not in err
     assert target.read_bytes() == before
 
 
@@ -1341,6 +1402,8 @@ def test_t_canonical_two_builds_are_byte_identical_sorted_finite_relative(tree: 
 
     for path, value in strings(payload):
         if path == ".git.code_root":
+            # Exempt by ruling (BRIEF_45 Amendment B, B2.8): compute_latency._git_provenance returns the checkout's
+            # absolute path, P5.2b's committed artifact records it the same way, and the packet discloses it.
             continue
         assert not value.startswith("/") and not any(root in value for root in roots), (path, value)
     assert payload["format_version"] == "p5.2-statements/1.0"
@@ -1465,25 +1528,436 @@ def test_t_quotes_every_record_literal_appears_at_its_cited_lines() -> None:
         assert row.file in tst.CITABLE_FILES
         assert _norm(row.recorded) in _norm(_cited(row.file, row.lines)), row
     for quote in tst.Q5_RECORDS:
+        assert quote.file in tst.CITABLE_FILES, quote  # Amendment B, B2.11
         assert _norm(quote.text) in _norm(_cited(quote.file, quote.lines)), quote
     assert {row.exception for row in tst.RECORD} == {None, *tst.RECORD_EXCEPTIONS}
 
 
+def _line_citations(text: str) -> list[str]:
+    """Every ``file:line`` citation in *text*, in three forms (Amendment B, B2.11): a path with an extension
+    (``docs/plans/p5.2.md:523``), the same in backticks before the colon (`` `docs/returns/P5.2.md`:31 ``), and an
+    extension-less upper-case name (``PROJECT_PLAN:12``, ``BRIEF_27:1274``)."""
+    paths = re.findall(r"`?([A-Za-z0-9_./-]+\.(?:md|py|json|txt))`?:(\d+)", text)
+    names = re.findall(r"(?<![A-Za-z0-9_./-])([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*)`?:(\d+)", text)
+    return [file for file, _ in paths] + [name for name, _ in names]
+
+
+def _not_citable(citation: str) -> bool:
+    """A path must be one of the history files; a bare name must begin one of their file names."""
+    if "/" in citation or "." in citation:
+        return citation not in tst.CITABLE_FILES
+    return not any(Path(file).name.startswith(citation) for file in tst.CITABLE_FILES)
+
+
 def test_t_quotes_no_line_pinned_citation_points_into_a_living_document() -> None:
-    """Amendment A, A4.2: ``file:line`` only into history; the plan, README, DEFERRED, CLAUDE.md and BRIEF_45 never."""
+    """Amendment A, A4.2: ``file:line`` only into history; the plan, README, DEFERRED, CLAUDE.md and BRIEF_45 never.
+    The scan catches the backticked and the extension-less forms too (Amendment B, B2.11), shown on samples first."""
     living = {"docs/PROJECT_PLAN.md", "README.md", "docs/notes/DEFERRED.md", "CLAUDE.md",
               "docs/briefs/BRIEF_45_p5.2c_statements.md"}
     assert not living & set(tst.CITABLE_FILES)
+    caught = _line_citations("`docs/PROJECT_PLAN.md`:12, PROJECT_PLAN:12, README:3 and `BRIEF_45_p5.2c_statements.md`:7")
+    assert [c for c in caught if _not_citable(c)] == ["docs/PROJECT_PLAN.md", "BRIEF_45_p5.2c_statements.md",
+                                                     "PROJECT_PLAN", "README"]
+    accepted = _line_citations("`docs/returns/P5.2.md:31`, docs/plans/p5.2.md:523, BRIEF_27:1274, PREREGISTRATION:12")
+    assert len(accepted) == 4 and [c for c in accepted if _not_citable(c)] == []
     source = (REPO_ROOT / "offline" / "tier_statements.py").read_text(encoding="utf-8")
-    citations = re.findall(r"([A-Za-z0-9_./-]+\.(?:md|py|json|txt)):(\d+)", source)
+    citations = _line_citations(source)
     assert citations, "the pattern found nothing, so it checks nothing"
-    for file, _ in citations:
-        assert file in tst.CITABLE_FILES, f"{file} is cited by line"
+    assert [c for c in citations if _not_citable(c)] == [], "a line-pinned citation points outside the history files"
 
 
 def test_t_quotes_the_modules_normalisation_agrees_with_this_files() -> None:
     samples = ["> **A** b\n>   c \\* d", "x − y  **z**", "plain"]
     assert [tst.normalise(s) for s in samples] == [_norm(s) for s in samples]
+
+
+# ----------------------------------------------------------------------
+# Amendment B (gate G1): a test for each surviving coordinator mutant (B1), and the rulings' tests (B2).  Every
+# expected answer is this file's own: raw rows, ``statistics``, the registered rule written out here.
+# ----------------------------------------------------------------------
+
+
+def _shifted(book: Mapping[tuple[str, str], tst.Cell], key: tuple[str, str], shift: Any
+             ) -> dict[tuple[str, str], tst.Cell]:
+    """A copy of *book* whose cell at *key* has ``shift(row)`` added to both definitions on every row."""
+    out = dict(book)
+    c = book[key]
+    out[key] = tst.Cell(spec=c.spec, rows=tuple(dict(r, att_ours=r["att_ours"] + shift(r),
+                                                     att_engine=r["att_engine"] + shift(r)) for r in c.rows))
+    return out
+
+
+def _as(book: Mapping[tuple[str, str], tst.Cell], target: tuple[str, str], source: tuple[str, str], shift: Any = None
+        ) -> dict[tuple[str, str], tst.Cell]:
+    """A copy of *book* whose cell at *target* holds *source*'s episodes (plus ``shift(row)``), under its own spec."""
+    out = dict(book)
+    spec = book[target].spec
+    step = shift or (lambda r: 0.0)
+    out[target] = tst.Cell(spec=spec, rows=tuple(dict(r, arm=spec.arm, att_ours=r["att_ours"] + step(r),
+                                                      att_engine=r["att_engine"] + step(r)) for r in book[source].rows))
+    return out
+
+
+def _both(books: Mapping[str, Mapping[tuple[str, str], tst.Cell]], edit: Any
+          ) -> dict[str, dict[tuple[str, str], tst.Cell]]:
+    """The same edit applied to both versions' books."""
+    return {version: edit(book) for version, book in books.items()}
+
+
+def _alternating(r: Mapping[str, Any]) -> float:
+    """+1.0 on odd draws and -0.75 on even ones: a mean of +0.125 over four draws, with a CI that straddles zero."""
+    return 1.0 if int(r["draw_id"]) % 2 else -0.75
+
+
+def test_b1_cm17_q3b_aggregate_reads_all_three_tiers(books: Any) -> None:
+    """CM17 (``BRIEF_45`` Amendment B, B1): the fixture's Q3b is HELD / NOT RESOLVED / HELD by this file's intervals,
+    so the conjunction over all three tiers is NOT RESOLVED; an aggregate ignoring ``fixedtime`` would be HELD."""
+    book = books["corrected"]
+    own = {t: own_contrast_outcome(book[("dt_nomix", t)], book[("behaviour", t)], "att_ours", "negative")
+           for t in tst.OUT_OF_SAMPLE_TIERS}
+    assert own == {"maxpressure": "HELD", "fixedtime": "NOT RESOLVED", "random": "HELD"}, "the data no longer discriminate"
+    entries = {(e["id"], e["tier"]): e for e in tst.score_q3b(book, definition="att_ours")}
+    assert {t: entries[("Q3b", t)]["verdict"] for t in own} == own
+    assert entries[("Q3b.aggregate", None)]["verdict"] == own_conjunction(list(own.values()))
+
+
+def test_b1_cm9_each_definitions_per_seed_block_reads_that_definitions_values() -> None:
+    """CM9: a contrast's D9 per-seed block is computed on the definition it is under.  Here ``att_ours`` favours the left
+    arm by 1.0 on every seed while ``att_engine`` reverses on seed 303, so a block read on ``att_ours`` is caught."""
+    seeds, draws = (101, 202, 303), range(1000, 1004)
+    engine_shift = {101: -2.0, 202: -1.5, 303: 0.75}
+    values = {"att_ours": ({(s, d): 50.0 + (d % 3) / 8.0 for s in seeds for d in draws},
+                           {(s, d): 51.0 + (d % 3) / 8.0 for s in seeds for d in draws}),
+              "att_engine": ({(s, d): 43.0 + engine_shift[s] + (d % 2) / 4.0 for s in seeds for d in draws},
+                             {(s, d): 43.0 + (d % 2) / 4.0 for s in seeds for d in draws})}
+    a = fx.simple_cell("dt_spatial", "random", values["att_ours"][0], values["att_engine"][0])
+    b = fx.simple_cell("dt_nomix", "random", values["att_ours"][1], values["att_engine"][1])
+    blocks = {}
+    for definition, (left, right) in values.items():
+        blocks[definition] = tst.contrast(a, b, definition=definition, tier="random")
+        own = {str(s): seq_mean([left[(s, d)] for d in draws]) - seq_mean([right[(s, d)] for d in draws]) for s in seeds}
+        assert blocks[definition]["per_seed"]["by_seed"] == own, definition
+    assert blocks["att_ours"]["per_seed"]["by_seed"] != blocks["att_engine"]["per_seed"]["by_seed"]
+    assert blocks["att_ours"]["seed_reversal_qualifier"] is None
+    assert "(303)" in blocks["att_engine"]["seed_reversal_qualifier"]
+
+
+def _own_seed_firsts(book: Mapping[tuple[str, str], tst.Cell], tier: str, definition: str) -> dict[str, list[str]]:
+    """Per seed, the arms with the lowest level by ``statistics.mean`` over that seed's rows."""
+    seeds = sorted({int(r["seed"]) for r in book[("iql", tier)].rows})
+    out = {}
+    for seed in seeds:
+        levels = {m: statistics.mean(float(r[definition]) for r in book[(m, tier)].rows if int(r["seed"]) == seed)
+                  for m in ts.METHODS}
+        out[str(seed)] = [m for m in ts.METHODS if levels[m] == min(levels.values())]
+    return out
+
+
+def test_b1_cm7_the_leaders_per_seed_first_places_are_read_under_each_definition(books: Any) -> None:
+    """CM7: at ``maxpressure``, ``dt_nomix``'s ``att_engine`` is lowered by 10 on seed 303 only, so under ``att_engine``
+    seed 303's first place is ``dt_nomix`` while ``att_ours`` keeps ``bc`` first on every seed."""
+    def lower(book: Mapping[tuple[str, str], tst.Cell]) -> dict[tuple[str, str], tst.Cell]:
+        out = dict(book)
+        c = book[("dt_nomix", "maxpressure")]
+        out[("dt_nomix", "maxpressure")] = tst.Cell(spec=c.spec, rows=tuple(
+            dict(r, att_engine=r["att_engine"] - (10.0 if r["seed"] == 303 else 0.0)) for r in c.rows))
+        return out
+
+    altered = _both(books, lower)
+    blocks = {b["definition"]: b for b in tst.leaders_block(altered) if b["tier"] == "maxpressure"}
+    for definition in tst.DEFINITIONS:
+        assert blocks[definition]["per_seed_first_places"] == _own_seed_firsts(altered["corrected"], "maxpressure",
+                                                                                definition)
+    assert blocks["att_engine"]["per_seed_first_places"]["303"] == ["dt_nomix"]
+    assert all(first == ["bc"] for first in blocks["att_ours"]["per_seed_first_places"].values())
+
+
+def _lead_reading(high: float) -> str:
+    return "resolves (the CI lies entirely below zero)" if high < 0.0 else "does not resolve (the CI includes zero)"
+
+
+def test_b1_cm16_a_lead_whose_ci_straddles_zero_does_not_resolve(books: Any) -> None:
+    """CM16: at ``maxpressure`` ``dt_nomix`` is made ``bc``'s episodes plus +1.0 on odd draws and -0.75 on even ones, so
+    ``bc`` still leads (by 0.125) and the lead's CI, by this file's interval, straddles zero."""
+    altered = _both(books, lambda book: _as(book, ("dt_nomix", "maxpressure"), ("bc", "maxpressure"), _alternating))
+    book = altered["corrected"]
+    _, _, low, high = own_interval(own_paired(book[("bc", "maxpressure")], book[("dt_nomix", "maxpressure")],
+                                              "att_ours"))
+    assert low < 0.0 < high, "the lead no longer straddles zero"
+    block = next(b for b in tst.leaders_block(altered) if b["tier"] == "maxpressure" and b["definition"] == "att_ours")
+    assert block["leaders"] == ["bc"] and block["runners_up"] == ["dt_nomix"]
+    assert block["reading"] == f"bc leads dt_nomix; the lead {_lead_reading(high)}"
+
+
+def test_b1_cm8_the_sentence_fails_when_one_non_dt_arm_never_collapses(books: Any) -> None:
+    """CM8: ``iql`` collapses only at ``mappo1000`` in the fixture; lowered by 40 there it collapses nowhere, so the
+    README sentence (every non-DT arm collapses somewhere) fails under both definitions and both versions."""
+    altered = _both(books, lambda book: _shifted(book, ("iql", "mappo1000"), lambda r: -40.0))
+    audit = tst.collapse_audit(altered)
+    assert len(audit["sentence_holds"]) == 4
+    for verdict in audit["sentence_holds"]:
+        book, definition = altered[verdict["version"]], verdict["definition"]
+        assert not any(own_collapses(book, "iql", t, definition) for t in tst.TIERS)
+        assert all(any(own_collapses(book, arm, t, definition) for t in tst.TIERS)
+                   for arm in ("bc", "bc_top10", "bc_top10_perix"))
+        assert own_sentence_holds(altered, definition, verdict["version"]) is False
+        assert verdict["holds"] is False
+
+
+def test_b1_cm10_a_dt_arm_whose_ci_against_the_anchor_straddles_zero_is_not_collapsed(books: Any) -> None:
+    """CM10: ``dt_spatial`` at ``random`` made the anchor's episodes plus +1.0 on odd draws and -0.75 on even ones --
+    worse on average, the CI straddling zero -- so NOT COLLAPSED by Q6's rule on this file's interval."""
+    book = _as(books["corrected"], ("dt_spatial", "random"), tst.ANCHOR, _alternating)
+    _, _, low, high = own_interval(own_paired(book[("dt_spatial", "random")], book[tst.ANCHOR], "att_ours"))
+    assert low < 0.0 < high, "the CI no longer straddles zero"
+    entry = next(e for e in tst.score_q6(book, definition="att_ours") if (e["arm"], e["tier"]) == ("dt_spatial", "random"))
+    assert entry["verdict"] == ("COLLAPSED" if low > 0.0 else "NOT COLLAPSED")
+
+
+def test_b1_cm12_a_predicted_first_place_tied_for_first_is_not_held(books: Any) -> None:
+    """CM12: at ``random`` the predicted first, ``dt_nomix``, is made ``iql``'s episodes (``iql`` is first there): the two
+    tie exactly for first, so there is no unique first place and Q2a is FAILED by the registered rule."""
+    book = _as(books["corrected"], ("dt_nomix", "random"), ("iql", "random"))
+    predicted = list(ts.predicted_order("random"))
+    levels = {m: own_level(book[(m, "random")], "att_ours") for m in ts.METHODS}
+    firsts = [m for m in ts.METHODS if levels[m] == min(levels.values())]
+    assert predicted[0] in firsts and len(firsts) > 1, "the data no longer tie the predicted first for first"
+    entry = next(e for e in tst.score_q2_q3(book, definition="att_ours") if (e["id"], e["tier"]) == ("Q2a", "random"))
+    assert entry["verdict"] == ("HELD" if firsts == [predicted[0]] else "FAILED")
+
+
+def test_b1_cm4_q1b_holds_only_within_ten_percent_of_the_predicted_level(books: Any) -> None:
+    """CM4: ``behaviour`` at ``maxpressure`` moved to 1.2 x its predicted level: 20 % off, so FAILED by the registered
+    +-10 % anchor band (``tier_sweep.ANCHOR_BAND``), which the +-30 % level band would pass."""
+    assert ts.ANCHOR_BAND == 0.10
+    predicted = ts.PREDICTED_LEVELS["behaviour"]["maxpressure"]
+    start = own_level(books["corrected"][("behaviour", "maxpressure")], "att_ours")
+    book = _shifted(books["corrected"], ("behaviour", "maxpressure"), lambda r: 1.2 * predicted - start)
+    measured = own_level(book[("behaviour", "maxpressure")], "att_ours")
+    relative = abs(measured - predicted) / predicted
+    assert 0.10 < relative <= 0.30, "the cell no longer separates the two bands"
+    entries = {(e["id"], e["tier"]): e for e in tst.score_q1(book, definition="att_ours")}
+    assert entries[("Q1b", "maxpressure")]["verdict"] == ("HELD" if relative <= 0.10 else "FAILED")
+    assert entries[("Q1b.both", None)]["verdict"] == "FAILED"
+
+
+def test_b1_cm14_a_chain_with_two_equal_rungs_is_not_strictly_increasing(books: Any) -> None:
+    """CM14: d = 1, 2, 2, 3 along the four-rung chain: not strictly increasing, not strictly decreasing, so Q4b FAILED
+    and not monotone -- by this file's strict comparison of its own d."""
+    book = books["corrected"]
+    for tier, shift in (("mappo1000", 1.0), ("maxpressure", 2.0), ("fixedtime", 2.0), ("random", 3.0)):
+        book = _with_d(book, tier, shift)
+    d = [seq_contrast(book[("dt_spatial", t)], book[("dt_nomix", t)], "att_ours") for t in tst.TIERS]
+    assert d == [1.0, 2.0, 2.0, 3.0]
+    increasing = all(a < b for a, b in zip(d, d[1:]))
+    entries = {e["id"]: e for e in tst.score_q4(book, definition="att_ours")}
+    assert entries["Q4b"]["verdict"] == ("HELD" if increasing else "FAILED")
+    assert entries["Q4b"]["reading"] == "d is not monotone along the chain"
+    assert entries["Q4b.three_rung"]["verdict"] == "HELD"
+
+
+def test_b1_cm1_an_exactly_zero_interaction_is_held_by_the_registered_inclusion_rule(books: Any) -> None:
+    """CM1 reversed (``BRIEF_45`` Amendment B, B2.1): Q0b is HELD iff the CI of mean(I) includes 0
+    (``docs/plans/p5.2.md:523-524``); an exactly-zero I has CI [0, 0], which includes 0, so it is HELD and labelled.  Both
+    pairs are made identical here, so d4 = d1 = 0 on every draw.  Q0a, a predicted-sign rule, stays NOT RESOLVED."""
+    book = _as(books["corrected"], ("dt_spatial_h4", "mappo1000"), ("dt_nomix_h4", "mappo1000"))
+    book = _as(book, ("dt_spatial", "mappo1000"), ("dt_nomix", "mappo1000"))
+    s4, n4 = book[("dt_spatial_h4", "mappo1000")], book[("dt_nomix_h4", "mappo1000")]
+    s1, n1 = book[("dt_spatial", "mappo1000")], book[("dt_nomix", "mappo1000")]
+    interaction = [a - b for a, b in zip(own_paired(s4, n4, "att_ours"), own_paired(s1, n1, "att_ours"))]
+    assert interaction and all(x == 0.0 for x in interaction)
+    _, _, low, high = own_interval(interaction)
+    entries = {e["id"]: e for e in tst.score_q0(book, definition="att_ours")}
+    assert entries["Q0b"]["verdict"] == ("HELD" if low <= 0.0 <= high else "FAILED")
+    assert entries["Q0b"]["numbers"]["exactly_zero"] is True
+    assert entries["Q0b"]["reading"].startswith("exactly zero (identical episodes)")
+    assert entries["Q0a"]["verdict"] == own_outcome(0.0, 0.0, "positive")
+    assert "the registered rule decides the verdict" in tst.definitions_block()["exact_zero"]
+
+
+def _broken_tie_cells() -> dict[str, tst.Cell]:
+    """``bc`` at ``random`` is ``iql``'s episodes +0.5 on seed 101 and -0.5 on seed 202: an exact pooled tie for first
+    (the sums are exact), broken one way on seed 101, the other on 202, and kept on 303."""
+    cells = fx.synthetic_cells()
+    spec, offset = cells["p5_2:bc@random"].spec, {101: 0.5, 202: -0.5, 303: 0.0}
+    cells["p5_2:bc@random"] = tst.Cell(spec=spec, rows=tuple(
+        dict(r, arm=spec.arm, att_ours=r["att_ours"] + offset[r["seed"]], att_engine=r["att_engine"] + offset[r["seed"]])
+        for r in cells["p5_2:iql@random"].rows))
+    return cells
+
+
+def test_b2_3_a_pooled_tie_for_first_has_no_first_under_the_rule_and_reversals_against_the_pooled_set() -> None:
+    """``BRIEF_45`` Amendment B, B2.3: beside P5.2b's fields, ``measured_first_under_rule`` (null when the pooled first is
+    tied) and the seeds whose set of first places differs from the pooled SET -- by ``statistics.mean`` here."""
+    expected = {"unique": ("iql", []), "tied": (None, []), "broken": (None, [101, 202])}
+    for name, cells in (("unique", fx.synthetic_cells()), ("tied", _tied_cells()), ("broken", _broken_tie_cells())):
+        book = {(m, "random"): cells[f"p5_2:{m}@random"] for m in ts.METHODS}
+        pooled = {m: own_level(book[(m, "random")], "att_ours") for m in ts.METHODS}
+        firsts = {m for m in ts.METHODS if pooled[m] == min(pooled.values())}
+        reversing = [int(s) for s, f in _own_seed_firsts(book, "random", "att_ours").items() if set(f) != firsts]
+        q2a = tst.tier_composer(_oos_episodes(cells, "att_ours"), tier="random", with_hard_subset=True)["q2a"]
+        assert q2a["measured_first_under_rule"] == (next(iter(firsts)) if len(firsts) == 1 else None), name
+        assert q2a["reverses_on_seeds_against_pooled_firsts"] == reversing, name
+        assert (q2a["measured_first_under_rule"], reversing) == expected[name], name
+    tied = tst.tier_composer(_oos_episodes(_tied_cells(), "att_ours"), tier="random", with_hard_subset=True)["q2a"]
+    assert tied["reverses_on_seeds"] == list(fx.SEEDS)  # P5.2b's field, kept: every seed differs from the tie-break
+
+
+def test_b2_4_the_file_run_by_path_from_another_tree_is_refused(tmp_path: Path) -> None:
+    """``BRIEF_45`` Amendment B, B2.4 (R2 F3.1): the running file itself must lie under ``<--repo-root>/offline``.  A copy
+    of ``offline/`` run by path, importing every other module from this tree, is refused before any input is read; the
+    same command on this tree's own file passes the check and stops at the empty output root instead."""
+    import shutil
+    import subprocess
+
+    copy = tmp_path / "copy"
+    shutil.copytree(REPO_ROOT / "offline", copy / "offline", ignore=shutil.ignore_patterns("__pycache__"))
+    output = tmp_path / "empty_output"
+    output.mkdir()
+    env = {**os.environ, "PYTHONPATH": str(REPO_ROOT), "PYTHONDONTWRITEBYTECODE": "1"}
+
+    def run(script: Path) -> subprocess.CompletedProcess[str]:
+        return subprocess.run([sys.executable, "-P", str(script), "check", "--repo-root", str(REPO_ROOT),
+                               "--output-root", str(output)], capture_output=True, text=True, timeout=600, env=env,
+                              cwd=tmp_path)
+
+    script = (copy / "offline" / "tier_statements.py").resolve()
+    refused = run(script)
+    assert refused.returncode == 2, refused.stderr
+    assert "REFUSED: ValueError" in refused.stderr and str(script) in refused.stderr, refused.stderr
+    assert "does not resolve under" in refused.stderr
+    control = run(REPO_ROOT / "offline" / "tier_statements.py")
+    assert control.returncode == 2 and "REFUSED: FileNotFoundError" in control.stderr, control.stderr
+    assert "does not resolve under" not in control.stderr
+
+
+def test_b2_4_provenance_code_hashes_the_file_that_runs(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``BRIEF_45`` Amendment B, B2.4: ``provenance.code`` records, for ``offline.tier_statements``, the file whose code is
+    running -- even when ``sys.modules`` holds another module under that name (here one whose file is another module
+    of this tree, so the location check itself passes)."""
+    stand_in = types.ModuleType("offline.tier_statements")
+    stand_in.__file__ = str(REPO_ROOT / "offline" / "tier_sweep.py")
+    monkeypatch.setitem(sys.modules, "offline.tier_statements", stand_in)
+    entries = {e["module"]: e for e in tst.assert_code_under_root(REPO_ROOT)}
+    running = Path(tst.__file__).resolve()
+    assert entries["offline.tier_statements"]["path"] == running.relative_to(REPO_ROOT).as_posix()
+    assert entries["offline.tier_statements"]["sha256"] == hashlib.sha256(running.read_bytes()).hexdigest()
+
+
+def _components(tree: fx.SyntheticTree) -> tuple[tst.Inputs, list[dict[str, Any]], Any, Any]:
+    inputs = tst.load_inputs(tree.roots, pins=tree.pins)
+    books = tst.make_books(inputs.cells)
+    return inputs, tst.all_statements(books), tst.collapse_audit(books), tst.ties_block(books)
+
+
+def _ulps_away(x: float, n: int) -> float:
+    y = x + n * math.ulp(x)
+    assert y - x == n * math.ulp(x) and math.ulp(y) == math.ulp(x), "not an exact shift within one binade"
+    return y
+
+
+def test_b2_5_a_value_five_ulps_from_p8_4bs_record_is_refused_and_four_are_accepted(tree: fx.SyntheticTree) -> None:
+    """``BRIEF_45`` Amendment B, B2.5: the route explanation is verified, not asserted -- each difference from P8.4b's V4
+    and V5 is at most ``4 * math.ulp(max(|a|, |b|))``.  Here this artifact's ``d1`` under ``att_engine`` is moved 4 and
+    5 ulps from V4's recorded mean (P8.4b's own route still reproduces the record)."""
+    import copy
+
+    inputs, statements, audit, ties = _components(tree)
+
+    def moved(n: int) -> list[dict[str, Any]]:
+        out = copy.deepcopy(statements)
+        entry = next(s for s in out if s["id"] == "Q0.d1" and s["definition"] == "att_engine")
+        entry["numbers"]["mean_difference"] = _ulps_away(entry["numbers"]["mean_difference"], n)
+        return out
+
+    accepted = tst.comparison_with_the_record(moved(4), audit, ties, inputs, record=())
+    row = next(r for r in accepted["p8_4b"] if (r["contrast_id"], r["definition"]) == ("V4", "att_engine"))
+    assert row["equal"] is False and row["record_route_reproduces"] is True
+    with pytest.raises(ValueError, match="more than 4 ulps"):
+        tst.comparison_with_the_record(moved(5), audit, ties, inputs, record=())
+
+
+def test_b2_5_a_stop_rule_record_five_ulps_away_is_refused_and_four_are_accepted(tree: fx.SyntheticTree,
+                                                                                 monkeypatch: pytest.MonkeyPatch
+                                                                                 ) -> None:
+    """``BRIEF_45`` Amendment B, B2.5, for P5.2's stop-rule record: the record's mean moved 4 and 5 ulps (re-listed in its
+    manifest), with ``tier_sweep.score_stop_rule`` standing in to reproduce the moved record, so the bound alone decides."""
+    path = tree.roots.output_root / tst.P5_2_STOP_RULE_RECORD
+    original = json.loads(path.read_bytes())["mean_difference"]
+    monkeypatch.setattr(ts, "score_stop_rule", lambda *args: json.loads(path.read_bytes()))
+
+    def build(n: int) -> dict[str, Any]:
+        _rewrite(path, lambda p: p.__setitem__("mean_difference", _ulps_away(original, n)))
+        moved = _resum(tree, tst.P5_2_SUMS_NAME, "p5_2", "p5_2_sums_sha256")
+        inputs = tst.load_inputs(moved.roots, pins=moved.pins)
+        return tst.build_artifact(inputs, git=SYNTHETIC_GIT, code=SYNTHETIC_CODE, record=())
+
+    assert build(4)["comparison_with_the_record"]["p5_2_stop_rule_record"]["equal"] is False
+    with pytest.raises(ValueError, match="more than 4 ulps"):
+        build(5)
+
+
+def test_b2_6_the_gate_2_record_cites_1274_to_1281_and_quotes_the_sentence_that_is_the_error(
+        tree: fx.SyntheticTree) -> None:
+    """``BRIEF_45`` Amendment B, B2.6: A3's GATE 2 row cites ``BRIEF_27``:1274-1281 and quotes the sentence that is the
+    error, beside the heading's claim; T-quotes holds the text at those lines."""
+    gate2 = [q for q in tst.Q5_RECORDS if q.file == "docs/briefs/BRIEF_27_p5.2_tier_sweep.md"]
+    assert len(gate2) == 1 and gate2[0].lines == (1274, 1281)
+    text = _norm(gate2[0].text)
+    assert "THE LOAD-SORTER MECHANISM IS CONFIRMED, decisively and twice" in text
+    assert "the `fixedtime` null is *predicted* by the mechanism" in text
+    assert text in _norm(_cited(gate2[0].file, gate2[0].lines))
+    inputs = tst.load_inputs(tree.roots, pins=tree.pins)
+    q5 = tst.build_artifact(inputs, git=SYNTHETIC_GIT, code=SYNTHETIC_CODE, record=())["comparison_with_the_record"]["q5"]
+    assert [r["record"]["source"] for r in q5] == ["docs/returns/P5.2.md:30", "docs/returns/P5.2.md:572-573",
+                                                   "docs/briefs/BRIEF_27_p5.2_tier_sweep.md:1274-1281"]
+
+
+def test_b2_7_q6_in_never_scored_names_its_numbers_and_the_recorded_verdict(tree: fx.SyntheticTree) -> None:
+    """``BRIEF_45`` Amendment B, B2.7: Q6's verdict was recorded (``docs/returns/P5.2.md:31``); its numbers were not."""
+    inputs = tst.load_inputs(tree.roots, pins=tree.pins)
+    never = tst.build_artifact(inputs, git=SYNTHETIC_GIT, code=SYNTHETIC_CODE, record=())[
+        "comparison_with_the_record"]["never_scored"]
+    for entry in never:
+        if entry["statement"] == "Q6":
+            assert entry["recorded"] == ("Q6's numbers: never scored; the verdict was recorded "
+                                         "(`docs/returns/P5.2.md:31`)")
+        else:
+            assert entry["recorded"] == "never scored in any committed record, under either definition (BRIEF_45 " \
+                                        "section 1.3)"
+    assert sum(1 for entry in never if entry["statement"] == "Q6") == 1
+    assert "no DT arm collapsed on any tier" in _norm(_cited("docs/returns/P5.2.md", (31, 31)))
+
+
+def test_b2_9_a_dangling_symlink_at_the_out_path_is_refused_and_nothing_is_written(
+        cli: fx.SyntheticTree, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """``BRIEF_45`` Amendment B, B2.9 (R2 F8.1): the UNRESOLVED out path is examined, so a symlink there -- dangling or
+    not -- is refused; nothing is written at its target and the link is left as it was."""
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    target = elsewhere / "target.json"
+    out = cli.roots.repo_root / "docs" / "data" / "p5_2_statements.json"
+    out.symlink_to(target)
+    assert out.is_symlink() and not out.exists()
+    assert tst.main(_argv("build", cli, out)) == 2
+    assert "symlink" in capsys.readouterr().err
+    assert list(elsewhere.iterdir()) == [] and out.is_symlink() and not out.exists()
+
+
+def test_b2_13_what_this_does_not_say_states_what_definition_dependent_does_not_compare() -> None:
+    """``BRIEF_45`` Amendment B, B2.13 (R1 F-12)."""
+    assert ("Q0b's sign and Q4b's chain shape are reported per definition beside the flag, and the flag does not "
+            "compare them") in " ".join(tst.WHAT_THIS_DOES_NOT_SAY)
+
+
+def test_b2_14_p8_4bs_campaign_manifest_and_marker_are_listed_with_their_sha256(tree: fx.SyntheticTree) -> None:
+    """``BRIEF_45`` Amendment B, B2.14: P8.4b's ``campaign_manifest.json`` and ``CAMPAIGN_COMPLETE`` in
+    ``provenance.inputs``, each with the sha256 this test computes from the file."""
+    inputs = tst.load_inputs(tree.roots, pins=tree.pins)
+    listed = {entry["file"]: entry["sha256"] for entry in inputs.provenance["inputs"]}
+    for name in ("campaign_manifest.json", "CAMPAIGN_COMPLETE"):
+        path = tree.roots.output_root / tst.P8_4B_DIR / name
+        assert listed[f"output/{tst.P8_4B_DIR}/{name}"] == hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 # ----------------------------------------------------------------------
@@ -1586,7 +2060,13 @@ def test_t_reproduce_record_every_value_p5_2s_record_states_at_its_precision(rea
     assert [_q(a, "Q2a", t)["verdict"] for t in tiers] == ["FAILED"] * 3
     q2b = [_q(a, "Q2b", t) for t in tiers]  # P5.2.md:27 records 11 · 8 · 8
     assert [e["numbers"]["n_concordant"] for e in q2b] == [11, 7, 8]
-    assert q2b[1]["numbers"]["range"] == [7, 9] and 7 <= 8 <= 9  # DEFERRED 108
+    # DEFERRED 108 (Amendment B, B2.10): the recorded fixedtime count, parsed from its record row, lies in the range.
+    row = next(r for r in a["comparison_with_the_record"]["literal_records"]
+               if r["source"] == "docs/returns/P5.2.md:27" and r["value"] == "q2b.counts")
+    recorded = [int(x) for x in re.findall(r"\d+", row["recorded"])]
+    low, high = q2b[1]["numbers"]["range"]
+    assert (low, high) == (7, 9) and recorded == [11, 8, 8]
+    assert low <= recorded[1] <= high and recorded[1] != q2b[1]["numbers"]["n_concordant"]
     assert [e["verdict"] for e in q2b] == ["FAILED"] * 3
     hard = [_q(a, "Q2b_hard", t)["numbers"] for t in tiers]  # P5.2.md:87, :92-93
     assert [h["n_concordant"] for h in hard] == [2, 2, 3]
@@ -1828,9 +2308,85 @@ def test_t_regress_the_committed_artifact_regenerates_byte_for_byte_from_output(
     """``BRIEF_45`` section 5: given the build's own git and code blocks (the two values a regeneration cannot derive:
     they name the tree and the code that ran), ``docs/data/p5_2_statements.json`` is regenerated byte for byte."""
     if not COMMITTED_ARTIFACT.is_file():
-        pytest.skip(f"{COMMITTED_ARTIFACT} not found: the artifact is built and committed at gate G2 (BRIEF_45 C7)")
+        pytest.skip(f"{COMMITTED_ARTIFACT} not found: the artifact is built and committed at gate G2 (the plan's C7)")
     committed = COMMITTED_ARTIFACT.read_bytes()
     payload = json.loads(committed)
     regenerated = tst.serialize(tst.build_artifact(real_inputs, git=payload["git"], code=payload["provenance"]["code"]))
     assert hashlib.sha256(regenerated).hexdigest() == hashlib.sha256(committed).hexdigest()
     assert regenerated == committed
+
+
+# ----------------------------------------------------------------------
+# Amendment B (gate G1), real data: the survivors' gated assertions (B1) and B2.14
+# ----------------------------------------------------------------------
+
+
+def test_b1_cm17_real_q3b_aggregate_is_not_resolved_under_both_definitions(real_inputs: tst.Inputs,
+                                                                          real_artifact: dict[str, Any]) -> None:
+    """CM17 on real data (``BRIEF_45`` Amendment B, B1): HELD / NOT RESOLVED (``fixedtime``'s exact zero) / HELD by this
+    file's intervals, so the aggregate is NOT RESOLVED under both definitions."""
+    book = tst.make_books(real_inputs.cells)["corrected"]
+    for definition in tst.DEFINITIONS:
+        own = {t: own_contrast_outcome(book[("dt_nomix", t)], book[("behaviour", t)], definition, "negative")
+               for t in tst.OUT_OF_SAMPLE_TIERS}
+        assert own == {"maxpressure": "HELD", "fixedtime": "NOT RESOLVED", "random": "HELD"}, definition
+        assert {t: _q(real_artifact, "Q3b", t, definition=definition)["verdict"] for t in own} == own
+        aggregate = _q(real_artifact, "Q3b.aggregate", None, definition=definition)["verdict"]
+        assert aggregate == own_conjunction(list(own.values())) == "NOT RESOLVED"
+
+
+def test_b1_cm9_real_an_att_engine_per_seed_block_against_the_raw_rows(real_artifact: dict[str, Any]) -> None:
+    """CM9 on real data: Q4's d at ``maxpressure`` under ``att_engine``, its per-seed block against P8.4b's rows read by
+    this test -- per seed ``numpy.mean`` over the draws in draw order, the worker's own summation, so ``==`` holds while
+    the data path is this file's.  The ``att_ours`` block differs, so a block read on ``att_ours`` is caught."""
+    output = _output_root()
+    left, right = _real_rows(output, "dt_spatial@maxpressure"), _real_rows(output, "dt_nomix@maxpressure")
+    own = {str(seed): float(np.mean([r["att_engine"] for r in left if r["seed"] == seed])
+                            - np.mean([r["att_engine"] for r in right if r["seed"] == seed]))
+           for seed in (101, 202, 303, 404, 505)}
+    blocks = {d: _q(real_artifact, "Q4.d", "maxpressure", definition=d)["numbers"]["per_seed"]["by_seed"]
+              for d in tst.DEFINITIONS}
+    assert blocks["att_engine"] == own
+    assert blocks["att_ours"] != blocks["att_engine"]
+
+
+def test_b1_cm7_real_maxpressure_first_places_per_seed_under_each_definition(real_artifact: dict[str, Any]) -> None:
+    """CM7 on real data (``BRIEF_45`` Amendment B, B1, verified by the coordinator): at ``maxpressure`` under
+    ``att_engine`` seed 303's first place is ``dt_nomix`` and ``bc`` holds the other four; under ``att_ours`` ``bc`` holds
+    all five -- by this file's per-seed means over P8.4b's rows."""
+    output = _output_root()
+    rows = {m: _real_rows(output, f"{m}@maxpressure") for m in ts.METHODS}
+    expected = {"att_ours": {s: ["bc"] for s in ("101", "202", "303", "404", "505")},
+                "att_engine": {"101": ["bc"], "202": ["bc"], "303": ["dt_nomix"], "404": ["bc"], "505": ["bc"]}}
+    for definition in tst.DEFINITIONS:
+        firsts = {}
+        for seed in (101, 202, 303, 404, 505):
+            levels = {m: statistics.mean(float(r[definition]) for r in rows[m] if r["seed"] == seed) for m in ts.METHODS}
+            firsts[str(seed)] = [m for m in ts.METHODS if levels[m] == min(levels.values())]
+        assert firsts == expected[definition], definition
+        block = next(b for b in real_artifact["leaders"] if b["tier"] == "maxpressure" and b["definition"] == definition)
+        assert block["per_seed_first_places"] == firsts, definition
+
+
+def test_b1_cm16_real_maxpressures_lead_resolves_under_att_ours_and_not_under_att_engine(
+        real_inputs: tst.Inputs, real_artifact: dict[str, Any]) -> None:
+    """CM16 on real data: ``bc - dt_nomix`` at ``maxpressure`` is -1.2993 [-2.3592, -0.2395] under ``att_ours`` and
+    -0.9059 [-1.9735, +0.1617] under ``att_engine`` (``BRIEF_45`` Amendment B, B0's verification): the lead resolves under
+    the first only, by this file's interval -- the README's sentence."""
+    book = tst.make_books(real_inputs.cells)["corrected"]
+    expected = {"att_ours": ("-1.2993", "-2.3592", "-0.2395"), "att_engine": ("-0.9059", "-1.9735", "+0.1617")}
+    for definition in tst.DEFINITIONS:
+        mean, _, low, high = own_interval(own_paired(book[("bc", "maxpressure")], book[("dt_nomix", "maxpressure")],
+                                                     definition))
+        assert (_f4(mean), _f4(low), _f4(high)) == expected[definition], definition
+        block = next(b for b in real_artifact["leaders"] if b["tier"] == "maxpressure" and b["definition"] == definition)
+        assert block["leaders"] == ["bc"] and block["runners_up"] == ["dt_nomix"]
+        assert block["reading"] == f"bc leads dt_nomix; the lead {_lead_reading(high)}", definition
+
+
+def test_b2_14_real_p8_4bs_campaign_manifest_and_marker_are_listed_with_their_sha256(real_inputs: tst.Inputs) -> None:
+    output = _output_root()
+    listed = {entry["file"]: entry["sha256"] for entry in real_inputs.provenance["inputs"]}
+    for name in ("campaign_manifest.json", "CAMPAIGN_COMPLETE"):
+        digest = hashlib.sha256((output / tst.P8_4B_DIR / name).read_bytes()).hexdigest()
+        assert listed[f"output/{tst.P8_4B_DIR}/{name}"] == digest
