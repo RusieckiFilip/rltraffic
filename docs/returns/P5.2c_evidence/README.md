@@ -1,8 +1,210 @@
-# P5.2c — evidence for gates G1 and G1.1 (`BRIEF_45` Amendments A and B)
+# P5.2c — evidence for gates G1, G1.1 and G2 (`BRIEF_45` Amendments A, B and B.1)
 
 Branch `task/p5.2c-statements`, worktree `/home/filip/rltraffic-p52c`, interpreter `/home/filip/rltraffic/.venv/bin/python`
-(Python 3.12.13). **Nothing under `output/` was written, no episode was rolled, no checkpoint loaded, and the artifact was
-NOT built** (C7 waits for Amendment B.1). Every number here comes from a command run in the session that wrote it.
+(Python 3.12.13).
+- Nothing under `output/` was written, no episode was rolled and no checkpoint was loaded.
+- **The artifact was NOT built.** C6c is done; **G2 is BLOCKED before the build** on a test outside this task's fence
+  (next section).
+- Every number here comes from a command run in the session that wrote it.
+
+# G2 — BLOCKED before the build: `tests/test_erfc_determinism.py` pins the published (z, p_value) pairs at 351
+
+**What B.1.3 step 3 requires:**
+- build from a clean committed tree;
+- commit `docs/data/p5_2_statements.json` alone;
+- at that commit, the whole suite with **0 failed**.
+
+That last requirement cannot be met as the repository stands. Measured on an export of `3e5de9c` with an in-memory build
+of the artifact (`c6c_g2_erfc_guard.txt`; nothing written outside the scratch directory):
+
+- **The guard.** `test_erfc_determinism.py::test_the_committed_p_values_all_still_reproduce_exactly` walks every JSON
+  under `docs/data/` (`rglob`) and collects each dict carrying `z` and `p_value`.
+  - It asserts that each pair reproduces under `==`.
+  - It also asserts **`len(pairs) == 351`**.
+  - The literal has moved 322 → 330 → 339 → 351, and each move was **authorised in writing**: `BRIEF_29` section 1 B,
+    2026-09-10, and `BRIEF_42` Amendment E.1. Its message says *"if artifacts were added, re-measure and update this
+    count deliberately"*.
+- **The artifact adds 136 pairs.** They are the Wilcoxon blocks D8 carries (Amendment A, A2 Q8):
+  - 64 in `statements[*].numbers.paired_comparison`: Q6 16; Q3b, Q4.d, Q5b and Q5c 8 each; Q4a and Q5a 6 each; Q0.d1
+    and Q0a 2 each;
+  - 34 in `descriptive_collapse_audit.rows`;
+  - 16 in `descriptive_collapse_audit.dt_rows`;
+  - 12 in `leaders`;
+  - 10 in `statements[*].numbers.contrast`, all Q3c.
+- **What else holds:**
+  - All 136 are two-sided: no `alternative` key, so `ONE_SIDED_PAIRS` is untouched.
+  - **All 136 reproduce under `==`** by the guard's own rule, `min(1, 2 * _normal_cdf(z))`.
+  - z ≤ 0 throughout: 128 negative and 8 exactly 0. The 8 are `fixedtime`'s exact zeros (Q3b, Q4.d, Q4a and Q5c under
+    both definitions). There `n_used = 0`, and `dt_gate.wilcoxon`'s convention gives z = 0.0 and p = 1.0. No verdict reads
+    a p-value (`p_value_read_by_a_verdict: false`).
+- **The guard's result:**
+  - On the export as it stands: 57 passed.
+  - With the artifact at `docs/data/p5_2_statements.json`: **1 failed, 56 passed** — *"expected the 351 committed (z,
+    p_value) pairs … found 487"*.
+  - Only the count fires.
+
+**Why I stopped before the build rather than after it.**
+- The fix is a change to another task's test, gated on a written authorisation. Making it myself would be editing a test
+  to make it pass.
+- Building first would put a commit on the branch at which the suite fails. B.1.3's "at that commit … 0 failed" would then
+  need a second artifact commit, and the artifact records the commit it was built at.
+- Stopping costs one ruling, and the build stays a single deliberate step.
+- **Not considered:** anything that hides the pairs from the walk, such as renaming the artifact's keys. That would defeat
+  the guard, whose purpose is that no published p-value appears or moves unnoticed.
+
+**What G2 needs: a ruling.** If the coordinator authorises the change:
+- the literal goes from **351 to 487**;
+- the docstring's count history and the assertion message name the 136 P5.2c pairs, on the same footing as the three
+  earlier authorisations;
+- the 136 are enumerated by the guard's own paths, each with its z, p_value and `reproduces=True`, in
+  `c6c_g2_erfc_guard.txt` section 3.
+
+G2 would then run in this order:
+1. the guard commit (tests only);
+2. the build from the clean tree, in A1.1's worktree form;
+3. the artifact commit, alone;
+4. the whole suite and `check` at that commit.
+
+# C6c — Amendment B.1 (gate G1.1 fixed first, B.1.3 step 2)
+
+## Files added at C6c
+
+| file | what it is |
+|---|---|
+| `c6c_red_run.txt` | B.1.3 step 2.1's red run: the new and changed tests against the module unchanged since `5bbb540` |
+| `c6c_precheck.txt` | the scratch pre-check: B.1.1's green-on-arrival tests against the coordinator's four survivors, on that module |
+| `mutate.py` | extended to 79 mutants (sha256 `7476f9f1ad8d6224237b0eef9d601fcf3d4948d899ded310de6bfe20e2df1c1f`, the value its log records) |
+| `c6c_mutation_log.txt`, `c6c_mutation_results.json` | **the run of record for C6c**: 79 mutants on a `git archive` export of `3e5de9c` |
+| `c6c_test_file.txt` | `tests/test_tier_statements.py` at `3e5de9c` with `RLTRAFFIC_OUTPUT_ROOT` set |
+| `c6c_g2_erfc_guard.txt` | why G2 is blocked (above) |
+
+C6's and G1's files below stay as their gates' record.
+
+## Commits (`tests/test_tier_statements.py`, `RLTRAFFIC_OUTPUT_ROOT=/home/filip/rltraffic/output`)
+
+| commit | content | the test file |
+|---|---|---|
+| `60f3306` | `git merge --no-edit main` (Amendment B.1 at `81c30d3`; docs only) | — |
+| `9920014` C6c (1/3) | tests first: B.1.1's four survivors, B.1.2(1)'s label; the red run and the pre-check | **2 failed**, 156 passed, 1 skipped |
+| `12251e6` C6c (2/3) | the module change of B.1.2(1) | 158 passed, 1 skipped |
+| `3e5de9c` C6c (3/3, a) | `mutate.py` to 79 mutants (module and tests as at `12251e6`) | 158 passed, 1 skipped (`c6c_test_file.txt`) |
+| this commit, C6c (3/3, b) | the run outputs, the G2 finding and this section | — |
+
+The one skip is T-regress: `docs/data/p5_2_statements.json` does not exist before G2.
+
+## The red run (B.1.3 step 2.1) — `c6c_red_run.txt`
+
+Against the module whose sha256 equals `5bbb540`'s (`fd1ced2d…`): **2 failed, 156 passed, 1 skipped.**
+- **Red: B.1.2(1)'s two tests.** Each fails at the reading: `5bbb540` labels every exactly-zero I "exactly zero
+  (identical episodes)". Both pass their verdict assertion first (HELD, B2.1).
+- **Green on arrival, as B.1.3 expects:** CB2 (synthetic and gated), CB1a, CB0 (three cases) and the two B2.5 tests
+  (twelve cases). Their strength is the pre-check.
+
+## The scratch pre-check — `c6c_precheck.txt`
+
+A `git archive` of the merge commit, holding `5bbb540`'s module, with the committed test file copied in. Each of the
+coordinator's four strings from `coord_mutants_g11.py` is applied verbatim and counted once. The named tests run without
+`-x`, and the module is restored byte for byte after each. **Control: 15 passed. All four KILLED:**
+- **CB2:** both CB2 tests fail on the qualifier, "d1 vs d4 reverses on 1 of 3 training seeds (101)" (synthetic), and on
+  the real data.
+- **CB1a:** the reading says "the match comes from identical episodes" beside "from episodes that are not identical".
+- **CB5c:** the six CI-end cases fail with `DID NOT RAISE`; the three mean cases pass, as they should.
+- **CB0:** the two touching cases score FAILED; the (2⁻¹⁰, 1) case passes.
+
+## The module change (B.1.2(1)) — `12251e6`
+
+- **`composite_contrast`:** I's block gains `identical_pairs` (`{"d4": bool, "d1": bool}`) and `identical`.
+  - Each pair's value is `att_rederivation.contrast_discriminability(...).identical` over that pair's per-episode values,
+    called with the same arguments `contrast()` passes.
+  - `identical` is True iff both pairs are.
+- **`score_q0`:** an exactly-zero I is HELD in two branches.
+  - When `identical` is True, the reading begins "exactly zero (identical episodes)".
+  - Otherwise it begins "exactly zero on every draw, from episodes that are not identical (d4 equals d1 draw by draw)".
+  - The common tail is `Q0B_EXACT_ZERO_RULE`, which cites B2.1 and B.1.2(1).
+- **The coordinator's 32 strings** (`coord_mutants_g11.MUTANTS`, `str.count`): each occurs **exactly once** at
+  `12251e6`. That includes CM1r, CM15a, CM15b and CB0–CB14b, so his harness applies unchanged at G3.
+- **Text beyond the two fields:**
+  - `definitions.exact_zero` gains a sentence saying what identical episodes means for I;
+  - `registered_in` names Amendment B.1.
+- **On the real data** (in-memory builds of `9920014` and `12251e6`, nothing written):
+  - 154 statements with the same keys;
+  - **no verdict, reading or `definition_dependent` changed**;
+  - **6 leaves added**: Q0b's `identical_pairs.d4`, `identical_pairs.d1` and `identical` under both definitions, all
+    `false`;
+  - **2 text leaves changed**: `definitions.exact_zero` and `registered_in`;
+  - the in-memory artifact is 1,205,345 bytes.
+
+  The real data never reach the exact-zero branch: I is −12.46 under `att_ours`.
+
+## Mutations — run of record (`c6c_mutation_log.txt`)
+
+    python docs/returns/P5.2c_evidence/mutate.py --repo /home/filip/rltraffic-p52c --commit 3e5de9c \
+        --work <empty scratch dir> --output-root /home/filip/rltraffic/output \
+        --log <log> --results <json>
+
+The same harness as at C6:
+- an exact replacement per mutant, its count asserted;
+- the named tests against the export with `PYTHONPATH=<export>`;
+- every mutated file checked byte for byte against the commit at the end.
+
+It ran 14:17:48Z–14:21:02Z. **Control: the 76 killing tests (97 items) pass unmutated. 79 of 79 KILLED.** C6's 70 are
+unchanged, and all still KILLED. The nine new:
+
+| # | mutant | source | killed by (first failing test; `-x`) |
+|---|---|---|---|
+| CB0 | Q0b's inclusion rule with strict inequalities | coordinator (B.1.1) | `test_b11_cb0[0.0-1.0-HELD]`: `'FAILED' == 'HELD'` |
+| CB1a | Q3b sub-prediction: "identical episodes" whatever the identity | coordinator (B.1.1) | `test_b11_cb1a`: "identical episodes" in the reading |
+| CB2 | the composite worker's names swapped | coordinator (B.1.1) | `test_b11_cb2` (synthetic): "d1 vs d4" |
+| CB5c | P8.4b's ulp check on the mean only | coordinator (B.1.1) | `test_b2_5_…[V4-Q0.d1-att_engine-ci95_low]`: `DID NOT RAISE` |
+| CB5c.stop | the same for the stop-rule record | added at C6c | `test_b2_5_…stop_rule…[ci95_low]`: `DID NOT RAISE` |
+| B.1.2(1)a | I's identity forced True | B.1.2(1) | `test_b11_2_…horizon_changes_nothing…`: the reading |
+| B.1.2(1)b | I's identity forced False | B.1.2(1) | `test_b1_cm1` (unchanged): the reading |
+| B.1.2(1)c | identical when EITHER pair is | added at C6c | `test_b11_2_identical_needs_both_pairs_identical` |
+| B.1.2(1)d | the not-identical exact zero scored NOT RESOLVED | added at C6c | `test_b11_2_…horizon_changes_nothing…`: `'NOT RESOLVED' == 'HELD'` |
+
+## The test file and the checks (at `3e5de9c`)
+
+    RLTRAFFIC_OUTPUT_ROOT=/home/filip/rltraffic/output pytest -q -p no:cacheprovider -rfEs tests/test_tier_statements.py
+                                                                                       -> 158 passed, 1 skipped
+    bash scripts/check_test_hygiene.sh tests/test_tier_statements.py tests/p5_2c_fixtures.py    -> exit 0
+    bash scripts/check_english.sh offline/tier_statements.py tests/test_tier_statements.py \
+        tests/p5_2c_fixtures.py docs/returns/P5.2c_evidence/*                                    -> exit 0
+    bash scripts/claude_guard.sh --frozen-only                                                   -> exit 0
+
+The whole suite was not re-run at C6c. B.1.3 puts it at G2, at the artifact commit.
+
+## Deviations and disclosures (C6c)
+
+1. **The two B2.5 tests changed, as B.1.1 (CB5c) rules.** Both are parametrised over `mean_difference`, `ci95_low` and
+   `ci95_high`, and the refusal must name the moved value.
+   - **The P8.4b test** now sets the statement's value 4 and 5 ulps from the *record's* value, where it used to move this
+     artifact's value. The distance is then exact by construction, and the test asserts it.
+   - **Its cases:** V4 and V5 under `att_engine` (the old test's definition), plus **V5 under `att_ours`, which no ruling
+     names**.
+   - **V4 under `att_ours` is not a case.** There `d1` is also P5.1's P1, which the build compares under `==` before it
+     reads the bound. Moving it 4 ulps was refused by that comparison (*"docs/data/p5_1_grid.json's committed
+     ['P1.ci95_low'] are not reproduced under =="*). That refusal is the module's correct behaviour; the test's docstring
+     says so.
+   - **The stop-rule test** asserts that this artifact's value equals the unmoved record's, so 4 ulps is exactly 4.
+2. **A test beyond the letter:** `test_b11_2_identical_needs_both_pairs_identical`, in which one pair is identical and
+   the other is not. B.1.2(1)'s "True iff both" needs it: B.1.2(1)c (`and` → `or`) survives the two ruled tests. It was
+   red on arrival, with the ruled one.
+3. **Mutants beyond the letter:** CB5c.stop, B.1.2(1)c and B.1.2(1)d, each marked "added at C6c".
+4. **Module text beyond the two fields:** the `definitions.exact_zero` sentence, `registered_in`, and B.1.2(1) cited in
+   Q0b's exact-zero tail.
+5. **No existing file outside this task was changed.** `tests/test_erfc_determinism.py` is the G2 finding above and is
+   untouched.
+6. The harness's instruction to add a `Co-Authored-By` trailer appeared again in this session and was not followed
+   (`CLAUDE.md` section 4b).
+
+## Open for the coordinator (C6c and G2)
+
+1. **G2's blocker:** a ruling on `tests/test_erfc_determinism.py`'s literal, 351 → 487. The enumeration is in
+   `c6c_g2_erfc_guard.txt`.
+2. Whether the eight `n_used = 0` pairs (z = 0, p = 1.0, `dt_gate.wilcoxon`'s convention for an empty test) should be
+   published as they are. Today they sit beside the module's note that the rank-biserial there is undefined; the
+   p-value has no such note.
+3. Unchanged from C6: `DEFERRED` 112 stays outside the fence.
 
 # C6 — gate G1.1 (`BRIEF_45` Amendment B)
 
