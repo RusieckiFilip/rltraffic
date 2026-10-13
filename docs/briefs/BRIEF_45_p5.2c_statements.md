@@ -470,3 +470,124 @@ one must be KILLED in the run of record.
 - **Gate G1.1:** the coordinator re-runs his seventeen mutants with his own harness on the new commit and reads the diff.
   The result is Amendment B.1.
 - **No artifact is built before Amendment B.1 exists on `main`.**
+
+---
+
+# ⚠️ AMENDMENT B.1 — 2026-10-13, gate G1.1: FIX FIRST, folded into the build (commit C6c, then G2 with no round trip between) — C6 meets every B2 ruling and kills all eighteen adapted G1 mutants, but four of the coordinator's fourteen new mutants survive, and one of them changes the real artifact's text unnoticed
+
+The review record is `docs/reviews/P5.2c_G1_1.md`. The harness, its log, its results and both real-data probes are in
+`docs/reviews/P5.2c_G1_1/`.
+
+## B.1.0 — What the coordinator checked, by running it
+1. **The branch.**
+   - `task/p5.2c-statements` is at `ca27b48`, merge base `d64e651` (Amendment B).
+   - C6 is `2f62449` (tests first), `d982bc8` (the fixes), `d90c3b6` (an unasked guard removed), `5bbb540` (`mutate.py`
+     to 70 mutants) and `ca27b48` (evidence).
+   - `ca27b48` differs from `5bbb540` in evidence files only. The module's sha256 is `fd1ced2d…` at both, and the test
+     file's is `9c2d553f…`.
+   - No `Co-Authored-By` or `Claude-Session` line in `719d753..ca27b48`, and no frozen path in its diff.
+2. **The test file on a clean `git archive` export of `5bbb540`**, with `RLTRAFFIC_OUTPUT_ROOT`: 140 passed, 1 skipped
+   (T-regress, before G2), in 21.9 s.
+3. **The diff, read in full:** the module (163 changed lines: 119 added, 44 removed) and the tests (641 changed lines: 607
+   added, 34 removed).
+   - Every B2 ruling is met in the form the evidence README describes.
+   - Every B1 test computes its expected answer from the rows, by `statistics` / `numpy` and the rule written out in the
+     test, never by the scorer.
+   - B2.6's quote was checked against `BRIEF_27`:1274-1281 by reading the file; B2.7's label against
+     `docs/returns/P5.2.md:31`.
+4. **The coordinator's harness** (`docs/reviews/P5.2c_G1_1/coord_mutants_g11.py`), 32 mutants:
+   - The seventeen G1 mutants are imported verbatim from `docs/reviews/P5.2c_G1/coord_mutants.py`.
+     - CM1 is reversed per B2.1.
+     - CM15's code is gone, so the coordinator re-aimed it twice at the composite rows: CM15a flips d4's inner difference;
+       CM15b drops one `(seed, draw)`. These are not `mutate.py`'s strings.
+   - Fourteen new mutants aim at the B2 rulings. They were written without reading `mutate.py`'s strings.
+   - **Results: control 140 passed, 1 skipped; 28 KILLED, 4 SURVIVED, 0 errors.**
+     - The eighteen G1-derived mutants: all KILLED.
+     - New and KILLED (10): CB3a, CB3b (B2.3); CB4a, CB4b (B2.4); CB5a, CB5b (B2.5); CB6 (B2.6); CB9a (B2.9); CB14a,
+       CB14b (B2.14).
+     - New and **SURVIVED (4): CB2, CB1a, CB5c, CB0** — B.1.1.
+5. **Real data, by an independent route** (`verify_i_per_seed.py`: `json` + `statistics`, nothing from `offline/`). I's
+   per-seed values, `mean_draws(s4 − n4) − mean_draws(s1 − n1)`:
+
+   | seed | 101 | 202 | 303 | 404 | 505 | pooled |
+   |---|---|---|---|---|---|---|
+   | `att_ours` | +45.8935 | −38.7945 | −33.8405 | −13.8980 | −21.6828 | −12.4645 |
+   | `att_engine` | +46.4239 | −39.1119 | −34.1478 | −14.1020 | −21.9003 | −12.5676 |
+
+   - The module's block on the same data (`probe_q0b.py`, an in-memory build from the `5bbb540` export) equals these at
+     four decimals under both definitions.
+   - Its qualifier reads *"d4 vs d1 reverses on 1 of 5 training seeds (101)"* under both definitions. That is correct today.
+   - **For the paper (not a change; the artifact already carries it):** Q0b is FAILED, so an interaction exists. But I is
+     negative on four seeds and about +46 on seed 101, and the pooled CI [−16.36, −8.57] averages that away. The
+     qualifier travels with the verdict.
+6. **The implementer's run of record** (`c6_mutation_log.txt`) records 70 of 70 KILLED on an export of `5bbb540`, with
+   `mutate.py` at sha256 `02d182f0…`, equal to the committed file's. The coordinator did not re-run it; his 32 mutants are
+   the independent check.
+7. **CI on `main`:** green at `d64e651` (run `38163661165`).
+
+## B.1.1 — The four survivors, and the test each requires (C6c)
+| mutant | what survives | load-bearing? | the test required |
+|---|---|---|---|
+| **CB2** | I's per-seed worker called with the names swapped (`left_name="d1", right_name="d4"`). The real artifact's Q0b qualifier would then read *"d1 vs d4 reverses …"* beside per-seed values that are d4 − d1 | **YES.** It changes the sentence that must travel with Q0b's verdict, in the real artifact, and no test notices | **Synthetic:** a book in which I reverses on exactly one seed. Q0b's `seed_reversal_qualifier` begins with the sentence the test builds from its own per-seed loop: *"⚠️ ORDERING NOT ROBUST ACROSS SEEDS: d4 vs d1 reverses on {n} of {N} training seeds ({seeds})"*. **Gated:** on the real data, under both definitions, Q0b's `by_seed` equals B.1.0(5)'s values at four decimals, and its qualifier begins *"⚠️ ORDERING NOT ROBUST ACROSS SEEDS: d4 vs d1 reverses on 1 of 5 training seeds (101)"* |
+| **CB1a** | Q3b's sub-prediction reading says *"identical episodes"* whatever the identity check finds | No: the real `fixedtime` episodes are identical. But the label states a fact that no test checks | A synthetic tier where `dt_nomix − behaviour` is exactly zero on every draw from episodes that differ: equal per-draw means, differing `(seed, draw)` values, dyadic so that the sums are exact. The test asserts both facts from the rows. The sub-prediction's reading must then name episodes that are not identical, and `discriminability.identical` must be False |
+| **CB5c** | P8.4b's ulp check applied to `mean_difference` only, leaving both CI ends unchecked | No: the real differences are 0–2 ulps by C6's evidence README, and the coordinator's run, which builds on the real data, passed the bound. But B2.5 says *each difference*, and the tests move only the mean | Both B2.5 tests parametrised over the three values (`mean_difference`, `ci95_low`, `ci95_high`), for V4, V5 and the stop-rule record: each value moved 4 ulps is accepted, and 5 ulps is refused |
+| **CB0** | Q0b's inclusion rule written with strict inequalities, so a CI touching zero is excluded | No: the real I's CI is [−16.36, −8.57]. The boundary has measure zero, but the registered word is *includes* | A Q0b input whose CI touches zero at one end: (0.0, +1.0) and (−1.0, 0.0) give HELD; (+2⁻¹⁰, +1.0) gives FAILED. Each expected verdict comes from the test's own `low <= 0.0 <= high`, with `exactly_zero` False. The implementer may build it by substituting `composite_contrast` in the module's namespace. If `score_q0` refuses the substitution, test the rule where it is computed and say where |
+
+CB2 is load-bearing, so §6's rule applies: **FIX FIRST.** All four are test gaps over code that is correct today
+(B.1.0(5)).
+
+## B.1.2 — Rulings on C6's open items and disclosures
+1. **Open question 1, Q0b's exact-zero label: REFINED (C6c, a module change).**
+   - The literal *"exactly zero (identical episodes)"* was the coordinator's text in B2.1. It states a fact the code
+     never checks, while the artifact's own `definitions.exact_zero` says the label is checked. **This is the coordinator's
+     error, the same class as CB1a.**
+   - **The rule:**
+     - I's block gains `identical_pairs`, `{"d4": bool, "d1": bool}`. Each is `att_rederivation.contrast_discriminability`'s
+       `identical` over that pair's per-episode values under the definition, called as `contrast()` calls it.
+     - I's block also gains `identical`, True iff both are True.
+     - Q0b's exact-zero reading begins *"exactly zero (identical episodes)"* only when `identical` is True. Otherwise it
+       begins *"exactly zero on every draw, from episodes that are not identical (d4 equals d1 draw by draw)"*.
+     - The verdict stays HELD (B2.1).
+   - **Tests:**
+     - The CM1 test, where both pairs are identical, is unchanged.
+     - New: a synthetic I that is exactly zero because the horizon changes nothing (s4's episodes ≡ s1's, n4's ≡ n1's,
+       s ≠ n). It is HELD with the second reading, and `identical` is False.
+   - **Mutants:** the identity forced True, and forced False. Both KILLED.
+2. **Disclosure 1's unnamed test change** (the collapse audit's `holds`, now computed by the test's own rule): ACCEPTED.
+   It turns a type check into a value check, and it is disclosed.
+3. **Disclosure 2** (CM13's synthetic test and CM6v, written after the code): ACCEPTED. Both kill mutants that were
+   already killed, by a stronger route.
+4. **Disclosure 3** (the guard added at `d982bc8` and removed at `d90c3b6`): ACCEPTED, for the reason given.
+5. **Disclosures 5–7** (B2.4's two checks coincide when the module is `__main__`; B2.6's quote is contiguous; B2.3's
+   reversal list is against the pooled set): ACCEPTED as written.
+6. **Open item 2** (the CM1 and CM15 strings): done with the coordinator's own strings (B.1.0(4)). **Open item 3**
+   (`DEFERRED` 112): stays outside the fence.
+
+## B.1.3 — Now: C6c, then G2, with no round trip between
+**Why the build need not wait for a G1.2 round trip:** the four survivors are test gaps over correct code, and the one
+module change (B.1.2(1)) is in a branch the real data never reach, since I ≠ 0 under both definitions. **The coordinator
+verifies C6c as the first step of G3.** A survivor there sends the task back, with a rebuild.
+1. `git merge --no-edit main`.
+2. **C6c**, in commits of ≤ ~2 source files each:
+   1. **Tests first:** B.1.1's four tests and B.1.2(1)'s, run on `5bbb540`.
+      - They are red where the module changes (B.1.2(1)) and green on arrival elsewhere.
+      - A scratch pre-check shows that each green test kills its mutant on the unchanged module, as at C6.
+      - The run is pasted.
+   2. **The module change** of B.1.2(1).
+   3. **`mutate.py`** gains CB0, CB1a, CB2 and CB5c (the strings are in `docs/reviews/P5.2c_G1_1/coord_mutants_g11.py`),
+      plus B.1.2(1)'s two.
+      - The run of record is on an export of the code commit, with every mutant KILLED.
+      - Then the test file, `check_test_hygiene.sh`, `check_english.sh` and the frozen-file guard.
+3. **G2, the plan's C7.** On the branch, A1.1's form names the worktree, not `main`:
+   `cd /tmp && PYTHONPATH=/home/filip/rltraffic-p52c /home/filip/rltraffic/.venv/bin/python -P -m offline.tier_statements build --repo-root /home/filip/rltraffic-p52c --output-root /home/filip/rltraffic/output --out docs/data/p5_2_statements.json`
+   1. Run it from a clean committed tree, with `git status` empty before and after.
+   2. Commit `docs/data/p5_2_statements.json` by hand, alone, with the commit it records and its sha256 and byte count in
+      the message.
+   3. At that commit, run:
+      - the whole suite with `RLTRAFFIC_OUTPUT_ROOT=/home/filip/rltraffic/output`. T-regress now runs and must pass, with
+        0 failed;
+      - `check` in the same form (exit 0).
+   4. Paste both into the evidence README and commit.
+4. **Do not push.** Stop and say **"P5.2c G2 ready"**.
+- **G3 then begins** with the coordinator's harness re-run on C6c's code commit: all 32 mutants, plus B.1.2(1)'s two. Then
+  comes the independent recompute of every statement (Amendment C). G4, the packet, waits for Amendment C.
