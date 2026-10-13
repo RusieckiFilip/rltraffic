@@ -821,7 +821,10 @@ def composite_contrast(left: tuple[Cell, Cell], right: tuple[Cell, Cell], *, def
     worker (``tier_sweep.per_seed_block`` -> ``spatial_mixing.per_seed_advantages``) over composite rows: per
     ``(seed, draw)``, ``left[0] - left[1]`` against ``right[0] - right[1]`` (``BRIEF_45`` Amendment B, B2.2), so the
     block carries P5.1's full schema.  By linearity its values are section 3.3's ``(mean_s(left[0]) - mean_s(left[1]))
-    - (mean_s(right[0]) - mean_s(right[1]))``.  A difference of two differences, so no rank-biserial, and it says so."""
+    - (mean_s(right[0]) - mean_s(right[1]))``.  ``identical_pairs`` holds, for d4's pair (``left``) and d1's
+    (``right``), ``att_rederivation.contrast_discriminability``'s ``identical`` over that pair's per-episode values,
+    called as :func:`contrast` calls it; ``identical`` is True iff both are, and Q0b's exact-zero label reads it
+    (``BRIEF_45`` Amendment B.1, B.1.2(1)).  A difference of two differences, so no rank-biserial, and it says so."""
     cells = (*left, *right)
     episodes = [episodes_of(cell, definition) for cell in cells]
     grids = [_grid_of(cell, eps) for cell, eps in zip(cells, episodes)]
@@ -842,12 +845,20 @@ def composite_contrast(left: tuple[Cell, Cell], right: tuple[Cell, Cell], *, def
                   for seed, draw in keys]
     worker = ts.per_seed_block(left_rows, right_rows, left_name="d4", right_name="d1", metric=definition)
     exactly_zero = all(value == 0.0 for value in values)
+    identical_pairs = {
+        name: ar.contrast_discriminability(
+            {(episode.seed, episode.draw_id): episode.att_horizon for episode in episodes[first]},
+            {(episode.seed, episode.draw_id): episode.att_horizon for episode in episodes[first + 1]},
+            tier=tier, left=cells[first].spec.arm, right=cells[first + 1].spec.arm).identical
+        for name, first in (("d4", 0), ("d1", 2))}
+    identical = identical_pairs["d4"] and identical_pairs["d1"]
     return {
         "inputs": [cell.spec.cell_id for cell in cells], "definition": definition, "tier": tier,
         "n_draws": len(draws), "n_seeds": len(seeds),
         "mean_difference": float(stats.mean), "std": float(stats.std), "ci95_half_width": float(stats.ci95),
         "ci95_low": float(low), "ci95_high": float(high), "ci95_width": float(high - low),
         "exactly_zero": exactly_zero, "sign": sign_of(stats.mean),
+        "identical_pairs": identical_pairs, "identical": identical,
         "draws_negative": sum(1 for value in values if value < 0.0),
         "draws_zero": sum(1 for value in values if value == 0.0),
         "draws_positive": sum(1 for value in values if value > 0.0),
@@ -1086,8 +1097,16 @@ REGISTERED_VALUES: Mapping[str, Mapping[str, float]] = {
 }
 
 
+#: Q0b's reading on an exactly-zero I, after the label (``BRIEF_45`` Amendment B, B2.1; Amendment B.1, B.1.2(1)).
+Q0B_EXACT_ZERO_RULE = ("the CI [0, 0] includes zero, so the registered inclusion rule gives HELD "
+                       "(docs/plans/p5.2.md:523-524); the exact zero is labelled and is evidence for no sign (BRIEF_45 "
+                       "Amendment B, B2.1; Amendment B.1, B.1.2(1))")
+
+
 def score_q0(book: Mapping[tuple[str, str], Cell], *, definition: str) -> list[dict[str, Any]]:
-    """Q0's ``d1`` (context), Q0a, Q0b and the stop rule at ``mappo1000``."""
+    """Q0's ``d1`` (context), Q0a, Q0b and the stop rule at ``mappo1000``.  An exactly-zero I is HELD by the inclusion
+    rule; its label says "identical episodes" only when both pairs are identical (I's ``identical``), and otherwise
+    that d4 equals d1 draw by draw from episodes that are not identical (``BRIEF_45`` Amendment B.1, B.1.2(1))."""
     tier = "mappo1000"
     s1, n1 = book[("dt_spatial", tier)], book[("dt_nomix", tier)]
     s4, n4 = book[("dt_spatial_h4", tier)], book[("dt_nomix_h4", tier)]
@@ -1095,10 +1114,11 @@ def score_q0(book: Mapping[tuple[str, str], Cell], *, definition: str) -> list[d
     d4 = contrast(s4, n4, definition=definition, tier=tier)
     interaction = composite_contrast((s4, n4), (s1, n1), definition=definition, tier=tier)
     q0a = interval_outcome(d4["ci95_low"], d4["ci95_high"], predicted="positive")
-    if interaction["exactly_zero"]:
-        q0b, q0b_reading = "HELD", "exactly zero (identical episodes): the CI [0, 0] includes zero, so the registered " \
-                                   "inclusion rule gives HELD (docs/plans/p5.2.md:523-524); the exact zero is labelled " \
-                                   "and is evidence for no sign (BRIEF_45 Amendment B, B2.1)"
+    if interaction["exactly_zero"] and interaction["identical"]:
+        q0b, q0b_reading = "HELD", "exactly zero (identical episodes): " + Q0B_EXACT_ZERO_RULE
+    elif interaction["exactly_zero"]:
+        q0b, q0b_reading = "HELD", ("exactly zero on every draw, from episodes that are not identical (d4 equals d1 "
+                                    "draw by draw): " + Q0B_EXACT_ZERO_RULE)
     elif interaction["ci95_low"] <= 0.0 <= interaction["ci95_high"]:
         q0b, q0b_reading = "HELD", "the CI of mean(I) includes zero"
     else:
@@ -2578,7 +2598,9 @@ def definitions_block() -> dict[str, Any]:
                        "decides the verdict (BRIEF_45 Amendment B, B2.1): NOT RESOLVED for a predicted-sign interval "
                        "rule, where [0, 0] lies on neither side of zero; HELD for Q0b's inclusion rule, where [0, 0] "
                        "includes zero. An exact zero is always labelled exactly zero (identical episodes, or not "
-                       "identical where the episodes differ) and is never offered as evidence for a predicted sign"),
+                       "identical where the episodes differ) and is never offered as evidence for a predicted sign. "
+                       "For I, identical episodes means both pairs' (identical_pairs and identical, each pair by "
+                       "att_rederivation.contrast_discriminability; BRIEF_45 Amendment B.1, B.1.2(1))"),
         "ties": {"quotes": _quotes("tie_rule"),
                  "rule": ("exactly equal levels are not an ordering; Q3a's rank is 1 + the arms strictly lower; every "
                           "tie-dependent integer carries its range over all tie-break orders")},
@@ -2609,8 +2631,9 @@ ROLE = (
 
 
 REGISTERED_IN = (
-    "docs/briefs/BRIEF_45_p5.2c_statements.md, its Amendment A (gate G0; the plan docs/plans/p5.2c.md at 1267715) "
-    "and its Amendment B (gate G1); the author's ruling of 2026-10-08 (PROJECT_PLAN section 8)")
+    "docs/briefs/BRIEF_45_p5.2c_statements.md, its Amendment A (gate G0; the plan docs/plans/p5.2c.md at 1267715), "
+    "its Amendment B (gate G1) and its Amendment B.1 (gate G1.1); the author's ruling of 2026-10-08 (PROJECT_PLAN "
+    "section 8)")
 
 
 def build_artifact(inputs: Inputs, *, git: Mapping[str, Any], code: Sequence[Mapping[str, Any]],
