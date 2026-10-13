@@ -1,0 +1,2 @@
+att_ours {101: 45.8935, 202: -38.7945, 303: -33.8405, 404: -13.898, 505: -21.6828} pooled -12.4645 favouring d4 (negative): 4 reverse against pooled: [101]
+att_engine {101: 46.4239, 202: -39.1119, 303: -34.1478, 404: -14.102, 505: -21.9003} pooled -12.5676 favouring d4 (negative): 4 reverse against pooled: [101]

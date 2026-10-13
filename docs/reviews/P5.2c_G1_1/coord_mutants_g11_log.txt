@@ -1,0 +1,36 @@
+32 mutants; pattern-count mismatches: []
+CONTROL exit=0 140 passed, 1 skipped in 15.18s
+CM1r KILLED: Q0b: an exactly-zero I scored NOT RESOLVED (CM1 reversed per B2.1) | FAILED tests/test_tier_statements.py::test_b1_cm1_an_exactly_zero_interaction_is_held_by_the_registered_inclusion_rule
+CM2 KILLED: composite I: CI half-width doubled, mean unchanged | FAILED tests/test_tier_statements.py::test_t_q0_the_interaction_its_per_seed_values_and_the_three_verdicts
+CM3 KILLED: Q3b sub-prediction: random no longer predicted to resolve | FAILED tests/test_tier_statements.py::test_q3b_reads_the_shared_anchor_as_behaviour_at_random_and_reports_the_sub_prediction
+CM4 KILLED: Q1b scored with LEVEL_BAND (0.30) instead of ANCHOR_BAND (0.10) | FAILED tests/test_tier_statements.py::test_b1_cm4_q1b_holds_only_within_ten_percent_of_the_predicted_level
+CM5 KILLED: Q4a scored on four tiers (mappo1000 added) | FAILED tests/test_tier_statements.py::test_every_registered_statement_is_present_under_both_definitions
+CM6 KILLED: Q5a scored on four tiers (mappo1000 added) | FAILED tests/test_tier_statements.py::test_t_q5b_a_failed_mappo1000_tier_makes_the_aggregate_failed
+CM7 KILLED: leaders: per-seed first places read att_ours whatever the definition | FAILED tests/test_tier_statements.py::test_b1_cm7_the_leaders_per_seed_first_places_are_read_under_each_definition
+CM8 KILLED: collapse audit: the sentence holds if ANY non-DT arm collapses somewhere | FAILED tests/test_tier_statements.py::test_b1_cm8_the_sentence_fails_when_one_non_dt_arm_never_collapses
+CM9 KILLED: contrast: D9 per-seed block always on att_ours | FAILED tests/test_tier_statements.py::test_b1_cm9_each_definitions_per_seed_block_reads_that_definitions_values
+CM10 KILLED: Q6: COLLAPSED iff the CI's HIGH end is above zero | FAILED tests/test_tier_statements.py::test_b1_cm10_a_dt_arm_whose_ci_against_the_anchor_straddles_zero_is_not_collapsed
+CM11 KILLED: Q5c: random's predicted sign flipped to negative | FAILED tests/test_tier_statements.py::test_t_q5_each_tier_by_its_registered_sign
+CM12 KILLED: Q2a: a tie for first counted as the predicted unique first place | FAILED tests/test_tier_statements.py::test_b1_cm12_a_predicted_first_place_tied_for_first_is_not_held
+CM13 KILLED: contrast: exactly_zero if ANY per-draw difference is zero | FAILED tests/test_tier_statements.py::test_cm13_a_contrast_zero_on_some_draws_only_is_not_exactly_zero
+CM14 KILLED: Q4b: the chain scored non-strictly (<=) | FAILED tests/test_tier_statements.py::test_b1_cm14_a_chain_with_two_equal_rungs_is_not_strictly_increasing
+CM15a KILLED: composite I per-seed: d4's inner difference sign-flipped (n4 - s4) in the worker's left rows | FAILED tests/test_tier_statements.py::test_t_q0_the_interaction_its_per_seed_values_and_the_three_verdicts
+CM15b KILLED: composite I per-seed: the last (seed, draw) dropped from the worker's rows | FAILED tests/test_tier_statements.py::test_t_q0_the_interaction_its_per_seed_values_and_the_three_verdicts
+CM16 KILLED: leaders: the lead 'resolves' when the CI's LOW end is below zero | FAILED tests/test_tier_statements.py::test_b1_cm16_a_lead_whose_ci_straddles_zero_does_not_resolve
+CM17 KILLED: Q3b: the aggregate ignores fixedtime (two tiers only) | FAILED tests/test_tier_statements.py::test_b1_cm17_q3b_aggregate_reads_all_three_tiers
+CB1a SURVIVED: Q3b sub-prediction: the exact-zero source always says 'identical episodes' | 140 passed, 1 skipped in 18.30s
+CB2 SURVIVED: composite I: the worker's names swapped (d1 named left, d4 right) -- the qualifier's text names the wrong pair | 140 passed, 1 skipped in 18.62s
+CB3a KILLED: B2.3: measured_first_under_rule not null under a pooled tie | FAILED tests/test_tier_statements.py::test_b2_3_a_pooled_tie_for_first_has_no_first_under_the_rule_and_reversals_against_the_pooled_set
+CB3b KILLED: B2.3: the reversal list compares only the first element, not the set of first places | FAILED tests/test_tier_statements.py::test_b2_3_a_pooled_tie_for_first_has_no_first_under_the_rule_and_reversals_against_the_pooled_set
+CB4a KILLED: B2.4: the running-file check reads only the parent directory's NAME | FAILED tests/test_tier_statements.py::test_b2_4_the_file_run_by_path_from_another_tree_is_refused
+CB4b KILLED: B2.4: provenance hashes the module found by import, not the running file | FAILED tests/test_tier_statements.py::test_b2_4_provenance_code_hashes_the_file_that_runs
+CB5a KILLED: B2.5: the ulp bound made absolute (4 ulps of 1.0) instead of relative to the magnitude | FAILED tests/test_tier_statements.py::test_b2_5_a_value_five_ulps_from_p8_4bs_record_is_refused_and_four_are_accepted
+CB5b KILLED: B2.5: the stop-rule record's ulp check skipped | FAILED tests/test_tier_statements.py::test_b2_5_a_stop_rule_record_five_ulps_away_is_refused_and_four_are_accepted
+CB5c SURVIVED: B2.5: P8.4b's ulp check on the first key only (the CI ends unchecked) | 140 passed, 1 skipped in 18.84s
+CB6 KILLED: B2.6: GATE 2's quote cited one line short (1274-1280) | FAILED tests/test_tier_statements.py::test_t_quotes_every_record_literal_appears_at_its_cited_lines
+CB9a KILLED: B2.9: the out-path existence check on the RESOLVED path (a dangling symlink passes) | FAILED tests/test_tier_statements.py::test_b2_9_a_dangling_symlink_at_the_out_path_is_refused_and_nothing_is_written
+CB14a KILLED: B2.14: CAMPAIGN_COMPLETE not listed (the manifest only) | FAILED tests/test_tier_statements.py::test_b2_14_p8_4bs_campaign_manifest_and_marker_are_listed_with_their_sha256
+CB14b KILLED: B2.14: both campaign files listed with the MANIFEST's sha256 | FAILED tests/test_tier_statements.py::test_b2_14_p8_4bs_campaign_manifest_and_marker_are_listed_with_their_sha256
+CB0 SURVIVED: Q0b's reading on a resolving I: the inclusion rule written with strict inequalities (a CI touching zero excluded) | 140 passed, 1 skipped in 16.53s
+pristine sha fd1ced2d4ac155299b70d7c341a7e7ec4e6707b54f5001c360294d9375f0296a
+exit=0
