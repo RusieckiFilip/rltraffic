@@ -1873,44 +1873,66 @@ def _ulps_away(x: float, n: int) -> float:
     return y
 
 
-def test_b2_5_a_value_five_ulps_from_p8_4bs_record_is_refused_and_four_are_accepted(tree: fx.SyntheticTree) -> None:
+#: The three values of each record B2.5 bounds (``BRIEF_45`` Amendment B.1, B.1.1, CB5c).
+ULP_KEYS = ["mean_difference", "ci95_low", "ci95_high"]
+
+
+@pytest.mark.parametrize("key", ULP_KEYS)
+@pytest.mark.parametrize(("contrast_id", "statement_id", "definition"), [
+    ("V4", "Q0.d1", "att_engine"), ("V5", "Q0a", "att_engine"), ("V5", "Q0a", "att_ours")])
+def test_b2_5_a_value_five_ulps_from_p8_4bs_record_is_refused_and_four_are_accepted(
+        tree: fx.SyntheticTree, contrast_id: str, statement_id: str, definition: str, key: str) -> None:
     """``BRIEF_45`` Amendment B, B2.5: the route explanation is verified, not asserted -- each difference from P8.4b's V4
-    and V5 is at most ``4 * math.ulp(max(|a|, |b|))``.  Here this artifact's ``d1`` under ``att_engine`` is moved 4 and
-    5 ulps from V4's recorded mean (P8.4b's own route still reproduces the record)."""
+    and V5 is at most ``4 * math.ulp(max(|a|, |b|))``.  Amendment B.1, B.1.1 (CB5c): over each record's three values,
+    for V4 (this artifact's ``d1``) and V5 (``d4``).  One value of the statement is set 4 and then 5 ulps from the
+    record's own value (P8.4b's route still reproduces the record), and the refusal names that value.  V4 under
+    ``att_ours`` is not a case: there ``d1`` is also P5.1's P1, which the build compares under ``==`` before it reads
+    the bound, so a moved value is refused by that comparison first."""
     import copy
 
     inputs, statements, audit, ties = _components(tree)
+    recorded = next(c for c in inputs.records["p8_4b_artifact"]["contrasts"]
+                    if c["contrast_id"] == contrast_id)["by_definition"][definition][key]
 
     def moved(n: int) -> list[dict[str, Any]]:
         out = copy.deepcopy(statements)
-        entry = next(s for s in out if s["id"] == "Q0.d1" and s["definition"] == "att_engine")
-        entry["numbers"]["mean_difference"] = _ulps_away(entry["numbers"]["mean_difference"], n)
+        entry = next(s for s in out if s["id"] == statement_id and s["definition"] == definition)
+        entry["numbers"][key] = _ulps_away(recorded, n)
         return out
 
     accepted = tst.comparison_with_the_record(moved(4), audit, ties, inputs, record=())
-    row = next(r for r in accepted["p8_4b"] if (r["contrast_id"], r["definition"]) == ("V4", "att_engine"))
+    row = next(r for r in accepted["p8_4b"] if (r["contrast_id"], r["definition"]) == (contrast_id, definition))
+    assert row["recorded"][key] == recorded
+    assert row["this_artifact"][key] - recorded == 4 * math.ulp(recorded)
     assert row["equal"] is False and row["record_route_reproduces"] is True
-    with pytest.raises(ValueError, match="more than 4 ulps"):
+    refusal = re.escape(f"P8.4b's {contrast_id} under {definition}, {key}: ") + ".*more than 4 ulps"
+    with pytest.raises(ValueError, match=refusal):
         tst.comparison_with_the_record(moved(5), audit, ties, inputs, record=())
 
 
+@pytest.mark.parametrize("key", ULP_KEYS)
 def test_b2_5_a_stop_rule_record_five_ulps_away_is_refused_and_four_are_accepted(tree: fx.SyntheticTree,
-                                                                                 monkeypatch: pytest.MonkeyPatch
-                                                                                 ) -> None:
-    """``BRIEF_45`` Amendment B, B2.5, for P5.2's stop-rule record: the record's mean moved 4 and 5 ulps (re-listed in its
-    manifest), with ``tier_sweep.score_stop_rule`` standing in to reproduce the moved record, so the bound alone decides."""
+                                                                                 monkeypatch: pytest.MonkeyPatch,
+                                                                                 key: str) -> None:
+    """``BRIEF_45`` Amendment B, B2.5, for P5.2's stop-rule record: one of the record's values moved 4 and 5 ulps
+    (re-listed in its manifest), with ``tier_sweep.score_stop_rule`` standing in to reproduce the moved record, so the
+    bound alone decides.  Amendment B.1, B.1.1 (CB5c): over the record's three values; this artifact's value is the
+    unmoved record's, so the distance is exactly 4 and then 5 ulps, and the refusal names the moved value."""
     path = tree.roots.output_root / tst.P5_2_STOP_RULE_RECORD
-    original = json.loads(path.read_bytes())["mean_difference"]
+    original = json.loads(path.read_bytes())[key]
     monkeypatch.setattr(ts, "score_stop_rule", lambda *args: json.loads(path.read_bytes()))
 
     def build(n: int) -> dict[str, Any]:
-        _rewrite(path, lambda p: p.__setitem__("mean_difference", _ulps_away(original, n)))
+        _rewrite(path, lambda p: p.__setitem__(key, _ulps_away(original, n)))
         moved = _resum(tree, tst.P5_2_SUMS_NAME, "p5_2", "p5_2_sums_sha256")
         inputs = tst.load_inputs(moved.roots, pins=moved.pins)
         return tst.build_artifact(inputs, git=SYNTHETIC_GIT, code=SYNTHETIC_CODE, record=())
 
-    assert build(4)["comparison_with_the_record"]["p5_2_stop_rule_record"]["equal"] is False
-    with pytest.raises(ValueError, match="more than 4 ulps"):
+    stop = build(4)["comparison_with_the_record"]["p5_2_stop_rule_record"]
+    assert stop["this_artifact"][key] == original
+    assert stop["recorded"][key] - original == 4 * math.ulp(original)
+    assert stop["equal"] is False
+    with pytest.raises(ValueError, match=re.escape(f"P5.2's stop-rule record, {key}: ") + ".*more than 4 ulps"):
         build(5)
 
 
@@ -1975,6 +1997,146 @@ def test_b2_14_p8_4bs_campaign_manifest_and_marker_are_listed_with_their_sha256(
     for name in ("campaign_manifest.json", "CAMPAIGN_COMPLETE"):
         path = tree.roots.output_root / tst.P8_4B_DIR / name
         assert listed[f"output/{tst.P8_4B_DIR}/{name}"] == hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+# ----------------------------------------------------------------------
+# Amendment B.1 (gate G1.1): the four survivors (B.1.1) and Q0b's exact-zero label (B.1.2(1)).  Every expected answer is
+# this file's own: raw rows, ``statistics``, the rule written out here.  (CB5c is the two B2.5 tests above.)
+# ----------------------------------------------------------------------
+
+
+#: Seed offsets summing to zero: added to a cell's episodes they change three of every four ``(seed, draw)`` values and
+#: no draw's seed sum, which stays exact because every fixture value is dyadic.
+ZERO_SUM_OFFSETS = {101: 0.5, 202: -0.5, 303: 0.0}
+
+#: Q0b's reading on an exactly-zero I from pairs that are not both identical (``BRIEF_45`` Amendment B.1, B.1.2(1)).
+NOT_IDENTICAL_LABEL = "exactly zero on every draw, from episodes that are not identical (d4 equals d1 draw by draw)"
+
+
+def _own_identical(a: tst.Cell, b: tst.Cell, definition: str) -> bool:
+    """True iff the two cells hold equal values on every ``(seed, draw)``, read from the rows."""
+    left = {(int(r["seed"]), int(r["draw_id"])): float(r[definition]) for r in a.rows}
+    right = {(int(r["seed"]), int(r["draw_id"])): float(r[definition]) for r in b.rows}
+    assert left.keys() == right.keys()
+    return all(left[key] == right[key] for key in left)
+
+
+def _own_i_by_seed(book: Mapping[tuple[str, str], tst.Cell], definition: str) -> dict[int, float]:
+    """I per training seed by this file's loop: the mean over draws of ``dt_spatial_h4 - dt_nomix_h4`` minus that of
+    ``dt_spatial - dt_nomix`` (``seq_mean``, exact on the fixture's dyadic values)."""
+    rows = {m: by_seed(book[(m, "mappo1000")].rows, definition)
+            for m in ("dt_spatial_h4", "dt_nomix_h4", "dt_spatial", "dt_nomix")}
+    return {s: seq_mean([a - b for a, b in zip(rows["dt_spatial_h4"][s], rows["dt_nomix_h4"][s])])
+            - seq_mean([a - b for a, b in zip(rows["dt_spatial"][s], rows["dt_nomix"][s])])
+            for s in sorted(rows["dt_spatial_h4"])}
+
+
+def test_b11_cb2_q0bs_qualifier_names_d4_against_d1_from_this_files_per_seed_loop(books: Any) -> None:
+    """CB2 (``BRIEF_45`` Amendment B.1, B.1.1): ``dt_spatial_h4`` + 25 on seed 101 makes I reverse on that seed alone.
+    Q0b's per-seed values are this test's loop's, and its ``seed_reversal_qualifier`` begins with the sentence built here
+    from that loop, naming d4 first: a worker called with the two names swapped reads "d1 vs d4"."""
+    book = _shifted(books["corrected"], ("dt_spatial_h4", "mappo1000"), lambda r: 25.0 if r["seed"] == 101 else 0.0)
+    for definition in tst.DEFINITIONS:
+        per_seed = _own_i_by_seed(book, definition)
+        pooled = seq_mean(list(per_seed.values()))
+        reversing = [str(s) for s, v in per_seed.items() if (v < 0) != (pooled < 0) and v != 0.0]
+        assert reversing == ["101"], "the data no longer discriminate"
+        expected = (f"⚠️ ORDERING NOT ROBUST ACROSS SEEDS: d4 vs d1 reverses on {len(reversing)} of "
+                    f"{len(per_seed)} training seeds ({', '.join(reversing)})")
+        numbers = next(e for e in tst.score_q0(book, definition=definition) if e["id"] == "Q0b")["numbers"]
+        assert numbers["per_seed"]["by_seed"] == {str(s): v for s, v in per_seed.items()}, definition
+        qualifier = numbers["seed_reversal_qualifier"]
+        assert qualifier is not None and qualifier.startswith(expected), qualifier
+
+
+def test_b11_cb1a_q3bs_exact_zero_from_episodes_that_differ_is_not_called_identical(books: Any) -> None:
+    """CB1a (``BRIEF_45`` Amendment B.1, B.1.1): at ``maxpressure`` ``dt_nomix`` holds ``behaviour``'s episodes moved by
+    :data:`ZERO_SUM_OFFSETS`, so ``dt_nomix - behaviour`` is exactly zero on every draw from episodes that differ --
+    both facts read from the rows here.  The sub-prediction's reading names episodes that are not identical, and
+    ``discriminability.identical`` is False."""
+    book = _as(books["corrected"], ("dt_nomix", "maxpressure"), ("behaviour", "maxpressure"),
+               lambda r: ZERO_SUM_OFFSETS[r["seed"]])
+    left, right = book[("dt_nomix", "maxpressure")], book[("behaviour", "maxpressure")]
+    for definition in tst.DEFINITIONS:
+        differences = own_paired(left, right, definition)
+        assert differences and all(x == 0.0 for x in differences), "no longer exactly zero on every draw"
+        identical = _own_identical(left, right, definition)
+        assert identical is False, "the episodes no longer differ"
+        _, _, low, high = own_interval(differences)
+        resolved = low > 0.0 or high < 0.0
+        entry = next(e for e in tst.score_q3b(book, definition=definition) if (e["id"], e["tier"]) == ("Q3b",
+                                                                                                         "maxpressure"))
+        numbers = entry["numbers"]
+        assert numbers["exactly_zero"] is True
+        assert numbers["discriminability"]["identical"] is identical
+        sub = numbers["sub_prediction"]
+        assert (sub["exactly_zero"], sub["resolved"], sub["matched"]) == (True, resolved, not resolved)
+        assert "episodes that are not identical" in sub["reading"]
+        assert "identical episodes" not in sub["reading"], sub["reading"]
+
+
+@pytest.mark.parametrize(("low", "high", "ruled"), [(0.0, 1.0, "HELD"), (-1.0, 0.0, "HELD"), (2.0 ** -10, 1.0, "FAILED")])
+def test_b11_cb0_a_ci_touching_zero_at_one_end_is_included_by_q0bs_rule(books: Any, monkeypatch: pytest.MonkeyPatch,
+                                                                        low: float, high: float, ruled: str) -> None:
+    """CB0 (``BRIEF_45`` Amendment B.1, B.1.1): Q0b is HELD iff the CI of mean(I) INCLUDES 0
+    (``docs/plans/p5.2.md:523-524``), and a CI touching zero at one end includes it.  ``composite_contrast`` is
+    substituted in the module's namespace by the real block carrying this CI, with ``exactly_zero`` False; the expected
+    verdict is this test's own ``low <= 0.0 <= high``, and the three cases are the ruling's."""
+    real = tst.composite_contrast
+
+    def touching(left: Any, right: Any, *, definition: str, tier: str) -> dict[str, Any]:
+        mean = (low + high) / 2.0
+        return {**real(left, right, definition=definition, tier=tier), "mean_difference": mean, "ci95_low": low,
+                "ci95_high": high, "ci95_half_width": (high - low) / 2.0, "ci95_width": high - low,
+                "exactly_zero": False, "sign": "positive" if mean > 0.0 else "negative"}
+
+    monkeypatch.setattr(tst, "composite_contrast", touching)
+    q0b = next(e for e in tst.score_q0(books["corrected"], definition="att_ours") if e["id"] == "Q0b")
+    assert (q0b["numbers"]["ci95_low"], q0b["numbers"]["ci95_high"], q0b["numbers"]["exactly_zero"]) == (low, high, False)
+    own = "HELD" if low <= 0.0 <= high else "FAILED"
+    assert own == ruled, "the cases no longer discriminate"
+    assert q0b["verdict"] == own
+    assert q0b["reading"].startswith("the CI of mean(I) includes zero" if own == "HELD" else
+                                     "the CI of mean(I) excludes zero")
+
+
+def _assert_q0b_exactly_zero_and_not_identical(book: Mapping[tuple[str, str], tst.Cell],
+                                               pairs: Mapping[str, bool]) -> None:
+    """Under both definitions: I is exactly zero on every draw and the pairs' identity is *pairs* (each read from the
+    rows here); Q0b is HELD by this file's inclusion rule, its reading begins with :data:`NOT_IDENTICAL_LABEL`, and its
+    ``identical_pairs`` and ``identical`` are this file's."""
+    s4, n4 = book[("dt_spatial_h4", "mappo1000")], book[("dt_nomix_h4", "mappo1000")]
+    s1, n1 = book[("dt_spatial", "mappo1000")], book[("dt_nomix", "mappo1000")]
+    for definition in tst.DEFINITIONS:
+        interaction = [a - b for a, b in zip(own_paired(s4, n4, definition), own_paired(s1, n1, definition))]
+        assert interaction and all(x == 0.0 for x in interaction), "I is no longer exactly zero on every draw"
+        own_pairs = {"d4": _own_identical(s4, n4, definition), "d1": _own_identical(s1, n1, definition)}
+        assert own_pairs == dict(pairs), "the data no longer discriminate"
+        _, _, low, high = own_interval(interaction)
+        q0b = next(e for e in tst.score_q0(book, definition=definition) if e["id"] == "Q0b")
+        assert q0b["verdict"] == ("HELD" if low <= 0.0 <= high else "FAILED")
+        assert q0b["reading"].startswith(NOT_IDENTICAL_LABEL), q0b["reading"]
+        assert q0b["numbers"]["exactly_zero"] is True
+        assert q0b["numbers"]["identical_pairs"] == own_pairs
+        assert q0b["numbers"]["identical"] is (own_pairs["d4"] and own_pairs["d1"])
+
+
+def test_b11_2_an_i_exactly_zero_because_the_horizon_changes_nothing_is_held_and_not_identical(books: Any) -> None:
+    """``BRIEF_45`` Amendment B.1, B.1.2(1): s4's episodes are s1's and n4's are n1's while s differs from n, so I is
+    exactly zero on every draw from pairs that are not identical.  Q0b is HELD (B2.1), its reading begins with the
+    not-identical label, and ``identical`` is False."""
+    book = _as(books["corrected"], ("dt_spatial_h4", "mappo1000"), ("dt_spatial", "mappo1000"))
+    book = _as(book, ("dt_nomix_h4", "mappo1000"), ("dt_nomix", "mappo1000"))
+    _assert_q0b_exactly_zero_and_not_identical(book, {"d4": False, "d1": False})
+
+
+def test_b11_2_identical_needs_both_pairs_identical(books: Any) -> None:
+    """``BRIEF_45`` Amendment B.1, B.1.2(1): ``identical`` is True iff BOTH pairs are.  Here d4's pair is identical
+    (``dt_spatial_h4`` holds ``dt_nomix_h4``'s episodes) and d1's is not, yet is exactly zero draw by draw
+    (``dt_spatial`` is ``dt_nomix`` moved by :data:`ZERO_SUM_OFFSETS`), so I is exactly zero and not identical."""
+    book = _as(books["corrected"], ("dt_spatial_h4", "mappo1000"), ("dt_nomix_h4", "mappo1000"))
+    book = _as(book, ("dt_spatial", "mappo1000"), ("dt_nomix", "mappo1000"), lambda r: ZERO_SUM_OFFSETS[r["seed"]])
+    _assert_q0b_exactly_zero_and_not_identical(book, {"d4": True, "d1": False})
 
 
 # ----------------------------------------------------------------------
@@ -2407,3 +2569,27 @@ def test_b2_14_real_p8_4bs_campaign_manifest_and_marker_are_listed_with_their_sh
     for name in ("campaign_manifest.json", "CAMPAIGN_COMPLETE"):
         digest = hashlib.sha256((output / tst.P8_4B_DIR / name).read_bytes()).hexdigest()
         assert listed[f"output/{tst.P8_4B_DIR}/{name}"] == digest
+
+
+# ----------------------------------------------------------------------
+# Amendment B.1 (gate G1.1), real data: CB2's gated assertion
+# ----------------------------------------------------------------------
+
+
+#: I's per-seed values on the real data at four decimals, by the coordinator's independent route (``json`` and
+#: ``statistics``, nothing from ``offline/``): ``BRIEF_45`` Amendment B.1, B.1.0(5).
+REAL_I_BY_SEED = {
+    "att_ours": {"101": "+45.8935", "202": "-38.7945", "303": "-33.8405", "404": "-13.8980", "505": "-21.6828"},
+    "att_engine": {"101": "+46.4239", "202": "-39.1119", "303": "-34.1478", "404": "-14.1020", "505": "-21.9003"},
+}
+
+
+def test_b11_cb2_real_q0bs_per_seed_values_and_qualifier_under_both_definitions(real_artifact: dict[str, Any]) -> None:
+    """CB2 on real data (``BRIEF_45`` Amendment B.1, B.1.1): under both definitions Q0b's ``by_seed`` equals B.1.0(5)'s
+    values at four decimals, and its qualifier names d4 against d1, reversing on seed 101 alone."""
+    for definition in tst.DEFINITIONS:
+        numbers = _q(real_artifact, "Q0b", "mappo1000", definition=definition)["numbers"]
+        assert {s: _f4(v) for s, v in numbers["per_seed"]["by_seed"].items()} == REAL_I_BY_SEED[definition], definition
+        qualifier = numbers["seed_reversal_qualifier"]
+        assert qualifier is not None and qualifier.startswith(
+            "⚠️ ORDERING NOT ROBUST ACROSS SEEDS: d4 vs d1 reverses on 1 of 5 training seeds (101)"), qualifier

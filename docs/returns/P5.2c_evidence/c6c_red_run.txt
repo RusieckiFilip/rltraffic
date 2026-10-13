@@ -1,0 +1,99 @@
+# P5.2c C6c (BRIEF_45 Amendment B.1, B.1.3 step 2.1): the red run -- the new and changed tests against the module
+# unchanged since 5bbb540 (B.1.1's four survivors; B.1.2(1)'s label).
+# date (UTC): 2026-10-13T13:38:26Z
+# HEAD: 60f3306894ee5cb1b3fde5ad44296cbd41cebfeb (merge of main at 81c30d3 into the branch; the module at HEAD is 5bbb540's, the test file is this commit's)
+# offline/tier_statements.py sha256 here: fd1ced2d4ac155299b70d7c341a7e7ec4e6707b54f5001c360294d9375f0296a
+# offline/tier_statements.py sha256 at 5bbb540: fd1ced2d4ac155299b70d7c341a7e7ec4e6707b54f5001c360294d9375f0296a
+# tests/test_tier_statements.py sha256 here (the file this commit adds): 8230603f109eb642f185234cbe900d9c5252f6a4624b6633a6251ad82d2a0064
+# command: RLTRAFFIC_OUTPUT_ROOT=/home/filip/rltraffic/output /home/filip/rltraffic/.venv/bin/pytest -q -p no:cacheprovider -rfEs tests/test_tier_statements.py
+
+........................................................................ [ 45%]
+.....................................................................FF. [ 90%]
+........s......                                                          [100%]
+=================================== FAILURES ===================================
+_ test_b11_2_an_i_exactly_zero_because_the_horizon_changes_nothing_is_held_and_not_identical _
+
+books = {'corrected': {('dt_spatial', 'mappo1000'): Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', method='dt...': 1302, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 5.0, 'episode_reward': -1003.0})), ...}}
+
+    def test_b11_2_an_i_exactly_zero_because_the_horizon_changes_nothing_is_held_and_not_identical(books: Any) -> None:
+        """``BRIEF_45`` Amendment B.1, B.1.2(1): s4's episodes are s1's and n4's are n1's while s differs from n, so I is
+        exactly zero on every draw from pairs that are not identical.  Q0b is HELD (B2.1), its reading begins with the
+        not-identical label, and ``identical`` is False."""
+        book = _as(books["corrected"], ("dt_spatial_h4", "mappo1000"), ("dt_spatial", "mappo1000"))
+        book = _as(book, ("dt_nomix_h4", "mappo1000"), ("dt_nomix", "mappo1000"))
+>       _assert_q0b_exactly_zero_and_not_identical(book, {"d4": False, "d1": False})
+
+tests/test_tier_statements.py:2130: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+book = {('dt_spatial', 'mappo1000'): Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', method='dt_spatial', tie...d': 1302, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 5.0, 'episode_reward': -1003.0})), ...}
+pairs = {'d4': False, 'd1': False}
+
+    def _assert_q0b_exactly_zero_and_not_identical(book: Mapping[tuple[str, str], tst.Cell],
+                                                   pairs: Mapping[str, bool]) -> None:
+        """Under both definitions: I is exactly zero on every draw and the pairs' identity is *pairs* (each read from the
+        rows here); Q0b is HELD by this file's inclusion rule, its reading begins with :data:`NOT_IDENTICAL_LABEL`, and its
+        ``identical_pairs`` and ``identical`` are this file's."""
+        s4, n4 = book[("dt_spatial_h4", "mappo1000")], book[("dt_nomix_h4", "mappo1000")]
+        s1, n1 = book[("dt_spatial", "mappo1000")], book[("dt_nomix", "mappo1000")]
+        for definition in tst.DEFINITIONS:
+            interaction = [a - b for a, b in zip(own_paired(s4, n4, definition), own_paired(s1, n1, definition))]
+            assert interaction and all(x == 0.0 for x in interaction), "I is no longer exactly zero on every draw"
+            own_pairs = {"d4": _own_identical(s4, n4, definition), "d1": _own_identical(s1, n1, definition)}
+            assert own_pairs == dict(pairs), "the data no longer discriminate"
+            _, _, low, high = own_interval(interaction)
+            q0b = next(e for e in tst.score_q0(book, definition=definition) if e["id"] == "Q0b")
+            assert q0b["verdict"] == ("HELD" if low <= 0.0 <= high else "FAILED")
+>           assert q0b["reading"].startswith(NOT_IDENTICAL_LABEL), q0b["reading"]
+E           AssertionError: exactly zero (identical episodes): the CI [0, 0] includes zero, so the registered inclusion rule gives HELD (docs/plans/p5.2.md:523-524); the exact zero is labelled and is evidence for no sign (BRIEF_45 Amendment B, B2.1)
+E           assert False
+E            +  where False = <built-in method startswith of str object at 0x7eeae6755020>('exactly zero on every draw, from episodes that are not identical (d4 equals d1 draw by draw)')
+E            +    where <built-in method startswith of str object at 0x7eeae6755020> = 'exactly zero (identical episodes): the CI [0, 0] includes zero, so the registered inclusion rule gives HELD (docs/plans/p5.2.md:523-524); the exact zero is labelled and is evidence for no sign (BRIEF_45 Amendment B, B2.1)'.startswith
+
+tests/test_tier_statements.py:2118: AssertionError
+_______________ test_b11_2_identical_needs_both_pairs_identical ________________
+
+books = {'corrected': {('dt_spatial', 'mappo1000'): Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', method='dt...': 1302, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 5.0, 'episode_reward': -1003.0})), ...}}
+
+    def test_b11_2_identical_needs_both_pairs_identical(books: Any) -> None:
+        """``BRIEF_45`` Amendment B.1, B.1.2(1): ``identical`` is True iff BOTH pairs are.  Here d4's pair is identical
+        (``dt_spatial_h4`` holds ``dt_nomix_h4``'s episodes) and d1's is not, yet is exactly zero draw by draw
+        (``dt_spatial`` is ``dt_nomix`` moved by :data:`ZERO_SUM_OFFSETS`), so I is exactly zero and not identical."""
+        book = _as(books["corrected"], ("dt_spatial_h4", "mappo1000"), ("dt_nomix_h4", "mappo1000"))
+        book = _as(book, ("dt_spatial", "mappo1000"), ("dt_nomix", "mappo1000"), lambda r: ZERO_SUM_OFFSETS[r["seed"]])
+>       _assert_q0b_exactly_zero_and_not_identical(book, {"d4": True, "d1": False})
+
+tests/test_tier_statements.py:2139: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+book = {('dt_spatial', 'mappo1000'): Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', method='dt_spatial', tie...d': 1302, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 5.0, 'episode_reward': -1003.0})), ...}
+pairs = {'d4': True, 'd1': False}
+
+    def _assert_q0b_exactly_zero_and_not_identical(book: Mapping[tuple[str, str], tst.Cell],
+                                                   pairs: Mapping[str, bool]) -> None:
+        """Under both definitions: I is exactly zero on every draw and the pairs' identity is *pairs* (each read from the
+        rows here); Q0b is HELD by this file's inclusion rule, its reading begins with :data:`NOT_IDENTICAL_LABEL`, and its
+        ``identical_pairs`` and ``identical`` are this file's."""
+        s4, n4 = book[("dt_spatial_h4", "mappo1000")], book[("dt_nomix_h4", "mappo1000")]
+        s1, n1 = book[("dt_spatial", "mappo1000")], book[("dt_nomix", "mappo1000")]
+        for definition in tst.DEFINITIONS:
+            interaction = [a - b for a, b in zip(own_paired(s4, n4, definition), own_paired(s1, n1, definition))]
+            assert interaction and all(x == 0.0 for x in interaction), "I is no longer exactly zero on every draw"
+            own_pairs = {"d4": _own_identical(s4, n4, definition), "d1": _own_identical(s1, n1, definition)}
+            assert own_pairs == dict(pairs), "the data no longer discriminate"
+            _, _, low, high = own_interval(interaction)
+            q0b = next(e for e in tst.score_q0(book, definition=definition) if e["id"] == "Q0b")
+            assert q0b["verdict"] == ("HELD" if low <= 0.0 <= high else "FAILED")
+>           assert q0b["reading"].startswith(NOT_IDENTICAL_LABEL), q0b["reading"]
+E           AssertionError: exactly zero (identical episodes): the CI [0, 0] includes zero, so the registered inclusion rule gives HELD (docs/plans/p5.2.md:523-524); the exact zero is labelled and is evidence for no sign (BRIEF_45 Amendment B, B2.1)
+E           assert False
+E            +  where False = <built-in method startswith of str object at 0x7eeae6755020>('exactly zero on every draw, from episodes that are not identical (d4 equals d1 draw by draw)')
+E            +    where <built-in method startswith of str object at 0x7eeae6755020> = 'exactly zero (identical episodes): the CI [0, 0] includes zero, so the registered inclusion rule gives HELD (docs/plans/p5.2.md:523-524); the exact zero is labelled and is evidence for no sign (BRIEF_45 Amendment B, B2.1)'.startswith
+
+tests/test_tier_statements.py:2118: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_tier_statements.py::test_b11_2_an_i_exactly_zero_because_the_horizon_changes_nothing_is_held_and_not_identical
+FAILED tests/test_tier_statements.py::test_b11_2_identical_needs_both_pairs_identical
+SKIPPED [1] tests/test_tier_statements.py:2490: /home/filip/rltraffic-p52c/docs/data/p5_2_statements.json not found: the artifact is built and committed at gate G2 (the plan's C7)
+2 failed, 156 passed, 1 skipped in 18.55s
+# pytest exit: 1
