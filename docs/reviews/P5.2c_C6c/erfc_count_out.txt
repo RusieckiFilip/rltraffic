@@ -1,0 +1,31 @@
+BEFORE: pairs 351
+  by file {'p4_3_p4_gate_effect_sizes': 3, 'p4_3_rtg': 17, 'p4_4_baselines': 7, 'p4_5_baselines': 10, 'p4_6_grid': 90, 'p4_7_grid': 192, 'p4_gate': 3, 'p5_3a_rtg_probe': 8, 'p5_3b_nortg': 9, 'p5_3c_context_sweep': 12}
+artifact bytes 1205345
+AFTER: pairs 487 added 136 other files unchanged: True
+  added by path class:
+     64  p5_2_statements.json.statements.numbers.paired_comparison.wilcoxon
+     34  p5_2_statements.json.descriptive_collapse_audit.rows.contrast.paired_comparison.wilcoxon
+     16  p5_2_statements.json.descriptive_collapse_audit.dt_rows.contrast.paired_comparison.wilcoxon
+     12  p5_2_statements.json.leaders.leader_minus_runner_up.paired_comparison.wilcoxon
+     10  p5_2_statements.json.statements.numbers.contrast.paired_comparison.wilcoxon
+  added carrying 'alternative': []
+  reproduce under == via dt_gate._normal_cdf: 136 of 136
+  max |p - erfc(|z|/sqrt2)| in ulps (independent route): 0.0
+  z signs: {'neg': 128, 'zero': 8}
+ZERO-z pairs:
+  p5_2_statements.json.statements[74].numbers.paired_comparison.wilcoxon z 0.0 p 1.0 {'n_used': 0, 'n_zero': 100, 'statistic': 0.0, 'w_minus': 0.0, 'w_plus': 0.0}
+     statement Q3b fixedtime att_ours | NOT RESOLVED | exactly zero (identical episodes)
+  p5_2_statements.json.statements[75].numbers.paired_comparison.wilcoxon z 0.0 p 1.0 {'n_used': 0, 'n_zero': 100, 'statistic': 0.0, 'w_minus': 0.0, 'w_plus': 0.0}
+     statement Q3b fixedtime att_engine | NOT RESOLVED | exactly zero (identical episodes)
+  p5_2_statements.json.statements[94].numbers.paired_comparison.wilcoxon z 0.0 p 1.0 {'n_used': 0, 'n_zero': 100, 'statistic': 0.0, 'w_minus': 0.0, 'w_plus': 0.0}
+     statement Q4.d fixedtime att_ours | None | exactly zero (identical episodes)
+  p5_2_statements.json.statements[95].numbers.paired_comparison.wilcoxon z 0.0 p 1.0 {'n_used': 0, 'n_zero': 100, 'statistic': 0.0, 'w_minus': 0.0, 'w_plus': 0.0}
+     statement Q4.d fixedtime att_engine | None | exactly zero (identical episodes)
+  p5_2_statements.json.statements[100].numbers.paired_comparison.wilcoxon z 0.0 p 1.0 {'n_used': 0, 'n_zero': 100, 'statistic': 0.0, 'w_minus': 0.0, 'w_plus': 0.0}
+     statement Q4a fixedtime att_ours | NOT RESOLVED | exactly zero (identical episodes)
+  p5_2_statements.json.statements[101].numbers.paired_comparison.wilcoxon z 0.0 p 1.0 {'n_used': 0, 'n_zero': 100, 'statistic': 0.0, 'w_minus': 0.0, 'w_plus': 0.0}
+     statement Q4a fixedtime att_engine | NOT RESOLVED | exactly zero (identical episodes)
+  p5_2_statements.json.statements[132].numbers.paired_comparison.wilcoxon z 0.0 p 1.0 {'n_used': 0, 'n_zero': 100, 'statistic': 0.0, 'w_minus': 0.0, 'w_plus': 0.0}
+     statement Q5c fixedtime att_ours | NOT RESOLVED | exactly zero (identical episodes)
+  p5_2_statements.json.statements[133].numbers.paired_comparison.wilcoxon z 0.0 p 1.0 {'n_used': 0, 'n_zero': 100, 'statistic': 0.0, 'w_minus': 0.0, 'w_plus': 0.0}
+     statement Q5c fixedtime att_engine | NOT RESOLVED | exactly zero (identical episodes)

@@ -591,3 +591,190 @@ verifies C6c as the first step of G3.** A survivor there sends the task back, wi
 4. **Do not push.** Stop and say **"P5.2c G2 ready"**.
 - **G3 then begins** with the coordinator's harness re-run on C6c's code commit: all 32 mutants, plus B.1.2(1)'s two. Then
   comes the independent recompute of every statement (Amendment C). G4, the packet, waits for Amendment C.
+
+---
+
+# ⚠️ AMENDMENT B.2 — 2026-10-13, G2's blocker ruled: `tests/test_erfc_determinism.py` 351 → 487 AUTHORISED in writing; the eight empty-test p-values labelled first (commit C6d); then G2, guard commit first
+
+C6c passes: all 38 of the coordinator's mutants are KILLED. G2 stopped, correctly, before the build. The review record is
+`docs/reviews/P5.2c_C6c.md`. The harness, its log and results, and the independent p-value walk are in
+`docs/reviews/P5.2c_C6c/`.
+
+## B.2.0 — What the coordinator checked, by running it
+1. **The branch.**
+   - At `d3473f1`. C6c is `9920014` (tests first), `12251e6` (the module change), `3e5de9c` (`mutate.py` to 79) and
+     `d3473f1` (evidence), after the merge `60f3306`.
+   - The module and the test file are unchanged by `3e5de9c`. Their sha256 values are `96664765…` and `8230603f…`.
+   - No `Co-Authored-By` or `Claude-Session` line in `ca27b48..d3473f1`.
+   - No frozen path in `81c30d3..d3473f1`.
+2. **The C6c diff, read in full.**
+   - **The module change is B.1.2(1)'s:**
+     - `identical_pairs` comes from `contrast_discriminability`, called with `contrast()`'s arguments;
+     - `identical` is True iff both pairs are;
+     - there are two exact-zero readings.
+   - **Every new test computes its expected answer by its own route:**
+     - CB2's sentence comes from the test's own per-seed loop;
+     - CB0's verdict comes from its own `low <= 0.0 <= high`;
+     - CB5c's distance is exact by construction (`4 * math.ulp(recorded)`);
+     - CB1a's and B.1.2(1)'s identities come from the rows.
+3. **The coordinator's harness on a clean export of `3e5de9c`** (`coord_mutants_g2c.py`).
+   - **The mutants:**
+     - the 32 G1.1 mutants, imported verbatim;
+     - six new ones on B.1.2(1), written from the module diff without reading `mutate.py`'s strings:
+       - CL1: identity forced True;
+       - CL2: identity forced False;
+       - CL3: identical when either pair is, instead of both;
+       - CL4: the not-identical exact zero scored NOT RESOLVED;
+       - CL5: d1's identity read from d4's cells;
+       - CL6: each pair compared with itself.
+   - **Control:** 158 passed, 1 skipped.
+   - **Result: 38 KILLED, 0 SURVIVED, 0 errors.** That includes CB2, CB1a, CB5c and CB0, each killed by its B.1.1 test.
+     **This is G3's first step (B.1.3), done now.**
+4. **The blocker, independently** (`erfc_count.py`).
+   - **Method:** its own walker over `docs/data/**/*.json` of a second clean export, with the artifact built in memory and
+     written into that export only.
+   - **Without the artifact: 351 pairs**, the same per-file breakdown as `BRIEF_42` E.1.0.
+   - **With it: 487.** The other files' pairs are unchanged.
+   - **The in-memory artifact** is 1,205,345 bytes, sha256 `bd12fea1…`. It is byte-identical to the implementer's in-memory
+     build.
+   - **The 136, by path class:**
+     - 64 `statements[*].numbers.paired_comparison.wilcoxon`;
+     - 34 `descriptive_collapse_audit.rows[*].contrast.paired_comparison.wilcoxon`;
+     - 16 `descriptive_collapse_audit.dt_rows[*].contrast.paired_comparison.wilcoxon`;
+     - 12 `leaders[*].leader_minus_runner_up[*].paired_comparison.wilcoxon`;
+     - 10 `statements[*].numbers.contrast.paired_comparison.wilcoxon`.
+   - None carries `alternative`.
+   - **All 136 reproduce:**
+     - under `==` through `dt_gate._normal_cdf`;
+     - by the independent route `math.erfc(|z|/√2)`, at 0 ulps.
+   - **z:** 128 negative, 8 exactly zero, 0 positive.
+5. **The eight.**
+   - **Where:** Q3b, Q4.d, Q4a and Q5c at `fixedtime`, under both definitions.
+   - **What each holds:** `n_used = 0`, `n_zero = 100`, z = 0.0 and p = 1.0. Its statement's reading begins *"exactly zero
+     (identical episodes)"*.
+   - **Where the values come from:** `dt_gate.wilcoxon_signed_rank` returns exactly these when `n_used == 0`
+     (`offline/dt_gate.py:422-425`, read in the source). **That is an empty test, not a result.**
+   - **What is labelled:** the block marks its rank-biserial undefined (`rank_biserial_defined: false`, with a note). The
+     p-value carries no such note.
+6. **The class is older than this task.** `p5_3b_nortg.json` on `main` already publishes three empty-test pairs:
+   - `comparisons.random.paired.wilcoxon` and its two `by_definition` copies;
+   - each with `n_used = 0`, z = 0.0 and p = 1.0, and no note.
+
+   **Not reopened.** P5.3b is merged, and its values are the registered route's. B.2.5 covers the paper.
+7. **Two-sided z's are never positive here.**
+   - **Measured over the population:** of the 351 pairs on `main`, the only positive z's are P5.3c's four one-sided T1s, whose z
+     is signed from W+ under a registered `alternative`. Every pair without an `alternative` key has z ≤ 0, and so do
+     all 136 new ones.
+   - **For `dt_gate.wilcoxon_signed_rank` this is by construction:** line 430 takes `min(W+, W−)`, and the z of line 446
+     can be positive only when W+ = W−.
+   - **A two-sided z's sign is therefore not a direction.**
+8. **The coordinator's miss.** `BRIEF_45` §6 and B.1.3 did not name this guard.
+   - It had fired on each of the three artifacts that added p-values since its count was pinned at 322 on 2026-08-17:
+     P5.3a, P5.3b and P5.3c (351 − 322 = 29 = 8 + 9 + 12). Its own docstring
+     records all three.
+   - The coordinator's A2 Q8 ruling is what put the 136 Wilcoxon blocks in.
+   - The implementer caught it before the build, and his stop was the right call: changing the test himself would have
+     been editing a test to make it pass.
+
+## B.2.1 — THE AUTHORISATION, to be quoted verbatim in the test and in the packet
+*"test_erfc_determinism 351 -> 487 AUTHORISED (BRIEF_45 Amendment B.2, 2026-10-13), same footing as BRIEF_29 section 1 B, the
+2026-09-10 authorisation and BRIEF_42 Amendment E.1. The 136 are P5.2c's two-sided Wilcoxon blocks in p5_2_statements.json (D8;
+BRIEF_45 Amendment A, A2 Q8), enumerated by the guard's own paths: 64 statements[*].numbers.paired_comparison.wilcoxon, 34
+descriptive_collapse_audit.rows[*].contrast.paired_comparison.wilcoxon, 16
+descriptive_collapse_audit.dt_rows[*].contrast.paired_comparison.wilcoxon, 12
+leaders[*].leader_minus_runner_up[*].paired_comparison.wilcoxon and 10 statements[*].numbers.contrast.paired_comparison.wilcoxon.
+None carries an alternative key, so ONE_SIDED_PAIRS is unchanged. Eight have n_used = 0 (z = 0.0 and p = 1.0,
+dt_gate.wilcoxon_signed_rank's convention for an empty test), and the artifact labels each as undefined."*
+
+## B.2.2 — What changes in `tests/test_erfc_determinism.py`, and nothing else
+1. **Change:**
+   - the literal 351 → **487**;
+   - the docstring's first line, with the history (322 → 330 → 339 → 351 → 487);
+   - the assertion message, which gains *"plus the 136 P5.2c Wilcoxon blocks in p5_2_statements.json (BRIEF_45 Amendment
+     B.2, authorised 2026-10-13)"*;
+   - a comment quoting B.2.1 verbatim, with the five path classes and their counts.
+2. **Unchanged:** the walk, `ONE_SIDED_PAIRS`, `_expected_p_value` and `moved == []`.
+3. **Falsify it at the artifact commit**, in a scratch export of that commit and never in the worktree. Paste each with its
+   failing line:
+   1. the literal set back to 351 → fails, *"found 487"*;
+   2. one of the 136 `p_value`s moved by one ulp in the export's copy of the artifact → fails on `moved`;
+   3. one of the 136 given `"alternative": "less"` → fails on the `ONE_SIDED_PAIRS` pin;
+   4. one of the 136 Wilcoxon blocks deleted → fails, *"found 486"*.
+
+## B.2.3 — The empty-test p-values, labelled in the artifact (C6d, a module change in `contrast()`)
+**The values stay as the registered route gives them.**
+- D8 carries `offline_baselines.paired_comparison`'s values unchanged.
+- The `wilcoxon` dict keeps exactly its seven keys.
+
+**What is added, in `paired_comparison`, beside `rank_biserial_defined` and `rank_biserial_note` and mirroring them:**
+- **`p_value_defined`:** the same `defined` (`wilcoxon.n_used > 0`).
+- **`p_value_note`.** It is prescribed by what it must be TRUE of, not as a literal. That is B.1.2(1)'s lesson, from the
+  coordinator's own error.
+  - **When not defined,** it says that:
+    - the test is undefined because every per-draw difference is exactly zero (`n_used = 0`);
+    - z = 0.0 and p = 1.0 are `dt_gate.wilcoxon_signed_rank`'s convention for an empty test, not a test result.
+  - **When defined,** it says that:
+    - the test is two-sided (normal approximation, with tie and continuity corrections);
+    - it is never read by a verdict;
+    - z is computed from min(W+, W−), so its sign is not the direction of the difference.
+- **`definitions.d8`** names the two fields.
+
+**Tests first, each expected answer by the test's own route:**
+1. **A synthetic exactly-zero contrast.**
+   - `p_value_defined` is False.
+   - The note names `n_used = 0` and the convention.
+   - z == 0.0 and `p_value` == 1.0, and the `wilcoxon` key set is the seven.
+2. **A synthetic contrast that is zero on some draws only.** `p_value_defined` is True. A rule written on `n_zero` instead
+   of `n_used` must die here.
+3. **The direction claim, tested as a fact.** Use two synthetic contrasts: the left arm better on every draw, then worse
+   on every draw.
+   - The two `mean_difference` signs differ.
+   - Both z's are ≤ 0.
+   - Each z is computed by the test from its own W+ and W−, with `dt_gate`'s formula written out in the test.
+4. **Gated, on the real artifact.**
+   - Across every `paired_comparison` block, `p_value_defined == (wilcoxon.n_used > 0)`.
+   - Exactly eight are False, and they are B.2.0(5)'s eight.
+   - Each sits in a contrast whose `exactly_zero` is True.
+
+**Mutants** (in `mutate.py`, all KILLED):
+- `p_value_defined` forced True;
+- `p_value_defined` forced False;
+- `p_value_defined` computed from `n_zero == 0`;
+- the two notes swapped.
+
+## B.2.4 — The order, replacing B.1.3 step 3
+1. `git merge --no-edit main`.
+2. **C6d**, in commits of ≤ ~2 source files each:
+   1. **Tests first.** Run them on `3e5de9c`'s module and paste the red run.
+   2. **The module change** of B.2.3.
+   3. **`mutate.py`** gains B.2.3's mutants.
+      - Its run of record is on an export of the code commit, with every mutant KILLED.
+      - Then run the test file, `check_test_hygiene.sh`, `check_english.sh` and the frozen-file guard.
+3. **The guard commit:** `tests/test_erfc_determinism.py` alone, per B.2.2(1)–(2).
+   - Its own test fails at this commit by construction (*"found 351"*), because the artifact is the next commit.
+   - Say so in the commit message. Do not run the whole suite here.
+4. **The build**, in B.1.3(3)'s worktree form, from the clean committed tree.
+   - `git status` must be empty before and after.
+   - The artifact records the guard commit.
+5. **The artifact commit:** `docs/data/p5_2_statements.json`, committed by hand and alone. The message gives the commit it
+   records, its sha256 and its byte count.
+6. **At the artifact commit:**
+   - **the whole suite** with `RLTRAFFIC_OUTPUT_ROOT=/home/filip/rltraffic/output`: 0 failed. T-regress runs and passes,
+     and the guard passes at 487;
+   - **`check`:** exit 0;
+   - **B.2.2(3)'s four falsifications.**
+
+   Paste all of it into the evidence README and commit.
+7. **Do not push.** Stop and say **"P5.2c G2 ready"**.
+
+**G3 then begins** with two steps:
+1. the coordinator's harness on C6d's code commit: B.2.0(3)'s 38 mutants, plus his own on B.2.3;
+2. the independent recompute of every statement (Amendment C).
+
+## B.2.5 — For the paper (not a change; the author's rule when writing)
+1. **An `n_used = 0` Wilcoxon is reported as "identical on every draw; no test applies", never as p = 1.0.** That covers
+   eleven pairs in `docs/data`: the eight here, and P5.3b's three at `random`.
+2. **A two-sided Wilcoxon z in `docs/data` is never read for direction** (B.2.0(7)).
+   - Report p, or |z|.
+   - The direction comes from `mean_difference`'s sign, or the rank-biserial's.
+   - P5.3c's one-sided T1–T3 are the exception: they carry an `alternative`, and their z is signed by registration.
