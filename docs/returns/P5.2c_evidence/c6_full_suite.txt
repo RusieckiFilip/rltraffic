@@ -1,0 +1,219 @@
+# P5.2c C6 -- the whole suite at 5bbb540c0108ce9f00175c705082ad557a0b9331 (BRIEF_45 Amendment B, B3.3)
+#
+#   cd /home/filip/rltraffic-p52c && RLTRAFFIC_OUTPUT_ROOT=/home/filip/rltraffic/output \
+#       /home/filip/rltraffic/.venv/bin/pytest -q -p no:cacheprovider -rfEs
+#
+# Started 2026-10-13T09:04:03Z, ended 2026-10-13T09:20:49Z; HEAD 5bbb540 at both ends, the working tree clean at both
+# ends (git status --porcelain --untracked-files=all: 0 lines); nothing was committed while it ran. pytest exit 0.
+# Result: 3357 passed, 155 skipped, 32 warnings in 1004.21s (0:16:44). The one skip in tests/test_tier_statements.py is
+# T-regress (the artifact is built at G2).
+
+................................................s....................... [  2%]
+.....ss................................................................. [  4%]
+.......................................s................................ [  6%]
+........................................................................ [  8%]
+.................ss...............................s..................... [ 10%]
+............sssss.............................................ss........ [ 12%]
+ssss.............ss.....s........s..............s.........s............. [ 14%]
+........................................................................ [ 16%]
+...........................................s............................ [ 18%]
+....................................s.sssss............................. [ 20%]
+........................................................................ [ 22%]
+........................................................................ [ 24%]
+.......................................s................................ [ 26%]
+.............................sss.ss..................................... [ 28%]
+............................ss.s.ssssssssssssss......................... [ 30%]
+........................................................................ [ 32%]
+................................ssss............................ssssssss [ 34%]
+ss..ss.................................................................. [ 36%]
+........................................................................ [ 38%]
+........................................................................ [ 41%]
+..........s............................................................. [ 43%]
+.............ssssssss................................................... [ 45%]
+........................................................................ [ 47%]
+........................................................................ [ 49%]
+........................................................................ [ 51%]
+......ssss.s............................................................ [ 53%]
+...........................................s............................ [ 55%]
+...........................sss.....................s.................... [ 57%]
+........................................................................ [ 59%]
+........................................................................ [ 61%]
+........................................................................ [ 63%]
+........ssssssssss...s.................................................. [ 65%]
+...................s.................................................... [ 67%]
+..............s.......s.ssss.ssssss...............................ss.... [ 69%]
+.......................s................................................ [ 71%]
+.................................................sss.ssss.s.....s....... [ 73%]
+................................................sssssss..............sss [ 75%]
+.............s.......................................................ss. [ 77%]
+..sss.sssss............ssss............................................. [ 79%]
+........................................................................ [ 82%]
+........................................................................ [ 84%]
+........................................................................ [ 86%]
+...........................s............................................ [ 88%]
+.......................................................s................ [ 90%]
+.................................................sss.................... [ 92%]
+........................................................................ [ 94%]
+........................................................................ [ 96%]
+........................................................................ [ 98%]
+........................................................                 [100%]
+=============================== warnings summary ===============================
+tests/test_aligned_env.py: 6 warnings
+tests/test_backend_alignment.py: 2 warnings
+tests/test_dqn_queue_length_reward.py: 1 warning
+tests/test_materialise_parity.py: 1 warning
+tests/test_sumo_att_reference.py: 2 warnings
+tests/test_sumo_env_phase_constraints.py: 8 warnings
+tests/test_transfer_calibration.py: 5 warnings
+tests/test_transfer_curve.py: 1 warning
+tests/test_transfer_gate.py: 3 warnings
+  /home/filip/rltraffic-p52c/utils/sumo_utils.py:56: UserWarning: Call to deprecated function getAllProgramLogics, use getCompleteRedYellowGreenDefinition instead.
+    definitions = sumo.trafficlight.getCompleteRedYellowGreenDefinition(tl_id)
+
+tests/test_runner_threading.py::test_worker_process_runs_single_threaded
+tests/test_runner_threading.py::test_worker_process_runs_single_threaded
+tests/test_runner_threading.py::test_pool_path_pins_every_worker
+  /usr/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=814913) is multi-threaded, use of fork() may lead to deadlocks in the child.
+    self.pid = os.fork()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_admission_probe.py:999: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected datasets_v11/ directory to run the corpus-backed P8.4a tests
+SKIPPED [1] tests/test_aligned_env_grid4x4.py:129: RLTRAFFIC_GRID4X4_RESCO is unset (or RESCO's grid4x4.net.xml is not under it): point it at the read-only, gitignored candidates root to build grid4x4's alignment
+SKIPPED [1] tests/test_aligned_env_grid4x4.py:173: P7.3d C1's grid4x4 parity configuration for draw 1000 is not under RLTRAFFIC_DRAWS (default: this tree's scenarios/draws); it is gitignored
+SKIPPED [1] tests/test_backend_alignment.py:661: set RLTRAFFIC_GRID4X4_RESCO to the read-only candidates root to run the grid4x4 half
+SKIPPED [3] tests/test_compute_latency.py:718: /home/filip/rltraffic-p52c/datasets_v11/cf_hz1x1__mappo1000__seed101/manifest.json not found: set RLTRAFFIC_CORPUS_V11 to the main tree's copy (it is gitignored)
+SKIPPED [1] tests/test_compute_table.py:612: /home/filip/rltraffic-p52c/datasets_v11/cf_hz1x1__mappo1000__seed101/manifest.json not found: set RLTRAFFIC_CORPUS_V11 to the main tree's copy (it is gitignored)
+SKIPPED [1] tests/test_compute_table.py:628: /home/filip/rltraffic-p52c/datasets_v11/cf_hz1x1__mappo1000__seed101/manifest.json not found: set RLTRAFFIC_CORPUS_V11 to the main tree's copy (it is gitignored)
+SKIPPED [1] tests/test_compute_table.py:645: /home/filip/rltraffic-p52c/datasets_v11/cf_hz1x1__mappo1000__seed101/manifest.json not found: set RLTRAFFIC_CORPUS_V11 to the main tree's copy (it is gitignored)
+SKIPPED [1] tests/test_compute_table.py:664: /home/filip/rltraffic-p52c/datasets_v11/cf_hz1x1__mappo1000__seed101/manifest.json not found: set RLTRAFFIC_CORPUS_V11 to the main tree's copy (it is gitignored)
+SKIPPED [1] tests/test_compute_table.py:682: /home/filip/rltraffic-p52c/datasets_v11/cf_hz1x1__mappo1000__seed101/manifest.json not found: set RLTRAFFIC_CORPUS_V11 to the main tree's copy (it is gitignored)
+SKIPPED [1] tests/test_compute_table.py:1135: /home/filip/rltraffic-p52c/datasets_v11/cf_hz1x1__mappo1000__seed101/manifest.json not found: set RLTRAFFIC_CORPUS_V11 to the main tree's copy (it is gitignored)
+SKIPPED [1] tests/test_compute_table.py:1152: /home/filip/rltraffic-p52c/datasets_v11/cf_hz1x1__mappo1000__seed101/manifest.json not found: set RLTRAFFIC_CORPUS_V11 to the main tree's copy (it is gitignored)
+SKIPPED [1] tests/test_compute_table.py:1354: /home/filip/rltraffic-p52c/datasets_v11/cf_hz1x1__mappo1000__seed101/manifest.json not found: set RLTRAFFIC_CORPUS_V11 to the main tree's copy (it is gitignored)
+SKIPPED [1] tests/test_compute_table.py:1399: /home/filip/rltraffic-p52c/datasets_v11/cf_hz1x1__mappo1000__seed101/manifest.json not found: set RLTRAFFIC_CORPUS_V11 to the main tree's copy (it is gitignored)
+SKIPPED [1] tests/test_compute_table.py:1405: /home/filip/rltraffic-p52c/datasets_v11/cf_hz1x1__mappo1000__seed101/manifest.json not found: set RLTRAFFIC_CORPUS_V11 to the main tree's copy (it is gitignored)
+SKIPPED [1] tests/test_compute_table.py:1441: /home/filip/rltraffic-p52c/datasets_v11/cf_hz1x1__mappo1000__seed101/manifest.json not found: set RLTRAFFIC_CORPUS_V11 to the main tree's copy (it is gitignored)
+SKIPPED [1] tests/test_compute_table.py:1799: /home/filip/rltraffic-p52c/datasets_v11/cf_hz1x1__mappo1000__seed101/manifest.json not found: set RLTRAFFIC_CORPUS_V11 to the main tree's copy (it is gitignored)
+SKIPPED [1] tests/test_compute_table.py:1846: /home/filip/rltraffic-p52c/datasets_v11/cf_hz1x1__mappo1000__seed101/manifest.json not found: set RLTRAFFIC_CORPUS_V11 to the main tree's copy (it is gitignored)
+SKIPPED [1] tests/test_conversion_audit.py:61: RLTRAFFIC_GRID4X4_RESCO is unset: point it at the read-only, gitignored candidates root (the directory holding resco/ and libsignal/) to run the grid4x4 half of the audit. It is CC BY-NC-SA and is never copied into the tree.
+SKIPPED [1] tests/test_conversion_audit.py:221: RLTRAFFIC_GRID4X4_RESCO is unset: point it at the read-only, gitignored candidates root (the directory holding resco/ and libsignal/) to run the grid4x4 half of the audit. It is CC BY-NC-SA and is never copied into the tree.
+SKIPPED [1] tests/test_conversion_audit.py:520: RLTRAFFIC_GRID4X4_RESCO is unset: point it at the read-only, gitignored candidates root (the directory holding resco/ and libsignal/) to run the grid4x4 half of the audit. It is CC BY-NC-SA and is never copied into the tree.
+SKIPPED [1] tests/test_corpus_format_check.py:140: datasets/ is not present in this working tree; nothing to lint
+SKIPPED [1] tests/test_dt_gate.py:590: v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11/cf_hz1x1__maxpressure: set RLTRAFFIC_CORPUS_V11 to the collected datasets_v11/ directory to run the collection-env replay test
+SKIPPED [1] tests/test_engine_att_reference.py:1001: materialised draws not found at /home/filip/rltraffic-p52c/scenarios/draws: set RLTRAFFIC_DRAWS to a scenarios/draws directory to run the draw-backed Gate 0 tests
+SKIPPED [1] tests/test_engine_att_reference.py:1150: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected datasets_v11/ directory to run the corpus-backed Gate 0 tests
+SKIPPED [1] tests/test_engine_att_reference.py:1186: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected datasets_v11/ directory to run the corpus-backed Gate 0 tests
+SKIPPED [1] tests/test_engine_att_reference.py:1223: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected datasets_v11/ directory to run the corpus-backed Gate 0 tests
+SKIPPED [1] tests/test_engine_att_reference.py:1270: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected datasets_v11/ directory to run the corpus-backed Gate 0 tests
+SKIPPED [1] tests/test_engine_att_reference.py:1333: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected datasets_v11/ directory to run the corpus-backed Gate 0 tests
+SKIPPED [1] tests/test_g2_measure.py:298: RLTRAFFIC_GRID4X4_RESCO is unset (or holds no grid4x4 net): grid4x4's parity render needs the read-only candidates root
+SKIPPED [1] tests/test_iql_correction.py:837: /home/filip/rltraffic-p52c/datasets_v11/cf_grid4x4__random/manifest.json not found: set RLTRAFFIC_CORPUS_V11 to the main tree's copy (it is gitignored)
+SKIPPED [1] tests/test_iql_correction.py:863: /home/filip/rltraffic-p52c/datasets_v11/cf_grid4x4__random/manifest.json not found: set RLTRAFFIC_CORPUS_V11 to the main tree's copy (it is gitignored)
+SKIPPED [5] tests/test_iql_correction.py:74: /home/filip/rltraffic-p52c/datasets_v11/cf_grid4x4__random/manifest.json not found: set RLTRAFFIC_CORPUS_V11 to the main tree's copy (it is gitignored)
+SKIPPED [1] tests/test_iql_correction.py:1958: /home/filip/rltraffic-p52c/datasets_v11/cf_grid4x4__random/manifest.json not found: set RLTRAFFIC_CORPUS_V11 to the main tree's copy (it is gitignored)
+SKIPPED [1] tests/test_joint_windows.py:76: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected corpus root to run the joint-window tests
+SKIPPED [1] tests/test_joint_windows.py:86: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected corpus root to run the joint-window tests
+SKIPPED [1] tests/test_joint_windows.py:95: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected corpus root to run the joint-window tests
+SKIPPED [1] tests/test_joint_windows.py:107: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected corpus root to run the joint-window tests
+SKIPPED [1] tests/test_joint_windows.py:122: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected corpus root to run the joint-window tests
+SKIPPED [1] tests/test_joint_windows.py:133: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected corpus root to run the joint-window tests
+SKIPPED [1] tests/test_joint_windows.py:151: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected corpus root to run the joint-window tests
+SKIPPED [1] tests/test_joint_windows.py:156: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected corpus root to run the joint-window tests
+SKIPPED [1] tests/test_joint_windows.py:161: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected corpus root to run the joint-window tests
+SKIPPED [1] tests/test_joint_windows.py:166: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected corpus root to run the joint-window tests
+SKIPPED [1] tests/test_joint_windows.py:176: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected corpus root to run the joint-window tests
+SKIPPED [1] tests/test_joint_windows.py:191: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected corpus root to run the joint-window tests
+SKIPPED [1] tests/test_joint_windows.py:204: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected corpus root to run the joint-window tests
+SKIPPED [1] tests/test_joint_windows.py:214: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected corpus root to run the joint-window tests
+SKIPPED [1] tests/test_method_tier_grid.py:1116: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected datasets_v11/ directory to run the corpus-backed P4.6 tests
+SKIPPED [1] tests/test_method_tier_grid.py:1143: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected datasets_v11/ directory to run the corpus-backed P4.6 tests
+SKIPPED [1] tests/test_method_tier_grid.py:1157: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected datasets_v11/ directory to run the corpus-backed P4.6 tests
+SKIPPED [1] tests/test_method_tier_grid.py:1171: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected datasets_v11/ directory to run the corpus-backed P4.6 tests
+SKIPPED [1] tests/test_mixture_tiers.py:150: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected datasets_v11/ directory to run the corpus-backed P4.7 tests
+SKIPPED [1] tests/test_mixture_tiers.py:159: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected datasets_v11/ directory to run the corpus-backed P4.7 tests
+SKIPPED [1] tests/test_mixture_tiers.py:181: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected datasets_v11/ directory to run the corpus-backed P4.7 tests
+SKIPPED [1] tests/test_mixture_tiers.py:192: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected datasets_v11/ directory to run the corpus-backed P4.7 tests
+SKIPPED [1] tests/test_mixture_tiers.py:211: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected datasets_v11/ directory to run the corpus-backed P4.7 tests
+SKIPPED [1] tests/test_mixture_tiers.py:239: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected datasets_v11/ directory to run the corpus-backed P4.7 tests
+SKIPPED [1] tests/test_mixture_tiers.py:261: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected datasets_v11/ directory to run the corpus-backed P4.7 tests
+SKIPPED [1] tests/test_mixture_tiers.py:280: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected datasets_v11/ directory to run the corpus-backed P4.7 tests
+SKIPPED [1] tests/test_mixture_tiers.py:294: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected datasets_v11/ directory to run the corpus-backed P4.7 tests
+SKIPPED [1] tests/test_mixture_tiers.py:324: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected datasets_v11/ directory to run the corpus-backed P4.7 tests
+SKIPPED [1] tests/test_mixture_tiers.py:391: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected datasets_v11/ directory to run the corpus-backed P4.7 tests
+SKIPPED [1] tests/test_mixture_tiers.py:425: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected datasets_v11/ directory to run the corpus-backed P4.7 tests
+SKIPPED [1] tests/test_offline_baselines.py:768: RLTRAFFIC_CORPUS_V11 is not set: point it at the collected v1.1 corpus to run the real-tier path of P4.4
+SKIPPED [1] tests/test_offline_dataset_corpus.py:92: offline corpus not found at /home/filip/rltraffic-p52c/datasets: set RLTRAFFIC_CORPUS to a collected datasets/ directory to run the corpus-backed tests
+SKIPPED [1] tests/test_offline_dataset_corpus.py:157: offline corpus not found at /home/filip/rltraffic-p52c/datasets: set RLTRAFFIC_CORPUS to a collected datasets/ directory to run the corpus-backed tests
+SKIPPED [1] tests/test_offline_dataset_corpus.py:197: offline corpus not found at /home/filip/rltraffic-p52c/datasets: set RLTRAFFIC_CORPUS to a collected datasets/ directory to run the corpus-backed tests
+SKIPPED [1] tests/test_offline_dataset_corpus.py:244: offline corpus not found at /home/filip/rltraffic-p52c/datasets: set RLTRAFFIC_CORPUS to a collected datasets/ directory to run the corpus-backed tests
+SKIPPED [1] tests/test_offline_dataset_corpus.py:277: offline corpus not found at /home/filip/rltraffic-p52c/datasets: set RLTRAFFIC_CORPUS to a collected datasets/ directory to run the corpus-backed tests
+SKIPPED [1] tests/test_offline_dataset_corpus.py:297: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected datasets_v11/ directory to run the v1.1 corpus tests
+SKIPPED [1] tests/test_offline_dataset_corpus.py:333: offline corpus not found at /home/filip/rltraffic-p52c/datasets: set RLTRAFFIC_CORPUS to a collected datasets/ directory to run the corpus-backed tests
+SKIPPED [1] tests/test_offline_dataset_corpus.py:358: offline corpus not found at /home/filip/rltraffic-p52c/datasets: set RLTRAFFIC_CORPUS to a collected datasets/ directory to run the corpus-backed tests
+SKIPPED [2] tests/test_p5_3c_campaign.py:1648: needs RLTRAFFIC_CORPUS_V11 (the gitignored datasets_v11 corpus's manifests)
+SKIPPED [2] tests/test_p5_3c_campaign.py:1678: needs RLTRAFFIC_OUTPUT_ROOT (output/p4_dt, output/p4_7, output/p8_4b_rederivation) and RLTRAFFIC_CORPUS_V11
+SKIPPED [1] tests/test_p5_3c_campaign.py:1736: needs RLTRAFFIC_OUTPUT_ROOT (output/p4_dt, output/p4_7, output/p8_4b_rederivation) and RLTRAFFIC_CORPUS_V11
+SKIPPED [1] tests/test_p5_3c_training.py:359: needs RLTRAFFIC_CORPUS_V11 (the gitignored datasets_v11 corpus) and RLTRAFFIC_OUTPUT_ROOT (P4's output/p4_dt and P4.7's output/p4_7/checkpoints) to compare both subjects' recipe with the committed values
+SKIPPED [3] tests/test_p7_3c_corpus_door.py:89: RLTRAFFIC_GRID4X4_RESCO is unset: grid4x4's alignment reads RESCO's SUMO network
+SKIPPED [1] tests/test_p7_3c_corpus_door.py:80: /home/filip/rltraffic-p52c/scenarios/draws/cityflow1x1/draw_0201/parity/noteleport.sumocfg is absent: set RLTRAFFIC_DRAWS to the materialised parity draw tree (it is gitignored)
+SKIPPED [1] tests/test_p7_3c_finetune_driver.py:384: RLTRAFFIC_SUMO_CORPORA is unset: the executed driver's check-inputs reads G3's corpus at $RLTRAFFIC_SUMO_CORPORA/grid4x4_sumo_maxpressure (gitignored, main tree only)
+SKIPPED [1] tests/test_p7_3c_finetune_driver.py:394: RLTRAFFIC_SUMO_CORPORA is unset: the executed driver's check-inputs reads G3's corpus at $RLTRAFFIC_SUMO_CORPORA/grid4x4_sumo_maxpressure (gitignored, main tree only)
+SKIPPED [1] tests/test_p7_3c_finetune_driver.py:414: RLTRAFFIC_SUMO_CORPORA is unset: the executed driver's check-inputs reads G3's corpus at $RLTRAFFIC_SUMO_CORPORA/grid4x4_sumo_maxpressure (gitignored, main tree only)
+SKIPPED [1] tests/test_p7_3c_finetune_driver.py:426: RLTRAFFIC_SUMO_CORPORA is unset: the executed driver's check-inputs reads G3's corpus at $RLTRAFFIC_SUMO_CORPORA/grid4x4_sumo_maxpressure (gitignored, main tree only)
+SKIPPED [1] tests/test_p7_3c_finetune_driver.py:451: RLTRAFFIC_SUMO_CORPORA is unset: the executed driver's check-inputs reads G3's corpus at $RLTRAFFIC_SUMO_CORPORA/grid4x4_sumo_maxpressure (gitignored, main tree only)
+SKIPPED [1] tests/test_p7_3c_finetune_driver.py:471: RLTRAFFIC_SUMO_CORPORA is unset: the executed driver's check-inputs reads G3's corpus at $RLTRAFFIC_SUMO_CORPORA/grid4x4_sumo_maxpressure (gitignored, main tree only)
+SKIPPED [1] tests/test_p7_3c_finetune_driver.py:491: RLTRAFFIC_SUMO_CORPORA is unset: the executed driver's check-inputs reads G3's corpus at $RLTRAFFIC_SUMO_CORPORA/grid4x4_sumo_maxpressure (gitignored, main tree only)
+SKIPPED [1] tests/test_p7_3c_finetune_driver.py:501: RLTRAFFIC_SUMO_CORPORA is unset: the executed driver's check-inputs reads G3's corpus at $RLTRAFFIC_SUMO_CORPORA/grid4x4_sumo_maxpressure (gitignored, main tree only)
+SKIPPED [1] tests/test_p7_3c_finetune_driver.py:511: RLTRAFFIC_SUMO_CORPORA is unset: the executed driver's check-inputs reads G3's corpus at $RLTRAFFIC_SUMO_CORPORA/grid4x4_sumo_maxpressure (gitignored, main tree only)
+SKIPPED [1] tests/test_p7_3c_finetune_driver.py:529: RLTRAFFIC_SUMO_CORPORA is unset: the executed driver's check-inputs reads G3's corpus at $RLTRAFFIC_SUMO_CORPORA/grid4x4_sumo_maxpressure (gitignored, main tree only)
+SKIPPED [1] tests/test_p7_3c_regress.py:88: RLTRAFFIC_SUMO_CORPORA is unset: G3's grid4x4 SUMO corpus is gitignored, main tree only
+SKIPPED [1] tests/test_p7_3d_campaign_path.py:1602: RLTRAFFIC_GRID4X4_RESCO is unset: this test runs two grid4x4 SUMO episodes
+SKIPPED [1] tests/test_parity_scenarios.py:223: /home/filip/rltraffic-p52c/scenarios/draws/cityflow1x1/draw_0005/parity/provenance.json is absent: set RLTRAFFIC_DRAWS to the scenarios/draws tree P7.2a materialised (it is gitignored) to compare draw 5 against its parity directory
+SKIPPED [1] tests/test_parity_scenarios.py:351: RLTRAFFIC_GRID4X4_RESCO is unset: point it at the read-only, gitignored candidates root (the directory holding resco/) to run the grid4x4 half of P7.3d C1. RESCO's grid4x4 files are CC BY-NC-SA 4.0 and are never copied into the tree
+SKIPPED [1] tests/test_parity_scenarios.py:382: RLTRAFFIC_GRID4X4_RESCO is unset: point it at the read-only, gitignored candidates root (the directory holding resco/) to run the grid4x4 half of P7.3d C1. RESCO's grid4x4 files are CC BY-NC-SA 4.0 and are never copied into the tree
+SKIPPED [1] tests/test_parity_scenarios.py:423: RLTRAFFIC_GRID4X4_RESCO is unset: point it at the read-only, gitignored candidates root (the directory holding resco/) to run the grid4x4 half of P7.3d C1. RESCO's grid4x4 files are CC BY-NC-SA 4.0 and are never copied into the tree
+SKIPPED [1] tests/test_parity_scenarios.py:452: RLTRAFFIC_GRID4X4_RESCO is unset: point it at the read-only, gitignored candidates root (the directory holding resco/) to run the grid4x4 half of P7.3d C1. RESCO's grid4x4 files are CC BY-NC-SA 4.0 and are never copied into the tree
+SKIPPED [1] tests/test_parity_scenarios.py:486: RLTRAFFIC_GRID4X4_RESCO is unset: point it at the read-only, gitignored candidates root (the directory holding resco/) to run the grid4x4 half of P7.3d C1. RESCO's grid4x4 files are CC BY-NC-SA 4.0 and are never copied into the tree
+SKIPPED [1] tests/test_parity_scenarios.py:526: RLTRAFFIC_GRID4X4_RESCO is unset: point it at the read-only, gitignored candidates root (the directory holding resco/) to run the grid4x4 half of P7.3d C1. RESCO's grid4x4 files are CC BY-NC-SA 4.0 and are never copied into the tree
+SKIPPED [1] tests/test_parity_scenarios.py:560: RLTRAFFIC_GRID4X4_RESCO is unset: point it at the read-only, gitignored candidates root (the directory holding resco/) to run the grid4x4 half of P7.3d C1. RESCO's grid4x4 files are CC BY-NC-SA 4.0 and are never copied into the tree
+SKIPPED [1] tests/test_parity_scenarios.py:597: RLTRAFFIC_GRID4X4_RESCO is unset: point it at the read-only, gitignored candidates root (the directory holding resco/) to run the grid4x4 half of P7.3d C1. RESCO's grid4x4 files are CC BY-NC-SA 4.0 and are never copied into the tree
+SKIPPED [1] tests/test_parity_scenarios.py:630: RLTRAFFIC_GRID4X4_RESCO is unset: point it at the read-only, gitignored candidates root (the directory holding resco/) to run the grid4x4 half of P7.3d C1. RESCO's grid4x4 files are CC BY-NC-SA 4.0 and are never copied into the tree
+SKIPPED [1] tests/test_parity_scenarios.py:664: RLTRAFFIC_GRID4X4_RESCO is unset: point it at the read-only, gitignored candidates root (the directory holding resco/) to run the grid4x4 half of P7.3d C1. RESCO's grid4x4 files are CC BY-NC-SA 4.0 and are never copied into the tree
+SKIPPED [1] tests/test_parity_scenarios.py:679: RLTRAFFIC_GRID4X4_RESCO is unset: point it at the read-only, gitignored candidates root (the directory holding resco/) to run the grid4x4 half of P7.3d C1. RESCO's grid4x4 files are CC BY-NC-SA 4.0 and are never copied into the tree
+SKIPPED [1] tests/test_per_intersection_calibration.py:205: /home/filip/rltraffic-p52c/datasets_v11 does not hold the five cf_grid4x4__mappo1000__seed* manifests: set RLTRAFFIC_CORPUS_V11 to the datasets_v11 tree (it is gitignored)
+SKIPPED [1] tests/test_per_intersection_calibration.py:228: /home/filip/rltraffic-p52c/scenarios/draws/cityflow_grid4x4/draw_0201/cityflow.json is absent: set RLTRAFFIC_DRAWS to the scenarios/draws tree holding P7.3d C1's grid4x4 parent of draw 201 (it is gitignored)
+SKIPPED [1] tests/test_per_intersection_calibration.py:918: /home/filip/rltraffic-p52c/scenarios/draws/cityflow1x1/draw_0201/parity/noteleport.sumocfg is absent: set RLTRAFFIC_DRAWS to the scenarios/draws tree holding P7.2a's hz1x1 parity configuration for draw 201
+SKIPPED [6] tests/test_rtg_ablation.py:158: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected corpus to run the real-corpus checks
+SKIPPED [1] tests/test_rtg_ablation.py:168: checkpoint not present in this tree: /home/filip/rltraffic-p52c/output/p4_7/checkpoints/mix33_dt_seed101.pt
+SKIPPED [1] tests/test_rtg_calibration.py:237: RLTRAFFIC_P4_DT_CHECKPOINTS is not set; the committed P4 checkpoints are not in tree
+SKIPPED [1] tests/test_rtg_calibration.py:615: probe draw 201 is not materialised in this worktree
+SKIPPED [1] tests/test_rtg_mode_identity.py:213: surviving draw 1000 is absent from /home/filip/rltraffic-p52c/scenarios/draws
+SKIPPED [2] tests/test_rtg_mode_identity.py:104: checkpoint not present in this tree: /home/filip/rltraffic-p52c/output/p4_dt/dt_seed101.pt
+SKIPPED [2] tests/test_rtg_mode_identity.py:104: checkpoint not present in this tree: /home/filip/rltraffic-p52c/output/p4_6/checkpoints/random_dt_seed101.pt
+SKIPPED [1] tests/test_rtg_mode_identity.py:311: no integrity manifests in this tree
+SKIPPED [1] tests/test_rtg_mode_identity.py:367: checkpoint not present in this tree: /home/filip/rltraffic-p52c/output/p4_6/checkpoints/fixedtime_dt_seed101.pt
+SKIPPED [1] tests/test_rtg_probe_second_route.py:293: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected corpus to run the second-route recomputation
+SKIPPED [1] tests/test_rtg_probe_second_route.py:332: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected corpus to run the second-route recomputation
+SKIPPED [1] tests/test_rtg_probe_second_route.py:348: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected corpus to run the second-route recomputation
+SKIPPED [1] tests/test_spatial_cell.py:337: RLTRAFFIC_GRID4X4_RESCO is unset
+SKIPPED [1] tests/test_spatial_footprint.py:465: P5.2's checkpoint /home/filip/rltraffic/output/p5_2/checkpoints/grid4x4_mappo1000_dt_spatial_h4_seed101.pt or the corpus /home/filip/rltraffic-p52c/datasets_v11/cf_grid4x4__mappo1000__seed101 is not in this tree; set RLTRAFFIC_OUTPUT_ROOT and RLTRAFFIC_CORPUS_V11 to run the trained-model footprint test
+SKIPPED [1] tests/test_spatial_footprint.py:506: P5.2's checkpoint /home/filip/rltraffic/output/p5_2/checkpoints/grid4x4_mappo1000_dt_spatial_h4_seed101.pt or the corpus /home/filip/rltraffic-p52c/datasets_v11/cf_grid4x4__mappo1000__seed101 is not in this tree; set RLTRAFFIC_OUTPUT_ROOT and RLTRAFFIC_CORPUS_V11 to run the trained-model footprint test
+SKIPPED [1] tests/test_spatial_mixing.py:155: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected corpus root to run the P5.1 declaration tests
+SKIPPED [1] tests/test_spatial_mixing.py:168: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected corpus root to run the P5.1 declaration tests
+SKIPPED [1] tests/test_spatial_mixing.py:185: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected corpus root to run the P5.1 declaration tests
+SKIPPED [1] tests/test_spatial_mixing.py:210: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected corpus root to run the P5.1 declaration tests
+SKIPPED [1] tests/test_spatial_mixing.py:221: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected corpus root to run the P5.1 declaration tests
+SKIPPED [1] tests/test_spatial_mixing.py:232: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected corpus root to run the P5.1 declaration tests
+SKIPPED [1] tests/test_spatial_mixing.py:249: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected corpus root to run the P5.1 declaration tests
+SKIPPED [1] tests/test_spatial_mixing.py:267: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected corpus root to run the P5.1 declaration tests
+SKIPPED [1] tests/test_spatial_mixing.py:476: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected corpus root to run the P5.1 declaration tests
+SKIPPED [1] tests/test_spatial_mixing.py:517: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected corpus root to run the P5.1 declaration tests
+SKIPPED [1] tests/test_spatial_mixing.py:539: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected corpus root to run the P5.1 declaration tests
+SKIPPED [1] tests/test_spatial_mixing.py:564: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected corpus root to run the P5.1 declaration tests
+SKIPPED [1] tests/test_tier_statements.py:2328: /home/filip/rltraffic-p52c/docs/data/p5_2_statements.json not found: the artifact is built and committed at gate G2 (the plan's C7)
+SKIPPED [1] tests/test_tier_sweep.py:1447: the campaign output is not present on this machine
+SKIPPED [1] tests/test_train_dt_rtg_mode.py:327: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected corpus to run the Gate-2 control retrain
+SKIPPED [1] tests/test_train_dt_rtg_mode.py:335: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected corpus to run the Gate-2 control retrain
+SKIPPED [1] tests/test_train_dt_rtg_mode.py:368: format v1.1 corpus not found at /home/filip/rltraffic-p52c/datasets_v11: set RLTRAFFIC_CORPUS_V11 to a collected corpus to run the Gate-2 control retrain
+3357 passed, 155 skipped, 32 warnings in 1004.21s (0:16:44)
