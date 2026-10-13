@@ -1642,6 +1642,23 @@ def test_b1_cm9_each_definitions_per_seed_block_reads_that_definitions_values() 
     assert "(303)" in blocks["att_engine"]["seed_reversal_qualifier"]
 
 
+def test_cm13_a_contrast_zero_on_some_draws_only_is_not_exactly_zero() -> None:
+    """CM13 (killed at G1 only through the real record's three exact zeros): ``exactly_zero`` means EVERY per-draw
+    difference is zero.  Here two of four draws differ by exactly zero and two by 1.5, so it is False, and the reading is
+    the interval's, by this file's interval."""
+    seeds, draws = (101, 202, 303), range(1000, 1004)
+    left = {(s, d): 60.0 + s / 64.0 + (d % 2) * 1.5 for s in seeds for d in draws}
+    right = {(s, d): 60.0 + s / 64.0 for s in seeds for d in draws}
+    a, b = fx.simple_cell("bc", "maxpressure", left), fx.simple_cell("iql", "maxpressure", right)
+    differences = own_paired(a, b, "att_ours")
+    assert sorted(differences) == [0.0, 0.0, 1.5, 1.5]
+    block = tst.contrast(a, b, definition="att_ours", tier="maxpressure")
+    assert block["exactly_zero"] is False
+    _, _, low, high = own_interval(differences)
+    assert block["reading"] == ("resolves: the CI lies entirely above zero" if low > 0.0 else
+                                "does not resolve: the CI includes zero")
+
+
 def _own_seed_firsts(book: Mapping[tuple[str, str], tst.Cell], tier: str, definition: str) -> dict[str, list[str]]:
     """Per seed, the arms with the lowest level by ``statistics.mean`` over that seed's rows."""
     seeds = sorted({int(r["seed"]) for r in book[("iql", tier)].rows})
