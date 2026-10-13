@@ -1,6 +1,9 @@
-"""P5.2c's mutation run (``BRIEF_45`` section 5, Amendment A's A4.4 and Amendment B's B1-B3): every named mutant executed,
-its output logged.  Amendment B adds the coordinator's seventeen (``docs/reviews/P5.2c_G1/coord_mutants.py``; CM1
-reversed per B2.1, CM15 re-aimed at B2.2's code because the code it mutated is gone) and a mutant for each B2 ruling.
+"""P5.2c's mutation run (``BRIEF_45`` section 5, Amendment A's A4.4, Amendment B's B1-B3 and Amendment B.1's B.1.3):
+every named mutant executed, its output logged.  Amendment B adds the coordinator's seventeen
+(``docs/reviews/P5.2c_G1/coord_mutants.py``; CM1 reversed per B2.1, CM15 re-aimed at B2.2's code because the code it
+mutated is gone) and a mutant for each B2 ruling.  Amendment B.1 adds the coordinator's four G1.1 survivors (CB0, CB1a,
+CB2, CB5c; ``docs/reviews/P5.2c_G1_1/coord_mutants_g11.py``, verbatim) and B.1.2(1)'s two; three more were added at
+C6c and are marked so.
 
 Run on an EXPORTED COPY of the committed tree (``git archive <commit> | tar -x``), never on the working tree: each mutant
 is an exact string replacement in the copy, asserted to match the stated number of times, the named tests run against
@@ -47,6 +50,9 @@ def t(name: str) -> str:
 
 #: The source of the coordinator's mutants (``BRIEF_45`` Amendment B, B1).
 COORD = "Amendment B, B1 (coordinator, docs/reviews/P5.2c_G1/coord_mutants.py)"
+
+#: The source of the coordinator's G1.1 survivors (``BRIEF_45`` Amendment B.1, B.1.1).
+COORD_B1 = "Amendment B.1, B.1.1 (coordinator, docs/reviews/P5.2c_G1_1/coord_mutants_g11.py)"
 
 
 MUTANTS: tuple[Mutant, ...] = (
@@ -398,6 +404,47 @@ MUTANTS: tuple[Mutant, ...] = (
            (t("test_b2_14_p8_4bs_campaign_manifest_and_marker_are_listed_with_their_sha256"),
             t("test_b2_14_real_p8_4bs_campaign_manifest_and_marker_are_listed_with_their_sha256")),
            source="Amendment B, B2.14"),
+    # ---- Amendment B.1, B.1.1: the coordinator's four G1.1 survivors, his strings verbatim.
+    Mutant("CB0", "Q0b's inclusion rule written with strict inequalities (a CI touching zero excluded)",
+           ((MODULE, 'elif interaction["ci95_low"] <= 0.0 <= interaction["ci95_high"]:',
+             'elif interaction["ci95_low"] < 0.0 < interaction["ci95_high"]:', 1),),
+           (t("test_b11_cb0_a_ci_touching_zero_at_one_end_is_included_by_q0bs_rule"),), source=COORD_B1),
+    Mutant("CB1a", "Q3b sub-prediction: the exact-zero source always says 'identical episodes'",
+           ((MODULE, '"identical episodes" if block["discriminability"]["identical"] else',
+             '"identical episodes" if True else', 1),),
+           (t("test_b11_cb1a_q3bs_exact_zero_from_episodes_that_differ_is_not_called_identical"),), source=COORD_B1),
+    Mutant("CB2", "composite I: the worker's names swapped (d1 named left, d4 right), so the qualifier names the pair "
+                  "backwards",
+           ((MODULE, 'left_name="d4", right_name="d1", metric=definition)',
+             'left_name="d1", right_name="d4", metric=definition)', 1),),
+           (t("test_b11_cb2_q0bs_qualifier_names_d4_against_d1_from_this_files_per_seed_loop"),
+            t("test_b11_cb2_real_q0bs_per_seed_values_and_qualifier_under_both_definitions")), source=COORD_B1),
+    Mutant("CB5c", "B2.5: P8.4b's ulp check on the first key only (the CI ends unchecked)",
+           ((MODULE, "            for k in keys:\n                assert_within_ulps(mine[k], recorded[k]",
+             "            for k in keys[:1]:\n                assert_within_ulps(mine[k], recorded[k]", 1),),
+           (t("test_b2_5_a_value_five_ulps_from_p8_4bs_record_is_refused_and_four_are_accepted"),), source=COORD_B1),
+    Mutant("CB5c.stop", "CB5c's twin for P5.2's stop-rule record: the ulp check on the mean only",
+           ((MODULE, "    for k in keys[:3]:\n        assert_within_ulps(d4[k], stop_record[k],",
+             "    for k in keys[:1]:\n        assert_within_ulps(d4[k], stop_record[k],", 1),),
+           (t("test_b2_5_a_stop_rule_record_five_ulps_away_is_refused_and_four_are_accepted"),), source="added at C6c"),
+    # ---- Amendment B.1, B.1.2(1): I's identity, which Q0b's exact-zero label reads.
+    Mutant("B.1.2(1)a", "I's identity forced True: the label says identical episodes whatever the pairs hold",
+           ((MODULE, '    identical = identical_pairs["d4"] and identical_pairs["d1"]\n', "    identical = True\n", 1),),
+           (t("test_b11_2_an_i_exactly_zero_because_the_horizon_changes_nothing_is_held_and_not_identical"),
+            t("test_b11_2_identical_needs_both_pairs_identical")), source="Amendment B.1, B.1.2(1)"),
+    Mutant("B.1.2(1)b", "I's identity forced False: identical episodes are never named",
+           ((MODULE, '    identical = identical_pairs["d4"] and identical_pairs["d1"]\n', "    identical = False\n", 1),),
+           (t("test_b1_cm1_an_exactly_zero_interaction_is_held_by_the_registered_inclusion_rule"),),
+           source="Amendment B.1, B.1.2(1)"),
+    Mutant("B.1.2(1)c", "I identical when EITHER pair is (and -> or)",
+           ((MODULE, '    identical = identical_pairs["d4"] and identical_pairs["d1"]\n',
+             '    identical = identical_pairs["d4"] or identical_pairs["d1"]\n', 1),),
+           (t("test_b11_2_identical_needs_both_pairs_identical"),), source="added at C6c"),
+    Mutant("B.1.2(1)d", "an exactly-zero I from episodes that are not identical scored NOT RESOLVED (CM1r's twin)",
+           ((MODULE, '    elif interaction["exactly_zero"]:\n        q0b, q0b_reading = "HELD", (',
+             '    elif interaction["exactly_zero"]:\n        q0b, q0b_reading = "NOT RESOLVED", (', 1),),
+           (t("test_b11_2_an_i_exactly_zero_because_the_horizon_changes_nothing_is_held_and_not_identical"),),
+           source="added at C6c"),
 )
 
 
