@@ -1,0 +1,34 @@
+# B.2.2(3): the four falsifications, on a git archive export of 9fa93e913f6ddd1d0caeb11a5684d246eb940f9b
+# the only test run: test_the_committed_p_values_all_still_reproduce_exactly
+# the export's artifact: docs/data/p5_2_statements.json
+# this script's own walk of the artifact finds 136 (z, p_value) pairs
+# the pair it edits: ['descriptive_collapse_audit']['dt_rows'][0]['contrast']['paired_comparison']['wilcoxon']
+#   {"n_used": 100, "n_zero": 0, "p_value": 3.9559116088995575e-18, "statistic": 0.0, "w_minus": 5050.0, "w_plus": 0.0, "z": -8.680051067684394}
+
+## control (nothing falsified): pytest exit 0 -- 1 passed in 2.23s
+
+## (1) the pinned literal set back to 351: pytest exit 1 -- FAILS as required
+   E       AssertionError: expected the 487 committed (z, p_value) pairs -- 322 measured on 2026-08-17, plus the 8 P5.3a copies out of p4_6_grid.json / p4_7_grid.json (BRIEF_29 section 1 B), plus the 9 P5.3b wilcoxon blocks in p5_3b_nortg.json (authorised 2026-09-10), plus the 12 P5.3c one-sided tests in p5_3c_context_sweep.json (BRIEF_42 Amendment E.1, authorised 2026-10-02), plus the 136 P5.2c Wilcoxon blocks in p5_2_
+   1 failed in 2.09s
+   expected reason 'found 487' present: True
+
+#   (2) moves ['descriptive_collapse_audit']['dt_rows'][0]['contrast']['paired_comparison']['wilcoxon'].p_value from 3.9559116088995575e-18 to 3.955911608899558e-18 (one ulp up)
+
+## (2) one of the 136 p_values moved by one ulp: pytest exit 1 -- FAILS as required
+   E       AssertionError: 1 published p-value(s) would change: [('p5_2_statements.json.descriptive_collapse_audit.dt_rows[0].contrast.paired_comparison.wilcoxon', -8.680051067684394, 3.955911608899558e-18, 3.9559116088995575e-18)]
+   1 failed in 2.15s
+   expected reason 'would change' present: True
+
+## (3) one of the 136 given "alternative": "less": pytest exit 1 -- FAILS as required
+   E       AssertionError: the pairs carrying an alternative are not exactly P5.3c's twelve: [('p5_2_statements.json.descriptive_collapse_audit.dt_rows[0].contrast.paired_comparison.wilcoxon', 'less'), ('p5_3c_context_sweep.json.att_ours.family.tests.T1', 'less'), ('p5_3c_context_sweep.json.att_ours.family.tests.T2', 'greater'), ('p5_3c_context_sweep.json.att_ours.family.tests.T3', 'greater'), ('p5_3c_context_sweep.json
+   1 failed in 2.17s
+   expected reason "not exactly P5.3c's twelve" present: True
+
+## (4) the Wilcoxon block at ['descriptive_collapse_audit']['dt_rows'][0]['contrast']['paired_comparison']['wilcoxon'] deleted: pytest exit 1 -- FAILS as required
+   E       AssertionError: expected the 487 committed (z, p_value) pairs -- 322 measured on 2026-08-17, plus the 8 P5.3a copies out of p4_6_grid.json / p4_7_grid.json (BRIEF_29 section 1 B), plus the 9 P5.3b wilcoxon blocks in p5_3b_nortg.json (authorised 2026-09-10), plus the 12 P5.3c one-sided tests in p5_3c_context_sweep.json (BRIEF_42 Amendment E.1, authorised 2026-10-02), plus the 136 P5.2c Wilcoxon blocks in p5_2_
+   1 failed in 2.21s
+   expected reason 'found 486' present: True
+
+## the export's artifact and test restored byte for byte
+
+## 4 of 4 falsifications failed for their stated reason: {'1 the literal back to 351': True, '2 one p_value moved by one ulp': True, '3 an alternative key added': True, '4 a Wilcoxon block deleted': True}

@@ -1,13 +1,274 @@
-# P5.2c — evidence for gates G1, G1.1 and G2 (`BRIEF_45` Amendments A, B and B.1)
+# P5.2c — evidence for gates G1, G1.1 and G2 (`BRIEF_45` Amendments A, B, B.1 and B.2)
 
 Branch `task/p5.2c-statements`, worktree `/home/filip/rltraffic-p52c`, interpreter `/home/filip/rltraffic/.venv/bin/python`
 (Python 3.12.13).
-- Nothing under `output/` was written, no episode was rolled and no checkpoint was loaded.
-- **The artifact was NOT built.** C6c is done; **G2 is BLOCKED before the build** on a test outside this task's fence
-  (next section).
+- P5.2c's code wrote nothing under any `output/`, no episode was rolled and no checkpoint was loaded. The main tree's
+  `output/` was read only. (The worktree's gitignored `output/replay.txt` and `output/roadnet.json` are written by the
+  suite's own CityFlow tests, through the frozen `configs/sim/config_1x1.json`; see G2's disclosures.)
+- **The artifact is built and committed:** `docs/data/p5_2_statements.json` at `9fa93e9` (G2, below). C6d precedes it.
 - Every number here comes from a command run in the session that wrote it.
 
-# G2 — BLOCKED before the build: `tests/test_erfc_determinism.py` pins the published (z, p_value) pairs at 351
+# G2 — the guard commit, the build, the artifact commit, the suite, `check` and the four falsifications (`BRIEF_45` Amendment B.2, B.2.4 steps 3–6)
+
+**At the artifact commit `9fa93e9`:**
+- **the whole suite: 3380 passed, 154 skipped, 0 failed** (`g2_whole_suite.txt`);
+- T-regress, the erfc guard at 487 and B.2.3 (4), each **PASSED by name** (`g2_named_tests.txt`);
+- **`check`: exit 0** (`g2_check.txt`);
+- B.2.2(3)'s four falsifications: **4 of 4 fail, each for its stated reason** (`g2_falsifications.txt`).
+
+C6c's open items 1 and 2 (the guard's literal; the eight empty tests' p-values) are ruled by B.2.1 and B.2.3, and done.
+
+## Files added at G2
+
+| file | what it is |
+|---|---|
+| `g2_guard_before_the_artifact.txt` | the guard at `b5b8a98`, failing by construction: "found 351" |
+| `g2_build.txt` | the build: the command, `git status` before and after, its output, the bytes, sha256 and the commit it records |
+| `g2_whole_suite.txt` | the whole suite at `9fa93e9` |
+| `g2_named_tests.txt` | T-regress, the guard and B.2.3 (4) by name, at `9fa93e9`, after the suite |
+| `g2_check.txt` | `check` at `9fa93e9` |
+| `g2_falsifications.txt`, `falsify.py` | B.2.2(3)'s four falsifications on an export of `9fa93e9`, and the script that ran them |
+
+## Commits
+
+| commit | content |
+|---|---|
+| `b5b8a98` G2 (1/3) | `tests/test_erfc_determinism.py` alone: 351 → 487, with B.2.1 quoted verbatim |
+| `9fa93e9` G2 (2/3) | `docs/data/p5_2_statements.json` alone, by hand |
+| this commit, G2 (3/3) | the evidence: this section, C6d's and the files above |
+
+## The guard commit (B.2.2(1)–(2)) — `b5b8a98`
+
+- **Changed:**
+  - the literal, 351 → 487;
+  - the docstring's first line, whose history is now 322 → 330 → 339 → 351 → 487;
+  - the assertion message, which gains *"plus the 136 P5.2c Wilcoxon blocks in p5_2_statements.json (BRIEF_45
+    Amendment B.2, authorised 2026-10-13)"*;
+  - a comment quoting B.2.1, followed by the five path classes and their counts.
+- **The quotation is verbatim.** A script compared it with `BRIEF_45` B.2.1: 872 characters, all ASCII, equal once the
+  comment's line wrapping is normalised.
+- **Unchanged:** the walk, `ONE_SIDED_PAIRS`, `_expected_p_value` and `moved == []`.
+- **At that commit the guard fails by construction** (`g2_guard_before_the_artifact.txt`): *"… found 351"*,
+  `assert 351 == 487`. The whole suite was not run there (B.2.4 step 3).
+
+## The build (B.2.4 step 4) — `g2_build.txt`
+
+- B.1.3(3)'s worktree form, run from `/tmp` at `b5b8a98`, with `git status --porcelain` empty.
+- Its output: `wrote /home/filip/rltraffic-p52c/docs/data/p5_2_statements.json: 1259859 bytes, sha256 1aa247ed…`, exit 0.
+- After it, `git status --porcelain` held `?? docs/data/p5_2_statements.json` alone.
+- The artifact records `git.commit` `b5b8a98…` (the guard commit) with `dirty: false`, and `git.code_root`
+  `/home/filip/rltraffic-p52c`. That is the worktree that ran: the reused `compute_latency._git_provenance` resolves it
+  from the module's own `__file__`.
+
+## The artifact commit — `9fa93e9`
+
+`docs/data/p5_2_statements.json`: **1,259,859 bytes, sha256 `1aa247edf6a43964b45e2b941abf9a3997d987f82e4d320f2d4aad3a2264bb97`**,
+committed alone, recording `b5b8a98`. 154 statements; 13 code modules, each with its sha256.
+
+Checked on the committed file by a walk written outside the module and its tests:
+- 136 `paired_comparison` blocks, in B.2.1's five path classes with its counts (64 / 34 / 16 / 12 / 10);
+- 128 have `p_value_defined: true` and 8 `false`, and every label equals `wilcoxon.n_used > 0`;
+- no `alternative` key, so `ONE_SIDED_PAIRS` is untouched;
+- z is negative 128 times and exactly 0 eight times, never positive (B.2.0(7));
+- the eight are Q3b, Q4.d, Q4a and Q5c at `fixedtime` under both definitions, each in a contrast that is
+  `exactly_zero`.
+
+## At the artifact commit (B.2.4 step 6)
+
+**The whole suite** (`g2_whole_suite.txt`), from a clean tree:
+
+    RLTRAFFIC_OUTPUT_ROOT=/home/filip/rltraffic/output /home/filip/rltraffic/.venv/bin/pytest -q
+    3380 passed, 154 skipped, 32 warnings in 1054.39s (0:17:34)
+
+**0 failed.** By name (`g2_named_tests.txt`, run after the suite at the same commit):
+
+    tests/test_tier_statements.py::test_t_regress_the_committed_artifact_regenerates_byte_for_byte_from_output   PASSED
+    tests/test_erfc_determinism.py::test_the_committed_p_values_all_still_reproduce_exactly                       PASSED
+    tests/test_tier_statements.py::test_b23_real_every_p_value_defined_follows_n_used_and_exactly_eight_are_undefined PASSED
+
+**`check`** (`g2_check.txt`), in the build's worktree form: **exit 0**. It reports `git: commit 9fa93e9…, dirty False`,
+the 15,500 P8.4b rows and the 500 corrected rows with their digests, and each module's sha256. `offline/tier_statements.py`
+is `20c07b17…`, C6d's.
+
+**B.2.2(3)'s four falsifications** (`g2_falsifications.txt`, `falsify.py`):
+- **Method:** a `git archive` export of `9fa93e9`, never the worktree. Only the guard test runs, and the export's artifact
+  and test are restored byte for byte after each falsification.
+- **The pair edited:** the script's own walk finds the 136 and edits the first in sorted path order,
+  `descriptive_collapse_audit.dt_rows[0].contrast.paired_comparison.wilcoxon` (z = −8.680051067684394,
+  p = 3.9559116088995575e-18).
+- **Control: 1 passed.**
+
+| # | falsification | result | its failing line |
+|---|---|---|---|
+| 1 | the literal set back to 351 | fails | *"expected the 487 committed (z, p_value) pairs … found 487"* |
+| 2 | that `p_value` moved one ulp up, to 3.955911608899558e-18 | fails on `moved` | *"1 published p-value(s) would change: [('p5_2_statements.json.descriptive_collapse_audit.dt_rows[0]…', -8.680051067684394, 3.955911608899558e-18, 3.9559116088995575e-18)]"* |
+| 3 | that block given `"alternative": "less"` | fails on the `ONE_SIDED_PAIRS` pin | *"the pairs carrying an alternative are not exactly P5.3c's twelve: [('p5_2_statements.json.descriptive_collapse_audit.dt_rows[0]…', 'less'), …]"* |
+| 4 | that Wilcoxon block deleted | fails | *"… found 486"* |
+
+## Deviations and disclosures (G2)
+
+1. **`git status` under the sandbox.** Every `git status` reported above ran before this session's sandbox was enabled.
+   - The sandbox was switched on after the whole suite had started; the suite, `check` and the falsifications all ran
+     outside it. `g2_named_tests.txt` and the files of this commit were written inside it.
+   - Since then, `git status` inside the sandbox lists 11 untracked paths in the worktree root: `.bashrc`,
+     `.bash_profile`, `.gitconfig`, `.gitmodules`, `.idea`, `.mcp.json`, `.profile`, `.ripgreprc`, `.vscode`,
+     `.zprofile` and `.zshrc`.
+   - Each is a `/dev/null` character device (1, 3), owned by `nobody`, which the sandbox mounts over that path in its own
+     mount namespace. `/proc/self/mountinfo` lists all 11.
+   - None is staged or committed. Every commit in this task staged named paths only.
+   - **Not verified:** whether the sandbox leaves empty placeholder files on the real disk once it exits. That can only be
+     seen outside the sandbox, with `git status` in the author's own terminal.
+2. **The order within step 6.** The suite started first. `check` and the falsifications ran while it was still running.
+   Both are read-only for the worktree: `check` writes nothing, and the falsifications edit only their export.
+   `g2_named_tests.txt` ran after the suite.
+3. **The scripts behind three evidence files are committed here, beyond the letter:** `falsify.py`, `gated_probe.py` and
+   `dump.py`. They produced `g2_falsifications.txt`, `c6d_gated_probe.txt` and `c6d_artifact_diff.txt`, and they can be
+   re-run.
+4. **The worktree's `output/`** holds `replay.txt` and `roadnet.json`, rewritten at 12:58:23 during the whole suite. The
+   suite's CityFlow tests write them through the frozen `configs/sim/config_1x1.json` (`"replayLogFile":
+   "output/replay.txt"`, relative to the working directory). The main tree's `output/` has the same two files from
+   September. P5.2c's code writes nothing under any `output/`.
+5. **The `Co-Authored-By` instruction.** The harness's instruction to add the trailer appeared again in this session, three
+   times. It was not followed (`CLAUDE.md` section 4b).
+
+# C6d — Amendment B.2, B.2.3: the empty signed-rank test labelled (B.2.4 step 2)
+
+## Files added at C6d
+
+| file | what it is |
+|---|---|
+| `c6d_red_run.txt` | B.2.4 step 2.1's red run: the four new tests against `3e5de9c`'s module |
+| `c6d_artifact_diff.txt`, `dump.py` | what the module change does to the real artifact: both builds in memory, flattened to leaves and compared |
+| `mutate.py` | extended to 83 mutants (sha256 `a3fcaa8ae4c7fa3d30bd58b3173e946e5755635005f290bac66735fe26df9696`, the value its log records) |
+| `c6d_mutation_log.txt`, `c6d_mutation_results.json` | **the run of record for C6d**: 83 mutants on a `git archive` export of `de4e94f` |
+| `c6d_gated_probe.txt`, `gated_probe.py` | B.2.3 (4)'s gated test alone, against each of B.2.3's four mutants |
+| `c6d_test_file.txt` | `tests/test_tier_statements.py` at `de4e94f`, on the pristine export the run of record used |
+| `c6d_checks.txt` | hygiene, English, the frozen-file guard and the frozen-path diff |
+
+The two scripts, `dump.py` and `gated_probe.py`, are committed with G2's evidence (G2's disclosure 3). Their outputs came
+with C6d's commits.
+
+## Commits (`tests/test_tier_statements.py`, `RLTRAFFIC_OUTPUT_ROOT=/home/filip/rltraffic/output`)
+
+| commit | content | the test file |
+|---|---|---|
+| `d604ccf` | `git merge --no-edit main` (Amendment B.2 at `325f606`; docs only) | — |
+| `f4413a3` C6d (1/3) | tests first: B.2.3's four, and the red run | **4 failed**, 158 passed, 1 skipped |
+| `de4e94f` C6d (2/3) | the module change of B.2.3, and the artifact diff | 162 passed, 1 skipped |
+| `6267f68` C6d (3/3) | `mutate.py` to 83 mutants: the run of record, the gated probe, the test file and the checks | 162 passed, 1 skipped (`c6d_test_file.txt`) |
+
+The skip is T-regress, until G2 commits the artifact.
+
+## The red run — `c6d_red_run.txt`
+
+The run used the worktree's module, whose sha256 equals `3e5de9c`'s (`96664765…`; `git diff 3e5de9c HEAD --
+offline/tier_statements.py` is empty). **4 failed, 158 passed, 1 skipped.**
+- Each of the four raises `KeyError: 'p_value_defined'` at the real API surface.
+- **A second witness for 136.** B.2.3 (4)'s own walk passes its first assertion before the `KeyError`: the real artifact
+  holds **136** `paired_comparison` blocks. That count is independent of the guard's.
+
+## The four tests (B.2.3), each expected answer by the test's own route
+
+1. **`test_b23_an_exactly_zero_contrasts_p_value_is_labelled_undefined_with_its_convention`.** All six per-draw
+   differences are exactly zero, counted by the test.
+   - `p_value_defined` is False and equals `n_used > 0`; z == 0.0 and p == 1.0; the `wilcoxon` keys are the seven.
+   - The note holds each of `UNDEFINED_NOTE_FACTS` ("exactly zero", "n_used = 0", "dt_gate.wilcoxon_signed_rank",
+     "convention" and "not a test result") and does not say "two-sided".
+2. **`test_b23_a_contrast_zero_on_some_draws_only_has_a_defined_p_value`.** Two of six draws are zero (counted), so
+   `n_zero` is 2 and `n_used` is 4.
+   - The test asserts that a rule on `n_zero == 0` would give the opposite answer.
+   - `p_value_defined` is True. The note holds each of `DEFINED_NOTE_FACTS` ("two-sided", "normal approximation", "tie",
+     "continuity", "never read by a verdict", "min(W+, W-)" and "not the direction") and does not say "n_used = 0".
+3. **`test_b23_a_two_sided_z_comes_from_min_of_the_rank_sums_so_its_sign_is_not_a_direction`.** `dt_spatial` is worse on
+   every draw, then better on every draw, and the `mean_difference` signs differ.
+   - W+, W−, the statistic and z each equal, under `==`, those of `own_wilcoxon_z`, which writes `dt_gate`'s formula out
+     in the test.
+   - Both z's are ≤ 0, and **they are equal to each other**. The rank-biserial is +1 in one and −1 in the other.
+4. **Gated: `test_b23_real_every_p_value_defined_follows_n_used_and_exactly_eight_are_undefined`.** It uses the file's
+   own walk.
+   - It finds 136 blocks, and every label equals `n_used > 0`.
+   - Exactly 8 are False. Each holds (0, 0.0, 1.0), `exactly_zero` True, `rank_biserial_defined` False and the undefined
+     note.
+   - Their statements are B.2.0(5)'s eight, named by (id, tier, definition), not by index.
+
+## The module change — `de4e94f`
+
+- `contrast()`'s `paired_comparison` gains `p_value_defined` (the same `defined`, `wilcoxon.n_used > 0`) and
+  `p_value_note`, beside the rank-biserial pair.
+- **The undefined note, as built:** *"undefined: every per-draw difference is exactly zero (wilcoxon n_used = 0), so there
+  is no test to report; z = 0.0 and p_value = 1.0 are dt_gate.wilcoxon_signed_rank's convention for an empty test and are
+  not a test result (BRIEF_45 Amendment B.2, B.2.3)"*.
+- **The defined note, as built:** *"two-sided signed-rank test (the normal approximation, with the tie and continuity
+  corrections); it is never read by a verdict, and its z is computed from min(W+, W-), so the sign of z is not the
+  direction of the difference -- read mean_difference's sign or the rank-biserial's instead (BRIEF_45 Amendment B.2,
+  B.2.3)"*.
+- `definitions.d8.carried` names both label pairs.
+- The values are untouched: D8 carries `offline_baselines.paired_comparison` unchanged, and `wilcoxon` keeps its seven
+  keys.
+- **On the real data** (`c6d_artifact_diff.txt`: in-memory builds of `f4413a3` and `de4e94f`, with the same synthetic git
+  and code blocks, nothing written):
+  - 23,363 → 23,635 leaves: **+272 = 2 × 136**, in B.2.1's five path classes with its counts;
+  - **0 leaves removed, and no numeric leaf changed;**
+  - 2 text leaves changed: `definitions.d8.carried` and `registered_in`;
+  - 128 defined and 8 not. The 8 are **`statements[74, 75, 94, 95, 100, 101, 132, 133]`, the indices B.2.0(5) names**,
+    each with `n_used = 0` and `n_zero = 100`.
+
+## Mutations — run of record (`c6d_mutation_log.txt`)
+
+    python docs/returns/P5.2c_evidence/mutate.py --repo . --commit de4e94f \
+        --work <empty scratch dir> --output-root /home/filip/rltraffic/output --log <log> --results <json>
+
+**Control: the 79 killing tests pass unmutated. 83 of 83 KILLED**, with 0 survived and 0 errors, and every mutated file
+was restored byte for byte. C6c's 79 mutants are unchanged and all still KILLED. The four new ones:
+
+| # | mutant | killed by (first failing test; `-x`) |
+|---|---|---|
+| B.2.3a | `p_value_defined` forced True | `test_b23_an_exactly_zero…` |
+| B.2.3b | `p_value_defined` forced False | `test_b23_a_contrast_zero_on_some_draws_only…` |
+| B.2.3c | `p_value_defined` read off `n_zero == 0` | `test_b23_a_contrast_zero_on_some_draws_only…` |
+| B.2.3d | the two notes swapped (the conditional's test negated) | `test_b23_an_exactly_zero…` |
+
+**The gated test alone also kills all four** (`c6d_gated_probe.txt`; control 1 passed):
+- B.2.3a at `statements[74]` (`True is (0 > 0)`);
+- B.2.3b at `statements[0]`;
+- B.2.3c at `statements[112]`, Q5a at `fixedtime` under `att_ours`: `n_used = 5` and `n_zero = 95`, a live test
+  (z = −1.348399724926484, p = 0.17752985241215355) that the `n_zero` rule would call undefined;
+- B.2.3d at `statements[74]`'s note.
+
+## The test file and the checks (at `de4e94f`)
+
+    tests/test_tier_statements.py on the pristine export of de4e94f                          -> 162 passed, 1 skipped
+    bash scripts/check_test_hygiene.sh tests/test_tier_statements.py                         -> exit 0
+    bash scripts/check_english.sh offline/tier_statements.py tests/test_tier_statements.py \
+        docs/returns/P5.2c_evidence/mutate.py                                                -> exit 0
+    bash scripts/claude_guard.sh --frozen-only                                               -> exit 0
+    git diff --name-only 81c30d3..HEAD                                                       -> no frozen path
+
+## Deviations and disclosures (C6d)
+
+1. **Module text beyond B.2.3's letter:**
+   - `registered_in` names Amendment B.2;
+   - `contrast()`'s docstring describes the two labels;
+   - `definitions.d8.carried` restates the convention as well as naming the fields.
+
+   These produce the only two changed text leaves in the artifact.
+2. **The defined note adds a pointer that B.2.3 does not prescribe:** *"read mean_difference's sign or the
+   rank-biserial's instead"*. It is B.2.5(2)'s rule for the paper, put where the reader of the block meets the z.
+3. **Assertions beyond B.2.3's list:**
+   - test 3 also asserts that the two z's are equal and that the rank-biserials are opposite;
+   - test 4 also asserts 136 blocks, and the convention's values in each of the eight.
+4. **How the mutants are listed.** Each lists the synthetic test that kills it in the run of record. The gated test's
+   kills are recorded separately, because `pytest -x` stops at the first failure.
+5. **The run of record's control has 79 killing tests, not 83.** Several mutants share tests, and the control runs each
+   distinct test once.
+
+# G2's blocker, as it stood at C6c (ruled by Amendment B.2; kept as the record of the stop)
+
+> Ruled on 2026-10-13 in `BRIEF_45` Amendment B.2: 351 → 487 authorised in writing (B.2.1), the eight empty tests labelled
+> first (B.2.3, C6d above), then G2 with the guard commit first (B.2.4). The text below is unchanged from `d3473f1`,
+> except that its heading became the one below.
+
+## `tests/test_erfc_determinism.py` pins the published (z, p_value) pairs at 351
 
 **What B.1.3 step 3 requires:**
 - build from a clean committed tree;

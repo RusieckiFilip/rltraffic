@@ -1,0 +1,15 @@
+# G2, B.2.4 step 6: the three tests B.2.4 names, by name, at the artifact commit 9fa93e913f6ddd1d0caeb11a5684d246eb940f9b.
+# Date: 2026-10-14.  The whole suite (g2_whole_suite.txt) runs with -q and gives counts only, so this run shows
+#   T-regress, the erfc guard at 487 and B.2.3 (4) PASSED by name.  Run after the whole suite, same commit.
+# Command:
+#   RLTRAFFIC_OUTPUT_ROOT=/home/filip/rltraffic/output /home/filip/rltraffic/.venv/bin/pytest -v --no-header \
+#     -p no:cacheprovider <the three node ids below>
+
+============================= test session starts ==============================
+collecting ... collected 3 items
+
+tests/test_tier_statements.py::test_t_regress_the_committed_artifact_regenerates_byte_for_byte_from_output PASSED [ 33%]
+tests/test_erfc_determinism.py::test_the_committed_p_values_all_still_reproduce_exactly PASSED [ 66%]
+tests/test_tier_statements.py::test_b23_real_every_p_value_defined_follows_n_used_and_exactly_eight_are_undefined PASSED [100%]
+
+============================== 3 passed in 7.27s ===============================

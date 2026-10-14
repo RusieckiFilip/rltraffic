@@ -1,0 +1,11 @@
+# The guard commit, before the artifact exists: it fails BY CONSTRUCTION (BRIEF_45 Amendment B.2, B.2.4 step 3).
+# Date: 2026-10-14.  Command:
+#   /home/filip/rltraffic/.venv/bin/pytest -q --no-header -p no:cacheprovider \
+#     tests/test_erfc_determinism.py::test_the_committed_p_values_all_still_reproduce_exactly
+
+E        +  where 351 = len([('p4_3_p4_gate_effect_sizes.json.comparisons.madt_vs_mappo1000', -4.9804135359638915, 6.344854575852746e-07, None), (...986, None), ('p4_3_rtg.json.adjacent_comparisons.dt_g2_to_dt_g3', -1.1673112844043776, 0.24308468319724988, None), ...])
+
+tests/test_erfc_determinism.py:363: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_erfc_determinism.py::test_the_committed_p_values_all_still_reproduce_exactly
+1 failed in 2.24s

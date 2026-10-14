@@ -1,0 +1,26 @@
+# G2, B.2.4 step 4: the build, in BRIEF_45 Amendment B.1, B.1.3(3)'s worktree form, from the clean committed tree.
+# Date: 2026-10-14.  The lines under "observed" were printed by the commands run in this session just before and
+#   just after the build (transcribed here; a state before a build cannot be re-run after it).  The rest is
+#   re-measured on the committed file at the time this file was written.
+
+observed before the build
+  HEAD                                   b5b8a98908c65184d5208c2a478d12ab3480c87f   (the guard commit)
+  git status --porcelain                 (empty)
+  ls docs/data/p5_2_statements.json      ls: cannot access 'docs/data/p5_2_statements.json': No such file or directory
+
+the command
+  cd /tmp && PYTHONPATH=/home/filip/rltraffic-p52c /home/filip/rltraffic/.venv/bin/python -P \
+    -m offline.tier_statements build --repo-root /home/filip/rltraffic-p52c \
+    --output-root /home/filip/rltraffic/output --out docs/data/p5_2_statements.json
+
+its output, verbatim (exit 0)
+  wrote /home/filip/rltraffic-p52c/docs/data/p5_2_statements.json: 1259859 bytes, sha256 1aa247edf6a43964b45e2b941abf9a3997d987f82e4d320f2d4aad3a2264bb97
+
+observed after the build
+  git status --porcelain                 ?? docs/data/p5_2_statements.json      (that file alone)
+
+re-measured on the file as committed at 9fa93e913f6ddd1d0caeb11a5684d246eb940f9b (G2 2/3)
+  bytes                                  1259859
+  sha256                                 1aa247edf6a43964b45e2b941abf9a3997d987f82e4d320f2d4aad3a2264bb97
+  git block it records                   {"code_root": "/home/filip/rltraffic-p52c", "commit": "b5b8a98908c65184d5208c2a478d12ab3480c87f", "dirty": false}
+  committed blob equals the working file yes
