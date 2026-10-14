@@ -1,0 +1,13 @@
+# C8, step 3 of 3 (BRIEF_45 Amendment D, D5 step 2.3): the test file at the code commit 1a23dd4.
+# Date: 2026-10-14.  Run on the pristine git archive export the mutation run of record used and restored byte for
+#   byte.  module sha256 94ff0a0271244715bacc655f3f6fcec73895474f92dc2d5145fa14bb79122325; test file sha256 37cc0d41000ba053403708ec72fa9ae00458f9c272bcaa99a9b0316c9d44da52.
+# The export holds the committed artifact of 9fa93e9, which predates C8: T-regress FAILS here BY CONSTRUCTION and
+#   passes at the artifact commit, after the rebuild of D5 step 3.
+# Command: cd <export> && PYTHONPATH=<export> RLTRAFFIC_OUTPUT_ROOT=/home/filip/rltraffic/output pytest -q -p no:cacheprovider -rfEs tests/test_tier_statements.py
+
+E         + 9450b07fb6a197d7533046ee7652a7c4235e258c8111da7520f070f4066232b3
+
+tests/test_tier_statements.py:3015: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_tier_statements.py::test_t_regress_the_committed_artifact_regenerates_byte_for_byte_from_output
+1 failed, 180 passed in 21.14s

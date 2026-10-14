@@ -3,7 +3,9 @@ every named mutant executed, its output logged.  Amendment B adds the coordinato
 (``docs/reviews/P5.2c_G1/coord_mutants.py``; CM1 reversed per B2.1, CM15 re-aimed at B2.2's code because the code it
 mutated is gone) and a mutant for each B2 ruling.  Amendment B.1 adds the coordinator's four G1.1 survivors (CB0, CB1a,
 CB2, CB5c; ``docs/reviews/P5.2c_G1_1/coord_mutants_g11.py``, verbatim) and B.1.2(1)'s two; three more were added at
-C6c and are marked so.  Amendment B.2 adds B.2.3's four, on the p-value's definedness and its note (C6d).
+C6c and are marked so.  Amendment B.2 adds B.2.3's four, on the p-value's definedness and its note (C6d).  Amendment
+D adds D1's and D2's fifteen (C8), the reviewer M1b's R1 and R2 among them; those beyond D's letter are marked "added
+at C8".
 
 Run on an EXPORTED COPY of the committed tree (``git archive <commit> | tar -x``), never on the working tree: each mutant
 is an exact string replacement in the copy, asserted to match the stated number of times, the named tests run against
@@ -470,6 +472,77 @@ MUTANTS: tuple[Mutant, ...] = (
            (t("test_b23_an_exactly_zero_contrasts_p_value_is_labelled_undefined_with_its_convention"),
             t("test_b23_a_contrast_zero_on_some_draws_only_has_a_defined_p_value")),
            source="Amendment B.2, B.2.3"),
+    # ---- Amendment D (gate G5, round C8): D1's fixes, D2's tests and the reviewer's R1 and R2.
+    Mutant("D1.1", "Q5's global-only set taken from Q5b's resolving tiers (the code before C8): random, where both "
+                   "filters collapse, named as a tier where the global filter collapses alone",
+           ((MODULE, "        alone = [tier for tier in tiers if collapsed[(global_filter, tier)] and not "
+                     "collapsed[(per_intersection, tier)]]\n",
+             "        alone = list(resolves)\n", 1),),
+           (t("test_d1_1_q5s_reading_names_only_the_tiers_where_the_global_filter_collapses_alone"),
+            t("test_d1_1_real_q5s_global_only_tiers_and_both_collapse_tiers")), source="Amendment D, D1.1"),
+    Mutant("D1.2", "the summary rows' point estimate read from numbers.mean_difference only (Q3c's left null)",
+           ((MODULE, '    source = numbers if "mean_difference" in numbers else numbers.get("contrast", {})\n',
+             "    source = numbers\n", 1),),
+           (t("test_d1_2_every_summary_row_carries_its_statements_point_estimate"),), source="Amendment D, D1.2"),
+    Mutant("D1.3", "the literal rows' att_engine column read from the att_ours values",
+           ((MODULE, "            engine = engine_values[row.value]\n", "            engine = values[row.value]\n",
+             1),),
+           (t("test_d1_3_a_literal_row_carries_its_att_engine_value_and_a_null_only_where_none_exists"),),
+           source="Amendment D, D1.3"),
+    Mutant("D1.4", "V5's row labelled Q0a again, whose verdict is not the outcome it carries",
+           ((MODULE, '            ("V5", H4_CELLS, "Q0a", ts.stop_rule_verdict, "Q0.stop_rule",\n',
+             '            ("V5", H4_CELLS, "Q0a", ts.stop_rule_verdict, "Q0a",\n', 1),),
+           (t("test_d1_4_the_p8_4b_rows_name_what_each_outcome_belongs_to"),), source="added at C8"),
+    Mutant("D1.6", "no arm's seed labels called evaluation labels",
+           ((MODULE, "    labelled = [cell.spec.arm for cell in (left, right) if cell.spec.method in "
+                     "EVALUATION_LABEL_METHODS]\n", "    labelled = []\n", 1),),
+           (t("test_d1_6_a_behaviour_or_anchor_arm_has_its_seed_labels_called_evaluation_labels"),),
+           source="added at C8"),
+    Mutant("D1.7a", "Q6's registered expectation always reported as met",
+           ((MODULE, '"registered_expectation_met": verdict == expectation,', '"registered_expectation_met": True,',
+             1),),
+           (t("test_d1_7_the_labels_q2a_the_audit_rule_q4b_and_q6s_expectation"),
+            t("test_d1_7_and_d1_8_real_the_expectation_q6_missed_and_the_four_small_tests")), source="added at C8"),
+    Mutant("D1.7b", "no entry carrying a registered value says what it was registered on",
+           ((MODULE, '    if "predictions_registered_on" not in numbers and _carries_registered_value(numbers):\n',
+             "    if False:\n", 1),),
+           (t("test_d1_7_the_labels_q2a_the_audit_rule_q4b_and_q6s_expectation"),), source="added at C8"),
+    Mutant("D1.8", "the small-sample condition removed: every p-value note says it rests on too few pairs",
+           ((MODULE, '                    if 0 < int(wilcoxon.n_used) < SMALL_SAMPLE_PAIRS else "")\n',
+             '                    if True else "")\n', 1),),
+           (t("test_d1_8_a_signed_rank_test_on_fewer_than_twenty_pairs_says_so"),), source="Amendment D, D1.8"),
+    Mutant("D1.8b", "the small-sample sentence never emitted",
+           ((MODULE, '                    if 0 < int(wilcoxon.n_used) < SMALL_SAMPLE_PAIRS else "")\n',
+             '                    if False else "")\n', 1),),
+           (t("test_d1_8_a_signed_rank_test_on_fewer_than_twenty_pairs_says_so"),), source="added at C8"),
+    Mutant("D1.9a", "the temporary unlinked whether or not this call created it",
+           ((MODULE, "        if created:\n            temporary.unlink(missing_ok=True)\n",
+             "        if True:\n            temporary.unlink(missing_ok=True)\n", 1),),
+           (t("test_d1_9a_a_temporary_file_this_call_did_not_create_survives_its_refusal"),),
+           source="Amendment D, D1.9(a)"),
+    Mutant("D1.9b", "git's toplevel not checked: an untracked copy nested in another repository records its commit",
+           ((MODULE, '    if toplevel is not None and Path(toplevel).resolve() != Path(block["code_root"]).resolve():\n',
+             "    if False:\n", 1),),
+           (t("test_d1_9b_a_copy_nested_untracked_in_another_repository_is_refused"),),
+           source="Amendment D, D1.9(b)"),
+    Mutant("R1", "changes_block's changed_by_rule_r read from the verdict alone (reviewer M1b's R1)",
+           ((MODULE, '"changed_by_rule_r": outcome[1] != outcome[2]',
+             '"changed_by_rule_r": steps[1]["verdict"] != steps[2]["verdict"]', 1),),
+           (t("test_d2_1_changes_flags_by_this_files_rule"),), source="Amendment D, D2.1 (reviewer M1b's R1)"),
+    Mutant("R2", "REGISTERED_VALUES' Q4 random value 62.7106 -> 62.7016, in the table alone (reviewer M1b's R2)",
+           ((MODULE, '    "Q4": {"mappo1000": 39.5649, "maxpressure": 41.7402, "fixedtime": 51.3689, "random": 62.7106},\n',
+             '    "Q4": {"mappo1000": 39.5649, "maxpressure": 41.7402, "fixedtime": 51.3689, "random": 62.7016},\n',
+             1),),
+           (t("test_d2_2_every_registered_value_is_the_plans"),), source="Amendment D, D2.2 (reviewer M1b's R2)"),
+    Mutant("D2.4a", "every statement stored per version, an IQL-free one twice instead of once as both",
+           ((MODULE, '        if CORRECTED_IQL in corrected["inputs"] or ORIGINAL_IQL in original["inputs"]:\n',
+             "        if True:\n", 1),),
+           (t("test_t_versions_the_iql_free_statements_are_stored_once_and_the_iql_ones_twice"),),
+           source="added at C8 (D2.4)"),
+    Mutant("D2.4b", "the P8.4b comparison emitted empty",
+           ((MODULE, '"p5_1_grid": p5_1, "p8_4b": p8,', '"p5_1_grid": p5_1, "p8_4b": [],', 1),),
+           (t("test_t_inputs_the_synthetic_build_passes_every_comparison_of_the_record"),),
+           source="added at C8 (D2.4)"),
 )
 
 

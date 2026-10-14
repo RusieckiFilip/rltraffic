@@ -1,0 +1,20 @@
+# C8, step 3 of 3: the checks at the code commit 1a23dd4 (BRIEF_45 Amendment D, D5 step 2.3).
+# Date: 2026-10-14.  Run in the worktree on the files C8 touches.
+
+$ bash scripts/check_test_hygiene.sh tests/test_tier_statements.py
+exit=0
+
+$ bash scripts/check_english.sh offline/tier_statements.py tests/test_tier_statements.py docs/returns/P5.2c_evidence/mutate.py docs/returns/P5.2c_evidence/c8_*
+exit=0
+
+$ bash scripts/claude_guard.sh --frozen-only    (the flag on .claude/settings.json is the author's known change, D0.6)
+BLOCKED: frozen files were modified. This project forbids it (see CLAUDE.md rule 1):
+.claude/settings.json
+
+Do not run `git checkout` on this automatically — confirm with the user whether this is
+their in-progress work or something this session needs to revert.
+Record the need for the change as an open question in the Return Packet.
+exit=2
+
+$ frozen paths in main...HEAD (git diff --name-only, filtered by the frozen list)
+(none)
