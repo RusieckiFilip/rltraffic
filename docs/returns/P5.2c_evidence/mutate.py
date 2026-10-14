@@ -3,7 +3,7 @@ every named mutant executed, its output logged.  Amendment B adds the coordinato
 (``docs/reviews/P5.2c_G1/coord_mutants.py``; CM1 reversed per B2.1, CM15 re-aimed at B2.2's code because the code it
 mutated is gone) and a mutant for each B2 ruling.  Amendment B.1 adds the coordinator's four G1.1 survivors (CB0, CB1a,
 CB2, CB5c; ``docs/reviews/P5.2c_G1_1/coord_mutants_g11.py``, verbatim) and B.1.2(1)'s two; three more were added at
-C6c and are marked so.
+C6c and are marked so.  Amendment B.2 adds B.2.3's four, on the p-value's definedness and its note (C6d).
 
 Run on an EXPORTED COPY of the committed tree (``git archive <commit> | tar -x``), never on the working tree: each mutant
 is an exact string replacement in the copy, asserted to match the stated number of times, the named tests run against
@@ -445,6 +445,31 @@ MUTANTS: tuple[Mutant, ...] = (
              '    elif interaction["exactly_zero"]:\n        q0b, q0b_reading = "NOT RESOLVED", (', 1),),
            (t("test_b11_2_an_i_exactly_zero_because_the_horizon_changes_nothing_is_held_and_not_identical"),),
            source="added at C6c"),
+    # ---- Amendment B.2, B.2.3 (C6d): the p-value's definedness and its note.  Each is listed with the test whose
+    # ---- failure the run of record shows; B.2.3 (4)'s gated test kills all four as well, which c6d_gated_probe.txt
+    # ---- shows separately (pytest -x stops at the first failure, so one run cannot evidence both).
+    Mutant("B.2.3a", "p_value_defined forced True: an empty signed-rank test published as a test",
+           ((MODULE, '            "p_value_defined": defined,\n', '            "p_value_defined": True,\n', 1),),
+           (t("test_b23_an_exactly_zero_contrasts_p_value_is_labelled_undefined_with_its_convention"),),
+           source="Amendment B.2, B.2.3"),
+    Mutant("B.2.3b", "p_value_defined forced False: every two-sided test called undefined",
+           ((MODULE, '            "p_value_defined": defined,\n', '            "p_value_defined": False,\n', 1),),
+           (t("test_b23_a_contrast_zero_on_some_draws_only_has_a_defined_p_value"),
+            t("test_b23_a_two_sided_z_comes_from_min_of_the_rank_sums_so_its_sign_is_not_a_direction")),
+           source="Amendment B.2, B.2.3"),
+    Mutant("B.2.3c", "p_value_defined read off n_zero == 0 instead of n_used > 0: a test with any tied draw called "
+                     "undefined",
+           ((MODULE, '            "p_value_defined": defined,\n',
+             '            "p_value_defined": int(wilcoxon.n_zero) == 0,\n', 1),),
+           (t("test_b23_a_contrast_zero_on_some_draws_only_has_a_defined_p_value"),),
+           source="Amendment B.2, B.2.3"),
+    Mutant("B.2.3d", "the two p-value notes swapped: the empty test gets the two-sided note and the two-sided test "
+                     "gets the empty one",
+           ((MODULE, '"(BRIEF_45 Amendment B.2, B.2.3)" if defined else',
+             '"(BRIEF_45 Amendment B.2, B.2.3)" if not defined else', 1),),
+           (t("test_b23_an_exactly_zero_contrasts_p_value_is_labelled_undefined_with_its_convention"),
+            t("test_b23_a_contrast_zero_on_some_draws_only_has_a_defined_p_value")),
+           source="Amendment B.2, B.2.3"),
 )
 
 

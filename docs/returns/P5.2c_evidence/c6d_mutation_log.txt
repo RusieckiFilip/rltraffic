@@ -1,0 +1,862 @@
+# P5.2c mutation run on an exported copy of de4e94f8c19a27bfabbb9241463203d5423805d1 at /tmp/claude-1000/-home-filip-rltraffic-p52c/4308844d-54b7-44c2-8d2a-37fb23e96722/scratchpad/c6d/mutwork/tree
+# interpreter /home/filip/rltraffic/.venv/bin/python; RLTRAFFIC_OUTPUT_ROOT=/home/filip/rltraffic/output
+# this script: mutate.py at sha256 a3fcaa8ae4c7fa3d30bd58b3173e946e5755635005f290bac66735fe26df9696
+
+## control (no mutation): 79 killing tests, pytest exit 0
+100 passed in 12.21s
+
+## M1 -- the tie rule disabled: measured_levels dropped from every concordance call [BRIEF_45 section 5]: KILLED
+   offline/tier_statements.py: 2 x 'measured_levels=measured)'
+      -> 'measured_levels=None)'
+   offline/tier_statements.py: 3 x 'measured_levels=levels)'
+      -> 'measured_levels=None)'
+   tests: test_t_ties_two_exact_ties_every_integer_and_its_range_by_enumeration, test_t_reproduce_record_every_value_p5_2s_record_states_at_its_precision
+   failing: ['tests/test_tier_statements.py::test_t_ties_two_exact_ties_every_integer_and_its_range_by_enumeration']
+   E       AssertionError: assert 8 == 7
+   E        +  where 7 = own_concordant_rule(['dt_nomix', 'bc', 'bc_top10_perix', 'dt_spatial', 'iql', 'bc_top10'], {'dt_spatial': 207.0, 'dt_nomix': 207.0, 'bc': 207.25, 'bc_top10': 207.5, ...}, ('dt_sp
+   E        +    where ('dt_spatial', 'dt_nomix', 'bc', 'bc_top10', 'bc_top10_perix', 'iql') = ts.METHODS
+   1 failed in 1.21s
+
+## M2 -- episode-level instead of per-draw pairing [BRIEF_45 section 5]: KILLED
+   offline/tier_statements.py: 1 x 'left_means, right_means = _per_draw_means(a), _per_draw_means(b)'
+      -> 'left_means = {(e.seed, e.draw_id): e.att_horizon for e in a}\n    right_means = {(e.seed, e.draw_id): e.att_hor'
+   tests: test_t_contrast_episode_level_pairing_would_change_n_and_the_interval, test_t_contrast_equals_statistics_on_dyadic_values_where_every_route_is_exact
+   failing: ['tests/test_tier_statements.py::test_t_contrast_episode_level_pairing_would_change_n_and_the_interval']
+   E           ValueError: offline_baselines.paired_comparison gives 5.416666666666667 [4.038458490164373, 6.7948748431689605] for p5_2:bc@fixedtime - p5_2:bc_top10@fixedtime under att_ours, and this mod
+   1 failed in 1.45s
+
+## M3 -- the corrected and original IQL cells swapped [BRIEF_45 section 5]: KILLED
+   offline/tier_statements.py: 1 x '("iql", "random"): cells[CORRECTED_IQL]},\n            "as_committed": {**common, ("iql", "random"): cells[ORIG'
+      -> '("iql", "random"): cells[ORIGINAL_IQL]},\n            "as_committed": {**common, ("iql", "random"): cells[CORRE'
+   tests: test_t_versions_the_books_differ_only_at_the_random_tier_iql_cell, test_t_versions_the_iql_free_statements_are_stored_once_and_the_iql_ones_twice, test_t_reproduce_p5_2b_the_random_tier_on_both_versions_field_by_field
+   failing: ['tests/test_tier_statements.py::test_t_versions_the_books_differ_only_at_the_random_tier_iql_cell']
+   E       AssertionError: assert 'p5_2:iql@random' == 'p5_2b:iql@random'
+   E         
+   E         - p5_2b:iql@random
+   E         ?     -
+   E         + p5_2:iql@random
+   1 failed in 1.26s
+
+## M4 -- z = 1.959964 in the interval (dt_gate.mean_ci95, the one place the module's z lives) [BRIEF_45 section 5]: KILLED
+   offline/dt_gate.py: 1 x 'ci95=1.96 * std / math.sqrt(count),'
+      -> 'ci95=1.959964 * std / math.sqrt(count),'
+   tests: test_t_contrast_equals_statistics_on_dyadic_values_where_every_route_is_exact
+   failing: ['tests/test_tier_statements.py::test_t_contrast_equals_statistics_on_dyadic_values_where_every_route_is_exact']
+   E       assert 2.1401727705947664 == ((1.96 * 2.441663111487742) / 2.23606797749979)
+   E        +  where 2.23606797749979 = <built-in function sqrt>(5)
+   E        +    where <built-in function sqrt> = math.sqrt
+   1 failed in 1.34s
+
+## M5 -- Q4b scored on the three-rung chain only [BRIEF_45 section 5]: KILLED
+   offline/tier_statements.py: 1 x '(("Q4b", TIERS), ("Q4b.three_rung"'
+      -> '(("Q4b", ("mappo1000", "maxpressure", "random")), ("Q4b.three_rung"'
+   tests: test_t_q4b_the_four_rung_chain_and_the_three_rung_bullet_can_disagree
+   failing: ['tests/test_tier_statements.py::test_t_q4b_the_four_rung_chain_and_the_three_rung_bullet_can_disagree']
+   E       AssertionError: assert 'HELD' == 'FAILED'
+   E         
+   E         - FAILED
+   E         + HELD
+   1 failed in 1.37s
+
+## M6 -- Q6 against the behaviour cell instead of the shared random anchor [BRIEF_45 section 5]: KILLED
+   offline/tier_statements.py: 1 x 'anchor = book[ANCHOR]'
+      -> 'anchor = book[("behaviour", "mappo1000")]'
+   tests: test_t_q6_reads_the_shared_anchor_not_the_behaviour_cell, test_t_first_time_scores_each_against_this_files_own_recomputation
+   failing: ['tests/test_tier_statements.py::test_t_q6_reads_the_shared_anchor_not_the_behaviour_cell']
+   E           AssertionError: assert 36.783854166666664 == -63.54557291666667
+   E            +  where -63.54557291666667 = seq_contrast(Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', method='dt_spatial', tier='mappo1000', source='p5_1', ...created': 1302, 'never_
+   1 failed in 1.67s
+
+## M7 -- Q5b's mappo1000 tier dropped [BRIEF_45 section 5]: KILLED
+   offline/tier_statements.py: 1 x '("Q5b", ("bc_top10_perix", "bc_top10"), {tier: "negative" for tier in TIERS}),'
+      -> '("Q5b", ("bc_top10_perix", "bc_top10"), {tier: "negative" for tier in OUT_OF_SAMPLE_TIERS}),'
+   tests: test_t_q5b_a_failed_mappo1000_tier_makes_the_aggregate_failed
+   failing: ['tests/test_tier_statements.py::test_t_q5b_a_failed_mappo1000_tier_makes_the_aggregate_failed']
+   E       KeyError: ('Q5b', 'mappo1000')
+   1 failed in 1.78s
+
+## M8 -- an exact zero folded into HELD [BRIEF_45 section 5]: KILLED
+   offline/tier_statements.py: 1 x 'if predicted == "negative":\n        return sm._outcome_from_interval(float(low), float(high))'
+      -> 'if float(low) == 0.0 == float(high):\n        return "HELD"\n    if predicted == "negative":\n        return sm._'
+   tests: test_t_outcome_the_interval_rule_for_both_predicted_signs, test_t_contrast_exact_zero_is_ci_zero_not_resolved_sign_zero_and_named, test_t_q4a_the_exact_zero_at_fixedtime_is_not_resolved_and_the_aggregate_follows
+   failing: ['tests/test_tier_statements.py::test_t_outcome_the_interval_rule_for_both_predicted_signs[0.0-0.0-NOT RESOLVED-NOT RESOLVED]']
+   E       AssertionError: assert 'HELD' == 'NOT RESOLVED'
+   E         
+   E         - NOT RESOLVED
+   E         + HELD
+   1 failed, 5 passed in 1.50s
+
+## M9 -- definition_dependent always false [BRIEF_45 section 5]: KILLED
+   offline/tier_statements.py: 1 x 'entry["definition_dependent"] = entry["verdict"] != other["verdict"]'
+      -> 'entry["definition_dependent"] = False'
+   offline/tier_statements.py: 1 x 'entry["definition_dependent"] = entry["reading"] != other["reading"]'
+      -> 'entry["definition_dependent"] = False'
+   tests: test_t_definitions_definition_dependent_is_true_iff_the_two_verdicts_differ, test_t_first_time_scores_each_against_this_files_own_recomputation
+   failing: ['tests/test_tier_statements.py::test_t_definitions_definition_dependent_is_true_iff_the_two_verdicts_differ']
+   E       assert (False is True)
+   1 failed in 1.63s
+
+## M10 -- the out-path barrier removed [BRIEF_45 section 5]: KILLED
+   offline/tier_statements.py: 1 x 'out = assert_out_path(args.out, roots, inputs)'
+      -> 'out = Path(args.out).resolve()'
+   tests: test_t_barrier_refuses_an_out_path_under_the_output_root, test_t_barrier_refuses_a_tree_holding_p5_2s_manifest_whatever_the_output_root_says, test_t_barrier_refuses_an_input_as_the_out_path
+   failing: ['tests/test_tier_statements.py::test_t_barrier_refuses_an_out_path_under_the_output_root[absolute]']
+   E       AssertionError: assert 0 == 2
+   E        +  where 0 = <function main at 0x725acbe51c60>(['build', '--repo-root', '/tmp/pytest-of-filip/pytest-2/test_t_barrier_refuses_an_out_0/repo', '--output-root', '/tmp/pytest-of-filip/pytest-2/t
+   E        +    where <function main at 0x725acbe51c60> = tst.main
+   E        +    and   ['build', '--repo-root', '/tmp/pytest-of-filip/pytest-2/test_t_barrier_refuses_an_out_0/repo', '--output-root', '/tmp/pytest-of-filip/pytest-2/test_t_barrier_refuses_an_out_0/outpu
+   1 failed in 1.97s
+
+## M11 -- the per-draw route switched to Python's built-in (compensated) sum (F1) [plan section 8]: KILLED
+   offline/tier_statements.py: 1 x 'left_means, right_means = _per_draw_means(a), _per_draw_means(b)'
+      -> 'left_means = {d: sum(e.att_horizon for e in a if e.draw_id == d) / sum(1 for e in a if e.draw_id == d) for d i'
+   tests: test_t_contrast_route_pin_is_numpy_per_draw_and_not_the_compensated_sum, test_t_reproduce_p5_1_d1_is_p1_and_q6_at_mappo1000_is_p3
+   failing: ['tests/test_tier_statements.py::test_t_contrast_route_pin_is_numpy_per_draw_and_not_the_compensated_sum']
+   E           ValueError: offline_baselines.paired_comparison gives 0.7333333333333333 [0.09869137302990538, 1.367975293636761] for p5_2:dt_spatial@maxpressure - p5_2:dt_nomix@maxpressure under att_ours
+   1 failed in 1.81s
+
+## M12 -- the version-identity refusal removed [plan section 8]: KILLED
+   offline/tier_statements.py: 1 x 'raise ValueError(f"{key} differs between versions'
+      -> 'print(f"{key} differs between versions'
+   tests: test_t_versions_an_iql_free_statement_that_differs_between_versions_is_refused
+   failing: ['tests/test_tier_statements.py::test_t_versions_an_iql_free_statement_that_differs_between_versions_is_refused']
+   E       Failed: DID NOT RAISE ValueError
+   1 failed in 1.57s
+
+## M13 -- Q3a counting a tie as lower [plan section 8]: KILLED
+   offline/tier_statements.py: 1 x 'sum(measured[method] < measured["dt_nomix"] for method in others)'
+      -> 'sum(measured[method] <= measured["dt_nomix"] for method in others)'
+   offline/tier_statements.py: 1 x 'levels[arm] < levels[subject]),'
+      -> 'levels[arm] <= levels[subject]),'
+   tests: test_t_ties_two_exact_ties_every_integer_and_its_range_by_enumeration, test_t_reproduce_record_every_value_p5_2s_record_states_at_its_precision
+   failing: ['tests/test_tier_statements.py::test_t_ties_two_exact_ties_every_integer_and_its_range_by_enumeration']
+   E       assert 3 == (1 + 1)
+   E        +  where 1 = sum(<generator object test_t_ties_two_exact_ties_every_integer_and_its_range_by_enumeration.<locals>.<genexpr> at 0x77dbbffd2b20>)
+   1 failed in 1.45s
+
+## M14 -- the random-anchor identity check removed [plan section 8]: KILLED
+   offline/tier_statements.py: 1 x 'anchor = assert_anchor_identity(payloads[ANCHOR_CELL], payloads[REROLLED_ANCHOR_CELL], cells[ANCHOR_CELL].rows'
+      -> 'anchor = {"removed": True}'
+   tests: test_t_inputs_refuses_a_rerolled_anchor_that_differs_from_p5_1s
+   failing: ['tests/test_tier_statements.py::test_t_inputs_refuses_a_rerolled_anchor_that_differs_from_p5_1s']
+   E       Failed: DID NOT RAISE ValueError
+   1 failed in 1.62s
+
+## M15 -- iql_correction._p8_4b_rows bypassed [plan section 8]: KILLED
+   offline/tier_statements.py: 1 x 'rows = ic._p8_4b_rows(output, method, tier, reference)'
+      -> 'rows = [json.loads((output / P8_4B_DIR / ar.cell_file_name(ar.CellKey(scenario=SCENARIO, arm=spec.arm, seed=e.'
+   tests: test_t_inputs_refuses_a_p8_4b_row_that_does_not_reproduce_its_eval_file
+   failing: ['tests/test_tier_statements.py::test_t_inputs_refuses_a_p8_4b_row_that_does_not_reproduce_its_eval_file']
+   E       AssertionError: Regex pattern did not match.
+   E         Expected regex: 'does not reproduce'
+   E         Actual message: "bc@fixedtime under att_ours: the mean of P8.4b's 12 cells by the note's own route (statistics.mean) is 207.34895833333334, and docs/notes/readme_2026-10-05/c1_rule_r.json sa
+   1 failed in 1.84s
+
+## M16 -- the README note's means refusal removed on every tier (F13) [plan section 8]: KILLED
+   offline/tier_statements.py: 1 x 'note_checks = {"random": ic.assert_c1_note_means(output, campaign["cells"], note["payload"])}'
+      -> 'note_checks = {"random": {}}'
+   offline/tier_statements.py: 1 x 'note_checks[tier] = assert_note_means(output, campaign["cells"], note["payload"], tier=tier, arms=arms)'
+      -> 'note_checks[tier] = {}'
+   tests: test_t_inputs_refuses_an_altered_att_engine_by_the_notes_means
+   failing: ['tests/test_tier_statements.py::test_t_inputs_refuses_an_altered_att_engine_by_the_notes_means[bc@maxpressure]']
+   E       Failed: DID NOT RAISE ValueError
+   1 failed in 1.83s
+
+## M17 -- the dirty-tree refusal removed [plan section 8]: KILLED
+   offline/tier_statements.py: 1 x 'if git.get("dirty") is not False:'
+      -> 'if False:'
+   tests: test_t_cli_build_refuses_a_dirty_tree_and_check_reports_it
+   failing: ['tests/test_tier_statements.py::test_t_cli_build_refuses_a_dirty_tree_and_check_reports_it']
+   E       AssertionError: assert 0 == 2
+   E        +  where 0 = <function main at 0x7fc2aae998a0>(['build', '--repo-root', '/tmp/pytest-of-filip/pytest-6/test_t_cli_build_refuses_a_dir0/repo', '--output-root', '/tmp/pytest-of-filip/pytest-6/t
+   E        +    where <function main at 0x7fc2aae998a0> = tst.main
+   E        +    and   ['build', '--repo-root', '/tmp/pytest-of-filip/pytest-6/test_t_cli_build_refuses_a_dir0/repo', '--output-root', '/tmp/pytest-of-filip/pytest-6/test_t_cli_build_refuses_a_dir0/outpu
+   1 failed in 1.78s
+
+## M18 -- the write-once refusal removed [plan section 8]: KILLED
+   offline/tier_statements.py: 1 x 'if unresolved.is_symlink() or unresolved.exists():'
+      -> 'if False:'
+   offline/tier_statements.py: 1 x 'os.link(temporary, target)'
+      -> 'os.replace(temporary, target)'
+   tests: test_t_barrier_an_existing_artifact_is_refused_and_left_byte_identical
+   failing: ['tests/test_tier_statements.py::test_t_barrier_an_existing_artifact_is_refused_and_left_byte_identical']
+   E       AssertionError: assert 0 == 2
+   E        +  where 0 = <function main at 0x70b4494998a0>(['build', '--repo-root', '/tmp/pytest-of-filip/pytest-7/test_t_barrier_an_existing_art0/repo', '--output-root', '/tmp/pytest-of-filip/pytest-7/t
+   E        +    where <function main at 0x70b4494998a0> = tst.main
+   E        +    and   ['build', '--repo-root', '/tmp/pytest-of-filip/pytest-7/test_t_barrier_an_existing_art0/repo', '--output-root', '/tmp/pytest-of-filip/pytest-7/test_t_barrier_an_existing_art0/outpu
+   1 failed in 1.61s
+
+## M19 -- A4.1's module-root check removed [Amendment A, A4.4]: KILLED
+   offline/tier_statements.py: 1 x 'code = assert_code_under_root(repo_root)'
+      -> 'code = []'
+   offline/tier_statements.py: 1 x 'if assert_code_under_root(repo_root) != code:'
+      -> 'if False:'
+   tests: test_m19_main_refuses_a_repo_root_the_running_code_is_not_under
+   failing: ['tests/test_tier_statements.py::test_m19_main_refuses_a_repo_root_the_running_code_is_not_under']
+   E       assert 'does not resolve under' in "REFUSED: FileNotFoundError: [Errno 2] No such file or directory: '/tmp/pytest-of-filip/pytest-8/test_m19_main_refuses_a_repo_r0/output/SHA256SUMS_p5_1.txt'\
+   E        +  where "REFUSED: FileNotFoundError: [Errno 2] No such file or directory: '/tmp/pytest-of-filip/pytest-8/test_m19_main_refuses_a_repo_r0/output/SHA256SUMS_p5_1.txt'\n" = CaptureResult(out=''
+   E        +    where CaptureResult(out='', err="REFUSED: FileNotFoundError: [Errno 2] No such file or directory: '/tmp/pytest-of-filip/pytest-8/test_m19_main_refuses_a_repo_r0/output/SHA256SUMS_p5_1.tx
+   E        +      where readouterr = <_pytest.capture.CaptureFixture object at 0x7eb1f5e8e0c0>.readouterr
+   1 failed in 1.74s
+
+## M20 -- the paired_comparison equality refusal removed [Amendment A, A4.4]: KILLED
+   offline/tier_statements.py: 1 x 'if (comparison.mean_difference, comparison.ci95_low, comparison.ci95_high) != (stats.mean, low, high):'
+      -> 'if False:'
+   tests: test_m20_a_one_ulp_perturbation_of_paired_comparisons_mean_is_refused
+   failing: ['tests/test_tier_statements.py::test_m20_a_one_ulp_perturbation_of_paired_comparisons_mean_is_refused']
+   E       Failed: DID NOT RAISE ValueError
+   1 failed in 1.63s
+
+## M21 -- the collapse_criterion equality refusal removed (F9) [added at C5]: KILLED
+   offline/tier_statements.py: 1 x 'if (p5_1["mean_difference"], p5_1["ci95_low"], p5_1["ci95_high"]) != ('
+      -> 'if False and ('
+   tests: test_t_q6_refuses_when_collapse_criterion_disagrees_with_the_registered_route
+   failing: ['tests/test_tier_statements.py::test_t_q6_refuses_when_collapse_criterion_disagrees_with_the_registered_route']
+   E       Failed: DID NOT RAISE ValueError
+   1 failed in 1.76s
+
+## M22 -- the record comparison accepting a row neither equal nor explained (and carrying it quietly) [added at C5]: KILLED
+   offline/tier_statements.py: 1 x 'if not equal and row.exception is None:'
+      -> 'if False:'
+   offline/tier_statements.py: 1 x '"explanation": None if equal else RECORD_EXCEPTIONS[row.exception],'
+      -> '"explanation": None if equal else RECORD_EXCEPTIONS.get(row.exception),'
+   offline/tier_statements.py: 1 x '"verified": None if equal else _verify_exception(row, statements)})'
+      -> '"verified": None if equal or row.exception is None else _verify_exception(row, statements)})'
+   tests: test_a_record_row_neither_equal_nor_explained_refuses_the_build
+   failing: ['tests/test_tier_statements.py::test_a_record_row_neither_equal_nor_explained_refuses_the_build']
+   E       Failed: DID NOT RAISE ValueError
+   1 failed in 1.69s
+
+## M23 -- a declared exception trusted instead of verified [added at C5]: KILLED
+   offline/tier_statements.py: 1 x 'if not ok:\n        raise ValueError(f"{_source(row.file, row.lines)}: the declared exception'
+      -> 'if False:\n        raise ValueError(f"{_source(row.file, row.lines)}: the declared exception'
+   tests: test_a_declared_exception_is_verified_not_trusted
+   failing: ['tests/test_tier_statements.py::test_a_declared_exception_is_verified_not_trusted']
+   E       Failed: DID NOT RAISE ValueError
+   1 failed in 1.91s
+
+## M24 -- P5.2b's field-by-field refusal removed [added at C5]: KILLED
+   offline/tier_statements.py: 1 x 'if problems:'
+      -> 'if False:'
+   tests: test_the_build_refuses_a_p5_2b_statement_it_does_not_reproduce_field_by_field
+   failing: ['tests/test_tier_statements.py::test_the_build_refuses_a_p5_2b_statement_it_does_not_reproduce_field_by_field']
+   E       Failed: DID NOT RAISE ValueError
+   1 failed in 1.72s
+
+## M25 -- P8.4b's own-route refusal removed [added at C5]: KILLED
+   offline/tier_statements.py: 1 x 'if route != tuple(recorded[k] for k in keys) or len(differences) != recorded["n_paired"]:'
+      -> 'if False:'
+   tests: test_the_build_refuses_a_p8_4b_record_its_own_route_does_not_reproduce
+   failing: ['tests/test_tier_statements.py::test_the_build_refuses_a_p8_4b_record_its_own_route_does_not_reproduce']
+   E       AssertionError: Regex pattern did not match.
+   E         Expected regex: 'does not reproduce V4'
+   E         Actual message: "P8.4b's V4 under att_engine, mean_difference: this artifact's 38.98697916666667 and the record's 38.986979167597994 differ by more than 4 ulps (-9.313225746154785e-10), so t
+   1 failed in 1.74s
+
+## M26 -- P5.1's P1/P3 equality refusal removed [added at C5]: KILLED
+   offline/tier_statements.py: 1 x 'if unequal:'
+      -> 'if False:'
+   tests: test_the_build_refuses_a_p5_1_record_it_does_not_reproduce_under_equality
+   failing: ['tests/test_tier_statements.py::test_the_build_refuses_a_p5_1_record_it_does_not_reproduce_under_equality']
+   E       Failed: DID NOT RAISE ValueError
+   1 failed in 1.81s
+
+## M27 -- the stop-rule record's own-route refusal removed [added at C5]: KILLED
+   offline/tier_statements.py: 1 x 'if tuple(route[k] for k in keys) != tuple(stop_record[k] for k in keys):'
+      -> 'if False:'
+   tests: test_the_build_refuses_a_stop_rule_record_its_own_route_does_not_reproduce
+   failing: ['tests/test_tier_statements.py::test_the_build_refuses_a_stop_rule_record_its_own_route_does_not_reproduce']
+   E       AssertionError: Regex pattern did not match.
+   E         Expected regex: 'score_stop_rule over the two 4-head records does not reproduce'
+   E         Actual message: "P5.2's stop-rule record, ci95_low: this artifact's 26.72667319160626 and the record's 26.726673190674937 differ by more than 4 ulps (9.313225746154785e-10), so the arithmeti
+   1 failed in 1.86s
+
+## M28 -- D17's on-disk check removed [added at C5]: KILLED
+   offline/tier_statements.py: 1 x 'd17 = _assert_d17(output, sums[P5_2_SUMS_NAME], payloads)'
+      -> 'd17 = {"training_records": {}}'
+   tests: test_t_inputs_d17_a_deterministic_mappo1000_dt_run_is_refused, test_t_inputs_d17_a_complete_one_head_mappo1000_cell_in_p5_2_is_refused
+   failing: ['tests/test_tier_statements.py::test_t_inputs_d17_a_deterministic_mappo1000_dt_run_is_refused']
+   E       Failed: DID NOT RAISE ValueError
+   1 failed in 1.52s
+
+## M29 -- an evaluation record's completeness check removed [added at C5]: KILLED
+   offline/tier_statements.py: 1 x 'if not ts.cell_is_complete(payload, seeds=seeds, draws=draws, declared_steps=ts.DECLARED_GRADIENT_STEPS,'
+      -> 'if False and not ts.cell_is_complete(payload, seeds=seeds, draws=draws, declared_steps=ts.DECLARED_GRADIENT_ST'
+   tests: test_t_inputs_refuses_an_incomplete_cell
+   failing: ['tests/test_tier_statements.py::test_t_inputs_refuses_an_incomplete_cell']
+   E       AssertionError: Regex pattern did not match.
+   E         Expected regex: 'not a complete cell'
+   E         Actual message: "output/p5_2/eval_maxpressure_bc.json: the level 166.0099431818182 by mean_ci95 in (seed, draw) order is not the record's own cell mean 165.99739583333334"
+   1 failed in 1.82s
+
+## M30 -- M11 and M20 together: the compensated-sum route with the paired_comparison refusal also removed, so only the route pin's value assertion stands [added at C5]: KILLED
+   offline/tier_statements.py: 1 x 'left_means, right_means = _per_draw_means(a), _per_draw_means(b)'
+      -> 'left_means = {d: sum(e.att_horizon for e in a if e.draw_id == d) / sum(1 for e in a if e.draw_id == d) for d i'
+   offline/tier_statements.py: 1 x 'if (comparison.mean_difference, comparison.ci95_low, comparison.ci95_high) != (stats.mean, low, high):'
+      -> 'if False:'
+   tests: test_t_contrast_route_pin_is_numpy_per_draw_and_not_the_compensated_sum
+   failing: ['tests/test_tier_statements.py::test_t_contrast_route_pin_is_numpy_per_draw_and_not_the_compensated_sum']
+   E       assert 0.7333333333333334 == 0.7333333333333333
+   1 failed in 1.28s
+
+## M31 -- M2 and M20 together: episode-level pairing with the paired_comparison refusal also removed [added at C5]: KILLED
+   offline/tier_statements.py: 1 x 'left_means, right_means = _per_draw_means(a), _per_draw_means(b)'
+      -> 'left_means = {(e.seed, e.draw_id): e.att_horizon for e in a}\n    right_means = {(e.seed, e.draw_id): e.att_hor'
+   offline/tier_statements.py: 1 x 'if (comparison.mean_difference, comparison.ci95_low, comparison.ci95_high) != (stats.mean, low, high):'
+      -> 'if False:'
+   tests: test_t_contrast_episode_level_pairing_would_change_n_and_the_interval
+   failing: ['tests/test_tier_statements.py::test_t_contrast_episode_level_pairing_would_change_n_and_the_interval']
+   E       assert 24 == 6
+   1 failed in 1.15s
+
+## CM1r -- Q0b: an exactly-zero I scored NOT RESOLVED instead of HELD (CM1 reversed per B2.1) [Amendment B, B1 (coordinator, docs/reviews/P5.2c_G1/coord_mutants.py)]: KILLED
+   offline/tier_statements.py: 1 x 'q0b, q0b_reading = "HELD", "exactly zero (identical episodes)'
+      -> 'q0b, q0b_reading = "NOT RESOLVED", "exactly zero (identical episodes)'
+   tests: test_b1_cm1_an_exactly_zero_interaction_is_held_by_the_registered_inclusion_rule
+   failing: ['tests/test_tier_statements.py::test_b1_cm1_an_exactly_zero_interaction_is_held_by_the_registered_inclusion_rule']
+   E       AssertionError: assert 'NOT RESOLVED' == 'HELD'
+   E         
+   E         - HELD
+   E         + NOT RESOLVED
+   1 failed in 1.79s
+
+## CM2 -- composite I: CI half-width doubled, mean unchanged [Amendment B, B1 (coordinator, docs/reviews/P5.2c_G1/coord_mutants.py)]: KILLED
+   offline/tier_statements.py: 1 x 'stats = mean_ci95(values)\n    low, high = stats.mean - stats.ci95, stats.mean + stats.ci95\n    seeds = sorted('
+      -> 'stats = mean_ci95(values)\n    low, high = stats.mean - 2 * stats.ci95, stats.mean + 2 * stats.ci95\n    seeds ='
+   tests: test_t_q0_the_interaction_its_per_seed_values_and_the_three_verdicts
+   failing: ['tests/test_tier_statements.py::test_t_q0_the_interaction_its_per_seed_values_and_the_three_verdicts']
+   E       assert (-12.21223958...4218749999977) == (-12.21223958...8229166666653)
+   E         
+   E         At index 3 diff: -12.36026041666668 != -12.286250000000004
+   E         Use -v to get more diff
+   1 failed in 1.40s
+
+## CM3 -- Q3b sub-prediction: random no longer predicted to resolve [Amendment B, B1 (coordinator, docs/reviews/P5.2c_G1/coord_mutants.py)]: KILLED
+   offline/tier_statements.py: 1 x 'predicted_to_resolve = {"maxpressure": False, "fixedtime": False, "random": True}'
+      -> 'predicted_to_resolve = {"maxpressure": False, "fixedtime": False, "random": False}'
+   tests: test_q3b_reads_the_shared_anchor_as_behaviour_at_random_and_reports_the_sub_prediction
+   failing: ['tests/test_tier_statements.py::test_q3b_reads_the_shared_anchor_as_behaviour_at_random_and_reports_the_sub_prediction']
+   E           AssertionError: assert {'predicted_t..._zero': False} == {'predicted_t..._zero': False}
+   E             
+   E             Omitting 2 identical items, use -vv to show
+   E             Differing items:
+   E             {'matched': False} != {'matched': True}
+   E             {'predicted_to_resolve': False} != {'predicted_to_resolve': True}
+   1 failed in 1.95s
+
+## CM4 -- Q1b scored with LEVEL_BAND (0.30) instead of ANCHOR_BAND (0.10) [Amendment B, B1 (coordinator, docs/reviews/P5.2c_G1/coord_mutants.py)]: KILLED
+   offline/tier_statements.py: 1 x 'cells=(cell,), band=ts.ANCHOR_BAND, threshold=1)'
+      -> 'cells=(cell,), band=ts.LEVEL_BAND, threshold=1)'
+   tests: test_b1_cm4_q1b_holds_only_within_ten_percent_of_the_predicted_level
+   failing: ['tests/test_tier_statements.py::test_b1_cm4_q1b_holds_only_within_ten_percent_of_the_predicted_level']
+   E       AssertionError: assert 'HELD' == 'FAILED'
+   E         
+   E         - FAILED
+   E         + HELD
+   1 failed in 1.43s
+
+## CM5 -- Q4a scored on four tiers (mappo1000 added) [Amendment B, B1 (coordinator, docs/reviews/P5.2c_G1/coord_mutants.py)]: KILLED
+   offline/tier_statements.py: 1 x 'outcomes = {}\n    for tier in OUT_OF_SAMPLE_TIERS:\n        outcomes[tier] = interval_outcome(blocks[tier]'
+      -> 'outcomes = {}\n    for tier in TIERS:\n        outcomes[tier] = interval_outcome(blocks[tier]'
+   tests: test_every_registered_statement_is_present_under_both_definitions
+   failing: ['tests/test_tier_statements.py::test_every_registered_statement_is_present_under_both_definitions']
+   E       AssertionError: assert {('D9', 'fixe...t_ours'), ...} == {('D9', 'fixe...t_ours'), ...}
+   E         
+   E         Extra items in the left set:
+   E         ('Q4a', 'mappo1000', 'att_ours')
+   E         ('Q4a', 'mappo1000', 'att_engine')
+   E         Use -v to get more diff
+   1 failed in 1.70s
+
+## CM6 -- Q5a scored on four tiers (mappo1000 added) [Amendment B, B1 (coordinator, docs/reviews/P5.2c_G1/coord_mutants.py)]: KILLED
+   offline/tier_statements.py: 1 x '("Q5a", ("bc_top10", "bc"), {tier: "positive" for tier in OUT_OF_SAMPLE_TIERS}),'
+      -> '("Q5a", ("bc_top10", "bc"), {tier: "positive" for tier in TIERS}),'
+   tests: test_t_q5_each_tier_by_its_registered_sign
+   failing: ['tests/test_tier_statements.py::test_t_q5_each_tier_by_its_registered_sign']
+   E               KeyError: 'mappo1000'
+   1 failed in 1.67s
+
+## CM6v -- CM6 with a registered Q5a value supplied at mappo1000, so the KeyError it raises cannot kill it and only the tier assertions stand [added at C6]: KILLED
+   offline/tier_statements.py: 1 x '("Q5a", ("bc_top10", "bc"), {tier: "positive" for tier in OUT_OF_SAMPLE_TIERS}),'
+      -> '("Q5a", ("bc_top10", "bc"), {tier: "positive" for tier in TIERS}),'
+   offline/tier_statements.py: 1 x '"Q5a": {"maxpressure": 575.34,'
+      -> '"Q5a": {"mappo1000": 0.0, "maxpressure": 575.34,'
+   tests: test_t_q5_each_tier_by_its_registered_sign, test_every_registered_statement_is_present_under_both_definitions
+   failing: ['tests/test_tier_statements.py::test_t_q5_each_tier_by_its_registered_sign']
+   E           AssertionError: assert {'fixedtime',...re', 'random'} == {'fixedtime',...re', 'random'}
+   E             
+   E             Extra items in the left set:
+   E             'mappo1000'
+   E             Use -v to get more diff
+   1 failed in 1.24s
+
+## CM7 -- leaders: per-seed first places read att_ours whatever the definition [Amendment B, B1 (coordinator, docs/reviews/P5.2c_G1/coord_mutants.py)]: KILLED
+   offline/tier_statements.py: 1 x 'seed_levels = _seed_levels(book, tier, definition, ts.METHODS)'
+      -> 'seed_levels = _seed_levels(book, tier, "att_ours", ts.METHODS)'
+   tests: test_b1_cm7_the_leaders_per_seed_first_places_are_read_under_each_definition, test_b1_cm7_real_maxpressure_first_places_per_seed_under_each_definition
+   failing: ['tests/test_tier_statements.py::test_b1_cm7_the_leaders_per_seed_first_places_are_read_under_each_definition']
+   E           AssertionError: assert {'101': ['bc'...'303': ['bc']} == {'101': ['bc'... ['dt_nomix']}
+   E             
+   E             Omitting 2 identical items, use -vv to show
+   E             Differing items:
+   E             {'303': ['bc']} != {'303': ['dt_nomix']}
+   E             Use -v to get more diff
+   1 failed in 1.15s
+
+## CM8 -- collapse audit: the sentence holds if ANY non-DT arm collapses somewhere [Amendment B, B1 (coordinator, docs/reviews/P5.2c_G1/coord_mutants.py)]: KILLED
+   offline/tier_statements.py: 1 x '"holds": dt_never and all(collapsing.values())})'
+      -> '"holds": dt_never and any(collapsing.values())})'
+   tests: test_b1_cm8_the_sentence_fails_when_one_non_dt_arm_never_collapses
+   failing: ['tests/test_tier_statements.py::test_b1_cm8_the_sentence_fails_when_one_non_dt_arm_never_collapses']
+   E           assert True is False
+   1 failed in 1.29s
+
+## CM9 -- contrast: D9 per-seed block always on att_ours [Amendment B, B1 (coordinator, docs/reviews/P5.2c_G1/coord_mutants.py)]: KILLED
+   offline/tier_statements.py: 1 x 'left_name=left.spec.arm, right_name=right.spec.arm,\n                                 metric=definition)'
+      -> 'left_name=left.spec.arm, right_name=right.spec.arm,\n                                 metric="att_ours")'
+   tests: test_b1_cm9_each_definitions_per_seed_block_reads_that_definitions_values, test_b1_cm9_real_an_att_engine_per_seed_block_against_the_raw_rows
+   failing: ['tests/test_tier_statements.py::test_b1_cm9_each_definitions_per_seed_block_reads_that_definitions_values']
+   E           AssertionError: att_engine
+   E           assert {'101': -1.0,..., '303': -1.0} == {'101': -2.0,..., '303': 0.75}
+   E             
+   E             Differing items:
+   E             {'202': -1.0} != {'202': -1.5}
+   E             {'101': -1.0} != {'101': -2.0}
+   1 failed in 1.35s
+
+## CM10 -- Q6: COLLAPSED iff the CI's HIGH end is above zero [Amendment B, B1 (coordinator, docs/reviews/P5.2c_G1/coord_mutants.py)]: KILLED
+   offline/tier_statements.py: 1 x 'verdict = "COLLAPSED" if block["ci95_low"] > 0.0 else "NOT COLLAPSED"\n            entries.append(_entry("Q6"'
+      -> 'verdict = "COLLAPSED" if block["ci95_high"] > 0.0 else "NOT COLLAPSED"\n            entries.append(_entry("Q6"'
+   tests: test_b1_cm10_a_dt_arm_whose_ci_against_the_anchor_straddles_zero_is_not_collapsed
+   failing: ['tests/test_tier_statements.py::test_b1_cm10_a_dt_arm_whose_ci_against_the_anchor_straddles_zero_is_not_collapsed']
+   E       AssertionError: assert 'COLLAPSED' == 'NOT COLLAPSED'
+   E         
+   E         - NOT COLLAPSED
+   E         ? ----
+   E         + COLLAPSED
+   1 failed in 1.30s
+
+## CM11 -- Q5c: random's predicted sign flipped to negative [Amendment B, B1 (coordinator, docs/reviews/P5.2c_G1/coord_mutants.py)]: KILLED
+   offline/tier_statements.py: 1 x '"fixedtime": "positive", "random": "positive"}),'
+      -> '"fixedtime": "positive", "random": "negative"}),'
+   tests: test_t_q5_each_tier_by_its_registered_sign
+   failing: ['tests/test_tier_statements.py::test_t_q5_each_tier_by_its_registered_sign']
+   E               AssertionError: assert 'negative' == 'positive'
+   E                 
+   E                 - positive
+   E                 + negative
+   1 failed in 1.33s
+
+## CM12 -- Q2a: a tie for first counted as the predicted unique first place [Amendment B, B1 (coordinator, docs/reviews/P5.2c_G1/coord_mutants.py)]: KILLED
+   offline/tier_statements.py: 1 x '"outcome": "HELD" if firsts == [predicted[0]] else "FAILED",'
+      -> '"outcome": "HELD" if predicted[0] in firsts else "FAILED",'
+   tests: test_b1_cm12_a_predicted_first_place_tied_for_first_is_not_held
+   failing: ['tests/test_tier_statements.py::test_b1_cm12_a_predicted_first_place_tied_for_first_is_not_held']
+   E       AssertionError: assert 'HELD' == 'FAILED'
+   E         
+   E         - FAILED
+   E         + HELD
+   1 failed in 1.32s
+
+## CM13 -- contrast: exactly_zero if ANY per-draw difference is zero [Amendment B, B1 (coordinator, docs/reviews/P5.2c_G1/coord_mutants.py)]: KILLED
+   offline/tier_statements.py: 1 x 'exactly_zero = all(value == 0.0 for value in differences)'
+      -> 'exactly_zero = any(value == 0.0 for value in differences)'
+   tests: test_cm13_a_contrast_zero_on_some_draws_only_is_not_exactly_zero, test_t_reproduce_record_every_value_p5_2s_record_states_at_its_precision
+   failing: ['tests/test_tier_statements.py::test_cm13_a_contrast_zero_on_some_draws_only_is_not_exactly_zero']
+   E       assert True is False
+   1 failed in 1.54s
+
+## CM14 -- Q4b: the chain scored non-strictly (<=) [Amendment B, B1 (coordinator, docs/reviews/P5.2c_G1/coord_mutants.py)]: KILLED
+   offline/tier_statements.py: 1 x 'increasing = all(a < b for a, b in zip(values, values[1:]))'
+      -> 'increasing = all(a <= b for a, b in zip(values, values[1:]))'
+   tests: test_b1_cm14_a_chain_with_two_equal_rungs_is_not_strictly_increasing
+   failing: ['tests/test_tier_statements.py::test_b1_cm14_a_chain_with_two_equal_rungs_is_not_strictly_increasing']
+   E       AssertionError: assert 'HELD' == 'FAILED'
+   E         
+   E         - FAILED
+   E         + HELD
+   1 failed in 1.33s
+
+## CM15b -- composite I: per-seed values computed as d1 - d4 (CM15 re-aimed at B2.2's code: the composite rows passed to the worker swapped) [Amendment B, B1 (coordinator, docs/reviews/P5.2c_G1/coord_mutants.py)]: KILLED
+   offline/tier_statements.py: 1 x 'worker = ts.per_seed_block(left_rows, right_rows,'
+      -> 'worker = ts.per_seed_block(right_rows, left_rows,'
+   tests: test_t_q0_the_interaction_its_per_seed_values_and_the_three_verdicts
+   failing: ['tests/test_tier_statements.py::test_t_q0_the_interaction_its_per_seed_values_and_the_three_verdicts']
+   E       AssertionError: assert {'101': 12.25... '303': 12.25} == {'101': -12.2...'303': -12.25}
+   E         
+   E         Differing items:
+   E         {'303': 12.25} != {'303': -12.25}
+   E         {'202': 12.13671875} != {'202': -12.13671875}
+   E         {'101': 12.25} != {'101': -12.25}
+   1 failed in 1.22s
+
+## CM16 -- leaders: the lead 'resolves' when the CI's LOW end is below zero [Amendment B, B1 (coordinator, docs/reviews/P5.2c_G1/coord_mutants.py)]: KILLED
+   offline/tier_statements.py: 1 x 'resolved = [block["ci95_high"] < 0.0 for block in contrasts]'
+      -> 'resolved = [block["ci95_low"] < 0.0 for block in contrasts]'
+   tests: test_b1_cm16_a_lead_whose_ci_straddles_zero_does_not_resolve, test_b1_cm16_real_maxpressures_lead_resolves_under_att_ours_and_not_under_att_engine
+   failing: ['tests/test_tier_statements.py::test_b1_cm16_a_lead_whose_ci_straddles_zero_does_not_resolve']
+   E       AssertionError: assert 'bc leads dt_...y below zero)' == 'bc leads dt_...ncludes zero)'
+   E         
+   E         - bc leads dt_nomix; the lead does not resolve (the CI includes zero)
+   E         ?                            ---------                  -----
+   E         + bc leads dt_nomix; the lead resolves (the CI lies entirely below zero)
+   E         ?                                    +         +   +++++++++++++++
+   1 failed in 1.53s
+
+## CM17 -- Q3b: the aggregate ignores fixedtime (two tiers only) [Amendment B, B1 (coordinator, docs/reviews/P5.2c_G1/coord_mutants.py)]: KILLED
+   offline/tier_statements.py: 1 x 'verdict=conjunction(list(outcomes.values())),\n                          numbers={"tiers": outcomes, "rule": "s'
+      -> 'verdict=conjunction([o for t, o in outcomes.items() if t != "fixedtime"]),\n                          numbers={'
+   tests: test_b1_cm17_q3b_aggregate_reads_all_three_tiers, test_b1_cm17_real_q3b_aggregate_is_not_resolved_under_both_definitions
+   failing: ['tests/test_tier_statements.py::test_b1_cm17_q3b_aggregate_reads_all_three_tiers']
+   E       AssertionError: assert 'HELD' == 'NOT RESOLVED'
+   E         
+   E         - NOT RESOLVED
+   E         + HELD
+   1 failed in 1.36s
+
+## B2.1a -- Q3b's sub-prediction loses its exact-zero flag [Amendment B, B2.1]: KILLED
+   offline/tier_statements.py: 1 x '"matched": matched, "exactly_zero": block["exactly_zero"],'
+      -> '"matched": matched, "exactly_zero": False,'
+   tests: test_q3b_reads_the_shared_anchor_as_behaviour_at_random_and_reports_the_sub_prediction
+   failing: ['tests/test_tier_statements.py::test_q3b_reads_the_shared_anchor_as_behaviour_at_random_and_reports_the_sub_prediction']
+   E           AssertionError: assert {'predicted_t..._zero': False} == {'predicted_t...y_zero': True}
+   E             
+   E             Omitting 3 identical items, use -vv to show
+   E             Differing items:
+   E             {'exactly_zero': False} != {'exactly_zero': True}
+   E             Use -v to get more diff
+   1 failed in 1.33s
+
+## B2.1b -- Q3b's sub-prediction reading no longer says the match comes from identical episodes [Amendment B, B2.1]: KILLED
+   offline/tier_statements.py: 1 x 'if block["exactly_zero"]:\n            source = ('
+      -> 'if False:\n            source = ('
+   tests: test_q3b_reads_the_shared_anchor_as_behaviour_at_random_and_reports_the_sub_prediction
+   failing: ['tests/test_tier_statements.py::test_q3b_reads_the_shared_anchor_as_behaviour_at_random_and_reports_the_sub_prediction']
+   E       AssertionError: assert 'the match comes from identical episodes' in 'matched: predicted not to resolve, and the CI does not resolve'
+   1 failed in 1.33s
+
+## B2.2 -- I's per-seed block drops the two fields P5.1's schema adds (n_seeds_favouring_left, reverses_on_n_seeds) [Amendment B, B2.2]: KILLED
+   offline/tier_statements.py: 1 x '"per_seed": worker["per_seed"],'
+      -> '"per_seed": {k: v for k, v in worker["per_seed"].items() if k not in ("n_seeds_favouring_left", "reverses_on_n'
+   tests: test_t_q0_the_interaction_its_per_seed_values_and_the_three_verdicts
+   failing: ['tests/test_tier_statements.py::test_t_q0_the_interaction_its_per_seed_values_and_the_three_verdicts']
+   E       AssertionError: assert {'between_see...', 'min', ...} == {'between_see...', 'min', ...}
+   E         
+   E         Extra items in the right set:
+   E         'n_seeds_favouring_left'
+   E         'reverses_on_n_seeds'
+   E         Use -v to get more diff
+   1 failed in 1.69s
+
+## B2.3a -- measured_first_under_rule names the tie-break winner of a pooled tie [Amendment B, B2.3]: KILLED
+   offline/tier_statements.py: 1 x 'statements["q2a"]["measured_first_under_rule"] = order[0] if len(firsts) == 1 else None'
+      -> 'statements["q2a"]["measured_first_under_rule"] = order[0]'
+   tests: test_b2_3_a_pooled_tie_for_first_has_no_first_under_the_rule_and_reversals_against_the_pooled_set
+   failing: ['tests/test_tier_statements.py::test_b2_3_a_pooled_tie_for_first_has_no_first_under_the_rule_and_reversals_against_the_pooled_set']
+   E           AssertionError: tied
+   E           assert 'bc' == None
+   1 failed in 1.49s
+
+## B2.3b -- the reversal list computed against the tie-break winner, not the pooled set [Amendment B, B2.3]: KILLED
+   offline/tier_statements.py: 1 x 'int(seed) for seed, block in per_seed.items() if set(block["firsts"]) != set(firsts)]'
+      -> 'int(seed) for seed, block in per_seed.items() if block["firsts"] != [order[0]]]'
+   tests: test_b2_3_a_pooled_tie_for_first_has_no_first_under_the_rule_and_reversals_against_the_pooled_set
+   failing: ['tests/test_tier_statements.py::test_b2_3_a_pooled_tie_for_first_has_no_first_under_the_rule_and_reversals_against_the_pooled_set']
+   E           AssertionError: tied
+   E           assert [101, 202, 303] == []
+   E             
+   E             Left contains 3 more items, first extra item: 101
+   E             Use -v to get more diff
+   1 failed in 1.67s
+
+## B2.4a -- the running-file check removed (B2.4's named mutant) [Amendment B, B2.4]: KILLED
+   offline/tier_statements.py: 1 x 'for what, path in running.items():\n        if package not in path.parents:'
+      -> 'for what, path in running.items():\n        if False:'
+   tests: test_b2_4_the_file_run_by_path_from_another_tree_is_refused
+   failing: ['tests/test_tier_statements.py::test_b2_4_the_file_run_by_path_from_another_tree_is_refused']
+   E       assert 'does not resolve under' in "REFUSED: ValueError: '/tmp/pytest-of-filip/pytest-17/test_b2_4_the_file_run_by_path0/copy/offline/tier_statements.py'...th of '/tmp/claude-1000/-home-filip-
+   E        +  where "REFUSED: ValueError: '/tmp/pytest-of-filip/pytest-17/test_b2_4_the_file_run_by_path0/copy/offline/tier_statements.py'...th of '/tmp/claude-1000/-home-filip-rltraffic-p52c/4308844d-5
+   1 failed in 2.81s
+
+## B2.4b -- provenance.code hashes the module registered under the name, not the file that runs [Amendment B, B2.4]: KILLED
+   offline/tier_statements.py: 1 x 'path = running["this module\'s own file"] if name == "offline.tier_statements" else located(name)[0]'
+      -> 'path = located(name)[0]'
+   tests: test_b2_4_provenance_code_hashes_the_file_that_runs
+   failing: ['tests/test_tier_statements.py::test_b2_4_provenance_code_hashes_the_file_that_runs']
+   E       AssertionError: assert 'offline/tier_sweep.py' == 'offline/tier_statements.py'
+   E         
+   E         - offline/tier_statements.py
+   E         ?               ^^^ - ^^^
+   E         + offline/tier_sweep.py
+   E         ?               ^  ^
+   1 failed in 1.59s
+
+## B2.5a -- the ulp bound on P8.4b's V4/V5 removed [Amendment B, B2.5]: KILLED
+   offline/tier_statements.py: 1 x 'for k in keys:\n                assert_within_ulps(mine[k], recorded[k],'
+      -> 'for k in ():\n                assert_within_ulps(mine[k], recorded[k],'
+   tests: test_b2_5_a_value_five_ulps_from_p8_4bs_record_is_refused_and_four_are_accepted
+   failing: ['tests/test_tier_statements.py::test_b2_5_a_value_five_ulps_from_p8_4bs_record_is_refused_and_four_are_accepted[V4-Q0.d1-att_engine-mean_difference]']
+   E       Failed: DID NOT RAISE ValueError
+   1 failed in 2.08s
+
+## B2.5b -- the ulp bound on P5.2's stop-rule record removed [Amendment B, B2.5]: KILLED
+   offline/tier_statements.py: 1 x 'for k in keys[:3]:\n        assert_within_ulps(d4[k], stop_record[k],'
+      -> 'for k in ():\n        assert_within_ulps(d4[k], stop_record[k],'
+   tests: test_b2_5_a_stop_rule_record_five_ulps_away_is_refused_and_four_are_accepted
+   failing: ['tests/test_tier_statements.py::test_b2_5_a_stop_rule_record_five_ulps_away_is_refused_and_four_are_accepted[mean_difference]']
+   E       Failed: DID NOT RAISE ValueError
+   1 failed in 1.59s
+
+## B2.5c -- the bound loosened to 5 ulps [Amendment B, B2.5]: KILLED
+   offline/tier_statements.py: 1 x 'ULP_BOUND = 4'
+      -> 'ULP_BOUND = 5'
+   tests: test_b2_5_a_value_five_ulps_from_p8_4bs_record_is_refused_and_four_are_accepted, test_b2_5_a_stop_rule_record_five_ulps_away_is_refused_and_four_are_accepted
+   failing: ['tests/test_tier_statements.py::test_b2_5_a_value_five_ulps_from_p8_4bs_record_is_refused_and_four_are_accepted[V4-Q0.d1-att_engine-mean_difference]']
+   E       Failed: DID NOT RAISE ValueError
+   1 failed in 1.61s
+
+## B2.5d -- the bound tightened to 3 ulps (4 must be accepted) [Amendment B, B2.5]: KILLED
+   offline/tier_statements.py: 1 x 'ULP_BOUND = 4'
+      -> 'ULP_BOUND = 3'
+   tests: test_b2_5_a_value_five_ulps_from_p8_4bs_record_is_refused_and_four_are_accepted, test_b2_5_a_stop_rule_record_five_ulps_away_is_refused_and_four_are_accepted
+   failing: ['tests/test_tier_statements.py::test_b2_5_a_value_five_ulps_from_p8_4bs_record_is_refused_and_four_are_accepted[V4-Q0.d1-att_engine-mean_difference]']
+   E           ValueError: P8.4b's V4 under att_engine, mean_difference: this artifact's 38.9869791666667 and the record's 38.98697916666667 differ by more than 3 ulps (2.842170943040401e-14), so the ari
+   1 failed in 1.40s
+
+## B2.6 -- GATE 2's Q5 record cited at line 1274 only [Amendment B, B2.6]: KILLED
+   offline/tier_statements.py: 1 x 'Quote(_BRIEF_27, (1274, 1281),'
+      -> 'Quote(_BRIEF_27, (1274, 1274),'
+   tests: test_b2_6_the_gate_2_record_cites_1274_to_1281_and_quotes_the_sentence_that_is_the_error
+   failing: ['tests/test_tier_statements.py::test_b2_6_the_gate_2_record_cites_1274_to_1281_and_quotes_the_sentence_that_is_the_error']
+   E       assert (1 == 1 and (1274, 1274) == (1274, 1281)
+   E        +  where 1 = len([Quote(file='docs/briefs/BRIEF_27_p5.2_tier_sweep.md', lines=(1274, 1274), text="THE LOAD-SORTER MECHANISM IS CONFIRME...chanism, because a state-independent controller makes
+   E         
+   E         At index 1 diff: 1274 != 1281
+   E         Use -v to get more diff)
+   1 failed in 1.37s
+
+## B2.7 -- Q6 labelled never scored like the others [Amendment B, B2.7]: KILLED
+   offline/tier_statements.py: 1 x 'if statement_id == "Q6" else'
+      -> 'if False else'
+   tests: test_b2_7_q6_in_never_scored_names_its_numbers_and_the_recorded_verdict
+   failing: ['tests/test_tier_statements.py::test_b2_7_q6_in_never_scored_names_its_numbers_and_the_recorded_verdict']
+   E               assert 'never scored... section 1.3)' == "Q6's numbers.../P5.2.md:31`)"
+   E                 
+   E                 - Q6's numbers: never scored; the verdict was recorded (`docs/returns/P5.2.md:31`)
+   E                 + never scored in any committed record, under either definition (BRIEF_45 section 1.3)
+   1 failed in 1.34s
+
+## B2.9a -- the out path's symlink refusal removed (R2-B's analogue) [Amendment B, B2.9]: KILLED
+   offline/tier_statements.py: 1 x 'if unresolved.is_symlink() or unresolved.exists():'
+      -> 'if unresolved.exists():'
+   tests: test_b2_9_a_dangling_symlink_at_the_out_path_is_refused_and_nothing_is_written
+   failing: ['tests/test_tier_statements.py::test_b2_9_a_dangling_symlink_at_the_out_path_is_refused_and_nothing_is_written']
+   E       AssertionError: assert 0 == 2
+   E        +  where 0 = <function main at 0x740b950a19e0>(['build', '--repo-root', '/tmp/pytest-of-filip/pytest-24/test_b2_9_a_dangling_symlink_a0/repo', '--output-root', '/tmp/pytest-of-filip/pytest-24
+   E        +    where <function main at 0x740b950a19e0> = tst.main
+   E        +    and   ['build', '--repo-root', '/tmp/pytest-of-filip/pytest-24/test_b2_9_a_dangling_symlink_a0/repo', '--output-root', '/tmp/pytest-of-filip/pytest-24/test_b2_9_a_dangling_symlink_a0/out
+   1 failed in 1.30s
+
+## B2.9b -- the exists check back on the resolved path (G1's dead-code form) [Amendment B, B2.9]: KILLED
+   offline/tier_statements.py: 1 x 'if unresolved.is_symlink() or unresolved.exists():'
+      -> 'if resolved.exists() or resolved.is_symlink():'
+   tests: test_b2_9_a_dangling_symlink_at_the_out_path_is_refused_and_nothing_is_written
+   failing: ['tests/test_tier_statements.py::test_b2_9_a_dangling_symlink_at_the_out_path_is_refused_and_nothing_is_written']
+   E       AssertionError: assert 0 == 2
+   E        +  where 0 = <function main at 0x73c9d58ad9e0>(['build', '--repo-root', '/tmp/pytest-of-filip/pytest-25/test_b2_9_a_dangling_symlink_a0/repo', '--output-root', '/tmp/pytest-of-filip/pytest-25
+   E        +    where <function main at 0x73c9d58ad9e0> = tst.main
+   E        +    and   ['build', '--repo-root', '/tmp/pytest-of-filip/pytest-25/test_b2_9_a_dangling_symlink_a0/repo', '--output-root', '/tmp/pytest-of-filip/pytest-25/test_b2_9_a_dangling_symlink_a0/out
+   1 failed in 1.34s
+
+## B2.9c -- the input-equality guard removed (R2-A) [Amendment B, B2.9]: KILLED
+   offline/tier_statements.py: 1 x 'if resolved in inputs_read:\n        raise ValueError(f"{resolved} is an input of this artifact")'
+      -> 'if False:\n        raise ValueError(f"{resolved} is an input of this artifact")'
+   tests: test_t_barrier_refuses_an_input_as_the_out_path
+   failing: ['tests/test_tier_statements.py::test_t_barrier_refuses_an_input_as_the_out_path']
+   E       AssertionError: assert ('is an input of this artifact' in 'REFUSED: FileExistsError: /tmp/pytest-of-filip/pytest-26/test_t_barrier_refuses_an_inpu0/repo/docs/data/p8_4b_rederivation.json alrea
+   1 failed in 1.37s
+
+## B2.11a -- a line-pinned citation of a living document, extension-less (PROJECT_PLAN:2296), in the module [Amendment B, B2.11]: KILLED
+   offline/tier_statements.py: 1 x '"Rule R makes att_engine the primary metric on grid4x4;'
+      -> '"Rule R (PROJECT_PLAN:2296) makes att_engine the primary metric on grid4x4;'
+   tests: test_t_quotes_no_line_pinned_citation_points_into_a_living_document
+   failing: ['tests/test_tier_statements.py::test_t_quotes_no_line_pinned_citation_points_into_a_living_document']
+   E       AssertionError: a line-pinned citation points outside the history files
+   E       assert ['PROJECT_PLAN'] == []
+   E         
+   E         Left contains one more item: 'PROJECT_PLAN'
+   E         Use -v to get more diff
+   1 failed in 1.81s
+
+## B2.11b -- a line-pinned citation of a living document, backticked (`docs/PROJECT_PLAN.md`:2296) [Amendment B, B2.11]: KILLED
+   offline/tier_statements.py: 1 x '"Rule R makes att_engine the primary metric on grid4x4;'
+      -> '"Rule R (`docs/PROJECT_PLAN.md`:2296) makes att_engine the primary metric on grid4x4;'
+   tests: test_t_quotes_no_line_pinned_citation_points_into_a_living_document
+   failing: ['tests/test_tier_statements.py::test_t_quotes_no_line_pinned_citation_points_into_a_living_document']
+   E       AssertionError: a line-pinned citation points outside the history files
+   E       assert ['docs/PROJECT_PLAN.md'] == []
+   E         
+   E         Left contains one more item: 'docs/PROJECT_PLAN.md'
+   E         Use -v to get more diff
+   1 failed in 1.75s
+
+## B2.11c -- a Q5 record quoted from a living document [Amendment B, B2.11]: KILLED
+   offline/tier_statements.py: 1 x 'Quote(_PACKET, (30, 30), "CONFIRMED twice'
+      -> 'Quote("docs/PROJECT_PLAN.md", (30, 30), "CONFIRMED twice'
+   tests: test_t_quotes_every_record_literal_appears_at_its_cited_lines
+   failing: ['tests/test_tier_statements.py::test_t_quotes_every_record_literal_appears_at_its_cited_lines']
+   E           AssertionError: Quote(file='docs/PROJECT_PLAN.md', lines=(30, 30), text='CONFIRMED twice, with a predicted null on `fixedtime`')
+   E           assert 'docs/PROJECT_PLAN.md' in ('docs/plans/p5.2.md', 'docs/plans/p5.1.md', 'docs/briefs/BRIEF_27_p5.2_tier_sweep.md', 'docs/briefs/BRIEF_44_p5.2b_iql_correction.md', 'docs/returns/P5.2.
+   E            +  where 'docs/PROJECT_PLAN.md' = Quote(file='docs/PROJECT_PLAN.md', lines=(30, 30), text='CONFIRMED twice, with a predicted null on `fixedtime`').file
+   E            +  and   ('docs/plans/p5.2.md', 'docs/plans/p5.1.md', 'docs/briefs/BRIEF_27_p5.2_tier_sweep.md', 'docs/briefs/BRIEF_44_p5.2b_iql_correction.md', 'docs/returns/P5.2.md', 'PREREGISTRATION.m
+   1 failed in 1.50s
+
+## B2.13 -- what_this_does_not_say loses the sentence on what definition_dependent does not compare [Amendment B, B2.13]: KILLED
+   offline/tier_statements.py: 1 x 'are reported per definition beside the flag, and the flag does not compare them'
+      -> 'are reported per definition beside the flag'
+   tests: test_b2_13_what_this_does_not_say_states_what_definition_dependent_does_not_compare
+   failing: ['tests/test_tier_statements.py::test_b2_13_what_this_does_not_say_states_what_definition_dependent_does_not_compare']
+   E       assert "Q0b's sign and Q4b's chain shape are reported per definition beside the flag, and the flag does not compare them" in "No new prediction: Q1's, Q1b's and Q2's predictions exist on att_h
+   E        +  where "No new prediction: Q1's, Q1b's and Q2's predictions exist on att_horizon (att_ours) only; under att_engine they are c... verdict): Q0b's sign and Q4b's chain shape are reported per 
+   E        +    where <built-in method join of str object at 0xb23b20> = ' '.join
+   E        +    and   ("No new prediction: Q1's, Q1b's and Q2's predictions exist on att_horizon (att_ours) only; under att_engine they are ...l judgement this artifact does not make: it reports each ce
+   1 failed in 1.80s
+
+## B2.14 -- P8.4b's campaign manifest and marker not listed in provenance.inputs [Amendment B, B2.14]: KILLED
+   offline/tier_statements.py: 1 x 'for name in (ar.MANIFEST_NAME, ar.COMPLETE_MARKER):  # BRIEF_45 Amendment B, B2.14'
+      -> 'for name in ():  # BRIEF_45 Amendment B, B2.14'
+   tests: test_b2_14_p8_4bs_campaign_manifest_and_marker_are_listed_with_their_sha256, test_b2_14_real_p8_4bs_campaign_manifest_and_marker_are_listed_with_their_sha256
+   failing: ['tests/test_tier_statements.py::test_b2_14_p8_4bs_campaign_manifest_and_marker_are_listed_with_their_sha256']
+   E           KeyError: 'output/p8_4b_rederivation/campaign_manifest.json'
+   1 failed in 1.51s
+
+## CB0 -- Q0b's inclusion rule written with strict inequalities (a CI touching zero excluded) [Amendment B.1, B.1.1 (coordinator, docs/reviews/P5.2c_G1_1/coord_mutants_g11.py)]: KILLED
+   offline/tier_statements.py: 1 x 'elif interaction["ci95_low"] <= 0.0 <= interaction["ci95_high"]:'
+      -> 'elif interaction["ci95_low"] < 0.0 < interaction["ci95_high"]:'
+   tests: test_b11_cb0_a_ci_touching_zero_at_one_end_is_included_by_q0bs_rule
+   failing: ['tests/test_tier_statements.py::test_b11_cb0_a_ci_touching_zero_at_one_end_is_included_by_q0bs_rule[0.0-1.0-HELD]']
+   E       AssertionError: assert 'FAILED' == 'HELD'
+   E         
+   E         - HELD
+   E         + FAILED
+   1 failed in 1.45s
+
+## CB1a -- Q3b sub-prediction: the exact-zero source always says 'identical episodes' [Amendment B.1, B.1.1 (coordinator, docs/reviews/P5.2c_G1_1/coord_mutants_g11.py)]: KILLED
+   offline/tier_statements.py: 1 x '"identical episodes" if block["discriminability"]["identical"] else'
+      -> '"identical episodes" if True else'
+   tests: test_b11_cb1a_q3bs_exact_zero_from_episodes_that_differ_is_not_called_identical
+   failing: ['tests/test_tier_statements.py::test_b11_cb1a_q3bs_exact_zero_from_episodes_that_differ_is_not_called_identical']
+   E           AssertionError: matched: predicted not to resolve, and the CI does not resolve; the difference is exactly zero on every draw, from episodes that are not identical, so the match comes from 
+   E           assert 'identical episodes' not in 'matched: pr...ent B, B2.1)'
+   E             
+   E             'identical episodes' is contained here:
+   E               omes from identical episodes, not from a measured difference that failed to resolve (BRIEF_45 Amendment B, B2.1)
+   E             ?           ++++++++++++++++++
+   1 failed in 1.34s
+
+## CB2 -- composite I: the worker's names swapped (d1 named left, d4 right), so the qualifier names the pair backwards [Amendment B.1, B.1.1 (coordinator, docs/reviews/P5.2c_G1_1/coord_mutants_g11.py)]: KILLED
+   offline/tier_statements.py: 1 x 'left_name="d4", right_name="d1", metric=definition)'
+      -> 'left_name="d1", right_name="d4", metric=definition)'
+   tests: test_b11_cb2_q0bs_qualifier_names_d4_against_d1_from_this_files_per_seed_loop, test_b11_cb2_real_q0bs_per_seed_values_and_qualifier_under_both_definitions
+   failing: ['tests/test_tier_statements.py::test_b11_cb2_q0bs_qualifier_names_d4_against_d1_from_this_files_per_seed_loop']
+   E           AssertionError: ⚠️ ORDERING NOT ROBUST ACROSS SEEDS: d1 vs d4 reverses on 1 of 3 training seeds (101); per-seed advantages {'101': 12.75, '202': -12.1367, '303': -12.25}. The pooled CI ave
+   E           assert ("⚠️ ORDERING NOT ROBUST ACROSS SEEDS: d1 vs d4 reverses on 1 of 3 training seeds (101); per-seed advantages {'101': 12...12.1367, '303': -12.25}. The pooled CI averages the seed di
+   E            +  where False = <built-in method startswith of str object at 0x28bdb2b0>('⚠️ ORDERING NOT ROBUST ACROSS SEEDS: d4 vs d1 reverses on 1 of 3 training seeds (101)')
+   E            +    where <built-in method startswith of str object at 0x28bdb2b0> = "⚠️ ORDERING NOT ROBUST ACROSS SEEDS: d1 vs d4 reverses on 1 of 3 training seeds (101); per-seed advantages {'101': 1
+   1 failed in 1.43s
+
+## CB5c -- B2.5: P8.4b's ulp check on the first key only (the CI ends unchecked) [Amendment B.1, B.1.1 (coordinator, docs/reviews/P5.2c_G1_1/coord_mutants_g11.py)]: KILLED
+   offline/tier_statements.py: 1 x 'for k in keys:\n                assert_within_ulps(mine[k], recorded[k]'
+      -> 'for k in keys[:1]:\n                assert_within_ulps(mine[k], recorded[k]'
+   tests: test_b2_5_a_value_five_ulps_from_p8_4bs_record_is_refused_and_four_are_accepted
+   failing: ['tests/test_tier_statements.py::test_b2_5_a_value_five_ulps_from_p8_4bs_record_is_refused_and_four_are_accepted[V4-Q0.d1-att_engine-ci95_low]']
+   E       Failed: DID NOT RAISE ValueError
+   1 failed, 1 passed in 1.74s
+
+## CB5c.stop -- CB5c's twin for P5.2's stop-rule record: the ulp check on the mean only [added at C6c]: KILLED
+   offline/tier_statements.py: 1 x 'for k in keys[:3]:\n        assert_within_ulps(d4[k], stop_record[k],'
+      -> 'for k in keys[:1]:\n        assert_within_ulps(d4[k], stop_record[k],'
+   tests: test_b2_5_a_stop_rule_record_five_ulps_away_is_refused_and_four_are_accepted
+   failing: ['tests/test_tier_statements.py::test_b2_5_a_stop_rule_record_five_ulps_away_is_refused_and_four_are_accepted[ci95_low]']
+   E       Failed: DID NOT RAISE ValueError
+   1 failed, 1 passed in 2.30s
+
+## B.1.2(1)a -- I's identity forced True: the label says identical episodes whatever the pairs hold [Amendment B.1, B.1.2(1)]: KILLED
+   offline/tier_statements.py: 1 x 'identical = identical_pairs["d4"] and identical_pairs["d1"]'
+      -> 'identical = True'
+   tests: test_b11_2_an_i_exactly_zero_because_the_horizon_changes_nothing_is_held_and_not_identical, test_b11_2_identical_needs_both_pairs_identical
+   failing: ['tests/test_tier_statements.py::test_b11_2_an_i_exactly_zero_because_the_horizon_changes_nothing_is_held_and_not_identical']
+   E           AssertionError: exactly zero (identical episodes): the CI [0, 0] includes zero, so the registered inclusion rule gives HELD (docs/plans/p5.2.md:523-524); the exact zero is labelled and is 
+   E           assert False
+   E            +  where False = <built-in method startswith of str object at 0x77aebb16d110>('exactly zero on every draw, from episodes that are not identical (d4 equals d1 draw by draw)')
+   E            +    where <built-in method startswith of str object at 0x77aebb16d110> = 'exactly zero (identical episodes): the CI [0, 0] includes zero, so the registered inclusion rule gives HELD (doc
+   1 failed in 2.06s
+
+## B.1.2(1)b -- I's identity forced False: identical episodes are never named [Amendment B.1, B.1.2(1)]: KILLED
+   offline/tier_statements.py: 1 x 'identical = identical_pairs["d4"] and identical_pairs["d1"]'
+      -> 'identical = False'
+   tests: test_b1_cm1_an_exactly_zero_interaction_is_held_by_the_registered_inclusion_rule
+   failing: ['tests/test_tier_statements.py::test_b1_cm1_an_exactly_zero_interaction_is_held_by_the_registered_inclusion_rule']
+   E       AssertionError: assert False
+   E        +  where False = <built-in method startswith of str object at 0x7a6dd6f08190>('exactly zero (identical episodes)')
+   E        +    where <built-in method startswith of str object at 0x7a6dd6f08190> = 'exactly zero on every draw, from episodes that are not identical (d4 equals d1 draw by draw): the CI [0, 0] includes
+   1 failed in 1.92s
+
+## B.1.2(1)c -- I identical when EITHER pair is (and -> or) [added at C6c]: KILLED
+   offline/tier_statements.py: 1 x 'identical = identical_pairs["d4"] and identical_pairs["d1"]'
+      -> 'identical = identical_pairs["d4"] or identical_pairs["d1"]'
+   tests: test_b11_2_identical_needs_both_pairs_identical
+   failing: ['tests/test_tier_statements.py::test_b11_2_identical_needs_both_pairs_identical']
+   E           AssertionError: exactly zero (identical episodes): the CI [0, 0] includes zero, so the registered inclusion rule gives HELD (docs/plans/p5.2.md:523-524); the exact zero is labelled and is 
+   E           assert False
+   E            +  where False = <built-in method startswith of str object at 0x7be3c6d4d110>('exactly zero on every draw, from episodes that are not identical (d4 equals d1 draw by draw)')
+   E            +    where <built-in method startswith of str object at 0x7be3c6d4d110> = 'exactly zero (identical episodes): the CI [0, 0] includes zero, so the registered inclusion rule gives HELD (doc
+   1 failed in 1.85s
+
+## B.1.2(1)d -- an exactly-zero I from episodes that are not identical scored NOT RESOLVED (CM1r's twin) [added at C6c]: KILLED
+   offline/tier_statements.py: 1 x 'elif interaction["exactly_zero"]:\n        q0b, q0b_reading = "HELD", ('
+      -> 'elif interaction["exactly_zero"]:\n        q0b, q0b_reading = "NOT RESOLVED", ('
+   tests: test_b11_2_an_i_exactly_zero_because_the_horizon_changes_nothing_is_held_and_not_identical
+   failing: ['tests/test_tier_statements.py::test_b11_2_an_i_exactly_zero_because_the_horizon_changes_nothing_is_held_and_not_identical']
+   E           AssertionError: assert 'NOT RESOLVED' == 'HELD'
+   E             
+   E             - HELD
+   E             + NOT RESOLVED
+   1 failed in 1.27s
+
+## B.2.3a -- p_value_defined forced True: an empty signed-rank test published as a test [Amendment B.2, B.2.3]: KILLED
+   offline/tier_statements.py: 1 x '"p_value_defined": defined,'
+      -> '"p_value_defined": True,'
+   tests: test_b23_an_exactly_zero_contrasts_p_value_is_labelled_undefined_with_its_convention
+   failing: ['tests/test_tier_statements.py::test_b23_an_exactly_zero_contrasts_p_value_is_labelled_undefined_with_its_convention']
+   E       assert True is False
+   1 failed in 2.00s
+
+## B.2.3b -- p_value_defined forced False: every two-sided test called undefined [Amendment B.2, B.2.3]: KILLED
+   offline/tier_statements.py: 1 x '"p_value_defined": defined,'
+      -> '"p_value_defined": False,'
+   tests: test_b23_a_contrast_zero_on_some_draws_only_has_a_defined_p_value, test_b23_a_two_sided_z_comes_from_min_of_the_rank_sums_so_its_sign_is_not_a_direction
+   failing: ['tests/test_tier_statements.py::test_b23_a_contrast_zero_on_some_draws_only_has_a_defined_p_value']
+   E       assert False is True
+   1 failed in 1.73s
+
+## B.2.3c -- p_value_defined read off n_zero == 0 instead of n_used > 0: a test with any tied draw called undefined [Amendment B.2, B.2.3]: KILLED
+   offline/tier_statements.py: 1 x '"p_value_defined": defined,'
+      -> '"p_value_defined": int(wilcoxon.n_zero) == 0,'
+   tests: test_b23_a_contrast_zero_on_some_draws_only_has_a_defined_p_value
+   failing: ['tests/test_tier_statements.py::test_b23_a_contrast_zero_on_some_draws_only_has_a_defined_p_value']
+   E       assert False is True
+   1 failed in 1.72s
+
+## B.2.3d -- the two p-value notes swapped: the empty test gets the two-sided note and the two-sided test gets the empty one [Amendment B.2, B.2.3]: KILLED
+   offline/tier_statements.py: 1 x '"(BRIEF_45 Amendment B.2, B.2.3)" if defined else'
+      -> '"(BRIEF_45 Amendment B.2, B.2.3)" if not defined else'
+   tests: test_b23_an_exactly_zero_contrasts_p_value_is_labelled_undefined_with_its_convention, test_b23_a_contrast_zero_on_some_draws_only_has_a_defined_p_value
+   failing: ['tests/test_tier_statements.py::test_b23_an_exactly_zero_contrasts_p_value_is_labelled_undefined_with_its_convention']
+   E           AssertionError: ('exactly zero', "two-sided signed-rank test (the normal approximation, with the tie and continuity corrections); it i...ction of the difference -- read mean_difference's s
+   E           assert 'exactly zero' in "two-sided signed-rank test (the normal approximation, with the tie and continuity corrections); it is never read by a...ection of the difference -- read mean_diff
+   1 failed in 1.92s
+
+## every mutated file restored byte for byte to the commit's
+
+## 83 of 83 KILLED

@@ -1,0 +1,47 @@
+# C6d, step 3 of 3: the three checks at the code commit de4e94f (BRIEF_45 Amendment B.2, B.2.4 step 2.3).
+# Date: 2026-10-14.  Run in the worktree on the files C6d touches.
+
+$ bash scripts/check_test_hygiene.sh tests/test_tier_statements.py
+exit=0
+
+$ bash scripts/check_english.sh offline/tier_statements.py tests/test_tier_statements.py docs/returns/P5.2c_evidence/mutate.py
+exit=0
+
+$ bash scripts/claude_guard.sh --frozen-only
+exit=0
+
+$ git diff --name-only 81c30d3..HEAD (no frozen path may appear)
+docs/PROJECT_PLAN.md
+docs/briefs/BRIEF_45_p5.2c_statements.md
+docs/plans/p5.2c.md
+docs/returns/P5.2c_evidence/README.md
+docs/returns/P5.2c_evidence/c1_red_run.txt
+docs/returns/P5.2c_evidence/c6_check_real.txt
+docs/returns/P5.2c_evidence/c6_full_suite.txt
+docs/returns/P5.2c_evidence/c6_mutation_log.txt
+docs/returns/P5.2c_evidence/c6_mutation_results.json
+docs/returns/P5.2c_evidence/c6_red_run.txt
+docs/returns/P5.2c_evidence/c6c_g2_erfc_guard.txt
+docs/returns/P5.2c_evidence/c6c_mutation_log.txt
+docs/returns/P5.2c_evidence/c6c_mutation_results.json
+docs/returns/P5.2c_evidence/c6c_precheck.txt
+docs/returns/P5.2c_evidence/c6c_red_run.txt
+docs/returns/P5.2c_evidence/c6c_test_file.txt
+docs/returns/P5.2c_evidence/c6d_artifact_diff.txt
+docs/returns/P5.2c_evidence/c6d_red_run.txt
+docs/returns/P5.2c_evidence/check_real.txt
+docs/returns/P5.2c_evidence/full_suite_of_record.txt
+docs/returns/P5.2c_evidence/mutate.py
+docs/returns/P5.2c_evidence/mutation_log.txt
+docs/returns/P5.2c_evidence/mutation_results.json
+docs/returns/P5.2c_evidence/mutation_run1_log.txt
+docs/returns/P5.2c_evidence/mutation_run1_results.json
+docs/reviews/P5.2c_C6c.md
+docs/reviews/P5.2c_C6c/coord_mutants_g2c.py
+docs/reviews/P5.2c_C6c/coord_mutants_g2c_log.txt
+docs/reviews/P5.2c_C6c/coord_mutants_g2c_results.json
+docs/reviews/P5.2c_C6c/erfc_count.py
+docs/reviews/P5.2c_C6c/erfc_count_out.txt
+offline/tier_statements.py
+tests/p5_2c_fixtures.py
+tests/test_tier_statements.py
