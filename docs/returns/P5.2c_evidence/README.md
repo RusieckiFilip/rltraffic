@@ -1,4 +1,4 @@
-# P5.2c — evidence for gates G1, G1.1 and G2 (`BRIEF_45` Amendments A, B, B.1 and B.2)
+# P5.2c — evidence for gates G1, G1.1, G2 and G4 (`BRIEF_45` Amendments A, B, B.1, B.2 and C)
 
 Branch `task/p5.2c-statements`, worktree `/home/filip/rltraffic-p52c`, interpreter `/home/filip/rltraffic/.venv/bin/python`
 (Python 3.12.13).
@@ -7,6 +7,24 @@ Branch `task/p5.2c-statements`, worktree `/home/filip/rltraffic-p52c`, interpret
   suite's own CityFlow tests, through the frozen `configs/sim/config_1x1.json`; see G2's disclosures.)
 - **The artifact is built and committed:** `docs/data/p5_2_statements.json` at `9fa93e9` (G2, below). C6d precedes it.
 - Every number here comes from a command run in the session that wrote it.
+
+# G4 — the Return Packet (`BRIEF_45` Amendment C, C3)
+
+The packet is `docs/returns/P5.2c.md`. G3 passed in Amendment C, after the merge `5a835b4` of `main` at `7a4a7aa`. The files
+below were added at G4, all run at `5a835b4`, which is docs-only after the artifact commit:
+
+| file | what it is |
+|---|---|
+| `g4_tables.py`, `g4_tables.md` | the packet's tables, rendered from the committed artifact alone (no `offline/` import, no recomputation; it asserts `primary` is exactly `att_engine`, and that the 16 two-version entries share verdict and reading). The packet carries them verbatim, checked by script |
+| `g4_whole_suite.txt` | **the whole suite outside the sandbox, the run of record: 3380 passed, 154 skipped, 0 failed** (16 min 11 s) — the same counts as G2's at `9fa93e9` |
+| `g4_whole_suite_sandboxed.txt` | the same command inside the Bash sandbox, not used: 3 failed, 3364 passed, 167 skipped. The three failures are the tmux-driven P7.3c/P7.3d header tests, each refused at `tmux new-session` with *"error connecting to /tmp/tmux-1000/default (Operation not permitted)"* |
+| `g4_test_file.txt` | `tests/test_tier_statements.py` alone: **163 passed**, T-regress included |
+
+**Found at G4** (the packet's open questions 1 and 2):
+- **`.claude/settings.json` is modified in the worktree, not by any command or edit I ran.** It was modified at 13:48:45,
+  after G2's last commit. Left as found, and in no commit.
+- **`comparison_with_the_record.never_scored` stores `mean_difference: null` for Q3c's four rows.** The statement entries
+  carry the means. Not changed after G3.
 
 # G2 — the guard commit, the build, the artifact commit, the suite, `check` and the four falsifications (`BRIEF_45` Amendment B.2, B.2.4 steps 3–6)
 
