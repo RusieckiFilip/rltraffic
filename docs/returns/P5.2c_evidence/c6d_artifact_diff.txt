@@ -1,0 +1,50 @@
+# C6d, step 2 of 3 (BRIEF_45 Amendment B.2, B.2.3): what the module change does to the REAL artifact.
+# Date: 2026-10-14.  Both artifacts built IN MEMORY, never written: dump.py flattens each to leaf paths.
+#   old = a git archive export of f4413a3 (C6d step 1, the module unchanged since 3e5de9c)
+#   new = the working tree with the B.2.3 change (module sha256 20c07b17...)
+# Both builds use the same synthetic git and code blocks, so only the data can differ.
+# The output root is the main tree's /home/filip/rltraffic/output, read only.
+
+leaves: 23363 -> 23635 (+272 = 2 x 136 paired_comparison blocks)
+added 272   removed 0   changed 2
+
+ADDED, by path class -- the same five classes and counts as Amendment B.2, B.2.0(4):
+     16  .descriptive_collapse_audit.dt_rows[*].contrast.paired_comparison.p_value_defined
+     16  .descriptive_collapse_audit.dt_rows[*].contrast.paired_comparison.p_value_note
+     34  .descriptive_collapse_audit.rows[*].contrast.paired_comparison.p_value_defined
+     34  .descriptive_collapse_audit.rows[*].contrast.paired_comparison.p_value_note
+     12  .leaders[*].leader_minus_runner_up[*].paired_comparison.p_value_defined
+     12  .leaders[*].leader_minus_runner_up[*].paired_comparison.p_value_note
+     10  .statements[*].numbers.contrast.paired_comparison.p_value_defined
+     10  .statements[*].numbers.contrast.paired_comparison.p_value_note
+     64  .statements[*].numbers.paired_comparison.p_value_defined
+     64  .statements[*].numbers.paired_comparison.p_value_note
+
+CHANGED (both are text, both disclosed as beyond B.2.3's letter):
+    .definitions.d8.carried
+        old: rank_biserial, median_difference, wins, losses, ties and the Wilcoxon block from offline_baselines.paired_comparison, unchanged; the p-value is never ...
+        new: rank_biserial, median_difference, wins, losses, ties and the Wilcoxon block from offline_baselines.paired_comparison, unchanged; the p-value is never ...
+    .registered_in
+        old: docs/briefs/BRIEF_45_p5.2c_statements.md, its Amendment A (gate G0; the plan docs/plans/p5.2c.md at 1267715), its Amendment B (gate G1) and its Amendm...
+        new: docs/briefs/BRIEF_45_p5.2c_statements.md, its Amendment A (gate G0; the plan docs/plans/p5.2c.md at 1267715), its Amendment B (gate G1), its Amendment...
+
+REMOVED: none.  NO NUMERIC LEAF CHANGED: no published number moves.
+
+p_value_defined over the 136 blocks: {True: 128, False: 8}
+
+The eight undefined, by the artifact's own index and identity (Amendment B.2, B.2.0(5) names
+statements[74, 75, 94, 95, 100, 101, 132, 133]):
+    statements[100]  Q4a    fixedtime    att_ours   both         exactly_zero=True  {'n_used': 0, 'n_zero': 100, 'z': 0.0, 'p_value': 1.0}
+    statements[101]  Q4a    fixedtime    att_engine both         exactly_zero=True  {'n_used': 0, 'n_zero': 100, 'z': 0.0, 'p_value': 1.0}
+    statements[132]  Q5c    fixedtime    att_ours   both         exactly_zero=True  {'n_used': 0, 'n_zero': 100, 'z': 0.0, 'p_value': 1.0}
+    statements[133]  Q5c    fixedtime    att_engine both         exactly_zero=True  {'n_used': 0, 'n_zero': 100, 'z': 0.0, 'p_value': 1.0}
+    statements[74]  Q3b    fixedtime    att_ours   both         exactly_zero=True  {'n_used': 0, 'n_zero': 100, 'z': 0.0, 'p_value': 1.0}
+    statements[75]  Q3b    fixedtime    att_engine both         exactly_zero=True  {'n_used': 0, 'n_zero': 100, 'z': 0.0, 'p_value': 1.0}
+    statements[94]  Q4.d   fixedtime    att_ours   both         exactly_zero=True  {'n_used': 0, 'n_zero': 100, 'z': 0.0, 'p_value': 1.0}
+    statements[95]  Q4.d   fixedtime    att_engine both         exactly_zero=True  {'n_used': 0, 'n_zero': 100, 'z': 0.0, 'p_value': 1.0}
+
+Its note, once (identical in all eight):
+    undefined: every per-draw difference is exactly zero (wilcoxon n_used = 0), so there is no test to report; z = 0.0 and p_value = 1.0 are dt_gate.wilcoxon_signed_rank's convention for an empty test and are not a test result (BRIEF_45 Amendment B.2, B.2.3)
+
+And the note the other 128 carry:
+    two-sided signed-rank test (the normal approximation, with the tie and continuity corrections); it is never read by a verdict, and its z is computed from min(W+, W-), so the sign of z is not the direction of the difference -- read mean_difference's sign or the rank-biserial's instead (BRIEF_45 Amendment B.2, B.2.3)

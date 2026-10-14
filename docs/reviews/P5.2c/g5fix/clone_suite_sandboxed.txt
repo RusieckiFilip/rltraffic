@@ -1,0 +1,387 @@
+................................................s....................... [  2%]
+.....ss................................................................. [  4%]
+.......................................s................................ [  6%]
+........................................................................ [  8%]
+.................ss...............................s..................... [ 10%]
+............sssss.............................................ss........ [ 12%]
+ssss.............ss.....s........s..............s.........s............. [ 14%]
+........................................................................ [ 16%]
+...........................................s............................ [ 18%]
+....................................s.sssss............................. [ 20%]
+........................................................................ [ 22%]
+........................................................................ [ 24%]
+.......................................s................................ [ 26%]
+.............................sss.ss..................................... [ 28%]
+............................ss.s.ssssssssssssss......................... [ 30%]
+........................................................................ [ 32%]
+................................ssss............................ssssssss [ 34%]
+ss..ss.................................................................. [ 36%]
+........................................................................ [ 38%]
+........................................................................ [ 40%]
+..........s............................................................. [ 42%]
+.............ssssssss................................................... [ 44%]
+........................................................................ [ 46%]
+........................................................................ [ 48%]
+..............................s.....................s................... [ 50%]
+......ssss.s.................sssss..................s................... [ 52%]
+...............ssssssss....................s............................ [ 54%]
+.........................F.sss.....................s.................... [ 56%]
+F....................................................................... [ 58%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+........ssssssssss...s.................................................. [ 64%]
+...................sF................................................... [ 66%]
+..............s.......s.ssss.ssssss...............................ss.... [ 68%]
+.......................s................................................ [ 70%]
+.................................................sss.ssss.s.....s....... [ 72%]
+................................................sssssss..............sss [ 75%]
+.............s.......................................................ss. [ 77%]
+..sss.sssss............ssss............................................. [ 79%]
+........................................................................ [ 81%]
+........................................................................ [ 83%]
+........................................................................ [ 85%]
+........................................................................ [ 87%]
+........................................................................ [ 89%]
+.......................s................................................ [ 91%]
+.................sss.................................................... [ 93%]
+........................................................................ [ 95%]
+....................................................................s... [ 97%]
+........................................................................ [ 99%]
+........................                                                 [100%]
+=================================== FAILURES ===================================
+_ test_the_headers_own_line_passes_the_guard_and_the_pane_carries_the_drivers_exit_code _
+
+campaign_sandbox = <function campaign_sandbox.<locals>.build at 0x7da3e5403b00>
+
+    @pytest.mark.skipif(shutil.which("tmux") is None, reason="tmux is not installed")
+    def test_the_headers_own_line_passes_the_guard_and_the_pane_carries_the_drivers_exit_code(
+        campaign_sandbox: Any,
+    ) -> None:
+        sb = campaign_sandbox()
+        capture = sb.base / "pane_capture.txt"
+        line = _header_line(sb.driver.read_text(encoding="utf-8"))
+        line = _substitute(line, f"{RUN_TREE}/offline/campaigns/p7_3c_grid4x4.sh", str(sb.driver), 1)
+        line = _substitute(line, HEADER_CAPTURE, str(capture), 2)
+        line = _substitute(line, "<commit>", sb.head, 1)
+        session = f"p73c_campaign_{uuid.uuid4().hex[:8]}"
+>       subprocess.run(["tmux", "new-session", "-d", "-s", session], check=True)
+
+tests/test_p7_3c_campaign.py:582: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+input = None, capture_output = False, timeout = None, check = True
+popenargs = (['tmux', 'new-session', '-d', '-s', 'p73c_campaign_023e8405'],)
+kwargs = {}
+
+    def run(*popenargs,
+            input=None, capture_output=False, timeout=None, check=False, **kwargs):
+        """Run command with arguments and return a CompletedProcess instance.
+    
+        The returned instance will have attributes args, returncode, stdout and
+        stderr. By default, stdout and stderr are not captured, and those attributes
+        will be None. Pass stdout=PIPE and/or stderr=PIPE in order to capture them,
+        or pass capture_output=True to capture both.
+    
+        If check is True and the exit code was non-zero, it raises a
+        CalledProcessError. The CalledProcessError object will have the return code
+        in the returncode attribute, and output & stderr attributes if those streams
+        were captured.
+    
+        If timeout (seconds) is given and the process takes too long,
+         a TimeoutExpired exception will be raised.
+    
+        There is an optional argument "input", allowing you to
+        pass bytes or a string to the subprocess's stdin.  If you use this argument
+        you may not also use the Popen constructor's "stdin" argument, as
+        it will be used internally.
+    
+        By default, all communication is in bytes, and therefore any "input" should
+        be bytes, and the stdout and stderr will be bytes. If in text mode, any
+        "input" should be a string, and stdout and stderr will be strings decoded
+        according to locale encoding, or by "encoding" if set. Text mode is
+        triggered by setting any of text, encoding, errors or universal_newlines.
+    
+        The other arguments are the same as for the Popen constructor.
+        """
+        if input is not None:
+            if kwargs.get('stdin') is not None:
+                raise ValueError('stdin and input arguments may not both be used.')
+            kwargs['stdin'] = PIPE
+    
+        if capture_output:
+            if kwargs.get('stdout') is not None or kwargs.get('stderr') is not None:
+                raise ValueError('stdout and stderr arguments may not be used '
+                                 'with capture_output.')
+            kwargs['stdout'] = PIPE
+            kwargs['stderr'] = PIPE
+    
+        with Popen(*popenargs, **kwargs) as process:
+            try:
+                stdout, stderr = process.communicate(input, timeout=timeout)
+            except TimeoutExpired as exc:
+                process.kill()
+                if _mswindows:
+                    # Windows accumulates the output in a single blocking
+                    # read() call run on child threads, with the timeout
+                    # being done in a join() on those threads.  communicate()
+                    # _after_ kill() is required to collect that and add it
+                    # to the exception.
+                    exc.stdout, exc.stderr = process.communicate()
+                else:
+                    # POSIX _communicate already populated the output so
+                    # far into the TimeoutExpired exception.
+                    process.wait()
+                raise
+            except:  # Including KeyboardInterrupt, communicate handled that.
+                process.kill()
+                # We don't call process.wait() as .__exit__ does that for us.
+                raise
+            retcode = process.poll()
+            if check and retcode:
+>               raise CalledProcessError(retcode, process.args,
+                                         output=stdout, stderr=stderr)
+E               subprocess.CalledProcessError: Command '['tmux', 'new-session', '-d', '-s', 'p73c_campaign_023e8405']' returned non-zero exit status 1.
+
+/usr/lib/python3.12/subprocess.py:571: CalledProcessError
+----------------------------- Captured stderr call -----------------------------
+error connecting to /tmp/tmux-1000/default (Operation not permitted)
+_ test_the_headers_own_line_passes_the_guard_and_the_pane_carries_the_drivers_exit_code _
+
+corpus_sandbox = <function corpus_sandbox.<locals>.build at 0x7da3f807f1a0>
+
+    @pytest.mark.skipif(shutil.which("tmux") is None, reason="tmux is not installed")
+    def test_the_headers_own_line_passes_the_guard_and_the_pane_carries_the_drivers_exit_code(
+        corpus_sandbox: Any,
+    ) -> None:
+        """B.3-1 + B.5-3, on the redirected COPY, NO token: the header's Step-2 line typed at a pane's prompt passes the
+        group-leader check, refuses at the token, and the capture's last line is ``DRIVER EXIT: 2`` -- the same code the
+        driver returns under ``setsid``.  *Mutation:* ``${PIPESTATUS[0]}`` -> ``$?`` in the header -> this dies."""
+        sb = corpus_sandbox()
+        line, driver_path, capture_path = _header_line(sb.driver.read_text(encoding="utf-8"))
+        capture = sb.base / "pane_capture.txt"
+        line = _substitute(line, driver_path, str(sb.driver), 1)
+        line = _substitute(line, capture_path, str(capture), 2)
+        line = _substitute(line, "<commit>", sb.head, 1)
+    
+        session = f"p73c_hdr_{uuid.uuid4().hex[:8]}"
+>       subprocess.run(["tmux", "new-session", "-d", "-s", session], check=True)
+
+tests/test_p7_3c_corpus_driver.py:412: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+input = None, capture_output = False, timeout = None, check = True
+popenargs = (['tmux', 'new-session', '-d', '-s', 'p73c_hdr_effbcd21'],)
+kwargs = {}
+
+    def run(*popenargs,
+            input=None, capture_output=False, timeout=None, check=False, **kwargs):
+        """Run command with arguments and return a CompletedProcess instance.
+    
+        The returned instance will have attributes args, returncode, stdout and
+        stderr. By default, stdout and stderr are not captured, and those attributes
+        will be None. Pass stdout=PIPE and/or stderr=PIPE in order to capture them,
+        or pass capture_output=True to capture both.
+    
+        If check is True and the exit code was non-zero, it raises a
+        CalledProcessError. The CalledProcessError object will have the return code
+        in the returncode attribute, and output & stderr attributes if those streams
+        were captured.
+    
+        If timeout (seconds) is given and the process takes too long,
+         a TimeoutExpired exception will be raised.
+    
+        There is an optional argument "input", allowing you to
+        pass bytes or a string to the subprocess's stdin.  If you use this argument
+        you may not also use the Popen constructor's "stdin" argument, as
+        it will be used internally.
+    
+        By default, all communication is in bytes, and therefore any "input" should
+        be bytes, and the stdout and stderr will be bytes. If in text mode, any
+        "input" should be a string, and stdout and stderr will be strings decoded
+        according to locale encoding, or by "encoding" if set. Text mode is
+        triggered by setting any of text, encoding, errors or universal_newlines.
+    
+        The other arguments are the same as for the Popen constructor.
+        """
+        if input is not None:
+            if kwargs.get('stdin') is not None:
+                raise ValueError('stdin and input arguments may not both be used.')
+            kwargs['stdin'] = PIPE
+    
+        if capture_output:
+            if kwargs.get('stdout') is not None or kwargs.get('stderr') is not None:
+                raise ValueError('stdout and stderr arguments may not be used '
+                                 'with capture_output.')
+            kwargs['stdout'] = PIPE
+            kwargs['stderr'] = PIPE
+    
+        with Popen(*popenargs, **kwargs) as process:
+            try:
+                stdout, stderr = process.communicate(input, timeout=timeout)
+            except TimeoutExpired as exc:
+                process.kill()
+                if _mswindows:
+                    # Windows accumulates the output in a single blocking
+                    # read() call run on child threads, with the timeout
+                    # being done in a join() on those threads.  communicate()
+                    # _after_ kill() is required to collect that and add it
+                    # to the exception.
+                    exc.stdout, exc.stderr = process.communicate()
+                else:
+                    # POSIX _communicate already populated the output so
+                    # far into the TimeoutExpired exception.
+                    process.wait()
+                raise
+            except:  # Including KeyboardInterrupt, communicate handled that.
+                process.kill()
+                # We don't call process.wait() as .__exit__ does that for us.
+                raise
+            retcode = process.poll()
+            if check and retcode:
+>               raise CalledProcessError(retcode, process.args,
+                                         output=stdout, stderr=stderr)
+E               subprocess.CalledProcessError: Command '['tmux', 'new-session', '-d', '-s', 'p73c_hdr_effbcd21']' returned non-zero exit status 1.
+
+/usr/lib/python3.12/subprocess.py:571: CalledProcessError
+----------------------------- Captured stderr call -----------------------------
+error connecting to /tmp/tmux-1000/default (Operation not permitted)
+_ test_the_headers_own_line_passes_the_guard_and_the_pane_carries_the_drivers_exit_code _
+
+driver_sandbox = <function driver_sandbox.<locals>.build at 0x7da3a75e04a0>
+
+    @pytest.mark.skipif(shutil.which("tmux") is None, reason="tmux is not installed")
+    def test_the_headers_own_line_passes_the_guard_and_the_pane_carries_the_drivers_exit_code(
+        driver_sandbox: Any,
+    ) -> None:
+        """B.3-1(2) + B.5-3 + B.6-2(1) + B.7.1-1(iii), on a redirected COPY of the driver, NO token.
+    
+        The header's Step-2 line -- which names the RUN worktree (B.7.1-1(ii)) -- is read from the
+        header, its two paths are substituted, and it is typed at a tmux pane's prompt.  The copy lives
+        in a sandbox tree and DERIVES its ``WORK_TREE`` from its own location: the capture must name
+        that tree, never the source.  The driver must pass the leader check, run the canary, refuse at
+        the token -- and the capture's last line must be ``DRIVER EXIT: <n>``, ``n`` equal to the same
+        driver's exit code under ``setsid``.  *Mutations:* ``${PIPESTATUS[0]}`` -> ``$?``; ``WORK_TREE``
+        hardcoded again -> this dies.
+        """
+        sb = driver_sandbox()
+        header = sb.driver.read_text(encoding="utf-8")
+        match = re.search(r"^#\s+Step 2, at ITS PROMPT:\s+(bash .+)$", header, flags=re.MULTILINE)
+        assert match, "the header has no Step-2 line"
+        line = match.group(1)
+        assert "${PIPESTATUS[0]}" in line, "B.5-3: the pane carries the DRIVER's exit status"
+        capture = sb.sandbox / "capture.txt"
+        line = _substitute(line, HEADER_DRIVER_PATH, str(sb.driver), 1)
+        line = _substitute(line, HEADER_CAPTURE_PATH, str(capture), 2)
+    
+        session = f"p73d_hdr_{uuid.uuid4().hex[:8]}"
+>       subprocess.run(["tmux", "new-session", "-d", "-s", session], check=True)
+
+tests/test_p7_3d_campaign_path.py:1721: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+input = None, capture_output = False, timeout = None, check = True
+popenargs = (['tmux', 'new-session', '-d', '-s', 'p73d_hdr_92ba0bbd'],)
+kwargs = {}
+
+    def run(*popenargs,
+            input=None, capture_output=False, timeout=None, check=False, **kwargs):
+        """Run command with arguments and return a CompletedProcess instance.
+    
+        The returned instance will have attributes args, returncode, stdout and
+        stderr. By default, stdout and stderr are not captured, and those attributes
+        will be None. Pass stdout=PIPE and/or stderr=PIPE in order to capture them,
+        or pass capture_output=True to capture both.
+    
+        If check is True and the exit code was non-zero, it raises a
+        CalledProcessError. The CalledProcessError object will have the return code
+        in the returncode attribute, and output & stderr attributes if those streams
+        were captured.
+    
+        If timeout (seconds) is given and the process takes too long,
+         a TimeoutExpired exception will be raised.
+    
+        There is an optional argument "input", allowing you to
+        pass bytes or a string to the subprocess's stdin.  If you use this argument
+        you may not also use the Popen constructor's "stdin" argument, as
+        it will be used internally.
+    
+        By default, all communication is in bytes, and therefore any "input" should
+        be bytes, and the stdout and stderr will be bytes. If in text mode, any
+        "input" should be a string, and stdout and stderr will be strings decoded
+        according to locale encoding, or by "encoding" if set. Text mode is
+        triggered by setting any of text, encoding, errors or universal_newlines.
+    
+        The other arguments are the same as for the Popen constructor.
+        """
+        if input is not None:
+            if kwargs.get('stdin') is not None:
+                raise ValueError('stdin and input arguments may not both be used.')
+            kwargs['stdin'] = PIPE
+    
+        if capture_output:
+            if kwargs.get('stdout') is not None or kwargs.get('stderr') is not None:
+                raise ValueError('stdout and stderr arguments may not be used '
+                                 'with capture_output.')
+            kwargs['stdout'] = PIPE
+            kwargs['stderr'] = PIPE
+    
+        with Popen(*popenargs, **kwargs) as process:
+            try:
+                stdout, stderr = process.communicate(input, timeout=timeout)
+            except TimeoutExpired as exc:
+                process.kill()
+                if _mswindows:
+                    # Windows accumulates the output in a single blocking
+                    # read() call run on child threads, with the timeout
+                    # being done in a join() on those threads.  communicate()
+                    # _after_ kill() is required to collect that and add it
+                    # to the exception.
+                    exc.stdout, exc.stderr = process.communicate()
+                else:
+                    # POSIX _communicate already populated the output so
+                    # far into the TimeoutExpired exception.
+                    process.wait()
+                raise
+            except:  # Including KeyboardInterrupt, communicate handled that.
+                process.kill()
+                # We don't call process.wait() as .__exit__ does that for us.
+                raise
+            retcode = process.poll()
+            if check and retcode:
+>               raise CalledProcessError(retcode, process.args,
+                                         output=stdout, stderr=stderr)
+E               subprocess.CalledProcessError: Command '['tmux', 'new-session', '-d', '-s', 'p73d_hdr_92ba0bbd']' returned non-zero exit status 1.
+
+/usr/lib/python3.12/subprocess.py:571: CalledProcessError
+----------------------------- Captured stderr call -----------------------------
+error connecting to /tmp/tmux-1000/default (Operation not permitted)
+=============================== warnings summary ===============================
+tests/test_claude_guard.py:21
+  /tmp/claude-1000/-home-filip-rltraffic/7546ab2c-e248-4f99-bf16-9f19f47a6a55/scratchpad/g5fix/clone/tests/test_claude_guard.py:21: SyntaxWarning: invalid escape sequence '\.'
+    * The ``experiments/configs/`` carve-out is deliberately narrow: ``experiments/configs/[^/]*\.json$``,
+
+tests/test_aligned_env.py: 6 warnings
+tests/test_backend_alignment.py: 2 warnings
+tests/test_dqn_queue_length_reward.py: 1 warning
+tests/test_materialise_parity.py: 1 warning
+tests/test_sumo_att_reference.py: 2 warnings
+tests/test_sumo_env_phase_constraints.py: 8 warnings
+tests/test_transfer_calibration.py: 5 warnings
+tests/test_transfer_curve.py: 1 warning
+tests/test_transfer_gate.py: 3 warnings
+  /tmp/claude-1000/-home-filip-rltraffic/7546ab2c-e248-4f99-bf16-9f19f47a6a55/scratchpad/g5fix/clone/utils/sumo_utils.py:56: UserWarning: Call to deprecated function getAllProgramLogics, use getCompleteRedYellowGreenDefinition instead.
+    definitions = sumo.trafficlight.getCompleteRedYellowGreenDefinition(tl_id)
+
+tests/test_runner_threading.py::test_worker_process_runs_single_threaded
+tests/test_runner_threading.py::test_worker_process_runs_single_threaded
+tests/test_runner_threading.py::test_pool_path_pins_every_worker
+  /usr/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=4) is multi-threaded, use of fork() may lead to deadlocks in the child.
+    self.pid = os.fork()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_p7_3c_campaign.py::test_the_headers_own_line_passes_the_guard_and_the_pane_carries_the_drivers_exit_code
+FAILED tests/test_p7_3c_corpus_driver.py::test_the_headers_own_line_passes_the_guard_and_the_pane_carries_the_drivers_exit_code
+FAILED tests/test_p7_3d_campaign_path.py::test_the_headers_own_line_passes_the_guard_and_the_pane_carries_the_drivers_exit_code
+3 failed, 3378 passed, 171 skipped, 33 warnings in 861.43s (0:14:21)
+pytest exit=1

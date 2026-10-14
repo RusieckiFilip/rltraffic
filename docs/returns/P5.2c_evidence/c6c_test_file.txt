@@ -1,0 +1,13 @@
+# P5.2c C6c (BRIEF_45 Amendment B.1, B.1.3 step 2.3): the test file at the code commit
+# date (UTC): 2026-10-13T14:17:57Z; HEAD 3e5de9cde0564511ca1bd3e9e1a68d103a85416d; git status --porcelain lines: 2
+# offline/tier_statements.py sha256 9666476572ea9cadce5d131c3939fec20d8cedd27e07f645f12ce5347d50d620
+# tests/test_tier_statements.py sha256 8230603f109eb642f185234cbe900d9c5252f6a4624b6633a6251ad82d2a0064
+# command: RLTRAFFIC_OUTPUT_ROOT=/home/filip/rltraffic/output /home/filip/rltraffic/.venv/bin/pytest -q -p no:cacheprovider -rfEs tests/test_tier_statements.py
+
+........................................................................ [ 45%]
+........................................................................ [ 90%]
+........s......                                                          [100%]
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_tier_statements.py:2490: /home/filip/rltraffic-p52c/docs/data/p5_2_statements.json not found: the artifact is built and committed at gate G2 (the plan's C7)
+158 passed, 1 skipped in 15.70s
+# pytest exit: 0

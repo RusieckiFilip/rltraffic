@@ -1,0 +1,13 @@
+# G5-fix: the packet tables (g4_tables.md) checked against the committed artifact by a second route, at 5f67361.
+# Date: 2026-10-14.
+$ python -P docs/returns/P5.2c_evidence/g5fix_tables_check.py docs/data/p5_2_statements.json docs/returns/P5.2c_evidence/g4_tables.md
+(1) statement table: 77 rows; 9 qualified (entry, seed list) pairs in the artifact, each shown in its own cell; 9 cells say 'reverses on'; no unqualified cell does
+(2) leaders table: 12 rows for 12 entries in 10 blocks (0 without a contrast); every entry is one row with its own mean and qualifier
+(3) first-time table: 42 rows for 42 never_scored entries; 5 carry a qualifier, each shown
+ALL CHECKS PASSED
+exit=0
+
+# Three corruptions of the rendered tables, each written to a scratch copy (the committed g4_tables.md untouched):
+F1 a statement cell loses its qualifier (Q5c at random, att_engine): exit 1 -> CAUGHT  [AssertionError: ('Q5c', 'random', 'att_engine')]
+F2 the leaders table drops a tied runner-up's row (fixedtime, att_engine, dt_nomix): exit 1 -> CAUGHT  [AssertionError: ('fixedtime', 'att_engine', 'both', 'iql', 'dt_nomix', 0)]
+F3 a first-time row loses its qualifier (Q3c at maxpressure, att_engine): exit 1 -> CAUGHT  [AssertionError: ['Q3c', 'maxpressure', '—', '`att_engine` **(primary)**', '— (no verdict)', '+0.9059 [-0.1617, +1.9735]', '—', 'NOT RESOLVED']]

@@ -1,0 +1,2524 @@
+# P5.2c C1 red run -- the new tests against the signature-only skeleton
+# command: RLTRAFFIC_OUTPUT_ROOT=/home/filip/rltraffic/output /home/filip/rltraffic/.venv/bin/pytest tests/test_tier_statements.py -q -p no:cacheprovider -rN
+# tree: branch task/p5.2c-statements at 0b26c53 plus the three C1 files (uncommitted at run time)
+# tally: 104 x 'NotImplementedError: P5.2c C1 skeleton: <fn>' (76 failed + 28 errors); 3 passed = the T-quotes checks of the quotation data, which is real at C1
+
+FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEEEEEEEEEFEEFEEEEEEEEFFFFFFFFFFFFFF [ 67%]
+FFFFFFFFFFFFFFFFFFFFF...FEEEEEEEEFE                                      [100%]
+==================================== ERRORS ====================================
+_ ERROR at setup of test_t_q0_the_interaction_its_per_seed_values_and_the_three_verdicts _
+
+    @pytest.fixture
+    def books() -> dict[str, dict[tuple[str, str], tst.Cell]]:
+>       return tst.make_books(fx.synthetic_cells())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:170: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cells = {'p5_1:dt_spatial@grid4x4_mappo1000': Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', method='dt_spati...d': 1302, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 5.0, 'episode_reward': -1003.0})), ...}
+
+    def make_books(cells: Mapping[str, Cell]) -> dict[str, dict[tuple[str, str], Cell]]:
+        """The two versions' books: logical ``(method, tier)`` -> cell.  Identical but at ``("iql", "random")``, which is
+        :data:`CORRECTED_IQL` under ``corrected`` and :data:`ORIGINAL_IQL` under ``as_committed``.  ``("behaviour",
+        "random")`` and :data:`ANCHOR` are both P5.1's random cell (D12)."""
+>       raise NotImplementedError("P5.2c C1 skeleton: make_books")
+E       NotImplementedError: P5.2c C1 skeleton: make_books
+
+offline/tier_statements.py:232: NotImplementedError
+_ ERROR at setup of test_t_q0_the_stop_rule_fires_on_a_d4_entirely_below_zero __
+
+    @pytest.fixture
+    def books() -> dict[str, dict[tuple[str, str], tst.Cell]]:
+>       return tst.make_books(fx.synthetic_cells())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:170: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cells = {'p5_1:dt_spatial@grid4x4_mappo1000': Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', method='dt_spati...d': 1302, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 5.0, 'episode_reward': -1003.0})), ...}
+
+    def make_books(cells: Mapping[str, Cell]) -> dict[str, dict[tuple[str, str], Cell]]:
+        """The two versions' books: logical ``(method, tier)`` -> cell.  Identical but at ``("iql", "random")``, which is
+        :data:`CORRECTED_IQL` under ``corrected`` and :data:`ORIGINAL_IQL` under ``as_committed``.  ``("behaviour",
+        "random")`` and :data:`ANCHOR` are both P5.1's random cell (D12)."""
+>       raise NotImplementedError("P5.2c C1 skeleton: make_books")
+E       NotImplementedError: P5.2c C1 skeleton: make_books
+
+offline/tier_statements.py:232: NotImplementedError
+_ ERROR at setup of test_t_q4b_the_four_rung_chain_and_the_three_rung_bullet_can_disagree _
+
+    @pytest.fixture
+    def books() -> dict[str, dict[tuple[str, str], tst.Cell]]:
+>       return tst.make_books(fx.synthetic_cells())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:170: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cells = {'p5_1:dt_spatial@grid4x4_mappo1000': Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', method='dt_spati...d': 1302, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 5.0, 'episode_reward': -1003.0})), ...}
+
+    def make_books(cells: Mapping[str, Cell]) -> dict[str, dict[tuple[str, str], Cell]]:
+        """The two versions' books: logical ``(method, tier)`` -> cell.  Identical but at ``("iql", "random")``, which is
+        :data:`CORRECTED_IQL` under ``corrected`` and :data:`ORIGINAL_IQL` under ``as_committed``.  ``("behaviour",
+        "random")`` and :data:`ANCHOR` are both P5.1's random cell (D12)."""
+>       raise NotImplementedError("P5.2c C1 skeleton: make_books")
+E       NotImplementedError: P5.2c C1 skeleton: make_books
+
+offline/tier_statements.py:232: NotImplementedError
+_ ERROR at setup of test_t_q4b_an_inverted_chain_is_named_and_a_non_monotone_one_is_not _
+
+    @pytest.fixture
+    def books() -> dict[str, dict[tuple[str, str], tst.Cell]]:
+>       return tst.make_books(fx.synthetic_cells())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:170: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cells = {'p5_1:dt_spatial@grid4x4_mappo1000': Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', method='dt_spati...d': 1302, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 5.0, 'episode_reward': -1003.0})), ...}
+
+    def make_books(cells: Mapping[str, Cell]) -> dict[str, dict[tuple[str, str], Cell]]:
+        """The two versions' books: logical ``(method, tier)`` -> cell.  Identical but at ``("iql", "random")``, which is
+        :data:`CORRECTED_IQL` under ``corrected`` and :data:`ORIGINAL_IQL` under ``as_committed``.  ``("behaviour",
+        "random")`` and :data:`ANCHOR` are both P5.1's random cell (D12)."""
+>       raise NotImplementedError("P5.2c C1 skeleton: make_books")
+E       NotImplementedError: P5.2c C1 skeleton: make_books
+
+offline/tier_statements.py:232: NotImplementedError
+_ ERROR at setup of test_t_q4a_the_exact_zero_at_fixedtime_is_not_resolved_and_the_aggregate_follows _
+
+    @pytest.fixture
+    def books() -> dict[str, dict[tuple[str, str], tst.Cell]]:
+>       return tst.make_books(fx.synthetic_cells())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:170: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cells = {'p5_1:dt_spatial@grid4x4_mappo1000': Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', method='dt_spati...d': 1302, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 5.0, 'episode_reward': -1003.0})), ...}
+
+    def make_books(cells: Mapping[str, Cell]) -> dict[str, dict[tuple[str, str], Cell]]:
+        """The two versions' books: logical ``(method, tier)`` -> cell.  Identical but at ``("iql", "random")``, which is
+        :data:`CORRECTED_IQL` under ``corrected`` and :data:`ORIGINAL_IQL` under ``as_committed``.  ``("behaviour",
+        "random")`` and :data:`ANCHOR` are both P5.1's random cell (D12)."""
+>       raise NotImplementedError("P5.2c C1 skeleton: make_books")
+E       NotImplementedError: P5.2c C1 skeleton: make_books
+
+offline/tier_statements.py:232: NotImplementedError
+_ ERROR at setup of test_t_q5b_a_failed_mappo1000_tier_makes_the_aggregate_failed _
+
+    @pytest.fixture
+    def books() -> dict[str, dict[tuple[str, str], tst.Cell]]:
+>       return tst.make_books(fx.synthetic_cells())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:170: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cells = {'p5_1:dt_spatial@grid4x4_mappo1000': Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', method='dt_spati...d': 1302, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 5.0, 'episode_reward': -1003.0})), ...}
+
+    def make_books(cells: Mapping[str, Cell]) -> dict[str, dict[tuple[str, str], Cell]]:
+        """The two versions' books: logical ``(method, tier)`` -> cell.  Identical but at ``("iql", "random")``, which is
+        :data:`CORRECTED_IQL` under ``corrected`` and :data:`ORIGINAL_IQL` under ``as_committed``.  ``("behaviour",
+        "random")`` and :data:`ANCHOR` are both P5.1's random cell (D12)."""
+>       raise NotImplementedError("P5.2c C1 skeleton: make_books")
+E       NotImplementedError: P5.2c C1 skeleton: make_books
+
+offline/tier_statements.py:232: NotImplementedError
+_________ ERROR at setup of test_t_q5_each_tier_by_its_registered_sign _________
+
+    @pytest.fixture
+    def books() -> dict[str, dict[tuple[str, str], tst.Cell]]:
+>       return tst.make_books(fx.synthetic_cells())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:170: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cells = {'p5_1:dt_spatial@grid4x4_mappo1000': Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', method='dt_spati...d': 1302, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 5.0, 'episode_reward': -1003.0})), ...}
+
+    def make_books(cells: Mapping[str, Cell]) -> dict[str, dict[tuple[str, str], Cell]]:
+        """The two versions' books: logical ``(method, tier)`` -> cell.  Identical but at ``("iql", "random")``, which is
+        :data:`CORRECTED_IQL` under ``corrected`` and :data:`ORIGINAL_IQL` under ``as_committed``.  ``("behaviour",
+        "random")`` and :data:`ANCHOR` are both P5.1's random cell (D12)."""
+>       raise NotImplementedError("P5.2c C1 skeleton: make_books")
+E       NotImplementedError: P5.2c C1 skeleton: make_books
+
+offline/tier_statements.py:232: NotImplementedError
+__ ERROR at setup of test_t_q6_reads_the_shared_anchor_not_the_behaviour_cell __
+
+    @pytest.fixture
+    def books() -> dict[str, dict[tuple[str, str], tst.Cell]]:
+>       return tst.make_books(fx.synthetic_cells())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:170: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cells = {'p5_1:dt_spatial@grid4x4_mappo1000': Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', method='dt_spati...d': 1302, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 5.0, 'episode_reward': -1003.0})), ...}
+
+    def make_books(cells: Mapping[str, Cell]) -> dict[str, dict[tuple[str, str], Cell]]:
+        """The two versions' books: logical ``(method, tier)`` -> cell.  Identical but at ``("iql", "random")``, which is
+        :data:`CORRECTED_IQL` under ``corrected`` and :data:`ORIGINAL_IQL` under ``as_committed``.  ``("behaviour",
+        "random")`` and :data:`ANCHOR` are both P5.1's random cell (D12)."""
+>       raise NotImplementedError("P5.2c C1 skeleton: make_books")
+E       NotImplementedError: P5.2c C1 skeleton: make_books
+
+offline/tier_statements.py:232: NotImplementedError
+_ ERROR at setup of test_t_q6_refuses_when_collapse_criterion_disagrees_with_the_registered_route _
+
+    @pytest.fixture
+    def books() -> dict[str, dict[tuple[str, str], tst.Cell]]:
+>       return tst.make_books(fx.synthetic_cells())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:170: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cells = {'p5_1:dt_spatial@grid4x4_mappo1000': Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', method='dt_spati...d': 1302, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 5.0, 'episode_reward': -1003.0})), ...}
+
+    def make_books(cells: Mapping[str, Cell]) -> dict[str, dict[tuple[str, str], Cell]]:
+        """The two versions' books: logical ``(method, tier)`` -> cell.  Identical but at ``("iql", "random")``, which is
+        :data:`CORRECTED_IQL` under ``corrected`` and :data:`ORIGINAL_IQL` under ``as_committed``.  ``("behaviour",
+        "random")`` and :data:`ANCHOR` are both P5.1's random cell (D12)."""
+>       raise NotImplementedError("P5.2c C1 skeleton: make_books")
+E       NotImplementedError: P5.2c C1 skeleton: make_books
+
+offline/tier_statements.py:232: NotImplementedError
+_ ERROR at setup of test_t_versions_the_iql_free_statements_are_stored_once_and_the_iql_ones_twice _
+
+    @pytest.fixture
+    def books() -> dict[str, dict[tuple[str, str], tst.Cell]]:
+>       return tst.make_books(fx.synthetic_cells())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:170: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cells = {'p5_1:dt_spatial@grid4x4_mappo1000': Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', method='dt_spati...d': 1302, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 5.0, 'episode_reward': -1003.0})), ...}
+
+    def make_books(cells: Mapping[str, Cell]) -> dict[str, dict[tuple[str, str], Cell]]:
+        """The two versions' books: logical ``(method, tier)`` -> cell.  Identical but at ``("iql", "random")``, which is
+        :data:`CORRECTED_IQL` under ``corrected`` and :data:`ORIGINAL_IQL` under ``as_committed``.  ``("behaviour",
+        "random")`` and :data:`ANCHOR` are both P5.1's random cell (D12)."""
+>       raise NotImplementedError("P5.2c C1 skeleton: make_books")
+E       NotImplementedError: P5.2c C1 skeleton: make_books
+
+offline/tier_statements.py:232: NotImplementedError
+_ ERROR at setup of test_t_versions_an_iql_free_statement_that_differs_between_versions_is_refused _
+
+    @pytest.fixture
+    def books() -> dict[str, dict[tuple[str, str], tst.Cell]]:
+>       return tst.make_books(fx.synthetic_cells())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:170: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cells = {'p5_1:dt_spatial@grid4x4_mappo1000': Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', method='dt_spati...d': 1302, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 5.0, 'episode_reward': -1003.0})), ...}
+
+    def make_books(cells: Mapping[str, Cell]) -> dict[str, dict[tuple[str, str], Cell]]:
+        """The two versions' books: logical ``(method, tier)`` -> cell.  Identical but at ``("iql", "random")``, which is
+        :data:`CORRECTED_IQL` under ``corrected`` and :data:`ORIGINAL_IQL` under ``as_committed``.  ``("behaviour",
+        "random")`` and :data:`ANCHOR` are both P5.1's random cell (D12)."""
+>       raise NotImplementedError("P5.2c C1 skeleton: make_books")
+E       NotImplementedError: P5.2c C1 skeleton: make_books
+
+offline/tier_statements.py:232: NotImplementedError
+_ ERROR at setup of test_t_definitions_definition_dependent_is_true_iff_the_two_verdicts_differ _
+
+    @pytest.fixture
+    def books() -> dict[str, dict[tuple[str, str], tst.Cell]]:
+>       return tst.make_books(fx.synthetic_cells())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:170: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cells = {'p5_1:dt_spatial@grid4x4_mappo1000': Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', method='dt_spati...d': 1302, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 5.0, 'episode_reward': -1003.0})), ...}
+
+    def make_books(cells: Mapping[str, Cell]) -> dict[str, dict[tuple[str, str], Cell]]:
+        """The two versions' books: logical ``(method, tier)`` -> cell.  Identical but at ``("iql", "random")``, which is
+        :data:`CORRECTED_IQL` under ``corrected`` and :data:`ORIGINAL_IQL` under ``as_committed``.  ``("behaviour",
+        "random")`` and :data:`ANCHOR` are both P5.1's random cell (D12)."""
+>       raise NotImplementedError("P5.2c C1 skeleton: make_books")
+E       NotImplementedError: P5.2c C1 skeleton: make_books
+
+offline/tier_statements.py:232: NotImplementedError
+_ ERROR at setup of test_t_definitions_q3c_and_the_leaders_are_compared_on_their_reading _
+
+    @pytest.fixture
+    def books() -> dict[str, dict[tuple[str, str], tst.Cell]]:
+>       return tst.make_books(fx.synthetic_cells())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:170: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cells = {'p5_1:dt_spatial@grid4x4_mappo1000': Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', method='dt_spati...d': 1302, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 5.0, 'episode_reward': -1003.0})), ...}
+
+    def make_books(cells: Mapping[str, Cell]) -> dict[str, dict[tuple[str, str], Cell]]:
+        """The two versions' books: logical ``(method, tier)`` -> cell.  Identical but at ``("iql", "random")``, which is
+        :data:`CORRECTED_IQL` under ``corrected`` and :data:`ORIGINAL_IQL` under ``as_committed``.  ``("behaviour",
+        "random")`` and :data:`ANCHOR` are both P5.1's random cell (D12)."""
+>       raise NotImplementedError("P5.2c C1 skeleton: make_books")
+E       NotImplementedError: P5.2c C1 skeleton: make_books
+
+offline/tier_statements.py:232: NotImplementedError
+_ ERROR at setup of test_every_registered_statement_is_present_under_both_definitions _
+
+    @pytest.fixture
+    def books() -> dict[str, dict[tuple[str, str], tst.Cell]]:
+>       return tst.make_books(fx.synthetic_cells())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:170: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cells = {'p5_1:dt_spatial@grid4x4_mappo1000': Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', method='dt_spati...d': 1302, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 5.0, 'episode_reward': -1003.0})), ...}
+
+    def make_books(cells: Mapping[str, Cell]) -> dict[str, dict[tuple[str, str], Cell]]:
+        """The two versions' books: logical ``(method, tier)`` -> cell.  Identical but at ``("iql", "random")``, which is
+        :data:`CORRECTED_IQL` under ``corrected`` and :data:`ORIGINAL_IQL` under ``as_committed``.  ``("behaviour",
+        "random")`` and :data:`ANCHOR` are both P5.1's random cell (D12)."""
+>       raise NotImplementedError("P5.2c C1 skeleton: make_books")
+E       NotImplementedError: P5.2c C1 skeleton: make_books
+
+offline/tier_statements.py:232: NotImplementedError
+__________ ERROR at setup of test_q1b_both_cells_and_its_two_sources ___________
+
+    @pytest.fixture
+    def books() -> dict[str, dict[tuple[str, str], tst.Cell]]:
+>       return tst.make_books(fx.synthetic_cells())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:170: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cells = {'p5_1:dt_spatial@grid4x4_mappo1000': Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', method='dt_spati...d': 1302, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 5.0, 'episode_reward': -1003.0})), ...}
+
+    def make_books(cells: Mapping[str, Cell]) -> dict[str, dict[tuple[str, str], Cell]]:
+        """The two versions' books: logical ``(method, tier)`` -> cell.  Identical but at ``("iql", "random")``, which is
+        :data:`CORRECTED_IQL` under ``corrected`` and :data:`ORIGINAL_IQL` under ``as_committed``.  ``("behaviour",
+        "random")`` and :data:`ANCHOR` are both P5.1's random cell (D12)."""
+>       raise NotImplementedError("P5.2c C1 skeleton: make_books")
+E       NotImplementedError: P5.2c C1 skeleton: make_books
+
+offline/tier_statements.py:232: NotImplementedError
+_ ERROR at setup of test_q3b_reads_the_shared_anchor_as_behaviour_at_random_and_reports_the_sub_prediction _
+
+    @pytest.fixture
+    def books() -> dict[str, dict[tuple[str, str], tst.Cell]]:
+>       return tst.make_books(fx.synthetic_cells())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:170: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cells = {'p5_1:dt_spatial@grid4x4_mappo1000': Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', method='dt_spati...d': 1302, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 5.0, 'episode_reward': -1003.0})), ...}
+
+    def make_books(cells: Mapping[str, Cell]) -> dict[str, dict[tuple[str, str], Cell]]:
+        """The two versions' books: logical ``(method, tier)`` -> cell.  Identical but at ``("iql", "random")``, which is
+        :data:`CORRECTED_IQL` under ``corrected`` and :data:`ORIGINAL_IQL` under ``as_committed``.  ``("behaviour",
+        "random")`` and :data:`ANCHOR` are both P5.1's random cell (D12)."""
+>       raise NotImplementedError("P5.2c C1 skeleton: make_books")
+E       NotImplementedError: P5.2c C1 skeleton: make_books
+
+offline/tier_statements.py:232: NotImplementedError
+___ ERROR at setup of test_the_leaders_block_on_every_tier_with_ties_grouped ___
+
+    @pytest.fixture
+    def books() -> dict[str, dict[tuple[str, str], tst.Cell]]:
+>       return tst.make_books(fx.synthetic_cells())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:170: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cells = {'p5_1:dt_spatial@grid4x4_mappo1000': Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', method='dt_spati...d': 1302, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 5.0, 'episode_reward': -1003.0})), ...}
+
+    def make_books(cells: Mapping[str, Cell]) -> dict[str, dict[tuple[str, str], Cell]]:
+        """The two versions' books: logical ``(method, tier)`` -> cell.  Identical but at ``("iql", "random")``, which is
+        :data:`CORRECTED_IQL` under ``corrected`` and :data:`ORIGINAL_IQL` under ``as_committed``.  ``("behaviour",
+        "random")`` and :data:`ANCHOR` are both P5.1's random cell (D12)."""
+>       raise NotImplementedError("P5.2c C1 skeleton: make_books")
+E       NotImplementedError: P5.2c C1 skeleton: make_books
+
+offline/tier_statements.py:232: NotImplementedError
+_ ERROR at setup of test_the_ties_block_lists_the_identities_and_every_tie_dependent_integer _
+
+    @pytest.fixture
+    def books() -> dict[str, dict[tuple[str, str], tst.Cell]]:
+>       return tst.make_books(fx.synthetic_cells())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:170: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cells = {'p5_1:dt_spatial@grid4x4_mappo1000': Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', method='dt_spati...d': 1302, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 5.0, 'episode_reward': -1003.0})), ...}
+
+    def make_books(cells: Mapping[str, Cell]) -> dict[str, dict[tuple[str, str], Cell]]:
+        """The two versions' books: logical ``(method, tier)`` -> cell.  Identical but at ``("iql", "random")``, which is
+        :data:`CORRECTED_IQL` under ``corrected`` and :data:`ORIGINAL_IQL` under ``as_committed``.  ``("behaviour",
+        "random")`` and :data:`ANCHOR` are both P5.1's random cell (D12)."""
+>       raise NotImplementedError("P5.2c C1 skeleton: make_books")
+E       NotImplementedError: P5.2c C1 skeleton: make_books
+
+offline/tier_statements.py:232: NotImplementedError
+_ ERROR at setup of test_the_descriptive_collapse_audit_applies_q6s_rule_to_every_non_dt_arm _
+
+    @pytest.fixture
+    def books() -> dict[str, dict[tuple[str, str], tst.Cell]]:
+>       return tst.make_books(fx.synthetic_cells())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:170: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cells = {'p5_1:dt_spatial@grid4x4_mappo1000': Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', method='dt_spati...d': 1302, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 5.0, 'episode_reward': -1003.0})), ...}
+
+    def make_books(cells: Mapping[str, Cell]) -> dict[str, dict[tuple[str, str], Cell]]:
+        """The two versions' books: logical ``(method, tier)`` -> cell.  Identical but at ``("iql", "random")``, which is
+        :data:`CORRECTED_IQL` under ``corrected`` and :data:`ORIGINAL_IQL` under ``as_committed``.  ``("behaviour",
+        "random")`` and :data:`ANCHOR` are both P5.1's random cell (D12)."""
+>       raise NotImplementedError("P5.2c C1 skeleton: make_books")
+E       NotImplementedError: P5.2c C1 skeleton: make_books
+
+offline/tier_statements.py:232: NotImplementedError
+_ ERROR at setup of test_t_inputs_real_every_anchor_holds_and_the_two_row_digests_recompute _
+
+    @pytest.fixture(scope="module")
+    def real_inputs() -> tst.Inputs:
+>       return tst.load_inputs(tst.Roots(repo_root=REPO_ROOT, output_root=_output_root()))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:1398: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+roots = Roots(repo_root=PosixPath('/home/filip/rltraffic-p52c'), output_root=PosixPath('/home/filip/rltraffic/output'))
+pins = Pins(p5_1_sums_sha256='023607ffe65a881932f0069412f442c65b1097bb87fdd7852873a1211fe24c61', p5_2_sums_sha256='fde8309b49...ff9cd1d1fd9dacfe98ef8185ead4e883b2', c1_note_sha256='643b73bca4de953c43b6adf1ac8d0485383de7b0afc1ae1ab738778327537e19')
+
+    def load_inputs(roots: Roots, *, pins: Pins = PINS) -> Inputs:
+        """Every input at its anchor (plan section 6.2), refusing before anything is written."""
+>       raise NotImplementedError("P5.2c C1 skeleton: load_inputs")
+E       NotImplementedError: P5.2c C1 skeleton: load_inputs
+
+offline/tier_statements.py:308: NotImplementedError
+_ ERROR at setup of test_t_reproduce_record_every_value_p5_2s_record_states_at_its_precision _
+
+    @pytest.fixture(scope="module")
+    def real_inputs() -> tst.Inputs:
+>       return tst.load_inputs(tst.Roots(repo_root=REPO_ROOT, output_root=_output_root()))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:1398: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+roots = Roots(repo_root=PosixPath('/home/filip/rltraffic-p52c'), output_root=PosixPath('/home/filip/rltraffic/output'))
+pins = Pins(p5_1_sums_sha256='023607ffe65a881932f0069412f442c65b1097bb87fdd7852873a1211fe24c61', p5_2_sums_sha256='fde8309b49...ff9cd1d1fd9dacfe98ef8185ead4e883b2', c1_note_sha256='643b73bca4de953c43b6adf1ac8d0485383de7b0afc1ae1ab738778327537e19')
+
+    def load_inputs(roots: Roots, *, pins: Pins = PINS) -> Inputs:
+        """Every input at its anchor (plan section 6.2), refusing before anything is written."""
+>       raise NotImplementedError("P5.2c C1 skeleton: load_inputs")
+E       NotImplementedError: P5.2c C1 skeleton: load_inputs
+
+offline/tier_statements.py:308: NotImplementedError
+_ ERROR at setup of test_t_reproduce_p8_4b_v4_and_v5_in_the_four_part_exact_form _
+
+    @pytest.fixture(scope="module")
+    def real_inputs() -> tst.Inputs:
+>       return tst.load_inputs(tst.Roots(repo_root=REPO_ROOT, output_root=_output_root()))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:1398: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+roots = Roots(repo_root=PosixPath('/home/filip/rltraffic-p52c'), output_root=PosixPath('/home/filip/rltraffic/output'))
+pins = Pins(p5_1_sums_sha256='023607ffe65a881932f0069412f442c65b1097bb87fdd7852873a1211fe24c61', p5_2_sums_sha256='fde8309b49...ff9cd1d1fd9dacfe98ef8185ead4e883b2', c1_note_sha256='643b73bca4de953c43b6adf1ac8d0485383de7b0afc1ae1ab738778327537e19')
+
+    def load_inputs(roots: Roots, *, pins: Pins = PINS) -> Inputs:
+        """Every input at its anchor (plan section 6.2), refusing before anything is written."""
+>       raise NotImplementedError("P5.2c C1 skeleton: load_inputs")
+E       NotImplementedError: P5.2c C1 skeleton: load_inputs
+
+offline/tier_statements.py:308: NotImplementedError
+_ ERROR at setup of test_t_reproduce_p5_2b_the_random_tier_on_both_versions_field_by_field _
+
+    @pytest.fixture(scope="module")
+    def real_inputs() -> tst.Inputs:
+>       return tst.load_inputs(tst.Roots(repo_root=REPO_ROOT, output_root=_output_root()))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:1398: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+roots = Roots(repo_root=PosixPath('/home/filip/rltraffic-p52c'), output_root=PosixPath('/home/filip/rltraffic/output'))
+pins = Pins(p5_1_sums_sha256='023607ffe65a881932f0069412f442c65b1097bb87fdd7852873a1211fe24c61', p5_2_sums_sha256='fde8309b49...ff9cd1d1fd9dacfe98ef8185ead4e883b2', c1_note_sha256='643b73bca4de953c43b6adf1ac8d0485383de7b0afc1ae1ab738778327537e19')
+
+    def load_inputs(roots: Roots, *, pins: Pins = PINS) -> Inputs:
+        """Every input at its anchor (plan section 6.2), refusing before anything is written."""
+>       raise NotImplementedError("P5.2c C1 skeleton: load_inputs")
+E       NotImplementedError: P5.2c C1 skeleton: load_inputs
+
+offline/tier_statements.py:308: NotImplementedError
+__ ERROR at setup of test_t_reproduce_p5_1_d1_is_p1_and_q6_at_mappo1000_is_p3 __
+
+    @pytest.fixture(scope="module")
+    def real_inputs() -> tst.Inputs:
+>       return tst.load_inputs(tst.Roots(repo_root=REPO_ROOT, output_root=_output_root()))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:1398: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+roots = Roots(repo_root=PosixPath('/home/filip/rltraffic-p52c'), output_root=PosixPath('/home/filip/rltraffic/output'))
+pins = Pins(p5_1_sums_sha256='023607ffe65a881932f0069412f442c65b1097bb87fdd7852873a1211fe24c61', p5_2_sums_sha256='fde8309b49...ff9cd1d1fd9dacfe98ef8185ead4e883b2', c1_note_sha256='643b73bca4de953c43b6adf1ac8d0485383de7b0afc1ae1ab738778327537e19')
+
+    def load_inputs(roots: Roots, *, pins: Pins = PINS) -> Inputs:
+        """Every input at its anchor (plan section 6.2), refusing before anything is written."""
+>       raise NotImplementedError("P5.2c C1 skeleton: load_inputs")
+E       NotImplementedError: P5.2c C1 skeleton: load_inputs
+
+offline/tier_statements.py:308: NotImplementedError
+_ ERROR at setup of test_t_note_every_tiers_six_means_equal_the_notes_by_its_own_route _
+
+    @pytest.fixture(scope="module")
+    def real_inputs() -> tst.Inputs:
+>       return tst.load_inputs(tst.Roots(repo_root=REPO_ROOT, output_root=_output_root()))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:1398: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+roots = Roots(repo_root=PosixPath('/home/filip/rltraffic-p52c'), output_root=PosixPath('/home/filip/rltraffic/output'))
+pins = Pins(p5_1_sums_sha256='023607ffe65a881932f0069412f442c65b1097bb87fdd7852873a1211fe24c61', p5_2_sums_sha256='fde8309b49...ff9cd1d1fd9dacfe98ef8185ead4e883b2', c1_note_sha256='643b73bca4de953c43b6adf1ac8d0485383de7b0afc1ae1ab738778327537e19')
+
+    def load_inputs(roots: Roots, *, pins: Pins = PINS) -> Inputs:
+        """Every input at its anchor (plan section 6.2), refusing before anything is written."""
+>       raise NotImplementedError("P5.2c C1 skeleton: load_inputs")
+E       NotImplementedError: P5.2c C1 skeleton: load_inputs
+
+offline/tier_statements.py:308: NotImplementedError
+___ ERROR at setup of test_t_companions_a11bs_five_quantities_on_every_cell ____
+
+    @pytest.fixture(scope="module")
+    def real_inputs() -> tst.Inputs:
+>       return tst.load_inputs(tst.Roots(repo_root=REPO_ROOT, output_root=_output_root()))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:1398: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+roots = Roots(repo_root=PosixPath('/home/filip/rltraffic-p52c'), output_root=PosixPath('/home/filip/rltraffic/output'))
+pins = Pins(p5_1_sums_sha256='023607ffe65a881932f0069412f442c65b1097bb87fdd7852873a1211fe24c61', p5_2_sums_sha256='fde8309b49...ff9cd1d1fd9dacfe98ef8185ead4e883b2', c1_note_sha256='643b73bca4de953c43b6adf1ac8d0485383de7b0afc1ae1ab738778327537e19')
+
+    def load_inputs(roots: Roots, *, pins: Pins = PINS) -> Inputs:
+        """Every input at its anchor (plan section 6.2), refusing before anything is written."""
+>       raise NotImplementedError("P5.2c C1 skeleton: load_inputs")
+E       NotImplementedError: P5.2c C1 skeleton: load_inputs
+
+offline/tier_statements.py:308: NotImplementedError
+_ ERROR at setup of test_t_first_time_scores_each_against_this_files_own_recomputation _
+
+    @pytest.fixture(scope="module")
+    def real_inputs() -> tst.Inputs:
+>       return tst.load_inputs(tst.Roots(repo_root=REPO_ROOT, output_root=_output_root()))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:1398: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+roots = Roots(repo_root=PosixPath('/home/filip/rltraffic-p52c'), output_root=PosixPath('/home/filip/rltraffic/output'))
+pins = Pins(p5_1_sums_sha256='023607ffe65a881932f0069412f442c65b1097bb87fdd7852873a1211fe24c61', p5_2_sums_sha256='fde8309b49...ff9cd1d1fd9dacfe98ef8185ead4e883b2', c1_note_sha256='643b73bca4de953c43b6adf1ac8d0485383de7b0afc1ae1ab738778327537e19')
+
+    def load_inputs(roots: Roots, *, pins: Pins = PINS) -> Inputs:
+        """Every input at its anchor (plan section 6.2), refusing before anything is written."""
+>       raise NotImplementedError("P5.2c C1 skeleton: load_inputs")
+E       NotImplementedError: P5.2c C1 skeleton: load_inputs
+
+offline/tier_statements.py:308: NotImplementedError
+_ ERROR at setup of test_t_regress_the_committed_artifact_regenerates_byte_for_byte_from_output _
+
+    @pytest.fixture(scope="module")
+    def real_inputs() -> tst.Inputs:
+>       return tst.load_inputs(tst.Roots(repo_root=REPO_ROOT, output_root=_output_root()))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:1398: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+roots = Roots(repo_root=PosixPath('/home/filip/rltraffic-p52c'), output_root=PosixPath('/home/filip/rltraffic/output'))
+pins = Pins(p5_1_sums_sha256='023607ffe65a881932f0069412f442c65b1097bb87fdd7852873a1211fe24c61', p5_2_sums_sha256='fde8309b49...ff9cd1d1fd9dacfe98ef8185ead4e883b2', c1_note_sha256='643b73bca4de953c43b6adf1ac8d0485383de7b0afc1ae1ab738778327537e19')
+
+    def load_inputs(roots: Roots, *, pins: Pins = PINS) -> Inputs:
+        """Every input at its anchor (plan section 6.2), refusing before anything is written."""
+>       raise NotImplementedError("P5.2c C1 skeleton: load_inputs")
+E       NotImplementedError: P5.2c C1 skeleton: load_inputs
+
+offline/tier_statements.py:308: NotImplementedError
+=================================== FAILURES ===================================
+___ test_t_contrast_route_pin_is_numpy_per_draw_and_not_the_compensated_sum ____
+
+    def test_t_contrast_route_pin_is_numpy_per_draw_and_not_the_compensated_sum() -> None:
+        """F1 (Amendment A, A2 Q1): the per-draw mean is ``dt_gate._per_draw_means`` (``numpy.mean``, a plain sequential sum
+        over five seeds), not Python's compensated built-in ``sum``.  On these values the two routes differ at the result."""
+        left = {1000: [0.1, 0.2, 0.3, 0.7, 0.9], 1001: [1.1, 2.2, 3.3, 0.1, 0.2], 1002: [0.3, 0.6, 0.1, 0.2, 0.7]}
+        right = {d: [0.0] * 5 for d in left}
+        sequential = seq_mean([seq_mean(left[d]) - seq_mean(right[d]) for d in sorted(left)])
+        compensated = seq_mean([sum(left[d]) / 5 - sum(right[d]) / 5 for d in sorted(left)])
+        assert sequential != compensated, "the fixture no longer discriminates the two routes"
+        a, b = five_seed_cells(left, right)
+>       block = tst.contrast(a, b, definition="att_ours", tier="maxpressure")
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:187: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+left = Cell(spec=CellSpec(cell_id='p5_2:dt_spatial@maxpressure', method='dt_spatial', tier='maxpressure', source='p5_2', arm=... 'created': 1300, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 10.0, 'episode_reward': -1.0}))
+right = Cell(spec=CellSpec(cell_id='p5_2:dt_nomix@maxpressure', method='dt_nomix', tier='maxpressure', source='p5_2', arm='dt_... 'created': 1300, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 10.0, 'episode_reward': -1.0}))
+definition = 'att_ours', tier = 'maxpressure'
+
+    def contrast(left: Cell, right: Cell, *, definition: str, tier: str) -> dict[str, Any]:
+        """``left - right`` on the paired unit (module docstring), refused unless the two cells cover the identical
+        ``(seed, draw)`` grid.  Carries the CI and its width, ``exactly_zero``, the point estimate's sign,
+        ``tier_sweep.per_seed_block`` (D9), ``att_rederivation.contrast_discriminability`` and D8's rank-biserial block from
+        ``offline_baselines.paired_comparison`` -- refused unless that call's ``mean_difference``, ``ci95_low`` and
+        ``ci95_high`` equal this block's under ``==`` (Amendment A, A2 Q8)."""
+>       raise NotImplementedError("P5.2c C1 skeleton: contrast")
+E       NotImplementedError: P5.2c C1 skeleton: contrast
+
+offline/tier_statements.py:339: NotImplementedError
+_ test_t_contrast_equals_statistics_on_dyadic_values_where_every_route_is_exact _
+
+    def test_t_contrast_equals_statistics_on_dyadic_values_where_every_route_is_exact() -> None:
+        """Mean, sd, half-width, low, high and width against ``statistics`` and ``1.96 * sd / sqrt(n)``, under ``==``, on
+        values exact in binary: four seeds (a per-draw mean divides by 4) and five draws (the variance divides by 4)."""
+        seeds = (101, 202, 303, 404)
+        left = {(s, d): 100.0 + (s % 7) / 16.0 + (d - 1000) * 1.5 + (s * d % 5) / 8.0 for s in seeds for d in range(1000, 1005)}
+        right = {(s, d): 99.0 + (s % 5) / 16.0 + (d % 3) / 4.0 for s in seeds for d in range(1000, 1005)}
+        a = fx.simple_cell("dt_spatial", "random", left)
+        b = fx.simple_cell("dt_nomix", "random", right)
+        differences = own_paired(a, b, "att_ours")
+        mean, sd, low, high = own_interval(differences)
+>       block = tst.contrast(a, b, definition="att_ours", tier="random")
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:202: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+left = Cell(spec=CellSpec(cell_id='p5_2:dt_spatial@random', method='dt_spatial', tier='random', source='p5_2', arm='dt_spatia... 'created': 1300, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 10.0, 'episode_reward': -1.0}))
+right = Cell(spec=CellSpec(cell_id='p5_2:dt_nomix@random', method='dt_nomix', tier='random', source='p5_2', arm='dt_nomix@rand... 'created': 1300, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 10.0, 'episode_reward': -1.0}))
+definition = 'att_ours', tier = 'random'
+
+    def contrast(left: Cell, right: Cell, *, definition: str, tier: str) -> dict[str, Any]:
+        """``left - right`` on the paired unit (module docstring), refused unless the two cells cover the identical
+        ``(seed, draw)`` grid.  Carries the CI and its width, ``exactly_zero``, the point estimate's sign,
+        ``tier_sweep.per_seed_block`` (D9), ``att_rederivation.contrast_discriminability`` and D8's rank-biserial block from
+        ``offline_baselines.paired_comparison`` -- refused unless that call's ``mean_difference``, ``ci95_low`` and
+        ``ci95_high`` equal this block's under ``==`` (Amendment A, A2 Q8)."""
+>       raise NotImplementedError("P5.2c C1 skeleton: contrast")
+E       NotImplementedError: P5.2c C1 skeleton: contrast
+
+offline/tier_statements.py:339: NotImplementedError
+____ test_t_contrast_episode_level_pairing_would_change_n_and_the_interval _____
+
+    def test_t_contrast_episode_level_pairing_would_change_n_and_the_interval() -> None:
+        """The paired unit is the DRAW (n = draws), never the episode (n = seeds x draws): P8.4b's wiring defect."""
+        seeds = (101, 202, 303, 404)
+        left = {(s, d): 10.0 + (s % 9) + d % 4 for s in seeds for d in range(1000, 1006)}
+        right = {(s, d): 9.0 + (s % 4) / 2.0 + d % 3 for s in seeds for d in range(1000, 1006)}
+        a, b = fx.simple_cell("bc", "fixedtime", left), fx.simple_cell("bc_top10", "fixedtime", right)
+>       block = tst.contrast(a, b, definition="att_ours", tier="fixedtime")
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:217: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+left = Cell(spec=CellSpec(cell_id='p5_2:bc@fixedtime', method='bc', tier='fixedtime', source='p5_2', arm='bc@fixedtime', eval... 'created': 1300, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 10.0, 'episode_reward': -1.0}))
+right = Cell(spec=CellSpec(cell_id='p5_2:bc_top10@fixedtime', method='bc_top10', tier='fixedtime', source='p5_2', arm='bc_top1... 'created': 1300, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 10.0, 'episode_reward': -1.0}))
+definition = 'att_ours', tier = 'fixedtime'
+
+    def contrast(left: Cell, right: Cell, *, definition: str, tier: str) -> dict[str, Any]:
+        """``left - right`` on the paired unit (module docstring), refused unless the two cells cover the identical
+        ``(seed, draw)`` grid.  Carries the CI and its width, ``exactly_zero``, the point estimate's sign,
+        ``tier_sweep.per_seed_block`` (D9), ``att_rederivation.contrast_discriminability`` and D8's rank-biserial block from
+        ``offline_baselines.paired_comparison`` -- refused unless that call's ``mean_difference``, ``ci95_low`` and
+        ``ci95_high`` equal this block's under ``==`` (Amendment A, A2 Q8)."""
+>       raise NotImplementedError("P5.2c C1 skeleton: contrast")
+E       NotImplementedError: P5.2c C1 skeleton: contrast
+
+offline/tier_statements.py:339: NotImplementedError
+____ test_t_contrast_exact_zero_is_ci_zero_not_resolved_sign_zero_and_named ____
+
+    def test_t_contrast_exact_zero_is_ci_zero_not_resolved_sign_zero_and_named() -> None:
+        values = {(s, d): 150.0 + s / 64.0 + d / 32.0 for s in (101, 202, 303) for d in (1000, 1001, 1002, 1003)}
+        a = fx.simple_cell("dt_spatial", "fixedtime", values)
+        b = fx.simple_cell("dt_nomix", "fixedtime", values)
+>       block = tst.contrast(a, b, definition="att_ours", tier="fixedtime")
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:230: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+left = Cell(spec=CellSpec(cell_id='p5_2:dt_spatial@fixedtime', method='dt_spatial', tier='fixedtime', source='p5_2', arm='dt_... 'created': 1300, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 10.0, 'episode_reward': -1.0}))
+right = Cell(spec=CellSpec(cell_id='p5_2:dt_nomix@fixedtime', method='dt_nomix', tier='fixedtime', source='p5_2', arm='dt_nomi... 'created': 1300, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 10.0, 'episode_reward': -1.0}))
+definition = 'att_ours', tier = 'fixedtime'
+
+    def contrast(left: Cell, right: Cell, *, definition: str, tier: str) -> dict[str, Any]:
+        """``left - right`` on the paired unit (module docstring), refused unless the two cells cover the identical
+        ``(seed, draw)`` grid.  Carries the CI and its width, ``exactly_zero``, the point estimate's sign,
+        ``tier_sweep.per_seed_block`` (D9), ``att_rederivation.contrast_discriminability`` and D8's rank-biserial block from
+        ``offline_baselines.paired_comparison`` -- refused unless that call's ``mean_difference``, ``ci95_low`` and
+        ``ci95_high`` equal this block's under ``==`` (Amendment A, A2 Q8)."""
+>       raise NotImplementedError("P5.2c C1 skeleton: contrast")
+E       NotImplementedError: P5.2c C1 skeleton: contrast
+
+offline/tier_statements.py:339: NotImplementedError
+____________ test_t_contrast_a_straddling_interval_is_not_resolved _____________
+
+    def test_t_contrast_a_straddling_interval_is_not_resolved() -> None:
+        seeds = (101, 202, 303)
+        left = {(s, d): 100.0 + (1.0 if d % 2 else -1.0) + s / 1000.0 for s in seeds for d in range(1000, 1006)}
+        right = {(s, d): 100.0 + s / 1000.0 for s in seeds for d in range(1000, 1006)}
+        a, b = fx.simple_cell("bc", "random", left), fx.simple_cell("iql", "random", right)
+>       block = tst.contrast(a, b, definition="att_ours", tier="random")
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:249: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+left = Cell(spec=CellSpec(cell_id='p5_2:bc@random', method='bc', tier='random', source='p5_2', arm='bc@random', eval_file='p5... 'created': 1300, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 10.0, 'episode_reward': -1.0}))
+right = Cell(spec=CellSpec(cell_id='p5_2:iql@random', method='iql', tier='random', source='p5_2', arm='iql@random', eval_file=... 'created': 1300, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 10.0, 'episode_reward': -1.0}))
+definition = 'att_ours', tier = 'random'
+
+    def contrast(left: Cell, right: Cell, *, definition: str, tier: str) -> dict[str, Any]:
+        """``left - right`` on the paired unit (module docstring), refused unless the two cells cover the identical
+        ``(seed, draw)`` grid.  Carries the CI and its width, ``exactly_zero``, the point estimate's sign,
+        ``tier_sweep.per_seed_block`` (D9), ``att_rederivation.contrast_discriminability`` and D8's rank-biserial block from
+        ``offline_baselines.paired_comparison`` -- refused unless that call's ``mean_difference``, ``ci95_low`` and
+        ``ci95_high`` equal this block's under ``==`` (Amendment A, A2 Q8)."""
+>       raise NotImplementedError("P5.2c C1 skeleton: contrast")
+E       NotImplementedError: P5.2c C1 skeleton: contrast
+
+offline/tier_statements.py:339: NotImplementedError
+________ test_t_contrast_a_reversing_seed_emits_the_qualifier_naming_it ________
+
+    def test_t_contrast_a_reversing_seed_emits_the_qualifier_naming_it() -> None:
+        seeds = (101, 202, 303)
+        shift = {101: -2.0, 202: -3.0, 303: +1.0}
+        left = {(s, d): 50.0 + shift[s] + (d % 3) / 8.0 for s in seeds for d in range(1000, 1004)}
+        right = {(s, d): 50.0 + (d % 3) / 8.0 for s in seeds for d in range(1000, 1004)}
+        a, b = fx.simple_cell("dt_spatial", "random", left), fx.simple_cell("dt_nomix", "random", right)
+>       block = tst.contrast(a, b, definition="att_ours", tier="random")
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:261: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+left = Cell(spec=CellSpec(cell_id='p5_2:dt_spatial@random', method='dt_spatial', tier='random', source='p5_2', arm='dt_spatia... 'created': 1300, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 10.0, 'episode_reward': -1.0}))
+right = Cell(spec=CellSpec(cell_id='p5_2:dt_nomix@random', method='dt_nomix', tier='random', source='p5_2', arm='dt_nomix@rand... 'created': 1300, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 10.0, 'episode_reward': -1.0}))
+definition = 'att_ours', tier = 'random'
+
+    def contrast(left: Cell, right: Cell, *, definition: str, tier: str) -> dict[str, Any]:
+        """``left - right`` on the paired unit (module docstring), refused unless the two cells cover the identical
+        ``(seed, draw)`` grid.  Carries the CI and its width, ``exactly_zero``, the point estimate's sign,
+        ``tier_sweep.per_seed_block`` (D9), ``att_rederivation.contrast_discriminability`` and D8's rank-biserial block from
+        ``offline_baselines.paired_comparison`` -- refused unless that call's ``mean_difference``, ``ci95_low`` and
+        ``ci95_high`` equal this block's under ``==`` (Amendment A, A2 Q8)."""
+>       raise NotImplementedError("P5.2c C1 skeleton: contrast")
+E       NotImplementedError: P5.2c C1 skeleton: contrast
+
+offline/tier_statements.py:339: NotImplementedError
+____________________ test_t_contrast_refuses_a_missing_draw ____________________
+
+    def test_t_contrast_refuses_a_missing_draw() -> None:
+        seeds = (101, 202)
+        full = {(s, d): 10.0 + d % 3 for s in seeds for d in (1000, 1001, 1002)}
+        short = {k: v for k, v in full.items() if k != (202, 1002)}
+        with pytest.raises(ValueError, match=r"same \(seed, draw\) grid"):
+>           tst.contrast(fx.simple_cell("bc", "random", full), fx.simple_cell("iql", "random", short),
+                         definition="att_ours", tier="random")
+
+tests/test_tier_statements.py:273: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+left = Cell(spec=CellSpec(cell_id='p5_2:bc@random', method='bc', tier='random', source='p5_2', arm='bc@random', eval_file='p5... 'created': 1300, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 10.0, 'episode_reward': -1.0}))
+right = Cell(spec=CellSpec(cell_id='p5_2:iql@random', method='iql', tier='random', source='p5_2', arm='iql@random', eval_file=... 'created': 1300, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 10.0, 'episode_reward': -1.0}))
+definition = 'att_ours', tier = 'random'
+
+    def contrast(left: Cell, right: Cell, *, definition: str, tier: str) -> dict[str, Any]:
+        """``left - right`` on the paired unit (module docstring), refused unless the two cells cover the identical
+        ``(seed, draw)`` grid.  Carries the CI and its width, ``exactly_zero``, the point estimate's sign,
+        ``tier_sweep.per_seed_block`` (D9), ``att_rederivation.contrast_discriminability`` and D8's rank-biserial block from
+        ``offline_baselines.paired_comparison`` -- refused unless that call's ``mean_difference``, ``ci95_low`` and
+        ``ci95_high`` equal this block's under ``==`` (Amendment A, A2 Q8)."""
+>       raise NotImplementedError("P5.2c C1 skeleton: contrast")
+E       NotImplementedError: P5.2c C1 skeleton: contrast
+
+offline/tier_statements.py:339: NotImplementedError
+___________________ test_t_contrast_refuses_mismatched_seeds ___________________
+
+    def test_t_contrast_refuses_mismatched_seeds() -> None:
+        left = {(s, d): 10.0 + d % 3 for s in (101, 202) for d in (1000, 1001)}
+        right = {(s, d): 11.0 + d % 3 for s in (101, 303) for d in (1000, 1001)}
+        with pytest.raises(ValueError, match=r"same \(seed, draw\) grid"):
+>           tst.contrast(fx.simple_cell("bc", "random", left), fx.simple_cell("iql", "random", right),
+                         definition="att_ours", tier="random")
+
+tests/test_tier_statements.py:281: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+left = Cell(spec=CellSpec(cell_id='p5_2:bc@random', method='bc', tier='random', source='p5_2', arm='bc@random', eval_file='p5... 'created': 1300, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 10.0, 'episode_reward': -1.0}))
+right = Cell(spec=CellSpec(cell_id='p5_2:iql@random', method='iql', tier='random', source='p5_2', arm='iql@random', eval_file=... 'created': 1300, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 10.0, 'episode_reward': -1.0}))
+definition = 'att_ours', tier = 'random'
+
+    def contrast(left: Cell, right: Cell, *, definition: str, tier: str) -> dict[str, Any]:
+        """``left - right`` on the paired unit (module docstring), refused unless the two cells cover the identical
+        ``(seed, draw)`` grid.  Carries the CI and its width, ``exactly_zero``, the point estimate's sign,
+        ``tier_sweep.per_seed_block`` (D9), ``att_rederivation.contrast_discriminability`` and D8's rank-biserial block from
+        ``offline_baselines.paired_comparison`` -- refused unless that call's ``mean_difference``, ``ci95_low`` and
+        ``ci95_high`` equal this block's under ``==`` (Amendment A, A2 Q8)."""
+>       raise NotImplementedError("P5.2c C1 skeleton: contrast")
+E       NotImplementedError: P5.2c C1 skeleton: contrast
+
+offline/tier_statements.py:339: NotImplementedError
+_________________ test_t_contrast_refuses_a_duplicate_episode __________________
+
+    def test_t_contrast_refuses_a_duplicate_episode() -> None:
+        good = fx.simple_cell("bc", "random", {(s, d): 10.0 + d for s in (101, 202) for d in (1000, 1001)})
+        doubled = tst.Cell(spec=good.spec, rows=good.rows + (dict(good.rows[0]),))
+        with pytest.raises(ValueError, match="appears twice"):
+>           tst.contrast(doubled, good, definition="att_ours", tier="random")
+
+tests/test_tier_statements.py:289: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+left = Cell(spec=CellSpec(cell_id='p5_2:bc@random', method='bc', tier='random', source='p5_2', arm='bc@random', eval_file='p5... 'created': 1300, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 10.0, 'episode_reward': -1.0}))
+right = Cell(spec=CellSpec(cell_id='p5_2:bc@random', method='bc', tier='random', source='p5_2', arm='bc@random', eval_file='p5... 'created': 1300, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 10.0, 'episode_reward': -1.0}))
+definition = 'att_ours', tier = 'random'
+
+    def contrast(left: Cell, right: Cell, *, definition: str, tier: str) -> dict[str, Any]:
+        """``left - right`` on the paired unit (module docstring), refused unless the two cells cover the identical
+        ``(seed, draw)`` grid.  Carries the CI and its width, ``exactly_zero``, the point estimate's sign,
+        ``tier_sweep.per_seed_block`` (D9), ``att_rederivation.contrast_discriminability`` and D8's rank-biserial block from
+        ``offline_baselines.paired_comparison`` -- refused unless that call's ``mean_difference``, ``ci95_low`` and
+        ``ci95_high`` equal this block's under ``==`` (Amendment A, A2 Q8)."""
+>       raise NotImplementedError("P5.2c C1 skeleton: contrast")
+E       NotImplementedError: P5.2c C1 skeleton: contrast
+
+offline/tier_statements.py:339: NotImplementedError
+_ test_t_contrast_carries_d8_from_paired_comparison_and_it_agrees_with_this_files_own_counts _
+
+    def test_t_contrast_carries_d8_from_paired_comparison_and_it_agrees_with_this_files_own_counts() -> None:
+        seeds = (101, 202, 303)
+        left = {(s, d): 20.0 + ((s + 3 * d) % 7) / 4.0 for s in seeds for d in range(1000, 1009)}
+        right = {(s, d): 20.5 + ((2 * s + d) % 5) / 4.0 for s in seeds for d in range(1000, 1009)}
+        a, b = fx.simple_cell("bc", "maxpressure", left), fx.simple_cell("dt_nomix", "maxpressure", right)
+>       block = tst.contrast(a, b, definition="att_ours", tier="maxpressure")
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:297: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+left = Cell(spec=CellSpec(cell_id='p5_2:bc@maxpressure', method='bc', tier='maxpressure', source='p5_2', arm='bc@maxpressure'... 'created': 1300, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 10.0, 'episode_reward': -1.0}))
+right = Cell(spec=CellSpec(cell_id='p5_2:dt_nomix@maxpressure', method='dt_nomix', tier='maxpressure', source='p5_2', arm='dt_... 'created': 1300, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 10.0, 'episode_reward': -1.0}))
+definition = 'att_ours', tier = 'maxpressure'
+
+    def contrast(left: Cell, right: Cell, *, definition: str, tier: str) -> dict[str, Any]:
+        """``left - right`` on the paired unit (module docstring), refused unless the two cells cover the identical
+        ``(seed, draw)`` grid.  Carries the CI and its width, ``exactly_zero``, the point estimate's sign,
+        ``tier_sweep.per_seed_block`` (D9), ``att_rederivation.contrast_discriminability`` and D8's rank-biserial block from
+        ``offline_baselines.paired_comparison`` -- refused unless that call's ``mean_difference``, ``ci95_low`` and
+        ``ci95_high`` equal this block's under ``==`` (Amendment A, A2 Q8)."""
+>       raise NotImplementedError("P5.2c C1 skeleton: contrast")
+E       NotImplementedError: P5.2c C1 skeleton: contrast
+
+offline/tier_statements.py:339: NotImplementedError
+____ test_m20_a_one_ulp_perturbation_of_paired_comparisons_mean_is_refused _____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x796dec438530>
+
+    def test_m20_a_one_ulp_perturbation_of_paired_comparisons_mean_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+        """Amendment A, A2 Q8 and A4.4 (M20): the module refuses unless ``paired_comparison``'s mean and interval equal its
+        own under ``==`` -- so a one-ulp disagreement, which an ``allclose`` would pass, is refused."""
+        import dataclasses
+    
+        original = tst.paired_comparison
+    
+        def nudged(left: Any, right: Any) -> Any:
+            result = original(left, right)
+            return dataclasses.replace(result, mean_difference=result.mean_difference + math.ulp(result.mean_difference))
+    
+        monkeypatch.setattr(tst, "paired_comparison", nudged)
+        seeds = (101, 202)
+        a = fx.simple_cell("bc", "random", {(s, d): 30.0 + d % 4 + s / 100.0 for s in seeds for d in range(1000, 1004)})
+        b = fx.simple_cell("iql", "random", {(s, d): 29.0 + d % 3 for s in seeds for d in range(1000, 1004)})
+        with pytest.raises(ValueError, match="paired_comparison"):
+>           tst.contrast(a, b, definition="att_ours", tier="random")
+
+tests/test_tier_statements.py:335: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+left = Cell(spec=CellSpec(cell_id='p5_2:bc@random', method='bc', tier='random', source='p5_2', arm='bc@random', eval_file='p5... 'created': 1300, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 10.0, 'episode_reward': -1.0}))
+right = Cell(spec=CellSpec(cell_id='p5_2:iql@random', method='iql', tier='random', source='p5_2', arm='iql@random', eval_file=... 'created': 1300, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 10.0, 'episode_reward': -1.0}))
+definition = 'att_ours', tier = 'random'
+
+    def contrast(left: Cell, right: Cell, *, definition: str, tier: str) -> dict[str, Any]:
+        """``left - right`` on the paired unit (module docstring), refused unless the two cells cover the identical
+        ``(seed, draw)`` grid.  Carries the CI and its width, ``exactly_zero``, the point estimate's sign,
+        ``tier_sweep.per_seed_block`` (D9), ``att_rederivation.contrast_discriminability`` and D8's rank-biserial block from
+        ``offline_baselines.paired_comparison`` -- refused unless that call's ``mean_difference``, ``ci95_low`` and
+        ``ci95_high`` equal this block's under ``==`` (Amendment A, A2 Q8)."""
+>       raise NotImplementedError("P5.2c C1 skeleton: contrast")
+E       NotImplementedError: P5.2c C1 skeleton: contrast
+
+offline/tier_statements.py:339: NotImplementedError
+_ test_t_outcome_the_interval_rule_for_both_predicted_signs[-2.0--1.0-HELD-FAILED] _
+
+low = -2.0, high = -1.0, negative = 'HELD', positive = 'FAILED'
+
+    @pytest.mark.parametrize(("low", "high", "negative", "positive"), [
+        (-2.0, -1.0, "HELD", "FAILED"),
+        (1.0, 2.0, "FAILED", "HELD"),
+        (-1.0, 1.0, "NOT RESOLVED", "NOT RESOLVED"),
+        (-1.0, 0.0, "NOT RESOLVED", "NOT RESOLVED"),
+        (0.0, 1.0, "NOT RESOLVED", "NOT RESOLVED"),
+        (0.0, 0.0, "NOT RESOLVED", "NOT RESOLVED"),
+    ])
+    def test_t_outcome_the_interval_rule_for_both_predicted_signs(low: float, high: float, negative: str,
+                                                                 positive: str) -> None:
+>       assert tst.interval_outcome(low, high, predicted="negative") == negative == own_outcome(low, high, "negative")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:353: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+low = -2.0, high = -1.0, predicted = 'negative'
+
+    def interval_outcome(low: float, high: float, *, predicted: str) -> str:
+        """HELD / FAILED / NOT RESOLVED for a quantity predicted ``negative`` or ``positive``, by
+        ``spatial_mixing._outcome_from_interval`` (on ``(-high, -low)`` for a positive one).  A CI touching zero, and an
+        exact zero (CI [0, 0]), is NOT RESOLVED."""
+>       raise NotImplementedError("P5.2c C1 skeleton: interval_outcome")
+E       NotImplementedError: P5.2c C1 skeleton: interval_outcome
+
+offline/tier_statements.py:320: NotImplementedError
+_ test_t_outcome_the_interval_rule_for_both_predicted_signs[1.0-2.0-FAILED-HELD] _
+
+low = 1.0, high = 2.0, negative = 'FAILED', positive = 'HELD'
+
+    @pytest.mark.parametrize(("low", "high", "negative", "positive"), [
+        (-2.0, -1.0, "HELD", "FAILED"),
+        (1.0, 2.0, "FAILED", "HELD"),
+        (-1.0, 1.0, "NOT RESOLVED", "NOT RESOLVED"),
+        (-1.0, 0.0, "NOT RESOLVED", "NOT RESOLVED"),
+        (0.0, 1.0, "NOT RESOLVED", "NOT RESOLVED"),
+        (0.0, 0.0, "NOT RESOLVED", "NOT RESOLVED"),
+    ])
+    def test_t_outcome_the_interval_rule_for_both_predicted_signs(low: float, high: float, negative: str,
+                                                                 positive: str) -> None:
+>       assert tst.interval_outcome(low, high, predicted="negative") == negative == own_outcome(low, high, "negative")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:353: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+low = 1.0, high = 2.0, predicted = 'negative'
+
+    def interval_outcome(low: float, high: float, *, predicted: str) -> str:
+        """HELD / FAILED / NOT RESOLVED for a quantity predicted ``negative`` or ``positive``, by
+        ``spatial_mixing._outcome_from_interval`` (on ``(-high, -low)`` for a positive one).  A CI touching zero, and an
+        exact zero (CI [0, 0]), is NOT RESOLVED."""
+>       raise NotImplementedError("P5.2c C1 skeleton: interval_outcome")
+E       NotImplementedError: P5.2c C1 skeleton: interval_outcome
+
+offline/tier_statements.py:320: NotImplementedError
+_ test_t_outcome_the_interval_rule_for_both_predicted_signs[-1.0-1.0-NOT RESOLVED-NOT RESOLVED] _
+
+low = -1.0, high = 1.0, negative = 'NOT RESOLVED', positive = 'NOT RESOLVED'
+
+    @pytest.mark.parametrize(("low", "high", "negative", "positive"), [
+        (-2.0, -1.0, "HELD", "FAILED"),
+        (1.0, 2.0, "FAILED", "HELD"),
+        (-1.0, 1.0, "NOT RESOLVED", "NOT RESOLVED"),
+        (-1.0, 0.0, "NOT RESOLVED", "NOT RESOLVED"),
+        (0.0, 1.0, "NOT RESOLVED", "NOT RESOLVED"),
+        (0.0, 0.0, "NOT RESOLVED", "NOT RESOLVED"),
+    ])
+    def test_t_outcome_the_interval_rule_for_both_predicted_signs(low: float, high: float, negative: str,
+                                                                 positive: str) -> None:
+>       assert tst.interval_outcome(low, high, predicted="negative") == negative == own_outcome(low, high, "negative")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:353: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+low = -1.0, high = 1.0, predicted = 'negative'
+
+    def interval_outcome(low: float, high: float, *, predicted: str) -> str:
+        """HELD / FAILED / NOT RESOLVED for a quantity predicted ``negative`` or ``positive``, by
+        ``spatial_mixing._outcome_from_interval`` (on ``(-high, -low)`` for a positive one).  A CI touching zero, and an
+        exact zero (CI [0, 0]), is NOT RESOLVED."""
+>       raise NotImplementedError("P5.2c C1 skeleton: interval_outcome")
+E       NotImplementedError: P5.2c C1 skeleton: interval_outcome
+
+offline/tier_statements.py:320: NotImplementedError
+_ test_t_outcome_the_interval_rule_for_both_predicted_signs[-1.0-0.0-NOT RESOLVED-NOT RESOLVED] _
+
+low = -1.0, high = 0.0, negative = 'NOT RESOLVED', positive = 'NOT RESOLVED'
+
+    @pytest.mark.parametrize(("low", "high", "negative", "positive"), [
+        (-2.0, -1.0, "HELD", "FAILED"),
+        (1.0, 2.0, "FAILED", "HELD"),
+        (-1.0, 1.0, "NOT RESOLVED", "NOT RESOLVED"),
+        (-1.0, 0.0, "NOT RESOLVED", "NOT RESOLVED"),
+        (0.0, 1.0, "NOT RESOLVED", "NOT RESOLVED"),
+        (0.0, 0.0, "NOT RESOLVED", "NOT RESOLVED"),
+    ])
+    def test_t_outcome_the_interval_rule_for_both_predicted_signs(low: float, high: float, negative: str,
+                                                                 positive: str) -> None:
+>       assert tst.interval_outcome(low, high, predicted="negative") == negative == own_outcome(low, high, "negative")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:353: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+low = -1.0, high = 0.0, predicted = 'negative'
+
+    def interval_outcome(low: float, high: float, *, predicted: str) -> str:
+        """HELD / FAILED / NOT RESOLVED for a quantity predicted ``negative`` or ``positive``, by
+        ``spatial_mixing._outcome_from_interval`` (on ``(-high, -low)`` for a positive one).  A CI touching zero, and an
+        exact zero (CI [0, 0]), is NOT RESOLVED."""
+>       raise NotImplementedError("P5.2c C1 skeleton: interval_outcome")
+E       NotImplementedError: P5.2c C1 skeleton: interval_outcome
+
+offline/tier_statements.py:320: NotImplementedError
+_ test_t_outcome_the_interval_rule_for_both_predicted_signs[0.0-1.0-NOT RESOLVED-NOT RESOLVED] _
+
+low = 0.0, high = 1.0, negative = 'NOT RESOLVED', positive = 'NOT RESOLVED'
+
+    @pytest.mark.parametrize(("low", "high", "negative", "positive"), [
+        (-2.0, -1.0, "HELD", "FAILED"),
+        (1.0, 2.0, "FAILED", "HELD"),
+        (-1.0, 1.0, "NOT RESOLVED", "NOT RESOLVED"),
+        (-1.0, 0.0, "NOT RESOLVED", "NOT RESOLVED"),
+        (0.0, 1.0, "NOT RESOLVED", "NOT RESOLVED"),
+        (0.0, 0.0, "NOT RESOLVED", "NOT RESOLVED"),
+    ])
+    def test_t_outcome_the_interval_rule_for_both_predicted_signs(low: float, high: float, negative: str,
+                                                                 positive: str) -> None:
+>       assert tst.interval_outcome(low, high, predicted="negative") == negative == own_outcome(low, high, "negative")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:353: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+low = 0.0, high = 1.0, predicted = 'negative'
+
+    def interval_outcome(low: float, high: float, *, predicted: str) -> str:
+        """HELD / FAILED / NOT RESOLVED for a quantity predicted ``negative`` or ``positive``, by
+        ``spatial_mixing._outcome_from_interval`` (on ``(-high, -low)`` for a positive one).  A CI touching zero, and an
+        exact zero (CI [0, 0]), is NOT RESOLVED."""
+>       raise NotImplementedError("P5.2c C1 skeleton: interval_outcome")
+E       NotImplementedError: P5.2c C1 skeleton: interval_outcome
+
+offline/tier_statements.py:320: NotImplementedError
+_ test_t_outcome_the_interval_rule_for_both_predicted_signs[0.0-0.0-NOT RESOLVED-NOT RESOLVED] _
+
+low = 0.0, high = 0.0, negative = 'NOT RESOLVED', positive = 'NOT RESOLVED'
+
+    @pytest.mark.parametrize(("low", "high", "negative", "positive"), [
+        (-2.0, -1.0, "HELD", "FAILED"),
+        (1.0, 2.0, "FAILED", "HELD"),
+        (-1.0, 1.0, "NOT RESOLVED", "NOT RESOLVED"),
+        (-1.0, 0.0, "NOT RESOLVED", "NOT RESOLVED"),
+        (0.0, 1.0, "NOT RESOLVED", "NOT RESOLVED"),
+        (0.0, 0.0, "NOT RESOLVED", "NOT RESOLVED"),
+    ])
+    def test_t_outcome_the_interval_rule_for_both_predicted_signs(low: float, high: float, negative: str,
+                                                                 positive: str) -> None:
+>       assert tst.interval_outcome(low, high, predicted="negative") == negative == own_outcome(low, high, "negative")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:353: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+low = 0.0, high = 0.0, predicted = 'negative'
+
+    def interval_outcome(low: float, high: float, *, predicted: str) -> str:
+        """HELD / FAILED / NOT RESOLVED for a quantity predicted ``negative`` or ``positive``, by
+        ``spatial_mixing._outcome_from_interval`` (on ``(-high, -low)`` for a positive one).  A CI touching zero, and an
+        exact zero (CI [0, 0]), is NOT RESOLVED."""
+>       raise NotImplementedError("P5.2c C1 skeleton: interval_outcome")
+E       NotImplementedError: P5.2c C1 skeleton: interval_outcome
+
+offline/tier_statements.py:320: NotImplementedError
+_______________ test_t_outcome_refuses_an_unknown_predicted_sign _______________
+
+    def test_t_outcome_refuses_an_unknown_predicted_sign() -> None:
+        with pytest.raises(ValueError, match="predicted"):
+>           tst.interval_outcome(-1.0, 1.0, predicted="zero")
+
+tests/test_tier_statements.py:359: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+low = -1.0, high = 1.0, predicted = 'zero'
+
+    def interval_outcome(low: float, high: float, *, predicted: str) -> str:
+        """HELD / FAILED / NOT RESOLVED for a quantity predicted ``negative`` or ``positive``, by
+        ``spatial_mixing._outcome_from_interval`` (on ``(-high, -low)`` for a positive one).  A CI touching zero, and an
+        exact zero (CI [0, 0]), is NOT RESOLVED."""
+>       raise NotImplementedError("P5.2c C1 skeleton: interval_outcome")
+E       NotImplementedError: P5.2c C1 skeleton: interval_outcome
+
+offline/tier_statements.py:320: NotImplementedError
+_____________ test_t_outcome_the_conjunction_rule[outcomes0-HELD] ______________
+
+outcomes = ['HELD', 'HELD', 'HELD'], expected = 'HELD'
+
+    @pytest.mark.parametrize(("outcomes", "expected"), [
+        (["HELD", "HELD", "HELD"], "HELD"),
+        (["HELD", "NOT RESOLVED", "HELD"], "NOT RESOLVED"),
+        (["HELD", "NOT RESOLVED", "FAILED"], "FAILED"),
+        (["FAILED", "FAILED"], "FAILED"),
+        (["NOT RESOLVED"], "NOT RESOLVED"),
+    ])
+    def test_t_outcome_the_conjunction_rule(outcomes: list[str], expected: str) -> None:
+>       assert tst.conjunction(outcomes) == expected
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:370: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+outcomes = ['HELD', 'HELD', 'HELD']
+
+    def conjunction(outcomes: Sequence[str]) -> str:
+        """``BRIEF_45`` section 3.3: HELD iff every tier is HELD, FAILED iff any tier is FAILED, NOT RESOLVED otherwise."""
+>       raise NotImplementedError("P5.2c C1 skeleton: conjunction")
+E       NotImplementedError: P5.2c C1 skeleton: conjunction
+
+offline/tier_statements.py:325: NotImplementedError
+_________ test_t_outcome_the_conjunction_rule[outcomes1-NOT RESOLVED] __________
+
+outcomes = ['HELD', 'NOT RESOLVED', 'HELD'], expected = 'NOT RESOLVED'
+
+    @pytest.mark.parametrize(("outcomes", "expected"), [
+        (["HELD", "HELD", "HELD"], "HELD"),
+        (["HELD", "NOT RESOLVED", "HELD"], "NOT RESOLVED"),
+        (["HELD", "NOT RESOLVED", "FAILED"], "FAILED"),
+        (["FAILED", "FAILED"], "FAILED"),
+        (["NOT RESOLVED"], "NOT RESOLVED"),
+    ])
+    def test_t_outcome_the_conjunction_rule(outcomes: list[str], expected: str) -> None:
+>       assert tst.conjunction(outcomes) == expected
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:370: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+outcomes = ['HELD', 'NOT RESOLVED', 'HELD']
+
+    def conjunction(outcomes: Sequence[str]) -> str:
+        """``BRIEF_45`` section 3.3: HELD iff every tier is HELD, FAILED iff any tier is FAILED, NOT RESOLVED otherwise."""
+>       raise NotImplementedError("P5.2c C1 skeleton: conjunction")
+E       NotImplementedError: P5.2c C1 skeleton: conjunction
+
+offline/tier_statements.py:325: NotImplementedError
+____________ test_t_outcome_the_conjunction_rule[outcomes2-FAILED] _____________
+
+outcomes = ['HELD', 'NOT RESOLVED', 'FAILED'], expected = 'FAILED'
+
+    @pytest.mark.parametrize(("outcomes", "expected"), [
+        (["HELD", "HELD", "HELD"], "HELD"),
+        (["HELD", "NOT RESOLVED", "HELD"], "NOT RESOLVED"),
+        (["HELD", "NOT RESOLVED", "FAILED"], "FAILED"),
+        (["FAILED", "FAILED"], "FAILED"),
+        (["NOT RESOLVED"], "NOT RESOLVED"),
+    ])
+    def test_t_outcome_the_conjunction_rule(outcomes: list[str], expected: str) -> None:
+>       assert tst.conjunction(outcomes) == expected
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:370: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+outcomes = ['HELD', 'NOT RESOLVED', 'FAILED']
+
+    def conjunction(outcomes: Sequence[str]) -> str:
+        """``BRIEF_45`` section 3.3: HELD iff every tier is HELD, FAILED iff any tier is FAILED, NOT RESOLVED otherwise."""
+>       raise NotImplementedError("P5.2c C1 skeleton: conjunction")
+E       NotImplementedError: P5.2c C1 skeleton: conjunction
+
+offline/tier_statements.py:325: NotImplementedError
+____________ test_t_outcome_the_conjunction_rule[outcomes3-FAILED] _____________
+
+outcomes = ['FAILED', 'FAILED'], expected = 'FAILED'
+
+    @pytest.mark.parametrize(("outcomes", "expected"), [
+        (["HELD", "HELD", "HELD"], "HELD"),
+        (["HELD", "NOT RESOLVED", "HELD"], "NOT RESOLVED"),
+        (["HELD", "NOT RESOLVED", "FAILED"], "FAILED"),
+        (["FAILED", "FAILED"], "FAILED"),
+        (["NOT RESOLVED"], "NOT RESOLVED"),
+    ])
+    def test_t_outcome_the_conjunction_rule(outcomes: list[str], expected: str) -> None:
+>       assert tst.conjunction(outcomes) == expected
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:370: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+outcomes = ['FAILED', 'FAILED']
+
+    def conjunction(outcomes: Sequence[str]) -> str:
+        """``BRIEF_45`` section 3.3: HELD iff every tier is HELD, FAILED iff any tier is FAILED, NOT RESOLVED otherwise."""
+>       raise NotImplementedError("P5.2c C1 skeleton: conjunction")
+E       NotImplementedError: P5.2c C1 skeleton: conjunction
+
+offline/tier_statements.py:325: NotImplementedError
+_________ test_t_outcome_the_conjunction_rule[outcomes4-NOT RESOLVED] __________
+
+outcomes = ['NOT RESOLVED'], expected = 'NOT RESOLVED'
+
+    @pytest.mark.parametrize(("outcomes", "expected"), [
+        (["HELD", "HELD", "HELD"], "HELD"),
+        (["HELD", "NOT RESOLVED", "HELD"], "NOT RESOLVED"),
+        (["HELD", "NOT RESOLVED", "FAILED"], "FAILED"),
+        (["FAILED", "FAILED"], "FAILED"),
+        (["NOT RESOLVED"], "NOT RESOLVED"),
+    ])
+    def test_t_outcome_the_conjunction_rule(outcomes: list[str], expected: str) -> None:
+>       assert tst.conjunction(outcomes) == expected
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:370: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+outcomes = ['NOT RESOLVED']
+
+    def conjunction(outcomes: Sequence[str]) -> str:
+        """``BRIEF_45`` section 3.3: HELD iff every tier is HELD, FAILED iff any tier is FAILED, NOT RESOLVED otherwise."""
+>       raise NotImplementedError("P5.2c C1 skeleton: conjunction")
+E       NotImplementedError: P5.2c C1 skeleton: conjunction
+
+offline/tier_statements.py:325: NotImplementedError
+____________________________ test_t_outcome_sign_of ____________________________
+
+    def test_t_outcome_sign_of() -> None:
+>       assert [tst.sign_of(v) for v in (-0.5, 0.0, -0.0, 2.0)] == ["negative", "zero", "zero", "positive"]
+                ^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:374: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+value = -0.5
+
+    def sign_of(value: float) -> str:
+        """``negative`` / ``zero`` / ``positive`` of a point estimate."""
+>       raise NotImplementedError("P5.2c C1 skeleton: sign_of")
+E       NotImplementedError: P5.2c C1 skeleton: sign_of
+
+offline/tier_statements.py:330: NotImplementedError
+____ test_t_ties_two_exact_ties_every_integer_and_its_range_by_enumeration _____
+
+    def test_t_ties_two_exact_ties_every_integer_and_its_range_by_enumeration() -> None:
+        predicted = list(ts.predicted_order("fixedtime"))
+>       audit = tst.tie_audit(TIED_LEVELS, predicted)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:388: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+levels = {'dt_spatial': 207.0, 'dt_nomix': 207.0, 'bc': 207.25, 'bc_top10': 207.5, ...}
+predicted = ['dt_nomix', 'bc', 'bc_top10_perix', 'dt_spatial', 'iql', 'bc_top10']
+subject = 'dt_nomix'
+
+    def tie_audit(levels: Mapping[str, float], predicted: Sequence[str], *, subject: str = "dt_nomix") -> dict[str, Any]:
+        """Every tie-dependent integer of one ordering: Q2b's and Q2b-hard's concordance under the declared tie rule and its
+        range over every order consistent with *levels*, the possible first places, and *subject*'s rank (1 + the arms
+        strictly lower) with its range; with the number of orders enumerated."""
+>       raise NotImplementedError("P5.2c C1 skeleton: tie_audit")
+E       NotImplementedError: P5.2c C1 skeleton: tie_audit
+
+offline/tier_statements.py:372: NotImplementedError
+_____________ test_t_ties_a_tie_for_first_is_no_unique_first_place _____________
+
+    def test_t_ties_a_tie_for_first_is_no_unique_first_place() -> None:
+        levels = dict(TIED_LEVELS, iql=207.0)
+>       audit = tst.tie_audit(levels, list(ts.predicted_order("fixedtime")))
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:407: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+levels = {'dt_spatial': 207.0, 'dt_nomix': 207.0, 'bc': 207.25, 'bc_top10': 207.5, ...}
+predicted = ['dt_nomix', 'bc', 'bc_top10_perix', 'dt_spatial', 'iql', 'bc_top10']
+subject = 'dt_nomix'
+
+    def tie_audit(levels: Mapping[str, float], predicted: Sequence[str], *, subject: str = "dt_nomix") -> dict[str, Any]:
+        """Every tie-dependent integer of one ordering: Q2b's and Q2b-hard's concordance under the declared tie rule and its
+        range over every order consistent with *levels*, the possible first places, and *subject*'s rank (1 + the arms
+        strictly lower) with its range; with the number of orders enumerated."""
+>       raise NotImplementedError("P5.2c C1 skeleton: tie_audit")
+E       NotImplementedError: P5.2c C1 skeleton: tie_audit
+
+offline/tier_statements.py:372: NotImplementedError
+_______________ test_t_ties_without_ties_every_range_is_a_point ________________
+
+    def test_t_ties_without_ties_every_range_is_a_point() -> None:
+        levels = {"dt_spatial": 168.0, "dt_nomix": 167.25, "bc": 166.0, "bc_top10": 680.0, "bc_top10_perix": 210.25,
+                  "iql": 199.0}
+        predicted = list(ts.predicted_order("maxpressure"))
+>       audit = tst.tie_audit(levels, predicted)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:417: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+levels = {'dt_spatial': 168.0, 'dt_nomix': 167.25, 'bc': 166.0, 'bc_top10': 680.0, ...}
+predicted = ['bc_top10_perix', 'dt_nomix', 'bc', 'dt_spatial', 'iql', 'bc_top10']
+subject = 'dt_nomix'
+
+    def tie_audit(levels: Mapping[str, float], predicted: Sequence[str], *, subject: str = "dt_nomix") -> dict[str, Any]:
+        """Every tie-dependent integer of one ordering: Q2b's and Q2b-hard's concordance under the declared tie rule and its
+        range over every order consistent with *levels*, the possible first places, and *subject*'s rank (1 + the arms
+        strictly lower) with its range; with the number of orders enumerated."""
+>       raise NotImplementedError("P5.2c C1 skeleton: tie_audit")
+E       NotImplementedError: P5.2c C1 skeleton: tie_audit
+
+offline/tier_statements.py:372: NotImplementedError
+____________ test_t_ties_the_level_groups_keep_exact_equality_only _____________
+
+    def test_t_ties_the_level_groups_keep_exact_equality_only() -> None:
+        levels = {"a": 1.0, "b": 1.0 + 2 ** -40, "c": 1.0, "d": 0.5}
+>       assert tst.level_groups(levels) == [["d"], ["a", "c"], ["b"]]
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:427: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+levels = {'a': 1.0, 'b': 1.0000000000009095, 'c': 1.0, 'd': 0.5}
+
+    def level_groups(levels: Mapping[str, float]) -> list[list[str]]:
+        """Arms grouped by EXACTLY equal level, groups in ascending level, arms within a group in the input's order."""
+>       raise NotImplementedError("P5.2c C1 skeleton: level_groups")
+E       NotImplementedError: P5.2c C1 skeleton: level_groups
+
+offline/tier_statements.py:365: NotImplementedError
+_ test_t_composer_equals_random_tier_statements_field_by_field[att_ours-False-True] _
+
+with_hard_subset = True, tied = False, definition = 'att_ours'
+
+    @pytest.mark.parametrize("with_hard_subset", [True, False])
+    @pytest.mark.parametrize("tied", [False, True])
+    @pytest.mark.parametrize("definition", ["att_ours", "att_engine"])
+    def test_t_composer_equals_random_tier_statements_field_by_field(with_hard_subset: bool, tied: bool,
+                                                                     definition: str) -> None:
+        """Amendment A, A2 Q2: at ``random`` the tier-generic composer returns every field P5.2b's composer returns, equal;
+        it may add fields and never change one."""
+        cells = _tied_cells() if tied else fx.synthetic_cells()
+        episodes = _oos_episodes(cells, definition)
+        theirs = ic.random_tier_statements(episodes, with_hard_subset=with_hard_subset)
+>       mine = tst.tier_composer(episodes, tier="random", with_hard_subset=with_hard_subset)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:467: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cells = {('dt_spatial', 'maxpressure'): [EpisodeResult(arm='dt_spatial@maxpressure', seed=101, draw_id=1000, att_horizon=167.9...ressure', seed=202, draw_id=1001, att_horizon=679.90625, horizon_vehicle_count=9.0, episode_reward=-1001.0), ...], ...}
+tier = 'random', with_hard_subset = True
+
+    def tier_composer(cells: Mapping[tuple[str, str], Sequence[EpisodeResult]], *, tier: str, with_hard_subset: bool
+                      ) -> dict[str, Any]:
+        """``iql_correction.random_tier_statements`` restated for any out-of-sample tier (plan F2, Amendment A, A2 Q2): at
+        ``tier="random"`` it returns every field that function returns, equal, and may add fields."""
+>       raise NotImplementedError("P5.2c C1 skeleton: tier_composer")
+E       NotImplementedError: P5.2c C1 skeleton: tier_composer
+
+offline/tier_statements.py:360: NotImplementedError
+_ test_t_composer_equals_random_tier_statements_field_by_field[att_ours-False-False] _
+
+with_hard_subset = False, tied = False, definition = 'att_ours'
+
+    @pytest.mark.parametrize("with_hard_subset", [True, False])
+    @pytest.mark.parametrize("tied", [False, True])
+    @pytest.mark.parametrize("definition", ["att_ours", "att_engine"])
+    def test_t_composer_equals_random_tier_statements_field_by_field(with_hard_subset: bool, tied: bool,
+                                                                     definition: str) -> None:
+        """Amendment A, A2 Q2: at ``random`` the tier-generic composer returns every field P5.2b's composer returns, equal;
+        it may add fields and never change one."""
+        cells = _tied_cells() if tied else fx.synthetic_cells()
+        episodes = _oos_episodes(cells, definition)
+        theirs = ic.random_tier_statements(episodes, with_hard_subset=with_hard_subset)
+>       mine = tst.tier_composer(episodes, tier="random", with_hard_subset=with_hard_subset)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:467: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cells = {('dt_spatial', 'maxpressure'): [EpisodeResult(arm='dt_spatial@maxpressure', seed=101, draw_id=1000, att_horizon=167.9...ressure', seed=202, draw_id=1001, att_horizon=679.90625, horizon_vehicle_count=9.0, episode_reward=-1001.0), ...], ...}
+tier = 'random', with_hard_subset = False
+
+    def tier_composer(cells: Mapping[tuple[str, str], Sequence[EpisodeResult]], *, tier: str, with_hard_subset: bool
+                      ) -> dict[str, Any]:
+        """``iql_correction.random_tier_statements`` restated for any out-of-sample tier (plan F2, Amendment A, A2 Q2): at
+        ``tier="random"`` it returns every field that function returns, equal, and may add fields."""
+>       raise NotImplementedError("P5.2c C1 skeleton: tier_composer")
+E       NotImplementedError: P5.2c C1 skeleton: tier_composer
+
+offline/tier_statements.py:360: NotImplementedError
+_ test_t_composer_equals_random_tier_statements_field_by_field[att_ours-True-True] _
+
+with_hard_subset = True, tied = True, definition = 'att_ours'
+
+    @pytest.mark.parametrize("with_hard_subset", [True, False])
+    @pytest.mark.parametrize("tied", [False, True])
+    @pytest.mark.parametrize("definition", ["att_ours", "att_engine"])
+    def test_t_composer_equals_random_tier_statements_field_by_field(with_hard_subset: bool, tied: bool,
+                                                                     definition: str) -> None:
+        """Amendment A, A2 Q2: at ``random`` the tier-generic composer returns every field P5.2b's composer returns, equal;
+        it may add fields and never change one."""
+        cells = _tied_cells() if tied else fx.synthetic_cells()
+        episodes = _oos_episodes(cells, definition)
+        theirs = ic.random_tier_statements(episodes, with_hard_subset=with_hard_subset)
+>       mine = tst.tier_composer(episodes, tier="random", with_hard_subset=with_hard_subset)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:467: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cells = {('dt_spatial', 'maxpressure'): [EpisodeResult(arm='dt_spatial@maxpressure', seed=101, draw_id=1000, att_horizon=167.9...ressure', seed=202, draw_id=1001, att_horizon=679.90625, horizon_vehicle_count=9.0, episode_reward=-1001.0), ...], ...}
+tier = 'random', with_hard_subset = True
+
+    def tier_composer(cells: Mapping[tuple[str, str], Sequence[EpisodeResult]], *, tier: str, with_hard_subset: bool
+                      ) -> dict[str, Any]:
+        """``iql_correction.random_tier_statements`` restated for any out-of-sample tier (plan F2, Amendment A, A2 Q2): at
+        ``tier="random"`` it returns every field that function returns, equal, and may add fields."""
+>       raise NotImplementedError("P5.2c C1 skeleton: tier_composer")
+E       NotImplementedError: P5.2c C1 skeleton: tier_composer
+
+offline/tier_statements.py:360: NotImplementedError
+_ test_t_composer_equals_random_tier_statements_field_by_field[att_ours-True-False] _
+
+with_hard_subset = False, tied = True, definition = 'att_ours'
+
+    @pytest.mark.parametrize("with_hard_subset", [True, False])
+    @pytest.mark.parametrize("tied", [False, True])
+    @pytest.mark.parametrize("definition", ["att_ours", "att_engine"])
+    def test_t_composer_equals_random_tier_statements_field_by_field(with_hard_subset: bool, tied: bool,
+                                                                     definition: str) -> None:
+        """Amendment A, A2 Q2: at ``random`` the tier-generic composer returns every field P5.2b's composer returns, equal;
+        it may add fields and never change one."""
+        cells = _tied_cells() if tied else fx.synthetic_cells()
+        episodes = _oos_episodes(cells, definition)
+        theirs = ic.random_tier_statements(episodes, with_hard_subset=with_hard_subset)
+>       mine = tst.tier_composer(episodes, tier="random", with_hard_subset=with_hard_subset)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:467: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cells = {('dt_spatial', 'maxpressure'): [EpisodeResult(arm='dt_spatial@maxpressure', seed=101, draw_id=1000, att_horizon=167.9...ressure', seed=202, draw_id=1001, att_horizon=679.90625, horizon_vehicle_count=9.0, episode_reward=-1001.0), ...], ...}
+tier = 'random', with_hard_subset = False
+
+    def tier_composer(cells: Mapping[tuple[str, str], Sequence[EpisodeResult]], *, tier: str, with_hard_subset: bool
+                      ) -> dict[str, Any]:
+        """``iql_correction.random_tier_statements`` restated for any out-of-sample tier (plan F2, Amendment A, A2 Q2): at
+        ``tier="random"`` it returns every field that function returns, equal, and may add fields."""
+>       raise NotImplementedError("P5.2c C1 skeleton: tier_composer")
+E       NotImplementedError: P5.2c C1 skeleton: tier_composer
+
+offline/tier_statements.py:360: NotImplementedError
+_ test_t_composer_equals_random_tier_statements_field_by_field[att_engine-False-True] _
+
+with_hard_subset = True, tied = False, definition = 'att_engine'
+
+    @pytest.mark.parametrize("with_hard_subset", [True, False])
+    @pytest.mark.parametrize("tied", [False, True])
+    @pytest.mark.parametrize("definition", ["att_ours", "att_engine"])
+    def test_t_composer_equals_random_tier_statements_field_by_field(with_hard_subset: bool, tied: bool,
+                                                                     definition: str) -> None:
+        """Amendment A, A2 Q2: at ``random`` the tier-generic composer returns every field P5.2b's composer returns, equal;
+        it may add fields and never change one."""
+        cells = _tied_cells() if tied else fx.synthetic_cells()
+        episodes = _oos_episodes(cells, definition)
+        theirs = ic.random_tier_statements(episodes, with_hard_subset=with_hard_subset)
+>       mine = tst.tier_composer(episodes, tier="random", with_hard_subset=with_hard_subset)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:467: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cells = {('dt_spatial', 'maxpressure'): [EpisodeResult(arm='dt_spatial@maxpressure', seed=101, draw_id=1000, att_horizon=160.9...pressure', seed=202, draw_id=1001, att_horizon=672.8125, horizon_vehicle_count=9.0, episode_reward=-1001.0), ...], ...}
+tier = 'random', with_hard_subset = True
+
+    def tier_composer(cells: Mapping[tuple[str, str], Sequence[EpisodeResult]], *, tier: str, with_hard_subset: bool
+                      ) -> dict[str, Any]:
+        """``iql_correction.random_tier_statements`` restated for any out-of-sample tier (plan F2, Amendment A, A2 Q2): at
+        ``tier="random"`` it returns every field that function returns, equal, and may add fields."""
+>       raise NotImplementedError("P5.2c C1 skeleton: tier_composer")
+E       NotImplementedError: P5.2c C1 skeleton: tier_composer
+
+offline/tier_statements.py:360: NotImplementedError
+_ test_t_composer_equals_random_tier_statements_field_by_field[att_engine-False-False] _
+
+with_hard_subset = False, tied = False, definition = 'att_engine'
+
+    @pytest.mark.parametrize("with_hard_subset", [True, False])
+    @pytest.mark.parametrize("tied", [False, True])
+    @pytest.mark.parametrize("definition", ["att_ours", "att_engine"])
+    def test_t_composer_equals_random_tier_statements_field_by_field(with_hard_subset: bool, tied: bool,
+                                                                     definition: str) -> None:
+        """Amendment A, A2 Q2: at ``random`` the tier-generic composer returns every field P5.2b's composer returns, equal;
+        it may add fields and never change one."""
+        cells = _tied_cells() if tied else fx.synthetic_cells()
+        episodes = _oos_episodes(cells, definition)
+        theirs = ic.random_tier_statements(episodes, with_hard_subset=with_hard_subset)
+>       mine = tst.tier_composer(episodes, tier="random", with_hard_subset=with_hard_subset)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:467: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cells = {('dt_spatial', 'maxpressure'): [EpisodeResult(arm='dt_spatial@maxpressure', seed=101, draw_id=1000, att_horizon=160.9...pressure', seed=202, draw_id=1001, att_horizon=672.8125, horizon_vehicle_count=9.0, episode_reward=-1001.0), ...], ...}
+tier = 'random', with_hard_subset = False
+
+    def tier_composer(cells: Mapping[tuple[str, str], Sequence[EpisodeResult]], *, tier: str, with_hard_subset: bool
+                      ) -> dict[str, Any]:
+        """``iql_correction.random_tier_statements`` restated for any out-of-sample tier (plan F2, Amendment A, A2 Q2): at
+        ``tier="random"`` it returns every field that function returns, equal, and may add fields."""
+>       raise NotImplementedError("P5.2c C1 skeleton: tier_composer")
+E       NotImplementedError: P5.2c C1 skeleton: tier_composer
+
+offline/tier_statements.py:360: NotImplementedError
+_ test_t_composer_equals_random_tier_statements_field_by_field[att_engine-True-True] _
+
+with_hard_subset = True, tied = True, definition = 'att_engine'
+
+    @pytest.mark.parametrize("with_hard_subset", [True, False])
+    @pytest.mark.parametrize("tied", [False, True])
+    @pytest.mark.parametrize("definition", ["att_ours", "att_engine"])
+    def test_t_composer_equals_random_tier_statements_field_by_field(with_hard_subset: bool, tied: bool,
+                                                                     definition: str) -> None:
+        """Amendment A, A2 Q2: at ``random`` the tier-generic composer returns every field P5.2b's composer returns, equal;
+        it may add fields and never change one."""
+        cells = _tied_cells() if tied else fx.synthetic_cells()
+        episodes = _oos_episodes(cells, definition)
+        theirs = ic.random_tier_statements(episodes, with_hard_subset=with_hard_subset)
+>       mine = tst.tier_composer(episodes, tier="random", with_hard_subset=with_hard_subset)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:467: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cells = {('dt_spatial', 'maxpressure'): [EpisodeResult(arm='dt_spatial@maxpressure', seed=101, draw_id=1000, att_horizon=160.9...pressure', seed=202, draw_id=1001, att_horizon=672.8125, horizon_vehicle_count=9.0, episode_reward=-1001.0), ...], ...}
+tier = 'random', with_hard_subset = True
+
+    def tier_composer(cells: Mapping[tuple[str, str], Sequence[EpisodeResult]], *, tier: str, with_hard_subset: bool
+                      ) -> dict[str, Any]:
+        """``iql_correction.random_tier_statements`` restated for any out-of-sample tier (plan F2, Amendment A, A2 Q2): at
+        ``tier="random"`` it returns every field that function returns, equal, and may add fields."""
+>       raise NotImplementedError("P5.2c C1 skeleton: tier_composer")
+E       NotImplementedError: P5.2c C1 skeleton: tier_composer
+
+offline/tier_statements.py:360: NotImplementedError
+_ test_t_composer_equals_random_tier_statements_field_by_field[att_engine-True-False] _
+
+with_hard_subset = False, tied = True, definition = 'att_engine'
+
+    @pytest.mark.parametrize("with_hard_subset", [True, False])
+    @pytest.mark.parametrize("tied", [False, True])
+    @pytest.mark.parametrize("definition", ["att_ours", "att_engine"])
+    def test_t_composer_equals_random_tier_statements_field_by_field(with_hard_subset: bool, tied: bool,
+                                                                     definition: str) -> None:
+        """Amendment A, A2 Q2: at ``random`` the tier-generic composer returns every field P5.2b's composer returns, equal;
+        it may add fields and never change one."""
+        cells = _tied_cells() if tied else fx.synthetic_cells()
+        episodes = _oos_episodes(cells, definition)
+        theirs = ic.random_tier_statements(episodes, with_hard_subset=with_hard_subset)
+>       mine = tst.tier_composer(episodes, tier="random", with_hard_subset=with_hard_subset)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:467: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cells = {('dt_spatial', 'maxpressure'): [EpisodeResult(arm='dt_spatial@maxpressure', seed=101, draw_id=1000, att_horizon=160.9...pressure', seed=202, draw_id=1001, att_horizon=672.8125, horizon_vehicle_count=9.0, episode_reward=-1001.0), ...], ...}
+tier = 'random', with_hard_subset = False
+
+    def tier_composer(cells: Mapping[tuple[str, str], Sequence[EpisodeResult]], *, tier: str, with_hard_subset: bool
+                      ) -> dict[str, Any]:
+        """``iql_correction.random_tier_statements`` restated for any out-of-sample tier (plan F2, Amendment A, A2 Q2): at
+        ``tier="random"`` it returns every field that function returns, equal, and may add fields."""
+>       raise NotImplementedError("P5.2c C1 skeleton: tier_composer")
+E       NotImplementedError: P5.2c C1 skeleton: tier_composer
+
+offline/tier_statements.py:360: NotImplementedError
+________ test_t_composer_on_maxpressure_matches_this_files_own_ordering ________
+
+    def test_t_composer_on_maxpressure_matches_this_files_own_ordering() -> None:
+        cells = fx.synthetic_cells()
+        episodes = _oos_episodes(cells, "att_ours")
+>       mine = tst.tier_composer(episodes, tier="maxpressure", with_hard_subset=True)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:477: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cells = {('dt_spatial', 'maxpressure'): [EpisodeResult(arm='dt_spatial@maxpressure', seed=101, draw_id=1000, att_horizon=167.9...ressure', seed=202, draw_id=1001, att_horizon=679.90625, horizon_vehicle_count=9.0, episode_reward=-1001.0), ...], ...}
+tier = 'maxpressure', with_hard_subset = True
+
+    def tier_composer(cells: Mapping[tuple[str, str], Sequence[EpisodeResult]], *, tier: str, with_hard_subset: bool
+                      ) -> dict[str, Any]:
+        """``iql_correction.random_tier_statements`` restated for any out-of-sample tier (plan F2, Amendment A, A2 Q2): at
+        ``tier="random"`` it returns every field that function returns, equal, and may add fields."""
+>       raise NotImplementedError("P5.2c C1 skeleton: tier_composer")
+E       NotImplementedError: P5.2c C1 skeleton: tier_composer
+
+offline/tier_statements.py:360: NotImplementedError
+______ test_t_q6_the_anchor_identity_is_refused_when_one_episode_differs _______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x796deb60a210>
+
+    def test_t_q6_the_anchor_identity_is_refused_when_one_episode_differs(monkeypatch: pytest.MonkeyPatch) -> None:
+        import offline.dt_gate as dt_gate
+    
+        monkeypatch.setattr(dt_gate, "HELD_OUT_DRAWS", fx.DRAWS)
+        monkeypatch.setattr(dt_gate, "TRAINING_SEEDS", fx.SEEDS)
+        cells = fx.synthetic_cells()
+        p5_1, p5_2 = cells[tst.ANCHOR_CELL], cells[tst.REROLLED_ANCHOR_CELL]
+    
+        def payload(c: tst.Cell) -> dict[str, Any]:
+            return {"episodes": [{"seed": r["seed"], "draw_id": r["draw_id"], "att_horizon": r["att_ours"],
+                                  "horizon_vehicle_count": r["horizon_vehicle_count"],
+                                  "episode_reward": r["episode_reward"]} for r in c.rows]}
+    
+>       tst.assert_anchor_identity(payload(p5_1), payload(p5_2), p5_1.rows, p5_2.rows)
+
+tests/test_tier_statements.py:678: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+p5_1 = {'episodes': [{'seed': 101, 'draw_id': 1000, 'att_horizon': 260.375, 'horizon_vehicle_count': 4.0, ...}, {'seed': 101,..._count': 7.0, ...}, {'seed': 202, 'draw_id': 1001, 'att_horizon': 260.359375, 'horizon_vehicle_count': 8.0, ...}, ...]}
+p5_2 = {'episodes': [{'seed': 101, 'draw_id': 1000, 'att_horizon': 260.375, 'horizon_vehicle_count': 4.0, ...}, {'seed': 101,..._count': 7.0, ...}, {'seed': 202, 'draw_id': 1001, 'att_horizon': 260.359375, 'horizon_vehicle_count': 8.0, ...}, ...]}
+p5_1_rows = ({'arm': 'random@grid4x4_mappo1000', 'seed': 101, 'draw_id': 1000, 'att_ours': 260.375, ...}, {'arm': 'random@grid4x4_... 260.546875, ...}, {'arm': 'random@grid4x4_mappo1000', 'seed': 202, 'draw_id': 1001, 'att_ours': 260.359375, ...}, ...)
+p5_2_rows = ({'arm': 'random@mappo1000', 'seed': 101, 'draw_id': 1000, 'att_ours': 260.375, ...}, {'arm': 'random@mappo1000', 'see...t_ours': 260.546875, ...}, {'arm': 'random@mappo1000', 'seed': 202, 'draw_id': 1001, 'att_ours': 260.359375, ...}, ...)
+
+    def assert_anchor_identity(p5_1: Mapping[str, Any], p5_2: Mapping[str, Any], p5_1_rows: Sequence[Mapping[str, Any]],
+                               p5_2_rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+        """D12's shared anchor: refused unless P5.2's re-rolled random cell is episode-identical to P5.1's
+        (``tier_sweep.assert_cells_identical``, 500 episodes) and P8.4b's rows of the two arms agree on ``att_ours``,
+        ``att_engine`` and every companion."""
+>       raise NotImplementedError("P5.2c C1 skeleton: assert_anchor_identity")
+E       NotImplementedError: P5.2c C1 skeleton: assert_anchor_identity
+
+offline/tier_statements.py:275: NotImplementedError
+______ test_t_versions_the_books_differ_only_at_the_random_tier_iql_cell _______
+
+    def test_t_versions_the_books_differ_only_at_the_random_tier_iql_cell() -> None:
+        """M3: the corrected book reads P5.2b's cell, the as-committed one P5.2's; nothing else differs."""
+>       books = tst.make_books(fx.synthetic_cells())
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:733: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cells = {'p5_1:dt_spatial@grid4x4_mappo1000': Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', method='dt_spati...d': 1302, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 5.0, 'episode_reward': -1003.0})), ...}
+
+    def make_books(cells: Mapping[str, Cell]) -> dict[str, dict[tuple[str, str], Cell]]:
+        """The two versions' books: logical ``(method, tier)`` -> cell.  Identical but at ``("iql", "random")``, which is
+        :data:`CORRECTED_IQL` under ``corrected`` and :data:`ORIGINAL_IQL` under ``as_committed``.  ``("behaviour",
+        "random")`` and :data:`ANCHOR` are both P5.1's random cell (D12)."""
+>       raise NotImplementedError("P5.2c C1 skeleton: make_books")
+E       NotImplementedError: P5.2c C1 skeleton: make_books
+
+offline/tier_statements.py:232: NotImplementedError
+_______ test_the_cells_block_carries_every_quantity_a11b_and_d15_require _______
+
+    def test_the_cells_block_carries_every_quantity_a11b_and_d15_require() -> None:
+        cells = fx.synthetic_cells()
+>       block = tst.cells_block(cells)
+                ^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:914: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cells = {'p5_1:dt_spatial@grid4x4_mappo1000': Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', method='dt_spati...d': 1302, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 5.0, 'episode_reward': -1003.0})), ...}
+
+    def cells_block(cells: Mapping[str, Cell]) -> dict[str, Any]:
+        """Per cell: n, level, CI, per-seed means, median and IQR under each definition; A11(b)'s companions; A5's vehicle
+        count; its sources."""
+>       raise NotImplementedError("P5.2c C1 skeleton: cells_block")
+E       NotImplementedError: P5.2c C1 skeleton: cells_block
+
+offline/tier_statements.py:446: NotImplementedError
+__ test_t_inputs_the_synthetic_tree_loads_and_its_cells_are_the_written_ones ___
+
+tree = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_the_synthetic_tr0/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+
+    def test_t_inputs_the_synthetic_tree_loads_and_its_cells_are_the_written_ones(tree: fx.SyntheticTree) -> None:
+>       inputs = tst.load_inputs(tree.roots, pins=tree.pins)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:944: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+roots = Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_the_synthetic_tr0/repo'), output_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_the_synthetic_tr0/output'))
+pins = Pins(p5_1_sums_sha256='3b2d9505cce33ad6d90c6e844b507a838ffeee4c1f56e491a0713dfff6e50d01', p5_2_sums_sha256='c71eb72bdc...b778d5781cebc37bc1c9f2e0ead978d0af', c1_note_sha256='ef4357558c419b25a5dc4cf853c1e34bd84816d012ae1dc061790ea342997e52')
+
+    def load_inputs(roots: Roots, *, pins: Pins = PINS) -> Inputs:
+        """Every input at its anchor (plan section 6.2), refusing before anything is written."""
+>       raise NotImplementedError("P5.2c C1 skeleton: load_inputs")
+E       NotImplementedError: P5.2c C1 skeleton: load_inputs
+
+offline/tier_statements.py:308: NotImplementedError
+_________________ test_t_inputs_refuses_a_manifest_off_its_pin _________________
+
+tree = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_refuses_a_manife0/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+
+    def test_t_inputs_refuses_a_manifest_off_its_pin(tree: fx.SyntheticTree) -> None:
+        sums = tree.roots.output_root / tst.P5_1_SUMS_NAME
+        sums.write_text(sums.read_text() + "\n", encoding="utf-8")
+        with pytest.raises(ValueError, match="not the pinned"):
+>           tst.load_inputs(tree.roots, pins=tree.pins)
+
+tests/test_tier_statements.py:988: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+roots = Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_refuses_a_manife0/repo'), output_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_refuses_a_manife0/output'))
+pins = Pins(p5_1_sums_sha256='3b2d9505cce33ad6d90c6e844b507a838ffeee4c1f56e491a0713dfff6e50d01', p5_2_sums_sha256='c71eb72bdc...b778d5781cebc37bc1c9f2e0ead978d0af', c1_note_sha256='ef4357558c419b25a5dc4cf853c1e34bd84816d012ae1dc061790ea342997e52')
+
+    def load_inputs(roots: Roots, *, pins: Pins = PINS) -> Inputs:
+        """Every input at its anchor (plan section 6.2), refusing before anything is written."""
+>       raise NotImplementedError("P5.2c C1 skeleton: load_inputs")
+E       NotImplementedError: P5.2c C1 skeleton: load_inputs
+
+offline/tier_statements.py:308: NotImplementedError
+___________ test_t_inputs_refuses_an_eval_file_off_its_manifest_line ___________
+
+tree = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_refuses_an_eval_0/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+
+    def test_t_inputs_refuses_an_eval_file_off_its_manifest_line(tree: fx.SyntheticTree) -> None:
+        path = tree.roots.output_root / "p5_1" / "eval_bc.json"
+        path.write_bytes(path.read_bytes() + b" ")
+        with pytest.raises(ValueError, match=r"does not match its line in SHA256SUMS_p5_1\.txt"):
+>           tst.load_inputs(tree.roots, pins=tree.pins)
+
+tests/test_tier_statements.py:995: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+roots = Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_refuses_an_eval_0/repo'), output_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_refuses_an_eval_0/output'))
+pins = Pins(p5_1_sums_sha256='3b2d9505cce33ad6d90c6e844b507a838ffeee4c1f56e491a0713dfff6e50d01', p5_2_sums_sha256='c71eb72bdc...b778d5781cebc37bc1c9f2e0ead978d0af', c1_note_sha256='ef4357558c419b25a5dc4cf853c1e34bd84816d012ae1dc061790ea342997e52')
+
+    def load_inputs(roots: Roots, *, pins: Pins = PINS) -> Inputs:
+        """Every input at its anchor (plan section 6.2), refusing before anything is written."""
+>       raise NotImplementedError("P5.2c C1 skeleton: load_inputs")
+E       NotImplementedError: P5.2c C1 skeleton: load_inputs
+
+offline/tier_statements.py:308: NotImplementedError
+___________________ test_t_inputs_refuses_an_incomplete_cell ___________________
+
+tree = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_refuses_an_incom0/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+
+    def test_t_inputs_refuses_an_incomplete_cell(tree: fx.SyntheticTree) -> None:
+        _rewrite(tree.roots.output_root / "p5_2" / "eval_maxpressure_bc.json",
+                 lambda p: p.__setitem__("episodes", p["episodes"][:-1]))
+        tree = _resum(tree, tst.P5_2_SUMS_NAME, "p5_2", "p5_2_sums_sha256")
+        with pytest.raises(ValueError, match="not a complete cell"):
+>           tst.load_inputs(tree.roots, pins=tree.pins)
+
+tests/test_tier_statements.py:1003: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+roots = Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_refuses_an_incom0/repo'), output_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_refuses_an_incom0/output'))
+pins = Pins(p5_1_sums_sha256='3b2d9505cce33ad6d90c6e844b507a838ffeee4c1f56e491a0713dfff6e50d01', p5_2_sums_sha256='373a4294e7...b778d5781cebc37bc1c9f2e0ead978d0af', c1_note_sha256='ef4357558c419b25a5dc4cf853c1e34bd84816d012ae1dc061790ea342997e52')
+
+    def load_inputs(roots: Roots, *, pins: Pins = PINS) -> Inputs:
+        """Every input at its anchor (plan section 6.2), refusing before anything is written."""
+>       raise NotImplementedError("P5.2c C1 skeleton: load_inputs")
+E       NotImplementedError: P5.2c C1 skeleton: load_inputs
+
+offline/tier_statements.py:308: NotImplementedError
+___ test_t_inputs_refuses_a_p8_4b_row_that_does_not_reproduce_its_eval_file ____
+
+tree = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_refuses_a_p8_4b_0/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+
+    def test_t_inputs_refuses_a_p8_4b_row_that_does_not_reproduce_its_eval_file(tree: fx.SyntheticTree) -> None:
+        """M15: every P8.4b row passes ``iql_correction._p8_4b_rows``."""
+        from offline.att_rederivation import CellKey, cell_file_name
+    
+        name = cell_file_name(CellKey(scenario="grid4x4", arm="bc@fixedtime", seed=202, draw_id=1001))
+        _rewrite(tree.roots.output_root / tst.P8_4B_DIR / name, lambda p: p.__setitem__("att_ours", p["att_ours"] + 1.0))
+        with pytest.raises(ValueError, match="does not reproduce"):
+>           tst.load_inputs(tree.roots, pins=tree.pins)
+
+tests/test_tier_statements.py:1013: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+roots = Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_refuses_a_p8_4b_0/repo'), output_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_refuses_a_p8_4b_0/output'))
+pins = Pins(p5_1_sums_sha256='3b2d9505cce33ad6d90c6e844b507a838ffeee4c1f56e491a0713dfff6e50d01', p5_2_sums_sha256='c71eb72bdc...b778d5781cebc37bc1c9f2e0ead978d0af', c1_note_sha256='ef4357558c419b25a5dc4cf853c1e34bd84816d012ae1dc061790ea342997e52')
+
+    def load_inputs(roots: Roots, *, pins: Pins = PINS) -> Inputs:
+        """Every input at its anchor (plan section 6.2), refusing before anything is written."""
+>       raise NotImplementedError("P5.2c C1 skeleton: load_inputs")
+E       NotImplementedError: P5.2c C1 skeleton: load_inputs
+
+offline/tier_statements.py:308: NotImplementedError
+_ test_t_inputs_refuses_an_altered_att_engine_by_the_notes_means[bc@maxpressure] _
+
+tree = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_refuses_an_alter0/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+arm = 'bc@maxpressure'
+
+    @pytest.mark.parametrize("arm", ["bc@maxpressure", "dt_nomix@grid4x4_mappo1000", "iql@random"])
+    def test_t_inputs_refuses_an_altered_att_engine_by_the_notes_means(tree: fx.SyntheticTree, arm: str) -> None:
+        """F13 / M16: P8.4b has no per-file manifest, so an edited ``att_engine`` passes every other check; the README note's
+        means are the anchor on EVERY tier."""
+        from offline.att_rederivation import CellKey, cell_file_name
+    
+        name = cell_file_name(CellKey(scenario="grid4x4", arm=arm, seed=101, draw_id=1002))
+        _rewrite(tree.roots.output_root / tst.P8_4B_DIR / name,
+                 lambda p: p.__setitem__("att_engine", p["att_engine"] + 0.5))
+        with pytest.raises(ValueError, match="does not hold"):
+>           tst.load_inputs(tree.roots, pins=tree.pins)
+
+tests/test_tier_statements.py:1026: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+roots = Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_refuses_an_alter0/repo'), output_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_refuses_an_alter0/output'))
+pins = Pins(p5_1_sums_sha256='3b2d9505cce33ad6d90c6e844b507a838ffeee4c1f56e491a0713dfff6e50d01', p5_2_sums_sha256='c71eb72bdc...b778d5781cebc37bc1c9f2e0ead978d0af', c1_note_sha256='ef4357558c419b25a5dc4cf853c1e34bd84816d012ae1dc061790ea342997e52')
+
+    def load_inputs(roots: Roots, *, pins: Pins = PINS) -> Inputs:
+        """Every input at its anchor (plan section 6.2), refusing before anything is written."""
+>       raise NotImplementedError("P5.2c C1 skeleton: load_inputs")
+E       NotImplementedError: P5.2c C1 skeleton: load_inputs
+
+offline/tier_statements.py:308: NotImplementedError
+_ test_t_inputs_refuses_an_altered_att_engine_by_the_notes_means[dt_nomix@grid4x4_mappo1000] _
+
+tree = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_refuses_an_alter1/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+arm = 'dt_nomix@grid4x4_mappo1000'
+
+    @pytest.mark.parametrize("arm", ["bc@maxpressure", "dt_nomix@grid4x4_mappo1000", "iql@random"])
+    def test_t_inputs_refuses_an_altered_att_engine_by_the_notes_means(tree: fx.SyntheticTree, arm: str) -> None:
+        """F13 / M16: P8.4b has no per-file manifest, so an edited ``att_engine`` passes every other check; the README note's
+        means are the anchor on EVERY tier."""
+        from offline.att_rederivation import CellKey, cell_file_name
+    
+        name = cell_file_name(CellKey(scenario="grid4x4", arm=arm, seed=101, draw_id=1002))
+        _rewrite(tree.roots.output_root / tst.P8_4B_DIR / name,
+                 lambda p: p.__setitem__("att_engine", p["att_engine"] + 0.5))
+        with pytest.raises(ValueError, match="does not hold"):
+>           tst.load_inputs(tree.roots, pins=tree.pins)
+
+tests/test_tier_statements.py:1026: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+roots = Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_refuses_an_alter1/repo'), output_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_refuses_an_alter1/output'))
+pins = Pins(p5_1_sums_sha256='3b2d9505cce33ad6d90c6e844b507a838ffeee4c1f56e491a0713dfff6e50d01', p5_2_sums_sha256='c71eb72bdc...b778d5781cebc37bc1c9f2e0ead978d0af', c1_note_sha256='ef4357558c419b25a5dc4cf853c1e34bd84816d012ae1dc061790ea342997e52')
+
+    def load_inputs(roots: Roots, *, pins: Pins = PINS) -> Inputs:
+        """Every input at its anchor (plan section 6.2), refusing before anything is written."""
+>       raise NotImplementedError("P5.2c C1 skeleton: load_inputs")
+E       NotImplementedError: P5.2c C1 skeleton: load_inputs
+
+offline/tier_statements.py:308: NotImplementedError
+__ test_t_inputs_refuses_an_altered_att_engine_by_the_notes_means[iql@random] __
+
+tree = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_refuses_an_alter2/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+arm = 'iql@random'
+
+    @pytest.mark.parametrize("arm", ["bc@maxpressure", "dt_nomix@grid4x4_mappo1000", "iql@random"])
+    def test_t_inputs_refuses_an_altered_att_engine_by_the_notes_means(tree: fx.SyntheticTree, arm: str) -> None:
+        """F13 / M16: P8.4b has no per-file manifest, so an edited ``att_engine`` passes every other check; the README note's
+        means are the anchor on EVERY tier."""
+        from offline.att_rederivation import CellKey, cell_file_name
+    
+        name = cell_file_name(CellKey(scenario="grid4x4", arm=arm, seed=101, draw_id=1002))
+        _rewrite(tree.roots.output_root / tst.P8_4B_DIR / name,
+                 lambda p: p.__setitem__("att_engine", p["att_engine"] + 0.5))
+        with pytest.raises(ValueError, match="does not hold"):
+>           tst.load_inputs(tree.roots, pins=tree.pins)
+
+tests/test_tier_statements.py:1026: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+roots = Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_refuses_an_alter2/repo'), output_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_refuses_an_alter2/output'))
+pins = Pins(p5_1_sums_sha256='3b2d9505cce33ad6d90c6e844b507a838ffeee4c1f56e491a0713dfff6e50d01', p5_2_sums_sha256='c71eb72bdc...b778d5781cebc37bc1c9f2e0ead978d0af', c1_note_sha256='ef4357558c419b25a5dc4cf853c1e34bd84816d012ae1dc061790ea342997e52')
+
+    def load_inputs(roots: Roots, *, pins: Pins = PINS) -> Inputs:
+        """Every input at its anchor (plan section 6.2), refusing before anything is written."""
+>       raise NotImplementedError("P5.2c C1 skeleton: load_inputs")
+E       NotImplementedError: P5.2c C1 skeleton: load_inputs
+
+offline/tier_statements.py:308: NotImplementedError
+____ test_t_inputs_refuses_a_corrected_row_off_p5_2bs_committed_cells_block ____
+
+tree = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_refuses_a_correc0/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+
+    def test_t_inputs_refuses_a_corrected_row_off_p5_2bs_committed_cells_block(tree: fx.SyntheticTree) -> None:
+        from offline.att_rederivation import CellKey, cell_file_name
+    
+        name = cell_file_name(CellKey(scenario="grid4x4", arm="iql@random", seed=303, draw_id=1000))
+        _rewrite(tree.roots.output_root / tst.P5_2B_REDERIVATION_DIR / name,
+                 lambda p: p.__setitem__("att_engine", p["att_engine"] + 0.25))
+        tree = _resum(tree, tst.P5_2B_SUMS_NAME, tst.P5_2B_RUN_DIR, "p5_2b_sums_sha256")
+        with pytest.raises(ValueError, match="cells.corrected"):
+>           tst.load_inputs(tree.roots, pins=tree.pins)
+
+tests/test_tier_statements.py:1037: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+roots = Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_refuses_a_correc0/repo'), output_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_refuses_a_correc0/output'))
+pins = Pins(p5_1_sums_sha256='3b2d9505cce33ad6d90c6e844b507a838ffeee4c1f56e491a0713dfff6e50d01', p5_2_sums_sha256='c71eb72bdc...b778d5781cebc37bc1c9f2e0ead978d0af', c1_note_sha256='ef4357558c419b25a5dc4cf853c1e34bd84816d012ae1dc061790ea342997e52')
+
+    def load_inputs(roots: Roots, *, pins: Pins = PINS) -> Inputs:
+        """Every input at its anchor (plan section 6.2), refusing before anything is written."""
+>       raise NotImplementedError("P5.2c C1 skeleton: load_inputs")
+E       NotImplementedError: P5.2c C1 skeleton: load_inputs
+
+offline/tier_statements.py:308: NotImplementedError
+_______ test_t_inputs_refuses_a_rerolled_anchor_that_differs_from_p5_1s ________
+
+tree = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_refuses_a_reroll0/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+
+    def test_t_inputs_refuses_a_rerolled_anchor_that_differs_from_p5_1s(tree: fx.SyntheticTree) -> None:
+        """M14: D12's one anchor is asserted, not assumed."""
+        def edit(payload: dict[str, Any]) -> None:
+            payload["episodes"][2]["episode_reward"] -= 1.0  # a field only tier_sweep.assert_cells_identical compares
+    
+        _rewrite(tree.roots.output_root / "p5_2" / "eval_mappo1000_random.json", edit)
+        tree = _resum(tree, tst.P5_2_SUMS_NAME, "p5_2", "p5_2_sums_sha256")
+        with pytest.raises(ValueError, match="differ"):
+>           tst.load_inputs(tree.roots, pins=tree.pins)
+
+tests/test_tier_statements.py:1048: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+roots = Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_refuses_a_reroll0/repo'), output_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_refuses_a_reroll0/output'))
+pins = Pins(p5_1_sums_sha256='3b2d9505cce33ad6d90c6e844b507a838ffeee4c1f56e491a0713dfff6e50d01', p5_2_sums_sha256='c144dda293...b778d5781cebc37bc1c9f2e0ead978d0af', c1_note_sha256='ef4357558c419b25a5dc4cf853c1e34bd84816d012ae1dc061790ea342997e52')
+
+    def load_inputs(roots: Roots, *, pins: Pins = PINS) -> Inputs:
+        """Every input at its anchor (plan section 6.2), refusing before anything is written."""
+>       raise NotImplementedError("P5.2c C1 skeleton: load_inputs")
+E       NotImplementedError: P5.2c C1 skeleton: load_inputs
+
+offline/tier_statements.py:308: NotImplementedError
+____________________ test_t_inputs_refuses_an_altered_note _____________________
+
+tree = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_refuses_an_alter3/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+
+    def test_t_inputs_refuses_an_altered_note(tree: fx.SyntheticTree) -> None:
+        note = tree.roots.repo_root / tst.C1_NOTE
+        note.write_bytes(note.read_bytes() + b"\n")
+        with pytest.raises(ValueError, match="not the pinned"):
+>           tst.load_inputs(tree.roots, pins=tree.pins)
+
+tests/test_tier_statements.py:1055: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+roots = Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_refuses_an_alter3/repo'), output_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_refuses_an_alter3/output'))
+pins = Pins(p5_1_sums_sha256='3b2d9505cce33ad6d90c6e844b507a838ffeee4c1f56e491a0713dfff6e50d01', p5_2_sums_sha256='c71eb72bdc...b778d5781cebc37bc1c9f2e0ead978d0af', c1_note_sha256='ef4357558c419b25a5dc4cf853c1e34bd84816d012ae1dc061790ea342997e52')
+
+    def load_inputs(roots: Roots, *, pins: Pins = PINS) -> Inputs:
+        """Every input at its anchor (plan section 6.2), refusing before anything is written."""
+>       raise NotImplementedError("P5.2c C1 skeleton: load_inputs")
+E       NotImplementedError: P5.2c C1 skeleton: load_inputs
+
+offline/tier_statements.py:308: NotImplementedError
+______________ test_t_inputs_refuses_a_p5_2b_artifact_off_its_pin ______________
+
+tree = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_refuses_a_p5_2b_0/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+
+    def test_t_inputs_refuses_a_p5_2b_artifact_off_its_pin(tree: fx.SyntheticTree) -> None:
+        artifact = tree.roots.repo_root / tst.P5_2B_ARTIFACT
+        artifact.write_bytes(artifact.read_bytes() + b"\n")
+        with pytest.raises(ValueError, match="not the pinned"):
+>           tst.load_inputs(tree.roots, pins=tree.pins)
+
+tests/test_tier_statements.py:1062: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+roots = Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_refuses_a_p5_2b_0/repo'), output_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_refuses_a_p5_2b_0/output'))
+pins = Pins(p5_1_sums_sha256='3b2d9505cce33ad6d90c6e844b507a838ffeee4c1f56e491a0713dfff6e50d01', p5_2_sums_sha256='c71eb72bdc...b778d5781cebc37bc1c9f2e0ead978d0af', c1_note_sha256='ef4357558c419b25a5dc4cf853c1e34bd84816d012ae1dc061790ea342997e52')
+
+    def load_inputs(roots: Roots, *, pins: Pins = PINS) -> Inputs:
+        """Every input at its anchor (plan section 6.2), refusing before anything is written."""
+>       raise NotImplementedError("P5.2c C1 skeleton: load_inputs")
+E       NotImplementedError: P5.2c C1 skeleton: load_inputs
+
+offline/tier_statements.py:308: NotImplementedError
+_ test_t_inputs_the_local_manifest_reader_equals_read_p5_2_json_and_refuses_the_same_tampering _
+
+tree = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_the_local_manife0/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+
+    def test_t_inputs_the_local_manifest_reader_equals_read_p5_2_json_and_refuses_the_same_tampering(
+            tree: fx.SyntheticTree) -> None:
+        """Amendment A, A2 Q3: the restated reader returns ``read_p5_2_json``'s payload and refuses what it refuses."""
+        output = tree.roots.output_root
+>       sums = tst.read_manifest(output, tst.P5_2_SUMS_NAME, tree.pins.p5_2_sums_sha256)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:1069: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+output_root = PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_the_local_manife0/output')
+name = 'SHA256SUMS_p5_2.txt'
+pin = 'c71eb72bdcc9e7c7917f862961912f00ae0dd0a58b23f6e0ce08f7df36dac250'
+
+    def read_manifest(output_root: str | Path, name: str, pin: str) -> dict[str, str]:
+        """``output/<name>`` parsed by ``tier_sweep.parse_sha256sums``, refused unless the file is at *pin*."""
+>       raise NotImplementedError("P5.2c C1 skeleton: read_manifest")
+E       NotImplementedError: P5.2c C1 skeleton: read_manifest
+
+offline/tier_statements.py:247: NotImplementedError
+_____ test_t_inputs_the_restated_note_check_equals_the_original_at_random ______
+
+tree = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_the_restated_not0/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+
+    def test_t_inputs_the_restated_note_check_equals_the_original_at_random(tree: fx.SyntheticTree) -> None:
+        output = tree.roots.output_root
+        campaign = ic.assert_p8_4b_campaign(output, pins=ic.Pins(
+            p5_2_sums_sha256=tree.pins.p5_2_sums_sha256, declaration_sha256="unused", c1_note_sha256=tree.pins.c1_note_sha256,
+            p8_4b_declared_cells_sha256=tree.pins.p8_4b_declared_cells_sha256, corpus_manifest_sha256="unused"))
+        note = json.loads((tree.roots.repo_root / tst.C1_NOTE).read_bytes())
+        arms = {m: f"{m}@random" for m in ts.METHODS}
+>       assert tst.assert_note_means(output, campaign["cells"], note, tier="random", arms=arms) == ic.assert_c1_note_means(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            output, campaign["cells"], note)
+
+tests/test_tier_statements.py:1092: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+output_root = PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_the_restated_not0/output')
+campaign_cells = ['grid4x4|bc@fixedtime|101|1000', 'grid4x4|bc@fixedtime|101|1001', 'grid4x4|bc@fixedtime|101|1002', 'grid4x4|bc@fixedtime|101|1003', 'grid4x4|bc@fixedtime|202|1000', 'grid4x4|bc@fixedtime|202|1001', ...]
+note = {'cells_read': 372, 'not_reproducing': 0, 'tiers': {'grid4x4/fixedtime': {'att_engine': {'means': {'bc': 200.247395833...3.9921875, 'dt_nomix': 255.25, ...}, 'order': ['iql', 'dt_spatial', 'dt_nomix', 'bc', 'bc_top10_perix', 'bc_top10']}}}}
+tier = 'random'
+arms = {'dt_spatial': 'dt_spatial@random', 'dt_nomix': 'dt_nomix@random', 'bc': 'bc@random', 'bc_top10': 'bc_top10@random', ...}
+
+    def assert_note_means(output_root: str | Path, campaign_cells: Sequence[str], note: Mapping[str, Any], *, tier: str,
+                          arms: Mapping[str, str]) -> dict[str, Any]:
+        """``iql_correction.assert_c1_note_means`` restated for any tier (plan F13): the six means under both definitions,
+        by the note's own route (``statistics.mean`` over each arm's P8.4b cell files listed in *campaign_cells*), refused
+        unless each equals ``note["tiers"]["grid4x4/<tier>"]``'s.  *arms* maps each method to its P8.4b arm string."""
+>       raise NotImplementedError("P5.2c C1 skeleton: assert_note_means")
+E       NotImplementedError: P5.2c C1 skeleton: assert_note_means
+
+offline/tier_statements.py:267: NotImplementedError
+___ test_t_inputs_the_synthetic_build_passes_every_comparison_of_the_record ____
+
+tree = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_the_synthetic_bu0/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+
+    def test_t_inputs_the_synthetic_build_passes_every_comparison_of_the_record(tree: fx.SyntheticTree) -> None:
+>       inputs = tst.load_inputs(tree.roots, pins=tree.pins)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:1102: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+roots = Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_the_synthetic_bu0/repo'), output_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_inputs_the_synthetic_bu0/output'))
+pins = Pins(p5_1_sums_sha256='3b2d9505cce33ad6d90c6e844b507a838ffeee4c1f56e491a0713dfff6e50d01', p5_2_sums_sha256='c71eb72bdc...b778d5781cebc37bc1c9f2e0ead978d0af', c1_note_sha256='ef4357558c419b25a5dc4cf853c1e34bd84816d012ae1dc061790ea342997e52')
+
+    def load_inputs(roots: Roots, *, pins: Pins = PINS) -> Inputs:
+        """Every input at its anchor (plan section 6.2), refusing before anything is written."""
+>       raise NotImplementedError("P5.2c C1 skeleton: load_inputs")
+E       NotImplementedError: P5.2c C1 skeleton: load_inputs
+
+offline/tier_statements.py:308: NotImplementedError
+_______ test_a_record_row_neither_equal_nor_explained_refuses_the_build ________
+
+tree = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_a_record_row_neither_equa0/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+
+    def test_a_record_row_neither_equal_nor_explained_refuses_the_build(tree: fx.SyntheticTree) -> None:
+>       inputs = tst.load_inputs(tree.roots, pins=tree.pins)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:1115: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+roots = Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_a_record_row_neither_equa0/repo'), output_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_a_record_row_neither_equa0/output'))
+pins = Pins(p5_1_sums_sha256='3b2d9505cce33ad6d90c6e844b507a838ffeee4c1f56e491a0713dfff6e50d01', p5_2_sums_sha256='c71eb72bdc...b778d5781cebc37bc1c9f2e0ead978d0af', c1_note_sha256='ef4357558c419b25a5dc4cf853c1e34bd84816d012ae1dc061790ea342997e52')
+
+    def load_inputs(roots: Roots, *, pins: Pins = PINS) -> Inputs:
+        """Every input at its anchor (plan section 6.2), refusing before anything is written."""
+>       raise NotImplementedError("P5.2c C1 skeleton: load_inputs")
+E       NotImplementedError: P5.2c C1 skeleton: load_inputs
+
+offline/tier_statements.py:308: NotImplementedError
+________________ test_t_barrier_a_control_path_is_written_once _________________
+
+cli = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_barrier_a_control_path_0/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+tmp_path = PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_barrier_a_control_path_0')
+
+    def test_t_barrier_a_control_path_is_written_once(cli: fx.SyntheticTree, tmp_path: Path) -> None:
+        out = cli.roots.repo_root / "docs" / "data" / "p5_2_statements.json"
+>       assert tst.main(_argv("build", cli, out)) == 0
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:1149: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+argv = ['build', '--repo-root', '/tmp/pytest-of-filip/pytest-237/test_t_barrier_a_control_path_0/repo', '--output-root', '/tmp/pytest-of-filip/pytest-237/test_t_barrier_a_control_path_0/output', '--out', ...]
+
+    def main(argv: Sequence[str] | None = None) -> int:
+        """Exit 0 accepted; 2 refused, with ``REFUSED: <type>: <reason>`` on stderr."""
+>       raise NotImplementedError("P5.2c C1 skeleton: main")
+E       NotImplementedError: P5.2c C1 skeleton: main
+
+offline/tier_statements.py:875: NotImplementedError
+______ test_t_barrier_refuses_an_out_path_under_the_output_root[absolute] ______
+
+cli = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_barrier_refuses_an_out_0/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+where = 'absolute'
+capsys = <_pytest.capture.CaptureFixture object at 0x796deb485b20>
+
+    @pytest.mark.parametrize("where", ["absolute", "dotdot", "symlink"])
+    def test_t_barrier_refuses_an_out_path_under_the_output_root(cli: fx.SyntheticTree, where: str,
+                                                                capsys: pytest.CaptureFixture[str]) -> None:
+        output = cli.roots.output_root
+        if where == "absolute":
+            out = output / "p5_2" / "statements.json"
+        elif where == "dotdot":
+            out = cli.roots.repo_root / ".." / "output" / "statements.json"
+        else:
+            link = cli.roots.repo_root / "docs" / "linked"
+            link.symlink_to(output, target_is_directory=True)
+            out = link / "statements.json"
+        before = fx.snapshot(output)
+>       assert tst.main(_argv("build", cli, out)) == 2
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:1169: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+argv = ['build', '--repo-root', '/tmp/pytest-of-filip/pytest-237/test_t_barrier_refuses_an_out_0/repo', '--output-root', '/tmp/pytest-of-filip/pytest-237/test_t_barrier_refuses_an_out_0/output', '--out', ...]
+
+    def main(argv: Sequence[str] | None = None) -> int:
+        """Exit 0 accepted; 2 refused, with ``REFUSED: <type>: <reason>`` on stderr."""
+>       raise NotImplementedError("P5.2c C1 skeleton: main")
+E       NotImplementedError: P5.2c C1 skeleton: main
+
+offline/tier_statements.py:875: NotImplementedError
+_______ test_t_barrier_refuses_an_out_path_under_the_output_root[dotdot] _______
+
+cli = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_barrier_refuses_an_out_1/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+where = 'dotdot'
+capsys = <_pytest.capture.CaptureFixture object at 0x796deb547ad0>
+
+    @pytest.mark.parametrize("where", ["absolute", "dotdot", "symlink"])
+    def test_t_barrier_refuses_an_out_path_under_the_output_root(cli: fx.SyntheticTree, where: str,
+                                                                capsys: pytest.CaptureFixture[str]) -> None:
+        output = cli.roots.output_root
+        if where == "absolute":
+            out = output / "p5_2" / "statements.json"
+        elif where == "dotdot":
+            out = cli.roots.repo_root / ".." / "output" / "statements.json"
+        else:
+            link = cli.roots.repo_root / "docs" / "linked"
+            link.symlink_to(output, target_is_directory=True)
+            out = link / "statements.json"
+        before = fx.snapshot(output)
+>       assert tst.main(_argv("build", cli, out)) == 2
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:1169: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+argv = ['build', '--repo-root', '/tmp/pytest-of-filip/pytest-237/test_t_barrier_refuses_an_out_1/repo', '--output-root', '/tmp/pytest-of-filip/pytest-237/test_t_barrier_refuses_an_out_1/output', '--out', ...]
+
+    def main(argv: Sequence[str] | None = None) -> int:
+        """Exit 0 accepted; 2 refused, with ``REFUSED: <type>: <reason>`` on stderr."""
+>       raise NotImplementedError("P5.2c C1 skeleton: main")
+E       NotImplementedError: P5.2c C1 skeleton: main
+
+offline/tier_statements.py:875: NotImplementedError
+______ test_t_barrier_refuses_an_out_path_under_the_output_root[symlink] _______
+
+cli = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_barrier_refuses_an_out_2/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+where = 'symlink'
+capsys = <_pytest.capture.CaptureFixture object at 0x796deb5f4f50>
+
+    @pytest.mark.parametrize("where", ["absolute", "dotdot", "symlink"])
+    def test_t_barrier_refuses_an_out_path_under_the_output_root(cli: fx.SyntheticTree, where: str,
+                                                                capsys: pytest.CaptureFixture[str]) -> None:
+        output = cli.roots.output_root
+        if where == "absolute":
+            out = output / "p5_2" / "statements.json"
+        elif where == "dotdot":
+            out = cli.roots.repo_root / ".." / "output" / "statements.json"
+        else:
+            link = cli.roots.repo_root / "docs" / "linked"
+            link.symlink_to(output, target_is_directory=True)
+            out = link / "statements.json"
+        before = fx.snapshot(output)
+>       assert tst.main(_argv("build", cli, out)) == 2
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:1169: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+argv = ['build', '--repo-root', '/tmp/pytest-of-filip/pytest-237/test_t_barrier_refuses_an_out_2/repo', '--output-root', '/tmp/pytest-of-filip/pytest-237/test_t_barrier_refuses_an_out_2/output', '--out', ...]
+
+    def main(argv: Sequence[str] | None = None) -> int:
+        """Exit 0 accepted; 2 refused, with ``REFUSED: <type>: <reason>`` on stderr."""
+>       raise NotImplementedError("P5.2c C1 skeleton: main")
+E       NotImplementedError: P5.2c C1 skeleton: main
+
+offline/tier_statements.py:875: NotImplementedError
+_ test_t_barrier_refuses_a_tree_holding_p5_2s_manifest_whatever_the_output_root_says _
+
+cli = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_barrier_refuses_a_tree_0/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+tmp_path = PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_barrier_refuses_a_tree_0')
+capsys = <_pytest.capture.CaptureFixture object at 0x796deb60be90>
+
+    def test_t_barrier_refuses_a_tree_holding_p5_2s_manifest_whatever_the_output_root_says(
+            cli: fx.SyntheticTree, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        other = tmp_path / "another_output"
+        (other / "sub").mkdir(parents=True)
+        (other / tst.P5_2_SUMS_NAME).write_text("x\n", encoding="utf-8")
+>       assert tst.main(_argv("build", cli, other / "sub" / "statements.json")) == 2
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:1179: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+argv = ['build', '--repo-root', '/tmp/pytest-of-filip/pytest-237/test_t_barrier_refuses_a_tree_0/repo', '--output-root', '/tmp/pytest-of-filip/pytest-237/test_t_barrier_refuses_a_tree_0/output', '--out', ...]
+
+    def main(argv: Sequence[str] | None = None) -> int:
+        """Exit 0 accepted; 2 refused, with ``REFUSED: <type>: <reason>`` on stderr."""
+>       raise NotImplementedError("P5.2c C1 skeleton: main")
+E       NotImplementedError: P5.2c C1 skeleton: main
+
+offline/tier_statements.py:875: NotImplementedError
+_______________ test_t_barrier_refuses_an_input_as_the_out_path ________________
+
+cli = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_barrier_refuses_an_inpu0/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+capsys = <_pytest.capture.CaptureFixture object at 0x796f29618800>
+
+    def test_t_barrier_refuses_an_input_as_the_out_path(cli: fx.SyntheticTree, capsys: pytest.CaptureFixture[str]) -> None:
+        target = cli.roots.repo_root / tst.P8_4B_ARTIFACT
+        before = target.read_bytes()
+>       assert tst.main(_argv("build", cli, target)) == 2
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:1187: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+argv = ['build', '--repo-root', '/tmp/pytest-of-filip/pytest-237/test_t_barrier_refuses_an_inpu0/repo', '--output-root', '/tmp/pytest-of-filip/pytest-237/test_t_barrier_refuses_an_inpu0/output', '--out', ...]
+
+    def main(argv: Sequence[str] | None = None) -> int:
+        """Exit 0 accepted; 2 refused, with ``REFUSED: <type>: <reason>`` on stderr."""
+>       raise NotImplementedError("P5.2c C1 skeleton: main")
+E       NotImplementedError: P5.2c C1 skeleton: main
+
+offline/tier_statements.py:875: NotImplementedError
+____ test_t_barrier_an_existing_artifact_is_refused_and_left_byte_identical ____
+
+cli = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_barrier_an_existing_art0/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+capsys = <_pytest.capture.CaptureFixture object at 0x796deb479a60>
+
+    def test_t_barrier_an_existing_artifact_is_refused_and_left_byte_identical(cli: fx.SyntheticTree,
+                                                                               capsys: pytest.CaptureFixture[str]) -> None:
+        """M18: written once."""
+        out = cli.roots.repo_root / "docs" / "data" / "p5_2_statements.json"
+        out.write_bytes(b"{}\n")
+        stat = out.stat().st_mtime_ns
+>       assert tst.main(_argv("build", cli, out)) == 2
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:1199: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+argv = ['build', '--repo-root', '/tmp/pytest-of-filip/pytest-237/test_t_barrier_an_existing_art0/repo', '--output-root', '/tmp/pytest-of-filip/pytest-237/test_t_barrier_an_existing_art0/output', '--out', ...]
+
+    def main(argv: Sequence[str] | None = None) -> int:
+        """Exit 0 accepted; 2 refused, with ``REFUSED: <type>: <reason>`` on stderr."""
+>       raise NotImplementedError("P5.2c C1 skeleton: main")
+E       NotImplementedError: P5.2c C1 skeleton: main
+
+offline/tier_statements.py:875: NotImplementedError
+_______ test_t_barrier_refuses_a_missing_parent_and_creates_no_directory _______
+
+cli = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_barrier_refuses_a_missi0/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+capsys = <_pytest.capture.CaptureFixture object at 0x796deb960e90>
+
+    def test_t_barrier_refuses_a_missing_parent_and_creates_no_directory(cli: fx.SyntheticTree,
+                                                                         capsys: pytest.CaptureFixture[str]) -> None:
+        out = cli.roots.repo_root / "docs" / "new_dir" / "p5_2_statements.json"
+        before = fx.directories(cli.roots.repo_root)
+>       assert tst.main(_argv("build", cli, out)) == 2
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:1208: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+argv = ['build', '--repo-root', '/tmp/pytest-of-filip/pytest-237/test_t_barrier_refuses_a_missi0/repo', '--output-root', '/tmp/pytest-of-filip/pytest-237/test_t_barrier_refuses_a_missi0/output', '--out', ...]
+
+    def main(argv: Sequence[str] | None = None) -> int:
+        """Exit 0 accepted; 2 refused, with ``REFUSED: <type>: <reason>`` on stderr."""
+>       raise NotImplementedError("P5.2c C1 skeleton: main")
+E       NotImplementedError: P5.2c C1 skeleton: main
+
+offline/tier_statements.py:875: NotImplementedError
+__________________ test_t_barrier_refuses_a_non_json_out_path __________________
+
+cli = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_barrier_refuses_a_non_j0/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+capsys = <_pytest.capture.CaptureFixture object at 0x796deb652210>
+
+    def test_t_barrier_refuses_a_non_json_out_path(cli: fx.SyntheticTree, capsys: pytest.CaptureFixture[str]) -> None:
+>       assert tst.main(_argv("build", cli, cli.roots.repo_root / "docs" / "data" / "statements.txt")) == 2
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:1214: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+argv = ['build', '--repo-root', '/tmp/pytest-of-filip/pytest-237/test_t_barrier_refuses_a_non_j0/repo', '--output-root', '/tmp/pytest-of-filip/pytest-237/test_t_barrier_refuses_a_non_j0/output', '--out', ...]
+
+    def main(argv: Sequence[str] | None = None) -> int:
+        """Exit 0 accepted; 2 refused, with ``REFUSED: <type>: <reason>`` on stderr."""
+>       raise NotImplementedError("P5.2c C1 skeleton: main")
+E       NotImplementedError: P5.2c C1 skeleton: main
+
+offline/tier_statements.py:875: NotImplementedError
+_ test_t_barrier_a_failing_input_check_leaves_no_file_no_temporary_and_no_directory _
+
+cli = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_barrier_a_failing_input0/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+capsys = <_pytest.capture.CaptureFixture object at 0x796deb962a50>
+
+    def test_t_barrier_a_failing_input_check_leaves_no_file_no_temporary_and_no_directory(
+            cli: fx.SyntheticTree, capsys: pytest.CaptureFixture[str]) -> None:
+        out = cli.roots.repo_root / "docs" / "data" / "p5_2_statements.json"
+        sums = cli.roots.output_root / tst.P5_1_SUMS_NAME
+        sums.write_text(sums.read_text() + "\n", encoding="utf-8")
+        before_files, before_dirs = fx.snapshot(cli.roots.repo_root), fx.directories(cli.roots.repo_root)
+>       assert tst.main(_argv("build", cli, out)) == 2
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:1224: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+argv = ['build', '--repo-root', '/tmp/pytest-of-filip/pytest-237/test_t_barrier_a_failing_input0/repo', '--output-root', '/tmp/pytest-of-filip/pytest-237/test_t_barrier_a_failing_input0/output', '--out', ...]
+
+    def main(argv: Sequence[str] | None = None) -> int:
+        """Exit 0 accepted; 2 refused, with ``REFUSED: <type>: <reason>`` on stderr."""
+>       raise NotImplementedError("P5.2c C1 skeleton: main")
+E       NotImplementedError: P5.2c C1 skeleton: main
+
+offline/tier_statements.py:875: NotImplementedError
+____ test_t_canonical_two_builds_are_byte_identical_sorted_finite_relative _____
+
+tree = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_canonical_two_builds_ar0/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+
+    def test_t_canonical_two_builds_are_byte_identical_sorted_finite_relative(tree: fx.SyntheticTree) -> None:
+>       inputs = tst.load_inputs(tree.roots, pins=tree.pins)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:1230: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+roots = Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_canonical_two_builds_ar0/repo'), output_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_canonical_two_builds_ar0/output'))
+pins = Pins(p5_1_sums_sha256='3b2d9505cce33ad6d90c6e844b507a838ffeee4c1f56e491a0713dfff6e50d01', p5_2_sums_sha256='c71eb72bdc...b778d5781cebc37bc1c9f2e0ead978d0af', c1_note_sha256='ef4357558c419b25a5dc4cf853c1e34bd84816d012ae1dc061790ea342997e52')
+
+    def load_inputs(roots: Roots, *, pins: Pins = PINS) -> Inputs:
+        """Every input at its anchor (plan section 6.2), refusing before anything is written."""
+>       raise NotImplementedError("P5.2c C1 skeleton: load_inputs")
+E       NotImplementedError: P5.2c C1 skeleton: load_inputs
+
+offline/tier_statements.py:308: NotImplementedError
+______ test_t_cli_check_writes_nothing_and_build_writes_exactly_one_file _______
+
+cli = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_cli_check_writes_nothin0/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+tmp_path = PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_cli_check_writes_nothin0')
+capsys = <_pytest.capture.CaptureFixture object at 0x796deb558200>
+
+    def test_t_cli_check_writes_nothing_and_build_writes_exactly_one_file(cli: fx.SyntheticTree, tmp_path: Path,
+                                                                          capsys: pytest.CaptureFixture[str]) -> None:
+        before = fx.snapshot(tmp_path)
+>       assert tst.main(_argv("check", cli)) == 0
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:1260: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+argv = ['check', '--repo-root', '/tmp/pytest-of-filip/pytest-237/test_t_cli_check_writes_nothin0/repo', '--output-root', '/tmp/pytest-of-filip/pytest-237/test_t_cli_check_writes_nothin0/output']
+
+    def main(argv: Sequence[str] | None = None) -> int:
+        """Exit 0 accepted; 2 refused, with ``REFUSED: <type>: <reason>`` on stderr."""
+>       raise NotImplementedError("P5.2c C1 skeleton: main")
+E       NotImplementedError: P5.2c C1 skeleton: main
+
+offline/tier_statements.py:875: NotImplementedError
+__________ test_t_cli_build_refuses_a_dirty_tree_and_check_reports_it __________
+
+cli = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_cli_build_refuses_a_dir0/repo'),....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x796deb651d90>
+capsys = <_pytest.capture.CaptureFixture object at 0x796debaf7b60>
+
+    def test_t_cli_build_refuses_a_dirty_tree_and_check_reports_it(cli: fx.SyntheticTree,
+                                                                   monkeypatch: pytest.MonkeyPatch,
+                                                                   capsys: pytest.CaptureFixture[str]) -> None:
+        """M17."""
+        monkeypatch.setattr(tst, "git_block", lambda: dict(SYNTHETIC_GIT, dirty=True))
+        target = cli.roots.repo_root / "docs" / "data" / "p5_2_statements.json"
+>       assert tst.main(_argv("build", cli, target)) == 2
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:1279: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+argv = ['build', '--repo-root', '/tmp/pytest-of-filip/pytest-237/test_t_cli_build_refuses_a_dir0/repo', '--output-root', '/tmp/pytest-of-filip/pytest-237/test_t_cli_build_refuses_a_dir0/output', '--out', ...]
+
+    def main(argv: Sequence[str] | None = None) -> int:
+        """Exit 0 accepted; 2 refused, with ``REFUSED: <type>: <reason>`` on stderr."""
+>       raise NotImplementedError("P5.2c C1 skeleton: main")
+E       NotImplementedError: P5.2c C1 skeleton: main
+
+offline/tier_statements.py:875: NotImplementedError
+________________________ test_t_cli_build_requires_out _________________________
+
+cli = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_cli_build_requires_out0/repo'), ....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+capsys = <_pytest.capture.CaptureFixture object at 0x796deba3bfb0>
+
+    def test_t_cli_build_requires_out(cli: fx.SyntheticTree, capsys: pytest.CaptureFixture[str]) -> None:
+>       assert tst.main(_argv("build", cli)) == 2
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:1287: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+argv = ['build', '--repo-root', '/tmp/pytest-of-filip/pytest-237/test_t_cli_build_requires_out0/repo', '--output-root', '/tmp/pytest-of-filip/pytest-237/test_t_cli_build_requires_out0/output']
+
+    def main(argv: Sequence[str] | None = None) -> int:
+        """Exit 0 accepted; 2 refused, with ``REFUSED: <type>: <reason>`` on stderr."""
+>       raise NotImplementedError("P5.2c C1 skeleton: main")
+E       NotImplementedError: P5.2c C1 skeleton: main
+
+offline/tier_statements.py:875: NotImplementedError
+________ test_t_code_root_records_each_module_relative_with_its_sha256 _________
+
+    def test_t_code_root_records_each_module_relative_with_its_sha256() -> None:
+>       entries = tst.assert_code_under_root(REPO_ROOT)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:1292: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+repo_root = PosixPath('/home/filip/rltraffic-p52c')
+
+    def assert_code_under_root(repo_root: str | Path) -> list[dict[str, Any]]:
+        """Amendment A, A4.1: refuse unless every module of :data:`CODE_MODULES` and every loaded ``offline`` module
+        resolves to ``<repo_root>/offline/...``; return each :data:`CODE_MODULES` entry's path relative to the root and its
+        sha256."""
+>       raise NotImplementedError("P5.2c C1 skeleton: assert_code_under_root")
+E       NotImplementedError: P5.2c C1 skeleton: assert_code_under_root
+
+offline/tier_statements.py:288: NotImplementedError
+____________ test_t_code_root_a_module_outside_the_root_is_refused _____________
+
+tmp_path = PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_code_root_a_module_outs0')
+
+    def test_t_code_root_a_module_outside_the_root_is_refused(tmp_path: Path) -> None:
+        with pytest.raises(ValueError, match="does not resolve under"):
+>           tst.assert_code_under_root(tmp_path)
+
+tests/test_tier_statements.py:1302: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+repo_root = PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_code_root_a_module_outs0')
+
+    def assert_code_under_root(repo_root: str | Path) -> list[dict[str, Any]]:
+        """Amendment A, A4.1: refuse unless every module of :data:`CODE_MODULES` and every loaded ``offline`` module
+        resolves to ``<repo_root>/offline/...``; return each :data:`CODE_MODULES` entry's path relative to the root and its
+        sha256."""
+>       raise NotImplementedError("P5.2c C1 skeleton: assert_code_under_root")
+E       NotImplementedError: P5.2c C1 skeleton: assert_code_under_root
+
+offline/tier_statements.py:288: NotImplementedError
+____ test_t_code_root_a_loaded_offline_module_from_another_tree_is_refused _____
+
+tmp_path = PosixPath('/tmp/pytest-of-filip/pytest-237/test_t_code_root_a_loaded_offl0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x796deb545ac0>
+
+    def test_t_code_root_a_loaded_offline_module_from_another_tree_is_refused(tmp_path: Path,
+                                                                              monkeypatch: pytest.MonkeyPatch) -> None:
+        stray = types.ModuleType("offline._p5_2c_stray")
+        stray.__file__ = str(tmp_path / "offline" / "_p5_2c_stray.py")
+        monkeypatch.setitem(sys.modules, "offline._p5_2c_stray", stray)
+        with pytest.raises(ValueError, match="does not resolve under"):
+>           tst.assert_code_under_root(REPO_ROOT)
+
+tests/test_tier_statements.py:1311: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+repo_root = PosixPath('/home/filip/rltraffic-p52c')
+
+    def assert_code_under_root(repo_root: str | Path) -> list[dict[str, Any]]:
+        """Amendment A, A4.1: refuse unless every module of :data:`CODE_MODULES` and every loaded ``offline`` module
+        resolves to ``<repo_root>/offline/...``; return each :data:`CODE_MODULES` entry's path relative to the root and its
+        sha256."""
+>       raise NotImplementedError("P5.2c C1 skeleton: assert_code_under_root")
+E       NotImplementedError: P5.2c C1 skeleton: assert_code_under_root
+
+offline/tier_statements.py:288: NotImplementedError
+_______ test_m19_main_refuses_a_repo_root_the_running_code_is_not_under ________
+
+tmp_path = PosixPath('/tmp/pytest-of-filip/pytest-237/test_m19_main_refuses_a_repo_r0')
+capsys = <_pytest.capture.CaptureFixture object at 0x796deb544e00>
+
+    def test_m19_main_refuses_a_repo_root_the_running_code_is_not_under(tmp_path: Path,
+                                                                        capsys: pytest.CaptureFixture[str]) -> None:
+        """Amendment A, A4.1 (M19): the check runs in ``main`` before anything is read."""
+        (tmp_path / "output").mkdir()
+        argv = ["check", "--repo-root", str(tmp_path), "--output-root", str(tmp_path / "output")]
+>       assert tst.main(argv) == 2
+               ^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:1319: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+argv = ['check', '--repo-root', '/tmp/pytest-of-filip/pytest-237/test_m19_main_refuses_a_repo_r0', '--output-root', '/tmp/pytest-of-filip/pytest-237/test_m19_main_refuses_a_repo_r0/output']
+
+    def main(argv: Sequence[str] | None = None) -> int:
+        """Exit 0 accepted; 2 refused, with ``REFUSED: <type>: <reason>`` on stderr."""
+>       raise NotImplementedError("P5.2c C1 skeleton: main")
+E       NotImplementedError: P5.2c C1 skeleton: main
+
+offline/tier_statements.py:875: NotImplementedError
+________ test_t_quotes_the_modules_normalisation_agrees_with_this_files ________
+
+    def test_t_quotes_the_modules_normalisation_agrees_with_this_files() -> None:
+        samples = ["> **A** b\n>   c \\* d", "x − y  **z**", "plain"]
+>       assert [tst.normalise(s) for s in samples] == [_norm(s) for s in samples]
+                ^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:1379: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+text = '> **A** b\n>   c \\* d'
+
+    def normalise(text: str) -> str:
+        """The comparison form of a quotation: blockquote markers and ``**`` removed, ``\\*`` unescaped, U+2212 read as
+        ``-``, whitespace collapsed."""
+>       raise NotImplementedError("P5.2c C1 skeleton: normalise")
+E       NotImplementedError: P5.2c C1 skeleton: normalise
+
+offline/tier_statements.py:467: NotImplementedError
+________________ test_t_check_real_main_accepts_the_real_inputs ________________
+
+capsys = <_pytest.capture.CaptureFixture object at 0x796deba7ac90>
+
+    def test_t_check_real_main_accepts_the_real_inputs(capsys: pytest.CaptureFixture[str]) -> None:
+        output = _output_root()
+>       assert tst.main(["check", "--repo-root", str(REPO_ROOT), "--output-root", str(output)]) == 0
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:1715: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+argv = ['check', '--repo-root', '/home/filip/rltraffic-p52c', '--output-root', '/home/filip/rltraffic/output']
+
+    def main(argv: Sequence[str] | None = None) -> int:
+        """Exit 0 accepted; 2 refused, with ``REFUSED: <type>: <reason>`` on stderr."""
+>       raise NotImplementedError("P5.2c C1 skeleton: main")
+E       NotImplementedError: P5.2c C1 skeleton: main
+
+offline/tier_statements.py:875: NotImplementedError
+76 failed, 3 passed, 28 errors in 8.47s

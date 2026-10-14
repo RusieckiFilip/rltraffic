@@ -1,0 +1,23 @@
+# G5-fix, D5 step 5: OUTSIDE the Bash sandbox, at the artifact commit 5f67361ac0e86f10914bc882a7fa0baadc235c93.
+# Date: 2026-10-14.  (1) The three tmux-driven tests the sandbox refused ("Operation not permitted"), as the author
+#   instructed.  (2) The three CUDA-gated files, whose skips the sandboxed run lists as "CUDA is not available", to
+#   name the extra sandbox skips (BRIEF_45 Amendment D, D3.3).
+
+$ RLTRAFFIC_OUTPUT_ROOT=/home/filip/rltraffic/output pytest -q -p no:cacheprovider -rfEs <the three tmux tests>
+...                                                                      [100%]
+3 passed in 32.72s
+PYTEST exit=0
+
+$ RLTRAFFIC_OUTPUT_ROOT=/home/filip/rltraffic/output pytest -q -p no:cacheprovider -rs tests/test_p5_3c_eval_driver.py tests/test_p5_3c_train_driver.py tests/test_p7_3c_finetune_driver.py
+SKIPPED [1] tests/test_p7_3c_finetune_driver.py:384: RLTRAFFIC_SUMO_CORPORA is unset: the executed driver's check-inputs reads G3's corpus at $RLTRAFFIC_SUMO_CORPORA/grid4x4_sumo_maxpressure (gitignored, main tree only)
+SKIPPED [1] tests/test_p7_3c_finetune_driver.py:394: RLTRAFFIC_SUMO_CORPORA is unset: the executed driver's check-inputs reads G3's corpus at $RLTRAFFIC_SUMO_CORPORA/grid4x4_sumo_maxpressure (gitignored, main tree only)
+SKIPPED [1] tests/test_p7_3c_finetune_driver.py:414: RLTRAFFIC_SUMO_CORPORA is unset: the executed driver's check-inputs reads G3's corpus at $RLTRAFFIC_SUMO_CORPORA/grid4x4_sumo_maxpressure (gitignored, main tree only)
+SKIPPED [1] tests/test_p7_3c_finetune_driver.py:426: RLTRAFFIC_SUMO_CORPORA is unset: the executed driver's check-inputs reads G3's corpus at $RLTRAFFIC_SUMO_CORPORA/grid4x4_sumo_maxpressure (gitignored, main tree only)
+SKIPPED [1] tests/test_p7_3c_finetune_driver.py:451: RLTRAFFIC_SUMO_CORPORA is unset: the executed driver's check-inputs reads G3's corpus at $RLTRAFFIC_SUMO_CORPORA/grid4x4_sumo_maxpressure (gitignored, main tree only)
+SKIPPED [1] tests/test_p7_3c_finetune_driver.py:471: RLTRAFFIC_SUMO_CORPORA is unset: the executed driver's check-inputs reads G3's corpus at $RLTRAFFIC_SUMO_CORPORA/grid4x4_sumo_maxpressure (gitignored, main tree only)
+SKIPPED [1] tests/test_p7_3c_finetune_driver.py:491: RLTRAFFIC_SUMO_CORPORA is unset: the executed driver's check-inputs reads G3's corpus at $RLTRAFFIC_SUMO_CORPORA/grid4x4_sumo_maxpressure (gitignored, main tree only)
+SKIPPED [1] tests/test_p7_3c_finetune_driver.py:501: RLTRAFFIC_SUMO_CORPORA is unset: the executed driver's check-inputs reads G3's corpus at $RLTRAFFIC_SUMO_CORPORA/grid4x4_sumo_maxpressure (gitignored, main tree only)
+SKIPPED [1] tests/test_p7_3c_finetune_driver.py:511: RLTRAFFIC_SUMO_CORPORA is unset: the executed driver's check-inputs reads G3's corpus at $RLTRAFFIC_SUMO_CORPORA/grid4x4_sumo_maxpressure (gitignored, main tree only)
+SKIPPED [1] tests/test_p7_3c_finetune_driver.py:529: RLTRAFFIC_SUMO_CORPORA is unset: the executed driver's check-inputs reads G3's corpus at $RLTRAFFIC_SUMO_CORPORA/grid4x4_sumo_maxpressure (gitignored, main tree only)
+46 passed, 10 skipped in 136.81s (0:02:16)
+PYTEST exit=0

@@ -1,0 +1,63 @@
+# C8, step 2 of 3 (BRIEF_45 Amendment D, D1): what the module changes do to the REAL artifact.
+# Date: 2026-10-14.  Both artifacts built IN MEMORY by dump.py (same synthetic git and code blocks), flattened
+#   to leaf paths and compared; nothing written.  old = git archive of b49ca1b (the module unchanged since de4e94f,
+#   20c07b17...); new = that export with the C8 module (94ff0a02...).  The output root is read only.
+
+leaves 23635 -> 24302: added 667, removed 0, changed 96
+NUMERIC leaves whose old value was a number and that changed: 0 -- no published number moves
+
+ADDED, by path class:
+     32  .changes[*].as_committed_att_ours.ci95_high
+     32  .changes[*].as_committed_att_ours.ci95_low
+     35  .changes[*].as_committed_att_ours.mean_difference
+     32  .changes[*].corrected_att_engine.ci95_high
+     32  .changes[*].corrected_att_engine.ci95_low
+     35  .changes[*].corrected_att_engine.mean_difference
+     32  .changes[*].corrected_att_ours.ci95_high
+     32  .changes[*].corrected_att_ours.ci95_low
+     35  .changes[*].corrected_att_ours.mean_difference
+    123  .comparison_with_the_record.literal_records[*].att_engine
+    123  .comparison_with_the_record.literal_records[*].att_engine_equal
+     11  .comparison_with_the_record.literal_records[*].att_engine_note
+      4  .comparison_with_the_record.p8_4b[*].statement_label
+      3  .comparison_with_the_record.q5[*].descriptive_reading.att_engine.sets_from
+      3  .comparison_with_the_record.q5[*].descriptive_reading.att_engine.tiers_both_filters_collapse[*]
+      6  .comparison_with_the_record.q5[*].descriptive_reading.att_engine.tiers_global_filter_collapses_alone[*]
+      3  .comparison_with_the_record.q5[*].descriptive_reading.att_ours.sets_from
+      3  .comparison_with_the_record.q5[*].descriptive_reading.att_ours.tiers_both_filters_collapse[*]
+      6  .comparison_with_the_record.q5[*].descriptive_reading.att_ours.tiers_global_filter_collapses_alone[*]
+      1  .definitions.aggregates
+      1  .definitions.changes_flags
+      1  .definitions.reverses_on_n_seeds
+     58  .statements[*].numbers.predictions_registered_on
+     16  .statements[*].numbers.registered_expectation_met
+      8  .statements[*].numbers.tiers_note
+
+CHANGED, by path class (old type -> new type):
+      4  .comparison_with_the_record.never_scored[*].this_artifact[*].mean_difference  (NoneType -> float)
+      2  .comparison_with_the_record.p8_4b[*].statement  (str -> str)
+      3  .comparison_with_the_record.q5[*].descriptive_reading.att_engine.reading  (str -> str)
+      3  .comparison_with_the_record.q5[*].descriptive_reading.att_ours.reading  (str -> str)
+      1  .definitions.d8.carried  (str -> str)
+     16  .descriptive_collapse_audit.dt_rows[*].contrast.per_seed.note  (str -> str)
+     34  .descriptive_collapse_audit.rows[*].contrast.per_seed.note  (str -> str)
+      1  .descriptive_collapse_audit.rule  (str -> str)
+      1  .registered_in  (str -> str)
+      2  .statements[*].numbers.form  (str -> str)
+      4  .statements[*].numbers.paired_comparison.p_value_note  (str -> str)
+     24  .statements[*].numbers.per_seed.note  (str -> str)
+      1  .what_this_does_not_say[*]  (str -> str)
+
+Key values on the real data:
+  Q5 att_engine: global filter collapses alone on ['mappo1000', 'maxpressure']; both collapse on ['random']
+     reading: the global return filter (bc_top10) collapses where the per-intersection one (bc_top10_perix) does not on mappo1000 and maxpressure; on random both filters collapse: each is worse than the random anchor with the paired CI excluding 0
+  Q5 att_ours: global filter collapses alone on ['mappo1000', 'maxpressure']; both collapse on ['random']
+     reading: the global return filter (bc_top10) collapses where the per-intersection one (bc_top10_perix) does not on mappo1000 and maxpressure; on random both filters collapse: each is worse than the random anchor with the paired CI excluding 0
+  literal docs/briefs/BRIEF_27_p5.2_tier_sweep.md:1628: recorded 'The 31.5 % reduction'; att_ours 'The 31.5 % reduction'; att_engine 'The 31.4 % reduction' (att_engine_equal False)
+  literal docs/briefs/BRIEF_27_p5.2_tier_sweep.md:1668: recorded '31.5 % of it is attributable'; att_ours '31.5 % of it is attributable'; att_engine '31.4 % of it is attributable' (att_engine_equal False)
+  literal docs/briefs/BRIEF_27_p5.2_tier_sweep.md:1249-1250: recorded 'every paired difference against the best non-DT arm resolves against the DT'; att_ours 'every paired difference against the best non-DT arm resolves against the DT'; att_engine 'not every paired difference against the best non-DT arm resolves against the DT' (att_engine_equal False)
+  literal rows: att_engine_equal True 50, False 62, null (protocol facts, with a note) 11
+  changes Q3c mappo1000: -11.1329 -> -11.1329 -> -11.4093
+  changes Q3c maxpressure: +1.2993 -> +1.2993 -> +0.9059
+  changes Q3c fixedtime: +3.1669 -> +3.1669 -> +3.1835
+  changes Q3c random: +64.3603 -> +56.8432 -> +56.7834

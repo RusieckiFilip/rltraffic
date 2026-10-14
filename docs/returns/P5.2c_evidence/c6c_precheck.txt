@@ -1,0 +1,59 @@
+# P5.2c C6c scratch pre-check (BRIEF_45 Amendment B.1, B.1.3 step 2.1): B.1.1's green-on-arrival tests against
+# the coordinator's four survivors, on the UNCHANGED module
+# export of HEAD 60f3306894ee5cb1b3fde5ad44296cbd41cebfeb; offline/tier_statements.py sha256 fd1ced2d4ac155299b70d7c341a7e7ec4e6707b54f5001c360294d9375f0296a (5bbb540's is fd1ced2d4ac155299b70d7c341a7e7ec4e6707b54f5001c360294d9375f0296a)
+# tests/test_tier_statements.py copied from the working tree, sha256 8230603f109eb642f185234cbe900d9c5252f6a4624b6633a6251ad82d2a0064
+# strings: docs/reviews/P5.2c_G1_1/coord_mutants_g11.py, sha256 f3d174ab00456309ae8fa8f1011378ba0e20e135cad079dc983d19e74d649054
+# interpreter /home/filip/rltraffic/.venv/bin/python; RLTRAFFIC_OUTPUT_ROOT=/home/filip/rltraffic/output; pytest WITHOUT -x
+
+## control (no mutation): 5 tests, pytest exit 0
+15 passed in 5.27s
+
+## CB2 -- composite I: the worker's names swapped (d1 named left, d4 right) -- the qualifier's text names the wrong pair: KILLED
+   'left_name="d4", right_name="d1", metric=definition)'
+   -> 'left_name="d1", right_name="d4", metric=definition)'
+   FAILED tests/test_tier_statements.py::test_b11_cb2_q0bs_qualifier_names_d4_against_d1_from_this_files_per_seed_loop
+   FAILED tests/test_tier_statements.py::test_b11_cb2_real_q0bs_per_seed_values_and_qualifier_under_both_definitions
+   E           AssertionError: ⚠️ ORDERING NOT ROBUST ACROSS SEEDS: d1 vs d4 reverses on 1 of 3 training seeds (101); per-seed advantages {'101': 12.75, '202': -12.1367, '303': -12.25}. The pooled CI averages the seed dimen
+   E           assert ("⚠️ ORDERING NOT ROBUST ACROSS SEEDS: d1 vs d4 reverses on 1 of 3 training seeds (101); per-seed advantages {'101': 12...12.1367, '303': -12.25}. The pooled CI averages the seed dimension away and car
+   E            +  where False = <built-in method startswith of str object at 0x1e02cdf0>('⚠️ ORDERING NOT ROBUST ACROSS SEEDS: d4 vs d1 reverses on 1 of 3 training seeds (101)')
+   E            +    where <built-in method startswith of str object at 0x1e02cdf0> = "⚠️ ORDERING NOT ROBUST ACROSS SEEDS: d1 vs d4 reverses on 1 of 3 training seeds (101); per-seed advantages {'101': 12...12.1367, '303': 
+   2 failed in 3.61s
+
+## CB1a -- Q3b sub-prediction: the exact-zero source always says 'identical episodes': KILLED
+   '"identical episodes" if block["discriminability"]["identical"] else'
+   -> '"identical episodes" if True else'
+   FAILED tests/test_tier_statements.py::test_b11_cb1a_q3bs_exact_zero_from_episodes_that_differ_is_not_called_identical
+   E           AssertionError: matched: predicted not to resolve, and the CI does not resolve; the difference is exactly zero on every draw, from episodes that are not identical, so the match comes from identical episodes, 
+   E           assert 'identical episodes' not in 'matched: pr...ent B, B2.1)'
+   E             
+   E             'identical episodes' is contained here:
+   1 failed in 1.59s
+
+## CB5c -- B2.5: P8.4b's ulp check on the first key only (the CI ends unchecked): KILLED
+   'for k in keys:\n                assert_within_ulps(mine[k], recorded[k]'
+   -> 'for k in keys[:1]:\n                assert_within_ulps(mine[k], recorded[k]'
+   FAILED tests/test_tier_statements.py::test_b2_5_a_value_five_ulps_from_p8_4bs_record_is_refused_and_four_are_accepted[V4-Q0.d1-att_engine-ci95_low]
+   FAILED tests/test_tier_statements.py::test_b2_5_a_value_five_ulps_from_p8_4bs_record_is_refused_and_four_are_accepted[V4-Q0.d1-att_engine-ci95_high]
+   FAILED tests/test_tier_statements.py::test_b2_5_a_value_five_ulps_from_p8_4bs_record_is_refused_and_four_are_accepted[V5-Q0a-att_engine-ci95_low]
+   FAILED tests/test_tier_statements.py::test_b2_5_a_value_five_ulps_from_p8_4bs_record_is_refused_and_four_are_accepted[V5-Q0a-att_engine-ci95_high]
+   FAILED tests/test_tier_statements.py::test_b2_5_a_value_five_ulps_from_p8_4bs_record_is_refused_and_four_are_accepted[V5-Q0a-att_ours-ci95_low]
+   FAILED tests/test_tier_statements.py::test_b2_5_a_value_five_ulps_from_p8_4bs_record_is_refused_and_four_are_accepted[V5-Q0a-att_ours-ci95_high]
+   E       Failed: DID NOT RAISE ValueError
+   E       Failed: DID NOT RAISE ValueError
+   E       Failed: DID NOT RAISE ValueError
+   E       Failed: DID NOT RAISE ValueError
+   6 failed, 3 passed in 4.50s
+
+## CB0 -- Q0b's reading on a resolving I: the inclusion rule written with strict inequalities (a CI touching zero excluded): KILLED
+   'elif interaction["ci95_low"] <= 0.0 <= interaction["ci95_high"]:'
+   -> 'elif interaction["ci95_low"] < 0.0 < interaction["ci95_high"]:'
+   FAILED tests/test_tier_statements.py::test_b11_cb0_a_ci_touching_zero_at_one_end_is_included_by_q0bs_rule[0.0-1.0-HELD]
+   FAILED tests/test_tier_statements.py::test_b11_cb0_a_ci_touching_zero_at_one_end_is_included_by_q0bs_rule[-1.0-0.0-HELD]
+   E       AssertionError: assert 'FAILED' == 'HELD'
+   E         
+   E         - HELD
+   E         + FAILED
+   2 failed, 1 passed in 1.65s
+
+## module restored byte for byte: True
+## every mutant KILLED

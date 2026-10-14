@@ -1,0 +1,26 @@
+# B.2.3 (4)'s gated test alone, on an exported copy of de4e94f8c19a27bfabbb9241463203d5423805d1
+# the only test run: test_b23_real_every_p_value_defined_follows_n_used_and_exactly_eight_are_undefined
+
+## control (no mutation): pytest exit 0 -- 1 passed in 8.92s
+
+## B.2.3a -- p_value_defined forced True: an empty signed-rank test published as a test: KILLED
+   E           AssertionError: .statements[74].numbers
+   E           assert True is (0 > 0)
+   1 failed in 4.39s
+
+## B.2.3b -- p_value_defined forced False: every two-sided test called undefined: KILLED
+   E           AssertionError: .statements[0].numbers
+   E           assert False is (100 > 0)
+   1 failed in 3.94s
+
+## B.2.3c -- p_value_defined read off n_zero == 0 instead of n_used > 0: a test with any tied draw called undefined: KILLED
+   E           AssertionError: .statements[112].numbers
+   E           assert False is (5 > 0)
+   1 failed in 3.83s
+
+## B.2.3d -- the two p-value notes swapped: the empty test gets the two-sided note and the two-sided test gets the empty one: KILLED
+   E               AssertionError: ('.statements[74].numbers', 'exactly zero')
+   E               assert 'exactly zero' in "two-sided signed-rank test (the normal approximation, with the tie and continuity corrections); it is never read by a...ection of the difference -- read mean_
+   1 failed in 4.28s
+
+## 4 of 4 KILLED by the gated test alone: {'B.2.3a': 'KILLED', 'B.2.3b': 'KILLED', 'B.2.3c': 'KILLED', 'B.2.3d': 'KILLED'}

@@ -1,0 +1,13 @@
+# C6d, step 3 of 3 (BRIEF_45 Amendment B.2, B.2.4 step 2.3): the test file at the code commit de4e94f.
+# Date: 2026-10-14.  Run on the PRISTINE git archive export the mutation run of record used, which that run
+#   restored byte for byte (its last section says so), so no worktree edit can reach it:
+#   cd <export> && PYTHONPATH=<export> RLTRAFFIC_OUTPUT_ROOT=/home/filip/rltraffic/output \
+#     /home/filip/rltraffic/.venv/bin/pytest -q --no-header -p no:cacheprovider tests/test_tier_statements.py
+# The export: offline/tier_statements.py sha256 20c07b1719b95221d181cda5b847b185c67226fcce7e9eb3c7d054a859e96d3f
+#             tests/test_tier_statements.py  sha256 57896f2f57dc421aa25219c2525a459f79f2999f0f59bc57ab02e07dd0f86f76
+# The one skip is T-regress: docs/data/p5_2_statements.json does not exist until G2 commits it.
+
+........................................................................ [ 44%]
+........................................................................ [ 88%]
+...........s.......                                                      [100%]
+162 passed, 1 skipped in 19.09s

@@ -1,0 +1,8 @@
+# G4: tests/test_tier_statements.py at 5a835b4d5de9d18308dee7118ebd55737dff2189, RLTRAFFIC_OUTPUT_ROOT set (T-regress runs: the artifact is committed).
+# Date: 2026-10-14.
+# Command: RLTRAFFIC_OUTPUT_ROOT=/home/filip/rltraffic/output /home/filip/rltraffic/.venv/bin/pytest -q -p no:cacheprovider -rfEs tests/test_tier_statements.py
+
+........................................................................ [ 44%]
+........................................................................ [ 88%]
+...................                                                      [100%]
+163 passed in 15.10s

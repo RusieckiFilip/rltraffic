@@ -1,0 +1,4 @@
+q3c.all_against att_engine: not every paired difference against the best non-DT arm resolves against the DT
+rows with no att_engine counterpart: 11 ['q2a.predicted', 'q1.predicted.bc_top10@fixedtime', 'q1.predicted.iql@fixedtime', 'q1.predicted.bc_top10@random', 'q1.predicted.iql@random', 'q1.threshold', 'q1.predicted.bc_top10@fixedtime', 'q1.predicted.iql@fixedtime', 'q1.predicted.bc_top10@random', 'q1.predicted.iql@random', 'q2a.predicted']
+D1.6 blocks labelled: 74 | D1.8 blocks with the small-sample note: 4
+checks: 1489; failures: 0

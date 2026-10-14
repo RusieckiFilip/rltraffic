@@ -1,0 +1,8 @@
+# G5-fix: the task's test file at the artifact commit 5f67361ac0e86f10914bc882a7fa0baadc235c93, RLTRAFFIC_OUTPUT_ROOT set (T-regress runs).
+# Date: 2026-10-14.
+$ RLTRAFFIC_OUTPUT_ROOT=/home/filip/rltraffic/output pytest -q -p no:cacheprovider -rfEs tests/test_tier_statements.py
+........................................................................ [ 39%]
+........................................................................ [ 79%]
+.....................................                                    [100%]
+181 passed in 19.19s
+PYTEST exit=0

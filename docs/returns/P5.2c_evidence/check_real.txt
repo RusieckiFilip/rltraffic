@@ -1,0 +1,64 @@
+check: every input verified at its anchor (45 files, and the rows below)
+  ccb9a315960224e597aeee6cf7910bff9cd1d1fd9dacfe98ef8185ead4e883b2  docs/data/p5_1_grid.json  [pinned]
+  216b9f24243c317d22b13a3cdcd346471bf9cfe9832e5a5495b8158f04eea1f8  docs/data/p5_2b_iql_correction.json  [pinned]
+  d92321d422acc06a35bde7a499cef41232846ced33ceea594c4ef199792c96d9  docs/data/p8_4b_rederivation.json  [pinned]
+  643b73bca4de953c43b6adf1ac8d0485383de7b0afc1ae1ab738778327537e19  docs/notes/readme_2026-10-05/c1_rule_r.json  [pinned]
+  023607ffe65a881932f0069412f442c65b1097bb87fdd7852873a1211fe24c61  output/SHA256SUMS_p5_1.txt  [pinned]
+  fde8309b4958231f8a7e3a33cb26674f645e1c295ad688900ac8e839a19ac19b  output/SHA256SUMS_p5_2.txt  [pinned]
+  f3e1994c575f923f42f9a1bc7dae9fbaf25b418cff4c4ff8b1e208e4d41f10ed  output/SHA256SUMS_p5_2b.txt  [pinned]
+  ea9b153e87e6a534171826fc7c20de9027097d680b1dd1671209462362a68a10  output/p5_1/eval_bc.json  [its line in output/SHA256SUMS_p5_1.txt]
+  278f1982e766b5505d3e998b62d91bc233e26c5340e513826ce864ea33849f98  output/p5_1/eval_bc_top10.json  [its line in output/SHA256SUMS_p5_1.txt]
+  35d5f9293f10e929d44d269c0d65a6e848372a5844c3f1707590390ca5f92771  output/p5_1/eval_behaviour.json  [its line in output/SHA256SUMS_p5_1.txt]
+  894c2123e282f2befbf319d1fb81be59f2b74e6dd21106dbfca948e2a20850cf  output/p5_1/eval_dt_nomix.json  [its line in output/SHA256SUMS_p5_1.txt]
+  f8cd48302b1c60ece1e2123ca53d21b248ecb10ebe175a4c2b588a57b329e5e5  output/p5_1/eval_dt_spatial.json  [its line in output/SHA256SUMS_p5_1.txt]
+  6ae368bc3f941a0f37804d8636383d5956bc7d31ed0ce87c189091daf136bb77  output/p5_1/eval_iql.json  [its line in output/SHA256SUMS_p5_1.txt]
+  ef0fa53e675f4d7d0327c8f1345e3ccc9c4074d30edc3718eee7ec49a24c1566  output/p5_1/eval_random.json  [its line in output/SHA256SUMS_p5_1.txt]
+  72a3bd5a17451952f6d07fc1aeb332ce8eacfcdf7994663c3e758566d338f853  output/p5_2/eval_fixedtime_bc.json  [its line in output/SHA256SUMS_p5_2.txt]
+  f3795a1499575bf4b7405cc411d36568462b281c539ba12cb08318766f6954be  output/p5_2/eval_fixedtime_bc_top10.json  [its line in output/SHA256SUMS_p5_2.txt]
+  900b5b0cf51e9f4ec5c3dfd47c735472f8dff021bb50987f69adca8742a3d652  output/p5_2/eval_fixedtime_bc_top10_perix.json  [its line in output/SHA256SUMS_p5_2.txt]
+  9f0705bc6e976860d39f5cf9157d0ac5d661d73de80d34f4e54bcf80fe1f98c1  output/p5_2/eval_fixedtime_behaviour.json  [its line in output/SHA256SUMS_p5_2.txt]
+  146295bd2acb37d671a46e24030c0951408522217944b139e6ba1e8a95745633  output/p5_2/eval_fixedtime_dt_nomix.json  [its line in output/SHA256SUMS_p5_2.txt]
+  57f1866d125ca1721c69de11e479353ab8fedd6119576343a9017aa97454ea3f  output/p5_2/eval_fixedtime_dt_spatial.json  [its line in output/SHA256SUMS_p5_2.txt]
+  b6c25c2394b919cd10c855fd0b453f810c61eb5fb75db6b2628a55d2c05b633a  output/p5_2/eval_fixedtime_iql.json  [its line in output/SHA256SUMS_p5_2.txt]
+  642db1e7ff412b296dd6a51bbc137b4bfdcdabcd7136a4b7d783e2720c0a84f0  output/p5_2/eval_mappo1000_bc_top10_perix.json  [its line in output/SHA256SUMS_p5_2.txt]
+  620a3e0a71109e206502ce1f3732f8146ad83766c1c7bf0080260d90ce807aea  output/p5_2/eval_mappo1000_dt_nomix_h4.json  [its line in output/SHA256SUMS_p5_2.txt]
+  c3fcf047f3c4724695e96d39a049ed6c0d36ef52a5cc86d31d54022cb4429faa  output/p5_2/eval_mappo1000_dt_spatial_h4.json  [its line in output/SHA256SUMS_p5_2.txt]
+  ee610745945a96b10e2c1fd93cfc784c45c76c022623fceace71370eac088a3f  output/p5_2/eval_mappo1000_random.json  [its line in output/SHA256SUMS_p5_2.txt]
+  64498e65006d5396bb1bf98c92b05ea42a89479b3cf25ed7bc7d96245a9165b6  output/p5_2/eval_maxpressure_bc.json  [its line in output/SHA256SUMS_p5_2.txt]
+  4ea98482278d389d6bbc41b844f053d78bea7399afa5da0327e54c0619f997a2  output/p5_2/eval_maxpressure_bc_top10.json  [its line in output/SHA256SUMS_p5_2.txt]
+  ecf366e95dc23e1c9eda286815f058172cb48665d16376a5390f8ea1cce7baa0  output/p5_2/eval_maxpressure_bc_top10_perix.json  [its line in output/SHA256SUMS_p5_2.txt]
+  7d99e804998ad6b2977d748723f1f9030fe1bc9d1b6ad7e806656e10c89f6b33  output/p5_2/eval_maxpressure_behaviour.json  [its line in output/SHA256SUMS_p5_2.txt]
+  635ddd30395ae0cb250f71205c3c7a3d0e5950fc6fd3fbbc7f1fb792a373de44  output/p5_2/eval_maxpressure_dt_nomix.json  [its line in output/SHA256SUMS_p5_2.txt]
+  dd16ce6fba8d6b6b3867e280a20d7a27905d589939880ead7b470299ffb34112  output/p5_2/eval_maxpressure_dt_spatial.json  [its line in output/SHA256SUMS_p5_2.txt]
+  4c286739e382c31d4df216c180f129967e0923b400a5ff347daa82f475e0beb1  output/p5_2/eval_maxpressure_iql.json  [its line in output/SHA256SUMS_p5_2.txt]
+  e93a2e9be8418dcce150a802a0e83b1d1609116ef5e658c53ac539b87688a94d  output/p5_2/eval_random_bc.json  [its line in output/SHA256SUMS_p5_2.txt]
+  9607cf059ec076b1ef983b90413ed3c02c18e20b0568d07d9fe51ec4291725ef  output/p5_2/eval_random_bc_top10.json  [its line in output/SHA256SUMS_p5_2.txt]
+  53137ff83165227c953fc2a621298595864c6d163fae1b24a5674945b4d0aa7a  output/p5_2/eval_random_bc_top10_perix.json  [its line in output/SHA256SUMS_p5_2.txt]
+  bc73f6287ca2201a704bc36923a3b54375534446ff9a50c75a89b87e43b811f7  output/p5_2/eval_random_dt_nomix.json  [its line in output/SHA256SUMS_p5_2.txt]
+  e7aa3c324e6074f9be099fb056397530d786e44c4a11f57522e1bf37462fe0c1  output/p5_2/eval_random_dt_spatial.json  [its line in output/SHA256SUMS_p5_2.txt]
+  a9984f32f510a66bc6027acc6f38e484b4d81769ca0b526a1e3b974445134a93  output/p5_2/eval_random_iql.json  [its line in output/SHA256SUMS_p5_2.txt]
+  859a4a382ba60498a2d3996178aa405d4d40f8f9cc7516a0c959b8ce8c8820f4  output/p5_2/stop_rule_mappo1000.json  [its line in output/SHA256SUMS_p5_2.txt]
+  8fb93c951414f36f4e2916b614b78c86256108bc6b46c39de6454cda3dd2bef5  output/p5_2/training_mappo1000_dt_nomix.json  [its line in output/SHA256SUMS_p5_2.txt]
+  b5627917713f38eb0dc7a06b8582fbf9ef5b96c776990be9449be2a19fb850da  output/p5_2/training_mappo1000_dt_spatial.json  [its line in output/SHA256SUMS_p5_2.txt]
+  7de859dbf3d786d1ec8f13b98d17344bb747430eedb3b4fa2f7675ed376763cf  output/p5_2b/eval_random_iql.json  [its line in output/SHA256SUMS_p5_2b.txt]
+  ff172c91aa7103006f1f4296d0a8c9b1371c4a366a53b23504008af0561d32d0  output/p5_2b/rederivation/CAMPAIGN_COMPLETE  [its line in output/SHA256SUMS_p5_2b.txt]
+  afb42760c0eddd6d81d341c8c550ccb4b937e85aac385cbb8d30e5046f860b07  output/p5_2b/rederivation/campaign_manifest.json  [its line in output/SHA256SUMS_p5_2b.txt]
+  d58d24b131804ee8e0b3c60c1a3249be972042b184c85407e121cc2a6dda3ef7  output/p5_2b/training_random_iql.json  [its line in output/SHA256SUMS_p5_2b.txt]
+P8.4b campaign: declared_cells_sha256 1f29b469dfb523ee3edf67acad341770ab18d1842427bcc6583e84f7b2cb8f4e, 38500 cells, engine seed 1000
+p8_4b_rows: 15500 files read, digest 4e40b0b0b087ac48a8ec708efeccd0d87ffeed8b2d3e599b3336613370ec0ceb
+p5_2b_corrected_rows: 500 files read, digest 0c2678ddf23447da72724d9035acee57b31ae0a7dd5eb9fac210570c2d3dbcc5
+git: commit a6190bd008c60a05ce23117264056bc1685b4fc9, dirty True  (build would refuse a dirty tree)
+code: da5c6ddb9beb6e90a1a58eaf66081c37734f8ac8d69f3bfa8259f018301f1b3c  offline/__init__.py
+code: 192083d1db44f94f95b3f64f3c78f7d2a257f73273d564856aa97130be3767eb  offline/att_rederivation.py
+code: 9797dffeea37ac297d7c5dec1126a7019c4499be6be5e74122fe60b034ceb332  offline/compute_latency.py
+code: bbe9d441acc90744d3f75f42238d923b3b59fcf07801ba69f327e31ac90b06ef  offline/dataset.py
+code: 3dfc912d1e81215938d0d1e74c57160b678177a317f95ad404c7622d2dc355fc  offline/dt_gate.py
+code: 8a1c3a1eaca9dbe6813d79b0347c5f81604ed98e6d675c8545d73b58e62567f1  offline/iql_correction.py
+code: b5e559caa906e7971a58203bfdf15bd94c5c54d346422334eb38de62663d7210  offline/joint_windows.py
+code: 29f4e8f87427c56adbce4e5e19633a316d6966c2cae612be700eb629a63976eb  offline/offline_baselines.py
+code: ca4f8eefb8740eef7ca9afb4c019618181c7c3e10419c3e79b9986d72a6df3e6  offline/roadnet_graph.py
+code: ebfec2d26c2052a70b5edc89832cf75343464e237170ca2da6897f8b4be8fa46  offline/spatial_mixing.py
+code: 2dd7d21a454e7d963ef4a2cefec0109d476817b9373928cf26ff0b57f4165353  offline/tier_statements.py
+code: 6c541c7883c086655bf2e4eba17842d9565e4a51a2188a5a526a70c69e416986  offline/tier_sweep.py
+code: 03de6fe2921fe749c12a1beac0b94d2884c67d1094035b0c4bc3d6363f81f6fe  offline/trajectory_logger.py
+build would write /home/filip/rltraffic-p52c/docs/data/p5_2_statements.json

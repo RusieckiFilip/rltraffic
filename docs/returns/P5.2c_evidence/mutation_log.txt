@@ -1,0 +1,310 @@
+# P5.2c mutation run on an exported copy of a6190bd008c60a05ce23117264056bc1685b4fc9 at /tmp/claude-1000/-home-filip-rltraffic-p52c/4308844d-54b7-44c2-8d2a-37fb23e96722/scratchpad/mutation_run2/tree
+# interpreter /home/filip/rltraffic/.venv/bin/python; RLTRAFFIC_OUTPUT_ROOT=/home/filip/rltraffic/output
+# this script: mutate.py at sha256 58bd9911c16e5b0499291c81d8c2c3c3c10ac1d09b5c409c9296d35736d6cc90
+
+## control (no mutation): 38 killing tests, pytest exit 0
+47 passed in 6.86s
+
+## M1 -- the tie rule disabled: measured_levels dropped from every concordance call [BRIEF_45 section 5]: KILLED
+   offline/tier_statements.py: 2 x 'measured_levels=measured)'
+      -> 'measured_levels=None)'
+   offline/tier_statements.py: 3 x 'measured_levels=levels)'
+      -> 'measured_levels=None)'
+   tests: test_t_ties_two_exact_ties_every_integer_and_its_range_by_enumeration, test_t_reproduce_record_every_value_p5_2s_record_states_at_its_precision
+   failing: ['tests/test_tier_statements.py::test_t_ties_two_exact_ties_every_integer_and_its_range_by_enumeration']
+   E       AssertionError: assert 8 == 7
+   E        +  where 7 = own_concordant_rule(['dt_nomix', 'bc', 'bc_top10_perix', 'dt_spatial', 'iql', 'bc_top10'], {'dt_spatial': 207.0, 'dt_nomix': 207.0, 'bc': 207.25, 'bc_top10': 207.5, ...}, ('dt_sp
+   E        +    where ('dt_spatial', 'dt_nomix', 'bc', 'bc_top10', 'bc_top10_perix', 'iql') = ts.METHODS
+   1 failed in 1.07s
+
+## M2 -- episode-level instead of per-draw pairing [BRIEF_45 section 5]: KILLED
+   offline/tier_statements.py: 1 x 'left_means, right_means = _per_draw_means(a), _per_draw_means(b)'
+      -> 'left_means = {(e.seed, e.draw_id): e.att_horizon for e in a}\n    right_means = {(e.seed, e.draw_id): e.att_hor'
+   tests: test_t_contrast_episode_level_pairing_would_change_n_and_the_interval, test_t_contrast_equals_statistics_on_dyadic_values_where_every_route_is_exact
+   failing: ['tests/test_tier_statements.py::test_t_contrast_episode_level_pairing_would_change_n_and_the_interval']
+   E           ValueError: offline_baselines.paired_comparison gives 5.416666666666667 [4.038458490164373, 6.7948748431689605] for p5_2:bc@fixedtime - p5_2:bc_top10@fixedtime under att_ours, and this mod
+   1 failed in 1.66s
+
+## M3 -- the corrected and original IQL cells swapped [BRIEF_45 section 5]: KILLED
+   offline/tier_statements.py: 1 x '("iql", "random"): cells[CORRECTED_IQL]},\n            "as_committed": {**common, ("iql", "random"): cells[ORIG'
+      -> '("iql", "random"): cells[ORIGINAL_IQL]},\n            "as_committed": {**common, ("iql", "random"): cells[CORRE'
+   tests: test_t_versions_the_books_differ_only_at_the_random_tier_iql_cell, test_t_versions_the_iql_free_statements_are_stored_once_and_the_iql_ones_twice, test_t_reproduce_p5_2b_the_random_tier_on_both_versions_field_by_field
+   failing: ['tests/test_tier_statements.py::test_t_versions_the_books_differ_only_at_the_random_tier_iql_cell']
+   E       AssertionError: assert 'p5_2:iql@random' == 'p5_2b:iql@random'
+   E         
+   E         - p5_2b:iql@random
+   E         ?     -
+   E         + p5_2:iql@random
+   1 failed in 1.50s
+
+## M4 -- z = 1.959964 in the interval (dt_gate.mean_ci95, the one place the module's z lives) [BRIEF_45 section 5]: KILLED
+   offline/dt_gate.py: 1 x 'ci95=1.96 * std / math.sqrt(count),'
+      -> 'ci95=1.959964 * std / math.sqrt(count),'
+   tests: test_t_contrast_equals_statistics_on_dyadic_values_where_every_route_is_exact
+   failing: ['tests/test_tier_statements.py::test_t_contrast_equals_statistics_on_dyadic_values_where_every_route_is_exact']
+   E       assert 2.1401727705947664 == ((1.96 * 2.441663111487742) / 2.23606797749979)
+   E        +  where 2.23606797749979 = <built-in function sqrt>(5)
+   E        +    where <built-in function sqrt> = math.sqrt
+   1 failed in 1.47s
+
+## M5 -- Q4b scored on the three-rung chain only [BRIEF_45 section 5]: KILLED
+   offline/tier_statements.py: 1 x '(("Q4b", TIERS), ("Q4b.three_rung"'
+      -> '(("Q4b", ("mappo1000", "maxpressure", "random")), ("Q4b.three_rung"'
+   tests: test_t_q4b_the_four_rung_chain_and_the_three_rung_bullet_can_disagree
+   failing: ['tests/test_tier_statements.py::test_t_q4b_the_four_rung_chain_and_the_three_rung_bullet_can_disagree']
+   E       AssertionError: assert 'HELD' == 'FAILED'
+   E         
+   E         - FAILED
+   E         + HELD
+   1 failed in 1.71s
+
+## M6 -- Q6 against the behaviour cell instead of the shared random anchor [BRIEF_45 section 5]: KILLED
+   offline/tier_statements.py: 1 x 'anchor = book[ANCHOR]'
+      -> 'anchor = book[("behaviour", "mappo1000")]'
+   tests: test_t_q6_reads_the_shared_anchor_not_the_behaviour_cell, test_t_first_time_scores_each_against_this_files_own_recomputation
+   failing: ['tests/test_tier_statements.py::test_t_q6_reads_the_shared_anchor_not_the_behaviour_cell']
+   E           AssertionError: assert 36.783854166666664 == -63.54557291666667
+   E            +  where -63.54557291666667 = seq_contrast(Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', method='dt_spatial', tier='mappo1000', source='p5_1', ...created': 1302, 'never_
+   1 failed in 1.59s
+
+## M7 -- Q5b's mappo1000 tier dropped [BRIEF_45 section 5]: KILLED
+   offline/tier_statements.py: 1 x '("Q5b", ("bc_top10_perix", "bc_top10"), {tier: "negative" for tier in TIERS}),'
+      -> '("Q5b", ("bc_top10_perix", "bc_top10"), {tier: "negative" for tier in OUT_OF_SAMPLE_TIERS}),'
+   tests: test_t_q5b_a_failed_mappo1000_tier_makes_the_aggregate_failed
+   failing: ['tests/test_tier_statements.py::test_t_q5b_a_failed_mappo1000_tier_makes_the_aggregate_failed']
+   E       KeyError: ('Q5b', 'mappo1000')
+   1 failed in 1.41s
+
+## M8 -- an exact zero folded into HELD [BRIEF_45 section 5]: KILLED
+   offline/tier_statements.py: 1 x 'if predicted == "negative":\n        return sm._outcome_from_interval(float(low), float(high))'
+      -> 'if float(low) == 0.0 == float(high):\n        return "HELD"\n    if predicted == "negative":\n        return sm._'
+   tests: test_t_outcome_the_interval_rule_for_both_predicted_signs, test_t_contrast_exact_zero_is_ci_zero_not_resolved_sign_zero_and_named, test_t_q4a_the_exact_zero_at_fixedtime_is_not_resolved_and_the_aggregate_follows
+   failing: ['tests/test_tier_statements.py::test_t_outcome_the_interval_rule_for_both_predicted_signs[0.0-0.0-NOT RESOLVED-NOT RESOLVED]']
+   E       AssertionError: assert 'HELD' == 'NOT RESOLVED'
+   E         
+   E         - NOT RESOLVED
+   E         + HELD
+   1 failed, 5 passed in 1.57s
+
+## M9 -- definition_dependent always false [BRIEF_45 section 5]: KILLED
+   offline/tier_statements.py: 1 x 'entry["definition_dependent"] = entry["verdict"] != other["verdict"]'
+      -> 'entry["definition_dependent"] = False'
+   offline/tier_statements.py: 1 x 'entry["definition_dependent"] = entry["reading"] != other["reading"]'
+      -> 'entry["definition_dependent"] = False'
+   tests: test_t_definitions_definition_dependent_is_true_iff_the_two_verdicts_differ, test_t_first_time_scores_each_against_this_files_own_recomputation
+   failing: ['tests/test_tier_statements.py::test_t_definitions_definition_dependent_is_true_iff_the_two_verdicts_differ']
+   E       assert (False is True)
+   1 failed in 1.55s
+
+## M10 -- the out-path barrier removed [BRIEF_45 section 5]: KILLED
+   offline/tier_statements.py: 1 x 'out = assert_out_path(args.out, roots, inputs)'
+      -> 'out = Path(args.out).resolve()'
+   tests: test_t_barrier_refuses_an_out_path_under_the_output_root, test_t_barrier_refuses_a_tree_holding_p5_2s_manifest_whatever_the_output_root_says, test_t_barrier_refuses_an_input_as_the_out_path
+   failing: ['tests/test_tier_statements.py::test_t_barrier_refuses_an_out_path_under_the_output_root[absolute]']
+   E       AssertionError: assert 0 == 2
+   E        +  where 0 = <function main at 0x7af395138400>(['build', '--repo-root', '/tmp/pytest-of-filip/pytest-260/test_t_barrier_refuses_an_out_0/repo', '--output-root', '/tmp/pytest-of-filip/pytest-2
+   E        +    where <function main at 0x7af395138400> = tst.main
+   E        +    and   ['build', '--repo-root', '/tmp/pytest-of-filip/pytest-260/test_t_barrier_refuses_an_out_0/repo', '--output-root', '/tmp/pytest-of-filip/pytest-260/test_t_barrier_refuses_an_out_0/o
+   1 failed in 1.80s
+
+## M11 -- the per-draw route switched to Python's built-in (compensated) sum (F1) [plan section 8]: KILLED
+   offline/tier_statements.py: 1 x 'left_means, right_means = _per_draw_means(a), _per_draw_means(b)'
+      -> 'left_means = {d: sum(e.att_horizon for e in a if e.draw_id == d) / sum(1 for e in a if e.draw_id == d) for d i'
+   tests: test_t_contrast_route_pin_is_numpy_per_draw_and_not_the_compensated_sum, test_t_reproduce_p5_1_d1_is_p1_and_q6_at_mappo1000_is_p3
+   failing: ['tests/test_tier_statements.py::test_t_contrast_route_pin_is_numpy_per_draw_and_not_the_compensated_sum']
+   E           ValueError: offline_baselines.paired_comparison gives 0.7333333333333333 [0.09869137302990538, 1.367975293636761] for p5_2:dt_spatial@maxpressure - p5_2:dt_nomix@maxpressure under att_ours
+   1 failed in 1.74s
+
+## M12 -- the version-identity refusal removed [plan section 8]: KILLED
+   offline/tier_statements.py: 1 x 'raise ValueError(f"{key} differs between versions'
+      -> 'print(f"{key} differs between versions'
+   tests: test_t_versions_an_iql_free_statement_that_differs_between_versions_is_refused
+   failing: ['tests/test_tier_statements.py::test_t_versions_an_iql_free_statement_that_differs_between_versions_is_refused']
+   E       Failed: DID NOT RAISE ValueError
+   1 failed in 1.36s
+
+## M13 -- Q3a counting a tie as lower [plan section 8]: KILLED
+   offline/tier_statements.py: 1 x 'sum(measured[method] < measured["dt_nomix"] for method in others)'
+      -> 'sum(measured[method] <= measured["dt_nomix"] for method in others)'
+   offline/tier_statements.py: 1 x 'levels[arm] < levels[subject]),'
+      -> 'levels[arm] <= levels[subject]),'
+   tests: test_t_ties_two_exact_ties_every_integer_and_its_range_by_enumeration, test_t_reproduce_record_every_value_p5_2s_record_states_at_its_precision
+   failing: ['tests/test_tier_statements.py::test_t_ties_two_exact_ties_every_integer_and_its_range_by_enumeration']
+   E       assert 3 == (1 + 1)
+   E        +  where 1 = sum(<generator object test_t_ties_two_exact_ties_every_integer_and_its_range_by_enumeration.<locals>.<genexpr> at 0x7cd33f0c4900>)
+   1 failed in 1.51s
+
+## M14 -- the random-anchor identity check removed [plan section 8]: KILLED
+   offline/tier_statements.py: 1 x 'anchor = assert_anchor_identity(payloads[ANCHOR_CELL], payloads[REROLLED_ANCHOR_CELL], cells[ANCHOR_CELL].rows'
+      -> 'anchor = {"removed": True}'
+   tests: test_t_inputs_refuses_a_rerolled_anchor_that_differs_from_p5_1s
+   failing: ['tests/test_tier_statements.py::test_t_inputs_refuses_a_rerolled_anchor_that_differs_from_p5_1s']
+   E       Failed: DID NOT RAISE ValueError
+   1 failed in 1.56s
+
+## M15 -- iql_correction._p8_4b_rows bypassed [plan section 8]: KILLED
+   offline/tier_statements.py: 1 x 'rows = ic._p8_4b_rows(output, method, tier, reference)'
+      -> 'rows = [json.loads((output / P8_4B_DIR / ar.cell_file_name(ar.CellKey(scenario=SCENARIO, arm=spec.arm, seed=e.'
+   tests: test_t_inputs_refuses_a_p8_4b_row_that_does_not_reproduce_its_eval_file
+   failing: ['tests/test_tier_statements.py::test_t_inputs_refuses_a_p8_4b_row_that_does_not_reproduce_its_eval_file']
+   E       AssertionError: Regex pattern did not match.
+   E         Expected regex: 'does not reproduce'
+   E         Actual message: "bc@fixedtime under att_ours: the mean of P8.4b's 12 cells by the note's own route (statistics.mean) is 207.34895833333334, and docs/notes/readme_2026-10-05/c1_rule_r.json sa
+   1 failed in 1.75s
+
+## M16 -- the README note's means refusal removed on every tier (F13) [plan section 8]: KILLED
+   offline/tier_statements.py: 1 x 'note_checks = {"random": ic.assert_c1_note_means(output, campaign["cells"], note["payload"])}'
+      -> 'note_checks = {"random": {}}'
+   offline/tier_statements.py: 1 x 'note_checks[tier] = assert_note_means(output, campaign["cells"], note["payload"], tier=tier, arms=arms)'
+      -> 'note_checks[tier] = {}'
+   tests: test_t_inputs_refuses_an_altered_att_engine_by_the_notes_means
+   failing: ['tests/test_tier_statements.py::test_t_inputs_refuses_an_altered_att_engine_by_the_notes_means[bc@maxpressure]']
+   E       Failed: DID NOT RAISE ValueError
+   1 failed in 1.76s
+
+## M17 -- the dirty-tree refusal removed [plan section 8]: KILLED
+   offline/tier_statements.py: 1 x 'if git.get("dirty") is not False:'
+      -> 'if False:'
+   tests: test_t_cli_build_refuses_a_dirty_tree_and_check_reports_it
+   failing: ['tests/test_tier_statements.py::test_t_cli_build_refuses_a_dirty_tree_and_check_reports_it']
+   E       AssertionError: assert 0 == 2
+   E        +  where 0 = <function main at 0x7ad190c67ec0>(['build', '--repo-root', '/tmp/pytest-of-filip/pytest-264/test_t_cli_build_refuses_a_dir0/repo', '--output-root', '/tmp/pytest-of-filip/pytest-2
+   E        +    where <function main at 0x7ad190c67ec0> = tst.main
+   E        +    and   ['build', '--repo-root', '/tmp/pytest-of-filip/pytest-264/test_t_cli_build_refuses_a_dir0/repo', '--output-root', '/tmp/pytest-of-filip/pytest-264/test_t_cli_build_refuses_a_dir0/o
+   1 failed in 2.04s
+
+## M18 -- the write-once refusal removed [plan section 8]: KILLED
+   offline/tier_statements.py: 1 x 'if resolved.exists() or resolved.is_symlink():'
+      -> 'if False:'
+   offline/tier_statements.py: 1 x 'os.link(temporary, target)'
+      -> 'os.replace(temporary, target)'
+   tests: test_t_barrier_an_existing_artifact_is_refused_and_left_byte_identical
+   failing: ['tests/test_tier_statements.py::test_t_barrier_an_existing_artifact_is_refused_and_left_byte_identical']
+   E       AssertionError: assert 0 == 2
+   E        +  where 0 = <function main at 0x781e31563ec0>(['build', '--repo-root', '/tmp/pytest-of-filip/pytest-265/test_t_barrier_an_existing_art0/repo', '--output-root', '/tmp/pytest-of-filip/pytest-2
+   E        +    where <function main at 0x781e31563ec0> = tst.main
+   E        +    and   ['build', '--repo-root', '/tmp/pytest-of-filip/pytest-265/test_t_barrier_an_existing_art0/repo', '--output-root', '/tmp/pytest-of-filip/pytest-265/test_t_barrier_an_existing_art0/o
+   1 failed in 1.55s
+
+## M19 -- A4.1's module-root check removed [Amendment A, A4.4]: KILLED
+   offline/tier_statements.py: 1 x 'code = assert_code_under_root(repo_root)'
+      -> 'code = []'
+   offline/tier_statements.py: 1 x 'if assert_code_under_root(repo_root) != code:'
+      -> 'if False:'
+   tests: test_m19_main_refuses_a_repo_root_the_running_code_is_not_under
+   failing: ['tests/test_tier_statements.py::test_m19_main_refuses_a_repo_root_the_running_code_is_not_under']
+   E       assert 'does not resolve under' in "REFUSED: FileNotFoundError: [Errno 2] No such file or directory: '/tmp/pytest-of-filip/pytest-266/test_m19_main_refuses_a_repo_r0/output/SHA256SUMS_p5_1.txt
+   E        +  where "REFUSED: FileNotFoundError: [Errno 2] No such file or directory: '/tmp/pytest-of-filip/pytest-266/test_m19_main_refuses_a_repo_r0/output/SHA256SUMS_p5_1.txt'\n" = CaptureResult(out=
+   E        +    where CaptureResult(out='', err="REFUSED: FileNotFoundError: [Errno 2] No such file or directory: '/tmp/pytest-of-filip/pytest-266/test_m19_main_refuses_a_repo_r0/output/SHA256SUMS_p5_1.
+   E        +      where readouterr = <_pytest.capture.CaptureFixture object at 0x7375ccce8470>.readouterr
+   1 failed in 1.38s
+
+## M20 -- the paired_comparison equality refusal removed [Amendment A, A4.4]: KILLED
+   offline/tier_statements.py: 1 x 'if (comparison.mean_difference, comparison.ci95_low, comparison.ci95_high) != (stats.mean, low, high):'
+      -> 'if False:'
+   tests: test_m20_a_one_ulp_perturbation_of_paired_comparisons_mean_is_refused
+   failing: ['tests/test_tier_statements.py::test_m20_a_one_ulp_perturbation_of_paired_comparisons_mean_is_refused']
+   E       Failed: DID NOT RAISE ValueError
+   1 failed in 1.43s
+
+## M21 -- the collapse_criterion equality refusal removed (F9) [added at C5]: KILLED
+   offline/tier_statements.py: 1 x 'if (p5_1["mean_difference"], p5_1["ci95_low"], p5_1["ci95_high"]) != ('
+      -> 'if False and ('
+   tests: test_t_q6_refuses_when_collapse_criterion_disagrees_with_the_registered_route
+   failing: ['tests/test_tier_statements.py::test_t_q6_refuses_when_collapse_criterion_disagrees_with_the_registered_route']
+   E       Failed: DID NOT RAISE ValueError
+   1 failed in 1.57s
+
+## M22 -- the record comparison accepting a row neither equal nor explained (and carrying it quietly) [added at C5]: KILLED
+   offline/tier_statements.py: 1 x 'if not equal and row.exception is None:'
+      -> 'if False:'
+   offline/tier_statements.py: 1 x '"explanation": None if equal else RECORD_EXCEPTIONS[row.exception],'
+      -> '"explanation": None if equal else RECORD_EXCEPTIONS.get(row.exception),'
+   offline/tier_statements.py: 1 x '"verified": None if equal else _verify_exception(row, statements)})'
+      -> '"verified": None if equal or row.exception is None else _verify_exception(row, statements)})'
+   tests: test_a_record_row_neither_equal_nor_explained_refuses_the_build
+   failing: ['tests/test_tier_statements.py::test_a_record_row_neither_equal_nor_explained_refuses_the_build']
+   E       Failed: DID NOT RAISE ValueError
+   1 failed in 2.15s
+
+## M23 -- a declared exception trusted instead of verified [added at C5]: KILLED
+   offline/tier_statements.py: 1 x 'if not ok:\n        raise ValueError(f"{_source(row.file, row.lines)}: the declared exception'
+      -> 'if False:\n        raise ValueError(f"{_source(row.file, row.lines)}: the declared exception'
+   tests: test_a_declared_exception_is_verified_not_trusted
+   failing: ['tests/test_tier_statements.py::test_a_declared_exception_is_verified_not_trusted']
+   E       Failed: DID NOT RAISE ValueError
+   1 failed in 2.24s
+
+## M24 -- P5.2b's field-by-field refusal removed [added at C5]: KILLED
+   offline/tier_statements.py: 1 x 'if problems:'
+      -> 'if False:'
+   tests: test_the_build_refuses_a_p5_2b_statement_it_does_not_reproduce_field_by_field
+   failing: ['tests/test_tier_statements.py::test_the_build_refuses_a_p5_2b_statement_it_does_not_reproduce_field_by_field']
+   E       Failed: DID NOT RAISE ValueError
+   1 failed in 2.06s
+
+## M25 -- P8.4b's own-route refusal removed [added at C5]: KILLED
+   offline/tier_statements.py: 1 x 'if route != tuple(recorded[k] for k in keys) or len(differences) != recorded["n_paired"]:'
+      -> 'if False:'
+   tests: test_the_build_refuses_a_p8_4b_record_its_own_route_does_not_reproduce
+   failing: ['tests/test_tier_statements.py::test_the_build_refuses_a_p8_4b_record_its_own_route_does_not_reproduce']
+   E       Failed: DID NOT RAISE ValueError
+   1 failed in 1.87s
+
+## M26 -- P5.1's P1/P3 equality refusal removed [added at C5]: KILLED
+   offline/tier_statements.py: 1 x 'if unequal:'
+      -> 'if False:'
+   tests: test_the_build_refuses_a_p5_1_record_it_does_not_reproduce_under_equality
+   failing: ['tests/test_tier_statements.py::test_the_build_refuses_a_p5_1_record_it_does_not_reproduce_under_equality']
+   E       Failed: DID NOT RAISE ValueError
+   1 failed in 1.75s
+
+## M27 -- the stop-rule record's own-route refusal removed [added at C5]: KILLED
+   offline/tier_statements.py: 1 x 'if tuple(route[k] for k in keys) != tuple(stop_record[k] for k in keys):'
+      -> 'if False:'
+   tests: test_the_build_refuses_a_stop_rule_record_its_own_route_does_not_reproduce
+   failing: ['tests/test_tier_statements.py::test_the_build_refuses_a_stop_rule_record_its_own_route_does_not_reproduce']
+   E       Failed: DID NOT RAISE ValueError
+   1 failed in 1.92s
+
+## M28 -- D17's on-disk check removed [added at C5]: KILLED
+   offline/tier_statements.py: 1 x 'd17 = _assert_d17(output, sums[P5_2_SUMS_NAME], payloads)'
+      -> 'd17 = {"training_records": {}}'
+   tests: test_t_inputs_d17_a_deterministic_mappo1000_dt_run_is_refused, test_t_inputs_d17_a_complete_one_head_mappo1000_cell_in_p5_2_is_refused
+   failing: ['tests/test_tier_statements.py::test_t_inputs_d17_a_deterministic_mappo1000_dt_run_is_refused']
+   E       Failed: DID NOT RAISE ValueError
+   1 failed in 1.83s
+
+## M29 -- an evaluation record's completeness check removed [added at C5]: KILLED
+   offline/tier_statements.py: 1 x 'if not ts.cell_is_complete(payload, seeds=seeds, draws=draws, declared_steps=ts.DECLARED_GRADIENT_STEPS,'
+      -> 'if False and not ts.cell_is_complete(payload, seeds=seeds, draws=draws, declared_steps=ts.DECLARED_GRADIENT_ST'
+   tests: test_t_inputs_refuses_an_incomplete_cell
+   failing: ['tests/test_tier_statements.py::test_t_inputs_refuses_an_incomplete_cell']
+   E       AssertionError: Regex pattern did not match.
+   E         Expected regex: 'not a complete cell'
+   E         Actual message: "output/p5_2/eval_maxpressure_bc.json: the level 166.0099431818182 by mean_ci95 in (seed, draw) order is not the record's own cell mean 165.99739583333334"
+   1 failed in 1.50s
+
+## M30 -- M11 and M20 together: the compensated-sum route with the paired_comparison refusal also removed, so only the route pin's value assertion stands [added at C5]: KILLED
+   offline/tier_statements.py: 1 x 'left_means, right_means = _per_draw_means(a), _per_draw_means(b)'
+      -> 'left_means = {d: sum(e.att_horizon for e in a if e.draw_id == d) / sum(1 for e in a if e.draw_id == d) for d i'
+   offline/tier_statements.py: 1 x 'if (comparison.mean_difference, comparison.ci95_low, comparison.ci95_high) != (stats.mean, low, high):'
+      -> 'if False:'
+   tests: test_t_contrast_route_pin_is_numpy_per_draw_and_not_the_compensated_sum
+   failing: ['tests/test_tier_statements.py::test_t_contrast_route_pin_is_numpy_per_draw_and_not_the_compensated_sum']
+   E       assert 0.7333333333333334 == 0.7333333333333333
+   1 failed in 1.46s
+
+## M31 -- M2 and M20 together: episode-level pairing with the paired_comparison refusal also removed [added at C5]: KILLED
+   offline/tier_statements.py: 1 x 'left_means, right_means = _per_draw_means(a), _per_draw_means(b)'
+      -> 'left_means = {(e.seed, e.draw_id): e.att_horizon for e in a}\n    right_means = {(e.seed, e.draw_id): e.att_hor'
+   offline/tier_statements.py: 1 x 'if (comparison.mean_difference, comparison.ci95_low, comparison.ci95_high) != (stats.mean, low, high):'
+      -> 'if False:'
+   tests: test_t_contrast_episode_level_pairing_would_change_n_and_the_interval
+   failing: ['tests/test_tier_statements.py::test_t_contrast_episode_level_pairing_would_change_n_and_the_interval']
+   E       assert 24 == 6
+   1 failed in 1.17s
+
+## every mutated file restored byte for byte to the commit's
+
+## 31 of 31 KILLED

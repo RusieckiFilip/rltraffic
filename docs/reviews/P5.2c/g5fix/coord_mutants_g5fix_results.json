@@ -1,0 +1,413 @@
+[
+  {
+    "id": "CONTROL",
+    "exit": 0,
+    "first": "180 passed, 1 skipped in 21.36s"
+  },
+  {
+    "id": "CM1r",
+    "title": "Q0b: an exactly-zero I scored NOT RESOLVED (CM1 reversed per B2.1)",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b1_cm1_an_exactly_zero_interaction_is_held_by_the_registered_inclusion_rule"
+  },
+  {
+    "id": "CM2",
+    "title": "composite I: CI half-width doubled, mean unchanged",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_t_q0_the_interaction_its_per_seed_values_and_the_three_verdicts"
+  },
+  {
+    "id": "CM3",
+    "title": "Q3b sub-prediction: random no longer predicted to resolve",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_q3b_reads_the_shared_anchor_as_behaviour_at_random_and_reports_the_sub_prediction"
+  },
+  {
+    "id": "CM4",
+    "title": "Q1b scored with LEVEL_BAND (0.30) instead of ANCHOR_BAND (0.10)",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b1_cm4_q1b_holds_only_within_ten_percent_of_the_predicted_level"
+  },
+  {
+    "id": "CM5",
+    "title": "Q4a scored on four tiers (mappo1000 added)",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_every_registered_statement_is_present_under_both_definitions"
+  },
+  {
+    "id": "CM6",
+    "title": "Q5a scored on four tiers (mappo1000 added)",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_t_q5b_a_failed_mappo1000_tier_makes_the_aggregate_failed"
+  },
+  {
+    "id": "CM7",
+    "title": "leaders: per-seed first places read att_ours whatever the definition",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b1_cm7_the_leaders_per_seed_first_places_are_read_under_each_definition"
+  },
+  {
+    "id": "CM8",
+    "title": "collapse audit: the sentence holds if ANY non-DT arm collapses somewhere",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b1_cm8_the_sentence_fails_when_one_non_dt_arm_never_collapses"
+  },
+  {
+    "id": "CM9",
+    "title": "contrast: D9 per-seed block always on att_ours",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b1_cm9_each_definitions_per_seed_block_reads_that_definitions_values"
+  },
+  {
+    "id": "CM10",
+    "title": "Q6: COLLAPSED iff the CI's HIGH end is above zero",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b1_cm10_a_dt_arm_whose_ci_against_the_anchor_straddles_zero_is_not_collapsed"
+  },
+  {
+    "id": "CM11",
+    "title": "Q5c: random's predicted sign flipped to negative",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_t_q5_each_tier_by_its_registered_sign"
+  },
+  {
+    "id": "CM12",
+    "title": "Q2a: a tie for first counted as the predicted unique first place",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b1_cm12_a_predicted_first_place_tied_for_first_is_not_held"
+  },
+  {
+    "id": "CM13",
+    "title": "contrast: exactly_zero if ANY per-draw difference is zero",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_cm13_a_contrast_zero_on_some_draws_only_is_not_exactly_zero"
+  },
+  {
+    "id": "CM14",
+    "title": "Q4b: the chain scored non-strictly (<=)",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b1_cm14_a_chain_with_two_equal_rungs_is_not_strictly_increasing"
+  },
+  {
+    "id": "CM15a",
+    "title": "composite I per-seed: d4's inner difference sign-flipped (n4 - s4) in the worker's left rows",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_t_q0_the_interaction_its_per_seed_values_and_the_three_verdicts"
+  },
+  {
+    "id": "CM15b",
+    "title": "composite I per-seed: the last (seed, draw) dropped from the worker's rows",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_t_q0_the_interaction_its_per_seed_values_and_the_three_verdicts"
+  },
+  {
+    "id": "CM16",
+    "title": "leaders: the lead 'resolves' when the CI's LOW end is below zero",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b1_cm16_a_lead_whose_ci_straddles_zero_does_not_resolve"
+  },
+  {
+    "id": "CM17",
+    "title": "Q3b: the aggregate ignores fixedtime (two tiers only)",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b1_cm17_q3b_aggregate_reads_all_three_tiers"
+  },
+  {
+    "id": "CB1a",
+    "title": "Q3b sub-prediction: the exact-zero source always says 'identical episodes'",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b11_cb1a_q3bs_exact_zero_from_episodes_that_differ_is_not_called_identical"
+  },
+  {
+    "id": "CB2",
+    "title": "composite I: the worker's names swapped (d1 named left, d4 right) -- the qualifier's text names the wrong pair",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b11_cb2_q0bs_qualifier_names_d4_against_d1_from_this_files_per_seed_loop"
+  },
+  {
+    "id": "CB3a",
+    "title": "B2.3: measured_first_under_rule not null under a pooled tie",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b2_3_a_pooled_tie_for_first_has_no_first_under_the_rule_and_reversals_against_the_pooled_set"
+  },
+  {
+    "id": "CB3b",
+    "title": "B2.3: the reversal list compares only the first element, not the set of first places",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b2_3_a_pooled_tie_for_first_has_no_first_under_the_rule_and_reversals_against_the_pooled_set"
+  },
+  {
+    "id": "CB4a",
+    "title": "B2.4: the running-file check reads only the parent directory's NAME",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b2_4_the_file_run_by_path_from_another_tree_is_refused"
+  },
+  {
+    "id": "CB4b",
+    "title": "B2.4: provenance hashes the module found by import, not the running file",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b2_4_provenance_code_hashes_the_file_that_runs"
+  },
+  {
+    "id": "CB5a",
+    "title": "B2.5: the ulp bound made absolute (4 ulps of 1.0) instead of relative to the magnitude",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b2_5_a_value_five_ulps_from_p8_4bs_record_is_refused_and_four_are_accepted[V4-Q0.d1-att_engine-mean_difference]"
+  },
+  {
+    "id": "CB5b",
+    "title": "B2.5: the stop-rule record's ulp check skipped",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b2_5_a_stop_rule_record_five_ulps_away_is_refused_and_four_are_accepted[mean_difference]"
+  },
+  {
+    "id": "CB5c",
+    "title": "B2.5: P8.4b's ulp check on the first key only (the CI ends unchecked)",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b2_5_a_value_five_ulps_from_p8_4bs_record_is_refused_and_four_are_accepted[V4-Q0.d1-att_engine-ci95_low]"
+  },
+  {
+    "id": "CB6",
+    "title": "B2.6: GATE 2's quote cited one line short (1274-1280)",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_t_quotes_every_record_literal_appears_at_its_cited_lines"
+  },
+  {
+    "id": "CB9a",
+    "title": "B2.9: the out-path existence check on the RESOLVED path (a dangling symlink passes)",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b2_9_a_dangling_symlink_at_the_out_path_is_refused_and_nothing_is_written"
+  },
+  {
+    "id": "CB14a",
+    "title": "B2.14: CAMPAIGN_COMPLETE not listed (the manifest only)",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b2_14_p8_4bs_campaign_manifest_and_marker_are_listed_with_their_sha256"
+  },
+  {
+    "id": "CB14b",
+    "title": "B2.14: both campaign files listed with the MANIFEST's sha256",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b2_14_p8_4bs_campaign_manifest_and_marker_are_listed_with_their_sha256"
+  },
+  {
+    "id": "CB0",
+    "title": "Q0b's reading on a resolving I: the inclusion rule written with strict inequalities (a CI touching zero excluded)",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b11_cb0_a_ci_touching_zero_at_one_end_is_included_by_q0bs_rule[0.0-1.0-HELD]"
+  },
+  {
+    "id": "CL1",
+    "title": "B.1.2(1): I's identity forced True",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b11_2_an_i_exactly_zero_because_the_horizon_changes_nothing_is_held_and_not_identical"
+  },
+  {
+    "id": "CL2",
+    "title": "B.1.2(1): I's identity forced False",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b1_cm1_an_exactly_zero_interaction_is_held_by_the_registered_inclusion_rule"
+  },
+  {
+    "id": "CL3",
+    "title": "B.1.2(1): I identical when EITHER pair is",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b11_2_identical_needs_both_pairs_identical"
+  },
+  {
+    "id": "CL4",
+    "title": "B.1.2(1): the not-identical exact zero scored NOT RESOLVED",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b11_2_an_i_exactly_zero_because_the_horizon_changes_nothing_is_held_and_not_identical"
+  },
+  {
+    "id": "CL5",
+    "title": "B.1.2(1): d1's identity read from d4's cells",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b11_2_identical_needs_both_pairs_identical"
+  },
+  {
+    "id": "CL6",
+    "title": "B.1.2(1): each pair's identity compares a cell with itself",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b11_2_an_i_exactly_zero_because_the_horizon_changes_nothing_is_held_and_not_identical"
+  },
+  {
+    "id": "CD1",
+    "title": "B.2.3: p_value_defined forced True",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b23_an_exactly_zero_contrasts_p_value_is_labelled_undefined_with_its_convention"
+  },
+  {
+    "id": "CD2",
+    "title": "B.2.3: p_value_defined forced False",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b23_a_contrast_zero_on_some_draws_only_has_a_defined_p_value"
+  },
+  {
+    "id": "CD3",
+    "title": "B.2.3: p_value_defined read from n_zero == 0 instead of n_used > 0",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b23_a_contrast_zero_on_some_draws_only_has_a_defined_p_value"
+  },
+  {
+    "id": "CD4",
+    "title": "B.2.3: the two p-value notes swapped",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b23_an_exactly_zero_contrasts_p_value_is_labelled_undefined_with_its_convention"
+  },
+  {
+    "id": "CD5",
+    "title": "B.2.3: the defined note no longer says z's sign is not the direction",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_b23_a_contrast_zero_on_some_draws_only_has_a_defined_p_value"
+  },
+  {
+    "id": "CD6",
+    "title": "boundary (measured, not prescribed): both labels defined only from n_used > 1",
+    "status": "SURVIVED",
+    "exit": 0,
+    "first": "180 passed, 1 skipped in 14.20s"
+  },
+  {
+    "id": "CF1",
+    "title": "D1.1: the 'collapses alone' tiers taken from Q5b's resolving tiers (the old reading)",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_d1_1_q5s_reading_names_only_the_tiers_where_the_global_filter_collapses_alone"
+  },
+  {
+    "id": "CF2",
+    "title": "D1.1: the both-collapse tiers never reported",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_d1_1_q5s_reading_names_only_the_tiers_where_the_global_filter_collapses_alone"
+  },
+  {
+    "id": "CF3",
+    "title": "D1.2: the summary point read from numbers only (Q3c null again)",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_d1_2_every_summary_row_carries_its_statements_point_estimate"
+  },
+  {
+    "id": "CF4",
+    "title": "D1.3: the att_engine column computed under att_ours",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_d1_3_a_literal_row_carries_its_att_engine_value_and_a_null_only_where_none_exists"
+  },
+  {
+    "id": "CF5",
+    "title": "D1.3: att_engine_equal always True",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_d1_3_a_literal_row_carries_its_att_engine_value_and_a_null_only_where_none_exists"
+  },
+  {
+    "id": "CF6",
+    "title": "D1.4: V5 reported as Q0a again",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_d1_4_the_p8_4b_rows_name_what_each_outcome_belongs_to"
+  },
+  {
+    "id": "CF7",
+    "title": "D1.6: the random anchor's seed labels not marked as evaluation labels",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_d1_6_a_behaviour_or_anchor_arm_has_its_seed_labels_called_evaluation_labels"
+  },
+  {
+    "id": "CF8",
+    "title": "D1.7: registered_expectation_met always True",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_d1_7_the_labels_q2a_the_audit_rule_q4b_and_q6s_expectation"
+  },
+  {
+    "id": "CF9",
+    "title": "D1.8: the small-sample bound lowered to 2 (n_used = 5 no longer flagged)",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_d1_8_a_signed_rank_test_on_fewer_than_twenty_pairs_says_so[offsets0-True]"
+  },
+  {
+    "id": "CF10",
+    "title": "D1.9(a): the temporary unlinked whether or not this call created it",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_d1_9a_a_temporary_file_this_call_did_not_create_survives_its_refusal"
+  },
+  {
+    "id": "CF11",
+    "title": "D1.9(b): the git toplevel check disabled",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_d1_9b_a_copy_nested_untracked_in_another_repository_is_refused"
+  },
+  {
+    "id": "CF12",
+    "title": "D2.1 (the reviewer's R1): changed_by_rule_r read from the verdict only",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_d2_1_changes_flags_by_this_files_rule"
+  },
+  {
+    "id": "CF13",
+    "title": "D2.2 (the reviewer's R2): Q4 random's registered value transposed in REGISTERED_VALUES only",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_d2_2_every_registered_value_is_the_plans"
+  },
+  {
+    "id": "CF14",
+    "title": "D1.7: predictions_registered_on never added",
+    "status": "KILLED",
+    "exit": 1,
+    "first": "FAILED tests/test_tier_statements.py::test_d1_7_the_labels_q2a_the_audit_rule_q4b_and_q6s_expectation"
+  }
+]

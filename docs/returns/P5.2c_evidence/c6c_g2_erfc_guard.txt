@@ -1,0 +1,249 @@
+# P5.2c G2 (BRIEF_45 Amendment B.1, B.1.3 step 3): why G2 is BLOCKED -- tests/test_erfc_determinism.py's count guard
+# date (UTC): 2026-10-13T14:35:03Z. Everything below ran on a git archive export of 3e5de9c in a scratch
+# directory; nothing was written under the worktree, the main tree or output/.
+# The artifact here is an IN-MEMORY build from that export on the real inputs (git block {commit: x, dirty: False,
+# code_root: x}, code []), 1205345 bytes, sha256 bd12fea131fc56e2a30fd69a8d3b1d15b144640cc844e3007efdde563a6fca77;
+# the (z, p_value) pairs do not depend on the git or code blocks.
+
+## 1. The guard on the export as it stands (no p5_2_statements.json under docs/data):
+.........................................................                [100%]
+57 passed in 2.97s
+# pytest exit: 0
+
+## 2. The same guard with the artifact at docs/data/p5_2_statements.json:
+..................................F......................                [100%]
+=================================== FAILURES ===================================
+___________ test_the_committed_p_values_all_still_reproduce_exactly ____________
+
+    def test_the_committed_p_values_all_still_reproduce_exactly() -> None:
+        """THE LOAD-BEARING TEST: 351 published p-values (322 -> 330 -> 339 -> 351), none of which may move.
+    
+        Recomputed from each artifact's own recorded ``z`` through the replacement routine and
+        compared with ``==``.  A tolerance here would defeat the purpose: the question is
+        precisely whether any published number changes.
+    
+        **The count moved from 322 to 330 on 2026-08-26, deliberately.**  P5.3a's
+        ``docs/data/p5_3a_rtg_probe.json`` carries a per-tier delta table whose ``wilcoxon`` block is
+        **copied** from ``p4_6_grid.json`` / ``p4_7_grid.json`` -- eight tiers, so eight further
+        ``(z, p_value)`` pairs.  They are not new measurements: each is bit-identical to its source and
+        all eight reproduce through ``_normal_cdf``, so only the count assertion fired.
+    
+        Coordinator's written authorisation, ``BRIEF_29`` section 1 §B, dated 2026-08-25, quoted rather
+        than paraphrased: *"the implementer is authorised to change the pinned count in
+        tests/test_erfc_determinism.py from 322 to 330, and only that literal, recording in the test's
+        docstring that P5.3a's delta table copies eight (z, p_value) pairs from p4_6_grid.json /
+        p4_7_grid.json."*  This is a spec change ruled by the coordinator, not a test weakened to pass;
+        the guard asked for a deliberate update and this is it.
+    
+        ⚠️ **Duplicating published p-values into a second artifact is exactly the drift this guard
+        exists to catch**, so the duplication is tied to its source by
+        ``tests/test_rtg_probe_artifact.py::test_the_delta_table_is_a_checked_copy_of_the_committed_grids``,
+        which compares every copied field against the row it came from.  Without that pointer the eight
+        extra pairs would be exposure rather than protection.
+        """
+        pairs: list[tuple[str, float, float, str | None]] = []
+    
+        def walk(node: object, path: str) -> None:
+            if isinstance(node, dict):
+                if "z" in node and "p_value" in node and isinstance(node.get("z"), (int, float)):
+                    pairs.append((path, float(node["z"]), float(node["p_value"]), node.get("alternative")))
+                for key, value in node.items():
+                    walk(value, f"{path}.{key}")
+            elif isinstance(node, list):
+                for index, value in enumerate(node):
+                    walk(value, f"{path}[{index}]")
+    
+        # R8: rglob, not glob -- docs/data/ has subdirectories, and a future artifact placed in
+        # one would have escaped this sweep WITHOUT tripping the == 330 count guard.
+        for artifact in sorted(DATA_DIR.rglob("*.json")):
+            walk(json.loads(artifact.read_text(encoding="utf-8")), artifact.name)
+    
+        # 330 -> 339 on 2026-09-10, AUTHORISED IN WRITING on the same footing as BRIEF_29 section 1 B:
+        # "test_erfc_determinism 330 -> 339 AUTHORISED, same footing as BRIEF_29 section 1 B. Your
+        # enumeration is what makes it an authorisation rather than a rubber stamp."
+        # The nine are P5.3b's, enumerated before the literal was touched -- 3 tiers x (2 ATT
+        # definitions + 1 top-level copy of the primary):
+        #   comparisons.{mappo1000,mix50,random}.by_definition.{att_engine,att_ours}.paired.wilcoxon  6
+        #   comparisons.{mappo1000,mix50,random}.paired.wilcoxon                                      3
+        # The three top-level pairs DUPLICATE the att_engine ones by construction: BRIEF_30 D2 puts the
+        # primary definition at the top level so no reader can mistake which definition a bare `paired`
+        # block carries. Only the literal changed; all 339 still reproduce through _normal_cdf.
+        #
+        # 339 -> 351 on 2026-10-02, AUTHORISED IN WRITING (BRIEF_42 Amendment E.1, E.1.1), quoted verbatim:
+        # "test_erfc_determinism 339 -> 351 AUTHORISED (BRIEF_42 Amendment E.1, 2026-10-02), same footing as BRIEF_29
+        # section 1 B and the 2026-09-10 authorisation. The twelve are P5.3c's registered one-sided tests, enumerated by
+        # the guard's own paths: the T1 of confirmatory, att_ours, exploratory_mix50 and exploratory_mix50.att_ours with
+        # alternative less, and their T2 and T3 with alternative greater, all in p5_3c_context_sweep.json. A pair carrying
+        # alternative less is recomputed as _normal_cdf(z), one carrying greater as _normal_cdf(-z); a pair without the
+        # key keeps the two-sided check unchanged; any other value of the key fails the test; and the set of pairs
+        # carrying the key is pinned to exactly these twelve paths."
+        # The twelve, enumerated by path (ONE_SIDED_PAIRS pins them, alternatives included):
+        #   p5_3c_context_sweep.json.{confirmatory,att_ours}.family.tests.T1                                less     2
+        #   p5_3c_context_sweep.json.exploratory_mix50{,.att_ours}.family.tests.T1                          less     2
+        #   p5_3c_context_sweep.json.{confirmatory,att_ours}.family.tests.{T2,T3}                           greater  4
+        #   p5_3c_context_sweep.json.exploratory_mix50{,.att_ours}.family.tests.{T2,T3}                     greater  4
+        # They are the repository's first ONE-SIDED p-values (A26(d)): each reproduces under == through _normal_cdf
+        # with its registered formula, none with the two-sided one -- so the per-pair check dispatches on the committed
+        # key (_expected_p_value) rather than assuming every published p-value is two-sided.
+>       assert len(pairs) == 351, (
+            f"expected the 351 committed (z, p_value) pairs -- 322 measured on 2026-08-17, plus the 8 "
+            f"P5.3a copies out of p4_6_grid.json / p4_7_grid.json (BRIEF_29 section 1 B), plus the 9 "
+            f"P5.3b wilcoxon blocks in p5_3b_nortg.json (authorised 2026-09-10), plus the 12 P5.3c one-sided "
+            f"tests in p5_3c_context_sweep.json (BRIEF_42 Amendment E.1, authorised 2026-10-02) -- found "
+            f"{len(pairs)}; if artifacts were added, re-measure and update this count deliberately"
+        )
+E       AssertionError: expected the 351 committed (z, p_value) pairs -- 322 measured on 2026-08-17, plus the 8 P5.3a copies out of p4_6_grid.json / p4_7_grid.json (BRIEF_29 section 1 B), plus the 9 P5.3b wilcoxon blocks in p5_3b_nortg.json (authorised 2026-09-10), plus the 12 P5.3c one-sided tests in p5_3c_context_sweep.json (BRIEF_42 Amendment E.1, authorised 2026-10-02) -- found 487; if artifacts were added, re-measure and update this count deliberately
+E       assert 487 == 351
+E        +  where 487 = len([('p4_3_p4_gate_effect_sizes.json.comparisons.madt_vs_mappo1000', -4.9804135359638915, 6.344854575852746e-07, None), (...986, None), ('p4_3_rtg.json.adjacent_comparisons.dt_g2_to_dt_g3', -1.1673112844043776, 0.24308468319724988, None), ...])
+
+tests/test_erfc_determinism.py:343: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_erfc_determinism.py::test_the_committed_p_values_all_still_reproduce_exactly
+1 failed, 56 passed in 3.14s
+# pytest exit: 1
+
+## 3. The 136 pairs the artifact adds, by the guard's own walk and path format, each checked against the guard's
+##    two-sided rule min(1, 2 * offline.dt_gate._normal_cdf(z)) under ==:
+   136 pairs; alternative key present on 0; reproduce under ==: 136; z > 0: 0, z == 0: 8, z < 0: 128
+     64  p5_2_statements.json.statements.numbers.paired_comparison.wilcoxon
+     34  p5_2_statements.json.descriptive_collapse_audit.rows.contrast.paired_comparison.wilcoxon
+     16  p5_2_statements.json.descriptive_collapse_audit.dt_rows.contrast.paired_comparison.wilcoxon
+     12  p5_2_statements.json.leaders.leader_minus_runner_up.paired_comparison.wilcoxon
+     10  p5_2_statements.json.statements.numbers.contrast.paired_comparison.wilcoxon
+
+   p5_2_statements.json.descriptive_collapse_audit.dt_rows[0].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.dt_rows[1].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.dt_rows[2].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.dt_rows[3].contrast.paired_comparison.wilcoxon  z=-8.662859443466361  p_value=4.600755329028444e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.dt_rows[4].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.dt_rows[5].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.dt_rows[6].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.dt_rows[7].contrast.paired_comparison.wilcoxon  z=-8.652544468935542  p_value=5.036372261057344e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.dt_rows[8].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.dt_rows[9].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.dt_rows[10].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.dt_rows[11].contrast.paired_comparison.wilcoxon  z=-8.662859443466361  p_value=4.600755329028444e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.dt_rows[12].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.dt_rows[13].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.dt_rows[14].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.dt_rows[15].contrast.paired_comparison.wilcoxon  z=-8.652544468935542  p_value=5.036372261057344e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[0].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[1].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[2].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[3].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[4].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[5].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[6].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[7].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[8].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[9].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[10].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[11].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[12].contrast.paired_comparison.wilcoxon  z=-3.825136388512136  p_value=0.00013069970879477717  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[13].contrast.paired_comparison.wilcoxon  z=-5.496162262504853  p_value=3.881453888750516e-08  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[14].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[15].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[16].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[17].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[18].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[19].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[20].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[21].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[22].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[23].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[24].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[25].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[26].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[27].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[28].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[29].contrast.paired_comparison.wilcoxon  z=-4.120832325062287  p_value=3.7750610415743115e-05  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[30].contrast.paired_comparison.wilcoxon  z=-5.6818318040596  p_value=1.3325968120791474e-08  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[31].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[32].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.descriptive_collapse_audit.rows[33].contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.leaders[0].leader_minus_runner_up[0].paired_comparison.wilcoxon  z=-6.262908702629084  p_value=3.778618706423176e-10  reproduces=True
+   p5_2_statements.json.leaders[1].leader_minus_runner_up[0].paired_comparison.wilcoxon  z=-6.421071645434979  p_value=1.3531831753041469e-10  reproduces=True
+   p5_2_statements.json.leaders[2].leader_minus_runner_up[0].paired_comparison.wilcoxon  z=-4.485294758484567  p_value=7.28132058077908e-06  reproduces=True
+   p5_2_statements.json.leaders[3].leader_minus_runner_up[0].paired_comparison.wilcoxon  z=-4.478418108797355  p_value=7.519820706248505e-06  reproduces=True
+   p5_2_statements.json.leaders[4].leader_minus_runner_up[0].paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.leaders[4].leader_minus_runner_up[1].paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.leaders[5].leader_minus_runner_up[0].paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.leaders[5].leader_minus_runner_up[1].paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.leaders[6].leader_minus_runner_up[0].paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.leaders[7].leader_minus_runner_up[0].paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.leaders[8].leader_minus_runner_up[0].paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.leaders[9].leader_minus_runner_up[0].paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.statements[0].numbers.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.statements[1].numbers.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.statements[2].numbers.paired_comparison.wilcoxon  z=-8.659421118622754  p_value=4.741660298063025e-18  reproduces=True
+   p5_2_statements.json.statements[3].numbers.paired_comparison.wilcoxon  z=-8.662859443466361  p_value=4.600755329028444e-18  reproduces=True
+   p5_2_statements.json.statements[70].numbers.paired_comparison.wilcoxon  z=-8.33621858332375  p_value=7.670406671515885e-17  reproduces=True
+   p5_2_statements.json.statements[71].numbers.paired_comparison.wilcoxon  z=-8.33621858332375  p_value=7.670406671515885e-17  reproduces=True
+   p5_2_statements.json.statements[72].numbers.paired_comparison.wilcoxon  z=-6.245717078411052  p_value=4.2186018218439747e-10  reproduces=True
+   p5_2_statements.json.statements[73].numbers.paired_comparison.wilcoxon  z=-5.974089415766145  p_value=2.313788774334857e-09  reproduces=True
+   p5_2_statements.json.statements[74].numbers.paired_comparison.wilcoxon  z=0.0  p_value=1.0  reproduces=True
+   p5_2_statements.json.statements[75].numbers.paired_comparison.wilcoxon  z=0.0  p_value=1.0  reproduces=True
+   p5_2_statements.json.statements[76].numbers.paired_comparison.wilcoxon  z=-8.652544468935542  p_value=5.036372261057344e-18  reproduces=True
+   p5_2_statements.json.statements[77].numbers.paired_comparison.wilcoxon  z=-8.652544468935542  p_value=5.036372261057344e-18  reproduces=True
+   p5_2_statements.json.statements[80].numbers.contrast.paired_comparison.wilcoxon  z=-6.262908702629084  p_value=3.778618706423176e-10  reproduces=True
+   p5_2_statements.json.statements[81].numbers.contrast.paired_comparison.wilcoxon  z=-6.421071645434979  p_value=1.3531831753041469e-10  reproduces=True
+   p5_2_statements.json.statements[82].numbers.contrast.paired_comparison.wilcoxon  z=-4.485294758484567  p_value=7.28132058077908e-06  reproduces=True
+   p5_2_statements.json.statements[83].numbers.contrast.paired_comparison.wilcoxon  z=-4.478418108797355  p_value=7.519820706248505e-06  reproduces=True
+   p5_2_statements.json.statements[84].numbers.contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.statements[85].numbers.contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.statements[86].numbers.contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.statements[87].numbers.contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.statements[88].numbers.contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.statements[89].numbers.contrast.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.statements[90].numbers.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.statements[91].numbers.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.statements[92].numbers.paired_comparison.wilcoxon  z=-8.198685589579496  p_value=2.4302964039795296e-16  reproduces=True
+   p5_2_statements.json.statements[93].numbers.paired_comparison.wilcoxon  z=-8.092097519427696  p_value=5.8645925057667695e-16  reproduces=True
+   p5_2_statements.json.statements[94].numbers.paired_comparison.wilcoxon  z=0.0  p_value=1.0  reproduces=True
+   p5_2_statements.json.statements[95].numbers.paired_comparison.wilcoxon  z=0.0  p_value=1.0  reproduces=True
+   p5_2_statements.json.statements[96].numbers.paired_comparison.wilcoxon  z=-2.198808737486302  p_value=0.027891524961962805  reproduces=True
+   p5_2_statements.json.statements[97].numbers.paired_comparison.wilcoxon  z=-2.205685387173515  p_value=0.027406035773103816  reproduces=True
+   p5_2_statements.json.statements[98].numbers.paired_comparison.wilcoxon  z=-8.198685589579496  p_value=2.4302964039795296e-16  reproduces=True
+   p5_2_statements.json.statements[99].numbers.paired_comparison.wilcoxon  z=-8.092097519427696  p_value=5.8645925057667695e-16  reproduces=True
+   p5_2_statements.json.statements[100].numbers.paired_comparison.wilcoxon  z=0.0  p_value=1.0  reproduces=True
+   p5_2_statements.json.statements[101].numbers.paired_comparison.wilcoxon  z=0.0  p_value=1.0  reproduces=True
+   p5_2_statements.json.statements[102].numbers.paired_comparison.wilcoxon  z=-2.198808737486302  p_value=0.027891524961962805  reproduces=True
+   p5_2_statements.json.statements[103].numbers.paired_comparison.wilcoxon  z=-2.205685387173515  p_value=0.027406035773103816  reproduces=True
+   p5_2_statements.json.statements[110].numbers.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.statements[111].numbers.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.statements[112].numbers.paired_comparison.wilcoxon  z=-1.348399724926484  p_value=0.17752985241215355  reproduces=True
+   p5_2_statements.json.statements[113].numbers.paired_comparison.wilcoxon  z=-1.348399724926484  p_value=0.17752985241215355  reproduces=True
+   p5_2_statements.json.statements[114].numbers.paired_comparison.wilcoxon  z=-8.666297768309967  p_value=4.463985423908121e-18  reproduces=True
+   p5_2_statements.json.statements[115].numbers.paired_comparison.wilcoxon  z=-8.666297768309967  p_value=4.463985423908121e-18  reproduces=True
+   p5_2_statements.json.statements[118].numbers.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.statements[119].numbers.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.statements[120].numbers.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.statements[121].numbers.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.statements[122].numbers.paired_comparison.wilcoxon  z=-1.348399724926484  p_value=0.17752985241215355  reproduces=True
+   p5_2_statements.json.statements[123].numbers.paired_comparison.wilcoxon  z=-1.348399724926484  p_value=0.17752985241215355  reproduces=True
+   p5_2_statements.json.statements[124].numbers.paired_comparison.wilcoxon  z=-8.449683303162763  p_value=2.920940641740877e-17  reproduces=True
+   p5_2_statements.json.statements[125].numbers.paired_comparison.wilcoxon  z=-8.446244978319157  p_value=3.0082209800333804e-17  reproduces=True
+   p5_2_statements.json.statements[128].numbers.paired_comparison.wilcoxon  z=-7.744826710223449  p_value=9.571228976266396e-15  reproduces=True
+   p5_2_statements.json.statements[129].numbers.paired_comparison.wilcoxon  z=-7.734511735692629  p_value=1.038007049112336e-14  reproduces=True
+   p5_2_statements.json.statements[130].numbers.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.statements[131].numbers.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.statements[132].numbers.paired_comparison.wilcoxon  z=0.0  p_value=1.0  reproduces=True
+   p5_2_statements.json.statements[133].numbers.paired_comparison.wilcoxon  z=0.0  p_value=1.0  reproduces=True
+   p5_2_statements.json.statements[134].numbers.paired_comparison.wilcoxon  z=-4.168968872872777  p_value=3.059807689731881e-05  reproduces=True
+   p5_2_statements.json.statements[135].numbers.paired_comparison.wilcoxon  z=-4.182722172247203  p_value=2.8803930598718784e-05  reproduces=True
+   p5_2_statements.json.statements[138].numbers.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.statements[139].numbers.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.statements[140].numbers.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.statements[141].numbers.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.statements[142].numbers.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.statements[143].numbers.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.statements[144].numbers.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.statements[145].numbers.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.statements[146].numbers.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.statements[147].numbers.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.statements[148].numbers.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.statements[149].numbers.paired_comparison.wilcoxon  z=-8.680051067684394  p_value=3.9559116088995575e-18  reproduces=True
+   p5_2_statements.json.statements[150].numbers.paired_comparison.wilcoxon  z=-8.662859443466361  p_value=4.600755329028444e-18  reproduces=True
+   p5_2_statements.json.statements[151].numbers.paired_comparison.wilcoxon  z=-8.662859443466361  p_value=4.600755329028444e-18  reproduces=True
+   p5_2_statements.json.statements[152].numbers.paired_comparison.wilcoxon  z=-8.652544468935542  p_value=5.036372261057344e-18  reproduces=True
+   p5_2_statements.json.statements[153].numbers.paired_comparison.wilcoxon  z=-8.652544468935542  p_value=5.036372261057344e-18  reproduces=True
