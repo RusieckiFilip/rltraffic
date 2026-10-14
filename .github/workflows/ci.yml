@@ -43,7 +43,14 @@ jobs:
       matrix:
         image: [ubuntu-22.04, ubuntu-24.04]
     runs-on: ${{ matrix.image }}
-    timeout-minutes: 40
+    # Raised 40 -> 75 on 2026-10-14, MEASURED (docs/patches/README.md, ci_workflow_timeout_75.patch). Over the twelve
+    # complete runs on main before it a leg took 19.7-35.2 minutes, of which the test-hygiene guard (Guard 3 of 3) took
+    # 11.0-20.2: it runs eight grep pipelines per non-comment line of tests/ (79,316 lines; DEFERRED 113). On run
+    # 38597089215 the ubuntu-24.04 runner ran the pinned suite in 20.5 minutes instead of its usual 7.0-12.7, and the
+    # leg was cancelled at 40 with the guard still running; no test hung. At that slowdown a full leg takes about 56
+    # minutes; 75 keeps a margin above it and still ends a genuine hang (DEFERRED 41). Return it to 40 once DEFERRED
+    # 113's single-pass guard lands.
+    timeout-minutes: 75
     env:
       # DEFERRED 41: the suite can deadlock unpinned -- 8 minutes at ~0 % CPU with 35
       # threads parked in futex_do_wait.  The pin moves no outcome, only liveness, and
