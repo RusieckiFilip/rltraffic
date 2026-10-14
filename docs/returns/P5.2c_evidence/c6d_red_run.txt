@@ -1,0 +1,119 @@
+# C6d, step 1 of 3 (BRIEF_45 Amendment B.2, B.2.4 step 2.1): the tests of B.2.3 run BEFORE the module change.
+# Date: 2026-10-14.  Branch task/p5.2c-statements at d604ccf (the merge of Amendment B.2).
+# The module under test is the WORKING TREE file, byte-identical to 3e5de9c's (B.2.4 asks for that commit's
+#   module): offline/tier_statements.py sha256 9666476572ea9cadce5d131c3939fec20d8cedd27e07f645f12ce5347d50d620
+#   and `git diff --stat 3e5de9c HEAD -- offline/tier_statements.py` is empty.  Only tests/test_tier_statements.py
+#   is modified in the working tree at this point.
+# Command (gated tests run, so B.2.3 (4) reaches the real artifact):
+#   RLTRAFFIC_OUTPUT_ROOT=/home/filip/rltraffic/output /home/filip/rltraffic/.venv/bin/pytest -q --no-header \
+#     -p no:cacheprovider tests/test_tier_statements.py
+# Expected red reason: contrast() does not yet carry p_value_defined / p_value_note, so each of the four new
+#   tests raises KeyError at the real API surface.  The 158 tests of C6c still pass; T-regress skips because
+#   docs/data/p5_2_statements.json is not committed yet (it is built at G2).
+# NOTE: B.2.3 (4)'s own walk over the real artifact finds 136 paired_comparison blocks -- that assertion PASSES
+#   in the red run (the failure is the later KeyError), so 136 has a second witness here, independent of the
+#   erfc guard's count.
+
+........................................................................ [ 44%]
+.......................................................................F [ 88%]
+FF.........s......F                                                      [100%]
+=================================== FAILURES ===================================
+_ test_b23_an_exactly_zero_contrasts_p_value_is_labelled_undefined_with_its_convention _
+
+    def test_b23_an_exactly_zero_contrasts_p_value_is_labelled_undefined_with_its_convention() -> None:
+        """``BRIEF_45`` Amendment B.2, B.2.3 (1): both cells hold the same episodes, so every one of the six per-draw
+        differences is exactly zero -- counted here -- and the signed-rank test drops them all.  ``p_value_defined`` is
+        False, its note names ``n_used = 0`` and whose convention z = 0.0 and p = 1.0 are, and the Wilcoxon block still
+        carries exactly its seven keys."""
+        values = {(s, d): 140.0 + s / 32.0 + d / 16.0 for s in (101, 202, 303, 404) for d in range(1000, 1006)}
+        a = fx.simple_cell("dt_spatial", "fixedtime", values)
+        b = fx.simple_cell("dt_nomix", "fixedtime", values)
+        differences = own_paired(a, b, "att_ours")
+        assert len(differences) == 6 and all(x == 0.0 for x in differences), differences
+        d8 = tst.contrast(a, b, definition="att_ours", tier="fixedtime")["paired_comparison"]
+        w = d8["wilcoxon"]
+        assert (w["n_used"], w["n_zero"]) == (0, len(differences))
+>       assert d8["p_value_defined"] is False
+               ^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'p_value_defined'
+
+tests/test_tier_statements.py:2197: KeyError
+______ test_b23_a_contrast_zero_on_some_draws_only_has_a_defined_p_value _______
+
+    def test_b23_a_contrast_zero_on_some_draws_only_has_a_defined_p_value() -> None:
+        """``BRIEF_45`` Amendment B.2, B.2.3 (2): two of six draws differ by exactly zero and four do not -- counted here --
+        so ``n_zero`` is 2, ``n_used`` is 4 and the test exists.  The fixture is chosen so that a rule written on
+        ``n_zero == 0`` instead of ``n_used > 0`` gives the opposite answer, which this test asserts of the fixture."""
+        seeds, draws = (101, 202, 303, 404), range(1000, 1006)
+        offsets = {1000: 0.0, 1001: 0.25, 1002: 0.0, 1003: -0.5, 1004: 1.25, 1005: -1.5}
+        right = {(s, d): 70.0 + s / 64.0 for s in seeds for d in draws}
+        left = {key: right[key] + offsets[key[1]] for key in right}
+        a, b = fx.simple_cell("bc", "maxpressure", left), fx.simple_cell("iql", "maxpressure", right)
+        differences = own_paired(a, b, "att_ours")
+        assert sorted(differences) == sorted(offsets.values()), differences
+        n_zero = sum(1 for x in differences if x == 0.0)
+        n_used = sum(1 for x in differences if x != 0.0)
+        assert (n_zero, n_used) == (2, 4)
+        assert (n_zero == 0) != (n_used > 0), "the fixture no longer separates a rule on n_zero from one on n_used"
+        block = tst.contrast(a, b, definition="att_ours", tier="maxpressure")
+        d8 = block["paired_comparison"]
+        assert (d8["wilcoxon"]["n_zero"], d8["wilcoxon"]["n_used"]) == (n_zero, n_used)
+        assert block["exactly_zero"] is False
+>       assert d8["p_value_defined"] is True
+               ^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'p_value_defined'
+
+tests/test_tier_statements.py:2227: KeyError
+_ test_b23_a_two_sided_z_comes_from_min_of_the_rank_sums_so_its_sign_is_not_a_direction _
+
+    def test_b23_a_two_sided_z_comes_from_min_of_the_rank_sums_so_its_sign_is_not_a_direction() -> None:
+        """``BRIEF_45`` Amendment B.2, B.2.3 (3), and B.2.0(7) tested as a fact, not quoted: ``dt_spatial`` is worse than
+        ``dt_nomix`` on every draw in the first contrast and better on every draw in the second, so the two
+        ``mean_difference`` signs differ.  Both z's are <= 0 and EQUAL to each other, each equal to
+        :func:`own_wilcoxon_z`'s under ``==``, because z reads ``min(W+, W-)``.  The rank-biserial, which does carry the
+        direction, has opposite signs across the two."""
+        seeds, draws = (101, 202, 303, 404), range(1000, 1006)
+        base = {(s, d): 80.0 + s / 64.0 for s in seeds for d in draws}
+        gaps = {d: (d - 999) / 4.0 for d in draws}
+        right = fx.simple_cell("dt_nomix", "random", base)
+        measured: dict[str, tuple[float, float, float]] = {}
+        for name, sign in (("worse", +1.0), ("better", -1.0)):
+            left = fx.simple_cell("dt_spatial", "random", {key: base[key] + sign * gaps[key[1]] for key in base})
+            differences = own_paired(left, right, "att_ours")
+            assert sorted(abs(x) for x in differences) == sorted(gaps.values()), name
+            w_plus, w_minus, z = own_wilcoxon_z(differences)
+            block = tst.contrast(left, right, definition="att_ours", tier="random")
+            d8 = block["paired_comparison"]
+            assert (d8["wilcoxon"]["w_plus"], d8["wilcoxon"]["w_minus"]) == (w_plus, w_minus), name
+            assert d8["wilcoxon"]["statistic"] == min(w_plus, w_minus), name
+            assert d8["wilcoxon"]["z"] == z, name
+            assert d8["wilcoxon"]["z"] <= 0.0, name
+>           assert d8["p_value_defined"] is True, name
+                   ^^^^^^^^^^^^^^^^^^^^^
+E           KeyError: 'p_value_defined'
+
+tests/test_tier_statements.py:2257: KeyError
+_ test_b23_real_every_p_value_defined_follows_n_used_and_exactly_eight_are_undefined _
+
+real_artifact = {'format_version': 'p5.2-statements/1.0', 'role': "P5.2c: P5.2's registered statements (docs/plans/p5.2.md section 4, ...tion 8)", 'git': {'commit': '0000000000000000000000000000000000000000', 'dirty': False, 'code_root': 'synthetic'}, ...}
+
+    def test_b23_real_every_p_value_defined_follows_n_used_and_exactly_eight_are_undefined(
+            real_artifact: dict[str, Any]) -> None:
+        """``BRIEF_45`` Amendment B.2, B.2.3 (4): across every ``paired_comparison`` block this file's walk finds,
+        ``p_value_defined`` equals ``wilcoxon.n_used > 0``; exactly eight are False; they are B.2.0(5)'s eight, each in a
+        contrast whose ``exactly_zero`` is True and each carrying the convention's z = 0.0 and p = 1.0."""
+        holders = _paired_comparison_holders(real_artifact)
+        assert len(holders) == 136, len(holders)
+        for path, holder in holders:
+            d8 = holder["paired_comparison"]
+>           assert d8["p_value_defined"] is (d8["wilcoxon"]["n_used"] > 0), path
+                   ^^^^^^^^^^^^^^^^^^^^^
+E           KeyError: 'p_value_defined'
+
+tests/test_tier_statements.py:2759: KeyError
+=========================== short test summary info ============================
+FAILED tests/test_tier_statements.py::test_b23_an_exactly_zero_contrasts_p_value_is_labelled_undefined_with_its_convention
+FAILED tests/test_tier_statements.py::test_b23_a_contrast_zero_on_some_draws_only_has_a_defined_p_value
+FAILED tests/test_tier_statements.py::test_b23_a_two_sided_z_comes_from_min_of_the_rank_sums_so_its_sign_is_not_a_direction
+FAILED tests/test_tier_statements.py::test_b23_real_every_p_value_defined_follows_n_used_and_exactly_eight_are_undefined
+4 failed, 158 passed, 1 skipped in 14.75s

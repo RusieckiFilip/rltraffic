@@ -2140,6 +2140,129 @@ def test_b11_2_identical_needs_both_pairs_identical(books: Any) -> None:
 
 
 # ----------------------------------------------------------------------
+# Amendment B.2 (C6d): the Wilcoxon p-value's definedness and its note, beside D8's rank-biserial pair (B.2.3).  Each
+# expected answer is this file's own: the per-draw differences counted here, and ``dt_gate``'s z written out below.
+# ----------------------------------------------------------------------
+
+
+#: What ``paired_comparison.p_value_note`` must be TRUE of where the test is undefined (``BRIEF_45`` Amendment B.2,
+#: B.2.3): the cause, whose convention the values are, and that a convention is not a result.  Prescribed by its facts
+#: and not as a literal, which is B.1.2(1)'s lesson.
+UNDEFINED_NOTE_FACTS = ("exactly zero", "n_used = 0", "dt_gate.wilcoxon_signed_rank", "convention",
+                        "not a test result")
+
+#: What it must be TRUE of where the test is defined: the test's form, that no verdict reads it, and why the sign of
+#: its z is not a direction.
+DEFINED_NOTE_FACTS = ("two-sided", "normal approximation", "tie", "continuity", "never read by a verdict",
+                      "min(W+, W-)", "not the direction")
+
+
+def own_wilcoxon_z(differences: Sequence[float]) -> tuple[float, float, float]:
+    """``dt_gate.wilcoxon_signed_rank``'s z written out here (``offline/dt_gate.py:427-446``): average ranks over the
+    non-zero magnitudes, ``W+`` and ``W-``, then ``(min(W+, W-) - n(n + 1) / 4 + 0.5)`` over
+    ``sqrt(n(n + 1)(2n + 1) / 24 - sum(t ** 3 - t) / 48)``.  Returns ``(w_plus, w_minus, z)``; exact where the ranks
+    are, which they are for a handful of distinct magnitudes."""
+    nonzero = [float(x) for x in differences if x != 0.0]
+    n = len(nonzero)
+    magnitudes = sorted(abs(x) for x in nonzero)
+    rank: dict[float, float] = {}
+    sizes: list[int] = []
+    position = 0
+    while position < n:
+        end = position
+        while end + 1 < n and magnitudes[end + 1] == magnitudes[position]:
+            end += 1
+        rank[magnitudes[position]] = (position + end) / 2.0 + 1.0
+        sizes.append(end + 1 - position)
+        position = end + 1
+    w_plus = sum(rank[abs(x)] for x in nonzero if x > 0)
+    w_minus = sum(rank[abs(x)] for x in nonzero if x < 0)
+    variance = n * (n + 1) * (2 * n + 1) / 24.0 - sum(size ** 3 - size for size in sizes) / 48.0
+    return w_plus, w_minus, (min(w_plus, w_minus) - n * (n + 1) / 4.0 + 0.5) / math.sqrt(variance)
+
+
+def test_b23_an_exactly_zero_contrasts_p_value_is_labelled_undefined_with_its_convention() -> None:
+    """``BRIEF_45`` Amendment B.2, B.2.3 (1): both cells hold the same episodes, so every one of the six per-draw
+    differences is exactly zero -- counted here -- and the signed-rank test drops them all.  ``p_value_defined`` is
+    False, its note names ``n_used = 0`` and whose convention z = 0.0 and p = 1.0 are, and the Wilcoxon block still
+    carries exactly its seven keys."""
+    values = {(s, d): 140.0 + s / 32.0 + d / 16.0 for s in (101, 202, 303, 404) for d in range(1000, 1006)}
+    a = fx.simple_cell("dt_spatial", "fixedtime", values)
+    b = fx.simple_cell("dt_nomix", "fixedtime", values)
+    differences = own_paired(a, b, "att_ours")
+    assert len(differences) == 6 and all(x == 0.0 for x in differences), differences
+    d8 = tst.contrast(a, b, definition="att_ours", tier="fixedtime")["paired_comparison"]
+    w = d8["wilcoxon"]
+    assert (w["n_used"], w["n_zero"]) == (0, len(differences))
+    assert d8["p_value_defined"] is False
+    assert d8["p_value_defined"] is (w["n_used"] > 0)
+    assert (w["z"], w["p_value"]) == (0.0, 1.0)
+    assert set(w) == {"w_plus", "w_minus", "statistic", "n_used", "n_zero", "z", "p_value"}
+    note = d8["p_value_note"]
+    for fact in UNDEFINED_NOTE_FACTS:
+        assert fact in note, (fact, note)
+    assert "two-sided" not in note, note
+    assert d8["rank_biserial_defined"] is False
+
+
+def test_b23_a_contrast_zero_on_some_draws_only_has_a_defined_p_value() -> None:
+    """``BRIEF_45`` Amendment B.2, B.2.3 (2): two of six draws differ by exactly zero and four do not -- counted here --
+    so ``n_zero`` is 2, ``n_used`` is 4 and the test exists.  The fixture is chosen so that a rule written on
+    ``n_zero == 0`` instead of ``n_used > 0`` gives the opposite answer, which this test asserts of the fixture."""
+    seeds, draws = (101, 202, 303, 404), range(1000, 1006)
+    offsets = {1000: 0.0, 1001: 0.25, 1002: 0.0, 1003: -0.5, 1004: 1.25, 1005: -1.5}
+    right = {(s, d): 70.0 + s / 64.0 for s in seeds for d in draws}
+    left = {key: right[key] + offsets[key[1]] for key in right}
+    a, b = fx.simple_cell("bc", "maxpressure", left), fx.simple_cell("iql", "maxpressure", right)
+    differences = own_paired(a, b, "att_ours")
+    assert sorted(differences) == sorted(offsets.values()), differences
+    n_zero = sum(1 for x in differences if x == 0.0)
+    n_used = sum(1 for x in differences if x != 0.0)
+    assert (n_zero, n_used) == (2, 4)
+    assert (n_zero == 0) != (n_used > 0), "the fixture no longer separates a rule on n_zero from one on n_used"
+    block = tst.contrast(a, b, definition="att_ours", tier="maxpressure")
+    d8 = block["paired_comparison"]
+    assert (d8["wilcoxon"]["n_zero"], d8["wilcoxon"]["n_used"]) == (n_zero, n_used)
+    assert block["exactly_zero"] is False
+    assert d8["p_value_defined"] is True
+    assert d8["p_value_defined"] is (d8["wilcoxon"]["n_used"] > 0)
+    note = d8["p_value_note"]
+    for fact in DEFINED_NOTE_FACTS:
+        assert fact in note, (fact, note)
+    assert "n_used = 0" not in note, note
+
+
+def test_b23_a_two_sided_z_comes_from_min_of_the_rank_sums_so_its_sign_is_not_a_direction() -> None:
+    """``BRIEF_45`` Amendment B.2, B.2.3 (3), and B.2.0(7) tested as a fact, not quoted: ``dt_spatial`` is worse than
+    ``dt_nomix`` on every draw in the first contrast and better on every draw in the second, so the two
+    ``mean_difference`` signs differ.  Both z's are <= 0 and EQUAL to each other, each equal to
+    :func:`own_wilcoxon_z`'s under ``==``, because z reads ``min(W+, W-)``.  The rank-biserial, which does carry the
+    direction, has opposite signs across the two."""
+    seeds, draws = (101, 202, 303, 404), range(1000, 1006)
+    base = {(s, d): 80.0 + s / 64.0 for s in seeds for d in draws}
+    gaps = {d: (d - 999) / 4.0 for d in draws}
+    right = fx.simple_cell("dt_nomix", "random", base)
+    measured: dict[str, tuple[float, float, float]] = {}
+    for name, sign in (("worse", +1.0), ("better", -1.0)):
+        left = fx.simple_cell("dt_spatial", "random", {key: base[key] + sign * gaps[key[1]] for key in base})
+        differences = own_paired(left, right, "att_ours")
+        assert sorted(abs(x) for x in differences) == sorted(gaps.values()), name
+        w_plus, w_minus, z = own_wilcoxon_z(differences)
+        block = tst.contrast(left, right, definition="att_ours", tier="random")
+        d8 = block["paired_comparison"]
+        assert (d8["wilcoxon"]["w_plus"], d8["wilcoxon"]["w_minus"]) == (w_plus, w_minus), name
+        assert d8["wilcoxon"]["statistic"] == min(w_plus, w_minus), name
+        assert d8["wilcoxon"]["z"] == z, name
+        assert d8["wilcoxon"]["z"] <= 0.0, name
+        assert d8["p_value_defined"] is True, name
+        assert "not the direction" in d8["p_value_note"], name
+        measured[name] = (block["mean_difference"], d8["wilcoxon"]["z"], d8["rank_biserial"])
+    assert measured["worse"][0] > 0.0 > measured["better"][0], measured
+    assert measured["worse"][1] == measured["better"][1], measured
+    assert measured["worse"][2] == -measured["better"][2] != 0.0, measured
+
+
+# ----------------------------------------------------------------------
 # Real data (gated on RLTRAFFIC_OUTPUT_ROOT)
 # ----------------------------------------------------------------------
 
@@ -2593,3 +2716,60 @@ def test_b11_cb2_real_q0bs_per_seed_values_and_qualifier_under_both_definitions(
         qualifier = numbers["seed_reversal_qualifier"]
         assert qualifier is not None and qualifier.startswith(
             "⚠️ ORDERING NOT ROBUST ACROSS SEEDS: d4 vs d1 reverses on 1 of 5 training seeds (101)"), qualifier
+
+
+# ----------------------------------------------------------------------
+# Amendment B.2 (C6d), real data: the eight empty signed-rank tests, found by this file's own walk
+# ----------------------------------------------------------------------
+
+
+#: The eight ``paired_comparison`` blocks whose signed-rank test is empty (``BRIEF_45`` Amendment B.2, B.2.0(5)), named
+#: by statement rather than by index: ``dt_spatial`` and ``dt_nomix`` are identical at ``fixedtime``, and so are the
+#: three arms these four statements contrast there.
+EMPTY_TEST_STATEMENTS = {(statement, "fixedtime", definition)
+                         for statement in ("Q3b", "Q4.d", "Q4a", "Q5c") for definition in tst.DEFINITIONS}
+
+
+def _paired_comparison_holders(node: Any, path: str = "") -> list[tuple[str, Mapping[str, Any]]]:
+    """Every dict inside *node* that holds a ``paired_comparison`` with a ``wilcoxon`` block, with its path: this
+    file's own walk, so no part of the artifact's shape is assumed.  The HOLDER is returned, which is the contrast the
+    block belongs to."""
+    found: list[tuple[str, Mapping[str, Any]]] = []
+    if isinstance(node, Mapping):
+        block = node.get("paired_comparison")
+        if isinstance(block, Mapping) and isinstance(block.get("wilcoxon"), Mapping):
+            found.append((path, node))
+        for key, value in node.items():
+            found.extend(_paired_comparison_holders(value, f"{path}.{key}"))
+    elif isinstance(node, (list, tuple)):
+        for index, value in enumerate(node):
+            found.extend(_paired_comparison_holders(value, f"{path}[{index}]"))
+    return found
+
+
+def test_b23_real_every_p_value_defined_follows_n_used_and_exactly_eight_are_undefined(
+        real_artifact: dict[str, Any]) -> None:
+    """``BRIEF_45`` Amendment B.2, B.2.3 (4): across every ``paired_comparison`` block this file's walk finds,
+    ``p_value_defined`` equals ``wilcoxon.n_used > 0``; exactly eight are False; they are B.2.0(5)'s eight, each in a
+    contrast whose ``exactly_zero`` is True and each carrying the convention's z = 0.0 and p = 1.0."""
+    holders = _paired_comparison_holders(real_artifact)
+    assert len(holders) == 136, len(holders)
+    for path, holder in holders:
+        d8 = holder["paired_comparison"]
+        assert d8["p_value_defined"] is (d8["wilcoxon"]["n_used"] > 0), path
+    undefined = [(path, holder) for path, holder in holders
+                 if holder["paired_comparison"]["p_value_defined"] is False]
+    assert len(undefined) == 8, [path for path, _ in undefined]
+    for path, holder in undefined:
+        d8 = holder["paired_comparison"]
+        assert (d8["wilcoxon"]["n_used"], d8["wilcoxon"]["z"], d8["wilcoxon"]["p_value"]) == (0, 0.0, 1.0), path
+        assert holder["exactly_zero"] is True, path
+        assert d8["rank_biserial_defined"] is False, path
+        for fact in UNDEFINED_NOTE_FACTS:
+            assert fact in d8["p_value_note"], (path, fact)
+    identities = {(statement["id"], statement["tier"], statement["definition"])
+                  for statement in real_artifact["statements"]
+                  for _, holder in _paired_comparison_holders(statement["numbers"])
+                  if holder["paired_comparison"]["wilcoxon"]["n_used"] == 0}
+    assert identities == EMPTY_TEST_STATEMENTS, sorted(identities)
+    assert len(identities) == len(undefined), (sorted(identities), [path for path, _ in undefined])
