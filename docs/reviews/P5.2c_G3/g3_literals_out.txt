@@ -1,0 +1,11 @@
+123 literal rows; recorded literal not found at its cited lines: 0 []
+'equal' inconsistent with the normalised strings: 0 []
+rows not equal: 8; exceptions named: ['deferred_108', 'q3a_fixedtime']
+   ('q2b.counts', 'docs/returns/P5.2.md:27', '11 · 8 · 8', '11 · 7 · 8', 'deferred_108')
+   ('q3a.ranks', 'docs/returns/P5.2.md:28', '2/6 · 3/6 · 3/6', '2/6 · 2/6 · 3/6', 'q3a_fixedtime')
+   ('q2b.overall', 'docs/returns/P5.2.md:100', '27/45', '26/45', 'deferred_108')
+   ('q3a.ranks', 'docs/returns/P5.2.md:570', '2/6 · 3/6 · 3/6', '2/6 · 2/6 · 3/6', 'q3a_fixedtime')
+   ('q2b.counts', 'docs/briefs/BRIEF_27_p5.2_tier_sweep.md:1227', '11 · 8 · 8', '11 · 7 · 8', 'deferred_108')
+   ('q2b.overall', 'docs/briefs/BRIEF_27_p5.2_tier_sweep.md:1231', '27/45', '26/45', 'deferred_108')
+   ('q2b.counts', 'docs/briefs/BRIEF_27_p5.2_tier_sweep.md:1240', '11 · 8 · 8', '11 · 7 · 8', 'deferred_108')
+   ('q3a.ranks', 'docs/briefs/BRIEF_27_p5.2_tier_sweep.md:1249', '2/6 · 3/6 · 3/6', '2/6 · 2/6 · 3/6', 'q3a_fixedtime')
