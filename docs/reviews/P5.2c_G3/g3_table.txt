@@ -1,0 +1,201 @@
+Q0a/att_ours                                  HELD           +27.1004 [+23.8150, +30.3858]
+Q0b/att_ours                                  FAILED         -12.4645 [-16.3575, -8.5714]
+stop/att_ours                                 CONTINUE       
+Q0a/att_engine                                HELD           +27.4534 [+24.1365, +30.7702]
+Q0b/att_engine                                FAILED         -12.5676 [-16.4943, -8.6409]
+stop/att_engine                               CONTINUE       
+Q1/att_ours/corrected                         HELD           
+Q1/att_ours/as_committed                      HELD           
+Q1b/maxpressure/att_ours                      HELD           
+Q1b/fixedtime/att_ours                        HELD           
+Q1b.both/att_ours                             HELD           
+Q1/att_engine/corrected                       HELD           
+Q1/att_engine/as_committed                    HELD           
+Q1b/maxpressure/att_engine                    HELD           
+Q1b/fixedtime/att_engine                      HELD           
+Q1b.both/att_engine                           HELD           
+Q2a/maxpressure/att_ours/both                 FAILED         
+Q2b/maxpressure/att_ours/both                 FAILED         
+Q3a/maxpressure/att_ours/both                 FAILED         
+Q2a/fixedtime/att_ours/both                   FAILED         
+Q2b/fixedtime/att_ours/both                   FAILED         
+Q3a/fixedtime/att_ours/both                   FAILED         
+Q2a/random/att_ours/corrected                 FAILED         
+Q2b/random/att_ours/corrected                 FAILED         
+Q3a/random/att_ours/corrected                 FAILED         
+Q2a/random/att_ours/as_committed              FAILED         
+Q2b/random/att_ours/as_committed              FAILED         
+Q3a/random/att_ours/as_committed              FAILED         
+Q2b.aggregate/att_ours/corrected              FAILED         
+Q2b.aggregate/att_ours/as_committed           FAILED         
+Q2a/maxpressure/att_engine/both               FAILED         
+Q2b/maxpressure/att_engine/both               FAILED         
+Q3a/maxpressure/att_engine/both               FAILED         
+Q2a/fixedtime/att_engine/both                 FAILED         
+Q2b/fixedtime/att_engine/both                 FAILED         
+Q3a/fixedtime/att_engine/both                 FAILED         
+Q2a/random/att_engine/corrected               FAILED         
+Q2b/random/att_engine/corrected               FAILED         
+Q3a/random/att_engine/corrected               FAILED         
+Q2a/random/att_engine/as_committed            FAILED         
+Q2b/random/att_engine/as_committed            FAILED         
+Q3a/random/att_engine/as_committed            FAILED         
+Q2b.aggregate/att_engine/corrected            FAILED         
+Q2b.aggregate/att_engine/as_committed         FAILED         
+Q3b/maxpressure/att_ours                      HELD           -0.7294 [-0.9139, -0.5450]
+Q3b/fixedtime/att_ours                        NOT RESOLVED   +0.0000 [+0.0000, +0.0000]
+Q3b/random/att_ours                           HELD           -5.0360 [-5.5005, -4.5716]
+Q3b.aggregate/att_ours                        NOT RESOLVED   
+Q3b/maxpressure/att_engine                    HELD           -0.6664 [-0.8475, -0.4853]
+Q3b/fixedtime/att_engine                      NOT RESOLVED   +0.0000 [+0.0000, +0.0000]
+Q3b/random/att_engine                         HELD           -5.0453 [-5.5102, -4.5804]
+Q3b.aggregate/att_engine                      NOT RESOLVED   
+Q4a/maxpressure/att_ours                      HELD           +0.7267 [+0.6206, +0.8328]
+Q4a/fixedtime/att_ours                        NOT RESOLVED   +0.0000 [+0.0000, +0.0000]
+Q4a/random/att_ours                           FAILED         -0.7063 [-1.3172, -0.0953]
+Q4a.aggregate/att_ours                        FAILED         
+Q4b/att_ours                                  FAILED         
+Q4b.three_rung/att_ours                       FAILED         
+Q4a/maxpressure/att_engine                    HELD           +0.6895 [+0.5855, +0.7934]
+Q4a/fixedtime/att_engine                      NOT RESOLVED   +0.0000 [+0.0000, +0.0000]
+Q4a/random/att_engine                         FAILED         -0.7098 [-1.3207, -0.0990]
+Q4a.aggregate/att_engine                      FAILED         
+Q4b/att_engine                                FAILED         
+Q4b.three_rung/att_engine                     FAILED         
+Q5a/maxpressure/att_ours                      HELD           +514.4262 [+508.0807, +520.7716]
+Q5a/fixedtime/att_ours                        NOT RESOLVED   +0.2816 [-0.1093, +0.6725]
+Q5a/random/att_ours                           HELD           +60.9885 [+55.0077, +66.9693]
+Q5a.aggregate/att_ours                        NOT RESOLVED   
+Q5b/mappo1000/att_ours                        HELD           -557.3594 [-565.4166, -549.3021]
+Q5b/maxpressure/att_ours                      HELD           -469.6936 [-477.8062, -461.5809]
+Q5b/fixedtime/att_ours                        NOT RESOLVED   -0.2816 [-0.6725, +0.1093]
+Q5b/random/att_ours                           HELD           -49.1561 [-55.2578, -43.0544]
+Q5b.aggregate/att_ours                        NOT RESOLVED   
+Q5c/mappo1000/att_ours                        FAILED         +23.2396 [+19.1155, +27.3637]
+Q5c/maxpressure/att_ours                      FAILED         +44.7326 [+40.1822, +49.2831]
+Q5c/fixedtime/att_ours                        NOT RESOLVED   +0.0000 [+0.0000, +0.0000]
+Q5c/random/att_ours                           HELD           +11.8324 [+6.7711, +16.8937]
+Q5c.aggregate/att_ours                        FAILED         
+Q5a/maxpressure/att_engine                    HELD           +519.0220 [+512.6790, +525.3650]
+Q5a/fixedtime/att_engine                      NOT RESOLVED   +0.2839 [-0.1103, +0.6781]
+Q5a/random/att_engine                         HELD           +61.4959 [+55.4619, +67.5298]
+Q5a.aggregate/att_engine                      NOT RESOLVED   
+Q5b/mappo1000/att_engine                      HELD           -561.7580 [-569.7300, -553.7860]
+Q5b/maxpressure/att_engine                    HELD           -474.1761 [-482.3387, -466.0136]
+Q5b/fixedtime/att_engine                      NOT RESOLVED   -0.2839 [-0.6781, +0.1103]
+Q5b/random/att_engine                         HELD           -49.5097 [-55.6665, -43.3529]
+Q5b.aggregate/att_engine                      NOT RESOLVED   
+Q5c/mappo1000/att_engine                      FAILED         +23.3168 [+19.1606, +27.4730]
+Q5c/maxpressure/att_engine                    FAILED         +44.8459 [+40.2609, +49.4309]
+Q5c/fixedtime/att_engine                      NOT RESOLVED   +0.0000 [+0.0000, +0.0000]
+Q5c/random/att_engine                         HELD           +11.9862 [+6.8833, +17.0890]
+Q5c.aggregate/att_engine                      FAILED         
+Q6/mappo1000/att_ours/dt_spatial              NOT COLLAPSED  -62.9476 [-66.4636, -59.4315]
+Q6/mappo1000/att_ours/dt_nomix                NOT COLLAPSED  -102.5124 [-102.8487, -102.1762]
+Q6/maxpressure/att_ours/dt_spatial            NOT COLLAPSED  -92.8011 [-93.1109, -92.4914]
+Q6/maxpressure/att_ours/dt_nomix              NOT COLLAPSED  -93.5278 [-93.8441, -93.2115]
+Q6/fixedtime/att_ours/dt_spatial              NOT COLLAPSED  -53.2410 [-53.5122, -52.9697]
+Q6/fixedtime/att_ours/dt_nomix                NOT COLLAPSED  -53.2410 [-53.5122, -52.9697]
+Q6/random/att_ours/dt_spatial                 NOT COLLAPSED  -5.7423 [-6.2384, -5.2462]
+Q6/random/att_ours/dt_nomix                   NOT COLLAPSED  -5.0360 [-5.5005, -4.5716]
+Q6/mappo1000/att_engine/dt_spatial            NOT COLLAPSED  -62.5435 [-66.0875, -58.9996]
+Q6/mappo1000/att_engine/dt_nomix              NOT COLLAPSED  -102.5645 [-102.9008, -102.2282]
+Q6/maxpressure/att_engine/dt_spatial          NOT COLLAPSED  -92.4314 [-92.7403, -92.1225]
+Q6/maxpressure/att_engine/dt_nomix            NOT COLLAPSED  -93.1209 [-93.4363, -92.8054]
+Q6/fixedtime/att_engine/dt_spatial            NOT COLLAPSED  -53.5177 [-53.7881, -53.2473]
+Q6/fixedtime/att_engine/dt_nomix              NOT COLLAPSED  -53.5177 [-53.7881, -53.2473]
+Q6/random/att_engine/dt_spatial               NOT COLLAPSED  -5.7551 [-6.2516, -5.2586]
+Q6/random/att_engine/dt_nomix                 NOT COLLAPSED  -5.0453 [-5.5102, -4.5804]
+
+Q3c/mappo1000/att_ours/both.best bc
+Q3c/mappo1000/att_ours/both.reading resolves for the DT
+Q3c/maxpressure/att_ours/both.best bc
+Q3c/maxpressure/att_ours/both.reading resolves against the DT
+Q3c/fixedtime/att_ours/both.best iql
+Q3c/fixedtime/att_ours/both.reading resolves against the DT
+Q3c/random/att_ours/corrected.best iql
+Q3c/random/att_ours/corrected.reading resolves against the DT
+Q3c/random/att_ours/as_committed.best iql
+Q3c/random/att_ours/as_committed.reading resolves against the DT
+Q3c/mappo1000/att_engine/both.best bc
+Q3c/mappo1000/att_engine/both.reading resolves for the DT
+Q3c/maxpressure/att_engine/both.best bc
+Q3c/maxpressure/att_engine/both.reading NOT RESOLVED
+Q3c/fixedtime/att_engine/both.best iql
+Q3c/fixedtime/att_engine/both.reading resolves against the DT
+Q3c/random/att_engine/corrected.best iql
+Q3c/random/att_engine/corrected.reading resolves against the DT
+Q3c/random/att_engine/as_committed.best iql
+Q3c/random/att_engine/as_committed.reading resolves against the DT
+Q3c/mappo1000/att_ours/both.mean -11.1329
+Q3c/mappo1000/att_ours/both.low -13.7932
+Q3c/mappo1000/att_ours/both.high -8.4726
+Q3c/maxpressure/att_ours/both.mean 1.2993
+Q3c/maxpressure/att_ours/both.low 0.2395
+Q3c/maxpressure/att_ours/both.high 2.3592
+Q3c/fixedtime/att_ours/both.mean 3.1669
+Q3c/fixedtime/att_ours/both.low 2.9256
+Q3c/fixedtime/att_ours/both.high 3.4082
+Q3c/random/att_ours/corrected.mean 56.8432
+Q3c/random/att_ours/corrected.low 53.9794
+Q3c/random/att_ours/corrected.high 59.7069
+Q3c/random/att_ours/as_committed.mean 64.3603
+Q3c/random/att_ours/as_committed.low 62.1046
+Q3c/random/att_ours/as_committed.high 66.616
+Q3c/mappo1000/att_engine/both.mean -11.4093
+Q3c/mappo1000/att_engine/both.low -14.0917
+Q3c/mappo1000/att_engine/both.high -8.7269
+Q3c/maxpressure/att_engine/both.mean 0.9059
+Q3c/maxpressure/att_engine/both.low -0.1617
+Q3c/maxpressure/att_engine/both.high 1.9735
+Q3c/fixedtime/att_engine/both.mean 3.1835
+Q3c/fixedtime/att_engine/both.low 2.9418
+Q3c/fixedtime/att_engine/both.high 3.4253
+Q3c/random/att_engine/corrected.mean 56.7834
+Q3c/random/att_engine/corrected.low 53.8995
+Q3c/random/att_engine/corrected.high 59.6672
+Q3c/random/att_engine/as_committed.mean 64.349
+Q3c/random/att_engine/as_committed.low 62.0765
+Q3c/random/att_engine/as_committed.high 66.6216
+Q1/att_ours/corrected.n_held 15
+Q1/att_ours/as_committed.n_held 15
+Q1/att_engine/corrected.n_held 15
+Q1/att_engine/as_committed.n_held 15
+Q2b/maxpressure/att_ours/both.n_concordant 11
+Q2b/maxpressure/att_ours/both.range [11, 11]
+Q2b_hard/maxpressure/att_ours [2, 2, 2]
+Q3a/maxpressure/att_ours/both.rank [2, 2, 2]
+Q2b/fixedtime/att_ours/both.n_concordant 7
+Q2b/fixedtime/att_ours/both.range [7, 9]
+Q2b_hard/fixedtime/att_ours [2, 2, 4]
+Q3a/fixedtime/att_ours/both.rank [2, 2, 3]
+Q2b/random/att_ours/corrected.n_concordant 8
+Q2b/random/att_ours/corrected.range [8, 8]
+Q2b_hard/random/att_ours [3, 3, 3]
+Q3a/random/att_ours/corrected.rank [3, 3, 3]
+Q2b/random/att_ours/as_committed.n_concordant 8
+Q2b/random/att_ours/as_committed.range [8, 8]
+Q3a/random/att_ours/as_committed.rank [3, 3, 3]
+Q3a/mappo1000/att_ours.rank [1, 1, 1]
+Q3a/mappo1000/att_ours.verdict None
+Q2b/maxpressure/att_engine/both.n_concordant 11
+Q2b/maxpressure/att_engine/both.range [11, 11]
+Q2b_hard/maxpressure/att_engine [2, 2, 2]
+Q3a/maxpressure/att_engine/both.rank [2, 2, 2]
+Q2b/fixedtime/att_engine/both.n_concordant 7
+Q2b/fixedtime/att_engine/both.range [7, 9]
+Q2b_hard/fixedtime/att_engine [2, 2, 4]
+Q3a/fixedtime/att_engine/both.rank [2, 2, 3]
+Q2b/random/att_engine/corrected.n_concordant 8
+Q2b/random/att_engine/corrected.range [8, 8]
+Q2b_hard/random/att_engine [3, 3, 3]
+Q3a/random/att_engine/corrected.rank [3, 3, 3]
+Q2b/random/att_engine/as_committed.n_concordant 8
+Q2b/random/att_engine/as_committed.range [8, 8]
+Q3a/random/att_engine/as_committed.rank [3, 3, 3]
+Q3a/mappo1000/att_engine.rank [1, 1, 1]
+Q3a/mappo1000/att_engine.verdict None
+Q2b.aggregate/att_ours/corrected.overall [26, 26, 28]
+Q2b.aggregate/att_ours/as_committed.overall [26, 26, 28]
+Q2b.aggregate/att_engine/corrected.overall [26, 26, 28]
+Q2b.aggregate/att_engine/as_committed.overall [26, 26, 28]

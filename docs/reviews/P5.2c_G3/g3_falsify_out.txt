@@ -1,0 +1,25 @@
+CAUGHT  Q5c.aggregate verdict FAILED -> NOT RESOLVED (att_engine)  |  DIFF Q5c.aggregate/att_engine.verdict: mine='FAILED' theirs='NOT RESOLVED'
+CAUGHT  Q0b mean_difference nudged 1e-7 relative  |  DIFF Q0b/att_engine.mean: mine=-12.567618865354106 theirs=-12.567620122115994
+CAUGHT  Q0b by_seed[101] nudged  |  DIFF Q0b/att_ours.by_seed[101]: mine=45.893483329453844 theirs=45.89348791880216
+CAUGHT  Q0b qualifier names d1 vs d4  |  DIFF Q0b/att_ours.qualifier: mine=False theirs=True
+CAUGHT  Q1 corrected n_held 15 -> 14  |  DIFF Q1/att_ours/corrected.n_held: mine=15 theirs=14
+CAUGHT  Q1 one cell's held flag flipped  |  DIFF Q1/att_engine/as_committed.('dt_spatial', 'maxpressure').held: mine=True theirs=False
+CAUGHT  Q2b fixedtime range widened  |  DIFF Q2b/fixedtime/att_ours/both.range: mine=[7, 9] theirs=[7, 10]
+CAUGHT  Q2b_hard random n_concordant +1  |  DIFF Q2b_hard/random/att_engine: mine=[3, 3, 3] theirs=[4, 3, 3]
+CAUGHT  D9 fixedtime seed 303 hard range changed  |  DIFF D9/fixedtime/att_ours/both/303.hard: mine=[2, 2, 4] theirs=[2, 0, 6]
+CAUGHT  Q3a fixedtime rank range collapsed  |  DIFF Q3a/fixedtime/att_ours/both.rank: mine=[2, 2, 3] theirs=[2, 2, 2]
+CAUGHT  Q3c random corrected best_non_dt -> bc  |  DIFF Q3c/random/att_engine/corrected.best: mine='iql' theirs='bc'
+CAUGHT  Q3b fixedtime sub_prediction matched flipped  |  DIFF Q3b/fixedtime/att_ours.sub.matched: mine=True theirs=False
+CAUGHT  Q4b strictly_decreasing flipped  |  DIFF Q4b/att_ours.strictly_decreasing: mine=True theirs=False
+CAUGHT  Q6 random dt_spatial ci95_low nudged  |  DIFF Q6/random/att_engine/dt_spatial.low: mine=-6.251639750953193 theirs=-6.251640376117169
+CAUGHT  audit row verdict flipped (bc random)  |  DIFF audit/bc/random/att_engine/both.verdict: mine='COLLAPSED' theirs='NOT COLLAPSED'
+CAUGHT  audit sentence collapse_on edited  |  DIFF audit.sentence/att_ours/corrected.collapse_on: mine={'bc': ['random'], 'bc_top10': ['mappo1000', 'maxpressure', 'random'], 'bc_top10_perix': ['ra
+CAUGHT  leaders fixedtime per-seed first place edited  |  DIFF leaders/fixedtime/att_engine/both.per_seed_first_places: mine={'101': ['iql'], '202': ['iql'], '303': ['iql'], '404': ['iql'], '505': ['iql']} th
+CAUGHT  leaders random runner-up contrast high nudged  |  DIFF leaders/random/att_ours/as_committed/iql-dt_spatial.high: mine=-61.4226444794616 theirs=-61.42265062172604
+CAUGHT  cell median nudged (p5_2b iql att_engine)  |  DIFF cell/p5_2b:iql@random/att_engine.median: mine=174.90886187970085 theirs=174.90887937058704
+CAUGHT  cell companions never_entered count +1  |  DIFF cell/p5_1:bc@grid4x4_mappo1000.episodes_with_never_entered: mine=2 theirs=3
+CAUGHT  ties: one identical-episode pair dropped (fixedtime att_ours)  |  DIFF ties/fixedtime/att_ours/both.identical_episode_pairs: mine=[['bc', 'bc_top10_perix'], ['behaviour', 'dt_nomix'], ['behaviour', 'dt_spatial'], ['d
+CAUGHT  definition_dependent flipped (Q3c maxpressure att_ours)  |  DIFF definition_dependent ('Q3c', 'maxpressure', 'both', None): mine=[True, True] theirs=[False, True]
+CAUGHT  primary flipped (Q2a random corrected att_engine)  |  DIFF primary ('Q2a', 'random', 'corrected', None): mine=[False, True] theirs=[False, False]
+CAUGHT  a statement removed (Q5b random att_ours)  |  exit 1: KeyError: ('Q5b', 'random', 'att_ours', 'both', None)
+24 of 24 caught

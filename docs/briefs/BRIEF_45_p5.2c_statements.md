@@ -778,3 +778,114 @@ dt_gate.wilcoxon_signed_rank's convention for an empty test), and the artifact l
    - Report p, or |z|.
    - The direction comes from `mean_difference`'s sign, or the rank-biserial's.
    - P5.3c's one-sided T1–T3 are the exception: they carry an `alternative`, and their z is signed by registration.
+
+---
+
+# ✅ AMENDMENT C — 2026-10-14, gate G3: PASSED — every statement recomputed by the coordinator from the raw files by a route that imports nothing from `offline/` (3,518 comparisons, 0 differences); G4, the Return Packet, may begin
+
+The review record is `docs/reviews/P5.2c_G3.md`. The scripts, their outputs and the full comparison list are in
+`docs/reviews/P5.2c_G3/`.
+
+## C0 — What the coordinator checked, by running it
+1. **The branch** at `870e71a`.
+   - C6d is `f4413a3` (tests first, red run pasted), `de4e94f` (the module change) and `6267f68` (`mutate.py` to 83).
+   - G2 is `b5b8a98` (the guard), `9fa93e9` (the artifact) and `870e71a` (evidence).
+   - The module and test file are byte-identical from `de4e94f` on.
+   - No AI trailer in any task commit, and no frozen path.
+   - `git status` is clean, and `main` has not moved.
+   - The sandbox dotfiles the implementer reported do not exist on disk.
+2. **C6d** is B.2.3 as ruled. Its notes are prescribed and tested by facts, and each fact was checked against
+   `dt_gate.py:430-447`.
+3. **The guard commit** changes `tests/test_erfc_determinism.py` alone, as B.2.2(1)–(2) allows. Its quotation equals B.2.1
+   character for character (872 characters).
+4. **The artifact commit** changes that file alone; its parent is `b5b8a98`.
+   - 1,259,859 bytes, sha256 `1aa247ed…`.
+   - Its git block records `b5b8a98` with `dirty: false`.
+   - Its 13 code hashes equal the files at `b5b8a98`.
+5. **The harness on `de4e94f`, 44 mutants: 43 KILLED.**
+   - The mutants are the 38 of the C6c check plus CD1–CD6 on B.2.3.
+   - **CD6 survives and is not load-bearing.** It is a boundary mutant (`n_used > 1`), measured and not prescribed.
+     - No real block has `n_used = 1`: the real values are 0 (8 blocks), 5 (4) and 100 (124).
+     - The code's `n_used > 0` is correct. **No action.**
+6. **The independent recompute: 3,518 comparisons, 0 differences.** The largest relative float difference is 6.9 × 10⁻¹⁴.
+   - **What it reads.** The rules are taken from `docs/plans/p5.2.md` §4, each constant cited. The data are 16,000
+     re-derivation rows, each refused unless it reproduces the eval file's `att_horizon` under `==`.
+   - **What it covers:**
+     - all 154 statements, with a coverage check that fails on any statement left out;
+     - the 10 leaders blocks;
+     - the collapse audit;
+     - all 32 cells;
+     - the ties block;
+     - `definition_dependent` and `primary`.
+   - **The recompute was itself falsified:** 24 single-value corruptions of the artifact, 24 caught.
+7. **Provenance.** All 47 input files hash-equal on disk. The P8.4b-rows digest (15,500) and the P5.2b-rows digest (500)
+   reproduce from the coordinator's own file enumeration.
+8. **The comparison with the record.** All 123 recorded literals appear at their cited lines. The only unequal rows are the
+   two named exceptions:
+   - DEFERRED 108: Q2b at `fixedtime`, 8 → 7, and overall 27/45 → 26/45;
+   - Q3a at `fixedtime`: 3/6 → 2/6, range 2..3.
+
+   `changes` agrees with the statements.
+9. **On a clean export of `870e71a`:** the two test files give 220 passed, and T-regress and the guard pass by name. The
+   coordinator falsified the guard twice more: one ulp on a p-value, and one Wilcoxon block deleted. Both fail; the restored
+   file passes.
+
+## C1 — The results, by the coordinator's own numbers (Rule R: `att_engine` is primary)
+
+| statement | `att_engine` (primary) | `att_ours` |
+|---|---|---|
+| Q0a (d4 > 0) | HELD +27.4534 [+24.1365, +30.7702] | HELD +27.1004 [+23.8150, +30.3858] |
+| Q0b (I includes 0) | **FAILED** −12.5676 [−16.4943, −8.6409]; reverses on seed 101 | **FAILED** −12.4645 [−16.3575, −8.5714]; reverses on seed 101 |
+| stop rule | CONTINUE | CONTINUE |
+| Q1 (19 cells, k = 14) | HELD, 15 of 19 (both IQL versions) | HELD, 15 of 19 (both IQL versions) |
+| Q1b (both anchors ±10 %) | HELD | HELD |
+| Q2a (first place) | FAILED on all three tiers (measured firsts `bc` · `iql` · `iql`) | the same |
+| Q2b (≥ 12 of 15) | FAILED: 11 · **7** (range 7..9) · 8 | the same |
+| Q2b-hard (no threshold) | 2 · 2 (range 2..4) · 3 | the same |
+| Q3a (`dt_nomix` first) | FAILED: rank 2 · **2 (range 2..3)** · 3 of 6 | the same |
+| Q3b (aggregate) | NOT RESOLVED: HELD −0.6664 · exactly zero (identical episodes) · HELD −5.0453 | NOT RESOLVED: HELD −0.7294 · exactly zero · HELD −5.0360 |
+| Q3c (no verdict) | **+0.9059 [−0.1617, +1.9735] NOT RESOLVED** · +3.1835 against · +56.7834 against | +1.2993 [+0.2395, +2.3592] against · +3.1669 against · +56.8432 against |
+| Q4a (aggregate) | FAILED: HELD +0.6895 · exactly zero · FAILED −0.7098 [−1.3207, −0.0990] | FAILED: HELD +0.7267 · exactly zero · FAILED −0.7063 [−1.3172, −0.0953] |
+| Q4b (four- and three-rung chains) | FAILED; the four-rung chain is inverted (strictly decreasing) | the same |
+| Q5a (aggregate) | NOT RESOLVED: HELD +519.0220 · NOT RESOLVED +0.2839 [−0.1103, +0.6781] · HELD +61.4959 | NOT RESOLVED |
+| Q5b (aggregate) | NOT RESOLVED: HELD −561.7580 · HELD −474.1761 · NOT RESOLVED −0.2839 · HELD −49.5097 | NOT RESOLVED |
+| Q5c (aggregate) | FAILED: FAILED +23.3168 · FAILED +44.8459 · exactly zero · HELD +11.9862 | FAILED |
+| Q6 (collapse) | no DT arm collapses on any tier | the same |
+| collapse audit (descriptive) | the README sentence holds, under both IQL versions | the same |
+
+**How to read the table:**
+- Tiers run `maxpressure` · `fixedtime` · `random`; Q5b and Q5c add `mappo1000` first.
+- Q3c's `random` value is the corrected IQL cell's.
+- **No registered verdict depends on the definition or on the IQL correction.**
+- **Two readings change under Rule R**, both at `maxpressure`: Q3c's, and D9's seed 303, whose first place is `dt_nomix`
+  under `att_engine`.
+
+## C2 — For the paper (not changes; the author's rules when writing, beside B.2.5)
+1. **Q3c at `maxpressure` does not resolve under the primary definition** (+0.91 [−0.16, +1.97]).
+   - P5.2's record says *"every paired difference against the best non-DT arm resolves against the DT"* (`BRIEF_27` GATE
+     2). That holds under `att_ours` only.
+   - The README already says this: BC leads `maxpressure` by 0.9 s with a CI that includes zero under the primary metric.
+     Keep that sentence.
+2. **Under `att_engine`, D9's seed 303 at `maxpressure` puts `dt_nomix` first.** Any per-seed sentence about that tier
+   names it.
+3. **Q5a and Q5b at `fixedtime` rest on 5 differing episodes of 500** (`bc_top10` against `bc`; `bc_top10_perix` ≡ `bc`
+   there). 95 of the 100 per-draw differences are exactly zero.
+   - NOT RESOLVED is the registered verdict. Describe it as *"the two policies differ on 5 of 500 episodes"*.
+   - Their four Wilcoxon blocks (`n_used = 5`) rest on the normal approximation below the n ≥ 20 that
+     `dt_gate.wilcoxon_signed_rank` states for it (`dt_gate.py:399-402`). Do not report those four p-values.
+
+## C3 — Next: G4
+The implementer writes `docs/returns/P5.2c.md` per §8, from `docs/returns/TEMPLATE.md`, with:
+- the statement table, from the artifact, with the primary definition marked;
+- the first-time scores (§1.3);
+- the comparison with the record (DEFERRED 108; Q3a at `fixedtime`);
+- the ties;
+- what the correction and Rule R change (C1's two readings);
+- what the artifact does not say;
+- C2 and B.2.5 as *"for the paper"*;
+- the commands that rebuild the artifact: A1.1's form for `main`, and B.1.3(3)'s for the worktree;
+- every disclosure since C1;
+- CLAUDE.md §8's AI-assistance record.
+
+Commit it on the branch. Do not push. Then stop and say **"P5.2c G4 ready"**. G5, the merge review (two mandates and a
+depth-1 clone), follows.
