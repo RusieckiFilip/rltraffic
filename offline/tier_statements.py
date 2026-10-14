@@ -756,7 +756,11 @@ def contrast(left: Cell, right: Cell, *, definition: str, tier: str) -> dict[str
     ``(seed, draw)`` grid.  Carries the CI and its width, ``exactly_zero``, the point estimate's sign,
     ``tier_sweep.per_seed_block`` (D9), ``att_rederivation.contrast_discriminability`` and D8's rank-biserial block from
     ``offline_baselines.paired_comparison`` -- refused unless that call's ``mean_difference``, ``ci95_low`` and
-    ``ci95_high`` equal this block's under ``==`` (Amendment A, A2 Q8)."""
+    ``ci95_high`` equal this block's under ``==`` (Amendment A, A2 Q8).  D8's block is labelled twice over, both labels
+    on ``wilcoxon.n_used > 0``: ``rank_biserial_defined`` / ``rank_biserial_note`` for the effect size and
+    ``p_value_defined`` / ``p_value_note`` for the test.  Where every per-draw difference is exactly zero the
+    signed-rank test is EMPTY, and the z = 0.0 and p_value = 1.0 it carries are
+    ``dt_gate.wilcoxon_signed_rank``'s convention rather than a result (``BRIEF_45`` Amendment B.2, B.2.3)."""
     a, b = episodes_of(left, definition), episodes_of(right, definition)
     if _grid_of(left, a) != _grid_of(right, b):
         raise ValueError(f"{left.spec.cell_id} and {right.spec.cell_id} do not cover the same (seed, draw) grid "
@@ -802,6 +806,15 @@ def contrast(left: Cell, right: Cell, *, definition: str, tier: str) -> dict[str
                 "(worse) more often and by larger ranks" if defined else
                 "undefined: every per-draw difference is exactly zero (wilcoxon n_used = 0), and "
                 "offline_baselines.rank_biserial returns 0.0 by convention; that 0.0 is not an effect size"),
+            "p_value_defined": defined,
+            "p_value_note": (
+                "two-sided signed-rank test (the normal approximation, with the tie and continuity corrections); it is "
+                "never read by a verdict, and its z is computed from min(W+, W-), so the sign of z is not the "
+                "direction of the difference -- read mean_difference's sign or the rank-biserial's instead "
+                "(BRIEF_45 Amendment B.2, B.2.3)" if defined else
+                "undefined: every per-draw difference is exactly zero (wilcoxon n_used = 0), so there is no test to "
+                "report; z = 0.0 and p_value = 1.0 are dt_gate.wilcoxon_signed_rank's convention for an empty test "
+                "and are not a test result (BRIEF_45 Amendment B.2, B.2.3)"),
             "median_difference": float(comparison.median_difference), "wins": int(comparison.wins),
             "losses": int(comparison.losses), "ties": int(comparison.ties),
             "wilcoxon": {"w_plus": float(wilcoxon.w_plus), "w_minus": float(wilcoxon.w_minus),
@@ -2614,7 +2627,12 @@ def definitions_block() -> dict[str, Any]:
                      "evaluation label, not a training seed"),
         "d8": {"quotes": _quotes("D8"),
                "carried": ("rank_biserial, median_difference, wins, losses, ties and the Wilcoxon block from "
-                           "offline_baselines.paired_comparison, unchanged; the p-value is never read by a verdict")},
+                           "offline_baselines.paired_comparison, unchanged; the p-value is never read by a verdict. "
+                           "rank_biserial_defined and rank_biserial_note label the effect size, and p_value_defined "
+                           "and p_value_note label the test: both are wilcoxon.n_used > 0, so where every per-draw "
+                           "difference is exactly zero the signed-rank test is empty and its z = 0.0 and p_value = 1.0 "
+                           "are dt_gate.wilcoxon_signed_rank's convention, not a result (BRIEF_45 Amendment B.2, "
+                           "B.2.3)")},
         "d15": {"quotes": _quotes("D15"),
                 "carried": ("each cell's median and IQR per definition (numpy.percentile, method='linear') and A5's "
                             "horizon vehicle count, asserted equal to each evaluation record's own cell block")},
@@ -2632,8 +2650,8 @@ ROLE = (
 
 REGISTERED_IN = (
     "docs/briefs/BRIEF_45_p5.2c_statements.md, its Amendment A (gate G0; the plan docs/plans/p5.2c.md at 1267715), "
-    "its Amendment B (gate G1) and its Amendment B.1 (gate G1.1); the author's ruling of 2026-10-08 (PROJECT_PLAN "
-    "section 8)")
+    "its Amendment B (gate G1), its Amendment B.1 (gate G1.1) and its Amendment B.2 (gate G2); the author's ruling of "
+    "2026-10-08 (PROJECT_PLAN section 8)")
 
 
 def build_artifact(inputs: Inputs, *, git: Mapping[str, Any], code: Sequence[Mapping[str, Any]],
