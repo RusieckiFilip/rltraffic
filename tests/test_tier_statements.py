@@ -736,6 +736,9 @@ def test_t_versions_the_iql_free_statements_are_stored_once_and_the_iql_ones_twi
             assert not involves_corrected, (s["id"], s["tier"])
         else:
             assert s["version"] in tst.VERSIONS
+            # BRIEF_45 Amendment D, D2.4 (M1b's N1.2): the other direction -- a statement stored per version reads a
+            # random-tier IQL cell, so an IQL-free one stored twice instead of once fails here.
+            assert involves_corrected, (s["id"], s["tier"], s["version"])
     q1 = {s["version"]: s for s in statements if s["id"] == "Q1" and s["definition"] == "att_ours"}
     assert set(q1) == {"corrected", "as_committed"}
     iql = {v: next(c for c in q1[v]["numbers"]["cells"] if c["cell"] == ["iql", "random"])["measured"] for v in q1}
@@ -1183,6 +1186,9 @@ def test_t_inputs_the_synthetic_build_passes_every_comparison_of_the_record(tree
     comparison = artifact["comparison_with_the_record"]
     assert comparison["p5_2b_artifact"]["equal"] is True
     assert comparison["p5_1_grid"]["equal"] is True
+    # BRIEF_45 Amendment D, D2.4 (M1b's N1.1): the key set first, so the loop below cannot pass on an empty block.
+    assert sorted((r["contrast_id"], r["definition"]) for r in comparison["p8_4b"]) == [
+        ("V4", "att_engine"), ("V4", "att_ours"), ("V5", "att_engine"), ("V5", "att_ours")]
     for row in comparison["p8_4b"]:
         assert row["record_route_reproduces"] is True
     assert comparison["p5_2_stop_rule_record"]["record_route_reproduces"] is True
@@ -2263,6 +2269,394 @@ def test_b23_a_two_sided_z_comes_from_min_of_the_rank_sums_so_its_sign_is_not_a_
 
 
 # ----------------------------------------------------------------------
+# Amendment D (gate G5, round C8): D1's artifact fixes and D2's tests.  Each expected answer is this file's own: the
+# rules written out here, the rows, ``statistics`` and the registered lines read as T-quotes reads them.
+# ----------------------------------------------------------------------
+
+
+def _summary_point(numbers: Mapping[str, Any]) -> dict[str, Any]:
+    """This file's rule for a statement's point estimate (``BRIEF_45`` Amendment D, D1.2): the numbers' own
+    ``mean_difference`` and CI ends; for Q3c, which keeps them in its contrast, the contrast's (and its ``mean`` must
+    equal the contrast's mean); for a statement with neither, an aggregate among them, none."""
+    if "mean_difference" in numbers:
+        source = numbers
+    elif "contrast" in numbers:
+        source = numbers["contrast"]
+        if "mean" in numbers:
+            assert numbers["mean"] == source["mean_difference"], numbers
+    else:
+        return {"mean_difference": None, "ci95_low": None, "ci95_high": None}
+    return {key: source[key] for key in ("mean_difference", "ci95_low", "ci95_high")}
+
+
+def _statement(artifact: Mapping[str, Any], statement_id: str, tier: str | None, arm: str | None, definition: str,
+               version: str) -> Mapping[str, Any]:
+    found = [s for s in artifact["statements"]
+             if (s["id"], s["tier"], s.get("arm"), s["definition"]) == (statement_id, tier, arm, definition)
+             and s["version"] in (version, "both")]
+    assert len(found) == 1, (statement_id, tier, arm, definition, version, len(found))
+    return found[0]
+
+
+CHANGES_STEPS = (("as_committed_att_ours", "att_ours", "as_committed"), ("corrected_att_ours", "att_ours", "corrected"),
+                 ("corrected_att_engine", "att_engine", "corrected"))
+
+
+def _assert_summary_rows_carry_their_statements_points(artifact: Mapping[str, Any]) -> int:
+    """Every row of ``never_scored`` and every step of every ``changes`` row equals its statement's point estimate by
+    :func:`_summary_point`, and none is null where the statement has one.  Returns the number of rows checked."""
+    checked, with_value = 0, 0
+    for block in artifact["comparison_with_the_record"]["never_scored"]:
+        for row in block["this_artifact"]:
+            own = _summary_point(_statement(artifact, row["id"], row["tier"], row["arm"], row["definition"],
+                                            row["version"])["numbers"])
+            assert {key: row[key] for key in own} == own, row
+            checked += 1
+            with_value += own["mean_difference"] is not None
+    for row in artifact["changes"]:
+        for step, definition, version in CHANGES_STEPS:
+            own = _summary_point(_statement(artifact, row["id"], row["tier"], row["arm"], definition, version)["numbers"])
+            assert {key: row[step].get(key) for key in own} == own, (row["id"], row["tier"], row["arm"], step)
+            checked += 1
+            with_value += own["mean_difference"] is not None
+    assert with_value > 0, "no row has a point estimate, so the walk checks nothing"
+    return checked
+
+
+def _synthetic_artifact(tree: fx.SyntheticTree, record: Sequence[Any] = ()) -> dict[str, Any]:
+    return tst.build_artifact(tst.load_inputs(tree.roots, pins=tree.pins), git=SYNTHETIC_GIT, code=SYNTHETIC_CODE,
+                              record=tuple(record))
+
+
+def test_d1_1_q5s_reading_names_only_the_tiers_where_the_global_filter_collapses_alone(books: Any) -> None:
+    """``BRIEF_45`` Amendment D, D1.1 (F5.1): at ``maxpressure`` both filters are made worse than the shared anchor
+    (``bc_top10`` by 20, ``bc_top10_perix`` by 10, so Q5b resolves there as well).  That tier is in Q5b's resolving set
+    and in the both-collapse set, and absent from the global-only set and from the reading's global-only clause.  Every
+    set is computed here, by Q6's rule written out (:func:`own_collapses`) and the interval rule for Q5b."""
+    def edit(book: Mapping[tuple[str, str], tst.Cell]) -> dict[tuple[str, str], tst.Cell]:
+        book = _as(book, ("bc_top10", "maxpressure"), tst.ANCHOR, lambda r: 20.0)
+        return _as(book, ("bc_top10_perix", "maxpressure"), tst.ANCHOR, lambda r: 10.0)
+
+    edited = _both(books, edit)
+    reading = tst.q5_descriptive_reading(tst.collapse_audit(edited), tst.all_statements(edited))
+    book = edited["corrected"]
+    for definition in tst.DEFINITIONS:
+        collapses = {(arm, t): own_collapses(book, arm, t, definition)
+                     for arm in ("bc_top10", "bc_top10_perix") for t in tst.TIERS}
+        alone = [t for t in tst.TIERS if collapses[("bc_top10", t)] and not collapses[("bc_top10_perix", t)]]
+        both = [t for t in tst.TIERS if collapses[("bc_top10", t)] and collapses[("bc_top10_perix", t)]]
+        resolves = [t for t in tst.TIERS
+                    if own_contrast_outcome(book[("bc_top10_perix", t)], book[("bc_top10", t)], definition,
+                                            "negative") == "HELD"]
+        assert "maxpressure" in resolves and "maxpressure" in both, "the fixture no longer discriminates"
+        block = reading[definition]
+        assert block["tiers_where_q5b_resolves"] == resolves
+        assert block["tiers_global_filter_collapses_alone"] == alone
+        assert block["tiers_both_filters_collapse"] == both
+        clause, _, rest = block["reading"].partition("; ")
+        assert "maxpressure" not in clause, block["reading"]
+        assert all(t in clause for t in alone), block["reading"]
+        assert "maxpressure" in rest and "both filters" in rest, block["reading"]
+
+
+def test_d1_2_every_summary_row_carries_its_statements_point_estimate(tree: fx.SyntheticTree) -> None:
+    """``BRIEF_45`` Amendment D, D1.2 (F1.1, and the ``never_scored`` defect): this file's walk over ``never_scored``
+    and ``changes`` on the synthetic build -- each row equals its statement's point estimate (Q3c's from its contrast,
+    an aggregate's none), and none is null where the statement has one."""
+    artifact = _synthetic_artifact(tree)
+    assert _assert_summary_rows_carry_their_statements_points(artifact) > 100
+    q3c = [row for row in artifact["changes"] if row["id"] == "Q3c"]
+    assert q3c and all(row["corrected_att_engine"]["mean_difference"] is not None for row in q3c)
+
+
+def test_d1_3_a_literal_row_carries_its_att_engine_value_and_a_null_only_where_none_exists(
+        tree: fx.SyntheticTree) -> None:
+    """``BRIEF_45`` Amendment D, D1.3 (F4.1, F4.2): a record row equal under ``att_ours`` whose quantity differs under
+    ``att_engine`` at the record's precision -- ``bc_top10``'s level at ``fixedtime``, whose ``att_engine`` the fixture
+    sets 7 below -- carries the ``att_engine`` value (this file's mean over the corrected cell's rows) and
+    ``att_engine_equal`` False.  A protocol fact (the threshold, a registered prediction) carries null and a note."""
+    inputs = tst.load_inputs(tree.roots, pins=tree.pins)
+    books = tst.make_books(inputs.cells)
+    key = ("bc_top10", "fixedtime")
+    ours = f"{own_level(books['as_committed'][key], 'att_ours'):.2f}"
+    engine = f"{own_level(books['corrected'][key], 'att_engine'):.2f}"
+    assert ours != engine, "the fixture no longer separates the definitions at this precision"
+    record = (tst.RecordRow("docs/returns/P5.2.md", (34, 34), ours, "q1.measured.bc_top10@fixedtime"),
+              tst.RecordRow("docs/briefs/BRIEF_27_p5.2_tier_sweep.md", (1216, 1216), "(threshold 14)", "q1.threshold"),
+              tst.RecordRow("docs/returns/P5.2.md", (34, 34), "1042.75", "q1.predicted.bc_top10@fixedtime"))
+    rows = _synthetic_artifact(tree, record)["comparison_with_the_record"]["literal_records"]
+    measured, threshold, predicted = rows
+    assert (measured["this_artifact"], measured["equal"]) == (ours, True)
+    assert (measured["att_engine"], measured["att_engine_equal"]) == (engine, False)
+    assert "att_engine_note" not in measured
+    for row in (threshold, predicted):
+        assert row["att_engine"] is None and row["att_engine_equal"] is None, row
+        assert row["att_engine_note"], row
+
+
+def test_d1_4_the_p8_4b_rows_name_what_each_outcome_belongs_to(tree: fx.SyntheticTree) -> None:
+    """``BRIEF_45`` Amendment D, D1.4 (F5.2): V4's row is Q0.d1, which is P5.1's P2a, and its outcome is P2a's; V5's
+    row is the stop rule's d4 (the d4 Q0a also reads), and its outcome is the stop rule's verdict -- asserted against
+    the stop-rule statement itself.  D2.4: the rows are exactly {V4, V5} x {att_ours, att_engine}."""
+    artifact = _synthetic_artifact(tree)
+    rows = artifact["comparison_with_the_record"]["p8_4b"]
+    assert sorted((r["contrast_id"], r["definition"]) for r in rows) == [
+        ("V4", "att_engine"), ("V4", "att_ours"), ("V5", "att_engine"), ("V5", "att_ours")]
+    for row in rows:
+        if row["contrast_id"] == "V4":
+            assert row["statement"] == "Q0.d1" and "P2a" in row["statement_label"], row["statement_label"]
+        else:
+            assert row["statement"] == "Q0.stop_rule", row
+            assert "stop rule" in row["statement_label"] and "Q0a" in row["statement_label"], row["statement_label"]
+            stop = _statement(artifact, "Q0.stop_rule", "mappo1000", None, row["definition"], "as_committed")
+            assert row["this_artifact"]["outcome"] == stop["verdict"] and stop["verdict"] in ("STOP", "CONTINUE")
+
+
+def test_d1_5_definitions_state_the_flags_the_zero_seeds_and_the_aggregates() -> None:
+    """``BRIEF_45`` Amendment D, D1.5 (F1.2, F1.3, F1.4): ``definitions`` gains the three sentences, each checked for
+    the fact it must state -- and the zero-seed one checked against P5.1's worker on a constructed contrast whose seeds
+    are +, 0, +, 0, 0 against its mirror image: the minority counts the zeros, the pooled-sign count does not."""
+    d = tst.definitions_block()
+    flags = d["changes_flags"]
+    assert "changed_by_rule_r" in flags and "changed_by_the_correction" in flags
+    assert "verdict or the reading" in flags and "value" in flags, flags
+    zeros = d["reverses_on_n_seeds"]
+    assert "exactly zero" in zeros and "reverses_against_pooled_sign" in zeros and "qualif" in zeros, zeros
+    assert "aggregate" in d["aggregates"] and "null" in d["aggregates"], d["aggregates"]
+    seeds, draws = (101, 202, 303, 404, 505), range(1000, 1004)
+    gap = {101: 1.5, 202: 0.0, 303: 0.25, 404: 0.0, 505: 0.0}
+    base = {(s, dr): 90.0 + s / 64.0 for s in seeds for dr in draws}
+    right = fx.simple_cell("dt_nomix", "random", base)
+    blocks = {}
+    for name, sign in (("positive", +1.0), ("negative", -1.0)):
+        left = fx.simple_cell("dt_spatial", "random", {k: base[k] + sign * gap[k[0]] for k in base})
+        blocks[name] = tst.contrast(left, right, definition="att_ours", tier="random")["per_seed"]
+    zero_seeds = sum(1 for v in gap.values() if v == 0.0)
+    assert blocks["positive"]["reverses_on_n_seeds"] == 0
+    assert blocks["negative"]["reverses_on_n_seeds"] == len(seeds) - zero_seeds == 2
+    assert blocks["negative"]["reverses_against_pooled_sign"] == blocks["positive"]["reverses_against_pooled_sign"] == 0
+
+
+def _contrast_blocks(node: Any, path: str = "") -> list[tuple[str, Mapping[str, Any]]]:
+    """Every two-arm contrast block in *node* (a dict with ``left_arm``, ``right_arm`` and ``per_seed``), by this
+    file's own walk."""
+    found: list[tuple[str, Mapping[str, Any]]] = []
+    if isinstance(node, Mapping):
+        if {"left_arm", "right_arm", "per_seed"} <= set(node):
+            found.append((path, node))
+        for key, value in node.items():
+            found.extend(_contrast_blocks(value, f"{path}.{key}"))
+    elif isinstance(node, (list, tuple)):
+        for index, value in enumerate(node):
+            found.extend(_contrast_blocks(value, f"{path}[{index}]"))
+    return found
+
+
+def _evaluation_label_arms(block: Mapping[str, Any]) -> list[str]:
+    """This file's rule: a behaviour cell's arm or a random-policy anchor's, whose seed labels are evaluation labels."""
+    return [arm for arm in (block["left_arm"], block["right_arm"]) if arm.split("@")[0] in ("behaviour", "random")]
+
+
+def test_d1_6_a_behaviour_or_anchor_arm_has_its_seed_labels_called_evaluation_labels(tree: fx.SyntheticTree) -> None:
+    """``BRIEF_45`` Amendment D, D1.6 (F2.1): this file's walk finds every contrast block in the synthetic build; where
+    an arm is a behaviour cell or the random anchor, its ``per_seed`` note names that arm and says its seed labels are
+    evaluation labels, not training seeds; no other block says so."""
+    blocks = _contrast_blocks(_synthetic_artifact(tree))
+    labelled = [(path, block) for path, block in blocks if _evaluation_label_arms(block)]
+    assert labelled and len(labelled) < len(blocks), "the walk no longer finds both kinds of block"
+    for path, block in blocks:
+        note = block["per_seed"]["note"]
+        arms = _evaluation_label_arms(block)
+        if arms:
+            for arm in arms:
+                assert f"{arm}'s seed labels are evaluation labels, not training seeds" in note, (path, note)
+        else:
+            assert "evaluation label" not in note, (path, note)
+
+
+def test_d1_7_the_labels_q2a_the_audit_rule_q4b_and_q6s_expectation(books: Any) -> None:
+    """``BRIEF_45`` Amendment D, D1.7 (F3.1-F3.4, F4.3): Q2a's note on its tiers; the audit's rule no longer called
+    verbatim; Q4b's four-rung citation including line 673; Q6's ``registered_expectation_met`` equal to this file's
+    comparison; and every statement carrying a registered value carries ``predictions_registered_on``."""
+    statements = tst.all_statements(books)
+    q2a = [s for s in statements if s["id"] == "Q2a"]
+    assert q2a
+    for s in q2a:
+        note = s["numbers"]["tiers_note"]
+        assert "2 out-of-sample tiers" in note and "fixedtime" in note, note
+        assert "docs/plans/p5.2.md:595" in note and "docs/plans/p5.2.md:601" in note, note
+    assert "@fixedtime" in _norm(_cited("docs/plans/p5.2.md", (595, 595)))
+    assert "fixedtime predicts the same ordering" in _norm(_cited("docs/plans/p5.2.md", (601, 601)))
+    rule = tst.collapse_audit(books)["rule"]
+    assert "verbatim" not in rule and "registered for a DT arm under att_horizon" in rule, rule
+    assert "applied descriptively to every arm under both definitions" in rule, rule
+    q4b = [s for s in statements if s["id"] == "Q4b"]
+    assert q4b and all("673" in s["numbers"]["form"] for s in q4b)
+    q6 = [s for s in statements if s["id"] == "Q6"]
+    assert len(q6) == 16
+    for s in q6:
+        assert s["numbers"]["registered_expectation_met"] is (s["verdict"] == s["numbers"]["registered_expectation"])
+
+    def carries_registered_value(node: Any) -> bool:
+        if isinstance(node, Mapping):
+            return "registered_value" in node or "predicted" in node or any(
+                carries_registered_value(v) for v in node.values())
+        if isinstance(node, (list, tuple)):
+            return any(carries_registered_value(v) for v in node)
+        return False
+
+    carrying = [s for s in statements if carries_registered_value(s["numbers"])]
+    assert {s["id"] for s in carrying} >= {"Q0.d1", "Q1", "Q1b", "Q3b", "Q3c", "Q4.d", "Q4b", "Q5a", "Q5b", "Q5c"}
+    for s in carrying:
+        assert s["numbers"].get("predictions_registered_on"), (s["id"], s["tier"], s["definition"])
+        if s["definition"] == "att_engine":
+            assert "not att_engine" in s["numbers"]["predictions_registered_on"], s["id"]
+    first = tst.WHAT_THIS_DOES_NOT_SAY[0]
+    assert all(name in first for name in ("Q1", "Q2", "Q3b", "Q3c", "Q4", "Q5")), first
+
+
+@pytest.mark.parametrize(("offsets", "small"), [((0.25, -0.5, 1.25, 0.75), True),
+                                                (tuple(((-1) ** i) * (i + 1) / 8.0 for i in range(24)), False)])
+def test_d1_8_a_signed_rank_test_on_fewer_than_twenty_pairs_says_so(offsets: tuple[float, ...], small: bool) -> None:
+    """``BRIEF_45`` Amendment D, D1.8 (F4.4): ``n_used`` counted here; below 20 the defined p-value note states
+    ``n_used`` and that the normal approximation then rests on fewer pairs than the n >= 20
+    ``dt_gate.wilcoxon_signed_rank`` states for it; at 20 or more it does not.  B.2.3's facts stay."""
+    seeds, draws = (101, 202, 303, 404), range(1000, 1000 + len(offsets))
+    right = {(s, d): 75.0 + s / 64.0 for s in seeds for d in draws}
+    left = {key: right[key] + offsets[key[1] - 1000] for key in right}
+    a, b = fx.simple_cell("bc", "maxpressure", left), fx.simple_cell("iql", "maxpressure", right)
+    n_used = sum(1 for x in own_paired(a, b, "att_ours") if x != 0.0)
+    assert (n_used < 20) is small, "the cases no longer discriminate"
+    d8 = tst.contrast(a, b, definition="att_ours", tier="maxpressure")["paired_comparison"]
+    assert d8["wilcoxon"]["n_used"] == n_used and d8["p_value_defined"] is True
+    note = d8["p_value_note"]
+    for fact in DEFINED_NOTE_FACTS:
+        assert fact in note, (fact, note)
+    if small:
+        assert f"n_used = {n_used}" in note and "fewer pairs than the n >= 20" in note, note
+        assert "dt_gate.wilcoxon_signed_rank" in note, note
+    else:
+        assert "fewer pairs than" not in note, note
+
+
+def test_d1_9a_a_temporary_file_this_call_did_not_create_survives_its_refusal(tmp_path: Path) -> None:
+    """``BRIEF_45`` Amendment D, D1.9(a) (M1a's M5.1): a file already at the write's temporary name is not this call's,
+    so the refusal leaves it in place, bytes unchanged, and writes nothing at the target."""
+    target = tmp_path / "artifact.json"
+    foreign = tmp_path / f".{target.name}.{os.getpid()}.tmp"
+    foreign.write_bytes(b"not this call's")
+    with pytest.raises(FileExistsError, match="File exists"):
+        tst.write_artifact(target, b"{}\n")
+    assert foreign.read_bytes() == b"not this call's"
+    assert not target.exists()
+
+
+def _git(*args: str, cwd: Path) -> str:
+    import subprocess
+
+    completed = subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@example.com",
+                                "-c", "commit.gpgsign=false", *args], cwd=cwd, capture_output=True, text=True,
+                               check=True)
+    return completed.stdout.strip()
+
+
+def test_d1_9b_a_copy_nested_untracked_in_another_repository_is_refused(tmp_path: Path,
+                                                                        monkeypatch: pytest.MonkeyPatch) -> None:
+    """``BRIEF_45`` Amendment D, D1.9(b) (M1a's M6.1): with the provenance's code root an untracked directory inside
+    another repository, git answers with that repository's toplevel and commit, so the git block is refused; at the
+    repository's own root it is accepted and names that root's commit."""
+    import shutil
+
+    if shutil.which("git") is None:
+        pytest.skip("git is required to build the nested repository")
+    outer = tmp_path / "outer"
+    outer.mkdir()
+    _git("init", "-q", cwd=outer)
+    (outer / "README").write_text("outer\n", encoding="utf-8")
+    _git("add", "README", cwd=outer)
+    _git("commit", "-q", "-m", "outer", cwd=outer)
+    commit = _git("rev-parse", "HEAD", cwd=outer)
+    nested = outer / "nested"
+    nested.mkdir()
+    monkeypatch.setattr(tst.cl, "_MODULE_ROOT", nested)
+    with pytest.raises(ValueError, match="toplevel"):
+        tst.git_block()
+    monkeypatch.setattr(tst.cl, "_MODULE_ROOT", outer)
+    block = tst.git_block()
+    assert block["commit"] == commit and Path(block["code_root"]).resolve() == outer.resolve()
+
+
+def _statement_row(statement_id: str, definition: str, version: str, *, verdict: str | None, reading: str | None,
+                   mean: float) -> dict[str, Any]:
+    return {"id": statement_id, "tier": "maxpressure", "arm": None, "definition": definition, "version": version,
+            "verdict": verdict, "reading": reading,
+            "numbers": {"mean_difference": mean, "ci95_low": mean - 1.0, "ci95_high": mean + 1.0}}
+
+
+def test_d2_1_changes_flags_by_this_files_rule() -> None:
+    """``BRIEF_45`` Amendment D, D2.1 (M1b's F4.1): ``changes_block``'s two flags on four constructed statements -- a
+    Rule R change in the reading only, a verdict change, a correction change, and an unchanged statement whose value
+    moves -- against this file's rule: a flag is true iff the (verdict, reading) pair differs between its two steps.
+    The reviewer's R1 (``changed_by_rule_r`` read from the verdict alone) dies on the first."""
+    rows = [
+        _statement_row("R", "att_ours", "both", verdict=None, reading="resolves against the DT", mean=1.25),
+        _statement_row("R", "att_engine", "both", verdict=None, reading="NOT RESOLVED", mean=0.75),
+        _statement_row("V", "att_ours", "both", verdict="HELD", reading="r", mean=-2.0),
+        _statement_row("V", "att_engine", "both", verdict="FAILED", reading="r", mean=2.0),
+        _statement_row("C", "att_ours", "as_committed", verdict=None, reading="first", mean=64.0),
+        _statement_row("C", "att_ours", "corrected", verdict=None, reading="second", mean=56.0),
+        _statement_row("C", "att_engine", "as_committed", verdict=None, reading="first", mean=64.5),
+        _statement_row("C", "att_engine", "corrected", verdict=None, reading="second", mean=56.5),
+        _statement_row("U", "att_ours", "as_committed", verdict="HELD", reading="same", mean=64.0),
+        _statement_row("U", "att_ours", "corrected", verdict="HELD", reading="same", mean=56.0),
+        _statement_row("U", "att_engine", "as_committed", verdict="HELD", reading="same", mean=64.5),
+        _statement_row("U", "att_engine", "corrected", verdict="HELD", reading="same", mean=56.5),
+    ]
+
+    def outcome(statement_id: str, definition: str, version: str) -> tuple[Any, Any]:
+        row = next(r for r in rows if (r["id"], r["definition"]) == (statement_id, definition)
+                   and r["version"] in (version, "both"))
+        return row["verdict"], row["reading"]
+
+    flags = {r["id"]: (r["changed_by_the_correction"], r["changed_by_rule_r"]) for r in tst.changes_block(rows)}
+    own = {s: (outcome(s, "att_ours", "as_committed") != outcome(s, "att_ours", "corrected"),
+               outcome(s, "att_ours", "corrected") != outcome(s, "att_engine", "corrected")) for s in "RVCU"}
+    assert own == {"R": (False, True), "V": (False, True), "C": (True, False), "U": (False, False)}
+    assert flags == own
+    moved = next(r for r in tst.changes_block(rows) if r["id"] == "U")
+    assert moved["as_committed_att_ours"]["mean_difference"] != moved["corrected_att_ours"]["mean_difference"]
+
+
+#: Where the registration states each value of ``tst.REGISTERED_VALUES``: the plan's lines, and the tiers its values
+#: follow in order (None: each value is followed by "at `<tier>`").
+REGISTERED_LINES: dict[str, tuple[tuple[int, int], tuple[str, ...] | None]] = {
+    "Q3b": ((652, 652), None),
+    "Q3c": ((658, 659), None),
+    "Q4": ((673, 673), ("mappo1000", "maxpressure", "fixedtime", "random")),
+    "Q5a": ((684, 684), ("maxpressure", "fixedtime", "random")),
+    "Q5b": ((686, 686), ("mappo1000", "maxpressure", "fixedtime", "random")),
+    "Q5c": ((689, 689), ("mappo1000", "maxpressure", "fixedtime", "random")),
+}
+
+
+def test_d2_2_every_registered_value_is_the_plans() -> None:
+    """``BRIEF_45`` Amendment D, D2.2 (M1b's F4.2): all 21 of ``REGISTERED_VALUES`` read back from
+    ``docs/plans/p5.2.md`` (a history file, read as T-quotes reads it) and compared under ``==``.  The reviewer's R2
+    (62.7106 -> 62.7016 in the table alone) dies here."""
+    own: dict[str, dict[str, float]] = {}
+    for statement_id, (lines, tiers) in REGISTERED_LINES.items():
+        text = _norm(_cited("docs/plans/p5.2.md", lines))
+        if tiers is None:
+            own[statement_id] = {tier: float(value) for value, tier in re.findall(r"([+-]\d+\.\d+) at `(\w+)`", text)}
+        else:
+            values = re.findall(r"[+-]\d+\.\d+", text.split("Predicted", 1)[1])
+            assert len(values) == len(tiers), (statement_id, values)
+            own[statement_id] = {tier: float(value) for tier, value in zip(tiers, values)}
+    assert sum(len(values) for values in own.values()) == 21
+    assert {key: dict(values) for key, values in tst.REGISTERED_VALUES.items()} == own
+
+
+# ----------------------------------------------------------------------
 # Real data (gated on RLTRAFFIC_OUTPUT_ROOT)
 # ----------------------------------------------------------------------
 
@@ -2584,7 +2978,11 @@ def test_t_first_time_scores_each_against_this_files_own_recomputation(real_inpu
         assert q0b["verdict"] == "FAILED" and q0b["numbers"]["sign"] == "negative"
         for tier in ("maxpressure", "fixedtime"):
             entry = _q(real_artifact, "Q3c", tier, definition=definition)
-            best = entry["numbers"]["best_non_dt"]
+            # BRIEF_45 Amendment D, D2.3: the best non-DT arm by this file's own levels, not the artifact's choice.
+            levels = {m: own_level(books["corrected"][(m, tier)], definition) for m in tst.NON_DT_METHODS}
+            best = min(levels, key=levels.get)
+            assert sum(1 for value in levels.values() if value == levels[best]) == 1, (tier, levels)
+            assert entry["numbers"]["best_non_dt"] == best
             mean, low, high = own(("dt_nomix", tier), (best, tier), definition)
             reading = "resolves against the DT" if low > 0 else ("resolves for the DT" if high < 0 else "NOT RESOLVED")
             assert entry["reading"] == reading and entry["verdict"] is None
@@ -2773,3 +3171,100 @@ def test_b23_real_every_p_value_defined_follows_n_used_and_exactly_eight_are_und
                   if holder["paired_comparison"]["wilcoxon"]["n_used"] == 0}
     assert identities == EMPTY_TEST_STATEMENTS, sorted(identities)
     assert len(identities) == len(undefined), (sorted(identities), [path for path, _ in undefined])
+
+
+# ----------------------------------------------------------------------
+# Amendment D (gate G5, round C8), real data: D1's fixes on the paper's numbers
+# ----------------------------------------------------------------------
+
+
+def test_d1_1_real_q5s_global_only_tiers_and_both_collapse_tiers(real_inputs: tst.Inputs,
+                                                                  real_artifact: dict[str, Any]) -> None:
+    """``BRIEF_45`` Amendment D, D1.1 on real data: by Q6's rule written out here, the global filter alone collapses on
+    {mappo1000, maxpressure} and both collapse on {random}, under both definitions; every Q5 row carries those sets,
+    and its global-only clause does not name ``random``."""
+    book = tst.make_books(real_inputs.cells)["corrected"]
+    for definition in tst.DEFINITIONS:
+        collapses = {(arm, t): own_collapses(book, arm, t, definition)
+                     for arm in ("bc_top10", "bc_top10_perix") for t in tst.TIERS}
+        alone = [t for t in tst.TIERS if collapses[("bc_top10", t)] and not collapses[("bc_top10_perix", t)]]
+        both = [t for t in tst.TIERS if collapses[("bc_top10", t)] and collapses[("bc_top10_perix", t)]]
+        assert (alone, both) == (["mappo1000", "maxpressure"], ["random"]), definition
+        rows = real_artifact["comparison_with_the_record"]["q5"]
+        assert len(rows) == 3
+        for row in rows:
+            block = row["descriptive_reading"][definition]
+            assert block["tiers_global_filter_collapses_alone"] == alone
+            assert block["tiers_both_filters_collapse"] == both
+            assert "random" not in block["reading"].partition("; ")[0], block["reading"]
+
+
+def test_d1_2_real_every_summary_row_carries_its_statements_point_estimate(real_artifact: dict[str, Any]) -> None:
+    """``BRIEF_45`` Amendment D, D1.2 on real data: the same walk over the paper's artifact, and the two moves F1.1
+    found hidden -- Q3c at random under the correction and at maxpressure under Rule R -- visible in ``changes``."""
+    _assert_summary_rows_carry_their_statements_points(real_artifact)
+    q3c = {row["tier"]: row for row in real_artifact["changes"] if row["id"] == "Q3c"}
+    assert _f4(q3c["random"]["as_committed_att_ours"]["mean_difference"]) == "+64.3603"
+    assert _f4(q3c["random"]["corrected_att_ours"]["mean_difference"]) == "+56.8432"
+    assert _f4(q3c["maxpressure"]["corrected_att_ours"]["mean_difference"]) == "+1.2993"
+    assert _f4(q3c["maxpressure"]["corrected_att_engine"]["mean_difference"]) == "+0.9059"
+
+
+def test_d1_3_real_the_primary_definitions_value_beside_three_record_rows(real_inputs: tst.Inputs,
+                                                                          real_artifact: dict[str, Any]) -> None:
+    """``BRIEF_45`` Amendment D, D1.3 on real data, by this file's arithmetic on the rows (corrected, ``att_engine``):
+    ``q3c.all_against`` does not hold, because at maxpressure ``dt_nomix - bc`` does not resolve; and the two 31.5 %
+    rows carry 31.4 %, ``|mean(I)| / mean(d1)``."""
+    book = tst.make_books(real_inputs.cells)["corrected"]
+    definition = "att_engine"
+    against = []
+    for tier in tst.OUT_OF_SAMPLE_TIERS:
+        levels = {m: own_level(book[(m, tier)], definition) for m in tst.NON_DT_METHODS}
+        best = min(levels, key=levels.get)
+        _, _, low, _ = own_interval(own_paired(book[("dt_nomix", tier)], book[(best, tier)], definition))
+        against.append(low > 0.0)
+    assert against == [False, True, True], "maxpressure no longer separates the definitions"
+    d1 = own_paired(book[("dt_spatial", "mappo1000")], book[("dt_nomix", "mappo1000")], definition)
+    d4 = own_paired(book[("dt_spatial_h4", "mappo1000")], book[("dt_nomix_h4", "mappo1000")], definition)
+    share = 100 * abs(statistics.mean([a - b for a, b in zip(d4, d1)])) / statistics.mean(d1)
+    assert f"{share:.1f}" == "31.4"
+    rows = {r["value"]: r for r in real_artifact["comparison_with_the_record"]["literal_records"]}
+    assert rows["q3c.all_against"]["att_engine"] == ("not every paired difference against the best non-DT arm "
+                                                     "resolves against the DT")
+    assert rows["q3c.all_against"]["att_engine_equal"] is False and rows["q3c.all_against"]["equal"] is True
+    assert rows["q0.i.reduction"]["att_engine"] == f"The {share:.1f} % reduction"
+    assert rows["q0.i.attributable"]["att_engine"] == f"{share:.1f} % of it is attributable"
+    assert rows["q0.i.reduction"]["att_engine_equal"] is rows["q0.i.attributable"]["att_engine_equal"] is False
+    for row in real_artifact["comparison_with_the_record"]["literal_records"]:
+        assert (row["att_engine"] is None) == ("att_engine_note" in row), row["value"]
+
+
+def test_d1_6_real_every_behaviour_or_anchor_arm_is_labelled(real_artifact: dict[str, Any]) -> None:
+    """``BRIEF_45`` Amendment D, D1.6 on real data: the same walk over the paper's artifact."""
+    blocks = _contrast_blocks(real_artifact)
+    labelled = [block for _, block in blocks if _evaluation_label_arms(block)]
+    assert len(labelled) > 50, len(labelled)
+    for path, block in blocks:
+        note = block["per_seed"]["note"]
+        for arm in _evaluation_label_arms(block):
+            assert f"{arm}'s seed labels are evaluation labels, not training seeds" in note, (path, note)
+
+
+def test_d1_7_and_d1_8_real_the_expectation_q6_missed_and_the_four_small_tests(real_inputs: tst.Inputs,
+                                                                                real_artifact: dict[str, Any]) -> None:
+    """``BRIEF_45`` Amendment D, D1.7 and D1.8 on real data: ``dt_spatial`` was registered to collapse at ``random``
+    and does not, so its ``registered_expectation_met`` is False under both definitions; and Q5a and Q5b at
+    ``fixedtime``, whose per-draw differences are non-zero on 5 draws (counted here), carry the small-sample note."""
+    book = tst.make_books(real_inputs.cells)["corrected"]
+    for definition in tst.DEFINITIONS:
+        q6 = _q(real_artifact, "Q6", "random", definition=definition, arm="dt_spatial")
+        assert own_collapses(book, "dt_spatial", "random", definition) is False
+        assert (q6["numbers"]["registered_expectation"], q6["verdict"]) == ("COLLAPSED", "NOT COLLAPSED")
+        assert q6["numbers"]["registered_expectation_met"] is False
+        for statement_id, (left, right) in (("Q5a", ("bc_top10", "bc")), ("Q5b", ("bc_top10_perix", "bc_top10"))):
+            n_used = sum(1 for x in own_paired(book[(left, "fixedtime")], book[(right, "fixedtime")], definition)
+                         if x != 0.0)
+            assert n_used == 5
+            note = _q(real_artifact, statement_id, "fixedtime", definition=definition)["numbers"][
+                "paired_comparison"]["p_value_note"]
+            assert f"n_used = {n_used}" in note and "fewer pairs than the n >= 20" in note, note

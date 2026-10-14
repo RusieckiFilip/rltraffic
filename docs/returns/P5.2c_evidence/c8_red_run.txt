@@ -1,0 +1,400 @@
+# C8, step 1 of 3 (BRIEF_45 Amendment D, D5 step 2.1): the tests of D1 and D2, run BEFORE the module changes.
+# Date: 2026-10-14.  Branch at 650ec97 (the merge of Amendment D).  The module under test is the worktree file,
+#   byte-identical to the last code commit de4e94f: offline/tier_statements.py sha256 20c07b1719b95221d181cda5b847b185c67226fcce7e9eb3c7d054a859e96d3f
+#   (`git diff --stat HEAD -- offline/` empty).  Only tests/test_tier_statements.py is modified.
+# Command: RLTRAFFIC_OUTPUT_ROOT=/home/filip/rltraffic/output pytest -q --no-header -p no:cacheprovider tests/test_tier_statements.py
+# Expected: red exactly where the module changes (D1: ten ungated tests and five gated ones), each at its own
+#   defect -- one AttributeError (q5_descriptive_reading does not exist yet), the rest KeyErrors on the new fields
+#   or assertions on the old values; green on arrival: D2's tests and the existing tests D2.3/D2.4 extend, whose
+#   strength is c8_precheck.txt (R1, R2 and the two D2.4 mutants, each KILLED on this module).
+
+........................................................................ [ 39%]
+........................................................................ [ 79%]
+..FFFFFFFF.FF...................FFFFF                                    [100%]
+=================================== FAILURES ===================================
+_ test_d1_1_q5s_reading_names_only_the_tiers_where_the_global_filter_collapses_alone _
+
+books = {'corrected': {('dt_spatial', 'mappo1000'): Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', method='dt...': 1302, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 5.0, 'episode_reward': -1003.0})), ...}}
+
+    def test_d1_1_q5s_reading_names_only_the_tiers_where_the_global_filter_collapses_alone(books: Any) -> None:
+        """``BRIEF_45`` Amendment D, D1.1 (F5.1): at ``maxpressure`` both filters are made worse than the shared anchor
+        (``bc_top10`` by 20, ``bc_top10_perix`` by 10, so Q5b resolves there as well).  That tier is in Q5b's resolving set
+        and in the both-collapse set, and absent from the global-only set and from the reading's global-only clause.  Every
+        set is computed here, by Q6's rule written out (:func:`own_collapses`) and the interval rule for Q5b."""
+        def edit(book: Mapping[tuple[str, str], tst.Cell]) -> dict[tuple[str, str], tst.Cell]:
+            book = _as(book, ("bc_top10", "maxpressure"), tst.ANCHOR, lambda r: 20.0)
+            return _as(book, ("bc_top10_perix", "maxpressure"), tst.ANCHOR, lambda r: 10.0)
+    
+        edited = _both(books, edit)
+>       reading = tst.q5_descriptive_reading(tst.collapse_audit(edited), tst.all_statements(edited))
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'offline.tier_statements' has no attribute 'q5_descriptive_reading'
+
+tests/test_tier_statements.py:2341: AttributeError
+______ test_d1_2_every_summary_row_carries_its_statements_point_estimate _______
+
+tree = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/claude-1000/pytest-of-filip/pytest-6/test_d1_2_every_summary_row_c....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+
+    def test_d1_2_every_summary_row_carries_its_statements_point_estimate(tree: fx.SyntheticTree) -> None:
+        """``BRIEF_45`` Amendment D, D1.2 (F1.1, and the ``never_scored`` defect): this file's walk over ``never_scored``
+        and ``changes`` on the synthetic build -- each row equals its statement's point estimate (Q3c's from its contrast,
+        an aggregate's none), and none is null where the statement has one."""
+        artifact = _synthetic_artifact(tree)
+>       assert _assert_summary_rows_carry_their_statements_points(artifact) > 100
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:2367: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+artifact = {'format_version': 'p5.2-statements/1.0', 'role': "P5.2c: P5.2's registered statements (docs/plans/p5.2.md section 4, ...tion 8)", 'git': {'commit': '0000000000000000000000000000000000000000', 'dirty': False, 'code_root': 'synthetic'}, ...}
+
+    def _assert_summary_rows_carry_their_statements_points(artifact: Mapping[str, Any]) -> int:
+        """Every row of ``never_scored`` and every step of every ``changes`` row equals its statement's point estimate by
+        :func:`_summary_point`, and none is null where the statement has one.  Returns the number of rows checked."""
+        checked, with_value = 0, 0
+        for block in artifact["comparison_with_the_record"]["never_scored"]:
+            for row in block["this_artifact"]:
+                own = _summary_point(_statement(artifact, row["id"], row["tier"], row["arm"], row["definition"],
+                                                row["version"])["numbers"])
+>               assert {key: row[key] for key in own} == own, row
+E               AssertionError: {'id': 'Q3c', 'tier': 'maxpressure', 'arm': None, 'definition': 'att_ours', ...}
+E               assert {'mean_differ...2582046964908} == {'mean_differ...2582046964908}
+E                 
+E                 Omitting 2 identical items, use -vv to show
+E                 Differing items:
+E                 {'mean_difference': None} != {'mean_difference': 1.234374999999993}
+E                 Use -v to get more diff
+
+tests/test_tier_statements.py:2313: AssertionError
+_ test_d1_3_a_literal_row_carries_its_att_engine_value_and_a_null_only_where_none_exists _
+
+tree = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/claude-1000/pytest-of-filip/pytest-6/test_d1_3_a_literal_row_carri....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+
+    def test_d1_3_a_literal_row_carries_its_att_engine_value_and_a_null_only_where_none_exists(
+            tree: fx.SyntheticTree) -> None:
+        """``BRIEF_45`` Amendment D, D1.3 (F4.1, F4.2): a record row equal under ``att_ours`` whose quantity differs under
+        ``att_engine`` at the record's precision -- ``bc_top10``'s level at ``fixedtime``, whose ``att_engine`` the fixture
+        sets 7 below -- carries the ``att_engine`` value (this file's mean over the corrected cell's rows) and
+        ``att_engine_equal`` False.  A protocol fact (the threshold, a registered prediction) carries null and a note."""
+        inputs = tst.load_inputs(tree.roots, pins=tree.pins)
+        books = tst.make_books(inputs.cells)
+        key = ("bc_top10", "fixedtime")
+        ours = f"{own_level(books['as_committed'][key], 'att_ours'):.2f}"
+        engine = f"{own_level(books['corrected'][key], 'att_engine'):.2f}"
+        assert ours != engine, "the fixture no longer separates the definitions at this precision"
+        record = (tst.RecordRow("docs/returns/P5.2.md", (34, 34), ours, "q1.measured.bc_top10@fixedtime"),
+                  tst.RecordRow("docs/briefs/BRIEF_27_p5.2_tier_sweep.md", (1216, 1216), "(threshold 14)", "q1.threshold"),
+                  tst.RecordRow("docs/returns/P5.2.md", (34, 34), "1042.75", "q1.predicted.bc_top10@fixedtime"))
+        rows = _synthetic_artifact(tree, record)["comparison_with_the_record"]["literal_records"]
+        measured, threshold, predicted = rows
+        assert (measured["this_artifact"], measured["equal"]) == (ours, True)
+>       assert (measured["att_engine"], measured["att_engine_equal"]) == (engine, False)
+                ^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'att_engine'
+
+tests/test_tier_statements.py:2390: KeyError
+__________ test_d1_4_the_p8_4b_rows_name_what_each_outcome_belongs_to __________
+
+tree = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/claude-1000/pytest-of-filip/pytest-6/test_d1_4_the_p8_4b_rows_name....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+
+    def test_d1_4_the_p8_4b_rows_name_what_each_outcome_belongs_to(tree: fx.SyntheticTree) -> None:
+        """``BRIEF_45`` Amendment D, D1.4 (F5.2): V4's row is Q0.d1, which is P5.1's P2a, and its outcome is P2a's; V5's
+        row is the stop rule's d4 (the d4 Q0a also reads), and its outcome is the stop rule's verdict -- asserted against
+        the stop-rule statement itself.  D2.4: the rows are exactly {V4, V5} x {att_ours, att_engine}."""
+        artifact = _synthetic_artifact(tree)
+        rows = artifact["comparison_with_the_record"]["p8_4b"]
+        assert sorted((r["contrast_id"], r["definition"]) for r in rows) == [
+            ("V4", "att_engine"), ("V4", "att_ours"), ("V5", "att_engine"), ("V5", "att_ours")]
+        for row in rows:
+            if row["contrast_id"] == "V4":
+>               assert row["statement"] == "Q0.d1" and "P2a" in row["statement_label"], row["statement_label"]
+                                                                ^^^^^^^^^^^^^^^^^^^^^^
+E               KeyError: 'statement_label'
+
+tests/test_tier_statements.py:2407: KeyError
+___ test_d1_5_definitions_state_the_flags_the_zero_seeds_and_the_aggregates ____
+
+    def test_d1_5_definitions_state_the_flags_the_zero_seeds_and_the_aggregates() -> None:
+        """``BRIEF_45`` Amendment D, D1.5 (F1.2, F1.3, F1.4): ``definitions`` gains the three sentences, each checked for
+        the fact it must state -- and the zero-seed one checked against P5.1's worker on a constructed contrast whose seeds
+        are +, 0, +, 0, 0 against its mirror image: the minority counts the zeros, the pooled-sign count does not."""
+        d = tst.definitions_block()
+>       flags = d["changes_flags"]
+                ^^^^^^^^^^^^^^^^^^
+E       KeyError: 'changes_flags'
+
+tests/test_tier_statements.py:2420: KeyError
+_ test_d1_6_a_behaviour_or_anchor_arm_has_its_seed_labels_called_evaluation_labels _
+
+tree = SyntheticTree(roots=Roots(repo_root=PosixPath('/tmp/claude-1000/pytest-of-filip/pytest-6/test_d1_6_a_behaviour_or_anch....0, 'horizon_vehicle_count': 6.0, 'episode_reward': -1003.0}))}, seeds=(101, 202, 303), draws=(1000, 1001, 1002, 1003))
+
+    def test_d1_6_a_behaviour_or_anchor_arm_has_its_seed_labels_called_evaluation_labels(tree: fx.SyntheticTree) -> None:
+        """``BRIEF_45`` Amendment D, D1.6 (F2.1): this file's walk finds every contrast block in the synthetic build; where
+        an arm is a behaviour cell or the random anchor, its ``per_seed`` note names that arm and says its seed labels are
+        evaluation labels, not training seeds; no other block says so."""
+        blocks = _contrast_blocks(_synthetic_artifact(tree))
+        labelled = [(path, block) for path, block in blocks if _evaluation_label_arms(block)]
+        assert labelled and len(labelled) < len(blocks), "the walk no longer finds both kinds of block"
+        for path, block in blocks:
+            note = block["per_seed"]["note"]
+            arms = _evaluation_label_arms(block)
+            if arms:
+                for arm in arms:
+>                   assert f"{arm}'s seed labels are evaluation labels, not training seeds" in note, (path, note)
+E                   AssertionError: ('.statements[70].numbers', 'the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm')
+E                   assert "behaviour@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds" in 'the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm'
+
+tests/test_tier_statements.py:2472: AssertionError
+_______ test_d1_7_the_labels_q2a_the_audit_rule_q4b_and_q6s_expectation ________
+
+books = {'corrected': {('dt_spatial', 'mappo1000'): Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', method='dt...': 1302, 'never_entered': 0, 'entered_fraction': 1.0, 'horizon_vehicle_count': 5.0, 'episode_reward': -1003.0})), ...}}
+
+    def test_d1_7_the_labels_q2a_the_audit_rule_q4b_and_q6s_expectation(books: Any) -> None:
+        """``BRIEF_45`` Amendment D, D1.7 (F3.1-F3.4, F4.3): Q2a's note on its tiers; the audit's rule no longer called
+        verbatim; Q4b's four-rung citation including line 673; Q6's ``registered_expectation_met`` equal to this file's
+        comparison; and every statement carrying a registered value carries ``predictions_registered_on``."""
+        statements = tst.all_statements(books)
+        q2a = [s for s in statements if s["id"] == "Q2a"]
+        assert q2a
+        for s in q2a:
+>           note = s["numbers"]["tiers_note"]
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           KeyError: 'tiers_note'
+
+tests/test_tier_statements.py:2485: KeyError
+_ test_d1_8_a_signed_rank_test_on_fewer_than_twenty_pairs_says_so[offsets0-True] _
+
+offsets = (0.25, -0.5, 1.25, 0.75), small = True
+
+    @pytest.mark.parametrize(("offsets", "small"), [((0.25, -0.5, 1.25, 0.75), True),
+                                                    (tuple(((-1) ** i) * (i + 1) / 8.0 for i in range(24)), False)])
+    def test_d1_8_a_signed_rank_test_on_fewer_than_twenty_pairs_says_so(offsets: tuple[float, ...], small: bool) -> None:
+        """``BRIEF_45`` Amendment D, D1.8 (F4.4): ``n_used`` counted here; below 20 the defined p-value note states
+        ``n_used`` and that the normal approximation then rests on fewer pairs than the n >= 20
+        ``dt_gate.wilcoxon_signed_rank`` states for it; at 20 or more it does not.  B.2.3's facts stay."""
+        seeds, draws = (101, 202, 303, 404), range(1000, 1000 + len(offsets))
+        right = {(s, d): 75.0 + s / 64.0 for s in seeds for d in draws}
+        left = {key: right[key] + offsets[key[1] - 1000] for key in right}
+        a, b = fx.simple_cell("bc", "maxpressure", left), fx.simple_cell("iql", "maxpressure", right)
+        n_used = sum(1 for x in own_paired(a, b, "att_ours") if x != 0.0)
+        assert (n_used < 20) is small, "the cases no longer discriminate"
+        d8 = tst.contrast(a, b, definition="att_ours", tier="maxpressure")["paired_comparison"]
+        assert d8["wilcoxon"]["n_used"] == n_used and d8["p_value_defined"] is True
+        note = d8["p_value_note"]
+        for fact in DEFINED_NOTE_FACTS:
+            assert fact in note, (fact, note)
+        if small:
+>           assert f"n_used = {n_used}" in note and "fewer pairs than the n >= 20" in note, note
+E           AssertionError: two-sided signed-rank test (the normal approximation, with the tie and continuity corrections); it is never read by a verdict, and its z is computed from min(W+, W-), so the sign of z is not the direction of the difference -- read mean_difference's sign or the rank-biserial's instead (BRIEF_45 Amendment B.2, B.2.3)
+E           assert ('n_used = 4' in "two-sided signed-rank test (the normal approximation, with the tie and continuity corrections); it is never read by a...ection of the difference -- read mean_difference's sign or the rank-biserial's instead (BRIEF_45 Amendment B.2, B.2.3)")
+
+tests/test_tier_statements.py:2536: AssertionError
+__ test_d1_9a_a_temporary_file_this_call_did_not_create_survives_its_refusal ___
+
+tmp_path = PosixPath('/tmp/claude-1000/pytest-of-filip/pytest-6/test_d1_9a_a_temporary_file_th0')
+
+    def test_d1_9a_a_temporary_file_this_call_did_not_create_survives_its_refusal(tmp_path: Path) -> None:
+        """``BRIEF_45`` Amendment D, D1.9(a) (M1a's M5.1): a file already at the write's temporary name is not this call's,
+        so the refusal leaves it in place, bytes unchanged, and writes nothing at the target."""
+        target = tmp_path / "artifact.json"
+        foreign = tmp_path / f".{target.name}.{os.getpid()}.tmp"
+        foreign.write_bytes(b"not this call's")
+        with pytest.raises(FileExistsError, match="File exists"):
+            tst.write_artifact(target, b"{}\n")
+>       assert foreign.read_bytes() == b"not this call's"
+               ^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tier_statements.py:2550: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/pathlib.py:1019: in read_bytes
+    with self.open(mode='rb') as f:
+         ^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/tmp/claude-1000/pytest-of-filip/pytest-6/test_d1_9a_a_temporary_file_th0/.artifact.json.7.tmp')
+mode = 'rb', buffering = -1, encoding = None, errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed to by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/tmp/claude-1000/pytest-of-filip/pytest-6/test_d1_9a_a_temporary_file_th0/.artifact.json.7.tmp'
+
+/usr/lib/python3.12/pathlib.py:1013: FileNotFoundError
+_____ test_d1_9b_a_copy_nested_untracked_in_another_repository_is_refused ______
+
+tmp_path = PosixPath('/tmp/claude-1000/pytest-of-filip/pytest-6/test_d1_9b_a_copy_nested_untra0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7800f8353b60>
+
+    def test_d1_9b_a_copy_nested_untracked_in_another_repository_is_refused(tmp_path: Path,
+                                                                            monkeypatch: pytest.MonkeyPatch) -> None:
+        """``BRIEF_45`` Amendment D, D1.9(b) (M1a's M6.1): with the provenance's code root an untracked directory inside
+        another repository, git answers with that repository's toplevel and commit, so the git block is refused; at the
+        repository's own root it is accepted and names that root's commit."""
+        import shutil
+    
+        if shutil.which("git") is None:
+            pytest.skip("git is required to build the nested repository")
+        outer = tmp_path / "outer"
+        outer.mkdir()
+        _git("init", "-q", cwd=outer)
+        (outer / "README").write_text("outer\n", encoding="utf-8")
+        _git("add", "README", cwd=outer)
+        _git("commit", "-q", "-m", "outer", cwd=outer)
+        commit = _git("rev-parse", "HEAD", cwd=outer)
+        nested = outer / "nested"
+        nested.mkdir()
+        monkeypatch.setattr(tst.cl, "_MODULE_ROOT", nested)
+>       with pytest.raises(ValueError, match="toplevel"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/test_tier_statements.py:2582: Failed
+_________ test_d1_1_real_q5s_global_only_tiers_and_both_collapse_tiers _________
+
+real_inputs = Inputs(cells={'p5_1:dt_spatial@grid4x4_mappo1000': Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', met..._count': 14.0, 'seed': 505}], 'format_version': 'p5.2-tier-sweep/1.0', 'method': 'dt_nomix_h4', 'tier': 'mappo1000'}}})
+real_artifact = {'format_version': 'p5.2-statements/1.0', 'role': "P5.2c: P5.2's registered statements (docs/plans/p5.2.md section 4, ...tion 8)", 'git': {'commit': '0000000000000000000000000000000000000000', 'dirty': False, 'code_root': 'synthetic'}, ...}
+
+    def test_d1_1_real_q5s_global_only_tiers_and_both_collapse_tiers(real_inputs: tst.Inputs,
+                                                                      real_artifact: dict[str, Any]) -> None:
+        """``BRIEF_45`` Amendment D, D1.1 on real data: by Q6's rule written out here, the global filter alone collapses on
+        {mappo1000, maxpressure} and both collapse on {random}, under both definitions; every Q5 row carries those sets,
+        and its global-only clause does not name ``random``."""
+        book = tst.make_books(real_inputs.cells)["corrected"]
+        for definition in tst.DEFINITIONS:
+            collapses = {(arm, t): own_collapses(book, arm, t, definition)
+                         for arm in ("bc_top10", "bc_top10_perix") for t in tst.TIERS}
+            alone = [t for t in tst.TIERS if collapses[("bc_top10", t)] and not collapses[("bc_top10_perix", t)]]
+            both = [t for t in tst.TIERS if collapses[("bc_top10", t)] and collapses[("bc_top10_perix", t)]]
+            assert (alone, both) == (["mappo1000", "maxpressure"], ["random"]), definition
+            rows = real_artifact["comparison_with_the_record"]["q5"]
+            assert len(rows) == 3
+            for row in rows:
+                block = row["descriptive_reading"][definition]
+>               assert block["tiers_global_filter_collapses_alone"] == alone
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               KeyError: 'tiers_global_filter_collapses_alone'
+
+tests/test_tier_statements.py:3197: KeyError
+____ test_d1_2_real_every_summary_row_carries_its_statements_point_estimate ____
+
+real_artifact = {'format_version': 'p5.2-statements/1.0', 'role': "P5.2c: P5.2's registered statements (docs/plans/p5.2.md section 4, ...tion 8)", 'git': {'commit': '0000000000000000000000000000000000000000', 'dirty': False, 'code_root': 'synthetic'}, ...}
+
+    def test_d1_2_real_every_summary_row_carries_its_statements_point_estimate(real_artifact: dict[str, Any]) -> None:
+        """``BRIEF_45`` Amendment D, D1.2 on real data: the same walk over the paper's artifact, and the two moves F1.1
+        found hidden -- Q3c at random under the correction and at maxpressure under Rule R -- visible in ``changes``."""
+>       _assert_summary_rows_carry_their_statements_points(real_artifact)
+
+tests/test_tier_statements.py:3205: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+artifact = {'format_version': 'p5.2-statements/1.0', 'role': "P5.2c: P5.2's registered statements (docs/plans/p5.2.md section 4, ...tion 8)", 'git': {'commit': '0000000000000000000000000000000000000000', 'dirty': False, 'code_root': 'synthetic'}, ...}
+
+    def _assert_summary_rows_carry_their_statements_points(artifact: Mapping[str, Any]) -> int:
+        """Every row of ``never_scored`` and every step of every ``changes`` row equals its statement's point estimate by
+        :func:`_summary_point`, and none is null where the statement has one.  Returns the number of rows checked."""
+        checked, with_value = 0, 0
+        for block in artifact["comparison_with_the_record"]["never_scored"]:
+            for row in block["this_artifact"]:
+                own = _summary_point(_statement(artifact, row["id"], row["tier"], row["arm"], row["definition"],
+                                                row["version"])["numbers"])
+>               assert {key: row[key] for key in own} == own, row
+E               AssertionError: {'id': 'Q3c', 'tier': 'maxpressure', 'arm': None, 'definition': 'att_ours', ...}
+E               assert {'mean_differ...9205813721871} == {'mean_differ...9205813721871}
+E                 
+E                 Omitting 2 identical items, use -vv to show
+E                 Differing items:
+E                 {'mean_difference': None} != {'mean_difference': 1.2993338829300667}
+E                 Use -v to get more diff
+
+tests/test_tier_statements.py:2313: AssertionError
+____ test_d1_3_real_the_primary_definitions_value_beside_three_record_rows _____
+
+real_inputs = Inputs(cells={'p5_1:dt_spatial@grid4x4_mappo1000': Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', met..._count': 14.0, 'seed': 505}], 'format_version': 'p5.2-tier-sweep/1.0', 'method': 'dt_nomix_h4', 'tier': 'mappo1000'}}})
+real_artifact = {'format_version': 'p5.2-statements/1.0', 'role': "P5.2c: P5.2's registered statements (docs/plans/p5.2.md section 4, ...tion 8)", 'git': {'commit': '0000000000000000000000000000000000000000', 'dirty': False, 'code_root': 'synthetic'}, ...}
+
+    def test_d1_3_real_the_primary_definitions_value_beside_three_record_rows(real_inputs: tst.Inputs,
+                                                                              real_artifact: dict[str, Any]) -> None:
+        """``BRIEF_45`` Amendment D, D1.3 on real data, by this file's arithmetic on the rows (corrected, ``att_engine``):
+        ``q3c.all_against`` does not hold, because at maxpressure ``dt_nomix - bc`` does not resolve; and the two 31.5 %
+        rows carry 31.4 %, ``|mean(I)| / mean(d1)``."""
+        book = tst.make_books(real_inputs.cells)["corrected"]
+        definition = "att_engine"
+        against = []
+        for tier in tst.OUT_OF_SAMPLE_TIERS:
+            levels = {m: own_level(book[(m, tier)], definition) for m in tst.NON_DT_METHODS}
+            best = min(levels, key=levels.get)
+            _, _, low, _ = own_interval(own_paired(book[("dt_nomix", tier)], book[(best, tier)], definition))
+            against.append(low > 0.0)
+        assert against == [False, True, True], "maxpressure no longer separates the definitions"
+        d1 = own_paired(book[("dt_spatial", "mappo1000")], book[("dt_nomix", "mappo1000")], definition)
+        d4 = own_paired(book[("dt_spatial_h4", "mappo1000")], book[("dt_nomix_h4", "mappo1000")], definition)
+        share = 100 * abs(statistics.mean([a - b for a, b in zip(d4, d1)])) / statistics.mean(d1)
+        assert f"{share:.1f}" == "31.4"
+        rows = {r["value"]: r for r in real_artifact["comparison_with_the_record"]["literal_records"]}
+>       assert rows["q3c.all_against"]["att_engine"] == ("not every paired difference against the best non-DT arm "
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                                         "resolves against the DT")
+E       KeyError: 'att_engine'
+
+tests/test_tier_statements.py:3232: KeyError
+___________ test_d1_6_real_every_behaviour_or_anchor_arm_is_labelled ___________
+
+real_artifact = {'format_version': 'p5.2-statements/1.0', 'role': "P5.2c: P5.2's registered statements (docs/plans/p5.2.md section 4, ...tion 8)", 'git': {'commit': '0000000000000000000000000000000000000000', 'dirty': False, 'code_root': 'synthetic'}, ...}
+
+    def test_d1_6_real_every_behaviour_or_anchor_arm_is_labelled(real_artifact: dict[str, Any]) -> None:
+        """``BRIEF_45`` Amendment D, D1.6 on real data: the same walk over the paper's artifact."""
+        blocks = _contrast_blocks(real_artifact)
+        labelled = [block for _, block in blocks if _evaluation_label_arms(block)]
+        assert len(labelled) > 50, len(labelled)
+        for path, block in blocks:
+            note = block["per_seed"]["note"]
+            for arm in _evaluation_label_arms(block):
+>               assert f"{arm}'s seed labels are evaluation labels, not training seeds" in note, (path, note)
+E               AssertionError: ('.statements[70].numbers', 'the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm')
+E               assert "behaviour@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds" in 'the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm'
+
+tests/test_tier_statements.py:3250: AssertionError
+__ test_d1_7_and_d1_8_real_the_expectation_q6_missed_and_the_four_small_tests __
+
+real_inputs = Inputs(cells={'p5_1:dt_spatial@grid4x4_mappo1000': Cell(spec=CellSpec(cell_id='p5_1:dt_spatial@grid4x4_mappo1000', met..._count': 14.0, 'seed': 505}], 'format_version': 'p5.2-tier-sweep/1.0', 'method': 'dt_nomix_h4', 'tier': 'mappo1000'}}})
+real_artifact = {'format_version': 'p5.2-statements/1.0', 'role': "P5.2c: P5.2's registered statements (docs/plans/p5.2.md section 4, ...tion 8)", 'git': {'commit': '0000000000000000000000000000000000000000', 'dirty': False, 'code_root': 'synthetic'}, ...}
+
+    def test_d1_7_and_d1_8_real_the_expectation_q6_missed_and_the_four_small_tests(real_inputs: tst.Inputs,
+                                                                                    real_artifact: dict[str, Any]) -> None:
+        """``BRIEF_45`` Amendment D, D1.7 and D1.8 on real data: ``dt_spatial`` was registered to collapse at ``random``
+        and does not, so its ``registered_expectation_met`` is False under both definitions; and Q5a and Q5b at
+        ``fixedtime``, whose per-draw differences are non-zero on 5 draws (counted here), carry the small-sample note."""
+        book = tst.make_books(real_inputs.cells)["corrected"]
+        for definition in tst.DEFINITIONS:
+            q6 = _q(real_artifact, "Q6", "random", definition=definition, arm="dt_spatial")
+            assert own_collapses(book, "dt_spatial", "random", definition) is False
+            assert (q6["numbers"]["registered_expectation"], q6["verdict"]) == ("COLLAPSED", "NOT COLLAPSED")
+>           assert q6["numbers"]["registered_expectation_met"] is False
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           KeyError: 'registered_expectation_met'
+
+tests/test_tier_statements.py:3263: KeyError
+=========================== short test summary info ============================
+FAILED tests/test_tier_statements.py::test_d1_1_q5s_reading_names_only_the_tiers_where_the_global_filter_collapses_alone
+FAILED tests/test_tier_statements.py::test_d1_2_every_summary_row_carries_its_statements_point_estimate
+FAILED tests/test_tier_statements.py::test_d1_3_a_literal_row_carries_its_att_engine_value_and_a_null_only_where_none_exists
+FAILED tests/test_tier_statements.py::test_d1_4_the_p8_4b_rows_name_what_each_outcome_belongs_to
+FAILED tests/test_tier_statements.py::test_d1_5_definitions_state_the_flags_the_zero_seeds_and_the_aggregates
+FAILED tests/test_tier_statements.py::test_d1_6_a_behaviour_or_anchor_arm_has_its_seed_labels_called_evaluation_labels
+FAILED tests/test_tier_statements.py::test_d1_7_the_labels_q2a_the_audit_rule_q4b_and_q6s_expectation
+FAILED tests/test_tier_statements.py::test_d1_8_a_signed_rank_test_on_fewer_than_twenty_pairs_says_so[offsets0-True]
+FAILED tests/test_tier_statements.py::test_d1_9a_a_temporary_file_this_call_did_not_create_survives_its_refusal
+FAILED tests/test_tier_statements.py::test_d1_9b_a_copy_nested_untracked_in_another_repository_is_refused
+FAILED tests/test_tier_statements.py::test_d1_1_real_q5s_global_only_tiers_and_both_collapse_tiers
+FAILED tests/test_tier_statements.py::test_d1_2_real_every_summary_row_carries_its_statements_point_estimate
+FAILED tests/test_tier_statements.py::test_d1_3_real_the_primary_definitions_value_beside_three_record_rows
+FAILED tests/test_tier_statements.py::test_d1_6_real_every_behaviour_or_anchor_arm_is_labelled
+FAILED tests/test_tier_statements.py::test_d1_7_and_d1_8_real_the_expectation_q6_missed_and_the_four_small_tests
+15 failed, 166 passed in 23.32s

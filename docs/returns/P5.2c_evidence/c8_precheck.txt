@@ -1,0 +1,33 @@
+# C8 pre-check on a git archive export of 650ec97f755d58e4e56f46c096527c4a3f49287d; module sha256 20c07b1719b95221d181cda5b847b185c67226fcce7e9eb3c7d054a859e96d3f
+# the test file copied in: sha256 9d914ba38950516fe7743372ec54d4d49375c16be58eeaf5d5bb2cb2d545de0d
+
+## control (no mutation): pytest exit 0 -- 4 passed in 2.09s
+
+## R1 -- M1b's R1: changes_block's changed_by_rule_r read from the verdict alone: KILLED
+   test: test_d2_1_changes_flags_by_this_files_rule
+   E       AssertionError: assert {'R': (False,...False, False)} == {'R': (False,...False, False)}
+   E         
+   E         Omitting 3 identical items, use -vv to show
+   1 failed in 1.62s
+
+## R2 -- M1b's R2: REGISTERED_VALUES Q4 random 62.7106 -> 62.7016, in the table alone: KILLED
+   test: test_d2_2_every_registered_value_is_the_plans
+   E       AssertionError: assert {'Q3b': {'max... 970.57}, ...} == {'Q3b': {'max... 970.57}, ...}
+   E         
+   E         Omitting 5 identical items, use -vv to show
+   1 failed in 1.87s
+
+## D2.4a -- every statement stored per version, an IQL-free one twice instead of once as both: KILLED
+   test: test_t_versions_the_iql_free_statements_are_stored_once_and_the_iql_ones_twice
+   E               AssertionError: ('Q0.d1', 'mappo1000', 'corrected')
+   E               assert False
+   1 failed in 1.65s
+
+## D2.4b -- the P8.4b comparison emitted empty: KILLED
+   test: test_t_inputs_the_synthetic_build_passes_every_comparison_of_the_record
+   E       AssertionError: assert [] == [('V4', 'att_..., 'att_ours')]
+   E         
+   E         Right contains 4 more items, first extra item: ('V4', 'att_engine')
+   1 failed in 1.92s
+
+## the module restored byte for byte; 4 of 4 KILLED: {'R1': 'KILLED', 'R2': 'KILLED', 'D2.4a': 'KILLED', 'D2.4b': 'KILLED'}
