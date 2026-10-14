@@ -2261,6 +2261,9 @@
     {
       "arm": null,
       "as_committed_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "n_held": 15,
         "reading": "15 of 19 cells hold",
         "verdict": "HELD"
@@ -2268,11 +2271,17 @@
       "changed_by_rule_r": false,
       "changed_by_the_correction": false,
       "corrected_att_engine": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "n_held": 15,
         "reading": "15 of 19 cells hold",
         "verdict": "HELD"
       },
       "corrected_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "n_held": 15,
         "reading": "15 of 19 cells hold",
         "verdict": "HELD"
@@ -2283,16 +2292,25 @@
     {
       "arm": null,
       "as_committed_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": null,
         "verdict": "HELD"
       },
       "changed_by_rule_r": false,
       "changed_by_the_correction": false,
       "corrected_att_engine": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": null,
         "verdict": "HELD"
       },
       "corrected_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": null,
         "verdict": "HELD"
       },
@@ -2302,16 +2320,25 @@
     {
       "arm": null,
       "as_committed_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": null,
         "verdict": "HELD"
       },
       "changed_by_rule_r": false,
       "changed_by_the_correction": false,
       "corrected_att_engine": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": null,
         "verdict": "HELD"
       },
       "corrected_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": null,
         "verdict": "HELD"
       },
@@ -2321,16 +2348,25 @@
     {
       "arm": null,
       "as_committed_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "both cells hold",
         "verdict": "HELD"
       },
       "changed_by_rule_r": false,
       "changed_by_the_correction": false,
       "corrected_att_engine": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "both cells hold",
         "verdict": "HELD"
       },
       "corrected_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "both cells hold",
         "verdict": "HELD"
       },
@@ -2340,16 +2376,25 @@
     {
       "arm": null,
       "as_committed_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "bc < dt_nomix < dt_spatial < bc_top10_perix < iql < bc_top10",
         "verdict": null
       },
       "changed_by_rule_r": false,
       "changed_by_the_correction": false,
       "corrected_att_engine": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "bc < dt_nomix < dt_spatial < bc_top10_perix < iql < bc_top10",
         "verdict": null
       },
       "corrected_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "bc < dt_nomix < dt_spatial < bc_top10_perix < iql < bc_top10",
         "verdict": null
       },
@@ -2359,16 +2404,25 @@
     {
       "arm": null,
       "as_committed_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "iql < dt_spatial = dt_nomix < bc = bc_top10_perix < bc_top10",
         "verdict": null
       },
       "changed_by_rule_r": false,
       "changed_by_the_correction": false,
       "corrected_att_engine": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "iql < dt_spatial = dt_nomix < bc = bc_top10_perix < bc_top10",
         "verdict": null
       },
       "corrected_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "iql < dt_spatial = dt_nomix < bc = bc_top10_perix < bc_top10",
         "verdict": null
       },
@@ -2378,16 +2432,25 @@
     {
       "arm": null,
       "as_committed_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "iql < dt_spatial < dt_nomix < bc < bc_top10_perix < bc_top10",
         "verdict": null
       },
       "changed_by_rule_r": false,
       "changed_by_the_correction": false,
       "corrected_att_engine": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "iql < dt_spatial < dt_nomix < bc < bc_top10_perix < bc_top10",
         "verdict": null
       },
       "corrected_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "iql < dt_spatial < dt_nomix < bc < bc_top10_perix < bc_top10",
         "verdict": null
       },
@@ -2397,16 +2460,25 @@
     {
       "arm": null,
       "as_committed_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "measured first bc",
         "verdict": "FAILED"
       },
       "changed_by_rule_r": false,
       "changed_by_the_correction": false,
       "corrected_att_engine": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "measured first bc",
         "verdict": "FAILED"
       },
       "corrected_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "measured first bc",
         "verdict": "FAILED"
       },
@@ -2416,16 +2488,25 @@
     {
       "arm": null,
       "as_committed_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "measured first iql",
         "verdict": "FAILED"
       },
       "changed_by_rule_r": false,
       "changed_by_the_correction": false,
       "corrected_att_engine": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "measured first iql",
         "verdict": "FAILED"
       },
       "corrected_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "measured first iql",
         "verdict": "FAILED"
       },
@@ -2435,16 +2516,25 @@
     {
       "arm": null,
       "as_committed_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "measured first iql",
         "verdict": "FAILED"
       },
       "changed_by_rule_r": false,
       "changed_by_the_correction": false,
       "corrected_att_engine": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "measured first iql",
         "verdict": "FAILED"
       },
       "corrected_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "measured first iql",
         "verdict": "FAILED"
       },
@@ -2454,6 +2544,9 @@
     {
       "arm": null,
       "as_committed_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "n_concordant": 11,
         "reading": "11 of 15 (range 11..11)",
         "verdict": "FAILED"
@@ -2461,11 +2554,17 @@
       "changed_by_rule_r": false,
       "changed_by_the_correction": false,
       "corrected_att_engine": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "n_concordant": 11,
         "reading": "11 of 15 (range 11..11)",
         "verdict": "FAILED"
       },
       "corrected_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "n_concordant": 11,
         "reading": "11 of 15 (range 11..11)",
         "verdict": "FAILED"
@@ -2476,6 +2575,9 @@
     {
       "arm": null,
       "as_committed_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "n_concordant": 7,
         "reading": "7 of 15 (range 7..9)",
         "verdict": "FAILED"
@@ -2483,11 +2585,17 @@
       "changed_by_rule_r": false,
       "changed_by_the_correction": false,
       "corrected_att_engine": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "n_concordant": 7,
         "reading": "7 of 15 (range 7..9)",
         "verdict": "FAILED"
       },
       "corrected_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "n_concordant": 7,
         "reading": "7 of 15 (range 7..9)",
         "verdict": "FAILED"
@@ -2498,6 +2606,9 @@
     {
       "arm": null,
       "as_committed_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "n_concordant": 8,
         "reading": "8 of 15 (range 8..8)",
         "verdict": "FAILED"
@@ -2505,11 +2616,17 @@
       "changed_by_rule_r": false,
       "changed_by_the_correction": false,
       "corrected_att_engine": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "n_concordant": 8,
         "reading": "8 of 15 (range 8..8)",
         "verdict": "FAILED"
       },
       "corrected_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "n_concordant": 8,
         "reading": "8 of 15 (range 8..8)",
         "verdict": "FAILED"
@@ -2520,16 +2637,25 @@
     {
       "arm": null,
       "as_committed_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": null,
         "verdict": "FAILED"
       },
       "changed_by_rule_r": false,
       "changed_by_the_correction": false,
       "corrected_att_engine": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": null,
         "verdict": "FAILED"
       },
       "corrected_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": null,
         "verdict": "FAILED"
       },
@@ -2539,6 +2665,9 @@
     {
       "arm": null,
       "as_committed_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "n_concordant": 2,
         "reading": "2 of 6 (range 2..2); no threshold is registered",
         "verdict": null
@@ -2546,11 +2675,17 @@
       "changed_by_rule_r": false,
       "changed_by_the_correction": false,
       "corrected_att_engine": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "n_concordant": 2,
         "reading": "2 of 6 (range 2..2); no threshold is registered",
         "verdict": null
       },
       "corrected_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "n_concordant": 2,
         "reading": "2 of 6 (range 2..2); no threshold is registered",
         "verdict": null
@@ -2561,6 +2696,9 @@
     {
       "arm": null,
       "as_committed_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "n_concordant": 2,
         "reading": "2 of 6 (range 2..4); no threshold is registered",
         "verdict": null
@@ -2568,11 +2706,17 @@
       "changed_by_rule_r": false,
       "changed_by_the_correction": false,
       "corrected_att_engine": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "n_concordant": 2,
         "reading": "2 of 6 (range 2..4); no threshold is registered",
         "verdict": null
       },
       "corrected_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "n_concordant": 2,
         "reading": "2 of 6 (range 2..4); no threshold is registered",
         "verdict": null
@@ -2583,6 +2727,9 @@
     {
       "arm": null,
       "as_committed_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "n_concordant": 3,
         "reading": "3 of 6 (range 3..3); no threshold is registered",
         "verdict": null
@@ -2590,11 +2737,17 @@
       "changed_by_rule_r": false,
       "changed_by_the_correction": false,
       "corrected_att_engine": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "n_concordant": 3,
         "reading": "3 of 6 (range 3..3); no threshold is registered",
         "verdict": null
       },
       "corrected_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "n_concordant": 3,
         "reading": "3 of 6 (range 3..3); no threshold is registered",
         "verdict": null
@@ -2605,16 +2758,25 @@
     {
       "arm": null,
       "as_committed_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "seed 101: bc first; seed 202: bc first; seed 303: bc first; seed 404: bc first; seed 505: bc first",
         "verdict": null
       },
       "changed_by_rule_r": true,
       "changed_by_the_correction": false,
       "corrected_att_engine": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "seed 101: bc first; seed 202: bc first; seed 303: dt_nomix first; seed 404: bc first; seed 505: bc first",
         "verdict": null
       },
       "corrected_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "seed 101: bc first; seed 202: bc first; seed 303: bc first; seed 404: bc first; seed 505: bc first",
         "verdict": null
       },
@@ -2624,16 +2786,25 @@
     {
       "arm": null,
       "as_committed_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "seed 101: iql first; seed 202: iql first; seed 303: iql first; seed 404: iql first; seed 505: iql first",
         "verdict": null
       },
       "changed_by_rule_r": false,
       "changed_by_the_correction": false,
       "corrected_att_engine": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "seed 101: iql first; seed 202: iql first; seed 303: iql first; seed 404: iql first; seed 505: iql first",
         "verdict": null
       },
       "corrected_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "seed 101: iql first; seed 202: iql first; seed 303: iql first; seed 404: iql first; seed 505: iql first",
         "verdict": null
       },
@@ -2643,16 +2814,25 @@
     {
       "arm": null,
       "as_committed_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "seed 101: iql first; seed 202: iql first; seed 303: iql first; seed 404: iql first; seed 505: iql first",
         "verdict": null
       },
       "changed_by_rule_r": false,
       "changed_by_the_correction": false,
       "corrected_att_engine": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "seed 101: iql first; seed 202: iql first; seed 303: iql first; seed 404: iql first; seed 505: iql first",
         "verdict": null
       },
       "corrected_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "seed 101: iql first; seed 202: iql first; seed 303: iql first; seed 404: iql first; seed 505: iql first",
         "verdict": null
       },
@@ -2662,6 +2842,9 @@
     {
       "arm": null,
       "as_committed_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "rank": 1,
         "reading": "rank 1 of 6 (range 1..1); context, not scored",
         "verdict": null
@@ -2669,11 +2852,17 @@
       "changed_by_rule_r": false,
       "changed_by_the_correction": false,
       "corrected_att_engine": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "rank": 1,
         "reading": "rank 1 of 6 (range 1..1); context, not scored",
         "verdict": null
       },
       "corrected_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "rank": 1,
         "reading": "rank 1 of 6 (range 1..1); context, not scored",
         "verdict": null
@@ -2684,6 +2873,9 @@
     {
       "arm": null,
       "as_committed_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "rank": 2,
         "reading": "rank 2 of 6 (range 2..2)",
         "verdict": "FAILED"
@@ -2691,11 +2883,17 @@
       "changed_by_rule_r": false,
       "changed_by_the_correction": false,
       "corrected_att_engine": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "rank": 2,
         "reading": "rank 2 of 6 (range 2..2)",
         "verdict": "FAILED"
       },
       "corrected_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "rank": 2,
         "reading": "rank 2 of 6 (range 2..2)",
         "verdict": "FAILED"
@@ -2706,6 +2904,9 @@
     {
       "arm": null,
       "as_committed_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "rank": 2,
         "reading": "rank 2 of 6 (range 2..3)",
         "verdict": "FAILED"
@@ -2713,11 +2914,17 @@
       "changed_by_rule_r": false,
       "changed_by_the_correction": false,
       "corrected_att_engine": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "rank": 2,
         "reading": "rank 2 of 6 (range 2..3)",
         "verdict": "FAILED"
       },
       "corrected_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "rank": 2,
         "reading": "rank 2 of 6 (range 2..3)",
         "verdict": "FAILED"
@@ -2728,6 +2935,9 @@
     {
       "arm": null,
       "as_committed_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "rank": 3,
         "reading": "rank 3 of 6 (range 3..3)",
         "verdict": "FAILED"
@@ -2735,11 +2945,17 @@
       "changed_by_rule_r": false,
       "changed_by_the_correction": false,
       "corrected_att_engine": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "rank": 3,
         "reading": "rank 3 of 6 (range 3..3)",
         "verdict": "FAILED"
       },
       "corrected_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "rank": 3,
         "reading": "rank 3 of 6 (range 3..3)",
         "verdict": "FAILED"
@@ -2862,16 +3078,25 @@
     {
       "arm": null,
       "as_committed_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": null,
         "verdict": "NOT RESOLVED"
       },
       "changed_by_rule_r": false,
       "changed_by_the_correction": false,
       "corrected_att_engine": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": null,
         "verdict": "NOT RESOLVED"
       },
       "corrected_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": null,
         "verdict": "NOT RESOLVED"
       },
@@ -2881,16 +3106,25 @@
     {
       "arm": null,
       "as_committed_att_ours": {
+        "ci95_high": -8.472631673435993,
+        "ci95_low": -13.793182658614432,
+        "mean_difference": -11.132907166025213,
         "reading": "resolves for the DT",
         "verdict": null
       },
       "changed_by_rule_r": false,
       "changed_by_the_correction": false,
       "corrected_att_engine": {
+        "ci95_high": -8.726943294022838,
+        "ci95_low": -14.091746926819624,
+        "mean_difference": -11.409345110421231,
         "reading": "resolves for the DT",
         "verdict": null
       },
       "corrected_att_ours": {
+        "ci95_high": -8.472631673435993,
+        "ci95_low": -13.793182658614432,
+        "mean_difference": -11.132907166025213,
         "reading": "resolves for the DT",
         "verdict": null
       },
@@ -2902,6 +3136,7 @@
       "as_committed_att_ours": {
         "ci95_high": 2.359205813721871,
         "ci95_low": 0.23946195213826238,
+        "mean_difference": 1.2993338829300667,
         "reading": "resolves against the DT",
         "verdict": null
       },
@@ -2910,12 +3145,14 @@
       "corrected_att_engine": {
         "ci95_high": 1.9735470588894715,
         "ci95_low": -0.1617083017017492,
+        "mean_difference": 0.9059193785938612,
         "reading": "NOT RESOLVED",
         "verdict": null
       },
       "corrected_att_ours": {
         "ci95_high": 2.359205813721871,
         "ci95_low": 0.23946195213826238,
+        "mean_difference": 1.2993338829300667,
         "reading": "resolves against the DT",
         "verdict": null
       },
@@ -2927,6 +3164,7 @@
       "as_committed_att_ours": {
         "ci95_high": 3.408204261393935,
         "ci95_low": 2.925620929072488,
+        "mean_difference": 3.1669125952332116,
         "reading": "resolves against the DT",
         "verdict": null
       },
@@ -2935,12 +3173,14 @@
       "corrected_att_engine": {
         "ci95_high": 3.42530576217866,
         "ci95_low": 2.941768251120712,
+        "mean_difference": 3.183537006649686,
         "reading": "resolves against the DT",
         "verdict": null
       },
       "corrected_att_ours": {
         "ci95_high": 3.408204261393935,
         "ci95_low": 2.925620929072488,
+        "mean_difference": 3.1669125952332116,
         "reading": "resolves against the DT",
         "verdict": null
       },
@@ -2952,6 +3192,7 @@
       "as_committed_att_ours": {
         "ci95_high": 66.61604541318644,
         "ci95_low": 62.10458947911136,
+        "mean_difference": 64.3603174461489,
         "reading": "resolves against the DT",
         "verdict": null
       },
@@ -2960,12 +3201,14 @@
       "corrected_att_engine": {
         "ci95_high": 59.667247116016824,
         "ci95_low": 53.899537582645095,
+        "mean_difference": 56.78339234933096,
         "reading": "resolves against the DT",
         "verdict": null
       },
       "corrected_att_ours": {
         "ci95_high": 59.706913112257276,
         "ci95_low": 53.97944571762526,
+        "mean_difference": 56.84317941494127,
         "reading": "resolves against the DT",
         "verdict": null
       },
@@ -3171,16 +3414,25 @@
     {
       "arm": null,
       "as_committed_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": null,
         "verdict": "FAILED"
       },
       "changed_by_rule_r": false,
       "changed_by_the_correction": false,
       "corrected_att_engine": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": null,
         "verdict": "FAILED"
       },
       "corrected_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": null,
         "verdict": "FAILED"
       },
@@ -3190,16 +3442,25 @@
     {
       "arm": null,
       "as_committed_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "inverted: d decreases strictly along the chain",
         "verdict": "FAILED"
       },
       "changed_by_rule_r": false,
       "changed_by_the_correction": false,
       "corrected_att_engine": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "inverted: d decreases strictly along the chain",
         "verdict": "FAILED"
       },
       "corrected_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "inverted: d decreases strictly along the chain",
         "verdict": "FAILED"
       },
@@ -3209,16 +3470,25 @@
     {
       "arm": null,
       "as_committed_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "inverted: d decreases strictly along the chain",
         "verdict": "FAILED"
       },
       "changed_by_rule_r": false,
       "changed_by_the_correction": false,
       "corrected_att_engine": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "inverted: d decreases strictly along the chain",
         "verdict": "FAILED"
       },
       "corrected_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": "inverted: d decreases strictly along the chain",
         "verdict": "FAILED"
       },
@@ -3312,16 +3582,25 @@
     {
       "arm": null,
       "as_committed_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": null,
         "verdict": "NOT RESOLVED"
       },
       "changed_by_rule_r": false,
       "changed_by_the_correction": false,
       "corrected_att_engine": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": null,
         "verdict": "NOT RESOLVED"
       },
       "corrected_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": null,
         "verdict": "NOT RESOLVED"
       },
@@ -3443,16 +3722,25 @@
     {
       "arm": null,
       "as_committed_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": null,
         "verdict": "NOT RESOLVED"
       },
       "changed_by_rule_r": false,
       "changed_by_the_correction": false,
       "corrected_att_engine": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": null,
         "verdict": "NOT RESOLVED"
       },
       "corrected_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": null,
         "verdict": "NOT RESOLVED"
       },
@@ -3574,16 +3862,25 @@
     {
       "arm": null,
       "as_committed_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": null,
         "verdict": "FAILED"
       },
       "changed_by_rule_r": false,
       "changed_by_the_correction": false,
       "corrected_att_engine": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": null,
         "verdict": "FAILED"
       },
       "corrected_att_ours": {
+        "ci95_high": null,
+        "ci95_low": null,
+        "mean_difference": null,
         "reading": null,
         "verdict": "FAILED"
       },
@@ -3823,6 +4120,8 @@
     },
     "literal_records": [
       {
+        "att_engine": "did not fire",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -3833,6 +4132,8 @@
         "verified": null
       },
       {
+        "att_engine": "HELD, 15 of 19",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -3843,6 +4144,8 @@
         "verified": null
       },
       {
+        "att_engine": "4.01 % / 3.49 %",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -3853,6 +4156,8 @@
         "verified": null
       },
       {
+        "att_engine": "FAILED 3/3",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -3863,6 +4168,9 @@
         "verified": null
       },
       {
+        "att_engine": null,
+        "att_engine_equal": null,
+        "att_engine_note": "the registered predicted first places of the att_horizon era, not a measurement: no prediction was registered under att_engine, so they have no att_engine counterpart",
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -3873,6 +4181,8 @@
         "verified": null
       },
       {
+        "att_engine": "`bc`/`iql`/`iql`",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -3883,6 +4193,8 @@
         "verified": null
       },
       {
+        "att_engine": "FAILED 3/3",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -3893,6 +4205,8 @@
         "verified": null
       },
       {
+        "att_engine": "11 \u00b7 7 \u00b7 8",
+        "att_engine_equal": false,
         "equal": false,
         "exception": "deferred_108",
         "explanation": "DEFERRED 108: at fixedtime dt_spatial = dt_nomix and bc = bc_top10_perix exactly, and under the tie rule P5.2 declared on 2026-08-24 (a tie is discordant for both orders) Q2b's count there is 7, the lower end of its range 7..9; the record's 8 is one tie-break order's count, not the declared rule's",
@@ -3929,6 +4243,8 @@
         }
       },
       {
+        "att_engine": "FAILED 3/3",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -3939,6 +4255,8 @@
         "verified": null
       },
       {
+        "att_engine": "2/6 \u00b7 2/6 \u00b7 3/6",
+        "att_engine_equal": false,
         "equal": false,
         "exception": "q3a_fixedtime",
         "explanation": "BRIEF_45 section 1.4(b): at fixedtime dt_nomix ties dt_spatial exactly, so its rank is 2 counting only the arms strictly lower (the declared rule, P5.2b's) and 3 if the tie is broken against it; the record's 3 is one tie-break order's rank, the range is 2..3",
@@ -3975,6 +4293,8 @@
         }
       },
       {
+        "att_engine": "INVERTED",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -3985,6 +4305,8 @@
         "verified": null
       },
       {
+        "att_engine": "no DT arm collapsed on any tier",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -3995,6 +4317,9 @@
         "verified": null
       },
       {
+        "att_engine": null,
+        "att_engine_equal": null,
+        "att_engine_note": "a registered prediction of the att_horizon era, not a measurement: no prediction was registered under att_engine, so it has no att_engine counterpart",
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4005,6 +4330,8 @@
         "verified": null
       },
       {
+        "att_engine": "200.06",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4015,6 +4342,9 @@
         "verified": null
       },
       {
+        "att_engine": null,
+        "att_engine_equal": null,
+        "att_engine_note": "a registered prediction of the att_horizon era, not a measurement: no prediction was registered under att_engine, so it has no att_engine counterpart",
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4025,6 +4355,8 @@
         "verified": null
       },
       {
+        "att_engine": "196.52",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4035,6 +4367,9 @@
         "verified": null
       },
       {
+        "att_engine": null,
+        "att_engine_equal": null,
+        "att_engine_note": "a registered prediction of the att_horizon era, not a measurement: no prediction was registered under att_engine, so it has no att_engine counterpart",
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4045,6 +4380,8 @@
         "verified": null
       },
       {
+        "att_engine": "343.97",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4055,6 +4392,9 @@
         "verified": null
       },
       {
+        "att_engine": null,
+        "att_engine_equal": null,
+        "att_engine_note": "a registered prediction of the att_horizon era, not a measurement: no prediction was registered under att_engine, so it has no att_engine counterpart",
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4065,6 +4405,8 @@
         "verified": null
       },
       {
+        "att_engine": "191.39",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4075,6 +4417,8 @@
         "verified": null
       },
       {
+        "att_engine": "+40.0210",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4085,6 +4429,8 @@
         "verified": null
       },
       {
+        "att_engine": "[+36.4788, +43.5631]",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4095,6 +4441,8 @@
         "verified": null
       },
       {
+        "att_engine": "5/5",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4105,6 +4453,8 @@
         "verified": null
       },
       {
+        "att_engine": "+0.6895",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4115,6 +4465,8 @@
         "verified": null
       },
       {
+        "att_engine": "[+0.5855, +0.7934]",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4125,6 +4477,8 @@
         "verified": null
       },
       {
+        "att_engine": "5/5",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4135,6 +4489,8 @@
         "verified": null
       },
       {
+        "att_engine": "0.0000",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4145,6 +4501,8 @@
         "verified": null
       },
       {
+        "att_engine": "exact",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4155,6 +4513,8 @@
         "verified": null
       },
       {
+        "att_engine": "n/a",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4165,6 +4525,8 @@
         "verified": null
       },
       {
+        "att_engine": "-0.7098",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4175,6 +4537,8 @@
         "verified": null
       },
       {
+        "att_engine": "[-1.3207, -0.0990]",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4185,6 +4549,8 @@
         "verified": null
       },
       {
+        "att_engine": "4/5",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4195,6 +4561,8 @@
         "verified": null
       },
       {
+        "att_engine": "40.02 at the best tier against -0.71 at the worst",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4205,6 +4573,8 @@
         "verified": null
       },
       {
+        "att_engine": "0 of 500 episodes differ between all three",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4215,6 +4585,8 @@
         "verified": null
       },
       {
+        "att_engine": "`bc_top10_perix` is likewise identical to `bc`",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4225,6 +4597,8 @@
         "verified": null
       },
       {
+        "att_engine": "`bc` differs from `behaviour` on 500 of 500",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4235,6 +4609,8 @@
         "verified": null
       },
       {
+        "att_engine": "Three contrasts are exactly `0.0000` at that tier",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4245,6 +4621,8 @@
         "verified": null
       },
       {
+        "att_engine": "-0.6664",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4255,6 +4633,8 @@
         "verified": null
       },
       {
+        "att_engine": "CI [-0.8475, -0.4853]",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4265,6 +4645,8 @@
         "verified": null
       },
       {
+        "att_engine": "-5.0453",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4275,6 +4657,8 @@
         "verified": null
       },
       {
+        "att_engine": "CI [-5.5102, -4.5804]",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4285,6 +4669,8 @@
         "verified": null
       },
       {
+        "att_engine": "equals it exactly on `fixedtime`",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4295,6 +4681,8 @@
         "verified": null
       },
       {
+        "att_engine": "the DT arms are the only arms that never collapse",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4305,6 +4693,8 @@
         "verified": null
       },
       {
+        "att_engine": "2/6 \u00b7 2/6 \u00b7 3/6 = 7 of 18",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4315,6 +4705,8 @@
         "verified": null
       },
       {
+        "att_engine": "`maxpressure` 2..2 \u00b7 `fixedtime` 2..4 \u00b7 `random` 3..3, i.e. 7..9 of 18",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4325,6 +4717,8 @@
         "verified": null
       },
       {
+        "att_engine": "7 of 18",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4335,6 +4729,8 @@
         "verified": null
       },
       {
+        "att_engine": "(max 9 < 12)",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4345,6 +4741,8 @@
         "verified": null
       },
       {
+        "att_engine": "(rank \u2265 2 always)",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4355,6 +4753,8 @@
         "verified": null
       },
       {
+        "att_engine": "26/45",
+        "att_engine_equal": false,
         "equal": false,
         "exception": "deferred_108",
         "explanation": "DEFERRED 108: at fixedtime dt_spatial = dt_nomix and bc = bc_top10_perix exactly, and under the tie rule P5.2 declared on 2026-08-24 (a tie is discordant for both orders) Q2b's count there is 7, the lower end of its range 7..9; the record's 8 is one tie-break order's count, not the declared rule's",
@@ -4379,6 +4779,8 @@
         }
       },
       {
+        "att_engine": "678.22 on `maxpressure`",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4389,6 +4791,8 @@
         "verified": null
       },
       {
+        "att_engine": "204.04",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4399,6 +4803,8 @@
         "verified": null
       },
       {
+        "att_engine": "`+40.0210` at the best tier, `-0.7098` at the",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4409,6 +4815,8 @@
         "verified": null
       },
       {
+        "att_engine": "2/6 \u00b7 2/6 \u00b7 3/6",
+        "att_engine_equal": false,
         "equal": false,
         "exception": "q3a_fixedtime",
         "explanation": "BRIEF_45 section 1.4(b): at fixedtime dt_nomix ties dt_spatial exactly, so its rank is 2 counting only the arms strictly lower (the declared rule, P5.2b's) and 3 if the tie is broken against it; the record's 3 is one tie-break order's rank, the range is 2..3",
@@ -4445,6 +4853,8 @@
         }
       },
       {
+        "att_engine": "HELD, 15 of 19",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4455,6 +4865,9 @@
         "verified": null
       },
       {
+        "att_engine": null,
+        "att_engine_equal": null,
+        "att_engine_note": "the threshold k = ceil(9/13 * N) is fixed by the protocol (docs/plans/p5.2.md:561-563), not measured, so it has no att_engine counterpart",
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4465,6 +4878,8 @@
         "verified": null
       },
       {
+        "att_engine": "4.01 % / 3.49 %",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4475,6 +4890,9 @@
         "verified": null
       },
       {
+        "att_engine": null,
+        "att_engine_equal": null,
+        "att_engine_note": "a registered prediction of the att_horizon era, not a measurement: no prediction was registered under att_engine, so it has no att_engine counterpart",
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4485,6 +4903,8 @@
         "verified": null
       },
       {
+        "att_engine": "200.06",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4495,6 +4915,8 @@
         "verified": null
       },
       {
+        "att_engine": "80.8 %",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4505,6 +4927,9 @@
         "verified": null
       },
       {
+        "att_engine": null,
+        "att_engine_equal": null,
+        "att_engine_note": "a registered prediction of the att_horizon era, not a measurement: no prediction was registered under att_engine, so it has no att_engine counterpart",
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4515,6 +4940,8 @@
         "verified": null
       },
       {
+        "att_engine": "196.52",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4525,6 +4952,8 @@
         "verified": null
       },
       {
+        "att_engine": "(45.5 %)",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4535,6 +4964,9 @@
         "verified": null
       },
       {
+        "att_engine": null,
+        "att_engine_equal": null,
+        "att_engine_note": "a registered prediction of the att_horizon era, not a measurement: no prediction was registered under att_engine, so it has no att_engine counterpart",
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4545,6 +4977,8 @@
         "verified": null
       },
       {
+        "att_engine": "343.97",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4555,6 +4989,8 @@
         "verified": null
       },
       {
+        "att_engine": "(72.3 %)",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4565,6 +5001,9 @@
         "verified": null
       },
       {
+        "att_engine": null,
+        "att_engine_equal": null,
+        "att_engine_note": "a registered prediction of the att_horizon era, not a measurement: no prediction was registered under att_engine, so it has no att_engine counterpart",
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4575,6 +5014,8 @@
         "verified": null
       },
       {
+        "att_engine": "191.39",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4585,6 +5026,8 @@
         "verified": null
       },
       {
+        "att_engine": "(53.9 %)",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4595,6 +5038,8 @@
         "verified": null
       },
       {
+        "att_engine": "FAILED 3/3",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4605,6 +5050,9 @@
         "verified": null
       },
       {
+        "att_engine": null,
+        "att_engine_equal": null,
+        "att_engine_note": "the registered predicted first places of the att_horizon era, not a measurement: no prediction was registered under att_engine, so they have no att_engine counterpart",
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4615,6 +5063,8 @@
         "verified": null
       },
       {
+        "att_engine": "`bc`/`iql`/`iql`",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4625,6 +5075,8 @@
         "verified": null
       },
       {
+        "att_engine": "11 \u00b7 7 \u00b7 8",
+        "att_engine_equal": false,
         "equal": false,
         "exception": "deferred_108",
         "explanation": "DEFERRED 108: at fixedtime dt_spatial = dt_nomix and bc = bc_top10_perix exactly, and under the tie rule P5.2 declared on 2026-08-24 (a tie is discordant for both orders) Q2b's count there is 7, the lower end of its range 7..9; the record's 8 is one tie-break order's count, not the declared rule's",
@@ -4661,6 +5113,8 @@
         }
       },
       {
+        "att_engine": "FAILED 3/3",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4671,6 +5125,8 @@
         "verified": null
       },
       {
+        "att_engine": "26/45",
+        "att_engine_equal": false,
         "equal": false,
         "exception": "deferred_108",
         "explanation": "DEFERRED 108: at fixedtime dt_spatial = dt_nomix and bc = bc_top10_perix exactly, and under the tie rule P5.2 declared on 2026-08-24 (a tie is discordant for both orders) Q2b's count there is 7, the lower end of its range 7..9; the record's 8 is one tie-break order's count, not the declared rule's",
@@ -4695,6 +5151,8 @@
         }
       },
       {
+        "att_engine": "2/6 \u00b7 2/6 \u00b7 3/6",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4705,6 +5163,8 @@
         "verified": null
       },
       {
+        "att_engine": "7 of 18",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4715,6 +5175,8 @@
         "verified": null
       },
       {
+        "att_engine": "`maxpressure` 2..2 \u00b7 `fixedtime` 2..4 \u00b7 `random` 3..3, giving a total range of 7..9",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4725,6 +5187,8 @@
         "verified": null
       },
       {
+        "att_engine": "11 \u00b7 7 \u00b7 8",
+        "att_engine_equal": false,
         "equal": false,
         "exception": "deferred_108",
         "explanation": "DEFERRED 108: at fixedtime dt_spatial = dt_nomix and bc = bc_top10_perix exactly, and under the tie rule P5.2 declared on 2026-08-24 (a tie is discordant for both orders) Q2b's count there is 7, the lower end of its range 7..9; the record's 8 is one tie-break order's count, not the declared rule's",
@@ -4761,6 +5225,8 @@
         }
       },
       {
+        "att_engine": "(max 9 < 12)",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4771,6 +5237,8 @@
         "verified": null
       },
       {
+        "att_engine": "(rank \u2265 2 always)",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4781,6 +5249,8 @@
         "verified": null
       },
       {
+        "att_engine": "2/6 \u00b7 2/6 \u00b7 3/6",
+        "att_engine_equal": false,
         "equal": false,
         "exception": "q3a_fixedtime",
         "explanation": "BRIEF_45 section 1.4(b): at fixedtime dt_nomix ties dt_spatial exactly, so its rank is 2 counting only the arms strictly lower (the declared rule, P5.2b's) and 3 if the tie is broken against it; the record's 3 is one tie-break order's rank, the range is 2..3",
@@ -4817,6 +5287,8 @@
         }
       },
       {
+        "att_engine": "not every paired difference against the best non-DT arm resolves against the DT",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4827,6 +5299,8 @@
         "verified": null
       },
       {
+        "att_engine": "`-0.6664`, CI [-0.8475, -0.4853]",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4837,6 +5311,8 @@
         "verified": null
       },
       {
+        "att_engine": "equals it EXACTLY on `fixedtime`",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4847,6 +5323,8 @@
         "verified": null
       },
       {
+        "att_engine": "the DT arms are the ONLY arms that never collapse",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4857,6 +5335,8 @@
         "verified": null
       },
       {
+        "att_engine": "+40.0210",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4867,6 +5347,8 @@
         "verified": null
       },
       {
+        "att_engine": "[+36.4788, +43.5631]",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4877,6 +5359,8 @@
         "verified": null
       },
       {
+        "att_engine": "5/5",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4887,6 +5371,8 @@
         "verified": null
       },
       {
+        "att_engine": "+0.6895",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4897,6 +5383,8 @@
         "verified": null
       },
       {
+        "att_engine": "[+0.5855, +0.7934]",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4907,6 +5395,8 @@
         "verified": null
       },
       {
+        "att_engine": "5/5",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4917,6 +5407,8 @@
         "verified": null
       },
       {
+        "att_engine": "0.0000",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4927,6 +5419,8 @@
         "verified": null
       },
       {
+        "att_engine": "exact",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4937,6 +5431,8 @@
         "verified": null
       },
       {
+        "att_engine": "n/a",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4947,6 +5443,8 @@
         "verified": null
       },
       {
+        "att_engine": "-0.7098",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4957,6 +5455,8 @@
         "verified": null
       },
       {
+        "att_engine": "[-1.3207, -0.0990]",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4967,6 +5467,8 @@
         "verified": null
       },
       {
+        "att_engine": "4/5",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4977,6 +5479,8 @@
         "verified": null
       },
       {
+        "att_engine": "on `random` the sign REVERSES with the CI excluding zero",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4987,6 +5491,8 @@
         "verified": null
       },
       {
+        "att_engine": "40.02 at the best tier against -0.71 at the worst",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -4997,6 +5503,8 @@
         "verified": null
       },
       {
+        "att_engine": "-474.18",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -5007,6 +5515,8 @@
         "verified": null
       },
       {
+        "att_engine": "[-482.34, -466.01]",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -5017,6 +5527,8 @@
         "verified": null
       },
       {
+        "att_engine": "-49.51",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -5027,6 +5539,8 @@
         "verified": null
       },
       {
+        "att_engine": "[-55.67, -43.35]",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -5037,6 +5551,8 @@
         "verified": null
       },
       {
+        "att_engine": "-0.28",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -5047,6 +5563,8 @@
         "verified": null
       },
       {
+        "att_engine": "[-0.68, +0.11] unresolved",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -5057,6 +5575,8 @@
         "verified": null
       },
       {
+        "att_engine": "678.22 on `maxpressure`",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -5067,6 +5587,8 @@
         "verified": null
       },
       {
+        "att_engine": "(204.04)",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -5077,6 +5599,8 @@
         "verified": null
       },
       {
+        "att_engine": "+40.0210",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -5087,6 +5611,8 @@
         "verified": null
       },
       {
+        "att_engine": "[+36.4788, +43.5631]",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -5097,6 +5623,8 @@
         "verified": null
       },
       {
+        "att_engine": "+27.4534",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -5107,6 +5635,8 @@
         "verified": null
       },
       {
+        "att_engine": "[+24.1365, +30.7702]",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -5117,6 +5647,8 @@
         "verified": null
       },
       {
+        "att_engine": "-12.5676",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -5127,6 +5659,8 @@
         "verified": null
       },
       {
+        "att_engine": "[-16.4943, -8.6409]",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -5137,6 +5671,8 @@
         "verified": null
       },
       {
+        "att_engine": "`I < 0` on 70 of 100 draws",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -5147,6 +5683,8 @@
         "verified": null
       },
       {
+        "att_engine": "The 31.4 % reduction",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -5157,6 +5695,8 @@
         "verified": null
       },
       {
+        "att_engine": "31.4 % of it is attributable",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -5167,6 +5707,8 @@
         "verified": null
       },
       {
+        "att_engine": "measured: +40.0210, CI [+36.4788, +43.5631]",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -5177,6 +5719,8 @@
         "verified": null
       },
       {
+        "att_engine": "`dt_spatial` = `dt_nomix` = 199.70482048081334 and `bc` = `bc_top10_perix` = 199.77605696984688",
+        "att_engine_equal": false,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -5187,6 +5731,8 @@
         "verified": null
       },
       {
+        "att_engine": "`maxpressure` 2..2 \u00b7 `fixedtime` 2..4 \u00b7 `random` 3..3",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -5197,6 +5743,8 @@
         "verified": null
       },
       {
+        "att_engine": "(max 9 < 12)",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -5207,6 +5755,8 @@
         "verified": null
       },
       {
+        "att_engine": "(rank \u2265 2 always)",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -5217,6 +5767,8 @@
         "verified": null
       },
       {
+        "att_engine": "the true range is 7..9",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -5227,6 +5779,8 @@
         "verified": null
       },
       {
+        "att_engine": "7 of 18",
+        "att_engine_equal": true,
         "equal": true,
         "exception": null,
         "explanation": null,
@@ -5540,7 +6094,7 @@
             "ci95_low": 0.23946195213826238,
             "definition": "att_ours",
             "id": "Q3c",
-            "mean_difference": null,
+            "mean_difference": 1.2993338829300667,
             "reading": "resolves against the DT",
             "tier": "maxpressure",
             "verdict": null,
@@ -5552,7 +6106,7 @@
             "ci95_low": -0.1617083017017492,
             "definition": "att_engine",
             "id": "Q3c",
-            "mean_difference": null,
+            "mean_difference": 0.9059193785938612,
             "reading": "NOT RESOLVED",
             "tier": "maxpressure",
             "verdict": null,
@@ -5571,7 +6125,7 @@
             "ci95_low": 2.925620929072488,
             "definition": "att_ours",
             "id": "Q3c",
-            "mean_difference": null,
+            "mean_difference": 3.1669125952332116,
             "reading": "resolves against the DT",
             "tier": "fixedtime",
             "verdict": null,
@@ -5583,7 +6137,7 @@
             "ci95_low": 2.941768251120712,
             "definition": "att_engine",
             "id": "Q3c",
-            "mean_difference": null,
+            "mean_difference": 3.183537006649686,
             "reading": "resolves against the DT",
             "tier": "fixedtime",
             "verdict": null,
@@ -6002,6 +6556,7 @@
           "outcome": "FAILED"
         },
         "statement": "Q0.d1",
+        "statement_label": "Q0.d1 is d1, which is P5.1's P2a; the outcome is P2a's (spatial_mixing._outcome_from_interval)",
         "this_artifact": {
           "ci95_high": 43.07867318940228,
           "ci95_low": 36.051043216650456,
@@ -6039,6 +6594,7 @@
           "outcome": "FAILED"
         },
         "statement": "Q0.d1",
+        "statement_label": "Q0.d1 is d1, which is P5.1's P2a; the outcome is P2a's (spatial_mixing._outcome_from_interval)",
         "this_artifact": {
           "ci95_high": 43.56314618914256,
           "ci95_low": 36.478839485810354,
@@ -6075,7 +6631,8 @@
           "n_paired": 100,
           "outcome": "CONTINUE"
         },
-        "statement": "Q0a",
+        "statement": "Q0.stop_rule",
+        "statement_label": "the stop rule's d4, the d4 that Q0a also reads; the outcome is the stop rule's verdict (tier_sweep.stop_rule_verdict)",
         "this_artifact": {
           "ci95_high": 30.385779932197426,
           "ci95_low": 23.81503283021549,
@@ -6112,7 +6669,8 @@
           "n_paired": 100,
           "outcome": "CONTINUE"
         },
-        "statement": "Q0a",
+        "statement": "Q0.stop_rule",
+        "statement_label": "the stop rule's d4, the d4 that Q0a also reads; the outcome is the stop rule's verdict (tier_sweep.stop_rule_verdict)",
         "this_artifact": {
           "ci95_high": 30.770197967811875,
           "ci95_low": 24.136549976432804,
@@ -6131,7 +6689,15 @@
         "descriptive_reading": {
           "att_engine": {
             "label": "descriptive, not a registered verdict (BRIEF_45 Amendment A, A3)",
-            "reading": "the global return filter collapses where the per-intersection one does not",
+            "reading": "the global return filter (bc_top10) collapses where the per-intersection one (bc_top10_perix) does not on mappo1000 and maxpressure; on random both filters collapse: each is worse than the random anchor with the paired CI excluding 0",
+            "sets_from": "descriptive_collapse_audit's rows under this definition (Q6's rule applied descriptively), computed, never listed by hand (BRIEF_45 Amendment D, D1.1)",
+            "tiers_both_filters_collapse": [
+              "random"
+            ],
+            "tiers_global_filter_collapses_alone": [
+              "mappo1000",
+              "maxpressure"
+            ],
             "tiers_where_q5b_resolves": [
               "mappo1000",
               "maxpressure",
@@ -6140,7 +6706,15 @@
           },
           "att_ours": {
             "label": "descriptive, not a registered verdict (BRIEF_45 Amendment A, A3)",
-            "reading": "the global return filter collapses where the per-intersection one does not",
+            "reading": "the global return filter (bc_top10) collapses where the per-intersection one (bc_top10_perix) does not on mappo1000 and maxpressure; on random both filters collapse: each is worse than the random anchor with the paired CI excluding 0",
+            "sets_from": "descriptive_collapse_audit's rows under this definition (Q6's rule applied descriptively), computed, never listed by hand (BRIEF_45 Amendment D, D1.1)",
+            "tiers_both_filters_collapse": [
+              "random"
+            ],
+            "tiers_global_filter_collapses_alone": [
+              "mappo1000",
+              "maxpressure"
+            ],
             "tiers_where_q5b_resolves": [
               "mappo1000",
               "maxpressure",
@@ -6279,7 +6853,15 @@
         "descriptive_reading": {
           "att_engine": {
             "label": "descriptive, not a registered verdict (BRIEF_45 Amendment A, A3)",
-            "reading": "the global return filter collapses where the per-intersection one does not",
+            "reading": "the global return filter (bc_top10) collapses where the per-intersection one (bc_top10_perix) does not on mappo1000 and maxpressure; on random both filters collapse: each is worse than the random anchor with the paired CI excluding 0",
+            "sets_from": "descriptive_collapse_audit's rows under this definition (Q6's rule applied descriptively), computed, never listed by hand (BRIEF_45 Amendment D, D1.1)",
+            "tiers_both_filters_collapse": [
+              "random"
+            ],
+            "tiers_global_filter_collapses_alone": [
+              "mappo1000",
+              "maxpressure"
+            ],
             "tiers_where_q5b_resolves": [
               "mappo1000",
               "maxpressure",
@@ -6288,7 +6870,15 @@
           },
           "att_ours": {
             "label": "descriptive, not a registered verdict (BRIEF_45 Amendment A, A3)",
-            "reading": "the global return filter collapses where the per-intersection one does not",
+            "reading": "the global return filter (bc_top10) collapses where the per-intersection one (bc_top10_perix) does not on mappo1000 and maxpressure; on random both filters collapse: each is worse than the random anchor with the paired CI excluding 0",
+            "sets_from": "descriptive_collapse_audit's rows under this definition (Q6's rule applied descriptively), computed, never listed by hand (BRIEF_45 Amendment D, D1.1)",
+            "tiers_both_filters_collapse": [
+              "random"
+            ],
+            "tiers_global_filter_collapses_alone": [
+              "mappo1000",
+              "maxpressure"
+            ],
             "tiers_where_q5b_resolves": [
               "mappo1000",
               "maxpressure",
@@ -6427,7 +7017,15 @@
         "descriptive_reading": {
           "att_engine": {
             "label": "descriptive, not a registered verdict (BRIEF_45 Amendment A, A3)",
-            "reading": "the global return filter collapses where the per-intersection one does not",
+            "reading": "the global return filter (bc_top10) collapses where the per-intersection one (bc_top10_perix) does not on mappo1000 and maxpressure; on random both filters collapse: each is worse than the random anchor with the paired CI excluding 0",
+            "sets_from": "descriptive_collapse_audit's rows under this definition (Q6's rule applied descriptively), computed, never listed by hand (BRIEF_45 Amendment D, D1.1)",
+            "tiers_both_filters_collapse": [
+              "random"
+            ],
+            "tiers_global_filter_collapses_alone": [
+              "mappo1000",
+              "maxpressure"
+            ],
             "tiers_where_q5b_resolves": [
               "mappo1000",
               "maxpressure",
@@ -6436,7 +7034,15 @@
           },
           "att_ours": {
             "label": "descriptive, not a registered verdict (BRIEF_45 Amendment A, A3)",
-            "reading": "the global return filter collapses where the per-intersection one does not",
+            "reading": "the global return filter (bc_top10) collapses where the per-intersection one (bc_top10_perix) does not on mappo1000 and maxpressure; on random both filters collapse: each is worse than the random anchor with the paired CI excluding 0",
+            "sets_from": "descriptive_collapse_audit's rows under this definition (Q6's rule applied descriptively), computed, never listed by hand (BRIEF_45 Amendment D, D1.1)",
+            "tiers_both_filters_collapse": [
+              "random"
+            ],
+            "tiers_global_filter_collapses_alone": [
+              "mappo1000",
+              "maxpressure"
+            ],
             "tiers_where_q5b_resolves": [
               "mappo1000",
               "maxpressure",
@@ -6574,9 +7180,11 @@
     ]
   },
   "definitions": {
+    "aggregates": "an aggregate statement (the *.aggregate entries) combines per-tier verdicts and has no point estimate, so its rows in comparison_with_the_record.never_scored and in changes carry null for mean_difference and the CI ends; so does every statement whose numbers hold no mean_difference and no contrast (BRIEF_45 Amendment D, D1.2 and D1.5)",
     "arithmetic_route": "one route everywhere, the registered one: numpy.mean per draw (a plain left-to-right sum over five seeds) and mean_ci95 over the draws.  P8.4b's att_rederivation._per_draw_means and tier_sweep.score_stop_rule use Python's built-in sum (compensated on Python 3.12), which can differ in the last place; comparison_with_the_record names each such difference, reproduces the record by its own route (BRIEF_45 Amendment A, A2 Q1) and refuses a difference larger than 4 ulps of the larger magnitude (Amendment B, B2.5)",
     "att_engine": "the engine's average travel time of the same episodes, re-derived by deterministic replay (P8.4b's campaign; P5.2b's re-derivation for the corrected cell)",
     "att_ours": "P5.2's att_horizon: the platform's average travel time at the horizon, read from the evaluation records (P5.1's, P5.2's and P5.2b's)",
+    "changes_flags": "changes[*].changed_by_the_correction (as committed -> corrected, att_ours) and changed_by_rule_r (corrected att_ours -> corrected att_engine) are true iff the verdict or the reading differs between the two steps; they compare verdicts and readings, not values, so a value may move without either flag (BRIEF_45 Amendment D, D1.5)",
     "common_scoring": [
       {
         "file": "docs/plans/p5.2.md",
@@ -6603,7 +7211,7 @@
       ]
     },
     "d8": {
-      "carried": "rank_biserial, median_difference, wins, losses, ties and the Wilcoxon block from offline_baselines.paired_comparison, unchanged; the p-value is never read by a verdict. rank_biserial_defined and rank_biserial_note label the effect size, and p_value_defined and p_value_note label the test: both are wilcoxon.n_used > 0, so where every per-draw difference is exactly zero the signed-rank test is empty and its z = 0.0 and p_value = 1.0 are dt_gate.wilcoxon_signed_rank's convention, not a result (BRIEF_45 Amendment B.2, B.2.3)",
+      "carried": "rank_biserial, median_difference, wins, losses, ties and the Wilcoxon block from offline_baselines.paired_comparison, unchanged; the p-value is never read by a verdict. rank_biserial_defined and rank_biserial_note label the effect size, and p_value_defined and p_value_note label the test: both are wilcoxon.n_used > 0, so where every per-draw difference is exactly zero the signed-rank test is empty and its z = 0.0 and p_value = 1.0 are dt_gate.wilcoxon_signed_rank's convention, not a result (BRIEF_45 Amendment B.2, B.2.3); where 0 < n_used < 20 the defined note also says the normal approximation rests on fewer pairs than the n >= 20 its function's docstring states (Amendment D, D1.8)",
       "quotes": [
         {
           "file": "docs/plans/p5.2.md",
@@ -6647,6 +7255,7 @@
     },
     "paired_unit": "per draw, the mean over the five training seeds (dt_gate._per_draw_means), over the identical (seed, draw) grid of two complete cells; differences per draw in ascending draw order",
     "per_seed": "every two-arm contrast carries tier_sweep.per_seed_block (P5.1's per_seed_advantages and seed_reversal_qualifier), and I carries the same worker over composite rows (BRIEF_45 Amendment B, B2.2); for the behaviour and random-anchor cells a seed label is an evaluation label, not a training seed",
+    "reverses_on_n_seeds": "per_seed.reverses_on_n_seeds (P5.1's per_seed_advantages) is the size of the seed minority by sign, where only a negative value favours the left arm, so a seed whose value is exactly zero is counted with the seeds that do not favour it and the minority can be made of zero seeds; per_seed.reverses_against_pooled_sign counts the seeds whose sign opposes the pooled mean's and never an exactly-zero seed, and it -- with seed_reversal_qualifier, emitted from it -- is the field that qualifies a stated ordering (BRIEF_45 Amendment D, D1.5)",
     "rule_r": {
       "beside": "att_ours",
       "fired": "on grid4x4, by P8.4b's gate (docs/data/p8_4b_g0_reference.json); recorded in PROJECT_PLAN section 10 under its dated heading of 2026-08-31",
@@ -6784,7 +7393,7 @@
             "min": -104.02917730291477,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -6864,7 +7473,7 @@
             "min": -96.02693542535678,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -6944,7 +7553,7 @@
             "min": -56.4390851540949,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -7024,7 +7633,7 @@
             "min": -10.032541376392146,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -7104,7 +7713,7 @@
             "min": -105.6904047827463,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -7184,7 +7793,7 @@
             "min": -96.67326687257722,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -7264,7 +7873,7 @@
             "min": -56.4390851540949,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -7344,7 +7953,7 @@
             "min": -7.955636494753236,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -7424,7 +8033,7 @@
             "min": -104.05194735996756,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -7504,7 +8113,7 @@
             "min": -95.66044495586581,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -7584,7 +8193,7 @@
             "min": -56.72359605852617,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -7664,7 +8273,7 @@
             "min": -10.05922423893395,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -7744,7 +8353,7 @@
             "min": -105.7270258648623,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -7824,7 +8433,7 @@
             "min": -96.27528896598199,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -7904,7 +8513,7 @@
             "min": -56.72359605852617,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -7984,7 +8593,7 @@
             "min": -7.9752900586273086,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -8069,7 +8678,7 @@
             "min": -95.10583614226283,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -8149,7 +8758,7 @@
             "min": -98.66756014006066,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -8229,7 +8838,7 @@
             "min": -56.36966956808209,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -8309,7 +8918,7 @@
             "min": 21.15097677928202,
             "n_seeds": 5,
             "n_seeds_favouring_left": 0,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -8389,7 +8998,7 @@
             "min": 459.49130398168626,
             "n_seeds": 5,
             "n_seeds_favouring_left": 0,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -8469,7 +9078,7 @@
             "min": 400.9249866416091,
             "n_seeds": 5,
             "n_seeds_favouring_left": 0,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -8549,7 +9158,7 @@
             "min": -56.36966956808209,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -8629,7 +9238,7 @@
             "min": 73.50785298644979,
             "n_seeds": 5,
             "n_seeds_favouring_left": 0,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -8709,7 +9318,7 @@
             "min": -83.98211905454272,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -8789,7 +9398,7 @@
             "min": -56.73565663639167,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -8869,7 +9478,7 @@
             "min": -56.36966956808209,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -8949,7 +9558,7 @@
             "min": 19.241605847478525,
             "n_seeds": 5,
             "n_seeds_favouring_left": 0,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -9029,7 +9638,7 @@
             "min": -28.21853295335626,
             "n_seeds": 5,
             "n_seeds_favouring_left": 2,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 2,
             "reverses_on_n_seeds": 2
           },
@@ -9109,7 +9718,7 @@
             "min": -1.901965004312956,
             "n_seeds": 5,
             "n_seeds_favouring_left": 1,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 1,
             "reverses_on_n_seeds": 1
           },
@@ -9189,7 +9798,7 @@
             "min": -59.4092826990815,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -9269,7 +9878,7 @@
             "min": -74.82174847369987,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -9349,7 +9958,7 @@
             "min": -78.27902048878872,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -9429,7 +10038,7 @@
             "min": -94.86802024868487,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -9509,7 +10118,7 @@
             "min": -97.87646642661366,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -9589,7 +10198,7 @@
             "min": -56.65235956949266,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -9669,7 +10278,7 @@
             "min": 21.36020842850712,
             "n_seeds": 5,
             "n_seeds_favouring_left": 0,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -9749,7 +10358,7 @@
             "min": 464.863816204226,
             "n_seeds": 5,
             "n_seeds_favouring_left": 0,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -9829,7 +10438,7 @@
             "min": 406.1700062524316,
             "n_seeds": 5,
             "n_seeds_favouring_left": 0,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -9909,7 +10518,7 @@
             "min": -56.65235956949266,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -9989,7 +10598,7 @@
             "min": 74.19511397091838,
             "n_seeds": 5,
             "n_seeds_favouring_left": 0,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -10069,7 +10678,7 @@
             "min": -83.85064702009285,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -10149,7 +10758,7 @@
             "min": -55.84376259711007,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -10229,7 +10838,7 @@
             "min": -56.65235956949266,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -10309,7 +10918,7 @@
             "min": 19.482531273186055,
             "n_seeds": 5,
             "n_seeds_favouring_left": 0,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -10389,7 +10998,7 @@
             "min": -27.26592052338256,
             "n_seeds": 5,
             "n_seeds_favouring_left": 2,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 2,
             "reverses_on_n_seeds": 2
           },
@@ -10469,7 +11078,7 @@
             "min": -0.6788681773768985,
             "n_seeds": 5,
             "n_seeds_favouring_left": 1,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 1,
             "reverses_on_n_seeds": 1
           },
@@ -10549,7 +11158,7 @@
             "min": -59.69868241815985,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -10629,7 +11238,7 @@
             "min": -74.81704512207597,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -10709,7 +11318,7 @@
             "min": -78.38418473508617,
             "n_seeds": 5,
             "n_seeds_favouring_left": 5,
-            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+            "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
             "reverses_against_pooled_sign": 0,
             "reverses_on_n_seeds": 0
           },
@@ -10728,7 +11337,7 @@
         "version": "as_committed"
       }
     ],
-    "rule": "Q6's rule verbatim (docs/plans/p5.2.md:699-701): COLLAPSED iff the arm's mean is worse than the shared random anchor's with the paired CI excluding 0, else NOT COLLAPSED",
+    "rule": "Q6's rule (docs/plans/p5.2.md:699-701, registered for a DT arm under att_horizon), applied descriptively to every arm under both definitions: COLLAPSED iff the arm's mean is worse than the shared random anchor's with the paired CI excluding 0, else NOT COLLAPSED (BRIEF_45 Amendment D, D1.7)",
     "sentence_holds": [
       {
         "definition": "att_ours",
@@ -10830,8 +11439,8 @@
   },
   "format_version": "p5.2-statements/1.0",
   "git": {
-    "code_root": "/home/filip/rltraffic-p52c",
-    "commit": "b5b8a98908c65184d5208c2a478d12ab3480c87f",
+    "code_root": "/tmp/claude-1000/p52c-build",
+    "commit": "1d6519eb7c052eeebd6446550e92270a26bf1aa9",
     "dirty": false
   },
   "leaders": [
@@ -12901,7 +13510,7 @@
       {
         "module": "offline.tier_statements",
         "path": "offline/tier_statements.py",
-        "sha256": "20c07b1719b95221d181cda5b847b185c67226fcce7e9eb3c7d054a859e96d3f"
+        "sha256": "94ff0a0271244715bacc655f3f6fcec73895474f92dc2d5145fa14bb79122325"
       },
       {
         "module": "offline.tier_sweep",
@@ -13348,7 +13957,7 @@
       "p8_4b_rows_compared": 500
     }
   },
-  "registered_in": "docs/briefs/BRIEF_45_p5.2c_statements.md, its Amendment A (gate G0; the plan docs/plans/p5.2c.md at 1267715), its Amendment B (gate G1), its Amendment B.1 (gate G1.1) and its Amendment B.2 (gate G2); the author's ruling of 2026-10-08 (PROJECT_PLAN section 8)",
+  "registered_in": "docs/briefs/BRIEF_45_p5.2c_statements.md, its Amendment A (gate G0; the plan docs/plans/p5.2c.md at 1267715), its Amendment B (gate G1), its Amendment B.1 (gate G1.1), its Amendment B.2 (gate G2) and its Amendment D (gate G5, round C8); the author's ruling of 2026-10-08 (PROJECT_PLAN section 8)",
   "role": "P5.2c: P5.2's registered statements (docs/plans/p5.2.md section 4, Q0-Q6) scored by committed code on every tier as registered, under both ATT definitions (Rule R makes att_engine primary on grid4x4) and both random-tier IQL cells (P5.2b's corrected cell, the paper's, and P5.2's original); every tie-dependent integer with its range; every value P5.2's record states beside this artifact's, equal or explained. Computed from committed records read at their digests; no episode was rolled.",
   "statements": [
     {
@@ -13426,6 +14035,7 @@
           "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
+        "predictions_registered_on": "att_horizon (att_ours): P5.2 registered these values on the definition measured here (docs/plans/p5.2.md:407-412)",
         "reading": "resolves: the CI lies entirely above zero",
         "registered_value": 39.5649,
         "right": "p5_1:dt_nomix@grid4x4_mappo1000",
@@ -13537,6 +14147,7 @@
           "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
+        "predictions_registered_on": "att_horizon (att_ours), not att_engine: the registered values here are P5.2's att_horizon-era values -- its predictions, and d1's registered att_horizon measurement where d1 appears -- compared with att_engine measurements; nothing was registered under att_engine (BRIEF_45 section 2; Amendment D, D1.7)",
         "reading": "resolves: the CI lies entirely above zero",
         "registered_value": 39.5649,
         "right": "p5_1:dt_nomix@grid4x4_mappo1000",
@@ -16256,11 +16867,13 @@
           "bc"
         ],
         "predicted_first": "bc_top10_perix",
+        "predictions_registered_on": "att_horizon (att_ours): P5.2 registered these values on the definition measured here (docs/plans/p5.2.md:407-412)",
         "reversal": null,
         "reverses_on_seeds": [],
         "reverses_on_seeds_against_pooled_firsts": [],
         "rule": "docs/plans/p5.2.md section 4 Q2a: HELD iff the predicted first-place arm is the measured one; an exact tie for first is no unique first place",
-        "tied_for_first": []
+        "tied_for_first": [],
+        "tiers_note": "the registered text says 'Scored on the 2 out-of-sample tiers' (docs/plans/p5.2.md:604-605), written before fixedtime joined; fixedtime's predicted ordering and first place were registered with the tier (docs/plans/p5.2.md:595 and docs/plans/p5.2.md:601: dt_nomix first), so Q2a is reported on all three out-of-sample tiers (BRIEF_45 Amendment D, D1.7)"
       },
       "primary": false,
       "reading": "measured first bc",
@@ -16349,6 +16962,7 @@
           "bc"
         ],
         "predicted_first": "bc_top10_perix",
+        "predictions_registered_on": "att_horizon (att_ours), not att_engine: the registered values here are P5.2's att_horizon-era values -- its predictions, and d1's registered att_horizon measurement where d1 appears -- compared with att_engine measurements; nothing was registered under att_engine (BRIEF_45 section 2; Amendment D, D1.7)",
         "reversal": "the pooled first place, bc, reverses on seed 303: dt_nomix is first on seed 303 (docs/plans/p5.2.md section 4 Q2, D9: a first place that reverses on a seed is reported as reversing)",
         "reverses_on_seeds": [
           303
@@ -16357,7 +16971,8 @@
           303
         ],
         "rule": "docs/plans/p5.2.md section 4 Q2a: HELD iff the predicted first-place arm is the measured one; an exact tie for first is no unique first place",
-        "tied_for_first": []
+        "tied_for_first": [],
+        "tiers_note": "the registered text says 'Scored on the 2 out-of-sample tiers' (docs/plans/p5.2.md:604-605), written before fixedtime joined; fixedtime's predicted ordering and first place were registered with the tier (docs/plans/p5.2.md:595 and docs/plans/p5.2.md:601: dt_nomix first), so Q2a is reported on all three out-of-sample tiers (BRIEF_45 Amendment D, D1.7)"
       },
       "primary": true,
       "reading": "measured first bc",
@@ -16446,11 +17061,13 @@
           "iql"
         ],
         "predicted_first": "dt_nomix",
+        "predictions_registered_on": "att_horizon (att_ours): P5.2 registered these values on the definition measured here (docs/plans/p5.2.md:407-412)",
         "reversal": null,
         "reverses_on_seeds": [],
         "reverses_on_seeds_against_pooled_firsts": [],
         "rule": "docs/plans/p5.2.md section 4 Q2a: HELD iff the predicted first-place arm is the measured one; an exact tie for first is no unique first place",
-        "tied_for_first": []
+        "tied_for_first": [],
+        "tiers_note": "the registered text says 'Scored on the 2 out-of-sample tiers' (docs/plans/p5.2.md:604-605), written before fixedtime joined; fixedtime's predicted ordering and first place were registered with the tier (docs/plans/p5.2.md:595 and docs/plans/p5.2.md:601: dt_nomix first), so Q2a is reported on all three out-of-sample tiers (BRIEF_45 Amendment D, D1.7)"
       },
       "primary": false,
       "reading": "measured first iql",
@@ -16539,11 +17156,13 @@
           "iql"
         ],
         "predicted_first": "dt_nomix",
+        "predictions_registered_on": "att_horizon (att_ours), not att_engine: the registered values here are P5.2's att_horizon-era values -- its predictions, and d1's registered att_horizon measurement where d1 appears -- compared with att_engine measurements; nothing was registered under att_engine (BRIEF_45 section 2; Amendment D, D1.7)",
         "reversal": null,
         "reverses_on_seeds": [],
         "reverses_on_seeds_against_pooled_firsts": [],
         "rule": "docs/plans/p5.2.md section 4 Q2a: HELD iff the predicted first-place arm is the measured one; an exact tie for first is no unique first place",
-        "tied_for_first": []
+        "tied_for_first": [],
+        "tiers_note": "the registered text says 'Scored on the 2 out-of-sample tiers' (docs/plans/p5.2.md:604-605), written before fixedtime joined; fixedtime's predicted ordering and first place were registered with the tier (docs/plans/p5.2.md:595 and docs/plans/p5.2.md:601: dt_nomix first), so Q2a is reported on all three out-of-sample tiers (BRIEF_45 Amendment D, D1.7)"
       },
       "primary": true,
       "reading": "measured first iql",
@@ -16632,11 +17251,13 @@
           "iql"
         ],
         "predicted_first": "dt_nomix",
+        "predictions_registered_on": "att_horizon (att_ours): P5.2 registered these values on the definition measured here (docs/plans/p5.2.md:407-412)",
         "reversal": null,
         "reverses_on_seeds": [],
         "reverses_on_seeds_against_pooled_firsts": [],
         "rule": "docs/plans/p5.2.md section 4 Q2a: HELD iff the predicted first-place arm is the measured one; an exact tie for first is no unique first place",
-        "tied_for_first": []
+        "tied_for_first": [],
+        "tiers_note": "the registered text says 'Scored on the 2 out-of-sample tiers' (docs/plans/p5.2.md:604-605), written before fixedtime joined; fixedtime's predicted ordering and first place were registered with the tier (docs/plans/p5.2.md:595 and docs/plans/p5.2.md:601: dt_nomix first), so Q2a is reported on all three out-of-sample tiers (BRIEF_45 Amendment D, D1.7)"
       },
       "primary": false,
       "reading": "measured first iql",
@@ -16725,11 +17346,13 @@
           "iql"
         ],
         "predicted_first": "dt_nomix",
+        "predictions_registered_on": "att_horizon (att_ours): P5.2 registered these values on the definition measured here (docs/plans/p5.2.md:407-412)",
         "reversal": null,
         "reverses_on_seeds": [],
         "reverses_on_seeds_against_pooled_firsts": [],
         "rule": "docs/plans/p5.2.md section 4 Q2a: HELD iff the predicted first-place arm is the measured one; an exact tie for first is no unique first place",
-        "tied_for_first": []
+        "tied_for_first": [],
+        "tiers_note": "the registered text says 'Scored on the 2 out-of-sample tiers' (docs/plans/p5.2.md:604-605), written before fixedtime joined; fixedtime's predicted ordering and first place were registered with the tier (docs/plans/p5.2.md:595 and docs/plans/p5.2.md:601: dt_nomix first), so Q2a is reported on all three out-of-sample tiers (BRIEF_45 Amendment D, D1.7)"
       },
       "primary": false,
       "reading": "measured first iql",
@@ -16818,11 +17441,13 @@
           "iql"
         ],
         "predicted_first": "dt_nomix",
+        "predictions_registered_on": "att_horizon (att_ours), not att_engine: the registered values here are P5.2's att_horizon-era values -- its predictions, and d1's registered att_horizon measurement where d1 appears -- compared with att_engine measurements; nothing was registered under att_engine (BRIEF_45 section 2; Amendment D, D1.7)",
         "reversal": null,
         "reverses_on_seeds": [],
         "reverses_on_seeds_against_pooled_firsts": [],
         "rule": "docs/plans/p5.2.md section 4 Q2a: HELD iff the predicted first-place arm is the measured one; an exact tie for first is no unique first place",
-        "tied_for_first": []
+        "tied_for_first": [],
+        "tiers_note": "the registered text says 'Scored on the 2 out-of-sample tiers' (docs/plans/p5.2.md:604-605), written before fixedtime joined; fixedtime's predicted ordering and first place were registered with the tier (docs/plans/p5.2.md:595 and docs/plans/p5.2.md:601: dt_nomix first), so Q2a is reported on all three out-of-sample tiers (BRIEF_45 Amendment D, D1.7)"
       },
       "primary": true,
       "reading": "measured first iql",
@@ -16911,11 +17536,13 @@
           "iql"
         ],
         "predicted_first": "dt_nomix",
+        "predictions_registered_on": "att_horizon (att_ours), not att_engine: the registered values here are P5.2's att_horizon-era values -- its predictions, and d1's registered att_horizon measurement where d1 appears -- compared with att_engine measurements; nothing was registered under att_engine (BRIEF_45 section 2; Amendment D, D1.7)",
         "reversal": null,
         "reverses_on_seeds": [],
         "reverses_on_seeds_against_pooled_firsts": [],
         "rule": "docs/plans/p5.2.md section 4 Q2a: HELD iff the predicted first-place arm is the measured one; an exact tie for first is no unique first place",
-        "tied_for_first": []
+        "tied_for_first": [],
+        "tiers_note": "the registered text says 'Scored on the 2 out-of-sample tiers' (docs/plans/p5.2.md:604-605), written before fixedtime joined; fixedtime's predicted ordering and first place were registered with the tier (docs/plans/p5.2.md:595 and docs/plans/p5.2.md:601: dt_nomix first), so Q2a is reported on all three out-of-sample tiers (BRIEF_45 Amendment D, D1.7)"
       },
       "primary": true,
       "reading": "measured first iql",
@@ -22797,7 +23424,7 @@
           "min": -5.445060368528374,
           "n_seeds": 5,
           "n_seeds_favouring_left": 5,
-          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; behaviour@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
           "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
@@ -22916,7 +23543,7 @@
           "min": -5.530797048284313,
           "n_seeds": 5,
           "n_seeds_favouring_left": 5,
-          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; behaviour@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
           "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
@@ -23034,11 +23661,12 @@
           "min": -1.1169279253797413,
           "n_seeds": 5,
           "n_seeds_favouring_left": 5,
-          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; behaviour@maxpressure's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
           "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
         "predicted_sign": "negative",
+        "predictions_registered_on": "att_horizon (att_ours): P5.2 registered these values on the definition measured here (docs/plans/p5.2.md:407-412)",
         "reading": "resolves: the CI lies entirely below zero",
         "registered_value": -0.9655,
         "right": "p5_2:behaviour@maxpressure",
@@ -23162,11 +23790,12 @@
           "min": -1.0463810135502456,
           "n_seeds": 5,
           "n_seeds_favouring_left": 5,
-          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; behaviour@maxpressure's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
           "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
         "predicted_sign": "negative",
+        "predictions_registered_on": "att_horizon (att_ours), not att_engine: the registered values here are P5.2's att_horizon-era values -- its predictions, and d1's registered att_horizon measurement where d1 appears -- compared with att_engine measurements; nothing was registered under att_engine (BRIEF_45 section 2; Amendment D, D1.7)",
         "reading": "resolves: the CI lies entirely below zero",
         "registered_value": -0.9655,
         "right": "p5_2:behaviour@maxpressure",
@@ -23290,11 +23919,12 @@
           "min": 0.0,
           "n_seeds": 5,
           "n_seeds_favouring_left": 0,
-          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; behaviour@fixedtime's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
           "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
         "predicted_sign": "negative",
+        "predictions_registered_on": "att_horizon (att_ours): P5.2 registered these values on the definition measured here (docs/plans/p5.2.md:407-412)",
         "reading": "exactly zero (identical episodes)",
         "registered_value": -1.9906,
         "right": "p5_2:behaviour@fixedtime",
@@ -23418,11 +24048,12 @@
           "min": 0.0,
           "n_seeds": 5,
           "n_seeds_favouring_left": 0,
-          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; behaviour@fixedtime's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
           "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
         "predicted_sign": "negative",
+        "predictions_registered_on": "att_horizon (att_ours), not att_engine: the registered values here are P5.2's att_horizon-era values -- its predictions, and d1's registered att_horizon measurement where d1 appears -- compared with att_engine measurements; nothing was registered under att_engine (BRIEF_45 section 2; Amendment D, D1.7)",
         "reading": "exactly zero (identical episodes)",
         "registered_value": -1.9906,
         "right": "p5_2:behaviour@fixedtime",
@@ -23547,11 +24178,12 @@
           "min": -7.955636494753236,
           "n_seeds": 5,
           "n_seeds_favouring_left": 5,
-          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
           "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
         "predicted_sign": "negative",
+        "predictions_registered_on": "att_horizon (att_ours): P5.2 registered these values on the definition measured here (docs/plans/p5.2.md:407-412)",
         "reading": "resolves: the CI lies entirely below zero",
         "registered_value": -10.1702,
         "right": "p5_1:random@grid4x4_mappo1000",
@@ -23676,11 +24308,12 @@
           "min": -7.9752900586273086,
           "n_seeds": 5,
           "n_seeds_favouring_left": 5,
-          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
           "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
         "predicted_sign": "negative",
+        "predictions_registered_on": "att_horizon (att_ours), not att_engine: the registered values here are P5.2's att_horizon-era values -- its predictions, and d1's registered att_horizon measurement where d1 appears -- compared with att_engine measurements; nothing was registered under att_engine (BRIEF_45 section 2; Amendment D, D1.7)",
         "reading": "resolves: the CI lies entirely below zero",
         "registered_value": -10.1702,
         "right": "p5_1:random@grid4x4_mappo1000",
@@ -24159,6 +24792,7 @@
         "mean": 1.2993338829300667,
         "n_draws": 100,
         "no_verdict": "Q3c registers a value per tier and no outcome rule (docs/plans/p5.2.md:655-659): it is reported with P5.2b's reading and no verdict",
+        "predictions_registered_on": "att_horizon (att_ours): P5.2 registered these values on the definition measured here (docs/plans/p5.2.md:407-412)",
         "reading": "resolves against the DT",
         "registered_value": 0.4326,
         "rule": "docs/plans/p5.2.md section 4 Q3c and its common scoring: mean[ATT(dt_nomix) - ATT(best non-DT arm)] over per-draw means of the five seeds (dt_gate._per_draw_means), the 95 % CI by dt_gate.mean_ci95",
@@ -24294,6 +24928,7 @@
         "mean": 0.9059193785938612,
         "n_draws": 100,
         "no_verdict": "Q3c registers a value per tier and no outcome rule (docs/plans/p5.2.md:655-659): it is reported with P5.2b's reading and no verdict",
+        "predictions_registered_on": "att_horizon (att_ours), not att_engine: the registered values here are P5.2's att_horizon-era values -- its predictions, and d1's registered att_horizon measurement where d1 appears -- compared with att_engine measurements; nothing was registered under att_engine (BRIEF_45 section 2; Amendment D, D1.7)",
         "reading": "NOT RESOLVED",
         "registered_value": 0.4326,
         "rule": "docs/plans/p5.2.md section 4 Q3c and its common scoring: mean[ATT(dt_nomix) - ATT(best non-DT arm)] over per-draw means of the five seeds (dt_gate._per_draw_means), the 95 % CI by dt_gate.mean_ci95",
@@ -24429,6 +25064,7 @@
         "mean": 3.1669125952332116,
         "n_draws": 100,
         "no_verdict": "Q3c registers a value per tier and no outcome rule (docs/plans/p5.2.md:655-659): it is reported with P5.2b's reading and no verdict",
+        "predictions_registered_on": "att_horizon (att_ours): P5.2 registered these values on the definition measured here (docs/plans/p5.2.md:407-412)",
         "reading": "resolves against the DT",
         "registered_value": -17.1639,
         "rule": "docs/plans/p5.2.md section 4 Q3c and its common scoring: mean[ATT(dt_nomix) - ATT(best non-DT arm)] over per-draw means of the five seeds (dt_gate._per_draw_means), the 95 % CI by dt_gate.mean_ci95",
@@ -24564,6 +25200,7 @@
         "mean": 3.183537006649686,
         "n_draws": 100,
         "no_verdict": "Q3c registers a value per tier and no outcome rule (docs/plans/p5.2.md:655-659): it is reported with P5.2b's reading and no verdict",
+        "predictions_registered_on": "att_horizon (att_ours), not att_engine: the registered values here are P5.2's att_horizon-era values -- its predictions, and d1's registered att_horizon measurement where d1 appears -- compared with att_engine measurements; nothing was registered under att_engine (BRIEF_45 section 2; Amendment D, D1.7)",
         "reading": "resolves against the DT",
         "registered_value": -17.1639,
         "rule": "docs/plans/p5.2.md section 4 Q3c and its common scoring: mean[ATT(dt_nomix) - ATT(best non-DT arm)] over per-draw means of the five seeds (dt_gate._per_draw_means), the 95 % CI by dt_gate.mean_ci95",
@@ -24699,6 +25336,7 @@
         "mean": 56.84317941494127,
         "n_draws": 100,
         "no_verdict": "Q3c registers a value per tier and no outcome rule (docs/plans/p5.2.md:655-659): it is reported with P5.2b's reading and no verdict",
+        "predictions_registered_on": "att_horizon (att_ours): P5.2 registered these values on the definition measured here (docs/plans/p5.2.md:407-412)",
         "reading": "resolves against the DT",
         "registered_value": -21.9354,
         "rule": "docs/plans/p5.2.md section 4 Q3c and its common scoring: mean[ATT(dt_nomix) - ATT(best non-DT arm)] over per-draw means of the five seeds (dt_gate._per_draw_means), the 95 % CI by dt_gate.mean_ci95",
@@ -24834,6 +25472,7 @@
         "mean": 64.3603174461489,
         "n_draws": 100,
         "no_verdict": "Q3c registers a value per tier and no outcome rule (docs/plans/p5.2.md:655-659): it is reported with P5.2b's reading and no verdict",
+        "predictions_registered_on": "att_horizon (att_ours): P5.2 registered these values on the definition measured here (docs/plans/p5.2.md:407-412)",
         "reading": "resolves against the DT",
         "registered_value": -21.9354,
         "rule": "docs/plans/p5.2.md section 4 Q3c and its common scoring: mean[ATT(dt_nomix) - ATT(best non-DT arm)] over per-draw means of the five seeds (dt_gate._per_draw_means), the 95 % CI by dt_gate.mean_ci95",
@@ -24969,6 +25608,7 @@
         "mean": 56.78339234933096,
         "n_draws": 100,
         "no_verdict": "Q3c registers a value per tier and no outcome rule (docs/plans/p5.2.md:655-659): it is reported with P5.2b's reading and no verdict",
+        "predictions_registered_on": "att_horizon (att_ours), not att_engine: the registered values here are P5.2's att_horizon-era values -- its predictions, and d1's registered att_horizon measurement where d1 appears -- compared with att_engine measurements; nothing was registered under att_engine (BRIEF_45 section 2; Amendment D, D1.7)",
         "reading": "resolves against the DT",
         "registered_value": -21.9354,
         "rule": "docs/plans/p5.2.md section 4 Q3c and its common scoring: mean[ATT(dt_nomix) - ATT(best non-DT arm)] over per-draw means of the five seeds (dt_gate._per_draw_means), the 95 % CI by dt_gate.mean_ci95",
@@ -25104,6 +25744,7 @@
         "mean": 64.34904427510808,
         "n_draws": 100,
         "no_verdict": "Q3c registers a value per tier and no outcome rule (docs/plans/p5.2.md:655-659): it is reported with P5.2b's reading and no verdict",
+        "predictions_registered_on": "att_horizon (att_ours), not att_engine: the registered values here are P5.2's att_horizon-era values -- its predictions, and d1's registered att_horizon measurement where d1 appears -- compared with att_engine measurements; nothing was registered under att_engine (BRIEF_45 section 2; Amendment D, D1.7)",
         "reading": "resolves against the DT",
         "registered_value": -21.9354,
         "rule": "docs/plans/p5.2.md section 4 Q3c and its common scoring: mean[ATT(dt_nomix) - ATT(best non-DT arm)] over per-draw means of the five seeds (dt_gate._per_draw_means), the 95 % CI by dt_gate.mean_ci95",
@@ -25220,6 +25861,7 @@
           "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
+        "predictions_registered_on": "att_horizon (att_ours): P5.2 registered these values on the definition measured here (docs/plans/p5.2.md:407-412)",
         "reading": "resolves: the CI lies entirely above zero",
         "registered_value": 39.5649,
         "right": "p5_1:dt_nomix@grid4x4_mappo1000",
@@ -25330,6 +25972,7 @@
           "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
+        "predictions_registered_on": "att_horizon (att_ours), not att_engine: the registered values here are P5.2's att_horizon-era values -- its predictions, and d1's registered att_horizon measurement where d1 appears -- compared with att_engine measurements; nothing was registered under att_engine (BRIEF_45 section 2; Amendment D, D1.7)",
         "reading": "resolves: the CI lies entirely above zero",
         "registered_value": 39.5649,
         "right": "p5_1:dt_nomix@grid4x4_mappo1000",
@@ -25440,6 +26083,7 @@
           "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
+        "predictions_registered_on": "att_horizon (att_ours): P5.2 registered these values on the definition measured here (docs/plans/p5.2.md:407-412)",
         "reading": "resolves: the CI lies entirely above zero",
         "registered_value": 41.7402,
         "right": "p5_2:dt_nomix@maxpressure",
@@ -25550,6 +26194,7 @@
           "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
+        "predictions_registered_on": "att_horizon (att_ours), not att_engine: the registered values here are P5.2's att_horizon-era values -- its predictions, and d1's registered att_horizon measurement where d1 appears -- compared with att_engine measurements; nothing was registered under att_engine (BRIEF_45 section 2; Amendment D, D1.7)",
         "reading": "resolves: the CI lies entirely above zero",
         "registered_value": 41.7402,
         "right": "p5_2:dt_nomix@maxpressure",
@@ -25660,6 +26305,7 @@
           "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
+        "predictions_registered_on": "att_horizon (att_ours): P5.2 registered these values on the definition measured here (docs/plans/p5.2.md:407-412)",
         "reading": "exactly zero (identical episodes)",
         "registered_value": 51.3689,
         "right": "p5_2:dt_nomix@fixedtime",
@@ -25770,6 +26416,7 @@
           "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
+        "predictions_registered_on": "att_horizon (att_ours), not att_engine: the registered values here are P5.2's att_horizon-era values -- its predictions, and d1's registered att_horizon measurement where d1 appears -- compared with att_engine measurements; nothing was registered under att_engine (BRIEF_45 section 2; Amendment D, D1.7)",
         "reading": "exactly zero (identical episodes)",
         "registered_value": 51.3689,
         "right": "p5_2:dt_nomix@fixedtime",
@@ -25880,6 +26527,7 @@
           "reverses_against_pooled_sign": 1,
           "reverses_on_n_seeds": 1
         },
+        "predictions_registered_on": "att_horizon (att_ours): P5.2 registered these values on the definition measured here (docs/plans/p5.2.md:407-412)",
         "reading": "resolves: the CI lies entirely below zero",
         "registered_value": 62.7106,
         "right": "p5_2:dt_nomix@random",
@@ -25990,6 +26638,7 @@
           "reverses_against_pooled_sign": 1,
           "reverses_on_n_seeds": 1
         },
+        "predictions_registered_on": "att_horizon (att_ours), not att_engine: the registered values here are P5.2's att_horizon-era values -- its predictions, and d1's registered att_horizon measurement where d1 appears -- compared with att_engine measurements; nothing was registered under att_engine (BRIEF_45 section 2; Amendment D, D1.7)",
         "reading": "resolves: the CI lies entirely below zero",
         "registered_value": 62.7106,
         "right": "p5_2:dt_nomix@random",
@@ -26825,7 +27474,8 @@
             "tier": "random"
           }
         ],
-        "form": "the four-rung chain d(mappo1000) < d(maxpressure) < d(fixedtime) < d(random) (BRIEF_45 section 3.2; docs/plans/p5.2.md:674-675)",
+        "form": "the four-rung chain d(mappo1000) < d(maxpressure) < d(fixedtime) < d(random) (BRIEF_45 section 3.2; docs/plans/p5.2.md:673-675)",
+        "predictions_registered_on": "att_horizon (att_ours): P5.2 registered these values on the definition measured here (docs/plans/p5.2.md:407-412)",
         "reading": "inverted: d decreases strictly along the chain",
         "scored_on": "the point estimates, strictly",
         "strictly_decreasing": true,
@@ -26926,7 +27576,8 @@
             "tier": "random"
           }
         ],
-        "form": "the four-rung chain d(mappo1000) < d(maxpressure) < d(fixedtime) < d(random) (BRIEF_45 section 3.2; docs/plans/p5.2.md:674-675)",
+        "form": "the four-rung chain d(mappo1000) < d(maxpressure) < d(fixedtime) < d(random) (BRIEF_45 section 3.2; docs/plans/p5.2.md:673-675)",
+        "predictions_registered_on": "att_horizon (att_ours), not att_engine: the registered values here are P5.2's att_horizon-era values -- its predictions, and d1's registered att_horizon measurement where d1 appears -- compared with att_engine measurements; nothing was registered under att_engine (BRIEF_45 section 2; Amendment D, D1.7)",
         "reading": "inverted: d decreases strictly along the chain",
         "scored_on": "the point estimates, strictly",
         "strictly_decreasing": true,
@@ -27016,6 +27667,7 @@
           }
         ],
         "form": "the registered bullet's three-rung form d(mappo1000) < d(maxpressure) < d(random) (docs/plans/p5.2.md:670-672), reported beside the four-rung one",
+        "predictions_registered_on": "att_horizon (att_ours): P5.2 registered these values on the definition measured here (docs/plans/p5.2.md:407-412)",
         "reading": "inverted: d decreases strictly along the chain",
         "scored_on": "the point estimates, strictly",
         "strictly_decreasing": true,
@@ -27105,6 +27757,7 @@
           }
         ],
         "form": "the registered bullet's three-rung form d(mappo1000) < d(maxpressure) < d(random) (docs/plans/p5.2.md:670-672), reported beside the four-rung one",
+        "predictions_registered_on": "att_horizon (att_ours), not att_engine: the registered values here are P5.2's att_horizon-era values -- its predictions, and d1's registered att_horizon measurement where d1 appears -- compared with att_engine measurements; nothing was registered under att_engine (BRIEF_45 section 2; Amendment D, D1.7)",
         "reading": "inverted: d decreases strictly along the chain",
         "scored_on": "the point estimates, strictly",
         "strictly_decreasing": true,
@@ -27221,6 +27874,7 @@
           "reverses_on_n_seeds": 0
         },
         "predicted_sign": "positive",
+        "predictions_registered_on": "att_horizon (att_ours): P5.2 registered these values on the definition measured here (docs/plans/p5.2.md:407-412)",
         "reading": "resolves: the CI lies entirely above zero",
         "registered_value": 575.34,
         "registered_value_from_predicted_levels": 575.3385000000001,
@@ -27333,6 +27987,7 @@
           "reverses_on_n_seeds": 0
         },
         "predicted_sign": "positive",
+        "predictions_registered_on": "att_horizon (att_ours), not att_engine: the registered values here are P5.2's att_horizon-era values -- its predictions, and d1's registered att_horizon measurement where d1 appears -- compared with att_engine measurements; nothing was registered under att_engine (BRIEF_45 section 2; Amendment D, D1.7)",
         "reading": "resolves: the CI lies entirely above zero",
         "registered_value": 575.34,
         "registered_value_from_predicted_levels": 575.3385000000001,
@@ -27404,7 +28059,7 @@
           "losses": 4,
           "median_difference": 0.0,
           "p_value_defined": true,
-          "p_value_note": "two-sided signed-rank test (the normal approximation, with the tie and continuity corrections); it is never read by a verdict, and its z is computed from min(W+, W-), so the sign of z is not the direction of the difference -- read mean_difference's sign or the rank-biserial's instead (BRIEF_45 Amendment B.2, B.2.3)",
+          "p_value_note": "two-sided signed-rank test (the normal approximation, with the tie and continuity corrections); it is never read by a verdict, and its z is computed from min(W+, W-), so the sign of z is not the direction of the difference -- read mean_difference's sign or the rank-biserial's instead (BRIEF_45 Amendment B.2, B.2.3); it rests on n_used = 5 non-zero per-draw differences, so the normal approximation rests on fewer pairs than the n >= 20 that dt_gate.wilcoxon_signed_rank's docstring states for it (BRIEF_45 Amendment D, D1.8)",
           "p_value_read_by_a_verdict": false,
           "rank_biserial": 0.7333333333333333,
           "rank_biserial_defined": true,
@@ -27445,6 +28100,7 @@
           "reverses_on_n_seeds": 0
         },
         "predicted_sign": "positive",
+        "predictions_registered_on": "att_horizon (att_ours): P5.2 registered these values on the definition measured here (docs/plans/p5.2.md:407-412)",
         "reading": "does not resolve: the CI includes zero",
         "registered_value": 820.65,
         "registered_value_from_predicted_levels": 820.6480999999999,
@@ -27516,7 +28172,7 @@
           "losses": 4,
           "median_difference": 0.0,
           "p_value_defined": true,
-          "p_value_note": "two-sided signed-rank test (the normal approximation, with the tie and continuity corrections); it is never read by a verdict, and its z is computed from min(W+, W-), so the sign of z is not the direction of the difference -- read mean_difference's sign or the rank-biserial's instead (BRIEF_45 Amendment B.2, B.2.3)",
+          "p_value_note": "two-sided signed-rank test (the normal approximation, with the tie and continuity corrections); it is never read by a verdict, and its z is computed from min(W+, W-), so the sign of z is not the direction of the difference -- read mean_difference's sign or the rank-biserial's instead (BRIEF_45 Amendment B.2, B.2.3); it rests on n_used = 5 non-zero per-draw differences, so the normal approximation rests on fewer pairs than the n >= 20 that dt_gate.wilcoxon_signed_rank's docstring states for it (BRIEF_45 Amendment D, D1.8)",
           "p_value_read_by_a_verdict": false,
           "rank_biserial": 0.7333333333333333,
           "rank_biserial_defined": true,
@@ -27557,6 +28213,7 @@
           "reverses_on_n_seeds": 0
         },
         "predicted_sign": "positive",
+        "predictions_registered_on": "att_horizon (att_ours), not att_engine: the registered values here are P5.2's att_horizon-era values -- its predictions, and d1's registered att_horizon measurement where d1 appears -- compared with att_engine measurements; nothing was registered under att_engine (BRIEF_45 section 2; Amendment D, D1.7)",
         "reading": "does not resolve: the CI includes zero",
         "registered_value": 820.65,
         "registered_value_from_predicted_levels": 820.6480999999999,
@@ -27669,6 +28326,7 @@
           "reverses_on_n_seeds": 0
         },
         "predicted_sign": "positive",
+        "predictions_registered_on": "att_horizon (att_ours): P5.2 registered these values on the definition measured here (docs/plans/p5.2.md:407-412)",
         "reading": "resolves: the CI lies entirely above zero",
         "registered_value": 970.57,
         "registered_value_from_predicted_levels": 970.5694,
@@ -27781,6 +28439,7 @@
           "reverses_on_n_seeds": 0
         },
         "predicted_sign": "positive",
+        "predictions_registered_on": "att_horizon (att_ours), not att_engine: the registered values here are P5.2's att_horizon-era values -- its predictions, and d1's registered att_horizon measurement where d1 appears -- compared with att_engine measurements; nothing was registered under att_engine (BRIEF_45 section 2; Amendment D, D1.7)",
         "reading": "resolves: the CI lies entirely above zero",
         "registered_value": 970.57,
         "registered_value_from_predicted_levels": 970.5694,
@@ -27973,6 +28632,7 @@
           "reverses_on_n_seeds": 0
         },
         "predicted_sign": "negative",
+        "predictions_registered_on": "att_horizon (att_ours): P5.2 registered these values on the definition measured here (docs/plans/p5.2.md:407-412)",
         "reading": "resolves: the CI lies entirely below zero",
         "registered_value": -583.81,
         "registered_value_from_predicted_levels": -583.8139,
@@ -28085,6 +28745,7 @@
           "reverses_on_n_seeds": 0
         },
         "predicted_sign": "negative",
+        "predictions_registered_on": "att_horizon (att_ours), not att_engine: the registered values here are P5.2's att_horizon-era values -- its predictions, and d1's registered att_horizon measurement where d1 appears -- compared with att_engine measurements; nothing was registered under att_engine (BRIEF_45 section 2; Amendment D, D1.7)",
         "reading": "resolves: the CI lies entirely below zero",
         "registered_value": -583.81,
         "registered_value_from_predicted_levels": -583.8139,
@@ -28197,6 +28858,7 @@
           "reverses_on_n_seeds": 0
         },
         "predicted_sign": "negative",
+        "predictions_registered_on": "att_horizon (att_ours): P5.2 registered these values on the definition measured here (docs/plans/p5.2.md:407-412)",
         "reading": "resolves: the CI lies entirely below zero",
         "registered_value": -584.97,
         "registered_value_from_predicted_levels": -584.9695,
@@ -28309,6 +28971,7 @@
           "reverses_on_n_seeds": 0
         },
         "predicted_sign": "negative",
+        "predictions_registered_on": "att_horizon (att_ours), not att_engine: the registered values here are P5.2's att_horizon-era values -- its predictions, and d1's registered att_horizon measurement where d1 appears -- compared with att_engine measurements; nothing was registered under att_engine (BRIEF_45 section 2; Amendment D, D1.7)",
         "reading": "resolves: the CI lies entirely below zero",
         "registered_value": -584.97,
         "registered_value_from_predicted_levels": -584.9695,
@@ -28380,7 +29043,7 @@
           "losses": 1,
           "median_difference": 0.0,
           "p_value_defined": true,
-          "p_value_note": "two-sided signed-rank test (the normal approximation, with the tie and continuity corrections); it is never read by a verdict, and its z is computed from min(W+, W-), so the sign of z is not the direction of the difference -- read mean_difference's sign or the rank-biserial's instead (BRIEF_45 Amendment B.2, B.2.3)",
+          "p_value_note": "two-sided signed-rank test (the normal approximation, with the tie and continuity corrections); it is never read by a verdict, and its z is computed from min(W+, W-), so the sign of z is not the direction of the difference -- read mean_difference's sign or the rank-biserial's instead (BRIEF_45 Amendment B.2, B.2.3); it rests on n_used = 5 non-zero per-draw differences, so the normal approximation rests on fewer pairs than the n >= 20 that dt_gate.wilcoxon_signed_rank's docstring states for it (BRIEF_45 Amendment D, D1.8)",
           "p_value_read_by_a_verdict": false,
           "rank_biserial": -0.7333333333333333,
           "rank_biserial_defined": true,
@@ -28421,6 +29084,7 @@
           "reverses_on_n_seeds": 2
         },
         "predicted_sign": "negative",
+        "predictions_registered_on": "att_horizon (att_ours): P5.2 registered these values on the definition measured here (docs/plans/p5.2.md:407-412)",
         "reading": "does not resolve: the CI includes zero",
         "registered_value": -812.15,
         "registered_value_from_predicted_levels": -812.1534999999999,
@@ -28492,7 +29156,7 @@
           "losses": 1,
           "median_difference": 0.0,
           "p_value_defined": true,
-          "p_value_note": "two-sided signed-rank test (the normal approximation, with the tie and continuity corrections); it is never read by a verdict, and its z is computed from min(W+, W-), so the sign of z is not the direction of the difference -- read mean_difference's sign or the rank-biserial's instead (BRIEF_45 Amendment B.2, B.2.3)",
+          "p_value_note": "two-sided signed-rank test (the normal approximation, with the tie and continuity corrections); it is never read by a verdict, and its z is computed from min(W+, W-), so the sign of z is not the direction of the difference -- read mean_difference's sign or the rank-biserial's instead (BRIEF_45 Amendment B.2, B.2.3); it rests on n_used = 5 non-zero per-draw differences, so the normal approximation rests on fewer pairs than the n >= 20 that dt_gate.wilcoxon_signed_rank's docstring states for it (BRIEF_45 Amendment D, D1.8)",
           "p_value_read_by_a_verdict": false,
           "rank_biserial": -0.7333333333333333,
           "rank_biserial_defined": true,
@@ -28533,6 +29197,7 @@
           "reverses_on_n_seeds": 2
         },
         "predicted_sign": "negative",
+        "predictions_registered_on": "att_horizon (att_ours), not att_engine: the registered values here are P5.2's att_horizon-era values -- its predictions, and d1's registered att_horizon measurement where d1 appears -- compared with att_engine measurements; nothing was registered under att_engine (BRIEF_45 section 2; Amendment D, D1.7)",
         "reading": "does not resolve: the CI includes zero",
         "registered_value": -812.15,
         "registered_value_from_predicted_levels": -812.1534999999999,
@@ -28645,6 +29310,7 @@
           "reverses_on_n_seeds": 0
         },
         "predicted_sign": "negative",
+        "predictions_registered_on": "att_horizon (att_ours): P5.2 registered these values on the definition measured here (docs/plans/p5.2.md:407-412)",
         "reading": "resolves: the CI lies entirely below zero",
         "registered_value": -967.88,
         "registered_value_from_predicted_levels": -967.8792,
@@ -28757,6 +29423,7 @@
           "reverses_on_n_seeds": 0
         },
         "predicted_sign": "negative",
+        "predictions_registered_on": "att_horizon (att_ours), not att_engine: the registered values here are P5.2's att_horizon-era values -- its predictions, and d1's registered att_horizon measurement where d1 appears -- compared with att_engine measurements; nothing was registered under att_engine (BRIEF_45 section 2; Amendment D, D1.7)",
         "reading": "resolves: the CI lies entirely below zero",
         "registered_value": -967.88,
         "registered_value_from_predicted_levels": -967.8792,
@@ -28955,6 +29622,7 @@
           "reverses_on_n_seeds": 0
         },
         "predicted_sign": "negative",
+        "predictions_registered_on": "att_horizon (att_ours): P5.2 registered these values on the definition measured here (docs/plans/p5.2.md:407-412)",
         "reading": "resolves: the CI lies entirely above zero",
         "registered_value": -3.21,
         "registered_value_from_predicted_levels": -3.2149,
@@ -29076,6 +29744,7 @@
           "reverses_on_n_seeds": 0
         },
         "predicted_sign": "negative",
+        "predictions_registered_on": "att_horizon (att_ours), not att_engine: the registered values here are P5.2's att_horizon-era values -- its predictions, and d1's registered att_horizon measurement where d1 appears -- compared with att_engine measurements; nothing was registered under att_engine (BRIEF_45 section 2; Amendment D, D1.7)",
         "reading": "resolves: the CI lies entirely above zero",
         "registered_value": -3.21,
         "registered_value_from_predicted_levels": -3.2149,
@@ -29197,6 +29866,7 @@
           "reverses_on_n_seeds": 0
         },
         "predicted_sign": "negative",
+        "predictions_registered_on": "att_horizon (att_ours): P5.2 registered these values on the definition measured here (docs/plans/p5.2.md:407-412)",
         "reading": "resolves: the CI lies entirely above zero",
         "registered_value": -9.63,
         "registered_value_from_predicted_levels": -9.631,
@@ -29318,6 +29988,7 @@
           "reverses_on_n_seeds": 0
         },
         "predicted_sign": "negative",
+        "predictions_registered_on": "att_horizon (att_ours), not att_engine: the registered values here are P5.2's att_horizon-era values -- its predictions, and d1's registered att_horizon measurement where d1 appears -- compared with att_engine measurements; nothing was registered under att_engine (BRIEF_45 section 2; Amendment D, D1.7)",
         "reading": "resolves: the CI lies entirely above zero",
         "registered_value": -9.63,
         "registered_value_from_predicted_levels": -9.631,
@@ -29439,6 +30110,7 @@
           "reverses_on_n_seeds": 0
         },
         "predicted_sign": "positive",
+        "predictions_registered_on": "att_horizon (att_ours): P5.2 registered these values on the definition measured here (docs/plans/p5.2.md:407-412)",
         "reading": "exactly zero (identical episodes)",
         "registered_value": 8.49,
         "registered_value_from_predicted_levels": 8.49460000000002,
@@ -29560,6 +30232,7 @@
           "reverses_on_n_seeds": 0
         },
         "predicted_sign": "positive",
+        "predictions_registered_on": "att_horizon (att_ours), not att_engine: the registered values here are P5.2's att_horizon-era values -- its predictions, and d1's registered att_horizon measurement where d1 appears -- compared with att_engine measurements; nothing was registered under att_engine (BRIEF_45 section 2; Amendment D, D1.7)",
         "reading": "exactly zero (identical episodes)",
         "registered_value": 8.49,
         "registered_value_from_predicted_levels": 8.49460000000002,
@@ -29681,6 +30354,7 @@
           "reverses_on_n_seeds": 2
         },
         "predicted_sign": "positive",
+        "predictions_registered_on": "att_horizon (att_ours): P5.2 registered these values on the definition measured here (docs/plans/p5.2.md:407-412)",
         "reading": "resolves: the CI lies entirely above zero",
         "registered_value": 2.69,
         "registered_value_from_predicted_levels": 2.6902000000000044,
@@ -29802,6 +30476,7 @@
           "reverses_on_n_seeds": 2
         },
         "predicted_sign": "positive",
+        "predictions_registered_on": "att_horizon (att_ours), not att_engine: the registered values here are P5.2's att_horizon-era values -- its predictions, and d1's registered att_horizon measurement where d1 appears -- compared with att_engine measurements; nothing was registered under att_engine (BRIEF_45 section 2; Amendment D, D1.7)",
         "reading": "resolves: the CI lies entirely above zero",
         "registered_value": 2.69,
         "registered_value_from_predicted_levels": 2.6902000000000044,
@@ -30023,12 +30698,13 @@
           "min": -104.02917730291477,
           "n_seeds": 5,
           "n_seeds_favouring_left": 5,
-          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
           "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
         "reading": "resolves: the CI lies entirely below zero",
         "registered_expectation": "NOT COLLAPSED",
+        "registered_expectation_met": true,
         "right": "p5_1:random@grid4x4_mappo1000",
         "right_arm": "random@grid4x4_mappo1000",
         "rule_three_valued": "COLLAPSED iff mean(ATT_arm - ATT_random) > 0 with the 95% CI excluding 0; NOT COLLAPSED iff the CI lies entirely below 0; NOT RESOLVED otherwise",
@@ -30155,12 +30831,13 @@
           "min": -104.05194735996756,
           "n_seeds": 5,
           "n_seeds_favouring_left": 5,
-          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
           "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
         "reading": "resolves: the CI lies entirely below zero",
         "registered_expectation": "NOT COLLAPSED",
+        "registered_expectation_met": true,
         "right": "p5_1:random@grid4x4_mappo1000",
         "right_arm": "random@grid4x4_mappo1000",
         "rule_three_valued": "COLLAPSED iff mean(ATT_arm - ATT_random) > 0 with the 95% CI excluding 0; NOT COLLAPSED iff the CI lies entirely below 0; NOT RESOLVED otherwise",
@@ -30287,12 +30964,13 @@
           "min": -105.6904047827463,
           "n_seeds": 5,
           "n_seeds_favouring_left": 5,
-          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
           "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
         "reading": "resolves: the CI lies entirely below zero",
         "registered_expectation": "NOT COLLAPSED",
+        "registered_expectation_met": true,
         "right": "p5_1:random@grid4x4_mappo1000",
         "right_arm": "random@grid4x4_mappo1000",
         "rule_three_valued": "COLLAPSED iff mean(ATT_arm - ATT_random) > 0 with the 95% CI excluding 0; NOT COLLAPSED iff the CI lies entirely below 0; NOT RESOLVED otherwise",
@@ -30419,12 +31097,13 @@
           "min": -105.7270258648623,
           "n_seeds": 5,
           "n_seeds_favouring_left": 5,
-          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
           "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
         "reading": "resolves: the CI lies entirely below zero",
         "registered_expectation": "NOT COLLAPSED",
+        "registered_expectation_met": true,
         "right": "p5_1:random@grid4x4_mappo1000",
         "right_arm": "random@grid4x4_mappo1000",
         "rule_three_valued": "COLLAPSED iff mean(ATT_arm - ATT_random) > 0 with the 95% CI excluding 0; NOT COLLAPSED iff the CI lies entirely below 0; NOT RESOLVED otherwise",
@@ -30551,12 +31230,13 @@
           "min": -96.02693542535678,
           "n_seeds": 5,
           "n_seeds_favouring_left": 5,
-          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
           "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
         "reading": "resolves: the CI lies entirely below zero",
         "registered_expectation": "NOT COLLAPSED",
+        "registered_expectation_met": true,
         "right": "p5_1:random@grid4x4_mappo1000",
         "right_arm": "random@grid4x4_mappo1000",
         "rule_three_valued": "COLLAPSED iff mean(ATT_arm - ATT_random) > 0 with the 95% CI excluding 0; NOT COLLAPSED iff the CI lies entirely below 0; NOT RESOLVED otherwise",
@@ -30683,12 +31363,13 @@
           "min": -95.66044495586581,
           "n_seeds": 5,
           "n_seeds_favouring_left": 5,
-          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
           "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
         "reading": "resolves: the CI lies entirely below zero",
         "registered_expectation": "NOT COLLAPSED",
+        "registered_expectation_met": true,
         "right": "p5_1:random@grid4x4_mappo1000",
         "right_arm": "random@grid4x4_mappo1000",
         "rule_three_valued": "COLLAPSED iff mean(ATT_arm - ATT_random) > 0 with the 95% CI excluding 0; NOT COLLAPSED iff the CI lies entirely below 0; NOT RESOLVED otherwise",
@@ -30815,12 +31496,13 @@
           "min": -96.67326687257722,
           "n_seeds": 5,
           "n_seeds_favouring_left": 5,
-          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
           "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
         "reading": "resolves: the CI lies entirely below zero",
         "registered_expectation": "NOT COLLAPSED",
+        "registered_expectation_met": true,
         "right": "p5_1:random@grid4x4_mappo1000",
         "right_arm": "random@grid4x4_mappo1000",
         "rule_three_valued": "COLLAPSED iff mean(ATT_arm - ATT_random) > 0 with the 95% CI excluding 0; NOT COLLAPSED iff the CI lies entirely below 0; NOT RESOLVED otherwise",
@@ -30947,12 +31629,13 @@
           "min": -96.27528896598199,
           "n_seeds": 5,
           "n_seeds_favouring_left": 5,
-          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
           "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
         "reading": "resolves: the CI lies entirely below zero",
         "registered_expectation": "NOT COLLAPSED",
+        "registered_expectation_met": true,
         "right": "p5_1:random@grid4x4_mappo1000",
         "right_arm": "random@grid4x4_mappo1000",
         "rule_three_valued": "COLLAPSED iff mean(ATT_arm - ATT_random) > 0 with the 95% CI excluding 0; NOT COLLAPSED iff the CI lies entirely below 0; NOT RESOLVED otherwise",
@@ -31079,12 +31762,13 @@
           "min": -56.4390851540949,
           "n_seeds": 5,
           "n_seeds_favouring_left": 5,
-          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
           "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
         "reading": "resolves: the CI lies entirely below zero",
         "registered_expectation": "NOT COLLAPSED",
+        "registered_expectation_met": true,
         "right": "p5_1:random@grid4x4_mappo1000",
         "right_arm": "random@grid4x4_mappo1000",
         "rule_three_valued": "COLLAPSED iff mean(ATT_arm - ATT_random) > 0 with the 95% CI excluding 0; NOT COLLAPSED iff the CI lies entirely below 0; NOT RESOLVED otherwise",
@@ -31211,12 +31895,13 @@
           "min": -56.72359605852617,
           "n_seeds": 5,
           "n_seeds_favouring_left": 5,
-          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
           "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
         "reading": "resolves: the CI lies entirely below zero",
         "registered_expectation": "NOT COLLAPSED",
+        "registered_expectation_met": true,
         "right": "p5_1:random@grid4x4_mappo1000",
         "right_arm": "random@grid4x4_mappo1000",
         "rule_three_valued": "COLLAPSED iff mean(ATT_arm - ATT_random) > 0 with the 95% CI excluding 0; NOT COLLAPSED iff the CI lies entirely below 0; NOT RESOLVED otherwise",
@@ -31343,12 +32028,13 @@
           "min": -56.4390851540949,
           "n_seeds": 5,
           "n_seeds_favouring_left": 5,
-          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
           "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
         "reading": "resolves: the CI lies entirely below zero",
         "registered_expectation": "NOT COLLAPSED",
+        "registered_expectation_met": true,
         "right": "p5_1:random@grid4x4_mappo1000",
         "right_arm": "random@grid4x4_mappo1000",
         "rule_three_valued": "COLLAPSED iff mean(ATT_arm - ATT_random) > 0 with the 95% CI excluding 0; NOT COLLAPSED iff the CI lies entirely below 0; NOT RESOLVED otherwise",
@@ -31475,12 +32161,13 @@
           "min": -56.72359605852617,
           "n_seeds": 5,
           "n_seeds_favouring_left": 5,
-          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
           "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
         "reading": "resolves: the CI lies entirely below zero",
         "registered_expectation": "NOT COLLAPSED",
+        "registered_expectation_met": true,
         "right": "p5_1:random@grid4x4_mappo1000",
         "right_arm": "random@grid4x4_mappo1000",
         "rule_three_valued": "COLLAPSED iff mean(ATT_arm - ATT_random) > 0 with the 95% CI excluding 0; NOT COLLAPSED iff the CI lies entirely below 0; NOT RESOLVED otherwise",
@@ -31607,12 +32294,13 @@
           "min": -10.032541376392146,
           "n_seeds": 5,
           "n_seeds_favouring_left": 5,
-          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
           "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
         "reading": "resolves: the CI lies entirely below zero",
         "registered_expectation": "COLLAPSED",
+        "registered_expectation_met": false,
         "right": "p5_1:random@grid4x4_mappo1000",
         "right_arm": "random@grid4x4_mappo1000",
         "rule_three_valued": "COLLAPSED iff mean(ATT_arm - ATT_random) > 0 with the 95% CI excluding 0; NOT COLLAPSED iff the CI lies entirely below 0; NOT RESOLVED otherwise",
@@ -31739,12 +32427,13 @@
           "min": -10.05922423893395,
           "n_seeds": 5,
           "n_seeds_favouring_left": 5,
-          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
           "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
         "reading": "resolves: the CI lies entirely below zero",
         "registered_expectation": "COLLAPSED",
+        "registered_expectation_met": false,
         "right": "p5_1:random@grid4x4_mappo1000",
         "right_arm": "random@grid4x4_mappo1000",
         "rule_three_valued": "COLLAPSED iff mean(ATT_arm - ATT_random) > 0 with the 95% CI excluding 0; NOT COLLAPSED iff the CI lies entirely below 0; NOT RESOLVED otherwise",
@@ -31871,12 +32560,13 @@
           "min": -7.955636494753236,
           "n_seeds": 5,
           "n_seeds_favouring_left": 5,
-          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
           "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
         "reading": "resolves: the CI lies entirely below zero",
         "registered_expectation": "NOT COLLAPSED",
+        "registered_expectation_met": true,
         "right": "p5_1:random@grid4x4_mappo1000",
         "right_arm": "random@grid4x4_mappo1000",
         "rule_three_valued": "COLLAPSED iff mean(ATT_arm - ATT_random) > 0 with the 95% CI excluding 0; NOT COLLAPSED iff the CI lies entirely below 0; NOT RESOLVED otherwise",
@@ -32003,12 +32693,13 @@
           "min": -7.9752900586273086,
           "n_seeds": 5,
           "n_seeds_favouring_left": 5,
-          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm",
+          "note": "the draw-level CI averages these seeds into each unit and carries no information about this dimension (P4.7 M1); lower ATT is better, so a NEGATIVE advantage favours the left arm; random@grid4x4_mappo1000's seed labels are evaluation labels, not training seeds (BRIEF_45 section 3.3; Amendment D, D1.6)",
           "reverses_against_pooled_sign": 0,
           "reverses_on_n_seeds": 0
         },
         "reading": "resolves: the CI lies entirely below zero",
         "registered_expectation": "NOT COLLAPSED",
+        "registered_expectation_met": true,
         "right": "p5_1:random@grid4x4_mappo1000",
         "right_arm": "random@grid4x4_mappo1000",
         "rule_three_valued": "COLLAPSED iff mean(ATT_arm - ATT_random) > 0 with the 95% CI excluding 0; NOT COLLAPSED iff the CI lies entirely below 0; NOT RESOLVED otherwise",
@@ -34845,7 +35536,7 @@
     }
   ],
   "what_this_does_not_say": [
-    "No new prediction: Q1's, Q1b's and Q2's predictions exist on att_horizon (att_ours) only; under att_engine they are compared with att_engine measurements and labelled exactly so, and rule R' is not recomputed from att_engine inputs (BRIEF_45 section 2).",
+    "No new prediction: every registered value of Q1-Q5 -- Q1's and Q1b's levels, Q2's orderings and first places, Q3b's and Q3c's values, Q4's chain and Q5's values -- is an att_horizon (att_ours) value, registered before any att_engine number existed; under att_engine each is compared with att_engine measurements, and every entry carrying a registered value, Q1's and Q1b's predicted levels or Q2a's predicted first place says so in predictions_registered_on. Rule R' is not recomputed from att_engine inputs (BRIEF_45 section 2; Amendment D, D1.7).",
     "No episode was rolled, no checkpoint loaded, no model trained or evaluated: every number is a recomputation of committed records read at their digests.",
     "P5.2's statements stand as written in its packet; this artifact scores them by the registered rules beside them and names every difference in comparison_with_the_record.",
     "Out of scope: P4.x, P5.1 and P5.3 statements (P8.4b's V1-V7 hold their registered verdicts), the E1 and I1/J1 envelopes (replicates carry no att_engine; att_rederivation.is_replicate_artifact), hz1x1 and cologne3.",
