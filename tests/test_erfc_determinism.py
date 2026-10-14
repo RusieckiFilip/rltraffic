@@ -271,7 +271,7 @@ def test_it_returns_the_correctly_rounded_value_where_two_libms_disagree() -> No
 
 
 def test_the_committed_p_values_all_still_reproduce_exactly() -> None:
-    """THE LOAD-BEARING TEST: 351 published p-values (322 -> 330 -> 339 -> 351), none of which may move.
+    """THE LOAD-BEARING TEST: 487 published p-values (322 -> 330 -> 339 -> 351 -> 487), none of which may move.
 
     Recomputed from each artifact's own recorded ``z`` through the replacement routine and
     compared with ``==``.  A tolerance here would defeat the purpose: the question is
@@ -340,11 +340,32 @@ def test_the_committed_p_values_all_still_reproduce_exactly() -> None:
     # They are the repository's first ONE-SIDED p-values (A26(d)): each reproduces under == through _normal_cdf
     # with its registered formula, none with the two-sided one -- so the per-pair check dispatches on the committed
     # key (_expected_p_value) rather than assuming every published p-value is two-sided.
-    assert len(pairs) == 351, (
-        f"expected the 351 committed (z, p_value) pairs -- 322 measured on 2026-08-17, plus the 8 "
+    #
+    # 351 -> 487 on 2026-10-13, AUTHORISED IN WRITING (BRIEF_45 Amendment B.2, B.2.1), quoted verbatim:
+    # "test_erfc_determinism 351 -> 487 AUTHORISED (BRIEF_45 Amendment B.2, 2026-10-13), same footing as BRIEF_29
+    # section 1 B, the 2026-09-10 authorisation and BRIEF_42 Amendment E.1. The 136 are P5.2c's two-sided Wilcoxon
+    # blocks in p5_2_statements.json (D8; BRIEF_45 Amendment A, A2 Q8), enumerated by the guard's own paths: 64
+    # statements[*].numbers.paired_comparison.wilcoxon, 34
+    # descriptive_collapse_audit.rows[*].contrast.paired_comparison.wilcoxon, 16
+    # descriptive_collapse_audit.dt_rows[*].contrast.paired_comparison.wilcoxon, 12
+    # leaders[*].leader_minus_runner_up[*].paired_comparison.wilcoxon and 10
+    # statements[*].numbers.contrast.paired_comparison.wilcoxon. None carries an alternative key, so ONE_SIDED_PAIRS
+    # is unchanged. Eight have n_used = 0 (z = 0.0 and p = 1.0, dt_gate.wilcoxon_signed_rank's convention for an
+    # empty test), and the artifact labels each as undefined."
+    # The 136, by the guard's own path classes (every path begins p5_2_statements.json):
+    #   .statements[*].numbers.paired_comparison.wilcoxon                                 64
+    #   .descriptive_collapse_audit.rows[*].contrast.paired_comparison.wilcoxon            34
+    #   .descriptive_collapse_audit.dt_rows[*].contrast.paired_comparison.wilcoxon         16
+    #   .leaders[*].leader_minus_runner_up[*].paired_comparison.wilcoxon                   12
+    #   .statements[*].numbers.contrast.paired_comparison.wilcoxon                         10
+    # Nothing else in this test changes: the walk, ONE_SIDED_PAIRS, _expected_p_value and the `moved == []`
+    # assertion are untouched, so all 487 are still recomputed and compared under == (B.2.2(2)).
+    assert len(pairs) == 487, (
+        f"expected the 487 committed (z, p_value) pairs -- 322 measured on 2026-08-17, plus the 8 "
         f"P5.3a copies out of p4_6_grid.json / p4_7_grid.json (BRIEF_29 section 1 B), plus the 9 "
         f"P5.3b wilcoxon blocks in p5_3b_nortg.json (authorised 2026-09-10), plus the 12 P5.3c one-sided "
-        f"tests in p5_3c_context_sweep.json (BRIEF_42 Amendment E.1, authorised 2026-10-02) -- found "
+        f"tests in p5_3c_context_sweep.json (BRIEF_42 Amendment E.1, authorised 2026-10-02), plus the 136 "
+        f"P5.2c Wilcoxon blocks in p5_2_statements.json (BRIEF_45 Amendment B.2, authorised 2026-10-13) -- found "
         f"{len(pairs)}; if artifacts were added, re-measure and update this count deliberately"
     )
 
