@@ -1,5 +1,42 @@
 # Patches a Claude Code session cannot apply itself
 
+## `ci_gate_ceiling_397_p5_2c.patch` — the skip ceiling moves 375 → 397 after P5.2c's merge; every new skip is one of P5.2c's 22 real-data tests
+
+**Apply with:**
+```bash
+cd /home/filip/rltraffic && git apply docs/patches/ci_gate_ceiling_397_p5_2c.patch && .venv/bin/pytest tests/test_ci_gate.py -q && git add .github/ci/ci_baseline.json tests/test_ci_gate.py && git commit -m "ci(ceiling): 375 -> 397 OBSERVED on run 38590276338 at 4a08223 -- P5.2c's 22 campaign-output-gated tests" && git push origin main
+```
+
+**Measured, not read off a summary.**
+- **The run:** `38590276338` on `main` at `4a08223`, P5.2c's merge. The suite step PASSED on both legs, every other step passed,
+  and only the ceiling gate failed: the registered route working.
+- **Leg against leg:** both legs were downloaded and every `<skipped>` message extracted from `junit.xml`
+  (`output/ci_runs/skips.py`). The legs are identical: 3,552 tests, 397 skipped, 0 failures, 0 errors, 87 distinct texts on
+  both.
+- **Run against run,** against the last green run on `main`, `38569629247` at `5b05458` (3,371 tests, 375 skipped; that is
+  the current ceiling). **There are 22 new skips in 1 new text, and nothing was removed:**
+  - +22 `campaign_output`, all with the text *"…/output/p8_4b_rederivation/CAMPAIGN_COMPLETE not found: set
+    RLTRAFFIC_OUTPUT_ROOT to the main tree's output/ (it is gitignored)"*;
+  - every one a testcase of `tests.test_tier_statements` on both legs: P5.2c's real-data tests, gated on P8.4b's campaign
+    marker under `output/`;
+  - the 181 new tests account for the whole difference in collected tests (3,371 → 3,552).
+
+**What the patch changes:**
+- `skip_ceiling` 375 → 397;
+- `skip_breakdown.campaign_output` 59 → 81;
+- `ceiling_if_cityflow_were_built` 330 → 352 (the ceiling minus the 45 CityFlow-gated skips);
+- a new `measured` block whose `superseded` is the 375 block, with its `why_it_was_wrong` ("EXPIRED AS DECLARED");
+- `re_measure_required_at.event` no longer names `DEFERRED` 109, which closed at this merge;
+- `tests/test_ci_gate.py`: `CEILING_CHAIN` gains 397 at its head, its one literal.
+
+**Verified before handing it over:**
+- **On a scratch clone of `main` with the patch applied:** `tests/test_ci_gate.py` gives 34 passed. The gate on both legs'
+  real reports (`ci_gate.py pytest-gate`) exits 0, *"skip ceiling 397 (0 to spare)"*. With `main`'s unpatched baseline the same
+  gate exits 1, *"397 tests skipped against a declared ceiling of 375"*.
+- **Four mutants of the patched baseline each fail the gate's test:** the breakdown off by one, the CityFlow alternative off by
+  one, the chain link changed, and the `why_it_was_wrong` removed.
+- `git apply --check` is clean on `main`, and `scripts/check_english.sh` exits 0 on the patch file.
+
 ## `ci_gate_ceiling_375_p5_2b.patch` — the skip ceiling moves 351 → 375 after P5.2b's merge; every new skip is P5.2b's own gating — and the ceiling's explanation list is rewritten without counts
 
 **Apply with:**
