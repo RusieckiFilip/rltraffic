@@ -1,6 +1,7 @@
 """Render the Return Packet's tables (``docs/returns/P5.2c.md``) from the committed artifact
 ``docs/data/p5_2_statements.json`` and nothing else: no ``offline/`` import, no recomputation.  Every number printed is the
-artifact's, formatted to four decimals; every verdict and reading is the artifact's own string.
+artifact's, formatted to four decimals; every verdict and reading is the artifact's own string; every reversing seed shown
+is read from the artifact's own ``seed_reversal_qualifier`` (``BRIEF_45`` Amendment D, D3.5 and D4.2).
 
     python -P docs/returns/P5.2c_evidence/g4_tables.py docs/data/p5_2_statements.json > g4_tables.md
 
@@ -11,6 +12,7 @@ statement row cannot be rendered.
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -30,6 +32,25 @@ def interval(n: dict[str, Any]) -> str:
     return f"{f4(n['mean_difference'])} [{f4(n['ci95_low'])}, {f4(n['ci95_high'])}]"
 
 
+def reversals(node: Any) -> list[str]:
+    """Every non-null ``seed_reversal_qualifier`` under ``node``, at any depth, as "k of 5 seeds (s1, s2)" -- the
+    qualifier every quoted quantity carries (``BRIEF_45`` Amendment D, D4.2).  Refuses a qualifier it cannot parse."""
+    found: list[str] = []
+    if isinstance(node, dict):
+        qualifier = node.get("seed_reversal_qualifier")
+        if qualifier is not None:
+            match = re.search(r"reverses on (\d+) of (\d+) training seeds \(([^)]*)\)", qualifier)
+            assert match, qualifier
+            found.append(f"{match.group(1)} of {match.group(2)} seeds ({match.group(3)})")
+        for key, value in node.items():
+            if key != "seed_reversal_qualifier":
+                found += [text for text in reversals(value) if text not in found]
+    elif isinstance(node, list):
+        for value in node:
+            found += [text for text in reversals(value) if text not in found]
+    return found
+
+
 def cell_text(e: dict[str, Any]) -> str:
     """One statement entry as table text: the verdict (bold) or the kind, then its numbers, from the artifact."""
     n, sid, verdict = e["numbers"], e["id"], e["verdict"]
@@ -37,10 +58,10 @@ def cell_text(e: dict[str, Any]) -> str:
     if sid in ("Q0.d1", "Q4.d"):
         body = interval(n) if n.get("exactly_zero") else f"{interval(n)} ({n['reading']})"
     elif sid == "Q0b":
-        reverses = [s for s, v in n["per_seed"]["by_seed"].items()
-                    if (v < 0) != (n["mean_difference"] < 0) and v != 0.0]
+        qualifier = n["seed_reversal_qualifier"]
+        reverses = re.search(r"training seeds \(([^)]*)\)", qualifier).group(1) if qualifier else "none"
         body = (f"I = {interval(n)}; I < 0 on {n['draws_negative']} of {n['n_draws']} draws; reverses on seed "
-                f"{', '.join(reverses) if reverses else 'none'}")
+                f"{reverses}")
     elif sid == "Q0.stop_rule":
         body = f"d4 {f4(n['mean_difference'])} [{f4(n['ci95_low'])}, {f4(n['ci95_high'])}]"
     elif sid == "Q1":
@@ -74,6 +95,10 @@ def cell_text(e: dict[str, Any]) -> str:
         body = interval(n)
     else:
         raise AssertionError(f"no rendering for {sid}")
+    if sid != "Q0b":  # Q0b's body above already names its reversing seeds
+        notes = reversals(n)
+        if notes:
+            body += "; reverses on " + "; ".join(notes)
     return f"{head} {body}".strip() if head else body
 
 
@@ -110,23 +135,37 @@ def statement_table(a: dict[str, Any]) -> list[str]:
         out.append(f"| {sid} | {tier} | {p['kind']} | {cell_text(p)} | {cell_text(s)} | {dep} |")
     out.append("")
     out.append(f"{len(order)} rows, {len(statements)} statement entries (each row is one entry per definition). "
-               "Numbers are the artifact's, at four decimals; ``exactly zero`` means every per-draw difference is 0.")
+               "Numbers are the artifact's, at four decimals; ``exactly zero`` means every per-draw difference is 0. "
+               "A cell ending in \"reverses on k of 5 seeds (...)\" carries that entry's non-null "
+               "`seed_reversal_qualifier` (`BRIEF_45` Amendment D, D4.2).")
     return out
+
+
+def statement_of(a: dict[str, Any], e: dict[str, Any]) -> dict[str, Any]:
+    """The one statement entry a ``comparison_with_the_record`` row names (id, tier, arm, definition, version)."""
+    found = [s for s in a["statements"] if (s["id"], s["tier"], s.get("arm"), s["definition"], s["version"])
+             == (e["id"], e["tier"], e.get("arm"), e["definition"], e["version"])]
+    assert len(found) == 1, (e["id"], e["tier"], e.get("arm"), e["definition"], e["version"], len(found))
+    return found[0]
 
 
 def first_time(a: dict[str, Any]) -> list[str]:
     """``comparison_with_the_record.never_scored`` as a table.  That block copies ``mean_difference`` and the CI ends from
     each entry's top-level ``numbers``: an aggregate has none (shown as such), and Q3c keeps its mean only in
-    ``numbers.contrast``, so for Q3c the mean is read from the statement entry itself and marked with a dagger."""
-    out = ["| statement | tier | arm | definition | verdict | mean [95 % CI] | reading |", "|---|---|---|---|---|---|---|"]
+    ``numbers.contrast``, so for Q3c the mean is read from the statement entry itself and marked with a dagger.  The
+    block carries no seed qualifier, so each row's is read from its one statement entry (D4.2)."""
+    out = ["| statement | tier | arm | definition | verdict | mean [95 % CI] | reverses on | reading |",
+           "|---|---|---|---|---|---|---|---|"]
+    daggers = 0
     for block in a["comparison_with_the_record"]["never_scored"]:
         for e in block["this_artifact"]:
             tag = f"`{e['definition']}`" + (" **(primary)**" if e["definition"] == PRIMARY else "")
             mean_value = e.get("mean_difference")
             dagger = ""
+            statement = statement_of(a, e)
+            notes = "; ".join(reversals(statement["numbers"])) or "—"
             if mean_value is None and e["id"] == "Q3c":
-                statement = next(s for s in a["statements"] if (s["id"], s["tier"], s["definition"], s["version"])
-                                 == (e["id"], e["tier"], e["definition"], e["version"]))
+                daggers += 1
                 mean_value, dagger = statement["numbers"]["contrast"]["mean_difference"], " †"
                 assert (statement["numbers"]["contrast"]["ci95_low"], statement["numbers"]["contrast"]["ci95_high"]) == (
                     e["ci95_low"], e["ci95_high"]), e
@@ -137,32 +176,49 @@ def first_time(a: dict[str, Any]) -> list[str]:
             else:
                 mean = f"{f4(mean_value)}{dagger} [{f4(e['ci95_low'])}, {f4(e['ci95_high'])}]"
             out.append(f"| {e['id']} | {e['tier'] or '—'} | {e['arm'] or '—'} | {tag} | "
-                       f"{e['verdict'] or '— (no verdict)'} | {mean} | {e['reading'] or '—'} |")
-    out += ["", "† `never_scored` stores `mean_difference: null` for Q3c (the mean sits in the statement's "
-                "`numbers.contrast`); the value shown is the statement's, whose CI ends equal `never_scored`'s (asserted)."]
+                       f"{e['verdict'] or '— (no verdict)'} | {mean} | {notes} | {e['reading'] or '—'} |")
+    if daggers:
+        out += ["", "† `never_scored` stores `mean_difference: null` for Q3c (the mean sits in the statement's "
+                    "`numbers.contrast`); the value shown is the statement's, whose CI ends equal `never_scored`'s "
+                    "(asserted)."]
     return out
 
 
 def record(a: dict[str, Any]) -> list[str]:
     c = a["comparison_with_the_record"]
     rows = c["literal_records"]
+    engine_equal = [r["att_engine_equal"] for r in rows]
     out = [f"`literal_records`: {len(rows)} rows, {sum(r['equal'] for r in rows)} equal, "
-           f"{sum(not r['equal'] for r in rows)} unequal, and every unequal row carries a named exception:", "",
-           "| source | value | recorded | this artifact | exception |", "|---|---|---|---|---|"]
+           f"{sum(not r['equal'] for r in rows)} unequal, and every unequal row carries a named exception. Each row "
+           f"also carries the same quantity under the primary definition (`att_engine`, corrected version, same "
+           f"extractor): {engine_equal.count(True)} equal the record, {engine_equal.count(False)} do not, and "
+           f"{engine_equal.count(None)} are protocol facts with no `att_engine` counterpart (null, with a note).", "",
+           "The unequal rows:", "",
+           "| source | value | recorded | this artifact (`att_ours`) | exception | `att_engine` (primary) |",
+           "|---|---|---|---|---|---|"]
     for r in rows:
         if not r["equal"]:
             out.append(f"| `{r['source']}` | `{r['value']}` | {r['recorded']} | {r['this_artifact']} | "
-                       f"`{r['exception']}` |")
+                       f"`{r['exception']}` | {r['att_engine']} |")
     out += ["", "The two exceptions, in the artifact's words:", ""]
     for name, text in c["exceptions"].items():
         out.append(f"- **`{name}`**: {text}")
+    changed = [r for r in rows if r["equal"] and r["att_engine_equal"] is False]
+    out += ["", f"The {len(changed)} rows the record states correctly under `att_ours` that read otherwise under the "
+                "primary definition:", "",
+            "| source | value | recorded (= `att_ours`) | `att_engine` (primary) |", "|---|---|---|---|"]
+    for r in changed:
+        out.append(f"| `{r['source']}` | `{r['value']}` | {r['recorded']} | {r['att_engine']} |")
+    nulls = [r for r in rows if r["att_engine"] is None]
+    out += ["", f"The {len(nulls)} protocol-fact rows (`att_engine` null): "
+                + "; ".join(sorted({f"`{r['value']}`: {r['att_engine_note']}" for r in nulls})) + "."]
     out += ["", "P8.4b's V4 and V5 (`comparison_with_the_record.p8_4b`):", "",
-            "| contrast | definition | equal | difference (mean, low, high) | in ulps of the record | the record's route "
-            "reproduces it |", "|---|---|---|---|---|---|"]
+            "| contrast | definition | statement | what the outcome belongs to | equal | difference (mean, low, high) | "
+            "in ulps of the record | the record's route reproduces it |", "|---|---|---|---|---|---|---|---|"]
     for r in c["p8_4b"]:
         d, u = r["difference"], r.get("difference_in_ulps_of_the_record", {})
-        out.append(f"| {r['contrast_id']} | `{r['definition']}` | {r['equal']} | "
-                   f"{d['mean_difference']!r}, {d['ci95_low']!r}, {d['ci95_high']!r} | "
+        out.append(f"| {r['contrast_id']} | `{r['definition']}` | {r['statement']} | {r['statement_label']} | "
+                   f"{r['equal']} | {d['mean_difference']!r}, {d['ci95_low']!r}, {d['ci95_high']!r} | "
                    f"{u.get('mean_difference')}, {u.get('ci95_low')}, {u.get('ci95_high')} | "
                    f"{r['record_route_reproduces']} |")
     out += ["", "Q5 (`comparison_with_the_record.q5`, `BRIEF_45` Amendment A, A3), the three records it answers:", ""]
@@ -189,6 +245,17 @@ def record(a: dict[str, Any]) -> list[str]:
         out.append(f"| `fixedtime`: measured, `{definition}` | " + " | ".join(cells) + " |")
     out += ["", f"The artifact's statement: *\"{q5['statement']}\"* In detail: {q5['statement_detail']}. "
                 f"{q5['whose_error']}."]
+    for r in c["q5"][1:]:
+        assert r["descriptive_reading"] == q5["descriptive_reading"], "the three Q5 rows' readings disagree"
+    out += ["", "Q5's descriptive reading (not a registered verdict; its sets computed from the collapse audit's rows):",
+            "", "| definition | the global filter collapses alone on | both filters collapse on | Q5b resolves on | "
+                "reading |", "|---|---|---|---|---|"]
+    for definition in (PRIMARY, SECOND):
+        dr = q5["descriptive_reading"][definition]
+        tag = f"`{definition}`" + (" (primary)" if definition == PRIMARY else "")
+        out.append(f"| {tag} | {', '.join(dr['tiers_global_filter_collapses_alone']) or 'none'} | "
+                   f"{', '.join(dr['tiers_both_filters_collapse']) or 'none'} | "
+                   f"{', '.join(dr['tiers_where_q5b_resolves']) or 'none'} | {dr['reading']} |")
     stop = c["p5_2_stop_rule_record"]
     d = stop["difference"]
     out += ["", f"P5.2's stop-rule record: equal {stop['equal']}; difference {d['mean_difference']!r} (mean), "
@@ -271,8 +338,8 @@ def correction(a: dict[str, Any]) -> list[str]:
     for key, v in pairs.items():
         assert (v["corrected"]["verdict"], v["corrected"]["reading"]) == (
             v["as_committed"]["verdict"], v["as_committed"]["reading"]), key
-    out = [f"{len(pairs)} statement entries exist in both versions; all {len(pairs)} have the same verdict and reading in "
-           "both (asserted). The values that move:", "",
+    out = [f"{len(pairs)} (statement, tier, definition) triples exist in both versions -- {2 * len(pairs)} entries, one "
+           f"per version; every pair has the same verdict and reading in both (asserted). The values that move:", "",
            "| definition | IQL level at `random` | Q1's `iql@random` cell (held; relative error) | Q3c at `random`, "
            "`dt_nomix − iql` |", "|---|---|---|---|"]
     for definition in (PRIMARY, SECOND):
@@ -293,14 +360,31 @@ def correction(a: dict[str, Any]) -> list[str]:
 
 
 def leaders(a: dict[str, Any]) -> list[str]:
-    """The descriptive ``leaders`` block (not registered): leader, runner-up, the paired lead and its reading."""
-    out = ["| tier | definition | version | leader | runner-up | leader − runner-up [95 % CI] | reading |",
-           "|---|---|---|---|---|---|---|"]
+    """The descriptive ``leaders`` block (not registered): leader, runner-up, the paired lead, its seed qualifier and the
+    block's reading.  Every entry of ``leader_minus_runner_up`` is one row, and each row's two methods are the entry's own
+    (``left_arm``, ``right_arm``, each ``<method>@<scenario>``), asserted against the block's leader, runners-up (in
+    order) and tier."""
+    out = ["| tier | definition | version | leader | runner-up | leader − runner-up [95 % CI] | reverses on | reading |",
+           "|---|---|---|---|---|---|---|---|"]
     for b in a["leaders"]:
-        lead = b["leader_minus_runner_up"][0]
         tag = f"`{b['definition']}`" + (" **(primary)**" if b["primary"] else "")
-        out.append(f"| {b['tier']} | {tag} | {b['version']} | {', '.join(b['leaders'])} | {' = '.join(b['runners_up'])} "
-                   f"| {interval(lead)} | {b['reading']} |")
+        leads = b["leader_minus_runner_up"]
+        if not leads:  # tied leaders, or no runner-up: the block holds no contrast
+            assert len(b["leaders"]) > 1 or not b["runners_up"], b["tier"]
+            out.append(f"| {b['tier']} | {tag} | {b['version']} | {', '.join(b['leaders'])} | "
+                       f"{' = '.join(b['runners_up']) or '—'} | — | — | {b['reading']} |")
+            continue
+        assert len(b["leaders"]) == 1, b["tier"]
+        for runner, lead in zip(b["runners_up"], leads, strict=True):
+            # an arm is "<method>@<scenario>"; the entry's own methods and tier must be the block's, in order
+            left, right = lead["left_arm"].split("@")[0], lead["right_arm"].split("@")[0]
+            assert (left, right, lead["tier"]) == (b["leaders"][0], runner, b["tier"]), (b["tier"], lead["left_arm"],
+                                                                                        lead["right_arm"])
+            out.append(f"| {b['tier']} | {tag} | {b['version']} | {left} | {right} "
+                       f"| {interval(lead)} | {'; '.join(reversals(lead)) or '—'} | {b['reading']} |")
+    out += ["", "Every entry of `leader_minus_runner_up` is a row: a tier with runners-up tied in level shows one row per "
+                "runner-up (`BRIEF_45` Amendment D, D3.5). \"Reverses on\" is the entry's `seed_reversal_qualifier` "
+                "(D4.2)."]
     return out
 
 

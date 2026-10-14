@@ -1,0 +1,63 @@
+# G5-fix, D5 step 3 (BRIEF_45 Amendment D): the rebuild in a clean detached worktree at C8's last commit 1d6519e, as run.
+# Date: 2026-10-14.  The commands and their output, verbatim (git's progress line keeps its carriage returns).  The
+#   artifact was then committed alone at 5f67361; the worktree this log names no longer exists.
+
+$ git -C /home/filip/rltraffic-p52c worktree add --detach /tmp/claude-1000/p52c-build 1d6519e
+Preparing worktree (detached HEAD 1d6519e)
+Updating files:  88% (1188/1339)Updating files:  89% (1192/1339)Updating files:  90% (1206/1339)Updating files:  91% (1219/1339)Updating files:  92% (1232/1339)Updating files:  93% (1246/1339)Updating files:  94% (1259/1339)Updating files:  95% (1273/1339)Updating files:  96% (1286/1339)Updating files:  97% (1299/1339)Updating files:  98% (1313/1339)Updating files:  99% (1326/1339)Updating files: 100% (1339/1339)Updating files: 100% (1339/1339), done.
+HEAD is now at 1d6519e P5.2c C8 (3/3): mutate.py to 98 mutants (BRIEF_45 Amendment D, D5 step 2.3) -- 98 of 98 KILLED
+exit=0
+
+$ git -C /tmp/claude-1000/p52c-build rev-parse HEAD
+1d6519eb7c052eeebd6446550e92270a26bf1aa9
+
+$ git -C /tmp/claude-1000/p52c-build status --porcelain --untracked-files=no      # must print nothing
+<<<end of status: exit=0>>>
+
+$ cd /tmp && PYTHONPATH=/tmp/claude-1000/p52c-build /home/filip/rltraffic/.venv/bin/python -P -m offline.tier_statements build --repo-root /tmp/claude-1000/p52c-build --output-root /home/filip/rltraffic/output --out docs/data/p5_2_statements.rebuilt.json
+wrote /tmp/claude-1000/p52c-build/docs/data/p5_2_statements.rebuilt.json: 1314289 bytes, sha256 4c69ddbe99ad31d9f47b2511a12fe7dcced7417c2ca1fca9cbe4afd8a4654c36
+BUILD exit=0
+
+$ git -C /tmp/claude-1000/p52c-build status --porcelain --untracked-files=no      # must print nothing
+<<<end of status: exit=0>>>
+
+$ cp /tmp/claude-1000/p52c-build/docs/data/p5_2_statements.rebuilt.json /home/filip/rltraffic-p52c/docs/data/p5_2_statements.json
+exit=0
+
+$ sha256sum (both files)
+4c69ddbe99ad31d9f47b2511a12fe7dcced7417c2ca1fca9cbe4afd8a4654c36  /tmp/claude-1000/p52c-build/docs/data/p5_2_statements.rebuilt.json
+4c69ddbe99ad31d9f47b2511a12fe7dcced7417c2ca1fca9cbe4afd8a4654c36  /home/filip/rltraffic-p52c/docs/data/p5_2_statements.json
+EQUAL: 4c69ddbe99ad31d9f47b2511a12fe7dcced7417c2ca1fca9cbe4afd8a4654c36
+1314289 bytes  /home/filip/rltraffic-p52c/docs/data/p5_2_statements.json
+
+$ the git block the rebuilt artifact records
+{"code_root": "/tmp/claude-1000/p52c-build", "commit": "1d6519eb7c052eeebd6446550e92270a26bf1aa9", "dirty": false}
+
+$ rm /tmp/claude-1000/p52c-build/docs/data/p5_2_statements.rebuilt.json
+exit=0
+
+$ git -C /tmp/claude-1000/p52c-build status --porcelain    (untracked included)
+<<<end>>>
+
+$ git -C /home/filip/rltraffic-p52c worktree remove /tmp/claude-1000/p52c-build
+exit=0
+
+$ git -C /home/filip/rltraffic-p52c worktree list
+/home/filip/rltraffic          5b05458 [main]
+/home/filip/rltraffic-cigate   4123a94 [task/p7.2b-ci-gate]
+/home/filip/rltraffic-p52b     31edde1 [task/p5.2b-iql-correction]
+/home/filip/rltraffic-p52c     1d6519e [task/p5.2c-statements]
+/home/filip/rltraffic-p53b     8258570 [task/p7.2b-calibration]
+/home/filip/rltraffic-p53c     1fb4c75 [task/p8.2-compute-latency]
+/home/filip/rltraffic-p53c-run 9c4603c (detached HEAD)
+/home/filip/rltraffic-p54      65597f7 [task/p5.4-spatial-footprint]
+/home/filip/rltraffic-p73a     8630d5b [task/p7.3a-zero-shot]
+/home/filip/rltraffic-p73a-run 8bf7eae (detached HEAD)
+/home/filip/rltraffic-p73b     2f95e20 [task/p7.3b-anchor]
+/home/filip/rltraffic-p73b-ci  a790ad1 [task/p7.3b-ci-interp]
+/home/filip/rltraffic-p73b-run f13358e (detached HEAD)
+/home/filip/rltraffic-p73c     1f05ef7 [task/p7.3c-grid4x4-fewshot]
+/home/filip/rltraffic-p73d     4b0c4f0 [task/p7.3d-grid4x4]
+/home/filip/rltraffic-p73d-ci  19e234c [task/p7.3d-ci-decoy]
+/home/filip/rltraffic-p73d-run 10d8fe8 (detached HEAD)
+ls: cannot access '/tmp/claude-1000/p52c-build': No such file or directory

@@ -1,12 +1,49 @@
-# P5.2c — evidence for gates G1, G1.1, G2 and G4 (`BRIEF_45` Amendments A, B, B.1, B.2 and C)
+# P5.2c — evidence for gates G1, G1.1, G2, G4 and G5-fix (`BRIEF_45` Amendments A, B, B.1, B.2, C and D)
 
 Branch `task/p5.2c-statements`, worktree `/home/filip/rltraffic-p52c`, interpreter `/home/filip/rltraffic/.venv/bin/python`
 (Python 3.12.13).
 - P5.2c's code wrote nothing under any `output/`, no episode was rolled and no checkpoint was loaded. The main tree's
   `output/` was read only. (The worktree's gitignored `output/replay.txt` and `output/roadnet.json` are written by the
   suite's own CityFlow tests, through the frozen `configs/sim/config_1x1.json`; see G2's disclosures.)
-- **The artifact is built and committed:** `docs/data/p5_2_statements.json` at `9fa93e9` (G2, below). C6d precedes it.
+- **The artifact is built and committed:** `docs/data/p5_2_statements.json` at `5f67361`, rebuilt at C8's last commit
+  `1d6519e` (G5-fix, below); G2's, at `9fa93e9`, is replaced. C6d precedes G2.
 - Every number here comes from a command run in the session that wrote it.
+
+# G5-fix — the rebuild, the runs at the artifact commit, and the revised packet (`BRIEF_45` Amendment D, D5 steps 3–6)
+
+The packet is `docs/returns/P5.2c.md`, revised per D3. The artifact is `docs/data/p5_2_statements.json` at `5f67361`
+(committed alone): 1,314,289 bytes, sha256 `4c69ddbe99ad31d9f47b2511a12fe7dcced7417c2ca1fca9cbe4afd8a4654c36`, recording
+commit `1d6519e`, `dirty: false`. Files added or changed at G5-fix:
+
+| file | what it is |
+|---|---|
+| `g5fix_build.txt` | the rebuild of D5 step 3, as run: a detached worktree at `1d6519e` whose status is empty before and after `build`; `build` writing 1,314,289 bytes; the copy over the committed path, both sha256 equal; the git block it records (code root `/tmp/claude-1000/p52c-build`); the rebuilt file deleted and the worktree removed without `--force` |
+| `g5fix_whole_suite_sandboxed.txt` | the whole suite at `5f67361` in the session's Bash sandbox, `-rfEs`: **3 failed, 3382 passed, 167 skipped** — the three are the tmux-driven tests, refused with *"Operation not permitted"* |
+| `g5fix_outside_sandbox.txt` | outside the sandbox: those three tests, **3 passed**; and the three CUDA-gated driver files, 46 passed, 10 skipped |
+| `g5fix_whole_suite_unsandboxed.txt` | the whole suite at `5f67361` outside the sandbox, `-rfEs`: **3398 passed, 154 skipped, 0 failed** — the run of record for "0 failed", and the other side of the skip comparison (packet, deviation G4.2) |
+| `g5fix_check_guard_regress.txt` | `check` (exit 0; `dirty True` from the author's settings file), then T-regress and the erfc guard by name: 2 passed, the guard asserting 487 |
+| `g5fix_test_file.txt` | `tests/test_tier_statements.py` at `5f67361`: **181 passed** |
+| `g4_tables.py`, `g4_tables.md` | the packet's tables, revised per D3.5 (every leader entry a row, N5.3's wording) and D4.2 (every non-null seed qualifier shown), regenerated from the rebuilt artifact |
+| `g5fix_tables_check.py`, `g5fix_tables_check.txt` | the same tables checked by a second route (qualifiers, leaders rows, first-time rows) — all pass — and three corruptions, each caught |
+| `g5fix_model_windows.py`, `g5fix_model_windows.txt` | the AI record's counts (D3.1): responses per model and each model's window, from the transcript's metadata alone, up to the cut-off its header states |
+
+The deviations and disclosures of this round are the packet's "C8" and "G5-fix" lists; open question 1 records a second
+write of `.claude/settings.json` during C8, by neither a command nor an edit of mine.
+
+# C8 — Amendment D, D1 and D2 (D5 step 2): tests first, the module, the mutation run of record
+
+C8's three commits added these files; this README indexes them from G5-fix on (packet, deviation G5-fix.4).
+
+| file | what it is | commit |
+|---|---|---|
+| `c8_red_run.txt` | D1's and D2's tests on the unchanged module (sha256 `20c07b17…`): **15 failed, 166 passed**, red exactly where the module changes | `b49ca1b` |
+| `c8_precheck.py`, `c8_precheck.txt` | the pre-check on a `git archive` export of `650ec97`: R1, R2, D2.4a and D2.4b each KILLED by the new tests on the unchanged module, 4 of 4 | `b49ca1b` |
+| `c8_artifact_diff.txt` | G2's module and C8's (`94ff0a02…`) each built in memory and compared leaf by leaf: 23,635 → 24,302 leaves, 667 added, 0 removed, 96 changed; **0 numeric leaves changed** | `1a23dd4` |
+| `c8_mutation_log.txt`, `c8_mutation_results.json` | `mutate.py` (98 mutants, sha256 `4746e212…`) on an export of `1a23dd4`: control 115 passed (93 killing tests); **98 of 98 KILLED**, R1 and R2 among them | `1d6519e` |
+| `c8_test_file.txt` | the test file on the same export: 180 passed, 1 failed — T-regress, by construction (the export holds G2's artifact) | `1d6519e` |
+| `c8_checks.txt` | `check_test_hygiene.sh` exit 0, `check_english.sh` exit 0, the guard flagging `.claude/settings.json` alone (D0.6), no frozen path in `main...HEAD` | `1d6519e` |
+
+Commits: `b49ca1b` (tests first), `1a23dd4` (the module changes of D1), `1d6519e` (`mutate.py` and its run of record).
 
 # G4 — the Return Packet (`BRIEF_45` Amendment C, C3)
 

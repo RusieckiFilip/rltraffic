@@ -1,0 +1,17 @@
+# G5-fix, D5 step 5: check, the erfc guard at 487 and T-regress, at the artifact commit 5f67361ac0e86f10914bc882a7fa0baadc235c93.
+# Date: 2026-10-14.
+
+$ cd /tmp && PYTHONPATH=/home/filip/rltraffic-p52c /home/filip/rltraffic/.venv/bin/python -P -m offline.tier_statements check --repo-root /home/filip/rltraffic-p52c --output-root /home/filip/rltraffic/output
+check: every input verified at its anchor (47 files, and the rows below)
+P8.4b campaign: declared_cells_sha256 1f29b469dfb523ee3edf67acad341770ab18d1842427bcc6583e84f7b2cb8f4e, 38500 cells, engine seed 1000
+p8_4b_rows: 15500 files read, digest 4e40b0b0b087ac48a8ec708efeccd0d87ffeed8b2d3e599b3336613370ec0ceb
+p5_2b_corrected_rows: 500 files read, digest 0c2678ddf23447da72724d9035acee57b31ae0a7dd5eb9fac210570c2d3dbcc5
+git: commit 5f67361ac0e86f10914bc882a7fa0baadc235c93, dirty True  (build would refuse a dirty tree)
+code: 94ff0a0271244715bacc655f3f6fcec73895474f92dc2d5145fa14bb79122325  offline/tier_statements.py
+CHECK exit=0
+
+$ RLTRAFFIC_OUTPUT_ROOT=/home/filip/rltraffic/output pytest -v -p no:cacheprovider <T-regress> <the erfc guard>
+tests/test_tier_statements.py::test_t_regress_the_committed_artifact_regenerates_byte_for_byte_from_output PASSED [ 50%]
+tests/test_erfc_determinism.py::test_the_committed_p_values_all_still_reproduce_exactly PASSED [100%]
+============================== 2 passed in 5.07s ===============================
+363:    assert len(pairs) == 487, (
