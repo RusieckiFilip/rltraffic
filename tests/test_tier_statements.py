@@ -2486,7 +2486,7 @@ def test_d1_7_the_labels_q2a_the_audit_rule_q4b_and_q6s_expectation(books: Any) 
         assert "2 out-of-sample tiers" in note and "fixedtime" in note, note
         assert "docs/plans/p5.2.md:595" in note and "docs/plans/p5.2.md:601" in note, note
     assert "@fixedtime" in _norm(_cited("docs/plans/p5.2.md", (595, 595)))
-    assert "fixedtime predicts the same ordering" in _norm(_cited("docs/plans/p5.2.md", (601, 601)))
+    assert "`fixedtime` predicts the same ordering" in _norm(_cited("docs/plans/p5.2.md", (601, 601)))
     rule = tst.collapse_audit(books)["rule"]
     assert "verbatim" not in rule and "registered for a DT arm under att_horizon" in rule, rule
     assert "applied descriptively to every arm under both definitions" in rule, rule

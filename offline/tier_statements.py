@@ -40,6 +40,7 @@ import json
 import math
 import os
 import statistics
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -421,8 +422,29 @@ def assert_code_under_root(repo_root: str | Path) -> list[dict[str, Any]]:
 
 
 def git_block() -> dict[str, Any]:
-    """``compute_latency._git_provenance()``: the commit, the dirty flag (tracked files) and the code root."""
-    return dict(cl._git_provenance())
+    """``compute_latency._git_provenance()``: the commit, the dirty flag (tracked files) and the code root -- refused
+    when git, asked as the provenance asks it (``git -C <code root>``), answers with a toplevel other than the code
+    root: the code then sits untracked inside another repository, whose commit would be recorded (``BRIEF_45``
+    Amendment D, D1.9(b); M1a's M6.1).  ``assert_code_under_root`` has already required the code root to be the resolved
+    ``--repo-root``.  Where git does not answer at all (no repository, e.g. a ``git archive`` export) the block records
+    commit None and dirty None, which ``build`` refuses and ``check`` reports."""
+    block = dict(cl._git_provenance())
+    toplevel = _git_toplevel()
+    if toplevel is not None and Path(toplevel).resolve() != Path(block["code_root"]).resolve():
+        raise ValueError(f"git's toplevel for the code root {block['code_root']} is {toplevel}: the code is not that "
+                         "repository's own checkout, so the commit git names is not the code that runs")
+    return block
+
+
+def _git_toplevel() -> str | None:
+    """``git -C <code root> rev-parse --show-toplevel``, run as ``compute_latency._git_provenance`` runs git; None when
+    git does not answer."""
+    try:
+        completed = subprocess.run(["git", "-C", str(cl._MODULE_ROOT), "rev-parse", "--show-toplevel"],
+                                   capture_output=True, text=True, timeout=30, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return completed.stdout.strip() if completed.returncode == 0 and completed.stdout.strip() else None
 
 
 @dataclass(frozen=True)
@@ -751,6 +773,15 @@ def _interval_reading(low: float, high: float, exactly_zero: bool, identical: bo
     return "does not resolve: the CI includes zero"
 
 
+#: The methods whose cells carry evaluation labels, not training seeds, in their ``seed`` field: the behaviour cells and
+#: the random-policy anchors (``BRIEF_45`` section 3.3; Amendment D, D1.6).
+EVALUATION_LABEL_METHODS: tuple[str, ...] = ("behaviour", "random")
+
+#: The number of pairs ``dt_gate.wilcoxon_signed_rank``'s docstring states its normal approximation needs ("at n >=
+#: 20"); a defined p-value on fewer says so (``BRIEF_45`` Amendment D, D1.8).
+SMALL_SAMPLE_PAIRS = 20
+
+
 def contrast(left: Cell, right: Cell, *, definition: str, tier: str) -> dict[str, Any]:
     """``left - right`` on the paired unit (module docstring), refused unless the two cells cover the identical
     ``(seed, draw)`` grid.  Carries the CI and its width, ``exactly_zero``, the point estimate's sign,
@@ -760,7 +791,10 @@ def contrast(left: Cell, right: Cell, *, definition: str, tier: str) -> dict[str
     on ``wilcoxon.n_used > 0``: ``rank_biserial_defined`` / ``rank_biserial_note`` for the effect size and
     ``p_value_defined`` / ``p_value_note`` for the test.  Where every per-draw difference is exactly zero the
     signed-rank test is EMPTY, and the z = 0.0 and p_value = 1.0 it carries are
-    ``dt_gate.wilcoxon_signed_rank``'s convention rather than a result (``BRIEF_45`` Amendment B.2, B.2.3)."""
+    ``dt_gate.wilcoxon_signed_rank``'s convention rather than a result (``BRIEF_45`` Amendment B.2, B.2.3); where 0 <
+    ``n_used`` < :data:`SMALL_SAMPLE_PAIRS` the defined note also says the approximation rests on fewer pairs than its
+    function states it needs (Amendment D, D1.8).  Where an arm is a behaviour cell or a random-policy anchor, the
+    per-seed note says that arm's seed labels are evaluation labels, not training seeds (Amendment D, D1.6)."""
     a, b = episodes_of(left, definition), episodes_of(right, definition)
     if _grid_of(left, a) != _grid_of(right, b):
         raise ValueError(f"{left.spec.cell_id} and {right.spec.cell_id} do not cover the same (seed, draw) grid "
@@ -786,6 +820,16 @@ def contrast(left: Cell, right: Cell, *, definition: str, tier: str) -> dict[str
         tier=tier, left=left.spec.arm, right=right.spec.arm)
     wilcoxon = comparison.wilcoxon
     defined = int(wilcoxon.n_used) > 0
+    small_sample = (f"; it rests on n_used = {int(wilcoxon.n_used)} non-zero per-draw differences, so the normal "
+                    f"approximation rests on fewer pairs than the n >= {SMALL_SAMPLE_PAIRS} that "
+                    "dt_gate.wilcoxon_signed_rank's docstring states for it (BRIEF_45 Amendment D, D1.8)"
+                    if 0 < int(wilcoxon.n_used) < SMALL_SAMPLE_PAIRS else "")
+    labelled = [cell.spec.arm for cell in (left, right) if cell.spec.method in EVALUATION_LABEL_METHODS]
+    per_seed_block = dict(per_seed["per_seed"])
+    if labelled:
+        per_seed_block["note"] = (per_seed_block["note"] + "; " + "; ".join(
+            f"{arm}'s seed labels are evaluation labels, not training seeds" for arm in labelled)
+            + " (BRIEF_45 section 3.3; Amendment D, D1.6)")
     return {
         "left": left.spec.cell_id, "right": right.spec.cell_id, "left_arm": left.spec.arm, "right_arm": right.spec.arm,
         "definition": definition, "tier": tier,
@@ -794,7 +838,7 @@ def contrast(left: Cell, right: Cell, *, definition: str, tier: str) -> dict[str
         "ci95_low": float(low), "ci95_high": float(high), "ci95_width": float(high - low),
         "exactly_zero": exactly_zero, "sign": sign_of(stats.mean),
         "reading": _interval_reading(low, high, exactly_zero, discriminability.identical),
-        "per_seed": per_seed["per_seed"], "seed_reversal_qualifier": per_seed["seed_reversal_qualifier"],
+        "per_seed": per_seed_block, "seed_reversal_qualifier": per_seed["seed_reversal_qualifier"],
         "discriminability": {"status": discriminability.status, "identical": discriminability.identical,
                              "n_paired": discriminability.n_paired, "n_differing": discriminability.n_differing,
                              "max_abs_difference": discriminability.max_abs_difference,
@@ -814,7 +858,7 @@ def contrast(left: Cell, right: Cell, *, definition: str, tier: str) -> dict[str
                 "(BRIEF_45 Amendment B.2, B.2.3)" if defined else
                 "undefined: every per-draw difference is exactly zero (wilcoxon n_used = 0), so there is no test to "
                 "report; z = 0.0 and p_value = 1.0 are dt_gate.wilcoxon_signed_rank's convention for an empty test "
-                "and are not a test result (BRIEF_45 Amendment B.2, B.2.3)"),
+                "and are not a test result (BRIEF_45 Amendment B.2, B.2.3)") + small_sample,
             "median_difference": float(comparison.median_difference), "wins": int(comparison.wins),
             "losses": int(comparison.losses), "ties": int(comparison.ties),
             "wilcoxon": {"w_plus": float(wilcoxon.w_plus), "w_minus": float(wilcoxon.w_minus),
@@ -1056,14 +1100,43 @@ def _quotes(*keys: str) -> list[dict[str, Any]]:
 def _entry(statement_id: str, tier: str | None, *, definition: str, kind: str, numbers: Mapping[str, Any],
            inputs: Sequence[Cell], rules: Sequence[str], verdict: str | None = None, reading: str | None = None,
            arm: str | None = None) -> dict[str, Any]:
-    """One statement entry.  ``version`` and ``definition_dependent`` are set by :func:`all_statements`."""
+    """One statement entry.  ``version`` and ``definition_dependent`` are set by :func:`all_statements`.  An entry whose
+    numbers carry a registered value (:data:`REGISTERED_VALUE_KEYS`, at any depth) and do not already say what it was
+    registered on gains ``predictions_registered_on`` (``BRIEF_45`` Amendment D, D1.7)."""
     ids: list[str] = []
     for cell in inputs:
         if cell.spec.cell_id not in ids:
             ids.append(cell.spec.cell_id)
+    numbers = dict(numbers)
+    if "predictions_registered_on" not in numbers and _carries_registered_value(numbers):
+        numbers["predictions_registered_on"] = _registered_values_on(definition)
     return {"id": statement_id, "tier": tier, "arm": arm, "definition": definition,
             "primary": definition == PRIMARY_DEFINITION, "kind": kind, "verdict": verdict, "reading": reading,
-            "numbers": dict(numbers), "inputs": ids, "rule": _quotes(*rules)}
+            "numbers": numbers, "inputs": ids, "rule": _quotes(*rules)}
+
+
+#: The keys under which a statement carries a value P5.2 registered: a registered value, Q1's and Q1b's predicted
+#: levels, Q2a's predicted first place (``BRIEF_45`` Amendment D, D1.7).
+REGISTERED_VALUE_KEYS: tuple[str, ...] = ("registered_value", "predicted", "predicted_first")
+
+
+def _carries_registered_value(node: Any) -> bool:
+    if isinstance(node, Mapping):
+        return any(key in node for key in REGISTERED_VALUE_KEYS) or any(
+            _carries_registered_value(value) for value in node.values())
+    if isinstance(node, (list, tuple)):
+        return any(_carries_registered_value(value) for value in node)
+    return False
+
+
+def _registered_values_on(definition: str) -> str:
+    """What a statement's registered values were registered on (``BRIEF_45`` section 2; Amendment D, D1.7)."""
+    if definition == "att_ours":
+        return ("att_horizon (att_ours): P5.2 registered these values on the definition measured here "
+                "(docs/plans/p5.2.md:407-412)")
+    return ("att_horizon (att_ours), not att_engine: the registered values here are P5.2's att_horizon-era values -- "
+            "its predictions, and d1's registered att_horizon measurement where d1 appears -- compared with att_engine "
+            "measurements; nothing was registered under att_engine (BRIEF_45 section 2; Amendment D, D1.7)")
 
 
 def _registered_on(definition: str) -> str:
@@ -1108,6 +1181,14 @@ REGISTERED_VALUES: Mapping[str, Mapping[str, float]] = {
     "Q5b": {"mappo1000": -583.81, "maxpressure": -584.97, "fixedtime": -812.15, "random": -967.88},
     "Q5c": {"mappo1000": -3.21, "maxpressure": -9.63, "fixedtime": 8.49, "random": 2.69},
 }
+
+
+#: Why Q2a is reported on three tiers although its registered text says two (``BRIEF_45`` Amendment D, D1.7; F3.1).
+Q2A_TIERS_NOTE = (
+    "the registered text says 'Scored on the 2 out-of-sample tiers' (docs/plans/p5.2.md:604-605), written before "
+    "fixedtime joined; fixedtime's predicted ordering and first place were registered with the tier "
+    "(docs/plans/p5.2.md:595 and docs/plans/p5.2.md:601: dt_nomix first), so Q2a is reported on all three "
+    "out-of-sample tiers (BRIEF_45 Amendment D, D1.7)")
 
 
 #: Q0b's reading on an exactly-zero I, after the label (``BRIEF_45`` Amendment B, B2.1; Amendment B.1, B.1.2(1)).
@@ -1216,7 +1297,7 @@ def score_q2_q3(book: Mapping[tuple[str, str], Cell], *, definition: str) -> lis
                                        "no unique first place: " + " = ".join(composed["q2a"]["tied_for_first"])),
                               numbers={**composed["q2a"], "first_place_under_rule": audit["first_place"]["under_rule"],
                                        "possible_firsts": audit["first_place"]["possible"],
-                                       "orders_enumerated": audit["orders_enumerated"]},
+                                       "orders_enumerated": audit["orders_enumerated"], "tiers_note": Q2A_TIERS_NOTE},
                               inputs=six, rules=("Q2a", "tie_rule", "D9")))
         entries.append(_entry("Q2b", tier, definition=definition, kind="verdict", verdict=composed["q2b"]["outcome"],
                               reading=f"{composed['q2b']['n_concordant']} of 15 (range {audit['q2b']['range'][0]}.."
@@ -1404,7 +1485,7 @@ def score_q4(book: Mapping[tuple[str, str], Cell], *, definition: str) -> list[d
                  "registered_value": REGISTERED_VALUES["Q4"][tier]} for tier in tiers]
         chain = _chain(rows)
         form = ("the four-rung chain d(mappo1000) < d(maxpressure) < d(fixedtime) < d(random) (BRIEF_45 section 3.2; "
-                "docs/plans/p5.2.md:674-675)" if statement_id == "Q4b" else
+                "docs/plans/p5.2.md:673-675)" if statement_id == "Q4b" else
                 "the registered bullet's three-rung form d(mappo1000) < d(maxpressure) < d(random) "
                 "(docs/plans/p5.2.md:670-672), reported beside the four-rung one")
         entries.append(_entry(statement_id, None, definition=definition, kind="verdict", verdict=chain["verdict"],
@@ -1466,13 +1547,13 @@ def score_q6(book: Mapping[tuple[str, str], Cell], *, definition: str) -> list[d
                                  f"this module {block['mean_difference']!r} [{block['ci95_low']!r}, "
                                  f"{block['ci95_high']!r}]: one route, so they must be equal under == (BRIEF_45 "
                                  "Amendment A, A2 Q7)")
+            expectation = "COLLAPSED" if (arm, tier) == ("dt_spatial", "random") else "NOT COLLAPSED"
             verdict = "COLLAPSED" if block["ci95_low"] > 0.0 else "NOT COLLAPSED"
             entries.append(_entry("Q6", tier, arm=arm, definition=definition, kind="verdict", verdict=verdict,
                                   reading=block["reading"],
                                   numbers={**block, "p5_1_outcome": p5_1["outcome"], "seen": tier == "mappo1000",
-                                           "registered_expectation": ("COLLAPSED" if (arm, tier) == ("dt_spatial",
-                                                                                                    "random")
-                                                                      else "NOT COLLAPSED"),
+                                           "registered_expectation": expectation,
+                                           "registered_expectation_met": verdict == expectation,
                                            "rule_two_valued": ("COLLAPSED iff the arm is worse than the anchor with "
                                                                "the paired CI excluding 0, else NOT COLLAPSED (the "
                                                                "primary vocabulary, BRIEF_45 section 3.3)"),
@@ -1648,8 +1729,9 @@ def ties_block(books: Mapping[str, Mapping[tuple[str, str], Cell]]) -> list[dict
 
 
 def collapse_audit(books: Mapping[str, Mapping[tuple[str, str], Cell]]) -> dict[str, Any]:
-    """``descriptive_collapse_audit`` (Amendment A, A2 Q9), not registered: Q6's rule applied verbatim to the non-DT
-    arms on four tiers, both definitions, both random-tier IQL cells; whether the README's sentence holds."""
+    """``descriptive_collapse_audit`` (Amendment A, A2 Q9), not registered: Q6's rule -- registered for a DT arm under
+    ``att_horizon`` -- applied descriptively to every arm on four tiers, under both definitions and both random-tier IQL
+    cells; whether the README's sentence holds (``BRIEF_45`` Amendment D, D1.7)."""
     rows = []
     for definition in DEFINITIONS:
         for arm in (*DT_ARMS, *NON_DT_METHODS):
@@ -1675,8 +1757,10 @@ def collapse_audit(books: Mapping[str, Mapping[tuple[str, str], Cell]]) -> dict[
     return {
         "registered": False,
         "label": "descriptive, not registered (BRIEF_45 Amendment A, A2 Q9)",
-        "rule": ("Q6's rule verbatim (docs/plans/p5.2.md:699-701): COLLAPSED iff the arm's mean is worse than the shared "
-                 "random anchor's with the paired CI excluding 0, else NOT COLLAPSED"),
+        "rule": ("Q6's rule (docs/plans/p5.2.md:699-701, registered for a DT arm under att_horizon), applied "
+                 "descriptively to every arm under both definitions: COLLAPSED iff the arm's mean is worse than the "
+                 "shared random anchor's with the paired CI excluding 0, else NOT COLLAPSED (BRIEF_45 Amendment D, "
+                 "D1.7)"),
         "readme_sentence": README_COLLAPSE_SENTENCE,
         "rows": [r for r in rows if not r["dt_arm"]],
         "dt_rows": [r for r in rows if r["dt_arm"]],
@@ -2029,6 +2113,26 @@ RECORD: tuple[RecordRow, ...] = (
     RecordRow(_PLAN, (615, 615), "7 of 18", "q2b_hard.total"),
 )
 
+#: Record values that state a fact of the protocol, not a measurement, so no definition changes them: their literal rows
+#: carry ``att_engine`` null and this note (``BRIEF_45`` Amendment D, D1.3).  A key ending in "." names a family.
+NO_ATT_ENGINE_COUNTERPART: Mapping[str, str] = {
+    "q1.threshold": ("the threshold k = ceil(9/13 * N) is fixed by the protocol (docs/plans/p5.2.md:561-563), not "
+                     "measured, so it has no att_engine counterpart"),
+    "q1.predicted.": ("a registered prediction of the att_horizon era, not a measurement: no prediction was registered "
+                      "under att_engine, so it has no att_engine counterpart"),
+    "q2a.predicted": ("the registered predicted first places of the att_horizon era, not a measurement: no prediction "
+                      "was registered under att_engine, so they have no att_engine counterpart"),
+}
+
+
+def _no_att_engine_counterpart(value: str) -> str | None:
+    """The note for a record value with no ``att_engine`` counterpart (:data:`NO_ATT_ENGINE_COUNTERPART`), or None."""
+    for key, note in NO_ATT_ENGINE_COUNTERPART.items():
+        if value == key or (key.endswith(".") and value.startswith(key)):
+            return note
+    return None
+
+
 #: The two declared exceptions, each verified by the build (``BRIEF_45`` section 1.4): the recorded integer is reachable
 #: by some tie-break order, and the declared rule gives another.
 RECORD_EXCEPTIONS: Mapping[str, str] = {
@@ -2073,9 +2177,12 @@ README_COLLAPSE_SENTENCE = (
     "The DT arms are the only arms that never collapse below the random-policy anchor (P5.2).")
 
 WHAT_THIS_DOES_NOT_SAY: tuple[str, ...] = (
-    "No new prediction: Q1's, Q1b's and Q2's predictions exist on att_horizon (att_ours) only; under att_engine they are "
-    "compared with att_engine measurements and labelled exactly so, and rule R' is not recomputed from att_engine "
-    "inputs (BRIEF_45 section 2).",
+    "No new prediction: every registered value of Q1-Q5 -- Q1's and Q1b's levels, Q2's orderings and first places, "
+    "Q3b's and Q3c's values, Q4's chain and Q5's values -- is an att_horizon (att_ours) value, registered before any "
+    "att_engine number existed; under att_engine each is compared with att_engine measurements, and every entry "
+    "carrying a registered value, Q1's and Q1b's predicted levels or Q2a's predicted first place says so in "
+    "predictions_registered_on. Rule R' is not recomputed from att_engine inputs (BRIEF_45 section 2; Amendment D, "
+    "D1.7).",
     "No episode was rolled, no checkpoint loaded, no model trained or evaluated: every number is a recomputation of "
     "committed records read at their digests.",
     "P5.2's statements stand as written in its packet; this artifact scores them by the registered rules beside them and "
@@ -2122,12 +2229,14 @@ _NUMBER_WORDS: tuple[str, ...] = ("No", "One", "Two", "Three", "Four", "Five", "
 
 
 def record_values(statements: Sequence[Mapping[str, Any]], audit: Mapping[str, Any],
-                  ties: Sequence[Mapping[str, Any]], books: Mapping[str, Mapping[tuple[str, str], Cell]]
-                  ) -> dict[str, str]:
-    """Every :data:`RECORD` value key, formatted at the record's precision from the ``as_committed`` ``att_ours``
-    statements (the basis P5.2 scored on)."""
+                  ties: Sequence[Mapping[str, Any]], books: Mapping[str, Mapping[tuple[str, str], Cell]], *,
+                  definition: str = "att_ours", version: str = "as_committed") -> dict[str, str]:
+    """Every :data:`RECORD` value key, formatted at the record's precision from the statements of *version* under
+    *definition*: by default ``as_committed`` ``att_ours``, the basis P5.2 scored on; with ``corrected`` and
+    ``att_engine``, the same quantity under the paper's primary definition, by the same extractor (``BRIEF_45``
+    Amendment D, D1.3)."""
     def st(statement_id: str, tier: str | None, arm: str | None = None) -> Mapping[str, Any]:
-        return _find(statements, statement_id, tier, "att_ours", "as_committed", arm)
+        return _find(statements, statement_id, tier, definition, version, arm)
 
     tiers = OUT_OF_SAMPLE_TIERS
     v: dict[str, str] = {}
@@ -2201,29 +2310,29 @@ def record_values(statements: Sequence[Mapping[str, Any]], audit: Mapping[str, A
     v["level.bc_top10@maxpressure"] = f"{levels['bc_top10']:.2f} on `maxpressure`"
     v["level.bc_top10_perix@maxpressure"] = f"({levels['bc_top10_perix']:.2f})"
     v["level.bc_top10_perix@maxpressure.bare"] = f"{levels['bc_top10_perix']:.2f}"
-    collapsed = [s for s in statements if s["id"] == "Q6" and s["definition"] == "att_ours"
+    collapsed = [s for s in statements if s["id"] == "Q6" and s["definition"] == definition
                  and s["verdict"] == "COLLAPSED"]
     v["q6.none"] = ("no DT arm collapsed on any tier" if not collapsed else
                     f"{len(collapsed)} DT arm-tier cells collapsed")
-    holds = next(h for h in audit["sentence_holds"] if h["definition"] == "att_ours" and h["version"] == "as_committed")
+    holds = next(h for h in audit["sentence_holds"] if h["definition"] == definition and h["version"] == version)
     v["audit.only_dt"] = ("the DT arms are the only arms that never collapse" if holds["holds"] else
                           "the DT arms are not the only arms that never collapse")
     v["audit.only_dt_upper"] = ("the DT arms are the ONLY arms that never collapse" if holds["holds"] else
                                 "the DT arms are NOT the ONLY arms that never collapse")
-    book = books["as_committed"]
+    book = books[version]
 
     def rows(method: str) -> tuple[Mapping[str, Any], ...]:
         return book[(method, "fixedtime")].rows
 
     triple = list(zip(rows("dt_spatial"), rows("dt_nomix"), rows("behaviour"), strict=True))
-    differing = sum(1 for a, b, c in triple if not a["att_ours"] == b["att_ours"] == c["att_ours"])
+    differing = sum(1 for a, b, c in triple if not a[definition] == b[definition] == c[definition])
     v["fixedtime.three_identical"] = f"{differing} of {len(triple)} episodes differ between all three"
-    perix = all(a["att_ours"] == b["att_ours"] for a, b in zip(rows("bc_top10_perix"), rows("bc"), strict=True))
+    perix = all(a[definition] == b[definition] for a, b in zip(rows("bc_top10_perix"), rows("bc"), strict=True))
     v["fixedtime.perix_identical"] = ("`bc_top10_perix` is likewise identical to `bc`" if perix else
                                       "`bc_top10_perix` is not identical to `bc`")
     pairs = list(zip(rows("bc"), rows("behaviour"), strict=True))
     v["fixedtime.bc_vs_behaviour"] = (f"`bc` differs from `behaviour` on "
-                                      f"{sum(1 for a, b in pairs if a['att_ours'] != b['att_ours'])} of {len(pairs)}")
+                                      f"{sum(1 for a, b in pairs if a[definition] != b[definition])} of {len(pairs)}")
     zeros = sum(1 for statement_id in ("Q3b", "Q4.d", "Q5a", "Q5b", "Q5c")
                 if st(statement_id, "fixedtime")["numbers"]["exactly_zero"])
     v["fixedtime.zero_contrasts"] = f"{_NUMBER_WORDS[zeros]} contrasts are exactly `0.0000` at that tier"
@@ -2348,6 +2457,49 @@ STOP_RULE_ROUTE_EXPLANATION = (
     "Amendment B, B2.5)")
 
 
+#: The two filters Q5's descriptive reading compares: the global return filter and the per-intersection one.
+Q5_FILTERS: tuple[str, str] = ("bc_top10", "bc_top10_perix")
+
+
+def _tier_list(tiers: Sequence[str]) -> str:
+    """``a``, ``a and b``, ``a, b and c``; an empty list is "no tier"."""
+    if not tiers:
+        return "no tier"
+    return tiers[0] if len(tiers) == 1 else ", ".join(tiers[:-1]) + " and " + tiers[-1]
+
+
+def q5_descriptive_reading(audit: Mapping[str, Any], statements: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """Q5's descriptive reading under each definition (``BRIEF_45`` Amendment A, A3, corrected by Amendment D, D1.1):
+    the tiers where the global return filter collapses and the per-intersection one does not, and the tiers where both
+    collapse -- both sets read from the collapse audit's own rows (Q6's rule, applied descriptively), never listed by
+    hand.  The reading names only the first set for "collapses where the per-intersection one does not", and says of
+    the second that both filters are worse than the random anchor there.  Q5b's resolving tiers stay beside them:
+    Q5b resolving on a tier says the per-intersection filter is better than the global one there, not that it escapes
+    collapse."""
+    global_filter, per_intersection = Q5_FILTERS
+    out: dict[str, Any] = {}
+    for definition in DEFINITIONS:
+        collapsed = {(row["arm"], row["tier"]): row["verdict"] == "COLLAPSED" for row in audit["rows"]
+                     if row["definition"] == definition and row["arm"] in Q5_FILTERS and row["version"] == "both"}
+        tiers = [tier for tier in TIERS if (global_filter, tier) in collapsed and (per_intersection, tier) in collapsed]
+        resolves = [tier for tier, verdict in _find(statements, "Q5b.aggregate", None, definition,
+                                                     "as_committed")["numbers"]["tiers"].items() if verdict == "HELD"]
+        alone = [tier for tier in tiers if collapsed[(global_filter, tier)] and not collapsed[(per_intersection, tier)]]
+        both = [tier for tier in tiers if collapsed[(global_filter, tier)] and collapsed[(per_intersection, tier)]]
+        reading = (f"the global return filter ({global_filter}) collapses where the per-intersection one "
+                   f"({per_intersection}) does not on {_tier_list(alone)}")
+        if both:
+            reading += (f"; on {_tier_list(both)} both filters collapse: each is worse than the random anchor with the "
+                        "paired CI excluding 0")
+        out[definition] = {
+            "reading": reading, "tiers_global_filter_collapses_alone": alone, "tiers_both_filters_collapse": both,
+            "tiers_where_q5b_resolves": resolves,
+            "sets_from": ("descriptive_collapse_audit's rows under this definition (Q6's rule applied descriptively), "
+                          "computed, never listed by hand (BRIEF_45 Amendment D, D1.1)"),
+            "label": "descriptive, not a registered verdict (BRIEF_45 Amendment A, A3)"}
+    return out
+
+
 def comparison_with_the_record(statements: Sequence[Mapping[str, Any]], audit: Mapping[str, Any],
                                ties: Sequence[Mapping[str, Any]], inputs: Inputs, *,
                                record: Sequence[RecordRow] = RECORD) -> dict[str, Any]:
@@ -2357,6 +2509,7 @@ def comparison_with_the_record(statements: Sequence[Mapping[str, Any]], audit: M
     never-scored list."""
     books = make_books(inputs.cells)
     values = record_values(statements, audit, ties, books)
+    engine_values = record_values(statements, audit, ties, books, definition=PRIMARY_DEFINITION, version="corrected")
     literal = []
     for row in record:
         if row.value not in values:
@@ -2375,6 +2528,12 @@ def comparison_with_the_record(statements: Sequence[Mapping[str, Any]], audit: M
                         "value": row.value, "exception": None if equal else row.exception,
                         "explanation": None if equal else RECORD_EXCEPTIONS[row.exception],
                         "verified": None if equal else _verify_exception(row, statements)})
+        no_counterpart = _no_att_engine_counterpart(row.value)
+        if no_counterpart is None:
+            engine = engine_values[row.value]
+            literal[-1] |= {"att_engine": engine, "att_engine_equal": normalise(engine) == normalise(row.recorded)}
+        else:
+            literal[-1] |= {"att_engine": None, "att_engine_equal": None, "att_engine_note": no_counterpart}
 
     committed = inputs.records["p5_2b_artifact"]["statements"]
     compared = []
@@ -2426,10 +2585,13 @@ def comparison_with_the_record(statements: Sequence[Mapping[str, Any]], audit: M
 
     contrasts = {c["contrast_id"]: c for c in inputs.records["p8_4b_artifact"]["contrasts"]}
     p8 = []
-    for contrast_id, (left_id, right_id), statement_id, verdict_of in (
+    for contrast_id, (left_id, right_id), statement_id, verdict_of, reported_as, label in (
             ("V4", ("p5_1:dt_spatial@grid4x4_mappo1000", "p5_1:dt_nomix@grid4x4_mappo1000"), "Q0.d1",
-             sm._outcome_from_interval),
-            ("V5", H4_CELLS, "Q0a", ts.stop_rule_verdict)):
+             sm._outcome_from_interval, "Q0.d1",
+             "Q0.d1 is d1, which is P5.1's P2a; the outcome is P2a's (spatial_mixing._outcome_from_interval)"),
+            ("V5", H4_CELLS, "Q0a", ts.stop_rule_verdict, "Q0.stop_rule",
+             "the stop rule's d4, the d4 that Q0a also reads; the outcome is the stop rule's verdict "
+             "(tier_sweep.stop_rule_verdict)")):
         for definition in DEFINITIONS:
             recorded = contrasts[contrast_id]["by_definition"][definition]
             left, right = inputs.cells[left_id], inputs.cells[right_id]
@@ -2451,7 +2613,8 @@ def comparison_with_the_record(statements: Sequence[Mapping[str, Any]], audit: M
             for k in keys:
                 assert_within_ulps(mine[k], recorded[k], what=f"P8.4b's {contrast_id} under {definition}, {k}")
             equal = all(mine[k] == recorded[k] for k in keys)
-            p8.append({"contrast_id": contrast_id, "definition": definition, "statement": statement_id,
+            p8.append({"contrast_id": contrast_id, "definition": definition, "statement": reported_as,
+                       "statement_label": label,
                        "recorded": {**{k: recorded[k] for k in keys}, "n_paired": recorded["n_paired"],
                                     "outcome": recorded["outcome"]},
                        "this_artifact": {**{k: mine[k] for k in keys}, "n_paired": mine["n_draws"], "outcome": outcome},
@@ -2502,9 +2665,7 @@ def comparison_with_the_record(statements: Sequence[Mapping[str, Any]], audit: M
                 for d in DEFINITIONS}
     per_tier = {d: {s: _find(statements, f"{s}.aggregate", None, d, "as_committed")["numbers"]["tiers"] for s in pairs}
                 for d in DEFINITIONS}
-    descriptive = {d: {"reading": "the global return filter collapses where the per-intersection one does not",
-                       "tiers_where_q5b_resolves": [t for t, verdict in per_tier[d]["Q5b"].items() if verdict == "HELD"],
-                       "label": "descriptive, not a registered verdict (BRIEF_45 Amendment A, A3)"} for d in DEFINITIONS}
+    descriptive = q5_descriptive_reading(audit, statements)
     q5 = [{"record": {"source": _source(quote.file, quote.lines), "text": quote.text},
            "registered_verdicts": verdicts, "primary": verdicts[PRIMARY_DEFINITION], "per_tier": per_tier,
            "fixedtime_registered_beside_measured": fixedtime, "statement": Q5_STATEMENT,
@@ -2531,9 +2692,7 @@ def comparison_with_the_record(statements: Sequence[Mapping[str, Any]], audit: M
                                    "1.3)"),
                       "this_artifact": [{key: entry.get(key) for key in ("id", "tier", "arm", "definition", "version",
                                                                           "verdict", "reading")}
-                                        | {key: entry["numbers"].get(key) for key in ("mean_difference", "ci95_low",
-                                                                                     "ci95_high")}
-                                        for entry in entries]})
+                                        | summary_point(entry["numbers"]) for entry in entries]})
     return {
         "basis": ("the record scored P5.2's original cells under att_ours (P5.2's att_horizon), so every literal row "
                   "compares this artifact's as_committed att_ours value at the record's precision"),
@@ -2542,12 +2701,25 @@ def comparison_with_the_record(statements: Sequence[Mapping[str, Any]], audit: M
     }
 
 
+def summary_point(numbers: Mapping[str, Any]) -> dict[str, Any]:
+    """A statement's point estimate and CI ends for the summary blocks (``never_scored``, ``changes``): the numbers'
+    own ``mean_difference`` where they carry one; for Q3c, which keeps its value in its contrast, the contrast's --
+    refused unless Q3c's ``mean`` equals it; null for a statement with neither, an aggregate among them (``BRIEF_45``
+    Amendment D, D1.2)."""
+    source = numbers if "mean_difference" in numbers else numbers.get("contrast", {})
+    if "mean" in numbers and source is not numbers and numbers["mean"] != source.get("mean_difference"):
+        raise ValueError(f"Q3c's mean {numbers['mean']!r} and its contrast's {source.get('mean_difference')!r} differ: "
+                         "one value, so they must be equal")
+    return {key: source.get(key) for key in ("mean_difference", "ci95_low", "ci95_high")}
+
+
 def changes_block(statements: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
-    """Per statement and tier: as committed ``att_ours`` -> corrected ``att_ours`` -> corrected ``att_engine``."""
+    """Per statement and tier: as committed ``att_ours`` -> corrected ``att_ours`` -> corrected ``att_engine``, each
+    step with its point estimate (:func:`summary_point`).  ``changed_by_*`` compares (verdict, reading) pairs."""
     def summary(entry: Mapping[str, Any]) -> dict[str, Any]:
         numbers = entry["numbers"]
-        out = {"verdict": entry["verdict"], "reading": entry["reading"]}
-        for key in ("mean_difference", "ci95_low", "ci95_high", "n_concordant", "rank", "n_held"):
+        out = {"verdict": entry["verdict"], "reading": entry["reading"], **summary_point(numbers)}
+        for key in ("n_concordant", "rank", "n_held"):
             if key in numbers:
                 out[key] = numbers[key]
         return out
@@ -2632,7 +2804,23 @@ def definitions_block() -> dict[str, Any]:
                            "and p_value_note label the test: both are wilcoxon.n_used > 0, so where every per-draw "
                            "difference is exactly zero the signed-rank test is empty and its z = 0.0 and p_value = 1.0 "
                            "are dt_gate.wilcoxon_signed_rank's convention, not a result (BRIEF_45 Amendment B.2, "
-                           "B.2.3)")},
+                           "B.2.3); where 0 < n_used < 20 the defined note also says the normal approximation rests on "
+                           "fewer pairs than the n >= 20 its function's docstring states (Amendment D, D1.8)")},
+        "changes_flags": ("changes[*].changed_by_the_correction (as committed -> corrected, att_ours) and "
+                          "changed_by_rule_r (corrected att_ours -> corrected att_engine) are true iff the verdict or the "
+                          "reading differs between the two steps; they compare verdicts and readings, not values, so a "
+                          "value may move without either flag (BRIEF_45 Amendment D, D1.5)"),
+        "reverses_on_n_seeds": ("per_seed.reverses_on_n_seeds (P5.1's per_seed_advantages) is the size of the seed "
+                                "minority by sign, where only a negative value favours the left arm, so a seed whose "
+                                "value is exactly zero is counted with the seeds that do not favour it and the minority "
+                                "can be made of zero seeds; per_seed.reverses_against_pooled_sign counts the seeds whose "
+                                "sign opposes the pooled mean's and never an exactly-zero seed, and it -- with "
+                                "seed_reversal_qualifier, emitted from it -- is the field that qualifies a stated "
+                                "ordering (BRIEF_45 Amendment D, D1.5)"),
+        "aggregates": ("an aggregate statement (the *.aggregate entries) combines per-tier verdicts and has no point "
+                       "estimate, so its rows in comparison_with_the_record.never_scored and in changes carry null for "
+                       "mean_difference and the CI ends; so does every statement whose numbers hold no mean_difference "
+                       "and no contrast (BRIEF_45 Amendment D, D1.2 and D1.5)"),
         "d15": {"quotes": _quotes("D15"),
                 "carried": ("each cell's median and IQR per definition (numpy.percentile, method='linear') and A5's "
                             "horizon vehicle count, asserted equal to each evaluation record's own cell block")},
@@ -2650,8 +2838,8 @@ ROLE = (
 
 REGISTERED_IN = (
     "docs/briefs/BRIEF_45_p5.2c_statements.md, its Amendment A (gate G0; the plan docs/plans/p5.2c.md at 1267715), "
-    "its Amendment B (gate G1), its Amendment B.1 (gate G1.1) and its Amendment B.2 (gate G2); the author's ruling of "
-    "2026-10-08 (PROJECT_PLAN section 8)")
+    "its Amendment B (gate G1), its Amendment B.1 (gate G1.1), its Amendment B.2 (gate G2) and its Amendment D (gate "
+    "G5, round C8); the author's ruling of 2026-10-08 (PROJECT_PLAN section 8)")
 
 
 def build_artifact(inputs: Inputs, *, git: Mapping[str, Any], code: Sequence[Mapping[str, Any]],
@@ -2717,17 +2905,21 @@ def assert_out_path(path: str | Path, roots: Roots, inputs: Inputs) -> Path:
 
 def write_artifact(path: Path, data: bytes) -> Path:
     """Write *data* once: a dot-temporary in the same directory, then ``os.link`` onto *path* (refusing an existing
-    file); the temporary is removed whatever happens."""
+    file); the temporary is removed whatever happens -- but only if this call created it, so a file already at that
+    name survives the refusal (``BRIEF_45`` Amendment D, D1.9(a))."""
     target = Path(path)
     temporary = target.parent / f".{target.name}.{os.getpid()}.tmp"
+    created = False
     try:
         with open(temporary, "xb") as handle:
+            created = True
             handle.write(data)
             handle.flush()
             os.fsync(handle.fileno())
         os.link(temporary, target)
     finally:
-        temporary.unlink(missing_ok=True)
+        if created:
+            temporary.unlink(missing_ok=True)
     return target
 
 
