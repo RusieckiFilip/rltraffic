@@ -1,5 +1,41 @@
 # Patches a Claude Code session cannot apply itself
 
+## `ci_workflow_timeout_75.patch` — CI's per-leg job limit moves 40 → 75 minutes; no test hung, the test-hygiene guard is the slow step
+
+**Apply with:**
+```bash
+cd /home/filip/rltraffic && git apply docs/patches/ci_workflow_timeout_75.patch && git add .github/workflows/ci.yml && git commit -m "ci(timeout): suite-and-guards 40 -> 75 minutes, MEASURED -- the hygiene guard takes 11-20 min per leg (DEFERRED 113); run 38597089215's ubuntu-24.04 leg ran out with no test hung" && git push origin main
+```
+
+**Measured from the runs' own step timings, not from a summary.**
+- **The cancelled run:** on run `38597089215` (`ac6e5b1`) the ubuntu-24.04 leg was cancelled at the 40-minute limit.
+  - Its pinned suite step had **completed successfully**, in 20.5 minutes (16:21:42–16:42:10 UTC), against 7.0–12.7 on that
+    image's twelve complete runs before it.
+  - The gate and Guards 1–2 passed.
+  - The test-hygiene guard (Guard 3 of 3) started at 16:42:20 and was still running when the leg was cancelled.
+  - The ubuntu-22.04 leg passed in 29.0 minutes. libc-matrix failed only because it reads both legs' reports.
+  - **No test hung.**
+- **Over the twelve complete runs on `main` before it, both legs** (GitHub's jobs API, every step's start and end; of
+  the fourteen runs listed, one is this run and one was cancelled by a newer push partway through its suite):
+  - a leg took 19.7–35.2 minutes;
+  - the whole pinned suite took 7.0–12.9 of them;
+  - **the hygiene guard alone took 11.0–20.2**, and it grew from about 12 minutes in early October to 16–20 now.
+- **Why the guard is slow:** it runs eight `grep` pipelines per non-comment line of `tests/` (79,316 lines), so its time is
+  almost all process start-up, and it grows with the suite. P5.2c's 3,683 test lines added about a minute.
+  - Note: GitHub records ONE attempt of `38597089215`, so the patch rests on that attempt's timings.
+
+**The value.**
+- At the 1.75× slowdown measured on that runner, a full 24.04 leg takes about 56 minutes, so 60 would be marginal.
+- 75 keeps a margin above it and still ends a genuinely hung job (`DEFERRED` 41's deadlock is why the limit exists).
+- The workflow's comment records the measurement and says to return the limit to 40 once `DEFERRED` 113's single-pass guard
+  lands.
+- **That guard is the real fix:** one `grep` per rule per file instead of per line, proven equivalent by differential testing.
+
+**Verified before handing it over:**
+- **On a fresh clone of `main` with the patch applied:** the workflow parses (PyYAML from the system Python), and it is
+  identical to the current one apart from `timeout-minutes` (75); `tests/test_ci_gate.py` passes, 34 tests.
+- `git apply --check` is clean on `main`, and `scripts/check_english.sh` exits 0 on the patch.
+
 ## `ci_gate_ceiling_397_p5_2c.patch` — the skip ceiling moves 375 → 397 after P5.2c's merge; every new skip is one of P5.2c's 22 real-data tests
 
 **Apply with:**
