@@ -1,0 +1,5 @@
+never_scored rows: 42; comparisons: 358; differences: 4
+DIFF never_scored/Q3c/maxpressure/att_ours/None.mean_difference: statement=1.2993338829300667 block=None
+DIFF never_scored/Q3c/maxpressure/att_engine/None.mean_difference: statement=0.9059193785938612 block=None
+DIFF never_scored/Q3c/fixedtime/att_ours/None.mean_difference: statement=3.1669125952332116 block=None
+DIFF never_scored/Q3c/fixedtime/att_engine/None.mean_difference: statement=3.183537006649686 block=None

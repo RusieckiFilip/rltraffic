@@ -889,3 +889,225 @@ The implementer writes `docs/returns/P5.2c.md` per §8, from `docs/returns/TEMPL
 
 Commit it on the branch. Do not push. Then stop and say **"P5.2c G4 ready"**. G5, the merge review (two mandates and a
 depth-1 clone), follows.
+
+---
+
+# ⚠️ AMENDMENT D — 2026-10-14, gate G5: FIX FIRST (round C8) — one false sentence in the artifact (the coordinator's own), values missing from two summary blocks, a record row unscoped under Rule R, an untested block, and an AI record that misnames the model; no statement's number or verdict is wrong
+
+The review record is `docs/reviews/P5.2c.md`; the four findings files are filed verbatim in `docs/reviews/P5.2c/`.
+
+## D0 — What G5 found, verified by the coordinator by running it
+1. **The four mandates:**
+   - M1a: PASS-WITH-NOTES, 0 MAJOR.
+   - M1b: PASS-WITH-NOTES, 1 MAJOR.
+   - M2a: **FAIL**, 1 BLOCKER and 2 MAJOR.
+   - M2b: PASS-WITH-NOTES, 3 MAJOR.
+2. **The depth-1 clone at `1f17d35`: 3,363 passed, 171 skipped, 0 failed.** The three tmux header tests were refused by the
+   sandbox and then pass outside it.
+3. **Every BLOCKER and MAJOR was reproduced by the coordinator:**
+   - F5.1 from the raw eval files;
+   - F1.1 and F4.1 from the artifact;
+   - R1 and R2 SURVIVED his own re-run on a clean export with no artifact present;
+   - the 87-of-100 draws from the raw P8.4b rows;
+   - the seed qualifiers from the artifact;
+   - the model window from the implementer transcript's `model` and `timestamp` fields.
+4. **F5.1 is the coordinator's error.** Amendment A, A3 prescribed *"the global return filter collapses where the
+   per-intersection one does not"* for Q5b's resolving tiers, without checking the collapse rule at each of them. At
+   `random` both filters collapse (+89.98 and +40.82).
+5. **The coordinator's G3 recompute missed F1.1 and the `never_scored` nulls.** Its check of `changes` compared only the keys
+   present, and it never compared the record sub-blocks (`docs/reviews/P5.2c_G3.md` §7).
+6. **The author's ruling on `.claude/settings.json` (2026-10-14):** *"Do not revert it and do not commit it; treat the guard's
+   flag for that one file as known."* It stays modified in both trees. **Consequence: the rebuild runs in a separate clean
+   checkout (D5 step 3), because `build` refuses a dirty tree (`offline/tier_statements.py:2761`).**
+
+## D1 — The artifact (module changes; tests first, each expected answer by the test's own route)
+Every text item is prescribed by what it must be TRUE of, not as a literal. That is the lesson of B.1.2(1), and of F5.1,
+which is that lesson's sibling.
+
+1. **[BLOCKER F5.1] Q5's descriptive reading, by tier.** In every `comparison_with_the_record.q5` row and under each
+   definition:
+   - **Computed sets, by the audit's own rule:**
+     - the tiers where `bc_top10` is COLLAPSED and `bc_top10_perix` is NOT COLLAPSED;
+     - the tiers where both are COLLAPSED.
+
+     These sets are computed by the rule, never listed by hand.
+   - **The reading names only the first set** for *"the global filter collapses where the per-intersection one does not"*,
+     and says of the second set that both filters are worse than the random anchor there.
+   - `tiers_where_q5b_resolves` stays.
+   - **On the real data:**
+     - first set = {mappo1000, maxpressure};
+     - second set = {random}, under both definitions.
+   - **Tests:**
+     - a synthetic book in which both filters collapse on a tier where Q5b resolves: that tier is absent from the first set
+       and the reading;
+     - a gated real-data test of the two sets.
+   - **Mutant:** the first set taken from Q5b's resolving tiers (today's code). It must be KILLED.
+2. **[MAJOR F1.1 and the known `never_scored` defect] Point values in the summary blocks.** Every row of `never_scored`
+   and `changes` carries its statement's point estimate under `mean_difference`, and its CI ends, wherever the statement has
+   them:
+   - `numbers.mean_difference` for every kind that has it;
+   - for Q3c, `numbers.mean`, which equals `numbers.contrast.mean_difference`;
+   - for Q3c's `mappo1000` context row, `numbers.contrast`'s value and CI.
+
+   An aggregate has no point estimate. Its rows keep null, and `definitions` says why (D1.5).
+   - **Test:** the test's own walk over both blocks; every row equals its statement's point estimate found by the test's
+     own rule, and none is null where the statement has one.
+   - **Mutant:** the builders reading `numbers.mean_difference` only. It must be KILLED.
+3. **[MAJOR F4.1, MINOR F4.2] `literal_records` under the paper's primary definition.**
+   - **What every row carries:**
+     - `att_engine`: the same quantity as `this_artifact`, from the **corrected** version under **`att_engine`**, by the same
+       extractor and at the record's precision;
+     - `att_engine_equal`: whether it equals `recorded` at that precision.
+   - **A row whose quantity has no `att_engine` counterpart** (a fact about the record or the protocol, not a measurement)
+     carries `att_engine: null` and a note saying why.
+   - **On the real data:**
+     - `q3c.all_against`'s `att_engine` must say the sentence does not hold, because at maxpressure the difference does not
+       resolve (+0.9059 [−0.1617, +1.9735]);
+     - the two *"31.5 %"* rows carry 31.4 % (12.567618865354106 / 40.020992837476456 = 31.4026 %).
+   - **Tests:** those three rows by the test's own arithmetic; a synthetic row whose `att_engine` value differs from
+     `att_ours` at the record's precision.
+   - **Mutant:** the `att_engine` column read from `att_ours`. It must be KILLED.
+4. **[MINOR F5.2] `comparison_with_the_record.p8_4b`'s `statement` labels name what each outcome belongs to:**
+   - V4 is `Q0.d1`, which is P5.1's P2a, and the outcome is P2a's;
+   - V5 is the stop rule's d4 (the d4 that Q0a also reads), and the outcome is the stop rule's.
+5. **[MINOR F1.2, F1.3; NOTE F1.4] `definitions` gains three sentences:**
+   - `changed_by_rule_r` and `changed_by_the_correction` are true iff the verdict or the reading differs; a value may move
+     without either, as Q3c at random moves under the correction.
+   - In `reverses_on_n_seeds`, a seed whose value is exactly zero is counted as stated, and `reverses_against_pooled_sign`
+     (with the qualifier) is the field that qualifies a stated ordering.
+   - An aggregate statement has no point estimate, so its summary rows carry null.
+6. **[MINOR F2.1 — `BRIEF_45` §3.3 met only in `definitions`]** Every contrast block one of whose arms is a behaviour cell or
+   the random anchor says, in its `per_seed` note, that that arm's seed labels are evaluation labels, not training seeds.
+   - **Test:** the test's own walk finds every such block and checks its note.
+7. **[MINOR F3.1, F3.2, F4.3; NOTE F3.3, F3.4] Labels:**
+   - **Q2a** carries a note: the registered *"2 out-of-sample tiers"* predates `fixedtime`; `fixedtime`'s ordering and first
+     place were registered with the tier (`docs/plans/p5.2.md:595`, `:601`); so Q2a is reported on all three.
+   - **The audit's `rule`** stops saying *"verbatim"*. It is Q6's rule (`:699-701`, registered for a DT arm under
+     `att_horizon`), applied descriptively to every arm under both definitions.
+   - **Q4b's four-rung citation** includes line 673.
+   - **Q6 statements** carry `registered_expectation_met` (a bool) beside `registered_expectation`.
+   - **`what_this_does_not_say[0]`** covers every registered value of Q1–Q5, which are all `att_horizon`-era predictions, and
+     every `att_engine` statement that carries a registered value carries `predictions_registered_on`.
+8. **[MINOR F4.4] Small Wilcoxon samples.** Where 0 < `n_used` < 20, the `p_value_note` also states:
+   - `n_used`;
+   - that the normal approximation then rests on fewer pairs than the n ≥ 20 `dt_gate.wilcoxon_signed_rank` states for it
+     (`offline/dt_gate.py:399-402`).
+
+   B.2.3's facts are otherwise unchanged. The (z, p) pairs are unchanged, so the erfc guard stays at 487.
+   - **Tests:** a synthetic contrast with `n_used = 4` and one with `n_used ≥ 20`.
+   - **Mutant:** the condition removed. It must be KILLED.
+9. **[MINOR M5.1, M6.1 of M1a] Two barrier and provenance holes:**
+   - **(a)** `write_artifact` unlinks only a temporary file that this call created. A pre-existing temp file survives a
+     `FileExistsError`.
+   - **(b)** `build` and `check` refuse unless `git rev-parse --show-toplevel`, run as the provenance runs it, resolves to the
+     resolved `--repo-root`. This refuses M1a's construction: an untracked copy nested in another repository, whose git
+     block named the outer commit.
+   - **Tests and mutants:** one of each.
+
+## D2 — Tests only
+1. **[MAJOR M1b F4.1]** `changes_block`'s flags by the test's own route. Synthetic cases:
+   - a Rule R change in the reading only;
+   - a verdict change;
+   - a correction change;
+   - an unchanged statement.
+
+   The reviewer's R1 (`changed_by_rule_r` from the verdict only) must be KILLED.
+2. **[MINOR M1b F4.2]** All 21 `REGISTERED_VALUES` compared with the registered lines of `docs/plans/p5.2.md` (a history
+   file, read as T-quotes reads it). R2 (`62.7106` → `62.7016` on that table's line alone) must be KILLED.
+3. **[MINOR M1b M2.1]** T-first-time computes Q3c's best non-DT arm from its own levels, not from the artifact.
+4. **[NOTE M1b N1.1, N1.2]**
+   - The P8.4b comparison's key set is asserted: {V4, V5} × {att_ours, att_engine}.
+   - The version test runs in both directions.
+
+## D3 — The Return Packet
+1. **[MAJOR M4.1, MINOR M4.2] The AI-assistance record:**
+   - **The tool line names both models with their windows:**
+     - Opus 5.5 (`claude-opus-5-5`) until 2026-10-13 19:02Z and again from 2026-10-14 11:14Z;
+     - Opus 5 (`claude-opus-5`) from 2026-10-13 22:55Z to 2026-10-14 11:14Z, 88 responses.
+
+     Count responses, not transcript entries, and give the counts at the packet's own commit.
+   - **The authorship line names the model per change:** C6d, the guard commit and the `9fa93e9` artifact under Opus 5, and C8
+     under whatever ran it.
+   - **Every verifying party is labelled for what it is:** the coordinator is an AI session; R1/R2 and the G5 mandates are AI
+     subagents. **No verification in this task was run by a human.**
+2. **Open questions:**
+   - **OQ1:** the timeline as the transcript shows it (M2b's N3.2), and closed by the author's ruling of 2026-10-14 (D0.6).
+   - **OQ2:** closed by D1.2.
+3. **Disclosures:**
+   - `870e71a`'s edit to the evidence README's earlier record (M2b's N3.1);
+   - the sandboxed run's 13 extra skips, named from a `-rs` run, or stated as not determined;
+   - the run of record's tree state (untracked G4 files).
+4. **§7 "for the paper"** gains D4's rules.
+5. **`g4_tables.py`** renders every entry of `leader_minus_runner_up`, not only `[0]` (M1b's N5.1), and fixes N5.3's
+   wording. The tables are regenerated from the rebuilt artifact.
+
+## D4 — For the paper (the author's rules when writing, beside B.2.5 and C2; each verified by the coordinator)
+1. **Q3c at `maxpressure` under `att_engine`** is NOT RESOLVED on the mean (+0.91 [−0.16, +1.97]), **but the DT is worse on
+   87 of 100 draws** (median +2.74). A few draws where the DT is far better pull the mean toward zero.
+   - Write *"the mean difference's 95 % CI includes zero"*. Never write "no difference" or "indistinguishable".
+2. **Every verdict or quantity quoted carries its non-null `seed_reversal_qualifier`:**
+   - Q0b: seed 101;
+   - Q3c and the leaders at maxpressure, under `att_engine`: seed 303;
+   - Q4.d and Q4a at random: seed 202;
+   - Q5c at random, HELD: seeds 303 and 505;
+   - the collapse audit's IQL rows: at mappo1000, two seeds; at maxpressure, one.
+3. **The `fixedtime` exact zeros are identical episodes, not measured nulls.**
+   - `dt_spatial`, `dt_nomix` and `behaviour` are identical there, and so are `bc` and `bc_top10_perix`. The tier cannot
+     tell them apart.
+   - Write *"both DT models reproduce the fixed-time controller's episodes exactly"*, never *"no spatial penalty on
+     fixed-time data"*.
+4. **No Wilcoxon p-value with `n_used` < 20 is reported, anywhere in `docs/data`:**
+   - P5.2c's four (`n_used` = 5), and their rank-biserials (±0.73 from 5 non-zero draws);
+   - the three with `n_used` = 2: `p4_6_grid.json` and `p4_7_grid.json` at `behaviour_comparisons[15]`, and
+     `p5_3a_rtg_probe.json` at `tables.delta.fixedtime`.
+5. **A primary-metric verdict on a registered prediction** (Q1, Q1b, Q2, and every registered value of Q3–Q5) compares an
+   `att_horizon`-era prediction with an `att_engine` measurement. Say so where it is quoted.
+6. **`dt_spatial` was registered to collapse at `random`, and it did not.** It is NOT COLLAPSED: −5.76 [−6.25, −5.26]
+   against the anchor under `att_engine`.
+7. **The collapse sentence ("the DT arms are the only arms that never collapse") is a descriptive reading of P5.2, not a
+   registered statement.** Q5's descriptive reading holds at `mappo1000` and `maxpressure` only.
+8. **The README's P5.2 sentences stay true and are not changed at the merge.** These qualifiers are for the author to adopt
+   in the paper, or in the README at his discretion:
+   - BC's maxpressure lead: seed 303, and 87 of 100 draws;
+   - the random-tier spatial reversal: seed 202;
+   - the `fixedtime` zero: identical episodes.
+
+## D5 — The order
+1. **Merge main.** `git merge --no-edit main`. The author's modified `.claude/settings.json` does not conflict: `main` does
+   not touch it.
+2. **C8**, in commits of ≤ ~2 source files each:
+   1. **Tests first:** D1 and D2's tests, run on the current module, with the red run pasted (red where the module changes).
+   2. **The module changes** of D1.
+   3. **`mutate.py`** gains D1's and D2's mutants, R1 and R2 among them. Its run of record is on an export of the code commit,
+      with every mutant KILLED. Then the test file, `check_test_hygiene.sh`, `check_english.sh` and the frozen-file guard.
+
+      The guard's flag on `.claude/settings.json` is known (D0.6); every other path must be clean.
+3. **The rebuild, in a clean checkout.** The worktree holds the author's modified settings file, and `build` refuses a dirty
+   tree.
+   ```
+   git -C /home/filip/rltraffic-p52c worktree add --detach /tmp/claude-1000/p52c-build <C8's last commit>
+   git -C /tmp/claude-1000/p52c-build status --porcelain --untracked-files=no      # must print nothing
+   cd /tmp && PYTHONPATH=/tmp/claude-1000/p52c-build /home/filip/rltraffic/.venv/bin/python -P -m offline.tier_statements build --repo-root /tmp/claude-1000/p52c-build --output-root /home/filip/rltraffic/output --out docs/data/p5_2_statements.rebuilt.json
+   git -C /tmp/claude-1000/p52c-build status --porcelain --untracked-files=no      # must print nothing
+   ```
+   - The out name is new and untracked, so the clean tree stays clean, and the barrier's refusal of an existing path holds.
+   - Then copy the file over `docs/data/p5_2_statements.json` in the worktree and confirm both sha256 are equal.
+   - Remove the rebuilt file from the build checkout, and `git worktree remove` it (no `--force`).
+4. **The artifact commit:** `docs/data/p5_2_statements.json` alone, by hand. Its message gives the commit it records (C8's
+   last), its sha256 and its byte count.
+5. **At the artifact commit:**
+   - the whole suite with `RLTRAFFIC_OUTPUT_ROOT`, 0 failed. If the three tmux tests are refused by the sandbox ("Operation
+     not permitted"), re-run them outside it and paste both runs.
+   - `check`, exit 0;
+   - the erfc guard at 487;
+   - T-regress.
+6. **The packet revised (D3)** and the tables regenerated; committed.
+7. **Do not push.** Stop and say **"P5.2c G5-fix ready"**.
+
+**Then the coordinator verifies:**
+- `g3_recompute.py`, `g3b_coverage.py` and `g3_falsify.py` on the rebuilt artifact, extended to every new field and to
+  `changes` on the key-set rule (`docs/reviews/P5.2c_G3.md` §7);
+- his mutant harness on C8's code;
+- a read of the full diff.
+
+A further review mandate runs only if the diff warrants it.
