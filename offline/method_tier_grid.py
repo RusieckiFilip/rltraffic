@@ -2572,6 +2572,96 @@ def _component_streams(
     return out
 
 
+@dataclass
+class TrainingInputs:
+    """Everything one tier's training reads, built once by :func:`training_inputs` -- for ``_run_train`` and for P9.1's
+    campaign alike, so the two cannot drift (``BRIEF_46`` 0: reuse, never copy)."""
+
+    spec: TierSpec
+    dataset: TrajectoryWindowDataset
+    stacked: dict[str, torch.Tensor]
+    group: tuple[int, int]
+    scenario_id: str
+    selected: tuple[StreamReturn, ...]
+    declared: dict[str, Any]
+    kept: tuple[StreamReturn, ...]
+    scale: float
+    digest: str
+    provenance: dict[str, Any]
+    full_batch: dict[str, torch.Tensor]
+    top_batch: dict[str, torch.Tensor]
+    _table: TransitionTable | None = None
+
+    def table(self) -> TransitionTable:
+        """IQL's transition table on the training set's streams only, built on first use (as ``_run_train`` always
+        built it: ``build_transitions`` over the tier, then ``filter_transitions_to_streams``)."""
+        if self._table is None:
+            full = build_transitions(self.dataset, group=self.group, reward_scale=self.scale)
+            self._table = filter_transitions_to_streams(
+                full, transition_stream_keys(self.dataset, self.group), self.selected
+            )
+            print(f"transitions {len(self._table)} of {len(full)}", flush=True)
+        return self._table
+
+
+def training_inputs(spec: TierSpec, corpus_root: str | Path) -> TrainingInputs:
+    """The inputs of one tier's training, in the order ``_run_train`` always built them.
+
+    The tier's training-split dataset; the size-matched selection (a mixture's from its components' own declared
+    training sets); A27's two registered checks on A27's tiers (``BRIEF_46`` 3.2: the overlap mixture must BE A27(e)'s
+    design, ``random_fresh`` must hold one distinct schedule per episode); the declaration re-derived over the
+    selection (``BRIEF_17`` 11, A4); the top decile; IQL's reward scale; the statistics digest; the provenance every
+    checkpoint carries; and the two windowed batches.  Extracted from ``_run_train`` without a change of order or
+    content, so ``_run_train`` and the campaign hand every trainer the same tensors.
+    """
+    from offline.a27_arms import MIXTURE_DESIGN_FACTS, assert_distinct_schedules, assert_mixture_design_facts
+
+    dataset = tier_dataset(spec, corpus_root)
+    stacked = stack_dataset(dataset)
+    group = next(iter(dataset.groups))
+    scenario_id = dataset.episode_records[0].scenario_id
+    components = (
+        _component_streams(spec, corpus_root, context_length=CONTEXT_LENGTH)
+        if spec.subsample == "mixture"
+        else None
+    )
+    selected = training_streams(spec, dataset, component_streams=components)
+    if spec.tier == MIXTURE_DESIGN_FACTS["tier"]:
+        assert_mixture_design_facts(selected, top_decile_streams(selected))
+    if spec.tier == "random_fresh":
+        assert_distinct_schedules(tier_dirs(spec, corpus_root)[0], expected=int(spec.stream_count))
+    # The prompt, the RTG scale and IQL's reward scale are all computed over the TRAINING SET, so
+    # the declaration is checked after the selection and never before it (BRIEF_17 section 11, A4).
+    declared = assert_declaration_matches_corpus(spec, selected)
+    kept = top_decile_streams(selected)
+    scale = iql_reward_scale([s.total_return for s in selected])
+    digest = statistics_digest(dataset)
+    provenance = {
+        "tier": spec.tier,
+        "dataset_dirs": [str(d) for d in tier_dirs(spec, corpus_root)],
+        "training_draw_ids": list(dataset.stats.draw_ids),
+        "scenario_id": scenario_id,
+        "statistics_digest": digest,
+        "subsample": spec.subsample,
+        "training_streams": len(selected),
+    }
+    return TrainingInputs(
+        spec=spec,
+        dataset=dataset,
+        stacked=stacked,
+        group=group,
+        scenario_id=scenario_id,
+        selected=tuple(selected),
+        declared=declared,
+        kept=tuple(kept),
+        scale=scale,
+        digest=digest,
+        provenance=provenance,
+        full_batch=filter_stacked_to_streams(dataset, stacked, selected),
+        top_batch=filter_stacked_to_streams(dataset, stacked, kept),
+    )
+
+
 def _assert_a27_run(
     spec: TierSpec,
     recipes: Mapping[str, Any],
@@ -2637,47 +2727,15 @@ def _run_train(args: argparse.Namespace, out_dir: Path) -> int:
     if a27_run:
         _assert_a27_run(spec, recipes, planned, Path(args.checkpoint_dir), _artifact_prefix(args))
 
-    dataset = tier_dataset(spec, args.corpus_root)
-    stacked = stack_dataset(dataset)
-    group = next(iter(dataset.groups))
-    scenario_id = dataset.episode_records[0].scenario_id
-    components = (
-        _component_streams(spec, args.corpus_root, context_length=CONTEXT_LENGTH)
-        if spec.subsample == "mixture"
-        else None
-    )
-    selected = training_streams(spec, dataset, component_streams=components)
-    # A27 (BRIEF_46 3.2): the overlap mixture trains only if its realised selection IS A27(e)'s design, and
-    # random_fresh only if it holds one distinct schedule per episode on its intersection (A27(d)) -- both registered
-    # checks, run before the prompt check and before any gradient step.
-    from offline.a27_arms import MIXTURE_DESIGN_FACTS, assert_distinct_schedules, assert_mixture_design_facts
-
-    if spec.tier == MIXTURE_DESIGN_FACTS["tier"]:
-        assert_mixture_design_facts(selected, top_decile_streams(selected))
-    if spec.tier == "random_fresh":
-        assert_distinct_schedules(tier_dirs(spec, args.corpus_root)[0], expected=int(spec.stream_count))
-    # The prompt, the RTG scale and IQL's reward scale are all computed over the TRAINING SET, so
-    # the declaration is checked after the selection and never before it (BRIEF_17 section 11, A4).
-    declared = assert_declaration_matches_corpus(spec, selected)
-    kept = top_decile_streams(selected)
-    scale = iql_reward_scale([s.total_return for s in selected])
-    digest = statistics_digest(dataset)
+    inputs = training_inputs(spec, args.corpus_root)
+    dataset, group, scenario_id = inputs.dataset, inputs.group, inputs.scenario_id
+    selected, declared, kept, scale = inputs.selected, inputs.declared, inputs.kept, inputs.scale
+    digest, provenance = inputs.digest, inputs.provenance
+    full_batch, top_batch = inputs.full_batch, inputs.top_batch
 
     device = torch.device(args.device) if args.device else Utils.resolve_device(None)
     checkpoints = Path(args.checkpoint_dir)
     checkpoints.mkdir(parents=True, exist_ok=True)
-    provenance = {
-        "tier": spec.tier,
-        "dataset_dirs": [str(d) for d in tier_dirs(spec, args.corpus_root)],
-        "training_draw_ids": list(dataset.stats.draw_ids),
-        "scenario_id": scenario_id,
-        "statistics_digest": digest,
-        "subsample": spec.subsample,
-        "training_streams": len(selected),
-    }
-
-    full_batch = filter_stacked_to_streams(dataset, stacked, selected)
-    top_batch = filter_stacked_to_streams(dataset, stacked, kept)
     print(
         f"tier {spec.tier}: split streams {len(stream_returns(dataset))}  training streams "
         f"{len(selected)}  windows {int(full_batch['state'].shape[0])}  top decile {len(kept)} "
@@ -2687,7 +2745,6 @@ def _run_train(args: argparse.Namespace, out_dir: Path) -> int:
         flush=True,
     )
 
-    table: TransitionTable | None = None
     runs: list[dict[str, Any]] = []
     for method in methods:
         recipe = recipes[method]
@@ -2701,14 +2758,8 @@ def _run_train(args: argparse.Namespace, out_dir: Path) -> int:
         for seed, path in zip(TRAINING_SEEDS, planned[method]):
             started = time.time()
             if method == "iql":
-                if table is None:
-                    full = build_transitions(dataset, group=group, reward_scale=scale)
-                    table = filter_transitions_to_streams(
-                        full, transition_stream_keys(dataset, group), selected
-                    )
-                    print(f"transitions {len(table)} of {len(full)}", flush=True)
                 record = train_iql(
-                    table,
+                    inputs.table(),
                     state_dim=group[0],
                     n_actions=group[1],
                     seed=seed,
