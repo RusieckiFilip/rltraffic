@@ -1,8 +1,8 @@
 """P9.3 (A27 point 8): hangzhou_4x4_gudang -- draws, pre-flight, fixed-time sweep, corpus, A11 gate, declaration.
 
-⚠️ PARTIAL.  The draws, the pre-flight and the CLI are implemented; the sweep, the collector, the
-teachers' report, the gate and the declaration still raise :class:`NotImplementedError` (their tests were
-written first, against this surface).
+Phase A, complete: draws, pre-flight, the fixed-time sweep, the corpus (plan / run / verify), the teachers'
+report, A11's gate and the declaration.  Two refusals are deliberate and wait on P9.1's code merge (M1):
+the ``random_fresh`` tier needs the collector's ``--random-rng`` and its gate cell A27 (d)'s reference.
 
 Artifact format versions: ``p9.3-preflight/1.0``, ``p9.3-fixed-time-sweep/1.0``, ``p9.3-teachers/1.0``,
 ``p9.3-engine-att-gate/1.0``, ``p9.3-declaration/1.0``.
@@ -111,6 +111,7 @@ __all__ = [
     "sweep_episode",
     "teachers_report",
     "tier_row_counts",
+    "verify_run",
 ]
 
 # ----------------------------------------------------------------------
@@ -724,37 +725,223 @@ def project_teachers(
 
 
 def assert_training_draws(draw_ids: Sequence[int]) -> None:
-    """Refuse any draw id outside the training pool 1-999 (D4)."""
-    raise NotImplementedError
+    """Refuse any draw id outside the training pool 1-999 (D4).
+
+    Draw 0 is the nominal control and 1000-1099 the held-out pool: neither may tune a baseline or enter a
+    training corpus, for any method (``PREREGISTRATION`` section 5, D4; ``recollect_v11``'s draw-pool rule).
+    """
+    outside = sorted({int(d) for d in draw_ids if not TRAINING_DRAW_MIN <= int(d) <= TRAINING_DRAW_MAX})
+    if outside:
+        raise ValueError(
+            f"draw ids {outside} lie outside the training pool {TRAINING_DRAW_MIN}-{TRAINING_DRAW_MAX} (D4): "
+            "draw 0 is the nominal control and 1000-1099 the held-out pool, and neither may tune or train anything"
+        )
 
 
 def fixedtime_factory_for_k(
     config_path: str | Path, k: int
 ) -> tuple[Callable[[Any], Callable[[Any, dict[str, Any]], Any]], dict[str, Any]]:
-    """The collector's fixed-time policy at *k* on one draw's config, with its schedule provenance."""
-    raise NotImplementedError
+    """The collector's fixed-time policy at *k* on one draw's config, with its schedule provenance.
+
+    ``offline.policies.fixed_time.make_fixedtime`` with the ``SimpleNamespace`` the evaluation route builds
+    (``method_tier_grid._fixedtime_factory``), so the swept policy is the policy ``offline.collect`` would
+    collect with at that k.  hz4x4 ships no ``signal_plan_template.txt``, so the schedule must resolve to the
+    equal split; anything else means the config points at a different scenario directory, and is refused.
+    """
+    from types import SimpleNamespace
+
+    import numpy as np
+
+    from offline.policies.fixed_time import make_fixedtime, resolve_plan
+
+    if int(k) not in K_GRID:
+        raise ValueError(f"k = {k} is not in the declared grid {list(K_GRID)}")
+    args = SimpleNamespace(env_config=str(config_path), fixed_time_k=int(k), policy="fixedtime")
+    resolution = resolve_plan(args)
+    if resolution.source != "equal_split":
+        raise ValueError(
+            f"the fixed-time schedule on {config_path} resolves to {resolution.source!r}; hz4x4 ships no "
+            "signal_plan_template.txt, so anything but the equal split is a different scenario directory"
+        )
+
+    def factory(env: Any) -> Callable[[Any, dict[str, Any]], Any]:
+        policy = make_fixedtime(env, args, np.random.default_rng(0))
+        return lambda _env, info: policy(info)
+
+    return factory, {
+        "fixed_time_k": int(k),
+        "schedule_source": resolution.source,
+        "plan_sha256": resolution.sha256,
+    }
 
 
 def sweep_episode(
     k: int, draw_id: int, *, config_path: str | Path, env_settings: Mapping[str, Any]
 ) -> dict[str, Any]:
-    """One sweep episode through ``admission_probe.probe_episode``: A11(b)'s five quantities and the seconds."""
-    raise NotImplementedError
+    """One sweep episode through ``admission_probe.probe_episode``: A11(b)'s five quantities and the seconds.
+
+    ``probe_episode`` is the P8.4a route -- ``horizon_rollout`` for ``att_ours`` (``att_horizon``, A1) and
+    ``Engine::getAverageTravelTime`` read before the env closes for ``att_engine`` -- with ``created``
+    counted from the draw's own ``flow.json`` (``created_from_flow``), so every episode carries
+    ``att_ours``, ``att_engine``, ``entered``, ``created`` and ``never_entered`` unconditionally.  Engine
+    seed ``BASE_SEED``: episode 0 of every collected draw runs at 1000.
+    """
+    from offline.admission_probe import created_from_flow, probe_episode
+
+    assert_training_draws([draw_id])
+    factory, provenance = fixedtime_factory_for_k(config_path, k)
+    horizon = int(env_settings["max_steps"]) * int(env_settings["delta_time"])
+    created = created_from_flow(Path(config_path).parent / "flow.json", horizon_seconds=horizon)
+    arm = f"fixedtime_k{int(k)}"
+    episode = probe_episode(
+        scenario=SCENARIO,
+        tier="fixedtime",
+        method=arm,
+        arm=arm,
+        seed=None,
+        draw_id=int(draw_id),
+        config_path=config_path,
+        env_settings=env_settings,
+        scenario_id=SCENARIO_ID,
+        choose_action_factory=factory,
+        engine_seed=BASE_SEED,
+        created=created,
+    )
+    return {
+        "k": int(k),
+        "draw_id": int(draw_id),
+        "engine_seed": BASE_SEED,
+        "att_ours": float(episode.att_ours),
+        "att_engine": float(episode.att_engine),
+        "created": int(episode.created),
+        "entered": int(episode.entered),
+        "never_entered": int(episode.never_entered),
+        "entered_fraction": float(episode.entered_fraction),
+        "completed_at_horizon": int(episode.completed_at_horizon),
+        "running_at_horizon": int(episode.running_at_horizon),
+        "waiting_at_horizon": int(episode.waiting_at_horizon),
+        "seconds": float(episode.seconds),
+        "seconds_rollout": float(episode.seconds_rollout),
+        "schedule_source": provenance["schedule_source"],
+        "plan_sha256": provenance["plan_sha256"],
+    }
 
 
 def summarise_sweep(records: Sequence[Mapping[str, Any]]) -> dict[int, dict[str, Any]]:
-    """Per k: the mean over its draws of ``att_engine`` and of ``att_ours``, with the draw ids."""
-    raise NotImplementedError
+    """Per k: the mean over its draws of ``att_engine`` and of ``att_ours``, with the draw ids.
+
+    D5's objective is the mean over the five tuning draws; both definitions are carried because Rule R
+    has not run on hz4x4 when k is chosen (``docs/plans/p9.3.md`` Q2).  Every (k, draw) must appear
+    exactly once, every k of the declared grid must cover exactly the declared draws, and every value
+    must be finite -- a mean over a ragged or malformed record set is refused rather than reported.
+    """
+    import numpy as np
+
+    by_k: dict[int, dict[int, Mapping[str, Any]]] = {}
+    for record in records:
+        k = int(record["k"])
+        draw_id = int(record["draw_id"])
+        assert_training_draws([draw_id])
+        if k not in K_GRID:
+            raise ValueError(f"k = {k} is not in the declared grid {list(K_GRID)}")
+        for key in ("att_engine", "att_ours"):
+            value = float(record[key])
+            if not math.isfinite(value):
+                raise ValueError(f"k = {k}, draw {draw_id}: {key} is {value!r}, not a finite travel time")
+        slot = by_k.setdefault(k, {})
+        if draw_id in slot:
+            raise ValueError(f"k = {k}, draw {draw_id} appears twice")
+        slot[draw_id] = record
+    missing = [k for k in K_GRID if k not in by_k]
+    if missing:
+        raise ValueError(f"no records for k = {missing}; the sweep covers {list(K_GRID)}")
+    summary: dict[int, dict[str, Any]] = {}
+    for k in K_GRID:
+        draws = sorted(by_k[k])
+        if draws != list(K_SWEEP_DRAWS):
+            raise ValueError(f"k = {k} covers draws {draws}, not the declared {list(K_SWEEP_DRAWS)}")
+        engine = np.asarray([float(by_k[k][d]["att_engine"]) for d in draws], dtype=np.float64)
+        ours = np.asarray([float(by_k[k][d]["att_ours"]) for d in draws], dtype=np.float64)
+        summary[k] = {
+            "n": len(draws),
+            "draw_ids": draws,
+            "mean_att_engine": float(engine.mean()),
+            "mean_att_ours": float(ours.mean()),
+        }
+    return summary
 
 
 def choose_k(summary: Mapping[int, Mapping[str, Any]]) -> dict[str, Any]:
-    """The declared choice rule: both argmins agree and are interior or at the floor, else no k."""
-    raise NotImplementedError
+    """The declared choice rule: both argmins agree and are interior or at the floor, else no k.
+
+    ``docs/plans/p9.3.md`` section 4.3, declared before the sweep ran.  Statuses: ``CHOSEN`` (the two
+    definitions' argmins are the same k and it is not the grid's upper edge; ``at_platform_floor`` flags
+    k = 1, D5's limitation 2), ``DEFINITION-DEPENDENT`` (they differ -- Q2), ``TIE`` (an exact tie at the
+    minimum under either definition -- no tie-break is invented), ``BOUNDARY_UPPER`` (both at k = 14, where
+    D5 extended its sweep and this task does not -- Q3).  Anything but ``CHOSEN`` leaves ``chosen_k`` null
+    and the collector refuses the fixed-time tier until the coordinator rules.
+    """
+    missing = [k for k in K_GRID if k not in summary]
+    if missing:
+        raise ValueError(f"the summary has no k = {missing}; the declared grid is {list(K_GRID)}")
+
+    def minimisers(key: str) -> list[int]:
+        values = {k: float(summary[k][key]) for k in K_GRID}
+        best = min(values.values())
+        return [k for k in K_GRID if values[k] == best]
+
+    engine = minimisers("mean_att_engine")
+    ours = minimisers("mean_att_ours")
+    decision: dict[str, Any] = {
+        "k_att_engine": engine[0] if len(engine) == 1 else None,
+        "k_att_ours": ours[0] if len(ours) == 1 else None,
+        "tied_at_minimum_att_engine": engine if len(engine) > 1 else [],
+        "tied_at_minimum_att_ours": ours if len(ours) > 1 else [],
+        "chosen_k": None,
+        "at_platform_floor": False,
+        "rule": (
+            "docs/plans/p9.3.md section 4.3: chosen iff the argmin of the mean att_engine and the argmin of the "
+            "mean att_ours over draws 1-5 are the same k and that k is not the grid's upper edge (14); a "
+            "disagreement, an exact tie or the upper edge leaves no k and stops collection for a ruling"
+        ),
+    }
+    if len(engine) > 1 or len(ours) > 1:
+        decision["status"] = "TIE"
+    elif engine[0] != ours[0]:
+        decision["status"] = "DEFINITION-DEPENDENT"
+    elif engine[0] == max(K_GRID):
+        decision["status"] = "BOUNDARY_UPPER"
+    else:
+        decision["status"] = "CHOSEN"
+        decision["chosen_k"] = int(engine[0])
+        decision["at_platform_floor"] = engine[0] == min(K_GRID)
+    return decision
 
 
 def chosen_k_from_artifact(path: str | Path) -> int:
-    """The k a committed sweep artifact chose, refused unless its status is ``CHOSEN``."""
-    raise NotImplementedError
+    """The k a committed sweep artifact chose, refused unless its status is ``CHOSEN``.
+
+    The collector reads the tuned k from here and from nowhere else -- never from a flag -- so the k that
+    collects the tier is the k D5's protocol recorded before collection.
+    """
+    import json
+
+    payload = json.loads(Path(path).read_bytes())
+    if payload.get("format_version") != ARTIFACT_FORMAT_SWEEP:
+        raise ValueError(
+            f"{path}: format {payload.get('format_version')!r} is not this task's sweep format {ARTIFACT_FORMAT_SWEEP!r}"
+        )
+    decision = payload.get("decision") or {}
+    status = decision.get("status")
+    if status != "CHOSEN":
+        raise ValueError(
+            f"{path}: the sweep's status is {status!r}, so no fixed-time k may be collected with until the "
+            "coordinator rules (docs/plans/p9.3.md Q2/Q3)"
+        )
+    k = decision.get("chosen_k")
+    if k not in K_GRID:
+        raise ValueError(f"{path}: chosen_k {k!r} is not in the declared grid {list(K_GRID)}")
+    return int(k)
 
 
 # ----------------------------------------------------------------------
@@ -763,8 +950,40 @@ def chosen_k_from_artifact(path: str | Path) -> int:
 
 
 def grid_protocol(corpus_root: str | Path, tier: str) -> list[dict[str, Any]]:
-    """The run metadata of every grid directory of *tier*, its invariants checked."""
-    raise NotImplementedError
+    """The run metadata of every grid directory of *tier*, its invariants checked.
+
+    The grid's committed manifests ARE the protocol (``BRIEF_48`` section 0).  Before anything is derived
+    from them, ``offline.recollect_v11.INVARIANTS`` -- the settings this project wrote down for the
+    v1.1 campaign -- are asserted on each, and every draw id must lie in the training pool: deriving from a
+    manifest inherits whatever is wrong in it, and these are the wrongs that were ever recorded.
+    """
+    import json
+
+    from offline.recollect_v11 import INVARIANTS
+
+    if tier not in GRID_PROTOCOL_DIRS:
+        raise ValueError(
+            f"{tier!r} has no grid protocol directory; the grid tiers that are the protocol are "
+            f"{sorted(GRID_PROTOCOL_DIRS)} (random_fresh's generator is A27 (d)'s, not a grid manifest's)"
+        )
+    metadata: list[dict[str, Any]] = []
+    for name in GRID_PROTOCOL_DIRS[tier]:
+        manifest = Path(corpus_root) / name / "manifest.json"
+        meta = json.loads(manifest.read_bytes())["run_metadata"]
+        for key, expected in INVARIANTS.items():
+            if meta.get(key) != expected:
+                raise ValueError(
+                    f"{manifest}: run_metadata[{key!r}] is {meta.get(key)!r}, expected {expected!r}; the protocol "
+                    "manifest does not match the settings the v1.1 campaign is declared to have used"
+                )
+        ids = [int(d) for d in (meta.get("flow_draw_ids") or []) if d is not None]
+        if not ids:
+            raise ValueError(f"{manifest}: a nominal run with no flow draws is not the randomised-draw protocol")
+        outside = sorted({d for d in ids if not TRAINING_DRAW_MIN <= d <= TRAINING_DRAW_MAX})
+        if outside:
+            raise ValueError(f"{manifest}: draw ids {outside} lie outside the training pool (D4)")
+        metadata.append(meta)
+    return metadata
 
 
 def protocol_argv(
@@ -779,13 +998,62 @@ def protocol_argv(
     fixed_time_k: int | None = None,
     extra: Sequence[str] = (),
 ) -> tuple[str, ...]:
-    """``offline.collect`` arguments carrying every setting of a protocol manifest, in ``recollect_v11``'s form."""
-    raise NotImplementedError
+    """``offline.collect`` arguments carrying every setting of a protocol manifest, in ``recollect_v11``'s form.
+
+    Every env and reward setting, the base seed and the three randomiser parameters come from
+    *run_metadata*; the caller supplies only what differs by scenario and tier (the config, the out-dir,
+    the policy and its episodes, the draws, the checkpoint, the fixed-time k, and *extra* flags).  The
+    randomiser parameters are passed explicitly although they equal the collector's defaults, so the
+    command reproduces the manifest even if a default ever moved.  Contiguous draws use the half-open
+    range flag, anything else is listed, as ``recollect_v11._draw_flags`` does.
+    """
+    ids = [int(d) for d in draw_ids]
+    if not ids:
+        raise ValueError("no draw ids: a randomised-draw collection names its draws")
+    if len(set(ids)) != len(ids):
+        raise ValueError(f"repeated draw ids in {ids}; each draw is deterministic and is collected once")
+    assert_training_draws(ids)
+    params = run_metadata["flow_randomizer_params"]
+    argv: list[str] = [
+        "--backend", str(run_metadata["backend"]),
+        "--env-config", str(env_config),
+        "--policy", str(policy),
+        "--episodes", str(int(episodes)),
+        "--base-seed", str(int(run_metadata["base_seed"])),
+        "--max-steps", str(int(run_metadata["max_steps"])),
+        "--delta-time", str(int(run_metadata["delta_time"])),
+        "--control-mode", str(run_metadata["control_mode"]),
+        "--global-reward-fn", str(run_metadata["global_reward_fn"]),
+        "--local-reward-fn", str(run_metadata["local_reward_fn"]),
+        "--global-reward-weight", str(float(run_metadata["global_reward_weight"])),
+        "--state-features", *[str(feature) for feature in run_metadata["state_features"]],
+        "--flow-jitter-sigma", str(float(params["jitter_sigma_s"])),
+        "--flow-thin-p", str(float(params["thin_p"])),
+        "--flow-volume-scale", str(float(params["volume_scale"])),
+        "--out-dir", str(out_dir),
+    ]
+    if checkpoint is not None:
+        argv += ["--checkpoint", str(checkpoint)]
+    if fixed_time_k is not None:
+        argv += ["--fixed-time-k", str(int(fixed_time_k))]
+    argv += [str(token) for token in extra]
+    if ids == list(range(ids[0], ids[0] + len(ids))):
+        argv += ["--flow-draws-range", str(ids[0]), str(ids[0] + len(ids))]
+    else:
+        argv += ["--flow-draws", *[str(d) for d in ids]]
+    return tuple(argv)
 
 
 def collector_supports_random_rng(parser: argparse.ArgumentParser | None = None) -> bool:
-    """Whether ``offline.collect``'s parser accepts ``--random-rng`` (P9.1's M1)."""
-    raise NotImplementedError
+    """Whether ``offline.collect``'s parser accepts ``--random-rng`` (P9.1's M1).
+
+    Read from the parser the collector actually builds, never assumed from a merge having happened.
+    """
+    if parser is None:
+        from offline.collect import build_parser as collect_parser
+
+        parser = collect_parser()
+    return any("--random-rng" in action.option_strings for action in parser._actions)
 
 
 def derive_runs(
@@ -797,18 +1065,113 @@ def derive_runs(
     out_root: str | Path,
     random_rng_supported: bool,
 ) -> list[CollectionRun]:
-    """Every hz4x4 collection run of *tiers*, derived from the grid's manifests with the declared substitutions."""
-    raise NotImplementedError
+    """Every hz4x4 collection run of *tiers*, derived from the grid's manifests with the declared substitutions.
+
+    The substitutions, and nothing else (``docs/plans/p9.3.md`` section 4.4): the env config, the out-dir
+    ``<out_root>/cf_hz4x4__<tier>[__seed<N>]``, the teacher checkpoint
+    ``output/checkpoints/p9_3_mappo_nominal_1000/cf_hz4x4__mappo__seed<N>.pt`` (relative to the main tree, as
+    the grid's are), and the fixed-time k the committed sweep chose.  ``random_fresh`` is A27 (d)'s tier --
+    policy ``random``, ONE episode per draw on draws 1-200, ``--random-rng per-episode`` -- with the env
+    settings of the grid's protocol, and is refused while the collector has no ``--random-rng`` (A27 (i):
+    collected only with P9.1's fixed collector).  Runs come out in :data:`TIER_ORDER`, collection order.
+    """
+    import re
+
+    names = [str(tier) for tier in tiers]
+    unknown = [tier for tier in names if tier not in TIER_ORDER]
+    if unknown:
+        raise ValueError(f"unknown tier(s) {unknown}; hz4x4's tiers are {list(TIER_ORDER)}")
+    if len(set(names)) != len(names):
+        raise ValueError(f"a tier is named twice in {names}")
+    root = Path(out_root)
+    runs: list[CollectionRun] = []
+    for tier in TIER_ORDER:
+        if tier not in names:
+            continue
+        if tier == "random_fresh":
+            if not random_rng_supported:
+                raise ValueError(
+                    "random_fresh is collected only with P9.1's fixed collector (A27 (d), (i)): offline.collect's "
+                    "parser has no --random-rng yet; merge main after P9.1's M1"
+                )
+            meta = grid_protocol(corpus_root, "maxpressure")[0]
+            name = f"{CORPUS_PREFIX}__random_fresh"
+            ids = list(range(1, 201))
+            argv = protocol_argv(meta, env_config=env_config, out_dir=root / name, policy="random", episodes=1,
+                                 draw_ids=ids, extra=("--random-rng", "per-episode"))
+            runs.append(CollectionRun(name=name, tier=tier, seed=None, out_dir=root / name, argv=argv,
+                                      expected_episodes=len(ids), draw_ids=tuple(ids)))
+            continue
+        if tier == "fixedtime" and chosen_k is None:
+            raise ValueError(
+                "the fixedtime tier is collected at the k the committed k-sweep chose (D5: recorded before "
+                "collection); there is none"
+            )
+        metadata = grid_protocol(corpus_root, tier)
+        seeds: Sequence[int | None] = SEEDS if tier == "mappo1000" else (None,)
+        for seed, meta in zip(seeds, metadata, strict=True):
+            ids = [int(d) for d in meta["flow_draw_ids"] if d is not None]
+            checkpoint: str | None = None
+            name = f"{CORPUS_PREFIX}__{tier}"
+            if tier == "mappo1000":
+                recorded = str(meta.get("checkpoint") or "")
+                if not re.search(rf"seed{seed}\.pt$", recorded):
+                    raise ValueError(
+                        f"the grid's mappo1000 protocol directory for seed {seed} records checkpoint {recorded!r}"
+                    )
+                checkpoint = str(TEACHER_CHECKPOINT_SUBDIR / f"cf_hz4x4__mappo__seed{seed}.pt")
+                name = f"{CORPUS_PREFIX}__mappo1000__seed{seed}"
+            argv = protocol_argv(
+                meta,
+                env_config=env_config,
+                out_dir=root / name,
+                policy=str(meta["behavior_policy"]),
+                episodes=int(meta["episodes"]),
+                draw_ids=ids,
+                checkpoint=checkpoint,
+                fixed_time_k=chosen_k if tier == "fixedtime" else None,
+            )
+            runs.append(CollectionRun(name=name, tier=tier, seed=seed, out_dir=root / name, argv=argv,
+                                      expected_episodes=len(ids) * int(meta["episodes"]), draw_ids=tuple(ids)))
+    return runs
 
 
 def assert_targets_absent(runs: Sequence[CollectionRun]) -> None:
-    """Refuse when any run's out-dir exists and is not empty -- for ALL runs, before any runs."""
-    raise NotImplementedError
+    """Refuse when any run's out-dir exists and is not empty -- for ALL runs, before any runs.
+
+    ``recollect_v11``'s rule 2: ``offline.collect`` refuses a populated out-dir, so a command that would
+    trip it wastes its slot; and this task creates only NEW ``cf_hz4x4__*`` directories (``BRIEF_48``).
+    """
+    occupied = [
+        str(run.out_dir)
+        for run in runs
+        if run.out_dir.exists() and (not run.out_dir.is_dir() or any(run.out_dir.iterdir()))
+    ]
+    if occupied:
+        raise FileExistsError(
+            f"{len(occupied)} collection target(s) already exist and are not empty: {occupied[:5]}; this task "
+            "creates only new cf_hz4x4__* directories and never collects into an existing one"
+        )
 
 
 def check_random_rng_scheme(run_metadata: Mapping[str, Any]) -> None:
-    """Refuse a ``random_fresh`` manifest whose generator scheme is not ``per-episode``."""
-    raise NotImplementedError
+    """Refuse a ``random_fresh`` manifest whose generator scheme is not ``per-episode``.
+
+    A27 (d): the registered random tiers replay two schedules because the generator restarts per draw;
+    ``random_fresh`` exists to remove that, so a manifest that does not SAY ``per-episode`` -- under the key
+    ``random_rng_scheme``, named by ``BRIEF_46`` section 3.3 and ``BRIEF_48`` section 5 -- is not that tier.
+    """
+    scheme = run_metadata.get("random_rng_scheme")
+    if scheme is None:
+        raise ValueError(
+            "the manifest records no random_rng_scheme, so the generator this random tier was collected with "
+            "is unknown; A27 (d) requires 'per-episode'"
+        )
+    if scheme != "per-episode":
+        raise ValueError(
+            f"the random tier was collected with random_rng_scheme {scheme!r}; A27 (d) requires 'per-episode' "
+            "('per-draw' restarts the generator on every draw, the registered tiers' defect)"
+        )
 
 
 def check_flow_digests(
@@ -817,13 +1180,62 @@ def check_flow_digests(
     draws_root: str | Path = MAIN_DRAWS_ROOT,
     scenario_key: str = SCENARIO_KEY,
 ) -> int:
-    """Each collected draw's ``flow_draw_sha256`` against the materialised draw's ``flow.json``; the count checked."""
-    raise NotImplementedError
+    """Each collected draw's ``flow_draw_sha256`` against the materialised draw's ``flow.json``; the count checked.
+
+    Two independent materialisations of the same ``(source, base_seed, draw_id)``: ``offline.collect``
+    renders its own copy under ``<out-dir>/flows/`` and records its digest, ``offline.materialise_draws``
+    wrote the main tree's.  Equal digests on every draw are the evidence that the corpus and the held-out
+    evaluation stand on the same demand definition (``DEFERRED`` 55's regeneration argument, measured).
+    Per draw first -- a recorded digest, a materialised file, equal digests -- and then the manifest's own
+    consistency: a digest recorded for a draw the manifest does not list is refused too.
+    """
+    import hashlib
+
+    from offline.materialise_draws import draw_dir
+
+    meta = manifest["run_metadata"]
+    ids = [int(d) for d in (meta.get("flow_draw_ids") or []) if d is not None]
+    digests = {str(key): str(value) for key, value in (meta.get("flow_draw_sha256") or {}).items()}
+    if not ids:
+        raise ValueError("the manifest names no flow draws; there is nothing to check")
+    for draw_id in ids:
+        if str(draw_id) not in digests:
+            raise ValueError(f"draw {draw_id}: the manifest records no flow_draw_sha256 for it")
+        flow = draw_dir(scenario_key, draw_id, out_root=draws_root) / "flow.json"
+        if not flow.is_file():
+            raise FileNotFoundError(f"draw {draw_id}: no materialised flow at {flow}")
+        actual = hashlib.sha256(flow.read_bytes()).hexdigest()
+        if actual != digests[str(draw_id)]:
+            raise ValueError(
+                f"draw {draw_id}: the collector recorded flow sha256 {digests[str(draw_id)]} but the materialised "
+                f"{flow} hashes to {actual}; the two materialisations of one draw disagree"
+            )
+    extra = sorted(set(int(key) for key in digests) - set(ids))
+    if extra:
+        raise ValueError(f"the manifest's flow_draw_sha256 names draws {extra} that its flow_draw_ids do not list")
+    return len(ids)
 
 
 def distinct_action_sequences(corpus_dir: str | Path) -> dict[str, int]:
-    """Per intersection id, the number of distinct action sequences over the directory's episodes."""
-    raise NotImplementedError
+    """Per intersection id, the number of distinct action sequences over the directory's episodes.
+
+    One intersection's sequence is its ``(T,)`` action column; it is hashed by P5.3b's
+    ``offline.nortg_decomposition.action_sequence_sha256`` (over the int64 bytes), the digest A27 (d)'s
+    prediction names.  A27 (d) refuses a ``random_fresh`` tier unless every intersection carries 200.
+    """
+    from offline.nortg_decomposition import action_sequence_sha256
+    from offline.trajectory_logger import load_episode
+
+    paths = sorted(Path(corpus_dir).glob("ep*.npz"))
+    if not paths:
+        raise ValueError(f"{corpus_dir} holds no episode")
+    seen: dict[str, set[str]] = {}
+    for path in paths:
+        episode = load_episode(path)
+        for ix_id in episode.ix_ids:
+            actions = episode.intersections[ix_id].action
+            seen.setdefault(str(ix_id), set()).add(action_sequence_sha256([[int(a)] for a in actions]))
+    return {ix_id: len(digests) for ix_id, digests in seen.items()}
 
 
 # ----------------------------------------------------------------------
@@ -837,15 +1249,102 @@ def convergence(
     window: int = CONVERGENCE_WINDOW,
     threshold: float = CONVERGENCE_THRESHOLD,
 ) -> dict[str, Any]:
-    """RUNSPEC_01 section 4's criterion on one training-return curve: the final window AND the preceding one."""
-    raise NotImplementedError
+    """RUNSPEC_01 section 4's criterion on one training-return curve: the final window AND the preceding one.
+
+    With W = 50 and B the curve's length: ``m1`` = mean over [B-W, B), ``m2`` over [B-2W, B-W), ``m3`` over
+    [B-3W, B-2W).  Converged iff ``|m1 - m2| / max(1, |m2|) < 0.05`` AND ``|m2 - m3| / max(1, |m3|) < 0.05``.
+    This reading reproduces P2.1's recorded counts at B = 1000 (hz1x1 4/5, grid4x4 3/5, cologne3 0/5), and a
+    test holds it to them.  Judged on the TRAINING curve, never on evaluation (RUNSPEC_01).
+    """
+    values = [float(v) for v in train_returns]
+    width = int(window)
+    if len(values) < 3 * width:
+        raise ValueError(
+            f"the criterion compares three consecutive {width}-episode windows, so it needs at least "
+            f"{3 * width} episodes; got {len(values)}"
+        )
+    end = len(values)
+
+    def mean(lo: int, hi: int) -> float:
+        return math.fsum(values[lo:hi]) / (hi - lo)
+
+    m_final = mean(end - width, end)
+    m_preceding = mean(end - 2 * width, end - width)
+    m_earlier = mean(end - 3 * width, end - 2 * width)
+    rel_final = abs(m_final - m_preceding) / max(1.0, abs(m_preceding))
+    rel_preceding = abs(m_preceding - m_earlier) / max(1.0, abs(m_earlier))
+    return {
+        "episodes": end,
+        "window": width,
+        "threshold": float(threshold),
+        "m_final": m_final,
+        "m_preceding": m_preceding,
+        "m_earlier": m_earlier,
+        "rel_final": rel_final,
+        "rel_preceding": rel_preceding,
+        "converged": bool(rel_final < float(threshold) and rel_preceding < float(threshold)),
+    }
 
 
 def teachers_report(
     results_path: str | Path, *, env_id: str = "cf_hz4x4", agent_id: str = "mappo"
 ) -> dict[str, Any]:
-    """Per seed: the curve, ``train_sec`` (an uncontrolled clock), the checkpoint and the criterion."""
-    raise NotImplementedError
+    """Per seed: the curve, ``train_sec`` (an uncontrolled clock), the checkpoint and the criterion.
+
+    Read from the frozen harness's own ``results.json`` (``experiments.runner.run_matrix``): every seed's
+    cell must be ``ok``, carry exactly :data:`TEACHER_EPISODES` training returns, and name a checkpoint that
+    exists, whose sha256 is recorded.  The label is ``MAPPO@1000`` whatever the criterion says -- tiers are
+    labelled by measured return (registration section 5), never by a convergence claim.
+    """
+    import json
+
+    path = Path(results_path)
+    payload = json.loads(path.read_bytes())
+    by_seed: dict[int, dict[str, Any]] = {}
+    for cell in payload.get("cells", []):
+        if cell.get("env_id") != env_id:
+            continue
+        seed = int(cell["seed"])
+        if seed in by_seed:
+            raise ValueError(f"{path}: seed {seed} appears twice")
+        if cell.get("status") != "ok":
+            raise ValueError(f"{path}: seed {seed}'s cell is {cell.get('status')!r} ({cell.get('reason')})")
+        policy = cell["policies"][agent_id]
+        returns = [float(v) for v in policy["train_returns"]]
+        if len(returns) != TEACHER_EPISODES:
+            raise ValueError(f"{path}: seed {seed} carries {len(returns)} training returns, not {TEACHER_EPISODES}")
+        checkpoint = Path(policy["checkpoint_path"])
+        if not checkpoint.is_file():
+            raise FileNotFoundError(f"{path}: seed {seed}'s checkpoint {checkpoint} does not exist")
+        timings = cell["timings"][agent_id]
+        by_seed[seed] = {
+            "train_returns": returns,
+            "train_sec": float(timings["train_sec"]),
+            "eval_sec": None if timings.get("eval_sec") is None else float(timings["eval_sec"]),
+            "checkpoint": str(checkpoint),
+            "checkpoint_sha256": _sha256_file(checkpoint),
+            "convergence": convergence(returns),
+        }
+    missing = [seed for seed in SEEDS if seed not in by_seed]
+    unexpected = sorted(seed for seed in by_seed if seed not in SEEDS)
+    if missing or unexpected:
+        raise ValueError(f"{path}: the teachers are seeds {list(SEEDS)}; missing {missing}, unexpected {unexpected}")
+    return {
+        "format_version": ARTIFACT_FORMAT_TEACHERS,
+        "registered_in": "PREREGISTRATION A27 (i); BRIEF_48 section 3.4; RUNSPEC_01 section 4",
+        "label": "MAPPO@1000",
+        "label_rule": "tiers are labelled by measured return (registration section 5), never by a convergence "
+        "claim; the teachers are MAPPO@1000 whatever the criterion says (P2.1's practice)",
+        "results": str(path),
+        "results_sha256": _sha256_file(path),
+        "seeds": {str(seed): by_seed[seed] for seed in SEEDS},
+        "converged_seeds": sum(1 for seed in SEEDS if by_seed[seed]["convergence"]["converged"]),
+        "n_seeds": len(SEEDS),
+        "criterion": "RUNSPEC_01 section 4: W = 50; |m1 - m2| / max(1, |m2|) < 0.05 for the final window AND the "
+        "preceding one; P2.1 reported it per seed and resolved the scenario strictly (all seeds)",
+        "clock": "train_sec is an uncontrolled clock (A27 (a)): wall-clock around experiments.runner._train_agent "
+        "with five teachers training concurrently; no Best Performance regime, no canary, no benchmark claim",
+    }
 
 
 # ----------------------------------------------------------------------
@@ -854,8 +1353,34 @@ def teachers_report(
 
 
 def gate_cells_for(tiers: Sequence[str]) -> tuple[Any, ...]:
-    """hz4x4's gate cells: every tier x ``GATE_DRAWS``, seed ``GATE_SEED`` unless the tier is deterministic."""
-    raise NotImplementedError
+    """hz4x4's gate cells: every tier x ``GATE_DRAWS``, seed ``GATE_SEED`` unless the tier is deterministic.
+
+    ``engine_att_reference``'s own constants (``GATE_DRAWS`` 1000-1002, ``GATE_SEED`` 101,
+    ``DETERMINISTIC_ANCHOR_TIERS``), imported, so the hz4x4 gate is the registered gate on hz4x4's tiers.
+    No extreme cells are declared: they were enumerated from ``p8_4a_admission.json``, which has no hz4x4
+    row (``docs/plans/p9.3.md`` Q1; :func:`gate_extremes` reports the gate's own).
+    """
+    from offline.engine_att_reference import (
+        BEHAVIOUR_METHOD,
+        DETERMINISTIC_ANCHOR_TIERS,
+        GATE_DRAWS,
+        GATE_SEED,
+        GateCell,
+    )
+
+    names = [str(tier) for tier in tiers]
+    unknown = [tier for tier in names if tier not in TIER_ORDER]
+    if unknown:
+        raise ValueError(f"unknown tier(s) {unknown}; hz4x4's tiers are {list(TIER_ORDER)}")
+    if len(set(names)) != len(names):
+        raise ValueError(f"a tier is named twice in {names}; one episode filed twice would be counted twice")
+    cells = []
+    for tier in names:
+        seed = None if tier in DETERMINISTIC_ANCHOR_TIERS else int(GATE_SEED)
+        for draw_id in GATE_DRAWS:
+            cells.append(GateCell(scenario=SCENARIO, tier=tier, method=BEHAVIOUR_METHOD, seed=seed,
+                                  draw_id=int(draw_id), role="tier"))
+    return tuple(cells)
 
 
 def hz4x4_gate_episode(
@@ -868,18 +1393,149 @@ def hz4x4_gate_episode(
     engine_seed: int,
     created: int,
 ) -> Any:
-    """``engine_att_reference.gate_episode`` for hz4x4, line for line, with hz4x4's env id check."""
-    raise NotImplementedError
+    """``engine_att_reference.gate_episode`` for hz4x4, line for line, with hz4x4's env id check.
+
+    The registered function checks the env id against ``GATE_SCENARIOS``, which has no hz4x4 entry, so it
+    cannot be called on hz4x4; ``BRIEF_48`` section 0 makes a scenario-parametrised path a new function here,
+    never an edit.  Everything else is the registered instrument, imported: the observer env
+    (``make_observer_env``), ``horizon_rollout``, ``read_admission_at_horizon``, the engine's own call, and
+    ``reconstruct_episode`` -- in the same order, with the same ``finally`` and the same running-count check.
+    """
+    import time
+
+    from offline.admission_probe import read_admission_at_horizon
+    from offline.engine_att_reference import GateEpisode, make_observer_env, reconstruct_episode
+    from offline.horizon_metric import horizon_rollout
+
+    if str(cell.scenario) != SCENARIO:
+        raise ValueError(f"cell {cell.arm} is on {cell.scenario!r}; this is hz4x4's gate")
+    if str(scenario_id) != SCENARIO_ID:
+        raise ValueError(
+            f"cell {cell.arm} is on hz4x4, whose env id is {SCENARIO_ID!r}, but {scenario_id!r} was supplied; "
+            "the two must agree or the episode is filed under the wrong network"
+        )
+    path = Path(config_path)
+    if not path.is_file():
+        raise FileNotFoundError(f"draw {cell.draw_id} has no materialised sim config at {path}")
+
+    started = time.perf_counter()
+    env = make_observer_env(path, env_settings)
+    try:
+        choose_action = choose_action_factory(env)
+        rollout_started = time.perf_counter()
+        rollout = horizon_rollout(env, choose_action, episodes=1, seed=int(engine_seed))
+        rollout_seconds = time.perf_counter() - rollout_started
+        counts = read_admission_at_horizon(env, created=int(created))
+        att_engine_call = float(env._eng.get_average_travel_time())
+        built = reconstruct_episode(env.recorder)
+    finally:
+        env.close()
+    seconds = time.perf_counter() - started
+
+    if counts.running != int(rollout.final_vehicle_count):
+        raise ValueError(
+            f"{cell.arm} seed {cell.seed} draw {cell.draw_id}: the horizon reader reports "
+            f"{rollout.final_vehicle_count} running vehicles but the engine reports {counts.running}; nothing may "
+            "advance the simulation between the last step and the reconstruction read"
+        )
+    return GateEpisode(
+        scenario=cell.scenario,
+        tier=cell.tier,
+        method=cell.method,
+        arm=cell.arm,
+        seed=None if cell.seed is None else int(cell.seed),
+        draw_id=int(cell.draw_id),
+        role=cell.role,
+        engine_seed=int(engine_seed),
+        att_reference_engine_population=float(built.engine_population.value),
+        att_reference_entered_running=float(built.entered_running.value),
+        att_reference_entered_population=float(built.entered_population.value),
+        att_reference_metric_cadence=float(built.metric_cadence.value),
+        att_engine_call=att_engine_call,
+        att_ours=float(rollout.per_episode_horizon[0]),
+        n_reference_ids=int(built.engine_population.n_ids),
+        n_entered_ids=int(built.entered_running.n_ids),
+        created_from_flow=int(created),
+        entered=int(counts.entered),
+        never_entered=int(counts.never_entered),
+        admission_latency_mean=float(built.latency.mean),
+        admission_latency_max=float(built.latency.maximum),
+        n_admission_delayed=int(built.latency.n_delayed),
+        interval=float(built.interval),
+        n_observations=int(built.n_observations),
+        seconds=seconds,
+        seconds_rollout=rollout_seconds,
+    )
 
 
 def gate_extremes(episodes: Sequence[Any]) -> dict[str, Any]:
-    """The minimum and maximum ``entered / created`` among the gate's own episodes (Q1 of the plan)."""
-    raise NotImplementedError
+    """The minimum and maximum ``entered / created`` among the gate's own episodes (Q1 of the plan).
+
+    A11 (4) asks for *"the minimum and maximum entered_fraction episodes available on S"*; on hz4x4 no other
+    episode exists at gate time, so they are the gate's own cells -- present by construction, reported so a
+    reader sees the censoring range the gate covered.  Ties are broken by the lowest ``(arm, seed, draw_id)``,
+    the tie-break ``engine_att_reference.EXTREME_EPISODES`` registered.
+    """
+    rows = list(episodes)
+    if not rows:
+        raise ValueError("no gate episodes, so there are no extremes")
+
+    def fraction(episode: Any) -> float:
+        return int(episode.entered) / int(episode.created_from_flow)
+
+    def key(episode: Any) -> tuple[str, int, int]:
+        return (str(episode.arm), -1 if episode.seed is None else int(episode.seed), int(episode.draw_id))
+
+    def describe(episode: Any, which: str) -> dict[str, Any]:
+        return {
+            "which": which,
+            "tier": episode.tier,
+            "method": episode.method,
+            "arm": episode.arm,
+            "seed": episode.seed,
+            "draw_id": int(episode.draw_id),
+            "entered": int(episode.entered),
+            "created": int(episode.created_from_flow),
+            "entered_fraction": fraction(episode),
+        }
+
+    lowest = min(fraction(e) for e in rows)
+    highest = max(fraction(e) for e in rows)
+    minimum = min((e for e in rows if fraction(e) == lowest), key=key)
+    maximum = min((e for e in rows if fraction(e) == highest), key=key)
+    return {
+        "rule": "the minimum and maximum entered / created among the gate's own cells (no other hz4x4 episode "
+        "exists at gate time); ties broken by the lowest (arm, seed, draw_id)",
+        "min": describe(minimum, "min"),
+        "max": describe(maximum, "max"),
+    }
 
 
 def gate_outcome(criteria: Any) -> dict[str, Any]:
-    """A11's branch for hz4x4: PASS makes ``att_engine`` primary; FAIL reports both definitions."""
-    raise NotImplementedError
+    """A11's branch for hz4x4: PASS makes ``att_engine`` primary; FAIL reports both definitions.
+
+    *criteria* is ``engine_att_reference.evaluate_scenario``'s ``ScenarioCriteria``, scored by the registered
+    function itself.  This maps it onto A11's two consequence sentences and names the failed criteria; (3c)
+    is reported and never gating (A12).  A ``passed`` flag that disagrees with its own criteria is refused.
+    """
+    named = (
+        ("c1", criteria.c1_passed),
+        ("c2", criteria.c2_exact),
+        ("c3a", criteria.c3a_passed),
+        ("c3b", criteria.c3b_passed),
+        ("c4", criteria.c4_passed),
+    )
+    failed = [name for name, ok in named if not ok]
+    passed = bool(criteria.passed)
+    if passed != (not failed):
+        raise ValueError(f"ScenarioCriteria.passed is {passed} but the failed criteria are {failed}")
+    return {
+        "passed": passed,
+        "failed_criteria": failed,
+        "primary": "att_engine" if passed else None,
+        "consequence": A11_CONSEQUENCE_PASS if passed else A11_CONSEQUENCE_FAIL,
+        "c3c_is_gating": False,
+    }
 
 
 # ----------------------------------------------------------------------
@@ -887,24 +1543,155 @@ def gate_outcome(criteria: Any) -> dict[str, Any]:
 # ----------------------------------------------------------------------
 
 
+def _tier_episode_paths(dirs: Sequence[str | Path]) -> list[Path]:
+    """Every ``ep*.npz`` of *dirs*, directories and episodes in sorted order -- ``att_ladder.tier_cells``' order."""
+    paths: list[Path] = []
+    for directory in sorted(Path(d) for d in dirs):
+        episodes = sorted(directory.glob("ep*.npz"))
+        if not episodes:
+            raise ValueError(f"{directory} holds no episode")
+        paths.extend(episodes)
+    return paths
+
+
 def ladder_att(dirs: Sequence[str | Path]) -> float:
-    """``att_ladder``'s ``att_horizon_mean`` over the episodes of *dirs*: the mean of ``att_per_step[-1]``."""
-    raise NotImplementedError
+    """``att_ladder``'s ``att_horizon_mean`` over the episodes of *dirs*: the mean of ``att_per_step[-1]``.
+
+    ``offline.att_ladder.tier_cells`` reads a whole corpus root; this is its per-tier reduction -- the same
+    order (sorted directories, sorted episodes), the same ``float64`` array, the same ``.mean()`` -- so a
+    test can hold it to ``tier_sweep.TIERS``' recorded values under ``==`` on the grid, and the declaration
+    run computes the hz4x4 value by ``tier_cells`` itself as its second route.
+    """
+    import numpy as np
+
+    from offline.trajectory_logger import load_episode
+
+    values: list[float] = []
+    for path in _tier_episode_paths(dirs):
+        episode = load_episode(path)
+        if episode.att_per_step is None:
+            raise ValueError(f"{path}: format {episode.format_version} has no att_per_step")
+        values.append(float(episode.att_per_step[-1]))
+    return float(np.asarray(values, dtype=np.float64).mean())
 
 
 def mean_training_return(dirs: Sequence[str | Path]) -> float:
-    """P5.2's mean training-set return: the mean over every stream of ``numpy.sum`` of its local reward."""
-    raise NotImplementedError
+    """P5.2's mean training-set return: the mean over every stream of ``numpy.sum`` of its local reward.
+
+    ``docs/plans/p5.2.md`` section 2.2's route, restated as code: ``numpy.sum`` over each episode's
+    per-intersection ``local_reward`` array, over every episode x intersection stream of the tier.  A test
+    holds it to ``tier_sweep.TIERS`` at the one decimal those values were recorded with.
+    """
+    import numpy as np
+
+    from offline.trajectory_logger import load_episode
+
+    totals: list[float] = []
+    for path in _tier_episode_paths(dirs):
+        episode = load_episode(path)
+        for ix_id in episode.ix_ids:
+            totals.append(float(np.sum(episode.intersections[ix_id].local_reward)))
+    return float(np.mean(np.asarray(totals, dtype=np.float64)))
 
 
 def tier_row_counts(dirs: Sequence[str | Path]) -> dict[str, int]:
-    """Episodes, streams, decisions and the two top-decile row counts of one tier's training set."""
-    raise NotImplementedError
+    """Episodes, streams, decisions and the two top-decile row counts of one tier's training set.
+
+    Counted from the episodes, never from the brief: decisions = sum of episode length x intersections.
+    The top-decile rules are the registered filters' -- ``ceil(0.1 x n)`` streams and never fewer than one,
+    over all streams for %BC (``offline_baselines.top_return_streams``) and per intersection for the
+    per-intersection arm (``tier_sweep.per_intersection_top_streams``) -- times the episode length.
+    """
+    from offline.offline_baselines import TOP_RETURN_FRACTION
+    from offline.trajectory_logger import load_episode
+
+    episodes = 0
+    decisions = 0
+    lengths: set[int] = set()
+    widths: set[int] = set()
+    per_ix: dict[str, int] = {}
+    for path in _tier_episode_paths(dirs):
+        episode = load_episode(path)
+        episodes += 1
+        length = int(episode.episode_length)
+        lengths.add(length)
+        widths.add(len(episode.ix_ids))
+        for ix_id in episode.ix_ids:
+            per_ix[str(ix_id)] = per_ix.get(str(ix_id), 0) + 1
+            decisions += length
+    if len(lengths) != 1 or len(widths) != 1:
+        raise ValueError(f"episode lengths {sorted(lengths)} / intersection counts {sorted(widths)} are not uniform")
+    length = lengths.pop()
+    streams = sum(per_ix.values())
+    top_global = max(1, math.ceil(TOP_RETURN_FRACTION * streams)) * length
+    top_perix = sum(max(1, math.ceil(TOP_RETURN_FRACTION * n)) for n in per_ix.values()) * length
+    return {
+        "episodes": episodes,
+        "n_intersections": widths.pop(),
+        "episode_length": length,
+        "streams": streams,
+        "decisions": decisions,
+        "top_decile_decisions_global": top_global,
+        "top_decile_decisions_perix": top_perix,
+    }
 
 
 def exposure_table(row_counts: Mapping[str, int], *, steps: int | None = None) -> dict[str, Any]:
-    """A27(b)'s exposure (row visits = steps x decisions per step / decisions in the training set), per arm."""
-    raise NotImplementedError
+    """A27(b)'s exposure (row visits = steps x decisions per step / decisions in the training set), per arm.
+
+    Rows per step from the code constants -- ``tier_sweep.JOINT_BATCH_SIZE``, ``CONTEXT_LENGTH``,
+    ``DECLARED_GRADIENT_STEPS``; ``offline_baselines.BC_BATCH_WINDOWS``, ``IQL_BATCH_TRANSITIONS`` -- and
+    A27(b)'s matched batches (:data:`MATCHED_BATCH`); training decisions from *row_counts*, measured.  Every
+    visit count is ``steps * rows / decisions`` in exact integer arithmetic with one correctly rounded
+    division, so ``float(Fraction(steps * rows, decisions))`` reproduces it under ``==``.
+    """
+    from offline.offline_baselines import BC_BATCH_WINDOWS, IQL_BATCH_TRANSITIONS
+    from offline.tier_sweep import CONTEXT_LENGTH, DECLARED_GRADIENT_STEPS, JOINT_BATCH_SIZE
+
+    total_steps = int(DECLARED_GRADIENT_STEPS if steps is None else steps)
+    decisions = int(row_counts["decisions"])
+    n_ix = int(row_counts["n_intersections"])
+    top_global = int(row_counts["top_decile_decisions_global"])
+    top_perix = int(row_counts["top_decile_decisions_perix"])
+    if decisions <= 0:
+        raise ValueError(f"a training set of {decisions} decisions has no exposure")
+    for label, value in (("global", top_global), ("per-intersection", top_perix)):
+        if not 0 < value <= decisions:
+            raise ValueError(f"the {label} top-decile row count {value} is not within (0, {decisions}] decisions")
+    window = int(CONTEXT_LENGTH)
+    arms = {
+        "dt_nomix": (int(JOINT_BATCH_SIZE) * window * n_ix, decisions, "registered",
+                     "tier_sweep.JOINT_BATCH_SIZE x CONTEXT_LENGTH x intersections"),
+        "bc": (int(BC_BATCH_WINDOWS) * window, decisions, "registered",
+               "offline_baselines.BC_BATCH_WINDOWS x CONTEXT_LENGTH"),
+        "bc_top10": (int(BC_BATCH_WINDOWS) * window, top_global, "registered",
+                     "offline_baselines.BC_BATCH_WINDOWS x CONTEXT_LENGTH, on the global top decile"),
+        "bc_top10_perix": (int(BC_BATCH_WINDOWS) * window, top_perix, "registered",
+                           "offline_baselines.BC_BATCH_WINDOWS x CONTEXT_LENGTH, on the per-intersection top decile"),
+        "iql": (int(IQL_BATCH_TRANSITIONS), decisions, "registered", "offline_baselines.IQL_BATCH_TRANSITIONS"),
+        "bc_m": (int(MATCHED_BATCH["bc_m_windows"]) * window, decisions, "matched (A27 (b))",
+                 "1,024 windows x CONTEXT_LENGTH"),
+        "bc_top10_m": (int(MATCHED_BATCH["bc_top10_m_windows"]) * window, top_global, "matched (A27 (b))",
+                       "102 windows x CONTEXT_LENGTH (102.4 rounded down, declared), on the global top decile"),
+        "bc_top10_perix_m": (int(MATCHED_BATCH["bc_top10_m_windows"]) * window, top_perix, "matched (A27 (b))",
+                             "102 windows x CONTEXT_LENGTH, on the per-intersection top decile"),
+        "iql_m": (int(MATCHED_BATCH["iql_m_transitions"]), decisions, "matched (A27 (b))", "20,480 transitions"),
+    }
+    return {
+        "definition": "row visits = steps x decisions per step / decisions in the training set (A27 (b))",
+        "steps": total_steps,
+        "row_counts": {key: int(value) for key, value in row_counts.items()},
+        "arms": {
+            name: {
+                "rows_per_step": rows,
+                "training_decisions": basis,
+                "visits": total_steps * rows / basis,
+                "batch": kind,
+                "rows_per_step_from": source,
+            }
+            for name, (rows, basis, kind, source) in arms.items()
+        },
+    }
 
 
 # ----------------------------------------------------------------------
@@ -979,8 +1766,12 @@ def _run_draws(args: argparse.Namespace) -> int:
         actions[record.action] = actions.get(record.action, 0) + 1
         print(f"{record.scenario_key} draw {record.draw_id:>4} [{record.pool}] {record.action}: "
               f"{record.n_vehicles} vehicles -> {record.directory}", flush=True)
-    print(f"done: {len(records)} draws {actions}; every flow.json verified single-insertion and equal to "
-          "the in-memory plan", flush=True)
+    if args.dry_run:
+        print(f"dry run: {len(records)} draws {actions}; planned in memory and matched the materialiser's own "
+              "build, nothing written and nothing verified on disk", flush=True)
+    else:
+        print(f"done: {len(records)} draws {actions}; every flow.json verified on disk: single-insertion and equal "
+              "to the in-memory plan", flush=True)
     return 0
 
 
@@ -1097,8 +1888,366 @@ def _grid_mappo1000_seconds() -> float:
     return float(rows[0]["training"][0]["seconds"]["median"])
 
 
-def _not_yet(args: argparse.Namespace) -> int:
-    raise NotImplementedError(f"{args.command} is implemented in the next commit")
+def _tier_dir_names(tier: str) -> list[str]:
+    """The corpus directory names of one hz4x4 tier: one per seed for ``mappo1000``, one otherwise."""
+    if tier not in TIER_ORDER:
+        raise ValueError(f"unknown tier {tier!r}; hz4x4's tiers are {list(TIER_ORDER)}")
+    if tier == "mappo1000":
+        return [f"{CORPUS_PREFIX}__mappo1000__seed{seed}" for seed in SEEDS]
+    return [f"{CORPUS_PREFIX}__{tier}"]
+
+
+def _collected_tiers(corpus_root: Path) -> list[str]:
+    """The tiers whose every directory has a manifest, in collection order."""
+    return [
+        tier
+        for tier in TIER_ORDER
+        if all((corpus_root / name / "manifest.json").is_file() for name in _tier_dir_names(tier))
+    ]
+
+
+def _collection_command(run: CollectionRun, python: str) -> list[str]:
+    """The full command one collection run executes: this branch's ``offline.collect``, ``-P``, from the main tree."""
+    return [str(python), "-P", "-m", "offline.collect", *run.argv]
+
+
+def _checkpoint_of(run: CollectionRun) -> str | None:
+    argv = list(run.argv)
+    return argv[argv.index("--checkpoint") + 1] if "--checkpoint" in argv else None
+
+
+def verify_run(run: CollectionRun, *, draws_root: str | Path = MAIN_DRAWS_ROOT) -> dict[str, Any]:
+    """After a run: its manifest equals the derived command, its draws equal the materialised ones.
+
+    The manifest's run metadata is compared with the derived command as ``offline.collect``'s own parser
+    reads it; every draw's ``flow_draw_sha256`` with the main tree's materialised ``flow.json``; a teacher
+    checkpoint's recorded sha256 with the file; and for ``random_fresh`` the generator scheme
+    (``per-episode``) and A27 (d)'s registered check -- one distinct action sequence per episode on every
+    intersection.
+    """
+    import json
+
+    from offline.collect import build_parser as collect_parser
+
+    manifest = json.loads((run.out_dir / "manifest.json").read_bytes())
+    meta = manifest["run_metadata"]
+    if len(manifest["episodes"]) != run.expected_episodes:
+        raise ValueError(f"{run.name}: {len(manifest['episodes'])} episodes on disk, {run.expected_episodes} expected")
+    args = collect_parser().parse_args(list(run.argv))
+    expected: dict[str, Any] = {
+        "backend": "cityflow",
+        "scenario_id": SCENARIO_ID,
+        "behavior_policy": args.policy,
+        "episodes": args.episodes,
+        "base_seed": args.base_seed,
+        "max_steps": args.max_steps,
+        "delta_time": args.delta_time,
+        "control_mode": args.control_mode,
+        "global_reward_fn": args.global_reward_fn,
+        "local_reward_fn": args.local_reward_fn,
+        "global_reward_weight": args.global_reward_weight,
+        "state_features": list(args.state_features),
+        "checkpoint": args.checkpoint,
+        "flow_draw_ids": list(run.draw_ids),
+        "env_paths": {"config": str(Path(args.env_config).resolve())},
+    }
+    if run.tier == "fixedtime":
+        expected["fixed_time_k"] = args.fixed_time_k
+        expected["fixed_time_schedule_source"] = "equal_split"
+    differing = {key: {"manifest": meta.get(key), "expected": value} for key, value in expected.items()
+                 if meta.get(key) != value}
+    if differing:
+        raise ValueError(f"{run.name}: the manifest differs from the derived command: {differing}")
+    record: dict[str, Any] = {
+        "name": run.name,
+        "episodes": len(manifest["episodes"]),
+        "flow_digests_checked": check_flow_digests(manifest, draws_root=draws_root),
+        "git_hash": manifest.get("git_hash"),
+    }
+    if run.tier == "mappo1000":
+        checkpoint = MAIN_TREE / str(meta["checkpoint"])
+        if _sha256_file(checkpoint) != meta.get("checkpoint_sha256"):
+            raise ValueError(f"{run.name}: {checkpoint} is not the checkpoint the manifest records")
+        record["checkpoint_sha256"] = meta["checkpoint_sha256"]
+    if run.tier == "random_fresh":
+        check_random_rng_scheme(meta)
+        counts = distinct_action_sequences(run.out_dir)
+        short = {ix_id: n for ix_id, n in counts.items() if n != run.expected_episodes}
+        if len(counts) != EXPECTED_INTERSECTIONS or short:
+            raise ValueError(
+                f"{run.name}: A27 (d) refuses a random_fresh tier without {run.expected_episodes} distinct "
+                f"per-intersection action sequences; these fall short: {short}"
+            )
+        record["distinct_sequences_per_intersection"] = counts
+        record["random_rng_scheme"] = meta["random_rng_scheme"]
+    return record
+
+
+def _run_k_sweep(args: argparse.Namespace) -> int:
+    """``k-sweep``: D5 on draws 1-5, both definitions, the declared choice rule, written before any collection."""
+    from offline.materialise_draws import draw_config_path
+
+    out = _refuse_existing(args.out)
+    draws_root = assert_main_tree_path(args.draws_root, what="the draws root")
+    assert_training_draws(K_SWEEP_DRAWS)
+    manifest = Path(args.corpus_root) / "cf_grid4x4__fixedtime" / "manifest.json"
+    settings = _protocol_env_settings(args.corpus_root, "cf_grid4x4__fixedtime")
+    configs = {d: draw_config_path(SCENARIO_KEY, d, out_root=draws_root) for d in K_SWEEP_DRAWS}
+    missing = [str(path) for path in configs.values() if not Path(path).is_file()]
+    if missing:
+        raise FileNotFoundError(f"materialise the draws first (the draws subcommand); missing {missing}")
+    records: list[dict[str, Any]] = []
+    for k in K_GRID:
+        for draw_id in K_SWEEP_DRAWS:
+            record = sweep_episode(k, draw_id, config_path=configs[draw_id], env_settings=settings)
+            records.append(record)
+            print(f"k={k:>2} draw {draw_id}: att_engine {record['att_engine']:.4f}  att_ours {record['att_ours']:.4f}  "
+                  f"({record['seconds']:.2f} s)", flush=True)
+    summary = summarise_sweep(records)
+    decision = choose_k(summary)
+    artifact = {
+        "format_version": ARTIFACT_FORMAT_SWEEP,
+        "registered_in": "D5 (docs/data/fixed_time_sweep/README.md); PREREGISTRATION A27 (i); BRIEF_48 section 0",
+        "label": A27_LABEL,
+        "protocol": {
+            "k_grid": list(K_GRID),
+            "draws": list(K_SWEEP_DRAWS),
+            "engine_seed": BASE_SEED,
+            "episodes_per_draw": 1,
+            "policy": "offline.policies.fixed_time.make_fixedtime, the collector's own, equal split (no shipped plan)",
+            "cycle": "n_greens x delta_time x k with n_greens = 8",
+            "route": "offline.admission_probe.probe_episode: att_ours = horizon_rollout's att_horizon (A1), "
+            "att_engine = Engine::getAverageTravelTime at the horizon (A11); created from the draw's flow.json",
+            "env_settings_from": str(manifest),
+            "env_settings": settings,
+        },
+        "objective": "the mean over draws 1-5 under each definition; Rule R has not run on hz4x4 when k is chosen, "
+        "so neither definition is primary and the two argmins must agree (docs/plans/p9.3.md section 4.3, Q2)",
+        "git": _git(),
+        "records": records,
+        "summary": {str(k): summary[k] for k in K_GRID},
+        "decision": decision,
+        "recorded_before_collection": "committed before any hz4x4 corpus run; the collect subcommand reads the "
+        "fixed-time k from this file and from nowhere else",
+    }
+    _write_artifact(artifact, out)
+    print(f"wrote {out}: {decision['status']}, chosen k = {decision['chosen_k']} "
+          f"(att_engine argmin {decision['k_att_engine']}, att_ours argmin {decision['k_att_ours']})", flush=True)
+    return 0 if decision["status"] == "CHOSEN" else 2
+
+
+def _run_collect(args: argparse.Namespace) -> int:
+    """``collect plan|run|verify``: the tiers by ``offline.collect``, derived, guarded, sequential."""
+    import json
+    import os
+    import subprocess
+
+    from offline.materialise_draws import draw_config_path
+
+    supported = collector_supports_random_rng()
+    if args.tiers:
+        tiers = list(args.tiers)
+    else:
+        tiers = [tier for tier in TIER_ORDER if tier != "random_fresh" or supported]
+        if not supported:
+            print("random_fresh is left out: offline.collect has no --random-rng yet (P9.1's M1); it is "
+                  "collected last (A27 (i))", flush=True)
+    chosen_k = chosen_k_from_artifact(args.sweep) if "fixedtime" in tiers else None
+    corpus_root = assert_main_tree_path(args.corpus_root, what="the corpus root")
+    draws_root = assert_main_tree_path(args.draws_root, what="the draws root")
+    env_config = assert_main_tree_path(MAIN_TREE / SOURCE_CONFIG, what="the source sim config")
+    runs = derive_runs(corpus_root=corpus_root, tiers=tiers, chosen_k=chosen_k, env_config=env_config,
+                       out_root=corpus_root, random_rng_supported=supported)
+
+    if args.action == "verify":
+        for run in runs:
+            print(json.dumps(verify_run(run, draws_root=draws_root), sort_keys=True), flush=True)
+        print(f"verified {len(runs)} run(s)", flush=True)
+        return 0
+
+    missing_checkpoints = [str(MAIN_TREE / c) for c in (_checkpoint_of(r) for r in runs)
+                           if c is not None and not (MAIN_TREE / c).is_file()]
+    missing_draws = sorted({d for r in runs for d in r.draw_ids
+                            if not draw_config_path(SCENARIO_KEY, d, out_root=draws_root).is_file()})
+    if args.action == "plan":
+        for run in runs:
+            print(f"{run.name}: {run.expected_episodes} episodes\n  " + " ".join(_collection_command(run, args.python)),
+                  flush=True)
+        print(f"plan: {len(runs)} run(s), {sum(r.expected_episodes for r in runs)} episodes; missing checkpoints "
+              f"{missing_checkpoints}; draws not materialised {missing_draws}", flush=True)
+        return 0
+
+    assert_targets_absent(runs)
+    if missing_checkpoints:
+        raise FileNotFoundError(f"the teachers' checkpoints are missing: {missing_checkpoints}")
+    if missing_draws:
+        raise FileNotFoundError(f"draws {missing_draws[:5]} are not materialised under {draws_root}")
+    env = dict(os.environ, PYTHONPATH=str(_repo_root()))
+    for index, run in enumerate(runs, start=1):
+        command = _collection_command(run, args.python)
+        print(f"\n[{index}/{len(runs)}] {run.name}\n  {' '.join(command)}", flush=True)
+        result = subprocess.run(command, cwd=MAIN_TREE, env=env, check=False)
+        if result.returncode != 0:
+            print(f"ABORT: {run.name} exited {result.returncode}; {index - 1}/{len(runs)} run(s) completed", flush=True)
+            return 1
+        written = len(json.loads((run.out_dir / "manifest.json").read_bytes())["episodes"])
+        if written != run.expected_episodes:
+            print(f"ABORT: {run.name} wrote {written} episodes, {run.expected_episodes} expected", flush=True)
+            return 1
+    print(f"\nOK: {len(runs)}/{len(runs)} run(s), {sum(r.expected_episodes for r in runs)} episodes; next: "
+          "collect verify", flush=True)
+    return 0
+
+
+def _run_teachers(args: argparse.Namespace) -> int:
+    """``teachers``: the frozen harness's results.json turned into the curve-and-criterion record."""
+    out = _refuse_existing(args.out)
+    results = Path(args.output_root) / TEACHER_RESULTS.relative_to("output")
+    report = teachers_report(results)
+    report["git"] = _git()
+    _write_artifact(report, out)
+    print(f"wrote {out}: {report['converged_seeds']}/{report['n_seeds']} seeds meet RUNSPEC_01's criterion; "
+          f"label {report['label']}", flush=True)
+    return 0
+
+
+def _run_gate(args: argparse.Namespace) -> int:
+    """``gate``: A11's four criteria on hz4x4's collected tiers, scored by ``evaluate_scenario`` unchanged."""
+    from offline import engine_att_reference as engine
+    from offline.admission_probe import created_from_flow
+    from offline.dt_gate import _mappo_factory, _maxpressure_factory, env_settings_from_manifest
+    from offline.materialise_draws import draw_config_path
+    from offline.method_tier_grid import _fixedtime_factory, fixedtime_collection_settings
+
+    out = _refuse_existing(args.out)
+    corpus_root = assert_main_tree_path(args.corpus_root, what="the corpus root")
+    draws_root = assert_main_tree_path(args.draws_root, what="the draws root")
+    tiers = list(args.tiers) if args.tiers else _collected_tiers(corpus_root)
+    if not tiers:
+        raise FileNotFoundError(f"no hz4x4 tier is collected under {corpus_root}")
+    if "random_fresh" in tiers:
+        raise ValueError(
+            "random_fresh's gate cell is A27 (d)'s random_fresh reference (default_rng([seed, draw_id])), which "
+            "P9.1's M1 implements; merge main after M1 and wire it before gating that tier "
+            "(docs/plans/p9.3.md section 4.6)"
+        )
+    cells = gate_cells_for(tiers)
+    episodes = []
+    for cell in cells:
+        names = _tier_dir_names(cell.tier)
+        name = names[0] if cell.tier != "mappo1000" else f"{CORPUS_PREFIX}__mappo1000__seed{cell.seed}"
+        manifest = corpus_root / name / "manifest.json"
+        settings = env_settings_from_manifest(manifest)
+        config = draw_config_path(SCENARIO_KEY, int(cell.draw_id), out_root=draws_root)
+        horizon = int(settings["max_steps"]) * int(settings["delta_time"])
+        created = created_from_flow(config.parent / "flow.json", horizon_seconds=horizon)
+        if cell.tier == "maxpressure":
+            factory = _maxpressure_factory
+        elif cell.tier == "fixedtime":
+            factory = _fixedtime_factory(config, fixedtime_collection_settings(manifest))
+        else:
+            import json
+
+            meta = json.loads(manifest.read_bytes())["run_metadata"]
+            checkpoint = MAIN_TREE / str(meta["checkpoint"])
+            if _sha256_file(checkpoint) != meta["checkpoint_sha256"]:
+                raise ValueError(f"{checkpoint} is not the checkpoint {manifest} records")
+            factory = _mappo_factory(str(checkpoint), args.device)
+        print(f"hz4x4/{cell.arm} seed {cell.seed} draw {cell.draw_id}", flush=True)
+        episodes.append(hz4x4_gate_episode(cell=cell, config_path=config, env_settings=settings,
+                                           scenario_id=SCENARIO_ID, choose_action_factory=factory,
+                                           engine_seed=BASE_SEED, created=created))
+    criteria = engine.evaluate_scenario(episodes)
+    outcome = gate_outcome(criteria)
+    artifact = {
+        "format_version": ARTIFACT_FORMAT_GATE,
+        "registered_in": "PREREGISTRATION A11 (c), amended by A12 and A13; A27 (i)",
+        "label": A27_LABEL,
+        "scenario": SCENARIO,
+        "tiers": tiers,
+        "tolerances": {"c1": engine.C1_TOLERANCE, "c3c_reported_not_gating": engine.C3C_TOLERANCE,
+                       "c4_min_tiers": engine.C4_MIN_TIERS, "c4_min_draws": engine.C4_MIN_DRAWS},
+        "coverage_note": f"criterion (4) requires at least {engine.C4_MIN_TIERS} behaviour tiers x "
+        f"{engine.C4_MIN_DRAWS} draws; hz4x4's corpus carries {len(tiers)} tier(s) here (docs/plans/p9.3.md Q1)",
+        "episodes": [episode.as_record() for episode in episodes],
+        "criteria": criteria.as_record(),
+        "outcome": outcome,
+        "extremes_available_on_s": gate_extremes(episodes),
+        "thread_regime": engine.thread_regime(),
+        "git": _git(),
+    }
+    _write_artifact(artifact, out)
+    print(f"wrote {out}: {'PASS' if outcome['passed'] else 'FAIL'} {outcome['failed_criteria']}", flush=True)
+    return 0
+
+
+def _run_declare(args: argparse.Namespace) -> int:
+    """``declare``: hz4x4's tier specs, the exposure table, the second ATT route and the grid T-regress."""
+    import dataclasses
+    import os
+    import tempfile
+
+    from offline.att_ladder import tier_cells
+    from offline.tier_sweep import TIERS as GRID_TIERS
+    from offline.tier_sweep import TierSpec
+
+    out = _refuse_existing(args.out)
+    corpus_root = assert_main_tree_path(args.corpus_root, what="the corpus root")
+    tiers = list(args.tiers) if args.tiers else _collected_tiers(corpus_root)
+    if not tiers:
+        raise FileNotFoundError(f"no hz4x4 tier is collected under {corpus_root}")
+    records: dict[str, dict[str, Any]] = {}
+    for tier in tiers:
+        names = _tier_dir_names(tier)
+        dirs = [corpus_root / name for name in names]
+        counts = tier_row_counts(dirs)
+        records[tier] = {
+            "tier": tier,
+            "dirs": names,
+            "subsample": "none",
+            "episode_count": counts["episodes"],
+            "ladder_att": ladder_att(dirs),
+            "mean_training_return": mean_training_return(dirs),
+            "row_counts": counts,
+            "exposure": exposure_table(counts),
+        }
+    with tempfile.TemporaryDirectory(prefix="p9_3_ladder_") as scratch:
+        for tier in tiers:
+            for name in _tier_dir_names(tier):
+                os.symlink(corpus_root / name, Path(scratch) / name)
+        second = {cell.tier: cell for cell in tier_cells(Path(scratch)) if cell.scenario == CORPUS_PREFIX}
+    for tier in tiers:
+        if second[tier].att_horizon_mean != records[tier]["ladder_att"] or second[tier].n_episodes != records[tier]["episode_count"]:
+            raise ValueError(f"{tier}: att_ladder.tier_cells gives {second[tier].att_horizon_mean} over "
+                             f"{second[tier].n_episodes} episodes, this module {records[tier]['ladder_att']}")
+    regress: dict[str, dict[str, Any]] = {}
+    for tier, spec in GRID_TIERS.items():
+        dirs = [corpus_root / d for d in spec.dirs]
+        value, mean_return = ladder_att(dirs), mean_training_return(dirs)
+        regress[tier] = {"ladder_att": value, "recorded_ladder_att": spec.ladder_att,
+                         "ladder_att_equal": value == spec.ladder_att, "mean_training_return": mean_return,
+                         "recorded_mean_training_return": spec.mean_training_return,
+                         "mean_training_return_equal_at_one_decimal": round(mean_return, 1) == spec.mean_training_return}
+    failed = [t for t, r in regress.items() if not (r["ladder_att_equal"] and r["mean_training_return_equal_at_one_decimal"])]
+    if failed:
+        raise ValueError(f"T-regress failed on the grid's {failed}: this module does not reproduce tier_sweep.TIERS")
+    field_names = [field.name for field in dataclasses.fields(TierSpec)]
+    artifact = {
+        "format_version": ARTIFACT_FORMAT_DECLARATION,
+        "registered_in": "PREREGISTRATION A27 (i) and (b); BRIEF_48 section 3.3",
+        "label": A27_LABEL,
+        "paper_sentence": PAPER_SENTENCE,
+        "tier_specs": {tier: {name: records[tier][name] for name in field_names} for tier in tiers},
+        "tier_order_by_measured_att": sorted(tiers, key=lambda t: records[t]["ladder_att"]),
+        "tiers": records,
+        "ladder_att_second_route": "offline.att_ladder.tier_cells on a root holding only the hz4x4 directories, == "
+        "this module's value on every tier",
+        "t_regress_grid": regress,
+        "git": _git(),
+    }
+    _write_artifact(artifact, out)
+    print(f"wrote {out}: {len(tiers)} tier(s), order by measured ATT {artifact['tier_order_by_measured_att']}", flush=True)
+    return 0
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -1112,11 +2261,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     handlers: dict[str, Callable[[argparse.Namespace], int]] = {
         "draws": _run_draws,
         "preflight": _run_preflight,
-        "k-sweep": _not_yet,
-        "collect": _not_yet,
-        "teachers": _not_yet,
-        "gate": _not_yet,
-        "declare": _not_yet,
+        "k-sweep": _run_k_sweep,
+        "collect": _run_collect,
+        "teachers": _run_teachers,
+        "gate": _run_gate,
+        "declare": _run_declare,
     }
     try:
         return handlers[args.command](args)

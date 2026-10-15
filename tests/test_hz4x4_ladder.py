@@ -991,3 +991,47 @@ def test_protocol_argv_uses_the_range_flag_for_contiguous_draws_only() -> None:
     with pytest.raises(ValueError, match="1000"):
         hz.protocol_argv(meta, env_config="c.json", out_dir="o", policy="maxpressure", episodes=1,
                          draw_ids=[999, 1000])
+
+
+def test_check_flow_digests_refuses_a_digest_for_a_draw_the_manifest_does_not_list(tmp_path: Path) -> None:
+    directory = tmp_path / hz.SCENARIO_KEY / "draw_0001"
+    directory.mkdir(parents=True)
+    (directory / "flow.json").write_bytes(b"[1]\n")
+    digest = hashlib.sha256(b"[1]\n").hexdigest()
+    extra = {"run_metadata": {"flow_draw_ids": [1], "flow_draw_sha256": {"1": digest, "2": digest}}}
+    with pytest.raises(ValueError, match="do not list"):
+        hz.check_flow_digests(extra, draws_root=tmp_path)
+    unrecorded = {"run_metadata": {"flow_draw_ids": [1], "flow_draw_sha256": {}}}
+    with pytest.raises(ValueError, match="records no flow_draw_sha256"):
+        hz.check_flow_digests(unrecorded, draws_root=tmp_path)
+
+
+@needs_cityflow
+def test_verify_run_accepts_a_real_collection_and_refuses_a_manifest_that_drifted(
+    tmp_path: Path, tmp_scenario: Path
+) -> None:
+    from offline.collect import main as collect_main
+
+    draws_root = tmp_path / "draws"
+    hz.materialise_hz4x4_draws([1], source_config=tmp_scenario, out_root=draws_root)
+    meta = dict(PROTOCOL_SETTINGS, backend="cityflow", base_seed=1000,
+                flow_randomizer_params={"jitter_sigma_s": 30.0, "thin_p": 0.1, "volume_scale": 1.0})
+    out_dir = tmp_path / "cf_hz4x4__maxpressure"
+    argv = hz.protocol_argv(meta, env_config=tmp_scenario, out_dir=out_dir, policy="maxpressure", episodes=1,
+                            draw_ids=[1])
+    assert collect_main(list(argv)) == 0
+    run = hz.CollectionRun(name=out_dir.name, tier="maxpressure", seed=None, out_dir=out_dir, argv=argv,
+                           expected_episodes=1, draw_ids=(1,))
+    record = hz.verify_run(run, draws_root=draws_root)
+    assert record["episodes"] == 1
+    assert record["flow_digests_checked"] == 1
+    manifest_path = out_dir / "manifest.json"
+    manifest = json.loads(manifest_path.read_bytes())
+    manifest["run_metadata"]["base_seed"] = 1001
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    with pytest.raises(ValueError, match="base_seed"):
+        hz.verify_run(run, draws_root=draws_root)
+    short = hz.CollectionRun(name=out_dir.name, tier="maxpressure", seed=None, out_dir=out_dir, argv=argv,
+                             expected_episodes=2, draw_ids=(1,))
+    with pytest.raises(ValueError, match="2 expected"):
+        hz.verify_run(short, draws_root=draws_root)
