@@ -1174,6 +1174,7 @@ def run_campaign(
     device: str | None,
     committed: Mapping[tuple[str, str, int | None, int], float],
     protected: Sequence[Path],
+    factory_builder: Callable[..., tuple[Any, dict[str, Any]]] | None = None,
 ) -> dict[str, Any]:
     """Roll every cell, checking reproduction PER CELL, writing one file each.
 
@@ -1190,6 +1191,12 @@ def run_campaign(
     * **A systemic failure still stops.**  :data:`SYSTEMIC_FAILURE_THRESHOLD` consecutive refusals
       means the run is misconfigured rather than unlucky, and burning four hours to produce a
       directory of refusals helps nobody.  One bad cell cannot trip it.
+
+    *factory_builder* (P9.1, ``BRIEF_46`` 3.4): ``None`` -- the default -- is this module's
+    :func:`build_cell_factory`, resolved at CALL time, so the registered behaviour and every test
+    that replaces the module name are unchanged.  P9.1's campaign passes a builder that gives A27's
+    new arms the factory their route-(i) evaluation used and hands every registered cell back to
+    :func:`build_cell_factory`.
     """
     from offline.admission_probe import created_from_flow, probe_episode
     from offline.materialise_draws import draw_config_path
@@ -1239,7 +1246,8 @@ def run_campaign(
 
             factory_key = (cell.scenario, cell.arm, cell.seed)
             if factory_key not in factory_cache:
-                factory_cache[factory_key] = build_cell_factory(
+                builder = build_cell_factory if factory_builder is None else factory_builder
+                factory_cache[factory_key] = builder(
                     cell.scenario, cell.arm, cell.seed, roots, device=device, config_path=config
                 )
             factory, source = factory_cache[factory_key]
@@ -1843,10 +1851,26 @@ def rederivation_corpus_dirs(scenario: str, tier: str, roots: Any) -> tuple[Path
     included -- ``mix33.dirs`` is the five ``mappo1000`` seeds plus ``random`` -- so that registered
     declaration is used rather than a second one invented here.
     """
+    from offline.method_tier_grid import A27_TIERS as HZ_A27_TIERS
     from offline.method_tier_grid import TIERS as HZ_TIERS
 
-    if scenario == "hz1x1" and tier in HZ_TIERS:
-        paths = tuple(Path(roots.corpus_root) / name for name in HZ_TIERS[tier].dirs)
+    # P9.1 (BRIEF_46 3.4): A27's tiers are declared beside the registered ones -- ``random_fresh`` and
+    # ``mix_m1000_m500`` on hz1x1, ``random_fresh`` on the grid -- and resolve through those declarations.
+    # Every registered tier resolves exactly as before.
+    hz_declared = {**HZ_A27_TIERS, **HZ_TIERS}
+    if scenario == "grid4x4":
+        from offline.tier_sweep import A27_TIERS as GRID_A27_TIERS
+
+        if tier in GRID_A27_TIERS:
+            paths = tuple(Path(roots.corpus_root) / name for name in GRID_A27_TIERS[tier].dirs)
+            missing = [str(p) for p in paths if not (p / "manifest.json").is_file()]
+            if missing:
+                raise FileNotFoundError(
+                    f"{scenario}/{tier}: these corpus directories have no manifest.json: {missing}"
+                )
+            return paths
+    if scenario == "hz1x1" and tier in hz_declared:
+        paths = tuple(Path(roots.corpus_root) / name for name in hz_declared[tier].dirs)
         missing = [str(p) for p in paths if not (p / "manifest.json").is_file()]
         if missing:
             raise FileNotFoundError(
