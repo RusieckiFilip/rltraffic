@@ -32,8 +32,9 @@ Phase B waits on it; M2, the campaign's artifacts and packet.
   after its pair (A27(e)), the 100,000-step arms suffixed `_100k`. No registered name is reused for a new cell.
 
 ## 1. Why this task exists (A27 (b)–(e), (g); the author's ruling, points 1–4 and 6)
-1. **Exposure (point 1 — control added after results).** On the grid the DTs see every training row 711.1 times, BC and IQL 44.4,
-   the top-decile arms 444.4 (A27(b) defines exposure and derives the numbers from `tier_sweep.JOINT_BATCH_SIZE = 64`,
+1. **Exposure (point 1 — control added after results).** Exposure = row visits = steps × decisions per step / decisions in the
+   training set (A27(b)): on the grid the DTs 711.1, BC and IQL 44.4, the top-decile arms 444.4; the rounding of %BC's 102.4 windows
+   to 102 (708.3 visits) is declared in A27(b). The numbers come from `tier_sweep.JOINT_BATCH_SIZE = 64`,
    `CONTEXT_LENGTH = 20`, `offline_baselines.BC_BATCH_WINDOWS = 64`, `IQL_BATCH_TRANSITIONS = 1_280`, 40,000 steps, and the tiers'
    1,152,000 / 115,200 rows). Every grid DT-versus-baseline contrast is confounded by that gap.
 2. **IQL targets (point 2 — bug fix).** `offline_baselines.py:1981` puts `policy`, `q`, `value` in `train()` and never leaves it;
@@ -43,8 +44,8 @@ Phase B waits on it; M2, the campaign's artifacts and packet.
    draw: the hz1x1 random tier holds 2 action schedules over 400 episodes (200/200), the training subsample 116/84 (measured
    2026-10-15, `PROJECT_PLAN` §8).
 4. **Overlap mixture (point 4 — test registered after results).** The registered mixtures' top decile is all-expert by construction
-   (`DEFERRED` 46). A27(e) fixes the pair by the author's ruling after the coordinator's measurement that `mappo1000 + mappo200`
-   is degenerate too (0 of 300 compositions put a `mappo200` stream in the decile).
+   (`DEFERRED` 46). A27(e) replaces the ruling's pair by `mappo1000 + mappo500` (expert fraction 0.50) under the author's delegation, after the
+   registered functions showed `mappo1000 + mappo200` all-expert at every proportion down to 10 %.
 5. **Budget (point 6 — test registered after results, A8(b)).** Registered 2026-08-12, never run; 127 of 160 hz1x1 runs had not
    met the plateau criterion at 40,000 steps (`plateaued` flags, measured 2026-10-15).
 
@@ -61,11 +62,17 @@ Phase B waits on it; M2, the campaign's artifacts and packet.
 
 ## 3. What the task produces
 ### 3.1 `offline/offline_baselines.py` — the IQL target flag (commit C1, with its tests)
-`train_iql(..., target_dropout: str = "active")`. Under `"off"`: every forward of `q_target` and the forward of `value` on
-`batch.next_state` run with the module in `eval()` inside the existing `torch.no_grad()` blocks, and the module is returned to
-`train()` immediately after; the forward of `value` on `batch.state` (the expectile regression's prediction), the online `q`, the
-`policy`, every hyper-parameter and the warm-up are untouched. Record `target_dropout` in the checkpoint provenance and in the
-training record's diagnostics. Under `"active"` the code path is the registered one: prove it by regenerating a registered IQL
+`train_iql(..., target_dropout: str = "active")`. **Three quantities carry dropout noise in the registered loop** (A27(c)): the
+expectile target `q_target(s, a)` (`:1991`), the TD target `value(s')` (`:2008`), and `value(s)` inside the AWR advantage
+(`v_pred.detach()`, `:2022`); nothing ever calls `q_target.train()` — it is in train mode because that is `nn.Module`'s state after
+construction. Under `"off"` those three forwards run in `eval()` under `no_grad` — `q_target(s)`, `value(s')`, and the advantage's
+`value(s)` as a SEPARATE forward computed BEFORE `optimisers["v"].step()` (so the registered update order is kept: the advantage uses
+V from before its update in the same step; published IQL uses V after — not changed) — and each module returns to `train()`
+immediately after. The trained forwards — `policy(s)`, `q(s)`, and `value(s)` for the expectile loss — keep dropout 0.1 in train mode.
+Under `"active"` the advantage uses `v_pred.detach()` exactly as today (no extra forward): the registered path, byte for byte. Every
+hyper-parameter and the warm-up untouched. Record `target_dropout` in the checkpoint provenance and in the
+training record's diagnostics. Because `q_target` and `value` are locals of `train_iql`, the test of §4.1 needs forward hooks that
+record `module.training` at each forward (or a small refactor exposing the modules to a test seam — say which in the plan). Under `"active"` the code path is the registered one: prove it by regenerating a registered IQL
 checkpoint tensor-for-tensor (pick `output/p4_4/checkpoints/iql_seed101.pt`'s recipe from its provenance; CUDA, one torch thread, as
 P4.4 ran it; if equality fails, say so with the first differing tensor — do not loosen the test to `allclose`). Expose the flag on
 every CLI that trains IQL (`method_tier_grid train`, `tier_sweep train-baselines`, `iql_correction train` if it is the route you
@@ -75,9 +82,13 @@ reuse for the grid random tier) as `--iql-target-dropout {active,off}`.
 checkpoint path or cell name can be overwritten: refuse to write a checkpoint whose path exists.
 
 ### 3.2 `offline/method_tier_grid.py` and `offline/tier_sweep.py` — registries and wiring (C2)
-- hz1x1 `TIERS` gains `random_fresh` (dirs `("cf_hz1x1__random_fresh",)`, `subsample="none"`, `stream_count=200`) and the mixture
-  tier of A27(e) (components per the registered pair, `subsample="mixture"`, composed by the SAME rule, RNG and seed as `mix50`;
-  quote the rule from the source in the plan). Their `target_rtg` / `rtg_scale` are the declared rule's values, re-derived by
+- hz1x1 `TIERS` gains `random_fresh` (dirs `("cf_hz1x1__random_fresh",)`, `subsample="none"`, `stream_count=200`; its state
+  normalisation, target, scale and IQL reward scale are fitted on its own 200 episodes — A27(d) says the old tier's were fitted on
+  400, and the artifact must say so too) and the mixture tier `mix_m1000_m500` of A27(e): components `mappo1000` (stronger) and
+  `mappo500` (weaker, in the `random_pool` slot of `mixture_training_streams`), expert fraction 0.50, the SAME rule, RNG and seed as
+  `mix50` (so its 100 `mappo1000` streams are `mix50`'s); the declaration must reproduce A27(e)'s design facts exactly — kept decile
+  14 `mappo1000` (seeds 101: 5, 202: 6, 404: 1, 505: 2) + 6 `mappo500` (101: 3, 202: 1, 404: 2), decile returns [−6,627, −5,959] —
+  and refuse to train if it does not. Their `target_rtg` / `rtg_scale` are the declared rule's values, re-derived by
   `assert_declaration_matches_corpus` before training, exactly as the mixtures were (`method_tier_grid.py:252-263`'s comment is the
   history to read first).
 - grid `TIERS` gains `random_fresh` (dirs `("cf_grid4x4__random_fresh",)`, `subsample="none"`, `episode_count=200`; `ladder_att` and
@@ -98,14 +109,16 @@ one draw must differ and two runs of the same (draw, episode) must be identical.
 Subcommands, each writing only into `output/p9_1/` / `output/p9_1_runs/` or the one artifact it names, after every input check:
 - `declare` — for `random_fresh` (both scenarios) and the mixture: the declaration as P4.6/P5.2 write it, plus the EXPOSURE TABLE
   computed from the code constants (A27(b)'s numbers must come out: 711.1 / 44.4 / 44.4 / 444.4 and, matched, 711.1 / 711.1 / 708.3 /
-  708.3 — a test pins them) and, for the mixture, the kept decile's SOURCE COMPOSITION and the pair's top-decile statistic (A27(e)
-  P4a is decided here, before training). Refuse a `random_fresh` tier that does not hold 200 distinct per-intersection action sequences.
+  708.3 — a test pins them) and, for the mixture, the kept decile's SOURCE COMPOSITION by source and by behaviour seed, which must equal A27(e)'s
+  design facts (a refusal otherwise). Refuse a `random_fresh` tier that does not hold 200 distinct per-intersection action sequences.
 - `collect-random-fresh` — the two tiers by `offline.collect` with `--random-rng per-episode`, draws 1–200, `--episodes 1`,
   `--base-seed 1000`, the registered reward settings (`--local-reward-fn queue_length --global-reward-weight 0.0`), into
   `datasets_v11/cf_hz1x1__random_fresh` and `cf_grid4x4__random_fresh` (new directories; refuse if they exist).
 - `train` — every arm of A27 (b), (c), (d), (e), (g) by the existing training functions with the flags above: hz1x1 `iql_t` on 8
   tiers; `random_fresh` arms (`dt`, `bc`, `bc_top10`, `iql`, `iql_t`); mixture arms (`dt`, `bc`, `bc_top10`, `iql`, `iql_t`); budget
-  arms (`dt_100k`, `bc_100k`, `bc_top10_100k`, `iql_100k`, `iql_t_100k`) on `mappo1000` and `mix50`; grid `bc_m`, `bc_top10_m`,
+  arms — the FOUR registered recipes only, one ceiling, as A8(b) requires: `dt_100k`, `bc_100k`, `bc_top10_100k`, `iql_100k` (IQL with
+  its registered targets; no `iql_t` at 100,000) on `mappo1000` (A8(b)) and on `mix50` (beyond A8(b), labelled an exploratory
+  extension in the artifact); grid `bc_m`, `bc_top10_m`,
   `bc_top10_perix_m`, `iql_m` on 4 tiers, `iql_t` on 4 tiers, `random_fresh` arms (`dt_nomix`, `bc_m`, `bc_top10_m`,
   `bc_top10_perix_m`, `iql_m`). Five seeds each. Resumable: a checkpoint on disk with a matching provenance is skipped, never
   re-trained; status is COMPUTED from disk.
@@ -122,8 +135,10 @@ Subcommands, each writing only into `output/p9_1/` / `output/p9_1_runs/` or the 
 - `rescore` — A27(b): every P5.2 statement contrasting a DT with a baseline, re-scored with the matched arm via
   `offline/tier_statements.py`'s scorers (import; do not re-implement), original beside, both definitions, verdict `moved: true/false`
   by the registered rule; A27(c): the IQL statements of P4.4, P4.6, P4.7, P5.2 (P5.2b's random cell as the registered one) with
-  `iql_t`; A27(d): the collapse checks against BOTH random references (registered `random` anchor and `random_fresh` reference);
-  A27(e): P4a/P4b/P4c; A27(g): the paired 100k − 40k differences and the ordering concordance.
+  `iql_t`; A27(d): every "worse than random" and collapse check against BOTH random references (the registered FIVE-SCHEDULE anchor and
+  the `random_fresh` reference); A27(e): the four ordering contrasts (`bc_top10` vs `bc`, `bc_top10` vs `iql`, `iql` vs `dt`, `dt` vs
+  `bc`) and the "every arm within 5 s of `bc_top10`" check, each HELD / FAILED / NOT RESOLVED by P5.2c's rule under `att_engine`,
+  `att_ours` beside; A27(g): the paired 100k − 40k differences and the ordering concordance, same rule.
 - `report` — the artifacts of §3.5, pure functions of their inputs (sorted keys, no rounding, no timestamp, git commit recorded, dirty
   must be false), each with a T-regress test that rebuilds it byte for byte from the run directories.
 - `preflight`, `status`, and the token check.
@@ -147,9 +162,11 @@ recomputed beside the registered −542.05 [−1668, +584]. Expected cost ≈ 10
 measures more than one hour in total, stop and say so — do not skip silently.
 
 ## 4. Tests (written first; the list is the minimum)
-1. `tests/test_iql_target_dropout.py` — **load-bearing:** a forward hook (or a recording subclass) asserts `q_target.training is
-   False` and `value.training is False` during the target forwards under `"off"` and `True` under `"active"`; `value.training is True`
-   during the `state` forward under both; and the provenance records the flag. **Mutation you run and paste:** replace the `eval()`
+1. `tests/test_iql_target_dropout.py` — **load-bearing:** forward hooks record `module.training` at every forward of `q_target`,
+   `value`, `q` and `policy` during one real update step: under `"off"` the three target forwards (`q_target(s)`, `value(s')`, the
+   advantage's `value(s)`) record `False` and every trained forward (`policy(s)`, `q(s)`, the expectile-loss `value(s)`) records
+   `True`; under `"active"` every forward records `True`; the provenance records the flag; and the advantage's V is shown to come from
+   the pre-update parameters under both modes (compare against a V forward taken after the step). **Mutation you run and paste:** replace the `eval()`
    calls with `train()` in the implementation — the test must FAIL.
 2. Registered-behaviour tests: the IQL checkpoint regenerated tensor-for-tensor under defaults (§3.1); the random episode regenerated
    byte for byte under `per-draw` (§3.3); a `bc` checkpoint regenerated under `--bc-batch-windows 64`.
@@ -191,8 +208,10 @@ measures more than one hour in total, stop and say so — do not skip silently.
       in the artifact and equals A27(b).
 - [ ] A27(d): two `random_fresh` tiers with 200 distinct schedules each; the hz1x1 and grid arms trained and evaluated; both random
       references on the held-out draws; P3a/P3b with verdicts.
-- [ ] A27(e): the mixture's decile composition declared before training; five arms × five seeds; P4a/P4b/P4c with verdicts.
-- [ ] A27(g): the ten `_100k` arms on `mappo1000` and `mix50`; the paired differences and the concordance.
+- [ ] A27(e): `mix_m1000_m500` declared with A27(e)'s design facts reproduced; five arms × five seeds; the four ordering contrasts
+      and the collapse check with HELD / FAILED / NOT RESOLVED verdicts under `att_engine`, `att_ours` beside.
+- [ ] A27(g): the four registered recipes at 100,000 steps on `mappo1000` and on `mix50` (the latter labelled beyond A8(b)); the
+      paired differences and the concordance.
 - [ ] Every artifact carries the per-episode records (new and compared-old, both definitions, companions), the training seconds and
       steps with the uncontrolled-clock label, A27's label, and a T-regress. No registered artifact or checkpoint changed
       (`git diff --stat` and `sha256sum` of `output/SHA256SUMS_*.txt` entries you touched nothing of).

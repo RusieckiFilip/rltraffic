@@ -9,7 +9,7 @@ proceed). Tests first. Mutation testing for number-computing code. One session, 
 only `output/p9_3/`, `output/p9_3_runs/`, `output/checkpoints/p9_3_mappo_nominal_1000/`). `--torch-threads 1` everywhere.
 **Registration:** `PREREGISTRATION.md` A27 (i) (and (b)–(d) for the recipes), tag `v2.8-prereg-a27`. **GATE 0 — the pre-flight may
 run before the tag (it produces no registered number); nothing else does.** The registration wins over this brief.
-**Label (A27):** exploration — a replication scenario added after results; no new claim. The paper says exactly: hz4x4 tests real
+**Label (A27):** conditional generalizability extension registered after the grid results; no new claim. The paper says exactly: hz4x4 tests real
 demand and real geometry on the grid's topology, not a new topology (32 nodes of which 16 signalised, 80 directed roads, the same
 16-node / 48-internal-edge lattice as `grid4x4_roadnet_red.json`; 9 file phases per intersection against the grid's 16; 2,983 vehicles
 against 1,473 — measured 2026-10-15).
@@ -26,8 +26,8 @@ trained within one day.
   `control_mode acyclic`, `global_reward_fn queue_length`, seeds 101–505, env `cf_hz4x4` on `../../configs/sim/cityflow4x4.json`).
 - The grid's collection protocol is the contract for the corpus (read the manifests of `datasets_v11/cf_grid4x4__*`, `run_metadata`):
   `mappo1000` — 5 seeds × draws 1–40 × 1 episode from the nominal MAPPO@1000 checkpoints; `maxpressure` — draws 1–200 × 1;
-  `fixedtime` — draws 1–200 × 1 at the tuned k; `random_fresh` — draws 1–200 × 1 with `--random-rng per-episode` (A27(i): fresh, not
-  the old collector); reward settings `--local-reward-fn queue_length --global-reward-weight 0.0`; `--base-seed 1000`.
+  `fixedtime` — draws 1–200 × 1 at the tuned k; `random_fresh` — draws 1–200 × 1 with `--random-rng per-episode` — **collected ONLY with P9.1's fixed collector; if
+  Phase A starts before that merge, this tier is collected last** (A27(i)); reward settings `--local-reward-fn queue_length --global-reward-weight 0.0`; `--base-seed 1000`.
 - D5's tuning protocol for fixed-time (`docs/data/fixed_time_sweep/README.md`): k ∈ {1, 2, 3, 4, 6, 8, 10, 14} on draws 1–5,
   objective the registered primary (now `att_engine` where its gate passes, `att_ours` beside), the chosen k recorded BEFORE collection.
 - A11's engine-semantics gate (`offline/engine_att_reference.py`, P8.4b G0): four criteria with observed values on hz4x4 before
