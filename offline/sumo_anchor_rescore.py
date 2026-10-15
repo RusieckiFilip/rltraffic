@@ -55,6 +55,28 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
 __all__ = [
+    "ALIGNED_PAIR",
+    "ARTIFACT_NAME",
+    "INPUT_ARTIFACTS",
+    "LABEL_POINT_5",
+    "PAIRS",
+    "POLICY_CLASS",
+    "REGISTERED_H3_VERDICTS",
+    "build_report",
+    "cityflow_registered_anchors",
+    "clause_1_verdict",
+    "clause_2_verdict",
+    "clause_3_verdict",
+    "grid4x4_rho_block",
+    "hz1x1_rho_block",
+    "load_inputs",
+    "pair_anchor_rows",
+    "registered_anchors",
+    "registered_reproduction",
+    "rescore_pair",
+    "rescored_rows",
+    "sumo_demand_digests",
+    "write_report",
     "ARTIFACT_FORMAT_VERSION",
     "BASE_ARM",
     "CELL_FORMAT_VERSION",
@@ -1325,6 +1347,439 @@ def rescore_pair(inputs: Mapping[str, Any], pair: str, *, new_rows: Mapping[str,
 
 
 # ----------------------------------------------------------------------
+# The artifact (C4)
+# ----------------------------------------------------------------------
+
+ARTIFACT_NAME = "p9_2_sumo_anchors.json"
+
+#: A27(a), item 5, verbatim (rho U+03C1 escaped so this source stays ASCII); ``tests/test_sumo_anchor_report.py`` extracts
+#: it from ``PREREGISTRATION.md`` and compares character for character.
+LABEL_POINT_5 = "anchor-alignment control added after results, the registered ρ and the H3 verdicts staying the record"
+
+WHAT_THIS_DOES_NOT_SAY: tuple[str, ...] = (
+    "No DT was re-evaluated: every transferred-DT cell is READ from its committed artifact (P7.3a, P7.3b, P7.3d, P7.3c) "
+    "and only rho's two anchors change between the pairs; the registered rho and the registered H3 verdicts stand as "
+    "the record, and every value under a new pair is reported beside them, never in their place.",
+    "The new anchors are a CONTROL added after the results (A27(a), item 5): a MaxPressure whose pressure counts each "
+    "lane once per phase, and the equal-split fixed-time plan at CityFlow's tuned k rendered in SUMO exactly as the "
+    "registered k = 4 anchor was; neither is a tuned SUMO controller.",
+    "departLane is set nowhere in the parity route files (DEFERRED 116), so SUMO's default departure lane applies on "
+    "every SUMO cell, registered and new alike; it is not changed here and it is a named limitation.",
+    "rho is computed within SUMO on SUMO's own anchors; the CityFlow maxpressure_1to1 cells are reported beside the "
+    "registered CityFlow anchors and enter no transferred-DT rho.",
+)
+
+#: The per-episode fields copied for every anchor, per backend.
+SUMO_ANCHOR_FIELDS: tuple[str, ...] = (
+    "e_sumo", "att_env", "p_sumo", "w_sumo", "mean_depart_delay", "n_created", "n_entered", "n_never_entered",
+    "n_pending_at_horizon", "n_teleports", "n_vanished_without_arrival", "episode_reward", "horizon_vehicle_count",
+)
+CITYFLOW_ANCHOR_FIELDS: tuple[str, ...] = (
+    "att_ours", "att_engine", "created", "entered", "never_entered", "horizon_vehicle_count", "episode_reward",
+)
+
+#: Where the registered CityFlow anchors' per-episode values are read, per scenario (plan C5).
+CITYFLOW_REGISTERED_SOURCES: Mapping[str, Mapping[str, str]] = {
+    "cityflow1x1": {
+        "both_definitions": "docs/data/p8_4a_admission_escalated.json (behaviour@maxpressure, behaviour@fixedtime)",
+        "att_ours_checked_against": "docs/data/p4_heldout_thresholds.json (maxpressure); docs/data/p4_6_grid.json "
+                                    "(behaviour@fixedtime)",
+    },
+    "cityflow_grid4x4": {
+        "both_definitions": "output/p8_4b_rederivation/cell_grid4x4_behaviour_at_{maxpressure,fixedtime}_seed*_draw*.json "
+                            "(P8.4b's re-roll, reproduces_committed true; the five seed slots equal)",
+        "att_ours_checked_against": "output/p5_2/eval_{maxpressure,fixedtime}_behaviour.json (SHA256SUMS_p5_2.txt)",
+    },
+}
+
+
+def _code_changed_since(commit: str) -> list[str]:
+    """``transfer_curve.code_changed_since``: the paths outside ``docs/`` a chunk's commit differs from HEAD on (J1(c))."""
+    import offline.transfer_curve as tc
+
+    return tc.code_changed_since(commit)
+
+
+def sumo_demand_digests(scenario: str, draw_id: int, draws_root: str | Path) -> dict[str, str]:
+    """The parity draw's two digests re-derived from disk now (``transfer_curve.demand_identity``)."""
+    import offline.transfer_curve as tc
+
+    identity = tc.demand_identity(int(draw_id), out_root=draws_root, scenario=scenario)
+    return {"config_sha256": identity["config_sha256"], "routes_sha256": identity["routes_sha256"]}
+
+
+def _load_chunks(work_dir: Path) -> dict[str, dict[str, Any]]:
+    """Every declared cell's chunk, validated against its cell; a missing cell or an undeclared file refuses."""
+    declared = {cell_name(cell): cell for cell in declared_anchor_cells()}
+    present = {path.name for path in work_dir.glob("cell_*.json")}
+    undeclared = sorted(present - set(declared))
+    if undeclared:
+        raise ValueError(f"{len(undeclared)} file(s) in {work_dir} are not a declared cell (first: {undeclared[:3]})")
+    missing = sorted(set(declared) - present)
+    if missing:
+        raise ValueError(
+            f"{len(missing)} declared cell(s) have no chunk (first: {missing[:3]}); no estimator is computed on a "
+            "partial set"
+        )
+    chunks: dict[str, dict[str, Any]] = {}
+    for name, cell in declared.items():
+        payload = json.loads((work_dir / name).read_bytes())
+        validate_anchor_cell(payload, cell=cell)
+        chunks[name] = payload
+    return chunks
+
+
+def cityflow_registered_anchors(
+    scenario: str, *, data_dir: str | Path, output_root: str | Path | None
+) -> dict[int, dict[str, Any]]:
+    """The registered CityFlow ``maxpressure`` and ``fixedtime`` on draws 1000-1099 under both definitions (plan C5):
+    hz1x1 from the committed P8.4a escalated artifact, its ``att_ours`` re-checked against the thresholds and P4.6's
+    fixed-time cell; grid4x4 from P8.4b's re-derivation cells, the five seed slots required equal and ``att_ours``
+    re-checked against P5.2's evaluation files."""
+    data = Path(data_dir)
+    out: dict[int, dict[str, Any]] = {}
+    if scenario == "cityflow1x1":
+        escalated = json.loads((data / "p8_4a_admission_escalated.json").read_bytes())["episodes"]
+        thresholds = {
+            int(e["draw_id"]): float(e["att_horizon"])
+            for e in json.loads((data / "p4_heldout_thresholds.json").read_bytes())["episodes"]
+            if e["arm"] == "maxpressure"
+        }
+        p4_6 = {
+            int(e["draw_id"]): float(e["att_horizon"])
+            for e in json.loads((data / "p4_6_grid.json").read_bytes())["episodes"]
+            if e["arm"] == "behaviour@fixedtime"
+        }
+        for arm, checked in (("maxpressure", thresholds), ("fixedtime", p4_6)):
+            rows = [e for e in escalated if e["scenario"] == "hz1x1" and e["arm"] == f"behaviour@{arm}"]
+            for row in rows:
+                draw = int(row["draw_id"])
+                if float(row["att_ours"]) != checked[draw]:
+                    raise ValueError(f"hz1x1 {arm} draw {draw}: P8.4a's att_ours does not reproduce its committed cell")
+                out.setdefault(draw, {})[arm] = {
+                    **{key: row[key] for key in CITYFLOW_ANCHOR_FIELDS},
+                    "source": f"p8_4a_admission_escalated.json behaviour@{arm}",
+                }
+    elif scenario == "cityflow_grid4x4":
+        if output_root is None:
+            raise ValueError("grid4x4's registered CityFlow anchors live under output/; an output root is required")
+        output = Path(output_root)
+        for arm in ("maxpressure", "fixedtime"):
+            p5_2 = json.loads((output / "p5_2" / f"eval_{arm}_behaviour.json").read_bytes())["episodes"]
+            committed = {(int(e["seed"]), int(e["draw_id"])): float(e["att_horizon"]) for e in p5_2}
+            for draw in HELD_OUT_DRAWS:
+                slots = []
+                for seed in (101, 202, 303, 404, 505):
+                    path = (output / "p8_4b_rederivation"
+                            / f"cell_grid4x4_behaviour_at_{arm}_seed{seed}_draw{draw}.json")
+                    raw = path.read_bytes()
+                    record = json.loads(raw)
+                    if record.get("reproduces_committed") is not True or float(record["att_ours"]) != committed[(seed, draw)]:
+                        raise ValueError(f"{path.name}: its att_ours does not reproduce P5.2's committed cell")
+                    slots.append((record, hashlib.sha256(raw).hexdigest(), path.name))
+                values = [{key: record[key] for key in CITYFLOW_ANCHOR_FIELDS} for record, _d, _n in slots]
+                if any(value != values[0] for value in values[1:]):
+                    raise ValueError(f"grid4x4 {arm} draw {draw}: the five deterministic seed slots differ")
+                out.setdefault(draw, {})[arm] = {
+                    **values[0], "source": slots[0][2], "source_sha256": slots[0][1],
+                }
+    else:
+        raise ValueError(f"{scenario!r} is not a scenario of this task ({list(SCENARIOS)})")
+    if sorted(out) != list(HELD_OUT_DRAWS) or any(set(slot) != {"maxpressure", "fixedtime"} for slot in out.values()):
+        raise ValueError(f"{scenario}: the registered CityFlow anchors do not cover draws 1000-1099 with both arms")
+    return out
+
+
+def _sumo_records(chunks: Mapping[str, Mapping[str, Any]], inputs: Mapping[str, Any]) -> dict[str, Any]:
+    """Per scenario and draw: the two registered SUMO anchors (copied from the committed artifact, with their collision
+    counts on the grid from its ``collisions`` block) and the two new ones (from this task's cells)."""
+    by_scenario: dict[str, Any] = {}
+    for scenario in SCENARIOS:
+        artifact = inputs[REGISTERED_ANCHOR_ARTIFACT[scenario]]
+        registered = registered_anchors(artifact)
+        registered_collisions: dict[tuple[str, int], int] = {}
+        if scenario == "cityflow_grid4x4":
+            for arm, block in artifact["collisions"]["per_arm"].items():
+                for event in block["events"]:
+                    key = (arm, int(event["draw_id"]))
+                    registered_collisions[key] = registered_collisions.get(key, 0) + 1
+        by_draw: dict[str, Any] = {}
+        for draw in HELD_OUT_DRAWS:
+            entry: dict[str, Any] = {}
+            for arm in ("maxpressure", "fixedtime"):
+                row = registered[draw][arm]
+                entry[arm] = {key: row[key] for key in SUMO_ANCHOR_FIELDS}
+                if scenario == "cityflow_grid4x4":
+                    entry[arm]["n_collisions"] = registered_collisions.get((arm, draw), 0)
+            for arm in SUMO_ARMS:
+                payload = chunks[cell_name({"backend": "sumo", "scenario": scenario, "arm": arm, "draw_id": draw})]
+                entry[arm] = {key: payload[key] for key in SUMO_ANCHOR_FIELDS}
+                entry[arm]["action_sequence_sha256"] = payload["action_sequence_sha256"]
+                if scenario == "cityflow_grid4x4":
+                    entry[arm]["n_collisions"] = int(payload["n_collisions"])
+            by_draw[str(draw)] = entry
+        by_scenario[scenario] = {
+            "registered_source": REGISTERED_ANCHOR_ARTIFACT[scenario],
+            "fields": list(SUMO_ANCHOR_FIELDS),
+            "by_draw": by_draw,
+        }
+    return by_scenario
+
+
+def _cityflow_records(
+    chunks: Mapping[str, Mapping[str, Any]], registered: Mapping[str, Mapping[int, Mapping[str, Any]]]
+) -> dict[str, Any]:
+    """Per scenario and draw: the registered CityFlow anchors and ``maxpressure_1to1``; on hz1x1 the LOAD-BEARING
+    identity (every field equal under ``==``, 100 of 100, or the report refuses), on grid4x4 the new value beside."""
+    by_scenario: dict[str, Any] = {}
+    for scenario in SCENARIOS:
+        by_draw: dict[str, Any] = {}
+        identical = 0
+        att_differing = 0
+        for draw in HELD_OUT_DRAWS:
+            payload = chunks[cell_name({"backend": "cityflow", "scenario": scenario, "arm": "maxpressure_1to1",
+                                        "draw_id": draw})]
+            new = {key: payload[key] for key in CITYFLOW_ANCHOR_FIELDS}
+            reference = registered[scenario][draw]
+            same = all(new[key] == reference["maxpressure"][key] for key in CITYFLOW_ANCHOR_FIELDS)
+            identical += int(same)
+            att_differing += int(new["att_ours"] != reference["maxpressure"]["att_ours"])
+            by_draw[str(draw)] = {
+                "maxpressure": dict(reference["maxpressure"]),
+                "fixedtime": dict(reference["fixedtime"]),
+                "maxpressure_1to1": {**new, "action_sequence_sha256": payload["action_sequence_sha256"]},
+            }
+        block: dict[str, Any] = {
+            "registered_sources": dict(CITYFLOW_REGISTERED_SOURCES[scenario]),
+            "fields": list(CITYFLOW_ANCHOR_FIELDS),
+            "by_draw": by_draw,
+        }
+        if scenario == "cityflow1x1":
+            if identical != len(HELD_OUT_DRAWS):
+                raise ValueError(
+                    f"the load-bearing identity failed: maxpressure_1to1 equals the registered CityFlow MaxPressure on "
+                    f"{identical} of {len(HELD_OUT_DRAWS)} hz1x1 draws, and every lane there is released once per phase, "
+                    "so the two are one policy; this is a finding that stops the report"
+                )
+            block["identity_with_registered_maxpressure"] = {
+                "n_draws": len(HELD_OUT_DRAWS), "n_identical": identical, "fields": list(CITYFLOW_ANCHOR_FIELDS),
+            }
+        else:
+            block["beside_registered_maxpressure"] = {
+                "n_draws": len(HELD_OUT_DRAWS), "n_identical": identical, "n_att_ours_differing": att_differing,
+            }
+        by_scenario[scenario] = block
+    return by_scenario
+
+
+def _structure_block(chunks: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
+    """The multiplicities and roadlink digests per backend and scenario, each required identical across that group's
+    cells, and the parity route files' departLane count."""
+    structure: dict[str, Any] = {}
+    for backend in ("sumo", "cityflow"):
+        for scenario in SCENARIOS:
+            group = [
+                payload for payload in chunks.values()
+                if payload["backend"] == backend and payload["scenario"] == scenario and payload["arm"] == "maxpressure_1to1"
+            ]
+            if backend == "sumo":
+                records = [(p["policy"]["roadlink_structure_digest"], p["policy"]["multiplicities"]) for p in group]
+            else:
+                records = [(p["roadlink_structure_digest"], p["multiplicities"]) for p in group]
+            digests = {digest for digest, _m in records}
+            summaries = {json.dumps(m, sort_keys=True) for _d, m in records}
+            if len(digests) != 1 or len(summaries) != 1:
+                raise ValueError(f"{backend}/{scenario}: the cells disagree on the roadlink structure they measured")
+            structure[f"{backend}/{scenario}"] = {
+                "roadlink_structure_digest": next(iter(digests)),
+                "multiplicities": json.loads(next(iter(summaries))),
+                "n_cells": len(group),
+            }
+    return structure
+
+
+def _depart_lane_block(chunks: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
+    per_file: dict[tuple[str, int], int] = {}
+    for payload in chunks.values():
+        if payload["backend"] != "sumo":
+            continue
+        key = (str(payload["scenario"]), int(payload["draw_id"]))
+        count = int(payload["depart_lane_attributes"])
+        if per_file.setdefault(key, count) != count:
+            raise ValueError(f"{key}: two cells counted the routes file's departLane attributes differently")
+    return {
+        "n_parity_route_files": len(per_file),
+        "n_departlane_attributes": sum(per_file.values()),
+        "limitation": (
+            "no departLane attribute is set in any parity route file, so SUMO's default departure lane applies to "
+            "every SUMO cell; the configuration is A15's (vType parity, teleport-free) with A23, unchanged, and this is a "
+            "named limitation (A27(f); DEFERRED 116)"
+        ),
+    }
+
+
+def _collisions_block(chunks: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
+    events = [
+        {"arm": payload["arm"], "draw_id": int(payload["draw_id"]), **event}
+        for payload in chunks.values()
+        if payload["backend"] == "sumo" and payload["scenario"] == "cityflow_grid4x4"
+        for event in payload["collisions"]
+    ]
+    return {
+        "registered_in": "PREREGISTRATION A23(c)(ii): a collision is recorded and the cell kept",
+        "n_events": len(events),
+        "events": events,
+    }
+
+
+def _h3_summary(pairs: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
+    summary: dict[str, Any] = {}
+    for pair, block in pairs.items():
+        for scenario, by_subject in block["h3"].items():
+            for subject, clauses in by_subject.items():
+                verdicts = {clause: entry["verdict"] for clause, entry in clauses.items()}
+                verdicts["agrees_with_registered"] = all(entry["agrees_with_registered"] for entry in clauses.values())
+                summary.setdefault(scenario, {}).setdefault(subject, {})[pair] = verdicts
+    return summary
+
+
+def _interval(stats: Mapping[str, Any]) -> dict[str, Any]:
+    return {"mean": stats["mean"], "ci95_low": stats["ci95_low"], "ci95_high": stats["ci95_high"]}
+
+
+def _sentence_values(pairs: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
+    """The numbers A27(f)'s two sentences need, under the aligned pair, beside the registered values they quote."""
+    import offline.transfer_curve as tc
+
+    aligned, registered = pairs[ALIGNED_PAIR], pairs["registered"]
+
+    def hz(block: Mapping[str, Any], subject: str) -> dict[str, Any]:
+        entry = next(e for e in block["p7_3a"]["by_subject_arm"] if e["subject"] == subject and e["arm"] == "b_mean_k100")
+        return _interval(entry["e_sumo"])
+
+    grid_clauses = aligned["h3"]["cityflow_grid4x4"][tc.GRID4X4_SUBJECT]
+    return {
+        "pair": ALIGNED_PAIR,
+        "hz1x1": {
+            subject: {
+                "rho_aligned": hz(aligned, subject),
+                "rho_registered": hz(registered, subject),
+                "clause_1": aligned["h3"]["cityflow1x1"][subject]["clause_1"]["verdict"],
+                "clause_2": aligned["h3"]["cityflow1x1"][subject]["clause_2"]["verdict"],
+            }
+            for subject in tc.SUBJECTS
+        },
+        "grid4x4": {
+            "zero_shot_rho_aligned": _interval(aligned["p7_3d"]["rho"]["registered_arm"]["e_sumo"]),
+            "zero_shot_rho_registered": _interval(registered["p7_3d"]["rho"]["registered_arm"]["e_sumo"]),
+            "ft_k100_rho_aligned": _interval(aligned["p7_3c"]["arms"]["ft_k100"]["e_sumo"]),
+            "ft_k100_rho_registered": _interval(registered["p7_3c"]["arms"]["ft_k100"]["e_sumo"]),
+            "clause_1": grid_clauses["clause_1"]["verdict"],
+            "clause_2": grid_clauses["clause_2"]["verdict"],
+            "clause_3": grid_clauses["clause_3"]["verdict"],
+            "G": grid_clauses["clause_3"]["G"],
+        },
+    }
+
+
+def build_report(
+    *, work_dir: str | Path, data_dir: str | Path, output_root: str | Path, draws_root: str | Path,
+    cityflow_registered: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """``docs/data/p9_2_sumo_anchors.json``'s content.  It writes NOTHING; every refusal precedes the caller's one write.
+
+    In order: the replica gate's record (present and passed); every declared cell validated, completeness, no undeclared
+    file; each chunk's commit differing from HEAD only under ``docs/`` (J1(c)); each SUMO cell's demand digests re-derived
+    from disk; the inputs by digest; the tautology guard; the CityFlow registered anchors and the hz1x1 identity; then the
+    four pairs and the blocks.
+    """
+    work = Path(work_dir)
+    gate_path = work / REPLICA_GATE_NAME
+    if not gate_path.is_file():
+        raise ValueError(f"no replica gate record at {gate_path}; the replica is not proven to be the registered route")
+    gate = json.loads(gate_path.read_bytes())
+    if gate.get("passed") is not True:
+        raise ValueError(f"the replica gate at {gate_path} did not pass; no anchor rolled through it may be reported")
+    chunks = _load_chunks(work)
+    commits = sorted({str(payload["git_commit"]) for payload in chunks.values()})
+    for commit in commits:
+        changed = _code_changed_since(commit)
+        if changed:
+            raise ValueError(
+                f"cells were rolled at {commit}, which differs from HEAD outside docs/ ({changed[:3]}); they were "
+                "produced by different code and must be re-rolled"
+            )
+    for name, payload in chunks.items():
+        if payload["backend"] != "sumo":
+            continue
+        disk = sumo_demand_digests(str(payload["scenario"]), int(payload["draw_id"]), draws_root)
+        if (payload["config_sha256"], payload["routes_sha256"]) != (disk["config_sha256"], disk["routes_sha256"]):
+            raise ValueError(f"{name}: its demand digests are not the parity draw's on disk now")
+
+    inputs = load_inputs(data_dir)
+    guard = registered_reproduction(inputs)
+    registered_cityflow = (
+        {scenario: cityflow_registered_anchors(scenario, data_dir=data_dir, output_root=output_root)
+         for scenario in SCENARIOS}
+        if cityflow_registered is None else cityflow_registered
+    )
+    cityflow = _cityflow_records(chunks, registered_cityflow)
+    new_rows: dict[str, Any] = {
+        scenario: {
+            arm: {
+                draw: chunks[cell_name({"backend": "sumo", "scenario": scenario, "arm": arm, "draw_id": draw})]
+                for draw in HELD_OUT_DRAWS
+            }
+            for arm in SUMO_ARMS
+        }
+        for scenario in SCENARIOS
+    }
+    pairs = {
+        pair: rescore_pair(inputs, pair, new_rows=None if pair == "registered" else new_rows) for pair in PAIRS
+    }
+    return {
+        "format_version": ARTIFACT_FORMAT_VERSION,
+        "label": LABEL_POINT_5,
+        "registered_in": "PREREGISTRATION A27(a) item 5 and A27(f); tag v2.8-prereg-a27; BRIEF_47 sections 3.1-3.3",
+        "what_this_does_not_say": list(WHAT_THIS_DOES_NOT_SAY),
+        "alignment_convention": (
+            "every value is the horizon value of one episode from reset(seed=1000) on one held-out draw (A1, A18(c)); "
+            "rho is per draw against the same draw's anchors of the pair; per arm, the mean over draws of each draw's "
+            "seed mean with dt_gate.mean_ci95 (ddof 1, 1.96)"
+        ),
+        "pairs_defined": {pair: {"roles": dict(PAIRS[pair]), "description": PAIR_DESCRIPTIONS[pair]} for pair in PAIRS},
+        "kcf": {"values": dict(KCF_README_VALUES), "source": "docs/data/fixed_time_sweep/README.md (chosen k) and the "
+                                                             "CityFlow fixed-time tier manifests' fixed_time_k"},
+        "inputs": {
+            "artifacts_sha256": dict(INPUT_ARTIFACTS),
+            "cell_commits": commits,
+            "replica_gate": gate,
+            "n_cells": len(chunks),
+        },
+        "registered_reproduced": guard,
+        "structure": _structure_block(chunks),
+        "depart_lane": _depart_lane_block(chunks),
+        "collisions_new_grid_cells": _collisions_block(chunks),
+        "anchors": {"sumo": _sumo_records(chunks, inputs), "cityflow": cityflow},
+        "pairs": pairs,
+        "h3_summary": _h3_summary(pairs),
+        "sentence_values": _sentence_values(pairs),
+        **_git_provenance(),
+    }
+
+
+def write_report(artifact: Mapping[str, Any], out_path: str | Path) -> Path:
+    """The ONE write: atomic, sorted keys, newline-terminated; an existing file is never overwritten."""
+    out = Path(out_path)
+    if out.exists():
+        raise FileExistsError(f"{out} exists; the artifact is written once, and a regeneration goes elsewhere")
+    if not out.parent.is_dir():
+        raise FileNotFoundError(f"{out.parent} does not exist; the report creates no directory")
+    _write_json_atomic(out, artifact)
+    return out
+
+
+# ----------------------------------------------------------------------
 # The command line
 # ----------------------------------------------------------------------
 
@@ -1365,6 +1820,11 @@ def build_parser() -> argparse.ArgumentParser:
     roll.add_argument("--shard", type=int, default=0)
     roll.add_argument("--of", type=int, default=1)
     sub.add_parser("status", help="declared against present, from disk")
+    rescore = sub.add_parser("rescore", help="every transferred-DT rho under the four pairs and H3's clauses (writes nothing)")
+    rescore.add_argument("--registered-only", action="store_true",
+                         help="only the tautology guard: the registered pair reproduces every committed block under ==")
+    report = sub.add_parser("report", help="write docs/data/p9_2_sumo_anchors.json (refuses if it exists)")
+    report.add_argument("--out", default=str(DEFAULT_DATA_DIR / ARTIFACT_NAME))
     return parser
 
 
@@ -1377,6 +1837,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     work = Path(args.work_dir)
     if args.command == "status":
         print(json.dumps(anchor_status(work), indent=2, sort_keys=True), flush=True)
+        return 0
+    if args.command == "rescore" and args.registered_only:
+        guard = registered_reproduction(load_inputs(args.data_dir))
+        print(json.dumps(guard, indent=2, sort_keys=True), flush=True)
+        return 0
+    if args.command in ("rescore", "report"):
+        artifact = build_report(work_dir=work, data_dir=args.data_dir, output_root=args.output_root,
+                                draws_root=args.draws_root)
+        if args.command == "report":
+            written = write_report(artifact, args.out)
+            print(f"wrote {written}", flush=True)
+        print(json.dumps({"h3_summary": artifact["h3_summary"], "sentence_values": artifact["sentence_values"]},
+                         indent=2, sort_keys=True), flush=True)
         return 0
     assert_work_dir(work, output_root=args.output_root, repo_root=_REPO_ROOT)
     if args.command == "gate":
