@@ -302,6 +302,119 @@ PHASE1_TIER_ORDER: tuple[str, ...] = ("mappo1000", "mappo500", "maxpressure", "f
 #: Phase-2 tiers, in expert-fraction order.
 MIXTURE_TIER_ORDER: tuple[str, ...] = ("mix33", "mix50", "mix67")
 
+#: ⚠️ **A27's hz1x1 tiers (``PREREGISTRATION.md`` A27(d), (e); tag ``v2.8-prereg-a27``), declared BESIDE ``TIERS``.**
+#: ``tests/test_rtg_ablation.py`` pins ``set(PROBE_TIERS) == set(TIERS)``, so a new key in ``TIERS`` would change a
+#: registered check; every lookup that must know these tiers (:func:`tier_spec`, :func:`arm_key`,
+#: :func:`mixture_training_streams`, the CLI's ``--tier``) consults this mapping AFTER the registered one, and nothing
+#: that iterates over ``TIERS`` sees them.
+#:
+#: * ``mix_m1000_m500`` -- A27(e)'s overlap mixture: ``mappo1000`` the stronger component, ``mappo500`` in the slot the
+#:   registered mixtures give the random tier, expert fraction 0.50 under the SAME rule, RNG and seed as ``mix50``
+#:   (:data:`A27_MIXTURE_EXPERT_FRACTION`), so its 100 ``mappo1000`` streams are ``mix50``'s.  ``target_rtg`` /
+#:   ``rtg_scale`` are the declared rule (``max`` return and ``max|return|`` over the composed training set) evaluated
+#:   on 2026-10-15 from the corpus, re-derived by :func:`assert_declaration_matches_corpus` before any training and by
+#:   ``tests/test_method_tier_grid_a27.py`` from the raw ``.npz``.
+#: * ``random_fresh`` -- A27(d)'s tier: 200 episodes, one per draw, collected with ``--random-rng per-episode``; its
+#:   state normalisation, prompt and IQL reward scale are fitted on its own 200 episodes (the registered ``random``
+#:   tier's were fitted on its 400-episode split).  **Its corpus does not exist until P9.1's campaign collects it**, so
+#:   the prompt below is ``nan`` until the declared rule's values are typed in a reviewed commit (``docs/plans/p9.1.md``
+#:   Q2); ``nan`` makes :func:`assert_declaration_matches_corpus` refuse, so nothing trains on it before then.
+A27_TIERS: Mapping[str, TierSpec] = {
+    "mix_m1000_m500": TierSpec(
+        tier="mix_m1000_m500",
+        dirs=(*_MAPPO1000_DIRS, *TIERS["mappo500"].dirs),
+        phase=2,
+        target_rtg=-5959.0,
+        rtg_scale=11043.0,
+        stream_count=TRAINING_STREAM_COUNT,
+        subsample="mixture",
+        components=("mappo1000", "mappo500"),
+    ),
+    "random_fresh": TierSpec(
+        tier="random_fresh",
+        dirs=("cf_hz1x1__random_fresh",),
+        phase=1,
+        target_rtg=math.nan,
+        rtg_scale=math.nan,
+        stream_count=TRAINING_STREAM_COUNT,
+        subsample="none",
+    ),
+}
+
+#: A27(e)'s expert fraction, beside :data:`MIXTURE_EXPERT_FRACTION` (which stays the registered three).
+A27_MIXTURE_EXPERT_FRACTION: Mapping[str, float] = {"mix_m1000_m500": 0.50}
+
+#: A27(d)'s fresh random reference, filed as the ``behaviour`` cell of ``random_fresh`` exactly as the registered
+#: random reference is the ``behaviour`` cell of ``random``; beside :data:`BEHAVIOUR_REFERENCE_BY_TIER`, which the
+#: registered declaration serialises and therefore must not change.
+A27_BEHAVIOUR_REFERENCE_BY_TIER: Mapping[str, Mapping[str, str]] = {
+    "random_fresh": {
+        "arm": "random_fresh",
+        "source": "evaluated_here",
+        "artifact": "offline/a27_arms.py::fresh_random_factory, numpy.random.default_rng([seed, draw_id]) per draw",
+    },
+}
+
+#: The artifact prefixes whose records are REGISTERED; an A27 training call may not write into them (A27(a)).
+REGISTERED_ARTIFACT_PREFIXES: frozenset[str] = frozenset({"p4_6", "p4_7"})
+
+
+def _a27_knobs(args: argparse.Namespace) -> dict[str, Any]:
+    """The three A27 training flags, defaulting for a namespace built by hand (as :func:`_artifact_prefix` does)."""
+    return {
+        "iql_target_dropout": str(getattr(args, "iql_target_dropout", "active")),
+        "bc_batch_windows": int(getattr(args, "bc_batch_windows", BC_BATCH_WINDOWS)),
+        "iql_batch_transitions": int(getattr(args, "iql_batch_transitions", IQL_BATCH_TRANSITIONS)),
+    }
+
+
+def training_recipe(method: str, args: argparse.Namespace) -> Any:
+    """The arm ``train --methods <method>`` trains under these flags: ``offline.a27_arms.derive_arm`` on hz1x1.
+
+    The registered recipe keeps its registered name at any step count but A8(b)'s ceiling, so every pre-A27
+    invocation -- and every fixture run at a handful of steps -- names its checkpoints exactly as before.
+    """
+    from offline.a27_arms import derive_arm
+
+    if method not in METHODS:
+        raise ValueError(f"unknown method {method!r}; known methods are {list(METHODS)}")
+    knobs = _a27_knobs(args)
+    batch = {
+        "bc": knobs["bc_batch_windows"],
+        "bc_top10": knobs["bc_batch_windows"],
+        "iql": knobs["iql_batch_transitions"],
+        "dt": BATCH_SIZE,
+    }[method]
+    target = knobs["iql_target_dropout"] if method == "iql" else None
+    return derive_arm("hz1x1", method, batch=batch, target_dropout=target, steps=int(args.steps))
+
+
+def _is_hz1x1_arm(method: str) -> bool:
+    from offline.a27_arms import is_a27_arm
+
+    return method in METHODS or is_a27_arm("hz1x1", method)
+
+
+def _base_method(method: str) -> str:
+    """The registered method an hz1x1 arm is built from: itself, or its A27 recipe's base."""
+    if method in METHODS or method == BEHAVIOUR_METHOD:
+        return method
+    from offline.a27_arms import recipe
+
+    return recipe("hz1x1", method).base
+
+
+def cell_factory(method: str, path: str, declared: int, target: float, device: str | None) -> Any:
+    """The evaluation factory of one arm-seed, chosen from the arm's BASE method.
+
+    ``offline_baselines._baseline_factory`` picks ``IQLAgent`` only for the literal name ``"iql"`` and would load an
+    ``iql_t`` checkpoint as BC; the base method is what selects the loader, the arm name only names the cell.
+    """
+    base = _base_method(method)
+    if base == "dt":
+        return _dt_factory(path, declared, target, device)
+    return _baseline_factory(base, path, declared, device)
+
 #: P3 check B: the draws whose MaxPressure ATT is lowest form the "easiest" set, and the top decile
 #: has this many streams, so the two sets are the same size and the null is exactly hypergeometric.
 EASIEST_DRAW_COUNT = 20
@@ -405,11 +518,13 @@ def _artifact_prefix(args: argparse.Namespace) -> str:
 
 
 def tier_spec(tier: str) -> TierSpec:
-    """The declared spec of *tier*, or a refusal naming the tiers this task declares."""
+    """The declared spec of *tier* -- a registered tier, else an A27 one -- or a refusal naming both sets."""
     key = str(tier)
-    if key not in TIERS:
-        raise ValueError(f"unknown tier {key!r}; this task declares {sorted(TIERS)}")
-    return TIERS[key]
+    if key in TIERS:
+        return TIERS[key]
+    if key in A27_TIERS:
+        return A27_TIERS[key]
+    raise ValueError(f"unknown tier {key!r}; this task declares {sorted(TIERS)} and A27 adds {sorted(A27_TIERS)}")
 
 
 def _as_spec(tier: TierSpec | str) -> TierSpec:
@@ -499,9 +614,10 @@ def mixture_training_streams(
     random_pool: Sequence[StreamReturn],
 ) -> tuple[StreamReturn, ...]:
     """A mixture tier's streams: ``round(count * fraction)`` expert, the rest random."""
-    if spec.tier not in MIXTURE_EXPERT_FRACTION:
-        raise ValueError(f"{spec.tier!r} is not a mixture tier; {sorted(MIXTURE_EXPERT_FRACTION)}")
-    fraction = float(MIXTURE_EXPERT_FRACTION[spec.tier])
+    fractions = {**MIXTURE_EXPERT_FRACTION, **A27_MIXTURE_EXPERT_FRACTION}
+    if spec.tier not in fractions:
+        raise ValueError(f"{spec.tier!r} is not a mixture tier; {sorted(fractions)}")
+    fraction = float(fractions[spec.tier])
     total = int(spec.stream_count)
     n_expert = int(round(total * fraction))
     n_random = total - n_expert
@@ -1367,10 +1483,10 @@ def _random_factory(seed: int) -> Callable[[Any], Any]:
 
 def arm_key(method: str, tier: str) -> str:
     """``"<method>@<tier>"`` -- the arm identity carried by every episode record."""
-    if method not in METHODS and method != BEHAVIOUR_METHOD:
-        raise ValueError(f"unknown method {method!r}; this task declares {list(METHODS)}")
-    if tier not in TIERS:
-        raise ValueError(f"unknown tier {tier!r}; this task declares {sorted(TIERS)}")
+    if method != BEHAVIOUR_METHOD and not _is_hz1x1_arm(method):
+        raise ValueError(f"unknown method {method!r}; this task declares {list(METHODS)} and A27's hz1x1 arms")
+    if tier not in TIERS and tier not in A27_TIERS:
+        raise ValueError(f"unknown tier {tier!r}; this task declares {sorted(TIERS)} and A27 adds {sorted(A27_TIERS)}")
     return f"{method}@{tier}"
 
 
@@ -2071,20 +2187,41 @@ def build_parser() -> argparse.ArgumentParser:
     gate.add_argument("--baselines-checkpoint-dir", required=True)
     gate.add_argument("--dt-checkpoint-dir", required=True)
 
+    from offline.a27_arms import A27_RECIPES, TARGET_DROPOUT_MODES
+
+    tiers = [*sorted(TIERS), *sorted(A27_TIERS)]
     train = sub.add_parser("train", help="train one tier's methods across the five seeds")
-    train.add_argument("--tier", required=True, choices=sorted(TIERS))
+    train.add_argument("--tier", required=True, choices=tiers)
     train.add_argument("--methods", default=",".join(METHODS))
     train.add_argument("--log-every", type=int, default=5000)
+    # A27 (BRIEF_46 section 3.1).  The defaults are the registered recipes; any other value names the arm by
+    # offline.a27_arms.derive_arm and is refused unless A27 declared that arm.
+    train.add_argument(
+        "--iql-target-dropout",
+        choices=list(TARGET_DROPOUT_MODES),
+        default="active",
+        help="'active' is the registered IQL; 'off' runs the three target forwards in eval() (A27(c), arm iql_t)",
+    )
+    train.add_argument("--bc-batch-windows", type=int, default=BC_BATCH_WINDOWS,
+                       help="BC / %%BC windows per step (registered: %(default)s; hz1x1 has no A27 exposure arm)")
+    train.add_argument("--iql-batch-transitions", type=int, default=IQL_BATCH_TRANSITIONS,
+                       help="IQL transitions per step (registered: %(default)s)")
 
     evaluate = sub.add_parser("evaluate", help="evaluate ONE cell over the held-out pool")
-    evaluate.add_argument("--tier", required=True, choices=sorted(TIERS))
-    evaluate.add_argument("--method", required=True, choices=list(METHODS))
+    evaluate.add_argument("--tier", required=True, choices=tiers)
+    evaluate.add_argument(
+        "--method",
+        required=True,
+        choices=[*METHODS, *sorted(name for scenario, name in A27_RECIPES if scenario == "hz1x1")],
+    )
 
     behaviour = sub.add_parser(
         "behaviour",
         help="evaluate a tier's COLLECTING policy on the held-out pool (BRIEF_17 section 11, A3)",
     )
-    behaviour.add_argument("--tier", required=True, choices=sorted(BEHAVIOUR_REFERENCE_BY_TIER))
+    behaviour.add_argument(
+        "--tier", required=True, choices=[*sorted(BEHAVIOUR_REFERENCE_BY_TIER), *sorted(A27_BEHAVIOUR_REFERENCE_BY_TIER)]
+    )
 
     report = sub.add_parser("report", help="assemble the reported artifact")
     report.add_argument("--tiers", default=",".join(PHASE1_TIER_ORDER))
@@ -2093,9 +2230,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 def _requested_tiers(value: str) -> list[str]:
     tiers = [t.strip() for t in str(value).split(",") if t.strip()]
-    unknown = [t for t in tiers if t not in TIERS]
+    unknown = [t for t in tiers if t not in TIERS and t not in A27_TIERS]
     if unknown:
-        raise ValueError(f"unknown tier(s) {unknown}; this task declares {sorted(TIERS)}")
+        raise ValueError(f"unknown tier(s) {unknown}; this task declares {sorted(TIERS)} and A27 adds {sorted(A27_TIERS)}")
     return tiers
 
 
@@ -2135,7 +2272,7 @@ def _run_behaviour(
 ) -> int:
     """Roll a tier's own collecting policy over the held-out pool, through the same instrument."""
     spec = tier_spec(args.tier)
-    reference = BEHAVIOUR_REFERENCE_BY_TIER[spec.tier]
+    reference = {**BEHAVIOUR_REFERENCE_BY_TIER, **A27_BEHAVIOUR_REFERENCE_BY_TIER}[spec.tier]
     if reference["source"] != "evaluated_here":
         raise ValueError(
             f"{spec.tier}'s behaviour cell is committed in {reference['artifact']}; re-rolling a "
@@ -2159,6 +2296,17 @@ def _run_behaviour(
         seeds = list(TRAINING_SEEDS)
         factories = {seed: _random_factory(int(seed)) for seed in TRAINING_SEEDS}
         provenance["rng"] = "numpy.random.default_rng(training seed), rebuilt per draw"
+    elif spec.tier == "random_fresh":
+        from offline.a27_arms import fresh_random_factory
+
+        seeds = list(TRAINING_SEEDS)
+        factories = {
+            seed: fresh_random_factory(
+                int(seed), scenario_key=args.scenario_key, draws_root=args.draws_root, draw_ids=draws
+            )
+            for seed in TRAINING_SEEDS
+        }
+        provenance["rng"] = "numpy.random.default_rng([training seed, draw_id]) per draw (A27(d))"
     else:  # pragma: no cover - the two branches above are the only evaluated_here tiers
         raise ValueError(f"no behaviour factory is declared for {spec.tier!r}")
 
@@ -2424,8 +2572,54 @@ def _component_streams(
     return out
 
 
+def _assert_a27_run(
+    spec: TierSpec,
+    recipes: Mapping[str, Any],
+    planned: Mapping[str, Sequence[Path]],
+    checkpoints: Path,
+    prefix: str,
+) -> None:
+    """A27(a)'s refusals for a training call that produces an A27 cell, all before the first byte is written.
+
+    * the artifact prefix may not be a registered one (``p4_6``, ``p4_7``) and must be a ``p9_`` one, so an A27 run
+      cannot merge into a registered training record;
+    * the checkpoint directory must sit under a ``p9_*`` directory (new runs write only into new ``output/p9_*``);
+    * no registered arm may be retrained on a registered tier -- that cell exists, and A27 gives every new cell a new
+      name;
+    * no planned checkpoint path may exist (``BRIEF_46`` 3.1), checked for every seed before the first one trains.
+    """
+    if prefix in REGISTERED_ARTIFACT_PREFIXES or not prefix.startswith("p9_"):
+        raise ValueError(
+            f"{prefix!r} is a registered artifact prefix or not a p9_ one; an A27 run writes its records under a p9_ "
+            f"prefix and never into {sorted(REGISTERED_ARTIFACT_PREFIXES)} (A27(a))"
+        )
+    if not any(part.startswith("p9_") for part in checkpoints.resolve().parts):
+        raise ValueError(
+            f"{checkpoints} is not under a p9_* directory; A27(a): new runs write only into new output/p9_* directories"
+        )
+    if spec.tier not in A27_TIERS:
+        reused = sorted(method for method, recipe in recipes.items() if recipe.registered)
+        if reused:
+            raise ValueError(
+                f"{reused} on {spec.tier} would retrain a registered cell under its registered name in an A27 run; "
+                "A27(a) gives every new cell a new arm or tier name"
+            )
+    existing = [str(path) for paths in planned.values() for path in paths if path.exists()]
+    if existing:
+        raise FileExistsError(
+            f"{len(existing)} planned checkpoint(s) already exist, first {existing[0]}; an A27 run never overwrites a "
+            "checkpoint (BRIEF_46 3.1)"
+        )
+
+
 def _run_train(args: argparse.Namespace, out_dir: Path) -> int:
-    """Train one tier's methods across the five seeds, at the declared budget."""
+    """Train one tier's methods across the five seeds, at the declared budget.
+
+    A27 (``BRIEF_46`` 3.1): every method's arm is :func:`training_recipe`'s.  When any arm is an A27 one, or the tier
+    is A27's, the call is an A27 run and :func:`_assert_a27_run`'s refusals precede the first write; the trainers then
+    receive the recipe's batch and, for ``iql_t``, ``target_dropout="off"``.  Under the defaults on a registered tier
+    the call is the registered one: same names, same keywords, same records.
+    """
     from agent.utils.utils import Utils
     from offline.dt_gate import train_dt
 
@@ -2434,6 +2628,14 @@ def _run_train(args: argparse.Namespace, out_dir: Path) -> int:
     unknown = [m for m in methods if m not in METHODS]
     if unknown:
         raise ValueError(f"unknown method(s) {unknown}; known methods are {list(METHODS)}")
+    recipes = {method: training_recipe(method, args) for method in methods}
+    a27_run = spec.tier in A27_TIERS or any(not recipe.registered for recipe in recipes.values())
+    planned = {
+        method: [Path(args.checkpoint_dir) / f"{spec.tier}_{recipes[method].name}_seed{seed}.pt" for seed in TRAINING_SEEDS]
+        for method in methods
+    }
+    if a27_run:
+        _assert_a27_run(spec, recipes, planned, Path(args.checkpoint_dir), _artifact_prefix(args))
 
     dataset = tier_dataset(spec, args.corpus_root)
     stacked = stack_dataset(dataset)
@@ -2479,8 +2681,15 @@ def _run_train(args: argparse.Namespace, out_dir: Path) -> int:
     table: TransitionTable | None = None
     runs: list[dict[str, Any]] = []
     for method in methods:
-        for seed in TRAINING_SEEDS:
-            path = checkpoints / f"{spec.tier}_{method}_seed{seed}.pt"
+        recipe = recipes[method]
+        arm_provenance = (
+            {**provenance, "arm": recipe.name, "base_method": recipe.base, "target_dropout": recipe.target_dropout,
+             "registered_in": recipe.registered_in}
+            if a27_run
+            else provenance
+        )
+        iql_extra = {} if recipe.target_dropout in (None, "active") else {"target_dropout": recipe.target_dropout}
+        for seed, path in zip(TRAINING_SEEDS, planned[method]):
             started = time.time()
             if method == "iql":
                 if table is None:
@@ -2495,15 +2704,16 @@ def _run_train(args: argparse.Namespace, out_dir: Path) -> int:
                     n_actions=group[1],
                     seed=seed,
                     declared_gradient_steps=int(args.steps),
-                    batch_size=IQL_BATCH_TRANSITIONS,
+                    batch_size=recipe.batch,
                     device=device,
                     checkpoint_path=path,
                     stats=dataset.stats,
                     scenario_id=scenario_id,
-                    provenance=provenance,
+                    provenance=arm_provenance,
                     log_every=args.log_every,
+                    **iql_extra,
                 )
-                runs.append(_train_record(spec, method, record, path))
+                runs.append(_train_record(spec, recipe.name, record, path, recipe=recipe if a27_run else None))
             elif method == "dt":
                 result = train_dt(
                     full_batch,
@@ -2520,10 +2730,10 @@ def _run_train(args: argparse.Namespace, out_dir: Path) -> int:
                     scenario_id=scenario_id,
                     target_rtg=float(spec.target_rtg),
                     rtg_scale=float(spec.rtg_scale),
-                    provenance=provenance,
+                    provenance=arm_provenance,
                     log_every=args.log_every,
                 )
-                runs.append(_train_record(spec, method, result, path))
+                runs.append(_train_record(spec, recipe.name, result, path, recipe=recipe if a27_run else None))
             else:
                 record = train_bc(
                     top_batch if method == "bc_top10" else full_batch,
@@ -2532,17 +2742,17 @@ def _run_train(args: argparse.Namespace, out_dir: Path) -> int:
                     seed=seed,
                     method=method,
                     declared_gradient_steps=int(args.steps),
-                    batch_size=BC_BATCH_WINDOWS,
+                    batch_size=recipe.batch,
                     device=device,
                     checkpoint_path=path,
                     stats=dataset.stats,
                     scenario_id=scenario_id,
-                    provenance=provenance,
+                    provenance=arm_provenance,
                     log_every=args.log_every,
                 )
-                runs.append(_train_record(spec, method, record, path))
+                runs.append(_train_record(spec, recipe.name, record, path, recipe=recipe if a27_run else None))
             print(
-                f"  {spec.tier} {method} seed {seed}: {time.time() - started:.1f}s  "
+                f"  {spec.tier} {recipe.name} seed {seed}: {time.time() - started:.1f}s  "
                 f"final loss {runs[-1]['final_loss']:.5f}  digest {runs[-1]['canonical_digest'][:12]}",
                 flush=True,
             )
@@ -2566,9 +2776,22 @@ def _run_train(args: argparse.Namespace, out_dir: Path) -> int:
     return 0
 
 
-def _train_record(spec: TierSpec, method: str, record: Any, path: Path) -> dict[str, Any]:
-    """One training run, in the same shape whichever trainer produced it."""
+def _train_record(
+    spec: TierSpec, method: str, record: Any, path: Path, *, recipe: Any = None
+) -> dict[str, Any]:
+    """One training run, in the same shape whichever trainer produced it.
+
+    *method* is the ARM name.  An A27 run passes its *recipe*, and only then does the record gain ``base_method``,
+    ``batch_size``, ``target_dropout`` and ``registered_in``; a registered run's record is byte-for-byte what it was.
+    """
     digest = canonical_digest_of(path)
+    base = method if recipe is None else recipe.base
+    extra = (
+        {}
+        if recipe is None
+        else {"base_method": recipe.base, "batch_size": recipe.batch, "target_dropout": recipe.target_dropout,
+              "registered_in": recipe.registered_in}
+    )
     return {
         "tier": spec.tier,
         "method": method,
@@ -2583,7 +2806,8 @@ def _train_record(spec: TierSpec, method: str, record: Any, path: Path) -> dict[
         "file_sha256": file_sha256(path),
         "diagnostics": getattr(record, "diagnostics", None),
         "thread_regime": thread_regime(),
-        "target_rtg": float(spec.target_rtg) if method == "dt" else None,
+        "target_rtg": float(spec.target_rtg) if base == "dt" else None,
+        **extra,
     }
 
 
@@ -2593,7 +2817,20 @@ def _run_evaluate(
     out_dir: Path,
     work_dir: Path,
 ) -> int:
-    """Evaluate ONE cell over the held-out pool, so no single job runs long."""
+    """Evaluate ONE cell over the held-out pool, so no single job runs long.
+
+    A27 (``BRIEF_46`` 3.2): *method* may be an A27 hz1x1 arm; its loader is its base method's (:func:`cell_factory`).
+    A registered name at A8(b)'s ceiling, and a ``_100k`` arm below it, are refused before anything is read.
+    """
+    from offline.a27_arms import BUDGET_CEILING_STEPS, is_a27_arm, recipe, refuse_registered_name_at_ceiling
+
+    refuse_registered_name_at_ceiling("hz1x1", args.method, int(args.steps))
+    if is_a27_arm("hz1x1", args.method) and recipe("hz1x1", args.method).steps == BUDGET_CEILING_STEPS:
+        if int(args.steps) != BUDGET_CEILING_STEPS:
+            raise ValueError(
+                f"{args.method} is declared at {BUDGET_CEILING_STEPS} steps (A27(g)); it is not evaluated at "
+                f"{int(args.steps)}"
+            )
     spec = tier_spec(args.tier)
     training = json.loads(
         artifact_path(out_dir, "training", _artifact_prefix(args)).read_text(encoding="utf-8")
@@ -2627,10 +2864,8 @@ def _run_evaluate(
                 f"{run['checkpoint']}: canonical digest {digest} is not the trained "
                 f"{run['canonical_digest']}; this is not the model the training artifact records"
             )
-        factory = (
-            _dt_factory(run["checkpoint"], int(args.steps), float(spec.target_rtg), args.device)
-            if args.method == "dt"
-            else _baseline_factory(args.method, run["checkpoint"], int(args.steps), args.device)
+        factory = cell_factory(
+            args.method, run["checkpoint"], int(args.steps), float(spec.target_rtg), args.device
         )
         print(f"{arm} seed {seed} over {len(draws)} draws", flush=True)
         produced.extend(
@@ -2665,7 +2900,7 @@ def _run_evaluate(
             "method": args.method,
             "declared_gradient_steps": int(args.steps),
             "engine_seed": int(args.engine_seed),
-            "target_rtg": float(spec.target_rtg) if args.method == "dt" else None,
+            "target_rtg": float(spec.target_rtg) if _base_method(args.method) == "dt" else None,
             "cell": cell,
             "episodes": [
                 {
