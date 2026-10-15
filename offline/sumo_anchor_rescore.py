@@ -1285,8 +1285,22 @@ def rescore_pair(inputs: Mapping[str, Any], pair: str, *, new_rows: Mapping[str,
     d_rows = rescored_rows(_dt_rows(inputs["p7_3d_grid4x4.json"]), d_anchors)
     d_estimates = grid4x4_rho_block(d_rows, d_anchors)
     c_anchors = pair_anchor_rows(pair, registered=registered_anchors(inputs["p7_3c_grid4x4.json"]), new=grid_new)
-    _c_rows, c_estimates, gap, gap_att = _p7_3c_blocks(inputs["p7_3c_grid4x4.json"], c_anchors, d_rows, d_estimates)
+    c_rows, c_estimates, gap, gap_att = _p7_3c_blocks(inputs["p7_3c_grid4x4.json"], c_anchors, d_rows, d_estimates)
     clause_3 = _clause_3_with_gap(c_estimates["clause_3"], gap, gap_att)
+    # Each P7.3c arm's per-draw seed means under the pair -- the series its interval and clause 3's paired contrasts are
+    # computed over -- grouped by THE admission predicate, as p7_3c_estimates groups them.
+    c_by_arm: dict[str, list[dict[str, Any]]] = {}
+    for row in c_rows:
+        arm_row = tc.p7_3c_admitted(row)
+        if arm_row is not None:
+            c_by_arm.setdefault(arm_row.name, []).append(row)
+    c_per_draw = {
+        name: {
+            key: {str(draw): value for draw, value in sorted(tc._seed_means_by_draw(rows, f"rho_{key}").items())}
+            for key in ("e_sumo", "att_env")
+        }
+        for name, rows in c_by_arm.items()
+    }
 
     h3: dict[str, Any] = {"cityflow1x1": {}, "cityflow_grid4x4": {}}
     for entry in a_block["by_subject_arm"]:
@@ -1337,9 +1351,12 @@ def rescore_pair(inputs: Mapping[str, Any], pair: str, *, new_rows: Mapping[str,
             "p7_3b": {"by_subject_arm": b_block["by_subject_arm"], "by_subject_arm_seed": b_block["by_subject_arm_seed"],
                       "per_draw": b_block["per_draw"]},
             "p7_3d": {"rho": d_estimates["rho"]},
-            "p7_3c": {key: c_estimates[key] for key in (
-                "arms", "rho0", "total_effect", "adaptation_effect", "transfer", "adjacent_steps", "budget_secondary"
-            )},
+            "p7_3c": {
+                **{key: c_estimates[key] for key in (
+                    "arms", "rho0", "total_effect", "adaptation_effect", "transfer", "adjacent_steps", "budget_secondary"
+                )},
+                "per_draw": c_per_draw,
+            },
             "h3": h3,
         }
     )

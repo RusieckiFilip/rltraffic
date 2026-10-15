@@ -294,3 +294,18 @@ def test_a_shifted_new_maxpressure_moves_rho_and_g_exactly_as_a_hand_computation
     assert result["h3"]["cityflow_grid4x4"]["mappo1000_dt_nomix_h4"]["clause_3"]["G"] == 1.0 - expected_mean
     assert result["h3"]["cityflow_grid4x4"]["mappo1000_dt_nomix_h4"]["clause_3"]["G"] != tc.P7_3C_G
     assert result["anchors"]["cityflow_grid4x4"] == {"fixedtime": "fixedtime", "maxpressure": "maxpressure_1to1"}
+
+
+def test_p7_3cs_per_draw_blocks_under_the_registered_pair_are_the_committed_series(inputs: dict[str, Any]) -> None:
+    """zs_k100 IS P7.3d's zero-shot arm (stage 1 reproduced it bit for bit), so its per-draw series is P7.3d's committed
+    ``rho.by_draw``; and every arm's mean over its per-draw block is the committed interval's mean."""
+    from offline.dt_gate import mean_ci95
+
+    result = sar.rescore_pair(inputs, "registered", new_rows=None)
+    per_draw = result["p7_3c"]["per_draw"]
+    committed = inputs["p7_3d_grid4x4.json"]["rho"]["by_draw"]
+    assert per_draw["zs_k100"]["e_sumo"] == {draw: entry["e_sumo"] for draw, entry in committed.items()}
+    assert sorted(per_draw) == sorted(row.name for row in tc.P7_3C_ARMS)
+    for arm, series in per_draw.items():
+        values = [series["e_sumo"][draw] for draw in sorted(series["e_sumo"], key=int)]
+        assert mean_ci95(values).mean == inputs["p7_3c_grid4x4.json"]["arms"][arm]["e_sumo"]["mean"]
