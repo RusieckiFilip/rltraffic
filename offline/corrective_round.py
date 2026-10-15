@@ -845,3 +845,741 @@ def collect_random_fresh(roots: Roots, scenario: str) -> Path:
     assert_random_fresh_manifest(json.loads((out_dir / "manifest.json").read_text(encoding="utf-8")))
     assert_distinct_schedules(out_dir, expected=200)
     return out_dir
+
+
+# ----------------------------------------------------------------------
+# Declarations (BRIEF_46 3.4 `declare`), written before any training
+# ----------------------------------------------------------------------
+
+DECLARATION_FORMAT_VERSION = "p9.1-declaration/1.0"
+
+
+def _write_declaration(path: Path, payload: Mapping[str, Any], roots: Roots) -> Path:
+    """A declaration is written once; declaring again is allowed only if it reproduces the file byte for byte."""
+    text = json.dumps(payload, indent=2, sort_keys=True, allow_nan=False) + "\n"
+    target = assert_target(path, roots)
+    if target.exists():
+        if target.read_text(encoding="utf-8") != text:
+            raise FileExistsError(f"{target} exists with other content; a declaration is not rewritten")
+        return target
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with open(target, "x", encoding="utf-8") as handle:
+        handle.write(text)
+    return target
+
+
+def _mixture_selection(roots: Roots) -> tuple[Any, Any]:
+    """The overlap mixture's realised training set and kept decile, by the registered functions (as ``_run_train``)."""
+    import offline.method_tier_grid as grid
+
+    spec = grid.tier_spec("mix_m1000_m500")
+    dataset = grid.tier_dataset(spec, roots.corpus_root)
+    components = grid._component_streams(spec, roots.corpus_root, context_length=grid.CONTEXT_LENGTH)
+    selected = grid.training_streams(spec, dataset, component_streams=components)
+    return selected, grid.top_decile_streams(selected)
+
+
+def declare_mixture(roots: Roots) -> dict[str, Any]:
+    """A27(e)'s tier declared in P4.6's own format (with its two components, whose training sets it is drawn from),
+    plus the design facts reproduced from the corpus -- refused, and nothing written, if they do not reproduce."""
+    import offline.a27_arms as a27_arms
+    import offline.method_tier_grid as grid
+
+    declaration = grid.declaration_artifact(roots.corpus_root, ["mappo1000", "mappo500", "mix_m1000_m500"])
+    selected, kept = _mixture_selection(roots)
+    measured = a27_arms.assert_mixture_design_facts(selected, kept)
+    payload = {
+        "format_version": DECLARATION_FORMAT_VERSION,
+        "tier": "mix_m1000_m500",
+        "registered_in": "A27(e)",
+        "label": LABELS["A27(e)"],
+        "design_facts": json.loads(json.dumps(a27_arms.MIXTURE_DESIGN_FACTS)),
+        "measured": measured,
+        "design_facts_reproduced": True,
+        "p4a_reading": "the plan's risk-register reading: the weaker source contributes 1 to 19 of the 20 kept streams",
+        "p4_6_format_declaration": declaration,
+    }
+    _write_declaration(Path(roots.run_root) / "declaration_mix_m1000_m500.json", payload, roots)
+    return payload
+
+
+def _tier_means(directory: Path) -> dict[str, float]:
+    """The grid's two ladder fields from the raw ``.npz``, in manifest order: the mean over episodes of the final
+    ``att_per_step`` and the mean over every (episode, intersection) stream of ``sum(local_reward)`` -- the definitions
+    that reproduce the registered tiers' typed values (checked against all four on 2026-10-15, docs/plans/p9.1.md)."""
+    import numpy as np
+
+    manifest = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
+    finals: list[float] = []
+    streams: list[float] = []
+    for entry in manifest["episodes"]:
+        with np.load(directory / str(entry["filename"])) as arrays:
+            finals.append(float(arrays["att_per_step"][-1]))
+            streams += [float(np.sum(arrays[f"ix{i}_local_reward"], dtype=np.float64))
+                        for i in range(len(arrays["ix_ids"]))]
+    return {"ladder_att": sum(finals) / len(finals), "mean_training_return": sum(streams) / len(streams)}
+
+
+def declare_random_fresh(roots: Roots, scenario: str) -> dict[str, Any]:
+    """A27(d)'s tier declared from its own corpus, after the two registered collection checks.
+
+    hz1x1: the declared rule's ``target_rtg`` / ``rtg_scale`` over its 200 streams -- the values plan Q2 types into
+    ``method_tier_grid.A27_TIERS`` in a reviewed commit -- with IQL's reward scale and the statistics digest.  grid:
+    ``tier_sweep``'s own declaration with ``ladder_att`` and ``mean_training_return`` COMPUTED here, never typed.  Both
+    quote the OLD tier's basis from its committed declaration: the comparison changes the generator AND the basis.
+    """
+    import offline.a27_arms as a27_arms
+    import offline.method_tier_grid as grid
+    import offline.tier_sweep as ts
+    from offline.offline_baselines import iql_reward_scale, stream_returns
+
+    if scenario == "hz1x1":
+        directory = grid.tier_dirs(grid.tier_spec("random_fresh"), roots.corpus_root)[0]
+    elif scenario == "grid4x4":
+        directory = ts.tier_dirs(ts.tier_spec("random_fresh"), roots.corpus_root)[0]
+    else:
+        raise ValueError(f"unknown scenario {scenario!r}")
+    assert_random_fresh_manifest(json.loads((directory / "manifest.json").read_text(encoding="utf-8")))
+    payload: dict[str, Any] = {
+        "format_version": DECLARATION_FORMAT_VERSION,
+        "tier": "random_fresh",
+        "scenario": scenario,
+        "registered_in": "A27(d)",
+        "label": LABELS["A27(d)"],
+    }
+    if scenario == "hz1x1":
+        spec = grid.tier_spec("random_fresh")
+        payload["distinct_schedules"] = a27_arms.assert_distinct_schedules(directory, expected=int(spec.stream_count))
+        dataset = grid.tier_dataset(spec, roots.corpus_root)
+        selected = grid.training_streams(spec, dataset)
+        target, scale = grid.recomputed_target_and_scale(selected)
+        old = json.loads((Path(roots.repo_root) / "docs/data/p4_6_declaration.json").read_text(encoding="utf-8"))
+        old_random = old["tiers"]["random"]
+        payload.update({
+            "values_to_type": {"target_rtg": target, "rtg_scale": scale},
+            "rule": "target_rtg = max episode return in the TRAINING SET; rtg_scale = max|rtg| (method_tier_grid)",
+            "training_streams": len(selected),
+            "split_streams": len(stream_returns(dataset)),
+            "iql_reward_scale": iql_reward_scale([s.total_return for s in selected]),
+            "statistics_digest": grid.statistics_digest(dataset),
+            "statistics_fitted_on": "every one of the tier's 200 episodes: its split IS its training set",
+            "old_tier_basis": {
+                "source": "docs/data/p4_6_declaration.json",
+                **{key: old_random[key] for key in ("split_streams", "training_streams", "target_rtg", "rtg_scale",
+                                                    "iql_reward_scale", "subsample", "statistics_fitted_on")},
+            },
+        })
+    elif scenario == "grid4x4":
+        spec = ts.tier_spec("random_fresh")
+        payload["distinct_schedules"] = a27_arms.assert_distinct_schedules(directory, expected=int(spec.episode_count))
+        parts = ts.tier_parts("random_fresh", roots.corpus_root)
+        declaration = ts.declaration_artifact(parts, roots.corpus_root)
+        computed = _tier_means(directory)
+        declaration.update(computed)
+        old = json.loads((Path(roots.repo_root) / "docs/data/p5_2_declaration_random.json").read_text(encoding="utf-8"))
+        payload.update({
+            "p5_2_format_declaration": declaration,
+            "computed": {
+                **computed,
+                "ladder_att_definition": "mean over the tier's episodes of the final att_per_step (att_ladder_v11's)",
+                "mean_training_return_definition": "mean over every (episode, intersection) stream of sum(local_reward)",
+            },
+            "old_tier_basis": {
+                "source": "docs/data/p5_2_declaration_random.json",
+                **{key: old[key] for key in ("episodes_available", "episodes_selected", "subsample", "subsample_rng_seed",
+                                             "training_streams", "ladder_att", "mean_training_return",
+                                             "statistics_split")},
+            },
+        })
+    else:
+        raise ValueError(f"unknown scenario {scenario!r}")
+    payload["what_changes_besides_the_generator"] = (
+        "the normalisation basis: the old random tier's state statistics were fitted on its 400-episode training split "
+        "(two episodes per draw) and its training set was a 200-episode subsample; random_fresh's split and training "
+        "set are the same 200 episodes, one per draw (A27(d))"
+    )
+    _write_declaration(Path(roots.run_root) / f"declaration_random_fresh_{scenario}.json", payload, roots)
+    return payload
+
+
+# ----------------------------------------------------------------------
+# Stage runners (BRIEF_46 3.4): evaluation by cell, P3a, status from disk, the pre-token check
+# ----------------------------------------------------------------------
+
+#: The registered five-schedule references P3a's identity column compares with (A27(d)): hz1x1's P4.6 behaviour cell
+#: of the random tier and the grid's shared collapse reference (P5.1's ``random`` cell, ``tier_sweep`` D12).
+REGISTERED_RANDOM_REFERENCES: tuple[Cell, ...] = (
+    Cell("hz1x1", "random", "behaviour", "A27(d)"),
+    Cell("grid4x4", "mappo1000", "random", "A27(d)"),
+)
+
+
+def evaluation_cells() -> tuple[Cell, ...]:
+    """Every NEW cell evaluated by both routes: the 51 trained cells and A27(d)'s two fresh references."""
+    return (*training_cells(), *reference_cells())
+
+
+def p3a_cells() -> tuple[Cell, ...]:
+    """The cells whose held-out action sequences P3a and its beside-table read (A27(d)): the DT on ``random_fresh`` and
+    both random references, on both scenarios."""
+    return (
+        Cell("hz1x1", "random_fresh", "dt", "A27(d)"),
+        Cell("grid4x4", "random_fresh", "dt_nomix", "A27(d)"),
+        *reference_cells(),
+        *REGISTERED_RANDOM_REFERENCES,
+    )
+
+
+def cell_sort_key(cell: Cell) -> tuple[str, str, str]:
+    return (cell.scenario, cell.tier, cell.arm)
+
+
+def shard_of(cells: Any, *, shard: int, of: int) -> list[Cell]:
+    """A deterministic slice of *cells* for N-way parallel evaluation: sorted, then every N-th from *shard*."""
+    if int(of) < 1 or not 0 <= int(shard) < int(of):
+        raise ValueError(f"shard {shard!r} of {of!r} is not a valid partition")
+    ordered = sorted(cells, key=cell_sort_key)
+    return [cell for index, cell in enumerate(ordered) if index % int(of) == int(shard)]
+
+
+def _expected_episode_keys() -> set[tuple[int, int]]:
+    from offline.dt_gate import HELD_OUT_DRAWS, TRAINING_SEEDS
+
+    return {(int(seed), int(draw)) for seed in TRAINING_SEEDS for draw in HELD_OUT_DRAWS}
+
+
+def _assert_route_i_complete(payload: Mapping[str, Any], cell: Cell) -> None:
+    keys = {(int(e["seed"]), int(e["draw_id"])) for e in payload["episodes"]}
+    arms = {str(e["arm"]) for e in payload["episodes"]}
+    if arms != {cell.key} or keys != _expected_episode_keys() or len(payload["episodes"]) != len(keys):
+        raise ValueError(f"{cell.scenario}:{cell.key}'s route-(i) record is not the complete 5 x 100 cell")
+
+
+def route_i(roots: Roots, cell: Cell) -> dict[str, Any]:
+    """Route (i) for one cell: the module CLI's own ``evaluate`` (``behaviour``) in process, skipped when its complete
+    record is on disk.  The hz1x1 aggregates are rebuilt from disk first."""
+    import importlib
+
+    output = route_i_output(roots, cell)
+    if output.exists():
+        payload = json.loads(output.read_text(encoding="utf-8"))
+        _assert_route_i_complete(payload, cell)
+        return payload
+    if cell.scenario == "hz1x1" and cell.arm != "behaviour":
+        write_training_aggregates(roots)
+    assert_target(output, roots)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    name, argv = route_i_command(roots, cell)
+    if int(importlib.import_module(f"offline.{name}").main(argv)) != 0:
+        raise RuntimeError(f"route (i) failed for {cell.scenario}:{cell.key}")
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    _assert_route_i_complete(payload, cell)
+    return payload
+
+
+def _evaluate_kwargs(roots: Roots, scenario: str, tier: str) -> dict[str, Any]:
+    """The rollout settings route (i) uses for *tier*, built by the same calls the CLIs make."""
+    from offline.materialise_draws import draw_config_path
+
+    key = SCENARIO_KEYS[scenario]
+    if scenario == "hz1x1":
+        import offline.method_tier_grid as grid
+
+        settings = grid.env_settings_for_tiers([grid.tier_spec(tier)], roots.corpus_root)
+    else:
+        import offline.tier_sweep as ts
+        from offline.dt_gate import env_settings_from_manifest
+
+        settings = env_settings_from_manifest(ts.tier_dirs(ts.tier_spec(tier), roots.corpus_root)[0] / "manifest.json")
+    return {"config_for_draw": lambda draw: draw_config_path(key, int(draw), out_root=roots.draws_root),
+            "env_settings": settings, "scenario_id": key, "engine_seed": ENGINE_SEED}
+
+
+def _p3a_path(roots: Roots, cell: Cell) -> Path:
+    return Path(roots.runs_root) / "p3a" / cell.scenario / f"{cell.arm}@{cell.tier}.json"
+
+
+def _p3a_factory(roots: Roots, cell: Cell, seed: int) -> Any:
+    if cell in REGISTERED_RANDOM_REFERENCES:
+        from offline.method_tier_grid import _random_factory
+
+        return _random_factory(int(seed))
+    factory, _ = a27_factory_builder(roots)(cell.scenario, cell.key, int(seed), None, device=None, config_path=None)
+    return factory
+
+
+def record_p3a(roots: Roots, cell: Cell, values: Mapping[tuple[str, str, int | None, int], float]) -> list[dict[str, Any]]:
+    """Every held-out episode of a P3a cell re-rolled alone with its actions recorded, each reproducing *values* (route
+    (i)'s, or the committed artifact's for a registered reference) under ``==``; written once per cell."""
+    from offline.dt_gate import HELD_OUT_DRAWS, TRAINING_SEEDS
+
+    path = _p3a_path(roots, cell)
+    if path.exists():
+        return json.loads(path.read_text(encoding="utf-8"))["episodes"]
+    expected = {(int(seed), int(draw)): att for (_, _, seed, draw), att in values.items()}
+    kwargs = _evaluate_kwargs(roots, cell.scenario, cell.tier)
+    rows: list[dict[str, Any]] = []
+    for seed in TRAINING_SEEDS:
+        rows += record_episode_actions(cell.key, int(seed), HELD_OUT_DRAWS, _p3a_factory(roots, cell, int(seed)),
+                                       expected=expected, evaluate_kwargs=kwargs)
+    payload = {"format_version": ACTIONS_FORMAT_VERSION, "scenario": cell.scenario, "arm": cell.key,
+               "registered_in": "A27(d)", "digest": "nortg_decomposition.action_sequence_sha256 (int64, decision order)",
+               "episodes": rows}
+    _write_declaration(path, payload, roots)
+    return rows
+
+
+def _registered_reference_values(roots: Roots, cell: Cell) -> dict[tuple[str, str, int | None, int], float]:
+    """A registered random reference's committed ``att_ours`` per episode: P4.6's ``behaviour@random`` from
+    ``docs/data/p4_6_grid.json``; the grid's P5.1 ``random`` cell from ``output/p5_1/eval_random.json`` at the digest
+    ``output/SHA256SUMS_p5_1.txt`` lists for it."""
+    import hashlib
+
+    if cell.scenario == "hz1x1":
+        return old_cell_committed(roots.repo_root, "docs/data/p4_6_grid.json", "behaviour@random")
+    path = Path(roots.output_root) / "p5_1" / "eval_random.json"
+    listed = {line.split()[1]: line.split()[0] for line in
+              (Path(roots.output_root) / "SHA256SUMS_p5_1.txt").read_text(encoding="utf-8").splitlines() if line.strip()}
+    if listed.get("p5_1/eval_random.json") != hashlib.sha256(path.read_bytes()).hexdigest():
+        raise ValueError(f"{path} is not at the digest output/SHA256SUMS_p5_1.txt lists for it")
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    return {("grid4x4", cell.key, int(e["seed"]), int(e["draw_id"])): float(e["att_horizon"]) for e in payload["episodes"]}
+
+
+def record_registered_references(roots: Roots) -> dict[str, int]:
+    """P3a's two registered references, re-rolled with their actions recorded, committed ``att_ours`` reproduced."""
+    return {f"{cell.scenario}:{cell.key}": len(record_p3a(roots, cell, _registered_reference_values(roots, cell)))
+            for cell in REGISTERED_RANDOM_REFERENCES}
+
+
+def _evaluation_manifests(roots: Roots) -> dict[str, tuple[Path, dict[str, Any]]]:
+    """P8.4b's campaign manifests of the evaluation, by name: route (ii) per scenario (every evaluation cell x seed x
+    draw) and the hz1x1 old cells (every committed episode of :data:`HZ1X1_OLD_CELLS`)."""
+    from offline import att_rederivation as ar
+    from offline.dt_gate import HELD_OUT_DRAWS, TRAINING_SEEDS
+
+    out: dict[str, tuple[Path, dict[str, Any]]] = {}
+    for scenario in SCENARIOS_ORDER:
+        keys = [ar.CellKey(scenario, cell.key, int(seed), int(draw)) for cell in evaluation_cells()
+                if cell.scenario == scenario for seed in TRAINING_SEEDS for draw in HELD_OUT_DRAWS]
+        out[f"eval_ii/{scenario}"] = (Path(roots.runs_root) / "eval_ii" / scenario / ar.MANIFEST_NAME,
+                                      ar.campaign_manifest(keys, engine_seed=ENGINE_SEED))
+    old: list[Any] = []
+    for artifact, arm in HZ1X1_OLD_CELLS:
+        old += [ar.CellKey(*key) for key in old_cell_committed(roots.repo_root, artifact, arm)]
+    out["old_cells/hz1x1"] = (Path(roots.runs_root) / "old_cells" / "hz1x1" / ar.MANIFEST_NAME,
+                              ar.campaign_manifest(old, engine_seed=ENGINE_SEED))
+    return out
+
+
+def _assert_manifest_is(path: Path, manifest: Mapping[str, Any]) -> None:
+    """A manifest on disk must BE this campaign's: P8.4b's agreement check (count and digest), then every field --
+    ``campaign_status`` reads the ``cells`` list, so a list edited under an unchanged digest is refused too."""
+    from offline import att_rederivation as ar
+
+    ar.assert_manifest_agrees(path, manifest)
+    if path.is_file() and json.loads(path.read_text(encoding="utf-8")) != dict(manifest):
+        raise ValueError(f"{path} is not this campaign's manifest: its fields differ although its count and digest "
+                         "agree; refusing a manifest that does not describe the cells it declares")
+
+
+def declare_evaluation(roots: Roots) -> dict[str, int]:
+    """Write the evaluation's three manifests ONCE, from one process, before any shard starts (a shard that declared
+    its own could race another on the same file).  Every manifest is checked before the first is written; declaring
+    again is a no-op, and a manifest on disk that is not this campaign's is refused (:func:`_assert_manifest_is`)."""
+    manifests = _evaluation_manifests(roots)
+    for path, manifest in manifests.values():
+        _assert_manifest_is(path, manifest)
+    for path, manifest in manifests.values():
+        if not path.exists():
+            _write_declaration(path, manifest, roots)
+    return {name: int(manifest["n_cells"]) for name, (_, manifest) in manifests.items()}
+
+
+def assert_evaluation_declared(roots: Roots, *names: str) -> None:
+    """Refuse unless each named manifest is on disk and is this campaign's (:func:`_assert_manifest_is`); writes
+    nothing."""
+    manifests = _evaluation_manifests(roots)
+    for name in names:
+        path, manifest = manifests[name]
+        if not path.is_file():
+            raise FileNotFoundError(f"{path} is missing: run `declare-evaluation` first (one process, before the shards)")
+        _assert_manifest_is(path, manifest)
+
+
+def old_cells_shard(shard: int, of: int) -> list[tuple[str, str]]:
+    """A deterministic slice of :data:`HZ1X1_OLD_CELLS` for N-way parallel re-rolling: sorted, then every N-th."""
+    if int(of) < 1 or not 0 <= int(shard) < int(of):
+        raise ValueError(f"shard {shard!r} of {of!r} is not a valid partition")
+    return [cell for index, cell in enumerate(sorted(HZ1X1_OLD_CELLS)) if index % int(of) == int(shard)]
+
+
+def evaluate_cell(roots: Roots, cell: Cell) -> dict[str, Any]:
+    """One cell: refused unless every run is done; route (i); route (ii) on route (i)'s values; P3a if it is one."""
+    from offline import att_rederivation as ar
+    from offline.dt_gate import TRAINING_SEEDS
+
+    if cell in training_cells():
+        undone = [seed for seed in TRAINING_SEEDS if run_status(roots, cell, seed) != "done"]
+        if undone:
+            raise ValueError(f"{cell.scenario}:{cell.key} is not trained for seeds {undone}; nothing to evaluate")
+    payload = route_i(roots, cell)
+    committed = committed_from_route_i(payload, cell.scenario, cell.key)
+    keys = [ar.CellKey(scenario, arm, seed, draw) for (scenario, arm, seed, draw) in sorted(committed)]
+    outcome = run_route_ii(roots, cell.scenario, keys, committed)
+    p3a = None
+    if (cell.scenario, cell.key) in {(c.scenario, c.key) for c in p3a_cells()}:
+        p3a = record_p3a(roots, cell, committed)
+    return {"cell": f"{cell.scenario}:{cell.key}", "route_ii": outcome, "p3a_episodes": None if p3a is None else len(p3a)}
+
+
+def evaluate(roots: Roots, *, shard: int = 0, of: int = 1, scenario: str | None = None) -> dict[str, Any]:
+    """Every evaluation cell of this shard whose runs are done, in order; a not-yet-trained cell is reported, never
+    guessed at.  Resumable: each route skips what is complete on disk."""
+    from offline.dt_gate import TRAINING_SEEDS
+
+    assert_evaluation_declared(roots, *(f"eval_ii/{name}" for name in SCENARIOS_ORDER if scenario in (None, name)))
+    done, waiting = [], []
+    for cell in shard_of([c for c in evaluation_cells() if scenario in (None, c.scenario)], shard=shard, of=of):
+        if cell in training_cells() and any(run_status(roots, cell, s) != "done" for s in TRAINING_SEEDS):
+            waiting.append(f"{cell.scenario}:{cell.key}")
+            continue
+        evaluate_cell(roots, cell)
+        done.append(f"{cell.scenario}:{cell.key}")
+    return {"evaluated": done, "waiting_for_training": waiting}
+
+
+SCENARIOS_ORDER: tuple[str, ...] = ("hz1x1", "grid4x4")
+
+
+def status(roots: Roots) -> dict[str, Any]:
+    """Every stage's state, recomputed from disk: training, route (i) cell files, route (ii) campaign, P3a, old cells."""
+    from offline import att_rederivation as ar
+
+    training = training_status(roots)
+    route_i_done = 0
+    for cell in evaluation_cells():
+        path = route_i_output(roots, cell)
+        if path.exists():
+            try:
+                _assert_route_i_complete(json.loads(path.read_text(encoding="utf-8")), cell)
+                route_i_done += 1
+            except (ValueError, KeyError):
+                pass
+    route_ii = {name: ar.campaign_status(Path(roots.runs_root) / "eval_ii" / name) for name in SCENARIOS_ORDER}
+    p3a_done = sum(_p3a_path(roots, cell).exists() for cell in p3a_cells())
+    old = ar.campaign_status(Path(roots.runs_root) / "old_cells" / "hz1x1")
+    evaluation = {"cells_declared": len(evaluation_cells()), "route_i_cells_done": route_i_done,
+                  "route_ii": route_ii, "p3a_cells_done": p3a_done, "p3a_cells_declared": len(p3a_cells())}
+    complete = (training["complete"] and route_i_done == len(evaluation_cells())
+                and all(state["complete"] for state in route_ii.values()) and p3a_done == len(p3a_cells())
+                and old["complete"])
+    return {"training": training, "evaluation": evaluation, "old_cells_hz1x1": old, "complete": complete}
+
+
+def check(roots: Roots, *, stage: str) -> dict[str, Any]:
+    """Every refusal before the token; writes nothing.  ``collect``: the roots and the registered random tiers, the
+    new tiers absent.  ``campaign``: the new tiers collected and declared, hz1x1 ``random_fresh``'s prompt typed (plan
+    Q2), the held-out draws materialised."""
+    import math
+
+    from offline.dt_gate import HELD_OUT_DRAWS
+    from offline.materialise_draws import draw_config_path
+
+    for name, path in (("output", roots.output_root), ("corpus", roots.corpus_root), ("draws", roots.draws_root)):
+        if not Path(path).is_dir():
+            raise FileNotFoundError(f"the {name} root {path} is not a directory")
+    if stage == "collect":
+        for scenario, (registered, fresh) in RANDOM_FRESH_DIRS.items():
+            random_fresh_collect_argv(roots, scenario)
+            if (Path(roots.corpus_root) / fresh).exists():
+                raise FileExistsError(f"{fresh} exists already; A27(d)'s tier is collected once")
+        return {"stage": stage, "ok": True}
+    if stage != "campaign":
+        raise ValueError(f"unknown stage {stage!r}")
+    import offline.method_tier_grid as grid
+
+    for scenario, (_, fresh) in RANDOM_FRESH_DIRS.items():
+        manifest = Path(roots.corpus_root) / fresh / "manifest.json"
+        if not manifest.is_file():
+            raise FileNotFoundError(f"{manifest} is missing: collect A27(d)'s tier first")
+        assert_random_fresh_manifest(json.loads(manifest.read_text(encoding="utf-8")))
+    for name in ("declaration_mix_m1000_m500.json", "declaration_random_fresh_hz1x1.json",
+                 "declaration_random_fresh_grid4x4.json"):
+        if not (Path(roots.run_root) / name).is_file():
+            raise FileNotFoundError(f"{Path(roots.run_root) / name} is missing: run `declare` first")
+    spec = grid.A27_TIERS["random_fresh"]
+    if math.isnan(spec.target_rtg) or math.isnan(spec.rtg_scale):
+        raise ValueError("hz1x1 random_fresh's prompt is not typed yet (plan Q2): its DT cannot train")
+    for key in SCENARIO_KEYS.values():
+        missing = [d for d in HELD_OUT_DRAWS if not Path(draw_config_path(key, d, out_root=roots.draws_root)).is_file()]
+        if missing:
+            raise FileNotFoundError(f"{key}: held-out draws {missing[:3]} are not materialised")
+    assert_target(Path(roots.runs_root) / "probe", roots)
+    return {"stage": stage, "ok": True}
+
+
+# ----------------------------------------------------------------------
+# The pre-flight (BRIEF_46 5, G2): measured, never estimated; written only under a scratch directory
+# ----------------------------------------------------------------------
+
+PREFLIGHT_FORMAT_VERSION = "p9.1-preflight/1.0"
+
+#: The registered cell the pre-flight reproduces end to end through both routes (P4.6, hz1x1).
+PREFLIGHT_REGISTERED_CELL: tuple[str, str, str] = ("docs/data/p4_6_training.json", "maxpressure", "iql")
+
+
+def cell_count_by_arm() -> dict[str, int]:
+    """Runs per ``<scenario>:<arm>`` over the whole manifest (5 seeds per cell)."""
+    from offline.dt_gate import TRAINING_SEEDS
+
+    counts: dict[str, int] = {}
+    for cell in training_cells():
+        key = f"{cell.scenario}:{cell.arm}"
+        counts[key] = counts.get(key, 0) + len(TRAINING_SEEDS)
+    return dict(sorted(counts.items()))
+
+
+def repoint_training_record(record: Mapping[str, Any], output_root: str | Path, *, tier: str,
+                            method: str) -> dict[str, Any]:
+    """A committed training record's runs of one cell, their checkpoints re-pointed at *output_root*'s
+    ``p4_6/checkpoints`` copies -- each accepted only if its canonical digest is the one the record committed."""
+    from offline.method_tier_grid import canonical_digest_of
+
+    runs = []
+    for run in record["runs"]:
+        if (run["tier"], run["method"]) != (tier, method):
+            continue
+        path = Path(output_root) / "p4_6" / "checkpoints" / Path(str(run["checkpoint"])).name
+        if canonical_digest_of(path) != run["canonical_digest"]:
+            raise ValueError(f"{path}'s canonical digest is not the one the committed record carries; refusing it")
+        runs.append({**run, "checkpoint": str(path)})
+    return {**dict(record), "runs": runs}
+
+
+def assert_equal_episodes(left: Mapping[Any, float], right: Mapping[Any, float], *, what: str) -> int:
+    """Two per-episode maps over the same episodes, equal under ``==`` on every one; returns the count."""
+    if set(left) != set(right):
+        raise ValueError(f"{what}: the two do not cover the same episodes ({len(left)} and {len(right)})")
+    differing = [key for key in left if float(left[key]) != float(right[key])]
+    if differing:
+        raise ValueError(f"{what}: {len(differing)} of {len(left)} episodes differ, first {differing[0]}")
+    return len(left)
+
+
+def _preflight_matched_runs(roots: Roots, scratch: Path, device: Any) -> dict[str, Any]:
+    """ONE matched BC run and ONE matched IQL run on the grid's mappo1000 tier, seed 101, the full 40,000 steps, through
+    the campaign's own ``train_run`` into the scratch tree; their recorded seconds are the measurement."""
+    import torch
+
+    scratch_roots = Roots(repo_root=roots.repo_root, output_root=scratch / "output", corpus_root=roots.corpus_root,
+                          draws_root=roots.draws_root)
+    inputs = _grid_inputs(scratch_roots, "mappo1000")
+    resolved = torch.device(device) if device is not None else torch.device(
+        "cuda" if torch.cuda.is_available() else "cpu")
+    out: dict[str, Any] = {}
+    for arm in ("bc_m", "iql_m"):
+        cell = next(c for c in training_cells() if (c.scenario, c.tier, c.arm) == ("grid4x4", "mappo1000", arm))
+        record = train_run(scratch_roots, cell, 101, inputs, device=resolved, log_every=5000)
+        out[arm] = {"seconds": record["seconds"], "gradient_steps": record["gradient_steps"], "clock": CLOCK_LABEL,
+                    "device": record["device"], "canonical_digest": record["canonical_digest"]}
+    return out
+
+
+def _preflight_registered_cell(roots: Roots, scratch: Path) -> dict[str, Any]:
+    """One REGISTERED cell (P4.6's ``iql@maxpressure``, 500 episodes) through both routes, each equal to the committed
+    ``att_ours`` under ``==``: route (i) by ``method_tier_grid evaluate`` on the committed training record (checkpoints
+    re-pointed at the main tree's copies, digest-checked); route (ii) by ``run_campaign`` with the campaign's builder."""
+    import offline.method_tier_grid as grid
+    from offline import att_rederivation as ar
+    from offline.admission_probe import ProbeRoots
+    from offline.offline_baselines import pin_torch_threads
+
+    artifact, tier, method = PREFLIGHT_REGISTERED_CELL
+    arm = f"{method}@{tier}"
+    committed = old_cell_committed(roots.repo_root, "docs/data/p4_6_grid.json", arm)
+    record = json.loads((Path(roots.repo_root) / artifact).read_text(encoding="utf-8"))
+    route_i_dir = scratch / "registered_route_i"
+    route_i_dir.mkdir(parents=True, exist_ok=True)
+    (route_i_dir / "p4_6_training.json").write_text(
+        json.dumps(repoint_training_record(record, roots.output_root, tier=tier, method=method)), encoding="utf-8")
+    argv = ["--corpus-root", str(roots.corpus_root), "--draws-root", str(roots.draws_root),
+            "--scenario-key", SCENARIO_KEYS["hz1x1"], "--scenario-id", SCENARIO_KEYS["hz1x1"],
+            "--out-dir", str(route_i_dir), "--work-dir", str(route_i_dir), "--artifact-prefix", "p4_6",
+            "--steps", str(int(record["declared_gradient_steps"])), "--engine-seed", str(ENGINE_SEED),
+            "--torch-threads", "1", "evaluate", "--tier", tier, "--method", method]
+    if grid.main(argv) != 0:
+        raise RuntimeError("route (i) failed on the registered cell")
+    payload = json.loads((route_i_dir / f"eval_{tier}_{method}.json").read_text(encoding="utf-8"))
+    route_i_values = committed_from_route_i(payload, "hz1x1", arm)
+    matched_i = assert_equal_episodes(route_i_values, committed, what="route (i) against the committed cell")
+    work = scratch / "registered_route_ii"
+    work.mkdir(parents=True, exist_ok=True)
+    probe = ProbeRoots(repo_root=Path(roots.repo_root), corpus_root=Path(roots.corpus_root),
+                       draws_root=Path(roots.draws_root), output_root=Path(roots.output_root), work_dir=work)
+    keys = [ar.CellKey(*key) for key in sorted(committed, key=lambda k: (k[2], k[3]))]
+    previous = pin_torch_threads(1)
+    try:
+        outcome = ar.run_campaign(keys, roots=probe, engine_seed=ENGINE_SEED, device=None, committed=committed,
+                                  protected=(), factory_builder=a27_factory_builder(roots))
+    finally:
+        pin_torch_threads(previous)
+    if outcome["n_refused"]:
+        raise RuntimeError(f"route (ii) refused {outcome['n_refused']} episode(s) of the registered cell")
+    return {"cell": arm, "artifact": "docs/data/p4_6_grid.json", "route_i_equal_to_committed": matched_i,
+            "route_ii_reproduces_committed": int(outcome["rolled"]), "route_ii_seconds": outcome["seconds"]}
+
+
+def _preflight_a27_grid_path(roots: Roots, scratch: Path, draws: Any) -> dict[str, Any]:
+    """The NEW grid path end to end on the two matched runs (seed 101): route (i) by ``tier_sweep evaluate --seeds 101``
+    and route (ii) by ``run_campaign`` with the campaign's builder, equal under ``==`` on the first held-out draws."""
+    import offline.tier_sweep as ts
+    from offline import att_rederivation as ar
+    from offline.admission_probe import ProbeRoots
+    from offline.iql_correction import narrowed_held_out_draws
+    from offline.offline_baselines import pin_torch_threads
+
+    scratch_roots = Roots(repo_root=roots.repo_root, output_root=scratch / "output", corpus_root=roots.corpus_root,
+                          draws_root=roots.draws_root)
+    out: dict[str, Any] = {}
+    for arm in ("bc_m", "iql_m"):
+        cell = next(c for c in training_cells() if (c.scenario, c.tier, c.arm) == ("grid4x4", "mappo1000", arm))
+        name, argv = route_i_command(scratch_roots, cell)
+        argv[argv.index("--reuse-root") + 1] = str(Path(roots.output_root) / "p5_1")
+        argv[argv.index("--checksums") + 1] = str(Path(roots.output_root) / "SHA256SUMS_p5_1.txt")
+        argv = [*argv[: argv.index("evaluate")], "--seeds", "101", *argv[argv.index("evaluate"):]]
+        with narrowed_held_out_draws(draws):
+            if ts.main(argv) != 0:
+                raise RuntimeError(f"route (i) failed on {cell.key}")
+        payload = json.loads((Path(scratch_roots.runs_root) / "eval_i" / "grid4x4" /
+                              f"eval_mappo1000_{arm}_seed101.json").read_text(encoding="utf-8"))
+        values = committed_from_route_i(payload, "grid4x4", cell.key)
+        work = scratch / f"a27_route_ii_{arm}"
+        work.mkdir(parents=True, exist_ok=True)
+        probe = ProbeRoots(repo_root=Path(roots.repo_root), corpus_root=Path(roots.corpus_root),
+                           draws_root=Path(roots.draws_root), output_root=Path(roots.output_root), work_dir=work)
+        previous = pin_torch_threads(1)
+        try:
+            outcome = ar.run_campaign([ar.CellKey(*key) for key in sorted(values)], roots=probe,
+                                      engine_seed=ENGINE_SEED, device=None, committed=values, protected=(),
+                                      factory_builder=a27_factory_builder(scratch_roots))
+        finally:
+            pin_torch_threads(previous)
+        if outcome["n_refused"]:
+            raise RuntimeError(f"route (ii) does not reproduce route (i) on {cell.key}")
+        out[arm] = {"episodes": len(values), "routes_equal": int(outcome["rolled"]),
+                    "att_ours": {f"{k[2]}:{k[3]}": v for k, v in sorted(values.items())}}
+    return out
+
+
+def preflight(roots: Roots, scratch: str | Path, *, device: Any = None,
+              draws: Any = (1000, 1001, 1002, 1003, 1004)) -> dict[str, Any]:
+    """G2's measurements, in order, all under *scratch*; nothing is written under the main tree's ``output/``."""
+    scratch = Path(scratch)
+    scratch.mkdir(parents=True, exist_ok=True)
+    record = {
+        "format_version": PREFLIGHT_FORMAT_VERSION,
+        "cell_count_by_arm": cell_count_by_arm(),
+        "matched_runs": _preflight_matched_runs(roots, scratch, device),
+        "registered_cell_both_routes": _preflight_registered_cell(roots, scratch),
+        "a27_grid_path_both_routes": _preflight_a27_grid_path(roots, scratch, draws),
+    }
+    mixture_roots = Roots(repo_root=roots.repo_root, output_root=scratch / "output", corpus_root=roots.corpus_root,
+                          draws_root=roots.draws_root)
+    record["mixture_declaration"] = declare_mixture(mixture_roots)
+    (scratch / "preflight.json").write_text(json.dumps(record, indent=2, sort_keys=True, allow_nan=False) + "\n",
+                                            encoding="utf-8")
+    return record
+
+
+# ----------------------------------------------------------------------
+# CLI
+# ----------------------------------------------------------------------
+
+
+def build_parser() -> Any:
+    """``check``, ``status``, ``collect-random-fresh``, ``declare``, ``train``, ``declare-evaluation``, ``evaluate``,
+    ``old-cells``, ``p3a-references``, ``preflight``."""
+    import argparse
+
+    parser = argparse.ArgumentParser(prog="python -m offline.corrective_round", allow_abbrev=False,
+                                     description="P9.1: A27's corrective round, points 1, 2, 3, 4, 6 (BRIEF_46)")
+    parser.add_argument("--repo-root", type=Path, default=Path(__file__).resolve().parent.parent)
+    parser.add_argument("--output-root", type=Path, required=True)
+    parser.add_argument("--corpus-root", type=Path, required=True)
+    parser.add_argument("--draws-root", type=Path, required=True)
+    sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser("check", allow_abbrev=False).add_argument("--stage", choices=["collect", "campaign"], required=True)
+    sub.add_parser("status", allow_abbrev=False)
+    sub.add_parser("collect-random-fresh", allow_abbrev=False).add_argument(
+        "--scenario", choices=list(SCENARIOS_ORDER), required=True)
+    declare = sub.add_parser("declare", allow_abbrev=False)
+    declare.add_argument("--what", choices=["mixture", "random_fresh"], required=True)
+    declare.add_argument("--scenario", choices=list(SCENARIOS_ORDER), default=None)
+    train_cmd = sub.add_parser("train", allow_abbrev=False)
+    train_cmd.add_argument("--scenario", choices=list(SCENARIOS_ORDER), default=None)
+    train_cmd.add_argument("--tier", default=None)
+    train_cmd.add_argument("--arm", default=None)
+    train_cmd.add_argument("--device", default=None)
+    train_cmd.add_argument("--log-every", type=int, default=5000)
+    evaluate_cmd = sub.add_parser("evaluate", allow_abbrev=False)
+    evaluate_cmd.add_argument("--shard", type=int, default=0)
+    evaluate_cmd.add_argument("--of", type=int, default=1)
+    evaluate_cmd.add_argument("--scenario", choices=list(SCENARIOS_ORDER), default=None)
+    sub.add_parser("declare-evaluation", allow_abbrev=False)
+    old_cells_cmd = sub.add_parser("old-cells", allow_abbrev=False)
+    old_cells_cmd.add_argument("--shard", type=int, default=0)
+    old_cells_cmd.add_argument("--of", type=int, default=1)
+    sub.add_parser("p3a-references", allow_abbrev=False)
+    preflight_cmd = sub.add_parser("preflight", allow_abbrev=False)
+    preflight_cmd.add_argument("--scratch", type=Path, required=True)
+    preflight_cmd.add_argument("--device", default=None)
+    return parser
+
+
+def main(argv: Any = None) -> int:
+    """Run one stage; a refusal prints ``REFUSED`` with its reason and exits 2 (``iql_correction``'s convention)."""
+    import sys
+
+    args = build_parser().parse_args(argv)
+    roots = Roots(repo_root=args.repo_root, output_root=args.output_root, corpus_root=args.corpus_root,
+                  draws_root=args.draws_root)
+    try:
+        if args.command == "check":
+            result: Any = check(roots, stage=args.stage)
+        elif args.command == "status":
+            result = status(roots)
+        elif args.command == "collect-random-fresh":
+            result = str(collect_random_fresh(roots, args.scenario))
+        elif args.command == "declare":
+            if args.what == "mixture":
+                result = declare_mixture(roots)["measured"]
+            else:
+                if args.scenario is None:
+                    raise ValueError("declare --what random_fresh needs --scenario")
+                result = declare_random_fresh(roots, args.scenario).get("values_to_type", "declared")
+        elif args.command == "train":
+            cells = [c for c in training_cells() if args.scenario in (None, c.scenario) and args.tier in (None, c.tier)
+                     and args.arm in (None, c.arm)]
+            result = train(roots, cells=cells, device=args.device, log_every=args.log_every)
+        elif args.command == "evaluate":
+            result = evaluate(roots, shard=args.shard, of=args.of, scenario=args.scenario)
+        elif args.command == "declare-evaluation":
+            result = declare_evaluation(roots)
+        elif args.command == "old-cells":
+            cells = old_cells_shard(args.shard, args.of)
+            assert_evaluation_declared(roots, "old_cells/hz1x1")
+            result = {key: value for key, value in roll_old_cells(roots, cells=cells).items() if key != "refused"}
+        elif args.command == "preflight":
+            result = preflight(roots, args.scratch, device=args.device)
+        else:
+            result = record_registered_references(roots)
+    except (ValueError, PermissionError, FileExistsError, FileNotFoundError, RuntimeError) as exc:
+        print(f"REFUSED: {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
+        return 2
+    print(json.dumps(result, indent=2, sort_keys=True, default=str), flush=True)
+    return 0
+
+
+if __name__ == "__main__":  # pragma: no cover - exercised by the driver
+    raise SystemExit(main())

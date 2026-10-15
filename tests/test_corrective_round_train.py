@@ -256,3 +256,27 @@ def test_t_train_args_the_grid_dt_matches_tier_sweeps_dt_trainer(tmp_path: Path,
             assert campaign[key] == cli[key], key
     record = json.loads(cr.run_record_path(roots, "grid4x4", "random_fresh", "dt_nomix", 101).read_text())
     assert record["seconds"] == 3.0 and record["gradient_steps"] == 2 and record["deterministic"] is False
+
+
+def test_the_hz1x1_aggregate_carries_done_runs_only_and_refuses_a_run_its_record_does_not_describe(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """K11 (added after the C5 mutation table): route (i) reads the aggregate, so a run enters it only if its status is
+    DONE -- a record whose digest is not its checkpoint's stops the rebuild, the aggregate on disk untouched."""
+    roots = _hz1x1_fixture(tmp_path, monkeypatch)
+    _two_steps(monkeypatch, "hz1x1", "iql_t")
+    monkeypatch.setattr(cr, "AGGREGATE_PREFIXES", {2: "p9_1", 100_000: "p9_1_100k"})  # the patched budget's file
+    cell = _cell("hz1x1", "maxpressure", "iql_t")
+    cr.train(roots, cells=[cell], device="cpu", seeds=(101,))
+    cr.write_training_aggregates(roots)
+    aggregate = Path(roots.run_root) / "p9_1_training.json"
+    record_path = cr.run_record_path(roots, "hz1x1", "maxpressure", "iql_t", 101)
+    record = json.loads(record_path.read_text())
+    runs = json.loads(aggregate.read_text())["runs"]
+    assert [(r["tier"], r["method"], r["seed"], r["canonical_digest"], r["seconds"]) for r in runs] == [
+        ("maxpressure", "iql_t", 101, record["canonical_digest"], record["seconds"])]
+    before = aggregate.read_bytes()
+    record_path.write_text(json.dumps({**record, "canonical_digest": "0" * 64}))
+    with pytest.raises(ValueError, match="not the ones its record wrote"):
+        cr.write_training_aggregates(roots)
+    assert aggregate.read_bytes() == before
