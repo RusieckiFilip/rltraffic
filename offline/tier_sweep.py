@@ -227,6 +227,27 @@ TIERS: Mapping[str, TierSpec] = {
     ),
 }
 
+#: This module's scenario in ``offline.a27_arms``' vocabulary.
+A27_SCENARIO = "grid4x4"
+
+#: ⚠️ **A27(d)'s grid tier (``PREREGISTRATION.md`` A27; tag ``v2.8-prereg-a27``), declared BESIDE ``TIERS``.**
+#: ``tests/test_tier_sweep.py`` looks every key of ``TIERS`` up in ``docs/data/att_ladder_v11.json``, which has no
+#: ``random_fresh``, so the tier lives here and :func:`tier_spec` consults this mapping after the registered one.
+#: 200 episodes, one per draw 1-200, collected with ``offline.collect --random-rng per-episode``; ``subsample="none"``.
+#: ``ladder_att`` and ``mean_training_return`` are informational on the grid (no training path reads them) and are
+#: COMPUTED and recorded by ``offline.corrective_round``'s declaration step from the tier's own corpus -- never typed,
+#: hence ``nan`` here (``BRIEF_46`` 3.2).
+A27_TIERS: Mapping[str, TierSpec] = {
+    "random_fresh": TierSpec(
+        tier="random_fresh",
+        dirs=("cf_grid4x4__random_fresh",),
+        subsample="none",
+        episode_count=200,
+        ladder_att=float("nan"),
+        mean_training_return=float("nan"),
+    ),
+}
+
 # ----------------------------------------------------------------------
 # The registered predictions (docs/plans/p5.2.md section 4).  These predate every P5.2 number and
 # are pinned here so the scorer cannot be written to whatever the campaign returns.
@@ -503,14 +524,16 @@ def replace_guarded(
 
 
 def tier_spec(tier: str) -> TierSpec:
-    """The declared spec of *tier*, refusing an undeclared name."""
+    """The declared spec of *tier* -- a registered tier, else an A27 one -- refusing an undeclared name."""
     key = str(tier)
-    if key not in TIERS:
-        raise ValueError(
-            f"unknown tier {key!r}; this task declares {sorted(TIERS)}. The running order is "
-            f"{list(TIER_ORDER)} and 'fixedtime' is the pre-declared optional fourth tier"
-        )
-    return TIERS[key]
+    if key in TIERS:
+        return TIERS[key]
+    if key in A27_TIERS:
+        return A27_TIERS[key]
+    raise ValueError(
+        f"unknown tier {key!r}; this task declares {sorted(TIERS)}. The running order is "
+        f"{list(TIER_ORDER)} and 'fixedtime' is the pre-declared optional fourth tier; A27 adds {sorted(A27_TIERS)}"
+    )
 
 
 def tier_dirs(spec: TierSpec, corpus_root: str | Path) -> tuple[Path, ...]:
@@ -1669,9 +1692,18 @@ def build_parser() -> Any:
     sub.add_parser(
         "assert-complete", help="refuse unless every cell the declaration names exists"
     )
-    sub.add_parser(
+    baselines = sub.add_parser(
         "train-baselines", help="train bc, bc_top10, bc_top10_perix and iql on one tier"
     )
+    # A27 (BRIEF_46 section 3.1).  The defaults are the registered recipes and train exactly what P5.2 trained; any
+    # other value names the arm by offline.a27_arms.derive_arm and is refused unless A27 declared that arm.
+    baselines.add_argument("--methods", default=",".join(BASELINE_METHODS))
+    baselines.add_argument("--bc-batch-windows", type=int, default=JOINT_BATCH_SIZE,
+                           help="BC / %%BC windows per step (registered: %(default)s; A27(b): bc_m 1024, top decile 102)")
+    baselines.add_argument("--iql-batch-transitions", type=int, default=_registered_iql_batch(),
+                           help="IQL transitions per step (registered: %(default)s; A27(b): iql_m 20480)")
+    baselines.add_argument("--iql-target-dropout", choices=["active", "off"], default="active",
+                           help="'active' is the registered IQL; 'off' runs the three target forwards in eval() (A27(c))")
     sub.add_parser("verify-reuse", help="B3: re-verify the reused cells' digests at consumption")
     sub.add_parser(
         "stop-rule",
@@ -1687,6 +1719,70 @@ def build_parser() -> Any:
     )
     envelope.add_argument("--seed", type=int, default=REPLICATE_SEED)
     return parser
+
+
+#: The four non-DT methods ``train-baselines`` trains, in its registered order.
+BASELINE_METHODS: tuple[str, ...] = ("bc", "bc_top10", "bc_top10_perix", "iql")
+
+
+def _registered_iql_batch() -> int:
+    from offline.offline_baselines import IQL_BATCH_TRANSITIONS
+
+    return int(IQL_BATCH_TRANSITIONS)
+
+
+def _has_p9_component(path: str | Path) -> bool:
+    return any(part.startswith("p9_") for part in Path(path).resolve().parts)
+
+
+def baselines_plan(args: Any, tier: str) -> tuple[list[tuple[str, Any]], bool]:
+    """``(method, recipe)`` for every requested method, and whether the call is an A27 run.
+
+    The recipe is ``offline.a27_arms.derive_arm``'s on grid4x4 from the three flags; a combination A27 did not declare
+    is refused.  The call is an A27 run iff an arm is an A27 one or the tier is A27's.
+    """
+    from offline.a27_arms import derive_arm
+
+    methods = [m.strip() for m in str(getattr(args, "methods", ",".join(BASELINE_METHODS))).split(",") if m.strip()]
+    unknown = [m for m in methods if m not in BASELINE_METHODS]
+    if unknown:
+        raise ValueError(f"unknown method(s) {unknown}; train-baselines trains {list(BASELINE_METHODS)}")
+    windows = int(getattr(args, "bc_batch_windows", JOINT_BATCH_SIZE))
+    transitions = int(getattr(args, "iql_batch_transitions", _registered_iql_batch()))
+    target = str(getattr(args, "iql_target_dropout", "active"))
+    plan = [
+        (m, derive_arm("grid4x4", m, batch=transitions if m == "iql" else windows,
+                       target_dropout=target if m == "iql" else None, steps=int(args.gradient_steps)))
+        for m in methods
+    ]
+    return plan, (tier in A27_TIERS or any(not recipe.registered for _, recipe in plan))
+
+
+def assert_a27_baselines_run(args: Any, tier: str, plan: Sequence[tuple[str, Any]], paths: Sequence[Path]) -> None:
+    """A27(a)'s refusals for an A27 ``train-baselines`` call, all before anything is read or written.
+
+    The work and checkpoint directories must sit under a ``p9_*`` directory; no registered arm may be retrained on a
+    registered tier; no planned checkpoint may exist -- an A27 run never skips, overwrites or writes beside one.
+    """
+    for name in ("checkpoint_dir", "work_dir"):
+        if not _has_p9_component(getattr(args, name)):
+            raise ValueError(
+                f"--{name.replace('_', '-')} {getattr(args, name)} is not under a p9_* directory; A27(a): new runs "
+                "write only into new output/p9_* directories"
+            )
+    if tier not in A27_TIERS:
+        reused = sorted(method for method, recipe in plan if recipe.registered)
+        if reused:
+            raise ValueError(
+                f"{reused} on {tier} would retrain a registered cell under its registered name in an A27 run; A27(a) "
+                "gives every new cell a new arm or tier name"
+            )
+    existing = [str(path) for path in paths if path.exists()]
+    if existing:
+        raise FileExistsError(
+            f"{len(existing)} planned checkpoint(s) already exist, first {existing[0]}; an A27 run never overwrites "
+            "or skips a checkpoint (BRIEF_46 3.1)"
+        )
 
 
 def _seeds_of(args: Any) -> tuple[int, ...]:
@@ -1969,6 +2065,11 @@ def _checkpoint_name(tier: str, method: str, seed: int, replicate: bool = False)
 def _run_declare(args: Any) -> int:
     protected = _protected_of(args)
     tier = _require_tier(args)
+    if tier in A27_TIERS:
+        raise ValueError(
+            f"{tier} is A27's tier: its ladder_att and mean_training_return are computed from its own corpus by "
+            "offline.corrective_round's declare, which writes its declaration; this command would record nan"
+        )
     parts = tier_parts(tier, args.corpus_root, sim_config=args.sim_config)
     payload = declaration_artifact(parts, args.corpus_root)
     out = Path(args.out_dir) / f"p5_2_declaration_{tier}.json"
@@ -1995,6 +2096,26 @@ def _run_train(args: Any) -> int:
 
     protected = _protected_of(args)
     tier = _require_tier(args)
+    if tier in A27_TIERS:
+        # A27 (BRIEF_46 3.1): a DT on A27's tier is a new cell; its run writes under p9_* only and never skips or
+        # writes over a checkpoint on disk -- refused here, before the corpus is read.
+        for name in ("checkpoint_dir", "work_dir"):
+            if not _has_p9_component(getattr(args, name)):
+                raise ValueError(
+                    f"--{name.replace('_', '-')} {getattr(args, name)} is not under a p9_* directory; A27(a): new runs "
+                    "write only into new output/p9_* directories"
+                )
+        planned = [
+            Path(args.checkpoint_dir)
+            / _checkpoint_name(tier, args.method, seed, replicate=bool(getattr(args, "replicate", False)))
+            for seed in _seeds_of(args)
+        ]
+        existing = [str(path) for path in planned if path.exists()]
+        if existing:
+            raise FileExistsError(
+                f"{len(existing)} planned checkpoint(s) already exist, first {existing[0]}; an A27 run never "
+                "overwrites or skips a checkpoint (BRIEF_46 3.1)"
+            )
     parts = tier_parts(tier, args.corpus_root, sim_config=args.sim_config)
     stacked = parts["stack"]()
     checkpoints = Path(args.checkpoint_dir)
@@ -2076,6 +2197,15 @@ def _run_train_baselines(args: Any) -> int:
 
     protected = _protected_of(args)
     tier = _require_tier(args)
+    # A27 (BRIEF_46 3.1): the arms come from the flags, and an A27 run's refusals precede the first read.  Under the
+    # defaults on a registered tier the plan is the registered four under their registered names.
+    plan, a27_run = baselines_plan(args, tier)
+    planned = {
+        method: [Path(args.checkpoint_dir) / _checkpoint_name(tier, recipe.name, seed) for seed in _seeds_of(args)]
+        for method, recipe in plan
+    }
+    if a27_run:
+        assert_a27_baselines_run(args, tier, plan, [path for paths in planned.values() for path in paths])
     parts = tier_parts(tier, args.corpus_root, sim_config=args.sim_config)
     dataset = parts["dataset"]
     group = next(iter(dataset.groups))
@@ -2113,43 +2243,57 @@ def _run_train_baselines(args: Any) -> int:
     )
     records: list[dict[str, Any]] = []
     table = None
-    for method in ("bc", "bc_top10", "bc_top10_perix", "iql"):
-        for seed in _seeds_of(args):
-            path = checkpoints / _checkpoint_name(tier, method, seed)
+    for method, recipe in plan:
+        a27_fields = (
+            {"arm": recipe.name, "base_method": recipe.base, "target_dropout": recipe.target_dropout,
+             "registered_in": recipe.registered_in}
+            if a27_run
+            else {}
+        )
+        iql_extra = {} if recipe.target_dropout in (None, "active") else {"target_dropout": recipe.target_dropout}
+        for seed, path in zip(_seeds_of(args), planned[method]):
             if path.is_file():
-                print(f"SKIP {tier}/{method} seed {seed}: checkpoint on disk", flush=True)
+                print(f"SKIP {tier}/{recipe.name} seed {seed}: checkpoint on disk", flush=True)
                 continue
             assert_writable(path, protected)
             partial = path.with_name(path.name + ".partial")
             partial.unlink(missing_ok=True)
-            print(f"TRAIN {tier}/{method} seed {seed} -> {path}", flush=True)
+            print(f"TRAIN {tier}/{recipe.name} seed {seed} -> {path}", flush=True)
             if method == "iql":
                 if table is None:
                     table = iql_transition_table(
                         dataset, group=group, reward_scale=scale, streams=streams
                     )
                     print(f"  transitions {len(table)}", flush=True)
-                train_iql(
+                result = train_iql(
                     table, state_dim=group[0], n_actions=group[1], seed=int(seed),
                     declared_gradient_steps=int(args.gradient_steps),
-                    batch_size=IQL_BATCH_TRANSITIONS, device=device, checkpoint_path=partial,
+                    batch_size=recipe.batch, device=device, checkpoint_path=partial,
                     stats=dataset.stats, scenario_id=SCENARIO_ID,
-                    provenance={**provenance, "runtime": runtime_provenance()},
+                    provenance={**provenance, **a27_fields, "runtime": runtime_provenance()},
                     log_every=int(args.log_every),
+                    **iql_extra,
                 )
             else:
-                train_bc(
+                result = train_bc(
                     batches[method], state_dim=group[0], n_actions=group[1], seed=int(seed),
                     method=method, declared_gradient_steps=int(args.gradient_steps),
-                    batch_size=JOINT_BATCH_SIZE, device=device, checkpoint_path=partial,
+                    batch_size=recipe.batch, device=device, checkpoint_path=partial,
                     stats=dataset.stats, scenario_id=SCENARIO_ID,
-                    provenance={**provenance, "runtime": runtime_provenance()},
+                    provenance={**provenance, **a27_fields, "runtime": runtime_provenance()},
                     log_every=int(args.log_every),
                 )
             replace_guarded(partial, path, protected)
-            records.append({"tier": tier, "method": method, "seed": int(seed),
-                            "checkpoint_path": str(path),
-                            "gradient_steps": int(args.gradient_steps)})
+            entry: dict[str, Any] = {"tier": tier, "method": recipe.name, "seed": int(seed),
+                                     "checkpoint_path": str(path),
+                                     "gradient_steps": int(args.gradient_steps)}
+            if a27_run:
+                # A27(a): every training run's seconds and steps, labelled an uncontrolled clock by the report.
+                entry.update({"base_method": recipe.base, "batch_size": recipe.batch,
+                              "target_dropout": recipe.target_dropout, "registered_in": recipe.registered_in,
+                              "seconds": float(result.seconds), "canonical_digest": result.canonical_digest,
+                              "file_sha256": result.file_sha256})
+            records.append(entry)
     work = Path(args.work_dir)
     work.mkdir(parents=True, exist_ok=True)
     # O4: merge by (tier, method, seed).  All four of this task's *_baselines.json records were
@@ -2160,7 +2304,7 @@ def _run_train_baselines(args: Any) -> int:
         record_path,
         {
             "format_version": ARTIFACT_FORMAT_VERSION, "tier": tier,
-            "methods": ["bc", "bc_top10", "bc_top10_perix", "iql"],
+            "methods": [recipe.name for _, recipe in plan] if a27_run else ["bc", "bc_top10", "bc_top10_perix", "iql"],
             "declared_gradient_steps": int(args.gradient_steps),
             "iql_reward_scale": scale,
             "global_decile_streams": len(kept_global),
@@ -2196,9 +2340,24 @@ def _arm_factory(tier: str, method: str, args: Any, seed: int) -> Any:
     if method in ("bc", "bc_top10", "bc_top10_perix", "iql"):
         path = str(checkpoints / _checkpoint_name(tier, method, seed))
         return _baseline_factory(method, path, int(args.gradient_steps), args.device)
+    from offline.a27_arms import is_a27_arm, recipe
+
+    if is_a27_arm(A27_SCENARIO, method):
+        # A27 (BRIEF_46 3.2): the loader is the BASE method's -- _baseline_factory picks IQLAgent only for the literal
+        # name "iql" and would load an iql_m checkpoint as BC.  The arm name names the checkpoint and the cell.
+        path = str(checkpoints / _checkpoint_name(tier, method, seed))
+        return _baseline_factory(recipe(A27_SCENARIO, method).base, path, int(args.gradient_steps), args.device)
     if method == COLLAPSE_REFERENCE_METHOD:
         return _random_factory(int(seed))
     if method == BEHAVIOUR_METHOD:
+        if tier == "random_fresh":
+            # A27(d)'s fresh reference: default_rng([seed, draw_id]) per held-out draw (offline/a27_arms.py).
+            from offline.a27_arms import fresh_random_factory
+            from offline.dt_gate import HELD_OUT_DRAWS
+
+            return fresh_random_factory(
+                int(seed), scenario_key=args.scenario_key, draws_root=args.draws_root, draw_ids=HELD_OUT_DRAWS
+            )
         if tier == "random":
             return _random_factory(int(seed))
         if tier == "maxpressure":
@@ -2333,7 +2492,13 @@ def _run_evaluate(args: Any) -> int:
     # would not see it.  Every cell now carries the path AND the canonical weight digest of the
     # model that produced it, per seed.
     model_provenance: dict[str, Any] = {}
-    if args.method in DT_METHODS or args.method in ("bc", "bc_top10", "bc_top10_perix", "iql"):
+    from offline.a27_arms import is_a27_arm
+
+    if (
+        args.method in DT_METHODS
+        or args.method in ("bc", "bc_top10", "bc_top10_perix", "iql")
+        or is_a27_arm(A27_SCENARIO, args.method)
+    ):
         for seed in _seeds_of(args):
             ckpt = Path(args.checkpoint_dir) / _checkpoint_name(
                 tier, args.method, int(seed), replicate=bool(getattr(args, "replicate", False))
