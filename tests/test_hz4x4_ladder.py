@@ -292,6 +292,28 @@ def test_project_teachers_refuses_a_missing_or_repeated_seed() -> None:
         hz.project_teachers(zero, evaluation_episodes=9)
 
 
+def _canary(phase: str, *, seconds: float = 0.8, reproduced: bool = True) -> dict[str, Any]:
+    return {"phase": phase, "seconds": seconds, "threshold_seconds": 2.0,
+            "verdict": "at speed" if seconds <= 2.0 else "throttled", "reproduced": reproduced}
+
+
+def test_preflight_decision_refuses_to_quote_a_rate_from_a_throttled_or_wrong_machine() -> None:
+    projection = {"verdict": "GO", "projected_wall_clock_seconds": 3000.0}
+    clean = hz.preflight_decision(projection, [_canary("open"), _canary("close")])
+    assert clean["quotable"] is True
+    assert clean["go_no_go"] == "GO"
+    throttled = hz.preflight_decision(projection, [_canary("open"), _canary("close", seconds=6.9)])
+    assert throttled["quotable"] is False
+    assert throttled["go_no_go"] is None
+    assert "close" in throttled["reason"]
+    wrong = hz.preflight_decision(projection, [_canary("open", reproduced=False), _canary("close")])
+    assert wrong["quotable"] is False
+    assert wrong["go_no_go"] is None
+    assert "reproduce" in wrong["reason"]
+    with pytest.raises(ValueError, match="open"):
+        hz.preflight_decision(projection, [_canary("close")])
+
+
 # ======================================================================
 # 3. The fixed-time sweep
 # ======================================================================
