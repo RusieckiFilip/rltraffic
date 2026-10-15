@@ -1,0 +1,284 @@
+{
+  "canaries": [
+    {
+      "phase": "open",
+      "power": {
+        "supplies": {
+          "error": null,
+          "items": [
+            {
+              "name": "AC1",
+              "online": 1,
+              "type": "Mains"
+            },
+            {
+              "name": "BAT1",
+              "online": null,
+              "type": "Battery"
+            }
+          ],
+          "read_with": "/sys/class/power_supply/<name>/type and /sys/class/power_supply/<name>/online (a battery has no online file)"
+        },
+        "windows": {
+          "ac_overlay": null,
+          "ac_overlay_name": null,
+          "active_scheme": null,
+          "dc_overlay": null,
+          "dc_overlay_name": null,
+          "error": "OSError: reg.exe query exited with code 1: <3>WSL (20 - ) ERROR: UtilConnectUnix:526: socket failed 1",
+          "read_with": "reg.exe query HKLM\\SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes (ActivePowerScheme, ActiveOverlayAcPowerScheme, ActiveOverlayDcPowerScheme)"
+        }
+      },
+      "power_problems": [
+        "the Windows power mode could not be read (OSError: reg.exe query exited with code 1: <3>WSL (20 - ) ERROR: UtilConnectUnix:526: socket failed 1)"
+      ],
+      "recipe": "offline.transfer_calibration.canary_seconds + check_canary (cityflow1x1 draw 0, P4.3's settings)",
+      "reproduced": true,
+      "reproduction_failure": null,
+      "seconds": 0.7544228760089027,
+      "threshold_seconds": 2.0,
+      "verdict": "at speed"
+    },
+    {
+      "phase": "close",
+      "power": {
+        "supplies": {
+          "error": null,
+          "items": [
+            {
+              "name": "AC1",
+              "online": 1,
+              "type": "Mains"
+            },
+            {
+              "name": "BAT1",
+              "online": null,
+              "type": "Battery"
+            }
+          ],
+          "read_with": "/sys/class/power_supply/<name>/type and /sys/class/power_supply/<name>/online (a battery has no online file)"
+        },
+        "windows": {
+          "ac_overlay": null,
+          "ac_overlay_name": null,
+          "active_scheme": null,
+          "dc_overlay": null,
+          "dc_overlay_name": null,
+          "error": "OSError: reg.exe query exited with code 1: <3>WSL (117 - ) ERROR: UtilConnectUnix:526: socket failed 1",
+          "read_with": "reg.exe query HKLM\\SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes (ActivePowerScheme, ActiveOverlayAcPowerScheme, ActiveOverlayDcPowerScheme)"
+        }
+      },
+      "power_problems": [
+        "the Windows power mode could not be read (OSError: reg.exe query exited with code 1: <3>WSL (117 - ) ERROR: UtilConnectUnix:526: socket failed 1)"
+      ],
+      "recipe": "offline.transfer_calibration.canary_seconds + check_canary (cityflow1x1 draw 0, P4.3's settings)",
+      "reproduced": true,
+      "reproduction_failure": null,
+      "seconds": 0.7583655260095838,
+      "threshold_seconds": 2.0,
+      "verdict": "at speed"
+    }
+  ],
+  "cityflow_maxpressure_episodes": [
+    {
+      "action_counts": [
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8
+      ],
+      "config": "/home/filip/rltraffic/scenarios/draws/cityflow4x4/draw_0000/cityflow.json",
+      "decisions": 360,
+      "draw_id": 0,
+      "seconds": 1.207275387001573,
+      "seconds_rollout": 1.1770365069969557
+    },
+    {
+      "action_counts": [
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8
+      ],
+      "config": "/home/filip/rltraffic/scenarios/draws/cityflow4x4/draw_0001/cityflow.json",
+      "decisions": 360,
+      "draw_id": 1,
+      "seconds": 1.161936008997145,
+      "seconds_rollout": 1.1322006389964372
+    }
+  ],
+  "decision": {
+    "go_no_go": "GO",
+    "quotable": true,
+    "reason": "both canaries at speed and reproducing the engine's recorded answers"
+  },
+  "format_version": "p9.3-preflight/1.0",
+  "git": {
+    "code_root": "/home/filip/rltraffic-p93",
+    "commit": "d2f27c54cd895b1d95e6b4933cb174650415d3dc",
+    "dirty": false
+  },
+  "grid_records_for_comparison": {
+    "mappo1000_source": "docs/data/p8_2_compute.json rows[id == grid4x4.mappo1000].training[0].seconds.median",
+    "mappo1000_train_sec_median": 3462.5533765750006,
+    "maxpressure_episode_seconds": 1.16,
+    "maxpressure_source": "the coordinator, 2026-10-15, as BRIEF_48 section 3.1 quotes it; not re-measured here",
+    "note": "beside the hz4x4 numbers for scale only; no cross-session ratio is formed (PROJECT_PLAN section 7)"
+  },
+  "hz4x4": {
+    "action_counts": [
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8
+    ],
+    "config_identical": true,
+    "config_sha256_code_tree": "6957427a6a17cb0626073f273a365060d1e9a52a776c80799598fb344b223239",
+    "config_sha256_main_tree": "6957427a6a17cb0626073f273a365060d1e9a52a776c80799598fb344b223239",
+    "intersections": 16,
+    "single_insertion": true,
+    "source_flow": "/home/filip/rltraffic/scenarios/hangzhou_4x4_gudang_18041610_1h/hangzhou_4x4_gudang_18041610_1h.json",
+    "source_vehicles": 2983
+  },
+  "label": "8 -- conditional generalizability extension registered after the grid results",
+  "machine": {
+    "cpu_count": 16,
+    "mappo_processes": 5,
+    "start_method": "spawn",
+    "torch_threads_per_process": 1
+  },
+  "mappo": {
+    "config": "/home/filip/rltraffic-p93/experiments/configs/p9_3_mappo_nominal_1000_hz4x4.json",
+    "config_sha256": "12d4cea4dc3b009ce769a7f7712df6ef55fe0d697ac4187ca63c10a0900557a2",
+    "episodes_timed_per_seed": 20,
+    "per_seed": [
+      {
+        "c8_check": "passed: the trained agent acted on an info from the collection env without a width error",
+        "collection_metric_keys": [
+          "number_of_all_halting_vehicles_for_the_last_time_step_in_simulation"
+        ],
+        "episodes": 20,
+        "episodes_trained": 20,
+        "seconds": 60.189328577995184,
+        "seconds_per_episode": 3.009466428899759,
+        "seed": 101,
+        "torch_threads": 1
+      },
+      {
+        "c8_check": "passed: the trained agent acted on an info from the collection env without a width error",
+        "collection_metric_keys": [
+          "number_of_all_halting_vehicles_for_the_last_time_step_in_simulation"
+        ],
+        "episodes": 20,
+        "episodes_trained": 20,
+        "seconds": 60.05737632099772,
+        "seconds_per_episode": 3.0028688160498858,
+        "seed": 202,
+        "torch_threads": 1
+      },
+      {
+        "c8_check": "passed: the trained agent acted on an info from the collection env without a width error",
+        "collection_metric_keys": [
+          "number_of_all_halting_vehicles_for_the_last_time_step_in_simulation"
+        ],
+        "episodes": 20,
+        "episodes_trained": 20,
+        "seconds": 60.7945867870003,
+        "seconds_per_episode": 3.039729339350015,
+        "seed": 303,
+        "torch_threads": 1
+      },
+      {
+        "c8_check": "passed: the trained agent acted on an info from the collection env without a width error",
+        "collection_metric_keys": [
+          "number_of_all_halting_vehicles_for_the_last_time_step_in_simulation"
+        ],
+        "episodes": 20,
+        "episodes_trained": 20,
+        "seconds": 59.22694644299918,
+        "seconds_per_episode": 2.961347322149959,
+        "seed": 404,
+        "torch_threads": 1
+      },
+      {
+        "c8_check": "passed: the trained agent acted on an info from the collection env without a width error",
+        "collection_metric_keys": [
+          "number_of_all_halting_vehicles_for_the_last_time_step_in_simulation"
+        ],
+        "episodes": 20,
+        "episodes_trained": 20,
+        "seconds": 61.2016922920011,
+        "seconds_per_episode": 3.060084614600055,
+        "seed": 505,
+        "torch_threads": 1
+      }
+    ],
+    "projection": {
+      "budget_seconds": 86400.0,
+      "episodes_per_cell": 1009,
+      "evaluation_episodes": 9,
+      "per_seed_projected_seconds": {
+        "101": 3036.551626759857,
+        "202": 3029.8946353943347,
+        "303": 3067.0869034041652,
+        "404": 2987.9994480493087,
+        "505": 3087.6253761314556
+      },
+      "projected_wall_clock_seconds": 3087.6253761314556,
+      "rule": "slowest concurrent seed x (train + evaluation episodes) <= one day (A27 (i))",
+      "seconds_per_episode": {
+        "101": 3.009466428899759,
+        "202": 3.0028688160498858,
+        "303": 3.039729339350015,
+        "404": 2.961347322149959,
+        "505": 3.060084614600055
+      },
+      "train_episodes": 1000,
+      "verdict": "GO"
+    }
+  },
+  "produces_no_registered_number": "timings and counts only: no travel time and no return is read or kept",
+  "registered_in": "PREREGISTRATION A27 (i); BRIEF_48 section 3.1",
+  "workers": {
+    "corpus": 1,
+    "corpus_reason": "sequential, abort on the first failure (recollect_v11's campaign rules): eight runs, about 1,640 episodes",
+    "teachers": 5,
+    "teachers_reason": "one per seed (--workers 5), the regime timed above"
+  }
+}
