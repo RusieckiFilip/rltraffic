@@ -1,0 +1,23 @@
+# M1 at 5e05f71 (detached worktree), no corpus/output env -- what CI sees
+$ OMP_NUM_THREADS=1 pytest tests/test_iql_target_dropout.py tests/test_a27_arms.py tests/test_exposure_table.py tests/test_method_tier_grid_a27.py tests/test_tier_sweep_a27.py tests/test_collect_random_rng.py tests/test_d4rl_target_dropout.py -q -rs
+...........s............................................................ [ 49%]
+....sss.....................s..s................................ss...... [ 98%]
+..                                                                       [100%]
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_iql_target_dropout.py:353: format v1.1 corpus not found at /tmp/claude-1000/-home-filip-rltraffic-p91/d6facc9a-caac-479a-8c8a-d45976d901c1/scratchpad/m1/datasets_v11: set RLTRAFFIC_CORPUS_V11 to regenerate P4.4's IQL
+SKIPPED [1] tests/test_method_tier_grid_a27.py:129: format v1.1 corpus not found at /tmp/claude-1000/-home-filip-rltraffic-p91/d6facc9a-caac-479a-8c8a-d45976d901c1/scratchpad/m1/datasets_v11: set RLTRAFFIC_CORPUS_V11 to run A27(e)'s checks
+SKIPPED [1] tests/test_method_tier_grid_a27.py:140: format v1.1 corpus not found at /tmp/claude-1000/-home-filip-rltraffic-p91/d6facc9a-caac-479a-8c8a-d45976d901c1/scratchpad/m1/datasets_v11: set RLTRAFFIC_CORPUS_V11 to run A27(e)'s checks
+SKIPPED [1] tests/test_method_tier_grid_a27.py:156: format v1.1 corpus not found at /tmp/claude-1000/-home-filip-rltraffic-p91/d6facc9a-caac-479a-8c8a-d45976d901c1/scratchpad/m1/datasets_v11: set RLTRAFFIC_CORPUS_V11 to run A27(e)'s checks
+SKIPPED [1] tests/test_method_tier_grid_a27.py:434: format v1.1 corpus not found at /tmp/claude-1000/-home-filip-rltraffic-p91/d6facc9a-caac-479a-8c8a-d45976d901c1/scratchpad/m1/datasets_v11: set RLTRAFFIC_CORPUS_V11 to run A27(e)'s checks
+SKIPPED [1] tests/test_method_tier_grid_a27.py:517: format v1.1 corpus not found at /tmp/claude-1000/-home-filip-rltraffic-p91/d6facc9a-caac-479a-8c8a-d45976d901c1/scratchpad/m1/datasets_v11: set RLTRAFFIC_CORPUS_V11 to run A27(e)'s checks
+SKIPPED [2] tests/test_collect_random_rng.py:157: /tmp/claude-1000/-home-filip-rltraffic-p91/d6facc9a-caac-479a-8c8a-d45976d901c1/scratchpad/m1/datasets_v11/cf_hz1x1__random/ep000000_seed1000_draw1.npz not found: set RLTRAFFIC_CORPUS_V11 to the collected datasets_v11/ to regenerate it
+138 passed, 8 skipped in 11.54s
+
+# the same files with the corpus (RLTRAFFIC_CORPUS_V11), in the sandbox (no GPU)
+$ OMP_NUM_THREADS=1 RLTRAFFIC_CORPUS_V11=/home/filip/rltraffic/datasets_v11 pytest tests/test_iql_target_dropout.py tests/test_a27_arms.py tests/test_exposure_table.py tests/test_method_tier_grid_a27.py tests/test_tier_sweep_a27.py tests/test_collect_random_rng.py tests/test_d4rl_target_dropout.py -q -rs
+............................s........................................... [ 98%]
+..                                                                       [100%]
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_iql_target_dropout.py:361: no P4.4 IQL checkpoint under /tmp/claude-1000/-home-filip-rltraffic-p91/d6facc9a-caac-479a-8c8a-d45976d901c1/scratchpad/m1/output: set RLTRAFFIC_OUTPUT_ROOT to the main tree's output/
+SKIPPED [1] tests/test_method_tier_grid_a27.py:430: no P4.6 checkpoint under /tmp/claude-1000/-home-filip-rltraffic-p91/d6facc9a-caac-479a-8c8a-d45976d901c1/scratchpad/m1/output: set RLTRAFFIC_OUTPUT_ROOT to the main tree's output/
+144 passed, 2 skipped in 14.30s

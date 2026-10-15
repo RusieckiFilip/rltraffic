@@ -1,0 +1,77 @@
+# M1's own mutants, re-run AT 5e05f71 in a detached worktree (mutate.py: apply one textual mutant, run the named test files, restore and sha256-check the file); OMP_NUM_THREADS=1 RLTRAFFIC_CORPUS_V11=/home/filip/rltraffic/datasets_v11
+mutant                                           result    evidence
+M1 eval() -> train() in _target_forward          KILLED    FAILED tests/test_iql_target_dropout.py::test_off_runs_the_three_target_forwards_in_eval_and_the_three_trained_forwards_in_train
+M2 off: advantage reuses v_pred.detach()         KILLED    FAILED tests/test_iql_target_dropout.py::test_the_advantage_uses_v_from_before_its_update_in_the_same_step[off]
+M3 off: separate V forward after the V step      KILLED    FAILED tests/test_iql_target_dropout.py::test_the_advantage_uses_v_from_before_its_update_in_the_same_step[off]
+M4 no return to train() after a target forward   KILLED    FAILED tests/test_iql_target_dropout.py::test_off_runs_the_three_target_forwards_in_eval_and_the_three_trained_forwards_in_train
+M5 default flipped to off                        KILLED    FAILED tests/test_iql_target_dropout.py::test_with_the_registered_dropout_the_two_modes_train_different_networks_and_active_is_the_default
+M6 off: value(s') left in train mode             KILLED    FAILED tests/test_iql_target_dropout.py::test_off_runs_the_three_target_forwards_in_eval_and_the_three_trained_forwards_in_train
+M7 off: q_target(s) left in train mode           KILLED    FAILED tests/test_iql_target_dropout.py::test_off_runs_the_three_target_forwards_in_eval_and_the_three_trained_forwards_in_train
+M8 provenance does not record the flag           KILLED    FAILED tests/test_iql_target_dropout.py::test_the_flag_is_recorded_in_the_provenance_and_in_the_diagnostics[active]
+E1 grid DT per-step drops the 16 nodes           KILLED    FAILED tests/test_exposure_table.py::test_the_registered_grid_exposure_is_a27bs[dt_spatial-20480-1152000-711.1]
+E2 top-decile arms counted on the full set       KILLED    FAILED tests/test_exposure_table.py::test_the_registered_grid_exposure_is_a27bs[bc_top10-1280-115200-444.4]
+E3 IQL per-step times K                          KILLED    FAILED tests/test_exposure_table.py::test_the_registered_grid_exposure_is_a27bs[iql-1280-1152000-44.4]
+E4 bc_top10_m at 103 windows                     KILLED    FAILED tests/test_a27_arms.py::test_the_a27_registry_is_the_registrations_table
+E5 derive keeps the registered name at the ceiling KILLED    FAILED tests/test_a27_arms.py::test_every_a27_arm_is_derived_from_its_own_knobs[hz1x1-bc_100k]
+E6 fresh reference uses default_rng(seed)        KILLED    FAILED tests/test_a27_arms.py::test_the_fresh_reference_seeds_default_rng_with_the_seed_and_the_draw
+E7 fresh reference seeds [draw, seed]            KILLED    FAILED tests/test_a27_arms.py::test_the_fresh_reference_seeds_default_rng_with_the_seed_and_the_draw
+E8 ceiling refusal is a no-op                    KILLED    FAILED tests/test_a27_arms.py::test_a_registered_name_at_the_ceiling_is_refused[dt]
+E9 iql_m with active targets                     KILLED    FAILED tests/test_a27_arms.py::test_the_a27_registry_is_the_registrations_table
+E10 derive accepts any undeclared combination as registered KILLED    FAILED tests/test_a27_arms.py::test_an_undeclared_combination_is_refused[grid4x4-iql-20480-active-40000]
+G1 tier_spec ignores A27_TIERS                   KILLED    FAILED tests/test_method_tier_grid_a27.py::test_tier_spec_and_arm_key_resolve_the_a27_tiers_and_still_refuse_an_undeclared_one
+G2 overlap mixture at fraction 0.33              KILLED    FAILED tests/test_method_tier_grid_a27.py::test_the_registered_tiers_mapping_is_unchanged_and_a27s_tiers_sit_beside_it
+G3 components swapped                            KILLED    FAILED tests/test_method_tier_grid_a27.py::test_the_overlap_mixture_is_declared_as_a27e_says
+G4 prefix refusal removed                        KILLED    FAILED tests/test_method_tier_grid_a27.py::test_an_a27_training_call_is_refused_before_anything_is_trained_or_written[extra0-registered artifact prefix]
+G5 p9_ directory refusal removed                 KILLED    FAILED tests/test_method_tier_grid_a27.py::test_an_a27_run_outside_a_p9_directory_is_refused
+G6 registered-cell refusal removed               KILLED    FAILED tests/test_method_tier_grid_a27.py::test_a_registered_arm_on_a_registered_tier_is_refused_in_an_a27_run
+G7 existing-path refusal removed                 KILLED    FAILED tests/test_method_tier_grid_a27.py::test_an_a27_run_refuses_a_checkpoint_path_that_exists
+G8 target_dropout never passed                   KILLED    FAILED tests/test_method_tier_grid_a27.py::test_the_target_flag_trains_iql_t_under_its_own_name_into_a_p9_record
+G9 train_bc ignores the recipe batch             KILLED    FAILED tests/test_method_tier_grid_a27.py::test_the_recipes_batch_is_what_the_trainer_receives
+G10 cell_factory loads by arm name               KILLED    FAILED tests/test_method_tier_grid_a27.py::test_an_arm_is_evaluated_through_its_base_methods_loader[iql_t-expected0]
+G11 evaluate ceiling refusal removed             KILLED    FAILED tests/test_method_tier_grid_a27.py::test_a_registered_name_at_the_ceiling_is_refused_by_evaluate
+G12 random_fresh prompt typed                    KILLED    FAILED tests/test_method_tier_grid_a27.py::test_random_fresh_is_declared_with_its_own_corpus_and_no_typed_prompt_yet
+G13 defaults pass target_dropout                 KILLED    FAILED tests/test_method_tier_grid_a27.py::test_the_defaults_train_the_registered_arms_with_the_registered_keywords
+G14 registered records gain A27 keys             KILLED    FAILED tests/test_method_tier_grid_a27.py::test_the_defaults_train_the_registered_arms_with_the_registered_keywords
+G15 mix tier dirs drop mappo500                  KILLED    FAILED tests/test_method_tier_grid_a27.py::test_the_overlap_mixture_is_declared_as_a27e_says
+T1 tier_spec ignores A27_TIERS                   KILLED    FAILED tests/test_tier_sweep_a27.py::test_tier_spec_resolves_random_fresh_and_still_refuses_an_undeclared_tier
+T2 random_fresh subsampled one per draw          KILLED    FAILED tests/test_tier_sweep_a27.py::test_the_registered_grid_tiers_are_unchanged_and_random_fresh_sits_beside_them
+T3 declare refusal removed                       KILLED    FAILED tests/test_tier_sweep_a27.py::test_declare_refuses_random_fresh_whose_ladder_values_are_not_typed
+T4 plan ignores the target flag                  KILLED    FAILED tests/test_tier_sweep_a27.py::test_each_a27_arm_is_trained_under_its_own_name_from_its_flags[extra2-arms2-20480-off]
+T5 p9_ refusal removed (baselines)               KILLED    FAILED tests/test_tier_sweep_a27.py::test_an_a27_call_is_refused_before_any_training_or_write[extra3-p9_-p5_2]
+T6 registered-cell refusal removed               KILLED    FAILED tests/test_tier_sweep_a27.py::test_an_a27_call_is_refused_before_any_training_or_write[extra2-registered cell-p9_1_runs]
+T8 target_dropout never passed                   KILLED    FAILED tests/test_tier_sweep_a27.py::test_each_a27_arm_is_trained_under_its_own_name_from_its_flags[extra2-arms2-20480-off]
+T9 train_bc ignores the recipe batch             KILLED    FAILED tests/test_tier_sweep_a27.py::test_each_a27_arm_is_trained_under_its_own_name_from_its_flags[extra0-arms0-1024-None]
+T10 A27 loader by arm name                       KILLED    FAILED tests/test_tier_sweep_a27.py::test_an_arm_is_evaluated_through_its_base_methods_loader[bc_m-bc]
+T11 fresh reference is the registered generator  KILLED    FAILED tests/test_tier_sweep_a27.py::test_the_fresh_reference_is_the_behaviour_cell_of_random_fresh
+T12 default records gain A27 fields              KILLED    FAILED tests/test_tier_sweep_a27.py::test_the_defaults_hand_the_trainers_the_registered_keywords_and_names
+T13 DT guard removed                             KILLED    FAILED tests/test_tier_sweep_a27.py::test_the_dt_trainer_refuses_an_a27_tier_outside_a_p9_directory
+T14 train_iql ignores the recipe batch           KILLED    FAILED tests/test_tier_sweep_a27.py::test_each_a27_arm_is_trained_under_its_own_name_from_its_flags[extra2-arms2-20480-off]
+T7 existing-path refusal removed (baselines, true removal) KILLED    FAILED tests/test_tier_sweep_a27.py::test_an_a27_call_refuses_a_checkpoint_path_that_exists
+T13b DT existing-checkpoint refusal removed      KILLED    FAILED tests/test_tier_sweep_a27.py::test_the_dt_trainer_refuses_an_existing_checkpoint_on_an_a27_tier
+R1 the default takes the per-episode branch      KILLED    FAILED tests/test_collect_random_rng.py::test_per_draw_replays_one_schedule_in_every_draw
+R2 episode index dropped from the seed           KILLED    FAILED tests/test_collect_random_rng.py::test_per_episode_gives_every_episode_its_own_generator_and_is_reproducible
+R3 run-global counter instead of the within-draw index KILLED    FAILED tests/test_collect_random_rng.py::test_per_episode_is_default_rng_of_base_seed_draw_and_episode_within_the_draw
+R4 draw id dropped from the seed                 KILLED    FAILED tests/test_collect_random_rng.py::test_per_episode_gives_every_episode_its_own_generator_and_is_reproducible
+R5 non-random refusal removed                    KILLED    FAILED tests/test_collect_random_rng.py::test_per_episode_is_refused_where_it_has_no_meaning_before_anything_is_written[extra0-random policy]
+R6 draw-less refusal removed                     KILLED    FAILED tests/test_collect_random_rng.py::test_per_episode_is_refused_where_it_has_no_meaning_before_anything_is_written[extra1-draw]
+R7 scheme always recorded as per-draw            KILLED    FAILED tests/test_collect_random_rng.py::test_per_episode_gives_every_episode_its_own_generator_and_is_reproducible
+R8 scheme recorded for every policy              KILLED    FAILED tests/test_collect_random_rng.py::test_a_non_random_policy_records_no_scheme
+R9 base seed dropped from the seed               KILLED    FAILED tests/test_collect_random_rng.py::test_per_episode_is_default_rng_of_base_seed_draw_and_episode_within_the_draw
+D1 off never hands train_iql the flag            KILLED    FAILED tests/test_d4rl_target_dropout.py::test_off_reruns_iql_as_iql_t_with_the_flag
+D2 off keeps the arm named iql                   KILLED    FAILED tests/test_d4rl_target_dropout.py::test_off_reruns_iql_as_iql_t_with_the_flag
+D3 off accepts other arms                        KILLED    FAILED tests/test_d4rl_target_dropout.py::test_off_refuses_any_arm_but_iql_and_any_existing_checkpoint
+D4 off existing-checkpoint refusal removed       KILLED    FAILED tests/test_d4rl_target_dropout.py::test_off_refuses_any_arm_but_iql_and_any_existing_checkpoint
+D5 registered-reproduction guard removed         KILLED    FAILED tests/test_d4rl_target_dropout.py::test_compare_with_refuses_registered_cells_that_do_not_reproduce_their_own_contrasts
+D6 seed-coverage check removed                   KILLED    FAILED tests/test_d4rl_target_dropout.py::test_compare_with_refuses_a_registered_artifact_from_another_protocol
+D7 episode-count check removed                   KILLED    FAILED tests/test_d4rl_target_dropout.py::test_compare_with_refuses_a_registered_artifact_from_another_protocol
+D8 default hands the flag too                    KILLED    FAILED tests/test_d4rl_target_dropout.py::test_the_default_is_the_registered_run
+D9 comparison without the new cells              KILLED    FAILED tests/test_d4rl_target_dropout.py::test_compare_with_puts_the_new_arm_beside_the_registered_three
+F1 mixture check removed from _run_train         KILLED    FAILED tests/test_method_tier_grid_a27.py::test_the_overlap_mixture_refuses_to_train_unless_a27es_design_facts_reproduce
+F2 distinct check removed from _run_train (hz1x1) KILLED    FAILED tests/test_method_tier_grid_a27.py::test_random_fresh_refuses_to_train_without_distinct_schedules_before_its_prompt_is_checked
+F3 tier_sweep distinct check a no-op             KILLED    FAILED tests/test_tier_sweep_a27.py::test_train_baselines_refuses_a_random_fresh_tier_without_distinct_schedules
+F4 facts compare the pool only                   KILLED    FAILED tests/test_a27_arms.py::test_the_design_facts_check_refuses_any_other_composition[swap_one_seed]
+F5 refusal on the joint count only               KILLED    FAILED tests/test_a27_arms.py::test_one_repeated_intersection_schedule_refuses_the_tier
+F6 episode-count check removed                   KILLED    FAILED tests/test_a27_arms.py::test_a_tier_of_the_wrong_size_is_refused - Ass...
+F7 decile returns not compared                   KILLED    FAILED tests/test_a27_arms.py::test_the_design_facts_check_refuses_any_other_composition[returns_shifted]
+
+# summary: 73 KILLED, 0 SURVIVED, 0 INVALID of 73

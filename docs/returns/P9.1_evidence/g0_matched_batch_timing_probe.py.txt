@@ -1,0 +1,69 @@
+"""G0 timing probe for P9.1: the matched batches' cost on the grid, on a fraction of the budget.
+
+Writes checkpoints ONLY under the directory given as argv[1] (the session scratchpad).  Nothing under
+the main tree is written.  Each arm runs STEPS gradient steps; the per-step cost is extrapolated
+linearly to 40,000 steps, and the registered-batch arm is timed beside it on the same process.
+"""
+from __future__ import annotations
+
+import json
+import sys
+import time
+from pathlib import Path
+
+import torch
+
+from offline.dt_gate import stack_dataset
+from offline.offline_baselines import (
+    build_transitions,
+    filter_stacked_to_streams,
+    iql_reward_scale,
+    pin_torch_threads,
+    train_bc,
+    train_iql,
+)
+from offline.tier_sweep import baseline_stream_selections, iql_transition_table, tier_parts
+
+out = Path(sys.argv[1])
+steps = int(sys.argv[2])
+tier = sys.argv[3] if len(sys.argv) > 3 else "mappo1000"
+pin_torch_threads(1)
+device = torch.device("cuda")
+started = time.time()
+parts = tier_parts(tier, "/home/filip/rltraffic/datasets_v11")
+dataset = parts["dataset"]
+group = next(iter(dataset.groups))
+streams = parts["streams"]
+selections = baseline_stream_selections(dataset, streams)
+stacked_all = stack_dataset(dataset, group)
+batches = {
+    "bc": filter_stacked_to_streams(dataset, stacked_all, streams),
+    "bc_top10_perix": filter_stacked_to_streams(dataset, stacked_all, selections["bc_top10_perix"]),
+}
+scale = iql_reward_scale([s.total_return for s in streams])
+table = iql_transition_table(dataset, group=group, reward_scale=scale, streams=streams)
+print(f"setup {time.time() - started:.1f}s; windows bc {int(batches['bc']['state'].shape[0])}, "
+      f"perix {int(batches['bc_top10_perix']['state'].shape[0])}, transitions {len(table)}", flush=True)
+
+results = {}
+for name, method, batch, size in (
+    ("bc@64", "bc", batches["bc"], 64),
+    ("bc_m@1024", "bc", batches["bc"], 1024),
+    ("bc_top10_perix_m@102", "bc_top10_perix", batches["bc_top10_perix"], 102),
+):
+    record = train_bc(batch, state_dim=group[0], n_actions=group[1], seed=101, method=method,
+                      declared_gradient_steps=steps, batch_size=size, device=device,
+                      checkpoint_path=out / f"{name.replace('@', '_')}.pt", stats=dataset.stats,
+                      scenario_id="cityflow_grid4x4", provenance={"probe": "P9.1 G0 timing"})
+    results[name] = record.seconds
+    print(f"{name}: {record.seconds:.2f}s for {steps} steps -> {record.seconds / steps * 40000:.0f}s at 40k",
+          flush=True)
+for name, size in (("iql@1280", 1280), ("iql_m@20480", 20480)):
+    record = train_iql(table, state_dim=group[0], n_actions=group[1], seed=101, declared_gradient_steps=steps,
+                       batch_size=size, device=device, checkpoint_path=out / f"{name.replace('@', '_')}.pt",
+                       stats=dataset.stats, scenario_id="cityflow_grid4x4", provenance={"probe": "P9.1 G0 timing"})
+    results[name] = record.seconds
+    print(f"{name}: {record.seconds:.2f}s for {steps} steps -> {record.seconds / steps * 40000:.0f}s at 40k",
+          flush=True)
+print(json.dumps({"tier": tier, "steps": steps, "seconds": results,
+                  "extrapolated_40k": {k: v / steps * 40000 for k, v in results.items()}}, indent=1))
