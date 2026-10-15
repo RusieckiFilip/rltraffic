@@ -47,6 +47,25 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 __all__ = [
+    "ARTIFACT_NAME",
+    "CELL_FORMAT_VERSION",
+    "GUARD_FIELDS",
+    "LABEL",
+    "WHAT_THIS_IS_NOT",
+    "build_report",
+    "cell_name",
+    "cell_record",
+    "declared_cells",
+    "engine_seed_check",
+    "evaluate_cells",
+    "file_block",
+    "main",
+    "p8_4b_committed",
+    "random_fresh_factory",
+    "roll_cell",
+    "run_guard",
+    "status",
+    "write_report",
     "AUDIT_FORMAT_VERSION",
     "AUDIT_NAME",
     "HELD_OUT_DRAWS",
@@ -396,3 +415,650 @@ def materialise_shifted(
         summary["n_flow_digests_equal"] += equal
         summary["files"][spec["scenario_key"]] = {"written": actions.count("written"), "kept": actions.count("kept")}
     return summary
+
+
+# ----------------------------------------------------------------------
+# The evaluation and the artifact (C6)
+# ----------------------------------------------------------------------
+
+#: A27(a), item 7.
+LABEL = "exploration, not H2"
+
+#: A27(h)'s three sentences and A25(a)'s amended sentence, VERBATIM (the registration's emphasis removed; the em dash U+2014
+#: and the multiplication sign U+00D7 escaped so this source stays ASCII).  ``tests/test_demand_shift_evaluate.py``
+#: finds each in ``PREREGISTRATION.md``.
+WHAT_THIS_IS_NOT: tuple[str, ...] = (
+    "It is NOT H2 — H2 is a registered 2×2 with shift-augmented training that stays not tested under A25(a)",
+    "this evaluation trains nothing",
+    "it is NOT the registered Hangzhou transfer pairs, which are CityFlow-to-SUMO; the paper must not present it as such.",
+    "H2's registered 2×2 design remains untested; the zero-shot demand-shift evaluation in Section X was added after "
+    "the results, trains nothing and is exploratory, so it is not a test of H2.",
+)
+
+CELL_FORMAT_VERSION = "p9.2-demand-shift-cell/1.0"
+ARTIFACT_NAME = "p9_2_demand_shift.json"
+ARTIFACT_FORMAT_VERSION = "p9.2-demand-shift/1.0"
+GUARD_NAME = "guard.json"
+GUARD_FORMAT_VERSION = "p9.2-demand-shift-guard/1.0"
+
+#: The fields a guard cell must reproduce under ``==`` against P8.4b's committed cell (A11(b)'s five and the two the
+#: horizon reader returns with them).
+GUARD_FIELDS: tuple[str, ...] = (
+    "att_ours", "att_engine", "created", "entered", "never_entered", "horizon_vehicle_count", "episode_reward",
+)
+DEFINITIONS: tuple[str, ...] = ("att_ours", "att_engine")
+
+#: Stage 1's learner arms: the ``mappo1000`` and ``mix50`` checkpoints of A27(h), resolved by P8.4b's dispatch
+#: (``att_rederivation.build_cell_factory``), so every checkpoint and prompt is the registered one.
+LEARNER_ARMS: tuple[str, ...] = (
+    "dt@mappo1000", "bc@mappo1000", "bc_top10@mappo1000", "iql@mappo1000",
+    "dt@mix50", "bc@mix50", "bc_top10@mix50", "iql@mix50",
+)
+#: The references: fixed-time at bc-tyc's tuned k = 6 (its tier manifest; NOT re-tuned on the shifted files),
+#: MaxPressure, the registered five-schedule random reference and A27(d)'s ``random_fresh``.
+REFERENCE_ARMS: tuple[str, ...] = ("behaviour@fixedtime", "behaviour@maxpressure", "behaviour@random", "random_fresh")
+DETERMINISTIC_ARMS: frozenset[str] = frozenset({"behaviour@fixedtime", "behaviour@maxpressure"})
+STAGE_2_ARMS: tuple[str, ...] = ("iql_t@mappo1000", "iql_t@mix50")
+SEEDS: tuple[int, ...] = (101, 202, 303, 404, 505)
+ENGINE_SEED = 1000
+ENGINE_SEED_CHECK_SEEDS: tuple[int, ...] = (1000, 1001, 1002)
+DECLARED_GRADIENT_STEPS = 40_000
+
+
+def _arms(stage: int) -> tuple[str, ...]:
+    if stage == 1:
+        return (*LEARNER_ARMS, *REFERENCE_ARMS)
+    if stage == 2:
+        return STAGE_2_ARMS
+    raise ValueError(f"stage {stage!r} is neither 1 nor 2")
+
+
+def declared_cells(*, stage: int) -> list[dict[str, Any]]:
+    """Every cell of one stage: file x arm x seed x draw (the two deterministic references one slot, ``seed: None``)."""
+    cells: list[dict[str, Any]] = []
+    for name, spec in SHIFTED_FILES.items():
+        for arm in _arms(stage):
+            for seed in ((None,) if arm in DETERMINISTIC_ARMS else SEEDS):
+                for draw in HELD_OUT_DRAWS:
+                    cells.append({"file": name, "scenario_key": spec["scenario_key"], "arm": arm, "seed": seed,
+                                  "draw_id": int(draw), "stage": stage})
+    return cells
+
+
+def cell_name(cell: Mapping[str, Any]) -> str:
+    arm = str(cell["arm"]).replace("@", "_at_")
+    seed = "none" if cell["seed"] is None else int(cell["seed"])
+    return f"cell_{cell['file']}_{arm}_seed{seed}_draw{int(cell['draw_id']):04d}.json"
+
+
+def random_fresh_factory(seed: int, draw_id: int) -> Any:
+    """A27(d)'s ``random_fresh`` reference: ``collect._make_random``'s sampler driven by ``default_rng([seed, draw_id])``,
+    one fresh generator per (seed, draw) -- built INSIDE the factory, so each route's episode starts from the same state.
+    Every legal-action mask on these networks is all-true, so the schedule depends only on (seed, draw)."""
+    from types import SimpleNamespace
+
+    import numpy as np
+
+    from offline.collect import _make_random
+
+    def factory(env: Any) -> Any:
+        policy = _make_random(env, SimpleNamespace(), np.random.default_rng([int(seed), int(draw_id)]))
+        return lambda _env, info: policy(info)
+
+    return factory
+
+
+def cell_record(cell: Mapping[str, Any], p4_6: Any, p8_4b: Any, *, source: Mapping[str, Any]) -> dict[str, Any]:
+    """One cell's record from its two routes, refused unless they ran the same episode: ``att_ours`` (the P4.6 route's
+    ``att_horizon``), the vehicle count, the return and the action digest equal under ``==``."""
+    pairs = {
+        "att_ours": (p4_6.att_horizon, p8_4b.att_ours),
+        "horizon_vehicle_count": (p4_6.horizon_vehicle_count, p8_4b.horizon_vehicle_count),
+        "episode_reward": (p4_6.episode_reward, p8_4b.episode_reward),
+        "action_sequence_sha256": (p4_6.action_sequence_sha256, p8_4b.action_sequence_sha256),
+    }
+    split = sorted(name for name, (left, right) in pairs.items() if left != right)
+    if split:
+        raise ValueError(
+            f"{cell_name(cell)}: the two routes (P4.6's evaluate_arm, P8.4b's probe_episode) disagree on {split}; they "
+            "roll one episode, and a disagreement stops the campaign"
+        )
+    return {
+        "format_version": CELL_FORMAT_VERSION,
+        **{key: cell[key] for key in ("file", "scenario_key", "arm", "seed", "draw_id", "stage")},
+        "att_ours": float(p8_4b.att_ours),
+        "att_ours_p4_6_route": float(p4_6.att_horizon),
+        "att_engine": float(p8_4b.att_engine),
+        "created": int(p8_4b.created),
+        "entered": int(p8_4b.entered),
+        "never_entered": int(p8_4b.never_entered),
+        "entered_fraction": float(p8_4b.entered_fraction),
+        "horizon_vehicle_count": float(p8_4b.horizon_vehicle_count),
+        "episode_reward": float(p8_4b.episode_reward),
+        "action_sequence_sha256": str(p8_4b.action_sequence_sha256),
+        "seconds": float(p8_4b.seconds),
+        "seconds_rollout": float(p8_4b.seconds_rollout),
+        "policy_source": dict(source),
+        "checkpoint_sha256": source.get("checkpoint_sha256"),
+        **_git_provenance(),
+    }
+
+
+def _recording(factory: Any, sink: list[Any]) -> Any:
+    import numpy as np
+
+    def wrapped(env: Any) -> Any:
+        choose = factory(env)
+
+        def recorded(env_: Any, info: dict[str, Any]) -> Any:
+            action = choose(env_, info)
+            sink.append(np.asarray(action, dtype=np.int64).reshape(-1).copy())
+            return action
+
+        return recorded
+
+    return wrapped
+
+
+_CHECKPOINT_SHA: dict[str, str] = {}
+
+
+def _factory_for(cell: Mapping[str, Any], *, roots: Any, device: str | None, config: Path,
+                 iql_t_pins: Mapping[str, Any] | None) -> tuple[Any, dict[str, Any], str, str]:
+    """``(factory, source, method, tier)`` for a cell, every learned arm through P8.4b's own dispatch."""
+    from offline.att_rederivation import build_cell_factory, normalise_arm
+    from offline.offline_baselines import _baseline_factory
+
+    arm = str(cell["arm"])
+    if arm == "random_fresh":
+        return (random_fresh_factory(int(cell["seed"]), int(cell["draw_id"])),
+                {"kind": "algorithmic", "detail": "offline.collect._make_random driven by numpy.random.default_rng("
+                                                  "[seed, draw_id]) (A27(d)'s random_fresh)"},
+                "random_fresh", "random")
+    method, tier = normalise_arm("hz1x1", arm)
+    if method == "iql_t":
+        if iql_t_pins is None:
+            raise ValueError("stage 2 (iql_t) is pending: no checkpoint pins were given (P9.1's M2 provides them)")
+        pin = iql_t_pins[tier][str(int(cell["seed"]))]
+        path = Path(pin["path"])
+        digest = sha256_file(path)
+        if digest != pin["sha256"]:
+            raise ValueError(f"{path}: sha256 {digest} is not the pinned {pin['sha256']}")
+        return (_baseline_factory("iql", str(path), DECLARED_GRADIENT_STEPS, device),
+                {"kind": "checkpoint", "detail": "agent IQL via offline_baselines._baseline_factory (P9.1's iql_t)",
+                 "checkpoint": str(path), "checkpoint_sha256": digest}, method, tier)
+    seed = None if cell["seed"] is None else int(cell["seed"])
+    factory, source = build_cell_factory("hz1x1", arm, seed, roots, device=device, config_path=config)
+    source = dict(source)
+    checkpoint = source.get("checkpoint")
+    if checkpoint and not source.get("checkpoint_sha256"):
+        if checkpoint not in _CHECKPOINT_SHA:
+            _CHECKPOINT_SHA[checkpoint] = sha256_file(checkpoint)
+        source["checkpoint_sha256"] = _CHECKPOINT_SHA[checkpoint]
+    return factory, source, method, tier
+
+
+def roll_cell(cell: Mapping[str, Any], *, roots: Any, device: str | None, engine_seed: int = ENGINE_SEED,
+              iql_t_pins: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    """One cell by BOTH routes P9.1 uses -- ``dt_gate.evaluate_arm`` (the P4.6 route, ``att_ours``) and
+    ``admission_probe.probe_episode`` (P8.4b's route, ``att_engine`` and A11(b)'s companions) -- on the cell's materialised
+    draw, the env settings of the arm's own tier (identical across hz1x1's tiers), engine seed 1000.  It writes NOTHING."""
+    from types import SimpleNamespace
+
+    from offline.admission_probe import created_from_flow, probe_episode
+    from offline.att_rederivation import rederivation_env_settings
+    from offline.dt_gate import evaluate_arm
+    from offline.materialise_draws import draw_config_path
+    from offline.nortg_decomposition import action_sequence_sha256
+
+    draw = int(cell["draw_id"])
+    config = Path(draw_config_path(str(cell["scenario_key"]), draw, out_root=roots.draws_root))
+    factory, source, method, tier = _factory_for(cell, roots=roots, device=device, config=config, iql_t_pins=iql_t_pins)
+    settings = rederivation_env_settings("hz1x1", tier, roots)
+    horizon = int(settings["max_steps"]) * int(settings["delta_time"])
+    created = created_from_flow(config.parent / "flow.json", horizon_seconds=horizon)
+    first: list[Any] = []
+    result = evaluate_arm(
+        arm=str(cell["arm"]), seed=cell["seed"], draw_ids=[draw], config_for_draw=lambda _draw: config,
+        env_settings=settings, scenario_id=str(cell["scenario_key"]), choose_action_factory=_recording(factory, first),
+        engine_seed=int(engine_seed),
+    )[0]
+    second: list[Any] = []
+    episode = probe_episode(
+        scenario="hz1x1", tier=tier, method=method, arm=str(cell["arm"]), seed=cell["seed"], draw_id=draw,
+        config_path=config, env_settings=settings, scenario_id=str(cell["scenario_key"]),
+        choose_action_factory=_recording(factory, second), engine_seed=int(engine_seed), created=created,
+    )
+    p4_6 = SimpleNamespace(att_horizon=result.att_horizon, horizon_vehicle_count=result.horizon_vehicle_count,
+                           episode_reward=result.episode_reward, action_sequence_sha256=action_sequence_sha256(first))
+    p8_4b = SimpleNamespace(**episode.as_record(), action_sequence_sha256=action_sequence_sha256(second))
+    record = cell_record(cell, p4_6, p8_4b, source=source)
+    record["engine_seed"] = int(engine_seed)
+    record["config_sha256"] = sha256_file(config)
+    record["flow_sha256"] = sha256_file(config.parent / "flow.json")
+    return record
+
+
+def p8_4b_committed(cell: Mapping[str, Any], *, output_root: str | Path) -> dict[str, Any]:
+    """P8.4b's committed re-derivation cell for a bc-tyc cell (``att_rederivation.cell_file_name``), refused unless it
+    reproduced its own committed ``att_ours``."""
+    from offline.att_rederivation import CellKey, cell_file_name
+
+    key = CellKey(scenario="hz1x1", arm=str(cell["arm"]),
+                  seed=None if cell["seed"] is None else int(cell["seed"]), draw_id=int(cell["draw_id"]))
+    path = Path(output_root) / "p8_4b_rederivation" / cell_file_name(key)
+    record = json.loads(path.read_bytes())
+    if record.get("reproduces_committed") is not True:
+        raise ValueError(f"{path.name} did not reproduce its committed att_ours; it cannot be a guard's reference")
+    return {**record, "source": path.name, "source_sha256": sha256_file(path)}
+
+
+def engine_seed_check(cell: Mapping[str, Any], *, roots: Any, device: str | None) -> dict[str, Any]:
+    """P0.2's finding re-measured on one cell: the same cell at engine seeds 1000, 1001, 1002 gives one ``att_ours`` and one
+    ``att_engine`` -- CityFlow reads its flow once and the engine seed changes nothing observable on this network, which is
+    why the training seeds are the only seeds."""
+    records = [roll_cell(cell, roots=roots, device=device, engine_seed=seed) for seed in ENGINE_SEED_CHECK_SEEDS]
+    ours = [r["att_ours"] for r in records]
+    engine = [r["att_engine"] for r in records]
+    return {
+        "cell": cell_name(cell),
+        "engine_seeds": list(ENGINE_SEED_CHECK_SEEDS),
+        "att_ours": ours,
+        "att_engine": engine,
+        "passed": len(set(ours)) == 1 and len(set(engine)) == 1,
+    }
+
+
+def run_guard(*, roots: Any, device: str | None) -> dict[str, Any]:
+    """THE TAUTOLOGY GUARD, before any shifted cell: one bc-tyc held-out cell per stage-1 arm (seed 101, or the
+    deterministic slot; draw 1000) through :func:`roll_cell`, every :data:`GUARD_FIELDS` ``==`` P8.4b's committed cell;
+    ``random_fresh`` on (101, 1000) rolled and its digest recorded (no committed counterpart exists); the engine-seed check
+    on bc-tyc and on each shifted file."""
+    checks: list[dict[str, Any]] = []
+    for arm in (*LEARNER_ARMS, "behaviour@fixedtime", "behaviour@maxpressure", "behaviour@random"):
+        cell = {"file": REFERENCE_FILE["name"], "scenario_key": REFERENCE_FILE["scenario_key"], "arm": arm,
+                "seed": None if arm in DETERMINISTIC_ARMS else 101, "draw_id": 1000, "stage": 0}
+        record = roll_cell(cell, roots=roots, device=device)
+        committed = p8_4b_committed(cell, output_root=roots.output_root)
+        differing = sorted(field for field in GUARD_FIELDS if record[field] != committed[field])
+        checks.append({"arm": arm, "seed": cell["seed"], "draw_id": 1000, "differing": differing,
+                       "passed": not differing, "committed_source": committed["source"],
+                       "committed_sha256": committed["source_sha256"], "record": record})
+    fresh_cell = {"file": REFERENCE_FILE["name"], "scenario_key": REFERENCE_FILE["scenario_key"], "arm": "random_fresh",
+                  "seed": 101, "draw_id": 1000, "stage": 0}
+    fresh = roll_cell(fresh_cell, roots=roots, device=device)
+    seed_checks = [
+        engine_seed_check({"file": name, "scenario_key": key, "arm": "behaviour@maxpressure", "seed": None,
+                           "draw_id": 1000, "stage": 0}, roots=roots, device=device)
+        for name, key in [(REFERENCE_FILE["name"], REFERENCE_FILE["scenario_key"])]
+        + [(name, spec["scenario_key"]) for name, spec in SHIFTED_FILES.items()]
+    ]
+    return {
+        "format_version": GUARD_FORMAT_VERSION,
+        "what": "bc-tyc held-out cells reproduced under == through the evaluation path before any shifted file is "
+                "evaluated (the tautology guard), and P0.2's engine-seed finding re-measured on each file",
+        "cells": checks,
+        "random_fresh_digest_bc_tyc_seed101_draw1000": fresh["action_sequence_sha256"],
+        "engine_seed_check": {"checks": seed_checks, "passed": all(c["passed"] for c in seed_checks)},
+        "passed": all(c["passed"] for c in checks) and all(c["passed"] for c in seed_checks),
+        **_git_provenance(),
+    }
+
+
+def _cityflow_rho(row: Mapping[str, Any], anchors: Mapping[str, Mapping[str, Any]], key: str) -> float | None:
+    """rho on one definition against the file's own anchors of the SAME draw (``transfer_curve.rho``); an exactly-zero
+    denominator is recorded and excluded on BOTH definitions (plan C7: no definition is primary here)."""
+    import offline.transfer_curve as tc
+
+    ft, mp = float(anchors["behaviour@fixedtime"][key]), float(anchors["behaviour@maxpressure"][key])
+    if ft - mp == 0.0:
+        return None
+    return tc.rho(float(row[key]), ft, mp)
+
+
+def file_block(records: Sequence[Mapping[str, Any]], *, arms: Sequence[str]) -> dict[str, Any]:
+    """One file's estimators, both definitions side by side: per arm the raw ATT and rho (each the mean over draws of the
+    per-draw seed means, ``dt_gate.mean_ci95``), and per learner the paired contrasts against fixed-time and BOTH random
+    references (``transfer_curve._paired_block``: per-draw seed means, Wilcoxon beside the interval)."""
+    import offline.transfer_curve as tc
+    from offline.tier_statements import interval_outcome
+
+    anchors: dict[int, dict[str, Mapping[str, Any]]] = {}
+    for row in records:
+        if row["arm"] in DETERMINISTIC_ARMS:
+            anchors.setdefault(int(row["draw_id"]), {})[str(row["arm"])] = row
+    rows: list[dict[str, Any]] = []
+    for row in records:
+        slot = anchors.get(int(row["draw_id"]), {})
+        if set(slot) != DETERMINISTIC_ARMS:
+            raise ValueError(f"draw {row['draw_id']} lacks one of the file's two anchors")
+        rows.append({**row, **{f"rho_{key}": _cityflow_rho(row, slot, key) for key in DEFINITIONS}})
+    excluded = {key: sorted(draw for draw, slot in anchors.items()
+                            if float(slot["behaviour@fixedtime"][key]) - float(slot["behaviour@maxpressure"][key]) == 0.0)
+                for key in DEFINITIONS}
+    block: dict[str, Any] = {
+        "anchors": {"fixedtime": "behaviour@fixedtime", "maxpressure": "behaviour@maxpressure",
+                    "excluded_draws": excluded},
+        "random_references": {"registered": "behaviour@random", "fresh": "random_fresh"},
+        "arms": {},
+    }
+    for arm in arms:
+        arm_rows = [row for row in rows if row["arm"] == arm]
+        if not arm_rows:
+            continue
+        entry: dict[str, Any] = {"att": {}, "rho": {}, "per_draw": {}}
+        for key in DEFINITIONS:
+            raw = {draw: value for draw, value in tc._seed_means_by_draw(arm_rows, key).items()}
+            entry["att"][key] = tc._definition_stats(raw)
+            series = tc._seed_means_by_draw(arm_rows, f"rho_{key}")
+            entry["rho"][key] = tc._definition_stats(series)
+            entry["per_draw"][key] = {str(draw): raw[draw] for draw in sorted(raw)}
+        if arm not in REFERENCE_ARMS:
+            entry["paired"] = {}
+            for reference, predicted in (("behaviour@fixedtime", "negative"), ("behaviour@random", "negative"),
+                                         ("random_fresh", "negative")):
+                if not any(row["arm"] == reference for row in rows):
+                    continue
+                by_definition: dict[str, Any] = {}
+                for key in DEFINITIONS:
+                    paired = tc._paired_block(rows, arm_rows, str(arm_rows[0]["file"]), arm, reference, key)
+                    paired["side"] = interval_outcome(float(paired["ci95_low"]), float(paired["ci95_high"]),
+                                                      predicted=predicted)
+                    by_definition[key] = paired
+                entry["paired"][reference] = by_definition
+        block["arms"][arm] = entry
+    return block
+
+
+def _code_changed_since(commit: str) -> list[str]:
+    import offline.transfer_curve as tc
+
+    return tc.code_changed_since(commit)
+
+
+def _git_provenance() -> dict[str, Any]:
+    import offline.transfer_curve as tc
+
+    return tc._git_provenance()
+
+
+def _load_cells(work: Path, declared: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    names = {cell_name(cell): cell for cell in declared}
+    missing = sorted(name for name in names if not (work / name).is_file())
+    if missing:
+        raise ValueError(f"{len(missing)} declared cell(s) have no record (first: {missing[:3]}); no partial set is reported")
+    records: list[dict[str, Any]] = []
+    for name, cell in names.items():
+        record = json.loads((work / name).read_bytes())
+        if record.get("format_version") != CELL_FORMAT_VERSION:
+            raise ValueError(f"{name}: format_version {record.get('format_version')!r} is not {CELL_FORMAT_VERSION!r}")
+        for key in ("file", "scenario_key", "arm", "seed", "draw_id", "stage"):
+            if record.get(key) != cell.get(key):
+                raise ValueError(f"{name}: the record says {key}={record.get(key)!r}; it describes another cell")
+        if record["att_ours"] != record["att_ours_p4_6_route"]:
+            raise ValueError(f"{name}: the two routes disagree on att_ours; the record is refused")
+        if record.get("git_dirty") is not False:
+            raise ValueError(f"{name}: git_dirty is {record.get('git_dirty')!r}, not False")
+        records.append(record)
+    return records
+
+
+def build_report(*, work_dir: str | Path, audit_path: str | Path,
+                 declared: Sequence[Mapping[str, Any]] | None = None) -> dict[str, Any]:
+    """``docs/data/p9_2_demand_shift.json``'s content; it writes NOTHING.  Refuses, before any aggregate: a missing or failed
+    guard, a missing or failed audit, a missing or invalid cell record, a record rolled by other code; stage 2 is reported
+    when every one of its cells exists, pending when none does, and refused when only some do."""
+    work = Path(work_dir)
+    guard_path = work / GUARD_NAME
+    if not guard_path.is_file():
+        raise ValueError(f"no guard record at {guard_path}; the evaluation path is not proven on bc-tyc")
+    guard = json.loads(guard_path.read_bytes())
+    if guard.get("passed") is not True:
+        raise ValueError(f"the guard at {guard_path} did not pass; no shifted cell may be reported")
+    audit_file_path = Path(audit_path)
+    audit = json.loads(audit_file_path.read_bytes())
+    if audit.get("format_version") != AUDIT_FORMAT_VERSION or audit.get("passed") is not True:
+        raise ValueError(f"the audit at {audit_file_path} did not pass")
+    full = declared is None
+    stage_1 = declared_cells(stage=1) if full else list(declared)
+    records = _load_cells(work, stage_1)
+    stage_2_cells = declared_cells(stage=2) if full else []
+    present_2 = [cell for cell in stage_2_cells if (work / cell_name(cell)).is_file()]
+    if present_2 and len(present_2) != len(stage_2_cells):
+        raise ValueError(f"stage 2 is partial ({len(present_2)} of {len(stage_2_cells)} cells); it is reported whole or not")
+    if present_2:
+        records += _load_cells(work, stage_2_cells)
+        stage_2 = {"status": "present", "n_cells": len(stage_2_cells)}
+    else:
+        stage_2 = {"status": "pending",
+                   "why": "iql_t is P9.1's (A27(c)); its checkpoints are evaluated here once P9.1's M2 is on main"}
+    commits = sorted({str(record["git_commit"]) for record in records})
+    for commit in commits:
+        changed = _code_changed_since(commit)
+        if changed:
+            raise ValueError(f"records were rolled at {commit}, which differs from HEAD outside docs/ ({changed[:3]})")
+    arms = [*LEARNER_ARMS, *(STAGE_2_ARMS if present_2 else ()), *REFERENCE_ARMS]
+    files: dict[str, Any] = {}
+    for name in SHIFTED_FILES:
+        file_records = [record for record in records if record["file"] == name]
+        if file_records:
+            files[name] = file_block(file_records, arms=arms)
+            fresh = [r for r in file_records if r["arm"] == "random_fresh" and r["seed"] == 101 and r["draw_id"] == 1000]
+            files[name]["random_fresh_digest_seed101_draw1000"] = fresh[0]["action_sequence_sha256"] if fresh else None
+    checkpoints = sorted({(r["arm"], r["seed"], r.get("checkpoint_sha256")) for r in records if r.get("checkpoint_sha256")},
+                         key=lambda item: (item[0], item[1]))
+    return {
+        "format_version": ARTIFACT_FORMAT_VERSION,
+        "label": LABEL,
+        "registered_in": "PREREGISTRATION A27(a) item 7 and A27(h); tag v2.8-prereg-a27; BRIEF_47 section 3.4",
+        "what_this_is_not": list(WHAT_THIS_IS_NOT),
+        "exploratory": True,
+        "no_single_definition_claim": (
+            "Both ATT definitions are reported side by side and no claim rests on one: A11's engine-semantics gate was "
+            "passed on bc-tyc's demand only, so neither definition is primary on these files"
+        ),
+        "fixed_time": "behaviour@fixedtime at bc-tyc's tuned k = 6 (its tier manifest), NOT re-tuned on the shifted files",
+        "prompt": "the DT runs with its registered in-domain prompt (its tier's target_rtg), no rescaling; no probe arm",
+        "demand_shift": (
+            "recordings of other intersections at other hours replayed on bc-tyc's road network: volume, turning mix and "
+            "time profile change together, so this is a demand shift and never 'lower volume'"
+        ),
+        "declaration": "full" if full else "caller-supplied",
+        "alignment_convention": (
+            "every value is the horizon value of one episode from reset(seed=1000) on one held-out draw (A1); rho per "
+            "draw against the same file's anchors of that draw; per arm the mean over draws of each draw's seed mean "
+            "(dt_gate.mean_ci95, ddof 1)"
+        ),
+        "audit": {"sha256": sha256_file(audit_file_path), "record": audit},
+        "guard": guard,
+        "stage_2": stage_2,
+        "files": files,
+        "inputs": {"cell_commits": commits, "n_cells": len(records),
+                   "checkpoints": [{"arm": arm, "seed": seed, "sha256": digest} for arm, seed, digest in checkpoints]},
+        "cells": records,
+        **_git_provenance(),
+    }
+
+
+def write_report(artifact: Mapping[str, Any], out_path: str | Path) -> Path:
+    """The ONE write; never the committed artifact from a caller-supplied (partial) declaration, never over a file."""
+    out = Path(out_path)
+    committed = (Path(__file__).resolve().parent.parent / "docs" / "data" / ARTIFACT_NAME).resolve()
+    if artifact.get("declaration") != "full" and out.resolve() == committed:
+        raise ValueError(f"{out}: the committed artifact is never written from a partial, caller-supplied declaration")
+    if out.exists():
+        raise FileExistsError(f"{out} exists; the artifact is written once")
+    tmp = out.with_suffix(out.suffix + ".tmp")
+    tmp.write_text(json.dumps(artifact, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    os.replace(tmp, out)
+    return out
+
+
+# ----------------------------------------------------------------------
+# The loop and the command line
+# ----------------------------------------------------------------------
+
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_OUTPUT_ROOT = MAIN_TREE / "output"
+DEFAULT_WORK_DIR = DEFAULT_OUTPUT_ROOT / "p9_2" / "demand_shift"
+DEFAULT_CORPUS_ROOT = MAIN_TREE / "datasets_v11"
+DEFAULT_AUDIT_PATH = _REPO_ROOT / "docs" / "data" / AUDIT_NAME
+
+
+def _validate_record(record: Mapping[str, Any], cell: Mapping[str, Any]) -> None:
+    """A fresh record, checked before it is written: its identity, its two routes' agreement, its provenance."""
+    label = cell_name(cell)
+    if record.get("format_version") != CELL_FORMAT_VERSION:
+        raise ValueError(f"{label}: format_version {record.get('format_version')!r} is not {CELL_FORMAT_VERSION!r}")
+    for key in ("file", "scenario_key", "arm", "seed", "draw_id", "stage"):
+        if record.get(key) != cell.get(key):
+            raise ValueError(f"{label}: the record says {key}={record.get(key)!r}; it describes another cell")
+    if record["att_ours"] != record["att_ours_p4_6_route"]:
+        raise ValueError(f"{label}: the two routes disagree on att_ours")
+    if int(record["created"]) != int(record["entered"]) + int(record["never_entered"]):
+        raise ValueError(f"{label}: created is not entered + never entered")
+    if record.get("git_dirty") is not False:
+        raise ValueError(
+            f"{label}: git_dirty is {record.get('git_dirty')!r}, not False; a cell rolled from a tree with uncommitted "
+            "changes cannot be attributed to the commit it names"
+        )
+
+
+def evaluate_cells(cells: Sequence[Mapping[str, Any]], *, work_dir: str | Path, shard: int, of: int,
+                   roll_fn: Any) -> dict[str, Any]:
+    """Roll this shard's cells that have no record yet, each validated BEFORE it is written; resumable at cell grain; a
+    refused cell STOPS the shard and nothing is written for it, nor any directory before the first valid record."""
+    if int(of) < 1 or not 0 <= int(shard) < int(of):
+        raise ValueError(f"shard {shard!r} of {of!r} is not a valid partition")
+    work = Path(work_dir)
+    mine = [cell for index, cell in enumerate(sorted(cells, key=cell_name)) if index % int(of) == int(shard)]
+    rolled: list[str] = []
+    skipped = 0
+    for cell in mine:
+        path = work / cell_name(cell)
+        if path.is_file():
+            existing = json.loads(path.read_bytes())
+            _validate_record(existing, cell)
+            skipped += 1
+            continue
+        record = roll_fn(cell)
+        _validate_record(record, cell)
+        work.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        os.replace(tmp, path)
+        rolled.append(path.name)
+        if len(rolled) % 25 == 0:
+            print(f"  shard {shard}/{of}: {len(rolled)} rolled, {skipped} skipped of {len(mine)}", flush=True)
+    return {"rolled": len(rolled), "skipped": skipped, "rolled_names": rolled, "n_cells": len(mine)}
+
+
+def status(work_dir: str | Path) -> dict[str, Any]:
+    work = Path(work_dir)
+    out: dict[str, Any] = {"guard_present": (work / GUARD_NAME).is_file()}
+    for stage in (1, 2):
+        cells = declared_cells(stage=stage)
+        present = sum(1 for cell in cells if (work / cell_name(cell)).is_file())
+        out[f"stage_{stage}"] = {"declared": len(cells), "present": present, "complete": present == len(cells)}
+    return out
+
+
+def _roots(args: Any) -> Any:
+    from offline.admission_probe import ProbeRoots
+
+    return ProbeRoots(repo_root=_REPO_ROOT, corpus_root=Path(args.corpus_root), draws_root=Path(args.draws_root),
+                      output_root=Path(args.output_root), work_dir=Path(args.work_dir))
+
+
+def build_parser() -> Any:
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        prog="python -m offline.demand_shift",
+        description="P9.2: A27(h)'s exploratory zero-shot demand-shift evaluation (exploration, not H2).",
+    )
+    parser.add_argument("--draws-root", default=str(REGISTERED_DRAWS_ROOT))
+    parser.add_argument("--output-root", default=str(DEFAULT_OUTPUT_ROOT))
+    parser.add_argument("--corpus-root", default=str(DEFAULT_CORPUS_ROOT))
+    parser.add_argument("--work-dir", default=str(DEFAULT_WORK_DIR))
+    parser.add_argument("--audit", default=str(DEFAULT_AUDIT_PATH))
+    parser.add_argument("--device", default="cpu")
+    parser.add_argument("--torch-threads", type=int, default=1)
+    sub = parser.add_subparsers(dest="command", required=True)
+    audit = sub.add_parser("audit", help="the pre-flight flow audit (writes the audit file once)")
+    audit.add_argument("--out", default=str(DEFAULT_AUDIT_PATH))
+    audit.add_argument("--scratch", required=True, help="a scratch directory for the two test materialisations")
+    sub.add_parser("materialise", help="the three files' held-out draws into the main tree (run from the main tree root)")
+    sub.add_parser("guard", help="bc-tyc cells reproduced through the evaluation path; the engine-seed check")
+    evaluate = sub.add_parser("evaluate", help="roll this shard's cells (refuses without a passing guard)")
+    evaluate.add_argument("--stage", type=int, choices=(1, 2), default=1)
+    evaluate.add_argument("--shard", type=int, default=0)
+    evaluate.add_argument("--of", type=int, default=1)
+    evaluate.add_argument("--iql-t-pins", default=None, help="stage 2: a JSON pin file {tier: {seed: {path, sha256}}}")
+    sub.add_parser("status", help="declared against present")
+    report = sub.add_parser("report", help="write docs/data/p9_2_demand_shift.json (refuses if it exists)")
+    report.add_argument("--out", default=str(_REPO_ROOT / "docs" / "data" / ARTIFACT_NAME))
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """Run one subcommand; returns 0 when done, 2 when refused."""
+    from offline.offline_baselines import pin_torch_threads
+    from offline.sumo_anchor_rescore import assert_work_dir
+
+    args = build_parser().parse_args(argv)
+    pin_torch_threads(int(args.torch_threads))
+    work = Path(args.work_dir)
+    if args.command == "status":
+        print(json.dumps(status(work), indent=2, sort_keys=True), flush=True)
+        return 0
+    if args.command == "audit":
+        out = Path(args.out)
+        if out.exists():
+            raise FileExistsError(f"{out} exists; the audit is written once, before any draw")
+        record = run_audit(repo_root=_REPO_ROOT, scratch=Path(args.scratch), registered_draws_root=args.draws_root)
+        tmp = out.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        os.replace(tmp, out)
+        print(f"audit {'PASSED' if record['passed'] else 'FAILED'}; wrote {out}", flush=True)
+        return 0 if record["passed"] else 2
+    if args.command == "materialise":
+        summary = materialise_shifted(out_root=args.draws_root, audit_path=args.audit, repo_root=Path.cwd())
+        print(json.dumps(summary, indent=2, sort_keys=True), flush=True)
+        return 0
+    if args.command == "report":
+        artifact = build_report(work_dir=work, audit_path=args.audit)
+        written = write_report(artifact, args.out)
+        print(f"wrote {written}", flush=True)
+        return 0
+    assert_work_dir(work, output_root=args.output_root, repo_root=_REPO_ROOT)
+    if args.command == "guard":
+        guard_path = work / GUARD_NAME
+        if guard_path.exists():
+            raise FileExistsError(f"{guard_path} exists; the guard record is written once")
+        record = run_guard(roots=_roots(args), device=args.device)
+        work.mkdir(parents=True, exist_ok=True)
+        tmp = guard_path.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        os.replace(tmp, guard_path)
+        failed = [c["arm"] for c in record["cells"] if not c["passed"]]
+        print(f"guard {'PASSED' if record['passed'] else 'FAILED'} (cells not reproduced: {failed}; engine-seed check "
+              f"{'passed' if record['engine_seed_check']['passed'] else 'FAILED'})", flush=True)
+        return 0 if record["passed"] else 2
+    guard_path = work / GUARD_NAME
+    if not guard_path.is_file() or json.loads(guard_path.read_bytes()).get("passed") is not True:
+        print(f"REFUSED: no passing guard at {guard_path}; run the guard subcommand first", flush=True)
+        return 2
+    pins = None if args.iql_t_pins is None else json.loads(Path(args.iql_t_pins).read_bytes())
+    roots = _roots(args)
+    result = evaluate_cells(
+        declared_cells(stage=int(args.stage)), work_dir=work, shard=args.shard, of=args.of,
+        roll_fn=lambda cell: roll_cell(cell, roots=roots, device=args.device, iql_t_pins=pins),
+    )
+    print(f"stage {args.stage} shard {args.shard}/{args.of}: rolled {result['rolled']}, skipped {result['skipped']} of "
+          f"{result['n_cells']}", flush=True)
+    return 0
+
+
+if __name__ == "__main__":  # pragma: no cover - exercised through main() by the tests
+    raise SystemExit(main())
