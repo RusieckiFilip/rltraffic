@@ -13,8 +13,8 @@ runs until `git merge main && git tag -l v2.8-prereg-a27` prints the tag.** The 
 **No GPU is needed** (evaluation of existing checkpoints; CityFlow and SUMO are CPU-bound). CPU workers: at most 6 at a time while
 P9.1's or P9.3's evaluations run (`PROJECT_PLAN` §10, 2026-10-15); the pre-flight states the number.
 **Dependency:** A27(h) evaluates `iql_t` of the `mappo1000` and `mix50` tiers once P9.1 produces them. Stage 1 (everything else)
-does not wait; stage 2 (`iql_t`) runs after P9.1's M2 merge, or is reported as pending in the packet if the author's cut order (7
-first) ends the task before then.
+does not wait; stage 2 (`iql_t`) runs after P9.1's M2 merge, or is reported as pending in the packet if the author's cut order (4,
+then 7, then 6 — his order of 2026-10-15 evening) ends the task before then.
 
 ## 0. Frozen interface contracts
 - `docs/CONTRACTS.md`; the frozen set of `CLAUDE.md` §1 — **`algorithms/max_pressure.py` is frozen: the 1:1 variant is a NEW policy
@@ -110,7 +110,12 @@ action sequences of the two backends' controllers for 360 steps.
   `bc`, `bc_top10`, `iql` of `mappo1000` (`output/p4_4/checkpoints/`); `dt`, `bc`, `bc_top10`, `iql` of `mix50`
   (`output/p4_7/checkpoints/mix50_*`); stage 2: `iql_t` of both tiers from P9.1; references `fixedtime` (k = 6, the target
   directory's `signal_plan_template.txt` — identical greens, asserted), `maxpressure`, `random` (the registered anchor scheme of
-  `dt_gate._random_factory`, five seeds). Both ATT definitions by the two routes P9.1 uses (the P4.6 route and P8.4b's observer route,
+  `method_tier_grid._random_factory` — one generator per draw from the training seed, five seeds; `dt_gate` has no such factory) AND
+  `random_fresh` (A27(d)'s scheme: `np.random.default_rng([seed, draw_id])` driving `collect._make_random`'s sampler, one generator per
+  (seed, draw); import P9.1's factory once its M1 is merged, otherwise write the same formula in your module — in either case record the
+  reference's `action_sequence_sha256` on (seed 101, draw 1000) in the artifact so the two implementations can be checked against each
+  other; the schedule depends only on (seed, draw) because every legal-action mask on these networks is all-true). Both random
+  references are reported beside each other, as A27(d) requires of every worse-than-random check. Both ATT definitions by the two routes P9.1 uses (the P4.6 route and P8.4b's observer route,
   `att_ours` agreeing under `==`). Checkpoint digests recorded; the training seeds are the evaluation seeds (CityFlow is deterministic
   on this network — assert σ = 0 across engine seeds on one cell, as P0.2 found).
 - `report` — `docs/data/p9_2_demand_shift.json`: `label: "exploration, not H2"`; per-episode records for every cell (both definitions,

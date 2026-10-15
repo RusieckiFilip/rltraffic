@@ -37,17 +37,22 @@ Phase B waits on it; M2, the campaign's artifacts and packet.
    to 102 (708.3 visits) is declared in A27(b). The numbers come from `tier_sweep.JOINT_BATCH_SIZE = 64`,
    `CONTEXT_LENGTH = 20`, `offline_baselines.BC_BATCH_WINDOWS = 64`, `IQL_BATCH_TRANSITIONS = 1_280`, 40,000 steps, and the tiers'
    1,152,000 / 115,200 rows). Every grid DT-versus-baseline contrast is confounded by that gap.
-2. **IQL targets (point 2 — bug fix).** `offline_baselines.py:1981` puts `policy`, `q`, `value` in `train()` and never leaves it;
+2. **IQL targets (point 2 — bug fix, results before and after).** `offline_baselines.py:1981` puts `policy`, `q`, `value` in `train()` and never leaves it;
    `q_target` is never switched; `MLPTrunk` has `dropout = 0.1` (`agent/OfflineBaselines.py`). So `q_taken = q_target(s)` (`:1990`)
    and `next_value = value(s')` (`:2008`) carry dropout noise into the TD targets.
-3. **Random tier (point 3 — bug fix in data generation).** `collect.py:981` re-creates the random policy's RNG from `--base-seed` per
+3. **Random tier (point 3 — data-collection bug fix, results before and after).** `collect.py:981` re-creates the random policy's RNG from `--base-seed` per
    draw: the hz1x1 random tier holds 2 action schedules over 400 episodes (200/200), the training subsample 116/84 (measured
-   2026-10-15, `PROJECT_PLAN` §8).
+   2026-10-15, `PROJECT_PLAN` §8). The grid's random tier has the same defect: 2 joint schedules over its 400 episodes (200/200) and
+   2 per intersection on all 16. On both scenarios the two logged schedules are `default_rng(1000)`'s first and second 360-step
+   blocks (every legal-action mask is all-true), none of the reference seeds 101–505 regenerates either, and P5.3b's attractor
+   `47c0ff33…` is the logged engine-seed-1001 schedule itself (all measured 2026-10-15).
 4. **Overlap mixture (point 4 — test registered after results).** The registered mixtures' top decile is all-expert by construction
    (`DEFERRED` 46). A27(e) replaces the ruling's pair by `mappo1000 + mappo500` (expert fraction 0.50) under the author's delegation, after the
    registered functions showed `mappo1000 + mappo200` all-expert at every proportion down to 10 %.
-5. **Budget (point 6 — test registered after results, A8(b)).** Registered 2026-08-12, never run; 127 of 160 hz1x1 runs had not
-   met the plateau criterion at 40,000 steps (`plateaued` flags, measured 2026-10-15).
+5. **Budget (point 6 — A8(b)'s secondary, registered 2026-08-12 after P4.4's primary results and executed after all primary
+   results; the `mix50` part beyond A8(b)).** Registered 2026-08-12, never run; 127 of 160 hz1x1 runs had not met the plateau
+   criterion at 40,000 steps (`plateaued` flags, measured 2026-10-15), and of those 127, 111 were still falling over the last three
+   `window_means` — the draft's count; A27(g) carries the author's one-line command, which prints `160 127 111 11 5`.
 
 ## 2. Scope fence — what NOT to build
 - No DT is re-trained for point 1; no spatial DT anywhere in this task; no change to any DT recipe, prompt rule or K.
@@ -136,7 +141,11 @@ Subcommands, each writing only into `output/p9_1/` / `output/p9_1_runs/` or the 
   `offline/tier_statements.py`'s scorers (import; do not re-implement), original beside, both definitions, verdict `moved: true/false`
   by the registered rule; A27(c): the IQL statements of P4.4, P4.6, P4.7, P5.2 (P5.2b's random cell as the registered one) with
   `iql_t`; A27(d): every "worse than random" and collapse check against BOTH random references (the registered FIVE-SCHEDULE anchor and
-  the `random_fresh` reference); A27(e): the four ordering contrasts (`bc_top10` vs `bc`, `bc_top10` vs `iql`, `iql` vs `dt`, `dt` vs
+  the `random_fresh` reference), and A27(d)'s P3a as the author worded it — per (scenario, seed), the `action_sequence_sha256`
+  (`offline/nortg_decomposition.py`) of every held-out episode, the joint array on hz1x1 and each intersection's column on the grid,
+  with the number of distinct sequences, the share of draws carrying the most common one, identity with either random reference's
+  episode on the same (seed, draw), and identity with any of the tier's 200 training schedules; P3a is FALSIFIED by any repeat (on the
+  grid: any intersection's sequence equal to that intersection's sequence on another draw of the same seed); A27(e): the four ordering contrasts (`bc_top10` vs `bc`, `bc_top10` vs `iql`, `iql` vs `dt`, `dt` vs
   `bc`) and the "every arm within 5 s of `bc_top10`" check, each HELD / FAILED / NOT RESOLVED by P5.2c's rule under `att_engine`,
   `att_ours` beside; A27(g): the paired 100k − 40k differences and the ordering concordance, same rule.
 - `report` — the artifacts of §3.5, pure functions of their inputs (sorted keys, no rounding, no timestamp, git commit recorded, dirty
@@ -202,12 +211,14 @@ measures more than one hour in total, stop and say so — do not skip silently.
   M2 → the coordinator hands the author the CI ceiling command.
 
 ## 6. Definition of Done
-- [ ] A27(c): `q_target` and `value(s')` run in `eval()` under the flag; the test of §4.1 exists and its mutant fails; every IQL cell
+- [ ] A27(c): all three target forwards — `q_target(s, a)`, `value(s')` and the advantage's `value(s)` as a separate pre-update forward — run in `eval()` under the flag (the author's edit 1, 2026-10-15); the trained forwards keep dropout 0.1; the test of §4.1 exists and its mutant fails; every IQL cell
       (hz1x1 8 tiers, grid 4 tiers, P8.3) has a before and an after in the repository, per-episode (per-seed for D4RL).
 - [ ] A27(b): `bc_m`, `bc_top10_m`, `bc_top10_perix_m`, `iql_m` exist on every grid tier beside the originals; the exposure table is
       in the artifact and equals A27(b).
 - [ ] A27(d): two `random_fresh` tiers with 200 distinct schedules each; the hz1x1 and grid arms trained and evaluated; both random
-      references on the held-out draws; P3a/P3b with verdicts.
+      references on the held-out draws; P3a (no repeated sequence per seed; per intersection on the grid) and P3b with verdicts, and the
+      beside-table (distinct sequences per seed, most-common share, reference identity, training-schedule replay) next to P5.3b's
+      old-tier numbers (1 sequence, 100 % of draws).
 - [ ] A27(e): `mix_m1000_m500` declared with A27(e)'s design facts reproduced; five arms × five seeds; the four ordering contrasts
       and the collapse check with HELD / FAILED / NOT RESOLVED verdicts under `att_engine`, `att_ours` beside.
 - [ ] A27(g): the four registered recipes at 100,000 steps on `mappo1000` and on `mix50` (the latter labelled beyond A8(b)); the

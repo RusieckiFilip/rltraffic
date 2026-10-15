@@ -9,10 +9,15 @@ proceed). Tests first. Mutation testing for number-computing code. One session, 
 only `output/p9_3/`, `output/p9_3_runs/`, `output/checkpoints/p9_3_mappo_nominal_1000/`). `--torch-threads 1` everywhere.
 **Registration:** `PREREGISTRATION.md` A27 (i) (and (b)–(d) for the recipes), tag `v2.8-prereg-a27`. **GATE 0 — the pre-flight may
 run before the tag (it produces no registered number); nothing else does.** The registration wins over this brief.
-**Label (A27):** conditional generalizability extension registered after the grid results; no new claim. The paper says exactly: hz4x4 tests real
+**Label (A27):** conditional generalizability extension registered after the grid results; no new claim. The paper's framing: hz4x4 tests real
 demand and real geometry on the grid's topology, not a new topology (32 nodes of which 16 signalised, 80 directed roads, the same
-16-node / 48-internal-edge lattice as `grid4x4_roadnet_red.json`; 9 file phases per intersection against the grid's 16; 2,983 vehicles
-against 1,473 — measured 2026-10-15).
+16-node / 48-internal-edge lattice as `grid4x4_roadnet_red.json`; 9 file phases per intersection against the grid's 16 but the SAME
+eight selectable green phases — the eight green movement sets are identical on all 16 signalised intersections of both files, and the
+file counts differ only in phases the acyclic control never selects (hz4x4's 5-s right-turn-only phase 0, the grid's eight 3-s
+transitions; `envs/phase_control.TRANSITION_PHASE_MAX_DURATION = 5`), so both offer 8 actions; 2,983 vehicles against 1,473 — measured
+2026-10-15). The paper's sentence, verbatim from A27(i): *"hangzhou_4x4 tests real demand and real road geometry on the grid's 4×4
+topology, with the same eight selectable green phases per intersection; it is not a new topology."* Assert the 8-action count on
+hz4x4 in the pre-flight (`Utils.infer_action_counts` on the constructed env) before any collection.
 **Hard stop:** not merged to `main` by 2026-10-23 → dropped; the branch stays; nothing of it is cited; the paper names it as a
 limitation. Reductions, in order, declared in A27(i): the spatial DT (already out); the `mappo1000` tier if its teacher cannot be
 trained within one day.
