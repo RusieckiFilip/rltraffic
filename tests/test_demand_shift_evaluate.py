@@ -366,3 +366,23 @@ def test_stage_2_refuses_without_pins(tmp_path: Path) -> None:
     cell = ds.declared_cells(stage=2)[0]
     with pytest.raises(ValueError, match="pending"):
         ds._factory_for(cell, roots=None, device="cpu", config=tmp_path / "x.json", iql_t_pins=None)
+
+
+def test_the_report_compares_the_random_fresh_digest_across_files_with_bc_tycs(tmp_path: Path, patched: None) -> None:
+    """A27(h): every legal-action mask is all-true, so (seed 101, draw 1000)'s schedule is the same on every file; the
+    report RECORDS whether the digests agree rather than assuming it."""
+    work = tmp_path / "output" / "p9_2" / "demand_shift"
+    cells = _small_declaration()
+    _write_cells(work, cells)
+    guard = json.loads((work / ds.GUARD_NAME).read_text(encoding="utf-8"))
+    fresh = next(c for c in cells if c["arm"] == "random_fresh" and c["seed"] == 101 and c["draw_id"] == 1000)
+    digest = json.loads((work / ds.cell_name(fresh)).read_text(encoding="utf-8"))["action_sequence_sha256"]
+    guard["random_fresh_digest_bc_tyc_seed101_draw1000"] = digest
+    (work / ds.GUARD_NAME).write_text(json.dumps(guard), encoding="utf-8")
+    artifact = ds.build_report(work_dir=work, audit_path=_audit_file(tmp_path), declared=cells)
+    assert artifact["random_fresh_seed101_draw1000"] == {"digests": {"bc-tyc": digest, "kn-hz": digest},
+                                                          "identical": True}
+    guard["random_fresh_digest_bc_tyc_seed101_draw1000"] = "0" * 64
+    (work / ds.GUARD_NAME).write_text(json.dumps(guard), encoding="utf-8")
+    artifact = ds.build_report(work_dir=work, audit_path=_audit_file(tmp_path), declared=cells)
+    assert artifact["random_fresh_seed101_draw1000"]["identical"] is False

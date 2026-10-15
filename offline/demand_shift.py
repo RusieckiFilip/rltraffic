@@ -845,6 +845,9 @@ def build_report(*, work_dir: str | Path, audit_path: str | Path,
             files[name] = file_block(file_records, arms=arms)
             fresh = [r for r in file_records if r["arm"] == "random_fresh" and r["seed"] == 101 and r["draw_id"] == 1000]
             files[name]["random_fresh_digest_seed101_draw1000"] = fresh[0]["action_sequence_sha256"] if fresh else None
+    digests = {REFERENCE_FILE["name"]: guard.get("random_fresh_digest_bc_tyc_seed101_draw1000")}
+    digests.update({name: block.get("random_fresh_digest_seed101_draw1000") for name, block in files.items()})
+    fresh_identity = {"digests": digests, "identical": len(set(digests.values())) == 1 and None not in digests.values()}
     checkpoints = sorted({(r["arm"], r["seed"], r.get("checkpoint_sha256")) for r in records if r.get("checkpoint_sha256")},
                          key=lambda item: (item[0], item[1]))
     return {
@@ -873,6 +876,7 @@ def build_report(*, work_dir: str | Path, audit_path: str | Path,
         "guard": guard,
         "stage_2": stage_2,
         "files": files,
+        "random_fresh_seed101_draw1000": fresh_identity,
         "inputs": {"cell_commits": commits, "n_cells": len(records),
                    "checkpoints": [{"arm": arm, "seed": seed, "sha256": digest} for arm, seed, digest in checkpoints]},
         "cells": records,
