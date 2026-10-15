@@ -85,10 +85,12 @@ def _sumo_payload(scenario: str = "cityflow1x1", arm: str = "maxpressure_1to1", 
         "routes_sha256": "d" * 64,
         "depart_lane_attributes": 0,
         "policy": (
-            {"arm": arm, "roadlink_structure_digest": "e" * 64, "multiplicities": {"summary": {}}}
+            {"arm": arm, "roadlink_structure_digest": "e" * 64, "multiplicities": {"summary": {}},
+             "policy_class": "MaxPressure1to1Agent"}
             if arm == "maxpressure_1to1"
             else {"arm": arm, "fixed_time_k": sar.KCF_README_VALUES[scenario], "fixed_time_schedule_source": "equal_split",
-                  "fixed_time_plan_sha256": None, "cycle": {ix: list(range(8)) for ix in ids}}
+                  "fixed_time_plan_sha256": None, "cycle": {ix: list(range(8)) for ix in ids},
+                  "policy_class": "FixedTimeController"}
         ),
         "seconds": 12.0,
         "git_commit": COMMIT,
@@ -125,6 +127,8 @@ def _cityflow_payload(scenario: str = "cityflow1x1", draw_id: int = 1000) -> dic
         "episode_reward": -16428.0,
         "roadlink_structure_digest": "f" * 64,
         "multiplicities": {"summary": {}},
+        "policy_class": "MaxPressure1to1Agent",
+        "action_sequence_sha256": "9" * 64,
         "seconds": 1.0,
         "git_commit": COMMIT,
         "git_dirty": False,
@@ -568,3 +572,57 @@ def test_the_cityflow_maxpressure_1to1_hz1x1_cell_is_the_registered_maxpressure_
     fields = ("att_ours", "att_engine", "created", "entered", "never_entered", "horizon_vehicle_count",
               "episode_reward")
     assert {f: payload[f] for f in fields} == {f: record[f] for f in fields}
+
+
+# ----------------------------------------------------------------------
+# The arm is the policy it names (added after the C2 mutation review)
+# ----------------------------------------------------------------------
+
+
+def test_the_validator_refuses_a_cell_whose_policy_class_is_not_its_arms() -> None:
+    payload = _sumo_payload()
+    payload["policy"]["policy_class"] = "MaxPressureAgent"
+    with pytest.raises(ValueError, match="policy class"):
+        sar.validate_anchor_cell(payload, cell=_cell(payload))
+    payload = _cityflow_payload()
+    payload["policy_class"] = "MaxPressureAgent"
+    with pytest.raises(ValueError, match="policy class"):
+        sar.validate_anchor_cell(payload, cell=_cell(payload))
+
+
+def test_the_sumo_policy_of_each_arm_is_built_from_its_own_class() -> None:
+    from offline.aligned_env import observer_env_for_draw
+    from offline.materialise_draws import parity_sumocfg_path
+
+    draws = _draws_root()
+    _require_simulators()
+    env = observer_env_for_draw("cityflow1x1", 1001, out_root=draws, arm="maxpressure")
+    try:
+        cfg = parity_sumocfg_path("cityflow1x1", 1001, out_root=draws)
+        classes = {
+            arm: sar.sumo_policy(env, arm=arm, config_path=cfg, kcf=6 if arm == "fixedtime_kcf" else None)[1][
+                "policy_class"]
+            for arm in ("maxpressure_1to1", "fixedtime_kcf", "maxpressure", "fixedtime")
+        }
+    finally:
+        env.close()
+    assert classes == {"maxpressure_1to1": "MaxPressure1to1Agent", "fixedtime_kcf": "FixedTimeController",
+                       "maxpressure": "MaxPressureAgent", "fixedtime": "FixedTimeController"}
+
+
+def test_on_cityflow_the_variant_acts_as_the_registered_agent_on_hz1x1_and_not_on_grid4x4() -> None:
+    """Draw 1000 on each scenario, P8.4b's route: the 360-decision action digests are EQUAL on hz1x1 (every lane once per
+    phase, so the two formulas coincide) and DIFFER on grid4x4 (outgoing lanes fed twice on every green)."""
+    from offline.admission_probe import ProbeRoots
+
+    draws, corpus = _draws_root(), _corpus_root()
+    _require_simulators()
+    roots = ProbeRoots(repo_root=REPO_ROOT, corpus_root=corpus, draws_root=draws, output_root=REPO_ROOT / "output",
+                       work_dir=REPO_ROOT / "output" / "unused")
+    digests = {
+        (scenario, arm): sar.cityflow_anchor_episode(scenario, 1000, arm, roots=roots)["action_sequence_sha256"]
+        for scenario in ("cityflow1x1", "cityflow_grid4x4")
+        for arm in ("maxpressure_1to1", "maxpressure")
+    }
+    assert digests[("cityflow1x1", "maxpressure_1to1")] == digests[("cityflow1x1", "maxpressure")]
+    assert digests[("cityflow_grid4x4", "maxpressure_1to1")] != digests[("cityflow_grid4x4", "maxpressure")]

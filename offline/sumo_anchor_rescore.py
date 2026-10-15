@@ -99,6 +99,15 @@ BASE_ARM: Mapping[str, str] = {
     "fixedtime": "fixedtime",
 }
 
+#: The class whose ``act`` each arm IS -- recorded in every cell and checked by the validator, so an arm cannot be rolled
+#: by another arm's policy under its name.
+POLICY_CLASS: Mapping[str, str] = {
+    "maxpressure_1to1": "MaxPressure1to1Agent",
+    "fixedtime_kcf": "FixedTimeController",
+    "maxpressure": "MaxPressureAgent",
+    "fixedtime": "FixedTimeController",
+}
+
 #: CityFlow's tuned k (``docs/data/fixed_time_sweep/README.md``, chosen values; D5's protocol on draws 1-5).
 KCF_README_VALUES: Mapping[str, int] = {"cityflow1x1": 6, "cityflow_grid4x4": 1}
 
@@ -244,13 +253,19 @@ def sumo_policy(
         provenance: dict[str, Any] = {
             "arm": arm,
             "base_arm": base,
+            "policy_class": type(getattr(policy, "__self__", None)).__name__,
             "roadlink_structure_digest": roadlink_structure_digest(intersections),
             "multiplicities": phase_multiplicities(intersections),
         }
         return policy, provenance
 
     policy = build_policy(env, args)
-    provenance = {"arm": arm, "base_arm": base, "roadlink_structure_digest": roadlink_structure_digest(intersections)}
+    provenance = {
+        "arm": arm,
+        "base_arm": base,
+        "policy_class": type(getattr(policy, "__self__", None)).__name__,
+        "roadlink_structure_digest": roadlink_structure_digest(intersections),
+    }
     if base == "fixedtime":
         controller = getattr(policy, "__self__", None)
         if not isinstance(controller, FixedTimeController):
@@ -464,11 +479,27 @@ def cityflow_anchor_episode(scenario: str, draw_id: int, arm: str, *, roots: Any
     inner = maxpressure_1to1_factory if arm == "maxpressure_1to1" else _maxpressure_factory
     structure: dict[str, Any] = {}
 
+    actions: list[list[int]] = []
+
     def factory(env: Any) -> Callable[[Any, dict[str, Any]], Any]:
+        import numpy as np
+
         intersections = list(env.intersections)
         structure["roadlink_structure_digest"] = roadlink_structure_digest(intersections)
         structure["multiplicities"] = phase_multiplicities(intersections)
-        return inner(env)
+        choose = inner(env)
+        # Both factories close over exactly one agent; its class is read from THAT object, not from the arm's name.
+        agents = [cell.cell_contents for cell in (choose.__closure__ or ()) if hasattr(cell.cell_contents, "act")]
+        if len(agents) != 1:
+            raise TypeError(f"the {arm} factory's choose function closes over {len(agents)} agents, not one")
+        structure["policy_class"] = type(agents[0]).__name__
+
+        def recording(env_: Any, info: dict[str, Any]) -> Any:
+            action = choose(env_, info)
+            actions.append([int(a) for a in np.asarray(action).reshape(-1)])
+            return action
+
+        return recording
 
     episode = probe_episode(
         scenario=probe_scenario,
@@ -484,6 +515,8 @@ def cityflow_anchor_episode(scenario: str, draw_id: int, arm: str, *, roots: Any
         engine_seed=ENGINE_SEED,
         created=created,
     )
+    from offline.nortg_decomposition import action_sequence_sha256
+
     record = episode.as_record()
     return {
         "format_version": CELL_FORMAT_VERSION,
@@ -497,6 +530,8 @@ def cityflow_anchor_episode(scenario: str, draw_id: int, arm: str, *, roots: Any
             "episode_reward", "seconds", "seconds_rollout",
         )},
         "engine_seed_requested": ENGINE_SEED,
+        "decisions": len(actions),
+        "action_sequence_sha256": action_sequence_sha256(actions),
         "config_sha256": hashlib.sha256(config.read_bytes()).hexdigest(),
         "flow_sha256": hashlib.sha256((config.parent / "flow.json").read_bytes()).hexdigest(),
         **structure,
@@ -535,9 +570,15 @@ def validate_anchor_cell(payload: Mapping[str, Any], *, cell: Mapping[str, Any])
 
     if payload["backend"] == "cityflow":
         for key in ("att_ours", "att_engine", "created", "entered", "never_entered", "horizon_vehicle_count",
-                    "episode_reward", "roadlink_structure_digest", "multiplicities"):
+                    "episode_reward", "roadlink_structure_digest", "multiplicities", "policy_class",
+                    "action_sequence_sha256"):
             if key not in payload:
                 raise ValueError(f"{label}: a CityFlow cell carries {key}, and this one does not")
+        if payload["policy_class"] != POLICY_CLASS[str(payload["arm"])]:
+            raise ValueError(
+                f"{label}: arm {payload['arm']} was rolled by policy class {payload['policy_class']!r}, not "
+                f"{POLICY_CLASS[str(payload['arm'])]!r}"
+            )
         if int(payload["created"]) != int(payload["entered"]) + int(payload["never_entered"]):
             raise ValueError(
                 f"{label}: created {payload['created']} is not entered {payload['entered']} + never entered "
@@ -584,6 +625,11 @@ def validate_anchor_cell(payload: Mapping[str, Any], *, cell: Mapping[str, Any])
     elif int(payload["n_teleports"]) != 0:
         raise ValueError(f"{label}: {payload['n_teleports']} teleport(s) under A15(c)'s teleport-free regime on hz1x1")
     policy = payload.get("policy") or {}
+    if policy.get("policy_class") != POLICY_CLASS[str(payload["arm"])]:
+        raise ValueError(
+            f"{label}: arm {payload['arm']} was rolled by policy class {policy.get('policy_class')!r}, not "
+            f"{POLICY_CLASS[str(payload['arm'])]!r}"
+        )
     if payload["arm"] == "fixedtime_kcf":
         expected = KCF_README_VALUES[str(payload["scenario"])]
         if policy.get("fixed_time_k") != expected:
