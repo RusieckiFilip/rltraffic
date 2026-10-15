@@ -1915,6 +1915,39 @@ def _bc_diagnostics(
     }
 
 
+#: ``train_iql``'s ``target_dropout`` values (A27(c), ``BRIEF_46`` section 3.1).  ``"active"`` is the REGISTERED path:
+#: every forward of the update runs in ``train()``, so the three target quantities carry ``MLPTrunk``'s dropout of 0.1.
+#: ``"off"`` runs those three forwards in ``eval()`` and changes nothing else.
+TARGET_DROPOUT_MODES: tuple[str, ...] = ("active", "off")
+
+
+def _awr_weight(q_taken: torch.Tensor, v_baseline: torch.Tensor) -> torch.Tensor:
+    """The AWR weight ``clamp(exp(beta * (Q_target(s, a) - V(s))), max=clip)``, under ``no_grad``.
+
+    These are the two lines the registered loop always ran inline (``advantage = q_taken - v_pred.detach()``, then
+    the clamped exponential), moved here unchanged so a test can observe WHICH ``V(s)`` the advantage used (A27(c),
+    ``BRIEF_46`` section 4.1).  Same operations on the same tensors, so the registered path is bit-for-bit what it was;
+    ``tests/test_iql_target_dropout.py`` regenerates a registered checkpoint to show it.
+    """
+    with torch.no_grad():
+        advantage = q_taken - v_baseline
+        return torch.clamp(torch.exp(IQL_BETA * advantage), max=IQL_WEIGHT_CLIP)
+
+
+def _target_forward(module: torch.nn.Module, inputs: torch.Tensor, *, eval_mode: bool) -> torch.Tensor:
+    """One TARGET forward under ``no_grad``.  With *eval_mode* the module runs in ``eval()`` and is returned to
+    ``train()`` immediately after (A27(c)); without it the module is called in whatever mode it is in -- the registered
+    path, where every module is in ``train()``."""
+    with torch.no_grad():
+        if not eval_mode:
+            return module(inputs)
+        module.eval()
+        try:
+            return module(inputs)
+        finally:
+            module.train()
+
+
 def train_iql(
     table: TransitionTable,
     *,
@@ -1929,6 +1962,7 @@ def train_iql(
     scenario_id: str,
     provenance: dict[str, Any],
     log_every: int = 0,
+    target_dropout: str = "active",
 ) -> TrainRecord:
     """Train one IQL seed for exactly *declared_gradient_steps* steps.
 
@@ -1943,9 +1977,25 @@ def train_iql(
     availability mask, the logged action is legal by construction, and every mask in this corpus
     is all-``True`` (P3 review), so masking here would be a no-op with a second convention to
     keep consistent.  ``act()`` masks at evaluation, where it can bind.
+
+    **``target_dropout``** (A27(c), registered at ``v2.8-prereg-a27``).  ``"active"`` -- the default -- is the registered
+    loop: ``policy``, ``q`` and ``value`` are put in ``train()`` and never leave it, and ``q_target`` is in ``train()``
+    because that is ``nn.Module``'s state after construction, so the expectile target ``q_target(s, a)``, the TD target
+    ``value(s')`` and the ``value(s)`` inside the AWR advantage all carry ``MLPTrunk``'s dropout of 0.1.  ``"off"`` runs
+    exactly those three forwards in ``eval()`` under ``no_grad`` and returns each module to ``train()`` immediately
+    after: the advantage's ``value(s)`` becomes a SEPARATE forward taken before ``optimisers["v"].step()``, so the
+    registered update order is kept (the advantage uses V from before its update in the same step; published IQL uses
+    V after -- not changed).  The trained forwards -- ``policy(s)``, ``q(s)`` and the expectile loss's ``value(s)`` --
+    keep dropout in ``train()``.  Nothing else differs, so with dropout 0 the two modes train identical networks.  The
+    value is recorded in the checkpoint's provenance and in the diagnostics.
     """
     from agent.utils.utils import Utils
 
+    if target_dropout not in TARGET_DROPOUT_MODES:
+        raise ValueError(
+            f"target_dropout must be one of {TARGET_DROPOUT_MODES}, got {target_dropout!r}; nothing was trained"
+        )
+    targets_off = target_dropout == "off"
     total = int(declared_gradient_steps)
     if total < 1:
         raise ValueError(f"declared_gradient_steps must be >= 1, got {declared_gradient_steps}")
@@ -1988,7 +2038,13 @@ def train_iql(
         action = batch.action.reshape(-1, 1)
 
         with torch.no_grad():
-            q_taken = q_target(batch.state).gather(1, action).reshape(-1)
+            q_taken = _target_forward(q_target, batch.state, eval_mode=targets_off).gather(1, action).reshape(-1)
+            # A27(c): under "off" the advantage's V(s) is its own eval-mode forward, taken HERE, before this step's V
+            # update, so the advantage still uses V from before its update.  Under "active" no forward is added: the
+            # advantage reuses the trained forward's ``v_pred`` below, as the registered loop always did.
+            v_advantage = (
+                _target_forward(value, batch.state, eval_mode=True).reshape(-1) if targets_off else None
+            )
 
         # 1. V: expectile regression of the target Q onto V.
         v_pred = value(batch.state).reshape(-1)
@@ -2005,7 +2061,7 @@ def train_iql(
 
         # 2. Q: TD regression onto r + gamma * V(s'), bootstrapping through every boundary.
         with torch.no_grad():
-            next_value = value(batch.next_state).reshape(-1)
+            next_value = _target_forward(value, batch.next_state, eval_mode=targets_off).reshape(-1)
             target = iql_targets(batch, next_value, gamma=IQL_GAMMA)
         q_pred = q(batch.state).gather(1, action).reshape(-1)
         q_loss = F.mse_loss(q_pred, target)
@@ -2016,9 +2072,7 @@ def train_iql(
         schedules["q"].step()
 
         # 3. Policy: advantage-weighted regression onto the logged action.
-        with torch.no_grad():
-            advantage = q_taken - v_pred.detach()
-            awr_weight = torch.clamp(torch.exp(IQL_BETA * advantage), max=IQL_WEIGHT_CLIP)
+        awr_weight = _awr_weight(q_taken, v_pred.detach() if v_advantage is None else v_advantage)
         log_probs = torch.log_softmax(policy(batch.state), dim=-1).gather(1, action).reshape(-1)
         policy_loss = -(awr_weight * log_probs).mean()
         optimisers["policy"].zero_grad(set_to_none=True)
@@ -2067,6 +2121,7 @@ def train_iql(
                 sum(p.numel() for module in (policy, q, value) for p in module.parameters())
             ),
             "training_rows": count,
+            "target_dropout": target_dropout,
         }
     )
 
@@ -2096,6 +2151,7 @@ def train_iql(
                 "weight_decay": WEIGHT_DECAY,
                 "grad_clip": GRAD_CLIP,
                 "device": str(device),
+                "target_dropout": target_dropout,
                 "window_means": list(means),
                 "plateaued": bool(plateaued),
                 "diagnostics": diagnostics,
