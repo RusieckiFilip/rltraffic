@@ -2647,6 +2647,15 @@ def _run_train(args: argparse.Namespace, out_dir: Path) -> int:
         else None
     )
     selected = training_streams(spec, dataset, component_streams=components)
+    # A27 (BRIEF_46 3.2): the overlap mixture trains only if its realised selection IS A27(e)'s design, and
+    # random_fresh only if it holds one distinct schedule per episode on its intersection (A27(d)) -- both registered
+    # checks, run before the prompt check and before any gradient step.
+    from offline.a27_arms import MIXTURE_DESIGN_FACTS, assert_distinct_schedules, assert_mixture_design_facts
+
+    if spec.tier == MIXTURE_DESIGN_FACTS["tier"]:
+        assert_mixture_design_facts(selected, top_decile_streams(selected))
+    if spec.tier == "random_fresh":
+        assert_distinct_schedules(tier_dirs(spec, args.corpus_root)[0], expected=int(spec.stream_count))
     # The prompt, the RTG scale and IQL's reward scale are all computed over the TRAINING SET, so
     # the declaration is checked after the selection and never before it (BRIEF_17 section 11, A4).
     declared = assert_declaration_matches_corpus(spec, selected)

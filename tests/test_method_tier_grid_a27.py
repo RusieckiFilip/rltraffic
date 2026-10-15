@@ -460,3 +460,64 @@ def test_a_registered_bc_checkpoint_regenerates_tensor_for_tensor_with_the_batch
     assert sorted(regenerated["model"]) == sorted(payload["model"])
     assert differing == [], f"first differing tensor: {differing[:1]}"
     assert regenerated["canonical_digest"] == payload["canonical_digest"]
+
+
+def test_the_overlap_mixture_refuses_to_train_unless_a27es_design_facts_reproduce(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``BRIEF_46`` 3.2: the declaration must reproduce A27(e)'s design facts exactly, and training refuses otherwise.
+
+    A fixture mixture under the real tier name, built from two fixture components whose directories carry the
+    ``__<source>__seed<N>`` shape: its kept decile cannot be A27(e)'s, so the call stops before any trainer runs."""
+    expert = write_tier_dir(tmp_path, "cf_hz1x1__mappo1000__seed101",
+                            episodes=[(1, -1.0, 100.0), (2, -2.0, 110.0)])
+    weaker = write_tier_dir(tmp_path, "cf_hz1x1__mappo500__seed101",
+                            episodes=[(1, -3.0, 120.0), (2, -4.0, 130.0)])
+    components = {
+        "mappo1000": fixture_spec("mappo1000", [expert.name], target_rtg=-6.0, rtg_scale=12.0),
+        "mappo500": fixture_spec("mappo500", [weaker.name], target_rtg=-18.0, rtg_scale=24.0),
+    }
+    mixture = fixture_spec("mix_m1000_m500", [expert.name, weaker.name], phase=2, subsample="mixture",
+                           components=("mappo1000", "mappo500"), stream_count=2)
+    spies = _install_spies(monkeypatch, call_through=False)
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
+    args = _train_args(tmp_path, "mix_m1000_m500", checkpoints=tmp_path / "p9_1_runs" / "checkpoints",
+                       methods="bc", artifact_prefix="p9_1")
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setitem(grid.TIERS, "mappo1000", components["mappo1000"])
+        patch.setitem(grid.TIERS, "mappo500", components["mappo500"])
+        patch.setitem(grid.A27_TIERS, "mix_m1000_m500", mixture)
+        patch.setattr(grid, "CONTEXT_LENGTH", CONTEXT)
+        with pytest.raises(ValueError, match="A27\\(e\\)'s design facts"):
+            grid._run_train(args, out_dir)
+    assert all(not s.calls for s in spies.values())
+
+
+def test_random_fresh_refuses_to_train_without_distinct_schedules_before_its_prompt_is_checked(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A27(d)'s check precedes the prompt check: the fixture logs one scripted action schedule in every episode."""
+    directory = write_tier_dir(tmp_path, "cf_hz1x1__random_fresh",
+                               episodes=[(1, -1.0, 100.0), (2, -2.0, 110.0)])
+    spec = fixture_spec("random_fresh", [directory.name], stream_count=2)
+    spies = _install_spies(monkeypatch, call_through=False)
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
+    args = _train_args(tmp_path, "random_fresh", checkpoints=tmp_path / "p9_1_runs" / "checkpoints",
+                       methods="bc", artifact_prefix="p9_1")
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setitem(grid.A27_TIERS, "random_fresh", spec)
+        patch.setattr(grid, "CONTEXT_LENGTH", CONTEXT)
+        with pytest.raises(ValueError, match="distinct per-intersection"):
+            grid._run_train(args, out_dir)
+    assert all(not s.calls for s in spies.values())
+
+
+def test_the_real_overlap_mixture_passes_the_design_facts_check_training_runs(mixture_selection: tuple[Any, ...]) -> None:
+    """The check ``_run_train`` runs, on the corpus: it must ACCEPT the real selection (P4a's band recorded beside)."""
+    from offline.a27_arms import assert_mixture_design_facts
+
+    measured = assert_mixture_design_facts(mixture_selection, grid.top_decile_streams(mixture_selection))
+    assert measured["weaker_source_kept"] == 6 and measured["p4a_band_1_to_19"] is True
+    assert measured["pool"] == {"mappo1000": 100, "mappo500": 100}

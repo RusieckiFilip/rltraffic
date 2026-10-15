@@ -204,3 +204,99 @@ def test_the_fresh_reference_has_500_distinct_generators_over_the_registered_see
     digests = {hashlib.sha256(rng.integers(0, 8, size=360).tobytes()).hexdigest() for rng in seen}
     assert len(seen) == len(TRAINING_SEEDS) * len(HELD_OUT_DRAWS) == 500
     assert len(digests) == 500
+
+
+# ----------------------------------------------------------------------
+# A27(e)'s design facts and A27(d)'s 200 distinct schedules -- checks every training path runs first
+# ----------------------------------------------------------------------
+
+
+def _mix_stream(source: str, seed: int, ret: float, n: int) -> Any:
+    from offline.offline_baselines import StreamReturn
+
+    return StreamReturn(dataset_dir=f"/c/cf_hz1x1__{source}__seed{seed}", episode_file=f"ep{n:06d}.npz", ix_id="ix0",
+                        ix_index=0, episode_index=n, flow_draw=n, group=(3, 2), total_return=float(ret))
+
+
+def _a27e_like() -> tuple[list[Any], list[Any]]:
+    """A selection whose kept decile is exactly A27(e)'s: 14 + 6 by seed, returns spanning [-6627, -5959]."""
+    kept_spec = [("mappo1000", 101, 5), ("mappo1000", 202, 6), ("mappo1000", 404, 1), ("mappo1000", 505, 2),
+                 ("mappo500", 101, 3), ("mappo500", 202, 1), ("mappo500", 404, 2)]
+    kept: list[Any] = []
+    n = 0
+    for source, seed, count in kept_spec:
+        for _ in range(count):
+            kept.append(_mix_stream(source, seed, -5959.0 - (668.0 * n / 19.0), n))
+            n += 1
+    rest = [_mix_stream("mappo1000" if i < 86 else "mappo500", 303, -7000.0 - i, 100 + i) for i in range(180)]
+    return kept + rest, kept
+
+
+def test_the_mixture_design_facts_are_a27es() -> None:
+    facts = arms.MIXTURE_DESIGN_FACTS
+    assert facts["tier"] == "mix_m1000_m500" and facts["expert_fraction"] == 0.50
+    assert facts["kept_decile"] == {"mappo1000": {"101": 5, "202": 6, "404": 1, "505": 2},
+                                    "mappo500": {"101": 3, "202": 1, "404": 2}}
+    assert facts["decile_returns"] == [-6627.0, -5959.0]
+    assert facts["pool"] == {"mappo1000": 100, "mappo500": 100}
+
+
+def test_the_design_facts_check_passes_on_a27es_composition_and_records_p4as_band() -> None:
+    selected, kept = _a27e_like()
+    measured = arms.assert_mixture_design_facts(selected, kept)
+    assert measured["kept_decile"] == arms.MIXTURE_DESIGN_FACTS["kept_decile"]
+    assert measured["weaker_source_kept"] == 6 and measured["p4a_band_1_to_19"] is True
+
+
+@pytest.mark.parametrize("perturb", ["swap_one_seed", "one_more_weaker", "returns_shifted", "pool_unbalanced"])
+def test_the_design_facts_check_refuses_any_other_composition(perturb: str) -> None:
+    selected, kept = _a27e_like()
+    if perturb == "swap_one_seed":
+        kept[0] = _mix_stream("mappo1000", 303, kept[0].total_return, 0)
+    elif perturb == "one_more_weaker":
+        kept[5] = _mix_stream("mappo500", 101, kept[5].total_return, 5)
+    elif perturb == "returns_shifted":
+        kept[-1] = _mix_stream("mappo500", 404, -6628.0, 19)
+    else:
+        selected = selected[:-1] + [_mix_stream("mappo1000", 303, -9000.0, 999)]
+    with pytest.raises(ValueError, match="A27\\(e\\)'s design facts"):
+        arms.assert_mixture_design_facts(selected, kept)
+
+
+def _write_schedule_tier(directory: Path, schedules: list[list[list[int]]]) -> Path:
+    """A minimal collected directory: a manifest and one .npz per episode carrying ix_ids and ix<i>_action."""
+    import json as _json
+
+    directory.mkdir(parents=True)
+    episodes = []
+    for index, columns in enumerate(schedules):
+        name = f"ep{index:06d}_seed1000_draw{index + 1}.npz"
+        arrays = {"ix_ids": np.asarray([f"ix{i}" for i in range(len(columns))], dtype=np.str_)}
+        for i, column in enumerate(columns):
+            arrays[f"ix{i}_action"] = np.asarray(column, dtype=np.int64)
+        np.savez(directory / name, **arrays)
+        episodes.append({"filename": name, "flow_draw": index + 1})
+    (directory / "manifest.json").write_text(_json.dumps({"episodes": episodes}), encoding="utf-8")
+    return directory
+
+
+def test_distinct_schedules_are_counted_per_intersection_and_jointly(tmp_path: Path) -> None:
+    schedules = [[[0, 1, 2], [3, 3, 3]], [[1, 1, 2], [3, 3, 4]], [[2, 1, 2], [3, 3, 5]]]
+    counts = arms.distinct_schedules(_write_schedule_tier(tmp_path / "tier", schedules))
+    assert counts == {"episodes": 3, "joint_distinct": 3, "per_intersection_distinct": {"ix0": 3, "ix1": 3}}
+    assert arms.assert_distinct_schedules(tmp_path / "tier", expected=3) == counts
+
+
+def test_one_repeated_intersection_schedule_refuses_the_tier(tmp_path: Path) -> None:
+    """A27(d): 200 distinct PER-INTERSECTION sequences -- a joint schedule that differs elsewhere does not rescue it."""
+    schedules = [[[0, 1, 2], [3, 3, 3]], [[1, 1, 2], [3, 3, 3]], [[2, 1, 2], [3, 3, 5]]]
+    counts = arms.distinct_schedules(_write_schedule_tier(tmp_path / "tier", schedules))
+    assert counts["joint_distinct"] == 3 and counts["per_intersection_distinct"]["ix1"] == 2
+    with pytest.raises(ValueError, match="distinct per-intersection"):
+        arms.assert_distinct_schedules(tmp_path / "tier", expected=3)
+
+
+def test_a_tier_of_the_wrong_size_is_refused(tmp_path: Path) -> None:
+    schedules = [[[0, 1]], [[1, 1]]]
+    with pytest.raises(ValueError, match="2 episodes"):
+        arms.assert_distinct_schedules(_write_schedule_tier(tmp_path / "tier", schedules), expected=200)

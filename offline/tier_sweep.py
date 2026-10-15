@@ -1785,6 +1785,17 @@ def assert_a27_baselines_run(args: Any, tier: str, plan: Sequence[tuple[str, Any
         )
 
 
+def _assert_random_fresh_is_distinct(tier: str, corpus_root: str | Path) -> None:
+    """A27(d)'s registered check before any training on ``random_fresh``: one distinct schedule per episode on every
+    intersection.  Every other tier passes through untouched."""
+    if tier != "random_fresh":
+        return
+    from offline.a27_arms import assert_distinct_schedules
+
+    spec = tier_spec(tier)
+    assert_distinct_schedules(tier_dirs(spec, corpus_root)[0], expected=int(spec.episode_count))
+
+
 def _seeds_of(args: Any) -> tuple[int, ...]:
     from offline.dt_gate import TRAINING_SEEDS
 
@@ -2116,6 +2127,7 @@ def _run_train(args: Any) -> int:
                 f"{len(existing)} planned checkpoint(s) already exist, first {existing[0]}; an A27 run never "
                 "overwrites or skips a checkpoint (BRIEF_46 3.1)"
             )
+    _assert_random_fresh_is_distinct(tier, args.corpus_root)
     parts = tier_parts(tier, args.corpus_root, sim_config=args.sim_config)
     stacked = parts["stack"]()
     checkpoints = Path(args.checkpoint_dir)
@@ -2206,6 +2218,7 @@ def _run_train_baselines(args: Any) -> int:
     }
     if a27_run:
         assert_a27_baselines_run(args, tier, plan, [path for paths in planned.values() for path in paths])
+    _assert_random_fresh_is_distinct(tier, args.corpus_root)
     parts = tier_parts(tier, args.corpus_root, sim_config=args.sim_config)
     dataset = parts["dataset"]
     group = next(iter(dataset.groups))

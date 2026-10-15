@@ -186,11 +186,14 @@ def test_an_a27_call_refuses_a_checkpoint_path_that_exists(
 def test_registered_arms_train_on_the_a27_tier_under_their_registered_names(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """On ``random_fresh`` the TIER is what is new, so the registered recipes keep their names (A27(d))."""
+    """On ``random_fresh`` the TIER is what is new, so the registered recipes keep their names (A27(d)).
+
+    One episode per draw: A27(d)'s distinct-schedule check (C4a) refuses a tier whose episodes share a schedule, and
+    the scripted fixture's schedule is a function of the draw."""
     root = tmp_path / "corpus"
-    fx.write_synthetic_tier(root)
+    fx.write_synthetic_tier(root, episodes_per_draw=1)
     monkeypatch.setattr(ts, "A27_TIERS", {"random_fresh": ts.TierSpec(
-        tier="random_fresh", dirs=(fx.RANDOM_DIR,), subsample="none", episode_count=6, ladder_att=math.nan,
+        tier="random_fresh", dirs=(fx.RANDOM_DIR,), subsample="none", episode_count=3, ladder_att=math.nan,
         mean_training_return=math.nan)})
     monkeypatch.setattr(ts, "adjacency_for_tier", lambda *args, **kwargs: None)
     iql, bc = fx.install_train_spies(monkeypatch)
@@ -283,3 +286,20 @@ def test_the_dt_trainer_refuses_an_existing_checkpoint_on_an_a27_tier(tmp_path: 
     with pytest.raises(FileExistsError, match="grid4x4_random_fresh_dt_nomix_seed101.pt"):
         ts._run_train(_dt_args(tmp_path, "p9_1_runs"))
     assert not calls and (checkpoints / "grid4x4_random_fresh_dt_nomix_seed101.pt").read_bytes() == b"earlier"
+
+
+def test_train_baselines_refuses_a_random_fresh_tier_without_distinct_schedules(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A27(d)'s registered check runs before any training: the synthetic tier logs the same scripted actions in the two
+    episodes of a draw, so it cannot hold one distinct schedule per episode."""
+    root = tmp_path / "corpus"
+    fx.write_synthetic_tier(root)
+    monkeypatch.setattr(ts, "A27_TIERS", {"random_fresh": ts.TierSpec(
+        tier="random_fresh", dirs=(fx.RANDOM_DIR,), subsample="none", episode_count=6, ladder_att=math.nan,
+        mean_training_return=math.nan)})
+    monkeypatch.setattr(ts, "adjacency_for_tier", lambda *args, **kwargs: None)
+    iql, bc = _raising_spies(monkeypatch)
+    with pytest.raises(ValueError, match="distinct per-intersection"):
+        ts._run_train_baselines(_args(tmp_path, root, "--methods", "bc,iql", tier="random_fresh"))
+    assert not iql.calls and not bc.calls

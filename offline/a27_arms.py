@@ -28,6 +28,7 @@ choices and loaders, and the campaign module imports both of them; the vocabular
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from fractions import Fraction
 from pathlib import Path
@@ -35,6 +36,10 @@ from typing import Any, Callable, Mapping, Sequence
 
 __all__ = [
     "A27_RECIPES",
+    "MIXTURE_DESIGN_FACTS",
+    "assert_distinct_schedules",
+    "assert_mixture_design_facts",
+    "distinct_schedules",
     "BUDGET_CEILING_STEPS",
     "REGISTERED_RECIPES",
     "REGISTERED_STEPS",
@@ -216,6 +221,110 @@ def derive_arm(
             "than training under an invented name"
         )
     return matches[0]
+
+
+# ----------------------------------------------------------------------
+# A27(e)'s design facts and A27(d)'s distinct schedules -- the checks every training path runs first
+# ----------------------------------------------------------------------
+
+#: A27(e)'s design facts, as the registration states them (computed by the coordinator on 2026-10-15, before the tag,
+#: with the registered functions).  The overlap mixture is refused unless its realised selection reproduces them
+#: EXACTLY; ``p4a_band_1_to_19`` is the plan's risk-register reading of the same fact (the weaker source contributes 1 to
+#: 19 of the 20 kept streams), recorded beside it, never instead of it.
+MIXTURE_DESIGN_FACTS: Mapping[str, Any] = {
+    "tier": "mix_m1000_m500",
+    "expert_fraction": 0.50,
+    "stronger": "mappo1000",
+    "weaker": "mappo500",
+    "pool": {"mappo1000": 100, "mappo500": 100},
+    "kept_decile": {
+        "mappo1000": {"101": 5, "202": 6, "404": 1, "505": 2},
+        "mappo500": {"101": 3, "202": 1, "404": 2},
+    },
+    "decile_returns": [-6627.0, -5959.0],
+}
+
+
+def _source_and_seed(dataset_dir: str) -> tuple[str, str]:
+    """``cf_hz1x1__<source>__seed<s>`` -> ``(source, s)``; a directory without that shape is refused."""
+    name = Path(str(dataset_dir)).name
+    parts = name.split("__")
+    if len(parts) != 3 or not parts[2].startswith("seed"):
+        raise ValueError(f"{name!r} is not a <corpus>__<source>__seed<N> directory, so its source cannot be read")
+    return parts[1], parts[2][len("seed"):]
+
+
+def assert_mixture_design_facts(selected: Sequence[Any], kept: Sequence[Any]) -> dict[str, Any]:
+    """Refuse unless the realised overlap mixture is A27(e)'s: pool 100 + 100, kept decile 14 + 6 by behaviour seed,
+    decile returns ``[-6627, -5959]``.  Returns the measured composition (with P4a's band beside it)."""
+    pool: dict[str, int] = {}
+    for stream in selected:
+        source, _ = _source_and_seed(stream.dataset_dir)
+        pool[source] = pool.get(source, 0) + 1
+    composition: dict[str, dict[str, int]] = {}
+    for stream in kept:
+        source, seed = _source_and_seed(stream.dataset_dir)
+        composition.setdefault(source, {})
+        composition[source][seed] = composition[source].get(seed, 0) + 1
+    composition = {source: dict(sorted(seeds.items())) for source, seeds in sorted(composition.items())}
+    returns = [float(stream.total_return) for stream in kept]
+    measured = {
+        "pool": dict(sorted(pool.items())),
+        "kept_decile": composition,
+        "decile_returns": [min(returns), max(returns)] if returns else [],
+    }
+    expected = {key: MIXTURE_DESIGN_FACTS[key] for key in ("pool", "kept_decile", "decile_returns")}
+    if measured != json.loads(json.dumps(expected)):
+        raise ValueError(
+            f"the overlap mixture does not reproduce A27(e)'s design facts: measured {measured}, registered {expected}; "
+            "a mixture the registration did not describe may not train"
+        )
+    weaker = sum(composition.get(str(MIXTURE_DESIGN_FACTS["weaker"]), {}).values())
+    return {**measured, "weaker_source_kept": weaker, "p4a_band_1_to_19": 1 <= weaker <= 19}
+
+
+def distinct_schedules(directory: str | Path) -> dict[str, Any]:
+    """How many distinct action sequences a collected tier holds, per intersection and jointly.
+
+    Read from the raw ``.npz`` (``ix<i>_action``, int64) of every episode the manifest lists, digested by
+    ``offline.nortg_decomposition.action_sequence_sha256`` -- on one column for an intersection, on the stacked array
+    for the joint schedule -- the digest A27(d)'s P3a names.
+    """
+    import numpy as np
+
+    from offline.nortg_decomposition import action_sequence_sha256
+
+    root = Path(directory)
+    manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+    per_ix: dict[str, set[str]] = {}
+    joint: set[str] = set()
+    for entry in manifest["episodes"]:
+        with np.load(root / str(entry["filename"])) as arrays:
+            ids = [str(v) for v in arrays["ix_ids"].tolist()]
+            columns = [np.asarray(arrays[f"ix{i}_action"], dtype=np.int64) for i in range(len(ids))]
+        for ix_id, column in zip(ids, columns):
+            per_ix.setdefault(ix_id, set()).add(action_sequence_sha256(column.reshape(-1, 1)))
+        joint.add(action_sequence_sha256(np.stack(columns, axis=1)))
+    return {
+        "episodes": len(manifest["episodes"]),
+        "joint_distinct": len(joint),
+        "per_intersection_distinct": {ix_id: len(values) for ix_id, values in sorted(per_ix.items())},
+    }
+
+
+def assert_distinct_schedules(directory: str | Path, *, expected: int) -> dict[str, Any]:
+    """A27(d)'s registered check, run before any training: *expected* episodes, *expected* distinct sequences on EVERY
+    intersection."""
+    counts = distinct_schedules(directory)
+    if counts["episodes"] != int(expected):
+        raise ValueError(f"{directory} holds {counts['episodes']} episodes; A27(d)'s tier holds {int(expected)}")
+    short = {ix: n for ix, n in counts["per_intersection_distinct"].items() if n != int(expected)}
+    if short:
+        raise ValueError(
+            f"{directory}: intersections {short} do not hold {int(expected)} distinct per-intersection action "
+            "sequences (A27(d)); the tier is refused before any training"
+        )
+    return counts
 
 
 # ----------------------------------------------------------------------
