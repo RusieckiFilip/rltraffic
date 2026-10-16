@@ -271,3 +271,53 @@ session, with `OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`; no mutation campaign while 
 Status from disk (`status` subcommands). At G4 both artifacts are built from the run worktree and copied byte for byte (your §4).
 The "for the paper" section answers A27(f)'s two sentences and A27(h)'s, every ρ beside its registered value, every moved verdict
 named with the pair that moves it (hz1x1's clause 3 by A.2.1); the multiplicity sentence uses the selectable basis (A.3.7).
+
+---
+
+# ✅ AMENDMENT B — 2026-10-16, C8 verified: `p92-sumo` CLEARED from the run worktree at `03b722c`; `p92-shift` waits for ONE more commit, C9 — the stall remedy for the engine-destructor hang — and is cleared by Amendment C
+
+Written against `docs/returns/P9.2-code.md`'s C8 section and `docs/returns/P9.2-preflight.md` at `03b722c`, read from disk.
+
+## B.1 C8 — verified by the coordinator, from disk
+- **The seven task files, every simulator gate set, one process, one thread, in a scratch git copy of `03b722c`: 214 passed,
+  1 skipped** (the artifact T-regress, gated until G4) in 235 s.
+- **Two mutants of the coordinator's, each beside an unmutated control copy:** `random_fresh_factory` seeded by `default_rng(seed)`
+  without the draw id → killed by `test_the_random_fresh_schedule_depends_on_seed_and_draw_only` and
+  `test_the_random_fresh_schedule_is_default_rng_seed_draw_by_hand` (control 61 / 61); hz1x1's clause 3 mapping clause 2 FAILED to the
+  "premise holds" reading instead of VOID → killed by 13 tests, the registered-pair guard
+  (`test_the_registered_pair_reproduces_every_committed_rho_interval_and_clause_block`) among them (control 51 passed, 1 gated skip).
+- Your M26–M32 table, the real eight-episode replica gate (draws 1001 and 1000 reproduced on all 29 / 31 fields), and `check-gate`
+  refusing the sandbox's `git_dirty` record are accepted as reported; the run worktree's record is written outside the sandbox.
+- **The run worktree** `/home/filip/rltraffic-p92-run`, created by the coordinator, detached at `03b722c`, clean; its code equals
+  `7e4571a` (C8b): `git diff --name-only 7e4571a 03b722c` lists only `docs/returns/`.
+
+## B.2 The token — `p92-sumo` CLEARED; `p92-shift` NOT YET
+- **`p92-sumo`** — your G2 packet's §4 (b) and (c), with `BRIEF_47 Amendment B` in the token's text. 3 shards. It rolls 400 SUMO
+  cells and 200 CityFlow cells; the CityFlow ones end in `probe_episode`'s immediate engine destruction, the path exposed to the hang
+  of B.3, so the author watches `status` and reports a stall rather than resuming it himself.
+- **`p92-shift`** — after C9 (B.3), from a SECOND run worktree at C9's commit (`/home/filip/rltraffic-p92-run2`, created by the
+  coordinator): the shift report must be built from the tree that rolled its cells (J1(c)), and `p92-sumo`'s tree stays at `03b722c`.
+
+## B.3 C9 — the stall remedy for the demand-shift evaluation (a run-feasibility requirement, not a review finding)
+CityFlow's `Engine::~Engine()` can wait forever at a two-party barrier when its controller thread has already left its loop
+(`docs/notes/P5.3c_HANG_2026-09-30.md`; `DEFERRED` 104: ≈ 2 in 1,200 episodes under load). On 2026-10-16 it hung P9.3's A.7 sweep
+once in 27 episodes, under load. It changes no number (the hang follows the episode; every write is atomic; the engine is seeded),
+but `p92-shift` destroys about 31,000 engines — two routes per cell, each freeing its engine right after the last step — so at that
+rate its shards would stall dozens of times. **Required, in `offline/demand_shift.py`, its driver and their tests (C9; do not touch
+`offline/sumo_anchor_rescore.py` or its driver):**
+1. `evaluate_cells` arms `faulthandler.dump_traceback_later(600, exit=True)` before each cell and cancels it after (600 s is more
+   than a hundred times the slowest cell measured at G2, 3.3 s for both routes), with the shard's log as the dump's file.
+2. The shift driver runs each shard under a restart loop: a shard that exits with the watchdog's dump in its log is restarted
+   (resuming from the records on disk), at most 20 times per shard, each restart logged with the time and the dump's top frame; any
+   other non-zero exit stops the shard as now; a restart needs no new token.
+3. Tests (red first): a fake cell that blocks in a C-level wait is cut by the watchdog and the shard completes on restart; a fake cell
+   that raises is not restarted; the watchdog is cancelled between cells, so a healthy shard whose total time exceeds 600 s is never
+   killed; the restart cap stops a shard that hangs on every attempt.
+4. One mutant per item (the watchdog never armed; the restart loop removed; the cancel removed), each killed.
+Then the seven task files and the new tests green (one process, one thread) → **"P9.2 C9 ready"** → the coordinator verifies,
+creates `/home/filip/rltraffic-p92-run2` at C9's commit, and clears `p92-shift` in Amendment C.
+
+## B.4 Next for you
+Status from disk while `p92-sumo` runs (no whole suite, no mutation campaign in this session while it runs: one pytest process at a
+time, `OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`); C9 meanwhile; G4 (the anchors' artifact, from `/home/filip/rltraffic-p92-run`) once
+`p92-sumo` completes.
