@@ -14,11 +14,12 @@
 #      collect    CPU, ~15 min: collect-random-fresh on hz1x1 and grid4x4 (draws 1-200, --random-rng per-episode), then
 #                 declare the mixture and both random_fresh tiers.  STOP: plan Q2's reviewed commit types hz1x1
 #                 random_fresh's prompt from its declaration before the next stage can pass its check.
-#      campaign   GPU then CPU: train every missing run serially (~39 GPU-hours: the plan's blocks with G2's two full
-#                 matched runs, bc_m 413 s and iql_m 2,077 s, docs/returns/P9.1-preflight.md); then
-#                 declare the evaluation's three manifests from this one process; then evaluate the 53 new cells and
-#                 re-roll the 21 old hz1x1 cells, each with WORKERS shards (default 6, at most 6: PROJECT_PLAN section
-#                 10's cap per session); then P3a's registered references and the status.  Resumable: everything done
+#      campaign   GPU then CPU: train every missing run serially (~40.5 GPU-hours, sized on G2's load-recorded
+#                 re-take -- bc_m 543.0 s, iql_m 2,187.3 s -- by the author's Q10 ruling, BRIEF_46 Amendment B,
+#                 docs/returns/P9.1-preflight.md); then declare the evaluation's three manifests from this one process;
+#                 then evaluate the 53 new cells and re-roll the 38 old hz1x1 cells (18,200 episodes: the plan's 21 and
+#                 Q8's 17), each with WORKERS shards (default 6, at most 6: PROJECT_PLAN section 10's cap per session);
+#                 then P3a's registered references and the status.  Resumable: everything done
 #                 on disk is skipped, a half-written run is refused.  Evaluation starts only after the LAST training run:
 #                 a run in progress leaves its .partial on disk, which the status refuses by design.
 #      d4rl       GPU, ~10 min: P8.3's IQL arm re-run as iql_t (--iql-target-dropout off), five seeds, in P8.3's venv,
@@ -34,9 +35,14 @@
 #    datasets_v11/cf_hz1x1__random_fresh and cf_grid4x4__random_fresh (collect), and /home/filip/d4rl-calib-out/p9_1/
 #    (d4rl).  Nothing under output/ is deleted, moved or overwritten; a corpus directory that exists is refused.
 #
-# 2. HANGS (DEFERRED 104): CityFlow's engine destructor can hang at an env's close.  A hung evaluation worker is
-#    killed by hand (its pane, Ctrl-C) and the stage started again with a new token: every finished episode is on disk
-#    and is skipped; an episode in flight is rolled again from scratch.
+# 2. HANGS (DEFERRED 104; BRIEF_46 Amendment B, B.3): CityFlow's engine destructor can hang at an env's close, holding
+#    the GIL.  Every worker that rolls CityFlow episodes -- the evaluate and old-cells shards, P3a's references -- runs
+#    under `restarting`: armed by --stall-dump (offline/stall_guard.py), a worker with no env reset or step for 600 s
+#    writes every thread's stack to $LOGS/<worker>.stall<n>.txt and exits 1, and the driver starts it again, with no
+#    new token; it resumes from the files on disk (route (ii) and the old cells per episode, route (i) and P3a per
+#    cell, so a cell in flight is rolled again from scratch -- seeded, the same values).  At most MAX_RESTARTS (20) per
+#    worker, each logged in $LOGS/restarts.log with the time and the dumped stack; any other non-zero exit stops the
+#    stage as before.  The collect stage runs without it (B.3).
 
 set -euo pipefail
 
@@ -50,6 +56,10 @@ WORKERS=${WORKERS:-6}
 D4RL_PY=/home/filip/d4rl-calib-venv/bin/python
 D4RL_DATA=/home/filip/d4rl-calib-data/halfcheetah_medium_expert-v2.hdf5
 D4RL_OUT=/home/filip/d4rl-calib-out/p9_1
+# B.3: the restarts allowed per worker, and the first characters faulthandler writes on a timeout -- the only signal
+# that restarts one (offline/stall_guard.py BANNER).
+MAX_RESTARTS=20
+STALL_BANNER='Timeout ('
 
 WORK_TREE=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 
@@ -136,10 +146,42 @@ run_logged() {
   echo "$label: ok"
 }
 
+# B.3: run one worker with --stall-dump; while it exits 1 with faulthandler's banner at the head of its own fresh stall
+# file (no progress: offline/stall_guard.py), log the time and the dumped stack to $LOGS/restarts.log and start it again
+# -- it resumes from the files on disk -- at most MAX_RESTARTS times.  Any other exit is returned as it is: 0 goes on,
+# anything else stops the stage as before.
+restarting() {
+  local label=$1 restarts=0 code dump first
+  shift
+  while :; do
+    dump=$LOGS/$label.stall$restarts.txt
+    code=0
+    "$@" --stall-dump "$dump" || code=$?
+    [ "$code" -ne 0 ] || return 0
+    first=$(head -c "${#STALL_BANNER}" "$dump" 2>/dev/null || true)
+    if [ "$code" -ne 1 ] || [ "$first" != "$STALL_BANNER" ]; then
+      return "$code"
+    fi
+    if [ "$restarts" -ge "$MAX_RESTARTS" ]; then
+      printf '%s %s: no progress again after %s restarts; stopping (its stack in %s)\n' \
+        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$label" "$MAX_RESTARTS" "$dump" >>"$LOGS/restarts.log"
+      echo "$label: no progress after $MAX_RESTARTS restarts; stopping (log $LOGS/restarts.log)" >&2
+      return 1
+    fi
+    restarts=$((restarts + 1))
+    {
+      printf '%s %s: no progress -- its stall timeout fired (%s); restart %s of at most %s; the dumped stack:\n' \
+        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$label" "$dump" "$restarts" "$MAX_RESTARTS"
+      sed 's/^/    /' "$dump"
+    } >>"$LOGS/restarts.log"
+    echo "$label: restart $restarts of at most $MAX_RESTARTS (no progress; its stack in $dump)" >&2
+  done
+}
+
 shards() {
   local what=$1 pids=() k code=0
   for k in $(seq 0 $((WORKERS - 1))); do
-    cr "$what" --shard "$k" --of "$WORKERS" >"$LOGS/${what}_shard$k.log" 2>&1 &
+    restarting "${what}_shard$k" cr "$what" --shard "$k" --of "$WORKERS" >"$LOGS/${what}_shard$k.log" 2>&1 &
     pids+=("$!")
   done
   for k in "${!pids[@]}"; do
@@ -164,7 +206,7 @@ case "$STAGE" in
     run_logged declare_evaluation cr declare-evaluation
     shards evaluate
     shards old-cells
-    run_logged p3a_references cr p3a-references
+    run_logged p3a_references restarting p3a_references cr p3a-references
     status_code=0
     cr status >"$LOGS/status.json" 2>"$LOGS/status.err" || status_code=$?
     [ "$status_code" -eq 0 ] || fail "the status refused with $status_code (log $LOGS/status.err)"

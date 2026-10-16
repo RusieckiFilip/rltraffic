@@ -137,3 +137,122 @@ def test_the_campaign_keeps_a_unix_time_gpu_trace_from_before_training_to_the_en
     assert body.index("start_trace") < body.index("run_logged train")
     assert 'date -u +%s.%N' in code and 'nvidia-smi --query-gpu=memory.used,utilization.gpu' in code
     assert '"$LOGS/gpu_trace.csv"' in code and "trap stop_trace EXIT" in code
+
+
+# ----------------------------------------------------------------------
+# B.3 (BRIEF_46 Amendment B; DEFERRED 104): a worker without progress is restarted, nothing else is
+# ----------------------------------------------------------------------
+
+FAKE_WORKER = '''
+import argparse, ctypes, sys, time
+from pathlib import Path
+from offline.stall_guard import StallGuard
+
+parser = argparse.ArgumentParser()
+parser.add_argument("mode")
+parser.add_argument("state")
+parser.add_argument("--stall-dump", required=True)
+args = parser.parse_args()
+state = Path(args.state)
+runs = int(state.read_text()) + 1 if state.exists() else 1
+state.write_text(str(runs))
+guard = StallGuard(args.stall_dump, seconds=1.0, rearm_seconds=0.0)
+if args.mode == "stall-always" or (args.mode == "stall-once" and runs == 1):
+    ctypes.PyDLL(None).sleep(60)  # a C-level wait holding the GIL, as Engine::~Engine() at its barrier
+if args.mode == "fail":
+    sys.exit(3)
+if args.mode == "raise":
+    raise RuntimeError("an ordinary failure: exit 1 and no banner")
+if args.mode == "healthy":
+    for _ in range(12):
+        time.sleep(0.25)
+        guard.progress()
+guard.cancel()
+print("done", runs)
+'''
+
+
+def _driver_function(name: str) -> str:
+    match = re.search(rf"^{name}\(\) {{\n.*?^}}\n", DRIVER.read_text(encoding="utf-8"), flags=re.MULTILINE | re.DOTALL)
+    assert match, f"no {name} function"
+    return match.group(0)
+
+
+def _driver_constant(name: str) -> str:
+    match = re.search(rf"^{name}=.*$", DRIVER.read_text(encoding="utf-8"), flags=re.MULTILINE)
+    assert match, f"no {name}"
+    return match.group(0)
+
+
+def _restarting(tmp_path: Path, mode: str, *, max_restarts: str | None = None) -> tuple[int, Path]:
+    """The driver's own ``restarting`` function, cut out of the driver and run around the fake worker."""
+    import sys
+
+    logs = tmp_path / "logs"
+    logs.mkdir()
+    worker = tmp_path / "worker.py"
+    worker.write_text(FAKE_WORKER, encoding="utf-8")
+    script = "\n".join([
+        "set -euo pipefail", f"LOGS={logs}", _driver_constant("STALL_BANNER"), _driver_constant("MAX_RESTARTS"),
+        *([f"MAX_RESTARTS={max_restarts}"] if max_restarts else []), _driver_function("restarting"),
+        "code=0",
+        f'restarting w {sys.executable} -P {worker} {mode} {tmp_path / "state"} >"$LOGS/w.log" 2>&1 || code=$?',
+        'echo "exit=$code"'])
+    result = subprocess.run(["bash", "-c", script], capture_output=True, text=True, timeout=120,
+                            env={**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[1])})
+    assert result.stdout.startswith("exit="), result.stderr
+    return int(result.stdout.strip().split("=")[1]), logs
+
+
+def test_the_cap_is_twenty_restarts_per_worker_and_the_banner_is_the_guards() -> None:
+    from offline.stall_guard import BANNER
+
+    assert _driver_constant("MAX_RESTARTS") == "MAX_RESTARTS=20"
+    assert _driver_constant("STALL_BANNER") == f"STALL_BANNER='{BANNER}'"
+
+
+def test_a_worker_blocked_in_a_c_level_wait_is_restarted_and_completes(tmp_path: Path) -> None:
+    code, logs = _restarting(tmp_path, "stall-once")
+    assert code == 0 and (tmp_path / "state").read_text() == "2"
+    assert (logs / "w.stall0.txt").read_text().startswith("Timeout (")
+    assert (logs / "w.stall1.txt").read_text() == ""
+    log = (logs / "restarts.log").read_text()
+    assert re.match(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ w: no progress .* restart 1 of at most 20", log)
+    assert "    Timeout (0:00:01)!" in log and "worker.py" in log and log.count(" restart ") == 1
+    assert "done 2" in (logs / "w.log").read_text()
+
+
+@pytest.mark.parametrize(("mode", "expected"), [("fail", 3), ("raise", 1)])
+def test_a_failing_worker_is_not_restarted(mode: str, expected: int, tmp_path: Path) -> None:
+    """Exit 3, and exit 1 from an exception -- faulthandler's own code, but no banner: one run, the code passed up."""
+    code, logs = _restarting(tmp_path, mode)
+    assert code == expected and (tmp_path / "state").read_text() == "1"
+    assert not (logs / "restarts.log").exists() and (logs / "w.stall0.txt").read_text() == ""
+
+
+def test_a_healthy_worker_is_never_killed(tmp_path: Path) -> None:
+    code, logs = _restarting(tmp_path, "healthy")
+    assert code == 0 and (tmp_path / "state").read_text() == "1"
+    assert not (logs / "restarts.log").exists() and (logs / "w.stall0.txt").read_text() == ""
+
+
+def test_a_worker_that_stalls_past_the_cap_stops_the_stage(tmp_path: Path) -> None:
+    code, logs = _restarting(tmp_path, "stall-always", max_restarts="2")
+    assert code != 0 and (tmp_path / "state").read_text() == "3"
+    log = (logs / "restarts.log").read_text()
+    assert log.count(" restart ") == 2 and "after 2 restarts; stopping" in log
+
+
+def test_every_worker_that_rolls_cityflow_episodes_runs_under_the_restart_loop_and_nothing_else_does() -> None:
+    """Route (i) and (ii) (the evaluate shards), the old cells, and P3a's registered references; not the collection
+    (B.3: it runs without the remedy), the training, the declarations or the D4RL re-run."""
+    code = "\n".join(_code())
+    assert 'restarting "${what}_shard$k" cr "$what" --shard "$k" --of "$WORKERS"' in code
+    body = _branch("campaign")
+    assert "run_logged p3a_references restarting p3a_references cr p3a-references" in body
+    assert body.count("restarting") == 1
+    for stage in ("collect", "d4rl"):
+        assert "restarting" not in _branch(stage)
+    for line in _code():
+        if re.search(r"\bcr (train|declare|declare-evaluation|collect-random-fresh)\b", line):
+            assert "restarting" not in line, line

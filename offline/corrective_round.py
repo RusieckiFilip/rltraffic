@@ -1545,7 +1545,13 @@ def build_parser() -> Any:
     old_cells_cmd = sub.add_parser("old-cells", allow_abbrev=False)
     old_cells_cmd.add_argument("--shard", type=int, default=0)
     old_cells_cmd.add_argument("--of", type=int, default=1)
-    sub.add_parser("p3a-references", allow_abbrev=False)
+    p3a_cmd = sub.add_parser("p3a-references", allow_abbrev=False)
+    # B.3 (BRIEF_46 Amendment B; DEFERRED 104): the three subcommands that roll CityFlow episodes arm the no-progress
+    # watchdog (offline/stall_guard.py) on this file; the driver restarts a worker whose file holds its dump.
+    for rolling in (evaluate_cmd, old_cells_cmd, p3a_cmd):
+        rolling.add_argument("--stall-dump", type=Path, default=None,
+                             help="arm offline.stall_guard on this file: after 600 s without an env reset or step the "
+                                  "worker writes every thread's stack here and exits 1")
     preflight_cmd = sub.add_parser("preflight", allow_abbrev=False)
     preflight_cmd.add_argument("--scratch", type=Path, required=True)
     preflight_cmd.add_argument("--device", default=None)
@@ -1559,6 +1565,10 @@ def main(argv: Any = None) -> int:
     args = build_parser().parse_args(argv)
     roots = Roots(repo_root=args.repo_root, output_root=args.output_root, corpus_root=args.corpus_root,
                   draws_root=args.draws_root)
+    if getattr(args, "stall_dump", None) is not None:
+        from offline import stall_guard
+
+        stall_guard.install(args.stall_dump)
     try:
         if args.command == "check":
             result: Any = check(roots, stage=args.stage)
