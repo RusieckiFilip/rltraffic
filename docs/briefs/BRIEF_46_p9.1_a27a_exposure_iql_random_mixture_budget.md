@@ -231,3 +231,23 @@ measures more than one hour in total, stop and say so — do not skip silently.
 ## 7. Return Packets
 `docs/returns/P9.1-code.md` (M1) and `docs/returns/P9.1.md` (M2), by `docs/returns/TEMPLATE.md`, each with the AI-assistance record
 (`CLAUDE.md` §8). State which A27 section each number answers and which amendments of this brief the packet was written against.
+
+---
+
+# ℹ️ AMENDMENT A — 2026-10-16 (no gate): a timing window you may have used was loaded by the coordinator, and the machine-load rule while P9.2's and P9.3's runs go
+
+**A contaminated window.** Between about 11:28 and 12:10 on 2026-10-16 the coordinator's verification runs (P9.2's and P9.3's test
+files and mutants, several of which hung) and two review mandates loaded the machine: the 1-minute load average reached **33.6 at
+11:46** on 16 CPUs. Your `time_iqlm.py` was running in that window (started about 11:19, seen at 94 % CPU at 11:50). **No timing taken
+in that window is quotable**, in the pre-flight or anywhere else: re-take it, with the canary before and after. The fault is the
+coordinator's; the window is recorded in `PROJECT_PLAN` §8 (2026-10-16).
+
+**From now until P9.2's and P9.3's Phase A runs have ended** (P9.3's teachers start today, about 52 minutes on 5 CPU workers, then its
+corpus on 1; P9.2's shards, 6 workers for up to about 3.5 h, start after its C8):
+1. Beside every timing you quote, record the 1-minute load average (`uptime`) at its start and at its end. **A timing whose load
+   average exceeds 12 at either end is not quotable.**
+2. At most one pytest process at a time in your session, with `OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`; no mutation campaign while a
+   timing runs. Today's hung test processes waited on futexes at about 0 % CPU while about five test processes ran at once — the
+   signature of an unpinned forked worker, which `experiments/runner.py:limit_torch_threads` documents.
+3. CPU workers: §10's cap of 12 across the round still binds. Your GPU training stage is one process; a CPU evaluation stage of yours
+   uses at most `12 − (workers running in P9.2 and P9.3)`, and states the number it used.
