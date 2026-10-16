@@ -532,6 +532,7 @@ def build_random_fresh(src: Sources) -> dict[str, Any]:
         "grid4x4": cv.p3a_beside(src.p3a[grid_dt], training=src.schedules["grid4x4"], per_intersection=True, references={
             "registered_five_schedule": src.p3a[tst.ANCHOR_CELL],
             "random_fresh": src.p3a["p9_1:grid4x4:behaviour@random_fresh"]}),
+        "hz1x1_original_tier_p5_3b": src.registered.get("p5_3b_old_tier"),
     }
     p3b = [
         {**cv.contrast_entry(src.cells["p9_1:hz1x1:iql@random_fresh"], src.cells[hz_dt], tier="random_fresh"),
@@ -774,10 +775,24 @@ def flag_paused_runs(runs: Sequence[Mapping[str, Any]], gaps: Sequence[Mapping[s
     return out
 
 
+P5_3B_ARTIFACT = "docs/data/p5_3b_nortg.json"
+
+
+def p5_3b_old_tier(repo_root: str | Path) -> dict[str, Any]:
+    """P5.3b's open-loop numbers on the ORIGINAL hz1x1 random tier, copied from its committed artifact: the distinct
+    action sequences per seed of ``dt@random`` and the attractor (A27(d)'s beside-table sits next to them)."""
+    path = Path(repo_root) / P5_3B_ARTIFACT
+    identity = json.loads(path.read_text(encoding="utf-8"))["mechanism"]["action_identity"]
+    return {"source": f"{P5_3B_ARTIFACT} mechanism.action_identity", "sha256": _sha256(path),
+            "n_distinct_action_sequences": {key: value for key, value in identity["n_distinct_action_sequences"].items()
+                                            if key.startswith("dt@random seed ")},
+            "attractor": identity["attractor"]}
+
+
 #: The committed records every artifact may read, digested into its inputs.
 COMMITTED_INPUTS: tuple[str, ...] = (
     "docs/data/p4_4_baselines.json", "docs/data/p4_6_grid.json", "docs/data/p4_7_grid.json", P4_DT_RECORD,
-    *HZ1X1_TRAINING_RECORDS.values(), P5_2B_ARTIFACT, "docs/data/p8_3_d4rl_calibration.json",
+    *HZ1X1_TRAINING_RECORDS.values(), P5_2B_ARTIFACT, "docs/data/p8_3_d4rl_calibration.json", P5_3B_ARTIFACT,
 )
 
 
@@ -844,7 +859,7 @@ def load_sources(roots: cr.Roots, *, d4rl_path: str | Path | None) -> Sources:
     d4rl = d4rl_section(d4rl_path)
     p4_4 = json.loads((Path(roots.repo_root) / "docs/data/p4_4_baselines.json").read_text(encoding="utf-8"))
     registered = {"p4_4_delta": float(p4_4["comparisons"]["madt_vs_iql"]["delta"]),
-                  "plateau_counts": plateau_counts(roots.repo_root)}
+                  "plateau_counts": plateau_counts(roots.repo_root), "p5_3b_old_tier": p5_3b_old_tier(roots.repo_root)}
     inputs = [{"file": relative, "sha256": _sha256(Path(roots.repo_root) / relative)} for relative in COMMITTED_INPUTS]
     inputs += [directory_digest(roots.output_root, cr.RUNS_DIR, exclude=("checkpoints", "logs")),
                directory_digest(roots.output_root, cr.RUN_DIR)]

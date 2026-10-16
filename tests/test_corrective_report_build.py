@@ -440,3 +440,12 @@ def test_q6_against_the_fresh_reference_reads_the_fresh_reference_and_the_regist
     assert all(tst.ANCHOR_CELL in e["inputs"] for e in q6["registered_five_schedule"])
     assert all("p9_1:grid4x4:behaviour@random_fresh" in e["inputs"] and tst.ANCHOR_CELL not in e["inputs"]
                for e in q6["random_fresh"])
+
+
+def test_the_random_fresh_artifact_carries_p5_3bs_old_tier_numbers_beside_p3a() -> None:
+    src = _fresh_sources()
+    old = {"source": "docs/data/p5_3b_nortg.json mechanism.action_identity", "sha256": "b" * 64,
+           "n_distinct_action_sequences": {"dt@random seed 101": 1}, "attractor": {"mappo1000": {}}}
+    payload = rep.build_random_fresh(rep.Sources(**{**src.__dict__, "registered": {**src.registered,
+                                                                                    "p5_3b_old_tier": old}}))
+    assert payload["p3a_beside"]["hz1x1_original_tier_p5_3b"] == old

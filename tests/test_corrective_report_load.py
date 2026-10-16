@@ -268,3 +268,18 @@ def test_a_gap_in_the_trace_is_found_and_a_run_that_spans_it_is_flagged(tmp_path
     flagged = rep.flag_paused_runs(runs, gaps, spans)
     assert [r["paused_during_run"] for r in flagged] == [[gaps[0]], [], []]
     assert [r["trace_covered"] for r in flagged] == [True, True, False]
+
+
+def test_p5_3bs_old_tier_numbers_are_copied_from_its_committed_artifact() -> None:
+    """A27(d)'s beside-table sits next to P5.3b's old-tier numbers; they are read from P5.3b's artifact, not typed."""
+    import hashlib
+
+    path = REPO / "docs" / "data" / "p5_3b_nortg.json"
+    identity = json.loads(path.read_text())["mechanism"]["action_identity"]
+    block = rep.p5_3b_old_tier(REPO)
+    assert block["source"] == "docs/data/p5_3b_nortg.json mechanism.action_identity"
+    assert block["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+    assert block["n_distinct_action_sequences"] == {
+        key: value for key, value in identity["n_distinct_action_sequences"].items() if key.startswith("dt@random seed ")}
+    assert set(block["n_distinct_action_sequences"].values()) == {1} and len(block["n_distinct_action_sequences"]) == 5
+    assert block["attractor"] == identity["attractor"]
