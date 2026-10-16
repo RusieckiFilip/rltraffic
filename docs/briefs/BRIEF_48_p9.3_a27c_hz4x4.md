@@ -265,3 +265,81 @@ than 10 minutes, or no checkpoint after 2 h, is a hang: the author says "P9.3 hu
 3. The fixed-time tier after the amendment carrying the author's ruling; `random_fresh` after M1 (`git merge main`, then verify
    `random_rng_scheme` against P9.1's merged code before use, as your plan's A1 says).
 4. Then the gate (A.3) and `declare`; then Phase B's plan appended to `docs/plans/p9.3.md` → G3b (its pre-flight → token).
+
+---
+
+# ✅ AMENDMENT B — 2026-10-16: A.7 ACCEPTED (grid4x4 AGREE at k = 1; hz1x1 DEFINITION-DEPENDENT, k = 8 by `att_engine` against the registered k = 6); the teachers and the two tiers DONE; the fixed-time k goes to the author now; the gate and Phase B need the stall remedy before they run
+
+Written against `docs/returns/P9.3-A7.md` (`5c06e14`), `docs/data/p9_3_d5_definition_check.json` (`06d2adf`, code `d7dd8c8`),
+`docs/data/p9_3_teachers.json` (`91a3af3`), `87b0406` and the main tree's corpus, read from disk. Merge `main` to read it.
+
+## B.1 A.7 — verified by the coordinator from the artifact's own records
+- **The T-regress:** the per-k mean `att_ours`, recomputed by `math.fsum` from the 60 stored records, reproduces D5's printed table to
+  two decimals in all 12 cells (hz1x1: 318.81, 286.65, 270.53, 261.86, 265.48, 274.69, 291.47; grid4x4: 206.09, 261.65, 297.54,
+  290.57, 341.05).
+- **grid4x4: AGREE** — both definitions choose k = 1, the registered cycle; `never_entered` is 0 at every k.
+- **hz1x1: DEFINITION-DEPENDENT** — `att_engine` is best at k = 8 (374.56) and `att_ours` at k = 6 (261.86, the registered cycle);
+  `att_engine` at k = 6 is 13.55 s (3.62 %) above its optimum, `att_ours` at k = 8 is 3.62 s (1.38 %) above its own; the `att_ours`
+  optimum admits fewer vehicles (`never_entered` 164.8 against 150.2).
+- **Accepted as a disclosure measurement, fenced:** no registered k, tier, anchor, ρ or verdict changes. The paper's baselines
+  paragraph names the objective every cycle was tuned on (`att_horizon`, D5) and the `att_engine` optimum beside it on each scenario.
+- **The hang you diagnosed is `DEFERRED` 104's** (P5.3c's note, 2026-09-30); the ruling then stands now: `CityFlow/` is not patched;
+  the remedy is at the caller (B.3).
+
+## B.2 The teachers and the corpus
+- **Teachers:** 5 of 5 trained (`exit=0`), **0 of 5 converged by RUNSPEC_01 §4's criterion at 1,000 episodes** (the final window's
+  relative change 0.050–0.079 against 0.05, every seed's return still rising); labelled MAPPO@1000 by measured return, as registered
+  (§5) — the paper says 0 of 5 beside the grid's 3 of 5 (P2.1). `train_sec` 3,726–3,785 s per seed, an uncontrolled clock.
+- **Corpus:** `p93-corpus` ended `OK: 6/6 run(s), 400 episodes`, `exit=0`: `cf_hz4x4__maxpressure` 200 episodes and
+  `cf_hz4x4__mappo1000__seed{101..505}` 40 each. **Next, in-session (read-only):** `collect verify` on the six runs, with `87b0406`'s
+  stronger `verify_run` (randomiser parameters, flow source, metrics and epsilon compared) and the checkpoint digests.
+- **`87b0406` (A.2's findings 1 and 2) accepted** as committed; the ruling file is the route for B.4.
+
+## B.3 The stall remedy — required before the gate (G3) and Phase B's evaluation (G3b) run
+The gate's observer episodes and Phase B's evaluation free their engines right after the last step — the path the hang strikes.
+Before either runs: every process that rolls CityFlow episodes in them is cut by a watchdog when one episode makes no progress for
+600 s (`faulthandler.dump_traceback_later(600, exit=True)` re-armed per episode, the dump in the log) and restarted from the records
+on disk by its driver, at most 20 times, each restart logged; any other non-zero exit stops as now. Tests (red first): a blocked fake
+episode is cut and the run completes on restart; a raising one is not restarted; a healthy run longer than 600 s in total is never
+cut; the cap stops a run that hangs every time. One mutant per item. Collection (`offline.collect`) needs none: it writes its `.npz`
+before freeing the engine, and the 400-episode corpus ran clean.
+
+## B.4 The fixed-time k — put to the author today, with A.7's answer
+The question goes to the author in the coordinator's message of 2026-10-16, with this recommendation: **k = 2, by D5's objective as
+written (`att_horizon`)** — because A.7 shows the registered hz1x1 cycle (k = 6) is itself `att_ours`'s optimum where `att_engine`
+prefers k = 8, so any other rule on hz4x4 would treat hz4x4 differently from hz1x1; one tuning objective on all three scenarios, with
+the `att_engine` optimum disclosed beside each (grid4x4 the same, hz1x1 k = 8, hz4x4 k = 3), is the version a reader can check. The
+ruling lands as Amendment C; then `record-ruling` (in-session) and the fixed-time collection under the author's token.
+
+## B.5 Order from here
+1. `collect verify` (B.2) → its record committed.
+2. B.3's stall remedy, with its tests and mutants.
+3. After Amendment C: `record-ruling`, then the fixed-time tier (the author's token).
+4. After M1 merges (P9.1's M1 is FIX FIRST today, `BRIEF_46` Amendment B): `git merge main`; `random_fresh` collected last; then the
+   gate (B.3 in place); then Phase B's plan appended to `docs/plans/p9.3.md` and its pre-flight (G3b) with the measured GPU cost. The
+   GPU is P9.1's campaign's for about 40 h once it starts; G3b states how Phase B's trainings fit before 2026-10-23 (after P9.1's, or
+   beside them where memory and the never-two-DT-trainings rule allow) — the hard stop is real.
+
+---
+
+# ✅ AMENDMENT C — 2026-10-16, the author's ruling: hz4x4's fixed-time cycle is k = 2
+
+**The author's ruling (2026-10-16), quoted:** *"hz4x4 fixed-time cycle: k = 2, as you recommend (one tuning rule on all three
+scenarios; the att_engine optimum k = 3 disclosed beside it)."*
+
+## C.1 What it means
+- The hz4x4 fixed-time tier is collected at **k = 2**, the argmin of D5's objective as D5 recorded it (`att_horizon` = `att_ours`, mean
+  over training draws 1–5), the same objective the registered hz1x1 (k = 6) and grid4x4 (k = 1) cycles were tuned on.
+- **Disclosed beside it, everywhere the cycle is named:** `att_engine`'s optimum on hz4x4 is k = 3 (544.09 against k = 2's 553.12,
+  1.66 % above it); on hz1x1 it is k = 8 (the registered k = 6 3.62 % above it); on grid4x4 it is k = 1, the registered cycle. The
+  `att_ours` optima keep more vehicles out on hz4x4 (`never_entered` 70.0 against 40.8 at k = 3) and on hz1x1 (164.8 against 150.2).
+- The sweep artifact `docs/data/p9_3_fixed_time_sweep.json` stays unedited; this amendment is the ruling it was waiting for.
+
+## C.2 What you do
+1. `git merge main` (this amendment on disk), then `record-ruling` with `--k 2` and `--amendment "AMENDMENT C — 2026-10-16"` (the
+   exact string; it occurs in this heading), against the committed sweep artifact. Commit the ruling file it writes, with a test that
+   `fixed_time_k_from_ruling` returns 2 from it and refuses it against a sweep whose digest differs.
+2. Say **"P9.3 ruling recorded"** with that commit and the exact `p93-fixedtime` command — the fixed-time tier only (draws 1–200, the
+   grid's protocol, `--ruling` naming the committed file), from a run tree at that commit. The coordinator verifies the file, creates
+   the run tree and hands the author the token. Collection writes its `.npz` before the engine is freed, so B.3's remedy is not needed
+   for it.
