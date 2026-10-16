@@ -44,6 +44,10 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
 __all__ = [
+    "resolve_fixed_time_k",
+    "fixed_time_k_from_ruling",
+    "fixed_time_ruling_record",
+    "ARTIFACT_FORMAT_RULING",
     "definition_check",
     "d5_t_regress",
     "summarise_admission",
@@ -956,6 +960,100 @@ def choose_k(summary: Mapping[int, Mapping[str, Any]]) -> dict[str, Any]:
         decision["chosen_k"] = int(engine[0])
         decision["at_platform_floor"] = engine[0] == min(K_GRID)
     return decision
+
+
+#: Format of the fixed-time ruling file (``BRIEF_48`` Amendment A, A.2 finding 1 and A.4).
+ARTIFACT_FORMAT_RULING = "p9.3-fixed-time-ruling/1.0"
+
+
+def fixed_time_ruling_record(
+    *, sweep_path: str | Path, k: int, amendment: str, brief_path: str | Path
+) -> dict[str, Any]:
+    """The ruling file's record: the sweep artifact by sha256, the ruled k and the amendment carrying the ruling.
+
+    ``BRIEF_48`` Amendment A, A.2 finding 1 and A.4: the sweep artifact is never edited, so a ruling on a sweep that
+    chose no k is a SEPARATE committed file.  It is built only for a sweep that chose none (a ``CHOSEN`` sweep needs no
+    ruling), only for a k of the declared grid, and only when the brief on disk carries the named amendment -- the
+    ruling must exist on ``main`` before a file may cite it.  The brief's digest is recorded beside its name.
+    """
+    import json
+
+    sweep = Path(sweep_path)
+    payload = json.loads(sweep.read_bytes())
+    if payload.get("format_version") != ARTIFACT_FORMAT_SWEEP:
+        raise ValueError(f"{sweep}: format {payload.get('format_version')!r} is not the sweep format {ARTIFACT_FORMAT_SWEEP!r}")
+    decision = payload.get("decision") or {}
+    status = decision.get("status")
+    if status == "CHOSEN":
+        raise ValueError(f"{sweep}: the sweep is CHOSEN (k = {decision.get('chosen_k')}); a ruling fills only a sweep "
+                         "that chose no k")
+    if int(k) not in K_GRID:
+        raise ValueError(f"k = {k} is not in the declared grid {list(K_GRID)}")
+    name = str(amendment).strip()
+    if not name:
+        raise ValueError("a ruling names the amendment that carries the author's ruling; none was given")
+    brief = Path(brief_path)
+    if name not in brief.read_text(encoding="utf-8"):
+        raise ValueError(f"{brief} does not contain {name!r}: the amendment that carries the ruling must be on disk "
+                         "(merge main first)")
+    return {
+        "format_version": ARTIFACT_FORMAT_RULING,
+        "registered_in": "BRIEF_48 Amendment A, A.2 finding 1 and A.4",
+        "sweep_artifact": str(sweep),
+        "sweep_sha256": _sha256_file(sweep),
+        "sweep_status": status,
+        "sweep_k_att_engine": decision.get("k_att_engine"),
+        "sweep_k_att_ours": decision.get("k_att_ours"),
+        "chosen_k": int(k),
+        "amendment": name,
+        "brief": str(brief),
+        "brief_sha256": _sha256_file(brief),
+        "rule": "offline.hz4x4_ladder collect reads this k only when sweep_sha256 equals the committed sweep artifact's "
+        "digest; the sweep artifact itself is never edited",
+    }
+
+
+def fixed_time_k_from_ruling(ruling_path: str | Path, sweep_path: str | Path) -> int:
+    """The k a ruling file carries, refused unless it names this exact sweep artifact by sha256.
+
+    The collector's half of A.2 finding 1: a ruling of another format, one naming no amendment, one whose
+    ``sweep_sha256`` is not the digest of *sweep_path* as it is on disk, or one whose k is outside the declared grid
+    is refused, so a ruling cannot be carried across to a different or re-run sweep.
+    """
+    import json
+
+    path = Path(ruling_path)
+    ruling = json.loads(path.read_bytes())
+    if ruling.get("format_version") != ARTIFACT_FORMAT_RULING:
+        raise ValueError(f"{path}: format {ruling.get('format_version')!r} is not the ruling format {ARTIFACT_FORMAT_RULING!r}")
+    if not str(ruling.get("amendment") or "").strip():
+        raise ValueError(f"{path} names no amendment carrying the author's ruling")
+    actual = _sha256_file(sweep_path)
+    if ruling.get("sweep_sha256") != actual:
+        raise ValueError(f"{path} rules on a sweep with sha256 {ruling.get('sweep_sha256')!r}, but {sweep_path} hashes to "
+                         f"{actual}; a ruling applies only to the exact artifact it names")
+    k = ruling.get("chosen_k")
+    if not isinstance(k, int) or isinstance(k, bool) or k not in K_GRID:
+        raise ValueError(f"{path}: k = {k} is not in the declared grid {list(K_GRID)}")
+    return int(k)
+
+
+def resolve_fixed_time_k(sweep_path: str | Path, ruling_path: str | Path | None) -> int:
+    """The fixed-time k to collect with: the sweep's own when it chose one, otherwise the ruling's.
+
+    A ``CHOSEN`` sweep is its own authority and a ruling beside it is refused; a sweep that chose no k needs a ruling
+    file (:func:`fixed_time_k_from_ruling`), and without one the refusal names the sweep's status.
+    """
+    import json
+
+    decision = json.loads(Path(sweep_path).read_bytes()).get("decision") or {}
+    if decision.get("status") == "CHOSEN":
+        if ruling_path is not None:
+            raise ValueError(f"{sweep_path}: the sweep chose k itself; a ruling may only fill a sweep that chose none")
+        return chosen_k_from_artifact(sweep_path)
+    if ruling_path is None:
+        return chosen_k_from_artifact(sweep_path)
+    return fixed_time_k_from_ruling(ruling_path, sweep_path)
 
 
 def chosen_k_from_artifact(path: str | Path) -> int:
@@ -2004,6 +2102,8 @@ def build_parser() -> argparse.ArgumentParser:
                          help="default: every tier the collector can serve, in collection order")
     collect.add_argument("--python", default="/home/filip/rltraffic/.venv/bin/python",
                          help="the interpreter each collection subprocess runs")
+    collect.add_argument("--ruling", default=None,
+                         help="the committed fixed-time ruling file, needed when the sweep chose no k (A.4)")
 
     teachers = sub.add_parser("teachers", parents=[common], help="the teachers' curves and RUNSPEC_01's criterion")
     teachers.add_argument("--out", required=True, help="docs/data/p9_3_teachers.json")
@@ -2016,6 +2116,14 @@ def build_parser() -> argparse.ArgumentParser:
     declare = sub.add_parser("declare", parents=[common], help="tier specs and the exposure table")
     declare.add_argument("--out", required=True, help="docs/data/p9_3_declaration.json")
     declare.add_argument("--tiers", nargs="+", choices=TIER_ORDER, default=None)
+
+    ruling = sub.add_parser("record-ruling", parents=[common],
+                            help="write the fixed-time ruling file once the amendment carrying it is on disk")
+    ruling.add_argument("--sweep", required=True, help="the committed docs/data/p9_3_fixed_time_sweep.json")
+    ruling.add_argument("--k", type=int, required=True, help="the ruled fixed-time k")
+    ruling.add_argument("--amendment", required=True, help="the amendment heading that carries the ruling")
+    ruling.add_argument("--brief", default=None, help="default: this repository's docs/briefs/BRIEF_48_p9.3_a27c_hz4x4.md")
+    ruling.add_argument("--out", required=True, help="docs/data/p9_3_fixed_time_ruling.json")
 
     d5 = sub.add_parser("d5-check", parents=[common],
                         help="A.7: D5's fixed-time sweep on hz1x1 and grid4x4 under both ATT definitions (exploration)")
@@ -2191,13 +2299,16 @@ def verify_run(run: CollectionRun, *, draws_root: str | Path = MAIN_DRAWS_ROOT) 
     """After a run: its manifest equals the derived command, its draws equal the materialised ones.
 
     The manifest's run metadata is compared with the derived command as ``offline.collect``'s own parser
-    reads it; every draw's ``flow_draw_sha256`` with the main tree's materialised ``flow.json``; a teacher
+    reads it -- every setting the command determines, the randomiser's parameters, the source flow's path and digest,
+    ``metrics`` and ``epsilon`` included (A.2 finding 2); every draw's ``flow_draw_sha256`` with the main tree's
+    materialised ``flow.json``; a teacher
     checkpoint's recorded sha256 with the file; and for ``random_fresh`` the generator scheme
     (``per-episode``) and A27 (d)'s registered check -- one distinct action sequence per episode on every
     intersection.
     """
     import json
 
+    from offline.collect import _cityflow_flow_source
     from offline.collect import build_parser as collect_parser
 
     manifest = json.loads((run.out_dir / "manifest.json").read_bytes())
@@ -2205,6 +2316,9 @@ def verify_run(run: CollectionRun, *, draws_root: str | Path = MAIN_DRAWS_ROOT) 
     if len(manifest["episodes"]) != run.expected_episodes:
         raise ValueError(f"{run.name}: {len(manifest['episodes'])} episodes on disk, {run.expected_episodes} expected")
     args = collect_parser().parse_args(list(run.argv))
+    # The collector's own resolution of the source flow (the working directory resolves a relative 'dir'), so the
+    # expected path and digest are the ones the collector recorded -- BRIEF_48 Amendment A, A.2 finding 2.
+    flow_source = _cityflow_flow_source(Path(args.env_config).resolve())
     expected: dict[str, Any] = {
         "backend": "cityflow",
         "scenario_id": SCENARIO_ID,
@@ -2221,6 +2335,16 @@ def verify_run(run: CollectionRun, *, draws_root: str | Path = MAIN_DRAWS_ROOT) 
         "checkpoint": args.checkpoint,
         "flow_draw_ids": list(run.draw_ids),
         "env_paths": {"config": str(Path(args.env_config).resolve())},
+        "flow_randomizer_params": {
+            "base_seed": int(args.base_seed),
+            "jitter_sigma_s": float(args.flow_jitter_sigma),
+            "thin_p": float(args.flow_thin_p),
+            "volume_scale": float(args.flow_volume_scale),
+        },
+        "flow_source_path": str(flow_source),
+        "flow_source_sha256": _sha256_file(flow_source),
+        "metrics": list(args.metrics) if args.metrics else None,
+        "epsilon": float(args.epsilon) if args.policy == "mappo_eps" else None,
     }
     if run.tier == "fixedtime":
         expected["fixed_time_k"] = args.fixed_time_k
@@ -2323,7 +2447,7 @@ def _run_collect(args: argparse.Namespace) -> int:
         if not supported:
             print("random_fresh is left out: offline.collect has no --random-rng yet (P9.1's M1); it is "
                   "collected last (A27 (i))", flush=True)
-    chosen_k = chosen_k_from_artifact(args.sweep) if "fixedtime" in tiers else None
+    chosen_k = resolve_fixed_time_k(args.sweep, args.ruling) if "fixedtime" in tiers else None
     corpus_root = assert_main_tree_path(args.corpus_root, what="the corpus root")
     draws_root = assert_main_tree_path(args.draws_root, what="the draws root")
     env_config = assert_main_tree_path(MAIN_TREE / SOURCE_CONFIG, what="the source sim config")
@@ -2438,8 +2562,15 @@ def _run_gate(args: argparse.Namespace) -> int:
         "tiers": tiers,
         "tolerances": {"c1": engine.C1_TOLERANCE, "c3c_reported_not_gating": engine.C3C_TOLERANCE,
                        "c4_min_tiers": engine.C4_MIN_TIERS, "c4_min_draws": engine.C4_MIN_DRAWS},
-        "coverage_note": f"criterion (4) requires at least {engine.C4_MIN_TIERS} behaviour tiers x "
-        f"{engine.C4_MIN_DRAWS} draws; hz4x4's corpus carries {len(tiers)} tier(s) here (docs/plans/p9.3.md Q1)",
+        "coverage_note": (
+            "Criterion (4) cannot be met on hz4x4: its corpus has four behaviour tiers against the registered floor "
+            "of seven."
+            if len(tiers) == 4
+            else f"Criterion (4) cannot be met on hz4x4: this gate covers {len(tiers)} behaviour tier(s) against the "
+            "registered floor of seven."
+        ),
+        "coverage_ruling": "BRIEF_48 Amendment A, A.3: the floor is the registered seven corpus tiers and is not re-read "
+        "per scenario; A27 (i)'s fail branch applies",
         "episodes": [episode.as_record() for episode in episodes],
         "criteria": criteria.as_record(),
         "outcome": outcome,
@@ -2623,6 +2754,19 @@ def _run_d5_check(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_record_ruling(args: argparse.Namespace) -> int:
+    """``record-ruling``: the fixed-time ruling file, built by :func:`fixed_time_ruling_record`, written once."""
+    out = _refuse_existing(args.out)
+    brief = Path(args.brief) if args.brief else _repo_root() / "docs" / "briefs" / "BRIEF_48_p9.3_a27c_hz4x4.md"
+    record = fixed_time_ruling_record(sweep_path=args.sweep, k=int(args.k), amendment=str(args.amendment),
+                                      brief_path=brief)
+    record["git"] = _git()
+    _write_artifact(record, out)
+    print(f"wrote {out}: k = {record['chosen_k']} under {record['amendment']} (sweep {record['sweep_sha256'][:12]})",
+          flush=True)
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Run one subcommand; returns a process exit code."""
     args = build_parser().parse_args(argv)
@@ -2640,6 +2784,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "gate": _run_gate,
         "declare": _run_declare,
         "d5-check": _run_d5_check,
+        "record-ruling": _run_record_ruling,
     }
     try:
         return handlers[args.command](args)
