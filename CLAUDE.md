@@ -114,6 +114,9 @@ disk: the plan in `docs/plans/`, the convention in a docstring, the outcome in `
 - **Critical quantities get computed twice, independently.** Returns-to-go, rewards, alignment indices:
   the test must recompute them by a different route (e.g. raw `np.cumsum` on the stored arrays) rather
   than calling the same function it is testing.
+- **Cite `PREREGISTRATION.md` by amendment and part (`A11(c)`), never by line number.** Its §12 is newest-first, so every new
+  registration row moves every older one, and a line pin breaks the next time anything is registered (it did: A27's row turned
+  `main` red on 2026-10-15, found on 2026-10-16 — `BRIEF_49`). A line inside a committed artifact is a line at that artifact's build commit.
 - **When a brief conflicts with the actual repo code, the repo wins.** Implement to the repo and flag
   the conflict in the Return Packet.
 - **When you are unsure, stop and ask.** A `BLOCKED` status is a good outcome. A confident wrong
