@@ -34,6 +34,8 @@ def test_the_registered_book_rescored_with_nothing_substituted_is_every_committe
     for entry in rescored:
         mine = registered[(entry["id"], entry["tier"], entry["arm"], entry["definition"])]
         assert (entry["verdict"], entry["reading"]) == (mine["verdict"], mine["reading"]), entry["id"]
+        assert entry["inputs"] == mine["inputs"], entry["id"]
+        assert json.loads(json.dumps(entry["numbers"])) == mine["numbers"], entry["id"]
     block = cv.moved_block(tst.all_statements(books), rescored)
     assert not any(e["moved"] or e["reading_changed"] for e in block)
     assert sum(e["kind"] == "verdict" for e in block) > 0
