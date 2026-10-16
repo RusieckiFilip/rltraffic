@@ -17,18 +17,24 @@
 #      every draw;
 #   5. the guard -- one bc-tyc held-out cell per arm through the evaluation path, == P8.4b's committed cell, and the
 #      engine-seed check on bc-tyc and each shifted file -- written once to output/p9_2/demand_shift/guard.json; a failed
-#      guard exits 2 and nothing else runs;
-#   6. consumes the token and opens one tmux window per shard (evaluate --stage STAGE --shard i --of SHARDS).
+#      guard exits 2 and nothing else runs; a record left by an earlier start is not re-run;
+#   6. check-guard: the record, written now or left by an earlier start, must authorise the evaluation -- passed, run
+#      from a clean tree at this code, every declared arm and engine-seed check (BRIEF_47 Amendment A.2.2) -- or the
+#      driver exits 2 and the token is KEPT (Amendment A.2.3);
+#   7. consumes the token and opens one tmux window per shard (evaluate --stage STAGE --shard i --of SHARDS).
+#
+# P92_PYTHON, P92_OUTPUT_ROOT, P92_RUNS, P92_SESSION, SHARDS, STAGE and IQL_T_PINS override the defaults
+# (tests/test_p9_2_drivers.py).
 #
 # RESUME: one JSON record per cell, atomic; a shard skips every record that exists and validates and STOPS at a refused
 # cell (the two routes disagreeing, a dirty tree). Re-run a shard's line from its window, or the driver with a new token
-# (existing draws are kept, a written guard is not re-run). Status:
+# (existing draws are kept; a written guard is not re-run, it is checked). Status:
 #   /home/filip/rltraffic/.venv/bin/python -m offline.demand_shift status
 # Stage 2 (iql_t, P9.1's checkpoints) is STAGE=2 with IQL_T_PINS=<pin file>, once the coordinator's amendment names it.
 set -euo pipefail
 
 RUN_TREE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-PY=/home/filip/rltraffic/.venv/bin/python
+PY=${P92_PYTHON:-/home/filip/rltraffic/.venv/bin/python}
 MAIN_TREE=/home/filip/rltraffic
 OUTPUT=${P92_OUTPUT_ROOT:-$MAIN_TREE/output}
 RUNS=${P92_RUNS:-$OUTPUT/p9_2_runs}
@@ -68,9 +74,15 @@ echo "=== run tree $RUN_TREE at $(git rev-parse HEAD); token written $(stat -c '
 (cd "$MAIN_TREE" && PYTHONPATH="$RUN_TREE" "$PY" -P -m offline.demand_shift --audit "$AUDIT" materialise) 2>&1 \
   | tee -a "$LOGS/shift_materialise.log"
 if [ -f "$WORK/guard.json" ]; then
-  echo "=== the guard record exists; evaluate re-checks that it passed"
+  echo "=== the guard record exists; it is not re-run, and it is checked before the token is consumed"
 else
   "$PY" -m offline.demand_shift --output-root "$OUTPUT" --work-dir "$WORK" guard 2>&1 | tee -a "$LOGS/shift_guard.log"
+fi
+if ! "$PY" -m offline.demand_shift --output-root "$OUTPUT" --work-dir "$WORK" check-guard 2>&1 \
+    | tee -a "$LOGS/shift_guard.log"; then
+  echo "REFUSING TO CONSUME THE TOKEN: the guard record at $WORK/guard.json does not authorise an evaluation;" \
+    "the token is kept at $TOKEN" >&2
+  exit 2
 fi
 rm -f "$TOKEN"
 echo "=== token consumed; opening $SHARDS shard window(s) for stage $STAGE in tmux session $SESSION"
