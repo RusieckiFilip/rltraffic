@@ -185,9 +185,15 @@ def test_a_statement_cell_is_p5_2cs_cell_type_with_the_rows_in_seed_draw_order(t
     built = rep.statement_cell(roots, cell)
     assert isinstance(built, tst.Cell)
     assert (built.spec.cell_id, built.spec.method, built.spec.tier, built.spec.arm, built.spec.source) == (
-        "p9_1:bc_m@mappo1000", "bc_m", "mappo1000", "bc_m@mappo1000", "p9_1")
+        "p9_1:grid4x4:bc_m@mappo1000", "bc_m", "mappo1000", "bc_m@mappo1000", "p9_1")
     engine = tst.episodes_of(built, "att_engine")
     assert [(e.seed, e.draw_id, e.att_horizon) for e in engine] == [(s, d, _att(s, d) + 0.5) for s in SEEDS for d in DRAWS]
+
+
+def test_a_new_cells_id_names_its_scenario_because_arm_at_tier_alone_names_two_cells() -> None:
+    both = [cell for cell in cr.evaluation_cells() if cell.key == "iql_t@mappo1000"]
+    assert {cell.scenario for cell in both} == {"hz1x1", "grid4x4"}
+    assert len({rep.new_cell_id(cell) for cell in cr.evaluation_cells()}) == len(cr.evaluation_cells())
 
 
 def test_new_training_runs_carry_seconds_and_steps_with_the_uncontrolled_clock_label(tmp_path: Path) -> None:

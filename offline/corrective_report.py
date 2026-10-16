@@ -133,9 +133,15 @@ def as_statement_cell(cell_id: str, method: str, tier: str, arm: str, source: st
                                           for row in sorted(rows, key=lambda r: (r["seed"], r["draw_id"]))))
 
 
+def new_cell_id(cell: cr.Cell) -> str:
+    """``p9_1:<scenario>:<arm>@<tier>`` -- the scenario is part of the id, because ``<arm>@<tier>`` alone names two
+    cells (``iql_t@mappo1000`` and ``behaviour@random_fresh`` exist on both scenarios)."""
+    return f"p9_1:{cell.scenario}:{cell.key}"
+
+
 def statement_cell(roots: cr.Roots, cell: cr.Cell) -> Any:
-    """A NEW cell as a ``tier_statements.Cell``: ``p9_1:<arm>@<tier>``, method the A27 arm."""
-    return as_statement_cell(f"p9_1:{cell.key}", cell.arm, cell.tier, cell.key, "p9_1",
+    """A NEW cell as a ``tier_statements.Cell``: id :func:`new_cell_id`, method the A27 arm."""
+    return as_statement_cell(new_cell_id(cell), cell.arm, cell.tier, cell.key, "p9_1",
                              _relative(roots, cr.route_i_output(roots, cell)), new_cell_rows(roots, cell))
 
 
