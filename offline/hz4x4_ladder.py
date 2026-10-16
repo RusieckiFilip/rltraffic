@@ -44,6 +44,15 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
 __all__ = [
+    "load_gate_episodes",
+    "pending_gate_cells",
+    "write_gate_record",
+    "gate_record_path",
+    "run_with_restarts",
+    "watchdog_fired",
+    "episode_watchdog",
+    "WATCHDOG_MAX_RESTARTS",
+    "WATCHDOG_SECONDS",
     "corpus_verify_artifact",
     "ARTIFACT_FORMAT_CORPUS_VERIFY",
     "resolve_fixed_time_k",
@@ -1751,6 +1760,116 @@ def teachers_report(
 
 
 # ----------------------------------------------------------------------
+# B.3: the stall remedy (BRIEF_48 Amendment B) -- a per-episode watchdog and a restarting driver
+# ----------------------------------------------------------------------
+
+#: B.3's registered values: one episode without progress for this long is a stall, and a driver restarts at most this often.
+WATCHDOG_SECONDS = 600
+WATCHDOG_MAX_RESTARTS = 20
+
+
+def episode_watchdog(seconds: float = WATCHDOG_SECONDS) -> Any:
+    """A context manager arming ``faulthandler.dump_traceback_later(seconds, exit=True)`` for one episode.
+
+    ``BRIEF_48`` Amendment B, B.3: an episode that makes no progress for *seconds* has every thread's stack dumped to
+    ``sys.stderr`` (the process's log) and the process exits with status 1, so its driver can restart it from the
+    records on disk.  Entered once per episode, it RE-ARMS the timer per episode -- a healthy run longer than *seconds*
+    in total is never cut -- and cancels it on the way out, however the episode ended.  The hang it exists for is
+    ``DEFERRED`` 104's: CityFlow's engine destructor waiting forever on a barrier its worker thread has left.
+    """
+    import contextlib
+    import faulthandler
+    import sys
+
+    timeout = float(seconds)
+    if not timeout > 0.0:
+        raise ValueError(f"a watchdog timeout must be positive, got {seconds!r}")
+
+    @contextlib.contextmanager
+    def armed() -> Any:
+        faulthandler.dump_traceback_later(timeout, exit=True, file=sys.stderr)
+        try:
+            yield
+        finally:
+            faulthandler.cancel_dump_traceback_later()
+
+    return armed()
+
+
+def watchdog_fired(log_text: str) -> bool:
+    """Whether *log_text* carries faulthandler's timeout dump header (the watchdog cut that process).
+
+    ``faulthandler.dump_traceback_later(..., exit=True)`` writes a line ``Timeout (H:MM:SS[.ffffff])!`` before the
+    stacks and then exits with status 1 -- the same status an uncaught exception gives -- so the header, on a line of
+    its own, is what tells a watchdog cut from an ordinary failure (measured on this interpreter, 2026-10-16).
+    """
+    import re
+
+    return re.search(r"^Timeout \(\d+:\d{2}:\d{2}(?:\.\d+)?\)!$", str(log_text), re.MULTILINE) is not None
+
+
+def run_with_restarts(
+    command: Sequence[str],
+    *,
+    log_dir: str | Path,
+    label: str,
+    max_restarts: int = WATCHDOG_MAX_RESTARTS,
+    env: Mapping[str, str] | None = None,
+    cwd: str | Path | None = None,
+) -> dict[str, Any]:
+    """Run *command*; restart it after a watchdog cut, at most *max_restarts* times; stop on any other failure.
+
+    ``BRIEF_48`` Amendment B, B.3.  Each attempt's output (stdout and stderr together) goes to its own log,
+    ``<label>.attemptNN.log`` under *log_dir*, so faulthandler's dump lands in the log of the attempt it cut.  An attempt
+    that exits 0 completes the run.  One that exits 1 WITH faulthandler's timeout header (:func:`watchdog_fired`) was
+    cut by :func:`episode_watchdog` and is restarted -- the command itself resumes from the records it wrote -- and every
+    restart, and reaching the cap, is a line in ``<label>.restarts.log`` and on stdout.  Any other non-zero exit stops
+    the run (``failed``) exactly as before the remedy existed; a run cut on every attempt stops at the cap
+    (``cap_reached``).
+    """
+    import subprocess
+    import time
+    from datetime import datetime, timezone
+
+    cap = int(max_restarts)
+    if cap < 0:
+        raise ValueError(f"max_restarts must be >= 0, got {max_restarts!r}")
+    directory = Path(log_dir)
+    directory.mkdir(parents=True, exist_ok=True)
+    restart_log = directory / f"{label}.restarts.log"
+    attempts: list[dict[str, Any]] = []
+    for attempt in range(cap + 1):
+        log_path = directory / f"{label}.attempt{attempt:02d}.log"
+        started = time.perf_counter()
+        with open(log_path, "w", encoding="utf-8") as handle:
+            completed = subprocess.run(
+                [str(part) for part in command],
+                stdout=handle,
+                stderr=subprocess.STDOUT,
+                env=None if env is None else dict(env),
+                cwd=None if cwd is None else str(cwd),
+                check=False,
+            )
+        seconds = time.perf_counter() - started
+        cut = completed.returncode == 1 and watchdog_fired(log_path.read_text(encoding="utf-8", errors="replace"))
+        attempts.append({"attempt": attempt, "returncode": int(completed.returncode), "watchdog_cut": cut,
+                         "log": str(log_path), "seconds": seconds})
+        if completed.returncode == 0:
+            return {"status": "completed", "restarts": attempt, "attempts": attempts, "restart_log": str(restart_log)}
+        if not cut:
+            return {"status": "failed", "restarts": attempt, "attempts": attempts, "restart_log": str(restart_log)}
+        stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        outcome = (f"restart {attempt + 1} of at most {cap}" if attempt < cap
+                   else f"the cap of {cap} restarts is reached; stopping")
+        line = (f"{stamp} {label}: attempt {attempt} was cut by the watchdog (exit 1, faulthandler's timeout dump in "
+                f"{log_path.name}); {outcome}")
+        with open(restart_log, "a", encoding="utf-8") as handle:
+            handle.write(line + "\n")
+        print(line, flush=True)
+    return {"status": "cap_reached", "restarts": cap, "attempts": attempts, "restart_log": str(restart_log)}
+
+
+# ----------------------------------------------------------------------
 # A11's engine-semantics gate on hz4x4 (offline.engine_att_reference)
 # ----------------------------------------------------------------------
 
@@ -1869,6 +1988,65 @@ def hz4x4_gate_episode(
         seconds=seconds,
         seconds_rollout=rollout_seconds,
     )
+
+
+def gate_record_path(work_dir: str | Path, cell: Any) -> Path:
+    """Where one gate cell's episode record lives in the work directory: the cell's identity is the file name."""
+    seed = "none" if cell.seed is None else str(int(cell.seed))
+    return Path(work_dir) / f"{cell.tier}__{cell.method}__seed{seed}__draw{int(cell.draw_id):04d}.json"
+
+
+def write_gate_record(work_dir: str | Path, episode: Any) -> Path:
+    """Write one gate episode's record, once and atomically, under its own cell's name.
+
+    ``GateEpisode.as_record()`` through ``dt_gate.write_json_atomic`` (a temporary file, then ``os.replace``), so a
+    process cut mid-write leaves either the whole record or none -- what a restart resumes from (B.3).
+    """
+    from offline.dt_gate import write_json_atomic
+
+    path = gate_record_path(work_dir, episode)
+    if path.exists():
+        raise FileExistsError(f"{path} exists: a gate record is written once")
+    write_json_atomic(episode.as_record(), path)
+    return path
+
+
+def _read_gate_record(path: Path, cell: Any) -> Any:
+    """One record rebuilt by ``engine_att_reference.episode_from_record``, refused if it is not *cell*'s own."""
+    import json
+
+    from offline.engine_att_reference import episode_from_record
+
+    episode = episode_from_record(json.loads(path.read_bytes()))
+    held = (episode.scenario, episode.tier, episode.method, episode.seed, int(episode.draw_id), episode.role)
+    named = (cell.scenario, cell.tier, cell.method, cell.seed, int(cell.draw_id), cell.role)
+    if held != named:
+        raise ValueError(f"{path} holds the record of {held} but is filed under {named}")
+    return episode
+
+
+def pending_gate_cells(work_dir: str | Path, cells: Sequence[Any]) -> list[Any]:
+    """The cells with no record on disk yet, in order; a record filed under another cell's name is refused.
+
+    Every record already on disk is READ and checked against its cell before anything is rolled, so a restart resumes
+    from verified records and never from a misplaced one.
+    """
+    pending: list[Any] = []
+    for cell in cells:
+        path = gate_record_path(work_dir, cell)
+        if path.is_file():
+            _read_gate_record(path, cell)
+        else:
+            pending.append(cell)
+    return pending
+
+
+def load_gate_episodes(work_dir: str | Path, cells: Sequence[Any]) -> list[Any]:
+    """Every cell's episode, rebuilt from its record, in cell order; refused while any cell is missing."""
+    missing = [gate_record_path(work_dir, cell).name for cell in cells if not gate_record_path(work_dir, cell).is_file()]
+    if missing:
+        raise ValueError(f"{len(missing)} gate cell(s) are missing a record, e.g. {missing[:3]}")
+    return [_read_gate_record(gate_record_path(work_dir, cell), cell) for cell in cells]
 
 
 def gate_extremes(episodes: Sequence[Any]) -> dict[str, Any]:
@@ -2152,6 +2330,14 @@ def build_parser() -> argparse.ArgumentParser:
     gate.add_argument("--out", required=True, help="docs/data/p9_3_engine_att_gate.json")
     gate.add_argument("--tiers", nargs="+", choices=TIER_ORDER, default=None)
     gate.add_argument("--device", default="cpu")
+
+    worker = sub.add_parser("gate-worker", parents=[common],
+                            help="the gate's episode process (B.3): rolls the missing cells under the per-episode watchdog")
+    worker.add_argument("--work-dir", required=True, help="the gate driver's work directory of per-cell records")
+    worker.add_argument("--tiers", nargs="+", choices=TIER_ORDER, required=True)
+    worker.add_argument("--device", default="cpu")
+    worker.add_argument("--watchdog-seconds", type=float, default=WATCHDOG_SECONDS,
+                        help=f"one episode without progress for this long is cut (default {WATCHDOG_SECONDS})")
 
     declare = sub.add_parser("declare", parents=[common], help="tier specs and the exposure table")
     declare.add_argument("--out", required=True, help="docs/data/p9_3_declaration.json")
@@ -2557,13 +2743,87 @@ def _run_teachers(args: argparse.Namespace) -> int:
     return 0
 
 
-def _run_gate(args: argparse.Namespace) -> int:
-    """``gate``: A11's four criteria on hz4x4's collected tiers, scored by ``evaluate_scenario`` unchanged."""
-    from offline import engine_att_reference as engine
+def _gate_cell_inputs(
+    cell: Any, *, corpus_root: Path, draws_root: Path, device: str, build_factory: bool = True
+) -> tuple[dict[str, Any], Path, int, Any]:
+    """One gate cell's env settings, draw config, created count and action factory, read from the tier's manifest.
+
+    The factories are the evaluation route's own (``dt_gate._maxpressure_factory``, ``method_tier_grid._fixedtime_factory``
+    with the tier's collection settings, ``dt_gate._mappo_factory`` on the checkpoint the manifest records, its sha256
+    verified).  With ``build_factory=False`` every input is validated and no policy is built -- the driver's pre-check.
+    """
+    import json
+
     from offline.admission_probe import created_from_flow
     from offline.dt_gate import _mappo_factory, _maxpressure_factory, env_settings_from_manifest
     from offline.materialise_draws import draw_config_path
     from offline.method_tier_grid import _fixedtime_factory, fixedtime_collection_settings
+
+    name = f"{CORPUS_PREFIX}__mappo1000__seed{cell.seed}" if cell.tier == "mappo1000" else _tier_dir_names(cell.tier)[0]
+    manifest = Path(corpus_root) / name / "manifest.json"
+    settings = env_settings_from_manifest(manifest)
+    config = draw_config_path(SCENARIO_KEY, int(cell.draw_id), out_root=draws_root)
+    if not Path(config).is_file():
+        raise FileNotFoundError(f"draw {cell.draw_id} has no materialised sim config at {config}")
+    horizon = int(settings["max_steps"]) * int(settings["delta_time"])
+    created = created_from_flow(Path(config).parent / "flow.json", horizon_seconds=horizon)
+    factory: Any = None
+    if cell.tier == "maxpressure":
+        factory = _maxpressure_factory
+    elif cell.tier == "fixedtime":
+        collected = fixedtime_collection_settings(manifest)
+        factory = _fixedtime_factory(config, collected) if build_factory else None
+    elif cell.tier == "mappo1000":
+        meta = json.loads(manifest.read_bytes())["run_metadata"]
+        checkpoint = MAIN_TREE / str(meta["checkpoint"])
+        if _sha256_file(checkpoint) != meta["checkpoint_sha256"]:
+            raise ValueError(f"{checkpoint} is not the checkpoint {manifest} records")
+        factory = _mappo_factory(str(checkpoint), device) if build_factory else None
+    else:
+        raise ValueError(
+            f"{cell.tier}'s gate cell has no factory here; random_fresh's is A27 (d)'s reference, wired after P9.1's M1"
+        )
+    return settings, Path(config), created, factory
+
+
+def _run_gate_worker(args: argparse.Namespace) -> int:
+    """``gate-worker``: roll every gate cell with no record on disk, each under :func:`episode_watchdog` (B.3).
+
+    The worker is the process the watchdog may cut.  It resumes from the work directory's records (every one read and
+    checked first, :func:`pending_gate_cells`) and writes each new record once and atomically before the next episode.
+    """
+    corpus_root = assert_main_tree_path(args.corpus_root, what="the corpus root")
+    draws_root = assert_main_tree_path(args.draws_root, what="the draws root")
+    work_dir = Path(args.work_dir)
+    if not work_dir.is_dir():
+        raise FileNotFoundError(f"the gate's work directory {work_dir} does not exist; the gate driver creates it")
+    cells = gate_cells_for(list(args.tiers))
+    pending = pending_gate_cells(work_dir, cells)
+    print(f"gate worker: {len(cells) - len(pending)} of {len(cells)} cells on disk; rolling {len(pending)}", flush=True)
+    for cell in pending:
+        settings, config, created, factory = _gate_cell_inputs(cell, corpus_root=corpus_root, draws_root=draws_root,
+                                                               device=args.device)
+        with episode_watchdog(float(args.watchdog_seconds)):
+            episode = hz4x4_gate_episode(cell=cell, config_path=config, env_settings=settings, scenario_id=SCENARIO_ID,
+                                         choose_action_factory=factory, engine_seed=BASE_SEED, created=created)
+            write_gate_record(work_dir, episode)
+        print(f"hz4x4/{cell.arm} seed {cell.seed} draw {cell.draw_id}: recorded", flush=True)
+    return 0
+
+
+def _run_gate(args: argparse.Namespace) -> int:
+    """``gate``: A11's four criteria on hz4x4's collected tiers, scored by ``evaluate_scenario`` unchanged.
+
+    ``BRIEF_48`` Amendment B, B.3: the episodes are rolled by a ``gate-worker`` child under :func:`run_with_restarts` --
+    cut by the per-episode watchdog when one episode makes no progress for :data:`WATCHDOG_SECONDS`, restarted from the
+    records on disk at most :data:`WATCHDOG_MAX_RESTARTS` times, every restart logged -- and this driver scores the
+    records only once the worker has completed.  Every input is validated, and the work directory's existing records
+    are read and checked, before the worker starts.
+    """
+    import os
+    import sys
+
+    from offline import engine_att_reference as engine
 
     out = _refuse_existing(args.out)
     corpus_root = assert_main_tree_path(args.corpus_root, what="the corpus root")
@@ -2578,31 +2838,23 @@ def _run_gate(args: argparse.Namespace) -> int:
             "(docs/plans/p9.3.md section 4.6)"
         )
     cells = gate_cells_for(tiers)
-    episodes = []
     for cell in cells:
-        names = _tier_dir_names(cell.tier)
-        name = names[0] if cell.tier != "mappo1000" else f"{CORPUS_PREFIX}__mappo1000__seed{cell.seed}"
-        manifest = corpus_root / name / "manifest.json"
-        settings = env_settings_from_manifest(manifest)
-        config = draw_config_path(SCENARIO_KEY, int(cell.draw_id), out_root=draws_root)
-        horizon = int(settings["max_steps"]) * int(settings["delta_time"])
-        created = created_from_flow(config.parent / "flow.json", horizon_seconds=horizon)
-        if cell.tier == "maxpressure":
-            factory = _maxpressure_factory
-        elif cell.tier == "fixedtime":
-            factory = _fixedtime_factory(config, fixedtime_collection_settings(manifest))
-        else:
-            import json
-
-            meta = json.loads(manifest.read_bytes())["run_metadata"]
-            checkpoint = MAIN_TREE / str(meta["checkpoint"])
-            if _sha256_file(checkpoint) != meta["checkpoint_sha256"]:
-                raise ValueError(f"{checkpoint} is not the checkpoint {manifest} records")
-            factory = _mappo_factory(str(checkpoint), args.device)
-        print(f"hz4x4/{cell.arm} seed {cell.seed} draw {cell.draw_id}", flush=True)
-        episodes.append(hz4x4_gate_episode(cell=cell, config_path=config, env_settings=settings,
-                                           scenario_id=SCENARIO_ID, choose_action_factory=factory,
-                                           engine_seed=BASE_SEED, created=created))
+        _gate_cell_inputs(cell, corpus_root=corpus_root, draws_root=draws_root, device=args.device, build_factory=False)
+    work_dir = assert_main_tree_path(Path(args.output_root) / "p9_3" / "gate_work", what="the gate's work directory")
+    work_dir.mkdir(parents=True, exist_ok=True)
+    pending = pending_gate_cells(work_dir, cells)
+    print(f"gate: {len(cells)} cells, {len(cells) - len(pending)} already on disk in {work_dir}", flush=True)
+    command = [sys.executable, "-P", "-m", "offline.hz4x4_ladder", "gate-worker", "--work-dir", str(work_dir),
+               "--tiers", *tiers, "--device", str(args.device), "--draws-root", str(draws_root),
+               "--corpus-root", str(corpus_root), "--watchdog-seconds", str(WATCHDOG_SECONDS), "--torch-threads", "1"]
+    env = dict(os.environ, PYTHONPATH=str(_repo_root()), OMP_NUM_THREADS="1", MKL_NUM_THREADS="1",
+               PYTHONFAULTHANDLER="1")
+    result = run_with_restarts(command, log_dir=work_dir / "logs", label="gate-worker", env=env, cwd=MAIN_TREE)
+    if result["status"] != "completed":
+        print(f"gate: the worker ended {result['status']} after {result['restarts']} restart(s); see "
+              f"{result['attempts'][-1]['log']}", flush=True)
+        return 1
+    episodes = load_gate_episodes(work_dir, cells)
     criteria = engine.evaluate_scenario(episodes)
     outcome = gate_outcome(criteria)
     artifact = {
@@ -2626,6 +2878,9 @@ def _run_gate(args: argparse.Namespace) -> int:
         "criteria": criteria.as_record(),
         "outcome": outcome,
         "extremes_available_on_s": gate_extremes(episodes),
+        "watchdog": {"registered_in": "BRIEF_48 Amendment B, B.3", "seconds_per_episode": WATCHDOG_SECONDS,
+                     "max_restarts": WATCHDOG_MAX_RESTARTS, "restarts": result["restarts"],
+                     "attempts": result["attempts"]},
         "thread_regime": engine.thread_regime(),
         "git": _git(),
     }
@@ -2833,6 +3088,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "collect": _run_collect,
         "teachers": _run_teachers,
         "gate": _run_gate,
+        "gate-worker": _run_gate_worker,
         "declare": _run_declare,
         "d5-check": _run_d5_check,
         "record-ruling": _run_record_ruling,
