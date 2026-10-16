@@ -316,9 +316,11 @@ MIXTURE_TIER_ORDER: tuple[str, ...] = ("mix33", "mix50", "mix67")
 #:   ``tests/test_method_tier_grid_a27.py`` from the raw ``.npz``.
 #: * ``random_fresh`` -- A27(d)'s tier: 200 episodes, one per draw, collected with ``--random-rng per-episode``; its
 #:   state normalisation, prompt and IQL reward scale are fitted on its own 200 episodes (the registered ``random``
-#:   tier's were fitted on its 400-episode split).  **Its corpus does not exist until P9.1's campaign collects it**, so
-#:   the prompt below is ``nan`` until the declared rule's values are typed in a reviewed commit (``docs/plans/p9.1.md``
-#:   Q2); ``nan`` makes :func:`assert_declaration_matches_corpus` refuse, so nothing trains on it before then.
+#:   tier's were fitted on its 400-episode split).  Its corpus was collected by P9.1's ``collect`` stage on 2026-10-16
+#:   (run tree at ``140149e``); the prompt below is the declared rule's value over its 200 episodes, typed from
+#:   ``output/p9_1/declaration_random_fresh_hz1x1.json`` (``values_to_type``) in plan Q2's reviewed commit
+#:   (``BRIEF_46`` Amendment B, B.2), re-derived by :func:`assert_declaration_matches_corpus` before any training and
+#:   by ``tests/test_random_fresh_prompt.py`` from the raw ``.npz``.  Until this commit it was ``nan``.
 A27_TIERS: Mapping[str, TierSpec] = {
     "mix_m1000_m500": TierSpec(
         tier="mix_m1000_m500",
@@ -334,8 +336,8 @@ A27_TIERS: Mapping[str, TierSpec] = {
         tier="random_fresh",
         dirs=("cf_hz1x1__random_fresh",),
         phase=1,
-        target_rtg=math.nan,
-        rtg_scale=math.nan,
+        target_rtg=-35517.0,
+        rtg_scale=41135.0,
         stream_count=TRAINING_STREAM_COUNT,
         subsample="none",
     ),

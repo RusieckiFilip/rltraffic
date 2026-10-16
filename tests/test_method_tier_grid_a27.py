@@ -71,14 +71,16 @@ def test_the_overlap_mixture_is_declared_as_a27e_says() -> None:
     assert (spec.target_rtg, spec.rtg_scale) == (-5959.0, 11043.0)
 
 
-def test_random_fresh_is_declared_with_its_own_corpus_and_no_typed_prompt_yet() -> None:
-    """Q2 (``docs/plans/p9.1.md``): the prompt is the declared RULE over a corpus collected at G3; until its values are
-    typed the spec carries ``nan`` and nothing can train on it."""
+def test_random_fresh_is_declared_with_its_own_corpus_and_the_typed_prompt() -> None:
+    """Q2 (``docs/plans/p9.1.md``; ``BRIEF_46`` Amendment B, B.2): the prompt is the declared RULE over the corpus the
+    ``collect`` stage gathered on 2026-10-16, typed in Q2's reviewed commit -- target -35517.0 and scale 41135.0, the
+    declaration's ``values_to_type``; ``tests/test_random_fresh_prompt.py`` re-derives both from the raw ``.npz``.
+    (Until that commit this test pinned the untyped state: ``nan``, refused by the declaration check.)"""
     spec = grid.A27_TIERS["random_fresh"]
     assert spec.dirs == ("cf_hz1x1__random_fresh",)
     assert (spec.subsample, spec.stream_count, spec.phase, spec.components) == ("none", 200, 1, ())
-    assert math.isnan(spec.target_rtg) and math.isnan(spec.rtg_scale)
-    with pytest.raises(ValueError, match="declares target_rtg nan"):
+    assert (spec.target_rtg, spec.rtg_scale) == (-35517.0, 41135.0)
+    with pytest.raises(ValueError, match="declares target_rtg -35517.0"):
         grid.assert_declaration_matches_corpus(spec, [stream(1, -10.0), stream(2, -20.0)])
 
 
