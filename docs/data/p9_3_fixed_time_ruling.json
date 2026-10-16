@@ -1,0 +1,19 @@
+{
+  "amendment": "AMENDMENT C \u2014 2026-10-16",
+  "brief": "docs/briefs/BRIEF_48_p9.3_a27c_hz4x4.md",
+  "brief_sha256": "fd2802f53c91f15bd54109878f811c20b2e899449b70de03af15bd7fc9c3a32e",
+  "chosen_k": 2,
+  "format_version": "p9.3-fixed-time-ruling/1.0",
+  "git": {
+    "code_root": "/home/filip/rltraffic-p93",
+    "commit": "db0266472dc375e6c1481f1afc42ceb7895fb776",
+    "dirty": false
+  },
+  "registered_in": "BRIEF_48 Amendment A, A.2 finding 1 and A.4",
+  "rule": "offline.hz4x4_ladder collect reads this k only when sweep_sha256 equals the committed sweep artifact's digest; the sweep artifact itself is never edited",
+  "sweep_artifact": "docs/data/p9_3_fixed_time_sweep.json",
+  "sweep_k_att_engine": 3,
+  "sweep_k_att_ours": 2,
+  "sweep_sha256": "e8480d8d19cdbb75b0f051668bed41cb749adcd47c96d7dc01076d1ffd45102d",
+  "sweep_status": "DEFINITION-DEPENDENT"
+}
