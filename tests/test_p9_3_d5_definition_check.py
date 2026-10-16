@@ -220,3 +220,17 @@ def test_the_hz4x4_defaults_still_produce_a_committed_hz4x4_sweep_record() -> No
     for key in ("att_ours", "att_engine", "created", "entered", "never_entered", "entered_fraction",
                 "schedule_source", "plan_sha256"):
         assert record[key] == committed[key], key
+
+
+def test_d5_protocol_refuses_a_manifest_with_another_schedule_source(tmp_path: Path) -> None:
+    hz1x1 = next(spec for spec in hz.D5_SCENARIOS if spec.name == "cf_hz1x1")
+    directory = tmp_path / hz1x1.protocol_dir
+    directory.mkdir()
+    meta = {"behavior_policy": "fixedtime", "fixed_time_schedule_source": "equal_split", "fixed_time_plan_sha256": None}
+    (directory / "manifest.json").write_text(json.dumps({"run_metadata": meta}), encoding="utf-8")
+    with pytest.raises(ValueError, match="shipped_plan"):
+        hz.d5_protocol(hz1x1, corpus_root=tmp_path)
+    meta["behavior_policy"] = "maxpressure"
+    (directory / "manifest.json").write_text(json.dumps({"run_metadata": meta}), encoding="utf-8")
+    with pytest.raises(ValueError, match="not a fixed-time tier"):
+        hz.d5_protocol(hz1x1, corpus_root=tmp_path)
