@@ -199,3 +199,28 @@ def test_verify_run_refuses_each_drifted_field(collected: tuple[Any, Path], fiel
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
     with pytest.raises(ValueError, match=field):
         hz.verify_run(run, draws_root=draws_root)
+
+
+# ======================================================================
+# BRIEF_48 Amendment C: the author's ruling, recorded (C.2.1)
+# ======================================================================
+
+COMMITTED_SWEEP = REPO / "docs" / "data" / "p9_3_fixed_time_sweep.json"
+COMMITTED_RULING = REPO / "docs" / "data" / "p9_3_fixed_time_ruling.json"
+BRIEF_48 = REPO / "docs" / "briefs" / "BRIEF_48_p9.3_a27c_hz4x4.md"
+
+
+def test_the_committed_ruling_gives_k_2_for_the_committed_sweep_only(tmp_path: Path) -> None:
+    ruling = json.loads(COMMITTED_RULING.read_bytes())
+    assert ruling["chosen_k"] == 2
+    assert ruling["amendment"] == "AMENDMENT C — 2026-10-16"
+    assert ruling["amendment"] in BRIEF_48.read_text(encoding="utf-8")
+    assert ruling["sweep_sha256"] == hashlib.sha256(COMMITTED_SWEEP.read_bytes()).hexdigest()
+    assert (ruling["sweep_status"], ruling["sweep_k_att_engine"], ruling["sweep_k_att_ours"]) == (
+        "DEFINITION-DEPENDENT", 3, 2)
+    assert hz.fixed_time_k_from_ruling(COMMITTED_RULING, COMMITTED_SWEEP) == 2
+    assert hz.resolve_fixed_time_k(COMMITTED_SWEEP, COMMITTED_RULING) == 2
+    altered = tmp_path / "p9_3_fixed_time_sweep.json"
+    altered.write_bytes(COMMITTED_SWEEP.read_bytes() + b"\n")
+    with pytest.raises(ValueError, match="sha256"):
+        hz.fixed_time_k_from_ruling(COMMITTED_RULING, altered)
