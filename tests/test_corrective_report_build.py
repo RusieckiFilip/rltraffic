@@ -275,7 +275,55 @@ def _iql_sources() -> rep.Sources:
         cells[f"p9_1:grid4x4:iql_t@{tier}"] = _copy(iql, f"p9_1:grid4x4:iql_t@{tier}", "iql_t", shift=-2.0)
         cells[f"p9_1:grid4x4:iql_m@{tier}"] = _copy(iql, f"p9_1:grid4x4:iql_m@{tier}", "iql_m", shift=-3.0)
     d4rl = {"arm": "iql_t", "contrasts": {"bc - iql_t": {"mean_difference": -1.0}}}
-    return _sources(cells, grid_books=books, d4rl=d4rl)
+    # Q8 (BRIEF_46 Amendment B, B.2): P1's other three methods on every hz1x1 tier, the behaviour cells of the
+    # comparisons with IQL (P4.6's maxpressure and fixedtime seedless, as committed), the constructed mixture
+    # references, and the committed statements the originals must reproduce -- computed here on the artifacts' wiring
+    # as this test spells it, so a report wired otherwise is refused.
+    cells["p4_4:bc"] = _cell("p4_4:bc", "bc", "mappo1000", 105.5, arm="bc")
+    cells["p4_4:bc_top10"] = _cell("p4_4:bc_top10", "bc_top10", "mappo1000", 103.5, arm="bc_top10")
+    cells["p4_4:mappo1000"] = _cell("p4_4:mappo1000", "behaviour", "mappo1000", 101.0, arm="mappo1000")
+    for i, tier in enumerate(("mappo500", "maxpressure", "fixedtime", "random", *MIXTURES)):
+        for j, method in enumerate(("dt", "bc", "bc_top10")):
+            cid = f"{'p4_7' if tier in MIXTURES else 'p4_6'}:{method}@{tier}"
+            cells.setdefault(cid, _cell(cid, method, tier, 103.0 + i + 1.5 * j))
+    for tier in P1_TIERS_P4_6:
+        cid = f"p4_6:behaviour@{tier}"
+        cells[cid] = _seedless(cid, tier, 99.0) if tier in ("maxpressure", "fixedtime") else _cell(cid, "behaviour",
+                                                                                                    tier, 99.5)
+    for tier in MIXTURES:
+        cells[f"constructed:behaviour@{tier}"] = _cell(f"constructed:behaviour@{tier}", "behaviour", tier, 100.0)
+    p1 = {name: cv.p1_scores({t: {m: cells[_p1_slot(m, t)] for m in ("dt", "bc", "bc_top10", "iql")} for t in tiers})
+          ["att_ours"] for name, tiers in (("p4_6", P1_TIERS_P4_6), ("p4_7", P1_TIERS_P4_6 + MIXTURES))}
+    comparisons = {"p4_4:mappo1000_vs_iql": cv.paired_both(cells["p4_4:mappo1000"], cells["p4_4:iql"],
+                                                           serializer="offline_baselines")["att_ours"]}
+    for task, tier, behaviour in ([("p4_6", t, f"p4_6:behaviour@{t}") for t in P1_TIERS_P4_6]
+                                  + [("p4_7", t, f"constructed:behaviour@{t}") for t in MIXTURES]):
+        comparisons[f"{task}:iql@{tier} against behaviour@{tier}"] = cv.paired_both(
+            cells[_p1_slot("iql", tier)], cells[behaviour], serializer="method_tier_grid",
+            labels=(f"iql@{tier}", f"behaviour@{tier}"))["att_ours"]
+    registered = {"p4_4_delta": 0.6263, "p1_committed": p1, "iql_behaviour_committed": comparisons}
+    return _sources(cells, grid_books=books, d4rl=d4rl, registered=registered)
+
+
+P1_TIERS_P4_6 = ("mappo1000", "mappo500", "maxpressure", "fixedtime", "random")
+MIXTURES = ("mix33", "mix50", "mix67")
+
+
+def _p1_slot(method: str, tier: str) -> str:
+    """The cell P1 reads for *method* on *tier*: P4.4's on mappo1000, P4.7's on a mixture, P4.6's elsewhere."""
+    if tier == "mappo1000":
+        return {"dt": "p4_4:madt", "bc": "p4_4:bc", "bc_top10": "p4_4:bc_top10", "iql": "p4_4:iql"}[method]
+    return f"{'p4_7' if tier in MIXTURES else 'p4_6'}:{method}@{tier}"
+
+
+def _seedless(cell_id: str, tier: str, level: float) -> tst.Cell:
+    """A deterministic behaviour policy's cell as the report loads it: one episode per draw, ``seed`` None."""
+    rows = tuple({"arm": f"behaviour@{tier}", "seed": None, "draw_id": d, "att_ours": level + fx._term(cell_id, 0, d),
+                  "att_engine": level - 7.0 + fx._term(cell_id, 0, d), "created": 1300, "entered": 1300,
+                  "never_entered": 0, "entered_fraction": 1.0, "horizon_vehicle_count": 10.0, "episode_reward": -1.0}
+                 for d in fx.DRAWS)
+    return tst.Cell(spec=tst.CellSpec(cell_id=cell_id, method="behaviour", tier=tier, source=cell_id.split(":")[0],
+                                      arm=f"behaviour@{tier}", eval_file="x", manifest="test"), rows=rows)
 
 
 def test_iql_targets_pairs_every_tier_and_summarises_the_twelve() -> None:
@@ -303,6 +351,82 @@ def test_the_iql_rescore_keeps_only_p5_2_statements_that_read_an_iql_cell() -> N
     assert entries and all(set(e["inputs"]) & iql_ids for e in entries)
     assert payload["p5_2_rescore"]["n_moved"] == {d: sum(e["moved"] for e in entries if e["definition"] == d)
                                                   for d in ("att_engine", "att_ours")}
+
+
+def test_q8_rescores_p1_of_p4_6_and_p4_7_with_iql_t_in_iqls_slot_beside_the_original() -> None:
+    """Q8: P1 on P4.6's five tiers and P4.7's eight, each original reproducing its committed P1 under att_ours, the
+    re-score reading iql_t where IQL stood and nothing else changed.  On maxpressure BC is second of four among the
+    originals (dt 104, bc 105.5, iql 106, bc_top10 107) and third with iql_t at 103 -- ranks read off the levels,
+    which no per-episode term (|term| <= 14/64) can reorder."""
+    src = _iql_sources()
+    payload = rep.build_iql_targets(src)
+    _assert_common(payload, "A27(c)", src)
+    blocks = payload["p1_rescore"]
+    assert sorted(blocks) == ["p4_6", "p4_7"]
+    for name, tiers in (("p4_6", P1_TIERS_P4_6), ("p4_7", P1_TIERS_P4_6 + MIXTURES)):
+        block = blocks[name]
+        original = {_p1_slot(m, t) for t in tiers for m in ("dt", "bc", "bc_top10", "iql")}
+        assert sorted(block["original_inputs"]) == sorted(original)
+        assert sorted(block["inputs"]) == sorted({_p1_slot(m, t) for t in tiers for m in ("dt", "bc", "bc_top10")}
+                                                 | {f"p9_1:hz1x1:iql_t@{t}" for t in tiers})
+        assert block["substituted"] == {t: {"original": _p1_slot("iql", t), "replacement": f"p9_1:hz1x1:iql_t@{t}"}
+                                        for t in tiers}
+        assert block["original"]["att_ours"] == src.registered["p1_committed"][name]
+        for definition in ("att_engine", "att_ours"):
+            assert block["original"][definition]["bc_rank_by_tier"]["maxpressure"] == 2
+            assert block["rescored"][definition]["bc_rank_by_tier"]["maxpressure"] == 3
+            assert block["moved"][definition] == (block["original"][definition]["outcome"]
+                                                  != block["rescored"][definition]["outcome"])
+    assert {"p4_6:bc@maxpressure", "p4_7:dt@mix33", "p4_4:bc_top10"} <= set(payload["records"])
+
+
+def test_q8_rescores_every_behaviour_comparison_with_iql_in_its_artifacts_order() -> None:
+    """P4.4's ``mappo1000_vs_iql`` (behaviour left, P4.4's serialisation), P4.6's five ``iql@T`` against
+    ``behaviour@T`` (IQL left; on mappo1000 P4.4's IQL cell under P4.6's name) and P4.7's three mixtures against the
+    constructed references; P4.7's phase-1 five are P4.6's and listed once.  The re-score reads iql_t in IQL's place."""
+    src = _iql_sources()
+    payload = rep.build_iql_targets(src)
+    entries = payload["iql_behaviour_comparisons"]["comparisons"]
+    expected = [("p4_4", "mappo1000", ["p4_4:mappo1000", "p4_4:iql"], ["p4_4:mappo1000", "p9_1:hz1x1:iql_t@mappo1000"],
+                 ("mappo1000", "iql"), ("mappo1000", "iql_t@mappo1000"))]
+    expected += [("p4_6", t, [_p1_slot("iql", t), f"p4_6:behaviour@{t}"], [f"p9_1:hz1x1:iql_t@{t}", f"p4_6:behaviour@{t}"],
+                  (f"iql@{t}", f"behaviour@{t}"), (f"iql_t@{t}", f"behaviour@{t}")) for t in P1_TIERS_P4_6]
+    expected += [("p4_7", t, [f"p4_7:iql@{t}", f"constructed:behaviour@{t}"],
+                  [f"p9_1:hz1x1:iql_t@{t}", f"constructed:behaviour@{t}"],
+                  (f"iql@{t}", f"behaviour@{t}"), (f"iql_t@{t}", f"behaviour@{t}")) for t in MIXTURES]
+    got = [(e["artifact"], e["tier"], e["original_inputs"], e["inputs"],
+            (e["original"]["att_ours"]["left_arm"], e["original"]["att_ours"]["right_arm"]),
+            (e["rescored"]["att_engine"]["left_arm"], e["rescored"]["att_engine"]["right_arm"])) for e in entries]
+    assert got == expected
+    for e in entries:
+        for definition in ("att_engine", "att_ours"):
+            for version in ("original", "rescored"):
+                low, high = e[version][definition]["ci95_low"], e[version][definition]["ci95_high"]
+                assert e["side_of_zero"][version][definition] == (
+                    "below zero" if high < 0.0 else "above zero" if low > 0.0 else "includes zero")
+            assert e["side_changed"][definition] == (e["side_of_zero"]["original"][definition]
+                                                     != e["side_of_zero"]["rescored"][definition])
+    seedless = next(e for e in entries if (e["artifact"], e["tier"]) == ("p4_6", "maxpressure"))
+    assert seedless["original"]["att_engine"]["n_shared_draws"] == len(fx.DRAWS)
+    assert {"p4_6:behaviour@fixedtime", "constructed:behaviour@mix67", "p4_4:mappo1000"} <= set(payload["records"])
+
+
+def test_an_original_that_does_not_reproduce_its_committed_statement_is_refused() -> None:
+    """The originals are the registered cells joined to their re-rolls: under att_ours each must BE its committed
+    statement, so a report reading a different cell or order -- or a committed value that differs in its last bit --
+    is refused rather than reported."""
+    src = _iql_sources()
+    p1 = dict(src.registered["p1_committed"])
+    p1["p4_7"] = {**p1["p4_7"], "bc_rank_by_tier": {**p1["p4_7"]["bc_rank_by_tier"], "mix50": 0}}
+    with pytest.raises(ValueError, match="committed P1"):
+        rep.build_iql_targets(rep.Sources(**{**src.__dict__, "registered": {**src.registered, "p1_committed": p1}}))
+    key = "p4_6:iql@maxpressure against behaviour@maxpressure"
+    comparisons = dict(src.registered["iql_behaviour_committed"])
+    value = comparisons[key]["mean_difference"]
+    comparisons[key] = {**comparisons[key], "mean_difference": value + abs(value) * 2.0 ** -52}
+    with pytest.raises(ValueError, match="committed comparison"):
+        rep.build_iql_targets(rep.Sources(**{**src.__dict__, "registered": {**src.registered,
+                                                                             "iql_behaviour_committed": comparisons}}))
 
 
 # ----------------------------------------------------------------------

@@ -344,3 +344,141 @@ def contrast_entry(left: Any, right: Any, *, tier: str) -> dict[str, Any]:
     return {"left": left.spec.cell_id, "right": right.spec.cell_id, "left_arm": left.spec.method,
             "right_arm": right.spec.method, "tier": tier,
             "by_definition": {d: _numbers(b) for d, b in contrast_both(left, right, tier=tier).items()}}
+
+
+# ----------------------------------------------------------------------
+# Q8 (BRIEF_46 Amendment B, B.2): the registered statements in which IQL appears that A27(c)'s enumeration missed --
+# P4.6's and P4.7's P1 (BC's rank among the four methods) and the behaviour comparisons with IQL (P4.4's
+# ``mappo1000_vs_iql``, P4.6's and P4.7's ``iql@<tier>`` against ``behaviour@<tier>``), each by its registered route.
+# ----------------------------------------------------------------------
+
+#: P1's four methods, the slots of each tier (``method_tier_grid.METHODS``); ``iql_t`` re-fills the ``iql`` slot.
+P1_METHODS: tuple[str, ...] = ("dt", "bc", "bc_top10", "iql")
+
+
+def _episodes(cell: Any, definition: str) -> list[Any]:
+    """*cell*'s rows as ``dt_gate.EpisodeResult``s carrying *definition* in ``att_horizon``, in ``(seed, draw)`` order.
+    A seedless cell (a deterministic behaviour policy) keeps ``seed`` None, as its registered artifact records it."""
+    from offline.dt_gate import EpisodeResult
+
+    episodes = [EpisodeResult(arm=str(row["arm"]), seed=None if row["seed"] is None else int(row["seed"]),
+                              draw_id=int(row["draw_id"]), att_horizon=float(row[definition]),
+                              horizon_vehicle_count=float(row["horizon_vehicle_count"]),
+                              episode_reward=float(row["episode_reward"])) for row in cell.rows]
+    episodes.sort(key=lambda episode: (-1 if episode.seed is None else episode.seed, episode.draw_id))
+    keys = [(episode.seed, episode.draw_id) for episode in episodes]
+    if len(keys) != len(set(keys)):
+        raise ValueError(f"{cell.spec.cell_id}: an episode appears twice")
+    return episodes
+
+
+def p1_scores(cells: Mapping[str, Mapping[str, Any]]) -> dict[str, dict[str, Any]]:
+    """P1 by its registered scorer (``method_tier_grid.score_p1``) under each definition: per tier the four methods'
+    levels by the registered cell statistic (``method_tier_grid.cell_stats``) over the cells' rows.  A tier enters only
+    with all four methods, as in the registered build.  Each episode is labelled with its SLOT's arm key,
+    ``<method>@<tier>``, as P4.6's build labelled P4.4's re-used ``mappo1000`` cells (``madt`` as ``dt@mappo1000``);
+    ``cell_stats`` parses the label and ``score_p1`` reads only the means."""
+    from dataclasses import replace
+
+    from offline.method_tier_grid import cell_stats, score_p1
+
+    for tier, methods in cells.items():
+        if set(methods) != set(P1_METHODS):
+            raise ValueError(f"{tier}: P1 ranks BC among the four methods {list(P1_METHODS)}, got {sorted(methods)}")
+    return {definition: score_p1({tier: {method: cell_stats([replace(episode, arm=f"{method}@{tier}")
+                                                             for episode in _episodes(cell, definition)])
+                                         for method, cell in methods.items()} for tier, methods in cells.items()})
+            for definition in DEFINITIONS}
+
+
+def p1_rescore(original: Mapping[str, Mapping[str, Any]], rescored: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
+    """P1 on the original cells and with IQL's slot re-filled (``iql_t``), every other slot the same cell; ``moved``
+    per definition iff the registered outcome differs."""
+    if set(original) != set(rescored):
+        raise ValueError(f"the original and the re-scored P1 cover different tiers ({sorted(original)} and "
+                         f"{sorted(rescored)})")
+    for tier in original:
+        for method in P1_METHODS:
+            if method != "iql" and rescored[tier][method].spec.cell_id != original[tier][method].spec.cell_id:
+                raise ValueError(f"{tier}: the re-score replaces IQL alone, but {method}'s cell differs "
+                                 f"({original[tier][method].spec.cell_id} and {rescored[tier][method].spec.cell_id})")
+    before, after = p1_scores(original), p1_scores(rescored)
+    return {"original": before, "rescored": after,
+            "substituted": {tier: {"original": original[tier]["iql"].spec.cell_id,
+                                   "replacement": rescored[tier]["iql"].spec.cell_id} for tier in original},
+            "moved": {d: before[d]["outcome"] != after[d]["outcome"] for d in DEFINITIONS},
+            "rule": "method_tier_grid.score_p1, P1's registered rule: HELD iff BC is worst of the four methods on every "
+                    "tier present, FAILED if it is better than worst on any, NOT RESOLVED on an exact tie; a verdict "
+                    "MOVES iff that outcome changes"}
+
+
+#: The two registered serialisations of a behaviour comparison, by the artifact that carries it.
+COMPARISON_SERIALIZERS: tuple[str, ...] = ("method_tier_grid", "offline_baselines")
+
+
+def paired_both(left: Any, right: Any, *, serializer: str,
+                labels: tuple[str, str] | None = None) -> dict[str, dict[str, Any]]:
+    """``left`` against ``right`` by the registered behaviour-comparison route, ``offline_baselines.paired_comparison``
+    (per-draw means over the seeds, the shared draws only), under each definition -- serialised as the artifact being
+    re-scored serialised it: ``method_tier_grid`` (P4.6, P4.7: ``comparison_json``, its tied-pair caveat included) or
+    ``offline_baselines`` (P4.4: ``PairedComparison.to_json_obj``).  The argument order is the artifact's own: P4.6 and
+    P4.7 put the method left of its behaviour policy, P4.4 the behaviour policy left of the method.  *labels* names
+    the two arms as the artifact names them where a cell is re-used under another name (P4.6 reads P4.4's ``iql`` as
+    ``iql@mappo1000``); without it each side keeps its rows' own arm."""
+    import json
+    from dataclasses import replace
+
+    from offline import offline_baselines as ob
+    from offline.method_tier_grid import comparison_json
+
+    if serializer not in COMPARISON_SERIALIZERS:
+        raise ValueError(f"serializer {serializer!r} is not one of {list(COMPARISON_SERIALIZERS)}")
+
+    def side(cell: Any, definition: str, label: str | None) -> list[Any]:
+        episodes = _episodes(cell, definition)
+        return episodes if label is None else [replace(episode, arm=label) for episode in episodes]
+
+    left_label, right_label = (None, None) if labels is None else labels
+    out = {}
+    for definition in DEFINITIONS:
+        comparison = ob.paired_comparison(side(left, definition, left_label), side(right, definition, right_label))
+        payload = comparison_json(comparison) if serializer == "method_tier_grid" else comparison.to_json_obj()
+        out[definition] = json.loads(json.dumps(payload))
+    return out
+
+
+def constructed_reference_cell(tier: str, expert: Any, random_pool: Any) -> Any:
+    """A mixture's behaviour reference by its registered construction (``mixture_tiers.constructed_reference_artifact``:
+    the declared assignment per ``(tier, seed)``, each draw ONE component's episode, over ``dt_gate``'s registered
+    seeds and held-out draws), as a ``tier_statements.Cell``.  The construction carries ``att_horizon`` and two
+    companions; every row here is the assigned component's whole row, so ``att_engine`` comes from the same episode
+    as ``att_ours`` -- checked against the construction's own value on every draw."""
+    import offline.tier_statements as tst
+    from offline.dt_gate import HELD_OUT_DRAWS, TRAINING_SEEDS
+    from offline.mixture_tiers import CONSTRUCTED_REFERENCE_ARMS, constructed_reference_artifact
+
+    grid = {(int(seed), int(draw)) for seed in TRAINING_SEEDS for draw in HELD_OUT_DRAWS}
+    rows = {}
+    for name, component in zip(CONSTRUCTED_REFERENCE_ARMS, (expert, random_pool)):
+        index = {(row["seed"], row["draw_id"]): row for row in component.rows}
+        if len(index) != len(component.rows) or set(index) != grid:
+            raise ValueError(f"{name} ({component.spec.cell_id}) does not cover the registered seeds x held-out draws "
+                             "exactly once each; the construction reads every (seed, draw) of both components")
+        rows[name] = index
+    payload = constructed_reference_artifact(
+        tier, *({key: {"att_horizon": float(row["att_ours"]), "horizon_vehicle_count": float(row["horizon_vehicle_count"]),
+                       "episode_reward": float(row["episode_reward"])} for key, row in rows[name].items()}
+                for name in CONSTRUCTED_REFERENCE_ARMS),
+        seeds=list(TRAINING_SEEDS), draws=list(HELD_OUT_DRAWS))
+    arm = str(payload["arm"])
+    built = []
+    for record in payload["episodes"]:
+        source = rows[str(record["component"])][(int(record["seed"]), int(record["draw_id"]))]
+        if float(record["att_horizon"]) != float(source["att_ours"]):
+            raise ValueError(f"{arm} seed {record['seed']} draw {record['draw_id']}: the construction carries "
+                             f"{record['att_horizon']!r}, its component's row {source['att_ours']!r}")
+        built.append({**source, "arm": arm})
+    spec = tst.CellSpec(cell_id=f"constructed:{arm}", method="behaviour", tier=str(tier), source="constructed",
+                        arm=arm, eval_file=f"none: constructed from {expert.spec.cell_id} and {random_pool.spec.cell_id}",
+                        manifest="none: mixture_tiers.constructed_reference_artifact's declared assignment")
+    return tst.Cell(spec=spec, rows=tuple(sorted(built, key=lambda r: (int(r["seed"]), int(r["draw_id"])))))

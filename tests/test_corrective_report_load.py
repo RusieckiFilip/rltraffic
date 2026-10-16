@@ -283,3 +283,77 @@ def test_p5_3bs_old_tier_numbers_are_copied_from_its_committed_artifact() -> Non
         key: value for key, value in identity["n_distinct_action_sequences"].items() if key.startswith("dt@random seed ")}
     assert set(block["n_distinct_action_sequences"].values()) == {1} and len(block["n_distinct_action_sequences"]) == 5
     assert block["attractor"] == identity["attractor"]
+
+
+# ----------------------------------------------------------------------
+# Q8 (BRIEF_46 Amendment B, B.2): the loading steps of P1 and the behaviour comparisons with IQL
+# ----------------------------------------------------------------------
+
+MIXTURES = ("mix33", "mix50", "mix67")
+PHASE1 = ("mappo1000", "mappo500", "maxpressure", "fixedtime", "random")
+
+
+def _statement_cell(artifact: str, arm: str, *, engine_shift: float) -> Any:
+    """A committed cell as the report loads an old cell: ``att_ours`` the committed value, ``att_engine`` beside."""
+    import offline.tier_statements as tst
+
+    payload = json.loads((REPO / "docs" / "data" / artifact).read_text())
+    rows = [{"arm": arm, "seed": e["seed"], "draw_id": int(e["draw_id"]), "att_ours": float(e["att_horizon"]),
+             "att_engine": float(e["att_horizon"]) + engine_shift, "entered": 1, "created": 1, "never_entered": 0,
+             "entered_fraction": 1.0, "horizon_vehicle_count": float(e["horizon_vehicle_count"]),
+             "episode_reward": float(e["episode_reward"])} for e in payload["episodes"] if e["arm"] == arm]
+    cid = rep.hz1x1_old_id(f"docs/data/{artifact}", arm)
+    return rep.as_statement_cell(cid, "behaviour", arm.split("@")[-1], arm, cid.split(":")[0], artifact, rows)
+
+
+def test_a_mixture_reference_is_p4_7s_construction_from_p4_6s_components_or_is_refused() -> None:
+    """Built from the re-rolled P4.6 components by the registered construction and joined to P4.7's committed
+    ``behaviour@<tier>`` episode for episode; the components swapped, the join refuses."""
+    expert = _statement_cell("p4_6_grid.json", "behaviour@mappo1000", engine_shift=-1.0)
+    random_pool = _statement_cell("p4_6_grid.json", "behaviour@random", engine_shift=-2.0)
+    for tier in MIXTURES:
+        cell = rep.constructed_mixture_reference(REPO, tier, expert, random_pool)
+        assert cell.spec.cell_id == rep.constructed_id(tier) == f"constructed:behaviour@{tier}"
+        assert len(cell.rows) == 500 and {row["arm"] for row in cell.rows} == {f"behaviour@{tier}"}
+    with pytest.raises(ValueError, match="P4.7"):
+        rep.constructed_mixture_reference(REPO, "mix33", random_pool, expert)
+
+
+def test_two_re_rolls_of_the_same_episodes_must_agree_on_every_value() -> None:
+    """P4.4's ``mappo1000`` and P4.6's ``behaviour@mappo1000`` are the same 500 episodes re-rolled twice through a
+    seeded route: equal they pass; one value or one episode different, the load refuses."""
+    rows = [{**{key: 0 for key in rep.EPISODE_FIELDS}, "arm": "mappo1000", "seed": s, "draw_id": d,
+             "att_engine": 100.0 + s + d / 64.0, "source": "a"} for s in (101, 202) for d in (1000, 1001)]
+    twin = [{**row, "arm": "behaviour@mappo1000", "source": "b"} for row in rows]
+    rep.assert_rerolls_agree(rows, twin, what="mappo1000's behaviour episodes")
+    changed = [dict(row) for row in twin]
+    changed[3]["att_engine"] = changed[3]["att_engine"] + 2.0 ** -40
+    with pytest.raises(ValueError, match="att_engine"):
+        rep.assert_rerolls_agree(rows, changed, what="mappo1000's behaviour episodes")
+    with pytest.raises(ValueError, match="episodes"):
+        rep.assert_rerolls_agree(rows, twin[:-1], what="mappo1000's behaviour episodes")
+
+
+def test_q8s_committed_statements_are_read_from_their_artifacts() -> None:
+    """P4.6's and P4.7's committed P1 and every committed behaviour comparison with IQL, keyed as the report keys them;
+    P4.7's five phase-1 comparisons are P4.6's, value for value, which is why the report lists them once."""
+    def load(name: str) -> dict[str, Any]:
+        return json.loads((REPO / "docs" / "data" / f"{name}.json").read_text())
+
+    p4_4, p4_6, p4_7 = load("p4_4_baselines"), load("p4_6_grid"), load("p4_7_grid")
+    got = rep.iql_statements_committed(REPO)
+    assert got["p1_committed"] == {"p4_6": p4_6["predictions"]["P1"], "p4_7": p4_7["predictions"]["P1"]}
+    comparisons = got["iql_behaviour_committed"]
+    assert sorted(comparisons) == sorted(["p4_4:mappo1000_vs_iql",
+                                          *[f"p4_6:iql@{t} against behaviour@{t}" for t in PHASE1],
+                                          *[f"p4_7:iql@{t} against behaviour@{t}" for t in MIXTURES]])
+    assert comparisons["p4_4:mappo1000_vs_iql"] == p4_4["behaviour_policy_comparisons"]["mappo1000_vs_iql"]
+    for task, payload, tiers in (("p4_6", p4_6, PHASE1), ("p4_7", p4_7, MIXTURES)):
+        for tier in tiers:
+            committed = [c for c in payload["behaviour_comparisons"]
+                         if (c["left_arm"], c["right_arm"]) == (f"iql@{tier}", f"behaviour@{tier}")]
+            assert [comparisons[f"{task}:iql@{tier} against behaviour@{tier}"]] == committed
+    for tier in PHASE1:
+        pair = (f"iql@{tier}", f"behaviour@{tier}")
+        assert ([c for c in p4_7["behaviour_comparisons"] if (c["left_arm"], c["right_arm"]) == pair]
+                == [c for c in p4_6["behaviour_comparisons"] if (c["left_arm"], c["right_arm"]) == pair])

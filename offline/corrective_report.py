@@ -441,9 +441,109 @@ HZ1X1_IQL_TIERS: tuple[str, ...] = ("random", "fixedtime", "maxpressure", "mappo
                                     "mix67")
 
 
+#: Q8 (``BRIEF_46`` Amendment B, B.2): the tiers each artifact's P1 ranks BC on -- P4.6's five, P4.7's eight.
+P1_TIERS: Mapping[str, tuple[str, ...]] = {
+    "p4_6": ("mappo1000", "mappo500", "maxpressure", "fixedtime", "random"),
+    "p4_7": ("mappo1000", "mappo500", "maxpressure", "fixedtime", "random", "mix33", "mix50", "mix67"),
+}
+#: The mixtures whose behaviour reference is CONSTRUCTED (P4.7), not rolled out.
+MIXTURE_REFERENCE_TIERS: tuple[str, ...] = ("mix33", "mix50", "mix67")
+
+
+def p1_cell_ids(tier: str) -> dict[str, str]:
+    """The old cells P1 reads on *tier*: P4.4's on ``mappo1000`` (P4.6 and P4.7 re-used them), P4.7's on a mixture,
+    P4.6's on the other phase-1 tiers (P4.7's phase-1 cells are P4.6's, value for value)."""
+    if tier == "mappo1000":
+        return dict(MIXTURE_PARENTS["mappo1000"])
+    task = "p4_7" if tier in MIXTURE_REFERENCE_TIERS else "p4_6"
+    return {method: f"{task}:{method}@{tier}" for method in ("dt", "bc", "bc_top10", "iql")}
+
+
+def constructed_id(tier: str) -> str:
+    """A constructed mixture reference's cell id."""
+    return f"constructed:behaviour@{tier}"
+
+
+def iql_behaviour_pairs() -> list[dict[str, Any]]:
+    """Q8's behaviour comparisons with IQL, each as its artifact states it: P4.4's ``mappo1000_vs_iql`` (behaviour
+    LEFT, ``to_json_obj``), P4.6's ``iql@T`` against ``behaviour@T`` on its five tiers (IQL left, ``comparison_json``;
+    on mappo1000 P4.4's IQL cell under P4.6's name), P4.7's three mixtures against their constructed references.
+    P4.7's five phase-1 comparisons are P4.6's, value for value, and are listed once."""
+    pairs = [{"artifact": "p4_4", "statement": "mappo1000_vs_iql", "tier": "mappo1000", "iql": "p4_4:iql",
+              "behaviour": "p4_4:mappo1000", "behaviour_left": True, "serializer": "offline_baselines",
+              "labels": None}]
+    for task, tiers in (("p4_6", P1_TIERS["p4_6"]), ("p4_7", MIXTURE_REFERENCE_TIERS)):
+        for tier in tiers:
+            pairs.append({"artifact": task, "statement": f"iql@{tier} against behaviour@{tier}", "tier": tier,
+                          "iql": p1_cell_ids(tier)["iql"],
+                          "behaviour": constructed_id(tier) if task == "p4_7" else f"p4_6:behaviour@{tier}",
+                          "behaviour_left": False, "serializer": "method_tier_grid",
+                          "labels": (f"iql@{tier}", f"behaviour@{tier}")})
+    return pairs
+
+
+def _side_of_zero(low: float, high: float) -> str:
+    return "below zero" if high < 0.0 else "above zero" if low > 0.0 else "includes zero"
+
+
+def p1_rescore_block(src: Sources, name: str) -> dict[str, Any]:
+    """Q8: *name*'s P1 (``p4_6`` or ``p4_7``) on the old cells, refused unless its ``att_ours`` score IS the committed
+    P1, beside the same with ``iql_t`` in IQL's slot -- both definitions, the registered scorer."""
+    import offline.corrective_verdicts as cv
+
+    tiers = P1_TIERS[name]
+    original = {tier: {m: src.cells[cid] for m, cid in p1_cell_ids(tier).items()} for tier in tiers}
+    rescored = {tier: {**original[tier], "iql": src.cells[f"p9_1:hz1x1:iql_t@{tier}"]} for tier in tiers}
+    block = cv.p1_rescore(original, rescored)
+    if block["original"]["att_ours"] != src.registered["p1_committed"][name]:
+        raise ValueError(f"{name}: P1 on the joined old cells under att_ours is not the committed P1; the cells read are "
+                         "not the ones the registered statement scored")
+    return {"artifact": name, "tiers": list(tiers), **block,
+            "original_inputs": sorted(c.spec.cell_id for methods in original.values() for c in methods.values()),
+            "inputs": sorted(c.spec.cell_id for methods in rescored.values() for c in methods.values()),
+            "original_reproduces_committed_att_ours": True}
+
+
+def iql_behaviour_rescore(src: Sources) -> dict[str, Any]:
+    """Q8: every behaviour comparison with IQL by its registered route, each original refused unless its ``att_ours``
+    payload IS the committed one, beside the same with ``iql_t`` in IQL's place; both definitions.  No decision rule
+    is attached to these comparisons, so the side of zero of each interval is reported, not a verdict."""
+    import offline.corrective_verdicts as cv
+
+    committed = src.registered["iql_behaviour_committed"]
+    entries = []
+    for pair in iql_behaviour_pairs():
+        new = f"p9_1:hz1x1:iql_t@{pair['tier']}"
+
+        def ordered(iql: str, pair: Mapping[str, Any] = pair) -> list[str]:
+            return [pair["behaviour"], iql] if pair["behaviour_left"] else [iql, pair["behaviour"]]
+
+        original = cv.paired_both(*(src.cells[c] for c in ordered(pair["iql"])), serializer=pair["serializer"],
+                                  labels=pair["labels"])
+        key = f"{pair['artifact']}:{pair['statement']}"
+        if original["att_ours"] != committed[key]:
+            raise ValueError(f"{key}: the comparison on the joined old cells under att_ours is not the committed "
+                             "comparison; the cells or the order read are not the registered statement's")
+        rescored = cv.paired_both(*(src.cells[c] for c in ordered(new)), serializer=pair["serializer"])
+        sides = {version: {d: _side_of_zero(block[d]["ci95_low"], block[d]["ci95_high"]) for d in cv.DEFINITIONS}
+                 for version, block in (("original", original), ("rescored", rescored))}
+        entries.append({"artifact": pair["artifact"], "statement": pair["statement"], "tier": pair["tier"],
+                        "original_inputs": ordered(pair["iql"]), "inputs": ordered(new), "original": original,
+                        "rescored": rescored, "side_of_zero": sides,
+                        "side_changed": {d: sides["original"][d] != sides["rescored"][d] for d in cv.DEFINITIONS},
+                        "original_reproduces_committed_att_ours": True})
+    return {"comparisons": entries,
+            "route": "offline_baselines.paired_comparison (per-draw means over the seeds, the shared draws), "
+                     "serialised as each artifact serialised it; no decision rule is attached (the artifacts' "
+                     "multiplicity field), so the side of zero is reported, not a verdict",
+            "p4_7_phase1": "P4.7's five phase-1 comparisons with IQL are P4.6's, value for value (P4.7's gate P1), "
+                           "listed once under p4_6"}
+
+
 def build_iql_targets(src: Sources) -> dict[str, Any]:
     """``p9_1_iql_targets.json`` (A27(c)): ``iql_t - iql`` on twelve tiers, ``iql_m - iql_t`` on the grid (the two
-    effects separable), P4.4's A6 statement, the IQL lead on hz1x1's random tier, P5.2's IQL statements, D4RL."""
+    effects separable), P4.4's A6 statement, the IQL lead on hz1x1's random tier, P5.2's IQL statements, D4RL; and
+    (Q8, ``BRIEF_46`` Amendment B, B.2) P4.6's and P4.7's P1 and every behaviour comparison with IQL, re-scored."""
     import offline.corrective_verdicts as cv
 
     books = src.grid_books
@@ -478,6 +578,8 @@ def build_iql_targets(src: Sources) -> dict[str, Any]:
         "hz1x1_iql_lead_on_random": [cv.contrast_entry(src.cells["p4_6:iql@random"], random_dt, tier="random"),
                                      cv.contrast_entry(src.cells["p9_1:hz1x1:iql_t@random"], random_dt, tier="random")],
         "p5_2_rescore": rescore,
+        "p1_rescore": {name: p1_rescore_block(src, name) for name in P1_TIERS},
+        "iql_behaviour_comparisons": iql_behaviour_rescore(src),
         "d4rl": src.d4rl,
     }
     return _finish("A27(c)", src, body, role="A27(c): IQL's three target forwards in eval(), beside the registered IQL",
@@ -485,8 +587,10 @@ def build_iql_targets(src: Sources) -> dict[str, Any]:
                        "not a change to IQL's hyper-parameters: tau, beta, gamma, Polyak, clip, batch, steps, warm-up "
                        "and seeds are the registered ones; only the three target forwards' module mode differs",
                        "not the published IQL update order: the advantage still uses V from before its update",
-                       "P4.4's A6 statement is the only registered P4.4 statement in which IQL appears (madt_vs_iql); "
-                       "the registration's wording 'BC-vs-IQL contrast' names no P4.4 contrast"))
+                       "P4.4's registered statements in which IQL appears are A6 (madt_vs_iql) and the behaviour "
+                       "comparison mappo1000_vs_iql (Q8); the registration's wording 'BC-vs-IQL contrast' names no "
+                       "P4.4 contrast",
+                       "not a verdict on any behaviour comparison: none carries a decision rule"))
 
 
 HZ1X1_FRESH_ARMS: tuple[str, ...] = ("dt", "bc", "bc_top10", "iql", "iql_t")
@@ -609,6 +713,66 @@ def hz1x1_old_runs(repo_root: str | Path, artifact: str, arm: str) -> list[dict[
     if sorted(int(r["seed"]) for r in runs) != [101, 202, 303, 404, 505]:
         raise ValueError(f"{source} does not hold exactly the five runs of {cell_id}")
     return sorted((_old_run(cell_id, run, source) for run in runs), key=lambda r: r["seed"])
+
+
+def constructed_mixture_reference(repo_root: str | Path, tier: str, expert: Any, random_pool: Any) -> Any:
+    """Q8: a mixture's behaviour reference built from the re-rolled P4.6 components by the registered construction
+    (``corrective_verdicts.constructed_reference_cell``), refused unless it IS P4.7's committed ``behaviour@<tier>``
+    episode for episode (``att_horizon`` and the two companions, under ``==``)."""
+    import offline.corrective_verdicts as cv
+
+    cell = cv.constructed_reference_cell(tier, expert, random_pool)
+    payload = json.loads((Path(repo_root) / "docs/data/p4_7_grid.json").read_text(encoding="utf-8"))
+    committed = {(int(e["seed"]), int(e["draw_id"])): (float(e["att_horizon"]), float(e["horizon_vehicle_count"]),
+                                                       float(e["episode_reward"]))
+                 for e in payload["episodes"] if str(e["arm"]) == f"behaviour@{tier}"}
+    built = {(int(r["seed"]), int(r["draw_id"])): (float(r["att_ours"]), float(r["horizon_vehicle_count"]),
+                                                   float(r["episode_reward"])) for r in cell.rows}
+    if built != committed:
+        differing = sorted(k for k in set(built) | set(committed) if built.get(k) != committed.get(k))
+        raise ValueError(f"behaviour@{tier} constructed from {expert.spec.cell_id} and {random_pool.spec.cell_id} is "
+                         f"not P4.7's committed cell on {len(differing)} episode(s), first {differing[:1]}")
+    return cell
+
+
+def assert_rerolls_agree(first: Sequence[Mapping[str, Any]], second: Sequence[Mapping[str, Any]], *,
+                         what: str) -> None:
+    """Two old cells that are the same episodes re-rolled twice (P4.4's ``mappo1000`` and P4.6's
+    ``behaviour@mappo1000``) agree on every value but their name and source: the route is seeded, so a difference is
+    non-determinism and refuses the load."""
+    fields = [key for key in EPISODE_FIELDS if key not in ("arm", "source")]
+    a = {(row["seed"], row["draw_id"]): row for row in first}
+    b = {(row["seed"], row["draw_id"]): row for row in second}
+    if set(a) != set(b) or len(a) != len(first) or len(b) != len(second):
+        raise ValueError(f"{what}: the two re-rolls do not hold the same episodes ({len(first)} and {len(second)})")
+    for key in sorted(a, key=lambda k: (-1 if k[0] is None else k[0], k[1])):
+        for field in fields:
+            if a[key][field] != b[key][field]:
+                raise ValueError(f"{what}: seed {key[0]} draw {key[1]} {field} is {a[key][field]!r} in one re-roll "
+                                 f"and {b[key][field]!r} in the other")
+
+
+def iql_statements_committed(repo_root: str | Path) -> dict[str, Any]:
+    """Q8's committed statements, keyed as :func:`iql_behaviour_pairs` keys them: P4.6's and P4.7's P1 and every
+    behaviour comparison with IQL, each exactly once in its artifact."""
+    def load(name: str) -> dict[str, Any]:
+        return json.loads((Path(repo_root) / "docs" / "data" / f"{name}.json").read_text(encoding="utf-8"))
+
+    payloads = {"p4_4": load("p4_4_baselines"), "p4_6": load("p4_6_grid"), "p4_7": load("p4_7_grid")}
+    comparisons = {}
+    for pair in iql_behaviour_pairs():
+        payload = payloads[pair["artifact"]]
+        if pair["artifact"] == "p4_4":
+            found = [payload["behaviour_policy_comparisons"][pair["statement"]]]
+        else:
+            found = [c for c in payload["behaviour_comparisons"]
+                     if (c["left_arm"], c["right_arm"]) == tuple(pair["labels"])]
+        if len(found) != 1:
+            raise ValueError(f"{pair['artifact']} carries {len(found)} comparisons {pair['statement']!r}, not one")
+        comparisons[f"{pair['artifact']}:{pair['statement']}"] = found[0]
+    return {"p1_committed": {"p4_6": payloads["p4_6"]["predictions"]["P1"],
+                             "p4_7": payloads["p4_7"]["predictions"]["P1"]},
+            "iql_behaviour_committed": comparisons}
 
 
 P5_2B_ARTIFACT = "docs/data/p5_2b_iql_correction.json"
@@ -833,6 +997,18 @@ def load_sources(roots: cr.Roots, *, d4rl_path: str | Path | None) -> Sources:
         found = hz1x1_old_runs(roots.repo_root, artifact, arm)
         if found:
             runs[cid] = tuple(found)
+    # Q8 (BRIEF_46 Amendment B, B.2): the twice-rolled behaviour episodes agree; the mixtures' references are built
+    # from P4.6's re-rolled components and joined to P4.7's committed cells.
+    assert_rerolls_agree(records["p4_4:mappo1000"], records["p4_6:behaviour@mappo1000"],
+                         what="P4.4's mappo1000 and P4.6's behaviour@mappo1000")
+    for tier in MIXTURE_REFERENCE_TIERS:
+        cid = constructed_id(tier)
+        cells[cid] = constructed_mixture_reference(roots.repo_root, tier, cells["p4_6:behaviour@mappo1000"],
+                                                   cells["p4_6:behaviour@random"])
+        records[cid] = tuple({**row, "tier": tier,
+                              "source": "constructed by mixture_tiers.constructed_reference_artifact's assignment from "
+                                        "p4_6:behaviour@mappo1000 and p4_6:behaviour@random; reproduces P4.7's "
+                                        "committed att_ours"} for row in cells[cid].rows)
     traces = sorted((Path(roots.runs_root) / "logs").glob("*/gpu_trace.csv"))
     gaps, spans = trace_gaps(traces), trace_spans(traces)
     trained = set(cr.training_cells())
@@ -859,7 +1035,8 @@ def load_sources(roots: cr.Roots, *, d4rl_path: str | Path | None) -> Sources:
     d4rl = d4rl_section(d4rl_path)
     p4_4 = json.loads((Path(roots.repo_root) / "docs/data/p4_4_baselines.json").read_text(encoding="utf-8"))
     registered = {"p4_4_delta": float(p4_4["comparisons"]["madt_vs_iql"]["delta"]),
-                  "plateau_counts": plateau_counts(roots.repo_root), "p5_3b_old_tier": p5_3b_old_tier(roots.repo_root)}
+                  "plateau_counts": plateau_counts(roots.repo_root), "p5_3b_old_tier": p5_3b_old_tier(roots.repo_root),
+                  **iql_statements_committed(roots.repo_root)}
     inputs = [{"file": relative, "sha256": _sha256(Path(roots.repo_root) / relative)} for relative in COMMITTED_INPUTS]
     inputs += [directory_digest(roots.output_root, cr.RUNS_DIR, exclude=("checkpoints", "logs")),
                directory_digest(roots.output_root, cr.RUN_DIR)]

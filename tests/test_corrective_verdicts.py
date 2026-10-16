@@ -359,3 +359,158 @@ def test_a_positive_mean_whose_interval_includes_zero_is_not_collapsed() -> None
     numbers = row["by_definition"]["att_engine"]
     assert numbers["mean_difference"] > 0.0 and numbers["ci95_low"] <= 0.0
     assert row["verdict"] == "NOT COLLAPSED"
+
+
+# ----------------------------------------------------------------------
+# Q8 (BRIEF_46 Amendment B, B.2): P1 and the *_vs_iql behaviour comparisons, re-scored by their registered routes
+# ----------------------------------------------------------------------
+
+import json as _json
+from pathlib import Path as _Path
+
+_REPO = _Path(__file__).resolve().parents[1]
+
+
+def _committed_cells(artifact: str, arms: Mapping[str, str], tier: str) -> dict[str, tst.Cell]:
+    """Committed episodes as statement cells (att_ours = att_horizon; att_engine a copy -- only att_ours is compared)."""
+    payload = _json.loads((_REPO / "docs" / "data" / artifact).read_text())
+    out = {}
+    for method, arm in arms.items():
+        values = {(e.get("seed"), int(e["draw_id"])): {
+            "att_ours": float(e["att_horizon"]), "att_engine": float(e["att_horizon"]), "created": 1, "entered": 1,
+            "never_entered": 0, "entered_fraction": 1.0, "horizon_vehicle_count": float(e["horizon_vehicle_count"]),
+            "episode_reward": float(e["episode_reward"])} for e in payload["episodes"] if e["arm"] == arm}
+        assert values, (artifact, arm)
+        out[method] = tst.Cell(spec=fx.spec(method, tier, source=artifact.split("_")[0] + "_" + artifact.split("_")[1],
+                                            arm=arm),
+                               rows=tuple(fx.row(arm, -1 if s is None else s, d, v) for (s, d), v in sorted(
+                                   values.items(), key=lambda kv: (-1 if kv[0][0] is None else kv[0][0], kv[0][1]))))
+    return out
+
+
+P4_4_ARMS = {"dt": "madt", "bc": "bc", "bc_top10": "bc_top10", "iql": "iql"}
+
+
+def _p1_cells(*, mixtures: bool) -> dict[str, dict[str, tst.Cell]]:
+    cells = {"mappo1000": _committed_cells("p4_4_baselines.json", P4_4_ARMS, "mappo1000")}
+    for tier in ("maxpressure", "fixedtime", "random", "mappo500"):
+        cells[tier] = _committed_cells("p4_6_grid.json", {m: f"{m}@{tier}" for m in P4_4_ARMS}, tier)
+    if mixtures:
+        for tier in ("mix33", "mix50", "mix67"):
+            cells[tier] = _committed_cells("p4_7_grid.json", {m: f"{m}@{tier}" for m in P4_4_ARMS}, tier)
+    return cells
+
+
+@pytest.mark.parametrize(("artifact", "mixtures"), [("p4_6_grid.json", False), ("p4_7_grid.json", True)])
+def test_p1_by_the_registered_scorer_reproduces_the_committed_p1_from_the_committed_episodes(artifact: str,
+                                                                                           mixtures: bool) -> None:
+    committed = _json.loads((_REPO / "docs" / "data" / artifact).read_text())["predictions"]["P1"]
+    mine = cv.p1_scores(_p1_cells(mixtures=mixtures))["att_ours"]
+    assert mine == committed
+
+
+def test_p1_moves_exactly_when_the_registered_outcome_changes() -> None:
+    def tier(levels: Mapping[str, float]) -> dict[str, tst.Cell]:
+        return {m: _cell(m, "t", v) for m, v in levels.items()}
+
+    original = {"a": tier({"dt": 104.0, "bc": 106.0, "bc_top10": 103.0, "iql": 105.0})}
+    same = {"a": {**original["a"], "iql": _cell("iql_t", "t", 104.5)}}
+    moved = {"a": {**original["a"], "iql": _cell("iql_t", "t", 107.0)}}
+    block = cv.p1_rescore(original, same)
+    assert block["moved"] == {"att_engine": False, "att_ours": False}
+    block = cv.p1_rescore(original, moved)
+    assert block["original"]["att_engine"]["outcome"] == "HELD" and block["rescored"]["att_engine"]["outcome"] == "FAILED"
+    assert block["moved"] == {"att_engine": True, "att_ours": True}
+
+
+def test_the_behaviour_comparison_routes_reproduce_p4_4s_and_p4_6s_committed_iql_comparisons() -> None:
+    """Each artifact's own order and serializer: P4.6 ``paired_comparison(iql, behaviour)`` through
+    ``method_tier_grid.comparison_json``; P4.4 ``paired_comparison(behaviour, iql)`` through ``to_json_obj``."""
+    p4_6 = _json.loads((_REPO / "docs/data/p4_6_grid.json").read_text())
+    committed = next(c for c in p4_6["behaviour_comparisons"]
+                     if (c["left_arm"], c["right_arm"]) == ("iql@maxpressure", "behaviour@maxpressure"))
+    cells = _committed_cells("p4_6_grid.json", {"iql": "iql@maxpressure", "behaviour": "behaviour@maxpressure"},
+                             "maxpressure")
+    mine = cv.paired_both(cells["iql"], cells["behaviour"], serializer="method_tier_grid")["att_ours"]
+    assert mine == _json.loads(_json.dumps(committed))
+    p4_4 = _json.loads((_REPO / "docs/data/p4_4_baselines.json").read_text())
+    cells = _committed_cells("p4_4_baselines.json", {"iql": "iql", "behaviour": "mappo1000"}, "mappo1000")
+    mine = cv.paired_both(cells["behaviour"], cells["iql"], serializer="offline_baselines")["att_ours"]
+    assert mine == _json.loads(_json.dumps(p4_4["behaviour_policy_comparisons"]["mappo1000_vs_iql"]))
+
+
+def test_the_constructed_mixture_reference_reproduces_p4_7s_committed_cell_and_carries_att_engine() -> None:
+    """From P4.6's committed components the construction gives P4.7's committed ``behaviour@mix33`` under att_ours;
+    with att_engine in the rows, every draw's att_engine comes from the SAME component episode as its att_ours."""
+    comps = _committed_cells("p4_6_grid.json", {"expert": "behaviour@mappo1000", "random": "behaviour@random"}, "x")
+    shifted = {name: tst.Cell(spec=c.spec, rows=tuple({**r, "att_engine": r["att_ours"] - (1.0 if name == "expert" else
+                                                                                           2.0)} for r in c.rows))
+               for name, c in comps.items()}
+    built = cv.constructed_reference_cell("mix33", shifted["expert"], shifted["random"])
+    p4_7 = _json.loads((_REPO / "docs/data/p4_7_grid.json").read_text())
+    committed = {(int(e["seed"]), int(e["draw_id"])): float(e["att_horizon"]) for e in p4_7["episodes"]
+                 if e["arm"] == "behaviour@mix33"}
+    assert {(r["seed"], r["draw_id"]): r["att_ours"] for r in built.rows} == committed
+    expert_draws = {(int(s), d) for s, draws in p4_7["constructed_references"]["mix33"]["assignment"].items()
+                    for d in draws}
+    for r in built.rows:
+        assert r["att_engine"] == r["att_ours"] - (1.0 if (r["seed"], r["draw_id"]) in expert_draws else 2.0)
+    assert built.spec.arm == "behaviour@mix33" and built.spec.cell_id == "constructed:behaviour@mix33"
+
+
+def test_p1_and_the_behaviour_comparisons_read_each_definition_from_its_own_column() -> None:
+    """BC is worst under att_ours and best under att_engine (its engine shift alone differs), so P1 is HELD under one
+    and FAILED under the other; a comparison whose shifts differ by 4 s moves its difference by exactly 4 s."""
+    cells = {"maxpressure": {"dt": _cell("dt", "maxpressure", 104.0), "bc": _cell("bc", "maxpressure", 106.0,
+                                                                                 engine_shift=-12.0),
+                             "bc_top10": _cell("bc_top10", "maxpressure", 103.0),
+                             "iql": _cell("iql", "maxpressure", 105.0)}}
+    scores = cv.p1_scores(cells)
+    assert scores["att_ours"]["outcome"] == "HELD" and scores["att_ours"]["bc_rank_by_tier"] == {"maxpressure": 4}
+    assert scores["att_engine"]["outcome"] == "FAILED" and scores["att_engine"]["bc_rank_by_tier"] == {"maxpressure": 1}
+    left = _cell("iql", "maxpressure", 100.0, engine_shift=-7.0)
+    right = _cell("behaviour", "maxpressure", 98.0, engine_shift=-3.0)
+    for serializer in cv.COMPARISON_SERIALIZERS:
+        both = cv.paired_both(left, right, serializer=serializer)
+        assert (both["att_ours"]["mean_difference"], both["att_engine"]["mean_difference"]) == (2.0, -2.0)
+
+
+def _committed_rows(artifact: str, arm: str) -> list[dict[str, Any]]:
+    """An artifact's episodes of *arm* in the report's row form: ``seed`` None where the artifact records none."""
+    payload = _json.loads((_REPO / "docs" / "data" / artifact).read_text())
+    return [{"arm": arm, "seed": e["seed"], "draw_id": int(e["draw_id"]), "att_ours": float(e["att_horizon"]),
+             "att_engine": float(e["att_horizon"]), "horizon_vehicle_count": float(e["horizon_vehicle_count"]),
+             "episode_reward": float(e["episode_reward"])} for e in payload["episodes"] if e["arm"] == arm]
+
+
+def test_a_seedless_behaviour_cell_compares_as_its_registered_artifact_compares_it() -> None:
+    """The report's old-cell rows keep ``seed`` None for a deterministic behaviour policy (100 episodes, one per
+    draw); the comparison reads them as P4.6 read its ``EpisodeResult``s and reproduces the committed payload."""
+    p4_6 = _json.loads((_REPO / "docs/data/p4_6_grid.json").read_text())
+    for tier in ("maxpressure", "fixedtime"):
+        rows = _committed_rows("p4_6_grid.json", f"behaviour@{tier}")
+        assert len(rows) == 100 and {row["seed"] for row in rows} == {None}
+        behaviour = tst.Cell(spec=fx.spec("behaviour", tier, source="p4_6"), rows=tuple(rows))
+        iql = tst.Cell(spec=fx.spec("iql", tier, source="p4_6"), rows=tuple(_committed_rows("p4_6_grid.json",
+                                                                                               f"iql@{tier}")))
+        committed = next(c for c in p4_6["behaviour_comparisons"]
+                         if (c["left_arm"], c["right_arm"]) == (f"iql@{tier}", f"behaviour@{tier}"))
+        assert cv.paired_both(iql, behaviour, serializer="method_tier_grid")["att_ours"] == committed
+
+
+def test_the_comparison_labels_the_arms_as_the_registered_artifact_names_them() -> None:
+    """P4.6's mappo1000 comparison reads P4.4's IQL cell (the same episodes, ``tests/test_corrective_round_data.py``)
+    under P4.6's name ``iql@mappo1000``: with the labels the payload is P4.6's committed one; without, its arm reads
+    ``iql`` and nothing else differs."""
+    p4_6 = _json.loads((_REPO / "docs/data/p4_6_grid.json").read_text())
+    committed = next(c for c in p4_6["behaviour_comparisons"]
+                     if (c["left_arm"], c["right_arm"]) == ("iql@mappo1000", "behaviour@mappo1000"))
+    iql = tst.Cell(spec=fx.spec("iql", "mappo1000", source="p4_4", arm="iql"),
+                   rows=tuple(_committed_rows("p4_4_baselines.json", "iql")))
+    behaviour = tst.Cell(spec=fx.spec("behaviour", "mappo1000", source="p4_6"),
+                         rows=tuple(_committed_rows("p4_6_grid.json", "behaviour@mappo1000")))
+    labelled = cv.paired_both(iql, behaviour, serializer="method_tier_grid",
+                              labels=("iql@mappo1000", "behaviour@mappo1000"))
+    assert labelled["att_ours"] == committed
+    bare = cv.paired_both(iql, behaviour, serializer="method_tier_grid")["att_ours"]
+    assert bare["left_arm"] == "iql" and {**bare, "left_arm": "iql@mappo1000"} == committed

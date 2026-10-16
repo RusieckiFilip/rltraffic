@@ -721,6 +721,16 @@ HZ1X1_OLD_CELLS: tuple[tuple[str, str], ...] = (
     *(("docs/data/p4_6_grid.json", f"{method}@mappo500") for method in ("dt", "bc", "bc_top10")),
     *(("docs/data/p4_7_grid.json", f"iql@{tier}") for tier in ("mix33", "mix50", "mix67")),
     *(("docs/data/p4_7_grid.json", f"{method}@mix50") for method in ("dt", "bc", "bc_top10")),
+    # Q8 (BRIEF_46 Amendment B, B.2: "every registered statement in which IQL appears"): P4.6's / P4.7's P1 -- BC's rank
+    # among the four, IQL one of them -- reads dt / bc / bc_top10 on every tier, and every `*_vs_iql` behaviour
+    # comparison reads its tier's behaviour cell; the mixtures' behaviour references are constructed from P4.6's
+    # behaviour@mappo1000 and behaviour@random (mixture_tiers.constructed_reference_artifact), so they need no roll.
+    *(("docs/data/p4_6_grid.json", f"{method}@{tier}") for tier in ("maxpressure", "fixedtime")
+      for method in ("dt", "bc", "bc_top10")),
+    *(("docs/data/p4_7_grid.json", f"{method}@{tier}") for tier in ("mix33", "mix67")
+      for method in ("dt", "bc", "bc_top10")),
+    ("docs/data/p4_4_baselines.json", "mappo1000"),
+    *(("docs/data/p4_6_grid.json", f"behaviour@{tier}") for tier in ("mappo1000", "mappo500", "maxpressure", "fixedtime")),
 )
 
 

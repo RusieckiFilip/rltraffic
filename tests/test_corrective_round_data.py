@@ -31,6 +31,18 @@ OLD_HZ1X1: set[tuple[str, str]] = {
     *{("docs/data/p4_7_grid.json", f"iql@{tier}") for tier in ("mix33", "mix50", "mix67")},
     *{("docs/data/p4_7_grid.json", f"{m}@mix50") for m in ("dt", "bc", "bc_top10")},
 }
+#: Q8 (BRIEF_46 Amendment B, B.2 -- "every registered statement in which IQL appears"): the cells P4.6's / P4.7's P1
+#: (BC's rank among the four) and the ``*_vs_iql`` behaviour comparisons read that the list above lacks -- ``dt``,
+#: ``bc``, ``bc_top10`` on maxpressure, fixedtime, mix33, mix67 and P4.4's behaviour cell (the ruling's 13), and P4.6's
+#: behaviour cells on mappo1000, mappo500, maxpressure and fixedtime (the 4 the ruling's count missed; P4.7's are the
+#: same episodes, and its mixture references are constructed from P4.6's ``behaviour@mappo1000`` and
+#: ``behaviour@random``).
+OLD_HZ1X1_Q8: set[tuple[str, str]] = {
+    *{("docs/data/p4_6_grid.json", f"{m}@{t}") for t in ("maxpressure", "fixedtime") for m in ("dt", "bc", "bc_top10")},
+    *{("docs/data/p4_7_grid.json", f"{m}@{t}") for t in ("mix33", "mix67") for m in ("dt", "bc", "bc_top10")},
+    ("docs/data/p4_4_baselines.json", "mappo1000"),
+    *{("docs/data/p4_6_grid.json", f"behaviour@{t}") for t in ("mappo1000", "mappo500", "maxpressure", "fixedtime")},
+}
 
 
 def _roots(tmp_path: Path, repo: Path = REPO) -> cr.Roots:
@@ -45,8 +57,45 @@ def _roots(tmp_path: Path, repo: Path = REPO) -> cr.Roots:
 
 
 def test_the_hz1x1_old_cells_are_the_registered_cells_a27_compares_with() -> None:
-    assert {(artifact, arm) for artifact, arm in cr.HZ1X1_OLD_CELLS} == OLD_HZ1X1
-    assert len(cr.HZ1X1_OLD_CELLS) == len(OLD_HZ1X1) == 21
+    """The 21 cells of M1's plan and Q8's 17 (BRIEF_46 Amendment B, B.2), each once."""
+    assert {(artifact, arm) for artifact, arm in cr.HZ1X1_OLD_CELLS} == OLD_HZ1X1 | OLD_HZ1X1_Q8
+    assert len(cr.HZ1X1_OLD_CELLS) == len(OLD_HZ1X1) + len(OLD_HZ1X1_Q8) == 21 + 17
+
+
+def test_every_cell_p1_and_the_iql_behaviour_comparisons_read_is_an_old_cell_or_constructed_from_them() -> None:
+    """Q8's coverage, derived here from the committed artifacts alone: P4.6's and P4.7's P1 read dt / bc / bc_top10 /
+    iql on every tier of ``cells_by_tier`` (P4.4's for mappo1000, which P4.6 re-used); every behaviour comparison
+    with an IQL arm reads its behaviour cell -- rolled on the base tiers, constructed from P4.6's components on the
+    mixtures (``constructed_references``)."""
+    def load(name: str) -> dict[str, Any]:
+        return json.loads((REPO / "docs" / "data" / f"{name}.json").read_text(encoding="utf-8"))
+
+    old = {(artifact, arm) for artifact, arm in cr.HZ1X1_OLD_CELLS}
+    p4_4_arm = {"dt": "madt", "bc": "bc", "bc_top10": "bc_top10", "iql": "iql"}
+    for name in ("p4_6_grid", "p4_7_grid"):
+        payload = load(name)
+        for tier, methods in payload["cells_by_tier"].items():
+            for method in methods:
+                if tier == "mappo1000":
+                    assert ("docs/data/p4_4_baselines.json", p4_4_arm[method]) in old, (name, tier, method)
+                elif tier in ("mix33", "mix50", "mix67"):
+                    assert ("docs/data/p4_7_grid.json", f"{method}@{tier}") in old, (name, tier, method)
+                else:
+                    assert ("docs/data/p4_6_grid.json", f"{method}@{tier}") in old, (name, tier, method)
+        for comparison in payload["behaviour_comparisons"]:
+            if not str(comparison["left_arm"]).startswith("iql@"):
+                continue
+            behaviour = str(comparison["right_arm"])
+            tier = behaviour.split("@")[1]
+            if tier in payload.get("constructed_references", {}):
+                for component in payload["constructed_references"][tier]["components"]:
+                    assert ("docs/data/p4_6_grid.json", component) in old, (name, tier, component)
+            else:
+                assert ("docs/data/p4_6_grid.json", behaviour) in old, (name, behaviour)
+    p4_4 = load("p4_4_baselines")
+    for key in p4_4["behaviour_policy_comparisons"]:
+        if key.endswith("_vs_iql"):
+            assert ("docs/data/p4_4_baselines.json", key.split("_vs_")[0]) in old, key
 
 
 def test_an_old_cells_committed_values_are_its_artifacts_own_500_episodes() -> None:
@@ -180,3 +229,25 @@ def test_a_fresh_manifest_carrying_a27ds_collection_passes() -> None:
 def test_a_fresh_manifest_that_is_not_a27ds_collection_is_refused(override: dict[str, Any], message: str) -> None:
     with pytest.raises(ValueError, match=message):
         cr.assert_random_fresh_manifest({"run_metadata": _fresh_meta(**override), "episodes": [{}] * 200})
+
+
+def test_the_re_used_cells_the_old_cell_list_does_not_re_roll_are_the_episodes_of_cells_it_does() -> None:
+    """Why the list re-rolls no ``*@mappo1000`` learned cell of P4.6 and no base-tier cell of P4.7: P4.6's mappo1000
+    cells are P4.4's episodes (``madt`` as ``dt@mappo1000``), and P4.7's phase-1 cells are P4.6's (P4.7's gate P1),
+    value for value.  P4.6's ``behaviour@mappo1000`` is P4.4's ``mappo1000`` as well; both stay in the list because
+    each statement reads its own artifact's cell (the two re-rolls must then agree)."""
+    def episodes(name: str, arm: str) -> dict[tuple[Any, int], tuple[float, float, float]]:
+        payload = json.loads((REPO / "docs" / "data" / f"{name}.json").read_text(encoding="utf-8"))
+        rows = [e for e in payload["episodes"] if e["arm"] == arm]
+        out = {(e["seed"], int(e["draw_id"])): (float(e["att_horizon"]), float(e["horizon_vehicle_count"]),
+                                                float(e["episode_reward"])) for e in rows}
+        assert rows and len(out) == len(rows), (name, arm)
+        return out
+
+    for method, p4_4_arm in (("dt", "madt"), ("bc", "bc"), ("bc_top10", "bc_top10"), ("iql", "iql"),
+                             ("behaviour", "mappo1000")):
+        assert episodes("p4_6_grid", f"{method}@mappo1000") == episodes("p4_4_baselines", p4_4_arm), method
+    for tier in ("mappo1000", "mappo500", "maxpressure", "fixedtime", "random"):
+        for method in ("dt", "bc", "bc_top10", "iql", "behaviour"):
+            assert episodes("p4_7_grid", f"{method}@{tier}") == episodes("p4_6_grid", f"{method}@{tier}"), (method,
+                                                                                                           tier)
