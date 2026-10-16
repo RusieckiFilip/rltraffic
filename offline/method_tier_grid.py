@@ -2597,6 +2597,9 @@ def _assert_a27_run(
         raise ValueError(
             f"{checkpoints} is not under a p9_* directory; A27(a): new runs write only into new output/p9_* directories"
         )
+    from offline.a27_arms import assert_declared_on_random_fresh
+
+    assert_declared_on_random_fresh("hz1x1", spec.tier, [recipe.name for recipe in recipes.values()])
     if spec.tier not in A27_TIERS:
         reused = sorted(method for method, recipe in recipes.items() if recipe.registered)
         if reused:

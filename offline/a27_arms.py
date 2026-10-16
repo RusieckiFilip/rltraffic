@@ -151,6 +151,32 @@ def _check_scenario(scenario: str) -> str:
     return key
 
 
+#: A27(d)'s arms on ``random_fresh``, per scenario, as the registration lists them: hz1x1 trains the four registered
+#: recipes and ``iql_t``; the grid trains ``dt_nomix`` and the four matched baselines.  Every other recipe is refused on
+#: that tier (:func:`assert_declared_on_random_fresh`; ``BRIEF_46`` Amendment B, B.1(1)).
+RANDOM_FRESH_ARMS: Mapping[str, tuple[str, ...]] = {
+    "hz1x1": ("dt", "bc", "bc_top10", "iql", "iql_t"),
+    "grid4x4": ("dt_nomix", "bc_m", "bc_top10_m", "bc_top10_perix_m", "iql_m"),
+}
+
+
+def assert_declared_on_random_fresh(scenario: str, tier: str, arms: Sequence[str]) -> None:
+    """A27(d)'s guarantee on ``random_fresh``: only the scenario's declared arms train there -- a registered recipe the
+    scenario does not declare (the grid's ``bc`` at 64 windows, ``bc_top10``, ``bc_top10_perix``, ``iql`` at 1,280
+    transitions with dropout active), ``iql_t`` on the grid, any DT but ``dt_nomix`` on the grid, a matched arm on hz1x1
+    or any ``_100k`` arm is refused, so no unmatched or dropout-active cell can be scored as the tier's baseline.  Every
+    other tier passes through untouched."""
+    if tier != "random_fresh":
+        return
+    declared = RANDOM_FRESH_ARMS[_check_scenario(scenario)]
+    refused = sorted(set(arms) - set(declared))
+    if refused:
+        raise ValueError(
+            f"{refused} on {scenario}'s random_fresh: A27(d) declares exactly {list(declared)} there; every other recipe "
+            "is refused on that tier (BRIEF_46 Amendment B, B.1(1))"
+        )
+
+
 def is_a27_arm(scenario: str, name: str) -> bool:
     """True iff *name* is an arm A27 added on *scenario* (not a registered name)."""
     return (_check_scenario(scenario), str(name)) in A27_RECIPES

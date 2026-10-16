@@ -2109,7 +2109,11 @@ def _run_train(args: Any) -> int:
     tier = _require_tier(args)
     if tier in A27_TIERS:
         # A27 (BRIEF_46 3.1): a DT on A27's tier is a new cell; its run writes under p9_* only and never skips or
-        # writes over a checkpoint on disk -- refused here, before the corpus is read.
+        # writes over a checkpoint on disk -- refused here, before the corpus is read.  A27(d) trains dt_nomix alone on
+        # the grid's random_fresh (Amendment B, B.1(1)).
+        from offline.a27_arms import assert_declared_on_random_fresh
+
+        assert_declared_on_random_fresh(A27_SCENARIO, tier, [str(args.method)])
         for name in ("checkpoint_dir", "work_dir"):
             if not _has_p9_component(getattr(args, name)):
                 raise ValueError(
@@ -2219,6 +2223,13 @@ def _run_train_baselines(args: Any) -> int:
     if a27_run:
         assert_a27_baselines_run(args, tier, plan, [path for paths in planned.values() for path in paths])
     _assert_random_fresh_is_distinct(tier, args.corpus_root)
+    # A27(d) (BRIEF_46 Amendment B, B.1(1)): on the grid's random_fresh only the four matched baselines train (and
+    # dt_nomix, through `train`); a registered recipe -- bc at 64 windows, bc_top10, bc_top10_perix, iql at 1,280
+    # transitions with dropout active -- or iql_t is refused here, after A27(d)'s distinct-schedule check and before
+    # the split is built, anything trained or anything written.
+    from offline.a27_arms import assert_declared_on_random_fresh
+
+    assert_declared_on_random_fresh(A27_SCENARIO, tier, [recipe.name for _, recipe in plan])
     parts = tier_parts(tier, args.corpus_root, sim_config=args.sim_config)
     dataset = parts["dataset"]
     group = next(iter(dataset.groups))

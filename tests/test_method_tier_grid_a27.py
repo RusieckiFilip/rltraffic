@@ -521,3 +521,21 @@ def test_the_real_overlap_mixture_passes_the_design_facts_check_training_runs(mi
     measured = assert_mixture_design_facts(mixture_selection, grid.top_decile_streams(mixture_selection))
     assert measured["weaker_source_kept"] == 6 and measured["p4a_band_1_to_19"] is True
     assert measured["pool"] == {"mappo1000": 100, "mappo500": 100}
+
+
+def test_hz1x1_random_fresh_refuses_every_recipe_outside_a27d_before_anything_is_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """BRIEF_46 Amendment B, B.1(1): on hz1x1's ``random_fresh`` A27(d) trains ``dt``, ``bc``, ``bc_top10``, ``iql`` and
+    ``iql_t`` only; at A8(b)'s ceiling the four registered methods are the ``_100k`` arms, which A27(g) declares on
+    ``mappo1000`` and ``mix50`` alone -- refused here before the corpus is read or a byte is written."""
+    spies = _install_spies(monkeypatch, call_through=False)
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
+    checkpoints = tmp_path / "p9_1_runs" / "checkpoints"
+    args = _train_args(tmp_path, "random_fresh", checkpoints=checkpoints, steps=100_000, artifact_prefix="p9_1_100k")
+    with pytest.raises(ValueError, match=r"\['bc_100k', 'bc_top10_100k', 'dt_100k', 'iql_100k'\] on hz1x1's "
+                                         r"random_fresh.*A27\(d\)"):
+        grid._run_train(args, out_dir)
+    assert all(not s.calls for s in spies.values())
+    assert not checkpoints.exists() and sorted(out_dir.iterdir()) == []
