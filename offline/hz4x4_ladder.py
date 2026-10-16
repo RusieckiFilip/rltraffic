@@ -44,6 +44,13 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
 __all__ = [
+    "definition_check",
+    "d5_t_regress",
+    "summarise_admission",
+    "d5_protocol",
+    "d5_recorded_table",
+    "D5_SCENARIOS",
+    "D5Scenario",
     "A11_CONSEQUENCE_FAIL",
     "A11_CONSEQUENCE_PASS",
     "A27_LABEL",
@@ -739,14 +746,21 @@ def assert_training_draws(draw_ids: Sequence[int]) -> None:
 
 
 def fixedtime_factory_for_k(
-    config_path: str | Path, k: int
+    config_path: str | Path,
+    k: int,
+    *,
+    k_grid: Sequence[int] = K_GRID,
+    schedule_source: str = "equal_split",
+    plan_sha256: str | None = None,
 ) -> tuple[Callable[[Any], Callable[[Any, dict[str, Any]], Any]], dict[str, Any]]:
     """The collector's fixed-time policy at *k* on one draw's config, with its schedule provenance.
 
     ``offline.policies.fixed_time.make_fixedtime`` with the ``SimpleNamespace`` the evaluation route builds
     (``method_tier_grid._fixedtime_factory``), so the swept policy is the policy ``offline.collect`` would
-    collect with at that k.  hz4x4 ships no ``signal_plan_template.txt``, so the schedule must resolve to the
-    equal split; anything else means the config points at a different scenario directory, and is refused.
+    collect with at that k.  The schedule must resolve to *schedule_source* with digest *plan_sha256*: on
+    hz4x4 (the defaults) the equal split, which has no plan file and so no digest; for A.7's D5 check the
+    source and digest the scenario's fixed-time tier was collected with (hz1x1: the shipped plan).  Anything
+    else means the config points at a different scenario directory or plan, and is refused.
     """
     from types import SimpleNamespace
 
@@ -754,14 +768,19 @@ def fixedtime_factory_for_k(
 
     from offline.policies.fixed_time import make_fixedtime, resolve_plan
 
-    if int(k) not in K_GRID:
-        raise ValueError(f"k = {k} is not in the declared grid {list(K_GRID)}")
+    if int(k) not in tuple(int(value) for value in k_grid):
+        raise ValueError(f"k = {k} is not in the declared grid {list(k_grid)}")
     args = SimpleNamespace(env_config=str(config_path), fixed_time_k=int(k), policy="fixedtime")
     resolution = resolve_plan(args)
-    if resolution.source != "equal_split":
+    if resolution.source != schedule_source:
         raise ValueError(
-            f"the fixed-time schedule on {config_path} resolves to {resolution.source!r}; hz4x4 ships no "
-            "signal_plan_template.txt, so anything but the equal split is a different scenario directory"
+            f"the fixed-time schedule on {config_path} resolves to {resolution.source!r}, not the declared "
+            f"{schedule_source!r}; that is a different scenario directory or plan"
+        )
+    if resolution.sha256 != plan_sha256:
+        raise ValueError(
+            f"the fixed-time plan on {config_path} has sha256 {resolution.sha256!r}, not the declared {plan_sha256!r}; "
+            "this would sweep a different plan from the one the tier was collected with"
         )
 
     def factory(env: Any) -> Callable[[Any, dict[str, Any]], Any]:
@@ -776,7 +795,16 @@ def fixedtime_factory_for_k(
 
 
 def sweep_episode(
-    k: int, draw_id: int, *, config_path: str | Path, env_settings: Mapping[str, Any]
+    k: int,
+    draw_id: int,
+    *,
+    config_path: str | Path,
+    env_settings: Mapping[str, Any],
+    scenario: str = SCENARIO,
+    scenario_id: str = SCENARIO_ID,
+    k_grid: Sequence[int] = K_GRID,
+    schedule_source: str = "equal_split",
+    plan_sha256: str | None = None,
 ) -> dict[str, Any]:
     """One sweep episode through ``admission_probe.probe_episode``: A11(b)'s five quantities and the seconds.
 
@@ -784,17 +812,21 @@ def sweep_episode(
     ``Engine::getAverageTravelTime`` read before the env closes for ``att_engine`` -- with ``created``
     counted from the draw's own ``flow.json`` (``created_from_flow``), so every episode carries
     ``att_ours``, ``att_engine``, ``entered``, ``created`` and ``never_entered`` unconditionally.  Engine
-    seed ``BASE_SEED``: episode 0 of every collected draw runs at 1000.
+    seed ``BASE_SEED``: episode 0 of every collected draw runs at 1000.  The defaults are hz4x4's; A.7's
+    D5 check passes its scenario's name, env id, k grid and schedule (``BRIEF_48`` Amendment A: reuse with a
+    scenario parameter, never a copy).
     """
     from offline.admission_probe import created_from_flow, probe_episode
 
     assert_training_draws([draw_id])
-    factory, provenance = fixedtime_factory_for_k(config_path, k)
+    factory, provenance = fixedtime_factory_for_k(
+        config_path, k, k_grid=k_grid, schedule_source=schedule_source, plan_sha256=plan_sha256
+    )
     horizon = int(env_settings["max_steps"]) * int(env_settings["delta_time"])
     created = created_from_flow(Path(config_path).parent / "flow.json", horizon_seconds=horizon)
     arm = f"fixedtime_k{int(k)}"
     episode = probe_episode(
-        scenario=SCENARIO,
+        scenario=scenario,
         tier="fixedtime",
         method=arm,
         arm=arm,
@@ -802,7 +834,7 @@ def sweep_episode(
         draw_id=int(draw_id),
         config_path=config_path,
         env_settings=env_settings,
-        scenario_id=SCENARIO_ID,
+        scenario_id=scenario_id,
         choose_action_factory=factory,
         engine_seed=BASE_SEED,
         created=created,
@@ -827,23 +859,31 @@ def sweep_episode(
     }
 
 
-def summarise_sweep(records: Sequence[Mapping[str, Any]]) -> dict[int, dict[str, Any]]:
+def summarise_sweep(
+    records: Sequence[Mapping[str, Any]],
+    *,
+    k_grid: Sequence[int] = K_GRID,
+    draws: Sequence[int] = K_SWEEP_DRAWS,
+) -> dict[int, dict[str, Any]]:
     """Per k: the mean over its draws of ``att_engine`` and of ``att_ours``, with the draw ids.
 
     D5's objective is the mean over the five tuning draws; both definitions are carried because Rule R
     has not run on hz4x4 when k is chosen (``docs/plans/p9.3.md`` Q2).  Every (k, draw) must appear
     exactly once, every k of the declared grid must cover exactly the declared draws, and every value
-    must be finite -- a mean over a ragged or malformed record set is refused rather than reported.
+    must be finite -- a mean over a ragged or malformed record set is refused rather than reported.  The
+    defaults are hz4x4's grid and draws; A.7's D5 check passes each scenario's.
     """
     import numpy as np
 
+    grid = tuple(int(k) for k in k_grid)
+    expected_draws = [int(d) for d in draws]
     by_k: dict[int, dict[int, Mapping[str, Any]]] = {}
     for record in records:
         k = int(record["k"])
         draw_id = int(record["draw_id"])
         assert_training_draws([draw_id])
-        if k not in K_GRID:
-            raise ValueError(f"k = {k} is not in the declared grid {list(K_GRID)}")
+        if k not in grid:
+            raise ValueError(f"k = {k} is not in the declared grid {list(grid)}")
         for key in ("att_engine", "att_ours"):
             value = float(record[key])
             if not math.isfinite(value):
@@ -852,19 +892,19 @@ def summarise_sweep(records: Sequence[Mapping[str, Any]]) -> dict[int, dict[str,
         if draw_id in slot:
             raise ValueError(f"k = {k}, draw {draw_id} appears twice")
         slot[draw_id] = record
-    missing = [k for k in K_GRID if k not in by_k]
+    missing = [k for k in grid if k not in by_k]
     if missing:
-        raise ValueError(f"no records for k = {missing}; the sweep covers {list(K_GRID)}")
+        raise ValueError(f"no records for k = {missing}; the sweep covers {list(grid)}")
     summary: dict[int, dict[str, Any]] = {}
-    for k in K_GRID:
-        draws = sorted(by_k[k])
-        if draws != list(K_SWEEP_DRAWS):
-            raise ValueError(f"k = {k} covers draws {draws}, not the declared {list(K_SWEEP_DRAWS)}")
-        engine = np.asarray([float(by_k[k][d]["att_engine"]) for d in draws], dtype=np.float64)
-        ours = np.asarray([float(by_k[k][d]["att_ours"]) for d in draws], dtype=np.float64)
+    for k in grid:
+        present = sorted(by_k[k])
+        if present != sorted(expected_draws):
+            raise ValueError(f"k = {k} covers draws {present}, not the declared {sorted(expected_draws)}")
+        engine = np.asarray([float(by_k[k][d]["att_engine"]) for d in present], dtype=np.float64)
+        ours = np.asarray([float(by_k[k][d]["att_ours"]) for d in present], dtype=np.float64)
         summary[k] = {
-            "n": len(draws),
-            "draw_ids": draws,
+            "n": len(present),
+            "draw_ids": present,
             "mean_att_engine": float(engine.mean()),
             "mean_att_ours": float(ours.mean()),
         }
@@ -942,6 +982,233 @@ def chosen_k_from_artifact(path: str | Path) -> int:
     if k not in K_GRID:
         raise ValueError(f"{path}: chosen_k {k!r} is not in the declared grid {list(K_GRID)}")
     return int(k)
+
+
+# ----------------------------------------------------------------------
+# A.7: the D5 definition check on hz1x1 and grid4x4 (BRIEF_48 Amendment A; EXPLORATION)
+# ----------------------------------------------------------------------
+
+ARTIFACT_FORMAT_D5_CHECK = "p9.3-d5-definition-check/1.0"
+
+#: A.7's label, verbatim.
+D5_CHECK_LABEL = (
+    "exploration \u2014 a disclosure measurement on training draws 1\u20135; no registered k, tier, anchor, rho or "
+    "verdict changes"
+)
+
+#: D5's README, the registered tuning record whose table the check must reproduce.
+D5_README = Path("docs/data/fixed_time_sweep/README.md")
+
+
+@dataclass(frozen=True)
+class D5Scenario:
+    """One scenario D5 tuned: its README row, its draws key and env id, its protocol manifest and its k grid."""
+
+    name: str
+    scenario_key: str
+    scenario_id: str
+    protocol_dir: str
+    k_grid: tuple[int, ...]
+    schedule_source: str
+
+
+#: The two scenarios A.7 names, with the k grids D5's README records (a test holds them to the README and to A.7).
+D5_SCENARIOS: tuple[D5Scenario, ...] = (
+    D5Scenario(
+        name="cf_hz1x1",
+        scenario_key="cityflow1x1",
+        scenario_id="cityflow1x1",
+        protocol_dir="cf_hz1x1__fixedtime",
+        k_grid=(2, 3, 4, 6, 8, 10, 14),
+        schedule_source="shipped_plan",
+    ),
+    D5Scenario(
+        name="cf_grid4x4",
+        scenario_key="cityflow_grid4x4",
+        scenario_id="cityflow_grid4x4",
+        protocol_dir="cf_grid4x4__fixedtime",
+        k_grid=(1, 2, 3, 4, 6),
+        schedule_source="equal_split",
+    ),
+)
+
+
+def d5_recorded_table(readme_path: str | Path = D5_README) -> dict[str, dict[str, Any]]:
+    """D5's results table read from its README: per scenario, the printed ``att_horizon`` per k and the chosen k.
+
+    Read, never retyped: the header row names the ``k=N`` columns and ``chosen``; each scenario row's cells are
+    kept as the PRINTED two-decimal strings (bold markers stripped, an em dash meaning "not swept"), because
+    A.7's T-regress compares to the printed decimals.  A README without the table, or a cell that is not a
+    two-decimal number, is refused.
+    """
+    import re
+
+    path = Path(readme_path)
+    lines = path.read_text(encoding="utf-8").splitlines()
+    header_at = next(
+        (i for i, line in enumerate(lines) if line.strip().startswith("| scenario |") and "| k=" in line), None
+    )
+    if header_at is None:
+        raise ValueError(f"{path} holds no results table (a '| scenario | ... | k=N | ... | chosen |' header)")
+    header = [cell.strip() for cell in lines[header_at].strip().strip("|").split("|")]
+    k_columns = {index: int(name[2:]) for index, name in enumerate(header) if re.fullmatch(r"k=\d+", name)}
+    if "chosen" not in header or not k_columns:
+        raise ValueError(f"{path}: the results table's header {header} has no k columns or no 'chosen' column")
+    chosen_at = header.index("chosen")
+    table: dict[str, dict[str, Any]] = {}
+    for line in lines[header_at + 2:]:
+        if not line.strip().startswith("|"):
+            break
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if len(cells) != len(header):
+            raise ValueError(f"{path}: the row {line!r} has {len(cells)} cells, the header {len(header)}")
+        printed: dict[int, str] = {}
+        for index, k in k_columns.items():
+            value = cells[index].replace("**", "").strip()
+            if value in ("—", "-", ""):
+                continue
+            if not re.fullmatch(r"\d+\.\d{2}", value):
+                raise ValueError(f"{path}: {cells[0]} k={k} prints {cells[index]!r}, not a two-decimal number")
+            printed[k] = value
+        chosen = re.search(r"k=(\d+)", cells[chosen_at])
+        if chosen is None:
+            raise ValueError(f"{path}: {cells[0]}'s chosen cell {cells[chosen_at]!r} names no k")
+        table[cells[0]] = {"att_horizon": printed, "chosen_k": int(chosen.group(1))}
+    if not table:
+        raise ValueError(f"{path}: the results table has no rows")
+    return table
+
+
+def d5_protocol(spec: D5Scenario, *, corpus_root: str | Path = MAIN_CORPUS_ROOT) -> tuple[dict[str, Any], str, str | None]:
+    """The env settings, schedule source and plan digest D5's tier was collected with, read from its manifest.
+
+    The scenario's own fixed-time tier (``datasets_v11/<scenario>__fixedtime``) is what D5's tuning chose the cycle
+    for, so its manifest is the protocol: the env settings via ``dt_gate.env_settings_from_manifest`` (as the hz4x4
+    sweep reads the grid's), and the schedule source and plan digest the swept policy must resolve to -- refused
+    unless the source is the one A.7 declares for the scenario.
+    """
+    import json
+
+    from offline.dt_gate import env_settings_from_manifest
+
+    manifest = Path(corpus_root) / spec.protocol_dir / "manifest.json"
+    meta = json.loads(manifest.read_bytes())["run_metadata"]
+    if meta.get("behavior_policy") != "fixedtime":
+        raise ValueError(f"{manifest} is not a fixed-time tier (behavior_policy {meta.get('behavior_policy')!r})")
+    source = meta.get("fixed_time_schedule_source")
+    if source != spec.schedule_source:
+        raise ValueError(
+            f"{manifest} records schedule source {source!r}; A.7 declares {spec.schedule_source!r} for {spec.name}"
+        )
+    return env_settings_from_manifest(manifest), str(source), meta.get("fixed_time_plan_sha256")
+
+
+def summarise_admission(
+    records: Sequence[Mapping[str, Any]], *, k_grid: Sequence[int], draws: Sequence[int]
+) -> dict[int, dict[str, float]]:
+    """Per k: the mean ``never_entered`` and the mean ``entered_fraction`` over the draws.
+
+    A.7 asks for both beside the two ATT means, because the definitions part where vehicles are kept out of the
+    network.  Every (k, draw) exactly once, every k covering exactly the declared draws, or the mean is refused.
+    """
+    import numpy as np
+
+    grid = tuple(int(k) for k in k_grid)
+    expected = sorted(int(d) for d in draws)
+    by_k: dict[int, dict[int, Mapping[str, Any]]] = {}
+    for record in records:
+        k = int(record["k"])
+        draw_id = int(record["draw_id"])
+        if k not in grid:
+            raise ValueError(f"k = {k} is not in the declared grid {list(grid)}")
+        slot = by_k.setdefault(k, {})
+        if draw_id in slot:
+            raise ValueError(f"k = {k}, draw {draw_id} appears twice")
+        slot[draw_id] = record
+    summary: dict[int, dict[str, float]] = {}
+    for k in grid:
+        present = sorted(by_k.get(k, {}))
+        if present != expected:
+            raise ValueError(f"k = {k} covers draws {present}, not the declared {expected}")
+        never = np.asarray([float(by_k[k][d]["never_entered"]) for d in present], dtype=np.float64)
+        fraction = np.asarray([float(by_k[k][d]["entered_fraction"]) for d in present], dtype=np.float64)
+        summary[k] = {"mean_never_entered": float(never.mean()), "mean_entered_fraction": float(fraction.mean())}
+    return summary
+
+
+def d5_t_regress(summary: Mapping[int, Mapping[str, Any]], recorded: Mapping[int, str]) -> dict[str, Any]:
+    """Every per-k mean ``att_ours`` printed to two decimals against D5's printed ``att_horizon``.
+
+    A.7's load-bearing T-regress: one cell that does not print as recorded means the protocol is not D5's, and the
+    caller stops.  The swept k grid must be exactly the recorded one -- a missing or extra k is a different protocol,
+    refused rather than scored.
+    """
+    grid = sorted(int(k) for k in recorded)
+    if sorted(int(k) for k in summary) != grid:
+        raise ValueError(f"the sweep's k grid {sorted(int(k) for k in summary)} is not the recorded table's {grid}")
+    cells: dict[int, dict[str, Any]] = {}
+    for k in grid:
+        mean = float(summary[k]["mean_att_ours"])
+        printed = f"{mean:.2f}"
+        cells[k] = {
+            "mean_att_ours": mean,
+            "computed_2dp": printed,
+            "recorded": str(recorded[k]),
+            "reproduces": printed == str(recorded[k]),
+        }
+    return {
+        "rule": "BRIEF_48 A.7: every per-k mean att_ours, printed to two decimals, equals D5's printed att_horizon; one "
+        "cell that does not is a STOP",
+        "cells": cells,
+        "all_reproduce": all(cell["reproduces"] for cell in cells.values()),
+    }
+
+
+def definition_check(summary: Mapping[int, Mapping[str, Any]], *, k_grid: Sequence[int]) -> dict[str, Any]:
+    """Each definition's argmin, AGREE / DEFINITION-DEPENDENT / TIE, and each one's shortfall at the other's argmin.
+
+    The shortfall of ``att_engine`` at ``att_ours``'s argmin is ``mean_att_engine[k_ours] - mean_att_engine[k_engine]``
+    (seconds, >= 0), and its relative form divides by ``att_engine``'s own optimum; symmetrically for ``att_ours``.
+    An exact tie at either minimum names no argmin and no shortfall (``TIE``): no tie-break is invented.
+    """
+    grid = tuple(int(k) for k in k_grid)
+    missing = [k for k in grid if k not in summary]
+    if missing:
+        raise ValueError(f"the summary has no record for k = {', '.join(str(k) for k in missing)}")
+
+    def minimisers(key: str) -> tuple[list[int], dict[int, float]]:
+        values = {k: float(summary[k][key]) for k in grid}
+        best = min(values.values())
+        return [k for k in grid if values[k] == best], values
+
+    engine, engine_values = minimisers("mean_att_engine")
+    ours, ours_values = minimisers("mean_att_ours")
+    check: dict[str, Any] = {
+        "k_att_engine": engine[0] if len(engine) == 1 else None,
+        "k_att_ours": ours[0] if len(ours) == 1 else None,
+        "tied_at_minimum_att_engine": engine if len(engine) > 1 else [],
+        "tied_at_minimum_att_ours": ours if len(ours) > 1 else [],
+        "att_engine_shortfall_at_att_ours_argmin": None,
+        "att_ours_shortfall_at_att_engine_argmin": None,
+        "att_engine_relative_shortfall": None,
+        "att_ours_relative_shortfall": None,
+    }
+    if len(engine) > 1 or len(ours) > 1:
+        check["status"] = "TIE"
+        return check
+    k_engine, k_ours = engine[0], ours[0]
+    engine_shortfall = engine_values[k_ours] - engine_values[k_engine]
+    ours_shortfall = ours_values[k_engine] - ours_values[k_ours]
+    check.update(
+        {
+            "status": "AGREE" if k_engine == k_ours else "DEFINITION-DEPENDENT",
+            "att_engine_shortfall_at_att_ours_argmin": engine_shortfall,
+            "att_ours_shortfall_at_att_engine_argmin": ours_shortfall,
+            "att_engine_relative_shortfall": engine_shortfall / engine_values[k_engine],
+            "att_ours_relative_shortfall": ours_shortfall / ours_values[k_ours],
+        }
+    )
+    return check
 
 
 # ----------------------------------------------------------------------
@@ -1749,6 +2016,10 @@ def build_parser() -> argparse.ArgumentParser:
     declare = sub.add_parser("declare", parents=[common], help="tier specs and the exposure table")
     declare.add_argument("--out", required=True, help="docs/data/p9_3_declaration.json")
     declare.add_argument("--tiers", nargs="+", choices=TIER_ORDER, default=None)
+
+    d5 = sub.add_parser("d5-check", parents=[common],
+                        help="A.7: D5's fixed-time sweep on hz1x1 and grid4x4 under both ATT definitions (exploration)")
+    d5.add_argument("--out", required=True, help="docs/data/p9_3_d5_definition_check.json")
     return parser
 
 
@@ -2250,6 +2521,108 @@ def _run_declare(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_d5_check(args: argparse.Namespace) -> int:
+    """``d5-check``: A.7's definition check on hz1x1 and grid4x4, one process, STOP on an unreproduced D5 cell.
+
+    For each scenario in :data:`D5_SCENARIOS`: the k grid D5's README records (asserted equal to the declared one),
+    the protocol read from the scenario's fixed-time manifest (:func:`d5_protocol`), training draws 1-5 from the main
+    tree, one episode per (k, draw) through :func:`sweep_episode` with the scenario's parameters, then
+    :func:`summarise_sweep`, :func:`d5_t_regress`, :func:`summarise_admission` and :func:`definition_check`.  The
+    first scenario whose T-regress fails STOPS the check: its unreproduced cells are printed, nothing is written,
+    and the exit code is 3 (A.7: "nothing else from the check is reported").
+    """
+    import json
+
+    from offline.materialise_draws import draw_config_path
+
+    out = _refuse_existing(args.out)
+    draws_root = assert_main_tree_path(args.draws_root, what="the draws root")
+    corpus_root = Path(args.corpus_root)
+    readme = _repo_root() / D5_README
+    table = d5_recorded_table(readme)
+    assert_training_draws(K_SWEEP_DRAWS)
+    scenarios: dict[str, dict[str, Any]] = {}
+    for spec in D5_SCENARIOS:
+        recorded = table[spec.name]["att_horizon"]
+        if tuple(sorted(recorded)) != spec.k_grid:
+            raise ValueError(f"{spec.name}: D5's README sweeps k = {sorted(recorded)}, the declared grid is {spec.k_grid}")
+        settings, schedule_source, plan_sha256 = d5_protocol(spec, corpus_root=corpus_root)
+        configs = {d: draw_config_path(spec.scenario_key, d, out_root=draws_root) for d in K_SWEEP_DRAWS}
+        missing = [str(path) for path in configs.values() if not Path(path).is_file()]
+        if missing:
+            raise FileNotFoundError(f"{spec.name}: training draws are not materialised: {missing}")
+        records: list[dict[str, Any]] = []
+        for k in spec.k_grid:
+            for draw_id in K_SWEEP_DRAWS:
+                record = sweep_episode(
+                    k, draw_id, config_path=configs[draw_id], env_settings=settings, scenario=spec.name,
+                    scenario_id=spec.scenario_id, k_grid=spec.k_grid, schedule_source=schedule_source,
+                    plan_sha256=plan_sha256,
+                )
+                records.append(record)
+                print(f"{spec.name} k={k:>2} draw {draw_id}: att_engine {record['att_engine']:.4f}  "
+                      f"att_ours {record['att_ours']:.4f}  never_entered {record['never_entered']}", flush=True)
+        summary = summarise_sweep(records, k_grid=spec.k_grid, draws=K_SWEEP_DRAWS)
+        regress = d5_t_regress(summary, recorded)
+        if not regress["all_reproduce"]:
+            failing = {k: cell for k, cell in regress["cells"].items() if not cell["reproduces"]}
+            print(f"STOP: {spec.name}'s per-k mean att_ours does not reproduce D5's printed att_horizon at "
+                  f"{json.dumps({str(k): [c['computed_2dp'], c['recorded']] for k, c in failing.items()})} "
+                  "(computed, recorded); the protocol is not D5's and nothing else from the check is reported",
+                  flush=True)
+            return 3
+        check = definition_check(summary, k_grid=spec.k_grid)
+        chosen = int(table[spec.name]["chosen_k"])
+        scenarios[spec.name] = {
+            "k_grid": list(spec.k_grid),
+            "draws": list(K_SWEEP_DRAWS),
+            "engine_seed": BASE_SEED,
+            "scenario_key": spec.scenario_key,
+            "scenario_id": spec.scenario_id,
+            "schedule_source": schedule_source,
+            "plan_sha256": plan_sha256,
+            "env_settings_from": str(corpus_root / spec.protocol_dir / "manifest.json"),
+            "env_settings": settings,
+            "records": records,
+            "summary": {str(k): summary[k] for k in spec.k_grid},
+            "admission": {str(k): value for k, value in summarise_admission(
+                records, k_grid=spec.k_grid, draws=K_SWEEP_DRAWS).items()},
+            "t_regress": {**regress, "cells": {str(k): cell for k, cell in regress["cells"].items()}},
+            "definition_check": check,
+            "d5_chosen_k": chosen,
+            "d5_chosen_k_is_att_ours_argmin": check["k_att_ours"] == chosen,
+        }
+        print(f"{spec.name}: T-regress reproduces all {len(spec.k_grid)} cells; {check['status']} "
+              f"(att_engine argmin {check['k_att_engine']}, att_ours argmin {check['k_att_ours']}, D5's k {chosen})",
+              flush=True)
+    hz4x4_sweep = _repo_root() / "docs" / "data" / "p9_3_fixed_time_sweep.json"
+    hz4x4 = json.loads(hz4x4_sweep.read_bytes())
+    artifact = {
+        "format_version": ARTIFACT_FORMAT_D5_CHECK,
+        "label": D5_CHECK_LABEL,
+        "registered_in": "BRIEF_48 Amendment A, A.7 (2026-10-16); exploration, not part of A27",
+        "fence": "re-tunes nothing: whatever it shows, no registered k changes, and the hz1x1 and grid4x4 fixed-time "
+        "tiers and every anchor stay as registered (A.7)",
+        "protocol": "D5 (docs/data/fixed_time_sweep/README.md) under both ATT definitions: the README's k grids, training "
+        "draws 1-5 (the main tree's materialised draws), engine seed 1000, one episode per (k, draw), each through "
+        "offline.admission_probe.probe_episode via offline.hz4x4_ladder.sweep_episode with the scenario's parameters",
+        "d5_readme": str(D5_README),
+        "d5_readme_sha256": _sha256_file(readme),
+        "scenarios": scenarios,
+        "hz4x4_for_reference": {
+            "artifact": "docs/data/p9_3_fixed_time_sweep.json",
+            "sha256": _sha256_file(hz4x4_sweep),
+            "status": hz4x4["decision"]["status"],
+            "k_att_engine": hz4x4["decision"]["k_att_engine"],
+            "k_att_ours": hz4x4["decision"]["k_att_ours"],
+        },
+        "git": _git(),
+    }
+    _write_artifact(artifact, out)
+    print(f"wrote {out}", flush=True)
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Run one subcommand; returns a process exit code."""
     args = build_parser().parse_args(argv)
@@ -2266,6 +2639,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "teachers": _run_teachers,
         "gate": _run_gate,
         "declare": _run_declare,
+        "d5-check": _run_d5_check,
     }
     try:
         return handlers[args.command](args)
