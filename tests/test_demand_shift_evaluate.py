@@ -156,8 +156,12 @@ def test_rho_on_the_files_own_anchors_is_exact_and_a_zero_denominator_is_exclude
 
 
 def test_what_this_is_not_carries_a27h_s_three_sentences_and_a25a_s_amended_sentence_verbatim() -> None:
-    row = (REPO_ROOT / "PREREGISTRATION.md").read_text(encoding="utf-8").splitlines()[379]
-    assert row.startswith("| 2026-10-15 | **A27")
+    # A27's row is found by its prefix and required unique -- never by line number (CLAUDE.md section 2: section 12 is
+    # newest-first, so every new registration row moves every older one).
+    rows = [line for line in (REPO_ROOT / "PREREGISTRATION.md").read_text(encoding="utf-8").splitlines()
+            if line.startswith("| 2026-10-15 | **A27")]
+    assert len(rows) == 1, len(rows)
+    row = rows[0]
     plain = row.replace("**", "").replace("*", "")
     assert len(ds.WHAT_THIS_IS_NOT) == 4
     for sentence in ds.WHAT_THIS_IS_NOT:
@@ -165,6 +169,154 @@ def test_what_this_is_not_carries_a27h_s_three_sentences_and_a25a_s_amended_sent
     assert ds.WHAT_THIS_IS_NOT[3].startswith("H2's registered 2×2 design remains untested")
     assert ds.LABEL == "exploration, not H2"
     assert "7 — exploration, not H2;" in row
+
+
+# ----------------------------------------------------------------------
+# A guard record authorises only with clean provenance and every declared check (BRIEF_47 Amendment A.2.2)
+# ----------------------------------------------------------------------
+
+#: The guard's declared cells, written out: the eight stage-1 learner arms at seed 101 and the three registered references
+#: (the two deterministic ones in their single slot), all on bc-tyc draw 1000; then the engine-seed check's four files.
+GUARD_ARMS: list[tuple[str, int | None]] = [
+    ("dt@mappo1000", 101), ("bc@mappo1000", 101), ("bc_top10@mappo1000", 101), ("iql@mappo1000", 101),
+    ("dt@mix50", 101), ("bc@mix50", 101), ("bc_top10@mix50", 101), ("iql@mix50", 101),
+    ("behaviour@fixedtime", None), ("behaviour@maxpressure", None), ("behaviour@random", 101),
+]
+ENGINE_SEED_CELLS: list[str] = [
+    f"cell_{name}_behaviour_at_maxpressure_seednone_draw1000.json" for name in ("bc-tyc", "kn-hz", "qc-yn", "sb-sx")
+]
+
+
+def _guard_record(**overrides: Any) -> dict[str, Any]:
+    """A guard record as ``run_guard`` writes one that passed."""
+    record: dict[str, Any] = {
+        "format_version": "p9.2-demand-shift-guard/1.0",
+        "what": "stand-in",
+        "cells": [{"arm": arm, "seed": seed, "draw_id": 1000, "differing": [], "passed": True,
+                   "committed_source": "stand-in", "committed_sha256": "0" * 64} for arm, seed in GUARD_ARMS],
+        "random_fresh_digest_bc_tyc_seed101_draw1000": "a" * 64,
+        "engine_seed_check": {
+            "checks": [{"cell": name, "engine_seeds": [1000, 1001, 1002], "att_ours": [150.0] * 3,
+                        "att_engine": [140.0] * 3, "passed": True} for name in ENGINE_SEED_CELLS],
+            "passed": True,
+        },
+        "passed": True,
+        "git_commit": COMMIT,
+        "git_dirty": False,
+    }
+    record.update(overrides)
+    return record
+
+
+@pytest.fixture()
+def same_code(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A stand-in record's commit is not a real commit: J1(c)'s comparison is substituted, and nothing else."""
+    monkeypatch.setattr(ds, "_code_changed_since", lambda commit: [], raising=True)
+
+
+def test_a_guard_record_with_clean_provenance_and_every_declared_check_authorises(same_code: None) -> None:
+    ds.assert_guard_authorises(_guard_record(), source="stand-in")
+    assert [(cell["arm"], cell["seed"]) for cell in ds.declared_guard_cells()] == GUARD_ARMS
+    assert [ds.cell_name(cell) for cell in ds.declared_engine_seed_cells()] == ENGINE_SEED_CELLS
+
+
+def _seed_check(index: int, **fields: Any) -> Any:
+    return lambda record: record["engine_seed_check"]["checks"][index].update(fields)
+
+
+@pytest.mark.parametrize(
+    ("plant", "match"),
+    [
+        pytest.param(lambda r: r.update(git_dirty=True), "git_dirty", id="dirty-tree"),
+        pytest.param(lambda r: r.pop("git_dirty"), "git_dirty", id="dirtiness-not-measured"),
+        pytest.param(lambda r: r.update(git_commit="HEAD"), "40-character", id="commit-not-a-commit"),
+        pytest.param(lambda r: r.update(passed=False), "did not pass", id="guard-failed"),
+        pytest.param(lambda r: r.update(format_version="p9.2-demand-shift-guard/0.9"), "format_version",
+                     id="other-format"),
+        pytest.param(lambda r: r["cells"].pop(7), "lacks", id="an-arm-missing"),
+        pytest.param(lambda r: r["cells"].append(dict(r["cells"][0])), "twice", id="an-arm-twice"),
+        pytest.param(lambda r: r["cells"][2].update(seed=202), "checked at seed 202", id="an-arm-at-another-seed"),
+        pytest.param(lambda r: r["cells"][2].update(draw_id=1001), "checked on draw 1001", id="an-arm-on-another-draw"),
+        pytest.param(lambda r: r["cells"][4].update(passed=False), "did not reproduce", id="an-arm-failed"),
+        pytest.param(lambda r: r["cells"][4].update(differing=["att_engine"]), "did not reproduce",
+                     id="a-differing-field-marked-passed"),
+        pytest.param(lambda r: r["cells"].append({**r["cells"][0], "arm": "random_fresh"}), "not a declared",
+                     id="an-undeclared-arm"),
+        pytest.param(lambda r: r["engine_seed_check"].update(passed=False), "engine-seed check", id="seed-block-failed"),
+        pytest.param(lambda r: r["engine_seed_check"]["checks"].pop(3), "engine-seed check", id="a-file-unchecked"),
+        pytest.param(_seed_check(1, passed=False), "engine-seed check", id="a-file-check-failed"),
+        pytest.param(_seed_check(2, engine_seeds=[1000, 1001]), "engine seeds", id="two-engine-seeds-only"),
+    ],
+)
+def test_a_guard_record_is_refused_for_each_planted_defect(same_code: None, plant: Any, match: str) -> None:
+    record = _guard_record()
+    plant(record)
+    with pytest.raises(ValueError, match=match):
+        ds.assert_guard_authorises(record, source="stand-in")
+
+
+def test_a_guard_record_run_by_other_code_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    asked: list[str] = []
+
+    def changed(commit: str) -> list[str]:
+        asked.append(commit)
+        return ["offline/demand_shift.py"]
+
+    monkeypatch.setattr(ds, "_code_changed_since", changed, raising=True)
+    with pytest.raises(ValueError, match="differs from HEAD outside docs/"):
+        ds.assert_guard_authorises(_guard_record(), source="stand-in")
+    assert asked == [COMMIT]
+
+
+def _write_guard(work: Path, record: dict[str, Any]) -> None:
+    work.mkdir(parents=True, exist_ok=True)
+    (work / ds.GUARD_NAME).write_text(json.dumps(record), encoding="utf-8")
+
+
+def test_evaluate_rolls_nothing_past_a_passed_guard_record_from_a_dirty_tree(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, same_code: None
+) -> None:
+    """The case a bare ``passed`` check let through: the record says passed, its tree was dirty."""
+    work = tmp_path / "output" / "p9_2" / "demand_shift"
+    _write_guard(work, _guard_record(git_dirty=True))
+
+    def never(cell: Any, **_kwargs: Any) -> Any:
+        raise AssertionError("a cell was rolled past a guard record that does not authorise")
+
+    monkeypatch.setattr(ds, "roll_cell", never, raising=True)
+    code = ds.main(["--output-root", str(tmp_path / "output"), "--work-dir", str(work), "evaluate", "--stage", "1",
+                    "--shard", "0", "--of", "5200"])
+    assert code == 2
+    assert sorted(path.name for path in work.iterdir()) == [ds.GUARD_NAME]
+
+
+def test_evaluate_rolls_its_shard_past_a_guard_record_that_authorises(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, same_code: None
+) -> None:
+    """The control of the test above: the same command past an authorising record rolls its shard's three cells."""
+    work = tmp_path / "output" / "p9_2" / "demand_shift"
+    _write_guard(work, _guard_record())
+    monkeypatch.setattr(ds, "roll_cell", lambda cell, **_kwargs: _fake_roll(cell), raising=True)
+    code = ds.main(["--output-root", str(tmp_path / "output"), "--work-dir", str(work), "evaluate", "--stage", "1",
+                    "--shard", "0", "--of", "5200"])
+    assert code == 0
+    assert len([path for path in work.iterdir() if path.name.startswith("cell_")]) == 3
+
+
+def test_check_guard_answers_0_only_for_a_record_that_authorises_and_writes_nothing(
+    tmp_path: Path, same_code: None, capsys: pytest.CaptureFixture[str]
+) -> None:
+    work = tmp_path / "output" / "p9_2" / "demand_shift"
+    command = ["--work-dir", str(work), "check-guard"]
+    assert ds.main(command) == 2
+    assert not work.exists(), "a check of a missing record creates nothing"
+    for refused in (_guard_record(passed=False), _guard_record(git_dirty=True), _guard_record(cells=[])):
+        _write_guard(work, refused)
+        assert ds.main(command) == 2
+    assert capsys.readouterr().out.count("REFUSED") == 4
+    _write_guard(work, _guard_record())
+    assert ds.main(command) == 0
+    assert sorted(path.name for path in work.iterdir()) == [ds.GUARD_NAME]
 
 
 # ----------------------------------------------------------------------
@@ -190,8 +342,8 @@ def _write_cells(work: Path, cells: list[dict[str, Any]]) -> None:
             "git_commit": COMMIT, "git_dirty": False,
         }
         (work / ds.cell_name(cell)).write_text(json.dumps(record), encoding="utf-8")
-    (work / ds.GUARD_NAME).write_text(json.dumps({"format_version": ds.GUARD_FORMAT_VERSION, "passed": True, "cells": [],
-                                                  "engine_seed_check": {"passed": True}}), encoding="utf-8")
+    # A guard record that authorises (BRIEF_47 Amendment A.2.2): every declared check, clean provenance.
+    (work / ds.GUARD_NAME).write_text(json.dumps(_guard_record()), encoding="utf-8")
 
 
 def _audit_file(tmp_path: Path) -> Path:
@@ -236,6 +388,33 @@ def test_the_report_refuses_a_missing_cell_and_a_missing_guard(tmp_path: Path, p
     _write_cells(work, cells)
     (work / ds.GUARD_NAME).unlink()
     with pytest.raises(ValueError, match="guard"):
+        ds.build_report(work_dir=work, audit_path=_audit_file(tmp_path), declared=cells)
+
+
+@pytest.mark.parametrize(
+    ("plant", "match"),
+    [
+        pytest.param(lambda record: record.update(git_dirty=True), "git_dirty", id="dirty-tree"),
+        pytest.param(lambda record: record["engine_seed_check"]["checks"].pop(), "engine-seed check",
+                     id="a-file-unchecked"),
+        pytest.param(lambda record: record.update(git_commit="e" * 40), "differs from HEAD outside docs/",
+                     id="run-by-other-code"),
+    ],
+)
+def test_the_report_refuses_a_passed_guard_record_that_does_not_authorise(
+    tmp_path: Path, patched: None, monkeypatch: pytest.MonkeyPatch, plant: Any, match: str
+) -> None:
+    """BRIEF_47 Amendment A.2.2: the guard record's OWN provenance and declared checks -- its commit "e" * 40 is the only
+    one the stand-in J1(c) comparison reports as other code, so the cell records (at "c" * 40) are not what refuses."""
+    work = tmp_path / "output" / "p9_2" / "demand_shift"
+    cells = _small_declaration()
+    _write_cells(work, cells)
+    record = _guard_record()
+    plant(record)
+    _write_guard(work, record)
+    monkeypatch.setattr(ds, "_code_changed_since",
+                        lambda commit: ["offline/demand_shift.py"] if commit == "e" * 40 else [], raising=True)
+    with pytest.raises(ValueError, match=match):
         ds.build_report(work_dir=work, audit_path=_audit_file(tmp_path), declared=cells)
 
 

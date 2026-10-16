@@ -49,13 +49,17 @@ from typing import Any, Mapping, Sequence
 __all__ = [
     "ARTIFACT_NAME",
     "CELL_FORMAT_VERSION",
+    "GUARD_ARMS",
     "GUARD_FIELDS",
     "LABEL",
     "WHAT_THIS_IS_NOT",
+    "assert_guard_authorises",
     "build_report",
     "cell_name",
     "cell_record",
     "declared_cells",
+    "declared_engine_seed_cells",
+    "declared_guard_cells",
     "engine_seed_check",
     "evaluate_cells",
     "file_block",
@@ -425,8 +429,8 @@ def materialise_shifted(
 LABEL = "exploration, not H2"
 
 #: A27(h)'s three sentences and A25(a)'s amended sentence, VERBATIM (the registration's emphasis removed; the em dash U+2014
-#: and the multiplication sign U+00D7 escaped so this source stays ASCII).  ``tests/test_demand_shift_evaluate.py``
-#: finds each in ``PREREGISTRATION.md``.
+#: and the multiplication sign U+00D7 are the literal characters, as in the registration).
+#: ``tests/test_demand_shift_evaluate.py`` finds each in ``PREREGISTRATION.md``.
 WHAT_THIS_IS_NOT: tuple[str, ...] = (
     "It is NOT H2 — H2 is a registered 2×2 with shift-augmented training that stays not tested under A25(a)",
     "this evaluation trains nothing",
@@ -669,30 +673,136 @@ def engine_seed_check(cell: Mapping[str, Any], *, roots: Any, device: str | None
     }
 
 
+#: The guard's arms: every stage-1 learner arm and the three registered references, each on bc-tyc's draw 1000 at seed 101
+#: (the two deterministic references in their single slot).  ``random_fresh`` has no committed counterpart: its digest is
+#: recorded beside the checks, and is not one.
+GUARD_ARMS: tuple[str, ...] = (*LEARNER_ARMS, "behaviour@fixedtime", "behaviour@maxpressure", "behaviour@random")
+GUARD_SEED = 101
+GUARD_DRAW = 1000
+
+
+def declared_guard_cells() -> list[dict[str, Any]]:
+    """The guard's bc-tyc cells, in the order :func:`run_guard` rolls them."""
+    return [
+        {"file": REFERENCE_FILE["name"], "scenario_key": REFERENCE_FILE["scenario_key"], "arm": arm,
+         "seed": None if arm in DETERMINISTIC_ARMS else GUARD_SEED, "draw_id": GUARD_DRAW, "stage": 0}
+        for arm in GUARD_ARMS
+    ]
+
+
+def declared_engine_seed_cells() -> list[dict[str, Any]]:
+    """The engine-seed check's cells: ``behaviour@maxpressure`` on draw 1000 of bc-tyc and of each shifted file."""
+    files = [(REFERENCE_FILE["name"], REFERENCE_FILE["scenario_key"])] + [
+        (name, spec["scenario_key"]) for name, spec in SHIFTED_FILES.items()
+    ]
+    return [{"file": name, "scenario_key": key, "arm": "behaviour@maxpressure", "seed": None, "draw_id": GUARD_DRAW,
+             "stage": 0} for name, key in files]
+
+
+def assert_guard_authorises(record: Mapping[str, Any], *, source: str) -> None:
+    """Refuse (``ValueError``, the reason named) unless the guard record read from *source* authorises an evaluation or a
+    report (``BRIEF_47`` Amendment A.2.2): its format version; ``passed`` true; ``git_dirty`` false; ``git_commit`` a commit
+    whose code equals HEAD outside ``docs/`` (J1(c)'s rule, :func:`_code_changed_since`); every declared arm
+    (:func:`declared_guard_cells`) checked exactly once, at its declared seed and draw, passed with no differing field; and
+    the engine-seed check passed on exactly its declared cells (:func:`declared_engine_seed_cells`), each at engine seeds
+    1000, 1001, 1002.  A record that says ``passed`` proves nothing about THIS code unless all of that holds."""
+    label = f"the guard record at {source}"
+    if record.get("format_version") != GUARD_FORMAT_VERSION:
+        raise ValueError(f"{label}: format_version {record.get('format_version')!r} is not {GUARD_FORMAT_VERSION!r}")
+    if record.get("passed") is not True:
+        raise ValueError(f"the guard at {source} did not pass; no shifted cell may be evaluated or reported")
+    if record.get("git_dirty") is not False:
+        raise ValueError(
+            f"{label}: git_dirty is {record.get('git_dirty')!r}, not False; a guard run from a tree with uncommitted "
+            "changes cannot be attributed to the commit it names"
+        )
+    commit = record.get("git_commit")
+    if not isinstance(commit, str) or len(commit) != 40 or any(c not in "0123456789abcdef" for c in commit):
+        raise ValueError(f"{label}: git_commit {commit!r} is not a 40-character hex commit")
+    changed = _code_changed_since(commit)
+    if changed:
+        raise ValueError(
+            f"{label}: the guard ran at {commit}, which differs from HEAD outside docs/ ({changed[:3]}); it proves the "
+            "evaluation path of other code, not of this one"
+        )
+    checks = record.get("cells")
+    if not isinstance(checks, list):
+        raise ValueError(f"{label}: cells is {type(checks).__name__}, not a list of checks")
+    declared = {str(cell["arm"]): cell for cell in declared_guard_cells()}
+    seen: set[str] = set()
+    for check in checks:
+        if not isinstance(check, Mapping):
+            raise ValueError(f"{label}: a check is {type(check).__name__}, not an object")
+        arm = check.get("arm")
+        if arm not in declared:
+            raise ValueError(f"{label}: {arm!r} is not a declared guard arm ({list(declared)})")
+        if arm in seen:
+            raise ValueError(f"{label}: the arm {arm} is checked twice")
+        seen.add(str(arm))
+        if check.get("seed") != declared[arm]["seed"]:
+            raise ValueError(f"{label}: {arm} was checked at seed {check.get('seed')!r}, not the declared "
+                             f"{declared[arm]['seed']!r}")
+        if check.get("draw_id") != declared[arm]["draw_id"]:
+            raise ValueError(f"{label}: {arm} was checked on draw {check.get('draw_id')!r}, not the declared {GUARD_DRAW}")
+        if check.get("passed") is not True or check.get("differing") != []:
+            raise ValueError(
+                f"{label}: {arm} did not reproduce P8.4b's committed cell (passed {check.get('passed')!r}, differing "
+                f"{check.get('differing')!r})"
+            )
+    absent = [arm for arm in declared if arm not in seen]
+    if absent:
+        raise ValueError(f"{label}: it lacks the declared guard arm(s) {absent}")
+    engine = record.get("engine_seed_check")
+    if not isinstance(engine, Mapping) or engine.get("passed") is not True:
+        raise ValueError(f"{label}: the engine-seed check did not pass")
+    expected = [cell_name(cell) for cell in declared_engine_seed_cells()]
+    seed_checks = engine.get("checks")
+    if not isinstance(seed_checks, list) or not all(isinstance(c, Mapping) for c in seed_checks):
+        raise ValueError(f"{label}: the engine-seed check carries no list of checks")
+    names = [c.get("cell") for c in seed_checks]
+    if len(names) != len(set(names)) or sorted(map(str, names)) != sorted(expected):
+        raise ValueError(f"{label}: the engine-seed check covers {names}, not the declared {expected}")
+    for check in seed_checks:
+        if check.get("engine_seeds") != list(ENGINE_SEED_CHECK_SEEDS):
+            raise ValueError(f"{label}: the engine-seed check of {check['cell']} ran engine seeds "
+                             f"{check.get('engine_seeds')!r}, not {list(ENGINE_SEED_CHECK_SEEDS)}")
+        if check.get("passed") is not True:
+            raise ValueError(f"{label}: the engine-seed check of {check['cell']} did not pass")
+
+
+def _guard_refusal(guard_path: Path) -> str | None:
+    """``None`` when the guard record at *guard_path* authorises, else why not -- missing, unreadable or refused.  Fails
+    closed: anything that stops the record being verified is a refusal, named with its type."""
+    if not guard_path.is_file():
+        return f"no guard record at {guard_path}; run the guard subcommand first"
+    try:
+        record = json.loads(guard_path.read_bytes())
+        if not isinstance(record, dict):
+            return f"the guard record at {guard_path} is not a JSON object"
+        assert_guard_authorises(record, source=str(guard_path))
+    except Exception as exc:  # noqa: BLE001 -- fail closed, the reason is printed
+        return f"{type(exc).__name__}: {exc}"
+    return None
+
+
 def run_guard(*, roots: Any, device: str | None) -> dict[str, Any]:
     """THE TAUTOLOGY GUARD, before any shifted cell: one bc-tyc held-out cell per stage-1 arm (seed 101, or the
     deterministic slot; draw 1000) through :func:`roll_cell`, every :data:`GUARD_FIELDS` ``==`` P8.4b's committed cell;
     ``random_fresh`` on (101, 1000) rolled and its digest recorded (no committed counterpart exists); the engine-seed check
     on bc-tyc and on each shifted file."""
     checks: list[dict[str, Any]] = []
-    for arm in (*LEARNER_ARMS, "behaviour@fixedtime", "behaviour@maxpressure", "behaviour@random"):
-        cell = {"file": REFERENCE_FILE["name"], "scenario_key": REFERENCE_FILE["scenario_key"], "arm": arm,
-                "seed": None if arm in DETERMINISTIC_ARMS else 101, "draw_id": 1000, "stage": 0}
+    for cell in declared_guard_cells():
+        arm = cell["arm"]
         record = roll_cell(cell, roots=roots, device=device)
         committed = p8_4b_committed(cell, output_root=roots.output_root)
         differing = sorted(field for field in GUARD_FIELDS if record[field] != committed[field])
-        checks.append({"arm": arm, "seed": cell["seed"], "draw_id": 1000, "differing": differing,
+        checks.append({"arm": arm, "seed": cell["seed"], "draw_id": int(cell["draw_id"]), "differing": differing,
                        "passed": not differing, "committed_source": committed["source"],
                        "committed_sha256": committed["source_sha256"], "record": record})
     fresh_cell = {"file": REFERENCE_FILE["name"], "scenario_key": REFERENCE_FILE["scenario_key"], "arm": "random_fresh",
                   "seed": 101, "draw_id": 1000, "stage": 0}
     fresh = roll_cell(fresh_cell, roots=roots, device=device)
-    seed_checks = [
-        engine_seed_check({"file": name, "scenario_key": key, "arm": "behaviour@maxpressure", "seed": None,
-                           "draw_id": 1000, "stage": 0}, roots=roots, device=device)
-        for name, key in [(REFERENCE_FILE["name"], REFERENCE_FILE["scenario_key"])]
-        + [(name, spec["scenario_key"]) for name, spec in SHIFTED_FILES.items()]
-    ]
+    seed_checks = [engine_seed_check(cell, roots=roots, device=device) for cell in declared_engine_seed_cells()]
     return {
         "format_version": GUARD_FORMAT_VERSION,
         "what": "bc-tyc held-out cells reproduced under == through the evaluation path before any shifted file is "
@@ -813,8 +923,7 @@ def build_report(*, work_dir: str | Path, audit_path: str | Path,
     if not guard_path.is_file():
         raise ValueError(f"no guard record at {guard_path}; the evaluation path is not proven on bc-tyc")
     guard = json.loads(guard_path.read_bytes())
-    if guard.get("passed") is not True:
-        raise ValueError(f"the guard at {guard_path} did not pass; no shifted cell may be reported")
+    assert_guard_authorises(guard, source=str(guard_path))
     audit_file_path = Path(audit_path)
     audit = json.loads(audit_file_path.read_bytes())
     if audit.get("format_version") != AUDIT_FORMAT_VERSION or audit.get("passed") is not True:
@@ -1000,6 +1109,8 @@ def build_parser() -> Any:
     evaluate.add_argument("--of", type=int, default=1)
     evaluate.add_argument("--iql-t-pins", default=None, help="stage 2: a JSON pin file {tier: {seed: {path, sha256}}}")
     sub.add_parser("status", help="declared against present")
+    sub.add_parser("check-guard", help="exit 0 iff the guard record authorises an evaluation (read-only; the drivers ask "
+                                       "before consuming their token)")
     report = sub.add_parser("report", help="write docs/data/p9_2_demand_shift.json (refuses if it exists)")
     report.add_argument("--out", default=str(_REPO_ROOT / "docs" / "data" / ARTIFACT_NAME))
     return parser
@@ -1015,6 +1126,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     work = Path(args.work_dir)
     if args.command == "status":
         print(json.dumps(status(work), indent=2, sort_keys=True), flush=True)
+        return 0
+    if args.command == "check-guard":
+        guard_path = work / GUARD_NAME
+        refusal = _guard_refusal(guard_path)
+        if refusal is not None:
+            print(f"REFUSED: {refusal}", flush=True)
+            return 2
+        print(f"the guard record at {guard_path} authorises the evaluation: passed, clean, at this code, every declared "
+              "arm and engine-seed check", flush=True)
         return 0
     if args.command == "audit":
         out = Path(args.out)
@@ -1049,9 +1169,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"guard {'PASSED' if record['passed'] else 'FAILED'} (cells not reproduced: {failed}; engine-seed check "
               f"{'passed' if record['engine_seed_check']['passed'] else 'FAILED'})", flush=True)
         return 0 if record["passed"] else 2
-    guard_path = work / GUARD_NAME
-    if not guard_path.is_file() or json.loads(guard_path.read_bytes()).get("passed") is not True:
-        print(f"REFUSED: no passing guard at {guard_path}; run the guard subcommand first", flush=True)
+    refusal = _guard_refusal(work / GUARD_NAME)
+    if refusal is not None:
+        print(f"REFUSED: {refusal}", flush=True)
         return 2
     pins = None if args.iql_t_pins is None else json.loads(Path(args.iql_t_pins).read_bytes())
     roots = _roots(args)

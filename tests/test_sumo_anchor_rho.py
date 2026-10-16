@@ -89,14 +89,15 @@ def test_registered_verdicts_recomputed_by_the_vocabulary_are_a19_a20_and_a24s(i
         for scenario, by_subject in rescored["h3"].items()
         for subject, clauses in by_subject.items()
     }
+    # hz1x1's clause 3 is VOID (A19(a)); BRIEF_47 Amendment A.2.1 rules that it is re-scored under every pair too.
     assert verdicts == {
-        ("cityflow1x1", "mappo1000"): {"clause_1": "HELD", "clause_2": "FAILED"},
-        ("cityflow1x1", "mix50"): {"clause_1": "HELD", "clause_2": "FAILED"},
+        ("cityflow1x1", "mappo1000"): {"clause_1": "HELD", "clause_2": "FAILED", "clause_3": "VOID"},
+        ("cityflow1x1", "mix50"): {"clause_1": "HELD", "clause_2": "FAILED", "clause_3": "VOID"},
         ("cityflow_grid4x4", "mappo1000_dt_nomix_h4"): {"clause_1": "HELD", "clause_2": "HELD", "clause_3": "(i)"},
     }
     assert sar.REGISTERED_H3_VERDICTS == {
-        "cityflow1x1": {"mappo1000": {"clause_1": "HELD", "clause_2": "FAILED"},
-                        "mix50": {"clause_1": "HELD", "clause_2": "FAILED"}},
+        "cityflow1x1": {"mappo1000": {"clause_1": "HELD", "clause_2": "FAILED", "clause_3": "VOID"},
+                        "mix50": {"clause_1": "HELD", "clause_2": "FAILED", "clause_3": "VOID"}},
         "cityflow_grid4x4": {"mappo1000_dt_nomix_h4": {"clause_1": "HELD", "clause_2": "HELD", "clause_3": "(i)"}},
     }
     grid = rescored["h3"]["cityflow_grid4x4"]["mappo1000_dt_nomix_h4"]
@@ -309,3 +310,82 @@ def test_p7_3cs_per_draw_blocks_under_the_registered_pair_are_the_committed_seri
     for arm, series in per_draw.items():
         values = [series["e_sumo"][draw] for draw in sorted(series["e_sumo"], key=int)]
         assert mean_ci95(values).mean == inputs["p7_3c_grid4x4.json"]["arms"][arm]["e_sumo"]["mean"]
+
+
+# ----------------------------------------------------------------------
+# hz1x1's clause 3 under every pair (BRIEF_47 Amendment A.2.1)
+# ----------------------------------------------------------------------
+
+#: A.2.1's three readings, verbatim from the amendment.
+VOID = "VOID"
+PREMISE_HOLDS = "PREMISE HOLDS UNDER THIS PAIR — NOT SCOREABLE: no few-shot curve was registered on hz1x1"
+PREMISE_NOT_RESOLVED = "PREMISE NOT RESOLVED UNDER THIS PAIR — NOT SCOREABLE"
+
+
+@pytest.mark.parametrize(
+    ("clause_2", "clause_3"), [("FAILED", VOID), ("HELD", PREMISE_HOLDS), ("NOT RESOLVED", PREMISE_NOT_RESOLVED)]
+)
+def test_hz1x1s_clause_3_follows_clause_2_in_amendment_a21s_three_readings(clause_2: str, clause_3: str) -> None:
+    """A19(a) voided clause 3 because its premise -- the zero-shot policy trails MaxPressure -- is false, and that premise
+    IS clause 2's prediction; so clause 3 is derived from clause 2's outcome under the same pair."""
+    assert sar.hz1x1_clause_3_verdict(clause_2) == clause_3
+
+
+def test_a_clause_2_outcome_outside_p5_2cs_vocabulary_is_refused() -> None:
+    with pytest.raises(ValueError, match="clause 2"):
+        sar.hz1x1_clause_3_verdict("REFUTED")
+
+
+def test_under_the_registered_pair_hz1x1s_clause_3_is_void_and_agrees_with_the_record(inputs: dict[str, Any]) -> None:
+    rescored = sar.rescore_pair(inputs, "registered", new_rows=None)
+    for subject in ("mappo1000", "mix50"):
+        clauses = rescored["h3"]["cityflow1x1"][subject]
+        entry = clauses["clause_3"]
+        assert clauses["clause_2"]["verdict"] == entry["clause_2_verdict"] == "FAILED"
+        assert (entry["verdict"], entry["registered_verdict"], entry["agrees_with_registered"], entry["scored"]) == (
+            VOID, VOID, True, False
+        )
+        assert entry["derived_from"] == "clause_2"
+        assert "A19(a)" in entry["rule"] and "A.2.1" in entry["rule"]
+
+
+def test_a_pair_under_which_clause_2_holds_makes_hz1x1s_clause_3_not_scoreable_and_differing(
+    inputs: dict[str, Any],
+) -> None:
+    """A new MaxPressure 300 s better than the registered one on every draw: under the two pairs that use it, hz1x1's rho
+    falls below 1 for both subjects (clause 2 HELD; the intervals were read off the committed code before this test was
+    written), so clause 3's premise holds -- not scoreable, and reported as differing from the registered VOID; under the
+    pair that keeps the registered MaxPressure, clause 2 still FAILS and clause 3 stays VOID."""
+    new = _new_rows_like_registered(inputs, mp_shift=-300.0)
+    for pair, clause_2, clause_3 in (
+        ("mp1to1_ftk4", "HELD", PREMISE_HOLDS),
+        ("mp1to1_ftkcf", "HELD", PREMISE_HOLDS),
+        ("mpperlink_ftkcf", "FAILED", VOID),
+    ):
+        result = sar.rescore_pair(inputs, pair, new_rows=new)
+        for subject in ("mappo1000", "mix50"):
+            clauses = result["h3"]["cityflow1x1"][subject]
+            assert clauses["clause_2"]["verdict"] == clause_2, (pair, subject)
+            assert clauses["clause_3"]["verdict"] == clause_3, (pair, subject)
+            assert clauses["clause_3"]["agrees_with_registered"] is (clause_3 == VOID)
+
+
+def test_the_guard_records_every_h3_verdict_it_reproduced_under_the_registered_pair(inputs: dict[str, Any]) -> None:
+    result = sar.registered_reproduction(inputs)
+    assert result["registered_verdicts_reproduced"] == {
+        "cityflow1x1": {"mappo1000": {"clause_1": "HELD", "clause_2": "FAILED", "clause_3": "VOID"},
+                        "mix50": {"clause_1": "HELD", "clause_2": "FAILED", "clause_3": "VOID"}},
+        "cityflow_grid4x4": {"mappo1000_dt_nomix_h4": {"clause_1": "HELD", "clause_2": "HELD", "clause_3": "(i)"}},
+    }
+
+
+def test_the_guard_refuses_a_registered_pair_that_does_not_give_hz1x1s_registered_clause_3(
+    inputs: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The tautology guard covers clause 3 (A.2.1): with the registered clause-3 verdict planted as something else, the
+    registered pair's VOID no longer reproduces it and the guard refuses."""
+    planted = copy.deepcopy({scenario: dict(by) for scenario, by in sar.REGISTERED_H3_VERDICTS.items()})
+    planted["cityflow1x1"]["mappo1000"]["clause_3"] = "(i)"
+    monkeypatch.setattr(sar, "REGISTERED_H3_VERDICTS", planted, raising=True)
+    with pytest.raises(ValueError, match="registered verdicts"):
+        sar.registered_reproduction(inputs)

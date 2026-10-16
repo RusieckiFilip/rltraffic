@@ -15,6 +15,7 @@ GATES: ``RLTRAFFIC_DRAWS`` (the main tree's ``scenarios/draws`` with the parity 
 
 from __future__ import annotations
 
+import functools
 import json
 import os
 import re
@@ -129,6 +130,10 @@ def _cityflow_payload(scenario: str = "cityflow1x1", draw_id: int = 1000) -> dic
         "multiplicities": {"summary": {}},
         "policy_class": "MaxPressure1to1Agent",
         "action_sequence_sha256": "9" * 64,
+        # The two fields ``cityflow_anchor_episode`` writes into every CityFlow payload and the validator checks since
+        # BRIEF_47 Amendment A.2.4.
+        "decisions": 360,
+        "engine_seed_requested": 1000,
         "seconds": 1.0,
         "git_commit": COMMIT,
         "git_dirty": False,
@@ -298,6 +303,34 @@ def test_the_validator_refuses_a_cityflow_cell_whose_counts_do_not_add_up() -> N
         sar.validate_anchor_cell(payload, cell=_cell(payload))
 
 
+@pytest.mark.parametrize("scenario", ["cityflow1x1", "cityflow_grid4x4"])
+@pytest.mark.parametrize(
+    ("change", "match"),
+    [
+        ({"decisions": 359}, "359 decisions, not the 360"),
+        ({"decisions": 0}, "0 decisions, not the 360"),
+        ({"engine_seed_requested": 1001}, "engine_seed_requested 1001"),
+    ],
+)
+def test_the_validator_refuses_a_truncated_or_reseeded_cityflow_cell(
+    scenario: str, change: dict[str, Any], match: str
+) -> None:
+    """BRIEF_47 Amendment A.2.4: a truncated CityFlow grid4x4 cell has no registered counterpart that would catch it, so the
+    CityFlow branch checks the horizon's 360 decisions and A18(c)'s engine seed, as the SUMO branch does."""
+    payload = _cityflow_payload(scenario)
+    payload.update(change)
+    with pytest.raises(ValueError, match=match):
+        sar.validate_anchor_cell(payload, cell=_cell(payload))
+
+
+@pytest.mark.parametrize("key", ["decisions", "engine_seed_requested"])
+def test_the_validator_refuses_a_cityflow_cell_that_does_not_carry_its_horizon_or_engine_seed(key: str) -> None:
+    payload = _cityflow_payload("cityflow_grid4x4")
+    del payload[key]
+    with pytest.raises(ValueError, match=f"carries {key}"):
+        sar.validate_anchor_cell(payload, cell=_cell(payload))
+
+
 # ----------------------------------------------------------------------
 # The resumable roll, with a stand-in episode
 # ----------------------------------------------------------------------
@@ -401,35 +434,222 @@ def test_the_replica_fields_cover_every_measurement_a_registered_anchor_record_c
     assert sorted(set(record) - not_measurements) == sorted(sar.REPLICA_COMPARED_FIELDS)
 
 
+@functools.lru_cache(maxsize=None)
+def _registered_records() -> dict[tuple[str, str, int], dict[str, Any]]:
+    """Every committed anchor record the gate compares with -- the registered maxpressure and fixedtime on draws 1000 and
+    1001 of both scenarios -- read from the two artifacts directly (parsed once)."""
+    out: dict[tuple[str, str, int], dict[str, Any]] = {}
+    for scenario, name in (("cityflow1x1", "p7_3a_zero_shot.json"), ("cityflow_grid4x4", "p7_3d_grid4x4.json")):
+        for c in json.loads((DATA / name).read_bytes())["cells"]:
+            if c["kind"] == "anchor" and c["arm"] in ("maxpressure", "fixedtime") and c["draw_id"] in (1000, 1001):
+                key = (scenario, str(c["arm"]), int(c["draw_id"]))
+                assert key not in out, key
+                out[key] = c
+    assert len(out) == 8
+    return out
+
+
+#: The gate's eight declared checks, written out: draws 1001 then 1000 (A.2.5), each scenario, each registered arm, and the
+#: field count G2's gate printed (29 on hz1x1, 31 on grid4x4 with ``intersection_ids`` and ``local_return``).
+DECLARED_REPLICA_CHECKS: list[tuple[str, str, int, int]] = [
+    (scenario, arm, draw, 29 if scenario == "cityflow1x1" else 31)
+    for draw in (1001, 1000)
+    for scenario in ("cityflow1x1", "cityflow_grid4x4")
+    for arm in ("maxpressure", "fixedtime")
+]
+
+
 def test_the_replica_gate_passes_only_when_every_registered_record_reproduces(tmp_path: Path) -> None:
-    records = {
-        ("cityflow1x1", arm): next(
-            c for c in json.loads((DATA / "p7_3a_zero_shot.json").read_bytes())["cells"]
-            if c["kind"] == "anchor" and c["arm"] == arm and c["draw_id"] == sar.REPLICA_DRAW
-        )
-        for arm in ("maxpressure", "fixedtime")
-    }
-    grid = json.loads((DATA / "p7_3d_grid4x4.json").read_bytes())["cells"]
-    for arm in ("maxpressure", "fixedtime"):
-        records[("cityflow_grid4x4", arm)] = next(
-            c for c in grid if c["kind"] == "anchor" and c["arm"] == arm and c["draw_id"] == sar.REPLICA_DRAW
-        )
+    records = _registered_records()
 
     def replay(scenario: str, draw_id: int, arm: str, **_kwargs: Any) -> dict[str, Any]:
-        return dict(records[(scenario, arm)])
+        return dict(records[(scenario, arm, int(draw_id))])
 
     result = sar.replica_gate(draws_root=tmp_path, corpus_root=tmp_path, data_dir=DATA, episode_fn=replay)
-    assert result["passed"] is True and len(result["checks"]) == 4
+    assert result["passed"] is True and len(result["checks"]) == 8
 
     def drifted(scenario: str, draw_id: int, arm: str, **_kwargs: Any) -> dict[str, Any]:
-        payload = dict(records[(scenario, arm)])
-        if (scenario, arm) == ("cityflow_grid4x4", "fixedtime"):
+        payload = dict(records[(scenario, arm, int(draw_id))])
+        if (scenario, arm, int(draw_id)) == ("cityflow_grid4x4", "fixedtime", sar.REPLICA_DRAW):
             payload["e_sumo"] = float(np.nextafter(payload["e_sumo"], np.inf))
         return payload
 
     failed = sar.replica_gate(draws_root=tmp_path, corpus_root=tmp_path, data_dir=DATA, episode_fn=drifted)
     assert failed["passed"] is False
     assert [c["differing"] for c in failed["checks"] if not c["passed"]] == [["e_sumo"]]
+
+
+def test_the_replica_gate_rolls_draw_1000s_halting_path_for_both_registered_arms_on_both_scenarios(tmp_path: Path) -> None:
+    """BRIEF_47 Amendment A.2.5: draw 1001 has ``halting_checked`` false, so a gate on it alone never runs the path every
+    draw-1000 cell runs.  The gate rolls the registered maxpressure and fixedtime on BOTH draws of both scenarios -- eight
+    episodes, in declared order -- and a drifted halting field on draw 1000 fails it, by name."""
+    records = _registered_records()
+    calls: list[tuple[str, str, int]] = []
+
+    def replay(scenario: str, draw_id: int, arm: str, **_kwargs: Any) -> dict[str, Any]:
+        calls.append((scenario, arm, int(draw_id)))
+        return dict(records[(scenario, arm, int(draw_id))])
+
+    result = sar.replica_gate(draws_root=tmp_path, corpus_root=tmp_path, data_dir=DATA, episode_fn=replay)
+    assert calls == [(scenario, arm, draw) for scenario, arm, draw, _n in DECLARED_REPLICA_CHECKS]
+    assert [(c["scenario"], c["arm"], c["draw_id"], c["n_fields"]) for c in result["checks"]] == DECLARED_REPLICA_CHECKS
+    assert all(records[(s, a, 1000)]["halting_checked"] is True for s, a, _d, _n in DECLARED_REPLICA_CHECKS)
+    assert all(records[(s, a, 1001)]["halting_checked"] is False for s, a, _d, _n in DECLARED_REPLICA_CHECKS)
+    assert {"halting_checked", "halting_n_lane_seconds", "halting_n_disagreeing_lane_seconds",
+            "halting_max_abs_difference"} <= set(sar.REPLICA_COMPARED_FIELDS)
+
+    def drifted(scenario: str, draw_id: int, arm: str, **_kwargs: Any) -> dict[str, Any]:
+        payload = dict(records[(scenario, arm, int(draw_id))])
+        if (scenario, arm, int(draw_id)) == ("cityflow1x1", "maxpressure", 1000):
+            payload["halting_n_lane_seconds"] = int(payload["halting_n_lane_seconds"]) + 1
+        return payload
+
+    failed = sar.replica_gate(draws_root=tmp_path, corpus_root=tmp_path, data_dir=DATA, episode_fn=drifted)
+    assert failed["passed"] is False
+    assert [(c["scenario"], c["arm"], c["draw_id"], c["differing"]) for c in failed["checks"] if not c["passed"]] == [
+        ("cityflow1x1", "maxpressure", 1000, ["halting_n_lane_seconds"])
+    ]
+
+
+# ----------------------------------------------------------------------
+# A gate record authorises only with clean provenance and every declared check (BRIEF_47 Amendment A.2.2)
+# ----------------------------------------------------------------------
+
+
+def _gate_record(**overrides: Any) -> dict[str, Any]:
+    """A gate record as ``replica_gate`` writes one that passed: the eight declared checks, clean provenance."""
+    checks = [
+        {"scenario": scenario, "arm": arm, "draw_id": draw,
+         "artifact": "p7_3a_zero_shot.json" if scenario == "cityflow1x1" else "p7_3d_grid4x4.json",
+         "n_fields": n_fields, "differing": [], "missing": [], "passed": True, "seconds": 10.0}
+        for scenario, arm, draw, n_fields in DECLARED_REPLICA_CHECKS
+    ]
+    record: dict[str, Any] = {"format_version": "p9.2-replica-gate/1.0", "what": "stand-in", "checks": checks,
+                              "passed": True, "git_commit": COMMIT, "git_dirty": False}
+    record.update(overrides)
+    return record
+
+
+@pytest.fixture()
+def same_code(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A stand-in record's commit is not a real commit: J1(c)'s comparison is substituted, and nothing else."""
+    monkeypatch.setattr(sar, "_code_changed_since", lambda commit: [], raising=True)
+
+
+def test_a_gate_record_with_clean_provenance_and_every_declared_check_authorises(same_code: None) -> None:
+    sar.assert_gate_authorises(_gate_record(), source="stand-in")
+    assert [(c["scenario"], c["arm"], c["draw_id"], c["n_fields"]) for c in sar.declared_replica_checks()] == (
+        DECLARED_REPLICA_CHECKS
+    )
+
+
+def _set(key: str, value: Any) -> Any:
+    return lambda record: record.__setitem__(key, value)
+
+
+def _without(key: str) -> Any:
+    return lambda record: record.pop(key)
+
+
+def _check(index: int, **fields: Any) -> Any:
+    return lambda record: record["checks"][index].update(fields)
+
+
+def _drop_check(index: int) -> Any:
+    return lambda record: record["checks"].pop(index)
+
+
+def _repeat_check(index: int) -> Any:
+    return lambda record: record["checks"].append(dict(record["checks"][index]))
+
+
+@pytest.mark.parametrize(
+    ("plant", "match"),
+    [
+        pytest.param(_set("git_dirty", True), "git_dirty", id="dirty-tree"),
+        pytest.param(_without("git_dirty"), "git_dirty", id="dirtiness-not-measured"),
+        pytest.param(_set("git_commit", "HEAD"), "40-character", id="commit-not-a-commit"),
+        pytest.param(_set("passed", False), "did not pass", id="gate-failed"),
+        pytest.param(_set("format_version", "p9.2-replica-gate/0.9"), "format_version", id="other-format"),
+        pytest.param(_set("checks", []), "lacks", id="no-checks"),
+        pytest.param(_drop_check(7), "lacks", id="a-draw-1000-check-missing"),
+        pytest.param(_repeat_check(0), "twice", id="a-check-twice"),
+        pytest.param(_check(5, passed=False), "did not reproduce", id="a-check-failed"),
+        pytest.param(_check(5, differing=["e_sumo"]), "did not reproduce", id="a-differing-field-marked-passed"),
+        pytest.param(_check(2, missing=["local_return"]), "did not reproduce", id="a-missing-field-marked-passed"),
+        pytest.param(_check(3, n_fields=28), "28 field", id="fewer-fields-compared"),
+        pytest.param(_check(0, draw_id=1002), "not a declared", id="an-undeclared-check"),
+    ],
+)
+def test_a_gate_record_is_refused_for_each_planted_defect(same_code: None, plant: Any, match: str) -> None:
+    record = _gate_record()
+    plant(record)
+    with pytest.raises(ValueError, match=match):
+        sar.assert_gate_authorises(record, source="stand-in")
+
+
+def test_a_gate_record_run_by_other_code_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    asked: list[str] = []
+
+    def changed(commit: str) -> list[str]:
+        asked.append(commit)
+        return ["offline/sumo_anchor_rescore.py"]
+
+    monkeypatch.setattr(sar, "_code_changed_since", changed, raising=True)
+    with pytest.raises(ValueError, match="differs from HEAD outside docs/"):
+        sar.assert_gate_authorises(_gate_record(), source="stand-in")
+    assert asked == [COMMIT]
+
+
+def _write_gate(work: Path, record: dict[str, Any]) -> None:
+    work.mkdir(parents=True, exist_ok=True)
+    (work / sar.REPLICA_GATE_NAME).write_text(json.dumps(record), encoding="utf-8")
+
+
+def test_roll_anchors_rolls_nothing_past_a_passed_gate_record_from_a_dirty_tree(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, same_code: None
+) -> None:
+    """The case a bare ``passed`` check let through: the record says passed, its tree was dirty."""
+    output = tmp_path / "output"
+    work = output / "p9_2" / "anchors"
+    _write_gate(work, _gate_record(git_dirty=True))
+
+    def never(_args: Any) -> Any:
+        raise AssertionError("an episode function was built past a gate record that does not authorise")
+
+    monkeypatch.setattr(sar, "_episode_for", never, raising=True)
+    code = sar.main(["--output-root", str(output), "--work-dir", str(work), "roll-anchors", "--shard", "0", "--of", "100"])
+    assert code == 2
+    assert sorted(path.name for path in work.iterdir()) == [sar.REPLICA_GATE_NAME]
+
+
+def test_roll_anchors_rolls_its_shard_past_a_gate_record_that_authorises(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, same_code: None
+) -> None:
+    """The control of the test above: the same command past an authorising record rolls its shard's six cells."""
+    output = tmp_path / "output"
+    work = output / "p9_2" / "anchors"
+    _write_gate(work, _gate_record())
+    monkeypatch.setattr(sar, "_episode_for", lambda _args: _fake_episode, raising=True)
+    code = sar.main(["--output-root", str(output), "--work-dir", str(work), "roll-anchors", "--shard", "0", "--of", "100"])
+    assert code == 0
+    assert len([path for path in work.iterdir() if path.name.startswith("cell_")]) == 6
+
+
+def test_check_gate_answers_0_only_for_a_record_that_authorises_and_writes_nothing(
+    tmp_path: Path, same_code: None, capsys: pytest.CaptureFixture[str]
+) -> None:
+    work = tmp_path / "output" / "p9_2" / "anchors"
+    command = ["--work-dir", str(work), "check-gate"]
+    assert sar.main(command) == 2
+    assert not work.exists(), "a check of a missing record creates nothing"
+    for refused in (_gate_record(passed=False), _gate_record(git_dirty=True), _gate_record(checks=[])):
+        _write_gate(work, refused)
+        assert sar.main(command) == 2
+    assert capsys.readouterr().out.count("REFUSED") == 4
+    _write_gate(work, _gate_record())
+    assert sar.main(command) == 0
+    assert sorted(path.name for path in work.iterdir()) == [sar.REPLICA_GATE_NAME]
 
 
 # ----------------------------------------------------------------------
@@ -626,3 +846,35 @@ def test_on_cityflow_the_variant_acts_as_the_registered_agent_on_hz1x1_and_not_o
     }
     assert digests[("cityflow1x1", "maxpressure_1to1")] == digests[("cityflow1x1", "maxpressure")]
     assert digests[("cityflow_grid4x4", "maxpressure_1to1")] != digests[("cityflow_grid4x4", "maxpressure")]
+
+
+# ----------------------------------------------------------------------
+# Gated, added at C8 (BRIEF_47 Amendment A.2.4, A.2.5)
+# ----------------------------------------------------------------------
+
+
+def test_the_sumo_replica_reproduces_a_registered_hz1x1_draw_1000_record_on_the_halting_path() -> None:
+    """Draw 1000 is the one draw whose cells run the halting cross-check (Amendment C2): the registered ``maxpressure``
+    through :func:`sumo_anchor_episode` reproduces P7.3a's committed draw-1000 record, its halting fields included."""
+    draws, corpus = _draws_root(), _corpus_root()
+    _require_simulators()
+    payload = sar.sumo_anchor_episode("cityflow1x1", 1000, "maxpressure", draws_root=draws, corpus_root=corpus)
+    record = _registered_anchor("p7_3a_zero_shot.json", "maxpressure", 1000)
+    assert record["halting_checked"] is True and payload["halting_checked"] is True
+    assert sar.compare_with_registered(payload, record, sar.REPLICA_COMPARED_FIELDS) == {"differing": [], "missing": []}
+
+
+def test_a_real_cityflow_cell_carries_360_decisions_at_engine_seed_1000_and_validates() -> None:
+    """The payload :func:`cityflow_anchor_episode` writes passes the CityFlow branch's new checks.  hz1x1 draw 1000 is the
+    load-bearing identity cell, whose values are the registered MaxPressure's, so this rolls no new held-out number."""
+    from offline.admission_probe import ProbeRoots
+
+    draws, corpus = _draws_root(), _corpus_root()
+    _require_simulators()
+    roots = ProbeRoots(repo_root=REPO_ROOT, corpus_root=corpus, draws_root=draws, output_root=REPO_ROOT / "output",
+                       work_dir=REPO_ROOT / "output" / "unused")
+    payload = sar.cityflow_anchor_episode("cityflow1x1", 1000, "maxpressure_1to1", roots=roots)
+    assert (payload["decisions"], payload["engine_seed_requested"]) == (360, 1000)
+    # The tree this test runs in may carry uncommitted files; the provenance check is the campaign's, not this test's.
+    payload["git_dirty"] = False
+    sar.validate_anchor_cell(payload, cell=_cell(payload))

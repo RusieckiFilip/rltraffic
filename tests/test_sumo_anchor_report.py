@@ -22,11 +22,13 @@ from typing import Any
 import pytest
 
 import offline.sumo_anchor_rescore as sar
-from tests.test_sumo_anchor_rescore import _sumo_payload
+from tests.test_sumo_anchor_rescore import _gate_record, _sumo_payload
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DATA = REPO_ROOT / "docs" / "data"
 COMMIT = "b" * 40
+#: BRIEF_47 Amendment A.2.1, verbatim: hz1x1's clause 3 when clause 2 HOLDS under a pair.
+PREMISE_HOLDS = "PREMISE HOLDS UNDER THIS PAIR — NOT SCOREABLE: no few-shot curve was registered on hz1x1"
 
 _SUMO_COPIED = (
     "e_sumo", "att_env", "att_horizon", "att_running_mean", "p_sumo", "w_sumo", "mean_depart_delay", "episode_reward",
@@ -96,14 +98,11 @@ def _write_work_dir(tmp_path: Path, *, mp_shift: float = 0.0) -> Path:
                                                  "horizon_vehicle_count", "episode_reward")},
                 "roadlink_structure_digest": "f" * 64, "multiplicities": {"summary": {"selectable_greens": {}}},
                 "policy_class": "MaxPressure1to1Agent", "action_sequence_sha256": "9" * 64, "decisions": 360,
-                "seconds": 1.0, "git_commit": COMMIT, "git_dirty": False,
+                "engine_seed_requested": 1000, "seconds": 1.0, "git_commit": COMMIT, "git_dirty": False,
             }
         (work / sar.cell_name(cell)).write_text(json.dumps(payload), encoding="utf-8")
-    (work / sar.REPLICA_GATE_NAME).write_text(
-        json.dumps({"format_version": "p9.2-replica-gate/1.0", "passed": True, "checks": [], "git_commit": COMMIT,
-                    "git_dirty": False}),
-        encoding="utf-8",
-    )
+    # A gate record that authorises (BRIEF_47 Amendment A.2.2): its eight declared checks, clean provenance.
+    (work / sar.REPLICA_GATE_NAME).write_text(json.dumps(_gate_record(git_commit=COMMIT)), encoding="utf-8")
     return work
 
 
@@ -144,7 +143,7 @@ def test_a_report_whose_new_anchors_equal_the_registered_ones_reproduces_the_reg
         assert block["p7_3d"]["rho"]["registered_arm"]["e_sumo"] == registered["p7_3d"]["rho"]["registered_arm"]["e_sumo"]
         assert block["p7_3c"]["arms"] == registered["p7_3c"]["arms"]
     assert artifact["h3_summary"]["cityflow1x1"]["mappo1000"]["mp1to1_ftkcf"] == {
-        "clause_1": "HELD", "clause_2": "FAILED", "agrees_with_registered": True
+        "clause_1": "HELD", "clause_2": "FAILED", "clause_3": "VOID", "agrees_with_registered": True
     }
     assert artifact["h3_summary"]["cityflow_grid4x4"]["mappo1000_dt_nomix_h4"]["mp1to1_ftkcf"] == {
         "clause_1": "HELD", "clause_2": "HELD", "clause_3": "(i)", "agrees_with_registered": True
@@ -158,9 +157,13 @@ def test_a_pair_that_moves_a_verdict_is_reported_as_differing_and_the_sentences_
     pairs that use it (clause 2 HELD, against A19(a)'s FAILED), and not under the pair that keeps the registered MP."""
     artifact = _report(_write_work_dir(tmp_path, mp_shift=-300.0))
     summary = artifact["h3_summary"]["cityflow1x1"]["mappo1000"]
-    assert summary["mp1to1_ftk4"] == {"clause_1": "HELD", "clause_2": "HELD", "agrees_with_registered": False}
+    assert summary["mp1to1_ftk4"] == {
+        "clause_1": "HELD", "clause_2": "HELD", "clause_3": PREMISE_HOLDS, "agrees_with_registered": False
+    }
     assert summary["mp1to1_ftkcf"]["agrees_with_registered"] is False
-    assert summary["mpperlink_ftkcf"] == {"clause_1": "HELD", "clause_2": "FAILED", "agrees_with_registered": True}
+    assert summary["mpperlink_ftkcf"] == {
+        "clause_1": "HELD", "clause_2": "FAILED", "clause_3": "VOID", "agrees_with_registered": True
+    }
     values = artifact["sentence_values"]
     aligned = next(e for e in artifact["pairs"]["mp1to1_ftkcf"]["p7_3a"]["by_subject_arm"]
                    if e["subject"] == "mappo1000" and e["arm"] == "b_mean_k100")["e_sumo"]
@@ -187,9 +190,17 @@ def test_the_report_carries_every_anchor_on_every_draw_under_both_backends(tmp_p
     assert grid["n_draws"] == 100 and grid["n_att_ours_differing"] == 100
 
 
+def _a27_row() -> str:
+    """A27's registration row, found by its prefix and required unique -- never by line number (CLAUDE.md section 2:
+    section 12 is newest-first, so every new row moves every older one)."""
+    rows = [line for line in (REPO_ROOT / "PREREGISTRATION.md").read_text(encoding="utf-8").splitlines()
+            if line.startswith("| 2026-10-15 | **A27")]
+    assert len(rows) == 1, len(rows)
+    return rows[0]
+
+
 def test_the_label_is_a27a_item_5_verbatim() -> None:
-    row = (REPO_ROOT / "PREREGISTRATION.md").read_text(encoding="utf-8").splitlines()[379]
-    assert row.startswith("| 2026-10-15 | **A27")
+    row = _a27_row()
     start = row.index("5 — ") + len("5 — ")
     assert row[start:].startswith(sar.LABEL_POINT_5)
     assert row[start + len(sar.LABEL_POINT_5)] == ";"
@@ -243,6 +254,47 @@ def test_a_missing_or_failed_replica_gate_refuses(tmp_path: Path, patched: None)
     gate.unlink()
     with pytest.raises(ValueError, match="replica gate"):
         _report(work)
+
+
+def _only_draw_1001s_checks(record: dict[str, Any]) -> None:
+    record["checks"] = [check for check in record["checks"] if check["draw_id"] == 1001]
+
+
+@pytest.mark.parametrize(
+    ("plant", "match"),
+    [
+        pytest.param(lambda record: record.update(git_dirty=True), "git_dirty", id="dirty-tree"),
+        pytest.param(_only_draw_1001s_checks, "lacks", id="only-draw-1001s-four-checks"),
+        pytest.param(lambda record: record.update(git_commit="e" * 40), "differs from HEAD outside docs/",
+                     id="run-by-other-code"),
+    ],
+)
+def test_the_report_refuses_a_passed_gate_record_that_does_not_authorise(
+    tmp_path: Path, patched: None, monkeypatch: pytest.MonkeyPatch, plant: Any, match: str
+) -> None:
+    """BRIEF_47 Amendment A.2.2: ``passed`` alone authorises nothing.  The gate record's OWN provenance is checked -- its
+    commit "e" * 40 is the only one the stand-in J1(c) comparison reports as other code, so the chunks (at "b" * 40) are
+    not what refuses -- and so are its declared checks (only draw 1001's four, as the gate wrote them before C8)."""
+    work = _write_work_dir(tmp_path)
+    record = _gate_record(git_commit=COMMIT)
+    plant(record)
+    (work / sar.REPLICA_GATE_NAME).write_text(json.dumps(record), encoding="utf-8")
+    monkeypatch.setattr(sar, "_code_changed_since",
+                        lambda commit: ["offline/sumo_anchor_rescore.py"] if commit == "e" * 40 else [], raising=True)
+    with pytest.raises(ValueError, match=match):
+        _report(work)
+
+
+def test_hz1x1s_clause_3_enters_the_sentence_values_under_the_aligned_pair(tmp_path: Path, patched: None) -> None:
+    """A.2.1 and A.5: hz1x1's sentence asks whether H3's clauses agree with their registered verdicts, clause 3 included."""
+    registered = _report(_write_work_dir(tmp_path / "same"))
+    assert {subject: registered["sentence_values"]["hz1x1"][subject]["clause_3"] for subject in ("mappo1000", "mix50")} == {
+        "mappo1000": "VOID", "mix50": "VOID"
+    }
+    moved = _report(_write_work_dir(tmp_path / "moved", mp_shift=-300.0))
+    assert {subject: moved["sentence_values"]["hz1x1"][subject]["clause_3"] for subject in ("mappo1000", "mix50")} == {
+        "mappo1000": PREMISE_HOLDS, "mix50": PREMISE_HOLDS
+    }
 
 
 def test_the_load_bearing_cityflow_hz1x1_identity_broken_refuses(tmp_path: Path, patched: None) -> None:

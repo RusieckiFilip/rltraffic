@@ -25,7 +25,9 @@ from a fresh env at ``reset(seed=1000)`` (A18(c)).  ``att_*`` / ``e_sumo`` are t
   teleport no same-step collision explains refuses it -- and a refusal STOPS the run for a ruling.  ``run_cell`` itself
   cannot be reused: ``validate_cell_payload`` refuses any arm outside P7.3's declared set (``transfer_curve.py:2474``).
   The replica is proven to be the registered route by giving it the REGISTERED policies and reproducing committed anchor
-  records under ``==`` (:func:`replica_gate`; ``tests/test_sumo_anchor_rescore.py``).
+  records under ``==`` on draws 1001 and 1000 -- 1000's cells run the halting cross-check (:func:`replica_gate`;
+  ``tests/test_sumo_anchor_rescore.py``) -- and a gate record authorises a roll or a report only with clean provenance at
+  this code and every declared check (:func:`assert_gate_authorises`, ``BRIEF_47`` Amendment A.2.2).
 * **CityFlow** (``backend: "cityflow"``): :func:`cityflow_anchor_episode` -- ``admission_probe.probe_episode``, the
   per-episode body of P8.4b's ``att_rederivation.run_campaign``: ``att_ours`` from the horizon reader, ``att_engine`` from the
   engine at the horizon, and A11(b)'s companions, with the MaxPressure tier's own env settings.
@@ -57,17 +59,20 @@ from typing import Any, Callable, Mapping, Sequence
 __all__ = [
     "ALIGNED_PAIR",
     "ARTIFACT_NAME",
+    "HZ1X1_CLAUSE_3_BY_CLAUSE_2",
     "INPUT_ARTIFACTS",
     "LABEL_POINT_5",
     "PAIRS",
     "POLICY_CLASS",
     "REGISTERED_H3_VERDICTS",
+    "assert_gate_authorises",
     "build_report",
     "cityflow_registered_anchors",
     "clause_1_verdict",
     "clause_2_verdict",
     "clause_3_verdict",
     "grid4x4_rho_block",
+    "hz1x1_clause_3_verdict",
     "hz1x1_rho_block",
     "load_inputs",
     "pair_anchor_rows",
@@ -84,6 +89,7 @@ __all__ = [
     "KCF_README_VALUES",
     "REPLICA_COMPARED_FIELDS",
     "REPLICA_DRAW",
+    "REPLICA_DRAWS",
     "SCENARIOS",
     "SUMO_ARMS",
     "anchor_status",
@@ -92,6 +98,7 @@ __all__ = [
     "cityflow_anchor_episode",
     "compare_with_registered",
     "declared_anchor_cells",
+    "declared_replica_checks",
     "fixedtime_action_schedule",
     "kcf_for",
     "main",
@@ -143,8 +150,8 @@ PROBE_SCENARIO: Mapping[str, str] = {"cityflow1x1": "hz1x1", "cityflow_grid4x4":
 HELD_OUT_DRAWS: tuple[int, ...] = tuple(range(1000, 1100))
 ENGINE_SEED = 1000
 
-#: The replica gate's draw: not 1000, so the gate costs one plain episode per arm and scenario (draw 1000 carries the
-#: 3.5x halting cross-check, Amendment C2).
+#: The reference draw of G2's per-episode timings and the first of the gate's draws; the gate ALSO rolls draw 1000, whose
+#: cells carry the 3.5x halting cross-check (Amendment C2) -- :data:`REPLICA_DRAWS`, ``BRIEF_47`` Amendment A.2.5.
 REPLICA_DRAW = 1001
 
 #: Every MEASUREMENT a registered anchor record carries (``docs/data/p7_3a_zero_shot.json``'s anchor rows, whose keys
@@ -169,6 +176,11 @@ REGISTERED_ANCHOR_ARTIFACT: Mapping[str, str] = {
 
 REPLICA_GATE_NAME = "replica_gate.json"
 REPLICA_GATE_FORMAT_VERSION = "p9.2-replica-gate/1.0"
+
+#: The gate's draws (``BRIEF_47`` Amendment A.2.5): 1001, and 1000 -- the one draw whose cells run the halting
+#: cross-check, a path a gate on 1001 alone never exercises.  Eight checks: these draws x both scenarios x both arms.
+REPLICA_DRAWS: tuple[int, ...] = (1001, 1000)
+REPLICA_ARMS: tuple[str, ...] = ("maxpressure", "fixedtime")
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_DRAWS_ROOT = Path("/home/filip/rltraffic/scenarios/draws")
@@ -593,9 +605,18 @@ def validate_anchor_cell(payload: Mapping[str, Any], *, cell: Mapping[str, Any])
     if payload["backend"] == "cityflow":
         for key in ("att_ours", "att_engine", "created", "entered", "never_entered", "horizon_vehicle_count",
                     "episode_reward", "roadlink_structure_digest", "multiplicities", "policy_class",
-                    "action_sequence_sha256"):
+                    "action_sequence_sha256", "decisions", "engine_seed_requested"):
             if key not in payload:
                 raise ValueError(f"{label}: a CityFlow cell carries {key}, and this one does not")
+        # BRIEF_47 Amendment A.2.4: a truncated CityFlow grid4x4 cell has no registered counterpart to catch it.
+        if int(payload["decisions"]) != EXPECTED_DECISIONS:
+            raise ValueError(
+                f"{label}: {payload['decisions']} decisions, not the {EXPECTED_DECISIONS} decisions of the horizon"
+            )
+        if int(payload["engine_seed_requested"]) != ENGINE_SEED:
+            raise ValueError(
+                f"{label}: engine_seed_requested {payload['engine_seed_requested']} is not A18(c)'s {ENGINE_SEED}"
+            )
         if payload["policy_class"] != POLICY_CLASS[str(payload["arm"])]:
             raise ValueError(
                 f"{label}: arm {payload['arm']} was rolled by policy class {payload['policy_class']!r}, not "
@@ -788,34 +809,123 @@ def _registered_anchor_record(data_dir: Path, scenario: str, arm: str, draw_id: 
     return matches[0]
 
 
+def _replica_fields(scenario: str) -> list[str]:
+    return list(REPLICA_COMPARED_FIELDS) + (list(GRID_REPLICA_EXTRA_FIELDS) if scenario == "cityflow_grid4x4" else [])
+
+
+def declared_replica_checks() -> list[dict[str, Any]]:
+    """The replica gate's declared checks, in the order it runs them: :data:`REPLICA_DRAWS` x :data:`SCENARIOS` x the
+    registered arms, each with the number of measurement fields it compares."""
+    return [
+        {"scenario": scenario, "arm": arm, "draw_id": int(draw), "n_fields": len(_replica_fields(scenario))}
+        for draw in REPLICA_DRAWS
+        for scenario in SCENARIOS
+        for arm in REPLICA_ARMS
+    ]
+
+
+def assert_gate_authorises(record: Mapping[str, Any], *, source: str) -> None:
+    """Refuse (``ValueError``, the reason named) unless the replica gate record read from *source* authorises a roll or a
+    report (``BRIEF_47`` Amendment A.2.2): its format version; ``passed`` true; ``git_dirty`` false; ``git_commit`` a commit
+    whose code equals HEAD outside ``docs/`` (J1(c)'s rule, :func:`_code_changed_since`); and exactly the declared checks
+    (:func:`declared_replica_checks`), each passed with no differing or missing field on its declared field count.  A
+    record that says ``passed`` proves nothing about THIS code unless all of that holds."""
+    label = f"the replica gate record at {source}"
+    if record.get("format_version") != REPLICA_GATE_FORMAT_VERSION:
+        raise ValueError(
+            f"{label}: format_version {record.get('format_version')!r} is not {REPLICA_GATE_FORMAT_VERSION!r}"
+        )
+    if record.get("passed") is not True:
+        raise ValueError(f"the replica gate at {source} did not pass; no anchor rolled through it may be rolled or reported")
+    if record.get("git_dirty") is not False:
+        raise ValueError(
+            f"{label}: git_dirty is {record.get('git_dirty')!r}, not False; a gate run from a tree with uncommitted "
+            "changes cannot be attributed to the commit it names"
+        )
+    commit = record.get("git_commit")
+    if not isinstance(commit, str) or not _HEX40.fullmatch(commit):
+        raise ValueError(f"{label}: git_commit {commit!r} is not a 40-character hex commit")
+    changed = _code_changed_since(commit)
+    if changed:
+        raise ValueError(
+            f"{label}: the gate ran at {commit}, which differs from HEAD outside docs/ ({changed[:3]}); it proves the "
+            "replica of other code, not of this one"
+        )
+    checks = record.get("checks")
+    if not isinstance(checks, list):
+        raise ValueError(f"{label}: checks is {type(checks).__name__}, not a list")
+    declared = {(c["scenario"], c["arm"], c["draw_id"]): c["n_fields"] for c in declared_replica_checks()}
+    seen: set[tuple[Any, Any, Any]] = set()
+    for check in checks:
+        if not isinstance(check, Mapping):
+            raise ValueError(f"{label}: a check is {type(check).__name__}, not an object")
+        key = (check.get("scenario"), check.get("arm"), check.get("draw_id"))
+        if key not in declared:
+            raise ValueError(f"{label}: {key} is not a declared check of the gate (draws {list(REPLICA_DRAWS)})")
+        if key in seen:
+            raise ValueError(f"{label}: the check {key} appears twice")
+        seen.add(key)
+        if check.get("passed") is not True or check.get("differing") != [] or check.get("missing") != []:
+            raise ValueError(
+                f"{label}: the check {key} did not reproduce its registered record (passed {check.get('passed')!r}, "
+                f"differing {check.get('differing')!r}, missing {check.get('missing')!r})"
+            )
+        if check.get("n_fields") != declared[key]:
+            raise ValueError(
+                f"{label}: the check {key} compared {check.get('n_fields')!r} field(s), not the declared {declared[key]}"
+            )
+    absent = [key for key in declared if key not in seen]
+    if absent:
+        raise ValueError(
+            f"{label}: it lacks {len(absent)} of the {len(declared)} declared checks (first: {absent[:2]}); a gate "
+            "proves the replica only on every declared draw, the halting path of draw 1000 included"
+        )
+
+
+def _gate_refusal(gate_path: Path) -> str | None:
+    """``None`` when the gate record at *gate_path* authorises, else why not -- missing, unreadable or refused.  Fails
+    closed: anything that stops the record being verified is a refusal, named with its type."""
+    if not gate_path.is_file():
+        return f"no replica gate record at {gate_path}; run the gate subcommand first"
+    try:
+        record = json.loads(gate_path.read_bytes())
+        if not isinstance(record, dict):
+            return f"the replica gate record at {gate_path} is not a JSON object"
+        assert_gate_authorises(record, source=str(gate_path))
+    except Exception as exc:  # noqa: BLE001 -- fail closed, the reason is printed
+        return f"{type(exc).__name__}: {exc}"
+    return None
+
+
 def replica_gate(
-    *, draws_root: str | Path, corpus_root: str | Path, data_dir: str | Path, draw_id: int = REPLICA_DRAW,
-    episode_fn: Callable[..., dict[str, Any]] | None = None,
+    *, draws_root: str | Path, corpus_root: str | Path, data_dir: str | Path,
+    draw_ids: Sequence[int] = REPLICA_DRAWS, episode_fn: Callable[..., dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """The registered ``maxpressure`` and ``fixedtime`` (k = 4) through :func:`sumo_anchor_episode`, on both scenarios,
+    """The registered ``maxpressure`` and ``fixedtime`` (k = 4) through :func:`sumo_anchor_episode`, on both scenarios and
+    on draws 1001 and 1000 (``BRIEF_47`` Amendment A.2.5: draw 1000's cells run the halting cross-check, Amendment C2),
     against the committed anchor records of P7.3a (hz1x1) and P7.3d (grid4x4) on every measurement they carry, under
-    ``==``.  Passing proves the replica IS the registered route; the roll refuses to start without a passing gate."""
+    ``==``.  Passing proves the replica IS the registered route; nothing is rolled or reported past a record that does not
+    also pass :func:`assert_gate_authorises`."""
     run = sumo_anchor_episode if episode_fn is None else episode_fn
     data = Path(data_dir)
     checks: list[dict[str, Any]] = []
-    for scenario in SCENARIOS:
-        fields = list(REPLICA_COMPARED_FIELDS) + (
-            list(GRID_REPLICA_EXTRA_FIELDS) if scenario == "cityflow_grid4x4" else []
-        )
-        for arm in ("maxpressure", "fixedtime"):
-            payload = run(scenario, int(draw_id), arm, draws_root=draws_root, corpus_root=corpus_root)
-            record = _registered_anchor_record(data, scenario, arm, int(draw_id))
-            result = compare_with_registered(payload, record, fields)
-            checks.append({
-                "scenario": scenario,
-                "arm": arm,
-                "draw_id": int(draw_id),
-                "artifact": REGISTERED_ANCHOR_ARTIFACT[scenario],
-                "n_fields": len(fields),
-                **result,
-                "passed": not result["differing"] and not result["missing"],
-                "seconds": payload.get("seconds"),
-            })
+    for draw_id in draw_ids:
+        for scenario in SCENARIOS:
+            fields = _replica_fields(scenario)
+            for arm in REPLICA_ARMS:
+                payload = run(scenario, int(draw_id), arm, draws_root=draws_root, corpus_root=corpus_root)
+                record = _registered_anchor_record(data, scenario, arm, int(draw_id))
+                result = compare_with_registered(payload, record, fields)
+                checks.append({
+                    "scenario": scenario,
+                    "arm": arm,
+                    "draw_id": int(draw_id),
+                    "artifact": REGISTERED_ANCHOR_ARTIFACT[scenario],
+                    "n_fields": len(fields),
+                    **result,
+                    "passed": not result["differing"] and not result["missing"],
+                    "seconds": payload.get("seconds"),
+                })
     return {
         "format_version": REPLICA_GATE_FORMAT_VERSION,
         "what": (
@@ -859,13 +969,15 @@ ALIGNED_PAIR = "mp1to1_ftkcf"
 _REGISTERED_ROLE_ARMS = frozenset({"fixedtime", "maxpressure"})
 
 #: The registered verdicts, in P5.2c's vocabulary, as the registration records them: A19(a) on hz1x1 (clause 1 HOLDS,
-#: clause 2 REFUTED -- "both entirely above 1" -- for both subjects; clause 3 VOID); A20(e) and P7.3d on grid4x4 (clause 1
+#: clause 2 REFUTED -- "both entirely above 1" -- for both subjects; clause 3 VOID "because its premise is false", which
+#: ``BRIEF_47`` Amendment A.2.1 re-scores under every pair from clause 2's outcome); A20(e) and P7.3d on grid4x4 (clause 1
 #: holds, confirmatory; clause 2's inequality holds and is not scored); A24(d) and P7.3c (clause 3 (i), the criterion met).
-#: ``tests/test_sumo_anchor_rho.py`` recomputes each from the committed artifacts by the functions below.
+#: ``tests/test_sumo_anchor_rho.py`` recomputes each from the committed artifacts by the functions below, and the tautology
+#: guard (:func:`registered_reproduction`) refuses unless the registered pair reproduces every one.
 REGISTERED_H3_VERDICTS: Mapping[str, Any] = {
     "cityflow1x1": {
-        "mappo1000": {"clause_1": "HELD", "clause_2": "FAILED"},
-        "mix50": {"clause_1": "HELD", "clause_2": "FAILED"},
+        "mappo1000": {"clause_1": "HELD", "clause_2": "FAILED", "clause_3": "VOID"},
+        "mix50": {"clause_1": "HELD", "clause_2": "FAILED", "clause_3": "VOID"},
     },
     "cityflow_grid4x4": {"mappo1000_dt_nomix_h4": {"clause_1": "HELD", "clause_2": "HELD", "clause_3": "(i)"}},
 }
@@ -879,6 +991,21 @@ REGISTERED_H3_SOURCES: Mapping[str, str] = {
 CLAUSE_3_VOID = (
     "VOID (A19(a)): under this anchor pair the zero-shot rho is not below 1, so the gap clause 3 presupposes does not "
     "exist and k = 100 has nothing to close"
+)
+
+#: hz1x1's clause 3 under a pair, from clause 2's outcome under the same pair, in ``BRIEF_47`` Amendment A.2.1's words
+#: verbatim.  No few-shot curve was registered on hz1x1, so no reading but VOID is a verdict that can be scored.
+HZ1X1_CLAUSE_3_BY_CLAUSE_2: Mapping[str, str] = {
+    "FAILED": "VOID",
+    "HELD": "PREMISE HOLDS UNDER THIS PAIR — NOT SCOREABLE: no few-shot curve was registered on hz1x1",
+    "NOT RESOLVED": "PREMISE NOT RESOLVED UNDER THIS PAIR — NOT SCOREABLE",
+}
+HZ1X1_CLAUSE_3_RULE = (
+    "A19(a) made clause 3 VOID because its premise is false, and that premise -- the zero-shot policy trails MaxPressure "
+    "-- IS clause 2's prediction (rho < 1); so under each pair clause 3 is derived from clause 2's outcome under the same "
+    "pair: FAILED gives VOID (the registered verdict), HELD a premise that holds and NOT RESOLVED one that is not resolved, "
+    "both NOT SCOREABLE because no few-shot curve was registered on hz1x1 (the coordinator's reading of A19(a), BRIEF_47 "
+    "Amendment A.2.1, not a registration change)"
 )
 
 #: P7.3a's (subject, arm, role) groups in report's own order -- A17(c)'s subjects x the four declared arms, then the
@@ -1058,6 +1185,17 @@ def grid4x4_rho_block(
     return estimates
 
 
+def hz1x1_clause_3_verdict(clause_2: str) -> str:
+    """hz1x1's H3 clause 3 from clause 2's verdict under the same pair (``BRIEF_47`` Amendment A.2.1,
+    :data:`HZ1X1_CLAUSE_3_BY_CLAUSE_2`); a verdict outside P5.2c's three outcomes is refused."""
+    if clause_2 not in HZ1X1_CLAUSE_3_BY_CLAUSE_2:
+        raise ValueError(
+            f"clause 2's verdict {clause_2!r} is not one of P5.2c's three outcomes {sorted(HZ1X1_CLAUSE_3_BY_CLAUSE_2)}; "
+            "hz1x1's clause 3 is derived from it and from nothing else"
+        )
+    return HZ1X1_CLAUSE_3_BY_CLAUSE_2[clause_2]
+
+
 def clause_1_verdict(low: float, high: float) -> str:
     """H3 clause 1, *better than fixed-time* (rho > 0), in P5.2c's vocabulary on rho's 95 % interval: HELD iff the
     interval lies entirely above 0, FAILED iff entirely below, NOT RESOLVED if it touches or crosses 0."""
@@ -1166,6 +1304,7 @@ def registered_reproduction(inputs: Mapping[str, Any]) -> dict[str, Any]:
 
     equal: list[str] = []
     counts: dict[str, int] = {}
+    hz_h3: dict[str, dict[str, Any]] = {}
     groups = _hz1x1_groups()
     for name, tag in (("p7_3a_zero_shot.json", "p7_3a"), ("p7_3b_anchor.json", "p7_3b")):
         artifact = inputs[name]
@@ -1182,6 +1321,7 @@ def registered_reproduction(inputs: Mapping[str, Any]) -> dict[str, Any]:
         if tag == "p7_3a":
             _assert_same(tc._h3_block(block["by_subject_arm"]), artifact["h3"], "p7_3a.h3")
             equal.append("p7_3a.h3")
+            hz_h3 = _hz1x1_h3(block["by_subject_arm"])
 
     p7_3d = inputs["p7_3d_grid4x4.json"]
     d_anchors = pair_anchor_rows("registered", registered=registered_anchors(p7_3d), new=None)
@@ -1211,7 +1351,21 @@ def registered_reproduction(inputs: Mapping[str, Any]) -> dict[str, Any]:
     recomputed = _clause_3_with_gap(estimates["clause_3"], gap, gap_att)
     _assert_same({key: recomputed[key] for key in committed_clause}, committed_clause, "p7_3c.clause_3_with_G_recomputed")
     equal.append("p7_3c.clause_3_with_G_recomputed")
-    return {"all_equal": True, "n_rows": counts, "blocks_equal": equal}
+    # Every H3 verdict, recomputed under the registered pair by the helpers rescore_pair uses -- hz1x1's clause 3 (A.2.1)
+    # included -- must be the registered one.
+    verdicts = {
+        "cityflow1x1": {subject: {clause: entry["verdict"] for clause, entry in clauses.items()}
+                        for subject, clauses in hz_h3.items()},
+        "cityflow_grid4x4": {tc.GRID4X4_SUBJECT: {
+            clause: entry["verdict"] for clause, entry in _grid4x4_h3(d_estimates, recomputed, gap, gap_att).items()
+        }},
+    }
+    if _json_normal(verdicts) != _json_normal(REGISTERED_H3_VERDICTS):
+        raise ValueError(
+            f"under the registered pair H3's verdicts are {verdicts}, not the registered verdicts "
+            f"{_json_normal(REGISTERED_H3_VERDICTS)} (A19(a), A20(e), A24(d)); the clause rules are not the registered ones"
+        )
+    return {"all_equal": True, "n_rows": counts, "blocks_equal": equal, "registered_verdicts_reproduced": verdicts}
 
 
 def _paired_side(block: Mapping[str, Any], predicted: str) -> dict[str, Any]:
@@ -1265,6 +1419,64 @@ def _clause_entries(
     return clauses
 
 
+def _hz1x1_clause_3_entry(clause_2: Mapping[str, Any], *, subject: str) -> dict[str, Any]:
+    verdict = hz1x1_clause_3_verdict(str(clause_2["verdict"]))
+    registered = REGISTERED_H3_VERDICTS["cityflow1x1"][subject]["clause_3"]
+    return {
+        "rule": HZ1X1_CLAUSE_3_RULE,
+        "derived_from": "clause_2",
+        "clause_2_verdict": clause_2["verdict"],
+        "verdict": verdict,
+        "registered_verdict": registered,
+        "agrees_with_registered": verdict == registered,
+        "scored": False,
+    }
+
+
+def _hz1x1_h3(by_subject_arm: Sequence[Mapping[str, Any]]) -> dict[str, dict[str, Any]]:
+    """hz1x1's H3 under one pair, per subject: clauses 1 and 2 on the registered arm's rho interval, and clause 3 derived
+    from clause 2 (A.2.1)."""
+    h3: dict[str, dict[str, Any]] = {}
+    for entry in by_subject_arm:
+        if entry["arm"] == "b_mean_k100":
+            subject = str(entry["subject"])
+            clauses = _clause_entries(entry, entry["paired_att"], scenario="cityflow1x1", subject=subject,
+                                      clause_2_scored=True)
+            clauses["clause_3"] = _hz1x1_clause_3_entry(clauses["clause_2"], subject=subject)
+            h3[subject] = clauses
+    return h3
+
+
+def _grid4x4_h3(d_estimates: Mapping[str, Any], clause_3: Mapping[str, Any], gap: float, gap_att: float) -> dict[str, Any]:
+    """grid4x4's H3 under one pair: clauses 1 and 2 on P7.3d's registered arm, clause 3 by A24(d) with G recomputed."""
+    import offline.transfer_curve as tc
+
+    registered_arm = d_estimates["rho"]["registered_arm"]
+    grid_clauses = _clause_entries(
+        registered_arm, registered_arm["paired_att"], scenario="cityflow_grid4x4", subject=tc.GRID4X4_SUBJECT,
+        clause_2_scored=False,
+    )
+    expected_3 = REGISTERED_H3_VERDICTS["cityflow_grid4x4"][tc.GRID4X4_SUBJECT]["clause_3"]
+    grid_clauses["clause_3"] = {
+        "rule": "A24(d)'s partition, G = 1 - rho-bar0 recomputed under the pair; VOID by A19(a) when G <= 0",
+        "G": gap,
+        "G_att": gap_att,
+        "half_gap": gap / 2,
+        "delta_100": clause_3["delta_100"],
+        "verdict": clause_3["verdict"],
+        "partition": clause_3["partition"],
+        "gap_positive": clause_3["gap_positive"],
+        "sentence": clause_3["sentence"],
+        "closure_fraction": clause_3["closure_fraction"],
+        "att_env": clause_3["att_env"],
+        "per_seed": clause_3["per_seed"],
+        "registered_verdict": expected_3,
+        "agrees_with_registered": clause_3["verdict"] == expected_3,
+        "status": clause_3["status"],
+    }
+    return grid_clauses
+
+
 def rescore_pair(inputs: Mapping[str, Any], pair: str, *, new_rows: Mapping[str, Any] | None) -> dict[str, Any]:
     """Every transferred-DT rho of the four artifacts and H3's clauses under ONE pair.  *new_rows* is
     ``{scenario: {arm: {draw: row}}}`` of this task's SUMO cells (``None`` for the registered pair)."""
@@ -1302,36 +1514,10 @@ def rescore_pair(inputs: Mapping[str, Any], pair: str, *, new_rows: Mapping[str,
         for name, rows in c_by_arm.items()
     }
 
-    h3: dict[str, Any] = {"cityflow1x1": {}, "cityflow_grid4x4": {}}
-    for entry in a_block["by_subject_arm"]:
-        if entry["arm"] == "b_mean_k100":
-            h3["cityflow1x1"][entry["subject"]] = _clause_entries(
-                entry, entry["paired_att"], scenario="cityflow1x1", subject=entry["subject"], clause_2_scored=True
-            )
-    registered_arm = d_estimates["rho"]["registered_arm"]
-    grid_clauses = _clause_entries(
-        registered_arm, registered_arm["paired_att"], scenario="cityflow_grid4x4", subject=tc.GRID4X4_SUBJECT,
-        clause_2_scored=False,
-    )
-    expected_3 = REGISTERED_H3_VERDICTS["cityflow_grid4x4"][tc.GRID4X4_SUBJECT]["clause_3"]
-    grid_clauses["clause_3"] = {
-        "rule": "A24(d)'s partition, G = 1 - rho-bar0 recomputed under the pair; VOID by A19(a) when G <= 0",
-        "G": gap,
-        "G_att": gap_att,
-        "half_gap": gap / 2,
-        "delta_100": clause_3["delta_100"],
-        "verdict": clause_3["verdict"],
-        "partition": clause_3["partition"],
-        "gap_positive": clause_3["gap_positive"],
-        "sentence": clause_3["sentence"],
-        "closure_fraction": clause_3["closure_fraction"],
-        "att_env": clause_3["att_env"],
-        "per_seed": clause_3["per_seed"],
-        "registered_verdict": expected_3,
-        "agrees_with_registered": clause_3["verdict"] == expected_3,
-        "status": clause_3["status"],
+    h3: dict[str, Any] = {
+        "cityflow1x1": _hz1x1_h3(a_block["by_subject_arm"]),
+        "cityflow_grid4x4": {tc.GRID4X4_SUBJECT: _grid4x4_h3(d_estimates, clause_3, gap, gap_att)},
     }
-    h3["cityflow_grid4x4"][tc.GRID4X4_SUBJECT] = grid_clauses
     denominators = {
         scenario: {
             key: tc.denominator_diagnostic(
@@ -1369,8 +1555,8 @@ def rescore_pair(inputs: Mapping[str, Any], pair: str, *, new_rows: Mapping[str,
 
 ARTIFACT_NAME = "p9_2_sumo_anchors.json"
 
-#: A27(a), item 5, verbatim (rho U+03C1 escaped so this source stays ASCII); ``tests/test_sumo_anchor_report.py`` extracts
-#: it from ``PREREGISTRATION.md`` and compares character for character.
+#: A27(a), item 5, verbatim (the rho is the literal U+03C1, as in the registration); ``tests/test_sumo_anchor_report.py``
+#: extracts it from ``PREREGISTRATION.md`` and compares character for character.
 LABEL_POINT_5 = "anchor-alignment control added after results, the registered ρ and the H3 verdicts staying the record"
 
 WHAT_THIS_DOES_NOT_SAY: tuple[str, ...] = (
@@ -1683,6 +1869,7 @@ def _sentence_values(pairs: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
                 "rho_registered": hz(registered, subject),
                 "clause_1": aligned["h3"]["cityflow1x1"][subject]["clause_1"]["verdict"],
                 "clause_2": aligned["h3"]["cityflow1x1"][subject]["clause_2"]["verdict"],
+                "clause_3": aligned["h3"]["cityflow1x1"][subject]["clause_3"]["verdict"],
             }
             for subject in tc.SUBJECTS
         },
@@ -1705,7 +1892,8 @@ def build_report(
 ) -> dict[str, Any]:
     """``docs/data/p9_2_sumo_anchors.json``'s content.  It writes NOTHING; every refusal precedes the caller's one write.
 
-    In order: the replica gate's record (present and passed); every declared cell validated, completeness, no undeclared
+    In order: the replica gate's record (present, and authorising by :func:`assert_gate_authorises`); every declared
+    cell validated, completeness, no undeclared
     file; each chunk's commit differing from HEAD only under ``docs/`` (J1(c)); each SUMO cell's demand digests re-derived
     from disk; the inputs by digest; the tautology guard; the CityFlow registered anchors and the hz1x1 identity; then the
     four pairs and the blocks.
@@ -1715,8 +1903,7 @@ def build_report(
     if not gate_path.is_file():
         raise ValueError(f"no replica gate record at {gate_path}; the replica is not proven to be the registered route")
     gate = json.loads(gate_path.read_bytes())
-    if gate.get("passed") is not True:
-        raise ValueError(f"the replica gate at {gate_path} did not pass; no anchor rolled through it may be reported")
+    assert_gate_authorises(gate, source=str(gate_path))
     chunks = _load_chunks(work)
     commits = sorted({str(payload["git_commit"]) for payload in chunks.values()})
     for commit in commits:
@@ -1837,6 +2024,8 @@ def build_parser() -> argparse.ArgumentParser:
     roll.add_argument("--shard", type=int, default=0)
     roll.add_argument("--of", type=int, default=1)
     sub.add_parser("status", help="declared against present, from disk")
+    sub.add_parser("check-gate", help="exit 0 iff the replica gate record authorises a roll (read-only; the driver asks "
+                                      "before consuming its token)")
     rescore = sub.add_parser("rescore", help="every transferred-DT rho under the four pairs and H3's clauses (writes nothing)")
     rescore.add_argument("--registered-only", action="store_true",
                          help="only the tautology guard: the registered pair reproduces every committed block under ==")
@@ -1854,6 +2043,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     work = Path(args.work_dir)
     if args.command == "status":
         print(json.dumps(anchor_status(work), indent=2, sort_keys=True), flush=True)
+        return 0
+    if args.command == "check-gate":
+        gate_path = work / REPLICA_GATE_NAME
+        refusal = _gate_refusal(gate_path)
+        if refusal is not None:
+            print(f"REFUSED: {refusal}", flush=True)
+            return 2
+        print(f"the replica gate record at {gate_path} authorises the roll: passed, clean, at this code, all "
+              f"{len(declared_replica_checks())} declared checks reproduced", flush=True)
         return 0
     if args.command == "rescore" and args.registered_only:
         guard = registered_reproduction(load_inputs(args.data_dir))
@@ -1884,9 +2082,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 flush=True,
             )
         return 0 if record["passed"] else 2
-    gate_path = work / REPLICA_GATE_NAME
-    if not gate_path.is_file() or json.loads(gate_path.read_bytes()).get("passed") is not True:
-        print(f"REFUSED: no passing replica gate at {gate_path}; run the gate subcommand first", flush=True)
+    refusal = _gate_refusal(work / REPLICA_GATE_NAME)
+    if refusal is not None:
+        print(f"REFUSED: {refusal}", flush=True)
         return 2
     result = roll_cells(declared_anchor_cells(), work_dir=work, shard=args.shard, of=args.of,
                         episode_fn=_episode_for(args))
