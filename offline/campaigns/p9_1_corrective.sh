@@ -14,7 +14,8 @@
 #      collect    CPU, ~15 min: collect-random-fresh on hz1x1 and grid4x4 (draws 1-200, --random-rng per-episode), then
 #                 declare the mixture and both random_fresh tiers.  STOP: plan Q2's reviewed commit types hz1x1
 #                 random_fresh's prompt from its declaration before the next stage can pass its check.
-#      campaign   GPU then CPU: train every missing run serially (~35 GPU-hours, the pre-flight's measurement); then
+#      campaign   GPU then CPU: train every missing run serially (~39 GPU-hours: the plan's blocks with G2's two full
+#                 matched runs, bc_m 413 s and iql_m 2,077 s, docs/returns/P9.1-preflight.md); then
 #                 declare the evaluation's three manifests from this one process; then evaluate the 53 new cells and
 #                 re-roll the 21 old hz1x1 cells, each with WORKERS shards (default 6, at most 6: PROJECT_PLAN section
 #                 10's cap per session); then P3a's registered references and the status.  Resumable: everything done
@@ -25,6 +26,9 @@
 #                 it when no training runs (never two trainings on the GPU at once).
 #    The regime: OMP/MKL one thread; CUBLAS_WORKSPACE_CONFIG UNSET (P5.2's default regime, in which every registered
 #    grid DT was trained: deterministic False).  A27(a): seconds are an UNCONTROLLED clock -- no power check, no canary.
+#    KEEP THE MACHINE AWAKE for the whole stage (Windows: never sleep while plugged in).  Every trainer times itself with
+#    time.time(), so a suspension inside a run adds hours to its seconds (the pre-flight lost 10 h 45 min that way); the
+#    stage's Unix-time GPU trace ($LOGS/gpu_trace.csv) lets the report flag such a run, but cannot repair its number.
 #
 # 1. WHAT IT PRODUCES -- only under output/p9_1/, output/p9_1_runs/ and the two new corpus directories
 #    datasets_v11/cf_hz1x1__random_fresh and cf_grid4x4__random_fresh (collect), and /home/filip/d4rl-calib-out/p9_1/
