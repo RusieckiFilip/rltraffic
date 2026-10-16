@@ -44,6 +44,8 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
 __all__ = [
+    "corpus_verify_artifact",
+    "ARTIFACT_FORMAT_CORPUS_VERIFY",
     "resolve_fixed_time_k",
     "fixed_time_k_from_ruling",
     "fixed_time_ruling_record",
@@ -1501,6 +1503,42 @@ def derive_runs(
     return runs
 
 
+#: Format of the committed ``collect verify`` record (``BRIEF_48`` Amendment B, B.5.1).
+ARTIFACT_FORMAT_CORPUS_VERIFY = "p9.3-corpus-verify/1.0"
+
+
+def corpus_verify_artifact(records: Sequence[Mapping[str, Any]], *, tiers: Sequence[str]) -> dict[str, Any]:
+    """The record of one ``collect verify``: every run's verification, the totals and the code trees that collected them.
+
+    ``BRIEF_48`` Amendment B, B.5.1: the verification is committed, not left in a terminal.  Each row is
+    :func:`verify_run`'s, which raises on any mismatch, so a record exists only when EVERY run verified; an empty one
+    proves nothing and is refused, and a run named twice is refused.  The ``git_hash`` of every manifest is gathered,
+    so the record says which code tree collected the corpus.
+    """
+    rows = [dict(record) for record in records]
+    if not rows:
+        raise ValueError("no run was verified; an empty verification record proves nothing")
+    names = [str(row["name"]) for row in rows]
+    if len(set(names)) != len(names):
+        raise ValueError(f"a run appears twice in {names}")
+    return {
+        "format_version": ARTIFACT_FORMAT_CORPUS_VERIFY,
+        "registered_in": "BRIEF_48 Amendment B, B.2 and B.5.1",
+        "label": A27_LABEL,
+        "tiers": [str(tier) for tier in tiers],
+        "runs": rows,
+        "n_runs": len(rows),
+        "n_episodes": sum(int(row["episodes"]) for row in rows),
+        "n_flow_digests_checked": sum(int(row["flow_digests_checked"]) for row in rows),
+        "collected_by_git_hashes": sorted({str(row["git_hash"]) for row in rows}),
+        "all_verified": True,
+        "checks": "offline.hz4x4_ladder.verify_run per run: the manifest's run metadata against the derived command as "
+        "offline.collect's own parser reads it (settings, randomiser parameters, source flow path and sha256, metrics, "
+        "epsilon, draws, checkpoint), the episode count, every draw's flow_draw_sha256 against the main tree's "
+        "materialised flow.json, and a teacher checkpoint's recorded sha256 against the file",
+    }
+
+
 def assert_targets_absent(runs: Sequence[CollectionRun]) -> None:
     """Refuse when any run's out-dir exists and is not empty -- for ALL runs, before any runs.
 
@@ -2104,6 +2142,8 @@ def build_parser() -> argparse.ArgumentParser:
                          help="the interpreter each collection subprocess runs")
     collect.add_argument("--ruling", default=None,
                          help="the committed fixed-time ruling file, needed when the sweep chose no k (A.4)")
+    collect.add_argument("--out", default=None,
+                         help="with verify: write the verification record here, once (BRIEF_48 B.5.1)")
 
     teachers = sub.add_parser("teachers", parents=[common], help="the teachers' curves and RUNSPEC_01's criterion")
     teachers.add_argument("--out", required=True, help="docs/data/p9_3_teachers.json")
@@ -2439,6 +2479,9 @@ def _run_collect(args: argparse.Namespace) -> int:
 
     from offline.materialise_draws import draw_config_path
 
+    if args.out and args.action != "verify":
+        raise ValueError("--out names collect verify's record; plan and run write no record")
+    out = _refuse_existing(args.out) if args.out else None
     supported = collector_supports_random_rng()
     if args.tiers:
         tiers = list(args.tiers)
@@ -2455,9 +2498,17 @@ def _run_collect(args: argparse.Namespace) -> int:
                        out_root=corpus_root, random_rng_supported=supported)
 
     if args.action == "verify":
+        records = []
         for run in runs:
-            print(json.dumps(verify_run(run, draws_root=draws_root), sort_keys=True), flush=True)
+            record = verify_run(run, draws_root=draws_root)
+            records.append(record)
+            print(json.dumps(record, sort_keys=True), flush=True)
         print(f"verified {len(runs)} run(s)", flush=True)
+        if out is not None:
+            artifact = corpus_verify_artifact(records, tiers=tiers)
+            artifact["git"] = _git()
+            _write_artifact(artifact, out)
+            print(f"wrote {out}", flush=True)
         return 0
 
     missing_checkpoints = [str(MAIN_TREE / c) for c in (_checkpoint_of(r) for r in runs)
