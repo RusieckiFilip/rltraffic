@@ -731,6 +731,49 @@ def directory_digest(output_root: str | Path, directory: str, *, exclude: Sequen
             "sha256": hashlib.sha256(lines.encode("utf-8")).hexdigest(), "construction": DIGEST_CONSTRUCTION}
 
 
+TRACE_GAP_SECONDS = 60.0
+
+
+def _trace_samples(path: Path) -> list[float]:
+    return [float(line.split(",")[0]) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+def trace_gaps(paths: Sequence[Path], *, threshold: float = TRACE_GAP_SECONDS) -> list[dict[str, Any]]:
+    """Every gap longer than *threshold* between two consecutive samples of a driver GPU trace (Unix seconds; the driver
+    samples every 20 s, so a longer gap is a pause of the machine).  ``trace`` is named relative to the runs directory."""
+    gaps = []
+    for path in paths:
+        samples = _trace_samples(path)
+        for before, after in zip(samples, samples[1:]):
+            if after - before > threshold:
+                gaps.append({"from_unix": before, "to_unix": after, "seconds": after - before,
+                             "trace": "/".join(Path(path).parts[-3:])})
+    return gaps
+
+
+def trace_spans(paths: Sequence[Path]) -> list[tuple[float, float]]:
+    """Each trace's first and last sample: the stretches of wall time the traces cover."""
+    spans = []
+    for path in paths:
+        samples = _trace_samples(path)
+        if samples:
+            spans.append((samples[0], samples[-1]))
+    return spans
+
+
+def flag_paused_runs(runs: Sequence[Mapping[str, Any]], gaps: Sequence[Mapping[str, Any]],
+                     spans: Sequence[tuple[float, float]]) -> list[dict[str, Any]]:
+    """Each run with ``paused_during_run`` (every trace gap its [started_unix, finished_unix] overlaps: its seconds then
+    include a pause of the machine) and ``trace_covered`` (whether a trace covers the whole run)."""
+    out = []
+    for run in runs:
+        start, end = float(run["started_unix"]), float(run["finished_unix"])
+        paused = [dict(gap) for gap in gaps if gap["from_unix"] < end and gap["to_unix"] > start]
+        covered = any(first <= start and end <= last for first, last in spans)
+        out.append({**run, "paused_during_run": paused, "trace_covered": covered})
+    return out
+
+
 #: The committed records every artifact may read, digested into its inputs.
 COMMITTED_INPUTS: tuple[str, ...] = (
     "docs/data/p4_4_baselines.json", "docs/data/p4_6_grid.json", "docs/data/p4_7_grid.json", P4_DT_RECORD,
@@ -775,6 +818,8 @@ def load_sources(roots: cr.Roots, *, d4rl_path: str | Path | None) -> Sources:
         found = hz1x1_old_runs(roots.repo_root, artifact, arm)
         if found:
             runs[cid] = tuple(found)
+    traces = sorted((Path(roots.runs_root) / "logs").glob("*/gpu_trace.csv"))
+    gaps, spans = trace_gaps(traces), trace_spans(traces)
     trained = set(cr.training_cells())
     for cell in cr.evaluation_cells():
         cid = new_cell_id(cell)
@@ -788,8 +833,9 @@ def load_sources(roots: cr.Roots, *, d4rl_path: str | Path | None) -> Sources:
                 record = json.loads(cr.run_record_path(roots, cell.scenario, cell.tier, cell.arm, run["seed"])
                                     .read_text(encoding="utf-8"))
                 entries.append({**run, "cell": cid, "window_means": [float(v) for v in record["window_means"]],
-                                "plateaued": record["plateaued"]})
-            runs[cid] = tuple(entries)
+                                "plateaued": record["plateaued"], "started_unix": float(record["started_unix"]),
+                                "finished_unix": float(record["finished_unix"])})
+            runs[cid] = tuple(flag_paused_runs(entries, gaps, spans))
     declarations = {
         name: json.loads((Path(roots.run_root) / f"declaration_{name}.json").read_text(encoding="utf-8"))
         for name in ("mix_m1000_m500", "random_fresh_hz1x1", "random_fresh_grid4x4")}

@@ -247,3 +247,24 @@ def test_each_intersections_schedules_are_its_own_columns_digests(tmp_path: Path
             for i in range(16):
                 expected[i].add(action_sequence_sha256(np.asarray(arrays[f"ix{i}_action"], dtype=np.int64)[:, None]))
     assert rep.schedule_digests(directory)["per_intersection"] == expected
+
+
+# ----------------------------------------------------------------------
+# A suspension inside a run (the pre-flight's own first iql_m run spanned one: GPU trace gap 23:39 -> 10:23)
+# ----------------------------------------------------------------------
+
+
+def test_a_gap_in_the_trace_is_found_and_a_run_that_spans_it_is_flagged(tmp_path: Path) -> None:
+    trace = tmp_path / "logs" / "20261016T000000Z" / "gpu_trace.csv"
+    trace.parent.mkdir(parents=True)
+    trace.write_text("1000.0,700,3\n1020.0,7000,97\n1040.5,7000,96\n40000.0,7000,98\n40020.0,7000,97\n")
+    gaps = rep.trace_gaps([trace], threshold=60.0)
+    assert gaps == [{"from_unix": 1040.5, "to_unix": 40000.0, "seconds": 38959.5,
+                     "trace": "logs/20261016T000000Z/gpu_trace.csv"}]
+    spans = rep.trace_spans([trace])
+    runs = [{"seed": 101, "started_unix": 1010.0, "finished_unix": 40010.0, "seconds": 39000.0},
+            {"seed": 202, "started_unix": 1001.0, "finished_unix": 1039.0, "seconds": 38.0},
+            {"seed": 303, "started_unix": 50000.0, "finished_unix": 50010.0, "seconds": 10.0}]
+    flagged = rep.flag_paused_runs(runs, gaps, spans)
+    assert [r["paused_during_run"] for r in flagged] == [[gaps[0]], [], []]
+    assert [r["trace_covered"] for r in flagged] == [True, True, False]
