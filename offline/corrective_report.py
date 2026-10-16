@@ -317,13 +317,18 @@ def plateau_counts(repo_root: str | Path) -> dict[str, int]:
             "rose_in_the_last_window": rose, "fluctuated": len(curves) - falling - rose}
 
 
-def write_artifact(path: str | Path, payload: Mapping[str, Any]) -> Path:
-    """Sorted keys, no rounding, no timestamp, a trailing newline; refused from a dirty tree and on a non-finite
-    number -- both before the file is opened."""
+def artifact_text(payload: Mapping[str, Any]) -> str:
+    """The one serialisation of an artifact: sorted keys, no rounding, no timestamp, a trailing newline; refused from a
+    dirty tree and on a non-finite number."""
     if payload.get("git", {}).get("dirty") is not False:
         raise ValueError("the artifact's git block is not clean (dirty must be false): a report is built from a clean "
                          "committed tree")
-    text = json.dumps(payload, indent=2, sort_keys=True, allow_nan=False) + "\n"
+    return json.dumps(payload, indent=2, sort_keys=True, allow_nan=False) + "\n"
+
+
+def write_artifact(path: str | Path, payload: Mapping[str, Any]) -> Path:
+    """:func:`artifact_text`, written -- every refusal before the file is opened."""
+    text = artifact_text(payload)
     target = Path(path)
     target.write_text(text, encoding="utf-8")
     return target
@@ -557,3 +562,310 @@ def build_random_fresh(src: Sources) -> dict[str, Any]:
                        "not a replacement of the original random tiers: they stay the record, their defect named",
                        "not a test of the mixtures' selection question (A27(e) replaces them for it)",
                        "the beside-table carries no prediction; P3a alone is predicted"))
+
+
+# ----------------------------------------------------------------------
+# Loading the Sources from disk (run directories, committed records, corpus, the D4RL re-run)
+# ----------------------------------------------------------------------
+
+
+def hz1x1_old_id(artifact: str, arm: str) -> str:
+    """An old hz1x1 cell's id: its artifact's task prefix and its committed arm (``p4_6:iql@maxpressure``)."""
+    return f"{'_'.join(Path(artifact).stem.split('_')[:2])}:{arm}"
+
+
+#: Where each old hz1x1 cell's runs are committed: P4's DT runs (``madt``) in ``p4_training.json`` ``seeds``; the
+#: baselines in their task's ``*_training.json`` ``runs``.
+HZ1X1_TRAINING_RECORDS: Mapping[str, str] = {"p4_4": "docs/data/p4_4_training.json",
+                                             "p4_6": "docs/data/p4_6_training.json",
+                                             "p4_7": "docs/data/p4_7_training.json"}
+P4_DT_RECORD = "docs/data/p4_training.json"
+
+
+def _old_run(cell_id: str, run: Mapping[str, Any], source: str) -> dict[str, Any]:
+    return {"cell": cell_id, "seed": int(run["seed"]), "seconds": float(run["seconds"]),
+            "gradient_steps": int(run["gradient_steps"]), "clock": cr.CLOCK_LABEL, "source": source,
+            "window_means": [float(v) for v in run["window_means"]], "plateaued": bool(run["plateaued"])}
+
+
+def hz1x1_old_runs(repo_root: str | Path, artifact: str, arm: str) -> list[dict[str, Any]]:
+    """An old hz1x1 cell's five runs, copied from the committed training record that holds them (A27(a)); a behaviour
+    cell has none."""
+    from offline import att_rederivation as ar
+
+    cell_id = hz1x1_old_id(artifact, arm)
+    task = cell_id.split(":")[0]
+    method, tier = ar.normalise_arm("hz1x1", arm)
+    if method == "behaviour":
+        return []
+    if task == "p4_4" and arm == "madt":
+        source = P4_DT_RECORD
+        runs = json.loads((Path(repo_root) / source).read_text(encoding="utf-8"))["seeds"]
+    else:
+        source = HZ1X1_TRAINING_RECORDS[task]
+        record = json.loads((Path(repo_root) / source).read_text(encoding="utf-8"))["runs"]
+        runs = [r for r in record if r["method"] == method and (task == "p4_4" or r["tier"] == tier)]
+    if sorted(int(r["seed"]) for r in runs) != [101, 202, 303, 404, 505]:
+        raise ValueError(f"{source} does not hold exactly the five runs of {cell_id}")
+    return sorted((_old_run(cell_id, run, source) for run in runs), key=lambda r: r["seed"])
+
+
+P5_2B_ARTIFACT = "docs/data/p5_2b_iql_correction.json"
+
+
+def p5_2b_runs(repo_root: str | Path) -> list[dict[str, Any]]:
+    """The corrected grid IQL cell's five runs, from P5.2b's committed record."""
+    import offline.tier_statements as tst
+
+    runs = json.loads((Path(repo_root) / P5_2B_ARTIFACT).read_text(encoding="utf-8"))["training"]["runs"]
+    return sorted(({"cell": tst.CORRECTED_IQL, "seed": int(r["seed"]), "seconds": float(r["seconds"]),
+                    "gradient_steps": int(r["gradient_steps"]), "clock": cr.CLOCK_LABEL, "source": P5_2B_ARTIFACT,
+                    "plateaued": bool(r["plateaued"])} for r in runs), key=lambda r: r["seed"])
+
+
+def grid_old_runs(output_root: str | Path, spec: Any) -> list[dict[str, Any]]:
+    """A registered P5.1 / P5.2 grid cell's runs: ``gradient_steps`` from each checkpoint's provenance; no committed
+    record holds their seconds (plan D3), so ``seconds`` is null with that reason.  Behaviour and random cells have
+    none; P5.2b's corrected cell is :func:`p5_2b_runs`."""
+    import torch
+
+    import offline.tier_statements as tst
+    from offline.dt_gate import TRAINING_SEEDS
+    from offline.tier_sweep import _checkpoint_name
+
+    if spec.method in ("behaviour", "random"):
+        return []
+    if spec.cell_id == tst.CORRECTED_IQL:
+        raise ValueError("P5.2b's corrected cell's runs are p5_2b_runs'")
+    runs = []
+    for seed in TRAINING_SEEDS:
+        relative = f"{spec.source}/checkpoints/{_checkpoint_name(spec.tier, spec.method, int(seed))}"
+        payload = torch.load(Path(output_root) / relative, map_location="cpu", weights_only=False)
+        runs.append({"cell": spec.cell_id, "seed": int(seed), "seconds": None,
+                     "seconds_note": "no committed record holds this run's seconds (P5.1 / P5.2 grid baselines; plan D3)",
+                     "gradient_steps": int(payload["provenance"]["gradient_steps"]), "clock": cr.CLOCK_LABEL,
+                     "source": f"output/{relative}"})
+    return runs
+
+
+def p3a_records(roots: cr.Roots) -> dict[str, list[dict[str, Any]]]:
+    """P3a's recorded rows, keyed by the ids the artifacts read: a new cell's :func:`new_cell_id`; the registered
+    references' cells (P4.6's ``behaviour@random``; P5.1's random anchor)."""
+    import offline.tier_statements as tst
+
+    registered = {("hz1x1", "behaviour@random"): "p4_6:behaviour@random",
+                  ("grid4x4", "random@mappo1000"): tst.ANCHOR_CELL}
+    out = {}
+    for cell in cr.p3a_cells():
+        payload = json.loads(cr._p3a_path(roots, cell).read_text(encoding="utf-8"))
+        key = registered.get((cell.scenario, cell.key), new_cell_id(cell))
+        out[key] = list(payload["episodes"])
+    return out
+
+
+def schedule_digests(directory: str | Path) -> dict[str, Any]:
+    """A collected tier's training schedules as A27(d)'s beside-table compares them: every episode's joint digest and
+    each intersection's (``ix_ids`` order), by ``nortg_decomposition.action_sequence_sha256``."""
+    import numpy as np
+
+    from offline.nortg_decomposition import action_sequence_sha256
+
+    root = Path(directory)
+    manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+    order: list[str] | None = None
+    joint: set[str] = set()
+    per_ix: list[set[str]] = []
+    for entry in manifest["episodes"]:
+        with np.load(root / str(entry["filename"])) as arrays:
+            ids = [str(v) for v in arrays["ix_ids"].tolist()]
+            columns = [np.asarray(arrays[f"ix{i}_action"], dtype=np.int64) for i in range(len(ids))]
+        if order is None:
+            order, per_ix = ids, [set() for _ in ids]
+        elif ids != order:
+            raise ValueError(f"{root}: {entry['filename']} lists its intersections in another order")
+        for i, column in enumerate(columns):
+            per_ix[i].add(action_sequence_sha256(column.reshape(-1, 1)))
+        joint.add(action_sequence_sha256(np.stack(columns, axis=1)))
+    return {"ix_ids": order or [], "joint": joint, "per_intersection": per_ix}
+
+
+def d4rl_section(path: str | Path) -> dict[str, Any]:
+    """The D4RL re-run's ``compare_with`` block (the registered arms' per-seed returns beside the new one, every
+    contrast recomputed), the file's digest, and its runs' seconds with A27(a)'s clock label."""
+    import hashlib
+
+    target = Path(path)
+    data = target.read_bytes()
+    payload = json.loads(data)
+    if "compare_with" not in payload:
+        raise ValueError(f"{target} carries no compare-with block: the re-run must be made with --compare-with")
+    runs = [{"arm": str(c["arm"]), "seed": int(c["seed"]), "seconds": float(c["training_seconds"]),
+             "wall_seconds": float(c["wall_seconds"]), "gradient_steps": int(c["gradient_steps"]),
+             "clock": cr.CLOCK_LABEL} for c in payload["cells"]]
+    return {"file": target.name, "file_sha256": hashlib.sha256(data).hexdigest(),
+            "comparison": payload["compare_with"], "runs": runs}
+
+
+
+DIGEST_CONSTRUCTION = (
+    "sha256 over the text '<file sha256>  <path relative to the output root>\\n' for every file under the directory "
+    "(the excluded subdirectories aside), in path order -- the sha256sum line format, so `find <dir> -type f | LC_ALL=C "
+    "sort | xargs sha256sum | sha256sum`, run in the output root over the same files, recomputes it")
+#: The D4RL re-run's output name (``calibration/d4rl_run.py``: K = 64, 40,000 steps, targets off).
+D4RL_OUTPUT_NAME = "p8_3_train_k64_40000_iql_t.json"
+
+
+def directory_digest(output_root: str | Path, directory: str, *, exclude: Sequence[str] = ()) -> dict[str, Any]:
+    """One digest over every file of a run directory (:data:`DIGEST_CONSTRUCTION`); *exclude* names subdirectories left
+    out (checkpoints are identified by their canonical digests in the run records, and logs are not inputs)."""
+    import hashlib
+
+    root = Path(output_root)
+    base = root / directory
+    skipped = {base / name for name in exclude}
+    paths = sorted(path for path in base.rglob("*") if path.is_file()
+                   and not any(s == path or s in path.parents for s in skipped))
+    lines = "".join(f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.relative_to(root).as_posix()}\n"
+                    for path in paths)
+    return {"directory": f"output/{directory}", "files": len(paths), "excluded": list(exclude),
+            "sha256": hashlib.sha256(lines.encode("utf-8")).hexdigest(), "construction": DIGEST_CONSTRUCTION}
+
+
+#: The committed records every artifact may read, digested into its inputs.
+COMMITTED_INPUTS: tuple[str, ...] = (
+    "docs/data/p4_4_baselines.json", "docs/data/p4_6_grid.json", "docs/data/p4_7_grid.json", P4_DT_RECORD,
+    *HZ1X1_TRAINING_RECORDS.values(), P5_2B_ARTIFACT, "docs/data/p8_3_d4rl_calibration.json",
+)
+
+
+def _sha256(path: Path) -> str:
+    import hashlib
+
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def load_sources(roots: cr.Roots, *, d4rl_path: str | Path | None) -> Sources:
+    """Everything, read once and checked on the way in: the grid's registered cells by P5.2c's pinned loader, the hz1x1
+    old cells joined to their re-rolls, the new cells joined across both routes, every run's seconds and steps, the
+    declarations, P3a's rows, the random_fresh tiers' schedules, the D4RL re-run, the inputs by digest, the git block."""
+    import offline.tier_statements as tst
+    from offline import att_rederivation as ar
+
+    if d4rl_path is None:
+        raise ValueError("the D4RL re-run's output is an input of p9_1_iql_targets.json (A27(c)); pass --d4rl")
+    git = tst.git_block()
+    grid = tst.load_inputs(tst.Roots(repo_root=Path(roots.repo_root), output_root=Path(roots.output_root)))
+    cells: dict[str, Any] = {}
+    records: dict[str, tuple[dict[str, Any], ...]] = {}
+    runs: dict[str, tuple[dict[str, Any], ...]] = {}
+    for cid, cell in grid.cells.items():
+        cells[cid] = cell
+        records[cid] = tuple({**row, "tier": cell.spec.tier,
+                              "source": f"output/{cell.spec.eval_file} (att_ours) and P8.4b's rows (att_engine), read "
+                                        "by P5.2c's pinned loader (tier_statements.load_inputs)"} for row in cell.rows)
+        found = p5_2b_runs(roots.repo_root) if cid == tst.CORRECTED_IQL else grid_old_runs(roots.output_root, cell.spec)
+        if found:
+            runs[cid] = tuple(found)
+    for artifact, arm in cr.HZ1X1_OLD_CELLS:
+        cid = hz1x1_old_id(artifact, arm)
+        rows = old_hz1x1_rows(roots, artifact, arm)
+        method, tier = ar.normalise_arm("hz1x1", arm)
+        cells[cid] = as_statement_cell(cid, method, tier, arm, cid.split(":")[0], artifact, rows)
+        records[cid] = rows
+        found = hz1x1_old_runs(roots.repo_root, artifact, arm)
+        if found:
+            runs[cid] = tuple(found)
+    trained = set(cr.training_cells())
+    for cell in cr.evaluation_cells():
+        cid = new_cell_id(cell)
+        rows = new_cell_rows(roots, cell)
+        cells[cid] = as_statement_cell(cid, cell.arm, cell.tier, cell.key, "p9_1",
+                                       _relative(roots, cr.route_i_output(roots, cell)), rows)
+        records[cid] = rows
+        if cell in trained:
+            entries = []
+            for run in new_training_runs(roots, cell):
+                record = json.loads(cr.run_record_path(roots, cell.scenario, cell.tier, cell.arm, run["seed"])
+                                    .read_text(encoding="utf-8"))
+                entries.append({**run, "cell": cid, "window_means": [float(v) for v in record["window_means"]],
+                                "plateaued": record["plateaued"]})
+            runs[cid] = tuple(entries)
+    declarations = {
+        name: json.loads((Path(roots.run_root) / f"declaration_{name}.json").read_text(encoding="utf-8"))
+        for name in ("mix_m1000_m500", "random_fresh_hz1x1", "random_fresh_grid4x4")}
+    schedules = {scenario: schedule_digests(Path(roots.corpus_root) / fresh)
+                 for scenario, (_, fresh) in cr.RANDOM_FRESH_DIRS.items()}
+    d4rl = d4rl_section(d4rl_path)
+    p4_4 = json.loads((Path(roots.repo_root) / "docs/data/p4_4_baselines.json").read_text(encoding="utf-8"))
+    registered = {"p4_4_delta": float(p4_4["comparisons"]["madt_vs_iql"]["delta"]),
+                  "plateau_counts": plateau_counts(roots.repo_root)}
+    inputs = [{"file": relative, "sha256": _sha256(Path(roots.repo_root) / relative)} for relative in COMMITTED_INPUTS]
+    inputs += [directory_digest(roots.output_root, cr.RUNS_DIR, exclude=("checkpoints", "logs")),
+               directory_digest(roots.output_root, cr.RUN_DIR)]
+    inputs += [{"file": f"{fresh}/manifest.json", "root": "corpus",
+                "sha256": _sha256(Path(roots.corpus_root) / fresh / "manifest.json")}
+               for _, fresh in cr.RANDOM_FRESH_DIRS.values()]
+    inputs += [{"file": d4rl["file"], "root": "D4RL re-run output", "sha256": d4rl["file_sha256"]},
+               {"loader": "tier_statements.load_inputs (P5.2c, pinned)", "provenance": grid.provenance}]
+    return Sources(cells=cells, records=records, runs=runs, declarations=declarations,
+                   grid_books=tst.make_books(grid.cells), p3a=p3a_records(roots), schedules=schedules, d4rl=d4rl,
+                   registered=registered, inputs=tuple(inputs), git=git)
+
+
+#: The five artifacts of BRIEF_46 3.5 and their builders.
+ARTIFACTS: dict[str, Any] = {
+    "p9_1_exposure_parity.json": build_exposure_parity,
+    "p9_1_iql_targets.json": build_iql_targets,
+    "p9_1_random_fresh.json": build_random_fresh,
+    "p9_1_mixture.json": build_mixture,
+    "p9_1_budget.json": build_budget,
+}
+
+
+def build_parser() -> Any:
+    import argparse
+
+    parser = argparse.ArgumentParser(prog="python -m offline.corrective_report", allow_abbrev=False,
+                                     description="P9.1: the five A27 artifacts from the campaign's run directories")
+    parser.add_argument("--repo-root", type=Path, default=Path(__file__).resolve().parent.parent)
+    parser.add_argument("--output-root", type=Path, required=True)
+    parser.add_argument("--corpus-root", type=Path, required=True)
+    parser.add_argument("--draws-root", type=Path, required=True)
+    parser.add_argument("--d4rl", type=Path, required=True, help=f"the D4RL re-run's {D4RL_OUTPUT_NAME}")
+    sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser("report", allow_abbrev=False).add_argument("--out-dir", type=Path, default=None)
+    return parser
+
+
+def main(argv: Any = None) -> int:
+    """``report``: every artifact built in memory first; each written once, or left alone if the file on disk is the
+    same bytes; a different file on disk is refused (exit 2) and nothing is written."""
+    import sys
+
+    args = build_parser().parse_args(argv)
+    roots = cr.Roots(repo_root=args.repo_root, output_root=args.output_root, corpus_root=args.corpus_root,
+                     draws_root=args.draws_root)
+    out_dir = Path(args.out_dir) if args.out_dir is not None else Path(args.repo_root) / "docs" / "data"
+    try:
+        src = load_sources(roots, d4rl_path=args.d4rl)
+        if src.git.get("dirty") is not False:
+            raise ValueError("the report is built from a clean committed tree (git dirty must be false)")
+        texts = {name: artifact_text(builder(src)) for name, builder in ARTIFACTS.items()}
+        for name, text in texts.items():
+            target = out_dir / name
+            if target.exists() and target.read_text(encoding="utf-8") != text:
+                raise FileExistsError(f"{target} exists with other content; an artifact is not rewritten")
+    except (ValueError, FileExistsError, FileNotFoundError, KeyError) as exc:
+        print(f"REFUSED: {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
+        return 2
+    for name, text in texts.items():
+        target = out_dir / name
+        state = "unchanged (identical bytes)" if target.exists() else "written"
+        if not target.exists():
+            target.write_text(text, encoding="utf-8")
+        print(f"{target}: {state}", flush=True)
+    return 0
+
+
+if __name__ == "__main__":  # pragma: no cover - the report is run by hand from a clean tree
+    raise SystemExit(main())
