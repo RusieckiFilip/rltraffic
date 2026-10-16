@@ -319,3 +319,27 @@ ruling lands as Amendment C; then `record-ruling` (in-session) and the fixed-tim
    gate (B.3 in place); then Phase B's plan appended to `docs/plans/p9.3.md` and its pre-flight (G3b) with the measured GPU cost. The
    GPU is P9.1's campaign's for about 40 h once it starts; G3b states how Phase B's trainings fit before 2026-10-23 (after P9.1's, or
    beside them where memory and the never-two-DT-trainings rule allow) — the hard stop is real.
+
+---
+
+# ✅ AMENDMENT C — 2026-10-16, the author's ruling: hz4x4's fixed-time cycle is k = 2
+
+**The author's ruling (2026-10-16), quoted:** *"hz4x4 fixed-time cycle: k = 2, as you recommend (one tuning rule on all three
+scenarios; the att_engine optimum k = 3 disclosed beside it)."*
+
+## C.1 What it means
+- The hz4x4 fixed-time tier is collected at **k = 2**, the argmin of D5's objective as D5 recorded it (`att_horizon` = `att_ours`, mean
+  over training draws 1–5), the same objective the registered hz1x1 (k = 6) and grid4x4 (k = 1) cycles were tuned on.
+- **Disclosed beside it, everywhere the cycle is named:** `att_engine`'s optimum on hz4x4 is k = 3 (544.09 against k = 2's 553.12,
+  1.66 % above it); on hz1x1 it is k = 8 (the registered k = 6 3.62 % above it); on grid4x4 it is k = 1, the registered cycle. The
+  `att_ours` optima keep more vehicles out on hz4x4 (`never_entered` 70.0 against 40.8 at k = 3) and on hz1x1 (164.8 against 150.2).
+- The sweep artifact `docs/data/p9_3_fixed_time_sweep.json` stays unedited; this amendment is the ruling it was waiting for.
+
+## C.2 What you do
+1. `git merge main` (this amendment on disk), then `record-ruling` with `--k 2` and `--amendment "AMENDMENT C — 2026-10-16"` (the
+   exact string; it occurs in this heading), against the committed sweep artifact. Commit the ruling file it writes, with a test that
+   `fixed_time_k_from_ruling` returns 2 from it and refuses it against a sweep whose digest differs.
+2. Say **"P9.3 ruling recorded"** with that commit and the exact `p93-fixedtime` command — the fixed-time tier only (draws 1–200, the
+   grid's protocol, `--ruling` naming the committed file), from a run tree at that commit. The coordinator verifies the file, creates
+   the run tree and hands the author the token. Collection writes its `.npz` before the engine is freed, so B.3's remedy is not needed
+   for it.
