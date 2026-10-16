@@ -336,3 +336,11 @@ def a6_rescore(dt: Any, original: Any, rescored: Any, *, delta: float) -> dict[s
     after = a6_block(dt, rescored, delta=delta)
     return {"original": before, "rescored": after, "moved": {
         d: before["by_definition"][d]["verdict"] != after["by_definition"][d]["verdict"] for d in DEFINITIONS}}
+
+
+def contrast_entry(left: Any, right: Any, *, tier: str) -> dict[str, Any]:
+    """``left - right`` under both definitions, with no prediction: the interval and its reading (the beside-numbers and
+    the sentences' contrasts)."""
+    return {"left": left.spec.cell_id, "right": right.spec.cell_id, "left_arm": left.spec.method,
+            "right_arm": right.spec.method, "tier": tier,
+            "by_definition": {d: _numbers(b) for d, b in contrast_both(left, right, tier=tier).items()}}
