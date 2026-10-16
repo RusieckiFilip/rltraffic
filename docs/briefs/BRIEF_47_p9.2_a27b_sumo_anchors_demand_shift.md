@@ -164,3 +164,110 @@ action sequences of the two backends' controllers for 360 steps.
 
 ## 7. Return Packets
 `docs/returns/P9.2-code.md`, `docs/returns/P9.2-preflight.md`, `docs/returns/P9.2.md` by `docs/returns/TEMPLATE.md`.
+
+---
+
+# ⚠️ AMENDMENT A — 2026-10-16, gates G1 and G2: FIX FIRST, small (commit C8) — the run path passes review, but the report path never re-scores hz1x1's clause 3 and three guards are weaker than stated; the runs are cleared from a run worktree at C8's commit once the coordinator has verified it; C2, C3 and C6 confirmed; ρ_random stays outside the fence; F1 accepted; F2 is the coordinator's error
+
+Written against `docs/returns/P9.2-code.md` and `docs/returns/P9.2-preflight.md` at `b1207c7`, read from disk, and against the code
+and artifacts themselves. Merge `main` to read it.
+
+## A.1 What the coordinator verified, this session, from disk
+- **The branch:** `task/p9.2-a27b` at `b1207c7`, 16 files, every one added; the frozen set and §0's import-only modules unchanged
+  (`git diff --stat main...b1207c7 -- <your packet's list>` prints nothing, re-run here).
+- **A mutant of the coordinator's,** in a scratch git copy beside an unmutated control copy (a kill = fails in the mutant, passes in
+  the control): `set_pressure` replaced by the frozen per-link formula → **7 killed, exactly your M1's seven** (the four synthetic
+  tests, `test_sumo_hz1x1_every_green_visits_two_incoming_lanes_twice_and_four_outgoing_lanes_once`,
+  `test_sumo_grid4x4_every_green_visits_each_incoming_lane_three_times`,
+  `test_cityflow_grid4x4_feeds_an_outgoing_lane_twice_on_every_selectable_green`); the control passes 16 of 16; the CityFlow hz1x1
+  identity tests survive, as designed.
+- **Not yet counted:** the coordinator's re-run of the seven task files with the gates set, and a second mutant (`random_fresh_factory`
+  seeded by `default_rng(seed)` without the draw id). Both runs HUNG — futex waits at about 0 % CPU, in the control copy as well as
+  the mutant copy, while about five test processes ran at once (load average 33.6 at 11:46) — and nothing was read from them. They
+  are re-run alone at C8's verification. *(The hang is environmental, not this branch's: the unmutated control hung the same way.
+  It is the round's risk, `PROJECT_PLAN` §9 of 2026-10-16.)*
+- **The drivers read line by line:** dirty tree → (shift: committed audit) → token → canary → (sumo: the replica gate) / (shift:
+  materialise from the main tree's root with the run tree's code, then the guard) → token consumed → one tmux window per shard;
+  `set -euo pipefail` stops a failing step inside `| tee` (the reviewer reproduced it).
+- **Every run target is absent:** `output/p9_2`, `output/p9_2_runs`, `scenarios/draws/cityflow1x1_config{2,3,4}`,
+  `/home/filip/rltraffic-p92-run`. bc-tyc's registered draws live in `scenarios/draws/cityflow1x1/`, which `materialise` cannot write.
+- **The audit precedes any draw:** `docs/data/p9_2_demand_shift_audit.json` committed at `cd8031f`; its vehicle counts 743 / 1,417 /
+  1,671 against 2,021 are A27(h)'s 37–83 %.
+
+## A.2 The review (one mandate, the coordinator's; read-only; 15 minutes) — PASS on both run paths; four findings, ruled
+Verified with no defect by the reviewer: `maxpressure_1to1` is A27(f)'s set semantics with everything else inherited; the SUMO
+episode is `run_cell`'s anchor branch step for step; the replica gate covers all 29 (31) fields under `==` and cannot pass
+vacuously; `fixedtime_kcf` reads k from the manifests and pins it against the README; A23's collision rule, `git_dirty`, atomic
+writes and validate-before-skip on resume; the demand-shift run path (fresh `default_rng([seed, draw_id])` inside the factory, the
+registered `random` untouched, both routes under `==`, the registered prompts, the plan digest, the out-root/cwd/audit refusals);
+ρ through the registered `_rho_pair`, the three pairs exactly, the tautology guard not vacuous; the clause rules.
+**What C8 must do — each with a test written first and shown red for the right reason, and one mutant (the fix removed → its test
+fails):**
+1. **MAJOR — hz1x1's clause 3 is never re-scored under any pair** (`sumo_anchor_rescore.py:866-868`; `rescore_pair`, around
+   `:1300-1305`, builds hz1x1's H3 from clauses 1 and 2 only). **RULING — the coordinator's reading of A19(a), not a registration
+   change:** A19(a) made clause 3 VOID *"because its premise is false"*, and that premise — the zero-shot policy trails MaxPressure —
+   IS clause 2's prediction (ρ < 1). So under each pair, hz1x1's clause 3 is derived from clause 2's outcome under the same pair, in
+   P5.2c's vocabulary: clause 2 FAILED (ρ's interval entirely above 1) → clause 3 `VOID`, agreeing with the registered verdict;
+   clause 2 HELD → `PREMISE HOLDS UNDER THIS PAIR — NOT SCOREABLE: no few-shot curve was registered on hz1x1`; clause 2 NOT
+   RESOLVED → `PREMISE NOT RESOLVED UNDER THIS PAIR — NOT SCOREABLE`. The last two differ from the registered VOID and are reported
+   as differing. Every entry carries `agrees_with_registered`; the registered pair must reproduce VOID (the tautology guard covers it).
+2. **The gate and guard records' provenance is checked wherever they authorise anything** (`:1886-1889` `roll-anchors`, `:1714-1719`
+   `build_report`, and the demand shift's `evaluate` and `report`): a record counts only if its `git_commit` equals the run tree's
+   HEAD or differs from it only under `docs/` (J1(c)'s rule), `git_dirty` is False, and it holds every declared check (the four
+   replica checks; the guard's arms and its engine-seed checks).
+3. **The drivers never consume the token past a failed record:** where a gate/guard record already exists, the driver reads its
+   `passed` flag before `rm -f "$TOKEN"`; a failed record exits 2 and keeps the token (`p9_2_sumo_anchors.sh:52-57`, the shift
+   driver's guard block). The reviewer reproduced the hole on a scratch replica: a re-run after a failed gate consumed the token
+   and exited 0.
+4. **The CityFlow branch of `validate_anchor_cell` (`:592-610`) checks `decisions == 360` and `engine_seed_requested == 1000`**, as
+   the SUMO branch does: a truncated CityFlow grid4x4 cell, which has no registered counterpart, would otherwise validate.
+5. **The replica gate also exercises the halting path:** draw 1001 has `halting_checked` false, so the gate never runs the path draw
+   1000 runs. Add draw 1000 for the registered `maxpressure` and `fixedtime` on both scenarios (four more SUMO episodes, about 3.5×
+   each), every field `==` the committed draw-1000 records.
+Not reached by the reviewer, so open for G5's review: `_h3_summary` and `_sentence_values`; `evaluate_cells`, `file_block`,
+`_cityflow_rho`; whether a DT factory keeps state between the two routes (if it did, the routes would disagree and the campaign
+would stop — wasted time, never a wrong number).
+**Why fix first rather than run now:** both artifacts are built from the run worktree, and `report` refuses a chunk rolled by code
+that differs from HEAD outside `docs/` (J1(c)). A fix landed after the run would make the run's own chunks unreportable. A few hours
+now, no re-run later.
+**Commits:** C8a (`offline/sumo_anchor_rescore.py`, `offline/demand_shift.py` and their tests) and C8b (the two drivers and
+`tests/test_p9_2_drivers.py`), then the seven task files green with the gates set, then **"P9.2 C8 ready"** to the author. The
+coordinator then re-runs the seven files and the two mutants alone, reads C8, creates the run worktree at C8's commit, and clears
+the token in Amendment B.
+
+## A.3 Rulings on the packet's open questions
+1. **C2 — CONFIRMED.** H3's clauses re-scored on ρ's interval (A19(a)'s reading), in P5.2c's vocabulary, with the paired ATT
+   comparison beside and a disagreement flag: that is A27(f) and §3.3.
+2. **C3 — CONFIRMED.** Grid clause 3 is VOID when a pair leaves G′ ≤ 0 (A19(a)'s reasoning), the (i)–(iv) arithmetic beside and
+   unused. The author's grid sentence has no branch for that case (*"[still closes / no longer closes]"*): if it occurs, the G4
+   packet proposes the words and the author rules them — it is his sentence. The same holds for A.2.1's two NOT SCOREABLE readings
+   in the hz1x1 sentence.
+3. **C6 — CONFIRMED.** The pin file (`{tier: {seed: {path, sha256}}}`) is written from P9.1's committed training record once it is on
+   `main`; stage 2 then needs its own amendment and token.
+4. **ρ_random — stays OUTSIDE the fence.** A27(f) enumerates the re-scored arms (P7.3a's zero-shot arms of both subjects, P7.3b's
+   `anchor_k200`, P7.3d's grid zero-shot, P7.3c's few-shot arms); `random` is not among them, and a registered list is not extended
+   after the fact. If the paper quotes a random ρ, the paper track raises it.
+5. **F2 — the coordinator's error**, fixed under `BRIEF_49` (P5.2d), not on this branch. Your whole-suite *"4 failed"* is accepted
+   as `main`'s: `main`'s CI run `38790246813` fails exactly that one test on both legs (`1 failed, 3154 passed, 397 skipped`), and
+   the three tmux tests pass on CI.
+6. **The run worktree** is created by the coordinator (through the permission gate) at C8's commit, after its verification.
+7. **F1 — ACCEPTED, and it corrects the registration's wording, not its substance.** A27(f)'s *"every one of the 160 green phases"*
+   (SUMO grid) and *"160 of the 256 green phases"* (CityFlow grid) count FILE phases, the 32 link-carrying 3-s transitions included;
+   on the 128 selectable greens (16 × 8) SUMO visits each released incoming lane three times on 128 of 128 and CityFlow feeds an
+   outgoing lane twice on 128 of 128 — measured by your tests, which pass on the coordinator's unmutated control. The artifact reports
+   both bases (your C4); **any paper sentence uses the selectable basis.** The tagged text stands; the correction is recorded in
+   `PROJECT_PLAN` §8 (2026-10-16), `DEFERRED` 118 and the paper track's deviations table. It is the file-phase versus selectable-phase
+   confusion the author's point-8 edit corrected for hz4x4 (*"9 against 16"*), left standing in point 5 by the coordinator.
+8. **D1–D5 and K1–K4 — accepted** as written. D2 (the variant not registered into `collect.POLICIES`) is right while P9.1 edits
+   `collect.py`.
+9. **F4 — the provenance race:** a `DEFERRED` row; no code change. Do not commit while your own whole suite runs.
+
+## A.4 The token — NOT YET
+Amendment B clears `p92-sumo` and `p92-shift` stage 1 from the run worktree at C8's commit, with your packet's §4 commands. Until
+then nothing is materialised and nothing is rolled. **Machine load, from now on:** at most one pytest process at a time in your
+session, with `OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`; no mutation campaign while P9.3's teachers or any shard runs.
+
+## A.5 G3 → G4 (unchanged in substance)
+Status from disk (`status` subcommands). At G4 both artifacts are built from the run worktree and copied byte for byte (your §4).
+The "for the paper" section answers A27(f)'s two sentences and A27(h)'s, every ρ beside its registered value, every moved verdict
+named with the pair that moves it (hz1x1's clause 3 by A.2.1); the multiplicity sentence uses the selectable basis (A.3.7).
