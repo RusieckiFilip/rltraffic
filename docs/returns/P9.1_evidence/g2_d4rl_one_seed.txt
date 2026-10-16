@@ -1,0 +1,32 @@
+# G2: one D4RL iql_t seed (101), --iql-target-dropout off, into scratch; P8.3's venv; timing only (no --compare-with on one seed)
+reading /home/filip/d4rl-calib-data/halfcheetah_medium_expert-v2.hdf5 ...
+codebook K=64 digest baf7ef9f8cb486d6... device cuda
+  iql seed 101 step 5000/40000 policy 1.42661 q 0.11923 v 0.02910
+  iql seed 101 step 10000/40000 policy 1.03457 q 0.89430 v 0.16903
+  iql seed 101 step 15000/40000 policy 1.71389 q 4.73346 v 1.02114
+  iql seed 101 step 20000/40000 policy 1.95507 q 7.21398 v 1.71244
+  iql seed 101 step 25000/40000 policy 3.02284 q 12.72972 v 2.54940
+  iql seed 101 step 30000/40000 policy 4.07672 q 23.33061 v 4.14495
+  iql seed 101 step 35000/40000 policy 4.59275 q 49.01237 v 6.84505
+  iql seed 101 step 40000/40000 policy 4.96848 q 60.03253 v 7.70502
+/home/filip/d4rl-calib-venv/lib/python3.12/site-packages/gymnasium/envs/registration.py:513: DeprecationWarning: [33mWARN: The environment HalfCheetah-v4 is out of date. You should consider upgrading to version `v5`.[0m
+  logger.deprecation(
+  iql seed 101: return -58.8 in 391s
+{
+  "iql_t": {
+    "per_seed_return": [
+      -58.81525197136908
+    ],
+    "return_ci95_halfwidth": 0.0,
+    "return_mean": -58.81525197136908,
+    "return_std": 0.0,
+    "seeds": 1
+  }
+}
+wrote /tmp/claude-1000/-home-filip-rltraffic-p91/d6facc9a-caac-479a-8c8a-d45976d901c1/scratchpad/preflight/d4rl/p8_3_train_k64_40000_iql_t.json
+
+# the output's cells:
+iql_t 101 training_seconds 382.1465673446655 wall_seconds 390.9346697330475 gradient_steps 40000
+codebook_digest baf7ef9f8cb486d6e5ddbfb4527b65fe701deca85215aa64fc8d45a76ef5ec26 dataset_sha256 015db75dae5bbe8e94029b71fa0bafc2073365df0c94744e71031189f3f79c06
+registered P8.3 iql training_seconds per seed: [319.26938676834106, 317.70908212661743, 315.9750120639801, 319.1732666492462, 318.51382851600647]
+registered codebook_digest baf7ef9f8cb486d6e5ddbfb4527b65fe701deca85215aa64fc8d45a76ef5ec26 dataset_sha256 015db75dae5bbe8e94029b71fa0bafc2073365df0c94744e71031189f3f79c06

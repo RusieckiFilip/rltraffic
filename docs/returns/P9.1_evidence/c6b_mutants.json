@@ -1,0 +1,227 @@
+[
+ {
+  "name": "V1 contrast predicted positive",
+  "file": "offline/corrective_verdicts.py",
+  "old": "    contrasts = [predicted_contrast(cells[left], cells[right], tier=tier, predicted=\"negative\")",
+  "new": "    contrasts = [predicted_contrast(cells[left], cells[right], tier=tier, predicted=\"positive\")",
+  "tests": [
+   "tests/test_corrective_verdicts.py"
+  ]
+ },
+ {
+  "name": "V2 contrast pair reversed",
+  "file": "offline/corrective_verdicts.py",
+  "old": "(\"iql\", \"dt\"), (\"dt\", \"bc\"))",
+  "new": "(\"dt\", \"iql\"), (\"dt\", \"bc\"))",
+  "tests": [
+   "tests/test_corrective_verdicts.py"
+  ]
+ },
+ {
+  "name": "V3 verdict read under att_ours",
+  "file": "offline/corrective_verdicts.py",
+  "old": "            \"verdict\": by_definition[PRIMARY][\"outcome\"], \"verdict_definition\": PRIMARY,",
+  "new": "            \"verdict\": by_definition[\"att_ours\"][\"outcome\"], \"verdict_definition\": PRIMARY,",
+  "tests": [
+   "tests/test_corrective_verdicts.py"
+  ]
+ },
+ {
+  "name": "V4 window one-sided",
+  "file": "offline/corrective_verdicts.py",
+  "old": "    if upper == \"HELD\" and lower == \"HELD\":",
+  "new": "    if upper == \"HELD\":",
+  "tests": [
+   "tests/test_corrective_verdicts.py"
+  ]
+ },
+ {
+  "name": "V5 window outside not failed below",
+  "file": "offline/corrective_verdicts.py",
+  "old": "    if upper == \"FAILED\" or lower == \"FAILED\":",
+  "new": "    if upper == \"FAILED\":",
+  "tests": [
+   "tests/test_corrective_verdicts.py"
+  ]
+ },
+ {
+  "name": "V6 window of 4 s",
+  "file": "offline/corrective_verdicts.py",
+  "old": "WITHIN_SECONDS = 5.0",
+  "new": "WITHIN_SECONDS = 4.0",
+  "tests": [
+   "tests/test_corrective_verdicts.py"
+  ]
+ },
+ {
+  "name": "V7 within arms drop iql",
+  "file": "offline/corrective_verdicts.py",
+  "old": "WITHIN_ARMS: tuple[str, ...] = (\"dt\", \"bc\", \"iql\")",
+  "new": "WITHIN_ARMS: tuple[str, ...] = (\"dt\", \"bc\")",
+  "tests": [
+   "tests/test_corrective_verdicts.py"
+  ]
+ },
+ {
+  "name": "V8 budget pairs 40k - 100k",
+  "file": "offline/corrective_verdicts.py",
+  "old": "        blocks = contrast_both(cells_100k[arm], cells_40k[arm], tier=tier)",
+  "new": "        blocks = contrast_both(cells_40k[arm], cells_100k[arm], tier=tier)",
+  "tests": [
+   "tests/test_corrective_verdicts.py"
+  ]
+ },
+ {
+  "name": "V9 concordance judged at 40k",
+  "file": "offline/corrective_verdicts.py",
+  "old": "                           tst.interval_outcome(after[\"ci95_low\"], after[\"ci95_high\"], predicted=predicted))",
+  "new": "                           tst.interval_outcome(before[\"ci95_low\"], before[\"ci95_high\"], predicted=predicted))",
+  "tests": [
+   "tests/test_corrective_verdicts.py"
+  ]
+ },
+ {
+  "name": "V10 tie predicts negative",
+  "file": "offline/corrective_verdicts.py",
+  "old": "                predicted = \"negative\" if point < 0.0 else \"positive\" if point > 0.0 else None",
+  "new": "                predicted = \"negative\" if point <= 0.0 else \"positive\"",
+  "tests": [
+   "tests/test_corrective_verdicts.py"
+  ]
+ },
+ {
+  "name": "V11 concordance verdict all held only",
+  "file": "offline/corrective_verdicts.py",
+  "old": "                                   \"verdict\": tst.conjunction(outcomes)}",
+  "new": "                                   \"verdict\": \"HELD\" if outcomes.count(\"HELD\") else \"FAILED\"}",
+  "tests": [
+   "tests/test_corrective_verdicts.py"
+  ]
+ },
+ {
+  "name": "V12 excludes zero one-sided",
+  "file": "offline/corrective_verdicts.py",
+  "old": "                block[\"ci95_high\"] < 0.0 or block[\"ci95_low\"] > 0.0)}",
+  "new": "                block[\"ci95_high\"] < 0.0)}",
+  "tests": [
+   "tests/test_corrective_verdicts.py"
+  ]
+ },
+ {
+  "name": "V13 rescore on as_committed",
+  "file": "offline/corrective_verdicts.py",
+  "old": "    book = dict(books[\"corrected\"])",
+  "new": "    book = dict(books[\"as_committed\"])",
+  "tests": [
+   "tests/test_corrective_verdicts.py"
+  ]
+ },
+ {
+  "name": "V14 moved counts readings",
+  "file": "offline/corrective_verdicts.py",
+  "old": "                    \"moved\": bool(old[\"kind\"] == \"verdict\" and old[\"verdict\"] != new[\"verdict\"]),",
+  "new": "                    \"moved\": bool(old[\"verdict\"] != new[\"verdict\"] or old[\"reading\"] != new[\"reading\"]),",
+  "tests": [
+   "tests/test_corrective_verdicts.py"
+  ]
+ },
+ {
+  "name": "V15 moved never",
+  "file": "offline/corrective_verdicts.py",
+  "old": "                    \"moved\": bool(old[\"kind\"] == \"verdict\" and old[\"verdict\"] != new[\"verdict\"]),",
+  "new": "                    \"moved\": False,",
+  "tests": [
+   "tests/test_corrective_verdicts.py"
+  ]
+ },
+ {
+  "name": "V16 moved accepts mismatched sets",
+  "file": "offline/corrective_verdicts.py",
+  "old": "    if set(before) != set(after):\n        raise ValueError(f\"the original and the re-scored books do not score the same statements \"",
+  "new": "    if False:\n        raise ValueError(f\"the original and the re-scored books do not score the same statements \"",
+  "tests": [
+   "tests/test_corrective_verdicts.py"
+  ]
+ },
+ {
+  "name": "V17 collapse on the mean",
+  "file": "offline/corrective_verdicts.py",
+  "old": "                    \"COLLAPSED\" if block[\"ci95_low\"] > 0.0 else \"NOT COLLAPSED\")}",
+  "new": "                    \"COLLAPSED\" if block[\"mean_difference\"] > 0.0 else \"NOT COLLAPSED\")}",
+  "tests": [
+   "tests/test_corrective_verdicts.py"
+  ]
+ },
+ {
+  "name": "V18 collapse count all anchors",
+  "file": "offline/corrective_verdicts.py",
+  "old": "    counts = {d: {name: sum(r[\"by_definition\"][d][\"verdict\"] == \"COLLAPSED\" for r in rows if r[\"anchor\"] == name)",
+  "new": "    counts = {d: {name: sum(r[\"by_definition\"][d][\"verdict\"] == \"COLLAPSED\" for r in rows)",
+  "tests": [
+   "tests/test_corrective_verdicts.py"
+  ]
+ },
+ {
+  "name": "V19 p3a grid uses joint",
+  "file": "offline/corrective_verdicts.py",
+  "old": "        if per_intersection:\n            n = len(_columns(seed_rows[0]))\n            counts = [",
+  "new": "        if False:\n            n = len(_columns(seed_rows[0]))\n            counts = [",
+  "tests": [
+   "tests/test_corrective_verdicts.py"
+  ]
+ },
+ {
+  "name": "V20 p3a across seeds",
+  "file": "offline/corrective_verdicts.py",
+  "old": "    for seed, seed_rows in _by_seed(rows).items():\n        if per_intersection:",
+  "new": "    for seed, seed_rows in [(0, list(rows))]:\n        if per_intersection:",
+  "tests": [
+   "tests/test_corrective_verdicts.py"
+  ]
+ },
+ {
+  "name": "V21 p3a counts only the second",
+  "file": "offline/corrective_verdicts.py",
+  "old": "            hits = [row for row in seed_rows if joint[str(row[\"action_sequence_sha256\"])] > 1]",
+  "new": "            hits = [row for row in seed_rows if joint[str(row[\"action_sequence_sha256\"])] > 2]",
+  "tests": [
+   "tests/test_corrective_verdicts.py"
+  ]
+ },
+ {
+  "name": "V22 beside share of distinct",
+  "file": "offline/corrective_verdicts.py",
+  "old": "            \"most_common_share\": max(joint.values()) / len(seed_rows),",
+  "new": "            \"most_common_share\": max(joint.values()) / len(joint),",
+  "tests": [
+   "tests/test_corrective_verdicts.py"
+  ]
+ },
+ {
+  "name": "V23 reference identity any draw",
+  "file": "offline/corrective_verdicts.py",
+  "old": "                1 for row in seed_rows if (seed, int(row[\"draw_id\"])) in index and\n                str(index[(seed, int(row[\"draw_id\"]))][\"action_sequence_sha256\"]) == str(row[\"action_sequence_sha256\"]))",
+  "new": "                1 for row in seed_rows if any(str(r[\"action_sequence_sha256\"]) == str(row[\"action_sequence_sha256\"]) for r in index.values()))",
+  "tests": [
+   "tests/test_corrective_verdicts.py"
+  ]
+ },
+ {
+  "name": "V24 a6 wrong delta",
+  "file": "offline/corrective_verdicts.py",
+  "old": "            \"verdict\": ob.equivalence_verdict(comparison.mean_difference, comparison.ci95_half_width, delta),",
+  "new": "            \"verdict\": ob.equivalence_verdict(comparison.mean_difference, comparison.ci95_half_width, 2.0 * delta),",
+  "tests": [
+   "tests/test_corrective_verdicts.py"
+  ]
+ },
+ {
+  "name": "V25 a6 moved never",
+  "file": "offline/corrective_verdicts.py",
+  "old": "        d: before[\"by_definition\"][d][\"verdict\"] != after[\"by_definition\"][d][\"verdict\"] for d in DEFINITIONS}}",
+  "new": "        d: False for d in DEFINITIONS}}",
+  "tests": [
+   "tests/test_corrective_verdicts.py"
+  ]
+ }
+]

@@ -1,0 +1,22 @@
+# C6d mutation table, run in this session (offline/corrective_report.py's loaders, digest and CLI against tests/test_corrective_report_load.py; RLTRAFFIC_OUTPUT_ROOT set, so the gated grid-checkpoint test ran)
+
+## Table 1 -- 13 mutants
+mutant                                           result    evidence
+L1 old id keeps one prefix part                  KILLED    FAILED tests/test_corrective_report_load.py::test_an_old_hz1x1_cell_is_named_by_its_artifact
+L2 madt read from p4_4_training                  KILLED    FAILED tests/test_corrective_report_load.py::test_an_old_hz1x1_cells_runs_are_its_committed_records_seconds_and_steps[docs/data/p4_4_baselines.json-madt-p4_trai
+L3 tier filter dropped                           KILLED    FAILED tests/test_corrective_report_load.py::test_an_old_hz1x1_cells_runs_are_its_committed_records_seconds_and_steps[docs/data/p4_6_grid.json-iql@maxpressure-p
+L4 five-run check dropped                        SURVIVED  13 passed, 5 skipped in 1.09s
+L5 p5_2b seconds from steps                      KILLED    FAILED tests/test_corrective_report_load.py::test_the_corrected_grid_iql_cells_runs_are_p5_2bs_recorded_seconds
+L6 p3a registered keyed as new                   KILLED    FAILED tests/test_corrective_report_load.py::test_p3a_records_are_keyed_by_the_ids_the_artifacts_read
+L7 per-intersection digest of the joint          SURVIVED  13 passed, 5 skipped in 1.15s
+L8 d4rl without compare-with accepted            KILLED    FAILED tests/test_corrective_report_load.py::test_the_d4rl_section_is_the_reruns_comparison_with_the_files_digest
+L9 d4rl seconds from wall                        KILLED    FAILED tests/test_corrective_report_load.py::test_the_d4rl_section_is_the_reruns_comparison_with_the_files_digest
+L10 digest ignores exclusions                    KILLED    FAILED tests/test_corrective_report_load.py::test_a_directorys_digest_is_the_sha256sum_line_construction_recomputed_independently
+L11 digest unsorted                              KILLED    FAILED tests/test_corrective_report_load.py::test_a_directorys_digest_is_the_sha256sum_line_construction_recomputed_independently
+L12 a different artifact overwritten             KILLED    FAILED tests/test_corrective_report_load.py::test_the_report_cli_writes_the_five_artifacts_once_and_refuses_a_different_rewrite
+L13 grid seconds invented                        KILLED    FAILED tests/test_corrective_report_load.py::test_a_registered_grid_baselines_runs_carry_the_checkpoints_steps_and_no_seconds
+
+## Re-run of the two survivors after the two tests were added
+mutant                                           result    evidence
+L4 five-run check dropped                        KILLED    FAILED tests/test_corrective_report_load.py::test_a_training_record_without_exactly_five_runs_for_the_cell_is_refused
+L7 per-intersection digest of the joint          KILLED    FAILED tests/test_corrective_report_load.py::test_each_intersections_schedules_are_its_own_columns_digests

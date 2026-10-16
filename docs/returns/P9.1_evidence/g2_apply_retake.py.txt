@@ -1,0 +1,91 @@
+"""Rewrite the G2 packet's timing rows, cost table, status and header from the re-take's own files (Amendment A).
+Usage: python apply_retake.py <scratch>."""
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+S = Path(sys.argv[1])
+R = S / "retake"
+driver = (R.parent / "retake_driver.txt").read_text()
+
+
+def load(tag: str) -> str:
+    line = next(l for l in driver.splitlines() if l.startswith(tag))
+    return re.search(r"load average: ([0-9.]+)", line).group(1)
+
+
+def stdout_json(arm: str) -> dict:
+    text = (R / arm / "stdout.txt").read_text()
+    return json.loads(text[text.index("{"):])
+
+
+bc, iql = stdout_json("bc_m"), stdout_json("iql_m")
+d4rl = json.loads((R / "d4rl" / "out" / "p8_3_train_k64_40000_iql_t.json").read_text())["cells"][0]
+L = {k: load(k) for k in ("start bc_m", "end bc_m", "start iql_m", "end iql_m", "start d4rl", "end d4rl")}
+assert all(float(v) <= 12.0 for v in L.values()), L
+trace = next(l for l in driver.splitlines() if l.startswith("trace samples="))
+
+packet = Path("docs/returns/P9.1-preflight.md")
+t = packet.read_text()
+
+
+def swap(old: str, new: str) -> None:
+    global t
+    assert t.count(old) == 1, old[:80]
+    t = t.replace(old, new)
+
+
+swap("**Status:** DONE for G2. **The campaign is not started:**",
+     "**Status:** PARTIAL for G2 -- every item is measured, but under `BRIEF_46` Amendment A no timing is quotable until Q10 "
+     "is ruled (P8.2's canary refuses in the machine's current power mode). **The campaign is not started:**")
+swap("Written against `BRIEF_46` as it stands on `main` at `aaad51b` (no amendment yet: `git merge --no-edit main` at the start\n"
+     "of this session, 2026-10-16, reported \"Already up to date\"), and",
+     "Written against `BRIEF_46` **with its Amendment A** (2026-10-16, on `main` at `36ad9b2`, merged into the branch as `78fc94b`:\n"
+     "a contaminated timing window, the load rule, at most one pytest, the CPU cap), and")
+bc_row = (f"**Not quotable yet (Amendment A, Q10).** `bc_m@mappo1000` seed 101, full 40,000 steps, CUDA, one torch thread: "
+          f"413.0 s on 2026-10-15 at 23:24 (load not recorded); **{bc['record_seconds']:.1f} s** in the re-take on 2026-10-16 "
+          f"(load {L['start bc_m']} → {L['end bc_m']}; the canary refused, the power mode being Better Battery). The same "
+          f"model both times (canonical digest `{bc['canonical_digest'][:8]}…`). The plan extrapolated 405 s")
+iql_row = (f"**Not quotable yet (Amendment A, Q10).** `iql_m@mappo1000` seed 101, full 40,000 steps: the pre-flight's own run "
+           f"spans a 10 h 45 min suspension of the machine (40,594.6 s recorded; GPU trace gap 23:39:06 → 10:23:44), and the first "
+           f"re-time (2,077.3 s, 11:19–11:54) ran inside Amendment A's contaminated window. **The re-take: "
+           f"{iql['record_seconds']:.1f} s** (load {L['start iql_m']} → {L['end iql_m']}; canary refused). All three trained the "
+           f"same model (canonical digest `{iql['canonical_digest'][:8]}…`). The re-take's 5-s GPU trace: {trace}. The plan "
+           f"extrapolated 1,500 s")
+swap(t[t.index("| one matched BC run on the grid, full | ") + len("| one matched BC run on the grid, full | "):
+       t.index(" | `g2_preflight_log.txt` |")], bc_row)
+start = t.index("| one matched IQL run on the grid, full | ") + len("| one matched IQL run on the grid, full | ")
+swap(t[start:t.index(" | `g2_iqlm_retime.txt`, `g2_preflight_gpu_trace.csv` |")], iql_row)
+d4rl_start = t.index("| D4RL's cost (§3.6's one-hour stop) | ") + len("| D4RL's cost (§3.6's one-hour stop) | ")
+d4rl_end = t.index(" | `g2_d4rl_one_seed.txt` |")
+swap(t[d4rl_start:d4rl_end],
+     f"one `iql_t` seed (101), full 40,000 steps, P8.3's venv, CUDA: 382.1 s of training on 2026-10-16 at 11:11 (load not "
+     f"recorded) and **{d4rl['training_seconds']:.1f} s** in the re-take ({d4rl['wall_seconds']:.1f} s the cell's wall time; "
+     f"load {L['start d4rl']} → {L['end d4rl']}; canary refused). The registered P8.3 IQL trained in 315.98–319.27 s per seed "
+     f"-- the brief's \"≈ 100 s per seed\" is not what P8.3's record says (the record wins). Five seeds ≈ "
+     f"{5 * d4rl['wall_seconds'] / 60:.0f} min plus the dataset load: under §3.6's one hour, so no stop, whichever figure is "
+     f"used. Same codebook (`baf7ef9f…`) and dataset (`015db75d…`) as the registered run, so `--compare-with` will accept "
+     f"the protocol")
+cost = subprocess.run([sys.executable, str(S / "cost_bc.py"), str(bc["record_seconds"]), str(iql["record_seconds"])],
+                      capture_output=True, text=True, check=True).stdout.splitlines()
+c0 = t.index("Serial GPU hours, the plan's §6 blocks")
+c1 = t.index("### The 255 trainings by arm")
+table = ["Serial GPU hours, the plan's §6 blocks with the RE-TAKE's two full runs substituted (`g2_cost.py.txt`; **not",
+         "quotable until Q10**, and taken under Better Battery; every other per-run figure is the plan's -- registered medians,",
+         "2,000-step extrapolations, `iql_t` = `iql` × 1.15):", "", "| block | hours |", "|---|---|",
+         *[line for line in cost if line.startswith("|")], "",
+         cost[-1].replace("iql_m share", "Of which `iql_m`").replace("bc_m:", "`bc_m`:") + ". The plan said ≈ 35 h. With ≈ 7 h of",
+         "evaluation after the last training run (no overlap, see the deviations), the campaign stage is the sum of the two if",
+         "the machine stays awake; the regime the campaign runs in moves the training hours by about a third (Q10).", "", ""]
+t = t[:c0] + "\n".join(table) + t[c1:]
+q10 = (S / "packet_part_q10.md").read_text().rstrip("\n")
+anchor = "\n\n## AI-assistance record"
+swap(anchor, "\n" + q10 + anchor)
+swap("- Every number in this packet produced by a command run in this session? **Y**",
+     "- `BRIEF_46` Amendment A honoured? **Partly (N).** The load average is recorded at every re-take's start and end (all "
+     "≤ 12), at most one pytest ran at a time and none during the re-take; the canary before and after could not be taken "
+     "(Q10).\n- Every number in this packet produced by a command run in this session? **Y**")
+packet.write_text(t)
+print("packet updated;", "bc", bc["record_seconds"], "iql", iql["record_seconds"], "d4rl", d4rl["training_seconds"], L)

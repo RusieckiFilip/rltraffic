@@ -1,0 +1,101 @@
+# BRIEF_46 Amendment A: G2's three timings re-taken from a detached tree at 78fc94b, each in a fresh process, the 1-minute load average at each start and end, P8.2's canary attempted before and after each (REFUSED: power mode), a 5-s Unix-time GPU trace (no gap)
+tree /tmp/claude-1000/-home-filip-rltraffic-p91/d6facc9a-caac-479a-8c8a-d45976d901c1/scratchpad/pf_tree3 at 78fc94be582b7af2f43a70a15e671b02f488c831; dirty=[]
+REFUSED: canary_open: the power regime is not mains + Windows power mode Best Performance: the AC power mode is Better Battery (961cc777-2547-4f9d-8174-7d86181b8a7a), not Best Performance (ded574b5-45a0-4f42-8737-46345c09c238)
+start bc_m 1792147540.289197131  12:45:40 up 1 day,  5:56,  1 user,  load average: 4.60, 4.82, 3.38
+bc_m exit=0
+end bc_m 1792148143.667584935  12:55:43 up 1 day,  6:06,  1 user,  load average: 5.73, 5.85, 4.67
+REFUSED: canary_close: the power regime is not mains + Windows power mode Best Performance: the AC power mode is Better Battery (961cc777-2547-4f9d-8174-7d86181b8a7a), not Best Performance (ded574b5-45a0-4f42-8737-46345c09c238)
+REFUSED: canary_open: the power regime is not mains + Windows power mode Best Performance: the AC power mode is Better Battery (961cc777-2547-4f9d-8174-7d86181b8a7a), not Best Performance (ded574b5-45a0-4f42-8737-46345c09c238)
+start iql_m 1792148143.982923015  12:55:43 up 1 day,  6:06,  1 user,  load average: 5.73, 5.85, 4.67
+iql_m exit=0
+end iql_m 1792150395.844308789  13:33:15 up 1 day,  6:44,  1 user,  load average: 9.65, 8.60, 7.80
+REFUSED: canary_close: the power regime is not mains + Windows power mode Best Performance: the AC power mode is Better Battery (961cc777-2547-4f9d-8174-7d86181b8a7a), not Best Performance (ded574b5-45a0-4f42-8737-46345c09c238)
+REFUSED: canary_open: the power regime is not mains + Windows power mode Best Performance: the AC power mode is Better Battery (961cc777-2547-4f9d-8174-7d86181b8a7a), not Best Performance (ded574b5-45a0-4f42-8737-46345c09c238)
+start d4rl 1792150396.260121971  13:33:16 up 1 day,  6:44,  1 user,  load average: 9.65, 8.60, 7.80
+d4rl exit=0
+end d4rl 1792150966.709872704  13:42:46 up 1 day,  6:53,  1 user,  load average: 3.62, 5.63, 6.89
+REFUSED: canary_close: the power regime is not mains + Windows power mode Best Performance: the AC power mode is Better Battery (961cc777-2547-4f9d-8174-7d86181b8a7a), not Best Performance (ded574b5-45a0-4f42-8737-46345c09c238)
+trace samples=678 span=3424.6s max_step=5.1s gaps>30s=[]
+
+## bc_m
+TRAIN grid4x4:bc_m@mappo1000 seed 101 -> /tmp/claude-1000/-home-filip-rltraffic-p91/d6facc9a-caac-479a-8c8a-d45976d901c1/scratchpad/retake/bc_m/output/p9_1_runs/checkpoints/grid4x4/grid4x4_mappo1000_bc_m_seed101.pt
+  bc seed 101 step 5000/40000 loss 1.37417
+  bc seed 101 step 10000/40000 loss 1.08689
+  bc seed 101 step 15000/40000 loss 1.01659
+  bc seed 101 step 20000/40000 loss 0.97879
+  bc seed 101 step 25000/40000 loss 0.95381
+  bc seed 101 step 30000/40000 loss 0.93571
+  bc seed 101 step 35000/40000 loss 0.92147
+  bc seed 101 step 40000/40000 loss 0.91009
+  done in 543.0s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+{
+  "canonical_digest": "dc69cbd9bfa181bc25aa8c8214f3aa7f93deabe49468eaef2f0cda8ca5904936",
+  "cell": "bc_m@mappo1000",
+  "clock": "uncontrolled; no Best Performance regime, no canary; not a benchmark",
+  "device": "cuda",
+  "finished_unix": 1792148142.5845914,
+  "gradient_steps": 40000,
+  "inputs_monotonic_seconds": 56.908644580995315,
+  "inputs_wall_seconds": 56.9086434841156,
+  "record_seconds": 543.0272011756897,
+  "seed": 101,
+  "started_unix": 1792147598.123353,
+  "train_run_monotonic_seconds": 544.4866360310116,
+  "train_run_wall_seconds": 544.4866366386414
+}
+
+## iql_m
+TRAIN grid4x4:iql_m@mappo1000 seed 101 -> /tmp/claude-1000/-home-filip-rltraffic-p91/d6facc9a-caac-479a-8c8a-d45976d901c1/scratchpad/retake/iql_m/output/p9_1_runs/checkpoints/grid4x4/grid4x4_mappo1000_iql_m_seed101.pt
+  transitions 1152000
+  iql seed 101 step 5000/40000 policy 2.13466 q 4.28230 v 0.12662
+  iql seed 101 step 10000/40000 policy 2.28591 q 9.37969 v 0.33612
+  iql seed 101 step 15000/40000 policy 2.14356 q 9.88074 v 0.55802
+  iql seed 101 step 20000/40000 policy 1.95535 q 11.12292 v 0.91819
+  iql seed 101 step 25000/40000 policy 1.83329 q 13.84596 v 1.67350
+  iql seed 101 step 30000/40000 policy 1.88510 q 18.59835 v 2.51404
+  iql seed 101 step 35000/40000 policy 1.99864 q 25.51201 v 3.42758
+  iql seed 101 step 40000/40000 policy 2.40119 q 34.59634 v 4.96042
+  done in 2187.3s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+{
+  "canonical_digest": "a20ee9115dcb52f4e62a5567f6c8ebd67b9a39d4152f11a98dfda8f36bef70c6",
+  "cell": "iql_m@mappo1000",
+  "clock": "uncontrolled; no Best Performance regime, no canary; not a benchmark",
+  "device": "cuda",
+  "finished_unix": 1792150394.1509225,
+  "gradient_steps": 40000,
+  "inputs_monotonic_seconds": 57.8290232319996,
+  "inputs_wall_seconds": 57.82902216911316,
+  "record_seconds": 2187.300815343857,
+  "seed": 101,
+  "started_unix": 1792148202.9341075,
+  "train_run_monotonic_seconds": 2191.2451099960017,
+  "train_run_wall_seconds": 2191.245110273361
+}
+
+## d4rl (iql_t seed 101)
+  logger.deprecation(
+  iql seed 101: return -58.8 in 547s
+{
+  "iql_t": {
+    "per_seed_return": [
+      -58.81525197136908
+    ],
+    "return_ci95_halfwidth": 0.0,
+    "return_mean": -58.81525197136908,
+    "return_std": 0.0,
+    "seeds": 1
+  }
+}
+wrote /tmp/claude-1000/-home-filip-rltraffic-p91/d6facc9a-caac-479a-8c8a-d45976d901c1/scratchpad/retake/d4rl/out/p8_3_train_k64_40000_iql_t.json
+cell: {'arm': 'iql_t', 'seed': 101, 'training_seconds': 538.1969215869904, 'wall_seconds': 547.2352721691132, 'gradient_steps': 40000, 'canonical_digest': '922fc88515a936d16cf45a2101a76a9214f3c40de825905b34682847cd387b4d'}
+
+## the campaign estimate with the re-take's values (cost_bc.py)
+| hz1x1 iql_t (8 tiers x 5) | 4.6 |
+| hz1x1 random_fresh (5 arms x 5) | 1.7 |
+| mixture (5 arms x 5) | 1.7 |
+| budget (4 arms x 5 x 2 tiers, 2.5 x the 40k cost) | 5.5 |
+| grid matched (4 arms x 4 tiers x 5) | 16.2 |
+| grid iql_t (4 tiers x 5) | 1.9 |
+| grid random_fresh (5 arms x 5) | 8.9 |
+| **total, serial** | **40.5** |
+iql_m share: 25 runs x 2187.3 s = 15.2 h; bc_m: 25 x 543.0 s = 3.8 h

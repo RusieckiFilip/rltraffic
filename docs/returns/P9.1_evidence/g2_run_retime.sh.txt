@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Re-time ONE full matched IQL grid run from a detached tree at e19ab2a, with a 5-s Unix-time GPU trace as the witness
+# that the machine did not pause; everything under $S/retime.
+set -uo pipefail
+S=/tmp/claude-1000/-home-filip-rltraffic-p91/d6facc9a-caac-479a-8c8a-d45976d901c1/scratchpad
+TREE=$S/pf_tree2
+OUT=$S/retime
+mkdir -p "$OUT/output"
+export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
+unset CUBLAS_WORKSPACE_CONFIG
+echo "tree $TREE at $(git -C "$TREE" rev-parse HEAD); dirty=[$(git -C "$TREE" status --porcelain --untracked-files=no)]"
+nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv
+( while :; do printf '%s,%s\n' "$(date -u +%s.%N)" "$(nvidia-smi --query-gpu=memory.used,utilization.gpu --format=csv,noheader,nounits | head -1 | tr -d ' ')"; sleep 5; done ) > "$OUT/gpu_trace.csv" 2>/dev/null &
+TRACE=$!
+cd /home/filip/rltraffic
+PYTHONPATH=$TREE /home/filip/rltraffic/.venv/bin/python -P "$S/time_iqlm.py" "$OUT/output" "$TREE" > "$OUT/retime_stdout.txt" 2> "$OUT/retime_stderr.txt"
+echo "time_iqlm exit=$?"
+kill "$TRACE"
+/home/filip/rltraffic/.venv/bin/python - "$OUT/gpu_trace.csv" <<'EOF'
+import sys
+samples = [float(line.split(",")[0]) for line in open(sys.argv[1]) if line.strip()]
+gaps = [(a, b) for a, b in zip(samples, samples[1:]) if b - a > 30.0]
+print(f"trace samples={len(samples)} span={samples[-1] - samples[0]:.1f}s max_step={max(b - a for a, b in zip(samples, samples[1:])):.1f}s gaps>30s={gaps}")
+EOF

@@ -1,0 +1,164 @@
+[
+ {
+  "name": "B1 records skip a compared cell",
+  "file": "offline/corrective_report.py",
+  "old": "    ids = sorted({cid for cid in _referenced(body) if cid in src.cells})",
+  "new": "    ids = sorted({cid for cid in _referenced(body) if cid in src.cells and not cid.startswith('p4_')})",
+  "tests": [
+   "tests/test_corrective_report_build.py"
+  ]
+ },
+ {
+  "name": "B2 dirty tree accepted",
+  "file": "offline/corrective_report.py",
+  "old": "    if payload.get(\"git\", {}).get(\"dirty\") is not False:",
+  "new": "    if False:",
+  "tests": [
+   "tests/test_corrective_report_build.py"
+  ]
+ },
+ {
+  "name": "B3 label of another point",
+  "file": "offline/corrective_report.py",
+  "old": "        \"format_version\": REPORT_FORMAT_VERSION, \"label\": cr.LABELS[point],",
+  "new": "        \"format_version\": REPORT_FORMAT_VERSION, \"label\": cr.LABELS[\"A27(b)\"],",
+  "tests": [
+   "tests/test_corrective_report_build.py"
+  ]
+ },
+ {
+  "name": "B4 mixture parents swapped in",
+  "file": "offline/corrective_report.py",
+  "old": "    cells = {arm: src.cells[f\"p9_1:hz1x1:{arm}@{MIXTURE_TIER}\"] for arm in (\"dt\", \"bc\", \"bc_top10\", \"iql\", \"iql_t\")}",
+  "new": "    cells = {**{arm: src.cells[f\"p9_1:hz1x1:{arm}@{MIXTURE_TIER}\"] for arm in (\"dt\", \"bc\", \"bc_top10\", \"iql\", \"iql_t\")}, \"dt\": src.cells[\"p4_4:madt\"]}",
+  "tests": [
+   "tests/test_corrective_report_build.py"
+  ]
+ },
+ {
+  "name": "B5 budget 40k from the wrong tier",
+  "file": "offline/corrective_report.py",
+  "old": "    \"mix50\": {\"dt\": \"p4_7:dt@mix50\",",
+  "new": "    \"mix50\": {\"dt\": \"p4_4:madt\",",
+  "tests": [
+   "tests/test_corrective_report_build.py"
+  ]
+ },
+ {
+  "name": "B6 budget scopes swapped",
+  "file": "offline/corrective_report.py",
+  "old": "    \"mix50\": \"an exploratory extension beyond A8(b)\",",
+  "new": "    \"mix50\": \"A8(b)'s secondary (the registered ceiling of 100,000 steps)\",",
+  "tests": [
+   "tests/test_corrective_report_build.py"
+  ]
+ },
+ {
+  "name": "B7 plateau counts include plateaued",
+  "file": "offline/corrective_report.py",
+  "old": "    curves = [run[\"window_means\"] for run in runs if not run[\"plateaued\"]]",
+  "new": "    curves = [run[\"window_means\"] for run in runs]",
+  "tests": [
+   "tests/test_corrective_report_build.py"
+  ]
+ },
+ {
+  "name": "B8 exposure counts every statement",
+  "file": "offline/corrective_report.py",
+  "old": "    pool = [e for e in moved if counted is None or e[\"id\"] in counted]",
+  "new": "    pool = list(moved)",
+  "tests": [
+   "tests/test_corrective_report_build.py"
+  ]
+ },
+ {
+  "name": "B9 stray moves tolerated",
+  "file": "offline/corrective_report.py",
+  "old": "    if stray:\n        raise ValueError(f\"{stray[0]['id']} at {stray[0]['tier']} moved without reading a replaced cell\")",
+  "new": "    if False:\n        raise ValueError(\"x\")",
+  "tests": [
+   "tests/test_corrective_report_build.py"
+  ]
+ },
+ {
+  "name": "B10 sentence uses dt_spatial",
+  "file": "offline/corrective_report.py",
+  "old": "    dt = books[\"corrected\"][(\"dt_nomix\", \"mappo1000\")]",
+  "new": "    dt = books[\"corrected\"][(\"dt_spatial\", \"mappo1000\")]",
+  "tests": [
+   "tests/test_corrective_report_build.py"
+  ]
+ },
+ {
+  "name": "B11 grid iql registered random as_committed",
+  "file": "offline/corrective_report.py",
+  "old": "    grid = cv.paired_differences({t: (src.cells[f\"p9_1:grid4x4:iql_t@{t}\"], books[\"corrected\"][(\"iql\", t)])",
+  "new": "    grid = cv.paired_differences({t: (src.cells[f\"p9_1:grid4x4:iql_t@{t}\"], books[\"as_committed\"][(\"iql\", t)])",
+  "tests": [
+   "tests/test_corrective_report_build.py"
+  ]
+ },
+ {
+  "name": "B12 twelve counts hz1x1 only",
+  "file": "offline/corrective_report.py",
+  "old": "        entries = [e[\"by_definition\"][definition] for e in hz[\"tiers\"] + grid[\"tiers\"]]",
+  "new": "        entries = [e[\"by_definition\"][definition] for e in hz[\"tiers\"]]",
+  "tests": [
+   "tests/test_corrective_report_build.py"
+  ]
+ },
+ {
+  "name": "B13 iql rescore keeps every statement",
+  "file": "offline/corrective_report.py",
+  "old": "    rescore[\"statements\"] = [e for e in rescore[\"statements\"] if set(e[\"inputs\"]) & new_ids]\n",
+  "new": "",
+  "tests": [
+   "tests/test_corrective_report_build.py"
+  ]
+ },
+ {
+  "name": "B14 a6 against the old iql twice",
+  "file": "offline/corrective_report.py",
+  "old": "        \"p4_4_a6\": cv.a6_rescore(src.cells[\"p4_4:madt\"], src.cells[\"p4_4:iql\"], src.cells[\"p9_1:hz1x1:iql_t@mappo1000\"],",
+  "new": "        \"p4_4_a6\": cv.a6_rescore(src.cells[\"p4_4:madt\"], src.cells[\"p4_4:iql\"], src.cells[\"p4_4:iql\"],",
+  "tests": [
+   "tests/test_corrective_report_build.py"
+  ]
+ },
+ {
+  "name": "B15 fresh collapse one reference",
+  "file": "offline/corrective_report.py",
+  "old": "    hz_refs = {\"registered_five_schedule\": src.cells[\"p4_6:behaviour@random\"],\n               \"random_fresh\": src.cells[\"p9_1:hz1x1:behaviour@random_fresh\"]}",
+  "new": "    hz_refs = {\"registered_five_schedule\": src.cells[\"p4_6:behaviour@random\"]}",
+  "tests": [
+   "tests/test_corrective_report_build.py"
+  ]
+ },
+ {
+  "name": "B16 grid p3a joint",
+  "file": "offline/corrective_report.py",
+  "old": "    \"grid4x4\": {**cv.p3a(src.p3a[grid_dt], per_intersection=True), \"cell\": grid_dt}}",
+  "new": "    \"grid4x4\": {**cv.p3a(src.p3a[grid_dt], per_intersection=False), \"cell\": grid_dt}}",
+  "tests": [
+   "tests/test_corrective_report_build.py"
+  ]
+ },
+ {
+  "name": "B17 q6 fresh anchor not substituted",
+  "file": "offline/corrective_report.py",
+  "old": "    fresh_book = {**books[\"corrected\"], tst.ANCHOR: grid_refs[\"random_fresh\"]}",
+  "new": "    fresh_book = dict(books[\"corrected\"])",
+  "tests": [
+   "tests/test_corrective_report_build.py"
+  ]
+ },
+ {
+  "name": "B18 p3b grid old uses as_committed",
+  "file": "offline/corrective_report.py",
+  "old": "        {**cv.contrast_entry(books[\"corrected\"][(\"iql\", \"random\")], books[\"corrected\"][(\"dt_nomix\", \"random\")],",
+  "new": "        {**cv.contrast_entry(books[\"as_committed\"][(\"iql\", \"random\")], books[\"corrected\"][(\"dt_nomix\", \"random\")],",
+  "tests": [
+   "tests/test_corrective_report_build.py"
+  ]
+ }
+]

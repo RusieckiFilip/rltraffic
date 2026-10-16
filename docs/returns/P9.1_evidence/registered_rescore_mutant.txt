@@ -1,0 +1,9 @@
+# The registered-book tautology guard on real data (tests/test_corrective_rescore_registered.py), its mutant run twice
+
+## First run, against the test as committed in 8002c70 (verdict and reading only) -- the mutant SURVIVED
+mutant                                           result    evidence
+V13r rescore on as_committed (real data)         SURVIVED  1 passed in 3.60s
+
+## Second run, after the test also compares each statement's inputs and numbers -- KILLED
+mutant                                           result    evidence
+V13r rescore on as_committed (real data)         KILLED    FAILED tests/test_corrective_rescore_registered.py::test_the_registered_book_rescored_with_nothing_substituted_is_every_committed_p5_2c_decis

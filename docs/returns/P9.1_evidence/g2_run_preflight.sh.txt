@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# The G2 pre-flight, from a detached tree at the C5 commit; everything it writes goes under $S/preflight.
+set -uo pipefail
+S=/tmp/claude-1000/-home-filip-rltraffic-p91/d6facc9a-caac-479a-8c8a-d45976d901c1/scratchpad
+PF=$1
+OUT=$S/preflight
+mkdir -p "$OUT"
+export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
+unset CUBLAS_WORKSPACE_CONFIG
+echo "tree $PF at $(git -C "$PF" rev-parse HEAD); dirty=[$(git -C "$PF" status --porcelain --untracked-files=no)]"
+nvidia-smi --query-gpu=name,memory.used,memory.total,utilization.gpu --format=csv
+nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv
+nvidia-smi --query-gpu=timestamp,memory.used,utilization.gpu --format=csv,noheader -l 20 > "$OUT/gpu_trace.csv" &
+TRACE=$!
+cd /home/filip/rltraffic
+start=$(date +%s)
+PYTHONPATH=$PF /home/filip/rltraffic/.venv/bin/python -P -m offline.corrective_round --repo-root "$PF" \
+  --output-root /home/filip/rltraffic/output --corpus-root /home/filip/rltraffic/datasets_v11 \
+  --draws-root /home/filip/rltraffic/scenarios/draws preflight --scratch "$OUT" > "$OUT/preflight_stdout.txt" 2> "$OUT/preflight_stderr.txt"
+code=$?
+echo "corrective_round preflight exit=$code wall=$(( $(date +%s) - start )) s"
+mkdir -p "$OUT/d4rl"
+cd "$PF"
+start=$(date +%s)
+PYTHONPATH=$PF /home/filip/d4rl-calib-venv/bin/python -P -m calibration.d4rl_run --threads 1 train \
+  --dataset /home/filip/d4rl-calib-data/halfcheetah_medium_expert-v2.hdf5 --out "$OUT/d4rl" --arms iql --seeds 101 \
+  --iql-target-dropout off > "$OUT/d4rl_stdout.txt" 2>&1
+echo "d4rl one seed exit=$? wall=$(( $(date +%s) - start )) s"
+kill "$TRACE"
+nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv

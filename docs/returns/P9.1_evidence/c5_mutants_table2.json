@@ -1,0 +1,338 @@
+[
+ {
+  "name": "K11 aggregates include runs not done",
+  "file": "offline/corrective_round.py",
+  "old": "            if run_status(roots, cell, seed) != \"done\":\n                continue\n            record = json.loads(run_record_path",
+  "new": "            if not run_record_path(roots, cell.scenario, cell.tier, cell.arm, seed).exists():\n                continue\n            record = json.loads(run_record_path",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py",
+   "tests/test_corrective_round_preflight.py",
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "K18 check accepts an untyped prompt",
+  "file": "offline/corrective_round.py",
+  "old": "    if math.isnan(spec.target_rtg) or math.isnan(spec.rtg_scale):\n        raise ValueError(",
+  "new": "    if False:\n        raise ValueError(",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py",
+   "tests/test_corrective_round_preflight.py",
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "K19 shards unsorted",
+  "file": "offline/corrective_round.py",
+  "old": "    ordered = sorted(cells, key=cell_sort_key)\n    return [cell for index, cell in enumerate(ordered)",
+  "new": "    ordered = list(cells)[::-1]\n    return [cell for index, cell in enumerate(ordered)",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py",
+   "tests/test_corrective_round_preflight.py",
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "K21 declaration rewritten silently",
+  "file": "offline/corrective_round.py",
+  "old": "        if target.read_text(encoding=\"utf-8\") != text:\n            raise FileExistsError(",
+  "new": "        if False:\n            raise FileExistsError(",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py",
+   "tests/test_corrective_round_preflight.py",
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "K22 declare-evaluation writes before checking",
+  "file": "offline/corrective_round.py",
+  "old": "    for path, manifest in manifests.values():\n        _assert_manifest_is(path, manifest)\n    for path, manifest in manifests.values():",
+  "new": "    for path, manifest in manifests.values():",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py",
+   "tests/test_corrective_round_preflight.py",
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "K23 manifest compared by count+digest only",
+  "file": "offline/corrective_round.py",
+  "old": "    if path.is_file() and json.loads(path.read_text(encoding=\"utf-8\")) != dict(manifest):",
+  "new": "    if False:",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py",
+   "tests/test_corrective_round_preflight.py",
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "K24 a missing manifest is accepted",
+  "file": "offline/corrective_round.py",
+  "old": "        if not path.is_file():\n            raise FileNotFoundError(f\"{path} is missing: run `declare-evaluation` first",
+  "new": "        if False:\n            raise FileNotFoundError(f\"{path} is missing: run `declare-evaluation` first",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py",
+   "tests/test_corrective_round_preflight.py",
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "K25 evaluate does not require the declaration",
+  "file": "offline/corrective_round.py",
+  "old": "    assert_evaluation_declared(roots, *(f\"eval_ii/{name}\" for name in SCENARIOS_ORDER if scenario in (None, name)))\n",
+  "new": "",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py",
+   "tests/test_corrective_round_preflight.py",
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "K26 old-cells CLI skips its manifest",
+  "file": "offline/corrective_round.py",
+  "old": "            assert_evaluation_declared(roots, \"old_cells/hz1x1\")\n",
+  "new": "",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py",
+   "tests/test_corrective_round_preflight.py",
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "K27 old-cell shard partition unchecked",
+  "file": "offline/corrective_round.py",
+  "old": "    if int(of) < 1 or not 0 <= int(shard) < int(of):\n        raise ValueError(f\"shard {shard!r} of {of!r} is not a valid partition\")\n    return [cell for index, cell in enumerate(sorted(HZ1X1_OLD_CELLS))",
+  "new": "    return [cell for index, cell in enumerate(sorted(HZ1X1_OLD_CELLS))",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py",
+   "tests/test_corrective_round_preflight.py",
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "K28 complete ignores the old cells",
+  "file": "offline/corrective_round.py",
+  "old": "                and old[\"complete\"])",
+  "new": "                )",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py",
+   "tests/test_corrective_round_preflight.py",
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "K29 repoint skips the digest",
+  "file": "offline/corrective_round.py",
+  "old": "        if canonical_digest_of(path) != run[\"canonical_digest\"]:\n            raise ValueError(f\"{path}'s canonical digest",
+  "new": "        if False:\n            raise ValueError(f\"{path}'s canonical digest",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py",
+   "tests/test_corrective_round_preflight.py",
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "K30 route comparison ignores values",
+  "file": "offline/corrective_round.py",
+  "old": "    differing = [key for key in left if float(left[key]) != float(right[key])]",
+  "new": "    differing = []",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py",
+   "tests/test_corrective_round_preflight.py",
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "K31 mixture declared into the main tree",
+  "file": "offline/corrective_round.py",
+  "old": "    record[\"mixture_declaration\"] = declare_mixture(mixture_roots)",
+  "new": "    record[\"mixture_declaration\"] = declare_mixture(roots)",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py",
+   "tests/test_corrective_round_preflight.py",
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "K32 grid path writes to scratch reuse root",
+  "file": "offline/corrective_round.py",
+  "old": "        argv[argv.index(\"--reuse-root\") + 1] = str(Path(roots.output_root) / \"p5_1\")\n",
+  "new": "",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py",
+   "tests/test_corrective_round_preflight.py",
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "K33 preflight declares before measuring",
+  "file": "offline/corrective_round.py",
+  "old": "        \"matched_runs\": _preflight_matched_runs(roots, scratch, device),",
+  "new": "        \"mixture_first\": declare_mixture(roots),\n        \"matched_runs\": _preflight_matched_runs(roots, scratch, device),",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py",
+   "tests/test_corrective_round_preflight.py",
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "K34 driver pgrep misses evaluate",
+  "file": "offline/campaigns/p9_1_corrective.sh",
+  "old": "(train|declare|declare-evaluation|evaluate|old-cells|p3a-references|collect-random-fresh)",
+  "new": "(train|declare|declare-evaluation|old-cells|p3a-references|collect-random-fresh)",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py",
+   "tests/test_corrective_round_preflight.py",
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "K35 driver declares after the shards",
+  "file": "offline/campaigns/p9_1_corrective.sh",
+  "old": "    run_logged declare_evaluation cr declare-evaluation\n    shards evaluate\n",
+  "new": "    shards evaluate\n    run_logged declare_evaluation cr declare-evaluation\n",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py",
+   "tests/test_corrective_round_preflight.py",
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "K36 driver d4rl keeps target dropout",
+  "file": "offline/campaigns/p9_1_corrective.sh",
+  "old": " --iql-target-dropout off --compare-with",
+  "new": " --compare-with",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py",
+   "tests/test_corrective_round_preflight.py",
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "K37 driver token before the stage check",
+  "file": "offline/campaigns/p9_1_corrective.sh",
+  "old": "stage_check\nTOKEN=$RUNS/TOKEN_$STAGE\n[ -f \"$TOKEN\" ] || refuse \"no token at $TOKEN (the author's, after the brief clears the stage)\"\nrm -- \"$TOKEN\"",
+  "new": "TOKEN=$RUNS/TOKEN_$STAGE\n[ -f \"$TOKEN\" ] || refuse \"no token at $TOKEN (the author's, after the brief clears the stage)\"\nrm -- \"$TOKEN\"\nstage_check",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py",
+   "tests/test_corrective_round_preflight.py",
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "K38 driver old cells unsharded",
+  "file": "offline/campaigns/p9_1_corrective.sh",
+  "old": "    shards old-cells\n",
+  "new": "    run_logged old_cells cr old-cells\n",
+  "tests": [
+   "tests/test_corrective_round.py",
+   "tests/test_corrective_round_train.py",
+   "tests/test_corrective_round_eval.py",
+   "tests/test_corrective_round_data.py",
+   "tests/test_corrective_round_declare.py",
+   "tests/test_corrective_round_stages.py",
+   "tests/test_corrective_round_preflight.py",
+   "tests/test_corrective_round_driver.py"
+  ]
+ }
+]

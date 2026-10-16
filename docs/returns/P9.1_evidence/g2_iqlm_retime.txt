@@ -1,0 +1,45 @@
+# G2: one full matched IQL grid run RE-TIMED (iql_m@mappo1000, seed 101, 40,000 steps, CUDA), from a detached tree at e19ab2a, through the campaign's own train_run, into scratch.
+# Condition: the main checkout's full pytest suite ran on the CPU at the same time (one thread), so this is a contended measurement.
+# Why re-timed: the pre-flight's own iql_m run spans the machine's suspension (its trace: 23:39:06.324 -> 10:23:44.961, 38,678.6 s), so its 40,594.6 s are not a measurement.
+
+tree /tmp/claude-1000/-home-filip-rltraffic-p91/d6facc9a-caac-479a-8c8a-d45976d901c1/scratchpad/pf_tree2 at e19ab2aee5a1b89c97b2e80c7b4affc432566feb; dirty=[]
+pid, process_name, used_gpu_memory [MiB]
+time_iqlm exit=0
+trace samples=425 span=2145.0s max_step=5.2s gaps>30s=[]
+
+TRAIN grid4x4:iql_m@mappo1000 seed 101 -> /tmp/claude-1000/-home-filip-rltraffic-p91/d6facc9a-caac-479a-8c8a-d45976d901c1/scratchpad/retime/output/p9_1_runs/checkpoints/grid4x4/grid4x4_mappo1000_iql_m_seed101.pt
+  transitions 1152000
+  iql seed 101 step 5000/40000 policy 2.13466 q 4.28230 v 0.12662
+  iql seed 101 step 10000/40000 policy 2.28591 q 9.37969 v 0.33612
+  iql seed 101 step 15000/40000 policy 2.14356 q 9.88074 v 0.55802
+  iql seed 101 step 20000/40000 policy 1.95535 q 11.12292 v 0.91819
+  iql seed 101 step 25000/40000 policy 1.83329 q 13.84596 v 1.67350
+  iql seed 101 step 30000/40000 policy 1.88510 q 18.59835 v 2.51404
+  iql seed 101 step 35000/40000 policy 1.99864 q 25.51201 v 3.42758
+  iql seed 101 step 40000/40000 policy 2.40119 q 34.59634 v 4.96042
+  done in 2077.3s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+{
+  "cell": "iql_m@mappo1000",
+  "clock": "uncontrolled; no Best Performance regime, no canary; not a benchmark",
+  "device": "cuda",
+  "finished_wall": 1792144466.809346,
+  "gradient_steps": 40000,
+  "inputs_monotonic_seconds": 65.65753211699484,
+  "inputs_wall_seconds": 65.65752959251404,
+  "record_seconds": 2077.3289999961853,
+  "seed": 101,
+  "started_wall": 1792142385.6082928,
+  "train_run_monotonic_seconds": 2081.201052384,
+  "train_run_wall_seconds": 2081.2010531425476
+}
+
+# the campaign's serial GPU estimate with this value (cost.py; every other figure the plan's):
+| hz1x1 iql_t (8 tiers x 5) | 4.6 |
+| hz1x1 random_fresh (5 arms x 5) | 1.7 |
+| mixture (5 arms x 5) | 1.7 |
+| budget (4 arms x 5 x 2 tiers, 2.5 x the 40k cost) | 5.5 |
+| grid matched (4 arms x 4 tiers x 5) | 14.9 |
+| grid iql_t (4 tiers x 5) | 1.9 |
+| grid random_fresh (5 arms x 5) | 8.6 |
+| **total, serial** | **38.9** |
+iql_m share: 25 runs x 2077.3 s = 14.4 h; bc_m: 25 x 413.0 s = 2.9 h

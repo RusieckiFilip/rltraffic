@@ -1,0 +1,24 @@
+"""The campaign's serial GPU estimate: plan section 6's blocks, with the two full runs measured at G2 substituted for
+their 2,000-step extrapolations.  Usage: python cost.py <iql_m seconds>.  Every other per-run figure is the plan's
+(registered medians, the larger of brief/P8.2; 2,000-step extrapolations; iql_t = iql x 1.15, the plan's assumption)."""
+import sys
+
+BC_M = 413.026216506958          # measured at G2, full run
+IQL_M = float(sys.argv[1])       # measured at G2, full run (re-timed)
+HZ = {"dt": 204.0, "bc": 110.0, "bc_top10": 120.0, "iql": 361.0}
+HZ["iql_t"] = HZ["iql"] * 1.15
+GRID = {"dt_nomix": 3487.0, "iql": 298.0, "bc_top10_m": 97.0, "bc_top10_perix_m": 97.0}
+blocks = {
+    "hz1x1 iql_t (8 tiers x 5)": 40 * HZ["iql_t"],
+    "hz1x1 random_fresh (5 arms x 5)": 5 * sum(HZ[a] for a in ("dt", "bc", "bc_top10", "iql", "iql_t")),
+    "mixture (5 arms x 5)": 5 * sum(HZ[a] for a in ("dt", "bc", "bc_top10", "iql", "iql_t")),
+    "budget (4 arms x 5 x 2 tiers, 2.5 x the 40k cost)": 2 * 5 * 2.5 * sum(HZ[a] for a in ("dt", "bc", "bc_top10", "iql")),
+    "grid matched (4 arms x 4 tiers x 5)": 20 * (BC_M + GRID["bc_top10_m"] + GRID["bc_top10_perix_m"] + IQL_M),
+    "grid iql_t (4 tiers x 5)": 20 * GRID["iql"] * 1.15,
+    "grid random_fresh (5 arms x 5)": 5 * (GRID["dt_nomix"] + BC_M + GRID["bc_top10_m"] + GRID["bc_top10_perix_m"] + IQL_M),
+}
+for name, seconds in blocks.items():
+    print(f"| {name} | {seconds / 3600:.1f} |")
+total = sum(blocks.values())
+print(f"| **total, serial** | **{total / 3600:.1f}** |")
+print(f"iql_m share: 25 runs x {IQL_M:.1f} s = {25 * IQL_M / 3600:.1f} h; bc_m: 25 x {BC_M:.1f} s = {25 * BC_M / 3600:.1f} h")
