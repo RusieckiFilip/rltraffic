@@ -280,3 +280,20 @@ def test_the_hz1x1_aggregate_carries_done_runs_only_and_refuses_a_run_its_record
     with pytest.raises(ValueError, match="not the ones its record wrote"):
         cr.write_training_aggregates(roots)
     assert aggregate.read_bytes() == before
+
+
+def test_a_runs_record_brackets_its_training_with_unix_times(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The record carries when the run started and finished (wall clock, Unix seconds), so the report can tell a run
+    that a machine suspension interrupted from the driver's GPU trace (BRIEF_46 3.5: seconds are an uncontrolled clock;
+    a suspension inside a run is not noise but hours of a wrong number)."""
+    import time
+
+    roots = _hz1x1_fixture(tmp_path, monkeypatch)
+    _two_steps(monkeypatch, "hz1x1", "iql_t")
+    cell = _cell("hz1x1", "maxpressure", "iql_t")
+    before = time.time()
+    cr.train(roots, cells=[cell], device="cpu", seeds=(101,))
+    after = time.time()
+    record = json.loads(cr.run_record_path(roots, "hz1x1", "maxpressure", "iql_t", 101).read_text())
+    assert before <= record["started_unix"] <= record["finished_unix"] <= after
+    assert record["finished_unix"] - record["started_unix"] >= record["seconds"]

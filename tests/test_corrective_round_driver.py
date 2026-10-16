@@ -128,3 +128,12 @@ def test_the_campaign_says_complete_only_when_the_status_computed_from_disk_says
     check = body.index('["complete"] is True else 1)')
     assert body.index("run_logged p3a_references") < status < check < body.index("COMPLETE")
     assert 'fail "the campaign is not complete on disk' in body
+
+
+def test_the_campaign_keeps_a_unix_time_gpu_trace_from_before_training_to_the_end() -> None:
+    """A suspension of the machine shows as a gap between two samples; the report flags the runs it interrupted."""
+    body = _branch("campaign")
+    code = "\n".join(_code())
+    assert body.index("start_trace") < body.index("run_logged train")
+    assert 'date -u +%s.%N' in code and 'nvidia-smi --query-gpu=memory.used,utilization.gpu' in code
+    assert '"$LOGS/gpu_trace.csv"' in code and "trap stop_trace EXIT" in code

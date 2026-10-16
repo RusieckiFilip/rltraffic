@@ -284,6 +284,7 @@ def train_run(roots: Roots, cell: Cell, seed: int, inputs: Any, *, device: Any, 
     """
     import hashlib
     import os
+    import time
 
     import offline.method_tier_grid as grid
     import offline.offline_baselines as ob
@@ -306,6 +307,7 @@ def train_run(roots: Roots, cell: Cell, seed: int, inputs: Any, *, device: Any, 
     iql_extra = {} if recipe.target_dropout in (None, "active") else {"target_dropout": recipe.target_dropout}
     extra_record: dict[str, Any] = {}
     print(f"TRAIN {cell.scenario}:{cell.key} seed {seed} -> {final}", flush=True)
+    started_unix = time.time()
     if cell.scenario == "hz1x1":
         provenance = {**inputs.provenance, **a27_fields}
         group = inputs.group
@@ -367,6 +369,7 @@ def train_run(roots: Roots, cell: Cell, seed: int, inputs: Any, *, device: Any, 
     else:
         raise ValueError(f"unknown scenario {cell.scenario!r}")
 
+    finished_unix = time.time()
     assert_target(final, roots)
     os.replace(partial, final)
     losses = list(getattr(result, "losses", ()))
@@ -385,6 +388,8 @@ def train_run(roots: Roots, cell: Cell, seed: int, inputs: Any, *, device: Any, 
         "gradient_steps": int(result.gradient_steps),
         "seconds": float(result.seconds),
         "clock": CLOCK_LABEL,
+        "started_unix": started_unix,
+        "finished_unix": finished_unix,
         "checkpoint": str(final),
         "canonical_digest": grid.canonical_digest_of(final),
         "file_sha256": hashlib.sha256(final.read_bytes()).hexdigest(),

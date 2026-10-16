@@ -108,6 +108,21 @@ LOGS=$RUNS/logs/$STAMP
 mkdir -p "$LOGS"
 echo "token consumed; stage $STAGE $STAMP from $WORK_TREE at $COMMIT; logs $LOGS"
 
+TRACE_PID=""
+start_trace() {
+  # A Unix-time GPU sample every 20 s for the whole stage: a suspension of the machine shows as a gap between two
+  # samples, and the report flags every run whose [started_unix, finished_unix] spans one (its seconds are wall time).
+  ( while :; do
+      printf '%s,%s\n' "$(date -u +%s.%N)" "$(nvidia-smi --query-gpu=memory.used,utilization.gpu --format=csv,noheader,nounits 2>/dev/null | head -1 | tr -d ' ')"
+      sleep 20
+    done ) >>"$LOGS/gpu_trace.csv" 2>/dev/null &
+  TRACE_PID=$!
+}
+stop_trace() {
+  [ -z "$TRACE_PID" ] || kill "$TRACE_PID" 2>/dev/null || true
+}
+trap stop_trace EXIT
+
 run_logged() {
   local label=$1
   shift
@@ -140,6 +155,7 @@ case "$STAGE" in
     echo "stage collect $STAMP: COMPLETE -- next: plan Q2's typed commit, then the campaign stage under its own token"
     ;;
   campaign)
+    start_trace
     run_logged train cr train
     run_logged declare_evaluation cr declare-evaluation
     shards evaluate
