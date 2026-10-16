@@ -1,0 +1,93 @@
+[
+ {
+  "name": "B3-01 driver restarts on any exit 1 (no banner check)",
+  "file": "offline/campaigns/p9_1_corrective.sh",
+  "old": "if [ \"$code\" -ne 1 ] || [ \"$first\" != \"$STALL_BANNER\" ]; then",
+  "new": "if [ \"$code\" -ne 1 ]; then",
+  "tests": [
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "B3-02 driver never restarts",
+  "file": "offline/campaigns/p9_1_corrective.sh",
+  "old": "if [ \"$code\" -ne 1 ] || [ \"$first\" != \"$STALL_BANNER\" ]; then",
+  "new": "if true; then",
+  "tests": [
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "B3-03 driver cap off by one",
+  "file": "offline/campaigns/p9_1_corrective.sh",
+  "old": "if [ \"$restarts\" -ge \"$MAX_RESTARTS\" ]; then",
+  "new": "if [ \"$restarts\" -gt \"$MAX_RESTARTS\" ]; then",
+  "tests": [
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "B3-04 P3a's references not under the restart loop",
+  "file": "offline/campaigns/p9_1_corrective.sh",
+  "old": "run_logged p3a_references restarting p3a_references cr p3a-references",
+  "new": "run_logged p3a_references cr p3a-references",
+  "tests": [
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "B3-05 progress never re-arms",
+  "file": "offline/stall_guard.py",
+  "old": "        if self._clock() - self._armed_at >= self.rearm_seconds:\n            self.arm()",
+  "new": "        return",
+  "tests": [
+   "tests/test_stall_guard.py",
+   "tests/test_corrective_round_driver.py"
+  ]
+ },
+ {
+  "name": "B3-06 re-arm throttle strict",
+  "file": "offline/stall_guard.py",
+  "old": "if self._clock() - self._armed_at >= self.rearm_seconds:",
+  "new": "if self._clock() - self._armed_at > self.rearm_seconds:",
+  "tests": [
+   "tests/test_stall_guard.py"
+  ]
+ },
+ {
+  "name": "B3-07 wrapped methods skip the progress report",
+  "file": "offline/stall_guard.py",
+  "old": "            guard.progress()\n            return original(self, *args, **kwargs)",
+  "new": "            return original(self, *args, **kwargs)",
+  "tests": [
+   "tests/test_stall_guard.py"
+  ]
+ },
+ {
+  "name": "B3-08 restore leaves an inherited method on the class",
+  "file": "offline/stall_guard.py",
+  "old": "            if own is _INHERITED:\n                delattr(cls, name)",
+  "new": "            if own is _INHERITED:\n                setattr(cls, name, getattr(cls.__mro__[1], name))",
+  "tests": [
+   "tests/test_stall_guard.py"
+  ]
+ },
+ {
+  "name": "B3-09 the CLI never installs the guard",
+  "file": "offline/corrective_round.py",
+  "old": "    if getattr(args, \"stall_dump\", None) is not None:",
+  "new": "    if False:",
+  "tests": [
+   "tests/test_stall_guard.py"
+  ]
+ },
+ {
+  "name": "B3-10 the timer dumps but does not end the worker",
+  "file": "offline/stall_guard.py",
+  "old": "faulthandler.dump_traceback_later(self.seconds, exit=True, file=self._file)",
+  "new": "faulthandler.dump_traceback_later(self.seconds, exit=False, file=self._file)",
+  "tests": [
+   "tests/test_stall_guard.py::test_a_worker_blocked_in_c_holding_the_gil_dumps_its_stack_with_the_banner_and_exits_1"
+  ]
+ }
+]
