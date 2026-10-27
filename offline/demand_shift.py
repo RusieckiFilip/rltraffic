@@ -39,10 +39,13 @@ missing, failed or stale audit -- all before anything is written.
 
 from __future__ import annotations
 
+import faulthandler
 import hashlib
 import json
+import math
 import os
 import shutil
+import sys
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -1037,12 +1040,31 @@ def _validate_record(record: Mapping[str, Any], cell: Mapping[str, Any]) -> None
         )
 
 
+#: The per-cell watchdog's timeout (``BRIEF_47`` Amendment B, B.3.1): more than a hundred times the slowest cell measured at
+#: G2 (3.3 s for both routes).  CityFlow's ``Engine::~Engine()`` can wait forever at a two-party barrier, holding the main
+#: thread and the GIL (``docs/notes/P5.3c_HANG_2026-09-30.md``; ``DEFERRED`` 104); ``faulthandler``'s watchdog is a C thread
+#: that needs no GIL, so it still fires: it writes every thread's stack to the dump file and exits 1, and the shift driver's
+#: shard mode restarts the shard, which resumes from the records on disk.  The hang follows the episode, every write is atomic
+#: and the engine is seeded, so a restart changes no number.
+WATCHDOG_SECONDS = 600.0
+
+
 def evaluate_cells(cells: Sequence[Mapping[str, Any]], *, work_dir: str | Path, shard: int, of: int,
-                   roll_fn: Any) -> dict[str, Any]:
+                   roll_fn: Any, watchdog_seconds: float = WATCHDOG_SECONDS, watchdog_file: Any = None) -> dict[str, Any]:
     """Roll this shard's cells that have no record yet, each validated BEFORE it is written; resumable at cell grain; a
-    refused cell STOPS the shard and nothing is written for it, nor any directory before the first valid record."""
+    refused cell STOPS the shard and nothing is written for it, nor any directory before the first valid record.
+
+    THE WATCHDOG (``BRIEF_47`` Amendment B, B.3.1): ``faulthandler.dump_traceback_later(watchdog_seconds, exit=True)`` is
+    armed immediately before each cell this shard ROLLS and cancelled in a ``finally`` immediately after it, so a cell that
+    hangs past it is cut -- every thread's stack written to *watchdog_file* (the process's stderr when ``None``), exit 1 --
+    and a healthy shard of any length is never cut: nothing is armed between cells, and a cell already on disk arms nothing.
+    """
     if int(of) < 1 or not 0 <= int(shard) < int(of):
         raise ValueError(f"shard {shard!r} of {of!r} is not a valid partition")
+    seconds = float(watchdog_seconds)
+    if not math.isfinite(seconds) or seconds <= 0.0:
+        raise ValueError(f"watchdog_seconds {watchdog_seconds!r} is not a positive, finite number of seconds")
+    dump = watchdog_file if watchdog_file is not None else (sys.__stderr__ or sys.stderr)
     work = Path(work_dir)
     mine = [cell for index, cell in enumerate(sorted(cells, key=cell_name)) if index % int(of) == int(shard)]
     rolled: list[str] = []
@@ -1054,7 +1076,11 @@ def evaluate_cells(cells: Sequence[Mapping[str, Any]], *, work_dir: str | Path, 
             _validate_record(existing, cell)
             skipped += 1
             continue
-        record = roll_fn(cell)
+        faulthandler.dump_traceback_later(seconds, exit=True, file=dump)
+        try:
+            record = roll_fn(cell)
+        finally:
+            faulthandler.cancel_dump_traceback_later()
         _validate_record(record, cell)
         work.mkdir(parents=True, exist_ok=True)
         tmp = path.with_suffix(".json.tmp")
@@ -1108,6 +1134,12 @@ def build_parser() -> Any:
     evaluate.add_argument("--shard", type=int, default=0)
     evaluate.add_argument("--of", type=int, default=1)
     evaluate.add_argument("--iql-t-pins", default=None, help="stage 2: a JSON pin file {tier: {seed: {path, sha256}}}")
+    evaluate.add_argument("--watchdog-seconds", type=float, default=WATCHDOG_SECONDS,
+                          help="the per-cell watchdog (BRIEF_47 Amendment B, B.3): a cell still running after this many "
+                               "seconds is cut, its stacks dumped, exit 1")
+    evaluate.add_argument("--watchdog-file", default=None,
+                          help="the file the watchdog dumps into, opened for append (the shift driver passes the shard's "
+                               "own log); stderr when absent")
     sub.add_parser("status", help="declared against present")
     sub.add_parser("check-guard", help="exit 0 iff the guard record authorises an evaluation (read-only; the drivers ask "
                                        "before consuming their token)")
@@ -1175,10 +1207,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 2
     pins = None if args.iql_t_pins is None else json.loads(Path(args.iql_t_pins).read_bytes())
     roots = _roots(args)
-    result = evaluate_cells(
-        declared_cells(stage=int(args.stage)), work_dir=work, shard=args.shard, of=args.of,
-        roll_fn=lambda cell: roll_cell(cell, roots=roots, device=args.device, iql_t_pins=pins),
-    )
+    if not math.isfinite(float(args.watchdog_seconds)) or float(args.watchdog_seconds) <= 0.0:
+        print(f"REFUSED: --watchdog-seconds {args.watchdog_seconds!r} is not a positive number of seconds", flush=True)
+        return 2
+    # Opened for the process's life: faulthandler writes to it from its own thread, by file descriptor.
+    dump = None if args.watchdog_file is None else open(args.watchdog_file, "a", encoding="utf-8")
+    try:
+        result = evaluate_cells(
+            declared_cells(stage=int(args.stage)), work_dir=work, shard=args.shard, of=args.of,
+            roll_fn=lambda cell: roll_cell(cell, roots=roots, device=args.device, iql_t_pins=pins),
+            watchdog_seconds=float(args.watchdog_seconds), watchdog_file=dump,
+        )
+    finally:
+        if dump is not None:
+            dump.close()
     print(f"stage {args.stage} shard {args.shard}/{args.of}: rolled {result['rolled']}, skipped {result['skipped']} of "
           f"{result['n_cells']}", flush=True)
     return 0
