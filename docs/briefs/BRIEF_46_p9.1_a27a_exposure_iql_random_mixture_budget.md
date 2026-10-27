@@ -404,3 +404,63 @@ by a test, and include the change in the commit you name in "P9.1 campaign ready
   there in the same commit, with an override like P9.2's `P92_*` variables.
 - Then **"P9.1 campaign ready"** with that commit. Amendment C creates the run tree there and clears the token. The GPU is idle
   until then, and every idle hour comes out of P9.3's margin to 2026-11-07.
+
+---
+
+# ⛔ AMENDMENT C — 2026-10-27: the campaign is NOT cleared. B.2 is verified, but `tier_sweep.train_tier_dt` refuses the grid's `random_fresh` tier and would stop the campaign at training run 231 of 255. FIX FIRST (M1b), then a training smoke over every distinct cell
+
+## C.1 Verified at `d0c834d`, from disk
+- **The merge `f84c506`:** parents `d9ef0b9` and `7d4cbb3`.
+- **B.2's change, read:** the guard's 120.0; the driver's `P91_STALL_SECONDS` (120) and `P91_MAX_RESTARTS` (60), validated before
+  anything runs; `--stall-seconds` handed to every worker.
+- **Tested in a scratch clone at `d0c834d`:** `tests/test_corrective_round_driver.py` and `tests/test_stall_guard.py`, one process,
+  every `RLTRAFFIC_*` unset (CI's setting):
+  - control: **40 passed**;
+  - the guard back at 600.0 → **3 failed**;
+  - the driver's cap back at 20 → **2 failed**;
+  - **the driver with every `/home/filip/rltraffic` replaced by a path that does not exist → 40 passed**, so your audit's claim
+    holds.
+- **Q16, ruled:** no `P91_MAIN` override. No test reaches a `MAIN`-derived path (shown above), the campaign runs on this machine, and
+  an override would change the campaign commit for symmetry alone.
+
+## C.2 ⛔ The blocker: found by P9.3 (its plan `fc0fda2`, §10.2 C2), reproduced by the coordinator at `d0c834d`
+- **The check.** `offline/tier_sweep.py`'s `train_tier_dt` has `if tier not in TIERS: raise ValueError(…)` (line 841). `TIERS` is the
+  grid's four tiers. `random_fresh` lives in `A27_TIERS`, which `tier_spec` accepts and this check does not.
+- **Reproduced.** Called with `tier="random_fresh", method="dt_nomix"`, it raises `ValueError: unknown tier 'random_fresh'; this task
+  declares ['fixedtime', 'mappo1000', 'maxpressure', 'random']` before touching any data. The coordinator ran this in the clone.
+- **Where the campaign reaches it.** `corrective_round.train` calls `ts.train_tier_dt(…, tier=cell.tier, …)` for
+  `Cell("grid4x4", "random_fresh", "dt_nomix")`. In `training_runs()` order these are **runs 231–235 of 255**. The stage needs ≈ 40.5
+  GPU-hours, so it would have trained for ≈ 35 GPU-hours and then stopped, with 21 runs untrained and no evaluation. A fix at that
+  point would have split the campaign across two commits.
+- **Why no test saw it.** The training tests replace the trainer with a spy, so the refusal is never reached. hz1x1's trainer already
+  accepts A27's tiers (`method_tier_grid`, line 1490: `if tier not in TIERS and tier not in A27_TIERS`). The grid's was missed in M1,
+  **and the coordinator's M1 review missed it too**: B.1 read the three training paths but ran none of them on `random_fresh`.
+
+## C.3 FIX FIRST: M1b, on its own branch from `main` (as M1 was), because P9.3's Phase B needs the same line (its Q-B1)
+1. Branch `task/p9.1-m1b` from `main` at `0e38175` or later, in its own worktree.
+2. **The test first, red on the unchanged trainer.** `train_tier_dt` on the grid's `random_fresh` passes the tier check and trains,
+   for example 2 gradient steps on CPU on a small synthetic stack. Its checkpoint record carries `tier` `random_fresh`. An undeclared
+   name is still refused.
+3. **The fix.** The check becomes `if tier not in TIERS and tier not in A27_TIERS:`, the mirror of `method_tier_grid`'s, and its
+   message names A27's tiers. Nothing else in the trainer changes.
+4. **A mutant.** Restore the old check: the test must fail. Report it killed against a control.
+5. **Runs.** The touched test file and `tier_sweep`'s own test files, in one pytest process with
+   `OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`; then hygiene, English and the guard. Then say **"P9.1 M1b ready"** with the commit. The
+   coordinator merges it into `main`.
+
+## C.4 Then on `task/p9.1-a27a`, with the training smoke (§7's CI rule (4): a spy proves the call; only the real callee proves the run)
+1. `git merge --no-edit task/p9.1-m1b`, or merge `main` once M1b is on it. Either way it is the same commit.
+2. **The training smoke, REQUIRED before the token.**
+   - What: every distinct training cell of `training_runs()` (its 51 (scenario, tier, arm) cells), trained for ONE seed.
+   - How: through the campaign's own training function, on the real corpora, with only two substitutions: the gradient steps (2) and
+     the output root (a scratch directory). No spy and no stub trainer.
+   - Where: on CPU in your session, or on CUDA outside its sandbox, as M1's regenerations ran.
+   - Report: 51 of 51 completed, with seconds per cell. A refusal stops the smoke and is reported, not worked around.
+3. **The evaluation smoke, where it needs no code change.**
+   - What: each of the 53 new evaluation cells, for one episode of one held-out draw, through both routes, `att_ours` equal under
+     `==`, using the smoke's checkpoints in the scratch root.
+   - If the module cannot be pointed at the scratch root without a code change, do not change it. Instead, list which evaluation
+     paths G2's pre-flight already ran and which no run has reached yet; the coordinator rules.
+4. **The trial's 26 files** on the merge commit, in one process with one thread.
+5. Then say **"P9.1 campaign ready"** with that commit. The coordinator verifies it, creates the run tree there and clears the token
+   in Amendment D. Every hour the GPU idles comes out of P9.3's margin to 2026-11-07.
