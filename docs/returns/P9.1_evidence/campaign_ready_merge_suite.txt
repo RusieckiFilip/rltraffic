@@ -1,0 +1,65 @@
+# Whole suite on 9fc8ba2, attempt 2 (2026-10-27): CI's setting (no corpus variables), OMP/MKL 1, one pytest process,
+# -o faulthandler_timeout=600 armed (it did not fire), outer timeout 3600; HEAD held
+HEAD 9fc8ba2; start 2026-10-27T13:36:30Z  14:36:30 up 13:08,  1 user,  load average: 3.06, 2.77, 1.62
+                raise ValueError('stdout and stderr arguments may not be used '
+                                 'with capture_output.')
+            kwargs['stdout'] = PIPE
+            kwargs['stderr'] = PIPE
+    
+        with Popen(*popenargs, **kwargs) as process:
+            try:
+                stdout, stderr = process.communicate(input, timeout=timeout)
+            except TimeoutExpired as exc:
+                process.kill()
+                if _mswindows:
+                    # Windows accumulates the output in a single blocking
+                    # read() call run on child threads, with the timeout
+                    # being done in a join() on those threads.  communicate()
+                    # _after_ kill() is required to collect that and add it
+                    # to the exception.
+                    exc.stdout, exc.stderr = process.communicate()
+                else:
+                    # POSIX _communicate already populated the output so
+                    # far into the TimeoutExpired exception.
+                    process.wait()
+                raise
+            except:  # Including KeyboardInterrupt, communicate handled that.
+                process.kill()
+                # We don't call process.wait() as .__exit__ does that for us.
+                raise
+            retcode = process.poll()
+            if check and retcode:
+>               raise CalledProcessError(retcode, process.args,
+                                         output=stdout, stderr=stderr)
+E               subprocess.CalledProcessError: Command '['tmux', 'new-session', '-d', '-s', 'p73d_hdr_14268205']' returned non-zero exit status 1.
+
+/usr/lib/python3.12/subprocess.py:571: CalledProcessError
+----------------------------- Captured stderr call -----------------------------
+error connecting to /tmp/tmux-1000/default (Operation not permitted)
+=============================== warnings summary ===============================
+tests/test_aligned_env.py: 6 warnings
+tests/test_backend_alignment.py: 2 warnings
+tests/test_dqn_queue_length_reward.py: 1 warning
+tests/test_materialise_parity.py: 1 warning
+tests/test_sumo_att_reference.py: 2 warnings
+tests/test_sumo_env_phase_constraints.py: 8 warnings
+tests/test_transfer_calibration.py: 5 warnings
+tests/test_transfer_curve.py: 1 warning
+tests/test_transfer_gate.py: 3 warnings
+  /home/filip/rltraffic-p91/utils/sumo_utils.py:56: UserWarning: Call to deprecated function getAllProgramLogics, use getCompleteRedYellowGreenDefinition instead.
+    definitions = sumo.trafficlight.getCompleteRedYellowGreenDefinition(tl_id)
+
+tests/test_runner_threading.py::test_worker_process_runs_single_threaded
+tests/test_runner_threading.py::test_worker_process_runs_single_threaded
+tests/test_runner_threading.py::test_pool_path_pins_every_worker
+  /usr/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=17) is multi-threaded, use of fork() may lead to deadlocks in the child.
+    self.pid = os.fork()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_p7_3c_campaign.py::test_the_headers_own_line_passes_the_guard_and_the_pane_carries_the_drivers_exit_code
+FAILED tests/test_p7_3c_corpus_driver.py::test_the_headers_own_line_passes_the_guard_and_the_pane_carries_the_drivers_exit_code
+FAILED tests/test_p7_3d_campaign_path.py::test_the_headers_own_line_passes_the_guard_and_the_pane_carries_the_drivers_exit_code
+3 failed, 3701 passed, 242 skipped, 32 warnings in 772.42s (0:12:52)
+pytest exit=1
+end 2026-10-27T13:49:24Z  14:49:24 up 13:21,  1 user,  load average: 6.70, 5.58, 3.81; HEAD 9fc8ba2
