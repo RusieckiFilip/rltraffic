@@ -360,3 +360,51 @@ is applied as registered; it is not re-opened.
   and the paper's baselines paragraph needs it. Whether its artifact and code reach `main` separately is the coordinator's next
   ruling (`PROJECT_PLAN` §8, 2026-10-27); until then do nothing with it.
 - Write nothing further on the branch except, if asked, a closing note.
+
+---
+
+# ⚖️ AMENDMENT E — 2026-10-27, THE AUTHOR'S RULING: Amendment D is REVOKED; point 8 RESUMES with a new hard stop of 2026-11-07 (deviation D7); the fixed-time tier CLEARED; your order to the merge
+
+## E.1 The ruling
+**Quoted (2026-10-27):** *"Author's ruling: point 8 (hz4x4) is NOT dropped. I was away for ten days and was not asked. The 23 Oct
+hard stop was a feasibility time-box, and no hz4x4 learner number exists, so extending it selects on nothing. Record it as a
+deviation in A27_DEVIATIONS (like D1) with a new hard stop of 2026-11-07, revoke BRIEF_48 Amendment D, and resume P9.3 from where it
+stopped: the fixed-time collection at k = 2, random_fresh, the stall remedy, then Phase B on the GPU after P9.1's campaign."*
+- **Amendment D is revoked in full.** The branch is live again; nothing of D stands.
+- **The hard stop is 2026-11-07**, with A27(i)'s consequence unchanged: not merged to `main` by then → dropped, a named limitation.
+  The deviation is D7 in `docs/notes/A27_DEVIATIONS.md` (it supersedes D2; D5 and D6 are live again).
+- Amendments A, B and C stand: the label (conditional generalizability extension), the k = 2 ruling, the A11 gate's fail branch
+  (A.3), the stall remedy (B.3) with E.3's corrected values.
+
+## E.2 The fixed-time tier — CLEARED (the author's run, `p93-fixedtime`)
+Verified by the coordinator before clearing it: the run tree `/home/filip/rltraffic-p93-run-ft`, detached at `0426a73` (the commit
+carrying the ruling file), clean; its `offline/collect.py` is the one that collected the `maxpressure` and `mappo1000` tiers (your
+branch has not merged M1 yet). The read-only `collect plan --tiers fixedtime --ruling …` from the main tree derives ONE run, 200
+episodes, nothing missing, and its command equals the grid fixed-time manifest's settings field by field (policy, episodes,
+base seed 1000, 360 steps, Δt 10, acyclic, queue-length rewards at global weight 0.0, the three state features, the randomiser
+30.0 / 0.1 / 1.0) with exactly three substitutions: `--env-config` the main tree's `configs/sim/cityflow4x4.json`, `--out-dir`
+`datasets_v11/cf_hz4x4__fixedtime`, `--fixed-time-k 2` (the grid's is 1); draws 1–200. The target is absent. The author runs the
+command your note gave (the coordinator's message of 2026-10-27 carries it whole). If its log shows no new episode line for ten
+minutes, the author reports "p93-fixedtime hung" and nothing is re-run without a ruling.
+
+## E.3 Your order to the merge
+1. `git merge main` (it brings P9.1's M1 collector and training flags, P9.2's merge, Amendments D and E) and re-run your task's test
+   files (one pytest process, `OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`).
+2. **The stall remedy's values, corrected (the coordinator's error, `BRIEF_47` Amendment D, D.3; `BRIEF_46` Amendment B.2):**
+   `episode_watchdog` cuts after **120 s**, `run_with_restarts` stops after **60** restarts — the defaults in your code, pinned by a
+   test. 600 s and 20 were set without computing the expected hangs.
+3. After `p93-fixedtime` ends `OK`: `collect verify` on `cf_hz4x4__fixedtime` (its write-once record committed).
+4. **`random_fresh`:** read M1's merged `offline/collect.py` and confirm your plan's A1 (the manifest key `random_rng_scheme`, value
+   `per-episode`) and Q1's within-draw episode index (`BRIEF_46` Amendment B, B.2); `collect plan --tiers random_fresh` read-only;
+   then say **"P9.3 random_fresh ready"** with the commit and the command. The coordinator creates its run tree and clears it
+   (Amendment F). After it: `collect verify`, with A27(d)'s 200 distinct per-intersection action sequences.
+5. **The gate** (A11, all four criteria with observed values; criterion 4 fails by construction, A.3) under your stall remedy, then
+   `declare`.
+6. **Phase B:** its plan appended to `docs/plans/p9.3.md`; `offline/hz4x4_phase_b.py` tests first, one mutant per number-computing
+   path; M1's flags (`--iql-target-dropout off`, the matched batches) and `att_rederivation.run_campaign(..., factory_builder=…)`
+   for P8.4b's route; the evaluation under the stall remedy. **G3b** — the pre-flight with each arm's GPU cost: P9.1's measured grid
+   costs as the estimate (the same lattice, the same 200-episode tiers), one short timing per arm taken only when no P9.1 training
+   runs. The token request in one message.
+7. **The GPU:** Phase B's trainings start only after P9.1's campaign has finished its trainings (they may overlap P9.1's
+   evaluation stage); never two trainings on the GPU at once.
+8. G4 (artifact and packet) → G5 (one review, at most one fix round) → **merged by 2026-11-07**, or dropped.
