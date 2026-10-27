@@ -300,3 +300,34 @@ def test_a_tier_of_the_wrong_size_is_refused(tmp_path: Path) -> None:
     schedules = [[[0, 1]], [[1, 1]]]
     with pytest.raises(ValueError, match="2 episodes"):
         arms.assert_distinct_schedules(_write_schedule_tier(tmp_path / "tier", schedules), expected=200)
+
+
+# ----------------------------------------------------------------------
+# A27(d)'s arms on random_fresh (BRIEF_46 Amendment B, B.1(1))
+# ----------------------------------------------------------------------
+
+
+def test_a27d_declares_exactly_these_arms_on_each_scenarios_random_fresh() -> None:
+    """Written here from A27(d)'s text: hz1x1 trains dt, bc, bc_top10, iql, iql_t; the grid trains dt_nomix, bc_m,
+    bc_top10_m, bc_top10_perix_m, iql_m."""
+    assert dict(arms.RANDOM_FRESH_ARMS) == {
+        "hz1x1": ("dt", "bc", "bc_top10", "iql", "iql_t"),
+        "grid4x4": ("dt_nomix", "bc_m", "bc_top10_m", "bc_top10_perix_m", "iql_m"),
+    }
+
+
+@pytest.mark.parametrize(("scenario", "arm"), [
+    ("grid4x4", "bc"), ("grid4x4", "bc_top10"), ("grid4x4", "bc_top10_perix"), ("grid4x4", "iql"),
+    ("grid4x4", "iql_t"), ("grid4x4", "dt_spatial"), ("hz1x1", "bc_m"), ("hz1x1", "dt_100k"), ("hz1x1", "iql_100k"),
+])
+def test_on_random_fresh_every_recipe_outside_the_scenarios_list_is_refused(scenario: str, arm: str) -> None:
+    with pytest.raises(ValueError, match=f"\\['{arm}'\\] on {scenario}'s random_fresh.*A27\\(d\\)"):
+        arms.assert_declared_on_random_fresh(scenario, "random_fresh", ["dt_nomix" if scenario == "grid4x4" else "dt",
+                                                                         arm])
+
+
+def test_the_declared_arms_pass_and_every_other_tier_is_untouched() -> None:
+    for scenario, declared in (("hz1x1", ("dt", "bc", "bc_top10", "iql", "iql_t")),
+                               ("grid4x4", ("dt_nomix", "bc_m", "bc_top10_m", "bc_top10_perix_m", "iql_m"))):
+        assert arms.assert_declared_on_random_fresh(scenario, "random_fresh", declared) is None
+        assert arms.assert_declared_on_random_fresh(scenario, "mappo1000", ["bc", "iql_t", "anything"]) is None

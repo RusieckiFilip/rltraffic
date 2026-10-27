@@ -343,3 +343,20 @@ scenarios; the att_engine optimum k = 3 disclosed beside it)."*
    grid's protocol, `--ruling` naming the committed file), from a run tree at that commit. The coordinator verifies the file, creates
    the run tree and hands the author the token. Collection writes its `.npz` before the engine is freed, so B.3's remedy is not needed
    for it.
+
+---
+
+# ⛔ AMENDMENT D — 2026-10-27: THE HARD STOP HAS FIRED — point 8 is DROPPED, by A27(i) as registered
+
+A27(i): *"hard stop 2026-10-23: not merged by then, dropped, a named limitation."* The branch was not merged by 2026-10-23 (the last
+commit is `ee8c6d3`, 2026-10-16; the author was away 2026-10-16 to 2026-10-27, and a Windows update rebooted the machine). The rule
+is applied as registered; it is not re-opened.
+- **Stop all P9.3 work.** No fixed-time collection, no `random_fresh` tier, no gate, no Phase B. Nothing of this branch is merged or
+  cited for hz4x4; the paper names hz4x4 as a limitation in the words of A27(i) and this brief's header.
+- **What stays on disk, untouched:** the branch `task/p9.3-a27c` at `ee8c6d3`, the run tree `/home/filip/rltraffic-p93-run`, the
+  materialised draws `scenarios/draws/cityflow4x4/`, the corpus `datasets_v11/cf_hz4x4__*`, the teachers
+  `output/checkpoints/p9_3_mappo_nominal_1000/`.
+- **A.7 (the D5 definition check on hz1x1 and grid4x4) is NOT point 8:** it measures the registered scenarios' fixed-time cycles
+  and the paper's baselines paragraph needs it. Whether its artifact and code reach `main` separately is the coordinator's next
+  ruling (`PROJECT_PLAN` §8, 2026-10-27); until then do nothing with it.
+- Write nothing further on the branch except, if asked, a closing note.

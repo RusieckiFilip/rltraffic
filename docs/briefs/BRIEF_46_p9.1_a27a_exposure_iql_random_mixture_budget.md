@@ -348,3 +348,24 @@ hung", and the coordinator rules the recovery.
   Q8's 13 cells are in the old-cell manifest; B.3 is built and tested. Say **"P9.1 campaign ready"** with that commit. The GPU plan
   stands: training serial on the GPU, then evaluation with `WORKERS` ≤ 6.
 - **`d4rl` — after the campaign's training**, from the same run tree, when nothing trains (unchanged).
+
+---
+
+# ✅ AMENDMENT B.1 — 2026-10-27: M1 MERGED into `main` (by the commit that carries this note); the author ruled points 1–7 finished in full
+
+**The author's ruling (2026-10-27), quoted:** *"Points 1-7: finish all in full, and record the slip past 21 Oct as a deviation."* Nothing
+in your campaign is cut — points 1, 2, 3, 4 and 6 run as planned (deviation D1, `docs/notes/A27_DEVIATIONS.md`).
+
+**M1 verified by the coordinator, from disk, before the merge:**
+- `task/p9.1-m1` at `0095758`: the three fixes read (B.1(1)'s `assert_declared_on_random_fresh` at all three training paths, with
+  `dt_nomix` among `tier_sweep.DT_METHODS`; B.1(3)'s hook default-identical by construction; B.1(2)'s sentence).
+- In a scratch git copy: M1's eight test files with the corpus set, **165 passed, 2 skipped** (the CUDA pair); the review's MAJOR as a
+  mutant (the train-baselines guard removed) killed by 3 tests; the two CUDA regenerations, outside the sandbox, **2 passed** in 388 s
+  — the registered P4.4 IQL and P4.6 BC checkpoints regenerate tensor for tensor under M1's code.
+- On the merged tree, in CI's mode, M1's files with the suites of the modules it changes: **787 passed, 3 skipped**; the guard clean.
+
+**Your next step:** `git merge --no-edit main` into `task/p9.1-a27a` (the `offline/tier_sweep.py` conflict your trial met, resolved as
+`P9.1_evidence/campaign_ready_m1_merge_resolution.diff` records), the trial's 26 files and the whole suite re-run on that commit (one
+pytest process, `OMP_NUM_THREADS=1`), then **"P9.1 campaign ready"** with that commit. Amendment C then creates the run tree there and
+clears the `campaign` token. The CI skip ceiling for M1's eight corpus-gated tests is measured from this merge's CI run and handed to
+the author as a patch (your Q4).

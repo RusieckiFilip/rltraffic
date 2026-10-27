@@ -1,5 +1,42 @@
 # Patches a Claude Code session cannot apply itself
 
+## `ci_gate_ceiling_405_p9_1_m1.patch` — the skip ceiling moves 397 → 405 after P9.1's M1 merge; every new skip is one of M1's eight corpus- or CityFlow-gated tests
+
+**Apply with:**
+```bash
+cd /home/filip/rltraffic && git apply docs/patches/ci_gate_ceiling_405_p9_1_m1.patch && .venv/bin/pytest tests/test_ci_gate.py -q && git add .github/ci/ci_baseline.json tests/test_ci_gate.py && git commit -m "ci(ceiling): 397 -> 405 OBSERVED on run 40490655183 at 243246c -- P9.1 M1's eight corpus- and CityFlow-gated tests" && git push origin main
+```
+
+**Measured, not read off a summary.**
+- **The run:** `40490655183` on `main` at `243246c`, the merge of `task/p9.1-m1`. The suite step PASSED on both legs and only the
+  ceiling gate failed: the registered route working. `libc-matrix` passed.
+- **Leg against leg:** both legs downloaded and every `<skipped>` message extracted from `junit.xml` (`output/ci_runs/skips.py`).
+  Identical: 3,726 tests, 405 skipped, 0 failures, 0 errors, 90 distinct texts on both.
+- **Run against run,** against the last green run on `main`, `40487097457` at `5a2afb5` (3,559 tests, 397 skipped — the current
+  ceiling). **8 new skips in 3 texts, nothing removed:**
+  - +6 `corpus_or_checkpoint`: *"format v1.1 corpus not found at …/datasets_v11: set RLTRAFFIC_CORPUS_V11 to regenerate P4.4's
+    IQL"* (1) and *"… to run A27(e)'s checks"* (5);
+  - +2 `cityflow`: *"CityFlow is not installed, so no episode can be collected here"* — the two `test_collect_random_rng.py` tests
+    that, on the coordinator's corpus-less copy, skipped on the corpus instead: on the runner the engine is the first unmet need;
+  - the 167 new tests account for the whole difference in collected tests (3,559 → 3,726); the coordinator's prediction before
+    the merge was 8 new skips (counted in a corpus-less copy), not committed until observed.
+
+**What the patch changes:**
+- `skip_ceiling` 397 → 405;
+- `skip_breakdown.corpus_or_checkpoint` +6 and `skip_breakdown.cityflow` +2;
+- `ceiling_if_cityflow_were_built` (the ceiling minus the CityFlow-gated skips) recomputed;
+- a new `measured` block whose `superseded` is the 397 block, with its `why_it_was_wrong` ("EXPIRED AS DECLARED");
+- `tests/test_ci_gate.py`: `CEILING_CHAIN` gains 405 at its head, its one literal.
+
+**Verified before handing it over:**
+- Built by `output/ci_runs/build_ceiling_patch_p91m1.py`, which refuses a leg with a failure, a removed message, an unclassified
+  new message or an unused classification, and checks that `243246c` is a two-parent merge of `task/p9.1-m1`.
+- **On a scratch worktree of `main` with the patch applied:** `tests/test_ci_gate.py` 34 passed; the gate on both legs' real
+  reports (`ci_gate.py pytest-gate`) exits 0 with the patched baseline and 1 with `main`'s unpatched one.
+- **Four mutants of the patched baseline each fail `tests/test_ci_gate.py`:** the breakdown off by one, the CityFlow alternative off
+  by one, the chain link changed, the `why_it_was_wrong` removed.
+- `git apply --check` is clean on `main`, and `scripts/check_english.sh` exits 0 on the patch.
+
 ## `ci_workflow_timeout_75.patch` — CI's per-leg job limit moves 40 → 75 minutes; no test hung, the test-hygiene guard is the slow step
 
 **Apply with:**

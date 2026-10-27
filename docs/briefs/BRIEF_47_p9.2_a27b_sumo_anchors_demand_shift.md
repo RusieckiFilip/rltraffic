@@ -321,3 +321,21 @@ creates `/home/filip/rltraffic-p92-run2` at C9's commit, and clears `p92-shift` 
 Status from disk while `p92-sumo` runs (no whole suite, no mutation campaign in this session while it runs: one pytest process at a
 time, `OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`); C9 meanwhile; G4 (the anchors' artifact, from `/home/filip/rltraffic-p92-run`) once
 `p92-sumo` completes.
+
+---
+
+# ⚖️ AMENDMENT C — 2026-10-27: the author ruled points 1–7 FINISHED IN FULL — point 7 runs; rebuild C9 (it was lost); G4 for the anchors first
+
+**The author's ruling (2026-10-27), quoted:** *"Points 1-7: finish all in full, and record the slip past 21 Oct as a deviation."*
+The slip is deviation D1 in `docs/notes/A27_DEVIATIONS.md`. Point 7 (the demand shift) is NOT cut.
+
+1. **Finish G4 for the anchors (point 5)** as the coordinator's message of 2026-10-27 asked: `docs/data/p9_2_sumo_anchors.json` built
+   from the run tree `/home/filip/rltraffic-p92-run` and copied byte for byte; the anchors part of `docs/returns/P9.2.md` with the "for
+   the paper" section (every ρ beside its registered value; which clause verdicts move under which pair; A27(f)'s two sentences filled;
+   the multiplicity sentence on the selectable basis, `A27_DEVIATIONS` D3). Commit, then say **"P9.2 G4 anchors ready"**. The
+   coordinator recomputes the ρ blocks independently before anything is merged.
+2. **Then rebuild C9 exactly as Amendment B, B.3 specifies** (your first C9 was never committed and did not survive the reboot of
+   2026-10-16/27): the per-cell watchdog, the restart loop in the shift driver, the four tests red first, one mutant per item, the seven
+   task files green — **one pytest process at a time, `OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`**. Say **"P9.2 C9 ready"**. Amendment D will
+   create `/home/filip/rltraffic-p92-run2` at C9's commit and clear `p92-shift` stage 1.
+3. Stage 2 (`iql_t`) waits for P9.1's committed training record (the pin file of Amendment A, A.3.3).

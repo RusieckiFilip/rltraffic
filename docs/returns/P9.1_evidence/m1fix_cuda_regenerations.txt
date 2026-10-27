@@ -1,0 +1,8 @@
+# M1 fix: the two CUDA regenerations, run ONCE outside the sandbox (the GPU), on task/p9.1-m1 at 1372edf, tree clean: []
+start:  16:13:12 up 1 day,  9:24,  1 user,  load average: 1.17, 1.22, 0.86
+..                                                                       [100%]
+============================= slowest 2 durations ==============================
+296.51s call     tests/test_iql_target_dropout.py::test_the_registered_p4_4_iql_seed101_checkpoint_regenerates_tensor_for_tensor_under_the_default
+88.28s call     tests/test_method_tier_grid_a27.py::test_a_registered_bc_checkpoint_regenerates_tensor_for_tensor_with_the_batch_flag_given
+2 passed in 385.84s (0:06:25)
+end:  16:19:39 up 1 day,  9:30,  1 user,  load average: 0.92, 1.00, 0.89

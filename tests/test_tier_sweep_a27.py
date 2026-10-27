@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from pathlib import Path
 from typing import Any
 
@@ -183,24 +184,52 @@ def test_an_a27_call_refuses_a_checkpoint_path_that_exists(
     assert (checkpoints / "grid4x4_random_iql_t_seed101.pt").read_bytes() == b"earlier"
 
 
-def test_registered_arms_train_on_the_a27_tier_under_their_registered_names(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """On ``random_fresh`` the TIER is what is new, so the registered recipes keep their names (A27(d)).
-
-    One episode per draw: A27(d)'s distinct-schedule check (C4a) refuses a tier whose episodes share a schedule, and
-    the scripted fixture's schedule is a function of the draw."""
+def _random_fresh_fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A ``random_fresh`` tier of three episodes, one per draw: A27(d)'s distinct-schedule check (C4a) refuses a tier
+    whose episodes share a schedule, and the scripted fixture's schedule is a function of the draw."""
     root = tmp_path / "corpus"
     fx.write_synthetic_tier(root, episodes_per_draw=1)
     monkeypatch.setattr(ts, "A27_TIERS", {"random_fresh": ts.TierSpec(
         tier="random_fresh", dirs=(fx.RANDOM_DIR,), subsample="none", episode_count=3, ladder_att=math.nan,
         mean_training_return=math.nan)})
     monkeypatch.setattr(ts, "adjacency_for_tier", lambda *args, **kwargs: None)
+    return root
+
+
+@pytest.mark.parametrize(("methods", "flags", "refused"), [
+    ("bc,iql", (), "['bc', 'iql']"),
+    ("bc_top10,bc_top10_perix", (), "['bc_top10', 'bc_top10_perix']"),
+    ("iql", ("--iql-target-dropout", "off"), "['iql_t']"),
+])
+def test_on_the_grids_random_fresh_every_recipe_outside_a27d_is_refused_before_training(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, methods: str, flags: tuple[str, ...], refused: str
+) -> None:
+    """CORRECTED by BRIEF_46 Amendment B, B.1(1), which authorises this edit in writing: this test used to assert that
+    the registered recipes train on the grid's ``random_fresh`` under their registered names -- A27(d)'s hz1x1 list
+    applied to the grid. A27(d) declares exactly ``dt_nomix``, ``bc_m``, ``bc_top10_m``, ``bc_top10_perix_m`` and
+    ``iql_m`` there, so a registered recipe (bc at 64 windows, %BC, IQL at 1,280 transitions with dropout active) and
+    ``iql_t`` are refused -- after A27(d)'s distinct-schedule check, which this fixture passes, and before the split is
+    built, anything trained or anything written."""
+    root = _random_fresh_fixture(tmp_path, monkeypatch)
+    iql, bc = _raising_spies(monkeypatch)
+    with pytest.raises(ValueError, match=re.escape(refused) + ".*A27\\(d\\)"):
+        ts._run_train_baselines(_args(tmp_path, root, "--methods", methods, *flags, tier="random_fresh"))
+    assert not iql.calls and not bc.calls
+    assert not (tmp_path / "p9_1_runs" / "checkpoints").exists()
+
+
+def test_on_the_grids_random_fresh_the_matched_arms_train_under_their_own_names(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The arms A27(d) declares on the grid's ``random_fresh`` train there, under their A27 names."""
+    root = _random_fresh_fixture(tmp_path, monkeypatch)
     iql, bc = fx.install_train_spies(monkeypatch)
-    assert ts._run_train_baselines(_args(tmp_path, root, "--methods", "bc,iql", tier="random_fresh")) == 0
+    args = _args(tmp_path, root, "--methods", "bc,iql", "--bc-batch-windows", "1024", "--iql-batch-transitions",
+                 "20480", "--iql-target-dropout", "off", tier="random_fresh")
+    assert ts._run_train_baselines(args) == 0
     names = sorted(p.name for p in (tmp_path / "p9_1_runs" / "checkpoints").iterdir())
-    assert names == ["grid4x4_random_fresh_bc_seed101.pt", "grid4x4_random_fresh_iql_seed101.pt"]
-    assert "target_dropout" not in iql.calls[0]
+    assert names == ["grid4x4_random_fresh_bc_m_seed101.pt", "grid4x4_random_fresh_iql_m_seed101.pt"]
+    assert iql.calls[0]["target_dropout"] == "off" and iql.calls[0]["batch_size"] == 20480
 
 
 # ----------------------------------------------------------------------
@@ -262,13 +291,25 @@ def _forbid_dt_training(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     return calls
 
 
-def _dt_args(tmp_path: Path, root: str) -> Any:
+def _dt_args(tmp_path: Path, root: str, method: str = "dt_nomix") -> Any:
     return ts.build_parser().parse_args([
         "--corpus-root", str(tmp_path / "corpus"), "--work-dir", str(tmp_path / root / "work"),
         "--checkpoint-dir", str(tmp_path / root / "checkpoints"), "--reuse-root", str(tmp_path / "protected"),
         "--device", "cpu", "--seeds", "101", "--gradient-steps", "2", "--tier", "random_fresh", "train",
-        "--method", "dt_nomix",
+        "--method", method,
     ])
+
+
+@pytest.mark.parametrize("method", ["dt_spatial", "dt_spatial_h4", "dt_nomix_h4"])
+def test_the_dt_trainer_refuses_every_dt_but_dt_nomix_on_the_grids_random_fresh(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, method: str
+) -> None:
+    """A27(d) trains ``dt_nomix`` alone on the grid's ``random_fresh`` (BRIEF_46 Amendment B, B.1(1)); any other DT is
+    refused before the corpus is read."""
+    calls = _forbid_dt_training(monkeypatch)
+    with pytest.raises(ValueError, match=f"\\['{method}'\\].*A27\\(d\\)"):
+        ts._run_train(_dt_args(tmp_path, "p9_1_runs", method))
+    assert not calls and not (tmp_path / "p9_1_runs").exists()
 
 
 def test_the_dt_trainer_refuses_an_a27_tier_outside_a_p9_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
