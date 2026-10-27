@@ -1764,8 +1764,10 @@ def teachers_report(
 # ----------------------------------------------------------------------
 
 #: B.3's registered values: one episode without progress for this long is a stall, and a driver restarts at most this often.
-WATCHDOG_SECONDS = 600
-WATCHDOG_MAX_RESTARTS = 20
+#: Corrected by Amendment E, E.3.2 (2026-10-27): 120 s and 60 restarts replace B.3's 600 s and 20, which were set without
+#: computing the expected hangs.
+WATCHDOG_SECONDS = 120
+WATCHDOG_MAX_RESTARTS = 60
 
 
 def episode_watchdog(seconds: float = WATCHDOG_SECONDS) -> Any:

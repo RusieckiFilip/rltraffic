@@ -11,7 +11,7 @@ Written before the code they test (red first).
   than the timeout in total is never cut; the cap stops a run that hangs every time.
 
 The fake episodes run in real child processes (``sys.executable``), with a timeout of one or two seconds in place of
-the registered 600, so the faulthandler cut is the real one.
+the registered 120 (E.3.2), so the faulthandler cut is the real one.
 """
 
 from __future__ import annotations
@@ -108,9 +108,10 @@ def _child(tmp_path: Path, mode: str, *, timeout: float, episodes: int, seconds:
     return command, work, env
 
 
-def test_the_registered_watchdog_is_600_seconds_and_20_restarts() -> None:
-    assert hz.WATCHDOG_SECONDS == 600
-    assert hz.WATCHDOG_MAX_RESTARTS == 20
+def test_the_registered_watchdog_is_120_seconds_and_60_restarts() -> None:
+    # BRIEF_48 Amendment E, E.3.2 corrected B.3's values (600 s and 20 were set without computing the expected hangs).
+    assert hz.WATCHDOG_SECONDS == 120
+    assert hz.WATCHDOG_MAX_RESTARTS == 60
 
 
 def test_watchdog_fired_reads_faulthandlers_timeout_header() -> None:
