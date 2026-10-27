@@ -251,3 +251,100 @@ corpus on 1; P9.2's shards, 6 workers for up to about 3.5 h, start after its C8)
    signature of an unpinned forked worker, which `experiments/runner.py:limit_torch_threads` documents.
 3. CPU workers: §10's cap of 12 across the round still binds. Your GPU training stage is one process; a CPU evaluation stage of yours
    uses at most `12 − (workers running in P9.2 and P9.3)`, and states the number it used.
+
+---
+
+# ⚠️ AMENDMENT B — 2026-10-16, gates G1 (M1, reviewed late) and G2: M1 is FIX FIRST, small (branch `task/p9.1-m1`); the `collect` stage is CLEARED now; the `campaign` stage waits for the M1 merge, Q2's typed commit, Q8's cells and the stall remedy (Amendment C clears it); Q1, Q2, Q6, Q7, Q8 ruled; the author ruled Q10
+
+Written against `docs/returns/P9.1-code.md` (M1, `784893d`) and `docs/returns/P9.1-preflight.md` (`140149e`), read from disk, and
+against one review mandate's findings (`review_p91_m1`, read-only, run on `784893d`). Merge `main` to read it.
+
+## B.1 M1 — the review: no blocker; one MAJOR; FIX FIRST on a branch of its own
+**Verified by the reviewer, with no defect:** under the default flags `train_iql` makes no extra forward and keeps the forward
+order, and an independent recomputation gives the same fixture digest on `main` (`9503282`) and on `784893d` (`de85ece6…`); under
+`"off"` exactly A27(c)'s three target forwards run in `eval()` under `no_grad`, the advantage's V is a separate forward taken before
+the V step, every module returns to `train()` in a `finally`, and the trained forwards keep dropout; `collect.py`'s default branch is
+the old two lines verbatim, `per-episode` seeds `default_rng([base_seed, draw_id, index])` and the manifest records the scheme; a
+sha256 over both modules' `TIERS`, `BEHAVIOUR_REFERENCE_BY_TIER`, `MIXTURE_EXPERT_FRACTION` and `METHODS` is identical on `main`
+and `784893d`; the matched batches (1,024 / 102 / 20,480) and A27(b)'s exposure numbers; `--compare-with` reads the committed D4RL
+artifact. The seven new test files: 144 passed, 2 skipped (the two CUDA regenerations; the GPU is closed to the reviewer's sandbox).
+**The fix round (the lean protocol: only findings that change a reported number or a claim):**
+1. **MAJOR — a registered recipe is not refused on the grid's `random_fresh`.** `tier_sweep.assert_a27_baselines_run` (and
+   `baselines_plan`) skip the check whenever `tier in A27_TIERS`, so `train-baselines --tier random_fresh` on the GRID trains `bc` at
+   64 windows, `bc_top10`, `bc_top10_perix` and `iql` at 1,280 transitions with dropout active — under their registered names — and
+   with `--iql-target-dropout off` also `iql_t`. A27(d) declares exactly `dt_nomix`, `bc_m`, `bc_top10_m`, `bc_top10_perix_m`,
+   `iql_m` for the grid (and `dt`, `bc`, `bc_top10`, `iql`, `iql_t` for hz1x1). The campaign's own cell list trains exactly those
+   (your pre-flight's table), so no planned number is wrong — but the refusal is the guarantee, and an unmatched, dropout-active grid
+   cell could otherwise be scored as the grid's `random_fresh` baseline. **Fix:** refuse, on each scenario's `random_fresh`, every
+   recipe outside A27(d)'s list for that scenario; **`tests/test_tier_sweep_a27.py:186-203` asserts the defect and is CORRECTED** —
+   this amendment authorises that edit in writing: its docstring credits A27(d) with hz1x1's list applied to the grid, so the test is
+   wrong, not the refusal. Red first: the corrected test fails on `784893d`.
+2. **A claim in the packet is false and is corrected:** `docs/returns/P9.1-code.md` (Q2) says that until ruled *"only the hz1x1
+   random_fresh DT is blocked"*; in fact `method_tier_grid.assert_declaration_matches_corpus` runs unconditionally and the tier's
+   `target_rtg` / `rtg_scale` are NaN, so EVERY hz1x1 `random_fresh` arm is refused until the typed commit. The refusal is safe; the
+   sentence goes.
+3. **Q5 rides in M1:** `att_rederivation.run_campaign(..., factory_builder=None)` (C5's default-preserving hook) moves into the M1
+   branch with its default-identity test, because P9.3's Phase B evaluates new arm names by P8.4b's route.
+**To `DEFERRED` (no number or claim changes; logged as row 123):** the CPU suite cannot see a reordered dropout draw in the
+registered IQL path (the reviewer's mutant — `value(s)` moved before `q_target(s)` — survives the CPU tests; only the CUDA-gated
+regeneration kills it); `d4rl_run` accepts `--compare-with` under `"active"` and refuses only after all training; `d4rl_run main()`'s
+protocol check has no test; `assert_distinct_schedules` does not check the intersection count.
+**How M1 now merges:** a new branch `task/p9.1-m1` from `784893d`, with the commits for items 1–3 and their tests (one mutant per
+fix, red first), the seven M1 test files and the changed modules' regression suites green, and the CUDA regeneration tests run once
+(outside the sandbox) → **"P9.1 M1-fix ready"**. The coordinator re-runs the corrected test, the reviewer's MAJOR as a mutant, and
+the two CUDA regenerations, merges `task/p9.1-m1` into `main` (M1), and hands the author the CI ceiling patch for M1's skips (your
+Q4: eight tests that skip on a corpus-less, GPU-less runner). Then `git merge main` into `task/p9.1-a27a` (the conflicts are yours to
+resolve, toward the fixed code).
+
+## B.2 Rulings on Q1–Q10
+- **Q1 — the episode index is WITHIN the draw** (implemented). A27(d) writes `default_rng([base_seed, draw_id, episode_index])` and
+  does not define the index; every `random_fresh` tier has one episode per draw, and the within-draw index makes each episode's
+  generator a function of (base seed, draw, its index in the draw) alone — independent of how a run is chunked, so one episode can
+  be re-collected by itself. The manifest records the scheme. P9.3's hz4x4 tier inherits it.
+- **Q2 — APPROVED as proposed:** `collect` (CPU) → a reviewed commit that types hz1x1 `random_fresh`'s `target_rtg` / `rtg_scale` from
+  `output/p9_1/declaration_random_fresh_hz1x1.json` with `tests/test_random_fresh_prompt.py` re-deriving both from the raw `.npz`
+  → `campaign` from a run tree at that commit. (With B.1.2's correction: every hz1x1 `random_fresh` arm waits for that commit.)
+- **Q3 —** fixed by P5.2d, merged at `9503282`; `main`'s CI is read by the coordinator.
+- **Q4 —** the coordinator measures the ceiling after M1's merge, by the registered route.
+- **Q6 — two-sided, as implemented.** *"Every arm within 5 s of `bc_top10`"* reads |arm − `bc_top10`| < 5 s; HELD strictly inside
+  (−5, +5) by P5.2c's interval rule, FAILED entirely outside, NOT RESOLVED otherwise.
+- **Q7 — your reading, with the conjunction made explicit:** each arm pair's predicted direction is the sign of its registered
+  40,000-step paired point difference; its 100,000-step paired interval is judged against it by P5.2c's rule; an exact 40,000-step
+  tie predicts no order (NOT RESOLVED). The ordering's verdict: FAILED if any pair FAILED (the ordering *changes at* those pairs),
+  HELD if all six HELD, NOT RESOLVED otherwise. The author's sentence has no branch for NOT RESOLVED: if it occurs, the G4 packet
+  proposes the words and the author rules them.
+- **Q8 — YES.** A27(c)'s governing clause is *"every registered statement in which IQL appears"*; its parenthetical list is the
+  coordinator's enumeration and misses P4.6/P4.7's P1 (BC's rank among the four methods, IQL one of them) and the `*_vs_iql`
+  behaviour comparisons. The governing clause decides, as it did for the grid's `mappo1000` draws (`BRIEF_48` Amendment A, A.2): the
+  13 old hz1x1 cells (6,500 episodes) join the old-cell manifest BEFORE the campaign stage, and P1 and the `*_vs_iql` comparisons are
+  re-scored with `iql_t` beside the original, by their registered rules, under both definitions.
+- **Q9 — relayed to the author:** keep the machine awake for the whole campaign (Windows: never sleep while plugged in).
+- **Q10 — THE AUTHOR'S RULING (2026-10-16), quoted:** *"no canary re-take and no power-mode change; size the campaign on the
+  load-recorded re-take timings, since A27(a) already labels every timing an uncontrolled clock."* So: the campaign is sized on the
+  re-take (≈ 40.5 GPU-h serial, plus ≈ 7 h of evaluation); Amendment A's *"canary before and after"* no longer applies to P9.1 (the
+  load averages beside each timing stay); no stage of this round gates on P8.2's power-mode canary; every training second is reported
+  as A27(a)'s uncontrolled clock, with the pause flags.
+
+## B.3 A run-feasibility requirement for the campaign stage: the engine-destructor hang (`DEFERRED` 104)
+CityFlow's `Engine::~Engine()` can wait forever at a two-party barrier when its controller thread has already left its loop
+(`docs/notes/P5.3c_HANG_2026-09-30.md`, ≈ 2 in 1,200 episodes under load). It struck again on 2026-10-16: P9.3's A.7 sweep hung once
+in 27 episodes while P9.3's teachers ran, and the coordinator's own test copies hung under load. It never changes a number (the hang
+is after the episode, every write is atomic, the engine is seeded), but your evaluation stage destroys tens of thousands of engines,
+most of them right after the last step — the exposed path. **Required before the `campaign` token, as P5.3c's C3.2 did at its stage:**
+every worker process that rolls CityFlow episodes (route (i), route (ii), the old cells) is restarted automatically when it makes no
+progress for 10 minutes — for example `faulthandler.dump_traceback_later(600, exit=True)` re-armed per episode, with the driver
+re-running the shard on that exit and resuming from the files on disk; at most 20 restarts per shard, each logged with the time and
+the dumped stack; any other non-zero exit stops the stage as now; a restart inside a stage needs no new token. Tests: a fake worker
+blocked in a C-level wait is restarted and completes; a failing worker is not restarted; a healthy worker is never killed.
+**The `collect` stage runs without it:** `offline.collect` writes the episode's `.npz` before the engine is freed (the less exposed
+path; P9.3's 400-episode corpus ran without a hang today). If `collect` prints no line for 10 minutes, the author says "P9.1 collect
+hung", and the coordinator rules the recovery.
+
+## B.4 The tokens
+- **`collect` — CLEARED**, from a detached run tree at `140149e` (`/home/filip/rltraffic-p91-run`, created by the coordinator): its
+  code path (`offline.collect` and the declarations) is not touched by B.1's fix, and the reviewer verified the collector itself.
+  CPU, one process, ≈ 400 episodes.
+- **`campaign` — NOT YET.** Amendment C clears it once: M1 is merged (B.1) and merged into this branch; Q2's typed commit exists;
+  Q8's 13 cells are in the old-cell manifest; B.3 is built and tested. Say **"P9.1 campaign ready"** with that commit. The GPU plan
+  stands: training serial on the GPU, then evaluation with `WORKERS` ≤ 6.
+- **`d4rl` — after the campaign's training**, from the same run tree, when nothing trains (unchanged).

@@ -1519,12 +1519,71 @@ def _cited(file: str, lines: tuple[int, int]) -> str:
     return "\n".join(content[lines[0] - 1:lines[1]])
 
 
+#: BRIEF_49 (P5.2d), R1 and R2: ``PREREGISTRATION.md`` is cited by ROW, not by line.  The ``PREREGISTRATION.md`` line
+#: numbers carried by the module and by the committed artifact (``"lines": [397, 397]``) are lines AT THE ARTIFACT'S
+#: BUILD COMMIT (``git.commit`` in ``docs/data/p5_2_statements.json``, ``1d6519e``), verified by the coordinator on
+#: 2026-10-16 with ``git show 1d6519e:PREREGISTRATION.md | sed -n 397p``.  Its section 12 is newest-first, so the
+#: current line of a row moves with every registration; a new citation into ``PREREGISTRATION.md`` names the
+#: amendment, not a line.  Each cited line range is bound here to its row's leading cells exactly as written, which
+#: no registration moves.  No test reads git history (CI checks out at depth 1).
+PREREG_FILE = "PREREGISTRATION.md"
+PREREG_ROWS: dict[tuple[int, int], str] = {
+    (397, 397): "| 2026-08-30 | **A11 (drafted 2026-08-29",  # A11 (Rule R), line 397 at 1d6519e
+}
+
+
+def _line_check(text: str, quotation: str, lines: tuple[int, int]) -> bool:
+    """The line check every other citable file keeps, on *text*: the quotation is in the cited lines."""
+    content = text.split("\n")
+    if not 1 <= lines[0] <= lines[1] <= len(content):
+        return False
+    return _norm(quotation) in _norm("\n".join(content[lines[0] - 1:lines[1]]))
+
+
+def _row_check(text: str, quotation: str, identity: str) -> list[str]:
+    """R1 on *text*, a ``PREREGISTRATION.md``: the failed clauses, ``[]`` when the citation holds.
+
+    (i) exactly one line begins with *identity*; (ii) the normalised quotation is in that line; (iii) it is in no
+    other line, written as "in at most one line", which together with (ii) is the same condition and keeps the three
+    clauses independent (a quotation found only in another row fails (ii) alone)."""
+    content = text.split("\n")
+    starts = [i for i, line in enumerate(content) if line.startswith(identity)]
+    wanted = _norm(quotation)
+    holding = [i for i, line in enumerate(content) if wanted in _norm(line)]
+    failures = []
+    if len(starts) != 1:
+        failures.append(f"(i) {len(starts)} lines begin with the bound identity {identity!r}")
+    if not any(i in holding for i in starts[:1]):
+        failures.append("(ii) the quotation is not in the bound row")
+    if len(holding) > 1:
+        failures.append(f"(iii) the quotation is in {len(holding)} lines, at indices {holding}")
+    return failures
+
+
+def _assert_cited(file: str, lines: tuple[int, int], quotation: str, context: object) -> None:
+    """T-quotes for one citation: by row (R1) for ``PREREGISTRATION.md``, by line for every other citable file."""
+    if file == PREREG_FILE:
+        assert lines in PREREG_ROWS, ("unbound PREREGISTRATION.md citation", context)
+        failures = _row_check((REPO_ROOT / file).read_text(encoding="utf-8"), quotation, PREREG_ROWS[lines])
+        assert failures == [], (failures, context)
+        return
+    assert _norm(quotation) in _norm(_cited(file, lines)), context
+
+
+def _prereg_citations() -> list[tuple[str, tuple[int, int], str]]:
+    """Every ``PREREGISTRATION.md`` citation in ``tst.RULES``, ``tst.RECORD`` and ``tst.Q5_RECORDS``."""
+    rules = [(q.file, q.lines, q.text) for quotes in tst.RULES.values() for q in quotes]
+    record = [(r.file, r.lines, r.recorded) for r in tst.RECORD]
+    q5 = [(q.file, q.lines, q.text) for q in tst.Q5_RECORDS]
+    return [c for c in rules + record + q5 if c[0] == PREREG_FILE]
+
+
 def test_t_quotes_every_rule_quotation_appears_at_its_cited_lines() -> None:
     checked = 0
     for key, quotes in tst.RULES.items():
         for quote in quotes:
             assert quote.file in tst.CITABLE_FILES, (key, quote.file)
-            assert _norm(quote.text) in _norm(_cited(quote.file, quote.lines)), (key, quote)
+            _assert_cited(quote.file, quote.lines, quote.text, (key, quote))
             checked += 1
     assert checked >= 40
 
@@ -1532,11 +1591,110 @@ def test_t_quotes_every_rule_quotation_appears_at_its_cited_lines() -> None:
 def test_t_quotes_every_record_literal_appears_at_its_cited_lines() -> None:
     for row in tst.RECORD:
         assert row.file in tst.CITABLE_FILES
-        assert _norm(row.recorded) in _norm(_cited(row.file, row.lines)), row
+        _assert_cited(row.file, row.lines, row.recorded, row)
     for quote in tst.Q5_RECORDS:
         assert quote.file in tst.CITABLE_FILES, quote  # Amendment B, B2.11
-        assert _norm(quote.text) in _norm(_cited(quote.file, quote.lines)), quote
+        _assert_cited(quote.file, quote.lines, quote.text, quote)
     assert {row.exception for row in tst.RECORD} == {None, *tst.RECORD_EXCEPTIONS}
+
+
+def _prereg_text() -> str:
+    return (REPO_ROOT / PREREG_FILE).read_text(encoding="utf-8")
+
+
+def _clauses(failures: list[str]) -> list[str]:
+    return [failure.split(" ", 1)[0] for failure in failures]
+
+
+def _rule_r_quotes() -> list[tst.Quote]:
+    return [q for q in tst.RULES["rule_r"] if q.file == PREREG_FILE]
+
+
+def test_t_quotes_prereg_t1_every_bound_quotation_holds_on_the_real_file_by_row() -> None:
+    """BRIEF_49 T1: on the current ``PREREGISTRATION.md`` every bound quotation passes R1."""
+    text = _prereg_text()
+    citations = _prereg_citations()
+    assert len(citations) >= 3
+    for file, lines, quotation in citations:
+        assert _row_check(text, quotation, PREREG_ROWS[lines]) == [], (file, lines, quotation)
+
+
+def test_t_quotes_prereg_t2_every_prereg_citation_is_bound() -> None:
+    """BRIEF_49 T2 (R3): a citation into ``PREREGISTRATION.md`` without a row binding fails until someone binds it."""
+    citations = _prereg_citations()
+    own = ([(q.file, q.lines) for qs in tst.RULES.values() for q in qs if q.file == PREREG_FILE]
+           + [(r.file, r.lines) for r in tst.RECORD if r.file == PREREG_FILE]
+           + [(q.file, q.lines) for q in tst.Q5_RECORDS if q.file == PREREG_FILE])
+    assert [(file, lines) for file, lines, _ in citations] == own
+    assert len(own) == 3  # today: the three rule_r quotations, one binding
+    assert [lines for _, lines in own if lines not in PREREG_ROWS] == []
+
+
+def _newest_first_insertion(text: str) -> str:
+    """A synthetic registration row immediately below section 12's table separator (the newest-first position)."""
+    lines = text.split("\n")
+    heading = lines.index("## 12. Amendments")
+    separator = lines.index("|---|---|---|---|", heading)
+    synthetic = ("| 2099-01-01 | **A99 — a synthetic registration row (BRIEF_49 T3).** | moves every older row down "
+                 "one line | No |")
+    return "\n".join(lines[:separator + 1] + [synthetic] + lines[separator + 1:])
+
+
+def test_t_quotes_prereg_t3_a_newest_first_row_breaks_the_line_check_and_not_the_row_check(tmp_path: Path) -> None:
+    """BRIEF_49 T3 (R4), load-bearing: a new registration row moves A11's row; R1 still holds, the line check does not."""
+    copy = tmp_path / PREREG_FILE
+    copy.write_text(_newest_first_insertion(_prereg_text()), encoding="utf-8")
+    moved = copy.read_text(encoding="utf-8")
+    identity = PREREG_ROWS[(397, 397)]
+    before = [i for i, line in enumerate(_prereg_text().split("\n")) if line.startswith(identity)]
+    after = [i for i, line in enumerate(moved.split("\n")) if line.startswith(identity)]
+    assert len(before) == 1 and after == [before[0] + 1]
+    quotes = _rule_r_quotes()
+    assert len(quotes) == 3
+    for quote in quotes:
+        assert _row_check(moved, quote.text, PREREG_ROWS[quote.lines]) == [], quote
+        assert _line_check(moved, quote.text, quote.lines) is False, quote
+
+
+def test_t_quotes_prereg_t4_a_one_word_misquote_is_refused() -> None:
+    """BRIEF_49 T4: a constructed ``Quote`` altered by one word is in no row, so clause (ii) refuses it."""
+    original = _rule_r_quotes()[1]
+    altered = tst.Quote(original.file, original.lines, original.text.replace("whether", "unless"))
+    assert altered.text != original.text
+    assert _row_check(_prereg_text(), original.text, PREREG_ROWS[original.lines]) == []
+    assert _clauses(_row_check(_prereg_text(), altered.text, PREREG_ROWS[altered.lines])) == ["(ii)"]
+
+
+def test_t_quotes_prereg_t5_a_binding_re_pointed_to_another_row_is_refused() -> None:
+    """BRIEF_49 T5: bound to A12's row, which does not hold the quotation, clause (ii) refuses every Rule R quotation."""
+    wrong = "| 2026-08-30 | **A12 —"
+    text = _prereg_text()
+    assert sum(line.startswith(wrong) for line in text.split("\n")) == 1
+    for quote in _rule_r_quotes():
+        assert _clauses(_row_check(text, quote.text, wrong)) == ["(ii)"], quote
+
+
+def test_t_quotes_prereg_t6_a_quotation_duplicated_into_a_second_row_is_refused() -> None:
+    """BRIEF_49 T6: the quotation also written into the synthetic row of T3, so clause (iii) refuses it."""
+    quote = _rule_r_quotes()[0]
+    lines = _newest_first_insertion(_prereg_text()).split("\n")
+    synthetic = next(i for i, line in enumerate(lines) if line.startswith("| 2099-01-01 |"))
+    lines[synthetic] = lines[synthetic].replace("| No |", quote.text + " | No |")
+    duplicated = "\n".join(lines)
+    assert _clauses(_row_check(duplicated, quote.text, PREREG_ROWS[quote.lines])) == ["(iii)"]
+
+
+def test_t_quotes_prereg_t7_two_lines_beginning_with_the_bound_identity_are_refused() -> None:
+    """BRIEF_49 T7: a decoy line beginning with the identity, placed right AFTER the real row so a check that takes
+    the first match still finds the real row; clause (i) alone refuses it."""
+    identity = PREREG_ROWS[(397, 397)]
+    lines = _prereg_text().split("\n")
+    real = next(i for i, line in enumerate(lines) if line.startswith(identity))
+    decoy = identity + " — a synthetic decoy row (BRIEF_49 T7) | none | none | No |"
+    ambiguous = "\n".join(lines[:real + 1] + [decoy] + lines[real + 1:])
+    for quote in _rule_r_quotes():
+        assert _clauses(_row_check(ambiguous, quote.text, identity)) == ["(i)"], quote
+
 
 
 def _line_citations(text: str) -> list[str]:
