@@ -1,0 +1,9 @@
+$ OMP_NUM_THREADS=1 RLTRAFFIC_CORPUS_V11=/home/filip/rltraffic/datasets_v11 RLTRAFFIC_OUTPUT_ROOT=/home/filip/rltraffic/output pytest "tests/test_iql_target_dropout.py::test_the_registered_p4_4_iql_seed101_checkpoint_regenerates_tensor_for_tensor_under_the_default" -q -rs   # CUDA, outside the sandbox
+.                                                                        [100%]
+1 passed in 330.13s (0:05:30)
+exit=0
+
+$ OMP_NUM_THREADS=1 RLTRAFFIC_CORPUS_V11=... RLTRAFFIC_OUTPUT_ROOT=... pytest "tests/test_method_tier_grid_a27.py::test_a_registered_bc_checkpoint_regenerates_tensor_for_tensor_with_the_batch_flag_given" -q -rs   # CUDA
+.                                                                        [100%]
+1 passed in 112.36s (0:01:52)
+exit=0

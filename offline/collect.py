@@ -115,6 +115,34 @@ def _require_lane_arrays(lane_ids: Sequence[str], backend: str) -> None:
         )
 
 
+#: ``--random-rng`` (A27(d), ``BRIEF_46`` 3.3).  ``per-draw`` is the registered collector, line for line.
+RANDOM_RNG_SCHEMES: tuple[str, ...] = ("per-draw", "per-episode")
+
+
+def _check_random_rng(args: argparse.Namespace, draw_ids: Sequence[int | None]) -> None:
+    """Refuse ``per-episode`` where it has no meaning, before anything is built or written.
+
+    The generator it builds is ``default_rng([base_seed, draw_id, episode index within the draw])``: a draw id is part
+    of the seed, so a nominal (draw-less) run has none; and only the ``random`` policy draws its actions from this
+    generator by design -- ``mappo_eps``'s exploration coin is a different quantity and keeps its registered scheme.
+    """
+    scheme = str(getattr(args, "random_rng", "per-draw"))
+    if scheme not in RANDOM_RNG_SCHEMES:
+        raise ValueError(f"--random-rng must be one of {RANDOM_RNG_SCHEMES}, got {scheme!r}")
+    if scheme == "per-draw":
+        return
+    if args.policy != "random":
+        raise ValueError(
+            f"--random-rng per-episode applies to the random policy only, not {args.policy!r} (A27(d)); nothing was "
+            "written"
+        )
+    if any(draw_id is None for draw_id in draw_ids):
+        raise ValueError(
+            "--random-rng per-episode seeds each episode with its draw id, so it needs a draw sweep "
+            "(--flow-draw/--flow-draws/--flow-draws-range); nothing was written"
+        )
+
+
 def _intersection_action_counts(env: Any) -> tuple[list[str], list[int]]:
     """Intersection ids in ``env.intersections`` order plus their action counts."""
     intersections = list(env.intersections)
@@ -267,6 +295,15 @@ def build_parser() -> argparse.ArgumentParser:
         "so without a --flow-draw* flag every episode here is the same trajectory",
     )
     parser.add_argument("--base-seed", type=int, default=0)
+    parser.add_argument(
+        "--random-rng",
+        choices=list(RANDOM_RNG_SCHEMES),
+        default="per-draw",
+        help="the random policy's generator. 'per-draw' (the default, the registered collector): ONE "
+        "default_rng(--base-seed) per draw, so every draw replays the same schedule (A27(d)). 'per-episode': "
+        "default_rng([base_seed, draw_id, episode index within the draw]) for every episode; random policy and "
+        "a draw sweep only",
+    )
     parser.add_argument(
         "--draws-root",
         default=str(DEFAULT_DRAWS_ROOT),
@@ -629,6 +666,11 @@ def _run_metadata(
         **fixed_time_provenance(args),
         "episodes": int(args.episodes),
         "base_seed": int(args.base_seed),
+        # A27(d): which generator the random policy drew from (None for every other policy).  A manifest written
+        # before the flag existed has no key, and its scheme is per-draw.
+        "random_rng_scheme": (
+            str(getattr(args, "random_rng", "per-draw")) if args.policy == "random" else None
+        ),
         "delta_time": spec.settings["delta_time"],
         "max_steps": spec.settings["max_steps"],
         "control_mode": spec.settings["control_mode"],
@@ -761,6 +803,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     spec = _build_env_spec(args)
 
     draw_ids = _resolve_draw_ids(args)
+    _check_random_rng(args, draw_ids)
     from offline.materialise_draws import parity_sumocfg_path
 
     draws_root = Path(args.draws_root)
@@ -978,10 +1021,18 @@ def main(argv: Sequence[str] | None = None) -> int:
                 logger.rebind_env(env)
             # else: env is the nominal env built above, already bound to the logger.
 
-            rng = np.random.default_rng(int(args.base_seed))
-            policy = POLICIES[args.policy](env, args, rng)
+            per_episode = args.random_rng == "per-episode"
+            if not per_episode:
+                rng = np.random.default_rng(int(args.base_seed))
+                policy = POLICIES[args.policy](env, args, rng)
 
             for index in range(int(args.episodes)):
+                if per_episode:
+                    # A27(d), BRIEF_46 3.3: a generator of its own for every episode, keyed by the draw and by the
+                    # episode's index WITHIN the draw (the index the engine seed is built from, base_seed + index),
+                    # so a (draw, episode) regenerates its schedule in any run that collects it.
+                    rng = np.random.default_rng([int(args.base_seed), int(draw_id), int(index)])
+                    policy = POLICIES[args.policy](env, args, rng)
                 # Seeds restart per draw so the draw is the only variable across draws.
                 engine_seed = int(args.base_seed) + index
                 info = env.reset(seed=engine_seed)

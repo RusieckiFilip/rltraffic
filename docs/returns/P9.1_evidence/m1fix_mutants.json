@@ -1,0 +1,62 @@
+[
+ {
+  "name": "MF1a the reviewer's MAJOR: grid baselines unguarded",
+  "file": "offline/tier_sweep.py",
+  "old": "    assert_declared_on_random_fresh(A27_SCENARIO, tier, [recipe.name for _, recipe in plan])\n    parts = tier_parts(",
+  "new": "    parts = tier_parts(",
+  "tests": [
+   "tests/test_a27_arms.py",
+   "tests/test_tier_sweep_a27.py",
+   "tests/test_method_tier_grid_a27.py",
+   "tests/test_att_rederivation_factory_builder.py"
+  ]
+ },
+ {
+  "name": "MF1b grid DT unguarded",
+  "file": "offline/tier_sweep.py",
+  "old": "        assert_declared_on_random_fresh(A27_SCENARIO, tier, [str(args.method)])\n",
+  "new": "",
+  "tests": [
+   "tests/test_a27_arms.py",
+   "tests/test_tier_sweep_a27.py",
+   "tests/test_method_tier_grid_a27.py",
+   "tests/test_att_rederivation_factory_builder.py"
+  ]
+ },
+ {
+  "name": "MF1c hz1x1 unguarded",
+  "file": "offline/method_tier_grid.py",
+  "old": "    assert_declared_on_random_fresh(\"hz1x1\", spec.tier, [recipe.name for recipe in recipes.values()])\n",
+  "new": "",
+  "tests": [
+   "tests/test_a27_arms.py",
+   "tests/test_tier_sweep_a27.py",
+   "tests/test_method_tier_grid_a27.py",
+   "tests/test_att_rederivation_factory_builder.py"
+  ]
+ },
+ {
+  "name": "MF1d the grid list widened to bc",
+  "file": "offline/a27_arms.py",
+  "old": "    \"grid4x4\": (\"dt_nomix\", \"bc_m\", \"bc_top10_m\", \"bc_top10_perix_m\", \"iql_m\"),",
+  "new": "    \"grid4x4\": (\"dt_nomix\", \"bc\", \"bc_m\", \"bc_top10_m\", \"bc_top10_perix_m\", \"iql_m\"),",
+  "tests": [
+   "tests/test_a27_arms.py",
+   "tests/test_tier_sweep_a27.py",
+   "tests/test_method_tier_grid_a27.py",
+   "tests/test_att_rederivation_factory_builder.py"
+  ]
+ },
+ {
+  "name": "MF3 the hook ignores the given builder",
+  "file": "offline/att_rederivation.py",
+  "old": "                builder = build_cell_factory if factory_builder is None else factory_builder",
+  "new": "                builder = build_cell_factory",
+  "tests": [
+   "tests/test_a27_arms.py",
+   "tests/test_tier_sweep_a27.py",
+   "tests/test_method_tier_grid_a27.py",
+   "tests/test_att_rederivation_factory_builder.py"
+  ]
+ }
+]

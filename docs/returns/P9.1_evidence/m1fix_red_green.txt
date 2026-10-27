@@ -1,0 +1,26 @@
+# M1 fix (BRIEF_46 Amendment B), red: the new and corrected tests on 784893d's code (the implementation not yet written)
+FAILED tests/test_a27_arms.py::test_a27d_declares_exactly_these_arms_on_each_scenarios_random_fresh
+FAILED tests/test_a27_arms.py::test_on_random_fresh_every_recipe_outside_the_scenarios_list_is_refused[grid4x4-bc]
+FAILED tests/test_a27_arms.py::test_on_random_fresh_every_recipe_outside_the_scenarios_list_is_refused[grid4x4-bc_top10]
+FAILED tests/test_a27_arms.py::test_on_random_fresh_every_recipe_outside_the_scenarios_list_is_refused[grid4x4-bc_top10_perix]
+FAILED tests/test_a27_arms.py::test_on_random_fresh_every_recipe_outside_the_scenarios_list_is_refused[grid4x4-iql]
+FAILED tests/test_a27_arms.py::test_on_random_fresh_every_recipe_outside_the_scenarios_list_is_refused[grid4x4-iql_t]
+FAILED tests/test_a27_arms.py::test_on_random_fresh_every_recipe_outside_the_scenarios_list_is_refused[grid4x4-dt_spatial]
+FAILED tests/test_a27_arms.py::test_on_random_fresh_every_recipe_outside_the_scenarios_list_is_refused[hz1x1-bc_m]
+FAILED tests/test_a27_arms.py::test_on_random_fresh_every_recipe_outside_the_scenarios_list_is_refused[hz1x1-dt_100k]
+FAILED tests/test_a27_arms.py::test_on_random_fresh_every_recipe_outside_the_scenarios_list_is_refused[hz1x1-iql_100k]
+FAILED tests/test_a27_arms.py::test_the_declared_arms_pass_and_every_other_tier_is_untouched
+FAILED tests/test_tier_sweep_a27.py::test_on_the_grids_random_fresh_every_recipe_outside_a27d_is_refused_before_training[bc,iql-flags0-['bc', 'iql']]
+FAILED tests/test_tier_sweep_a27.py::test_on_the_grids_random_fresh_every_recipe_outside_a27d_is_refused_before_training[bc_top10,bc_top10_perix-flags1-['bc_top10', 'bc_top10_perix']]
+FAILED tests/test_tier_sweep_a27.py::test_on_the_grids_random_fresh_every_recipe_outside_a27d_is_refused_before_training[iql-flags2-['iql_t']]
+FAILED tests/test_tier_sweep_a27.py::test_the_dt_trainer_refuses_every_dt_but_dt_nomix_on_the_grids_random_fresh[dt_spatial]
+FAILED tests/test_tier_sweep_a27.py::test_the_dt_trainer_refuses_every_dt_but_dt_nomix_on_the_grids_random_fresh[dt_spatial_h4]
+FAILED tests/test_tier_sweep_a27.py::test_the_dt_trainer_refuses_every_dt_but_dt_nomix_on_the_grids_random_fresh[dt_nomix_h4]
+FAILED tests/test_method_tier_grid_a27.py::test_hz1x1_random_fresh_refuses_every_recipe_outside_a27d_before_anything_is_read
+FAILED tests/test_att_rederivation_factory_builder.py::test_a_given_builder_replaces_the_modules_and_the_module_builder_is_not_called
+FAILED tests/test_att_rederivation_factory_builder.py::test_the_keyword_defaults_to_none
+20 failed, 27 passed, 1 skipped, 73 deselected in 6.77s
+
+# green, the same selection after the fix
+FAILED tests/test_tier_sweep_a27.py::test_train_baselines_refuses_a_random_fresh_tier_without_distinct_schedules
+1 failed, 46 passed, 1 skipped, 73 deselected in 6.16s
