@@ -1035,3 +1035,35 @@ def test_verify_run_accepts_a_real_collection_and_refuses_a_manifest_that_drifte
                              expected_episodes=2, draw_ids=(1,))
     with pytest.raises(ValueError, match="2 expected"):
         hz.verify_run(short, draws_root=draws_root)
+
+
+@needs_corpus
+def test_the_random_fresh_command_is_the_grid_random_fresh_protocol_under_the_merged_collector(tmp_path: Path) -> None:
+    # BRIEF_48 Amendment E, E.3.4: with P9.1's M1 merged, the derived command is read by the collector's own parser and
+    # compared with the grid's random_fresh manifest (collected by M1's collector) on every setting it carries.
+    from offline.collect import _check_random_rng, build_parser
+
+    grid = GRID_CORPUS / "cf_grid4x4__random_fresh" / "manifest.json"
+    if not grid.is_file():
+        pytest.skip("P9.1's cf_grid4x4__random_fresh is not in the main tree's corpus on this machine")
+    assert hz.collector_supports_random_rng() is True
+    env_config = hz.MAIN_TREE / "configs" / "sim" / "cityflow4x4.json"
+    (run,) = hz.derive_runs(corpus_root=GRID_CORPUS, tiers=["random_fresh"], chosen_k=None, env_config=env_config,
+                            out_root=tmp_path, random_rng_supported=True)
+    args = build_parser().parse_args(list(run.argv))
+    meta = json.loads(grid.read_bytes())["run_metadata"]
+    assert args.random_rng == meta["random_rng_scheme"] == "per-episode"
+    assert args.policy == meta["behavior_policy"] == "random"
+    assert args.episodes == meta["episodes"] == 1
+    assert args.base_seed == meta["base_seed"] == hz.BASE_SEED
+    for key in ("max_steps", "delta_time", "control_mode", "global_reward_fn", "local_reward_fn",
+                "global_reward_weight", "state_features"):
+        assert getattr(args, key) == meta[key], key
+    params = meta["flow_randomizer_params"]
+    assert (args.flow_jitter_sigma, args.flow_thin_p, args.flow_volume_scale) == (
+        params["jitter_sigma_s"], params["thin_p"], params["volume_scale"])
+    assert list(range(*args.flow_draws_range)) == [d for d in meta["flow_draw_ids"] if d is not None] == list(range(1, 201))
+    assert (args.checkpoint, args.metrics) == (None, meta["metrics"])
+    assert args.env_config == str(env_config)
+    assert args.out_dir == str(tmp_path / "cf_hz4x4__random_fresh")
+    _check_random_rng(args, list(range(1, 201)))
