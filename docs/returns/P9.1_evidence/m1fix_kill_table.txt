@@ -1,0 +1,7 @@
+# M1 fix mutation table (mutate.py.txt), against tests/test_a27_arms.py, test_tier_sweep_a27.py, test_method_tier_grid_a27.py, test_att_rederivation_factory_builder.py
+mutant                                           result    evidence
+MF1a the reviewer's MAJOR: grid baselines unguarded KILLED    FAILED tests/test_tier_sweep_a27.py::test_on_the_grids_random_fresh_every_recipe_outside_a27d_is_refused_before_training[bc,iql-flags0-['bc', 'iql']
+MF1b grid DT unguarded                           KILLED    FAILED tests/test_tier_sweep_a27.py::test_the_dt_trainer_refuses_every_dt_but_dt_nomix_on_the_grids_random_fresh[dt_spatial]
+MF1c hz1x1 unguarded                             KILLED    FAILED tests/test_method_tier_grid_a27.py::test_hz1x1_random_fresh_refuses_every_recipe_outside_a27d_before_anything_is_read
+MF1d the grid list widened to bc                 KILLED    FAILED tests/test_a27_arms.py::test_a27d_declares_exactly_these_arms_on_each_scenarios_random_fresh
+MF3 the hook ignores the given builder           KILLED    FAILED tests/test_att_rederivation_factory_builder.py::test_a_given_builder_replaces_the_modules_and_the_module_builder_is_not_called

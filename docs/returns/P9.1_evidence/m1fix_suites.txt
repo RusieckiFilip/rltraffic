@@ -1,0 +1,24 @@
+# M1 fix: the seven M1 test files + the hook test, RLTRAFFIC_CORPUS_V11 and RLTRAFFIC_OUTPUT_ROOT set, at fddcbb2+1372edf's code
+...........s............................................................ [ 43%]
+.......................................s................................ [ 86%]
+.......................                                                  [100%]
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_iql_target_dropout.py:377: iql_seed101.pt was trained on CUDA (its provenance says so); a CPU retrain differs for a reason that is not the change under test
+SKIPPED [1] tests/test_method_tier_grid_a27.py:441: maxpressure_bc_seed101.pt was trained on CUDA; a CPU retrain differs for a reason that is not the change under test
+165 passed, 2 skipped in 14.13s
+
+# the changed modules' regression suites, then test_rtg_ablation (in this worktree, then its cwd-dependent test from the main tree's cwd)
+........................................................................ [ 43%]
+........................................................................ [ 57%]
+..............................s......................................... [ 72%]
+........s.sssss................................................s.ss..... [ 86%]
+.................................................................        [100%]
+486 passed, 11 skipped in 69.95s (0:01:09)
+/home/filip/rltraffic/.venv/lib/python3.12/site-packages/torch/serialization.py:776: FileNotFoundError
+=========================== short test summary info ============================
+FAILED tests/test_rtg_ablation.py::test_the_spread_table_uses_the_whole_declared_training_set_not_the_probe_subsample
+1 failed, 34 passed, 4 skipped in 2.47s
+s                                                                        [100%]
+1 skipped in 1.18s
+.                                                                        [100%]
+1 passed in 2.18s

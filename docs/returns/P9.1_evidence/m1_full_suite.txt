@@ -1,0 +1,19 @@
+# whole suite, worktree at 5e05f71 (C5 work began in this tree while it ran: in-process tests had imported M1's modules at collection; see the packet), sandboxed (no GPU, no tmux socket), no corpus/output env -- as CI runs it
+$ OMP_NUM_THREADS=1 pytest -q -p no:cacheprovider
+=========================== short test summary info ============================
+FAILED tests/test_p7_3c_campaign.py::test_the_headers_own_line_passes_the_guard_and_the_pane_carries_the_drivers_exit_code
+FAILED tests/test_p7_3c_corpus_driver.py::test_the_headers_own_line_passes_the_guard_and_the_pane_carries_the_drivers_exit_code
+FAILED tests/test_p7_3d_campaign_path.py::test_the_headers_own_line_passes_the_guard_and_the_pane_carries_the_drivers_exit_code
+FAILED tests/test_tier_statements.py::test_t_quotes_every_rule_quotation_appears_at_its_cited_lines
+4 failed, 3461 passed, 233 skipped, 30 warnings in 733.47s (0:12:13)
+exit=1
+
+# the three tmux tests re-run OUTSIDE the sandbox:
+$ pytest tests/test_p7_3c_campaign.py::test_the_headers_own_line... tests/test_p7_3c_corpus_driver.py::... tests/test_p7_3d_campaign_path.py::... -q
+...                                                                      [100%]
+3 passed in 24.86s
+
+# the tier_statements failure on MAIN at aaad51b, its own tree and code:
+$ cd /home/filip/rltraffic && pytest "tests/test_tier_statements.py::test_t_quotes_every_rule_quotation_appears_at_its_cited_lines" -q
+FAILED tests/test_tier_statements.py::test_t_quotes_every_rule_quotation_appears_at_its_cited_lines
+1 failed in 1.10s

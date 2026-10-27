@@ -321,3 +321,114 @@ creates `/home/filip/rltraffic-p92-run2` at C9's commit, and clears `p92-shift` 
 Status from disk while `p92-sumo` runs (no whole suite, no mutation campaign in this session while it runs: one pytest process at a
 time, `OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`); C9 meanwhile; G4 (the anchors' artifact, from `/home/filip/rltraffic-p92-run`) once
 `p92-sumo` completes.
+
+---
+
+# ⚖️ AMENDMENT C — 2026-10-27: the author ruled points 1–7 FINISHED IN FULL — point 7 runs; rebuild C9 (it was lost); G4 for the anchors first
+
+**The author's ruling (2026-10-27), quoted:** *"Points 1-7: finish all in full, and record the slip past 21 Oct as a deviation."*
+The slip is deviation D1 in `docs/notes/A27_DEVIATIONS.md`. Point 7 (the demand shift) is NOT cut.
+
+1. **Finish G4 for the anchors (point 5)** as the coordinator's message of 2026-10-27 asked: `docs/data/p9_2_sumo_anchors.json` built
+   from the run tree `/home/filip/rltraffic-p92-run` and copied byte for byte; the anchors part of `docs/returns/P9.2.md` with the "for
+   the paper" section (every ρ beside its registered value; which clause verdicts move under which pair; A27(f)'s two sentences filled;
+   the multiplicity sentence on the selectable basis, `A27_DEVIATIONS` D3). Commit, then say **"P9.2 G4 anchors ready"**. The
+   coordinator recomputes the ρ blocks independently before anything is merged.
+2. **Then rebuild C9 exactly as Amendment B, B.3 specifies** (your first C9 was never committed and did not survive the reboot of
+   2026-10-16/27): the per-cell watchdog, the restart loop in the shift driver, the four tests red first, one mutant per item, the seven
+   task files green — **one pytest process at a time, `OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`**. Say **"P9.2 C9 ready"**. Amendment D will
+   create `/home/filip/rltraffic-p92-run2` at C9's commit and clear `p92-shift` stage 1.
+3. Stage 2 (`iql_t`) waits for P9.1's committed training record (the pin file of Amendment A, A.3.3).
+
+---
+
+# ✅ AMENDMENT C.1 — 2026-10-27, G4 (point 5, the anchors): every number ACCEPTED on the coordinator's independent recomputation; ONE test fixed before the merge (it fails, and points at the real draws root, when the suite runs from the main tree)
+
+Written against `docs/data/p9_2_sumo_anchors.json` (`1e7d77c`, sha256 `9faa1aaa…fafef6`, extracted from the commit and digested) and
+`docs/returns/P9.2.md` (`9bba6b5`, `d5451a7`), read from disk.
+
+## C.1.1 The coordinator's recomputation — a route that imports nothing from `offline/` (raw JSON, stdlib)
+From the four committed P7.3 artifacts (every DT cell and the registered anchors, the anchors checked identical across the
+artifacts of one scenario) and the 400 new SUMO cells under `output/p9_2/anchors/`:
+- **Every ρ interval the artifact carries — 456 numbers** (19 arms × 2 definitions × 4 pairs × mean / low / high: P7.3a's eight
+  subject–arms, P7.3b's anchor, P7.3d's zero-shot, P7.3c's nine arms): **worst absolute difference 1.8 × 10⁻¹⁵**; the registered pair
+  reproduces the committed 1.8895 [1.8610, 1.9180], 1.7264 [1.6862, 1.7666], 0.8855 [0.8736, 0.8973] and 0.9564 [0.9492, 0.9635].
+- **Every clause verdict, both definitions, all four pairs,** equal to the artifact's: hz1x1 HELD / FAILED / VOID everywhere (both
+  subjects); grid HELD / HELD / (i) under the registered pair and `mpperlink_ftkcf` (G = 0.1145 and 0.2599, Δ₁₀₀ 0.0709 [0.0576,
+  0.0842] and 0.1610 [0.1309, 0.1911]), HELD / FAILED / VOID under `mp1to1_ftk4` (G = −0.3104) and `mp1to1_ftkcf` (G = −1.8498).
+- **The anchor means** (SUMO E_sumo): hz1x1 MP per-link 356.73, MP 1:1 321.75, FT k = 4 601.89, FT kcf 563.12; grid 168.03, 212.10,
+  304.06, 227.98. **The denominators FT − MP** on the grid: 130.5–141.4 s (registered), 84.6–98.0, 56.8–63.4, **9.6–21.9 s
+  (aligned)** — positive on every draw under every pair. **The paired seconds** on the grid (zero-shot DT − anchor): +15.59 [+13.97,
+  +17.20] vs the per-link MP (DT better on 0 / 100), −28.49 [−30.10, −26.87] vs MP 1:1 (100 / 100), −120.44 vs FT k = 4, −44.36 vs FT
+  kcf (100 / 100 each).
+- **The new cells:** 400 SUMO cells, 0 teleports and 0 collisions on every one; **the load-bearing identity:** on CityFlow hz1x1
+  `maxpressure_1to1` equals P8.4a's committed `behaviour@maxpressure` episodes (`docs/data/p8_4a_admission_escalated.json`) on all
+  seven fields, 100 of 100 draws; on CityFlow's grid it is 156.69 `att_ours` / 150.21 `att_engine` (n = 100).
+**G4 is ACCEPTED.** No further review mandate: the numbers are recomputed by an independent route, and the code that produced them
+passed G1's review and C8's verification.
+
+## C.1.2 FIX FIRST — one test, before the merge (a test-only commit, C8.1)
+`tests/test_demand_shift.py::test_materialise_refuses_an_out_root_inside_the_worktree` passes in a linked worktree and on CI, and
+**FAILS when the suite runs from the main tree** (`/home/filip/rltraffic`, run by the coordinator on the trial merge, 2026-10-27):
+it passes `REPO_ROOT / "scenarios" / "draws"` as an out-root that must be refused, but in the main tree that path IS the registered
+draws root, so no refusal fires; the call reaches the audit check (`FileNotFoundError: no audit at …`), and the test's second
+assertion (`not (REPO_ROOT / "scenarios" / "draws").exists()`) would fail on the real draws directory. **It also hands the real
+registered draws root to `materialise_shifted`** when run from the main tree; only the missing audit stops a write (nothing was
+written: checked). **Fix:** build a stand-in LINKED worktree under `tmp_path` (a `.git` FILE marker, as your other materialise tests
+build their stand-in tree) and pass an out-root inside it together with the stand-in registered root; `REPO_ROOT` never reaches a
+function that writes. Red first: the old test run with the main tree as `REPO_ROOT` fails as above; the new one passes in the main
+tree, in your worktree and in a scratch copy. One mutant: the out-root check removed from `materialise_shifted` → the new test fails.
+The coordinator's grep of the seven task files found no other test that hands a real-tree path to a writing function. Commit it
+alone, say **"P9.2 C8.1 ready"**; the coordinator re-runs the seven files from the main tree on the trial merge and merges the branch
+(point 5 on `main`, §6's P9.2 box stays open for point 7). Then C9 as Amendment C says.
+
+## C.1.3 The grid sentence's clause-3 slot and the seconds beside ρ′
+- **The words are the author's** (A.3.2; `A27_DEVIATIONS` R5): asked of him on 2026-10-27; recorded here when he rules.
+- **The seconds:** the registered sentence is quoted verbatim, and the paper places beside it — as a separate sentence, never inside
+  his — the aligned anchors' denominator range on the grid (9.6–21.9 s per draw) and the paired seconds (the DT beats `fixedtime_kcf`
+  by 44.4 s and `maxpressure_1to1` by 28.5 s on 100 of 100 draws, where it trails the registered MaxPressure by 15.6 s on 100 of 100).
+  A ρ with a 10–22 s denominator is a ratio of near-coincident anchors; the seconds are the comparison it summarises. The artifact
+  already carries both (`denominator_diagnostic`, `paired_att_e_sumo`); nothing is recomputed.
+
+---
+
+# ✅ AMENDMENT D — 2026-10-27: point 5 MERGED with C9 and C8.1; the author's words for the grid's clause-3 slot; `p92-shift` stage 1 CLEARED from `/home/filip/rltraffic-p92-run2` at `dafa3eb`, with the stall remedy's values CORRECTED (120 s, 60 restarts)
+
+## D.1 Verified by the coordinator, from disk, before the merge
+- **C8.1 (`dafa3eb`):** on the trial merge, the eight task files with every gate set, run FROM THE MAIN TREE (the context where the
+  old test failed), one process: **409 passed** (with `tests/test_tier_statements.py`), nothing written under `output/`,
+  `scenarios/draws/` or `datasets_v11/`.
+- **C9 (`4b47220`):** read — the watchdog is armed immediately before each rolled cell and cancelled in a `finally`; both routes
+  close their env in a `finally` (`admission_probe.probe_episode`, `dt_gate.evaluate_arm`), so an engine is freed inside the armed
+  window; the restart rule reads only the bytes the current attempt appended. Your M33–M35 accepted.
+- **A test gap (no number at stake; REQUIRED in part 2's packet, not before the run):** the coordinator's mutant — the banner searched
+  in the WHOLE log instead of this attempt's part (`segment=$(cat "$log")`) — SURVIVES all 22 tests of
+  `tests/test_demand_shift_watchdog.py` and `tests/test_p9_2_drivers.py` (control 22 / 22). Under it, a shard cut once and later
+  stopped by a REAL refusal (two routes disagreeing) is restarted until the cap and then reported as a watchdog stop. Add the test
+  (attempt 1 cut, attempt 2 exits 1 with a refusal and no banner → STOPPED, not restarted) and show it kills that mutant.
+
+## D.2 The author's ruling on the grid sentence's clause-3 slot (2026-10-27), quoted: *"Clause-3 slot: P1, as you recommend."*
+The grid sentence, filled: *"Under the aligned anchors the grid's zero-shot ρ is 2.8498 [2.7228, 2.9768], against the registered
+0.8855 [0.8736, 0.8973], and the fine-tuned (k = 100) ρ is 3.4793 [3.3567, 3.6019], against 0.9564 [0.9492, 0.9635]; the
+transferred DT still beats the tuned fixed-time plan in SUMO (clause 1 holds under the aligned pair), no longer trails MaxPressure
+(clause 2), and, with no gap left to close (G recomputed under the pair is −1.85), clause 3 is void under the aligned pair, as A19(a)
+voided it on hz1x1; the registered verdicts stand as the record."* (`A27_DEVIATIONS` R5.1.) Write it into `docs/returns/P9.2.md`'s
+§5.4 in part 2.
+
+## D.3 The stall remedy's values — the coordinator's error, corrected (Amendment B, B.3 set 600 s and 20 without computing the hangs)
+Your C9 packet's arithmetic, checked: 15,600 cells × 2 routes = 31,200 engine shutdowns, ≈ 10,400 per shard; at `DEFERRED` 104's
+rate (≈ 2 in 1,200) a shard expects ≈ 17 hangs, so a total cap of 20 stops a healthy shard with probability ≈ 0.22 (≈ 0.52 that one
+of three stops), and 600 s per hang idles ≈ 2.9 h per shard. **Ruled:** the watchdog cuts after **120 s** (36× the slowest cell
+measured at G2, 3.3 s for both routes; a false cut costs one re-roll of a seeded cell and changes no number) and a shard stops after
+**60** restarts (P(a healthy shard needs more) < 10⁻⁹ at 17 expected; a cell that hangs on every attempt costs at most 2 h before it
+stops). **No code change:** the driver's `P92_WATCHDOG_SECONDS` and `P92_MAX_RESTARTS` carry them, passed explicitly into every
+shard window; the run command below sets both, and every restart line in the logs prints them.
+
+## D.4 The token (channel (a)) — `p92-shift` stage 1 CLEARED
+From the run tree `/home/filip/rltraffic-p92-run2` (detached at `dafa3eb`, clean, the committed audit present; created by the
+coordinator), 3 shards, CPU only, ≈ 3.5 h of cells plus ≈ 35 min of watchdog idle per shard at the expected hang rate: the token
+`output/p9_2_runs/TOKEN_p92_shift` with `BRIEF_47 Amendment D` in its text, the session `p92-shift`, and the driver started with
+`P92_WATCHDOG_SECONDS=120 P92_MAX_RESTARTS=60`. Stage 2 (`iql_t`) waits for P9.1's committed training record.
+**After the run (G4, part 2):** `status`, then the artifact from `/home/filip/rltraffic-p92-run2` (never from your worktree), copied
+byte for byte; the packet with D.1's test and D.2's sentence. A shard that prints `STOPPED` is reported, not restarted by hand
+without the coordinator.
