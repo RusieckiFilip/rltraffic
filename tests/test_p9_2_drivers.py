@@ -69,8 +69,10 @@ SPEC = {
 }
 
 STUB_PYTHON = """#!/usr/bin/env bash
-# A stand-in interpreter: it records its arguments and answers by subcommand (its last argument).
+# A stand-in interpreter: it records its arguments -- and, beside them, the directory it was called from (BRIEF_47
+# Amendment E) -- and answers by subcommand (its last argument).
 printf '%s\\n' "$*" >> "$STUB_LOG"
+printf '%s\\t%s\\n' "$(pwd -P)" "$*" >> "$STUB_WHERE_LOG"
 last="${!#}"
 case "$last" in
   canary) echo "canary 0.80 s (stand-in)"; exit 0 ;;
@@ -91,7 +93,9 @@ def _executable(path: Path, text: str) -> None:
 
 
 class _Harness:
-    """One driver in a clean scratch git tree, its runs and output roots, and the two stand-ins."""
+    """One driver in a clean scratch git tree, its runs and output roots, a scratch MAIN tree (``P92_MAIN_TREE``: the shift
+    driver materialises from its main tree, which on a host without ``/home/filip/rltraffic`` must be given -- ``BRIEF_47``
+    Amendment E), and the two stand-ins."""
 
     def __init__(self, tmp_path: Path, name: str) -> None:
         self.name = name
@@ -116,7 +120,10 @@ class _Harness:
         self.token = self.runs / SPEC[name]["token"]
         self.token.write_text("driver test token\n", encoding="utf-8")
         self.python_log = tmp_path / "python.log"
+        self.where_log = tmp_path / "python_where.log"
         self.tmux_log = tmp_path / "tmux.log"
+        self.main_tree = tmp_path / "main_tree"
+        self.main_tree.mkdir()
 
     def write_record(self) -> None:
         record = self.output.joinpath(*SPEC[self.name]["record"])
@@ -127,7 +134,8 @@ class _Harness:
         env = {key: value for key, value in os.environ.items() if key not in ("STAGE", "IQL_T_PINS", "SHARDS")}
         env.update(PATH=f"{self.bin}:{os.environ['PATH']}", P92_PYTHON=str(self.bin / "python"), P92_RUNS=str(self.runs),
                    P92_OUTPUT_ROOT=str(self.output), P92_SESSION="p92-test-never", STUB_LOG=str(self.python_log),
-                   STUB_TMUX_LOG=str(self.tmux_log), STUB_RUN_EXIT=str(run_exit), STUB_CHECK_EXIT=str(check_exit))
+                   STUB_TMUX_LOG=str(self.tmux_log), STUB_RUN_EXIT=str(run_exit), STUB_CHECK_EXIT=str(check_exit),
+                   P92_MAIN_TREE=str(self.main_tree), STUB_WHERE_LOG=str(self.where_log))
         return subprocess.run(["bash", str(self.tree / "offline" / "campaigns" / self.name)], capture_output=True,
                               text=True, env=env, timeout=60)
 
@@ -136,6 +144,11 @@ class _Harness:
 
     def tmux_calls(self) -> list[str]:
         return self.tmux_log.read_text(encoding="utf-8").splitlines() if self.tmux_log.exists() else []
+
+    def calls_with_cwd(self) -> list[tuple[str, str]]:
+        """``(the stand-in's working directory, its arguments)`` per call."""
+        lines = self.where_log.read_text(encoding="utf-8").splitlines() if self.where_log.exists() else []
+        return [tuple(line.split("\t", 1)) for line in lines]  # type: ignore[misc]
 
 
 @pytest.mark.parametrize("name", DRIVERS)
@@ -167,3 +180,35 @@ def test_the_token_is_consumed_only_past_a_record_that_authorises(
     assert asked is (run_exit == 0), calls
     if token_kept and run_exit == 0:
         assert "the token is kept" in result.stderr
+
+
+# ----------------------------------------------------------------------
+# The main tree is the driver's to be given (BRIEF_47 Amendment E, C10)
+# ----------------------------------------------------------------------
+
+
+def test_the_shift_driver_materialises_from_the_main_tree_it_is_given(tmp_path: Path) -> None:
+    """The driver ``cd``s into its main tree to materialise the draws (DEFERRED 55).  Given ``P92_MAIN_TREE`` -- as it is
+    given ``P92_PYTHON`` -- it must materialise from THAT tree: here a scratch one, so the test never enters the real main
+    tree, and runs on a host (CI) where ``/home/filip/rltraffic`` does not exist."""
+    harness = _Harness(tmp_path, "p9_2_demand_shift.sh")
+    result = harness(run_exit=0, check_exit=0)
+    assert result.returncode == 0, result.stdout + result.stderr
+    materialise = [(cwd, call) for cwd, call in harness.calls_with_cwd() if call.endswith(" materialise")]
+    assert len(materialise) == 1, harness.calls_with_cwd()
+    assert Path(materialise[0][0]) == harness.main_tree.resolve(), materialise
+
+
+def test_unset_p92_main_tree_leaves_the_campaigns_main_tree_unchanged(tmp_path: Path) -> None:
+    """The pin (Amendment E, E.2.3): the driver's ONE assignment of ``MAIN_TREE`` is the override with
+    ``/home/filip/rltraffic`` as its default -- evaluated by bash itself, unset and set, so no such directory is needed."""
+    text = (REPO_ROOT / "offline" / "campaigns" / "p9_2_demand_shift.sh").read_text(encoding="utf-8")
+    assignments = [line for line in text.splitlines() if line.startswith("MAIN_TREE=")]
+    assert assignments == ["MAIN_TREE=${P92_MAIN_TREE:-/home/filip/rltraffic}"]
+    env = {key: value for key, value in os.environ.items() if key != "P92_MAIN_TREE"}
+    probe = [assignments[0], 'printf "%s" "$MAIN_TREE"']
+    unset = subprocess.run(["bash", "-c", "; ".join(probe)], env=env, capture_output=True, text=True, check=True)
+    assert unset.stdout == "/home/filip/rltraffic"
+    given = subprocess.run(["bash", "-c", "; ".join(probe)], env={**env, "P92_MAIN_TREE": str(tmp_path)},
+                           capture_output=True, text=True, check=True)
+    assert given.stdout == str(tmp_path)
