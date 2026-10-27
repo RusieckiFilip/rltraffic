@@ -369,3 +369,38 @@ in your campaign is cut — points 1, 2, 3, 4 and 6 run as planned (deviation D1
 pytest process, `OMP_NUM_THREADS=1`), then **"P9.1 campaign ready"** with that commit. Amendment C then creates the run tree there and
 clears the `campaign` token. The CI skip ceiling for M1's eight corpus-gated tests is measured from this merge's CI run and handed to
 the author as a patch (your Q4).
+
+---
+
+# ⚖️ AMENDMENT B.2 — 2026-10-27: the stall remedy's values CORRECTED for your campaign too (your Q12) — 120 s and 60 restarts per shard
+
+`BRIEF_46` Amendment B, B.3 set 600 s and 20 restarts without computing the hangs the evaluation stage will meet — the coordinator's
+error, found by P9.2's arithmetic (`BRIEF_47` Amendment D, D.3). Your evaluation destroys roughly 70,000 engines over six shards
+(route (i) and route (ii) for 53 cells, 38 old cells, P3a's references), ≈ 12,000 per shard: at `DEFERRED` 104's rate a shard expects
+≈ 20 hangs, so a cap of 20 stops a healthy shard about half the time and 600 s per hang idles ≈ 3.3 h per shard. **Ruled:** your
+`StallGuard` cuts after **120 s** without progress (it re-arms on reset and step at most once per 10 s, so a stall is cut after
+110–120 s; the longest legitimate pause between two steps is a checkpoint load, seconds) and a shard stops after **60** restarts.
+Make them the defaults in `offline/stall_guard.py` and the driver (with an environment override, as P9.2's driver has one), pin both
+by a test, and include the change in the commit you name in "P9.1 campaign ready".
+
+---
+
+# ⚠️ AMENDMENT B.2.1 — 2026-10-27 (no gate): your readiness at `9fc8ba2` predates Amendment B.2 — merge `main` again, make B.2's change, then say "P9.1 campaign ready"
+
+- Your note `d9ef0b9` (14:50) names `9fc8ba2`, your merge of `main` at `c579424` (12:31). Amendment B.2 reached `main` at 13:31,
+  inside the P9.2 merge `e4a5ab0`, after that merge. So at `9fc8ba2`, `offline/stall_guard.py` still has `STALL_SECONDS = 600.0`, and
+  B.2's condition (*"include the change in the commit you name in 'P9.1 campaign ready'"*) is not met. This is not your error: the
+  ruling landed after your merge.
+- **Next:**
+  1. `git merge --no-edit main`. Since your merge, `main` has changed only P9.2's files (`offline/demand_shift.py`,
+     `offline/sumo_anchor_rescore.py`, `offline/policies/max_pressure_1to1.py`, the two P9.2 drivers and their tests) and docs.
+  2. B.2's change: `StallGuard` cuts after 120 s and a shard stops after 60 restarts, as the defaults in `offline/stall_guard.py`
+     and the driver, with an environment override, pinned by a test that runs red on 600 first.
+  3. Re-run the trial's 26 files on that commit: one pytest process, `OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`.
+- **One audit (the class that turned `main` red today, `BRIEF_47` Amendment E):** `offline/campaigns/p9_1_corrective.sh` sets
+  `MAIN=/home/filip/rltraffic` (line 49), derives `PY`, `OUTPUT`, `CORPUS` and `DRAWS` from it, and runs `cd "$MAIN"` (line 100).
+  CI's runners have no such path. List every test that runs the driver, or reaches any other `/home/filip/rltraffic` literal in
+  your code, and say how it behaves there: overridden, skipped with a named reason, or not reached. Fix a test that would fail
+  there in the same commit, with an override like P9.2's `P92_*` variables.
+- Then **"P9.1 campaign ready"** with that commit. Amendment C creates the run tree there and clears the token. The GPU is idle
+  until then, and every idle hour comes out of P9.3's margin to 2026-11-07.
