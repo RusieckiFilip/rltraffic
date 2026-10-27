@@ -233,10 +233,20 @@ def _fake_audit(tmp_path: Path, tree: Path, *, passed: bool = True, flow_sha256:
 
 
 def test_materialise_refuses_an_out_root_inside_the_worktree(tmp_path: Path) -> None:
+    """A draw materialised inside a linked worktree points into a tree deleted with it (DEFERRED 55), so the worktree's own
+    draws root is refused.  BOTH trees are stand-ins under ``tmp_path`` -- a main tree, and a linked worktree marked, as git
+    marks one, by a ``.git`` FILE -- so the repository this test runs from never reaches ``materialise_shifted``: run from the
+    main tree, ``REPO_ROOT / "scenarios" / "draws"`` IS the registered root (``BRIEF_47`` Amendment C.1.2)."""
+    main = _stand_in_tree(tmp_path)
+    registered = main / "scenarios" / "draws"
+    worktree = tmp_path / "worktree"
+    worktree.mkdir()
+    (worktree / ".git").write_text(f"gitdir: {main / '.git' / 'worktrees' / 'worktree'}\n", encoding="utf-8")
+    inside = worktree / "scenarios" / "draws"
     with pytest.raises(ValueError, match="registered draws root"):
-        ds.materialise_shifted(out_root=REPO_ROOT / "scenarios" / "draws", audit_path=tmp_path / "unused.json",
-                               repo_root=REPO_ROOT)
-    assert not (REPO_ROOT / "scenarios" / "draws").exists()
+        ds.materialise_shifted(out_root=inside, audit_path=tmp_path / "unused.json", repo_root=worktree,
+                               registered_root=registered, main_tree=main)
+    assert not inside.exists() and not registered.exists()
 
 
 def test_materialise_refuses_any_out_root_but_the_registered_one(tmp_path: Path) -> None:
