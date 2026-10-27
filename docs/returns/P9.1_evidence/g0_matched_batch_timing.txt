@@ -1,0 +1,25 @@
+$ OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 PYTHONPATH=/home/filip/rltraffic-p91 python -P time_matched.py <scratch>/timing 2000 mappo1000   # CUDA, outside the sandbox, 2026-10-15
+setup 61.8s; windows bc 1152000, perix 115200, transitions 1152000
+bc@64: 5.73s for 2000 steps -> 115s at 40k
+bc_m@1024: 20.26s for 2000 steps -> 405s at 40k
+bc_top10_perix_m@102: 4.87s for 2000 steps -> 97s at 40k
+iql@1280: 13.93s for 2000 steps -> 279s at 40k
+iql_m@20480: 75.00s for 2000 steps -> 1500s at 40k
+{
+ "tier": "mappo1000",
+ "steps": 2000,
+ "seconds": {
+  "bc@64": 5.734280586242676,
+  "bc_m@1024": 20.258238554000854,
+  "bc_top10_perix_m@102": 4.866189479827881,
+  "iql@1280": 13.932184934616089,
+  "iql_m@20480": 74.99979615211487
+ },
+ "extrapolated_40k": {
+  "bc@64": 114.68561172485352,
+  "bc_m@1024": 405.1647710800171,
+  "bc_top10_perix_m@102": 97.3237895965576,
+  "iql@1280": 278.6436986923218,
+  "iql_m@20480": 1499.9959230422974
+ }
+}

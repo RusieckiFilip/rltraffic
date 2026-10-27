@@ -1,0 +1,683 @@
+[
+ {
+  "name": "M1 eval() -> train() in _target_forward",
+  "file": "offline/offline_baselines.py",
+  "old": "        module.eval()\n        try:\n            return module(inputs)",
+  "new": "        module.train()\n        try:\n            return module(inputs)",
+  "tests": [
+   "tests/test_iql_target_dropout.py"
+  ]
+ },
+ {
+  "name": "M2 off: advantage reuses v_pred.detach()",
+  "file": "offline/offline_baselines.py",
+  "old": "_awr_weight(q_taken, v_pred.detach() if v_advantage is None else v_advantage)",
+  "new": "_awr_weight(q_taken, v_pred.detach())",
+  "tests": [
+   "tests/test_iql_target_dropout.py"
+  ]
+ },
+ {
+  "name": "M3 off: separate V forward after the V step",
+  "file": "offline/offline_baselines.py",
+  "old": "            # A27(c): under \"off\" the advantage's V(s) is its own eval-mode forward, taken HERE, before this step's V\n            # update, so the advantage still uses V from before its update.  Under \"active\" no forward is added: the\n            # advantage reuses the trained forward's ``v_pred`` below, as the registered loop always did.\n            v_advantage = (\n                _target_forward(value, batch.state, eval_mode=True).reshape(-1) if targets_off else None\n            )\n\n        # 1. V: expectile regression of the target Q onto V.\n        v_pred = value(batch.state).reshape(-1)\n        residual = q_taken - v_pred\n        weight = torch.where(\n            residual < 0, torch.full_like(residual, 1.0 - IQL_TAU), torch.full_like(residual, IQL_TAU)\n        )\n        v_loss = (weight * residual.pow(2)).mean()\n        optimisers[\"v\"].zero_grad(set_to_none=True)\n        v_loss.backward()\n        torch.nn.utils.clip_grad_norm_(value.parameters(), GRAD_CLIP)\n        optimisers[\"v\"].step()\n        schedules[\"v\"].step()\n",
+  "new": "            v_advantage = None\n\n        # 1. V: expectile regression of the target Q onto V.\n        v_pred = value(batch.state).reshape(-1)\n        residual = q_taken - v_pred\n        weight = torch.where(\n            residual < 0, torch.full_like(residual, 1.0 - IQL_TAU), torch.full_like(residual, IQL_TAU)\n        )\n        v_loss = (weight * residual.pow(2)).mean()\n        optimisers[\"v\"].zero_grad(set_to_none=True)\n        v_loss.backward()\n        torch.nn.utils.clip_grad_norm_(value.parameters(), GRAD_CLIP)\n        optimisers[\"v\"].step()\n        schedules[\"v\"].step()\n        with torch.no_grad():\n            v_advantage = (\n                _target_forward(value, batch.state, eval_mode=True).reshape(-1) if targets_off else None\n            )\n",
+  "tests": [
+   "tests/test_iql_target_dropout.py"
+  ]
+ },
+ {
+  "name": "M4 no return to train() after a target forward",
+  "file": "offline/offline_baselines.py",
+  "old": "        finally:\n            module.train()\n\n\ndef train_iql(",
+  "new": "        finally:\n            pass\n\n\ndef train_iql(",
+  "tests": [
+   "tests/test_iql_target_dropout.py"
+  ]
+ },
+ {
+  "name": "M5 default flipped to off",
+  "file": "offline/offline_baselines.py",
+  "old": "    target_dropout: str = \"active\",\n) -> TrainRecord:",
+  "new": "    target_dropout: str = \"off\",\n) -> TrainRecord:",
+  "tests": [
+   "tests/test_iql_target_dropout.py"
+  ]
+ },
+ {
+  "name": "M6 off: value(s') left in train mode",
+  "file": "offline/offline_baselines.py",
+  "old": "_target_forward(value, batch.next_state, eval_mode=targets_off)",
+  "new": "_target_forward(value, batch.next_state, eval_mode=False)",
+  "tests": [
+   "tests/test_iql_target_dropout.py"
+  ]
+ },
+ {
+  "name": "M7 off: q_target(s) left in train mode",
+  "file": "offline/offline_baselines.py",
+  "old": "_target_forward(q_target, batch.state, eval_mode=targets_off)",
+  "new": "_target_forward(q_target, batch.state, eval_mode=False)",
+  "tests": [
+   "tests/test_iql_target_dropout.py"
+  ]
+ },
+ {
+  "name": "M8 provenance does not record the flag",
+  "file": "offline/offline_baselines.py",
+  "old": "                \"device\": str(device),\n                \"target_dropout\": target_dropout,\n",
+  "new": "                \"device\": str(device),\n",
+  "tests": [
+   "tests/test_iql_target_dropout.py"
+  ]
+ },
+ {
+  "name": "E1 grid DT per-step drops the 16 nodes",
+  "file": "offline/a27_arms.py",
+  "old": "return r.batch * int(CONTEXT_LENGTH) * nodes[r.scenario]",
+  "new": "return r.batch * int(CONTEXT_LENGTH)",
+  "tests": [
+   "tests/test_a27_arms.py",
+   "tests/test_exposure_table.py"
+  ]
+ },
+ {
+  "name": "E2 top-decile arms counted on the full set",
+  "file": "offline/a27_arms.py",
+  "old": "in_set = int(top) if r.base in (\"bc_top10\", \"bc_top10_perix\") else full",
+  "new": "in_set = full",
+  "tests": [
+   "tests/test_a27_arms.py",
+   "tests/test_exposure_table.py"
+  ]
+ },
+ {
+  "name": "E3 IQL per-step times K",
+  "file": "offline/a27_arms.py",
+  "old": "        if r.base == \"iql\":\n            return r.batch\n",
+  "new": "        if r.base == \"iql\":\n            return r.batch * int(CONTEXT_LENGTH)\n",
+  "tests": [
+   "tests/test_a27_arms.py",
+   "tests/test_exposure_table.py"
+  ]
+ },
+ {
+  "name": "E4 bc_top10_m at 103 windows",
+  "file": "offline/a27_arms.py",
+  "old": "ArmRecipe(\"grid4x4\", \"bc_top10_m\", \"bc_top10\", 102,",
+  "new": "ArmRecipe(\"grid4x4\", \"bc_top10_m\", \"bc_top10\", 103,",
+  "tests": [
+   "tests/test_a27_arms.py",
+   "tests/test_exposure_table.py"
+  ]
+ },
+ {
+  "name": "E5 derive keeps the registered name at the ceiling",
+  "file": "offline/a27_arms.py",
+  "old": "if int(batch) == registered.batch and target == registered.target_dropout and not ceiling:",
+  "new": "if int(batch) == registered.batch and target == registered.target_dropout:",
+  "tests": [
+   "tests/test_a27_arms.py",
+   "tests/test_exposure_table.py"
+  ]
+ },
+ {
+  "name": "E6 fresh reference uses default_rng(seed)",
+  "file": "offline/a27_arms.py",
+  "old": "np.random.default_rng([int(seed), int(draw)])",
+  "new": "np.random.default_rng(int(seed))",
+  "tests": [
+   "tests/test_a27_arms.py",
+   "tests/test_exposure_table.py"
+  ]
+ },
+ {
+  "name": "E7 fresh reference seeds [draw, seed]",
+  "file": "offline/a27_arms.py",
+  "old": "np.random.default_rng([int(seed), int(draw)])",
+  "new": "np.random.default_rng([int(draw), int(seed)])",
+  "tests": [
+   "tests/test_a27_arms.py",
+   "tests/test_exposure_table.py"
+  ]
+ },
+ {
+  "name": "E8 ceiling refusal is a no-op",
+  "file": "offline/a27_arms.py",
+  "old": "    if int(steps) == BUDGET_CEILING_STEPS and (_check_scenario(scenario), str(name)) in REGISTERED_RECIPES:\n        raise",
+  "new": "    if False:\n        raise",
+  "tests": [
+   "tests/test_a27_arms.py",
+   "tests/test_exposure_table.py"
+  ]
+ },
+ {
+  "name": "E9 iql_m with active targets",
+  "file": "offline/a27_arms.py",
+  "old": "ArmRecipe(\"grid4x4\", \"iql_m\", \"iql\", 20_480, \"off\",",
+  "new": "ArmRecipe(\"grid4x4\", \"iql_m\", \"iql\", 20_480, \"active\",",
+  "tests": [
+   "tests/test_a27_arms.py",
+   "tests/test_exposure_table.py"
+  ]
+ },
+ {
+  "name": "E10 derive accepts any undeclared combination as registered",
+  "file": "offline/a27_arms.py",
+  "old": "    if len(matches) != 1:\n        raise ValueError(",
+  "new": "    if not matches:\n        return registered\n    if len(matches) != 1:\n        raise ValueError(",
+  "tests": [
+   "tests/test_a27_arms.py",
+   "tests/test_exposure_table.py"
+  ]
+ },
+ {
+  "name": "G1 tier_spec ignores A27_TIERS",
+  "file": "offline/method_tier_grid.py",
+  "old": "    if key in A27_TIERS:\n        return A27_TIERS[key]\n    raise ValueError(f\"unknown tier",
+  "new": "    raise ValueError(f\"unknown tier",
+  "tests": [
+   "tests/test_method_tier_grid_a27.py"
+  ]
+ },
+ {
+  "name": "G2 overlap mixture at fraction 0.33",
+  "file": "offline/method_tier_grid.py",
+  "old": "A27_MIXTURE_EXPERT_FRACTION: Mapping[str, float] = {\"mix_m1000_m500\": 0.50}",
+  "new": "A27_MIXTURE_EXPERT_FRACTION: Mapping[str, float] = {\"mix_m1000_m500\": 0.33}",
+  "tests": [
+   "tests/test_method_tier_grid_a27.py"
+  ]
+ },
+ {
+  "name": "G3 components swapped",
+  "file": "offline/method_tier_grid.py",
+  "old": "components=(\"mappo1000\", \"mappo500\"),",
+  "new": "components=(\"mappo500\", \"mappo1000\"),",
+  "tests": [
+   "tests/test_method_tier_grid_a27.py"
+  ]
+ },
+ {
+  "name": "G4 prefix refusal removed",
+  "file": "offline/method_tier_grid.py",
+  "old": "    if prefix in REGISTERED_ARTIFACT_PREFIXES or not prefix.startswith(\"p9_\"):\n        raise",
+  "new": "    if False:\n        raise",
+  "tests": [
+   "tests/test_method_tier_grid_a27.py"
+  ]
+ },
+ {
+  "name": "G5 p9_ directory refusal removed",
+  "file": "offline/method_tier_grid.py",
+  "old": "    if not any(part.startswith(\"p9_\") for part in checkpoints.resolve().parts):\n        raise",
+  "new": "    if False:\n        raise",
+  "tests": [
+   "tests/test_method_tier_grid_a27.py"
+  ]
+ },
+ {
+  "name": "G6 registered-cell refusal removed",
+  "file": "offline/method_tier_grid.py",
+  "old": "        if reused:\n            raise ValueError(",
+  "new": "        if False:\n            raise ValueError(",
+  "tests": [
+   "tests/test_method_tier_grid_a27.py"
+  ]
+ },
+ {
+  "name": "G7 existing-path refusal removed",
+  "file": "offline/method_tier_grid.py",
+  "old": "    if existing:\n        raise FileExistsError(",
+  "new": "    if False:\n        raise FileExistsError(",
+  "tests": [
+   "tests/test_method_tier_grid_a27.py"
+  ]
+ },
+ {
+  "name": "G8 target_dropout never passed",
+  "file": "offline/method_tier_grid.py",
+  "old": "        iql_extra = {} if recipe.target_dropout in (None, \"active\") else {\"target_dropout\": recipe.target_dropout}",
+  "new": "        iql_extra = {}",
+  "tests": [
+   "tests/test_method_tier_grid_a27.py"
+  ]
+ },
+ {
+  "name": "G9 train_bc ignores the recipe batch",
+  "file": "offline/method_tier_grid.py",
+  "old": "                    declared_gradient_steps=int(args.steps),\n                    batch_size=recipe.batch,\n                    device=device,\n                    checkpoint_path=path,\n                    stats=dataset.stats,\n                    scenario_id=scenario_id,\n                    provenance=arm_provenance,\n                    log_every=args.log_every,\n                )\n                runs.append(_train_record(spec, recipe.name, record, path, recipe=recipe if a27_run else None))\n            print(",
+  "new": "                    declared_gradient_steps=int(args.steps),\n                    batch_size=BC_BATCH_WINDOWS,\n                    device=device,\n                    checkpoint_path=path,\n                    stats=dataset.stats,\n                    scenario_id=scenario_id,\n                    provenance=arm_provenance,\n                    log_every=args.log_every,\n                )\n                runs.append(_train_record(spec, recipe.name, record, path, recipe=recipe if a27_run else None))\n            print(",
+  "tests": [
+   "tests/test_method_tier_grid_a27.py"
+  ]
+ },
+ {
+  "name": "G10 cell_factory loads by arm name",
+  "file": "offline/method_tier_grid.py",
+  "old": "    return _baseline_factory(base, path, declared, device)",
+  "new": "    return _baseline_factory(method, path, declared, device)",
+  "tests": [
+   "tests/test_method_tier_grid_a27.py"
+  ]
+ },
+ {
+  "name": "G11 evaluate ceiling refusal removed",
+  "file": "offline/method_tier_grid.py",
+  "old": "    refuse_registered_name_at_ceiling(\"hz1x1\", args.method, int(args.steps))\n",
+  "new": "",
+  "tests": [
+   "tests/test_method_tier_grid_a27.py"
+  ]
+ },
+ {
+  "name": "G12 random_fresh prompt typed",
+  "file": "offline/method_tier_grid.py",
+  "old": "        target_rtg=math.nan,\n        rtg_scale=math.nan,",
+  "new": "        target_rtg=-1.0,\n        rtg_scale=2.0,",
+  "tests": [
+   "tests/test_method_tier_grid_a27.py"
+  ]
+ },
+ {
+  "name": "G13 defaults pass target_dropout",
+  "file": "offline/method_tier_grid.py",
+  "old": "        iql_extra = {} if recipe.target_dropout in (None, \"active\") else {\"target_dropout\": recipe.target_dropout}",
+  "new": "        iql_extra = {\"target_dropout\": recipe.target_dropout or \"active\"}",
+  "tests": [
+   "tests/test_method_tier_grid_a27.py"
+  ]
+ },
+ {
+  "name": "G14 registered records gain A27 keys",
+  "file": "offline/method_tier_grid.py",
+  "old": "        if recipe is None\n        else {\"base_method\"",
+  "new": "        if False\n        else {\"base_method\"",
+  "tests": [
+   "tests/test_method_tier_grid_a27.py"
+  ]
+ },
+ {
+  "name": "G15 mix tier dirs drop mappo500",
+  "file": "offline/method_tier_grid.py",
+  "old": "        dirs=(*_MAPPO1000_DIRS, *TIERS[\"mappo500\"].dirs),",
+  "new": "        dirs=_MAPPO1000_DIRS,",
+  "tests": [
+   "tests/test_method_tier_grid_a27.py"
+  ]
+ },
+ {
+  "name": "T1 tier_spec ignores A27_TIERS",
+  "file": "offline/tier_sweep.py",
+  "old": "    if key in A27_TIERS:\n        return A27_TIERS[key]\n    raise ValueError(\n        f\"unknown tier",
+  "new": "    raise ValueError(\n        f\"unknown tier",
+  "tests": [
+   "tests/test_tier_sweep_a27.py"
+  ]
+ },
+ {
+  "name": "T2 random_fresh subsampled one per draw",
+  "file": "offline/tier_sweep.py",
+  "old": "        dirs=(\"cf_grid4x4__random_fresh\",),\n        subsample=\"none\",",
+  "new": "        dirs=(\"cf_grid4x4__random_fresh\",),\n        subsample=\"one_per_draw\",",
+  "tests": [
+   "tests/test_tier_sweep_a27.py"
+  ]
+ },
+ {
+  "name": "T3 declare refusal removed",
+  "file": "offline/tier_sweep.py",
+  "old": "    if tier in A27_TIERS:\n        raise ValueError(\n            f\"{tier} is A27's tier: its ladder_att",
+  "new": "    if False:\n        raise ValueError(\n            f\"{tier} is A27's tier: its ladder_att",
+  "tests": [
+   "tests/test_tier_sweep_a27.py"
+  ]
+ },
+ {
+  "name": "T4 plan ignores the target flag",
+  "file": "offline/tier_sweep.py",
+  "old": "                       target_dropout=target if m == \"iql\" else None, steps=int(args.gradient_steps)))",
+  "new": "                       target_dropout=None, steps=int(args.gradient_steps)))",
+  "tests": [
+   "tests/test_tier_sweep_a27.py"
+  ]
+ },
+ {
+  "name": "T5 p9_ refusal removed (baselines)",
+  "file": "offline/tier_sweep.py",
+  "old": "    for name in (\"checkpoint_dir\", \"work_dir\"):\n        if not _has_p9_component(getattr(args, name)):\n            raise ValueError(\n                f\"--{name.replace('_', '-')} {getattr(args, name)} is not under a p9_* directory; A27(a): new runs \"\n                \"write only into new output/p9_* directories\"\n            )\n    if tier not in A27_TIERS:\n        reused",
+  "new": "    if tier not in A27_TIERS:\n        reused",
+  "tests": [
+   "tests/test_tier_sweep_a27.py"
+  ]
+ },
+ {
+  "name": "T6 registered-cell refusal removed",
+  "file": "offline/tier_sweep.py",
+  "old": "        if reused:\n            raise ValueError(\n                f\"{reused} on {tier} would retrain",
+  "new": "        if False:\n            raise ValueError(\n                f\"{reused} on {tier} would retrain",
+  "tests": [
+   "tests/test_tier_sweep_a27.py"
+  ]
+ },
+ {
+  "name": "T8 target_dropout never passed",
+  "file": "offline/tier_sweep.py",
+  "old": "        iql_extra = {} if recipe.target_dropout in (None, \"active\") else {\"target_dropout\": recipe.target_dropout}\n        for seed, path in zip(_seeds_of(args), planned[method]):",
+  "new": "        iql_extra = {}\n        for seed, path in zip(_seeds_of(args), planned[method]):",
+  "tests": [
+   "tests/test_tier_sweep_a27.py"
+  ]
+ },
+ {
+  "name": "T9 train_bc ignores the recipe batch",
+  "file": "offline/tier_sweep.py",
+  "old": "                    method=method, declared_gradient_steps=int(args.gradient_steps),\n                    batch_size=recipe.batch,",
+  "new": "                    method=method, declared_gradient_steps=int(args.gradient_steps),\n                    batch_size=JOINT_BATCH_SIZE,",
+  "tests": [
+   "tests/test_tier_sweep_a27.py"
+  ]
+ },
+ {
+  "name": "T10 A27 loader by arm name",
+  "file": "offline/tier_sweep.py",
+  "old": "        return _baseline_factory(recipe(A27_SCENARIO, method).base, path, int(args.gradient_steps), args.device)",
+  "new": "        return _baseline_factory(method, path, int(args.gradient_steps), args.device)",
+  "tests": [
+   "tests/test_tier_sweep_a27.py"
+  ]
+ },
+ {
+  "name": "T11 fresh reference is the registered generator",
+  "file": "offline/tier_sweep.py",
+  "old": "            return fresh_random_factory(\n                int(seed), scenario_key=args.scenario_key, draws_root=args.draws_root, draw_ids=HELD_OUT_DRAWS\n            )",
+  "new": "            return _random_factory(int(seed))",
+  "tests": [
+   "tests/test_tier_sweep_a27.py"
+  ]
+ },
+ {
+  "name": "T12 default records gain A27 fields",
+  "file": "offline/tier_sweep.py",
+  "old": "            if a27_run:\n                # A27(a): every training run's seconds",
+  "new": "            if True:\n                # A27(a): every training run's seconds",
+  "tests": [
+   "tests/test_tier_sweep_a27.py"
+  ]
+ },
+ {
+  "name": "T13 DT guard removed",
+  "file": "offline/tier_sweep.py",
+  "old": "    if tier in A27_TIERS:\n        # A27 (BRIEF_46 3.1): a DT on A27's tier is a new cell",
+  "new": "    if False:\n        # A27 (BRIEF_46 3.1): a DT on A27's tier is a new cell",
+  "tests": [
+   "tests/test_tier_sweep_a27.py"
+  ]
+ },
+ {
+  "name": "T14 train_iql ignores the recipe batch",
+  "file": "offline/tier_sweep.py",
+  "old": "                    batch_size=recipe.batch, device=device, checkpoint_path=partial,\n                    stats=dataset.stats, scenario_id=SCENARIO_ID,\n                    provenance={**provenance, **a27_fields, \"runtime\": runtime_provenance()},\n                    log_every=int(args.log_every),\n                    **iql_extra,",
+  "new": "                    batch_size=IQL_BATCH_TRANSITIONS, device=device, checkpoint_path=partial,\n                    stats=dataset.stats, scenario_id=SCENARIO_ID,\n                    provenance={**provenance, **a27_fields, \"runtime\": runtime_provenance()},\n                    log_every=int(args.log_every),\n                    **iql_extra,",
+  "tests": [
+   "tests/test_tier_sweep_a27.py"
+  ]
+ },
+ {
+  "name": "T7 existing-path refusal removed (baselines, true removal)",
+  "file": "offline/tier_sweep.py",
+  "old": "    existing = [str(path) for path in paths if path.exists()]\n    if existing:\n        raise FileExistsError(",
+  "new": "    existing = [str(path) for path in paths if path.exists()]\n    if False:\n        raise FileExistsError(",
+  "tests": [
+   "tests/test_tier_sweep_a27.py"
+  ]
+ },
+ {
+  "name": "T13b DT existing-checkpoint refusal removed",
+  "file": "offline/tier_sweep.py",
+  "old": "        existing = [str(path) for path in planned if path.exists()]\n        if existing:\n            raise FileExistsError(",
+  "new": "        existing = [str(path) for path in planned if path.exists()]\n        if False:\n            raise FileExistsError(",
+  "tests": [
+   "tests/test_tier_sweep_a27.py"
+  ]
+ },
+ {
+  "name": "R1 the default takes the per-episode branch",
+  "file": "offline/collect.py",
+  "old": "            per_episode = args.random_rng == \"per-episode\"",
+  "new": "            per_episode = True",
+  "tests": [
+   "tests/test_collect_random_rng.py"
+  ]
+ },
+ {
+  "name": "R2 episode index dropped from the seed",
+  "file": "offline/collect.py",
+  "old": "rng = np.random.default_rng([int(args.base_seed), int(draw_id), int(index)])",
+  "new": "rng = np.random.default_rng([int(args.base_seed), int(draw_id)])",
+  "tests": [
+   "tests/test_collect_random_rng.py"
+  ]
+ },
+ {
+  "name": "R3 run-global counter instead of the within-draw index",
+  "file": "offline/collect.py",
+  "old": "rng = np.random.default_rng([int(args.base_seed), int(draw_id), int(index)])",
+  "new": "rng = np.random.default_rng([int(args.base_seed), int(draw_id), int(episode_index)])",
+  "tests": [
+   "tests/test_collect_random_rng.py"
+  ]
+ },
+ {
+  "name": "R4 draw id dropped from the seed",
+  "file": "offline/collect.py",
+  "old": "rng = np.random.default_rng([int(args.base_seed), int(draw_id), int(index)])",
+  "new": "rng = np.random.default_rng([int(args.base_seed), int(index)])",
+  "tests": [
+   "tests/test_collect_random_rng.py"
+  ]
+ },
+ {
+  "name": "R5 non-random refusal removed",
+  "file": "offline/collect.py",
+  "old": "    if args.policy != \"random\":\n        raise ValueError(",
+  "new": "    if False:\n        raise ValueError(",
+  "tests": [
+   "tests/test_collect_random_rng.py"
+  ]
+ },
+ {
+  "name": "R6 draw-less refusal removed",
+  "file": "offline/collect.py",
+  "old": "    if any(draw_id is None for draw_id in draw_ids):\n        raise ValueError(",
+  "new": "    if False:\n        raise ValueError(",
+  "tests": [
+   "tests/test_collect_random_rng.py"
+  ]
+ },
+ {
+  "name": "R7 scheme always recorded as per-draw",
+  "file": "offline/collect.py",
+  "old": "            str(getattr(args, \"random_rng\", \"per-draw\")) if args.policy == \"random\" else None",
+  "new": "            \"per-draw\" if args.policy == \"random\" else None",
+  "tests": [
+   "tests/test_collect_random_rng.py"
+  ]
+ },
+ {
+  "name": "R8 scheme recorded for every policy",
+  "file": "offline/collect.py",
+  "old": "            str(getattr(args, \"random_rng\", \"per-draw\")) if args.policy == \"random\" else None",
+  "new": "            str(getattr(args, \"random_rng\", \"per-draw\"))",
+  "tests": [
+   "tests/test_collect_random_rng.py"
+  ]
+ },
+ {
+  "name": "R9 base seed dropped from the seed",
+  "file": "offline/collect.py",
+  "old": "rng = np.random.default_rng([int(args.base_seed), int(draw_id), int(index)])",
+  "new": "rng = np.random.default_rng([int(draw_id), int(index)])",
+  "tests": [
+   "tests/test_collect_random_rng.py"
+  ]
+ },
+ {
+  "name": "D1 off never hands train_iql the flag",
+  "file": "calibration/d4rl_run.py",
+  "old": "                    **({\"target_dropout\": \"off\"} if off else {}),",
+  "new": "",
+  "tests": [
+   "tests/test_d4rl_target_dropout.py"
+  ]
+ },
+ {
+  "name": "D2 off keeps the arm named iql",
+  "file": "calibration/d4rl_run.py",
+  "old": "    names = {arm: (\"iql_t\" if (off and arm == \"iql\") else arm) for arm in arms}",
+  "new": "    names = {arm: arm for arm in arms}",
+  "tests": [
+   "tests/test_d4rl_target_dropout.py"
+  ]
+ },
+ {
+  "name": "D3 off accepts other arms",
+  "file": "calibration/d4rl_run.py",
+  "old": "        if tuple(arms) != (\"iql\",):\n            raise ValueError(",
+  "new": "        if False:\n            raise ValueError(",
+  "tests": [
+   "tests/test_d4rl_target_dropout.py"
+  ]
+ },
+ {
+  "name": "D4 off existing-checkpoint refusal removed",
+  "file": "calibration/d4rl_run.py",
+  "old": "        if existing:\n            raise FileExistsError(f\"{existing[0]} exists; an A27 re-run never overwrites a checkpoint\")",
+  "new": "        if False:\n            raise FileExistsError(f\"{existing[0]} exists; an A27 re-run never overwrites a checkpoint\")",
+  "tests": [
+   "tests/test_d4rl_target_dropout.py"
+  ]
+ },
+ {
+  "name": "D5 registered-reproduction guard removed",
+  "file": "calibration/d4rl_run.py",
+  "old": "    if between_arm_contrasts(reference, REGISTERED_ARMS) != registered[\"contrasts\"]:\n        raise ValueError(",
+  "new": "    if False:\n        raise ValueError(",
+  "tests": [
+   "tests/test_d4rl_target_dropout.py"
+  ]
+ },
+ {
+  "name": "D6 seed-coverage check removed",
+  "file": "calibration/d4rl_run.py",
+  "old": "    if sorted(int(cell[\"seed\"]) for cell in new_cells) != seeds:\n        raise ValueError(",
+  "new": "    if False:\n        raise ValueError(",
+  "tests": [
+   "tests/test_d4rl_target_dropout.py"
+  ]
+ },
+ {
+  "name": "D7 episode-count check removed",
+  "file": "calibration/d4rl_run.py",
+  "old": "    if short:\n        raise ValueError(f\"seeds {short} do not carry",
+  "new": "    if False:\n        raise ValueError(f\"seeds {short} do not carry",
+  "tests": [
+   "tests/test_d4rl_target_dropout.py"
+  ]
+ },
+ {
+  "name": "D8 default hands the flag too",
+  "file": "calibration/d4rl_run.py",
+  "old": "                    **({\"target_dropout\": \"off\"} if off else {}),",
+  "new": "                    target_dropout=target_dropout,",
+  "tests": [
+   "tests/test_d4rl_target_dropout.py"
+  ]
+ },
+ {
+  "name": "D9 comparison without the new cells",
+  "file": "calibration/d4rl_run.py",
+  "old": "        \"contrasts\": between_arm_contrasts([*reference, *new_cells], arms),",
+  "new": "        \"contrasts\": between_arm_contrasts(reference, REGISTERED_ARMS),",
+  "tests": [
+   "tests/test_d4rl_target_dropout.py"
+  ]
+ },
+ {
+  "name": "F1 mixture check removed from _run_train",
+  "file": "offline/method_tier_grid.py",
+  "old": "    if spec.tier == MIXTURE_DESIGN_FACTS[\"tier\"]:\n        assert_mixture_design_facts(selected, top_decile_streams(selected))\n",
+  "new": "",
+  "tests": [
+   "tests/test_method_tier_grid_a27.py",
+   "tests/test_tier_sweep_a27.py",
+   "tests/test_a27_arms.py"
+  ]
+ },
+ {
+  "name": "F2 distinct check removed from _run_train (hz1x1)",
+  "file": "offline/method_tier_grid.py",
+  "old": "    if spec.tier == \"random_fresh\":\n        assert_distinct_schedules(tier_dirs(spec, args.corpus_root)[0], expected=int(spec.stream_count))\n",
+  "new": "",
+  "tests": [
+   "tests/test_method_tier_grid_a27.py",
+   "tests/test_tier_sweep_a27.py",
+   "tests/test_a27_arms.py"
+  ]
+ },
+ {
+  "name": "F3 tier_sweep distinct check a no-op",
+  "file": "offline/tier_sweep.py",
+  "old": "    if tier != \"random_fresh\":\n        return\n    from offline.a27_arms import assert_distinct_schedules",
+  "new": "    return\n    from offline.a27_arms import assert_distinct_schedules",
+  "tests": [
+   "tests/test_method_tier_grid_a27.py",
+   "tests/test_tier_sweep_a27.py",
+   "tests/test_a27_arms.py"
+  ]
+ },
+ {
+  "name": "F4 facts compare the pool only",
+  "file": "offline/a27_arms.py",
+  "old": "    expected = {key: MIXTURE_DESIGN_FACTS[key] for key in (\"pool\", \"kept_decile\", \"decile_returns\")}\n    if measured != json.loads(json.dumps(expected)):",
+  "new": "    expected = {key: MIXTURE_DESIGN_FACTS[key] for key in (\"pool\",)}\n    if measured[\"pool\"] != json.loads(json.dumps(expected))[\"pool\"]:",
+  "tests": [
+   "tests/test_method_tier_grid_a27.py",
+   "tests/test_tier_sweep_a27.py",
+   "tests/test_a27_arms.py"
+  ]
+ },
+ {
+  "name": "F5 refusal on the joint count only",
+  "file": "offline/a27_arms.py",
+  "old": "    short = {ix: n for ix, n in counts[\"per_intersection_distinct\"].items() if n != int(expected)}",
+  "new": "    short = {\"joint\": counts[\"joint_distinct\"]} if counts[\"joint_distinct\"] != int(expected) else {}",
+  "tests": [
+   "tests/test_method_tier_grid_a27.py",
+   "tests/test_tier_sweep_a27.py",
+   "tests/test_a27_arms.py"
+  ]
+ },
+ {
+  "name": "F6 episode-count check removed",
+  "file": "offline/a27_arms.py",
+  "old": "    if counts[\"episodes\"] != int(expected):\n        raise ValueError(",
+  "new": "    if False:\n        raise ValueError(",
+  "tests": [
+   "tests/test_method_tier_grid_a27.py",
+   "tests/test_tier_sweep_a27.py",
+   "tests/test_a27_arms.py"
+  ]
+ },
+ {
+  "name": "F7 decile returns not compared",
+  "file": "offline/a27_arms.py",
+  "old": "        \"decile_returns\": [min(returns), max(returns)] if returns else [],\n    }\n    expected = {key: MIXTURE_DESIGN_FACTS[key] for key in (\"pool\", \"kept_decile\", \"decile_returns\")}",
+  "new": "        \"decile_returns\": [-6627.0, -5959.0],\n    }\n    expected = {key: MIXTURE_DESIGN_FACTS[key] for key in (\"pool\", \"kept_decile\", \"decile_returns\")}",
+  "tests": [
+   "tests/test_method_tier_grid_a27.py",
+   "tests/test_tier_sweep_a27.py",
+   "tests/test_a27_arms.py"
+  ]
+ }
+]

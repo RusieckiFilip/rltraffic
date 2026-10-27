@@ -450,13 +450,33 @@ def train_and_evaluate(
     out_dir: Path,
     device: torch.device,
     log_every: int,
+    target_dropout: str = "active",
 ) -> dict[str, Any]:
     """Every (arm, seed): our own trainer, our own checkpoint, then rollouts.
 
     Nothing here reimplements a training step.  ``train_iql`` and ``train_bc`` are imported and
     called; the only thing this function owns is the shape of what goes in and the rollout that
     comes out.
+
+    **A27(c) (P9.1, ``BRIEF_46`` 3.6).**  ``target_dropout="off"`` re-runs the IQL arm ONLY, named ``iql_t``, with
+    ``train_iql(..., target_dropout="off")``; it refuses any other arm and any checkpoint path that exists, before the
+    first gradient step.  The default ``"active"`` is the registered P8.3 run: same names, no new keyword to the
+    trainer and no new key in the result.
     """
+    if target_dropout not in ("active", "off"):
+        raise ValueError(f"target_dropout must be 'active' or 'off', got {target_dropout!r}")
+    off = target_dropout == "off"
+    names = {arm: ("iql_t" if (off and arm == "iql") else arm) for arm in arms}
+    if off:
+        if tuple(arms) != ("iql",):
+            raise ValueError(
+                f"--iql-target-dropout off re-runs the IQL arm only (A27(c)); got arms {list(arms)}. The registered "
+                "bc and bc_top10 cells are read from the registered artifact, never re-trained under their names"
+            )
+        planned = [out_dir / f"{names[arm]}_k{book.size}_seed{seed}.pt" for arm in arms for seed in seeds]
+        existing = [str(path) for path in planned if path.exists()]
+        if existing:
+            raise FileExistsError(f"{existing[0]} exists; an A27 re-run never overwrites a checkpoint")
     returns = episode_returns(data["rewards"], spans)
     stats = normalization_stats(data["observations"], returns=returns)
     scale = iql_reward_scale(returns)
@@ -501,7 +521,7 @@ def train_and_evaluate(
     cells: list[dict[str, Any]] = []
     for arm in arms:
         for seed in seeds:
-            checkpoint = out_dir / f"{arm}_k{book.size}_seed{seed}.pt"
+            checkpoint = out_dir / f"{names[arm]}_k{book.size}_seed{seed}.pt"
             started = time.time()
             if arm == "iql":
                 assert table is not None
@@ -518,6 +538,7 @@ def train_and_evaluate(
                     scenario_id=SCENARIO_ID,
                     provenance=provenance,
                     log_every=log_every,
+                    **({"target_dropout": "off"} if off else {}),
                 )
             else:
                 record = train_bc(
@@ -546,7 +567,7 @@ def train_and_evaluate(
             )
             cells.append(
                 {
-                    "arm": arm,
+                    "arm": names[arm],
                     "seed": int(seed),
                     "gradient_steps": record.gradient_steps,
                     "plateaued": bool(record.plateaued),
@@ -566,7 +587,8 @@ def train_and_evaluate(
             )
 
     summary: dict[str, Any] = {}
-    for arm in arms:
+    named = tuple(names[arm] for arm in arms)
+    for arm in named:
         per_seed = [cell["return_mean"] for cell in cells if cell["arm"] == arm]
         stat = mean_ci95(per_seed)
         summary[arm] = {
@@ -576,11 +598,16 @@ def train_and_evaluate(
             "return_std": stat.std,
             "return_ci95_halfwidth": stat.ci95,
         }
-    return {
+    result = {
         "cells": cells,
         "summary": summary,
-        "contrasts": between_arm_contrasts(cells, arms),
-        "published_ordering_check": published_ordering_check(summary, arms),
+        "contrasts": between_arm_contrasts(cells, named),
+        "published_ordering_check": (
+            {"not_applicable": "an A27(c) re-run of the IQL arm alone; compare_with_registered orders it beside the "
+                               "registered arms"}
+            if off
+            else published_ordering_check(summary, arms)
+        ),
         "top_decile_episodes": int(top.size),
         "reporting_rule": (
             "R-D fired (Gate D), so ruling 10c(a) forbids any ABSOLUTE normalised score, "
@@ -589,6 +616,10 @@ def train_and_evaluate(
             "the environment-level bias is common to both arms and cancels."
         ),
     }
+    if off:
+        result["target_dropout"] = "off"
+        result["registered_in"] = "PREREGISTRATION.md A27(c), tag v2.8-prereg-a27"
+    return result
 
 
 def between_arm_contrasts(
@@ -645,6 +676,45 @@ def between_arm_contrasts(
     return out
 
 
+#: The registered P8.3 arms a re-run is compared with, in the registered artifact's order.
+REGISTERED_ARMS: tuple[str, ...] = ("bc", "bc_top10", "iql")
+
+
+def compare_with_registered(registered: dict[str, Any], new_cells: Sequence[dict[str, Any]]) -> dict[str, Any]:
+    """A27(c)'s D4RL comparison: the registered three arms beside ``iql_t``, every contrast by ``between_arm_contrasts``.
+
+    The registered cells are taken from the registered artifact unchanged, and its own contrasts must recompute from
+    them EXACTLY first -- otherwise the cells are not the ones the registered numbers came from and nothing is
+    compared.  The new cells must cover the registered seeds with the registered number of evaluation episodes, so the
+    pairing stays exact (``seed_base`` depends on the training seed only).
+    """
+    reference = [cell for cell in registered["cells"] if cell["arm"] in REGISTERED_ARMS]
+    if between_arm_contrasts(reference, REGISTERED_ARMS) != registered["contrasts"]:
+        raise ValueError("the registered artifact's contrasts do not recompute from its own cells; refusing to compare")
+    if sorted({str(cell["arm"]) for cell in new_cells}) != ["iql_t"]:
+        raise ValueError(f"the re-run's cells must all be iql_t, got {sorted({cell['arm'] for cell in new_cells})}")
+    seeds = sorted(int(seed) for seed in registered["seeds"])
+    if sorted(int(cell["seed"]) for cell in new_cells) != seeds:
+        raise ValueError(f"the re-run covers seeds {sorted(int(c['seed']) for c in new_cells)}, the registered {seeds}")
+    episodes = int(registered["eval_episodes_per_seed"])
+    short = [int(cell["seed"]) for cell in new_cells if len(cell["episode_returns"]) != episodes]
+    if short:
+        raise ValueError(f"seeds {short} do not carry the registered {episodes} evaluation episodes")
+    arms = (*REGISTERED_ARMS, "iql_t")
+    return {
+        "arms": list(arms),
+        "contrasts": between_arm_contrasts([*reference, *new_cells], arms),
+        "registered_contrasts_reproduced": True,
+        "per_seed_return": {
+            arm: {str(cell["seed"]): float(np.mean(cell["episode_returns"]))
+                  for cell in [*reference, *new_cells] if cell["arm"] == arm}
+            for arm in arms
+        },
+        "pairing": "each (training seed, episode index) shares its environment seed across arms (seed_base = 1000 + "
+                   "10 x seed), as in the registered run",
+    }
+
+
 def published_ordering_check(summary: dict[str, Any], arms: Sequence[str]) -> dict[str, Any]:
     """Our arms' ORDER against the published table's order.  Ranks only, never levels.
 
@@ -687,6 +757,19 @@ def build_parser() -> argparse.ArgumentParser:
     train.add_argument("--steps", type=int, default=DECLARED_GRADIENT_STEPS)
     train.add_argument("--seeds", default=",".join(str(s) for s in TRAINING_SEEDS))
     train.add_argument("--log-every", type=int, default=5_000)
+    train.add_argument(
+        "--iql-target-dropout",
+        choices=["active", "off"],
+        default="active",
+        help="'active' is the registered P8.3 run; 'off' re-runs the IQL arm only, as iql_t, with its three target "
+        "forwards in eval() (A27(c), P9.1)",
+    )
+    train.add_argument(
+        "--compare-with",
+        default=None,
+        help="the registered artifact (docs/data/p8_3_d4rl_calibration.json): its bc / bc_top10 / iql cells are put "
+        "beside the re-run arm and every contrast is recomputed; its protocol must be this run's",
+    )
     return parser
 
 
@@ -771,6 +854,22 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     print(f"codebook K={book.size} digest {book.digest[:16]}... device {device}", flush=True)
 
+    # A27(c) (P9.1, BRIEF_46 3.6): under "off" the output is named for the arm and never overwritten, and a
+    # --compare-with artifact must share this run's dataset, codebook, budget and evaluation protocol -- all checked
+    # here, before the first gradient step.
+    target_dropout = str(getattr(args, "iql_target_dropout", "active"))
+    name = f"p8_3_train_k{book.size}_{int(args.steps)}{'_iql_t' if target_dropout == 'off' else ''}.json"
+    registered: dict[str, Any] | None = None
+    if target_dropout == "off" and (out_dir / name).exists():
+        raise FileExistsError(f"{out_dir / name} exists; an A27 re-run never overwrites an output")
+    if getattr(args, "compare_with", None):
+        registered = json.loads(Path(args.compare_with).read_text(encoding="utf-8"))
+        mine = {"dataset_sha256": _sha256_file(dataset_path), "codebook_digest": book.digest,
+                "declared_gradient_steps": int(args.steps), "eval_episodes_per_seed": EVAL_EPISODES_PER_SEED}
+        differing = {key: (registered.get(key), value) for key, value in mine.items() if registered.get(key) != value}
+        if differing:
+            raise ValueError(f"--compare-with {args.compare_with} was produced under another protocol: {differing}")
+
     result = train_and_evaluate(
         data,
         spans,
@@ -781,7 +880,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         out_dir=out_dir,
         device=device,
         log_every=int(args.log_every),
+        target_dropout=target_dropout,
     )
+    if registered is not None:
+        result["compare_with"] = {
+            "path": str(args.compare_with),
+            "sha256": _sha256_file(Path(args.compare_with)),
+            **compare_with_registered(registered, result["cells"]),
+        }
     payload = {
         "format_version": ARTIFACT_FORMAT_VERSION,
         "task": "P8.3",
@@ -806,7 +912,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         "runtime": runtime_provenance(),
         **result,
     }
-    name = f"p8_3_train_k{book.size}_{int(args.steps)}.json"
     write_json_atomic(payload, out_dir / name)
     print(json.dumps(result["summary"], indent=2, sort_keys=True), flush=True)
     print(f"wrote {out_dir / name}", flush=True)

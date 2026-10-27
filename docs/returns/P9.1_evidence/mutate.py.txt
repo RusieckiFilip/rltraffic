@@ -1,0 +1,47 @@
+"""Run textual mutants one at a time: apply, run the named tests, restore.  Prints a kill table.
+
+Usage: python mutate.py MUTANTS.json [--repo DIR]
+MUTANTS.json: [{"name": ..., "file": "offline/x.py", "old": "...", "new": "...", "tests": ["tests/a.py::t", ...]}]
+A mutant whose `old` text does not occur exactly once is reported INVALID and not run.  The original bytes are
+restored in a `finally`, and the file's sha256 is checked against the original at the end.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+spec = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+repo = Path(sys.argv[3]) if len(sys.argv) > 3 and sys.argv[2] == "--repo" else Path.cwd()
+pytest = "/home/filip/rltraffic/.venv/bin/pytest"
+rows = []
+for mutant in spec:
+    path = repo / mutant["file"]
+    original = path.read_bytes()
+    digest = hashlib.sha256(original).hexdigest()
+    text = original.decode("utf-8")
+    count = text.count(mutant["old"])
+    if count != 1:
+        rows.append((mutant["name"], "INVALID", f"old text occurs {count} times"))
+        continue
+    try:
+        path.write_text(text.replace(mutant["old"], mutant["new"], 1), encoding="utf-8")
+        env = dict(os.environ)
+        result = subprocess.run(
+            [pytest, "-q", "-x", "-p", "no:cacheprovider", *mutant["tests"]],
+            cwd=repo, capture_output=True, text=True, env=env, timeout=3600,
+        )
+        tail = [line for line in result.stdout.splitlines() if line.strip()][-1:] or [""]
+        failed = [line for line in result.stdout.splitlines() if line.startswith("FAILED") or line.startswith("ERROR")]
+        verdict = "KILLED" if result.returncode != 0 else "SURVIVED"
+        rows.append((mutant["name"], verdict, (failed[0] if failed else tail[0])[:160]))
+    finally:
+        path.write_bytes(original)
+    if hashlib.sha256(path.read_bytes()).hexdigest() != digest:
+        raise SystemExit(f"RESTORE FAILED for {path}")
+print(f"{'mutant':48s} {'result':9s} evidence")
+for name, verdict, evidence in rows:
+    print(f"{name:48s} {verdict:9s} {evidence}")
