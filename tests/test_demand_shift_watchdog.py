@@ -54,7 +54,7 @@ from types import SimpleNamespace
 
 import offline.demand_shift as ds
 
-MODE = os.environ["FAKE_MODE"]  # healthy | hang_once | hang_always | raise
+MODE = os.environ["FAKE_MODE"]  # healthy | hang_once | hang_always | raise | hang_then_refuse
 MARK = Path(os.environ["FAKE_MARK"])
 CELLS = [c for c in ds.declared_cells(stage=1)
          if c["file"] == "kn-hz" and c["arm"] == "random_fresh" and c["seed"] == 101][:4]
@@ -70,6 +70,11 @@ def roll(cell, **_kwargs):
     if cell == TROUBLE:
         if MODE == "raise":
             raise ValueError("a fake cell that raises")
+        if MODE == "hang_then_refuse":
+            if not MARK.exists():
+                MARK.write_text("hung\n", encoding="utf-8")
+                hang()
+            raise ValueError("the two routes disagree on ['att_ours'] (a fake refusal after the restart)")
         if MODE == "hang_always" or (MODE == "hang_once" and not MARK.exists()):
             MARK.write_text("hung\n", encoding="utf-8")
             hang()
@@ -193,6 +198,21 @@ def test_a_cell_that_raises_is_not_restarted(tmp_path: Path) -> None:
     assert not TIMEOUT_BANNER.search(shard.log), shard.explain()
     assert shard.restarts() == []
     assert len(shard.evaluate_calls()) == 1
+    assert re.search(r"(?m)^SHARD 0 STOPPED: exit 1 without the watchdog's dump; not restarted$", shard.log), shard.explain()
+    assert re.search(r"(?m)^SHARD 0 EXIT: 1$", shard.log), shard.explain()
+
+
+def test_a_refusal_after_a_restart_stops_the_shard_and_is_not_taken_for_a_second_cut(tmp_path: Path) -> None:
+    """``BRIEF_47`` Amendment D.1: attempt 1 is cut by the watchdog; the restarted attempt 2 exits 1 with a REAL refusal (the
+    two routes disagreeing) and no banner of its own.  Only the part of the log THIS attempt wrote decides: the shard STOPS
+    after one restart.  Searching the whole log would find attempt 1's banner and restart the refusal until the cap (scaled
+    down to 3 here), reporting a refusal as a watchdog stop."""
+    shard = _Shard(tmp_path, "hang_then_refuse", max_restarts=3)
+    assert shard.result.returncode == 1, shard.explain()
+    assert len(TIMEOUT_BANNER.findall(shard.log)) == 1, shard.explain()
+    assert [(number, cap) for number, cap, _time, _frame in shard.restarts()] == [("1", "3")], shard.explain()
+    assert len(shard.evaluate_calls()) == 2
+    assert "the two routes disagree on ['att_ours'] (a fake refusal after the restart)" in shard.log
     assert re.search(r"(?m)^SHARD 0 STOPPED: exit 1 without the watchdog's dump; not restarted$", shard.log), shard.explain()
     assert re.search(r"(?m)^SHARD 0 EXIT: 1$", shard.log), shard.explain()
 

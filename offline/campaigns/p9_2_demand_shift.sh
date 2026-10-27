@@ -33,8 +33,9 @@
 # non-zero exit stops the shard as before. The shard's log is $LOGS/shift_stage<STAGE>_shard<i>.log, ending with
 # "SHARD i EXIT: <code>".
 #
-# P92_PYTHON, P92_OUTPUT_ROOT, P92_RUNS, P92_SESSION, SHARDS, STAGE, IQL_T_PINS, P92_WATCHDOG_SECONDS and P92_MAX_RESTARTS
-# override the defaults (tests/test_p9_2_drivers.py, tests/test_demand_shift_watchdog.py).
+# P92_PYTHON, P92_MAIN_TREE (the tree step 4 materialises from), P92_OUTPUT_ROOT, P92_RUNS, P92_SESSION, SHARDS, STAGE,
+# IQL_T_PINS, P92_WATCHDOG_SECONDS and P92_MAX_RESTARTS override the defaults (tests/test_p9_2_drivers.py,
+# tests/test_demand_shift_watchdog.py).
 #
 # RESUME: one JSON record per cell, atomic; a shard skips every record that exists and validates and STOPS at a refused
 # cell (the two routes disagreeing, a dirty tree). Re-run a stopped shard from its window with its shard-mode line (the
@@ -46,7 +47,7 @@ set -euo pipefail
 
 RUN_TREE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PY=${P92_PYTHON:-/home/filip/rltraffic/.venv/bin/python}
-MAIN_TREE=/home/filip/rltraffic
+MAIN_TREE=${P92_MAIN_TREE:-/home/filip/rltraffic}
 OUTPUT=${P92_OUTPUT_ROOT:-$MAIN_TREE/output}
 RUNS=${P92_RUNS:-$OUTPUT/p9_2_runs}
 WORK=$OUTPUT/p9_2/demand_shift
