@@ -476,3 +476,12 @@ def test_the_evaluation_settings_are_every_tiers_and_a_disagreement_is_refused(t
     (corpus / name / "manifest.json").write_text(json.dumps(payload), encoding="utf-8")
     with pytest.raises(ValueError, match="disagree"):
         pb.evaluation_settings(corpus)
+
+
+def test_each_evaluation_run_keeps_its_own_restart_logs() -> None:
+    parse = pb.build_parser().parse_args
+    assert pb.eval_label(parse(["evaluate", "--shard", "2", "--of", "4"])) == "eval-all-shard2of4"
+    assert pb.eval_label(parse(["evaluate", "--label", "ref", "--shard", "2", "--of", "4"])) == "eval-ref-shard2of4"
+    assert pb.eval_label(parse(["evaluate", "--label", "fixedtime"])) == "eval-fixedtime-shard0of1"
+    with pytest.raises(ValueError, match="label"):
+        pb.eval_label(parse(["evaluate", "--label", "a/b"]))

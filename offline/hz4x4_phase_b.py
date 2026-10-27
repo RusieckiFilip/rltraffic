@@ -927,6 +927,8 @@ def build_parser() -> argparse.ArgumentParser:
         each.add_argument("--draws-root", default=str(hz.MAIN_DRAWS_ROOT))
         each.add_argument("--output-root", default=str(hz.MAIN_OUTPUT_ROOT))
         each.add_argument("--torch-threads", type=int, default=1)
+    evaluate.add_argument("--label", default="all",
+                          help="names this run's restart logs (eval-<label>-shard<i>of<n>), so runs never share one")
     worker.add_argument("--watchdog-seconds", type=float, default=float(hz.WATCHDOG_SECONDS))
     return parser
 
@@ -971,6 +973,16 @@ def selected_plan(cells: Sequence[str] | None, draws: Sequence[int] | None, *, s
         raise ValueError(f"shard {shard} of {of} is not a shard")
     plan = planned_episodes([by_label[label] for label in labels], draws=draws)
     return plan[int(shard)::int(of)]
+
+
+def eval_label(args: argparse.Namespace) -> str:
+    """``eval-<label>-shard<i>of<n>``: the restart logs of one evaluation run, distinct from every other run's."""
+    import re
+
+    label = str(args.label)
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+", label):
+        raise ValueError(f"--label {label!r} must be letters, digits, '_', '.' or '-': it names log files")
+    return f"eval-{label}-shard{int(args.shard)}of{int(args.of)}"
 
 
 def _eval_roots(args: argparse.Namespace) -> tuple[Path, Path, Path]:
@@ -1023,6 +1035,7 @@ def _run_evaluate(args: argparse.Namespace) -> int:
 
     from offline.materialise_draws import draw_config_path
 
+    label = eval_label(args)
     corpus_root, draws_root, output_root = _eval_roots(args)
     plan = selected_plan(args.cells, args.draws, shard=args.shard, of=args.of)
     evaluation_settings(corpus_root)
@@ -1046,8 +1059,7 @@ def _run_evaluate(args: argparse.Namespace) -> int:
                "--watchdog-seconds", str(hz.WATCHDOG_SECONDS)]
     env = dict(os.environ, PYTHONPATH=str(hz._repo_root()), OMP_NUM_THREADS="1", MKL_NUM_THREADS="1",
                PYTHONFAULTHANDLER="1")
-    result = hz.run_with_restarts(command, log_dir=log_dir, label=f"eval-shard{args.shard}of{args.of}", env=env,
-                                  cwd=hz.MAIN_TREE)
+    result = hz.run_with_restarts(command, log_dir=log_dir, label=label, env=env, cwd=hz.MAIN_TREE)
     last = result["attempts"][-1]
     print(f"evaluate {args.shard}/{args.of}: {result['status']} after {result['restarts']} restart(s); "
           f"last log {last['log']}", flush=True)
@@ -1061,6 +1073,7 @@ def _run_train_queue(args: argparse.Namespace) -> int:
     import os
     import subprocess
     import sys
+    from datetime import datetime, timezone
 
     assert_campaign_steps(args.output_root, args.gradient_steps)
     corpus_root = hz.assert_main_tree_path(args.corpus_root, what="the corpus root")
@@ -1076,7 +1089,10 @@ def _run_train_queue(args: argparse.Namespace) -> int:
                    "--seed", str(seed), "--device", str(args.device), "--gradient-steps", str(args.gradient_steps),
                    "--corpus-root", str(corpus_root), "--output-root", str(output_root), "--torch-threads", "1"]
         print(f"TRAIN {tier}/{arm} seed {seed} -> {log}", flush=True)
-        with open(log, "w", encoding="utf-8") as handle:
+        # Appended, never truncated: a cell retried after a failure keeps the failed attempt's log above the new one.
+        with open(log, "a", encoding="utf-8") as handle:
+            handle.write(f"==== attempt at {datetime.now(timezone.utc).isoformat()}: {' '.join(command)}\n")
+            handle.flush()
             code = subprocess.run(command, stdout=handle, stderr=subprocess.STDOUT, env=env, cwd=hz.MAIN_TREE).returncode
         print(f"  exit {code}", flush=True)
         return int(code)
