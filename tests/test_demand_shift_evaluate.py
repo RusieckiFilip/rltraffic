@@ -431,13 +431,43 @@ def test_the_report_refuses_a_record_whose_two_routes_disagree(tmp_path: Path, p
 
 
 def test_the_committed_artifact_is_never_written_from_a_partial_declaration(tmp_path: Path, patched: None) -> None:
+    """The refusal leaves the committed artifact exactly as it was -- absent before G4, its committed bytes after.  (Until
+    G4 part 2 this asserted the file's absence, which held only while no artifact existed; ``BRIEF_47`` Amendment D.4.)"""
     work = tmp_path / "output" / "p9_2" / "demand_shift"
     cells = _small_declaration()
     _write_cells(work, cells)
     artifact = ds.build_report(work_dir=work, audit_path=_audit_file(tmp_path), declared=cells)
+    committed = DATA / ds.ARTIFACT_NAME
+    before = committed.read_bytes() if committed.exists() else None
     with pytest.raises(ValueError, match="partial"):
-        ds.write_report(artifact, DATA / ds.ARTIFACT_NAME)
-    assert not (DATA / ds.ARTIFACT_NAME).exists()
+        ds.write_report(artifact, committed)
+    assert (committed.read_bytes() if committed.exists() else None) == before
+
+
+def test_t_regress_the_committed_artifact_regenerates_byte_identically(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``docs/data/p9_2_demand_shift.json`` was built in the run tree that rolled its cells and copied byte for byte (D.4);
+    this branch's code regenerates it from the same records with the two provenance substitutions every regression in this
+    repository uses (a record's commit is compared as the run tree's, the artifact's own provenance is the recorded one) and
+    nothing else.  Gated: the records live under the main tree's ``output/``."""
+    committed = DATA / ds.ARTIFACT_NAME
+    value = os.environ.get("RLTRAFFIC_OUTPUT_ROOT")
+    output = Path(value) if value else REPO_ROOT / "output"
+    work = output / "p9_2" / "demand_shift"
+    if not committed.is_file() or not (work / ds.GUARD_NAME).is_file():
+        pytest.skip(
+            f"{committed.name} is committed only after the campaign (G4) and its work directory {work} is gitignored: "
+            "set RLTRAFFIC_OUTPUT_ROOT to the main tree's output/ once both exist"
+        )
+    recorded = json.loads(committed.read_bytes())
+    monkeypatch.setattr(ds, "_code_changed_since", lambda commit: [], raising=True)
+    monkeypatch.setattr(ds, "_git_provenance", lambda: {"git_commit": recorded["git_commit"],
+                                                       "git_dirty": recorded["git_dirty"]}, raising=True)
+    artifact = ds.build_report(work_dir=work, audit_path=DATA / ds.AUDIT_NAME)
+    out = tmp_path / ds.ARTIFACT_NAME
+    ds.write_report(artifact, out)
+    assert out.read_bytes() == committed.read_bytes()
 
 
 # ----------------------------------------------------------------------

@@ -481,3 +481,55 @@ a minute each, so about 17:30. One watchdog restart so far: shard 2 at 13:35:53Z
 `evaluate_arm` call. No deeper Python frame was dumped, so the wait was in C code run from that line; that is where the arm's env
 is freed as the call returns, the place the destructor hang (`DEFERRED` 104) is expected. Then G4 part 2: D.1's test, D.2's
 sentence, D.4's artifact.
+
+---
+
+# ✅ AMENDMENT F — 2026-10-27: C10 and G4 part 2 (point 7, stage 1) ACCEPTED and MERGED (`0e38175`); A27(h)'s slot is provisional until stage 2
+
+## F.1 Verified by the coordinator, from disk
+- **CI before the fix:** runs `40505879736` (`e4a5ab0`) and `40521786087` (`7d4cbb3`) carry the same five failures on both legs (junit
+  compared): the five `p9_2_demand_shift.sh` cases of `test_the_token_is_consumed_only_past_a_record_that_authorises`; 3515 passed, 427
+  skipped.
+- **C10 (`c72ddea`):** the driver's one line and the harness read. In a scratch clone of the merge commit, `tests/test_p9_2_drivers.py`
+  and `tests/test_demand_shift_watchdog.py`, one pytest process: control **25 passed**; the override removed → **2 failed** (the cwd
+  test and the pin). **The driver with every `/home/filip/rltraffic` replaced by a path that does not exist → only the pin fails**
+  (it pins the literal by design): the token tests and the cwd test no longer need the path. That is CI's condition, reproduced on this
+  machine for the first time.
+- **D.1's test (`3bc61bf`):** the coordinator's whole-log mutant (`segment=$(cat "$log")`) → **1 failed (D.1's test alone), 24 passed**.
+- **The artifact (`b535227`):** rebuilt by the coordinator in `run2` at `dafa3eb` (`report --out` to a scratch file; `run2` clean
+  afterwards): **byte-identical**, sha256 `668e827b…fa34`.
+- **An independent recomputation** (the 15,600 raw records under `output/p9_2/demand_shift/`, json and numpy, nothing imported from
+  `offline/`): every record at `dafa3eb`, clean, its two `att_ours` routes equal, stage 1; per file 8 learners × 500 cells, fixed-time
+  100, MaxPressure 100, each random reference 500; the artifact's 15,600 cells equal the raw records. **9,936 values of the `files`
+  block** (per-draw seed means, the ATT and ρ intervals, every paired field against fixed-time and both random references): **8,011
+  equal under `==`, the rest within 1.4 × 10⁻¹⁵ relative** (summation order). The Wilcoxon p agreed only once the coordinator's route
+  applied the continuity correction that `dt_gate.wilcoxon_signed_rank` documents; the first route had omitted it.
+- **The logs:** the token consumed; shards 0, 1 and 2 each end `SHARD i EXIT: 0`; one `RESTART 1/60` (shard 2); no `STOPPED`.
+- **The merge `0e38175`** (parents `7d4cbb3` and `cf98a12`): the eight task files with every gate set, run FROM THE MAIN TREE, one
+  process: **225 passed, 0 skipped**, the new T-regress regenerating the artifact byte for byte among them. The merge diff's
+  `/home/filip/rltraffic` literals under `offline/` and `tests/` are the driver's default (now overridable), docstrings and the pin's
+  string comparisons; none is reached as a path (§7's CI rule (3)). The T-regress skips by name where `output/` is absent (CI).
+- **CI on `0e38175`:** run `40548238870` — **the suite step PASSED on both legs** (3,523 passed, 428 skipped, 0 failed; the three
+  guards and the wheel gate passed); only the skip-ceiling gate failed, by design (428 against 405). Measured against the last green
+  run `40501015653`: +23 skips in 6 texts, all `campaign_output` (the draws tree and the gitignored `output/`), nothing removed. The
+  author applies `docs/patches/ci_gate_ceiling_428_p9_2.patch`.
+
+## F.2 Accepted: G4 part 2, stage 1 (A27(h), point 7: EXPLORATORY, not H2)
+- **A27(h)'s slot reads "beat it on all three files":** each of the eight stage-1 learners' paired interval against the untuned
+  fixed-time plan lies entirely below 0 on every file under both definitions; 100 / 100 draws in 47 of the 48 contrasts and 98 / 100
+  in the last (`bc@mix50`, qc-yn, `att_engine`). **Provisional:** A27(h)'s *"they"* includes (c)'s `iql_t` of both tiers, so the
+  slot is read again from the final artifact after stage 2. **Its rule is fixed now, before stage 2's cells exist** (`A27_DEVIATIONS`
+  R6): "beat it on all three files" iff every arm's interval against fixed-time lies entirely below 0 on every file under both
+  definitions; an interval entirely above 0 names the file, the arm and the definition; anything else goes to the author.
+- **ρ per file**, the range over the eight learners (`att_ours`; `att_engine`): kn-hz 0.81–0.89; 0.82–0.89 · qc-yn 0.82–0.98;
+  0.78–0.98 · sb-sx 1.14–1.18; 1.11–1.14. Every learner beats both random references on every file under both definitions (96
+  contrasts, all HELD).
+- **P2.8.2, the sb-sx observation** (every learner faster than that file's own MaxPressure, ρ > 1 on both definitions): put to the
+  author through the paper track. The registered sentence's words are his and stay as registered meanwhile.
+- The changed partial-declaration test (absence → the committed bytes unchanged) and the added T-regress: accepted as disclosed.
+
+## F.3 Next for you
+- Nothing to build. Keep `run2` (`dafa3eb`) and `output/p9_2/demand_shift/` untouched: stage 2 is rolled there (E.2.7).
+- **Stage 2** waits for P9.1's `iql_t` trainings, and P9.1's campaign is not cleared yet (`BRIEF_46` Amendment C: a trainer refusal
+  P9.3 found). When P9.1's training record for the `mappo1000` and `mix50` `iql_t` runs exists: the stage-2 pin file, a pre-flight (the
+  pins' digests, the 3,000 cells, the command from `run2`), and **"P9.2 stage 2 ready"**. The token comes in an Amendment.

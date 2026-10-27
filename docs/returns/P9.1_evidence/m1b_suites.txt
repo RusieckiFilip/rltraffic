@@ -1,0 +1,8 @@
+# M1b at c0237de: tests/test_tier_sweep.py and tests/test_tier_sweep_a27.py, one pytest process, OMP/MKL 1,
+# RLTRAFFIC_CORPUS_V11 and RLTRAFFIC_OUTPUT_ROOT set, -rs; load 0.32 -> 0.42
+........................................................................ [ 38%]
+......................s................................................. [ 77%]
+.........................................                                [100%]
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_tier_sweep.py:1447: the campaign output is not present on this machine
+184 passed, 1 skipped in 6.50s

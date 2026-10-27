@@ -456,3 +456,40 @@ hard stop.
 ## F.4 The GPU now
 No P9.1 training runs: its campaign is not cleared yet (`BRIEF_46` Amendment B.2.1). E.3.6's one short timing per arm may be taken
 whenever the GPU is idle like this. Phase B's trainings still wait until P9.1's trainings have finished (E.3.7).
+
+---
+
+# ✅ AMENDMENT G — 2026-10-27: `random_fresh` verified; the gate and the declaration ACCEPTED; Phase B's plan ruled (Q-B1 (a), through P9.1's M1b; C1 and C3 as planned; G3b's cost basis)
+
+## G.1 Verified by the coordinator
+- **`p93-random-fresh`:** the log ends `OK: 1/1 run(s), 200 episodes` and `exit=0` (17:26).
+- **The verify record** `docs/data/p9_3_corpus_verify_random_fresh.json` (`f79ff16`): code `c5bf6e3`, clean; collected by `7b6b59a`;
+  200 episodes, 200 flow digests; `all_verified` true.
+- **The gate** (`887a65d`, `docs/data/p9_3_engine_att_gate.json`): code `f79ff16`, clean; one attempt of 23.3 s, no cut.
+  - Outcome: `passed` false, `failed_criteria` [c4], `primary` null.
+  - That is A27(i)'s fail branch, as Amendment A, A.3 foresaw (`A27_DEVIATIONS` D6, live again).
+- **The declaration** (`8675040`): code `887a65d`, clean.
+  - **A third route, the coordinator's:** for each tier, the mean over its 200 raw episodes of the final `att_per_step` value.
+  - It equals the declared `ladder_att` under `==` on all four tiers: mappo1000 330.0151, maxpressure 370.2910, fixedtime 534.1918,
+    random_fresh 626.4671.
+
+## G.2 Rulings on Phase B's plan (`fc0fda2`, §10)
+- **Q-B1 → (a).** Your finding C2 holds, and it reaches P9.1's campaign too.
+  - The coordinator reproduced it at P9.1's campaign commit: there it would have stopped P9.1's five grid `random_fresh` `dt_nomix`
+    trainings at runs 231–235 of 255, about 35 GPU-hours into the campaign.
+  - The fix is P9.1's, in `tier_sweep.train_tier_dt`: `BRIEF_46` Amendment C, M1b, on `task/p9.1-m1b`.
+  - When the coordinator says M1b is on `main`, run `git merge main` and call `train_tier_dt` unchanged. No mirror of a trainer.
+- **C1 (the observer route) and C3 (the grid-bound CLIs and the report): accepted as planned.** They are new functions in your module,
+  every lower function stays unchanged, and each mirror is held to its original on the grid by a test (§10.6).
+- **A-B1, A-B3 and A-B4: accepted.**
+- **A-B2: ruled.** hz4x4 has no registered statement. Its leaders block uses the grid's DESCRIPTIVE rule under both definitions, with no
+  primary, `definition_dependent` flagged and `registered: false`.
+- **G3b's cost basis:** P9.1's measured grid costs, since hz4x4 has the same lattice and the same 1,152,000 decisions (≈ 31 GPU-h
+  serial).
+  - Take the 2,000-step hz4x4 timings only while no P9.1 training runs.
+  - If P9.1's campaign has started by the time your code is ready, skip them (never two trainings on the GPU). Report the CPU seconds
+    per evaluated episode per route instead.
+
+## G.3 Next
+Phase B's code, tests first, as §10 plans it; then the G3b pre-flight. Your trainings start after P9.1's last training (E.3.7). The
+hard stop is 2026-11-07.

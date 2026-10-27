@@ -838,8 +838,8 @@ def train_tier_dt(
             "per-intersection comparators are trained by offline.offline_baselines, imported "
             "rather than duplicated"
         )
-    if tier not in TIERS:
-        raise ValueError(f"unknown tier {tier!r}; this task declares {sorted(TIERS)}")
+    if tier not in TIERS and tier not in A27_TIERS:
+        raise ValueError(f"unknown tier {tier!r}; this task declares {sorted(TIERS)} and A27's {sorted(A27_TIERS)}")
     total = int(gradient_steps)
     if total < 1:
         raise ValueError(f"gradient_steps must be >= 1, got {gradient_steps}")
