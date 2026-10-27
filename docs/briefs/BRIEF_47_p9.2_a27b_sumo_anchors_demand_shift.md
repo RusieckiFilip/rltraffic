@@ -339,3 +339,53 @@ The slip is deviation D1 in `docs/notes/A27_DEVIATIONS.md`. Point 7 (the demand 
    task files green — **one pytest process at a time, `OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`**. Say **"P9.2 C9 ready"**. Amendment D will
    create `/home/filip/rltraffic-p92-run2` at C9's commit and clear `p92-shift` stage 1.
 3. Stage 2 (`iql_t`) waits for P9.1's committed training record (the pin file of Amendment A, A.3.3).
+
+---
+
+# ✅ AMENDMENT C.1 — 2026-10-27, G4 (point 5, the anchors): every number ACCEPTED on the coordinator's independent recomputation; ONE test fixed before the merge (it fails, and points at the real draws root, when the suite runs from the main tree)
+
+Written against `docs/data/p9_2_sumo_anchors.json` (`1e7d77c`, sha256 `9faa1aaa…fafef6`, extracted from the commit and digested) and
+`docs/returns/P9.2.md` (`9bba6b5`, `d5451a7`), read from disk.
+
+## C.1.1 The coordinator's recomputation — a route that imports nothing from `offline/` (raw JSON, stdlib)
+From the four committed P7.3 artifacts (every DT cell and the registered anchors, the anchors checked identical across the
+artifacts of one scenario) and the 400 new SUMO cells under `output/p9_2/anchors/`:
+- **Every ρ interval the artifact carries — 456 numbers** (19 arms × 2 definitions × 4 pairs × mean / low / high: P7.3a's eight
+  subject–arms, P7.3b's anchor, P7.3d's zero-shot, P7.3c's nine arms): **worst absolute difference 1.8 × 10⁻¹⁵**; the registered pair
+  reproduces the committed 1.8895 [1.8610, 1.9180], 1.7264 [1.6862, 1.7666], 0.8855 [0.8736, 0.8973] and 0.9564 [0.9492, 0.9635].
+- **Every clause verdict, both definitions, all four pairs,** equal to the artifact's: hz1x1 HELD / FAILED / VOID everywhere (both
+  subjects); grid HELD / HELD / (i) under the registered pair and `mpperlink_ftkcf` (G = 0.1145 and 0.2599, Δ₁₀₀ 0.0709 [0.0576,
+  0.0842] and 0.1610 [0.1309, 0.1911]), HELD / FAILED / VOID under `mp1to1_ftk4` (G = −0.3104) and `mp1to1_ftkcf` (G = −1.8498).
+- **The anchor means** (SUMO E_sumo): hz1x1 MP per-link 356.73, MP 1:1 321.75, FT k = 4 601.89, FT kcf 563.12; grid 168.03, 212.10,
+  304.06, 227.98. **The denominators FT − MP** on the grid: 130.5–141.4 s (registered), 84.6–98.0, 56.8–63.4, **9.6–21.9 s
+  (aligned)** — positive on every draw under every pair. **The paired seconds** on the grid (zero-shot DT − anchor): +15.59 [+13.97,
+  +17.20] vs the per-link MP (DT better on 0 / 100), −28.49 [−30.10, −26.87] vs MP 1:1 (100 / 100), −120.44 vs FT k = 4, −44.36 vs FT
+  kcf (100 / 100 each).
+- **The new cells:** 400 SUMO cells, 0 teleports and 0 collisions on every one; **the load-bearing identity:** on CityFlow hz1x1
+  `maxpressure_1to1` equals P8.4a's committed `behaviour@maxpressure` episodes (`docs/data/p8_4a_admission_escalated.json`) on all
+  seven fields, 100 of 100 draws; on CityFlow's grid it is 156.69 `att_ours` / 150.21 `att_engine` (n = 100).
+**G4 is ACCEPTED.** No further review mandate: the numbers are recomputed by an independent route, and the code that produced them
+passed G1's review and C8's verification.
+
+## C.1.2 FIX FIRST — one test, before the merge (a test-only commit, C8.1)
+`tests/test_demand_shift.py::test_materialise_refuses_an_out_root_inside_the_worktree` passes in a linked worktree and on CI, and
+**FAILS when the suite runs from the main tree** (`/home/filip/rltraffic`, run by the coordinator on the trial merge, 2026-10-27):
+it passes `REPO_ROOT / "scenarios" / "draws"` as an out-root that must be refused, but in the main tree that path IS the registered
+draws root, so no refusal fires; the call reaches the audit check (`FileNotFoundError: no audit at …`), and the test's second
+assertion (`not (REPO_ROOT / "scenarios" / "draws").exists()`) would fail on the real draws directory. **It also hands the real
+registered draws root to `materialise_shifted`** when run from the main tree; only the missing audit stops a write (nothing was
+written: checked). **Fix:** build a stand-in LINKED worktree under `tmp_path` (a `.git` FILE marker, as your other materialise tests
+build their stand-in tree) and pass an out-root inside it together with the stand-in registered root; `REPO_ROOT` never reaches a
+function that writes. Red first: the old test run with the main tree as `REPO_ROOT` fails as above; the new one passes in the main
+tree, in your worktree and in a scratch copy. One mutant: the out-root check removed from `materialise_shifted` → the new test fails.
+The coordinator's grep of the seven task files found no other test that hands a real-tree path to a writing function. Commit it
+alone, say **"P9.2 C8.1 ready"**; the coordinator re-runs the seven files from the main tree on the trial merge and merges the branch
+(point 5 on `main`, §6's P9.2 box stays open for point 7). Then C9 as Amendment C says.
+
+## C.1.3 The grid sentence's clause-3 slot and the seconds beside ρ′
+- **The words are the author's** (A.3.2; `A27_DEVIATIONS` R5): asked of him on 2026-10-27; recorded here when he rules.
+- **The seconds:** the registered sentence is quoted verbatim, and the paper places beside it — as a separate sentence, never inside
+  his — the aligned anchors' denominator range on the grid (9.6–21.9 s per draw) and the paired seconds (the DT beats `fixedtime_kcf`
+  by 44.4 s and `maxpressure_1to1` by 28.5 s on 100 of 100 draws, where it trails the registered MaxPressure by 15.6 s on 100 of 100).
+  A ρ with a 10–22 s denominator is a ratio of near-coincident anchors; the seconds are the comparison it summarises. The artifact
+  already carries both (`denominator_diagnostic`, `paired_att_e_sumo`); nothing is recomputed.
