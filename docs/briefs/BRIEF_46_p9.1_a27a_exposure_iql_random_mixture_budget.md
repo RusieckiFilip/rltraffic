@@ -464,3 +464,15 @@ by a test, and include the change in the commit you name in "P9.1 campaign ready
 4. **The trial's 26 files** on the merge commit, in one process with one thread.
 5. Then say **"P9.1 campaign ready"** with that commit. The coordinator verifies it, creates the run tree there and clears the token
    in Amendment D. Every hour the GPU idles comes out of P9.3's margin to 2026-11-07.
+
+## C.5 2026-10-28: P9.3 no longer needs M1b; M1b itself is UNCHANGED
+P9.3 found a second grid constant in `train_tier_dt`: the trainer writes the grid's `SCENARIO_ID` into every DT checkpoint. So
+hz4x4's DT trains through P9.3's mirror of the trainer, which the coordinator verified (`BRIEF_48` Amendment H.2).
+
+C.3's reason "because P9.3's Phase B needs the same line" therefore no longer holds. M1b's content and route stay exactly as C.3 and
+C.4 say:
+- one line, a red-first test and a mutant;
+- "P9.1 M1b ready", then the coordinator merges it into `main`;
+- C.4 on `task/p9.1-a27a`.
+
+The scenario id is the grid's own on the grid, so nothing changes for P9.1.

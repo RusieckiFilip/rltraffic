@@ -493,3 +493,144 @@ whenever the GPU is idle like this. Phase B's trainings still wait until P9.1's 
 ## G.3 Next
 Phase B's code, tests first, as §10 plans it; then the G3b pre-flight. Your trainings start after P9.1's last training (E.3.7). The
 hard stop is 2026-11-07.
+
+---
+
+# ⚖️ AMENDMENT H — 2026-10-28: the DT trainer mirror STANDS (G.2's Q-B1 (a) withdrawn; M1b stays one line); G3b's pre-flight VERIFIED; the token waits for one smoke over every distinct cell (§7 CI rule (4)), run from the run tree
+
+Your G3b note (`9b6896b`; branch tip `14a6ba2`) crossed Amendment G. G told you to build Phase B and to call `train_tier_dt`
+unchanged once M1b is on `main`. You had already built, tested and timed Phase B around a mirror of that trainer. This amendment
+replaces G.2's Q-B1 ruling and G.3; everything else in G stands.
+
+## H.1 Verified by the coordinator, from disk
+- **Your six files:** in a scratch clone at `14a6ba2`, one process, one thread: **141 passed, 0 skipped** (301.7 s). The live hz4x4
+  tests ran.
+- **The mirror against the original:**
+  - `offline/tier_sweep.py` is identical on `main` and at `14a6ba2`.
+  - The coordinator's diff of `hz4x4_train_tier_dt` against `train_tier_dt` (both extracted by `ast`) is exactly your list:
+    - the name, and the two parameters `scenario_id` and `tiers`;
+    - the docstring and a local `import numpy as np`;
+    - six `ts.`-qualified names: `DT_METHODS`, `assert_process_regime`, `assert_writable`, `N_HEAD_BY_METHOD`, `warmup_for`,
+      `lr_multiplier`;
+    - the tier check and the recorded id.
+  - Its free names are builtins and `ts` only (`symtable`). So every constant and helper is `tier_sweep`'s or `spatial_mixing`'s at
+    call time.
+- **The bit-for-bit test runs on a synthetic tier on CPU, with no corpus, so CI runs it.** The coordinator's mutant MX1 (the mirror's
+  warm-up one step longer) is KILLED by it.
+- **The scenario id:**
+  - All eight hz4x4 tier manifests record `run_metadata.scenario_id` `cityflow4x4`: `maxpressure`, `fixedtime`, `random_fresh` and the
+    five `mappo1000` seeds. `scenario_id_of` returns that id, and evaluation uses it (`hz.SCENARIO_ID`).
+  - Mutant MX2 is your M3 (the id taken from the grid's constant). The live test KILLS it; the synthetic test lets it SURVIVE. That
+    confirms your disclosed gap.
+- **Two more mutants, both KILLED:**
+  - MX3: the `==` stop compares route (ii) with itself.
+  - MX4: the queue carries on after a failed cell.
+  The module was restored byte for byte after each.
+- **The pre-flight:**
+  - The five timing records (`3ea8418`, clean; CUDA; `maxpressure`, seed 101, 2,000 steps) equal your table.
+  - From them: 20 cells per arm at 20 × the measured seconds, plus 20 × each arm's setup, is **30.7 h**.
+  - From the 30 rows of your evaluation timing (`ea73b6c`, clean): **4.17 CPU-h per tier of learners, 2.00 for the references,
+    18.66 in all.** Your 18.65 rounds per arm first.
+- **The references against the gate:** the 12 gate cells equal the timing's `behaviour@<tier>` rows on `att_engine`, `att_ours` and
+  `never_entered` under `==`: **12 of 12**.
+- **F.3, run early: the host-absent simulation.**
+  - In a second clone at `14a6ba2`, every `/home/filip/rltraffic` in all 82 tracked `.py` and `.sh` files was pointed at a path that
+    does not exist. That is CI's condition; the data files keep their literals, as on CI.
+  - Your six files: **121 passed, 20 skipped, 0 failed.** Every skip names the corpus, draws or output it lacks.
+  - So F.3 holds for your code as it stands, and the campaign commit needs no F.3 fix.
+
+## H.2 Rulings
+1. **C2: the mirror STANDS. G.2's Q-B1 (a) — "call `train_tier_dt` unchanged. No mirror of a trainer." — is WITHDRAWN.**
+   - **The coordinator's error.** G.2 rested on the tier check alone. The trainer also writes the grid's `SCENARIO_ID` into every
+     checkpoint (`tier_sweep.py:939`). That line was there to be read, and the coordinator did not read past the check. Your
+     end-to-end test found it before anything ran.
+   - **Why the mirror, and not an M1b that also carries the id:**
+     - M1b is on P9.1's critical path, and it is fixed as one line (`BRIEF_46` C.3). Every grid DT number passes through that
+       trainer. Changing its signature for hz4x4's sake adds risk there and gives the grid nothing.
+     - Your code is built and verified. A wider M1b would mean rewriting it and its mutants.
+     - The mirror cannot drift on a value, and a drift in form fails the bit-for-bit test on every CI run.
+   - **Consequences:**
+     - You no longer wait for M1b, and you do not merge `main` for it.
+     - M1b goes ahead exactly as `BRIEF_46` C.3 says.
+     - M1b leaves your bit-for-bit test as it is. The test compares on the grid's `random`, which the trainer accepts both before and
+       after M1b.
+   - **The disclosed gap is accepted.** M3 is guarded only by the live test. A regression there fails loudly at the first hz4x4 DT
+     evaluation, and H.3's smoke runs that evaluation for every tier before the token.
+   - **For G4's packet:** one sentence for the methods notes. hz4x4's DT trainer is the grid trainer's body with its two grid
+     constants made parameters, held to it bit for bit on CPU by a test.
+2. **The two rewritten tests are accepted.**
+   - Both pinned a design that C2 invalidated, and neither was weakened.
+   - Their new forms assert more: the two new parameters, `random_fresh` accepted, and an unknown name refused before anything is
+     read or written.
+3. **A-B2 stands as ruled in G.2.** Your note's proposal matches it, including the references' levels beside the leaders, not
+   competing for the lead.
+4. **The campaign's code is frozen at the token's commit.**
+   - From the token on, `offline/hz4x4_phase_b.py` and `offline/hz4x4_ladder.py` stay byte-identical to the run tree's.
+   - `report` and `old-cells` go in a NEW module (for example `offline/hz4x4_report.py`). This changes plan §10's layout.
+   - **Why:** G4 must show that the code which wrote the records is the code the branch carries. With the two modules frozen, that is
+     one `git diff --quiet <run commit> <tip> -- offline/hz4x4_phase_b.py offline/hz4x4_ladder.py`. With `report` inside the trained
+     module, that diff is never empty.
+
+## H.3 ⛔ The token waits for one step: a smoke over every distinct cell, from the run tree (§7 CI rule (4))
+**Rule (4)** was added on 2026-10-27, after your finding for P9.1. Before a campaign token, every DISTINCT path the campaign will
+execute has run end to end through the real code: each (tier, arm) training cell and each evaluation cell. Only the size is reduced,
+and the output goes to a scratch root.
+
+**What has run so far:**
+- Training:
+  - the five arms on `maxpressure` (the timings: CUDA, `3ea8418`, before the mirror existed);
+  - `bc_top10_perix_m` on `maxpressure`, five seeds, through the queue (working tree uncommitted).
+- Evaluation:
+  - the five `maxpressure` learners and the five references on draws 1000–1002 (`ea73b6c`);
+  - `behaviour@maxpressure` through the driver (working tree uncommitted).
+
+**What has not run:**
+- the fifteen training cells on `fixedtime`, `mappo1000` and `random_fresh`;
+- their fifteen learner evaluation cells;
+- the committed queue and driver as such.
+
+A refusal confined to one tier is exactly the class that would have stopped P9.1 about 35 GPU-hours in.
+
+**The run tree exists: `/home/filip/rltraffic-p93-run-b`, detached at `14a6ba2`.**
+- The coordinator created it at 00:03 on 2026-10-28, and it is clean.
+- Its two Phase B modules have sha256 `f53613b4…` (`hz4x4_phase_b.py`) and `bd305b2c…` (`hz4x4_ladder.py`), equal to the commit's.
+- The smoke runs FROM it, so it proves the very code the campaign will run. You keep working in your own worktree meanwhile.
+- `<SMOKE>` below is a new directory in your scratchpad: not inside a linked worktree, and not the main output root (which refuses two
+  steps).
+
+1. **The training smoke.** This is the queue itself, with only the steps and the output root changed:
+   ```
+   cd /home/filip/rltraffic && OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 PYTHONPATH=/home/filip/rltraffic-p93-run-b /home/filip/rltraffic/.venv/bin/python -P -m offline.hz4x4_phase_b train-queue --gradient-steps 2 --output-root <SMOKE>
+   ```
+   - **All 100 cells, not one seed per cell.** Your evaluation driver evaluates every seed of a cell, so the evaluation smoke needs
+     every seed's checkpoint.
+   - **Device:** CUDA, the campaign's device, outside your sandbox as your timings ran, while no P9.1 campaign training is on the
+     GPU. Otherwise add `--device cpu` and say so; the five timings already ran each arm's code on CUDA.
+   - **Time:** about 1.5 h, at about 53 s of setup per process.
+   - **Done when** the queue prints `completed` with `trained` 100.
+2. **The evaluation smoke.** This is the driver over all 25 cells × 5 seeds on draw 1000, on CPU, in four shards:
+   ```
+   for i in 0 1 2 3; do (cd /home/filip/rltraffic && OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 PYTHONPATH=/home/filip/rltraffic-p93-run-b /home/filip/rltraffic/.venv/bin/python -P -m offline.hz4x4_phase_b evaluate --label smoke --draws 1000 --output-root <SMOKE> --shard $i --of 4) & done; wait
+   ```
+   - It rolls 125 episodes, each by both routes under `==`: about 13 CPU-minutes.
+   - Its numbers come from two-step policies. They are never quoted, and they enter no ledger.
+3. **A refusal or a failure stops the smoke.** Report it; do not work around it. A code fix means a new commit, a new run tree from
+   the coordinator, and the smoke again from that tree.
+4. **The record:** `docs/returns/P9.3-smoke.md`, short, committed. It holds:
+   - the run tree and its commit, and both commands verbatim;
+   - the queue's last line and each shard's last line;
+   - the counts: 100 training records and 100 checkpoints; 125 evaluation records; 0 refusals;
+   - every record's `git` at `14a6ba2`, not dirty;
+   - the seconds per cell by arm (minimum, median, maximum).
+5. **Then say "P9.3 smoke ready"** with the note's commit. The coordinator reads the smoke root. In Amendment I it clears all three
+   commands from this same run tree, with the worker counts:
+   - `p93-eval-ref` at once;
+   - `p93-train` after P9.1's last training;
+   - each `p93-eval-<tier>` once that tier's 25 cells exist.
+
+## H.4 Meanwhile
+- **`git merge main`.** It is docs only: Amendments G and H, and the CI ceiling commit.
+- **Write `report` tests first, in the new module (H.2-4).** A-B2 is ruled, and the grid's matched cells come by reference (Q4).
+- **F.3 in G4's packet:** re-run H.1's host-absent simulation on the G4 tip, with the report's tests included, and list what it
+  shows.
+- **GPU order, unchanged:** P9.1's trainings (≈ 40.5 h), then yours (≈ 30.7 h). The hard stop is 2026-11-07.
