@@ -1,0 +1,255 @@
+start 2026-10-27T23:02:02Z  00:02:02 up 22:33,  1 user,  load average: 2.16, 1.95, 1.11; HEAD cb61ee7
+  1/1 rolled=1 skipped=0 refused=0 1.26 s/episode
+{"scenario": "hz1x1", "cell": "iql_t@random", "att_ours_route_i": 721.7607223476298, "route_ii_refused": 0, "equal": true, "route_i_kind": "inner call", "seconds": 2.4920215606689453}
+  1/1 rolled=1 skipped=0 refused=0 1.14 s/episode
+{"scenario": "hz1x1", "cell": "iql_t@fixedtime", "att_ours_route_i": 294.4209809264305, "route_ii_refused": 0, "equal": true, "route_i_kind": "inner call", "seconds": 2.181741952896118}
+  1/1 rolled=1 skipped=0 refused=0 0.88 s/episode
+{"scenario": "hz1x1", "cell": "iql_t@maxpressure", "att_ours_route_i": 402.768115942029, "route_ii_refused": 0, "equal": true, "route_i_kind": "inner call", "seconds": 1.9747881889343262}
+  1/1 rolled=1 skipped=0 refused=0 1.08 s/episode
+{"scenario": "hz1x1", "cell": "iql_t@mappo500", "att_ours_route_i": 764.0776152980877, "route_ii_refused": 0, "equal": true, "route_i_kind": "inner call", "seconds": 2.295480251312256}
+  1/1 rolled=1 skipped=0 refused=0 1.17 s/episode
+{"scenario": "hz1x1", "cell": "iql_t@mappo1000", "att_ours_route_i": 645.0384985563041, "route_ii_refused": 0, "equal": true, "route_i_kind": "inner call", "seconds": 2.3692431449890137}
+  1/1 rolled=1 skipped=0 refused=0 1.11 s/episode
+{"scenario": "hz1x1", "cell": "iql_t@mix33", "att_ours_route_i": 490.9001782531194, "route_ii_refused": 0, "equal": true, "route_i_kind": "inner call", "seconds": 2.283156633377075}
+  1/1 rolled=1 skipped=0 refused=0 1.09 s/episode
+{"scenario": "hz1x1", "cell": "iql_t@mix50", "att_ours_route_i": 337.7562326869806, "route_ii_refused": 0, "equal": true, "route_i_kind": "inner call", "seconds": 2.1578798294067383}
+  1/1 rolled=1 skipped=0 refused=0 1.13 s/episode
+{"scenario": "hz1x1", "cell": "iql_t@mix67", "att_ours_route_i": 299.6652267818574, "route_ii_refused": 0, "equal": true, "route_i_kind": "inner call", "seconds": 2.173189163208008}
+  1/1 rolled=1 skipped=0 refused=0 1.44 s/episode
+{"scenario": "hz1x1", "cell": "dt@random_fresh", "att_ours_route_i": 588.5132662397073, "route_ii_refused": 0, "equal": true, "route_i_kind": "inner call", "seconds": 2.8737902641296387}
+  1/1 rolled=1 skipped=0 refused=0 1.06 s/episode
+{"scenario": "hz1x1", "cell": "bc@random_fresh", "att_ours_route_i": 418.6888532477947, "route_ii_refused": 0, "equal": true, "route_i_kind": "inner call", "seconds": 1.8546411991119385}
+  1/1 rolled=1 skipped=0 refused=0 0.93 s/episode
+{"scenario": "hz1x1", "cell": "bc_top10@random_fresh", "att_ours_route_i": 430.7262103505843, "route_ii_refused": 0, "equal": true, "route_i_kind": "inner call", "seconds": 1.9014337062835693}
+  1/1 rolled=1 skipped=0 refused=0 1.08 s/episode
+{"scenario": "hz1x1", "cell": "iql@random_fresh", "att_ours_route_i": 682.2252448313384, "route_ii_refused": 0, "equal": true, "route_i_kind": "inner call", "seconds": 2.1201794147491455}
+  1/1 rolled=1 skipped=0 refused=0 1.01 s/episode
+{"scenario": "hz1x1", "cell": "iql_t@random_fresh", "att_ours_route_i": 775.9761904761905, "route_ii_refused": 0, "equal": true, "route_i_kind": "inner call", "seconds": 2.098609209060669}
+  1/1 rolled=1 skipped=0 refused=0 1.50 s/episode
+{"scenario": "hz1x1", "cell": "dt@mix_m1000_m500", "att_ours_route_i": 799.6390532544378, "route_ii_refused": 0, "equal": true, "route_i_kind": "inner call", "seconds": 2.886821985244751}
+  1/1 rolled=1 skipped=0 refused=0 0.76 s/episode
+{"scenario": "hz1x1", "cell": "bc@mix_m1000_m500", "att_ours_route_i": 690.1933124346917, "route_ii_refused": 0, "equal": true, "route_i_kind": "inner call", "seconds": 1.8044347763061523}
+  1/1 rolled=1 skipped=0 refused=0 0.79 s/episode
+{"scenario": "hz1x1", "cell": "bc_top10@mix_m1000_m500", "att_ours_route_i": 793.0165289256198, "route_ii_refused": 0, "equal": true, "route_i_kind": "inner call", "seconds": 1.5666835308074951}
+  1/1 rolled=1 skipped=0 refused=0 0.94 s/episode
+{"scenario": "hz1x1", "cell": "iql@mix_m1000_m500", "att_ours_route_i": 687.4821973550356, "route_ii_refused": 0, "equal": true, "route_i_kind": "inner call", "seconds": 1.8143084049224854}
+  1/1 rolled=1 skipped=0 refused=0 0.94 s/episode
+{"scenario": "hz1x1", "cell": "iql_t@mix_m1000_m500", "att_ours_route_i": 789.8065650644783, "route_ii_refused": 0, "equal": true, "route_i_kind": "inner call", "seconds": 1.8084619045257568}
+  1/1 rolled=1 skipped=0 refused=0 1.63 s/episode
+{"scenario": "hz1x1", "cell": "dt_100k@mappo1000", "att_ours_route_i": 812.1137724550898, "route_ii_refused": 0, "equal": true, "route_i_kind": "inner call", "seconds": 3.103787899017334}
+  1/1 rolled=1 skipped=0 refused=0 0.89 s/episode
+{"scenario": "hz1x1", "cell": "bc_100k@mappo1000", "att_ours_route_i": 673.2352941176471, "route_ii_refused": 0, "equal": true, "route_i_kind": "inner call", "seconds": 1.6858415603637695}
+  1/1 rolled=1 skipped=0 refused=0 0.93 s/episode
+{"scenario": "hz1x1", "cell": "bc_top10_100k@mappo1000", "att_ours_route_i": 786.9552414605419, "route_ii_refused": 0, "equal": true, "route_i_kind": "inner call", "seconds": 1.7004430294036865}
+  1/1 rolled=1 skipped=0 refused=0 1.06 s/episode
+{"scenario": "hz1x1", "cell": "iql_100k@mappo1000", "att_ours_route_i": 790.9289940828403, "route_ii_refused": 0, "equal": true, "route_i_kind": "inner call", "seconds": 2.0608198642730713}
+  1/1 rolled=1 skipped=0 refused=0 1.70 s/episode
+{"scenario": "hz1x1", "cell": "dt_100k@mix50", "att_ours_route_i": 323.44509948415623, "route_ii_refused": 0, "equal": true, "route_i_kind": "inner call", "seconds": 3.1726317405700684}
+  1/1 rolled=1 skipped=0 refused=0 0.90 s/episode
+{"scenario": "hz1x1", "cell": "bc_100k@mix50", "att_ours_route_i": 378.7536231884058, "route_ii_refused": 0, "equal": true, "route_i_kind": "inner call", "seconds": 1.7497365474700928}
+  1/1 rolled=1 skipped=0 refused=0 0.77 s/episode
+{"scenario": "hz1x1", "cell": "bc_top10_100k@mix50", "att_ours_route_i": 311.9814126394052, "route_ii_refused": 0, "equal": true, "route_i_kind": "inner call", "seconds": 1.6144180297851562}
+  1/1 rolled=1 skipped=0 refused=0 0.94 s/episode
+{"scenario": "hz1x1", "cell": "iql_100k@mix50", "att_ours_route_i": 353.5775248933144, "route_ii_refused": 0, "equal": true, "route_i_kind": "inner call", "seconds": 1.790729284286499}
+bc_m@mappo1000 seed 101 over 1 draws
+bc_m@mappo1000: 1 episodes written
+  1/1 rolled=1 skipped=0 refused=0 2.36 s/episode
+{"scenario": "grid4x4", "cell": "bc_m@mappo1000", "att_ours_route_i": 1375.0320256204964, "route_ii_refused": 0, "equal": true, "route_i_kind": "CLI", "seconds": 4.381951808929443}
+bc_top10_m@mappo1000 seed 101 over 1 draws
+bc_top10_m@mappo1000: 1 episodes written
+  1/1 rolled=1 skipped=0 refused=0 2.84 s/episode
+{"scenario": "grid4x4", "cell": "bc_top10_m@mappo1000", "att_ours_route_i": 1531.106048053024, "route_ii_refused": 0, "equal": true, "route_i_kind": "CLI", "seconds": 5.61182165145874}
+bc_top10_perix_m@mappo1000 seed 101 over 1 draws
+bc_top10_perix_m@mappo1000: 1 episodes written
+  1/1 rolled=1 skipped=0 refused=0 1.64 s/episode
+{"scenario": "grid4x4", "cell": "bc_top10_perix_m@mappo1000", "att_ours_route_i": 1457.9297820823244, "route_ii_refused": 0, "equal": true, "route_i_kind": "CLI", "seconds": 3.906688690185547}
+iql_m@mappo1000 seed 101 over 1 draws
+iql_m@mappo1000: 1 episodes written
+  1/1 rolled=1 skipped=0 refused=0 1.79 s/episode
+{"scenario": "grid4x4", "cell": "iql_m@mappo1000", "att_ours_route_i": 1450.9806295399517, "route_ii_refused": 0, "equal": true, "route_i_kind": "CLI", "seconds": 4.437501668930054}
+bc_m@maxpressure seed 101 over 1 draws
+bc_m@maxpressure: 1 episodes written
+  1/1 rolled=1 skipped=0 refused=0 1.89 s/episode
+{"scenario": "grid4x4", "cell": "bc_m@maxpressure", "att_ours_route_i": 1349.1274900398407, "route_ii_refused": 0, "equal": true, "route_i_kind": "CLI", "seconds": 3.5581464767456055}
+bc_top10_m@maxpressure seed 101 over 1 draws
+bc_top10_m@maxpressure: 1 episodes written
+  1/1 rolled=1 skipped=0 refused=0 2.26 s/episode
+{"scenario": "grid4x4", "cell": "bc_top10_m@maxpressure", "att_ours_route_i": 1368.5794542536116, "route_ii_refused": 0, "equal": true, "route_i_kind": "CLI", "seconds": 5.010570526123047}
+bc_top10_perix_m@maxpressure seed 101 over 1 draws
+bc_top10_perix_m@maxpressure: 1 episodes written
+  1/1 rolled=1 skipped=0 refused=0 2.06 s/episode
+{"scenario": "grid4x4", "cell": "bc_top10_perix_m@maxpressure", "att_ours_route_i": 1416.474358974359, "route_ii_refused": 0, "equal": true, "route_i_kind": "CLI", "seconds": 4.342947959899902}
+iql_m@maxpressure seed 101 over 1 draws
+iql_m@maxpressure: 1 episodes written
+  1/1 rolled=1 skipped=0 refused=0 3.10 s/episode
+{"scenario": "grid4x4", "cell": "iql_m@maxpressure", "att_ours_route_i": 1361.2857142857142, "route_ii_refused": 0, "equal": true, "route_i_kind": "CLI", "seconds": 5.130027770996094}
+bc_m@fixedtime seed 101 over 1 draws
+bc_m@fixedtime: 1 episodes written
+  1/1 rolled=1 skipped=0 refused=0 2.54 s/episode
+{"scenario": "grid4x4", "cell": "bc_m@fixedtime", "att_ours_route_i": 1497.6682316118936, "route_ii_refused": 0, "equal": true, "route_i_kind": "CLI", "seconds": 4.486638069152832}
+bc_top10_m@fixedtime seed 101 over 1 draws
+bc_top10_m@fixedtime: 1 episodes written
+  1/1 rolled=1 skipped=0 refused=0 2.81 s/episode
+{"scenario": "grid4x4", "cell": "bc_top10_m@fixedtime", "att_ours_route_i": 1447.73607748184, "route_ii_refused": 0, "equal": true, "route_i_kind": "CLI", "seconds": 4.980579853057861}
+bc_top10_perix_m@fixedtime seed 101 over 1 draws
+bc_top10_perix_m@fixedtime: 1 episodes written
+  1/1 rolled=1 skipped=0 refused=0 2.42 s/episode
+{"scenario": "grid4x4", "cell": "bc_top10_perix_m@fixedtime", "att_ours_route_i": 1411.925566343042, "route_ii_refused": 0, "equal": true, "route_i_kind": "CLI", "seconds": 4.514496326446533}
+iql_m@fixedtime seed 101 over 1 draws
+iql_m@fixedtime: 1 episodes written
+  1/1 rolled=1 skipped=0 refused=0 2.00 s/episode
+{"scenario": "grid4x4", "cell": "iql_m@fixedtime", "att_ours_route_i": 1335.392943063352, "route_ii_refused": 0, "equal": true, "route_i_kind": "CLI", "seconds": 4.900718450546265}
+bc_m@random seed 101 over 1 draws
+bc_m@random: 1 episodes written
+  1/1 rolled=1 skipped=0 refused=0 2.33 s/episode
+{"scenario": "grid4x4", "cell": "bc_m@random", "att_ours_route_i": 1374.5693030540328, "route_ii_refused": 0, "equal": true, "route_i_kind": "CLI", "seconds": 4.669850826263428}
+bc_top10_m@random seed 101 over 1 draws
+bc_top10_m@random: 1 episodes written
+  1/1 rolled=1 skipped=0 refused=0 2.28 s/episode
+{"scenario": "grid4x4", "cell": "bc_top10_m@random", "att_ours_route_i": 1398.1077891424075, "route_ii_refused": 0, "equal": true, "route_i_kind": "CLI", "seconds": 4.616371393203735}
+bc_top10_perix_m@random seed 101 over 1 draws
+bc_top10_perix_m@random: 1 episodes written
+  1/1 rolled=1 skipped=0 refused=0 2.32 s/episode
+{"scenario": "grid4x4", "cell": "bc_top10_perix_m@random", "att_ours_route_i": 1499.88, "route_ii_refused": 0, "equal": true, "route_i_kind": "CLI", "seconds": 4.561466932296753}
+iql_m@random seed 101 over 1 draws
+iql_m@random: 1 episodes written
+  1/1 rolled=1 skipped=0 refused=0 2.36 s/episode
+{"scenario": "grid4x4", "cell": "iql_m@random", "att_ours_route_i": 1375.2283464566929, "route_ii_refused": 0, "equal": true, "route_i_kind": "CLI", "seconds": 4.715637683868408}
+iql_t@mappo1000 seed 101 over 1 draws
+iql_t@mappo1000: 1 episodes written
+  1/1 rolled=1 skipped=0 refused=0 2.38 s/episode
+{"scenario": "grid4x4", "cell": "iql_t@mappo1000", "att_ours_route_i": 1426.6074313408724, "route_ii_refused": 0, "equal": true, "route_i_kind": "CLI", "seconds": 4.761817932128906}
+iql_t@maxpressure seed 101 over 1 draws
+iql_t@maxpressure: 1 episodes written
+  1/1 rolled=1 skipped=0 refused=0 2.39 s/episode
+{"scenario": "grid4x4", "cell": "iql_t@maxpressure", "att_ours_route_i": 1418.9886731391587, "route_ii_refused": 0, "equal": true, "route_i_kind": "CLI", "seconds": 4.768774509429932}
+iql_t@fixedtime seed 101 over 1 draws
+iql_t@fixedtime: 1 episodes written
+  1/1 rolled=1 skipped=0 refused=0 2.44 s/episode
+{"scenario": "grid4x4", "cell": "iql_t@fixedtime", "att_ours_route_i": 1452.9647435897436, "route_ii_refused": 0, "equal": true, "route_i_kind": "CLI", "seconds": 4.854943752288818}
+iql_t@random seed 101 over 1 draws
+iql_t@random: 1 episodes written
+  1/1 rolled=1 skipped=0 refused=0 2.41 s/episode
+{"scenario": "grid4x4", "cell": "iql_t@random", "att_ours_route_i": 1429.3017656500804, "route_ii_refused": 0, "equal": true, "route_i_kind": "CLI", "seconds": 4.774965763092041}
+dt_nomix@random_fresh seed 101 over 1 draws
+dt_nomix@random_fresh: 1 episodes written
+  1/1 rolled=1 skipped=0 refused=0 9.27 s/episode
+{"scenario": "grid4x4", "cell": "dt_nomix@random_fresh", "att_ours_route_i": 758.0757575757576, "route_ii_refused": 0, "equal": true, "route_i_kind": "CLI", "seconds": 19.35029888153076}
+bc_m@random_fresh seed 101 over 1 draws
+bc_m@random_fresh: 1 episodes written
+  1/1 rolled=1 skipped=0 refused=0 2.31 s/episode
+{"scenario": "grid4x4", "cell": "bc_m@random_fresh", "att_ours_route_i": 1314.284046692607, "route_ii_refused": 0, "equal": true, "route_i_kind": "CLI", "seconds": 4.602335691452026}
+bc_top10_m@random_fresh seed 101 over 1 draws
+bc_top10_m@random_fresh: 1 episodes written
+  1/1 rolled=1 skipped=0 refused=0 2.18 s/episode
+{"scenario": "grid4x4", "cell": "bc_top10_m@random_fresh", "att_ours_route_i": 1461.8649517684887, "route_ii_refused": 0, "equal": true, "route_i_kind": "CLI", "seconds": 4.495638847351074}
+bc_top10_perix_m@random_fresh seed 101 over 1 draws
+bc_top10_perix_m@random_fresh: 1 episodes written
+  1/1 rolled=1 skipped=0 refused=0 2.28 s/episode
+{"scenario": "grid4x4", "cell": "bc_top10_perix_m@random_fresh", "att_ours_route_i": 1472.016706443914, "route_ii_refused": 0, "equal": true, "route_i_kind": "CLI", "seconds": 4.473555088043213}
+iql_m@random_fresh seed 101 over 1 draws
+iql_m@random_fresh: 1 episodes written
+  1/1 rolled=1 skipped=0 refused=0 2.33 s/episode
+{"scenario": "grid4x4", "cell": "iql_m@random_fresh", "att_ours_route_i": 1388.515625, "route_ii_refused": 0, "equal": true, "route_i_kind": "CLI", "seconds": 4.7514472007751465}
+  1/1 rolled=1 skipped=0 refused=0 0.99 s/episode
+{"scenario": "hz1x1", "cell": "behaviour@random_fresh", "att_ours_route_i": 405.75102040816324, "route_ii_refused": 0, "equal": true, "route_i_kind": "inner call", "seconds": 1.944850206375122}
+behaviour@random_fresh seed 101 over 1 draws
+behaviour@random_fresh: 1 episodes written
+  1/1 rolled=1 skipped=0 refused=0 1.56 s/episode
+{"scenario": "grid4x4", "cell": "behaviour@random_fresh", "att_ours_route_i": 270.82766439909295, "route_ii_refused": 0, "equal": true, "route_i_kind": "CLI", "seconds": 3.1434402465820312}
+{"scenario": "hz1x1", "cell": "dt@random_fresh", "episodes": 1, "reproduced": true, "action_sequence_sha256": "99292cd9c8f4"}
+{"scenario": "grid4x4", "cell": "dt_nomix@random_fresh", "episodes": 1, "reproduced": true, "action_sequence_sha256": "24b78f751e45"}
+{"scenario": "hz1x1", "cell": "behaviour@random_fresh", "episodes": 1, "reproduced": true, "action_sequence_sha256": "bb24bb3a85ef"}
+{"scenario": "grid4x4", "cell": "behaviour@random_fresh", "episodes": 1, "reproduced": true, "action_sequence_sha256": "8d361d07dd10"}
+{"scenario": "hz1x1", "cell": "behaviour@random", "episodes": 1, "reproduced": true, "action_sequence_sha256": "729c6f650c62"}
+{"scenario": "grid4x4", "cell": "random@mappo1000", "episodes": 1, "reproduced": true, "action_sequence_sha256": "70708e08e57c"}
+  1/1 rolled=1 skipped=0 refused=0 1.58 s/episode
+{"artifact": "docs/data/p4_4_baselines.json", "arm": "madt", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 1.02 s/episode
+{"artifact": "docs/data/p4_4_baselines.json", "arm": "bc", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 0.98 s/episode
+{"artifact": "docs/data/p4_4_baselines.json", "arm": "bc_top10", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 1.15 s/episode
+{"artifact": "docs/data/p4_4_baselines.json", "arm": "iql", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 1.21 s/episode
+{"artifact": "docs/data/p4_6_grid.json", "arm": "iql@maxpressure", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 1.21 s/episode
+{"artifact": "docs/data/p4_6_grid.json", "arm": "iql@fixedtime", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 1.20 s/episode
+{"artifact": "docs/data/p4_6_grid.json", "arm": "iql@random", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 1.11 s/episode
+{"artifact": "docs/data/p4_6_grid.json", "arm": "iql@mappo500", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 1.78 s/episode
+{"artifact": "docs/data/p4_6_grid.json", "arm": "dt@random", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 1.14 s/episode
+{"artifact": "docs/data/p4_6_grid.json", "arm": "bc@random", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 1.26 s/episode
+{"artifact": "docs/data/p4_6_grid.json", "arm": "bc_top10@random", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 0.99 s/episode
+{"artifact": "docs/data/p4_6_grid.json", "arm": "behaviour@random", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 1.79 s/episode
+{"artifact": "docs/data/p4_6_grid.json", "arm": "dt@mappo500", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 1.12 s/episode
+{"artifact": "docs/data/p4_6_grid.json", "arm": "bc@mappo500", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 1.01 s/episode
+{"artifact": "docs/data/p4_6_grid.json", "arm": "bc_top10@mappo500", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 1.23 s/episode
+{"artifact": "docs/data/p4_7_grid.json", "arm": "iql@mix33", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 1.20 s/episode
+{"artifact": "docs/data/p4_7_grid.json", "arm": "iql@mix50", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 1.10 s/episode
+{"artifact": "docs/data/p4_7_grid.json", "arm": "iql@mix67", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 1.62 s/episode
+{"artifact": "docs/data/p4_7_grid.json", "arm": "dt@mix50", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 1.00 s/episode
+{"artifact": "docs/data/p4_7_grid.json", "arm": "bc@mix50", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 1.02 s/episode
+{"artifact": "docs/data/p4_7_grid.json", "arm": "bc_top10@mix50", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 1.72 s/episode
+{"artifact": "docs/data/p4_6_grid.json", "arm": "dt@maxpressure", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 1.19 s/episode
+{"artifact": "docs/data/p4_6_grid.json", "arm": "bc@maxpressure", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 1.28 s/episode
+{"artifact": "docs/data/p4_6_grid.json", "arm": "bc_top10@maxpressure", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 1.78 s/episode
+{"artifact": "docs/data/p4_6_grid.json", "arm": "dt@fixedtime", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 1.02 s/episode
+{"artifact": "docs/data/p4_6_grid.json", "arm": "bc@fixedtime", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 1.20 s/episode
+{"artifact": "docs/data/p4_6_grid.json", "arm": "bc_top10@fixedtime", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 1.57 s/episode
+{"artifact": "docs/data/p4_7_grid.json", "arm": "dt@mix33", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 1.06 s/episode
+{"artifact": "docs/data/p4_7_grid.json", "arm": "bc@mix33", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 1.06 s/episode
+{"artifact": "docs/data/p4_7_grid.json", "arm": "bc_top10@mix33", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 1.66 s/episode
+{"artifact": "docs/data/p4_7_grid.json", "arm": "dt@mix67", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 1.04 s/episode
+{"artifact": "docs/data/p4_7_grid.json", "arm": "bc@mix67", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 1.02 s/episode
+{"artifact": "docs/data/p4_7_grid.json", "arm": "bc_top10@mix67", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 1.52 s/episode
+{"artifact": "docs/data/p4_4_baselines.json", "arm": "mappo1000", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 0.90 s/episode
+{"artifact": "docs/data/p4_6_grid.json", "arm": "behaviour@mappo1000", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 0.89 s/episode
+{"artifact": "docs/data/p4_6_grid.json", "arm": "behaviour@mappo500", "seed": 101, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 0.81 s/episode
+{"artifact": "docs/data/p4_6_grid.json", "arm": "behaviour@maxpressure", "seed": null, "draw": 1000, "refused": 0, "reason": null}
+  1/1 rolled=1 skipped=0 refused=0 0.94 s/episode
+{"artifact": "docs/data/p4_6_grid.json", "arm": "behaviour@fixedtime", "seed": null, "draw": 1000, "refused": 0, "reason": null}
+SUMMARY {
+ "new_cells": 53,
+ "new_cells_equal": 53,
+ "new_cells_failed": [],
+ "p3a": 6,
+ "p3a_reproduced": 6,
+ "p3a_failed": [],
+ "old_cells": 38,
+ "old_cells_reproduced": 38,
+ "old_cells_failed": [],
+ "wall_seconds": 254.95896792411804
+}
+smoke exit=0
+end 2026-10-27T23:06:19Z  00:06:19 up 22:38,  1 user,  load average: 1.38, 1.61, 1.18
