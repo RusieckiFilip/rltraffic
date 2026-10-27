@@ -432,3 +432,52 @@ coordinator), 3 shards, CPU only, ≈ 3.5 h of cells plus ≈ 35 min of watchdog
 **After the run (G4, part 2):** `status`, then the artifact from `/home/filip/rltraffic-p92-run2` (never from your worktree), copied
 byte for byte; the packet with D.1's test and D.2's sentence. A shard that prints `STOPPED` is reported, not restarted by hand
 without the coordinator.
+
+---
+
+# ⛔ AMENDMENT E — 2026-10-27: `main` is RED since the point-5 merge — the shift driver cannot run where `/home/filip/rltraffic` does not exist; C10 FIX FIRST, small, on your branch, while stage 1 runs
+
+## E.1 What CI found (read by the coordinator from run `40505879736`'s junit artifacts, both legs)
+- Run `40505879736` on `e4a5ab0` (the merge of `dafa3eb`): **5 failed, 3515 passed, 427 skipped** on ubuntu-22.04 AND ubuntu-24.04.
+  The suite step failed, so the ceiling gate's 427 against 405 is not yet a measurement.
+- The five failures are ONE defect: the five cases of
+  `tests/test_p9_2_drivers.py::test_the_token_is_consumed_only_past_a_record_that_authorises` with `p9_2_demand_shift.sh` (the
+  `p9_2_sumo_anchors.sh` cases pass). Each run of the driver exits 1 with
+  `p9_2_demand_shift.sh: line 143: cd: /home/filip/rltraffic: No such file or directory`, where the test expects 2 or 0.
+- **Cause.** The driver sets `MAIN_TREE=/home/filip/rltraffic` (line 49, C7 `fc142f8`) with no override, unlike `P92_PYTHON` and
+  `P92_OUTPUT_ROOT` beside it, and materialises with `(cd "$MAIN_TREE" && … materialise)` (line 143) before the guard. C8b's harness
+  (`7e4571a`) overrides the interpreter, the runs and output roots and the session, but cannot reach the main tree. On this machine
+  every case therefore `cd`s into the REAL main tree and passes; on a runner without that path every case stops at line 143. No
+  local run could show it: your C8b and C9 runs, C8.1's three trees and the coordinator's trial merge (D.1) all had the path.
+- **No number is touched.** The shards run `/home/filip/rltraffic-p92-run2`'s driver at `dafa3eb`, where the path exists.
+
+## E.2 C10 — required, on `task/p9.2-a27b`, NOW (stage 1 runs from its own tree and is not touched)
+1. **The driver:** `MAIN_TREE=${P92_MAIN_TREE:-/home/filip/rltraffic}`, the pattern of `P92_PYTHON` and `P92_OUTPUT_ROOT`; the
+   header comment names the variable. Nothing else in the driver changes.
+2. **The harness:** `_Harness` creates a scratch main tree under `tmp_path` and passes it as `P92_MAIN_TREE`; the stand-in interpreter
+   also records its working directory; a test asserts that the materialisation call ran in that scratch directory. Against the
+   unchanged driver this fails ON THIS MACHINE (the driver ignores the variable and `cd`s into the real main tree): that is the red
+   you show first.
+3. **A pin:** with `P92_MAIN_TREE` unset, the driver's main tree is `/home/filip/rltraffic` (the campaign's behaviour is unchanged).
+4. **A mutant:** the override removed (the literal restored) → item 2's test fails; reported killed against a control.
+5. **The audit (the class, not the instance):** every OTHER `/home/filip/rltraffic` literal in the files P9.2 added or changed under
+   `offline/` and `tests/` that a test reaches: name it and say how that test behaves on a host without the path (overridden,
+   skipped with a named reason, or not reached). Anything that would fail there is fixed the same way, in C10.
+6. **Runs:** `tests/test_p9_2_drivers.py` and `tests/test_demand_shift_watchdog.py`, one pytest process,
+   `OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`; `check_test_hygiene.sh` and `check_english.sh` on the changed files;
+   `claude_guard.sh --frozen-only`. Then **"P9.2 C10 ready"** with the commit.
+7. **J1(c), stated again because C10 is code:** from C10 on, your branch differs from `dafa3eb` outside `docs/` (D.1's test will
+   too). Every `p92-shift` artifact is built in `/home/filip/rltraffic-p92-run2` and copied byte for byte (D.4). Stage 2's cells
+   must be rolled in a tree whose code equals `dafa3eb` outside `docs/`, never at your branch's HEAD. Do not touch `run2`.
+
+## E.3 What the coordinator does at "P9.2 C10 ready"
+Re-runs item 2's test and item 4's mutant from disk; merges `task/p9.2-a27b` into `main` (the branch's second merge, its parent
+count verified); pushes; reads CI. Expected: the suite green on both legs, and the ceiling gate failing by design at the new skip
+count. That count is then measured against run `40501015653` (405, green) and handed to the author as a patch.
+
+## E.4 Your order
+C10 now. Stage 1's report when its three shards end: at 15:25 they stood at 1,700 / 1,700 / 1,599 of 5,200 cells, about 29 cells
+a minute each, so about 17:30. One watchdog restart so far: shard 2 at 13:35:53Z, top frame `roll_cell` line 628, the
+`evaluate_arm` call. No deeper Python frame was dumped, so the wait was in C code run from that line; that is where the arm's env
+is freed as the call returns, the place the destructor hang (`DEFERRED` 104) is expected. Then G4 part 2: D.1's test, D.2's
+sentence, D.4's artifact.
