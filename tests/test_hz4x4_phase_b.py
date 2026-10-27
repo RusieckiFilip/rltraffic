@@ -132,11 +132,11 @@ def test_hz4x4_tier_parts_is_tier_parts_on_an_explicit_spec(synthetic: tuple[Pat
 # ======================================================================
 
 
-def _ts_args(tmp_path: Path, corpus: Path, *command: str, root: str = "p5_2_like") -> Any:
+def _ts_args(tmp_path: Path, corpus: Path, *command: str, root: str = "p5_2_like", tier: str = "random") -> Any:
     return ts.build_parser().parse_args([
         "--corpus-root", str(corpus), "--work-dir", str(tmp_path / root / "work"),
         "--checkpoint-dir", str(tmp_path / root / "checkpoints"), "--reuse-root", str(tmp_path / "protected"),
-        "--device", "cpu", "--seeds", "101", "--gradient-steps", "2", "--tier", "random", *command,
+        "--device", "cpu", "--seeds", "101", "--gradient-steps", "2", "--tier", tier, *command,
     ])
 
 
@@ -158,20 +158,31 @@ class _DtSpy:
                            seconds=30.0 + seed / 100.0)
 
 
-def test_train_cell_hands_train_tier_dt_what_tier_sweep_train_hands_it(
+def _as_hz4x4_tier(spec: Any, monkeypatch: pytest.MonkeyPatch, tier: str = "maxpressure") -> Any:
+    """The synthetic tier under an hz4x4 tier name, installed in tier_sweep's table so ``tier_sweep train`` reads it."""
+    renamed = dataclasses.replace(spec, tier=tier)
+    monkeypatch.setattr(ts, "TIERS", {tier: renamed})
+    return renamed
+
+
+def test_train_cell_hands_the_dt_mirror_what_tier_sweep_train_hands_train_tier_dt(
     synthetic: tuple[Path, Any], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    # BRIEF_48 E.3.6; docs/plans/p9.3.md section 10.2 C2 as amended: train_tier_dt writes the GRID's scenario id into
+    # every checkpoint, so hz4x4's DT trains through hz4x4_train_tier_dt (its body, two constants made parameters).
     root, spec = synthetic
-    spy = _DtSpy()
-    monkeypatch.setattr(ts, "train_tier_dt", spy)
-    assert ts._run_train(_ts_args(tmp_path, root, "train", "--method", "dt_nomix")) == 0
+    spec = _as_hz4x4_tier(spec, monkeypatch)
+    registered, mirror = _DtSpy(), _DtSpy()
+    monkeypatch.setattr(ts, "train_tier_dt", registered)
+    monkeypatch.setattr(pb, "hz4x4_train_tier_dt", mirror)
+    assert ts._run_train(_ts_args(tmp_path, root, "train", "--method", "dt_nomix", tier="maxpressure")) == 0
     out = tmp_path / "p9_out"
     record = pb.train_cell(spec, "dt_nomix", 101, corpus_root=root, output_root=out, device=CPU, gradient_steps=2)
-    theirs, mine = spy.calls
+    (theirs,), (mine,) = registered.calls, mirror.calls
     assert _same(mine.pop("stacked"), theirs.pop("stacked"))
     assert _same(mine.pop("index"), theirs.pop("index"))
     assert mine.pop("stats").to_json_obj() == theirs.pop("stats").to_json_obj()
-    final = pb.checkpoint_path(out, "random", "dt_nomix", 101)
+    final = pb.checkpoint_path(out, "maxpressure", "dt_nomix", 101)
     assert Path(mine.pop("checkpoint_path")) == final.with_name(final.name + ".partial")
     theirs.pop("checkpoint_path")
     assert set(mine.pop("protected")) == set(ts.protected_roots_from([out / "p5_1", out / "p5_2"]))
@@ -182,10 +193,58 @@ def test_train_cell_hands_train_tier_dt_what_tier_sweep_train_hands_it(
         "scenario": "hz4x4", "scenario_id": "cityflow_grid4x4", "arm": "dt_nomix", "base_method": "dt_nomix",
         "registered_in": pb.arm_recipe("dt_nomix").registered_in}
     assert "runtime" in provenance
+    assert (mine.pop("scenario_id"), tuple(mine.pop("tiers"))) == ("cityflow_grid4x4", hz.TIER_ORDER)
     assert mine == theirs
-    assert (mine["tier"], mine["method"], mine["gradient_steps"], mine["batch_size"]) == ("random", "dt_nomix", 2, 64)
+    assert (mine["tier"], mine["method"], mine["gradient_steps"], mine["batch_size"]) == ("maxpressure", "dt_nomix", 2,
+                                                                                           64)
     assert record["seconds"] == 30.0 + 101 / 100.0
     assert record["canonical_digest"] == ts.canonical_state_dict_digest(final)
+
+
+def _synthetic_adjacency() -> Any:
+    """A real ``AdjacencySpec`` over the synthetic tier's 16 ids: the 4 x 4 lattice's undirected neighbours."""
+    from offline.roadnet_graph import AdjacencySpec
+
+    size = len(fx.IDS)
+    directed = np.zeros((size, size), dtype=np.bool_)
+    for index in range(size):
+        row, col = divmod(index, 4)
+        for other_row, other_col in ((row, col + 1), (row + 1, col)):
+            if other_row < 4 and other_col < 4:
+                directed[index, other_row * 4 + other_col] = True
+    return AdjacencySpec(node_ids=tuple(fx.IDS), directed=directed, undirected=directed | directed.T,
+                         roadnet_path="synthetic-lattice", roadnet_sha256="0" * 64)
+
+
+def test_the_dt_mirror_is_train_tier_dt_bit_for_bit_on_cpu(
+    synthetic: tuple[Path, Any], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root, spec = synthetic
+    monkeypatch.setattr(ts, "adjacency_for_tier", lambda *args, **kwargs: _synthetic_adjacency())
+    parts = pb.hz4x4_tier_parts(spec, root)
+    common = dict(tier="random", method="dt_nomix", seed=202, adjacency=parts["adjacency"], prompts=parts["prompts"],
+                  stats=parts["dataset"].stats, state_dim=int(parts["index"].state_dim),
+                  n_actions=int(parts["index"].n_actions), gradient_steps=3, batch_size=4, device=CPU, protected=(),
+                  provenance={"runtime": {"fixed": "for the comparison"}}, deterministic=False, log_every=0)
+    paths = {name: tmp_path / name / "dt.pt" for name in ("registered", "mirror", "hz4x4")}
+    for path in paths.values():
+        path.parent.mkdir()
+    registered = ts.train_tier_dt(parts["stack"](), parts["index"], checkpoint_path=paths["registered"], **common)
+    mirror = pb.hz4x4_train_tier_dt(parts["stack"](), parts["index"], checkpoint_path=paths["mirror"],
+                                    scenario_id=ts.SCENARIO_ID, tiers=tuple(ts.TIERS), **common)
+    assert (mirror.losses, mirror.gradient_steps, mirror.method, mirror.seed) == (
+        registered.losses, registered.gradient_steps, registered.method, registered.seed)
+    assert len(mirror.losses) == 3
+    load = lambda path: torch.load(path, map_location="cpu", weights_only=False)  # noqa: E731
+    assert _same(load(paths["mirror"]), load(paths["registered"]))
+    pb.hz4x4_train_tier_dt(parts["stack"](), parts["index"], checkpoint_path=paths["hz4x4"], scenario_id="cityflow4x4",
+                           tiers=tuple(ts.TIERS), **common)
+    hz4x4, grid = load(paths["hz4x4"]), load(paths["registered"])
+    assert (hz4x4.pop("scenario_id"), grid.pop("scenario_id")) == ("cityflow4x4", "cityflow_grid4x4")
+    assert _same(hz4x4, grid)
+    with pytest.raises(ValueError, match="unknown tier 'random'"):
+        pb.hz4x4_train_tier_dt(parts["stack"](), parts["index"], checkpoint_path=tmp_path / "x.pt",
+                               scenario_id="cityflow4x4", tiers=hz.TIER_ORDER, **common)
 
 
 MATCHED_FLAGS: dict[str, tuple[str, ...]] = {
@@ -283,16 +342,21 @@ def test_the_training_record_carries_the_trainers_seconds_under_the_clock_label_
     assert record["canonical_digest"] == "canonical-202"
 
 
-def test_a_dt_tier_name_the_trainer_refuses_is_refused_before_anything_is_read_or_written(
-    synthetic: tuple[Path, Any], tmp_path: Path
+def test_a_dt_tier_name_outside_hz4x4s_tiers_is_refused_before_anything_is_read_or_written(
+    synthetic: tuple[Path, Any], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # Q-B1 (docs/plans/p9.3.md section 10.2, C2): tier_sweep.train_tier_dt accepts the grid's tier names only.
+    # The mirror accepts hz4x4's four tier names -- random_fresh included (Q-B1 no longer blocks hz4x4) -- and nothing
+    # else; the refusal precedes the first read and the first write.
     root, spec = synthetic
     out = tmp_path / "p9_out"
-    renamed = dataclasses.replace(spec, tier="random_fresh")
-    with pytest.raises(ValueError, match="Q-B1"):
-        pb.train_cell(renamed, "dt_nomix", 101, corpus_root=root, output_root=out, device=CPU, gradient_steps=2)
+    with pytest.raises(ValueError, match="not one of hz4x4's tiers"):
+        pb.train_cell(spec, "dt_nomix", 101, corpus_root=root, output_root=out, device=CPU, gradient_steps=2)
     assert not out.exists()
+    mirror = _DtSpy()
+    monkeypatch.setattr(pb, "hz4x4_train_tier_dt", mirror)
+    pb.train_cell(_as_hz4x4_tier(spec, monkeypatch, "random_fresh"), "dt_nomix", 101, corpus_root=root,
+                  output_root=out, device=CPU, gradient_steps=2)
+    assert [call["tier"] for call in mirror.calls] == ["random_fresh"]
 
 
 def test_the_campaigns_output_root_takes_the_registered_steps_only(tmp_path: Path) -> None:
@@ -333,4 +397,60 @@ def test_two_live_steps_on_hz4x4_train_under_its_own_scenario_id_and_road_networ
     assert payload["provenance"]["roadnet_sha256"] == hashlib.sha256(roadnet.read_bytes()).hexdigest()
     assert (payload["provenance"]["scenario"], payload["provenance"]["tier"]) == ("hz4x4", "maxpressure")
     assert payload["provenance"]["spatial_mixing"] is False
+    assert payload["scenario_id"] == "cityflow4x4" and "cityflow4x4" in json.dumps(payload["stats"])
     assert len(payload["intersection_ids"]) == 16
+
+
+# ======================================================================
+# The training queue: one cell at a time, resumable, stopping at the first failure (E.3.7)
+# ======================================================================
+
+
+def test_the_training_cells_are_the_hundred_tier_by_tier() -> None:
+    cells = pb.training_cells()
+    assert len(cells) == 100 and len(set(cells)) == 100
+    assert cells[:6] == [("maxpressure", "dt_nomix", s) for s in hz.SEEDS] + [("maxpressure", "bc_m", 101)]
+    assert [tier for tier, _, _ in cells[::25]] == list(hz.TIER_ORDER)
+    assert pb.training_cells(tiers=["random_fresh"], arms=["iql_m"]) == [("random_fresh", "iql_m", s) for s in hz.SEEDS]
+
+
+def _done(out: Path, tier: str, arm: str, seed: int, payload: bytes = b"w") -> None:
+    path = pb.checkpoint_path(out, tier, arm, seed)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(payload)
+    record = pb.train_record_path(out, tier, arm, seed)
+    record.parent.mkdir(parents=True, exist_ok=True)
+    record.write_text(json.dumps({"file_sha256": hashlib.sha256(payload).hexdigest()}), encoding="utf-8")
+
+
+def test_the_queue_skips_finished_cells_trains_the_rest_in_order_and_stops_at_the_first_failure(tmp_path: Path) -> None:
+    cells = [("fixedtime", "bc_m", 101), ("fixedtime", "bc_m", 202), ("fixedtime", "iql_m", 101),
+             ("fixedtime", "iql_m", 202)]
+    _done(tmp_path, *cells[0])
+    ran: list[tuple[str, str, int]] = []
+
+    def run_cell(tier: str, arm: str, seed: int) -> int:
+        ran.append((tier, arm, seed))
+        return 7 if (arm, seed) == ("iql_m", 101) else 0
+
+    result = pb.run_train_queue(cells, output_root=tmp_path, run_cell=run_cell)
+    assert ran == cells[1:3]
+    assert result == {"status": "failed", "skipped": 1, "trained": 1, "failed_cell": list(cells[2]), "returncode": 7}
+    ran.clear()
+    _done(tmp_path, *cells[1])
+    _done(tmp_path, *cells[2])
+    assert pb.run_train_queue(cells, output_root=tmp_path, run_cell=lambda *cell: ran.append(cell) or 0) == {
+        "status": "completed", "skipped": 3, "trained": 1, "failed_cell": None, "returncode": 0}
+    assert ran == [cells[3]]
+
+
+def test_the_queue_refuses_a_half_written_cell_before_running_anything(tmp_path: Path) -> None:
+    cells = [("mappo1000", "bc_top10_m", 303), ("mappo1000", "bc_top10_m", 404)]
+    never = lambda *cell: pytest.fail(f"{cell} was run")  # noqa: E731
+    _done(tmp_path, *cells[1])
+    pb.checkpoint_path(tmp_path, *cells[1]).write_bytes(b"another file")
+    with pytest.raises(ValueError, match="is not the checkpoint"):
+        pb.run_train_queue(cells, output_root=tmp_path, run_cell=never)
+    pb.train_record_path(tmp_path, *cells[1]).unlink()
+    with pytest.raises(ValueError, match="without its record"):
+        pb.run_train_queue(cells, output_root=tmp_path, run_cell=never)
