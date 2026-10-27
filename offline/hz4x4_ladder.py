@@ -1,8 +1,9 @@
 """P9.3 (A27 point 8): hangzhou_4x4_gudang -- draws, pre-flight, fixed-time sweep, corpus, A11 gate, declaration.
 
 Phase A, complete: draws, pre-flight, the fixed-time sweep, the corpus (plan / run / verify), the teachers'
-report, A11's gate and the declaration.  Two refusals are deliberate and wait on P9.1's code merge (M1):
-the ``random_fresh`` tier needs the collector's ``--random-rng`` and its gate cell A27 (d)'s reference.
+report, A11's gate and the declaration.  ``random_fresh`` uses P9.1's code (M1, merged): the collector's
+``--random-rng per-episode``, ``offline.a27_arms.fresh_random_factory`` as its gate cell (A27 (d)'s reference,
+``default_rng([seed, draw_id])``) and ``offline.a27_arms.assert_distinct_schedules`` in ``collect verify``.
 
 Artifact format versions: ``p9.3-preflight/1.0``, ``p9.3-fixed-time-sweep/1.0``, ``p9.3-teachers/1.0``,
 ``p9.3-engine-att-gate/1.0``, ``p9.3-declaration/1.0``.
@@ -2532,7 +2533,8 @@ def verify_run(run: CollectionRun, *, draws_root: str | Path = MAIN_DRAWS_ROOT) 
     materialised ``flow.json``; a teacher
     checkpoint's recorded sha256 with the file; and for ``random_fresh`` the generator scheme
     (``per-episode``) and A27 (d)'s registered check -- one distinct action sequence per episode on every
-    intersection.
+    intersection -- by P9.1's ``a27_arms.assert_distinct_schedules`` and, as a second route over the same arrays, this
+    module's :func:`distinct_action_sequences`; the two counts must agree.
     """
     import json
 
@@ -2573,6 +2575,9 @@ def verify_run(run: CollectionRun, *, draws_root: str | Path = MAIN_DRAWS_ROOT) 
         "flow_source_sha256": _sha256_file(flow_source),
         "metrics": list(args.metrics) if args.metrics else None,
         "epsilon": float(args.epsilon) if args.policy == "mappo_eps" else None,
+        # P9.1's M1: the generator scheme is a setting the command determines (the collector's own expression; a manifest
+        # written before M1 carries no key, which reads as None, as the expression gives for every non-random policy).
+        "random_rng_scheme": str(getattr(args, "random_rng", "per-draw")) if args.policy == "random" else None,
     }
     if run.tier == "fixedtime":
         expected["fixed_time_k"] = args.fixed_time_k
@@ -2593,14 +2598,26 @@ def verify_run(run: CollectionRun, *, draws_root: str | Path = MAIN_DRAWS_ROOT) 
             raise ValueError(f"{run.name}: {checkpoint} is not the checkpoint the manifest records")
         record["checkpoint_sha256"] = meta["checkpoint_sha256"]
     if run.tier == "random_fresh":
+        from offline.a27_arms import assert_distinct_schedules
+
         check_random_rng_scheme(meta)
+        # A27(d)'s registered check, P9.1's implementation: the tier's episode count and one distinct schedule per
+        # episode on EVERY intersection, refused otherwise.
+        registered = assert_distinct_schedules(run.out_dir, expected=run.expected_episodes)
+        # This module's own count, a second route over the same arrays; the two must agree intersection by intersection.
         counts = distinct_action_sequences(run.out_dir)
+        if counts != registered["per_intersection_distinct"]:
+            raise ValueError(
+                f"{run.name}: the two distinct-sequence counts disagree ({counts} against "
+                f"{registered['per_intersection_distinct']})"
+            )
         short = {ix_id: n for ix_id, n in counts.items() if n != run.expected_episodes}
         if len(counts) != EXPECTED_INTERSECTIONS or short:
             raise ValueError(
                 f"{run.name}: A27 (d) refuses a random_fresh tier without {run.expected_episodes} distinct "
-                f"per-intersection action sequences; these fall short: {short}"
+                f"per-intersection action sequences on all {EXPECTED_INTERSECTIONS} intersections; these fall short: {short}"
             )
+        record["distinct_schedules"] = registered
         record["distinct_sequences_per_intersection"] = counts
         record["random_rng_scheme"] = meta["random_rng_scheme"]
     return record
@@ -2781,10 +2798,21 @@ def _gate_cell_inputs(
         if _sha256_file(checkpoint) != meta["checkpoint_sha256"]:
             raise ValueError(f"{checkpoint} is not the checkpoint {manifest} records")
         factory = _mappo_factory(str(checkpoint), device) if build_factory else None
-    else:
-        raise ValueError(
-            f"{cell.tier}'s gate cell has no factory here; random_fresh's is A27 (d)'s reference, wired after P9.1's M1"
+    elif cell.tier == "random_fresh":
+        # A27(d)'s fresh reference, P9.1's implementation (offline.a27_arms.fresh_random_factory): collect.py's random
+        # policy with numpy.random.default_rng([seed, draw_id]), the draw found by exact lookup of the env's config path
+        # among the gate's held-out draws -- the analogue of P8.4b's random cell, which used the registered reference.
+        from offline.a27_arms import fresh_random_factory
+        from offline.engine_att_reference import GATE_DRAWS
+
+        factory = (
+            fresh_random_factory(int(cell.seed), scenario_key=SCENARIO_KEY, draws_root=draws_root,
+                                 draw_ids=[int(d) for d in GATE_DRAWS])
+            if build_factory
+            else None
         )
+    else:
+        raise ValueError(f"{cell.tier!r} has no gate factory; hz4x4's tiers are {list(TIER_ORDER)}")
     return settings, Path(config), created, factory
 
 
@@ -2833,12 +2861,6 @@ def _run_gate(args: argparse.Namespace) -> int:
     tiers = list(args.tiers) if args.tiers else _collected_tiers(corpus_root)
     if not tiers:
         raise FileNotFoundError(f"no hz4x4 tier is collected under {corpus_root}")
-    if "random_fresh" in tiers:
-        raise ValueError(
-            "random_fresh's gate cell is A27 (d)'s random_fresh reference (default_rng([seed, draw_id])), which "
-            "P9.1's M1 implements; merge main after M1 and wire it before gating that tier "
-            "(docs/plans/p9.3.md section 4.6)"
-        )
     cells = gate_cells_for(tiers)
     for cell in cells:
         _gate_cell_inputs(cell, corpus_root=corpus_root, draws_root=draws_root, device=args.device, build_factory=False)
