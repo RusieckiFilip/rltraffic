@@ -329,6 +329,33 @@ def test_the_dt_trainer_refuses_an_existing_checkpoint_on_an_a27_tier(tmp_path: 
     assert not calls and (checkpoints / "grid4x4_random_fresh_dt_nomix_seed101.pt").read_bytes() == b"earlier"
 
 
+def test_the_spatial_trainer_itself_trains_on_the_grids_random_fresh_and_still_refuses_an_undeclared_tier(
+        tmp_path: Path) -> None:
+    """BRIEF_46 Amendment C (C.2, C.3): ``train_tier_dt`` -- the REAL trainer, no spy -- accepts A27's tier as it accepts
+    the four registered ones (the mirror of ``method_tier_grid``'s check, which reads both registries): two gradient
+    steps on CPU on a synthetic joint stack, the tier recorded in the checkpoint.  A name in neither registry is still
+    refused, before anything is written, and the refusal names A27's tiers.  The campaign reaches this call for its five
+    ``dt_nomix@random_fresh`` runs (255 runs' 231st to 235th); the DT tests above replace the trainer with a spy, so none
+    of them could reach the check."""
+    import torch
+
+    from tests.test_tier_sweep import _tiny_joint_setup
+
+    setup = _tiny_joint_setup()
+    common = dict(method="dt_nomix", seed=101, adjacency=setup["adjacency"], prompts=setup["prompts"],
+                  stats=setup["stats"], state_dim=setup["state_dim"], n_actions=setup["n_actions"], gradient_steps=2,
+                  batch_size=2, device=torch.device("cpu"), protected=(), provenance={})
+    result = ts.train_tier_dt(setup["stacked"], setup["index"], tier="random_fresh",
+                              checkpoint_path=tmp_path / "random_fresh.pt", **common)
+    assert len(result.losses) == 2 and all(math.isfinite(loss) for loss in result.losses)
+    payload = torch.load(tmp_path / "random_fresh.pt", map_location="cpu", weights_only=False)
+    assert payload["provenance"]["tier"] == "random_fresh"
+    with pytest.raises(ValueError, match=r"unknown tier 'random_frsh'; .*A27's \['random_fresh'\]"):
+        ts.train_tier_dt(setup["stacked"], setup["index"], tier="random_frsh",
+                         checkpoint_path=tmp_path / "undeclared.pt", **common)
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["random_fresh.pt"]
+
+
 def test_train_baselines_refuses_a_random_fresh_tier_without_distinct_schedules(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
