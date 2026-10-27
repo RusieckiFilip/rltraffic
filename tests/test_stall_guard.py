@@ -56,8 +56,10 @@ def recorder(monkeypatch: pytest.MonkeyPatch) -> _Recorder:
     return rec
 
 
-def test_the_constants_are_b3s() -> None:
-    assert (sg.STALL_SECONDS, sg.REARM_SECONDS, sg.BANNER, sg.PROGRESS_METHODS) == (600.0, 10.0, "Timeout (",
+def test_the_constants_are_b3s_with_amendment_b2s_window() -> None:
+    """B.3's guard, its window corrected from 600 s to 120 s by ``BRIEF_46`` Amendment B.2: re-armed at most once per
+    10 s, a stall is cut after 110-120 s without a reset or a step."""
+    assert (sg.STALL_SECONDS, sg.REARM_SECONDS, sg.BANNER, sg.PROGRESS_METHODS) == (120.0, 10.0, "Timeout (",
                                                                                      ("reset", "step"))
 
 
@@ -173,6 +175,22 @@ def test_the_three_rolling_subcommands_arm_the_guard_before_they_roll(command: l
             "--stall-dump", str(dump)]
     assert cr.main(argv) == 0
     assert events == [("install", dump), command[0]]
+
+
+@pytest.mark.parametrize(("extra", "expected"), [([], 120.0), (["--stall-seconds", "45"], 45.0)])
+def test_the_rolling_subcommands_hand_their_window_to_the_guard(extra: list[str], expected: float, tmp_path: Path,
+                                                                 monkeypatch: pytest.MonkeyPatch) -> None:
+    """The driver passes ``--stall-seconds`` (its ``P91_STALL_SECONDS``, default 120) to every worker; without it the
+    worker arms the module's default."""
+    armed: list[tuple[Path, float]] = []
+    monkeypatch.setattr(sg, "install", lambda path, *, seconds: armed.append((Path(path), float(seconds))))
+    monkeypatch.setattr(cr, "assert_evaluation_declared", lambda roots, *names: None)
+    monkeypatch.setattr(cr, "roll_old_cells", lambda roots, cells=None: {})
+    dump = tmp_path / "stall.txt"
+    argv = ["--output-root", str(tmp_path), "--corpus-root", str(tmp_path), "--draws-root", str(tmp_path), "old-cells",
+            "--stall-dump", str(dump), *extra]
+    assert cr.main(argv) == 0
+    assert armed == [(dump, expected)]
 
 
 def test_no_other_subcommand_takes_a_stall_dump(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

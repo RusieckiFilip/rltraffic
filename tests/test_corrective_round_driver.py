@@ -152,10 +152,13 @@ parser = argparse.ArgumentParser()
 parser.add_argument("mode")
 parser.add_argument("state")
 parser.add_argument("--stall-dump", required=True)
+parser.add_argument("--stall-seconds", required=True)
 args = parser.parse_args()
 state = Path(args.state)
 runs = int(state.read_text()) + 1 if state.exists() else 1
 state.write_text(str(runs))
+with open(args.state + ".seconds", "a", encoding="utf-8") as received:
+    received.write(args.stall_seconds + "\\n")
 guard = StallGuard(args.stall_dump, seconds=1.0, rearm_seconds=0.0)
 if args.mode == "stall-always" or (args.mode == "stall-once" and runs == 1):
     ctypes.PyDLL(None).sleep(60)  # a C-level wait holding the GIL, as Engine::~Engine() at its barrier
@@ -184,8 +187,10 @@ def _driver_constant(name: str) -> str:
     return match.group(0)
 
 
-def _restarting(tmp_path: Path, mode: str, *, max_restarts: str | None = None) -> tuple[int, Path]:
-    """The driver's own ``restarting`` function, cut out of the driver and run around the fake worker."""
+def _restarting(tmp_path: Path, mode: str, *, max_restarts: str | None = None,
+                env: dict[str, str] | None = None) -> tuple[int, Path]:
+    """The driver's own ``restarting`` function and its three constants, cut out of the driver and run around the fake
+    worker; *env* is the environment's overrides (any ``P91_*`` of the caller's own environment is dropped)."""
     import sys
 
     logs = tmp_path / "logs"
@@ -193,21 +198,27 @@ def _restarting(tmp_path: Path, mode: str, *, max_restarts: str | None = None) -
     worker = tmp_path / "worker.py"
     worker.write_text(FAKE_WORKER, encoding="utf-8")
     script = "\n".join([
-        "set -euo pipefail", f"LOGS={logs}", _driver_constant("STALL_BANNER"), _driver_constant("MAX_RESTARTS"),
+        "set -euo pipefail", f"LOGS={logs}", _driver_constant("STALL_BANNER"), _driver_constant("STALL_SECONDS"),
+        _driver_constant("MAX_RESTARTS"),
         *([f"MAX_RESTARTS={max_restarts}"] if max_restarts else []), _driver_function("restarting"),
         "code=0",
         f'restarting w {sys.executable} -P {worker} {mode} {tmp_path / "state"} >"$LOGS/w.log" 2>&1 || code=$?',
         'echo "exit=$code"'])
+    clean = {key: value for key, value in os.environ.items() if not key.startswith("P91_")}
     result = subprocess.run(["bash", "-c", script], capture_output=True, text=True, timeout=120,
-                            env={**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[1])})
+                            env={**clean, "PYTHONPATH": str(Path(__file__).resolve().parents[1]), **(env or {})})
     assert result.stdout.startswith("exit="), result.stderr
     return int(result.stdout.strip().split("=")[1]), logs
 
 
-def test_the_cap_is_twenty_restarts_per_worker_and_the_banner_is_the_guards() -> None:
-    from offline.stall_guard import BANNER
+def test_the_window_is_120_s_and_the_cap_60_restarts_each_with_an_environment_override() -> None:
+    """BRIEF_46 Amendment B.2 (correcting B.3's 600 s and 20): the defaults, the overrides' names, the module's own
+    default equal to the driver's, and the banner the guard writes."""
+    from offline.stall_guard import BANNER, STALL_SECONDS
 
-    assert _driver_constant("MAX_RESTARTS") == "MAX_RESTARTS=20"
+    assert _driver_constant("STALL_SECONDS") == "STALL_SECONDS=${P91_STALL_SECONDS:-120}"
+    assert _driver_constant("MAX_RESTARTS") == "MAX_RESTARTS=${P91_MAX_RESTARTS:-60}"
+    assert STALL_SECONDS == 120.0
     assert _driver_constant("STALL_BANNER") == f"STALL_BANNER='{BANNER}'"
 
 
@@ -217,9 +228,50 @@ def test_a_worker_blocked_in_a_c_level_wait_is_restarted_and_completes(tmp_path:
     assert (logs / "w.stall0.txt").read_text().startswith("Timeout (")
     assert (logs / "w.stall1.txt").read_text() == ""
     log = (logs / "restarts.log").read_text()
-    assert re.match(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ w: no progress .* restart 1 of at most 20", log)
+    assert re.match(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ w: no progress -- its stall timeout fired \(window 120 s, "
+                    r".*\); restart 1 of at most 60", log)
     assert "    Timeout (0:00:01)!" in log and "worker.py" in log and log.count(" restart ") == 1
     assert "done 2" in (logs / "w.log").read_text()
+    assert (tmp_path / "state.seconds").read_text() == "120\n120\n", "every attempt is handed the driver's window"
+
+
+def test_the_environment_overrides_reach_every_attempt_and_the_cap(tmp_path: Path) -> None:
+    code, logs = _restarting(tmp_path, "stall-always", env={"P91_STALL_SECONDS": "17", "P91_MAX_RESTARTS": "2"})
+    assert code != 0 and (tmp_path / "state").read_text() == "3"
+    assert (tmp_path / "state.seconds").read_text() == "17\n17\n17\n"
+    log = (logs / "restarts.log").read_text()
+    assert log.count(" restart ") == 2 and log.count("(window 17 s, ") == 2 and "after 2 restarts; stopping" in log
+
+
+@pytest.mark.parametrize(("variable", "value"), [("P91_STALL_SECONDS", "abc"), ("P91_STALL_SECONDS", "10"),
+                                                 ("P91_STALL_SECONDS", "-5"), ("P91_MAX_RESTARTS", "x"),
+                                                 ("P91_MAX_RESTARTS", "-1")])
+def test_a_bad_override_is_refused_before_anything_runs(variable: str, value: str, tmp_path: Path) -> None:
+    """A window must be an integer above the guard's 10 s re-arm interval (StallGuard refuses anything else, in every
+    worker, after the token); a cap a non-negative integer."""
+    result = subprocess.run(["bash", str(DRIVER), "campaign", "abc"], capture_output=True, text=True, cwd=tmp_path,
+                            env={**os.environ, variable: value})
+    assert result.returncode == 2 and f"REFUSED: {variable} must be" in result.stderr
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_every_driver_run_a_test_makes_names_a_machine_path_only_in_an_assignment(tmp_path: Path) -> None:
+    """BRIEF_46 Amendment B.2.1's audit, pinned: the tests that execute the driver's top level are all refused before
+    the first command that USES a path under /home/filip (``[ -x "$PY" ]``).  Traced with ``bash -x``, every executed
+    line naming such a path -- once this repository's own path is removed from it -- is a variable assignment, so on a
+    host without those paths (CI's runners) the runs behave exactly as here."""
+    repo = str(Path(__file__).resolve().parents[1])
+    for argv, env in ((["fly", "abc"], {}), (["evaluate", "abc"], {}), (["campaign", "abc"], {"WORKERS": "7"}),
+                      (["campaign", "abc"], {"WORKERS": "0"}), (["campaign", "abc"], {"P91_STALL_SECONDS": "abc"}),
+                      (["campaign", "abc"], {"P91_MAX_RESTARTS": "x"})):
+        result = subprocess.run(["bash", "-x", str(DRIVER), *argv], capture_output=True, text=True, cwd=tmp_path,
+                                env={**os.environ, **env})
+        assert result.returncode == 2, (argv, env, result.stderr[-300:])
+        executed = [line.replace(repo, "<repo>") for line in result.stderr.splitlines() if line.startswith("+")]
+        naming = [line for line in executed if "/home/filip/" in line]
+        assert naming, "the trace shows the assignments"
+        assert all(re.match(r"^\++ [A-Z][A-Z0-9_]*=\S*$", line) for line in naming), [
+            line for line in naming if not re.match(r"^\++ [A-Z][A-Z0-9_]*=\S*$", line)]
 
 
 @pytest.mark.parametrize(("mode", "expected"), [("fail", 3), ("raise", 1)])

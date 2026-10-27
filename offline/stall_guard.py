@@ -21,11 +21,12 @@ THE PROTOCOL
 * Progress re-arms it: every ``CityFlowEnv.reset`` and ``CityFlowEnv.step`` (:func:`install` wraps both for the rest
   of the process; ``envs/cityflow_env.py`` is not edited, and the wrapped methods are called with their arguments
   unchanged).  Re-arming is throttled to once per :data:`REARM_SECONDS`, because each re-arm starts a new C thread.
-* :data:`STALL_SECONDS` without progress: PATH receives faulthandler's dump, whose first characters are
+* :data:`STALL_SECONDS` (120 s, Amendment B.2; the driver's ``--stall-seconds``) without progress: PATH receives
+  faulthandler's dump, whose first characters are
   :data:`BANNER`, and the process exits 1.  A worker that fails any other way leaves PATH empty.
 * The driver (``offline/campaigns/p9_1_corrective.sh``, ``restarting``) restarts a worker on exactly that exit -- code 1
   AND the banner at the head of a fresh dump file -- at most ``MAX_RESTARTS`` times, logging the time and the dumped
-  stack; any other non-zero exit stops the stage.
+  stack (60 by default, Amendment B.2); any other non-zero exit stops the stage.
 """
 
 from __future__ import annotations
@@ -35,8 +36,11 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
 
-#: B.3's "no progress for 10 minutes".
-STALL_SECONDS: float = 600.0
+#: The window without progress after which a worker is cut: B.3's "10 minutes", corrected to 120 s by ``BRIEF_46``
+#: Amendment B.2 (2026-10-27) -- at 600 s a shard meeting ``DEFERRED`` 104's rate idled about 3.3 h on its hangs; the
+#: longest legitimate pause between two progress calls is a checkpoint load (seconds).  The driver passes its own value
+#: (``P91_STALL_SECONDS``, default 120) to every worker as ``--stall-seconds``.
+STALL_SECONDS: float = 120.0
 #: The shortest interval between two re-arms: a re-arm joins faulthandler's watchdog thread and starts a new one, so
 #: re-arming on every step of every episode would start a thread per step.  A stall is therefore detected after
 #: between ``STALL_SECONDS - REARM_SECONDS`` and ``STALL_SECONDS`` seconds without progress.

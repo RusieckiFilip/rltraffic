@@ -1548,10 +1548,15 @@ def build_parser() -> Any:
     p3a_cmd = sub.add_parser("p3a-references", allow_abbrev=False)
     # B.3 (BRIEF_46 Amendment B; DEFERRED 104): the three subcommands that roll CityFlow episodes arm the no-progress
     # watchdog (offline/stall_guard.py) on this file; the driver restarts a worker whose file holds its dump.
+    from offline import stall_guard
+
     for rolling in (evaluate_cmd, old_cells_cmd, p3a_cmd):
         rolling.add_argument("--stall-dump", type=Path, default=None,
-                             help="arm offline.stall_guard on this file: after 600 s without an env reset or step the "
-                                  "worker writes every thread's stack here and exits 1")
+                             help="arm offline.stall_guard on this file: after --stall-seconds without an env reset or "
+                                  "step the worker writes every thread's stack here and exits 1")
+        rolling.add_argument("--stall-seconds", type=float, default=stall_guard.STALL_SECONDS,
+                             help="the guard's window (default %(default)s s, BRIEF_46 Amendment B.2); the driver passes "
+                                  "its P91_STALL_SECONDS")
     preflight_cmd = sub.add_parser("preflight", allow_abbrev=False)
     preflight_cmd.add_argument("--scratch", type=Path, required=True)
     preflight_cmd.add_argument("--device", default=None)
@@ -1568,7 +1573,7 @@ def main(argv: Any = None) -> int:
     if getattr(args, "stall_dump", None) is not None:
         from offline import stall_guard
 
-        stall_guard.install(args.stall_dump)
+        stall_guard.install(args.stall_dump, seconds=float(args.stall_seconds))
     try:
         if args.command == "check":
             result: Any = check(roots, stage=args.stage)

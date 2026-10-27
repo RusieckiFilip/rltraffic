@@ -37,12 +37,13 @@
 #
 # 2. HANGS (DEFERRED 104; BRIEF_46 Amendment B, B.3): CityFlow's engine destructor can hang at an env's close, holding
 #    the GIL.  Every worker that rolls CityFlow episodes -- the evaluate and old-cells shards, P3a's references -- runs
-#    under `restarting`: armed by --stall-dump (offline/stall_guard.py), a worker with no env reset or step for 600 s
-#    writes every thread's stack to $LOGS/<worker>.stall<n>.txt and exits 1, and the driver starts it again, with no
-#    new token; it resumes from the files on disk (route (ii) and the old cells per episode, route (i) and P3a per
-#    cell, so a cell in flight is rolled again from scratch -- seeded, the same values).  At most MAX_RESTARTS (20) per
-#    worker, each logged in $LOGS/restarts.log with the time and the dumped stack; any other non-zero exit stops the
-#    stage as before.  The collect stage runs without it (B.3).
+#    under `restarting`: armed by --stall-dump and --stall-seconds (offline/stall_guard.py), a worker with no env reset
+#    or step for STALL_SECONDS (120 s, BRIEF_46 Amendment B.2; P91_STALL_SECONDS overrides) writes every thread's stack
+#    to $LOGS/<worker>.stall<n>.txt and exits 1, and the driver starts it again, with no new token; it resumes from the
+#    files on disk (route (ii) and the old cells per episode, route (i) and P3a per cell, so a cell in flight is rolled
+#    again from scratch -- seeded, the same values).  At most MAX_RESTARTS (60, Amendment B.2; P91_MAX_RESTARTS
+#    overrides) per worker, each logged in $LOGS/restarts.log with the time, the window and the dumped stack; any
+#    other non-zero exit stops the stage as before.  The collect stage runs without it (B.3).
 
 set -euo pipefail
 
@@ -56,9 +57,13 @@ WORKERS=${WORKERS:-6}
 D4RL_PY=/home/filip/d4rl-calib-venv/bin/python
 D4RL_DATA=/home/filip/d4rl-calib-data/halfcheetah_medium_expert-v2.hdf5
 D4RL_OUT=/home/filip/d4rl-calib-out/p9_1
-# B.3: the restarts allowed per worker, and the first characters faulthandler writes on a timeout -- the only signal
-# that restarts one (offline/stall_guard.py BANNER).
-MAX_RESTARTS=20
+# B.3, its values corrected by BRIEF_46 Amendment B.2 (2026-10-27): a worker with no env reset or step for
+# STALL_SECONDS is cut (offline/stall_guard.py re-arms at most once per 10 s, so after 110-120 s) and restarted at most
+# MAX_RESTARTS times; P91_STALL_SECONDS and P91_MAX_RESTARTS override them, the window is passed to every worker as
+# --stall-seconds, and every restart line prints both.  STALL_BANNER is the first characters faulthandler writes on a
+# timeout -- the only signal that restarts a worker (offline/stall_guard.py BANNER).
+STALL_SECONDS=${P91_STALL_SECONDS:-120}
+MAX_RESTARTS=${P91_MAX_RESTARTS:-60}
 STALL_BANNER='Timeout ('
 
 WORK_TREE=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
@@ -77,6 +82,9 @@ STAGE=${1:?usage: p9_1_corrective.sh collect|campaign|d4rl <commit>}
 COMMIT=${2:?usage: p9_1_corrective.sh collect|campaign|d4rl <commit>}
 case "$STAGE" in collect|campaign|d4rl) ;; *) refuse "unknown stage $STAGE" ;; esac
 [[ "$WORKERS" =~ ^[1-6]$ ]] || refuse "WORKERS must be 1-6 (PROJECT_PLAN section 10), not $WORKERS"
+[[ "$STALL_SECONDS" =~ ^[0-9]+$ ]] && [ "$STALL_SECONDS" -gt 10 ] \
+  || refuse "P91_STALL_SECONDS must be a whole number of seconds above the guard's 10 s re-arm interval, not $STALL_SECONDS"
+[[ "$MAX_RESTARTS" =~ ^[0-9]+$ ]] || refuse "P91_MAX_RESTARTS must be a non-negative whole number, not $MAX_RESTARTS"
 
 export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
@@ -156,25 +164,25 @@ restarting() {
   while :; do
     dump=$LOGS/$label.stall$restarts.txt
     code=0
-    "$@" --stall-dump "$dump" || code=$?
+    "$@" --stall-dump "$dump" --stall-seconds "$STALL_SECONDS" || code=$?
     [ "$code" -ne 0 ] || return 0
     first=$(head -c "${#STALL_BANNER}" "$dump" 2>/dev/null || true)
     if [ "$code" -ne 1 ] || [ "$first" != "$STALL_BANNER" ]; then
       return "$code"
     fi
     if [ "$restarts" -ge "$MAX_RESTARTS" ]; then
-      printf '%s %s: no progress again after %s restarts; stopping (its stack in %s)\n' \
-        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$label" "$MAX_RESTARTS" "$dump" >>"$LOGS/restarts.log"
+      printf '%s %s: no progress again after %s restarts; stopping (its stack in %s; the window was %s s)\n' \
+        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$label" "$MAX_RESTARTS" "$dump" "$STALL_SECONDS" >>"$LOGS/restarts.log"
       echo "$label: no progress after $MAX_RESTARTS restarts; stopping (log $LOGS/restarts.log)" >&2
       return 1
     fi
     restarts=$((restarts + 1))
     {
-      printf '%s %s: no progress -- its stall timeout fired (%s); restart %s of at most %s; the dumped stack:\n' \
-        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$label" "$dump" "$restarts" "$MAX_RESTARTS"
+      printf '%s %s: no progress -- its stall timeout fired (window %s s, its stall file %s); restart %s of at most %s; the dumped stack:\n' \
+        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$label" "$STALL_SECONDS" "$dump" "$restarts" "$MAX_RESTARTS"
       sed 's/^/    /' "$dump"
     } >>"$LOGS/restarts.log"
-    echo "$label: restart $restarts of at most $MAX_RESTARTS (no progress; its stack in $dump)" >&2
+    echo "$label: restart $restarts of at most $MAX_RESTARTS (no progress for its $STALL_SECONDS s window; its stack in $dump)" >&2
   done
 }
 
