@@ -369,3 +369,16 @@ in your campaign is cut — points 1, 2, 3, 4 and 6 run as planned (deviation D1
 pytest process, `OMP_NUM_THREADS=1`), then **"P9.1 campaign ready"** with that commit. Amendment C then creates the run tree there and
 clears the `campaign` token. The CI skip ceiling for M1's eight corpus-gated tests is measured from this merge's CI run and handed to
 the author as a patch (your Q4).
+
+---
+
+# ⚖️ AMENDMENT B.2 — 2026-10-27: the stall remedy's values CORRECTED for your campaign too (your Q12) — 120 s and 60 restarts per shard
+
+`BRIEF_46` Amendment B, B.3 set 600 s and 20 restarts without computing the hangs the evaluation stage will meet — the coordinator's
+error, found by P9.2's arithmetic (`BRIEF_47` Amendment D, D.3). Your evaluation destroys roughly 70,000 engines over six shards
+(route (i) and route (ii) for 53 cells, 38 old cells, P3a's references), ≈ 12,000 per shard: at `DEFERRED` 104's rate a shard expects
+≈ 20 hangs, so a cap of 20 stops a healthy shard about half the time and 600 s per hang idles ≈ 3.3 h per shard. **Ruled:** your
+`StallGuard` cuts after **120 s** without progress (it re-arms on reset and step at most once per 10 s, so a stall is cut after
+110–120 s; the longest legitimate pause between two steps is a checkpoint load, seconds) and a shard stops after **60** restarts.
+Make them the defaults in `offline/stall_guard.py` and the driver (with an environment override, as P9.2's driver has one), pin both
+by a test, and include the change in the commit you name in "P9.1 campaign ready".

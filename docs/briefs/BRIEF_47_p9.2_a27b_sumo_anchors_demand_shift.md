@@ -389,3 +389,46 @@ alone, say **"P9.2 C8.1 ready"**; the coordinator re-runs the seven files from t
   by 44.4 s and `maxpressure_1to1` by 28.5 s on 100 of 100 draws, where it trails the registered MaxPressure by 15.6 s on 100 of 100).
   A ρ with a 10–22 s denominator is a ratio of near-coincident anchors; the seconds are the comparison it summarises. The artifact
   already carries both (`denominator_diagnostic`, `paired_att_e_sumo`); nothing is recomputed.
+
+---
+
+# ✅ AMENDMENT D — 2026-10-27: point 5 MERGED with C9 and C8.1; the author's words for the grid's clause-3 slot; `p92-shift` stage 1 CLEARED from `/home/filip/rltraffic-p92-run2` at `dafa3eb`, with the stall remedy's values CORRECTED (120 s, 60 restarts)
+
+## D.1 Verified by the coordinator, from disk, before the merge
+- **C8.1 (`dafa3eb`):** on the trial merge, the eight task files with every gate set, run FROM THE MAIN TREE (the context where the
+  old test failed), one process: **409 passed** (with `tests/test_tier_statements.py`), nothing written under `output/`,
+  `scenarios/draws/` or `datasets_v11/`.
+- **C9 (`4b47220`):** read — the watchdog is armed immediately before each rolled cell and cancelled in a `finally`; both routes
+  close their env in a `finally` (`admission_probe.probe_episode`, `dt_gate.evaluate_arm`), so an engine is freed inside the armed
+  window; the restart rule reads only the bytes the current attempt appended. Your M33–M35 accepted.
+- **A test gap (no number at stake; REQUIRED in part 2's packet, not before the run):** the coordinator's mutant — the banner searched
+  in the WHOLE log instead of this attempt's part (`segment=$(cat "$log")`) — SURVIVES all 22 tests of
+  `tests/test_demand_shift_watchdog.py` and `tests/test_p9_2_drivers.py` (control 22 / 22). Under it, a shard cut once and later
+  stopped by a REAL refusal (two routes disagreeing) is restarted until the cap and then reported as a watchdog stop. Add the test
+  (attempt 1 cut, attempt 2 exits 1 with a refusal and no banner → STOPPED, not restarted) and show it kills that mutant.
+
+## D.2 The author's ruling on the grid sentence's clause-3 slot (2026-10-27), quoted: *"Clause-3 slot: P1, as you recommend."*
+The grid sentence, filled: *"Under the aligned anchors the grid's zero-shot ρ is 2.8498 [2.7228, 2.9768], against the registered
+0.8855 [0.8736, 0.8973], and the fine-tuned (k = 100) ρ is 3.4793 [3.3567, 3.6019], against 0.9564 [0.9492, 0.9635]; the
+transferred DT still beats the tuned fixed-time plan in SUMO (clause 1 holds under the aligned pair), no longer trails MaxPressure
+(clause 2), and, with no gap left to close (G recomputed under the pair is −1.85), clause 3 is void under the aligned pair, as A19(a)
+voided it on hz1x1; the registered verdicts stand as the record."* (`A27_DEVIATIONS` R5.1.) Write it into `docs/returns/P9.2.md`'s
+§5.4 in part 2.
+
+## D.3 The stall remedy's values — the coordinator's error, corrected (Amendment B, B.3 set 600 s and 20 without computing the hangs)
+Your C9 packet's arithmetic, checked: 15,600 cells × 2 routes = 31,200 engine shutdowns, ≈ 10,400 per shard; at `DEFERRED` 104's
+rate (≈ 2 in 1,200) a shard expects ≈ 17 hangs, so a total cap of 20 stops a healthy shard with probability ≈ 0.22 (≈ 0.52 that one
+of three stops), and 600 s per hang idles ≈ 2.9 h per shard. **Ruled:** the watchdog cuts after **120 s** (36× the slowest cell
+measured at G2, 3.3 s for both routes; a false cut costs one re-roll of a seeded cell and changes no number) and a shard stops after
+**60** restarts (P(a healthy shard needs more) < 10⁻⁹ at 17 expected; a cell that hangs on every attempt costs at most 2 h before it
+stops). **No code change:** the driver's `P92_WATCHDOG_SECONDS` and `P92_MAX_RESTARTS` carry them, passed explicitly into every
+shard window; the run command below sets both, and every restart line in the logs prints them.
+
+## D.4 The token (channel (a)) — `p92-shift` stage 1 CLEARED
+From the run tree `/home/filip/rltraffic-p92-run2` (detached at `dafa3eb`, clean, the committed audit present; created by the
+coordinator), 3 shards, CPU only, ≈ 3.5 h of cells plus ≈ 35 min of watchdog idle per shard at the expected hang rate: the token
+`output/p9_2_runs/TOKEN_p92_shift` with `BRIEF_47 Amendment D` in its text, the session `p92-shift`, and the driver started with
+`P92_WATCHDOG_SECONDS=120 P92_MAX_RESTARTS=60`. Stage 2 (`iql_t`) waits for P9.1's committed training record.
+**After the run (G4, part 2):** `status`, then the artifact from `/home/filip/rltraffic-p92-run2` (never from your worktree), copied
+byte for byte; the packet with D.1's test and D.2's sentence. A shard that prints `STOPPED` is reported, not restarted by hand
+without the coordinator.
