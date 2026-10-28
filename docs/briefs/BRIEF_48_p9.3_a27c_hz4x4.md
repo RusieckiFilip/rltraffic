@@ -820,3 +820,31 @@ The author may set H per session; for example, `--hours 3` makes session 1 three
 - I.3-2's `training_block` check and I.3-3's label, tests first, in `offline/hz4x4_report.py`.
 - Nothing on the GPU while a session runs. Report "P9.3 corrections done" with the commits. G4 waits for the training and Amendment
   J's evaluation.
+
+## I.6 2026-10-28, night: your training moves to MACHINE B if its pre-flight passes; I.4 is SUSPENDED on the laptop until then
+The author added a second computer, machine B: WSL2 on Windows, an RTX 3070 Laptop GPU with 8 GB and a 100 W power cap. Your session 1
+had not started on the laptop.
+- **Ruling: your WHOLE training (the 100 cells) runs on machine B, if B's pre-flight passes. P9.1 stays whole on the laptop.** The
+  procedure and the pass criteria are in `docs/notes/MACHINE_B.md`.
+  - **Why yours:** your cells are all new, so no contrast pairs a cell trained on B with one trained on the laptop. P9.1's contrasts are
+    against registered cells trained on the laptop, and they keep that hardware.
+  - **Why whole:** a campaign split across two GPUs would put the hardware inside its own comparisons.
+  - A27 names no hardware (checked in its row). The move is a methods fact, disclosed in G4 and in plan §2, not a deviation.
+- **Until the pre-flight decides, I.4's token is SUSPENDED on the laptop.** No `p93-train` session starts there. If machine B fails
+  its pre-flight, I.4 applies on the laptop as written, after P9.1's training.
+- **Machine B is made identical to the laptop except for its GPU:**
+  - Ubuntu 26.04, with the laptop's own Python 3.12.13 packages repacked;
+  - the laptop's venv, checked file by file;
+  - the code from a git bundle, with the run tree at `4dcbedc`;
+  - the eight corpora, checked file by file.
+- **Its pre-flight** (about 1 hour, run by the author):
+  - your seven test files at `4dcbedc`;
+  - a 20-cell CUDA smoke: every (tier, arm), 2 steps;
+  - one CPU cell's canonical digest beside the laptop's;
+  - G3b's timing at 2,000 steps per arm, with a GPU trace.
+- **After it, in I.7:**
+  - B's session command adds the host's name and its GPU line to the capture.
+  - `--hours` is divided by B's measured factor, because your planner's estimates are the laptop's.
+  - Each finished tier comes back to the laptop with a sha256 manifest made on B.
+  - G4 discloses the training machine.
+- **For you now:** nothing changes in I.5. Do nothing on machine B.
