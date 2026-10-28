@@ -571,3 +571,11 @@ days from now.
    - The coordinator sets the shard count in Amendment H.
 4. **Unchanged:** `run2` (`dafa3eb`) and `output/p9_2/demand_shift/` stay untouched. A27(h)'s slot is re-read under R6 from the final
    artifact.
+
+## G.3 2026-10-28, later: when the ten records come
+The author stopped P9.1's campaign stage and ruled that every long run runs in sessions of a few hours (`PROJECT_PLAN` §7 (5)).
+- The ten records now come in P9.1's FIRST TRAINING SESSION (runs 4–65, about 6 h). That session starts after P9.1's session control is
+  verified (`BRIEF_46` Amendment E). They no longer come about 4 h after a 40-h start.
+- Keep your watcher if it can wait that long. Otherwise stop it and wait for the coordinator's word.
+- Stage 2 (about 1 h on CPU) is a session of its own. Amendment H states its hours first.
+- The 2026-11-07 hard stop is withdrawn (`A27_DEVIATIONS` D8). Nothing else of yours changes.
