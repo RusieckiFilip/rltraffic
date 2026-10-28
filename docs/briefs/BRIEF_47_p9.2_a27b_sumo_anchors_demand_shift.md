@@ -579,3 +579,15 @@ The author stopped P9.1's campaign stage and ruled that every long run runs in s
 - Keep your watcher if it can wait that long. Otherwise stop it and wait for the coordinator's word.
 - Stage 2 (about 1 h on CPU) is a session of its own. Amendment H states its hours first.
 - The 2026-11-07 hard stop is withdrawn (`A27_DEVIATIONS` D8). Nothing else of yours changes.
+
+## G.4 2026-10-28, evening: stage 2 needs no session control; the GPU order
+- **Your question, ruled: build nothing.** Stage 2 (≈ 1 h on CPU) is a session by itself. `PROJECT_PLAN` §7 (5), as clarified today:
+  a run planned well inside one session (at most about 2 h) needs no hours bound and no stop file, provided an interruption loses only
+  the units in flight.
+- **Your driver meets that already.** It writes one atomic JSON record per cell. A shard validates and skips every record that exists,
+  and stops at a refused cell (`offline/demand_shift.py` `evaluate_cells`; the driver's RESUME note).
+- **Amendment H's command will say two things first:** its hours, and what an interruption leaves (the cells in flight, which a
+  re-run rolls again).
+- **The GPU order changed** (`BRIEF_48` I.3-4). P9.3's training sessions run while P9.1 builds its session control. P9.1's first
+  training session goes next once it is cleared, and your ten records still come in it.
+- **Your watcher (task `bupgfrng4`):** the author leaves it to time out by itself at about 00:13. Act on nothing it reports.

@@ -661,3 +661,162 @@ P9.1's `train: ok`.
      that commit and clears the token in Amendment I, stating each session's hours first. H.2-4's freeze starts at that token.
 - **The evaluation runs are short and stay as planned:** `p93-eval-ref` takes ≈ 0.5 h and each `p93-eval-<tier>` ≈ 0.7 h.
 - **H.3's smoke:** finish it as it is, from the run tree at `14a6ba2`. H.5 stands.
+
+---
+
+# ⚖️ AMENDMENT I — 2026-10-28, evening: H.3's smoke and H.6's sessions VERIFIED; `p93-train` CLEARED in sessions from the run tree `/home/filip/rltraffic-p93-run-c` at `4dcbedc`; D, E and A-B5 ruled; two statements in your notes CORRECTED
+
+Your notes: `b71d3d9` (H.3's smoke, `docs/returns/P9.3-smoke.md`) and `4dcbedc` (H.6's sessions, `docs/returns/P9.3-sessions.md`).
+
+## I.1 Verified by the coordinator, from disk
+- **H.3's smoke root**, read by the coordinator's own script (stdlib only; it imports nothing of your branch):
+  - 100 training records, exactly the 100 cells; 100 checkpoints; 0 `.partial`.
+  - Every checkpoint's sha256 equals its record's `file_sha256`.
+  - Every record: `git` = `/home/filip/rltraffic-p93-run-b` at `14a6ba2`, not dirty; device `cuda`; 2 of 2 steps; `scenario_id`
+    `cityflow4x4`.
+  - 125 evaluation records over the 25 cells on draw 1000. All 125 have `reproduces` true and `att_ours` `==` route (i)'s
+    `att_horizon` `==` route (ii)'s `att_ours`.
+  - Each of the 100 learner records names a training record at `14a6ba2` with the same sha256. There is no `eval_refused/`.
+- **Your seven files at `4dcbedc`,** in a scratch clone, one process, one thread: **159 passed, 0 skipped** (308 s).
+- **The `ast` proof, by the coordinator's own script:**
+  - Against `14a6ba2`, `offline/hz4x4_phase_b.py` changes exactly `_run_train_queue`, `build_parser` and `run_train_queue`. It adds
+    exactly your eight names and removes none. The other 47 top-level definitions are identical.
+  - `offline/hz4x4_ladder.py` is byte-identical.
+  - The only other file of `offline/` that differs is `tier_sweep.py`: M1b, `train_tier_dt`'s tier check. hz4x4's path never calls
+    `train_tier_dt`.
+- **The device path.** The per-cell command (`run_cell` inside `_run_train_queue`) is unchanged. So `--device` (default `cuda`)
+  reaches each `train` process exactly as in H.3's CUDA smoke. The session layer never touches the device, so the queue smoke on the
+  CPU is valid evidence for it.
+- **Mutants, the coordinator's own run on the session tests** (control: 7 passed):
+
+  | Mutant | Result |
+  |---|---|
+  | H1: the plan ignored | KILLED |
+  | H2: the stop file ignored | KILLED |
+  | H3b: one cell started after the stop file is seen | KILLED, by the stop-file test (`ran == SESSION_CELLS[:1]`) |
+  | C1: the stop file at `<root>/STOP` | KILLED, by the literal path pin |
+  | C2: `dt_nomix`'s and `iql_m`'s timings swapped, the total unchanged | KILLED |
+  | The check moved after the cell's bookkeeping | SURVIVED: near-equivalent (see below) |
+
+  The surviving mutant differs from your code only in two cases: the file appears between the start refusal and the first cell, or
+  during the last planned cell (only the summary's status changes). It is not a gap.
+- **From the run tree, on the main roots, read-only:**
+  - 100 cells pending, 0 skipped.
+  - Session 1 at `--hours 6`: 20 cells, 5.80 planned hours, ending with `maxpressure/bc_top10_perix_m` seed 505. This equals the
+    coordinator's own replay of the rule (30.67 h in all).
+  - Both refusals fire and write nothing: a queue with no bound, and two steps on the main output root.
+  - `output/p9_3/STOP` is absent.
+- **I.4's session command itself,** run once on a scratch root with one two-step CPU cell:
+  - It printed the start stamp, the run tree's commit, A27(d)'s check, the plan, the cell, the summary and the end stamp, then
+    `QUEUE EXIT 0`.
+  - With a stop file present: the refusal, `QUEUE EXIT 1`, and the file kept.
+- **A27(d)'s check, read-only:** 200 episodes, 200 joint, and 200 distinct on each of the 16 intersections, in 1.8 s.
+
+## I.2 Two statements in your notes are wrong: correct them (the author's checks)
+1. **The overlap with P9.1 (`P9.3-smoke.md`, the H.5 section).** P9.1's campaign stage ran **16:11:49–16:30:31 CET**: its capture's
+   stamp, and the last sample of its own GPU trace. Your watcher saw its process until 16:30:06 and not at 16:30:46. The author stopped
+   it, and P9.1 has trained nothing since. Of the smoke's 100 cells:
+   - 34 finished before it started;
+   - **23 ran beside it** (24 if its end is put at 16:30:46: `mappo1000/bc_m` seed 303 started at 16:30:38);
+   - 7 ran beside nothing;
+   - **36 ran beside a GPU load that was NOT P9.1's.** From 16:38:08 CET your watcher shows 4–9 GB at 80–100 % until at least
+     17:28:42, its last line. P9.1's own trace never exceeded 3.7 GB.
+
+   The note's *"66 of the 100 cells ran … at the same time as P9.1's campaign"* and *"its training presumably runs in another process
+   namespace"* are wrong. Between 16:36 and 20:15 the coordinator found no file written under `/home/filip` or the sessions' `/tmp` by
+   anything but your smoke, your tests and the coordinator's docs. WSL's `nvidia-smi` reports the whole card, Windows programs
+   included. **The load is unidentified.**
+2. **The queue smoke's stated reason (`P9.3-sessions.md`, H.6-6).** *"P9.1's campaign was training on the GPU"* is wrong at 17:53:
+   P9.1 had stopped at 16:30:31. What you saw was that unidentified load, so say so. The CPU choice weakens nothing (I.1, the device
+   path).
+   - The same applies to the smoke note's *"The evaluation ran on a machine loaded by P9.1's campaign"*. At 17:22–17:28 the load was
+     the unidentified one plus your own four shards.
+- **The rule this applies, so it is not repeated:** a statement about another stream's process comes from that stream's own record
+  (its capture, its GPU trace, its run records), never from a reading of the card's load.
+- **How:** one docs-only commit on your branch that corrects both notes with these numbers and quotes this section. No code changes.
+  The run tree stays at `4dcbedc`.
+
+## I.3 Rulings
+1. **D: yes, at no cost.** Every session's command runs A27(d)'s registered check from the run tree, and the queue starts only if it
+   passes (I.4). The check is `a27_arms.assert_distinct_schedules(<corpus>/cf_hz4x4__random_fresh, expected=200)`. It only reads,
+   and takes about 2 s.
+   - Why: the grid's route re-runs the check inside every `random_fresh` training call. Running it at each session's start keeps
+     "run before any training" true without touching the frozen module.
+   - The capture keeps every session's result.
+2. **E: accepted as it stands.** No new field, no new run tree. Three things prove the evaluation records' code:
+   - every evaluation command runs from the run tree named in its clearance, and its capture opens with that tree's commit and clean
+     status, printed by the command itself;
+   - every learner record's `policy_source` names a training record carrying `4dcbedc`, not dirty;
+   - G4's `git diff --quiet 4dcbedc <G4 tip> -- offline/hz4x4_phase_b.py offline/hz4x4_ladder.py`.
+
+   This is the standard P9.1's run records meet, and they carry no commit either.
+   - **One addition for G4, tests first, in `offline/hz4x4_report.py`:** `training_block` refuses a training record whose `git` is not
+     `{"commit": "4dcbedc25021634c199897beffeab4d806b9afc2", "dirty": false, "code_root": "/home/filip/rltraffic-p93-run-c"}`.
+     Mutant: any commit accepted.
+3. **A-B5: accepted.** `random@mappo1000`'s counterpart is the grid's shared random anchor (`tier_statements.ANCHOR_CELL`, P5.1's
+   random cell, filed under `ANCHOR` in P5.2c's books). It is copied per episode with its path and digest, like the other six.
+   - Why: a uniform-random policy does not depend on the tier. The grid evaluated it once, and P5.2c's books use that one cell for
+     every tier, so it is the grid's only random reference.
+   - The old-cells artifact labels it *"the grid's shared random anchor (one cell for every tier)"*, so no reader takes it for a
+     `mappo1000` cell.
+4. **The GPU order** (replaces H.4's *"P9.1's trainings, then yours"* and H.5's last sentence). P9.1 went first because of the hard
+   stop: point 8 was to be cut first. The hard stop is withdrawn (D8).
+   - **One campaign training session on the GPU at a time, never two.** H.5's ban stands.
+   - Your sessions start now, while P9.1 builds its own.
+   - Once P9.1's sessions are cleared (`BRIEF_46` Amendment F), its first training session goes next, after the session of yours then
+     running ends. P9.2's stage 2 waits for its ten records.
+   - After that, the coordinator names the next session in each turn.
+5. **The evaluation commands come in Amendment J,** once `maxpressure`'s 25 cells exist (after session 2). This replaces H.3-5's "all
+   three in Amendment I".
+   - Why: they get a new form. The shards run in the foreground of one pane (`xargs -P`), so Ctrl+C reaches every worker.
+   - A `--label` is never reused. `run_with_restarts` opens `<label>.attemptNN.log` for writing, so a reused label would overwrite a
+     run's logs under `output/`.
+   - The coordinator smokes that form on a scratch root first, and sets the worker counts (your 4 and 6) against what runs beside
+     them.
+   - Each evaluation run is well under a session (≈ 0.5–1.3 h). It ends by itself and resumes from its atomic records (§7 (5), as
+     clarified today), so it needs no session control.
+6. **H.2-4's freeze starts now.** From this token on, `offline/hz4x4_phase_b.py` and `offline/hz4x4_ladder.py` on your branch stay
+   byte-identical to `4dcbedc`'s.
+
+## I.4 ✅ THE TOKEN: `p93-train`, in sessions, from `/home/filip/rltraffic-p93-run-c` at `4dcbedc`
+**The run tree:** created by the coordinator at 20:37:40 on 2026-10-28, detached at `4dcbedc25021634c199897beffeab4d806b9afc2`, and
+clean. `offline/hz4x4_phase_b.py` has sha256 `5ee2edab…` and `offline/hz4x4_ladder.py` `bd305b2c…`, equal to the commit's.
+
+**The session command** is the same for every session, since each resumes from disk. Run it in the author's tmux `p93`, only while no
+other campaign training is on the GPU:
+```
+R=/home/filip/rltraffic-p93-run-c; cd /home/filip/rltraffic && ( date '+session start %F %T %Z'; git -C $R log -1 --format='run tree %H'; git -C $R status --porcelain; test -z "$(git -C $R status --porcelain)" && OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 PYTHONPATH=$R /home/filip/rltraffic/.venv/bin/python -P -c "from offline.a27_arms import assert_distinct_schedules as a; print('A27(d) ok:', a('/home/filip/rltraffic/datasets_v11/cf_hz4x4__random_fresh', expected=200))" && OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 PYTHONPATH=$R /home/filip/rltraffic/.venv/bin/python -P -m offline.hz4x4_phase_b train-queue --hours 6; s=$?; date '+session end %F %T %Z'; exit $s ) 2>&1 | tee -i -a /home/filip/rltraffic/output/p9_3/train_capture.txt; echo "QUEUE EXIT ${PIPESTATUS[0]}"
+```
+
+**The sessions at `--hours 6`.** Planned hours are G3b's quiet CUDA estimates, in the coordinator's replay of the rule:
+
+| Session | Cells | Planned hours | Contents |
+|---|---|---|---|
+| 1 | 20 | 5.80 | `maxpressure`, all but `iql_m` |
+| 2 | 9 | 5.76 | `maxpressure/iql_m` × 5; `fixedtime/dt_nomix` seeds 101–404 |
+| 3 | 23 | 5.72 | the rest of `fixedtime`; `mappo1000/dt_nomix` seeds 101–202 |
+| 4 | 23 | 5.72 | the rest of `mappo1000` |
+| 5 | 20 | 5.80 | `random_fresh`, all but `iql_m` |
+| 6 | 5 | 1.87 | `random_fresh/iql_m` |
+
+The author may set H per session; for example, `--hours 3` makes session 1 three `dt_nomix` cells, 2.92 planned hours.
+
+- **Done when, for each session:** the capture ends with `train-queue session: {'status': 'session_done', …}` (`'completed'` after the
+  last one), `session end …` and `QUEUE EXIT 0`. Session 1's summary names `next_pending` `['maxpressure', 'iql_m', 101]` and
+  `planned_hours_left` 24.87.
+- **To end a session early:** `touch /home/filip/rltraffic/output/p9_3/STOP`. The session ends after the cell in flight, which is up
+  to about an hour while `dt_nomix` cells run.
+  - The file is the author's. The code never deletes it, and no session starts while it exists. Remove it by hand before the next
+    session: `rm /home/filip/rltraffic/output/p9_3/STOP`.
+- **Ctrl+C is the emergency stop only.** It loses the cell in flight, and since the trainer writes only at the end, nothing is left
+  behind to refuse. The one exception: if the interrupt lands between a checkpoint and its record, the next session refuses that cell
+  and the coordinator rules.
+- **A slower GPU only lengthens a session.** The plan is in estimates, and the bound is not a clock. If a session runs long, use STOP.
+- **A failure stops the session at the failed cell** (`'status': 'failed'`, `QUEUE EXIT 1`). Report it; nothing is re-run without a
+  ruling.
+
+## I.5 Meanwhile, for you
+- The I.2 correction commit (docs only).
+- I.3-2's `training_block` check and I.3-3's label, tests first, in `offline/hz4x4_report.py`.
+- Nothing on the GPU while a session runs. Report "P9.3 corrections done" with the commits. G4 waits for the training and Amendment
+  J's evaluation.
