@@ -1,0 +1,20 @@
+[
+ {
+  "name": "M1b-1 the old check restored (TIERS only)",
+  "file": "offline/tier_sweep.py",
+  "old": "    if tier not in TIERS and tier not in A27_TIERS:\n",
+  "new": "    if tier not in TIERS:\n",
+  "tests": [
+   "tests/test_tier_sweep_a27.py::test_the_spatial_trainer_itself_trains_on_the_grids_random_fresh_and_still_refuses_an_undeclared_tier"
+  ]
+ },
+ {
+  "name": "M1b-2 the refusal no longer names A27's tiers",
+  "file": "offline/tier_sweep.py",
+  "old": "this task declares {sorted(TIERS)} and A27's {sorted(A27_TIERS)}\")",
+  "new": "this task declares {sorted(TIERS)}\")",
+  "tests": [
+   "tests/test_tier_sweep_a27.py::test_the_spatial_trainer_itself_trains_on_the_grids_random_fresh_and_still_refuses_an_undeclared_tier"
+  ]
+ }
+]

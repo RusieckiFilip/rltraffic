@@ -1,0 +1,6 @@
+# M1b's mutants against a control (runner: PYTHONDONTWRITEBYTECODE=1, files restored and sha256-checked)
+control (unmutated, 1 test targets): exit 0; 1 passed in 1.56s
+mutant                                                    result    evidence
+M1b-1 the old check restored (TIERS only)                 KILLED    FAILED tests/test_tier_sweep_a27.py::test_the_spatial_trainer_itself_trains_on_the_grids_random_fresh_and_still_refuses_an_undeclared_tier
+M1b-2 the refusal no longer names A27's tiers             KILLED    FAILED tests/test_tier_sweep_a27.py::test_the_spatial_trainer_itself_trains_on_the_grids_random_fresh_and_still_refuses_an_undeclared_tier
+every file restored, sha256 equal to the original
