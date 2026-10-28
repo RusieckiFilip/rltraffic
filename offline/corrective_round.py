@@ -406,6 +406,135 @@ def train_run(roots: Roots, cell: Cell, seed: int, inputs: Any, *, device: Any, 
     return record
 
 
+# ----------------------------------------------------------------------
+# Sessions (BRIEF_46 Amendment E, E.4; PROJECT_PLAN section 7 rule (5)): every long run in sessions of a few hours, each
+# ending between units of work and the next resuming from disk
+# ----------------------------------------------------------------------
+
+#: The label every planned figure carries wherever it is printed.
+PLANNING_NOTE = ("planned hours are planning estimates (the pre-flight's per-arm figures), not measurements of this "
+                 "campaign; each run's record carries its measured seconds")
+
+#: PLANNING ESTIMATES, never measurements of this campaign (BRIEF_46 Amendment E, E.4-1): the per-run GPU seconds the
+#: pre-flight's 40.5-hour table summed (docs/returns/P9.1-preflight.md; P9.1_evidence/g2_cost_bc.py.txt) -- hz1x1 at the
+#: registered medians, iql_t at iql x 1.15 (the plan's assumption) and the 100,000-step arms at 2.5 x their 40,000-step
+#: cost; the grid's bc_m and iql_m at G2's re-take, its other arms at the plan's figures.  They decide only how many runs
+#: a session plans.
+PLANNED_RUN_SECONDS: Mapping[tuple[str, str], float] = {
+    ("hz1x1", "dt"): 204.0, ("hz1x1", "bc"): 110.0, ("hz1x1", "bc_top10"): 120.0, ("hz1x1", "iql"): 361.0,
+    ("hz1x1", "iql_t"): 361.0 * 1.15, ("hz1x1", "dt_100k"): 2.5 * 204.0, ("hz1x1", "bc_100k"): 2.5 * 110.0,
+    ("hz1x1", "bc_top10_100k"): 2.5 * 120.0, ("hz1x1", "iql_100k"): 2.5 * 361.0,
+    ("grid4x4", "bc_m"): 543.0, ("grid4x4", "iql_m"): 2187.3, ("grid4x4", "bc_top10_m"): 97.0,
+    ("grid4x4", "bc_top10_perix_m"): 97.0, ("grid4x4", "iql_t"): 298.0 * 1.15, ("grid4x4", "dt_nomix"): 3487.0,
+}
+
+
+def planned_seconds(cell: Cell) -> float:
+    """A run's planned seconds (:data:`PLANNED_RUN_SECONDS`): a planning estimate."""
+    return float(PLANNED_RUN_SECONDS[(cell.scenario, cell.arm)])
+
+
+def stop_file(roots: Roots) -> Path:
+    """``output/p9_1_runs/STOP``: while it exists no session starts, and a running session ends between units of work.
+    The code never creates or deletes it; the author does."""
+    return Path(roots.runs_root) / "STOP"
+
+
+def session_stop_reason(roots: Roots, deadline_unix: float | None) -> str | None:
+    """Why a session ends before its next unit of work -- ``"the stop file"`` or ``"the hours bound"`` -- or ``None``."""
+    import time
+
+    if stop_file(roots).exists():
+        return "the stop file"
+    if deadline_unix is not None and time.time() >= float(deadline_unix):
+        return "the hours bound"
+    return None
+
+
+def _run_labels() -> dict[tuple[Cell, int], int]:
+    return {run: index for index, run in enumerate(training_runs(), start=1)}
+
+
+def _label(run: tuple[Cell, int], index: Mapping[tuple[Cell, int], int]) -> dict[str, Any]:
+    cell, seed = run
+    return {"run": index.get((cell, int(seed))), "cell": f"{cell.scenario}:{cell.key}", "seed": int(seed)}
+
+
+@dataclass(frozen=True)
+class SessionPlan:
+    """A training session's plan (BRIEF_46 Amendment E, E.4-1): its runs in order, their planned seconds (planning
+    estimates), and every missing and done run among those it chose from."""
+
+    runs: tuple[tuple[Cell, int], ...]
+    planned_seconds: float
+    missing: tuple[tuple[Cell, int], ...]
+    done: int
+    hours: float | None
+    max_runs: int | None
+
+    def as_json(self) -> dict[str, Any]:
+        index = _run_labels()
+        labels = [_label(run, index) for run in self.runs]
+        return {"runs": labels, "first": labels[0] if labels else None, "last": labels[-1] if labels else None,
+                "count": len(labels), "planned_seconds": self.planned_seconds,
+                "planned_hours": self.planned_seconds / 3600.0, "missing": len(self.missing), "done": self.done,
+                "hours_bound": self.hours, "max_runs": self.max_runs, "note": PLANNING_NOTE}
+
+    def describe(self) -> str:
+        if not self.runs:
+            return "SESSION: nothing to train -- every chosen run is done"
+        plan = self.as_json()
+        first, last = plan["first"], plan["last"]
+        return (f"SESSION: runs #{first['run']} ({first['cell']} seed {first['seed']}) to #{last['run']} "
+                f"({last['cell']} seed {last['seed']}): {plan['count']} runs, {plan['planned_hours']:.2f} planned hours; "
+                f"{plan['missing']} runs missing in all, {plan['done']} done ({PLANNING_NOTE})")
+
+
+def session_plan(roots: Roots, *, cells: Any = None, seeds: Any = None, hours: float | None = None,
+                 max_runs: int | None = None) -> SessionPlan:
+    """The next missing runs, in order (*cells* x *seeds*; by default ``training_runs()``), whose planned seconds sum
+    to at most *hours* -- the first always included -- and at most *max_runs* of them.  Every chosen run's status is
+    read from disk first; a damaged run refuses the whole call (:func:`run_status`)."""
+    from offline.dt_gate import TRAINING_SEEDS
+
+    if hours is not None and not float(hours) > 0.0:
+        raise ValueError(f"--hours {hours}: a session needs a positive number of hours")
+    if max_runs is not None and int(max_runs) < 1:
+        raise ValueError(f"--max-runs {max_runs}: a session trains at least one run")
+    chosen = list(training_cells()) if cells is None else list(cells)
+    seed_list = tuple(int(s) for s in (TRAINING_SEEDS if seeds is None else seeds))
+    statuses = {(cell, seed): run_status(roots, cell, seed) for cell in chosen for seed in seed_list}
+    missing = tuple(run for run, state in statuses.items() if state == "missing")
+    runs: list[tuple[Cell, int]] = []
+    total = 0.0
+    for cell, seed in missing:
+        cost = planned_seconds(cell)
+        if runs and ((max_runs is not None and len(runs) >= int(max_runs))
+                     or (hours is not None and total + cost > float(hours) * 3600.0)):
+            break
+        runs.append((cell, seed))
+        total += cost
+    return SessionPlan(runs=tuple(runs), planned_seconds=total, missing=missing,
+                       done=sum(state == "done" for state in statuses.values()),
+                       hours=None if hours is None else float(hours), max_runs=None if max_runs is None else int(max_runs))
+
+
+def session_summary(roots: Roots, plan: SessionPlan, trained: Any, ended_by: str) -> dict[str, Any]:
+    """A training session's close: the runs trained with their measured seconds (from their records), why it ended,
+    the next missing run and the planned hours left (planning estimates)."""
+    index = _run_labels()
+    rows = []
+    for cell, seed in trained:
+        record = json.loads(run_record_path(roots, cell.scenario, cell.tier, cell.arm, seed).read_text(encoding="utf-8"))
+        rows.append({**_label((cell, seed), index), "seconds": float(record["seconds"])})
+    done = set(trained)
+    left = [run for run in plan.missing if run not in done]
+    return {"trained": rows, "first": rows[0] if rows else None, "last": rows[-1] if rows else None,
+            "seconds_trained": sum(row["seconds"] for row in rows), "ended_by": ended_by,
+            "next_missing": _label(left[0], index) if left else None, "missing_left": len(left),
+            "planned_hours_left": sum(planned_seconds(cell) for cell, _ in left) / 3600.0, "note": PLANNING_NOTE}
+
+
 def train(
     roots: Roots,
     *,
@@ -413,26 +542,41 @@ def train(
     device: Any = None,
     seeds: Any = None,
     log_every: int = 0,
+    hours: float | None = None,
+    max_runs: int | None = None,
 ) -> dict[str, int]:
-    """Train every MISSING run of *cells* (default: the whole manifest), serially, one tier's inputs built once.
+    """Train the MISSING runs of *cells* (default: the whole manifest), serially, one tier's inputs built once.
 
     Every run's status is computed from disk FIRST and any damaged run refuses the whole call before a gradient step
     (:func:`run_status`); done runs are skipped, never retrained.  Resumable by construction: an interrupted call leaves
-    a ``.partial`` that the next call refuses until a person has looked at it.
+    no checkpoint and no record, so its run reads as missing.
+
+    A SESSION (``BRIEF_46`` Amendment E, E.4-1): refused before anything while the stop file exists; its runs are
+    :func:`session_plan`'s -- the next missing runs that fit *hours* (planning estimates; the first always included), at
+    most *max_runs* -- printed before the first; the stop file is checked before each run, and when it exists the session
+    ends after the run in flight; a closing summary says what was trained, why the session ended and what is left.
+    Without *hours* and *max_runs* the plan is every missing run.  ``train_run`` and the inputs it is handed are the
+    campaign's first trainings' (``tests/test_corrective_round_training_path.py``).
     """
     import torch
 
-    from offline.dt_gate import TRAINING_SEEDS
-
-    chosen = list(training_cells()) if cells is None else list(cells)
-    seed_list = tuple(int(s) for s in (TRAINING_SEEDS if seeds is None else seeds))
-    statuses = {(cell, seed): run_status(roots, cell, seed) for cell in chosen for seed in seed_list}
-    todo = [(cell, seed) for (cell, seed), state in statuses.items() if state == "missing"]
+    stop = stop_file(roots)
+    if stop.exists():
+        raise ValueError(f"{stop} exists: no session starts while it exists (the author removes it to start one)")
+    plan = session_plan(roots, cells=cells, seeds=seeds, hours=hours, max_runs=max_runs)
+    print(plan.describe(), flush=True)
+    print("SESSION PLAN " + json.dumps(plan.as_json(), sort_keys=True), flush=True)
     resolved = torch.device(device) if device is not None else torch.device(
         "cuda" if torch.cuda.is_available() else "cpu"
     )
     cache: dict[tuple[str, str, bool], Any] = {}
-    for cell, seed in todo:
+    trained: list[tuple[Cell, int]] = []
+    ended_by = "the plan"
+    for cell, seed in plan.runs:
+        if stop.exists():
+            ended_by = "the stop file"
+            print(f"SESSION: {stop} exists -- the session ends here, between runs", flush=True)
+            break
         dt_grid = cell.scenario == "grid4x4" and cell.arm == "dt_nomix"
         key = (cell.scenario, cell.tier, dt_grid)
         if key not in cache:
@@ -446,7 +590,13 @@ def train(
             else:
                 cache[key] = _grid_inputs(roots, cell.tier)
         train_run(roots, cell, seed, cache[key], device=resolved, log_every=log_every)
-    return {"trained": len(todo), "skipped_done": sum(state == "done" for state in statuses.values())}
+        trained.append((cell, seed))
+    summary = session_summary(roots, plan, trained, ended_by)
+    print(f"SESSION: {len(trained)} runs trained in {summary['seconds_trained']:.1f} s (their records' clock); ended by "
+          f"{ended_by}; {summary['missing_left']} runs missing, {summary['planned_hours_left']:.2f} planned hours left",
+          flush=True)
+    print("SESSION SUMMARY " + json.dumps(summary, sort_keys=True), flush=True)
+    return {"trained": len(trained), "skipped_done": plan.done}
 
 
 # ----------------------------------------------------------------------
@@ -635,7 +785,8 @@ def a27_factory_builder(roots: Roots) -> Any:
 
 
 def run_route_ii(
-    roots: Roots, scenario: str, cells: Any, committed: Mapping[tuple[str, str, int | None, int], float]
+    roots: Roots, scenario: str, cells: Any, committed: Mapping[tuple[str, str, int | None, int], float], *,
+    deadline_unix: float | None = None,
 ) -> dict[str, Any]:
     """P8.4b's runner on *cells* with route (i)'s values as ``committed``: ``reproduces_committed`` then means the two
     routes agree on that episode under ``==``.  ANY refusal stops the campaign -- a disagreement is a finding, not a
@@ -652,7 +803,8 @@ def run_route_ii(
     previous = pin_torch_threads(1)
     try:
         outcome = ar.run_campaign(list(cells), roots=probe, engine_seed=ENGINE_SEED, device=None,
-                                  committed=committed, protected=(), factory_builder=a27_factory_builder(roots))
+                                  committed=committed, protected=(), factory_builder=a27_factory_builder(roots),
+                                  should_stop=lambda: session_stop_reason(roots, deadline_unix) is not None)
     finally:
         pin_torch_threads(previous)
     if outcome["n_refused"]:
@@ -754,7 +906,7 @@ def old_cell_committed(
     return out
 
 
-def roll_old_cells(roots: Roots, cells: Any = None) -> dict[str, Any]:
+def roll_old_cells(roots: Roots, cells: Any = None, *, deadline_unix: float | None = None) -> dict[str, Any]:
     """Re-roll the registered hz1x1 cells through P8.4b's route with P8.4b's OWN builder, each episode's committed
     ``att_ours`` reproduced under ``==`` before its ``att_engine`` and companions are used (A27(a)).  Any refusal stops:
     a cell that does not reproduce is not the cell its artifact reports."""
@@ -778,7 +930,8 @@ def roll_old_cells(roots: Roots, cells: Any = None) -> dict[str, Any]:
     previous = pin_torch_threads(1)
     try:
         outcome = ar.run_campaign(keys, roots=probe, engine_seed=ENGINE_SEED, device=None, committed=committed,
-                                  protected=(), factory_builder=None)
+                                  protected=(), factory_builder=None,
+                                  should_stop=lambda: session_stop_reason(roots, deadline_unix) is not None)
     finally:
         pin_torch_threads(previous)
     if outcome["n_refused"]:
@@ -1161,10 +1314,16 @@ def _registered_reference_values(roots: Roots, cell: Cell) -> dict[tuple[str, st
     return {("grid4x4", cell.key, int(e["seed"]), int(e["draw_id"])): float(e["att_horizon"]) for e in payload["episodes"]}
 
 
-def record_registered_references(roots: Roots) -> dict[str, int]:
-    """P3a's two registered references, re-rolled with their actions recorded, committed ``att_ours`` reproduced."""
-    return {f"{cell.scenario}:{cell.key}": len(record_p3a(roots, cell, _registered_reference_values(roots, cell)))
-            for cell in REGISTERED_RANDOM_REFERENCES}
+def record_registered_references(roots: Roots, *, deadline_unix: float | None = None) -> dict[str, Any]:
+    """P3a's two registered references, re-rolled with their actions recorded, committed ``att_ours`` reproduced.  A
+    session ends between the two (each a whole-cell unit) at *deadline_unix* or at the stop file."""
+    recorded: dict[str, int] = {}
+    for cell in REGISTERED_RANDOM_REFERENCES:
+        reason = session_stop_reason(roots, deadline_unix)
+        if reason is not None:
+            return {"recorded": recorded, "stopped_by": reason}
+        recorded[f"{cell.scenario}:{cell.key}"] = len(record_p3a(roots, cell, _registered_reference_values(roots, cell)))
+    return {"recorded": recorded, "stopped_by": None}
 
 
 def _evaluation_manifests(roots: Roots) -> dict[str, tuple[Path, dict[str, Any]]]:
@@ -1229,8 +1388,10 @@ def old_cells_shard(shard: int, of: int) -> list[tuple[str, str]]:
     return [cell for index, cell in enumerate(sorted(HZ1X1_OLD_CELLS)) if index % int(of) == int(shard)]
 
 
-def evaluate_cell(roots: Roots, cell: Cell) -> dict[str, Any]:
-    """One cell: refused unless every run is done; route (i); route (ii) on route (i)'s values; P3a if it is one."""
+def evaluate_cell(roots: Roots, cell: Cell, *, deadline_unix: float | None = None) -> dict[str, Any]:
+    """One cell: refused unless every run is done; route (i); route (ii) on route (i)'s values; P3a if it is one.  A
+    session (``BRIEF_46`` Amendment E, E.4-2b) ends between route (ii)'s episodes, or before P3a, at *deadline_unix* or
+    at the stop file; ``stopped_by`` then says which, and the next session resumes from disk."""
     from offline import att_rederivation as ar
     from offline.dt_gate import TRAINING_SEEDS
 
@@ -1241,27 +1402,48 @@ def evaluate_cell(roots: Roots, cell: Cell) -> dict[str, Any]:
     payload = route_i(roots, cell)
     committed = committed_from_route_i(payload, cell.scenario, cell.key)
     keys = [ar.CellKey(scenario, arm, seed, draw) for (scenario, arm, seed, draw) in sorted(committed)]
-    outcome = run_route_ii(roots, cell.scenario, keys, committed)
+    outcome = run_route_ii(roots, cell.scenario, keys, committed,
+                           **({} if deadline_unix is None else {"deadline_unix": float(deadline_unix)}))
+    name = f"{cell.scenario}:{cell.key}"
+    if outcome.get("stopped"):
+        return {"cell": name, "route_ii": outcome, "p3a_episodes": None,
+                "stopped_by": session_stop_reason(roots, deadline_unix) or "the stop file"}
     p3a = None
     if (cell.scenario, cell.key) in {(c.scenario, c.key) for c in p3a_cells()}:
+        reason = session_stop_reason(roots, deadline_unix)
+        if reason is not None:
+            return {"cell": name, "route_ii": outcome, "p3a_episodes": None, "stopped_by": reason}
         p3a = record_p3a(roots, cell, committed)
-    return {"cell": f"{cell.scenario}:{cell.key}", "route_ii": outcome, "p3a_episodes": None if p3a is None else len(p3a)}
+    return {"cell": name, "route_ii": outcome, "p3a_episodes": None if p3a is None else len(p3a), "stopped_by": None}
 
 
-def evaluate(roots: Roots, *, shard: int = 0, of: int = 1, scenario: str | None = None) -> dict[str, Any]:
+def evaluate(roots: Roots, *, shard: int = 0, of: int = 1, scenario: str | None = None,
+             deadline_unix: float | None = None) -> dict[str, Any]:
     """Every evaluation cell of this shard whose runs are done, in order; a not-yet-trained cell is reported, never
-    guessed at.  Resumable: each route skips what is complete on disk."""
+    guessed at.  Resumable: each route skips what is complete on disk.  A session (``BRIEF_46`` Amendment E, E.4-2b)
+    ends between units of work -- before a cell, or between route (ii)'s episodes -- at *deadline_unix* or at the stop
+    file, and returns the cells left."""
     from offline.dt_gate import TRAINING_SEEDS
 
     assert_evaluation_declared(roots, *(f"eval_ii/{name}" for name in SCENARIOS_ORDER if scenario in (None, name)))
     done, waiting = [], []
-    for cell in shard_of([c for c in evaluation_cells() if scenario in (None, c.scenario)], shard=shard, of=of):
+    chosen = shard_of([c for c in evaluation_cells() if scenario in (None, c.scenario)], shard=shard, of=of)
+    stopped_by, left = None, []
+    for position, cell in enumerate(chosen):
+        reason = session_stop_reason(roots, deadline_unix)
+        if reason is not None:
+            stopped_by, left = reason, chosen[position:]
+            break
         if cell in training_cells() and any(run_status(roots, cell, s) != "done" for s in TRAINING_SEEDS):
             waiting.append(f"{cell.scenario}:{cell.key}")
             continue
-        evaluate_cell(roots, cell)
+        outcome = evaluate_cell(roots, cell, deadline_unix=deadline_unix)
+        if outcome.get("stopped_by") is not None:
+            stopped_by, left = outcome["stopped_by"], chosen[position:]
+            break
         done.append(f"{cell.scenario}:{cell.key}")
-    return {"evaluated": done, "waiting_for_training": waiting}
+    return {"evaluated": done, "waiting_for_training": waiting, "stopped_by": stopped_by,
+            "cells_left": [f"{c.scenario}:{c.key}" for c in left]}
 
 
 SCENARIOS_ORDER: tuple[str, ...] = ("hz1x1", "grid4x4")
@@ -1301,6 +1483,14 @@ def check(roots: Roots, *, stage: str) -> dict[str, Any]:
     from offline.dt_gate import HELD_OUT_DRAWS
     from offline.materialise_draws import draw_config_path
 
+    if stage in ("train", "evaluate") and stop_file(roots).exists():
+        raise ValueError(f"{stop_file(roots)} exists: no session starts while it exists (the author removes it)")
+    if stage == "evaluate":
+        training = training_status(roots)
+        if not training["complete"]:
+            missing = int(training["runs_declared"]) - int(training["runs_done"])
+            raise ValueError(f"{missing} of {training['runs_declared']} training runs are missing: the evaluate stage "
+                             "starts after the last training (BRIEF_46 Amendment E, E.4-2b)")
     for name, path in (("output", roots.output_root), ("corpus", roots.corpus_root), ("draws", roots.draws_root)):
         if not Path(path).is_dir():
             raise FileNotFoundError(f"the {name} root {path} is not a directory")
@@ -1310,7 +1500,7 @@ def check(roots: Roots, *, stage: str) -> dict[str, Any]:
             if (Path(roots.corpus_root) / fresh).exists():
                 raise FileExistsError(f"{fresh} exists already; A27(d)'s tier is collected once")
         return {"stage": stage, "ok": True}
-    if stage != "campaign":
+    if stage not in ("campaign", "train", "evaluate"):
         raise ValueError(f"unknown stage {stage!r}")
     import offline.method_tier_grid as grid
 
@@ -1524,7 +1714,8 @@ def build_parser() -> Any:
     parser.add_argument("--corpus-root", type=Path, required=True)
     parser.add_argument("--draws-root", type=Path, required=True)
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("check", allow_abbrev=False).add_argument("--stage", choices=["collect", "campaign"], required=True)
+    sub.add_parser("check", allow_abbrev=False).add_argument("--stage", choices=["collect", "campaign", "train",
+                                                                                  "evaluate"], required=True)
     sub.add_parser("status", allow_abbrev=False)
     sub.add_parser("collect-random-fresh", allow_abbrev=False).add_argument(
         "--scenario", choices=list(SCENARIOS_ORDER), required=True)
@@ -1537,6 +1728,11 @@ def build_parser() -> Any:
     train_cmd.add_argument("--arm", default=None)
     train_cmd.add_argument("--device", default=None)
     train_cmd.add_argument("--log-every", type=int, default=5000)
+    # BRIEF_46 Amendment E, E.4-1: a session plans the next missing runs that fit --hours (planning estimates; the first
+    # always included), at most --max-runs; --plan-only prints the plan and trains nothing.
+    train_cmd.add_argument("--hours", type=float, default=None)
+    train_cmd.add_argument("--max-runs", type=int, default=None)
+    train_cmd.add_argument("--plan-only", action="store_true")
     evaluate_cmd = sub.add_parser("evaluate", allow_abbrev=False)
     evaluate_cmd.add_argument("--shard", type=int, default=0)
     evaluate_cmd.add_argument("--of", type=int, default=1)
@@ -1551,6 +1747,8 @@ def build_parser() -> Any:
     from offline import stall_guard
 
     for rolling in (evaluate_cmd, old_cells_cmd, p3a_cmd):
+        # BRIEF_46 Amendment E, E.4-2b: the session's end (Unix seconds); the work ends between units at it or at STOP.
+        rolling.add_argument("--deadline-unix", type=float, default=None)
         rolling.add_argument("--stall-dump", type=Path, default=None,
                              help="arm offline.stall_guard on this file: after --stall-seconds without an env reset or "
                                   "step the worker writes every thread's stack here and exits 1")
@@ -1561,6 +1759,12 @@ def build_parser() -> Any:
     preflight_cmd.add_argument("--scratch", type=Path, required=True)
     preflight_cmd.add_argument("--device", default=None)
     return parser
+
+
+def _deadline(args: Any) -> dict[str, float]:
+    """``--deadline-unix`` as a keyword, handed on only when given."""
+    value = getattr(args, "deadline_unix", None)
+    return {} if value is None else {"deadline_unix": float(value)}
 
 
 def main(argv: Any = None) -> int:
@@ -1591,19 +1795,27 @@ def main(argv: Any = None) -> int:
         elif args.command == "train":
             cells = [c for c in training_cells() if args.scenario in (None, c.scenario) and args.tier in (None, c.tier)
                      and args.arm in (None, c.arm)]
-            result = train(roots, cells=cells, device=args.device, log_every=args.log_every)
+            if args.plan_only:
+                plan = session_plan(roots, cells=cells, hours=args.hours, max_runs=args.max_runs)
+                print(plan.describe(), flush=True)
+                print("SESSION PLAN " + json.dumps(plan.as_json(), sort_keys=True), flush=True)
+                result = {"plan_only": True, "runs": len(plan.runs)}
+            else:
+                result = train(roots, cells=cells, device=args.device, log_every=args.log_every, hours=args.hours,
+                               max_runs=args.max_runs)
         elif args.command == "evaluate":
-            result = evaluate(roots, shard=args.shard, of=args.of, scenario=args.scenario)
+            result = evaluate(roots, shard=args.shard, of=args.of, scenario=args.scenario, **_deadline(args))
         elif args.command == "declare-evaluation":
             result = declare_evaluation(roots)
         elif args.command == "old-cells":
             cells = old_cells_shard(args.shard, args.of)
             assert_evaluation_declared(roots, "old_cells/hz1x1")
-            result = {key: value for key, value in roll_old_cells(roots, cells=cells).items() if key != "refused"}
+            result = {key: value for key, value in roll_old_cells(roots, cells=cells, **_deadline(args)).items()
+                      if key != "refused"}
         elif args.command == "preflight":
             result = preflight(roots, args.scratch, device=args.device)
         else:
-            result = record_registered_references(roots)
+            result = record_registered_references(roots, **_deadline(args))
     except (ValueError, PermissionError, FileExistsError, FileNotFoundError, RuntimeError) as exc:
         print(f"REFUSED: {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
         return 2

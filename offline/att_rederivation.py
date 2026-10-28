@@ -1175,6 +1175,7 @@ def run_campaign(
     committed: Mapping[tuple[str, str, int | None, int], float],
     protected: Sequence[Path],
     factory_builder: Callable[..., tuple[Any, dict[str, Any]]] | None = None,
+    should_stop: Callable[[], bool] | None = None,
 ) -> dict[str, Any]:
     """Roll every cell, checking reproduction PER CELL, writing one file each.
 
@@ -1197,6 +1198,11 @@ def run_campaign(
     that replaces the module name are unchanged.  P9.1's campaign passes a builder that gives A27's
     new arms the factory their route-(i) evaluation used and hands every registered cell back to
     :func:`build_cell_factory`.
+
+    *should_stop* (P9.1, ``BRIEF_46`` Amendment E, E.4-2b: an evaluation session ends between episodes): ``None`` -- the
+    default -- rolls every cell and returns exactly the keys above.  Given, it is asked before every cell, never inside
+    one; a ``True`` ends the campaign there, and the result adds ``stopped`` and ``not_reached`` (the cells from that
+    one on).  The next call resumes from disk, as after any interruption.
     """
     from offline.admission_probe import created_from_flow, probe_episode
     from offline.materialise_draws import draw_config_path
@@ -1215,7 +1221,11 @@ def run_campaign(
     refused: list[dict[str, Any]] = []
     started = time.perf_counter()
 
+    stopped, not_reached = False, 0
     for index, cell in enumerate(cells, start=1):
+        if should_stop is not None and should_stop():
+            stopped, not_reached = True, len(cells) - index + 1
+            break
         destination = work / cell_file_name(cell)
         if destination.is_file():
             skipped += 1
@@ -1321,13 +1331,16 @@ def run_campaign(
                 f"records under {work} name each one. A single bad cell cannot reach this threshold"
             )
 
-    return {
+    outcome = {
         "rolled": rolled,
         "skipped_already_present": skipped,
         "refused": refused,
         "n_refused": len(refused),
         "seconds": time.perf_counter() - started,
     }
+    if should_stop is not None:
+        outcome.update({"stopped": stopped, "not_reached": not_reached})
+    return outcome
 
 
 # ----------------------------------------------------------------------

@@ -9,22 +9,28 @@
 #        git -C /home/filip/rltraffic worktree add --detach /home/filip/rltraffic-p91-run <commit>
 #      Step 1, open a pane:      mkdir -p /home/filip/rltraffic/output/p9_1_runs && tmux new -s p91
 #      Step 2, at ITS PROMPT:    bash /home/filip/rltraffic-p91-run/offline/campaigns/p9_1_corrective.sh <stage> <commit> 2>&1 | tee -i -a /home/filip/rltraffic/output/p9_1_runs/<stage>_capture.txt; echo "DRIVER EXIT ${PIPESTATUS[0]}"
-#    Stages, in this order, each under its OWN token (output/p9_1_runs/TOKEN_<stage>, created by the author with `touch` when the
-#    brief's amendment clears the stage; consumed by `rm` after every refusal has passed):
-#      collect    CPU, ~15 min: collect-random-fresh on hz1x1 and grid4x4 (draws 1-200, --random-rng per-episode), then
-#                 declare the mixture and both random_fresh tiers.  STOP: plan Q2's reviewed commit types hz1x1
-#                 random_fresh's prompt from its declaration before the next stage can pass its check.
-#      campaign   GPU then CPU: train every missing run serially (~40.5 GPU-hours, sized on G2's load-recorded
-#                 re-take -- bc_m 543.0 s, iql_m 2,187.3 s -- by the author's Q10 ruling, BRIEF_46 Amendment B,
-#                 docs/returns/P9.1-preflight.md); then declare the evaluation's three manifests from this one process;
-#                 then evaluate the 53 new cells and re-roll the 38 old hz1x1 cells (18,200 episodes: the plan's 21 and
-#                 Q8's 17), each with WORKERS shards (default 6, at most 6: PROJECT_PLAN section 10's cap per session);
-#                 then P3a's registered references and the status.  Resumable: everything done
-#                 on disk is skipped, a half-written run is refused.  Evaluation starts only after the LAST training run:
-#                 a run in progress leaves its .partial on disk, which the status refuses by design.
-#      d4rl       GPU, ~10 min: P8.3's IQL arm re-run as iql_t (--iql-target-dropout off), five seeds, in P8.3's venv,
-#                 beside the registered artifact (--compare-with); outputs under /home/filip/d4rl-calib-out/p9_1/.  Run
-#                 it when no training runs (never two trainings on the GPU at once).
+#    Every long stage runs in SESSIONS of a few hours (the author's rule, 2026-10-28; BRIEF_46 Amendment E; PROJECT_PLAN
+#    section 7 rule (5)): each session takes its OWN token (output/p9_1_runs/TOKEN_<stage>, created by the author with
+#    `touch`; consumed by `rm` after every refusal has passed), says first how many hours it runs (P91_SESSION_HOURS,
+#    default 6), ends by itself between units of work at that bound or when output/p9_1_runs/STOP exists, and the next
+#    session resumes from disk, skipping every finished unit and re-running none.  While STOP exists no session starts;
+#    nothing here creates or deletes it.  Stages:
+#      collect    CPU, ~15 min (done 2026-10-16): collect-random-fresh on hz1x1 and grid4x4, then the declarations.
+#      train      GPU, one session = P91_SESSION_HOURS of PLANNED runs: `corrective_round train --hours` plans the next
+#                 missing runs in training_runs() order that fit (planning estimates, the pre-flight's per-arm figures;
+#                 the first always included), prints the plan, trains exactly those, checks STOP before each run, and
+#                 closes with a summary (runs trained and their seconds, the next missing run, the planned hours left).
+#                 ~40.5 planned GPU-hours in all (BRIEF_46 E.5: about seven sessions of six hours).  A Unix-time GPU trace
+#                 per session.
+#      evaluate   CPU, after the LAST training (refused while any run is missing): the evaluation declared once (a later
+#                 session verifies it unchanged), then the 53 new cells and the 38 old hz1x1 cells (18,200 episodes)
+#                 with WORKERS shards (default 6, at most 6: PROJECT_PLAN section 10's cap), then P3a's registered
+#                 references and the status.  A session ends between units -- a cell for route (i) and P3a, an episode
+#                 for route (ii) and the old cells -- at P91_SESSION_HOURS or at STOP, and says how much is left.
+#      campaign   RETIRED (BRIEF_46 Amendment E, E.4-2c): it could end only by Ctrl+C, losing the run in flight.
+#      d4rl       GPU, ~35-45 min: P8.3's IQL arm re-run as iql_t (--iql-target-dropout off), five seeds, in P8.3's
+#                 venv, beside the registered artifact (--compare-with); outputs under /home/filip/d4rl-calib-out/p9_1/.
+#                 Never two trainings on the GPU at once.
 #    The regime: OMP/MKL one thread; CUBLAS_WORKSPACE_CONFIG UNSET (P5.2's default regime, in which every registered
 #    grid DT was trained: deterministic False).  A27(a): seconds are an UNCONTROLLED clock -- no power check, no canary.
 #    KEEP THE MACHINE AWAKE for the whole stage (Windows: never sleep while plugged in).  Every trainer times itself with
@@ -57,6 +63,8 @@ WORKERS=${WORKERS:-6}
 D4RL_PY=/home/filip/d4rl-calib-venv/bin/python
 D4RL_DATA=/home/filip/d4rl-calib-data/halfcheetah_medium_expert-v2.hdf5
 D4RL_OUT=/home/filip/d4rl-calib-out/p9_1
+# BRIEF_46 Amendment E: the hours a session runs without a break (the train stage's plan, the evaluate stage's deadline).
+SESSION_HOURS=${P91_SESSION_HOURS:-6}
 # B.3, its values corrected by BRIEF_46 Amendment B.2 (2026-10-27): a worker with no env reset or step for
 # STALL_SECONDS is cut (offline/stall_guard.py re-arms at most once per 10 s, so after 110-120 s) and restarted at most
 # MAX_RESTARTS times; P91_STALL_SECONDS and P91_MAX_RESTARTS override them, the window is passed to every worker as
@@ -78,13 +86,16 @@ fail() {
   exit 1
 }
 
-STAGE=${1:?usage: p9_1_corrective.sh collect|campaign|d4rl <commit>}
-COMMIT=${2:?usage: p9_1_corrective.sh collect|campaign|d4rl <commit>}
-case "$STAGE" in collect|campaign|d4rl) ;; *) refuse "unknown stage $STAGE" ;; esac
+STAGE=${1:?usage: p9_1_corrective.sh collect|train|evaluate|d4rl <commit>}
+COMMIT=${2:?usage: p9_1_corrective.sh collect|train|evaluate|d4rl <commit>}
+case "$STAGE" in collect|train|evaluate|campaign|d4rl) ;; *) refuse "unknown stage $STAGE" ;; esac
 [[ "$WORKERS" =~ ^[1-6]$ ]] || refuse "WORKERS must be 1-6 (PROJECT_PLAN section 10), not $WORKERS"
 [[ "$STALL_SECONDS" =~ ^[0-9]+$ ]] && [ "$STALL_SECONDS" -gt 10 ] \
   || refuse "P91_STALL_SECONDS must be a whole number of seconds above the guard's 10 s re-arm interval, not $STALL_SECONDS"
 [[ "$MAX_RESTARTS" =~ ^[0-9]+$ ]] || refuse "P91_MAX_RESTARTS must be a non-negative whole number, not $MAX_RESTARTS"
+[[ "$SESSION_HOURS" =~ ^[0-9]*([.][0-9]+)?$ && "$SESSION_HOURS" =~ [1-9] ]] \
+  || refuse "P91_SESSION_HOURS must be a positive number of hours, not $SESSION_HOURS"
+[ "$STAGE" != campaign ] || refuse "the campaign stage is retired (BRIEF_46 Amendment E, E.4-2c): run the train stage in sessions, then the evaluate stage in sessions"
 
 export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
@@ -104,6 +115,7 @@ if pgrep -f '^[^ ]*python[^ ]* -P -m (offline[.]corrective_round (.* )?(train|de
 fi
 LOADED=$(PYTHONPATH=$WORK_TREE "$PY" -P -c 'import offline.corrective_round as m; print(m.__file__)')
 [ "$LOADED" = "$WORK_TREE/offline/corrective_round.py" ] || refuse "the module loads from $LOADED, not from $WORK_TREE"
+[ ! -e "$RUNS/STOP" ] || refuse "$RUNS/STOP exists: no session starts while it exists (the author removes it, by hand, to start one)"
 
 cd "$MAIN"
 cr() {
@@ -188,15 +200,38 @@ restarting() {
 
 shards() {
   local what=$1 pids=() k code=0
+  shift
   for k in $(seq 0 $((WORKERS - 1))); do
-    restarting "${what}_shard$k" cr "$what" --shard "$k" --of "$WORKERS" >"$LOGS/${what}_shard$k.log" 2>&1 &
+    restarting "${what}_shard$k" cr "$what" --shard "$k" --of "$WORKERS" "$@" >"$LOGS/${what}_shard$k.log" 2>&1 &
     pids+=("$!")
   done
   for k in "${!pids[@]}"; do
     wait "${pids[$k]}" || { code=1; echo "$what shard $k FAILED; the last lines of its log:"; tail -15 "$LOGS/${what}_shard$k.log" | sed 's/^/    /'; }
   done
   [ "$code" -eq 0 ] || fail "a $what shard failed; finished episodes are on disk, start again with a new token"
-  echo "$what: $WORKERS shards ok"
+  echo "$what: $WORKERS shards ended cleanly"
+}
+
+# BRIEF_46 Amendment E, E.4-2b: an evaluate session ends between its steps once its deadline has passed or STOP exists
+# (each worker has already ended between units of work); session_end says how much is left, from the status on disk.
+session_over() {
+  [ -e "$RUNS/STOP" ] && return 0
+  "$PY" -c 'import sys, time; sys.exit(0 if time.time() >= float(sys.argv[1]) else 1)' "$DEADLINE"
+}
+session_end() {
+  local why="the hours bound ($SESSION_HOURS h)" code=0
+  [ ! -e "$RUNS/STOP" ] || why="the stop file $RUNS/STOP"
+  cr status >"$LOGS/status.json" 2>"$LOGS/status.err" || code=$?
+  [ "$code" -eq 0 ] || fail "the status refused with $code (log $LOGS/status.err)"
+  "$PY" -c 'import json, sys
+s = json.load(open(sys.argv[1]))
+e, old = s["evaluation"], s["old_cells_hz1x1"]
+ii = ", ".join("%s %s of %s" % (k, v.get("missing"), v.get("declared")) for k, v in sorted(e["route_ii"].items()))
+print("left: route (i) %d of %d cells; route (ii) episodes %s; P3a %d of %d cells; old-cell episodes %s of %s" % (
+    e["cells_declared"] - e["route_i_cells_done"], e["cells_declared"], ii,
+    e["p3a_cells_declared"] - e["p3a_cells_done"], e["p3a_cells_declared"], old.get("missing"), old.get("declared")))' "$LOGS/status.json"
+  echo "stage evaluate $STAMP: SESSION ENDED at $why -- the next session resumes from disk under a new TOKEN_evaluate"
+  exit 0
 }
 
 case "$STAGE" in
@@ -206,20 +241,35 @@ case "$STAGE" in
     run_logged declare_mixture cr declare --what mixture
     run_logged declare_random_fresh_hz1x1 cr declare --what random_fresh --scenario hz1x1
     run_logged declare_random_fresh_grid4x4 cr declare --what random_fresh --scenario grid4x4
-    echo "stage collect $STAMP: COMPLETE -- next: plan Q2's typed commit, then the campaign stage under its own token"
+    echo "stage collect $STAMP: COMPLETE -- next: plan Q2's typed commit, then the train sessions"
     ;;
-  campaign)
+  train)
     start_trace
-    run_logged train cr train
+    echo "train session: it runs about $SESSION_HOURS hours without a break (P91_SESSION_HOURS; its plan below, in planning estimates) and ends between runs, at its plan's end or at $RUNS/STOP"
+    cr train --hours "$SESSION_HOURS" --plan-only
+    run_logged train cr train --hours "$SESSION_HOURS"
+    sed -n '/^SESSION: /p; /^SESSION SUMMARY /p' "$LOGS/train.log"
+    echo "stage train $STAMP: SESSION COMPLETE -- the next session resumes from disk under a new TOKEN_train"
+    ;;
+  evaluate)
+    DEADLINE=$("$PY" -c 'import sys, time; print(f"{time.time() + float(sys.argv[1]) * 3600.0:.3f}")' "$SESSION_HOURS")
+    echo "evaluate session: it runs about $SESSION_HOURS hours without a break (P91_SESSION_HOURS) and ends between units of work at Unix $DEADLINE or at $RUNS/STOP"
     run_logged declare_evaluation cr declare-evaluation
-    shards evaluate
-    shards old-cells
-    run_logged p3a_references restarting p3a_references cr p3a-references
+    shards evaluate --deadline-unix "$DEADLINE"
+    if session_over; then session_end; fi
+    shards old-cells --deadline-unix "$DEADLINE"
+    if session_over; then session_end; fi
+    run_logged p3a_references restarting p3a_references cr p3a-references --deadline-unix "$DEADLINE"
     status_code=0
     cr status >"$LOGS/status.json" 2>"$LOGS/status.err" || status_code=$?
     [ "$status_code" -eq 0 ] || fail "the status refused with $status_code (log $LOGS/status.err)"
-    "$PY" -c 'import json, sys; sys.exit(0 if json.load(open(sys.argv[1]))["complete"] is True else 1)' "$LOGS/status.json" || fail "the campaign is not complete on disk: read $LOGS/status.json"
-    echo "stage campaign $STAMP: COMPLETE (status $LOGS/status.json)"
+    if "$PY" -c 'import json, sys; sys.exit(0 if json.load(open(sys.argv[1]))["complete"] is True else 1)' "$LOGS/status.json"; then
+      echo "stage evaluate $STAMP: COMPLETE (status $LOGS/status.json)"
+    elif session_over; then
+      session_end
+    else
+      fail "the evaluation is not complete on disk although no stop came: read $LOGS/status.json"
+    fi
     ;;
   d4rl)
     mkdir -p "$D4RL_OUT"

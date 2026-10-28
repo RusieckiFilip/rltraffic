@@ -44,7 +44,8 @@ def test_every_refusal_precedes_the_token_and_the_token_is_consumed_before_any_s
     consumed = code.index('rm -- "$TOKEN"')
     assert code.index("\nstage_check\n") < token_check < consumed, "the CALL, not the function's definition"
     for refusal in ("uncommitted changes", "is not at $COMMIT", "DETACHED worktree", "another P9.1 stage",
-                    "the module loads from"):
+                    "the module loads from", "no session starts while it exists", "the campaign stage is retired",
+                    "P91_SESSION_HOURS must be"):
         assert code.index(refusal) < token_check, refusal
     first_stage = min(code.index(word) for word in ("run_logged collect_hz1x1", "run_logged train", "run_logged d4rl"))
     assert consumed < first_stage
@@ -77,11 +78,14 @@ def test_no_command_whose_failure_must_stop_the_run_is_piped() -> None:
             assert "|" not in line.replace("||", ""), line
 
 
-def test_the_campaign_declares_the_evaluation_once_before_any_shard_and_shards_the_old_cells() -> None:
-    body = _branch("campaign")
-    assert body.index("run_logged train") < body.index("run_logged declare_evaluation cr declare-evaluation")
-    assert body.index("cr declare-evaluation") < body.index("shards evaluate") < body.index("shards old-cells")
-    assert body.index("shards old-cells") < body.index("run_logged p3a_references")
+def test_the_evaluate_stage_declares_the_evaluation_once_before_any_shard_and_shards_the_old_cells() -> None:
+    """Retargeted from the retired campaign stage (BRIEF_46 Amendment E, E.4-2b): ONE process declares the evaluation
+    (a later session's declaration verifies it unchanged, a differing manifest is refused) before any shard; then the
+    shards, the old cells and P3a's references.  The training before it is the stage check's (``check --stage
+    evaluate`` refuses while any run is missing), before the token."""
+    body = _branch("evaluate")
+    assert body.index("run_logged declare_evaluation cr declare-evaluation") < body.index("shards evaluate")
+    assert body.index("shards evaluate") < body.index("shards old-cells") < body.index("run_logged p3a_references")
     code = "\n".join(_code())
     assert 'cr "$what" --shard "$k" --of "$WORKERS"' in code
 
@@ -101,7 +105,7 @@ def test_the_d4rl_stage_reruns_the_iql_arm_only_with_its_targets_off_beside_the_
 
 @pytest.mark.parametrize(("argv", "env", "message"), [
     (["fly", "abc"], {}, "unknown stage fly"),
-    (["evaluate", "abc"], {}, "unknown stage evaluate"),
+    (["train2", "abc"], {}, "unknown stage train2"),
     (["campaign", "abc"], {"WORKERS": "7"}, "WORKERS must be 1-6"),
     (["campaign", "abc"], {"WORKERS": "0"}, "WORKERS must be 1-6"),
 ])
@@ -120,19 +124,21 @@ def test_the_regime_is_p5_2s_default_and_no_canary_runs() -> None:
     assert "canary" not in code and "power-check" not in code
 
 
-def test_the_campaign_says_complete_only_when_the_status_computed_from_disk_says_so() -> None:
-    """Every step exiting 0 is not the claim; the status's computed ``complete`` is (a cell left waiting, a missing
-    P3a record or an old cell refused into a retry would otherwise read as done)."""
-    body = _branch("campaign")
+def test_an_evaluate_session_says_complete_only_when_the_status_computed_from_disk_says_so() -> None:
+    """Retargeted from the retired campaign stage: every step exiting 0 is not the claim; the status's computed
+    ``complete`` is (a cell left waiting, a missing P3a record or an old cell refused into a retry would otherwise read
+    as done).  Incomplete without a stop is a failure; incomplete after a stop is a session's end."""
+    body = _branch("evaluate")
     status = body.index('cr status >"$LOGS/status.json" 2>"$LOGS/status.err" || status_code=$?')
     check = body.index('["complete"] is True else 1)')
     assert body.index("run_logged p3a_references") < status < check < body.index("COMPLETE")
-    assert 'fail "the campaign is not complete on disk' in body
+    assert 'fail "the evaluation is not complete on disk although no stop came' in body
 
 
-def test_the_campaign_keeps_a_unix_time_gpu_trace_from_before_training_to_the_end() -> None:
-    """A suspension of the machine shows as a gap between two samples; the report flags the runs it interrupted."""
-    body = _branch("campaign")
+def test_a_train_session_keeps_a_unix_time_gpu_trace_from_before_its_training_to_its_end() -> None:
+    """Retargeted from the retired campaign stage: a GPU trace per training session.  A suspension of the machine
+    shows as a gap between two samples; the report flags the runs it interrupted."""
+    body = _branch("train")
     code = "\n".join(_code())
     assert body.index("start_trace") < body.index("run_logged train")
     assert 'date -u +%s.%N' in code and 'nvidia-smi --query-gpu=memory.used,utilization.gpu' in code
@@ -261,7 +267,8 @@ def test_every_driver_run_a_test_makes_names_a_machine_path_only_in_an_assignmen
     line naming such a path -- once this repository's own path is removed from it -- is a variable assignment, so on a
     host without those paths (CI's runners) the runs behave exactly as here."""
     repo = str(Path(__file__).resolve().parents[1])
-    for argv, env in ((["fly", "abc"], {}), (["evaluate", "abc"], {}), (["campaign", "abc"], {"WORKERS": "7"}),
+    for argv, env in ((["fly", "abc"], {}), (["campaign", "abc"], {}), (["campaign", "abc"], {"WORKERS": "7"}),
+                      (["train", "abc"], {"P91_SESSION_HOURS": "0"}), (["evaluate", "abc"], {"P91_SESSION_HOURS": "x"}),
                       (["campaign", "abc"], {"WORKERS": "0"}), (["campaign", "abc"], {"P91_STALL_SECONDS": "abc"}),
                       (["campaign", "abc"], {"P91_MAX_RESTARTS": "x"})):
         result = subprocess.run(["bash", "-x", str(DRIVER), *argv], capture_output=True, text=True, cwd=tmp_path,
@@ -300,11 +307,70 @@ def test_every_worker_that_rolls_cityflow_episodes_runs_under_the_restart_loop_a
     (B.3: it runs without the remedy), the training, the declarations or the D4RL re-run."""
     code = "\n".join(_code())
     assert 'restarting "${what}_shard$k" cr "$what" --shard "$k" --of "$WORKERS"' in code
-    body = _branch("campaign")
+    body = _branch("evaluate")
     assert "run_logged p3a_references restarting p3a_references cr p3a-references" in body
     assert body.count("restarting") == 1
-    for stage in ("collect", "d4rl"):
+    for stage in ("collect", "train", "d4rl"):
         assert "restarting" not in _branch(stage)
     for line in _code():
         if re.search(r"\bcr (train|declare|declare-evaluation|collect-random-fresh)\b", line):
             assert "restarting" not in line, line
+
+
+# ----------------------------------------------------------------------
+# BRIEF_46 Amendment E, E.4-2: sessions -- a train stage and an evaluate stage; the campaign stage retired
+# ----------------------------------------------------------------------
+
+
+def _clean_env(**extra: str) -> dict[str, str]:
+    return {**{k: v for k, v in os.environ.items() if not k.startswith("P91_")}, **extra}
+
+
+def test_the_campaign_stage_is_retired_and_points_to_train_and_evaluate(tmp_path: Path) -> None:
+    result = subprocess.run(["bash", str(DRIVER), "campaign", "abc"], capture_output=True, text=True, cwd=tmp_path,
+                            env=_clean_env())
+    assert result.returncode == 2 and "REFUSED: the campaign stage is retired" in result.stderr
+    assert "train" in result.stderr.split("retired", 1)[1] and "evaluate" in result.stderr.split("retired", 1)[1]
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize("hours", ["0", "0.0", "-1", "abc", "1.5h", "."])
+def test_a_bad_session_hours_is_refused_before_anything_runs(hours: str, tmp_path: Path) -> None:
+    result = subprocess.run(["bash", str(DRIVER), "train", "abc"], capture_output=True, text=True, cwd=tmp_path,
+                            env=_clean_env(P91_SESSION_HOURS=hours))
+    assert result.returncode == 2 and "REFUSED: P91_SESSION_HOURS must be" in result.stderr
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_a_train_session_plans_trains_and_summarises_under_its_own_token() -> None:
+    code = "\n".join(_code())
+    assert _driver_constant("SESSION_HOURS") == "SESSION_HOURS=${P91_SESSION_HOURS:-6}"
+    assert "TOKEN=$RUNS/TOKEN_$STAGE" in code
+    body = _branch("train")
+    plan = body.index('cr train --hours "$SESSION_HOURS" --plan-only')
+    train = body.index('run_logged train cr train --hours "$SESSION_HOURS"')
+    assert body.index("start_trace") < plan < train < body.index("SESSION SUMMARY")
+    for other in ("cr evaluate", "cr old-cells", "cr declare-evaluation", "cr p3a-references", "shards"):
+        assert other not in body, other
+
+
+def test_no_session_starts_while_the_stop_file_exists_and_the_driver_never_removes_it() -> None:
+    code = "\n".join(_code())
+    assert code.index('[ ! -e "$RUNS/STOP" ] || refuse') < code.index('[ -f "$TOKEN" ] || refuse')
+    assert not re.search(r"\brm\b[^\n]*STOP", code)
+
+
+def test_an_evaluate_session_ends_between_units_at_its_deadline_or_the_stop_file() -> None:
+    """The deadline is fixed once from P91_SESSION_HOURS; every rolling command gets it; between the steps a session
+    that is over ends, saying what is left."""
+    code = "\n".join(_code())
+    assert 'cr "$what" --shard "$k" --of "$WORKERS" "$@"' in code
+    body = _branch("evaluate")
+    deadline = body.index("DEADLINE=")
+    first = body.index('shards evaluate --deadline-unix "$DEADLINE"')
+    over_1 = body.index("session_over", first)
+    second = body.index('shards old-cells --deadline-unix "$DEADLINE"')
+    over_2 = body.index("session_over", second)
+    last = body.index('cr p3a-references --deadline-unix "$DEADLINE"')
+    assert deadline < first < over_1 < second < over_2 < last
+    assert "session_end" in body and 'SESSION ENDED' in code and '"$RUNS/STOP"' in code
