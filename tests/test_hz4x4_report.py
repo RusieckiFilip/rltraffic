@@ -44,8 +44,10 @@ def _sha(data: bytes) -> str:
 
 
 def _jiggle(level: float, seed: int, draw: int) -> float:
-    """A deterministic per-episode variation, so every CI is non-degenerate and identical cells stay identical."""
-    return float(level + (((seed // 101) * 7 + (draw - 1000) * 3) % 5 - 2) / 2.0)
+    """A deterministic per-episode variation, so every CI is non-degenerate and identical cells stay identical; the
+    small seed and draw terms make every value of a cell distinct, so a quantile's interpolation is never hidden by a
+    tie (mutant S2: ``method="lower"`` for ``"linear"`` survived the tied values)."""
+    return float(level + (((seed // 101) * 7 + (draw - 1000) * 3) % 5 - 2) / 2.0 + seed * 1e-3 + (draw - 1000) * 1e-5)
 
 
 def _row(arm: str, seed: int, draw: int, ours: float, engine: float, *, never: int = 0) -> dict[str, Any]:
@@ -84,6 +86,12 @@ def _grid_books() -> dict[str, dict[tuple[str, str], Any]]:
             engine = ours - 3.0 if tier != "maxpressure" else 200.0 + 10.0 * (len(ts.METHODS) - 1 - m_index)
             book[(method, tier)] = _levelled(f"syn:{method}@{tier}", method, tier, "syn", f"{method}@{tier}", ours,
                                              engine)
+    leader = book[("dt_spatial", "mappo1000")]
+    offsets = {1000: -1.0, 1001: 0.8, 1002: -0.1}  # a mean lead of 0.1 whose per-draw differences change sign
+    close = [dict(r, arm="dt_nomix@mappo1000", att_ours=r["att_ours"] + offsets[r["draw_id"]],
+                  att_engine=r["att_engine"] + offsets[r["draw_id"]]) for r in leader.rows]
+    book[("dt_nomix", "mappo1000")] = _cell("syn:dt_nomix@mappo1000", "dt_nomix", "mappo1000", "syn",
+                                            "dt_nomix@mappo1000", close)
     tied = book[("dt_spatial", "fixedtime")]
     book[("dt_nomix", "fixedtime")] = _cell("syn:dt_nomix@fixedtime", "dt_nomix", "fixedtime", "syn",
                                             "dt_nomix@fixedtime", [dict(r, arm="dt_nomix@fixedtime") for r in tied.rows])
@@ -107,6 +115,8 @@ def test_the_leaders_mirror_is_tier_statements_leaders_block_on_a_synthetic_grid
     readings = [block["reading"] for block in theirs]
     assert any("tie exactly for the lead" in reading for reading in readings)
     assert any("the lead resolves" in reading for reading in readings)
+    # mutant L4 (the CI's low end read in place of its high end) survived a book whose every lead resolved
+    assert any("the lead does not resolve" in reading for reading in readings)
     assert any(block["definition_dependent"] for block in theirs)
     assert not all(block["definition_dependent"] for block in theirs)
 
@@ -187,7 +197,7 @@ def _write_records(out: Path, seeds: tuple[int, ...], draws: tuple[int, ...]) ->
 
 def test_the_cells_are_read_from_their_records_in_seed_and_draw_order(tmp_path: Path) -> None:
     _write_records(tmp_path, (202, 101), (1001, 1000))
-    cells = rp.load_cells(tmp_path, seeds=(101, 202), draws=(1000, 1001))
+    cells = rp.load_cells(tmp_path, seeds=(202, 101), draws=(1001, 1000))
     assert list(cells) == [f"p9_3:{c.arm}" for c in pb.evaluation_cells()]
     cell = cells["p9_3:iql_m@random_fresh"]
     assert (cell.spec.method, cell.spec.tier, cell.spec.source, cell.spec.arm) == ("iql_m", "random_fresh", "p9_3",
@@ -359,3 +369,20 @@ def test_the_cli_names_its_two_commands() -> None:
     report = parse(["report", "--out", "r.json", "--old-cells", "o.json"])
     assert (report.command, report.out, report.old_cells, report.output_root) == ("report", "r.json", "o.json",
                                                                                   str(hz.MAIN_OUTPUT_ROOT))
+
+
+def test_the_exposure_is_each_tiers_own(tmp_path: Path) -> None:
+    # Mutant R2 (every tier given maxpressure's exposure) cannot be told apart on the committed declaration, whose four
+    # tiers hold the same 1,152,000 decisions; a declaration whose tiers differ tells it apart.
+    data = tmp_path / "docs" / "data"
+    data.mkdir(parents=True)
+    (data / rp.GATE_ARTIFACT.name).write_bytes((REPO / rp.GATE_ARTIFACT).read_bytes())
+    declared = json.loads((REPO / rp.DECLARATION_ARTIFACT).read_bytes())
+    for index, tier in enumerate(hz.TIER_ORDER):
+        declared["tiers"][tier]["exposure"] = {"steps": 40_000 + index, "marker": tier}
+    (data / rp.DECLARATION_ARTIFACT.name).write_text(json.dumps(declared), encoding="utf-8")
+    grid, provenance = _grid_counterparts()
+    artifact = rp.report_artifact(cells=_hz4x4_cells(), training=[], old=rp.old_cells(grid, provenance=provenance),
+                                  repo_root=tmp_path)
+    assert artifact["exposure"] == {tier: {"steps": 40_000 + index, "marker": tier}
+                                    for index, tier in enumerate(hz.TIER_ORDER)}
