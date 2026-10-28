@@ -1,5 +1,46 @@
 # Patches a Claude Code session cannot apply itself
 
+## `ci_gate_ceiling_428_p9_2.patch` — the skip ceiling moves 405 → 428 after P9.2's two merges; every new skip is one of P9.2's draws- or output-gated tests
+
+**Apply with:**
+```bash
+cd /home/filip/rltraffic && git apply docs/patches/ci_gate_ceiling_428_p9_2.patch && .venv/bin/pytest tests/test_ci_gate.py -q && git add .github/ci/ci_baseline.json tests/test_ci_gate.py && git commit -m "ci(ceiling): 405 -> 428 OBSERVED on run 40548238870 at 0e38175 -- P9.2's draws- and output-gated tests (points 5 and 7)" && git push origin main
+```
+The push also carries the coordinator's unpushed docs commit beneath it (`BRIEF_46` Amendment C, `BRIEF_47` Amendment F,
+`BRIEF_48` Amendment G, plan v3.12): one push, one CI run.
+
+**Measured, not read off a summary.**
+- **The run:** `40548238870` on `main` at `0e38175`, the second merge of `task/p9.2-a27b` (C10 and point 7's stage-1 artifact),
+  which carries the first (`e4a5ab0`, point 5). The suite step PASSED on both legs and only the ceiling gate failed: the registered
+  route working. The three guards, the wheel gate and `libc-matrix` passed.
+- **Leg against leg:** both legs downloaded and every `<skipped>` message extracted from `junit.xml` (`output/ci_runs/skips.py`).
+  Identical: 3,951 tests, 428 skipped, 0 failures, 0 errors, 96 distinct texts on both.
+- **Run against run,** against the last green run on `main`, `40501015653` at `848fe27` (3,726 tests, 405 skipped — the current
+  ceiling). The two runs between (`40505879736`, `40521786087`) failed in the suite step and are not measurements. **23 new skips in
+  6 texts, nothing removed, all `campaign_output`** (the gitignored draws tree and `output/`, the category P5.3c's, P7.3c's and P7.3d's
+  draws and work-directory skips carry):
+  - +10 *"the held-out parity draws are not at …/scenarios/draws"*;
+  - +6 *"the held-out draws and their parity files are not at …/scenarios/draws"*;
+  - +4 *"bc-tyc's held-out draws are not at …/scenarios/draws"*;
+  - +1 *"P8.4b's re-derivation cells are not under …/output"*;
+  - +1 *"p9_2_sumo_anchors.json is committed only after the campaign (G4) and its work directory … is gitignored"*;
+  - +1 *"p9_2_demand_shift.json is committed only after the campaign (G4) and its work directory … is gitignored"* — the T-regress
+    added at G4 part 2;
+  - P9.2's eight task files, all new since `848fe27` (225 tests, the count the coordinator ran from the merged main tree), account
+    for the whole difference in collected tests (3,726 → 3,951). The coordinator's prediction before the merge (+23: the red run's
+    +22 and one T-regress) was not committed until observed.
+
+**What the patch changes:**
+- `skip_ceiling` 405 → 428;
+- `skip_breakdown.campaign_output` +23;
+- `ceiling_if_cityflow_were_built` (the ceiling minus the CityFlow-gated skips) recomputed: 381;
+- a new `measured` block whose `superseded` is the 405 block, with its `why_it_was_wrong` ("EXPIRED AS DECLARED");
+- `tests/test_ci_gate.py`: `CEILING_CHAIN` gains 428 at its head, its one literal.
+
+**Checked before handing over** (`output/ci_runs/build_ceiling_patch_p92.py`): `tests/test_ci_gate.py` passes on the patched tree;
+`.github/ci/ci_gate.py pytest-gate` on each leg's terminal output and junit passes with the patched baseline and fails with `main`'s;
+`git apply --check` on `main`: OK.
+
 ## `ci_gate_ceiling_405_p9_1_m1.patch` — the skip ceiling moves 397 → 405 after P9.1's M1 merge; every new skip is one of M1's eight corpus- or CityFlow-gated tests
 
 **Apply with:**
