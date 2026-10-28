@@ -640,3 +640,24 @@ If P9.1's campaign starts while H.3's training smoke is on the GPU, let the smok
 the CPU. Its two-step cells take a few GPU-seconds each. In your smoke note, disclose the overlap: P9.1's start is the first line of
 `/home/filip/rltraffic/output/p9_1_runs/campaign_capture.txt`. Two CAMPAIGN trainings at once stay forbidden: `p93-train` waits for
 P9.1's `train: ok`.
+
+## H.6 2026-10-28, later: the author's rulings — no hard stop (D8); `p93-train` in SESSIONS (FIX FIRST, before the token)
+- **The 2026-11-07 hard stop is withdrawn** (`A27_DEVIATIONS` D8). Point 8 has no date; it merges when its gates pass.
+- **Every long run runs in sessions of a few hours,** which the author starts and stops. Each session ends cleanly between units of
+  work (`PROJECT_PLAN` §7 (5); `CLAUDE.md` §5). `p93-train` (≈ 30.7 h) is one such run. Build the following, tests first:
+  1. **`train-queue --hours H`.** At the start, plan the session: the next pending cells whose planned seconds sum to at most H
+     hours. The first cell is always included. Print the plan, train exactly those cells, and exit 0 with a summary: the cells
+     trained, the next pending cell, and the planned hours left.
+     - The planned seconds are your G3b timings per arm, scaled to 40,000 steps, plus setup, labelled as planning estimates.
+  2. **`--max-cells N`**, for tests and smokes.
+  3. **A stop file, `output/p9_3/STOP`.** It is checked before each cell. When it exists, the session ends after the cell in flight.
+     The code never deletes it, and a session refuses to start while it exists.
+  4. **Tests first.** Mutants: the plan ignored; the stop file ignored; a cell started after it.
+  5. **Proof that nothing else changed.** Every function on the training and evaluation paths must be identical to `14a6ba2`'s, by
+     `ast`: `train_cell`, `hz4x4_train_tier_dt`, `hz4x4_tier_parts`, `hz4x4_baseline_inputs`, `evaluate_episode`, `eval_factory`,
+     `run_episodes` and what they call in your modules. Then H.3's smoke at `14a6ba2` stands for them.
+  6. **A queue smoke** on a fresh scratch root, with two-step cells: `--max-cells 2`, then the stop file, then a resumed session.
+  7. **Then say "P9.3 sessions ready"** with the commit, beside "P9.3 smoke ready" for H.3. The coordinator creates the run tree at
+     that commit and clears the token in Amendment I, stating each session's hours first. H.2-4's freeze starts at that token.
+- **The evaluation runs are short and stay as planned:** `p93-eval-ref` takes ≈ 0.5 h and each `p93-eval-<tier>` ≈ 0.7 h.
+- **H.3's smoke:** finish it as it is, from the run tree at `14a6ba2`. H.5 stands.

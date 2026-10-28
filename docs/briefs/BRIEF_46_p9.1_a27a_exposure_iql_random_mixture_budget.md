@@ -572,3 +572,117 @@ touch /home/filip/rltraffic/output/p9_1_runs/TOKEN_campaign && bash /home/filip/
 - Nothing to build for the campaign; the run tree and the evidence stay as they are.
 - Write G4's `report` path tests-first where it does not wait for data, as your plan says.
 - d4rl's input comes last (D.2-3).
+
+---
+
+# ⚖️ AMENDMENT E — 2026-10-28: the author STOPPED the campaign stage; no hard stop (D8); every long run in SESSIONS. Session 1 = the d4rl stage (CLEARED). The training resumes after SESSION CONTROL is built (FIX FIRST)
+
+## E.1 The author's rulings (2026-10-28, about 16:40), in his words
+1. *"There is no hard stop any more: the 7 Nov date is withdrawn; record it as a deviation."* This is `A27_DEVIATIONS` D8.
+2. *"No computation runs 50 h non-stop on this laptop. Split the rest of the campaign into sessions of a few hours each (roughly 6–9
+   sessions in all), which the author starts and stops himself; each session must end cleanly between trainings, so nothing finished
+   is lost or re-run. The same rule applies to P9.3's p93-train (~31 h) and to every other long run."* This is now `PROJECT_PLAN` §7
+   rule (5) and `CLAUDE.md` §5.
+3. Every run handed to him states first how many hours it runs without a break. Nothing under `output/` is deleted or moved without
+   his ruling.
+
+Amendment D's D.2-3 (d4rl after P9.3's trainings) and D.3 (one `campaign` stage) are superseded by E.3 and E.4.
+
+## E.2 What Ctrl+C left: stage `20261028T151149Z`, 16:11:49–16:30:31, read by the coordinator
+- **Runs 1–3 are DONE:** hz1x1 `iql_t@random`, seeds 101, 202 and 303.
+  - Each has its checkpoint and record, written at 16:17:40, 16:23:31 and 16:29:28.
+  - Each trained 40,000 steps on CUDA, in 344.0 s, 350.7 s and 356.8 s.
+  - The module's `run_status` reads all three as done: recipe and canonical digest.
+- **Run 4 (seed 404) was interrupted about a minute in,** at about step 5,000 of 40,000. The trainer writes nothing until its end, so
+  there is no checkpoint, no `.partial` and no record. `run_status` reads it as missing, and the first training session trains it from
+  the start.
+- **Runs 4–255:** 252 missing; nothing damaged.
+- **The stage's logs** are kept as its record: `output/p9_1_runs/logs/20261028T151149Z/train.log` ends with the `KeyboardInterrupt`
+  traceback, and `gpu_trace.csv` holds 57 samples, its loop ended with the driver.
+- The capture holds the token line only. The token was consumed at the start, and no process of the stage is left.
+- **Handling: nothing is deleted or moved.** The next training session reads runs 1–3 from disk and skips them. Your report names this
+  session: runs 1–3 at `cb61ee7`, stage `20261028T151149Z`.
+
+## E.3 Session 1: the `d4rl` stage, CLEARED — about 35–45 minutes without a break
+- **Why now:** D.2-3 deferred it only to keep about 40 minutes off a critical date. There is no date now, and the GPU is idle while E.4
+  is built.
+- **Verified by the coordinator:**
+  - **The prerequisites** are on disk: P8.3's venv, the dataset, and no `/home/filip/d4rl-calib-out/p9_1`.
+  - **The flags:** the runner accepts every flag the driver passes (`--threads`, `--dataset`, `--out`, `--arms`,
+    `--iql-target-dropout`, `--compare-with`). Its defaults are the registered five seeds and 40,000 steps.
+  - **The training path:** the pre-flight ran one full seed through the same runner (382.1 s; `g2_d4rl_one_seed.txt`).
+  - **The comparison, which the pre-flight did not reach.** `--compare-with` runs AFTER all five seeds, so a refusal there would lose
+    them. The coordinator ran it on the registered artifact, in P8.3's venv, from the run tree:
+    - the registered contrasts recompute EXACTLY;
+    - `compare_with_registered` completes on five stand-in `iql_t` cells of ten episodes each.
+
+    Its other checks (dataset, codebook, budget, episodes) run before the first gradient step.
+- **Do not stop it early.** It writes each seed's checkpoint into `/home/filip/d4rl-calib-out/p9_1` as it goes, so a stopped run
+  leaves files that block a re-run.
+- **The command**, in the author's tmux `p91` (its pane is at a prompt), as one line:
+  `touch /home/filip/rltraffic/output/p9_1_runs/TOKEN_d4rl && bash /home/filip/rltraffic-p91-run-c/offline/campaigns/p9_1_corrective.sh d4rl cb61ee7 2>&1 | tee -i -a /home/filip/rltraffic/output/p9_1_runs/d4rl_capture.txt; echo "DRIVER EXIT ${PIPESTATUS[0]}"`
+- **Done when** the capture shows `d4rl: ok` and `stage d4rl <stamp>: COMPLETE (outputs /home/filip/d4rl-calib-out/p9_1)`, and the
+  pane shows `DRIVER EXIT 0`.
+- P9.3's two-step smoke may share the GPU meanwhile (D.2-2's reasoning). The d4rl artifact's seconds are an uncontrolled clock.
+
+## E.4 ⛔ FIX FIRST, before any training session: SESSION CONTROL (on `task/p9.1-a27a`, tests first)
+The `campaign` stage cannot end between trainings. Its only stop is Ctrl+C, which loses the run in flight: a minute today, up to an
+hour for a grid `dt_nomix` run. Build the following.
+1. **`corrective_round train`:**
+   - **`--hours H`.** At the start, plan the session: the next missing runs in `training_runs()` order whose planned seconds sum to at
+     most H hours. The first run is always included. Print the plan (first and last run, count, planned hours), train exactly those
+     runs, then exit 0.
+     - The planned seconds are your pre-flight's per-arm figures (the 40.5 h table), labelled in the code as planning estimates and
+       never as measurements of this campaign.
+   - **`--max-runs N`**, for tests and smokes.
+   - **A stop file, `output/p9_1_runs/STOP`.** It is checked before each run. When it exists, the session ends after the run in flight
+     and says so. The code never deletes it, and refuses to START a session while it exists.
+   - **A closing summary:** the runs trained (first to last) and their seconds, the next missing run, and the planned hours left.
+2. **The driver:**
+   - **(a) A `train` stage:** training only, with its own token `TOKEN_train` per session, the preamble checks, and a GPU trace per
+     session. It passes `P91_SESSION_HOURS` (default 6) as `--hours`.
+   - **(b) An `evaluate` stage,** after the last training. It refuses while any run is missing. It declares the evaluation once; a
+     later session verifies the declaration unchanged instead of refusing. Then come the `evaluate` and `old-cells` shards, P3a's
+     references and the status.
+     - A session ends between units of work: a cell for route (i) and P3a, an episode for route (ii) and the old cells.
+     - It ends at `P91_SESSION_HOURS` or at the stop file, and says how many units are left.
+     - A later session resumes from disk.
+   - **(c)** The `campaign` stage refuses, pointing to `train` and `evaluate`.
+   - **(d)** `d4rl` is unchanged.
+3. **Tests first, red for the right reason.** Mutants:
+   - the hours plan ignored;
+   - the stop file ignored;
+   - a run started after the stop file, and a run interrupted by it;
+   - `evaluate` started with a missing run;
+   - a second declaration that differs.
+4. **Proof that no training computation changed.** `train_run` and everything it calls must be byte-identical to `cb61ee7`'s. Name
+   the functions and the method. Then runs 1–3 and the rest come from one training path, and your report names both commits.
+5. **A session smoke (§7 rule (4)),** on a scratch root with C.4.2's two-step wrapper:
+   - a `train` session with `--max-runs 3`;
+   - the stop file before run 2 of the next session;
+   - a resumed session;
+   - `evaluate` on those checkpoints with a short deadline, then resumed to the end.
+6. **Then:** the trial's 26 files and the changed test files on the new commit, and say **"P9.1 sessions ready"** with the commit. The
+   coordinator verifies it, creates a new run tree there, and clears the first TRAINING session in Amendment F.
+
+## E.5 The session plan, indicative
+These are planning estimates from your pre-flight's figures. Today's three runs took 344–357 s against the plan's 414 s. The driver's
+printed plan governs each session, and the author may set `P91_SESSION_HOURS` per session.
+
+| session | what | planned hours |
+|---|---|---|
+| 1 | d4rl (E.3) | ≈ 0.6–0.75 |
+| T1 | runs 4–65: hz1x1 `iql_t` (the rest) and hz1x1 `random_fresh`; P9.2's ten `iql_t` records are in it | ≈ 6.0 |
+| T2 | runs 66 to about 121: the mixture and most of the 100k budget | ≈ 6.0 |
+| T3 | to about run 150: the rest of the budget and the grid's matched `mappo1000` tier | ≈ 5.3 |
+| T4 | to about run 186: matched `maxpressure`, then `fixedtime`'s BC arms | ≈ 5.7 |
+| T5 | to about run 209: `fixedtime`'s `iql_m`, then the `random` tier | ≈ 5.9 |
+| T6 | to about run 233: the grid's `iql_t`, then three `dt_nomix` on `random_fresh` | ≈ 5.5 |
+| T7 | to run 255: the grid `random_fresh` arms | ≈ 6.0 |
+| E1, E2 | the evaluation: 53 new cells, 38 old cells, P3a, status (≈ 7 h on six workers) | ≈ 3.5 each |
+
+That is ten sessions at 6 h. Seven-hour training sessions would make about nine.
+
+## E.6 Meanwhile
+The run tree `/home/filip/rltraffic-p91-run-c` stays, because d4rl runs from it. `output/p9_1*` stays untouched. P9.2's ten records come
+in T1.

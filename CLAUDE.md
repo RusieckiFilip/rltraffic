@@ -239,6 +239,16 @@ conda base). Inside a session, the explicit `.venv/bin/` prefix is the only reli
 Long simulation runs (corpus collection, MAPPO training) are **not** run inside a Claude Code session —
 they go to a `tmux` session started by the user. You may read their logs.
 
+**No run lasts more than a few hours without a break (the author's rule, 2026-10-28; `PROJECT_PLAN` §7 (5)).**
+A long run is split into SESSIONS that the author starts and stops. Each session:
+- plans itself from an hours bound and prints the plan before it starts;
+- ends by itself between units of work (a training run, an evaluation cell or episode), at that bound or when a stop
+  file exists;
+- is followed by a session that resumes from disk, skipping every finished unit and re-running none.
+
+Build every driver of a long run this way from the start. Every command handed to the author says FIRST how many hours
+it runs without a break. Nothing under `output/` is deleted or moved without the author's ruling.
+
 ## 6. Definition of Done for any task
 
 - [ ] Code complete, no placeholders
