@@ -533,3 +533,41 @@ sentence, D.4's artifact.
 - **Stage 2** waits for P9.1's `iql_t` trainings, and P9.1's campaign is not cleared yet (`BRIEF_46` Amendment C: a trainer refusal
   P9.3 found). When P9.1's training record for the `mappo1000` and `mix50` `iql_t` runs exists: the stage-2 pin file, a pre-flight (the
   pins' digests, the 3,000 cells, the command from `run2`), and **"P9.2 stage 2 ready"**. The token comes in an Amendment.
+
+---
+
+# ⚖️ AMENDMENT G — 2026-10-28: stage 2's trigger and its pins — P9.1's on-disk records, not `main`; wait with a read-only watcher
+
+## G.1 What changed
+P9.1's campaign is cleared (`BRIEF_46` Amendment D), from the run tree `/home/filip/rltraffic-p91-run-c` at `cb61ee7`.
+- Its first 40 runs are hz1x1 `iql_t`: eight tiers × five seeds.
+- So the ten you need, `mappo1000` and `mix50`, are runs 21–25 and 31–35 of 255. That is about four hours after the start, at
+  P9.1's measured ≈ 7 min per hz1x1 `iql_t` run.
+
+Your question ("tell me … when the record is on `main`") is answered here: **not `main`**. P9.1's records reach `main` only at its G4,
+days from now.
+
+## G.2 Rulings
+1. **The pins come from P9.1's on-disk records, read-only.**
+   - The records are `/home/filip/rltraffic/output/p9_1_runs/training/hz1x1/{mappo1000,mix50}__iql_t__seed{101,202,303,404,505}.json`,
+     in format `p9.1-run/1.0`.
+   - For each record, check:
+     - its `checkpoint` exists;
+     - the file's sha256, recomputed by you, equals the record's `file_sha256`;
+     - `declared_steps` and `gradient_steps` are both 40,000 (`a27_arms.REGISTERED_STEPS`, which is what your evaluation expects);
+     - `scenario`, `tier`, `arm` (`iql_t`) and `seed` are the ones its name says.
+   - P9.1's run records carry no commit field. So the pin file names the campaign commit `cb61ee7` and the run tree, as the first line
+     of `/home/filip/rltraffic/output/p9_1_runs/campaign_capture.txt` states them (`token consumed; stage campaign <stamp> from
+     /home/filip/rltraffic-p91-run-c at cb61ee7; …`).
+   - A record that does not exist yet is waited for. A checkpoint that differs from its record is a STOP: report it.
+2. **Wait with a watcher, read-only.**
+   - An until-loop counts the ten records every five minutes; `BRIEF_46` D.3's one-line check prints 10.
+   - Then build the pin file and the pre-flight, as your plan has them: the pins' digests, the 3,000 cells, and the exact command from
+     `run2` (`STAGE=2 IQL_T_PINS=<pin file>`).
+   - Commit both, and say **"P9.2 stage 2 ready"**. The token comes in Amendment H.
+3. **Stage 2 runs on CPU beside P9.1's GPU training, as stage 1 ran.**
+   - Shards of one thread each, with the watchdog at stage 1's values (120 s, 60 restarts).
+   - P9.1's run seconds are an uncontrolled clock (A27(a)), and its stage records its own GPU trace.
+   - The coordinator sets the shard count in Amendment H.
+4. **Unchanged:** `run2` (`dafa3eb`) and `output/p9_2/demand_shift/` stay untouched. A27(h)'s slot is re-read under R6 from the final
+   artifact.
