@@ -689,7 +689,7 @@ in T1.
 
 ## E.7 2026-10-28, evening: session 1 (`d4rl`) COMPLETE; the result VERIFIED; the GPU order
 **The capture** (`output/p9_1_runs/d4rl_capture.txt`): the token line, then `d4rl: ok` and `stage d4rl 20261028T192029Z: COMPLETE
-(outputs /home/filip/d4rl-calib-out/p9_1)`. Five seeds trained from 20:20:29 to 20:47:25, about 5.3 min each.
+(outputs /home/filip/d4rl-calib-out/p9_1)`. Five seeds trained from 20:20:29 to 20:47:25, about 5.3 min each; the capture's last write is 20:47:31. The author confirmed the pane's `DRIVER EXIT 0` at 21:01, so all three of E.3's done-when conditions hold.
 
 **Verified by the coordinator, from the artifact** `p8_3_train_k64_40000_iql_t.json` (sha256 `e168b203…`):
 - `target_dropout` `off`; 40,000 steps; seeds 101–505; 10 evaluation episodes per seed.
