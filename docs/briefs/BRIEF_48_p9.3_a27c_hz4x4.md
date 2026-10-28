@@ -634,3 +634,9 @@ A refusal confined to one tier is exactly the class that would have stopped P9.1
 - **F.3 in G4's packet:** re-run H.1's host-absent simulation on the G4 tip, with the report's tests included, and list what it
   shows.
 - **GPU order, unchanged:** P9.1's trainings (≈ 40.5 h), then yours (≈ 30.7 h). The hard stop is 2026-11-07.
+
+## H.5 2026-10-28, with P9.1's clearance (`BRIEF_46` Amendment D, D.2-2)
+If P9.1's campaign starts while H.3's training smoke is on the GPU, let the smoke finish there. Do not stop it, and do not switch it to
+the CPU. Its two-step cells take a few GPU-seconds each. In your smoke note, disclose the overlap: P9.1's start is the first line of
+`/home/filip/rltraffic/output/p9_1_runs/campaign_capture.txt`. Two CAMPAIGN trainings at once stay forbidden: `p93-train` waits for
+P9.1's `train: ok`.

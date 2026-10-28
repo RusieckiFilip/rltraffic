@@ -476,3 +476,99 @@ C.4 say:
 - C.4 on `task/p9.1-a27a`.
 
 The scenario id is the grid's own on the grid, so nothing changes for P9.1.
+
+---
+
+# ✅ AMENDMENT D — 2026-10-28: the campaign is CLEARED. M1b verified and merged into `main` (`ff236af`); the run tree `/home/filip/rltraffic-p91-run-c` at `cb61ee7`; the token; the campaign does not wait for P9.3's smoke
+
+## D.1 Verified by the coordinator, from disk
+- **M1b** (`44d8c02`, fix `c0237de`):
+  - The diff is the one line and its message, plus the test.
+  - The test calls the real trainer.
+  - In a scratch clone the test is green at `44d8c02`. With the old check restored it is red with C.2's own refusal
+    (`unknown tier 'random_fresh'; this task declares ['fixedtime', 'mappo1000', 'maxpressure', 'random']`).
+  - `tests/test_tier_sweep.py` and `tests/test_tier_sweep_a27.py`: 184 passed, 1 skipped.
+  - No `/home/filip/rltraffic` in the diff.
+  - **Merged into `main` as `ff236af`**, two parents (`53b994f`, `44d8c02`), with no code beyond `44d8c02`'s.
+- **The campaign commit `cb61ee7`** is `c99d0c4` (`d0c834d` plus §14, docs) merged with `44d8c02`, with no conflict.
+  - Its code delta from `d0c834d`, whose B.2 was verified in Amendment C, is M1b plus `main`'s own changes since then: P9.2's
+    shift driver and tests, and the CI ceiling.
+  - None of those is in the campaign's import path.
+- **The training smoke** (`22513bd`, `P9.1_evidence/campaign_ready_c4_training_smoke.txt`):
+  - It ran at HEAD `cb61ee7`: 51 of 51 cells, 2 gradient steps each, `smoke exit=0`.
+  - Cell 47 (grid4x4 `random_fresh` `dt_nomix`) trained, in 7.60 s.
+  - A full `p9.1-run/1.0` record in the smoke root carries `checkpoint`, `file_sha256`, `canonical_digest`, `declared_steps` and
+    `gradient_steps`.
+- **The evaluation smoke:**
+  - `SUMMARY`: new cells 53 of 53 equal under `==`, P3a 6 of 6, old cells 38 of 38.
+  - The main tree's `output/p9_1_runs/` still holds only the collect stage's capture and logs.
+- **Your 17 changed test files at `cb61ee7`,** in a clone, one process, one thread, with the corpus and output roots set: **289
+  passed, 6 skipped.** The skips are 5 T-regress (the campaign's artifacts do not exist yet) and 1 CUDA-trained checkpoint.
+- **The run tree** `/home/filip/rltraffic-p91-run-c`:
+  - The coordinator created it at 15:43, detached at `cb61ee7`, with no tracked change.
+  - From it, against the main tree's roots, `corrective_round check --stage campaign` printed `{"ok": true, "stage": "campaign"}`.
+  - The module loads from the run tree.
+
+## D.2 Rulings
+1. **C.4.3's unreached list is ACCEPTED as listed.**
+   - **(1) hz1x1's route-(i) CLI on the A27 arms.** Its unreached checks are:
+     - the training aggregate as the CLI reads it;
+     - the five-run check;
+     - the per-seed canonical digest;
+     - A8(b)'s ceilings;
+     - the evaluation file.
+
+     Each compares a record the campaign writes with a file it writes. `write_training_aggregates` rebuilds the aggregate from the
+     per-run records every time.
+   - **So none of them can invalidate a trained checkpoint.** A refusal there costs an evaluation-side fix and a CPU re-run, never a
+     GPU hour.
+     - The factory and the rollout already ran for every A27 arm.
+     - The CLI itself ran end to end on a registered hz1x1 cell (G2).
+   - **(2) and (3)**, the full-volume orchestration and `declare-evaluation` on the real lists: the same reasoning. Both are
+     unit-tested.
+   - **If any of them refuses during the campaign,** the stage stops as designed. Report it; the trainings stand, and nothing is
+     re-run without a ruling.
+   - §7's rule (4) gains this clarification.
+2. **P9.3's smoke and the GPU: the campaign does NOT wait for it.**
+   - P9.3's H.3 smoke trains two steps per cell: a few GPU-seconds per cell beside about 53 s of CPU setup. Its records are never
+     quoted.
+   - Your runs' seconds are an uncontrolled clock (A27(a)), and the stage records its own GPU trace.
+   - If the smoke is still on the GPU when the campaign starts, both run. The overlap is disclosed in your G4 packet (from the trace)
+     and in P9.3's smoke note.
+   - What stays forbidden is two CAMPAIGN trainings at once: P9.3's `p93-train` waits for your last training.
+3. **The d4rl stage runs after P9.3's trainings, not before the campaign.**
+   - The driver runs one P9.1 stage at a time: its `pgrep` refuses while your evaluation shards run.
+   - Running it before the campaign would put about 40 minutes (five seeds at the pre-flight's 382–538 s) on the critical path.
+   - Its token comes in a later amendment, once its prerequisites are re-read. They are on disk today: P8.3's venv, the dataset, and
+     no `/home/filip/d4rl-calib-out/p9_1`.
+4. **P9.2's stage 2 starts during the campaign,** from your on-disk records of the ten hz1x1 `iql_t` runs on `mappo1000` and `mix50`
+   (runs 21–25 and 31–35 of 255, about 4 h in; `BRIEF_47` Amendment G). Nothing of yours changes.
+
+## D.3 THE TOKEN — the `campaign` stage (the author's tmux)
+Run it from the run tree above, in ONE tmux session. **Keep the machine awake for the whole stage** (Windows: never sleep while plugged
+in). A suspension inside a run adds hours to its seconds.
+```
+# Step 1, open a pane:
+mkdir -p /home/filip/rltraffic/output/p9_1_runs && tmux new -s p91
+# Step 2, at ITS PROMPT (one line):
+touch /home/filip/rltraffic/output/p9_1_runs/TOKEN_campaign && bash /home/filip/rltraffic-p91-run-c/offline/campaigns/p9_1_corrective.sh campaign cb61ee7 2>&1 | tee -i -a /home/filip/rltraffic/output/p9_1_runs/campaign_capture.txt; echo "DRIVER EXIT ${PIPESTATUS[0]}"
+```
+- **First line:** `token consumed; stage campaign <stamp> from /home/filip/rltraffic-p91-run-c at cb61ee7; logs …`.
+- **Then, in order:**
+  - `train: ok` after about 40.5 GPU-hours, 255 runs serially;
+  - `declare_evaluation: ok`;
+  - `evaluate: 6 shards ok`;
+  - `old-cells: 6 shards ok`;
+  - `p3a_references: ok`.
+- **Done when** the capture ends `stage campaign <stamp>: COMPLETE (status …)` and `DRIVER EXIT 0`.
+- **On a stop** (`REFUSED:` or `FAILED:`): the capture names the step and its log. Nothing is re-run without a ruling. The stage is
+  resumable from disk under a new token.
+- **Two milestones to tell the coordinator about:**
+  - P9.2's stage 2 can start when ten records exist. This prints 10:
+    `ls /home/filip/rltraffic/output/p9_1_runs/training/hz1x1/{mappo1000,mix50}__iql_t__seed*.json | wc -l`
+  - P9.3's `p93-train` can start once `train: ok` is in the capture.
+
+## D.4 Meanwhile
+- Nothing to build for the campaign; the run tree and the evidence stay as they are.
+- Write G4's `report` path tests-first where it does not wait for data, as your plan says.
+- d4rl's input comes last (D.2-3).
