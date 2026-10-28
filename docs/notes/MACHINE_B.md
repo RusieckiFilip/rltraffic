@@ -1,159 +1,181 @@
 # MACHINE B — a second workstation for P9.3's training (2026-10-28)
 
-**Status:** procedure issued; machine B's pre-flight not yet run. The ruling is `BRIEF_48` I.6. This note is the procedure and its
-record. The coordinator updates it when the pre-flight returns.
+**Status:** procedure issued (this version replaces the USB / 1:1-copy version of the same evening, which was never run). Machine B's
+pre-flight has not run yet. Its scripts and references are in `docs/notes/machine_b/`.
 
-## Why, in one paragraph
-The author added a second computer (machine B): WSL2 on Windows, an NVIDIA GeForce RTX 3070 Laptop GPU with 8 GB and a 100 W power
-cap. **P9.3's whole training (100 cells) moves there if its pre-flight passes. P9.1 stays whole on the laptop.**
-- P9.3's cells are all new; no hz4x4 learner was ever trained. So no before/after contrast mixes the two GPUs.
-- P9.1's contrasts (`iql_t − iql` and the rest) are against cells trained on the laptop, and keep that hardware.
-- A campaign is never split across the two GPUs: the hardware would become a factor inside one comparison.
-- A27 names no hardware (checked in its row), so this is a disclosed methods fact, not a deviation.
+## The rulings
+- **The coordinator (`BRIEF_48` I.6):** P9.3's whole training (100 cells) runs on machine B; P9.1 stays whole on the laptop. A
+  campaign is never split across the two GPUs. A27 names no hardware, so this is a disclosed methods fact, not a deviation.
+- **The author, on the method (2026-10-28, night):**
+  - no USB stick; transfer through his Google Drive;
+  - no 1:1 copy where a download will do, because training on the RTX 3070 cannot be bit-identical to the laptop anyway, so pinned
+    versions are enough;
+  - the code from GitHub (`task/p9.3-a27c` pushed);
+  - the venv built on B from `requirements-frozen.txt`'s exact pins, and CityFlow built from the vendored tree;
+  - through Drive only what exists nowhere online: the eight hz4x4 corpora and the six Python 3.12.13 packages, with sha256
+    manifests checked on both sides;
+  - the venv checked by package versions and wheel hashes, not file by file.
+- **The author, on the gate (the same night):** the 2.3× speed rule is dropped, and P9.3 moves to B whatever its speed. Only a
+  pre-flight failure keeps it on the laptop: a test failing, a cell erroring or running out of memory, or the CPU cell differing from
+  the laptop's. The timings are still taken, to size B's sessions.
 
-## The target: everything identical except the GPU
-| Item | The laptop (machine A) | Machine B, after this procedure |
+## What machine B shares with the laptop, and how each item is checked
+| Item | On machine B | Checked by the pre-flight |
 |---|---|---|
-| OS | Ubuntu 26.04 LTS, glibc 2.43 (`2.43-2ubuntu2.4`) | Ubuntu 26.04 LTS (glibc reported by the pre-flight) |
-| Interpreter | `3.12.13 (main, May  6 2026, 18:46:41) [GCC 15.2.0]`, deadsnakes `3.12.13-1+resolute1` | the same packages, repacked from the laptop |
-| venv | `/home/filip/rltraffic/.venv`: the frozen record plus `py-spy` | the same files, checked one by one |
-| Code | run tree `/home/filip/rltraffic-p93-run-c` at `4dcbedc` | the same commit, from a git bundle |
-| Corpora | the eight `datasets_v11/cf_hz4x4__*` | the same files, checked one by one |
-| GPU | RTX 5080 Laptop, 16 GB, driver 610.74 | RTX 3070 Laptop, 8 GB, 100 W, driver 591.74 |
-| CPU | Intel Core Ultra 9 275HX, 16 threads | reported by the pre-flight |
+| OS | Ubuntu 26.04 (WSL2), the laptop's release | reported: glibc, kernel |
+| Python 3.12.13 | the laptop's own six deadsnakes packages (`3.12.13-1+resolute1`), repacked with `dpkg-repack`, via Drive | every installed file of each package, by sha256, equal to the laptop's (`laptop_python_debs.txt`); the version string |
+| The packages | from PyPI and the PyTorch cu128 index with `machine_b_pins.txt`: the frozen record's 52 pins, each with the sha256 of the one wheel the laptop has installed; pip 26.1.2 first | pip refuses any other file. `pip freeze` must equal `requirements-frozen.txt` line for line, its editable self-entry aside. Each package's installed library files, as its RECORD lists them, must equal the laptop's (`laptop_record_digests.txt`, 53 packages) |
+| CityFlow | built on B from the vendored `CityFlow/` | imports (its bytes differ; see below) |
+| Code | GitHub: `main`, and `task/p9.3-a27c` with the run tree at `4dcbedc` | the commit, a clean tree, both campaign modules' sha256 |
+| Corpora | Drive | every file against the manifest; the manifest against its committed sha256 `7d6232c8…` |
+| CPU arithmetic | MKL, torch, oneDNN and numpy held to the laptop's kernel level (AVX2), for every pre-flight step and every session | **the gate:** the 2-step CPU cell's canonical digest equals the laptop's `4c03f73d…`; B's own-kernel result is reported beside it |
+| GPU | RTX 3070 Laptop, 8 GB, 100 W cap | the one intended difference |
 
-**Why Ubuntu 26.04 and the laptop's own Python packages.** The author asked how to get exactly 3.12.13.
-- The deadsnakes PPA that installed it on the laptop now serves only 3.12.16.
-- On Ubuntu 24.04, `/usr/bin/python3.12` is the system's own 3.12.3, which the OS needs, so it cannot be replaced.
-- A source build of 3.12.13 gives the right version number but a different binary.
-- So the laptop's installed packages are repacked (`dpkg-repack`) and installed on Ubuntu 26.04, the laptop's release. The interpreter
-  is then the same binary, glibc the same release, and the copied venv (whose CityFlow was compiled on the laptop) loads unchanged.
+## Verified by the coordinator on the laptop, before machine B
+- **The wheels.** All 53 pinned wheels (the 52 and pip) were downloaded from the two indexes B will use. Each one's files equal the
+  laptop's installed files: version, file set, and every file's sha256 and size.
+  - The laptop's own installed files are unchanged since installation: 19,265 files checked against their RECORDs, 0 changed.
+  - **triton 3.6.0 is the one trap.** PyPI's file of that name has another hash (`74caf5e3…`) and is not the laptop's; the PyTorch
+    index's file is. Given the hashes, pip can only take the laptop's.
+- **A fresh venv, built with B's exact commands** (`/home/filip/b_install_test`):
+  - `pip freeze` equals the frozen record line for line, except the CityFlow line, which names the test's path.
+  - All 53 packages' installed files equal the laptop's.
+  - CityFlow builds and imports. Its binary differs from the laptop's installed one: even a rebuild on the laptop differs.
+- **The kernel level.** The laptop's CPU (Intel Core Ultra 9 275HX) has no AVX-512, and torch reports AVX2. The CPU cell gives the
+  same digest whether or not the four libraries are held to AVX2. So the setting changes nothing on the laptop, and on B it makes the
+  gate test the software rather than the CPU's instruction set.
+- **The pre-flight script, in QUICK mode on the laptop:** see "The coordinator's run of the pre-flight script" below.
 
-## Part A — on the laptop
-- **A1 (the author; needs sudo; about 2 minutes).** Repack the six Python packages into the package's `debs/`:
-  ```
-  sudo apt install -y dpkg-repack && cd /home/filip/transfer_b/debs && sudo dpkg-repack libpython3.12 libpython3.12-dev libpython3.12-stdlib python3.12 python3.12-dev python3.12-venv && sudo chown filip:filip ./*.deb && sha256sum ./*.deb > SHA256SUMS && cat SHA256SUMS
-  ```
-  It prints six lines, one per `.deb`.
-- **A2 (the coordinator; done).** The package `/home/filip/transfer_b`: the git bundle, the venv tar and the corpora tar with
-  per-file manifests, the laptop's reference files, the pre-flight script, a README, and `SHA256SUMS` (Part E).
-- **A3 (the author).** Copy `/home/filip/transfer_b` to a USB drive formatted **exFAT or NTFS**, not FAT32, because `venv.tar` is
-  7 GB. With the drive at `E:`:
-  ```
-  sudo mkdir -p /mnt/e && sudo mount -t drvfs E: /mnt/e; cp -r /home/filip/transfer_b /mnt/e/ && cd /mnt/e/transfer_b && sha256sum -c SHA256SUMS && (cd debs && sha256sum -c SHA256SUMS)
-  ```
-  Every line ends in `OK`. (The first part prints an error if the drive is already mounted; that is harmless.)
+## What the method gives up, plainly (the author's question)
+**Nothing that bears on a number in the paper.**
+- The interpreter is the laptop's binary, every installed file checked.
+- The 53 packages are the laptop's, every installed library file checked through its RECORD. That is what the file-by-file copy
+  proved for them.
+- The code and the corpora are identical, and the CPU arithmetic is the laptop's (the gate).
 
-## Part B — on machine B
-- **B1 (Windows PowerShell).** Install Ubuntu 26.04 as a NEW WSL distribution, with the user `filip`:
+**What the 1:1 copy would have shown and this does not:**
+1. **CityFlow's compiled extension** is rebuilt on B from the same vendored source, so its bytes differ. CityFlow takes no part in
+   training, and P9.3's evaluation runs on the laptop; on B, only the pre-flight's live tests use it.
+2. **Files outside the packages' own directories** are not compared: the console scripts in `.venv/bin` (written at install), the
+   `.pyc` caches (compiled from identical sources) and the editable project link. Training imports none of them as code.
+3. **The OS packages other than Python** (glibc's patch level and the like) are whatever Ubuntu 26.04 ships on B today. They are
+   reported, not equalized; the 1:1 copy did not equalize them either.
+
+**What limits reproducibility is unchanged by the method: B's GPU.** Its training cannot be bit-identical to the laptop's, so P9.3's
+checkpoints reproduce only on B's GPU model with this software. The paper names the machine for point 8.
+
+**If anything, the method adds something.** The frozen record's packages now have a public, hash-pinned installer
+(`machine_b_pins.txt`), proven equal to the laptop's installed files. The record itself is unchanged and still states what ran. The
+one piece that is not public is Python 3.12.13 itself: deadsnakes no longer serves it, so it travels as the laptop's own packages.
+
+## The steps
+### On the laptop
+- **L1 (WSL, about 3 minutes; run it once).** Repack the six Python packages into the Drive archive, which the coordinator has
+  already filled with the corpora and their manifest:
   ```
-  wsl --list --online
-  wsl --install -d Ubuntu-26.04
+  sudo apt install -y dpkg-repack && cd /home/filip/machine_b_drive && mkdir -p debs && cd debs && sudo dpkg-repack libpython3.12 libpython3.12-dev libpython3.12-stdlib python3.12 python3.12-dev python3.12-venv && sudo chown filip:filip ./*.deb && sha256sum ./*.deb > SHA256SUMS && cd /home/filip/machine_b_drive && tar -rf machine_b_drive.tar debs && sha256sum machine_b_drive.tar > machine_b_drive.tar.sha256 && cat machine_b_drive.tar.sha256 debs/SHA256SUMS
   ```
-  - Use the 26.04 name exactly as the list prints it.
-  - The 24.04 instance stays as it is, unused; every step below runs in the 26.04 one (`wsl -d Ubuntu-26.04`).
-  - If 26.04 is not listed, say so and stop.
-- **B2 (Ubuntu 26.04).**
+  - It prints seven lines: the archive's hash and the six packages'.
+  - If it stops partway, do not run it again; report it, because a second run would append the packages twice.
+- **L2 (the laptop's browser): upload to Google Drive.**
+  1. Open `https://drive.google.com`, signed in to the account with the free space.
+  2. Click **New → File upload**.
+  3. In the dialog's file-name box, type `\\wsl.localhost\Ubuntu\home\filip\machine_b_drive` and press Enter.
+  4. Select `machine_b_drive.tar` and `machine_b_drive.tar.sha256` (Ctrl+click), then click Open.
+  5. Wait for "2 uploads complete" (about 0.79 GB).
+
+### On machine B
+- **B1 (Windows PowerShell).** Run `wsl --list --online`, then `wsl --install -d Ubuntu-26.04`, using the name the list prints.
+  - Create the user `filip`.
+  - If 26.04 is not listed, stop and report.
+  - The 24.04 instance stays unused.
+- **B2 (in the Ubuntu 26.04 terminal, about 10 minutes):**
   ```
-  sudo apt update && sudo apt full-upgrade -y && sudo apt install -y git tmux && grep PRETTY_NAME /etc/os-release && nvidia-smi
+  sudo apt update && sudo apt full-upgrade -y && sudo apt install -y git tmux build-essential cmake && grep PRETTY_NAME /etc/os-release && nvidia-smi
   ```
-  It must print `Ubuntu 26.04` and the RTX 3070.
-- **B3. The package from the USB drive** (at `E:`), checked:
+- **B3 (B's browser): download from Google Drive.** Open `https://drive.google.com`.
+  - Right-click `machine_b_drive.tar` and choose Download. Drive says it cannot scan the file for viruses; click "Download anyway".
+  - Then right-click `machine_b_drive.tar.sha256` and choose Download.
+  - Download the two files one at a time: selecting both makes Drive zip them.
+  - If the browser saves a second copy as `machine_b_drive (1).tar`, delete the extra copy from Downloads.
+- **B4. Copy the files into WSL and check them:**
   ```
-  sudo mkdir -p /mnt/e && sudo mount -t drvfs E: /mnt/e; cp -r /mnt/e/transfer_b /home/filip/ && cd /home/filip/transfer_b && sha256sum -c SHA256SUMS && (cd debs && sha256sum -c SHA256SUMS)
+  mkdir -p /home/filip/machine_b_drive && cp /mnt/c/Users/*/Downloads/machine_b_drive.tar /mnt/c/Users/*/Downloads/machine_b_drive.tar.sha256 /home/filip/machine_b_drive/ && cd /home/filip/machine_b_drive && sha256sum -c machine_b_drive.tar.sha256 && tar -xf machine_b_drive.tar p93_corpora.sha256 debs && (cd debs && sha256sum -c SHA256SUMS)
   ```
-  Every line ends in `OK`.
-- **B4. The laptop's Python 3.12.13:**
+  Every line must end in `OK`.
+- **B5. The laptop's Python 3.12.13:**
   ```
-  sudo apt install -y /home/filip/transfer_b/debs/*.deb && sudo apt-mark hold libpython3.12 libpython3.12-dev libpython3.12-stdlib python3.12 python3.12-dev python3.12-venv && /usr/bin/python3.12 -c 'import sys; print(sys.version)'
+  sudo apt install -y /home/filip/machine_b_drive/debs/*.deb && sudo apt-mark hold libpython3.12 libpython3.12-dev libpython3.12-stdlib python3.12 python3.12-dev python3.12-venv && /usr/bin/python3.12 -c 'import sys; print(sys.version)'
   ```
   It must print `3.12.13 (main, May  6 2026, 18:46:41) [GCC 15.2.0]`.
-- **B5. The repository and the run tree:**
+- **B6. The code, from GitHub** (the repository is public; no login needed):
   ```
-  git clone -b main /home/filip/transfer_b/rltraffic.bundle /home/filip/rltraffic && cd /home/filip/rltraffic && git branch task/p9.3-a27c origin/task/p9.3-a27c && git config core.hooksPath /home/filip/rltraffic/githooks && git worktree add --detach /home/filip/rltraffic-p93-run-c 4dcbedc && git -C /home/filip/rltraffic-p93-run-c rev-parse HEAD
+  git clone https://github.com/RusieckiFilip/rltraffic.git /home/filip/rltraffic && cd /home/filip/rltraffic && git branch task/p9.3-a27c origin/task/p9.3-a27c && git config core.hooksPath /home/filip/rltraffic/githooks && git worktree add --detach /home/filip/rltraffic-p93-run-c 4dcbedc && git -C /home/filip/rltraffic-p93-run-c rev-parse HEAD
   ```
   It must print `4dcbedc25021634c199897beffeab4d806b9afc2`.
-- **B6. The venv and the corpora:**
+- **B7. The corpora:**
   ```
-  tar -C /home/filip/rltraffic -xf /home/filip/transfer_b/venv.tar && tar -C /home/filip/rltraffic -xf /home/filip/transfer_b/datasets_p93.tar && ls /home/filip/rltraffic/datasets_v11
+  tar -C /home/filip/rltraffic -xf /home/filip/machine_b_drive/machine_b_drive.tar datasets_v11 && cd /home/filip/rltraffic && sha256sum --quiet -c /home/filip/machine_b_drive/p93_corpora.sha256 && echo "corpora: all files OK"
   ```
-  It lists the eight `cf_hz4x4__` directories. Run nothing with the venv's Python before B7: its files are checked first.
-- **B7. The pre-flight: about 1 hour without a break.** In tmux:
+- **B8. The venv (about 15–30 minutes; downloads about 3.8 GB):**
   ```
-  tmux new -s preflight
-  bash /home/filip/transfer_b/machine_b_preflight.sh
+  cd /home/filip/rltraffic && /usr/bin/python3.12 -m venv .venv && .venv/bin/python -m pip install --require-hashes --no-deps -r docs/notes/machine_b/machine_b_pip.txt && .venv/bin/python -m pip install --require-hashes --no-deps -r docs/notes/machine_b/machine_b_pins.txt && (cd CityFlow && ../.venv/bin/python -m pip install --no-deps --no-build-isolation .) && .venv/bin/python -m pip install --no-deps --no-build-isolation -e . && .venv/bin/python -m pip freeze --exclude-editable | wc -l
+  ```
+  It ends by printing `53`.
+- **B9. The pre-flight: about 1 hour without a break.** Run `tmux new -s preflight`, then:
+  ```
+  bash /home/filip/rltraffic/docs/notes/machine_b/machine_b_preflight.sh
   ```
   - It is done when its last line is `PREFLIGHT EXIT 0`.
-  - If it prints `PREFLIGHT FAILED at step N`, it stops there. Do not repeat it; report.
-  - It writes only under `/home/filip/machine_b_out` and refuses to start if that exists.
-- **B8. Bring the result back** (about 100 MB):
-  ```
-  cp -r /home/filip/machine_b_out /mnt/e/
-  ```
-  Then on the laptop:
-  ```
-  cp -r /mnt/e/machine_b_out /home/filip/
-  ```
-  Then say "machine B pre-flight done".
+  - If it prints `PREFLIGHT FAILED at step N`, do not repeat it; report.
+- **B10. Results back through Google Drive:**
+  - In B's WSL:
+    ```
+    cd /home/filip && tar -cf machine_b_out.tar machine_b_out && sha256sum machine_b_out.tar > machine_b_out.tar.sha256
+    ```
+  - In B's browser: **New → File upload**, type `\\wsl.localhost\Ubuntu-26.04\home\filip` (the distro name `wsl -l` shows), select
+    the two `machine_b_out.tar*` files and upload them.
+  - In the laptop's browser: download each of the two files, one at a time.
+  - In the laptop's WSL:
+    ```
+    cp /mnt/c/Users/*/Downloads/machine_b_out.tar /mnt/c/Users/*/Downloads/machine_b_out.tar.sha256 /home/filip/ && cd /home/filip && sha256sum -c machine_b_out.tar.sha256 && tar -xf machine_b_out.tar && ls machine_b_out
+    ```
+  - Then say "machine B pre-flight done".
 
-## Part C — what the pre-flight checks, and what passes
-1. **Identity**, each a hard check:
-   - the venv's every file equals the laptop's;
-   - the interpreter string equals the laptop's, and so does `pip freeze`;
-   - torch sees CUDA, and CityFlow imports;
-   - the run tree is at `4dcbedc` and clean, with `hz4x4_phase_b.py` `5ee2edab…` and `hz4x4_ladder.py` `bd305b2c…`;
-   - the corpora's every file equals the laptop's.
-2. **P9.3's seven test files at `4dcbedc`:** 0 failed. Skips for data absent from machine B (the evaluation draws) are expected, and
-   the coordinator reads each reason.
-3. **The CUDA smoke:** all 20 (tier, arm) cells train 2 steps on the RTX 3070. That is every distinct training path on this machine
-   (§7 (4)). Seeds add no path.
-4. **One CPU cell's canonical digest beside the laptop's** (`4c03f73d…`): reported, not a gate. EQUAL means the CPU arithmetic is the
-   laptop's, bit for bit. DIFFERENT would come from the CPU, since every file is equal.
-5. **The timing** (each arm at 2,000 steps, as G3b timed the laptop): B's projected hours for the 100 cells, its factor against the
-   laptop's 30.67 planned hours, and the GPU's peak memory.
-   - **P9.3 moves to machine B unless either:**
-     - the factor exceeds about 2.3, when P9.3 would finish later on B than on the laptop after P9.1's ≈ 40.5 h; or
-     - any cell runs out of GPU memory in the smoke or the timing.
-   - Otherwise P9.3 trains on the laptop after P9.1, under I.4 as written.
-   - **The memory to expect,** measured on the laptop in the coordinator's QUICK run (the whole card; the desktop's own use is about
-     0.9 GB): `bc_m` 7.2 GB, `dt_nomix` 3.8 GB, `bc_top10_m` and `bc_top10_perix_m` 3.6 GB, `iql_m` 2.0 GB.
-     - `bc_m` therefore needs about 6.3 GB of B's 8 GB. It should fit, with little to spare.
+## What passes
+**P9.3 moves to machine B unless the pre-flight fails** (the author's gate):
+- a check of step 1 fails;
+- a test fails;
+- a smoke or timing cell errors or runs out of GPU memory;
+- or the CPU cell at the laptop's kernel level differs from the laptop's.
 
-## Part D — after the pre-flight (in `BRIEF_48` I.7)
-- **The sessions on B use I.4's command,** with two additions: the host's name and the GPU line are printed into the capture.
-  `--hours` is B's hours divided by the factor, because the frozen planner's estimates are the laptop's.
-- **Back to the laptop, tier by tier** (once a tier's 25 cells exist): the `train/`, `checkpoints/` and `train_logs/` files and the
-  capture, copied with a sha256 manifest made on B and checked on the laptop.
-  - The records' paths are the same on both machines (`/home/filip/rltraffic/...`), so the laptop's evaluation reads them unchanged.
-  - Nothing on the laptop is overwritten: P9.3 has trained nothing there.
-- **During a session on B, no GPU-heavy Windows program runs on B.** `bc_m` leaves under 2 GB of the card free; an out-of-memory error
-  fails the cell in flight and stops the session, though nothing finished is lost.
-- **G4 discloses it:** every training cell was trained on machine B (named, with its GPU, driver and power cap); evaluation ran on the
-  laptop's CPU.
+**The timings size B's sessions.** B's factor against the laptop's 30.67 planned hours sets each session's `--hours` (the frozen
+planner's estimates are the laptop's).
 
-## Part E — the package, and the coordinator's test of the pre-flight script
-**`/home/filip/transfer_b`** (7.6 GB before the author adds `debs/`). Its `SHA256SUMS` has sha256 `ce6959f7…75e6c5` and reads:
-```
-d7795734a041ca843ed208db9bfe2a163ab9e7bcc4003b100aa28cf135425fe6  README.txt
-c35474a8611068c956da89a18cd9e5d4a824257ba450e6183d3ea0f817908a50  rltraffic.bundle
-6f8e21dcd65a5bfc892e6736a0a23ac285265120235c8ec78782577f2b514aba  venv.tar
-48140a3cb5d4a72340d3e7341d596b9f32a533caf32d71e90d4b3d26004e5223  venv.sha256
-1f0cb68c7da70beed8f4b2be9ce1b8b858a92a4056a0f69bf27d78b07d72a912  datasets_p93.tar
-7d6232c815e501656a09f492c190990672e887b74b877a40b7e5074e832e22a0  datasets_p93.sha256
-2c843276572e8952f1c95a3a82e123bfde96d429267e9d179624edd98e25035d  machine_b_preflight.sh
-0d78d3aaae6f417f5ff5c6858fc3cf7641589c8ea444ab41282c43edc0440bc8  laptop_reference/cpu_cell_record.json
-7c1082bcacd56e991f9e30c3791329459290dbc1bfb64ebad281d3273a8b182b  laptop_reference/laptop_env.txt
-b49c13b434ff3d3b0add0490e9f8a6b46291a497d6615340a2da1752b77d2a22  laptop_reference/pip_freeze.txt
-2d1a63461c47a6522cda425dbae623ad4250eeed8470493301ee56b08a145884  laptop_reference/python_version.txt
-```
-- The bundle verifies: `main` `fd035f6`, `task/p9.3-a27c` `4dcbedc`.
-- `venv.sha256` covers 26,797 files and `datasets_p93.sha256` 2,408.
+**The memory to expect,** measured on the laptop (the whole card, about 0.9 GB of it the desktop's own): `bc_m` 7.2 GB, `dt_nomix`
+3.8 GB, `bc_top10_m` and `bc_top10_perix_m` 3.6 GB, `iql_m` 2.0 GB. So `bc_m` needs about 6.3 GB of B's 8 GB.
 
-**The script, tested on the laptop in QUICK mode** (2 smoke cells, 20 timing steps), 21:52–22:17, `PREFLIGHT EXIT 0`:
-- every identity check passed;
-- the seven files: 159 passed (681 s, beside another session's pytest);
-- 2 smoke cells trained;
-- the CPU cell's canonical digest, written into a different output root, was EQUAL to the reference;
-- the timing summary and the GPU trace were read.
+## The coordinator's run of the pre-flight script on the laptop (QUICK mode)
+On 2026-10-28, 22:53–23:07, with 2 smoke cells and 20 timing steps, the result was `PREFLIGHT EXIT 0`.
+- **Step 1:** every check passed. The six Python packages' files and the interpreter matched. `pip freeze` equalled the frozen record,
+  with the laptop's own `py-spy` tolerated in QUICK mode only. All 53 packages' files matched, torch saw CUDA on the RTX 5080, and the
+  run tree and the 2,408 corpus files matched. The CPU has no AVX-512 flags, and torch reports AVX2 both by its own choice and at the
+  laptop level.
+- **Step 2:** 159 passed (333 s).
+- **Step 3:** 2 cells trained.
+- **Step 4:** the CPU cell was EQUAL at the laptop's kernel level and at the machine's own.
+- **Step 5:** the summary and the per-arm peak memory were read (`bc_m` 7,215 MiB, `dt_nomix` 3,809 MiB).
 
-The test proves the script's mechanics on the machine whose files it compares against, not machine B.
+The run proves the script's mechanics on the machine its references come from, not machine B.
+
+## What follows (`BRIEF_48` I.7)
+- **B's session command** is I.4's, with these additions:
+  - the host's name and the GPU line printed into the capture;
+  - the four kernel-level settings;
+  - `--hours` set from B's factor.
+- **During a session on B, no GPU-heavy Windows program runs on B.** An out-of-memory error fails the cell in flight and stops the
+  session, but nothing finished is lost.
+- **Back to the laptop, tier by tier, through Drive.** Each tier's `train/`, `checkpoints/` and `train_logs/` and the capture travel
+  with a sha256 manifest made on B and checked on the laptop. The records' paths are the same on both machines.
+- **G4 discloses** that every training cell ran on machine B (named, with its GPU, driver and power cap) and that evaluation ran on
+  the laptop's CPU.

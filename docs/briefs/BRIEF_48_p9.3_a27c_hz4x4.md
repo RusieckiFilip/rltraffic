@@ -848,3 +848,13 @@ had not started on the laptop.
   - Each finished tier comes back to the laptop with a sha256 manifest made on B.
   - G4 discloses the training machine.
 - **For you now:** nothing changes in I.5. Do nothing on machine B.
+- **Later the same night: the author's rulings, which replace the method above** (`docs/notes/MACHINE_B.md`, rewritten):
+  - **Method.** The code comes from GitHub: `task/p9.3-a27c` is pushed, and the run tree is at `4dcbedc`. The venv is built on B from
+    `requirements-frozen.txt`'s exact pins, each with the sha256 of the wheel the laptop has installed, and CityFlow is built from the
+    vendored tree. Only the eight corpora and the six Python 3.12.13 packages travel, through Google Drive, with sha256 manifests
+    checked on both sides.
+  - **Gate.** There is no speed rule: your training moves to B whatever B's speed. Only a pre-flight failure keeps it on the laptop:
+    a test failing, a cell erroring or running out of memory, or the CPU cell differing from the laptop's. The timings size B's
+    sessions.
+  - **CPU arithmetic.** On B, MKL, torch, oneDNN and numpy are held to the laptop's AVX2 kernel level, in the pre-flight and in every
+    session. The laptop's CPU has no AVX-512, and there the setting leaves the CPU cell's digest unchanged.
