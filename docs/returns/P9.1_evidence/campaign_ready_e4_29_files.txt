@@ -1,0 +1,21 @@
+# The trial's 26 files and E.4's three new test files (29), one pytest process, OMP/MKL 1, corpus and output roots set,
+# HEAD held and the tree clean (git status --untracked-files=no empty) for each run.
+
+# At c58afb8 (THE SESSIONS COMMIT): load 1.74 -> 2.34
+SKIPPED [1] tests/test_method_tier_grid_a27.py:443: maxpressure_bc_seed101.pt was trained on CUDA; a CPU retrain differs for a reason that is not the change under test
+SKIPPED [5] tests/test_corrective_report_load.py:203: T-regress needs the committed P9.1 artifacts and the campaign's run directories (RLTRAFFIC_OUTPUT_ROOT, RLTRAFFIC_CORPUS_V11, RLTRAFFIC_D4RL_OUT)
+SKIPPED [1] tests/test_tier_sweep.py:1447: the campaign output is not present on this machine
+SKIPPED [1] tests/test_admission_probe.py:999: materialised draws not found at /home/filip/rltraffic-p91/scenarios/draws: set RLTRAFFIC_DRAWS to a scenarios/draws directory to run the draw-backed P8.4a tests
+SKIPPED [1] tests/test_engine_att_reference.py:1001: materialised draws not found at /home/filip/rltraffic-p91/scenarios/draws: set RLTRAFFIC_DRAWS to a scenarios/draws directory to run the draw-backed Gate 0 tests
+SKIPPED [1] tests/test_engine_att_reference.py:1150: materialised draws not found at /home/filip/rltraffic-p91/scenarios/draws: set RLTRAFFIC_DRAWS to a scenarios/draws directory to run the draw-backed Gate 0 tests
+SKIPPED [1] tests/test_engine_att_reference.py:1186: materialised draws not found at /home/filip/rltraffic-p91/scenarios/draws: set RLTRAFFIC_DRAWS to a scenarios/draws directory to run the draw-backed Gate 0 tests
+SKIPPED [1] tests/test_engine_att_reference.py:1223: materialised draws not found at /home/filip/rltraffic-p91/scenarios/draws: set RLTRAFFIC_DRAWS to a scenarios/draws directory to run the draw-backed Gate 0 tests
+SKIPPED [1] tests/test_engine_att_reference.py:1270: materialised draws not found at /home/filip/rltraffic-p91/scenarios/draws: set RLTRAFFIC_DRAWS to a scenarios/draws directory to run the draw-backed Gate 0 tests
+SKIPPED [1] tests/test_engine_att_reference.py:1333: materialised draws not found at /home/filip/rltraffic-p91/scenarios/draws: set RLTRAFFIC_DRAWS to a scenarios/draws directory to run the draw-backed Gate 0 tests
+SKIPPED [3] tests/test_iql_correction.py:74: /home/filip/rltraffic-p91/scenarios/draws/cityflow_grid4x4/draw_1000/cityflow.json not found: set RLTRAFFIC_DRAWS to the main tree's copy (it is gitignored)
+871 passed, 17 skipped in 267.55s (0:04:27)
+
+# Earlier, at 11476c0: load 0.94 -> 1.36
+863 passed, 17 skipped in 277.99s (0:04:37)
+# At a71e175 (the evaluate session's opening line): load 0.87 -> 1.16
+863 passed, 17 skipped in 231.44s (0:03:51)

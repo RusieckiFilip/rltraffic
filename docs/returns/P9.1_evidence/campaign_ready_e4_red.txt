@@ -1,0 +1,58 @@
+# E.4's tests run red before the implementation (tests/test_corrective_round_sessions.py, test_att_rederivation_should_stop.py,
+# test_corrective_round_driver.py), counted by failure reason; OMP/MKL 1
+      6 E       AssertionError: assert (2 == 2 and 'REFUSED: P91_SESSION_HOURS must be' in 'REFUSED: unknown stage train\n')
+      4 E       AttributeError: module 'offline.corrective_round' has no attribute 'stop_file'
+      3 E       AssertionError: no evaluate branch
+      2 E       TypeError: train() got an unexpected keyword argument 'hours'
+      2 E       TypeError: run_campaign() got an unexpected keyword argument 'should_stop'
+      1 FAILED tests/test_corrective_round_sessions.py::test_the_train_cli_hands_its_hours_and_max_runs_and_plan_only_trains_nothing
+      1 FAILED tests/test_corrective_round_sessions.py::test_the_stop_file_ends_the_session_after_the_run_in_flight
+      1 FAILED tests/test_corrective_round_sessions.py::test_the_rolling_clis_hand_their_deadline_on
+      1 FAILED tests/test_corrective_round_sessions.py::test_the_planned_seconds_are_the_pre_flights_figures_labelled_planning_estimates
+      1 FAILED tests/test_corrective_round_sessions.py::test_the_old_cells_and_p3a_references_end_between_units
+      1 FAILED tests/test_corrective_round_sessions.py::test_the_evaluate_stage_refuses_while_any_training_run_is_missing
+      1 FAILED tests/test_corrective_round_sessions.py::test_no_train_or_evaluate_session_passes_its_check_while_the_stop_file_exists[train]
+      1 FAILED tests/test_corrective_round_sessions.py::test_no_train_or_evaluate_session_passes_its_check_while_the_stop_file_exists[evaluate]
+      1 FAILED tests/test_corrective_round_sessions.py::test_no_session_starts_while_the_stop_file_exists_and_the_code_never_deletes_it
+      1 FAILED tests/test_corrective_round_sessions.py::test_max_runs_caps_a_session
+      1 FAILED tests/test_corrective_round_sessions.py::test_an_evaluation_session_ends_between_cells_at_the_stop_file_or_its_deadline
+      1 FAILED tests/test_corrective_round_sessions.py::test_a_session_trains_exactly_its_plan_says_so_and_the_next_resumes_from_disk
+      1 FAILED tests/test_corrective_round_sessions.py::test_a_plan_is_the_next_missing_runs_that_fit_its_hours_the_first_always_included
+      1 FAILED tests/test_corrective_round_sessions.py::test_a_cell_stopped_inside_route_ii_records_no_p3a_and_says_why
+      1 FAILED tests/test_corrective_round_driver.py::test_the_evaluate_stage_declares_the_evaluation_once_before_any_shard_and_shards_the_old_cells
+      1 FAILED tests/test_corrective_round_driver.py::test_the_campaign_stage_is_retired_and_points_to_train_and_evaluate
+      1 FAILED tests/test_corrective_round_driver.py::test_no_session_starts_while_the_stop_file_exists_and_the_driver_never_removes_it
+      1 FAILED tests/test_corrective_round_driver.py::test_every_worker_that_rolls_cityflow_episodes_runs_under_the_restart_loop_and_nothing_else_does
+      1 FAILED tests/test_corrective_round_driver.py::test_every_refusal_precedes_the_token_and_the_token_is_consumed_before_any_stage
+      1 FAILED tests/test_corrective_round_driver.py::test_every_driver_run_a_test_makes_names_a_machine_path_only_in_an_assignment
+      1 FAILED tests/test_corrective_round_driver.py::test_an_evaluate_session_says_complete_only_when_the_status_computed_from_disk_says_so
+      1 FAILED tests/test_corrective_round_driver.py::test_an_evaluate_session_ends_between_units_at_its_deadline_or_the_stop_file
+      1 FAILED tests/test_corrective_round_driver.py::test_a_train_session_plans_trains_and_summarises_under_its_own_token
+      1 FAILED tests/test_corrective_round_driver.py::test_a_train_session_keeps_a_unix_time_gpu_trace_from_before_its_training_to_its_end
+      1 FAILED tests/test_corrective_round_driver.py::test_a_bad_session_hours_is_refused_before_anything_runs[abc]
+      1 FAILED tests/test_corrective_round_driver.py::test_a_bad_session_hours_is_refused_before_anything_runs[1.5h]
+      1 FAILED tests/test_corrective_round_driver.py::test_a_bad_session_hours_is_refused_before_anything_runs[0]
+      1 FAILED tests/test_corrective_round_driver.py::test_a_bad_session_hours_is_refused_before_anything_runs[0.0]
+      1 FAILED tests/test_corrective_round_driver.py::test_a_bad_session_hours_is_refused_before_anything_runs[.]
+      1 FAILED tests/test_corrective_round_driver.py::test_a_bad_session_hours_is_refused_before_anything_runs[-1]
+      1 FAILED tests/test_att_rederivation_should_stop.py::test_the_keyword_defaults_to_none
+      1 FAILED tests/test_att_rederivation_should_stop.py::test_it_is_asked_before_every_episode_and_a_false_changes_nothing
+      1 FAILED tests/test_att_rederivation_should_stop.py::test_a_true_ends_the_campaign_between_episodes_and_the_next_call_resumes_from_disk
+      1 E       ValueError: substring not found
+      1 E       TypeError: train() got an unexpected keyword argument 'max_runs'
+      1 E       TypeError: roll_old_cells() got an unexpected keyword argument 'deadline_unix'
+      1 E       KeyError: 'should_stop'
+      1 E       AttributeError: module 'offline.corrective_round' has no attribute 'session_plan'
+      1 E       AttributeError: module 'offline.corrective_round' has no attribute 'PLANNED_RUN_SECONDS'
+      1 E       AssertionError: no train branch
+
+# E.4-2d's scoping fix (c58afb8), its two new driver tests run red on 11476c0's driver (+ a71e175's echo line), OMP/MKL 1:
+PASSED tests/test_corrective_round_driver.py::test_the_stop_file_refuses_the_train_and_evaluate_sessions_and_leaves_collect_and_d4rl_unchanged[train-expected0]
+PASSED tests/test_corrective_round_driver.py::test_the_stop_file_refuses_the_train_and_evaluate_sessions_and_leaves_collect_and_d4rl_unchanged[evaluate-expected1]
+FAILED tests/test_corrective_round_driver.py::test_the_session_hours_change_nothing_for_the_collect_and_d4rl_stages[collect-0]
+FAILED tests/test_corrective_round_driver.py::test_the_session_hours_change_nothing_for_the_collect_and_d4rl_stages[collect-abc]
+FAILED tests/test_corrective_round_driver.py::test_the_session_hours_change_nothing_for_the_collect_and_d4rl_stages[d4rl-0]
+FAILED tests/test_corrective_round_driver.py::test_the_session_hours_change_nothing_for_the_collect_and_d4rl_stages[d4rl-abc]
+FAILED tests/test_corrective_round_driver.py::test_the_stop_file_refuses_the_train_and_evaluate_sessions_and_leaves_collect_and_d4rl_unchanged[collect-expected2]
+FAILED tests/test_corrective_round_driver.py::test_the_stop_file_refuses_the_train_and_evaluate_sessions_and_leaves_collect_and_d4rl_unchanged[d4rl-expected3]
+6 failed, 2 passed, 38 deselected in 0.23s

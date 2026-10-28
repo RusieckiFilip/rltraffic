@@ -1,0 +1,71 @@
+# BRIEF_46 Amendment E, E.4-4 at 11476c0: the training path against cb61ee7 (the campaign's runs 1-3), by the two methods of
+# tests/test_corrective_round_training_path.py; script: campaign_ready_e4_identity_evidence.py.txt
+STATIC, offline/corrective_round.py, roots ['train_run', '_hz1x1_inputs', '_grid_inputs', 'training_runs', 'training_cells', 'run_status', 'recipe_fields', 'checkpoint_path', 'run_record_path']: 21 definitions in the closure; the same names at cb61ee7: True; identical source: 21 of 21
+  BUDGET_TIERS, CLOCK_LABEL, Cell, GRID_TIERS, HZ1X1_IQL_T_TIERS, LABELS, RUNS_DIR, RUN_DIR, RUN_RECORD_FORMAT_VERSION, Roots, _grid_inputs, _hz1x1_inputs, _write_once, assert_target, checkpoint_path, recipe_fields, run_record_path, run_status, train_run, training_cells, training_runs
+SESSION: runs #11 (hz1x1:iql_t@maxpressure seed 101) to #None (hz1x1:bc@maxpressure seed 101): 3 runs, 0.20 planned hours; 3 runs missing in all, 0 done (planned hours are planning estimates (the pre-flight's per-arm figures), not measurements of this campaign; each run's record carries its measured seconds)
+SESSION PLAN {"count": 3, "done": 0, "first": {"cell": "hz1x1:iql_t@maxpressure", "run": 11, "seed": 101}, "hours_bound": null, "last": {"cell": "hz1x1:bc@maxpressure", "run": null, "seed": 101}, "max_runs": null, "missing": 3, "note": "planned hours are planning estimates (the pre-flight's per-arm figures), not measurements of this campaign; each run's record carries its measured seconds", "planned_hours": 0.20254166666666665, "planned_seconds": 729.15, "runs": [{"cell": "hz1x1:iql_t@maxpressure", "run": 11, "seed": 101}, {"cell": "hz1x1:dt@maxpressure", "run": null, "seed": 101}, {"cell": "hz1x1:bc@maxpressure", "run": null, "seed": 101}]}
+TRAIN hz1x1:iql_t@maxpressure seed 101 -> /tmp/claude-1000/e4/trace/hz/output/p9_1_runs/checkpoints/hz1x1/maxpressure_iql_t_seed101.pt
+transitions 12 of 24
+  done in 0.7s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN hz1x1:dt@maxpressure seed 101 -> /tmp/claude-1000/e4/trace/hz/output/p9_1_runs/checkpoints/hz1x1/maxpressure_dt_seed101.pt
+  done in 0.9s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN hz1x1:bc@maxpressure seed 101 -> /tmp/claude-1000/e4/trace/hz/output/p9_1_runs/checkpoints/hz1x1/maxpressure_bc_seed101.pt
+  done in 0.1s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+SESSION: 3 runs trained in 1.8 s (their records' clock); ended by the plan; 0 runs missing, 0.00 planned hours left
+SESSION SUMMARY {"ended_by": "the plan", "first": {"cell": "hz1x1:iql_t@maxpressure", "run": 11, "seconds": 0.742011308670044, "seed": 101}, "last": {"cell": "hz1x1:bc@maxpressure", "run": null, "seconds": 0.14646244049072266, "seed": 101}, "missing_left": 0, "next_missing": null, "note": "planned hours are planning estimates (the pre-flight's per-arm figures), not measurements of this campaign; each run's record carries its measured seconds", "planned_hours_left": 0.0, "seconds_trained": 1.8175849914550781, "trained": [{"cell": "hz1x1:iql_t@maxpressure", "run": 11, "seconds": 0.742011308670044, "seed": 101}, {"cell": "hz1x1:dt@maxpressure", "run": null, "seconds": 0.9291112422943115, "seed": 101}, {"cell": "hz1x1:bc@maxpressure", "run": null, "seconds": 0.14646244049072266, "seed": 101}]}
+SESSION: runs #191 (grid4x4:bc_m@random seed 101) to #206 (grid4x4:iql_m@random seed 101): 2 runs, 0.76 planned hours; 2 runs missing in all, 0 done (planned hours are planning estimates (the pre-flight's per-arm figures), not measurements of this campaign; each run's record carries its measured seconds)
+SESSION PLAN {"count": 2, "done": 0, "first": {"cell": "grid4x4:bc_m@random", "run": 191, "seed": 101}, "hours_bound": null, "last": {"cell": "grid4x4:iql_m@random", "run": 206, "seed": 101}, "max_runs": null, "missing": 2, "note": "planned hours are planning estimates (the pre-flight's per-arm figures), not measurements of this campaign; each run's record carries its measured seconds", "planned_hours": 0.7584166666666667, "planned_seconds": 2730.3, "runs": [{"cell": "grid4x4:bc_m@random", "run": 191, "seed": 101}, {"cell": "grid4x4:iql_m@random", "run": 206, "seed": 101}]}
+TRAIN grid4x4:bc_m@random seed 101 -> /tmp/claude-1000/e4/trace/grid/output/p9_1_runs/checkpoints/grid4x4/grid4x4_random_bc_m_seed101.pt
+  done in 1.7s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+TRAIN grid4x4:iql_m@random seed 101 -> /tmp/claude-1000/e4/trace/grid/output/p9_1_runs/checkpoints/grid4x4/grid4x4_random_iql_m_seed101.pt
+  transitions 192
+  done in 6.9s (uncontrolled; no Best Performance regime, no canary; not a benchmark)
+SESSION: 2 runs trained in 8.6 s (their records' clock); ended by the plan; 0 runs missing, 0.00 planned hours left
+SESSION SUMMARY {"ended_by": "the plan", "first": {"cell": "grid4x4:bc_m@random", "run": 191, "seconds": 1.7338414192199707, "seed": 101}, "last": {"cell": "grid4x4:iql_m@random", "run": 206, "seconds": 6.863200902938843, "seed": 101}, "missing_left": 0, "next_missing": null, "note": "planned hours are planning estimates (the pre-flight's per-arm figures), not measurements of this campaign; each run's record carries its measured seconds", "planned_hours_left": 0.0, "seconds_trained": 8.597042322158813, "trained": [{"cell": "grid4x4:bc_m@random", "run": 191, "seconds": 1.7338414192199707, "seed": 101}, {"cell": "grid4x4:iql_m@random", "run": 206, "seconds": 6.863200902938843, "seed": 101}]}
+
+DYNAMIC: a real two-step training through every trainer branch; 15 repository files executed, 169 distinct functions
+  agent/DTAgent.py: 11 functions, byte-identical to cb61ee7
+    DTConfig.__post_init__, DTConfig.to_json_obj, DecisionTransformer.__init__, DecisionTransformer.forward, _Block.__init__, _Block.forward, _SelfAttention.__init__, _SelfAttention.forward, _attention_bias, action_loss, masked_action_logits
+  agent/OfflineBaselines.py: 7 functions, byte-identical to cb61ee7
+    MLPTrunk.__init__, MLPTrunk.forward, TrunkConfig.__post_init__, TrunkConfig.to_json_obj, _FeedForwardBlock.__init__, _FeedForwardBlock.forward, canonical_state_dict_digest
+  agent/SpatialDTAgent.py: 13 functions, byte-identical to cb61ee7
+    <module>, SpatialDTAgent, SpatialDTConfig, SpatialDTConfig.__post_init__, SpatialDTConfig.to_json_obj, SpatialDecisionTransformer, SpatialDecisionTransformer.__init__, SpatialDecisionTransformer.forward, _NodeContext, _SpatialBlock, _SpatialBlock.__init__, _SpatialBlock.forward, spatial_attention_bias
+  agent/utils/utils.py: 1 functions, byte-identical to cb61ee7
+    Utils.seed_everything
+  offline/a27_arms.py: 2 functions, byte-identical to cb61ee7
+    _check_scenario, recipe
+  offline/corrective_round.py: 27 functions, DIFFERS (corrective_round: compared statically)
+    Cell.key, Roots.run_root, Roots.runs_root, SessionPlan.as_json, SessionPlan.describe, _grid_inputs, _hz1x1_inputs, _label, _run_labels, _write_once, assert_target, assert_target.<locals>.<genexpr>, checkpoint_path, planned_seconds, recipe_fields, run_record_path, run_status, session_plan, session_plan.<locals>.<genexpr>, session_summary, session_summary.<locals>.<genexpr>, stop_file, train, train_run, training_cells, training_runs, training_runs.<locals>.<genexpr>
+  offline/dataset.py: 17 functions, byte-identical to cb61ee7
+    NormalizationStats.normalize_state, NormalizationStats.to_json_obj, TrajectoryWindowDataset.__getitem__, TrajectoryWindowDataset.__init__, TrajectoryWindowDataset.__init__.<locals>.<genexpr>, TrajectoryWindowDataset.__len__, TrajectoryWindowDataset._check_stream_shapes, TrajectoryWindowDataset._fit_stats, TrajectoryWindowDataset._fit_stats.<locals>.<genexpr>, TrajectoryWindowDataset._require_stats, TrajectoryWindowDataset.episode_records, TrajectoryWindowDataset.groups, TrajectoryWindowDataset.item_meta, TrajectoryWindowDataset.stats, _returns_to_go, _supported_format_versions, _supported_format_versions.<locals>.<genexpr>
+  offline/dt_gate.py: 11 functions, byte-identical to cb61ee7
+    _git_tree_is_dirty, _partition_reachable_commits, _sha256_file, _sha256_file.<locals>.<lambda>, build_training_dataset, runtime_provenance, stack_dataset, train_dt, train_dt.<locals>.<lambda>, window_means, window_means.<locals>.<genexpr>
+  offline/joint_windows.py: 2 functions, byte-identical to cb61ee7
+    JointWindowIndex.n_nodes, build_joint_index
+  offline/method_tier_grid.py: 18 functions, byte-identical to cb61ee7
+    TrainingInputs.table, assert_declaration_matches_corpus, assert_declaration_matches_corpus.<locals>.<genexpr>, canonical_digest_of, filter_transitions_to_streams, recomputed_target_and_scale, statistics_digest, stratified_one_per_draw, stratified_one_per_draw.<locals>.<lambda>, tier_dataset, tier_dirs, tier_dirs.<locals>.<genexpr>, tier_spec, top_decile_streams, top_decile_streams.<locals>.<lambda>, training_inputs, training_streams, transition_stream_keys
+  offline/offline_baselines.py: 26 functions, byte-identical to cb61ee7
+    StreamReturn.key, TransitionTable.__len__, TransitionTable.select, TransitionTable.to, _awr_weight, _bc_diagnostics, _curve, _diagnostic_rows, _iql_diagnostics, _prepare_checkpoint_path, _resolve_group, _schedule, _schedule.<locals>.<lambda>, _target_forward, build_transitions, filter_stacked_to_streams, iql_reward_scale, iql_targets, stream_returns, thread_regime, top_return_streams, top_return_streams.<locals>.<lambda>, train_bc, train_bc.<locals>.<genexpr>, train_iql, train_iql.<locals>.<genexpr>
+  offline/roadnet_graph.py: 2 functions, byte-identical to cb61ee7
+    AdjacencySpec.attention_mask, AdjacencySpec.n_nodes
+  offline/spatial_mixing.py: 1 functions, byte-identical to cb61ee7
+    per_node_prompts
+  offline/tier_sweep.py: 29 functions, byte-identical to cb61ee7
+    BaselinesInputs.table, EpisodeRef.key, _assert_random_fresh_is_distinct, _checkpoint_name, assert_process_regime, assert_writable, baseline_stream_selections, baseline_stream_selections.<locals>.<genexpr>, baselines_inputs, episodes_in, episodes_in.<locals>.<genexpr>, iql_transition_table, iql_transition_table.<locals>.<genexpr>, lr_multiplier, node_ids_from_corpus, node_ids_from_corpus.<locals>.<genexpr>, per_intersection_top_streams, per_intersection_top_streams.<locals>.<lambda>, selected_episodes, selected_episodes.<locals>.<lambda>, streams_of_episodes, streams_of_episodes.<locals>.<genexpr>, tier_dataset, tier_dirs, tier_parts, tier_spec, train_tier_dt, train_tier_dt.<locals>.<lambda>, warmup_for
+  offline/trajectory_logger.py: 2 functions, byte-identical to cb61ee7
+    load_episode, load_episode.<locals>.<genexpr>
+
+TRAIN'S INPUT BLOCK (from `dt_grid = ...` to the train_run call, 13 lines): identical to cb61ee7's: True
+            dt_grid = cell.scenario == "grid4x4" and cell.arm == "dt_nomix"
+            key = (cell.scenario, cell.tier, dt_grid)
+            if key not in cache:
+                if cell.scenario == "hz1x1":
+                    cache[key] = _hz1x1_inputs(roots, cell.tier)
+                elif dt_grid:
+                    from offline.tier_sweep import _assert_random_fresh_is_distinct, tier_parts
+    
+                    _assert_random_fresh_is_distinct(cell.tier, roots.corpus_root)
+                    cache[key] = tier_parts(cell.tier, roots.corpus_root)
+                else:
+                    cache[key] = _grid_inputs(roots, cell.tier)
+            train_run(roots, cell, seed, cache[key], device=resolved, log_every=log_every)
