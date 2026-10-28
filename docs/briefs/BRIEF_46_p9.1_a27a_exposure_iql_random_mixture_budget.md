@@ -686,3 +686,46 @@ That is ten sessions at 6 h. Seven-hour training sessions would make about nine.
 ## E.6 Meanwhile
 The run tree `/home/filip/rltraffic-p91-run-c` stays, because d4rl runs from it. `output/p9_1*` stays untouched. P9.2's ten records come
 in T1.
+
+## E.7 2026-10-28, evening: session 1 (`d4rl`) COMPLETE; the result VERIFIED; the GPU order
+**The capture** (`output/p9_1_runs/d4rl_capture.txt`): the token line, then `d4rl: ok` and `stage d4rl 20261028T192029Z: COMPLETE
+(outputs /home/filip/d4rl-calib-out/p9_1)`. Five seeds trained from 20:20:29 to 20:47:25, about 5.3 min each.
+
+**Verified by the coordinator, from the artifact** `p8_3_train_k64_40000_iql_t.json` (sha256 `e168b203…`):
+- `target_dropout` `off`; 40,000 steps; seeds 101–505; 10 evaluation episodes per seed.
+- `runtime.git_commit` `cb61ee7`, not dirty; the same GPU, CUDA and torch as the registered run.
+- `registered_contrasts_reproduced` true. The registered `bc_vs_iql` re-reads as −542.0464 [−1668.0995, 584.0066].
+- **The three new contrasts were recomputed by the coordinator with the standard library** (per-seed means of the episode returns;
+  mean ± 1.96 · sd / √5). They equal the artifact's:
+
+  | Contrast (left − `iql_t`, raw return) | Mean [95 % CI] | Seeds won by the left arm |
+  |---|---|---|
+  | `bc_vs_iql_t` | **+3554.20 [3163.06, 3945.34]** | 5 of 5 |
+  | `bc_top10_vs_iql_t` | +1629.50 [1172.01, 2086.98] | 5 of 5 |
+  | `iql_vs_iql_t` | +4096.25 [3134.56, 5057.93] | 5 of 5 |
+
+- **`iql_t`'s per-seed returns:** −58.82, −80.99, −57.17, −57.60, −57.17 (mean −62.35). The registered `iql`'s were 4814.13, 4544.28,
+  2372.29, 4956.87 and 3481.90.
+- **The training was unstable on every seed, in the artifact's diagnostics and the log.** For seed 101:
+  - the Q loss rose from 0.12 at step 5,000 to 60.03 at 40,000, against the registered run's 0.08 to 0.56;
+  - the V loss rose from 0.03 to 7.71, against 0.03 to 0.19;
+  - the advantage mean is −3.55 (registered −0.14), and 49.7 % of AWR weights are near zero (registered 5.0 %).
+  - Seed 303 is the same: Q loss 96.83, near-zero weights 50.0 %.
+
+  These are observations. **No cause is claimed:** the registered design changes only the target forwards' module mode.
+- **The traffic runs so far do not show the same signature.** Runs 1–3 (hz1x1 `iql_t@random`) have Q losses FALLING, from about 2,960
+  at step 5,000 to 59–91 at 40,000 (`output/p9_1_runs/logs/20261028T151149Z/train.log`). Their returns are not evaluated yet.
+- **Secured** (§7, *an output that exists in one place is not a record*): the JSON and the five checkpoints were copied to
+  `output/p9_1_runs/d4rl_outputs_20261028T192029Z/`, with `SHA256SUMS.source` re-verified after the copy (6 of 6 OK).
+
+**What it means for the paper.** A27(c)'s registered sentence reads *"…on the D4RL calibration the BC − IQL difference in raw return
+becomes Δ′ [CI], against −542.05 [−1668.10, 584.01] before the fix."* Δ′ is **+3554.20 [3163.06, 3945.34]**. Nothing in the procedure
+changes. The traffic `iql_t` arms run as registered.
+
+**For G4** (no new code path):
+- `p9_1_iql_targets.json`'s `d4rl` section takes this artifact byte for byte, as planned (J1(c)), cited by its sha256.
+- Beside it, descriptively and labelled as diagnostics (not registered statistics), put each D4RL cell's final Q and V losses and AWR
+  near-zero fraction for `iql` and `iql_t`. Do the same for every traffic `iql_t` run whose record or log carries them.
+
+**The GPU order changed** (`BRIEF_48` I.3-4). P9.3's training sessions run while you build E.4. Your first training session goes next
+once Amendment F clears it, after the P9.3 session then running ends. Report "P9.1 sessions ready" as E.4 says.
