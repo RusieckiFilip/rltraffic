@@ -1,0 +1,38 @@
+[
+ {
+  "name": "G4-1 the trace's gaps not handed to the pause flagging",
+  "file": "offline/corrective_report.py",
+  "old": "runs[cid] = tuple(flag_paused_runs(entries, gaps, spans))",
+  "new": "runs[cid] = tuple(flag_paused_runs(entries, [], spans))",
+  "tests": [
+   "tests/test_corrective_report_fixture_tree.py"
+  ]
+ },
+ {
+  "name": "G4-2 the mixture references built from swapped components",
+  "file": "offline/corrective_report.py",
+  "old": "cells[cid] = constructed_mixture_reference(roots.repo_root, tier, cells[\"p4_6:behaviour@mappo1000\"],\n                                                   cells[\"p4_6:behaviour@random\"])",
+  "new": "cells[cid] = constructed_mixture_reference(roots.repo_root, tier, cells[\"p4_6:behaviour@random\"],\n                                                   cells[\"p4_6:behaviour@mappo1000\"])",
+  "tests": [
+   "tests/test_corrective_report_fixture_tree.py"
+  ]
+ },
+ {
+  "name": "G4-3 a new cell's records short of one episode",
+  "file": "offline/corrective_report.py",
+  "old": "_relative(roots, cr.route_i_output(roots, cell)), rows)\n        records[cid] = rows\n",
+  "new": "_relative(roots, cr.route_i_output(roots, cell)), rows)\n        records[cid] = rows[1:]\n",
+  "tests": [
+   "tests/test_corrective_report_fixture_tree.py"
+  ]
+ },
+ {
+  "name": "G4-4 hz1x1's random-tier IQL wired to fixedtime's old cell",
+  "file": "offline/corrective_report.py",
+  "old": "\"random\": \"p4_6:iql@random\"",
+  "new": "\"random\": \"p4_6:iql@fixedtime\"",
+  "tests": [
+   "tests/test_corrective_report_fixture_tree.py"
+  ]
+ }
+]
