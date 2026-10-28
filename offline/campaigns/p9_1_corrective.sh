@@ -13,8 +13,8 @@
 #    section 7 rule (5)): each session takes its OWN token (output/p9_1_runs/TOKEN_<stage>, created by the author with
 #    `touch`; consumed by `rm` after every refusal has passed), says first how many hours it runs (P91_SESSION_HOURS,
 #    default 6), ends by itself between units of work at that bound or when output/p9_1_runs/STOP exists, and the next
-#    session resumes from disk, skipping every finished unit and re-running none.  While STOP exists no session starts;
-#    nothing here creates or deletes it.  Stages:
+#    session resumes from disk, skipping every finished unit and re-running none.  While STOP exists no train or
+#    evaluate session starts (collect and d4rl start as before: E.4-2d); nothing here creates or deletes it.  Stages:
 #      collect    CPU, ~15 min (done 2026-10-16): collect-random-fresh on hz1x1 and grid4x4, then the declarations.
 #      train      GPU, one session = P91_SESSION_HOURS of PLANNED runs: `corrective_round train --hours` plans the next
 #                 missing runs in training_runs() order that fit (planning estimates, the pre-flight's per-arm figures;
@@ -93,8 +93,10 @@ case "$STAGE" in collect|train|evaluate|campaign|d4rl) ;; *) refuse "unknown sta
 [[ "$STALL_SECONDS" =~ ^[0-9]+$ ]] && [ "$STALL_SECONDS" -gt 10 ] \
   || refuse "P91_STALL_SECONDS must be a whole number of seconds above the guard's 10 s re-arm interval, not $STALL_SECONDS"
 [[ "$MAX_RESTARTS" =~ ^[0-9]+$ ]] || refuse "P91_MAX_RESTARTS must be a non-negative whole number, not $MAX_RESTARTS"
-[[ "$SESSION_HOURS" =~ ^[0-9]*([.][0-9]+)?$ && "$SESSION_HOURS" =~ [1-9] ]] \
-  || refuse "P91_SESSION_HOURS must be a positive number of hours, not $SESSION_HOURS"
+# BRIEF_46 Amendment E: the session rules -- P91_SESSION_HOURS here, the stop file below -- bind the train and evaluate
+# sessions only; collect and d4rl start exactly as before E.4 (E.4-2d: "d4rl is unchanged").
+case "$STAGE" in train|evaluate) [[ "$SESSION_HOURS" =~ ^[0-9]*([.][0-9]+)?$ && "$SESSION_HOURS" =~ [1-9] ]] \
+  || refuse "P91_SESSION_HOURS must be a positive number of hours, not $SESSION_HOURS" ;; esac
 [ "$STAGE" != campaign ] || refuse "the campaign stage is retired (BRIEF_46 Amendment E, E.4-2c): run the train stage in sessions, then the evaluate stage in sessions"
 
 export OMP_NUM_THREADS=1
@@ -115,7 +117,7 @@ if pgrep -f '^[^ ]*python[^ ]* -P -m (offline[.]corrective_round (.* )?(train|de
 fi
 LOADED=$(PYTHONPATH=$WORK_TREE "$PY" -P -c 'import offline.corrective_round as m; print(m.__file__)')
 [ "$LOADED" = "$WORK_TREE/offline/corrective_round.py" ] || refuse "the module loads from $LOADED, not from $WORK_TREE"
-[ ! -e "$RUNS/STOP" ] || refuse "$RUNS/STOP exists: no session starts while it exists (the author removes it, by hand, to start one)"
+case "$STAGE" in train|evaluate) [ ! -e "$RUNS/STOP" ] || refuse "$RUNS/STOP exists: no session starts while it exists (the author removes it, by hand, to start one)" ;; esac
 
 cd "$MAIN"
 cr() {

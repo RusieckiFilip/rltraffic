@@ -374,3 +374,47 @@ def test_an_evaluate_session_ends_between_units_at_its_deadline_or_the_stop_file
     last = body.index('cr p3a-references --deadline-unix "$DEADLINE"')
     assert deadline < first < over_1 < second < over_2 < last
     assert "session_end" in body and 'SESSION ENDED' in code and '"$RUNS/STOP"' in code
+
+
+def _refusals(argv: list[str], env: dict[str, str], cwd: Path) -> tuple[int, list[str], list[str]]:
+    """The driver run under ``bash -x``: its exit code, its REFUSED lines, and the executed lines that name a path
+    under /home/filip once this repository's own path is removed (B.2.1's audit)."""
+    repo = str(Path(__file__).resolve().parents[1])
+    result = subprocess.run(["bash", "-x", str(DRIVER), *argv], capture_output=True, text=True, cwd=cwd, env=env)
+    lines = result.stderr.splitlines()
+    naming = [line.replace(repo, "<repo>") for line in lines if line.startswith("+")]
+    return (result.returncode, [line for line in lines if line.startswith("REFUSED:")],
+            [line for line in naming if "/home/filip/" in line])
+
+
+@pytest.mark.parametrize("hours", ["0", "abc"])
+@pytest.mark.parametrize("stage", ["collect", "d4rl"])
+def test_the_session_hours_change_nothing_for_the_collect_and_d4rl_stages(stage: str, hours: str,
+                                                                          tmp_path: Path) -> None:
+    """BRIEF_46 Amendment E, E.4-2d: d4rl is unchanged -- and collect, which E.4 does not touch.  P91_SESSION_HOURS,
+    even malformed, changes nothing about how they start: the same refusal as without it (the tracer refusal, set here
+    so that every run stops before the first command that uses a machine path, as B.2.1's audit requires)."""
+    expected = ["REFUSED: PYTHONDEVMODE is set: a tracer, profiler or debug allocator does not belong in a run"]
+    runs = [_refusals([stage, "abc"], _clean_env(PYTHONDEVMODE="1", **extra), tmp_path)
+            for extra in ({}, {"P91_SESSION_HOURS": hours})]
+    assert [(code, refused) for code, refused, _ in runs] == [(2, expected), (2, expected)]
+    for _, _, naming in runs:
+        assert naming and all(re.match(r"^\++ [A-Z][A-Z0-9_]*=\S*$", line) for line in naming), naming
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize(("stage", "expected"), [("train", (2, "")), ("evaluate", (2, "")), ("collect", (0, "reached\n")),
+                                                 ("d4rl", (0, "reached\n"))])
+def test_the_stop_file_refuses_the_train_and_evaluate_sessions_and_leaves_collect_and_d4rl_unchanged(
+        stage: str, expected: tuple[int, str], tmp_path: Path) -> None:
+    """E.4-2d: the driver's own stop-file line, executed verbatim with the stage set and STOP present, refuses a train
+    or evaluate session and lets collect and d4rl pass as before E.4; it never removes the file."""
+    lines = [line for line in _code() if '[ ! -e "$RUNS/STOP" ] || refuse' in line]
+    assert len(lines) == 1, lines
+    (tmp_path / "STOP").touch()
+    script = "\n".join(["set -euo pipefail", "refuse() { printf 'REFUSED: %s\\n' \"$*\" >&2; exit 2; }",
+                        f"STAGE={stage}", f"RUNS={tmp_path}", lines[0], "echo reached"])
+    result = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
+    assert (result.returncode, result.stdout) == expected
+    assert ("STOP exists: no session starts while it exists" in result.stderr) == (expected[0] == 2)
+    assert (tmp_path / "STOP").is_file()
