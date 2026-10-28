@@ -571,11 +571,62 @@ def training_cells(
             for arm in ARMS if arm in chosen_arms for seed in hz.SEEDS]
 
 
-def run_train_queue(cells: Sequence[tuple[str, str, int]], *, output_root: str | Path, run_cell: Any) -> dict[str, Any]:
-    """Train the cells in order, ONE at a time: a cell whose record and checkpoint are on disk -- the checkpoint's sha256
-    the record's -- is skipped; a half-written cell (a record whose checkpoint differs or is missing, a checkpoint
-    without a record) is refused before anything runs; *run_cell* trains the rest and the queue stops at the first
-    non-zero exit."""
+#: ``BRIEF_48`` H.6: G3b's timing records (code ``3ea8418``, CUDA, hz4x4 ``maxpressure``, seed 101): each arm's training
+#: seconds for 2,000 steps, and its process's setup (the process's wall time less its training seconds).
+TIMING_SECONDS_2000: Mapping[str, float] = {"dt_nomix": 172.69, "bc_m": 15.72, "bc_top10_m": 4.85,
+                                            "bc_top10_perix_m": 4.82, "iql_m": 64.72}
+SETUP_SECONDS: Mapping[str, float] = {"dt_nomix": 49.4, "bc_m": 61.4, "bc_top10_m": 54.4, "bc_top10_perix_m": 48.1,
+                                      "iql_m": 51.7}
+
+#: The label every planned second carries.
+PLANNING_LABEL = (
+    "planning estimates from G3b's timings (2,000 steps scaled to 40,000, plus setup), not a measurement of any cell"
+)
+
+
+def planned_seconds(arm: str) -> float:
+    """One cell's planned seconds: its arm's 2,000-step timing x 20, plus its setup -- an estimate for planning."""
+    return float(TIMING_SECONDS_2000[str(arm)]) * 20.0 + float(SETUP_SECONDS[str(arm)])
+
+
+def plan_session(
+    pending: Sequence[tuple[str, str, int]], *, hours: float | None, max_cells: int | None
+) -> list[tuple[str, str, int]]:
+    """``BRIEF_48`` H.6: a session's cells -- the NEXT pending cells, in order, whose planned seconds sum to at most
+    *hours*, the first always included, and at most *max_cells* of them.  A later cell that would fit is never pulled
+    past one that does not.  A session is bounded: one of the two must be given."""
+    if hours is None and max_cells is None:
+        raise ValueError("a training session is bounded: give it --hours and/or --max-cells (BRIEF_48 H.6: no run goes "
+                         "on non-stop)")
+    if hours is not None and not float(hours) > 0.0:
+        raise ValueError(f"a session's hours must be positive, got {hours}")
+    if max_cells is not None and int(max_cells) < 1:
+        raise ValueError(f"a session trains at least one cell, got max_cells {max_cells}")
+    budget = None if hours is None else float(hours) * 3600.0
+    session: list[tuple[str, str, int]] = []
+    total = 0.0
+    for cell in pending:
+        if max_cells is not None and len(session) >= int(max_cells):
+            break
+        cost = planned_seconds(cell[1])
+        if session and budget is not None and total + cost > budget:
+            break
+        session.append(tuple(cell))  # type: ignore[arg-type]
+        total += cost
+    return session
+
+
+def stop_file_path(output_root: str | Path) -> Path:
+    """``<output_root>/p9_3/STOP``: checked before each cell; the code never creates or deletes it."""
+    return Path(output_root) / PHASE_B_DIR / "STOP"
+
+
+def pending_training_cells(
+    cells: Sequence[tuple[str, str, int]], *, output_root: str | Path
+) -> tuple[list[tuple[str, str, int]], int]:
+    """The cells still to train, in order, and how many are skipped: a cell whose record and checkpoint are on disk --
+    the checkpoint's sha256 the record's -- is skipped, and a half-written cell (a record whose checkpoint differs or is
+    missing, a checkpoint without a record) is refused before anything runs."""
     import json
 
     pending: list[tuple[str, str, int]] = []
@@ -593,6 +644,16 @@ def run_train_queue(cells: Sequence[tuple[str, str, int]], *, output_root: str |
                              "over or skipped -- resolve it by hand")
         else:
             pending.append((tier, arm, int(seed)))
+    return pending, skipped
+
+
+def run_train_queue(cells: Sequence[tuple[str, str, int]], *, output_root: str | Path, run_cell: Any) -> dict[str, Any]:
+    """Train the cells in order, ONE at a time: a cell whose record and checkpoint are on disk -- the checkpoint's sha256
+    the record's -- is skipped; a half-written cell (a record whose checkpoint differs or is missing, a checkpoint
+    without a record) is refused before anything runs; *run_cell* trains the rest and the queue stops at the first
+    non-zero exit.  The command line runs it in bounded sessions instead (:func:`run_train_session`, ``BRIEF_48`` H.6).
+    """
+    pending, skipped = pending_training_cells(cells, output_root=output_root)
     trained = 0
     for tier, arm, seed in pending:
         code = int(run_cell(tier, arm, seed))
@@ -602,6 +663,60 @@ def run_train_queue(cells: Sequence[tuple[str, str, int]], *, output_root: str |
         trained += 1
     return {"status": "completed", "skipped": skipped, "trained": trained, "failed_cell": None, "returncode": 0}
 
+
+def run_train_session(
+    cells: Sequence[tuple[str, str, int]],
+    *,
+    output_root: str | Path,
+    run_cell: Any,
+    hours: float | None,
+    max_cells: int | None,
+    announce: Any = None,
+) -> dict[str, Any]:
+    """``BRIEF_48`` H.6: ONE session of the queue.
+
+    It refuses to start while the stop file exists, plans the session (:func:`plan_session`), announces the plan, and
+    trains exactly those cells one at a time.  Before each cell it checks the stop file: once it exists, the session
+    ends after the cell in flight.  It stops at a failed cell, and never deletes the stop file.  The result names the
+    cells planned and trained, the next pending cell and the planned hours left, all labelled as estimates.
+    """
+    stop = stop_file_path(output_root)
+    if stop.exists():
+        raise FileExistsError(f"{stop} exists: a session never starts while the stop file is there, and the code never "
+                              "deletes it -- remove it by hand to start one (BRIEF_48 H.6)")
+    pending, skipped = pending_training_cells(cells, output_root=output_root)
+    session = plan_session(pending, hours=hours, max_cells=max_cells)
+    if announce is not None:
+        hours_planned = sum(planned_seconds(arm) for _, arm, _ in session) / 3600.0
+        announce(f"session plan: {len(session)} of {len(pending)} pending cell(s), {hours_planned:.2f} planned hours "
+                 f"({PLANNING_LABEL})")
+        for tier, arm, seed in session:
+            announce(f"  {tier}/{arm} seed {seed}: {planned_seconds(arm):.0f} s planned")
+    trained: list[tuple[str, str, int]] = []
+    stopped = False
+    for cell in session:
+        if stop.exists():
+            stopped = True
+            break
+        code = int(run_cell(*cell))
+        if code != 0:
+            return {"status": "failed", "skipped": skipped, "planned": [list(c) for c in session],
+                    "trained": [list(c) for c in trained], "next_pending": list(cell),
+                    "planned_hours_left": round(sum(planned_seconds(a) for _, a, _ in pending[len(trained):]) / 3600, 2),
+                    "estimates": PLANNING_LABEL, "failed_cell": list(cell), "returncode": code}
+        trained.append(cell)
+    remaining = pending[len(trained):]
+    return {
+        "status": "stopped" if stopped else ("completed" if not remaining else "session_done"),
+        "skipped": skipped,
+        "planned": [list(c) for c in session],
+        "trained": [list(c) for c in trained],
+        "next_pending": list(remaining[0]) if remaining else None,
+        "planned_hours_left": round(sum(planned_seconds(a) for _, a, _ in remaining) / 3600, 2),
+        "estimates": PLANNING_LABEL,
+        "failed_cell": None,
+        "returncode": 0,
+    }
 
 # ----------------------------------------------------------------------
 # Evaluation: every cell on held-out draws 1000-1099 x the five seeds, by both routes (docs/plans/p9.3.md section 10.3)
@@ -914,6 +1029,9 @@ def build_parser() -> argparse.ArgumentParser:
     queue.add_argument("--gradient-steps", type=int, default=int(ts.DECLARED_GRADIENT_STEPS))
     queue.add_argument("--corpus-root", default=str(hz.MAIN_CORPUS_ROOT))
     queue.add_argument("--output-root", default=str(hz.MAIN_OUTPUT_ROOT))
+    queue.add_argument("--hours", type=float, default=None,
+                       help="this session's planned hours: the next pending cells within them, the first always (H.6)")
+    queue.add_argument("--max-cells", type=int, default=None, help="at most this many cells this session (tests, smokes)")
     evaluate = sub.add_parser("evaluate", help="the evaluation driver: an evaluate-worker under B.3's restarts")
     worker = sub.add_parser("evaluate-worker", help="roll the selection's pending episodes, each under the watchdog")
     for each in (evaluate, worker):
@@ -1069,12 +1187,16 @@ def _run_evaluate(args: argparse.Namespace) -> int:
 
 
 def _run_train_queue(args: argparse.Namespace) -> int:
-    """``train-queue``: every pending cell through ``train`` in its own process, strictly one after another."""
+    """``train-queue``: ONE bounded session (``BRIEF_48`` H.6) -- its cells each through ``train`` in its own process,
+    strictly one after another, the stop file checked before each."""
     import os
     import subprocess
     import sys
     from datetime import datetime, timezone
 
+    if args.hours is None and args.max_cells is None:
+        raise ValueError("train-queue runs in sessions: give --hours H (the session's planned hours) and/or --max-cells N "
+                         "(BRIEF_48 H.6); nothing was read or written")
     assert_campaign_steps(args.output_root, args.gradient_steps)
     corpus_root = hz.assert_main_tree_path(args.corpus_root, what="the corpus root")
     output_root = hz.assert_main_tree_path(args.output_root, what="the output root")
@@ -1097,9 +1219,10 @@ def _run_train_queue(args: argparse.Namespace) -> int:
         print(f"  exit {code}", flush=True)
         return int(code)
 
-    result = run_train_queue(cells, output_root=output_root, run_cell=run_cell)
-    print(f"train-queue: {result}", flush=True)
-    return 0 if result["status"] == "completed" else 1
+    result = run_train_session(cells, output_root=output_root, run_cell=run_cell, hours=args.hours,
+                               max_cells=args.max_cells, announce=lambda line: print(line, flush=True))
+    print(f"train-queue session: {result}", flush=True)
+    return 0 if result["status"] in ("completed", "session_done", "stopped") else 1
 
 
 def main(argv: Sequence[str] | None = None) -> int:
