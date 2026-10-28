@@ -939,6 +939,67 @@ def flag_paused_runs(runs: Sequence[Mapping[str, Any]], gaps: Sequence[Mapping[s
     return out
 
 
+def _trace_readings(path: Path) -> list[tuple[float, float | None, float | None]]:
+    """The driver's trace as ``(unix, memory.used MiB, utilization %)``; a reading ``nvidia-smi`` did not give (an
+    empty or non-numeric field) is ``None``.  A line whose time is not a number is refused."""
+    out = []
+    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        if not line.strip():
+            continue
+        parts = line.split(",")
+        try:
+            moment = float(parts[0])
+        except ValueError:
+            raise ValueError(f"{path} (gpu_trace.csv line {number}) is not a reading: {line!r}") from None
+        values: list[float | None] = []
+        for field in (parts[1:3] + ["", ""])[:2]:
+            try:
+                values.append(float(field))
+            except ValueError:
+                values.append(None)
+        out.append((moment, values[0], values[1]))
+    return out
+
+
+def gpu_overlap(roots: cr.Roots, *, start_unix: float, end_unix: float) -> dict[str, Any]:
+    """``BRIEF_46`` Amendment D, D.2-2: another GPU process's window (P9.3's smoke, from its note) against the
+    campaign's training runs -- each run whose ``[started_unix, finished_unix]`` overlaps it, with the overlap in
+    seconds -- and the stage's own GPU trace inside the window (bounds included) beside the trace outside it, so the
+    packet can show the second process's footprint.  Reads the run records and the traces; writes nothing."""
+    start, end = float(start_unix), float(end_unix)
+    if not end > start:
+        raise ValueError(f"[{start}, {end}]: a window ends after it starts")
+    runs, read = [], 0
+    for cell, seed in cr.training_runs():
+        path = cr.run_record_path(roots, cell.scenario, cell.tier, cell.arm, int(seed))
+        if not path.is_file():
+            continue
+        read += 1
+        record = json.loads(path.read_text(encoding="utf-8"))
+        first, last = float(record["started_unix"]), float(record["finished_unix"])
+        overlap = min(last, end) - max(first, start)
+        if overlap > 0.0:
+            runs.append({"scenario": cell.scenario, "tier": cell.tier, "arm": cell.arm, "seed": int(seed),
+                         "started_unix": first, "finished_unix": last, "seconds": float(record["seconds"]),
+                         "overlap_seconds": overlap})
+    readings = [r for path in sorted((Path(roots.runs_root) / "logs").glob("*/gpu_trace.csv"))
+                for r in _trace_readings(path)]
+
+    def summary(chosen: list[tuple[float, float | None, float | None]]) -> dict[str, Any]:
+        full = [(m, u) for _, m, u in chosen if m is not None and u is not None]
+        return {"samples": len(chosen), "readings": len(full),
+                "memory_used_mib": [min(m for m, _ in full), max(m for m, _ in full)] if full else None,
+                "utilization_pct": [min(u for _, u in full), max(u for _, u in full)] if full else None}
+
+    inside = [r for r in readings if start <= r[0] <= end]
+    outside = [r for r in readings if not start <= r[0] <= end]
+    return {"window": {"start_unix": start, "end_unix": end, "seconds": end - start}, "records_read": read,
+            "runs": runs, "overlap_seconds_total": sum(r["overlap_seconds"] for r in runs),
+            "trace": {"inside": summary(inside), "outside": summary(outside)},
+            "rule": "BRIEF_46 Amendment D, D.2-2: a run overlaps iff its record's bracket and the window share time; the "
+                    "trace's readings inside the window are shown beside those outside it"}
+
+
 P5_3B_ARTIFACT = "docs/data/p5_3b_nortg.json"
 
 
