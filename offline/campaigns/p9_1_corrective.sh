@@ -253,7 +253,7 @@ case "$STAGE" in
     ;;
   evaluate)
     DEADLINE=$("$PY" -c 'import sys, time; print(f"{time.time() + float(sys.argv[1]) * 3600.0:.3f}")' "$SESSION_HOURS")
-    echo "evaluate session: it runs about $SESSION_HOURS hours without a break (P91_SESSION_HOURS) and ends between units of work at Unix $DEADLINE or at $RUNS/STOP"
+    echo "evaluate session: it runs about $SESSION_HOURS hours without a break (P91_SESSION_HOURS), PLUS the unit of work in flight in each shard at that moment (a route (i) cell is 500 episodes in one call: 7 min 47 s for an hz1x1 cell in the session smoke, longer on the grid), and ends between units at Unix $DEADLINE or at $RUNS/STOP"
     run_logged declare_evaluation cr declare-evaluation
     shards evaluate --deadline-unix "$DEADLINE"
     if session_over; then session_end; fi
