@@ -454,3 +454,147 @@ def test_the_queue_refuses_a_half_written_cell_before_running_anything(tmp_path:
     pb.train_record_path(tmp_path, *cells[1]).unlink()
     with pytest.raises(ValueError, match="without its record"):
         pb.run_train_queue(cells, output_root=tmp_path, run_cell=never)
+
+
+# ======================================================================
+# BRIEF_48 H.6: the training queue in sessions -- a plan within the session's hours, a stop file, nothing else changed
+# ======================================================================
+
+
+def test_the_planned_seconds_are_g3bs_timings_scaled_to_40000_steps_plus_setup() -> None:
+    assert pb.TIMING_SECONDS_2000 == {"dt_nomix": 172.69, "bc_m": 15.72, "bc_top10_m": 4.85, "bc_top10_perix_m": 4.82,
+                                      "iql_m": 64.72}
+    assert pb.SETUP_SECONDS == {"dt_nomix": 49.4, "bc_m": 61.4, "bc_top10_m": 54.4, "bc_top10_perix_m": 48.1,
+                                "iql_m": 51.7}
+    assert {arm: round(pb.planned_seconds(arm), 1) for arm in pb.ARMS} == {
+        "dt_nomix": 3503.2, "bc_m": 375.8, "bc_top10_m": 151.4, "bc_top10_perix_m": 144.5, "iql_m": 1346.1}
+    assert round(sum(pb.planned_seconds(arm) for _, arm, _ in pb.training_cells()) / 3600, 2) == 30.67
+    assert "estimate" in pb.PLANNING_LABEL and "not a measurement" in pb.PLANNING_LABEL
+
+
+SESSION_CELLS = [("maxpressure", "dt_nomix", 101), ("maxpressure", "dt_nomix", 202), ("maxpressure", "bc_m", 101),
+                 ("maxpressure", "iql_m", 101)]
+
+
+def test_a_session_is_the_prefix_of_pending_cells_within_its_hours_and_always_holds_its_first() -> None:
+    plan = pb.plan_session
+    assert plan(SESSION_CELLS, hours=1.0, max_cells=None) == SESSION_CELLS[:1]
+    assert plan(SESSION_CELLS, hours=0.5, max_cells=None) == SESSION_CELLS[:1]
+    assert plan(SESSION_CELLS, hours=2.1, max_cells=None) == SESSION_CELLS[:3]
+    assert plan(SESSION_CELLS, hours=None, max_cells=2) == SESSION_CELLS[:2]
+    assert plan(SESSION_CELLS, hours=10.0, max_cells=1) == SESSION_CELLS[:1]
+    assert plan(SESSION_CELLS, hours=10.0, max_cells=None) == SESSION_CELLS
+    # The NEXT pending cells: a later cell that would fit is never pulled past one that does not.
+    gap = [("fixedtime", "dt_nomix", 101), ("fixedtime", "iql_m", 101), ("fixedtime", "bc_top10_m", 101)]
+    assert plan(gap, hours=1.3, max_cells=None) == gap[:1]
+    assert plan([], hours=1.0, max_cells=None) == []
+    for bounds in ({"hours": None, "max_cells": None}, {"hours": 0.0, "max_cells": None},
+                   {"hours": None, "max_cells": 0}):
+        with pytest.raises(ValueError, match="session"):
+            plan(SESSION_CELLS, **bounds)
+
+
+def _finishing_cell(out: Path, ran: list[tuple[str, str, int]], *, stop_during: int | None = None) -> Any:
+    """A stand-in for one cell's training process: it records the cell, writes the cell's record and checkpoint, and
+    -- like the author touching the stop file while a cell is in flight -- may create the stop file during a cell."""
+
+    def run_cell(tier: str, arm: str, seed: int) -> int:
+        ran.append((tier, arm, seed))
+        if stop_during is not None and len(ran) == stop_during:
+            pb.stop_file_path(out).write_text("stop\n", encoding="utf-8")
+        _done(out, tier, arm, seed)
+        return 0
+
+    return run_cell
+
+
+def test_a_session_trains_exactly_its_plan_and_says_what_comes_next(tmp_path: Path) -> None:
+    ran: list[tuple[str, str, int]] = []
+    result = pb.run_train_session(SESSION_CELLS, output_root=tmp_path, run_cell=_finishing_cell(tmp_path, ran),
+                                  hours=2.1, max_cells=None)
+    assert ran == SESSION_CELLS[:3]
+    assert result["status"] == "session_done" and result["returncode"] == 0 and result["skipped"] == 0
+    assert result["planned"] == result["trained"] == [list(cell) for cell in SESSION_CELLS[:3]]
+    assert result["next_pending"] == list(SESSION_CELLS[3])
+    assert result["planned_hours_left"] == round(pb.planned_seconds("iql_m") / 3600, 2)
+    assert result["estimates"] == pb.PLANNING_LABEL
+    resumed = pb.run_train_session(SESSION_CELLS, output_root=tmp_path, run_cell=_finishing_cell(tmp_path, ran),
+                                   hours=None, max_cells=5)
+    assert ran == SESSION_CELLS
+    assert (resumed["status"], resumed["skipped"], resumed["trained"], resumed["next_pending"],
+            resumed["planned_hours_left"]) == ("completed", 3, [list(SESSION_CELLS[3])], None, 0.0)
+
+
+def test_the_stop_file_ends_the_session_after_the_cell_in_flight_and_is_never_deleted(tmp_path: Path) -> None:
+    ran: list[tuple[str, str, int]] = []
+    stop = pb.stop_file_path(tmp_path)
+    assert stop == tmp_path / "p9_3" / "STOP"
+    stop.parent.mkdir(parents=True)
+    result = pb.run_train_session(SESSION_CELLS, output_root=tmp_path,
+                                  run_cell=_finishing_cell(tmp_path, ran, stop_during=1), hours=None, max_cells=3)
+    assert ran == SESSION_CELLS[:1]
+    assert (result["status"], result["trained"], result["next_pending"]) == ("stopped", [list(SESSION_CELLS[0])],
+                                                                             list(SESSION_CELLS[1]))
+    assert stop.read_text(encoding="utf-8") == "stop\n"
+    with pytest.raises(FileExistsError, match="STOP"):
+        pb.run_train_session(SESSION_CELLS, output_root=tmp_path, run_cell=_finishing_cell(tmp_path, ran), hours=None,
+                             max_cells=3)
+    assert ran == SESSION_CELLS[:1] and stop.exists()
+    stop.unlink()  # the author's hand, never the code's
+    pb.run_train_session(SESSION_CELLS, output_root=tmp_path, run_cell=_finishing_cell(tmp_path, ran), hours=None,
+                         max_cells=1)
+    assert ran == SESSION_CELLS[:2]
+
+
+def test_the_cli_refuses_an_unbounded_queue_before_anything_and_parses_the_session_bounds(tmp_path: Path) -> None:
+    parse = pb.build_parser().parse_args
+    args = parse(["train-queue", "--hours", "3.5", "--max-cells", "4", "--output-root", str(tmp_path)])
+    assert (args.hours, args.max_cells) == (3.5, 4)
+    unbounded = parse(["train-queue", "--gradient-steps", "2", "--output-root", str(tmp_path / "p9_x")])
+    assert (unbounded.hours, unbounded.max_cells) == (None, None)
+    # The command line's own refusal, before any path is resolved (mutant H8: plan_session's later refusal also matched
+    # a bare "session").
+    with pytest.raises(ValueError, match="train-queue runs in sessions"):
+        pb._run_train_queue(unbounded)
+    assert not (tmp_path / "p9_x").exists()
+
+
+def test_the_training_and_evaluation_paths_are_14a6ba2s_by_ast() -> None:
+    # BRIEF_48 H.6-5: every top-level definition of the module is 14a6ba2's, by ast, except the queue's session layer;
+    # so H.3's smoke at 14a6ba2 stands for every training and evaluation path.  hz4x4_ladder.py is byte-identical.
+    import ast
+    import subprocess
+
+    def blob(path: str) -> bytes | None:
+        result = subprocess.run(["git", "-C", str(REPO), "show", f"14a6ba2:{path}"], capture_output=True)
+        return result.stdout if result.returncode == 0 else None
+
+    old_phase_b, old_ladder = blob("offline/hz4x4_phase_b.py"), blob("offline/hz4x4_ladder.py")
+    if old_phase_b is None or old_ladder is None:
+        pytest.skip("commit 14a6ba2 is not in this clone's history")
+
+    def top_level(source: bytes | str) -> dict[str, str]:
+        out = {}
+        for node in ast.parse(source).body:
+            if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
+                out[node.name] = ast.dump(node)
+            elif isinstance(node, (ast.Assign, ast.AnnAssign)):
+                targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+                for target in targets:
+                    if isinstance(target, ast.Name):
+                        out[target.id] = ast.dump(node)
+            elif isinstance(node, (ast.Import, ast.ImportFrom)):
+                out[f"import:{ast.dump(node)}"] = ast.dump(node)
+        return out
+
+    old, new = top_level(old_phase_b), top_level((REPO / "offline" / "hz4x4_phase_b.py").read_bytes())
+    changed = sorted(name for name in old if name in new and old[name] != new[name])
+    assert changed == ["_run_train_queue", "build_parser", "run_train_queue"]
+    assert sorted(set(old) - set(new)) == []
+    assert sorted(set(new) - set(old)) == ["PLANNING_LABEL", "SETUP_SECONDS", "TIMING_SECONDS_2000",
+                                           "pending_training_cells", "plan_session", "planned_seconds",
+                                           "run_train_session", "stop_file_path"]
+    for name in ("train_cell", "hz4x4_train_tier_dt", "hz4x4_tier_parts", "hz4x4_baseline_inputs", "evaluate_episode",
+                 "eval_factory", "run_episodes", "_run_evaluate_worker", "_run_evaluate", "_run_train", "training_cells"):
+        assert old[name] == new[name], name
+    assert (REPO / "offline" / "hz4x4_ladder.py").read_bytes() == old_ladder
