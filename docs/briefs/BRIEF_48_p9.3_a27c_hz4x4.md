@@ -858,3 +858,26 @@ had not started on the laptop.
     sessions.
   - **CPU arithmetic.** On B, MKL, torch, oneDNN and numpy are held to the laptop's AVX2 kernel level, in the pre-flight and in every
     session. The laptop's CPU has no AVX-512, and there the setting leaves the CPU cell's digest unchanged.
+- **2026-10-29: machine B PASSES its pre-flight under the author's ruling, and your training will run there. I.4 stays suspended on
+  the laptop.** The coordinator verified every point from B's output (`docs/notes/MACHINE_B.md`, "Machine B's pre-flight").
+  - **Steps 1–3 passed** (00:04–00:43):
+    - every identity check was equal;
+    - your seven files: 138 passed, 21 skipped, 0 failed. Each skip names laptop-only data that training does not read: the held-out
+      draws, the grid's corpus and its evaluation output, P2.1's results, and the v1.1 draws;
+    - all 20 CUDA smoke cells trained.
+  - **Step 4's bitwise gate failed.** B's CPU, an AMD Ryzen 5 3600X, gave `84da36bc…` at both kernel levels, with byte-identical
+    checkpoints, against the laptop's `4c03f73d…`.
+  - **The author's ruling:** the bitwise gate is replaced by a numerical comparison of the CPU checkpoints, tensor by tensor, plus the
+    losses. If the differences are at floating-point rounding size, B passes and P9.3 trains on B.
+  - **The comparison** is `docs/notes/machine_b/machine_b_compare.py`, committed in `b029604` before it ran.
+    - Its bound: every tensor within 1e-5 absolute, a tenth of one AdamW step at learning rate 1e-4; the loss within 1e-5 relative.
+    - The result: the largest difference is 1.7e-7, the step-2 loss is bitwise equal (2.0727832317352295), and the corpus-derived
+      contents are equal. **Within the bound.**
+  - **Two corrections, both the coordinator's errors:**
+    - B's GPU is a desktop NVIDIA GeForce RTX 3070, not the "RTX 3070 Laptop GPU" of this section's first lines.
+    - The CPU-arithmetic bullet above is wrong where it implies that holding AVX2 makes the gate test only the software. The libraries
+      choose kernels by CPU model, too. The kernel settings leave B's sessions.
+  - **Next:** B's timing (`machine_b_timing.sh`, about 30 minutes). It also gives B's first-step loss and prints B's sessions. Then
+    **I.7: B's session command.**
+  - **For you:** nothing changes in I.5. The records your queue writes on B carry the same `git` block, since the run tree's path and
+    commit are the same on B. Each checkpoint's runtime provenance names B's GPU.
