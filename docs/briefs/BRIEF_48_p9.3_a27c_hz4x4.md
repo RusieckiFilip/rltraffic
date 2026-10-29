@@ -942,3 +942,11 @@ R=/home/filip/rltraffic-p93-run-c; mkdir -p /home/filip/rltraffic/output/p9_3 &&
   - every training cell ran on machine B (desktop GeForce RTX 3070, driver 591.74, 100 W limit; AMD Ryzen 5 3600X);
   - the evaluation ran on the laptop's CPU;
   - the CPU cell agrees with the laptop's to rounding, not bitwise.
+
+**2026-10-29, 13:51: the author started B's run as TWO sessions** with `--hours 16`, which the ruling allows.
+- **Session 1:** 50 cells, `maxpressure` and `fixedtime`, about 24.1 h on B. It ends at about 14:00 on 2026-10-30.
+  - Done when its capture ends with `'status': 'session_done'`, with `next_pending` `['mappo1000', 'dt_nomix', 101]` and
+    `planned_hours_left` 15.34, then `session end …`, and the pane shows `QUEUE EXIT 0`.
+- **Session 2:** the same command; the other 50 cells, `mappo1000` and `random_fresh`, about 24.1 h. Done as above, with
+  `'status': 'completed'`.
+- The transfer back follows session 2.

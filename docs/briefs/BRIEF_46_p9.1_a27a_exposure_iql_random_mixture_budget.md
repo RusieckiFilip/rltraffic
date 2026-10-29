@@ -729,3 +729,114 @@ changes. The traffic `iql_t` arms run as registered.
 
 **The GPU order changed** (`BRIEF_48` I.3-4). P9.3's training sessions run while you build E.4. Your first training session goes next
 once Amendment F clears it, after the P9.3 session then running ends. Report "P9.1 sessions ready" as E.4 says.
+
+---
+
+# ✅ AMENDMENT F — 2026-10-29: SESSION CONTROL VERIFIED at `c58afb8`; training session T1 CLEARED from the run tree `/home/filip/rltraffic-p91-run-d` (runs #4–#65, about 6 h without a break); Q18 ruled
+
+Your packet: §17 of `docs/returns/P9.1-campaign-ready.md` (`9eb908a`, docs only), on `c58afb8`. It reached the coordinator on
+the afternoon of 2026-10-29. The laptop's GPU is free: P9.3 now trains on machine B (`BRIEF_48` I.7).
+
+## F.1 Verified by the coordinator, from disk
+- **The code that changed since `cb61ee7`** is:
+  - `offline/corrective_round.py` and `offline/campaigns/p9_1_corrective.sh`;
+  - `offline/att_rederivation.py`, for the opt-in `should_stop`;
+  - `offline/corrective_report.py`, for G4's report path (D.4).
+
+  No other code file differs, so every trainer module and `agent/` are byte-identical.
+- **One training path (E.4-4), by the coordinator's own `ast` script:**
+  - In `offline/corrective_round.py`, 9 definitions changed: `build_parser`, `check`, `evaluate`, `evaluate_cell`, `main`,
+    `record_registered_references`, `roll_old_cells`, `run_route_ii` and `train`. 11 were added and none removed.
+  - The training roots are `train_run`; `_hz1x1_inputs` and `_grid_inputs`; and `training_runs`, `training_cells`, `run_status`,
+    `recipe_fields`, `checkpoint_path` and `run_record_path`. Their closure over module-level names has the same 21 definitions at
+    both commits, and none changed. It equals your list.
+  - `train`'s 13-line input block is identical. The rest of its diff is the session wrapper: the stop-file refusal, the plan, the
+    check before each run and the summary.
+  - **So runs 1–3 (`cb61ee7`) and runs 4–255 (`c58afb8`) come from one training path.**
+- **The session smoke (E.4-5),** read from its root `/tmp/claude-1000/e4/smoke` by the coordinator's own script:
+  - 7 run records, #1–#7, each at 2 steps, and each checkpoint's sha256 is its record's.
+  - They were written in the transcript's order: #1–#3; then #4 alone, during which STOP appeared; then #5–#7 after the refused
+    start.
+  - Route (ii) holds 1,000 episode files. The 66 of `iql_t@random` seed 101 written before evaluate session 3 began (draws
+    1000–1065) were not rewritten.
+  - No STOP is left.
+- **The whole suite at `c58afb8`,** in a scratch clone: one process, one thread, no corpus variables (CI's setting), HEAD held, no
+  tracked change. **3,956 passed, 3 failed, 273 skipped** in 954.8 s.
+  - The 3 failures are the tmux tests that the sandbox refuses (`error connecting to /tmp/tmux-1000/default (Operation not
+    permitted)`), as on 2026-10-16: `test_the_headers_own_line_passes_the_guard_and_the_pane_carries_the_drivers_exit_code` in
+    `test_p7_3c_campaign.py`, `test_p7_3c_corpus_driver.py` and `test_p7_3d_campaign_path.py`.
+  - A second run, which names its failures, gave the same three and the same counts (935.9 s).
+- **The coordinator's mutants** on the session control, each caught by your two session test files (control: 62 passed):
+
+  | Mutant | Result |
+  |---|---|
+  | K1: the planner ignores the hours bound | KILLED |
+  | K2: the stop file ignored between runs | KILLED |
+  | K3: a session starts while the stop file exists | KILLED |
+  | K4: the driver's stop refusal binds every stage again (`11476c0`'s line) | KILLED |
+  | K5: hz1x1 `iql_t` planned without its factor 1.15 | KILLED |
+  | K6: the driver trains without `--hours` | KILLED |
+  | K7: a later run pulled past one that does not fit | KILLED |
+  | K8: the driver's default session is 60 hours | KILLED |
+
+  Each file was restored by `git checkout`, and the clone was clean after every mutant.
+- **The run tree** `/home/filip/rltraffic-p91-run-d`:
+  - The coordinator created it at 14:04:38 on 2026-10-29, detached at `c58afb8`, with no tracked change.
+  - From it, on the main roots, read-only (the listing of `output/p9_1_runs` was unchanged):
+    - the module loads from the run tree;
+    - `check --stage train` printed `{"ok": true, "stage": "train"}`;
+    - `train --hours 6 --plan-only` planned runs #4 (hz1x1 `iql_t@random` seed 404) to #65 (hz1x1 `iql_t@random_fresh` seed 505):
+      62 runs, 5.95 planned hours, 252 missing, 3 done. That is E.5's T1:
+      - hz1x1 `iql_t`: `random` seeds 404 and 505, then `fixedtime`, `maxpressure`, `mappo500`, `mappo1000`, `mix33`, `mix50`
+        and `mix67`, five seeds each;
+      - hz1x1 `random_fresh`: `dt`, `bc`, `bc_top10`, `iql` and `iql_t`, five seeds each.
+    - P9.2's ten records (`mappo1000` and `mix50` `iql_t`) are in it.
+    - The 255 runs plan 40.55 h in all; 34.26 planned hours are left after T1.
+
+## F.2 Rulings
+1. **The deviation in `11476c0` is closed by `c58afb8`.** The driver's hours check and its stop refusal open with
+   `case "$STAGE" in train|evaluate)`, and restoring the old line is killed (your S1; the coordinator's K4).
+2. **The evaluate overrun is accepted as disclosed.** An evaluate session runs `P91_SESSION_HOURS` plus the unit in flight in each
+   shard. Before the evaluate sessions are cleared, report how long a grid route (i) cell takes, from the pre-flight or measured, so
+   that their hours can be stated first.
+3. **Q18: yes, in the waiting time.** Build E.7's G4 diagnostics tests first, on the branch:
+   - CPU only, one process, one thread, nothing on the GPU;
+   - the run tree and `output/p9_1*` untouched;
+   - first read which of the run record and `train.log` carries the values;
+   - label them as diagnostics, not registered statistics (E.7).
+4. **`train`'s docstring needs one correction.** It now says an interrupted call leaves no checkpoint and no record. That holds for
+   an interruption during training. An interruption while a checkpoint is written leaves a `.partial`, which `run_status` refuses
+   (unchanged code). Restore that case in your next commit.
+5. **The two tests written after the code are accepted.** Mutants E11 and E3 show that each catches what it guards.
+
+## F.3 ✅ THE TOKEN: training session T1 (the author's tmux `p91`)
+**T1 runs about 6 hours without a break:** 5.95 planned hours. Runs 1–3 took about 15 % less than planned, so it may end earlier. It
+trains runs #4–#65 and ends by itself at the end of its plan.
+- **Before it:** nothing else trains on the laptop's GPU; P9.3 trains on machine B. Keep the laptop plugged in and awake.
+- **The command,** at the pane's prompt, as one line. It first checks that torch sees CUDA, because the trainer falls back to the
+  CPU without a word, and only then creates the token:
+  ```
+  /home/filip/rltraffic/.venv/bin/python -c "import sys, torch; sys.exit(0 if torch.cuda.is_available() else 'NO CUDA: T1 not started')" && touch /home/filip/rltraffic/output/p9_1_runs/TOKEN_train && P91_SESSION_HOURS=6 bash /home/filip/rltraffic-p91-run-d/offline/campaigns/p9_1_corrective.sh train c58afb8 2>&1 | tee -i -a /home/filip/rltraffic/output/p9_1_runs/train_capture.txt; echo "DRIVER EXIT ${PIPESTATUS[0]}"
+  ```
+  - The CUDA check was run on the laptop by the coordinator: it passes outside the sandbox and refuses inside it, where the GPU is
+    blocked. `NO CUDA: T1 not started` means nothing started and no token was created.
+- **The pane** shows the token line, `train session: it runs about 6 hours without a break …` and the plan (`SESSION: runs #4 …
+  to #65 …: 62 runs, 5.95 planned hours`). Then it is quiet until the end. Progress is in
+  `output/p9_1_runs/logs/<stamp>/train.log`.
+- **Done when** the capture shows:
+  - `train: ok`;
+  - the summary (`SESSION: 62 runs trained …; ended by the plan; 190 runs missing, 34.26 planned hours left`);
+  - `stage train <stamp>: SESSION COMPLETE …`.
+
+  The pane must also show `DRIVER EXIT 0`.
+- **To end it early:** `touch /home/filip/rltraffic/output/p9_1_runs/STOP`. The session ends after the run in flight, up to about
+  7 minutes later. Remove the file by hand before the next session.
+- **A failure** stops the session at the failed run (`FAILED: train exited …`, `DRIVER EXIT 1`). Report it; nothing is re-run
+  without a ruling.
+- **Ctrl+C is the emergency stop only.** It loses the run in flight. If it lands while a checkpoint is being written, the next
+  session refuses that run's `.partial`, and the coordinator rules.
+
+## F.4 Meanwhile
+- Q18 (F.2-3) and F.2-4's docstring.
+- Nothing on the GPU while T1 runs.
+- After T1, the coordinator reads its records and names T2. P9.2's stage 2 follows T1 (`BRIEF_47` Amendment H).

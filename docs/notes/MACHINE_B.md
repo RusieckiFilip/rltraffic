@@ -342,6 +342,8 @@ The run proves the script's mechanics on the machine its references come from, n
   - an interrupted run resumes with the same command and loses at most the cell in flight (up to 1.33 h).
 - **A split, if the author wants one:** `--hours 16` makes 2 sessions of 24.13 h, and `--hours 8` makes 4 of 12.07 h. Each ends
   at a tier boundary.
+  - *(2026-10-29: the author chose two sessions. Session 1 started at 13:51 with `--hours 16`: `maxpressure` and `fixedtime`, 50
+    cells, about 24.1 h, so it ends at about 14:00 on 2026-10-30. Session 2 follows with the same command; `BRIEF_48` I.7.)*
 - **The command is I.4's** with four changes: `output/p9_3` created, the host and GPU line in the capture, `--hours 31`, and the
   capture `train_capture_machine_b.txt`. There are no kernel-level settings. It was tested on the laptop on a scratch root
   (`BRIEF_48` I.7).
