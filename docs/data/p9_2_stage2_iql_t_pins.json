@@ -1,0 +1,148 @@
+{
+  "campaign": {
+    "capture": "/home/filip/rltraffic/output/p9_1_runs/train_capture.txt",
+    "capture_first_line": "token consumed; stage train 20261029T154931Z from /home/filip/rltraffic-p91-run-d at c58afb8; logs /home/filip/rltraffic/output/p9_1_runs/logs/20261029T154931Z",
+    "commit": "c58afb8",
+    "commit_full": "c58afb8812531310f306d482f531d6b2cc4e2e24",
+    "named_by": "BRIEF_47 Amendment G.5: the commit and run tree of the session that trained the ten (P9.1's T1), from the capture's first line -- not cb61ee7 (G.2-1, the campaign stage, runs 1-3 only) and not the checkpoints' runtime.git_commit (the main tree's HEAD when written)",
+    "run_tree": "/home/filip/rltraffic-p91-run-d",
+    "run_tree_head_when_pinned": "c58afb8812531310f306d482f531d6b2cc4e2e24"
+  },
+  "format_version": "p9.2-iql-t-pins/1.0",
+  "mappo1000": {
+    "101": {
+      "base": "iql",
+      "canonical_digest": "f7bd14789cee40923d0ab8799fe7f106fa9f3c1d450d7695c657f9d45c1a3ab1",
+      "checkpoint_bytes": 6441045,
+      "declared_steps": 40000,
+      "device": "cuda",
+      "gradient_steps": 40000,
+      "path": "/home/filip/rltraffic/output/p9_1_runs/checkpoints/hz1x1/mappo1000_iql_t_seed101.pt",
+      "record": "/home/filip/rltraffic/output/p9_1_runs/training/hz1x1/mappo1000__iql_t__seed101.json",
+      "record_sha256": "5e487bd351b62c990364889319eb3c2ea0d9cad3fa09617f6baaf0b28b5cfcee",
+      "sha256": "14f31fc2af4499af43024e63bda6e6d5d396dd95343de77c64925ecea0ec39d7",
+      "target_dropout": "off"
+    },
+    "202": {
+      "base": "iql",
+      "canonical_digest": "1018a1223614b7e642147e8b9a5d5fb99e419388ddf1b27d74a4bfed100237bd",
+      "checkpoint_bytes": 6441045,
+      "declared_steps": 40000,
+      "device": "cuda",
+      "gradient_steps": 40000,
+      "path": "/home/filip/rltraffic/output/p9_1_runs/checkpoints/hz1x1/mappo1000_iql_t_seed202.pt",
+      "record": "/home/filip/rltraffic/output/p9_1_runs/training/hz1x1/mappo1000__iql_t__seed202.json",
+      "record_sha256": "17db5c62afc69603b6fa8ff5cc36338be04fa3039a11287a59ff3ec176f3e1f2",
+      "sha256": "5376bc99e4d0fb5d87a55718343806c962f05b24fe7804c390e5031f2dcf7ed0",
+      "target_dropout": "off"
+    },
+    "303": {
+      "base": "iql",
+      "canonical_digest": "a91aa75d9a624c378342217d3dab13dd2269d91be434ae9a4640e3439de9b1ed",
+      "checkpoint_bytes": 6441045,
+      "declared_steps": 40000,
+      "device": "cuda",
+      "gradient_steps": 40000,
+      "path": "/home/filip/rltraffic/output/p9_1_runs/checkpoints/hz1x1/mappo1000_iql_t_seed303.pt",
+      "record": "/home/filip/rltraffic/output/p9_1_runs/training/hz1x1/mappo1000__iql_t__seed303.json",
+      "record_sha256": "09302749dbaa43e0394b96928c4cfe393cce55d0bb0170cb4d0dc75edf316fd8",
+      "sha256": "ac173f7a7387b75edf2e5ef90e0b56ea6315ff930210ac23712bed65906bd45a",
+      "target_dropout": "off"
+    },
+    "404": {
+      "base": "iql",
+      "canonical_digest": "afd42fdf8eaef6ea6e06c26b03c24edd0219eaf49b4b04f999f7e4193ff8102d",
+      "checkpoint_bytes": 6441045,
+      "declared_steps": 40000,
+      "device": "cuda",
+      "gradient_steps": 40000,
+      "path": "/home/filip/rltraffic/output/p9_1_runs/checkpoints/hz1x1/mappo1000_iql_t_seed404.pt",
+      "record": "/home/filip/rltraffic/output/p9_1_runs/training/hz1x1/mappo1000__iql_t__seed404.json",
+      "record_sha256": "a09b7ec145e1c7c1cfa6682d662509b5227ce10d602ef951fdf999623de4c024",
+      "sha256": "998ddd2e68c451eaf4d8b812de0f6e2d0fc69a05b319711bbe3a5904af9fb0aa",
+      "target_dropout": "off"
+    },
+    "505": {
+      "base": "iql",
+      "canonical_digest": "12ece7a327200ab05befd69adea3a0d4d8e6234e85d6740826498ba2e8024009",
+      "checkpoint_bytes": 6441045,
+      "declared_steps": 40000,
+      "device": "cuda",
+      "gradient_steps": 40000,
+      "path": "/home/filip/rltraffic/output/p9_1_runs/checkpoints/hz1x1/mappo1000_iql_t_seed505.pt",
+      "record": "/home/filip/rltraffic/output/p9_1_runs/training/hz1x1/mappo1000__iql_t__seed505.json",
+      "record_sha256": "de6bdc2464c48406ecb6332ab2740936d8370e7025f04043b7d7a36ab66ce351",
+      "sha256": "25f783fdd9dac5d90986fe6ad6572fc28219ee58b5a925684021c5d59a015365",
+      "target_dropout": "off"
+    }
+  },
+  "mix50": {
+    "101": {
+      "base": "iql",
+      "canonical_digest": "2e6a8d487cd76be436c5226859a5bd23c57504ecb59bb65144cdf225729fa9cc",
+      "checkpoint_bytes": 6440765,
+      "declared_steps": 40000,
+      "device": "cuda",
+      "gradient_steps": 40000,
+      "path": "/home/filip/rltraffic/output/p9_1_runs/checkpoints/hz1x1/mix50_iql_t_seed101.pt",
+      "record": "/home/filip/rltraffic/output/p9_1_runs/training/hz1x1/mix50__iql_t__seed101.json",
+      "record_sha256": "13b2ab9a0330819a883aaf8708d82b786e8bc271afdfddd15942d6f470ac4de0",
+      "sha256": "b373338dd71d46385715c2b224f435a7f18ef6b2610dbfd0be1e987b94845690",
+      "target_dropout": "off"
+    },
+    "202": {
+      "base": "iql",
+      "canonical_digest": "98b6a436a18fc2d4bd176137cd2393acd96204513994b77b82526f5f900140fd",
+      "checkpoint_bytes": 6440765,
+      "declared_steps": 40000,
+      "device": "cuda",
+      "gradient_steps": 40000,
+      "path": "/home/filip/rltraffic/output/p9_1_runs/checkpoints/hz1x1/mix50_iql_t_seed202.pt",
+      "record": "/home/filip/rltraffic/output/p9_1_runs/training/hz1x1/mix50__iql_t__seed202.json",
+      "record_sha256": "9c52adfb95e7bb86d2ad3c3327371bb3cd5b062d232e23e5aadec20a5837058f",
+      "sha256": "56ca9a688c92269cc5c54a93f940c3f9ceb4f28723ca15f30906d1cb2209672f",
+      "target_dropout": "off"
+    },
+    "303": {
+      "base": "iql",
+      "canonical_digest": "cf2f7b3e911502260b9da182c2f22035e16433b5a6b78633a9f20d878f5aac0b",
+      "checkpoint_bytes": 6440765,
+      "declared_steps": 40000,
+      "device": "cuda",
+      "gradient_steps": 40000,
+      "path": "/home/filip/rltraffic/output/p9_1_runs/checkpoints/hz1x1/mix50_iql_t_seed303.pt",
+      "record": "/home/filip/rltraffic/output/p9_1_runs/training/hz1x1/mix50__iql_t__seed303.json",
+      "record_sha256": "a3db6fa24ef1b9b5c57521b15ac8ddf5614d3b7551f8df97cd4f7ed90d77da18",
+      "sha256": "a947062b421cdc57dbdb941464a0713eeec6860e6a99fa926c46773782881d2b",
+      "target_dropout": "off"
+    },
+    "404": {
+      "base": "iql",
+      "canonical_digest": "090171e94dd40425c0ce08860189d3556ed43fa5ec1653c5c22c9601f7b596c4",
+      "checkpoint_bytes": 6440765,
+      "declared_steps": 40000,
+      "device": "cuda",
+      "gradient_steps": 40000,
+      "path": "/home/filip/rltraffic/output/p9_1_runs/checkpoints/hz1x1/mix50_iql_t_seed404.pt",
+      "record": "/home/filip/rltraffic/output/p9_1_runs/training/hz1x1/mix50__iql_t__seed404.json",
+      "record_sha256": "c7d3a5796ca01cc0590f18495f198df5f8d08ef65ec6c0a1ede957ff68f65825",
+      "sha256": "9c8c2bc71729784bbbb56e56ebb2ff808a038cf59bd1158c5513f1d5242bca6d",
+      "target_dropout": "off"
+    },
+    "505": {
+      "base": "iql",
+      "canonical_digest": "711a664026d6a731cc67a74d26558b43a90669b89bcecc8ca8e6e5f46c7085af",
+      "checkpoint_bytes": 6440765,
+      "declared_steps": 40000,
+      "device": "cuda",
+      "gradient_steps": 40000,
+      "path": "/home/filip/rltraffic/output/p9_1_runs/checkpoints/hz1x1/mix50_iql_t_seed505.pt",
+      "record": "/home/filip/rltraffic/output/p9_1_runs/training/hz1x1/mix50__iql_t__seed505.json",
+      "record_sha256": "929dda315ab139ee41977f4bccf8dbd74fa80cdfe23204702ea468276ed2b199",
+      "sha256": "15e0e764fe56307f0c9db2ca677db6c507b7ac588c5f34625436064614d24094",
+      "target_dropout": "off"
+    }
+  },
+  "registered_steps": 40000,
+  "what": "stage 2 of P9.2's demand shift (A27(h)): the iql_t checkpoints of the mappo1000 and mix50 tiers, pinned from P9.1's write-once run records (BRIEF_47 Amendment G); offline.demand_shift reads {tier: {seed: {path, sha256}}} and re-checks each digest before it loads a checkpoint"
+}
