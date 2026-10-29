@@ -613,3 +613,89 @@ The author stopped P9.1's campaign stage and ruled that every long run runs in s
   documentation commit that never held the training code (`BRIEF_46` G.2).
 - **Now:** build the pin file and the pre-flight (CPU only, read-only on `output/p9_1_runs`), commit both, and say **"P9.2 stage 2
   ready"**. Amendment H gives the token, with its hours first and the shard count. Stage 2 runs on the CPU beside P9.1's T2 (G.2-3).
+
+# ✅ AMENDMENT H — 2026-10-29, night: stage 2 CLEARED; it runs about 45 minutes without a break, on 3 CPU shards beside P9.1's T2; the pin check's exit fixed in the command; your worktree stays unchanged until the shards end
+
+Your packet: the stage-2 pre-flight in `docs/returns/P9.2-preflight.md` and the pin file, at `4396389`.
+
+## H.1 Verified by the coordinator, from disk
+- **The commit `4396389`** (parent `2328305`) adds `docs/data/p9_2_stage2_iql_t_pins.json` and one section of
+  `docs/returns/P9.2-preflight.md`. No code changed.
+- **The pin file's** sha256, from git's object, is `119305d2…`. The file in `/home/filip/rltraffic-p92` is the same, and that worktree
+  is clean at `4396389`.
+- **The ten pins, by the coordinator's own script** (standard library only, nothing from `offline/`). For each pin:
+  - its path is its record's `checkpoint`;
+  - the checkpoint's sha256, recomputed, equals the pin's and the record's `file_sha256`;
+  - the byte count and the record's sha256 equal the pin's, and so does the canonical digest (the record's);
+  - 40,000 declared and gradient steps; `iql` with target dropout `off`, arm `iql_t`; the scenario, tier and seed its name says;
+    `cuda`.
+
+  0 problems. The campaign block names `c58afb8` and `/home/filip/rltraffic-p91-run-d`, and its quoted line equals
+  `train_capture.txt`'s first line.
+- **The loader reads the file as you state** (`run2`'s `offline/demand_shift.py`):
+  - `evaluate` reads it once per process and looks up `[tier][seed]`, so the other keys are ignored;
+  - every cell re-hashes its checkpoint against its pin before loading it (`_factory_for`);
+  - `--device` defaults to `cpu`.
+- **The load path is the run's.** `demand_shift`, `offline_baselines`, `att_rederivation`, `admission_probe`, `dt_gate`,
+  `agent/OfflineBaselines.py`, `experiments/` and `envs/` are identical at `dafa3eb` and `4396389` (`git diff --quiet`). Only the
+  driver and `tier_sweep.py` differ, and neither is on that path. `run2` is clean at `dafa3eb`.
+- **One cell at each end, through `run2`'s own `roll_cell`** (which writes nothing), on the CPU beside T2:
+  - the first cell (`kn-hz`, `iql_t@mappo1000`, seed 101, draw 1000) and the last (`sb-sx`, `iql_t@mix50`, seed 505, draw 1099);
+  - both passed `_validate_record` as `evaluate_cells` applies it, so their two routes ran the same episode;
+  - each record carries its pin's sha256 and `dafa3eb`, clean;
+  - 2.48 s and 2.62 s.
+
+  The listings of `output/` (outside `p9_1_runs`, where T2 writes) and of the draws root were unchanged. The CLI had refused a scratch
+  work directory first, as A27(a)'s barrier requires.
+- **On disk:** 15,600 stage-1 records and `guard.json`; no `iql_t` cell; no token.
+- **Stage 1's measured time** (its records' file times; 3 shards):
+  - 3.06–3.11 h for 5,200 cells per shard;
+  - its 3,000 `iql` cells took 2.06 s each on average (median 1.99 s, 99th percentile 2.46 s);
+  - one watchdog restart in 15,600 cells.
+
+## H.2 Rulings
+1. **3 shards** (stage 1's measured configuration), 1,000 cells each.
+2. **The pin check is a here-string, not a pipe.** In the pre-flight's form (`echo … | sha256sum -c - && …; echo "DRIVER EXIT:
+   ${PIPESTATUS[0]}"`), a failed check prints `FAILED` and then `DRIVER EXIT: 0`, because the last pipeline run is the `echo`. The
+   coordinator tested both forms with a wrong digest: `sha256sum -c <<< …` prints `DRIVER EXIT: 1`, and neither writes the token. The
+   token is now written in the same line, only after the check passes.
+3. **Your worktree stays at `4396389`, unchanged, until every shard has ended.** Each shard and each restart reads the pin file anew,
+   and the command checks it once. So: no edit, commit, checkout or merge in `/home/filip/rltraffic-p92` until the author reports the
+   end.
+4. **G4 part 3 adds one check:**
+   - every stage-2 record's `checkpoint_sha256` equals the committed pin's for its tier and seed, 3,000 of 3,000;
+   - the pin file's digest is re-checked after the run.
+
+   The coordinator checks the same at "P9.2 stage 2 done".
+
+## H.3 ✅ THE TOKEN: stage 2 (a new tmux session, `p92-shift2`)
+**Stage 2 runs about 45 minutes without a break,** on 3 CPU shards beside P9.1's T2 (G.2-3):
+- 1,000 cells per shard at stage 1's 2.06 s, or the 2.5–2.6 s measured beside T2, is 34–44 minutes;
+- starting takes about 2 minutes, and each watchdog restart adds about 2.
+
+An interruption loses only the cells in flight, one per shard.
+- **Start:** `tmux new -s p92-shift2`, then at its prompt, as one line:
+  ```
+  sha256sum -c <<< "119305d2863bf576384582f01b7cfbd938e4ce0272f2c70f5aadc9cc0a90a9fb  /home/filip/rltraffic-p92/docs/data/p9_2_stage2_iql_t_pins.json" && echo "P9.2 demand shift stage 2, BRIEF_47 Amendment H, $(date -u +%FT%TZ)" > /home/filip/rltraffic/output/p9_2_runs/TOKEN_p92_shift && STAGE=2 IQL_T_PINS=/home/filip/rltraffic-p92/docs/data/p9_2_stage2_iql_t_pins.json SHARDS=3 P92_SESSION=p92-shift2 P92_WATCHDOG_SECONDS=120 P92_MAX_RESTARTS=60 bash /home/filip/rltraffic-p92-run2/offline/campaigns/p9_2_demand_shift.sh 2>&1 | tee -a /home/filip/rltraffic/output/p9_2_runs/logs/shift_driver.log; echo "DRIVER EXIT: ${PIPESTATUS[0]}"
+  ```
+- **The pane shows,** in order:
+  - `…/p9_2_stage2_iql_t_pins.json: OK`;
+  - `=== run tree /home/filip/rltraffic-p92-run2 at dafa3eb…` and the token's text;
+  - the canary, and the materialise summary (the 300 draws kept);
+  - `=== the guard record exists …` and the guard's authorisation;
+  - `=== token consumed; opening 3 shard window(s) for stage 2 in tmux session p92-shift2`;
+  - `=== shards started; this window may be closed`, then `DRIVER EXIT: 0`.
+
+  **That `DRIVER EXIT: 0` means the shards STARTED, not that they finished.**
+- **Three windows,** `stage2_shard0` to `stage2_shard2`, each print a line every 25 cells (`shard i/3: 25 rolled, 0 skipped of 1000`).
+- **Done when** each of the three windows shows `stage 2 shard i/3: rolled 1000, skipped 0 of 1000` and then `SHARD i EXIT: 0`. The
+  same lines end `/home/filip/rltraffic/output/p9_2_runs/logs/shift_stage2_shard{0,1,2}.log`.
+- **A refusal before the token** (`FAILED` on the pin file, a `REFUSING …` line, or a `DRIVER EXIT` other than 0): no shard started.
+  Report it.
+- **A shard that ends otherwise** (`SHARD i STOPPED …`, or an exit other than 0): report it; nothing is re-run without a ruling. A
+  `SHARD i RESTART n/60` line is the watchdog at work, not a failure.
+- **To interrupt:** Ctrl+C in a shard's window. That shard loses its cell in flight, and the coordinator gives the resume line.
+
+## H.4 After the run
+- Your G4 part 3, as the pre-flight lists it, with H.2-4's check.
+- The coordinator verifies at "P9.2 stage 2 done".
