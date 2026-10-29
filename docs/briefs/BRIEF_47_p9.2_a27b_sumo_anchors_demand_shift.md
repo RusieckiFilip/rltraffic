@@ -591,3 +591,25 @@ The author stopped P9.1's campaign stage and ruled that every long run runs in s
 - **The GPU order changed** (`BRIEF_48` I.3-4). P9.3's training sessions run while P9.1 builds its session control. P9.1's first
   training session goes next once it is cleared, and your ten records still come in it.
 - **Your watcher (task `bupgfrng4`):** the author leaves it to time out by itself at about 00:13. Act on nothing it reports.
+
+## G.5 2026-10-29, night: the ten records are on disk and VERIFIED; build the pins now, at `c58afb8`, not `cb61ee7`
+- **P9.1's training session T1 trained them** (runs 21–25 and 31–35). It was stage train `20261029T154931Z`, from the run tree
+  `/home/filip/rltraffic-p91-run-d` at `c58afb8`, 16:49–21:42 CET (`BRIEF_46` Amendment G).
+- **The coordinator checked all ten by G.2-1's rules,** with its own script:
+  - every checkpoint exists, and its sha256, recomputed, equals the record's `file_sha256`;
+  - `declared_steps` and `gradient_steps` are both 40,000;
+  - `scenario`, `tier`, `arm` (`iql_t`) and `seed` are the ones each name says;
+  - each trained on `cuda`.
+
+  The sha256s begin: `mappo1000` seeds 101–505 `14f31fc2`, `5376bc99`, `ac173f7a`, `998ddd2e`, `25f783fd`; `mix50` seeds 101–505
+  `b373338d`, `56ca9a68`, `a947062b`, `9c8c2bc7`, `15e0e764`. Recompute them yourself; these prefixes are only a cross-check.
+- **G.2-1 corrected: the pin file names `c58afb8` and `/home/filip/rltraffic-p91-run-d`,** as the first line of
+  `/home/filip/rltraffic/output/p9_1_runs/train_capture.txt` states them (`token consumed; stage train 20261029T154931Z from
+  /home/filip/rltraffic-p91-run-d at c58afb8; …`).
+  - G.2-1 named `cb61ee7` from `campaign_capture.txt` because the ten were due in the campaign stage. That stage trained only runs
+    1–3 before the author stopped it.
+  - The training path is the same at both commits (`BRIEF_46` F.1).
+- **Do not pin the checkpoints' `runtime.git_commit`.** It reads `9d3e042`: the main tree's HEAD when they were written, a
+  documentation commit that never held the training code (`BRIEF_46` G.2).
+- **Now:** build the pin file and the pre-flight (CPU only, read-only on `output/p9_1_runs`), commit both, and say **"P9.2 stage 2
+  ready"**. Amendment H gives the token, with its hours first and the shard count. Stage 2 runs on the CPU beside P9.1's T2 (G.2-3).
