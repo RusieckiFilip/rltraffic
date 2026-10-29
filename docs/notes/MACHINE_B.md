@@ -2,9 +2,11 @@
 
 **Status (2026-10-29):** machine B **PASSES** its pre-flight under the author's ruling of 2026-10-29, and P9.3 trains on B. The
 pre-flight ran on B from 00:04 to 00:46. Steps 1–3 passed. Step 4's bitwise CPU gate failed, and the author replaced it with a
-numerical comparison, which B passes (see "Machine B's pre-flight" below). Step 5, the timing, never ran; it runs alone
-(`machine_b_timing.sh`, B11–B13), and it sizes B's sessions (`BRIEF_48` I.7). The procedure's first version (USB, 1:1 copy) was
-replaced on 2026-10-28 and never run. The scripts and references are in `docs/notes/machine_b/`.
+numerical comparison, which B passes (see "Machine B's pre-flight" below). The timing then ran alone, 11:46–12:03, and passed
+every check. B's first-step loss agrees with the laptop's to two float32 ulps (see "Machine B's timing"). **P9.3's whole training
+runs on B as one continuous run of about 48.3 h**, by the author's ruling on B's sessions (`BRIEF_48` I.7; "B's run" below). The
+procedure's first version (USB, 1:1 copy) was replaced on 2026-10-28 and never run. The scripts and references are in
+`docs/notes/machine_b/`.
 
 ## The rulings
 - **The coordinator (`BRIEF_48` I.6):** P9.3's whole training (100 cells) runs on machine B; P9.1 stays whole on the laptop. A
@@ -26,6 +28,10 @@ replaced on 2026-10-28 and never run. The scripts and references are in `docs/no
   because MKL and oneDNN choose kernels and blocking by CPU model. The gate is replaced by a numerical comparison of B's CPU
   checkpoint against the laptop's, tensor by tensor (largest absolute and relative difference), plus the losses. If the differences
   are at floating-point rounding size, B passes and P9.3 trains on B.
+- **The author, on B's sessions (2026-10-29, after the timing):** B is a desktop, so the laptop's session rule does not bind it.
+  P9.3's whole training runs on B, preferably as one continuous run (about 48 h). If the queue or a safety reason argues for
+  splitting, it runs in at most 2 to 4 sessions ("2 splits are ok or 4"). The STOP file still ends a session early, after the cell
+  in flight. The laptop keeps its session rule for P9.1.
 
 ## What machine B shares with the laptop, and how each item is checked
 | Item | On machine B | Checked by the pre-flight |
@@ -200,11 +206,13 @@ one piece that is not public is Python 3.12.13 itself: deadsnakes no longer serv
 - or the CPU cell differs from the laptop's by more than floating-point rounding. As amended by the author on 2026-10-29, this is
   `machine_b_compare.py`'s bound; the bitwise digest it replaced is reported only.
 
-**The timings size B's sessions.** The frozen planner's estimates are the laptop's, so `machine_b_timing.sh` finds the `--hours` at
-which every session the queue can plan takes at most 6 hours on B, by B's measured cells, and prints the sessions.
+**The timings sized B's sessions at first.** The frozen planner's estimates are the laptop's, so `machine_b_timing.sh` finds the
+`--hours` at which every session the queue can plan takes at most 6 hours on B, by B's measured cells, and prints the sessions. The
+author's ruling of 2026-10-29 lifted the 6-hour bound for B, so the timings now give the run's length: 48.26 h.
 
 **The memory to expect,** measured on the laptop (the whole card, about 0.9 GB of it the desktop's own): `bc_m` 7.2 GB, `dt_nomix`
-3.8 GB, `bc_top10_m` and `bc_top10_perix_m` 3.6 GB, `iql_m` 2.0 GB. So `bc_m` needs about 6.3 GB of B's 8 GB.
+3.8 GB, `bc_top10_m` and `bc_top10_perix_m` 3.6 GB, `iql_m` 2.0 GB. So `bc_m` needs about 6.3 GB of B's 8 GB. *(On B, `bc_m`
+peaked at 6,467 MiB for the whole card: "Machine B's timing".)*
 
 ## Machine B's pre-flight, 2026-10-29 (verified by the coordinator from its output)
 The output came back through Drive as `/home/filip/machine_b_out.tar` (sha256 `8d3dc160…`, checked). The author extracted it to
@@ -246,10 +254,63 @@ output is `cpu_cell_comparison.txt`.
   - All 9 corpus-derived entries (configuration, normalisation statistics, prompts, mask) are equal.
 - **The first step's loss**, which the author's ruling also names, is not in any record: a record keeps only the last step's loss.
   - The laptop's 1-step cell gives 2.133220911026001 (`output/machine_b/laptop_cpu_1step`).
-  - B's comes from B12's step 2, and its 1-step checkpoint gets the same comparison.
+  - B's comes from B12's step 2, and its 1-step checkpoint gets the same comparison. *(Done, within the bound: "Machine B's
+    timing" below.)*
 - **So B passes, and P9.3 trains on B.**
 - **The kernel-level settings are dropped from B's sessions.** On B they changed nothing (its two checkpoints were byte-identical),
   and the gate they served is gone.
+
+## Machine B's timing, 2026-10-29 (verified by the coordinator from its output)
+The output came back through Drive as `/home/filip/machine_b_timing.tar` (sha256 `9ef8d497…`, checked). The author extracted it to
+`/home/filip/machine_b_result/machine_b_timing`, which equals the tar (`tar -d`).
+- **The run:** `machine_b_timing.sh` ran at `13b2994` on `DESKTOP-H2DV9E3`, 11:46:39–12:03:24 CET, and ended `TIMING EXIT 0`.
+  - The GPU line was `NVIDIA GeForce RTX 3070, 591.74, 8192 MiB, 100.00 W`.
+  - The run tree was at `4dcbedc`, clean.
+- **The records:** the five timing records and the 1-step record each name the run tree at `4dcbedc`, not dirty, and each
+  checkpoint's sha256 equals its record's `file_sha256`. The timing cells ran on CUDA at 2,000 of 2,000 steps; the 1-step cell ran on
+  the CPU.
+- **The timing, per arm** (2,000 steps on `maxpressure` seed 101; one 40,000-step cell is 20 times the training seconds, plus
+  setup):
+
+  | Arm | B: training | B: setup | Laptop (G3b): training | Laptop: setup | Training ratio | One cell on B |
+  |---|---|---|---|---|---|---|
+  | `dt_nomix` | 235.08 s | 83.1 s | 172.69 s | 49.4 s | 1.36 | 1.33 h |
+  | `bc_m` | 31.42 s | 107.8 s | 15.72 s | 61.4 s | 2.00 | 0.20 h |
+  | `bc_top10_m` | 7.94 s | 106.2 s | 4.85 s | 54.4 s | 1.64 | 0.07 h |
+  | `bc_top10_perix_m` | 8.06 s | 105.3 s | 4.82 s | 48.1 s | 1.67 | 0.07 h |
+  | `iql_m` | 126.19 s | 111.2 s | 64.72 s | 51.7 s | 1.95 | 0.73 h |
+
+- **B's whole training takes 48.26 h for the 100 cells**, against G3b's 30.67 h on the laptop, a factor of 1.57.
+  - Every tier has the same 25 (arm, seed) cells, so each tier takes 12.07 h.
+  - It is a projection from one tier's cells at 2,000 steps.
+- **Setup, cross-checked against step 3's smoke cells** (the gap between successive records, minus their training seconds):
+  `dt_nomix` 77–79 s and the others 104–110 s, against the timing's 83–111 s. Setup is 2.85 h of the 48.26 h.
+- **GPU memory** (the whole card; Windows' own use is 258–277 MiB when idle):
+  - `bc_m` is the largest, at 6,467 of 8,192 MiB, which leaves 1.7 GB;
+  - then `dt_nomix` 3,095 MiB, `bc_top10_m` 2,921, `bc_top10_perix_m` 2,910 and `iql_m` 1,246.
+  - *Correction (the coordinator's error):* the script's summary prints 2,921 MiB for `bc_top10_perix_m` and 2,910 for `iql_m`. Its
+    window for each cell starts one second before the cell, so those two figures are the previous cell's last second. The figures
+    above use each cell's own window. Nothing changes: `bc_m` is the largest either way.
+- **Power:** the GPU reached its 100 W limit in every arm, and its temperature stayed at or below 69 °C. B's hours are measured at
+  that limit.
+- **The first step's loss and the 1-step checkpoint:** `cpu_1step_comparison.txt`, computed at 13:08:09 with `machine_b_compare.py`
+  as committed in `b029604`. **Within the bound.**
+  - The loss: B 2.1332204341888428, the laptop 2.133220911026001. That is a relative difference of 2.2e-7, two float32 ulps at that
+    value, against a bound of 1e-5.
+  - 41 of the 66 tensors differ, in 5,465 of 847,112 elements. The largest absolute difference is 1.7e-7, in
+    `blocks.0.spatial.proj.weight`, as at two steps. The largest relative difference is 1.9e-6.
+  - All 9 corpus-derived entries are equal. B's canonical digest is `46f5279f…` and the laptop's `1c6e4d5f…`, as expected after
+    step 4.
+  - **So both steps' losses agree to rounding:** the first to two ulps, the second bitwise.
+- **What differs in B's files.** The records differ from the laptop's only in their timings and load averages. In each checkpoint's
+  runtime provenance, two things differ:
+  - B's GPU;
+  - B's main-tree commit (`13b2994`): the commit of the tree the process runs in, not of the code, which is the record's `git`
+    block.
+  - The format, the `git` block, the paths under `output/p9_3` and every other field are the laptop's. This was read on the
+    `dt_nomix` timing checkpoint against the laptop's CUDA one: the same 34 provenance keys.
+- **The session plan the script printed** (`--hours 3.40`: 11 sessions, none over 6 h on B) is not used, because the author's ruling
+  lifted the 6-hour bound for B.
 
 ## The coordinator's run of the pre-flight script on the laptop (QUICK mode)
 On 2026-10-28, 22:53–23:07, with 2 smoke cells and 20 timing steps, the result was `PREFLIGHT EXIT 0`.
@@ -272,15 +333,28 @@ The run proves the script's mechanics on the machine its references come from, n
     text was re-run on the same run's data, with the same result.
 - The 1-step CPU cell gave loss 2.133220911026001 and digest `1c6e4d5f…`, equal to the reference made 17 minutes earlier.
 
-## What follows (`BRIEF_48` I.7)
-- **B's session command** is I.4's, with these additions:
-  - the host's name and the GPU line printed into the capture;
-  - `--hours` as `machine_b_timing.sh` prints it, B's measured timings;
-  - no kernel-level settings (the author's ruling of 2026-10-29 made them moot).
-- **B stays awake** (B11) for every session.
-- **During a session on B, no GPU-heavy Windows program runs on B.** An out-of-memory error fails the cell in flight and stops the
-  session, but nothing finished is lost.
-- **Back to the laptop, tier by tier, through Drive.** Each tier's `train/`, `checkpoints/` and `train_logs/` and the capture travel
-  with a sha256 manifest made on B and checked on the laptop. The records' paths are the same on both machines.
+## B's run (`BRIEF_48` I.7, 2026-10-29)
+- **One continuous run of 48.3 h** (`--hours 31`), as the author prefers. Nothing in the queue or the checks argues for splitting
+  it:
+  - the queue puts no upper bound on `--hours`, and 31 plans all 100 cells. The queue counts the laptop's estimates, 30.67 h for all
+    of them;
+  - each cell trains in its own process;
+  - an interrupted run resumes with the same command and loses at most the cell in flight (up to 1.33 h).
+- **A split, if the author wants one:** `--hours 16` makes 2 sessions of 24.13 h, and `--hours 8` makes 4 of 12.07 h. Each ends
+  at a tier boundary.
+- **The command is I.4's** with four changes: `output/p9_3` created, the host and GPU line in the capture, `--hours 31`, and the
+  capture `train_capture_machine_b.txt`. There are no kernel-level settings. It was tested on the laptop on a scratch root
+  (`BRIEF_48` I.7).
+- **Before the run, on B:**
+  - sleep and hibernation off (B11);
+  - Windows Update paused;
+  - the WSL terminal left open;
+  - no GPU-heavy Windows program while it runs. An out-of-memory error fails the cell in flight and stops the run, but nothing
+    finished is lost.
+- **Back to the laptop, through Drive:**
+  - the whole `output/p9_3` as one tar with its sha256, made on B and checked on the laptop;
+  - staged in `/home/filip/machine_b_result/p9_3` and checked by the coordinator as in `BRIEF_48` I.1;
+  - then extracted into the laptop's `output/` with `-k`, so no file is overwritten.
+  - The records' paths are the same on both machines.
 - **G4 discloses** that every training cell ran on machine B (named, with its GPU, driver and power cap) and that evaluation ran on
   the laptop's CPU.

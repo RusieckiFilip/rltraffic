@@ -249,6 +249,10 @@ A long run is split into SESSIONS that the author starts and stops. Each session
 Build every driver of a long run this way from the start. Every command handed to the author says FIRST how many hours
 it runs without a break. Nothing under `output/` is deleted or moved without the author's ruling.
 
+**Machine B, the author's desktop, is exempt (the author, 2026-10-29):** *"B is a desktop, so the laptop's session rule
+doesn't bind it."* P9.3's training runs there as one continuous run of about 48 h. Its stop file still ends the run after
+the cell in flight, and an interrupted run still resumes from disk (`BRIEF_48` I.7). The laptop keeps the rule.
+
 ## 6. Definition of Done for any task
 
 - [ ] Code complete, no placeholders

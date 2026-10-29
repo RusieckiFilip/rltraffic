@@ -881,3 +881,64 @@ had not started on the laptop.
     **I.7: B's session command.**
   - **For you:** nothing changes in I.5. The records your queue writes on B carry the same `git` block, since the run tree's path and
     commit are the same on B. Each checkpoint's runtime provenance names B's GPU.
+
+## I.7 2026-10-29: B's timing VERIFIED; by the author's ruling, your training runs on machine B as ONE continuous run of about 48.3 h
+**Verified by the coordinator, from B's output** (`docs/notes/MACHINE_B.md`, "Machine B's timing"). The tar's sha256 `9ef8d497…` was
+checked, and the extracted folder equals the tar.
+- `machine_b_timing.sh` ran at `13b2994` on B, 11:46:39–12:03:24 CET, and ended `TIMING EXIT 0`. The run tree was at `4dcbedc`,
+  clean. Every record names it, not dirty, and every checkpoint's sha256 is its record's.
+- **B's whole training takes 48.26 h** by B's measured cells, against G3b's 30.67 h on the laptop: a factor of 1.57 (1.37 for
+  `dt_nomix`, about 2 for `bc_m` and `iql_m`, setup included). Each tier takes 12.07 h. Setup per cell agrees with step 3's smoke
+  cells: 77–83 s for `dt_nomix`, 104–111 s for the others.
+- **GPU memory:** at most 6,467 of 8,192 MiB, in `bc_m` (the whole card).
+- **The first step's loss:** B 2.1332204341888428, the laptop 2.133220911026001. They are two float32 ulps apart (2.2e-7
+  relative). The 1-step checkpoint is within the rounding bound, with a largest difference of 1.7e-7 (`cpu_1step_comparison.txt`).
+  The second step's loss was bitwise equal, so **both steps agree to rounding.**
+- **What differs in B's files:** the timings and load averages in the records, and in each checkpoint's runtime provenance, B's GPU
+  and B's main-tree commit. The format, the `git` block, the paths under `output/p9_3` and every other field are the laptop's.
+
+**The author's ruling (2026-10-29):** *"B is a desktop, so the laptop's session rule doesn't bind it. Run P9.3's whole training on B
+preferably as one continuous run (about 48 h); if the queue or a safety reason argues for splitting, at most 2 to 4 sessions."* Then:
+*"2 splits are ok or 4."* The STOP file still ends a session early, after its cell in flight. The laptop keeps its session rule for
+P9.1.
+
+**The coordinator: one run, because nothing in the queue or the checks argues for splitting.**
+- The queue puts no upper bound on `--hours` (`plan_session` at `4dcbedc`). `--hours 31` plans all 100 cells; the queue counts the
+  laptop's estimates, 30.67 h for all of them.
+- Each cell trains in its own `train` process, so a long session carries nothing from one cell to the next.
+- An interrupted run resumes from disk with the same command and loses at most the cell in flight (up to 1.33 h).
+- **If the author splits anyway:** the same command with `--hours 16` makes 2 sessions of 24.13 h, and `--hours 8` makes 4 of
+  12.07 h. Each ends at a tier boundary, in the coordinator's replay of the planner.
+
+**The command,** for B's WSL in tmux. **It runs 48.3 h without a break.** It is I.4's command plus four changes: it creates
+`output/p9_3`, prints the host and GPU line, uses `--hours 31`, and writes its own capture name:
+```
+R=/home/filip/rltraffic-p93-run-c; mkdir -p /home/filip/rltraffic/output/p9_3 && cd /home/filip/rltraffic && ( date '+session start %F %T %Z'; echo "host $(hostname) | $(nvidia-smi --query-gpu=name,driver_version,power.limit --format=csv,noheader)"; git -C $R log -1 --format='run tree %H'; git -C $R status --porcelain; test -z "$(git -C $R status --porcelain)" && OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 PYTHONPATH=$R /home/filip/rltraffic/.venv/bin/python -P -c "from offline.a27_arms import assert_distinct_schedules as a; print('A27(d) ok:', a('/home/filip/rltraffic/datasets_v11/cf_hz4x4__random_fresh', expected=200))" && OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 PYTHONPATH=$R /home/filip/rltraffic/.venv/bin/python -P -m offline.hz4x4_phase_b train-queue --hours 31; s=$?; date '+session end %F %T %Z'; exit $s ) 2>&1 | tee -i -a /home/filip/rltraffic/output/p9_3/train_capture_machine_b.txt; echo "QUEUE EXIT ${PIPESTATUS[0]}"
+```
+- **Tested on the laptop** at 13:06–13:07, on a scratch root. Four arguments were added (`--max-cells 1 --gradient-steps 2 --device
+  cpu --output-root /home/filip/rltraffic/output/machine_b/i7_command_test`), and the two `output/p9_3` paths moved under that root.
+  - It printed the session start, the host line, the run tree, A27(d), the plan, one cell `exit 0`, `session_done`, the session end
+    and `QUEUE EXIT 0`.
+  - The cell's canonical digest is `4c03f73d…`, the laptop's 2-step CPU reference.
+- **Done when:** the capture ends with `train-queue session: {'status': 'completed', …}` and `session end …`, and the pane shows
+  `QUEUE EXIT 0`. The summary's `next_pending` is `None` and its `planned_hours_left` 0.0.
+- **STOP, Ctrl+C and a failure:** as in I.4. The paths are the same on B.
+- **After an interruption** (a crash, a restart or STOP), the same command resumes, skipping every finished cell. A half-written cell
+  is refused: report it.
+- **Before the run, on B:**
+  - sleep and hibernation off (B11);
+  - Windows Update paused;
+  - the WSL terminal left open;
+  - no GPU-heavy program on B while the run lasts.
+- **Back to the laptop:**
+  - The whole `output/p9_3` goes in one tar with its sha256, through Drive.
+  - It is staged in `/home/filip/machine_b_result/p9_3` and checked by the coordinator as in I.1.
+  - Only then is it extracted into the laptop's `output/` with `-k`, so no file is overwritten. The capture keeps its name.
+
+**For you:**
+- Nothing changes in I.5.
+- I.4's token does not apply on the laptop: P9.3's training is on B.
+- In G4, disclose the machines:
+  - every training cell ran on machine B (desktop GeForce RTX 3070, driver 591.74, 100 W limit; AMD Ryzen 5 3600X);
+  - the evaluation ran on the laptop's CPU;
+  - the CPU cell agrees with the laptop's to rounding, not bitwise.
