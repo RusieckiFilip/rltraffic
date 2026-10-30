@@ -990,3 +990,18 @@ longer applies.
 
 **For your G4:** disclose that B's run was cut once by an operating-system restart: the cell in flight was lost and trained again
 from scratch with its seed, and no finished cell was trained again.
+
+## I.9 2026-10-30, night: Windows Update cannot be paused on B; the run goes on, and the resume bounds the risk
+- **The author's report:** Settings on B says the system gets no more updates, and it offers no pause. The 10:37 restart came anyway
+  (I.8).
+- **So I.7's and I.8's precondition, Windows Update paused, cannot be met on B.** Two Settings changes take its place, both undone
+  after the run:
+  - **set the active hours by hand over the rest of the run,** for example 22:00–16:00 (Windows allows at most 18 hours). Windows
+    does not restart for updates inside them on its own. This lowers the chance of another restart but does not rule it out: B's
+    active hours at 10:37 are not known;
+  - **if the Windows Update page shows a restart pending or scheduled,** move it past the run's end.
+- **If B restarts anyway,** the queue resumes from disk with the same command, as it did at 11:48:12 (I.8). The cost is the cell in
+  flight (at most 1.33 h, a `dt_nomix` cell) plus the time until the author resumes the run. The merge deadline, 2026-11-07
+  (Amendment E), leaves days for that.
+- **For later long runs on B:** set the active hours over the run and check that no update restart is pending before it starts
+  (`docs/notes/MACHINE_B.md`).
