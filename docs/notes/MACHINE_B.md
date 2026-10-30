@@ -344,6 +344,10 @@ The run proves the script's mechanics on the machine its references come from, n
   at a tier boundary.
   - *(2026-10-29: the author chose two sessions. Session 1 started at 13:51 with `--hours 16`: `maxpressure` and `fixedtime`, 50
     cells, about 24.1 h, so it ends at about 14:00 on 2026-10-30. Session 2 follows with the same command; `BRIEF_48` I.7.)*
+  - *(2026-10-30: a Windows Update restart cut session 1 at 10:37, after 44 of the 100 cells; the cell in flight,
+    `fixedtime/bc_top10_perix_m` seed 505, was lost. The author resumed at 11:48:12 with `--hours 31`: one run of the 56
+    remaining cells, about 27.9 h on B, until about 15:40 on 2026-10-31, and no session 2. The queue's resume check passed
+    all 44 finished cells. Windows Update was not paused, as the list below asks; `BRIEF_48` I.8.)*
 - **The command is I.4's** with four changes: `output/p9_3` created, the host and GPU line in the capture, `--hours 31`, and the
   capture `train_capture_machine_b.txt`. There are no kernel-level settings. It was tested on the laptop on a scratch root
   (`BRIEF_48` I.7).

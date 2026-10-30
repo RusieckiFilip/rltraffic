@@ -950,3 +950,43 @@ R=/home/filip/rltraffic-p93-run-c; mkdir -p /home/filip/rltraffic/output/p9_3 &&
 - **Session 2:** the same command; the other 50 cells, `mappo1000` and `random_fresh`, about 24.1 h. Done as above, with
   `'status': 'completed'`.
 - The transfer back follows session 2.
+
+## I.8 2026-10-30: B's run was cut by a Windows Update restart at 10:37 and resumed at 11:48:12 as ONE run of the 56 remaining cells, about 27.9 h on B
+**The author's report, from B:**
+- **The restart:** Windows event 1074 at 10:37, from `svchost` on behalf of SYSTEM, with the reason "Operating System: Service pack
+  (Planned)" and code `0x80020010`. That is a Windows Update restart, not a crash and not heat. Session 1 had run about 21 h
+  without a problem.
+- **44 of the 100 cells had finished:** `maxpressure` 25 and `fixedtime` 19, through `bc_top10_perix_m` seed 404.
+  - The cell in flight, `fixedtime/bc_top10_perix_m` seed 505, was lost.
+  - `output/p9_3` on B holds 44 `hz4x4_*.pt` checkpoints, none under 10 kB, and no `.partial` file.
+- Sleep is now off, set in an admin PowerShell.
+- **The author resumed at 11:48:12** with the same command and `--hours 31`. The queue planned the 56 remaining cells, from
+  `fixedtime/bc_top10_perix_m` seed 505. There is no separate session 2.
+
+**What the resume itself shows** (the code at `4dcbedc`, read by the coordinator):
+- Before it plans, the queue recomputes the sha256 of every checkpoint that has a record, and compares it with the record's
+  `file_sha256` (`pending_training_cells`). A mismatch, a record without its checkpoint, or a checkpoint without its record
+  refuses the start.
+- It planned from seed 505, so **all 44 finished cells passed that check after the restart.** The restart lost no finished cell
+  and changed none.
+- The lost cell trains from scratch with its own seed. `train_cell` removes any `.partial` before its first step, and writes the
+  checkpoint and the record only at the end.
+
+**The run now.** One continuous run is the form the author's ruling of 2026-10-29 prefers on B, and I.7's two-session note no
+longer applies.
+- **It runs about 27.9 h without a break**, by B's measured cells: one `bc_top10_perix_m` (0.07 h) and five `iql_m` (0.73 h each),
+  then `mappo1000` and `random_fresh` at 12.07 h each. It ends at about 15:40 on 2026-10-31.
+- **Done when** the capture ends with `train-queue session: {'status': 'completed', …}`, its `next_pending` `None` and
+  `planned_hours_left` 0.0, then `session end …`, and the pane shows `QUEUE EXIT 0`.
+- The capture holds session 1's lines, cut at 10:37 without a `session end`, then the resumed run's, from `session start
+  2026-10-30 11:48:12`.
+- **I.7's precondition was not in effect:** it asked for Windows Update paused before the run. The author is asked to pause it for
+  the rest of the run, and to move any pending restart past the run's end.
+
+**What the coordinator adds to I.1's check at "P9.3 on B done":**
+- 100 records and 100 checkpoints, each checkpoint's sha256 its record's;
+- `fixedtime/bc_top10_perix_m` seed 505 exactly once, with its files' times after 11:48:12;
+- no file of a cell written between 10:37 and 11:48:12.
+
+**For your G4:** disclose that B's run was cut once by an operating-system restart: the cell in flight was lost and trained again
+from scratch with its seed, and no finished cell was trained again.
