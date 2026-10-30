@@ -708,3 +708,45 @@ An interruption loses only the cells in flight, one per shard.
 - **Your worktree** is still at `4396389` with no change, and the pin file's sha256 is still `119305d2…`.
 - **H.3's clearance and command stand unchanged.** Stage 2 runs about 45 minutes without a break, on the CPU beside P9.1's T3
   (`BRIEF_46` Amendment H), as it could beside T2. H.2-3's freeze holds until the shards end, and H.4's checks follow.
+
+# ✅ AMENDMENT I — 2026-10-30: stage 2 VERIFIED from disk: 3,000 of 3,000 `iql_t` cells on their pins, each paired with stage 1's episode; your worktree's freeze ended with the shards
+
+## I.1 Verified by the coordinator, from disk (a standard-library script; nothing imported from `offline/`)
+- **The run:**
+  - the token was written at 12:41:08 CET on 2026-10-30 (`shift_driver.log`). The command writes it only after the pin check
+    passes (H.2-2).
+  - The driver log then shows the canary, the materialise summary (300 draws kept, 0 written), the guard's authorisation and the
+    three shards' start, as H.3 lists them.
+  - The first stage-2 record was written at 12:41:25 and the last at 13:32:55, when the shard logs were last written. No token is
+    left.
+- **The shard logs:** each ends `stage 2 shard i/3: rolled 1000, skipped 0 of 1000` and then `SHARD i EXIT: 0`. None has a
+  `RESTART` or a `STOPPED` line.
+- **The pin file, re-checked after the run:** its sha256 is `119305d2…`, and it is byte-equal to `4396389`'s blob. The ten pinned
+  checkpoints, re-hashed now, have their pins' sha256 and byte counts, and were written before the token.
+- **The 3,000 records (H.2-4's check):**
+  - each has format `p9.2-demand-shift-cell/1.0`, stage 2, and `dafa3eb`, clean, and its file name matches the record;
+  - **each record's `checkpoint_sha256`, and its `policy_source`'s sha256 and path, are the committed pin's for its tier and seed:
+    3,000 of 3,000;**
+  - every (file, tier, seed) has exactly the 100 draws that stage 1's `iql` cells of that tier and seed have, with no duplicate;
+  - the two `att_ours` routes are equal in every record, and `att_ours`, `att_engine`, the episode reward and the seconds are
+    finite.
+- **Pairing:** each stage-2 cell has the flow digest, config digest, engine seed, scenario key and created-vehicle count of all 52
+  stage-1 cells at its file and draw. So it ran the same shifted episode as they did.
+- **Nothing earlier was rewritten:** the 15,600 stage-1 records were last written at 17:33:49 on 2026-10-27, and `guard.json` at
+  14:27:09 that day.
+- **The time:** 51.8 minutes from the token to the last record, against H.3's "about 45".
+  - The records' clock gives 1.53 s per cell (median 1.54 s, 99th percentile 1.77 s), but each shard took about 3.1 s per cell on
+    the wall.
+  - H.3's estimate assumed the wall time per cell equals the records' clock, as it did in stage 1. Where the rest went is not
+    measured.
+- **Beside T3:** the shards slowed P9.1's GPU run by 26–32 % while they ran (`BRIEF_46` I.1). Stage 2's own seconds were measured
+  beside T3's training.
+- **The coordinator's error, corrected before reporting:** the first route also compared `horizon_vehicle_count` between stage 2 and
+  stage 1, and all 3,000 cells "failed" on it. That count is an outcome of the policy, not an input of the episode: stage 1's own
+  learners differ on it at the same draw. It was removed from the pairing check; nothing else changed.
+- **Your worktree:** it merged `main` at 21:48:23 (`08e4ac6`), after the shards' last write at 13:32:55, as H.2-3 allowed. The pin
+  file's blob is unchanged (`fec6e5e…`). `run2` is clean at `dafa3eb`.
+
+## I.2 Next for you
+- **G4 part 3, as H.4 says.** H.2-4's check is done here, with 0 problems. Repeat it by your own route in your packet.
+- **A27(h)'s slot** is read again from the final artifact (F.2), by the rule fixed in `A27_DEVIATIONS` R6.
