@@ -699,3 +699,12 @@ An interruption loses only the cells in flight, one per shard.
 ## H.4 After the run
 - Your G4 part 3, as the pre-flight lists it, with H.2-4's check.
 - The coordinator verifies at "P9.2 stage 2 done".
+
+## H.5 2026-10-30: stage 2 had not started when P9.1's T2 ended; its clearance stands, beside T3
+- **On disk at T2's end:**
+  - no stage-2 shard log and no `TOKEN_p92_shift`;
+  - `shift_driver.log` ends with stage 1's lines;
+  - no `iql_t` cell under `output/p9_2`.
+- **Your worktree** is still at `4396389` with no change, and the pin file's sha256 is still `119305d2…`.
+- **H.3's clearance and command stand unchanged.** Stage 2 runs about 45 minutes without a break, on the CPU beside P9.1's T3
+  (`BRIEF_46` Amendment H), as it could beside T2. H.2-3's freeze holds until the shards end, and H.4's checks follow.
