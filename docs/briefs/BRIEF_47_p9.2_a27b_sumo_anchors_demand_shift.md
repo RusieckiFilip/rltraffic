@@ -750,3 +750,72 @@ An interruption loses only the cells in flight, one per shard.
 ## I.2 Next for you
 - **G4 part 3, as H.4 says.** H.2-4's check is done here, with 0 problems. Repeat it by your own route in your packet.
 - **A27(h)'s slot** is read again from the final artifact (F.2), by the rule fixed in `A27_DEVIATIONS` R6.
+
+# ✅ AMENDMENT J — 2026-10-30, night: G4 part 3 ACCEPTED and MERGED; A27(h)'s slot is FINAL, "beat it on all three files" (ten learners, 60 of 60); P9.2 COMPLETE
+
+Your packet: PART 3 of `docs/returns/P9.2.md` at `d0cec60`, with the artifact at `9364a1f`.
+
+## J.1 Verified by the coordinator, from disk
+- **The branch**, against `main` at `fcb332a`, adds four documents and nothing else: the artifact
+  `docs/data/p9_2_demand_shift.json`, the pin file, the stage-2 pre-flight section and PART 3. No code and no test changed. The
+  artifact's blob is the same at `9364a1f` and `d0cec60`.
+- **The artifact, rebuilt by the coordinator** in `run2` at `dafa3eb` (`report --out` to a scratch file, with
+  `PYTHONDONTWRITEBYTECODE=1`): **byte-identical**, sha256 `daf47cb5…`, 26,749,555 bytes. `run2` was clean before and after.
+- **Against the stage-1 version (`668e827b…`), key by key:**
+  - `stage_2` went from `pending` to `present`, with 3,000 cells; `n_cells` from 15,600 to 18,600;
+  - the checkpoint list went from 41 to 51: the 41 are kept, and the ten added entries are exactly the ten pins' sha256;
+  - each file's arms went from 12 to 14, the two `iql_t` arms added. Every stage-1 arm block and every other file-level field is
+    unchanged;
+  - the 15,600 stage-1 cells are unchanged, and the old cell list is a prefix of the new one;
+  - every other top-level field is equal.
+- **An independent recomputation** (the 18,600 raw records, json and numpy, nothing imported from `offline/`; F.1's script with the
+  two `iql_t` arms added):
+  - every record is at `dafa3eb`, clean, with its two `att_ours` routes equal and its stage right (2 for `iql_t`, 1 for the rest);
+  - per file: 10 learners × 500 cells, fixed-time 100, MaxPressure 100, each random reference 500. The artifact's 18,600 cells
+    equal the raw records;
+  - **11,748 values of the `files` block** (per-draw seed means, the ATT and ρ intervals, every paired field against fixed-time and
+    both random references, the Wilcoxon p with its continuity correction): **9,436 equal under `==`, the rest within 1.4 × 10⁻¹⁵
+    relative** (summation order).
+- **R6, by the coordinator's route:** all ten learners' paired intervals against fixed-time lie entirely below 0 on every file under
+  both definitions, **60 of 60 HELD**. The fewest wins are 95 of 100 (`iql_t@mix50`, qc-yn, `att_engine`), 98 (`bc@mix50`, qc-yn,
+  `att_engine`) and 99 (`iql_t@mix50`, qc-yn, `att_ours`). Against both random references, 120 of 120 are HELD, each with 100 of 100
+  wins.
+- **PART 3's tables:** the ρ ranges over the ten learners and over the eight; the two `iql_t` arms' ρ, contrasts and intervals
+  (P3.5.1–P3.5.2); and the 60 per-seed means of P3.5.3. All equal the coordinator's to the digits PART 3 prints. On sb-sx, nine of
+  the ten learners have a lower mean ATT than the file's own MaxPressure under both definitions; `iql_t@mix50` does not.
+- **P3.1's log facts:** the three shard logs were last written at 13:32:48, 13:32:32 and 13:32:55, 42 lines each, with no line
+  matching `traceback|error|timeout|restart|stopped|refus|warning`.
+- **The tests**, from the main tree with this merge staged, before its commit: P3.6's eight task files with every gate set, one
+  process, **225 passed, 0 skipped** (238.5 s). `claude_guard.sh --frozen-only` exits 0. No test was changed or added in part 3.
+
+## J.2 The coordinator's error in Amendment I, found from P3.1's figures
+I.1's "The time" says H.3's estimate *"assumed the wall time per cell equals the records' clock, as it did in stage 1"*. **Both halves
+are wrong:**
+- H.3's estimate used stage 1's wall time per cell, from its records' file times (2.06 s for the `iql` cells), and the 2.5–2.6 s that
+  single cells took beside T2. It did not use the records' clock.
+- In stage 1 too, the records' clock was about half the wall time per cell: 1.06 s per cell on average (0.99 s and 1.06 s for the
+  `iql` arms), against 2.15 s of wall time per cell in each shard.
+
+What happened instead: stage 2's cells took about 1.45 times stage 1's on both clocks. On the wall that was 3.09 s per cell against
+2.15 s, and on the records' clock 1.53 s against 1.06 s. That is also more than the 2.5–2.6 s single cells took beside T2. What
+slowed them is not measured. I.1's other facts stand.
+
+## J.3 Accepted
+- **A27(h)'s slot is final: "beat it on all three files"**, under R6, over all ten learners, 60 of 60. F.2's provisional reading
+  stands.
+- **P3.5.3's facts go to the author through the paper track,** beside P2.8.2 (F.2):
+  1. **the sb-sx observation now holds for nine of the ten learners.** `iql_t@mix50` is slower than sb-sx's own MaxPressure: ρ 0.9195
+     [0.8952, 0.9439] (`att_ours`) and 0.8870 [0.8585, 0.9154] (`att_engine`);
+  2. `iql_t@mix50`'s five seeds disagree on qc-yn and sb-sx. On qc-yn, seed 101's `att_engine` mean (225.00 s) lies above the
+     fixed-time plan's (204.65 s);
+  3. the lower ends of the ρ ranges drop on qc-yn and sb-sx, through `iql_t@mix50` alone.
+
+  The registered sentence's words stay as registered. No per-seed rule is registered, and none is added.
+- **P3.8-2, `run2`:** it stays as it is. P9.2 rolls nothing more, but `run2` is the tree that rolled every cell, and the artifact is
+  rebuilt there, as the coordinator did today.
+- The ≈ 52 minutes, and the untimed part of each cell (P3.1): accepted as disclosed.
+
+## J.4 The merge
+- **This merge** (parents `fcb332a` and `d0cec60`) brings the four documents to `main` and ticks `PROJECT_PLAN` §6's P9.2 box.
+  **P9.2 is COMPLETE.**
+- Nothing more is asked of `task/p9.2-a27b`. Its worktree `/home/filip/rltraffic-p92` and the run trees stay as they are.
