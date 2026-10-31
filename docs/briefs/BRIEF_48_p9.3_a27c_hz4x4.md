@@ -1001,7 +1001,17 @@ from scratch with its seed, and no finished cell was trained again.
     active hours at 10:37 are not known;
   - **if the Windows Update page shows a restart pending or scheduled,** move it past the run's end.
 - **If B restarts anyway,** the queue resumes from disk with the same command, as it did at 11:48:12 (I.8). The cost is the cell in
-  flight (at most 1.33 h, a `dt_nomix` cell) plus the time until the author resumes the run. The merge deadline, 2026-11-07
-  (Amendment E), leaves days for that.
+  flight (at most 1.33 h, a `dt_nomix` cell) plus the time until the author resumes the run. Point 8 has no date (H.6;
+  `A27_DEVIATIONS` D8): it merges when its gates pass, so a restart only delays it.
+  - ⚠️ **Corrected 2026-10-31 (the author's finding; the coordinator's error):** this bullet ended *"The merge deadline, 2026-11-07
+    (Amendment E), leaves days for that."* That date was withdrawn on 2026-10-28, two days before I.9 was written (D8; H.6).
 - **For later long runs on B:** set the active hours over the run and check that no update restart is pending before it starts
   (`docs/notes/MACHINE_B.md`).
+
+## I.10 2026-10-31: I.9's settings are in place on B; move the window's end well past the run's end
+- **The author's report:** B's active hours are 22:00–16:00, set through the registry from an administrator PowerShell, and
+  `NoAutoRebootWithLoggedOnUsers` is 1. Neither setting rules a restart out for certain; the resume still bounds the cost (I.9).
+- **The window ends about 20 minutes after the run's estimated end** (about 15:40, I.8), so a run slightly slower than its estimate
+  outlasts it. With the night past, move the window now to 05:00–23:00, still 18 hours: it then covers the rest of the run with
+  about seven hours to spare.
+- **I.9 is corrected in place.** It cited the 2026-11-07 date that D8 withdrew. Nothing else in I.9 changes.

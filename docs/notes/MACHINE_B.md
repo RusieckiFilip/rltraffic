@@ -355,7 +355,9 @@ The run proves the script's mechanics on the machine its references come from, n
   - sleep and hibernation off (B11);
   - Windows Update paused. *(2026-10-30: not possible on B. Settings says the system gets no more updates and offers no
     pause, and the 10:37 restart came anyway. Instead, set the active hours by hand over the run (at most 18 hours) and check
-    that no update restart is pending. An interrupted run resumes from disk; `BRIEF_48` I.9.)*;
+    that no update restart is pending. An interrupted run resumes from disk; `BRIEF_48` I.9.)* *(2026-10-31: on B the active
+    hours were set through the registry from an administrator PowerShell, with `NoAutoRebootWithLoggedOnUsers` = 1. Let the
+    window end hours after the run's estimated end, not minutes; `BRIEF_48` I.10.)*;
   - the WSL terminal left open;
   - no GPU-heavy Windows program while it runs. An out-of-memory error fails the cell in flight and stops the run, but nothing
     finished is lost.
