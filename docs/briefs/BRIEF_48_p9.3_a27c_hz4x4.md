@@ -1015,3 +1015,95 @@ from scratch with its seed, and no finished cell was trained again.
   outlasts it. With the night past, move the window now to 05:00–23:00, still 18 hours: it then covers the rest of the run with
   about seven hours to spare.
 - **I.9 is corrected in place.** It cited the 2026-11-07 date that D8 withdrew. Nothing else in I.9 changes.
+
+## I.11 2026-10-31, night: B's training VERIFIED from the staged copy, 100 of 100 cells; extract it into the laptop's `output/`; the evaluation commands follow in Amendment J
+**The author's report:**
+- B's capture ends with `session end 2026-10-31 15:40:22 CET`, and the pane showed `QUEUE EXIT 0`.
+- The tar `p9_3_machine_b.tar` came through Drive. B printed its sha256 (`e3a48baa…`), and the laptop's `sha256sum -c` printed OK.
+- The author extracted it to `/home/filip/machine_b_result/p9_3`.
+
+**Verified by the coordinator, from the staged copy.** Its own script does the checks with the standard library, and recomputes the
+canonical digests with the run tree's own two functions.
+- **The transfer:** the tar is 296,458,240 bytes. Its sha256 equals B's line and the `.sha256` file that came with it. The staged
+  folder equals the tar (`tar -d`, exit 0).
+- **The files:** exactly 301: the 100 cells' checkpoints, training records and logs, and the capture. There is no `.partial` and no
+  `STOP`.
+- **Every record carries:**
+  - format `p9.3-phase-b-train/1.0`, `hz4x4` and `cityflow4x4`;
+  - device `cuda`, and 40,000 of 40,000 declared steps;
+  - A27(a)'s clock label and a finite final loss;
+  - `git` = `/home/filip/rltraffic-p93-run-c` at `4dcbedc`, not dirty, as I.3-2's G4 check requires.
+
+  **The recipes** equal `docs/plans/p9.3.md`'s, written out by hand:
+  - `dt_nomix` at batch 64;
+  - `bc_m` at 1,024;
+  - `bc_top10_m` and `bc_top10_perix_m` at 102;
+  - `iql_m` at 20,480, with target dropout `off`.
+
+  **The corpora** are the laptop's paths: one per tier, and the five teacher-seed corpora for `mappo1000`. Every tier has 3,200
+  training streams.
+- **Every checkpoint:**
+  - its sha256 equals its record's `file_sha256`, and the 100 are distinct;
+  - its canonical digest, recomputed with the run tree's functions as `train_cell` applies them, equals the record's: 100 of 100.
+    `dt_nomix` uses `tier_sweep.canonical_state_dict_digest`, and the other arms the trainer's.
+- **The capture:**
+  - Session 1 opens at 13:52:38 on 2026-10-29. It ends at the TRAIN line of `fixedtime/bc_top10_perix_m` seed 505, with no exit line
+    and no `session end`: that is the restart.
+  - The resumed run opens at 11:48:12 on 2026-10-30.
+  - Both headers name:
+    - B: `DESKTOP-H2DV9E3`, NVIDIA GeForce RTX 3070, driver 591.74, 100 W;
+    - the run tree at `4dcbedc`, with an empty status;
+    - A27(d)'s check: 200 episodes, 200 joint, and 200 on each of the 16 intersections.
+  - 101 TRAIN lines follow the manifest's order, with the lost cell twice. Every other cell has exactly one `exit 0`.
+  - **The summary:**
+    - `completed`, 44 skipped, and the manifest's last 56 trained;
+    - `next_pending` `None` and `planned_hours_left` 0.0;
+    - `failed_cell` `None` and `returncode` 0.
+
+    Then comes `session end 2026-10-31 15:40:22 CET`.
+- **I.8's three checks hold:**
+  - 100 records and 100 checkpoints, each checkpoint's sha256 its record's;
+  - `fixedtime/bc_top10_perix_m` seed 505 exactly once. Its record and checkpoint were written at 11:52:49 on 2026-10-30. Its log
+    holds two attempt lines: 10:33:44, cut by the restart, and 11:48:22;
+  - no file of a cell was written between 10:37 and 11:48:12. The last before was written at 10:33:42, and the first after at
+    11:52:49.
+
+  The records were written in the manifest's order.
+- **The clock** (the records' seconds, uncontrolled, A27(a)):
+  - 45.77 h in all, and 11.32–11.52 h per tier;
+  - per cell, by tier mean: `dt_nomix` 4,721–4,794 s, `bc_m` 617–641 s, the two top-10 % arms 158–161 s, `iql_m` 2,496–2,546 s;
+  - on the wall: 20.74 h from the start to the restart, and 27.87 h from the resume (I.8 estimated 27.9 h);
+  - the 1-minute load average at a cell's end was at most 1.08.
+- **The coordinator's error, in its own script:** its first run expected one corpus for `mappo1000`, and the grid's digest function
+  for every arm. Both expectations were wrong and the records right. The script was corrected before its result was read.
+
+**The extraction (the author; it takes seconds).** As I.7 says, it goes into the laptop's `output/` with `-k`, and is then compared
+with the tar:
+```
+tar -xkf /home/filip/p9_3_machine_b.tar -C /home/filip/rltraffic/output && tar -df /home/filip/p9_3_machine_b.tar -C /home/filip/rltraffic/output && echo "P9.3 EXTRACTED: equals the tar"
+```
+- None of the tar's names exist in the laptop's `output/p9_3`, which holds only the corpus logs and `gate_work/`.
+- `-k` never replaces a file. A clash prints `Cannot open: File exists`, exits 2 and keeps the existing file: report it.
+- The coordinator tested the command on a scratch copy of that layout:
+  - the existing files were kept, and the file times restored;
+  - the compare exited 0;
+  - a clash exited 2.
+- **Done when** it prints `P9.3 EXTRACTED: equals the tar`.
+- The staged copy and the tar stay where they are. B keeps its `output/p9_3` and its tar until P9.3 merges.
+
+**For you:**
+- `git merge main` (docs only), then read I.6–I.11.
+- **I.5's three items are still open: your branch's tip is `4dcbedc` (2026-10-28).** They are:
+  - the I.2 correction commit;
+  - I.3-2's `training_block` check, tests first, in `offline/hz4x4_report.py`;
+  - I.3-3's label, in the same file.
+
+  H.2-4's freeze still holds `offline/hz4x4_phase_b.py` and `offline/hz4x4_ladder.py` at `4dcbedc`'s bytes. Report "P9.3
+  corrections done" with the commits.
+- **The evaluation commands come in Amendment J (I.3-5).** The coordinator smokes their shard form on a scratch root and sets the
+  worker counts against what runs beside them. They wait for P9.1's T5 to end, because T5 holds up to 31.3 GiB of the laptop's
+  memory (`BRIEF_46` J.2).
+- **In G4, disclose (I.7, I.8):**
+  - every training cell ran on B;
+  - one operating-system restart cut the run once;
+  - the cell in flight was lost and trained again from scratch with its seed, and no finished cell was trained again.
