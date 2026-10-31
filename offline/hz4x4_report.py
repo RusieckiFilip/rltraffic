@@ -62,6 +62,16 @@ GRID_COUNTERPARTS: Mapping[tuple[str, str], str] = {
     ("random", "mappo1000"): st.ANCHOR_CELL,
 }
 
+#: ``BRIEF_48`` Amendment I, I.3-2: the code that trained the campaign's cells -- the run tree at ``4dcbedc``, clean.  Every
+#: training record's ``git`` block must be exactly this; G4's ``git diff --quiet 4dcbedc <tip> -- offline/hz4x4_phase_b.py
+#: offline/hz4x4_ladder.py`` then ties those records to the branch's code.
+CAMPAIGN_GIT: Mapping[str, Any] = {"commit": "4dcbedc25021634c199897beffeab4d806b9afc2", "dirty": False,
+                                   "code_root": "/home/filip/rltraffic-p93-run-c"}
+
+#: ``BRIEF_48`` Amendment I, I.3-3: the label of ``random@mappo1000``'s counterpart.  A uniform-random policy does not depend
+#: on the tier, the grid evaluated it once, and P5.2c's books use that one cell for every tier.
+ANCHOR_LABEL = "the grid's shared random anchor (one cell for every tier)"
+
 #: Every hz4x4 cell whose grid counterpart is P9.1's (A27 (b), (d)) -- the matched arms on every tier, ``dt_nomix`` and
 #: ``behaviour`` on ``random_fresh`` -- and so is not committed until P9.1's campaign is.
 P9_1_COUNTERPARTS: tuple[tuple[str, str], ...] = tuple(
@@ -255,7 +265,8 @@ def training_block(output_root: str | Path) -> list[dict[str, Any]]:
 
     Refused unless every cell of ``hz4x4_phase_b.training_cells`` has its record and its checkpoint, the record is filed
     under its cell, the checkpoint's sha256 is the record's, every cell trained the registered 40,000 steps, and its
-    seconds carry the uncontrolled-clock label -- so a smoke's or a timing's two-step cells can never enter a report.
+    seconds carry the uncontrolled-clock label -- so a smoke's or a timing's two-step cells can never enter a report.  Its
+    ``git`` block must be :data:`CAMPAIGN_GIT` exactly (``BRIEF_48`` Amendment I, I.3-2).
     """
     import json
 
@@ -280,6 +291,9 @@ def training_block(output_root: str | Path) -> list[dict[str, Any]]:
                              f"gradient steps; every campaign cell trains the registered {steps}")
         if record.get("clock") != pb.CLOCK_LABEL:
             raise ValueError(f"{record_path} does not carry the uncontrolled-clock label (A27 (a))")
+        if record.get("git") != dict(CAMPAIGN_GIT):
+            raise ValueError(f"{record_path} was trained by {record.get('git')}; every campaign cell was trained by "
+                             f"{dict(CAMPAIGN_GIT)} (BRIEF_48 Amendment I, I.3-2)")
         rows.append(record)
     return rows
 
@@ -290,7 +304,9 @@ def old_cells(grid_cells: Mapping[str, Any], *, provenance: Mapping[str, Any]) -
     *grid_cells* and *provenance* are ``tier_statements.load_inputs``' -- P5.2c's reader, which reads every evaluation
     file at its manifest's digest and every ``att_engine`` row from P8.4b's campaign at its anchor.  Each copied cell
     carries its evaluation file, that file's digest and anchor as the reader recorded them, and its 500 rows; the
-    ``att_engine`` rows' anchor is carried once.  Nothing is re-rolled (``BRIEF_48`` Amendment A, A.5 Q4).
+    ``att_engine`` rows' anchor is carried once.  Nothing is re-rolled (``BRIEF_48`` Amendment A, A.5 Q4).  The counterpart
+    of ``random@mappo1000`` carries :data:`ANCHOR_LABEL` (Amendment I, I.3-3) -- it is the grid's one random cell, not a
+    ``mappo1000`` cell -- and every other entry's ``label`` is ``None``.
     """
     digests = {str(entry["file"]): entry for entry in provenance["inputs"]}
     cells: dict[str, Any] = {}
@@ -301,7 +317,8 @@ def old_cells(grid_cells: Mapping[str, Any], *, provenance: Mapping[str, Any]) -
             raise ValueError(f"{cell_id}: no digest for {file} in the reader's provenance; a copied cell names its source "
                              "and the digest it was read at")
         cells[f"{method}@{tier}"] = {
-            "counterpart": cell_id, "source": cell.spec.source, "grid_arm": cell.spec.arm, "eval_file": file,
+            "counterpart": cell_id, "label": ANCHOR_LABEL if cell_id == st.ANCHOR_CELL else None,
+            "source": cell.spec.source, "grid_arm": cell.spec.arm, "eval_file": file,
             "eval_file_sha256": digests[file]["sha256"], "eval_file_anchor": digests[file]["anchor"],
             "n": len(cell.rows), "rows": [dict(row) for row in cell.rows],
         }
