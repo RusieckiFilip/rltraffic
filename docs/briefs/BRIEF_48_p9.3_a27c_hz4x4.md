@@ -661,3 +661,449 @@ P9.1's `train: ok`.
      that commit and clears the token in Amendment I, stating each session's hours first. H.2-4's freeze starts at that token.
 - **The evaluation runs are short and stay as planned:** `p93-eval-ref` takes ≈ 0.5 h and each `p93-eval-<tier>` ≈ 0.7 h.
 - **H.3's smoke:** finish it as it is, from the run tree at `14a6ba2`. H.5 stands.
+
+---
+
+# ⚖️ AMENDMENT I — 2026-10-28, evening: H.3's smoke and H.6's sessions VERIFIED; `p93-train` CLEARED in sessions from the run tree `/home/filip/rltraffic-p93-run-c` at `4dcbedc`; D, E and A-B5 ruled; two statements in your notes CORRECTED
+
+Your notes: `b71d3d9` (H.3's smoke, `docs/returns/P9.3-smoke.md`) and `4dcbedc` (H.6's sessions, `docs/returns/P9.3-sessions.md`).
+
+## I.1 Verified by the coordinator, from disk
+- **H.3's smoke root**, read by the coordinator's own script (stdlib only; it imports nothing of your branch):
+  - 100 training records, exactly the 100 cells; 100 checkpoints; 0 `.partial`.
+  - Every checkpoint's sha256 equals its record's `file_sha256`.
+  - Every record: `git` = `/home/filip/rltraffic-p93-run-b` at `14a6ba2`, not dirty; device `cuda`; 2 of 2 steps; `scenario_id`
+    `cityflow4x4`.
+  - 125 evaluation records over the 25 cells on draw 1000. All 125 have `reproduces` true and `att_ours` `==` route (i)'s
+    `att_horizon` `==` route (ii)'s `att_ours`.
+  - Each of the 100 learner records names a training record at `14a6ba2` with the same sha256. There is no `eval_refused/`.
+- **Your seven files at `4dcbedc`,** in a scratch clone, one process, one thread: **159 passed, 0 skipped** (308 s).
+- **The `ast` proof, by the coordinator's own script:**
+  - Against `14a6ba2`, `offline/hz4x4_phase_b.py` changes exactly `_run_train_queue`, `build_parser` and `run_train_queue`. It adds
+    exactly your eight names and removes none. The other 47 top-level definitions are identical.
+  - `offline/hz4x4_ladder.py` is byte-identical.
+  - The only other file of `offline/` that differs is `tier_sweep.py`: M1b, `train_tier_dt`'s tier check. hz4x4's path never calls
+    `train_tier_dt`.
+- **The device path.** The per-cell command (`run_cell` inside `_run_train_queue`) is unchanged. So `--device` (default `cuda`)
+  reaches each `train` process exactly as in H.3's CUDA smoke. The session layer never touches the device, so the queue smoke on the
+  CPU is valid evidence for it.
+- **Mutants, the coordinator's own run on the session tests** (control: 7 passed):
+
+  | Mutant | Result |
+  |---|---|
+  | H1: the plan ignored | KILLED |
+  | H2: the stop file ignored | KILLED |
+  | H3b: one cell started after the stop file is seen | KILLED, by the stop-file test (`ran == SESSION_CELLS[:1]`) |
+  | C1: the stop file at `<root>/STOP` | KILLED, by the literal path pin |
+  | C2: `dt_nomix`'s and `iql_m`'s timings swapped, the total unchanged | KILLED |
+  | The check moved after the cell's bookkeeping | SURVIVED: near-equivalent (see below) |
+
+  The surviving mutant differs from your code only in two cases: the file appears between the start refusal and the first cell, or
+  during the last planned cell (only the summary's status changes). It is not a gap.
+- **From the run tree, on the main roots, read-only:**
+  - 100 cells pending, 0 skipped.
+  - Session 1 at `--hours 6`: 20 cells, 5.80 planned hours, ending with `maxpressure/bc_top10_perix_m` seed 505. This equals the
+    coordinator's own replay of the rule (30.67 h in all).
+  - Both refusals fire and write nothing: a queue with no bound, and two steps on the main output root.
+  - `output/p9_3/STOP` is absent.
+- **I.4's session command itself,** run once on a scratch root with one two-step CPU cell:
+  - It printed the start stamp, the run tree's commit, A27(d)'s check, the plan, the cell, the summary and the end stamp, then
+    `QUEUE EXIT 0`.
+  - With a stop file present: the refusal, `QUEUE EXIT 1`, and the file kept.
+- **A27(d)'s check, read-only:** 200 episodes, 200 joint, and 200 distinct on each of the 16 intersections, in 1.8 s.
+
+## I.2 Two statements in your notes are wrong: correct them (the author's checks)
+1. **The overlap with P9.1 (`P9.3-smoke.md`, the H.5 section).** P9.1's campaign stage ran **16:11:49–16:30:31 CET**: its capture's
+   stamp, and the last sample of its own GPU trace. Your watcher saw its process until 16:30:06 and not at 16:30:46. The author stopped
+   it, and P9.1 has trained nothing since. Of the smoke's 100 cells:
+   - 34 finished before it started;
+   - **23 ran beside it** (24 if its end is put at 16:30:46: `mappo1000/bc_m` seed 303 started at 16:30:38);
+   - 7 ran beside nothing;
+   - **36 ran beside a GPU load that was NOT P9.1's.** From 16:38:08 CET your watcher shows 4–9 GB at 80–100 % until at least
+     17:28:42, its last line. P9.1's own trace never exceeded 3.7 GB.
+
+   The note's *"66 of the 100 cells ran … at the same time as P9.1's campaign"* and *"its training presumably runs in another process
+   namespace"* are wrong. Between 16:36 and 20:15 the coordinator found no file written under `/home/filip` or the sessions' `/tmp` by
+   anything but your smoke, your tests and the coordinator's docs. WSL's `nvidia-smi` reports the whole card, Windows programs
+   included. **The load is unidentified.**
+2. **The queue smoke's stated reason (`P9.3-sessions.md`, H.6-6).** *"P9.1's campaign was training on the GPU"* is wrong at 17:53:
+   P9.1 had stopped at 16:30:31. What you saw was that unidentified load, so say so. The CPU choice weakens nothing (I.1, the device
+   path).
+   - The same applies to the smoke note's *"The evaluation ran on a machine loaded by P9.1's campaign"*. At 17:22–17:28 the load was
+     the unidentified one plus your own four shards.
+- **The rule this applies, so it is not repeated:** a statement about another stream's process comes from that stream's own record
+  (its capture, its GPU trace, its run records), never from a reading of the card's load.
+- **How:** one docs-only commit on your branch that corrects both notes with these numbers and quotes this section. No code changes.
+  The run tree stays at `4dcbedc`.
+
+## I.3 Rulings
+1. **D: yes, at no cost.** Every session's command runs A27(d)'s registered check from the run tree, and the queue starts only if it
+   passes (I.4). The check is `a27_arms.assert_distinct_schedules(<corpus>/cf_hz4x4__random_fresh, expected=200)`. It only reads,
+   and takes about 2 s.
+   - Why: the grid's route re-runs the check inside every `random_fresh` training call. Running it at each session's start keeps
+     "run before any training" true without touching the frozen module.
+   - The capture keeps every session's result.
+2. **E: accepted as it stands.** No new field, no new run tree. Three things prove the evaluation records' code:
+   - every evaluation command runs from the run tree named in its clearance, and its capture opens with that tree's commit and clean
+     status, printed by the command itself;
+   - every learner record's `policy_source` names a training record carrying `4dcbedc`, not dirty;
+   - G4's `git diff --quiet 4dcbedc <G4 tip> -- offline/hz4x4_phase_b.py offline/hz4x4_ladder.py`.
+
+   This is the standard P9.1's run records meet, and they carry no commit either.
+   - **One addition for G4, tests first, in `offline/hz4x4_report.py`:** `training_block` refuses a training record whose `git` is not
+     `{"commit": "4dcbedc25021634c199897beffeab4d806b9afc2", "dirty": false, "code_root": "/home/filip/rltraffic-p93-run-c"}`.
+     Mutant: any commit accepted.
+3. **A-B5: accepted.** `random@mappo1000`'s counterpart is the grid's shared random anchor (`tier_statements.ANCHOR_CELL`, P5.1's
+   random cell, filed under `ANCHOR` in P5.2c's books). It is copied per episode with its path and digest, like the other six.
+   - Why: a uniform-random policy does not depend on the tier. The grid evaluated it once, and P5.2c's books use that one cell for
+     every tier, so it is the grid's only random reference.
+   - The old-cells artifact labels it *"the grid's shared random anchor (one cell for every tier)"*, so no reader takes it for a
+     `mappo1000` cell.
+4. **The GPU order** (replaces H.4's *"P9.1's trainings, then yours"* and H.5's last sentence). P9.1 went first because of the hard
+   stop: point 8 was to be cut first. The hard stop is withdrawn (D8).
+   - **One campaign training session on the GPU at a time, never two.** H.5's ban stands.
+   - Your sessions start now, while P9.1 builds its own.
+   - Once P9.1's sessions are cleared (`BRIEF_46` Amendment F), its first training session goes next, after the session of yours then
+     running ends. P9.2's stage 2 waits for its ten records.
+   - After that, the coordinator names the next session in each turn.
+5. **The evaluation commands come in Amendment J,** once `maxpressure`'s 25 cells exist (after session 2). This replaces H.3-5's "all
+   three in Amendment I".
+   - Why: they get a new form. The shards run in the foreground of one pane (`xargs -P`), so Ctrl+C reaches every worker.
+   - A `--label` is never reused. `run_with_restarts` opens `<label>.attemptNN.log` for writing, so a reused label would overwrite a
+     run's logs under `output/`.
+   - The coordinator smokes that form on a scratch root first, and sets the worker counts (your 4 and 6) against what runs beside
+     them.
+   - Each evaluation run is well under a session (≈ 0.5–1.3 h). It ends by itself and resumes from its atomic records (§7 (5), as
+     clarified today), so it needs no session control.
+6. **H.2-4's freeze starts now.** From this token on, `offline/hz4x4_phase_b.py` and `offline/hz4x4_ladder.py` on your branch stay
+   byte-identical to `4dcbedc`'s.
+
+## I.4 ✅ THE TOKEN: `p93-train`, in sessions, from `/home/filip/rltraffic-p93-run-c` at `4dcbedc`
+**The run tree:** created by the coordinator at 20:37:40 on 2026-10-28, detached at `4dcbedc25021634c199897beffeab4d806b9afc2`, and
+clean. `offline/hz4x4_phase_b.py` has sha256 `5ee2edab…` and `offline/hz4x4_ladder.py` `bd305b2c…`, equal to the commit's.
+
+**The session command** is the same for every session, since each resumes from disk. Run it in the author's tmux `p93`, only while no
+other campaign training is on the GPU:
+```
+R=/home/filip/rltraffic-p93-run-c; cd /home/filip/rltraffic && ( date '+session start %F %T %Z'; git -C $R log -1 --format='run tree %H'; git -C $R status --porcelain; test -z "$(git -C $R status --porcelain)" && OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 PYTHONPATH=$R /home/filip/rltraffic/.venv/bin/python -P -c "from offline.a27_arms import assert_distinct_schedules as a; print('A27(d) ok:', a('/home/filip/rltraffic/datasets_v11/cf_hz4x4__random_fresh', expected=200))" && OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 PYTHONPATH=$R /home/filip/rltraffic/.venv/bin/python -P -m offline.hz4x4_phase_b train-queue --hours 6; s=$?; date '+session end %F %T %Z'; exit $s ) 2>&1 | tee -i -a /home/filip/rltraffic/output/p9_3/train_capture.txt; echo "QUEUE EXIT ${PIPESTATUS[0]}"
+```
+
+**The sessions at `--hours 6`.** Planned hours are G3b's quiet CUDA estimates, in the coordinator's replay of the rule:
+
+| Session | Cells | Planned hours | Contents |
+|---|---|---|---|
+| 1 | 20 | 5.80 | `maxpressure`, all but `iql_m` |
+| 2 | 9 | 5.76 | `maxpressure/iql_m` × 5; `fixedtime/dt_nomix` seeds 101–404 |
+| 3 | 23 | 5.72 | the rest of `fixedtime`; `mappo1000/dt_nomix` seeds 101–202 |
+| 4 | 23 | 5.72 | the rest of `mappo1000` |
+| 5 | 20 | 5.80 | `random_fresh`, all but `iql_m` |
+| 6 | 5 | 1.87 | `random_fresh/iql_m` |
+
+The author may set H per session; for example, `--hours 3` makes session 1 three `dt_nomix` cells, 2.92 planned hours.
+
+- **Done when, for each session:** the capture ends with `train-queue session: {'status': 'session_done', …}` (`'completed'` after the
+  last one), `session end …` and `QUEUE EXIT 0`. Session 1's summary names `next_pending` `['maxpressure', 'iql_m', 101]` and
+  `planned_hours_left` 24.87.
+- **To end a session early:** `touch /home/filip/rltraffic/output/p9_3/STOP`. The session ends after the cell in flight, which is up
+  to about an hour while `dt_nomix` cells run.
+  - The file is the author's. The code never deletes it, and no session starts while it exists. Remove it by hand before the next
+    session: `rm /home/filip/rltraffic/output/p9_3/STOP`.
+- **Ctrl+C is the emergency stop only.** It loses the cell in flight, and since the trainer writes only at the end, nothing is left
+  behind to refuse. The one exception: if the interrupt lands between a checkpoint and its record, the next session refuses that cell
+  and the coordinator rules.
+- **A slower GPU only lengthens a session.** The plan is in estimates, and the bound is not a clock. If a session runs long, use STOP.
+- **A failure stops the session at the failed cell** (`'status': 'failed'`, `QUEUE EXIT 1`). Report it; nothing is re-run without a
+  ruling.
+
+## I.5 Meanwhile, for you
+- The I.2 correction commit (docs only).
+- I.3-2's `training_block` check and I.3-3's label, tests first, in `offline/hz4x4_report.py`.
+- Nothing on the GPU while a session runs. Report "P9.3 corrections done" with the commits. G4 waits for the training and Amendment
+  J's evaluation.
+
+## I.6 2026-10-28, night: your training moves to MACHINE B if its pre-flight passes; I.4 is SUSPENDED on the laptop until then
+The author added a second computer, machine B: WSL2 on Windows, an RTX 3070 Laptop GPU with 8 GB and a 100 W power cap. Your session 1
+had not started on the laptop.
+- **Ruling: your WHOLE training (the 100 cells) runs on machine B, if B's pre-flight passes. P9.1 stays whole on the laptop.** The
+  procedure and the pass criteria are in `docs/notes/MACHINE_B.md`.
+  - **Why yours:** your cells are all new, so no contrast pairs a cell trained on B with one trained on the laptop. P9.1's contrasts are
+    against registered cells trained on the laptop, and they keep that hardware.
+  - **Why whole:** a campaign split across two GPUs would put the hardware inside its own comparisons.
+  - A27 names no hardware (checked in its row). The move is a methods fact, disclosed in G4 and in plan §2, not a deviation.
+- **Until the pre-flight decides, I.4's token is SUSPENDED on the laptop.** No `p93-train` session starts there. If machine B fails
+  its pre-flight, I.4 applies on the laptop as written, after P9.1's training.
+- **Machine B is made identical to the laptop except for its GPU:**
+  - Ubuntu 26.04, with the laptop's own Python 3.12.13 packages repacked;
+  - the laptop's venv, checked file by file;
+  - the code from a git bundle, with the run tree at `4dcbedc`;
+  - the eight corpora, checked file by file.
+- **Its pre-flight** (about 1 hour, run by the author):
+  - your seven test files at `4dcbedc`;
+  - a 20-cell CUDA smoke: every (tier, arm), 2 steps;
+  - one CPU cell's canonical digest beside the laptop's;
+  - G3b's timing at 2,000 steps per arm, with a GPU trace.
+- **After it, in I.7:**
+  - B's session command adds the host's name and its GPU line to the capture.
+  - `--hours` is divided by B's measured factor, because your planner's estimates are the laptop's.
+  - Each finished tier comes back to the laptop with a sha256 manifest made on B.
+  - G4 discloses the training machine.
+- **For you now:** nothing changes in I.5. Do nothing on machine B.
+- **Later the same night: the author's rulings, which replace the method above** (`docs/notes/MACHINE_B.md`, rewritten):
+  - **Method.** The code comes from GitHub: `task/p9.3-a27c` is pushed, and the run tree is at `4dcbedc`. The venv is built on B from
+    `requirements-frozen.txt`'s exact pins, each with the sha256 of the wheel the laptop has installed, and CityFlow is built from the
+    vendored tree. Only the eight corpora and the six Python 3.12.13 packages travel, through Google Drive, with sha256 manifests
+    checked on both sides.
+  - **Gate.** There is no speed rule: your training moves to B whatever B's speed. Only a pre-flight failure keeps it on the laptop:
+    a test failing, a cell erroring or running out of memory, or the CPU cell differing from the laptop's. The timings size B's
+    sessions.
+  - **CPU arithmetic.** On B, MKL, torch, oneDNN and numpy are held to the laptop's AVX2 kernel level, in the pre-flight and in every
+    session. The laptop's CPU has no AVX-512, and there the setting leaves the CPU cell's digest unchanged.
+- **2026-10-29: machine B PASSES its pre-flight under the author's ruling, and your training will run there. I.4 stays suspended on
+  the laptop.** The coordinator verified every point from B's output (`docs/notes/MACHINE_B.md`, "Machine B's pre-flight").
+  - **Steps 1–3 passed** (00:04–00:43):
+    - every identity check was equal;
+    - your seven files: 138 passed, 21 skipped, 0 failed. Each skip names laptop-only data that training does not read: the held-out
+      draws, the grid's corpus and its evaluation output, P2.1's results, and the v1.1 draws;
+    - all 20 CUDA smoke cells trained.
+  - **Step 4's bitwise gate failed.** B's CPU, an AMD Ryzen 5 3600X, gave `84da36bc…` at both kernel levels, with byte-identical
+    checkpoints, against the laptop's `4c03f73d…`.
+  - **The author's ruling:** the bitwise gate is replaced by a numerical comparison of the CPU checkpoints, tensor by tensor, plus the
+    losses. If the differences are at floating-point rounding size, B passes and P9.3 trains on B.
+  - **The comparison** is `docs/notes/machine_b/machine_b_compare.py`, committed in `b029604` before it ran.
+    - Its bound: every tensor within 1e-5 absolute, a tenth of one AdamW step at learning rate 1e-4; the loss within 1e-5 relative.
+    - The result: the largest difference is 1.7e-7, the step-2 loss is bitwise equal (2.0727832317352295), and the corpus-derived
+      contents are equal. **Within the bound.**
+  - **Two corrections, both the coordinator's errors:**
+    - B's GPU is a desktop NVIDIA GeForce RTX 3070, not the "RTX 3070 Laptop GPU" of this section's first lines.
+    - The CPU-arithmetic bullet above is wrong where it implies that holding AVX2 makes the gate test only the software. The libraries
+      choose kernels by CPU model, too. The kernel settings leave B's sessions.
+  - **Next:** B's timing (`machine_b_timing.sh`, about 30 minutes). It also gives B's first-step loss and prints B's sessions. Then
+    **I.7: B's session command.**
+  - **For you:** nothing changes in I.5. The records your queue writes on B carry the same `git` block, since the run tree's path and
+    commit are the same on B. Each checkpoint's runtime provenance names B's GPU.
+
+## I.7 2026-10-29: B's timing VERIFIED; by the author's ruling, your training runs on machine B as ONE continuous run of about 48.3 h
+**Verified by the coordinator, from B's output** (`docs/notes/MACHINE_B.md`, "Machine B's timing"). The tar's sha256 `9ef8d497…` was
+checked, and the extracted folder equals the tar.
+- `machine_b_timing.sh` ran at `13b2994` on B, 11:46:39–12:03:24 CET, and ended `TIMING EXIT 0`. The run tree was at `4dcbedc`,
+  clean. Every record names it, not dirty, and every checkpoint's sha256 is its record's.
+- **B's whole training takes 48.26 h** by B's measured cells, against G3b's 30.67 h on the laptop: a factor of 1.57 (1.37 for
+  `dt_nomix`, about 2 for `bc_m` and `iql_m`, setup included). Each tier takes 12.07 h. Setup per cell agrees with step 3's smoke
+  cells: 77–83 s for `dt_nomix`, 104–111 s for the others.
+- **GPU memory:** at most 6,467 of 8,192 MiB, in `bc_m` (the whole card).
+- **The first step's loss:** B 2.1332204341888428, the laptop 2.133220911026001. They are two float32 ulps apart (2.2e-7
+  relative). The 1-step checkpoint is within the rounding bound, with a largest difference of 1.7e-7 (`cpu_1step_comparison.txt`).
+  The second step's loss was bitwise equal, so **both steps agree to rounding.**
+- **What differs in B's files:** the timings and load averages in the records, and in each checkpoint's runtime provenance, B's GPU
+  and B's main-tree commit. The format, the `git` block, the paths under `output/p9_3` and every other field are the laptop's.
+
+**The author's ruling (2026-10-29):** *"B is a desktop, so the laptop's session rule doesn't bind it. Run P9.3's whole training on B
+preferably as one continuous run (about 48 h); if the queue or a safety reason argues for splitting, at most 2 to 4 sessions."* Then:
+*"2 splits are ok or 4."* The STOP file still ends a session early, after its cell in flight. The laptop keeps its session rule for
+P9.1.
+
+**The coordinator: one run, because nothing in the queue or the checks argues for splitting.**
+- The queue puts no upper bound on `--hours` (`plan_session` at `4dcbedc`). `--hours 31` plans all 100 cells; the queue counts the
+  laptop's estimates, 30.67 h for all of them.
+- Each cell trains in its own `train` process, so a long session carries nothing from one cell to the next.
+- An interrupted run resumes from disk with the same command and loses at most the cell in flight (up to 1.33 h).
+- **If the author splits anyway:** the same command with `--hours 16` makes 2 sessions of 24.13 h, and `--hours 8` makes 4 of
+  12.07 h. Each ends at a tier boundary, in the coordinator's replay of the planner.
+
+**The command,** for B's WSL in tmux. **It runs 48.3 h without a break.** It is I.4's command plus four changes: it creates
+`output/p9_3`, prints the host and GPU line, uses `--hours 31`, and writes its own capture name:
+```
+R=/home/filip/rltraffic-p93-run-c; mkdir -p /home/filip/rltraffic/output/p9_3 && cd /home/filip/rltraffic && ( date '+session start %F %T %Z'; echo "host $(hostname) | $(nvidia-smi --query-gpu=name,driver_version,power.limit --format=csv,noheader)"; git -C $R log -1 --format='run tree %H'; git -C $R status --porcelain; test -z "$(git -C $R status --porcelain)" && OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 PYTHONPATH=$R /home/filip/rltraffic/.venv/bin/python -P -c "from offline.a27_arms import assert_distinct_schedules as a; print('A27(d) ok:', a('/home/filip/rltraffic/datasets_v11/cf_hz4x4__random_fresh', expected=200))" && OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 PYTHONPATH=$R /home/filip/rltraffic/.venv/bin/python -P -m offline.hz4x4_phase_b train-queue --hours 31; s=$?; date '+session end %F %T %Z'; exit $s ) 2>&1 | tee -i -a /home/filip/rltraffic/output/p9_3/train_capture_machine_b.txt; echo "QUEUE EXIT ${PIPESTATUS[0]}"
+```
+- **Tested on the laptop** at 13:06–13:07, on a scratch root. Four arguments were added (`--max-cells 1 --gradient-steps 2 --device
+  cpu --output-root /home/filip/rltraffic/output/machine_b/i7_command_test`), and the two `output/p9_3` paths moved under that root.
+  - It printed the session start, the host line, the run tree, A27(d), the plan, one cell `exit 0`, `session_done`, the session end
+    and `QUEUE EXIT 0`.
+  - The cell's canonical digest is `4c03f73d…`, the laptop's 2-step CPU reference.
+- **Done when:** the capture ends with `train-queue session: {'status': 'completed', …}` and `session end …`, and the pane shows
+  `QUEUE EXIT 0`. The summary's `next_pending` is `None` and its `planned_hours_left` 0.0.
+- **STOP, Ctrl+C and a failure:** as in I.4. The paths are the same on B.
+- **After an interruption** (a crash, a restart or STOP), the same command resumes, skipping every finished cell. A half-written cell
+  is refused: report it.
+- **Before the run, on B:**
+  - sleep and hibernation off (B11);
+  - Windows Update paused;
+  - the WSL terminal left open;
+  - no GPU-heavy program on B while the run lasts.
+- **Back to the laptop:**
+  - The whole `output/p9_3` goes in one tar with its sha256, through Drive.
+  - It is staged in `/home/filip/machine_b_result/p9_3` and checked by the coordinator as in I.1.
+  - Only then is it extracted into the laptop's `output/` with `-k`, so no file is overwritten. The capture keeps its name.
+
+**For you:**
+- Nothing changes in I.5.
+- I.4's token does not apply on the laptop: P9.3's training is on B.
+- In G4, disclose the machines:
+  - every training cell ran on machine B (desktop GeForce RTX 3070, driver 591.74, 100 W limit; AMD Ryzen 5 3600X);
+  - the evaluation ran on the laptop's CPU;
+  - the CPU cell agrees with the laptop's to rounding, not bitwise.
+
+**2026-10-29, 13:51: the author started B's run as TWO sessions** with `--hours 16`, which the ruling allows.
+- **Session 1:** 50 cells, `maxpressure` and `fixedtime`, about 24.1 h on B. It ends at about 14:00 on 2026-10-30.
+  - Done when its capture ends with `'status': 'session_done'`, with `next_pending` `['mappo1000', 'dt_nomix', 101]` and
+    `planned_hours_left` 15.34, then `session end …`, and the pane shows `QUEUE EXIT 0`.
+- **Session 2:** the same command; the other 50 cells, `mappo1000` and `random_fresh`, about 24.1 h. Done as above, with
+  `'status': 'completed'`.
+- The transfer back follows session 2.
+
+## I.8 2026-10-30: B's run was cut by a Windows Update restart at 10:37 and resumed at 11:48:12 as ONE run of the 56 remaining cells, about 27.9 h on B
+**The author's report, from B:**
+- **The restart:** Windows event 1074 at 10:37, from `svchost` on behalf of SYSTEM, with the reason "Operating System: Service pack
+  (Planned)" and code `0x80020010`. That is a Windows Update restart, not a crash and not heat. Session 1 had run about 21 h
+  without a problem.
+- **44 of the 100 cells had finished:** `maxpressure` 25 and `fixedtime` 19, through `bc_top10_perix_m` seed 404.
+  - The cell in flight, `fixedtime/bc_top10_perix_m` seed 505, was lost.
+  - `output/p9_3` on B holds 44 `hz4x4_*.pt` checkpoints, none under 10 kB, and no `.partial` file.
+- Sleep is now off, set in an admin PowerShell.
+- **The author resumed at 11:48:12** with the same command and `--hours 31`. The queue planned the 56 remaining cells, from
+  `fixedtime/bc_top10_perix_m` seed 505. There is no separate session 2.
+
+**What the resume itself shows** (the code at `4dcbedc`, read by the coordinator):
+- Before it plans, the queue recomputes the sha256 of every checkpoint that has a record, and compares it with the record's
+  `file_sha256` (`pending_training_cells`). A mismatch, a record without its checkpoint, or a checkpoint without its record
+  refuses the start.
+- It planned from seed 505, so **all 44 finished cells passed that check after the restart.** The restart lost no finished cell
+  and changed none.
+- The lost cell trains from scratch with its own seed. `train_cell` removes any `.partial` before its first step, and writes the
+  checkpoint and the record only at the end.
+
+**The run now.** One continuous run is the form the author's ruling of 2026-10-29 prefers on B, and I.7's two-session note no
+longer applies.
+- **It runs about 27.9 h without a break**, by B's measured cells: one `bc_top10_perix_m` (0.07 h) and five `iql_m` (0.73 h each),
+  then `mappo1000` and `random_fresh` at 12.07 h each. It ends at about 15:40 on 2026-10-31.
+- **Done when** the capture ends with `train-queue session: {'status': 'completed', …}`, its `next_pending` `None` and
+  `planned_hours_left` 0.0, then `session end …`, and the pane shows `QUEUE EXIT 0`.
+- The capture holds session 1's lines, cut at 10:37 without a `session end`, then the resumed run's, from `session start
+  2026-10-30 11:48:12`.
+- **I.7's precondition was not in effect:** it asked for Windows Update paused before the run. The author is asked to pause it for
+  the rest of the run, and to move any pending restart past the run's end.
+
+**What the coordinator adds to I.1's check at "P9.3 on B done":**
+- 100 records and 100 checkpoints, each checkpoint's sha256 its record's;
+- `fixedtime/bc_top10_perix_m` seed 505 exactly once, with its files' times after 11:48:12;
+- no file of a cell written between 10:37 and 11:48:12.
+
+**For your G4:** disclose that B's run was cut once by an operating-system restart: the cell in flight was lost and trained again
+from scratch with its seed, and no finished cell was trained again.
+
+## I.9 2026-10-30, night: Windows Update cannot be paused on B; the run goes on, and the resume bounds the risk
+- **The author's report:** Settings on B says the system gets no more updates, and it offers no pause. The 10:37 restart came anyway
+  (I.8).
+- **So I.7's and I.8's precondition, Windows Update paused, cannot be met on B.** Two Settings changes take its place, both undone
+  after the run:
+  - **set the active hours by hand over the rest of the run,** for example 22:00–16:00 (Windows allows at most 18 hours). Windows
+    does not restart for updates inside them on its own. This lowers the chance of another restart but does not rule it out: B's
+    active hours at 10:37 are not known;
+  - **if the Windows Update page shows a restart pending or scheduled,** move it past the run's end.
+- **If B restarts anyway,** the queue resumes from disk with the same command, as it did at 11:48:12 (I.8). The cost is the cell in
+  flight (at most 1.33 h, a `dt_nomix` cell) plus the time until the author resumes the run. Point 8 has no date (H.6;
+  `A27_DEVIATIONS` D8): it merges when its gates pass, so a restart only delays it.
+  - ⚠️ **Corrected 2026-10-31 (the author's finding; the coordinator's error):** this bullet ended *"The merge deadline, 2026-11-07
+    (Amendment E), leaves days for that."* That date was withdrawn on 2026-10-28, two days before I.9 was written (D8; H.6).
+- **For later long runs on B:** set the active hours over the run and check that no update restart is pending before it starts
+  (`docs/notes/MACHINE_B.md`).
+
+## I.10 2026-10-31: I.9's settings are in place on B; move the window's end well past the run's end
+- **The author's report:** B's active hours are 22:00–16:00, set through the registry from an administrator PowerShell, and
+  `NoAutoRebootWithLoggedOnUsers` is 1. Neither setting rules a restart out for certain; the resume still bounds the cost (I.9).
+- **The window ends about 20 minutes after the run's estimated end** (about 15:40, I.8), so a run slightly slower than its estimate
+  outlasts it. With the night past, move the window now to 05:00–23:00, still 18 hours: it then covers the rest of the run with
+  about seven hours to spare.
+- **I.9 is corrected in place.** It cited the 2026-11-07 date that D8 withdrew. Nothing else in I.9 changes.
+
+## I.11 2026-10-31, night: B's training VERIFIED from the staged copy, 100 of 100 cells; extract it into the laptop's `output/`; the evaluation commands follow in Amendment J
+**The author's report:**
+- B's capture ends with `session end 2026-10-31 15:40:22 CET`, and the pane showed `QUEUE EXIT 0`.
+- The tar `p9_3_machine_b.tar` came through Drive. B printed its sha256 (`e3a48baa…`), and the laptop's `sha256sum -c` printed OK.
+- The author extracted it to `/home/filip/machine_b_result/p9_3`.
+
+**Verified by the coordinator, from the staged copy.** Its own script does the checks with the standard library, and recomputes the
+canonical digests with the run tree's own two functions.
+- **The transfer:** the tar is 296,458,240 bytes. Its sha256 equals B's line and the `.sha256` file that came with it. The staged
+  folder equals the tar (`tar -d`, exit 0).
+- **The files:** exactly 301: the 100 cells' checkpoints, training records and logs, and the capture. There is no `.partial` and no
+  `STOP`.
+- **Every record carries:**
+  - format `p9.3-phase-b-train/1.0`, `hz4x4` and `cityflow4x4`;
+  - device `cuda`, and 40,000 of 40,000 declared steps;
+  - A27(a)'s clock label and a finite final loss;
+  - `git` = `/home/filip/rltraffic-p93-run-c` at `4dcbedc`, not dirty, as I.3-2's G4 check requires.
+
+  **The recipes** equal `docs/plans/p9.3.md`'s, written out by hand:
+  - `dt_nomix` at batch 64;
+  - `bc_m` at 1,024;
+  - `bc_top10_m` and `bc_top10_perix_m` at 102;
+  - `iql_m` at 20,480, with target dropout `off`.
+
+  **The corpora** are the laptop's paths: one per tier, and the five teacher-seed corpora for `mappo1000`. Every tier has 3,200
+  training streams.
+- **Every checkpoint:**
+  - its sha256 equals its record's `file_sha256`, and the 100 are distinct;
+  - its canonical digest, recomputed with the run tree's functions as `train_cell` applies them, equals the record's: 100 of 100.
+    `dt_nomix` uses `tier_sweep.canonical_state_dict_digest`, and the other arms the trainer's.
+- **The capture:**
+  - Session 1 opens at 13:52:38 on 2026-10-29. It ends at the TRAIN line of `fixedtime/bc_top10_perix_m` seed 505, with no exit line
+    and no `session end`: that is the restart.
+  - The resumed run opens at 11:48:12 on 2026-10-30.
+  - Both headers name:
+    - B: `DESKTOP-H2DV9E3`, NVIDIA GeForce RTX 3070, driver 591.74, 100 W;
+    - the run tree at `4dcbedc`, with an empty status;
+    - A27(d)'s check: 200 episodes, 200 joint, and 200 on each of the 16 intersections.
+  - 101 TRAIN lines follow the manifest's order, with the lost cell twice. Every other cell has exactly one `exit 0`.
+  - **The summary:**
+    - `completed`, 44 skipped, and the manifest's last 56 trained;
+    - `next_pending` `None` and `planned_hours_left` 0.0;
+    - `failed_cell` `None` and `returncode` 0.
+
+    Then comes `session end 2026-10-31 15:40:22 CET`.
+- **I.8's three checks hold:**
+  - 100 records and 100 checkpoints, each checkpoint's sha256 its record's;
+  - `fixedtime/bc_top10_perix_m` seed 505 exactly once. Its record and checkpoint were written at 11:52:49 on 2026-10-30. Its log
+    holds two attempt lines: 10:33:44, cut by the restart, and 11:48:22;
+  - no file of a cell was written between 10:37 and 11:48:12. The last before was written at 10:33:42, and the first after at
+    11:52:49.
+
+  The records were written in the manifest's order.
+- **The clock** (the records' seconds, uncontrolled, A27(a)):
+  - 45.77 h in all, and 11.32–11.52 h per tier;
+  - per cell, by tier mean: `dt_nomix` 4,721–4,794 s, `bc_m` 617–641 s, the two top-10 % arms 158–161 s, `iql_m` 2,496–2,546 s;
+  - on the wall: 20.74 h from the start to the restart, and 27.87 h from the resume (I.8 estimated 27.9 h);
+  - the 1-minute load average at a cell's end was at most 1.08.
+- **The coordinator's error, in its own script:** its first run expected one corpus for `mappo1000`, and the grid's digest function
+  for every arm. Both expectations were wrong and the records right. The script was corrected before its result was read.
+
+**The extraction (the author; it takes seconds).** As I.7 says, it goes into the laptop's `output/` with `-k`, and is then compared
+with the tar:
+```
+tar -xkf /home/filip/p9_3_machine_b.tar -C /home/filip/rltraffic/output && tar -df /home/filip/p9_3_machine_b.tar -C /home/filip/rltraffic/output && echo "P9.3 EXTRACTED: equals the tar"
+```
+- None of the tar's names exist in the laptop's `output/p9_3`, which holds only the corpus logs and `gate_work/`.
+- `-k` never replaces a file. A clash prints `Cannot open: File exists`, exits 2 and keeps the existing file: report it.
+- The coordinator tested the command on a scratch copy of that layout:
+  - the existing files were kept, and the file times restored;
+  - the compare exited 0;
+  - a clash exited 2.
+- **Done when** it prints `P9.3 EXTRACTED: equals the tar`.
+- The staged copy and the tar stay where they are. B keeps its `output/p9_3` and its tar until P9.3 merges.
+
+**For you:**
+- `git merge main` (docs only), then read I.6–I.11.
+- **I.5's three items are still open: your branch's tip is `4dcbedc` (2026-10-28).** They are:
+  - the I.2 correction commit;
+  - I.3-2's `training_block` check, tests first, in `offline/hz4x4_report.py`;
+  - I.3-3's label, in the same file.
+
+  H.2-4's freeze still holds `offline/hz4x4_phase_b.py` and `offline/hz4x4_ladder.py` at `4dcbedc`'s bytes. Report "P9.3
+  corrections done" with the commits.
+- **The evaluation commands come in Amendment J (I.3-5).** The coordinator smokes their shard form on a scratch root and sets the
+  worker counts against what runs beside them. They wait for P9.1's T5 to end, because T5 holds up to 31.3 GiB of the laptop's
+  memory (`BRIEF_46` J.2).
+- **In G4, disclose (I.7, I.8):**
+  - every training cell ran on B;
+  - one operating-system restart cut the run once;
+  - the cell in flight was lost and trained again from scratch with its seed, and no finished cell was trained again.
