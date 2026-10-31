@@ -247,6 +247,11 @@ def test_a_cells_summary_is_the_grids_per_cell_computation_with_hz4x4s_sources()
                                             "horizon_vehicle_count": files}
 
 
+#: BRIEF_48 Amendment I, I.3-2: the git block of every campaign training record -- the run tree at 4dcbedc, clean.
+CAMPAIGN_GIT: dict[str, Any] = {"commit": "4dcbedc25021634c199897beffeab4d806b9afc2", "dirty": False,
+                                "code_root": "/home/filip/rltraffic-p93-run-c"}
+
+
 def _training_tree(out: Path) -> None:
     for tier, arm, seed in pb.training_cells():
         payload = f"{tier}/{arm}/{seed}".encode()
@@ -259,7 +264,7 @@ def _training_tree(out: Path) -> None:
             "format_version": pb.ARTIFACT_FORMAT_TRAIN, "tier": tier, "arm": arm, "seed": seed,
             "seconds": 100.0 + seed / 1000.0, "gradient_steps": 40_000, "declared_gradient_steps": 40_000,
             "clock": pb.CLOCK_LABEL, "file_sha256": _sha(payload), "checkpoint_path": str(path),
-            "load_average_1min": {"start": 1.0, "end": 1.5}, "git": {"commit": "c" * 40, "dirty": False}}),
+            "load_average_1min": {"start": 1.0, "end": 1.5}, "git": dict(CAMPAIGN_GIT)}),
             encoding="utf-8")
 
 
@@ -386,3 +391,35 @@ def test_the_exposure_is_each_tiers_own(tmp_path: Path) -> None:
                                   repo_root=tmp_path)
     assert artifact["exposure"] == {tier: {"steps": 40_000 + index, "marker": tier}
                                     for index, tier in enumerate(hz.TIER_ORDER)}
+
+
+# ======================================================================
+# BRIEF_48 Amendment I: I.3-2's check on the training records' code, I.3-3's label on the shared random anchor
+# ======================================================================
+
+
+def test_the_training_block_refuses_a_record_not_trained_by_the_campaigns_run_tree(tmp_path: Path) -> None:
+    assert rp.CAMPAIGN_GIT == CAMPAIGN_GIT
+    _training_tree(tmp_path)
+    assert len(rp.training_block(tmp_path)) == 100
+    tier, arm, seed = pb.training_cells()[57]
+    record_path = pb.train_record_path(tmp_path, tier, arm, seed)
+    record = json.loads(record_path.read_bytes())
+    for git in ({**CAMPAIGN_GIT, "commit": "14a6ba229d702d9155640486e1e7057e39e3502d"},  # H.3's smoke tree
+                {**CAMPAIGN_GIT, "dirty": True},
+                {**CAMPAIGN_GIT, "code_root": "/home/filip/rltraffic-p93-run-b"},
+                {"commit": CAMPAIGN_GIT["commit"], "dirty": False}):  # no code root at all
+        record_path.write_text(json.dumps(dict(record, git=git)), encoding="utf-8")
+        with pytest.raises(ValueError, match="4dcbedc25021634c199897beffeab4d806b9afc2"):
+            rp.training_block(tmp_path)
+    record_path.write_text(json.dumps(record), encoding="utf-8")
+    assert len(rp.training_block(tmp_path)) == 100
+
+
+def test_old_cells_label_the_random_counterpart_as_the_grids_shared_anchor() -> None:
+    grid, provenance = _grid_counterparts()
+    old = rp.old_cells(grid, provenance=provenance)
+    anchor = old["cells"]["random@mappo1000"]
+    assert anchor["counterpart"] == st.ANCHOR_CELL
+    assert anchor["label"] == "the grid's shared random anchor (one cell for every tier)"
+    assert [arm for arm, entry in old["cells"].items() if entry["label"] is not None] == ["random@mappo1000"]
