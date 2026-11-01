@@ -1237,3 +1237,24 @@ ends by itself.
   - that the evaluation ran as one run of 8 shards on the laptop's CPU, alone;
   - its watchdog restarts, if any;
   - the coordinator's smoke, which met A7's stall at 14 shards and set 8.
+
+## J.7 2026-11-01, 20:14: your I.5 commits VERIFIED; the evaluation starts tonight
+**The author's wish:** start the evaluation tonight, at about 20:15, then T5. J.1's order is unchanged; only the time moves.
+
+**Verified by the coordinator, at `2715b38`, in its own scratch clone:**
+- **Each commit touches only what it says:** `486dfbc` the two docs, `0ef3bbe` the test file, `15967f5`
+  `offline/hz4x4_report.py`, `2715b38` the note. `offline/hz4x4_phase_b.py` and `offline/hz4x4_ladder.py` are byte-identical to
+  `4dcbedc` (H.2-4).
+- **The code is I.3's:**
+  - `CAMPAIGN_GIT` is exactly I.3-2's block, and `training_block` refuses any other `git` block. B's 100 training records carry
+    exactly that block (I.11), so they pass it;
+  - `ANCHOR_LABEL` is I.3-3's text, on `random@mappo1000`'s counterpart only.
+- **The two new tests:** red at `0ef3bbe` for the right reasons (`AttributeError` on `CAMPAIGN_GIT`, `KeyError: 'label'`), and
+  green at `2715b38`. The coordinator's own two mutants are both killed: any commit accepted, and no label on the anchor.
+- **The seven P9.3 test files at `2715b38`,** one process, one thread, the laptop otherwise idle: **161 passed in 331 s, 0
+  skipped.**
+- **One correction to your note:** its seven-file run (18:53:42–18:58:52) did not have the laptop idle to its end. The
+  coordinator's smoke (J.4) started 3 shards at 18:57:14. Nothing in the result depends on that: 161 passed both times. Correct
+  the sentence in place when you next touch the note.
+
+**The evaluation may start now,** with J.5's two steps unchanged. It runs about 3 hours without a break, and T5 follows it.
