@@ -1107,3 +1107,133 @@ tar -xkf /home/filip/p9_3_machine_b.tar -C /home/filip/rltraffic/output && tar -
   - every training cell ran on B;
   - one operating-system restart cut the run once;
   - the cell in flight was lost and trained again from scratch with its seed, and no finished cell was trained again.
+
+---
+
+# ✅ AMENDMENT J — 2026-11-01, night: THE EVALUATION TOKEN `p93-eval`: all 25 cells in ONE run of 8 shards in the foreground of one pane, from `/home/filip/rltraffic-p93-run-c` at `4dcbedc`, about 3 h without a break; the coordinator's smoke of that form; the author's ruling on the order
+
+## J.1 The author's ruling on the order (2026-11-01, evening)
+*"T5 has not started and will not start before tomorrow morning; the laptop is idle tonight. My ruling on the order: P9.3 goes
+first."* The author relays your I.5 report in the morning. Then this evaluation runs on the CPU, and P9.1's T5 (`BRIEF_46` J.3)
+starts after it ends.
+- Nothing runs beside the evaluation, so its worker count is set for an otherwise idle laptop (J.4).
+- `BRIEF_46` J.3's clearance of T5 is unchanged; T5 waits.
+
+## J.2 Your I.5 commits
+- `486dfbc` is the I.2 correction (docs only), `0ef3bbe` holds I.3-2's and I.3-3's tests, written first, and `15967f5` holds the
+  code.
+- Their messages say the tests were not run, because the coordinator's message of 2026-10-31 held them until T5's end. The author's
+  ruling releases them, and you are running them now. Report "P9.3 corrections done" with their output.
+- `offline/hz4x4_phase_b.py` and `offline/hz4x4_ladder.py` on your branch are still byte-identical to `4dcbedc`, so H.2-4's freeze
+  holds.
+
+## J.3 One run instead of five, in I.3-5's form
+**This replaces H.3-5's `p93-eval-ref` and `p93-eval-<tier>`, and G3b's one tmux session per shard.** H.3-5 split the evaluation
+because each tier's 25 cells would exist at a different time. All 100 exist now (I.11). So one run evaluates the driver's default
+plan: the 25 cells × 5 seeds × 100 held-out draws, **12,500 episodes**. `selected_plan` interleaves them, so every shard carries
+every arm's cost.
+
+**The form, as I.3-5 set it:**
+- **N `evaluate` drivers run under `xargs -P N`, in the foreground of one pane.** Ctrl+C reaches every driver and every worker.
+- **The label is the start time in UTC** (`date -u +%Y%m%dT%H%M%SZ`). No two runs share a label, so a resumed run keeps the logs of
+  the run it resumes. `run_with_restarts` opens `<label>.attemptNN.log` for writing.
+- **The command prints the run tree's commit and its `git status --porcelain` first, and starts only if the tree is clean** (I.3-2).
+- **Its capture is `output/p9_3/eval_capture.txt`,** appended to. `tee -i` keeps Ctrl+C from cutting it.
+- **`EVAL EXIT 0` means every shard's driver exited 0.** `xargs` exits 123 when any shard exits 1–125; a shard exits 3 at a
+  reproduction STOP.
+
+## J.4 The coordinator's smoke of that form
+**Where it ran:** on a scratch root, from the run tree at `4dcbedc`. The cleared line had exactly two changes: `--draws` (the size)
+and `--output-root` (with the capture).
+- The root held copies of the 100 checkpoints and training records, equal to the staged copy (`diff -r`).
+- The corpus and draws roots were the main tree's. Their listings, `output/`'s top two levels and the main tree's `git status` were
+  the same before and after, and the run tree stayed clean.
+- **Every run's header** printed the start time, the label, the run tree's commit `4dcbedc…` and an empty status.
+
+**Ctrl+C, as a pane delivers it (SIGINT to the run's process group):**
+- **The interrupt.** A run of 3 shards on draws 1000 and 1005 was interrupted after 60 s. Every driver and worker stopped within
+  about a second. The capture shows three `KeyboardInterrupt` tracebacks, then `EVAL EXIT 130`. No record was written after the
+  signal, and no temporary file was left: an interrupted write removes its own.
+- **The resume.** The same command again took a new label by itself. Each worker read the records on disk and rolled only the rest,
+  for example *"35 of 84 episodes on disk; rolling 49"*. All three shards ended `completed after 0 restart(s)`, then `EVAL EXIT 0`:
+  250 records, no refusal.
+- **The coordinator's error in its first attempt.** It started that run with `&` from a script, and a non-interactive shell starts
+  such a job with SIGINT ignored. So the signal reached no process, and the run went on. The second command then ran beside it, and
+  its three shards failed with `FileExistsError` on records the first had just written.
+  - The write-once rule held: no record was replaced.
+  - So two runs on one root at once cannot corrupt a record, but the second one fails. Start the command once.
+
+**The worker count: 14 shards, then 8, on 500 episodes each:**
+
+| Shards | Draws | Wall | Watchdog cuts | CPU-h per 100 draws | Peak memory |
+|---|---|---|---|---|---|
+| 3 | 1000, 1005 | — | 0 | 18.2 | — |
+| 14 | 1001–1004 | 445 s | 8, in 7 shards | 24.5 | 15.5 GiB |
+| 8 | 1006–1009 | 440 s | 0 | 24.0 | 9.4 GiB |
+
+- **The CPU-hours** come from the records' seconds, both routes, by arm. They compare with G3b's quiet single-thread figure of
+  18.65 h.
+- **At 14 shards, each cut** stopped a worker at the return from a route (`evaluate_episode`, lines 942 and 948), where the engine
+  is freed. That is A7's stall, and B.3's watchdog exists for it: each cut worker restarted, resumed from its records and completed,
+  with at most two cuts in one shard (the cap is 60).
+  - The likely cause is oversubscription: 14 workers, each with its engine's own thread (A7), on 16 CPUs. That is the coordinator's
+    reading, not a measurement.
+  - Over 12,500 episodes, that rate means about 200 restarts, each costing a shard two minutes.
+- **At 8 shards** an episode costs almost what it costs at 14 (24.0 against 24.5 CPU-h per 100 draws). The same amount of work
+  finished in the same time, with no cut. **So the token uses 8 shards.**
+- **Memory at 8:** at most 681 MiB per worker and 526 MiB per driver, 9.4 GiB in all; at least 34.9 GiB stayed available.
+- **The records:** 1,250, every one reproducing under `==` and filed under its own name. Each learner record's `policy_source` names
+  its training record with the same sha256, at `4dcbedc`, not dirty.
+  - The coordinator read them for counts, flags, provenance and seconds only, never for an outcome.
+  - They stay in the scratch root and enter nothing.
+
+## J.5 ✅ THE TOKEN `p93-eval` (the author's tmux `p93`)
+**It runs about 3 hours without a break:** 12,500 episodes over 8 shards, at 865 CPU-seconds per draw (J.4), that is 3.0 h. It
+ends by itself.
+1. **First, P9.3's training output in the laptop's `output/`** (I.11; seconds). It extracts only if that has not been done, then
+   compares:
+   ```
+   test -d /home/filip/rltraffic/output/p9_3/checkpoints || tar -xkf /home/filip/p9_3_machine_b.tar -C /home/filip/rltraffic/output; tar -df /home/filip/p9_3_machine_b.tar -C /home/filip/rltraffic/output && echo "P9.3 OUTPUT EQUALS THE TAR"
+   ```
+   **Done when** it prints `P9.3 OUTPUT EQUALS THE TAR`. Anything else: stop and report.
+2. **Then the evaluation,** as one line:
+   ```
+   R=/home/filip/rltraffic-p93-run-c; N=8; L=$(date -u +%Y%m%dT%H%M%SZ); cd /home/filip/rltraffic && ( date '+evaluation start %F %T %Z'; echo "label $L: $N shards"; git -C $R log -1 --format='run tree %H'; git -C $R status --porcelain; test -z "$(git -C $R status --porcelain)" && seq 0 $((N-1)) | xargs -P $N -I{} env OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 PYTHONPATH=$R /home/filip/rltraffic/.venv/bin/python -P -m offline.hz4x4_phase_b evaluate --label $L --shard {} --of $N; s=$?; date '+evaluation end %F %T %Z'; exit $s ) 2>&1 | tee -i -a /home/filip/rltraffic/output/p9_3/eval_capture.txt; echo "EVAL EXIT ${PIPESTATUS[0]}"
+   ```
+
+**Before it and while it runs:**
+- nothing else runs on the laptop: no GPU training (T5 waits, J.1), no other CPU job, and your I.5 tests are done;
+- keep the laptop plugged in and awake.
+
+**What the pane shows:** the start, the label, the run tree's commit and an empty status. Then it is quiet until each shard ends.
+- Progress: `ls /home/filip/rltraffic/output/p9_3/eval | wc -l`, out of 12,500, about 70 a minute.
+- The shards' logs are under `output/p9_3/eval_logs/`.
+
+**Done when:**
+- the capture shows 8 lines `evaluate i/8: completed after k restart(s); last log …`, then `evaluation end …`;
+- the pane shows `EVAL EXIT 0`;
+- `ls /home/filip/rltraffic/output/p9_3/eval | wc -l` prints 12500, and `output/p9_3/eval_refused/` does not exist.
+
+`k` is usually 0. A `k` above 0 is the watchdog's automatic restart, and each one is also a line in the capture. Report the count.
+
+**To stop it:** Ctrl+C. Every shard stops within about a second; the pane shows `KeyboardInterrupt` lines, then `EVAL EXIT 130`.
+- Nothing written is lost. Only the episodes in flight (at most 8, seconds each) are rolled again.
+- The same command resumes, under a new label it takes by itself.
+
+**A STOP or a failure:**
+- A shard whose route (ii) did not reproduce route (i) files a refusal under `output/p9_3/eval_refused/` and exits 3. The other
+  shards finish their own episodes, and the pane shows `EVAL EXIT 123`. Report it; nothing is re-run without a ruling.
+- A shard that reaches 60 watchdog restarts stops, and the pane shows `EVAL EXIT 123`. Report it.
+- Any other failure: report it; nothing is re-run without a ruling.
+
+## J.6 After it
+- **The author says "P9.3 evaluation done"** with the pane's last lines.
+- **The coordinator verifies the records from disk:**
+  - 12,500 records, each reproducing and filed under its own name;
+  - each learner record's `policy_source` names its training record at `4dcbedc`, with the same sha256;
+  - the references' sources, the capture, and no refusal.
+- **Then P9.1's T5 starts** (`BRIEF_46` J.3), by the author's ruling.
+- **For you, after the coordinator's check:** `old-cells` and `report` (`offline/hz4x4_report.py`), then G4. In G4, disclose:
+  - that the evaluation ran as one run of 8 shards on the laptop's CPU, alone;
+  - its watchdog restarts, if any;
+  - the coordinator's smoke, which met A7's stall at 14 shards and set 8.
