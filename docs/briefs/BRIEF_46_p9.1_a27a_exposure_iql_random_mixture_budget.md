@@ -1267,3 +1267,9 @@ build its inputs. It ends by itself at the end of its plan.
   - If it does not fit, T6 is split at a tier boundary by a smaller session bound (`P91_SESSION_HOURS`). That changes no code.
 - **Still checked before the session that first builds them:** `random_fresh`'s `dt_nomix` parts (T6) and its grid inputs (T7).
 - **Meanwhile:** nothing else on the GPU while T5 runs.
+
+## J.5 2026-11-01: the author's ruling on the order
+*"T5 has not started and will not start before tomorrow morning; the laptop is idle tonight. My ruling on the order: P9.3 goes
+first."*
+- P9.3's evaluation (`BRIEF_48` Amendment J, about 3 h on the CPU) runs first. T5 starts after it ends.
+- J.3's clearance and command are unchanged. J.2's memory check stands: T5 runs with nothing large beside it.
