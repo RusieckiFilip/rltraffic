@@ -1206,7 +1206,12 @@ ends by itself.
 - keep the laptop plugged in and awake.
 
 **What the pane shows:** the start, the label, the run tree's commit and an empty status. Then it is quiet until each shard ends.
-- Progress: `ls /home/filip/rltraffic/output/p9_3/eval | wc -l`, out of 12,500, about 70 a minute.
+- Progress: `ls /home/filip/rltraffic/output/p9_3/eval | wc -l`, out of 12,500. The count does not rise evenly: about 22 a
+  minute while the shards roll a tier's `dt_nomix` (about 23 minutes per tier), and about 100–130 a minute for the other arms and
+  the references. Over the whole run it is about 66 a minute (J.8).
+  - ⚠️ *Corrected 2026-11-02 (the coordinator's error): this line said "about 70 a minute". That was the run's average, given
+    as if the count rose evenly. At 20:51 the run had 216 records after 10 minutes, and the coordinator told the author why that
+    evening.*
 - The shards' logs are under `output/p9_3/eval_logs/`.
 
 **Done when:**
@@ -1258,3 +1263,70 @@ ends by itself.
   the sentence in place when you next touch the note.
 
 **The evaluation may start now,** with J.5's two steps unchanged. It runs about 3 hours without a break, and T5 follows it.
+
+## J.8 2026-11-02: the evaluation VERIFIED, 12,500 of 12,500 records; `old-cells` and `report` CLEARED
+**The run, from the author's report:**
+- The pane showed `evaluation start 2026-11-01 20:41:15 CET`, `label 20261101T194115Z: 8 shards` and `run tree 4dcbedc…`, with an
+  empty status.
+- Then eight `evaluate i/8: completed after 0 restart(s)` lines, shards 0–7, then `evaluation end 2026-11-01 23:51:09 CET` and
+  `EVAL EXIT 0`.
+- That is 3 h 10 min on the wall, against J.5's 3.0 h.
+- During the run, the coordinator's only work on the laptop was polling J.7's CI run until 20:50 and listing `eval/` once at 20:51.
+
+**Verified by the coordinator from disk.** Its script uses the standard library only and imports nothing of the branch.
+- **The file set.** `output/p9_3/eval/` holds exactly the 12,500 planned names and nothing else: 25 cells × 5 seeds × draws
+  1000–1099, written out by hand from `docs/plans/p9.3.md`.
+  - There is no temporary file, and `eval_refused/` does not exist.
+  - Each cell has 500 records and each draw 125.
+- **Each record** is `p9.3-phase-b-eval/1.0`, hz4x4, engine seed 1000, with `reproduces` true. Its arm, method, tier, seed and draw
+  are those of its name, in route (ii)'s block too.
+- **The reproduction, recomputed by the coordinator:**
+  - route (ii)'s `att_ours` equals route (i)'s `att_horizon` under `==` in all 12,500;
+  - route (i)'s other two fields equal route (ii)'s;
+  - the record's top-level fields equal route (ii)'s;
+  - every float is finite.
+- **The inputs:**
+  - each record's `created` equals the count recomputed from its draw's `flow.json`, with the horizon of 3,600 s from the eight
+    hz4x4 manifests;
+  - `entered` + `never_entered` = `created`, and `att_difference` = `att_ours` − `att_engine`.
+- **The learners' sources.** Each of the 100 learner (cell, seed) pairs carries one `policy_source` over its 100 draws. It names its
+  checkpoint and its training record under `output/p9_3/`.
+  - The checkpoint's sha256, recomputed, is the training record's `file_sha256`.
+  - Both files equal B's staged copy (I.11).
+  - Every training record is at `4dcbedc` in run-c, not dirty.
+- **The references' sources:**
+  - `behaviour@maxpressure`, `behaviour@random_fresh` and `random@mappo1000` carry their factories' texts;
+  - `behaviour@fixedtime` carries the tier manifest's k = 2, `equal_split` and plan sha256 (none in the manifest, none in the
+    record);
+  - `behaviour@mappo1000` carries teacher s's path and sha256 for seed s. The coordinator recomputed each sha256, and it equals the
+    one in its corpus manifest.
+- **The run's traces:**
+  - every record was written between 20:41:37 and 23:51:08;
+  - the capture's 12 lines are the header, the eight completions (each shard once, 0 restarts) and the end line;
+  - the eight logs are `attempt00` only. Each rolled its share of the plan from zero: 1,563 for shards 0–3 and 1,562 for 4–7.
+- **The seconds**, both routes, on the records' clocks:
+
+  | Group | Episodes | Median s per episode | Sum |
+  |---|---|---|---|
+  | `dt_nomix` | 2,000 | 21.7 | 12.05 h |
+  | the four matched arms | 8,000 | 4.7 | 10.49 h |
+  | the five references | 2,500 | 3.6 | 2.67 h |
+
+  - The total is 25.21 h, 7.96 times the wall, so the eight shards were busy throughout. J.4's smoke predicted 24.0 h.
+  - The slowest route took 15.4 s, against the watchdog's 120 s.
+- **No outcome was read.** Routes (i) and (ii) were compared by program. No value of `att_ours`, `att_engine`, the reward or the
+  admission counts was printed.
+- **Your branch** is at `6603e9e`, which merges `main` at `cb8ec59`.
+  - It brings docs only. `offline/` and `tests/` are unchanged since `2715b38`.
+  - `offline/hz4x4_phase_b.py` and `offline/hz4x4_ladder.py` are still byte-identical to `4dcbedc`.
+
+**Next, for you:**
+1. **Run `old-cells`, then `report`** (`offline/hz4x4_report.py`), from your worktree at a clean tip, into `docs/data/` on your
+   branch.
+   - They read records and committed artifacts and run no simulator, so they may run now, beside P9.1's T5.
+2. **Your test runs wait for T5's end,** about 19:40 today. T5 runs with no long CPU job beside it (`BRIEF_46` J.3), as on
+   2026-10-31.
+3. **Then G4,** with J.6's disclosures:
+   - the evaluation ran as one run of 8 shards on the laptop's CPU, alone;
+   - it had 0 watchdog restarts;
+   - the coordinator's smoke met A7's stall at 14 shards and set 8.
