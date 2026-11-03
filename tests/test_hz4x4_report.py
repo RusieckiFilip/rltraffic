@@ -423,3 +423,57 @@ def test_old_cells_label_the_random_counterpart_as_the_grids_shared_anchor() -> 
     assert anchor["counterpart"] == st.ANCHOR_CELL
     assert anchor["label"] == "the grid's shared random anchor (one cell for every tier)"
     assert [arm for arm, entry in old["cells"].items() if entry["label"] is not None] == ["random@mappo1000"]
+
+
+# ======================================================================
+# BRIEF_48 J.9: the author's ruling of 2026-11-01 made mechanical -- no old-cells artifact with a cell pending, and no
+# report on one.  old_cells() itself, and its test of the 18 pending, stay as they are until P9.1's reader (J.9).
+# ======================================================================
+
+
+class _GridInputs:
+    """Stands in for ``tier_statements.load_inputs``' result: the synthetic counterparts and their provenance."""
+
+    def __init__(self) -> None:
+        self.cells, self.provenance = _grid_counterparts()
+
+
+def test_old_cells_refuses_to_write_while_any_counterpart_is_pending(tmp_path: Path,
+                                                                     monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(st, "load_inputs", lambda roots, **kwargs: _GridInputs())
+    out = tmp_path / "data" / "p9_3_old_cells.json"
+    out.parent.mkdir()
+    args = rp.build_parser().parse_args(["old-cells", "--out", str(out), "--output-root", str(tmp_path / "output")])
+    with pytest.raises(ValueError, match="J\\.9") as refused:
+        rp._run_old_cells(args)
+    assert "2026-11-01" in str(refused.value)
+    assert all(f"{method}@{tier}" in str(refused.value) for method, tier in rp.P9_1_COUNTERPARTS)
+    assert list(out.parent.iterdir()) == []
+    # The control: with nothing pending, the same call writes its artifact.
+    monkeypatch.setattr(rp, "P9_1_COUNTERPARTS", ())
+    assert rp._run_old_cells(args) == 0
+    written = json.loads(out.read_bytes())
+    assert (written["format_version"], written["pending"], len(written["cells"])) == (rp.ARTIFACT_FORMAT_OLD_CELLS, {}, 7)
+
+
+def test_report_refuses_an_old_cells_artifact_with_a_pending_cell(tmp_path: Path) -> None:
+    grid, provenance = _grid_counterparts()
+    old = rp.old_cells(grid, provenance=provenance)
+    assert len(old["pending"]) == 18
+    data = tmp_path / "data"
+    data.mkdir()
+    old_path = data / "p9_3_old_cells.json"
+    old_path.write_text(json.dumps(old), encoding="utf-8")
+    out = data / "p9_3_hz4x4.json"
+    args = rp.build_parser().parse_args(["report", "--out", str(out), "--old-cells", str(old_path),
+                                         "--output-root", str(tmp_path / "output")])
+    with pytest.raises(ValueError, match="J\\.9") as refused:
+        rp._run_report(args)
+    assert "2026-11-01" in str(refused.value) and "bc_m@mappo1000" in str(refused.value)
+    assert sorted(path.name for path in data.iterdir()) == ["p9_3_old_cells.json"]
+    # The control: with nothing pending, the check lets the report through to its own reading of the records, which this
+    # empty output root does not hold.
+    old_path.write_text(json.dumps(dict(old, pending={})), encoding="utf-8")
+    with pytest.raises(FileNotFoundError, match="missing"):
+        rp._run_report(args)
+    assert sorted(path.name for path in data.iterdir()) == ["p9_3_old_cells.json"]
