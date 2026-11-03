@@ -1206,7 +1206,12 @@ ends by itself.
 - keep the laptop plugged in and awake.
 
 **What the pane shows:** the start, the label, the run tree's commit and an empty status. Then it is quiet until each shard ends.
-- Progress: `ls /home/filip/rltraffic/output/p9_3/eval | wc -l`, out of 12,500, about 70 a minute.
+- Progress: `ls /home/filip/rltraffic/output/p9_3/eval | wc -l`, out of 12,500. The count does not rise evenly: about 22 a
+  minute while the shards roll a tier's `dt_nomix` (about 23 minutes per tier), and about 100–130 a minute for the other arms and
+  the references. Over the whole run it is about 66 a minute (J.8).
+  - ⚠️ *Corrected 2026-11-02 (the coordinator's error): this line said "about 70 a minute". That was the run's average, given
+    as if the count rose evenly. At 20:51 the run had 216 records after 10 minutes, and the coordinator told the author why that
+    evening.*
 - The shards' logs are under `output/p9_3/eval_logs/`.
 
 **Done when:**
@@ -1233,7 +1238,185 @@ ends by itself.
   - each learner record's `policy_source` names its training record at `4dcbedc`, with the same sha256;
   - the references' sources, the capture, and no refusal.
 - **Then P9.1's T5 starts** (`BRIEF_46` J.3), by the author's ruling.
-- **For you, after the coordinator's check:** `old-cells` and `report` (`offline/hz4x4_report.py`), then G4. In G4, disclose:
+- **For you, after the coordinator's check:** `old-cells` and `report` (`offline/hz4x4_report.py`) once P9.1's artifacts are
+  committed, then G4 (the author's ruling of 2026-11-01, J.9). In G4, disclose:
   - that the evaluation ran as one run of 8 shards on the laptop's CPU, alone;
   - its watchdog restarts, if any;
   - the coordinator's smoke, which met A7's stall at 14 shards and set 8.
+
+  ⚠️ *Corrected 2026-11-03: this bullet said "`old-cells` and `report` (`offline/hz4x4_report.py`), then G4". The author's
+  ruling of 2026-11-01, which had not reached the coordinator, holds them until P9.1's artifacts are committed (J.9).*
+
+## J.7 2026-11-01, 20:14: your I.5 commits VERIFIED; the evaluation starts tonight
+**The author's wish:** start the evaluation tonight, at about 20:15, then T5. J.1's order is unchanged; only the time moves.
+
+**Verified by the coordinator, at `2715b38`, in its own scratch clone:**
+- **Each commit touches only what it says:** `486dfbc` the two docs, `0ef3bbe` the test file, `15967f5`
+  `offline/hz4x4_report.py`, `2715b38` the note. `offline/hz4x4_phase_b.py` and `offline/hz4x4_ladder.py` are byte-identical to
+  `4dcbedc` (H.2-4).
+- **The code is I.3's:**
+  - `CAMPAIGN_GIT` is exactly I.3-2's block, and `training_block` refuses any other `git` block. B's 100 training records carry
+    exactly that block (I.11), so they pass it;
+  - `ANCHOR_LABEL` is I.3-3's text, on `random@mappo1000`'s counterpart only.
+- **The two new tests:** red at `0ef3bbe` for the right reasons (`AttributeError` on `CAMPAIGN_GIT`, `KeyError: 'label'`), and
+  green at `2715b38`. The coordinator's own two mutants are both killed: any commit accepted, and no label on the anchor.
+- **The seven P9.3 test files at `2715b38`,** one process, one thread, the laptop otherwise idle: **161 passed in 331 s, 0
+  skipped.**
+- **One correction to your note:** its seven-file run (18:53:42–18:58:52) did not have the laptop idle to its end. The
+  coordinator's smoke (J.4) started 3 shards at 18:57:14. Nothing in the result depends on that: 161 passed both times. Correct
+  the sentence in place when you next touch the note.
+
+**The evaluation may start now,** with J.5's two steps unchanged. It runs about 3 hours without a break, and T5 follows it.
+
+## J.8 2026-11-02: the evaluation VERIFIED, 12,500 of 12,500 records; `old-cells` and `report` wait for P9.1 (J.9)
+**The run, from the author's report:**
+- The pane showed `evaluation start 2026-11-01 20:41:15 CET`, `label 20261101T194115Z: 8 shards` and `run tree 4dcbedc…`, with an
+  empty status.
+- Then eight `evaluate i/8: completed after 0 restart(s)` lines, shards 0–7, then `evaluation end 2026-11-01 23:51:09 CET` and
+  `EVAL EXIT 0`.
+- That is 3 h 10 min on the wall, against J.5's 3.0 h.
+- During the run, the coordinator's only work on the laptop was polling J.7's CI run until 20:50 and listing `eval/` once at 20:51.
+
+**Verified by the coordinator from disk.** Its script uses the standard library only and imports nothing of the branch.
+- **The file set.** `output/p9_3/eval/` holds exactly the 12,500 planned names and nothing else: 25 cells × 5 seeds × draws
+  1000–1099, written out by hand from `docs/plans/p9.3.md`.
+  - There is no temporary file, and `eval_refused/` does not exist.
+  - Each cell has 500 records and each draw 125.
+- **Each record** is `p9.3-phase-b-eval/1.0`, hz4x4, engine seed 1000, with `reproduces` true. Its arm, method, tier, seed and draw
+  are those of its name, in route (ii)'s block too.
+- **The reproduction, recomputed by the coordinator:**
+  - route (ii)'s `att_ours` equals route (i)'s `att_horizon` under `==` in all 12,500;
+  - route (i)'s other two fields equal route (ii)'s;
+  - the record's top-level fields equal route (ii)'s;
+  - every float is finite.
+- **The inputs:**
+  - each record's `created` equals the count recomputed from its draw's `flow.json`, with the horizon of 3,600 s from the eight
+    hz4x4 manifests;
+  - `entered` + `never_entered` = `created`, and `att_difference` = `att_ours` − `att_engine`.
+- **The learners' sources.** Each of the 100 learner (cell, seed) pairs carries one `policy_source` over its 100 draws. It names its
+  checkpoint and its training record under `output/p9_3/`.
+  - The checkpoint's sha256, recomputed, is the training record's `file_sha256`.
+  - Both files equal B's staged copy (I.11).
+  - Every training record is at `4dcbedc` in run-c, not dirty.
+- **The references' sources:**
+  - `behaviour@maxpressure`, `behaviour@random_fresh` and `random@mappo1000` carry their factories' texts;
+  - `behaviour@fixedtime` carries the tier manifest's k = 2, `equal_split` and plan sha256 (none in the manifest, none in the
+    record);
+  - `behaviour@mappo1000` carries teacher s's path and sha256 for seed s. The coordinator recomputed each sha256, and it equals the
+    one in its corpus manifest.
+- **The run's traces:**
+  - every record was written between 20:41:37 and 23:51:08;
+  - the capture's 12 lines are the header, the eight completions (each shard once, 0 restarts) and the end line;
+  - the eight logs are `attempt00` only. Each rolled its share of the plan from zero: 1,563 for shards 0–3 and 1,562 for 4–7.
+- **The seconds**, both routes, on the records' clocks:
+
+  | Group | Episodes | Median s per episode | Sum |
+  |---|---|---|---|
+  | `dt_nomix` | 2,000 | 21.7 | 12.05 h |
+  | the four matched arms | 8,000 | 4.7 | 10.49 h |
+  | the five references | 2,500 | 3.6 | 2.67 h |
+
+  - The total is 25.21 h, 7.96 times the wall, so the eight shards were busy throughout. J.4's smoke predicted 24.0 h.
+  - The slowest route took 15.4 s, against the watchdog's 120 s.
+- **No outcome was read.** Routes (i) and (ii) were compared by program. No value of `att_ours`, `att_engine`, the reward or the
+  admission counts was printed.
+- **Your branch** is at `6603e9e`, which merges `main` at `cb8ec59`.
+  - It brings docs only. `offline/` and `tests/` are unchanged since `2715b38`.
+  - `offline/hz4x4_phase_b.py` and `offline/hz4x4_ladder.py` are still byte-identical to `4dcbedc`.
+
+**Next, for you:** J.9 replaces this list (the author's ruling of 2026-11-01).
+- ⚠️ *Corrected 2026-11-03: this heading ended "`old-cells` and `report` CLEARED", and the list said: "1. Run `old-cells`,
+  then `report` (`offline/hz4x4_report.py`), from your worktree at a clean tip, into `docs/data/` on your branch. They read
+  records and committed artifacts and run no simulator, so they may run now, beside P9.1's T5. 2. Your test runs wait for
+  T5's end, about 19:40 today. […] 3. Then G4, with J.6's disclosures […]". The author's ruling of 2026-11-01, which had
+  not reached the coordinator, holds `old-cells`, `report` and G4 until P9.1's artifacts are committed (J.9).*
+
+## J.9 2026-11-03: the author's ruling of 2026-11-01 — `old-cells` waits for P9.1; ONE old-cells artifact, none with a cell pending; G4 after it. J.8's next steps REPLACED; a read-only preview of hz4x4's own numbers CLEARED
+**The ruling (the author, 2026-11-01; relayed to the coordinator on 2026-11-03), in the author's words:** *"old-cells waits for
+P9.1: P9.3 writes one old-cells artifact, once P9.1's artifact with the matched arms and random_fresh is committed, and G4 follows
+then; no artifact with cells marked pending. Until then P9.3 does only what does not depend on P9.1."*
+- **It had not reached the coordinator.** It is in no message of the coordinator's chat and in no file of the repository (searched
+  on 2026-11-03). J.6 (`cb8ec59`) and J.8 (`f939f17`) were written without it. Both are corrected in place.
+- **The coordinator's error, besides:** J.6 and J.8 cleared `old-cells`, `report` and G4 without saying what would become of the 18
+  cells that `old_cells` lists as pending once P9.1's artifacts are committed. That would have taken either a second old-cells
+  artifact and a second report, or a merge without those cells. The ruling settles it.
+
+**What it holds back:**
+- **`old-cells`.** Today's `old_cells` copies Amendment I's seven counterparts (I.3-3) and lists the other 18 as pending
+  (`P9_1_COUNTERPARTS`). Written now, it would be the artifact the ruling forbids.
+- **`report`.** It takes the committed old-cells artifact as a required input (`--old-cells`) and carries its sha256, counterparts
+  and pending list. So it waits too, and G4 with it.
+- **"Committed"** is read by the coordinator as on `main`, after P9.1's G5 and merge. Only then can no fix round change what the
+  one artifact copies. The amendment that clears `old-cells` names the commit.
+
+**The author's question with it:** *"can P9.3 compute and show me hz4x4's own numbers (its 25 cells against hz4x4's references)
+before then, without writing the final artifact? If that needs a second artifact or another ruling, it waits too."*
+- **Yes; it needs neither** (step 3 below).
+  - Three functions that `report` calls at G4 compute those numbers from the evaluation records alone: `load_cells`,
+    `cell_summaries` and `leaders` (the five arms' order per tier and definition, with the references' levels beside it).
+  - None of the three reads the old cells or anything of P9.1's. The coordinator checked that no function on their call path
+    writes a file: the writes in those modules are in other functions.
+- **One safeguard, by the coordinator:** the 18 counterparts are fixed below, before any number is shown. `old-cells` needs that
+  map in any case, and with it no choice in hz4x4's comparison is left to make after its numbers are seen.
+
+**The 18 counterparts** (A-B5's rule, I.3-3, extended by the coordinator). Each hz4x4 cell's counterpart is P9.1's grid cell of
+the same arm on the same tier. Each is copied per episode with its artifact's path and sha256, as the seven are, and nothing is
+re-rolled.
+
+| hz4x4 cells | Grid counterpart | P9.1's artifact |
+|---|---|---|
+| `bc_m`, `bc_top10_m`, `bc_top10_perix_m` and `iql_m` on `mappo1000`, `maxpressure` and `fixedtime` (12) | `p9_1:grid4x4:<arm>@<tier>` | `docs/data/p9_1_exposure_parity.json` (A27(b)) |
+| `dt_nomix` and the same four arms on `random_fresh` (5) | `p9_1:grid4x4:<arm>@random_fresh` | `docs/data/p9_1_random_fresh.json` (A27(d)) |
+| `behaviour@random_fresh` (1) | `p9_1:grid4x4:behaviour@random_fresh` | `docs/data/p9_1_random_fresh.json` (A27(d)) |
+
+- **The recipes match arm for arm.** The grid's `iql_m` is A27(b)'s 20,480 transitions with targets dropout-free, as hz4x4's is.
+  The grid's `iql_t` is not a counterpart. Neither are the grid's matched cells on `random`, since hz4x4 has no `random` tier.
+- **The names are those of P9.1's branch at `9eb908a`:** `offline/corrective_report.py`, format `p9.1-report/1.0`, with the
+  per-episode records of every new cell (`BRIEF_46` §3.5). If P9.1 renames them before its merge, the map by arm and tier stands.
+
+**Next, for you** (replaces J.8's three steps):
+1. **`git merge main`.** It brings docs only: J.7, J.8 and this section, `BRIEF_46` Amendment K, and the plan.
+2. **Do not run `old-cells` or `report`** until an amendment clears them. Your worktree is clean at `6603e9e`, and neither
+   `docs/data/p9_3_old_cells.json` nor `docs/data/p9_3_hz4x4.json` exists (the coordinator's check, 2026-11-03).
+3. **The preview of hz4x4's own numbers, for the author.** It is read-only, with no new code and no artifact.
+   - **The run:** one Python process from the main tree, with your branch on `PYTHONPATH`, `-P`, at a clean committed tip.
+     - It calls `offline.hz4x4_report.load_cells("/home/filip/rltraffic/output")`, then `cell_summaries(cells)` and
+       `leaders(cells)`.
+     - It calls nothing else of the module and writes nothing, in the repository or under `output/`.
+   - **What it shows the author, in your chat:**
+     - for each of the 25 cells, n and the mean with its 95 % CI, under `att_ours` and under `att_engine`;
+     - for each tier and definition, the leaders block's `reading`, the five references' levels beside it, and
+       `definition_dependent`.
+   - **The label:** "a preview, not an artifact: not for the paper". The paper's numbers come from `docs/data/p9_3_hz4x4.json` at
+     G4.
+   - **Keep the printed output in your scratch.** At G4, compare the artifact's means, CIs and readings with it by program, and
+     report the result.
+   - **Cost:** it reads the 12,500 records and runs no simulator, so it may run beside a P9.1 training session.
+   - **Disclose it in G4's packet:**
+     - when it ran and was shown, and at which commit;
+     - that nothing in hz4x4's analysis was open then: A-B2 was ruled in G.2, A-B5 in I.3-3, and the 18 counterparts here, before
+       the preview;
+     - that the two campaign modules are frozen at `4dcbedc`.
+4. **Make the ruling mechanical, tests first,** in `offline/hz4x4_report.py`. The two frozen modules stay unchanged.
+   - `old-cells` refuses to write while any counterpart is pending. It names them and this ruling, and writes nothing.
+   - `report` refuses an old-cells artifact whose `pending` is not empty, and writes nothing.
+   - Kill one mutant for each: its check removed.
+   - `old_cells()` and its test (18 pending) stay as they are. They change with P9.1's reader, in the amendment that clears
+     `old-cells`, and that amendment states the test's new expectation.
+5. **Correct J.7's sentence** in `docs/returns/P9.3-corrections.md` (the laptop was not idle to the end of your seven-file run),
+   as J.7 asked.
+6. **Test runs:** one pytest process at a time, with `OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`. That is allowed beside P9.1's T6
+   (`BRIEF_46` K.3). For each later P9.1 session, its clearance says.
+7. **You may draft G4's packet** (`docs/returns/P9.3.md`), with no number in it. Its numbers come from the artifact.
+8. **Report "J.9 done"** with:
+   - the commits;
+   - the new tests red for the right reason, then green;
+   - the two mutants killed;
+   - the seven P9.3 test files' tail.
+
+**After P9.1's artifacts are on `main`,** an amendment clears, in this order:
+1. `git merge main`;
+2. P9.1's reader in `old_cells`, tests first: the 18 copied per episode with path and sha256, and `pending` empty;
+3. `old-cells` once, then `report` once;
+4. G4, with J.8's three disclosures and the preview's. J.8's three: the evaluation ran as one run of 8 shards on the laptop's CPU,
+   alone; it had 0 watchdog restarts; the coordinator's smoke met A7's stall at 14 shards and set 8.
