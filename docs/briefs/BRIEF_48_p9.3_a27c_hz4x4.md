@@ -1449,8 +1449,11 @@ re-rolled.
   - a refusal that does not name the pending cells (MC5).
 
   The module was restored byte for byte.
-- **The seven P9.3 test files at `cb6a942`,** one process, one thread, the laptop otherwise idle (16:28:01–16:33:12): **163 passed in 310 s, 0 skipped.**
-  Your run at `6ed239c`, beside T6, gave 163 passed too.
+- **The seven P9.3 test files at `cb6a942`,** one process, one thread (16:28:01–16:33:12): **163 passed in 310 s, 0 skipped.**
+  Your run at `6ed239c`, beside T6, gave 163 passed too. P9.1's T7 started at 16:28:30 (stage `20261103T152830Z`), so this run was
+  beside T7's first five minutes, `random`'s build among them, as `BRIEF_46` L.3 allows.
+  - ⚠️ *Corrected 2026-11-03, minutes after the commit (the coordinator's error, found by itself): this item said "the laptop
+    otherwise idle". The coordinator had seen at 16:25:47 that T7 had not started, and wrote the phrase without checking again.*
 - **Your J.7 correction** is in place, with the old sentence quoted and J.7's facts.
 - **The draft packet has no result number.** The coordinator read it with every digit masked. Every digit is in a name, a date, a
   commit or a section reference, and every result is a placeholder.
