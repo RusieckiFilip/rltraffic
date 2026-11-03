@@ -337,6 +337,22 @@ def old_cells(grid_cells: Mapping[str, Any], *, provenance: Mapping[str, Any]) -
     }
 
 
+#: ``BRIEF_48`` J.9: the author's ruling of 2026-11-01, quoted in every refusal it causes.
+PENDING_RULING = (
+    "BRIEF_48 J.9, the author's ruling of 2026-11-01: \"old-cells waits for P9.1: P9.3 writes one old-cells artifact, once "
+    "P9.1's artifact with the matched arms and random_fresh is committed, and G4 follows then; no artifact with cells marked "
+    "pending\""
+)
+
+
+def refuse_pending(old: Mapping[str, Any], *, what: str) -> None:
+    """Refuse *what* -- writing an old-cells artifact, or a report on one -- while any counterpart is pending (J.9)."""
+    pending = list(old.get("pending") or {})
+    if pending:
+        raise ValueError(f"{what}: {len(pending)} counterpart(s) are pending -- {pending} -- and {PENDING_RULING}; "
+                         "nothing was written")
+
+
 def report_artifact(
     *,
     cells: Mapping[str, Any],
@@ -397,6 +413,7 @@ def _run_old_cells(args: argparse.Namespace) -> int:
     out = hz._refuse_existing(args.out)
     inputs = st.load_inputs(st.Roots(repo_root=hz._repo_root(), output_root=Path(args.output_root)))
     payload = {**old_cells(inputs.cells, provenance=inputs.provenance), "git": hz._git()}
+    refuse_pending(payload, what=f"old-cells refuses to write {out}")
     hz._write_artifact(payload, out)
     print(f"wrote {out}: {len(payload['cells'])} copied cell(s), {len(payload['pending'])} pending", flush=True)
     return 0
@@ -409,6 +426,7 @@ def _run_report(args: argparse.Namespace) -> int:
     old = json.loads(Path(args.old_cells).read_bytes())
     if old.get("format_version") != ARTIFACT_FORMAT_OLD_CELLS:
         raise ValueError(f"{args.old_cells} is not an old-cells artifact ({old.get('format_version')!r})")
+    refuse_pending(old, what=f"report refuses the old-cells artifact {args.old_cells}")
     output_root = hz.assert_main_tree_path(args.output_root, what="the output root")
     cells = load_cells(output_root)
     training = training_block(output_root)
