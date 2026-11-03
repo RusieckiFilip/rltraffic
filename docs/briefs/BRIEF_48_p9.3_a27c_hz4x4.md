@@ -1420,3 +1420,108 @@ re-rolled.
 3. `old-cells` once, then `report` once;
 4. G4, with J.8's three disclosures and the preview's. J.8's three: the evaluation ran as one run of 8 shards on the laptop's CPU,
    alone; it had 0 watchdog restarts; the coordinator's smoke met A7's stall at 14 shards and set 8.
+
+## J.10 2026-11-03: your J.9 work VERIFIED; the preview's output PINNED; three corrections to the G4 draft
+**Verified by the coordinator, at `cb6a942`, in its own scratch clone:**
+- **Each commit touches only what it says:**
+  - `46d2c7a` merges `main` at `dd97de7`: the plan, `BRIEF_46` and `BRIEF_48`, each equal to `main`'s;
+  - `a585086` the test file (+54 lines);
+  - `7c7e2a8` `offline/hz4x4_report.py` (+18 lines: `PENDING_RULING`, `refuse_pending` and its two calls);
+  - `6ed239c` the corrections note, and `cb6a942` the draft packet.
+
+  `offline/hz4x4_phase_b.py` and `offline/hz4x4_ladder.py` are byte-identical to `4dcbedc`. No frozen path is in the branch's
+  diff.
+- **The code is J.9-4's:**
+  - `old-cells` refuses after it builds its payload and before `_write_artifact`;
+  - `report` refuses right after its format check, before it reads anything under the output root;
+  - each refusal names the pending cells and quotes the ruling, and `old_cells()` is unchanged.
+- **The two new tests:**
+  - red at `a585086` for the right reasons: `old-cells` did not raise (`DID NOT RAISE ValueError`), and `report` went past the
+    pending list to a `FileNotFoundError` on the first missing evaluation record;
+  - green at `7c7e2a8`: 2 passed, and the whole file 16.
+
+  The two commits are 22 s apart, so they record how the work was split, not the order it was written in. What is on disk is that
+  `a585086`'s tests fail on its code and pass on `7c7e2a8`'s.
+- **The coordinator's own five mutants are all killed:**
+  - each check removed (MC1, MC2);
+  - `old-cells` refusing only after it writes (MC3);
+  - `report` refusing only after it reads the records (MC4);
+  - a refusal that does not name the pending cells (MC5).
+
+  The module was restored byte for byte.
+- **The seven P9.3 test files at `cb6a942`,** one process, one thread, the laptop otherwise idle (16:28:01–16:33:12): **163 passed in 310 s, 0 skipped.**
+  Your run at `6ed239c`, beside T6, gave 163 passed too.
+- **Your J.7 correction** is in place, with the old sentence quoted and J.7's facts.
+- **The draft packet has no result number.** The coordinator read it with every digit masked. Every digit is in a name, a date, a
+  commit or a section reference, and every result is a placeholder.
+- **Neither artifact exists,** on the branch or in your worktree, which is clean at `cb6a942`.
+- **`output/` is unchanged by your work.** No file under `output/p9_3/` is newer than the evaluation's end (12,828 files, 12,500 of
+  them in `eval/`). The only files under `output/` last written between 12:15 and 12:27 are run #220's record and checkpoint, T6's.
+- **Beside T6,** as J.9-3 and J.9-6 allow:
+  - your preview (12:16:45–12:16:50) ran during run #220;
+  - your seven-file run (12:18:33–12:24:16) ran during #220's end, `fixedtime`'s input build and #221.
+
+  #221 took 371.8 s, the slowest of `fixedtime`'s five (341.3–371.8 s). Its seconds are uncontrolled (A27(a)), and no number
+  changes.
+
+**The preview (J.9-3), from your scratch** (`/tmp/claude-1000/-home-filip-rltraffic-p93/5f61f2e5-f1c5-4f30-91ea-c302c0c04e5b/scratchpad/`):
+- **The script** is `j9_preview.py`: 12:16:45, 1,395 bytes, sha256 `b39c53fecf7cd818a2d3d473f5de78ae5055447f429bf865ed15af836251bc55`.
+  The coordinator read it. It calls `load_cells`, `cell_summaries` and `leaders` and nothing else of the module, prints J.9-3's
+  label, and writes nothing.
+- **Its printed output** is `j9_preview_output.txt`: 12:16:50, 5,427 bytes, sha256
+  `fa8f266b84bfb31e53f5dcfef8021d5866675ce92a4c59aafbff7538646c493c`. The coordinator hashed it and did not read it.
+- **The coordinator has not seen hz4x4's numbers.** Its rulings to G4 are made without them. The author has seen the preview
+  (your report, relayed today).
+- **Pinned for G4.**
+  - G4 compares the artifact with the output that has the sha256 above, and with no other.
+  - `/tmp` is in memory here, so it does not survive a restart of WSL. If the files are lost before G4, re-run the script below at
+    your tip on the same records, as J.9-3 ran it. The three functions are unchanged since `46d2c7a`, and nothing under
+    `output/p9_3/` changes. The new output's sha256 must be the one above before G4 uses it.
+  - The comparison is at the preview's printed precision: two decimals for the means, the CIs and the references' levels, and the
+    readings and `definition_dependent` as text.
+
+**The script's text, byte for byte** (its sha256 is the one above), so that it survives the same loss:
+
+```python
+"""BRIEF_48 J.9-3: a preview of hz4x4's own numbers -- read-only.  It calls offline.hz4x4_report's load_cells,
+cell_summaries and leaders, and nothing else of the module; it writes nothing (its output is printed)."""
+import offline.hz4x4_report as rp
+
+cells = rp.load_cells("/home/filip/rltraffic/output")
+summaries = rp.cell_summaries(cells)
+blocks = rp.leaders(cells)
+print("A PREVIEW, NOT AN ARTIFACT: NOT FOR THE PAPER (BRIEF_48 J.9-3)")
+print()
+print("Cells: n, and the mean with its 95 % CI (dt_gate.mean_ci95 over the cell's episodes), under each definition")
+print(f"{'cell':<30} {'n':>4}  {'att_ours mean [95 % CI]':<30} {'att_engine mean [95 % CI]':<30}")
+for cell_id, entry in summaries.items():
+    ours, engine = entry["att_ours"], entry["att_engine"]
+    print(f"{entry['arm']:<30} {entry['n']:>4}  "
+          f"{ours['mean']:8.2f} [{ours['ci95_low']:8.2f}, {ours['ci95_high']:8.2f}]   "
+          f"{engine['mean']:8.2f} [{engine['ci95_low']:8.2f}, {engine['ci95_high']:8.2f}]")
+print()
+print("Leaders per tier and definition (the grid's descriptive rule, registered: false, no primary definition)")
+for block in blocks:
+    print(f"- {block['tier']} / {block['definition']}: {block['reading']}")
+    print(f"    definition_dependent: {block['definition_dependent']}")
+    print("    references: " + "; ".join(f"{arm} {level:.2f}" for arm, level in block["references"].items()))
+```
+
+**Three corrections to the draft, before G4** (docs only; they do not depend on P9.1):
+1. **Its preview item** says the preview "was shown in the coordinator's chat the same day". J.9-3 has it shown to the author in
+   your chat, and the coordinator has not seen it. Write that.
+2. **Its AI-assistance record** says "Human-authored: the briefs' amendments (the coordinator)", and lists the coordinator's checks
+   as human verification. The coordinator is an AI session (Claude Code), as the packets of P5.2c, P7.3c and P7.3d say.
+   - The briefs and their amendments are AI-authored, by the coordinator.
+   - Human: the author's rulings, and the runs the author ran.
+   - List the coordinator's checks apart, as an AI session's verification.
+   - Amendment C is the author's ruling (k = 2). List it once, among the author's.
+3. **J.8's counts are not results:** one run of 8 shards, 0 watchdog restarts, and A7's stall met at 14 shards with 8 set. Write them
+   as J.9's last list gives them. J.9-7's "no number" means no result.
+
+**Next, for you:**
+1. Make the three corrections in `docs/returns/P9.3.md`, in one docs commit, and report "J.10 done" with it.
+2. Keep the two preview files in your scratch as they are.
+3. Then nothing until the amendment that clears `old-cells` after P9.1's merge (J.9's last list). Do not run `old-cells` or
+   `report`.
+4. Test runs beside P9.1's T7: one pytest process at a time, with `OMP_NUM_THREADS=1 MKL_NUM_THREADS=1` (`BRIEF_46` L.3).
