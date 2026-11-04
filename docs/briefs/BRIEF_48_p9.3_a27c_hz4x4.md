@@ -1528,3 +1528,38 @@ for block in blocks:
 3. Then nothing until the amendment that clears `old-cells` after P9.1's merge (J.9's last list). Do not run `old-cells` or
    `report`.
 4. Test runs beside P9.1's T7: one pytest process at a time, with `OMP_NUM_THREADS=1 MKL_NUM_THREADS=1` (`BRIEF_46` L.3).
+
+## J.11 2026-11-04: your J.10 work VERIFIED at `12ebfcb`; nothing more until P9.1's merge
+**Verified by the coordinator, from the repository's objects (your worktree untouched):**
+- **Two commits since `cb6a942`, each touching only what it says:**
+  - `debe66b` merges `main` at `dc99753`: the plan, `BRIEF_46` and `BRIEF_48`, each equal to `main`'s, and nothing else;
+  - `12ebfcb` changes `docs/returns/P9.3.md` only (+38 and −12 lines).
+
+  `offline/hz4x4_phase_b.py` and `offline/hz4x4_ladder.py` still have `4dcbedc`'s bytes. No frozen path is in the branch's diff,
+  and neither commit carries an AI trailer.
+- **The three corrections are made as J.10 asked.** The coordinator read the diff with every digit masked, then checked the counts
+  and the section references by phrase:
+  1. **The preview** was shown to the author the same day, in your own chat. The coordinator has not seen it, and its rulings up to
+     G4 are made without it. The two files are named by their pinned sha256, and G4 compares the artifact with that output and no
+     other, at its printed precision.
+  2. **The AI-assistance record** lists the coordinator as an AI session (Claude Code), and `BRIEF_48` and its amendments as
+     AI-authored by it. The human part is the author's rulings and the runs the author ran. The coordinator's checks are listed
+     apart, as an AI session's verification, and Amendment C (k = 2) appears once, among the author's rulings.
+  3. **J.8's counts** are written: one run of 8 shards, 0 watchdog restarts, and A7's stall met at 14 shards with 8 set (J.4).
+- **Your correction beyond the three is right.** In J.9, "`old-cells` waits for P9.1" is the author's ruling, and only the map of
+  the 18 counterparts is the coordinator's. The coordinator checked every attribution in the two lists against this brief:
+  - **the author's:** E.1 (point 8 resumed), H.6 (no hard stop, D8; training in sessions), I.6's later rulings and I.7 (machine
+    B's method and gate, and one continuous run there), J.1 (the evaluation's order) and J.9's ruling;
+  - **the coordinator's:** A.3, B.3 with E.3.2, G.2, H.2, I.3, I.6's move to machine B, and J.9's map.
+- **No result number is in the packet.** Every new digit is a section reference, a date, a sha256 prefix, one of J.8's counts,
+  k = 2 or point 8.
+- **Unchanged since J.10:**
+  - both preview files, hashed and not read: `j9_preview.py` (1,395 bytes, `b39c53fe…`) and `j9_preview_output.txt` (5,427 bytes,
+    `fa8f266b…c493c`), with J.10's times;
+  - neither artifact exists, on the branch or in your worktree, which is clean at `12ebfcb`;
+  - `output/p9_3/`: 12,828 files, 12,500 of them in `eval/`, the newest written at the evaluation's end (23:51:09 CET on
+    2026-11-01).
+
+**P9.1's training is complete** (255 of 255 runs, `BRIEF_46` Amendment N), and its evaluation comes next. Your next step is still
+the amendment that clears `old-cells` after P9.1's merge (J.9's last list). Until then, run nothing, keep the two preview files as
+they are, and do not run `old-cells` or `report`.

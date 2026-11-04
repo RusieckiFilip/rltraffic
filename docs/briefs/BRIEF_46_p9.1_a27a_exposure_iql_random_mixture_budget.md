@@ -1711,3 +1711,75 @@ after it, all 255 runs are trained.
 - The coordinator verifies T8 from disk, as M.1 does T7. All 255 runs are then trained.
 - P9.1's evaluation is cleared in its own amendment, after its own check.
 - P9.3's `old-cells` waits for P9.1's merge (`BRIEF_48` J.9).
+
+---
+
+# ✅ AMENDMENT N — 2026-11-04, evening: T8 VERIFIED from disk — P9.1's TRAINING COMPLETE, 255 of 255 runs; the evaluate stage's check UNDER WAY (cleared in Amendment O)
+
+## N.1 T8, verified by the coordinator from disk: P9.1's training is COMPLETE
+- **The capture** (`output/p9_1_runs/train_capture.txt`) shows, in order:
+  - the token line (`stage train 20261104T150356Z from /home/filip/rltraffic-p91-run-d at c58afb8`);
+  - the session line (`it runs about 4.1 hours without a break`) and the plan (#236–#255, 20 runs, 4.06 planned hours);
+  - `train: ok`;
+  - the summary (`20 runs trained in 12373.8 s (their records' clock); ended by the plan; 0 runs missing, 0.00 planned hours
+    left`), whose next missing run is `null`;
+  - `SESSION COMPLETE`.
+
+  The author saw `DRIVER EXIT 0`. The stage's log counts 20 runs trained and 235 skipped as done, and has no warning, error or
+  traceback line.
+- **The times (CET, 2026-11-04):**
+  - the token at 16:03:56, and the first run started at 16:04:59;
+  - the last run finished at 19:31:25, and the capture's last write is 19:31:28;
+  - 3.46 h on the wall, and 3.44 h of training on the records' clock: 0.85 of the 4.06 planned hours. M.3 said about 3.7 h.
+- **The coordinator's own script** (M.1's, moved to all 255 runs; CPU, read-only):
+  - The code's order of all 255 runs equals the manifest written out by hand.
+  - **Every record and checkpoint of all 255 runs:** its cell, seed, recipe, label and steps, the checkpoint's sha256 and canonical
+    digest, a finite final loss and finite window means. 0 problems.
+  - **T8's recipes, written out by hand from A27(b):** `bc_m` at 1,024 windows, `bc_top10_m` and `bc_top10_perix_m` at 102, and
+    `iql_m` at 20,480 transitions with `target_dropout` `off`. None of their records has a `deterministic` field, which only the DT
+    records carry.
+
+    Each T8 checkpoint's A27 provenance (arm, base, targets, registration, point and campaign) equals the hand-written fields. Its
+    registration is `A27(b)` for the three BC arms and `A27(b) with A27(c)'s targets` for `iql_m`, and its point is `A27(d)`.
+  - **T8's 20 runs** ran on `cuda` with OMP and MKL at one thread, 40,000 steps each, in run order, none overlapping, all inside the
+    session.
+  - **Runs 1–235** are untouched: their files' times are before T8.
+  - `training_status`: 255 declared, **255 done**. No `.partial`, STOP or token is left.
+  - **The GPU trace:** 622 samples, the largest gap 20.2 s. Memory peaked at 7,827 MiB during `iql_m` and at 7,824 MiB during
+    `bc_m`, of the GPU's 16,303 MiB. Utilisation's median was 96 % inside the runs. The one sample at 0 % lies outside every run.
+  - **G.2 again:** the checkpoints' `runtime.git_commit` is `dc99753` for all 20, none dirty: `main`'s HEAD throughout T8, since the
+    coordinator's docs commit landed at 14:01:50, before it. T8's code commit is `c58afb8`, from its token line.
+- **The inputs, built inside T8:** `random_fresh`'s grid inputs in the 63.9 s between the token and #236 (M.2 measured 57.1 s), and
+  their IQL table inside #251, whose wall exceeds its gradient loop by 3.1 s.
+- **Measured seconds per arm** (the records' clock, uncontrolled, A27(a)), against T5's figures on `random` (M.2) and the plan:
+
+  | Arm | Runs | On `random_fresh` (T8): min–max, mean | On `random` (T5): mean | Planned |
+  |---|---|---|---|---|
+  | `bc_m` | #236–#240 | 455.8–481.7 s, 473.3 s | 484.5 s | 543.0 s |
+  | `bc_top10_m` | #241–#245 | 82.5–87.0 s, 84.8 s | 92.5 s | 97.0 s |
+  | `bc_top10_perix_m` | #246–#250 | 82.9–85.6 s, 83.9 s | 92.3 s | 97.0 s |
+  | `iql_m` | #251–#255 | 1,786.8–1,883.4 s, 1,832.8 s | 1,940.1 s | 2,187.3 s |
+
+  The 20 runs took 0.95 of the same arms' 13,047.3 s on `random`.
+- **`plateaued`** is true for the 15 BC-family runs and false for the five `iql_m` runs. It is recorded per run; no gate of the
+  campaign depends on it.
+- **Beside T8:** the coordinator ran nothing, and knows of no other run. P9.3's two docs commits (15:06 and 15:08) came before it.
+- **The whole training:** 255 runs from 16:11 CET on 2026-10-28 (run #1) to 19:31 CET on 2026-11-04 (run #255), in the campaign
+  stage's three runs and sessions T1–T8. They took 36.00 h on the records' clock, 0.89 of the 40.55 planned hours.
+
+## N.2 The coordinator's error: a directory created under `output/`
+- To read T8's log, the coordinator ran `cd` into `output/p9_1_runs/logs/20261104T150356Z` in its main shell, against its own rule.
+  It ran only reading commands there (`ls`, `wc`, `grep`, `head`, `tail`) and left at once.
+- **The harness then created an empty `.claude/.cc-writes` directory in that log directory,** at 20:44:11. Nothing else changed:
+  `train.log` and `gpu_trace.csv` keep their sizes and their times (19:31:26 and 19:31:24), as N.1 read them.
+- **The directory stays where it is, recorded here, until the author rules on it.** Nothing under `output/` is deleted without that
+  ruling. Seven older empty `.claude` directories lie under `output/`, from earlier sessions (2026-10-27 to 2026-10-29).
+
+## N.3 Next
+- **The evaluate stage is cleared in its own amendment (O), after its check, which is under way.** F.2-2 asked P9.1 to report how
+  long a grid route (i) cell takes before the evaluate sessions are cleared. P9.1's branch has no commit since `9eb908a`
+  (2026-10-28), so the coordinator is timing the units itself, as L.2 timed `dt_nomix`'s training. Nothing starts before O.
+- **Meanwhile, for P9.1, on its branch** (nothing in the run tree): Q18 (F.2-3, E.7's G4 diagnostics, tests first), F.2-4's
+  docstring, and G.2's ruling in the report. They were set on 2026-10-29, they are needed before G4, and the branch has no commit
+  since. Tests run on the CPU only: one process, one thread, nothing on the GPU.
+- **P9.3** waits for P9.1's merge (`BRIEF_48` J.9, J.11).
