@@ -1783,3 +1783,168 @@ after it, all 255 runs are trained.
   docstring, and G.2's ruling in the report. They were set on 2026-10-29, they are needed before G4, and the branch has no commit
   since. Tests run on the CPU only: one process, one thread, nothing on the GPU.
 - **P9.3** waits for P9.1's merge (`BRIEF_48` J.9, J.11).
+
+---
+
+# ✅ AMENDMENT O — 2026-11-04, night: the evaluate stage CHECKED and its units TIMED by the coordinator (F.2-2); evaluate session E1 CLEARED (`P91_SESSION_HOURS=4`: about 4 h without a break, at most about 4 h 40 min)
+
+## O.1 The evaluate stage, checked before clearing (read-only on `output/` and the corpus)
+- **What it does,** read in the run tree's driver and module at `c58afb8`. Each session runs, in order:
+  1. **`declare-evaluation`,** in one process. The first session writes three manifests, and a later one checks them unchanged.
+     They declare 13,500 hz1x1 and 13,000 grid route (ii) episodes, and 18,200 old-cell episodes. None is on disk yet.
+  2. **`evaluate`,** in six shards. Each shard takes every sixth of the 53 new cells, sorted by scenario, tier and arm, so the grid's
+     cells come first. Each cell runs:
+     - **route (i):** the CLI's own `evaluate`, 500 episodes (5 seeds × 100 held-out draws) in one call, which cannot stop inside;
+     - **route (ii):** P8.4b's runner on the same 500 episodes, each reproducing route (i)'s `att_ours` under `==`. It can stop
+       between episodes;
+     - **P3a,** for its four new cells: the 500 episodes rolled once more, each alone, with their actions recorded. This is one unit,
+       which cannot stop inside.
+  3. **`old-cells`,** in six shards: the 38 registered hz1x1 cells, 18,200 episodes, each reproducing its committed `att_ours` under
+     `==`. They can stop between episodes, and they start only after all six `evaluate` shards have ended.
+  4. **`p3a-references`,** in one process: P3a's two registered random references, 500 episodes each. It can stop between the two.
+  5. **`status`:** `COMPLETE`, or the units left.
+
+  A session ends at `P91_SESSION_HOURS` or at the stop file, **plus the unit in flight in each shard** (F.2-2). Any refusal stops
+  the stage: a disagreement between the routes is a finding, not a cell to skip.
+- **The shards** (`shard_of`, every sixth of the sorted cells):
+  - **shard 0:** four grid cells; then the grid's `dt_nomix@random_fresh` (route (i), route (ii) and P3a: 1,500 grid DT episodes);
+    then four hz1x1 cells;
+  - **shards 1–5:** four or five grid cells, then four or five hz1x1 cells. P3a's other new cells are shard 1's hz1x1
+    `behaviour@random_fresh`, shard 2's hz1x1 `dt@random_fresh` and shard 5's grid `behaviour@random_fresh`.
+- **The module's own checks.** From the run tree (clean and detached at `c58afb8`):
+  - `check --stage evaluate` printed `{"ok": true, "stage": "evaluate"}`;
+  - `status` reads 255 of 255 runs trained, 0 of 53 route (i) cells, no route (ii) or old-cell manifest yet, and 0 of 6 P3a cells.
+- **The listings.** The corpus listing is unchanged. Under `output/p9_1*`, the coordinator's checks and timing changed nothing
+  after N.2's directory.
+
+## O.2 F.2-2: how long the units take, MEASURED by the coordinator
+F.2-2 asked P9.1 to report how long a grid route (i) cell takes, so that the evaluate sessions' hours could be stated first. P9.1's
+branch has no commit since `9eb908a` (2026-10-28), so the coordinator timed the units itself, as L.2 timed `dt_nomix`'s training.
+- **The method: the pre-flight's own form** (`_preflight_a27_grid_path`):
+  - route (i) by the campaign's own argv (`route_i_command`), with `--seeds 101` and the first held-out draws through
+    `narrowed_held_out_draws`; for hz1x1, its two training aggregates were rebuilt from the run records into the scratchpad;
+  - route (ii) by `run_campaign` with the campaign's `a27_factory_builder`, and P3a by `record_episode_actions`;
+  - the old cells by `run_campaign` with P8.4b's own builder, on their committed values.
+
+  The checkpoints were read from `output/p9_1_runs/checkpoints`, and every file was written under the coordinator's scratchpad. The
+  runs were on `cuda`, with OMP and MKL at one thread, outside the sandbox. The scripts printed seconds, counts and flags only, and no
+  outcome value was read.
+- **Every timed episode reproduced its value under `==`.** 1,530 route (ii) episodes (30 on the grid and 1,500 on hz1x1) and 20 P3a
+  episodes reproduced route (i), and 40 old-cell episodes reproduced their committed `att_ours`. No episode was refused.
+- **The grid, alone** (10 episodes each, draws 1000–1009), **and six processes at once** (`dt_nomix` for 10 episodes, five BC and
+  IQL arms on `fixedtime` for 40 each):
+
+  | Unit | Alone, s per episode | Six at once, s per episode | One 500-episode unit, six at once |
+  |---|---|---|---|
+  | `dt_nomix@random_fresh`: route (i) / route (ii) / P3a | 3.13 / 2.91 / 2.72 | 4.23 in route (i) | route (i) about 35 min; P3a about 32 min |
+  | `bc_m@fixedtime`: route (i) / route (ii) | 1.98 / 1.96 | 2.78 in route (i) | route (i) about 23 min |
+  | `bc_top10_m` and `bc_top10_perix_m` (`fixedtime`): route (i) | — | 2.78 | about 23 min |
+  | `iql_m@fixedtime` and `iql_t@fixedtime`: route (i) | 2.23 (`iql_m`) | 2.86 and 2.87 | about 24 min |
+  | `behaviour@random_fresh`: route (i) / route (ii) / P3a | 1.40 / 1.45 / 1.53 | — | about 16–18 min |
+
+  - **Six at once is 1.28–1.41 times slower than alone:** `iql_m` 1.28, `dt_nomix` 1.35 and `bc_m` 1.41.
+  - `behaviour@random_fresh` ran beside one other process, the coordinator's hz1x1 timing.
+  - With six processes, the GPU held at most 2,171 MiB of its 16,303, at a median utilisation of 27 %. The host kept at least
+    37.6 GiB available, and no process exceeded 1.26 GiB.
+  - **C.4's smoke figures are not the campaign's.** On its two-step checkpoints, the grid's `dt_nomix` took 9.3 s per route (ii)
+    episode; the trained checkpoints take 2.9–3.1 s.
+- **hz1x1, alone,** over whole cells of 500 episodes (O.3-6), **and the old cells, alone,** over the first 10 committed episodes of
+  four cells:
+
+  | Unit | Alone, s per episode | One 500-episode unit, six at once (× 1.40) |
+  |---|---|---|
+  | hz1x1 `dt@random_fresh`: route (i) / route (ii) | 1.85 / 1.81 | route (i) about 22 min |
+  | hz1x1 `iql_t@mappo1000`: route (i) / route (ii) | 1.05 / 1.06 | route (i) about 12 min |
+  | hz1x1 `bc_100k@mappo1000`: route (i) / route (ii) | 0.95 / 0.98 | route (i) about 11 min |
+  | old cells `iql@maxpressure`, `madt`, `mappo1000` and `behaviour@fixedtime` | 1.01, 1.73, 1.69 and 0.66 | per episode |
+
+  - **The old cells take 6.05 h alone in all, 0.78–1.23 h per shard.** This weights each old cell's committed episodes by its
+    family's rate: the BC and IQL arms as measured, the registered DTs as `madt`, the MAPPO behaviour cells as `mappo1000`, and the
+    rule-based ones as `behaviour@fixedtime`.
+  - The hz1x1 `behaviour@random_fresh` cell is not timed. It is taken at 1.0 s per episode.
+- **The projection.** The coordinator's script runs each shard's units in the module's order, at these rates. While n shards run,
+  each is slowed by 1 + k (n − 1). With k from 0.07 to 0.09, that is 1.35–1.45 for six, around the measured 1.28–1.41.
+  - **The whole stage takes about 8.0–8.5 h.**
+    - The six `evaluate` shards end after 4.8–6.5 h.
+    - The old cells wait for the last of them, and end about 1.6–1.7 h later.
+    - P3a's references take about 0.35 h after that.
+  - **At a 4-h deadline,** each shard is either between two route (ii) episodes or finishing an hz1x1 route (i) cell with minutes
+    left. So the session ends at about 4.1 h, with 0.6–1.9 h of alone-work left per shard.
+  - **The next session** runs the rest of `evaluate` (about 2.0–2.4 h), then the old cells and P3a's references: about 3.9–4.5 h
+    in all.
+  - The grid's rates come from its first 10 or 40 held-out draws, and the draws' demand varies. E1's own records will show by
+    how much.
+
+## O.3 Rulings
+1. **F.2-2 is answered by O.2's measurement.** P9.1's own report of it is no longer needed.
+2. **The evaluation runs in sessions of about four hours.**
+   - E1 is cleared now at `P91_SESSION_HOURS=4`, with six workers (the cap).
+   - E2 is cleared after E1 is verified, with its hours from E1's own records: the route (i) files' times and the shards' logs.
+   - A third, short session follows only if E2 would otherwise run past about five hours.
+3. **E1's hours.** It runs about 4 hours without a break.
+   - At its deadline, the projection finds each shard either between two route (ii) episodes or minutes from the end of an hz1x1
+     route (i) cell. So E1 should end at about 4.1 h.
+   - The longest unit that cannot stop is the grid's `dt_nomix` route (i), about 35 minutes with six shards running. So E1 runs at
+     most about 4 h 40 min, unless a stall restart re-rolls a unit that was in flight at the deadline.
+4. **The command checks CUDA first**, as the training's did. The workers run their policies on the GPU (`device` None), as the
+   coordinator's timing did. On the CPU they would be slower than every figure above.
+5. **Beside the evaluation:**
+   - no training and nothing else on the GPU;
+   - nothing memory-heavy on the laptop's WSL;
+   - P9.1's own work (O.5) may run one pytest process at a time, with `OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`;
+   - P9.3 runs nothing (`BRIEF_48` J.11).
+
+   Its values do not depend on the machine's load, only its hours do.
+6. **The coordinator's error in the timing.** `method_tier_grid` binds the held-out draws when it is imported, so
+   `narrowed_held_out_draws` does not narrow them there. The coordinator's hz1x1 timing therefore rolled each cell's 500 episodes
+   instead of 10: about an hour of one CPU core, every file in its scratchpad, and no value read. The campaign never narrows draws,
+   so nothing in it changes.
+7. **The coordinator's timing outputs are kept** in its scratchpad: route (i) for three whole hz1x1 cells, and the grid's first
+   draws. At E1's verification the coordinator compares them with E1's own route (i) files by program, printing only counts of equal
+   episodes: the same code, checkpoints and seeds must give the same values. `/tmp` does not survive a restart of WSL; if they are
+   lost, that check is skipped and said so.
+
+## O.4 ✅ THE TOKEN: evaluate session E1 (the author's tmux `p91`)
+**E1 runs about 4 hours without a break, and at most about 4 h 40 min** (O.3-3). It ends by itself.
+- **What it runs:**
+  - `declare-evaluation`, which writes the three manifests once;
+  - the six `evaluate` shards until the deadline, 4 h after the session's start. Each shard then finishes its unit in flight.
+
+  The old cells and P3a's references come in a later session.
+- **Before it:**
+  - the coordinator's timing has ended (at 22:04:46), and no other P9.1 stage runs;
+  - nothing runs on the GPU;
+  - keep the laptop plugged in and awake.
+- **The command,** at the pane's prompt, as one line:
+  ```
+  /home/filip/rltraffic/.venv/bin/python -c "import sys, torch; sys.exit(0 if torch.cuda.is_available() else 'NO CUDA: E1 not started')" && touch /home/filip/rltraffic/output/p9_1_runs/TOKEN_evaluate && P91_SESSION_HOURS=4 WORKERS=6 bash /home/filip/rltraffic-p91-run-d/offline/campaigns/p9_1_corrective.sh evaluate c58afb8 2>&1 | tee -i -a /home/filip/rltraffic/output/p9_1_runs/evaluate_capture.txt; echo "DRIVER EXIT ${PIPESTATUS[0]}"
+  ```
+- **The pane** shows:
+  - the token line;
+  - the session line (`evaluate session: it runs about 4 hours without a break (P91_SESSION_HOURS), PLUS the unit of work in
+    flight in each shard …`). Its "7 min 47 s" is the smoke's hz1x1 cell: O.2 has the campaign's figures;
+  - `declare_evaluation: ok`.
+
+  Then it is quiet until the deadline. Progress is in `output/p9_1_runs/logs/<stamp>/evaluate_shard<k>.log`.
+- **Done when** the capture shows:
+  - `evaluate: 6 shards ended cleanly`;
+  - the `left:` line (route (i) cells, route (ii) episodes per scenario, P3a cells and old-cell episodes left);
+  - `stage evaluate <stamp>: SESSION ENDED at the hours bound (4 h) …`.
+
+  The pane must also show `DRIVER EXIT 0`. If everything is done, the last line is `stage evaluate <stamp>: COMPLETE …` instead.
+- **To end it early:** `touch /home/filip/rltraffic/output/p9_1_runs/STOP`. Each shard ends after its unit in flight: seconds in a
+  route (ii), up to about 35 minutes in a grid route (i) or P3a. The session then ends `at the stop file`. Remove the file by hand
+  before the next session.
+- **A failure:** `evaluate shard <k> FAILED` with the last lines of its log, then `FAILED: …` and `DRIVER EXIT 1`. Report it; nothing
+  is re-run without a ruling. A route (ii) episode that does not reproduce route (i) is a finding.
+- **A stall** (DEFERRED 104): a shard with no progress for 120 s is restarted, at most 60 times, and each restart is logged in
+  `restarts.log`. A restart rolls the unit in flight again from scratch, with the same seeds and values.
+- **Ctrl+C is the emergency stop only.** It loses the units in flight.
+
+## O.5 After E1, and meanwhile
+- **After E1:** the coordinator verifies it from disk (the route (i) files, the route (ii) episodes, P3a, the restarts, the logs),
+  then clears E2, its hours first.
+- **Meanwhile, for P9.1, on its branch** (nothing in the run tree): Q18 (F.2-3, E.7's G4 diagnostics, tests first), F.2-4's
+  docstring, and G.2's ruling in the report. These were set on 2026-10-29 and are needed before G4; the branch has no commit since.
+  Tests run CPU only, one process, one thread, nothing on the GPU.
+- **P9.3** waits for P9.1's merge (`BRIEF_48` J.9, J.11).
