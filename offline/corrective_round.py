@@ -548,8 +548,13 @@ def train(
     """Train the MISSING runs of *cells* (default: the whole manifest), serially, one tier's inputs built once.
 
     Every run's status is computed from disk FIRST and any damaged run refuses the whole call before a gradient step
-    (:func:`run_status`); done runs are skipped, never retrained.  Resumable by construction: an interrupted call leaves
-    no checkpoint and no record, so its run reads as missing.
+    (:func:`run_status`); done runs are skipped, never retrained.  Resumable by construction, in three cases
+    (``BRIEF_46`` F.2-4):
+    - interrupted DURING training: no checkpoint and no record, so the run reads as missing and the next call trains
+      it (the campaign stage's run 4, E.2);
+    - interrupted WHILE its checkpoint is written: a ``<checkpoint>.partial`` is left, which :func:`run_status`
+      refuses, so the next call refuses before a gradient step until a person has looked at it;
+    - interrupted between the move into place and the record: a checkpoint without its record, refused the same way.
 
     A SESSION (``BRIEF_46`` Amendment E, E.4-1): refused before anything while the stop file exists; its runs are
     :func:`session_plan`'s -- the next missing runs that fit *hours* (planning estimates; the first always included), at

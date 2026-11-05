@@ -181,3 +181,45 @@ def test_the_report_rebuilds_byte_for_byte_from_the_tree(tree: fx.FixtureTree, a
         assert {p.name: p.read_text(encoding="utf-8") for p in tmp_path.iterdir()} == texts
         assert rep.main(argv) == 0
     assert {p.name: p.read_text(encoding="utf-8") for p in tmp_path.iterdir()} == texts
+
+
+def test_the_iql_diagnostics_beside_the_d4rl_section_are_every_iql_t_run_and_both_d4rl_arms(
+        artifacts: dict[str, dict[str, Any]]) -> None:
+    """Q18 (``BRIEF_46`` F.2-3) on the full-size tree: the 70 traffic ``iql_t`` runs' three values are the fixture's
+    own, found by run number; the D4RL rows are the committed P8.3 IQL cells, read straight from ``docs/data``, and the
+    fixture's re-run; no other artifact carries the block."""
+    block = artifacts["p9_1_iql_targets.json"]["iql_diagnostics"]
+    expected = [((cell.scenario, cell.tier, int(seed)), fx.iql_diagnostics_of(number - 1))
+                for number, (cell, seed) in enumerate(cr.training_runs(), start=1) if cell.arm == "iql_t"]
+    got = [((r["scenario"], r["tier"], r["seed"]), (r["final_q_loss"], r["final_v_loss"],
+                                                     r["awr_weight_near_zero_fraction"]))
+           for r in block["traffic_iql_t"]["runs"]]
+    assert len(got) == 70 and got == expected
+    committed = json.loads((REPO / "docs" / "data" / "p8_3_d4rl_calibration.json").read_text(encoding="utf-8"))
+    iql = sorted((c for c in committed["cells"] if c["arm"] == "iql"), key=lambda c: int(c["seed"]))
+    rows = [(r["arm"], r["seed"], r["final_q_loss"], r["final_v_loss"], r["awr_weight_near_zero_fraction"])
+            for r in block["d4rl"]["rows"]]
+    assert rows == [("iql", int(c["seed"]), c["diagnostics"]["final_q_loss"], c["diagnostics"]["final_v_loss"],
+                     c["diagnostics"]["awr_weight_near_zero_fraction"]) for c in iql] + [
+        ("iql_t", int(s), *fx.d4rl_diagnostics_of(i)) for i, s in enumerate(TRAINING_SEEDS)]
+    assert block["label"] == rep.DIAGNOSTICS_LABEL
+    assert [name for name, payload in artifacts.items() if "iql_diagnostics" in payload] == ["p9_1_iql_targets.json"]
+
+
+def test_every_new_run_names_its_sessions_code_commit_and_run_tree(artifacts: dict[str, dict[str, Any]]) -> None:
+    """G.2 on the full-size tree: each new run's code commit, run tree and session are its training session's, found
+    here by run number from the fixture's session table (the report finds them by time, from the captures)."""
+    expected = {}
+    for number, (cell, seed) in enumerate(cr.training_runs(), start=1):
+        stage, stamp, commit, tree = fx.training_session_of(number)
+        expected[(rep.new_cell_id(cell), int(seed))] = (commit, tree, f"{stage} {stamp}")
+    seen = {}
+    for name, payload in artifacts.items():
+        assert payload["code_commit_rule"] == rep.CODE_COMMIT_RULE, name
+        for cid, runs in payload["training_runs"].items():
+            for run in runs:
+                if cid.startswith("p9_1:"):
+                    seen[(cid, int(run["seed"]))] = (run["code_commit"], run["run_tree"], run["session"])
+    assert {key: expected[key] for key in seen} == seen
+    assert {commit for commit, _, _ in seen.values()} == {"cb61ee7", "c58afb8"}
+    assert seen[("p9_1:hz1x1:iql_t@random", 303)][2] == f"campaign {fx.stamp_of(fx.T0 - fx.SESSION_LEAD)}"

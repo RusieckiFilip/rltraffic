@@ -3,8 +3,9 @@ C6: "T-regress for each artifact (rebuilt byte for byte from fixture run directo
 
 No format of its own: every file is written in the format the campaign writes it -- ``p9.1-run/1.0`` run records,
 route (i)'s cell payloads (``episodes``), P8.4b's per-episode files (``att_rederivation.cell_file_name``), the
-``p9.1-actions/1.0`` P3a records, the driver's Unix-time GPU trace -- and the three declarations are written by the
-campaign's own ``declare_*`` functions on the real corpus.  Alignment: every episode is a held-out ``(seed, draw)`` of
+``p9.1-actions/1.0`` P3a records, the driver's Unix-time GPU trace, the driver's captures with one token line per
+session (``BRIEF_46`` G.2), each IQL run's ``diagnostics`` block and the D4RL re-run's (Q18, F.2-3) -- and the three
+declarations are written by the campaign's own ``declare_*`` functions on the real corpus.  Alignment: every episode is a held-out ``(seed, draw)`` of
 ``dt_gate``'s protocol (5 seeds x 100 draws).  A NEW cell's values are synthetic and exact in binary (a level that is a
 multiple of 1/4 plus a per-episode term that is a multiple of 1/64); an OLD cell's ``att_ours`` is its committed value
 (its re-roll must reproduce it) and its ``att_engine`` that value minus :data:`ENGINE_SHIFT_OLD`.
@@ -19,6 +20,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -40,6 +42,56 @@ REPEATED = ("hz1x1", "dt@random_fresh", 202, (1000, 1001))
 ENGINE_SHIFT_NEW = 3.0
 ENGINE_SHIFT_OLD = 7.0
 TRACE_STEP = 20.0
+#: The driver's sessions in the campaign's shape (BRIEF_46 G.2): (stage, the run number it trains first or None, the
+#: commit and the run tree its token line names).  A training session starts SESSION_LEAD seconds before its first run;
+#: collect, d4rl and evaluate train nothing.
+SESSIONS: tuple[tuple[str, int | None, str, str], ...] = (
+    ("collect", None, "140149e", "/trees/run"),
+    ("campaign", 1, "cb61ee7", "/trees/run-c"),
+    ("d4rl", None, "cb61ee7", "/trees/run-c"),
+    *(("train", first, "c58afb8", "/trees/run-d") for first in (4, 66, 126, 155, 188, 212, 226, 236)),
+    ("evaluate", None, "c58afb8", "/trees/run-d"),
+)
+SESSION_LEAD = 50.0
+
+
+def iql_diagnostics_of(index: int) -> tuple[float, float, float]:
+    """An IQL run's final Q loss, final V loss and AWR near-zero fraction, exact in binary, fixed by its run index."""
+    return 2.0 + index / 4, 1.0 + index / 8, (index % 128) / 128
+
+
+def d4rl_diagnostics_of(position: int) -> tuple[float, float, float]:
+    """The fixture re-run's ``iql_t`` cell's three values, by its seed's position in ``TRAINING_SEEDS``."""
+    return 80.0 + position / 4, 8.0 + position / 8, (64 + position) / 128
+
+
+def session_starts() -> list[float]:
+    """Each :data:`SESSIONS` entry's start, in whole Unix seconds: a training session SESSION_LEAD before its first
+    run, d4rl between run 3's end and run 4's session, collect a day before the campaign, the evaluation after the
+    last run."""
+    starts = []
+    for stage, first, _, _ in SESSIONS:
+        if first is not None:
+            starts.append(T0 + RUN_SPACING * (first - 1) - SESSION_LEAD)
+        elif stage == "collect":
+            starts.append(T0 - 86_400.0)
+        elif stage == "d4rl":
+            starts.append(T0 + RUN_SPACING * 2 + RUN_SECONDS + 100.0)
+        else:
+            starts.append(T0 + RUN_SPACING * 256)
+    return starts
+
+
+def stamp_of(start: float) -> str:
+    """The driver's stamp for a session starting at *start*: ``date -u +%Y%m%dT%H%M%SZ``."""
+    return time.strftime("%Y%m%dT%H%M%SZ", time.gmtime(start))
+
+
+def training_session_of(number: int) -> tuple[str, str, str, str]:
+    """The session that trains run *number* (1-based), found by run number: (stage, stamp, commit, run tree)."""
+    chosen = max(i for i, (_, first, _, _) in enumerate(SESSIONS) if first is not None and first <= number)
+    stage, _, commit, tree = SESSIONS[chosen]
+    return stage, stamp_of(session_starts()[chosen]), commit, tree
 
 
 def level(scenario: str, key: str) -> float:
@@ -128,10 +180,25 @@ def write_tree(root: Path, *, main_output: Path, corpus_root: Path, draws_root: 
                   "canonical_digest": _digest("canonical", cell.key, seed), "file_sha256": _digest("file", cell.key, seed),
                   "window_means": [3.0, 2.0, 1.5, 1.25], "plateaued": index % 3 == 0, "final_loss": 1.25,
                   "diagnostics": None, "device": "cuda", "thread_regime": {"torch": 1}}
+        if fields["base"] == "iql":
+            q, v, near_zero = iql_diagnostics_of(index)
+            record["diagnostics"] = {"final_q_loss": q, "final_v_loss": v, "awr_weight_near_zero_fraction": near_zero,
+                                     "final_policy_loss": 1.25, "diagnostic_positions": 20000,
+                                     "target_dropout": fields["target_dropout"]}
         if cell.scenario == "grid4x4" and cell.arm == "dt_nomix":
             record["deterministic"] = False
         _write(cr.run_record_path(roots, cell.scenario, cell.tier, cell.arm, int(seed)), record)
         brackets[(cell.scenario, cell.tier, cell.arm, int(seed))] = (started, started + seconds)
+
+    # The driver's captures: one token line per session (BRIEF_46 G.2), each followed by a line of its stage's output.
+    captures: dict[str, list[str]] = {}
+    for (stage, _, commit, tree), start in zip(SESSIONS, session_starts()):
+        stamp = stamp_of(start)
+        captures.setdefault(f"{stage}_capture.txt", []).extend([
+            f"token consumed; stage {stage} {stamp} from {tree} at {commit}; logs {runs_root / 'logs' / stamp}",
+            f"stage {stage} {stamp}: SESSION COMPLETE (fixture)"])
+    for name, lines in captures.items():
+        (runs_root / name).write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     # The driver's Unix-time GPU trace over the whole stage, with one gap inside PAUSED_RUN's bracket.
     first, last = min(b[0] for b in brackets.values()), max(b[1] for b in brackets.values())
@@ -201,9 +268,18 @@ def write_tree(root: Path, *, main_output: Path, corpus_root: Path, draws_root: 
                                            "arm": cell.key, "registered_in": "A27(d)", "digest": "fixture",
                                            "episodes": rows})
 
-    # The D4RL re-run's output with its compare-with block (calibration/d4rl_run.py's keys the report reads).
+    # The D4RL re-run's output with its compare-with block (calibration/d4rl_run.py's keys the report reads): compared
+    # with the committed P8.3 artifact, by its digest, and each cell's diagnostics block.
     d4rl = root / "d4rl" / rep.D4RL_OUTPUT_NAME
-    _write(d4rl, {"compare_with": {"registered": "docs/data/p8_3_d4rl_calibration.json", "fixture": True},
-                  "cells": [{"arm": "iql_t", "seed": int(seed), "training_seconds": 380.0 + i, "wall_seconds": 400.0 + i,
-                             "gradient_steps": 40000} for i, seed in enumerate(TRAINING_SEEDS)]})
+    registered = repo_root / "docs" / "data" / "p8_3_d4rl_calibration.json"
+    cells = []
+    for i, seed in enumerate(TRAINING_SEEDS):
+        q, v, near_zero = d4rl_diagnostics_of(i)
+        cells.append({"arm": "iql_t", "seed": int(seed), "training_seconds": 380.0 + i, "wall_seconds": 400.0 + i,
+                      "gradient_steps": 40000,
+                      "diagnostics": {"final_q_loss": q, "final_v_loss": v, "awr_weight_near_zero_fraction": near_zero,
+                                      "diagnostic_positions": 20000, "target_dropout": "off"}})
+    _write(d4rl, {"compare_with": {"registered": "docs/data/p8_3_d4rl_calibration.json", "fixture": True,
+                                   "path": str(registered), "sha256": hashlib.sha256(registered.read_bytes()).hexdigest()},
+                  "cells": cells})
     return FixtureTree(roots=roots, d4rl_path=d4rl, run_brackets=brackets)

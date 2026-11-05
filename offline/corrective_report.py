@@ -9,11 +9,20 @@ evaluation: ``method_tier_grid`` / ``tier_sweep`` ``evaluate``) and ``att_engine
 (P8.4b's per-second observer, ``att_rederivation.run_campaign``), joined on ``(seed, draw)`` and refused unless route
 (ii)'s ``att_ours`` equals route (i)'s under ``==``.  An OLD hz1x1 cell's ``att_ours`` is its committed artifact's,
 joined to its P8.4b re-roll the same way (A27(a)).
+
+Two additions made before G4, under the same version (no artifact has been written in it):
+- **Each run's code commit (``BRIEF_46`` G.2).** Every training run of a new cell carries ``code_commit``,
+  ``run_tree``, ``session`` and ``code_commit_source``, from the token line of its session (:func:`run_session`).
+  Every artifact states the rule in ``code_commit_rule``.
+- **The IQL diagnostics (Q18; E.7, F.2-3).** ``p9_1_iql_targets.json`` carries ``iql_diagnostics`` beside ``d4rl``:
+  each D4RL cell's final Q and V losses and AWR near-zero fraction for ``iql`` and ``iql_t``, and the same for every
+  traffic ``iql_t`` run. They are labelled diagnostics, not registered statistics (:func:`iql_diagnostics`).
 """
 
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -164,6 +173,90 @@ def new_training_runs(roots: cr.Roots, cell: cr.Cell, *, seeds: Any = None) -> l
 
 
 # ----------------------------------------------------------------------
+# Each run's code commit, from its session's token line (BRIEF_46 Amendment G, G.2)
+# ----------------------------------------------------------------------
+
+#: The driver's token line, printed once per session after every refusal has passed and the token is consumed
+#: (``offline/campaigns/p9_1_corrective.sh``): the stage, its UTC stamp, the run tree, and the commit the driver
+#: checked the run tree is clean and detached at.
+TOKEN_LINE = re.compile(r"token consumed; stage (?P<stage>[a-z0-9]+) (?P<stamp>[0-9]{8}T[0-9]{6}Z) from "
+                        r"(?P<run_tree>\S+) at (?P<commit>[0-9a-f]{7,40}); logs (?P<logs>\S+)")
+#: The stages that train (the campaign stage, retired by E.4, trained runs 1-3).
+TRAINING_STAGES: tuple[str, ...] = ("campaign", "train")
+CODE_COMMIT_RULE = (
+    "BRIEF_46 G.2: a P9.1 run's code commit is its session's -- the session whose window, from its token line's stamp "
+    "to the next session's of any stage, holds the run's started_unix -- as that token line names it, beside the run "
+    "tree the driver checked is clean and detached at that commit. A checkpoint's runtime.git_commit is the main "
+    "tree's HEAD when the checkpoint was written, never the code's commit, and is not reported as one.")
+
+
+def driver_sessions(roots: cr.Roots) -> list[dict[str, Any]]:
+    """Every session the driver started, in start order.
+
+    There is one session per token line of every ``<stage>_capture.txt`` in the runs directory. Each carries the stage,
+    its stamp and start (UTC, whole seconds), the run tree, the commit, and where the line is.
+
+    The captures are what the author's commands ``tee`` the driver's output into. ``BRIEF_46`` G.2 names
+    ``campaign_capture.txt`` for runs 1-3 and ``train_capture.txt`` for every training session. The other stages'
+    captures are read too, so that each session's window ends where the next session of ANY stage starts.
+
+    Refused: a line that begins as a token line but does not read as one, and two token lines with one stamp.
+    """
+    import calendar
+    import time
+
+    sessions: list[dict[str, Any]] = []
+    for capture in sorted(Path(roots.runs_root).glob("*_capture.txt")):
+        for number, line in enumerate(capture.read_text(encoding="utf-8").splitlines(), start=1):
+            if not line.startswith("token consumed;"):
+                continue
+            match = TOKEN_LINE.fullmatch(line.rstrip())
+            if match is None:
+                raise ValueError(f"{capture.name} line {number} is a token line the report cannot read: {line!r}")
+            start = calendar.timegm(time.strptime(match["stamp"], "%Y%m%dT%H%M%SZ"))
+            sessions.append({"stage": match["stage"], "stamp": match["stamp"], "start_unix": float(start),
+                             "run_tree": match["run_tree"], "code_commit": match["commit"],
+                             "capture": _relative(roots, capture), "line": number})
+    sessions.sort(key=lambda session: session["start_unix"])
+    stamps = [session["stamp"] for session in sessions]
+    for stamp in stamps:
+        if stamps.count(stamp) > 1:
+            raise ValueError(f"two token lines carry the stamp {stamp}: a session has one token line")
+    return sessions
+
+
+def run_session(run: Mapping[str, Any], sessions: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """*run*'s code commit (``BRIEF_46`` G.2), with the run tree and where the token line is.
+
+    The session is the one whose window holds the run's ``started_unix``. A window runs from the session's start to
+    the next session's start, of any stage.
+
+    Refused:
+    - a run that started before every session;
+    - a run that started in a session that trains nothing (collect, d4rl, evaluate);
+    - a run that finished after the next session started. Two P9.1 stages never run at once (the driver's pgrep
+      refusal), so such a run is not a run of the session it started in.
+    """
+    where = f"{run.get('cell')} seed {run.get('seed')}"
+    started, finished = float(run["started_unix"]), float(run["finished_unix"])
+    index = max((i for i, session in enumerate(sessions) if float(session["start_unix"]) <= started), default=None)
+    if index is None:
+        raise ValueError(f"{where} started before every session the captures name")
+    session = sessions[index]
+    if session["stage"] not in TRAINING_STAGES:
+        raise ValueError(f"{where} started inside the {session['stage']} session {session['stamp']}, which trains "
+                         "nothing")
+    if index + 1 < len(sessions) and finished > float(sessions[index + 1]["start_unix"]):
+        following = sessions[index + 1]
+        raise ValueError(f"{where} finished after the next session, {following['stage']} {following['stamp']}, "
+                         "started")
+    return {"code_commit": session["code_commit"], "run_tree": session["run_tree"],
+            "session": f"{session['stage']} {session['stamp']}",
+            "code_commit_source": f"{session['capture']} line {session['line']}: the session's token line "
+                                  "(BRIEF_46 G.2)"}
+
+
+# ----------------------------------------------------------------------
 # The artifacts (BRIEF_46 3.5): pure functions of a Sources
 # ----------------------------------------------------------------------
 
@@ -173,7 +266,9 @@ class Sources:
     """Everything the five artifacts are built from, loaded once: the cells (``tier_statements.Cell``) by id -- new
     (``p9_1:<scenario>:<arm>@<tier>``), hz1x1 old (``p4_4:<arm>``, ``p4_6:<arm>``, ``p4_7:<arm>``), grid old (P5.2c's
     ids) -- with their per-episode records and training runs, the declarations, P5.2c's books, P3a's rows, the tiers'
-    training schedules, the D4RL re-run, registered constants, the inputs by digest and the git block."""
+    training schedules, the D4RL re-run, registered constants, the inputs by digest and the git block; and the IQL
+    diagnostics beside the D4RL section (Q18), which :func:`load_sources` always fills (``None`` only where a test
+    builds a Sources by hand)."""
 
     cells: Mapping[str, Any]
     records: Mapping[str, Sequence[Mapping[str, Any]]]
@@ -186,6 +281,7 @@ class Sources:
     registered: Mapping[str, Any]
     inputs: Sequence[Mapping[str, Any]]
     git: Mapping[str, Any]
+    diagnostics: Mapping[str, Any] | None = None
 
 
 REGISTRATION = "PREREGISTRATION.md A27 (tag v2.8-prereg-a27)"
@@ -219,6 +315,7 @@ def _finish(point: str, src: Sources, body: Mapping[str, Any], *, role: str,
     return {
         "format_version": REPORT_FORMAT_VERSION, "label": cr.LABELS[point], "registered_in": f"{point}, {REGISTRATION}",
         "role": role, "git": dict(src.git), "inputs": [dict(entry) for entry in src.inputs], **body,
+        "code_commit_rule": CODE_COMMIT_RULE,
         "records": {cid: [{key: row[key] for key in EPISODE_FIELDS} for row in src.records[cid]] for cid in ids},
         "training_runs": {cid: [dict(run) for run in src.runs[cid]] for cid in ids if cid in src.runs},
         "clock": cr.CLOCK_LABEL, "what_this_is_not": list(what_this_is_not),
@@ -581,6 +678,7 @@ def build_iql_targets(src: Sources) -> dict[str, Any]:
         "p1_rescore": {name: p1_rescore_block(src, name) for name in P1_TIERS},
         "iql_behaviour_comparisons": iql_behaviour_rescore(src),
         "d4rl": src.d4rl,
+        "iql_diagnostics": src.diagnostics,
     }
     return _finish("A27(c)", src, body, role="A27(c): IQL's three target forwards in eval(), beside the registered IQL",
                    what_this_is_not=(
@@ -872,6 +970,118 @@ def d4rl_section(path: str | Path) -> dict[str, Any]:
 
 
 
+# ----------------------------------------------------------------------
+# E.7's diagnostics beside the D4RL section (Q18; BRIEF_46 Amendment F, F.2-3)
+# ----------------------------------------------------------------------
+
+#: The registered P8.3 artifact, whose IQL cells the D4RL re-run was compared with.
+REGISTERED_D4RL = "docs/data/p8_3_d4rl_calibration.json"
+#: The three values E.7 asks for, as ``offline_baselines.train_iql`` records them in its ``diagnostics`` block.
+DIAGNOSTIC_FIELDS: tuple[str, ...] = ("final_q_loss", "final_v_loss", "awr_weight_near_zero_fraction")
+DIAGNOSTICS_LABEL = ("diagnostics, not registered statistics (BRIEF_46 E.7, F.2-3): descriptive only; no prediction, "
+                     "verdict, gate or decision reads them")
+
+
+#: What each value is, written into the block beside it.
+DIAGNOSTIC_DEFINITIONS: Mapping[str, str] = {
+    "final_q_loss": ("the Q (TD) loss of the last gradient step, on that step's batch, as offline_baselines.train_iql "
+                     "records it; not train.log's mean over the last 5,000 steps"),
+    "final_v_loss": ("the V (expectile) loss of the last gradient step, on that step's batch, likewise; not "
+                     "train.log's 5,000-step mean"),
+    "awr_weight_near_zero_fraction": ("the fraction of AWR weights, exp(beta * (Q_target - V)) clipped at 100, below "
+                                      "0.01, over the trainer's fixed sample of at most 20,000 training rows, computed "
+                                      "once after training with the modules in eval mode"),
+}
+
+
+def _three(diagnostics: Any, *, where: str, source: str) -> dict[str, float]:
+    """The three values of one trainer's ``diagnostics`` block, refused unless each is a finite number."""
+    import math
+
+    if not isinstance(diagnostics, Mapping):
+        raise ValueError(f"{where}: {source} carries no diagnostics block")
+    out: dict[str, float] = {}
+    for key in DIAGNOSTIC_FIELDS:
+        if key not in diagnostics:
+            raise ValueError(f"{where}: its diagnostics block in {source} has no {key}")
+        value = diagnostics[key]
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+            raise ValueError(f"{where}: {key} is {value!r}, not a finite number ({source})")
+        out[key] = float(value)
+    return out
+
+
+def iql_t_diagnostics(roots: cr.Roots) -> list[dict[str, Any]]:
+    """Every traffic ``iql_t`` run's three values, in ``training_runs()`` order, from its ``p9.1-run/1.0`` record.
+
+    The values come from the record's ``diagnostics`` block, not from ``train.log``: the log carries only the Q and V
+    losses' 5,000-step means and no AWR fraction (F.2-3). A record that is not its run's, or that lacks a finite
+    value, is refused.
+    """
+    rows: list[dict[str, Any]] = []
+    for cell, seed in cr.training_runs():
+        if cell.arm != "iql_t":
+            continue
+        where = f"{cell.scenario}:{cell.key} seed {int(seed)}"
+        path = cr.run_record_path(roots, cell.scenario, cell.tier, cell.arm, int(seed))
+        source = _relative(roots, path)
+        record = json.loads(path.read_text(encoding="utf-8"))
+        identity = tuple(record.get(key) for key in ("format_version", "scenario", "tier", "arm", "seed"))
+        if identity != (cr.RUN_RECORD_FORMAT_VERSION, cell.scenario, cell.tier, cell.arm, int(seed)):
+            raise ValueError(f"{source} is not the {cr.RUN_RECORD_FORMAT_VERSION} record of {where}")
+        rows.append({"scenario": cell.scenario, "tier": cell.tier, "arm": cell.arm, "seed": int(seed),
+                     **_three(record.get("diagnostics"), where=where, source=source), "source": source})
+    return rows
+
+
+def d4rl_diagnostics(repo_root: str | Path, d4rl_path: str | Path) -> dict[str, Any]:
+    """Each D4RL cell's three values for ``iql`` and ``iql_t``: five training seeds each, in seed order.
+
+    - ``iql``: the registered P8.3 cells, from the committed artifact the re-run was compared with. Its sha256 must
+      be the re-run's ``compare_with.sha256``.
+    - ``iql_t``: the re-run's own cells.
+
+    Both come from ``offline_baselines.train_iql``'s ``diagnostics`` block.
+    """
+    import hashlib
+
+    from offline.dt_gate import TRAINING_SEEDS
+
+    rerun_path = Path(d4rl_path)
+    rerun_bytes = rerun_path.read_bytes()
+    rerun = json.loads(rerun_bytes)
+    registered_bytes = (Path(repo_root) / REGISTERED_D4RL).read_bytes()
+    digest = hashlib.sha256(registered_bytes).hexdigest()
+    compared = (rerun.get("compare_with") or {}).get("sha256")
+    if compared != digest:
+        raise ValueError(f"{rerun_path.name} was compared with a file of sha256 {compared}, not with "
+                         f"{REGISTERED_D4RL} (sha256 {digest})")
+    seeds = sorted(int(seed) for seed in TRAINING_SEEDS)
+    rows: list[dict[str, Any]] = []
+    for arm, payload, source in (("iql", json.loads(registered_bytes), REGISTERED_D4RL),
+                                 ("iql_t", rerun, rerun_path.name)):
+        cells = sorted((c for c in payload["cells"] if c.get("arm") == arm), key=lambda c: int(c["seed"]))
+        found = [int(c["seed"]) for c in cells]
+        if found != seeds:
+            raise ValueError(f"the D4RL {arm} cells for seeds {found}, not the five training seeds {seeds} ({source})")
+        for c in cells:
+            rows.append({"arm": arm, "seed": int(c["seed"]),
+                         **_three(c.get("diagnostics"), where=f"D4RL {arm} seed {int(c['seed'])}", source=source),
+                         "source": source})
+    return {"rows": rows, "registered": {"file": REGISTERED_D4RL, "sha256": digest},
+            "rerun": {"file": rerun_path.name, "sha256": hashlib.sha256(rerun_bytes).hexdigest()},
+            "arms": {"iql": "P8.3's registered IQL cells", "iql_t": "A27(c)'s re-run (--iql-target-dropout off)"}}
+
+
+def iql_diagnostics(roots: cr.Roots, d4rl_path: str | Path) -> dict[str, Any]:
+    """The block beside ``p9_1_iql_targets.json``'s ``d4rl`` section (Q18; ``BRIEF_46`` E.7, F.2-3), labelled as
+    diagnostics: each D4RL cell's three values for ``iql`` and ``iql_t``, and every traffic ``iql_t`` run's."""
+    return {"label": DIAGNOSTICS_LABEL, "fields": dict(DIAGNOSTIC_DEFINITIONS),
+            "d4rl": d4rl_diagnostics(roots.repo_root, d4rl_path),
+            "traffic_iql_t": {"source": "each run's p9.1-run/1.0 record, its diagnostics block",
+                              "runs": iql_t_diagnostics(roots)}}
+
+
 DIGEST_CONSTRUCTION = (
     "sha256 over the text '<file sha256>  <path relative to the output root>\\n' for every file under the directory "
     "(the excluded subdirectories aside), in path order -- the sha256sum line format, so `find <dir> -type f | LC_ALL=C "
@@ -1029,8 +1239,9 @@ def _sha256(path: Path) -> str:
 
 def load_sources(roots: cr.Roots, *, d4rl_path: str | Path | None) -> Sources:
     """Everything, read once and checked on the way in: the grid's registered cells by P5.2c's pinned loader, the hz1x1
-    old cells joined to their re-rolls, the new cells joined across both routes, every run's seconds and steps, the
-    declarations, P3a's rows, the random_fresh tiers' schedules, the D4RL re-run, the inputs by digest, the git block."""
+    old cells joined to their re-rolls, the new cells joined across both routes, every run's seconds and steps and
+    its session's code commit (G.2, from the driver's captures), the declarations, P3a's rows, the random_fresh tiers'
+    schedules, the D4RL re-run and the IQL diagnostics (Q18), the inputs by digest, the git block."""
     import offline.tier_statements as tst
     from offline import att_rederivation as ar
 
@@ -1072,6 +1283,7 @@ def load_sources(roots: cr.Roots, *, d4rl_path: str | Path | None) -> Sources:
                                         "committed att_ours"} for row in cells[cid].rows)
     traces = sorted((Path(roots.runs_root) / "logs").glob("*/gpu_trace.csv"))
     gaps, spans = trace_gaps(traces), trace_spans(traces)
+    sessions = driver_sessions(roots)
     trained = set(cr.training_cells())
     for cell in cr.evaluation_cells():
         cid = new_cell_id(cell)
@@ -1084,9 +1296,10 @@ def load_sources(roots: cr.Roots, *, d4rl_path: str | Path | None) -> Sources:
             for run in new_training_runs(roots, cell):
                 record = json.loads(cr.run_record_path(roots, cell.scenario, cell.tier, cell.arm, run["seed"])
                                     .read_text(encoding="utf-8"))
-                entries.append({**run, "cell": cid, "window_means": [float(v) for v in record["window_means"]],
-                                "plateaued": record["plateaued"], "started_unix": float(record["started_unix"]),
-                                "finished_unix": float(record["finished_unix"])})
+                entry = {**run, "cell": cid, "window_means": [float(v) for v in record["window_means"]],
+                         "plateaued": record["plateaued"], "started_unix": float(record["started_unix"]),
+                         "finished_unix": float(record["finished_unix"])}
+                entries.append({**entry, **run_session(entry, sessions)})
             runs[cid] = tuple(flag_paused_runs(entries, gaps, spans))
     declarations = {
         name: json.loads((Path(roots.run_root) / f"declaration_{name}.json").read_text(encoding="utf-8"))
@@ -1108,7 +1321,8 @@ def load_sources(roots: cr.Roots, *, d4rl_path: str | Path | None) -> Sources:
                {"loader": "tier_statements.load_inputs (P5.2c, pinned)", "provenance": grid.provenance}]
     return Sources(cells=cells, records=records, runs=runs, declarations=declarations,
                    grid_books=tst.make_books(grid.cells), p3a=p3a_records(roots), schedules=schedules, d4rl=d4rl,
-                   registered=registered, inputs=tuple(inputs), git=git)
+                   registered=registered, inputs=tuple(inputs), git=git,
+                   diagnostics=iql_diagnostics(roots, d4rl_path))
 
 
 #: The five artifacts of BRIEF_46 3.5 and their builders.
