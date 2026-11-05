@@ -1,0 +1,25 @@
+# Q18, G.2: mutants run one at a time by mutate.py against a passing control (PYTHONDONTWRITEBYTECODE=1, every
+# file restored and sha256-checked); CPU only, one thread, roots set. Sites and expected tests: g4_q18_mutants.json.
+# On the tree committed as 8ab9761; load 6.67 -> 7.83 beside E1.
+control (unmutated, 3 test targets): exit 0; 37 passed in 70.84s (0:01:10)
+mutant                                                    result    evidence
+G1 a window ends only at the next TRAINING session (other stages ignored)KILLED    FAILED tests/test_corrective_report_sessions.py::test_a_run_that_started_outside_every_training_session_is_refused[1792159339.0-insi
+G2 the earliest session that started before the run, not the latestKILLED    FAILED tests/test_corrective_report_sessions.py::test_a_run_takes_the_commit_and_tree_of_the_session_whose_window_holds_its_start[17932003
+G3 a run that outlives its session accepted               KILLED    FAILED tests/test_corrective_report_sessions.py::test_a_run_that_outlives_its_session_into_the_next_is_refused
+G4 a token line's commit may be any word                  KILLED    FAILED tests/test_corrective_report_sessions.py::test_a_token_line_the_report_cannot_read_is_refused[token consumed; stage train 20261029T154931Z f
+G5 the stamp read as local time                           KILLED    FAILED tests/test_corrective_report_sessions.py::test_every_token_line_of_every_capture_is_one_session_in_start_order
+G6 two token lines with one stamp accepted                KILLED    FAILED tests/test_corrective_report_sessions.py::test_two_token_lines_with_one_stamp_are_refused
+G7 the code commit is the session's stamp                 KILLED    FAILED tests/test_corrective_report_sessions.py::test_a_run_takes_the_commit_and_tree_of_the_session_whose_window_holds_its_start[1793200315.153-34
+G8 load_sources does not attach the session               KILLED    FAILED tests/test_corrective_report_fixture_tree.py::test_every_new_run_names_its_sessions_code_commit_and_run_tree
+G9 the artifacts do not state the rule                    KILLED    FAILED tests/test_corrective_report_fixture_tree.py::test_every_new_run_names_its_sessions_code_commit_and_run_tree
+Q1 final_q_loss read from final_policy_loss               KILLED    FAILED tests/test_corrective_report_diagnostics.py::test_every_traffic_iql_t_run_gives_its_records_three_values_in_run_order
+Q2 only hz1x1's iql_t runs                                KILLED    FAILED tests/test_corrective_report_diagnostics.py::test_every_traffic_iql_t_run_gives_its_records_three_values_in_run_order
+Q3 the re-run's comparison digest not checked             KILLED    FAILED tests/test_corrective_report_diagnostics.py::test_a_rerun_compared_with_another_registered_file_is_refused
+Q4 the registered iql rows read from the re-run's file    KILLED    FAILED tests/test_corrective_report_diagnostics.py::test_the_d4rl_rows_are_the_registered_iqls_and_the_reruns_iql_ts_seed_by_seed
+Q5 a non-finite value accepted                            KILLED    FAILED tests/test_corrective_report_diagnostics.py::test_a_run_record_without_its_three_finite_values_is_refused[damage2-final_q_loss is nan, not a
+Q6 the block not placed beside the d4rl section           KILLED    FAILED tests/test_corrective_report_diagnostics.py::test_build_iql_targets_puts_the_block_beside_the_d4rl_section
+Q7 a record that is not its run's accepted                KILLED    FAILED tests/test_corrective_report_diagnostics.py::test_a_record_that_is_not_its_runs_is_refused
+Q8 a D4RL arm missing a seed accepted                     KILLED    FAILED tests/test_corrective_report_diagnostics.py::test_a_d4rl_arm_missing_a_seed_or_its_values_is_refused[cells0-iql_t cells for seeds \\[101, 20
+Q9 load_sources carries no diagnostics                    KILLED    FAILED tests/test_corrective_report_fixture_tree.py::test_the_iql_diagnostics_beside_the_d4rl_section_are_every_iql_t_run_and_both_d4rl_arms
+Q10 the D4RL rows' arms swapped (iql_t from the registered file)KILLED    FAILED tests/test_corrective_report_diagnostics.py::test_the_d4rl_rows_are_the_registered_iqls_and_the_reruns_iql_ts_seed_by_seed
+every file restored, sha256 equal to the original

@@ -1,0 +1,48 @@
+# Q18, G.2 (BRIEF_46 F.2-3, G.2): the new tests run red against signature-only skeletons, before the implementation.
+# CPU only (CUDA_VISIBLE_DEVICES empty), one thread, one pytest process, roots set; load 5.98 -> 7.21 beside E1.
+PASSED tests/test_corrective_report_diagnostics.py::test_the_traffic_iql_t_runs_are_the_seventy_written_out_by_hand
+PASSED tests/test_corrective_report_fixture_tree.py::test_the_fixture_tree_is_the_campaigns_full_size
+PASSED tests/test_corrective_report_fixture_tree.py::test_load_sources_joins_every_new_old_and_constructed_cell_at_its_size
+PASSED tests/test_corrective_report_fixture_tree.py::test_every_artifact_builds_and_carries_the_records_and_runs_of_every_cell_it_reads
+PASSED tests/test_corrective_report_fixture_tree.py::test_the_q8_originals_on_the_joined_old_cells_are_the_committed_statements
+PASSED tests/test_corrective_report_fixture_tree.py::test_a_new_against_old_contrast_is_the_fixtures_own_arithmetic
+PASSED tests/test_corrective_report_fixture_tree.py::test_the_planted_pause_is_flagged_on_its_run_and_on_no_other
+PASSED tests/test_corrective_report_fixture_tree.py::test_the_planted_repeat_is_p3as_only_failure
+PASSED tests/test_corrective_report_fixture_tree.py::test_the_report_rebuilds_byte_for_byte_from_the_tree
+FAILED tests/test_corrective_report_sessions.py::test_every_token_line_of_every_capture_is_one_session_in_start_order
+FAILED tests/test_corrective_report_sessions.py::test_a_run_takes_the_commit_and_tree_of_the_session_whose_window_holds_its_start[1793200315.153-343.9-expected0]
+FAILED tests/test_corrective_report_sessions.py::test_a_run_takes_the_commit_and_tree_of_the_session_whose_window_holds_its_start[1793288979.0-330.0-expected1]
+FAILED tests/test_corrective_report_sessions.py::test_a_run_takes_the_commit_and_tree_of_the_session_whose_window_holds_its_start[1793311357.0-330.0-expected2]
+FAILED tests/test_corrective_report_sessions.py::test_a_run_takes_the_commit_and_tree_of_the_session_whose_window_holds_its_start[1793873034.0-399.0-expected3]
+FAILED tests/test_corrective_report_sessions.py::test_a_run_that_started_outside_every_training_session_is_refused[1792159278.0-started before every session]
+FAILED tests/test_corrective_report_sessions.py::test_a_run_that_started_outside_every_training_session_is_refused[1792159339.0-inside the collect session 20261016T140119Z, which trains nothing]
+FAILED tests/test_corrective_report_sessions.py::test_a_run_that_started_outside_every_training_session_is_refused[1793215289.0-inside the d4rl session 20261028T192029Z, which trains nothing]
+FAILED tests/test_corrective_report_sessions.py::test_a_run_that_started_outside_every_training_session_is_refused[1793873494.0-inside the evaluate session 20261105T101034Z, which trains nothing]
+FAILED tests/test_corrective_report_sessions.py::test_a_run_that_outlives_its_session_into_the_next_is_refused
+FAILED tests/test_corrective_report_sessions.py::test_a_token_line_the_report_cannot_read_is_refused[token consumed; stage train 20261029T154931Z from /trees/run-d at HEAD; logs /trees/logs]
+FAILED tests/test_corrective_report_sessions.py::test_a_token_line_the_report_cannot_read_is_refused[token consumed; stage train 20261029T154931Z from /trees/run-d at c58afb8]
+FAILED tests/test_corrective_report_sessions.py::test_a_token_line_the_report_cannot_read_is_refused[token consumed; stage train 2026-10-29T15:49:31Z from /trees/run-d at c58afb8; logs /trees/logs]
+FAILED tests/test_corrective_report_sessions.py::test_two_token_lines_with_one_stamp_are_refused
+FAILED tests/test_corrective_report_diagnostics.py::test_every_traffic_iql_t_run_gives_its_records_three_values_in_run_order
+FAILED tests/test_corrective_report_diagnostics.py::test_a_run_record_without_its_three_finite_values_is_refused[None-carries no diagnostics block]
+FAILED tests/test_corrective_report_diagnostics.py::test_a_run_record_without_its_three_finite_values_is_refused[damage1-no awr_weight_near_zero_fraction]
+FAILED tests/test_corrective_report_diagnostics.py::test_a_run_record_without_its_three_finite_values_is_refused[damage2-final_q_loss is nan, not a finite number]
+FAILED tests/test_corrective_report_diagnostics.py::test_a_run_record_without_its_three_finite_values_is_refused[damage3-final_q_loss is '60.9', not a finite number]
+FAILED tests/test_corrective_report_diagnostics.py::test_a_record_that_is_not_its_runs_is_refused
+FAILED tests/test_corrective_report_diagnostics.py::test_the_d4rl_rows_are_the_registered_iqls_and_the_reruns_iql_ts_seed_by_seed
+FAILED tests/test_corrective_report_diagnostics.py::test_a_rerun_compared_with_another_registered_file_is_refused
+FAILED tests/test_corrective_report_diagnostics.py::test_a_d4rl_arm_missing_a_seed_or_its_values_is_refused[cells0-iql_t cells for seeds \\[101, 202, 303, 404\\], not the five training seeds]
+FAILED tests/test_corrective_report_diagnostics.py::test_a_d4rl_arm_missing_a_seed_or_its_values_is_refused[cells1-D4RL iql_t seed 303: .*carries no diagnostics block]
+FAILED tests/test_corrective_report_diagnostics.py::test_the_block_is_labelled_diagnostics_and_defines_its_three_fields
+FAILED tests/test_corrective_report_diagnostics.py::test_build_iql_targets_puts_the_block_beside_the_d4rl_section
+FAILED tests/test_corrective_report_fixture_tree.py::test_the_iql_diagnostics_beside_the_d4rl_section_are_every_iql_t_run_and_both_d4rl_arms
+FAILED tests/test_corrective_report_fixture_tree.py::test_every_new_run_names_its_sessions_code_commit_and_run_tree
+
+# failures by reason:
+     14 E       NotImplementedError: BRIEF_46 G.2: driver_sessions
+      6 E       NotImplementedError: Q18: iql_t_diagnostics
+      4 E       NotImplementedError: Q18: d4rl_diagnostics
+      2 E       NotImplementedError: Q18: iql_diagnostics
+      1 E       KeyError: 'iql_diagnostics'
+      1 E           KeyError: 'code_commit_rule'
+28 failed, 9 passed in 72.50s (0:01:12)
