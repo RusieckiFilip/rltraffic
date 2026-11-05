@@ -1,0 +1,80 @@
+Machine B's CPU cell against the laptop's at ONE gradient step: maxpressure / dt_nomix / seed 101, run tree 4dcbedc.
+Computed by the coordinator on the laptop, 2026-10-29 13:08:09 CET, with machine_b_compare.py as committed in b029604 (bound fixed before any comparison ran).
+A record keeps only its last step's loss, so this cell's recorded loss is the FIRST step's: the author's ruling of 2026-10-29 names both steps' losses; the second step's is in cpu_cell_comparison.txt.
+
+=== THE TEST -- A: the laptop's 1-step CPU cell (output/machine_b/laptop_cpu_1step); B: machine B's (machine_b_timing.sh step 2, 2026-10-29 12:02-12:03 CET; its output verified from /home/filip/machine_b_timing.tar, sha256 9ef8d497)
+A: output/machine_b/laptop_cpu_1step/p9_3/checkpoints/hz4x4_maxpressure_dt_nomix_seed101.pt
+B: /home/filip/machine_b_result/machine_b_timing/roots/cpu_1step/p9_3/checkpoints/hz4x4_maxpressure_dt_nomix_seed101.pt
+tensor                                                                shape         differ    max abs    max rel  max ulps
+blocks.0.ln_mlp.bias                                                 (128,)     72/128      2.183e-11  2.183e-07       3.0
+blocks.0.ln_mlp.weight                                               (128,)      0/128      0.000e+00  0.000e+00       0.0
+blocks.0.ln_spatial.bias                                             (128,)     64/128      1.455e-11  1.455e-07       2.0
+blocks.0.ln_spatial.weight                                           (128,)      0/128      0.000e+00  0.000e+00       0.0
+blocks.0.ln_temporal.bias                                            (128,)     59/128      1.455e-11  1.455e-07       2.0
+blocks.0.ln_temporal.weight                                          (128,)      0/128      0.000e+00  0.000e+00       0.0
+blocks.0.mlp.0.bias                                                  (512,)      1/512      9.313e-10  1.056e-08       1.0
+blocks.0.mlp.0.weight                                            (512, 128)    372/65536    1.304e-07  1.473e-06     122.0
+blocks.0.mlp.2.bias                                                  (128,)      2/128      1.863e-09  4.263e-08       1.0
+blocks.0.mlp.2.weight                                            (128, 512)    530/65536    2.608e-08  5.887e-07     128.0
+blocks.0.spatial.proj.bias                                           (128,)      0/128      0.000e+00  0.000e+00       0.0
+blocks.0.spatial.proj.weight                                     (128, 128)     83/16384    1.714e-07  1.937e-06     195.0
+blocks.0.spatial.qkv.bias                                            (384,)      0/384      0.000e+00  0.000e+00       0.0
+blocks.0.spatial.qkv.weight                                      (384, 128)     72/49152    3.353e-08  3.789e-07      32.0
+blocks.0.temporal.proj.bias                                          (128,)      0/128      0.000e+00  0.000e+00       0.0
+blocks.0.temporal.proj.weight                                    (128, 128)     83/16384    1.490e-08  1.684e-07       8.0
+blocks.0.temporal.qkv.bias                                           (384,)     95/384      1.863e-08  2.109e-07      41.0
+blocks.0.temporal.qkv.weight                                     (384, 128)    320/49152    2.235e-08  2.526e-07      48.0
+blocks.1.ln_mlp.bias                                                 (128,)     65/128      2.183e-11  2.183e-07       3.0
+blocks.1.ln_mlp.weight                                               (128,)      0/128      0.000e+00  0.000e+00       0.0
+blocks.1.ln_spatial.bias                                             (128,)     70/128      2.183e-11  2.183e-07       3.0
+blocks.1.ln_spatial.weight                                           (128,)      0/128      0.000e+00  0.000e+00       0.0
+blocks.1.ln_temporal.bias                                            (128,)     65/128      6.548e-11  6.548e-07       9.0
+blocks.1.ln_temporal.weight                                          (128,)      0/128      0.000e+00  0.000e+00       0.0
+blocks.1.mlp.0.bias                                                  (512,)      1/512      1.164e-10  1.323e-09       1.0
+blocks.1.mlp.0.weight                                            (512, 128)    381/65536    3.725e-08  4.210e-07     474.0
+blocks.1.mlp.2.bias                                                  (128,)      0/128      0.000e+00  0.000e+00       0.0
+blocks.1.mlp.2.weight                                            (128, 512)    539/65536    7.823e-08  1.766e-06     512.0
+blocks.1.spatial.proj.bias                                           (128,)      0/128      0.000e+00  0.000e+00       0.0
+blocks.1.spatial.proj.weight                                     (128, 128)     70/16384    7.451e-09  8.420e-08      16.0
+blocks.1.spatial.qkv.bias                                            (384,)      0/384      0.000e+00  0.000e+00       0.0
+blocks.1.spatial.qkv.weight                                      (384, 128)     79/49152    2.980e-08  3.368e-07     256.0
+blocks.1.temporal.proj.bias                                          (128,)      0/128      0.000e+00  0.000e+00       0.0
+blocks.1.temporal.proj.weight                                    (128, 128)     73/16384    1.304e-08  1.474e-07       7.0
+blocks.1.temporal.qkv.bias                                           (384,)     97/384      1.490e-08  1.705e-07     124.0
+blocks.1.temporal.qkv.weight                                     (384, 128)    354/49152    2.235e-08  2.526e-07    1708.0
+blocks.2.ln_mlp.bias                                                 (128,)     74/128      5.093e-11  5.093e-07       7.0
+blocks.2.ln_mlp.weight                                               (128,)      0/128      0.000e+00  0.000e+00       0.0
+blocks.2.ln_spatial.bias                                             (128,)     63/128      1.455e-11  1.455e-07       2.0
+blocks.2.ln_spatial.weight                                           (128,)      0/128      0.000e+00  0.000e+00       0.0
+blocks.2.ln_temporal.bias                                            (128,)     66/128      2.183e-11  2.183e-07       3.0
+blocks.2.ln_temporal.weight                                          (128,)      0/128      0.000e+00  0.000e+00       0.0
+blocks.2.mlp.0.bias                                                  (512,)      1/512      1.863e-09  2.111e-08       1.0
+blocks.2.mlp.0.weight                                            (512, 128)    347/65536    3.725e-08  4.210e-07     384.0
+blocks.2.mlp.2.bias                                                  (128,)      1/128      7.276e-12  1.647e-10      64.0
+blocks.2.mlp.2.weight                                            (128, 512)    552/65536    3.725e-08  8.411e-07     128.0
+blocks.2.spatial.proj.bias                                           (128,)      0/128      0.000e+00  0.000e+00       0.0
+blocks.2.spatial.proj.weight                                     (128, 128)     77/16384    9.686e-08  1.095e-06     151.0
+blocks.2.spatial.qkv.bias                                            (384,)      1/384      1.164e-10  1.318e-09       1.0
+blocks.2.spatial.qkv.weight                                      (384, 128)     80/49152    1.583e-08  1.790e-07      36.0
+blocks.2.temporal.proj.bias                                          (128,)      0/128      0.000e+00  0.000e+00       0.0
+blocks.2.temporal.proj.weight                                    (128, 128)    102/16384    4.284e-08  4.843e-07      23.0
+blocks.2.temporal.qkv.bias                                           (384,)     80/384      1.490e-08  1.685e-07      35.0
+blocks.2.temporal.qkv.weight                                     (384, 128)    321/49152    2.608e-08  2.947e-07    2048.0
+embed_action.weight                                                (9, 128)      0/1152     0.000e+00  0.000e+00       0.0
+embed_ln.bias                                                        (128,)     50/128      2.183e-11  2.183e-07       3.0
+embed_ln.weight                                                      (128,)      0/128      0.000e+00  0.000e+00       0.0
+embed_rtg.bias                                                       (128,)      0/128      0.000e+00  0.000e+00       0.0
+embed_rtg.weight                                                   (128, 1)      0/128      0.000e+00  0.000e+00       0.0
+embed_state.bias                                                     (128,)      0/128      0.000e+00  0.000e+00       0.0
+embed_state.weight                                                (128, 33)      8/4224     7.451e-09  4.281e-08       8.0
+embed_timestep.weight                                            (360, 128)     23/46080    1.192e-07  2.953e-08       7.0
+head.bias                                                              (8,)      0/8        0.000e+00  0.000e+00       0.0
+head.weight                                                        (8, 128)     10/1024     3.725e-09  4.213e-08       2.0
+ln_f.bias                                                            (128,)     62/128      2.910e-11  2.910e-07       4.0
+ln_f.weight                                                          (128,)      0/128      0.000e+00  0.000e+00       0.0
+tensors: 66, of which 41 differ; elements: 847112, of which 5465 differ
+largest absolute difference 1.714e-07 (bound 1e-05); largest relative 1.937e-06; largest 2048.0 ulps
+recorded loss: A 2.133220911026001, B 2.1332204341888428, relative difference 2.235e-07 (bound 1e-05)
+from the corpus and configuration: 9 of 9 entries equal
+VERDICT: within the rounding bound
+exit 0

@@ -591,3 +591,231 @@ The author stopped P9.1's campaign stage and ruled that every long run runs in s
 - **The GPU order changed** (`BRIEF_48` I.3-4). P9.3's training sessions run while P9.1 builds its session control. P9.1's first
   training session goes next once it is cleared, and your ten records still come in it.
 - **Your watcher (task `bupgfrng4`):** the author leaves it to time out by itself at about 00:13. Act on nothing it reports.
+
+## G.5 2026-10-29, night: the ten records are on disk and VERIFIED; build the pins now, at `c58afb8`, not `cb61ee7`
+- **P9.1's training session T1 trained them** (runs 21–25 and 31–35). It was stage train `20261029T154931Z`, from the run tree
+  `/home/filip/rltraffic-p91-run-d` at `c58afb8`, 16:49–21:42 CET (`BRIEF_46` Amendment G).
+- **The coordinator checked all ten by G.2-1's rules,** with its own script:
+  - every checkpoint exists, and its sha256, recomputed, equals the record's `file_sha256`;
+  - `declared_steps` and `gradient_steps` are both 40,000;
+  - `scenario`, `tier`, `arm` (`iql_t`) and `seed` are the ones each name says;
+  - each trained on `cuda`.
+
+  The sha256s begin: `mappo1000` seeds 101–505 `14f31fc2`, `5376bc99`, `ac173f7a`, `998ddd2e`, `25f783fd`; `mix50` seeds 101–505
+  `b373338d`, `56ca9a68`, `a947062b`, `9c8c2bc7`, `15e0e764`. Recompute them yourself; these prefixes are only a cross-check.
+- **G.2-1 corrected: the pin file names `c58afb8` and `/home/filip/rltraffic-p91-run-d`,** as the first line of
+  `/home/filip/rltraffic/output/p9_1_runs/train_capture.txt` states them (`token consumed; stage train 20261029T154931Z from
+  /home/filip/rltraffic-p91-run-d at c58afb8; …`).
+  - G.2-1 named `cb61ee7` from `campaign_capture.txt` because the ten were due in the campaign stage. That stage trained only runs
+    1–3 before the author stopped it.
+  - The training path is the same at both commits (`BRIEF_46` F.1).
+- **Do not pin the checkpoints' `runtime.git_commit`.** It reads `9d3e042`: the main tree's HEAD when they were written, a
+  documentation commit that never held the training code (`BRIEF_46` G.2).
+- **Now:** build the pin file and the pre-flight (CPU only, read-only on `output/p9_1_runs`), commit both, and say **"P9.2 stage 2
+  ready"**. Amendment H gives the token, with its hours first and the shard count. Stage 2 runs on the CPU beside P9.1's T2 (G.2-3).
+
+# ✅ AMENDMENT H — 2026-10-29, night: stage 2 CLEARED; it runs about 45 minutes without a break, on 3 CPU shards beside P9.1's T2; the pin check's exit fixed in the command; your worktree stays unchanged until the shards end
+
+Your packet: the stage-2 pre-flight in `docs/returns/P9.2-preflight.md` and the pin file, at `4396389`.
+
+## H.1 Verified by the coordinator, from disk
+- **The commit `4396389`** (parent `2328305`) adds `docs/data/p9_2_stage2_iql_t_pins.json` and one section of
+  `docs/returns/P9.2-preflight.md`. No code changed.
+- **The pin file's** sha256, from git's object, is `119305d2…`. The file in `/home/filip/rltraffic-p92` is the same, and that worktree
+  is clean at `4396389`.
+- **The ten pins, by the coordinator's own script** (standard library only, nothing from `offline/`). For each pin:
+  - its path is its record's `checkpoint`;
+  - the checkpoint's sha256, recomputed, equals the pin's and the record's `file_sha256`;
+  - the byte count and the record's sha256 equal the pin's, and so does the canonical digest (the record's);
+  - 40,000 declared and gradient steps; `iql` with target dropout `off`, arm `iql_t`; the scenario, tier and seed its name says;
+    `cuda`.
+
+  0 problems. The campaign block names `c58afb8` and `/home/filip/rltraffic-p91-run-d`, and its quoted line equals
+  `train_capture.txt`'s first line.
+- **The loader reads the file as you state** (`run2`'s `offline/demand_shift.py`):
+  - `evaluate` reads it once per process and looks up `[tier][seed]`, so the other keys are ignored;
+  - every cell re-hashes its checkpoint against its pin before loading it (`_factory_for`);
+  - `--device` defaults to `cpu`.
+- **The load path is the run's.** `demand_shift`, `offline_baselines`, `att_rederivation`, `admission_probe`, `dt_gate`,
+  `agent/OfflineBaselines.py`, `experiments/` and `envs/` are identical at `dafa3eb` and `4396389` (`git diff --quiet`). Only the
+  driver and `tier_sweep.py` differ, and neither is on that path. `run2` is clean at `dafa3eb`.
+- **One cell at each end, through `run2`'s own `roll_cell`** (which writes nothing), on the CPU beside T2:
+  - the first cell (`kn-hz`, `iql_t@mappo1000`, seed 101, draw 1000) and the last (`sb-sx`, `iql_t@mix50`, seed 505, draw 1099);
+  - both passed `_validate_record` as `evaluate_cells` applies it, so their two routes ran the same episode;
+  - each record carries its pin's sha256 and `dafa3eb`, clean;
+  - 2.48 s and 2.62 s.
+
+  The listings of `output/` (outside `p9_1_runs`, where T2 writes) and of the draws root were unchanged. The CLI had refused a scratch
+  work directory first, as A27(a)'s barrier requires.
+- **On disk:** 15,600 stage-1 records and `guard.json`; no `iql_t` cell; no token.
+- **Stage 1's measured time** (its records' file times; 3 shards):
+  - 3.06–3.11 h for 5,200 cells per shard;
+  - its 3,000 `iql` cells took 2.06 s each on average (median 1.99 s, 99th percentile 2.46 s);
+  - one watchdog restart in 15,600 cells.
+
+## H.2 Rulings
+1. **3 shards** (stage 1's measured configuration), 1,000 cells each.
+2. **The pin check is a here-string, not a pipe.** In the pre-flight's form (`echo … | sha256sum -c - && …; echo "DRIVER EXIT:
+   ${PIPESTATUS[0]}"`), a failed check prints `FAILED` and then `DRIVER EXIT: 0`, because the last pipeline run is the `echo`. The
+   coordinator tested both forms with a wrong digest: `sha256sum -c <<< …` prints `DRIVER EXIT: 1`, and neither writes the token. The
+   token is now written in the same line, only after the check passes.
+3. **Your worktree stays at `4396389`, unchanged, until every shard has ended.** Each shard and each restart reads the pin file anew,
+   and the command checks it once. So: no edit, commit, checkout or merge in `/home/filip/rltraffic-p92` until the author reports the
+   end.
+4. **G4 part 3 adds one check:**
+   - every stage-2 record's `checkpoint_sha256` equals the committed pin's for its tier and seed, 3,000 of 3,000;
+   - the pin file's digest is re-checked after the run.
+
+   The coordinator checks the same at "P9.2 stage 2 done".
+
+## H.3 ✅ THE TOKEN: stage 2 (a new tmux session, `p92-shift2`)
+**Stage 2 runs about 45 minutes without a break,** on 3 CPU shards beside P9.1's T2 (G.2-3):
+- 1,000 cells per shard at stage 1's 2.06 s, or the 2.5–2.6 s measured beside T2, is 34–44 minutes;
+- starting takes about 2 minutes, and each watchdog restart adds about 2.
+
+An interruption loses only the cells in flight, one per shard.
+- **Start:** `tmux new -s p92-shift2`, then at its prompt, as one line:
+  ```
+  sha256sum -c <<< "119305d2863bf576384582f01b7cfbd938e4ce0272f2c70f5aadc9cc0a90a9fb  /home/filip/rltraffic-p92/docs/data/p9_2_stage2_iql_t_pins.json" && echo "P9.2 demand shift stage 2, BRIEF_47 Amendment H, $(date -u +%FT%TZ)" > /home/filip/rltraffic/output/p9_2_runs/TOKEN_p92_shift && STAGE=2 IQL_T_PINS=/home/filip/rltraffic-p92/docs/data/p9_2_stage2_iql_t_pins.json SHARDS=3 P92_SESSION=p92-shift2 P92_WATCHDOG_SECONDS=120 P92_MAX_RESTARTS=60 bash /home/filip/rltraffic-p92-run2/offline/campaigns/p9_2_demand_shift.sh 2>&1 | tee -a /home/filip/rltraffic/output/p9_2_runs/logs/shift_driver.log; echo "DRIVER EXIT: ${PIPESTATUS[0]}"
+  ```
+- **The pane shows,** in order:
+  - `…/p9_2_stage2_iql_t_pins.json: OK`;
+  - `=== run tree /home/filip/rltraffic-p92-run2 at dafa3eb…` and the token's text;
+  - the canary, and the materialise summary (the 300 draws kept);
+  - `=== the guard record exists …` and the guard's authorisation;
+  - `=== token consumed; opening 3 shard window(s) for stage 2 in tmux session p92-shift2`;
+  - `=== shards started; this window may be closed`, then `DRIVER EXIT: 0`.
+
+  **That `DRIVER EXIT: 0` means the shards STARTED, not that they finished.**
+- **Three windows,** `stage2_shard0` to `stage2_shard2`, each print a line every 25 cells (`shard i/3: 25 rolled, 0 skipped of 1000`).
+- **Done when** each of the three windows shows `stage 2 shard i/3: rolled 1000, skipped 0 of 1000` and then `SHARD i EXIT: 0`. The
+  same lines end `/home/filip/rltraffic/output/p9_2_runs/logs/shift_stage2_shard{0,1,2}.log`.
+- **A refusal before the token** (`FAILED` on the pin file, a `REFUSING …` line, or a `DRIVER EXIT` other than 0): no shard started.
+  Report it.
+- **A shard that ends otherwise** (`SHARD i STOPPED …`, or an exit other than 0): report it; nothing is re-run without a ruling. A
+  `SHARD i RESTART n/60` line is the watchdog at work, not a failure.
+- **To interrupt:** Ctrl+C in a shard's window. That shard loses its cell in flight, and the coordinator gives the resume line.
+
+## H.4 After the run
+- Your G4 part 3, as the pre-flight lists it, with H.2-4's check.
+- The coordinator verifies at "P9.2 stage 2 done".
+
+## H.5 2026-10-30: stage 2 had not started when P9.1's T2 ended; its clearance stands, beside T3
+- **On disk at T2's end:**
+  - no stage-2 shard log and no `TOKEN_p92_shift`;
+  - `shift_driver.log` ends with stage 1's lines;
+  - no `iql_t` cell under `output/p9_2`.
+- **Your worktree** is still at `4396389` with no change, and the pin file's sha256 is still `119305d2…`.
+- **H.3's clearance and command stand unchanged.** Stage 2 runs about 45 minutes without a break, on the CPU beside P9.1's T3
+  (`BRIEF_46` Amendment H), as it could beside T2. H.2-3's freeze holds until the shards end, and H.4's checks follow.
+
+# ✅ AMENDMENT I — 2026-10-30: stage 2 VERIFIED from disk: 3,000 of 3,000 `iql_t` cells on their pins, each paired with stage 1's episode; your worktree's freeze ended with the shards
+
+## I.1 Verified by the coordinator, from disk (a standard-library script; nothing imported from `offline/`)
+- **The run:**
+  - the token was written at 12:41:08 CET on 2026-10-30 (`shift_driver.log`). The command writes it only after the pin check
+    passes (H.2-2).
+  - The driver log then shows the canary, the materialise summary (300 draws kept, 0 written), the guard's authorisation and the
+    three shards' start, as H.3 lists them.
+  - The first stage-2 record was written at 12:41:25 and the last at 13:32:55, when the shard logs were last written. No token is
+    left.
+- **The shard logs:** each ends `stage 2 shard i/3: rolled 1000, skipped 0 of 1000` and then `SHARD i EXIT: 0`. None has a
+  `RESTART` or a `STOPPED` line.
+- **The pin file, re-checked after the run:** its sha256 is `119305d2…`, and it is byte-equal to `4396389`'s blob. The ten pinned
+  checkpoints, re-hashed now, have their pins' sha256 and byte counts, and were written before the token.
+- **The 3,000 records (H.2-4's check):**
+  - each has format `p9.2-demand-shift-cell/1.0`, stage 2, and `dafa3eb`, clean, and its file name matches the record;
+  - **each record's `checkpoint_sha256`, and its `policy_source`'s sha256 and path, are the committed pin's for its tier and seed:
+    3,000 of 3,000;**
+  - every (file, tier, seed) has exactly the 100 draws that stage 1's `iql` cells of that tier and seed have, with no duplicate;
+  - the two `att_ours` routes are equal in every record, and `att_ours`, `att_engine`, the episode reward and the seconds are
+    finite.
+- **Pairing:** each stage-2 cell has the flow digest, config digest, engine seed, scenario key and created-vehicle count of all 52
+  stage-1 cells at its file and draw. So it ran the same shifted episode as they did.
+- **Nothing earlier was rewritten:** the 15,600 stage-1 records were last written at 17:33:49 on 2026-10-27, and `guard.json` at
+  14:27:09 that day.
+- **The time:** 51.8 minutes from the token to the last record, against H.3's "about 45".
+  - The records' clock gives 1.53 s per cell (median 1.54 s, 99th percentile 1.77 s), but each shard took about 3.1 s per cell on
+    the wall.
+  - H.3's estimate assumed the wall time per cell equals the records' clock, as it did in stage 1. Where the rest went is not
+    measured.
+- **Beside T3:** the shards slowed P9.1's GPU run by 26–32 % while they ran (`BRIEF_46` I.1). Stage 2's own seconds were measured
+  beside T3's training.
+- **The coordinator's error, corrected before reporting:** the first route also compared `horizon_vehicle_count` between stage 2 and
+  stage 1, and all 3,000 cells "failed" on it. That count is an outcome of the policy, not an input of the episode: stage 1's own
+  learners differ on it at the same draw. It was removed from the pairing check; nothing else changed.
+- **Your worktree:** it merged `main` at 21:48:23 (`08e4ac6`), after the shards' last write at 13:32:55, as H.2-3 allowed. The pin
+  file's blob is unchanged (`fec6e5e…`). `run2` is clean at `dafa3eb`.
+
+## I.2 Next for you
+- **G4 part 3, as H.4 says.** H.2-4's check is done here, with 0 problems. Repeat it by your own route in your packet.
+- **A27(h)'s slot** is read again from the final artifact (F.2), by the rule fixed in `A27_DEVIATIONS` R6.
+
+# ✅ AMENDMENT J — 2026-10-30, night: G4 part 3 ACCEPTED and MERGED; A27(h)'s slot is FINAL, "beat it on all three files" (ten learners, 60 of 60); P9.2 COMPLETE
+
+Your packet: PART 3 of `docs/returns/P9.2.md` at `d0cec60`, with the artifact at `9364a1f`.
+
+## J.1 Verified by the coordinator, from disk
+- **The branch**, against `main` at `fcb332a`, adds four documents and nothing else: the artifact
+  `docs/data/p9_2_demand_shift.json`, the pin file, the stage-2 pre-flight section and PART 3. No code and no test changed. The
+  artifact's blob is the same at `9364a1f` and `d0cec60`.
+- **The artifact, rebuilt by the coordinator** in `run2` at `dafa3eb` (`report --out` to a scratch file, with
+  `PYTHONDONTWRITEBYTECODE=1`): **byte-identical**, sha256 `daf47cb5…`, 26,749,555 bytes. `run2` was clean before and after.
+- **Against the stage-1 version (`668e827b…`), key by key:**
+  - `stage_2` went from `pending` to `present`, with 3,000 cells; `n_cells` from 15,600 to 18,600;
+  - the checkpoint list went from 41 to 51: the 41 are kept, and the ten added entries are exactly the ten pins' sha256;
+  - each file's arms went from 12 to 14, the two `iql_t` arms added. Every stage-1 arm block and every other file-level field is
+    unchanged;
+  - the 15,600 stage-1 cells are unchanged, and the old cell list is a prefix of the new one;
+  - every other top-level field is equal.
+- **An independent recomputation** (the 18,600 raw records, json and numpy, nothing imported from `offline/`; F.1's script with the
+  two `iql_t` arms added):
+  - every record is at `dafa3eb`, clean, with its two `att_ours` routes equal and its stage right (2 for `iql_t`, 1 for the rest);
+  - per file: 10 learners × 500 cells, fixed-time 100, MaxPressure 100, each random reference 500. The artifact's 18,600 cells
+    equal the raw records;
+  - **11,748 values of the `files` block** (per-draw seed means, the ATT and ρ intervals, every paired field against fixed-time and
+    both random references, the Wilcoxon p with its continuity correction): **9,436 equal under `==`, the rest within 1.4 × 10⁻¹⁵
+    relative** (summation order).
+- **R6, by the coordinator's route:** all ten learners' paired intervals against fixed-time lie entirely below 0 on every file under
+  both definitions, **60 of 60 HELD**. The fewest wins are 95 of 100 (`iql_t@mix50`, qc-yn, `att_engine`), 98 (`bc@mix50`, qc-yn,
+  `att_engine`) and 99 (`iql_t@mix50`, qc-yn, `att_ours`). Against both random references, 120 of 120 are HELD, each with 100 of 100
+  wins.
+- **PART 3's tables:** the ρ ranges over the ten learners and over the eight; the two `iql_t` arms' ρ, contrasts and intervals
+  (P3.5.1–P3.5.2); and the 60 per-seed means of P3.5.3. All equal the coordinator's to the digits PART 3 prints. On sb-sx, nine of
+  the ten learners have a lower mean ATT than the file's own MaxPressure under both definitions; `iql_t@mix50` does not.
+- **P3.1's log facts:** the three shard logs were last written at 13:32:48, 13:32:32 and 13:32:55, 42 lines each, with no line
+  matching `traceback|error|timeout|restart|stopped|refus|warning`.
+- **The tests**, from the main tree with this merge staged, before its commit: P3.6's eight task files with every gate set, one
+  process, **225 passed, 0 skipped** (238.5 s). `claude_guard.sh --frozen-only` exits 0. No test was changed or added in part 3.
+
+## J.2 The coordinator's error in Amendment I, found from P3.1's figures
+I.1's "The time" says H.3's estimate *"assumed the wall time per cell equals the records' clock, as it did in stage 1"*. **Both halves
+are wrong:**
+- H.3's estimate used stage 1's wall time per cell, from its records' file times (2.06 s for the `iql` cells), and the 2.5–2.6 s that
+  single cells took beside T2. It did not use the records' clock.
+- In stage 1 too, the records' clock was about half the wall time per cell: 1.06 s per cell on average (0.99 s and 1.06 s for the
+  `iql` arms), against 2.15 s of wall time per cell in each shard.
+
+What happened instead: stage 2's cells took about 1.45 times stage 1's on both clocks. On the wall that was 3.09 s per cell against
+2.15 s, and on the records' clock 1.53 s against 1.06 s. That is also more than the 2.5–2.6 s single cells took beside T2. What
+slowed them is not measured. I.1's other facts stand.
+
+## J.3 Accepted
+- **A27(h)'s slot is final: "beat it on all three files"**, under R6, over all ten learners, 60 of 60. F.2's provisional reading
+  stands.
+- **P3.5.3's facts go to the author through the paper track,** beside P2.8.2 (F.2):
+  1. **the sb-sx observation now holds for nine of the ten learners.** `iql_t@mix50` is slower than sb-sx's own MaxPressure: ρ 0.9195
+     [0.8952, 0.9439] (`att_ours`) and 0.8870 [0.8585, 0.9154] (`att_engine`);
+  2. `iql_t@mix50`'s five seeds disagree on qc-yn and sb-sx. On qc-yn, seed 101's `att_engine` mean (225.00 s) lies above the
+     fixed-time plan's (204.65 s);
+  3. the lower ends of the ρ ranges drop on qc-yn and sb-sx, through `iql_t@mix50` alone.
+
+  The registered sentence's words stay as registered. No per-seed rule is registered, and none is added.
+- **P3.8-2, `run2`:** it stays as it is. P9.2 rolls nothing more, but `run2` is the tree that rolled every cell, and the artifact is
+  rebuilt there, as the coordinator did today.
+- The ≈ 52 minutes, and the untimed part of each cell (P3.1): accepted as disclosed.
+
+## J.4 The merge
+- **This merge** (parents `fcb332a` and `d0cec60`) brings the four documents to `main` and ticks `PROJECT_PLAN` §6's P9.2 box.
+  **P9.2 is COMPLETE.**
+- Nothing more is asked of `task/p9.2-a27b`. Its worktree `/home/filip/rltraffic-p92` and the run trees stay as they are.

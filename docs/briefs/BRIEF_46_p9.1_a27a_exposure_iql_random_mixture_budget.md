@@ -729,3 +729,1222 @@ changes. The traffic `iql_t` arms run as registered.
 
 **The GPU order changed** (`BRIEF_48` I.3-4). P9.3's training sessions run while you build E.4. Your first training session goes next
 once Amendment F clears it, after the P9.3 session then running ends. Report "P9.1 sessions ready" as E.4 says.
+
+---
+
+# ✅ AMENDMENT F — 2026-10-29: SESSION CONTROL VERIFIED at `c58afb8`; training session T1 CLEARED from the run tree `/home/filip/rltraffic-p91-run-d` (runs #4–#65, about 6 h without a break); Q18 ruled
+
+Your packet: §17 of `docs/returns/P9.1-campaign-ready.md` (`9eb908a`, docs only), on `c58afb8`. It reached the coordinator on
+the afternoon of 2026-10-29. The laptop's GPU is free: P9.3 now trains on machine B (`BRIEF_48` I.7).
+
+## F.1 Verified by the coordinator, from disk
+- **The code that changed since `cb61ee7`** is:
+  - `offline/corrective_round.py` and `offline/campaigns/p9_1_corrective.sh`;
+  - `offline/att_rederivation.py`, for the opt-in `should_stop`;
+  - `offline/corrective_report.py`, for G4's report path (D.4).
+
+  No other code file differs, so every trainer module and `agent/` are byte-identical.
+- **One training path (E.4-4), by the coordinator's own `ast` script:**
+  - In `offline/corrective_round.py`, 9 definitions changed: `build_parser`, `check`, `evaluate`, `evaluate_cell`, `main`,
+    `record_registered_references`, `roll_old_cells`, `run_route_ii` and `train`. 11 were added and none removed.
+  - The training roots are `train_run`; `_hz1x1_inputs` and `_grid_inputs`; and `training_runs`, `training_cells`, `run_status`,
+    `recipe_fields`, `checkpoint_path` and `run_record_path`. Their closure over module-level names has the same 21 definitions at
+    both commits, and none changed. It equals your list.
+  - `train`'s 13-line input block is identical. The rest of its diff is the session wrapper: the stop-file refusal, the plan, the
+    check before each run and the summary.
+  - **So runs 1–3 (`cb61ee7`) and runs 4–255 (`c58afb8`) come from one training path.**
+- **The session smoke (E.4-5),** read from its root `/tmp/claude-1000/e4/smoke` by the coordinator's own script:
+  - 7 run records, #1–#7, each at 2 steps, and each checkpoint's sha256 is its record's.
+  - They were written in the transcript's order: #1–#3; then #4 alone, during which STOP appeared; then #5–#7 after the refused
+    start.
+  - Route (ii) holds 1,000 episode files. The 66 of `iql_t@random` seed 101 written before evaluate session 3 began (draws
+    1000–1065) were not rewritten.
+  - No STOP is left.
+- **The whole suite at `c58afb8`,** in a scratch clone: one process, one thread, no corpus variables (CI's setting), HEAD held, no
+  tracked change. **3,956 passed, 3 failed, 273 skipped** in 954.8 s.
+  - The 3 failures are the tmux tests that the sandbox refuses (`error connecting to /tmp/tmux-1000/default (Operation not
+    permitted)`), as on 2026-10-16: `test_the_headers_own_line_passes_the_guard_and_the_pane_carries_the_drivers_exit_code` in
+    `test_p7_3c_campaign.py`, `test_p7_3c_corpus_driver.py` and `test_p7_3d_campaign_path.py`.
+  - A second run, which names its failures, gave the same three and the same counts (935.9 s).
+- **The coordinator's mutants** on the session control, each caught by your two session test files (control: 62 passed):
+
+  | Mutant | Result |
+  |---|---|
+  | K1: the planner ignores the hours bound | KILLED |
+  | K2: the stop file ignored between runs | KILLED |
+  | K3: a session starts while the stop file exists | KILLED |
+  | K4: the driver's stop refusal binds every stage again (`11476c0`'s line) | KILLED |
+  | K5: hz1x1 `iql_t` planned without its factor 1.15 | KILLED |
+  | K6: the driver trains without `--hours` | KILLED |
+  | K7: a later run pulled past one that does not fit | KILLED |
+  | K8: the driver's default session is 60 hours | KILLED |
+
+  Each file was restored by `git checkout`, and the clone was clean after every mutant.
+- **The run tree** `/home/filip/rltraffic-p91-run-d`:
+  - The coordinator created it at 14:04:38 on 2026-10-29, detached at `c58afb8`, with no tracked change.
+  - From it, on the main roots, read-only (the listing of `output/p9_1_runs` was unchanged):
+    - the module loads from the run tree;
+    - `check --stage train` printed `{"ok": true, "stage": "train"}`;
+    - `train --hours 6 --plan-only` planned runs #4 (hz1x1 `iql_t@random` seed 404) to #65 (hz1x1 `iql_t@random_fresh` seed 505):
+      62 runs, 5.95 planned hours, 252 missing, 3 done. That is E.5's T1:
+      - hz1x1 `iql_t`: `random` seeds 404 and 505, then `fixedtime`, `maxpressure`, `mappo500`, `mappo1000`, `mix33`, `mix50`
+        and `mix67`, five seeds each;
+      - hz1x1 `random_fresh`: `dt`, `bc`, `bc_top10`, `iql` and `iql_t`, five seeds each.
+    - P9.2's ten records (`mappo1000` and `mix50` `iql_t`) are in it.
+    - The 255 runs plan 40.55 h in all; 34.26 planned hours are left after T1.
+
+## F.2 Rulings
+1. **The deviation in `11476c0` is closed by `c58afb8`.** The driver's hours check and its stop refusal open with
+   `case "$STAGE" in train|evaluate)`, and restoring the old line is killed (your S1; the coordinator's K4).
+2. **The evaluate overrun is accepted as disclosed.** An evaluate session runs `P91_SESSION_HOURS` plus the unit in flight in each
+   shard. Before the evaluate sessions are cleared, report how long a grid route (i) cell takes, from the pre-flight or measured, so
+   that their hours can be stated first.
+3. **Q18: yes, in the waiting time.** Build E.7's G4 diagnostics tests first, on the branch:
+   - CPU only, one process, one thread, nothing on the GPU;
+   - the run tree and `output/p9_1*` untouched;
+   - first read which of the run record and `train.log` carries the values;
+   - label them as diagnostics, not registered statistics (E.7).
+4. **`train`'s docstring needs one correction.** It now says an interrupted call leaves no checkpoint and no record. That holds for
+   an interruption during training. An interruption while a checkpoint is written leaves a `.partial`, which `run_status` refuses
+   (unchanged code). Restore that case in your next commit.
+5. **The two tests written after the code are accepted.** Mutants E11 and E3 show that each catches what it guards.
+
+## F.3 ✅ THE TOKEN: training session T1 (the author's tmux `p91`)
+**T1 runs about 6 hours without a break:** 5.95 planned hours. Runs 1–3 took about 15 % less than planned, so it may end earlier. It
+trains runs #4–#65 and ends by itself at the end of its plan.
+- **Before it:** nothing else trains on the laptop's GPU; P9.3 trains on machine B. Keep the laptop plugged in and awake.
+- **The command,** at the pane's prompt, as one line. It first checks that torch sees CUDA, because the trainer falls back to the
+  CPU without a word, and only then creates the token:
+  ```
+  /home/filip/rltraffic/.venv/bin/python -c "import sys, torch; sys.exit(0 if torch.cuda.is_available() else 'NO CUDA: T1 not started')" && touch /home/filip/rltraffic/output/p9_1_runs/TOKEN_train && P91_SESSION_HOURS=6 bash /home/filip/rltraffic-p91-run-d/offline/campaigns/p9_1_corrective.sh train c58afb8 2>&1 | tee -i -a /home/filip/rltraffic/output/p9_1_runs/train_capture.txt; echo "DRIVER EXIT ${PIPESTATUS[0]}"
+  ```
+  - The CUDA check was run on the laptop by the coordinator: it passes outside the sandbox and refuses inside it, where the GPU is
+    blocked. `NO CUDA: T1 not started` means nothing started and no token was created.
+- **The pane** shows the token line, `train session: it runs about 6 hours without a break …` and the plan (`SESSION: runs #4 …
+  to #65 …: 62 runs, 5.95 planned hours`). Then it is quiet until the end. Progress is in
+  `output/p9_1_runs/logs/<stamp>/train.log`.
+- **Done when** the capture shows:
+  - `train: ok`;
+  - the summary (`SESSION: 62 runs trained …; ended by the plan; 190 runs missing, 34.26 planned hours left`);
+  - `stage train <stamp>: SESSION COMPLETE …`.
+
+  The pane must also show `DRIVER EXIT 0`.
+- **To end it early:** `touch /home/filip/rltraffic/output/p9_1_runs/STOP`. The session ends after the run in flight, up to about
+  7 minutes later. Remove the file by hand before the next session.
+- **A failure** stops the session at the failed run (`FAILED: train exited …`, `DRIVER EXIT 1`). Report it; nothing is re-run
+  without a ruling.
+- **Ctrl+C is the emergency stop only.** It loses the run in flight. If it lands while a checkpoint is being written, the next
+  session refuses that run's `.partial`, and the coordinator rules.
+
+## F.4 Meanwhile
+- Q18 (F.2-3) and F.2-4's docstring.
+- Nothing on the GPU while T1 runs.
+- After T1, the coordinator reads its records and names T2. P9.2's stage 2 follows T1 (`BRIEF_47` Amendment H).
+
+# ✅ AMENDMENT G — 2026-10-29, night: T1 VERIFIED from disk; training session T2 CLEARED (runs #66–#125, about 6 h without a break); each run's code commit comes from its session's token line
+
+## G.1 T1, verified by the coordinator from disk
+- **The capture** (`output/p9_1_runs/train_capture.txt`) shows, in order:
+  - the token line (`stage train 20261029T154931Z from /home/filip/rltraffic-p91-run-d at c58afb8`);
+  - the plan (#4–#65, 62 runs, 5.95 planned hours);
+  - `train: ok`;
+  - the summary (`62 runs trained in 17508.5 s (their records' clock); ended by the plan; 190 runs missing, 34.26 planned hours
+    left`);
+  - `SESSION COMPLETE`.
+
+  The author saw `DRIVER EXIT 0`.
+- **The times (CET):**
+  - the token at 16:49:31, the first run started at 16:49:39;
+  - the last run finished at 21:42:21, and the capture's last write is 21:42:23;
+  - 4.88 h on the wall, and 4.86 h of training on the records' clock: 0.82 of the 5.95 planned hours.
+- **`train.log`:** 62 `TRAIN` lines and 62 `done in` lines; no warning, error, traceback or NaN line.
+- **The coordinator's own script** (CPU, read-only) over runs 1–65:
+  - The code's order of runs 1–65 equals the manifest written out by hand.
+  - **Every record** has:
+    - format `p9.1-run/1.0`, its cell, seed, recipe and label;
+    - `gradient_steps` equal to `declared_steps` (40,000), and its checkpoint's path;
+    - a finite final loss and finite window means.
+  - **Every checkpoint's** sha256, recomputed, equals the record's `file_sha256`, and its canonical digest equals the record's. 0 problems.
+  - **T1's 62 runs** ran on `cuda` with OMP and MKL at one thread, in run order, none overlapping, all inside the session.
+  - **Runs 1–3** are untouched (their files' times are before T1).
+  - `training_status`: 255 declared, 65 done. No `.partial`, STOP or token is left.
+  - **The GPU trace:** 877 samples, the largest gap 20.1 s (no suspension). Inside runs, utilisation was at least 16 % (median
+    42 %); memory peaked at 2,860 MiB.
+- **Measured seconds per arm** (the records' clock, uncontrolled, A27(a)), against the planning estimates:
+
+  | Arm | Runs | Measured: min–max, mean | Planned |
+  |---|---|---|---|
+  | `iql_t`, the eight tiers | 37 | 329.8–347.6 s, 338.1 s | 415.1 s |
+  | `random_fresh` `dt` | 5 | 187.8–284.3 s, 212.3 s | 204.0 s |
+  | `random_fresh` `bc` | 5 | 87.2–88.6 s, 88.0 s | 110.0 s |
+  | `random_fresh` `bc_top10` | 5 | 86.8–88.3 s, 87.5 s | 120.0 s |
+  | `random_fresh` `iql` | 5 | 295.5–299.2 s, 297.3 s | 361.0 s |
+  | `random_fresh` `iql_t` | 5 | 312.9–316.6 s, 314.4 s | 415.1 s |
+- **P9.2's ten** (runs 21–25 and 31–35) are among the verified runs; `BRIEF_47` G.5 gives them to P9.2.
+
+## G.2 Found, and ruled: the checkpoints do not carry the code's commit
+- **The checkpoints' `runtime.git_commit` is the main tree's HEAD when they were written:**
+  - `265ecad` for runs 1–3;
+  - `9d3e042` for T1's 62 runs.
+
+  Both are documentation commits on `main`, which never held the training code. The driver runs from the main tree, and the
+  provenance reads that tree's HEAD. The run records carry no commit.
+- **Ruling:** G4 names each run's code commit by its session:
+  - the session is the one whose window holds the run's `started_unix`;
+  - its token line names the commit and the run tree, which the driver checks are clean at that commit before it starts:
+    `campaign_capture.txt` gives `cb61ee7` for runs 1–3, and `train_capture.txt` gives each training session's.
+  - The checkpoint's `git_commit` is reported only as what it is, the main tree's HEAD at write time, never as the code's commit.
+
+## G.3 ✅ THE TOKEN: training session T2 (the author's tmux `p91`)
+**T2 runs about 6 hours without a break:** 5.95 planned hours. T1 ran at 0.82 of its plan. T2's 100,000-step arms are planned at
+2.5 times their 40,000-step cost, so it may end nearer 5 hours. It ends by itself at the end of its plan.
+- **What it trains:** runs #66–#125, 60 runs.
+  - hz1x1 `mix_m1000_m500`: `dt`, `bc`, `bc_top10`, `iql` and `iql_t`, five seeds each (25 runs);
+  - A27(g)'s 100,000-step arms on `mappo1000`: `dt_100k`, `bc_100k`, `bc_top10_100k` and `iql_100k` (20 runs);
+  - the same on `mix50`, without `iql_100k` (15 runs). `mix50`'s `iql_100k` opens T3.
+- **Verified before clearing** (CPU, read-only; the listings of `output/p9_1*` and the corpus root unchanged):
+  - from the run tree, `check --stage train` printed `{"ok": true, "stage": "train"}`;
+  - `train --hours 6 --plan-only` planned #66 (hz1x1 `dt@mix_m1000_m500` seed 101) to #125 (hz1x1 `bc_top10_100k@mix50` seed 505):
+    60 runs, 5.95 planned hours, 190 missing, 65 done;
+  - T2's three tiers build their training inputs from the run tree's code: `mix_m1000_m500` in 7.3 s, `mappo1000` in 3.0 s,
+    `mix50` in 9.5 s. Each has 200 streams, 20 kept, and a finite prompt. `check` does not build them, and a failure at #66 would
+    cost a session start.
+- **Before it:** nothing else trains on the laptop's GPU. P9.2's stage 2 may run on the CPU beside it (`BRIEF_47` G.2-3), once its
+  token is given. Keep the laptop plugged in and awake.
+- **The command** is T1's, with its own refusal text. At the pane's prompt, as one line:
+  ```
+  /home/filip/rltraffic/.venv/bin/python -c "import sys, torch; sys.exit(0 if torch.cuda.is_available() else 'NO CUDA: T2 not started')" && touch /home/filip/rltraffic/output/p9_1_runs/TOKEN_train && P91_SESSION_HOURS=6 bash /home/filip/rltraffic-p91-run-d/offline/campaigns/p9_1_corrective.sh train c58afb8 2>&1 | tee -i -a /home/filip/rltraffic/output/p9_1_runs/train_capture.txt; echo "DRIVER EXIT ${PIPESTATUS[0]}"
+  ```
+- **The pane** shows the token line, the session line and the plan (`SESSION: runs #66 … to #125 …: 60 runs, 5.95 planned hours`).
+  Then it is quiet until the end. Progress is in `output/p9_1_runs/logs/<stamp>/train.log`.
+- **Done when** the capture shows:
+  - `train: ok`;
+  - the summary (`SESSION: 60 runs trained …; ended by the plan; 130 runs missing, 28.31 planned hours left`);
+  - `stage train <stamp>: SESSION COMPLETE …`.
+
+  The pane must also show `DRIVER EXIT 0`.
+- **To end it early:** `touch /home/filip/rltraffic/output/p9_1_runs/STOP`. The session ends after the run in flight, up to about
+  15 minutes later (`iql_100k` is planned at 15 minutes). Remove the file by hand before the next session.
+- **A failure, and Ctrl+C:** as F.3.
+
+## G.4 After T2
+- **Five more sessions at `--hours 6`, as planned today:**
+
+  | Session | Runs | Planned hours |
+  |---|---|---|
+  | T3 | #126–#154 | 5.92 |
+  | T4 | #155–#187 | 5.70 |
+  | T5 | #188–#211 | 5.98 |
+  | T6 | #212–#234 | 5.68 |
+  | T7 | #235–#255 | 5.03 |
+
+  Each session's own plan decides at its start. T3 trains the grid's first runs; their inputs are checked before T3 is cleared.
+- **Meanwhile:** Q18 (F.2-3), F.2-4's docstring, and G.2's ruling in the report. Nothing on the GPU while T2 runs.
+
+# ✅ AMENDMENT H — 2026-10-30: T2 VERIFIED from disk; training session T3 CLEARED (runs #126–#154, about 6 h without a break), the grid's first runs
+
+## H.1 T2, verified by the coordinator from disk
+- **The capture** (`output/p9_1_runs/train_capture.txt`) shows, in order:
+  - the token line (`stage train 20261029T220237Z from /home/filip/rltraffic-p91-run-d at c58afb8`);
+  - the plan (#66–#125, 60 runs, 5.95 planned hours);
+  - `train: ok`;
+  - the summary (`60 runs trained in 19045.2 s (their records' clock); ended by the plan; 130 runs missing, 28.31 planned hours
+    left`);
+  - `SESSION COMPLETE`.
+
+  The author saw `DRIVER EXIT 0`.
+- **The times (CET):**
+  - the token at 23:02:37 on 2026-10-29, the first run started at 23:02:47;
+  - the last run finished at 04:20:30 on 2026-10-30, and the capture's last write is 04:20:31;
+  - 5.30 h on the wall, and 5.29 h of training on the records' clock: 0.89 of the 5.95 planned hours.
+- **`train.log`:** 60 `TRAIN` lines and 60 `done in` lines; no warning, error, traceback or NaN line.
+- **The coordinator's own script** (CPU, read-only) over runs 1–125:
+  - The code's order of all 255 runs (cell, A27 point, seed) equals the manifest written out by hand from 3.4 and G.3, with the
+    grid's tiers in `tier_sweep.TIER_ORDER`.
+  - **Every record** has:
+    - format `p9.1-run/1.0`, its cell, seed, recipe and label;
+    - `gradient_steps` equal to `declared_steps`, both written out by hand: 100,000 for the 35 `_100k` runs, 40,000 for the rest;
+    - for `iql_100k`, the registered targets (`target_dropout` `active`), as 3.4 requires;
+    - its checkpoint's path, a finite final loss and finite window means.
+  - **Every checkpoint's** sha256, recomputed, equals the record's `file_sha256`, and its canonical digest equals the record's.
+    0 problems.
+  - **T2's 60 runs** ran on `cuda` with OMP and MKL at one thread, in run order, none overlapping, all inside the session.
+  - **Runs 1–65** are untouched: their files' times are before T2. P9.2's ten pinned checkpoints are among them.
+  - `training_status`: 255 declared, 125 done. No `.partial`, STOP or token is left.
+  - **The GPU trace:** 952 samples, the largest gap 20.1 s (no suspension). Inside runs, utilisation was at least 18 % (median
+    43 %); memory peaked at 2,909 MiB.
+  - **G.2, seen again within one session:** the checkpoints' `runtime.git_commit` is `2328305` for runs #66–#73 and `70c72ac` for
+    #74–#125, because `70c72ac` was committed on `main` at 23:23:23. Both are documentation commits. T2's code commit is `c58afb8`,
+    from its token line.
+- **Measured seconds per arm** (the records' clock, uncontrolled, A27(a)), against the planning estimates:
+
+  | Arm | Tier | Runs | Measured: min–max, mean | Planned |
+  |---|---|---|---|---|
+  | `dt` | `mix_m1000_m500` | 5 | 173.4–178.6 s, 175.5 s | 204.0 s |
+  | `bc` | `mix_m1000_m500` | 5 | 85.7–93.3 s, 89.5 s | 110.0 s |
+  | `bc_top10` | `mix_m1000_m500` | 5 | 91.5–98.1 s, 94.4 s | 120.0 s |
+  | `iql` | `mix_m1000_m500` | 5 | 315.6–321.7 s, 317.3 s | 361.0 s |
+  | `iql_t` | `mix_m1000_m500` | 5 | 338.5–342.3 s, 340.3 s | 415.1 s |
+  | `dt_100k` | `mappo1000` | 5 | 494.8–515.7 s, 506.2 s | 510.0 s |
+  | `dt_100k` | `mix50` | 5 | 510.2–518.2 s, 515.0 s | 510.0 s |
+  | `bc_100k` | `mappo1000` | 5 | 238.4–243.2 s, 241.0 s | 275.0 s |
+  | `bc_100k` | `mix50` | 5 | 240.8–252.5 s, 245.3 s | 275.0 s |
+  | `bc_top10_100k` | `mappo1000` | 5 | 236.4–242.4 s, 238.5 s | 300.0 s |
+  | `bc_top10_100k` | `mix50` | 5 | 240.1–244.5 s, 242.4 s | 300.0 s |
+  | `iql_100k` | `mappo1000` | 5 | 799.6–811.4 s, 803.7 s | 902.5 s |
+
+  `dt_100k` is the only arm that reached its plan.
+
+## H.2 T3, checked before clearing (CPU, read-only; the listings of `output/p9_1*` and of the corpus root unchanged)
+- From the run tree, `check --stage train` printed `{"ok": true, "stage": "train"}`.
+- `train --hours 6 --plan-only` planned #126 (hz1x1 `iql_100k@mix50` seed 101) to #154 (grid4x4 `bc_m@maxpressure` seed 404):
+  29 runs, 5.92 planned hours, 130 missing, 125 done. That is G.4's T3.
+- **T3's three tiers build their training inputs** from the run tree's code, by the calls `train` makes:
+  - hz1x1 `mix50` in 29.8 s: 200 streams, 20 kept, a finite prompt.
+  - grid4x4 `mappo1000` in 124.3 s and `maxpressure` in 115.1 s. Each has:
+    - 3,200 streams;
+    - 320 kept by the global and 320 by the per-intersection top-10 % selection;
+    - a finite IQL reward scale (1.295 and 3.636);
+    - BC windows of 1,152,000 × 20 (115,200 for each top-10 % selection).
+- **Host memory.** `train` keeps every tier's inputs until the session ends, so at #151 it holds `mappo1000`'s inputs while it
+  builds `maxpressure`'s. The coordinator ran that sequence: 17.3 GiB held, and 21.4 GiB at the peak. The machine has 37.3 GiB
+  available and 16 GiB of swap.
+- **GPU memory.** The pre-flight's grid runs on this RTX 5080 (16 GB) peaked at 5,673 MiB (`bc_m`) and 7,837 MiB (`iql_m`), as
+  whole-device figures. `train_bc` and `train_iql` copy their data to the GPU inside each run, so nothing builds up through the
+  input cache.
+- **The hours.** The grid's figures are single runs of seed 101 on `mappo1000`:
+  - `bc_m` took 413.0 s and 543.0 s, and `iql_m` 2,077.3 s and 2,187.3 s; the plan uses the larger of each;
+  - `bc_top10_m` and `bc_top10_perix_m` (97 s) are the plan's figures, not measured; their batch is 102, against `bc_m`'s 1,024.
+
+  With T2's `iql_100k` (803.7 s), T3 trains for 5.3–5.8 h, plus about 5 minutes to build its inputs.
+
+## H.3 ✅ THE TOKEN: training session T3 (the author's tmux `p91`)
+**T3 runs about 6 hours without a break:** 5.92 planned hours, or 5.3–5.8 h from the measured figures (H.2). It ends by itself at
+the end of its plan.
+- **What it trains:** runs #126–#154, 29 runs.
+  - hz1x1 `iql_100k` on `mix50` (5 runs);
+  - the grid's first runs: A27(b)'s matched arms on `mappo1000`, that is `bc_m`, `bc_top10_m`, `bc_top10_perix_m` and `iql_m`
+    (20 runs);
+  - `bc_m` on `maxpressure`, seeds 101–404 (4 runs). Its seed 505 opens T4.
+- **Before it:** nothing else trains on the laptop's GPU. P9.2's stage 2 may run on the CPU beside it (`BRIEF_47` H.5). Keep the
+  laptop plugged in and awake.
+- **The command** is T2's, with its own refusal text. At the pane's prompt, as one line:
+  ```
+  /home/filip/rltraffic/.venv/bin/python -c "import sys, torch; sys.exit(0 if torch.cuda.is_available() else 'NO CUDA: T3 not started')" && touch /home/filip/rltraffic/output/p9_1_runs/TOKEN_train && P91_SESSION_HOURS=6 bash /home/filip/rltraffic-p91-run-d/offline/campaigns/p9_1_corrective.sh train c58afb8 2>&1 | tee -i -a /home/filip/rltraffic/output/p9_1_runs/train_capture.txt; echo "DRIVER EXIT ${PIPESTATUS[0]}"
+  ```
+- **The pane** shows the token line, the session line and the plan (`SESSION: runs #126 … to #154 …: 29 runs, 5.92 planned
+  hours`). Then it is quiet until the end. Progress is in `output/p9_1_runs/logs/<stamp>/train.log`.
+- **Done when** the capture shows:
+  - `train: ok`;
+  - the summary (`SESSION: 29 runs trained …; ended by the plan; 101 runs missing, 22.39 planned hours left`);
+  - `stage train <stamp>: SESSION COMPLETE …`.
+
+  The pane must also show `DRIVER EXIT 0`.
+- **To end it early:** `touch /home/filip/rltraffic/output/p9_1_runs/STOP`. The session ends after the run in flight, up to about
+  37 minutes later (`iql_m` is planned at 36.5 minutes). Remove the file by hand before the next session.
+- **A failure, and Ctrl+C:** as F.3.
+
+## H.4 After T3
+- **Four more sessions, as G.4 planned:** T4 (#155–#187, 5.70 planned hours), then T5, T6 and T7. Each session's own plan decides
+  at its start.
+- **The grid's other inputs are checked before the session that first builds them:** `fixedtime` (T4), `random`, and
+  `random_fresh` with `dt_nomix`'s parts.
+- **Meanwhile:** as G.4. Nothing else on the GPU while T3 runs.
+
+# ✅ AMENDMENT I — 2026-10-30: T3 VERIFIED from disk; training session T4 CLEARED (runs #155–#187, about 5 h without a break), the grid's `maxpressure` and `fixedtime` arms
+
+## I.1 T3, verified by the coordinator from disk
+- **The capture** (`output/p9_1_runs/train_capture.txt`) shows, in order:
+  - the token line (`stage train 20261030T114038Z from /home/filip/rltraffic-p91-run-d at c58afb8`);
+  - the plan (#126–#154, 29 runs, 5.92 planned hours);
+  - `train: ok`;
+  - the summary (`29 runs trained in 19611.6 s (their records' clock); ended by the plan; 101 runs missing, 22.39 planned hours
+    left`);
+  - `SESSION COMPLETE`.
+
+  The author saw `DRIVER EXIT 0`.
+- **The times (CET):**
+  - the token at 12:40:38 on 2026-10-30, the first run started at 12:40:51;
+  - the last run finished at 18:10:06, and the capture's last write is 18:10:09;
+  - 5.49 h on the wall, and 5.45 h of training on the records' clock: 0.92 of the 5.92 planned hours.
+- **The coordinator's own script** (CPU, read-only) over runs 1–154:
+  - The code's order of all 255 runs (cell, A27 point, seed) equals the manifest written out by hand from 3.4 and G.3.
+  - **Every record** has:
+    - format `p9.1-run/1.0`, its cell, seed, recipe and label;
+    - `gradient_steps` equal to `declared_steps`, both written out by hand: 100,000 for the 40 `_100k` runs, 40,000 for the rest;
+    - its checkpoint's path, a finite final loss and finite window means.
+  - **T3's recipes, also written out by hand:**
+    - hz1x1 `iql_100k` with the registered targets (`target_dropout` `active`);
+    - the grid's `bc_m` at batch 1,024, and `bc_top10_m` and `bc_top10_perix_m` at 102;
+    - `iql_m` at 20,480, with `target_dropout` `off`.
+  - **Every checkpoint's** sha256, recomputed, equals the record's `file_sha256`, and its canonical digest equals the record's.
+    0 problems.
+  - **T3's 29 runs** ran on `cuda` with OMP and MKL at one thread, in run order, none overlapping, all inside the session.
+  - **Runs 1–125** are untouched: their files' times are before T3.
+  - `training_status`: 255 declared, 154 done. No `.partial`, STOP or token is left.
+  - **The GPU trace:** 987 samples, the largest gap 20.1 s (no suspension). Inside runs, utilisation was at least 27 % (median
+    96 %); memory peaked at 7,617 MiB (`iql_m`), below the pre-flight's 7,837 MiB.
+  - **G.2 again:** the checkpoints' `runtime.git_commit` is `3a538f5` for all 29. It was committed on `main` at 12:46:05, and T3's
+    first checkpoint was written at 12:58:29. T3's code commit is `c58afb8`, from its token line.
+- **Measured seconds per arm** (the records' clock, uncontrolled, A27(a)), against the planning estimates. These are the grid arms'
+  first five-seed figures: the pre-flight had measured `bc_m` and `iql_m` on seed 101 only, and neither top-10 % arm (H.2).
+
+  | Arm | Tier | Runs | Measured: min–max, mean | Planned |
+  |---|---|---|---|---|
+  | hz1x1 `iql_100k` | `mix50` | 5 | 798.2–1,055.3 s, 940.8 s | 902.5 s |
+  | `bc_m` | `mappo1000` | 5 | 475.8–509.5 s, 484.2 s | 543.0 s |
+  | `bc_m` | `maxpressure` | 4 | 478.2–490.4 s, 486.5 s | 543.0 s |
+  | `bc_top10_m` | `mappo1000` | 5 | 92.7–98.6 s, 96.0 s | 97.0 s |
+  | `bc_top10_perix_m` | `mappo1000` | 5 | 93.6–98.3 s, 96.5 s | 97.0 s |
+  | `iql_m` | `mappo1000` | 5 | 1,890.8–1,929.2 s, 1,915.6 s | 2,187.3 s |
+
+- **Beside P9.2's stage 2.** Stage 2 ran on 3 CPU shards from 12:41:08 to 13:32:55 (`BRIEF_47` Amendment I).
+  - The first three `iql_100k` runs (#126–#128) ran beside it and took 1,005.6–1,055.3 s.
+  - #129 (beside it for 15 s) and #130 took 798.8 s and 798.2 s, as T2's `iql_100k` on `mappo1000` did (799.6–811.4 s).
+
+  The shards slowed the GPU run by 26–32 %, about 12 minutes of T3's wall time in all. The author's reading is confirmed by the
+  records. No reported number changes: the records' clock is uncontrolled (A27(a)).
+- **The grid's inputs, built inside T3:** 56 s for `mappo1000` (between #130 and #131), and 71 s for `maxpressure` (between #150
+  and #151).
+
+## I.2 T4, checked before clearing (CPU, read-only; the listings of `output/p9_1*` and of the corpus root unchanged)
+- From the run tree (clean at `c58afb8`), `check --stage train` printed `{"ok": true, "stage": "train"}`.
+- `train --hours 6 --plan-only` planned #155 (grid4x4 `bc_m@maxpressure` seed 505) to #187 (grid4x4 `iql_m@fixedtime` seed 202):
+  33 runs, 5.70 planned hours, 101 missing, 154 done. That is G.4's T4.
+- **`fixedtime`, the tier T4 builds for the first time,** from the run tree's code, by the call `train` makes:
+  - built in 44.2 s;
+  - 3,200 streams;
+  - 320 kept by the global and 320 by the per-intersection top-10 % selection;
+  - a finite IQL reward scale (2.024);
+  - BC windows of 1,152,000 × 20 (115,200 for each top-10 % selection), and the group (40, 8).
+- **Host memory.** `train` keeps every tier's inputs until the session ends, so at #171 it holds `maxpressure`'s inputs while it
+  builds `fixedtime`'s. The coordinator ran that sequence: 16.5 GiB held, and 20.6 GiB at the peak. The machine had 36.7 GiB
+  available. `maxpressure`'s inputs built as in H.2 (3,200 streams, 320 kept, IQL reward scale 3.636).
+- **GPU memory.** T4 trains T3's four grid arms on two other tiers. T3's peak was 7,617 MiB of the 16 GB.
+- **The hours.** By T3's measured figures per arm, T4 trains 5.07 h (the means) to 5.15 h (the maxima), plus about 2 minutes to
+  build its two tiers' inputs. The plan's 5.70 h uses the pre-flight's larger figures.
+
+## I.3 ✅ THE TOKEN: training session T4 (the author's tmux `p91`)
+**T4 runs about 5 hours without a break:** 5.1–5.2 h by T3's measured figures (I.2), and at most its 5.70 planned hours. It ends by
+itself at the end of its plan.
+- **What it trains:** runs #155–#187, 33 runs.
+  - `bc_m` on `maxpressure`, seed 505;
+  - A27(b)'s other three arms on `maxpressure`: `bc_top10_m`, `bc_top10_perix_m` and `iql_m` (15 runs);
+  - on `fixedtime`: `bc_m`, `bc_top10_m` and `bc_top10_perix_m` (15 runs), and `iql_m` seeds 101 and 202. Its seeds 303–505 open
+    T5.
+- **Before it:** nothing else trains on the laptop's GPU, and no long CPU job runs beside it (I.1: three CPU shards slowed T3's GPU
+  run by 26–32 %). Keep the laptop plugged in and awake.
+- **The command** is T3's, with its own refusal text. At the pane's prompt, as one line:
+  ```
+  /home/filip/rltraffic/.venv/bin/python -c "import sys, torch; sys.exit(0 if torch.cuda.is_available() else 'NO CUDA: T4 not started')" && touch /home/filip/rltraffic/output/p9_1_runs/TOKEN_train && P91_SESSION_HOURS=6 bash /home/filip/rltraffic-p91-run-d/offline/campaigns/p9_1_corrective.sh train c58afb8 2>&1 | tee -i -a /home/filip/rltraffic/output/p9_1_runs/train_capture.txt; echo "DRIVER EXIT ${PIPESTATUS[0]}"
+  ```
+- **The pane** shows the token line, the session line and the plan (`SESSION: runs #155 … to #187 …: 33 runs, 5.70 planned
+  hours`). Then it is quiet until the end. Progress is in `output/p9_1_runs/logs/<stamp>/train.log`.
+- **Done when** the capture shows:
+  - `train: ok`;
+  - the summary (`SESSION: 33 runs trained …; ended by the plan; 68 runs missing, 16.69 planned hours left`);
+  - `stage train <stamp>: SESSION COMPLETE …`.
+
+  The pane must also show `DRIVER EXIT 0`.
+- **To end it early:** `touch /home/filip/rltraffic/output/p9_1_runs/STOP`. The session ends after the run in flight, up to about
+  37 minutes later (`iql_m` is planned at 36.5 minutes, and measured at 32). Remove the file by hand before the next session.
+- **A failure, and Ctrl+C:** as F.3.
+
+## I.4 After T4
+- **Three more sessions, as G.4 planned:** T5 (#188–#211, 5.98 planned hours), T6 and T7. Each session's own plan decides at its
+  start.
+- **The grid's other inputs are checked before the session that first builds them:** `random` (T5), and `random_fresh` with
+  `dt_nomix`'s parts.
+- **Meanwhile:** as G.4. Nothing else on the GPU while T4 runs.
+
+# ✅ AMENDMENT J — 2026-10-31, night: T4 VERIFIED from disk; training session T5 CLEARED (runs #188–#211, about 5.5 h without a break), the grid's `random` arms and its first `iql_t`
+
+## J.1 T4, verified by the coordinator from disk
+- **The capture** (`output/p9_1_runs/train_capture.txt`) shows, in order:
+  - the token line (`stage train 20261031T095739Z from /home/filip/rltraffic-p91-run-d at c58afb8`);
+  - the plan (#155–#187, 33 runs, 5.70 planned hours);
+  - `train: ok`;
+  - the summary (`33 runs trained in 17416.4 s (their records' clock); ended by the plan; 68 runs missing, 16.69 planned hours
+    left`);
+  - `SESSION COMPLETE`.
+
+  The author saw `DRIVER EXIT 0`.
+- **The times (CET):**
+  - the token at 10:57:39 on 2026-10-31, the first run started at 10:58:40;
+  - the last run finished at 15:50:04, and the capture's last write is 15:50:05;
+  - 4.87 h on the wall, and 4.84 h of training on the records' clock: 0.85 of the 5.70 planned hours.
+- **The coordinator's own script** (I.1's, moved to runs 1–187; CPU, read-only):
+  - The code's order of all 255 runs equals the manifest written out by hand.
+  - **Every record and checkpoint of runs 1–187:** its cell, seed, recipe, label and steps, the checkpoint's sha256 and canonical
+    digest, a finite final loss and finite window means. 0 problems.
+  - **T4's recipes, written out by hand:** `bc_m` at batch 1,024, `bc_top10_m` and `bc_top10_perix_m` at 102, `iql_m` at 20,480
+    with `target_dropout` `off`.
+  - **T4's 33 runs** ran on `cuda` with OMP and MKL at one thread, 40,000 steps each, in run order, none overlapping, all inside the
+    session.
+  - **Runs 1–154** are untouched: their files' times are before T4.
+  - `training_status`: 255 declared, 187 done. No `.partial`, STOP or token is left.
+  - **The GPU trace:** 876 samples, the largest gap 20.1 s. Inside runs, utilisation was at least 30 % (median 96 %); memory peaked
+    at 7,416 MiB.
+  - **G.2 again:** the checkpoints' `runtime.git_commit` is `52f75a6` for #155 (written at 11:09:37) and `341c352` for #156–#187,
+    none dirty: `main`'s HEAD at each write, from the coordinator's two docs commits that morning. T4's code commit is `c58afb8`,
+    from its token line.
+- **Measured seconds per arm** (the records' clock, uncontrolled, A27(a)), against the planning estimates:
+
+  | Arm | Tier | Runs | Measured: min–max, mean | Planned |
+  |---|---|---|---|---|
+  | `bc_m` | `maxpressure` | 1 (#155) | 653.8 s | 543.0 s |
+  | `bc_top10_m` | `maxpressure` | 5 | 89.3–100.6 s, 93.8 s | 97.0 s |
+  | `bc_top10_perix_m` | `maxpressure` | 5 | 92.1–94.9 s, 93.6 s | 97.0 s |
+  | `iql_m` | `maxpressure` | 5 | 1,795.3–1,857.1 s, 1,810.7 s | 2,187.3 s |
+  | `bc_m` | `fixedtime` | 5 | 446.0–450.4 s, 448.4 s | 543.0 s |
+  | `bc_top10_m` | `fixedtime` | 5 | 88.7–103.7 s, 96.4 s | 97.0 s |
+  | `bc_top10_perix_m` | `fixedtime` | 5 | 88.9–103.7 s, 92.9 s | 97.0 s |
+  | `iql_m` | `fixedtime` | 2 | 1,785.0–1,798.6 s, 1,791.8 s | 2,187.3 s |
+
+  - #155 took 34 % longer than the same arm's four `maxpressure` runs in T3 (478.2–490.4 s). The cause is not measured.
+  - The other runs match T3's figures or beat them: `iql_m` ran about 6 % faster. No reported number changes, because the records'
+    clock is uncontrolled (A27(a)).
+- **`plateaued`** is true for 31 runs and false for #170 and #187 (both `iql_m`). It is recorded per run; no gate of the campaign
+  depends on it.
+- **The grid's inputs, built inside T4:** `fixedtime` in 52 s, between #170 (13:56:12) and #171 (13:57:04).
+
+## J.2 T5, checked before clearing (CPU, read-only; the listings of `output/p9_1*` and of the corpus root unchanged)
+- From the run tree (clean at `c58afb8`), `check --stage train` printed `{"ok": true, "stage": "train"}`.
+- `train --hours 6 --plan-only` planned #188 (grid4x4 `iql_m@fixedtime` seed 303) to #211 (grid4x4 `iql_t@mappo1000` seed 101):
+  24 runs, 5.98 planned hours, 68 missing, 187 done. That is G.4's T5.
+- **`random`, the tier T5 builds for the first time,** from the run tree's code, by the call `train` makes:
+  - 3,200 streams;
+  - 320 kept by the global and 320 by the per-intersection top-10 % selection;
+  - a finite IQL reward scale (0.743);
+  - BC windows of 1,152,000 × 20 (115,200 for each top-10 % selection), and the group (40, 8);
+  - its corpus `cf_grid4x4__random`. It took 354 s to build in the check.
+- **Host memory: T5's margin is the smallest so far.** `train` keeps every tier's inputs until the session ends:
+  - T5 holds `fixedtime`'s inputs (#188–#190);
+  - it builds `random`'s at #191 while holding `fixedtime`'s;
+  - it builds `mappo1000`'s at #211, for the grid's first `iql_t`.
+
+  The coordinator ran that sequence. The process held 11.3 GiB after `fixedtime` and 20.4 GiB after `random`, with a peak of
+  31.3 GiB during `random`'s build. With all three tiers it held 23.9 GiB.
+
+  The machine has 47.0 GiB, of which 37.3 GiB were available before the check, and 16 GiB of swap. So T5 fits only if nothing else
+  large runs on the laptop's WSL beside it.
+- **GPU memory.** T5 trains T4's arms on `random`, and `iql_t` at batch 1,280 (A27(c)), smaller than `iql_m`'s 20,480. T4's peak was
+  7,416 MiB of the 16 GB.
+- **The hours.** By T4's measured figures per arm, T5 trains 4.98 h (the means) to 5.14 h (the maxima), with `iql_t`'s planned 343 s.
+  Building three tiers' inputs adds up to about 10 minutes. The plan's 5.98 h uses the pre-flight's larger figures.
+
+## J.3 ✅ THE TOKEN: training session T5 (the author's tmux `p91`)
+**T5 runs about 5.5 hours without a break:** 5.0–5.2 h of training by T4's measured figures (J.2), plus up to about 10 minutes to
+build its inputs. It ends by itself at the end of its plan.
+- **What it trains:** runs #188–#211, 24 runs.
+  - `iql_m` on `fixedtime`, seeds 303–505 (3 runs);
+  - A27(b)'s four arms on `random`: `bc_m`, `bc_top10_m`, `bc_top10_perix_m` and `iql_m` (20 runs);
+  - the grid's first `iql_t` (A27(c)), on `mappo1000`, seed 101. Its seeds 202–505 open T6.
+- **Before it and while it runs:**
+  - nothing else trains on the laptop's GPU;
+  - no long CPU job and nothing memory-heavy runs on the laptop's WSL beside it (J.2), so P9.3's evaluation waits for T5's end;
+  - keep the laptop plugged in and awake.
+- **The command** is T4's, with its own refusal text. At the pane's prompt, as one line:
+  ```
+  /home/filip/rltraffic/.venv/bin/python -c "import sys, torch; sys.exit(0 if torch.cuda.is_available() else 'NO CUDA: T5 not started')" && touch /home/filip/rltraffic/output/p9_1_runs/TOKEN_train && P91_SESSION_HOURS=6 bash /home/filip/rltraffic-p91-run-d/offline/campaigns/p9_1_corrective.sh train c58afb8 2>&1 | tee -i -a /home/filip/rltraffic/output/p9_1_runs/train_capture.txt; echo "DRIVER EXIT ${PIPESTATUS[0]}"
+  ```
+- **The pane** shows the token line, the session line and the plan (`SESSION: runs #188 … to #211 …: 24 runs, 5.98 planned
+  hours`). Then it is quiet until the end. Progress is in `output/p9_1_runs/logs/<stamp>/train.log`.
+- **Done when** the capture shows:
+  - `train: ok`;
+  - the summary (`SESSION: 24 runs trained …; ended by the plan; 44 runs missing, 10.71 planned hours left`);
+  - `stage train <stamp>: SESSION COMPLETE …`.
+
+  The pane must also show `DRIVER EXIT 0`.
+- **To end it early:** `touch /home/filip/rltraffic/output/p9_1_runs/STOP`. The session ends after the run in flight, up to about
+  37 minutes later (`iql_m` is planned at 36.5 minutes, and measured at 30–31). Remove the file by hand before the next session.
+- **A failure, and Ctrl+C:** as F.3. A run killed for memory leaves no checkpoint and no record, so it reads as missing: report it.
+
+## J.4 After T5
+- **T6 as G.4 planned it would hold four grid tiers at once:** `iql_t` on `mappo1000`, `maxpressure`, `fixedtime` and `random`
+  (#212–#230), then `random_fresh`'s `dt_nomix` parts (#231–#234). T5's three tiers already peak at 31.3 GiB.
+  - Before T6, the coordinator runs that sequence once T5 has ended; the measurement cannot run beside T5.
+  - If it does not fit, T6 is split at a tier boundary by a smaller session bound (`P91_SESSION_HOURS`). That changes no code.
+- **Still checked before the session that first builds them:** `random_fresh`'s `dt_nomix` parts (T6) and its grid inputs (T7).
+- **Meanwhile:** nothing else on the GPU while T5 runs.
+
+## J.5 2026-11-01: the author's ruling on the order
+*"T5 has not started and will not start before tomorrow morning; the laptop is idle tonight. My ruling on the order: P9.3 goes
+first."*
+- P9.3's evaluation (`BRIEF_48` Amendment J, about 3 h on the CPU) runs first. T5 starts after it ends.
+- J.3's clearance and command are unchanged. J.2's memory check stands: T5 runs with nothing large beside it.
+
+---
+
+# ✅ AMENDMENT K — 2026-11-02, evening: T5 VERIFIED from disk; four grid tiers do NOT fit in host memory (measured), so training session T6 is CLEARED as runs #212–#225 at `P91_SESSION_HOURS=1.4` (about 1.4 h without a break), the grid's `iql_t` on three tiers
+
+## K.1 T5, verified by the coordinator from disk
+- **The capture** (`output/p9_1_runs/train_capture.txt`) shows, in order:
+  - the token line (`stage train 20261102T131153Z from /home/filip/rltraffic-p91-run-d at c58afb8`);
+  - the plan (#188–#211, 24 runs, 5.98 planned hours);
+  - `train: ok`;
+  - the summary (`24 runs trained in 17232.1 s (their records' clock); ended by the plan; 44 runs missing, 10.71 planned hours
+    left`);
+  - `SESSION COMPLETE`.
+
+  The author saw `DRIVER EXIT 0`.
+- **The times (CET, 2026-11-02):**
+  - the token at 14:11:53, after P9.3's evaluation (J.5), and the first run started at 14:12:56;
+  - the last run finished at 19:03:21, and the capture's last write is 19:03:24;
+  - 4.86 h on the wall, and 4.79 h of training on the records' clock: 0.80 of the 5.98 planned hours. J.3 said about 5.5 h.
+- **The coordinator's own script** (J.1's, moved to runs 1–211; CPU, read-only):
+  - The code's order of all 255 runs equals the manifest written out by hand.
+  - **Every record and checkpoint of runs 1–211:** its cell, seed, recipe, label and steps, the checkpoint's sha256 and canonical
+    digest, a finite final loss and finite window means. 0 problems.
+  - **T5's recipes, written out by hand:** `bc_m` at batch 1,024, `bc_top10_m` and `bc_top10_perix_m` at 102, `iql_m` at 20,480
+    with `target_dropout` `off`, and the grid's `iql_t` at 1,280 with `target_dropout` `off` (A27(c)).
+  - **T5's 24 runs** ran on `cuda` with OMP and MKL at one thread, 40,000 steps each, in run order, none overlapping, all inside the
+    session.
+  - **Runs 1–187** are untouched: their files' times are before T5.
+  - `training_status`: 255 declared, 211 done. No `.partial`, STOP or token is left.
+  - **The GPU trace:** 873 samples, the largest gap 20.1 s. Inside runs, utilisation was at least 32 % (median 96 %); memory peaked
+    at 7,606 MiB.
+  - **G.2 again:** every checkpoint's `runtime.git_commit` is `f939f17`, not dirty. That was `main`'s HEAD from 14:20:56, before
+    #188 was written at 14:33:08. T5's code commit is `c58afb8`, from its token line.
+- **The inputs, built inside T5:**
+  - `fixedtime` before #188, within the 63 s from the token to its start;
+  - `random` in 117 s, between #190 (15:17:13) and #191 (15:19:10);
+  - `mappo1000` in 58 s, between #210 (18:56:49) and #211 (18:57:47).
+- **Measured seconds per arm** (the records' clock, uncontrolled, A27(a)), against the planning estimates:
+
+  | Arm | Tier | Runs | Measured: min–max, mean | Planned |
+  |---|---|---|---|---|
+  | `iql_m` | `fixedtime` | 3 (#188–#190) | 1,205.0–1,439.5 s, 1,284.3 s | 2,187.3 s |
+  | `bc_m` | `random` | 5 | 482.0–489.0 s, 484.5 s | 543.0 s |
+  | `bc_top10_m` | `random` | 5 | 88.4–96.0 s, 92.5 s | 97.0 s |
+  | `bc_top10_perix_m` | `random` | 5 | 89.8–94.4 s, 92.3 s | 97.0 s |
+  | `iql_m` | `random` | 5 | 1,919.7–1,948.7 s, 1,940.1 s | 2,187.3 s |
+  | `iql_t` | `mappo1000` | 1 (#211) | 331.9 s | 342.7 s |
+
+  - #188 and #189 took 1,205–1,209 s, a third less than T4's two `iql_m` runs on `fixedtime` (1,785.0–1,798.6 s). #190 took
+    1,439.5 s.
+  - During those three runs the GPU's memory was at most 1,863 MiB, against 7,221 MiB for the same arm in T4. They were the
+    session's first runs. The cause of either difference is not measured.
+  - `iql_m` on `random` took 1,920–1,949 s, about 7 % more than on `maxpressure` in T4.
+  - No reported number changes, because the records' clock is uncontrolled (A27(a)).
+- **`plateaued`** is true for 17 runs and false for 7: #188–#190, #206, #209 and #210 (`iql_m`), and #211 (`iql_t`). It is
+  recorded per run; no gate of the campaign depends on it.
+
+## K.2 T6, checked before clearing (CPU, read-only; the listings of `output/p9_1*` and of the corpus root unchanged)
+- From the run tree (clean and detached at `c58afb8`), `check --stage train` printed `{"ok": true, "stage": "train"}`.
+- `train --hours 6 --plan-only` planned #212 to #234: 23 runs, 5.68 planned hours, 44 missing, 211 done. That is J.4's T6:
+  - `iql_t` on `mappo1000` (4 runs), `maxpressure`, `fixedtime` and `random` (5 each);
+  - then `random_fresh`'s `dt_nomix` (4 runs).
+- **The memory check.** The coordinator built T6's inputs in `train`'s order and kept each one, as `train` does. A guard thread
+  would stop the check when the machine's available memory fell below 5 GiB. Before the check, 41.8 GiB of the 47.0 GiB were
+  available, with 16 GiB of swap.
+
+  | After | Built in | Held | Peak | Machine available |
+  |---|---|---|---|---|
+  | `mappo1000` | 55.6 s | 11.3 GiB | 15.4 GiB | 30.5 GiB |
+  | and `maxpressure` | 53.5 s | 16.6 GiB | 20.6 GiB | 25.1 GiB |
+  | and `fixedtime` | 48.8 s | 21.8 GiB | 25.8 GiB | 20.1 GiB |
+  | and `random` | stopped by the guard | — | 37.8 GiB when stopped | 5.0 GiB |
+
+  - **So T6 as planned does not fit.** `random`'s build needs about 20 GiB above what the process already holds (J.2: from
+    11.3 GiB to a 31.3 GiB peak). With three tiers held, that is about 42 GiB.
+  - **Each built tier** has 3,200 streams, 320 kept by each top-10 % selection, BC windows of 1,152,000 × 20 (115,200 for each
+    top-10 % selection) and the group (40, 8).
+    - Each IQL reward scale is finite: 1.295 (`mappo1000`), 3.636 (`maxpressure`) and 2.024 (`fixedtime`).
+    - `mappo1000` reads its five teacher-seed corpora.
+  - **`random_fresh`'s DT parts were not reached.** They are checked before the session that builds them (K.4).
+- **The split, as J.4 set it: T6 ends at #225, before `random`'s build.**
+  - `P91_SESSION_HOURS=1.4` plans exactly #212–#225: 14 runs, 1.33 planned hours (4,797.8 s). The bound is 5,040 s, and #226 would
+    bring the plan to 5,140.5 s. `train --hours 1.4 --plan-only` printed that plan.
+  - No code changes.
+  - T6's peak is then the measured 25.8 GiB plus the CUDA context's host memory. That leaves about 16 GiB of the 41.8 GiB,
+    less the CUDA context's share.
+- **The hours.** At #211's measured 331.9 s per `iql_t` run, T6 trains about 1.3 h, plus about 3 minutes for its three builds.
+
+## K.3 ✅ THE TOKEN: training session T6 (the author's tmux `p91`)
+**T6 runs about 1.4 hours without a break:** about 1.3 h of training by #211's measured figure (K.2), plus about 3 minutes to build
+its inputs. It ends by itself at the end of its plan.
+- **What it trains:** runs #212–#225, 14 runs of the grid's `iql_t` (A27(c)):
+  - on `mappo1000`, seeds 202–505 (4 runs);
+  - on `maxpressure` and on `fixedtime`, seeds 101–505 (10 runs).
+- **Before it and while it runs:**
+  - nothing else trains on the laptop's GPU;
+  - nothing memory-heavy runs on the laptop's WSL beside it. The coordinator's next memory check waits for its end;
+  - P9.3's test runs, one process at a time, may run beside it. T6's margin is about 16 GiB;
+  - keep the laptop plugged in and awake.
+- **The command** is T5's, with `P91_SESSION_HOURS=1.4` and its own refusal text. At the pane's prompt, as one line:
+  ```
+  /home/filip/rltraffic/.venv/bin/python -c "import sys, torch; sys.exit(0 if torch.cuda.is_available() else 'NO CUDA: T6 not started')" && touch /home/filip/rltraffic/output/p9_1_runs/TOKEN_train && P91_SESSION_HOURS=1.4 bash /home/filip/rltraffic-p91-run-d/offline/campaigns/p9_1_corrective.sh train c58afb8 2>&1 | tee -i -a /home/filip/rltraffic/output/p9_1_runs/train_capture.txt; echo "DRIVER EXIT ${PIPESTATUS[0]}"
+  ```
+- **The pane** shows the token line, the session line (`it runs about 1.4 hours without a break`) and the plan (`SESSION: runs
+  #212 … to #225 …: 14 runs, 1.33 planned hours`). Then it is quiet until the end. Progress is in
+  `output/p9_1_runs/logs/<stamp>/train.log`.
+- **Done when** the capture shows:
+  - `train: ok`;
+  - the summary (`SESSION: 14 runs trained …; ended by the plan; 30 runs missing, 9.38 planned hours left`);
+  - `stage train <stamp>: SESSION COMPLETE …`.
+
+  The pane must also show `DRIVER EXIT 0`.
+- **To end it early:** `touch /home/filip/rltraffic/output/p9_1_runs/STOP`. The session ends after the run in flight, up to about
+  6 minutes later (`iql_t` is planned at 5.7 minutes, and measured at 5.5). Remove the file by hand before the next session.
+- **A failure, and Ctrl+C:** as F.3. A run killed for memory leaves no checkpoint and no record, so it reads as missing: report it.
+
+## K.4 After T6: the rest of the training, in two sessions
+Each session is checked before it is cleared, as T6 was. The figures below are planning estimates.
+- **T7: #226–#235, 10 runs, 5.32 planned hours, at `P91_SESSION_HOURS=5.4`.**
+  - It trains `iql_t` on `random` (5 runs) and `random_fresh`'s `dt_nomix` (5 runs).
+  - The bound is 19,440 s, and #236 would bring the plan to 19,691.5 s.
+  - It holds `random`'s inputs and `random_fresh`'s DT parts, and builds one stack per DT run. The coordinator measures that after
+    T6, as J.4 required for the DT parts.
+  - Its hours rest on `dt_nomix`'s planned 3,487 s per run, and are checked against a measured figure before T7 is cleared.
+- **T8: #236–#255, 20 runs, 4.06 planned hours, at 6 h.**
+  - It trains `random_fresh`'s four A27(b) arms: `bc_m`, `bc_top10_m`, `bc_top10_perix_m` and `iql_m`.
+  - It builds `random_fresh`'s grid inputs, which J.4 checks before the session that first builds them.
+- After T8, all 255 runs are trained.
+
+---
+
+# ✅ AMENDMENT L — 2026-11-03: T6 VERIFIED from disk; T7's memory measured and the grid's `dt_nomix` TIMED (1.09 of its plan); training session T7 CLEARED (runs #226–#235, about 6 h without a break)
+
+## L.1 T6, verified by the coordinator from disk
+- **The capture** (`output/p9_1_runs/train_capture.txt`) shows, in order:
+  - the token line (`stage train 20261103T102301Z from /home/filip/rltraffic-p91-run-d at c58afb8`);
+  - the session line (`it runs about 1.4 hours without a break`) and the plan (#212–#225, 14 runs, 1.33 planned hours);
+  - `train: ok`;
+  - the summary (`14 runs trained in 5060.1 s (their records' clock); ended by the plan; 30 runs missing, 9.38 planned hours
+    left`), whose next missing run is #226 (`grid4x4:iql_t@random`, seed 101);
+  - `SESSION COMPLETE`.
+
+  The author saw `DRIVER EXIT 0`.
+- **The times (CET, 2026-11-03):**
+  - the token at 11:23:01, and the first run started at 11:24:05;
+  - the last run finished at 12:50:28, and the capture's last write is 12:50:31;
+  - 1.46 h on the wall, and 1.41 h of training on the records' clock: 1.05 of the 1.33 planned hours. K.3 said about 1.4 h.
+- **The coordinator's own script** (K.1's, moved to runs 1–225; CPU, read-only):
+  - The code's order of all 255 runs equals the manifest written out by hand.
+  - **Every record and checkpoint of runs 1–225:** its cell, seed, recipe, label and steps, the checkpoint's sha256 and canonical
+    digest, a finite final loss and finite window means. 0 problems.
+  - **T6's recipe, written out by hand:** the grid's `iql_t` at batch 1,280 with `target_dropout` `off` (A27(c)), in all 14 runs.
+  - **T6's 14 runs** ran on `cuda` with OMP and MKL at one thread, 40,000 steps each, in run order, none overlapping, all inside the
+    session.
+  - **Runs 1–211** are untouched: their files' times are before T6.
+  - `training_status`: 255 declared, 225 done. No `.partial`, STOP or token is left.
+  - **The GPU trace:** 262 samples, the largest gap 20.1 s. Inside runs, utilisation was at least 28 % (median 49 %); memory peaked
+    at 1,280 MiB.
+  - **G.2 again:** the checkpoints' `runtime.git_commit` is `f3a0e05` for #212 (written at 11:29:55) and `dd97de7` for #213–#225,
+    none dirty: `main`'s HEAD at each write, since the coordinator's docs commit `dd97de7` landed at 11:35:20. T6's code commit is
+    `c58afb8`, from its token line.
+- **The inputs, built inside T6:**
+  - `mappo1000` before #212, within the 64 s from the token to its start;
+  - `maxpressure` in 62 s, between #215 (11:48:30) and #216 (11:49:32);
+  - `fixedtime` in 47 s, between #220 (12:20:28) and #221 (12:21:15).
+- **Measured seconds per tier** (the records' clock, uncontrolled, A27(a)), against the planning estimate:
+
+  | Arm | Tier | Runs | Measured: min–max, mean | Planned |
+  |---|---|---|---|---|
+  | `iql_t` | `mappo1000` | 4 (#212–#215) | 345.4–387.8 s, 364.9 s | 342.7 s |
+  | `iql_t` | `maxpressure` | 5 | 365.5–373.9 s, 370.2 s | 342.7 s |
+  | `iql_t` | `fixedtime` | 5 | 341.3–371.8 s, 349.9 s | 342.7 s |
+
+  - All 14 took 341.3–387.8 s, with a mean of 361.4 s: 1.05 of the plan's 342.7 s (P8.2's `iql` median of 298 s, times A27(c)'s
+    1.15).
+  - The GPU's memory was at most 1,280 MiB, against 7,549 MiB during #211 in T5, which followed `iql_m` (batch 20,480) in the same
+    process. As with #188–#190 (K.1), the cause is not measured, and no reported number changes (A27(a)).
+- **`plateaued`** is true for 3 runs (#212, #213 and #215) and false for 11. It is recorded per run; no gate of the campaign depends
+  on it.
+
+## L.2 T7, checked before clearing (the listings of `output/p9_1*` and of the corpus root unchanged)
+- From the run tree (clean and detached at `c58afb8`), `check --stage train` printed `{"ok": true, "stage": "train"}`.
+- `train --hours 5.4 --plan-only` planned #226 to #235: 10 runs, 5.32 planned hours (19,148.5 s), 30 missing, 225 done. That is
+  K.4's T7:
+  - the grid's `iql_t` on `random` (5 runs);
+  - then `random_fresh`'s `dt_nomix` (5 runs).
+
+  At 5.3 h the plan ends at #234. At 5.5 h it takes #236, `random_fresh`'s first `bc_m`, whose grid inputs T8 builds after its own
+  check (L.4).
+- **The memory check.** The coordinator built T7's inputs in `train`'s order and kept each one, as `train` does. That includes
+  the IQL table, which `train` builds at the first `iql_t` run and keeps on the inputs. A guard thread would stop the check when
+  the machine's available memory fell below 5 GiB. Before the check, 42.4 GiB of the 47.0 GiB were available.
+
+  | After | Built in | Held | Machine available |
+  |---|---|---|---|
+  | `random`'s grid inputs | 112.2 s | 15.5 GiB (peak 26.3 GiB) | 27.4 GiB (lowest 16.6 GiB, during the build) |
+  | and their IQL table (1,152,000 transitions) | 5.1 s | 15.4 GiB | 27.4 GiB |
+  | and `random_fresh`'s DT parts | 5.0 s | 15.4 GiB | 27.4 GiB |
+  | and one DT run's stack | 30.1 s | 18.9 GiB | 23.8 GiB |
+  | during the timing below, on `cuda` | — | 19.2 GiB | 23.8 GiB |
+
+  - **So T7's peak is `random`'s build, at the session's start:** 26.3 GiB, with about 16 GiB of the machine left. For the rest
+    of the session it holds about 19 GiB, with about 24 GiB left, the CUDA context included.
+  - **`random`'s inputs** are J.2's: 3,200 streams, 320 kept by each top-10 % selection, the group (40, 8) and a finite IQL
+    reward scale, from `cf_grid4x4__random`.
+  - **`random_fresh`'s DT parts:** 16 nodes, 200 of 200 episodes chosen, 3,200 streams, `state_dim` 40 and `n_actions` 8. A27(d)'s
+    distinct-schedule check passed.
+  - **The stack:** windows of 1,152,000 × 20 with 40 state features, 4.07 GiB by its arrays' sizes, and the member index
+    (72,000, 16).
+    - Each DT run builds its own: `train_run` passes `parts["stack"]()` straight to the trainer, so one stack is held at a time.
+    - Releasing it took the process from 19.2 to 15.8 GiB.
+- **The timing of the grid's `dt_nomix`.** It is the campaign's first measured figure for that arm; K.4 required one before T7.
+  - **The run:** the run tree's `train_tier_dt`, on the stack above, on `cuda`, at two budgets.
+    - It used the campaign's arguments (batch 64, deterministic off, OMP and MKL at one thread), except the budget, the
+      checkpoint path and the log interval.
+    - The checkpoints went to the coordinator's scratchpad; they are not runs of the campaign.
+  - **The result:**
+    - 300 steps took 28.0 s, and 2,300 steps took 218.1 s, measured over the gradient loop, as a run record's seconds;
+    - that is 95.0 ms per step, from the difference, which cancels the start-up;
+    - a 40,000-step run projects to 3,801 s, 1.09 of the plan's 3,487 s;
+    - torch's allocated CUDA memory peaked at 2,382 MiB.
+  - **The plan's 3,487 s** is P5.1's median on `mappo1000` (3,305–3,515 s, `docs/data/p8_2_compute.json`). P5.2's runs on the
+    grid's other tiers took 3,027–3,988 s.
+- **The hours. By the measured figures, T7 trains about 5.8 h:**
+  - five `dt_nomix` runs at 3,801 s: 5.28 h;
+  - five `iql_t` runs at T6's 341–388 s: 0.47–0.54 h.
+
+  Building `random`'s inputs, `random_fresh`'s parts and five stacks adds about 5 minutes. **That makes about 5.9 h in all**, or
+  about 6.2 h if each DT run took P5's slowest 3,988 s.
+  - The plan's 5.32 h rests on the planned 3,487 s. So the pane's session line, which prints the bound (`about 5.4 hours`), is
+    about half an hour short.
+  - The bound stays at 5.4 h, because 5.5 h would take #236 and build `random_fresh`'s grid inputs before their check.
+  - Sessions of about 6 h have been cleared under the author's rule since T1 (F.3), so T7 is not split.
+
+## L.3 ✅ THE TOKEN: training session T7 (the author's tmux `p91`)
+**T7 runs about 6 hours without a break:**
+- about 5.8 h of training by the coordinator's measured figures (L.2);
+- plus about 5 minutes to build its inputs.
+
+It ends by itself at the end of its plan. Its pane says "about 5.4 hours": that is the bound, and the measured figures say
+about 6.
+- **What it trains:** runs #226–#235, 10 runs:
+  - the grid's `iql_t` on `random`, seeds 101–505 (5 runs; A27(c));
+  - `random_fresh`'s `dt_nomix`, seeds 101–505 (5 runs; A27(d)).
+- **Before it and while it runs:**
+  - nothing else trains on the laptop's GPU;
+  - nothing memory-heavy runs on the laptop's WSL beside it;
+  - P9.3's test runs and its preview (`BRIEF_48` J.9), one process at a time, with `OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`, may run
+    beside it. T7's margin is about 16 GiB during `random`'s build, in its first two minutes, and about 24 GiB after;
+  - keep the laptop plugged in and awake.
+- **The command** is T6's, with `P91_SESSION_HOURS=5.4` and its own refusal text. At the pane's prompt, as one line:
+  ```
+  /home/filip/rltraffic/.venv/bin/python -c "import sys, torch; sys.exit(0 if torch.cuda.is_available() else 'NO CUDA: T7 not started')" && touch /home/filip/rltraffic/output/p9_1_runs/TOKEN_train && P91_SESSION_HOURS=5.4 bash /home/filip/rltraffic-p91-run-d/offline/campaigns/p9_1_corrective.sh train c58afb8 2>&1 | tee -i -a /home/filip/rltraffic/output/p9_1_runs/train_capture.txt; echo "DRIVER EXIT ${PIPESTATUS[0]}"
+  ```
+- **The pane** shows the token line, the session line (`it runs about 5.4 hours without a break`) and the plan (`SESSION: runs
+  #226 … to #235 …: 10 runs, 5.32 planned hours`). Then it is quiet until the end. Progress is in
+  `output/p9_1_runs/logs/<stamp>/train.log`.
+- **Done when** the capture shows:
+  - `train: ok`;
+  - the summary (`SESSION: 10 runs trained …; ended by the plan; 20 runs missing, 4.06 planned hours left`);
+  - `stage train <stamp>: SESSION COMPLETE …`.
+
+  The pane must also show `DRIVER EXIT 0`.
+- **To end it early:** `touch /home/filip/rltraffic/output/p9_1_runs/STOP`. The session ends after the run in flight:
+  - up to about 7 minutes later during the `iql_t` runs;
+  - up to about 64 minutes later during the `dt_nomix` runs, which are planned at 58 minutes and measured at about 63.
+
+  Remove the file by hand before the next session.
+- **A failure, and Ctrl+C:** as F.3. A run killed for memory leaves no checkpoint and no record, so it reads as missing: report it.
+
+## L.4 After T7: T8, the last training session
+- **T8: #236–#255, 20 runs, 4.06 planned hours, at `P91_SESSION_HOURS=6`** (K.4).
+  - It trains `random_fresh`'s four A27(b) arms: `bc_m`, `bc_top10_m`, `bc_top10_perix_m` and `iql_m`.
+  - By T5's measured figures for the same arms on `random`, that is about 3.6 h of training.
+- **Before T8 is cleared,** the coordinator checks `random_fresh`'s grid inputs in a fresh process, as T8 builds them (J.4).
+- After T8, all 255 runs are trained. P9.1's evaluation is cleared in its own amendment, and P9.3's `old-cells` waits for P9.1's
+  merge (`BRIEF_48` J.9).
+
+---
+
+# ✅ AMENDMENT M — 2026-11-04: T7 VERIFIED from disk (`dt_nomix` at 0.98 of its measured projection); `random_fresh`'s grid inputs checked in a fresh process; training session T8, the last, CLEARED (runs #236–#255, about 3.7 h without a break)
+
+## M.1 T7, verified by the coordinator from disk
+- **The capture** (`output/p9_1_runs/train_capture.txt`) shows, in order:
+  - the token line (`stage train 20261103T152830Z from /home/filip/rltraffic-p91-run-d at c58afb8`);
+  - the session line (`it runs about 5.4 hours without a break`) and the plan (#226–#235, 10 runs, 5.32 planned hours);
+  - `train: ok`;
+  - the summary (`10 runs trained in 20291.1 s (their records' clock); ended by the plan; 20 runs missing, 4.06 planned hours
+    left`), whose next missing run is #236 (`grid4x4:bc_m@random_fresh`, seed 101);
+  - `SESSION COMPLETE`.
+
+  The author saw `DRIVER EXIT 0`. The stage's log counts 10 runs trained and 225 skipped as done, and has no warning, error or
+  traceback line.
+- **The times (CET, 2026-11-03):**
+  - the token at 16:28:30, and the first run started at 16:30:04;
+  - the last run finished at 22:11:12, and the capture's last write is 22:11:13;
+  - 5.71 h on the wall, and 5.64 h of training on the records' clock: 1.06 of the 5.32 planned hours. L.3 said about 6 h.
+- **The coordinator's own script** (L.1's, moved to runs 1–235; CPU, read-only):
+  - The code's order of all 255 runs equals the manifest written out by hand.
+  - **Every record and checkpoint of runs 1–235:** its cell, seed, recipe, label and steps, the checkpoint's sha256 and canonical
+    digest, a finite final loss and finite window means. 0 problems.
+  - **T7's recipes, written out by hand:**
+    - the grid's `iql_t` at batch 1,280 with `target_dropout` `off` (A27(c)), in #226–#230;
+    - the grid's `dt_nomix` at 64 joint windows, with no IQL targets and `deterministic` `false` in its record (P5.1 / P5.2's
+      registered recipe on A27(d)'s tier), in #231–#235.
+
+    Each T7 checkpoint's A27 provenance (arm, base, targets, registration, point and campaign) equals the hand-written fields.
+  - **T7's 10 runs** ran on `cuda` with OMP and MKL at one thread, 40,000 steps each, in run order, none overlapping, all inside
+    the session.
+  - **Runs 1–225** are untouched: their files' times are before T7.
+  - `training_status`: 255 declared, 235 done. No `.partial`, STOP or token is left.
+  - **The GPU trace:** 1,026 samples, the largest gap 20.1 s. Memory peaked at 3,428 MiB during `dt_nomix` and at 1,276 MiB
+    during `iql_t`; utilisation's median was 95 % and 46 %.
+    - 7 samples read 0 % utilisation: one during `random`'s build, before #226, and six in the first 2–22 s of the `dt_nomix`
+      runs, one or two in each, while each run builds its own stack on the CPU.
+  - **G.2 again:** the checkpoints' `runtime.git_commit` is `63a6dde` for #226 (written at 16:35:51) and `2a0d3d8` for
+    #227–#235, none dirty: `main`'s HEAD at each write, since the coordinator's docs commits landed at 16:35:04 and 16:37:20.
+    T7's code commit is `c58afb8`, from its token line.
+- **The inputs, built inside T7:**
+  - `random`'s grid inputs before #226, within the 94 s from the token to its start, and their IQL table inside #226, whose wall
+    exceeds its gradient loop by 5.8 s;
+  - `random_fresh`'s DT parts in the 5.7 s between #230 (16:58:06) and #231 (16:58:12);
+  - each `dt_nomix` run's stack inside that run: its wall exceeds its gradient loop by 31.1–34.9 s (L.2 measured 30.1 s).
+- **Measured seconds per arm** (the records' clock, uncontrolled, A27(a)), against the planning estimate:
+
+  | Arm | Tier | Runs | Measured: min–max, mean | Planned |
+  |---|---|---|---|---|
+  | `iql_t` | `random` | 5 (#226–#230) | 330.9–341.1 s, 335.1 s | 342.7 s |
+  | `dt_nomix` | `random_fresh` | 5 (#231–#235) | 3,587.5–3,792.9 s, 3,723.1 s | 3,487 s |
+
+  - `dt_nomix`'s mean is 1.07 of the plan and 0.98 of the coordinator's projection of 3,801 s (L.2). All five lie inside P5's
+    3,027–3,988 s for the grid's DT runs.
+  - `iql_t` on `random` took 0.98 of the plan.
+- **`plateaued`** is true for #228 and for all five `dt_nomix` runs, and false for the other four `iql_t` runs. It is recorded
+  per run; no gate of the campaign depends on it.
+- **Beside T7:**
+  - The coordinator's own seven-file pytest run (16:28:01–16:33:12, `BRIEF_48` J.10) ran during `random`'s build and the first
+    three minutes of #226, as L.3 allows.
+  - #226 took 341.1 s, the slowest of the five `iql_t` runs and 3 % above the fastest. Its seconds are uncontrolled (A27(a)),
+    and no number changes.
+  - The coordinator knows of no other run beside T7. P9.3's branch has no commit since `cb6a942`.
+
+## M.2 T8, checked before clearing (the listings of `output/p9_1*` and of the corpus root unchanged)
+- **Before the check:**
+  - No trainer or pytest process ran; this was checked outside the sandbox, read-only.
+  - The GPU held no compute process, and 42.6 GiB of the machine were available.
+  - The listing of `output/p9_1*` differs from the one taken after L.2's check by T7's 23 new paths, the capture's growth and
+    four directories' times. The 23 are 10 checkpoints, 10 records, and the session's log directory with its two files. No path
+    is missing, and the corpus listing is unchanged.
+- **The module's own checks.** From the run tree (clean and detached at `c58afb8`):
+  - `check --stage train` printed `{"ok": true, "stage": "train"}`.
+  - `train --plan-only` at 4.1 h and at 6 h planned the same: #236 to #255, 20 runs, 4.06 planned hours (14,621.5 s), 20
+    missing, 235 done. At 4.0 h the plan ends at #254.
+- **The plan's 20 runs** are `random_fresh`'s four A27(b) arms, seeds 101–505 each, in the hand-written order:
+  - #236–#240 `bc_m`;
+  - #241–#245 `bc_top10_m`;
+  - #246–#250 `bc_top10_perix_m`;
+  - #251–#255 `iql_m`.
+
+  Their recipes equal A27(b)'s, written out by hand: 1,024, 102 and 102 windows, and 20,480 transitions with A27(c)'s targets;
+  40,000 steps each.
+- **The memory check, in a fresh process.** The coordinator built T8's inputs as `train` builds them at #236:
+  - A27(d)'s distinct-schedule check, then `tier_sweep.baselines_inputs`;
+  - kept with their IQL table, which `train` builds at #251 and keeps on the inputs.
+
+  A guard thread would stop the check below 5 GiB available; 42.4 GiB were available before it.
+
+  | After | Built in | Held | Machine available |
+  |---|---|---|---|
+  | `random_fresh`'s grid inputs | 57.1 s | 11.4 GiB (peak 15.4 GiB) | 31.3 GiB (lowest 27.4 GiB, during the build) |
+  | and their IQL table (1,152,000 transitions) | 2.6 s | 11.4 GiB | 31.4 GiB |
+
+  - **The inputs:**
+    - A27(d)'s distinct-schedule check passed;
+    - 3,200 streams, from `cf_grid4x4__random_fresh`, with 320 kept by each top-10 % selection;
+    - the group (40, 8) and a finite IQL reward scale;
+    - the windowed batches: 1,152,000 windows for `bc` (4.06 GiB), and 115,200 for each top-10 % arm (0.41 GiB each).
+  - **So T8 peaks at its start, at 15.4 GiB, with about 27 GiB of the machine left.** That is lower than `random`'s 26.3 GiB
+    (L.2). `random`'s directory holds 400 episodes and `random_fresh`'s 200, and each tier trains on 3,200 streams. The
+    coordinator did not measure the cause further.
+- **The hours.** T8 trains the four arms that T5 trained on `random` (#191–#210), on inputs of the same size: 3,200 streams, and
+  1,152,000 windows and transitions.
+  - Those 20 runs took 13,047.3 s on the records' clock, 3.62 h: 0.89 of their plan. From first start to last end they took
+    3.63 h.
+
+  | Arm | On `random` in T5: min–max, mean | Planned |
+  |---|---|---|
+  | `bc_m` | 482.0–489.0 s, 484.5 s | 543.0 s |
+  | `bc_top10_m` | 88.4–96.0 s, 92.5 s | 97.0 s |
+  | `bc_top10_perix_m` | 89.8–94.4 s, 92.3 s | 97.0 s |
+  | `iql_m` | 1,919.7–1,948.7 s, 1,940.1 s | 2,187.3 s |
+
+  - **So T8 runs about 3.7 h:** 3.6 h of training and about a minute for its inputs. At its plan's figures it would take about
+    4.1 h.
+  - **The bound is 4.1 h, not K.4's and L.4's 6 h.**
+    - In the train stage the bound only chooses the plan. There is no deadline: the session ends at its plan's end or at STOP.
+    - 4.1 h and 6 h plan the same 20 runs (checked above).
+    - The pane's session line prints the bound, so it now says about 4.1 hours instead of 6.
+
+## M.3 ✅ THE TOKEN: training session T8 (the author's tmux `p91`)
+**T8 runs about 3.7 hours without a break:**
+- about 3.6 h of training, by T5's measured figures for the same arms on `random` (M.2);
+- plus about a minute to build its inputs.
+
+It ends by itself at the end of its plan. Its pane says "about 4.1 hours": that is the bound. T8 is the last training session;
+after it, all 255 runs are trained.
+- **What it trains:** runs #236–#255, 20 runs: `random_fresh`'s `bc_m`, `bc_top10_m`, `bc_top10_perix_m` and `iql_m`, seeds
+  101–505 each (A27(b) on A27(d)'s tier).
+- **Before it and while it runs:**
+  - nothing else trains on the laptop's GPU;
+  - nothing memory-heavy runs on the laptop's WSL beside it;
+  - P9.3's test runs may run beside it, one process at a time, with `OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`. T8's margin is
+    about 27 GiB during its inputs' build, in its first minute, and about 31 GiB after;
+  - keep the laptop plugged in and awake.
+- **The command** is T7's, with `P91_SESSION_HOURS=4.1` and its own refusal text. At the pane's prompt, as one line:
+  ```
+  /home/filip/rltraffic/.venv/bin/python -c "import sys, torch; sys.exit(0 if torch.cuda.is_available() else 'NO CUDA: T8 not started')" && touch /home/filip/rltraffic/output/p9_1_runs/TOKEN_train && P91_SESSION_HOURS=4.1 bash /home/filip/rltraffic-p91-run-d/offline/campaigns/p9_1_corrective.sh train c58afb8 2>&1 | tee -i -a /home/filip/rltraffic/output/p9_1_runs/train_capture.txt; echo "DRIVER EXIT ${PIPESTATUS[0]}"
+  ```
+- **The pane** shows the token line, the session line (`it runs about 4.1 hours without a break`) and the plan (`SESSION: runs
+  #236 … to #255 …: 20 runs, 4.06 planned hours`). Then it is quiet until the end. Progress is in
+  `output/p9_1_runs/logs/<stamp>/train.log`.
+- **Done when** the capture shows:
+  - `train: ok`;
+  - the summary (`SESSION: 20 runs trained …; ended by the plan; 0 runs missing, 0.00 planned hours left`);
+  - `stage train <stamp>: SESSION COMPLETE …`.
+
+  The pane must also show `DRIVER EXIT 0`.
+- **To end it early:** `touch /home/filip/rltraffic/output/p9_1_runs/STOP`. The session ends after the run in flight:
+  - up to about 8 minutes later during the `bc_m` runs, and about 2 minutes during the top-10 % arms;
+  - up to about 33 minutes later during the `iql_m` runs.
+
+  Remove the file by hand before the next session.
+- **A failure, and Ctrl+C:** as F.3. A run killed for memory leaves no checkpoint and no record, so it reads as missing: report it.
+
+## M.4 After T8
+- The coordinator verifies T8 from disk, as M.1 does T7. All 255 runs are then trained.
+- P9.1's evaluation is cleared in its own amendment, after its own check.
+- P9.3's `old-cells` waits for P9.1's merge (`BRIEF_48` J.9).
+
+---
+
+# ✅ AMENDMENT N — 2026-11-04, evening: T8 VERIFIED from disk — P9.1's TRAINING COMPLETE, 255 of 255 runs; the evaluate stage's check UNDER WAY (cleared in Amendment O)
+
+## N.1 T8, verified by the coordinator from disk: P9.1's training is COMPLETE
+- **The capture** (`output/p9_1_runs/train_capture.txt`) shows, in order:
+  - the token line (`stage train 20261104T150356Z from /home/filip/rltraffic-p91-run-d at c58afb8`);
+  - the session line (`it runs about 4.1 hours without a break`) and the plan (#236–#255, 20 runs, 4.06 planned hours);
+  - `train: ok`;
+  - the summary (`20 runs trained in 12373.8 s (their records' clock); ended by the plan; 0 runs missing, 0.00 planned hours
+    left`), whose next missing run is `null`;
+  - `SESSION COMPLETE`.
+
+  The author saw `DRIVER EXIT 0`. The stage's log counts 20 runs trained and 235 skipped as done, and has no warning, error or
+  traceback line.
+- **The times (CET, 2026-11-04):**
+  - the token at 16:03:56, and the first run started at 16:04:59;
+  - the last run finished at 19:31:25, and the capture's last write is 19:31:28;
+  - 3.46 h on the wall, and 3.44 h of training on the records' clock: 0.85 of the 4.06 planned hours. M.3 said about 3.7 h.
+- **The coordinator's own script** (M.1's, moved to all 255 runs; CPU, read-only):
+  - The code's order of all 255 runs equals the manifest written out by hand.
+  - **Every record and checkpoint of all 255 runs:** its cell, seed, recipe, label and steps, the checkpoint's sha256 and canonical
+    digest, a finite final loss and finite window means. 0 problems.
+  - **T8's recipes, written out by hand from A27(b):** `bc_m` at 1,024 windows, `bc_top10_m` and `bc_top10_perix_m` at 102, and
+    `iql_m` at 20,480 transitions with `target_dropout` `off`. None of their records has a `deterministic` field, which only the DT
+    records carry.
+
+    Each T8 checkpoint's A27 provenance (arm, base, targets, registration, point and campaign) equals the hand-written fields. Its
+    registration is `A27(b)` for the three BC arms and `A27(b) with A27(c)'s targets` for `iql_m`, and its point is `A27(d)`.
+  - **T8's 20 runs** ran on `cuda` with OMP and MKL at one thread, 40,000 steps each, in run order, none overlapping, all inside the
+    session.
+  - **Runs 1–235** are untouched: their files' times are before T8.
+  - `training_status`: 255 declared, **255 done**. No `.partial`, STOP or token is left.
+  - **The GPU trace:** 622 samples, the largest gap 20.2 s. Memory peaked at 7,827 MiB during `iql_m` and at 7,824 MiB during
+    `bc_m`, of the GPU's 16,303 MiB. Utilisation's median was 96 % inside the runs. The one sample at 0 % lies outside every run.
+  - **G.2 again:** the checkpoints' `runtime.git_commit` is `dc99753` for all 20, none dirty: `main`'s HEAD throughout T8, since the
+    coordinator's docs commit landed at 14:01:50, before it. T8's code commit is `c58afb8`, from its token line.
+- **The inputs, built inside T8:** `random_fresh`'s grid inputs in the 63.9 s between the token and #236 (M.2 measured 57.1 s), and
+  their IQL table inside #251, whose wall exceeds its gradient loop by 3.1 s.
+- **Measured seconds per arm** (the records' clock, uncontrolled, A27(a)), against T5's figures on `random` (M.2) and the plan:
+
+  | Arm | Runs | On `random_fresh` (T8): min–max, mean | On `random` (T5): mean | Planned |
+  |---|---|---|---|---|
+  | `bc_m` | #236–#240 | 455.8–481.7 s, 473.3 s | 484.5 s | 543.0 s |
+  | `bc_top10_m` | #241–#245 | 82.5–87.0 s, 84.8 s | 92.5 s | 97.0 s |
+  | `bc_top10_perix_m` | #246–#250 | 82.9–85.6 s, 83.9 s | 92.3 s | 97.0 s |
+  | `iql_m` | #251–#255 | 1,786.8–1,883.4 s, 1,832.8 s | 1,940.1 s | 2,187.3 s |
+
+  The 20 runs took 0.95 of the same arms' 13,047.3 s on `random`.
+- **`plateaued`** is true for the 15 BC-family runs and false for the five `iql_m` runs. It is recorded per run; no gate of the
+  campaign depends on it.
+- **Beside T8:** the coordinator ran nothing, and knows of no other run. P9.3's two docs commits (15:06 and 15:08) came before it.
+- **The whole training:** 255 runs from 16:11 CET on 2026-10-28 (run #1) to 19:31 CET on 2026-11-04 (run #255), in the campaign
+  stage's three runs and sessions T1–T8. They took 36.00 h on the records' clock, 0.89 of the 40.55 planned hours.
+
+## N.2 The coordinator's error: a directory created under `output/`
+- To read T8's log, the coordinator ran `cd` into `output/p9_1_runs/logs/20261104T150356Z` in its main shell, against its own rule.
+  It ran only reading commands there (`ls`, `wc`, `grep`, `head`, `tail`) and left at once.
+- **The harness then created an empty `.claude/.cc-writes` directory in that log directory,** at 20:44:11. Nothing else changed:
+  `train.log` and `gpu_trace.csv` keep their sizes and their times (19:31:26 and 19:31:24), as N.1 read them.
+- **The directory stays where it is, recorded here, until the author rules on it.** Nothing under `output/` is deleted without that
+  ruling. Seven older empty `.claude` directories lie under `output/`, from earlier sessions (2026-10-27 to 2026-10-29).
+
+## N.3 Next
+- **The evaluate stage is cleared in its own amendment (O), after its check, which is under way.** F.2-2 asked P9.1 to report how
+  long a grid route (i) cell takes before the evaluate sessions are cleared. P9.1's branch has no commit since `9eb908a`
+  (2026-10-28), so the coordinator is timing the units itself, as L.2 timed `dt_nomix`'s training. Nothing starts before O.
+- **Meanwhile, for P9.1, on its branch** (nothing in the run tree): Q18 (F.2-3, E.7's G4 diagnostics, tests first), F.2-4's
+  docstring, and G.2's ruling in the report. They were set on 2026-10-29, they are needed before G4, and the branch has no commit
+  since. Tests run on the CPU only: one process, one thread, nothing on the GPU.
+- **P9.3** waits for P9.1's merge (`BRIEF_48` J.9, J.11).
+
+---
+
+# ✅ AMENDMENT O — 2026-11-04, night: the evaluate stage CHECKED and its units TIMED by the coordinator (F.2-2); evaluate session E1 CLEARED (`P91_SESSION_HOURS=4`: about 4 h without a break, at most about 4 h 40 min)
+
+## O.1 The evaluate stage, checked before clearing (read-only on `output/` and the corpus)
+- **What it does,** read in the run tree's driver and module at `c58afb8`. Each session runs, in order:
+  1. **`declare-evaluation`,** in one process. The first session writes three manifests, and a later one checks them unchanged.
+     They declare 13,500 hz1x1 and 13,000 grid route (ii) episodes, and 18,200 old-cell episodes. None is on disk yet.
+  2. **`evaluate`,** in six shards. Each shard takes every sixth of the 53 new cells, sorted by scenario, tier and arm, so the grid's
+     cells come first. Each cell runs:
+     - **route (i):** the CLI's own `evaluate`, 500 episodes (5 seeds × 100 held-out draws) in one call, which cannot stop inside;
+     - **route (ii):** P8.4b's runner on the same 500 episodes, each reproducing route (i)'s `att_ours` under `==`. It can stop
+       between episodes;
+     - **P3a,** for its four new cells: the 500 episodes rolled once more, each alone, with their actions recorded. This is one unit,
+       which cannot stop inside.
+  3. **`old-cells`,** in six shards: the 38 registered hz1x1 cells, 18,200 episodes, each reproducing its committed `att_ours` under
+     `==`. They can stop between episodes, and they start only after all six `evaluate` shards have ended.
+  4. **`p3a-references`,** in one process: P3a's two registered random references, 500 episodes each. It can stop between the two.
+  5. **`status`:** `COMPLETE`, or the units left.
+
+  A session ends at `P91_SESSION_HOURS` or at the stop file, **plus the unit in flight in each shard** (F.2-2). Any refusal stops
+  the stage: a disagreement between the routes is a finding, not a cell to skip.
+- **The shards** (`shard_of`, every sixth of the sorted cells):
+  - **shard 0:** four grid cells; then the grid's `dt_nomix@random_fresh` (route (i), route (ii) and P3a: 1,500 grid DT episodes);
+    then four hz1x1 cells;
+  - **shards 1–5:** four or five grid cells, then four or five hz1x1 cells. P3a's other new cells are shard 1's hz1x1
+    `behaviour@random_fresh`, shard 2's hz1x1 `dt@random_fresh` and shard 5's grid `behaviour@random_fresh`.
+- **The module's own checks.** From the run tree (clean and detached at `c58afb8`):
+  - `check --stage evaluate` printed `{"ok": true, "stage": "evaluate"}`;
+  - `status` reads 255 of 255 runs trained, 0 of 53 route (i) cells, no route (ii) or old-cell manifest yet, and 0 of 6 P3a cells.
+- **The listings.** The corpus listing is unchanged. Under `output/p9_1*`, the coordinator's checks and timing changed nothing
+  after N.2's directory.
+
+## O.2 F.2-2: how long the units take, MEASURED by the coordinator
+F.2-2 asked P9.1 to report how long a grid route (i) cell takes, so that the evaluate sessions' hours could be stated first. P9.1's
+branch has no commit since `9eb908a` (2026-10-28), so the coordinator timed the units itself, as L.2 timed `dt_nomix`'s training.
+- **The method: the pre-flight's own form** (`_preflight_a27_grid_path`):
+  - route (i) by the campaign's own argv (`route_i_command`), with `--seeds 101` and the first held-out draws through
+    `narrowed_held_out_draws`; for hz1x1, its two training aggregates were rebuilt from the run records into the scratchpad;
+  - route (ii) by `run_campaign` with the campaign's `a27_factory_builder`, and P3a by `record_episode_actions`;
+  - the old cells by `run_campaign` with P8.4b's own builder, on their committed values.
+
+  The checkpoints were read from `output/p9_1_runs/checkpoints`, and every file was written under the coordinator's scratchpad. The
+  runs were on `cuda`, with OMP and MKL at one thread, outside the sandbox. The scripts printed seconds, counts and flags only, and no
+  outcome value was read.
+- **Every timed episode reproduced its value under `==`.** 1,530 route (ii) episodes (30 on the grid and 1,500 on hz1x1) and 20 P3a
+  episodes reproduced route (i), and 40 old-cell episodes reproduced their committed `att_ours`. No episode was refused.
+- **The grid, alone** (10 episodes each, draws 1000–1009), **and six processes at once** (`dt_nomix` for 10 episodes, five BC and
+  IQL arms on `fixedtime` for 40 each):
+
+  | Unit | Alone, s per episode | Six at once, s per episode | One 500-episode unit, six at once |
+  |---|---|---|---|
+  | `dt_nomix@random_fresh`: route (i) / route (ii) / P3a | 3.13 / 2.91 / 2.72 | 4.23 in route (i) | route (i) about 35 min; P3a about 32 min |
+  | `bc_m@fixedtime`: route (i) / route (ii) | 1.98 / 1.96 | 2.78 in route (i) | route (i) about 23 min |
+  | `bc_top10_m` and `bc_top10_perix_m` (`fixedtime`): route (i) | — | 2.78 | about 23 min |
+  | `iql_m@fixedtime` and `iql_t@fixedtime`: route (i) | 2.23 (`iql_m`) | 2.86 and 2.87 | about 24 min |
+  | `behaviour@random_fresh`: route (i) / route (ii) / P3a | 1.40 / 1.45 / 1.53 | — | about 16–18 min |
+
+  - **Six at once is 1.28–1.41 times slower than alone:** `iql_m` 1.28, `dt_nomix` 1.35 and `bc_m` 1.41.
+  - `behaviour@random_fresh` ran beside one other process, the coordinator's hz1x1 timing.
+  - With six processes, the GPU held at most 2,171 MiB of its 16,303, at a median utilisation of 27 %. The host kept at least
+    37.6 GiB available, and no process exceeded 1.26 GiB.
+  - **C.4's smoke figures are not the campaign's.** On its two-step checkpoints, the grid's `dt_nomix` took 9.3 s per route (ii)
+    episode; the trained checkpoints take 2.9–3.1 s.
+- **hz1x1, alone,** over whole cells of 500 episodes (O.3-6), **and the old cells, alone,** over the first 10 committed episodes of
+  four cells:
+
+  | Unit | Alone, s per episode | One 500-episode unit, six at once (× 1.40) |
+  |---|---|---|
+  | hz1x1 `dt@random_fresh`: route (i) / route (ii) | 1.85 / 1.81 | route (i) about 22 min |
+  | hz1x1 `iql_t@mappo1000`: route (i) / route (ii) | 1.05 / 1.06 | route (i) about 12 min |
+  | hz1x1 `bc_100k@mappo1000`: route (i) / route (ii) | 0.95 / 0.98 | route (i) about 11 min |
+  | old cells `iql@maxpressure`, `madt`, `mappo1000` and `behaviour@fixedtime` | 1.01, 1.73, 1.69 and 0.66 | per episode |
+
+  - **The old cells take 6.05 h alone in all, 0.78–1.23 h per shard.** This weights each old cell's committed episodes by its
+    family's rate: the BC and IQL arms as measured, the registered DTs as `madt`, the MAPPO behaviour cells as `mappo1000`, and the
+    rule-based ones as `behaviour@fixedtime`.
+  - The hz1x1 `behaviour@random_fresh` cell is not timed. It is taken at 1.0 s per episode.
+- **The projection.** The coordinator's script runs each shard's units in the module's order, at these rates. While n shards run,
+  each is slowed by 1 + k (n − 1). With k from 0.07 to 0.09, that is 1.35–1.45 for six, around the measured 1.28–1.41.
+  - **The whole stage takes about 8.0–8.5 h.**
+    - The six `evaluate` shards end after 4.8–6.5 h.
+    - The old cells wait for the last of them, and end about 1.6–1.7 h later.
+    - P3a's references take about 0.35 h after that.
+  - **At a 4-h deadline,** each shard is either between two route (ii) episodes or finishing an hz1x1 route (i) cell with minutes
+    left. So the session ends at about 4.1 h, with 0.6–1.9 h of alone-work left per shard.
+  - **The next session** runs the rest of `evaluate` (about 2.0–2.4 h), then the old cells and P3a's references: about 3.9–4.5 h
+    in all.
+  - The grid's rates come from its first 10 or 40 held-out draws, and the draws' demand varies. E1's own records will show by
+    how much.
+
+## O.3 Rulings
+1. **F.2-2 is answered by O.2's measurement.** P9.1's own report of it is no longer needed.
+2. **The evaluation runs in sessions of about four hours.**
+   - E1 is cleared now at `P91_SESSION_HOURS=4`, with six workers (the cap).
+   - E2 is cleared after E1 is verified, with its hours from E1's own records: the route (i) files' times and the shards' logs.
+   - A third, short session follows only if E2 would otherwise run past about five hours.
+3. **E1's hours.** It runs about 4 hours without a break.
+   - At its deadline, the projection finds each shard either between two route (ii) episodes or minutes from the end of an hz1x1
+     route (i) cell. So E1 should end at about 4.1 h.
+   - The longest unit that cannot stop is the grid's `dt_nomix` route (i), about 35 minutes with six shards running. So E1 runs at
+     most about 4 h 40 min, unless a stall restart re-rolls a unit that was in flight at the deadline.
+4. **The command checks CUDA first**, as the training's did. The workers run their policies on the GPU (`device` None), as the
+   coordinator's timing did. On the CPU they would be slower than every figure above.
+5. **Beside the evaluation:**
+   - no training and nothing else on the GPU;
+   - nothing memory-heavy on the laptop's WSL;
+   - P9.1's own work (O.5) may run one pytest process at a time, with `OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`;
+   - P9.3 runs nothing (`BRIEF_48` J.11).
+
+   Its values do not depend on the machine's load, only its hours do.
+6. **The coordinator's error in the timing.** `method_tier_grid` binds the held-out draws when it is imported, so
+   `narrowed_held_out_draws` does not narrow them there. The coordinator's hz1x1 timing therefore rolled each cell's 500 episodes
+   instead of 10: about an hour of one CPU core, every file in its scratchpad, and no value read. The campaign never narrows draws,
+   so nothing in it changes.
+7. **The coordinator's timing outputs are kept** in its scratchpad: route (i) for three whole hz1x1 cells, and the grid's first
+   draws. At E1's verification the coordinator compares them with E1's own route (i) files by program, printing only counts of equal
+   episodes: the same code, checkpoints and seeds must give the same values. `/tmp` does not survive a restart of WSL; if they are
+   lost, that check is skipped and said so.
+
+## O.4 ✅ THE TOKEN: evaluate session E1 (the author's tmux `p91`)
+**E1 runs about 4 hours without a break, and at most about 4 h 40 min** (O.3-3). It ends by itself.
+- **What it runs:**
+  - `declare-evaluation`, which writes the three manifests once;
+  - the six `evaluate` shards until the deadline, 4 h after the session's start. Each shard then finishes its unit in flight.
+
+  The old cells and P3a's references come in a later session.
+- **Before it:**
+  - the coordinator's timing has ended (at 22:04:46), and no other P9.1 stage runs;
+  - nothing runs on the GPU;
+  - keep the laptop plugged in and awake.
+- **The command,** at the pane's prompt, as one line:
+  ```
+  /home/filip/rltraffic/.venv/bin/python -c "import sys, torch; sys.exit(0 if torch.cuda.is_available() else 'NO CUDA: E1 not started')" && touch /home/filip/rltraffic/output/p9_1_runs/TOKEN_evaluate && P91_SESSION_HOURS=4 WORKERS=6 bash /home/filip/rltraffic-p91-run-d/offline/campaigns/p9_1_corrective.sh evaluate c58afb8 2>&1 | tee -i -a /home/filip/rltraffic/output/p9_1_runs/evaluate_capture.txt; echo "DRIVER EXIT ${PIPESTATUS[0]}"
+  ```
+- **The pane** shows:
+  - the token line;
+  - the session line (`evaluate session: it runs about 4 hours without a break (P91_SESSION_HOURS), PLUS the unit of work in
+    flight in each shard …`). Its "7 min 47 s" is the smoke's hz1x1 cell: O.2 has the campaign's figures;
+  - `declare_evaluation: ok`.
+
+  Then it is quiet until the deadline. Progress is in `output/p9_1_runs/logs/<stamp>/evaluate_shard<k>.log`.
+- **Done when** the capture shows:
+  - `evaluate: 6 shards ended cleanly`;
+  - the `left:` line (route (i) cells, route (ii) episodes per scenario, P3a cells and old-cell episodes left);
+  - `stage evaluate <stamp>: SESSION ENDED at the hours bound (4 h) …`.
+
+  The pane must also show `DRIVER EXIT 0`. If everything is done, the last line is `stage evaluate <stamp>: COMPLETE …` instead.
+- **To end it early:** `touch /home/filip/rltraffic/output/p9_1_runs/STOP`. Each shard ends after its unit in flight: seconds in a
+  route (ii), up to about 35 minutes in a grid route (i) or P3a. The session then ends `at the stop file`. Remove the file by hand
+  before the next session.
+- **A failure:** `evaluate shard <k> FAILED` with the last lines of its log, then `FAILED: …` and `DRIVER EXIT 1`. Report it; nothing
+  is re-run without a ruling. A route (ii) episode that does not reproduce route (i) is a finding.
+- **A stall** (DEFERRED 104): a shard with no progress for 120 s is restarted, at most 60 times, and each restart is logged in
+  `restarts.log`. A restart rolls the unit in flight again from scratch, with the same seeds and values.
+- **Ctrl+C is the emergency stop only.** It loses the units in flight.
+
+## O.5 After E1, and meanwhile
+- **After E1:** the coordinator verifies it from disk (the route (i) files, the route (ii) episodes, P3a, the restarts, the logs),
+  then clears E2, its hours first.
+- **Meanwhile, for P9.1, on its branch** (nothing in the run tree): Q18 (F.2-3, E.7's G4 diagnostics, tests first), F.2-4's
+  docstring, and G.2's ruling in the report. These were set on 2026-10-29 and are needed before G4; the branch has no commit since.
+  Tests run CPU only, one process, one thread, nothing on the GPU.
+- **P9.3** waits for P9.1's merge (`BRIEF_48` J.9, J.11).
