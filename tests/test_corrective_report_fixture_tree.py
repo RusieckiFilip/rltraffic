@@ -183,18 +183,19 @@ def test_the_report_rebuilds_byte_for_byte_from_the_tree(tree: fx.FixtureTree, a
     assert {p.name: p.read_text(encoding="utf-8") for p in tmp_path.iterdir()} == texts
 
 
-def test_the_iql_diagnostics_beside_the_d4rl_section_are_every_iql_t_run_and_both_d4rl_arms(
+def test_the_iql_diagnostics_beside_the_d4rl_section_are_every_iql_family_run_and_both_d4rl_arms(
         artifacts: dict[str, dict[str, Any]]) -> None:
-    """Q18 (``BRIEF_46`` F.2-3) on the full-size tree: the 70 traffic ``iql_t`` runs' three values are the fixture's
-    own, found by run number; the D4RL rows are the committed P8.3 IQL cells, read straight from ``docs/data``, and the
-    fixture's re-run; no other artifact carries the block."""
+    """Q18 and Q19 (``BRIEF_46`` F.2-3, S.2) on the full-size tree: the 115 IQL-family traffic runs' arm, target mode and
+    three values are the fixture's own, found by run number; the D4RL rows are the committed P8.3 IQL cells, read
+    straight from ``docs/data``, and the fixture's re-run; no other artifact carries the block."""
     block = artifacts["p9_1_iql_targets.json"]["iql_diagnostics"]
-    expected = [((cell.scenario, cell.tier, int(seed)), fx.iql_diagnostics_of(number - 1))
-                for number, (cell, seed) in enumerate(cr.training_runs(), start=1) if cell.arm == "iql_t"]
-    got = [((r["scenario"], r["tier"], r["seed"]), (r["final_q_loss"], r["final_v_loss"],
-                                                     r["awr_weight_near_zero_fraction"]))
-           for r in block["traffic_iql_t"]["runs"]]
-    assert len(got) == 70 and got == expected
+    modes = {"iql_t": "off", "iql_m": "off", "iql": "active", "iql_100k": "active"}
+    expected = [((cell.scenario, cell.tier, cell.arm, int(seed), modes[cell.arm]), fx.iql_diagnostics_of(number - 1))
+                for number, (cell, seed) in enumerate(cr.training_runs(), start=1) if cell.arm in modes]
+    got = [((r["scenario"], r["tier"], r["arm"], r["seed"], r["target_dropout"]),
+            (r["final_q_loss"], r["final_v_loss"], r["awr_weight_near_zero_fraction"]))
+           for r in block["traffic_iql_family"]["runs"]]
+    assert len(got) == 115 and got == expected
     committed = json.loads((REPO / "docs" / "data" / "p8_3_d4rl_calibration.json").read_text(encoding="utf-8"))
     iql = sorted((c for c in committed["cells"] if c["arm"] == "iql"), key=lambda c: int(c["seed"]))
     rows = [(r["arm"], r["seed"], r["final_q_loss"], r["final_v_loss"], r["awr_weight_near_zero_fraction"])
@@ -204,6 +205,26 @@ def test_the_iql_diagnostics_beside_the_d4rl_section_are_every_iql_t_run_and_bot
         ("iql_t", int(s), *fx.d4rl_diagnostics_of(i)) for i, s in enumerate(TRAINING_SEEDS)]
     assert block["label"] == rep.DIAGNOSTICS_LABEL
     assert [name for name, payload in artifacts.items() if "iql_diagnostics" in payload] == ["p9_1_iql_targets.json"]
+
+
+def test_every_artifact_names_the_sessions_and_the_evaluations_commit_never_a_route_i_runtime_commit(
+        artifacts: dict[str, dict[str, Any]]) -> None:
+    """Q20 (S.2) on the full-size tree: every artifact carries the captures' sessions as the fixture wrote them and
+    the one commit of its three evaluate sessions; ``p9_1_iql_targets.json`` names the D4RL session beside its section.
+    hz1x1's route (i) files carry a planted main-tree HEAD in ``runtime.git_commit``, which no artifact contains."""
+    table = [(stage, fx.stamp_of(start), commit, tree)
+             for (stage, _, commit, tree), start in zip(fx.SESSIONS, fx.session_starts())]
+    evaluations = [f"evaluate {stamp}" for stage, stamp, _, _ in table if stage == "evaluate"]
+    for name, payload in artifacts.items():
+        assert [(s["stage"], s["stamp"], s["code_commit"], s["run_tree"]) for s in payload["sessions"]] == table, name
+        evaluation = payload["evaluation_code_commit"]
+        assert (evaluation["code_commit"], evaluation["run_tree"], evaluation["sessions"]) == (
+            "c58afb8", "/trees/run-d", evaluations), name
+        assert fx.ROUTE_I_RUNTIME_COMMIT not in rep.artifact_text(payload), name
+    d4rl = artifacts["p9_1_iql_targets.json"]["d4rl_session"]
+    assert (d4rl["code_commit"], d4rl["run_tree"], d4rl["sessions"]) == (
+        "cb61ee7", "/trees/run-c", [f"d4rl {stamp}" for stage, stamp, _, _ in table if stage == "d4rl"])
+    assert [name for name, payload in artifacts.items() if "d4rl_session" in payload] == ["p9_1_iql_targets.json"]
 
 
 def test_every_new_run_names_its_sessions_code_commit_and_run_tree(artifacts: dict[str, dict[str, Any]]) -> None:

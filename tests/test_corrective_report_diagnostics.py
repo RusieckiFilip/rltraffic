@@ -1,8 +1,11 @@
-"""E.7's G4 diagnostics (Q18; ``BRIEF_46`` Amendment F, F.2-3), beside ``p9_1_iql_targets.json``'s ``d4rl`` section.
+"""E.7's G4 diagnostics (Q18 and Q19; ``BRIEF_46`` Amendment F, F.2-3, and Amendment S, S.2), beside
+``p9_1_iql_targets.json``'s ``d4rl`` section.
 
 The block holds two things. First, each D4RL cell's final Q and V losses and AWR near-zero fraction, for ``iql`` and
-``iql_t``. Second, the same three values for every traffic ``iql_t`` run. The block is labelled as diagnostics, not
-registered statistics.
+``iql_t``. Second (S.2, Q19), the same three values for every IQL-family traffic run, 115 in all: ``iql_t`` (70),
+the grid's ``iql_m`` (25), hz1x1's ``iql`` and ``iql_100k`` (10 each). Each traffic row carries its arm and its
+``target_dropout``, read from its record and refused unless it is its recipe's. The block is labelled as diagnostics,
+not registered statistics.
 
 Where the values are (read first, F.2-3):
 - **The run record.** Every traffic ``iql_t`` run's ``p9.1-run/1.0`` record carries them in its ``diagnostics`` block,
@@ -21,6 +24,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -47,82 +51,104 @@ def _roots(tmp_path: Path) -> cr.Roots:
     return cr.Roots(repo_root=REPO, output_root=output, corpus_root=tmp_path / "corpus", draws_root=tmp_path / "draws")
 
 
-def _iql_t_runs() -> list[tuple[cr.Cell, int]]:
-    return [(cell, int(seed)) for cell, seed in cr.training_runs() if cell.arm == "iql_t"]
+#: The IQL-family arms (S.2), named here by hand, and the target mode each trains under (A27(b), A27(c)).
+IQL_FAMILY = {"iql_t": "off", "iql_m": "off", "iql": "active", "iql_100k": "active"}
+
+
+def _iql_family_runs() -> list[tuple[cr.Cell, int]]:
+    return [(cell, int(seed)) for cell, seed in cr.training_runs() if cell.arm in IQL_FAMILY]
 
 
 def _values(k: int) -> tuple[float, float, float]:
     return 2.0 + k / 4, 1.0 + k / 8, k / 128
 
 
-def _write_record(roots: cr.Roots, cell: cr.Cell, seed: int, diagnostics: Any) -> Path:
+def _write_record(roots: cr.Roots, cell: cr.Cell, seed: int, diagnostics: Any, **fields: Any) -> Path:
     path = cr.run_record_path(roots, cell.scenario, cell.tier, cell.arm, seed)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps({"format_version": cr.RUN_RECORD_FORMAT_VERSION, "scenario": cell.scenario,
                                 "tier": cell.tier, "arm": cell.arm, "seed": seed, **cr.recipe_fields(cell),
-                                "diagnostics": diagnostics, "clock": cr.CLOCK_LABEL}), encoding="utf-8")
+                                "diagnostics": diagnostics, "clock": cr.CLOCK_LABEL, **fields}), encoding="utf-8")
     return path
 
 
-def _diagnostics(k: int) -> dict[str, Any]:
-    """A trainer's block: the three fields among the others it carries."""
+def _diagnostics(k: int, target_dropout: str = "off") -> dict[str, Any]:
+    """A trainer's block: the three fields and the target mode among the others it carries."""
     q, v, near_zero = _values(k)
     return {"final_q_loss": q, "final_v_loss": v, "awr_weight_near_zero_fraction": near_zero,
-            "final_policy_loss": 9.0, "advantage_mean": -1.0, "diagnostic_positions": 20000, "target_dropout": "off"}
+            "final_policy_loss": 9.0, "advantage_mean": -1.0, "diagnostic_positions": 20000,
+            "target_dropout": target_dropout}
 
 
 def _write_all(roots: cr.Roots) -> None:
-    for k, (cell, seed) in enumerate(_iql_t_runs()):
-        _write_record(roots, cell, seed, _diagnostics(k))
+    for k, (cell, seed) in enumerate(_iql_family_runs()):
+        _write_record(roots, cell, seed, _diagnostics(k, IQL_FAMILY[cell.arm]))
 
 
-def test_the_traffic_iql_t_runs_are_the_seventy_written_out_by_hand() -> None:
-    runs = _iql_t_runs()
-    assert (len(runs), sum(c.scenario == "hz1x1" for c, _ in runs)) == (70, 50)
-    assert [(c.scenario, c.tier, s) for c, s in (runs[0], runs[49], runs[50], runs[69])] == [
-        ("hz1x1", "random", 101), ("hz1x1", "mix_m1000_m500", 505), ("grid4x4", "mappo1000", 101),
-        ("grid4x4", "random", 505)]
+def test_the_iql_family_runs_are_the_115_written_out_by_hand() -> None:
+    """S.2: ``iql_t`` 70 (hz1x1 50, the grid 20), the grid's ``iql_m`` 25, hz1x1's ``iql`` and ``iql_100k`` 10 each;
+    ``target_dropout`` ``off`` for 95 and ``active`` for 20, as each recipe trains."""
+    runs = _iql_family_runs()
+    assert len(runs) == 115
+    assert Counter((c.scenario, c.arm) for c, _ in runs) == {("hz1x1", "iql_t"): 50, ("grid4x4", "iql_t"): 20,
+                                                             ("grid4x4", "iql_m"): 25, ("hz1x1", "iql"): 10,
+                                                             ("hz1x1", "iql_100k"): 10}
+    assert Counter(cr.recipe_fields(c)["target_dropout"] for c, _ in runs) == {"off": 95, "active": 20}
+    assert all(cr.recipe_fields(c)["target_dropout"] == IQL_FAMILY[c.arm] for c, _ in runs)
+    assert all(cr.recipe_fields(c)["base"] != "iql" for c, _ in cr.training_runs() if c.arm not in IQL_FAMILY)
 
 
-def test_every_traffic_iql_t_run_gives_its_records_three_values_in_run_order(tmp_path: Path) -> None:
-    """Only the 70 ``iql_t`` records exist in this tree, so a reader of any other run's record fails here."""
+def test_every_iql_family_run_gives_its_arm_target_mode_and_three_values_in_run_order(tmp_path: Path) -> None:
+    """Only the 115 IQL-family records exist in this tree, so a reader of any other run's record fails here."""
     roots = _roots(tmp_path)
     _write_all(roots)
     expected = []
-    for k, (cell, seed) in enumerate(_iql_t_runs()):
+    for k, (cell, seed) in enumerate(_iql_family_runs()):
         q, v, near_zero = _values(k)
-        expected.append({"scenario": cell.scenario, "tier": cell.tier, "arm": "iql_t", "seed": seed,
-                         "final_q_loss": q, "final_v_loss": v, "awr_weight_near_zero_fraction": near_zero,
-                         "source": f"output/p9_1_runs/training/{cell.scenario}/{cell.tier}__iql_t__seed{seed}.json"})
-    assert rep.iql_t_diagnostics(roots) == expected
+        expected.append({"scenario": cell.scenario, "tier": cell.tier, "arm": cell.arm, "seed": seed,
+                         "target_dropout": IQL_FAMILY[cell.arm], "final_q_loss": q, "final_v_loss": v,
+                         "awr_weight_near_zero_fraction": near_zero,
+                         "source": f"output/p9_1_runs/training/{cell.scenario}/{cell.tier}__{cell.arm}__seed{seed}.json"})
+    assert rep.iql_family_diagnostics(roots) == expected
 
 
 @pytest.mark.parametrize(("damage", "message"), [
     (None, "carries no diagnostics block"),
-    ({"final_q_loss": 1.0, "final_v_loss": 1.0}, "no awr_weight_near_zero_fraction"),
-    ({"final_q_loss": float("nan"), "final_v_loss": 1.0, "awr_weight_near_zero_fraction": 0.5},
-     "final_q_loss is nan, not a finite number"),
-    ({"final_q_loss": "60.9", "final_v_loss": 1.0, "awr_weight_near_zero_fraction": 0.5},
-     "final_q_loss is '60.9', not a finite number"),
+    ({"final_q_loss": 1.0, "final_v_loss": 1.0, "target_dropout": "active"}, "no awr_weight_near_zero_fraction"),
+    ({"final_q_loss": float("nan"), "final_v_loss": 1.0, "awr_weight_near_zero_fraction": 0.5,
+      "target_dropout": "active"}, "final_q_loss is nan, not a finite number"),
+    ({"final_q_loss": 1.0, "final_v_loss": float("inf"), "awr_weight_near_zero_fraction": 0.5,
+      "target_dropout": "active"}, "final_v_loss is inf, not a finite number"),
+    ({"final_q_loss": "60.9", "final_v_loss": 1.0, "awr_weight_near_zero_fraction": 0.5,
+      "target_dropout": "active"}, "final_q_loss is '60.9', not a finite number"),
+    ({"final_q_loss": 1.0, "final_v_loss": 1.0, "awr_weight_near_zero_fraction": 0.5},
+     "has no target_dropout"),
+    ({"final_q_loss": 1.0, "final_v_loss": 1.0, "awr_weight_near_zero_fraction": 0.5, "target_dropout": "off"},
+     "target_dropout is 'off', not its recipe's 'active'"),
 ])
-def test_a_run_record_without_its_three_finite_values_is_refused(damage: Any, message: str, tmp_path: Path) -> None:
+def test_a_run_record_without_its_finite_values_or_its_recipes_target_mode_is_refused(
+        damage: Any, message: str, tmp_path: Path) -> None:
+    """On hz1x1's ``iql`` (recipe ``active``): every damage is refused, naming the run."""
     roots = _roots(tmp_path)
     _write_all(roots)
-    cell, seed = _iql_t_runs()[37]
+    cell, seed = next((c, s) for c, s in _iql_family_runs() if c.arm == "iql")
     _write_record(roots, cell, seed, damage)
     with pytest.raises(ValueError, match=rf"{cell.scenario}:{cell.key} seed {seed}: .*{message}"):
-        rep.iql_t_diagnostics(roots)
+        rep.iql_family_diagnostics(roots)
 
 
-def test_a_record_that_is_not_its_runs_is_refused(tmp_path: Path) -> None:
+@pytest.mark.parametrize(("field", "value"), [("seed", 999), ("tier", "fixedtime"), ("arm", "iql_t"),
+                                              ("scenario", "hz1x1"), ("format_version", "p9.1-run/0.9")])
+def test_a_record_that_is_not_its_runs_is_refused(field: str, value: Any, tmp_path: Path) -> None:
+    """Every identity field is compared, the tier among them (the coordinator's surviving mutant C3, S.1)."""
     roots = _roots(tmp_path)
     _write_all(roots)
-    cell, seed = _iql_t_runs()[3]
+    cell, seed = next((c, s) for c, s in _iql_family_runs() if c.arm == "iql_m" and c.tier == "random")
     path = cr.run_record_path(roots, cell.scenario, cell.tier, cell.arm, seed)
     record = json.loads(path.read_text(encoding="utf-8"))
-    path.write_text(json.dumps({**record, "seed": 999}), encoding="utf-8")
+    path.write_text(json.dumps({**record, field: value}), encoding="utf-8")
     with pytest.raises(ValueError, match=f"is not the p9.1-run/1.0 record of {cell.scenario}:{cell.key} seed {seed}"):
-        rep.iql_t_diagnostics(roots)
+        rep.iql_family_diagnostics(roots)
 
 
 def _rerun(tmp_path: Path, *, sha256: str | None = None, cells: Any = None) -> Path:
@@ -179,9 +205,11 @@ def test_the_block_is_labelled_diagnostics_and_defines_its_three_fields(tmp_path
     assert "last gradient step" in block["fields"]["final_q_loss"] and "5,000" in block["fields"]["final_q_loss"]
     assert "below 0.01" in block["fields"]["awr_weight_near_zero_fraction"]
     assert block["d4rl"] == rep.d4rl_diagnostics(REPO, path)
-    assert block["traffic_iql_t"] == {"source": "each run's p9.1-run/1.0 record, its diagnostics block",
-                                      "runs": rep.iql_t_diagnostics(roots)}
-    assert len(block["d4rl"]["rows"]) == 10 and len(block["traffic_iql_t"]["runs"]) == 70
+    assert block["traffic_iql_family"] == {
+        "source": "each IQL-family run's p9.1-run/1.0 record (iql_t, iql_m, iql, iql_100k), its diagnostics block",
+        "runs": rep.iql_family_diagnostics(roots)}
+    assert "traffic_iql_t" not in block
+    assert len(block["d4rl"]["rows"]) == 10 and len(block["traffic_iql_family"]["runs"]) == 115
 
 
 def test_build_iql_targets_puts_the_block_beside_the_d4rl_section(tmp_path: Path) -> None:

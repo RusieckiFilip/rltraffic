@@ -50,9 +50,12 @@ SESSIONS: tuple[tuple[str, int | None, str, str], ...] = (
     ("campaign", 1, "cb61ee7", "/trees/run-c"),
     ("d4rl", None, "cb61ee7", "/trees/run-c"),
     *(("train", first, "c58afb8", "/trees/run-d") for first in (4, 66, 126, 155, 188, 212, 226, 236)),
-    ("evaluate", None, "c58afb8", "/trees/run-d"),
+    *(("evaluate", None, "c58afb8", "/trees/run-d") for _ in range(3)),
 )
 SESSION_LEAD = 50.0
+#: What hz1x1's route (i) files carry in ``runtime.git_commit``: the main tree's HEAD when they were written (``BRIEF_46``
+#: S.2), never the code's commit. The grid's route (i) files carry no ``runtime`` block, as the campaign's do not.
+ROUTE_I_RUNTIME_COMMIT = "25410f4" + "0123456789abcdef0123456789abcdef0"
 
 
 def iql_diagnostics_of(index: int) -> tuple[float, float, float]:
@@ -68,7 +71,7 @@ def d4rl_diagnostics_of(position: int) -> tuple[float, float, float]:
 def session_starts() -> list[float]:
     """Each :data:`SESSIONS` entry's start, in whole Unix seconds: a training session SESSION_LEAD before its first
     run, d4rl between run 3's end and run 4's session, collect a day before the campaign, the evaluation after the
-    last run."""
+    last run, and each later evaluation 20,000 s after the one before."""
     starts = []
     for stage, first, _, _ in SESSIONS:
         if first is not None:
@@ -78,7 +81,8 @@ def session_starts() -> list[float]:
         elif stage == "d4rl":
             starts.append(T0 + RUN_SPACING * 2 + RUN_SECONDS + 100.0)
         else:
-            starts.append(T0 + RUN_SPACING * 256)
+            starts.append(T0 + RUN_SPACING * 256 + 20_000.0 * sum(s == "evaluate" for s, _, _, _ in
+                                                                    SESSIONS[:len(starts)]))
     return starts
 
 
@@ -228,8 +232,11 @@ def write_tree(root: Path, *, main_output: Path, corpus_root: Path, draws_root: 
                     _p8_4b_file(cell.scenario, cell.key, cell.tier, cell.arm, int(seed), int(draw), v["att_ours"],
                                 v["att_engine"], episode_reward=v["episode_reward"],
                                 horizon_vehicle_count=v["horizon_vehicle_count"]))
-        _write(cr.route_i_output(roots, cell), {"format_version": "fixture", "arm": cell.key, "tier": cell.tier,
-                                                "method": cell.arm, "episodes": episodes})
+        payload = {"format_version": "fixture", "arm": cell.key, "tier": cell.tier, "method": cell.arm,
+                   "episodes": episodes}
+        if cell.scenario == "hz1x1":
+            payload["runtime"] = {"git_commit": ROUTE_I_RUNTIME_COMMIT, "dirty": False}
+        _write(cr.route_i_output(roots, cell), payload)
 
     # Every old hz1x1 cell's re-roll: each committed episode reproduced, att_engine its value minus ENGINE_SHIFT_OLD.
     for artifact, arm in cr.HZ1X1_OLD_CELLS:

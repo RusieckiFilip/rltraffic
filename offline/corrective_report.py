@@ -13,10 +13,13 @@ joined to its P8.4b re-roll the same way (A27(a)).
 Two additions made before G4, under the same version (no artifact has been written in it):
 - **Each run's code commit (``BRIEF_46`` G.2).** Every training run of a new cell carries ``code_commit``,
   ``run_tree``, ``session`` and ``code_commit_source``, from the token line of its session (:func:`run_session`).
-  Every artifact states the rule in ``code_commit_rule``.
-- **The IQL diagnostics (Q18; E.7, F.2-3).** ``p9_1_iql_targets.json`` carries ``iql_diagnostics`` beside ``d4rl``:
-  each D4RL cell's final Q and V losses and AWR near-zero fraction for ``iql`` and ``iql_t``, and the same for every
-  traffic ``iql_t`` run. They are labelled diagnostics, not registered statistics (:func:`iql_diagnostics`).
+  Every artifact states the rule in ``code_commit_rule``, and carries the captures' ``sessions`` and the
+  ``evaluation_code_commit`` (S.2, Q20: :func:`stage_code_commit`). ``p9_1_iql_targets.json`` names the D4RL re-run's
+  session in ``d4rl_session``, beside ``d4rl``.
+- **The IQL diagnostics (Q18, Q19; E.7, F.2-3, S.2).** ``p9_1_iql_targets.json`` carries ``iql_diagnostics`` beside
+  ``d4rl``: each D4RL cell's final Q and V losses and AWR near-zero fraction for ``iql`` and ``iql_t``, and the same,
+  with the arm and its target mode, for every IQL-family traffic run. They are labelled diagnostics, not registered
+  statistics (:func:`iql_diagnostics`).
 """
 
 from __future__ import annotations
@@ -186,8 +189,10 @@ TRAINING_STAGES: tuple[str, ...] = ("campaign", "train")
 CODE_COMMIT_RULE = (
     "BRIEF_46 G.2: a P9.1 run's code commit is its session's -- the session whose window, from its token line's stamp "
     "to the next session's of any stage, holds the run's started_unix -- as that token line names it, beside the run "
-    "tree the driver checked is clean and detached at that commit. A checkpoint's runtime.git_commit is the main "
-    "tree's HEAD when the checkpoint was written, never the code's commit, and is not reported as one.")
+    "tree the driver checked is clean and detached at that commit. S.2 (Q20): the evaluation's code commit is the one "
+    "commit every evaluate session's token line names, and the D4RL re-run's is its d4rl session's. A checkpoint's "
+    "runtime.git_commit, and a route (i) file's, is the main tree's HEAD when the file was written, never the code's "
+    "commit, and is not reported as one.")
 
 
 def driver_sessions(roots: cr.Roots) -> list[dict[str, Any]]:
@@ -223,6 +228,29 @@ def driver_sessions(roots: cr.Roots) -> list[dict[str, Any]]:
         if stamps.count(stamp) > 1:
             raise ValueError(f"two token lines carry the stamp {stamp}: a session has one token line")
     return sessions
+
+
+def stage_code_commit(sessions: Sequence[Mapping[str, Any]], stage: str) -> dict[str, Any]:
+    """The one commit and run tree that every session of *stage* names, from their token lines (``BRIEF_46`` S.2, Q20).
+
+    For ``evaluate`` this is the evaluation's code commit: every evaluation output (route (i), route (ii), P3a, the old
+    cells) was written in an evaluate session. For ``d4rl`` it is the D4RL re-run's. The attribution is pure: it
+    reads the captures' text only, never a file's time.
+
+    Refused: no session of *stage* in the captures; or sessions that name more than one commit or run tree. A
+    per-output attribution would then be needed, which the report does not attempt.
+    """
+    chosen = [session for session in sessions if session["stage"] == stage]
+    if not chosen:
+        raise ValueError(f"no {stage} session in the captures")
+    commits = sorted({session["code_commit"] for session in chosen})
+    trees = sorted({session["run_tree"] for session in chosen})
+    if len(commits) != 1 or len(trees) != 1:
+        raise ValueError(f"the {stage} sessions name the commits {commits} from the run trees {trees}: one commit and "
+                         "one run tree, or a per-output attribution, which the report does not attempt")
+    return {"stage": stage, "code_commit": commits[0], "run_tree": trees[0],
+            "sessions": [f"{session['stage']} {session['stamp']}" for session in chosen],
+            "token_lines": [f"{session['capture']} line {session['line']}" for session in chosen]}
 
 
 def run_session(run: Mapping[str, Any], sessions: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
@@ -267,8 +295,9 @@ class Sources:
     (``p9_1:<scenario>:<arm>@<tier>``), hz1x1 old (``p4_4:<arm>``, ``p4_6:<arm>``, ``p4_7:<arm>``), grid old (P5.2c's
     ids) -- with their per-episode records and training runs, the declarations, P5.2c's books, P3a's rows, the tiers'
     training schedules, the D4RL re-run, registered constants, the inputs by digest and the git block; and the IQL
-    diagnostics beside the D4RL section (Q18), which :func:`load_sources` always fills (``None`` only where a test
-    builds a Sources by hand)."""
+    diagnostics beside the D4RL section (Q18, Q19), the captures' sessions, the evaluation's code commit and the D4RL
+    session (Q20), which :func:`load_sources` always fills (their defaults only where a test builds a Sources by
+    hand)."""
 
     cells: Mapping[str, Any]
     records: Mapping[str, Sequence[Mapping[str, Any]]]
@@ -282,6 +311,9 @@ class Sources:
     inputs: Sequence[Mapping[str, Any]]
     git: Mapping[str, Any]
     diagnostics: Mapping[str, Any] | None = None
+    sessions: Sequence[Mapping[str, Any]] = ()
+    evaluation_code_commit: Mapping[str, Any] | None = None
+    d4rl_session: Mapping[str, Any] | None = None
 
 
 REGISTRATION = "PREREGISTRATION.md A27 (tag v2.8-prereg-a27)"
@@ -315,7 +347,8 @@ def _finish(point: str, src: Sources, body: Mapping[str, Any], *, role: str,
     return {
         "format_version": REPORT_FORMAT_VERSION, "label": cr.LABELS[point], "registered_in": f"{point}, {REGISTRATION}",
         "role": role, "git": dict(src.git), "inputs": [dict(entry) for entry in src.inputs], **body,
-        "code_commit_rule": CODE_COMMIT_RULE,
+        "code_commit_rule": CODE_COMMIT_RULE, "sessions": [dict(session) for session in src.sessions],
+        "evaluation_code_commit": src.evaluation_code_commit,
         "records": {cid: [{key: row[key] for key in EPISODE_FIELDS} for row in src.records[cid]] for cid in ids},
         "training_runs": {cid: [dict(run) for run in src.runs[cid]] for cid in ids if cid in src.runs},
         "clock": cr.CLOCK_LABEL, "what_this_is_not": list(what_this_is_not),
@@ -678,6 +711,7 @@ def build_iql_targets(src: Sources) -> dict[str, Any]:
         "p1_rescore": {name: p1_rescore_block(src, name) for name in P1_TIERS},
         "iql_behaviour_comparisons": iql_behaviour_rescore(src),
         "d4rl": src.d4rl,
+        "d4rl_session": src.d4rl_session,
         "iql_diagnostics": src.diagnostics,
     }
     return _finish("A27(c)", src, body, role="A27(c): IQL's three target forwards in eval(), beside the registered IQL",
@@ -1011,16 +1045,27 @@ def _three(diagnostics: Any, *, where: str, source: str) -> dict[str, float]:
     return out
 
 
-def iql_t_diagnostics(roots: cr.Roots) -> list[dict[str, Any]]:
-    """Every traffic ``iql_t`` run's three values, in ``training_runs()`` order, from its ``p9.1-run/1.0`` record.
+#: The IQL family (``BRIEF_46`` S.2, Q19): every run whose recipe's base is IQL.
+IQL_FAMILY_BASE = "iql"
 
-    The values come from the record's ``diagnostics`` block, not from ``train.log``: the log carries only the Q and V
-    losses' 5,000-step means and no AWR fraction (F.2-3). A record that is not its run's, or that lacks a finite
-    value, is refused.
+
+def iql_family_diagnostics(roots: cr.Roots) -> list[dict[str, Any]]:
+    """Every IQL-family traffic run's arm, target mode and three values, in ``training_runs()`` order (S.2, Q19).
+
+    The family is the 115 runs whose recipe's base is IQL: ``iql_t`` (70), the grid's ``iql_m`` (25), and hz1x1's
+    ``iql`` and ``iql_100k`` (10 each). So the traffic part has both target modes from the same trainer, as the D4RL
+    part does.
+
+    The values come from each ``p9.1-run/1.0`` record's ``diagnostics`` block, not from ``train.log``. The log
+    carries only the Q and V losses' 5,000-step means and no AWR fraction (F.2-3).
+
+    Each row carries its arm and its ``target_dropout``, read from that block. Refused: a mode that is not its
+    recipe's (``recipe_fields``); a record that is not its run's; a missing or non-finite value.
     """
     rows: list[dict[str, Any]] = []
     for cell, seed in cr.training_runs():
-        if cell.arm != "iql_t":
+        recipe = cr.recipe_fields(cell)
+        if recipe["base"] != IQL_FAMILY_BASE:
             continue
         where = f"{cell.scenario}:{cell.key} seed {int(seed)}"
         path = cr.run_record_path(roots, cell.scenario, cell.tier, cell.arm, int(seed))
@@ -1029,8 +1074,16 @@ def iql_t_diagnostics(roots: cr.Roots) -> list[dict[str, Any]]:
         identity = tuple(record.get(key) for key in ("format_version", "scenario", "tier", "arm", "seed"))
         if identity != (cr.RUN_RECORD_FORMAT_VERSION, cell.scenario, cell.tier, cell.arm, int(seed)):
             raise ValueError(f"{source} is not the {cr.RUN_RECORD_FORMAT_VERSION} record of {where}")
+        diagnostics = record.get("diagnostics")
+        values = _three(diagnostics, where=where, source=source)
+        if "target_dropout" not in diagnostics:
+            raise ValueError(f"{where}: its diagnostics block in {source} has no target_dropout")
+        mode = diagnostics["target_dropout"]
+        if mode != recipe["target_dropout"]:
+            raise ValueError(f"{where}: target_dropout is {mode!r}, not its recipe's {recipe['target_dropout']!r} "
+                             f"({source})")
         rows.append({"scenario": cell.scenario, "tier": cell.tier, "arm": cell.arm, "seed": int(seed),
-                     **_three(record.get("diagnostics"), where=where, source=source), "source": source})
+                     "target_dropout": mode, **values, "source": source})
     return rows
 
 
@@ -1074,12 +1127,14 @@ def d4rl_diagnostics(repo_root: str | Path, d4rl_path: str | Path) -> dict[str, 
 
 
 def iql_diagnostics(roots: cr.Roots, d4rl_path: str | Path) -> dict[str, Any]:
-    """The block beside ``p9_1_iql_targets.json``'s ``d4rl`` section (Q18; ``BRIEF_46`` E.7, F.2-3), labelled as
-    diagnostics: each D4RL cell's three values for ``iql`` and ``iql_t``, and every traffic ``iql_t`` run's."""
+    """The block beside ``p9_1_iql_targets.json``'s ``d4rl`` section (Q18 and Q19; ``BRIEF_46`` E.7, F.2-3, S.2),
+    labelled as diagnostics: each D4RL cell's three values for ``iql`` and ``iql_t``, and every IQL-family traffic
+    run's arm, target mode and three values."""
     return {"label": DIAGNOSTICS_LABEL, "fields": dict(DIAGNOSTIC_DEFINITIONS),
             "d4rl": d4rl_diagnostics(roots.repo_root, d4rl_path),
-            "traffic_iql_t": {"source": "each run's p9.1-run/1.0 record, its diagnostics block",
-                              "runs": iql_t_diagnostics(roots)}}
+            "traffic_iql_family": {
+                "source": "each IQL-family run's p9.1-run/1.0 record (iql_t, iql_m, iql, iql_100k), its diagnostics block",
+                "runs": iql_family_diagnostics(roots)}}
 
 
 DIGEST_CONSTRUCTION = (
@@ -1322,7 +1377,9 @@ def load_sources(roots: cr.Roots, *, d4rl_path: str | Path | None) -> Sources:
     return Sources(cells=cells, records=records, runs=runs, declarations=declarations,
                    grid_books=tst.make_books(grid.cells), p3a=p3a_records(roots), schedules=schedules, d4rl=d4rl,
                    registered=registered, inputs=tuple(inputs), git=git,
-                   diagnostics=iql_diagnostics(roots, d4rl_path))
+                   diagnostics=iql_diagnostics(roots, d4rl_path), sessions=tuple(sessions),
+                   evaluation_code_commit=stage_code_commit(sessions, "evaluate"),
+                   d4rl_session=stage_code_commit(sessions, "d4rl"))
 
 
 #: The five artifacts of BRIEF_46 3.5 and their builders.

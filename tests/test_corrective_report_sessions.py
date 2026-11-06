@@ -149,3 +149,50 @@ def test_two_token_lines_with_one_stamp_are_refused(tmp_path: Path) -> None:
     _write_captures(roots, {**CAPTURES, "train_capture.txt": twice})
     with pytest.raises(ValueError, match="two token lines carry the stamp 20261029T154931Z"):
         rep.driver_sessions(roots)
+
+
+# ----------------------------------------------------------------------
+# Q20 (BRIEF_46 Amendment S, S.2): the evaluation's code commit, and the D4RL session, by the same token lines
+# ----------------------------------------------------------------------
+
+#: The real evaluate capture's shape: three sessions, their token lines at lines 1, 7 and 14.
+EVALUATE = [_token("evaluate", "20261105T101034Z", "/trees/run-d", "c58afb8"), *["E1 output"] * 5,
+            _token("evaluate", "20261105T200318Z", "/trees/run-d", "c58afb8"), *["E2 output"] * 6,
+            _token("evaluate", "20261106T152511Z", "/trees/run-d", "c58afb8"), "E3 output"]
+
+
+def test_the_evaluation_names_the_one_commit_and_run_tree_of_every_evaluate_session(tmp_path: Path) -> None:
+    roots = _roots(tmp_path)
+    _write_captures(roots, {**CAPTURES, "evaluate_capture.txt": EVALUATE})
+    assert rep.stage_code_commit(rep.driver_sessions(roots), "evaluate") == {
+        "stage": "evaluate", "code_commit": "c58afb8", "run_tree": "/trees/run-d",
+        "sessions": ["evaluate 20261105T101034Z", "evaluate 20261105T200318Z", "evaluate 20261106T152511Z"],
+        "token_lines": ["output/p9_1_runs/evaluate_capture.txt line 1", "output/p9_1_runs/evaluate_capture.txt line 7",
+                        "output/p9_1_runs/evaluate_capture.txt line 14"]}
+
+
+def test_the_d4rl_session_is_named_by_its_token_line(tmp_path: Path) -> None:
+    roots = _roots(tmp_path)
+    _write_captures(roots, CAPTURES)
+    assert rep.stage_code_commit(rep.driver_sessions(roots), "d4rl") == {
+        "stage": "d4rl", "code_commit": "cb61ee7", "run_tree": "/trees/run-c", "sessions": ["d4rl 20261028T192029Z"],
+        "token_lines": ["output/p9_1_runs/d4rl_capture.txt line 1"]}
+
+
+@pytest.mark.parametrize(("commit", "tree"), [("0a1b2c3", "/trees/run-d"), ("c58afb8", "/trees/run-e")])
+def test_evaluate_sessions_that_name_two_commits_or_two_run_trees_are_refused(commit: str, tree: str,
+                                                                              tmp_path: Path) -> None:
+    """A per-output attribution would then be needed, which the report does not attempt (S.2)."""
+    roots = _roots(tmp_path)
+    _write_captures(roots, {**CAPTURES, "evaluate_capture.txt": EVALUATE[:-2] + [
+        _token("evaluate", "20261106T152511Z", tree, commit), "E3 output"]})
+    with pytest.raises(ValueError, match="the evaluate sessions name the commits .* from the run trees .*: one commit "
+                                         "and one run tree"):
+        rep.stage_code_commit(rep.driver_sessions(roots), "evaluate")
+
+
+def test_a_stage_with_no_session_in_the_captures_is_refused(tmp_path: Path) -> None:
+    roots = _roots(tmp_path)
+    _write_captures(roots, {name: lines for name, lines in CAPTURES.items() if name != "evaluate_capture.txt"})
+    with pytest.raises(ValueError, match="no evaluate session in the captures"):
+        rep.stage_code_commit(rep.driver_sessions(roots), "evaluate")
