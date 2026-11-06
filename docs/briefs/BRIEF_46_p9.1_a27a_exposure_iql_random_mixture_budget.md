@@ -2449,3 +2449,184 @@ The projection erred on the slow side. It changes the hours, not the values.
 - **P9.1's branch** stays at `11616ea` until then.
 - **`output/`:** nothing is moved or deleted. The stray `.claude` directories stay as recorded (N.2).
 - **P9.3** waits for P9.1's merge (`BRIEF_48` J.9, J.11).
+
+---
+
+# ✅ AMENDMENT S — 2026-11-06, night: P9.1's commits `8ab9761` and `11616ea` VERIFIED (Q18, F.2-4 and G.2 done as ruled); Q19 and Q20 answered, both YES; G4 CLEARED
+
+Your packet: §18 of `docs/returns/P9.1-campaign-ready.md` (`11616ea`, docs only), on `8ab9761`. The coordinator verified it after
+the evaluate stage was complete (Amendment R), from the repository's objects and a scratch clone.
+
+## S.1 The commits, verified (read-only; the real-tree check printed counts, flags, commits and digests, no value)
+- **The chain.** Since the run tree's `c58afb8` the branch has four commits:
+  - `9eb908a`, packet §17, docs only (Amendment F);
+  - `8ccea70`, a merge of main at `25410f4`. Outside `docs/` it changes only `CLAUDE.md` (main's four lines on machine B). Since the
+    merge base `fd035f6`, main gained no code under `offline/` or `tests/`; its only scripts are the four `docs/notes/machine_b`
+    files;
+  - `8ab9761`: `offline/corrective_report.py`, `offline/corrective_round.py` (a docstring), the fixture and three test files;
+  - `11616ea`: the packet's §18 and six evidence files, docs only.
+
+  No frozen path changed, and none of the four carries an AI trailer. `scripts/check_english.sh` and
+  `scripts/check_test_hygiene.sh` are clean on the changed files.
+- **F.2-4 is done.** With docstrings removed, `offline/corrective_round.py` at `11616ea` has the same AST as at `c58afb8` (the
+  coordinator's own `ast` script). So the campaign's code is unchanged in behaviour, and the report imports that module. The new
+  docstring names the three cases, and `run_status` refuses the second and the third as it says: a `.partial`, and a checkpoint
+  without its record.
+- **G.2 is done, as ruled.**
+  - `driver_sessions` reads every token line of every `<stage>_capture.txt`, in stamp order. It refuses a token line it cannot read
+    and a repeated stamp.
+  - `run_session` takes the latest session whose stamp is at or before the run's `started_unix`. It refuses a run before every
+    session, a run inside a session that trains nothing, and a run that finishes after the next session began.
+  - Every new run gains `code_commit`, `run_tree`, `session` and `code_commit_source`, and every artifact states
+    `CODE_COMMIT_RULE`. The report reads no checkpoint and no `runtime` field.
+  - **On the real tree,** by the coordinator's own reading of the files:
+    - its reading of the 14 token lines (collect 1, campaign 1, d4rl 1, train 8, evaluate 3) equals `driver_sessions`';
+    - its attribution of the 255 runs equals `run_session`'s in 255 of 255;
+    - runs #1–#3 go to the campaign stage at `cb61ee7` (`/home/filip/rltraffic-p91-run-c`), and #4–#255 to T1–T8 at `c58afb8`
+      (`/home/filip/rltraffic-p91-run-d`). The eight training sessions hold 62, 60, 29, 33, 24, 14, 10 and 20 runs, each a
+      contiguous range, as their plans said, and every run lies inside one training session.
+- **Q18 is done, as ruled (E.7, F.2-3).**
+  - The values come from each run record's `diagnostics` block; P9.1 read first that `train.log` has only 5,000-step means and no
+    AWR fraction.
+  - The block is labelled *"diagnostics, not registered statistics … no prediction, verdict, gate or decision reads them"*. It
+    defines its three fields (the last step's losses, not the log's means; the AWR fraction below 0.01 over at most 20,000 rows),
+    and only `p9_1_iql_targets.json` carries it, beside `d4rl`.
+  - **On the real tree:**
+    - the 70 `iql_t` rows equal the coordinator's own reading of the records, in order, and every value is finite;
+    - the 10 D4RL rows equal its reading of P8.3's committed file and of the re-run;
+    - the re-run's `compare_with.sha256` is the registered file's;
+    - the re-run's copy under `output/p9_1_runs/d4rl_outputs_20261028T192029Z/` has the original's bytes (sha256 `e168b203…`).
+- **The tests.**
+  - **The whole suite at `11616ea`,** in a scratch clone, in CI's setting (one process, one thread, CPU only, no corpus
+    variables): **3,983 passed, 3 failed, 275 skipped** in 993.5 s.
+    - The 3 failures are the tmux tests that the sandbox refuses (`error connecting to /tmp/tmux-1000/default (Operation not
+      permitted)`), as in F.1: `test_the_headers_own_line_passes_the_guard_and_the_pane_carries_the_drivers_exit_code` in
+      `test_p7_3c_campaign.py`, `test_p7_3c_corpus_driver.py` and `test_p7_3d_campaign_path.py`.
+    - Against F.1's run at `c58afb8` (3,956 passed, 3 failed, 273 skipped), the 29 new tests are 27 passed and 2 skipped. The 2 are
+      the fixture tree's new tests, which skip in CI's setting with its other eight: they need the main tree's `output/` and the
+      corpus, so they ran in the mutation run below, with the roots set.
+    - The clone's HEAD stayed at `11616ea`, with no tracked change.
+  - **Mutants,** run by the coordinator one at a time against a passing control (the three files, 37 passed in 68.9 s):
+    - P9.1's 19, applied exactly as `g4_q18_mutants.json` writes them: **19 of 19 killed**, each by the test its kill table names;
+    - the coordinator's own four:
+      - C1 (`driver_sessions` reads only the training captures) and C2 (the window chosen by the run's finish, not its start):
+        KILLED;
+      - C3 (a record of another tier accepted: the identity check without the tier) and C4 (an infinite value accepted: only NaN
+        refused): SURVIVED. Both are guards with no test of their own. On the real tree every record is its run's and every value
+        is finite (above), so neither changes a value here. S.2 makes both cases of Q19's tests.
+
+    Every file was restored and its sha256 checked. The clone was clean afterwards, and nothing under `output/`, the corpus or the
+    draws was written.
+- **The format stays `p9.1-report/1.0`,** as P9.1 proposed. No artifact has been written in it; the first ones are written at G4,
+  with every field, and the module docstring documents the additions.
+
+## S.2 Q19 and Q20, answered
+- **Q19: YES.** The block's traffic part covers every IQL-family run of the campaign, 115 in all:
+  - `iql_t`, 70 (hz1x1 50, the grid 20);
+  - the grid's `iql_m`, 25;
+  - hz1x1's `iql` and `iql_100k`, 10 each.
+
+  **Why.** E.7 asked for the D4RL cells in both target modes, and named `iql_t` on traffic because the fix was the question. But
+  `iql_m` trains with A27(c)'s targets too (A27(b) with A27(c)'s targets). And hz1x1's `iql` trains with the registered targets on
+  two of `iql_t`'s own tiers, `random_fresh` and `mix_m1000_m500`. So the extension gives the traffic part what the D4RL part
+  already has: both target modes, from the same trainer, read the same way. Without it the block would report a selection from a
+  set that exists in full. It is one arm set, and nothing else changes.
+  - Each row carries its arm and its `target_dropout`, read from its record's `diagnostics` block. A row is refused unless that
+    value equals its recipe's (`recipe_fields`).
+  - On the real tree all 115 records carry the three finite values, and every record's `target_dropout` equals its recipe's: `off`
+    for `iql_t` and `iql_m` (95 runs), `active` for `iql` and `iql_100k` (20) (the coordinator's real-tree check).
+  - The label, the field definitions and the placement do not change; the traffic part's key (`traffic_iql_t`) and its `source`
+    text are renamed to say what it now covers. The values stay diagnostics, and no verdict reads them.
+  - Tests first. They include the two cases the coordinator's surviving mutants found (S.1): a record of another tier, and an
+    infinite value, are both refused.
+- **Q20: YES. The evaluation names its code commit by G.2's rule.**
+  - All three evaluate sessions' token lines name `c58afb8` from `/home/filip/rltraffic-p91-run-d` (`evaluate_capture.txt`, lines 1, 7
+    and 14). So every evaluation output (route (i), route (ii), P3a, the old cells) was written by the code at `c58afb8`.
+  - **Every artifact carries:**
+    - `sessions`: the captures' sessions as `driver_sessions` reads them (stage, stamp, run tree, commit, capture line), 14
+      entries;
+    - `evaluation_code_commit`: the commit of every evaluate session, `c58afb8`, with its source lines.
+
+    The report refuses if the evaluate sessions name more than one commit or run tree: a per-output attribution would then be
+    needed, which the report does not attempt.
+  - Beside the `d4rl` section, and not inside it (that section stays the artifact byte for byte), `p9_1_iql_targets.json` names
+    the D4RL session: `d4rl 20261028T192029Z` at `cb61ee7` from `/home/filip/rltraffic-p91-run-c`.
+  - hz1x1's route (i) files carry `runtime.git_commit`, main's HEAD at the write: `25410f4` for E1's 7 and `4237cee` for E2's 20.
+    The grid's 26 carry no `runtime` block. The report reads no commit from them. If it mentions them, it calls them what they are
+    (`CODE_COMMIT_RULE`'s sentence), never the code's commit.
+  - The attribution is pure: it reads the captures' text only, never a file's time.
+  - Tests first, with mutants: two evaluate sessions with different commits accepted; the evaluation's commit taken from a route (i)
+    `runtime` field.
+
+## S.3 Rulings
+1. **P9.1's commits `8ab9761` and `11616ea` are verified:** Q18, F.2-4 and G.2 are done as ruled.
+2. **Q19 and Q20** are answered as S.2 says.
+3. **The format version stays `p9.1-report/1.0`.**
+4. **G4 is cleared** (S.4).
+
+## S.4 ✅ G4 CLEARED: the artifacts and the packet (P9.1's own session; no token, nothing in the author's tmux)
+**In order, on the branch:**
+1. **Merge main:** `git merge --no-edit main`, which brings docs only, as `8ccea70` did.
+2. **Build Q19 and Q20** (S.2), tests first: the red run for the right reason, then the code, then the mutants with their kill
+   table. Commit.
+3. **Run the whole suite** at that commit, in CI's setting: one process, `OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`, CPU only, no
+   corpus variables. Then run the report's test files with the roots set (`RLTRAFFIC_OUTPUT_ROOT`, `RLTRAFFIC_CORPUS_V11`,
+   `RLTRAFFIC_DRAWS`), so that the fixture tree's tests, which skip in CI's setting, run too. Both tails go in the packet.
+   `scripts/check_test_hygiene.sh` and `scripts/check_english.sh` must be clean.
+4. **Run the report** from P9.1's worktree at that commit, with `git status --porcelain` empty, on the main roots and the D4RL copy:
+   ```
+   cd /home/filip/rltraffic-p91 && CUDA_VISIBLE_DEVICES= OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 PYTHONPATH=/home/filip/rltraffic-p91 /usr/bin/time -v /home/filip/rltraffic/.venv/bin/python -P -m offline.corrective_report --repo-root /home/filip/rltraffic-p91 --output-root /home/filip/rltraffic/output --corpus-root /home/filip/rltraffic/datasets_v11 --draws-root /home/filip/rltraffic/scenarios/draws --d4rl /home/filip/rltraffic/output/p9_1_runs/d4rl_outputs_20261028T192029Z/p8_3_train_k64_40000_iql_t.json report
+   ```
+   - The git block is taken with `git -C <code root>` over tracked files (`tier_statements.git_block`), so it names the worktree's
+     commit, not dirty.
+   - The report writes the five artifacts to the worktree's `docs/data/` and nothing else. The listings of `output/p9_1*` and of the
+     corpus root, taken before and after and compared by program, must be unchanged.
+   - Its wall time and peak memory (`/usr/bin/time -v`) go in the packet. Nothing has timed it on the real tree: it reads about
+     45,000 episode files and the corpus's `random_fresh` tiers. If it passes 30 min or 8 GiB, stop it and report.
+   - A `REFUSED` line is reported as it is. Nothing is changed to make it pass.
+5. **Commit the five artifacts alone.** Their git block names step 2's commit, not dirty.
+6. **Run the T-regress on the real tree,** at that commit, with:
+   - `RLTRAFFIC_OUTPUT_ROOT=/home/filip/rltraffic/output`;
+   - `RLTRAFFIC_CORPUS_V11=/home/filip/rltraffic/datasets_v11`;
+   - `RLTRAFFIC_D4RL_OUT=/home/filip/rltraffic/output/p9_1_runs/d4rl_outputs_20261028T192029Z`.
+
+   The five tests that waited for the evaluation (`tests/test_corrective_report_load.py`) rebuild each artifact byte for byte. Their
+   pytest tail goes in the packet.
+7. **Write the packet,** `docs/returns/P9.1.md`, by `docs/returns/TEMPLATE.md`, with §5's G4 items:
+   - the real pytest tail, and `git diff --stat` against main;
+   - every kill table: M1's, the session control's, Q18 and G.2's, Q19 and Q20's, and the scorers' (§4.6);
+   - the AI-assistance record (`CLAUDE.md` §8);
+   - "For the paper": the new numbers beside the old, which registered verdicts moved, and which draft sentence changes (the
+     coordinator's note will state it). If the A27(g) ordering's verdict is NOT RESOLVED, the packet proposes the words and the
+     author rules them (B.2, Q7).
+
+   And, from the amendments:
+   - each run's code commit by its session (G.2), and the evaluation's (Q20). The checkpoints' and route (i)'s `runtime` commits
+     appear only as what they are;
+   - the IQL diagnostics block, labelled (E.7, Q18, Q19), and the `d4rl` section byte for byte, cited by its sha256 (E.7);
+   - the evaluate sessions:
+     - their hours: E1 4 h 05 min 35 s, E2 4 h 00 min 06 s, E3 1 h 40 min 55 s;
+     - both restarts, as `restarts.log` has them (Q.4-4, R.4-2);
+     - E3's slow window, as R.3 states it;
+   - every overlap and pause the amendments record for a run or a session, cited by amendment (the seconds are an uncontrolled
+     clock, A27(a)), and P9.3's smoke overlap if the trace shows one (D.2-2).
+8. **Report "P9.1 G4 ready"** with the packet's commit. G5 follows: the coordinator's one review, with at most one fix round and only
+   for findings that change a reported number or a claim, then the merge M2.
+
+**Throughout G4:**
+- CPU only, one pytest process at a time, one thread; nothing on the GPU.
+- Read-only on `output/`, the corpus and the run trees. No evaluation, roll or training is re-run, and nothing under `output/` is
+  written, moved or deleted.
+- **P9.1's session does not `cd` into `output/`** (N.2: the harness creates `.claude/.cc-writes` in its working directory). The run
+  directory's digest counts files only, so the two empty stray directories under `output/p9_1_runs/` (`.claude/` and
+  `d4rl_outputs_20261028T192029Z/.claude/`) do not enter it. They stay, as N.2 says.
+- P9.3 runs nothing (`BRIEF_48` J.9, J.11), and the author runs nothing for P9.1.
+
+**Done when** the five artifacts and the packet are committed on the branch, the packet holds every item above, and P9.1 reports
+"P9.1 G4 ready".
+
+## S.5 Next
+- **P9.1:** G4 (S.4).
+- **The coordinator:** G5; then the merge M2, `DEFERRED` 104's entry (R.4-4), and `BRIEF_48`'s amendment that clears P9.3's
+  old-cells (J.9).
+- **P9.3** waits for P9.1's merge.
