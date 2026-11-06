@@ -2630,3 +2630,250 @@ the evaluate stage was complete (Amendment R), from the repository's objects and
 - **The coordinator:** G5; then the merge M2, `DEFERRED` 104's entry (R.4-4), and `BRIEF_48`'s amendment that clears P9.3's
   old-cells (J.9).
 - **P9.3** waits for P9.1's merge.
+
+---
+
+# ⚠️ AMENDMENT T — 2026-11-06, late evening: G5 — P9.1's five artifacts (`c0daeb7`) and packet (`d3cd0c3`) VERIFIED by the coordinator's independent recomputation; ONE FIX ROUND: the committed p-value guard counts 771 pairs against its pinned 487, and its update to 771 is AUTHORISED (T.3); two of the packet's proposed sentences corrected in the coordinator's note (T.4); the merge M2 after the fix
+
+This is the coordinator's one review (G5; `PROJECT_PLAN` §7, the A27 round). It consisted of the coordinator's own scripts, with
+no reviewer mandate. They were read-only on `output/`, the corpus and the run trees, printed counts, flags, commits and digests,
+and compared their numbers with the artifacts' and the packet's by program.
+
+## T.1 What was verified
+- **The chain since `11616ea`:**
+  - `0cc17db`, the merge of `main` at `426e434`: its tree differs from `main`'s only in the branch's own paths;
+  - `9bda19f`, Q19 and Q20: `offline/corrective_report.py`, the fixture and three test files;
+  - `c0daeb7`: the five artifacts, alone;
+  - `d3cd0c3`: the packet and 17 evidence files, docs only.
+
+  None carries an AI trailer. On the branch, no frozen path and no existing `docs/data` file changed; the five are added. No
+  dependency was added. `check_english.sh` and `check_test_hygiene.sh` are clean on the 24 files changed since `11616ea`.
+- **Q19 and Q20, read against S.2:**
+  - `stage_code_commit` takes the one commit and run tree that every session of a stage names, from the captures' text only. It
+    refuses a stage with no session, and sessions that name more than one commit or run tree.
+  - Every artifact carries `sessions` and `evaluation_code_commit`. `p9_1_iql_targets.json` carries `d4rl_session` beside `d4rl`,
+    not inside it.
+  - `iql_family_diagnostics` takes every run whose recipe's base is IQL, and each row carries its arm and `target_dropout`.
+    Refused: a mode that is not its recipe's, a record of another tier, and a non-finite value.
+- **The records (part A):** every per-episode record of the five artifacts was compared with its raw source, under `==` in every
+  field:
+  - **26,500 new-cell records:** route (i)'s `att_horizon`, `episode_reward` and `horizon_vehicle_count`; route (ii)'s
+    `att_ours`, `att_engine` and the companions, each route (ii) file reproducing its committed value;
+  - **18,200 old hz1x1 records:** the committed P4.4, P4.6 and P4.7 artifacts' `att_horizon` on `main`, and the re-rolls'
+    `att_engine` and companions, each reproducing its committed `att_ours`;
+  - **14,500 grid records:** P5.1's, P5.2's and P5.2b's eval files, and P8.4b's rows (P5.2b's own rederivation rows for its
+    corrected IQL cell).
+
+  The three constructed mixture references (1,500 records) were not re-derived.
+- **The numbers (part B):**
+  - **292 paired blocks**, each recomputed within 1e-9 (per-draw means over the seeds, `ddof = 1`, 1.96 / √100): the mean, the
+    interval and the half-width, with `excludes_zero`, the sign, `n_draws` and the per-seed means.
+  - **Every verdict, by the registered rule as the script states it:**
+    - P5.2c's rule: 24 budget pairs, 8 mixture contrasts;
+    - Q6's window (B.2): 8 arm verdicts and the conjunctions;
+    - Q7's conjunction (B.2), each pair's direction the sign of its 40,000-step point difference: 4;
+    - A6's branches, at δ = 0.6263 and at the derivation's full precision: 8;
+    - the collapse rule: 80 verdicts and 8 counts;
+    - the side of zero of the nine behaviour comparisons with IQL.
+  - **P3a, from the P3a files:**
+    - 0 of 500 episodes repeat on each scenario, per intersection on the grid;
+    - the beside-table holds: distinct sequences, most common share, identity with each reference, and the grid's
+      per-intersection counts.
+  - **The exposure table** equals A27(b)'s constants as exact fractions.
+  - **The plateau counts:**
+    - the author's registered command prints `160 127 111 11 5`;
+    - 28 of the 40 runs are plateaued at 100,000 steps.
+  - **The D4RL section:**
+    - it equals the re-run file's `compare_with` block;
+    - its six contrasts follow from the per-seed returns (1.96 / √5).
+  - **The re-scores' bookkeeping, over 82 and 44 statements:**
+    - every input is the original input with the declared substitution;
+    - a verdict moves iff its decision changed;
+    - every original decision is the committed `p5_2_statements.json`'s;
+    - `n_statements`, `n_moved`, and A6's and P1's `moved` flags hold.
+- **Provenance (part C):**
+  - Each artifact's format is `p9.1-report/1.0`, its git block `9bda19f` and not dirty, with A27(a)'s label and the uncontrolled
+    clock.
+  - The 14 sessions equal the coordinator's own parsing of the captures in every field.
+  - `evaluation_code_commit` is `c58afb8`, from `evaluate_capture.txt` lines 1, 7 and 14.
+  - **Training runs:**
+    - each of the 275 new-run rows (255 runs) lies inside one training session, at its session's commit, run tree and stamp:
+      3 at `cb61ee7` and 272 at `c58afb8`;
+    - their seconds, steps, start and finish equal the records;
+    - 290 rows of P5.1 and P5.2 grid runs carry no seconds, with the artifact's note (no committed record holds them, plan D3).
+  - **Inputs:**
+    - the 65 listed input files were recomputed and are equal;
+    - so are the 10 directory digests: `output/p9_1_runs` without `checkpoints` and `logs` (45,029 files), and `output/p9_1`
+      (5).
+  - **The IQL diagnostics:**
+    - the 115 rows equal their records, target modes included: the grid's `iql_m` off 25 and `iql_t` off 20; hz1x1's `iql_t`
+      off 50, `iql` active 10 and `iql_100k` active 10;
+    - every IQL-family record has a row.
+- **The packet's numbers (part D):**
+  - the 82 values §10 quotes for the paper were recomputed, and all are equal at two decimals;
+  - the matched DT − BC interval's upper end is above zero unrounded, so "does not survive" holds;
+  - at 40,000 steps only DT − BC is unresolved on `mappo1000`, and only DT − %BC on `mix50`;
+  - the mixture's measured order resolves at %BC < DT, and not at IQL–%BC or DT–BC.
+- **§8's claims:**
+  - the 255 runs are serial;
+  - `trace_covered` is false on exactly #65, #125, #154, #187, #211, #225, #235 and #255, each the last run of a training
+    session;
+  - no run paused;
+  - runs #1–#3 lie entirely inside P9.3's smoke window (`P9.3-smoke.md`: 15:38:57 → 17:22:23 CET): 345.6 + 350.7 + 356.9 =
+    1,053.2 s.
+- **The Definition of Done's registered files:**
+  - all 20,904 entries of the 23 `output/SHA256SUMS_*.txt` equal the files on disk (2.95 GiB);
+  - since E3's verification, `output/p9_1*` (45,429 paths) and `datasets_v11` (17,040) are unchanged: no path added, removed or
+    changed in kind, size or time.
+- **The T-regress in a scratch clone at `d3cd0c3`** (`RLTRAFFIC_OUTPUT_ROOT`, `RLTRAFFIC_CORPUS_V11`, `RLTRAFFIC_D4RL_OUT`
+  set): `5 passed, 20 deselected in 40.10s`. Every artifact rebuilds byte for byte, and the clone stays clean.
+- **The whole suite at `d3cd0c3`,** in that clone, in CI's setting (one process, one thread, CPU only, no `RLTRAFFIC_*`
+  variable): `4 failed, 3994 passed, 276 skipped, 30 warnings in 981.70s (0:16:21)`. Three failures are the sandbox's tmux
+  refusals (F.1, S.1). The fourth is `tests/test_erfc_determinism.py::test_the_committed_p_values_all_still_reproduce_exactly`:
+  `assert 771 == 487` (T.2-1). P9.1's run at `9bda19f` (3,995 passed, 3 failed) predates the artifacts, and this test reads
+  them, so this one test is the whole difference.
+
+## T.2 Findings
+1. **The committed p-value guard fails on the merge candidate** (the suite's state, a claim of §3; **the fix round**).
+   - `test_the_committed_p_values_all_still_reproduce_exactly` walks every artifact under `docs/data`. It pins the number of
+     `(z, p_value)` pairs at 487 and asks for a deliberate, authorised update when artifacts are added.
+   - The five add 284, all two-sided Wilcoxon blocks.
+   - The coordinator ran the guard's own walk and `_expected_p_value` over the clone's `docs/data` at `d3cd0c3`:
+     - 771 pairs: the 487 outside `p9_1_*`, unchanged, and the 284;
+     - none of the 284 carries an `alternative` key, so `ONE_SIDED_PAIRS` stays as it is;
+     - none has `z = 0.0` and `p = 1.0`, so there is no empty test;
+     - **all 771 reproduce under `==`.**
+
+   No published p-value moves; only the count fires. `main` must not receive a red test, so the merge waits for the update.
+2. **A27(b)'s proposed sentence counts what it does not name** (a claim).
+   - *"Of the 32 registered grid verdicts that contrast a DT with a baseline"*: the 32 are every verdict the re-score covers.
+     Read from their inputs:
+     - 25 hold a baseline re-trained at matched exposure. 11 of them also hold a DT: Q1, Q2a ×3, Q2b ×3, Q2b.aggregate and
+       Q3a ×3. The other 14 compare the BC variants with each other: Q5a, Q5b, Q5c and their aggregates.
+     - 7 hold no re-trained arm and cannot move: Q1b ×2 and Q1b.both, the behaviour policy's instrument check; Q3b ×3 and
+       Q3b.aggregate, the DT against its own behaviour policy.
+   - Q1 compares each cell with its prediction, not one arm with another.
+   - The sentence must state N by what it counts, and T.4 does. No artifact changes: the statements carry their inputs.
+3. **A27(d)'s proposed sentence mixes two sign conventions** (a claim).
+   - *"IQL's lead over the DT on random data is −245.02 [−251.18, −238.85] on hz1x1 …, against leads of 40.03 [37.91, 42.14]
+     and 56.78 [53.90, 59.67] s"*: a signed difference stands beside magnitudes.
+   - It reads as IQL trailing on hz1x1, the opposite of the measurement: `iql − dt` = −245.02, IQL better.
+   - T.4 uses one convention, with magnitudes in words.
+4. **A label only** (`DEFERRED` 124). `p9_1_iql_targets.json`'s `p5_2_rescore.rule` opens *"A27(b):"*.
+   - The text is the `MOVED_RULE` constant, shared with A27(b)'s re-score, but the block is A27(c)'s IQL re-score (`iql` →
+     `iql_t`).
+   - It changes no number, verdict or claim.
+
+No finding changes a number or a verdict in the artifacts, and they stay final at `c0daeb7`. T.2-1 is the one fix round. T.2-2
+and T.2-3 are in text the brief gives the coordinator to state (G4: *"the coordinator's note will state it"*), so T.4 corrects
+them. T.2-4 is parked.
+
+## T.3 The authorisation for the fix round, to be quoted verbatim in the test
+> *"test_erfc_determinism 487 -> 771 AUTHORISED (BRIEF_46 Amendment T, T.3, 2026-11-06), same footing as BRIEF_29 section 1 B,
+> the 2026-09-10 authorisation, BRIEF_42 Amendment E.1 and BRIEF_45 Amendment B.2. The 284 are P9.1's two-sided Wilcoxon blocks
+> in its five A27 artifacts (docs/data/p9_1_*.json, committed at c0daeb7), enumerated by the guard's own paths:
+> p9_1_random_fresh.json 122, p9_1_iql_targets.json 74, p9_1_budget.json 64, p9_1_mixture.json 16 and
+> p9_1_exposure_parity.json 8. None carries an alternative key, so ONE_SIDED_PAIRS is unchanged; none has n_used = 0; all 771
+> reproduce under == through _expected_p_value (the coordinator's run of the guard's own walk at d3cd0c3)."*
+
+**The 284, by the guard's own path classes.** `{d}` is `{att_engine,att_ours}`, every path begins with its artifact's name, and the
+48 classes are folded by their braces:
+
+| artifact | path class | pairs |
+|---|---|---|
+| `p9_1_random_fresh.json` | `.collapse.{hz1x1,grid4x4}.{original_random_tier,random_fresh_tier}.rows[*].by_definition.{d}.paired_comparison.wilcoxon` | 80 |
+| | `.q6_both_anchors.{random_fresh,registered_five_schedule}[*].numbers.paired_comparison.wilcoxon` | 32 |
+| | `.p3b.contrasts[*].by_definition.{d}.paired_comparison.wilcoxon` | 10 |
+| `p9_1_iql_targets.json` | `.iql_behaviour_comparisons.comparisons[*].{original,rescored}.{d}.wilcoxon` | 36 |
+| | `.hz1x1.tiers[*].by_definition.{d}.paired_comparison.wilcoxon` | 16 |
+| | `.grid4x4.tiers[*].by_definition.{d}.paired_comparison.wilcoxon` | 8 |
+| | `.grid4x4_exposure_against_dropout.tiers[*].by_definition.{d}.paired_comparison.wilcoxon` | 8 |
+| | `.hz1x1_iql_lead_on_random[*].by_definition.{d}.paired_comparison.wilcoxon` | 4 |
+| | `.grid4x4_original_random_beside.by_definition.{d}.paired_comparison.wilcoxon` | 2 |
+| `p9_1_budget.json` | `.tiers.{mappo1000,mix50}.concordance.{d}.pairs[*].{at_40k,at_100k}.paired_comparison.wilcoxon` | 48 |
+| | `.tiers.{mappo1000,mix50}.differences[*].by_definition.{d}.paired_comparison.wilcoxon` | 16 |
+| `p9_1_mixture.json` | `.predictions.orderings.contrasts[*].by_definition.{d}.paired_comparison.wilcoxon` | 8 |
+| | `.predictions.within_5_s.arms[*].by_definition.{d}.paired_comparison.wilcoxon` | 6 |
+| | `.beside.iql_t_within_5_s.arms[*].by_definition.{d}.paired_comparison.wilcoxon` | 2 |
+| `p9_1_exposure_parity.json` | `.sentence_contrasts.{original,matched}[*].by_definition.{d}.paired_comparison.wilcoxon` | 8 |
+
+**What changes, and nothing else:**
+- the literal 487 → 771;
+- the comment above it, with the quotation and the table;
+- the assertion's message, which names the source of the 284 as the earlier ones do.
+
+The walk, `ONE_SIDED_PAIRS`, `_expected_p_value` and the `moved == []` assertion stay untouched, so all 771 are still recomputed and
+compared under `==`. This is a spec change ruled by the coordinator, not a test weakened to pass: the guard asked for a deliberate
+update, and this is it.
+
+## T.4 The sentences, as the coordinator's note states them
+A27's sentences are the author's. On 2026-11-06 the author accepted P9.1's three proposals, for A27(b), (d) and (g), *"unless your G5
+review finds a problem with them"*. T.2 found one in (b) and one in (d), so those two are the coordinator's corrections and the
+author rules them. The values are under `att_engine`, with `att_ours` beside in the artifacts (A27(a)).
+- **A27(b)** (corrected: the end changes from P9.1's proposal):
+  > *"With BC, %BC and IQL seeing each training decision as often as the DTs do (711 times; 708 for the two %BC arms), the DT's
+  > lead on mappo1000 survives against IQL but not against BC under the registered rule: DT − BC = −0.73 [−1.46, +0.01] and
+  > DT − IQL = −19.02 [−22.68, −15.37] (the DT without spatial mixing against BC and IQL at matched exposure; the DT-versus-IQL
+  > contrast still differs in return scaling, per intersection for the DT and global for IQL); of the 25 registered grid
+  > verdicts that a matched-exposure baseline enters, 11 of them beside a DT, none changes under exposure parity."*
+- **A27(c)** (the registered branches filled, as in the packet):
+  > *"Computing IQL's targets without dropout changes its travel time by −21.39 to +374.15 s across the 12 tiers, with a paired
+  > CI that excludes zero on 11 of them; these registered verdicts move: P4.4's A6, from baseline genuinely better to
+  > inconclusive at this power; on the D4RL calibration the BC − IQL difference in raw return becomes +3554.20 [3163.06,
+  > 3945.34], against −542.05 [−1668.10, 584.01] before the fix."*
+- **A27(d)** (corrected: the values are unchanged, and the hz1x1 lead is stated as a magnitude like the others):
+  > *"On random tiers collected with 200 distinct schedules (the original hz1x1 and grid tiers each replay two), the DT is not
+  > open-loop on either scenario: no seed emits the same action sequence on two of the 100 held-out draws; IQL's lead over the
+  > DT on random data is 245.02 [238.85, 251.18] s on hz1x1, while on the grid IQL now trails the DT by 66.31 [61.24, 71.38] s,
+  > against leads of 40.03 [37.91, 42.14] and 56.78 [53.90, 59.67] s on the original tiers (the tiers also differ in their
+  > normalisation basis, and on the grid IQL now also has matched exposure and dropout-free targets)."*
+- **A27(e)** (the measured-order branch filled, as in the packet):
+  > *"On hz1x1's 50/50 mixture of mappo1000 and mappo500 streams, the only one of six candidate pairs whose top decile the
+  > filter takes from both sources (14 of 20 from the stronger), the held-out travel-time order is IQL < %BC < DT < BC by point
+  > estimate, with IQL–%BC and DT–BC not resolved: %BC − BC = −1.76 [−2.27, −1.25] (HELD) and DT − BC = −0.08 [−0.40, +0.25]
+  > (NOT RESOLVED); every arm stays within 5 s of %BC."*
+- **A27(g)** (P9.1's proposal, as the author accepted it; G5 found no problem):
+  > *"On hz1x1's mappo1000 tier, 100,000 instead of 40,000 gradient steps (A8(b)'s secondary) change the travel time of DT, BC,
+  > %BC and IQL by −0.13 [−0.35, 0.10], −0.28 [−0.51, −0.04], −0.03 [−0.22, 0.16] and +1.06 [0.84, 1.28] s; of their six
+  > pairwise orderings, the five that the 40,000-step cells resolve keep their direction and none reverses, while DT and BC,
+  > which the 40,000-step cells did not separate (−0.20 [−0.46, 0.07] s), stay unseparated at 100,000 steps (−0.04 [−0.33,
+  > 0.24] s); so on this tier the 40,000-step ordering is not shown to be a budget artefact; on mix50, an exploratory extension
+  > beyond A8(b), the ordering is unchanged."*
+
+## T.5 Rulings
+1. **G5: one fix round, T.2-1 only.** Everything else was verified as T.1 states. No number or verdict changes, and the five
+   artifacts stay final at `c0daeb7`, with no rebuild.
+2. **The fix round, by P9.1 in its own session.** No token; CPU only; one pytest process at a time, one thread; read-only on
+   `output/`, the corpus and the run trees; no `cd` into `output/`. In order:
+   1. `git merge --no-edit main`: this amendment and the plan, docs only.
+   2. T.3's change to `tests/test_erfc_determinism.py`, and nothing else. Commit it.
+   3. **The whole suite at that commit, in CI's setting.** Expect only the sandbox's three tmux refusals. Then the report's test
+      files with the roots set, and the T-regress (`RLTRAFFIC_D4RL_OUT` set): the artifacts unchanged, byte for byte.
+      `scripts/check_test_hygiene.sh` on the changed test.
+   4. **A section in the packet, docs only:**
+      - the fix's commit;
+      - the guard's own run: 771 pairs, 0 moved;
+      - the real pytest tails of step 3;
+      - `git diff --stat` against `main`.
+   5. Report "P9.1 fix round done" with the commits.
+3. **Then the coordinator verifies the fix and merges M2:**
+   - verify the fix commit's diff, then the whole suite at the branch's head;
+   - merge with `--no-ff`, §6's P9.1 box ticked in the merge commit;
+   - the merge commit also carries plan v3.46, `DEFERRED` 104's observation (R.4-4), 124 (T.2-4), and an attributed coordinator
+     note at the head of the packet's §10, pointing its (b) and (d) proposals to T.4.
+4. **The sentences:** T.4 states them. The (b) and (d) corrections wait for the author's ruling, and (g) stands as accepted.
+5. **After the merge:** the CI ceiling, measured on the merge's CI run and handed to the author as a patch by the registered
+   route; and `BRIEF_48`'s amendment that clears P9.3's old cells (J.9), naming the merge commit and pinning the two artifacts'
+   sha256.
+
+## T.6 The coordinator's error
+S.4 ordered the whole suite (step 3) before the five artifacts were committed (step 5). The suite therefore never ran on a tree that
+held them, and the guard that reads every committed artifact could fire only after step 5. The T-regress ran after them, but the
+whole suite did not. T.5-2 runs it at a head that holds the artifacts. It changes no number.
+
+## T.7 Next
+- **P9.1:** the fix round (T.5-2).
+- **The author:** rule T.4's (b) and (d) corrections; relay T.5-2 to P9.1.
+- **The coordinator:** after "P9.1 fix round done", the verification and the merge M2 (T.5-3); then the CI ceiling and `BRIEF_48`'s
+  amendment (T.5-5).
+- **P9.3** waits for P9.1's merge.
