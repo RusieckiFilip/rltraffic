@@ -1,0 +1,29 @@
+# G5's fix round (BRIEF_46 Amendment T, T.5-2). CPU only (CUDA_VISIBLE_DEVICES empty), one thread, one pytest process.
+
+# The guard RED at 8172676, on the tree holding the five artifacts, before T.3's change:
+E       AssertionError: expected the 487 committed (z, p_value) pairs -- 322 measured on 2026-08-17, plus the 8 P5.3a copies out of p4_6_grid.json / p4_7_grid.json (BRIEF_29 section 1 B), plus the 9 P5.3b wilcoxon blocks in p5_3b_nortg.json (authorised 2026-09
+FAILED tests/test_erfc_determinism.py::test_the_committed_p_values_all_still_reproduce_exactly
+1 failed, 56 passed in 4.22s
+
+# The guard's file GREEN after it, at the fix's tree (aeb0217):
+57 passed in 3.56s
+
+# T.5-2 step 3: the whole suite at aeb0217 in CI's setting (one process, OMP/MKL 1, no RLTRAFFIC_* variable, HEAD held,
+# no tracked change, the five p9_1 artifacts in docs/data). The three failures are the tmux tests the sandbox refuses
+# ('error connecting to /tmp/tmux-1000/default (Operation not permitted)', 3 occurrences in the output).
+HEAD aeb0217; tracked changes: 0; p9_1 artifacts in docs/data: 5; RLTRAFFIC vars: 0; start 2026-11-06 23:14:19  23:14:19 up 5 days, 21:40,  1 user,  load average: 0.39, 0.28, 0.20
+FAILED tests/test_p7_3c_campaign.py::test_the_headers_own_line_passes_the_guard_and_the_pane_carries_the_drivers_exit_code
+FAILED tests/test_p7_3c_corpus_driver.py::test_the_headers_own_line_passes_the_guard_and_the_pane_carries_the_drivers_exit_code
+FAILED tests/test_p7_3d_campaign_path.py::test_the_headers_own_line_passes_the_guard_and_the_pane_carries_the_drivers_exit_code
+3 failed, 3995 passed, 276 skipped, 32 warnings in 969.72s (0:16:09)
+pytest exit=1
+end 2026-11-06 23:30:31  23:30:31 up 5 days, 21:56,  1 user,  load average: 0.76, 0.93, 0.71; HEAD aeb0217
+
+# The report's nine test files with RLTRAFFIC_OUTPUT_ROOT, RLTRAFFIC_CORPUS_V11, RLTRAFFIC_DRAWS and RLTRAFFIC_D4RL_OUT set,
+# the T-regress among them; at aeb0217; load 0.59 -> 0.96:
+tests/test_corrective_report_load.py::test_t_regress_every_artifact_rebuilds_byte_for_byte_from_the_run_directories[p9_1_exposure_parity.json] PASSED [ 23%]
+tests/test_corrective_report_load.py::test_t_regress_every_artifact_rebuilds_byte_for_byte_from_the_run_directories[p9_1_iql_targets.json] PASSED [ 24%]
+tests/test_corrective_report_load.py::test_t_regress_every_artifact_rebuilds_byte_for_byte_from_the_run_directories[p9_1_random_fresh.json] PASSED [ 25%]
+tests/test_corrective_report_load.py::test_t_regress_every_artifact_rebuilds_byte_for_byte_from_the_run_directories[p9_1_mixture.json] PASSED [ 26%]
+tests/test_corrective_report_load.py::test_t_regress_every_artifact_rebuilds_byte_for_byte_from_the_run_directories[p9_1_budget.json] PASSED [ 26%]
+======================= 142 passed in 117.69s (0:01:57) ========================
