@@ -1,0 +1,139 @@
+"""G4 (BRIEF_46 S.4, step 7): the numbers the packet's "For the paper" section quotes, read from the five committed
+artifacts by program -- every registered sentence's slots, every moved verdict. Rounded to 2 decimals for display;
+the artifacts hold the exact values. att_engine is primary (A27(a)); att_ours beside.
+
+Usage: python -P for_the_paper.py REPO
+"""
+import json
+import sys
+from pathlib import Path
+
+DATA = Path(sys.argv[1]) / "docs" / "data"
+
+
+def load(name):
+    return json.loads((DATA / name).read_text(encoding="utf-8"))
+
+
+def ci(block):
+    return f"{block['mean_difference']:+.2f} [{block['ci95_low']:+.2f}, {block['ci95_high']:+.2f}]"
+
+
+def both(entry, key="by_definition"):
+    e, o = entry[key]["att_engine"], entry[key]["att_ours"]
+    out = f"att_engine {ci(e)}"
+    if "outcome" in e:
+        out += f" {e['outcome']}"
+    out += f" | att_ours {ci(o)}"
+    if "outcome" in o:
+        out += f" {o['outcome']}"
+    return out
+
+
+print("=" * 100)
+print("A27(b) p9_1_exposure_parity.json -- grid4x4 exposure parity")
+d = load("p9_1_exposure_parity.json")
+grid = d["exposure_table"]["grid4x4"]["arms"]
+print("  exposure (grid, row visits over 40,000 steps):", {k: v.get("row_visits", v) if isinstance(v, dict) else v
+                                                         for k, v in list(grid.items())[:11]})
+for kind in ("original", "matched"):
+    for e in d["sentence_contrasts"][kind]:
+        print(f"  sentence, {kind:8s}: {e['left_arm']} - {e['right_arm']} on {e['tier']}: {both(e)}")
+r = d["rescore"]
+print(f"  rescore: {len(d['counted_statement_ids'])} statement ids; verdicts per definition {r['n_statements']}; "
+      f"moved {r['n_moved']}")
+moved = [e for e in r["statements"] if e["moved"]]
+print("  moved verdicts:", [(e["id"], e["tier"], e["definition"], e["original_verdict"], e.get("verdict")) for e in moved])
+changed = [e for e in r["statements"] if e["reading_changed"] and not e["moved"]]
+print(f"  readings changed without a verdict moving: {len(changed)}",
+      [(e["id"], e["tier"], e["definition"], e["kind"]) for e in changed][:12])
+for e in d["leaders"]:
+    print(f"  leaders {e['tier']:12s} {e['definition']:10s} reading_changed={e['reading_changed']}: "
+          f"{e['original_reading'][:60]!r} -> {e['reading'][:60]!r}")
+
+print("=" * 100)
+print("A27(c) p9_1_iql_targets.json -- IQL's targets without dropout")
+d = load("p9_1_iql_targets.json")
+for definition, t in d["twelve_tiers"].items():
+    print(f"  twelve tiers, {definition}: iql_t - iql from {t['min']:+.2f} to {t['max']:+.2f} s; CI excludes zero on "
+          f"{t['n_excluding_zero']} of {t['n_tiers']}")
+for scenario in ("hz1x1", "grid4x4"):
+    for e in d[scenario]["tiers"]:
+        print(f"  {scenario:7s} {e['tier']:12s} iql_t - iql: {both(e)}")
+for e in d["grid4x4_exposure_against_dropout"]["tiers"]:
+    print(f"  grid4x4 {e['tier']:12s} iql_m - iql_t: {both(e)}")
+e = d["grid4x4_original_random_beside"]
+print(f"  grid4x4 random, iql_t - P5.2's ORIGINAL (as committed) iql: {both(e)}")
+a6 = d["p4_4_a6"]
+print(f"  P4.4 A6 (madt vs iql, delta {a6['original']['delta']}): moved {a6['moved']}")
+for side in ("original", "rescored"):
+    b = a6[side]["by_definition"]
+    print(f"    {side:9s} {a6[side]['left']} vs {a6[side]['right']}: " + " | ".join(
+        f"{k}: {v.get('verdict', v.get('outcome', '?'))} {ci(v) if 'mean_difference' in v else ''}" for k, v in b.items()))
+for e in d["hz1x1_iql_lead_on_random"]:
+    print(f"  hz1x1 IQL lead on random: {e['left_arm']} - {e['right_arm']}: {both(e)}")
+r = d["p5_2_rescore"]
+print(f"  P5.2 rescore: verdicts per definition {r['n_statements']}; moved {r['n_moved']}")
+print("  moved:", [(e["id"], e["tier"], e["definition"], e["original_verdict"], e.get("verdict")) for e in r["statements"] if e["moved"]])
+for name, b in d["p1_rescore"].items():
+    print(f"  P1 rescore {name}: moved {b['moved']}; original {b['original']} -> rescored {b['rescored']}"[:400])
+comparisons = d["iql_behaviour_comparisons"]["comparisons"]
+print(f"  behaviour comparisons with IQL: {len(comparisons)}; side changed in "
+      f"{sum(bool(c['side_changed'].get('att_engine') if isinstance(c['side_changed'], dict) else c['side_changed']) for c in comparisons)}")
+for c in comparisons:
+    print(f"    {c['artifact']} {c['tier']:12s} side_changed={c['side_changed']} side_of_zero={c['side_of_zero']}")
+cmp_ = d["d4rl"]["comparison"]
+print(f"  D4RL: file {d['d4rl']['file']} sha256 {d['d4rl']['file_sha256']}; registered reproduced "
+      f"{cmp_['registered_contrasts_reproduced']}; session {d['d4rl_session']['sessions']} at {d['d4rl_session']['code_commit']}")
+for name, c in cmp_["contrasts"].items():
+    print(f"    {name}: {json.dumps(c)[:220]}")
+
+print("=" * 100)
+print("A27(d) p9_1_random_fresh.json -- a true random tier")
+d = load("p9_1_random_fresh.json")
+for scenario, p in d["p3a"].items():
+    print(f"  P3a {scenario}: {p['verdict']}, {p['repeated_episodes']} of {p['episodes']} repeated ({p['unit']}), cell {p['cell']}")
+for scenario in ("hz1x1", "grid4x4"):
+    per_seed = d["p3a_beside"][scenario]["per_seed"]
+    print(f"  beside {scenario}: " + "; ".join(f"seed {s}: {json.dumps(v)[:120]}" for s, v in list(per_seed.items())[:2]))
+print("  P5.3b old tier:", json.dumps(d["p3a_beside"]["hz1x1_original_tier_p5_3b"])[:300])
+for e in d["p3b"]["contrasts"]:
+    print(f"  P3b {e['scenario']:7s} {e['tier']:12s} {e['left_arm']} - {e['right_arm']}: {both(e)}")
+for scenario, c in d["collapse"].items():
+    print(f"  collapse {scenario}: {json.dumps(c)[:300]}")
+for anchor, rows in d["q6_both_anchors"].items():
+    print(f"  Q6 against {anchor}: " + "; ".join(f"{r['id']}/{r['arm']}/{r['definition']}: {r['verdict']}" for r in rows))
+
+print("=" * 100)
+print("A27(e) p9_1_mixture.json -- the overlap mixture mix_m1000_m500")
+d = load("p9_1_mixture.json")
+lv = d["levels"]
+order = sorted(lv, key=lambda a: lv[a]["att_engine"])
+print("  levels att_engine:", {a: round(lv[a]["att_engine"], 2) for a in order}, "| att_ours:",
+      {a: round(lv[a]["att_ours"], 2) for a in sorted(lv, key=lambda a: lv[a]["att_ours"])})
+print(f"  registered order: {d['predictions']['orderings']['registered_order']}")
+for e in d["predictions"]["orderings"]["contrasts"]:
+    print(f"  {e['left_arm']} - {e['right_arm']} (predicted {e['predicted']}): {both(e)} -> verdict {e['verdict']}")
+w = d["predictions"]["within_5_s"]
+print(f"  within 5 s of bc_top10: verdict {w['verdict']} {w['verdict_by_definition']}")
+for a in w["arms"] + d["beside"]["iql_t_within_5_s"]["arms"]:
+    print(f"    {a['arm']} - {a['reference']}: {both(a)} -> {a['verdict']}")
+for tier, arms in d["parents"].items():
+    print(f"  parent {tier}: " + ", ".join(f"{a} {v['att_engine']:.2f}/{v['att_ours']:.2f}" for a, v in arms.items()))
+
+print("=" * 100)
+print("A27(g) p9_1_budget.json -- 100,000 against 40,000 steps")
+d = load("p9_1_budget.json")
+for tier, t in d["tiers"].items():
+    print(f"  {tier} ({t['scope']}):")
+    for e in t["differences"]:
+        print(f"    {e['arm']}: 100k - 40k {both(e)}")
+    for definition, c in t["concordance"].items():
+        print(f"    concordance {definition}: held {c['n_held']}, failed {c['n_failed']}, not resolved {c['n_not_resolved']}"
+              f"; verdict {c.get('verdict', '(no verdict key)')}")
+        for p in c["pairs"]:
+            print(f"      {p.get('left', p.get('left_arm'))} - {p.get('right', p.get('right_arm'))}: predicted "
+                  f"{p.get('predicted')} from 40k {p.get('at_40k', {}).get('mean_difference', float('nan')):+.2f}; "
+                  f"100k {ci(p['at_100k'])} -> {p.get('outcome', p.get('verdict'))}")
+print("  plateau at 100k:", sum(r["plateaued"] for r in d["plateau_at_100k"]), "of", len(d["plateau_at_100k"]),
+      "| paper counts at 40k:", d["paper_counts_at_40k"])

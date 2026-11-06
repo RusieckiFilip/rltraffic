@@ -1,0 +1,39 @@
+# S.4 step 4: the report, by S.4's command, run by the watcher (g4_run_report.py.txt) from this worktree at 9bda19f,
+# inside the sandbox (output/ and the corpus not writable there); the porcelain was empty outside the sandbox at 20:47:28.
+# The watcher's lines:
+start 2026-11-06 20:47:36  20:47:36 up 5 days, 19:13,  1 user,  load average: 1.11, 1.00, 0.95; HEAD 9bda19f; tracked changes 0
+listing before: 62469 entries under /home/filip/rltraffic/output/p9_1, /home/filip/rltraffic/output/p9_1_runs, /home/filip/rltraffic/datasets_v11
+report exit 0; wall 14.0 s; the watch's peak tree RSS 0.670 GiB; stopped by the watch: None
+listing after: 62469 entries; added 0, removed 0, changed 0 -> UNCHANGED
+watcher exit=0
+end 2026-11-06 20:47:52  20:47:52 up 5 days, 19:14,  1 user,  load average: 1.09, 1.00, 0.95
+
+# The report's own output and /usr/bin/time -v:
+/home/filip/rltraffic-p91/docs/data/p9_1_exposure_parity.json: written
+/home/filip/rltraffic-p91/docs/data/p9_1_iql_targets.json: written
+/home/filip/rltraffic-p91/docs/data/p9_1_random_fresh.json: written
+/home/filip/rltraffic-p91/docs/data/p9_1_mixture.json: written
+/home/filip/rltraffic-p91/docs/data/p9_1_budget.json: written
+	Command being timed: "/home/filip/rltraffic/.venv/bin/python -P -m offline.corrective_report --repo-root /home/filip/rltraffic-p91 --output-root /home/filip/rltraffic/output --corpus-root /home/filip/rltraffic/datasets_v11 --draws-root /home/filip/rltraffic/scenarios/draws --d4rl /home/filip/rltraffic/output/p9_1_runs/d4rl_outputs_20261028T192029Z/p8_3_train_k64_40000_iql_t.json report"
+	User time (seconds): 12.08
+	System time (seconds): 1.47
+	Percent of CPU this job got: 99%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:13.60
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 789868
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 238838
+	Voluntary context switches: 79
+	Involuntary context switches: 39
+	Swaps: 0
+	File system inputs: 64721
+	File system outputs: 102864
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

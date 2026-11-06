@@ -1,0 +1,137 @@
+====================================================================================================
+A27(b) p9_1_exposure_parity.json -- grid4x4 exposure parity
+  exposure (grid, row visits over 40,000 steps): {'bc': {'base': 'bc', 'batch': 64, 'decisions_in_training_set': 1152000, 'decisions_per_step': 1280, 'registered_in': 'P5.1 / P5.2 (registered)', 'row_visits_at_40000': {'exact': '400/9', 'value': 44.44444444444444}, 'steps': 40000}, 'bc_m': {'base': 'bc', 'batch': 1024, 'decisions_in_training_set': 1152000, 'decisions_per_step': 20480, 'registered_in': 'A27(b)', 'row_visits_at_40000': {'exact': '6400/9', 'value': 711.1111111111111}, 'steps': 40000}, 'bc_top10': {'base': 'bc_top10', 'batch': 64, 'decisions_in_training_set': 115200, 'decisions_per_step': 1280, 'registered_in': 'P5.1 / P5.2 (registered)', 'row_visits_at_40000': {'exact': '4000/9', 'value': 444.44444444444446}, 'steps': 40000}, 'bc_top10_m': {'base': 'bc_top10', 'batch': 102, 'decisions_in_training_set': 115200, 'decisions_per_step': 2040, 'registered_in': 'A27(b)', 'row_visits_at_40000': {'exact': '2125/3', 'value': 708.3333333333334}, 'steps': 40000}, 'bc_top10_perix': {'base': 'bc_top10_perix', 'batch': 64, 'decisions_in_training_set': 115200, 'decisions_per_step': 1280, 'registered_in': 'P5.2 (registered)', 'row_visits_at_40000': {'exact': '4000/9', 'value': 444.44444444444446}, 'steps': 40000}, 'bc_top10_perix_m': {'base': 'bc_top10_perix', 'batch': 102, 'decisions_in_training_set': 115200, 'decisions_per_step': 2040, 'registered_in': 'A27(b)', 'row_visits_at_40000': {'exact': '2125/3', 'value': 708.3333333333334}, 'steps': 40000}, 'dt_nomix': {'base': 'dt_nomix', 'batch': 64, 'decisions_in_training_set': 1152000, 'decisions_per_step': 20480, 'registered_in': 'P5.1 / P5.2 (registered)', 'row_visits_at_40000': {'exact': '6400/9', 'value': 711.1111111111111}, 'steps': 40000}, 'dt_spatial': {'base': 'dt_spatial', 'batch': 64, 'decisions_in_training_set': 1152000, 'decisions_per_step': 20480, 'registered_in': 'P5.1 / P5.2 (registered)', 'row_visits_at_40000': {'exact': '6400/9', 'value': 711.1111111111111}, 'steps': 40000}, 'iql': {'base': 'iql', 'batch': 1280, 'decisions_in_training_set': 1152000, 'decisions_per_step': 1280, 'registered_in': 'P5.1 / P5.2 / P5.2b (registered)', 'row_visits_at_40000': {'exact': '400/9', 'value': 44.44444444444444}, 'steps': 40000}, 'iql_m': {'base': 'iql', 'batch': 20480, 'decisions_in_training_set': 1152000, 'decisions_per_step': 20480, 'registered_in': "A27(b) with A27(c)'s targets", 'row_visits_at_40000': {'exact': '6400/9', 'value': 711.1111111111111}, 'steps': 40000}, 'iql_t': {'base': 'iql', 'batch': 1280, 'decisions_in_training_set': 1152000, 'decisions_per_step': 1280, 'registered_in': 'A27(c)', 'row_visits_at_40000': {'exact': '400/9', 'value': 44.44444444444444}, 'steps': 40000}}
+  sentence, original: dt_nomix - bc on mappo1000: att_engine -11.41 [-14.09, -8.73] | att_ours -11.13 [-13.79, -8.47]
+  sentence, original: dt_nomix - iql on mappo1000: att_engine -119.29 [-126.43, -112.15] | att_ours -117.99 [-125.08, -110.89]
+  sentence, matched : dt_nomix - bc_m on mappo1000: att_engine -0.73 [-1.46, +0.01] | att_ours -0.54 [-1.27, +0.18]
+  sentence, matched : dt_nomix - iql_m on mappo1000: att_engine -19.02 [-22.68, -15.37] | att_ours -18.53 [-22.15, -14.90]
+  rescore: 17 statement ids; verdicts per definition {'att_engine': 32, 'att_ours': 32}; moved {'att_engine': 0, 'att_ours': 0}
+  moved verdicts: []
+  readings changed without a verdict moving: 13 [('Q2a', 'random', 'att_engine', 'verdict'), ('Q2a', 'random', 'att_ours', 'verdict'), ('Q2b', 'maxpressure', 'att_engine', 'verdict'), ('Q2b', 'maxpressure', 'att_ours', 'verdict'), ('Q2b', 'random', 'att_engine', 'verdict'), ('Q2b', 'random', 'att_ours', 'verdict'), ('Q3a', 'random', 'att_engine', 'verdict'), ('Q3a', 'random', 'att_ours', 'verdict'), ('Q3c', 'mappo1000', 'att_engine', 'context'), ('Q3c', 'mappo1000', 'att_ours', 'context'), ('Q3c', 'maxpressure', 'att_engine', 'reading'), ('Q3c', 'random', 'att_engine', 'reading')]
+  leaders fixedtime    att_engine reading_changed=False: 'iql leads dt_spatial = dt_nomix; the lead resolves (the CI l' -> 'iql leads dt_spatial = dt_nomix; the lead resolves (the CI l'
+  leaders fixedtime    att_ours   reading_changed=False: 'iql leads dt_spatial = dt_nomix; the lead resolves (the CI l' -> 'iql leads dt_spatial = dt_nomix; the lead resolves (the CI l'
+  leaders mappo1000    att_engine reading_changed=True: 'dt_nomix leads bc; the lead resolves (the CI lies entirely b' -> 'dt_nomix leads bc; the lead does not resolve (the CI include'
+  leaders mappo1000    att_ours   reading_changed=True: 'dt_nomix leads bc; the lead resolves (the CI lies entirely b' -> 'dt_nomix leads bc; the lead does not resolve (the CI include'
+  leaders maxpressure  att_engine reading_changed=True: 'bc leads dt_nomix; the lead does not resolve (the CI include' -> 'bc leads dt_nomix; the lead resolves (the CI lies entirely b'
+  leaders maxpressure  att_ours   reading_changed=False: 'bc leads dt_nomix; the lead resolves (the CI lies entirely b' -> 'bc leads dt_nomix; the lead resolves (the CI lies entirely b'
+  leaders random       att_engine reading_changed=True: 'iql leads dt_spatial; the lead resolves (the CI lies entirel' -> 'dt_spatial leads dt_nomix; the lead resolves (the CI lies en'
+  leaders random       att_ours   reading_changed=True: 'iql leads dt_spatial; the lead resolves (the CI lies entirel' -> 'dt_spatial leads dt_nomix; the lead resolves (the CI lies en'
+====================================================================================================
+A27(c) p9_1_iql_targets.json -- IQL's targets without dropout
+  twelve tiers, att_engine: iql_t - iql from -21.39 to +374.15 s; CI excludes zero on 11 of 12
+  twelve tiers, att_ours: iql_t - iql from -8.87 to +185.26 s; CI excludes zero on 10 of 12
+  hz1x1   random       iql_t - iql: att_engine -21.39 [-25.47, -17.32] | att_ours +14.70 [+11.01, +18.38]
+  hz1x1   fixedtime    iql_t - iql: att_engine -2.58 [-3.98, -1.17] | att_ours -0.46 [-1.14, +0.21]
+  hz1x1   maxpressure  iql_t - iql: att_engine +18.65 [+17.55, +19.74] | att_ours +18.49 [+17.40, +19.58]
+  hz1x1   mappo500     iql_t - iql: att_engine +0.93 [+0.65, +1.22] | att_ours +0.92 [+0.65, +1.20]
+  hz1x1   mappo1000    iql_t - iql: att_engine +0.81 [+0.58, +1.04] | att_ours +0.81 [+0.58, +1.04]
+  hz1x1   mix33        iql_t - iql: att_engine +374.15 [+344.15, +404.15] | att_ours +185.26 [+171.57, +198.96]
+  hz1x1   mix50        iql_t - iql: att_engine +248.06 [+222.32, +273.79] | att_ours +131.80 [+119.97, +143.62]
+  hz1x1   mix67        iql_t - iql: att_engine +216.61 [+185.29, +247.93] | att_ours +113.16 [+98.53, +127.79]
+  grid4x4 mappo1000    iql_t - iql: att_engine -8.92 [-16.22, -1.62] | att_ours -8.87 [-16.12, -1.63]
+  grid4x4 maxpressure  iql_t - iql: att_engine +5.27 [-3.91, +14.45] | att_ours +5.36 [-3.77, +14.50]
+  grid4x4 fixedtime    iql_t - iql: att_engine +0.56 [+0.39, +0.73] | att_ours +0.56 [+0.39, +0.72]
+  grid4x4 random       iql_t - iql: att_engine +75.19 [+70.53, +79.86] | att_ours +74.96 [+70.33, +79.59]
+  grid4x4 mappo1000    iql_m - iql_t: att_engine -91.35 [-99.12, -83.58] | att_ours -90.59 [-98.30, -82.88]
+  grid4x4 maxpressure  iql_m - iql_t: att_engine -126.12 [-130.80, -121.44] | att_ours -125.44 [-130.10, -120.79]
+  grid4x4 fixedtime    iql_m - iql_t: att_engine +0.40 [+0.17, +0.63] | att_ours +0.39 [+0.16, +0.62]
+  grid4x4 random       iql_m - iql_t: att_engine +118.36 [+111.43, +125.29] | att_ours +117.53 [+110.66, +124.40]
+  grid4x4 random, iql_t - P5.2's ORIGINAL (as committed) iql: att_engine +82.76 [+78.43, +87.09] | att_ours +82.48 [+78.18, +86.78]
+  P4.4 A6 (madt vs iql, delta 0.6263): moved {'att_engine': True, 'att_ours': True}
+    original  p4_4:madt vs p4_4:iql: att_engine: baseline_genuinely_better +1.48 [+1.21, +1.74] | att_ours: baseline_genuinely_better +1.48 [+1.22, +1.74]
+    rescored  p4_4:madt vs p9_1:hz1x1:iql_t@mappo1000: att_engine: inconclusive_at_this_power +0.67 [+0.42, +0.91] | att_ours: inconclusive_at_this_power +0.67 [+0.42, +0.92]
+  hz1x1 IQL lead on random: iql - dt: att_engine -40.03 [-42.14, -37.91] | att_ours -26.98 [-27.85, -26.11]
+  hz1x1 IQL lead on random: iql_t - dt: att_engine -61.42 [-65.12, -57.73] | att_ours -12.28 [-15.85, -8.71]
+  P5.2 rescore: verdicts per definition {'att_engine': 11, 'att_ours': 11}; moved {'att_engine': 0, 'att_ours': 0}
+  moved: []
+  P1 rescore p4_6: moved {'att_engine': False, 'att_ours': False}; original {'att_engine': {'bc_gap_to_best_other': {'fixedtime': 17.45455754672065, 'mappo1000': 1.9707747649842275, 'mappo500': 2.551532999521342, 'maxpressure': 16.660860175293436, 'random': 67.86222121370395}, 'bc_rank_by_tier': {'fixedtime': 3, 'mappo1000': 4, 'mappo500': 4, 'maxpressure': 3, 'random': 3}, 'kendall_tau_b_quality_
+  P1 rescore p4_7: moved {'att_engine': False, 'att_ours': False}; original {'att_engine': {'bc_gap_to_best_other': {'fixedtime': 17.45455754672065, 'mappo1000': 1.9707747649842275, 'mappo500': 2.551532999521342, 'maxpressure': 16.660860175293436, 'mix33': 333.2174033629407, 'mix50': 273.8452278655774, 'mix67': 88.69376400140033, 'random': 67.86222121370395}, 'bc_rank_by_tier': {'fixedtime': 3, 'm
+  behaviour comparisons with IQL: 9; side changed in 3
+    p4_4 mappo1000    side_changed={'att_engine': False, 'att_ours': False} side_of_zero={'original': {'att_engine': 'above zero', 'att_ours': 'above zero'}, 'rescored': {'att_engine': 'above zero', 'att_ours': 'above zero'}}
+    p4_6 mappo1000    side_changed={'att_engine': False, 'att_ours': False} side_of_zero={'original': {'att_engine': 'below zero', 'att_ours': 'below zero'}, 'rescored': {'att_engine': 'below zero', 'att_ours': 'below zero'}}
+    p4_6 mappo500     side_changed={'att_engine': False, 'att_ours': False} side_of_zero={'original': {'att_engine': 'below zero', 'att_ours': 'below zero'}, 'rescored': {'att_engine': 'below zero', 'att_ours': 'below zero'}}
+    p4_6 maxpressure  side_changed={'att_engine': True, 'att_ours': True} side_of_zero={'original': {'att_engine': 'below zero', 'att_ours': 'below zero'}, 'rescored': {'att_engine': 'includes zero', 'att_ours': 'includes zero'}}
+    p4_6 fixedtime    side_changed={'att_engine': False, 'att_ours': False} side_of_zero={'original': {'att_engine': 'below zero', 'att_ours': 'below zero'}, 'rescored': {'att_engine': 'below zero', 'att_ours': 'below zero'}}
+    p4_6 random       side_changed={'att_engine': False, 'att_ours': False} side_of_zero={'original': {'att_engine': 'below zero', 'att_ours': 'below zero'}, 'rescored': {'att_engine': 'below zero', 'att_ours': 'below zero'}}
+    p4_7 mix33        side_changed={'att_engine': True, 'att_ours': True} side_of_zero={'original': {'att_engine': 'below zero', 'att_ours': 'below zero'}, 'rescored': {'att_engine': 'includes zero', 'att_ours': 'includes zero'}}
+    p4_7 mix50        side_changed={'att_engine': False, 'att_ours': True} side_of_zero={'original': {'att_engine': 'below zero', 'att_ours': 'below zero'}, 'rescored': {'att_engine': 'below zero', 'att_ours': 'includes zero'}}
+    p4_7 mix67        side_changed={'att_engine': True, 'att_ours': True} side_of_zero={'original': {'att_engine': 'below zero', 'att_ours': 'below zero'}, 'rescored': {'att_engine': 'includes zero', 'att_ours': 'above zero'}}
+  D4RL: file p8_3_train_k64_40000_iql_t.json sha256 e168b2031026136dfa838c8f938e8b4a048b33a53ee183a934ec6f8a2db5cb18; registered reproduced True; session ['d4rl 20261028T192029Z'] at cb61ee7
+    bc_top10_vs_iql: {"ci95_halfwidth_normalised_units": 10.529513358339239, "ci95_halfwidth_return": 1307.2579263178566, "ci95_high_return": -1159.4942170503639, "ci95_low_return": -3774.0100696860773, "episode_median_difference": -2766.943
+    bc_top10_vs_iql_t: {"ci95_halfwidth_normalised_units": 3.68490181949355, "ci95_halfwidth_return": 457.48715513247726, "ci95_high_return": 2086.9826855383662, "ci95_low_return": 1172.0083752734117, "episode_median_difference": 1214.45181431
+    bc_vs_bc_top10: {"ci95_halfwidth_normalised_units": 4.786831026022831, "ci95_halfwidth_return": 594.2936380584605, "ci95_high_return": 2518.9993450152647, "ci95_low_return": 1330.412068898344, "episode_median_difference": 2443.787167260
+    bc_vs_iql: {"ci95_halfwidth_normalised_units": 9.069970130820971, "ci95_halfwidth_return": 1126.053022725072, "ci95_high_return": 584.0065863136558, "ci95_low_return": -1668.0994591364881, "episode_median_difference": -498.73888208
+    bc_vs_iql_t: {"ci95_halfwidth_normalised_units": 3.1504833510008647, "ci95_halfwidth_return": 391.1381459112285, "ci95_high_return": 3945.3393832739216, "ci95_low_return": 3163.0630914514645, "episode_median_difference": 4281.3714788
+    iql_vs_iql_t: {"ci95_halfwidth_normalised_units": 7.746048034807209, "ci95_halfwidth_return": 961.6857253066548, "ci95_high_return": 5057.933399080764, "ci95_low_return": 3134.5619484674544, "episode_median_difference": 4851.533816420
+====================================================================================================
+A27(d) p9_1_random_fresh.json -- a true random tier
+  P3a grid4x4: HELD, 0 of 500 repeated (per intersection), cell p9_1:grid4x4:dt_nomix@random_fresh
+  P3a hz1x1: HELD, 0 of 500 repeated (the joint action array), cell p9_1:hz1x1:dt@random_fresh
+  beside hz1x1: seed 101: {"distinct_sequences": 100, "episodes": 100, "identical_to_reference": {"random_fresh": 0, "registered_five_schedule": 0; seed 202: {"distinct_sequences": 100, "episodes": 100, "identical_to_reference": {"random_fresh": 0, "registered_five_schedule": 0
+  beside grid4x4: seed 101: {"distinct_sequences": 100, "episodes": 100, "episodes_replaying_an_intersections_training_schedule": 0, "episodes_with_; seed 202: {"distinct_sequences": 100, "episodes": 100, "episodes_replaying_an_intersections_training_schedule": 0, "episodes_with_
+  P5.3b old tier: {"attractor": {"mappo1000": {"attractor_sequence_sha256": "47c0ff33c38bc3253a0c5f56e34375645441d345c5d3e585d60b9561f147d148", "identified_from": "dt_nortg@random, which emits this one sequence on every draw of every seed; discriminability.random records that arm as identical to dt@random on 500 of 5
+  P3b hz1x1   random_fresh iql - dt: att_engine -245.02 [-251.18, -238.85] | att_ours -112.98 [-116.34, -109.61]
+  P3b hz1x1   random_fresh iql_t - dt: att_engine -268.65 [-274.21, -263.10] | att_ours -95.89 [-99.35, -92.43]
+  P3b hz1x1   random       iql - dt: att_engine -40.03 [-42.14, -37.91] | att_ours -26.98 [-27.85, -26.11]
+  P3b grid4x4 random_fresh iql_m - dt_nomix: att_engine +66.31 [+61.24, +71.38] | att_ours +65.60 [+60.57, +70.64]
+  P3b grid4x4 random       iql - dt_nomix: att_engine -56.78 [-59.67, -53.90] | att_ours -56.84 [-59.71, -53.98]
+  collapse grid4x4: {"original_random_tier": {"collapsed_count": {"att_engine": {"random_fresh": 3, "registered_five_schedule": 3}, "att_ours": {"random_fresh": 3, "registered_five_schedule": 3}}, "rows": [{"anchor": "registered_five_schedule", "arm": "dt_spatial", "by_definition": {"att_engine": {"ci95_half_width": 0.
+  collapse hz1x1: {"original_random_tier": {"collapsed_count": {"att_engine": {"random_fresh": 2, "registered_five_schedule": 1}, "att_ours": {"random_fresh": 2, "registered_five_schedule": 1}}, "rows": [{"anchor": "registered_five_schedule", "arm": "dt", "by_definition": {"att_engine": {"ci95_half_width": 0.48784762
+  Q6 against random_fresh: Q6/dt_spatial/att_engine: NOT COLLAPSED; Q6/dt_nomix/att_engine: NOT COLLAPSED; Q6/dt_spatial/att_engine: NOT COLLAPSED; Q6/dt_nomix/att_engine: NOT COLLAPSED; Q6/dt_spatial/att_engine: NOT COLLAPSED; Q6/dt_nomix/att_engine: NOT COLLAPSED; Q6/dt_spatial/att_engine: NOT COLLAPSED; Q6/dt_nomix/att_engine: NOT COLLAPSED; Q6/dt_spatial/att_ours: NOT COLLAPSED; Q6/dt_nomix/att_ours: NOT COLLAPSED; Q6/dt_spatial/att_ours: NOT COLLAPSED; Q6/dt_nomix/att_ours: NOT COLLAPSED; Q6/dt_spatial/att_ours: NOT COLLAPSED; Q6/dt_nomix/att_ours: NOT COLLAPSED; Q6/dt_spatial/att_ours: NOT COLLAPSED; Q6/dt_nomix/att_ours: NOT COLLAPSED
+  Q6 against registered_five_schedule: Q6/dt_spatial/att_engine: NOT COLLAPSED; Q6/dt_nomix/att_engine: NOT COLLAPSED; Q6/dt_spatial/att_engine: NOT COLLAPSED; Q6/dt_nomix/att_engine: NOT COLLAPSED; Q6/dt_spatial/att_engine: NOT COLLAPSED; Q6/dt_nomix/att_engine: NOT COLLAPSED; Q6/dt_spatial/att_engine: NOT COLLAPSED; Q6/dt_nomix/att_engine: NOT COLLAPSED; Q6/dt_spatial/att_ours: NOT COLLAPSED; Q6/dt_nomix/att_ours: NOT COLLAPSED; Q6/dt_spatial/att_ours: NOT COLLAPSED; Q6/dt_nomix/att_ours: NOT COLLAPSED; Q6/dt_spatial/att_ours: NOT COLLAPSED; Q6/dt_nomix/att_ours: NOT COLLAPSED; Q6/dt_spatial/att_ours: NOT COLLAPSED; Q6/dt_nomix/att_ours: NOT COLLAPSED
+====================================================================================================
+A27(e) p9_1_mixture.json -- the overlap mixture mix_m1000_m500
+  levels att_engine: {'iql': 99.86, 'bc_top10': 99.99, 'iql_t': 100.5, 'dt': 101.68, 'bc': 101.76} | att_ours: {'iql': 104.09, 'bc_top10': 104.18, 'iql_t': 104.71, 'dt': 105.91, 'bc': 105.98}
+  registered order: bc_top10 < iql < dt < bc (att_horizon on both parent tiers, P4.6)
+  bc_top10 - bc (predicted negative): att_engine -1.76 [-2.27, -1.25] HELD | att_ours -1.80 [-2.26, -1.34] HELD -> verdict HELD
+  bc_top10 - iql (predicted negative): att_engine +0.13 [-0.40, +0.66] NOT RESOLVED | att_ours +0.09 [-0.38, +0.57] NOT RESOLVED -> verdict NOT RESOLVED
+  iql - dt (predicted negative): att_engine -1.82 [-2.09, -1.54] HELD | att_ours -1.82 [-2.09, -1.55] HELD -> verdict HELD
+  dt - bc (predicted negative): att_engine -0.08 [-0.40, +0.25] NOT RESOLVED | att_ours -0.07 [-0.38, +0.23] NOT RESOLVED -> verdict NOT RESOLVED
+  within 5 s of bc_top10: verdict HELD {'att_engine': 'HELD', 'att_ours': 'HELD'}
+    dt - bc_top10: att_engine +1.69 [+1.13, +2.25] HELD | att_ours +1.72 [+1.21, +2.23] HELD -> HELD
+    bc - bc_top10: att_engine +1.76 [+1.25, +2.27] HELD | att_ours +1.80 [+1.34, +2.26] HELD -> HELD
+    iql - bc_top10: att_engine -0.13 [-0.66, +0.40] HELD | att_ours -0.09 [-0.57, +0.38] HELD -> HELD
+    iql_t - bc_top10: att_engine +0.51 [-0.04, +1.05] HELD | att_ours +0.52 [+0.03, +1.01] HELD -> HELD
+  parent mappo1000: bc 100.90/105.16, bc_top10 98.93/103.16, dt 100.70/104.96, iql 99.23/103.48
+  parent mappo500: bc 103.09/107.28, bc_top10 100.54/104.75, dt 102.45/106.66, iql 100.61/104.82
+====================================================================================================
+A27(g) p9_1_budget.json -- 100,000 against 40,000 steps
+  mappo1000 (A8(b)'s secondary (the registered ceiling of 100,000 steps)):
+    dt: 100k - 40k att_engine -0.13 [-0.35, +0.10] | att_ours -0.12 [-0.35, +0.10]
+    bc: 100k - 40k att_engine -0.28 [-0.51, -0.04] | att_ours -0.28 [-0.51, -0.05]
+    bc_top10: 100k - 40k att_engine -0.03 [-0.22, +0.16] | att_ours -0.03 [-0.22, +0.16]
+    iql: 100k - 40k att_engine +1.06 [+0.84, +1.28] | att_ours +1.07 [+0.85, +1.29]
+    concordance att_engine: held 5, failed 0, not resolved 1; verdict NOT RESOLVED
+      dt - bc: predicted negative from 40k -0.20; 100k -0.04 [-0.33, +0.24] -> NOT RESOLVED
+      dt - bc_top10: predicted positive from 40k +1.77; 100k +1.68 [+1.42, +1.94] -> HELD
+      dt - iql: predicted positive from 40k +1.48; 100k +0.29 [+0.04, +0.55] -> HELD
+      bc - bc_top10: predicted positive from 40k +1.97; 100k +1.72 [+1.44, +2.01] -> HELD
+      bc - iql: predicted positive from 40k +1.67; 100k +0.34 [+0.10, +0.57] -> HELD
+      bc_top10 - iql: predicted negative from 40k -0.30; 100k -1.39 [-1.65, -1.12] -> HELD
+    concordance att_ours: held 5, failed 0, not resolved 1; verdict NOT RESOLVED
+      dt - bc: predicted negative from 40k -0.21; 100k -0.05 [-0.33, +0.23] -> NOT RESOLVED
+      dt - bc_top10: predicted positive from 40k +1.79; 100k +1.70 [+1.45, +1.96] -> HELD
+      dt - iql: predicted positive from 40k +1.48; 100k +0.29 [+0.03, +0.54] -> HELD
+      bc - bc_top10: predicted positive from 40k +2.00; 100k +1.75 [+1.47, +2.03] -> HELD
+      bc - iql: predicted positive from 40k +1.69; 100k +0.34 [+0.10, +0.57] -> HELD
+      bc_top10 - iql: predicted negative from 40k -0.31; 100k -1.42 [-1.68, -1.15] -> HELD
+  mix50 (an exploratory extension beyond A8(b)):
+    dt: 100k - 40k att_engine +1.55 [-2.97, +6.08] | att_ours +0.86 [-1.24, +2.96]
+    bc: 100k - 40k att_engine +13.35 [-24.83, +51.53] | att_ours +6.29 [-11.49, +24.07]
+    bc_top10: 100k - 40k att_engine +0.13 [-0.06, +0.31] | att_ours +0.13 [-0.06, +0.32]
+    iql: 100k - 40k att_engine -1.53 [-20.98, +17.92] | att_ours -0.90 [-10.05, +8.25]
+    concordance att_engine: held 6, failed 0, not resolved 0; verdict HELD
+      dt - bc: predicted negative from 40k -268.26; 100k -280.05 [-325.76, -234.34] -> HELD
+      dt - bc_top10: predicted positive from 40k +5.59; 100k +7.01 [+0.75, +13.28] -> HELD
+      dt - iql: predicted negative from 40k -49.36; 100k -46.28 [-68.41, -24.14] -> HELD
+      bc - bc_top10: predicted positive from 40k +273.85; 100k +287.06 [+242.38, +331.75] -> HELD
+      bc - iql: predicted positive from 40k +218.90; 100k +233.78 [+182.92, +284.63] -> HELD
+      bc_top10 - iql: predicted negative from 40k -54.95; 100k -53.29 [-74.05, -32.53] -> HELD
+    concordance att_ours: held 6, failed 0, not resolved 0; verdict HELD
+      dt - bc: predicted negative from 40k -126.00; 100k -131.43 [-152.81, -110.05] -> HELD
+      dt - bc_top10: predicted positive from 40k +3.47; 100k +4.20 [+1.28, +7.11] -> HELD
+      dt - iql: predicted negative from 40k -23.03; 100k -21.27 [-31.51, -11.03] -> HELD
+      bc - bc_top10: predicted positive from 40k +129.47; 100k +135.63 [+114.72, +156.55] -> HELD
+      bc - iql: predicted positive from 40k +102.97; 100k +110.16 [+86.45, +133.87] -> HELD
+      bc_top10 - iql: predicted negative from 40k -26.50; 100k -25.47 [-35.06, -15.87] -> HELD
+  plateau at 100k: 28 of 40 | paper counts at 40k: {'fluctuated': 5, 'not_plateaued': 127, 'rose_in_the_last_window': 11, 'runs': 160, 'still_falling': 111}

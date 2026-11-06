@@ -1,0 +1,84 @@
+"""G4 (BRIEF_46 S.4, step 7): the packet's remaining figures, by program, read-only.
+
+(1) A27(d)'s worse-than-random rows on both tiers against both references, and the per-seed beside table.
+(2) The pause flags and trace coverage of every P9.1 run across the five artifacts.
+(3) The IQL diagnostics block, summarised per arm (median [min, max]): diagnostics, not registered statistics.
+(4) D.2-2: the overlap of P9.3's smoke GPU window (15:38:57-17:22:23 CET on 2026-10-28, P9.3-smoke.md on
+    task/p9.3-a27c) with P9.1's runs, by offline.corrective_report.gpu_overlap on the main roots.
+
+Usage: python -P for_the_paper_details.py REPO
+"""
+import calendar
+import json
+import statistics
+import sys
+import time
+from collections import defaultdict
+from pathlib import Path
+
+REPO = Path(sys.argv[1])
+sys.path.insert(0, str(REPO))
+import offline.corrective_report as rep  # noqa: E402
+import offline.corrective_round as cr  # noqa: E402
+
+DATA = REPO / "docs" / "data"
+MAIN = Path("/home/filip/rltraffic")
+
+d = json.loads((DATA / "p9_1_random_fresh.json").read_text(encoding="utf-8"))
+print("(1)", d["collapse"]["grid4x4"]["random_fresh_tier"]["rule"])
+for scenario in ("hz1x1", "grid4x4"):
+    for kind in ("original_random_tier", "random_fresh_tier"):
+        block = d["collapse"][scenario][kind]
+        print(f"  {scenario} {kind}: collapsed count {block['collapsed_count']}")
+        for r in block["rows"]:
+            e, o = r["by_definition"]["att_engine"], r["by_definition"]["att_ours"]
+            print(f"    {r['arm']:16s} - {r['anchor']:24s} att_engine {e['mean_difference']:+8.2f} [{e['ci95_low']:+8.2f}, "
+                  f"{e['ci95_high']:+8.2f}] | att_ours {o['mean_difference']:+8.2f} -> {r['verdict']}")
+    for seed, v in d["p3a_beside"][scenario]["per_seed"].items():
+        print(f"  beside {scenario} seed {seed}: distinct {v['distinct_sequences']} of {v['episodes']}, most common share "
+              f"{v['most_common_share']}, identical to a reference {v['identical_to_reference']}, replays a training "
+              f"schedule {v['replays_a_training_schedule']}")
+
+runs = {}
+for path in sorted(DATA.glob("p9_1_*.json")):
+    for cid, rows in json.loads(path.read_text(encoding="utf-8"))["training_runs"].items():
+        if cid.startswith("p9_1:"):
+            for r in rows:
+                runs[(cid, int(r["seed"]))] = r
+order = {(rep.new_cell_id(c), int(s)): n for n, (c, s) in enumerate(cr.training_runs(), start=1)}
+print(f"(2) {len(runs)} P9.1 runs; a non-empty paused_during_run: {sum(bool(r['paused_during_run']) for r in runs.values())}; "
+      f"trace_covered false: {sum(not r['trace_covered'] for r in runs.values())}")
+traces = sorted((MAIN / "output/p9_1_runs/logs").glob("*/gpu_trace.csv"))
+spans = dict(zip((t.parent.name for t in traces), rep.trace_spans(traces)))
+print(f"  traces {len(traces)}; gaps over {rep.TRACE_GAP_SECONDS} s: {len(rep.trace_gaps(traces))}")
+for key, r in sorted(runs.items(), key=lambda kv: order[kv[0]]):
+    if not r["trace_covered"]:
+        last = spans[r["session"].split()[1]][1]
+        print(f"  #{order[key]} {key[0]} seed {key[1]} ({r['session']}): ends {r['finished_unix'] - last:+.1f} s after its "
+              "session trace's last sample")
+
+block = json.loads((DATA / "p9_1_iql_targets.json").read_text(encoding="utf-8"))["iql_diagnostics"]
+print("(3)", block["label"])
+groups = defaultdict(list)
+for r in block["traffic_iql_family"]["runs"]:
+    groups[(r["scenario"], r["arm"], r["target_dropout"])].append(r)
+for r in block["d4rl"]["rows"]:
+    groups[("D4RL", r["arm"], "off" if r["arm"] == "iql_t" else "active (P8.3, registered)")].append(r)
+for key in sorted(groups):
+    rows = groups[key]
+    def cell(field):
+        values = [r[field] for r in rows]
+        return f"{statistics.median(values):.3g} [{min(values):.3g}, {max(values):.3g}]"
+    print(f"  {key[0]:7s} {key[1]:9s} targets {key[2]:26s} n {len(rows):3d} | final Q loss {cell('final_q_loss'):24s} | "
+          f"final V loss {cell('final_v_loss'):24s} | AWR near zero {cell('awr_weight_near_zero_fraction')}")
+
+roots = cr.Roots(repo_root=REPO, output_root=MAIN / "output", corpus_root=MAIN / "datasets_v11",
+                 draws_root=MAIN / "scenarios/draws")
+start = float(calendar.timegm(time.strptime("2026-10-28T14:38:57Z", "%Y-%m-%dT%H:%M:%SZ")))
+end = float(calendar.timegm(time.strptime("2026-10-28T16:22:23Z", "%Y-%m-%dT%H:%M:%SZ")))
+overlap = rep.gpu_overlap(roots, start_unix=start, end_unix=end)
+print(f"(4) window {overlap['window']}; records read {overlap['records_read']}; overlap total "
+      f"{overlap['overlap_seconds_total']:.1f} s")
+for r in overlap["runs"]:
+    print(f"  {r['scenario']} {r['arm']}@{r['tier']} seed {r['seed']}: {r['overlap_seconds']:.1f} s")
+print(f"  trace inside the window {overlap['trace']['inside']}; outside it {overlap['trace']['outside']}")
